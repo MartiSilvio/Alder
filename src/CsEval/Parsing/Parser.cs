@@ -1,5 +1,3 @@
-using System.Text;
-
 namespace CsEval.Parsing
 {
     public sealed class Parser

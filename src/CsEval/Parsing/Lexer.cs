@@ -1,5 +1,3 @@
-using System.Text;
-
 namespace CsEval.Parsing
 {
     public sealed class Lexer
@@ -131,7 +129,11 @@ namespace CsEval.Parsing
                     break;
 
                 case '"':
-                    ScanString();
+                    ScanString('"');
+                    break;
+
+                case '\'':
+                    ScanString('\'');
                     break;
 
                 case '$':
@@ -152,10 +154,10 @@ namespace CsEval.Parsing
             }
         }
 
-        private void ScanString()
+        private void ScanString(char quote)
         {
             var sb = new StringBuilder();
-            while (Peek() != '"' && !IsAtEnd())
+            while (Peek() != quote && !IsAtEnd())
             {
                 if (Peek() == '\n') { _line++; _column = 0; }
                 if (Peek() == '\\')
@@ -168,6 +170,7 @@ namespace CsEval.Parsing
                         't' => '\t',
                         '\\' => '\\',
                         '"' => '"',
+                        '\'' => '\'',
                         _ => throw new LexerException($"Unknown escape sequence '\\{Peek()}' at {_line}:{_column}")
                     });
                     Advance();
@@ -181,7 +184,7 @@ namespace CsEval.Parsing
             if (IsAtEnd())
                 throw new LexerException($"Unterminated string at {_line}:{_column}");
 
-            Advance(); // closing "
+            Advance(); // closing quote
             AddToken(TokenType.String, sb.ToString());
         }
 

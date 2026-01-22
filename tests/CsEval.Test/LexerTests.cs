@@ -128,4 +128,24 @@ public class LexerTests
         Assert.That(tokens[0].Literal, Is.EqualTo(1L));
         Assert.That(tokens[1].Literal, Is.EqualTo(2L));
     }
+
+    [Test]
+    public void Tokenize_SingleQuotedString_ReturnsStringToken()
+    {
+        var lexer = new Lexer("'hello world'");
+        var tokens = lexer.Tokenize();
+
+        Assert.That(tokens[0].Type, Is.EqualTo(TokenType.String));
+        Assert.That(tokens[0].Literal, Is.EqualTo("hello world"));
+    }
+
+    [Test]
+    public void Tokenize_SingleQuotedStringWithEscapedQuote_ReturnsStringToken()
+    {
+        var lexer = new Lexer("'it\\'s working'");
+        var tokens = lexer.Tokenize();
+
+        Assert.That(tokens[0].Type, Is.EqualTo(TokenType.String));
+        Assert.That(tokens[0].Literal, Is.EqualTo("it's working"));
+    }
 }

@@ -1,7 +1,4 @@
-using System.Collections;
 using System.Dynamic;
-using System.Reflection;
-using System.Text;
 using CsEval.Parsing;
 
 namespace CsEval.Evaluation;

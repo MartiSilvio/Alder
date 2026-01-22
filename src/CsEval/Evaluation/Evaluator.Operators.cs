@@ -42,7 +42,7 @@ public sealed partial class Evaluator
         throw new EvalException($"Cannot compare {left.GetType().Name} and {right.GetType().Name}");
     }
 
-    private static object? Add(object? left, object? right)
+    private object? Add(object? left, object? right)
     {
         if (left is string || right is string)
             return $"{left}{right}";
@@ -52,6 +52,17 @@ public sealed partial class Evaluator
             if (left is double || right is double)
                 return ToDouble(left) + ToDouble(right);
             return ToLong(left) + ToLong(right);
+        }
+
+        if (left is IDictionary<string, object?> leftDict && right is IDictionary<string, object?> rightDict)
+        {
+            var comparer = _options.IgnoreCase ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+            var merged = new Dictionary<string, object?>(comparer);
+            foreach (var kvp in leftDict)
+                merged[kvp.Key] = kvp.Value;
+            foreach (var kvp in rightDict)
+                merged[kvp.Key] = kvp.Value;
+            return merged;
         }
 
         throw new EvalException($"Cannot add {left?.GetType().Name ?? "null"} and {right?.GetType().Name ?? "null"}");

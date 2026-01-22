@@ -1,5 +1,3 @@
-using System.Collections;
-
 namespace CsEval.Evaluation;
 
 public sealed partial class Evaluator
@@ -129,8 +127,10 @@ public sealed partial class Evaluator
             case "toarray":
                 return (true, list.ToArray());
 
-            case "concat" when args.Length == 1 && args[0] is IEnumerable second:
-                return (true, list.Concat(second.Cast<object?>()).ToList());
+            case "concat" when args.Length == 1:
+                if (args[0] is IEnumerable second && args[0] is not string)
+                    return (true, list.Concat(second.Cast<object?>()).ToList());
+                throw new EvalException($"Concat requires an enumerable argument, got {args[0]?.GetType().Name ?? "null"}");
         }
 
         return (false, null);

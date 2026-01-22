@@ -25,6 +25,8 @@ public class EvaluatorTests
         return evaluator.Evaluate(ast);
     }
 
+    #region Literals
+
     [Test]
     public void Eval_Number_ReturnsNumber()
     {
@@ -51,6 +53,10 @@ public class EvaluatorTests
     {
         Assert.That(Eval("null"), Is.Null);
     }
+
+    #endregion
+
+    #region Arithmetic
 
     [Test]
     public void Eval_Arithmetic_Addition()
@@ -90,6 +96,10 @@ public class EvaluatorTests
         Assert.That(Eval("(1 + 2) * 3"), Is.EqualTo(9L));
     }
 
+    #endregion
+
+    #region Comparison
+
     [Test]
     public void Eval_Comparison_Equals()
     {
@@ -119,6 +129,10 @@ public class EvaluatorTests
         Assert.That(Eval("1 > 2"), Is.False);
     }
 
+    #endregion
+
+    #region Logical
+
     [Test]
     public void Eval_Logical_And()
     {
@@ -140,6 +154,10 @@ public class EvaluatorTests
         Assert.That(Eval("!false"), Is.True);
     }
 
+    #endregion
+
+    #region Unary
+
     [Test]
     public void Eval_Unary_Negation()
     {
@@ -147,11 +165,58 @@ public class EvaluatorTests
         Assert.That(Eval("-3.14"), Is.EqualTo(-3.14));
     }
 
+    #endregion
+
+    #region Strings
+
     [Test]
     public void Eval_StringConcatenation()
     {
         Assert.That(Eval("\"Hello\" + \" \" + \"World\""), Is.EqualTo("Hello World"));
     }
+
+    [Test]
+    public void Eval_InterpolatedString()
+    {
+        var context = new EvalContext();
+        context.Define("name", "World");
+
+        Assert.That(Eval("$\"Hello {name}!\"", context), Is.EqualTo("Hello World!"));
+    }
+
+    [Test]
+    public void Eval_StringMethod_ToLower()
+    {
+        var context = new EvalContext();
+        context.Define("s", "HELLO");
+
+        var result = Eval("s.ToLower()", context);
+        Assert.That(result, Is.EqualTo("hello"));
+    }
+
+    [Test]
+    public void Eval_StringMethod_ToUpper()
+    {
+        var context = new EvalContext();
+        context.Define("s", "hello");
+
+        var result = Eval("s.ToUpper()", context);
+        Assert.That(result, Is.EqualTo("HELLO"));
+    }
+
+    [Test]
+    public void Eval_StringProperty_Length()
+    {
+        var context = new EvalContext();
+        context.Define("s", "hello");
+
+        var result = Eval("s.Length", context);
+        Assert.That(result, Is.EqualTo(5));
+    }
+
+    #endregion
+
+    #region Variables and Context
 
     [Test]
     public void Eval_Variable_FromContext()
@@ -162,6 +227,10 @@ public class EvaluatorTests
         Assert.That(Eval("x", context), Is.EqualTo(10L));
         Assert.That(Eval("x + 5", context), Is.EqualTo(15L));
     }
+
+    #endregion
+
+    #region Member Access
 
     [Test]
     public void Eval_MemberAccess_OnExpandoObject()
@@ -175,6 +244,35 @@ public class EvaluatorTests
         Assert.That(Eval("user.Name", context), Is.EqualTo("John"));
         Assert.That(Eval("user.Age", context), Is.EqualTo(30));
     }
+
+    [Test]
+    public void Eval_ChainedMemberAccess()
+    {
+        var context = new EvalContext();
+        IDictionary<string, object?> user = new ExpandoObject();
+        IDictionary<string, object?> address = new ExpandoObject();
+        address["City"] = "New York";
+        user["Address"] = address;
+        context.Define("user", user);
+
+        Assert.That(Eval("user.Address.City", context), Is.EqualTo("New York"));
+    }
+
+    [Test]
+    public void Eval_CaseSensitive_MemberAccess()
+    {
+        var context = new EvalContext();
+        IDictionary<string, object?> obj = new ExpandoObject();
+        obj["Name"] = "John";
+        context.Define("user", obj);
+
+        Assert.That(Eval("user.Name", context), Is.EqualTo("John"));
+        Assert.Throws<EvalException>(() => Eval("user.name", context));
+    }
+
+    #endregion
+
+    #region Index Access
 
     [Test]
     public void Eval_IndexAccess_OnList()
@@ -197,6 +295,10 @@ public class EvaluatorTests
         Assert.That(Eval("dict[\"key\"]", context), Is.EqualTo("value"));
     }
 
+    #endregion
+
+    #region Null Handling
+
     [Test]
     public void Eval_NullCoalesce()
     {
@@ -217,14 +319,9 @@ public class EvaluatorTests
         Assert.That(Eval("obj?.Name", context), Is.Null);
     }
 
-    [Test]
-    public void Eval_InterpolatedString()
-    {
-        var context = new EvalContext();
-        context.Define("name", "World");
+    #endregion
 
-        Assert.That(Eval("$\"Hello {name}!\"", context), Is.EqualTo("Hello World!"));
-    }
+    #region Arrays
 
     [Test]
     public void Eval_ArrayLiteral()
@@ -259,6 +356,10 @@ public class EvaluatorTests
         Assert.That(result![0], Is.EqualTo("one"));
     }
 
+    #endregion
+
+    #region Objects
+
     [Test]
     public void Eval_AnonymousObject()
     {
@@ -267,6 +368,10 @@ public class EvaluatorTests
         Assert.That(result!["Name"], Is.EqualTo("John"));
         Assert.That(result["Age"], Is.EqualTo(30L));
     }
+
+    #endregion
+
+    #region Ternary
 
     [Test]
     public void Eval_Ternary_True()
@@ -296,12 +401,20 @@ public class EvaluatorTests
         Assert.That(result, Has.Count.EqualTo(0));
     }
 
+    #endregion
+
+    #region Blocks
+
     [Test]
     public void Eval_Block_WithReturn()
     {
         var result = Eval("{ var x = 5; return x * 2; }");
         Assert.That(result, Is.EqualTo(10L));
     }
+
+    #endregion
+
+    #region Lambdas and LINQ
 
     [Test]
     public void Eval_Lambda_Where()
@@ -367,63 +480,6 @@ public class EvaluatorTests
     }
 
     [Test]
-    public void Eval_MathProxy_Abs()
-    {
-        var result = Eval("Math.Abs(-5)");
-        Assert.That(result, Is.EqualTo(5.0));
-    }
-
-    [Test]
-    public void Eval_MathProxy_Sqrt()
-    {
-        var result = Eval("Math.Sqrt(16)");
-        Assert.That(result, Is.EqualTo(4.0));
-    }
-
-    [Test]
-    public void Eval_StringMethod_ToLower()
-    {
-        var context = new EvalContext();
-        context.Define("s", "HELLO");
-
-        var result = Eval("s.ToLower()", context);
-        Assert.That(result, Is.EqualTo("hello"));
-    }
-
-    [Test]
-    public void Eval_StringMethod_ToUpper()
-    {
-        var context = new EvalContext();
-        context.Define("s", "hello");
-
-        var result = Eval("s.ToUpper()", context);
-        Assert.That(result, Is.EqualTo("HELLO"));
-    }
-
-    [Test]
-    public void Eval_StringProperty_Length()
-    {
-        var context = new EvalContext();
-        context.Define("s", "hello");
-
-        var result = Eval("s.Length", context);
-        Assert.That(result, Is.EqualTo(5));
-    }
-
-    [Test]
-    public void Eval_ChainedMemberAccess()
-    {
-        var context = new EvalContext();
-        IDictionary<string, object?> user = new ExpandoObject();
-        IDictionary<string, object?> address = new ExpandoObject();
-        address["City"] = "New York";
-        user["Address"] = address;
-        context.Define("user", user);
-
-        Assert.That(Eval("user.Address.City", context), Is.EqualTo("New York"));
-    }
-
-    [Test]
     public void Eval_ComplexExpression_WithLinq()
     {
         var context = new EvalContext();
@@ -438,17 +494,87 @@ public class EvaluatorTests
         Assert.That(result, Is.EqualTo(new List<object?> { "Apple", "Orange" }));
     }
 
+    #endregion
+
+    #region Built-in Proxies
+
     [Test]
-    public void Eval_CaseSensitive_MemberAccess()
+    public void Eval_MathProxy_Abs()
+    {
+        var result = Eval("Math.Abs(-5)");
+        Assert.That(result, Is.EqualTo(5.0));
+    }
+
+    [Test]
+    public void Eval_MathProxy_Sqrt()
+    {
+        var result = Eval("Math.Sqrt(16)");
+        Assert.That(result, Is.EqualTo(4.0));
+    }
+
+    #endregion
+
+    #region Dictionary Merge
+
+    [Test]
+    public void Eval_DictionaryMerge_WithPlusOperator()
+    {
+        var result = Eval("new { A = 1 } + new { B = 2 }") as IDictionary<string, object?>;
+        Assert.That(result, Is.Not.Null);
+        Assert.That(result!["A"], Is.EqualTo(1L));
+        Assert.That(result["B"], Is.EqualTo(2L));
+    }
+
+    [Test]
+    public void Eval_DictionaryMerge_RightOverwritesLeft()
+    {
+        var result = Eval("new { A = 1, B = 2 } + new { B = 3 }") as IDictionary<string, object?>;
+        Assert.That(result, Is.Not.Null);
+        Assert.That(result!["A"], Is.EqualTo(1L));
+        Assert.That(result["B"], Is.EqualTo(3L));
+    }
+
+    [Test]
+    public void Eval_DictionaryMerge_WithVariables()
     {
         var context = new EvalContext();
-        IDictionary<string, object?> obj = new ExpandoObject();
-        obj["Name"] = "John";
-        context.Define("user", obj);
+        IDictionary<string, object?> left = new ExpandoObject();
+        left["Name"] = "John";
+        IDictionary<string, object?> right = new ExpandoObject();
+        right["Age"] = 30;
+        context.Define("left", left);
+        context.Define("right", right);
 
-        Assert.That(Eval("user.Name", context), Is.EqualTo("John"));
-        Assert.Throws<EvalException>(() => Eval("user.name", context));
+        var result = Eval("left + right", context) as IDictionary<string, object?>;
+        Assert.That(result, Is.Not.Null);
+        Assert.That(result!["Name"], Is.EqualTo("John"));
+        Assert.That(result["Age"], Is.EqualTo(30));
     }
+
+    [Test]
+    public void Eval_DictionaryMerge_ChainedOperations()
+    {
+        var result = Eval("new { A = 1 } + new { B = 2 } + new { C = 3 }") as IDictionary<string, object?>;
+        Assert.That(result, Is.Not.Null);
+        Assert.That(result!["A"], Is.EqualTo(1L));
+        Assert.That(result["B"], Is.EqualTo(2L));
+        Assert.That(result["C"], Is.EqualTo(3L));
+    }
+
+    [Test]
+    public void Eval_DictionaryMerge_CaseSensitive_KeepsBothKeys()
+    {
+        // Default is case-sensitive, so 'a' and 'A' are different keys
+        var result = Eval("new { a = 1 } + new { A = 2 }") as IDictionary<string, object?>;
+        Assert.That(result, Is.Not.Null);
+        Assert.That(result!.Count, Is.EqualTo(2));
+        Assert.That(result["a"], Is.EqualTo(1L));
+        Assert.That(result["A"], Is.EqualTo(2L));
+    }
+
+    #endregion
+
+    #region Helpers
 
     private static IDictionary<string, object?> CreateItem(string name, double price)
     {
@@ -457,4 +583,6 @@ public class EvaluatorTests
         item["Price"] = price;
         return item;
     }
+
+    #endregion
 }
