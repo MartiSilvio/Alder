@@ -3,10 +3,10 @@ using NUnit.Framework;
 namespace CsEval.Test
 {
     [TestFixture]
-    public class EngineTests
+    public class BasicEvaluationTests
     {
         [Test]
-        public void Evaluate_SimpleExpression()
+        public void SimpleExpression()
         {
             var engine = new CsEvalEngine();
             var result = engine.Evaluate("1 + 2");
@@ -14,7 +14,7 @@ namespace CsEval.Test
         }
 
         [Test]
-        public void Evaluate_WithVariable()
+        public void WithVariable()
         {
             var engine = new CsEvalEngine();
             engine.SetVariable("x", 10L);
@@ -24,7 +24,7 @@ namespace CsEval.Test
         }
 
         [Test]
-        public void Evaluate_WithMultipleVariables()
+        public void WithMultipleVariables()
         {
             var engine = new CsEvalEngine();
             engine.SetVariables(new Dictionary<string, object?>
@@ -38,7 +38,7 @@ namespace CsEval.Test
         }
 
         [Test]
-        public void Evaluate_FluentApi()
+        public void FluentApi()
         {
             var result = new CsEvalEngine()
                 .SetVariable("x", 10L)
@@ -49,7 +49,7 @@ namespace CsEval.Test
         }
 
         [Test]
-        public void Evaluate_Generic_ReturnsTypedResult()
+        public void Generic_ReturnsTypedResult()
         {
             var engine = new CsEvalEngine();
             var result = engine.Evaluate<long>("1 + 2");
@@ -57,7 +57,7 @@ namespace CsEval.Test
         }
 
         [Test]
-        public void Evaluate_Generic_ConvertsType()
+        public void Generic_ConvertsType()
         {
             var engine = new CsEvalEngine();
             var result = engine.Evaluate<double>("10");
@@ -65,51 +65,7 @@ namespace CsEval.Test
         }
 
         [Test]
-        public void Evaluate_MathProxy_IsRegistered()
-        {
-            var engine = new CsEvalEngine();
-            var result = engine.Evaluate("Math.Abs(-5)");
-            Assert.That(result, Is.EqualTo(5.0));
-        }
-
-        [Test]
-        public void Evaluate_DateTimeProxy_IsRegistered()
-        {
-            var engine = new CsEvalEngine();
-            var result = engine.Evaluate("DateTime.Now");
-            Assert.That(result, Is.InstanceOf<DateTime>());
-        }
-
-        [Test]
-        public void Evaluate_GuidProxy_IsRegistered()
-        {
-            var engine = new CsEvalEngine();
-            var result = engine.Evaluate("Guid.NewGuid()");
-            Assert.That(result, Is.InstanceOf<Guid>());
-        }
-
-        [Test]
-        public void Evaluate_CustomFunction()
-        {
-            var engine = new CsEvalEngine();
-            engine.RegisterFunction("double", args => Convert.ToInt64(args[0]) * 2);
-
-            var result = engine.Evaluate("double(5)");
-            Assert.That(result, Is.EqualTo(10L));
-        }
-
-        [Test]
-        public void Evaluate_CustomProxy()
-        {
-            var engine = new CsEvalEngine();
-            engine.RegisterProxy("Custom", new CustomProxy());
-
-            var result = engine.Evaluate("Custom.Greet(\"World\")");
-            Assert.That(result, Is.EqualTo("Hello, World!"));
-        }
-
-        [Test]
-        public void Evaluate_ComplexExpression()
+        public void ComplexExpression()
         {
             var engine = new CsEvalEngine();
             engine.SetVariable("items", new List<object?> { 1L, 2L, 3L, 4L, 5L });
@@ -119,7 +75,7 @@ namespace CsEval.Test
         }
 
         [Test]
-        public void Evaluate_InterpolatedString()
+        public void InterpolatedString()
         {
             var engine = new CsEvalEngine();
             engine.SetVariable("name", "CsEval");
@@ -129,7 +85,7 @@ namespace CsEval.Test
         }
 
         [Test]
-        public void Evaluate_AnonymousObject()
+        public void AnonymousObject()
         {
             var engine = new CsEvalEngine();
             var result = engine.Evaluate("new { Name = \"Test\", Value = 42 }") as IDictionary<string, object?>;
@@ -140,15 +96,76 @@ namespace CsEval.Test
         }
 
         [Test]
-        public void Evaluate_Block()
+        public void Block()
         {
             var engine = new CsEvalEngine();
             var result = engine.Evaluate("{ var x = 10; var y = 20; return x + y; }");
             Assert.That(result, Is.EqualTo(30L));
         }
+    }
+
+    [TestFixture]
+    public class BuiltInProxyTests
+    {
+        [Test]
+        public void MathProxy()
+        {
+            var engine = new CsEvalEngine();
+            var result = engine.Evaluate("Math.Abs(-5)");
+            Assert.That(result, Is.EqualTo(5.0));
+        }
 
         [Test]
-        public void Evaluate_CaseSensitive_Variable_ThrowsOnWrongCase()
+        public void DateTimeProxy()
+        {
+            var engine = new CsEvalEngine();
+            var result = engine.Evaluate("DateTime.Now");
+            Assert.That(result, Is.InstanceOf<DateTime>());
+        }
+
+        [Test]
+        public void GuidProxy()
+        {
+            var engine = new CsEvalEngine();
+            var result = engine.Evaluate("Guid.NewGuid()");
+            Assert.That(result, Is.InstanceOf<Guid>());
+        }
+    }
+
+    [TestFixture]
+    public class CustomRegistrationTests
+    {
+        [Test]
+        public void CustomFunction()
+        {
+            var engine = new CsEvalEngine();
+            engine.RegisterFunction("double", args => Convert.ToInt64(args[0]) * 2);
+
+            var result = engine.Evaluate("double(5)");
+            Assert.That(result, Is.EqualTo(10L));
+        }
+
+        [Test]
+        public void CustomProxy()
+        {
+            var engine = new CsEvalEngine();
+            engine.RegisterProxy("Custom", new GreetingProxy());
+
+            var result = engine.Evaluate("Custom.Greet(\"World\")");
+            Assert.That(result, Is.EqualTo("Hello, World!"));
+        }
+
+        private class GreetingProxy
+        {
+            public string Greet(string name) => $"Hello, {name}!";
+        }
+    }
+
+    [TestFixture]
+    public class CaseSensitivityTests
+    {
+        [Test]
+        public void CaseSensitive_ThrowsOnWrongCase()
         {
             var engine = new CsEvalEngine();
             engine.SetVariable("MyVar", 42L);
@@ -158,7 +175,7 @@ namespace CsEval.Test
         }
 
         [Test]
-        public void Evaluate_IgnoreCase_Variable_Works()
+        public void IgnoreCase_Variable()
         {
             var engine = new CsEvalEngine(new CsEvalOptions { IgnoreCase = true });
             engine.SetVariable("MyVar", 42L);
@@ -169,7 +186,7 @@ namespace CsEval.Test
         }
 
         [Test]
-        public void Evaluate_IgnoreCase_MemberAccess_Works()
+        public void IgnoreCase_MemberAccess()
         {
             var engine = new CsEvalEngine(new CsEvalOptions { IgnoreCase = true });
             engine.SetVariable("obj", new TestObject { Name = "Test" });
@@ -180,17 +197,12 @@ namespace CsEval.Test
         }
 
         [Test]
-        public void Evaluate_IgnoreCase_Proxy_Works()
+        public void IgnoreCase_Proxy()
         {
             var engine = new CsEvalEngine(new CsEvalOptions { IgnoreCase = true });
 
             Assert.That(engine.Evaluate("math.abs(-5)"), Is.EqualTo(5.0));
             Assert.That(engine.Evaluate("MATH.ABS(-5)"), Is.EqualTo(5.0));
-        }
-
-        private class CustomProxy
-        {
-            public string Greet(string name) => $"Hello, {name}!";
         }
 
         private class TestObject
