@@ -1,76 +1,75 @@
-namespace CsEval.Parsing
+namespace CsEval.Parsing;
+
+public enum TokenType
 {
-    public enum TokenType
-    {
-        // Literals
-        Number,
-        String,
-        InterpolatedString,
-        True,
-        False,
-        Null,
+    // Literals
+    Number,
+    String,
+    InterpolatedString,
+    True,
+    False,
+    Null,
 
-        // Identifiers
-        Identifier,
+    // Identifiers
+    Identifier,
 
-        // Operators - Arithmetic
-        Plus,
-        Minus,
-        Star,
-        Slash,
-        Percent,
+    // Operators - Arithmetic
+    Plus,
+    Minus,
+    Star,
+    Slash,
+    Percent,
 
-        // Operators - Comparison
-        EqualEqual,
-        BangEqual,
-        Less,
-        LessEqual,
-        Greater,
-        GreaterEqual,
+    // Operators - Comparison
+    EqualEqual,
+    BangEqual,
+    Less,
+    LessEqual,
+    Greater,
+    GreaterEqual,
 
-        // Operators - Logical
-        AmpAmp,
-        PipePipe,
-        Bang,
+    // Operators - Logical
+    AmpAmp,
+    PipePipe,
+    Bang,
 
-        // Operators - Null
-        QuestionQuestion,  // ??
-        QuestionDot,       // ?.
+    // Operators - Null
+    QuestionQuestion,  // ??
+    QuestionDot,       // ?.
 
-        // Assignment & Access
-        Equal,
-        Dot,
+    // Assignment & Access
+    Equal,
+    Dot,
 
-        // Delimiters
-        LeftParen,
-        RightParen,
-        LeftBracket,
-        RightBracket,
-        LeftBrace,
-        RightBrace,
-        Comma,
-        Colon,
-        Semicolon,
+    // Delimiters
+    LeftParen,
+    RightParen,
+    LeftBracket,
+    RightBracket,
+    LeftBrace,
+    RightBrace,
+    Comma,
+    Colon,
+    Semicolon,
 
-        // Lambda
-        Arrow,  // =>
+    // Lambda
+    Arrow,  // =>
 
-        // Keywords
-        New,
-        If,
-        Else,
-        Switch,
-        Case,
-        Default,
-        Return,
-        Var,
+    // Keywords
+    New,
+    If,
+    Else,
+    Switch,
+    Case,
+    Default,
+    Return,
+    Var,
 
-        // Special
-        Eof
-    }
+    // Special
+    Eof
+}
 
-    public readonly record struct Token(TokenType Type, string Lexeme, object? Literal, int Line, int Column)
-    {
-        public override string ToString() => $"{Type} '{Lexeme}' at {Line}:{Column}";
-    }
+public readonly record struct Token(TokenType Type, string Lexeme, object? Literal, int Line, int Column)
+{
+    public override string ToString() => $"{Type} '{Lexeme}' at {Line}:{Column}";
 }
