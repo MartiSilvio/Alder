@@ -42,6 +42,7 @@ public enum TokenType
     // Assignment & Access
     Equal,
     Dot,
+    DotDotDot,             // ... (spread operator)
 
     // Delimiters
     LeftParen,

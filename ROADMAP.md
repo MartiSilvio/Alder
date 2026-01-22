@@ -122,8 +122,8 @@ Missing methods:
 
 | Feature | Syntax | Notes |
 |---------|--------|-------|
-| Spread operator | `[...arr1, ...arr2]` | Array spread |
-| Object spread | `{ ...obj1, ...obj2 }` | Like our `+` but standard syntax |
+| ~~Spread operator~~ | `[...arr1, ...arr2]` | ✅ Implemented |
+| ~~Object spread~~ | `new { ...obj1, ...obj2 }` | ✅ Implemented |
 | Optional chaining call | `obj?.Method()` | Already have `?.` for props |
 | Nullish assignment | `x ??= value` | ✅ Already implemented |
 | Destructuring | `var { Name, Age } = person` | Extract properties |
@@ -174,7 +174,7 @@ These differentiate CsEval - keep and improve:
 
 | Feature | Current | Enhancement Ideas |
 |---------|---------|-------------------|
-| Object merging | `a + b` | Add spread syntax too `{ ...a, ...b }` |
+| Object merging | `a + b` | ✅ Also supports spread `new { ...a, ...b }` |
 | Block expressions | `{ var x = 1; return x; }` | Add more statement types |
 | DI integration | Module resolution | Auto-discover from assembly |
 | Async + cancellation | `EvaluateAsync` | Progress reporting |

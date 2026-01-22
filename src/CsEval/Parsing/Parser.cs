@@ -319,7 +319,16 @@ namespace CsEval.Parsing
             {
                 do
                 {
-                    elements.Add(ParseExpression());
+                    if (Match(TokenType.DotDotDot))
+                    {
+                        // Spread element: ...expr
+                        var spreadExpr = ParseExpression();
+                        elements.Add(new SpreadExpr(spreadExpr));
+                    }
+                    else
+                    {
+                        elements.Add(ParseExpression());
+                    }
                 } while (Match(TokenType.Comma));
             }
 
@@ -432,10 +441,21 @@ namespace CsEval.Parsing
             {
                 do
                 {
-                    var key = Consume(TokenType.Identifier, "Expected property name");
-                    Consume(TokenType.Equal, "Expected '=' after property name");
-                    var value = ParseExpression();
-                    properties.Add((key, value));
+                    if (Match(TokenType.DotDotDot))
+                    {
+                        // Spread property: ...expr
+                        var spreadExpr = ParseExpression();
+                        // Use a special marker token for spread entries
+                        var spreadMarker = new Token(TokenType.DotDotDot, "...", null, 0, 0);
+                        properties.Add((spreadMarker, new SpreadExpr(spreadExpr)));
+                    }
+                    else
+                    {
+                        var key = Consume(TokenType.Identifier, "Expected property name");
+                        Consume(TokenType.Equal, "Expected '=' after property name");
+                        var value = ParseExpression();
+                        properties.Add((key, value));
+                    }
                 } while (Match(TokenType.Comma));
             }
 

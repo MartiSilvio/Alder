@@ -157,6 +157,43 @@ new { Name = "John", Age = 30 }  // multiple properties
 
 Properties are always assigned with `=` (not `:`).
 
+### Spread Operator
+
+The spread operator (`...`) expands arrays and objects inline:
+
+**Array Spread:**
+
+```
+var arr1 = [1, 2, 3];
+var arr2 = [4, 5, 6];
+[...arr1, ...arr2]              // [1, 2, 3, 4, 5, 6]
+[0, ...arr1, 4]                 // [0, 1, 2, 3, 4]
+```
+
+**Object Spread:**
+
+```
+var person = new { Name = "John", Age = 30 };
+new { ...person, City = "NYC" }  // { Name = "John", Age = 30, City = "NYC" }
+```
+
+Later properties override earlier ones:
+
+```
+var defaults = new { Theme = "light", Size = 10 };
+new { ...defaults, Theme = "dark" }  // { Theme = "dark", Size = 10 }
+```
+
+Multiple spreads can be combined:
+
+```
+var a = new { X = 1 };
+var b = new { Y = 2 };
+new { ...a, ...b, Z = 3 }       // { X = 1, Y = 2, Z = 3 }
+```
+
+The spread operator works with any iterable for arrays and any object (including typed objects) for object spread.
+
 ## Lambda Expressions
 
 ```
@@ -289,9 +326,10 @@ primary        = NUMBER | STRING | "true" | "false" | "null"
 
 lambda_params  = IDENTIFIER ( "," IDENTIFIER )* ;
 arguments      = expression ( "," expression )* ;
-array_elements = ( expression ( "," expression )* )? ;
-object_properties = ( property ( "," property )* )? ;
-property       = IDENTIFIER "=" expression ;
+array_elements = ( array_element ( "," array_element )* )? ;
+array_element  = "..." expression | expression ;
+object_properties = ( object_property ( "," object_property )* )? ;
+object_property = "..." expression | IDENTIFIER "=" expression ;
 
 block_body     = statement* ;
 statement      = "return" expression? ";"

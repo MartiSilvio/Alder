@@ -218,7 +218,28 @@ public sealed partial class Evaluator : IExprVisitor<object?>
 
     public object? VisitArrayLiteral(ArrayLiteralExpr expr)
     {
-        return expr.Elements.Select(Evaluate).ToList();
+        var result = new List<object?>();
+        foreach (var element in expr.Elements)
+        {
+            if (element is SpreadExpr spread)
+            {
+                var spreadValue = Evaluate(spread.Expression);
+                if (spreadValue is IEnumerable enumerable && spreadValue is not string)
+                {
+                    foreach (var item in enumerable)
+                        result.Add(item);
+                }
+                else
+                {
+                    throw new EvalException("Spread operator requires an iterable");
+                }
+            }
+            else
+            {
+                result.Add(Evaluate(element));
+            }
+        }
+        return result;
     }
 
     public object? VisitObjectLiteral(ObjectLiteralExpr expr)
@@ -226,9 +247,39 @@ public sealed partial class Evaluator : IExprVisitor<object?>
         IDictionary<string, object?> result = new ExpandoObject();
         foreach (var (key, value) in expr.Properties)
         {
-            result[key.Lexeme] = Evaluate(value);
+            if (key.Type == TokenType.DotDotDot && value is SpreadExpr spread)
+            {
+                // Spread object properties
+                var spreadValue = Evaluate(spread.Expression);
+                if (spreadValue is IDictionary<string, object?> dict)
+                {
+                    foreach (var kvp in dict)
+                        result[kvp.Key] = kvp.Value;
+                }
+                else if (spreadValue != null)
+                {
+                    // Spread from regular object via reflection
+                    var type = spreadValue.GetType();
+                    foreach (var prop in type.GetProperties(BindingFlags.Public | BindingFlags.Instance))
+                    {
+                        if (prop.CanRead)
+                            result[prop.Name] = prop.GetValue(spreadValue);
+                    }
+                }
+            }
+            else
+            {
+                result[key.Lexeme] = Evaluate(value);
+            }
         }
         return result;
+    }
+
+    public object? VisitSpread(SpreadExpr expr)
+    {
+        // Spread expressions are handled by VisitArrayLiteral and VisitObjectLiteral
+        // This method is only called if spread is used outside of those contexts
+        throw new EvalException("Spread operator can only be used in array or object literals");
     }
 
     public object? VisitBlock(BlockExpr expr)

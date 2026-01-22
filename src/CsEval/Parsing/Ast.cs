@@ -28,6 +28,7 @@ public interface IExprVisitor<out T>
     T VisitNew(NewExpr expr);
     T VisitIfStatement(IfStatementExpr expr);
     T VisitReturn(ReturnExpr expr);
+    T VisitSpread(SpreadExpr expr);
 }
 
 // Literals
@@ -160,4 +161,10 @@ public sealed record IfStatementExpr(Expr Condition, List<Expr> ThenStatements, 
 public sealed record ReturnExpr(Expr? Value) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitReturn(this);
+}
+
+// Spread expression: ...expr (used in arrays and objects)
+public sealed record SpreadExpr(Expr Expression) : Expr
+{
+    public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitSpread(this);
 }
