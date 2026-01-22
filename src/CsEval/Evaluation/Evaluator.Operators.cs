@@ -49,7 +49,9 @@ public sealed partial class Evaluator
 
         if (IsNumeric(left) && IsNumeric(right))
         {
-            if (left is double || right is double)
+            if (left is decimal || right is decimal)
+                return ToDecimal(left) + ToDecimal(right);
+            if (left is double or float || right is double or float)
                 return ToDouble(left) + ToDouble(right);
             return ToLong(left) + ToLong(right);
         }
@@ -140,7 +142,9 @@ public sealed partial class Evaluator
     {
         if (IsNumeric(left) && IsNumeric(right))
         {
-            if (left is double || right is double)
+            if (left is decimal || right is decimal)
+                return ToDecimal(left) - ToDecimal(right);
+            if (left is double or float || right is double or float)
                 return ToDouble(left) - ToDouble(right);
             return ToLong(left) - ToLong(right);
         }
@@ -152,7 +156,9 @@ public sealed partial class Evaluator
     {
         if (IsNumeric(left) && IsNumeric(right))
         {
-            if (left is double || right is double)
+            if (left is decimal || right is decimal)
+                return ToDecimal(left) * ToDecimal(right);
+            if (left is double or float || right is double or float)
                 return ToDouble(left) * ToDouble(right);
             return ToLong(left) * ToLong(right);
         }
@@ -164,9 +170,15 @@ public sealed partial class Evaluator
     {
         if (IsNumeric(left) && IsNumeric(right))
         {
-            var r = ToDouble(right);
-            if (r == 0) throw new EvalException("Division by zero");
-            return ToDouble(left) / r;
+            if (left is decimal || right is decimal)
+            {
+                var r = ToDecimal(right);
+                if (r == 0) throw new EvalException("Division by zero");
+                return ToDecimal(left) / r;
+            }
+            var rd = ToDouble(right);
+            if (rd == 0) throw new EvalException("Division by zero");
+            return ToDouble(left) / rd;
         }
 
         throw new EvalException($"Cannot divide {left?.GetType().Name ?? "null"} and {right?.GetType().Name ?? "null"}");
@@ -176,9 +188,21 @@ public sealed partial class Evaluator
     {
         if (IsNumeric(left) && IsNumeric(right))
         {
-            var r = ToLong(right);
-            if (r == 0) throw new EvalException("Modulo by zero");
-            return ToLong(left) % r;
+            if (left is decimal || right is decimal)
+            {
+                var r = ToDecimal(right);
+                if (r == 0) throw new EvalException("Modulo by zero");
+                return ToDecimal(left) % r;
+            }
+            if (left is double or float || right is double or float)
+            {
+                var r = ToDouble(right);
+                if (r == 0) throw new EvalException("Modulo by zero");
+                return ToDouble(left) % r;
+            }
+            var ri = ToLong(right);
+            if (ri == 0) throw new EvalException("Modulo by zero");
+            return ToLong(left) % ri;
         }
 
         throw new EvalException($"Cannot modulo {left?.GetType().Name ?? "null"} and {right?.GetType().Name ?? "null"}");
@@ -189,6 +213,8 @@ public sealed partial class Evaluator
         if (value is int i) return -i;
         if (value is long l) return -l;
         if (value is double d) return -d;
+        if (value is float f) return -f;
+        if (value is decimal m) return -m;
         throw new EvalException($"Cannot negate {value?.GetType().Name ?? "null"}");
     }
 
@@ -238,8 +264,12 @@ public sealed partial class Evaluator
         value is int or long or short or byte or sbyte or uint or ulong or ushort;
 
     private static bool IsNumeric(object? value) =>
-        value is int or long or double or float or decimal or short or byte;
+        value is sbyte or byte or short or ushort or int or uint or long or ulong or float or double or decimal;
+
+    private static bool IsFloatingPoint(object? value) =>
+        value is double or float or decimal;
 
     private static double ToDouble(object? value) => Convert.ToDouble(value);
+    private static decimal ToDecimal(object? value) => Convert.ToDecimal(value);
     private static long ToLong(object? value) => Convert.ToInt64(value);
 }

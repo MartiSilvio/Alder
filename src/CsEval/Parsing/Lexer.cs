@@ -268,8 +268,12 @@ namespace CsEval.Parsing
             }
 
             var text = _source[_start.._current];
-            var value = text.Contains('.') ? double.Parse(text) : long.Parse(text);
-            AddToken(TokenType.Number, value);
+            // Note: Cannot use ternary because it would convert long to double
+            // (ternary requires common type, and long implicitly converts to double)
+            if (text.Contains('.'))
+                AddToken(TokenType.Number, double.Parse(text));
+            else
+                AddToken(TokenType.Number, long.Parse(text));
         }
 
         private void ScanIdentifier()

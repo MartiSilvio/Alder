@@ -79,16 +79,27 @@ Features to implement for full C# developer familiarity, plus useful additions f
 | List pattern | `x is [1, 2, ..]` | |
 | `not` pattern | `x is not null` | |
 
-### Additional LINQ
+### LINQ Methods
 
-Missing methods:
-- `GroupBy`, `Join`, `GroupJoin`
-- `SelectMany`, `Zip`
-- `OfType<T>`, `Cast<T>`
-- `ToDictionary`, `ToLookup`, `ToHashSet`
-- `Chunk`, `DistinctBy`, `ExceptBy`, `IntersectBy`, `UnionBy`
-- `MinBy`, `MaxBy`
-- `ThenBy`, `ThenByDescending`
+**Implemented:**
+- Filtering: `Where`, `Distinct`
+- Projection: `Select`, `SelectMany`
+- Element: `First`, `FirstOrDefault`, `Last`, `LastOrDefault`, `Single`, `SingleOrDefault`
+- Quantifiers: `Any`, `All`, `Contains`
+- Aggregation: `Count`, `Sum`, `Average`, `Min`, `Max`, `Aggregate`
+- Ordering: `OrderBy`, `OrderByDescending`
+- Grouping: `GroupBy` (returns `List<Dictionary>` with `Key` and `Items`)
+- Combining: `Zip` (with/without selector), `Concat`
+- Partitioning: `Take`, `Skip`
+- Conversion: `ToList`, `ToArray`, `Reverse`
+
+**Not implemented:**
+- `Join`, `GroupJoin` - Complex multi-collection operations
+- `OfType<T>`, `Cast<T>` - Require generic type parameters
+- `ToDictionary`, `ToLookup`, `ToHashSet` - Conversion to other collection types
+- `Chunk`, `DistinctBy`, `ExceptBy`, `IntersectBy`, `UnionBy` - Newer .NET 6+ methods
+- `MinBy`, `MaxBy` - Newer .NET 6+ methods
+- `ThenBy`, `ThenByDescending` - Cannot work because results are materialized to `List<object?>` (not `IOrderedEnumerable`)
 
 ### Range & Index (C# 8+)
 

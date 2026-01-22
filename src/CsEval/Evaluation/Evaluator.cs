@@ -108,7 +108,7 @@ public sealed partial class Evaluator : IExprVisitor<object?>
         if (obj == null)
             throw new EvalException($"Cannot access property '{expr.Name.Lexeme}' on null");
 
-        if (obj is IEnumerable && obj is not string && obj is not IDictionary<string, object?>)
+        if (obj is IEnumerable and not string and not IDictionary<string, object?>)
         {
             var methodName = expr.Name.Lexeme.ToLowerInvariant();
             if (IsEnumerableMethod(methodName))
@@ -230,7 +230,7 @@ public sealed partial class Evaluator : IExprVisitor<object?>
             if (element is SpreadExpr spread)
             {
                 var spreadValue = Evaluate(spread.Expression);
-                if (spreadValue is IEnumerable enumerable && spreadValue is not string)
+                if (spreadValue is IEnumerable enumerable and not string)
                 {
                     foreach (var item in enumerable)
                         result.Add(item);

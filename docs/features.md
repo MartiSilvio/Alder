@@ -4,13 +4,14 @@ This document covers the complete feature set of CsEval including LINQ methods, 
 
 ## LINQ Methods
 
-All methods work on any `IEnumerable`. Results are `List<object?>` unless otherwise noted.
+All methods work on any `IEnumerable`. Results are `List<object?>` (see [design-decisions.md](design-decisions.md) for rationale).
 
 ### Filtering & Projection
 
 ```csharp
 items.Where(x => x > 0)              // Filter by predicate
 items.Select(x => x.Name)            // Project to new shape
+items.SelectMany(x => x.Tags)        // Flatten nested collections
 items.Distinct()                     // Remove duplicates
 items.Take(5)                        // First n elements
 items.Skip(10)                       // Skip first n elements
@@ -67,10 +68,29 @@ items.All(x => x.Valid)              // True if all match
 items.Contains(value)                // True if contains value
 ```
 
+### Grouping
+
+```csharp
+// GroupBy returns List<Dictionary> with "Key" and "Items" properties
+items.GroupBy(x => x.Category)
+// Result: [{ Key: "A", Items: [...] }, { Key: "B", Items: [...] }]
+
+// Access grouped data
+var groups = items.GroupBy(x => x.Status)
+groups.First().Key                   // Get group key
+groups.First().Items                 // Get items in group
+```
+
 ### Combination
 
 ```csharp
 items.Concat(otherItems)             // Combine two sequences
+
+// Zip with selector
+names.Zip(ages, (n, a) => n + ": " + a)  // ["Alice: 30", "Bob: 25"]
+
+// Zip without selector returns dictionaries with First/Second
+names.Zip(ages)                      // [{ First: "Alice", Second: 30 }, ...]
 ```
 
 ### Conversion
@@ -469,18 +489,20 @@ When calling methods, CsEval:
 3. Uses default values for missing optional parameters
 4. Auto-appends `CancellationToken` if method expects it
 
-## Gotchas & Tips
+## Tips
 
-1. **Numbers are `long` by default**: `42` is `long`, not `int`. Use `42.0` for double.
+1. **Integer literals are `long`**: `42` becomes `long`, `3.14` becomes `double`. Arithmetic follows precision hierarchy: `decimal` > `double`/`float` > `long`. See [design-decisions.md](design-decisions.md) for details.
 
-2. **LINQ returns `List<object?>`**: Not `IEnumerable<T>`. Methods like `ToArray()` return `object?[]`.
+2. **Object merging with null**: `null + dict` throws. Use null checks or `??`.
 
-3. **Object merging with null**: `null + dict` throws. Use null checks or `??`.
+3. **Block scope**: Variables declared with `var` are scoped to the block.
 
-4. **Block scope**: Variables declared with `var` are scoped to the block.
+4. **Case sensitivity**: Default is case-sensitive. Use `CsEvalOptions { IgnoreCase = true }` for case-insensitive.
 
-5. **Case sensitivity**: Default is case-sensitive. Use `CsEvalOptions { IgnoreCase = true }` for case-insensitive.
+5. **Service resolution timing**: `IServiceProvider` is used at evaluation time, not registration time.
 
-6. **Service resolution timing**: `IServiceProvider` is used at evaluation time, not registration time.
+6. **Lambda body is single expression**: No blocks in lambda body, use ternary for conditionals.
 
-7. **Lambda body is single expression**: No blocks in lambda body, use ternary for conditionals.
+7. **GroupBy returns dictionaries**: Results have `Key` and `Items` properties, not C#'s `IGrouping<TKey, TElement>`.
+
+8. **Zip without selector**: Returns dictionaries with `First` and `Second` properties, not tuples.

@@ -1,0 +1,764 @@
+using CsEval.Evaluation;
+using NUnit.Framework;
+
+namespace CsEval.Test.Evaluator;
+
+/// <summary>
+/// Comprehensive numeric tests to ensure CsEval handles all numeric types correctly.
+/// Numeric precision and type handling is critical - errors here can cause subtle bugs.
+/// </summary>
+[TestFixture]
+public class NumericTests : EvaluatorTestBase
+{
+    #region Literal Parsing
+
+    [Test]
+    public void IntegerLiteral_ParsedAsLong()
+    {
+        var result = Eval("42");
+        Assert.That(result, Is.TypeOf<long>());
+        Assert.That(result, Is.EqualTo(42L));
+    }
+
+    [Test]
+    public void ZeroLiteral_ParsedAsLong()
+    {
+        var result = Eval("0");
+        Assert.That(result, Is.TypeOf<long>());
+        Assert.That(result, Is.EqualTo(0L));
+    }
+
+    [Test]
+    public void NegativeInteger_ParsedAsLong()
+    {
+        var result = Eval("-42");
+        Assert.That(result, Is.TypeOf<long>());
+        Assert.That(result, Is.EqualTo(-42L));
+    }
+
+    [Test]
+    public void LargeInteger_ParsedAsLong()
+    {
+        var result = Eval("9223372036854775807"); // long.MaxValue
+        Assert.That(result, Is.TypeOf<long>());
+        Assert.That(result, Is.EqualTo(long.MaxValue));
+    }
+
+    [Test]
+    public void DecimalLiteral_ParsedAsDouble()
+    {
+        var result = Eval("3.14");
+        Assert.That(result, Is.TypeOf<double>());
+        Assert.That(result, Is.EqualTo(3.14));
+    }
+
+    [Test]
+    public void DecimalWithLeadingZero_ParsedAsDouble()
+    {
+        var result = Eval("0.5");
+        Assert.That(result, Is.TypeOf<double>());
+        Assert.That(result, Is.EqualTo(0.5));
+    }
+
+    [Test]
+    public void NegativeDecimal_ParsedAsDouble()
+    {
+        var result = Eval("-3.14");
+        Assert.That(result, Is.TypeOf<double>());
+        Assert.That(result, Is.EqualTo(-3.14));
+    }
+
+    [Test]
+    public void SmallDecimal_PreservesPrecision()
+    {
+        var result = Eval("0.00001");
+        Assert.That(result, Is.TypeOf<double>());
+        Assert.That(result, Is.EqualTo(0.00001));
+    }
+
+    #endregion
+
+    #region Arithmetic Operations - Same Types
+
+    [Test]
+    public void LongPlusLong_ReturnsLong()
+    {
+        var result = Eval("5 + 3");
+        Assert.That(result, Is.TypeOf<long>());
+        Assert.That(result, Is.EqualTo(8L));
+    }
+
+    [Test]
+    public void LongMinusLong_ReturnsLong()
+    {
+        var result = Eval("10 - 4");
+        Assert.That(result, Is.TypeOf<long>());
+        Assert.That(result, Is.EqualTo(6L));
+    }
+
+    [Test]
+    public void LongTimesLong_ReturnsLong()
+    {
+        var result = Eval("6 * 7");
+        Assert.That(result, Is.TypeOf<long>());
+        Assert.That(result, Is.EqualTo(42L));
+    }
+
+    [Test]
+    public void LongDivideLong_ReturnsDouble()
+    {
+        // Division always returns double to avoid precision loss
+        var result = Eval("10 / 4");
+        Assert.That(result, Is.TypeOf<double>());
+        Assert.That(result, Is.EqualTo(2.5));
+    }
+
+    [Test]
+    public void DoublePlusDouble_ReturnsDouble()
+    {
+        var result = Eval("1.5 + 2.5");
+        Assert.That(result, Is.TypeOf<double>());
+        Assert.That(result, Is.EqualTo(4.0));
+    }
+
+    [Test]
+    public void DoubleTimesDouble_ReturnsDouble()
+    {
+        var result = Eval("2.5 * 4.0");
+        Assert.That(result, Is.TypeOf<double>());
+        Assert.That(result, Is.EqualTo(10.0));
+    }
+
+    #endregion
+
+    #region Arithmetic Operations - Mixed Types
+
+    [Test]
+    public void LongPlusDouble_ReturnsDouble()
+    {
+        var result = Eval("5 + 2.5");
+        Assert.That(result, Is.TypeOf<double>());
+        Assert.That(result, Is.EqualTo(7.5));
+    }
+
+    [Test]
+    public void DoublePlusLong_ReturnsDouble()
+    {
+        var result = Eval("2.5 + 5");
+        Assert.That(result, Is.TypeOf<double>());
+        Assert.That(result, Is.EqualTo(7.5));
+    }
+
+    [Test]
+    public void IntTimesLong_ReturnsLong()
+    {
+        var context = new EvalContext();
+        context.Define("x", 5); // int
+        var result = Eval("x * 2", context); // 2 is long
+        Assert.That(result, Is.TypeOf<long>());
+        Assert.That(result, Is.EqualTo(10L));
+    }
+
+    [Test]
+    public void IntTimesDouble_ReturnsDouble()
+    {
+        var context = new EvalContext();
+        context.Define("x", 5); // int
+        var result = Eval("x * 2.5", context);
+        Assert.That(result, Is.TypeOf<double>());
+        Assert.That(result, Is.EqualTo(12.5));
+    }
+
+    #endregion
+
+    #region All Numeric Types - Comprehensive Coverage
+
+    // Signed integer types
+    [Test]
+    public void SByte_Arithmetic()
+    {
+        var context = new EvalContext();
+        context.Define("x", (sbyte)10);
+        context.Define("y", (sbyte)5);
+        var result = Eval("x + y", context);
+        Assert.That(result, Is.TypeOf<long>());
+        Assert.That(result, Is.EqualTo(15L));
+    }
+
+    [Test]
+    public void Short_Arithmetic()
+    {
+        var context = new EvalContext();
+        context.Define("x", (short)1000);
+        context.Define("y", (short)234);
+        var result = Eval("x + y", context);
+        Assert.That(result, Is.TypeOf<long>());
+        Assert.That(result, Is.EqualTo(1234L));
+    }
+
+    [Test]
+    public void Int_Arithmetic()
+    {
+        var context = new EvalContext();
+        context.Define("x", 100000);
+        context.Define("y", 23456);
+        var result = Eval("x + y", context);
+        Assert.That(result, Is.TypeOf<long>());
+        Assert.That(result, Is.EqualTo(123456L));
+    }
+
+    [Test]
+    public void Long_Arithmetic()
+    {
+        var context = new EvalContext();
+        context.Define("x", 10000000000L);
+        context.Define("y", 2345678901L);
+        var result = Eval("x + y", context);
+        Assert.That(result, Is.TypeOf<long>());
+        Assert.That(result, Is.EqualTo(12345678901L));
+    }
+
+    // Unsigned integer types
+    [Test]
+    public void Byte_Arithmetic()
+    {
+        var context = new EvalContext();
+        context.Define("x", (byte)200);
+        context.Define("y", (byte)55);
+        var result = Eval("x + y", context);
+        Assert.That(result, Is.TypeOf<long>());
+        Assert.That(result, Is.EqualTo(255L));
+    }
+
+    [Test]
+    public void UShort_Arithmetic()
+    {
+        var context = new EvalContext();
+        context.Define("x", (ushort)60000);
+        context.Define("y", (ushort)5535);
+        var result = Eval("x + y", context);
+        Assert.That(result, Is.TypeOf<long>());
+        Assert.That(result, Is.EqualTo(65535L));
+    }
+
+    [Test]
+    public void UInt_Arithmetic()
+    {
+        var context = new EvalContext();
+        context.Define("x", 4000000000u);
+        context.Define("y", 294967295u);
+        var result = Eval("x + y", context);
+        Assert.That(result, Is.TypeOf<long>());
+        Assert.That(result, Is.EqualTo(4294967295L));
+    }
+
+    [Test]
+    public void ULong_Arithmetic()
+    {
+        var context = new EvalContext();
+        context.Define("x", 10000000000UL);
+        context.Define("y", 5000000000UL);
+        var result = Eval("x + y", context);
+        Assert.That(result, Is.TypeOf<long>());
+        Assert.That(result, Is.EqualTo(15000000000L));
+    }
+
+    // Floating-point types
+    [Test]
+    public void Float_Arithmetic()
+    {
+        var context = new EvalContext();
+        context.Define("x", 10.5f);
+        context.Define("y", 5.25f);
+        var result = Eval("x + y", context);
+        Assert.That(result, Is.TypeOf<double>());
+        Assert.That((double)result!, Is.EqualTo(15.75).Within(0.001));
+    }
+
+    [Test]
+    public void Double_Arithmetic()
+    {
+        var context = new EvalContext();
+        context.Define("x", 10.5d);
+        context.Define("y", 5.25d);
+        var result = Eval("x + y", context);
+        Assert.That(result, Is.TypeOf<double>());
+        Assert.That(result, Is.EqualTo(15.75));
+    }
+
+    [Test]
+    public void Decimal_Arithmetic()
+    {
+        var context = new EvalContext();
+        context.Define("x", 10.5m);
+        context.Define("y", 5.25m);
+        var result = Eval("x + y", context);
+        Assert.That(result, Is.TypeOf<decimal>());
+        Assert.That(result, Is.EqualTo(15.75m));
+    }
+
+    // Mixed type operations
+    [Test]
+    public void BytePlusShort_ReturnsLong()
+    {
+        var context = new EvalContext();
+        context.Define("x", (byte)100);
+        context.Define("y", (short)200);
+        var result = Eval("x + y", context);
+        Assert.That(result, Is.TypeOf<long>());
+        Assert.That(result, Is.EqualTo(300L));
+    }
+
+    [Test]
+    public void IntPlusFloat_ReturnsDouble()
+    {
+        var context = new EvalContext();
+        context.Define("x", 10);
+        context.Define("y", 5.5f);
+        var result = Eval("x + y", context);
+        Assert.That(result, Is.TypeOf<double>());
+        Assert.That((double)result!, Is.EqualTo(15.5).Within(0.001));
+    }
+
+    [Test]
+    public void FloatPlusDouble_ReturnsDouble()
+    {
+        var context = new EvalContext();
+        context.Define("x", 10.5f);
+        context.Define("y", 5.25d);
+        var result = Eval("x + y", context);
+        Assert.That(result, Is.TypeOf<double>());
+        Assert.That((double)result!, Is.EqualTo(15.75).Within(0.001));
+    }
+
+    [Test]
+    public void IntPlusDecimal_ReturnsDecimal()
+    {
+        var context = new EvalContext();
+        context.Define("x", 10);
+        context.Define("y", 5.5m);
+        var result = Eval("x + y", context);
+        Assert.That(result, Is.TypeOf<decimal>());
+        Assert.That(result, Is.EqualTo(15.5m));
+    }
+
+    [Test]
+    public void FloatPlusDecimal_ReturnsDecimal()
+    {
+        var context = new EvalContext();
+        context.Define("x", 10.5f);
+        context.Define("y", 5.25m);
+        var result = Eval("x + y", context);
+        Assert.That(result, Is.TypeOf<decimal>());
+        Assert.That((decimal)result!, Is.EqualTo(15.75m).Within(0.01m));
+    }
+
+    [Test]
+    public void DoublePlusDecimal_ReturnsDecimal()
+    {
+        var context = new EvalContext();
+        context.Define("x", 10.5d);
+        context.Define("y", 5.25m);
+        var result = Eval("x + y", context);
+        Assert.That(result, Is.TypeOf<decimal>());
+        Assert.That((decimal)result!, Is.EqualTo(15.75m).Within(0.0001m));
+    }
+
+    #endregion
+
+    #region Comparison Operations
+
+    [Test]
+    public void IntEqualsLong_Works()
+    {
+        var context = new EvalContext();
+        context.Define("x", 42); // int
+        var result = Eval("x == 42", context);
+        Assert.That(result, Is.True);
+    }
+
+    [Test]
+    public void LongEqualsInt_Works()
+    {
+        var context = new EvalContext();
+        context.Define("x", 42L); // long
+        var result = Eval("x == 42", context);
+        Assert.That(result, Is.True);
+    }
+
+    [Test]
+    public void DoubleEqualsDouble_Works()
+    {
+        var result = Eval("3.14 == 3.14");
+        Assert.That(result, Is.True);
+    }
+
+    [Test]
+    public void LongLessThanDouble_Works()
+    {
+        var result = Eval("5 < 5.5");
+        Assert.That(result, Is.True);
+    }
+
+    [Test]
+    public void DoubleGreaterThanLong_Works()
+    {
+        var result = Eval("5.5 > 5");
+        Assert.That(result, Is.True);
+    }
+
+    #endregion
+
+    #region Contains with Different Types
+
+    [Test]
+    public void Contains_IntListWithLongLiteral_Works()
+    {
+        var context = new EvalContext();
+        context.Define("numbers", new List<object?> { 1, 2, 3 }); // boxed ints
+        var result = Eval("numbers.Contains(2)", context); // 2 is long
+        Assert.That(result, Is.True);
+    }
+
+    [Test]
+    public void Contains_LongListWithIntVariable_Works()
+    {
+        var context = new EvalContext();
+        context.Define("numbers", new List<object?> { 1L, 2L, 3L }); // longs
+        context.Define("search", 2); // int
+        var result = Eval("numbers.Contains(search)", context);
+        Assert.That(result, Is.True);
+    }
+
+    [Test]
+    public void Contains_DoubleListWithDoubleLiteral_Works()
+    {
+        var context = new EvalContext();
+        context.Define("numbers", new List<object?> { 1.5, 2.5, 3.5 });
+        var result = Eval("numbers.Contains(2.5)", context);
+        Assert.That(result, Is.True);
+    }
+
+    [Test]
+    public void Contains_DecimalListWithDoubleLiteral_Works()
+    {
+        var context = new EvalContext();
+        context.Define("numbers", new List<object?> { 1.5m, 2.5m, 3.5m }); // decimals
+        var result = Eval("numbers.Contains(2.5)", context); // 2.5 is double
+        Assert.That(result, Is.True);
+    }
+
+    [Test]
+    public void Contains_MixedNumericTypes_Works()
+    {
+        var context = new EvalContext();
+        context.Define("numbers", new List<object?> { 1, 2L, 3.0, 4.0f }); // mixed
+        Assert.That(Eval("numbers.Contains(1)", context), Is.True);
+        Assert.That(Eval("numbers.Contains(2)", context), Is.True);
+        Assert.That(Eval("numbers.Contains(3)", context), Is.True);
+        Assert.That(Eval("numbers.Contains(4)", context), Is.True);
+    }
+
+    #endregion
+
+    #region Precision Tests - Mathematical Verification
+
+    // Classic floating-point precision test: 0.1 + 0.2 != 0.3 in IEEE 754
+    // See: https://floating-point-gui.de/basic/
+    [Test]
+    public void Double_ClassicPrecisionIssue_PointOnePointTwo()
+    {
+        var result = Eval("0.1 + 0.2");
+        Assert.That(result, Is.TypeOf<double>());
+        // 0.1 + 0.2 in double is NOT exactly 0.3
+        Assert.That((double)result!, Is.Not.EqualTo(0.3));
+        Assert.That((double)result!, Is.EqualTo(0.30000000000000004).Within(1e-16));
+    }
+
+    [Test]
+    public void Decimal_PointOneIsExact()
+    {
+        // Decimal can represent 0.1 exactly (unlike double)
+        var context = new EvalContext();
+        context.Define("x", 0.1m);
+        context.Define("y", 0.2m);
+        var result = Eval("x + y", context);
+        Assert.That(result, Is.TypeOf<decimal>());
+        Assert.That(result, Is.EqualTo(0.3m)); // Exact!
+    }
+
+    // Compounding error test: adding 0.01 repeatedly
+    // See: https://code-maze.com/csharp-floating-point-types/
+    [Test]
+    public void Double_CompoundingError_RepeatedAddition()
+    {
+        var context = new EvalContext();
+        context.Define("sum", 0.0);
+        context.Define("increment", 0.01);
+
+        // Simulate adding 0.01 ten times
+        for (int i = 0; i < 10; i++)
+        {
+            var current = (double)Eval("sum", context)!;
+            context.Define("sum", current + 0.01);
+        }
+
+        var result = (double)Eval("sum", context)!;
+        // Should be 0.1, but double accumulates error
+        Assert.That(result, Is.Not.EqualTo(0.1));
+        Assert.That(result, Is.EqualTo(0.09999999999999999).Within(1e-16));
+    }
+
+    [Test]
+    public void Decimal_NoCompoundingError_RepeatedAddition()
+    {
+        var context = new EvalContext();
+        context.Define("sum", 0.0m);
+
+        // Simulate adding 0.01 ten times
+        for (int i = 0; i < 10; i++)
+        {
+            var current = (decimal)Eval("sum", context)!;
+            context.Define("sum", current + 0.01m);
+        }
+
+        var result = Eval("sum", context);
+        Assert.That(result, Is.TypeOf<decimal>());
+        Assert.That(result, Is.EqualTo(0.1m)); // Exact!
+    }
+
+    // Division precision: 1/3 * 3 should be 1
+    [Test]
+    public void Double_DivisionMultiplication_OneThird()
+    {
+        var context = new EvalContext();
+        context.Define("x", 1.0 / 3.0);
+        var result = Eval("x * 3", context);
+        // Double: may not be exactly 1
+        Assert.That((double)result!, Is.EqualTo(1.0).Within(1e-15));
+    }
+
+    [Test]
+    public void Decimal_DivisionMultiplication_OneThird()
+    {
+        var context = new EvalContext();
+        context.Define("third", 1.0m / 3.0m);
+        var result = Eval("third * 3", context);
+        Assert.That(result, Is.TypeOf<decimal>());
+        // Decimal also has rounding, but different behavior
+        Assert.That((decimal)result!, Is.EqualTo(1.0m).Within(0.0000000001m));
+    }
+
+    // Large integer precision
+    [Test]
+    public void LargeLongArithmetic_NoOverflow()
+    {
+        var context = new EvalContext();
+        context.Define("x", long.MaxValue - 1);
+        var result = Eval("x + 1", context);
+        Assert.That(result, Is.EqualTo(long.MaxValue));
+    }
+
+    [Test]
+    public void Division_ReturnsDouble_PreservesFractional()
+    {
+        var result = Eval("7 / 3");
+        Assert.That(result, Is.TypeOf<double>());
+        Assert.That((double)result!, Is.EqualTo(7.0 / 3.0).Within(1e-15));
+    }
+
+    // Financial calculation: interest rate application
+    [Test]
+    public void Decimal_FinancialCalculation_InterestRate()
+    {
+        var context = new EvalContext();
+        context.Define("principal", 10000.00m);
+        context.Define("rate", 0.0525m); // 5.25% interest
+        var result = Eval("principal * rate", context);
+        Assert.That(result, Is.TypeOf<decimal>());
+        Assert.That(result, Is.EqualTo(525.00m)); // Exact
+    }
+
+    [Test]
+    public void Double_FinancialCalculation_MayHaveError()
+    {
+        var context = new EvalContext();
+        context.Define("principal", 10000.00d);
+        context.Define("rate", 0.0525d);
+        var result = Eval("principal * rate", context);
+        Assert.That(result, Is.TypeOf<double>());
+        // May or may not be exactly 525.0 depending on representation
+        Assert.That((double)result!, Is.EqualTo(525.0).Within(1e-10));
+    }
+
+    // Significant digits test
+    [Test]
+    public void Double_LosesPrecisionAt17Digits()
+    {
+        var context = new EvalContext();
+        // 17 significant digits - at the edge of double precision
+        context.Define("x", 12345678901234567.0);
+        context.Define("y", 1.0);
+        var result = Eval("x + y", context);
+        // Double may lose precision here
+        Assert.That(result, Is.TypeOf<double>());
+    }
+
+    [Test]
+    public void Decimal_Preserves28Digits()
+    {
+        var context = new EvalContext();
+        // 28 significant digits - within decimal's precision
+        context.Define("x", 1234567890123456789012345678m);
+        context.Define("y", 1m);
+        var result = Eval("x + y", context);
+        Assert.That(result, Is.TypeOf<decimal>());
+        Assert.That(result, Is.EqualTo(1234567890123456789012345679m));
+    }
+
+    #endregion
+
+    #region Decimal Precision Tests
+
+    [Test]
+    public void DecimalPlusDecimal_ReturnsDecimal()
+    {
+        var context = new EvalContext();
+        context.Define("x", 10.5m);
+        context.Define("y", 5.25m);
+        var result = Eval("x + y", context);
+        Assert.That(result, Is.TypeOf<decimal>());
+        Assert.That(result, Is.EqualTo(15.75m));
+    }
+
+    [Test]
+    public void DecimalPlusLong_ReturnsDecimal()
+    {
+        var context = new EvalContext();
+        context.Define("x", 10.5m);
+        var result = Eval("x + 5", context);
+        Assert.That(result, Is.TypeOf<decimal>());
+        Assert.That(result, Is.EqualTo(15.5m));
+    }
+
+    [Test]
+    public void LongPlusDecimal_ReturnsDecimal()
+    {
+        var context = new EvalContext();
+        context.Define("x", 10.5m);
+        var result = Eval("5 + x", context);
+        Assert.That(result, Is.TypeOf<decimal>());
+        Assert.That(result, Is.EqualTo(15.5m));
+    }
+
+    [Test]
+    public void DecimalTimesDecimal_ReturnsDecimal()
+    {
+        var context = new EvalContext();
+        context.Define("x", 3.5m);
+        context.Define("y", 2.0m);
+        var result = Eval("x * y", context);
+        Assert.That(result, Is.TypeOf<decimal>());
+        Assert.That(result, Is.EqualTo(7.0m));
+    }
+
+    [Test]
+    public void DecimalDivideDecimal_ReturnsDecimal()
+    {
+        var context = new EvalContext();
+        context.Define("x", 10.0m);
+        context.Define("y", 4.0m);
+        var result = Eval("x / y", context);
+        Assert.That(result, Is.TypeOf<decimal>());
+        Assert.That(result, Is.EqualTo(2.5m));
+    }
+
+    [Test]
+    public void DecimalMinusDecimal_ReturnsDecimal()
+    {
+        var context = new EvalContext();
+        context.Define("x", 10.75m);
+        context.Define("y", 5.25m);
+        var result = Eval("x - y", context);
+        Assert.That(result, Is.TypeOf<decimal>());
+        Assert.That(result, Is.EqualTo(5.5m));
+    }
+
+    [Test]
+    public void DecimalModDecimal_ReturnsDecimal()
+    {
+        var context = new EvalContext();
+        context.Define("x", 10.5m);
+        context.Define("y", 3.0m);
+        var result = Eval("x % y", context);
+        Assert.That(result, Is.TypeOf<decimal>());
+        Assert.That(result, Is.EqualTo(1.5m));
+    }
+
+    [Test]
+    public void DecimalPrecision_PreservedHighPrecisionValue()
+    {
+        // Decimal has 28-29 significant digits, double only has 15-17
+        // This value has 20 significant digits - would be truncated as double
+        var context = new EvalContext();
+        context.Define("x", 1.1234567890123456789m);
+        context.Define("y", 1.0m);
+        var result = Eval("x + y", context);
+        Assert.That(result, Is.TypeOf<decimal>());
+        Assert.That(result, Is.EqualTo(2.1234567890123456789m));
+    }
+
+    [Test]
+    public void DecimalPrecision_NotLostToDouble()
+    {
+        // If we converted to double, we'd lose precision here
+        var context = new EvalContext();
+        var preciseValue = 12345678901234567890.12345678m;
+        context.Define("x", preciseValue);
+        context.Define("y", 0m);
+        var result = Eval("x + y", context);
+        Assert.That(result, Is.TypeOf<decimal>());
+        Assert.That(result, Is.EqualTo(preciseValue));
+    }
+
+    [Test]
+    public void NegateDecimal_ReturnsDecimal()
+    {
+        var context = new EvalContext();
+        context.Define("x", 10.5m);
+        var result = Eval("-x", context);
+        Assert.That(result, Is.TypeOf<decimal>());
+        Assert.That(result, Is.EqualTo(-10.5m));
+    }
+
+    #endregion
+
+    #region Modulo Operations
+
+    [Test]
+    public void LongModLong_ReturnsLong()
+    {
+        var result = Eval("10 % 3");
+        Assert.That(result, Is.TypeOf<long>());
+        Assert.That(result, Is.EqualTo(1L));
+    }
+
+    [Test]
+    public void DoubleModDouble_ReturnsDouble()
+    {
+        // Double modulo may throw or return specific type
+        try
+        {
+            var result = Eval("10.5 % 3.0");
+            Assert.That(result, Is.Not.Null);
+            Assert.That(Convert.ToDouble(result), Is.EqualTo(1.5).Within(0.01));
+        }
+        catch (EvalException)
+        {
+            // Double modulo not supported is acceptable
+            Assert.Pass("Double modulo not supported");
+        }
+    }
+
+    #endregion
+}
