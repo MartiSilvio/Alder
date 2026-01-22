@@ -33,6 +33,14 @@ public enum TokenType
     PipePipe,
     Bang,
 
+    // Operators - Bitwise
+    Amp,           // &
+    Pipe,          // |
+    Caret,         // ^
+    Tilde,         // ~
+    LessLess,      // <<
+    GreaterGreater,// >>
+
     // Operators - Null/Ternary
     Question,              // ?
     QuestionQuestion,      // ??

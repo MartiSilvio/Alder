@@ -2,7 +2,7 @@
 
 ## Grammar Overview
 
-CsEval uses a C#-like syntax with some simplifications. This document provides a formal description of the language.
+CsEval uses C# syntax as its core, so C# developers will feel immediately at home. In addition to standard C# expressions, CsEval adds modern enhancements inspired by other languages to make expressions more powerful and expressive while keeping full C# familiarity.
 
 ## Expression Precedence (lowest to highest)
 
@@ -11,13 +11,17 @@ CsEval uses a C#-like syntax with some simplifications. This document provides a
 3. Ternary: `? :`
 4. Logical OR: `||`
 5. Logical AND: `&&`
-6. Equality: `==`, `!=`
-7. Comparison: `<`, `<=`, `>`, `>=`
-8. Additive: `+`, `-`
-9. Multiplicative: `*`, `/`, `%`
-10. Unary: `-`, `!`
-11. Postfix: `.`, `?.`, `[]`, `()`
-12. Primary: literals, identifiers, grouping
+6. Bitwise OR: `|`
+7. Bitwise XOR: `^`
+8. Bitwise AND: `&`
+9. Equality: `==`, `!=`
+10. Comparison: `<`, `<=`, `>`, `>=`
+11. Shift: `<<`, `>>`
+12. Additive: `+`, `-`
+13. Multiplicative: `*`, `/`, `%`
+14. Unary: `-`, `!`, `~`
+15. Postfix: `.`, `?.`, `[]`, `()`
+16. Primary: literals, identifiers, grouping
 
 ## Literals
 
@@ -68,43 +72,56 @@ null
 
 ### Arithmetic
 
-| Operator | Description | Example |
-|----------|-------------|---------|
-| `+` | Addition / String concat / Object merge | `a + b` |
-| `-` | Subtraction | `a - b` |
-| `*` | Multiplication | `a * b` |
-| `/` | Division | `a / b` |
-| `%` | Modulo | `a % b` |
-| `-` (unary) | Negation | `-x` |
+| Operator    | Description                             | Example |
+| ----------- | --------------------------------------- | ------- |
+| `+`         | Addition / String concat / Object merge | `a + b` |
+| `-`         | Subtraction                             | `a - b` |
+| `*`         | Multiplication                          | `a * b` |
+| `/`         | Division                                | `a / b` |
+| `%`         | Modulo                                  | `a % b` |
+| `-` (unary) | Negation                                | `-x`    |
 
 ### Comparison
 
-| Operator | Description | Example |
-|----------|-------------|---------|
-| `==` | Equality | `a == b` |
-| `!=` | Inequality | `a != b` |
-| `<` | Less than | `a < b` |
-| `<=` | Less or equal | `a <= b` |
-| `>` | Greater than | `a > b` |
-| `>=` | Greater or equal | `a >= b` |
+| Operator | Description      | Example  |
+| -------- | ---------------- | -------- |
+| `==`     | Equality         | `a == b` |
+| `!=`     | Inequality       | `a != b` |
+| `<`      | Less than        | `a < b`  |
+| `<=`     | Less or equal    | `a <= b` |
+| `>`      | Greater than     | `a > b`  |
+| `>=`     | Greater or equal | `a >= b` |
 
 ### Logical
 
-| Operator | Description | Example |
-|----------|-------------|---------|
-| `&&` | Logical AND | `a && b` |
-| `\|\|` | Logical OR | `a \|\| b` |
-| `!` | Logical NOT | `!a` |
+| Operator | Description | Example    |
+| -------- | ----------- | ---------- |
+| `&&`     | Logical AND | `a && b`   |
+| `\|\|`   | Logical OR  | `a \|\| b` |
+| `!`      | Logical NOT | `!a`       |
 
 Short-circuit evaluation is used for `&&` and `||`.
 
+### Bitwise
+
+| Operator | Description        | Example    |
+| -------- | ------------------ | ---------- |
+| `&`      | Bitwise AND        | `a & b`    |
+| `\|`     | Bitwise OR         | `a \| b`   |
+| `^`      | Bitwise XOR        | `a ^ b`    |
+| `~`      | Bitwise NOT        | `~a`       |
+| `<<`     | Left shift         | `a << 2`   |
+| `>>`     | Right shift        | `a >> 2`   |
+
+Bitwise operations convert operands to integers (truncating decimals) and return `long`.
+
 ### Null Handling
 
-| Operator | Description | Example |
-|----------|-------------|---------|
-| `??` | Null-coalescing | `a ?? b` |
-| `?.` | Null-conditional | `obj?.Prop` |
-| `??=` | Null-coalescing assignment | `x ??= y` |
+| Operator | Description                | Example     |
+| -------- | -------------------------- | ----------- |
+| `??`     | Null-coalescing            | `a ?? b`    |
+| `?.`     | Null-conditional           | `obj?.Prop` |
+| `??=`    | Null-coalescing assignment | `x ??= y`   |
 
 ### Ternary
 
@@ -309,12 +326,16 @@ assignment     = null_coalesce ( "??=" assignment )? ;
 null_coalesce  = conditional ( "??" conditional )* ;
 conditional    = or ( "?" expression ":" expression )? ;
 or             = and ( "||" and )* ;
-and            = equality ( "&&" equality )* ;
+and            = bitwise_or ( "&&" bitwise_or )* ;
+bitwise_or     = bitwise_xor ( "|" bitwise_xor )* ;
+bitwise_xor    = bitwise_and ( "^" bitwise_and )* ;
+bitwise_and    = equality ( "&" equality )* ;
 equality       = comparison ( ( "==" | "!=" ) comparison )* ;
-comparison     = term ( ( "<" | "<=" | ">" | ">=" ) term )* ;
+comparison     = shift ( ( "<" | "<=" | ">" | ">=" ) shift )* ;
+shift          = term ( ( "<<" | ">>" ) term )* ;
 term           = factor ( ( "+" | "-" ) factor )* ;
 factor         = unary ( ( "*" | "/" | "%" ) unary )* ;
-unary          = ( "!" | "-" ) unary | postfix ;
+unary          = ( "!" | "-" | "~" ) unary | postfix ;
 postfix        = primary ( "." IDENTIFIER | "?." IDENTIFIER | "[" expression "]" | "(" arguments? ")" )* ;
 primary        = NUMBER | STRING | "true" | "false" | "null"
                | INTERPOLATED_STRING
@@ -354,12 +375,6 @@ typeof(int)      // Type reference - NOT supported
 ### Operators
 
 ```csharp
-x & y            // Bitwise AND - NOT supported
-x | y            // Bitwise OR - NOT supported
-x ^ y            // Bitwise XOR - NOT supported
-~x               // Bitwise NOT - NOT supported
-x << 2           // Left shift - NOT supported
-x >> 2           // Right shift - NOT supported
 x++              // Increment - NOT supported
 x--              // Decrement - NOT supported
 x += 1           // Compound assignment - NOT supported (use x = x + 1)

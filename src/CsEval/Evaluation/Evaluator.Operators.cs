@@ -192,6 +192,51 @@ public sealed partial class Evaluator
         throw new EvalException($"Cannot negate {value?.GetType().Name ?? "null"}");
     }
 
+    private static object? BitwiseNot(object? value)
+    {
+        if (IsNumeric(value))
+            return ~ToLong(value);
+        throw new EvalException($"Cannot apply bitwise NOT to {value?.GetType().Name ?? "null"}");
+    }
+
+    private static object? BitwiseAnd(object? left, object? right)
+    {
+        if (IsNumeric(left) && IsNumeric(right))
+            return ToLong(left) & ToLong(right);
+        throw new EvalException($"Cannot apply bitwise AND to {left?.GetType().Name ?? "null"} and {right?.GetType().Name ?? "null"}");
+    }
+
+    private static object? BitwiseOr(object? left, object? right)
+    {
+        if (IsNumeric(left) && IsNumeric(right))
+            return ToLong(left) | ToLong(right);
+        throw new EvalException($"Cannot apply bitwise OR to {left?.GetType().Name ?? "null"} and {right?.GetType().Name ?? "null"}");
+    }
+
+    private static object? BitwiseXor(object? left, object? right)
+    {
+        if (IsNumeric(left) && IsNumeric(right))
+            return ToLong(left) ^ ToLong(right);
+        throw new EvalException($"Cannot apply bitwise XOR to {left?.GetType().Name ?? "null"} and {right?.GetType().Name ?? "null"}");
+    }
+
+    private static object? LeftShift(object? left, object? right)
+    {
+        if (IsNumeric(left) && IsNumeric(right))
+            return ToLong(left) << (int)ToLong(right);
+        throw new EvalException($"Cannot apply left shift to {left?.GetType().Name ?? "null"} and {right?.GetType().Name ?? "null"}");
+    }
+
+    private static object? RightShift(object? left, object? right)
+    {
+        if (IsNumeric(left) && IsNumeric(right))
+            return ToLong(left) >> (int)ToLong(right);
+        throw new EvalException($"Cannot apply right shift to {left?.GetType().Name ?? "null"} and {right?.GetType().Name ?? "null"}");
+    }
+
+    private static bool IsIntegral(object? value) =>
+        value is int or long or short or byte or sbyte or uint or ulong or ushort;
+
     private static bool IsNumeric(object? value) =>
         value is int or long or double or float or decimal or short or byte;
 

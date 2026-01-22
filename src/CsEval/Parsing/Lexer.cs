@@ -76,21 +76,31 @@ namespace CsEval.Parsing
                     break;
 
                 case '<':
-                    AddToken(Match('=') ? TokenType.LessEqual : TokenType.Less);
+                    if (Match('<')) AddToken(TokenType.LessLess);
+                    else if (Match('=')) AddToken(TokenType.LessEqual);
+                    else AddToken(TokenType.Less);
                     break;
 
                 case '>':
-                    AddToken(Match('=') ? TokenType.GreaterEqual : TokenType.Greater);
+                    if (Match('>')) AddToken(TokenType.GreaterGreater);
+                    else if (Match('=')) AddToken(TokenType.GreaterEqual);
+                    else AddToken(TokenType.Greater);
                     break;
 
                 case '&':
-                    if (Match('&')) AddToken(TokenType.AmpAmp);
-                    else throw new LexerException($"Unexpected character '&' at {_line}:{_column}. Did you mean '&&'?");
+                    AddToken(Match('&') ? TokenType.AmpAmp : TokenType.Amp);
                     break;
 
                 case '|':
-                    if (Match('|')) AddToken(TokenType.PipePipe);
-                    else throw new LexerException($"Unexpected character '|' at {_line}:{_column}. Did you mean '||'?");
+                    AddToken(Match('|') ? TokenType.PipePipe : TokenType.Pipe);
+                    break;
+
+                case '^':
+                    AddToken(TokenType.Caret);
+                    break;
+
+                case '~':
+                    AddToken(TokenType.Tilde);
                     break;
 
                 case '?':

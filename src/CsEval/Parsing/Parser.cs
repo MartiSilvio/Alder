@@ -78,13 +78,55 @@ namespace CsEval.Parsing
 
         private Expr ParseAnd()
         {
-            var expr = ParseEquality();
+            var expr = ParseBitwiseOr();
 
             while (Match(TokenType.AmpAmp))
             {
                 var op = Previous();
-                var right = ParseEquality();
+                var right = ParseBitwiseOr();
                 expr = new LogicalExpr(expr, op, right);
+            }
+
+            return expr;
+        }
+
+        private Expr ParseBitwiseOr()
+        {
+            var expr = ParseBitwiseXor();
+
+            while (Match(TokenType.Pipe))
+            {
+                var op = Previous();
+                var right = ParseBitwiseXor();
+                expr = new BinaryExpr(expr, op, right);
+            }
+
+            return expr;
+        }
+
+        private Expr ParseBitwiseXor()
+        {
+            var expr = ParseBitwiseAnd();
+
+            while (Match(TokenType.Caret))
+            {
+                var op = Previous();
+                var right = ParseBitwiseAnd();
+                expr = new BinaryExpr(expr, op, right);
+            }
+
+            return expr;
+        }
+
+        private Expr ParseBitwiseAnd()
+        {
+            var expr = ParseEquality();
+
+            while (Match(TokenType.Amp))
+            {
+                var op = Previous();
+                var right = ParseEquality();
+                expr = new BinaryExpr(expr, op, right);
             }
 
             return expr;
@@ -106,9 +148,23 @@ namespace CsEval.Parsing
 
         private Expr ParseComparison()
         {
-            var expr = ParseTerm();
+            var expr = ParseShift();
 
             while (Match(TokenType.Less, TokenType.LessEqual, TokenType.Greater, TokenType.GreaterEqual))
+            {
+                var op = Previous();
+                var right = ParseShift();
+                expr = new BinaryExpr(expr, op, right);
+            }
+
+            return expr;
+        }
+
+        private Expr ParseShift()
+        {
+            var expr = ParseTerm();
+
+            while (Match(TokenType.LessLess, TokenType.GreaterGreater))
             {
                 var op = Previous();
                 var right = ParseTerm();
@@ -148,7 +204,7 @@ namespace CsEval.Parsing
 
         private Expr ParseUnary()
         {
-            if (Match(TokenType.Bang, TokenType.Minus))
+            if (Match(TokenType.Bang, TokenType.Minus, TokenType.Tilde))
             {
                 var op = Previous();
                 var right = ParseUnary();

@@ -17,16 +17,16 @@ Features to implement for full C# developer familiarity, plus useful additions f
 | `default` | `default(int)`, `default` | Default value |
 | `nameof` | `nameof(property)` | Get name as string |
 
-### Bitwise Operators
+### ~~Bitwise Operators~~ ✅
 
 | Operator | Syntax |
 |----------|--------|
-| Bitwise AND | `x & y` |
-| Bitwise OR | `x \| y` |
-| Bitwise XOR | `x ^ y` |
-| Bitwise NOT | `~x` |
-| Left shift | `x << n` |
-| Right shift | `x >> n` |
+| ~~Bitwise AND~~ | ~~`x & y`~~ |
+| ~~Bitwise OR~~ | ~~`x \| y`~~ |
+| ~~Bitwise XOR~~ | ~~`x ^ y`~~ |
+| ~~Bitwise NOT~~ | ~~`~x`~~ |
+| ~~Left shift~~ | ~~`x << n`~~ |
+| ~~Right shift~~ | ~~`x >> n`~~ |
 
 ### Assignment Operators
 

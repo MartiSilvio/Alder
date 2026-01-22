@@ -38,6 +38,7 @@ public sealed partial class Evaluator : IExprVisitor<object?>
         {
             TokenType.Minus => Negate(right),
             TokenType.Bang => !IsTruthy(right),
+            TokenType.Tilde => BitwiseNot(right),
             _ => throw new EvalException($"Unknown unary operator '{expr.Op.Lexeme}'")
         };
     }
@@ -60,6 +61,11 @@ public sealed partial class Evaluator : IExprVisitor<object?>
             TokenType.LessEqual => Compare(left, right) <= 0,
             TokenType.Greater => Compare(left, right) > 0,
             TokenType.GreaterEqual => Compare(left, right) >= 0,
+            TokenType.Amp => BitwiseAnd(left, right),
+            TokenType.Pipe => BitwiseOr(left, right),
+            TokenType.Caret => BitwiseXor(left, right),
+            TokenType.LessLess => LeftShift(left, right),
+            TokenType.GreaterGreater => RightShift(left, right),
             _ => throw new EvalException($"Unknown binary operator '{expr.Op.Lexeme}'")
         };
     }
