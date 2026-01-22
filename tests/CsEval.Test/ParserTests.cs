@@ -69,6 +69,51 @@ public class ParserTests
     }
 
     [Test]
+    public void Parse_Lambda_SingleParameterWithoutParens()
+    {
+        var expr = Parse("x => x * 2");
+        Assert.That(expr, Is.InstanceOf<LambdaExpr>());
+
+        var lambda = (LambdaExpr)expr;
+        Assert.That(lambda.Parameters, Has.Count.EqualTo(1));
+        Assert.That(lambda.Parameters[0].Lexeme, Is.EqualTo("x"));
+    }
+
+    [Test]
+    public void Parse_Lambda_SingleParameterWithoutParens_MemberAccess()
+    {
+        var expr = Parse("d => d.Name");
+        Assert.That(expr, Is.InstanceOf<LambdaExpr>());
+
+        var lambda = (LambdaExpr)expr;
+        Assert.That(lambda.Parameters, Has.Count.EqualTo(1));
+        Assert.That(lambda.Parameters[0].Lexeme, Is.EqualTo("d"));
+        Assert.That(lambda.Body, Is.InstanceOf<MemberAccessExpr>());
+    }
+
+    [Test]
+    public void Parse_Lambda_WithNestedFunctionCallContainingComma()
+    {
+        var expr = Parse("items.Where(d => Func(d.A, d.B) == null)");
+        Assert.That(expr, Is.InstanceOf<CallExpr>());
+
+        var call = (CallExpr)expr;
+        Assert.That(call.Arguments, Has.Count.EqualTo(1));
+        Assert.That(call.Arguments[0], Is.InstanceOf<LambdaExpr>());
+    }
+
+    [Test]
+    public void Parse_Lambda_WithMultipleNestedMemberAccess()
+    {
+        var expr = Parse("items.Where(d => Util.Process(d.First, d.Second) == null)");
+        Assert.That(expr, Is.InstanceOf<CallExpr>());
+
+        var call = (CallExpr)expr;
+        Assert.That(call.Arguments, Has.Count.EqualTo(1));
+        Assert.That(call.Arguments[0], Is.InstanceOf<LambdaExpr>());
+    }
+
+    [Test]
     public void Parse_Lambda_MultipleParameters()
     {
         var expr = Parse("(a, b) => a + b");

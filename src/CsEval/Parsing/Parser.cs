@@ -233,9 +233,20 @@ namespace CsEval.Parsing
             if (Match(TokenType.LeftBrace))
                 return ParseBlock();
 
-            // Identifier
+            // Identifier or single-parameter lambda (x => ...)
             if (Match(TokenType.Identifier))
-                return new IdentifierExpr(Previous());
+            {
+                var identifier = Previous();
+
+                // Check for single-parameter lambda: x => expr
+                if (Match(TokenType.Arrow))
+                {
+                    var body = ParseExpression();
+                    return new LambdaExpr([identifier], body);
+                }
+
+                return new IdentifierExpr(identifier);
+            }
 
             throw new ParserException($"Unexpected token '{Peek().Lexeme}' at {Peek().Line}:{Peek().Column}");
         }

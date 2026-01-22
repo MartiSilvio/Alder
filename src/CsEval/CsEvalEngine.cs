@@ -203,14 +203,14 @@ public sealed class CsEvalEngine
             if (!hasStaticOnly && type.GetConstructor(Type.EmptyTypes) == null)
                 continue;
 
-            _registeredTypes.Add(new RegisteredType(type, null, FromAssemblyScan: true));
+            _registeredTypes.Add(new RegisteredType(type, null, null, FromAssemblyScan: true));
         }
         return this;
     }
 
     public CsEvalEngine RegisterFromType(Type type, object? instance = null)
     {
-        _registeredTypes.Add(new RegisteredType(type, instance, FromAssemblyScan: false));
+        _registeredTypes.Add(new RegisteredType(type, instance, null, FromAssemblyScan: false));
         return this;
     }
 
@@ -219,16 +219,27 @@ public sealed class CsEvalEngine
         return RegisterFromType(typeof(T), instance);
     }
 
+    public CsEvalEngine RegisterModule(string moduleName, Type type, object? instance = null)
+    {
+        _registeredTypes.Add(new RegisteredType(type, instance, moduleName, FromAssemblyScan: false));
+        return this;
+    }
+
+    public CsEvalEngine RegisterModule<T>(string moduleName, T? instance = default) where T : class
+    {
+        return RegisterModule(moduleName, typeof(T), instance);
+    }
+
     private void ApplyRegisteredTypes(IServiceProvider? serviceProvider)
     {
         foreach (var reg in _registeredTypes)
         {
-            var moduleAttr = reg.Type.GetCustomAttribute<CsEvalModuleAttribute>();
+            var moduleName = reg.ModuleName ?? reg.Type.GetCustomAttribute<CsEvalModuleAttribute>()?.Name;
 
-            if (moduleAttr != null)
+            if (moduleName != null)
             {
                 var proxy = ResolveInstance(reg, serviceProvider);
-                _context.Define(moduleAttr.Name, proxy);
+                _context.Define(moduleName, proxy);
             }
             else
             {
@@ -307,6 +318,34 @@ public sealed class CsEvalEngine
         return Convert.ChangeType(arg, targetType);
     }
 
+    public IReadOnlyDictionary<string, RegisteredModule> GetRegisteredModules()
+    {
+        var result = new Dictionary<string, RegisteredModule>(_options.StringComparer);
+
+        foreach (var reg in _registeredTypes)
+        {
+            var moduleName = reg.ModuleName ?? reg.Type.GetCustomAttribute<CsEvalModuleAttribute>()?.Name;
+            if (moduleName == null)
+                continue;
+
+            var methods = reg.Type
+                .GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static)
+                .Where(m => !m.IsSpecialName)
+                .ToList();
+
+            result[moduleName] = new RegisteredModule(reg.Type, methods);
+        }
+
+        return result;
+    }
+
+    public sealed record RegisteredModule(Type Type, IReadOnlyList<MethodInfo> Methods);
+
+    public IReadOnlyDictionary<string, Func<object?[], object?>> GetRegisteredFunctions()
+    {
+        return _functions;
+    }
+
     private void RegisterBuiltInProxies()
     {
         _context.Define("Math", new MathProxy());
@@ -318,5 +357,5 @@ public sealed class CsEvalEngine
         _context.Define("Console", new ConsoleProxy());
     }
 
-    private sealed record RegisteredType(Type Type, object? Instance, bool FromAssemblyScan);
+    private sealed record RegisteredType(Type Type, object? Instance, string? ModuleName, bool FromAssemblyScan);
 }
