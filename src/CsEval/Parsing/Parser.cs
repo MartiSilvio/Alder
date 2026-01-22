@@ -36,18 +36,19 @@ namespace CsEval.Parsing
         }
 
         private Expr ParseConditional()
+    {
+        var expr = ParseOr();
+
+        if (Match(TokenType.Question))
         {
-            var expr = ParseOr();
-
-            // Ternary: condition ? then : else
-            if (Peek().Type == TokenType.Identifier && Peek().Lexeme == "?")
-            {
-                // This is ambiguous - could be ternary or null-safe access
-                // For now, we handle ternary in a limited way
-            }
-
-            return expr;
+            var thenBranch = ParseExpression();
+            Consume(TokenType.Colon, "Expected ':' in ternary expression");
+            var elseBranch = ParseExpression();
+            return new ConditionalExpr(expr, thenBranch, elseBranch);
         }
+
+        return expr;
+    }
 
         private Expr ParseOr()
         {
