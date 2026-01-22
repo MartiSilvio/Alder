@@ -314,6 +314,16 @@ public class EvaluatorTests
     }
 
     [Test]
+    public void Eval_Lambda_Where_WithoutParens()
+    {
+        var context = new EvalContext();
+        context.Define("numbers", new List<object?> { 1, 2, 3, 4, 5 });
+
+        var result = Eval("numbers.Where(x => x > 2)", context) as List<object?>;
+        Assert.That(result, Has.Count.EqualTo(3));
+    }
+
+    [Test]
     public void Eval_Lambda_Select()
     {
         var context = new EvalContext();
@@ -321,6 +331,29 @@ public class EvaluatorTests
 
         var result = Eval("numbers.Select((x) => x * 2)", context) as List<object?>;
         Assert.That(result, Is.EqualTo(new List<object?> { 2L, 4L, 6L }));
+    }
+
+    [Test]
+    public void Eval_Lambda_Select_WithoutParens()
+    {
+        var context = new EvalContext();
+        context.Define("numbers", new List<object?> { 1L, 2L, 3L });
+
+        var result = Eval("numbers.Select(x => x * 2)", context) as List<object?>;
+        Assert.That(result, Is.EqualTo(new List<object?> { 2L, 4L, 6L }));
+    }
+
+    [Test]
+    public void Eval_Lambda_Select_WithMemberAccess()
+    {
+        var context = new EvalContext();
+        context.Define("items", new List<object?> {
+            new { Name = "Alice" },
+            new { Name = "Bob" }
+        });
+
+        var result = Eval("items.Select(x => x.Name)", context) as List<object?>;
+        Assert.That(result, Is.EqualTo(new List<object?> { "Alice", "Bob" }));
     }
 
     [Test]
