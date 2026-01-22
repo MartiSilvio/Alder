@@ -299,3 +299,67 @@ statement      = "return" expression? ";"
                | "var" IDENTIFIER "=" expression ";"
                | expression ";" ;
 ```
+
+## Not Supported
+
+The following C# features are intentionally not supported:
+
+### Type Operations
+
+```csharp
+(int)x           // Type casting - NOT supported
+x is string      // Type checking - NOT supported
+x as string      // Safe casting - NOT supported
+typeof(int)      // Type reference - NOT supported
+```
+
+### Operators
+
+```csharp
+x & y            // Bitwise AND - NOT supported
+x | y            // Bitwise OR - NOT supported
+x ^ y            // Bitwise XOR - NOT supported
+~x               // Bitwise NOT - NOT supported
+x << 2           // Left shift - NOT supported
+x >> 2           // Right shift - NOT supported
+x++              // Increment - NOT supported
+x--              // Decrement - NOT supported
+x += 1           // Compound assignment - NOT supported (use x = x + 1)
+```
+
+### Control Flow
+
+```csharp
+for (...)        // For loops - NOT supported
+while (...)      // While loops - NOT supported
+foreach (...)    // Foreach loops - NOT supported
+switch (x) { }   // Switch statements - NOT supported (reserved)
+throw new ...    // Throw statements - NOT supported
+try { } catch    // Try-catch - NOT supported
+```
+
+### Other
+
+```csharp
+nameof(x)        // Name of expression - NOT supported
+default(T)       // Default value - NOT supported
+x..y             // Range operator - NOT supported
+new int[5]       // Array initialization - NOT supported
+x = y            // Assignment (use ??= for null-coalescing assignment)
+params args      // Params arrays - limited support
+```
+
+### Lambda Limitations
+
+Lambda bodies must be single expressions:
+
+```csharp
+// Supported
+x => x * 2
+x => x > 0 ? "positive" : "non-positive"
+
+// NOT supported - use block expressions at top level instead
+x => { var y = x * 2; return y + 1; }
+```
+
+For complex logic, use block expressions at the top level of your expression.
