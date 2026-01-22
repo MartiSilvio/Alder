@@ -147,9 +147,55 @@ namespace CsEval.Test
             Assert.That(result, Is.EqualTo(30L));
         }
 
+        [Test]
+        public void Evaluate_CaseSensitive_Variable_ThrowsOnWrongCase()
+        {
+            var engine = new CsEvalEngine();
+            engine.SetVariable("MyVar", 42L);
+
+            Assert.That(engine.Evaluate("MyVar"), Is.EqualTo(42L));
+            Assert.Throws<CsEval.Evaluation.EvalException>(() => engine.Evaluate("myvar"));
+        }
+
+        [Test]
+        public void Evaluate_IgnoreCase_Variable_Works()
+        {
+            var engine = new CsEvalEngine(new CsEvalOptions { IgnoreCase = true });
+            engine.SetVariable("MyVar", 42L);
+
+            Assert.That(engine.Evaluate("MyVar"), Is.EqualTo(42L));
+            Assert.That(engine.Evaluate("myvar"), Is.EqualTo(42L));
+            Assert.That(engine.Evaluate("MYVAR"), Is.EqualTo(42L));
+        }
+
+        [Test]
+        public void Evaluate_IgnoreCase_MemberAccess_Works()
+        {
+            var engine = new CsEvalEngine(new CsEvalOptions { IgnoreCase = true });
+            engine.SetVariable("obj", new TestObject { Name = "Test" });
+
+            Assert.That(engine.Evaluate("obj.Name"), Is.EqualTo("Test"));
+            Assert.That(engine.Evaluate("obj.name"), Is.EqualTo("Test"));
+            Assert.That(engine.Evaluate("obj.NAME"), Is.EqualTo("Test"));
+        }
+
+        [Test]
+        public void Evaluate_IgnoreCase_Proxy_Works()
+        {
+            var engine = new CsEvalEngine(new CsEvalOptions { IgnoreCase = true });
+
+            Assert.That(engine.Evaluate("math.abs(-5)"), Is.EqualTo(5.0));
+            Assert.That(engine.Evaluate("MATH.ABS(-5)"), Is.EqualTo(5.0));
+        }
+
         private class CustomProxy
         {
             public string Greet(string name) => $"Hello, {name}!";
+        }
+
+        private class TestObject
+        {
+            public string Name { get; set; } = "";
         }
     }
 }

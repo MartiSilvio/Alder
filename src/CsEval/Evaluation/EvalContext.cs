@@ -4,13 +4,22 @@ namespace CsEval.Evaluation
 {
     public sealed class EvalContext
     {
-        private readonly Dictionary<string, object?> _variables = new(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, object?> _variables;
         private readonly EvalContext? _parent;
+        private readonly StringComparer _comparer;
 
-        public EvalContext(EvalContext? parent = null)
+        public EvalContext(StringComparer? comparer = null) : this(null, comparer)
+        {
+        }
+
+        private EvalContext(EvalContext? parent, StringComparer? comparer)
         {
             _parent = parent;
+            _comparer = comparer ?? parent?._comparer ?? StringComparer.Ordinal;
+            _variables = new Dictionary<string, object?>(_comparer);
         }
+
+        public StringComparer Comparer => _comparer;
 
         public void Define(string name, object? value) => _variables[name] = value;
 
@@ -33,11 +42,11 @@ namespace CsEval.Evaluation
             throw new EvalException($"Undefined variable '{name}'");
         }
 
-        public EvalContext CreateChild() => new(this);
+        public EvalContext CreateChild() => new(this, _comparer);
 
-        public static EvalContext FromExpandoObject(ExpandoObject? expando)
+        public static EvalContext FromExpandoObject(ExpandoObject? expando, StringComparer? comparer = null)
         {
-            var ctx = new EvalContext();
+            var ctx = new EvalContext(comparer);
             if (expando == null) return ctx;
 
             foreach (var kvp in (IDictionary<string, object?>)expando)
@@ -47,9 +56,9 @@ namespace CsEval.Evaluation
             return ctx;
         }
 
-        public static EvalContext FromDictionary(IDictionary<string, object?>? dict)
+        public static EvalContext FromDictionary(IDictionary<string, object?>? dict, StringComparer? comparer = null)
         {
-            var ctx = new EvalContext();
+            var ctx = new EvalContext(comparer);
             if (dict == null) return ctx;
 
             foreach (var kvp in dict)

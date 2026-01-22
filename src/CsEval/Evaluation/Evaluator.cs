@@ -10,11 +10,13 @@ namespace CsEval.Evaluation
     {
         private EvalContext _context;
         private readonly Dictionary<string, Func<object?[], object?>> _functions;
+        private readonly CsEvalOptions _options;
 
-        public Evaluator(EvalContext context, Dictionary<string, Func<object?[], object?>> functions)
+        public Evaluator(EvalContext context, Dictionary<string, Func<object?[], object?>> functions, CsEvalOptions? options = null)
         {
             _context = context;
             _functions = functions;
+            _options = options ?? CsEvalOptions.Default;
         }
 
         public object? Evaluate(Expr expr) => expr.Accept(this);
@@ -277,21 +279,37 @@ namespace CsEval.Evaluation
             }
         }
 
-        private static object? GetMember(object obj, string name)
+        private object? GetMember(object obj, string name)
         {
+            var ignoreCase = _options.IgnoreCase;
+
             if (obj is IDictionary<string, object?> dict)
             {
                 if (dict.TryGetValue(name, out var value))
                     return value;
+
+                if (ignoreCase)
+                {
+                    foreach (var key in dict.Keys)
+                    {
+                        if (string.Equals(key, name, StringComparison.OrdinalIgnoreCase))
+                            return dict[key];
+                    }
+                }
+
                 throw new EvalException($"Property '{name}' not found");
             }
 
             var type = obj.GetType();
-            var prop = type.GetProperty(name, BindingFlags.Public | BindingFlags.Instance);
+            var bindingFlags = BindingFlags.Public | BindingFlags.Instance;
+            if (ignoreCase)
+                bindingFlags |= BindingFlags.IgnoreCase;
+
+            var prop = type.GetProperty(name, bindingFlags);
             if (prop != null)
                 return prop.GetValue(obj);
 
-            var field = type.GetField(name, BindingFlags.Public | BindingFlags.Instance);
+            var field = type.GetField(name, bindingFlags);
             if (field != null)
                 return field.GetValue(obj);
 

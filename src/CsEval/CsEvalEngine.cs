@@ -5,11 +5,19 @@ namespace CsEval
 {
     public sealed class CsEvalEngine
     {
-        private readonly EvalContext _context = new();
-        private readonly Dictionary<string, Func<object?[], object?>> _functions = new(StringComparer.Ordinal);
+        private readonly EvalContext _context;
+        private readonly Dictionary<string, Func<object?[], object?>> _functions;
+        private readonly CsEvalOptions _options;
 
-        public CsEvalEngine()
+        public CsEvalEngine() : this(CsEvalOptions.Default)
         {
+        }
+
+        public CsEvalEngine(CsEvalOptions options)
+        {
+            _options = options;
+            _context = new EvalContext(options.StringComparer);
+            _functions = new Dictionary<string, Func<object?[], object?>>(options.StringComparer);
             RegisterStaticProxies();
         }
 
@@ -21,7 +29,7 @@ namespace CsEval
             var parser = new Parser(tokens);
             var ast = parser.Parse();
 
-            var evaluator = new Evaluator(_context, _functions);
+            var evaluator = new Evaluator(_context, _functions, _options);
             return evaluator.Evaluate(ast);
         }
 

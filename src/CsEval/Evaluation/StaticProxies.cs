@@ -85,7 +85,7 @@ namespace CsEval.Evaluation
     {
         public IEnumerable<int> Range(int start, int count) => Enumerable.Range(start, count);
         public IEnumerable<T> Repeat<T>(T element, int count) => Enumerable.Repeat(element, count);
-        public IEnumerable<T> Empty<T>() => Enumerable.Empty<T>();
+        public IEnumerable<T> Empty<T>() => [];
     }
 
     /// <summary>
