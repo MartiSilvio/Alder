@@ -1,5 +1,7 @@
 # CsEval
 
+[![.NET](https://github.com/silviomartignetti/gym-flow/actions/workflows/dotnet.yml/badge.svg)](https://github.com/silviomartignetti/gym-flow/actions/workflows/dotnet.yml)
+
 **A C# expression evaluator and dynamic expression parser for .NET**
 
 CsEval is a runtime expression evaluation library that parses and executes C#-like expressions from strings. It provides formula evaluation, dynamic query building, and scripting capabilities for .NET applications.
