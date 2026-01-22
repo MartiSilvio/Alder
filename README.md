@@ -167,6 +167,31 @@ var child = engine.CreateChild();
 child.SetVariable("requestId", 123);
 ```
 
+## Thread Safety
+
+**Important**: `CsEvalEngine` instances are **not thread-safe** for concurrent evaluation. The evaluation context maintains mutable state that can be corrupted by simultaneous access.
+
+For concurrent scenarios, use `CreateChild()` to create isolated contexts:
+
+```csharp
+var engine = new CsEvalEngine();
+engine.SetVariable("config", sharedConfig); // shared setup
+
+// Concurrent evaluation - each thread gets its own context
+Parallel.ForEach(items, item => {
+    var child = engine.CreateChild();        // isolated context
+    child.SetVariable("item", item);         // thread-local variable
+    var result = child.Evaluate(expression);
+});
+```
+
+Each child context:
+- Inherits variables from the parent (read-only)
+- Has its own isolated scope for new variables
+- Can be safely used from a single thread
+
+The internal reflection cache (`TypeCache`) is thread-safe and shared globally across all evaluator instances.
+
 ## Documentation
 
 - [Syntax Reference](docs/syntax.md) - Expression grammar and language constructs

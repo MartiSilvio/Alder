@@ -74,7 +74,7 @@ public sealed partial class Evaluator
 
             // Copy properties from the left object via reflection
             var leftType = left.GetType();
-            foreach (var prop in leftType.GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance))
+            foreach (var prop in TypeCache.GetProperties(leftType, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance))
             {
                 if (prop.CanRead)
                     merged[prop.Name] = prop.GetValue(left);
@@ -99,7 +99,7 @@ public sealed partial class Evaluator
 
             // Override/add properties from the right object via reflection
             var rightType = right.GetType();
-            foreach (var prop in rightType.GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance))
+            foreach (var prop in TypeCache.GetProperties(rightType, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance))
             {
                 if (prop.CanRead)
                     merged[prop.Name] = prop.GetValue(right);
@@ -116,7 +116,7 @@ public sealed partial class Evaluator
 
             // Copy properties from the left object via reflection
             var leftType = left.GetType();
-            foreach (var prop in leftType.GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance))
+            foreach (var prop in TypeCache.GetProperties(leftType, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance))
             {
                 if (prop.CanRead)
                     merged[prop.Name] = prop.GetValue(left);
@@ -124,7 +124,7 @@ public sealed partial class Evaluator
 
             // Override/add properties from the right object via reflection
             var rightType = right.GetType();
-            foreach (var prop in rightType.GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance))
+            foreach (var prop in TypeCache.GetProperties(rightType, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance))
             {
                 if (prop.CanRead)
                     merged[prop.Name] = prop.GetValue(right);

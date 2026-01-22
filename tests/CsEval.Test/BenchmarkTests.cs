@@ -334,9 +334,162 @@ public class BenchmarkTests
         ];
     }
 
+    [Test]
+    public void Benchmark_ReflectionCache_TypedObjectPropertyAccess()
+    {
+        // This test stresses the TypeCache by accessing properties on typed objects
+        const string expression = "person.FirstName + \" \" + person.LastName + \" (\" + person.Age + \")\"";
+        var engine = new CsEvalEngine()
+            .SetVariable("person", new Person { FirstName = "John", LastName = "Doe", Age = 30 });
+
+        Warmup(() => engine.Evaluate(expression));
+
+        var sw = Stopwatch.StartNew();
+        for (var i = 0; i < BenchmarkIterations; i++)
+        {
+            engine.Evaluate(expression);
+        }
+        sw.Stop();
+
+        ReportResult("Typed object property access (3 props)", sw.ElapsedMilliseconds);
+    }
+
+    [Test]
+    public void Benchmark_ReflectionCache_ManyTypedObjects()
+    {
+        // Access properties across MANY different types to stress the cache
+        var engine = new CsEvalEngine()
+            .SetVariable("person", new Person { FirstName = "John", LastName = "Doe", Age = 30 })
+            .SetVariable("order", new Order { Id = 1, Total = 99.99m, Status = "Pending" })
+            .SetVariable("product", new Product { Name = "Widget", Price = 19.99, InStock = true });
+
+        const string expression = "person.FirstName + \" ordered \" + product.Name + \" for $\" + order.Total";
+
+        Warmup(() => engine.Evaluate(expression));
+
+        var sw = Stopwatch.StartNew();
+        for (var i = 0; i < BenchmarkIterations; i++)
+        {
+            engine.Evaluate(expression);
+        }
+        sw.Stop();
+
+        ReportResult("Multiple typed objects (3 types, 4 props)", sw.ElapsedMilliseconds);
+    }
+
+    [Test]
+    public void Benchmark_ReflectionCache_ObjectMerge()
+    {
+        // Object merging uses GetProperties heavily
+        const string expression = "person + new { FullName = person.FirstName + \" \" + person.LastName, IsAdult = person.Age >= 18 }";
+        var engine = new CsEvalEngine()
+            .SetVariable("person", new Person { FirstName = "John", LastName = "Doe", Age = 30 });
+
+        Warmup(() => engine.Evaluate(expression));
+
+        var sw = Stopwatch.StartNew();
+        for (var i = 0; i < BenchmarkIterations; i++)
+        {
+            engine.Evaluate(expression);
+        }
+        sw.Stop();
+
+        ReportResult("Object merge (typed + anonymous)", sw.ElapsedMilliseconds);
+    }
+
+    [Test]
+    public void Benchmark_ReflectionCache_SpreadOperator()
+    {
+        // Spread also uses GetProperties
+        const string expression = "new { ...person, Email = \"john@example.com\" }";
+        var engine = new CsEvalEngine()
+            .SetVariable("person", new Person { FirstName = "John", LastName = "Doe", Age = 30 });
+
+        Warmup(() => engine.Evaluate(expression));
+
+        var sw = Stopwatch.StartNew();
+        for (var i = 0; i < BenchmarkIterations; i++)
+        {
+            engine.Evaluate(expression);
+        }
+        sw.Stop();
+
+        ReportResult("Spread typed object", sw.ElapsedMilliseconds);
+    }
+
+    [Test]
+    public void Benchmark_ReflectionCache_MethodCallOnTypedObject()
+    {
+        // Calling methods on typed objects uses GetMethods
+        const string expression = "text.ToUpper()";
+        var engine = new CsEvalEngine()
+            .SetVariable("text", "hello world");
+
+        Warmup(() => engine.Evaluate(expression));
+
+        var sw = Stopwatch.StartNew();
+        for (var i = 0; i < BenchmarkIterations; i++)
+        {
+            engine.Evaluate(expression);
+        }
+        sw.Stop();
+
+        ReportResult("Method call on string", sw.ElapsedMilliseconds);
+    }
+
+    [Test]
+    public void Benchmark_ReflectionCache_HeavyReflection()
+    {
+        // Combine all reflection-heavy operations in one expression
+        const string expression = @"
+            {
+                var merged = person + new { FullName = person.FirstName + "" "" + person.LastName };
+                var summary = $""{merged.FullName} ({person.Age}) - {order.Status}: ${order.Total}"";
+                return new { ...merged, Summary = summary, Product = product.Name };
+            }
+        ";
+
+        var engine = new CsEvalEngine()
+            .SetVariable("person", new Person { FirstName = "John", LastName = "Doe", Age = 30 })
+            .SetVariable("order", new Order { Id = 1, Total = 99.99m, Status = "Complete" })
+            .SetVariable("product", new Product { Name = "Widget", Price = 19.99, InStock = true });
+
+        Warmup(() => engine.Evaluate(expression));
+
+        var sw = Stopwatch.StartNew();
+        for (var i = 0; i < BenchmarkIterations; i++)
+        {
+            engine.Evaluate(expression);
+        }
+        sw.Stop();
+
+        ReportResult("Heavy reflection (merge + spread + props)", sw.ElapsedMilliseconds);
+    }
+
     public class TestModule
     {
         public long Add(long a, long b) => a + b;
         public long Multiply(long a, long b) => a * b;
+    }
+
+    public class Person
+    {
+        public string FirstName { get; set; } = "";
+        public string LastName { get; set; } = "";
+        public int Age { get; set; }
+    }
+
+    public class Order
+    {
+        public int Id { get; set; }
+        public decimal Total { get; set; }
+        public string Status { get; set; } = "";
+    }
+
+    public class Product
+    {
+        public string Name { get; set; } = "";
+        public double Price { get; set; }
+        public bool InStock { get; set; }
     }
 }

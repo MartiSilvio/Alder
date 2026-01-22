@@ -91,6 +91,27 @@ public sealed class CsEvalEngine
         return evaluator.Evaluate(expression.Ast);
     }
 
+    /// <summary>
+    /// Creates a child engine with an isolated evaluation context.
+    /// The child inherits variables from the parent (read-only) but has its own scope for new variables.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Thread Safety:</b> CsEvalEngine is not thread-safe. For concurrent evaluation,
+    /// each thread must use its own child context created via this method.
+    /// </para>
+    /// <example>
+    /// <code>
+    /// // Concurrent evaluation pattern
+    /// Parallel.ForEach(items, item => {
+    ///     var child = engine.CreateChild();
+    ///     child.SetVariable("item", item);
+    ///     child.Evaluate(expression);
+    /// });
+    /// </code>
+    /// </example>
+    /// </remarks>
+    /// <returns>A new CsEvalEngine with an isolated child context.</returns>
     public CsEvalEngine CreateChild()
     {
         return new CsEvalEngine(_context.CreateChild(), _functions, _registeredTypes, _options);

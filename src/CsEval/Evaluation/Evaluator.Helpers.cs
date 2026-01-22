@@ -120,11 +120,11 @@ public sealed partial class Evaluator
         if (ignoreCase)
             bindingFlags |= BindingFlags.IgnoreCase;
 
-        var prop = type.GetProperty(name, bindingFlags);
+        var prop = TypeCache.GetProperty(type, name, bindingFlags);
         if (prop != null)
             return prop.GetValue(obj);
 
-        var field = type.GetField(name, bindingFlags);
+        var field = TypeCache.GetField(type, name, bindingFlags);
         if (field != null)
             return field.GetValue(obj);
 
@@ -149,7 +149,7 @@ public sealed partial class Evaluator
         }
 
         var type = obj.GetType();
-        var indexer = type.GetProperty("Item");
+        var indexer = TypeCache.GetIndexer(type);
         if (indexer != null)
             return indexer.GetValue(obj, [index]);
 
@@ -170,9 +170,7 @@ public sealed partial class Evaluator
                 return result;
         }
 
-        var methods = type.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase)
-            .Where(m => string.Equals(m.Name, methodName, StringComparison.OrdinalIgnoreCase))
-            .ToList();
+        var methods = TypeCache.GetMethods(type, methodName, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
 
         foreach (var method in methods)
         {

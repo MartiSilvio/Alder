@@ -4,6 +4,8 @@
 
 CsEval uses C# syntax as its core, so C# developers will feel immediately at home. In addition to standard C# expressions, CsEval adds modern enhancements inspired by other languages to make expressions more powerful and expressive while keeping full C# familiarity.
 
+See also: [Extensions](extensions.md)
+
 ## Expression Precedence (lowest to highest)
 
 1. Assignment: `??=`
@@ -72,14 +74,14 @@ null
 
 ### Arithmetic
 
-| Operator    | Description                             | Example |
-| ----------- | --------------------------------------- | ------- |
-| `+`         | Addition / String concat / Object merge | `a + b` |
-| `-`         | Subtraction                             | `a - b` |
-| `*`         | Multiplication                          | `a * b` |
-| `/`         | Division                                | `a / b` |
-| `%`         | Modulo                                  | `a % b` |
-| `-` (unary) | Negation                                | `-x`    |
+| Operator    | Description                                                              | Example |
+| ----------- | ------------------------------------------------------------------------ | ------- |
+| `+`         | Addition / String concat / [Object merge](extensions.md#object-merging-) | `a + b` |
+| `-`         | Subtraction                                                              | `a - b` |
+| `*`         | Multiplication                                                           | `a * b` |
+| `/`         | Division                                                                 | `a / b` |
+| `%`         | Modulo                                                                   | `a % b` |
+| `-` (unary) | Negation                                                                 | `-x`    |
 
 ### Comparison
 
@@ -104,14 +106,14 @@ Short-circuit evaluation is used for `&&` and `||`.
 
 ### Bitwise
 
-| Operator | Description        | Example    |
-| -------- | ------------------ | ---------- |
-| `&`      | Bitwise AND        | `a & b`    |
-| `\|`     | Bitwise OR         | `a \| b`   |
-| `^`      | Bitwise XOR        | `a ^ b`    |
-| `~`      | Bitwise NOT        | `~a`       |
-| `<<`     | Left shift         | `a << 2`   |
-| `>>`     | Right shift        | `a >> 2`   |
+| Operator | Description | Example  |
+| -------- | ----------- | -------- |
+| `&`      | Bitwise AND | `a & b`  |
+| `\|`     | Bitwise OR  | `a \| b` |
+| `^`      | Bitwise XOR | `a ^ b`  |
+| `~`      | Bitwise NOT | `~a`     |
+| `<<`     | Left shift  | `a << 2` |
+| `>>`     | Right shift | `a >> 2` |
 
 Bitwise operations convert operands to integers (truncating decimals) and return `long`.
 
@@ -173,43 +175,6 @@ new { Name = "John", Age = 30 }  // multiple properties
 ```
 
 Properties are always assigned with `=` (not `:`).
-
-### Spread Operator
-
-The spread operator (`...`) expands arrays and objects inline:
-
-**Array Spread:**
-
-```
-var arr1 = [1, 2, 3];
-var arr2 = [4, 5, 6];
-[...arr1, ...arr2]              // [1, 2, 3, 4, 5, 6]
-[0, ...arr1, 4]                 // [0, 1, 2, 3, 4]
-```
-
-**Object Spread:**
-
-```
-var person = new { Name = "John", Age = 30 };
-new { ...person, City = "NYC" }  // { Name = "John", Age = 30, City = "NYC" }
-```
-
-Later properties override earlier ones:
-
-```
-var defaults = new { Theme = "light", Size = 10 };
-new { ...defaults, Theme = "dark" }  // { Theme = "dark", Size = 10 }
-```
-
-Multiple spreads can be combined:
-
-```
-var a = new { X = 1 };
-var b = new { Y = 2 };
-new { ...a, ...b, Z = 3 }       // { X = 1, Y = 2, Z = 3 }
-```
-
-The spread operator works with any iterable for arrays and any object (including typed objects) for object spread.
 
 ## Lambda Expressions
 
@@ -273,22 +238,6 @@ else return "other";
 return;              // return null
 return expression;   // return value
 ```
-
-## Object Merging
-
-The `+` operator merges objects when operands are not both numeric:
-
-```
-// Object + Anonymous object
-person + new { Extra = "data" }
-
-// Dictionary + Dictionary
-dict1 + dict2
-
-// Result is always a Dictionary<string, object?>
-```
-
-Properties from the right operand override those from the left.
 
 ## Comments
 

@@ -266,7 +266,7 @@ public sealed partial class Evaluator : IExprVisitor<object?>
                 {
                     // Spread from regular object via reflection
                     var type = spreadValue.GetType();
-                    foreach (var prop in type.GetProperties(BindingFlags.Public | BindingFlags.Instance))
+                    foreach (var prop in TypeCache.GetProperties(type, BindingFlags.Public | BindingFlags.Instance))
                     {
                         if (prop.CanRead)
                             result[prop.Name] = prop.GetValue(spreadValue);
