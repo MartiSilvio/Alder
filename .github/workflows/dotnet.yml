@@ -2,17 +2,9 @@ name: .NET
 
 on:
   push:
-    branches: [main, develop]
-    paths:
-      - "api/CsEval/**"
+    branches: [main, master]
   pull_request:
-    branches: [main, develop]
-    paths:
-      - "api/CsEval/**"
-
-defaults:
-  run:
-    working-directory: api/CsEval
+    branches: [main, master]
 
 jobs:
   build:

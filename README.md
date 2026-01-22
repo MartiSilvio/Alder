@@ -1,6 +1,6 @@
 # CsEval
 
-[![.NET](https://github.com/MartiSilvio/CsEval/blob/master/.github/workflows/dotnet.yml/badge.svg)](https://github.com/MartiSilvio/CsEval/blob/master/.github/workflows/dotnet.yml)
+[![.NET](https://github.com/MartiSilvio/CsEval/actions/workflows/dotnet.yml/badge.svg)](https://github.com/MartiSilvio/CsEval/actions/workflows/dotnet.yml)
 
 **A C# expression evaluator and dynamic expression parser for .NET**
 
