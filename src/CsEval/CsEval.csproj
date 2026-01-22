@@ -8,4 +8,16 @@
     <NoWarn>$(NoWarn);CA1822</NoWarn>
   </PropertyGroup>
 
+  <ItemGroup>
+    <Compile Update="Evaluation\Evaluator.Helpers.cs">
+      <DependentUpon>Evaluator.cs</DependentUpon>
+    </Compile>
+    <Compile Update="Evaluation\Evaluator.Linq.cs">
+      <DependentUpon>Evaluator.cs</DependentUpon>
+    </Compile>
+    <Compile Update="Evaluation\Evaluator.Operators.cs">
+      <DependentUpon>Evaluator.cs</DependentUpon>
+    </Compile>
+  </ItemGroup>
+
 </Project>
