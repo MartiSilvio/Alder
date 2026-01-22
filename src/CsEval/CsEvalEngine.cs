@@ -12,6 +12,8 @@ public sealed class CsEvalEngine
     private readonly CsEvalOptions _options;
     private readonly List<RegisteredType> _registeredTypes = [];
 
+    public Func<MethodInfo, object?[], object?[]>? ArgumentTransformer { get; set; }
+
     public CsEvalEngine() : this(CsEvalOptions.Default)
     {
     }
@@ -86,7 +88,7 @@ public sealed class CsEvalEngine
     {
         ApplyRegisteredTypes(serviceProvider);
 
-        var evaluator = new Evaluator(_context, _functions, _options, cancellationToken);
+        var evaluator = new Evaluator(_context, _functions, _options, cancellationToken, ArgumentTransformer);
         return evaluator.Evaluate(expression.Ast);
     }
 

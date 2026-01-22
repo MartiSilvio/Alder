@@ -12,13 +12,17 @@ public sealed class Evaluator : IExprVisitor<object?>
     private readonly Dictionary<string, Func<object?[], object?>> _functions;
     private readonly CsEvalOptions _options;
     private readonly CancellationToken _cancellationToken;
+    private readonly Func<MethodInfo, object?[], object?[]>? _argumentTransformer;
 
-    public Evaluator(EvalContext context, Dictionary<string, Func<object?[], object?>> functions, CsEvalOptions? options = null, CancellationToken cancellationToken = default)
+    public Evaluator(EvalContext context, Dictionary<string, Func<object?[], object?>> functions,
+        CsEvalOptions? options = null, CancellationToken cancellationToken = default,
+        Func<MethodInfo, object?[], object?[]>? argumentTransformer = null)
     {
         _context = context;
         _functions = functions;
         _options = options ?? CsEvalOptions.Default;
         _cancellationToken = cancellationToken;
+        _argumentTransformer = argumentTransformer;
     }
 
     public object? Evaluate(Expr expr)
@@ -300,6 +304,10 @@ public sealed class Evaluator : IExprVisitor<object?>
         var parameters = method.GetParameters();
 
         var finalArgs = TryAppendCancellationToken(parameters, args);
+
+        if (_argumentTransformer != null)
+            finalArgs = _argumentTransformer(method, finalArgs);
+
         finalArgs = PadWithDefaults(parameters, finalArgs);
 
         var result = method.Invoke(target, finalArgs);
