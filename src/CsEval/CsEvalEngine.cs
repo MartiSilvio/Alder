@@ -26,6 +26,11 @@ namespace CsEval
 
         public object? Evaluate(string expression, IServiceProvider? serviceProvider = null)
         {
+            return Evaluate(expression, serviceProvider, CancellationToken.None);
+        }
+
+        public object? Evaluate(string expression, IServiceProvider? serviceProvider, CancellationToken cancellationToken)
+        {
             ApplyRegisteredTypes(serviceProvider);
 
             var lexer = new Lexer(expression);
@@ -34,13 +39,36 @@ namespace CsEval
             var parser = new Parser(tokens);
             var ast = parser.Parse();
 
-            var evaluator = new Evaluator(_context, _functions, _options);
+            var evaluator = new Evaluator(_context, _functions, _options, cancellationToken);
             return evaluator.Evaluate(ast);
+        }
+
+        public Task<object?> EvaluateAsync(string expression, IServiceProvider? serviceProvider = null, CancellationToken cancellationToken = default)
+        {
+            return Task.Run(() => Evaluate(expression, serviceProvider, cancellationToken), cancellationToken);
         }
 
         public T? Evaluate<T>(string expression, IServiceProvider? serviceProvider = null)
         {
-            var result = Evaluate(expression, serviceProvider);
+            return Evaluate<T>(expression, serviceProvider, CancellationToken.None);
+        }
+
+        public T? Evaluate<T>(string expression, IServiceProvider? serviceProvider, CancellationToken cancellationToken)
+        {
+            var result = Evaluate(expression, serviceProvider, cancellationToken);
+
+            if (result == null)
+                return default;
+
+            if (result is T typed)
+                return typed;
+
+            return (T)Convert.ChangeType(result, typeof(T));
+        }
+
+        public async Task<T?> EvaluateAsync<T>(string expression, IServiceProvider? serviceProvider = null, CancellationToken cancellationToken = default)
+        {
+            var result = await EvaluateAsync(expression, serviceProvider, cancellationToken).ConfigureAwait(false);
 
             if (result == null)
                 return default;

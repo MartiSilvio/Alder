@@ -11,15 +11,21 @@ namespace CsEval.Evaluation
         private EvalContext _context;
         private readonly Dictionary<string, Func<object?[], object?>> _functions;
         private readonly CsEvalOptions _options;
+        private readonly CancellationToken _cancellationToken;
 
-        public Evaluator(EvalContext context, Dictionary<string, Func<object?[], object?>> functions, CsEvalOptions? options = null)
+        public Evaluator(EvalContext context, Dictionary<string, Func<object?[], object?>> functions, CsEvalOptions? options = null, CancellationToken cancellationToken = default)
         {
             _context = context;
             _functions = functions;
             _options = options ?? CsEvalOptions.Default;
+            _cancellationToken = cancellationToken;
         }
 
-        public object? Evaluate(Expr expr) => expr.Accept(this);
+        public object? Evaluate(Expr expr)
+        {
+            _cancellationToken.ThrowIfCancellationRequested();
+            return expr.Accept(this);
+        }
 
         public object? VisitLiteral(LiteralExpr expr) => expr.Value;
 
@@ -236,6 +242,7 @@ namespace CsEval.Evaluation
             {
                 foreach (var stmt in expr.Statements)
                 {
+                    _cancellationToken.ThrowIfCancellationRequested();
                     Evaluate(stmt);
                 }
 
@@ -363,18 +370,56 @@ namespace CsEval.Evaluation
             foreach (var method in methods)
             {
                 var parameters = method.GetParameters();
-                if (CanInvokeMethod(parameters, args, out var convertedArgs))
+                var argsWithCancellation = TryAppendCancellationToken(parameters, args);
+                if (CanInvokeMethod(parameters, argsWithCancellation, out var convertedArgs))
                 {
                     var result = method.Invoke(target, convertedArgs);
-                    return (true, result);
+                    return (true, UnwrapTask(result));
                 }
             }
 
             return (false, null);
         }
 
+        private object?[] TryAppendCancellationToken(ParameterInfo[] parameters, object?[] args)
+        {
+            if (parameters.Length == 0)
+                return args;
+
+            var lastParam = parameters[^1];
+            if (lastParam.ParameterType == typeof(CancellationToken) && args.Length == parameters.Length - 1)
+            {
+                var newArgs = new object?[args.Length + 1];
+                Array.Copy(args, newArgs, args.Length);
+                newArgs[^1] = _cancellationToken;
+                return newArgs;
+            }
+
+            return args;
+        }
+
+        private object? UnwrapTask(object? result)
+        {
+            if (result is Task task)
+            {
+                task.ConfigureAwait(false).GetAwaiter().GetResult();
+
+                var taskType = task.GetType();
+                if (taskType.IsGenericType)
+                {
+                    var resultProperty = taskType.GetProperty("Result");
+                    return resultProperty?.GetValue(task);
+                }
+
+                return null;
+            }
+
+            return result;
+        }
+
         private (bool Success, object? Value) TryInvokeEnumerableMethod(IEnumerable enumerable, string methodName, object?[] args)
         {
+            _cancellationToken.ThrowIfCancellationRequested();
             var list = enumerable.Cast<object?>().ToList();
 
             switch (methodName.ToLowerInvariant())
