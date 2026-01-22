@@ -44,7 +44,8 @@ public class AsyncTests
 
         var ex = Assert.CatchAsync<Exception>(async () =>
         {
-            await engine.EvaluateAsync("items.Where((x) => x > 0).Select((x) => x * 2)", cancellationToken: cts.Token);
+            await engine.EvaluateAsync("items.Where((x) => x > 0).Select((x) => x * 2)",
+                cancellationToken: cts.Token);
         });
 
         Assert.That(ex, Is.InstanceOf<OperationCanceledException>());
@@ -57,17 +58,14 @@ public class AsyncTests
         var cts = new CancellationTokenSource();
         cts.Cancel();
 
-        Assert.Throws<OperationCanceledException>(() =>
-        {
-            engine.Evaluate("1 + 2", null, cts.Token);
-        });
+        Assert.Throws<OperationCanceledException>(() => { engine.Evaluate("1 + 2", null, cts.Token); });
     }
 
     [Test]
     public async Task EvaluateAsync_AsyncMethodOnProxy_AwaitsResult()
     {
         var engine = new CsEvalEngine();
-        engine.RegisterProxy("Async", new AsyncProxy());
+        engine.RegisterModule("Async", new AsyncProxy());
 
         var result = await engine.EvaluateAsync("Async.GetValueAsync()");
         Assert.That(result, Is.EqualTo(42L));
@@ -77,7 +75,7 @@ public class AsyncTests
     public async Task EvaluateAsync_AsyncMethodWithArg_AwaitsResult()
     {
         var engine = new CsEvalEngine();
-        engine.RegisterProxy("Async", new AsyncProxy());
+        engine.RegisterModule("Async", new AsyncProxy());
 
         var result = await engine.EvaluateAsync("Async.DelayedAdd(10, 5)");
         Assert.That(result, Is.EqualTo(15L));
@@ -98,7 +96,7 @@ public class AsyncTests
     {
         var engine = new CsEvalEngine();
         var proxy = new CancellableProxy();
-        engine.RegisterProxy("Cancellable", proxy);
+        engine.RegisterModule("Cancellable", proxy);
 
         var cts = new CancellationTokenSource();
 

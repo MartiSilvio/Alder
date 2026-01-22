@@ -33,7 +33,8 @@ public enum TokenType
     PipePipe,
     Bang,
 
-    // Operators - Null
+    // Operators - Null/Ternary
+    Question,          // ?
     QuestionQuestion,  // ??
     QuestionDot,       // ?.
 

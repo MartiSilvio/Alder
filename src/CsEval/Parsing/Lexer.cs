@@ -95,7 +95,7 @@ namespace CsEval.Parsing
                 case '?':
                     if (Match('?')) AddToken(TokenType.QuestionQuestion);
                     else if (Match('.')) AddToken(TokenType.QuestionDot);
-                    else throw new LexerException($"Unexpected character '?' at {_line}:{_column}");
+                    else AddToken(TokenType.Question);
                     break;
 
                 case '/':

@@ -236,12 +236,64 @@ public class EvaluatorTests
     }
 
     [Test]
+    public void Eval_ArrayLiteral_Multiline()
+    {
+        var result = Eval(@"[
+    ""one"",
+    ""two"",
+    ""three""
+]") as List<object?>;
+        Assert.That(result, Is.Not.Null);
+        Assert.That(result, Has.Count.EqualTo(3));
+        Assert.That(result![0], Is.EqualTo("one"));
+        Assert.That(result[1], Is.EqualTo("two"));
+        Assert.That(result[2], Is.EqualTo("three"));
+    }
+
+    [Test]
+    public void Eval_ArrayLiteral_CRLF()
+    {
+        var result = Eval("[\r\n    \"one\"\r\n]") as List<object?>;
+        Assert.That(result, Is.Not.Null);
+        Assert.That(result, Has.Count.EqualTo(1));
+        Assert.That(result![0], Is.EqualTo("one"));
+    }
+
+    [Test]
     public void Eval_AnonymousObject()
     {
         var result = Eval("new { Name = \"John\", Age = 30 }") as IDictionary<string, object?>;
         Assert.That(result, Is.Not.Null);
         Assert.That(result!["Name"], Is.EqualTo("John"));
         Assert.That(result["Age"], Is.EqualTo(30L));
+    }
+
+    [Test]
+    public void Eval_Ternary_True()
+    {
+        Assert.That(Eval("true ? 1 : 2"), Is.EqualTo(1L));
+    }
+
+    [Test]
+    public void Eval_Ternary_False()
+    {
+        Assert.That(Eval("false ? 1 : 2"), Is.EqualTo(2L));
+    }
+
+    [Test]
+    public void Eval_Ternary_WithExpression()
+    {
+        var context = new EvalContext();
+        context.Define("x", 10L);
+        Assert.That(Eval("x > 5 ? \"big\" : \"small\"", context), Is.EqualTo("big"));
+    }
+
+    [Test]
+    public void Eval_Ternary_WithArrays()
+    {
+        var result = Eval("true ? [] : [1, 2, 3]") as List<object?>;
+        Assert.That(result, Is.Not.Null);
+        Assert.That(result, Has.Count.EqualTo(0));
     }
 
     [Test]

@@ -149,7 +149,7 @@ public class CustomRegistrationTests
     public void CustomProxy()
     {
         var engine = new CsEvalEngine();
-        engine.RegisterProxy("Custom", new GreetingProxy());
+        engine.RegisterModule("Custom", new GreetingProxy());
 
         var result = engine.Evaluate("Custom.Greet(\"World\")");
         Assert.That(result, Is.EqualTo("Hello, World!"));
