@@ -87,12 +87,3 @@ public sealed class EnumerableProxy
     public IEnumerable<T> Repeat<T>(T element, int count) => Enumerable.Repeat(element, count);
     public IEnumerable<T> Empty<T>() => [];
 }
-
-/// <summary>
-/// Proxy for System.Console static methods
-/// </summary>
-public sealed class ConsoleProxy
-{
-    public void WriteLine(object? value) => Console.WriteLine(value);
-    public void Write(object? value) => Console.Write(value);
-}

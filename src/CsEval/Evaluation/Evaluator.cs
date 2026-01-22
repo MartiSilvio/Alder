@@ -145,10 +145,11 @@ public sealed class Evaluator : IExprVisitor<object?>
         var args = expr.Arguments.Select(Evaluate).ToArray();
 
         // Handle method calls on objects first (before evaluating callee)
+        // Skip this for ModuleResolver - let the callee evaluation handle member filtering
         if (expr.Callee is MemberAccessExpr memberAccess)
         {
             var target = Evaluate(memberAccess.Object);
-            if (target != null)
+            if (target != null && target is not CsEvalEngine.ModuleResolver)
             {
                 var result = TryInvokeMethod(target, memberAccess.Name.Lexeme, args);
                 if (result.Success)
@@ -165,6 +166,12 @@ public sealed class Evaluator : IExprVisitor<object?>
             if (result.Success)
                 return result.Value;
             throw new EvalException($"Method '{methodRef.MethodName}' invocation failed");
+        }
+
+        // Filtered method reference (from module with method filter)
+        if (callee is ModuleMethodRef filteredRef)
+        {
+            return InvokeModuleMethod(filteredRef, args);
         }
 
         // Function reference (built-in or user-defined)
@@ -286,8 +293,76 @@ public sealed class Evaluator : IExprVisitor<object?>
         }
     }
 
+    private object? InvokeModuleMethod(ModuleMethodRef methodRef, object?[] args)
+    {
+        var method = methodRef.Method;
+        var target = method.IsStatic ? null : methodRef.Resolver.Resolve();
+        var parameters = method.GetParameters();
+
+        var finalArgs = TryAppendCancellationToken(parameters, args);
+        finalArgs = PadWithDefaults(parameters, finalArgs);
+
+        var result = method.Invoke(target, finalArgs);
+        return UnwrapTask(result);
+    }
+
+    private static object?[] PadWithDefaults(ParameterInfo[] parameters, object?[] args)
+    {
+        var result = new object?[parameters.Length];
+
+        for (var i = 0; i < parameters.Length; i++)
+        {
+            if (i < args.Length)
+            {
+                result[i] = CoerceNumeric(args[i], parameters[i].ParameterType);
+            }
+            else if (parameters[i].HasDefaultValue)
+            {
+                result[i] = parameters[i].DefaultValue;
+            }
+            else
+            {
+                throw new EvalException($"Missing required argument '{parameters[i].Name}'");
+            }
+        }
+
+        return result;
+    }
+
+    private static object? CoerceNumeric(object? arg, Type targetType)
+    {
+        if (arg == null) return null;
+        if (targetType.IsInstanceOfType(arg)) return arg;
+
+        var underlying = Nullable.GetUnderlyingType(targetType) ?? targetType;
+        if (arg is IConvertible && IsNumericType(underlying))
+            return Convert.ChangeType(arg, underlying);
+
+        return arg;
+    }
+
+    private static bool IsNumericType(Type type) =>
+        type == typeof(int) || type == typeof(long) || type == typeof(double) ||
+        type == typeof(float) || type == typeof(decimal) || type == typeof(short) ||
+        type == typeof(byte) || type == typeof(sbyte) || type == typeof(ushort) ||
+        type == typeof(uint) || type == typeof(ulong);
+
     private object? GetMember(object obj, string name)
     {
+        if (obj is CsEvalEngine.ModuleResolver resolver)
+        {
+            if (resolver.Members.TryGetValue(name, out var member))
+            {
+                return member switch
+                {
+                    MethodInfo m => new ModuleMethodRef(resolver, m),
+                    PropertyInfo p => p.GetValue(resolver.Resolve()),
+                    _ => throw new EvalException($"Unsupported member type '{member.GetType().Name}'")
+                };
+            }
+            throw new EvalException($"Member '{name}' not found on module '{resolver.Type.Name}'");
+        }
+
         var ignoreCase = _options.IgnoreCase;
 
         if (obj is IDictionary<string, object?> dict)
@@ -352,6 +427,9 @@ public sealed class Evaluator : IExprVisitor<object?>
 
     private (bool Success, object? Value) TryInvokeMethod(object target, string methodName, object?[] args)
     {
+        if (target is CsEvalEngine.ModuleResolver)
+            return (false, null);
+
         var type = target.GetType();
 
         // Special handling for IEnumerable extension methods
@@ -695,6 +773,7 @@ public sealed class Evaluator : IExprVisitor<object?>
 
     private static double ToDouble(object? value) => Convert.ToDouble(value);
     private static long ToLong(object? value) => Convert.ToInt64(value);
+
 }
 
 internal sealed record FunctionRef(string Name, Func<object?[], object?> Function)
@@ -705,3 +784,5 @@ internal sealed record FunctionRef(string Name, Func<object?[], object?> Functio
 internal sealed record LambdaValue(List<string> Parameters, Expr Body, EvalContext Closure);
 
 internal sealed record MethodRef(object Target, string MethodName);
+
+internal sealed record ModuleMethodRef(CsEvalEngine.ModuleResolver Resolver, MethodInfo Method);

@@ -21,7 +21,16 @@ public sealed class CsEvalEngine
         _options = options;
         _context = new EvalContext(options.StringComparer);
         _functions = new Dictionary<string, Func<object?[], object?>>(options.StringComparer);
-        RegisterBuiltInProxies();
+        RegisterBuiltInModules();
+    }
+
+    private CsEvalEngine(EvalContext context, Dictionary<string, Func<object?[], object?>> functions,
+        List<RegisteredType> registeredTypes, CsEvalOptions options)
+    {
+        _context = context;
+        _functions = functions;
+        _registeredTypes = registeredTypes;
+        _options = options;
     }
 
     public CsEvalExpression Parse(string expression)
@@ -72,7 +81,8 @@ public sealed class CsEvalEngine
         return Evaluate(expression, serviceProvider, CancellationToken.None);
     }
 
-    public object? Evaluate(CsEvalExpression expression, IServiceProvider? serviceProvider, CancellationToken cancellationToken)
+    public object? Evaluate(CsEvalExpression expression, IServiceProvider? serviceProvider,
+        CancellationToken cancellationToken)
     {
         ApplyRegisteredTypes(serviceProvider);
 
@@ -80,12 +90,19 @@ public sealed class CsEvalEngine
         return evaluator.Evaluate(expression.Ast);
     }
 
-    public Task<object?> EvaluateAsync(string expression, IServiceProvider? serviceProvider = null, CancellationToken cancellationToken = default)
+    public CsEvalEngine CreateChild()
+    {
+        return new CsEvalEngine(_context.CreateChild(), _functions, _registeredTypes, _options);
+    }
+
+    public Task<object?> EvaluateAsync(string expression, IServiceProvider? serviceProvider = null,
+        CancellationToken cancellationToken = default)
     {
         return Task.Run(() => Evaluate(expression, serviceProvider, cancellationToken), cancellationToken);
     }
 
-    public Task<object?> EvaluateAsync(CsEvalExpression expression, IServiceProvider? serviceProvider = null, CancellationToken cancellationToken = default)
+    public Task<object?> EvaluateAsync(CsEvalExpression expression, IServiceProvider? serviceProvider = null,
+        CancellationToken cancellationToken = default)
     {
         return Task.Run(() => Evaluate(expression, serviceProvider, cancellationToken), cancellationToken);
     }
@@ -108,7 +125,8 @@ public sealed class CsEvalEngine
         return (T)Convert.ChangeType(result, typeof(T));
     }
 
-    public async Task<T?> EvaluateAsync<T>(string expression, IServiceProvider? serviceProvider = null, CancellationToken cancellationToken = default)
+    public async Task<T?> EvaluateAsync<T>(string expression, IServiceProvider? serviceProvider = null,
+        CancellationToken cancellationToken = default)
     {
         var result = await EvaluateAsync(expression, serviceProvider, cancellationToken).ConfigureAwait(false);
 
@@ -126,7 +144,8 @@ public sealed class CsEvalEngine
         return Evaluate<T>(expression, serviceProvider, CancellationToken.None);
     }
 
-    public T? Evaluate<T>(CsEvalExpression expression, IServiceProvider? serviceProvider, CancellationToken cancellationToken)
+    public T? Evaluate<T>(CsEvalExpression expression, IServiceProvider? serviceProvider,
+        CancellationToken cancellationToken)
     {
         var result = Evaluate(expression, serviceProvider, cancellationToken);
 
@@ -139,7 +158,8 @@ public sealed class CsEvalEngine
         return (T)Convert.ChangeType(result, typeof(T));
     }
 
-    public async Task<T?> EvaluateAsync<T>(CsEvalExpression expression, IServiceProvider? serviceProvider = null, CancellationToken cancellationToken = default)
+    public async Task<T?> EvaluateAsync<T>(CsEvalExpression expression, IServiceProvider? serviceProvider = null,
+        CancellationToken cancellationToken = default)
     {
         var result = await EvaluateAsync(expression, serviceProvider, cancellationToken).ConfigureAwait(false);
 
@@ -164,18 +184,13 @@ public sealed class CsEvalEngine
         {
             _context.Define(name, value);
         }
+
         return this;
     }
 
     public CsEvalEngine RegisterFunction(string name, Func<object?[], object?> function)
     {
         _functions[name] = function;
-        return this;
-    }
-
-    public CsEvalEngine RegisterProxy(string name, object proxy)
-    {
-        _context.Define(name, proxy);
         return this;
     }
 
@@ -193,24 +208,22 @@ public sealed class CsEvalEngine
             if (!isModule && !hasGlobalFunctions)
                 continue;
 
-            // For non-static types without parameterless constructors, skip during assembly scan
-            // (they can still be registered explicitly with an instance or via DI)
-            var hasStaticOnly = isModule
-                ? false
-                : type.GetMethods(BindingFlags.Public | BindingFlags.Static)
-                    .All(m => m.GetCustomAttribute<CsEvalFunctionAttribute>() != null);
+            var hasStaticOnly = !isModule &&
+                                type.GetMethods(BindingFlags.Public | BindingFlags.Static)
+                                    .All(m => m.GetCustomAttribute<CsEvalFunctionAttribute>() != null);
 
             if (!hasStaticOnly && type.GetConstructor(Type.EmptyTypes) == null)
                 continue;
 
-            _registeredTypes.Add(new RegisteredType(type, null, FromAssemblyScan: true));
+            _registeredTypes.Add(new RegisteredType(type, null, null, BuildMemberDictionary(type), FromAssemblyScan: true));
         }
+
         return this;
     }
 
     public CsEvalEngine RegisterFromType(Type type, object? instance = null)
     {
-        _registeredTypes.Add(new RegisteredType(type, instance, FromAssemblyScan: false));
+        _registeredTypes.Add(new RegisteredType(type, instance, null, BuildMemberDictionary(type), FromAssemblyScan: false));
         return this;
     }
 
@@ -219,35 +232,118 @@ public sealed class CsEvalEngine
         return RegisterFromType(typeof(T), instance);
     }
 
+    public CsEvalEngine RegisterModule(string moduleName, Type type)
+    {
+        var methods = BuildMemberDictionary(type);
+        _registeredTypes.Add(new RegisteredType(type, null, moduleName, methods, FromAssemblyScan: false));
+        return this;
+    }
+
+    public CsEvalEngine RegisterModule<T>(string moduleName, T? instance = default) where T : class
+    {
+        var methods = BuildMemberDictionary(typeof(T));
+        _registeredTypes.Add(new RegisteredType(typeof(T), instance, moduleName, methods, FromAssemblyScan: false));
+        return this;
+    }
+
+    public CsEvalEngine RegisterModule(string moduleName, Type type, IReadOnlyDictionary<string, MemberInfo> members)
+    {
+        _registeredTypes.Add(new RegisteredType(type, null, moduleName, members, FromAssemblyScan: false));
+        return this;
+    }
+
+    private IReadOnlyDictionary<string, MemberInfo> BuildMemberDictionary(Type type)
+    {
+        var members = new Dictionary<string, MemberInfo>(_options.StringComparer);
+
+        foreach (var method in type.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly))
+        {
+            if (method.IsSpecialName)
+                continue;
+            members[method.Name] = method;
+        }
+
+        foreach (var prop in type.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly))
+        {
+            members[prop.Name] = prop;
+        }
+
+        return members;
+    }
+
+    public IReadOnlyDictionary<string, RegisteredModule> GetRegisteredModules()
+    {
+        var result = new Dictionary<string, RegisteredModule>(_options.StringComparer);
+
+        foreach (var reg in _registeredTypes)
+        {
+            var moduleName = reg.ModuleName ?? reg.Type.GetCustomAttribute<CsEvalModuleAttribute>()?.Name;
+            if (moduleName == null)
+                continue;
+
+            result[moduleName] = new RegisteredModule(reg.Type, reg.Instance, reg.Members);
+        }
+
+        return result;
+    }
+
+    public sealed record RegisteredModule(Type Type, object? Instance, IReadOnlyDictionary<string, MemberInfo>? Members);
+
+    public sealed class ModuleResolver
+    {
+        public Type Type { get; }
+        public object? Instance { get; }
+        public IServiceProvider? ServiceProvider { get; }
+        public IReadOnlyDictionary<string, MemberInfo> Members { get; }
+
+        public ModuleResolver(Type type, object? instance, IServiceProvider? serviceProvider,
+            IReadOnlyDictionary<string, MemberInfo> members)
+        {
+            Type = type;
+            Instance = instance;
+            ServiceProvider = serviceProvider;
+            Members = members;
+        }
+
+        public object Resolve()
+        {
+            if (Instance != null)
+                return Instance;
+
+            if (ServiceProvider != null)
+            {
+                var resolved = ServiceProvider.GetService(Type);
+                if (resolved != null)
+                    return resolved;
+            }
+
+            if (Type.GetConstructor(Type.EmptyTypes) != null)
+            {
+                return Activator.CreateInstance(Type)
+                       ?? throw new InvalidOperationException($"Cannot create instance of '{Type.FullName}'");
+            }
+
+            throw new InvalidOperationException(
+                $"Cannot resolve instance of '{Type.FullName}'. " +
+                $"Either register it in IServiceProvider or ensure it has a parameterless constructor.");
+        }
+    }
+
     private void ApplyRegisteredTypes(IServiceProvider? serviceProvider)
     {
         foreach (var reg in _registeredTypes)
         {
-            var moduleAttr = reg.Type.GetCustomAttribute<CsEvalModuleAttribute>();
+            var moduleName = reg.ModuleName ?? reg.Type.GetCustomAttribute<CsEvalModuleAttribute>()?.Name;
 
-            if (moduleAttr != null)
+            if (moduleName != null)
             {
-                var proxy = ResolveInstance(reg, serviceProvider);
-                _context.Define(moduleAttr.Name, proxy);
+                _context.Define(moduleName, new ModuleResolver(reg.Type, reg.Instance, serviceProvider, reg.Members));
             }
             else
             {
                 RegisterGlobalFunctions(reg, serviceProvider);
             }
         }
-    }
-
-    private object ResolveInstance(RegisteredType reg, IServiceProvider? serviceProvider)
-    {
-        if (reg.Instance != null)
-            return reg.Instance;
-
-        var resolved = serviceProvider?.GetService(reg.Type);
-        if (resolved != null)
-            return resolved;
-
-        return Activator.CreateInstance(reg.Type)
-               ?? throw new InvalidOperationException($"Cannot create instance of '{reg.Type.FullName}'");
     }
 
     private void RegisterGlobalFunctions(RegisteredType reg, IServiceProvider? serviceProvider)
@@ -259,64 +355,76 @@ public sealed class CsEvalEngine
             var attr = method.GetCustomAttribute<CsEvalFunctionAttribute>();
             if (attr == null) continue;
 
-            object? target = null;
-            if (!method.IsStatic)
-            {
-                target = ResolveInstance(reg, serviceProvider);
-            }
-
-            _functions[attr.Name] = CreateFunctionDelegate(method, target);
+            var resolver = method.IsStatic ? null : new ModuleResolver(reg.Type, reg.Instance, serviceProvider, reg.Members);
+            _functions[attr.Name] = CreateFunctionDelegate(method, resolver);
         }
     }
 
-    private static Func<object?[], object?> CreateFunctionDelegate(MethodInfo method, object? target)
+    private static Func<object?[], object?> CreateFunctionDelegate(MethodInfo method, ModuleResolver? resolver)
     {
         return args =>
         {
             var parameters = method.GetParameters();
-            var convertedArgs = new object?[parameters.Length];
-
-            for (var i = 0; i < parameters.Length; i++)
-            {
-                if (i < args.Length)
-                {
-                    convertedArgs[i] = ConvertArgument(args[i], parameters[i].ParameterType);
-                }
-                else if (parameters[i].HasDefaultValue)
-                {
-                    convertedArgs[i] = parameters[i].DefaultValue;
-                }
-                else
-                {
-                    throw new ArgumentException($"Missing required argument '{parameters[i].Name}'");
-                }
-            }
-
-            return method.Invoke(target, convertedArgs);
+            var finalArgs = PadWithDefaults(parameters, args);
+            return method.Invoke(resolver?.Resolve(), finalArgs);
         };
     }
 
-    private static object? ConvertArgument(object? arg, Type targetType)
+    private static object?[] PadWithDefaults(ParameterInfo[] parameters, object?[] args)
     {
-        if (arg == null)
-            return null;
+        var result = new object?[parameters.Length];
 
-        if (targetType.IsInstanceOfType(arg))
-            return arg;
+        for (var i = 0; i < parameters.Length; i++)
+        {
+            if (i < args.Length)
+            {
+                result[i] = CoerceNumeric(args[i], parameters[i].ParameterType);
+            }
+            else if (parameters[i].HasDefaultValue)
+            {
+                result[i] = parameters[i].DefaultValue;
+            }
+            else
+            {
+                throw new ArgumentException($"Missing required argument '{parameters[i].Name}'");
+            }
+        }
 
-        return Convert.ChangeType(arg, targetType);
+        return result;
     }
 
-    private void RegisterBuiltInProxies()
+    private static object? CoerceNumeric(object? arg, Type targetType)
     {
-        _context.Define("Math", new MathProxy());
-        _context.Define("DateTime", new DateTimeProxy());
-        _context.Define("Guid", new GuidProxy());
-        _context.Define("Convert", new ConvertProxy());
-        _context.Define("String", new StringProxy());
-        _context.Define("Enumerable", new EnumerableProxy());
-        _context.Define("Console", new ConsoleProxy());
+        if (arg == null) return null;
+        if (targetType.IsInstanceOfType(arg)) return arg;
+
+        var underlying = Nullable.GetUnderlyingType(targetType) ?? targetType;
+        if (arg is IConvertible && IsNumericType(underlying))
+            return Convert.ChangeType(arg, underlying);
+
+        return arg;
     }
 
-    private sealed record RegisteredType(Type Type, object? Instance, bool FromAssemblyScan);
+    private static bool IsNumericType(Type type) =>
+        type == typeof(int) || type == typeof(long) || type == typeof(double) ||
+        type == typeof(float) || type == typeof(decimal) || type == typeof(short) ||
+        type == typeof(byte) || type == typeof(sbyte) || type == typeof(ushort) ||
+        type == typeof(uint) || type == typeof(ulong);
+
+    private void RegisterBuiltInModules()
+    {
+        RegisterModule("Math", new MathProxy());
+        RegisterModule("DateTime", new DateTimeProxy());
+        RegisterModule("Guid", new GuidProxy());
+        RegisterModule("Convert", new ConvertProxy());
+        RegisterModule("String", new StringProxy());
+        RegisterModule("Enumerable", new EnumerableProxy());
+    }
+
+    private sealed record RegisteredType(
+        Type Type,
+        object? Instance,
+        string? ModuleName,
+        IReadOnlyDictionary<string, MemberInfo> Members,
+        bool FromAssemblyScan);
 }

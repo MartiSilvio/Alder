@@ -44,6 +44,8 @@ public sealed class EvalContext
 
     public EvalContext CreateChild() => new(this, _comparer);
 
+    public IReadOnlyDictionary<string, object?> GetAll() => _variables;
+
     public static EvalContext FromExpandoObject(ExpandoObject? expando, StringComparer? comparer = null)
     {
         var ctx = new EvalContext(comparer);
