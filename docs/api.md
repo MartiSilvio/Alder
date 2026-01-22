@@ -62,7 +62,7 @@ CsEvalEngine SetVariables(IDictionary<string, object?> variables)
 CsEvalEngine RegisterFunction(string name, Func<object?[], object?> function)
 
 // Example
-engine.RegisterFunction("double", args => (long)args[0] * 2);
+engine.RegisterFunction("twice", args => (long)args[0] * 2);
 ```
 
 ### Module Registration

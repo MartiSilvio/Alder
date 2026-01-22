@@ -1,20 +1,21 @@
 # CsEval
 
-CsEval is a runtime expression evaluator for .NET 8. It takes a string containing C#-like code and executes it, returning the result. Think of it as `eval()` for C# - but safe, extensible, and designed for embedding in applications.
+**A C# expression evaluator and dynamic expression parser for .NET 8**
+
+CsEval is a runtime expression evaluation library that parses and executes C#-like expressions from strings. It provides formula evaluation, dynamic query building, and scripting capabilities for .NET applications.
 
 ```csharp
 var engine = new CsEvalEngine();
-var result = engine.Evaluate("1 + 2 * 3"); // 7
+engine.Evaluate("1 + 2 * 3"); // 7
 ```
 
-## What It Does
+## Use Cases
 
-CsEval parses and evaluates expressions at runtime. You give it a string, it gives you back a value. Use it for:
-
-- **Dynamic queries** - Build data retrieval logic that can be modified without recompilation
-- **Rule engines** - Define business rules as expressions that non-developers can edit
-- **Calculated fields** - Let users define formulas like `Price * Quantity * (1 - Discount)`
-- **Scripting** - Add scripting capabilities to your application
+- **Formula evaluation** - Calculate `Price * Quantity * (1 - Discount)` at runtime
+- **Dynamic queries** - Build data retrieval expressions without recompilation
+- **Rule engines** - Define business rules as expressions that can be modified on the fly
+- **Scripting** - Add expression-based scripting to your application
+- **Calculated fields** - User-defined formulas for reports and dashboards
 
 ## Installation
 
@@ -29,7 +30,7 @@ using CsEval;
 
 var engine = new CsEvalEngine();
 
-// Basic math
+// Arithmetic expressions
 engine.Evaluate("10 + 5 * 2");                    // 20
 
 // Variables
@@ -37,95 +38,35 @@ engine.SetVariable("price", 100);
 engine.SetVariable("qty", 3);
 engine.Evaluate("price * qty");                   // 300
 
-// Strings
+// String interpolation
 engine.SetVariable("name", "World");
 engine.Evaluate("$\"Hello, {name}!\"");           // "Hello, World!"
 
-// LINQ on collections
+// LINQ expressions
 engine.SetVariable("orders", orderList);
 engine.Evaluate("orders.Where(x => x.Total > 100).Sum(x => x.Total)");
 
-// Objects
+// Anonymous objects
 engine.Evaluate("new { Name = \"John\", Age = 30 }");
 ```
 
-## Standout Features
+## Key Features
 
-### Block Expressions with Control Flow
+### Expression Syntax
 
-Go beyond simple formulas. Write multi-statement logic with variables, conditionals, and early returns:
-
-```csharp
-var query = @"{
-    var item = Data.GetById(id);
-    if (item == null) return null;
-
-    if (item.Status == ""archived"") {
-        return new { Error = ""Item is archived"" };
-    }
-
-    return item;
-}";
-
-engine.Evaluate(query);
-```
-
-### Object Merging
-
-The `+` operator combines objects - add computed properties to existing data:
-
-```csharp
-// Original entity + computed fields
-entity + new {
-    FullName = entity.FirstName + " " + entity.LastName,
-    IsExpired = entity.ExpiryDate < DateTime.Now
-}
-// Result: all original properties plus FullName and IsExpired
-```
-
-### Dependency Injection Integration
-
-Modules resolve from `IServiceProvider` at evaluation time - full DI support:
-
-```csharp
-[CsEvalModule("Members")]
-public class MemberModule
-{
-    private readonly IDbContext _db;
-    public MemberModule(IDbContext db) => _db = db;
-    public Member? GetById(int id) => _db.Members.Find(id);
-}
-
-// Register in DI
-services.AddScoped<MemberModule>();
-engine.RegisterFromAssembly(typeof(MemberModule).Assembly);
-
-// Module instance created via DI when expression runs
-engine.Evaluate("Members.GetById(123)", serviceProvider);
-```
-
-### Async with Cancellation
-
-Long-running expressions can be cancelled:
-
-```csharp
-var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-await engine.EvaluateAsync(expression, serviceProvider, cts.Token);
-```
-
-## Core Capabilities
-
-### Expressions
+C#-like syntax with arithmetic, comparison, logical, and null-handling operators:
 
 ```csharp
 // Arithmetic: +, -, *, /, %
 // Comparison: ==, !=, <, <=, >, >=
 // Logical: &&, ||, !
 // Ternary: condition ? a : b
-// Null handling: ??, ?., ??=
+// Null-safe: ??, ?., ??=
 ```
 
-### LINQ
+### Lambda Expressions & LINQ
+
+Full lambda support for querying collections:
 
 ```csharp
 items.Where(x => x.Active)
@@ -136,53 +77,100 @@ items.Any(x => x.Status == "pending")
 items.Aggregate(0, (sum, x) => sum + x.Value)
 ```
 
-### Built-in Modules
+### Control Flow
+
+Multi-statement expressions with variables, conditionals, and early returns:
+
+```csharp
+{
+    var item = Data.GetById(id);
+    if (item == null) return null;
+
+    if (item.Status == "archived") {
+        return new { Error = "Item is archived" };
+    }
+
+    return item;
+}
+```
+
+### Object Merging
+
+Combine objects with the `+` operator - add computed properties to existing data:
+
+```csharp
+entity + new {
+    FullName = entity.FirstName + " " + entity.LastName,
+    IsExpired = entity.ExpiryDate < DateTime.Now
+}
+```
+
+### Built-in Functions
+
+Standard library modules included:
 
 ```csharp
 Math.Round(3.14159, 2)          // 3.14
 DateTime.Now                     // current time
 Guid.NewGuid()                   // new GUID
 String.IsNullOrEmpty(s)          // null check
-Convert.ToInt32(value)           // conversion
-Enumerable.Range(0, 10)          // sequences
+Convert.ToInt32(value)           // type conversion
+Enumerable.Range(0, 10)          // sequence generation
 ```
 
 ### Extensibility
 
+Register custom functions and modules:
+
 ```csharp
 // Custom functions
-engine.RegisterFunction("double", args => (long)args[0] * 2);
+engine.RegisterFunction("twice", args => (long)args[0] * 2);
 
 // Custom modules
 engine.RegisterModule("Cache", new CacheService());
 
-// Attribute-based registration
+// Attribute-based registration with dependency injection
 [CsEvalModule("Data")]
-public class DataModule { ... }
-engine.RegisterFromAssembly(assembly);
+public class DataModule
+{
+    private readonly IDbContext _db;
+    public DataModule(IDbContext db) => _db = db;
+    public object GetById(int id) => _db.Find(id);
+}
+
+services.AddScoped<DataModule>();
+engine.RegisterFromAssembly(typeof(DataModule).Assembly);
+engine.Evaluate("Data.GetById(123)", serviceProvider);
+```
+
+### Async & Cancellation
+
+```csharp
+var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+await engine.EvaluateAsync(expression, serviceProvider, cts.Token);
 ```
 
 ## Configuration
 
 ```csharp
-// Case-insensitive identifiers
+// Case-insensitive evaluation
 var engine = new CsEvalEngine(new CsEvalOptions { IgnoreCase = true });
 
-// Pre-parse for repeated evaluation
+// Pre-parse for performance (faster repeated evaluation)
 var expr = engine.Parse("items.Sum(x => x.Value)");
-engine.Evaluate(expr); // faster
+engine.Evaluate(expr);
 
-// Isolated child contexts
+// Child contexts with isolated scope
 var child = engine.CreateChild();
-child.SetVariable("requestId", 123); // parent can't see this
+child.SetVariable("requestId", 123);
 ```
 
 ## Documentation
 
-- [Syntax Reference](docs/syntax.md) - Grammar, operators, language constructs
+- [Syntax Reference](docs/syntax.md) - Expression grammar and language constructs
 - [Features Guide](docs/features.md) - LINQ methods, built-in modules, extensibility
 - [API Reference](docs/api.md) - Complete API documentation
 
 ## License
 
-MIT
+[MIT](LICENSE)

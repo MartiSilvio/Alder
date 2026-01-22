@@ -192,7 +192,7 @@ Register simple functions that take `object?[]` and return `object?`:
 ```csharp
 var engine = new CsEvalEngine();
 
-engine.RegisterFunction("double", args => (long)args[0] * 2);
+engine.RegisterFunction("twice", args => (long)args[0] * 2);
 engine.RegisterFunction("greet", args => $"Hello, {args[0]}!");
 engine.RegisterFunction("clamp", args => {
     var value = Convert.ToDouble(args[0]);
@@ -201,7 +201,7 @@ engine.RegisterFunction("clamp", args => {
     return Math.Clamp(value, min, max);
 });
 
-engine.Evaluate("double(5)");        // 10
+engine.Evaluate("twice(5)");        // 10
 engine.Evaluate("greet(\"World\")"); // "Hello, World!"
 engine.Evaluate("clamp(150, 0, 100)"); // 100
 ```
