@@ -35,6 +35,27 @@ public sealed class CsEvalEngine
         return new CsEvalExpression(expression, ast);
     }
 
+    public bool TryParse(string expression, out CsEvalExpression? result, out string? error)
+    {
+        try
+        {
+            result = Parse(expression);
+            error = null;
+            return true;
+        }
+        catch (Exception ex)
+        {
+            result = null;
+            error = ex.Message;
+            return false;
+        }
+    }
+
+    public bool TryParse(string expression, out CsEvalExpression? result)
+    {
+        return TryParse(expression, out result, out _);
+    }
+
     public object? Evaluate(string expression, IServiceProvider? serviceProvider = null)
     {
         return Evaluate(expression, serviceProvider, CancellationToken.None);
