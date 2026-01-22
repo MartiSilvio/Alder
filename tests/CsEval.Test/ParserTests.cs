@@ -201,8 +201,9 @@ public class ParserTests
         Assert.That(expr, Is.InstanceOf<BlockExpr>());
 
         var block = (BlockExpr)expr;
-        Assert.That(block.Statements, Has.Count.EqualTo(1));
-        Assert.That(block.ReturnExpr, Is.Not.Null);
+        Assert.That(block.Statements, Has.Count.EqualTo(2));
+        Assert.That(block.Statements[0], Is.InstanceOf<VariableDeclExpr>());
+        Assert.That(block.Statements[1], Is.InstanceOf<ReturnExpr>());
     }
 
     [Test]

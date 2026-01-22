@@ -91,7 +91,11 @@ namespace CsEval.Parsing
                     break;
 
                 case '?':
-                    if (Match('?')) AddToken(TokenType.QuestionQuestion);
+                    if (Match('?'))
+                    {
+                        if (Match('=')) AddToken(TokenType.QuestionQuestionEqual);
+                        else AddToken(TokenType.QuestionQuestion);
+                    }
                     else if (Match('.')) AddToken(TokenType.QuestionDot);
                     else AddToken(TokenType.Question);
                     break;

@@ -19,12 +19,15 @@ public interface IExprVisitor<out T>
     T VisitLambda(LambdaExpr expr);
     T VisitConditional(ConditionalExpr expr);
     T VisitNullCoalesce(NullCoalesceExpr expr);
+    T VisitNullCoalesceAssign(NullCoalesceAssignExpr expr);
     T VisitInterpolatedString(InterpolatedStringExpr expr);
     T VisitArrayLiteral(ArrayLiteralExpr expr);
     T VisitObjectLiteral(ObjectLiteralExpr expr);
     T VisitBlock(BlockExpr expr);
     T VisitVariableDecl(VariableDeclExpr expr);
     T VisitNew(NewExpr expr);
+    T VisitIfStatement(IfStatementExpr expr);
+    T VisitReturn(ReturnExpr expr);
 }
 
 // Literals
@@ -99,6 +102,12 @@ public sealed record NullCoalesceExpr(Expr Left, Expr Right) : Expr
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitNullCoalesce(this);
 }
 
+// Null coalesce assignment: x ??= y
+public sealed record NullCoalesceAssignExpr(Token Name, Expr Value) : Expr
+{
+    public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitNullCoalesceAssign(this);
+}
+
 // Interpolated string: $"Hello {name}"
 public sealed record InterpolatedStringExpr(List<InterpolatedPart> Parts) : Expr
 {
@@ -139,4 +148,16 @@ public sealed record VariableDeclExpr(Token Name, Expr Initializer) : Expr
 public sealed record NewExpr(Expr Initializer) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitNew(this);
+}
+
+// If statement: if (cond) { ... } or if (cond) return x;
+public sealed record IfStatementExpr(Expr Condition, List<Expr> ThenStatements, List<Expr>? ElseStatements) : Expr
+{
+    public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitIfStatement(this);
+}
+
+// Return statement: return expr;
+public sealed record ReturnExpr(Expr? Value) : Expr
+{
+    public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitReturn(this);
 }

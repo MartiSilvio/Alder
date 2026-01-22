@@ -42,6 +42,30 @@ public sealed class EvalContext
         throw new EvalException($"Undefined variable '{name}'");
     }
 
+    public void Set(string name, object? value)
+    {
+        if (_variables.ContainsKey(name))
+        {
+            _variables[name] = value;
+            return;
+        }
+
+        if (_parent != null && _parent.Contains(name))
+        {
+            _parent.Set(name, value);
+            return;
+        }
+
+        throw new EvalException($"Undefined variable '{name}'");
+    }
+
+    private bool Contains(string name)
+    {
+        if (_variables.ContainsKey(name))
+            return true;
+        return _parent?.Contains(name) ?? false;
+    }
+
     public EvalContext CreateChild() => new(this, _comparer);
 
     public IReadOnlyDictionary<string, object?> GetAll() => _variables;

@@ -34,9 +34,10 @@ public enum TokenType
     Bang,
 
     // Operators - Null/Ternary
-    Question,          // ?
-    QuestionQuestion,  // ??
-    QuestionDot,       // ?.
+    Question,              // ?
+    QuestionQuestion,      // ??
+    QuestionQuestionEqual, // ??=
+    QuestionDot,           // ?.
 
     // Assignment & Access
     Equal,

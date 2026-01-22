@@ -574,6 +574,325 @@ public class EvaluatorTests
 
     #endregion
 
+    #region Typed Object Merge
+
+    [Test]
+    public void Eval_TypedObjectMerge_WithPlusOperator()
+    {
+        var context = new EvalContext();
+        context.Define("person", new TestPerson { Name = "John", Age = 30 });
+
+        var result = Eval("person + new { City = \"NYC\" }", context) as IDictionary<string, object?>;
+        Assert.That(result, Is.Not.Null);
+        Assert.That(result!["Name"], Is.EqualTo("John"));
+        Assert.That(result["Age"], Is.EqualTo(30));
+        Assert.That(result["City"], Is.EqualTo("NYC"));
+    }
+
+    [Test]
+    public void Eval_TypedObjectMerge_RightOverwritesLeft()
+    {
+        var context = new EvalContext();
+        context.Define("person", new TestPerson { Name = "John", Age = 30 });
+
+        var result = Eval("person + new { Age = 40 }", context) as IDictionary<string, object?>;
+        Assert.That(result, Is.Not.Null);
+        Assert.That(result!["Name"], Is.EqualTo("John"));
+        Assert.That(result["Age"], Is.EqualTo(40L)); // Right side overwrites
+    }
+
+    [Test]
+    public void Eval_TypedObjectMerge_WithBlock()
+    {
+        var context = new EvalContext();
+        context.Define("person", new TestPerson { Name = "John", Age = 30 });
+
+        var result = Eval(@"{
+            var p = person;
+            return p + new { City = ""NYC"", Country = ""USA"" };
+        }", context) as IDictionary<string, object?>;
+        Assert.That(result, Is.Not.Null);
+        Assert.That(result!["Name"], Is.EqualTo("John"));
+        Assert.That(result["Age"], Is.EqualTo(30));
+        Assert.That(result["City"], Is.EqualTo("NYC"));
+        Assert.That(result["Country"], Is.EqualTo("USA"));
+    }
+
+    [Test]
+    public void Eval_TypedObjectMerge_InSelect()
+    {
+        var context = new EvalContext();
+        context.Define("people", new List<object?>
+        {
+            new TestPerson { Name = "John", Age = 30 },
+            new TestPerson { Name = "Jane", Age = 25 }
+        });
+
+        var result = Eval("people.Select(p => p + new { Status = \"Active\" })", context) as List<object?>;
+        Assert.That(result, Is.Not.Null);
+        Assert.That(result, Has.Count.EqualTo(2));
+
+        var first = result![0] as IDictionary<string, object?>;
+        Assert.That(first, Is.Not.Null);
+        Assert.That(first!["Name"], Is.EqualTo("John"));
+        Assert.That(first["Status"], Is.EqualTo("Active"));
+
+        var second = result[1] as IDictionary<string, object?>;
+        Assert.That(second, Is.Not.Null);
+        Assert.That(second!["Name"], Is.EqualTo("Jane"));
+        Assert.That(second["Status"], Is.EqualTo("Active"));
+    }
+
+    [Test]
+    public void Eval_TypedObjectMerge_ChainedWithDictionary()
+    {
+        var context = new EvalContext();
+        context.Define("person", new TestPerson { Name = "John", Age = 30 });
+
+        var result = Eval("person + new { City = \"NYC\" } + new { Country = \"USA\" }", context) as IDictionary<string, object?>;
+        Assert.That(result, Is.Not.Null);
+        Assert.That(result!["Name"], Is.EqualTo("John"));
+        Assert.That(result["Age"], Is.EqualTo(30));
+        Assert.That(result["City"], Is.EqualTo("NYC"));
+        Assert.That(result["Country"], Is.EqualTo("USA"));
+    }
+
+    [Test]
+    public void Eval_TypedObjectMerge_WithNestedObject()
+    {
+        var context = new EvalContext();
+        context.Define("person", new TestPerson { Name = "John", Age = 30 });
+        context.Define("address", new TestAddress { City = "NYC", Country = "USA" });
+
+        var result = Eval("person + new { Address = address }", context) as IDictionary<string, object?>;
+        Assert.That(result, Is.Not.Null);
+        Assert.That(result!["Name"], Is.EqualTo("John"));
+        var addr = result["Address"] as TestAddress;
+        Assert.That(addr, Is.Not.Null);
+        Assert.That(addr!.City, Is.EqualTo("NYC"));
+    }
+
+    [Test]
+    public void Eval_DictionaryPlusTypedObject()
+    {
+        var context = new EvalContext();
+        IDictionary<string, object?> dict = new ExpandoObject();
+        dict["Extra"] = "Value";
+        context.Define("dict", dict);
+        context.Define("person", new TestPerson { Name = "John", Age = 30 });
+
+        var result = Eval("dict + person", context) as IDictionary<string, object?>;
+        Assert.That(result, Is.Not.Null);
+        Assert.That(result!["Extra"], Is.EqualTo("Value"));
+        Assert.That(result["Name"], Is.EqualTo("John"));
+        Assert.That(result["Age"], Is.EqualTo(30));
+    }
+
+    [Test]
+    public void Eval_TwoTypedObjects()
+    {
+        var context = new EvalContext();
+        context.Define("person", new TestPerson { Name = "John", Age = 30 });
+        context.Define("address", new TestAddress { City = "NYC", Country = "USA" });
+
+        var result = Eval("person + address", context) as IDictionary<string, object?>;
+        Assert.That(result, Is.Not.Null);
+        Assert.That(result!["Name"], Is.EqualTo("John"));
+        Assert.That(result["Age"], Is.EqualTo(30));
+        Assert.That(result["City"], Is.EqualTo("NYC"));
+        Assert.That(result["Country"], Is.EqualTo("USA"));
+    }
+
+    #endregion
+
+    #region If Statements
+
+    [Test]
+    public void Eval_IfStatement_EarlyReturn_WhenConditionTrue()
+    {
+        var result = Eval("{ var x = null; if (x == null) return 42; return 0; }");
+        Assert.That(result, Is.EqualTo(42L));
+    }
+
+    [Test]
+    public void Eval_IfStatement_EarlyReturn_WhenConditionFalse()
+    {
+        var result = Eval("{ var x = 10; if (x == null) return 42; return 0; }");
+        Assert.That(result, Is.EqualTo(0L));
+    }
+
+    [Test]
+    public void Eval_IfStatement_WithElse_TakesThenBranch()
+    {
+        var result = Eval("{ var x = true; if (x) return 1; else return 2; }");
+        Assert.That(result, Is.EqualTo(1L));
+    }
+
+    [Test]
+    public void Eval_IfStatement_WithElse_TakesElseBranch()
+    {
+        var result = Eval("{ var x = false; if (x) return 1; else return 2; }");
+        Assert.That(result, Is.EqualTo(2L));
+    }
+
+    [Test]
+    public void Eval_IfStatement_WithBlock()
+    {
+        var result = Eval(@"{
+            var x = 5;
+            if (x > 3) {
+                var y = x * 2;
+                return y;
+            }
+            return 0;
+        }");
+        Assert.That(result, Is.EqualTo(10L));
+    }
+
+    [Test]
+    public void Eval_IfStatement_WithElseBlock()
+    {
+        var result = Eval(@"{
+            var x = 1;
+            if (x > 3) {
+                return 100;
+            } else {
+                return 200;
+            }
+        }");
+        Assert.That(result, Is.EqualTo(200L));
+    }
+
+    [Test]
+    public void Eval_IfStatement_NestedIf()
+    {
+        var result = Eval(@"{
+            var x = 10;
+            var y = 20;
+            if (x > 5) {
+                if (y > 15) return 1;
+                else return 2;
+            }
+            return 3;
+        }");
+        Assert.That(result, Is.EqualTo(1L));
+    }
+
+    [Test]
+    public void Eval_IfStatement_ElseIf()
+    {
+        var result = Eval(@"{
+            var x = 2;
+            if (x == 1) return ""one"";
+            else if (x == 2) return ""two"";
+            else return ""other"";
+        }");
+        Assert.That(result, Is.EqualTo("two"));
+    }
+
+    [Test]
+    public void Eval_IfStatement_NoReturn_ContinuesExecution()
+    {
+        // When if doesn't return, execution continues to the next statement
+        var result = Eval(@"{
+            var x = 5;
+            if (x < 3) {
+                return 0;
+            }
+            return x * 2;
+        }");
+        Assert.That(result, Is.EqualTo(10L));
+    }
+
+    [Test]
+    public void Eval_IfStatement_NullCheck_Pattern()
+    {
+        var context = new EvalContext();
+        context.Define("person", new TestPerson { Name = "John", Age = 30 });
+
+        var result = Eval(@"{
+            var p = person;
+            if (p == null) return null;
+            return p + new { Extra = ""test"" };
+        }", context) as IDictionary<string, object?>;
+
+        Assert.That(result, Is.Not.Null);
+        Assert.That(result!["Name"], Is.EqualTo("John"));
+        Assert.That(result["Extra"], Is.EqualTo("test"));
+    }
+
+    #endregion
+
+    #region Null Coalescing Assignment
+
+    [Test]
+    public void Eval_NullCoalesceAssign_AssignsWhenNull()
+    {
+        var result = Eval(@"{
+            var x = null;
+            x ??= 42;
+            return x;
+        }");
+        Assert.That(result, Is.EqualTo(42L));
+    }
+
+    [Test]
+    public void Eval_NullCoalesceAssign_KeepsValueWhenNotNull()
+    {
+        var result = Eval(@"{
+            var x = 10;
+            x ??= 42;
+            return x;
+        }");
+        Assert.That(result, Is.EqualTo(10L));
+    }
+
+    [Test]
+    public void Eval_NullCoalesceAssign_ReturnsAssignedValue()
+    {
+        var result = Eval(@"{
+            var x = null;
+            return x ??= 42;
+        }");
+        Assert.That(result, Is.EqualTo(42L));
+    }
+
+    [Test]
+    public void Eval_NullCoalesceAssign_ReturnsExistingValue()
+    {
+        var result = Eval(@"{
+            var x = ""hello"";
+            return x ??= ""world"";
+        }");
+        Assert.That(result, Is.EqualTo("hello"));
+    }
+
+    [Test]
+    public void Eval_NullCoalesceAssign_WithExpression()
+    {
+        var result = Eval(@"{
+            var x = null;
+            x ??= 5 + 5;
+            return x;
+        }");
+        Assert.That(result, Is.EqualTo(10L));
+    }
+
+    [Test]
+    public void Eval_NullCoalesceAssign_InIfStatement()
+    {
+        var result = Eval(@"{
+            var x = null;
+            if (true) {
+                x ??= 100;
+            }
+            return x;
+        }");
+        Assert.That(result, Is.EqualTo(100L));
+    }
+
+    #endregion
+
     #region Helpers
 
     private static IDictionary<string, object?> CreateItem(string name, double price)
@@ -582,6 +901,18 @@ public class EvaluatorTests
         item["Name"] = name;
         item["Price"] = price;
         return item;
+    }
+
+    public class TestPerson
+    {
+        public string Name { get; set; } = "";
+        public int Age { get; set; }
+    }
+
+    public class TestAddress
+    {
+        public string City { get; set; } = "";
+        public string Country { get; set; } = "";
     }
 
     #endregion

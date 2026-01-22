@@ -18,7 +18,21 @@ namespace CsEval.Parsing
             return expr;
         }
 
-        private Expr ParseExpression() => ParseNullCoalesce();
+        private Expr ParseExpression() => ParseAssignment();
+
+        private Expr ParseAssignment()
+        {
+            var expr = ParseNullCoalesce();
+
+            // Handle ??= as an expression (for use in return statements, etc.)
+            if (expr is IdentifierExpr identifier && Match(TokenType.QuestionQuestionEqual))
+            {
+                var value = ParseAssignment();
+                return new NullCoalesceAssignExpr(identifier.Name, value);
+            }
+
+            return expr;
+        }
 
         private Expr ParseNullCoalesce()
         {
@@ -321,35 +335,93 @@ namespace CsEval.Parsing
                 return new BlockExpr([], null);
             }
 
+            var statements = ParseStatementList();
+
+            Consume(TokenType.RightBrace, "Expected '}' after block");
+            return new BlockExpr(statements, null);
+        }
+
+        private List<Expr> ParseStatementList()
+        {
             var statements = new List<Expr>();
-            Expr? returnExpr = null;
 
             while (!Check(TokenType.RightBrace) && !IsAtEnd())
             {
-                if (Match(TokenType.Return))
+                var stmt = ParseStatement();
+                if (stmt != null)
+                    statements.Add(stmt);
+            }
+
+            return statements;
+        }
+
+        private Expr? ParseStatement()
+        {
+            if (Match(TokenType.Return))
+            {
+                Expr? value = null;
+                if (!Check(TokenType.Semicolon))
+                    value = ParseExpression();
+                Match(TokenType.Semicolon);
+                return new ReturnExpr(value);
+            }
+
+            if (Match(TokenType.If))
+                return ParseIfStatement();
+
+            if (Match(TokenType.Var))
+            {
+                var name = Consume(TokenType.Identifier, "Expected variable name");
+                Consume(TokenType.Equal, "Expected '=' after variable name");
+                var initializer = ParseExpression();
+                Consume(TokenType.Semicolon, "Expected ';' after variable declaration");
+                return new VariableDeclExpr(name, initializer);
+            }
+
+            var expr = ParseExpression();
+            Consume(TokenType.Semicolon, "Expected ';' after statement");
+            return expr;
+        }
+
+        private Expr ParseIfStatement()
+        {
+            Consume(TokenType.LeftParen, "Expected '(' after 'if'");
+            var condition = ParseExpression();
+            Consume(TokenType.RightParen, "Expected ')' after if condition");
+
+            var thenStatements = new List<Expr>();
+
+            // Either a block { ... } or a single statement
+            if (Match(TokenType.LeftBrace))
+            {
+                thenStatements = ParseStatementList();
+                Consume(TokenType.RightBrace, "Expected '}' after if body");
+            }
+            else
+            {
+                var stmt = ParseStatement();
+                if (stmt != null)
+                    thenStatements.Add(stmt);
+            }
+
+            List<Expr>? elseStatements = null;
+            if (Match(TokenType.Else))
+            {
+                elseStatements = [];
+                if (Match(TokenType.LeftBrace))
                 {
-                    returnExpr = ParseExpression();
-                    Match(TokenType.Semicolon);
-                    break;
-                }
-                else if (Match(TokenType.Var))
-                {
-                    var name = Consume(TokenType.Identifier, "Expected variable name");
-                    Consume(TokenType.Equal, "Expected '=' after variable name");
-                    var initializer = ParseExpression();
-                    statements.Add(new VariableDeclExpr(name, initializer));
-                    Consume(TokenType.Semicolon, "Expected ';' after variable declaration");
+                    elseStatements = ParseStatementList();
+                    Consume(TokenType.RightBrace, "Expected '}' after else body");
                 }
                 else
                 {
-                    var expr = ParseExpression();
-                    statements.Add(expr);
-                    Consume(TokenType.Semicolon, "Expected ';' after statement");
+                    var stmt = ParseStatement();
+                    if (stmt != null)
+                        elseStatements.Add(stmt);
                 }
             }
 
-            Consume(TokenType.RightBrace, "Expected '}' after block");
-            return new BlockExpr(statements, returnExpr);
+            return new IfStatementExpr(condition, thenStatements, elseStatements);
         }
 
         private Expr ParseAnonymousObject()

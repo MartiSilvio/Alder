@@ -184,6 +184,19 @@ public sealed partial class Evaluator : IExprVisitor<object?>
         return left ?? Evaluate(expr.Right);
     }
 
+    public object? VisitNullCoalesceAssign(NullCoalesceAssignExpr expr)
+    {
+        var name = expr.Name.Lexeme;
+        var currentValue = _context.Get(name);
+
+        if (currentValue != null)
+            return currentValue;
+
+        var newValue = Evaluate(expr.Value);
+        _context.Set(name, newValue);
+        return newValue;
+    }
+
     public object? VisitInterpolatedString(InterpolatedStringExpr expr)
     {
         var sb = new StringBuilder();
@@ -233,6 +246,10 @@ public sealed partial class Evaluator : IExprVisitor<object?>
 
             return expr.ReturnExpr != null ? Evaluate(expr.ReturnExpr) : null;
         }
+        catch (ReturnValue rv)
+        {
+            return rv.Value;
+        }
         finally
         {
             _context = previousContext;
@@ -249,6 +266,36 @@ public sealed partial class Evaluator : IExprVisitor<object?>
     public object? VisitNew(NewExpr expr)
     {
         return Evaluate(expr.Initializer);
+    }
+
+    public object? VisitIfStatement(IfStatementExpr expr)
+    {
+        var condition = Evaluate(expr.Condition);
+
+        if (IsTruthy(condition))
+        {
+            foreach (var stmt in expr.ThenStatements)
+            {
+                _cancellationToken.ThrowIfCancellationRequested();
+                Evaluate(stmt);
+            }
+        }
+        else if (expr.ElseStatements != null)
+        {
+            foreach (var stmt in expr.ElseStatements)
+            {
+                _cancellationToken.ThrowIfCancellationRequested();
+                Evaluate(stmt);
+            }
+        }
+
+        return null;
+    }
+
+    public object? VisitReturn(ReturnExpr expr)
+    {
+        var value = expr.Value != null ? Evaluate(expr.Value) : null;
+        throw new ReturnValue(value);
     }
 }
 

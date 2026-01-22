@@ -25,7 +25,7 @@ public sealed partial class Evaluator
         return false;
     }
 
-    private static int Compare(object? left, object? right)
+    private int Compare(object? left, object? right)
     {
         if (left == null || right == null)
             throw new EvalException("Cannot compare null values");
@@ -34,7 +34,7 @@ public sealed partial class Evaluator
             return ToDouble(left).CompareTo(ToDouble(right));
 
         if (left is string ls && right is string rs)
-            return string.Compare(ls, rs, StringComparison.Ordinal);
+            return string.Compare(ls, rs, _options.StringComparison);
 
         if (left is IComparable comparable)
             return comparable.CompareTo(right);
@@ -54,14 +54,82 @@ public sealed partial class Evaluator
             return ToLong(left) + ToLong(right);
         }
 
+        // Both are dictionaries
         if (left is IDictionary<string, object?> leftDict && right is IDictionary<string, object?> rightDict)
         {
-            var comparer = _options.IgnoreCase ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+            var comparer = _options.StringComparer;
             var merged = new Dictionary<string, object?>(comparer);
             foreach (var kvp in leftDict)
                 merged[kvp.Key] = kvp.Value;
             foreach (var kvp in rightDict)
                 merged[kvp.Key] = kvp.Value;
+            return merged;
+        }
+
+        // Left is a typed object, right is a dictionary - merge by reflecting left's properties
+        if (left != null && right is IDictionary<string, object?> rightDictOnly)
+        {
+            var comparer = _options.StringComparer;
+            var merged = new Dictionary<string, object?>(comparer);
+
+            // Copy properties from the left object via reflection
+            var leftType = left.GetType();
+            foreach (var prop in leftType.GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance))
+            {
+                if (prop.CanRead)
+                    merged[prop.Name] = prop.GetValue(left);
+            }
+
+            // Override/add properties from the right dictionary
+            foreach (var kvp in rightDictOnly)
+                merged[kvp.Key] = kvp.Value;
+
+            return merged;
+        }
+
+        // Left is a dictionary, right is a typed object - merge by reflecting right's properties
+        if (left is IDictionary<string, object?> leftDictOnly && right != null)
+        {
+            var comparer = _options.StringComparer;
+            var merged = new Dictionary<string, object?>(comparer);
+
+            // Copy properties from the left dictionary
+            foreach (var kvp in leftDictOnly)
+                merged[kvp.Key] = kvp.Value;
+
+            // Override/add properties from the right object via reflection
+            var rightType = right.GetType();
+            foreach (var prop in rightType.GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance))
+            {
+                if (prop.CanRead)
+                    merged[prop.Name] = prop.GetValue(right);
+            }
+
+            return merged;
+        }
+
+        // Both are typed objects - merge by reflecting both
+        if (left != null && right != null)
+        {
+            var comparer = _options.StringComparer;
+            var merged = new Dictionary<string, object?>(comparer);
+
+            // Copy properties from the left object via reflection
+            var leftType = left.GetType();
+            foreach (var prop in leftType.GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance))
+            {
+                if (prop.CanRead)
+                    merged[prop.Name] = prop.GetValue(left);
+            }
+
+            // Override/add properties from the right object via reflection
+            var rightType = right.GetType();
+            foreach (var prop in rightType.GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance))
+            {
+                if (prop.CanRead)
+                    merged[prop.Name] = prop.GetValue(right);
+            }
+
             return merged;
         }
 
