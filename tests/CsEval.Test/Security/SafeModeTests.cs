@@ -31,14 +31,14 @@ public class SafeModeTests
     }
 
     [Test]
-    public void SafeModeOff_AllowsGetType()
+    public void SafeModeOff_BlocksGetType_ReflectionBlocked()
     {
+        // Reflection types are always blocked, regardless of SafeMode
         var engine = new CsEvalEngine();
         engine.SetVariable("text", "hello");
 
-        var result = engine.Evaluate("text.GetType()");
-
-        Assert.That(result, Is.EqualTo(typeof(string)));
+        var ex = Assert.Throws<EvalException>(() => engine.Evaluate("text.GetType()"));
+        Assert.That(ex!.Message, Does.Contain("reflection"));
     }
 
     #endregion
@@ -313,7 +313,7 @@ public class SafeModeTests
         });
         engine.SetVariable("obj", new { Name = "Test" });
 
-        // This chain could be used to load arbitrary assemblies
+        // SafeMode blocks method calls before reflection guard is reached
         var ex = Assert.Throws<EvalException>(() => engine.Evaluate("obj.GetType()"));
         Assert.That(ex!.Message, Does.Contain("SafeMode"));
     }

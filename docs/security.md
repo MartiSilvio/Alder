@@ -17,32 +17,36 @@ var engine = new CsEvalEngine(new CsEvalOptions
 
 | Operation | Example | Blocked |
 |-----------|---------|:-------:|
-| Method calls on variables | `user.GetType()`, `list.Add(1)` | Yes |
-| Property reads | `user.Name` | No* |
+| Method calls on variables | `list.Add(1)`, `str.ToLower()` | Yes |
+| Reflection methods | `obj.GetType()` | Always* |
+| Property reads | `user.Name` | No** |
 | Index access | `arr[0]`, `dict["key"]` | No |
 | Module methods | `Math.Abs(-5)` | No |
 | LINQ methods | `items.Where(x => x > 0)` | No |
 | Registered functions | `myFunc(x)` | No |
 
-*Property reads can be blocked with `AllowPropertyRead = false`
+*Reflection is blocked in all modes, see [Reflection Blocking](#reflection-blocking)
+**Property reads can be blocked with `AllowPropertyRead = false`
 
 ### Why SafeMode Matters
 
 Without SafeMode, expressions can call arbitrary methods on passed objects:
 
 ```csharp
-// DANGEROUS: Could access reflection APIs
-engine.SetVariable("obj", someObject);
-engine.Evaluate("obj.GetType().Assembly"); // Access to Assembly!
+engine.SetVariable("list", new List<int> { 1, 2, 3 });
+engine.Evaluate("list.Clear()");  // Mutates the list!
+engine.Evaluate("list.Add(99)");  // Adds to the list!
 ```
 
 With SafeMode enabled:
 
 ```csharp
-engine.Evaluate("obj.GetType()"); // Throws EvalException
-engine.Evaluate("obj.Name");       // OK - property read
+engine.Evaluate("list.Clear()");   // Throws EvalException
+engine.Evaluate("list.Count");     // OK - property read
 engine.Evaluate("Math.Abs(-5)");   // OK - registered module
 ```
+
+> **Note**: `GetType()` is blocked in all modes due to [Reflection Blocking](#reflection-blocking).
 
 ## Security Options
 
@@ -120,20 +124,67 @@ Even in the strictest SafeMode configuration:
 4. **Arithmetic and logic** - Operators, literals, variables
 5. **Control flow** - if, for, while, switch, etc.
 
+## Reflection Blocking
+
+CsEval blocks access to reflection types in **all modes** (not just SafeMode). This is a fundamental security invariant: user code must never obtain a value whose runtime type is `System.Type` or any reflection metadata type.
+
+### Blocked Types
+
+| Type | Description |
+|------|-------------|
+| `System.Type` | Including `RuntimeType` |
+| `System.Reflection.MemberInfo` | Base for MethodInfo, PropertyInfo, FieldInfo, etc. |
+| `System.Reflection.Assembly` | Assembly references |
+| `System.Reflection.Module` | Module references |
+| `RuntimeTypeHandle`, `RuntimeMethodHandle`, `RuntimeFieldHandle` | Runtime handles |
+
+### What Gets Blocked
+
+```csharp
+// All of these throw EvalException, regardless of SafeMode setting:
+engine.Evaluate("obj.GetType()");           // Returns Type
+engine.Evaluate("holder.TypeProperty");      // Property returning Type
+engine.Evaluate("items.Select(x => x.GetType())"); // LINQ returning Types
+engine.Evaluate("arr[0]");                   // If arr[0] contains a Type
+engine.Evaluate("Module.GetMethodInfo()");   // Module returning MethodInfo
+```
+
+### Why This Matters
+
+Reflection access enables sandbox escapes:
+
+```csharp
+// Without reflection blocking, an attacker could:
+obj.GetType().Assembly.GetTypes()  // Enumerate all types
+obj.GetType().GetMethod("...").Invoke(...)  // Call arbitrary methods
+Type.GetType("System.IO.File").GetMethod("Delete")  // Access file system
+```
+
+By blocking all reflection types at the evaluation boundary, these attack vectors are eliminated regardless of other security settings.
+
+### Interaction with SafeMode
+
+- **SafeMode OFF**: Method calls allowed, but reflection types blocked on return
+- **SafeMode ON**: Method calls blocked entirely (reflection guard never reached)
+
+Both configurations prevent reflection access, but SafeMode provides additional protection by blocking all method calls.
+
 ## Design Principles
 
 CsEval's security model follows these principles:
 
 1. **Explicit over implicit** - Only registered modules are accessible by name
-2. **Read-only by default** - No property/index SET (not yet implemented)
-3. **LINQ is safe** - Handled internally, not via reflection
-4. **Fail closed** - SafeMode blocks unknown operations
+2. **Reflection is forbidden** - No reflection types can escape to user code
+3. **Read-only by default** - No property/index SET (not yet implemented)
+4. **LINQ is safe** - Handled internally, not via reflection
+5. **Fail closed** - SafeMode blocks unknown operations
 
 ## Comparison with Competitors
 
 | Feature | CsEval | ExpressionEvaluator | Eval-Expression.NET |
 |---------|:------:|:-------------------:|:-------------------:|
 | SafeMode | Yes | 15+ granular options | Yes |
+| Block reflection types | Always | Configurable | Configurable |
 | Block method calls | Yes | Yes | Yes |
 | Block property reads | Yes | Yes | Yes |
 | LINQ always allowed | Yes | N/A | N/A |

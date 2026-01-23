@@ -1,7 +1,56 @@
+using System.Reflection;
+
 namespace CsEval.Evaluation;
 
 public sealed partial class Evaluator
 {
+    /// <summary>
+    /// Checks if a type is a forbidden reflection metadata type.
+    /// User code must never obtain a value whose runtime type is System.Type or any reflection metadata type.
+    /// </summary>
+    private static bool IsForbiddenReflectionType(Type? type)
+    {
+        if (type == null) return false;
+
+        // Block System.Type (includes RuntimeType)
+        if (typeof(Type).IsAssignableFrom(type))
+            return true;
+
+        // Block all reflection metadata types (MemberInfo is base for MethodInfo, PropertyInfo, FieldInfo, etc.)
+        if (typeof(MemberInfo).IsAssignableFrom(type))
+            return true;
+
+        // Block Assembly and Module
+        if (typeof(Assembly).IsAssignableFrom(type))
+            return true;
+        if (typeof(Module).IsAssignableFrom(type))
+            return true;
+
+        // Block runtime handles
+        if (type == typeof(RuntimeTypeHandle) ||
+            type == typeof(RuntimeMethodHandle) ||
+            type == typeof(RuntimeFieldHandle))
+            return true;
+
+        return false;
+    }
+
+    /// <summary>
+    /// Guards against reflection type leaks. Throws if value is a forbidden reflection type.
+    /// </summary>
+    private static object? GuardReflectionLeak(object? value, string context)
+    {
+        if (value == null) return null;
+
+        var type = value.GetType();
+        if (IsForbiddenReflectionType(type))
+        {
+            throw new EvalException($"Access to reflection types is not allowed: {type.Name} ({context})");
+        }
+
+        return value;
+    }
+
     private object? InvokeLambda(LambdaValue lambda, object?[] args)
     {
         var childContext = lambda.Closure.CreateChild();
@@ -36,7 +85,7 @@ public sealed partial class Evaluator
         finalArgs = PadWithDefaults(parameters, finalArgs);
 
         var result = method.Invoke(target, finalArgs);
-        return UnwrapTask(result);
+        return GuardReflectionLeak(UnwrapTask(result), $"method {method.Name}");
     }
 
     private static object?[] PadWithDefaults(ParameterInfo[] parameters, object?[] args)
@@ -89,7 +138,7 @@ public sealed partial class Evaluator
                 return member switch
                 {
                     MethodInfo m => new ModuleMethodRef(resolver, m),
-                    PropertyInfo p => TypeCache.GetPropertyValue(p, resolver.Resolve()!),
+                    PropertyInfo p => GuardReflectionLeak(TypeCache.GetPropertyValue(p, resolver.Resolve()!), $"property {name}"),
                     _ => throw new EvalException($"Unsupported member type '{member.GetType().Name}'")
                 };
             }
@@ -104,14 +153,14 @@ public sealed partial class Evaluator
         if (obj is IDictionary<string, object?> dict)
         {
             if (dict.TryGetValue(name, out var value))
-                return value;
+                return GuardReflectionLeak(value, $"property {name}");
 
             if (ignoreCase)
             {
                 foreach (var key in dict.Keys)
                 {
                     if (string.Equals(key, name, StringComparison.OrdinalIgnoreCase))
-                        return dict[key];
+                        return GuardReflectionLeak(dict[key], $"property {name}");
                 }
             }
 
@@ -125,21 +174,21 @@ public sealed partial class Evaluator
 
         var prop = TypeCache.GetProperty(type, name, bindingFlags);
         if (prop != null)
-            return TypeCache.GetPropertyValue(prop, obj);
+            return GuardReflectionLeak(TypeCache.GetPropertyValue(prop, obj), $"property {name}");
 
         var field = TypeCache.GetField(type, name, bindingFlags);
         if (field != null)
-            return field.GetValue(obj);
+            return GuardReflectionLeak(field.GetValue(obj), $"field {name}");
 
         throw new EvalException($"Property '{name}' not found on type '{type.Name}'");
     }
 
-    private static object? GetIndex(object obj, object? index)
+    private object? GetIndex(object obj, object? index)
     {
         if (obj is IDictionary<string, object?> dict && index is string strKey)
         {
             if (dict.TryGetValue(strKey, out var value))
-                return value;
+                return GuardReflectionLeak(value, $"index [{strKey}]");
             return null;
         }
 
@@ -148,13 +197,13 @@ public sealed partial class Evaluator
             var idx = Convert.ToInt32(index);
             if (idx < 0 || idx >= list.Count)
                 throw new EvalException($"Index {idx} out of range");
-            return list[idx];
+            return GuardReflectionLeak(list[idx], $"index [{idx}]");
         }
 
         var type = obj.GetType();
         var indexer = TypeCache.GetIndexer(type);
         if (indexer != null)
-            return indexer.GetValue(obj, [index]);
+            return GuardReflectionLeak(indexer.GetValue(obj, [index]), $"indexer access");
 
         throw new EvalException($"Cannot index type '{type.Name}'");
     }
@@ -187,7 +236,7 @@ public sealed partial class Evaluator
             if (CanInvokeMethod(parameters, argsWithCancellation, out var convertedArgs))
             {
                 var result = method.Invoke(target, convertedArgs);
-                return (true, UnwrapTask(result));
+                return (true, GuardReflectionLeak(UnwrapTask(result), $"method {methodName}"));
             }
         }
 
