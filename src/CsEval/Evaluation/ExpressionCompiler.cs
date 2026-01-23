@@ -163,6 +163,7 @@ internal static class ExpressionCompiler
         TokenType.Plus or TokenType.Minus or TokenType.Star or
         TokenType.Slash or TokenType.Percent or
         TokenType.EqualEqual or TokenType.BangEqual or
+        TokenType.EqualEqualEqual or TokenType.BangEqualEqual or  // JavaScript
         TokenType.Less or TokenType.LessEqual or
         TokenType.Greater or TokenType.GreaterEqual;
 
@@ -241,6 +242,8 @@ internal static class ExpressionCompiler
             TokenType.Percent => ModuloMethod,
             TokenType.EqualEqual => EqualsMethod,
             TokenType.BangEqual => NotEqualsMethod,
+            TokenType.EqualEqualEqual => EqualsMethod,     // JavaScript === (same as ==)
+            TokenType.BangEqualEqual => NotEqualsMethod,   // JavaScript !== (same as !=)
             TokenType.Less => LessThanMethod,
             TokenType.LessEqual => LessThanOrEqualMethod,
             TokenType.Greater => GreaterThanMethod,

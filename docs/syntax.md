@@ -16,7 +16,7 @@ See also: [Extensions](extensions.md)
 6. Bitwise OR: `|`
 7. Bitwise XOR: `^`
 8. Bitwise AND: `&`
-9. Equality: `==`, `!=`
+9. Equality: `==`, `!=`, `===`, `!==`
 10. Comparison: `<`, `<=`, `>`, `>=`
 11. Shift: `<<`, `>>`
 12. Additive: `+`, `-`
@@ -73,6 +73,7 @@ Expressions inside `{}` are evaluated and converted to string.
 true
 false
 null
+undefined    // JavaScript-friendly alias for null
 ```
 
 ## Operators
@@ -94,6 +95,8 @@ null
 | -------- | ---------------- | -------- |
 | `==`     | Equality         | `a == b` |
 | `!=`     | Inequality       | `a != b` |
+| `===`    | Strict equality (JavaScript, same as `==`) | `a === b` |
+| `!==`    | Strict inequality (JavaScript, same as `!=`) | `a !== b` |
 | `<`      | Less than        | `a < b`  |
 | `<=`     | Less or equal    | `a <= b` |
 | `>`      | Greater than     | `a > b`  |
@@ -250,6 +253,7 @@ Lambda body is a single expression (no blocks in lambda body).
 
 ```csharp
 var name = expression;    // Type inferred
+let name = expression;    // JavaScript-friendly (same as var)
 int x = 42;               // Explicit type
 long y = 100;
 double z = 3.14;
@@ -450,8 +454,11 @@ The following are reserved and cannot be used as identifiers:
 - `true`
 - `false`
 - `null`
+- `undefined` (JavaScript-friendly, maps to null)
 - `new`
 - `var`
+- `let` (JavaScript-friendly, treated as var)
+- `const` (reserved keyword)
 - `return`
 - `if`
 - `else`
@@ -488,14 +495,14 @@ and            = bitwise_or ( "&&" bitwise_or )* ;
 bitwise_or     = bitwise_xor ( "|" bitwise_xor )* ;
 bitwise_xor    = bitwise_and ( "^" bitwise_and )* ;
 bitwise_and    = equality ( "&" equality )* ;
-equality       = comparison ( ( "==" | "!=" ) comparison )* ;
+equality       = comparison ( ( "==" | "!=" | "===" | "!==" ) comparison )* ;
 comparison     = shift ( ( "<" | "<=" | ">" | ">=" ) shift )* ;
 shift          = term ( ( "<<" | ">>" ) term )* ;
 term           = factor ( ( "+" | "-" ) factor )* ;
 factor         = unary ( ( "*" | "/" | "%" ) unary )* ;
 unary          = ( "!" | "-" | "~" ) unary | ( "++" | "--" ) IDENTIFIER | postfix ;
 postfix        = primary ( "." IDENTIFIER | "?." IDENTIFIER | "[" expression "]" | "(" arguments? ")" | "++" | "--" )* ;
-primary        = NUMBER | STRING | "true" | "false" | "null"
+primary        = NUMBER | STRING | "true" | "false" | "null" | "undefined"
                | INTERPOLATED_STRING
                | "new" "{" object_properties "}"
                | "(" ( expression | lambda_params "=>" expression ) ")"
@@ -520,14 +527,14 @@ statement      = "return" expression? ";"
                | "foreach" "(" ( "var" | TYPE_KEYWORD ) IDENTIFIER "in" expression ")" ( "{" statement* "}" | statement )
                | "do" ( "{" statement* "}" | statement ) "while" "(" expression ")" ";"?
                | "switch" "(" expression ")" "{" switch_case* "}"
-               | "var" IDENTIFIER "=" expression ";"
+               | ( "var" | "let" ) IDENTIFIER "=" expression ";"
                | TYPE_KEYWORD IDENTIFIER "=" expression ";"
                | expression ";" ;
 
 switch_case    = "case" expression ":" statement*
                | "default" ":" statement* ;
 
-for_init       = "var" IDENTIFIER "=" expression
+for_init       = ( "var" | "let" ) IDENTIFIER "=" expression
                | TYPE_KEYWORD IDENTIFIER "=" expression
                | expression ;
 

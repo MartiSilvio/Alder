@@ -68,7 +68,7 @@ public class ForEachLoopTests
             return lastItem;
         }");
 
-        Assert.That(result, Is.EqualTo(30L));
+        Assert.That(result, Is.EqualTo(30));
     }
 
     #endregion
@@ -207,7 +207,7 @@ public class ForEachLoopTests
             return -1;
         }");
 
-        Assert.That(result, Is.EqualTo(3L));
+        Assert.That(result, Is.EqualTo(3));
     }
 
     [Test]
@@ -412,8 +412,8 @@ public class ForEachLoopTests
         }") as IDictionary<string, object?>;
 
         Assert.That(result, Is.Not.Null);
-        Assert.That(result!["Index"], Is.EqualTo(2L));
-        Assert.That(result["Squared"], Is.EqualTo(4L));
+        Assert.That(result!["Index"], Is.EqualTo(2));
+        Assert.That(result["Squared"], Is.EqualTo(4));
     }
 
     [Test]
@@ -613,7 +613,7 @@ public class ForEachLoopTests
             return lastItem;
         }");
 
-        Assert.That(result, Is.EqualTo(3L));
+        Assert.That(result, Is.EqualTo(3));
     }
 
     [Test]

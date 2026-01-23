@@ -219,7 +219,7 @@ public class SafeModeTests
 
         var result = engine.Evaluate("items.Select(x => x * 2).ToList()") as List<object?>;
 
-        Assert.That(result, Is.EqualTo(new List<object?> { 2L, 4L, 6L }));
+        Assert.That(result, Is.EqualTo(new List<object?> { 2, 4, 6 }));
     }
 
     [Test]
@@ -247,7 +247,7 @@ public class SafeModeTests
 
         var result = engine.Evaluate("items.Where(x => x > 2).Select(x => x * 10).Sum()");
 
-        Assert.That(result, Is.EqualTo(120L));
+        Assert.That(result, Is.EqualTo(120));
     }
 
     #endregion
@@ -348,7 +348,7 @@ public class SafeModeTests
 
         var result = engine.Evaluate("{ var x = 1; x = 5; return x; }");
 
-        Assert.That(result, Is.EqualTo(5L));
+        Assert.That(result, Is.EqualTo(5));
     }
 
     [Test]
@@ -445,7 +445,7 @@ public class SafeModeTests
 
         var result = engine.Evaluate("{ var x = 5; return x; }");
 
-        Assert.That(result, Is.EqualTo(5L));
+        Assert.That(result, Is.EqualTo(5));
     }
 
     [Test]
@@ -463,7 +463,7 @@ public class SafeModeTests
         // When value is not null, ??= doesn't assign, so it should succeed
         var result = engine.Evaluate("{ var x = 5; x ??= 10; return x; }");
 
-        Assert.That(result, Is.EqualTo(5L));
+        Assert.That(result, Is.EqualTo(5));
     }
 
     #endregion
@@ -612,7 +612,7 @@ public class SafeModeTests
             return arr[1];
         }");
 
-        Assert.That(result, Is.EqualTo(2L));
+        Assert.That(result, Is.EqualTo(2));
     }
 
     [Test]
@@ -682,7 +682,7 @@ public class SafeModeTests
             return x;
         }");
 
-        Assert.That(result, Is.EqualTo(42L));
+        Assert.That(result, Is.EqualTo(42));
     }
 
     [Test]

@@ -140,12 +140,12 @@ public class NumericTests : EvaluatorTestBase
     }
 
     [Test]
-    public void IntDivideInt_ReturnsDouble()
+    public void IntDivideInt_ReturnsInt()
     {
-        // Division always returns double to avoid precision loss
+        // C# behavior: int / int → int (truncating division)
         var result = Eval("10 / 4");
-        Assert.That(result, Is.TypeOf<double>());
-        Assert.That(result, Is.EqualTo(2.5));
+        Assert.That(result, Is.TypeOf<int>());
+        Assert.That(result, Is.EqualTo(2));
     }
 
     [Test]
@@ -307,35 +307,38 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void UInt_Arithmetic()
     {
+        // C# behavior: uint + uint → uint
         var context = new EvalContext();
         context.Define("x", 4000000000u);
         context.Define("y", 294967295u);
         var result = Eval("x + y", context);
-        Assert.That(result, Is.TypeOf<long>());
-        Assert.That(result, Is.EqualTo(4294967295L));
+        Assert.That(result, Is.TypeOf<uint>());
+        Assert.That(result, Is.EqualTo(4294967295u));
     }
 
     [Test]
     public void ULong_Arithmetic()
     {
+        // C# behavior: ulong + ulong → ulong
         var context = new EvalContext();
         context.Define("x", 10000000000UL);
         context.Define("y", 5000000000UL);
         var result = Eval("x + y", context);
-        Assert.That(result, Is.TypeOf<long>());
-        Assert.That(result, Is.EqualTo(15000000000L));
+        Assert.That(result, Is.TypeOf<ulong>());
+        Assert.That(result, Is.EqualTo(15000000000UL));
     }
 
     // Floating-point types
     [Test]
     public void Float_Arithmetic()
     {
+        // C# behavior: float + float → float
         var context = new EvalContext();
         context.Define("x", 10.5f);
         context.Define("y", 5.25f);
         var result = Eval("x + y", context);
-        Assert.That(result, Is.TypeOf<double>());
-        Assert.That((double)result!, Is.EqualTo(15.75).Within(0.001));
+        Assert.That(result, Is.TypeOf<float>());
+        Assert.That((float)result!, Is.EqualTo(15.75f).Within(0.001f));
     }
 
     [Test]
@@ -374,14 +377,15 @@ public class NumericTests : EvaluatorTestBase
     }
 
     [Test]
-    public void IntPlusFloat_ReturnsDouble()
+    public void IntPlusFloat_ReturnsFloat()
     {
+        // C# behavior: int + float → float
         var context = new EvalContext();
         context.Define("x", 10);
         context.Define("y", 5.5f);
         var result = Eval("x + y", context);
-        Assert.That(result, Is.TypeOf<double>());
-        Assert.That((double)result!, Is.EqualTo(15.5).Within(0.001));
+        Assert.That(result, Is.TypeOf<float>());
+        Assert.That((float)result!, Is.EqualTo(15.5f).Within(0.001f));
     }
 
     [Test]
@@ -407,25 +411,23 @@ public class NumericTests : EvaluatorTestBase
     }
 
     [Test]
-    public void FloatPlusDecimal_ReturnsDecimal()
+    public void FloatPlusDecimal_Throws()
     {
+        // C# forbids mixing float and decimal - compile-time error
         var context = new EvalContext();
         context.Define("x", 10.5f);
         context.Define("y", 5.25m);
-        var result = Eval("x + y", context);
-        Assert.That(result, Is.TypeOf<decimal>());
-        Assert.That((decimal)result!, Is.EqualTo(15.75m).Within(0.01m));
+        Assert.Throws<Microsoft.CSharp.RuntimeBinder.RuntimeBinderException>(() => Eval("x + y", context));
     }
 
     [Test]
-    public void DoublePlusDecimal_ReturnsDecimal()
+    public void DoublePlusDecimal_Throws()
     {
+        // C# forbids mixing double and decimal - compile-time error
         var context = new EvalContext();
         context.Define("x", 10.5d);
         context.Define("y", 5.25m);
-        var result = Eval("x + y", context);
-        Assert.That(result, Is.TypeOf<decimal>());
-        Assert.That((decimal)result!, Is.EqualTo(15.75m).Within(0.0001m));
+        Assert.Throws<Microsoft.CSharp.RuntimeBinder.RuntimeBinderException>(() => Eval("x + y", context));
     }
 
     #endregion
@@ -624,9 +626,19 @@ public class NumericTests : EvaluatorTestBase
     }
 
     [Test]
-    public void Division_ReturnsDouble_PreservesFractional()
+    public void Division_IntDivInt_Truncates()
     {
+        // C# behavior: int / int → int (truncates)
         var result = Eval("7 / 3");
+        Assert.That(result, Is.TypeOf<int>());
+        Assert.That(result, Is.EqualTo(2)); // 7 / 3 = 2 (truncated)
+    }
+
+    [Test]
+    public void Division_DoubleDivDouble_PreservesFractional()
+    {
+        // Use double literals to get fractional result
+        var result = Eval("7.0 / 3.0");
         Assert.That(result, Is.TypeOf<double>());
         Assert.That((double)result!, Is.EqualTo(7.0 / 3.0).Within(1e-15));
     }
@@ -823,6 +835,302 @@ public class NumericTests : EvaluatorTestBase
             // Double modulo not supported is acceptable
             Assert.Pass("Double modulo not supported");
         }
+    }
+
+    #endregion
+
+    #region Array Literals - Type Verification
+
+    [Test]
+    public void ArrayLiteral_IntElements_ReturnsIntList()
+    {
+        var engine = new CsEvalEngine();
+        var result = engine.Evaluate("[1, 2, 3]") as List<object?>;
+
+        Assert.That(result, Is.Not.Null);
+        Assert.That(result![0], Is.TypeOf<int>());
+        Assert.That(result[1], Is.TypeOf<int>());
+        Assert.That(result[2], Is.TypeOf<int>());
+    }
+
+    [Test]
+    public void ArrayLiteral_LongElements_ReturnsLongList()
+    {
+        var engine = new CsEvalEngine();
+        var result = engine.Evaluate("[1L, 2L, 3L]") as List<object?>;
+
+        Assert.That(result, Is.Not.Null);
+        Assert.That(result![0], Is.TypeOf<long>());
+        Assert.That(result[1], Is.TypeOf<long>());
+        Assert.That(result[2], Is.TypeOf<long>());
+    }
+
+    [Test]
+    public void ArrayLiteral_IndexAccess_PreservesType()
+    {
+        var engine = new CsEvalEngine();
+        var result = engine.Evaluate("{ var arr = [10, 20, 30]; return arr[1]; }");
+
+        Assert.That(result, Is.TypeOf<int>());
+        Assert.That(result, Is.EqualTo(20));
+    }
+
+    #endregion
+
+    #region Block Expressions - Type Verification
+
+    [Test]
+    public void BlockExpression_IntVariable_ReturnsInt()
+    {
+        var engine = new CsEvalEngine();
+        var result = engine.Evaluate("{ var x = 42; return x; }");
+
+        Assert.That(result, Is.TypeOf<int>());
+        Assert.That(result, Is.EqualTo(42));
+    }
+
+    [Test]
+    public void BlockExpression_IntArithmetic_ReturnsInt()
+    {
+        var engine = new CsEvalEngine();
+        var result = engine.Evaluate("{ var x = 10; var y = 5; return x + y; }");
+
+        Assert.That(result, Is.TypeOf<int>());
+        Assert.That(result, Is.EqualTo(15));
+    }
+
+    [Test]
+    public void BlockExpression_IntAssignment_ReturnsInt()
+    {
+        var engine = new CsEvalEngine();
+        var result = engine.Evaluate("{ var x = 1; x = 99; return x; }");
+
+        Assert.That(result, Is.TypeOf<int>());
+        Assert.That(result, Is.EqualTo(99));
+    }
+
+    [Test]
+    public void BlockExpression_IntCompoundAssignment_ReturnsInt()
+    {
+        var engine = new CsEvalEngine();
+        var result = engine.Evaluate("{ var x = 10; x += 5; return x; }");
+
+        Assert.That(result, Is.TypeOf<int>());
+        Assert.That(result, Is.EqualTo(15));
+    }
+
+    [Test]
+    public void BlockExpression_IntIncrement_ReturnsInt()
+    {
+        var engine = new CsEvalEngine();
+        var result = engine.Evaluate("{ var x = 5; x++; return x; }");
+
+        Assert.That(result, Is.TypeOf<int>());
+        Assert.That(result, Is.EqualTo(6));
+    }
+
+    #endregion
+
+    #region Bitwise Operations in Blocks - Type Verification
+
+    [Test]
+    public void BlockExpression_BitwiseAnd_ReturnsInt()
+    {
+        var engine = new CsEvalEngine();
+        var result = engine.Evaluate("{ var x = 15; x &= 9; return x; }");
+
+        Assert.That(result, Is.TypeOf<int>());
+        Assert.That(result, Is.EqualTo(9));
+    }
+
+    [Test]
+    public void BlockExpression_BitwiseOr_ReturnsInt()
+    {
+        var engine = new CsEvalEngine();
+        var result = engine.Evaluate("{ var x = 5; x |= 3; return x; }");
+
+        Assert.That(result, Is.TypeOf<int>());
+        Assert.That(result, Is.EqualTo(7));
+    }
+
+    [Test]
+    public void BlockExpression_BitwiseXor_ReturnsInt()
+    {
+        var engine = new CsEvalEngine();
+        var result = engine.Evaluate("{ var x = 12; x ^= 5; return x; }");
+
+        Assert.That(result, Is.TypeOf<int>());
+        Assert.That(result, Is.EqualTo(9));
+    }
+
+    [Test]
+    public void BlockExpression_LeftShift_ReturnsInt()
+    {
+        var engine = new CsEvalEngine();
+        var result = engine.Evaluate("{ var x = 1; x <<= 4; return x; }");
+
+        Assert.That(result, Is.TypeOf<int>());
+        Assert.That(result, Is.EqualTo(16));
+    }
+
+    [Test]
+    public void BlockExpression_RightShift_ReturnsInt()
+    {
+        var engine = new CsEvalEngine();
+        var result = engine.Evaluate("{ var x = 32; x >>= 2; return x; }");
+
+        Assert.That(result, Is.TypeOf<int>());
+        Assert.That(result, Is.EqualTo(8));
+    }
+
+    #endregion
+
+    #region Loop Counter - Type Verification
+
+    [Test]
+    public void ForLoop_IntCounter_ReturnsInt()
+    {
+        var engine = new CsEvalEngine();
+        var result = engine.Evaluate(@"
+        {
+            var sum = 0;
+            for (var i = 0; i < 5; i++) {
+                sum += i;
+            }
+            return sum;
+        }");
+
+        Assert.That(result, Is.TypeOf<int>());
+        Assert.That(result, Is.EqualTo(10)); // 0+1+2+3+4
+    }
+
+    [Test]
+    public void WhileLoop_IntCounter_ReturnsInt()
+    {
+        var engine = new CsEvalEngine();
+        var result = engine.Evaluate(@"
+        {
+            var sum = 0;
+            var i = 1;
+            while (i <= 5) {
+                sum += i;
+                i++;
+            }
+            return sum;
+        }");
+
+        Assert.That(result, Is.TypeOf<int>());
+        Assert.That(result, Is.EqualTo(15)); // 1+2+3+4+5
+    }
+
+    [Test]
+    public void ForEachLoop_IntArraySum_ReturnsInt()
+    {
+        var engine = new CsEvalEngine();
+        var result = engine.Evaluate(@"
+        {
+            var sum = 0;
+            foreach (var n in [1, 2, 3, 4, 5]) {
+                sum += n;
+            }
+            return sum;
+        }");
+
+        Assert.That(result, Is.TypeOf<int>());
+        Assert.That(result, Is.EqualTo(15));
+    }
+
+    #endregion
+
+    #region LINQ Operations on Int Arrays - Type Verification
+
+    [Test]
+    public void LinqSelect_IntArray_ReturnsIntValues()
+    {
+        var engine = new CsEvalEngine();
+        var result = engine.Evaluate("[1, 2, 3].Select(x => x * 2).ToList()") as List<object?>;
+
+        Assert.That(result, Is.Not.Null);
+        Assert.That(result![0], Is.TypeOf<int>());
+        Assert.That(result[0], Is.EqualTo(2));
+        Assert.That(result[1], Is.TypeOf<int>());
+        Assert.That(result[1], Is.EqualTo(4));
+    }
+
+    [Test]
+    public void LinqWhere_IntArray_ReturnsIntValues()
+    {
+        var engine = new CsEvalEngine();
+        var result = engine.Evaluate("[1, 2, 3, 4, 5].Where(x => x > 2).ToList()") as List<object?>;
+
+        Assert.That(result, Is.Not.Null);
+        Assert.That(result![0], Is.TypeOf<int>());
+        Assert.That(result[0], Is.EqualTo(3));
+    }
+
+    [Test]
+    public void LinqSum_IntArray_ReturnsInt()
+    {
+        var engine = new CsEvalEngine();
+        var result = engine.Evaluate("[1, 2, 3, 4, 5].Sum()");
+
+        Assert.That(result, Is.TypeOf<int>());
+        Assert.That(result, Is.EqualTo(15));
+    }
+
+    [Test]
+    public void LinqChain_IntArray_ReturnsInt()
+    {
+        var engine = new CsEvalEngine();
+        var result = engine.Evaluate("[1, 2, 3, 4, 5].Where(x => x > 2).Select(x => x * 10).Sum()");
+
+        Assert.That(result, Is.TypeOf<int>());
+        Assert.That(result, Is.EqualTo(120)); // (3+4+5)*10 = 120
+    }
+
+    [Test]
+    public void LinqAverage_IntArray_ReturnsDouble()
+    {
+        // C# behavior: Average of int/long returns double
+        var engine = new CsEvalEngine();
+        var result = engine.Evaluate("[1, 2, 3, 4, 5].Average()");
+
+        Assert.That(result, Is.TypeOf<double>());
+        Assert.That(result, Is.EqualTo(3.0));
+    }
+
+    [Test]
+    public void LinqAverage_DecimalArray_ReturnsDecimal()
+    {
+        // C# behavior: Average of decimal returns decimal
+        var engine = new CsEvalEngine();
+        var result = engine.Evaluate("[1.5m, 2.5m, 3.5m].Average()");
+
+        Assert.That(result, Is.TypeOf<decimal>());
+        Assert.That(result, Is.EqualTo(2.5m));
+    }
+
+    [Test]
+    public void LinqAverage_LongArray_ReturnsDouble()
+    {
+        // C# behavior: Average of long returns double
+        var engine = new CsEvalEngine();
+        var result = engine.Evaluate("[1L, 2L, 3L, 4L, 5L].Average()");
+
+        Assert.That(result, Is.TypeOf<double>());
+        Assert.That(result, Is.EqualTo(3.0));
+    }
+
+    [Test]
+    public void LinqAverage_DecimalWithSelector_ReturnsDecimal()
+    {
+        // C# behavior: Average with selector returning decimal returns decimal
+        var engine = new CsEvalEngine();
+        engine.SetVariable("items", new List<object?> { 1, 2, 3 });
+        var result = engine.Evaluate("items.Average(x => x * 1.0m)");
+
+        Assert.That(result, Is.TypeOf<decimal>());
+        Assert.That(result, Is.EqualTo(2.0m));
     }
 
     #endregion

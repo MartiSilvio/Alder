@@ -21,6 +21,10 @@ public sealed partial class Parser
         if (Match(TokenType.Null))
             return new LiteralExpr(null);
 
+        // JavaScript undefined (maps to null in C# semantics)
+        if (Match(TokenType.Undefined))
+            return new LiteralExpr(null);
+
         // Interpolated string
         if (Match(TokenType.InterpolatedString))
             return ParseInterpolatedString(Previous());

@@ -64,7 +64,9 @@ Test folders: `Core/`, `Parsing/`, `Evaluator/`, `Loops/`, `Compilation/`, `Inte
 ## Common Gotchas
 
 1. **Numeric literals**: `42` is `int`, `42L` is `long`, `3.14` is `double`, `3.14m` is `decimal`
-2. **LINQ returns `List<object?>`**: Not `IEnumerable<T>`
-3. **Block scope**: `var` is scoped to block, no shadowing
-4. **Case sensitivity**: Default is case-sensitive, use `CsEvalOptions { IgnoreCase = true }`
-5. **Reserved keywords**: All C# keywords are reserved
+2. **Integer division truncates**: `5/2` returns `2`, use `5.0/2.0` for `2.5` (matches C#)
+3. **Decimal/float mixing throws**: `decimal + double` throws `RuntimeBinderException` (C# forbids this)
+4. **LINQ returns `List<object?>`**: Not `IEnumerable<T>`
+5. **Block scope**: `var` is scoped to block, no shadowing
+6. **Case sensitivity**: Default is case-sensitive, use `CsEvalOptions { IgnoreCase = true }`
+7. **Reserved keywords**: All C# keywords are reserved

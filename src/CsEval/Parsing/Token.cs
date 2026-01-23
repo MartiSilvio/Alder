@@ -9,6 +9,7 @@ public enum TokenType
     True,
     False,
     Null,
+    Undefined,  // JavaScript undefined
 
     // Identifiers
     Identifier,
@@ -27,6 +28,10 @@ public enum TokenType
     LessEqual,
     Greater,
     GreaterEqual,
+
+    // Operators - Strict Equality (JavaScript)
+    EqualEqualEqual,   // ===
+    BangEqualEqual,    // !==
 
     // Operators - Logical
     AmpAmp,
@@ -94,6 +99,9 @@ public enum TokenType
     Return,
     Var,
 
+    // JavaScript Keywords
+    Function,  // function keyword (reserved)
+
     // Keywords - Control flow (reserved, not implemented)
     Switch,
     Case,
@@ -160,6 +168,7 @@ public enum TokenType
     // Keywords - Other (reserved, not implemented)
     This,
     Base,
+    Super,  // JavaScript (reserved, equivalent to Base)
     Using,
     Lock,
     Fixed,

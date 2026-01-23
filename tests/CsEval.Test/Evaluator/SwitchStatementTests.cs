@@ -1129,8 +1129,8 @@ public class SwitchStatementTests
         var engine = new CsEvalEngine();
         var result = engine.Evaluate(@"
         {
-            var a = 10;
-            var b = 3;
+            var a = 10.0;
+            var b = 3.0;
             var op = ""/"";
             var calcResult = 0.0;
             switch (op) {
@@ -1153,7 +1153,7 @@ public class SwitchStatementTests
             return calcResult;
         }");
 
-        // CsEval does floating-point division: 10 / 3 = 3.333...
+        // C# behavior: double / double = double
         Assert.That(Convert.ToDouble(result), Is.EqualTo(10.0 / 3.0).Within(0.001));
     }
 

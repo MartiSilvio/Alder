@@ -95,6 +95,30 @@ Features for full C# developer familiarity, plus additions from other languages.
 | Custom functions | `engine.RegisterFunction()` |
 | SafeMode | `Security.SafeMode` blocks method calls on variables |
 
+### JavaScript-Friendly Syntax
+
+Always-available features for developers familiar with JavaScript/TypeScript:
+
+| Feature | Syntax | Notes |
+|---------|--------|-------|
+| `let` | `let x = 5;` | Treated as `var` |
+| `undefined` | `undefined` | Maps to `null` |
+| Strict equality | `===`, `!==` | Same as `==`/`!=` |
+| Method aliases | `map`, `filter`, `reduce`, etc. | Maps to LINQ equivalents |
+
+**Method Alias Mapping:**
+
+| JavaScript | LINQ Equivalent | Notes |
+|------------|-----------------|-------|
+| `map` | `Select` | |
+| `filter` | `Where` | |
+| `reduce` | `Aggregate` | JS arg order: `reduce(fn, seed)` |
+| `flatMap` | `SelectMany` | |
+| `find` | `FirstOrDefault` | |
+| `some` | `Any` | |
+| `every` | `All` | |
+| `includes` | `Contains` | |
+
 ---
 
 ## Planned Features
@@ -148,6 +172,17 @@ Features for full C# developer familiarity, plus additions from other languages.
 | ⚪ Pipe operator | `x \|> Process \|> Format` | F#/Kotlin style |
 | ⚪ `in` operator | `x in [1, 2, 3]` | Python style |
 | ⚪ Chained comparison | `0 < x < 100` | Python style |
+
+### JavaScript-Style Enhancements
+
+| Feature | Syntax | Notes |
+|---------|--------|-------|
+| 🟡 Template literals | `` `Hello ${name}` `` | Backtick strings |
+| 🟡 `typeof` operator | `typeof x` | Returns type name string |
+| ⚪ `instanceof` | `x instanceof Y` | Like C# `is` |
+| ⚪ `console.log` | `console.log(x)` | Register as module |
+| ⚪ `JSON.stringify/parse` | `JSON.stringify(obj)` | Register as module |
+| ⚪ Destructuring | `const { a, b } = obj` | |
 
 ---
 

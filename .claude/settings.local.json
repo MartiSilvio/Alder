@@ -19,7 +19,8 @@
       "Bash(dotnet run:*)",
       "Bash(dotnet add:*)",
       "Bash(dotnet remove:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(dotnet script:*)"
     ]
   }
 }

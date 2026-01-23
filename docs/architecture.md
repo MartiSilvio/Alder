@@ -142,25 +142,32 @@ CsEval matches C# numeric literal behavior:
 - `3.14` → `double` (default for floating-point)
 - `3.14f` → `float`, `3.14m` → `decimal` (explicit suffixes)
 
-**Arithmetic result types (matches C#):**
+**Arithmetic result types (matches C# exactly via `dynamic`):**
 
 | Operation | Result Type |
 |-----------|-------------|
-| `decimal` op anything | `decimal` |
-| `double`/`float` op non-decimal | `double` |
-| `int` op `int` | `int` |
+| `int` op `int` | `int` (including division - truncates!) |
 | `int` op `long` | `long` |
 | `long` op `long` | `long` |
+| `int` op `float` | `float` |
+| `float` op `float` | `float` |
+| `float` op `double` | `double` |
+| `int` op `decimal` | `decimal` |
+| `decimal` op `decimal` | `decimal` |
+| `decimal` op `float`/`double` | **Throws!** (C# forbids this) |
 | small types (`byte`, `short`) | promote to `int` |
-| Division (non-decimal) | `double` |
+
+**Important C# behaviors:**
+- Integer division truncates: `5 / 2` returns `2`, not `2.5`. Use `5.0 / 2.0` for fractional results.
+- Mixing `decimal` with `float` or `double` throws `RuntimeBinderException` (C# compile-time error at runtime).
 
 **Precision:**
 - `decimal`: 28-29 significant digits
 - `double`/`float`: 15-17 significant digits
-- When mixing types, the higher-precision type wins
 
 **Type coercion:**
-- When comparing values (e.g., `list.Contains(2)`), CsEval automatically handles type mismatches between `int`, `long`, `double`, `float`, `decimal` by converting both values to `double` for comparison.
+- Arithmetic and comparisons use C#'s `dynamic` dispatch, following exact C# type promotion rules.
+- For `Contains()`, mixed decimal/float comparisons convert both to `double` for usability.
 - External types (`float`, `decimal`, `short`, `byte`) work seamlessly in expressions.
 
 ## GroupBy Returns Dictionaries

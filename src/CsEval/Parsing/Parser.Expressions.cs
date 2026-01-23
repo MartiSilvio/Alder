@@ -169,7 +169,10 @@ public sealed partial class Parser
     {
         var expr = ParseComparison();
 
-        while (Match(TokenType.EqualEqual, TokenType.BangEqual))
+        // Support both == and === (JavaScript), != and !== (JavaScript)
+        // === and !== are treated the same as == and != in C# semantics
+        while (Match(TokenType.EqualEqual, TokenType.BangEqual,
+                     TokenType.EqualEqualEqual, TokenType.BangEqualEqual))
         {
             var op = Previous();
             var right = ParseComparison();

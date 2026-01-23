@@ -17,6 +17,7 @@ public sealed class Lexer
         ["true"] = TokenType.True,
         ["false"] = TokenType.False,
         ["null"] = TokenType.Null,
+        ["undefined"] = TokenType.Undefined,  // JavaScript
 
         // Keywords - Implemented
         ["new"] = TokenType.New,
@@ -24,6 +25,7 @@ public sealed class Lexer
         ["else"] = TokenType.Else,
         ["return"] = TokenType.Return,
         ["var"] = TokenType.Var,
+        ["function"] = TokenType.Function,  // JavaScript (reserved)
 
         // Keywords - Control flow (reserved)
         ["switch"] = TokenType.Switch,
@@ -91,6 +93,7 @@ public sealed class Lexer
         // Keywords - Other (reserved)
         ["this"] = TokenType.This,
         ["base"] = TokenType.Base,
+        ["super"] = TokenType.Super,  // JavaScript (equivalent to base)
         ["using"] = TokenType.Using,
         ["lock"] = TokenType.Lock,
         ["fixed"] = TokenType.Fixed,
@@ -202,11 +205,29 @@ public sealed class Lexer
                 break;
 
             case '!':
-                AddToken(Match('=') ? TokenType.BangEqual : TokenType.Bang);
+                if (Match('='))
+                {
+                    AddToken(Match('=') ? TokenType.BangEqualEqual : TokenType.BangEqual);
+                }
+                else
+                {
+                    AddToken(TokenType.Bang);
+                }
                 break;
 
             case '=':
-                AddToken(Match('=') ? TokenType.EqualEqual : Match('>') ? TokenType.Arrow : TokenType.Equal);
+                if (Match('='))
+                {
+                    AddToken(Match('=') ? TokenType.EqualEqualEqual : TokenType.EqualEqual);
+                }
+                else if (Match('>'))
+                {
+                    AddToken(TokenType.Arrow);
+                }
+                else
+                {
+                    AddToken(TokenType.Equal);
+                }
                 break;
 
             case '<':
@@ -495,6 +516,13 @@ public sealed class Lexer
 
         var text = _source[_start.._current];
         var type = Keywords.GetValueOrDefault(text, TokenType.Identifier);
+
+        // Treat 'let' as 'var' for JavaScript compatibility
+        if (type == TokenType.Let)
+        {
+            type = TokenType.Var;
+        }
+
         AddToken(type);
     }
 

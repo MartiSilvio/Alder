@@ -22,8 +22,9 @@ public sealed partial class Evaluator
         if (left == null || right == null) return false;
         if (left.Equals(right)) return true;
 
+        // Let C# runtime handle numeric comparison via dynamic
         if (IsNumeric(left) && IsNumeric(right))
-            return ToDouble(left) == ToDouble(right);
+            return (dynamic)left! == (dynamic)right!;
 
         return false;
     }
@@ -33,8 +34,12 @@ public sealed partial class Evaluator
         if (left == null || right == null)
             throw new EvalException("Cannot compare null values");
 
+        // Let C# runtime handle comparison via dynamic
         if (IsNumeric(left) && IsNumeric(right))
-            return ToDouble(left).CompareTo(ToDouble(right));
+        {
+            dynamic l = left, r = right;
+            return l < r ? -1 : l > r ? 1 : 0;
+        }
 
         return left switch
         {
@@ -49,17 +54,9 @@ public sealed partial class Evaluator
         if (left is string || right is string)
             return $"{left}{right}";
 
+        // Let C# runtime handle numeric addition via dynamic
         if (IsNumeric(left) && IsNumeric(right))
-        {
-            if (left is decimal || right is decimal)
-                return ToDecimal(left) + ToDecimal(right);
-            if (left is double or float || right is double or float)
-                return ToDouble(left) + ToDouble(right);
-            // C# behavior: small integers promote to int, int + int → int
-            if (BothFitInInt(left, right))
-                return ToInt(left) + ToInt(right);
-            return ToLong(left) + ToLong(right);
-        }
+            return (dynamic)left! + (dynamic)right!;
 
         // Both are dictionaries
         if (left is IDictionary<string, object?> leftDict && right is IDictionary<string, object?> rightDict)
@@ -146,16 +143,7 @@ public sealed partial class Evaluator
     private static object? Subtract(object? left, object? right)
     {
         if (IsNumeric(left) && IsNumeric(right))
-        {
-            if (left is decimal || right is decimal)
-                return ToDecimal(left) - ToDecimal(right);
-            if (left is double or float || right is double or float)
-                return ToDouble(left) - ToDouble(right);
-            // C# behavior: small integers promote to int, int - int → int
-            if (BothFitInInt(left, right))
-                return ToInt(left) - ToInt(right);
-            return ToLong(left) - ToLong(right);
-        }
+            return (dynamic)left! - (dynamic)right!;
 
         throw new EvalException($"Cannot subtract {left?.GetType().Name ?? "null"} and {right?.GetType().Name ?? "null"}");
     }
@@ -163,16 +151,7 @@ public sealed partial class Evaluator
     private static object? Multiply(object? left, object? right)
     {
         if (IsNumeric(left) && IsNumeric(right))
-        {
-            if (left is decimal || right is decimal)
-                return ToDecimal(left) * ToDecimal(right);
-            if (left is double or float || right is double or float)
-                return ToDouble(left) * ToDouble(right);
-            // C# behavior: small integers promote to int, int * int → int
-            if (BothFitInInt(left, right))
-                return ToInt(left) * ToInt(right);
-            return ToLong(left) * ToLong(right);
-        }
+            return (dynamic)left! * (dynamic)right!;
 
         throw new EvalException($"Cannot multiply {left?.GetType().Name ?? "null"} and {right?.GetType().Name ?? "null"}");
     }
@@ -181,15 +160,10 @@ public sealed partial class Evaluator
     {
         if (IsNumeric(left) && IsNumeric(right))
         {
-            if (left is decimal || right is decimal)
-            {
-                var r = ToDecimal(right);
-                if (r == 0) throw new EvalException("Division by zero");
-                return ToDecimal(left) / r;
-            }
-            var rd = ToDouble(right);
-            if (rd == 0) throw new EvalException("Division by zero");
-            return ToDouble(left) / rd;
+            // Check for division by zero
+            if ((dynamic)right! == 0)
+                throw new EvalException("Division by zero");
+            return (dynamic)left! / (dynamic)right!;
         }
 
         throw new EvalException($"Cannot divide {left?.GetType().Name ?? "null"} and {right?.GetType().Name ?? "null"}");
@@ -199,28 +173,9 @@ public sealed partial class Evaluator
     {
         if (IsNumeric(left) && IsNumeric(right))
         {
-            if (left is decimal || right is decimal)
-            {
-                var r = ToDecimal(right);
-                if (r == 0) throw new EvalException("Modulo by zero");
-                return ToDecimal(left) % r;
-            }
-            if (left is double or float || right is double or float)
-            {
-                var r = ToDouble(right);
-                if (r == 0) throw new EvalException("Modulo by zero");
-                return ToDouble(left) % r;
-            }
-            // C# behavior: small integers promote to int
-            if (BothFitInInt(left, right))
-            {
-                var ri = ToInt(right);
-                if (ri == 0) throw new EvalException("Modulo by zero");
-                return ToInt(left) % ri;
-            }
-            var rl = ToLong(right);
-            if (rl == 0) throw new EvalException("Modulo by zero");
-            return ToLong(left) % rl;
+            if ((dynamic)right! == 0)
+                throw new EvalException("Modulo by zero");
+            return (dynamic)left! % (dynamic)right!;
         }
 
         throw new EvalException($"Cannot modulo {left?.GetType().Name ?? "null"} and {right?.GetType().Name ?? "null"}");
@@ -228,78 +183,60 @@ public sealed partial class Evaluator
 
     private static object? Negate(object? value)
     {
-        return value switch
-        {
-            int i => -i,
-            long l => -l,
-            double d => -d,
-            float f => -f,
-            decimal m => -m,
-            _ => throw new EvalException($"Cannot negate {value?.GetType().Name ?? "null"}")
-        };
+        if (IsNumeric(value))
+            return -(dynamic)value!;
+
+        throw new EvalException($"Cannot negate {value?.GetType().Name ?? "null"}");
     }
 
     private static object? BitwiseNot(object? value)
     {
-        if (IsNumeric(value))
-            return ~ToLong(value);
-        throw new EvalException($"Cannot apply bitwise NOT to {value?.GetType().Name ?? "null"}");
+        if (!IsNumeric(value))
+            throw new EvalException($"Cannot apply bitwise NOT to {value?.GetType().Name ?? "null"}");
+
+        return ~(dynamic)value!;
     }
 
     private static object? BitwiseAnd(object? left, object? right)
     {
-        if (IsNumeric(left) && IsNumeric(right))
-            return ToLong(left) & ToLong(right);
-        throw new EvalException($"Cannot apply bitwise AND to {left?.GetType().Name ?? "null"} and {right?.GetType().Name ?? "null"}");
+        if (!IsNumeric(left) || !IsNumeric(right))
+            throw new EvalException($"Cannot apply bitwise AND to {left?.GetType().Name ?? "null"} and {right?.GetType().Name ?? "null"}");
+
+        return (dynamic)left! & (dynamic)right!;
     }
 
     private static object? BitwiseOr(object? left, object? right)
     {
-        if (IsNumeric(left) && IsNumeric(right))
-            return ToLong(left) | ToLong(right);
-        throw new EvalException($"Cannot apply bitwise OR to {left?.GetType().Name ?? "null"} and {right?.GetType().Name ?? "null"}");
+        if (!IsNumeric(left) || !IsNumeric(right))
+            throw new EvalException($"Cannot apply bitwise OR to {left?.GetType().Name ?? "null"} and {right?.GetType().Name ?? "null"}");
+
+        return (dynamic)left! | (dynamic)right!;
     }
 
     private static object? BitwiseXor(object? left, object? right)
     {
-        if (IsNumeric(left) && IsNumeric(right))
-            return ToLong(left) ^ ToLong(right);
-        throw new EvalException($"Cannot apply bitwise XOR to {left?.GetType().Name ?? "null"} and {right?.GetType().Name ?? "null"}");
+        if (!IsNumeric(left) || !IsNumeric(right))
+            throw new EvalException($"Cannot apply bitwise XOR to {left?.GetType().Name ?? "null"} and {right?.GetType().Name ?? "null"}");
+
+        return (dynamic)left! ^ (dynamic)right!;
     }
 
     private static object? LeftShift(object? left, object? right)
     {
-        if (IsNumeric(left) && IsNumeric(right))
-            return ToLong(left) << (int)ToLong(right);
-        throw new EvalException($"Cannot apply left shift to {left?.GetType().Name ?? "null"} and {right?.GetType().Name ?? "null"}");
+        if (!IsNumeric(left) || !IsNumeric(right))
+            throw new EvalException($"Cannot apply left shift to {left?.GetType().Name ?? "null"} and {right?.GetType().Name ?? "null"}");
+
+        return (dynamic)left! << (int)(dynamic)right!;
     }
 
     private static object? RightShift(object? left, object? right)
     {
-        if (IsNumeric(left) && IsNumeric(right))
-            return ToLong(left) >> (int)ToLong(right);
-        throw new EvalException($"Cannot apply right shift to {left?.GetType().Name ?? "null"} and {right?.GetType().Name ?? "null"}");
-    }
+        if (!IsNumeric(left) || !IsNumeric(right))
+            throw new EvalException($"Cannot apply right shift to {left?.GetType().Name ?? "null"} and {right?.GetType().Name ?? "null"}");
 
-    private static bool IsIntegral(object? value) =>
-        value is int or long or short or byte or sbyte or uint or ulong or ushort;
+        return (dynamic)left! >> (int)(dynamic)right!;
+    }
 
     private static bool IsNumeric(object? value) =>
         value is sbyte or byte or short or ushort or int or uint or long or ulong or float or double or decimal;
-
-    private static bool IsFloatingPoint(object? value) =>
-        value is double or float or decimal;
-
-    private static double ToDouble(object? value) => Convert.ToDouble(value);
-    private static decimal ToDecimal(object? value) => Convert.ToDecimal(value);
-    private static long ToLong(object? value) => Convert.ToInt64(value);
-    private static int ToInt(object? value) => Convert.ToInt32(value);
-
-    /// <summary>
-    /// C# promotes small integers (byte, sbyte, short, ushort) to int for arithmetic.
-    /// Returns true if both operands are int or smaller signed/unsigned types.
-    /// </summary>
-    private static bool BothFitInInt(object? left, object? right) =>
-        left is int or short or ushort or byte or sbyte &&
-        right is int or short or ushort or byte or sbyte;
 }

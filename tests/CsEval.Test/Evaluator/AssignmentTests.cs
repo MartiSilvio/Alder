@@ -140,7 +140,7 @@ public class AssignmentTests
         }") as List<object?>;
 
         Assert.That(result, Is.Not.Null);
-        Assert.That(result, Is.EqualTo(new List<object?> { 4L, 5L, 6L }));
+        Assert.That(result, Is.EqualTo(new List<object?> { 4, 5, 6 }));
     }
 
     [Test]
@@ -320,7 +320,7 @@ public class AssignmentTests
         }") as List<object?>;
 
         Assert.That(result, Is.Not.Null);
-        Assert.That(result, Is.EqualTo(new List<object?> { 3L, 4L, 5L }));
+        Assert.That(result, Is.EqualTo(new List<object?> { 3, 4, 5 }));
     }
 
     #endregion
@@ -607,7 +607,7 @@ public class AssignmentTests
         }");
 
         // 15 = 1111, 9 = 1001, AND = 1001 = 9
-        Assert.That(result, Is.EqualTo(9L));
+        Assert.That(result, Is.EqualTo(9));
     }
 
     [Test]
@@ -622,7 +622,7 @@ public class AssignmentTests
         }");
 
         // 5 = 101, 3 = 011, OR = 111 = 7
-        Assert.That(result, Is.EqualTo(7L));
+        Assert.That(result, Is.EqualTo(7));
     }
 
     [Test]
@@ -637,7 +637,7 @@ public class AssignmentTests
         }");
 
         // 12 = 1100, 5 = 0101, XOR = 1001 = 9
-        Assert.That(result, Is.EqualTo(9L));
+        Assert.That(result, Is.EqualTo(9));
     }
 
     [Test]
@@ -652,7 +652,7 @@ public class AssignmentTests
         }");
 
         // 1 << 4 = 16
-        Assert.That(result, Is.EqualTo(16L));
+        Assert.That(result, Is.EqualTo(16));
     }
 
     [Test]
@@ -667,7 +667,7 @@ public class AssignmentTests
         }");
 
         // 32 >> 2 = 8
-        Assert.That(result, Is.EqualTo(8L));
+        Assert.That(result, Is.EqualTo(8));
     }
 
     #endregion
@@ -832,7 +832,7 @@ public class AssignmentTests
             return sum;
         }");
 
-        Assert.That(result, Is.EqualTo(15L));
+        Assert.That(result, Is.EqualTo(15));
     }
 
     [Test]
@@ -1190,7 +1190,7 @@ public class AssignmentTests
         }");
 
         // 9 + 7 + 9 + 16 + 8 = 49
-        Assert.That(result, Is.EqualTo(49L));
+        Assert.That(result, Is.EqualTo(49));
     }
 
     #endregion
@@ -1284,7 +1284,7 @@ public class AssignmentTests
             return noShift;
         }");
 
-        Assert.That(result, Is.EqualTo(255L));
+        Assert.That(result, Is.EqualTo(255));
     }
 
     #endregion
@@ -2230,7 +2230,7 @@ public class AssignmentTests
             return arr[1];
         }");
 
-        Assert.That(result, Is.EqualTo(4L));
+        Assert.That(result, Is.EqualTo(4));
     }
 
     #endregion
@@ -2364,7 +2364,7 @@ public class AssignmentTests
             return obj.Counter;
         }");
 
-        Assert.That(result, Is.EqualTo(5L));
+        Assert.That(result, Is.EqualTo(5));
     }
 
     #endregion

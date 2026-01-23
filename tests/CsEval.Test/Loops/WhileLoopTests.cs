@@ -381,7 +381,7 @@ public class WhileLoopTests
         }") as List<object?>;
 
         Assert.That(result, Is.Not.Null);
-        Assert.That(result, Is.EqualTo(new List<object?> { 0L, 2L, 4L, 6L, 8L }));
+        Assert.That(result, Is.EqualTo(new List<object?> { 0, 2, 4, 6, 8 }));
     }
 
     #endregion

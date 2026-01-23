@@ -4,217 +4,81 @@ namespace CsEval.Evaluation;
 
 public sealed partial class Evaluator
 {
+    /// <summary>
+    /// Maps token types to their corresponding CLR types.
+    /// </summary>
+    private static readonly Dictionary<TokenType, Type> TokenTypeToClrType = new()
+    {
+        [TokenType.Sbyte] = typeof(sbyte),
+        [TokenType.Byte] = typeof(byte),
+        [TokenType.Short] = typeof(short),
+        [TokenType.Ushort] = typeof(ushort),
+        [TokenType.Int] = typeof(int),
+        [TokenType.Uint] = typeof(uint),
+        [TokenType.Long] = typeof(long),
+        [TokenType.Ulong] = typeof(ulong),
+        [TokenType.Float] = typeof(float),
+        [TokenType.Double] = typeof(double),
+        [TokenType.Decimal] = typeof(decimal),
+        [TokenType.Bool] = typeof(bool),
+        [TokenType.Char] = typeof(char),
+        [TokenType.StringType] = typeof(string),
+        [TokenType.Object] = typeof(object),
+    };
+
+    /// <summary>
+    /// C# implicit numeric conversions table.
+    /// Key: source type, Value: set of types it can implicitly convert to.
+    /// Based on ECMA-334 (C# Language Specification).
+    /// </summary>
+    private static readonly Dictionary<Type, HashSet<Type>> ImplicitConversions = new()
+    {
+        [typeof(sbyte)] = [typeof(short), typeof(int), typeof(long), typeof(float), typeof(double), typeof(decimal)],
+        [typeof(byte)] = [typeof(short), typeof(ushort), typeof(int), typeof(uint), typeof(long), typeof(ulong), typeof(float), typeof(double), typeof(decimal)],
+        [typeof(short)] = [typeof(int), typeof(long), typeof(float), typeof(double), typeof(decimal)],
+        [typeof(ushort)] = [typeof(int), typeof(uint), typeof(long), typeof(ulong), typeof(float), typeof(double), typeof(decimal)],
+        [typeof(int)] = [typeof(long), typeof(float), typeof(double), typeof(decimal)],
+        [typeof(uint)] = [typeof(long), typeof(ulong), typeof(float), typeof(double), typeof(decimal)],
+        [typeof(long)] = [typeof(float), typeof(double), typeof(decimal)],
+        [typeof(ulong)] = [typeof(float), typeof(double), typeof(decimal)],
+        [typeof(float)] = [typeof(double)],
+        [typeof(char)] = [typeof(ushort), typeof(int), typeof(uint), typeof(long), typeof(ulong), typeof(float), typeof(double), typeof(decimal)],
+    };
+
     private static object? ValidateAndCoerceType(Token typeToken, object? value, string varName)
     {
-        return typeToken.Type switch
-        {
-            TokenType.Int => CoerceToInt(value, varName),
-            TokenType.Long => CoerceToLong(value, varName),
-            TokenType.Double => CoerceToDouble(value, varName),
-            TokenType.Float => CoerceToFloat(value, varName),
-            TokenType.Decimal => CoerceToDecimal(value, varName),
-            TokenType.StringType => CoerceToString(value, varName),
-            TokenType.Bool => CoerceToBool(value, varName),
-            TokenType.Object => value, // object accepts anything
-            TokenType.Sbyte => CoerceToSbyte(value, varName),
-            TokenType.Byte => CoerceToByte(value, varName),
-            TokenType.Short => CoerceToShort(value, varName),
-            TokenType.Ushort => CoerceToUshort(value, varName),
-            TokenType.Uint => CoerceToUint(value, varName),
-            TokenType.Ulong => CoerceToUlong(value, varName),
-            TokenType.Char => CoerceToChar(value, varName),
-            _ => throw new EvalException($"Unknown type '{typeToken.Lexeme}'")
-        };
-    }
+        // Object accepts anything
+        if (typeToken.Type == TokenType.Object)
+            return value;
 
-    private static int CoerceToInt(object? value, string varName)
-    {
-        return value switch
-        {
-            null => throw new EvalException($"Cannot assign null to int variable '{varName}'"),
-            int i => i,
-            long l when l >= int.MinValue && l <= int.MaxValue => (int)l,
-            sbyte sb => sb,
-            byte b => b,
-            short s => s,
-            ushort us => us,
-            _ => throw new EvalException($"Cannot assign {value.GetType().Name} to int variable '{varName}'")
-        };
-    }
+        if (!TokenTypeToClrType.TryGetValue(typeToken.Type, out var targetType))
+            throw new EvalException($"Unknown type '{typeToken.Lexeme}'");
 
-    private static long CoerceToLong(object? value, string varName)
-    {
-        return value switch
+        // Null check for value types
+        if (value == null)
         {
-            null => throw new EvalException($"Cannot assign null to long variable '{varName}'"),
-            long l => l,
-            int i => i,
-            sbyte sb => sb,
-            byte b => b,
-            short s => s,
-            ushort us => us,
-            uint ui => ui,
-            _ => throw new EvalException($"Cannot assign {value.GetType().Name} to long variable '{varName}'")
-        };
-    }
+            if (targetType.IsValueType)
+                throw new EvalException($"Cannot assign null to {typeToken.Lexeme} variable '{varName}'");
+            return null;
+        }
 
-    private static double CoerceToDouble(object? value, string varName)
-    {
-        return value switch
-        {
-            null => throw new EvalException($"Cannot assign null to double variable '{varName}'"),
-            double d => d,
-            float f => f,
-            int i => i,
-            long l => l,
-            sbyte sb => sb,
-            byte b => b,
-            short s => s,
-            ushort us => us,
-            uint ui => ui,
-            ulong ul => ul,
-            _ => throw new EvalException($"Cannot assign {value.GetType().Name} to double variable '{varName}'")
-        };
-    }
+        var sourceType = value.GetType();
 
-    private static float CoerceToFloat(object? value, string varName)
-    {
-        return value switch
-        {
-            null => throw new EvalException($"Cannot assign null to float variable '{varName}'"),
-            float f => f,
-            int i => i,
-            long l => l,
-            sbyte sb => sb,
-            byte b => b,
-            short s => s,
-            ushort us => us,
-            _ => throw new EvalException($"Cannot assign {value.GetType().Name} to float variable '{varName}'")
-        };
-    }
+        // Identity conversion - same type
+        if (sourceType == targetType)
+            return value;
 
-    private static decimal CoerceToDecimal(object? value, string varName)
-    {
-        return value switch
+        // Check if implicit conversion is allowed
+        if (ImplicitConversions.TryGetValue(sourceType, out var allowedTargets) && allowedTargets.Contains(targetType))
         {
-            null => throw new EvalException($"Cannot assign null to decimal variable '{varName}'"),
-            decimal m => m,
-            int i => i,
-            long l => l,
-            sbyte sb => sb,
-            byte b => b,
-            short s => s,
-            ushort us => us,
-            uint ui => ui,
-            ulong ul => ul,
-            _ => throw new EvalException($"Cannot assign {value.GetType().Name} to decimal variable '{varName}'")
-        };
-    }
+            // Use Convert.ChangeType for the actual conversion
+            return Convert.ChangeType(value, targetType);
+        }
 
-    private static string CoerceToString(object? value, string varName)
-    {
-        return value switch
-        {
-            null => throw new EvalException($"Cannot assign null to string variable '{varName}'"),
-            string s => s,
-            _ => throw new EvalException($"Cannot assign {value.GetType().Name} to string variable '{varName}'")
-        };
-    }
+        // Special case: char from single-character string
+        if (targetType == typeof(char) && value is string s && s.Length == 1)
+            return s[0];
 
-    private static bool CoerceToBool(object? value, string varName)
-    {
-        return value switch
-        {
-            null => throw new EvalException($"Cannot assign null to bool variable '{varName}'"),
-            bool b => b,
-            _ => throw new EvalException($"Cannot assign {value.GetType().Name} to bool variable '{varName}'")
-        };
-    }
-
-    private static sbyte CoerceToSbyte(object? value, string varName)
-    {
-        return value switch
-        {
-            null => throw new EvalException($"Cannot assign null to sbyte variable '{varName}'"),
-            sbyte sb => sb,
-            int i when i >= sbyte.MinValue && i <= sbyte.MaxValue => (sbyte)i,
-            _ => throw new EvalException($"Cannot assign {value.GetType().Name} to sbyte variable '{varName}'")
-        };
-    }
-
-    private static byte CoerceToByte(object? value, string varName)
-    {
-        return value switch
-        {
-            null => throw new EvalException($"Cannot assign null to byte variable '{varName}'"),
-            byte b => b,
-            int i when i >= byte.MinValue && i <= byte.MaxValue => (byte)i,
-            _ => throw new EvalException($"Cannot assign {value.GetType().Name} to byte variable '{varName}'")
-        };
-    }
-
-    private static short CoerceToShort(object? value, string varName)
-    {
-        return value switch
-        {
-            null => throw new EvalException($"Cannot assign null to short variable '{varName}'"),
-            short s => s,
-            sbyte sb => sb,
-            byte b => b,
-            int i when i >= short.MinValue && i <= short.MaxValue => (short)i,
-            _ => throw new EvalException($"Cannot assign {value.GetType().Name} to short variable '{varName}'")
-        };
-    }
-
-    private static ushort CoerceToUshort(object? value, string varName)
-    {
-        return value switch
-        {
-            null => throw new EvalException($"Cannot assign null to ushort variable '{varName}'"),
-            ushort us => us,
-            byte b => b,
-            int i when i >= ushort.MinValue && i <= ushort.MaxValue => (ushort)i,
-            _ => throw new EvalException($"Cannot assign {value.GetType().Name} to ushort variable '{varName}'")
-        };
-    }
-
-    private static uint CoerceToUint(object? value, string varName)
-    {
-        return value switch
-        {
-            null => throw new EvalException($"Cannot assign null to uint variable '{varName}'"),
-            uint ui => ui,
-            byte b => b,
-            ushort us => us,
-            int i when i >= 0 => (uint)i,
-            _ => throw new EvalException($"Cannot assign {value.GetType().Name} to uint variable '{varName}'")
-        };
-    }
-
-    private static ulong CoerceToUlong(object? value, string varName)
-    {
-        return value switch
-        {
-            null => throw new EvalException($"Cannot assign null to ulong variable '{varName}'"),
-            ulong ul => ul,
-            byte b => b,
-            ushort us => us,
-            uint ui => ui,
-            int i when i >= 0 => (ulong)i,
-            long l when l >= 0 => (ulong)l,
-            _ => throw new EvalException($"Cannot assign {value.GetType().Name} to ulong variable '{varName}'")
-        };
-    }
-
-    private static char CoerceToChar(object? value, string varName)
-    {
-        return value switch
-        {
-            null => throw new EvalException($"Cannot assign null to char variable '{varName}'"),
-            char c => c,
-            string s when s.Length == 1 => s[0],
-            int i when i >= char.MinValue && i <= char.MaxValue => (char)i,
-            _ => throw new EvalException($"Cannot assign {value.GetType().Name} to char variable '{varName}'")
-        };
+        throw new EvalException($"Cannot assign {sourceType.Name} to {typeToken.Lexeme} variable '{varName}'");
     }
 }

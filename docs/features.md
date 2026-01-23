@@ -100,6 +100,31 @@ items.ToList()                       // Convert to List<object?>
 items.ToArray()                      // Convert to object?[]
 ```
 
+### JavaScript Method Aliases
+
+For JavaScript/TypeScript developers, familiar method names work as aliases:
+
+| JavaScript | LINQ Equivalent | Notes |
+|------------|-----------------|-------|
+| `filter` | `Where` | Same behavior |
+| `map` | `Select` | Same behavior |
+| `flatMap` | `SelectMany` | Same behavior |
+| `reduce` | `Aggregate` | JS argument order: `reduce(fn, seed)` |
+| `find` | `FirstOrDefault` | Same behavior |
+| `some` | `Any` | Same behavior |
+| `every` | `All` | Same behavior |
+| `includes` | `Contains` | Same behavior |
+
+```csharp
+// These are equivalent
+items.Where(x => x.Active)
+items.filter(x => x.Active)
+
+// reduce uses JS argument order (function first, seed second)
+items.reduce((acc, x) => acc + x, 0)      // JS style
+items.Aggregate(0, (acc, x) => acc + x)   // C# style
+```
+
 ## Index & Property Assignment
 
 For basic assignment, compound assignment (`+=`, `-=`, etc.), and increment/decrement operators, see [syntax.md](syntax.md#assignment).
@@ -600,10 +625,15 @@ engine.Evaluate("3.14f");    // float
 engine.Evaluate("3.14m");    // decimal
 ```
 
-Arithmetic follows C# promotion rules:
+Arithmetic follows C# promotion rules exactly (via `dynamic`):
 - Small types (`byte`, `short`, etc.) promote to `int`
 - `int + int` → `int`
+- `int / int` → `int` (truncating! Use `5.0 / 2.0` for fractional results)
 - `int + long` → `long`
+- `int + float` → `float`
+- `float + double` → `double`
+- `int + decimal` → `decimal`
+- `decimal + float` or `decimal + double` → **Throws!** (C# forbids mixing these)
 
 ### Nullables
 
@@ -619,7 +649,7 @@ When calling methods, CsEval:
 
 ## Tips
 
-1. **Numeric literals match C#**: `42` is `int`, `42L` is `long`, `3.14` is `double`, `3.14m` is `decimal`. Large integers auto-promote to `long`. Arithmetic follows C# type promotion rules.
+1. **Numeric literals match C#**: `42` is `int`, `42L` is `long`, `3.14` is `double`, `3.14m` is `decimal`. Large integers auto-promote to `long`. Arithmetic follows C# type promotion rules exactly. **Important**: `5/2` returns `2` (truncating), use `5.0/2.0` for `2.5`. Mixing `decimal` with `float`/`double` throws.
 
 2. **Object merging with null**: `null + dict` throws. Use null checks or `??`.
 

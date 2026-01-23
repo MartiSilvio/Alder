@@ -8,9 +8,15 @@ namespace CsEval.Parsing;
 /// - Parser.Primary.cs: Primary expressions and literals
 /// - Parser.Statements.cs: Statement and control flow parsing
 /// </summary>
-public sealed partial class Parser(List<Token> tokens)
+public sealed partial class Parser
 {
+    private readonly List<Token> _tokens;
     private int _current;
+
+    public Parser(List<Token> tokens)
+    {
+        _tokens = tokens;
+    }
 
     public Expr Parse()
     {
@@ -76,9 +82,11 @@ public sealed partial class Parser(List<Token> tokens)
 
     private bool IsAtEnd() => Peek().Type == TokenType.Eof;
 
-    private Token Peek() => tokens[_current];
+    private Token Peek() => _tokens[_current];
 
-    private Token Previous() => tokens[_current - 1];
+    private Token PeekNext() => _current + 1 < _tokens.Count ? _tokens[_current + 1] : _tokens[^1];
+
+    private Token Previous() => _tokens[_current - 1];
 
     private Token Consume(TokenType type, string message)
     {

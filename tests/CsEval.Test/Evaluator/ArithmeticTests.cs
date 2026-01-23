@@ -27,7 +27,15 @@ public class ArithmeticTests : EvaluatorTestBase
     [Test]
     public void Eval_Arithmetic_Division()
     {
-        Assert.That(Eval("10 / 4"), Is.EqualTo(2.5));
+        // C# behavior: int / int → int (truncating)
+        Assert.That(Eval("10 / 4"), Is.EqualTo(2));
+    }
+
+    [Test]
+    public void Eval_Arithmetic_Division_Double()
+    {
+        // Use double to get fractional result
+        Assert.That(Eval("10.0 / 4.0"), Is.EqualTo(2.5));
     }
 
     [Test]
