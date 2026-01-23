@@ -206,9 +206,33 @@ Lambda body is a single expression (no blocks in lambda body).
 
 ### Variable Declaration
 
+```csharp
+var name = expression;    // Type inferred
+int x = 42;               // Explicit type
+long y = 100;
+double z = 3.14;
+string s = "hello";
+bool flag = true;
 ```
-var name = expression;
+
+Supported type keywords: `int`, `long`, `double`, `float`, `decimal`, `string`, `bool`, `object`
+
+**Type validation is strict**: Assigning an incompatible type throws an error.
+
+```csharp
+int x = "hello";    // Error: Cannot assign String to int
+int y = null;       // Error: Cannot assign null to int
+string s = 42;      // Error: Cannot assign Int32 to string
 ```
+
+**Implicit coercion is allowed** for compatible numeric types:
+
+```csharp
+long x = 42;        // OK: int coerced to long
+double y = 10;      // OK: int coerced to double
+```
+
+**Type keywords are reserved** (matching C# behavior) and cannot be used as variable names.
 
 Variables are scoped to the containing block.
 
@@ -272,6 +296,16 @@ The following are reserved and cannot be used as identifiers:
 - `case` (reserved but not implemented)
 - `default` (reserved but not implemented)
 
+Type keywords (matching C#):
+- `int`
+- `long`
+- `double`
+- `float`
+- `decimal`
+- `string`
+- `bool`
+- `object`
+
 ## EBNF Grammar
 
 ```ebnf
@@ -310,7 +344,10 @@ block_body     = statement* ;
 statement      = "return" expression? ";"
                | "if" "(" expression ")" ( "{" statement* "}" | statement ) ( "else" ( "{" statement* "}" | statement ) )?
                | "var" IDENTIFIER "=" expression ";"
+               | TYPE_KEYWORD IDENTIFIER "=" expression ";"
                | expression ";" ;
+
+TYPE_KEYWORD   = "int" | "long" | "double" | "float" | "decimal" | "string" | "bool" | "object" ;
 ```
 
 ## Not Supported

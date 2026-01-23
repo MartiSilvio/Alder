@@ -582,10 +582,10 @@ public class LinqTests : EvaluatorTestBase
     public void Zip_DifferentLengths_StopsAtShorter()
     {
         var context = new EvalContext();
-        context.Define("short", new List<object?> { 1, 2 });
-        context.Define("long", new List<object?> { 10, 20, 30, 40 });
+        context.Define("shortList", new List<object?> { 1, 2 });
+        context.Define("longList", new List<object?> { 10, 20, 30, 40 });
 
-        var result = Eval("short.Zip(long, (a, b) => a + b)", context) as List<object?>;
+        var result = Eval("shortList.Zip(longList, (a, b) => a + b)", context) as List<object?>;
         Assert.That(result, Has.Count.EqualTo(2));
     }
 

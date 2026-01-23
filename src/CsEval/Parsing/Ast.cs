@@ -139,8 +139,8 @@ public sealed record BlockExpr(List<Expr> Statements, Expr? ReturnExpr) : Expr
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitBlock(this);
 }
 
-// Variable declaration: var x = 5
-public sealed record VariableDeclExpr(Token Name, Expr Initializer) : Expr
+// Variable declaration: var x = 5 or int x = 5
+public sealed record VariableDeclExpr(Token? DeclaredType, Token Name, Expr Initializer) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitVariableDecl(this);
 }

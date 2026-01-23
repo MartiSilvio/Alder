@@ -1,14 +1,8 @@
 namespace CsEval.Parsing;
 
-public sealed class Parser
+public sealed class Parser(List<Token> tokens)
 {
-    private readonly List<Token> _tokens;
     private int _current;
-
-    public Parser(List<Token> tokens)
-    {
-        _tokens = tokens;
-    }
 
     public Expr Parse()
     {
@@ -440,7 +434,16 @@ public sealed class Parser
             Consume(TokenType.Equal, "Expected '=' after variable name");
             var initializer = ParseExpression();
             Consume(TokenType.Semicolon, "Expected ';' after variable declaration");
-            return new VariableDeclExpr(name, initializer);
+            return new VariableDeclExpr(null, name, initializer);
+        }
+
+        if (MatchTypeKeyword(out var typeToken))
+        {
+            var name = Consume(TokenType.Identifier, "Expected variable name");
+            Consume(TokenType.Equal, "Expected '=' after variable name");
+            var initializer = ParseExpression();
+            Consume(TokenType.Semicolon, "Expected ';' after variable declaration");
+            return new VariableDeclExpr(typeToken, name, initializer);
         }
 
         var expr = ParseExpression();
@@ -582,6 +585,19 @@ public sealed class Parser
         return false;
     }
 
+    private bool MatchTypeKeyword(out Token typeToken)
+    {
+        if (Check(TokenType.Int) || Check(TokenType.Long) || Check(TokenType.Double) ||
+            Check(TokenType.Float) || Check(TokenType.Decimal) || Check(TokenType.StringType) ||
+            Check(TokenType.Bool) || Check(TokenType.Object))
+        {
+            typeToken = Advance();
+            return true;
+        }
+        typeToken = default;
+        return false;
+    }
+
     private bool Check(TokenType type) => !IsAtEnd() && Peek().Type == type;
 
     private Token Advance()
@@ -592,9 +608,9 @@ public sealed class Parser
 
     private bool IsAtEnd() => Peek().Type == TokenType.Eof;
 
-    private Token Peek() => _tokens[_current];
+    private Token Peek() => tokens[_current];
 
-    private Token Previous() => _tokens[_current - 1];
+    private Token Previous() => tokens[_current - 1];
 
     private Token Consume(TokenType type, string message)
     {

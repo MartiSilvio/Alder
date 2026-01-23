@@ -139,9 +139,9 @@ public class CustomRegistrationTests
     public void CustomFunction()
     {
         var engine = new CsEvalEngine();
-        engine.RegisterFunction("double", args => Convert.ToInt64(args[0]) * 2);
+        engine.RegisterFunction("twice", args => Convert.ToInt64(args[0]) * 2);
 
-        var result = engine.Evaluate("double(5)");
+        var result = engine.Evaluate("twice(5)");
         Assert.That(result, Is.EqualTo(10L));
     }
 

@@ -316,8 +316,133 @@ public sealed partial class Evaluator : IExprVisitor<object?>
     public object? VisitVariableDecl(VariableDeclExpr expr)
     {
         var value = Evaluate(expr.Initializer);
+
+        // Validate type if declared (strict mode)
+        if (expr.DeclaredType != null)
+            value = ValidateAndCoerceType(expr.DeclaredType.Value, value, expr.Name.Lexeme);
+
         _context.Define(expr.Name.Lexeme, value);
         return value;
+    }
+
+    private static object? ValidateAndCoerceType(Token typeToken, object? value, string varName)
+    {
+        return typeToken.Type switch
+        {
+            TokenType.Int => CoerceToInt(value, varName),
+            TokenType.Long => CoerceToLong(value, varName),
+            TokenType.Double => CoerceToDouble(value, varName),
+            TokenType.Float => CoerceToFloat(value, varName),
+            TokenType.Decimal => CoerceToDecimal(value, varName),
+            TokenType.StringType => CoerceToString(value, varName),
+            TokenType.Bool => CoerceToBool(value, varName),
+            TokenType.Object => value, // object accepts anything
+            _ => throw new EvalException($"Unknown type '{typeToken.Lexeme}'")
+        };
+    }
+
+    private static int CoerceToInt(object? value, string varName)
+    {
+        return value switch
+        {
+            null => throw new EvalException($"Cannot assign null to int variable '{varName}'"),
+            int i => i,
+            long l when l >= int.MinValue && l <= int.MaxValue => (int)l,
+            sbyte sb => sb,
+            byte b => b,
+            short s => s,
+            ushort us => us,
+            _ => throw new EvalException($"Cannot assign {value.GetType().Name} to int variable '{varName}'")
+        };
+    }
+
+    private static long CoerceToLong(object? value, string varName)
+    {
+        return value switch
+        {
+            null => throw new EvalException($"Cannot assign null to long variable '{varName}'"),
+            long l => l,
+            int i => i,
+            sbyte sb => sb,
+            byte b => b,
+            short s => s,
+            ushort us => us,
+            uint ui => ui,
+            _ => throw new EvalException($"Cannot assign {value.GetType().Name} to long variable '{varName}'")
+        };
+    }
+
+    private static double CoerceToDouble(object? value, string varName)
+    {
+        return value switch
+        {
+            null => throw new EvalException($"Cannot assign null to double variable '{varName}'"),
+            double d => d,
+            float f => f,
+            int i => i,
+            long l => l,
+            sbyte sb => sb,
+            byte b => b,
+            short s => s,
+            ushort us => us,
+            uint ui => ui,
+            ulong ul => ul,
+            _ => throw new EvalException($"Cannot assign {value.GetType().Name} to double variable '{varName}'")
+        };
+    }
+
+    private static float CoerceToFloat(object? value, string varName)
+    {
+        return value switch
+        {
+            null => throw new EvalException($"Cannot assign null to float variable '{varName}'"),
+            float f => f,
+            int i => i,
+            long l => l,
+            sbyte sb => sb,
+            byte b => b,
+            short s => s,
+            ushort us => us,
+            _ => throw new EvalException($"Cannot assign {value.GetType().Name} to float variable '{varName}'")
+        };
+    }
+
+    private static decimal CoerceToDecimal(object? value, string varName)
+    {
+        return value switch
+        {
+            null => throw new EvalException($"Cannot assign null to decimal variable '{varName}'"),
+            decimal m => m,
+            int i => i,
+            long l => l,
+            sbyte sb => sb,
+            byte b => b,
+            short s => s,
+            ushort us => us,
+            uint ui => ui,
+            ulong ul => ul,
+            _ => throw new EvalException($"Cannot assign {value.GetType().Name} to decimal variable '{varName}'")
+        };
+    }
+
+    private static string CoerceToString(object? value, string varName)
+    {
+        return value switch
+        {
+            null => throw new EvalException($"Cannot assign null to string variable '{varName}'"),
+            string s => s,
+            _ => throw new EvalException($"Cannot assign {value.GetType().Name} to string variable '{varName}'")
+        };
+    }
+
+    private static bool CoerceToBool(object? value, string varName)
+    {
+        return value switch
+        {
+            null => throw new EvalException($"Cannot assign null to bool variable '{varName}'"),
+            bool b => b,
+            _ => throw new EvalException($"Cannot assign {value.GetType().Name} to bool variable '{varName}'")
+        };
     }
 
     public object? VisitNew(NewExpr expr)

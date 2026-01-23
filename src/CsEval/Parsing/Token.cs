@@ -76,6 +76,16 @@ public enum TokenType
     Return,
     Var,
 
+    // Type keywords
+    Int,
+    Long,
+    Double,
+    Float,
+    Decimal,
+    StringType,  // 'string' keyword (String is used for string literals)
+    Bool,
+    Object,
+
     // Special
     Eof
 }

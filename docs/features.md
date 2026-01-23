@@ -507,7 +507,7 @@ When calling methods, CsEval:
 
 2. **Object merging with null**: `null + dict` throws. Use null checks or `??`.
 
-3. **Block scope**: Variables declared with `var` are scoped to the block.
+3. **Block scope**: Variables declared with `var` or typed (`int x = 5;`) are scoped to the block. Type keywords (`int`, `long`, etc.) are reserved (matching C# behavior).
 
 4. **Case sensitivity**: Default is case-sensitive. Use `CsEvalOptions { IgnoreCase = true }` for case-insensitive.
 

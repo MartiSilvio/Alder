@@ -22,6 +22,15 @@ public sealed class Lexer
         ["default"] = TokenType.Default,
         ["return"] = TokenType.Return,
         ["var"] = TokenType.Var,
+        // Type keywords (reserved, like C#)
+        ["int"] = TokenType.Int,
+        ["long"] = TokenType.Long,
+        ["double"] = TokenType.Double,
+        ["float"] = TokenType.Float,
+        ["decimal"] = TokenType.Decimal,
+        ["string"] = TokenType.StringType,
+        ["bool"] = TokenType.Bool,
+        ["object"] = TokenType.Object,
     };
 
     public Lexer(string source)
