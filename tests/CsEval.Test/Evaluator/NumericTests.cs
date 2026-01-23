@@ -13,35 +13,69 @@ public class NumericTests : EvaluatorTestBase
     #region Literal Parsing
 
     [Test]
-    public void IntegerLiteral_ParsedAsLong()
+    public void IntegerLiteral_ParsedAsInt()
     {
+        // C# behavior: unsuffixed integers are int
         var result = Eval("42");
+        Assert.That(result, Is.TypeOf<int>());
+        Assert.That(result, Is.EqualTo(42));
+    }
+
+    [Test]
+    public void ZeroLiteral_ParsedAsInt()
+    {
+        var result = Eval("0");
+        Assert.That(result, Is.TypeOf<int>());
+        Assert.That(result, Is.EqualTo(0));
+    }
+
+    [Test]
+    public void NegativeInteger_ParsedAsInt()
+    {
+        var result = Eval("-42");
+        Assert.That(result, Is.TypeOf<int>());
+        Assert.That(result, Is.EqualTo(-42));
+    }
+
+    [Test]
+    public void LargeInteger_AutoPromotesToLong()
+    {
+        // C# behavior: integers too large for int auto-promote to long
+        var result = Eval("9223372036854775807"); // long.MaxValue
+        Assert.That(result, Is.TypeOf<long>());
+        Assert.That(result, Is.EqualTo(long.MaxValue));
+    }
+
+    [Test]
+    public void IntegerWithLSuffix_ParsedAsLong()
+    {
+        var result = Eval("42L");
         Assert.That(result, Is.TypeOf<long>());
         Assert.That(result, Is.EqualTo(42L));
     }
 
     [Test]
-    public void ZeroLiteral_ParsedAsLong()
+    public void FloatSuffix_ParsedAsFloat()
     {
-        var result = Eval("0");
-        Assert.That(result, Is.TypeOf<long>());
-        Assert.That(result, Is.EqualTo(0L));
+        var result = Eval("3.14f");
+        Assert.That(result, Is.TypeOf<float>());
+        Assert.That((float)result!, Is.EqualTo(3.14f).Within(0.001f));
     }
 
     [Test]
-    public void NegativeInteger_ParsedAsLong()
+    public void DecimalSuffix_ParsedAsDecimal()
     {
-        var result = Eval("-42");
-        Assert.That(result, Is.TypeOf<long>());
-        Assert.That(result, Is.EqualTo(-42L));
+        var result = Eval("3.14m");
+        Assert.That(result, Is.TypeOf<decimal>());
+        Assert.That(result, Is.EqualTo(3.14m));
     }
 
     [Test]
-    public void LargeInteger_ParsedAsLong()
+    public void IntegerWithDecimalSuffix_ParsedAsDecimal()
     {
-        var result = Eval("9223372036854775807"); // long.MaxValue
-        Assert.That(result, Is.TypeOf<long>());
-        Assert.That(result, Is.EqualTo(long.MaxValue));
+        var result = Eval("42m");
+        Assert.That(result, Is.TypeOf<decimal>());
+        Assert.That(result, Is.EqualTo(42m));
     }
 
     [Test]
@@ -81,36 +115,55 @@ public class NumericTests : EvaluatorTestBase
     #region Arithmetic Operations - Same Types
 
     [Test]
-    public void LongPlusLong_ReturnsLong()
+    public void IntPlusInt_ReturnsInt()
     {
+        // C# behavior: int + int → int
         var result = Eval("5 + 3");
-        Assert.That(result, Is.TypeOf<long>());
-        Assert.That(result, Is.EqualTo(8L));
+        Assert.That(result, Is.TypeOf<int>());
+        Assert.That(result, Is.EqualTo(8));
     }
 
     [Test]
-    public void LongMinusLong_ReturnsLong()
+    public void IntMinusInt_ReturnsInt()
     {
         var result = Eval("10 - 4");
-        Assert.That(result, Is.TypeOf<long>());
-        Assert.That(result, Is.EqualTo(6L));
+        Assert.That(result, Is.TypeOf<int>());
+        Assert.That(result, Is.EqualTo(6));
     }
 
     [Test]
-    public void LongTimesLong_ReturnsLong()
+    public void IntTimesInt_ReturnsInt()
     {
         var result = Eval("6 * 7");
-        Assert.That(result, Is.TypeOf<long>());
-        Assert.That(result, Is.EqualTo(42L));
+        Assert.That(result, Is.TypeOf<int>());
+        Assert.That(result, Is.EqualTo(42));
     }
 
     [Test]
-    public void LongDivideLong_ReturnsDouble()
+    public void IntDivideInt_ReturnsDouble()
     {
         // Division always returns double to avoid precision loss
         var result = Eval("10 / 4");
         Assert.That(result, Is.TypeOf<double>());
         Assert.That(result, Is.EqualTo(2.5));
+    }
+
+    [Test]
+    public void LongPlusLong_ReturnsLong()
+    {
+        // Use L suffix to get long operands
+        var result = Eval("5L + 3L");
+        Assert.That(result, Is.TypeOf<long>());
+        Assert.That(result, Is.EqualTo(8L));
+    }
+
+    [Test]
+    public void IntPlusLong_ReturnsLong()
+    {
+        // C# behavior: int + long → long
+        var result = Eval("5 + 3L");
+        Assert.That(result, Is.TypeOf<long>());
+        Assert.That(result, Is.EqualTo(8L));
     }
 
     [Test]
@@ -150,11 +203,21 @@ public class NumericTests : EvaluatorTestBase
     }
 
     [Test]
+    public void IntTimesInt_FromVariable_ReturnsInt()
+    {
+        var context = new EvalContext();
+        context.Define("x", 5); // int
+        var result = Eval("x * 2", context); // 2 is now int (C# behavior)
+        Assert.That(result, Is.TypeOf<int>());
+        Assert.That(result, Is.EqualTo(10));
+    }
+
+    [Test]
     public void IntTimesLong_ReturnsLong()
     {
         var context = new EvalContext();
         context.Define("x", 5); // int
-        var result = Eval("x * 2", context); // 2 is long
+        var result = Eval("x * 2L", context); // Use L suffix for long
         Assert.That(result, Is.TypeOf<long>());
         Assert.That(result, Is.EqualTo(10L));
     }
@@ -173,7 +236,7 @@ public class NumericTests : EvaluatorTestBase
 
     #region All Numeric Types - Comprehensive Coverage
 
-    // Signed integer types
+    // Signed integer types - C# promotes small types to int for arithmetic
     [Test]
     public void SByte_Arithmetic()
     {
@@ -181,8 +244,8 @@ public class NumericTests : EvaluatorTestBase
         context.Define("x", (sbyte)10);
         context.Define("y", (sbyte)5);
         var result = Eval("x + y", context);
-        Assert.That(result, Is.TypeOf<long>());
-        Assert.That(result, Is.EqualTo(15L));
+        Assert.That(result, Is.TypeOf<int>()); // C# promotes sbyte to int
+        Assert.That(result, Is.EqualTo(15));
     }
 
     [Test]
@@ -192,8 +255,8 @@ public class NumericTests : EvaluatorTestBase
         context.Define("x", (short)1000);
         context.Define("y", (short)234);
         var result = Eval("x + y", context);
-        Assert.That(result, Is.TypeOf<long>());
-        Assert.That(result, Is.EqualTo(1234L));
+        Assert.That(result, Is.TypeOf<int>()); // C# promotes short to int
+        Assert.That(result, Is.EqualTo(1234));
     }
 
     [Test]
@@ -203,8 +266,8 @@ public class NumericTests : EvaluatorTestBase
         context.Define("x", 100000);
         context.Define("y", 23456);
         var result = Eval("x + y", context);
-        Assert.That(result, Is.TypeOf<long>());
-        Assert.That(result, Is.EqualTo(123456L));
+        Assert.That(result, Is.TypeOf<int>()); // int + int → int
+        Assert.That(result, Is.EqualTo(123456));
     }
 
     [Test]
@@ -218,7 +281,7 @@ public class NumericTests : EvaluatorTestBase
         Assert.That(result, Is.EqualTo(12345678901L));
     }
 
-    // Unsigned integer types
+    // Unsigned integer types - C# promotes byte/ushort to int for arithmetic
     [Test]
     public void Byte_Arithmetic()
     {
@@ -226,8 +289,8 @@ public class NumericTests : EvaluatorTestBase
         context.Define("x", (byte)200);
         context.Define("y", (byte)55);
         var result = Eval("x + y", context);
-        Assert.That(result, Is.TypeOf<long>());
-        Assert.That(result, Is.EqualTo(255L));
+        Assert.That(result, Is.TypeOf<int>()); // C# promotes byte to int
+        Assert.That(result, Is.EqualTo(255));
     }
 
     [Test]
@@ -237,8 +300,8 @@ public class NumericTests : EvaluatorTestBase
         context.Define("x", (ushort)60000);
         context.Define("y", (ushort)5535);
         var result = Eval("x + y", context);
-        Assert.That(result, Is.TypeOf<long>());
-        Assert.That(result, Is.EqualTo(65535L));
+        Assert.That(result, Is.TypeOf<int>()); // C# promotes ushort to int
+        Assert.That(result, Is.EqualTo(65535));
     }
 
     [Test]
@@ -299,14 +362,15 @@ public class NumericTests : EvaluatorTestBase
 
     // Mixed type operations
     [Test]
-    public void BytePlusShort_ReturnsLong()
+    public void BytePlusShort_ReturnsInt()
     {
+        // C# promotes both to int for arithmetic
         var context = new EvalContext();
         context.Define("x", (byte)100);
         context.Define("y", (short)200);
         var result = Eval("x + y", context);
-        Assert.That(result, Is.TypeOf<long>());
-        Assert.That(result, Is.EqualTo(300L));
+        Assert.That(result, Is.TypeOf<int>());
+        Assert.That(result, Is.EqualTo(300));
     }
 
     [Test]
@@ -736,11 +800,12 @@ public class NumericTests : EvaluatorTestBase
     #region Modulo Operations
 
     [Test]
-    public void LongModLong_ReturnsLong()
+    public void IntModInt_ReturnsInt()
     {
+        // C# behavior: int % int → int
         var result = Eval("10 % 3");
-        Assert.That(result, Is.TypeOf<long>());
-        Assert.That(result, Is.EqualTo(1L));
+        Assert.That(result, Is.TypeOf<int>());
+        Assert.That(result, Is.EqualTo(1));
     }
 
     [Test]

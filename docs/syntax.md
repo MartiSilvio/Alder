@@ -30,14 +30,19 @@ See also: [Extensions](extensions.md)
 ### Numbers
 
 ```
-42        // long integer
--42       // negative integer
-3.14      // double
--3.14     // negative double
-0         // zero
+42        // int (default for integers)
+-42       // negative int
+42L       // long (explicit suffix)
+3.14      // double (default for floating-point)
+3.14f     // float (explicit suffix)
+3.14m     // decimal (explicit suffix)
+0         // zero (int)
 ```
 
-All integers are parsed as `long` (Int64). All floating-point numbers are parsed as `double`.
+Numeric literal types match C# behavior:
+- Integers default to `int` (Int32), auto-promote to `long` if too large
+- Floating-point defaults to `double`
+- Suffixes: `L` (long), `U` (uint), `UL` (ulong), `F` (float), `D` (double), `M` (decimal)
 
 ### Strings
 

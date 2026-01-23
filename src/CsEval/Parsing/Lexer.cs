@@ -261,19 +261,84 @@ public sealed class Lexer
         while (char.IsDigit(Peek())) Advance();
 
         // Look for decimal part
+        var hasDecimalPoint = false;
         if (Peek() == '.' && char.IsDigit(PeekNext()))
         {
+            hasDecimalPoint = true;
             Advance(); // consume .
             while (char.IsDigit(Peek())) Advance();
         }
 
-        var text = _source[_start.._current];
-        // Note: Cannot use ternary because it would convert long to double
-        // (ternary requires common type, and long implicitly converts to double)
-        if (text.Contains('.'))
-            AddToken(TokenType.Number, double.Parse(text));
-        else
-            AddToken(TokenType.Number, long.Parse(text));
+        var numberText = _source[_start.._current];
+
+        // Check for type suffix - C# supports: L, U, UL, F, D, M (case-insensitive)
+        var suffix = ParseNumericSuffix();
+
+        // Parse based on suffix and decimal point presence
+        // Matches C# behavior: https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/builtin-types/integral-numeric-types
+        object value = suffix switch
+        {
+            NumericSuffix.Long => long.Parse(numberText),
+            NumericSuffix.ULong => ulong.Parse(numberText),
+            NumericSuffix.UInt => uint.Parse(numberText),
+            NumericSuffix.Float => float.Parse(numberText),
+            NumericSuffix.Double => double.Parse(numberText),
+            NumericSuffix.Decimal => decimal.Parse(numberText),
+            NumericSuffix.None => hasDecimalPoint
+                ? double.Parse(numberText)
+                : ParseIntegerWithPromotion(numberText),
+            _ => throw new LexerException($"Unknown numeric suffix at {_line}:{_column}")
+        };
+
+        AddToken(TokenType.Number, value);
+    }
+
+    /// <summary>
+    /// Parse integer literal with automatic type promotion (C# behavior):
+    /// - If fits in int → int
+    /// - If fits in long → long
+    /// - Otherwise → error
+    /// </summary>
+    private static object ParseIntegerWithPromotion(string text)
+    {
+        if (int.TryParse(text, out var intValue))
+            return intValue;
+        if (long.TryParse(text, out var longValue))
+            return longValue;
+        // For very large numbers, could support ulong, but keeping it simple
+        throw new OverflowException($"Integer literal '{text}' is too large");
+    }
+
+    private enum NumericSuffix { None, Long, ULong, UInt, Float, Double, Decimal }
+
+    /// <summary>
+    /// Parse C# numeric suffix: L, U, UL, LU, F, D, M (case-insensitive)
+    /// </summary>
+    private NumericSuffix ParseNumericSuffix()
+    {
+        var c1 = char.ToLowerInvariant(Peek());
+
+        if (c1 == 'f') { Advance(); return NumericSuffix.Float; }
+        if (c1 == 'd') { Advance(); return NumericSuffix.Double; }
+        if (c1 == 'm') { Advance(); return NumericSuffix.Decimal; }
+
+        if (c1 == 'l')
+        {
+            Advance();
+            var c2 = char.ToLowerInvariant(Peek());
+            if (c2 == 'u') { Advance(); return NumericSuffix.ULong; }
+            return NumericSuffix.Long;
+        }
+
+        if (c1 == 'u')
+        {
+            Advance();
+            var c2 = char.ToLowerInvariant(Peek());
+            if (c2 == 'l') { Advance(); return NumericSuffix.ULong; }
+            return NumericSuffix.UInt;
+        }
+
+        return NumericSuffix.None;
     }
 
     private void ScanIdentifier()

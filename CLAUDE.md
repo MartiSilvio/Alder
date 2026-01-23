@@ -197,7 +197,7 @@ dotnet test
 
 ## Common Gotchas
 
-1. **Numbers are `long` by default**: `42` is `long`, not `int`. Use `42.0` for double.
+1. **Numeric literals match C#**: `42` is `int`, `42L` is `long`, `3.14` is `double`, `3.14m` is `decimal`. Use suffixes for explicit types.
 
 2. **LINQ returns `List<object?>`**: Not `IEnumerable<T>`. Methods like `ToArray()` return `object?[]`.
 

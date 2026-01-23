@@ -467,15 +467,27 @@ CsEval automatically coerces types in common scenarios:
 
 ### Numbers
 
-- Integer literals (e.g., `42`) are parsed as `long`
-- Floating-point literals (e.g., `3.14`) are parsed as `double`
-- Automatic conversion when calling methods expecting specific types
+CsEval matches C# numeric literal behavior:
+
+- `42` → `int` (default for integers that fit in int range)
+- `2147483648` → `long` (auto-promotes if too large for int)
+- `42L` → `long` (explicit suffix)
+- `3.14` → `double` (default for floating-point)
+- `3.14f` → `float` (explicit suffix)
+- `3.14m` → `decimal` (explicit suffix)
 
 ```csharp
-engine.Evaluate("42");       // long
+engine.Evaluate("42");       // int
+engine.Evaluate("42L");      // long
 engine.Evaluate("3.14");     // double
-// If method expects int, long is automatically converted
+engine.Evaluate("3.14f");    // float
+engine.Evaluate("3.14m");    // decimal
 ```
+
+Arithmetic follows C# promotion rules:
+- Small types (`byte`, `short`, etc.) promote to `int`
+- `int + int` → `int`
+- `int + long` → `long`
 
 ### Nullables
 
@@ -491,7 +503,7 @@ When calling methods, CsEval:
 
 ## Tips
 
-1. **Integer literals are `long`**: `42` becomes `long`, `3.14` becomes `double`. Arithmetic follows precision hierarchy: `decimal` > `double`/`float` > `long`. See [design-decisions.md](design-decisions.md) for details.
+1. **Numeric literals match C#**: `42` is `int`, `42L` is `long`, `3.14` is `double`, `3.14m` is `decimal`. Large integers auto-promote to `long`. Arithmetic follows C# type promotion rules.
 
 2. **Object merging with null**: `null + dict` throws. Use null checks or `??`.
 

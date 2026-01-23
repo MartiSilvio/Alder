@@ -55,6 +55,9 @@ public sealed partial class Evaluator
                 return ToDecimal(left) + ToDecimal(right);
             if (left is double or float || right is double or float)
                 return ToDouble(left) + ToDouble(right);
+            // C# behavior: small integers promote to int, int + int → int
+            if (BothFitInInt(left, right))
+                return ToInt(left) + ToInt(right);
             return ToLong(left) + ToLong(right);
         }
 
@@ -148,6 +151,9 @@ public sealed partial class Evaluator
                 return ToDecimal(left) - ToDecimal(right);
             if (left is double or float || right is double or float)
                 return ToDouble(left) - ToDouble(right);
+            // C# behavior: small integers promote to int, int - int → int
+            if (BothFitInInt(left, right))
+                return ToInt(left) - ToInt(right);
             return ToLong(left) - ToLong(right);
         }
 
@@ -162,6 +168,9 @@ public sealed partial class Evaluator
                 return ToDecimal(left) * ToDecimal(right);
             if (left is double or float || right is double or float)
                 return ToDouble(left) * ToDouble(right);
+            // C# behavior: small integers promote to int, int * int → int
+            if (BothFitInInt(left, right))
+                return ToInt(left) * ToInt(right);
             return ToLong(left) * ToLong(right);
         }
 
@@ -202,9 +211,16 @@ public sealed partial class Evaluator
                 if (r == 0) throw new EvalException("Modulo by zero");
                 return ToDouble(left) % r;
             }
-            var ri = ToLong(right);
-            if (ri == 0) throw new EvalException("Modulo by zero");
-            return ToLong(left) % ri;
+            // C# behavior: small integers promote to int
+            if (BothFitInInt(left, right))
+            {
+                var ri = ToInt(right);
+                if (ri == 0) throw new EvalException("Modulo by zero");
+                return ToInt(left) % ri;
+            }
+            var rl = ToLong(right);
+            if (rl == 0) throw new EvalException("Modulo by zero");
+            return ToLong(left) % rl;
         }
 
         throw new EvalException($"Cannot modulo {left?.GetType().Name ?? "null"} and {right?.GetType().Name ?? "null"}");
@@ -277,4 +293,13 @@ public sealed partial class Evaluator
     private static double ToDouble(object? value) => Convert.ToDouble(value);
     private static decimal ToDecimal(object? value) => Convert.ToDecimal(value);
     private static long ToLong(object? value) => Convert.ToInt64(value);
+    private static int ToInt(object? value) => Convert.ToInt32(value);
+
+    /// <summary>
+    /// C# promotes small integers (byte, sbyte, short, ushort) to int for arithmetic.
+    /// Returns true if both operands are int or smaller signed/unsigned types.
+    /// </summary>
+    private static bool BothFitInInt(object? left, object? right) =>
+        left is int or short or ushort or byte or sbyte &&
+        right is int or short or ushort or byte or sbyte;
 }
