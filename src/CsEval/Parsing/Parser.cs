@@ -497,6 +497,9 @@ public sealed class Parser(List<Token> tokens)
         if (Match(TokenType.Foreach))
             return ParseForEachStatement();
 
+        if (Match(TokenType.Switch))
+            return ParseSwitchStatement();
+
         if (Match(TokenType.Var))
         {
             var name = Consume(TokenType.Identifier, "Expected variable name");
@@ -708,6 +711,60 @@ public sealed class Parser(List<Token> tokens)
         }
 
         return new ForEachStatementExpr(variableName, collection, body);
+    }
+
+    private Expr ParseSwitchStatement()
+    {
+        Consume(TokenType.LeftParen, "Expected '(' after 'switch'");
+        var expression = ParseExpression();
+        Consume(TokenType.RightParen, "Expected ')' after switch expression");
+        Consume(TokenType.LeftBrace, "Expected '{' before switch cases");
+
+        var cases = new List<SwitchCaseExpr>();
+
+        while (!Check(TokenType.RightBrace) && !IsAtEnd())
+        {
+            if (Match(TokenType.Case))
+            {
+                // Parse case pattern
+                var pattern = ParseExpression();
+                Consume(TokenType.Colon, "Expected ':' after case pattern");
+
+                // Parse statements until next case, default, or closing brace
+                var statements = ParseCaseStatements();
+                cases.Add(new SwitchCaseExpr(pattern, statements));
+            }
+            else if (Match(TokenType.Default))
+            {
+                Consume(TokenType.Colon, "Expected ':' after 'default'");
+
+                // Parse statements until next case or closing brace
+                var statements = ParseCaseStatements();
+                cases.Add(new SwitchCaseExpr(null, statements));
+            }
+            else
+            {
+                throw new ParserException($"Expected 'case' or 'default' in switch at {Peek().Line}:{Peek().Column}");
+            }
+        }
+
+        Consume(TokenType.RightBrace, "Expected '}' after switch cases");
+        return new SwitchStatementExpr(expression, cases);
+    }
+
+    private List<Expr> ParseCaseStatements()
+    {
+        var statements = new List<Expr>();
+
+        // Parse statements until we hit case, default, or closing brace
+        while (!Check(TokenType.Case) && !Check(TokenType.Default) && !Check(TokenType.RightBrace) && !IsAtEnd())
+        {
+            var stmt = ParseStatement();
+            if (stmt != null)
+                statements.Add(stmt);
+        }
+
+        return statements;
     }
 
     private Expr ParseAnonymousObject()

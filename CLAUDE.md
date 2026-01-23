@@ -52,7 +52,7 @@ The evaluator implements `IExprVisitor<object?>` to traverse the AST. Each expre
 The `+` operator is overloaded to merge objects/dictionaries when operands aren't numeric. Properties from the right side override the left side.
 
 ### 3. Block Expressions with Control Flow
-Blocks support `var` declarations, control flow statements (`if`, `while`, `for`, `foreach`, `do-while`), and `return`. Early returns are implemented using a `ReturnValue` exception that's caught by `VisitBlock`. Loop control (`break`, `continue`) uses `BreakException` and `ContinueException`.
+Blocks support `var` declarations, control flow statements (`if`, `while`, `for`, `foreach`, `do-while`, `switch`), and `return`. Early returns are implemented using a `ReturnValue` exception that's caught by `VisitBlock`. Loop control (`break`, `continue`) uses `BreakException` and `ContinueException`. Switch statements also use `BreakException` to exit cases.
 
 ### 4. LINQ as First-Class Feature
 LINQ methods are implemented directly in `Evaluator.Linq.cs` rather than delegating to .NET LINQ. This allows lambda expressions to be evaluated in the CsEval context.

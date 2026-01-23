@@ -51,6 +51,7 @@ public interface IExprVisitor<out T>
     T VisitBreak(BreakExpr expr);
     T VisitContinue(ContinueExpr expr);
     T VisitReturn(ReturnExpr expr);
+    T VisitSwitch(SwitchStatementExpr expr);
 
     // Declarations
     T VisitVariableDecl(VariableDeclExpr expr);
@@ -265,6 +266,16 @@ public sealed record ContinueExpr : Expr
 public sealed record ReturnExpr(Expr? Value) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitReturn(this);
+}
+
+// Switch case: case pattern: statements or default: statements
+// Pattern is null for default case
+public sealed record SwitchCaseExpr(Expr? Pattern, List<Expr> Statements);
+
+// Switch statement: switch (expr) { case 1: ... default: ... }
+public sealed record SwitchStatementExpr(Expr Expression, List<SwitchCaseExpr> Cases) : Expr
+{
+    public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitSwitch(this);
 }
 
 #endregion

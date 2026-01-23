@@ -362,7 +362,7 @@ do {
 #### Break and Continue
 
 ```csharp
-// Break exits the innermost loop
+// Break exits the innermost loop or switch
 while (true) {
     if (done) break;
 }
@@ -371,6 +371,63 @@ while (true) {
 for (var i = 0; i < 10; i += 1) {
     if (i % 2 == 0) continue;  // skip even numbers
     process(i);
+}
+```
+
+#### Switch Statement
+
+```csharp
+switch (expression) {
+    case value1:
+        // statements
+        break;
+    case value2:
+    case value3:
+        // fall-through: multiple cases can share code
+        break;
+    default:
+        // executed when no case matches
+        break;
+}
+```
+
+Switch statements support:
+- Numeric, string, boolean, and null case values
+- Fall-through behavior (execution continues to next case without break)
+- `default` case for unmatched values
+- `break` to exit the switch
+- `return` to exit the containing block
+- Expressions in switch value and case patterns
+
+```csharp
+// Example with return
+{
+    switch (status) {
+        case "active":
+            return "User is active";
+        case "pending":
+            return "User is pending";
+        default:
+            return "Unknown status";
+    }
+}
+
+// Example with fall-through
+{
+    var result = "";
+    switch (grade) {
+        case 10:
+        case 9:
+            result = "A";
+            break;
+        case 8:
+            result = "B";
+            break;
+        default:
+            result = "Other";
+            break;
+    }
+    return result;
 }
 ```
 
@@ -405,9 +462,9 @@ The following are reserved and cannot be used as identifiers:
 - `in`
 - `break`
 - `continue`
-- `switch` (reserved but not implemented)
-- `case` (reserved but not implemented)
-- `default` (reserved but not implemented)
+- `switch`
+- `case`
+- `default`
 
 Type keywords (matching C#):
 - `int`
@@ -462,9 +519,13 @@ statement      = "return" expression? ";"
                | "for" "(" for_init? ";" expression? ";" expression? ")" ( "{" statement* "}" | statement )
                | "foreach" "(" ( "var" | TYPE_KEYWORD ) IDENTIFIER "in" expression ")" ( "{" statement* "}" | statement )
                | "do" ( "{" statement* "}" | statement ) "while" "(" expression ")" ";"?
+               | "switch" "(" expression ")" "{" switch_case* "}"
                | "var" IDENTIFIER "=" expression ";"
                | TYPE_KEYWORD IDENTIFIER "=" expression ";"
                | expression ";" ;
+
+switch_case    = "case" expression ":" statement*
+               | "default" ":" statement* ;
 
 for_init       = "var" IDENTIFIER "=" expression
                | TYPE_KEYWORD IDENTIFIER "=" expression
@@ -489,12 +550,26 @@ typeof(int)      // Type reference - NOT supported
 ### Control Flow
 
 ```csharp
-switch (x) { }   // Switch statements - NOT supported (reserved)
 throw new ...    // Throw statements - NOT supported
 try { } catch    // Try-catch - NOT supported
 ```
 
-Note: All loops (`while`, `for`, `foreach`, `do-while`) and loop control (`break`, `continue`) ARE supported.
+Note: All loops (`while`, `for`, `foreach`, `do-while`), `switch` statements, and loop control (`break`, `continue`) ARE supported.
+
+### Constructors
+
+```csharp
+// Supported
+new { Name = "John", Age = 30 }    // Anonymous objects - SUPPORTED
+new { ...person, Extra = "value" } // Spread operator - SUPPORTED
+
+// Not yet supported (planned)
+new DateTime(2024, 1, 1)           // Typed constructors - NOT YET (planned)
+new Point { X = 10, Y = 20 }       // Object initializers - NOT YET (planned)
+new List<int> { 1, 2, 3 }          // Collection initializers - NOT YET (low priority)
+```
+
+See [ROADMAP.md](../ROADMAP.md) for planned constructor features.
 
 ### Other
 
@@ -502,8 +577,7 @@ Note: All loops (`while`, `for`, `foreach`, `do-while`) and loop control (`break
 nameof(x)        // Name of expression - NOT supported
 default(T)       // Default value - NOT supported
 x..y             // Range operator - NOT supported
-new int[5]       // Array initialization - NOT supported
-x = y            // Assignment (use ??= for null-coalescing assignment)
+new int[5]       // Array creation with size - NOT supported (use [1,2,3] literal)
 params args      // Params arrays - limited support
 ```
 
