@@ -36,6 +36,9 @@ CsEval/
 │   │   ├── Evaluator.Helpers.cs    # Method invocation, type coercion
 │   │   ├── EvalContext.cs          # Variable scope management
 │   │   ├── EvalException.cs        # Runtime exceptions
+│   │   ├── ExpressionCompiler.cs   # AST to System.Linq.Expressions compilation
+│   │   ├── CompilerHelpers.cs      # Static helpers for compiled expressions
+│   │   ├── TypeCache.cs            # Reflection caching, compiled property getters
 │   │   └── StaticProxies.cs        # Built-in modules (Math, DateTime, etc.)
 │   ├── Attributes/        # Registration attributes
 │   │   ├── CsEvalModuleAttribute.cs
@@ -67,6 +70,12 @@ Types can be registered as "modules" which appear as objects in expressions:
 
 ### 6. Lazy Instance Resolution
 Module instances can be resolved from `IServiceProvider` at evaluation time, enabling DI integration.
+
+### 7. Hybrid Compilation
+Simple expressions can be optionally compiled to `System.Linq.Expressions` delegates for ~5-20x speedup. Complex expressions (blocks, loops, LINQ) fall back to tree-walking. Controlled by `CompilationMode` enum:
+- `Disabled`: Always tree-walk
+- `OnDemand`: Compile only when `Compile()` is called explicitly (default)
+- `Eager`: Compile automatically during `Parse()`
 
 ## Common Modification Patterns
 
@@ -132,6 +141,7 @@ CsEval.Test/
 ├── Parsing/        # Lexer and parser tests
 ├── Evaluator/      # Expression evaluation (arithmetic, LINQ, collections, etc.)
 ├── Loops/          # While, for, foreach, do-while tests
+├── Compilation/    # Expression compilation tests
 ├── Integration/    # Async, DI, caching, attribute registration
 └── Performance/    # Benchmarks
 ```

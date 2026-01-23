@@ -42,7 +42,15 @@ public sealed class CsEvalEngine
         var parser = new Parser(tokens);
         var ast = parser.Parse();
 
-        return new CsEvalExpression(expression, ast);
+        var expr = new CsEvalExpression(expression, ast);
+
+        // Eager mode: compile immediately during Parse()
+        if (_options.CompilationMode == CompilationMode.Eager)
+        {
+            expr.TryCompile();
+        }
+
+        return expr;
     }
 
     public bool TryParse(string expression, out CsEvalExpression? result, out string? error)
@@ -87,8 +95,37 @@ public sealed class CsEvalEngine
     {
         ApplyRegisteredTypes(serviceProvider);
 
+        // Use compiled delegate if available (Eager or OnDemand modes)
+        if (_options.CompilationMode != CompilationMode.Disabled)
+        {
+            var compiled = expression.GetCompiledInfo();
+            if (compiled?.Delegate != null)
+            {
+                return compiled.Delegate(_context, _options, cancellationToken);
+            }
+        }
+
+        // Fall back to tree-walking
         var evaluator = new Evaluator(_context, _functions, _options, cancellationToken, ArgumentTransformer);
         return evaluator.Evaluate(expression.Ast);
+    }
+
+    /// <summary>
+    /// Parses and attempts to compile an expression upfront for better performance.
+    /// If compilation is not possible, the expression will fall back to tree-walking on evaluation.
+    /// Works regardless of CompilationMode setting (explicit compilation request).
+    /// </summary>
+    /// <param name="expression">The expression string to parse and compile.</param>
+    /// <returns>A pre-parsed and potentially compiled expression.</returns>
+    public CsEvalExpression ParseAndCompile(string expression)
+    {
+        var parsed = Parse(expression);
+        // Always try to compile when explicitly requested, regardless of mode
+        if (_options.CompilationMode != CompilationMode.Eager) // Eager already compiled in Parse()
+        {
+            parsed.TryCompile();
+        }
+        return parsed;
     }
 
     /// <summary>

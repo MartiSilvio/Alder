@@ -116,7 +116,51 @@ public sealed class CsEvalOptions
 
     // Case-insensitive identifier/property matching
     public bool IgnoreCase { get; init; } = false;
+
+    // Maximum loop iterations (default: 100,000)
+    public int MaxIterations { get; init; } = 100_000;
+
+    // Compilation mode (default: OnDemand)
+    public CompilationMode CompilationMode { get; init; } = CompilationMode.OnDemand;
+
+    // Security options
+    public SecurityOptions Security { get; init; } = new();
 }
+```
+
+## CompilationMode
+
+Controls how expressions are evaluated.
+
+```csharp
+public enum CompilationMode
+{
+    // Tree-walk only. No compilation. Best for one-off expressions.
+    Disabled,
+
+    // Compile immediately during Parse(). Best for expressions evaluated multiple times.
+    // Non-compilable expressions automatically fall back to tree-walking.
+    Eager,
+
+    // Only compile when Compile() is called explicitly. Default mode.
+    // Gives full control over when compilation happens.
+    OnDemand
+}
+```
+
+Usage:
+```csharp
+// Eager: best performance for repeated evaluations
+var engine = new CsEvalEngine(new CsEvalOptions { CompilationMode = CompilationMode.Eager });
+var expr = engine.Parse("x + y * 2");  // Compiled automatically
+
+// OnDemand (default): explicit control
+var engine = new CsEvalEngine();
+var expr = engine.Parse("x + y * 2");
+expr.Compile();  // Compile when ready
+
+// Disabled: always interpret (no compilation overhead)
+var engine = new CsEvalEngine(new CsEvalOptions { CompilationMode = CompilationMode.Disabled });
 ```
 
 ## CsEvalExpression
@@ -128,6 +172,21 @@ public sealed class CsEvalExpression
 {
     // Original expression string
     public string Expression { get; }
+
+    // Returns true if this expression has been successfully compiled
+    public bool IsCompiled { get; }
+
+    // Returns true if this expression can be compiled (null if not attempted)
+    public bool? IsCompilable { get; }
+
+    // Reason compilation failed (null if succeeded or not attempted)
+    public string? CompilationFailureReason { get; }
+
+    // Attempts to compile this expression. Returns true if successful.
+    public bool TryCompile();
+
+    // Compiles this expression. Throws if compilation fails.
+    public void Compile();
 }
 ```
 

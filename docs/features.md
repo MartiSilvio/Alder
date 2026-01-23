@@ -543,6 +543,37 @@ foreach (var dataset in datasets)
 }
 ```
 
+### Expression Compilation
+
+For maximum performance with simple expressions, enable compilation:
+
+```csharp
+// Eager mode: compile during Parse() automatically
+var engine = new CsEvalEngine(new CsEvalOptions { CompilationMode = CompilationMode.Eager });
+var expr = engine.Parse("x + y * 2");  // Compiled immediately
+engine.Evaluate(expr);  // Uses compiled delegate (~5-20x faster)
+
+// OnDemand mode (default): explicit compilation
+var engine = new CsEvalEngine();
+var expr = engine.Parse("x + y * 2");
+expr.Compile();  // Compile when you want
+
+// Or use ParseAndCompile for one-step
+var expr = engine.ParseAndCompile("x + y * 2");
+```
+
+**What compiles:**
+- Literals, identifiers, property access
+- Arithmetic (`+`, `-`, `*`, `/`, `%`)
+- Comparisons (`==`, `!=`, `<`, `>`, `<=`, `>=`)
+- Logical (`&&`, `||`, `!`) with short-circuit
+- Ternary (`? :`), null coalesce (`??`)
+
+**What falls back to tree-walking:**
+- Blocks, loops, switch statements
+- Lambdas, LINQ methods
+- Assignments, object merging
+
 ### Child Contexts
 
 Create isolated contexts that inherit parent variables:

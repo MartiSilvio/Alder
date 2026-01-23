@@ -49,6 +49,70 @@ When evaluating `x + y * 2`:
 3. Recursively evaluates left (`x` → lookup value) and right (`y * 2` → recursive eval)
 4. Applies the `+` operator to the results
 
+## Hybrid Compilation
+
+CsEval supports optional expression compilation using `System.Linq.Expressions`. This provides a hybrid approach: simple expressions can be compiled to delegates for maximum performance, while complex expressions fall back to tree-walking.
+
+### How It Works
+
+```
+                    ┌─── compilable ───> ExpressionCompiler ───> Delegate
+AST ── CanCompile? ─┤
+                    └─── not compilable ───> Evaluator (tree-walk)
+```
+
+1. **ExpressionCompiler** ([ExpressionCompiler.cs](../src/CsEval/Evaluation/ExpressionCompiler.cs)): Converts AST nodes to `System.Linq.Expressions.Expression` trees, then compiles to delegates.
+
+2. **CompilerHelpers** ([CompilerHelpers.cs](../src/CsEval/Evaluation/CompilerHelpers.cs)): Static helper methods called by compiled expressions for operations like arithmetic, comparisons, and property access.
+
+### CompilationMode
+
+Three modes control compilation behavior:
+
+| Mode | Behavior |
+|------|----------|
+| `Disabled` | Always tree-walk. No compilation overhead. |
+| `OnDemand` | Tree-walk by default. Compile only when `Compile()` is called explicitly. (Default) |
+| `Eager` | Compile during `Parse()` automatically. Non-compilable expressions fall back silently. |
+
+### What Compiles
+
+The `CanCompile()` method checks if an expression can be compiled:
+
+**Compilable (~5-20x speedup):**
+- `LiteralExpr` - Constants
+- `IdentifierExpr` - Variable lookup via `context.Get()`
+- `UnaryExpr` - Negation (`-`), Not (`!`)
+- `BinaryExpr` - Arithmetic, comparisons (but not object merging with `+`)
+- `LogicalExpr` - `&&`, `||` with short-circuit
+- `ConditionalExpr` - Ternary `? :`
+- `NullCoalesceExpr` - `??`
+- `MemberAccessExpr` - Property access
+- `GroupingExpr` - Parentheses
+
+**Not Compilable (tree-walk required):**
+- `BlockExpr`, loops, `switch` - Exception-based control flow
+- `LambdaExpr`, LINQ methods - Closure capture complexity
+- `AssignmentExpr` - Context mutations
+- Object merging with `+` - Polymorphic behavior at runtime
+
+### Compiled Delegate Signature
+
+```csharp
+delegate object? CompiledExpression(
+    EvalContext context,
+    CsEvalOptions options,
+    CancellationToken cancellationToken);
+```
+
+The compiled delegate receives the same parameters as tree-walking, allowing variable access and cancellation support.
+
+### Thread Safety
+
+- `ExpressionCompiler` uses a global `ConcurrentDictionary<string, CompiledExpressionInfo>` for caching
+- `CsEvalExpression` stores compilation state in a volatile field
+- Multiple threads can safely call `TryCompile()` on the same expression
+
 ## LINQ Returns `List<object?>` (Immediate Evaluation)
 
 CsEval intentionally returns `List<object?>` from LINQ methods rather than `IEnumerable<T>`. This is a deliberate design choice, not a limitation.

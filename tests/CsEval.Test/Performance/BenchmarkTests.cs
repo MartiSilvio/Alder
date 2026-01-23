@@ -466,6 +466,172 @@ public class BenchmarkTests
         ReportResult("Heavy reflection (merge + spread + props)", sw.ElapsedMilliseconds);
     }
 
+    #region Compilation Benchmarks
+
+    [Test]
+    public void Benchmark_Compilation_TreeWalkVsCompiled_SimpleArithmetic()
+    {
+        const string expression = "1 + 2 * 3";
+
+        // Tree-walk mode
+        var treeWalkEngine = new CsEvalEngine(new CsEvalOptions { CompilationMode = CompilationMode.Disabled });
+        var treeWalkExpr = treeWalkEngine.Parse(expression);
+
+        Warmup(() => treeWalkEngine.Evaluate(treeWalkExpr));
+
+        var swTreeWalk = Stopwatch.StartNew();
+        for (var i = 0; i < BenchmarkIterations; i++)
+        {
+            treeWalkEngine.Evaluate(treeWalkExpr);
+        }
+        swTreeWalk.Stop();
+
+        // Compiled mode (Eager)
+        var compiledEngine = new CsEvalEngine(new CsEvalOptions { CompilationMode = CompilationMode.Eager });
+        var compiledExpr = compiledEngine.Parse(expression);
+
+        Warmup(() => compiledEngine.Evaluate(compiledExpr));
+
+        var swCompiled = Stopwatch.StartNew();
+        for (var i = 0; i < BenchmarkIterations; i++)
+        {
+            compiledEngine.Evaluate(compiledExpr);
+        }
+        swCompiled.Stop();
+
+        ReportResult("Simple arithmetic (tree-walk)", swTreeWalk.ElapsedMilliseconds);
+        ReportResult("Simple arithmetic (compiled)", swCompiled.ElapsedMilliseconds);
+
+        var speedup = (double)swTreeWalk.ElapsedMilliseconds / swCompiled.ElapsedMilliseconds;
+        TestContext.WriteLine($"Compilation speedup: {speedup:F1}x");
+    }
+
+    [Test]
+    public void Benchmark_Compilation_TreeWalkVsCompiled_WithVariables()
+    {
+        const string expression = "x + y * z";
+
+        // Tree-walk mode
+        var treeWalkEngine = new CsEvalEngine(new CsEvalOptions { CompilationMode = CompilationMode.Disabled })
+            .SetVariable("x", 10L)
+            .SetVariable("y", 20L)
+            .SetVariable("z", 30L);
+        var treeWalkExpr = treeWalkEngine.Parse(expression);
+
+        Warmup(() => treeWalkEngine.Evaluate(treeWalkExpr));
+
+        var swTreeWalk = Stopwatch.StartNew();
+        for (var i = 0; i < BenchmarkIterations; i++)
+        {
+            treeWalkEngine.Evaluate(treeWalkExpr);
+        }
+        swTreeWalk.Stop();
+
+        // Compiled mode (Eager)
+        var compiledEngine = new CsEvalEngine(new CsEvalOptions { CompilationMode = CompilationMode.Eager })
+            .SetVariable("x", 10L)
+            .SetVariable("y", 20L)
+            .SetVariable("z", 30L);
+        var compiledExpr = compiledEngine.Parse(expression);
+
+        Warmup(() => compiledEngine.Evaluate(compiledExpr));
+
+        var swCompiled = Stopwatch.StartNew();
+        for (var i = 0; i < BenchmarkIterations; i++)
+        {
+            compiledEngine.Evaluate(compiledExpr);
+        }
+        swCompiled.Stop();
+
+        ReportResult("With variables (tree-walk)", swTreeWalk.ElapsedMilliseconds);
+        ReportResult("With variables (compiled)", swCompiled.ElapsedMilliseconds);
+
+        var speedup = (double)swTreeWalk.ElapsedMilliseconds / swCompiled.ElapsedMilliseconds;
+        TestContext.WriteLine($"Compilation speedup: {speedup:F1}x");
+    }
+
+    [Test]
+    public void Benchmark_Compilation_TreeWalkVsCompiled_Ternary()
+    {
+        const string expression = "x > 5 ? x * 2 : x + 10";
+
+        // Tree-walk mode
+        var treeWalkEngine = new CsEvalEngine(new CsEvalOptions { CompilationMode = CompilationMode.Disabled })
+            .SetVariable("x", 10L);
+        var treeWalkExpr = treeWalkEngine.Parse(expression);
+
+        Warmup(() => treeWalkEngine.Evaluate(treeWalkExpr));
+
+        var swTreeWalk = Stopwatch.StartNew();
+        for (var i = 0; i < BenchmarkIterations; i++)
+        {
+            treeWalkEngine.Evaluate(treeWalkExpr);
+        }
+        swTreeWalk.Stop();
+
+        // Compiled mode (Eager)
+        var compiledEngine = new CsEvalEngine(new CsEvalOptions { CompilationMode = CompilationMode.Eager })
+            .SetVariable("x", 10L);
+        var compiledExpr = compiledEngine.Parse(expression);
+
+        Warmup(() => compiledEngine.Evaluate(compiledExpr));
+
+        var swCompiled = Stopwatch.StartNew();
+        for (var i = 0; i < BenchmarkIterations; i++)
+        {
+            compiledEngine.Evaluate(compiledExpr);
+        }
+        swCompiled.Stop();
+
+        ReportResult("Ternary (tree-walk)", swTreeWalk.ElapsedMilliseconds);
+        ReportResult("Ternary (compiled)", swCompiled.ElapsedMilliseconds);
+
+        var speedup = (double)swTreeWalk.ElapsedMilliseconds / swCompiled.ElapsedMilliseconds;
+        TestContext.WriteLine($"Compilation speedup: {speedup:F1}x");
+    }
+
+    [Test]
+    public void Benchmark_Compilation_PropertyAccess()
+    {
+        const string expression = "person.Name";
+
+        // Tree-walk mode
+        var treeWalkEngine = new CsEvalEngine(new CsEvalOptions { CompilationMode = CompilationMode.Disabled })
+            .SetVariable("person", new Person { FirstName = "John", LastName = "Doe", Age = 30 });
+        var treeWalkExpr = treeWalkEngine.Parse(expression);
+
+        Warmup(() => treeWalkEngine.Evaluate(treeWalkExpr));
+
+        var swTreeWalk = Stopwatch.StartNew();
+        for (var i = 0; i < BenchmarkIterations; i++)
+        {
+            treeWalkEngine.Evaluate(treeWalkExpr);
+        }
+        swTreeWalk.Stop();
+
+        // Compiled mode (Eager)
+        var compiledEngine = new CsEvalEngine(new CsEvalOptions { CompilationMode = CompilationMode.Eager })
+            .SetVariable("person", new Person { FirstName = "John", LastName = "Doe", Age = 30 });
+        var compiledExpr = compiledEngine.Parse(expression);
+
+        Warmup(() => compiledEngine.Evaluate(compiledExpr));
+
+        var swCompiled = Stopwatch.StartNew();
+        for (var i = 0; i < BenchmarkIterations; i++)
+        {
+            compiledEngine.Evaluate(compiledExpr);
+        }
+        swCompiled.Stop();
+
+        ReportResult("Property access (tree-walk)", swTreeWalk.ElapsedMilliseconds);
+        ReportResult("Property access (compiled)", swCompiled.ElapsedMilliseconds);
+
+        var speedup = (double)swTreeWalk.ElapsedMilliseconds / swCompiled.ElapsedMilliseconds;
+        TestContext.WriteLine($"Compilation speedup: {speedup:F1}x");
+    }
+
+    #endregion
+
     public class TestModule
     {
         public long Add(long a, long b) => a + b;
@@ -476,6 +642,7 @@ public class BenchmarkTests
     {
         public string FirstName { get; set; } = "";
         public string LastName { get; set; } = "";
+        public string Name => $"{FirstName} {LastName}";
         public int Age { get; set; }
     }
 

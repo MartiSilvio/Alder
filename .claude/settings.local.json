@@ -16,7 +16,9 @@
       "Bash(for file in Performance/*.cs)",
       "Bash(do sed -i '' 's/namespace CsEval\\\\.Test;/namespace CsEval.Test.Performance;/' \"$file\")",
       "Bash(dotnet sln:*)",
-      "Bash(dotnet run:*)"
+      "Bash(dotnet run:*)",
+      "Bash(dotnet add:*)",
+      "Bash(dotnet remove:*)"
     ]
   }
 }

@@ -74,6 +74,22 @@ Control flow performance:
 | **ForLoopBlock/WhileLoopBlock** | Loop performance (10, 100, 1000 iterations) |
 | **NestedLoopBlock**             | O(n²) nested loops (10, 20, 30)             |
 
+### 6. CompilationBenchmarks
+
+Expression compilation performance comparing compiled vs tree-walking evaluation:
+
+| Benchmark                              | Description                               |
+| -------------------------------------- | ----------------------------------------- |
+| **Evaluate_Compiled_SimpleArithmetic** | Compiled `1 + 2 * 3` evaluation           |
+| **Evaluate_TreeWalk_SimpleArithmetic** | Tree-walking `1 + 2 * 3` evaluation       |
+| **Evaluate_Compiled_WithVariables**    | Compiled `x + y * z` evaluation           |
+| **Evaluate_TreeWalk_WithVariables**    | Tree-walking `x + y * z` evaluation       |
+| **Evaluate_Compiled_Ternary**          | Compiled ternary expression               |
+| **Evaluate_Compiled_PropertyAccess**   | Compiled property access                  |
+| **CompileTime_\***                     | Time to compile different expression types|
+
+The `_Compiled` vs `_TreeWalk` comparisons show the speedup from compilation (~5-20x for simple expressions).
+
 ## Running Specific Benchmarks
 
 ```bash
@@ -159,11 +175,48 @@ Loops scale linearly with iteration count. The per-iteration cost includes:
 - Variable lookup/update
 - Loop control flow handling
 
+### Expression Compilation (Hybrid Mode)
+
+CsEval supports optional expression compilation using `System.Linq.Expressions`. Simple expressions can be compiled to delegates for significant speedup:
+
+```csharp
+// Eager mode: compile automatically during Parse()
+var options = new CsEvalOptions { CompilationMode = CompilationMode.Eager };
+var engine = new CsEvalEngine(options);
+var expr = engine.Parse("x + y * 2");  // Compiled immediately
+engine.Evaluate(expr);  // Fast execution via compiled delegate
+
+// OnDemand mode (default): explicit compilation
+var engine = new CsEvalEngine();  // CompilationMode.OnDemand by default
+var expr = engine.Parse("x + y * 2");
+expr.Compile();  // Compile when you want
+engine.Evaluate(expr);
+
+// Or use ParseAndCompile for one-step compilation
+var expr = engine.ParseAndCompile("x + y * 2");
+
+// Disabled mode: always tree-walk (interpreter)
+var options = new CsEvalOptions { CompilationMode = CompilationMode.Disabled };
+```
+
+**What compiles (~5-20x speedup):**
+- Literals, identifiers, property access
+- Arithmetic (`+`, `-`, `*`, `/`, `%`) on strings and numerics
+- Comparisons (`==`, `!=`, `<`, `>`, `<=`, `>=`)
+- Logical (`&&`, `||`, `!`) with short-circuit
+- Ternary (`? :`), null coalesce (`??`)
+
+**What falls back to tree-walking:**
+- Blocks, loops, switch statements (exception-based control flow)
+- Lambdas, LINQ methods (closure capture complexity)
+- Assignments, object merging with `+`
+
 ## Optimization Summary
 
-| Optimization         | Impact                                      | Location                        |
-| -------------------- | ------------------------------------------- | ------------------------------- |
-| Pre-parsing          | ~80% faster for repeated eval               | `CsEvalEngine.Parse()`          |
-| TypeCache            | Eliminates repeated reflection              | `TypeCache.cs`                  |
-| Compiled getters     | ~350x faster than `PropertyInfo.GetValue()` | `TypeCache.GetCompiledGetter()` |
-| ConcurrentDictionary | Thread-safe caching                         | All caches                      |
+| Optimization           | Impact                                      | Location                           |
+| ---------------------- | ------------------------------------------- | ---------------------------------- |
+| Pre-parsing            | ~80% faster for repeated eval               | `CsEvalEngine.Parse()`             |
+| Expression compilation | ~5-20x faster for simple expressions        | `ExpressionCompiler.cs`            |
+| TypeCache              | Eliminates repeated reflection              | `TypeCache.cs`                     |
+| Compiled getters       | ~350x faster than `PropertyInfo.GetValue()` | `TypeCache.GetCompiledGetter()`    |
+| ConcurrentDictionary   | Thread-safe caching                         | All caches                         |
