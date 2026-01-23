@@ -208,6 +208,89 @@ public sealed partial class Evaluator
         throw new EvalException($"Cannot index type '{type.Name}'");
     }
 
+    private void SetIndex(object obj, object? index, object? value)
+    {
+        if (_options.Security.SafeMode && !_options.Security.AllowIndexSet)
+            throw new EvalException($"Index assignment blocked in SafeMode: [{index}] = ...");
+
+        if (obj is IDictionary<string, object?> dict && index is string strKey)
+        {
+            dict[strKey] = value;
+            return;
+        }
+
+        if (obj is IList list && index != null)
+        {
+            var idx = Convert.ToInt32(index);
+            if (idx < 0 || idx >= list.Count)
+                throw new EvalException($"Index {idx} out of range");
+            list[idx] = value;
+            return;
+        }
+
+        var type = obj.GetType();
+        var indexer = TypeCache.GetIndexer(type);
+        if (indexer != null && indexer.CanWrite)
+        {
+            indexer.SetValue(obj, value, [index]);
+            return;
+        }
+
+        throw new EvalException($"Cannot set index on type '{type.Name}'");
+    }
+
+    private void SetMember(object obj, string name, object? value)
+    {
+        if (_options.Security.SafeMode && !_options.Security.AllowPropertySet)
+            throw new EvalException($"Property assignment blocked in SafeMode: {name} = ...");
+
+        var ignoreCase = _options.IgnoreCase;
+
+        if (obj is IDictionary<string, object?> dict)
+        {
+            // For dictionaries, try to find existing key with case-insensitive match
+            if (ignoreCase)
+            {
+                foreach (var key in dict.Keys)
+                {
+                    if (string.Equals(key, name, StringComparison.OrdinalIgnoreCase))
+                    {
+                        dict[key] = value;
+                        return;
+                    }
+                }
+            }
+            // If no match found or case-sensitive, use the provided name
+            dict[name] = value;
+            return;
+        }
+
+        var type = obj.GetType();
+        var bindingFlags = BindingFlags.Public | BindingFlags.Instance;
+        if (ignoreCase)
+            bindingFlags |= BindingFlags.IgnoreCase;
+
+        var prop = TypeCache.GetProperty(type, name, bindingFlags);
+        if (prop != null)
+        {
+            if (!prop.CanWrite)
+                throw new EvalException($"Property '{name}' is read-only");
+            prop.SetValue(obj, value);
+            return;
+        }
+
+        var field = TypeCache.GetField(type, name, bindingFlags);
+        if (field != null)
+        {
+            if (field.IsInitOnly)
+                throw new EvalException($"Field '{name}' is read-only");
+            field.SetValue(obj, value);
+            return;
+        }
+
+        throw new EvalException($"Property '{name}' not found on type '{type.Name}'");
+    }
+
     private (bool Success, object? Value) TryInvokeMethod(object target, string methodName, object?[] args)
     {
         if (target is CsEvalEngine.ModuleResolver)

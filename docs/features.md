@@ -100,160 +100,75 @@ items.ToList()                       // Convert to List<object?>
 items.ToArray()                      // Convert to object?[]
 ```
 
-## Assignment
+## Index & Property Assignment
 
-### Basic Assignment
+For basic assignment, compound assignment (`+=`, `-=`, etc.), and increment/decrement operators, see [syntax.md](syntax.md#assignment).
+
+### Index Assignment
+
+Set values in arrays, lists, and dictionaries:
+
+```csharp
+// Array/List index assignment
+{
+    var arr = [1, 2, 3];
+    arr[1] = 99;
+    return arr[1];    // 99
+}
+
+// Dictionary index assignment
+{
+    var dict = new { key = "old" };
+    dict["key"] = "new";
+    dict["newKey"] = "added";  // Add new key
+    return dict["key"];        // "new"
+}
+
+// Modify external collections
+var list = new List<object?> { 1, 2, 3 };
+engine.SetVariable("items", list);
+engine.Evaluate("items[0] = 100");  // list[0] is now 100
+```
+
+### Property Assignment
+
+Set properties on objects:
+
+```csharp
+// Anonymous object property assignment
+{
+    var obj = new { Name = "John", Age = 25 };
+    obj.Name = "Jane";
+    obj.City = "NYC";  // Add new property
+    return obj.Name;   // "Jane"
+}
+
+// Nested property assignment
+{
+    var obj = new { Inner = new { Value = 10 } };
+    obj.Inner.Value = 99;
+    return obj.Inner.Value;  // 99
+}
+
+// Modify external typed objects
+var person = new Person { Name = "John", Age = 25 };
+engine.SetVariable("person", person);
+engine.Evaluate("person.Name = \"Jane\"");  // person.Name is now "Jane"
+```
+
+Both index and property assignment return the assigned value, enabling chained expressions:
 
 ```csharp
 {
-    var x = 10;
-    x = 20;       // Reassign value
-    return x;     // 20
+    var arr = [1, 2, 3];
+    var x = arr[0] = 100;  // x = 100, arr[0] = 100
+    return x;
 }
 ```
 
-### Compound Assignment
+## Loop Safety
 
-All 10 compound assignment operators are supported:
-
-```csharp
-// Arithmetic
-x += 5;      // x = x + 5
-x -= 3;      // x = x - 3
-x *= 2;      // x = x * 2
-x /= 4;      // x = x / 4
-x %= 3;      // x = x % 3
-
-// Bitwise
-x &= mask;   // x = x & mask
-x |= flags;  // x = x | flags
-x ^= bits;   // x = x ^ bits
-x <<= 2;     // x = x << 2
-x >>= 1;     // x = x >> 1
-```
-
-Compound assignment works with:
-- **Integers**: `int`, `long`, `byte`, `short`, etc.
-- **Floating-point**: `double`, `float`, `decimal`
-- **Strings**: `+=` concatenates strings
-
-```csharp
-{
-    var s = "Hello";
-    s += " World";
-    return s;     // "Hello World"
-}
-```
-
-### Increment/Decrement
-
-Both prefix and postfix increment/decrement operators are supported:
-
-```csharp
-// Prefix: modify, then return new value
-var x = 5;
-var a = ++x;    // a = 6, x = 6
-var b = --x;    // b = 5, x = 5
-
-// Postfix: return old value, then modify
-var y = 10;
-var c = y++;    // c = 10, y = 11
-var d = y--;    // d = 11, y = 10
-```
-
-Commonly used in loops:
-
-```csharp
-{
-    var sum = 0;
-    for (var i = 0; i < 5; i++) {
-        sum += i;
-    }
-    return sum;    // 10
-}
-```
-
-## Loops
-
-CsEval supports all C# loop types with `break` and `continue` for flow control.
-
-### While Loop
-
-```csharp
-{
-    var sum = 0;
-    var i = 0;
-    while (i < 10) {
-        sum += i;
-        i += 1;
-    }
-    return sum;   // 45
-}
-```
-
-### For Loop
-
-```csharp
-{
-    var sum = 0;
-    for (var i = 0; i < 10; i += 1) {
-        sum += i;
-    }
-    return sum;   // 45
-}
-```
-
-### Foreach Loop
-
-```csharp
-{
-    var sum = 0;
-    foreach (var item in items) {
-        sum += item.Value;
-    }
-    return sum;
-}
-```
-
-### Do-While Loop
-
-```csharp
-{
-    var i = 0;
-    do {
-        i += 1;
-    } while (i < 5);
-    return i;     // 5
-}
-```
-
-### Break and Continue
-
-```csharp
-// Find first matching element
-{
-    var result = -1;
-    foreach (var item in items) {
-        if (item.Match) {
-            result = item.Id;
-            break;           // Exit loop early
-        }
-    }
-    return result;
-}
-
-// Skip certain elements
-{
-    var sum = 0;
-    for (var i = 0; i < 10; i += 1) {
-        if (i % 2 == 0) continue;  // Skip even numbers
-        sum += i;
-    }
-    return sum;   // 25 (1+3+5+7+9)
-}
-```
-
-### Loop Safety
+For loop syntax (`while`, `for`, `foreach`, `do-while`, `break`, `continue`, `switch`), see [syntax.md](syntax.md#loops).
 
 All loops have a configurable iteration limit to prevent infinite loops:
 

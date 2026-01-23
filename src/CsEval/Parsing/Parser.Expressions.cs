@@ -33,6 +33,24 @@ public sealed partial class Parser
                 return new CompoundAssignExpr(identifier.Name, op, value);
             }
         }
+        else if (expr is MemberAccessExpr memberAccess)
+        {
+            // Handle obj.Property = value
+            if (Match(TokenType.Equal))
+            {
+                var value = ParseAssignment();
+                return new MemberAssignExpr(memberAccess.Object, memberAccess.Name, value);
+            }
+        }
+        else if (expr is IndexAccessExpr indexAccess)
+        {
+            // Handle arr[0] = value
+            if (Match(TokenType.Equal))
+            {
+                var value = ParseAssignment();
+                return new IndexAssignExpr(indexAccess.Object, indexAccess.Index, value);
+            }
+        }
 
         return expr;
     }

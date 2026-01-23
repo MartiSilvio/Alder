@@ -34,13 +34,10 @@ public sealed partial class Evaluator : IExprVisitor<object?>
     {
         var right = Evaluate(expr.Right);
 
-        return expr.Op.Type switch
-        {
-            TokenType.Minus => Negate(right),
-            TokenType.Bang => !IsTruthy(right),
-            TokenType.Tilde => BitwiseNot(right),
-            _ => throw new EvalException($"Unknown unary operator '{expr.Op.Lexeme}'")
-        };
+        if (UnaryOperators.TryGetValue(expr.Op.Type, out var op))
+            return op(right);
+
+        throw new EvalException($"Unknown unary operator '{expr.Op.Lexeme}'");
     }
 
     public object? VisitBinary(BinaryExpr expr)
@@ -48,26 +45,10 @@ public sealed partial class Evaluator : IExprVisitor<object?>
         var left = Evaluate(expr.Left);
         var right = Evaluate(expr.Right);
 
-        return expr.Op.Type switch
-        {
-            TokenType.Plus => Add(left, right),
-            TokenType.Minus => Subtract(left, right),
-            TokenType.Star => Multiply(left, right),
-            TokenType.Slash => Divide(left, right),
-            TokenType.Percent => Modulo(left, right),
-            TokenType.EqualEqual => Equals(left, right),
-            TokenType.BangEqual => !Equals(left, right),
-            TokenType.Less => Compare(left, right) < 0,
-            TokenType.LessEqual => Compare(left, right) <= 0,
-            TokenType.Greater => Compare(left, right) > 0,
-            TokenType.GreaterEqual => Compare(left, right) >= 0,
-            TokenType.Amp => BitwiseAnd(left, right),
-            TokenType.Pipe => BitwiseOr(left, right),
-            TokenType.Caret => BitwiseXor(left, right),
-            TokenType.LessLess => LeftShift(left, right),
-            TokenType.GreaterGreater => RightShift(left, right),
-            _ => throw new EvalException($"Unknown binary operator '{expr.Op.Lexeme}'")
-        };
+        if (BinaryOperators.TryGetValue(expr.Op.Type, out var op))
+            return op(this, left, right);
+
+        throw new EvalException($"Unknown binary operator '{expr.Op.Lexeme}'");
     }
 
     public object? VisitLogical(LogicalExpr expr)
@@ -217,6 +198,31 @@ public sealed partial class Evaluator : IExprVisitor<object?>
         return value;
     }
 
+    public object? VisitIndexAssign(IndexAssignExpr expr)
+    {
+        var obj = Evaluate(expr.Object);
+        var index = Evaluate(expr.Index);
+        var value = Evaluate(expr.Value);
+
+        if (obj == null)
+            throw new EvalException("Cannot assign to index on null");
+
+        SetIndex(obj, index, value);
+        return value;
+    }
+
+    public object? VisitMemberAssign(MemberAssignExpr expr)
+    {
+        var obj = Evaluate(expr.Object);
+        var value = Evaluate(expr.Value);
+
+        if (obj == null)
+            throw new EvalException($"Cannot assign to property '{expr.Name.Lexeme}' on null");
+
+        SetMember(obj, expr.Name.Lexeme, value);
+        return value;
+    }
+
     public object? VisitCompoundAssign(CompoundAssignExpr expr)
     {
         if (_options.Security.SafeMode && !_options.Security.AllowAssignment)
@@ -226,21 +232,13 @@ public sealed partial class Evaluator : IExprVisitor<object?>
         var currentValue = _context.Get(name);
         var rightValue = Evaluate(expr.Value);
 
-        var result = expr.Op.Type switch
-        {
-            TokenType.PlusEqual => Add(currentValue, rightValue),
-            TokenType.MinusEqual => Subtract(currentValue, rightValue),
-            TokenType.StarEqual => Multiply(currentValue, rightValue),
-            TokenType.SlashEqual => Divide(currentValue, rightValue),
-            TokenType.PercentEqual => Modulo(currentValue, rightValue),
-            TokenType.AmpEqual => BitwiseAnd(currentValue, rightValue),
-            TokenType.PipeEqual => BitwiseOr(currentValue, rightValue),
-            TokenType.CaretEqual => BitwiseXor(currentValue, rightValue),
-            TokenType.LessLessEqual => LeftShift(currentValue, rightValue),
-            TokenType.GreaterGreaterEqual => RightShift(currentValue, rightValue),
-            _ => throw new EvalException($"Unknown compound assignment operator '{expr.Op.Lexeme}'")
-        };
+        if (!CompoundToBaseOperator.TryGetValue(expr.Op.Type, out var baseOp))
+            throw new EvalException($"Unknown compound assignment operator '{expr.Op.Lexeme}'");
 
+        if (!BinaryOperators.TryGetValue(baseOp, out var op))
+            throw new EvalException($"Unknown base operator for '{expr.Op.Lexeme}'");
+
+        var result = op(this, currentValue, rightValue);
         _context.Set(name, result);
         return result;
     }

@@ -468,6 +468,250 @@ public class SafeModeTests
 
     #endregion
 
+    #region SafeMode - AllowPropertySet
+
+    [Test]
+    public void SafeModeOn_AllowsPropertySetByDefault()
+    {
+        var engine = new CsEvalEngine(new CsEvalOptions
+        {
+            Security = new CsEvalOptions.SecurityOptions { SafeMode = true }
+        });
+
+        var result = engine.Evaluate(@"
+        {
+            var obj = new { Value = 1 };
+            obj.Value = 42;
+            return obj.Value;
+        }");
+
+        Assert.That(result, Is.EqualTo(42));
+    }
+
+    [Test]
+    public void SafeModeOn_AllowPropertySetFalse_BlocksPropertyAssignment()
+    {
+        var engine = new CsEvalEngine(new CsEvalOptions
+        {
+            Security = new CsEvalOptions.SecurityOptions
+            {
+                SafeMode = true,
+                AllowPropertySet = false
+            }
+        });
+
+        var ex = Assert.Throws<EvalException>(() => engine.Evaluate(@"
+        {
+            var obj = new { Value = 1 };
+            obj.Value = 42;
+            return obj.Value;
+        }"));
+        Assert.That(ex!.Message, Does.Contain("SafeMode"));
+    }
+
+    [Test]
+    public void SafeModeOn_AllowPropertySetFalse_AllowsPropertyRead()
+    {
+        var engine = new CsEvalEngine(new CsEvalOptions
+        {
+            Security = new CsEvalOptions.SecurityOptions
+            {
+                SafeMode = true,
+                AllowPropertySet = false
+            }
+        });
+
+        var result = engine.Evaluate(@"
+        {
+            var obj = new { Value = 42 };
+            return obj.Value;
+        }");
+
+        Assert.That(result, Is.EqualTo(42));
+    }
+
+    [Test]
+    public void SafeModeOn_AllowPropertySetFalse_BlocksNestedPropertySet()
+    {
+        var engine = new CsEvalEngine(new CsEvalOptions
+        {
+            Security = new CsEvalOptions.SecurityOptions
+            {
+                SafeMode = true,
+                AllowPropertySet = false
+            }
+        });
+
+        var ex = Assert.Throws<EvalException>(() => engine.Evaluate(@"
+        {
+            var obj = new { Inner = new { Value = 1 } };
+            obj.Inner.Value = 42;
+            return obj.Inner.Value;
+        }"));
+        Assert.That(ex!.Message, Does.Contain("SafeMode"));
+    }
+
+    #endregion
+
+    #region SafeMode - AllowIndexSet
+
+    [Test]
+    public void SafeModeOn_AllowsIndexSetByDefault()
+    {
+        var engine = new CsEvalEngine(new CsEvalOptions
+        {
+            Security = new CsEvalOptions.SecurityOptions { SafeMode = true }
+        });
+
+        var result = engine.Evaluate(@"
+        {
+            var arr = [1, 2, 3];
+            arr[1] = 99;
+            return arr[1];
+        }");
+
+        Assert.That(result, Is.EqualTo(99));
+    }
+
+    [Test]
+    public void SafeModeOn_AllowIndexSetFalse_BlocksArrayIndexAssignment()
+    {
+        var engine = new CsEvalEngine(new CsEvalOptions
+        {
+            Security = new CsEvalOptions.SecurityOptions
+            {
+                SafeMode = true,
+                AllowIndexSet = false
+            }
+        });
+
+        var ex = Assert.Throws<EvalException>(() => engine.Evaluate(@"
+        {
+            var arr = [1, 2, 3];
+            arr[1] = 99;
+            return arr[1];
+        }"));
+        Assert.That(ex!.Message, Does.Contain("SafeMode"));
+    }
+
+    [Test]
+    public void SafeModeOn_AllowIndexSetFalse_AllowsIndexRead()
+    {
+        var engine = new CsEvalEngine(new CsEvalOptions
+        {
+            Security = new CsEvalOptions.SecurityOptions
+            {
+                SafeMode = true,
+                AllowIndexSet = false
+            }
+        });
+
+        var result = engine.Evaluate(@"
+        {
+            var arr = [1, 2, 3];
+            return arr[1];
+        }");
+
+        Assert.That(result, Is.EqualTo(2L));
+    }
+
+    [Test]
+    public void SafeModeOn_AllowIndexSetFalse_BlocksDictionaryIndexAssignment()
+    {
+        var engine = new CsEvalEngine(new CsEvalOptions
+        {
+            Security = new CsEvalOptions.SecurityOptions
+            {
+                SafeMode = true,
+                AllowIndexSet = false
+            }
+        });
+
+        var ex = Assert.Throws<EvalException>(() => engine.Evaluate(@"
+        {
+            var dict = new { key = ""value"" };
+            dict[""key""] = ""new"";
+            return dict[""key""];
+        }"));
+        Assert.That(ex!.Message, Does.Contain("SafeMode"));
+    }
+
+    [Test]
+    public void SafeModeOn_AllowIndexSetFalse_AllowsDictionaryRead()
+    {
+        var engine = new CsEvalEngine(new CsEvalOptions
+        {
+            Security = new CsEvalOptions.SecurityOptions
+            {
+                SafeMode = true,
+                AllowIndexSet = false
+            }
+        });
+
+        var result = engine.Evaluate(@"
+        {
+            var dict = new { key = ""value"" };
+            return dict[""key""];
+        }");
+
+        Assert.That(result, Is.EqualTo("value"));
+    }
+
+    #endregion
+
+    #region SafeMode - Combined Security Settings
+
+    [Test]
+    public void SafeModeOn_AllSecurityDisabled_AllowsOnlyVariableDeclarationAndRead()
+    {
+        var engine = new CsEvalEngine(new CsEvalOptions
+        {
+            Security = new CsEvalOptions.SecurityOptions
+            {
+                SafeMode = true,
+                AllowAssignment = false,
+                AllowPropertySet = false,
+                AllowIndexSet = false
+            }
+        });
+
+        // Variable declaration should still work
+        var result = engine.Evaluate(@"
+        {
+            var x = 42;
+            return x;
+        }");
+
+        Assert.That(result, Is.EqualTo(42L));
+    }
+
+    [Test]
+    public void SafeModeOn_PropertyAndIndexSetDisabled_AssignmentStillWorks()
+    {
+        var engine = new CsEvalEngine(new CsEvalOptions
+        {
+            Security = new CsEvalOptions.SecurityOptions
+            {
+                SafeMode = true,
+                AllowAssignment = true,
+                AllowPropertySet = false,
+                AllowIndexSet = false
+            }
+        });
+
+        // Simple variable assignment should work
+        var result = engine.Evaluate(@"
+        {
+            var x = 1;
+            x = 99;
+            return x;
+        }");
+
+        Assert.That(result, Is.EqualTo(99));
+    }
+
+    #endregion
+
     #region Helper Classes
 
     public class TestModule

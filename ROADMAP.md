@@ -62,8 +62,10 @@ Features for full C# developer familiarity, plus additions from other languages.
 | Object spread | `new { ...obj1, ...obj2 }` | |
 | Array spread | `[...arr1, ...arr2]` | |
 | Object merging | `obj1 + obj2` | Via `+` operator |
-| Index access | `arr[0]`, `dict["key"]` | Read only |
-| Property access | `obj.Property` | |
+| Index access | `arr[0]`, `dict["key"]` | Read and write |
+| Index assignment | `arr[0] = value` | Arrays, lists, dictionaries |
+| Property access | `obj.Property` | Read and write |
+| Property assignment | `obj.Prop = value` | Anonymous objects, typed objects |
 
 ### LINQ Methods
 
@@ -96,13 +98,6 @@ Features for full C# developer familiarity, plus additions from other languages.
 ---
 
 ## Planned Features
-
-### Critical Priority
-
-| Feature | Syntax | Notes |
-|---------|--------|-------|
-| 🔴 Index set | `arr[0] = value` | DE can read but not write |
-| 🔴 Property set | `obj.Prop = value` | |
 
 ### High Priority
 
@@ -184,13 +179,8 @@ Features for full C# developer familiarity, plus additions from other languages.
 | ✅ `SafeMode` | Blocks method calls on variable objects |
 | ✅ `AllowPropertyRead` | Control property access in SafeMode |
 | ✅ `AllowAssignment` | Control variable reassignment in SafeMode |
-
-### Critical Priority - Add with Index/Property Set
-
-| Option | Purpose | Default |
-|--------|---------|---------|
-| 🔴 `AllowPropertySet` | Enable/disable `obj.Prop = value` | `true` |
-| 🔴 `AllowIndexSet` | Enable/disable `arr[0] = value` | `true` |
+| ✅ `AllowPropertySet` | Control property assignment in SafeMode |
+| ✅ `AllowIndexSet` | Control index assignment in SafeMode |
 
 ### High Priority
 

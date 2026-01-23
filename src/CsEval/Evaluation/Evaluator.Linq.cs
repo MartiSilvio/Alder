@@ -2,40 +2,7 @@ namespace CsEval.Evaluation;
 
 public sealed partial class Evaluator
 {
-    private static bool IsEnumerableMethod(string name)
-        => name.ToLowerInvariant() switch
-        {
-            "where" => true,
-            "select" => true,
-            "selectmany" => true,
-            "aggregate" => true,
-            "first" => true,
-            "firstordefault" => true,
-            "last" => true,
-            "lastordefault" => true,
-            "single" => true,
-            "singleordefault" => true,
-            "any" => true,
-            "all" => true,
-            "count" => true,
-            "sum" => true,
-            "average" => true,
-            "min" => true,
-            "max" => true,
-            "orderby" => true,
-            "orderbydescending" => true,
-            "groupby" => true,
-            "zip" => true,
-            "distinct" => true,
-            "take" => true,
-            "skip" => true,
-            "contains" => true,
-            "reverse" => true,
-            "tolist" => true,
-            "toarray" => true,
-            "concat" => true,
-            _ => false
-        };
+    private static bool IsEnumerableMethod(string name) => LinqMethodNames.Contains(name);
 
     private (bool Success, object? Value) TryInvokeEnumerableMethod(IEnumerable enumerable, string methodName,
         object?[] args)

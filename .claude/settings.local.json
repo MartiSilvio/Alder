@@ -18,7 +18,8 @@
       "Bash(dotnet sln:*)",
       "Bash(dotnet run:*)",
       "Bash(dotnet add:*)",
-      "Bash(dotnet remove:*)"
+      "Bash(dotnet remove:*)",
+      "Bash(grep:*)"
     ]
   }
 }

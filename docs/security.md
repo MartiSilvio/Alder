@@ -20,13 +20,17 @@ var engine = new CsEvalEngine(new CsEvalOptions
 | Method calls on variables | `list.Add(1)`, `str.ToLower()` | Yes |
 | Reflection methods | `obj.GetType()` | Always* |
 | Property reads | `user.Name` | No** |
-| Index access | `arr[0]`, `dict["key"]` | No |
+| Property writes | `user.Name = "new"` | No*** |
+| Index reads | `arr[0]`, `dict["key"]` | No |
+| Index writes | `arr[0] = value` | No**** |
 | Module methods | `Math.Abs(-5)` | No |
 | LINQ methods | `items.Where(x => x > 0)` | No |
 | Registered functions | `myFunc(x)` | No |
 
 *Reflection is blocked in all modes, see [Reflection Blocking](#reflection-blocking)
 **Property reads can be blocked with `AllowPropertyRead = false`
+***Property writes can be blocked with `AllowPropertySet = false`
+****Index writes can be blocked with `AllowIndexSet = false`
 
 ### Why SafeMode Matters
 
@@ -61,6 +65,12 @@ public sealed class SecurityOptions
 
     // When SafeMode=true, also block variable reassignment
     public bool AllowAssignment { get; init; } = true;
+
+    // When SafeMode=true, also block property assignment
+    public bool AllowPropertySet { get; init; } = true;
+
+    // When SafeMode=true, also block index assignment
+    public bool AllowIndexSet { get; init; } = true;
 }
 ```
 
@@ -112,6 +122,38 @@ var engine = new CsEvalEngine(new CsEvalOptions
 // x += 5 - blocked (compound assignment)
 // x++ - blocked (increment)
 // x ??= 5 - blocked if x is null
+```
+
+**Block property and index writes (immutable objects):**
+```csharp
+var engine = new CsEvalEngine(new CsEvalOptions
+{
+    Security = new CsEvalOptions.SecurityOptions
+    {
+        SafeMode = true,
+        AllowPropertySet = false,
+        AllowIndexSet = false
+    }
+});
+// obj.Name - allowed (read)
+// obj.Name = "new" - blocked (property set)
+// arr[0] - allowed (read)
+// arr[0] = 5 - blocked (index set)
+```
+
+**Full read-only mode (no mutations):**
+```csharp
+var engine = new CsEvalEngine(new CsEvalOptions
+{
+    Security = new CsEvalOptions.SecurityOptions
+    {
+        SafeMode = true,
+        AllowAssignment = false,
+        AllowPropertySet = false,
+        AllowIndexSet = false
+    }
+});
+// Only variable declarations, reads, and pure expressions allowed
 ```
 
 ## What's Always Allowed
@@ -175,7 +217,7 @@ CsEval's security model follows these principles:
 
 1. **Explicit over implicit** - Only registered modules are accessible by name
 2. **Reflection is forbidden** - No reflection types can escape to user code
-3. **Read-only by default** - No property/index SET (not yet implemented)
+3. **Configurable mutation** - Property/index writes can be blocked via security options
 4. **LINQ is safe** - Handled internally, not via reflection
 5. **Fail closed** - SafeMode blocks unknown operations
 

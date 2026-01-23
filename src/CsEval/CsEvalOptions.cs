@@ -44,6 +44,8 @@ public sealed class CsEvalOptions
         public bool SafeMode { get; init; } = false;
         public bool AllowPropertyRead { get; init; } = true;
         public bool AllowAssignment { get; init; } = true;
+        public bool AllowPropertySet { get; init; } = true;
+        public bool AllowIndexSet { get; init; } = true;
     }
 
     internal StringComparer StringComparer => IgnoreCase ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;

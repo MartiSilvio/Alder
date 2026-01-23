@@ -25,6 +25,8 @@ public interface IExprVisitor<out T>
     T VisitNullCoalesceAssign(NullCoalesceAssignExpr expr);
     T VisitCompoundAssign(CompoundAssignExpr expr);
     T VisitIncrementDecrement(IncrementDecrementExpr expr);
+    T VisitIndexAssign(IndexAssignExpr expr);
+    T VisitMemberAssign(MemberAssignExpr expr);
 
     // Null handling & Conditionals
     T VisitNullCoalesce(NullCoalesceExpr expr);
@@ -138,6 +140,18 @@ public sealed record CompoundAssignExpr(Token Name, Token Op, Expr Value) : Expr
 public sealed record IncrementDecrementExpr(Token Name, Token Op, bool IsPrefix) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitIncrementDecrement(this);
+}
+
+// Index assignment: arr[0] = value, dict["key"] = value
+public sealed record IndexAssignExpr(Expr Object, Expr Index, Expr Value) : Expr
+{
+    public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitIndexAssign(this);
+}
+
+// Member assignment: obj.Property = value
+public sealed record MemberAssignExpr(Expr Object, Token Name, Expr Value) : Expr
+{
+    public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitMemberAssign(this);
 }
 
 #endregion

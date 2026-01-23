@@ -2,13 +2,25 @@
 
 [![.NET](https://github.com/MartiSilvio/CsEval/actions/workflows/dotnet.yml/badge.svg)](https://github.com/MartiSilvio/CsEval/actions/workflows/dotnet.yml)
 
-**A C# expression evaluator and dynamic expression parser for .NET**
+**A C# Expression Evaluator and Runtime Scripting Engine for .NET**
 
-CsEval is a runtime expression evaluation library that parses and executes C#-like expressions from strings. It provides formula evaluation, dynamic query building, and scripting capabilities for .NET applications.
+CsEval is a lightweight, dynamic C# expression evaluator designed for runtime evaluation of formulas, rules, LINQ queries, and scripting logic. Perfect for developers building dynamic filters, calculated fields, reporting tools, rule engines, or runtime scripting, CsEval executes C# expressions, loops, conditionals, and object merges without requiring compilation.
+
+With CsEval, you can:
+
+- Evaluate arithmetic, logical, and string expressions dynamically
+- Run full LINQ queries with lambda expressions on your collections
+- Use C# loops, multi-statement blocks, and early returns at runtime
+- Dynamically merge objects and extend data structures on the fly
+- Inject services and modules from `IServiceProvider` for advanced scenarios
+- Execute thread-safe, isolated evaluation contexts for concurrent processing
+
+Whether you need a dynamic expression engine for dashboards, APIs, or rule-based automation, CsEval brings runtime flexibility and full C# capabilities directly into your .NET application.
 
 ```csharp
 var engine = new CsEvalEngine();
-engine.Evaluate("1 + 2 * 3"); // 7
+engine.Evaluate("1 + 2 * 3");  // 7
+engine.Evaluate("items.Where(x => x.Price > 100).Sum(x => x.Price)");
 ```
 
 ## Why CsEval?
@@ -57,13 +69,13 @@ engine.Evaluate("new { Name = \"John\", Age = 30 }");
 
 ## Documentation
 
-| Guide | Description |
-|-------|-------------|
-| [Syntax Reference](docs/syntax.md) | Expression grammar, operators, and language constructs |
-| [Features Guide](docs/features.md) | LINQ methods, loops, assignment, built-in modules |
-| [Extensions](docs/extensions.md) | Object merging, spread operator, and CsEval-specific features |
-| [API Reference](docs/api.md) | Complete public API documentation |
-| [Architecture](docs/architecture.md) | Internal design and implementation details |
+| Guide                                | Description                                                   |
+| ------------------------------------ | ------------------------------------------------------------- |
+| [Syntax Reference](docs/syntax.md)   | Expression grammar, operators, and language constructs        |
+| [Features Guide](docs/features.md)   | LINQ methods, loops, assignment, built-in modules             |
+| [Extensions](docs/extensions.md)     | Object merging, spread operator, and CsEval-specific features |
+| [API Reference](docs/api.md)         | Complete public API documentation                             |
+| [Architecture](docs/architecture.md) | Internal design and implementation details                    |
 
 ## Key Features
 
@@ -220,6 +232,7 @@ Parallel.ForEach(items, item => {
 ```
 
 Each child context:
+
 - Inherits variables from the parent (read-only)
 - Has its own isolated scope for new variables
 - Can be safely used from a single thread
