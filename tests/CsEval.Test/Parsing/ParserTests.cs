@@ -1,7 +1,7 @@
 using CsEval.Parsing;
 using NUnit.Framework;
 
-namespace CsEval.Test;
+namespace CsEval.Test.Parsing;
 
 [TestFixture]
 public class ParserTests
@@ -19,7 +19,7 @@ public class ParserTests
     {
         var expr = Parse("42");
         Assert.That(expr, Is.InstanceOf<LiteralExpr>());
-        Assert.That(((LiteralExpr)expr).Value, Is.EqualTo(42L));
+        Assert.That(((LiteralExpr)expr).Value, Is.EqualTo(42));
     }
 
     [Test]

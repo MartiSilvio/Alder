@@ -11,13 +11,13 @@ public class ControlFlowTests : EvaluatorTestBase
     [Test]
     public void Eval_Ternary_True()
     {
-        Assert.That(Eval("true ? 1 : 2"), Is.EqualTo(1L));
+        Assert.That(Eval("true ? 1 : 2"), Is.EqualTo(1));
     }
 
     [Test]
     public void Eval_Ternary_False()
     {
-        Assert.That(Eval("false ? 1 : 2"), Is.EqualTo(2L));
+        Assert.That(Eval("false ? 1 : 2"), Is.EqualTo(2));
     }
 
     [Test]
@@ -44,7 +44,7 @@ public class ControlFlowTests : EvaluatorTestBase
     public void Eval_Block_WithReturn()
     {
         var result = Eval("{ var x = 5; return x * 2; }");
-        Assert.That(result, Is.EqualTo(10L));
+        Assert.That(result, Is.EqualTo(10));
     }
 
     #endregion
@@ -55,28 +55,28 @@ public class ControlFlowTests : EvaluatorTestBase
     public void Eval_IfStatement_EarlyReturn_WhenConditionTrue()
     {
         var result = Eval("{ var x = null; if (x == null) return 42; return 0; }");
-        Assert.That(result, Is.EqualTo(42L));
+        Assert.That(result, Is.EqualTo(42));
     }
 
     [Test]
     public void Eval_IfStatement_EarlyReturn_WhenConditionFalse()
     {
         var result = Eval("{ var x = 10; if (x == null) return 42; return 0; }");
-        Assert.That(result, Is.EqualTo(0L));
+        Assert.That(result, Is.EqualTo(0));
     }
 
     [Test]
     public void Eval_IfStatement_WithElse_TakesThenBranch()
     {
         var result = Eval("{ var x = true; if (x) return 1; else return 2; }");
-        Assert.That(result, Is.EqualTo(1L));
+        Assert.That(result, Is.EqualTo(1));
     }
 
     [Test]
     public void Eval_IfStatement_WithElse_TakesElseBranch()
     {
         var result = Eval("{ var x = false; if (x) return 1; else return 2; }");
-        Assert.That(result, Is.EqualTo(2L));
+        Assert.That(result, Is.EqualTo(2));
     }
 
     [Test]
@@ -90,7 +90,7 @@ public class ControlFlowTests : EvaluatorTestBase
             }
             return 0;
         }");
-        Assert.That(result, Is.EqualTo(10L));
+        Assert.That(result, Is.EqualTo(10));
     }
 
     [Test]
@@ -104,7 +104,7 @@ public class ControlFlowTests : EvaluatorTestBase
                 return 200;
             }
         }");
-        Assert.That(result, Is.EqualTo(200L));
+        Assert.That(result, Is.EqualTo(200));
     }
 
     [Test]
@@ -119,7 +119,7 @@ public class ControlFlowTests : EvaluatorTestBase
             }
             return 3;
         }");
-        Assert.That(result, Is.EqualTo(1L));
+        Assert.That(result, Is.EqualTo(1));
     }
 
     [Test]
@@ -144,7 +144,7 @@ public class ControlFlowTests : EvaluatorTestBase
             }
             return x * 2;
         }");
-        Assert.That(result, Is.EqualTo(10L));
+        Assert.That(result, Is.EqualTo(10));
     }
 
     [Test]

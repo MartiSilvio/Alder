@@ -4,23 +4,27 @@ public sealed partial class Evaluator
 {
     private static bool IsTruthy(object? value)
     {
-        if (value == null) return false;
-        if (value is bool b) return b;
-        if (value is int i) return i != 0;
-        if (value is long l) return l != 0;
-        if (value is double d) return d != 0;
-        if (value is string s) return !string.IsNullOrEmpty(s);
-        return true;
+        return value switch
+        {
+            null => false,
+            bool b => b,
+            int i => i != 0,
+            long l => l != 0,
+            double d => d != 0,
+            string s => !string.IsNullOrEmpty(s),
+            _ => true
+        };
     }
 
-    private static new bool Equals(object? left, object? right)
+    private new static bool Equals(object? left, object? right)
     {
         if (left == null && right == null) return true;
         if (left == null || right == null) return false;
         if (left.Equals(right)) return true;
 
+        // Let C# runtime handle numeric comparison via dynamic
         if (IsNumeric(left) && IsNumeric(right))
-            return ToDouble(left) == ToDouble(right);
+            return (dynamic)left! == (dynamic)right!;
 
         return false;
     }
@@ -30,16 +34,19 @@ public sealed partial class Evaluator
         if (left == null || right == null)
             throw new EvalException("Cannot compare null values");
 
+        // Let C# runtime handle comparison via dynamic
         if (IsNumeric(left) && IsNumeric(right))
-            return ToDouble(left).CompareTo(ToDouble(right));
+        {
+            dynamic l = left, r = right;
+            return l < r ? -1 : l > r ? 1 : 0;
+        }
 
-        if (left is string ls && right is string rs)
-            return string.Compare(ls, rs, _options.StringComparison);
-
-        if (left is IComparable comparable)
-            return comparable.CompareTo(right);
-
-        throw new EvalException($"Cannot compare {left.GetType().Name} and {right.GetType().Name}");
+        return left switch
+        {
+            string ls when right is string rs => string.Compare(ls, rs, _options.StringComparison),
+            IComparable comparable => comparable.CompareTo(right),
+            _ => throw new EvalException($"Cannot compare {left.GetType().Name} and {right.GetType().Name}")
+        };
     }
 
     private object? Add(object? left, object? right)
@@ -47,14 +54,9 @@ public sealed partial class Evaluator
         if (left is string || right is string)
             return $"{left}{right}";
 
+        // Let C# runtime handle numeric addition via dynamic
         if (IsNumeric(left) && IsNumeric(right))
-        {
-            if (left is decimal || right is decimal)
-                return ToDecimal(left) + ToDecimal(right);
-            if (left is double or float || right is double or float)
-                return ToDouble(left) + ToDouble(right);
-            return ToLong(left) + ToLong(right);
-        }
+            return (dynamic)left! + (dynamic)right!;
 
         // Both are dictionaries
         if (left is IDictionary<string, object?> leftDict && right is IDictionary<string, object?> rightDict)
@@ -74,12 +76,12 @@ public sealed partial class Evaluator
             var comparer = _options.StringComparer;
             var merged = new Dictionary<string, object?>(comparer);
 
-            // Copy properties from the left object via reflection
+            // Copy properties from the left object via compiled getters
             var leftType = left.GetType();
             foreach (var prop in TypeCache.GetProperties(leftType, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance))
             {
                 if (prop.CanRead)
-                    merged[prop.Name] = prop.GetValue(left);
+                    merged[prop.Name] = TypeCache.GetPropertyValue(prop, left);
             }
 
             // Override/add properties from the right dictionary
@@ -99,12 +101,12 @@ public sealed partial class Evaluator
             foreach (var kvp in leftDictOnly)
                 merged[kvp.Key] = kvp.Value;
 
-            // Override/add properties from the right object via reflection
+            // Override/add properties from the right object via compiled getters
             var rightType = right.GetType();
             foreach (var prop in TypeCache.GetProperties(rightType, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance))
             {
                 if (prop.CanRead)
-                    merged[prop.Name] = prop.GetValue(right);
+                    merged[prop.Name] = TypeCache.GetPropertyValue(prop, right);
             }
 
             return merged;
@@ -116,20 +118,20 @@ public sealed partial class Evaluator
             var comparer = _options.StringComparer;
             var merged = new Dictionary<string, object?>(comparer);
 
-            // Copy properties from the left object via reflection
+            // Copy properties from the left object via compiled getters
             var leftType = left.GetType();
             foreach (var prop in TypeCache.GetProperties(leftType, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance))
             {
                 if (prop.CanRead)
-                    merged[prop.Name] = prop.GetValue(left);
+                    merged[prop.Name] = TypeCache.GetPropertyValue(prop, left);
             }
 
-            // Override/add properties from the right object via reflection
+            // Override/add properties from the right object via compiled getters
             var rightType = right.GetType();
             foreach (var prop in TypeCache.GetProperties(rightType, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance))
             {
                 if (prop.CanRead)
-                    merged[prop.Name] = prop.GetValue(right);
+                    merged[prop.Name] = TypeCache.GetPropertyValue(prop, right);
             }
 
             return merged;
@@ -141,13 +143,7 @@ public sealed partial class Evaluator
     private static object? Subtract(object? left, object? right)
     {
         if (IsNumeric(left) && IsNumeric(right))
-        {
-            if (left is decimal || right is decimal)
-                return ToDecimal(left) - ToDecimal(right);
-            if (left is double or float || right is double or float)
-                return ToDouble(left) - ToDouble(right);
-            return ToLong(left) - ToLong(right);
-        }
+            return (dynamic)left! - (dynamic)right!;
 
         throw new EvalException($"Cannot subtract {left?.GetType().Name ?? "null"} and {right?.GetType().Name ?? "null"}");
     }
@@ -155,13 +151,7 @@ public sealed partial class Evaluator
     private static object? Multiply(object? left, object? right)
     {
         if (IsNumeric(left) && IsNumeric(right))
-        {
-            if (left is decimal || right is decimal)
-                return ToDecimal(left) * ToDecimal(right);
-            if (left is double or float || right is double or float)
-                return ToDouble(left) * ToDouble(right);
-            return ToLong(left) * ToLong(right);
-        }
+            return (dynamic)left! * (dynamic)right!;
 
         throw new EvalException($"Cannot multiply {left?.GetType().Name ?? "null"} and {right?.GetType().Name ?? "null"}");
     }
@@ -170,15 +160,10 @@ public sealed partial class Evaluator
     {
         if (IsNumeric(left) && IsNumeric(right))
         {
-            if (left is decimal || right is decimal)
-            {
-                var r = ToDecimal(right);
-                if (r == 0) throw new EvalException("Division by zero");
-                return ToDecimal(left) / r;
-            }
-            var rd = ToDouble(right);
-            if (rd == 0) throw new EvalException("Division by zero");
-            return ToDouble(left) / rd;
+            // Check for division by zero
+            if ((dynamic)right! == 0)
+                throw new EvalException("Division by zero");
+            return (dynamic)left! / (dynamic)right!;
         }
 
         throw new EvalException($"Cannot divide {left?.GetType().Name ?? "null"} and {right?.GetType().Name ?? "null"}");
@@ -188,21 +173,9 @@ public sealed partial class Evaluator
     {
         if (IsNumeric(left) && IsNumeric(right))
         {
-            if (left is decimal || right is decimal)
-            {
-                var r = ToDecimal(right);
-                if (r == 0) throw new EvalException("Modulo by zero");
-                return ToDecimal(left) % r;
-            }
-            if (left is double or float || right is double or float)
-            {
-                var r = ToDouble(right);
-                if (r == 0) throw new EvalException("Modulo by zero");
-                return ToDouble(left) % r;
-            }
-            var ri = ToLong(right);
-            if (ri == 0) throw new EvalException("Modulo by zero");
-            return ToLong(left) % ri;
+            if ((dynamic)right! == 0)
+                throw new EvalException("Modulo by zero");
+            return (dynamic)left! % (dynamic)right!;
         }
 
         throw new EvalException($"Cannot modulo {left?.GetType().Name ?? "null"} and {right?.GetType().Name ?? "null"}");
@@ -210,66 +183,60 @@ public sealed partial class Evaluator
 
     private static object? Negate(object? value)
     {
-        if (value is int i) return -i;
-        if (value is long l) return -l;
-        if (value is double d) return -d;
-        if (value is float f) return -f;
-        if (value is decimal m) return -m;
+        if (IsNumeric(value))
+            return -(dynamic)value!;
+
         throw new EvalException($"Cannot negate {value?.GetType().Name ?? "null"}");
     }
 
     private static object? BitwiseNot(object? value)
     {
-        if (IsNumeric(value))
-            return ~ToLong(value);
-        throw new EvalException($"Cannot apply bitwise NOT to {value?.GetType().Name ?? "null"}");
+        if (!IsNumeric(value))
+            throw new EvalException($"Cannot apply bitwise NOT to {value?.GetType().Name ?? "null"}");
+
+        return ~(dynamic)value!;
     }
 
     private static object? BitwiseAnd(object? left, object? right)
     {
-        if (IsNumeric(left) && IsNumeric(right))
-            return ToLong(left) & ToLong(right);
-        throw new EvalException($"Cannot apply bitwise AND to {left?.GetType().Name ?? "null"} and {right?.GetType().Name ?? "null"}");
+        if (!IsNumeric(left) || !IsNumeric(right))
+            throw new EvalException($"Cannot apply bitwise AND to {left?.GetType().Name ?? "null"} and {right?.GetType().Name ?? "null"}");
+
+        return (dynamic)left! & (dynamic)right!;
     }
 
     private static object? BitwiseOr(object? left, object? right)
     {
-        if (IsNumeric(left) && IsNumeric(right))
-            return ToLong(left) | ToLong(right);
-        throw new EvalException($"Cannot apply bitwise OR to {left?.GetType().Name ?? "null"} and {right?.GetType().Name ?? "null"}");
+        if (!IsNumeric(left) || !IsNumeric(right))
+            throw new EvalException($"Cannot apply bitwise OR to {left?.GetType().Name ?? "null"} and {right?.GetType().Name ?? "null"}");
+
+        return (dynamic)left! | (dynamic)right!;
     }
 
     private static object? BitwiseXor(object? left, object? right)
     {
-        if (IsNumeric(left) && IsNumeric(right))
-            return ToLong(left) ^ ToLong(right);
-        throw new EvalException($"Cannot apply bitwise XOR to {left?.GetType().Name ?? "null"} and {right?.GetType().Name ?? "null"}");
+        if (!IsNumeric(left) || !IsNumeric(right))
+            throw new EvalException($"Cannot apply bitwise XOR to {left?.GetType().Name ?? "null"} and {right?.GetType().Name ?? "null"}");
+
+        return (dynamic)left! ^ (dynamic)right!;
     }
 
     private static object? LeftShift(object? left, object? right)
     {
-        if (IsNumeric(left) && IsNumeric(right))
-            return ToLong(left) << (int)ToLong(right);
-        throw new EvalException($"Cannot apply left shift to {left?.GetType().Name ?? "null"} and {right?.GetType().Name ?? "null"}");
+        if (!IsNumeric(left) || !IsNumeric(right))
+            throw new EvalException($"Cannot apply left shift to {left?.GetType().Name ?? "null"} and {right?.GetType().Name ?? "null"}");
+
+        return (dynamic)left! << (int)(dynamic)right!;
     }
 
     private static object? RightShift(object? left, object? right)
     {
-        if (IsNumeric(left) && IsNumeric(right))
-            return ToLong(left) >> (int)ToLong(right);
-        throw new EvalException($"Cannot apply right shift to {left?.GetType().Name ?? "null"} and {right?.GetType().Name ?? "null"}");
-    }
+        if (!IsNumeric(left) || !IsNumeric(right))
+            throw new EvalException($"Cannot apply right shift to {left?.GetType().Name ?? "null"} and {right?.GetType().Name ?? "null"}");
 
-    private static bool IsIntegral(object? value) =>
-        value is int or long or short or byte or sbyte or uint or ulong or ushort;
+        return (dynamic)left! >> (int)(dynamic)right!;
+    }
 
     private static bool IsNumeric(object? value) =>
         value is sbyte or byte or short or ushort or int or uint or long or ulong or float or double or decimal;
-
-    private static bool IsFloatingPoint(object? value) =>
-        value is double or float or decimal;
-
-    private static double ToDouble(object? value) => Convert.ToDouble(value);
-    private static decimal ToDecimal(object? value) => Convert.ToDecimal(value);
-    private static long ToLong(object? value) => Convert.ToInt64(value);
 }

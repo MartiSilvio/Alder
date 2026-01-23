@@ -4,7 +4,7 @@ This document covers the complete feature set of CsEval including LINQ methods, 
 
 ## LINQ Methods
 
-All methods work on any `IEnumerable`. Results are `List<object?>` (see [design-decisions.md](design-decisions.md) for rationale).
+All methods work on any `IEnumerable`. Results are `List<object?>` (see [architecture.md](architecture.md) for rationale).
 
 ### Filtering & Projection
 
@@ -99,6 +99,116 @@ names.Zip(ages)                      // [{ First: "Alice", Second: 30 }, ...]
 items.ToList()                       // Convert to List<object?>
 items.ToArray()                      // Convert to object?[]
 ```
+
+### JavaScript Method Aliases
+
+For JavaScript/TypeScript developers, familiar method names work as aliases:
+
+| JavaScript | LINQ Equivalent | Notes |
+|------------|-----------------|-------|
+| `filter` | `Where` | Same behavior |
+| `map` | `Select` | Same behavior |
+| `flatMap` | `SelectMany` | Same behavior |
+| `reduce` | `Aggregate` | JS argument order: `reduce(fn, seed)` |
+| `find` | `FirstOrDefault` | Same behavior |
+| `some` | `Any` | Same behavior |
+| `every` | `All` | Same behavior |
+| `includes` | `Contains` | Same behavior |
+
+```csharp
+// These are equivalent
+items.Where(x => x.Active)
+items.filter(x => x.Active)
+
+// reduce uses JS argument order (function first, seed second)
+items.reduce((acc, x) => acc + x, 0)      // JS style
+items.Aggregate(0, (acc, x) => acc + x)   // C# style
+```
+
+## Index & Property Assignment
+
+For basic assignment, compound assignment (`+=`, `-=`, etc.), and increment/decrement operators, see [syntax.md](syntax.md#assignment).
+
+### Index Assignment
+
+Set values in arrays, lists, and dictionaries:
+
+```csharp
+// Array/List index assignment
+{
+    var arr = [1, 2, 3];
+    arr[1] = 99;
+    return arr[1];    // 99
+}
+
+// Dictionary index assignment
+{
+    var dict = new { key = "old" };
+    dict["key"] = "new";
+    dict["newKey"] = "added";  // Add new key
+    return dict["key"];        // "new"
+}
+
+// Modify external collections
+var list = new List<object?> { 1, 2, 3 };
+engine.SetVariable("items", list);
+engine.Evaluate("items[0] = 100");  // list[0] is now 100
+```
+
+### Property Assignment
+
+Set properties on objects:
+
+```csharp
+// Anonymous object property assignment
+{
+    var obj = new { Name = "John", Age = 25 };
+    obj.Name = "Jane";
+    obj.City = "NYC";  // Add new property
+    return obj.Name;   // "Jane"
+}
+
+// Nested property assignment
+{
+    var obj = new { Inner = new { Value = 10 } };
+    obj.Inner.Value = 99;
+    return obj.Inner.Value;  // 99
+}
+
+// Modify external typed objects
+var person = new Person { Name = "John", Age = 25 };
+engine.SetVariable("person", person);
+engine.Evaluate("person.Name = \"Jane\"");  // person.Name is now "Jane"
+```
+
+Both index and property assignment return the assigned value, enabling chained expressions:
+
+```csharp
+{
+    var arr = [1, 2, 3];
+    var x = arr[0] = 100;  // x = 100, arr[0] = 100
+    return x;
+}
+```
+
+## Loop Safety
+
+For loop syntax (`while`, `for`, `foreach`, `do-while`, `break`, `continue`, `switch`), see [syntax.md](syntax.md#loops).
+
+All loops have a configurable iteration limit to prevent infinite loops:
+
+```csharp
+// Default: 100,000 iterations max
+var engine = new CsEvalEngine();
+
+// Custom limit
+var engine = new CsEvalEngine(new CsEvalOptions { MaxIterations = 1000 });
+
+// Disable limit (use with caution)
+var engine = new CsEvalEngine(new CsEvalOptions { MaxIterations = 0 });
+```
+
+Exceeding the limit throws an `EvalException`.
 
 ## Built-in Modules
 
@@ -365,13 +475,44 @@ Parse once, evaluate many times:
 var engine = new CsEvalEngine();
 var expression = engine.Parse("items.Where(x => x.Active).Sum(x => x.Value)");
 
-// ~80% faster for repeated evaluation
+// Faster for repeated evaluation (avoids re-parsing)
 foreach (var dataset in datasets)
 {
     engine.SetVariable("items", dataset);
     var result = engine.Evaluate(expression);
 }
 ```
+
+### Expression Compilation
+
+For maximum performance with simple expressions, enable compilation:
+
+```csharp
+// Eager mode: compile during Parse() automatically
+var engine = new CsEvalEngine(new CsEvalOptions { CompilationMode = CompilationMode.Eager });
+var expr = engine.Parse("x + y * 2");  // Compiled immediately
+engine.Evaluate(expr);  // Uses compiled delegate (~5-20x faster)
+
+// OnDemand mode (default): explicit compilation
+var engine = new CsEvalEngine();
+var expr = engine.Parse("x + y * 2");
+expr.Compile();  // Compile when you want
+
+// Or use ParseAndCompile for one-step
+var expr = engine.ParseAndCompile("x + y * 2");
+```
+
+**What compiles:**
+- Literals, identifiers, property access
+- Arithmetic (`+`, `-`, `*`, `/`, `%`)
+- Comparisons (`==`, `!=`, `<`, `>`, `<=`, `>=`)
+- Logical (`&&`, `||`, `!`) with short-circuit
+- Ternary (`? :`), null coalesce (`??`)
+
+**What falls back to tree-walking:**
+- Blocks, loops, switch statements
+- Lambdas, LINQ methods
+- Assignments, object merging
 
 ### Child Contexts
 
@@ -467,15 +608,32 @@ CsEval automatically coerces types in common scenarios:
 
 ### Numbers
 
-- Integers default to `long`
-- Decimals default to `double`
-- Automatic conversion when calling methods expecting specific types
+CsEval matches C# numeric literal behavior:
+
+- `42` → `int` (default for integers that fit in int range)
+- `2147483648` → `long` (auto-promotes if too large for int)
+- `42L` → `long` (explicit suffix)
+- `3.14` → `double` (default for floating-point)
+- `3.14f` → `float` (explicit suffix)
+- `3.14m` → `decimal` (explicit suffix)
 
 ```csharp
-engine.Evaluate("42");       // long
+engine.Evaluate("42");       // int
+engine.Evaluate("42L");      // long
 engine.Evaluate("3.14");     // double
-// If method expects int, long is automatically converted
+engine.Evaluate("3.14f");    // float
+engine.Evaluate("3.14m");    // decimal
 ```
+
+Arithmetic follows C# promotion rules exactly (via `dynamic`):
+- Small types (`byte`, `short`, etc.) promote to `int`
+- `int + int` → `int`
+- `int / int` → `int` (truncating! Use `5.0 / 2.0` for fractional results)
+- `int + long` → `long`
+- `int + float` → `float`
+- `float + double` → `double`
+- `int + decimal` → `decimal`
+- `decimal + float` or `decimal + double` → **Throws!** (C# forbids mixing these)
 
 ### Nullables
 
@@ -491,11 +649,11 @@ When calling methods, CsEval:
 
 ## Tips
 
-1. **Integer literals are `long`**: `42` becomes `long`, `3.14` becomes `double`. Arithmetic follows precision hierarchy: `decimal` > `double`/`float` > `long`. See [design-decisions.md](design-decisions.md) for details.
+1. **Numeric literals match C#**: `42` is `int`, `42L` is `long`, `3.14` is `double`, `3.14m` is `decimal`. Large integers auto-promote to `long`. Arithmetic follows C# type promotion rules exactly. **Important**: `5/2` returns `2` (truncating), use `5.0/2.0` for `2.5`. Mixing `decimal` with `float`/`double` throws.
 
 2. **Object merging with null**: `null + dict` throws. Use null checks or `??`.
 
-3. **Block scope**: Variables declared with `var` are scoped to the block.
+3. **Block scope**: Variables declared with `var` or typed (`int x = 5;`) are scoped to the block. Type keywords (`int`, `long`, etc.) are reserved (matching C# behavior).
 
 4. **Case sensitivity**: Default is case-sensitive. Use `CsEvalOptions { IgnoreCase = true }` for case-insensitive.
 
@@ -506,3 +664,7 @@ When calling methods, CsEval:
 7. **GroupBy returns dictionaries**: Results have `Key` and `Items` properties, not C#'s `IGrouping<TKey, TElement>`.
 
 8. **Zip without selector**: Returns dictionaries with `First` and `Second` properties, not tuples.
+
+9. **Loop iteration limit**: Loops have a default limit of 100,000 iterations to prevent infinite loops. Configure via `CsEvalOptions.MaxIterations`.
+
+10. **Break/continue scope**: `break` and `continue` only affect the innermost loop.

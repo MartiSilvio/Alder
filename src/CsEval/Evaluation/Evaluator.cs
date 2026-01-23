@@ -34,13 +34,10 @@ public sealed partial class Evaluator : IExprVisitor<object?>
     {
         var right = Evaluate(expr.Right);
 
-        return expr.Op.Type switch
-        {
-            TokenType.Minus => Negate(right),
-            TokenType.Bang => !IsTruthy(right),
-            TokenType.Tilde => BitwiseNot(right),
-            _ => throw new EvalException($"Unknown unary operator '{expr.Op.Lexeme}'")
-        };
+        if (UnaryOperators.TryGetValue(expr.Op.Type, out var op))
+            return op(right);
+
+        throw new EvalException($"Unknown unary operator '{expr.Op.Lexeme}'");
     }
 
     public object? VisitBinary(BinaryExpr expr)
@@ -48,26 +45,10 @@ public sealed partial class Evaluator : IExprVisitor<object?>
         var left = Evaluate(expr.Left);
         var right = Evaluate(expr.Right);
 
-        return expr.Op.Type switch
-        {
-            TokenType.Plus => Add(left, right),
-            TokenType.Minus => Subtract(left, right),
-            TokenType.Star => Multiply(left, right),
-            TokenType.Slash => Divide(left, right),
-            TokenType.Percent => Modulo(left, right),
-            TokenType.EqualEqual => Equals(left, right),
-            TokenType.BangEqual => !Equals(left, right),
-            TokenType.Less => Compare(left, right) < 0,
-            TokenType.LessEqual => Compare(left, right) <= 0,
-            TokenType.Greater => Compare(left, right) > 0,
-            TokenType.GreaterEqual => Compare(left, right) >= 0,
-            TokenType.Amp => BitwiseAnd(left, right),
-            TokenType.Pipe => BitwiseOr(left, right),
-            TokenType.Caret => BitwiseXor(left, right),
-            TokenType.LessLess => LeftShift(left, right),
-            TokenType.GreaterGreater => RightShift(left, right),
-            _ => throw new EvalException($"Unknown binary operator '{expr.Op.Lexeme}'")
-        };
+        if (BinaryOperators.TryGetValue(expr.Op.Type, out var op))
+            return op(this, left, right);
+
+        throw new EvalException($"Unknown binary operator '{expr.Op.Lexeme}'");
     }
 
     public object? VisitLogical(LogicalExpr expr)
@@ -198,9 +179,104 @@ public sealed partial class Evaluator : IExprVisitor<object?>
         if (currentValue != null)
             return currentValue;
 
+        if (_options.Security.SafeMode && !_options.Security.AllowAssignment)
+            throw new EvalException($"Assignment blocked in SafeMode: {name} ??= ...");
+
         var newValue = Evaluate(expr.Value);
         _context.Set(name, newValue);
         return newValue;
+    }
+
+    public object? VisitAssign(AssignExpr expr)
+    {
+        if (_options.Security.SafeMode && !_options.Security.AllowAssignment)
+            throw new EvalException($"Assignment blocked in SafeMode: {expr.Name.Lexeme} = ...");
+
+        var name = expr.Name.Lexeme;
+        var value = Evaluate(expr.Value);
+        _context.Set(name, value);
+        return value;
+    }
+
+    public object? VisitIndexAssign(IndexAssignExpr expr)
+    {
+        var obj = Evaluate(expr.Object);
+        var index = Evaluate(expr.Index);
+        var value = Evaluate(expr.Value);
+
+        if (obj == null)
+            throw new EvalException("Cannot assign to index on null");
+
+        SetIndex(obj, index, value);
+        return value;
+    }
+
+    public object? VisitMemberAssign(MemberAssignExpr expr)
+    {
+        var obj = Evaluate(expr.Object);
+        var value = Evaluate(expr.Value);
+
+        if (obj == null)
+            throw new EvalException($"Cannot assign to property '{expr.Name.Lexeme}' on null");
+
+        SetMember(obj, expr.Name.Lexeme, value);
+        return value;
+    }
+
+    public object? VisitCompoundAssign(CompoundAssignExpr expr)
+    {
+        if (_options.Security.SafeMode && !_options.Security.AllowAssignment)
+            throw new EvalException($"Assignment blocked in SafeMode: {expr.Name.Lexeme} {expr.Op.Lexeme} ...");
+
+        var name = expr.Name.Lexeme;
+        var currentValue = _context.Get(name);
+        var rightValue = Evaluate(expr.Value);
+
+        if (!CompoundToBaseOperator.TryGetValue(expr.Op.Type, out var baseOp))
+            throw new EvalException($"Unknown compound assignment operator '{expr.Op.Lexeme}'");
+
+        if (!BinaryOperators.TryGetValue(baseOp, out var op))
+            throw new EvalException($"Unknown base operator for '{expr.Op.Lexeme}'");
+
+        var result = op(this, currentValue, rightValue);
+        _context.Set(name, result);
+        return result;
+    }
+
+    public object? VisitIncrementDecrement(IncrementDecrementExpr expr)
+    {
+        if (_options.Security.SafeMode && !_options.Security.AllowAssignment)
+            throw new EvalException($"Assignment blocked in SafeMode: {expr.Op.Lexeme}{expr.Name.Lexeme}");
+
+        var name = expr.Name.Lexeme;
+        var currentValue = _context.Get(name);
+
+        // Calculate new value (increment or decrement by 1)
+        // Use the appropriate type to preserve type in arithmetic operations
+        object one = currentValue switch
+        {
+            int => 1,
+            long => 1L,
+            double => 1.0,
+            float => 1.0f,
+            decimal => 1m,
+            short => 1,  // promotes to int in arithmetic
+            byte => 1,   // promotes to int in arithmetic
+            sbyte => 1,  // promotes to int in arithmetic
+            ushort => 1, // promotes to int in arithmetic
+            uint => 1u,
+            ulong => 1ul,
+            _ => 1
+        };
+
+        var newValue = expr.Op.Type == TokenType.PlusPlus
+            ? Add(currentValue, one)
+            : Subtract(currentValue, one);
+
+        _context.Set(name, newValue);
+
+        // Prefix returns new value, postfix returns old value
+        return expr.IsPrefix ? newValue : currentValue;
     }
 
     public object? VisitInterpolatedString(InterpolatedStringExpr expr)
@@ -264,12 +340,12 @@ public sealed partial class Evaluator : IExprVisitor<object?>
                 }
                 else if (spreadValue != null)
                 {
-                    // Spread from regular object via reflection
+                    // Spread from regular object via compiled getters
                     var type = spreadValue.GetType();
                     foreach (var prop in TypeCache.GetProperties(type, BindingFlags.Public | BindingFlags.Instance))
                     {
                         if (prop.CanRead)
-                            result[prop.Name] = prop.GetValue(spreadValue);
+                            result[prop.Name] = TypeCache.GetPropertyValue(prop, spreadValue);
                     }
                 }
             }
@@ -316,6 +392,11 @@ public sealed partial class Evaluator : IExprVisitor<object?>
     public object? VisitVariableDecl(VariableDeclExpr expr)
     {
         var value = Evaluate(expr.Initializer);
+
+        // Validate type if declared (strict mode)
+        if (expr.DeclaredType != null)
+            value = ValidateAndCoerceType(expr.DeclaredType.Value, value, expr.Name.Lexeme);
+
         _context.Define(expr.Name.Lexeme, value);
         return value;
     }
@@ -354,6 +435,7 @@ public sealed partial class Evaluator : IExprVisitor<object?>
         var value = expr.Value != null ? Evaluate(expr.Value) : null;
         throw new ReturnValue(value);
     }
+
 }
 
 internal sealed record FunctionRef(string Name, Func<object?[], object?> Function)

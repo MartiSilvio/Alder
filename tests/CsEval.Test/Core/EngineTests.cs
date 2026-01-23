@@ -1,6 +1,6 @@
 using NUnit.Framework;
 
-namespace CsEval.Test;
+namespace CsEval.Test.Core;
 
 [TestFixture]
 public class BasicEvaluationTests
@@ -10,17 +10,17 @@ public class BasicEvaluationTests
     {
         var engine = new CsEvalEngine();
         var result = engine.Evaluate("1 + 2");
-        Assert.That(result, Is.EqualTo(3L));
+        Assert.That(result, Is.EqualTo(3));
     }
 
     [Test]
     public void WithVariable()
     {
         var engine = new CsEvalEngine();
-        engine.SetVariable("x", 10L);
+        engine.SetVariable("x", 10);
 
         var result = engine.Evaluate("x * 2");
-        Assert.That(result, Is.EqualTo(20L));
+        Assert.That(result, Is.EqualTo(20));
     }
 
     [Test]
@@ -29,23 +29,23 @@ public class BasicEvaluationTests
         var engine = new CsEvalEngine();
         engine.SetVariables(new Dictionary<string, object?>
         {
-            ["a"] = 5L,
-            ["b"] = 3L
+            ["a"] = 5,
+            ["b"] = 3
         });
 
         var result = engine.Evaluate("a + b");
-        Assert.That(result, Is.EqualTo(8L));
+        Assert.That(result, Is.EqualTo(8));
     }
 
     [Test]
     public void FluentApi()
     {
         var result = new CsEvalEngine()
-            .SetVariable("x", 10L)
-            .SetVariable("y", 5L)
+            .SetVariable("x", 10)
+            .SetVariable("y", 5)
             .Evaluate("x - y");
 
-        Assert.That(result, Is.EqualTo(5L));
+        Assert.That(result, Is.EqualTo(5));
     }
 
     [Test]
@@ -53,7 +53,7 @@ public class BasicEvaluationTests
     {
         var engine = new CsEvalEngine();
         var result = engine.Evaluate<long>("1 + 2");
-        Assert.That(result, Is.EqualTo(3L));
+        Assert.That(result, Is.EqualTo(3));
     }
 
     [Test]
@@ -68,10 +68,10 @@ public class BasicEvaluationTests
     public void ComplexExpression()
     {
         var engine = new CsEvalEngine();
-        engine.SetVariable("items", new List<object?> { 1L, 2L, 3L, 4L, 5L });
+        engine.SetVariable("items", new List<object?> { 1, 2, 3, 4, 5 });
 
         var result = engine.Evaluate("items.Where((x) => x > 2).Select((x) => x * 2)") as List<object?>;
-        Assert.That(result, Is.EqualTo(new List<object?> { 6L, 8L, 10L }));
+        Assert.That(result, Is.EqualTo(new List<object?> { 6, 8, 10 }));
     }
 
     [Test]
@@ -92,7 +92,7 @@ public class BasicEvaluationTests
 
         Assert.That(result, Is.Not.Null);
         Assert.That(result!["Name"], Is.EqualTo("Test"));
-        Assert.That(result["Value"], Is.EqualTo(42L));
+        Assert.That(result["Value"], Is.EqualTo(42));
     }
 
     [Test]
@@ -100,7 +100,7 @@ public class BasicEvaluationTests
     {
         var engine = new CsEvalEngine();
         var result = engine.Evaluate("{ var x = 10; var y = 20; return x + y; }");
-        Assert.That(result, Is.EqualTo(30L));
+        Assert.That(result, Is.EqualTo(30));
     }
 }
 
@@ -139,10 +139,10 @@ public class CustomRegistrationTests
     public void CustomFunction()
     {
         var engine = new CsEvalEngine();
-        engine.RegisterFunction("double", args => Convert.ToInt64(args[0]) * 2);
+        engine.RegisterFunction("twice", args => Convert.ToInt64(args[0]) * 2);
 
-        var result = engine.Evaluate("double(5)");
-        Assert.That(result, Is.EqualTo(10L));
+        var result = engine.Evaluate("twice(5)");
+        Assert.That(result, Is.EqualTo(10));
     }
 
     [Test]
@@ -168,9 +168,9 @@ public class CaseSensitivityTests
     public void CaseSensitive_ThrowsOnWrongCase()
     {
         var engine = new CsEvalEngine();
-        engine.SetVariable("MyVar", 42L);
+        engine.SetVariable("MyVar", 42);
 
-        Assert.That(engine.Evaluate("MyVar"), Is.EqualTo(42L));
+        Assert.That(engine.Evaluate("MyVar"), Is.EqualTo(42));
         Assert.Throws<CsEval.Evaluation.EvalException>(() => engine.Evaluate("myvar"));
     }
 
@@ -178,11 +178,11 @@ public class CaseSensitivityTests
     public void IgnoreCase_Variable()
     {
         var engine = new CsEvalEngine(new CsEvalOptions { IgnoreCase = true });
-        engine.SetVariable("MyVar", 42L);
+        engine.SetVariable("MyVar", 42);
 
-        Assert.That(engine.Evaluate("MyVar"), Is.EqualTo(42L));
-        Assert.That(engine.Evaluate("myvar"), Is.EqualTo(42L));
-        Assert.That(engine.Evaluate("MYVAR"), Is.EqualTo(42L));
+        Assert.That(engine.Evaluate("MyVar"), Is.EqualTo(42));
+        Assert.That(engine.Evaluate("myvar"), Is.EqualTo(42));
+        Assert.That(engine.Evaluate("MYVAR"), Is.EqualTo(42));
     }
 
     [Test]

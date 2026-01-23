@@ -39,6 +39,13 @@ public class LinqTests : EvaluatorTestBase
         Assert.That(result, Is.Empty);
     }
 
+    [Test]
+    public void Filter_Alias_WorksAsWhere()
+    {
+        var result = Eval("[1, 2, 3, 4].filter(x => x > 2)") as List<object?>;
+        Assert.That(result, Is.EqualTo(new List<object?> { 3, 4 }));
+    }
+
     #endregion
 
     #region Select
@@ -50,8 +57,7 @@ public class LinqTests : EvaluatorTestBase
         context.Define("numbers", new List<object?> { 1, 2, 3 });
 
         var result = Eval("numbers.Select((x) => x * 2)", context) as List<object?>;
-        // Integer arithmetic returns long
-        Assert.That(result, Is.EqualTo(new List<object?> { 2L, 4L, 6L }));
+        Assert.That(result, Is.EqualTo(new List<object?> { 2, 4, 6 }));
     }
 
     [Test]
@@ -65,6 +71,13 @@ public class LinqTests : EvaluatorTestBase
 
         var result = Eval("items.Select(x => x.Name)", context) as List<object?>;
         Assert.That(result, Is.EqualTo(new List<object?> { "Alice", "Bob" }));
+    }
+
+    [Test]
+    public void Map_Alias_WorksAsSelect()
+    {
+        var result = Eval("[1, 2, 3].map(x => x * 2)") as List<object?>;
+        Assert.That(result, Is.EqualTo(new List<object?> { 2, 4, 6 }));
     }
 
     #endregion
@@ -97,6 +110,19 @@ public class LinqTests : EvaluatorTestBase
         Assert.That(result, Is.EqualTo(new List<object?> { "a", "b", "c" }));
     }
 
+    [Test]
+    public void FlatMap_Alias_WorksAsSelectMany()
+    {
+        var context = new EvalContext();
+        context.Define("nested", new List<object?> {
+            new List<object?> { 1, 2 },
+            new List<object?> { 3, 4 }
+        });
+
+        var result = Eval("nested.flatMap(x => x)", context) as List<object?>;
+        Assert.That(result, Is.EqualTo(new List<object?> { 1, 2, 3, 4 }));
+    }
+
     #endregion
 
     #region Aggregate
@@ -107,8 +133,8 @@ public class LinqTests : EvaluatorTestBase
         var context = new EvalContext();
         context.Define("numbers", new List<object?> { 1, 2, 3, 4 });
 
-        var result = Eval("numbers.Aggregate((acc, x) => acc + x, 0)", context);
-        Assert.That(result, Is.EqualTo(10L));
+        var result = Eval("numbers.Aggregate(0, (acc, x) => acc + x)", context);
+        Assert.That(result, Is.EqualTo(10));
     }
 
     [Test]
@@ -118,7 +144,7 @@ public class LinqTests : EvaluatorTestBase
         context.Define("numbers", new List<object?> { 1, 2, 3, 4 });
 
         var result = Eval("numbers.Aggregate((acc, x) => acc + x)", context);
-        Assert.That(result, Is.EqualTo(10L));
+        Assert.That(result, Is.EqualTo(10));
     }
 
     [Test]
@@ -127,8 +153,23 @@ public class LinqTests : EvaluatorTestBase
         var context = new EvalContext();
         context.Define("words", new List<object?> { "a", "b", "c" });
 
-        var result = Eval("words.Aggregate((acc, x) => acc + x, \"\")", context);
+        var result = Eval("words.Aggregate(\"\", (acc, x) => acc + x)", context);
         Assert.That(result, Is.EqualTo("abc"));
+    }
+
+    [Test]
+    public void Reduce_Alias_WithoutSeed()
+    {
+        var result = Eval("[1, 2, 3].reduce((a, b) => a + b)");
+        Assert.That(result, Is.EqualTo(6));
+    }
+
+    [Test]
+    public void Reduce_Alias_WithSeed_JsStyle()
+    {
+        // JS style: reduce(fn, seed) - function first, seed second
+        var result = Eval("[1, 2, 3].reduce((acc, x) => acc + x, 10)");
+        Assert.That(result, Is.EqualTo(16));
     }
 
     #endregion
@@ -192,6 +233,13 @@ public class LinqTests : EvaluatorTestBase
 
         var result = Eval("numbers.FirstOrDefault(x => x > 10)", context);
         Assert.That(result, Is.Null);
+    }
+
+    [Test]
+    public void Find_Alias_WorksAsFirstOrDefault()
+    {
+        Assert.That(Eval("[1, 2, 3].find(x => x > 1)"), Is.EqualTo(2));
+        Assert.That(Eval("[1, 2, 3].find(x => x > 5)"), Is.Null);
     }
 
     #endregion
@@ -333,6 +381,20 @@ public class LinqTests : EvaluatorTestBase
 
         var result = Eval("numbers.All(x => x > 1)", context);
         Assert.That(result, Is.False);
+    }
+
+    [Test]
+    public void Some_Alias_WorksAsAny()
+    {
+        Assert.That(Eval("[1, 2, 3].some(x => x > 2)"), Is.True);
+        Assert.That(Eval("[1, 2, 3].some(x => x > 5)"), Is.False);
+    }
+
+    [Test]
+    public void Every_Alias_WorksAsAll()
+    {
+        Assert.That(Eval("[2, 4, 6].every(x => x > 0)"), Is.True);
+        Assert.That(Eval("[1, 2, 3].every(x => x > 1)"), Is.False);
     }
 
     #endregion
@@ -560,7 +622,7 @@ public class LinqTests : EvaluatorTestBase
         context.Define("nums2", new List<object?> { 10, 20, 30 });
 
         var result = Eval("nums1.Zip(nums2, (a, b) => a + b)", context) as List<object?>;
-        Assert.That(result, Is.EqualTo(new List<object?> { 11L, 22L, 33L }));
+        Assert.That(result, Is.EqualTo(new List<object?> { 11, 22, 33 }));
     }
 
     [Test]
@@ -582,10 +644,10 @@ public class LinqTests : EvaluatorTestBase
     public void Zip_DifferentLengths_StopsAtShorter()
     {
         var context = new EvalContext();
-        context.Define("short", new List<object?> { 1, 2 });
-        context.Define("long", new List<object?> { 10, 20, 30, 40 });
+        context.Define("shortList", new List<object?> { 1, 2 });
+        context.Define("longList", new List<object?> { 10, 20, 30, 40 });
 
-        var result = Eval("short.Zip(long, (a, b) => a + b)", context) as List<object?>;
+        var result = Eval("shortList.Zip(longList, (a, b) => a + b)", context) as List<object?>;
         Assert.That(result, Has.Count.EqualTo(2));
     }
 
@@ -678,6 +740,13 @@ public class LinqTests : EvaluatorTestBase
     }
 
     [Test]
+    public void Includes_Alias_WorksAsContains()
+    {
+        Assert.That(Eval("[1, 2, 3].includes(2)"), Is.True);
+        Assert.That(Eval("[1, 2, 3].includes(5)"), Is.False);
+    }
+
+    [Test]
     public void Reverse_ReversesOrder()
     {
         var context = new EvalContext();
@@ -751,7 +820,7 @@ public class LinqTests : EvaluatorTestBase
         context.Define("numbers", new List<object?> { 1, 2, 3, 4, 5 });
 
         var result = Eval("numbers.Select(x => x * 2).Where(x => x > 4).Take(2)", context) as List<object?>;
-        Assert.That(result, Is.EqualTo(new List<object?> { 6L, 8L }));
+        Assert.That(result, Is.EqualTo(new List<object?> { 6, 8 }));
     }
 
     #endregion

@@ -8,7 +8,7 @@ See also: [Extensions](extensions.md)
 
 ## Expression Precedence (lowest to highest)
 
-1. Assignment: `??=`
+1. Assignment: `=`, `??=`, `+=`, `-=`, `*=`, `/=`, `%=`, `&=`, `|=`, `^=`, `<<=`, `>>=`
 2. Null-coalescing: `??`
 3. Ternary: `? :`
 4. Logical OR: `||`
@@ -16,13 +16,13 @@ See also: [Extensions](extensions.md)
 6. Bitwise OR: `|`
 7. Bitwise XOR: `^`
 8. Bitwise AND: `&`
-9. Equality: `==`, `!=`
+9. Equality: `==`, `!=`, `===`, `!==`
 10. Comparison: `<`, `<=`, `>`, `>=`
 11. Shift: `<<`, `>>`
 12. Additive: `+`, `-`
 13. Multiplicative: `*`, `/`, `%`
-14. Unary: `-`, `!`, `~`
-15. Postfix: `.`, `?.`, `[]`, `()`
+14. Unary: `-`, `!`, `~`, `++` (prefix), `--` (prefix)
+15. Postfix: `.`, `?.`, `[]`, `()`, `++` (postfix), `--` (postfix)
 16. Primary: literals, identifiers, grouping
 
 ## Literals
@@ -30,14 +30,19 @@ See also: [Extensions](extensions.md)
 ### Numbers
 
 ```
-42        // long integer
--42       // negative integer
-3.14      // double
--3.14     // negative double
-0         // zero
+42        // int (default for integers)
+-42       // negative int
+42L       // long (explicit suffix)
+3.14      // double (default for floating-point)
+3.14f     // float (explicit suffix)
+3.14m     // decimal (explicit suffix)
+0         // zero (int)
 ```
 
-All integers are parsed as `long` (Int64). All decimals are parsed as `double`.
+Numeric literal types match C# behavior:
+- Integers default to `int` (Int32), auto-promote to `long` if too large
+- Floating-point defaults to `double`
+- Suffixes: `L` (long), `U` (uint), `UL` (ulong), `F` (float), `D` (double), `M` (decimal)
 
 ### Strings
 
@@ -68,6 +73,7 @@ Expressions inside `{}` are evaluated and converted to string.
 true
 false
 null
+undefined    // JavaScript-friendly alias for null
 ```
 
 ## Operators
@@ -89,6 +95,8 @@ null
 | -------- | ---------------- | -------- |
 | `==`     | Equality         | `a == b` |
 | `!=`     | Inequality       | `a != b` |
+| `===`    | Strict equality (JavaScript, same as `==`) | `a === b` |
+| `!==`    | Strict inequality (JavaScript, same as `!=`) | `a !== b` |
 | `<`      | Less than        | `a < b`  |
 | `<=`     | Less or equal    | `a <= b` |
 | `>`      | Greater than     | `a > b`  |
@@ -117,13 +125,55 @@ Short-circuit evaluation is used for `&&` and `||`.
 
 Bitwise operations convert operands to integers (truncating decimals) and return `long`.
 
+### Assignment
+
+| Operator | Description                | Example     |
+| -------- | -------------------------- | ----------- |
+| `=`      | Assignment                 | `x = y`     |
+| `??=`    | Null-coalescing assignment | `x ??= y`   |
+
+### Compound Assignment
+
+| Operator | Description       | Example    |
+| -------- | ----------------- | ---------- |
+| `+=`     | Add and assign    | `x += 5`   |
+| `-=`     | Subtract and assign | `x -= 3` |
+| `*=`     | Multiply and assign | `x *= 2` |
+| `/=`     | Divide and assign | `x /= 4`   |
+| `%=`     | Modulo and assign | `x %= 3`   |
+| `&=`     | Bitwise AND and assign | `x &= mask` |
+| `\|=`    | Bitwise OR and assign  | `x \|= flags` |
+| `^=`     | Bitwise XOR and assign | `x ^= bits` |
+| `<<=`    | Left shift and assign  | `x <<= 2`  |
+| `>>=`    | Right shift and assign | `x >>= 1`  |
+
+Compound assignment works with numeric types and strings (`+=` for concatenation).
+
+### Increment/Decrement
+
+| Operator | Description           | Example | Returns |
+| -------- | --------------------- | ------- | ------- |
+| `++x`    | Prefix increment      | `++x`   | New value after increment |
+| `x++`    | Postfix increment     | `x++`   | Old value before increment |
+| `--x`    | Prefix decrement      | `--x`   | New value after decrement |
+| `x--`    | Postfix decrement     | `x--`   | Old value before decrement |
+
+```csharp
+var x = 5;
+var a = ++x;   // a = 6, x = 6 (increment then return)
+var b = x++;   // b = 6, x = 7 (return then increment)
+var c = --x;   // c = 6, x = 6 (decrement then return)
+var d = x--;   // d = 6, x = 5 (return then decrement)
+```
+
+Works with all numeric types: `int`, `long`, `double`, `float`, `decimal`.
+
 ### Null Handling
 
 | Operator | Description                | Example     |
 | -------- | -------------------------- | ----------- |
 | `??`     | Null-coalescing            | `a ?? b`    |
 | `?.`     | Null-conditional           | `obj?.Prop` |
-| `??=`    | Null-coalescing assignment | `x ??= y`   |
 
 ### Ternary
 
@@ -201,9 +251,34 @@ Lambda body is a single expression (no blocks in lambda body).
 
 ### Variable Declaration
 
+```csharp
+var name = expression;    // Type inferred
+let name = expression;    // JavaScript-friendly (same as var)
+int x = 42;               // Explicit type
+long y = 100;
+double z = 3.14;
+string s = "hello";
+bool flag = true;
 ```
-var name = expression;
+
+Supported type keywords: `int`, `long`, `double`, `float`, `decimal`, `string`, `bool`, `object`
+
+**Type validation is strict**: Assigning an incompatible type throws an error.
+
+```csharp
+int x = "hello";    // Error: Cannot assign String to int
+int y = null;       // Error: Cannot assign null to int
+string s = 42;      // Error: Cannot assign Int32 to string
 ```
+
+**Implicit coercion is allowed** for compatible numeric types:
+
+```csharp
+long x = 42;        // OK: int coerced to long
+double y = 10;      // OK: int coerced to double
+```
+
+**Type keywords are reserved** (matching C# behavior) and cannot be used as variable names.
 
 Variables are scoped to the containing block.
 
@@ -239,6 +314,127 @@ return;              // return null
 return expression;   // return value
 ```
 
+### Loops
+
+All loops support `break` (exit loop) and `continue` (skip to next iteration).
+
+#### While Loop
+
+```csharp
+while (condition) {
+    // body
+}
+
+// Single statement body
+while (condition) doSomething();
+```
+
+#### For Loop
+
+```csharp
+for (var i = 0; i < 10; i += 1) {
+    // body
+}
+
+// All parts are optional
+for (;;) { }           // infinite loop
+for (var i = 0;;) { }  // no condition
+for (; i < 10;) { }    // no initializer or increment
+```
+
+#### Foreach Loop
+
+```csharp
+foreach (var item in collection) {
+    // body
+}
+
+// With typed variable
+foreach (int num in numbers) {
+    // body
+}
+```
+
+#### Do-While Loop
+
+```csharp
+do {
+    // body executes at least once
+} while (condition);
+```
+
+#### Break and Continue
+
+```csharp
+// Break exits the innermost loop or switch
+while (true) {
+    if (done) break;
+}
+
+// Continue skips to next iteration
+for (var i = 0; i < 10; i += 1) {
+    if (i % 2 == 0) continue;  // skip even numbers
+    process(i);
+}
+```
+
+#### Switch Statement
+
+```csharp
+switch (expression) {
+    case value1:
+        // statements
+        break;
+    case value2:
+    case value3:
+        // fall-through: multiple cases can share code
+        break;
+    default:
+        // executed when no case matches
+        break;
+}
+```
+
+Switch statements support:
+- Numeric, string, boolean, and null case values
+- Fall-through behavior (execution continues to next case without break)
+- `default` case for unmatched values
+- `break` to exit the switch
+- `return` to exit the containing block
+- Expressions in switch value and case patterns
+
+```csharp
+// Example with return
+{
+    switch (status) {
+        case "active":
+            return "User is active";
+        case "pending":
+            return "User is pending";
+        default:
+            return "Unknown status";
+    }
+}
+
+// Example with fall-through
+{
+    var result = "";
+    switch (grade) {
+        case 10:
+        case 9:
+            result = "A";
+            break;
+        case 8:
+            result = "B";
+            break;
+        default:
+            result = "Other";
+            break;
+    }
+    return result;
+}
+```
+
 ## Comments
 
 ```
@@ -258,20 +454,40 @@ The following are reserved and cannot be used as identifiers:
 - `true`
 - `false`
 - `null`
+- `undefined` (JavaScript-friendly, maps to null)
 - `new`
 - `var`
+- `let` (JavaScript-friendly, treated as var)
+- `const` (reserved keyword)
 - `return`
 - `if`
 - `else`
-- `switch` (reserved but not implemented)
-- `case` (reserved but not implemented)
-- `default` (reserved but not implemented)
+- `while`
+- `for`
+- `foreach`
+- `do`
+- `in`
+- `break`
+- `continue`
+- `switch`
+- `case`
+- `default`
+
+Type keywords (matching C#):
+- `int`
+- `long`
+- `double`
+- `float`
+- `decimal`
+- `string`
+- `bool`
+- `object`
 
 ## EBNF Grammar
 
 ```ebnf
 expression     = assignment ;
-assignment     = null_coalesce ( "??=" assignment )? ;
+assignment     = null_coalesce ( ( "??=" | "=" | "+=" | "-=" | "*=" | "/=" | "%=" | "&=" | "|=" | "^=" | "<<=" | ">>=" ) assignment )? ;
 null_coalesce  = conditional ( "??" conditional )* ;
 conditional    = or ( "?" expression ":" expression )? ;
 or             = and ( "||" and )* ;
@@ -279,14 +495,14 @@ and            = bitwise_or ( "&&" bitwise_or )* ;
 bitwise_or     = bitwise_xor ( "|" bitwise_xor )* ;
 bitwise_xor    = bitwise_and ( "^" bitwise_and )* ;
 bitwise_and    = equality ( "&" equality )* ;
-equality       = comparison ( ( "==" | "!=" ) comparison )* ;
+equality       = comparison ( ( "==" | "!=" | "===" | "!==" ) comparison )* ;
 comparison     = shift ( ( "<" | "<=" | ">" | ">=" ) shift )* ;
 shift          = term ( ( "<<" | ">>" ) term )* ;
 term           = factor ( ( "+" | "-" ) factor )* ;
 factor         = unary ( ( "*" | "/" | "%" ) unary )* ;
-unary          = ( "!" | "-" | "~" ) unary | postfix ;
-postfix        = primary ( "." IDENTIFIER | "?." IDENTIFIER | "[" expression "]" | "(" arguments? ")" )* ;
-primary        = NUMBER | STRING | "true" | "false" | "null"
+unary          = ( "!" | "-" | "~" ) unary | ( "++" | "--" ) IDENTIFIER | postfix ;
+postfix        = primary ( "." IDENTIFIER | "?." IDENTIFIER | "[" expression "]" | "(" arguments? ")" | "++" | "--" )* ;
+primary        = NUMBER | STRING | "true" | "false" | "null" | "undefined"
                | INTERPOLATED_STRING
                | "new" "{" object_properties "}"
                | "(" ( expression | lambda_params "=>" expression ) ")"
@@ -303,9 +519,26 @@ object_property = "..." expression | IDENTIFIER "=" expression ;
 
 block_body     = statement* ;
 statement      = "return" expression? ";"
+               | "break" ";"
+               | "continue" ";"
                | "if" "(" expression ")" ( "{" statement* "}" | statement ) ( "else" ( "{" statement* "}" | statement ) )?
-               | "var" IDENTIFIER "=" expression ";"
+               | "while" "(" expression ")" ( "{" statement* "}" | statement )
+               | "for" "(" for_init? ";" expression? ";" expression? ")" ( "{" statement* "}" | statement )
+               | "foreach" "(" ( "var" | TYPE_KEYWORD ) IDENTIFIER "in" expression ")" ( "{" statement* "}" | statement )
+               | "do" ( "{" statement* "}" | statement ) "while" "(" expression ")" ";"?
+               | "switch" "(" expression ")" "{" switch_case* "}"
+               | ( "var" | "let" ) IDENTIFIER "=" expression ";"
+               | TYPE_KEYWORD IDENTIFIER "=" expression ";"
                | expression ";" ;
+
+switch_case    = "case" expression ":" statement*
+               | "default" ":" statement* ;
+
+for_init       = ( "var" | "let" ) IDENTIFIER "=" expression
+               | TYPE_KEYWORD IDENTIFIER "=" expression
+               | expression ;
+
+TYPE_KEYWORD   = "int" | "long" | "double" | "float" | "decimal" | "string" | "bool" | "object" ;
 ```
 
 ## Not Supported
@@ -321,24 +554,29 @@ x as string      // Safe casting - NOT supported
 typeof(int)      // Type reference - NOT supported
 ```
 
-### Operators
-
-```csharp
-x++              // Increment - NOT supported
-x--              // Decrement - NOT supported
-x += 1           // Compound assignment - NOT supported (use x = x + 1)
-```
-
 ### Control Flow
 
 ```csharp
-for (...)        // For loops - NOT supported
-while (...)      // While loops - NOT supported
-foreach (...)    // Foreach loops - NOT supported
-switch (x) { }   // Switch statements - NOT supported (reserved)
 throw new ...    // Throw statements - NOT supported
 try { } catch    // Try-catch - NOT supported
 ```
+
+Note: All loops (`while`, `for`, `foreach`, `do-while`), `switch` statements, and loop control (`break`, `continue`) ARE supported.
+
+### Constructors
+
+```csharp
+// Supported
+new { Name = "John", Age = 30 }    // Anonymous objects - SUPPORTED
+new { ...person, Extra = "value" } // Spread operator - SUPPORTED
+
+// Not yet supported (planned)
+new DateTime(2024, 1, 1)           // Typed constructors - NOT YET (planned)
+new Point { X = 10, Y = 20 }       // Object initializers - NOT YET (planned)
+new List<int> { 1, 2, 3 }          // Collection initializers - NOT YET (low priority)
+```
+
+See [ROADMAP.md](../ROADMAP.md) for planned constructor features.
 
 ### Other
 
@@ -346,8 +584,7 @@ try { } catch    // Try-catch - NOT supported
 nameof(x)        // Name of expression - NOT supported
 default(T)       // Default value - NOT supported
 x..y             // Range operator - NOT supported
-new int[5]       // Array initialization - NOT supported
-x = y            // Assignment (use ??= for null-coalescing assignment)
+new int[5]       // Array creation with size - NOT supported (use [1,2,3] literal)
 params args      // Params arrays - limited support
 ```
 

@@ -1,7 +1,7 @@
 using CsEval.Parsing;
 using NUnit.Framework;
 
-namespace CsEval.Test;
+namespace CsEval.Test.Parsing;
 
 [TestFixture]
 public class LexerTests
@@ -14,7 +14,7 @@ public class LexerTests
 
         Assert.That(tokens, Has.Count.EqualTo(2));
         Assert.That(tokens[0].Type, Is.EqualTo(TokenType.Number));
-        Assert.That(tokens[0].Literal, Is.EqualTo(42L));
+        Assert.That(tokens[0].Literal, Is.EqualTo(42));
     }
 
     [Test]
@@ -114,8 +114,8 @@ public class LexerTests
         var tokens = lexer.Tokenize();
 
         Assert.That(tokens, Has.Count.EqualTo(3));
-        Assert.That(tokens[0].Literal, Is.EqualTo(1L));
-        Assert.That(tokens[1].Literal, Is.EqualTo(2L));
+        Assert.That(tokens[0].Literal, Is.EqualTo(1));
+        Assert.That(tokens[1].Literal, Is.EqualTo(2));
     }
 
     [Test]
@@ -125,8 +125,8 @@ public class LexerTests
         var tokens = lexer.Tokenize();
 
         Assert.That(tokens, Has.Count.EqualTo(3));
-        Assert.That(tokens[0].Literal, Is.EqualTo(1L));
-        Assert.That(tokens[1].Literal, Is.EqualTo(2L));
+        Assert.That(tokens[0].Literal, Is.EqualTo(1));
+        Assert.That(tokens[1].Literal, Is.EqualTo(2));
     }
 
     [Test]

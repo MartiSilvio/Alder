@@ -1,7 +1,7 @@
 using CsEval.Attributes;
 using NUnit.Framework;
 
-namespace CsEval.Test;
+namespace CsEval.Test.Integration;
 
 [TestFixture]
 public class AsyncTests
@@ -11,7 +11,7 @@ public class AsyncTests
     {
         var engine = new CsEvalEngine();
         var result = await engine.EvaluateAsync("1 + 2");
-        Assert.That(result, Is.EqualTo(3L));
+        Assert.That(result, Is.EqualTo(3));
     }
 
     [Test]
@@ -19,7 +19,7 @@ public class AsyncTests
     {
         var engine = new CsEvalEngine();
         var result = await engine.EvaluateAsync<long>("1 + 2");
-        Assert.That(result, Is.EqualTo(3L));
+        Assert.That(result, Is.EqualTo(3));
     }
 
     [Test]
@@ -30,7 +30,7 @@ public class AsyncTests
         engine.SetVariable("y", 5L);
 
         var result = await engine.EvaluateAsync("x * y");
-        Assert.That(result, Is.EqualTo(50L));
+        Assert.That(result, Is.EqualTo(50));
     }
 
     [Test]
@@ -68,7 +68,7 @@ public class AsyncTests
         engine.RegisterModule("Async", new AsyncProxy());
 
         var result = await engine.EvaluateAsync("Async.GetValueAsync()");
-        Assert.That(result, Is.EqualTo(42L));
+        Assert.That(result, Is.EqualTo(42));
     }
 
     [Test]
@@ -78,7 +78,7 @@ public class AsyncTests
         engine.RegisterModule("Async", new AsyncProxy());
 
         var result = await engine.EvaluateAsync("Async.DelayedAdd(10, 5)");
-        Assert.That(result, Is.EqualTo(15L));
+        Assert.That(result, Is.EqualTo(15));
     }
 
     [Test]
@@ -88,7 +88,7 @@ public class AsyncTests
         engine.RegisterFromType<AsyncModule>();
 
         var result = await engine.EvaluateAsync("AsyncOps.FetchValue()");
-        Assert.That(result, Is.EqualTo(100L));
+        Assert.That(result, Is.EqualTo(100));
     }
 
     [Test]

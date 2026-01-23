@@ -1,8 +1,7 @@
-namespace CsEval.Attributes
+namespace CsEval.Attributes;
+
+[AttributeUsage(AttributeTargets.Method)]
+public class CsEvalFunctionAttribute(string name) : Attribute
 {
-    [AttributeUsage(AttributeTargets.Method)]
-    public class CsEvalFunctionAttribute(string name) : Attribute
-    {
-        public string Name { get; } = name;
-    }
+    public string Name { get; } = name;
 }

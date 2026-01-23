@@ -34,7 +34,7 @@ public class NullHandlingTests : EvaluatorTestBase
             x ??= 42;
             return x;
         }");
-        Assert.That(result, Is.EqualTo(42L));
+        Assert.That(result, Is.EqualTo(42));
     }
 
     [Test]
@@ -45,7 +45,7 @@ public class NullHandlingTests : EvaluatorTestBase
             x ??= 42;
             return x;
         }");
-        Assert.That(result, Is.EqualTo(10L));
+        Assert.That(result, Is.EqualTo(10));
     }
 
     [Test]
@@ -55,7 +55,7 @@ public class NullHandlingTests : EvaluatorTestBase
             var x = null;
             return x ??= 42;
         }");
-        Assert.That(result, Is.EqualTo(42L));
+        Assert.That(result, Is.EqualTo(42));
     }
 
     [Test]
@@ -76,7 +76,7 @@ public class NullHandlingTests : EvaluatorTestBase
             x ??= 5 + 5;
             return x;
         }");
-        Assert.That(result, Is.EqualTo(10L));
+        Assert.That(result, Is.EqualTo(10));
     }
 
     [Test]
@@ -89,6 +89,6 @@ public class NullHandlingTests : EvaluatorTestBase
             }
             return x;
         }");
-        Assert.That(result, Is.EqualTo(100L));
+        Assert.That(result, Is.EqualTo(100));
     }
 }

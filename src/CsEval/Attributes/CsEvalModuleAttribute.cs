@@ -1,8 +1,7 @@
-namespace CsEval.Attributes
+namespace CsEval.Attributes;
+
+[AttributeUsage(AttributeTargets.Class | AttributeTargets.Interface)]
+public class CsEvalModuleAttribute(string name) : Attribute
 {
-    [AttributeUsage(AttributeTargets.Class | AttributeTargets.Interface)]
-    public class CsEvalModuleAttribute(string name) : Attribute
-    {
-        public string Name { get; } = name;
-    }
+    public string Name { get; } = name;
 }

@@ -1,237 +1,336 @@
 # CsEval Roadmap
 
-Features to implement for full C# developer familiarity, plus useful additions from other languages.
+Features for full C# developer familiarity, plus additions from other languages.
+
+## Legend
+
+| Symbol | Meaning |
+|--------|---------|
+| ✅ | Implemented |
+| 🔴 | Critical priority |
+| 🟠 | High priority |
+| 🟡 | Medium priority |
+| ⚪ | Low priority |
 
 ---
 
-## C# Parity Features
+## Implemented Features
 
-### Type Operations
-
-| Feature | Syntax | Notes |
-|---------|--------|-------|
-| Type casting | `(int)x`, `(string)obj` | Use `Convert.ChangeType` |
-| `is` operator | `x is string`, `x is null` | Type checking |
-| `as` operator | `x as string` | Safe cast, returns null |
-| `typeof` | `typeof(int)` | Get Type reference |
-| `default` | `default(int)`, `default` | Default value |
-| `nameof` | `nameof(property)` | Get name as string |
-
-### ~~Bitwise Operators~~ ✅
-
-| Operator | Syntax |
-|----------|--------|
-| ~~Bitwise AND~~ | ~~`x & y`~~ |
-| ~~Bitwise OR~~ | ~~`x \| y`~~ |
-| ~~Bitwise XOR~~ | ~~`x ^ y`~~ |
-| ~~Bitwise NOT~~ | ~~`~x`~~ |
-| ~~Left shift~~ | ~~`x << n`~~ |
-| ~~Right shift~~ | ~~`x >> n`~~ |
-
-### Assignment Operators
-
-| Operator | Syntax | Notes |
-|----------|--------|-------|
-| Assignment | `x = value` | Basic assignment |
-| Add-assign | `x += value` | Desugar to `x = x + value` |
-| Subtract-assign | `x -= value` | |
-| Multiply-assign | `x *= value` | |
-| Divide-assign | `x /= value` | |
-| Increment | `x++`, `++x` | Pre/post variants |
-| Decrement | `x--`, `--x` | |
-
-### Loops
+### Core Language
 
 | Feature | Syntax | Notes |
 |---------|--------|-------|
-| `foreach` | `foreach (var x in items) { }` | Most useful |
-| `while` | `while (cond) { }` | Add iteration limit |
-| `for` | `for (var i = 0; i < n; i++) { }` | |
-| `break` | `break;` | Exit loop |
-| `continue` | `continue;` | Next iteration |
+| Arithmetic | `+`, `-`, `*`, `/`, `%` | Standard operators |
+| Comparison | `==`, `!=`, `<`, `<=`, `>`, `>=` | |
+| Logical | `&&`, `\|\|`, `!` | Short-circuit evaluation |
+| Bitwise | `&`, `\|`, `^`, `~`, `<<`, `>>` | |
+| Ternary | `a ? b : c` | |
+| Null-coalescing | `??`, `??=` | |
+| Null-conditional | `?.` | Property access only |
+| Assignment | `=` | Variable reassignment |
+| Compound assignment | `+=`, `-=`, `*=`, `/=`, `%=`, `&=`, `\|=`, `^=`, `<<=`, `>>=` | All 10 operators |
+| Increment/decrement | `++x`, `x++`, `--x`, `x--` | Prefix and postfix |
 
-### Switch
-
-| Feature | Syntax | Notes |
-|---------|--------|-------|
-| Switch expression | `x switch { 1 => "one", _ => "other" }` | C# 8+ style |
-| Switch statement | `switch (x) { case 1: ... }` | Classic style |
-
-### Constructors & Types
+### Control Flow
 
 | Feature | Syntax | Notes |
 |---------|--------|-------|
-| Named constructor | `new DateTime(2024, 1, 1)` | Requires type registry |
-| Object initializer | `new Person { Name = "John" }` | |
-| Collection initializer | `new List<int> { 1, 2, 3 }` | |
-| Typed array | `new int[5]` | |
-| Array initializer | `new[] { 1, 2, 3 }` | Type inference |
-| Generic calls | `list.Cast<int>()` | |
-| Generic construction | `new List<int>()` | |
+| Block expressions | `{ var x = 1; return x; }` | |
+| If statements | `if (cond) { } else { }` | |
+| Return | `return value;` | Early return in blocks |
+| While loop | `while (cond) { }` | With iteration limit |
+| For loop | `for (var i = 0; i < n; i++) { }` | |
+| Foreach loop | `foreach (var x in items) { }` | |
+| Do-while loop | `do { } while (cond)` | |
+| Break/continue | `break;`, `continue;` | In all loop types |
+| Switch statement | `switch (x) { case 1: ... }` | With fall-through and default |
 
-### Pattern Matching
+### Variables & Types
 
 | Feature | Syntax | Notes |
 |---------|--------|-------|
-| Type pattern with variable | `x is string s` | Declares `s` |
-| Property pattern | `x is { Name: "John" }` | |
-| Relational pattern | `x is > 0 and < 100` | |
-| List pattern | `x is [1, 2, ..]` | |
-| `not` pattern | `x is not null` | |
+| Variable declaration | `var x = 5;` | Type inferred |
+| Typed declaration | `int x = 5;` | `int`, `long`, `double`, `float`, `decimal`, `string`, `bool`, `object` |
+| Interpolated strings | `$"Hello {name}"` | |
+
+### Collections & Objects
+
+| Feature | Syntax | Notes |
+|---------|--------|-------|
+| Array literals | `[1, 2, 3]` | |
+| Anonymous objects | `new { Name = "John", Age = 30 }` | |
+| Object spread | `new { ...obj1, ...obj2 }` | |
+| Array spread | `[...arr1, ...arr2]` | |
+| Object merging | `obj1 + obj2` | Via `+` operator |
+| Index access | `arr[0]`, `dict["key"]` | Read and write |
+| Index assignment | `arr[0] = value` | Arrays, lists, dictionaries |
+| Property access | `obj.Property` | Read and write |
+| Property assignment | `obj.Prop = value` | Anonymous objects, typed objects |
 
 ### LINQ Methods
 
-**Implemented:**
-- Filtering: `Where`, `Distinct`
-- Projection: `Select`, `SelectMany`
-- Element: `First`, `FirstOrDefault`, `Last`, `LastOrDefault`, `Single`, `SingleOrDefault`
-- Quantifiers: `Any`, `All`, `Contains`
-- Aggregation: `Count`, `Sum`, `Average`, `Min`, `Max`, `Aggregate`
-- Ordering: `OrderBy`, `OrderByDescending`
-- Grouping: `GroupBy` (returns `List<Dictionary>` with `Key` and `Items`)
-- Combining: `Zip` (with/without selector), `Concat`
-- Partitioning: `Take`, `Skip`
-- Conversion: `ToList`, `ToArray`, `Reverse`
+| Category | Methods |
+|----------|---------|
+| Filtering | `Where`, `Distinct` |
+| Projection | `Select`, `SelectMany` |
+| Element | `First`, `FirstOrDefault`, `Last`, `LastOrDefault`, `Single`, `SingleOrDefault` |
+| Quantifiers | `Any`, `All`, `Contains` |
+| Aggregation | `Count`, `Sum`, `Average`, `Min`, `Max`, `Aggregate` |
+| Ordering | `OrderBy`, `OrderByDescending`, `Reverse` |
+| Grouping | `GroupBy` (returns `[{ Key, Items }]`) |
+| Combining | `Zip`, `Concat` |
+| Partitioning | `Take`, `Skip` |
+| Conversion | `ToList`, `ToArray` |
 
-**Not implemented:**
-- `Join`, `GroupJoin` - Complex multi-collection operations
-- `OfType<T>`, `Cast<T>` - Require generic type parameters
-- `ToDictionary`, `ToLookup`, `ToHashSet` - Conversion to other collection types
-- `Chunk`, `DistinctBy`, `ExceptBy`, `IntersectBy`, `UnionBy` - Newer .NET 6+ methods
-- `MinBy`, `MaxBy` - Newer .NET 6+ methods
-- `ThenBy`, `ThenByDescending` - Cannot work because results are materialized to `List<object?>` (not `IOrderedEnumerable`)
+### Infrastructure
 
-### Range & Index (C# 8+)
+| Feature | Notes |
+|---------|-------|
+| Pre-parsing | `engine.Parse()` for repeated evaluation |
+| Thread-safe contexts | `engine.CreateChild()` |
+| DI integration | `IServiceProvider` at evaluation time |
+| Async methods | `Task<T>` auto-unwrapped |
+| Cancellation | `CancellationToken` auto-passed |
+| Module system | `engine.RegisterModule()` |
+| Custom functions | `engine.RegisterFunction()` |
+| SafeMode | `Security.SafeMode` blocks method calls on variables |
+
+### JavaScript-Friendly Syntax
+
+Always-available features for developers familiar with JavaScript/TypeScript:
 
 | Feature | Syntax | Notes |
 |---------|--------|-------|
-| Index from end | `arr[^1]` | Last element |
-| Range | `arr[1..3]` | Slice |
-| Range from end | `arr[1..^1]` | |
-| Open range | `arr[1..]`, `arr[..3]` | |
+| `let` | `let x = 5;` | Treated as `var` |
+| `undefined` | `undefined` | Maps to `null` |
+| Strict equality | `===`, `!==` | Same as `==`/`!=` |
+| Method aliases | `map`, `filter`, `reduce`, etc. | Maps to LINQ equivalents |
 
-### Strings
+**Method Alias Mapping:**
 
-| Feature | Syntax | Notes |
-|---------|--------|-------|
-| Verbatim strings | `@"path\to\file"` | No escaping |
-| Raw strings | `"""text"""` | C# 11 |
-
-### Exception Handling
-
-| Feature | Syntax |
-|---------|--------|
-| `throw` | `throw new Exception("msg")` |
-| `try-catch` | `try { } catch (Exception e) { }` |
-| `try-finally` | `try { } finally { }` |
+| JavaScript | LINQ Equivalent | Notes |
+|------------|-----------------|-------|
+| `map` | `Select` | |
+| `filter` | `Where` | |
+| `reduce` | `Aggregate` | JS arg order: `reduce(fn, seed)` |
+| `flatMap` | `SelectMany` | |
+| `find` | `FirstOrDefault` | |
+| `some` | `Any` | |
+| `every` | `All` | |
+| `includes` | `Contains` | |
 
 ---
 
-## Features from Other Languages
+## Planned Features
 
-### JavaScript/TypeScript
-
-| Feature | Syntax | Notes |
-|---------|--------|-------|
-| ~~Spread operator~~ | `[...arr1, ...arr2]` | ✅ Implemented |
-| ~~Object spread~~ | `new { ...obj1, ...obj2 }` | ✅ Implemented |
-| Optional chaining call | `obj?.Method()` | Already have `?.` for props |
-| Nullish assignment | `x ??= value` | ✅ Already implemented |
-| Destructuring | `var { Name, Age } = person` | Extract properties |
-| Template literals | `` `Hello ${name}` `` | We have `$""` |
-
-### Python
+### High Priority
 
 | Feature | Syntax | Notes |
 |---------|--------|-------|
-| List comprehension | `[x * 2 for x in items if x > 0]` | Alt syntax for LINQ |
-| `in` operator | `x in [1, 2, 3]` | Contains check |
-| `not in` operator | `x not in list` | |
-| Slice syntax | `arr[1:3]` | We'd use `arr[1..3]` |
-| Walrus operator | `if ((x := GetValue()) != null)` | Assign in expression |
-| Chained comparison | `0 < x < 100` | |
+| 🟠 `is` operator | `x is string`, `x is null` | Type checking |
+| 🟠 `is not` | `x is not null` | Common pattern |
+| 🟠 `is` with variable | `x is string s` | Declare variable |
+| 🟠 `as` operator | `x as string` | Safe cast |
+| 🟠 Type casting | `(int)x` | |
+| 🟠 Typed constructor | `new DateTime(2024, 1, 1)` | Requires type registry |
+| 🟠 Object initializer | `new Point { X = 10, Y = 20 }` | |
 
-### Kotlin
-
-| Feature | Syntax | Notes |
-|---------|--------|-------|
-| Elvis operator | `x ?: default` | We have `??` |
-| Safe call | `x?.let { it.Process() }` | |
-| `when` expression | `when (x) { 1 -> "one" }` | Like switch |
-| `in` range check | `x in 1..10` | |
-| String templates | `"Hello $name"` | Simpler than `{name}` |
-
-### Rust
+### Medium Priority
 
 | Feature | Syntax | Notes |
 |---------|--------|-------|
-| `if let` | `if let Some(x) = opt { }` | Pattern + condition |
-| Match guards | `x switch { n when n > 0 => ... }` | |
-| `..` ignore pattern | `{ Name, .. }` | Ignore rest |
+| 🟡 Constructor + initializer | `new Person("John") { Age = 30 }` | |
+| 🟡 `nameof` | `nameof(property)` | |
+| 🟡 `typeof` | `typeof(int)` | |
+| 🟡 Property pattern | `x is { Name: "John" }` | |
+| 🟡 Relational pattern | `x is > 0 and < 100` | |
+| 🟡 `switch` expression | `x switch { 1 => "one", _ => "other" }` | |
+| 🟡 Generic method calls | `list.Cast<int>()` | |
+| 🟡 Optional chaining call | `obj?.Method()` | Currently only `?.Property` |
+| 🟡 `ToDictionary` | `items.ToDictionary(x => x.Id)` | |
+| 🟡 `OfType<T>`, `Cast<T>` | LINQ methods | Need generic support |
+| 🟡 Index from end | `arr[^1]` | C# 8+ |
+| 🟡 Range | `arr[1..3]` | C# 8+ |
+| 🟡 Verbatim strings | `@"path\to\file"` | |
 
-### F#/Functional
+### Low Priority
 
 | Feature | Syntax | Notes |
 |---------|--------|-------|
-| Pipe operator | `x \|> Process \|> Format` | Chain functions |
-| Function composition | `f >> g` | Combine functions |
-| Option binding | `x.Map(v => v * 2)` | On nullables |
+| ⚪ `default` | `default(int)` | |
+| ⚪ Collection initializer | `new List<int> { 1, 2, 3 }` | Use `[1,2,3]` instead |
+| ⚪ Array creation | `new int[] { 1, 2, 3 }` | Use `[1,2,3]` instead |
+| ⚪ Generic type instantiation | `new List<int>()` | |
+| ⚪ `throw` | `throw new Exception("msg")` | |
+| ⚪ `try-catch` | `try { } catch { }` | |
+| ⚪ Raw strings | `"""text"""` | C# 11 |
+| ⚪ `Join`, `GroupJoin` | LINQ methods | Complex |
+| ⚪ `TakeWhile`, `SkipWhile` | LINQ methods | |
+| ⚪ `Except`, `Intersect`, `Union` | LINQ set operations | |
+| ⚪ `MinBy`, `MaxBy` | LINQ methods | .NET 6+ |
+| ⚪ Destructuring | `var { Name, Age } = person` | |
+| ⚪ Pipe operator | `x \|> Process \|> Format` | F#/Kotlin style |
+| ⚪ `in` operator | `x in [1, 2, 3]` | Python style |
+| ⚪ Chained comparison | `0 < x < 100` | Python style |
+
+### JavaScript-Style Enhancements
+
+| Feature | Syntax | Notes |
+|---------|--------|-------|
+| 🟡 Template literals | `` `Hello ${name}` `` | Backtick strings |
+| 🟡 `typeof` operator | `typeof x` | Returns type name string |
+| ⚪ `instanceof` | `x instanceof Y` | Like C# `is` |
+| ⚪ `console.log` | `console.log(x)` | Register as module |
+| ⚪ `JSON.stringify/parse` | `JSON.stringify(obj)` | Register as module |
+| ⚪ Destructuring | `const { a, b } = obj` | |
 
 ---
 
-## Unique CsEval Features (Keep/Enhance)
+## Not Implementing
 
-These differentiate CsEval - keep and improve:
-
-| Feature | Current | Enhancement Ideas |
-|---------|---------|-------------------|
-| Object merging | `a + b` | ✅ Also supports spread `new { ...a, ...b }` |
-| Block expressions | `{ var x = 1; return x; }` | Add more statement types |
-| DI integration | Module resolution | Auto-discover from assembly |
-| Async + cancellation | `EvaluateAsync` | Progress reporting |
+| Feature | Rationale |
+|---------|-----------|
+| Full C# compilation | Use Roslyn for that |
+| Class/method definitions | Expressions only, not type definitions |
+| LINQ query syntax | Method syntax only (`from x in y` → `y.Select()`) |
+| Unsafe code / pointers | Security |
+| Preprocessor (`#if`) | Not applicable to expressions |
+| Static constructors | Class definition syntax, not expressions |
+| Primary constructors (C# 12) | Class declaration syntax |
+| Partial constructors (C# 14) | Class definition syntax |
+| Constructor chaining (`:this()`, `:base()`) | Class definition syntax |
 
 ---
 
-## Expression Tree Output
+## Security Roadmap
 
-For EF Core / IQueryable integration:
+### Implemented
+
+| Feature | Notes |
+|---------|-------|
+| ✅ `MaxIterations` | Loop limit protection (100,000 default) |
+| ✅ Explicit module registration | No arbitrary namespace access |
+| ✅ No `new Type()` syntax | Can't instantiate arbitrary types |
+| ✅ `SafeMode` | Blocks method calls on variable objects |
+| ✅ `AllowPropertyRead` | Control property access in SafeMode |
+| ✅ `AllowAssignment` | Control variable reassignment in SafeMode |
+| ✅ `AllowPropertySet` | Control property assignment in SafeMode |
+| ✅ `AllowIndexSet` | Control index assignment in SafeMode |
+
+### High Priority
+
+| Option | Purpose | Default |
+|--------|---------|---------|
+| 🟠 `AllowNewKeyword` | Enable/disable `new { }` syntax | `true` |
+
+### Medium Priority - Resource Limits
+
+| Option | Purpose | Default |
+|--------|---------|---------|
+| 🟡 `MaxStringLength` | Prevent string bombs | `1,000,000` |
+| 🟡 `MaxArrayLength` | Prevent memory exhaustion | `100,000` |
+| 🟡 `MaxRecursionDepth` | Prevent stack overflow | `100` |
+| 🟡 `BlockedTypes` | Type blacklist | `[Process, File, Assembly, ...]` |
+
+### Low Priority - Fine-grained Control
+
+| Option | Purpose |
+|--------|---------|
+| ⚪ `AllowedTypes` | Type whitelist (stricter than blocklist) |
+| ⚪ `MethodFilter` | `Func<MethodInfo, bool>` callback |
+| ⚪ `MemberFilter` | `Func<MemberInfo, bool>` callback |
+
+### Default Blocked Types (when implemented)
 
 ```csharp
-// Parse to expression tree instead of evaluating
-Expression<Func<T, bool>> predicate = engine.ParseAsExpression<Func<T, bool>>("x => x.Active");
-dbContext.Users.Where(predicate);
+typeof(System.Diagnostics.Process),
+typeof(System.IO.File),
+typeof(System.IO.Directory),
+typeof(System.Reflection.Assembly),
+typeof(System.AppDomain),
+typeof(System.Environment),
+typeof(System.Runtime.InteropServices.Marshal)
 ```
 
-This is a significant feature that enables database query translation.
+See [docs/security.md](docs/security.md) for current security documentation.
 
 ---
 
-## Developer Experience
+## Competitor Comparison
 
-### Error Messages
-- Line/column numbers in errors
-- "Did you mean X?" suggestions
-- Syntax highlighting for error location
+### Feature Matrix
 
-### Debugging
-- Step-through evaluation
-- Variable watch
-- Expression trace/explain
+| Feature | CsEval | ExpressionEvaluator | Eval-Expression.NET | Dynamic Expresso |
+|---------|:------:|:-------------------:|:-------------------:|:----------------:|
+| **License** | MIT | MIT | Paid ($499+)¹ | MIT |
+| **Control Flow** |
+| If/else statements | ✅ | ✅ | ✅ | ❌ |
+| Switch statement | ✅ | ❌ | ✅ | ❌ |
+| For loop | ✅ | ✅ | ✅ | ❌ |
+| While loop | ✅ | ✅ | ✅ | ❌ |
+| Foreach loop | ✅ | ✅ | ✅ | ❌ |
+| Do-while loop | ✅ | ✅ | ✅ | ❌ |
+| Break/continue | ✅ | ✅ | ✅ | ❌ |
+| Try-catch | ❌ | ✅ | ✅ | ❌ |
+| **Operators** |
+| Compound assignment | ✅ | ✅ | ✅ | ❌ |
+| Increment/decrement | ✅ | ✅ | ✅ | ❌ |
+| Null-coalescing (`??`) | ✅ | ✅ | ✅ | ✅ |
+| Null-conditional (`?.`) | ✅ | ✅ | ✅ | ⚠️ partial |
+| **Expressions** |
+| Block expressions | ✅ | ✅ | ✅ | ❌ |
+| Lambda expressions | ✅ | ✅ | ✅ | ⚠️ partial |
+| LINQ with lambdas | ✅ | ✅ | ✅ | ⚠️ partial |
+| Interpolated strings | ✅ | ✅ | ✅ | ❌ |
+| **Unique Features** |
+| Object merging (`+`) | ✅ | ❌ | ❌ | ❌ |
+| Spread operator (`...`) | ✅ | ❌ | ❌ | ❌ |
+| **Infrastructure** |
+| Pre-parsing/caching | ✅ | ⚠️ type cache only² | ✅ (Compile) | ✅ |
+| Thread-safe contexts | ✅ | ⚠️ not documented | ⚠️ not documented | ⚠️ issues |
+| DI integration | ✅ | ❌ | ❌ | ❌ |
+| Async auto-unwrap | ✅ | ❌ | ✅ | ❌ |
+| CancellationToken | ✅ | ❌ | ❌ | ❌ |
+| SafeMode | ✅ | ⚠️ granular | ✅ | ❌ |
 
-### Tooling
-- VS Code syntax highlighting
-- Expression validation without execution
-- Type inference / schema detection
+¹ Free only for expressions <50 chars or LINQ Dynamic methods
+² ExpressionEvaluator uses reflection without compilation; caches type resolutions only
+
+### Summary
+
+| Library | Best For | Limitations |
+|---------|----------|-------------|
+| **CsEval** | Rule engines, query DSLs, DI-integrated scenarios | No try-catch, no typed constructors yet |
+| **ExpressionEvaluator** | Scripting with full control flow | No pre-parsing (slow for repeated eval), no switch |
+| **Eval-Expression.NET** | Full C# evaluation (if budget allows) | Expensive ($499+), free tier has 50-char limit |
+| **Dynamic Expresso** | Simple expressions only | No control flow, no blocks, thread-safety issues |
+
+**CsEval offers the best combination of features, performance, and cost for expression evaluation.**
 
 ---
 
-## Non-Goals
+## Implementation Notes
 
-Intentionally not supporting:
+### Type Registry for Constructors
 
-- **Full C# compilation** - Use Roslyn
-- **Class/method definitions** - Expressions only
-- **Async/await syntax** - Methods can be async internally
-- **LINQ query syntax** - Method syntax only (`from x in y select x` → `y.Select(x => x)`)
-- **Unsafe code** - No pointers
-- **Preprocessor** - No `#if`
+Typed constructors require explicit type registration for security:
+
+```csharp
+engine.RegisterType<DateTime>("DateTime");
+engine.RegisterType<Point>("Point");
+
+// Then use in expressions:
+engine.Evaluate("new DateTime(2024, 1, 1)");
+engine.Evaluate("new Point { X = 10, Y = 20 }");
+```
+
+Only registered types can be instantiated (prevents arbitrary type creation).
+
+### Benchmarking
+
+See [docs/benchmarks.md](docs/benchmarks.md) for performance documentation.
+
+```bash
+cd benchmarks/CsEval.Benchmarks
+dotnet run -c Release
+```

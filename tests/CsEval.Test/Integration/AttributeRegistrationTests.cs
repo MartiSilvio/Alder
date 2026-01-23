@@ -1,7 +1,7 @@
 using CsEval.Attributes;
 using NUnit.Framework;
 
-namespace CsEval.Test;
+namespace CsEval.Test.Integration;
 
 [TestFixture]
 public class AttributeRegistrationTests
@@ -13,7 +13,7 @@ public class AttributeRegistrationTests
         engine.RegisterFromType<GlobalFunctions>();
 
         var result = engine.Evaluate("triple(4)");
-        Assert.That(result, Is.EqualTo(12L));
+        Assert.That(result, Is.EqualTo(12));
     }
 
     [Test]
@@ -24,7 +24,7 @@ public class AttributeRegistrationTests
         engine.RegisterFromType(instance);
 
         var result = engine.Evaluate("multiply(3)");
-        Assert.That(result, Is.EqualTo(15L));
+        Assert.That(result, Is.EqualTo(15));
     }
 
     [Test]
@@ -33,8 +33,8 @@ public class AttributeRegistrationTests
         var engine = new CsEvalEngine();
         engine.RegisterFromType<CustomMathModule>();
 
-        Assert.That(engine.Evaluate("CustomMath.Square(4)"), Is.EqualTo(16L));
-        Assert.That(engine.Evaluate("CustomMath.Cube(3)"), Is.EqualTo(27L));
+        Assert.That(engine.Evaluate("CustomMath.Square(4)"), Is.EqualTo(16));
+        Assert.That(engine.Evaluate("CustomMath.Cube(3)"), Is.EqualTo(27));
     }
 
     [Test]
@@ -64,7 +64,7 @@ public class AttributeRegistrationTests
         var engine = new CsEvalEngine();
         engine.RegisterFromAssembly(typeof(AssemblyTestModule).Assembly);
 
-        Assert.That(engine.Evaluate("AssemblyTest.Double(5)"), Is.EqualTo(10L));
+        Assert.That(engine.Evaluate("AssemblyTest.Double(5)"), Is.EqualTo(10));
     }
 
     [Test]
