@@ -55,6 +55,16 @@ engine.Evaluate("orders.Where(x => x.Total > 100).Sum(x => x.Total)");
 engine.Evaluate("new { Name = \"John\", Age = 30 }");
 ```
 
+## Documentation
+
+| Guide | Description |
+|-------|-------------|
+| [Syntax Reference](docs/syntax.md) | Expression grammar, operators, and language constructs |
+| [Features Guide](docs/features.md) | LINQ methods, loops, assignment, built-in modules |
+| [Extensions](docs/extensions.md) | Object merging, spread operator, and CsEval-specific features |
+| [API Reference](docs/api.md) | Complete public API documentation |
+| [Architecture](docs/architecture.md) | Internal design and implementation details |
+
 ## Key Features
 
 ### Expression Syntax
@@ -215,12 +225,6 @@ Each child context:
 - Can be safely used from a single thread
 
 The internal reflection cache (`TypeCache`) is thread-safe and shared globally across all evaluator instances.
-
-## Documentation
-
-- [Syntax Reference](docs/syntax.md) - Expression grammar and language constructs
-- [Features Guide](docs/features.md) - LINQ methods, built-in modules, extensibility
-- [API Reference](docs/api.md) - Complete API documentation
 
 ## License
 

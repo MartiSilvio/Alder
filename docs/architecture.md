@@ -1,6 +1,53 @@
-# CsEval Design Decisions
+# CsEval Architecture
 
-This document explains key architectural decisions in CsEval and the rationale behind them.
+This document explains the internal architecture of CsEval and key design decisions.
+
+## Tree-Walking Interpreter
+
+CsEval uses a **tree-walking interpreter** architecture with three phases:
+
+```
+Source Code → Lexer → Tokens → Parser → AST → Evaluator → Result
+```
+
+### How It Works
+
+1. **Lexer** ([Lexer.cs](../src/CsEval/Parsing/Lexer.cs)): Tokenizes source text into tokens (numbers, operators, identifiers, keywords)
+
+2. **Parser** ([Parser.cs](../src/CsEval/Parsing/Parser.cs)): Uses recursive descent parsing to build an Abstract Syntax Tree (AST). Each grammar rule maps to a parsing method with proper operator precedence.
+
+3. **Evaluator** ([Evaluator.cs](../src/CsEval/Evaluation/Evaluator.cs)): Walks the AST using the visitor pattern (`IExprVisitor<T>`), evaluating each node recursively.
+
+### Why Tree-Walking?
+
+- **Extensibility**: Easy to add custom operators and semantics (like object merging with `+`, spread operators)
+- **Transparency**: Clear separation between parsing and evaluation phases
+- **Flexibility**: The AST can be inspected, cached (pre-parsing), or evaluated with different contexts
+- **Control**: Full control over evaluation semantics without relying on external compilation
+
+### AST Node Types
+
+The AST consists of expression nodes defined in [Ast.cs](../src/CsEval/Parsing/Ast.cs):
+
+```csharp
+// Examples
+BinaryExpr(Left, Op, Right)     // x + y
+CallExpr(Callee, Arguments)     // func(a, b)
+LambdaExpr(Parameters, Body)    // x => x * 2
+BlockExpr(Statements, Return)   // { var x = 1; return x; }
+WhileStatementExpr(Condition, Body)  // while (x > 0) { ... }
+```
+
+Each node implements `Accept<T>(IExprVisitor<T>)` for visitor pattern traversal.
+
+### Evaluation Example
+
+When evaluating `x + y * 2`:
+
+1. Parser builds: `BinaryExpr(IdentifierExpr("x"), +, BinaryExpr(IdentifierExpr("y"), *, LiteralExpr(2)))`
+2. Evaluator visits the outer `BinaryExpr`
+3. Recursively evaluates left (`x` → lookup value) and right (`y * 2` → recursive eval)
+4. Applies the `+` operator to the results
 
 ## LINQ Returns `List<object?>` (Immediate Evaluation)
 
@@ -73,3 +120,7 @@ names.Zip(ages)
 ```
 
 This provides named access without requiring tuple syntax support in the parser.
+
+## Performance
+
+For detailed benchmarking information, see [benchmarks.md](benchmarks.md).

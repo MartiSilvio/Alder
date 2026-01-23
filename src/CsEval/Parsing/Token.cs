@@ -52,6 +52,22 @@ public enum TokenType
     Dot,
     DotDotDot,             // ... (spread operator)
 
+    // Compound Assignment
+    PlusEqual,             // +=
+    MinusEqual,            // -=
+    StarEqual,             // *=
+    SlashEqual,            // /=
+    PercentEqual,          // %=
+    AmpEqual,              // &=
+    PipeEqual,             // |=
+    CaretEqual,            // ^=
+    LessLessEqual,         // <<=
+    GreaterGreaterEqual,   // >>=
+
+    // Increment/Decrement
+    PlusPlus,              // ++
+    MinusMinus,            // --
+
     // Delimiters
     LeftParen,
     RightParen,

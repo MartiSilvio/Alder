@@ -4,7 +4,7 @@ This document covers the complete feature set of CsEval including LINQ methods, 
 
 ## LINQ Methods
 
-All methods work on any `IEnumerable`. Results are `List<object?>` (see [design-decisions.md](design-decisions.md) for rationale).
+All methods work on any `IEnumerable`. Results are `List<object?>` (see [architecture.md](architecture.md) for rationale).
 
 ### Filtering & Projection
 
@@ -100,6 +100,79 @@ items.ToList()                       // Convert to List<object?>
 items.ToArray()                      // Convert to object?[]
 ```
 
+## Assignment
+
+### Basic Assignment
+
+```csharp
+{
+    var x = 10;
+    x = 20;       // Reassign value
+    return x;     // 20
+}
+```
+
+### Compound Assignment
+
+All 10 compound assignment operators are supported:
+
+```csharp
+// Arithmetic
+x += 5;      // x = x + 5
+x -= 3;      // x = x - 3
+x *= 2;      // x = x * 2
+x /= 4;      // x = x / 4
+x %= 3;      // x = x % 3
+
+// Bitwise
+x &= mask;   // x = x & mask
+x |= flags;  // x = x | flags
+x ^= bits;   // x = x ^ bits
+x <<= 2;     // x = x << 2
+x >>= 1;     // x = x >> 1
+```
+
+Compound assignment works with:
+- **Integers**: `int`, `long`, `byte`, `short`, etc.
+- **Floating-point**: `double`, `float`, `decimal`
+- **Strings**: `+=` concatenates strings
+
+```csharp
+{
+    var s = "Hello";
+    s += " World";
+    return s;     // "Hello World"
+}
+```
+
+### Increment/Decrement
+
+Both prefix and postfix increment/decrement operators are supported:
+
+```csharp
+// Prefix: modify, then return new value
+var x = 5;
+var a = ++x;    // a = 6, x = 6
+var b = --x;    // b = 5, x = 5
+
+// Postfix: return old value, then modify
+var y = 10;
+var c = y++;    // c = 10, y = 11
+var d = y--;    // d = 11, y = 10
+```
+
+Commonly used in loops:
+
+```csharp
+{
+    var sum = 0;
+    for (var i = 0; i < 5; i++) {
+        sum += i;
+    }
+    return sum;    // 10
+}
+```
+
 ## Loops
 
 CsEval supports all C# loop types with `break` and `continue` for flow control.
@@ -111,8 +184,8 @@ CsEval supports all C# loop types with `break` and `continue` for flow control.
     var sum = 0;
     var i = 0;
     while (i < 10) {
-        sum = sum + i;
-        i = i + 1;
+        sum += i;
+        i += 1;
     }
     return sum;   // 45
 }
@@ -123,8 +196,8 @@ CsEval supports all C# loop types with `break` and `continue` for flow control.
 ```csharp
 {
     var sum = 0;
-    for (var i = 0; i < 10; i = i + 1) {
-        sum = sum + i;
+    for (var i = 0; i < 10; i += 1) {
+        sum += i;
     }
     return sum;   // 45
 }
@@ -136,7 +209,7 @@ CsEval supports all C# loop types with `break` and `continue` for flow control.
 {
     var sum = 0;
     foreach (var item in items) {
-        sum = sum + item.Value;
+        sum += item.Value;
     }
     return sum;
 }
@@ -148,7 +221,7 @@ CsEval supports all C# loop types with `break` and `continue` for flow control.
 {
     var i = 0;
     do {
-        i = i + 1;
+        i += 1;
     } while (i < 5);
     return i;     // 5
 }
@@ -172,9 +245,9 @@ CsEval supports all C# loop types with `break` and `continue` for flow control.
 // Skip certain elements
 {
     var sum = 0;
-    for (var i = 0; i < 10; i = i + 1) {
+    for (var i = 0; i < 10; i += 1) {
         if (i % 2 == 0) continue;  // Skip even numbers
-        sum = sum + i;
+        sum += i;
     }
     return sum;   // 25 (1+3+5+7+9)
 }

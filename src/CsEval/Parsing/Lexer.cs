@@ -189,10 +189,10 @@ public sealed class Lexer
             case ',': AddToken(TokenType.Comma); break;
             case ':': AddToken(TokenType.Colon); break;
             case ';': AddToken(TokenType.Semicolon); break;
-            case '+': AddToken(TokenType.Plus); break;
-            case '-': AddToken(TokenType.Minus); break;
-            case '*': AddToken(TokenType.Star); break;
-            case '%': AddToken(TokenType.Percent); break;
+            case '+': AddToken(Match('+') ? TokenType.PlusPlus : Match('=') ? TokenType.PlusEqual : TokenType.Plus); break;
+            case '-': AddToken(Match('-') ? TokenType.MinusMinus : Match('=') ? TokenType.MinusEqual : TokenType.Minus); break;
+            case '*': AddToken(Match('=') ? TokenType.StarEqual : TokenType.Star); break;
+            case '%': AddToken(Match('=') ? TokenType.PercentEqual : TokenType.Percent); break;
 
             case '.':
                 if (Match('.') && Match('.'))
@@ -210,27 +210,37 @@ public sealed class Lexer
                 break;
 
             case '<':
-                if (Match('<')) AddToken(TokenType.LessLess);
+                if (Match('<'))
+                {
+                    AddToken(Match('=') ? TokenType.LessLessEqual : TokenType.LessLess);
+                }
                 else if (Match('=')) AddToken(TokenType.LessEqual);
                 else AddToken(TokenType.Less);
                 break;
 
             case '>':
-                if (Match('>')) AddToken(TokenType.GreaterGreater);
+                if (Match('>'))
+                {
+                    AddToken(Match('=') ? TokenType.GreaterGreaterEqual : TokenType.GreaterGreater);
+                }
                 else if (Match('=')) AddToken(TokenType.GreaterEqual);
                 else AddToken(TokenType.Greater);
                 break;
 
             case '&':
-                AddToken(Match('&') ? TokenType.AmpAmp : TokenType.Amp);
+                if (Match('&')) AddToken(TokenType.AmpAmp);
+                else if (Match('=')) AddToken(TokenType.AmpEqual);
+                else AddToken(TokenType.Amp);
                 break;
 
             case '|':
-                AddToken(Match('|') ? TokenType.PipePipe : TokenType.Pipe);
+                if (Match('|')) AddToken(TokenType.PipePipe);
+                else if (Match('=')) AddToken(TokenType.PipeEqual);
+                else AddToken(TokenType.Pipe);
                 break;
 
             case '^':
-                AddToken(TokenType.Caret);
+                AddToken(Match('=') ? TokenType.CaretEqual : TokenType.Caret);
                 break;
 
             case '~':
@@ -262,6 +272,10 @@ public sealed class Lexer
                         Advance();
                     }
                     if (!IsAtEnd()) { Advance(); Advance(); } // consume */
+                }
+                else if (Match('='))
+                {
+                    AddToken(TokenType.SlashEqual);
                 }
                 else
                 {

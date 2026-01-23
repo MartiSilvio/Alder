@@ -89,7 +89,7 @@ public sealed partial class Evaluator
                 return member switch
                 {
                     MethodInfo m => new ModuleMethodRef(resolver, m),
-                    PropertyInfo p => p.GetValue(resolver.Resolve()),
+                    PropertyInfo p => TypeCache.GetPropertyValue(p, resolver.Resolve()!),
                     _ => throw new EvalException($"Unsupported member type '{member.GetType().Name}'")
                 };
             }
@@ -122,7 +122,7 @@ public sealed partial class Evaluator
 
         var prop = TypeCache.GetProperty(type, name, bindingFlags);
         if (prop != null)
-            return prop.GetValue(obj);
+            return TypeCache.GetPropertyValue(prop, obj);
 
         var field = TypeCache.GetField(type, name, bindingFlags);
         if (field != null)

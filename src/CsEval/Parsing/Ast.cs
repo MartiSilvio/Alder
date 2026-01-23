@@ -23,6 +23,8 @@ public interface IExprVisitor<out T>
     // Assignment
     T VisitAssign(AssignExpr expr);
     T VisitNullCoalesceAssign(NullCoalesceAssignExpr expr);
+    T VisitCompoundAssign(CompoundAssignExpr expr);
+    T VisitIncrementDecrement(IncrementDecrementExpr expr);
 
     // Null handling & Conditionals
     T VisitNullCoalesce(NullCoalesceExpr expr);
@@ -123,6 +125,18 @@ public sealed record AssignExpr(Token Name, Expr Value) : Expr
 public sealed record NullCoalesceAssignExpr(Token Name, Expr Value) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitNullCoalesceAssign(this);
+}
+
+// Compound assignment: x += y, x -= y, x *= y, etc.
+public sealed record CompoundAssignExpr(Token Name, Token Op, Expr Value) : Expr
+{
+    public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitCompoundAssign(this);
+}
+
+// Increment/Decrement: ++x, x++, --x, x--
+public sealed record IncrementDecrementExpr(Token Name, Token Op, bool IsPrefix) : Expr
+{
+    public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitIncrementDecrement(this);
 }
 
 #endregion

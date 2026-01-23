@@ -1,7 +1,22 @@
 {
   "permissions": {
     "allow": [
-      "Bash(dotnet build:*)"
+      "Bash(dotnet build:*)",
+      "Bash(wc:*)",
+      "Bash(git mv:*)",
+      "Bash(for file in Loops/*.cs)",
+      "Bash(do sed -i '' 's/namespace CsEval\\\\.Test;/namespace CsEval.Test.Loops;/' \"$file\")",
+      "Bash(done)",
+      "Bash(for file in Parsing/*.cs)",
+      "Bash(do sed -i '' 's/namespace CsEval\\\\.Test;/namespace CsEval.Test.Parsing;/' \"$file\")",
+      "Bash(for file in Core/*.cs)",
+      "Bash(do sed -i '' 's/namespace CsEval\\\\.Test;/namespace CsEval.Test.Core;/' \"$file\")",
+      "Bash(for file in Integration/*.cs)",
+      "Bash(do sed -i '' 's/namespace CsEval\\\\.Test;/namespace CsEval.Test.Integration;/' \"$file\")",
+      "Bash(for file in Performance/*.cs)",
+      "Bash(do sed -i '' 's/namespace CsEval\\\\.Test;/namespace CsEval.Test.Performance;/' \"$file\")",
+      "Bash(dotnet sln:*)",
+      "Bash(dotnet run:*)"
     ]
   }
 }

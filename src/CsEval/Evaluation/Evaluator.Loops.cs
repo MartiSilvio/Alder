@@ -1,0 +1,171 @@
+using CsEval.Parsing;
+
+namespace CsEval.Evaluation;
+
+public sealed partial class Evaluator
+{
+    public object? VisitBreak(BreakExpr expr)
+    {
+        throw new BreakException();
+    }
+
+    public object? VisitContinue(ContinueExpr expr)
+    {
+        throw new ContinueException();
+    }
+
+    public object? VisitWhile(WhileStatementExpr expr)
+    {
+        var iterations = 0;
+        var maxIterations = _options.MaxIterations;
+
+        while (IsTruthy(Evaluate(expr.Condition)))
+        {
+            _cancellationToken.ThrowIfCancellationRequested();
+
+            if (maxIterations > 0 && ++iterations > maxIterations)
+                throw new EvalException($"While loop exceeded maximum iterations ({maxIterations}). Possible infinite loop.");
+
+            try
+            {
+                foreach (var stmt in expr.Body)
+                {
+                    _cancellationToken.ThrowIfCancellationRequested();
+                    Evaluate(stmt);
+                }
+            }
+            catch (BreakException)
+            {
+                break;
+            }
+            catch (ContinueException)
+            {
+                continue;
+            }
+        }
+
+        return null;
+    }
+
+    public object? VisitFor(ForStatementExpr expr)
+    {
+        var iterations = 0;
+        var maxIterations = _options.MaxIterations;
+
+        // Execute initializer (if present)
+        if (expr.Initializer != null)
+        {
+            Evaluate(expr.Initializer);
+        }
+
+        // Loop while condition is true (or forever if no condition)
+        while (expr.Condition == null || IsTruthy(Evaluate(expr.Condition)))
+        {
+            _cancellationToken.ThrowIfCancellationRequested();
+
+            if (maxIterations > 0 && ++iterations > maxIterations)
+                throw new EvalException($"For loop exceeded maximum iterations ({maxIterations}). Possible infinite loop.");
+
+            try
+            {
+                foreach (var stmt in expr.Body)
+                {
+                    _cancellationToken.ThrowIfCancellationRequested();
+                    Evaluate(stmt);
+                }
+            }
+            catch (BreakException)
+            {
+                break;
+            }
+            catch (ContinueException)
+            {
+                // Continue skips to increment
+            }
+
+            // Execute increment (if present)
+            if (expr.Increment != null)
+            {
+                Evaluate(expr.Increment);
+            }
+        }
+
+        return null;
+    }
+
+    public object? VisitDoWhile(DoWhileStatementExpr expr)
+    {
+        var iterations = 0;
+        var maxIterations = _options.MaxIterations;
+
+        do
+        {
+            _cancellationToken.ThrowIfCancellationRequested();
+
+            if (maxIterations > 0 && ++iterations > maxIterations)
+                throw new EvalException($"Do-while loop exceeded maximum iterations ({maxIterations}). Possible infinite loop.");
+
+            try
+            {
+                foreach (var stmt in expr.Body)
+                {
+                    _cancellationToken.ThrowIfCancellationRequested();
+                    Evaluate(stmt);
+                }
+            }
+            catch (BreakException)
+            {
+                break;
+            }
+            catch (ContinueException)
+            {
+                continue;
+            }
+        } while (IsTruthy(Evaluate(expr.Condition)));
+
+        return null;
+    }
+
+    public object? VisitForEach(ForEachStatementExpr expr)
+    {
+        var iterations = 0;
+        var maxIterations = _options.MaxIterations;
+
+        var collection = Evaluate(expr.Collection);
+
+        if (collection is not IEnumerable enumerable)
+        {
+            throw new EvalException($"Cannot iterate over type '{collection?.GetType().Name ?? "null"}' in foreach");
+        }
+
+        foreach (var item in enumerable)
+        {
+            _cancellationToken.ThrowIfCancellationRequested();
+
+            if (maxIterations > 0 && ++iterations > maxIterations)
+                throw new EvalException($"Foreach loop exceeded maximum iterations ({maxIterations}). Possible infinite loop.");
+
+            // Set the loop variable for this iteration
+            _context.Define(expr.VariableName.Lexeme, item);
+
+            try
+            {
+                foreach (var stmt in expr.Body)
+                {
+                    _cancellationToken.ThrowIfCancellationRequested();
+                    Evaluate(stmt);
+                }
+            }
+            catch (BreakException)
+            {
+                break;
+            }
+            catch (ContinueException)
+            {
+                continue;
+            }
+        }
+
+        return null;
+    }
+}

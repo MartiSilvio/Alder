@@ -6,8 +6,9 @@ This file provides context for AI assistants working with the CsEval codebase.
 > - [features.md](docs/features.md) - Supported features and syntax
 > - [syntax.md](docs/syntax.md) - Complete syntax reference
 > - [api.md](docs/api.md) - Public API documentation
-> - [design-decisions.md](docs/design-decisions.md) - Architecture decisions
+> - [architecture.md](docs/architecture.md) - Internal architecture and design decisions
 > - [extensions.md](docs/extensions.md) - How to extend CsEval
+> - [benchmarks.md](docs/benchmarks.md) - Performance benchmarks and optimization
 >
 > **Feature Status**: See [ROADMAP.md](ROADMAP.md) for implemented features and future plans.
 
@@ -120,19 +121,17 @@ All loops (`while`, `for`, `foreach`, `do-while`) have a configurable iteration 
 
 ## Test Structure
 
-Tests are in `tests/CsEval.Test/`:
-- `EngineTests.cs` - High-level API
-- `ParserTests.cs` - Parser behavior
-- `LexerTests.cs` - Tokenization
-- `ValidationTests.cs` - Error handling
-- `WhileLoopTests.cs` - While loop tests (incl. break/continue)
-- `ForLoopTests.cs` - For loop tests (incl. break/continue)
-- `ForEachLoopTests.cs` - Foreach loop tests (incl. break/continue)
-- `DoWhileLoopTests.cs` - Do-while loop tests (incl. break/continue)
-- `AssignmentTests.cs` - Assignment tests
-- `ThreadSafetyTests.cs` - Thread safety
-- `AsyncTests.cs` - Async evaluation
-- `Evaluator/*.cs` - Feature-specific evaluator tests
+Tests are organized in `tests/CsEval.Test/`:
+
+```
+CsEval.Test/
+├── Core/           # Engine, validation, thread safety
+├── Parsing/        # Lexer and parser tests
+├── Evaluator/      # Expression evaluation (arithmetic, LINQ, collections, etc.)
+├── Loops/          # While, for, foreach, do-while tests
+├── Integration/    # Async, DI, caching, attribute registration
+└── Performance/    # Benchmarks
+```
 
 ## Running Tests
 

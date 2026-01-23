@@ -3,7 +3,7 @@ using CsEval.Evaluation;
 using CsEval.Parsing;
 using NUnit.Framework;
 
-namespace CsEval.Test;
+namespace CsEval.Test.Performance;
 
 [TestFixture]
 public class BenchmarkTests

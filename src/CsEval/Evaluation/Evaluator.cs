@@ -211,6 +211,64 @@ public sealed partial class Evaluator : IExprVisitor<object?>
         return value;
     }
 
+    public object? VisitCompoundAssign(CompoundAssignExpr expr)
+    {
+        var name = expr.Name.Lexeme;
+        var currentValue = _context.Get(name);
+        var rightValue = Evaluate(expr.Value);
+
+        var result = expr.Op.Type switch
+        {
+            TokenType.PlusEqual => Add(currentValue, rightValue),
+            TokenType.MinusEqual => Subtract(currentValue, rightValue),
+            TokenType.StarEqual => Multiply(currentValue, rightValue),
+            TokenType.SlashEqual => Divide(currentValue, rightValue),
+            TokenType.PercentEqual => Modulo(currentValue, rightValue),
+            TokenType.AmpEqual => BitwiseAnd(currentValue, rightValue),
+            TokenType.PipeEqual => BitwiseOr(currentValue, rightValue),
+            TokenType.CaretEqual => BitwiseXor(currentValue, rightValue),
+            TokenType.LessLessEqual => LeftShift(currentValue, rightValue),
+            TokenType.GreaterGreaterEqual => RightShift(currentValue, rightValue),
+            _ => throw new EvalException($"Unknown compound assignment operator '{expr.Op.Lexeme}'")
+        };
+
+        _context.Set(name, result);
+        return result;
+    }
+
+    public object? VisitIncrementDecrement(IncrementDecrementExpr expr)
+    {
+        var name = expr.Name.Lexeme;
+        var currentValue = _context.Get(name);
+
+        // Calculate new value (increment or decrement by 1)
+        // Use the appropriate type to preserve type in arithmetic operations
+        object one = currentValue switch
+        {
+            int => 1,
+            long => 1L,
+            double => 1.0,
+            float => 1.0f,
+            decimal => 1m,
+            short => 1,  // promotes to int in arithmetic
+            byte => 1,   // promotes to int in arithmetic
+            sbyte => 1,  // promotes to int in arithmetic
+            ushort => 1, // promotes to int in arithmetic
+            uint => 1u,
+            ulong => 1ul,
+            _ => 1
+        };
+
+        var newValue = expr.Op.Type == TokenType.PlusPlus
+            ? Add(currentValue, one)
+            : Subtract(currentValue, one);
+
+        _context.Set(name, newValue);
+
+        // Prefix returns new value, postfix returns old value
+        return expr.IsPrefix ? newValue : currentValue;
+    }
+
     public object? VisitInterpolatedString(InterpolatedStringExpr expr)
     {
         var sb = new StringBuilder();
@@ -272,12 +330,12 @@ public sealed partial class Evaluator : IExprVisitor<object?>
                 }
                 else if (spreadValue != null)
                 {
-                    // Spread from regular object via reflection
+                    // Spread from regular object via compiled getters
                     var type = spreadValue.GetType();
                     foreach (var prop in TypeCache.GetProperties(type, BindingFlags.Public | BindingFlags.Instance))
                     {
                         if (prop.CanRead)
-                            result[prop.Name] = prop.GetValue(spreadValue);
+                            result[prop.Name] = TypeCache.GetPropertyValue(prop, spreadValue);
                     }
                 }
             }
@@ -333,220 +391,6 @@ public sealed partial class Evaluator : IExprVisitor<object?>
         return value;
     }
 
-    private static object? ValidateAndCoerceType(Token typeToken, object? value, string varName)
-    {
-        return typeToken.Type switch
-        {
-            TokenType.Int => CoerceToInt(value, varName),
-            TokenType.Long => CoerceToLong(value, varName),
-            TokenType.Double => CoerceToDouble(value, varName),
-            TokenType.Float => CoerceToFloat(value, varName),
-            TokenType.Decimal => CoerceToDecimal(value, varName),
-            TokenType.StringType => CoerceToString(value, varName),
-            TokenType.Bool => CoerceToBool(value, varName),
-            TokenType.Object => value, // object accepts anything
-            TokenType.Sbyte => CoerceToSbyte(value, varName),
-            TokenType.Byte => CoerceToByte(value, varName),
-            TokenType.Short => CoerceToShort(value, varName),
-            TokenType.Ushort => CoerceToUshort(value, varName),
-            TokenType.Uint => CoerceToUint(value, varName),
-            TokenType.Ulong => CoerceToUlong(value, varName),
-            TokenType.Char => CoerceToChar(value, varName),
-            _ => throw new EvalException($"Unknown type '{typeToken.Lexeme}'")
-        };
-    }
-
-    private static int CoerceToInt(object? value, string varName)
-    {
-        return value switch
-        {
-            null => throw new EvalException($"Cannot assign null to int variable '{varName}'"),
-            int i => i,
-            long l when l >= int.MinValue && l <= int.MaxValue => (int)l,
-            sbyte sb => sb,
-            byte b => b,
-            short s => s,
-            ushort us => us,
-            _ => throw new EvalException($"Cannot assign {value.GetType().Name} to int variable '{varName}'")
-        };
-    }
-
-    private static long CoerceToLong(object? value, string varName)
-    {
-        return value switch
-        {
-            null => throw new EvalException($"Cannot assign null to long variable '{varName}'"),
-            long l => l,
-            int i => i,
-            sbyte sb => sb,
-            byte b => b,
-            short s => s,
-            ushort us => us,
-            uint ui => ui,
-            _ => throw new EvalException($"Cannot assign {value.GetType().Name} to long variable '{varName}'")
-        };
-    }
-
-    private static double CoerceToDouble(object? value, string varName)
-    {
-        return value switch
-        {
-            null => throw new EvalException($"Cannot assign null to double variable '{varName}'"),
-            double d => d,
-            float f => f,
-            int i => i,
-            long l => l,
-            sbyte sb => sb,
-            byte b => b,
-            short s => s,
-            ushort us => us,
-            uint ui => ui,
-            ulong ul => ul,
-            _ => throw new EvalException($"Cannot assign {value.GetType().Name} to double variable '{varName}'")
-        };
-    }
-
-    private static float CoerceToFloat(object? value, string varName)
-    {
-        return value switch
-        {
-            null => throw new EvalException($"Cannot assign null to float variable '{varName}'"),
-            float f => f,
-            int i => i,
-            long l => l,
-            sbyte sb => sb,
-            byte b => b,
-            short s => s,
-            ushort us => us,
-            _ => throw new EvalException($"Cannot assign {value.GetType().Name} to float variable '{varName}'")
-        };
-    }
-
-    private static decimal CoerceToDecimal(object? value, string varName)
-    {
-        return value switch
-        {
-            null => throw new EvalException($"Cannot assign null to decimal variable '{varName}'"),
-            decimal m => m,
-            int i => i,
-            long l => l,
-            sbyte sb => sb,
-            byte b => b,
-            short s => s,
-            ushort us => us,
-            uint ui => ui,
-            ulong ul => ul,
-            _ => throw new EvalException($"Cannot assign {value.GetType().Name} to decimal variable '{varName}'")
-        };
-    }
-
-    private static string CoerceToString(object? value, string varName)
-    {
-        return value switch
-        {
-            null => throw new EvalException($"Cannot assign null to string variable '{varName}'"),
-            string s => s,
-            _ => throw new EvalException($"Cannot assign {value.GetType().Name} to string variable '{varName}'")
-        };
-    }
-
-    private static bool CoerceToBool(object? value, string varName)
-    {
-        return value switch
-        {
-            null => throw new EvalException($"Cannot assign null to bool variable '{varName}'"),
-            bool b => b,
-            _ => throw new EvalException($"Cannot assign {value.GetType().Name} to bool variable '{varName}'")
-        };
-    }
-
-    private static sbyte CoerceToSbyte(object? value, string varName)
-    {
-        return value switch
-        {
-            null => throw new EvalException($"Cannot assign null to sbyte variable '{varName}'"),
-            sbyte sb => sb,
-            int i when i >= sbyte.MinValue && i <= sbyte.MaxValue => (sbyte)i,
-            _ => throw new EvalException($"Cannot assign {value.GetType().Name} to sbyte variable '{varName}'")
-        };
-    }
-
-    private static byte CoerceToByte(object? value, string varName)
-    {
-        return value switch
-        {
-            null => throw new EvalException($"Cannot assign null to byte variable '{varName}'"),
-            byte b => b,
-            int i when i >= byte.MinValue && i <= byte.MaxValue => (byte)i,
-            _ => throw new EvalException($"Cannot assign {value.GetType().Name} to byte variable '{varName}'")
-        };
-    }
-
-    private static short CoerceToShort(object? value, string varName)
-    {
-        return value switch
-        {
-            null => throw new EvalException($"Cannot assign null to short variable '{varName}'"),
-            short s => s,
-            sbyte sb => sb,
-            byte b => b,
-            int i when i >= short.MinValue && i <= short.MaxValue => (short)i,
-            _ => throw new EvalException($"Cannot assign {value.GetType().Name} to short variable '{varName}'")
-        };
-    }
-
-    private static ushort CoerceToUshort(object? value, string varName)
-    {
-        return value switch
-        {
-            null => throw new EvalException($"Cannot assign null to ushort variable '{varName}'"),
-            ushort us => us,
-            byte b => b,
-            int i when i >= ushort.MinValue && i <= ushort.MaxValue => (ushort)i,
-            _ => throw new EvalException($"Cannot assign {value.GetType().Name} to ushort variable '{varName}'")
-        };
-    }
-
-    private static uint CoerceToUint(object? value, string varName)
-    {
-        return value switch
-        {
-            null => throw new EvalException($"Cannot assign null to uint variable '{varName}'"),
-            uint ui => ui,
-            byte b => b,
-            ushort us => us,
-            int i when i >= 0 => (uint)i,
-            _ => throw new EvalException($"Cannot assign {value.GetType().Name} to uint variable '{varName}'")
-        };
-    }
-
-    private static ulong CoerceToUlong(object? value, string varName)
-    {
-        return value switch
-        {
-            null => throw new EvalException($"Cannot assign null to ulong variable '{varName}'"),
-            ulong ul => ul,
-            byte b => b,
-            ushort us => us,
-            uint ui => ui,
-            int i when i >= 0 => (ulong)i,
-            long l when l >= 0 => (ulong)l,
-            _ => throw new EvalException($"Cannot assign {value.GetType().Name} to ulong variable '{varName}'")
-        };
-    }
-
-    private static char CoerceToChar(object? value, string varName)
-    {
-        return value switch
-        {
-            null => throw new EvalException($"Cannot assign null to char variable '{varName}'"),
-            char c => c,
-            string s when s.Length == 1 => s[0],
-            int i when i >= char.MinValue && i <= char.MaxValue => (char)i,
-            _ => throw new EvalException($"Cannot assign {value.GetType().Name} to char variable '{varName}'")
-        };
-    }
-
     public object? VisitNew(NewExpr expr)
     {
         return Evaluate(expr.Initializer);
@@ -582,170 +426,6 @@ public sealed partial class Evaluator : IExprVisitor<object?>
         throw new ReturnValue(value);
     }
 
-    public object? VisitBreak(BreakExpr expr)
-    {
-        throw new BreakException();
-    }
-
-    public object? VisitContinue(ContinueExpr expr)
-    {
-        throw new ContinueException();
-    }
-
-    public object? VisitWhile(WhileStatementExpr expr)
-    {
-        var iterations = 0;
-        var maxIterations = _options.MaxIterations;
-
-        while (IsTruthy(Evaluate(expr.Condition)))
-        {
-            _cancellationToken.ThrowIfCancellationRequested();
-
-            if (maxIterations > 0 && ++iterations > maxIterations)
-                throw new EvalException($"While loop exceeded maximum iterations ({maxIterations}). Possible infinite loop.");
-
-            try
-            {
-                foreach (var stmt in expr.Body)
-                {
-                    _cancellationToken.ThrowIfCancellationRequested();
-                    Evaluate(stmt);
-                }
-            }
-            catch (BreakException)
-            {
-                break;
-            }
-            catch (ContinueException)
-            {
-                continue;
-            }
-        }
-
-        return null;
-    }
-
-    public object? VisitFor(ForStatementExpr expr)
-    {
-        var iterations = 0;
-        var maxIterations = _options.MaxIterations;
-
-        // Execute initializer (if present)
-        if (expr.Initializer != null)
-        {
-            Evaluate(expr.Initializer);
-        }
-
-        // Loop while condition is true (or forever if no condition)
-        while (expr.Condition == null || IsTruthy(Evaluate(expr.Condition)))
-        {
-            _cancellationToken.ThrowIfCancellationRequested();
-
-            if (maxIterations > 0 && ++iterations > maxIterations)
-                throw new EvalException($"For loop exceeded maximum iterations ({maxIterations}). Possible infinite loop.");
-
-            try
-            {
-                foreach (var stmt in expr.Body)
-                {
-                    _cancellationToken.ThrowIfCancellationRequested();
-                    Evaluate(stmt);
-                }
-            }
-            catch (BreakException)
-            {
-                break;
-            }
-            catch (ContinueException)
-            {
-                // Continue skips to increment
-            }
-
-            // Execute increment (if present)
-            if (expr.Increment != null)
-            {
-                Evaluate(expr.Increment);
-            }
-        }
-
-        return null;
-    }
-
-    public object? VisitDoWhile(DoWhileStatementExpr expr)
-    {
-        var iterations = 0;
-        var maxIterations = _options.MaxIterations;
-
-        do
-        {
-            _cancellationToken.ThrowIfCancellationRequested();
-
-            if (maxIterations > 0 && ++iterations > maxIterations)
-                throw new EvalException($"Do-while loop exceeded maximum iterations ({maxIterations}). Possible infinite loop.");
-
-            try
-            {
-                foreach (var stmt in expr.Body)
-                {
-                    _cancellationToken.ThrowIfCancellationRequested();
-                    Evaluate(stmt);
-                }
-            }
-            catch (BreakException)
-            {
-                break;
-            }
-            catch (ContinueException)
-            {
-                continue;
-            }
-        } while (IsTruthy(Evaluate(expr.Condition)));
-
-        return null;
-    }
-
-    public object? VisitForEach(ForEachStatementExpr expr)
-    {
-        var iterations = 0;
-        var maxIterations = _options.MaxIterations;
-
-        var collection = Evaluate(expr.Collection);
-
-        if (collection is not IEnumerable enumerable)
-        {
-            throw new EvalException($"Cannot iterate over type '{collection?.GetType().Name ?? "null"}' in foreach");
-        }
-
-        foreach (var item in enumerable)
-        {
-            _cancellationToken.ThrowIfCancellationRequested();
-
-            if (maxIterations > 0 && ++iterations > maxIterations)
-                throw new EvalException($"Foreach loop exceeded maximum iterations ({maxIterations}). Possible infinite loop.");
-
-            // Set the loop variable for this iteration
-            _context.Define(expr.VariableName.Lexeme, item);
-
-            try
-            {
-                foreach (var stmt in expr.Body)
-                {
-                    _cancellationToken.ThrowIfCancellationRequested();
-                    Evaluate(stmt);
-                }
-            }
-            catch (BreakException)
-            {
-                break;
-            }
-            catch (ContinueException)
-            {
-                continue;
-            }
-        }
-
-        return null;
-    }
 }
 
 internal sealed record FunctionRef(string Name, Func<object?[], object?> Function)

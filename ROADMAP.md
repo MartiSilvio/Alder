@@ -59,10 +59,10 @@ Dynamic Expresso has ZERO loop support. This is their most painful limitation.
 | Feature | Syntax | Priority | Notes |
 |---------|--------|----------|-------|
 | ~~**Basic assignment**~~ | `x = value` | ✅ | Update existing variable |
-| **Compound assignment** | `x += value` | Critical | Issue #251 in DE |
+| ~~**Compound assignment**~~ | `x += value` | ✅ | All 10 operators: `+=`, `-=`, `*=`, `/=`, `%=`, `&=`, `\|=`, `^=`, `<<=`, `>>=` |
 | **Index set** | `arr[0] = value` | Critical | DE can read but not write! |
 | **Property set** | `obj.Prop = value` | High | |
-| Increment/Decrement | `x++`, `--x` | Medium | Pre/post variants |
+| ~~**Increment/Decrement**~~ | `x++`, `--x` | ✅ | Prefix and postfix variants |
 
 ### **3. Type Operations**
 
@@ -233,7 +233,9 @@ Intentionally not supporting:
 4. ~~All loops~~ ✅ - **DONE** (`while`, `for`, `foreach`, `do-while` with configurable iteration limit)
 5. ~~Break/continue~~ ✅ - **DONE** (works in all loop types)
 6. ~~Basic assignment (`x = value`)~~ ✅ - **DONE**
-7. Compound assignment (`+=`, `-=`) and index set - **Next priority**
+7. ~~Compound assignment~~ ✅ - **DONE** (all 10 operators: `+=`, `-=`, `*=`, `/=`, `%=`, `&=`, `|=`, `^=`, `<<=`, `>>=`)
+8. ~~Increment/decrement~~ ✅ - **DONE** (prefix and postfix: `++x`, `x++`, `--x`, `x--`)
+9. Index set (`arr[0] = value`) and property set (`obj.Prop = value`) - **Next priority**
 
 ### Should Have (Common Requests)
 6. Pattern matching (`is`, `is not`, `switch` expression)
@@ -259,10 +261,29 @@ Intentionally not supporting:
 | All loops (while/for/foreach/do-while) | ✅ | ❌ | ❌ |
 | Break/continue | ✅ | ❌ | ❌ |
 | Assignment | ✅ | ❌ | ❌ |
+| Compound assignment (+=, -=, etc.) | ✅ | ❌ | ❌ |
+| Increment/decrement (++x, x++) | ✅ | ❌ | ❌ |
 | Object merging | ✅ | ❌ | ❌ |
 | Spread operator | ✅ | ❌ | ❌ |
 | Thread-safe | ✅ | ⚠️ (had issues) | ? |
 | DI integration | ✅ | ❌ | ❌ |
-| Performance | Fast | ~0.1ms | Fast |
+| Performance | [Benchmarked](../benchmarks/README.md) | ~0.1ms | Fast |
 
-**Key insight**: CsEval is the most feature-complete expression evaluator in the .NET ecosystem with full loop support (while, for, foreach, do-while), break/continue, and assignment.
+**Key insight**: CsEval is the most feature-complete expression evaluator in the .NET ecosystem with full loop support (while, for, foreach, do-while), break/continue, assignment, compound assignment, and increment/decrement operators.
+
+### Benchmarking
+
+CsEval includes a comprehensive benchmark suite using BenchmarkDotNet:
+
+```bash
+cd benchmarks/CsEval.Benchmarks
+dotnet run -c Release
+```
+
+Benchmarks include:
+- **Standard language benchmarks** (Computer Language Benchmarks Game): Fibonacci, prime check, factorial, Collatz sequence
+- **CsEval-specific**: Parse time, evaluate time, pre-parsed vs on-the-fly
+- **LINQ**: Where, Select, Sum at different collection sizes
+- **Control flow**: Loops and conditionals
+
+See [benchmarks/README.md](../benchmarks/README.md) for details.

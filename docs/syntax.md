@@ -8,7 +8,7 @@ See also: [Extensions](extensions.md)
 
 ## Expression Precedence (lowest to highest)
 
-1. Assignment: `??=`
+1. Assignment: `=`, `??=`, `+=`, `-=`, `*=`, `/=`, `%=`, `&=`, `|=`, `^=`, `<<=`, `>>=`
 2. Null-coalescing: `??`
 3. Ternary: `? :`
 4. Logical OR: `||`
@@ -21,8 +21,8 @@ See also: [Extensions](extensions.md)
 11. Shift: `<<`, `>>`
 12. Additive: `+`, `-`
 13. Multiplicative: `*`, `/`, `%`
-14. Unary: `-`, `!`, `~`
-15. Postfix: `.`, `?.`, `[]`, `()`
+14. Unary: `-`, `!`, `~`, `++` (prefix), `--` (prefix)
+15. Postfix: `.`, `?.`, `[]`, `()`, `++` (postfix), `--` (postfix)
 16. Primary: literals, identifiers, grouping
 
 ## Literals
@@ -122,13 +122,55 @@ Short-circuit evaluation is used for `&&` and `||`.
 
 Bitwise operations convert operands to integers (truncating decimals) and return `long`.
 
+### Assignment
+
+| Operator | Description                | Example     |
+| -------- | -------------------------- | ----------- |
+| `=`      | Assignment                 | `x = y`     |
+| `??=`    | Null-coalescing assignment | `x ??= y`   |
+
+### Compound Assignment
+
+| Operator | Description       | Example    |
+| -------- | ----------------- | ---------- |
+| `+=`     | Add and assign    | `x += 5`   |
+| `-=`     | Subtract and assign | `x -= 3` |
+| `*=`     | Multiply and assign | `x *= 2` |
+| `/=`     | Divide and assign | `x /= 4`   |
+| `%=`     | Modulo and assign | `x %= 3`   |
+| `&=`     | Bitwise AND and assign | `x &= mask` |
+| `\|=`    | Bitwise OR and assign  | `x \|= flags` |
+| `^=`     | Bitwise XOR and assign | `x ^= bits` |
+| `<<=`    | Left shift and assign  | `x <<= 2`  |
+| `>>=`    | Right shift and assign | `x >>= 1`  |
+
+Compound assignment works with numeric types and strings (`+=` for concatenation).
+
+### Increment/Decrement
+
+| Operator | Description           | Example | Returns |
+| -------- | --------------------- | ------- | ------- |
+| `++x`    | Prefix increment      | `++x`   | New value after increment |
+| `x++`    | Postfix increment     | `x++`   | Old value before increment |
+| `--x`    | Prefix decrement      | `--x`   | New value after decrement |
+| `x--`    | Postfix decrement     | `x--`   | Old value before decrement |
+
+```csharp
+var x = 5;
+var a = ++x;   // a = 6, x = 6 (increment then return)
+var b = x++;   // b = 6, x = 7 (return then increment)
+var c = --x;   // c = 6, x = 6 (decrement then return)
+var d = x--;   // d = 6, x = 5 (return then decrement)
+```
+
+Works with all numeric types: `int`, `long`, `double`, `float`, `decimal`.
+
 ### Null Handling
 
 | Operator | Description                | Example     |
 | -------- | -------------------------- | ----------- |
 | `??`     | Null-coalescing            | `a ?? b`    |
 | `?.`     | Null-conditional           | `obj?.Prop` |
-| `??=`    | Null-coalescing assignment | `x ??= y`   |
 
 ### Ternary
 
@@ -286,7 +328,7 @@ while (condition) doSomething();
 #### For Loop
 
 ```csharp
-for (var i = 0; i < 10; i = i + 1) {
+for (var i = 0; i < 10; i += 1) {
     // body
 }
 
@@ -326,7 +368,7 @@ while (true) {
 }
 
 // Continue skips to next iteration
-for (var i = 0; i < 10; i = i + 1) {
+for (var i = 0; i < 10; i += 1) {
     if (i % 2 == 0) continue;  // skip even numbers
     process(i);
 }
@@ -381,7 +423,7 @@ Type keywords (matching C#):
 
 ```ebnf
 expression     = assignment ;
-assignment     = null_coalesce ( "??=" assignment )? ;
+assignment     = null_coalesce ( ( "??=" | "=" | "+=" | "-=" | "*=" | "/=" | "%=" | "&=" | "|=" | "^=" | "<<=" | ">>=" ) assignment )? ;
 null_coalesce  = conditional ( "??" conditional )* ;
 conditional    = or ( "?" expression ":" expression )? ;
 or             = and ( "||" and )* ;
@@ -394,8 +436,8 @@ comparison     = shift ( ( "<" | "<=" | ">" | ">=" ) shift )* ;
 shift          = term ( ( "<<" | ">>" ) term )* ;
 term           = factor ( ( "+" | "-" ) factor )* ;
 factor         = unary ( ( "*" | "/" | "%" ) unary )* ;
-unary          = ( "!" | "-" | "~" ) unary | postfix ;
-postfix        = primary ( "." IDENTIFIER | "?." IDENTIFIER | "[" expression "]" | "(" arguments? ")" )* ;
+unary          = ( "!" | "-" | "~" ) unary | ( "++" | "--" ) IDENTIFIER | postfix ;
+postfix        = primary ( "." IDENTIFIER | "?." IDENTIFIER | "[" expression "]" | "(" arguments? ")" | "++" | "--" )* ;
 primary        = NUMBER | STRING | "true" | "false" | "null"
                | INTERPOLATED_STRING
                | "new" "{" object_properties "}"
@@ -442,14 +484,6 @@ The following C# features are intentionally not supported:
 x is string      // Type checking - NOT supported
 x as string      // Safe casting - NOT supported
 typeof(int)      // Type reference - NOT supported
-```
-
-### Operators
-
-```csharp
-x++              // Increment - NOT supported
-x--              // Decrement - NOT supported
-x += 1           // Compound assignment - NOT supported (use x = x + 1)
 ```
 
 ### Control Flow

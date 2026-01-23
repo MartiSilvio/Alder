@@ -33,9 +33,30 @@ public sealed class Parser(List<Token> tokens)
                 var value = ParseAssignment();
                 return new AssignExpr(identifier.Name, value);
             }
+
+            // Handle compound assignment operators: +=, -=, *=, /=, %=, &=, |=, ^=, <<=, >>=
+            if (MatchCompoundAssignment(out var op))
+            {
+                var value = ParseAssignment();
+                return new CompoundAssignExpr(identifier.Name, op, value);
+            }
         }
 
         return expr;
+    }
+
+    private bool MatchCompoundAssignment(out Token op)
+    {
+        if (Match(TokenType.PlusEqual, TokenType.MinusEqual, TokenType.StarEqual,
+                  TokenType.SlashEqual, TokenType.PercentEqual, TokenType.AmpEqual,
+                  TokenType.PipeEqual, TokenType.CaretEqual, TokenType.LessLessEqual,
+                  TokenType.GreaterGreaterEqual))
+        {
+            op = Previous();
+            return true;
+        }
+        op = default;
+        return false;
     }
 
     private Expr ParseNullCoalesce()
@@ -215,6 +236,14 @@ public sealed class Parser(List<Token> tokens)
             return new UnaryExpr(op, right);
         }
 
+        // Prefix increment/decrement: ++x, --x
+        if (Match(TokenType.PlusPlus, TokenType.MinusMinus))
+        {
+            var op = Previous();
+            var name = Consume(TokenType.Identifier, "Expected variable name after prefix operator");
+            return new IncrementDecrementExpr(name, op, true);
+        }
+
         return ParsePostfix();
     }
 
@@ -243,6 +272,12 @@ public sealed class Parser(List<Token> tokens)
             else if (Match(TokenType.LeftParen))
             {
                 expr = FinishCall(expr);
+            }
+            else if (expr is IdentifierExpr identifier && Match(TokenType.PlusPlus, TokenType.MinusMinus))
+            {
+                // Postfix increment/decrement: x++, x--
+                var op = Previous();
+                expr = new IncrementDecrementExpr(identifier.Name, op, false);
             }
             else
             {

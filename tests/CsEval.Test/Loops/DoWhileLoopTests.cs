@@ -1,6 +1,6 @@
 using NUnit.Framework;
 
-namespace CsEval.Test;
+namespace CsEval.Test.Loops;
 
 [TestFixture]
 public class DoWhileLoopTests

@@ -3,7 +3,7 @@ using CsEval.Attributes;
 using CsEval.Evaluation;
 using NUnit.Framework;
 
-namespace CsEval.Test;
+namespace CsEval.Test.Integration;
 
 [TestFixture]
 public class LazyResolutionTests

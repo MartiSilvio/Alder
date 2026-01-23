@@ -1,7 +1,7 @@
 using System.Collections.Concurrent;
 using NUnit.Framework;
 
-namespace CsEval.Test;
+namespace CsEval.Test.Core;
 
 [TestFixture]
 public class ThreadSafetyTests

@@ -1,7 +1,7 @@
 using CsEval.Parsing;
 using NUnit.Framework;
 
-namespace CsEval.Test;
+namespace CsEval.Test.Parsing;
 
 [TestFixture]
 public class ParserTests
