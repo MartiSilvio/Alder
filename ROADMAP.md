@@ -2,104 +2,125 @@
 
 Features to implement for full C# developer familiarity, plus useful additions from other languages.
 
+## Legend
+
+- ~~Strikethrough~~ = Implemented
+- **Bold** = High priority (based on Dynamic Expresso user demand)
+- Regular = Nice to have
+
 ---
 
-## C# Parity Features
+## CsEval Advantages (Already Implemented)
 
-### Type Operations
+These features differentiate CsEval from competitors like Dynamic Expresso:
 
-| Feature | Syntax | Notes |
+| Feature | Status | Notes |
 |---------|--------|-------|
-| Type casting | `(int)x`, `(string)obj` | Use `Convert.ChangeType` |
-| `is` operator | `x is string`, `x is null` | Type checking |
-| `as` operator | `x as string` | Safe cast, returns null |
-| `typeof` | `typeof(int)` | Get Type reference |
-| `default` | `default(int)`, `default` | Default value |
-| `nameof` | `nameof(property)` | Get name as string |
+| ~~Full lambda in LINQ~~ | ✅ | `list.Where(x => x > 0)` - Dynamic Expresso's #1 missing feature! |
+| ~~Block expressions~~ | ✅ | `{ var x = 1; if (x > 0) return x; }` |
+| ~~If statements~~ | ✅ | `if (cond) { } else { }` |
+| ~~Variable declarations~~ | ✅ | `var x = 5;` and `int x = 5;` |
+| ~~Return statements~~ | ✅ | Early returns in blocks |
+| ~~Object merging~~ | ✅ | `entity + new { Extra = value }` |
+| ~~Spread operator~~ | ✅ | `[...arr1, ...arr2]`, `new { ...obj1, ...obj2 }` |
+| ~~Null-coalescing assignment~~ | ✅ | `x ??= default` |
+| ~~Null-conditional access~~ | ✅ | `obj?.Property` |
+| ~~Bitwise operators~~ | ✅ | `&`, `\|`, `^`, `~`, `<<`, `>>` |
+| ~~Interpolated strings~~ | ✅ | `$"Hello {name}"` |
+| ~~Thread-safe evaluation~~ | ✅ | Child contexts for parallel execution |
+| ~~DI integration~~ | ✅ | `IServiceProvider` at evaluation time |
+| ~~Async methods~~ | ✅ | Methods returning `Task<T>` auto-unwrapped |
+| ~~Cancellation support~~ | ✅ | `CancellationToken` auto-passed |
+| ~~Pre-parsing~~ | ✅ | Parse once, evaluate many times |
+| ~~All C# keywords reserved~~ | ✅ | Forward-compatible syntax |
+| ~~Short-circuit &&/\|\|~~ | ✅ | `obj != null && obj.Prop` works correctly |
 
-### ~~Bitwise Operators~~ ✅
+---
 
-| Operator | Syntax |
-|----------|--------|
-| ~~Bitwise AND~~ | ~~`x & y`~~ |
-| ~~Bitwise OR~~ | ~~`x \| y`~~ |
-| ~~Bitwise XOR~~ | ~~`x ^ y`~~ |
-| ~~Bitwise NOT~~ | ~~`~x`~~ |
-| ~~Left shift~~ | ~~`x << n`~~ |
-| ~~Right shift~~ | ~~`x >> n`~~ |
+## High Priority Features (User Demand from Dynamic Expresso)
 
-### Assignment Operators
+Based on [Dynamic Expresso GitHub issues](https://github.com/dynamicexpresso/DynamicExpresso/issues) analysis - these are the most requested features users can't get elsewhere:
 
-| Operator | Syntax | Notes |
-|----------|--------|-------|
-| Assignment | `x = value` | Basic assignment |
-| Add-assign | `x += value` | Desugar to `x = x + value` |
-| Subtract-assign | `x -= value` | |
-| Multiply-assign | `x *= value` | |
-| Divide-assign | `x /= value` | |
-| Increment | `x++`, `++x` | Pre/post variants |
-| Decrement | `x--`, `--x` | |
+### **1. Loops (MASSIVE market gap)**
 
-### Loops
+Dynamic Expresso has ZERO loop support. This is their most painful limitation.
 
-| Feature | Syntax | Notes |
-|---------|--------|-------|
-| `foreach` | `foreach (var x in items) { }` | Most useful |
-| `while` | `while (cond) { }` | Add iteration limit |
-| `for` | `for (var i = 0; i < n; i++) { }` | |
-| `break` | `break;` | Exit loop |
+| Feature | Syntax | Priority | Notes |
+|---------|--------|----------|-------|
+| **`foreach`** | `foreach (var x in items) { }` | Critical | Most requested |
+| **`while`** | `while (cond) { }` | Critical | Add iteration limit for safety |
+| **`for`** | `for (var i = 0; i < n; i++) { }` | High | |
+| `do-while` | `do { } while (cond)` | Medium | |
+| `break` | `break;` | Required | Exit loop |
 | `continue` | `continue;` | Next iteration |
 
-### Switch
+### **2. Assignment & Mutation**
 
-| Feature | Syntax | Notes |
-|---------|--------|-------|
-| Switch expression | `x switch { 1 => "one", _ => "other" }` | C# 8+ style |
-| Switch statement | `switch (x) { case 1: ... }` | Classic style |
+| Feature | Syntax | Priority | Notes |
+|---------|--------|----------|-------|
+| **Basic assignment** | `x = value` | Critical | Update existing variable |
+| **Compound assignment** | `x += value` | Critical | Issue #251 in DE |
+| **Index set** | `arr[0] = value` | Critical | DE can read but not write! |
+| **Property set** | `obj.Prop = value` | High | |
+| Increment/Decrement | `x++`, `--x` | Medium | Pre/post variants |
 
-### Constructors & Types
+### **3. Type Operations**
+
+| Feature | Syntax | Priority | Notes |
+|---------|--------|----------|-------|
+| **`is` operator** | `x is string`, `x is null` | High | Issue #202 in DE |
+| **`as` operator** | `x as string` | High | Safe cast |
+| **Type casting** | `(int)x` | High | |
+| **`nameof`** | `nameof(property)` | Medium | Issue #112 in DE |
+| `typeof` | `typeof(int)` | Medium | |
+| `default` | `default(int)` | Low | |
+
+### **4. Pattern Matching**
+
+| Feature | Syntax | Priority | Notes |
+|---------|--------|----------|-------|
+| **`is` with type** | `x is string s` | High | Declare variable |
+| **`is not`** | `x is not null` | High | Common pattern |
+| Property pattern | `x is { Name: "John" }` | Medium | |
+| Relational pattern | `x is > 0 and < 100` | Medium | |
+| `switch` expression | `x switch { 1 => "one", _ => "other" }` | Medium | |
+
+---
+
+## Medium Priority Features
+
+### Constructors & Generics
 
 | Feature | Syntax | Notes |
 |---------|--------|-------|
 | Named constructor | `new DateTime(2024, 1, 1)` | Requires type registry |
+| Generic method calls | `list.Cast<int>()` | Issue in DE |
 | Object initializer | `new Person { Name = "John" }` | |
 | Collection initializer | `new List<int> { 1, 2, 3 }` | |
-| Typed array | `new int[5]` | |
-| Array initializer | `new[] { 1, 2, 3 }` | Type inference |
-| Generic calls | `list.Cast<int>()` | |
-| Generic construction | `new List<int>()` | |
 
-### Pattern Matching
-
-| Feature | Syntax | Notes |
-|---------|--------|-------|
-| Type pattern with variable | `x is string s` | Declares `s` |
-| Property pattern | `x is { Name: "John" }` | |
-| Relational pattern | `x is > 0 and < 100` | |
-| List pattern | `x is [1, 2, ..]` | |
-| `not` pattern | `x is not null` | |
-
-### LINQ Methods
+### ~~LINQ Methods~~ ✅
 
 **Implemented:**
-- Filtering: `Where`, `Distinct`
-- Projection: `Select`, `SelectMany`
-- Element: `First`, `FirstOrDefault`, `Last`, `LastOrDefault`, `Single`, `SingleOrDefault`
-- Quantifiers: `Any`, `All`, `Contains`
-- Aggregation: `Count`, `Sum`, `Average`, `Min`, `Max`, `Aggregate`
-- Ordering: `OrderBy`, `OrderByDescending`
-- Grouping: `GroupBy` (returns `List<Dictionary>` with `Key` and `Items`)
-- Combining: `Zip` (with/without selector), `Concat`
-- Partitioning: `Take`, `Skip`
-- Conversion: `ToList`, `ToArray`, `Reverse`
+- ~~Filtering: `Where`, `Distinct`~~
+- ~~Projection: `Select`, `SelectMany`~~
+- ~~Element: `First`, `FirstOrDefault`, `Last`, `LastOrDefault`, `Single`, `SingleOrDefault`~~
+- ~~Quantifiers: `Any`, `All`, `Contains`~~
+- ~~Aggregation: `Count`, `Sum`, `Average`, `Min`, `Max`, `Aggregate`~~
+- ~~Ordering: `OrderBy`, `OrderByDescending`~~
+- ~~Grouping: `GroupBy` (returns `List<Dictionary>` with `Key` and `Items`)~~
+- ~~Combining: `Zip` (with/without selector), `Concat`~~
+- ~~Partitioning: `Take`, `Skip`~~
+- ~~Conversion: `ToList`, `ToArray`, `Reverse`~~
 
-**Not implemented:**
-- `Join`, `GroupJoin` - Complex multi-collection operations
-- `OfType<T>`, `Cast<T>` - Require generic type parameters
-- `ToDictionary`, `ToLookup`, `ToHashSet` - Conversion to other collection types
-- `Chunk`, `DistinctBy`, `ExceptBy`, `IntersectBy`, `UnionBy` - Newer .NET 6+ methods
-- `MinBy`, `MaxBy` - Newer .NET 6+ methods
-- `ThenBy`, `ThenByDescending` - Cannot work because results are materialized to `List<object?>` (not `IOrderedEnumerable`)
+**Not Implemented:**
+| Method | Priority | Notes |
+|--------|----------|-------|
+| `Join`, `GroupJoin` | Low | Complex multi-collection |
+| `OfType<T>`, `Cast<T>` | Medium | Need generic support |
+| `ToDictionary` | Medium | Useful |
+| `TakeWhile`, `SkipWhile` | Low | |
+| `Except`, `Intersect`, `Union` | Low | Set operations |
+| `MinBy`, `MaxBy` | Low | .NET 6+ |
 
 ### Range & Index (C# 8+)
 
@@ -108,7 +129,6 @@ Features to implement for full C# developer familiarity, plus useful additions f
 | Index from end | `arr[^1]` | Last element |
 | Range | `arr[1..3]` | Slice |
 | Range from end | `arr[1..^1]` | |
-| Open range | `arr[1..]`, `arr[..3]` | |
 
 ### Strings
 
@@ -116,6 +136,10 @@ Features to implement for full C# developer familiarity, plus useful additions f
 |---------|--------|-------|
 | Verbatim strings | `@"path\to\file"` | No escaping |
 | Raw strings | `"""text"""` | C# 11 |
+
+---
+
+## Low Priority Features
 
 ### Exception Handling
 
@@ -125,103 +149,66 @@ Features to implement for full C# developer familiarity, plus useful additions f
 | `try-catch` | `try { } catch (Exception e) { }` |
 | `try-finally` | `try { } finally { }` |
 
+### Switch Statement
+
+| Feature | Syntax |
+|---------|--------|
+| Switch statement | `switch (x) { case 1: ... }` |
+
 ---
 
 ## Features from Other Languages
 
 ### JavaScript/TypeScript
 
-| Feature | Syntax | Notes |
-|---------|--------|-------|
-| ~~Spread operator~~ | `[...arr1, ...arr2]` | ✅ Implemented |
-| ~~Object spread~~ | `new { ...obj1, ...obj2 }` | ✅ Implemented |
-| Optional chaining call | `obj?.Method()` | Already have `?.` for props |
-| Nullish assignment | `x ??= value` | ✅ Already implemented |
-| Destructuring | `var { Name, Age } = person` | Extract properties |
-| Template literals | `` `Hello ${name}` `` | We have `$""` |
+| Feature | Syntax | Status |
+|---------|--------|--------|
+| ~~Spread operator~~ | `[...arr1, ...arr2]` | ✅ |
+| ~~Object spread~~ | `new { ...obj1, ...obj2 }` | ✅ |
+| ~~Nullish assignment~~ | `x ??= value` | ✅ |
+| Optional chaining call | `obj?.Method()` | Medium priority |
+| Destructuring | `var { Name, Age } = person` | Low |
 
 ### Python
 
 | Feature | Syntax | Notes |
 |---------|--------|-------|
-| List comprehension | `[x * 2 for x in items if x > 0]` | Alt syntax for LINQ |
 | `in` operator | `x in [1, 2, 3]` | Contains check |
-| `not in` operator | `x not in list` | |
-| Slice syntax | `arr[1:3]` | We'd use `arr[1..3]` |
+| Chained comparison | `0 < x < 100` | Nice to have |
 | Walrus operator | `if ((x := GetValue()) != null)` | Assign in expression |
-| Chained comparison | `0 < x < 100` | |
 
-### Kotlin
-
-| Feature | Syntax | Notes |
-|---------|--------|-------|
-| Elvis operator | `x ?: default` | We have `??` |
-| Safe call | `x?.let { it.Process() }` | |
-| `when` expression | `when (x) { 1 -> "one" }` | Like switch |
-| `in` range check | `x in 1..10` | |
-| String templates | `"Hello $name"` | Simpler than `{name}` |
-
-### Rust
-
-| Feature | Syntax | Notes |
-|---------|--------|-------|
-| `if let` | `if let Some(x) = opt { }` | Pattern + condition |
-| Match guards | `x switch { n when n > 0 => ... }` | |
-| `..` ignore pattern | `{ Name, .. }` | Ignore rest |
-
-### F#/Functional
+### Functional (F#/Kotlin)
 
 | Feature | Syntax | Notes |
 |---------|--------|-------|
 | Pipe operator | `x \|> Process \|> Format` | Chain functions |
-| Function composition | `f >> g` | Combine functions |
-| Option binding | `x.Map(v => v * 2)` | On nullables |
+| `in` range check | `x in 1..10` | Kotlin style |
 
 ---
 
-## Unique CsEval Features (Keep/Enhance)
+## Infrastructure & DX
 
-These differentiate CsEval - keep and improve:
+### AOT Support (Issue #283 in DE)
 
-| Feature | Current | Enhancement Ideas |
-|---------|---------|-------------------|
-| Object merging | `a + b` | ✅ Also supports spread `new { ...a, ...b }` |
-| Block expressions | `{ var x = 1; return x; }` | Add more statement types |
-| DI integration | Module resolution | Auto-discover from assembly |
-| Async + cancellation | `EvaluateAsync` | Progress reporting |
+Important for modern .NET deployments - ensure no reflection-only patterns that break AOT.
 
----
+### Developer Experience
 
-## Expression Tree Output
+| Feature | Status | Notes |
+|---------|--------|-------|
+| ~~Line/column in errors~~ | ✅ | Already have |
+| "Did you mean?" suggestions | | Nice to have |
+| Expression validation | | Without execution |
+| VS Code syntax highlighting | | Tooling |
+
+### Expression Tree Output
 
 For EF Core / IQueryable integration:
 
 ```csharp
-// Parse to expression tree instead of evaluating
 Expression<Func<T, bool>> predicate = engine.ParseAsExpression<Func<T, bool>>("x => x.Active");
 dbContext.Users.Where(predicate);
 ```
-
-This is a significant feature that enables database query translation.
-
----
-
-## Developer Experience
-
-### Error Messages
-- Line/column numbers in errors
-- "Did you mean X?" suggestions
-- Syntax highlighting for error location
-
-### Debugging
-- Step-through evaluation
-- Variable watch
-- Expression trace/explain
-
-### Tooling
-- VS Code syntax highlighting
-- Expression validation without execution
-- Type inference / schema detection
 
 ---
 
@@ -229,9 +216,50 @@ This is a significant feature that enables database query translation.
 
 Intentionally not supporting:
 
-- **Full C# compilation** - Use Roslyn
+- **Full C# compilation** - Use Roslyn for that
 - **Class/method definitions** - Expressions only
-- **Async/await syntax** - Methods can be async internally
 - **LINQ query syntax** - Method syntax only (`from x in y select x` → `y.Select(x => x)`)
 - **Unsafe code** - No pointers
 - **Preprocessor** - No `#if`
+
+---
+
+## Priority Summary
+
+### Must Have (Unique Differentiators)
+1. ~~Full lambda in LINQ~~ ✅ - **DONE, huge win over DE**
+2. ~~Block expressions with if/return~~ ✅ - **DONE**
+3. ~~Thread-safe evaluation~~ ✅ - **DONE**
+4. Loops (`foreach`, `while`, `for`) - **#1 market gap**
+5. Assignment operators (`=`, `+=`, index set) - **#2 market gap**
+
+### Should Have (Common Requests)
+6. Pattern matching (`is`, `is not`, `switch` expression)
+7. Type operations (`as`, casting)
+8. `nameof` operator
+9. Generic method calls
+
+### Nice to Have
+10. Range/index operators
+11. More LINQ methods
+12. Exception handling
+13. AOT optimization
+
+---
+
+## Competitor Analysis Summary
+
+| Feature | CsEval | Dynamic Expresso | NCalc |
+|---------|--------|------------------|-------|
+| Lambda in LINQ | ✅ | ❌ (partial) | ❌ |
+| Block expressions | ✅ | ❌ | ❌ |
+| If statements | ✅ | ❌ | ❌ |
+| Loops | ❌ | ❌ | ❌ |
+| Assignment | ❌ | ❌ | ❌ |
+| Object merging | ✅ | ❌ | ❌ |
+| Spread operator | ✅ | ❌ | ❌ |
+| Thread-safe | ✅ | ⚠️ (had issues) | ? |
+| DI integration | ✅ | ❌ | ❌ |
+| Performance | Fast | ~0.1ms | Fast |
+
+**Key insight**: Adding loops and assignment would make CsEval the most feature-complete expression evaluator in the .NET ecosystem.

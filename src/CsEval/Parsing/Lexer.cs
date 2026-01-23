@@ -9,20 +9,98 @@ public sealed class Lexer
     private int _line = 1;
     private int _column = 1;
 
+    // All C# keywords - reserved to match C# spec
+    // https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/keywords/
     private static readonly Dictionary<string, TokenType> Keywords = new()
     {
+        // Literals
         ["true"] = TokenType.True,
         ["false"] = TokenType.False,
         ["null"] = TokenType.Null,
+
+        // Keywords - Implemented
         ["new"] = TokenType.New,
         ["if"] = TokenType.If,
         ["else"] = TokenType.Else,
+        ["return"] = TokenType.Return,
+        ["var"] = TokenType.Var,
+
+        // Keywords - Control flow (reserved)
         ["switch"] = TokenType.Switch,
         ["case"] = TokenType.Case,
         ["default"] = TokenType.Default,
-        ["return"] = TokenType.Return,
-        ["var"] = TokenType.Var,
-        // Type keywords (reserved, like C#)
+        ["for"] = TokenType.For,
+        ["foreach"] = TokenType.Foreach,
+        ["while"] = TokenType.While,
+        ["do"] = TokenType.Do,
+        ["break"] = TokenType.Break,
+        ["continue"] = TokenType.Continue,
+        ["goto"] = TokenType.Goto,
+
+        // Keywords - Exception handling (reserved)
+        ["try"] = TokenType.Try,
+        ["catch"] = TokenType.Catch,
+        ["finally"] = TokenType.Finally,
+        ["throw"] = TokenType.Throw,
+
+        // Keywords - Type declarations (reserved)
+        ["class"] = TokenType.Class,
+        ["struct"] = TokenType.Struct,
+        ["interface"] = TokenType.Interface,
+        ["enum"] = TokenType.Enum,
+        ["record"] = TokenType.Record,
+        ["delegate"] = TokenType.Delegate,
+        ["namespace"] = TokenType.Namespace,
+
+        // Keywords - Access modifiers (reserved)
+        ["public"] = TokenType.Public,
+        ["private"] = TokenType.Private,
+        ["protected"] = TokenType.Protected,
+        ["internal"] = TokenType.Internal,
+
+        // Keywords - Member modifiers (reserved)
+        ["static"] = TokenType.Static,
+        ["readonly"] = TokenType.Readonly,
+        ["const"] = TokenType.Const,
+        ["volatile"] = TokenType.Volatile,
+        ["virtual"] = TokenType.Virtual,
+        ["override"] = TokenType.Override,
+        ["abstract"] = TokenType.Abstract,
+        ["sealed"] = TokenType.Sealed,
+        ["extern"] = TokenType.Extern,
+        ["partial"] = TokenType.Partial,
+        ["async"] = TokenType.Async,
+        ["await"] = TokenType.Await,
+
+        // Keywords - Parameter modifiers (reserved)
+        ["ref"] = TokenType.Ref,
+        ["out"] = TokenType.Out,
+        ["in"] = TokenType.In,
+        ["params"] = TokenType.Params,
+
+        // Keywords - Type operations (reserved)
+        ["is"] = TokenType.Is,
+        ["as"] = TokenType.As,
+        ["typeof"] = TokenType.Typeof,
+        ["sizeof"] = TokenType.Sizeof,
+        ["nameof"] = TokenType.Nameof,
+        ["stackalloc"] = TokenType.Stackalloc,
+        ["checked"] = TokenType.Checked,
+        ["unchecked"] = TokenType.Unchecked,
+
+        // Keywords - Other (reserved)
+        ["this"] = TokenType.This,
+        ["base"] = TokenType.Base,
+        ["using"] = TokenType.Using,
+        ["lock"] = TokenType.Lock,
+        ["fixed"] = TokenType.Fixed,
+        ["unsafe"] = TokenType.Unsafe,
+        ["implicit"] = TokenType.Implicit,
+        ["explicit"] = TokenType.Explicit,
+        ["operator"] = TokenType.Operator,
+        ["event"] = TokenType.Event,
+
+        // Type keywords (some implemented for variable declarations)
         ["int"] = TokenType.Int,
         ["long"] = TokenType.Long,
         ["double"] = TokenType.Double,
@@ -31,6 +109,53 @@ public sealed class Lexer
         ["string"] = TokenType.StringType,
         ["bool"] = TokenType.Bool,
         ["object"] = TokenType.Object,
+        ["void"] = TokenType.Void,
+        ["sbyte"] = TokenType.Sbyte,
+        ["byte"] = TokenType.Byte,
+        ["short"] = TokenType.Short,
+        ["ushort"] = TokenType.Ushort,
+        ["uint"] = TokenType.Uint,
+        ["ulong"] = TokenType.Ulong,
+        ["char"] = TokenType.Char,
+        ["nint"] = TokenType.Nint,
+        ["nuint"] = TokenType.Nuint,
+        ["dynamic"] = TokenType.Dynamic,
+
+        // Contextual keywords (reserved for forward compatibility)
+        ["add"] = TokenType.Add,
+        ["alias"] = TokenType.Alias,
+        ["and"] = TokenType.And,
+        ["args"] = TokenType.Args,
+        ["ascending"] = TokenType.Ascending,
+        ["by"] = TokenType.By,
+        ["descending"] = TokenType.Descending,
+        ["equals"] = TokenType.Equals,
+        ["file"] = TokenType.File,
+        ["from"] = TokenType.From,
+        ["get"] = TokenType.Get,
+        ["global"] = TokenType.Global,
+        ["group"] = TokenType.Group,
+        ["init"] = TokenType.Init,
+        ["into"] = TokenType.Into,
+        ["join"] = TokenType.Join,
+        ["let"] = TokenType.Let,
+        ["managed"] = TokenType.Managed,
+        ["not"] = TokenType.Not,
+        ["notnull"] = TokenType.Notnull,
+        ["on"] = TokenType.On,
+        ["or"] = TokenType.Or,
+        ["orderby"] = TokenType.Orderby,
+        ["remove"] = TokenType.Remove,
+        ["required"] = TokenType.Required,
+        ["scoped"] = TokenType.Scoped,
+        ["select"] = TokenType.Select,
+        ["set"] = TokenType.Set,
+        ["unmanaged"] = TokenType.Unmanaged,
+        ["value"] = TokenType.Value,
+        ["when"] = TokenType.When,
+        ["where"] = TokenType.Where,
+        ["with"] = TokenType.With,
+        ["yield"] = TokenType.Yield,
     };
 
     public Lexer(string source)

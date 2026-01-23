@@ -132,23 +132,23 @@ public class ThreadSafetyTests
         var engine = new CsEvalEngine();
         engine.SetVariable("factor", 3L);
 
-        var expression = engine.Parse("value * factor + offset");
+        var expression = engine.Parse("val * factor + offset");
         var items = Enumerable.Range(1, 100).ToList();
-        var results = new ConcurrentBag<(int Value, int Offset, long Result)>();
+        var results = new ConcurrentBag<(int Val, int Offset, long Result)>();
 
         Parallel.ForEach(items, item =>
         {
             var child = engine.CreateChild();
-            child.SetVariable("value", (long)item);
+            child.SetVariable("val", (long)item);
             child.SetVariable("offset", (long)(item % 10));
             var result = child.Evaluate(expression);
             results.Add((item, item % 10, (long)result!));
         });
 
-        foreach (var (value, offset, result) in results)
+        foreach (var (val, offset, result) in results)
         {
-            var expected = value * 3L + offset;
-            Assert.That(result, Is.EqualTo(expected), $"Value={value}, Offset={offset}");
+            var expected = val * 3L + offset;
+            Assert.That(result, Is.EqualTo(expected), $"Val={val}, Offset={offset}");
         }
     }
 
@@ -156,7 +156,7 @@ public class ThreadSafetyTests
     public void ParallelForEach_StressTest()
     {
         var engine = new CsEvalEngine();
-        engine.SetVariable("base", 1000L);
+        engine.SetVariable("baseVal", 1000L);
 
         var items = Enumerable.Range(1, 1000).ToList();
         var results = new ConcurrentBag<long>();
@@ -165,7 +165,7 @@ public class ThreadSafetyTests
         {
             var child = engine.CreateChild();
             child.SetVariable("n", (long)item);
-            var result = child.Evaluate("base + n * n");
+            var result = child.Evaluate("baseVal + n * n");
             results.Add((long)result!);
         });
 
@@ -235,8 +235,8 @@ public class ThreadSafetyTests
         Parallel.ForEach(items, item =>
         {
             var child = engine.CreateChild();
-            child.SetVariable("value", (double)item);
-            var result = child.Evaluate("Math.Abs(value)");
+            child.SetVariable("val", (double)item);
+            var result = child.Evaluate("Math.Abs(val)");
             results.Add((item, (double)result!));
         });
 

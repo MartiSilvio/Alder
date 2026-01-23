@@ -66,25 +66,153 @@ public enum TokenType
     // Lambda
     Arrow,  // =>
 
-    // Keywords
+    // ============================================================
+    // C# RESERVED KEYWORDS (all reserved, matching C# spec)
+    // https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/keywords/
+    // ============================================================
+
+    // Keywords - Implemented
     New,
     If,
     Else,
-    Switch,
-    Case,
-    Default,
     Return,
     Var,
 
-    // Type keywords
+    // Keywords - Control flow (reserved, not implemented)
+    Switch,
+    Case,
+    Default,
+    For,
+    Foreach,
+    While,
+    Do,
+    Break,
+    Continue,
+    Goto,
+
+    // Keywords - Exception handling (reserved, not implemented)
+    Try,
+    Catch,
+    Finally,
+    Throw,
+
+    // Keywords - Type declarations (reserved, not implemented)
+    Class,
+    Struct,
+    Interface,
+    Enum,
+    Record,
+    Delegate,
+    Namespace,
+
+    // Keywords - Access modifiers (reserved, not implemented)
+    Public,
+    Private,
+    Protected,
+    Internal,
+
+    // Keywords - Member modifiers (reserved, not implemented)
+    Static,
+    Readonly,
+    Const,
+    Volatile,
+    Virtual,
+    Override,
+    Abstract,
+    Sealed,
+    Extern,
+    Partial,
+    Async,
+    Await,
+
+    // Keywords - Parameter modifiers (reserved, not implemented)
+    Ref,
+    Out,
+    In,
+    Params,
+
+    // Keywords - Type operations (reserved, not implemented)
+    Is,
+    As,
+    Typeof,
+    Sizeof,
+    Nameof,
+    Stackalloc,
+    Checked,
+    Unchecked,
+
+    // Keywords - Other (reserved, not implemented)
+    This,
+    Base,
+    Using,
+    Lock,
+    Fixed,
+    Unsafe,
+    Implicit,
+    Explicit,
+    Operator,
+    Event,
+
+    // ============================================================
+    // C# TYPE KEYWORDS (reserved, some implemented for declarations)
+    // ============================================================
     Int,
     Long,
     Double,
     Float,
     Decimal,
-    StringType,  // 'string' keyword (String is used for string literals)
+    StringType,  // 'string' keyword (String token is used for string literals)
     Bool,
     Object,
+    Void,
+    Sbyte,
+    Byte,
+    Short,
+    Ushort,
+    Uint,
+    Ulong,
+    Char,
+    Nint,
+    Nuint,
+    Dynamic,
+
+    // ============================================================
+    // C# CONTEXTUAL KEYWORDS (reserved for forward compatibility)
+    // ============================================================
+    Add,
+    Alias,
+    And,
+    Args,
+    Ascending,
+    By,
+    Descending,
+    Equals,
+    File,
+    From,
+    Get,
+    Global,
+    Group,
+    Init,
+    Into,
+    Join,
+    Let,
+    Managed,
+    Not,
+    Notnull,
+    On,
+    Or,
+    Orderby,
+    Remove,
+    Required,
+    Scoped,
+    Select,
+    Set,
+    Unmanaged,
+    Value,
+    When,
+    Where,
+    With,
+    Yield,
 
     // Special
     Eof

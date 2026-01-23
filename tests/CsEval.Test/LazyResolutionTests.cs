@@ -94,11 +94,11 @@ public class MemberFilteringTests
         var engine = new CsEvalEngine();
         var members = new Dictionary<string, MemberInfo>(StringComparer.OrdinalIgnoreCase)
         {
-            ["Add"] = typeof(CalculatorModule).GetMethod(nameof(CalculatorModule.Add))!
+            ["Sum"] = typeof(CalculatorModule).GetMethod(nameof(CalculatorModule.Sum))!
         };
         engine.RegisterModule("Calc", typeof(CalculatorModule), members);
 
-        Assert.That(engine.Evaluate("Calc.Add(2, 3)"), Is.EqualTo(5L));
+        Assert.That(engine.Evaluate("Calc.Sum(2, 3)"), Is.EqualTo(5L));
 
         var ex = Assert.Throws<EvalException>(() => engine.Evaluate("Calc.Subtract(5, 2)"));
         Assert.That(ex!.Message, Does.Contain("not found"));
@@ -110,7 +110,7 @@ public class MemberFilteringTests
         var engine = new CsEvalEngine();
         var members = new Dictionary<string, MemberInfo>(StringComparer.OrdinalIgnoreCase)
         {
-            ["plus"] = typeof(CalculatorModule).GetMethod(nameof(CalculatorModule.Add))!,
+            ["plus"] = typeof(CalculatorModule).GetMethod(nameof(CalculatorModule.Sum))!,
             ["minus"] = typeof(CalculatorModule).GetMethod(nameof(CalculatorModule.Subtract))!
         };
         engine.RegisterModule("Calc", typeof(CalculatorModule), members);
@@ -118,7 +118,7 @@ public class MemberFilteringTests
         Assert.That(engine.Evaluate("Calc.plus(2, 3)"), Is.EqualTo(5L));
         Assert.That(engine.Evaluate("Calc.minus(5, 2)"), Is.EqualTo(3L));
 
-        var ex = Assert.Throws<EvalException>(() => engine.Evaluate("Calc.Add(2, 3)"));
+        var ex = Assert.Throws<EvalException>(() => engine.Evaluate("Calc.Sum(2, 3)"));
         Assert.That(ex!.Message, Does.Contain("not found"));
     }
 
@@ -128,7 +128,7 @@ public class MemberFilteringTests
         var engine = new CsEvalEngine();
         engine.RegisterModule("Calc", typeof(CalculatorModule));
 
-        Assert.That(engine.Evaluate("Calc.Add(2, 3)"), Is.EqualTo(5L));
+        Assert.That(engine.Evaluate("Calc.Sum(2, 3)"), Is.EqualTo(5L));
         Assert.That(engine.Evaluate("Calc.Subtract(5, 2)"), Is.EqualTo(3L));
         Assert.That(engine.Evaluate("Calc.Multiply(4, 3)"), Is.EqualTo(12L));
     }
@@ -155,12 +155,12 @@ public class MemberFilteringTests
         var engine = new CsEvalEngine(new CsEvalOptions { IgnoreCase = true });
         var members = new Dictionary<string, MemberInfo>(StringComparer.OrdinalIgnoreCase)
         {
-            ["add"] = typeof(CalculatorModule).GetMethod(nameof(CalculatorModule.Add))!
+            ["sum"] = typeof(CalculatorModule).GetMethod(nameof(CalculatorModule.Sum))!
         };
         engine.RegisterModule("calc", typeof(CalculatorModule), members);
 
-        Assert.That(engine.Evaluate("CALC.ADD(2, 3)"), Is.EqualTo(5L));
-        Assert.That(engine.Evaluate("Calc.add(2, 3)"), Is.EqualTo(5L));
+        Assert.That(engine.Evaluate("CALC.SUM(2, 3)"), Is.EqualTo(5L));
+        Assert.That(engine.Evaluate("Calc.sum(2, 3)"), Is.EqualTo(5L));
     }
 }
 
@@ -184,7 +184,7 @@ public class TrackingModule
 
 public class CalculatorModule
 {
-    public long Add(long a, long b) => a + b;
+    public long Sum(long a, long b) => a + b;
     public long Subtract(long a, long b) => a - b;
     public long Multiply(long a, long b) => a * b;
 }

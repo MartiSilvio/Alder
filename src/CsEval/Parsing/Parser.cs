@@ -587,9 +587,13 @@ public sealed class Parser(List<Token> tokens)
 
     private bool MatchTypeKeyword(out Token typeToken)
     {
+        // All C# primitive type keywords that can be used for variable declarations
         if (Check(TokenType.Int) || Check(TokenType.Long) || Check(TokenType.Double) ||
             Check(TokenType.Float) || Check(TokenType.Decimal) || Check(TokenType.StringType) ||
-            Check(TokenType.Bool) || Check(TokenType.Object))
+            Check(TokenType.Bool) || Check(TokenType.Object) ||
+            Check(TokenType.Sbyte) || Check(TokenType.Byte) || Check(TokenType.Short) ||
+            Check(TokenType.Ushort) || Check(TokenType.Uint) || Check(TokenType.Ulong) ||
+            Check(TokenType.Char))
         {
             typeToken = Advance();
             return true;
