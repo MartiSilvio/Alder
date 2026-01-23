@@ -24,7 +24,10 @@ CsEval/
 │   ├── Parsing/           # Lexer, Parser, AST definitions
 │   │   ├── Lexer.cs       # Tokenizer - converts source to tokens
 │   │   ├── Token.cs       # Token types enum and Token record
-│   │   ├── Parser.cs      # Recursive descent parser - builds AST
+│   │   ├── Parser.cs              # Core parser utilities and entry point
+│   │   ├── Parser.Expressions.cs  # Expression precedence hierarchy
+│   │   ├── Parser.Primary.cs      # Primary expressions and literals
+│   │   ├── Parser.Statements.cs   # Statement and control flow parsing
 │   │   └── Ast.cs         # Expression AST node definitions
 │   ├── Evaluation/        # Expression evaluation
 │   │   ├── Evaluator.cs   # Main visitor-pattern evaluator
