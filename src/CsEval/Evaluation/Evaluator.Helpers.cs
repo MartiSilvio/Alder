@@ -96,6 +96,9 @@ public sealed partial class Evaluator
             throw new EvalException($"Member '{name}' not found on module '{resolver.Type.Name}'");
         }
 
+        if (_options.Security.SafeMode && !_options.Security.AllowPropertyRead)
+            throw new EvalException($"Property access blocked in SafeMode: {name}");
+
         var ignoreCase = _options.IgnoreCase;
 
         if (obj is IDictionary<string, object?> dict)
@@ -163,12 +166,17 @@ public sealed partial class Evaluator
 
         var type = target.GetType();
 
+        // LINQ methods are always allowed (handled internally, not via reflection)
         if (target is IEnumerable enumerable && !target.GetType().IsPrimitive && target is not string)
         {
             var result = TryInvokeEnumerableMethod(enumerable, methodName, args);
             if (result.Success)
                 return result;
         }
+
+        // SafeMode blocks all other method calls on variable objects
+        if (_options.Security.SafeMode)
+            throw new EvalException($"Method calls blocked in SafeMode: {methodName}");
 
         var methods = TypeCache.GetMethods(type, methodName, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
 

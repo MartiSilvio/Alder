@@ -198,6 +198,9 @@ public sealed partial class Evaluator : IExprVisitor<object?>
         if (currentValue != null)
             return currentValue;
 
+        if (_options.Security.SafeMode && !_options.Security.AllowAssignment)
+            throw new EvalException($"Assignment blocked in SafeMode: {name} ??= ...");
+
         var newValue = Evaluate(expr.Value);
         _context.Set(name, newValue);
         return newValue;
@@ -205,6 +208,9 @@ public sealed partial class Evaluator : IExprVisitor<object?>
 
     public object? VisitAssign(AssignExpr expr)
     {
+        if (_options.Security.SafeMode && !_options.Security.AllowAssignment)
+            throw new EvalException($"Assignment blocked in SafeMode: {expr.Name.Lexeme} = ...");
+
         var name = expr.Name.Lexeme;
         var value = Evaluate(expr.Value);
         _context.Set(name, value);
@@ -213,6 +219,9 @@ public sealed partial class Evaluator : IExprVisitor<object?>
 
     public object? VisitCompoundAssign(CompoundAssignExpr expr)
     {
+        if (_options.Security.SafeMode && !_options.Security.AllowAssignment)
+            throw new EvalException($"Assignment blocked in SafeMode: {expr.Name.Lexeme} {expr.Op.Lexeme} ...");
+
         var name = expr.Name.Lexeme;
         var currentValue = _context.Get(name);
         var rightValue = Evaluate(expr.Value);
@@ -238,6 +247,9 @@ public sealed partial class Evaluator : IExprVisitor<object?>
 
     public object? VisitIncrementDecrement(IncrementDecrementExpr expr)
     {
+        if (_options.Security.SafeMode && !_options.Security.AllowAssignment)
+            throw new EvalException($"Assignment blocked in SafeMode: {expr.Op.Lexeme}{expr.Name.Lexeme}");
+
         var name = expr.Name.Lexeme;
         var currentValue = _context.Get(name);
 

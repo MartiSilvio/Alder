@@ -15,8 +15,26 @@
     <Compile Update="Evaluation\Evaluator.Linq.cs">
       <DependentUpon>Evaluator.cs</DependentUpon>
     </Compile>
+    <Compile Update="Evaluation\Evaluator.Loops.cs">
+      <DependentUpon>Evaluator.cs</DependentUpon>
+    </Compile>
     <Compile Update="Evaluation\Evaluator.Operators.cs">
       <DependentUpon>Evaluator.cs</DependentUpon>
+    </Compile>
+    <Compile Update="Evaluation\Evaluator.Switch.cs">
+      <DependentUpon>Evaluator.cs</DependentUpon>
+    </Compile>
+    <Compile Update="Evaluation\Evaluator.TypeCoercion.cs">
+      <DependentUpon>Evaluator.cs</DependentUpon>
+    </Compile>
+    <Compile Update="Parsing\Parser.Expressions.cs">
+      <DependentUpon>Parser.cs</DependentUpon>
+    </Compile>
+    <Compile Update="Parsing\Parser.Primary.cs">
+      <DependentUpon>Parser.cs</DependentUpon>
+    </Compile>
+    <Compile Update="Parsing\Parser.Statements.cs">
+      <DependentUpon>Parser.cs</DependentUpon>
     </Compile>
   </ItemGroup>
 

@@ -91,6 +91,7 @@ Features for full C# developer familiarity, plus additions from other languages.
 | Cancellation | `CancellationToken` auto-passed |
 | Module system | `engine.RegisterModule()` |
 | Custom functions | `engine.RegisterFunction()` |
+| SafeMode | `Security.SafeMode` blocks method calls on variables |
 
 ---
 
@@ -171,25 +172,115 @@ Features for full C# developer familiarity, plus additions from other languages.
 
 ---
 
+## Security Roadmap
+
+### Implemented
+
+| Feature | Notes |
+|---------|-------|
+| ✅ `MaxIterations` | Loop limit protection (100,000 default) |
+| ✅ Explicit module registration | No arbitrary namespace access |
+| ✅ No `new Type()` syntax | Can't instantiate arbitrary types |
+| ✅ `SafeMode` | Blocks method calls on variable objects |
+| ✅ `AllowPropertyRead` | Control property access in SafeMode |
+| ✅ `AllowAssignment` | Control variable reassignment in SafeMode |
+
+### Critical Priority - Add with Index/Property Set
+
+| Option | Purpose | Default |
+|--------|---------|---------|
+| 🔴 `AllowPropertySet` | Enable/disable `obj.Prop = value` | `true` |
+| 🔴 `AllowIndexSet` | Enable/disable `arr[0] = value` | `true` |
+
+### High Priority
+
+| Option | Purpose | Default |
+|--------|---------|---------|
+| 🟠 `AllowNewKeyword` | Enable/disable `new { }` syntax | `true` |
+
+### Medium Priority - Resource Limits
+
+| Option | Purpose | Default |
+|--------|---------|---------|
+| 🟡 `MaxStringLength` | Prevent string bombs | `1,000,000` |
+| 🟡 `MaxArrayLength` | Prevent memory exhaustion | `100,000` |
+| 🟡 `MaxRecursionDepth` | Prevent stack overflow | `100` |
+| 🟡 `BlockedTypes` | Type blacklist | `[Process, File, Assembly, ...]` |
+
+### Low Priority - Fine-grained Control
+
+| Option | Purpose |
+|--------|---------|
+| ⚪ `AllowedTypes` | Type whitelist (stricter than blocklist) |
+| ⚪ `MethodFilter` | `Func<MethodInfo, bool>` callback |
+| ⚪ `MemberFilter` | `Func<MemberInfo, bool>` callback |
+
+### Default Blocked Types (when implemented)
+
+```csharp
+typeof(System.Diagnostics.Process),
+typeof(System.IO.File),
+typeof(System.IO.Directory),
+typeof(System.Reflection.Assembly),
+typeof(System.AppDomain),
+typeof(System.Environment),
+typeof(System.Runtime.InteropServices.Marshal)
+```
+
+See [docs/security.md](docs/security.md) for current security documentation.
+
+---
+
 ## Competitor Comparison
 
-| Feature | CsEval | Dynamic Expresso | NCalc |
-|---------|:------:|:----------------:|:-----:|
-| Lambda in LINQ | ✅ | ⚠️ partial | ❌ |
-| Block expressions | ✅ | ❌ | ❌ |
-| If statements | ✅ | ❌ | ❌ |
-| All loops | ✅ | ❌ | ❌ |
-| Break/continue | ✅ | ❌ | ❌ |
-| Assignment | ✅ | ❌ | ❌ |
-| Compound assignment | ✅ | ❌ | ❌ |
-| Increment/decrement | ✅ | ❌ | ❌ |
-| Object merging | ✅ | ❌ | ❌ |
-| Spread operator | ✅ | ❌ | ❌ |
-| Thread-safe | ✅ | ⚠️ issues | ? |
-| DI integration | ✅ | ❌ | ❌ |
-| Benchmarked | ✅ | ⚠️ | ✅ |
+### Feature Matrix
 
-**CsEval is the most feature-complete expression evaluator in the .NET ecosystem.**
+| Feature | CsEval | ExpressionEvaluator | Eval-Expression.NET | Dynamic Expresso |
+|---------|:------:|:-------------------:|:-------------------:|:----------------:|
+| **License** | MIT | MIT | Paid ($499+)¹ | MIT |
+| **Control Flow** |
+| If/else statements | ✅ | ✅ | ✅ | ❌ |
+| Switch statement | ✅ | ❌ | ✅ | ❌ |
+| For loop | ✅ | ✅ | ✅ | ❌ |
+| While loop | ✅ | ✅ | ✅ | ❌ |
+| Foreach loop | ✅ | ✅ | ✅ | ❌ |
+| Do-while loop | ✅ | ✅ | ✅ | ❌ |
+| Break/continue | ✅ | ✅ | ✅ | ❌ |
+| Try-catch | ❌ | ✅ | ✅ | ❌ |
+| **Operators** |
+| Compound assignment | ✅ | ✅ | ✅ | ❌ |
+| Increment/decrement | ✅ | ✅ | ✅ | ❌ |
+| Null-coalescing (`??`) | ✅ | ✅ | ✅ | ✅ |
+| Null-conditional (`?.`) | ✅ | ✅ | ✅ | ⚠️ partial |
+| **Expressions** |
+| Block expressions | ✅ | ✅ | ✅ | ❌ |
+| Lambda expressions | ✅ | ✅ | ✅ | ⚠️ partial |
+| LINQ with lambdas | ✅ | ✅ | ✅ | ⚠️ partial |
+| Interpolated strings | ✅ | ✅ | ✅ | ❌ |
+| **Unique Features** |
+| Object merging (`+`) | ✅ | ❌ | ❌ | ❌ |
+| Spread operator (`...`) | ✅ | ❌ | ❌ | ❌ |
+| **Infrastructure** |
+| Pre-parsing/caching | ✅ | ⚠️ type cache only² | ✅ (Compile) | ✅ |
+| Thread-safe contexts | ✅ | ⚠️ not documented | ⚠️ not documented | ⚠️ issues |
+| DI integration | ✅ | ❌ | ❌ | ❌ |
+| Async auto-unwrap | ✅ | ❌ | ✅ | ❌ |
+| CancellationToken | ✅ | ❌ | ❌ | ❌ |
+| SafeMode | ✅ | ⚠️ granular | ✅ | ❌ |
+
+¹ Free only for expressions <50 chars or LINQ Dynamic methods
+² ExpressionEvaluator uses reflection without compilation; caches type resolutions only
+
+### Summary
+
+| Library | Best For | Limitations |
+|---------|----------|-------------|
+| **CsEval** | Rule engines, query DSLs, DI-integrated scenarios | No try-catch, no typed constructors yet |
+| **ExpressionEvaluator** | Scripting with full control flow | No pre-parsing (slow for repeated eval), no switch |
+| **Eval-Expression.NET** | Full C# evaluation (if budget allows) | Expensive ($499+), free tier has 50-char limit |
+| **Dynamic Expresso** | Simple expressions only | No control flow, no blocks, thread-safety issues |
+
+**CsEval offers the best combination of features, performance, and cost for expression evaluation.**
 
 ---
 
