@@ -51,8 +51,8 @@ public sealed partial class Evaluator
             case "select" when args is [LambdaValue selector]:
                 return (true, list.Select(item => InvokeLambda(selector, [item])).ToList());
 
-            case "aggregate" when args is [LambdaValue aggregator, _]:
-                return (true, list.Aggregate(args[1], (acc, item) => InvokeLambda(aggregator, [acc, item])));
+            case "aggregate" when args is [_, LambdaValue aggregator]:
+                return (true, list.Aggregate(args[0], (acc, item) => InvokeLambda(aggregator, [acc, item])));
 
             case "aggregate" when args is [LambdaValue reducer]:
                 return (true,

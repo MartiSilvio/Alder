@@ -365,7 +365,7 @@ Parse once, evaluate many times:
 var engine = new CsEvalEngine();
 var expression = engine.Parse("items.Where(x => x.Active).Sum(x => x.Value)");
 
-// ~80% faster for repeated evaluation
+// Faster for repeated evaluation (avoids re-parsing)
 foreach (var dataset in datasets)
 {
     engine.SetVariable("items", dataset);
@@ -467,8 +467,8 @@ CsEval automatically coerces types in common scenarios:
 
 ### Numbers
 
-- Integers default to `long`
-- Decimals default to `double`
+- Integer literals (e.g., `42`) are parsed as `long`
+- Floating-point literals (e.g., `3.14`) are parsed as `double`
 - Automatic conversion when calling methods expecting specific types
 
 ```csharp

@@ -38,7 +38,9 @@ object? Evaluate(CsEvalExpression expression, IServiceProvider? serviceProvider,
 
 // Generic evaluation with type conversion
 T? Evaluate<T>(string expression, IServiceProvider? serviceProvider = null)
+T? Evaluate<T>(string expression, IServiceProvider? serviceProvider, CancellationToken cancellationToken)
 T? Evaluate<T>(CsEvalExpression expression, IServiceProvider? serviceProvider = null)
+T? Evaluate<T>(CsEvalExpression expression, IServiceProvider? serviceProvider, CancellationToken cancellationToken)
 
 // Async evaluation
 Task<object?> EvaluateAsync(string expression, IServiceProvider? serviceProvider = null, CancellationToken cancellationToken = default)

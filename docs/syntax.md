@@ -37,7 +37,7 @@ See also: [Extensions](extensions.md)
 0         // zero
 ```
 
-All integers are parsed as `long` (Int64). All decimals are parsed as `double`.
+All integers are parsed as `long` (Int64). All floating-point numbers are parsed as `double`.
 
 ### Strings
 

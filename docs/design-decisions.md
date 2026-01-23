@@ -24,7 +24,7 @@ CsEval intentionally returns `List<object?>` from LINQ methods rather than `IEnu
 
 CsEval parses numeric literals as follows:
 - Integer literals (no decimal point): parsed as `long` (e.g., `42` → `Int64`)
-- Decimal literals (with decimal point): parsed as `double` (e.g., `3.14` → `Double`)
+- Floating-point literals (with decimal point): parsed as `double` (e.g., `3.14` → `Double`)
 
 **Arithmetic result types:**
 
