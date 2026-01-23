@@ -4,16 +4,19 @@ public sealed partial class Evaluator
 {
     private static bool IsTruthy(object? value)
     {
-        if (value == null) return false;
-        if (value is bool b) return b;
-        if (value is int i) return i != 0;
-        if (value is long l) return l != 0;
-        if (value is double d) return d != 0;
-        if (value is string s) return !string.IsNullOrEmpty(s);
-        return true;
+        return value switch
+        {
+            null => false,
+            bool b => b,
+            int i => i != 0,
+            long l => l != 0,
+            double d => d != 0,
+            string s => !string.IsNullOrEmpty(s),
+            _ => true
+        };
     }
 
-    private static new bool Equals(object? left, object? right)
+    private new static bool Equals(object? left, object? right)
     {
         if (left == null && right == null) return true;
         if (left == null || right == null) return false;
@@ -33,13 +36,12 @@ public sealed partial class Evaluator
         if (IsNumeric(left) && IsNumeric(right))
             return ToDouble(left).CompareTo(ToDouble(right));
 
-        if (left is string ls && right is string rs)
-            return string.Compare(ls, rs, _options.StringComparison);
-
-        if (left is IComparable comparable)
-            return comparable.CompareTo(right);
-
-        throw new EvalException($"Cannot compare {left.GetType().Name} and {right.GetType().Name}");
+        return left switch
+        {
+            string ls when right is string rs => string.Compare(ls, rs, _options.StringComparison),
+            IComparable comparable => comparable.CompareTo(right),
+            _ => throw new EvalException($"Cannot compare {left.GetType().Name} and {right.GetType().Name}")
+        };
     }
 
     private object? Add(object? left, object? right)
@@ -210,12 +212,15 @@ public sealed partial class Evaluator
 
     private static object? Negate(object? value)
     {
-        if (value is int i) return -i;
-        if (value is long l) return -l;
-        if (value is double d) return -d;
-        if (value is float f) return -f;
-        if (value is decimal m) return -m;
-        throw new EvalException($"Cannot negate {value?.GetType().Name ?? "null"}");
+        return value switch
+        {
+            int i => -i,
+            long l => -l,
+            double d => -d,
+            float f => -f,
+            decimal m => -m,
+            _ => throw new EvalException($"Cannot negate {value?.GetType().Name ?? "null"}")
+        };
     }
 
     private static object? BitwiseNot(object? value)

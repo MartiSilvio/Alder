@@ -138,13 +138,12 @@ public sealed class CsEvalEngine
     {
         var result = Evaluate(expression, serviceProvider, cancellationToken);
 
-        if (result == null)
-            return default;
-
-        if (result is T typed)
-            return typed;
-
-        return (T)Convert.ChangeType(result, typeof(T));
+        return result switch
+        {
+            null => default,
+            T typed => typed,
+            _ => (T)Convert.ChangeType(result, typeof(T))
+        };
     }
 
     public async Task<T?> EvaluateAsync<T>(string expression, IServiceProvider? serviceProvider = null,
@@ -152,13 +151,12 @@ public sealed class CsEvalEngine
     {
         var result = await EvaluateAsync(expression, serviceProvider, cancellationToken).ConfigureAwait(false);
 
-        if (result == null)
-            return default;
-
-        if (result is T typed)
-            return typed;
-
-        return (T)Convert.ChangeType(result, typeof(T));
+        return result switch
+        {
+            null => default,
+            T typed => typed,
+            _ => (T)Convert.ChangeType(result, typeof(T))
+        };
     }
 
     public T? Evaluate<T>(CsEvalExpression expression, IServiceProvider? serviceProvider = null)
@@ -171,13 +169,12 @@ public sealed class CsEvalEngine
     {
         var result = Evaluate(expression, serviceProvider, cancellationToken);
 
-        if (result == null)
-            return default;
-
-        if (result is T typed)
-            return typed;
-
-        return (T)Convert.ChangeType(result, typeof(T));
+        return result switch
+        {
+            null => default,
+            T typed => typed,
+            _ => (T)Convert.ChangeType(result, typeof(T))
+        };
     }
 
     public async Task<T?> EvaluateAsync<T>(CsEvalExpression expression, IServiceProvider? serviceProvider = null,
@@ -185,13 +182,12 @@ public sealed class CsEvalEngine
     {
         var result = await EvaluateAsync(expression, serviceProvider, cancellationToken).ConfigureAwait(false);
 
-        if (result == null)
-            return default;
-
-        if (result is T typed)
-            return typed;
-
-        return (T)Convert.ChangeType(result, typeof(T));
+        return result switch
+        {
+            null => default,
+            T typed => typed,
+            _ => (T)Convert.ChangeType(result, typeof(T))
+        };
     }
 
     public CsEvalEngine SetVariable(string name, object? value)
