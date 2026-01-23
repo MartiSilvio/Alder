@@ -22,7 +22,7 @@ public class ExpressionCachingTests
         var expression = engine.Parse("1 + 2");
 
         var result = engine.Evaluate(expression);
-        Assert.That(result, Is.EqualTo(3L));
+        Assert.That(result, Is.EqualTo(3));
     }
 
     [Test]
@@ -33,15 +33,15 @@ public class ExpressionCachingTests
 
         engine.SetVariable("x", 5L);
         var result1 = engine.Evaluate(expression);
-        Assert.That(result1, Is.EqualTo(10L));
+        Assert.That(result1, Is.EqualTo(10));
 
         engine.SetVariable("x", 10L);
         var result2 = engine.Evaluate(expression);
-        Assert.That(result2, Is.EqualTo(20L));
+        Assert.That(result2, Is.EqualTo(20));
 
         engine.SetVariable("x", 100L);
         var result3 = engine.Evaluate(expression);
-        Assert.That(result3, Is.EqualTo(200L));
+        Assert.That(result3, Is.EqualTo(200));
     }
 
     [Test]
@@ -51,7 +51,7 @@ public class ExpressionCachingTests
         var expression = engine.Parse("1 + 2");
 
         var result = engine.Evaluate<long>(expression);
-        Assert.That(result, Is.EqualTo(3L));
+        Assert.That(result, Is.EqualTo(3));
     }
 
     [Test]
@@ -61,7 +61,7 @@ public class ExpressionCachingTests
         var expression = engine.Parse("1 + 2");
 
         var result = await engine.EvaluateAsync(expression);
-        Assert.That(result, Is.EqualTo(3L));
+        Assert.That(result, Is.EqualTo(3));
     }
 
     [Test]
@@ -71,7 +71,7 @@ public class ExpressionCachingTests
         var expression = engine.Parse("1 + 2");
 
         var result = await engine.EvaluateAsync<long>(expression);
-        Assert.That(result, Is.EqualTo(3L));
+        Assert.That(result, Is.EqualTo(3));
     }
 
     [Test]
@@ -119,12 +119,12 @@ public class ExpressionCachingTests
         engine1.SetVariable("x", 1L);
         engine1.SetVariable("y", 2L);
         var result1 = engine1.Evaluate(expression);
-        Assert.That(result1, Is.EqualTo(3L));
+        Assert.That(result1, Is.EqualTo(3));
 
         var engine2 = new CsEvalEngine();
         engine2.SetVariable("x", 10L);
         engine2.SetVariable("y", 20L);
         var result2 = engine2.Evaluate(expression);
-        Assert.That(result2, Is.EqualTo(30L));
+        Assert.That(result2, Is.EqualTo(30));
     }
 }

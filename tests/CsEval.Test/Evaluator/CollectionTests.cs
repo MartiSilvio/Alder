@@ -11,7 +11,7 @@ public class CollectionTests : EvaluatorTestBase
         var result = Eval("[1, 2, 3]") as List<object?>;
         Assert.That(result, Is.Not.Null);
         Assert.That(result, Has.Count.EqualTo(3));
-        Assert.That(result![0], Is.EqualTo(1L));
+        Assert.That(result![0], Is.EqualTo(1));
     }
 
     [Test]
@@ -44,6 +44,6 @@ public class CollectionTests : EvaluatorTestBase
         var result = Eval("new { Name = \"John\", Age = 30 }") as IDictionary<string, object?>;
         Assert.That(result, Is.Not.Null);
         Assert.That(result!["Name"], Is.EqualTo("John"));
-        Assert.That(result["Age"], Is.EqualTo(30L));
+        Assert.That(result["Age"], Is.EqualTo(30));
     }
 }

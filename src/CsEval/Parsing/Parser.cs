@@ -18,11 +18,21 @@ public sealed class Parser(List<Token> tokens)
     {
         var expr = ParseNullCoalesce();
 
-        // Handle ??= as an expression (for use in return statements, etc.)
-        if (expr is IdentifierExpr identifier && Match(TokenType.QuestionQuestionEqual))
+        if (expr is IdentifierExpr identifier)
         {
-            var value = ParseAssignment();
-            return new NullCoalesceAssignExpr(identifier.Name, value);
+            // Handle ??= as an expression (for use in return statements, etc.)
+            if (Match(TokenType.QuestionQuestionEqual))
+            {
+                var value = ParseAssignment();
+                return new NullCoalesceAssignExpr(identifier.Name, value);
+            }
+
+            // Handle = assignment
+            if (Match(TokenType.Equal))
+            {
+                var value = ParseAssignment();
+                return new AssignExpr(identifier.Name, value);
+            }
         }
 
         return expr;
@@ -425,8 +435,32 @@ public sealed class Parser(List<Token> tokens)
             return new ReturnExpr(value);
         }
 
+        if (Match(TokenType.Break))
+        {
+            Match(TokenType.Semicolon);
+            return new BreakExpr();
+        }
+
+        if (Match(TokenType.Continue))
+        {
+            Match(TokenType.Semicolon);
+            return new ContinueExpr();
+        }
+
         if (Match(TokenType.If))
             return ParseIfStatement();
+
+        if (Match(TokenType.While))
+            return ParseWhileStatement();
+
+        if (Match(TokenType.For))
+            return ParseForStatement();
+
+        if (Match(TokenType.Do))
+            return ParseDoWhileStatement();
+
+        if (Match(TokenType.Foreach))
+            return ParseForEachStatement();
 
         if (Match(TokenType.Var))
         {
@@ -490,6 +524,155 @@ public sealed class Parser(List<Token> tokens)
         }
 
         return new IfStatementExpr(condition, thenStatements, elseStatements);
+    }
+
+    private Expr ParseWhileStatement()
+    {
+        Consume(TokenType.LeftParen, "Expected '(' after 'while'");
+        var condition = ParseExpression();
+        Consume(TokenType.RightParen, "Expected ')' after while condition");
+
+        var body = new List<Expr>();
+
+        // Either a block { ... } or a single statement
+        if (Match(TokenType.LeftBrace))
+        {
+            body = ParseStatementList();
+            Consume(TokenType.RightBrace, "Expected '}' after while body");
+        }
+        else
+        {
+            var stmt = ParseStatement();
+            if (stmt != null)
+                body.Add(stmt);
+        }
+
+        return new WhileStatementExpr(condition, body);
+    }
+
+    private Expr ParseForStatement()
+    {
+        Consume(TokenType.LeftParen, "Expected '(' after 'for'");
+
+        // Parse initializer (can be var declaration, expression, or empty)
+        Expr? initializer = null;
+        if (!Check(TokenType.Semicolon))
+        {
+            if (Match(TokenType.Var))
+            {
+                var name = Consume(TokenType.Identifier, "Expected variable name");
+                Consume(TokenType.Equal, "Expected '=' after variable name");
+                var init = ParseExpression();
+                initializer = new VariableDeclExpr(null, name, init);
+            }
+            else if (MatchTypeKeyword(out var typeToken))
+            {
+                var name = Consume(TokenType.Identifier, "Expected variable name");
+                Consume(TokenType.Equal, "Expected '=' after variable name");
+                var init = ParseExpression();
+                initializer = new VariableDeclExpr(typeToken, name, init);
+            }
+            else
+            {
+                initializer = ParseExpression();
+            }
+        }
+        Consume(TokenType.Semicolon, "Expected ';' after for initializer");
+
+        // Parse condition (or empty for infinite loop)
+        Expr? condition = null;
+        if (!Check(TokenType.Semicolon))
+        {
+            condition = ParseExpression();
+        }
+        Consume(TokenType.Semicolon, "Expected ';' after for condition");
+
+        // Parse increment (or empty)
+        Expr? increment = null;
+        if (!Check(TokenType.RightParen))
+        {
+            increment = ParseExpression();
+        }
+        Consume(TokenType.RightParen, "Expected ')' after for clauses");
+
+        // Parse body
+        var body = new List<Expr>();
+        if (Match(TokenType.LeftBrace))
+        {
+            body = ParseStatementList();
+            Consume(TokenType.RightBrace, "Expected '}' after for body");
+        }
+        else
+        {
+            var stmt = ParseStatement();
+            if (stmt != null)
+                body.Add(stmt);
+        }
+
+        return new ForStatementExpr(initializer, condition, increment, body);
+    }
+
+    private Expr ParseDoWhileStatement()
+    {
+        // Parse body
+        var body = new List<Expr>();
+        if (Match(TokenType.LeftBrace))
+        {
+            body = ParseStatementList();
+            Consume(TokenType.RightBrace, "Expected '}' after do body");
+        }
+        else
+        {
+            var stmt = ParseStatement();
+            if (stmt != null)
+                body.Add(stmt);
+        }
+
+        Consume(TokenType.While, "Expected 'while' after do body");
+        Consume(TokenType.LeftParen, "Expected '(' after 'while'");
+        var condition = ParseExpression();
+        Consume(TokenType.RightParen, "Expected ')' after while condition");
+        Match(TokenType.Semicolon); // Optional semicolon
+
+        return new DoWhileStatementExpr(body, condition);
+    }
+
+    private Expr ParseForEachStatement()
+    {
+        Consume(TokenType.LeftParen, "Expected '(' after 'foreach'");
+
+        // Parse variable declaration (var varName or type varName)
+        if (!Match(TokenType.Var) && !MatchTypeKeyword(out _))
+        {
+            throw new ParserException($"Expected 'var' or type keyword in foreach at {Peek().Line}:{Peek().Column}");
+        }
+
+        var variableName = Consume(TokenType.Identifier, "Expected variable name in foreach");
+
+        // Consume 'in' keyword - it's reserved as a contextual keyword
+        if (!Match(TokenType.In))
+        {
+            throw new ParserException($"Expected 'in' after variable name in foreach at {Peek().Line}:{Peek().Column}");
+        }
+
+        var collection = ParseExpression();
+        Consume(TokenType.RightParen, "Expected ')' after foreach collection");
+
+        // Parse body
+        var body = new List<Expr>();
+        if (Match(TokenType.LeftBrace))
+        {
+            body = ParseStatementList();
+            Consume(TokenType.RightBrace, "Expected '}' after foreach body");
+        }
+        else
+        {
+            var stmt = ParseStatement();
+            if (stmt != null)
+                body.Add(stmt);
+        }
+
+        return new ForEachStatementExpr(variableName, collection, body);
     }
 
     private Expr ParseAnonymousObject()

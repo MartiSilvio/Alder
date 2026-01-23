@@ -69,7 +69,7 @@ public class ThreadSafetyTests
 
         // Parent should still have x = 10 and no y variable
         var parentResult = engine.Evaluate("x");
-        Assert.That(parentResult, Is.EqualTo(10L));
+        Assert.That(parentResult, Is.EqualTo(10));
 
         // y should not be defined in parent
         Assert.Throws<CsEval.Evaluation.EvalException>(() => engine.Evaluate("y"));

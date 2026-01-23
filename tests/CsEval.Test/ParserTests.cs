@@ -19,7 +19,7 @@ public class ParserTests
     {
         var expr = Parse("42");
         Assert.That(expr, Is.InstanceOf<LiteralExpr>());
-        Assert.That(((LiteralExpr)expr).Value, Is.EqualTo(42L));
+        Assert.That(((LiteralExpr)expr).Value, Is.EqualTo(42));
     }
 
     [Test]

@@ -18,9 +18,9 @@ public class SpreadOperatorTests : EvaluatorTestBase
         var result = Eval("[...arr]", context) as List<object?>;
         Assert.That(result, Is.Not.Null);
         Assert.That(result, Has.Count.EqualTo(3));
-        Assert.That(result![0], Is.EqualTo(1L));
-        Assert.That(result[1], Is.EqualTo(2L));
-        Assert.That(result[2], Is.EqualTo(3L));
+        Assert.That(result![0], Is.EqualTo(1));
+        Assert.That(result[1], Is.EqualTo(2));
+        Assert.That(result[2], Is.EqualTo(3));
     }
 
     [Test]
@@ -32,10 +32,10 @@ public class SpreadOperatorTests : EvaluatorTestBase
         var result = Eval("[1, ...arr, 4]", context) as List<object?>;
         Assert.That(result, Is.Not.Null);
         Assert.That(result, Has.Count.EqualTo(4));
-        Assert.That(result![0], Is.EqualTo(1L));
-        Assert.That(result[1], Is.EqualTo(2L));
-        Assert.That(result[2], Is.EqualTo(3L));
-        Assert.That(result[3], Is.EqualTo(4L));
+        Assert.That(result![0], Is.EqualTo(1));
+        Assert.That(result[1], Is.EqualTo(2));
+        Assert.That(result[2], Is.EqualTo(3));
+        Assert.That(result[3], Is.EqualTo(4));
     }
 
     [Test]
@@ -48,10 +48,10 @@ public class SpreadOperatorTests : EvaluatorTestBase
         var result = Eval("[...arr1, ...arr2]", context) as List<object?>;
         Assert.That(result, Is.Not.Null);
         Assert.That(result, Has.Count.EqualTo(4));
-        Assert.That(result![0], Is.EqualTo(1L));
-        Assert.That(result[1], Is.EqualTo(2L));
-        Assert.That(result[2], Is.EqualTo(3L));
-        Assert.That(result[3], Is.EqualTo(4L));
+        Assert.That(result![0], Is.EqualTo(1));
+        Assert.That(result[1], Is.EqualTo(2));
+        Assert.That(result[2], Is.EqualTo(3));
+        Assert.That(result[3], Is.EqualTo(4));
     }
 
     [Test]
@@ -81,8 +81,8 @@ public class SpreadOperatorTests : EvaluatorTestBase
 
         var result = Eval("new { ...obj }", context) as IDictionary<string, object?>;
         Assert.That(result, Is.Not.Null);
-        Assert.That(result!["A"], Is.EqualTo(1L));
-        Assert.That(result["B"], Is.EqualTo(2L));
+        Assert.That(result!["A"], Is.EqualTo(1));
+        Assert.That(result["B"], Is.EqualTo(2));
     }
 
     [Test]
@@ -95,8 +95,8 @@ public class SpreadOperatorTests : EvaluatorTestBase
 
         var result = Eval("new { ...obj, B = 2 }", context) as IDictionary<string, object?>;
         Assert.That(result, Is.Not.Null);
-        Assert.That(result!["A"], Is.EqualTo(1L));
-        Assert.That(result["B"], Is.EqualTo(2L));
+        Assert.That(result!["A"], Is.EqualTo(1));
+        Assert.That(result["B"], Is.EqualTo(2));
     }
 
     [Test]
@@ -110,8 +110,8 @@ public class SpreadOperatorTests : EvaluatorTestBase
 
         var result = Eval("new { ...obj, B = 99 }", context) as IDictionary<string, object?>;
         Assert.That(result, Is.Not.Null);
-        Assert.That(result!["A"], Is.EqualTo(1L));
-        Assert.That(result["B"], Is.EqualTo(99L));
+        Assert.That(result!["A"], Is.EqualTo(1));
+        Assert.That(result["B"], Is.EqualTo(99));
     }
 
     [Test]
@@ -127,8 +127,8 @@ public class SpreadOperatorTests : EvaluatorTestBase
 
         var result = Eval("new { ...obj1, ...obj2 }", context) as IDictionary<string, object?>;
         Assert.That(result, Is.Not.Null);
-        Assert.That(result!["A"], Is.EqualTo(1L));
-        Assert.That(result["B"], Is.EqualTo(2L));
+        Assert.That(result!["A"], Is.EqualTo(1));
+        Assert.That(result["B"], Is.EqualTo(2));
     }
 
     [Test]
@@ -159,9 +159,9 @@ public class SpreadOperatorTests : EvaluatorTestBase
 
         var result = Eval("new { ...obj1, ...obj2 }", context) as IDictionary<string, object?>;
         Assert.That(result, Is.Not.Null);
-        Assert.That(result!["A"], Is.EqualTo(1L));
-        Assert.That(result["B"], Is.EqualTo(99L));
-        Assert.That(result["C"], Is.EqualTo(3L));
+        Assert.That(result!["A"], Is.EqualTo(1));
+        Assert.That(result["B"], Is.EqualTo(99));
+        Assert.That(result["C"], Is.EqualTo(3));
     }
 
     #endregion

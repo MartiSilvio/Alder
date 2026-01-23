@@ -2,6 +2,15 @@
 
 This file provides context for AI assistants working with the CsEval codebase.
 
+> **Documentation Reference**: For detailed documentation, see the `/docs` folder:
+> - [features.md](docs/features.md) - Supported features and syntax
+> - [syntax.md](docs/syntax.md) - Complete syntax reference
+> - [api.md](docs/api.md) - Public API documentation
+> - [design-decisions.md](docs/design-decisions.md) - Architecture decisions
+> - [extensions.md](docs/extensions.md) - How to extend CsEval
+>
+> **Feature Status**: See [ROADMAP.md](ROADMAP.md) for implemented features and future plans.
+
 ## Project Overview
 
 CsEval is a C#-like expression evaluator library for .NET 8. It parses and evaluates expressions at runtime, designed for scenarios where dynamic expression evaluation is needed (e.g., query languages, formula evaluation, rule engines).
@@ -39,14 +48,10 @@ CsEval/
 The evaluator implements `IExprVisitor<object?>` to traverse the AST. Each expression type has a corresponding `Visit*` method.
 
 ### 2. Object Merging with `+` Operator
-The `+` operator is overloaded to merge objects/dictionaries when operands aren't numeric. This enables patterns like:
-```csharp
-entity + new { ComputedField = value }
-```
-Properties from the right side override the left side.
+The `+` operator is overloaded to merge objects/dictionaries when operands aren't numeric. Properties from the right side override the left side.
 
-### 3. Block Expressions with Early Returns
-Blocks support `var` declarations, `if` statements, and `return`. Early returns are implemented using a `ReturnValue` exception that's caught by `VisitBlock`.
+### 3. Block Expressions with Control Flow
+Blocks support `var` declarations, control flow statements (`if`, `while`, `for`, `foreach`, `do-while`), and `return`. Early returns are implemented using a `ReturnValue` exception that's caught by `VisitBlock`. Loop control (`break`, `continue`) uses `BreakException` and `ContinueException`.
 
 ### 4. LINQ as First-Class Feature
 LINQ methods are implemented directly in `Evaluator.Linq.cs` rather than delegating to .NET LINQ. This allows lambda expressions to be evaluated in the CsEval context.
@@ -58,56 +63,6 @@ Types can be registered as "modules" which appear as objects in expressions:
 
 ### 6. Lazy Instance Resolution
 Module instances can be resolved from `IServiceProvider` at evaluation time, enabling DI integration.
-
-## AST Node Types
-
-```csharp
-// Literals
-LiteralExpr(object? Value)
-
-// Operators
-UnaryExpr(Token Op, Expr Right)           // -x, !x
-BinaryExpr(Expr Left, Token Op, Expr Right) // x + y, x == y
-LogicalExpr(Expr Left, Token Op, Expr Right) // x && y, x || y
-
-// Access
-IdentifierExpr(Token Name)                // foo
-MemberAccessExpr(Expr Object, Token Name, bool NullSafe) // obj.prop, obj?.prop
-IndexAccessExpr(Expr Object, Expr Index)  // arr[0]
-CallExpr(Expr Callee, List<Expr> Arguments) // func(args)
-
-// Conditionals
-ConditionalExpr(Expr Condition, Expr ThenBranch, Expr ElseBranch) // a ? b : c
-NullCoalesceExpr(Expr Left, Expr Right)   // a ?? b
-NullCoalesceAssignExpr(Token Name, Expr Value) // a ??= b
-
-// Literals/Collections
-ArrayLiteralExpr(List<Expr> Elements)     // [1, 2, 3]
-ObjectLiteralExpr(List<(Token Key, Expr Value)> Properties) // { A = 1 }
-InterpolatedStringExpr(List<InterpolatedPart> Parts) // $"..."
-
-// Lambdas
-LambdaExpr(List<Token> Parameters, Expr Body) // (x) => x * 2
-
-// Blocks/Control Flow
-BlockExpr(List<Expr> Statements, Expr? ReturnExpr)
-VariableDeclExpr(Token Name, Expr Initializer) // var x = 5
-IfStatementExpr(Expr Condition, List<Expr> ThenStatements, List<Expr>? ElseStatements)
-ReturnExpr(Expr? Value)                   // return x
-
-// New/Special
-NewExpr(Expr Initializer)                 // new { ... }
-GroupingExpr(Expr Expression)             // (expr)
-```
-
-## Token Types
-
-Key tokens to understand:
-- `QuestionQuestion` = `??`
-- `QuestionQuestionEqual` = `??=`
-- `QuestionDot` = `?.`
-- `Arrow` = `=>`
-- `New`, `Var`, `Return`, `If`, `Else` = keywords
 
 ## Common Modification Patterns
 
@@ -144,19 +99,11 @@ Key tokens to understand:
 ### EvalContext Scoping
 - `CreateChild()` creates a child scope that inherits parent variables
 - `Define()` sets a variable in the current scope
-- `Set()` updates an existing variable in the scope chain (added for `??=`)
+- `Set()` updates an existing variable in the scope chain
 - `Get()` searches up the scope chain
 
 ### Lambda Closure Capture
 Lambdas capture the `EvalContext` at definition time (`LambdaValue.Closure`). When invoked, a child context is created from the closure.
-
-### Object Merging Rules (in `Add()`)
-1. String + anything = string concatenation
-2. Numeric + numeric = arithmetic
-3. Dict + Dict = merge (right overrides)
-4. TypedObject + Dict = reflect left properties, merge right
-5. Dict + TypedObject = copy dict, reflect right properties
-6. TypedObject + TypedObject = reflect both
 
 ### Method Invocation
 - Module methods go through `InvokeModuleMethod()`
@@ -168,36 +115,34 @@ Lambdas capture the `EvalContext` at definition time (`LambdaValue.Closure`). Wh
 ### Task Unwrapping
 Methods returning `Task<T>` are automatically awaited via `UnwrapTask()`.
 
+### Loop Safety
+All loops (`while`, `for`, `foreach`, `do-while`) have a configurable iteration limit via `CsEvalOptions.MaxIterations` (default: 100,000) to prevent infinite loops. `break` exits the innermost loop, `continue` skips to the next iteration.
+
 ## Test Structure
 
-- `EvaluatorTests.cs` - Core expression evaluation
+Tests are in `tests/CsEval.Test/`:
+- `EngineTests.cs` - High-level API
 - `ParserTests.cs` - Parser behavior
 - `LexerTests.cs` - Tokenization
-- `EngineTests.cs` - High-level API
-- `AttributeRegistrationTests.cs` - Module/function registration
-- `AsyncTests.cs` - Async evaluation
-- `BenchmarkTests.cs` - Performance tests
 - `ValidationTests.cs` - Error handling
-- `LazyResolutionTests.cs` - DI integration
-- `ExpressionCachingTests.cs` - Pre-parsing
+- `WhileLoopTests.cs` - While loop tests (incl. break/continue)
+- `ForLoopTests.cs` - For loop tests (incl. break/continue)
+- `ForEachLoopTests.cs` - Foreach loop tests (incl. break/continue)
+- `DoWhileLoopTests.cs` - Do-while loop tests (incl. break/continue)
+- `AssignmentTests.cs` - Assignment tests
+- `ThreadSafetyTests.cs` - Thread safety
+- `AsyncTests.cs` - Async evaluation
+- `Evaluator/*.cs` - Feature-specific evaluator tests
 
 ## Running Tests
 
 ```bash
-cd api/CsEval
 dotnet test
 ```
 
-## Performance Considerations
-
-- Pre-parsing (`engine.Parse()`) is ~80% faster for repeated evaluation
-- LINQ operations materialize to `List<object?>` internally
-- Reflection is used for property access and method invocation
-- Consider using `ArgumentTransformer` for batch type coercion
-
 ## Common Gotchas
 
-1. **Numeric literals match C#**: `42` is `int`, `42L` is `long`, `3.14` is `double`, `3.14m` is `decimal`. Use suffixes for explicit types.
+1. **Numeric literals match C# spec**: `42` is `int`, `42L` is `long`, `3.14` is `double`, `3.14m` is `decimal`. Integer literals use automatic type promotion (int if fits, else long).
 
 2. **LINQ returns `List<object?>`**: Not `IEnumerable<T>`. Methods like `ToArray()` return `object?[]`.
 
@@ -211,21 +156,4 @@ dotnet test
 
 7. **Service resolution timing**: `IServiceProvider` is used at evaluation time, not registration time.
 
-## Example Usage in Abal Project
-
-CsEval is used for dynamic query expressions in the Abal gym management system:
-
-```typescript
-// In TypeScript API layer
-export const getById = (idExpr: string) => `{
-    var sub = Subscriptions.GetById(${idExpr});
-    if (sub == null) return null;
-    var pkg = MembershipPackage.GetById(sub.PackageId);
-    return sub + new {
-        Package = pkg,
-        Group = MembershipGroup.GetById(pkg?.GroupId)
-    };
-}`;
-```
-
-The expressions are sent to the backend and evaluated with registered modules for `Subscriptions`, `MembershipPackage`, etc.
+8. **Reserved keywords**: All C# keywords (including contextual keywords like `value`, `base`, etc.) are reserved and cannot be used as variable names.

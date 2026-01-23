@@ -70,7 +70,7 @@ public class ValidationTests
 
         engine.SetVariable("x", 5L);
         var evalResult = engine.Evaluate(result!);
-        Assert.That(evalResult, Is.EqualTo(10L));
+        Assert.That(evalResult, Is.EqualTo(10));
     }
 
     [Test]

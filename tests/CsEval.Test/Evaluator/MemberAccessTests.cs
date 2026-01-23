@@ -13,8 +13,8 @@ public class MemberAccessTests : EvaluatorTestBase
         var context = new EvalContext();
         context.Define("x", 10L);
 
-        Assert.That(Eval("x", context), Is.EqualTo(10L));
-        Assert.That(Eval("x + 5", context), Is.EqualTo(15L));
+        Assert.That(Eval("x", context), Is.EqualTo(10));
+        Assert.That(Eval("x + 5", context), Is.EqualTo(15));
     }
 
     [Test]

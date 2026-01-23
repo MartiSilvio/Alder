@@ -41,24 +41,24 @@ These features differentiate CsEval from competitors like Dynamic Expresso:
 
 Based on [Dynamic Expresso GitHub issues](https://github.com/dynamicexpresso/DynamicExpresso/issues) analysis - these are the most requested features users can't get elsewhere:
 
-### **1. Loops (MASSIVE market gap)**
+### ~~**1. Loops (MASSIVE market gap)**~~ ✅
 
 Dynamic Expresso has ZERO loop support. This is their most painful limitation.
 
-| Feature | Syntax | Priority | Notes |
-|---------|--------|----------|-------|
-| **`foreach`** | `foreach (var x in items) { }` | Critical | Most requested |
-| **`while`** | `while (cond) { }` | Critical | Add iteration limit for safety |
-| **`for`** | `for (var i = 0; i < n; i++) { }` | High | |
-| `do-while` | `do { } while (cond)` | Medium | |
-| `break` | `break;` | Required | Exit loop |
-| `continue` | `continue;` | Next iteration |
+| Feature | Syntax | Status | Notes |
+|---------|--------|--------|-------|
+| ~~**`foreach`**~~ | `foreach (var x in items) { }` | ✅ | Most requested |
+| ~~**`while`**~~ | `while (cond) { }` | ✅ | With configurable iteration limit |
+| ~~**`for`**~~ | `for (var i = 0; i < n; i++) { }` | ✅ | All C# for loop patterns |
+| ~~`do-while`~~ | `do { } while (cond)` | ✅ | Execute-then-check |
+| ~~`break`~~ | `break;` | ✅ | Exit loop |
+| ~~`continue`~~ | `continue;` | ✅ | Next iteration |
 
 ### **2. Assignment & Mutation**
 
 | Feature | Syntax | Priority | Notes |
 |---------|--------|----------|-------|
-| **Basic assignment** | `x = value` | Critical | Update existing variable |
+| ~~**Basic assignment**~~ | `x = value` | ✅ | Update existing variable |
 | **Compound assignment** | `x += value` | Critical | Issue #251 in DE |
 | **Index set** | `arr[0] = value` | Critical | DE can read but not write! |
 | **Property set** | `obj.Prop = value` | High | |
@@ -230,8 +230,10 @@ Intentionally not supporting:
 1. ~~Full lambda in LINQ~~ ✅ - **DONE, huge win over DE**
 2. ~~Block expressions with if/return~~ ✅ - **DONE**
 3. ~~Thread-safe evaluation~~ ✅ - **DONE**
-4. Loops (`foreach`, `while`, `for`) - **#1 market gap**
-5. Assignment operators (`=`, `+=`, index set) - **#2 market gap**
+4. ~~All loops~~ ✅ - **DONE** (`while`, `for`, `foreach`, `do-while` with configurable iteration limit)
+5. ~~Break/continue~~ ✅ - **DONE** (works in all loop types)
+6. ~~Basic assignment (`x = value`)~~ ✅ - **DONE**
+7. Compound assignment (`+=`, `-=`) and index set - **Next priority**
 
 ### Should Have (Common Requests)
 6. Pattern matching (`is`, `is not`, `switch` expression)
@@ -254,12 +256,13 @@ Intentionally not supporting:
 | Lambda in LINQ | ✅ | ❌ (partial) | ❌ |
 | Block expressions | ✅ | ❌ | ❌ |
 | If statements | ✅ | ❌ | ❌ |
-| Loops | ❌ | ❌ | ❌ |
-| Assignment | ❌ | ❌ | ❌ |
+| All loops (while/for/foreach/do-while) | ✅ | ❌ | ❌ |
+| Break/continue | ✅ | ❌ | ❌ |
+| Assignment | ✅ | ❌ | ❌ |
 | Object merging | ✅ | ❌ | ❌ |
 | Spread operator | ✅ | ❌ | ❌ |
 | Thread-safe | ✅ | ⚠️ (had issues) | ? |
 | DI integration | ✅ | ❌ | ❌ |
 | Performance | Fast | ~0.1ms | Fast |
 
-**Key insight**: Adding loops and assignment would make CsEval the most feature-complete expression evaluator in the .NET ecosystem.
+**Key insight**: CsEval is the most feature-complete expression evaluator in the .NET ecosystem with full loop support (while, for, foreach, do-while), break/continue, and assignment.

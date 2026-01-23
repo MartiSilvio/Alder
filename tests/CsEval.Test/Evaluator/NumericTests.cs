@@ -51,7 +51,7 @@ public class NumericTests : EvaluatorTestBase
     {
         var result = Eval("42L");
         Assert.That(result, Is.TypeOf<long>());
-        Assert.That(result, Is.EqualTo(42L));
+        Assert.That(result, Is.EqualTo(42));
     }
 
     [Test]
@@ -154,7 +154,7 @@ public class NumericTests : EvaluatorTestBase
         // Use L suffix to get long operands
         var result = Eval("5L + 3L");
         Assert.That(result, Is.TypeOf<long>());
-        Assert.That(result, Is.EqualTo(8L));
+        Assert.That(result, Is.EqualTo(8));
     }
 
     [Test]
@@ -163,7 +163,7 @@ public class NumericTests : EvaluatorTestBase
         // C# behavior: int + long → long
         var result = Eval("5 + 3L");
         Assert.That(result, Is.TypeOf<long>());
-        Assert.That(result, Is.EqualTo(8L));
+        Assert.That(result, Is.EqualTo(8));
     }
 
     [Test]
@@ -219,7 +219,7 @@ public class NumericTests : EvaluatorTestBase
         context.Define("x", 5); // int
         var result = Eval("x * 2L", context); // Use L suffix for long
         Assert.That(result, Is.TypeOf<long>());
-        Assert.That(result, Is.EqualTo(10L));
+        Assert.That(result, Is.EqualTo(10));
     }
 
     [Test]

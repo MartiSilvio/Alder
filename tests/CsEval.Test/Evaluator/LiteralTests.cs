@@ -9,7 +9,7 @@ public class LiteralTests : EvaluatorTestBase
     public void Eval_Number_ReturnsNumber()
     {
         var result = Eval("42");
-        Assert.That(result, Is.EqualTo(42L));
+        Assert.That(result, Is.EqualTo(42));
     }
 
     [Test]

@@ -39,7 +39,7 @@ public class VariableDeclarationTests : EvaluatorTestBase
     {
         var result = Eval("{ long x = 42; return x; }");
         Assert.That(result, Is.TypeOf<long>());
-        Assert.That(result, Is.EqualTo(42L));
+        Assert.That(result, Is.EqualTo(42));
     }
 
     [Test]
@@ -108,7 +108,7 @@ public class VariableDeclarationTests : EvaluatorTestBase
     {
         var result = Eval("{ long x = 42; return x; }");
         Assert.That(result, Is.TypeOf<long>());
-        Assert.That(result, Is.EqualTo(42L));
+        Assert.That(result, Is.EqualTo(42));
     }
 
     [Test]

@@ -108,7 +108,7 @@ public class LinqTests : EvaluatorTestBase
         context.Define("numbers", new List<object?> { 1, 2, 3, 4 });
 
         var result = Eval("numbers.Aggregate(0, (acc, x) => acc + x)", context);
-        Assert.That(result, Is.EqualTo(10L));
+        Assert.That(result, Is.EqualTo(10));
     }
 
     [Test]
@@ -118,7 +118,7 @@ public class LinqTests : EvaluatorTestBase
         context.Define("numbers", new List<object?> { 1, 2, 3, 4 });
 
         var result = Eval("numbers.Aggregate((acc, x) => acc + x)", context);
-        Assert.That(result, Is.EqualTo(10L));
+        Assert.That(result, Is.EqualTo(10));
     }
 
     [Test]

@@ -14,8 +14,8 @@ public class ObjectMergeTests : EvaluatorTestBase
     {
         var result = Eval("new { A = 1 } + new { B = 2 }") as IDictionary<string, object?>;
         Assert.That(result, Is.Not.Null);
-        Assert.That(result!["A"], Is.EqualTo(1L));
-        Assert.That(result["B"], Is.EqualTo(2L));
+        Assert.That(result!["A"], Is.EqualTo(1));
+        Assert.That(result["B"], Is.EqualTo(2));
     }
 
     [Test]
@@ -23,8 +23,8 @@ public class ObjectMergeTests : EvaluatorTestBase
     {
         var result = Eval("new { A = 1, B = 2 } + new { B = 3 }") as IDictionary<string, object?>;
         Assert.That(result, Is.Not.Null);
-        Assert.That(result!["A"], Is.EqualTo(1L));
-        Assert.That(result["B"], Is.EqualTo(3L));
+        Assert.That(result!["A"], Is.EqualTo(1));
+        Assert.That(result["B"], Is.EqualTo(3));
     }
 
     [Test]
@@ -49,9 +49,9 @@ public class ObjectMergeTests : EvaluatorTestBase
     {
         var result = Eval("new { A = 1 } + new { B = 2 } + new { C = 3 }") as IDictionary<string, object?>;
         Assert.That(result, Is.Not.Null);
-        Assert.That(result!["A"], Is.EqualTo(1L));
-        Assert.That(result["B"], Is.EqualTo(2L));
-        Assert.That(result["C"], Is.EqualTo(3L));
+        Assert.That(result!["A"], Is.EqualTo(1));
+        Assert.That(result["B"], Is.EqualTo(2));
+        Assert.That(result["C"], Is.EqualTo(3));
     }
 
     [Test]
@@ -60,8 +60,8 @@ public class ObjectMergeTests : EvaluatorTestBase
         var result = Eval("new { a = 1 } + new { A = 2 }") as IDictionary<string, object?>;
         Assert.That(result, Is.Not.Null);
         Assert.That(result!.Count, Is.EqualTo(2));
-        Assert.That(result["a"], Is.EqualTo(1L));
-        Assert.That(result["A"], Is.EqualTo(2L));
+        Assert.That(result["a"], Is.EqualTo(1));
+        Assert.That(result["A"], Is.EqualTo(2));
     }
 
     #endregion
@@ -90,7 +90,7 @@ public class ObjectMergeTests : EvaluatorTestBase
         var result = Eval("person + new { Age = 40 }", context) as IDictionary<string, object?>;
         Assert.That(result, Is.Not.Null);
         Assert.That(result!["Name"], Is.EqualTo("John"));
-        Assert.That(result["Age"], Is.EqualTo(40L));
+        Assert.That(result["Age"], Is.EqualTo(40));
     }
 
     [Test]

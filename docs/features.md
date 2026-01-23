@@ -100,6 +100,103 @@ items.ToList()                       // Convert to List<object?>
 items.ToArray()                      // Convert to object?[]
 ```
 
+## Loops
+
+CsEval supports all C# loop types with `break` and `continue` for flow control.
+
+### While Loop
+
+```csharp
+{
+    var sum = 0;
+    var i = 0;
+    while (i < 10) {
+        sum = sum + i;
+        i = i + 1;
+    }
+    return sum;   // 45
+}
+```
+
+### For Loop
+
+```csharp
+{
+    var sum = 0;
+    for (var i = 0; i < 10; i = i + 1) {
+        sum = sum + i;
+    }
+    return sum;   // 45
+}
+```
+
+### Foreach Loop
+
+```csharp
+{
+    var sum = 0;
+    foreach (var item in items) {
+        sum = sum + item.Value;
+    }
+    return sum;
+}
+```
+
+### Do-While Loop
+
+```csharp
+{
+    var i = 0;
+    do {
+        i = i + 1;
+    } while (i < 5);
+    return i;     // 5
+}
+```
+
+### Break and Continue
+
+```csharp
+// Find first matching element
+{
+    var result = -1;
+    foreach (var item in items) {
+        if (item.Match) {
+            result = item.Id;
+            break;           // Exit loop early
+        }
+    }
+    return result;
+}
+
+// Skip certain elements
+{
+    var sum = 0;
+    for (var i = 0; i < 10; i = i + 1) {
+        if (i % 2 == 0) continue;  // Skip even numbers
+        sum = sum + i;
+    }
+    return sum;   // 25 (1+3+5+7+9)
+}
+```
+
+### Loop Safety
+
+All loops have a configurable iteration limit to prevent infinite loops:
+
+```csharp
+// Default: 100,000 iterations max
+var engine = new CsEvalEngine();
+
+// Custom limit
+var engine = new CsEvalEngine(new CsEvalOptions { MaxIterations = 1000 });
+
+// Disable limit (use with caution)
+var engine = new CsEvalEngine(new CsEvalOptions { MaxIterations = 0 });
+```
+
+Exceeding the limit throws an `EvalException`.
+
 ## Built-in Modules
 
 ### Math
@@ -518,3 +615,7 @@ When calling methods, CsEval:
 7. **GroupBy returns dictionaries**: Results have `Key` and `Items` properties, not C#'s `IGrouping<TKey, TElement>`.
 
 8. **Zip without selector**: Returns dictionaries with `First` and `Second` properties, not tuples.
+
+9. **Loop iteration limit**: Loops have a default limit of 100,000 iterations to prevent infinite loops. Configure via `CsEvalOptions.MaxIterations`.
+
+10. **Break/continue scope**: `break` and `continue` only affect the innermost loop.

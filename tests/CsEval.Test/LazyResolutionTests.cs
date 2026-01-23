@@ -98,7 +98,7 @@ public class MemberFilteringTests
         };
         engine.RegisterModule("Calc", typeof(CalculatorModule), members);
 
-        Assert.That(engine.Evaluate("Calc.Sum(2, 3)"), Is.EqualTo(5L));
+        Assert.That(engine.Evaluate("Calc.Sum(2, 3)"), Is.EqualTo(5));
 
         var ex = Assert.Throws<EvalException>(() => engine.Evaluate("Calc.Subtract(5, 2)"));
         Assert.That(ex!.Message, Does.Contain("not found"));
@@ -115,8 +115,8 @@ public class MemberFilteringTests
         };
         engine.RegisterModule("Calc", typeof(CalculatorModule), members);
 
-        Assert.That(engine.Evaluate("Calc.plus(2, 3)"), Is.EqualTo(5L));
-        Assert.That(engine.Evaluate("Calc.minus(5, 2)"), Is.EqualTo(3L));
+        Assert.That(engine.Evaluate("Calc.plus(2, 3)"), Is.EqualTo(5));
+        Assert.That(engine.Evaluate("Calc.minus(5, 2)"), Is.EqualTo(3));
 
         var ex = Assert.Throws<EvalException>(() => engine.Evaluate("Calc.Sum(2, 3)"));
         Assert.That(ex!.Message, Does.Contain("not found"));
@@ -128,9 +128,9 @@ public class MemberFilteringTests
         var engine = new CsEvalEngine();
         engine.RegisterModule("Calc", typeof(CalculatorModule));
 
-        Assert.That(engine.Evaluate("Calc.Sum(2, 3)"), Is.EqualTo(5L));
-        Assert.That(engine.Evaluate("Calc.Subtract(5, 2)"), Is.EqualTo(3L));
-        Assert.That(engine.Evaluate("Calc.Multiply(4, 3)"), Is.EqualTo(12L));
+        Assert.That(engine.Evaluate("Calc.Sum(2, 3)"), Is.EqualTo(5));
+        Assert.That(engine.Evaluate("Calc.Subtract(5, 2)"), Is.EqualTo(3));
+        Assert.That(engine.Evaluate("Calc.Multiply(4, 3)"), Is.EqualTo(12));
     }
 
     [Test]
@@ -159,8 +159,8 @@ public class MemberFilteringTests
         };
         engine.RegisterModule("calc", typeof(CalculatorModule), members);
 
-        Assert.That(engine.Evaluate("CALC.SUM(2, 3)"), Is.EqualTo(5L));
-        Assert.That(engine.Evaluate("Calc.sum(2, 3)"), Is.EqualTo(5L));
+        Assert.That(engine.Evaluate("CALC.SUM(2, 3)"), Is.EqualTo(5));
+        Assert.That(engine.Evaluate("Calc.sum(2, 3)"), Is.EqualTo(5));
     }
 }
 

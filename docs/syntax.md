@@ -268,6 +268,70 @@ return;              // return null
 return expression;   // return value
 ```
 
+### Loops
+
+All loops support `break` (exit loop) and `continue` (skip to next iteration).
+
+#### While Loop
+
+```csharp
+while (condition) {
+    // body
+}
+
+// Single statement body
+while (condition) doSomething();
+```
+
+#### For Loop
+
+```csharp
+for (var i = 0; i < 10; i = i + 1) {
+    // body
+}
+
+// All parts are optional
+for (;;) { }           // infinite loop
+for (var i = 0;;) { }  // no condition
+for (; i < 10;) { }    // no initializer or increment
+```
+
+#### Foreach Loop
+
+```csharp
+foreach (var item in collection) {
+    // body
+}
+
+// With typed variable
+foreach (int num in numbers) {
+    // body
+}
+```
+
+#### Do-While Loop
+
+```csharp
+do {
+    // body executes at least once
+} while (condition);
+```
+
+#### Break and Continue
+
+```csharp
+// Break exits the innermost loop
+while (true) {
+    if (done) break;
+}
+
+// Continue skips to next iteration
+for (var i = 0; i < 10; i = i + 1) {
+    if (i % 2 == 0) continue;  // skip even numbers
+    process(i);
+}
+```
+
 ## Comments
 
 ```
@@ -292,6 +356,13 @@ The following are reserved and cannot be used as identifiers:
 - `return`
 - `if`
 - `else`
+- `while`
+- `for`
+- `foreach`
+- `do`
+- `in`
+- `break`
+- `continue`
 - `switch` (reserved but not implemented)
 - `case` (reserved but not implemented)
 - `default` (reserved but not implemented)
@@ -342,10 +413,20 @@ object_property = "..." expression | IDENTIFIER "=" expression ;
 
 block_body     = statement* ;
 statement      = "return" expression? ";"
+               | "break" ";"
+               | "continue" ";"
                | "if" "(" expression ")" ( "{" statement* "}" | statement ) ( "else" ( "{" statement* "}" | statement ) )?
+               | "while" "(" expression ")" ( "{" statement* "}" | statement )
+               | "for" "(" for_init? ";" expression? ";" expression? ")" ( "{" statement* "}" | statement )
+               | "foreach" "(" ( "var" | TYPE_KEYWORD ) IDENTIFIER "in" expression ")" ( "{" statement* "}" | statement )
+               | "do" ( "{" statement* "}" | statement ) "while" "(" expression ")" ";"?
                | "var" IDENTIFIER "=" expression ";"
                | TYPE_KEYWORD IDENTIFIER "=" expression ";"
                | expression ";" ;
+
+for_init       = "var" IDENTIFIER "=" expression
+               | TYPE_KEYWORD IDENTIFIER "=" expression
+               | expression ;
 
 TYPE_KEYWORD   = "int" | "long" | "double" | "float" | "decimal" | "string" | "bool" | "object" ;
 ```
@@ -374,13 +455,12 @@ x += 1           // Compound assignment - NOT supported (use x = x + 1)
 ### Control Flow
 
 ```csharp
-for (...)        // For loops - NOT supported
-while (...)      // While loops - NOT supported
-foreach (...)    // Foreach loops - NOT supported
 switch (x) { }   // Switch statements - NOT supported (reserved)
 throw new ...    // Throw statements - NOT supported
 try { } catch    // Try-catch - NOT supported
 ```
+
+Note: All loops (`while`, `for`, `foreach`, `do-while`) and loop control (`break`, `continue`) ARE supported.
 
 ### Other
 

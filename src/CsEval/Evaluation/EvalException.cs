@@ -9,3 +9,13 @@ internal class ReturnValue(object? value) : Exception
 {
     public object? Value { get; } = value;
 }
+
+/// <summary>
+/// Used for break statements in loops.
+/// </summary>
+internal class BreakException : Exception;
+
+/// <summary>
+/// Used for continue statements in loops.
+/// </summary>
+internal class ContinueException : Exception;

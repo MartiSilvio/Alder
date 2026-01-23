@@ -11,13 +11,16 @@ var engine = new CsEvalEngine();
 engine.Evaluate("1 + 2 * 3"); // 7
 ```
 
-## Use Cases
+## Why CsEval?
 
-- **Formula evaluation** - Calculate `Price * Quantity * (1 - Discount)` at runtime
-- **Dynamic queries** - Build data retrieval expressions without recompilation
-- **Rule engines** - Define business rules as expressions that can be modified on the fly
-- **Scripting** - Add expression-based scripting to your application
-- **Calculated fields** - User-defined formulas for reports and dashboards
+CsEval goes beyond simple expression evaluation. It supports features that enable real programming logic at runtime:
+
+- **Full LINQ with lambdas** - `items.Where(x => x.Active).Sum(x => x.Value)`
+- **All C# loops** - `while`, `for`, `foreach`, `do-while` with `break` and `continue`
+- **Block expressions** - Variables, conditionals, and early returns
+- **Object merging** - `entity + new { Computed = value }` to extend data on the fly
+- **Thread-safe contexts** - Isolated child contexts for parallel evaluation
+- **Dependency injection** - Resolve modules from `IServiceProvider` at evaluation time
 
 ## Installation
 
@@ -77,6 +80,27 @@ items.OrderBy(x => x.Date).Take(10)
 items.Sum(x => x.Value)
 items.Any(x => x.Status == "pending")
 items.Aggregate(0, (sum, x) => sum + x.Value)
+```
+
+### All C# Loops
+
+Full loop support that other evaluators lack:
+
+```csharp
+{
+    var sum = 0;
+    foreach (var item in items) {
+        if (item.Skip) continue;
+        if (item.Value > 1000) break;
+        sum = sum + item.Value;
+    }
+    return sum;
+}
+
+// Also: while, for, do-while
+for (var i = 0; i < 10; i = i + 1) { ... }
+while (condition) { ... }
+do { ... } while (condition);
 ```
 
 ### Control Flow
