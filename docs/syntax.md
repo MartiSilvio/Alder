@@ -11,8 +11,8 @@ See also: [Extensions](extensions.md)
 1. Assignment: `=`, `??=`, `+=`, `-=`, `*=`, `/=`, `%=`, `&=`, `|=`, `^=`, `<<=`, `>>=`
 2. Null-coalescing: `??`
 3. Ternary: `? :`
-4. Logical OR: `||`
-5. Logical AND: `&&`
+4. Logical OR: `||`, `or`
+5. Logical AND: `&&`, `and`
 6. Bitwise OR: `|`
 7. Bitwise XOR: `^`
 8. Bitwise AND: `&`
@@ -21,7 +21,7 @@ See also: [Extensions](extensions.md)
 11. Shift: `<<`, `>>`
 12. Additive: `+`, `-`
 13. Multiplicative: `*`, `/`, `%`
-14. Unary: `-`, `!`, `~`, `++` (prefix), `--` (prefix)
+14. Unary: `-`, `!`, `not`, `~`, `++` (prefix), `--` (prefix)
 15. Postfix: `.`, `?.`, `[]`, `()`, `++` (postfix), `--` (postfix)
 16. Primary: literals, identifiers, grouping
 
@@ -129,13 +129,13 @@ undefined    // JavaScript-friendly alias for null
 
 ### Logical
 
-| Operator | Description | Example    |
-| -------- | ----------- | ---------- |
-| `&&`     | Logical AND | `a && b`   |
-| `\|\|`   | Logical OR  | `a \|\| b` |
-| `!`      | Logical NOT | `!a`       |
+| Operator | Alias | Description | Example    |
+| -------- | ----- | ----------- | ---------- |
+| `&&`     | `and` | Logical AND | `a && b` or `a and b` |
+| `\|\|`   | `or`  | Logical OR  | `a \|\| b` or `a or b` |
+| `!`      | `not` | Logical NOT | `!a` or `not a` |
 
-Short-circuit evaluation is used for `&&` and `||`.
+Short-circuit evaluation is used for `&&`/`and` and `||`/`or`. Keywords can be mixed with symbols: `true && true and true`.
 
 ### Bitwise
 
@@ -497,6 +497,9 @@ The following are reserved and cannot be used as identifiers:
 - `switch`
 - `case`
 - `default`
+- `and` (logical operator, Python/SQL-style)
+- `or` (logical operator, Python/SQL-style)
+- `not` (logical operator, Python/SQL-style)
 
 Type keywords (matching C#):
 - `int`
@@ -515,8 +518,8 @@ expression     = assignment ;
 assignment     = null_coalesce ( ( "??=" | "=" | "+=" | "-=" | "*=" | "/=" | "%=" | "&=" | "|=" | "^=" | "<<=" | ">>=" ) assignment )? ;
 null_coalesce  = conditional ( "??" conditional )* ;
 conditional    = or ( "?" expression ":" expression )? ;
-or             = and ( "||" and )* ;
-and            = bitwise_or ( "&&" bitwise_or )* ;
+or             = and ( ( "||" | "or" ) and )* ;
+and            = bitwise_or ( ( "&&" | "and" ) bitwise_or )* ;
 bitwise_or     = bitwise_xor ( "|" bitwise_xor )* ;
 bitwise_xor    = bitwise_and ( "^" bitwise_and )* ;
 bitwise_and    = equality ( "&" equality )* ;
@@ -525,7 +528,7 @@ comparison     = shift ( ( "<" | "<=" | ">" | ">=" | "in" ) shift )* ;
 shift          = term ( ( "<<" | ">>" ) term )* ;
 term           = factor ( ( "+" | "-" ) factor )* ;
 factor         = unary ( ( "*" | "/" | "%" ) unary )* ;
-unary          = ( "!" | "-" | "~" ) unary | ( "++" | "--" ) IDENTIFIER | postfix ;
+unary          = ( "!" | "not" | "-" | "~" ) unary | ( "++" | "--" ) IDENTIFIER | postfix ;
 postfix        = primary ( "." IDENTIFIER | "?." IDENTIFIER | "[" expression "]" | "(" arguments? ")" | "++" | "--" )* ;
 primary        = NUMBER | STRING | "true" | "false" | "null" | "undefined"
                | INTERPOLATED_STRING

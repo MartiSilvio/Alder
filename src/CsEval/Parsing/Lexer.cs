@@ -19,6 +19,11 @@ public sealed class Lexer
         ["null"] = TokenType.Null,
         ["undefined"] = TokenType.Undefined,  // JavaScript
 
+        // Logical operator aliases (Python/SQL style)
+        ["and"] = TokenType.AmpAmp,
+        ["or"] = TokenType.PipePipe,
+        ["not"] = TokenType.Bang,
+
         // Keywords - Implemented
         ["new"] = TokenType.New,
         ["if"] = TokenType.If,
@@ -127,7 +132,6 @@ public sealed class Lexer
         // Contextual keywords (reserved for forward compatibility)
         ["add"] = TokenType.Add,
         ["alias"] = TokenType.Alias,
-        ["and"] = TokenType.And,
         ["args"] = TokenType.Args,
         ["ascending"] = TokenType.Ascending,
         ["by"] = TokenType.By,
@@ -143,10 +147,8 @@ public sealed class Lexer
         ["join"] = TokenType.Join,
         ["let"] = TokenType.Let,
         ["managed"] = TokenType.Managed,
-        ["not"] = TokenType.Not,
         ["notnull"] = TokenType.Notnull,
         ["on"] = TokenType.On,
-        ["or"] = TokenType.Or,
         ["orderby"] = TokenType.Orderby,
         ["remove"] = TokenType.Remove,
         ["required"] = TokenType.Required,

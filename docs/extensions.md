@@ -91,3 +91,43 @@ x in [1, 2, 3] ? "found" : "missing"  // ternary works
 ```
 
 ---
+
+## Logical Operator Keywords (`and`, `or`, `not`)
+
+Python/SQL-style logical operators as alternatives to C# symbols.
+
+### Equivalents
+
+| Keyword | C# Symbol | Description |
+|---------|-----------|-------------|
+| `and` | `&&` | Logical AND |
+| `or` | `\|\|` | Logical OR |
+| `not` | `!` | Logical NOT |
+
+### Examples
+
+```csharp
+true and false              // false (same as true && false)
+true or false               // true (same as true || false)
+not true                    // false (same as !true)
+```
+
+### With Expressions
+
+```csharp
+(x > 0) and (x < 100)       // Range check
+(name == null) or (name == "")  // Empty check
+not (x in [1, 2, 3])        // Not in list
+```
+
+### Mixed with Symbols
+
+Can be freely mixed with C# symbols:
+
+```csharp
+true && true and true       // All true
+false || true or false      // true
+!false and not false        // true
+```
+
+---
