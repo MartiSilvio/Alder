@@ -18,11 +18,17 @@ public sealed class CsEvalExpression
 
     // Compilation state (volatile for thread-safe reads)
     private volatile CompiledExpressionInfo? _compiledInfo;
+    private readonly ExpressionCache? _expressionCache;
 
-    internal CsEvalExpression(string expression, Expr ast)
+    internal CsEvalExpression(string expression, Expr ast) : this(expression, ast, null)
+    {
+    }
+
+    internal CsEvalExpression(string expression, Expr ast, ExpressionCache? expressionCache)
     {
         Expression = expression;
         Ast = ast;
+        _expressionCache = expressionCache;
     }
 
     /// <summary>
@@ -49,7 +55,16 @@ public sealed class CsEvalExpression
         if (_compiledInfo != null)
             return _compiledInfo.Delegate != null;
 
-        var info = ExpressionCompiler.TryCompile(Ast);
+        CompiledExpressionInfo info;
+        if (_expressionCache != null)
+        {
+            info = ExpressionCompiler.GetOrCompile(Expression, Ast, _expressionCache);
+        }
+        else
+        {
+            info = ExpressionCompiler.TryCompile(Ast);
+        }
+
         _compiledInfo = info;
         return info.Delegate != null;
     }

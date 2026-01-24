@@ -7,19 +7,30 @@ public sealed class EvalContext
     private readonly Dictionary<string, object?> _variables;
     private readonly EvalContext? _parent;
     private readonly StringComparer _comparer;
+    private readonly TypeCache _typeCache;
 
-    public EvalContext(StringComparer? comparer = null) : this(null, comparer)
+    public EvalContext(StringComparer? comparer = null) : this(null, comparer, null)
     {
     }
 
-    private EvalContext(EvalContext? parent, StringComparer? comparer)
+    internal EvalContext(StringComparer? comparer, TypeCache? typeCache) : this(null, comparer, typeCache)
+    {
+    }
+
+    private EvalContext(EvalContext? parent, StringComparer? comparer, TypeCache? typeCache)
     {
         _parent = parent;
         _comparer = comparer ?? parent?._comparer ?? StringComparer.Ordinal;
+        _typeCache = typeCache ?? parent?._typeCache ?? new TypeCache();
         _variables = new Dictionary<string, object?>(_comparer);
     }
 
     public StringComparer Comparer => _comparer;
+
+    /// <summary>
+    /// The TypeCache instance for reflection caching. Shared with child contexts.
+    /// </summary>
+    internal TypeCache TypeCache => _typeCache;
 
     public void Define(string name, object? value) => _variables[name] = value;
 
@@ -66,13 +77,18 @@ public sealed class EvalContext
         return _parent?.Contains(name) ?? false;
     }
 
-    public EvalContext CreateChild() => new(this, _comparer);
+    public EvalContext CreateChild() => new(this, _comparer, _typeCache);
 
     public IReadOnlyDictionary<string, object?> GetAll() => _variables;
 
     public static EvalContext FromExpandoObject(ExpandoObject? expando, StringComparer? comparer = null)
     {
-        var ctx = new EvalContext(comparer);
+        return FromExpandoObject(expando, comparer, null);
+    }
+
+    internal static EvalContext FromExpandoObject(ExpandoObject? expando, StringComparer? comparer, TypeCache? typeCache)
+    {
+        var ctx = new EvalContext(comparer, typeCache);
         if (expando == null) return ctx;
 
         foreach (var kvp in (IDictionary<string, object?>)expando)
@@ -84,7 +100,12 @@ public sealed class EvalContext
 
     public static EvalContext FromDictionary(IDictionary<string, object?>? dict, StringComparer? comparer = null)
     {
-        var ctx = new EvalContext(comparer);
+        return FromDictionary(dict, comparer, null);
+    }
+
+    internal static EvalContext FromDictionary(IDictionary<string, object?>? dict, StringComparer? comparer, TypeCache? typeCache)
+    {
+        var ctx = new EvalContext(comparer, typeCache);
         if (dict == null) return ctx;
 
         foreach (var kvp in dict)

@@ -7,13 +7,35 @@ using CsEval.Parsing;
 namespace CsEval.Evaluation;
 
 /// <summary>
+/// Thread-safe cache for compiled expression delegates.
+/// Instance-based caching per engine - cache is shared with child engines and cleaned up when root engine is disposed.
+/// </summary>
+internal sealed class ExpressionCache
+{
+    private readonly ConcurrentDictionary<string, CompiledExpressionInfo> _cache = new();
+
+    public CompiledExpressionInfo GetOrAdd(string key, Func<string, CompiledExpressionInfo> valueFactory)
+    {
+        return _cache.GetOrAdd(key, valueFactory);
+    }
+
+    public bool TryGetValue(string key, out CompiledExpressionInfo value)
+    {
+        return _cache.TryGetValue(key, out value!);
+    }
+
+    public void Clear()
+    {
+        _cache.Clear();
+    }
+}
+
+/// <summary>
 /// Compiles CsEval AST nodes to System.Linq.Expressions delegates.
-/// Thread-safe with global caching.
+/// Thread-safe with instance-based caching.
 /// </summary>
 internal static class ExpressionCompiler
 {
-    // Global cache for string-based expression compilation
-    private static readonly ConcurrentDictionary<string, CompiledExpressionInfo> Cache = new();
 
     // Parameters for the compiled delegate
     private static readonly ParameterExpression ContextParam =
@@ -53,14 +75,15 @@ internal static class ExpressionCompiler
     private static readonly MethodInfo GreaterThanOrEqualMethod =
         typeof(CompilerHelpers).GetMethod(nameof(CompilerHelpers.GreaterThanOrEqual))!;
     private static readonly MethodInfo GetMemberMethod =
-        typeof(CompilerHelpers).GetMethod(nameof(CompilerHelpers.GetMember))!;
+        typeof(CompilerHelpers).GetMethod(nameof(CompilerHelpers.GetMember),
+            new[] { typeof(object), typeof(string), typeof(CsEvalOptions), typeof(bool), typeof(EvalContext) })!;
 
     /// <summary>
     /// Get or create compiled delegate for an expression string.
     /// </summary>
-    public static CompiledExpressionInfo GetOrCompile(string expressionText, Expr ast)
+    public static CompiledExpressionInfo GetOrCompile(string expressionText, Expr ast, ExpressionCache cache)
     {
-        return Cache.GetOrAdd(expressionText, _ => TryCompile(ast));
+        return cache.GetOrAdd(expressionText, _ => TryCompile(ast));
     }
 
     /// <summary>
@@ -319,13 +342,14 @@ internal static class ExpressionCompiler
     {
         var obj = CompileExpr(m.Object);
 
-        // CompilerHelpers.GetMember(obj, "name", options, isNullSafe)
+        // CompilerHelpers.GetMember(obj, "name", options, isNullSafe, context)
         return Expression.Call(
             GetMemberMethod,
             EnsureObjectReturn(obj),
             Expression.Constant(m.Name.Lexeme),
             OptionsParam,
-            Expression.Constant(m.NullSafe)
+            Expression.Constant(m.NullSafe),
+            ContextParam
         );
     }
 
@@ -339,8 +363,4 @@ internal static class ExpressionCompiler
         return Expression.Convert(expr, typeof(object));
     }
 
-    /// <summary>
-    /// Clear the compilation cache (for testing).
-    /// </summary>
-    public static void ClearCache() => Cache.Clear();
 }

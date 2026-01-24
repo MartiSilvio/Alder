@@ -78,7 +78,7 @@ public sealed partial class Evaluator
         var target = methodRef.Method.IsStatic ? null : resolver.Resolve();
 
         // Get all overloads of this method for proper resolution
-        var methods = TypeCache.GetMethods(resolver.Type, methodName,
+        var methods = _context.TypeCache.GetMethods(resolver.Type, methodName,
             BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static);
 
         foreach (var method in methods)
@@ -260,7 +260,7 @@ public sealed partial class Evaluator
                 return member switch
                 {
                     MethodInfo m => new ModuleMethodRef(resolver, m),
-                    PropertyInfo p => GuardReflectionLeak(TypeCache.GetPropertyValue(p, resolver.Resolve()!), $"property {name}"),
+                    PropertyInfo p => GuardReflectionLeak(_context.TypeCache.GetPropertyValue(p, resolver.Resolve()!), $"property {name}"),
                     _ => throw new EvalException($"Unsupported member type '{member.GetType().Name}'")
                 };
             }
@@ -294,11 +294,11 @@ public sealed partial class Evaluator
         if (ignoreCase)
             bindingFlags |= BindingFlags.IgnoreCase;
 
-        var prop = TypeCache.GetProperty(type, name, bindingFlags);
+        var prop = _context.TypeCache.GetProperty(type, name, bindingFlags);
         if (prop != null)
-            return GuardReflectionLeak(TypeCache.GetPropertyValue(prop, obj), $"property {name}");
+            return GuardReflectionLeak(_context.TypeCache.GetPropertyValue(prop, obj), $"property {name}");
 
-        var field = TypeCache.GetField(type, name, bindingFlags);
+        var field = _context.TypeCache.GetField(type, name, bindingFlags);
         if (field != null)
             return GuardReflectionLeak(field.GetValue(obj), $"field {name}");
 
@@ -323,7 +323,7 @@ public sealed partial class Evaluator
         }
 
         var type = obj.GetType();
-        var indexer = TypeCache.GetIndexer(type);
+        var indexer = _context.TypeCache.GetIndexer(type);
         if (indexer != null)
             return GuardReflectionLeak(indexer.GetValue(obj, [index]), $"indexer access");
 
@@ -351,7 +351,7 @@ public sealed partial class Evaluator
         }
 
         var type = obj.GetType();
-        var indexer = TypeCache.GetIndexer(type);
+        var indexer = _context.TypeCache.GetIndexer(type);
         if (indexer != null && indexer.CanWrite)
         {
             indexer.SetValue(obj, value, [index]);
@@ -392,7 +392,7 @@ public sealed partial class Evaluator
         if (ignoreCase)
             bindingFlags |= BindingFlags.IgnoreCase;
 
-        var prop = TypeCache.GetProperty(type, name, bindingFlags);
+        var prop = _context.TypeCache.GetProperty(type, name, bindingFlags);
         if (prop != null)
         {
             if (!prop.CanWrite)
@@ -401,7 +401,7 @@ public sealed partial class Evaluator
             return;
         }
 
-        var field = TypeCache.GetField(type, name, bindingFlags);
+        var field = _context.TypeCache.GetField(type, name, bindingFlags);
         if (field != null)
         {
             if (field.IsInitOnly)
@@ -432,7 +432,7 @@ public sealed partial class Evaluator
         if (_options.Sandbox.BlockMethodCalls)
             throw new EvalException($"Method calls blocked by sandbox: {methodName}");
 
-        var methods = TypeCache.GetMethods(type, methodName, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
+        var methods = _context.TypeCache.GetMethods(type, methodName, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
 
         foreach (var method in methods)
         {

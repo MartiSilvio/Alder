@@ -6,63 +6,63 @@ namespace CsEval.Evaluation;
 
 /// <summary>
 /// Thread-safe cache for reflection lookups to avoid repeated GetProperty/GetField/GetMethods calls.
-/// Uses static ConcurrentDictionary for global caching across all Evaluator instances.
+/// Instance-based caching per engine - cache is shared with child engines and cleaned up when root engine is disposed.
 /// Includes compiled property getters for improved performance over PropertyInfo.GetValue().
 /// </summary>
-internal static class TypeCache
+internal sealed class TypeCache
 {
-    private static readonly ConcurrentDictionary<(Type, string, BindingFlags), PropertyInfo?> PropertyCache = new();
-    private static readonly ConcurrentDictionary<(Type, string, BindingFlags), FieldInfo?> FieldCache = new();
-    private static readonly ConcurrentDictionary<(Type, BindingFlags), PropertyInfo[]> PropertiesCache = new();
-    private static readonly ConcurrentDictionary<(Type, string, BindingFlags), MethodInfo[]> MethodsCache = new();
-    private static readonly ConcurrentDictionary<Type, PropertyInfo?> IndexerCache = new();
-    private static readonly ConcurrentDictionary<PropertyInfo, Func<object, object?>> CompiledGetters = new();
+    private readonly ConcurrentDictionary<(Type, string, BindingFlags), PropertyInfo?> _propertyCache = new();
+    private readonly ConcurrentDictionary<(Type, string, BindingFlags), FieldInfo?> _fieldCache = new();
+    private readonly ConcurrentDictionary<(Type, BindingFlags), PropertyInfo[]> _propertiesCache = new();
+    private readonly ConcurrentDictionary<(Type, string, BindingFlags), MethodInfo[]> _methodsCache = new();
+    private readonly ConcurrentDictionary<Type, PropertyInfo?> _indexerCache = new();
+    private readonly ConcurrentDictionary<PropertyInfo, Func<object, object?>> _compiledGetters = new();
 
-    public static PropertyInfo? GetProperty(Type type, string name, BindingFlags flags)
+    public PropertyInfo? GetProperty(Type type, string name, BindingFlags flags)
     {
         var key = (type, name, flags);
-        return PropertyCache.GetOrAdd(key, k => k.Item1.GetProperty(k.Item2, k.Item3));
+        return _propertyCache.GetOrAdd(key, k => k.Item1.GetProperty(k.Item2, k.Item3));
     }
 
-    public static FieldInfo? GetField(Type type, string name, BindingFlags flags)
+    public FieldInfo? GetField(Type type, string name, BindingFlags flags)
     {
         var key = (type, name, flags);
-        return FieldCache.GetOrAdd(key, k => k.Item1.GetField(k.Item2, k.Item3));
+        return _fieldCache.GetOrAdd(key, k => k.Item1.GetField(k.Item2, k.Item3));
     }
 
-    public static PropertyInfo[] GetProperties(Type type, BindingFlags flags)
+    public PropertyInfo[] GetProperties(Type type, BindingFlags flags)
     {
         var key = (type, flags);
-        return PropertiesCache.GetOrAdd(key, k => k.Item1.GetProperties(k.Item2));
+        return _propertiesCache.GetOrAdd(key, k => k.Item1.GetProperties(k.Item2));
     }
 
-    public static MethodInfo[] GetMethods(Type type, string name, BindingFlags flags)
+    public MethodInfo[] GetMethods(Type type, string name, BindingFlags flags)
     {
         var key = (type, name, flags);
-        return MethodsCache.GetOrAdd(key, k =>
+        return _methodsCache.GetOrAdd(key, k =>
             k.Item1.GetMethods(k.Item3)
                 .Where(m => string.Equals(m.Name, k.Item2, StringComparison.OrdinalIgnoreCase))
                 .ToArray());
     }
 
-    public static PropertyInfo? GetIndexer(Type type)
+    public PropertyInfo? GetIndexer(Type type)
     {
-        return IndexerCache.GetOrAdd(type, t => t.GetProperty("Item"));
+        return _indexerCache.GetOrAdd(type, t => t.GetProperty("Item"));
     }
 
     /// <summary>
     /// Gets or creates a compiled getter delegate for the property.
     /// </summary>
-    public static Func<object, object?> GetCompiledGetter(PropertyInfo property)
+    public Func<object, object?> GetCompiledGetter(PropertyInfo property)
     {
-        return CompiledGetters.GetOrAdd(property, CompileGetter);
+        return _compiledGetters.GetOrAdd(property, CompileGetter);
     }
 
     /// <summary>
     /// Gets the property value using a compiled getter for better performance.
     /// Falls back to PropertyInfo.GetValue() only if compilation fails.
     /// </summary>
-    public static object? GetPropertyValue(PropertyInfo property, object instance)
+    public object? GetPropertyValue(PropertyInfo property, object instance)
     {
         var getter = GetCompiledGetter(property);
         return getter(instance);
@@ -98,13 +98,13 @@ internal static class TypeCache
     /// <summary>
     /// Clears all cached reflection data. Useful for testing or when types are reloaded.
     /// </summary>
-    public static void Clear()
+    public void Clear()
     {
-        PropertyCache.Clear();
-        FieldCache.Clear();
-        PropertiesCache.Clear();
-        MethodsCache.Clear();
-        IndexerCache.Clear();
-        CompiledGetters.Clear();
+        _propertyCache.Clear();
+        _fieldCache.Clear();
+        _propertiesCache.Clear();
+        _methodsCache.Clear();
+        _indexerCache.Clear();
+        _compiledGetters.Clear();
     }
 }

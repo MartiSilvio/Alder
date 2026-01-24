@@ -78,10 +78,10 @@ public sealed partial class Evaluator
 
             // Copy properties from the left object via compiled getters
             var leftType = left.GetType();
-            foreach (var prop in TypeCache.GetProperties(leftType, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance))
+            foreach (var prop in _context.TypeCache.GetProperties(leftType, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance))
             {
                 if (prop.CanRead)
-                    merged[prop.Name] = TypeCache.GetPropertyValue(prop, left);
+                    merged[prop.Name] = _context.TypeCache.GetPropertyValue(prop, left);
             }
 
             // Override/add properties from the right dictionary
@@ -103,10 +103,10 @@ public sealed partial class Evaluator
 
             // Override/add properties from the right object via compiled getters
             var rightType = right.GetType();
-            foreach (var prop in TypeCache.GetProperties(rightType, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance))
+            foreach (var prop in _context.TypeCache.GetProperties(rightType, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance))
             {
                 if (prop.CanRead)
-                    merged[prop.Name] = TypeCache.GetPropertyValue(prop, right);
+                    merged[prop.Name] = _context.TypeCache.GetPropertyValue(prop, right);
             }
 
             return merged;
@@ -120,18 +120,18 @@ public sealed partial class Evaluator
 
             // Copy properties from the left object via compiled getters
             var leftType = left.GetType();
-            foreach (var prop in TypeCache.GetProperties(leftType, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance))
+            foreach (var prop in _context.TypeCache.GetProperties(leftType, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance))
             {
                 if (prop.CanRead)
-                    merged[prop.Name] = TypeCache.GetPropertyValue(prop, left);
+                    merged[prop.Name] = _context.TypeCache.GetPropertyValue(prop, left);
             }
 
             // Override/add properties from the right object via compiled getters
             var rightType = right.GetType();
-            foreach (var prop in TypeCache.GetProperties(rightType, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance))
+            foreach (var prop in _context.TypeCache.GetProperties(rightType, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance))
             {
                 if (prop.CanRead)
-                    merged[prop.Name] = TypeCache.GetPropertyValue(prop, right);
+                    merged[prop.Name] = _context.TypeCache.GetPropertyValue(prop, right);
             }
 
             return merged;

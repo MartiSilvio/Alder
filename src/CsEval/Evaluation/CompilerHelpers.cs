@@ -144,7 +144,7 @@ public static class CompilerHelpers
         };
     }
 
-    public static object? GetMember(object? obj, string name, CsEvalOptions options, bool nullSafe)
+    public static object? GetMember(object? obj, string name, CsEvalOptions options, bool nullSafe, EvalContext context)
     {
         if (nullSafe && obj == null)
             return null;
@@ -177,11 +177,12 @@ public static class CompilerHelpers
         if (options.IgnoreCase)
             bindingFlags |= BindingFlags.IgnoreCase;
 
-        var prop = TypeCache.GetProperty(type, name, bindingFlags);
+        var typeCache = context.TypeCache;
+        var prop = typeCache.GetProperty(type, name, bindingFlags);
         if (prop != null)
-            return TypeCache.GetPropertyValue(prop, obj);
+            return typeCache.GetPropertyValue(prop, obj);
 
-        var field = TypeCache.GetField(type, name, bindingFlags);
+        var field = typeCache.GetField(type, name, bindingFlags);
         if (field != null)
             return field.GetValue(obj);
 

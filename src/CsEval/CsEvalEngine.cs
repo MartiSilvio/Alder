@@ -10,6 +10,8 @@ public sealed class CsEvalEngine
     private readonly Dictionary<string, Func<object?[], object?>> _functions;
     private readonly CsEvalOptions _options;
     private readonly List<RegisteredType> _registeredTypes = [];
+    private readonly TypeCache _typeCache;
+    private readonly ExpressionCache _expressionCache;
 
     public Func<MethodInfo, object?[], object?[]>? ArgumentTransformer { get; set; }
 
@@ -20,18 +22,22 @@ public sealed class CsEvalEngine
     public CsEvalEngine(CsEvalOptions options)
     {
         _options = options;
-        _context = new EvalContext(options.StringComparer);
+        _typeCache = new TypeCache();
+        _expressionCache = new ExpressionCache();
+        _context = new EvalContext(options.StringComparer, _typeCache);
         _functions = new Dictionary<string, Func<object?[], object?>>(options.StringComparer);
         RegisterBuiltInModules();
     }
 
     private CsEvalEngine(EvalContext context, Dictionary<string, Func<object?[], object?>> functions,
-        List<RegisteredType> registeredTypes, CsEvalOptions options)
+        List<RegisteredType> registeredTypes, CsEvalOptions options, TypeCache typeCache, ExpressionCache expressionCache)
     {
         _context = context;
         _functions = functions;
         _registeredTypes = registeredTypes;
         _options = options;
+        _typeCache = typeCache;
+        _expressionCache = expressionCache;
     }
 
     public CsEvalExpression Parse(string expression)
@@ -42,7 +48,7 @@ public sealed class CsEvalEngine
         var parser = new Parser(tokens);
         var ast = parser.Parse();
 
-        var expr = new CsEvalExpression(expression, ast);
+        var expr = new CsEvalExpression(expression, ast, _expressionCache);
 
         // Eager mode: compile immediately during Parse()
         if (_options.CompilationMode == CompilationMode.Eager)
@@ -151,7 +157,7 @@ public sealed class CsEvalEngine
     /// <returns>A new CsEvalEngine with an isolated child context.</returns>
     public CsEvalEngine CreateChild()
     {
-        return new CsEvalEngine(_context.CreateChild(), _functions, _registeredTypes, _options);
+        return new CsEvalEngine(_context.CreateChild(), _functions, _registeredTypes, _options, _typeCache, _expressionCache);
     }
 
     public Task<object?> EvaluateAsync(string expression, IServiceProvider? serviceProvider = null,
