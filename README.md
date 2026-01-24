@@ -2,7 +2,7 @@
 
 [![.NET](https://github.com/MartiSilvio/CsEval/actions/workflows/dotnet.yml/badge.svg)](https://github.com/MartiSilvio/CsEval/actions/workflows/dotnet.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![.NET 8](https://img.shields.io/badge/.NET-8.0-purple.svg)](https://dotnet.microsoft.com/)
+[![.NET 7](https://img.shields.io/badge/.NET-7.0-purple.svg)](https://dotnet.microsoft.com/)
 
 ## A C# Expression Evaluator and Runtime Scripting Engine for .NET
 
