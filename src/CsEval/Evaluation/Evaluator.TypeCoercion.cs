@@ -76,7 +76,7 @@ public sealed partial class Evaluator
         }
 
         // Special case: char from single-character string
-        if (targetType == typeof(char) && value is string s && s.Length == 1)
+        if (targetType == typeof(char) && value is string { Length: 1 } s)
             return s[0];
 
         throw new EvalException($"Cannot assign {sourceType.Name} to {typeToken.Lexeme} variable '{varName}'");

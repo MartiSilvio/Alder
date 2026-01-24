@@ -129,8 +129,7 @@ internal static class ExpressionCompiler
             LiteralExpr => true,
             IdentifierExpr => true,
             GroupingExpr g => CanCompile(g.Expression, out reason),
-            UnaryExpr u when u.Op.Type is TokenType.Minus or TokenType.Bang
-                => CanCompile(u.Right, out reason),
+            UnaryExpr { Op.Type: TokenType.Minus or TokenType.Bang } u => CanCompile(u.Right, out reason),
             BinaryExpr b when IsCompilableBinaryOp(b.Op.Type)
                 => CanCompileChildrenAndCheckObjectMerge(b, out reason),
             LogicalExpr l => CanCompile(l.Left, out reason) && CanCompile(l.Right, out reason),
@@ -167,7 +166,7 @@ internal static class ExpressionCompiler
             LiteralExpr lit => lit.Value is null or string or int or long or double or float or decimal or bool,
             IdentifierExpr => true,
             GroupingExpr g => IsSimpleAdditionOperand(g.Expression),
-            UnaryExpr u when u.Op.Type == TokenType.Minus => IsSimpleAdditionOperand(u.Right),
+            UnaryExpr { Op.Type: TokenType.Minus } u => IsSimpleAdditionOperand(u.Right),
             BinaryExpr b => IsSimpleAdditionOperand(b.Left) && IsSimpleAdditionOperand(b.Right),
             MemberAccessExpr => true, // Property access result could be anything, but we allow it
             ConditionalExpr c => IsSimpleAdditionOperand(c.ThenBranch) && IsSimpleAdditionOperand(c.ElseBranch),

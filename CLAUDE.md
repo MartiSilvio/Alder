@@ -3,6 +3,7 @@
 This file provides context for AI assistants working with the CsEval codebase.
 
 > **Documentation**: See the `/docs` folder for detailed documentation:
+>
 > - [features.md](docs/features.md) - Supported features and syntax
 > - [syntax.md](docs/syntax.md) - Complete syntax reference
 > - [api.md](docs/api.md) - Public API documentation
@@ -15,7 +16,7 @@ This file provides context for AI assistants working with the CsEval codebase.
 
 ## Project Overview
 
-CsEval is a C#-like scripting engine for .NET 8. It parses and evaluates expressions and statements at runtime, supporting control flow (`if`, `for`, `while`, `switch`), variable declarations, LINQ, and lambdas. Designed for rule engines, formula evaluation, and embedded scripting scenarios.
+CsEval is a C#-like scripting engine for .NET. It parses and evaluates expressions and statements at runtime, supporting control flow (`if`, `for`, `while`, `switch`), variable declarations, LINQ, and lambdas. Designed for rule engines, formula evaluation, and embedded scripting scenarios.
 
 ## Architecture
 
