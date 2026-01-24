@@ -114,7 +114,7 @@ public class ObjectMergeTests : EvaluatorTestBase
     public void Eval_TypedObjectMerge_InSelect()
     {
         var context = new EvalContext();
-        context.Define("people", new List<object?>
+        context.Define("people", new List<TestPerson>
         {
             new TestPerson { Name = "John", Age = 30 },
             new TestPerson { Name = "Jane", Age = 25 }

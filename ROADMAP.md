@@ -63,7 +63,8 @@ Features for full C# developer familiarity, plus additions from other languages.
 | 🔴 | Type casting | `(int)x` | |
 | 🟡 | `nameof` | `nameof(property)` | |
 | 🔵 | `default` | `default(int)` | |
-| 🟡 | Verbatim strings | `@"path\to\file"` | |
+| 🟡 | Verbatim strings | `@"path\to\file"` | Backslashes literal |
+| 🟡 | Verbatim interpolated | `$@"path\{name}"` | Combined syntax |
 | 🔵 | Raw strings | `"""text"""` | C# 11 |
 
 ---
@@ -115,11 +116,11 @@ Features for full C# developer familiarity, plus additions from other languages.
 | ✅ | Grouping | `GroupBy` | Returns `[{ Key, Items }]` |
 | ✅ | Combining | `Zip`, `Concat` | |
 | ✅ | Partitioning | `Take`, `Skip` | |
+| ✅ | Set Operations | `Except`, `Intersect`, `Union` | |
+| ✅ | Min/Max by Key | `MinBy`, `MaxBy` | .NET 6+ |
 | ✅ | Conversion | `ToList`, `ToArray` | |
 | 🔵 | `Join`, `GroupJoin` | | Complex |
 | 🔵 | `TakeWhile`, `SkipWhile` | | |
-| 🔵 | `Except`, `Intersect`, `Union` | | Set operations |
-| 🔵 | `MinBy`, `MaxBy` | | .NET 6+ |
 
 ---
 

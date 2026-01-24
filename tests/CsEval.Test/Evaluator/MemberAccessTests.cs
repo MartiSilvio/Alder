@@ -59,7 +59,7 @@ public class MemberAccessTests : EvaluatorTestBase
     public void Eval_IndexAccess_OnList()
     {
         var context = new EvalContext();
-        context.Define("arr", new List<object?> { 1, 2, 3 });
+        context.Define("arr", new List<int> { 1, 2, 3 });
 
         Assert.That(Eval("arr[0]", context), Is.EqualTo(1));
         Assert.That(Eval("arr[2]", context), Is.EqualTo(3));

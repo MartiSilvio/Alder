@@ -294,7 +294,7 @@ public class AssignmentTests
     public void Assignment_WithLinqResult_WorksCorrectly()
     {
         var engine = new CsEvalEngine();
-        engine.SetVariable("numbers", new List<object?> { 1L, 2L, 3L, 4L, 5L });
+        engine.SetVariable("numbers", new List<int> { 1, 2, 3, 4, 5 });
 
         var result = engine.Evaluate(@"
         {
@@ -304,7 +304,7 @@ public class AssignmentTests
         }") as List<object?>;
 
         Assert.That(result, Is.Not.Null);
-        Assert.That(result, Is.EqualTo(new List<object?> { 3L, 4L, 5L }));
+        Assert.That(result, Is.EqualTo(new List<object?> { 3, 4, 5 }));
     }
 
     [Test]
@@ -2079,7 +2079,7 @@ public class AssignmentTests
     public void IndexAssignment_ExternalList_ModifiesOriginal()
     {
         var engine = new CsEvalEngine();
-        var list = new List<object?> { 1L, 2L, 3L };
+        var list = new List<int> { 1, 2, 3 };
         engine.SetVariable("arr", list);
 
         engine.Evaluate("arr[1] = 99");

@@ -307,7 +307,7 @@ public class StaticProxyTests
     [Test]
     public void String_Join()
     {
-        _engine.SetVariable("items", new List<object?> { "a", "b", "c" });
+        _engine.SetVariable("items", new List<string> { "a", "b", "c" });
         Assert.That(_engine.Evaluate("String.Join(\", \", items)"), Is.EqualTo("a, b, c"));
         Assert.That(_engine.Evaluate("String.Join(\"-\", items)"), Is.EqualTo("a-b-c"));
     }

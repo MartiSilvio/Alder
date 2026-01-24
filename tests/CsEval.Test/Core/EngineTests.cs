@@ -70,7 +70,7 @@ public class BasicEvaluationTests
     public void ComplexExpression()
     {
         var engine = new CsEvalEngine();
-        engine.SetVariable("items", new List<object?> { 1, 2, 3, 4, 5 });
+        engine.SetVariable("items", new List<int> { 1, 2, 3, 4, 5 });
 
         var result = engine.Evaluate("items.Where((x) => x > 2).Select((x) => x * 2)") as List<object?>;
         Assert.That(result, Is.EqualTo(new List<object?> { 6, 8, 10 }));

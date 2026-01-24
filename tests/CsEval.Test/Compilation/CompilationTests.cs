@@ -439,7 +439,7 @@ public class CompilationTests
     public void Compile_ReturnsIsCompilableFalse_ForLinq()
     {
         var engine = new CsEvalEngine()
-            .SetVariable("items", new List<object?> { 1, 2, 3 });
+            .SetVariable("items", new List<int> { 1, 2, 3 });
         var expr = engine.Parse("items.Where((x) => x > 1)");
 
         Assert.That(expr.TryCompile(), Is.False);

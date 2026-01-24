@@ -61,6 +61,17 @@ dotnet test
 
 Test folders: `Core/`, `Parsing/`, `Evaluator/`, `Loops/`, `Compilation/`, `Integration/`, `Security/`, `Performance/`
 
+## Implementation Guidelines
+
+1. **Delegate to C# runtime whenever possible**: Prefer calling .NET runtime methods over custom implementations. For example, LINQ methods should delegate to `System.Linq.Enumerable` rather than implementing logic manually. This ensures correct behavior, better performance, and automatic support for edge cases.
+
+2. **Update documentation when features are implemented**: When adding new features:
+   - Update [ROADMAP.md](ROADMAP.md) to mark features as completed
+   - Update [docs/features.md](docs/features.md) with the new functionality
+   - Update [docs/syntax.md](docs/syntax.md) if new syntax is added
+
+3. **Use typed collections in tests**: Test inputs should use real typed collections (e.g., `List<int>`, `List<string>`) instead of `List<object?>` to simulate realistic usage patterns.
+
 ## Common Gotchas
 
 1. **Numeric literals**: `42` is `int`, `42L` is `long`, `3.14` is `double`, `3.14m` is `decimal`

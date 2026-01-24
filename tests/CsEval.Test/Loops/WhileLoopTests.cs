@@ -67,7 +67,7 @@ public class WhileLoopTests
     public void WhileLoop_WithExternalVariable_ModifiesCorrectly()
     {
         var engine = new CsEvalEngine();
-        engine.SetVariable("limit", 10L);
+        engine.SetVariable("limit", 10);
 
         var result = engine.Evaluate(@"
         {
@@ -231,7 +231,7 @@ public class WhileLoopTests
     public void WhileLoop_WithConditionalReturn_ReturnsCorrectValue()
     {
         var engine = new CsEvalEngine();
-        engine.SetVariable("target", 7L);
+        engine.SetVariable("target", 7);
 
         var result = engine.Evaluate(@"
         {
@@ -349,7 +349,7 @@ public class WhileLoopTests
     public void WhileLoop_WithListCount_WorksCorrectly()
     {
         var engine = new CsEvalEngine();
-        engine.SetVariable("items", new List<object?> { 10L, 20L, 30L, 40L });
+        engine.SetVariable("items", new List<int> { 10, 20, 30, 40 });
 
         var result = engine.Evaluate(@"
         {
@@ -823,7 +823,7 @@ public class WhileLoopTests
         var result1 = engine.Evaluate(expr);
         Assert.That(result1, Is.EqualTo(10)); // 0+1+2+3+4
 
-        engine.SetVariable("limit", 10L);
+        engine.SetVariable("limit", 10);
         var result2 = engine.Evaluate(expr);
         Assert.That(result2, Is.EqualTo(45)); // 0+1+2+...+9
     }
@@ -943,7 +943,7 @@ public class WhileLoopTests
     public void WhileLoop_Break_WithCondition_WorksCorrectly()
     {
         var engine = new CsEvalEngine();
-        engine.SetVariable("target", 42L);
+        engine.SetVariable("target", 42);
 
         var result = engine.Evaluate(@"
         {

@@ -1126,7 +1126,7 @@ public class NumericTests : EvaluatorTestBase
     {
         // C# behavior: Average with selector returning decimal returns decimal
         var engine = new CsEvalEngine();
-        engine.SetVariable("items", new List<object?> { 1, 2, 3 });
+        engine.SetVariable("items", new List<int> { 1, 2, 3 });
         var result = engine.Evaluate("items.Average(x => x * 1.0m)");
 
         Assert.That(result, Is.TypeOf<decimal>());

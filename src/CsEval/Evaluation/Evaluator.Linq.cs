@@ -45,6 +45,8 @@ public sealed partial class Evaluator
             ["average"] = HandleAverage,
             ["min"] = HandleMin,
             ["max"] = HandleMax,
+            ["minby"] = HandleMinBy,
+            ["maxby"] = HandleMaxBy,
             ["aggregate"] = HandleAggregate,
             ["reduce"] = HandleReduce, // JS style: reduce(fn) or reduce(fn, seed)
 
@@ -59,6 +61,11 @@ public sealed partial class Evaluator
             // Combining
             ["zip"] = HandleZip,
             ["concat"] = HandleConcat,
+
+            // Set operations
+            ["except"] = HandleExcept,
+            ["intersect"] = HandleIntersect,
+            ["union"] = HandleUnion,
 
             // Partitioning
             ["take"] = HandleTake,
@@ -387,6 +394,55 @@ public sealed partial class Evaluator
     private static (bool, object?) HandleToArray(Evaluator e, List<object?> list, object?[] args)
     {
         return (true, list.ToArray());
+    }
+
+    private static (bool, object?) HandleMinBy(Evaluator e, List<object?> list, object?[] args)
+    {
+        if (args is not [LambdaValue selector]) return (false, null);
+        if (list.Count == 0)
+            throw new InvalidOperationException("Sequence contains no elements");
+        return (true, list.MinBy(item => e.InvokeLambda(selector, [item])));
+    }
+
+    private static (bool, object?) HandleMaxBy(Evaluator e, List<object?> list, object?[] args)
+    {
+        if (args is not [LambdaValue selector]) return (false, null);
+        if (list.Count == 0)
+            throw new InvalidOperationException("Sequence contains no elements");
+        return (true, list.MaxBy(item => e.InvokeLambda(selector, [item])));
+    }
+
+    private static (bool, object?) HandleExcept(Evaluator e, List<object?> list, object?[] args)
+    {
+        if (args is not [IEnumerable other and not string])
+        {
+            if (args.Length == 1)
+                throw new EvalException($"Except requires an enumerable argument, got {args[0]?.GetType().Name ?? "null"}");
+            return (false, null);
+        }
+        return (true, list.Except(other.Cast<object?>()).ToList());
+    }
+
+    private static (bool, object?) HandleIntersect(Evaluator e, List<object?> list, object?[] args)
+    {
+        if (args is not [IEnumerable other and not string])
+        {
+            if (args.Length == 1)
+                throw new EvalException($"Intersect requires an enumerable argument, got {args[0]?.GetType().Name ?? "null"}");
+            return (false, null);
+        }
+        return (true, list.Intersect(other.Cast<object?>()).ToList());
+    }
+
+    private static (bool, object?) HandleUnion(Evaluator e, List<object?> list, object?[] args)
+    {
+        if (args is not [IEnumerable other and not string])
+        {
+            if (args.Length == 1)
+                throw new EvalException($"Union requires an enumerable argument, got {args[0]?.GetType().Name ?? "null"}");
+            return (false, null);
+        }
+        return (true, list.Union(other.Cast<object?>()).ToList());
     }
 
     /// <summary>

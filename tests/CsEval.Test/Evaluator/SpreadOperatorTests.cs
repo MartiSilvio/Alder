@@ -13,7 +13,7 @@ public class SpreadOperatorTests : EvaluatorTestBase
     public void Eval_ArraySpread_SingleArray()
     {
         var context = new EvalContext();
-        context.Define("arr", new List<object?> { 1L, 2L, 3L });
+        context.Define("arr", new List<int> { 1, 2, 3 });
 
         var result = Eval("[...arr]", context) as List<object?>;
         Assert.That(result, Is.Not.Null);
@@ -27,7 +27,7 @@ public class SpreadOperatorTests : EvaluatorTestBase
     public void Eval_ArraySpread_WithOtherElements()
     {
         var context = new EvalContext();
-        context.Define("arr", new List<object?> { 2L, 3L });
+        context.Define("arr", new List<int> { 2, 3 });
 
         var result = Eval("[1, ...arr, 4]", context) as List<object?>;
         Assert.That(result, Is.Not.Null);
@@ -42,8 +42,8 @@ public class SpreadOperatorTests : EvaluatorTestBase
     public void Eval_ArraySpread_MultipleArrays()
     {
         var context = new EvalContext();
-        context.Define("arr1", new List<object?> { 1L, 2L });
-        context.Define("arr2", new List<object?> { 3L, 4L });
+        context.Define("arr1", new List<int> { 1, 2 });
+        context.Define("arr2", new List<int> { 3, 4 });
 
         var result = Eval("[...arr1, ...arr2]", context) as List<object?>;
         Assert.That(result, Is.Not.Null);

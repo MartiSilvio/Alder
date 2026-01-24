@@ -132,7 +132,7 @@ public class BenchmarkTests
     {
         const string expression = "numbers.Where((x) => x > 2)";
         var engine = new CsEvalEngine()
-            .SetVariable("numbers", new List<object?> { 1L, 2L, 3L, 4L, 5L });
+            .SetVariable("numbers", new List<int> { 1, 2, 3, 4, 5 });
 
         Warmup(() => engine.Evaluate(expression));
 
@@ -151,7 +151,7 @@ public class BenchmarkTests
     {
         const string expression = "numbers.Where((x) => x > 2).Select((x) => x * 2)";
         var engine = new CsEvalEngine()
-            .SetVariable("numbers", new List<object?> { 1L, 2L, 3L, 4L, 5L });
+            .SetVariable("numbers", new List<int> { 1, 2, 3, 4, 5 });
 
         Warmup(() => engine.Evaluate(expression));
 
@@ -171,7 +171,7 @@ public class BenchmarkTests
         const string expression = "$\"Hello {name}, you are {age} years old\"";
         var engine = new CsEvalEngine()
             .SetVariable("name", "John")
-            .SetVariable("age", 30L);
+            .SetVariable("age", 30);
 
         Warmup(() => engine.Evaluate(expression));
 

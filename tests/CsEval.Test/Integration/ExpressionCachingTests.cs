@@ -78,7 +78,7 @@ public class ExpressionCachingTests
     public void EvaluateParsed_ComplexExpression()
     {
         var engine = new CsEvalEngine();
-        engine.SetVariable("items", new List<object?> { 1, 2, 3, 4, 5 });
+        engine.SetVariable("items", new List<int> { 1, 2, 3, 4, 5 });
 
         var expression = engine.Parse("items.Where((x) => x > threshold).Select((x) => x * multiplier)");
 

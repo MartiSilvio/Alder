@@ -79,7 +79,7 @@ public class ForEachLoopTests
     public void ForEachLoop_WithExternalList_IteratesCorrectly()
     {
         var engine = new CsEvalEngine();
-        engine.SetVariable("items", new List<object?> { 1L, 2L, 3L, 4L, 5L });
+        engine.SetVariable("items", new List<int> { 1, 2, 3, 4, 5 });
 
         var result = engine.Evaluate(@"
         {
@@ -97,7 +97,7 @@ public class ForEachLoopTests
     public void ForEachLoop_WithExternalArray_IteratesCorrectly()
     {
         var engine = new CsEvalEngine();
-        engine.SetVariable("numbers", new object?[] { 10L, 20L, 30L });
+        engine.SetVariable("numbers", new int[] { 10, 20, 30 });
 
         var result = engine.Evaluate(@"
         {
@@ -115,7 +115,7 @@ public class ForEachLoopTests
     public void ForEachLoop_WithStringCollection_IteratesCorrectly()
     {
         var engine = new CsEvalEngine();
-        engine.SetVariable("names", new List<object?> { "Alice", "Bob", "Charlie" });
+        engine.SetVariable("names", new List<string> { "Alice", "Bob", "Charlie" });
 
         var result = engine.Evaluate(@"
         {
@@ -137,7 +137,7 @@ public class ForEachLoopTests
     public void ForEachLoop_WithLinqWhere_IteratesFilteredItems()
     {
         var engine = new CsEvalEngine();
-        engine.SetVariable("numbers", new List<object?> { 1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L });
+        engine.SetVariable("numbers", new List<int> { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 });
 
         var result = engine.Evaluate(@"
         {
@@ -156,7 +156,7 @@ public class ForEachLoopTests
     public void ForEachLoop_WithLinqSelect_IteratesTransformedItems()
     {
         var engine = new CsEvalEngine();
-        engine.SetVariable("numbers", new List<object?> { 1L, 2L, 3L });
+        engine.SetVariable("numbers", new List<int> { 1, 2, 3 });
 
         var result = engine.Evaluate(@"
         {
@@ -175,7 +175,7 @@ public class ForEachLoopTests
     public void ForEachLoop_WithLinqTake_IteratesLimitedItems()
     {
         var engine = new CsEvalEngine();
-        engine.SetVariable("numbers", new List<object?> { 1L, 2L, 3L, 4L, 5L });
+        engine.SetVariable("numbers", new List<int> { 1, 2, 3, 4, 5 });
 
         var result = engine.Evaluate(@"
         {
@@ -214,8 +214,8 @@ public class ForEachLoopTests
     public void ForEachLoop_WithConditionalReturn_ReturnsCorrectValue()
     {
         var engine = new CsEvalEngine();
-        engine.SetVariable("target", 7L);
-        engine.SetVariable("items", new List<object?> { 1L, 3L, 5L, 7L, 9L });
+        engine.SetVariable("target", 7);
+        engine.SetVariable("items", new List<int> { 1, 3, 5, 7, 9 });
 
         var result = engine.Evaluate(@"
         {
@@ -460,7 +460,7 @@ public class ForEachLoopTests
     public void ForEachLoop_WithCustomMaxIterations_UsesConfiguredLimit()
     {
         var engine = new CsEvalEngine(new CsEvalOptions { MaxIterations = 5 });
-        engine.SetVariable("items", Enumerable.Range(1, 100).Select(x => (object?)(long)x).ToList());
+        engine.SetVariable("items", Enumerable.Range(1, 100).ToList());
 
         var ex = Assert.Throws<CsEval.Evaluation.EvalException>(() =>
             engine.Evaluate(@"
@@ -479,7 +479,7 @@ public class ForEachLoopTests
     public void ForEachLoop_WithDisabledLimit_AllowsManyIterations()
     {
         var engine = new CsEvalEngine(new CsEvalOptions { MaxIterations = 0 });
-        engine.SetVariable("items", Enumerable.Range(1, 10000).Select(x => (object?)(long)x).ToList());
+        engine.SetVariable("items", Enumerable.Range(1, 10000).ToList());
 
         var result = engine.Evaluate(@"
         {
@@ -497,7 +497,7 @@ public class ForEachLoopTests
     public void ForEachLoop_WithCancellationToken_CanBeCancelled()
     {
         var engine = new CsEvalEngine(new CsEvalOptions { MaxIterations = 0 });
-        engine.SetVariable("items", Enumerable.Range(1, 100000000).Select(x => (object?)(long)x).ToList());
+        engine.SetVariable("items", Enumerable.Range(1, 100000000).ToList());
         using var cts = new CancellationTokenSource();
 
         var task = Task.Run(() =>
@@ -526,7 +526,7 @@ public class ForEachLoopTests
     public void ForEachLoop_NonEnumerable_ThrowsException()
     {
         var engine = new CsEvalEngine();
-        engine.SetVariable("notIterable", 42L);
+        engine.SetVariable("notIterable", 42);
 
         var ex = Assert.Throws<CsEval.Evaluation.EvalException>(() =>
             engine.Evaluate(@"
@@ -584,11 +584,11 @@ public class ForEachLoopTests
             return sum;
         }");
 
-        engine.SetVariable("items", new List<object?> { 1L, 2L, 3L });
+        engine.SetVariable("items", new List<int> { 1, 2, 3 });
         var result1 = engine.Evaluate(expr);
         Assert.That(result1, Is.EqualTo(6));
 
-        engine.SetVariable("items", new List<object?> { 10L, 20L, 30L });
+        engine.SetVariable("items", new List<int> { 10, 20, 30 });
         var result2 = engine.Evaluate(expr);
         Assert.That(result2, Is.EqualTo(60));
     }

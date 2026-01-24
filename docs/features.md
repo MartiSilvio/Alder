@@ -55,6 +55,8 @@ items.Min()                          // Minimum value
 items.Min(x => x.Value)              // Minimum of selected values
 items.Max()                          // Maximum value
 items.Max(x => x.Value)              // Maximum of selected values
+items.MinBy(x => x.Date)             // Element with minimum key
+items.MaxBy(x => x.Date)             // Element with maximum key
 items.Aggregate((acc, x) => acc + x) // Reduce without seed
 items.Aggregate(0, (acc, x) => acc + x) // Reduce with seed
 ```
@@ -91,6 +93,14 @@ names.Zip(ages, (n, a) => n + ": " + a)  // ["Alice: 30", "Bob: 25"]
 
 // Zip without selector returns dictionaries with First/Second
 names.Zip(ages)                      // [{ First: "Alice", Second: 30 }, ...]
+```
+
+### Set Operations
+
+```csharp
+first.Except(second)                 // Elements in first but not in second
+first.Intersect(second)              // Elements in both collections
+first.Union(second)                  // All elements, no duplicates
 ```
 
 ### Conversion

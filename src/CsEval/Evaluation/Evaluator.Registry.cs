@@ -74,9 +74,10 @@ public sealed partial class Evaluator
         "where", "select", "selectmany", "aggregate",
         "first", "firstordefault", "last", "lastordefault",
         "single", "singleordefault", "any", "all", "count",
-        "sum", "average", "min", "max",
+        "sum", "average", "min", "max", "minby", "maxby",
         "orderby", "orderbydescending", "groupby", "zip",
         "distinct", "take", "skip", "contains", "reverse",
+        "except", "intersect", "union",
         "tolist", "toarray", "concat",
         // JavaScript aliases
         "map", "filter", "reduce", "find", "findindex",
