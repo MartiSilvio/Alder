@@ -289,14 +289,45 @@ public sealed class CsEvalEngine
 
     public CsEvalEngine RegisterModule(string moduleName, Type type)
     {
-        var methods = BuildMemberDictionary(type);
+        var moduleAttr = type.GetCustomAttribute<CsEvalModuleAttribute>();
+        var explicitOnly = moduleAttr?.ExplicitOnly ?? false;
+        var methods = BuildMemberDictionary(type, explicitOnly);
         _registeredTypes.Add(new RegisteredType(type, null, moduleName, methods, FromAssemblyScan: false));
         return this;
     }
 
     public CsEvalEngine RegisterModule<T>(string moduleName, T? instance = default) where T : class
     {
-        var methods = BuildMemberDictionary(typeof(T));
+        var moduleAttr = typeof(T).GetCustomAttribute<CsEvalModuleAttribute>();
+        var explicitOnly = moduleAttr?.ExplicitOnly ?? false;
+        var methods = BuildMemberDictionary(typeof(T), explicitOnly);
+        _registeredTypes.Add(new RegisteredType(typeof(T), instance, moduleName, methods, FromAssemblyScan: false));
+        return this;
+    }
+
+    /// <summary>
+    /// Registers a module with explicit control over which methods are exposed.
+    /// </summary>
+    /// <param name="moduleName">The name used to access the module in expressions.</param>
+    /// <param name="type">The module type.</param>
+    /// <param name="explicitOnly">When true, only methods marked with [CsEvalFunction] are exposed.</param>
+    public CsEvalEngine RegisterModule(string moduleName, Type type, bool explicitOnly)
+    {
+        var methods = BuildMemberDictionary(type, explicitOnly);
+        _registeredTypes.Add(new RegisteredType(type, null, moduleName, methods, FromAssemblyScan: false));
+        return this;
+    }
+
+    /// <summary>
+    /// Registers a module with explicit control over which methods are exposed.
+    /// </summary>
+    /// <typeparam name="T">The module type.</typeparam>
+    /// <param name="moduleName">The name used to access the module in expressions.</param>
+    /// <param name="explicitOnly">When true, only methods marked with [CsEvalFunction] are exposed.</param>
+    /// <param name="instance">Optional instance to use (for instance methods).</param>
+    public CsEvalEngine RegisterModule<T>(string moduleName, bool explicitOnly, T? instance = default) where T : class
+    {
+        var methods = BuildMemberDictionary(typeof(T), explicitOnly);
         _registeredTypes.Add(new RegisteredType(typeof(T), instance, moduleName, methods, FromAssemblyScan: false));
         return this;
     }
@@ -307,7 +338,7 @@ public sealed class CsEvalEngine
         return this;
     }
 
-    private IReadOnlyDictionary<string, MemberInfo> BuildMemberDictionary(Type type)
+    private IReadOnlyDictionary<string, MemberInfo> BuildMemberDictionary(Type type, bool explicitOnly = false)
     {
         var members = new Dictionary<string, MemberInfo>(_options.StringComparer);
 
@@ -315,12 +346,23 @@ public sealed class CsEvalEngine
         {
             if (method.IsSpecialName)
                 continue;
-            members[method.Name] = method;
+
+            var attr = method.GetCustomAttribute<CsEvalFunctionAttribute>();
+
+            if (explicitOnly && attr == null)
+                continue;
+
+            // Use attribute name if specified, otherwise use method name
+            var name = attr?.Name ?? method.Name;
+            members[name] = method;
         }
 
         foreach (var prop in type.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly))
         {
-            members[prop.Name] = prop;
+            // Properties are always included (they're read-only access)
+            // Could add [CsEvalProperty] in the future if needed
+            if (!explicitOnly)
+                members[prop.Name] = prop;
         }
 
         return members;
@@ -410,8 +452,9 @@ public sealed class CsEvalEngine
             var attr = method.GetCustomAttribute<CsEvalFunctionAttribute>();
             if (attr == null) continue;
 
+            var functionName = attr.Name ?? method.Name;
             var resolver = method.IsStatic ? null : new ModuleResolver(reg.Type, reg.Instance, serviceProvider, reg.Members);
-            _functions[attr.Name] = CreateFunctionDelegate(method, resolver);
+            _functions[functionName] = CreateFunctionDelegate(method, resolver);
         }
     }
 

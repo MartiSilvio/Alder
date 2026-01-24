@@ -35,7 +35,7 @@ public sealed class DateTimeProxy
     public DateTime MinValue => DateTime.MinValue;
     public DateTime MaxValue => DateTime.MaxValue;
     public DateTime Parse(string s) => DateTime.Parse(s);
-    public bool TryParse(string s, out DateTime result) => DateTime.TryParse(s, out result);
+    public DateTime? TryParse(string s) => DateTime.TryParse(s, out var result) ? result : null;
 }
 
 /// <summary>
@@ -46,7 +46,7 @@ public sealed class GuidProxy
     public Guid NewGuid() => Guid.NewGuid();
     public Guid Empty => Guid.Empty;
     public Guid Parse(string s) => Guid.Parse(s);
-    public bool TryParse(string s, out Guid result) => Guid.TryParse(s, out result);
+    public Guid? TryParse(string s) => Guid.TryParse(s, out var result) ? result : null;
 }
 
 /// <summary>
@@ -85,5 +85,5 @@ public sealed class EnumerableProxy
 {
     public IEnumerable<int> Range(int start, int count) => Enumerable.Range(start, count);
     public IEnumerable<T> Repeat<T>(T element, int count) => Enumerable.Repeat(element, count);
-    public IEnumerable<T> Empty<T>() => [];
+    public IEnumerable<object?> Empty() => [];
 }

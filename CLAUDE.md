@@ -7,7 +7,7 @@ This file provides context for AI assistants working with the CsEval codebase.
 > - [syntax.md](docs/syntax.md) - Complete syntax reference
 > - [api.md](docs/api.md) - Public API documentation
 > - [architecture.md](docs/architecture.md) - Internal architecture and design decisions
-> - [security.md](docs/security.md) - Security options and reflection blocking
+> - [sandbox.md](docs/sandbox.md) - Sandbox modes and reflection blocking
 > - [extensions.md](docs/extensions.md) - Language extensions (spread, object merging)
 > - [benchmarks.md](docs/benchmarks.md) - Performance benchmarks and optimization
 >
@@ -45,7 +45,7 @@ CsEval/
 - **Visitor pattern**: Evaluator implements `IExprVisitor<object?>` to traverse AST
 - **Registry-based dispatch**: Operators and LINQ methods use dictionary lookups (see `Evaluator.Registry.cs`)
 - **Exception-based control flow**: `return`, `break`, `continue` use exceptions caught by parent blocks
-- **Reflection blocking**: All reflection types blocked at evaluation boundary (see [security.md](docs/security.md))
+- **Reflection blocking**: All reflection types blocked at evaluation boundary (see [sandbox.md](docs/sandbox.md))
 
 ## Extending CsEval
 

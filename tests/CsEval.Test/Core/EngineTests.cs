@@ -1,3 +1,5 @@
+using CsEval.Attributes;
+using CsEval.Evaluation;
 using NUnit.Framework;
 
 namespace CsEval.Test.Core;
@@ -158,6 +160,121 @@ public class CustomRegistrationTests
     private class GreetingProxy
     {
         public string Greet(string name) => $"Hello, {name}!";
+    }
+}
+
+[TestFixture]
+public class ExplicitModuleTests
+{
+    [Test]
+    public void ExplicitOnly_OnlyExposesAttributedMethods()
+    {
+        var engine = new CsEvalEngine();
+        engine.RegisterModule<ExplicitModule>("Mod", explicitOnly: true);
+
+        // Attributed method should work
+        var result = engine.Evaluate("Mod.Allowed()");
+        Assert.That(result, Is.EqualTo("allowed"));
+
+        // Non-attributed method should throw
+        var ex = Assert.Throws<EvalException>(() => engine.Evaluate("Mod.NotAllowed()"));
+        Assert.That(ex!.Message, Does.Contain("NotAllowed"));
+    }
+
+    [Test]
+    public void ExplicitOnly_UsesCustomName()
+    {
+        var engine = new CsEvalEngine();
+        engine.RegisterModule<ExplicitModule>("Mod", explicitOnly: true);
+
+        // Should be accessible by custom name
+        var result = engine.Evaluate("Mod.CustomName()");
+        Assert.That(result, Is.EqualTo("custom"));
+    }
+
+    [Test]
+    public void ExplicitOnly_FalseExposesAllMethods()
+    {
+        var engine = new CsEvalEngine();
+        engine.RegisterModule<ExplicitModule>("Mod", explicitOnly: false);
+
+        Assert.That(engine.Evaluate("Mod.Allowed()"), Is.EqualTo("allowed"));
+        Assert.That(engine.Evaluate("Mod.NotAllowed()"), Is.EqualTo("not allowed"));
+    }
+
+    [Test]
+    public void ModuleAttribute_ExplicitOnlyProperty()
+    {
+        var engine = new CsEvalEngine();
+        engine.RegisterModule<AttributedExplicitModule>("Mod");
+
+        // Attributed method should work
+        var result = engine.Evaluate("Mod.Exposed()");
+        Assert.That(result, Is.EqualTo("exposed"));
+
+        // Non-attributed method should throw (ExplicitOnly=true on class)
+        var ex = Assert.Throws<EvalException>(() => engine.Evaluate("Mod.Hidden()"));
+        Assert.That(ex!.Message, Does.Contain("Hidden"));
+    }
+
+    [Test]
+    public void AttributeWithoutName_UsesMethodName()
+    {
+        var engine = new CsEvalEngine();
+        engine.RegisterModule<ExplicitModule>("Mod", explicitOnly: true);
+
+        // Method marked with [CsEvalFunction] (no name) uses method name
+        var result = engine.Evaluate("Mod.Allowed()");
+        Assert.That(result, Is.EqualTo("allowed"));
+    }
+
+    [Test]
+    public void ExplicitOnly_PropertiesNotExposed()
+    {
+        var engine = new CsEvalEngine();
+        engine.RegisterModule<ModuleWithProperty>("Mod", explicitOnly: true);
+
+        // Properties are not exposed in explicit mode
+        var ex = Assert.Throws<EvalException>(() => engine.Evaluate("Mod.Value"));
+        Assert.That(ex!.Message, Does.Contain("Value"));
+    }
+
+    [Test]
+    public void NonExplicit_PropertiesExposed()
+    {
+        var engine = new CsEvalEngine();
+        engine.RegisterModule<ModuleWithProperty>("Mod", explicitOnly: false);
+
+        var result = engine.Evaluate("Mod.Value");
+        Assert.That(result, Is.EqualTo(42));
+    }
+
+    private class ExplicitModule
+    {
+        [CsEvalFunction]
+        public string Allowed() => "allowed";
+
+        [CsEvalFunction("CustomName")]
+        public string MethodWithCustomName() => "custom";
+
+        public string NotAllowed() => "not allowed";
+    }
+
+    [CsEvalModule(ExplicitOnly = true)]
+    private class AttributedExplicitModule
+    {
+        [CsEvalFunction]
+        public string Exposed() => "exposed";
+
+        public string Hidden() => "hidden";
+    }
+
+    private class ModuleWithProperty
+    {
+        [CsEvalFunction]
+        public int GetValue() => 42;
+
+        public int Value => 42;
     }
 }
 

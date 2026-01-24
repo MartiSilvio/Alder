@@ -23,6 +23,9 @@ CsEvalExpression Parse(string expression)
 // Try parse (returns false on error)
 bool TryParse(string expression, out CsEvalExpression? result, out string? error)
 bool TryParse(string expression, out CsEvalExpression? result)
+
+// Parse and compile for maximum performance
+CsEvalExpression ParseAndCompile(string expression)
 ```
 
 ### Evaluation
@@ -44,7 +47,9 @@ T? Evaluate<T>(CsEvalExpression expression, IServiceProvider? serviceProvider, C
 
 // Async evaluation
 Task<object?> EvaluateAsync(string expression, IServiceProvider? serviceProvider = null, CancellationToken cancellationToken = default)
+Task<object?> EvaluateAsync(CsEvalExpression expression, IServiceProvider? serviceProvider = null, CancellationToken cancellationToken = default)
 Task<T?> EvaluateAsync<T>(string expression, IServiceProvider? serviceProvider = null, CancellationToken cancellationToken = default)
+Task<T?> EvaluateAsync<T>(CsEvalExpression expression, IServiceProvider? serviceProvider = null, CancellationToken cancellationToken = default)
 ```
 
 ### Variables
@@ -70,11 +75,15 @@ engine.RegisterFunction("twice", args => (long)args[0] * 2);
 ### Module Registration
 
 ```csharp
-// Register module by type
+// Register module by type (exposes all public methods)
 CsEvalEngine RegisterModule(string moduleName, Type type)
 
 // Register module with instance
 CsEvalEngine RegisterModule<T>(string moduleName, T? instance = default) where T : class
+
+// Register module with explicit control over exposed methods
+CsEvalEngine RegisterModule(string moduleName, Type type, bool explicitOnly)
+CsEvalEngine RegisterModule<T>(string moduleName, bool explicitOnly, T? instance = default) where T : class
 
 // Register module with custom member dictionary
 CsEvalEngine RegisterModule(string moduleName, Type type, IReadOnlyDictionary<string, MemberInfo> members)
@@ -85,6 +94,43 @@ CsEvalEngine RegisterFromType<T>(T? instance = default) where T : class
 
 // Register all modules/functions from assembly
 CsEvalEngine RegisterFromAssembly(Assembly assembly)
+```
+
+#### Explicit Module Registration
+
+By default, `RegisterModule` exposes all public methods. Use `explicitOnly: true` to only expose methods marked with `[CsEvalFunction]`:
+
+```csharp
+public class MyModule
+{
+    [CsEvalFunction]           // Exposed as "Calculate"
+    public int Calculate(int x) => x * 2;
+
+    [CsEvalFunction("custom")] // Exposed as "custom"
+    public int Other(int x) => x + 1;
+
+    public void InternalHelper() { } // Not exposed
+}
+
+engine.RegisterModule<MyModule>("Mod", explicitOnly: true);
+engine.Evaluate("Mod.Calculate(5)");  // OK - returns 10
+engine.Evaluate("Mod.custom(5)");     // OK - returns 6
+engine.Evaluate("Mod.InternalHelper()"); // Throws - not exposed
+```
+
+Alternatively, set `ExplicitOnly` on the class attribute:
+
+```csharp
+[CsEvalModule(ExplicitOnly = true)]
+public class SecureModule
+{
+    [CsEvalFunction]
+    public int Safe() => 42;
+
+    public void Dangerous() { } // Not exposed
+}
+
+engine.RegisterModule<SecureModule>("Mod"); // Respects ExplicitOnly = true
 ```
 
 ### Context Management
@@ -123,10 +169,12 @@ public sealed class CsEvalOptions
     // Compilation mode (default: OnDemand)
     public CompilationMode CompilationMode { get; init; } = CompilationMode.OnDemand;
 
-    // Security options
-    public SecurityOptions Security { get; init; } = new();
+    // Sandbox options
+    public SandboxOptions Sandbox { get; init; } = new();
 }
 ```
+
+See [sandbox.md](sandbox.md) for sandbox mode documentation.
 
 ## CompilationMode
 
@@ -200,8 +248,10 @@ Marks a class as a module that will be registered under a specific name.
 [AttributeUsage(AttributeTargets.Class | AttributeTargets.Interface)]
 public class CsEvalModuleAttribute : Attribute
 {
+    public CsEvalModuleAttribute();
     public CsEvalModuleAttribute(string name);
-    public string Name { get; }
+    public string? Name { get; }
+    public bool ExplicitOnly { get; init; }
 }
 ```
 
@@ -212,18 +262,29 @@ public class DataModule
 {
     public object GetById(string id) { ... }
 }
+
+// With ExplicitOnly - only methods marked with [CsEvalFunction] are exposed
+[CsEvalModule(ExplicitOnly = true)]
+public class RestrictedModule
+{
+    [CsEvalFunction]
+    public string Allowed() => "ok";
+
+    public string Hidden() => "not accessible";
+}
 ```
 
 ### CsEvalFunctionAttribute
 
-Marks a method as a global function.
+Marks a method as exposed to CsEval expressions.
 
 ```csharp
 [AttributeUsage(AttributeTargets.Method)]
 public class CsEvalFunctionAttribute : Attribute
 {
+    public CsEvalFunctionAttribute();
     public CsEvalFunctionAttribute(string name);
-    public string Name { get; }
+    public string? Name { get; }
 }
 ```
 
@@ -389,6 +450,7 @@ Available on any `IEnumerable`:
 ```csharp
 .Where(predicate)
 .Select(selector)
+.SelectMany(selector)
 .Aggregate(accumulator)
 .Aggregate(seed, accumulator)
 .First()
@@ -418,12 +480,15 @@ Available on any `IEnumerable`:
 .Max(selector)
 .OrderBy(keySelector)
 .OrderByDescending(keySelector)
+.GroupBy(keySelector)
 .Distinct()
 .Take(count)
 .Skip(count)
 .Contains(value)
 .Reverse()
 .Concat(other)
+.Zip(other)
+.Zip(other, resultSelector)
 .ToList()
 .ToArray()
 ```

@@ -73,23 +73,105 @@ public sealed partial class Evaluator
 
     private object? InvokeModuleMethod(ModuleMethodRef methodRef, object?[] args)
     {
-        var method = methodRef.Method;
-        var target = method.IsStatic ? null : methodRef.Resolver.Resolve();
-        var parameters = method.GetParameters();
+        var methodName = methodRef.Method.Name;
+        var resolver = methodRef.Resolver;
+        var target = methodRef.Method.IsStatic ? null : resolver.Resolve();
 
-        var finalArgs = TryAppendCancellationToken(parameters, args);
+        // Get all overloads of this method for proper resolution
+        var methods = TypeCache.GetMethods(resolver.Type, methodName,
+            BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static);
+
+        foreach (var method in methods)
+        {
+            var parameters = method.GetParameters();
+
+            // Skip generic methods that can't be invoked directly
+            if (method.ContainsGenericParameters)
+            {
+                // Try to infer generic type arguments from the actual arguments
+                var concreteMethod = TryMakeConcreteMethod(method, args);
+                if (concreteMethod != null)
+                {
+                    var result = InvokeMethodWithArgs(concreteMethod, target, args);
+                    if (result.Success)
+                        return result.Value;
+                }
+                continue;
+            }
+
+            var invokeResult = InvokeMethodWithArgs(method, target, args);
+            if (invokeResult.Success)
+                return invokeResult.Value;
+        }
+
+        // Fallback to original method if no overload matched
+        var fallbackMethod = methodRef.Method;
+        var fallbackParams = fallbackMethod.GetParameters();
+        var finalArgs = TryAppendCancellationToken(fallbackParams, args);
 
         if (_argumentTransformer != null)
-            finalArgs = _argumentTransformer(method, finalArgs);
+            finalArgs = _argumentTransformer(fallbackMethod, finalArgs);
 
-        finalArgs = PadWithDefaults(parameters, finalArgs);
+        finalArgs = PadWithDefaults(fallbackParams, finalArgs);
 
-        var result = method.Invoke(target, finalArgs);
-        return GuardReflectionLeak(UnwrapTask(result), $"method {method.Name}");
+        var fallbackResult = fallbackMethod.Invoke(target, finalArgs);
+        return GuardReflectionLeak(UnwrapTask(fallbackResult), $"method {methodName}");
+    }
+
+    private (bool Success, object? Value) InvokeMethodWithArgs(MethodInfo method, object? target, object?[] args)
+    {
+        var parameters = method.GetParameters();
+        var argsWithCancellation = TryAppendCancellationToken(parameters, args);
+
+        if (CanInvokeMethod(parameters, argsWithCancellation, out var convertedArgs))
+        {
+            if (_argumentTransformer != null)
+                convertedArgs = _argumentTransformer(method, convertedArgs);
+
+            var result = method.Invoke(target, convertedArgs);
+            return (true, GuardReflectionLeak(UnwrapTask(result), $"method {method.Name}"));
+        }
+
+        return (false, null);
+    }
+
+    private static MethodInfo? TryMakeConcreteMethod(MethodInfo genericMethod, object?[] args)
+    {
+        var genericArgs = genericMethod.GetGenericArguments();
+        var parameters = genericMethod.GetParameters();
+
+        if (genericArgs.Length != 1 || args.Length == 0)
+            return null;
+
+        // Try to infer the type from the first argument
+        var firstArg = args[0];
+        if (firstArg == null)
+            return null;
+
+        try
+        {
+            return genericMethod.MakeGenericMethod(firstArg.GetType());
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     private static object?[] PadWithDefaults(ParameterInfo[] parameters, object?[] args)
     {
+        if (parameters.Length == 0)
+            return [];
+
+        // Check if last parameter is params array
+        var lastParam = parameters[^1];
+        var isParams = lastParam.IsDefined(typeof(ParamArrayAttribute), false);
+
+        if (isParams)
+        {
+            return PadWithParamsArray(parameters, args, lastParam);
+        }
+
         var result = new object?[parameters.Length];
 
         for (var i = 0; i < parameters.Length; i++)
@@ -111,23 +193,63 @@ public sealed partial class Evaluator
         return result;
     }
 
+    private static object?[] PadWithParamsArray(ParameterInfo[] parameters, object?[] args, ParameterInfo paramsParam)
+    {
+        var normalParamCount = parameters.Length - 1;
+        var result = new object?[parameters.Length];
+
+        // Fill normal parameters
+        for (var i = 0; i < normalParamCount; i++)
+        {
+            if (i < args.Length)
+            {
+                result[i] = CoerceNumeric(args[i], parameters[i].ParameterType);
+            }
+            else if (parameters[i].HasDefaultValue)
+            {
+                result[i] = parameters[i].DefaultValue;
+            }
+            else
+            {
+                throw new EvalException($"Missing required argument '{parameters[i].Name}'");
+            }
+        }
+
+        // Collect remaining args into params array
+        var paramsElementType = paramsParam.ParameterType.GetElementType()!;
+        var paramsCount = Math.Max(0, args.Length - normalParamCount);
+        var paramsArray = Array.CreateInstance(paramsElementType, paramsCount);
+
+        for (var i = 0; i < paramsCount; i++)
+        {
+            var value = CoerceNumeric(args[normalParamCount + i], paramsElementType);
+            paramsArray.SetValue(value, i);
+        }
+
+        result[normalParamCount] = paramsArray;
+        return result;
+    }
+
     private static object? CoerceNumeric(object? arg, Type targetType)
     {
         if (arg == null) return null;
         if (targetType.IsInstanceOfType(arg)) return arg;
 
-        var underlying = Nullable.GetUnderlyingType(targetType) ?? targetType;
-        if (arg is IConvertible && IsNumericType(underlying))
-            return Convert.ChangeType(arg, underlying);
+        if (arg is IConvertible)
+        {
+            try
+            {
+                var underlying = Nullable.GetUnderlyingType(targetType) ?? targetType;
+                return Convert.ChangeType(arg, underlying);
+            }
+            catch
+            {
+                return arg;
+            }
+        }
 
         return arg;
     }
-
-    private static bool IsNumericType(Type type) =>
-        type == typeof(int) || type == typeof(long) || type == typeof(double) ||
-        type == typeof(float) || type == typeof(decimal) || type == typeof(short) ||
-        type == typeof(byte) || type == typeof(sbyte) || type == typeof(ushort) ||
-        type == typeof(uint) || type == typeof(ulong);
 
     private object? GetMember(object obj, string name)
     {
@@ -145,8 +267,8 @@ public sealed partial class Evaluator
             throw new EvalException($"Member '{name}' not found on module '{resolver.Type.Name}'");
         }
 
-        if (_options.Security.SafeMode && !_options.Security.AllowPropertyRead)
-            throw new EvalException($"Property access blocked in SafeMode: {name}");
+        if (!_options.Sandbox.AllowPropertyRead)
+            throw new EvalException($"Property access blocked by sandbox: {name}");
 
         var ignoreCase = _options.IgnoreCase;
 
@@ -210,8 +332,8 @@ public sealed partial class Evaluator
 
     private void SetIndex(object obj, object? index, object? value)
     {
-        if (_options.Security.SafeMode && !_options.Security.AllowIndexSet)
-            throw new EvalException($"Index assignment blocked in SafeMode: [{index}] = ...");
+        if (!_options.Sandbox.AllowIndexSet)
+            throw new EvalException($"Index assignment blocked by sandbox: [{index}] = ...");
 
         if (obj is IDictionary<string, object?> dict && index is string strKey)
         {
@@ -241,8 +363,8 @@ public sealed partial class Evaluator
 
     private void SetMember(object obj, string name, object? value)
     {
-        if (_options.Security.SafeMode && !_options.Security.AllowPropertySet)
-            throw new EvalException($"Property assignment blocked in SafeMode: {name} = ...");
+        if (!_options.Sandbox.AllowPropertySet)
+            throw new EvalException($"Property assignment blocked by sandbox: {name} = ...");
 
         var ignoreCase = _options.IgnoreCase;
 
@@ -306,9 +428,9 @@ public sealed partial class Evaluator
                 return result;
         }
 
-        // SafeMode blocks all other method calls on variable objects
-        if (_options.Security.SafeMode)
-            throw new EvalException($"Method calls blocked in SafeMode: {methodName}");
+        // Sandbox blocks method calls on variable objects when AllowMethodCalls is false
+        if (_options.Sandbox.BlockMethodCalls)
+            throw new EvalException($"Method calls blocked by sandbox: {methodName}");
 
         var methods = TypeCache.GetMethods(type, methodName, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
 
@@ -349,12 +471,8 @@ public sealed partial class Evaluator
         {
             task.ConfigureAwait(false).GetAwaiter().GetResult();
 
-            var taskType = task.GetType();
-            if (taskType.IsGenericType)
-            {
-                var resultProperty = taskType.GetProperty("Result");
-                return resultProperty?.GetValue(task);
-            }
+            if (task.GetType().IsGenericType)
+                return ((dynamic)task).Result;
 
             return null;
         }

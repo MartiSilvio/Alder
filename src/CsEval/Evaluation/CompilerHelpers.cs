@@ -152,8 +152,8 @@ public static class CompilerHelpers
         if (obj == null)
             throw new EvalException($"Cannot access property '{name}' on null");
 
-        if (options.Security.SafeMode && !options.Security.AllowPropertyRead)
-            throw new EvalException($"Property access blocked in SafeMode: {name}");
+        if (!options.Sandbox.AllowPropertyRead)
+            throw new EvalException($"Property access blocked by sandbox: {name}");
 
         if (obj is IDictionary<string, object?> dict)
         {

@@ -31,14 +31,14 @@ Whether you need a dynamic expression engine for dashboards, APIs, or rule-based
 
 CsEval goes beyond simple expression evaluation. It supports features that enable **real programming logic at runtime**:
 
-| Feature | Description |
-|---------|-------------|
-| **Full LINQ with Lambdas** | `items.Where(x => x.Active).Sum(x => x.Value)` |
-| **All C# Loops** | `while`, `for`, `foreach`, `do-while` with `break` and `continue` |
-| **Block Expressions** | Variables, conditionals, and early returns |
-| **Object Merging** | `entity + new { Computed = value }` to extend data on the fly |
-| **Thread-Safe Contexts** | Isolated child contexts for parallel evaluation |
-| **Dependency Injection** | Resolve modules from `IServiceProvider` at evaluation time |
+| Feature                    | Description                                                       |
+| -------------------------- | ----------------------------------------------------------------- |
+| **Full LINQ with Lambdas** | `items.Where(x => x.Active).Sum(x => x.Value)`                    |
+| **All C# Loops**           | `while`, `for`, `foreach`, `do-while` with `break` and `continue` |
+| **Block Expressions**      | Variables, conditionals, and early returns                        |
+| **Object Merging**         | `entity + new { Computed = value }` to extend data on the fly     |
+| **Thread-Safe Contexts**   | Isolated child contexts for parallel evaluation                   |
+| **Dependency Injection**   | Resolve modules from `IServiceProvider` at evaluation time        |
 
 ---
 
@@ -81,13 +81,13 @@ engine.Evaluate("new { Name = \"John\", Age = 30 }");
 
 ## Documentation
 
-| Guide | Description |
-|-------|-------------|
-| [**Syntax Reference**](docs/syntax.md) | Expression grammar, operators, and language constructs |
-| [**Features Guide**](docs/features.md) | LINQ methods, loops, assignment, built-in modules |
-| [**Extensions**](docs/extensions.md) | Object merging, spread operator, and CsEval-specific features |
-| [**API Reference**](docs/api.md) | Complete public API documentation |
-| [**Architecture**](docs/architecture.md) | Internal design and implementation details |
+| Guide                                    | Description                                                   |
+| ---------------------------------------- | ------------------------------------------------------------- |
+| [**Syntax Reference**](docs/syntax.md)   | Expression grammar, operators, and language constructs        |
+| [**Features Guide**](docs/features.md)   | LINQ methods, loops, assignment, built-in modules             |
+| [**Extensions**](docs/extensions.md)     | Object merging, spread operator, and CsEval-specific features |
+| [**API Reference**](docs/api.md)         | Complete public API documentation                             |
+| [**Architecture**](docs/architecture.md) | Internal design and implementation details                    |
 
 ---
 
@@ -123,7 +123,7 @@ items.Aggregate(0, (sum, x) => sum + x.Value)
 
 ### All C# Loops
 
-Full loop support that other evaluators lack:
+Full loop support:
 
 ```csharp
 {
@@ -268,7 +268,7 @@ Each child context:
 
 **JavaScript-friendly syntax** — `let`, `undefined`, `===`/`!==`, plus method aliases: `filter`, `map`, `reduce`, `find`, `some`, `every`, `includes`.
 
-**SafeMode** — Restrict method calls on untrusted objects for sandboxed evaluation.
+**Sandbox Modes** — `Trusted`, `Safe`, and `Strict` presets with granular overrides for secure evaluation.
 
 **Expression Compilation** — Optional compilation to delegates for maximum performance on repeated evaluations.
 
