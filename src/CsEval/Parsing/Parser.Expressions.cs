@@ -186,7 +186,7 @@ public sealed partial class Parser
     {
         var expr = ParseShift();
 
-        while (Match(TokenType.Less, TokenType.LessEqual, TokenType.Greater, TokenType.GreaterEqual))
+        while (Match(TokenType.Less, TokenType.LessEqual, TokenType.Greater, TokenType.GreaterEqual, TokenType.In))
         {
             var op = Previous();
             var right = ParseShift();

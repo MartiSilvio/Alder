@@ -26,6 +26,7 @@ public sealed partial class Evaluator
         { TokenType.LessEqual, (e, l, r) => e.Compare(l, r) <= 0 },
         { TokenType.Greater, (e, l, r) => e.Compare(l, r) > 0 },
         { TokenType.GreaterEqual, (e, l, r) => e.Compare(l, r) >= 0 },
+        { TokenType.In, (_, l, r) => Contains(r, l) },  // Python-style: x in [1, 2, 3]
 
         // Bitwise
         { TokenType.Amp, (_, l, r) => BitwiseAnd(l, r) },

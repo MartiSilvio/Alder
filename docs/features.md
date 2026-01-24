@@ -68,6 +68,8 @@ items.Any()                          // True if any elements
 items.Any(x => x.Active)             // True if any match
 items.All(x => x.Valid)              // True if all match
 items.Contains(value)                // True if contains value
+// Or use Python-style 'in' operator (see extensions.md)
+// value in items                   // Same as items.Contains(value)
 ```
 
 ### Grouping

@@ -1,6 +1,4 @@
 using CsEval.Attributes;
-using CsEval.Evaluation;
-using NUnit.Framework;
 
 namespace CsEval.Test.Core;
 

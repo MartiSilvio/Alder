@@ -1,5 +1,3 @@
-using NUnit.Framework;
-
 namespace CsEval.Test.Integration;
 
 [TestFixture]

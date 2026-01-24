@@ -17,7 +17,7 @@ See also: [Extensions](extensions.md)
 7. Bitwise XOR: `^`
 8. Bitwise AND: `&`
 9. Equality: `==`, `!=`, `===`, `!==`
-10. Comparison: `<`, `<=`, `>`, `>=`
+10. Comparison: `<`, `<=`, `>`, `>=`, `in`
 11. Shift: `<<`, `>>`
 12. Additive: `+`, `-`
 13. Multiplicative: `*`, `/`, `%`
@@ -101,6 +101,7 @@ undefined    // JavaScript-friendly alias for null
 | `<=`     | Less or equal    | `a <= b` |
 | `>`      | Greater than     | `a > b`  |
 | `>=`     | Greater or equal | `a >= b` |
+| `in`     | Containment (Python-style) | `x in [1, 2, 3]` |
 
 ### Logical
 
@@ -496,7 +497,7 @@ bitwise_or     = bitwise_xor ( "|" bitwise_xor )* ;
 bitwise_xor    = bitwise_and ( "^" bitwise_and )* ;
 bitwise_and    = equality ( "&" equality )* ;
 equality       = comparison ( ( "==" | "!=" | "===" | "!==" ) comparison )* ;
-comparison     = shift ( ( "<" | "<=" | ">" | ">=" ) shift )* ;
+comparison     = shift ( ( "<" | "<=" | ">" | ">=" | "in" ) shift )* ;
 shift          = term ( ( "<<" | ">>" ) term )* ;
 term           = factor ( ( "+" | "-" ) factor )* ;
 factor         = unary ( ( "*" | "/" | "%" ) unary )* ;

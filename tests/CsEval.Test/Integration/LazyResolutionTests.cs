@@ -1,7 +1,5 @@
 using System.Reflection;
 using CsEval.Attributes;
-using CsEval.Evaluation;
-using NUnit.Framework;
 
 namespace CsEval.Test.Integration;
 

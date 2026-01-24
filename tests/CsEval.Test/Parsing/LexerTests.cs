@@ -1,5 +1,4 @@
 using CsEval.Parsing;
-using NUnit.Framework;
 
 namespace CsEval.Test.Parsing;
 

@@ -1,7 +1,5 @@
 using System.Diagnostics;
-using CsEval.Evaluation;
 using CsEval.Parsing;
-using NUnit.Framework;
 
 namespace CsEval.Test.Performance;
 

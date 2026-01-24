@@ -239,4 +239,35 @@ public sealed partial class Evaluator
 
     private static bool IsNumeric(object? value) =>
         value is sbyte or byte or short or ushort or int or uint or long or ulong or float or double or decimal;
+
+    /// <summary>
+    /// Checks if a value exists in a collection or string.
+    /// Supports strings (substring check) and IEnumerable (element check).
+    /// </summary>
+    private static bool Contains(object? collection, object? value)
+    {
+        if (collection == null)
+            throw new EvalException("Cannot check containment in null collection");
+
+        // String containment: "bc" in "abcd"
+        if (collection is string str && value is string substr)
+            return str.Contains(substr);
+
+        // Character in string: 'b' in "abc"
+        if (collection is string strForChar && value is char ch)
+            return strForChar.Contains(ch);
+
+        // Collection containment
+        if (collection is IEnumerable enumerable)
+        {
+            foreach (var item in enumerable)
+            {
+                if (Equals(item, value))
+                    return true;
+            }
+            return false;
+        }
+
+        throw new EvalException($"Cannot use 'in' operator with {collection.GetType().Name}");
+    }
 }

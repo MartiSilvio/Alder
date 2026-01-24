@@ -51,3 +51,43 @@ entity + new { Computed = entity.A + entity.B }
 Properties from the right operand override those from the left. Result is always `Dictionary<string, object?>`.
 
 ---
+
+## Containment Operator (`in`)
+
+Python-style membership testing. Checks if a value exists in a collection or substring exists in a string.
+
+### Collection Containment
+
+```csharp
+2 in [1, 2, 3]              // true
+5 in [1, 2, 3]              // false
+"b" in ["a", "b", "c"]      // true
+null in [1, null, 3]        // true
+```
+
+### String Containment
+
+```csharp
+"bc" in "abcd"              // true (substring check)
+"xy" in "abcd"              // false
+```
+
+### With Variables
+
+```csharp
+var x = 3;
+x in [1, 2, 3, 4, 5]        // true
+
+var arr = [1, 2, 3];
+2 in arr                    // true
+```
+
+### Combined with Logical Operators
+
+```csharp
+(2 in [1, 2, 3]) && (5 in [4, 5, 6])  // true
+!(5 in [1, 2, 3])                      // true
+x in [1, 2, 3] ? "found" : "missing"  // ternary works
+```
+
+---

@@ -182,7 +182,7 @@ Features for full C# developer familiarity, plus additions from other languages.
 |:------:|---------|--------|-------|
 | 🟡 | Optional chaining call | `obj?.Method()` | Currently only `?.Property` |
 | 🔵 | Pipe operator | `x \|> Process \|> Format` | F#/Kotlin style |
-| 🔵 | `in` operator | `x in [1, 2, 3]` | Python style |
+| ✅ | `in` operator | `x in [1, 2, 3]` | Python style |
 | 🔵 | Chained comparison | `0 < x < 100` | Python style |
 
 ---

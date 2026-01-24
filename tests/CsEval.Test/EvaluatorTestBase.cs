@@ -1,5 +1,4 @@
 using System.Dynamic;
-using CsEval.Evaluation;
 using CsEval.Parsing;
 
 namespace CsEval.Test;
