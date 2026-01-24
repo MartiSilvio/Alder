@@ -190,6 +190,14 @@ public sealed partial class Parser
         {
             if (content[i] == '{')
             {
+                // Check for escaped brace {{
+                if (i + 1 < content.Length && content[i + 1] == '{')
+                {
+                    sb.Append('{');
+                    i += 2;
+                    continue;
+                }
+
                 if (sb.Length > 0)
                 {
                     parts.Add(new TextPart(sb.ToString()));
@@ -215,6 +223,20 @@ public sealed partial class Parser
                 var parser = new Parser(parserTokens);
                 var expr = parser.Parse();
                 parts.Add(new ExpressionPart(expr));
+            }
+            else if (content[i] == '}')
+            {
+                // Check for escaped brace }}
+                if (i + 1 < content.Length && content[i + 1] == '}')
+                {
+                    sb.Append('}');
+                    i += 2;
+                    continue;
+                }
+
+                // Single } outside expression - just append it
+                sb.Append(content[i]);
+                i++;
             }
             else
             {

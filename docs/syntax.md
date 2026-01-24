@@ -65,7 +65,31 @@ $"Items: {items.Count()}"
 $"Nested: {obj.Property}"
 ```
 
-Expressions inside `{}` are evaluated and converted to string.
+Expressions inside `{}` are evaluated and converted to string. Escape braces with `{{` and `}}`:
+
+```
+$"Literal braces: {{not interpolated}}"  // "Literal braces: {not interpolated}"
+```
+
+### Verbatim Strings
+
+```
+@"path\to\file"           // backslashes are literal
+@"C:\Users\John"          // no need to escape
+@"She said ""Hello"""     // double quotes escape quotes
+```
+
+Backslashes are treated literally (no escape sequences). Use `""` to include a quote character.
+
+### Verbatim Interpolated Strings
+
+```
+$@"C:\Users\{name}"       // both prefixes, either order
+@$"Path: {path}\file"     // same as above
+$@"Braces: {{literal}}"   // {{ and }} for literal braces
+```
+
+Combines verbatim string behavior (literal backslashes) with interpolation. Both `$@"..."` and `@$"..."` orderings are supported.
 
 ### Booleans and Null
 

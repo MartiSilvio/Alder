@@ -323,10 +323,31 @@ public sealed class Lexer
                 break;
 
             case '$':
-                if (Match('"'))
+                if (Match('@'))
+                {
+                    if (Match('"'))
+                        ScanVerbatimInterpolatedString();
+                    else
+                        throw new LexerException($"Unexpected character sequence '$@' at {_line}:{_column}. Did you mean '$@\"...'?");
+                }
+                else if (Match('"'))
                     ScanInterpolatedString();
                 else
                     throw new LexerException($"Unexpected character '$' at {_line}:{_column}. Did you mean '$\"...'?");
+                break;
+
+            case '@':
+                if (Match('$'))
+                {
+                    if (Match('"'))
+                        ScanVerbatimInterpolatedString();
+                    else
+                        throw new LexerException($"Unexpected character sequence '@$' at {_line}:{_column}. Did you mean '@$\"...'?");
+                }
+                else if (Match('"'))
+                    ScanVerbatimString();
+                else
+                    throw new LexerException($"Unexpected character '@' at {_line}:{_column}. Did you mean '@\"...'?");
                 break;
 
             default:
@@ -387,13 +408,31 @@ public sealed class Lexer
 
             if (Peek() == '{')
             {
-                braceDepth++;
-                sb.Append(Advance());
+                if (braceDepth == 0 && PeekNext() == '{')
+                {
+                    // Escaped brace {{ - keep as-is for parser
+                    sb.Append(Advance());
+                    sb.Append(Advance());
+                }
+                else
+                {
+                    braceDepth++;
+                    sb.Append(Advance());
+                }
             }
             else if (Peek() == '}')
             {
-                braceDepth--;
-                sb.Append(Advance());
+                if (braceDepth == 0 && PeekNext() == '}')
+                {
+                    // Escaped brace }} - keep as-is for parser
+                    sb.Append(Advance());
+                    sb.Append(Advance());
+                }
+                else
+                {
+                    braceDepth--;
+                    sb.Append(Advance());
+                }
             }
             else if (Peek() == '\\')
             {
@@ -420,6 +459,108 @@ public sealed class Lexer
 
         if (IsAtEnd())
             throw new LexerException($"Unterminated interpolated string at {_line}:{_column}");
+
+        Advance(); // closing "
+        AddToken(TokenType.InterpolatedString, sb.ToString());
+    }
+
+    private void ScanVerbatimString()
+    {
+        // Verbatim strings: @"..." - backslashes are literal, "" escapes "
+        var sb = new StringBuilder();
+
+        while (!IsAtEnd())
+        {
+            if (Peek() == '"')
+            {
+                if (PeekNext() == '"')
+                {
+                    // Escaped quote: "" becomes "
+                    Advance();
+                    Advance();
+                    sb.Append('"');
+                }
+                else
+                {
+                    // End of string
+                    break;
+                }
+            }
+            else
+            {
+                if (Peek() == '\n') { _line++; _column = 0; }
+                sb.Append(Advance());
+            }
+        }
+
+        if (IsAtEnd())
+            throw new LexerException($"Unterminated verbatim string at {_line}:{_column}");
+
+        Advance(); // closing "
+        AddToken(TokenType.String, sb.ToString());
+    }
+
+    private void ScanVerbatimInterpolatedString()
+    {
+        // Verbatim interpolated strings: $@"..." or @$"..."
+        // Backslashes are literal, "" escapes ", {{ and }} escape braces
+        var sb = new StringBuilder();
+        var braceDepth = 0;
+
+        while (!IsAtEnd())
+        {
+            if (Peek() == '"' && braceDepth == 0)
+            {
+                if (PeekNext() == '"')
+                {
+                    // Escaped quote: "" becomes "
+                    Advance();
+                    Advance();
+                    sb.Append('"');
+                }
+                else
+                {
+                    // End of string
+                    break;
+                }
+            }
+            else if (Peek() == '{')
+            {
+                if (braceDepth == 0 && PeekNext() == '{')
+                {
+                    // Escaped brace {{ - keep as-is for parser
+                    sb.Append(Advance());
+                    sb.Append(Advance());
+                }
+                else
+                {
+                    braceDepth++;
+                    sb.Append(Advance());
+                }
+            }
+            else if (Peek() == '}')
+            {
+                if (braceDepth == 0 && PeekNext() == '}')
+                {
+                    // Escaped brace }} - keep as-is for parser
+                    sb.Append(Advance());
+                    sb.Append(Advance());
+                }
+                else
+                {
+                    braceDepth--;
+                    sb.Append(Advance());
+                }
+            }
+            else
+            {
+                if (Peek() == '\n') { _line++; _column = 0; }
+                sb.Append(Advance());
+            }
+        }
+
+        if (IsAtEnd())
+            throw new LexerException($"Unterminated verbatim interpolated string at {_line}:{_column}");
 
         Advance(); // closing "
         AddToken(TokenType.InterpolatedString, sb.ToString());

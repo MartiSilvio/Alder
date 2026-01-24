@@ -63,8 +63,8 @@ Features for full C# developer familiarity, plus additions from other languages.
 | 🔴 | Type casting | `(int)x` | |
 | 🟡 | `nameof` | `nameof(property)` | |
 | 🔵 | `default` | `default(int)` | |
-| 🟡 | Verbatim strings | `@"path\to\file"` | Backslashes literal |
-| 🟡 | Verbatim interpolated | `$@"path\{name}"` | Combined syntax |
+| ✅ | Verbatim strings | `@"path\to\file"` | Backslashes literal |
+| ✅ | Verbatim interpolated | `$@"path\{name}"`, `@$"..."` | Combined syntax |
 | 🔵 | Raw strings | `"""text"""` | C# 11 |
 
 ---

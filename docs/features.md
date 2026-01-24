@@ -647,6 +647,30 @@ Arithmetic follows C# promotion rules exactly (via `dynamic`):
 - `int + decimal` → `decimal`
 - `decimal + float` or `decimal + double` → **Throws!** (C# forbids mixing these)
 
+### Strings
+
+CsEval supports multiple string literal formats:
+
+```csharp
+// Regular strings (escape sequences supported)
+"hello\nworld"                    // Newline escape
+"path\\to\\file"                  // Escaped backslash
+
+// Interpolated strings
+$"Hello, {name}!"                 // Variable interpolation
+$"Sum: {a + b}"                   // Expression interpolation
+$"Braces: {{literal}}"            // Escaped braces
+
+// Verbatim strings (backslashes literal)
+@"C:\Users\John"                  // No escaping needed
+@"She said ""Hello"""             // Double quotes to escape
+
+// Verbatim interpolated strings (both features)
+$@"Path: {user}\Documents"        // Verbatim + interpolation
+@$"C:\{folder}\file.txt"          // Either prefix order works
+$@"Literal: {{braces}}"           // Escaped braces still work
+```
+
 ### Nullables
 
 Null can be used with any reference type or nullable value type.
