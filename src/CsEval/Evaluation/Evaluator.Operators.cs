@@ -162,7 +162,7 @@ public sealed partial class Evaluator
         {
             // Check for division by zero
             if ((dynamic)right! == 0)
-                throw new EvalException("Division by zero");
+                throw new DivideByZeroException();
             return (dynamic)left! / (dynamic)right!;
         }
 
@@ -174,7 +174,7 @@ public sealed partial class Evaluator
         if (IsNumeric(left) && IsNumeric(right))
         {
             if ((dynamic)right! == 0)
-                throw new EvalException("Modulo by zero");
+                throw new DivideByZeroException();
             return (dynamic)left! % (dynamic)right!;
         }
 

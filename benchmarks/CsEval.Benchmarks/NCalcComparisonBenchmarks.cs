@@ -6,21 +6,18 @@ namespace CsEval.Benchmarks;
 
 /// <summary>
 /// Benchmarks comparing CsEval vs NCalc performance.
+/// CsEval uses IL compilation for maximum performance.
 /// </summary>
 [MemoryDiagnoser]
 [SimpleJob(RuntimeMoniker.Net80)]
 public class NCalcComparisonBenchmarks
 {
-    // Pre-parsed expressions
+    // Pre-parsed CsEval expressions (IL-compiled)
     private CsEvalExpression _csEval_SimpleArithmetic = null!;
     private CsEvalExpression _csEval_WithVariables = null!;
     private CsEvalExpression _csEval_Ternary = null!;
-    private CsEvalExpression _csEval_Compiled_SimpleArithmetic = null!;
-    private CsEvalExpression _csEval_Compiled_WithVariables = null!;
-    private CsEvalExpression _csEval_Compiled_Ternary = null!;
 
     private CsEvalEngine _csEvalEngine = null!;
-    private CsEvalEngine _csEvalCompiledEngine = null!;
 
     // NCalc expressions (pre-parsed)
     private Expression _ncalc_SimpleArithmetic = null!;
@@ -30,8 +27,8 @@ public class NCalcComparisonBenchmarks
     [GlobalSetup]
     public void Setup()
     {
-        // CsEval setup (tree-walking)
-        _csEvalEngine = new CsEvalEngine(new CsEvalOptions { CompilationMode = CompilationMode.Disabled });
+        // CsEval setup (all expressions are automatically IL-compiled)
+        _csEvalEngine = new CsEvalEngine();
         _csEvalEngine.SetVariable("x", 10L);
         _csEvalEngine.SetVariable("y", 20L);
         _csEvalEngine.SetVariable("z", 30L);
@@ -39,16 +36,6 @@ public class NCalcComparisonBenchmarks
         _csEval_SimpleArithmetic = _csEvalEngine.Parse("1 + 2 * 3");
         _csEval_WithVariables = _csEvalEngine.Parse("x + y * z");
         _csEval_Ternary = _csEvalEngine.Parse("x > 5 ? x * 2 : x + 10");
-
-        // CsEval setup (compiled)
-        _csEvalCompiledEngine = new CsEvalEngine(new CsEvalOptions { CompilationMode = CompilationMode.Eager });
-        _csEvalCompiledEngine.SetVariable("x", 10L);
-        _csEvalCompiledEngine.SetVariable("y", 20L);
-        _csEvalCompiledEngine.SetVariable("z", 30L);
-
-        _csEval_Compiled_SimpleArithmetic = _csEvalCompiledEngine.Parse("1 + 2 * 3");
-        _csEval_Compiled_WithVariables = _csEvalCompiledEngine.Parse("x + y * z");
-        _csEval_Compiled_Ternary = _csEvalCompiledEngine.Parse("x > 5 ? x * 2 : x + 10");
 
         // NCalc setup (pre-parsed)
         _ncalc_SimpleArithmetic = new Expression("1 + 2 * 3");
@@ -59,10 +46,7 @@ public class NCalcComparisonBenchmarks
     #region Simple Arithmetic (1 + 2 * 3)
 
     [Benchmark(Baseline = true)]
-    public object CsEval_TreeWalk_SimpleArithmetic() => _csEvalEngine.Evaluate(_csEval_SimpleArithmetic)!;
-
-    [Benchmark]
-    public object CsEval_Compiled_SimpleArithmetic() => _csEvalCompiledEngine.Evaluate(_csEval_Compiled_SimpleArithmetic)!;
+    public object CsEval_SimpleArithmetic() => _csEvalEngine.Evaluate(_csEval_SimpleArithmetic)!;
 
     [Benchmark]
     public object NCalc_SimpleArithmetic() => _ncalc_SimpleArithmetic.Evaluate()!;
@@ -72,10 +56,7 @@ public class NCalcComparisonBenchmarks
     #region With Variables (x + y * z)
 
     [Benchmark]
-    public object CsEval_TreeWalk_WithVariables() => _csEvalEngine.Evaluate(_csEval_WithVariables)!;
-
-    [Benchmark]
-    public object CsEval_Compiled_WithVariables() => _csEvalCompiledEngine.Evaluate(_csEval_Compiled_WithVariables)!;
+    public object CsEval_WithVariables() => _csEvalEngine.Evaluate(_csEval_WithVariables)!;
 
     [Benchmark]
     public object NCalc_WithVariables()
@@ -91,10 +72,7 @@ public class NCalcComparisonBenchmarks
     #region Ternary / Conditional
 
     [Benchmark]
-    public object CsEval_TreeWalk_Ternary() => _csEvalEngine.Evaluate(_csEval_Ternary)!;
-
-    [Benchmark]
-    public object CsEval_Compiled_Ternary() => _csEvalCompiledEngine.Evaluate(_csEval_Compiled_Ternary)!;
+    public object CsEval_Ternary() => _csEvalEngine.Evaluate(_csEval_Ternary)!;
 
     [Benchmark]
     public object NCalc_Ternary()

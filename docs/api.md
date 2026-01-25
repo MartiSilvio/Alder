@@ -161,50 +161,12 @@ public sealed class CsEvalOptions
     // Maximum loop iterations (default: 100,000)
     public int MaxIterations { get; init; } = 100_000;
 
-    // Compilation mode (default: OnDemand)
-    public CompilationMode CompilationMode { get; init; } = CompilationMode.OnDemand;
-
     // Sandbox options
     public SandboxOptions Sandbox { get; init; } = new();
 }
 ```
 
 See [sandbox.md](sandbox.md) for sandbox mode documentation.
-
-## CompilationMode
-
-Controls how expressions are evaluated.
-
-```csharp
-public enum CompilationMode
-{
-    // Tree-walk only. No compilation. Best for one-off expressions.
-    Disabled,
-
-    // Compile immediately during Parse(). Best for expressions evaluated multiple times.
-    // Non-compilable expressions automatically fall back to tree-walking.
-    Eager,
-
-    // Only compile when Compile() is called explicitly. Default mode.
-    // Gives full control over when compilation happens.
-    OnDemand
-}
-```
-
-Usage:
-```csharp
-// Eager: best performance for repeated evaluations
-var engine = new CsEvalEngine(new CsEvalOptions { CompilationMode = CompilationMode.Eager });
-var expr = engine.Parse("x + y * 2");  // Compiled automatically
-
-// OnDemand (default): explicit control
-var engine = new CsEvalEngine();
-var expr = engine.Parse("x + y * 2");
-expr.Compile();  // Compile when ready
-
-// Disabled: always interpret (no compilation overhead)
-var engine = new CsEvalEngine(new CsEvalOptions { CompilationMode = CompilationMode.Disabled });
-```
 
 ## CsEvalExpression
 

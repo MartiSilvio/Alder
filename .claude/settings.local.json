@@ -21,7 +21,8 @@
       "Bash(dotnet remove:*)",
       "Bash(grep:*)",
       "Bash(dotnet script:*)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(find:*)"
     ]
   }
 }

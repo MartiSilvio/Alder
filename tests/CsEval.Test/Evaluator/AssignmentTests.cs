@@ -1105,7 +1105,7 @@ public class AssignmentTests
     {
         var engine = new CsEvalEngine();
 
-        Assert.Throws<CsEval.Evaluation.EvalException>(() =>
+        Assert.Throws<DivideByZeroException>(() =>
             engine.Evaluate(@"
             {
                 var x = 10;
@@ -1119,7 +1119,7 @@ public class AssignmentTests
     {
         var engine = new CsEvalEngine();
 
-        Assert.Throws<CsEval.Evaluation.EvalException>(() =>
+        Assert.Throws<DivideByZeroException>(() =>
             engine.Evaluate(@"
             {
                 var x = 10;

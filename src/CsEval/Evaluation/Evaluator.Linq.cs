@@ -193,7 +193,7 @@ public sealed partial class Evaluator
 
         // Validate that Sum is only called on numeric types (TypeCode.SByte=5 through TypeCode.Decimal=15)
         var typeCode = first == null ? TypeCode.Empty : Type.GetTypeCode(first.GetType());
-        if (typeCode < TypeCode.SByte || typeCode > TypeCode.Decimal)
+        if (typeCode is < TypeCode.SByte or > TypeCode.Decimal)
             throw new InvalidOperationException($"Sum() requires numeric elements, but found '{first?.GetType().Name ?? "null"}'");
 
         // Initialize with typed zero, let C# handle arithmetic via dynamic

@@ -267,7 +267,7 @@ Feature parity check: does CsEval have what other .NET expression evaluators hav
 
 | Library | Parser | Evaluation | Performance |
 |---------|--------|------------|-------------|
-| **CsEval** | Custom recursive descent | Visitor pattern on AST, optional Expression<> compilation | Interpreted (compiled for simple exprs) |
+| **CsEval** | Custom recursive descent | **Compiles to IL via DynamicMethod** (control flow, loops), tree-walking fallback | Fast (IL-compiled loops, native branches) |
 | **NCalc** | Parlot (parser combinator) | Visitor pattern on AST | Interpreted, optional lambda compilation |
 | **Flee** | Grammatica (parser generator) | **Compiles to IL via DynamicMethod** | Fastest (1M+ evals/sec) |
 | **DynamicExpresso** | Custom parser | **Compiles to Expression<> trees** | Fast (delegate invocation) |
@@ -449,7 +449,7 @@ Feature parity check: does CsEval have what other .NET expression evaluators hav
 | Feature | CsEval | NCalc | Flee | Expresso | ExprEval | Eval.NET |
 |---------|:------:|:-----:|:----:|:--------:|:--------:|:--------:|
 | Pre-parsing/caching | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ |
-| Compilation to IL | ⚠️³ | ⚠️ | ✅ | ✅ | ❌ | ✅ |
+| Compilation to IL | ✅ | ⚠️ | ✅ | ✅ | ❌ | ✅ |
 | Thread-safe | ⚠️² | ✅ | ⚠️ | ⚠️ | ⚠️ | ⚠️ |
 | Case-insensitive option | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
 | DI integration | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
@@ -478,7 +478,7 @@ Feature parity check: does CsEval have what other .NET expression evaluators hav
 
 ² **Thread-safe**: Engine itself is not thread-safe. Use `CreateChild()` for concurrent evaluation (same pattern as other libs).
 
-³ **Compilation**: Compiles simple expressions to Expression<> delegates. Falls back to tree-walking for complex features (LINQ, control flow).
+³ **Compilation**: Compiles to native IL via `DynamicMethod`. Supports all control flow (loops, if/else, break/continue) with IL branches instead of exception-based flow. Falls back to tree-walking only for LINQ with lambdas.
 
 ---
 

@@ -55,15 +55,9 @@ public sealed class CsEvalExpression
         if (_compiledInfo != null)
             return _compiledInfo.Delegate != null;
 
-        CompiledExpressionInfo info;
-        if (_expressionCache != null)
-        {
-            info = ExpressionCompiler.GetOrCompile(Expression, Ast, _expressionCache);
-        }
-        else
-        {
-            info = ExpressionCompiler.TryCompile(Ast);
-        }
+        var info = _expressionCache != null ? 
+            ExpressionCompiler.GetOrCompile(Expression, Ast, _expressionCache) : 
+            ExpressionCompiler.TryCompile(Ast);
 
         _compiledInfo = info;
         return info.Delegate != null;

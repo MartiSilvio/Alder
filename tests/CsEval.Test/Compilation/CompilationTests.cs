@@ -415,19 +415,17 @@ public class CompilationTests
 
     #endregion
 
-    #region Non-Compilable Expressions
+    #region IL-Compiled Expressions (Control Flow)
 
     [Test]
-    public void Compile_ReturnsIsCompilableFalse_ForBlocks()
+    public void Compile_Blocks()
     {
         var engine = new CsEvalEngine();
         var expr = engine.Parse("{ var x = 1; return x; }");
 
-        Assert.That(expr.TryCompile(), Is.False);
-        Assert.That(expr.IsCompilable, Is.False);
-        Assert.That(expr.CompilationFailureReason, Does.Contain("BlockExpr"));
+        Assert.That(expr.TryCompile(), Is.True);
+        Assert.That(expr.IsCompiled, Is.True);
 
-        // Should still work via tree-walking
         var result = engine.Evaluate(expr);
         Assert.That(result, Is.EqualTo(1));
     }
@@ -456,42 +454,46 @@ public class CompilationTests
     }
 
     [Test]
-    public void Compile_ReturnsIsCompilableFalse_ForAssignment()
+    public void Compile_Assignment()
     {
         var engine = new CsEvalEngine()
             .SetVariable("x", 10);
         var expr = engine.Parse("x = 20");
 
-        Assert.That(expr.TryCompile(), Is.False);
+        Assert.That(expr.TryCompile(), Is.True);
+
+        var result = engine.Evaluate(expr);
+        Assert.That(result, Is.EqualTo(20));
+
+        // Verify assignment took effect by reading x back
+        Assert.That(engine.Evaluate("x"), Is.EqualTo(20));
     }
 
     [Test]
-    public void Compile_ReturnsIsCompilableFalse_ForLoop()
+    public void Compile_Loops()
     {
         var engine = new CsEvalEngine();
         var expr = engine.Parse("{ var i = 0; while (i < 3) { i = i + 1; } return i; }");
 
-        Assert.That(expr.TryCompile(), Is.False);
+        Assert.That(expr.TryCompile(), Is.True);
 
-        // Should still work via tree-walking
         var result = engine.Evaluate(expr);
         Assert.That(result, Is.EqualTo(3));
     }
 
     #endregion
 
-    #region CompilationMode.Eager
+    #region Automatic Compilation
 
     [Test]
-    public void EagerMode_CompilesOnParse()
+    public void Parse_CompilesAutomatically()
     {
-        var options = new CsEvalOptions { CompilationMode = CompilationMode.Eager };
-        var engine = new CsEvalEngine(options)
+        var engine = new CsEvalEngine()
             .SetVariable("x", 10);
 
         var expr = engine.Parse("x * 2");
 
-        // Should be compiled immediately after Parse()
+        // Should be compiled automatically after Parse()
         Assert.That(expr.IsCompiled, Is.True);
 
         var result = engine.Evaluate(expr);
@@ -499,39 +501,20 @@ public class CompilationTests
     }
 
     [Test]
-    public void EagerMode_NonCompilableExpressions_FallBackToTreeWalking()
+    public void Parse_NonCompilableExpressions_FallBackToTreeWalking()
     {
-        var options = new CsEvalOptions { CompilationMode = CompilationMode.Eager };
-        var engine = new CsEvalEngine(options);
+        var engine = new CsEvalEngine()
+            .SetVariable("items", new List<int> { 1, 2, 3 });
 
-        var expr = engine.Parse("{ var x = 1; return x; }");
+        // LINQ with lambdas is not compilable
+        var expr = engine.Parse("items.Where((x) => x > 1)");
 
         // Should not be compiled (not compilable)
         Assert.That(expr.IsCompiled, Is.False);
 
         // But should still work via tree-walking
-        var result = engine.Evaluate(expr);
-        Assert.That(result, Is.EqualTo(1));
-    }
-
-    [Test]
-    public void OnDemandMode_DoesNotCompileOnParse()
-    {
-        var options = new CsEvalOptions { CompilationMode = CompilationMode.OnDemand };
-        var engine = new CsEvalEngine(options)
-            .SetVariable("x", 10);
-
-        var expr = engine.Parse("x * 2");
-
-        // Should NOT be compiled after Parse()
-        Assert.That(expr.IsCompiled, Is.False);
-
-        // Explicit compile
-        expr.Compile();
-        Assert.That(expr.IsCompiled, Is.True);
-
-        var result = engine.Evaluate(expr);
-        Assert.That(result, Is.EqualTo(20));
+        var result = engine.Evaluate(expr) as List<object?>;
+        Assert.That(result, Has.Count.EqualTo(2));
     }
 
     #endregion
@@ -548,52 +531,31 @@ public class CompilationTests
     }
 
     [Test]
-    public void ParseAndCompile_NonCompilableExpression_StillWorks()
+    public void ParseAndCompile_BlockExpression_NowCompiled()
     {
         var engine = new CsEvalEngine();
         var expr = engine.ParseAndCompile("{ var x = 1; return x; }");
 
-        Assert.That(expr.IsCompiled, Is.False);
+        // Blocks are now IL-compilable
+        Assert.That(expr.IsCompiled, Is.True);
 
-        // Should still work via tree-walking
         var result = engine.Evaluate(expr);
         Assert.That(result, Is.EqualTo(1));
     }
 
-    #endregion
-
-    #region CompilationMode.Disabled
-
     [Test]
-    public void DisabledMode_NeverUsesCompilation()
+    public void ParseAndCompile_NonCompilableExpression_StillWorks()
     {
-        var options = new CsEvalOptions { CompilationMode = CompilationMode.Disabled };
-        var engine = new CsEvalEngine(options);
-        var expr = engine.Parse("1 + 2");
+        var engine = new CsEvalEngine()
+            .SetVariable("items", new List<int> { 1, 2, 3 });
+        var expr = engine.ParseAndCompile("items.Where((x) => x > 1)");
 
-        // Parse should not compile in Disabled mode
+        // LINQ with lambdas is not compilable
         Assert.That(expr.IsCompiled, Is.False);
 
-        // Explicit compile should still work (user choice)
-        Assert.That(expr.TryCompile(), Is.True);
-        Assert.That(expr.IsCompiled, Is.True);
-
-        // But evaluation should use tree-walking since mode is Disabled
-        // (compiled delegate is ignored)
-        var result = engine.Evaluate(expr);
-        Assert.That(result, Is.EqualTo(3));
-    }
-
-    [Test]
-    public void DisabledMode_EvaluateString_UsesTreeWalking()
-    {
-        var options = new CsEvalOptions { CompilationMode = CompilationMode.Disabled };
-        var engine = new CsEvalEngine(options)
-            .SetVariable("x", 10);
-
-        // Direct string evaluation should always use tree-walking in Disabled mode
-        var result = engine.Evaluate("x + 5");
-        Assert.That(result, Is.EqualTo(15));
+        // Should still work via tree-walking
+        var result = engine.Evaluate(expr) as List<object?>;
+        Assert.That(result, Has.Count.EqualTo(2));
     }
 
     #endregion
@@ -618,14 +580,13 @@ public class CompilationTests
     }
 
     [Test]
-    public void Compile_ThreadSafe_ParallelEvaluationsWithEagerMode()
+    public void Compile_ThreadSafe_ParallelEvaluations()
     {
-        var options = new CsEvalOptions { CompilationMode = CompilationMode.Eager };
-        var engine = new CsEvalEngine(options)
+        var engine = new CsEvalEngine()
             .SetVariable("x", 5);
         var expr = engine.Parse("x + x");
 
-        // Expression should be compiled immediately
+        // Expression should be compiled automatically
         Assert.That(expr.IsCompiled, Is.True);
 
         var results = new System.Collections.Concurrent.ConcurrentBag<object?>();

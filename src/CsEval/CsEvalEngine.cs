@@ -50,11 +50,9 @@ public sealed class CsEvalEngine
 
         var expr = new CsEvalExpression(expression, ast, _expressionCache);
 
-        // Eager mode: compile immediately during Parse()
-        if (_options.CompilationMode == CompilationMode.Eager)
-        {
-            expr.TryCompile();
-        }
+        // Always try to compile for maximum performance
+        // Non-compilable expressions silently fall back to tree-walking
+        expr.TryCompile();
 
         return expr;
     }
@@ -101,17 +99,14 @@ public sealed class CsEvalEngine
     {
         ApplyRegisteredTypes(serviceProvider);
 
-        // Use compiled delegate if available (Eager or OnDemand modes)
-        if (_options.CompilationMode != CompilationMode.Disabled)
+        // Use compiled delegate if available
+        var compiled = expression.GetCompiledInfo();
+        if (compiled?.Delegate != null)
         {
-            var compiled = expression.GetCompiledInfo();
-            if (compiled?.Delegate != null)
-            {
-                return compiled.Delegate(_context, _options, cancellationToken);
-            }
+            return compiled.Delegate(_context, _options, cancellationToken);
         }
 
-        // Fall back to tree-walking
+        // Fall back to tree-walking for non-compilable expressions
         var evaluator = new Evaluator(_context, _functions, _options, cancellationToken, ArgumentTransformer);
         return evaluator.Evaluate(expression.Ast);
     }
@@ -119,19 +114,16 @@ public sealed class CsEvalEngine
     /// <summary>
     /// Parses and attempts to compile an expression upfront for better performance.
     /// If compilation is not possible, the expression will fall back to tree-walking on evaluation.
-    /// Works regardless of CompilationMode setting (explicit compilation request).
     /// </summary>
+    /// <remarks>
+    /// This method is equivalent to <see cref="Parse"/> since all expressions are now
+    /// automatically compiled during parsing. It is retained for API compatibility.
+    /// </remarks>
     /// <param name="expression">The expression string to parse and compile.</param>
     /// <returns>A pre-parsed and potentially compiled expression.</returns>
     public CsEvalExpression ParseAndCompile(string expression)
     {
-        var parsed = Parse(expression);
-        // Always try to compile when explicitly requested, regardless of mode
-        if (_options.CompilationMode != CompilationMode.Eager) // Eager already compiled in Parse()
-        {
-            parsed.TryCompile();
-        }
-        return parsed;
+        return Parse(expression);
     }
 
     /// <summary>

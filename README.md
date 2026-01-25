@@ -6,7 +6,7 @@
 
 ## A zero-dependency C# expression evaluator for .NET
 
-CsEval is a **lightweight expression evaluator** that parses C#-like syntax at runtime — no Roslyn, no compilation step, zero external dependencies. Designed for **rule engines**, **dynamic filters**, **calculated fields**, **formula evaluation**, and more, it supports LINQ with lambdas, control flow, object merging, and more — all in a sandboxed environment.
+CsEval is a **lightweight expression evaluator** that parses C#-like syntax at runtime with zero external dependencies. Designed for **rule engines**, **dynamic filters**, **calculated fields**, **formula evaluation**, and more, it supports LINQ with lambdas, control flow, object merging, and more — all in a sandboxed environment.
 
 ```csharp
 var engine = new CsEvalEngine();

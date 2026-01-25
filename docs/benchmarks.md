@@ -175,41 +175,37 @@ Loops scale linearly with iteration count. The per-iteration cost includes:
 - Variable lookup/update
 - Loop control flow handling
 
-### Expression Compilation (Hybrid Mode)
+### Automatic IL Compilation
 
-CsEval supports optional expression compilation using `System.Linq.Expressions`. Simple expressions can be compiled to delegates for significant speedup:
+CsEval automatically compiles expressions to native IL via `System.Reflection.Emit.DynamicMethod` during `Parse()`. This provides near-native performance for most expressions, with automatic fallback to tree-walking for non-compilable expressions.
 
 ```csharp
-// Eager mode: compile automatically during Parse()
-var options = new CsEvalOptions { CompilationMode = CompilationMode.Eager };
-var engine = new CsEvalEngine(options);
-var expr = engine.Parse("x + y * 2");  // Compiled immediately
-engine.Evaluate(expr);  // Fast execution via compiled delegate
+var engine = new CsEvalEngine();
+engine.SetVariable("x", 10);
+engine.SetVariable("y", 20);
 
-// OnDemand mode (default): explicit compilation
-var engine = new CsEvalEngine();  // CompilationMode.OnDemand by default
-var expr = engine.Parse("x + y * 2");
-expr.Compile();  // Compile when you want
-engine.Evaluate(expr);
+var expr = engine.Parse("x + y * 2");  // Automatically IL-compiled
+Console.WriteLine(expr.IsCompiled);    // true
 
-// Or use ParseAndCompile for one-step compilation
-var expr = engine.ParseAndCompile("x + y * 2");
-
-// Disabled mode: always tree-walk (interpreter)
-var options = new CsEvalOptions { CompilationMode = CompilationMode.Disabled };
+engine.Evaluate(expr);  // Uses compiled delegate
 ```
 
-**What compiles (~5-20x speedup):**
+**What compiles to native IL (~5-50x speedup):**
 - Literals, identifiers, property access
 - Arithmetic (`+`, `-`, `*`, `/`, `%`) on strings and numerics
 - Comparisons (`==`, `!=`, `<`, `>`, `<=`, `>=`)
 - Logical (`&&`, `||`, `!`) with short-circuit
 - Ternary (`? :`), null coalesce (`??`)
+- Control flow: `if`/`else`, `for`, `while`, `do-while`, `foreach`
+- `break`, `continue`, `return` (uses IL branches, not exceptions)
+- Variable declarations and assignments
+- Compound assignments (`+=`, `-=`, etc.) and increment/decrement
 
 **What falls back to tree-walking:**
-- Blocks, loops, switch statements (exception-based control flow)
-- Lambdas, LINQ methods (closure capture complexity)
-- Assignments, object merging with `+`
+- LINQ methods with lambda expressions
+- Method calls on objects
+- Switch statements
+- Object spread/merge
 
 ## Optimization Summary
 

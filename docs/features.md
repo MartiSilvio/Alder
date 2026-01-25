@@ -116,16 +116,16 @@ items.ToArray()                      // Convert to object?[]
 
 For JavaScript/TypeScript developers, familiar method names work as aliases:
 
-| JavaScript | LINQ Equivalent | Notes |
-|------------|-----------------|-------|
-| `filter` | `Where` | Same behavior |
-| `map` | `Select` | Same behavior |
-| `flatMap` | `SelectMany` | Same behavior |
-| `reduce` | `Aggregate` | JS argument order: `reduce(fn, seed)` |
-| `find` | `FirstOrDefault` | Same behavior |
-| `some` | `Any` | Same behavior |
-| `every` | `All` | Same behavior |
-| `includes` | `Contains` | Same behavior |
+| JavaScript | LINQ Equivalent  | Notes                                 |
+| ---------- | ---------------- | ------------------------------------- |
+| `filter`   | `Where`          | Same behavior                         |
+| `map`      | `Select`         | Same behavior                         |
+| `flatMap`  | `SelectMany`     | Same behavior                         |
+| `reduce`   | `Aggregate`      | JS argument order: `reduce(fn, seed)` |
+| `find`     | `FirstOrDefault` | Same behavior                         |
+| `some`     | `Any`            | Same behavior                         |
+| `every`    | `All`            | Same behavior                         |
+| `includes` | `Contains`       | Same behavior                         |
 
 ```csharp
 // These are equivalent
@@ -495,36 +495,46 @@ foreach (var dataset in datasets)
 }
 ```
 
-### Expression Compilation
+### Automatic IL Compilation
 
-For maximum performance with simple expressions, enable compilation:
+CsEval compiles expressions to native IL via `System.Reflection.Emit.DynamicMethod` for maximum performance. All expressions are automatically compiled during `Parse()` with silent fallback to tree-walking for non-compilable expressions.
 
 ```csharp
-// Eager mode: compile during Parse() automatically
-var engine = new CsEvalEngine(new CsEvalOptions { CompilationMode = CompilationMode.Eager });
-var expr = engine.Parse("x + y * 2");  // Compiled immediately
-engine.Evaluate(expr);  // Uses compiled delegate (~5-20x faster)
-
-// OnDemand mode (default): explicit compilation
 var engine = new CsEvalEngine();
-var expr = engine.Parse("x + y * 2");
-expr.Compile();  // Compile when you want
+engine.SetVariable("x", 10);
+engine.SetVariable("y", 20);
 
-// Or use ParseAndCompile for one-step
-var expr = engine.ParseAndCompile("x + y * 2");
+var expr = engine.Parse("x + y * 2");  // Automatically IL-compiled
+Console.WriteLine(expr.IsCompiled);    // true
+
+engine.Evaluate(expr);  // Uses compiled delegate for maximum performance
 ```
 
-**What compiles:**
+**What compiles to native IL:**
+
 - Literals, identifiers, property access
 - Arithmetic (`+`, `-`, `*`, `/`, `%`)
 - Comparisons (`==`, `!=`, `<`, `>`, `<=`, `>=`)
 - Logical (`&&`, `||`, `!`) with short-circuit
 - Ternary (`? :`), null coalesce (`??`)
+- Blocks with multiple statements
+- Control flow: `if`/`else`, `for`, `while`, `do-while`, `foreach`
+- `break`, `continue`, `return` (uses IL branches, not exceptions)
+- Variable declarations and assignments
+- Compound assignments (`+=`, `-=`, etc.) and increment/decrement
+
+**Key performance benefits:**
+
+- Loops use native IL branch instructions instead of exception-based control flow
+- Variables in loops use IL local slots instead of dictionary lookups
+- `break`/`continue` use `br` opcodes instead of throwing exceptions
 
 **What falls back to tree-walking:**
-- Blocks, loops, switch statements
-- Lambdas, LINQ methods
-- Assignments, object merging
+
+- LINQ methods with lambda expressions
+- Method calls on objects
+- Switch statements
+- Object spread/merge
 
 ### Child Contexts
 
@@ -631,6 +641,7 @@ engine.Evaluate("3.14m");    // decimal
 ```
 
 Arithmetic follows C# promotion rules exactly (via `dynamic`):
+
 - Small types (`byte`, `short`, etc.) promote to `int`
 - `int + int` → `int`
 - `int / int` → `int` (truncating! Use `5.0 / 2.0` for fractional results)
@@ -671,6 +682,7 @@ Null can be used with any reference type or nullable value type.
 ### Method Parameters
 
 When calling methods, CsEval:
+
 1. Checks for exact type match
 2. Attempts `Convert.ChangeType` for compatible types
 3. Uses default values for missing optional parameters
@@ -695,6 +707,7 @@ engine.RegisterModule("name", type, explicitOnly: true)
 ```
 
 Named parameters:
+
 - Match by parameter name (case-insensitive)
 - Can appear in any order after positional arguments
 - Allow skipping optional parameters with defaults
