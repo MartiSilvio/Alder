@@ -279,6 +279,42 @@ public static class CompilerHelpers
         return value;
     }
 
+    public static object? BitwiseAnd(object? left, object? right, CsEvalOptions options)
+    {
+        if (IsInteger(left) && IsInteger(right))
+            return (dynamic)left! & (dynamic)right!;
+        
+        if (left is bool lb && right is bool rb)
+            return lb & rb;
+
+        throw new EvalException($"Cannot apply operator & to {left?.GetType().Name} and {right?.GetType().Name}");
+    }
+
+    public static object? BitwiseOr(object? left, object? right, CsEvalOptions options)
+    {
+        if (IsInteger(left) && IsInteger(right))
+            return (dynamic)left! | (dynamic)right!;
+
+        if (left is bool lb && right is bool rb)
+            return lb | rb;
+
+        throw new EvalException($"Cannot apply operator | to {left?.GetType().Name} and {right?.GetType().Name}");
+    }
+
+    public static object? BitwiseXor(object? left, object? right, CsEvalOptions options)
+    {
+        if (IsInteger(left) && IsInteger(right))
+            return (dynamic)left! ^ (dynamic)right!;
+
+        if (left is bool lb && right is bool rb)
+            return lb ^ rb;
+
+        throw new EvalException($"Cannot apply operator ^ to {left?.GetType().Name} and {right?.GetType().Name}");
+    }
+
+    private static bool IsInteger(object? value) =>
+        value is sbyte or byte or short or ushort or int or uint or long or ulong;
+
     private static bool IsNumeric(object? value) =>
         value is sbyte or byte or short or ushort or int or uint or long or ulong or float or double or decimal;
 

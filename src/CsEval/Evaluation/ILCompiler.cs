@@ -29,8 +29,8 @@ internal sealed class ILCompiler
     // Stack of parent context variables for scope restoration
     private readonly Stack<ParameterExpression> _contextStack = new();
 
-    // Loop control flow labels (stack for nested loops)
-    private readonly Stack<LoopLabels> _loopStack = new();
+    // Loop/Switch stack
+    private readonly Stack<ControlFlowContext> _controlStack = new();
 
     // Global iteration counter variable (long to avoid overflow issues with int.MaxValue limits)
     private readonly ParameterExpression _iterationCount;
@@ -60,6 +60,9 @@ internal sealed class ILCompiler
     private static readonly MethodInfo LessThanOrEqualMethod = typeof(CompilerHelpers).GetMethod(nameof(CompilerHelpers.LessThanOrEqual))!;
     private static readonly MethodInfo GreaterThanMethod = typeof(CompilerHelpers).GetMethod(nameof(CompilerHelpers.GreaterThan))!;
     private static readonly MethodInfo GreaterThanOrEqualMethod = typeof(CompilerHelpers).GetMethod(nameof(CompilerHelpers.GreaterThanOrEqual))!;
+    private static readonly MethodInfo BitwiseAndMethod = typeof(CompilerHelpers).GetMethod(nameof(CompilerHelpers.BitwiseAnd))!;
+    private static readonly MethodInfo BitwiseOrMethod = typeof(CompilerHelpers).GetMethod(nameof(CompilerHelpers.BitwiseOr))!;
+    private static readonly MethodInfo BitwiseXorMethod = typeof(CompilerHelpers).GetMethod(nameof(CompilerHelpers.BitwiseXor))!;
     private static readonly MethodInfo GetMemberMethod = typeof(CompilerHelpers).GetMethod(nameof(CompilerHelpers.GetMember))!;
     private static readonly MethodInfo NegateMethod = typeof(CompilerHelpers).GetMethod(nameof(CompilerHelpers.Negate))!;
     private static readonly MethodInfo ThrowIfCancellationRequestedMethod = typeof(CancellationToken).GetMethod(nameof(CancellationToken.ThrowIfCancellationRequested))!;
@@ -70,7 +73,7 @@ internal sealed class ILCompiler
     private static readonly MethodInfo DisposeMethod = typeof(IDisposable).GetMethod(nameof(IDisposable.Dispose))!;
     private static readonly MethodInfo CheckAllowAssignmentMethod = typeof(CompilerHelpers).GetMethod(nameof(CompilerHelpers.CheckAllowAssignment))!;
 
-    private record struct LoopLabels(LabelTarget BreakTarget, LabelTarget ContinueTarget);
+    private record struct ControlFlowContext(LabelTarget BreakTarget, LabelTarget? ContinueTarget, bool IsLoop);
 
     private ILCompiler(EvalContext context, CsEvalOptions options)
     {
@@ -224,6 +227,17 @@ internal sealed class ILCompiler
                             stack.Push(stmt);
                     break;
 
+                case SwitchStatementExpr s:
+                    stack.Push(s.Expression);
+                    foreach (var c in s.Cases)
+                    {
+                        if (c.Pattern != null)
+                            stack.Push(c.Pattern);
+                        foreach (var stmt in c.Statements)
+                            stack.Push(stmt);
+                    }
+                    break;
+
                 case WhileStatementExpr w:
                     stack.Push(w.Condition);
                     foreach (var stmt in w.Body)
@@ -269,7 +283,8 @@ internal sealed class ILCompiler
         TokenType.EqualEqual or TokenType.BangEqual or
         TokenType.EqualEqualEqual or TokenType.BangEqualEqual or
         TokenType.Less or TokenType.LessEqual or
-        TokenType.Greater or TokenType.GreaterEqual;
+        TokenType.Greater or TokenType.GreaterEqual or
+        TokenType.Amp or TokenType.Pipe or TokenType.Caret;
 
     /// <summary>
     /// Compile an expression to an Expression Tree.
@@ -299,6 +314,7 @@ internal sealed class ILCompiler
                 IncrementDecrementExpr inc => CompileIncrementDecrement(inc),
                 BlockExpr block => CompileBlock(block),
                 IfStatementExpr ifStmt => CompileIf(ifStmt),
+                SwitchStatementExpr switchStmt => CompileSwitch(switchStmt),
                 WhileStatementExpr whileStmt => CompileWhile(whileStmt),
                 ForStatementExpr forStmt => CompileFor(forStmt),
                 DoWhileStatementExpr doWhile => CompileDoWhile(doWhile),
@@ -368,6 +384,9 @@ internal sealed class ILCompiler
             TokenType.LessEqual => LessThanOrEqualMethod,
             TokenType.Greater => GreaterThanMethod,
             TokenType.GreaterEqual => GreaterThanOrEqualMethod,
+            TokenType.Amp => BitwiseAndMethod,
+            TokenType.Pipe => BitwiseOrMethod,
+            TokenType.Caret => BitwiseXorMethod,
             _ => throw new NotSupportedException($"Binary operator {b.Op.Type}")
         };
 
@@ -588,7 +607,7 @@ internal sealed class ILCompiler
         var breakLabel = LinqExpression.Label(typeof(void), "break");
         var continueLabel = LinqExpression.Label(typeof(void), "continue");
 
-        _loopStack.Push(new LoopLabels(breakLabel, continueLabel));
+        _controlStack.Push(new ControlFlowContext(breakLabel, continueLabel, IsLoop: true));
 
         var loopStatements = new List<LinqExpression>();
 
@@ -618,7 +637,7 @@ internal sealed class ILCompiler
 
         var loop = LinqExpression.Loop(LinqExpression.Block(loopStatements), breakLabel);
 
-        _loopStack.Pop();
+        _controlStack.Pop();
 
         return LinqExpression.Block(loop, LinqExpression.Constant(null, typeof(object)));
     }
@@ -637,7 +656,7 @@ internal sealed class ILCompiler
             if (forStmt.Initializer != null)
                 outerStatements.Add(Compile(forStmt.Initializer));
 
-            _loopStack.Push(new LoopLabels(breakLabel, continueLabel));
+            _controlStack.Push(new ControlFlowContext(breakLabel, continueLabel, IsLoop: true));
 
             var loopStatements = new List<LinqExpression>();
 
@@ -675,7 +694,7 @@ internal sealed class ILCompiler
             var loop = LinqExpression.Loop(LinqExpression.Block(loopStatements), breakLabel);
             outerStatements.Add(loop);
 
-            _loopStack.Pop();
+            _controlStack.Pop();
 
             outerStatements.Add(LinqExpression.Constant(null, typeof(object)));
             return LinqExpression.Block(outerStatements);
@@ -687,7 +706,7 @@ internal sealed class ILCompiler
         var breakLabel = LinqExpression.Label(typeof(void), "break");
         var continueLabel = LinqExpression.Label(typeof(void), "continue");
 
-        _loopStack.Push(new LoopLabels(breakLabel, continueLabel));
+        _controlStack.Push(new ControlFlowContext(breakLabel, continueLabel, IsLoop: true));
 
         var loopStatements = new List<LinqExpression>();
 
@@ -717,14 +736,14 @@ internal sealed class ILCompiler
 
         var loop = LinqExpression.Loop(LinqExpression.Block(loopStatements), breakLabel);
 
-        _loopStack.Pop();
+        _controlStack.Pop();
 
         return LinqExpression.Block(loop, LinqExpression.Constant(null, typeof(object)));
     }
 
     private LinqExpression CompileForEach(ForEachStatementExpr forEach)
     {
-        var loopId = _loopStack.Count; // Unique ID for nested foreach
+        var loopId = _controlStack.Count; // Unique ID for nested foreach
         var breakLabel = LinqExpression.Label(typeof(void), $"break{loopId}");
         var continueLabel = LinqExpression.Label(typeof(void), $"continue{loopId}");
 
@@ -739,7 +758,7 @@ internal sealed class ILCompiler
         // Enter foreach scope
         return Scoped(() =>
         {
-            _loopStack.Push(new LoopLabels(breakLabel, continueLabel));
+            _controlStack.Push(new ControlFlowContext(breakLabel, continueLabel, IsLoop: true));
 
             // Loop body
             var loopStatements = new List<LinqExpression>();
@@ -778,7 +797,7 @@ internal sealed class ILCompiler
 
             var loop = LinqExpression.Loop(LinqExpression.Block(loopStatements), breakLabel);
 
-            _loopStack.Pop();
+            _controlStack.Pop();
 
             // Try-finally for disposal - Expression Trees handle this correctly!
             var disposeExpr = LinqExpression.IfThen(
@@ -799,22 +818,102 @@ internal sealed class ILCompiler
         });
     }
 
+    private LinqExpression CompileSwitch(SwitchStatementExpr switchStmt)
+    {
+        var breakLabel = LinqExpression.Label(typeof(void), "switch_break");
+        
+        // Switch pushes to control stack (for break) but acts as non-loop
+        _controlStack.Push(new ControlFlowContext(breakLabel, null, IsLoop: false));
+
+        // Evaluate switch value once
+        var switchValue = Compile(switchStmt.Expression);
+        var switchVar = LinqExpression.Variable(typeof(object), "switchValue");
+
+        // Scoped for switch body
+        return Scoped(() =>
+        {
+            var statements = new List<LinqExpression>();
+            // Assign switch value
+            statements.Add(LinqExpression.Assign(switchVar, switchValue));
+
+            // Labels for each case
+            var caseLabels = new List<(SwitchCaseExpr Case, LabelTarget Label)>();
+            LabelTarget? defaultLabel = null;
+
+            foreach (var c in switchStmt.Cases)
+            {
+                if (c.Pattern != null)
+                    caseLabels.Add((c, LinqExpression.Label("case")));
+                else
+                    defaultLabel = LinqExpression.Label("default");
+            }
+
+            // Create dispatch logic (If-Else chain)
+            // if (Eq(val, case1)) goto label1; ...
+            foreach (var mapping in caseLabels)
+            {
+                var patternVal = Compile(mapping.Case.Pattern!);
+                var condition = LinqExpression.Call(EqualsMethod, switchVar, patternVal, _optionsParam);
+                statements.Add(LinqExpression.IfThen(
+                    LinqExpression.Convert(condition, typeof(bool)),
+                    LinqExpression.Goto(mapping.Label)));
+            }
+
+            // Goto default or break if no match
+            if (defaultLabel != null)
+                statements.Add(LinqExpression.Goto(defaultLabel));
+            else
+                statements.Add(LinqExpression.Goto(breakLabel));
+
+            // Generate case bodies
+            foreach (var c in switchStmt.Cases)
+            {
+                // Find label for this case
+                LabelTarget? targetLabel = null;
+                if (c.Pattern == null)
+                    targetLabel = defaultLabel;
+                else
+                    targetLabel = caseLabels.First(x => x.Case == c).Label;
+                
+                if (targetLabel != null)
+                {
+                    statements.Add(LinqExpression.Label(targetLabel));
+                    foreach (var stmt in c.Statements)
+                    {
+                        statements.Add(CompileCancellationCheck());
+                        statements.Add(Compile(stmt));
+                    }
+                    // Fallthrough happpens automatically to next label
+                }
+            }
+
+            statements.Add(LinqExpression.Label(breakLabel));
+            
+            _controlStack.Pop();
+
+            return LinqExpression.Block(new[] { switchVar }, statements);
+        });
+    }
+
     private LinqExpression CompileBreak()
     {
-        if (_loopStack.Count == 0)
-            throw new EvalException("break statement outside of loop");
+        if (_controlStack.Count == 0)
+            throw new EvalException("break statement outside of loop or switch");
 
-        var labels = _loopStack.Peek();
-        return LinqExpression.Break(labels.BreakTarget);
+        var context = _controlStack.Peek();
+        return LinqExpression.Break(context.BreakTarget);
     }
 
     private LinqExpression CompileContinue()
     {
-        if (_loopStack.Count == 0)
-            throw new EvalException("continue statement outside of loop");
+        // Search stack for nearest loop
+        foreach (var context in _controlStack)
+        {
+            if (context.IsLoop && context.ContinueTarget != null)
+                return LinqExpression.Continue(context.ContinueTarget);
+        }
 
-        var labels = _loopStack.Peek();
-        return LinqExpression.Continue(labels.ContinueTarget);
+        throw new EvalException("continue statement outside of loop");
     }
 
     private LinqExpression CompileReturn(ReturnExpr ret)

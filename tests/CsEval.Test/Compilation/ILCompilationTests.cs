@@ -386,4 +386,122 @@ public class ILCompilationTests
     }
 
     #endregion
+
+    #region Switch Compilation
+
+    [Test]
+    public void ILCompile_Switch_Simple()
+    {
+        var engine = new CsEvalEngine();
+        var expr = engine.Parse(@"{
+            var x = 2;
+            var result = """";
+            switch (x) {
+                case 1: result = ""one""; break;
+                case 2: result = ""two""; break;
+            }
+            return result;
+        }");
+        
+        Assert.That(expr.TryCompile(), Is.True, "Switch should be compilable");
+        Assert.That(expr.IsCompiled, Is.True, "Switch should be compiled");
+        Assert.That(engine.Evaluate(expr), Is.EqualTo("two"));
+    }
+
+    [Test]
+    public void ILCompile_Switch_FallThrough()
+    {
+        var engine = new CsEvalEngine();
+        // Fallthrough without break
+        var expr = engine.Parse(@"{
+            var x = 1;
+            var sum = 0;
+            switch (x) {
+                case 1: sum += 10;
+                case 2: sum += 20; break;
+                case 3: sum += 30; break;
+            }
+            return sum;
+        }");
+        
+        Assert.That(expr.TryCompile(), Is.True);
+        Assert.That(engine.Evaluate(expr), Is.EqualTo(30)); // 10 + 20
+    }
+
+    [Test]
+    public void ILCompile_Switch_Default()
+    {
+        var engine = new CsEvalEngine();
+        var expr = engine.Parse(@"{
+            var x = 99;
+            var res = 0;
+            switch (x) {
+                case 1: res = 1; break;
+                default: res = 100; break;
+            }
+            return res;
+        }");
+        
+        Assert.That(expr.TryCompile(), Is.True);
+        Assert.That(engine.Evaluate(expr), Is.EqualTo(100));
+    }
+
+    [Test]
+    public void ILCompile_Switch_InsideLoop_WithBreak()
+    {
+        // break inside switch should break switch, not loop
+        var engine = new CsEvalEngine();
+        var expr = engine.Parse(@"{
+            var sum = 0;
+            for (var i = 0; i < 3; i++) {
+                switch(i) {
+                    case 0: sum += 1; break;
+                    case 1: sum += 2; break;
+                    case 2: sum += 3; break;
+                }
+            }
+            return sum;
+        }");
+        
+        Assert.That(expr.TryCompile(), Is.True);
+        Assert.That(engine.Evaluate(expr), Is.EqualTo(6)); // 1 + 2 + 3
+    }
+
+    [Test]
+    public void ILCompile_Switch_InsideLoop_WithContinue()
+    {
+        // continue inside switch should continue loop
+        var engine = new CsEvalEngine();
+        var expr = engine.Parse(@"{
+            var sum = 0;
+            for (var i = 0; i < 5; i++) {
+                switch(i) {
+                    case 2: continue; // skip 2
+                    default: sum += i; break;
+                }
+            }
+            return sum;
+        }");
+        
+        Assert.That(expr.TryCompile(), Is.True);
+        Assert.That(engine.Evaluate(expr), Is.EqualTo(8)); // 0+1+3+4 = 8
+    }
+
+    [Test]
+    public void ILCompile_Switch_Expressions()
+    {
+        var engine = new CsEvalEngine();
+        var expr = engine.Parse(@"{
+            var x = 10;
+            switch(x * 2) {
+                case 20: return ""match"";
+                default: return ""no"";
+            }
+        }");
+        
+        Assert.That(expr.TryCompile(), Is.True);
+        Assert.That(engine.Evaluate(expr), Is.EqualTo("match"));
+    }
+
+    #endregion
 }
