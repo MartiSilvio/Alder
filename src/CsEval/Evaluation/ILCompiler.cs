@@ -64,6 +64,8 @@ internal sealed class ILCompiler
     private static readonly MethodInfo BitwiseOrMethod = typeof(CompilerHelpers).GetMethod(nameof(CompilerHelpers.BitwiseOr))!;
     private static readonly MethodInfo BitwiseXorMethod = typeof(CompilerHelpers).GetMethod(nameof(CompilerHelpers.BitwiseXor))!;
     private static readonly MethodInfo GetMemberMethod = typeof(CompilerHelpers).GetMethod(nameof(CompilerHelpers.GetMember))!;
+    private static readonly MethodInfo GetIndexMethod = typeof(CompilerHelpers).GetMethod(nameof(CompilerHelpers.GetIndex))!;
+    private static readonly MethodInfo SetIndexMethod = typeof(CompilerHelpers).GetMethod(nameof(CompilerHelpers.SetIndex))!;
     private static readonly MethodInfo NegateMethod = typeof(CompilerHelpers).GetMethod(nameof(CompilerHelpers.Negate))!;
     private static readonly MethodInfo ThrowIfCancellationRequestedMethod = typeof(CancellationToken).GetMethod(nameof(CancellationToken.ThrowIfCancellationRequested))!;
     private static readonly MethodInfo CheckIterationLimitMethod = typeof(ILCompilerHelpers).GetMethod(nameof(ILCompilerHelpers.CheckIterationLimit))!;
@@ -199,6 +201,11 @@ internal sealed class ILCompiler
                     stack.Push(m.Object);
                     break;
 
+                case IndexAccessExpr idx:
+                    stack.Push(idx.Object);
+                    stack.Push(idx.Index);
+                    break;
+
                 case VariableDeclExpr v:
                     stack.Push(v.Initializer);
                     break;
@@ -209,6 +216,12 @@ internal sealed class ILCompiler
 
                 case CompoundAssignExpr ca:
                     stack.Push(ca.Value);
+                    break;
+
+                case IndexAssignExpr ia:
+                    stack.Push(ia.Object);
+                    stack.Push(ia.Index);
+                    stack.Push(ia.Value);
                     break;
 
                 case BlockExpr b:
@@ -308,9 +321,11 @@ internal sealed class ILCompiler
                 ConditionalExpr c => CompileConditional(c),
                 NullCoalesceExpr n => CompileNullCoalesce(n),
                 MemberAccessExpr m => CompileMemberAccess(m),
+                IndexAccessExpr idx => CompileIndexAccess(idx),
                 VariableDeclExpr v => CompileVariableDecl(v),
                 AssignExpr a => CompileAssign(a),
                 CompoundAssignExpr ca => CompileCompoundAssign(ca),
+                IndexAssignExpr ia => CompileIndexAssign(ia),
                 IncrementDecrementExpr inc => CompileIncrementDecrement(inc),
                 BlockExpr block => CompileBlock(block),
                 IfStatementExpr ifStmt => CompileIf(ifStmt),
@@ -559,6 +574,31 @@ internal sealed class ILCompiler
             statements.Add(LinqExpression.Constant(null, typeof(object)));
 
         return LinqExpression.Block(statements);
+    }
+
+
+
+    private LinqExpression CompileIndexAccess(IndexAccessExpr expr)
+    {
+        var target = Compile(expr.Object);
+        var index = Compile(expr.Index);
+        return LinqExpression.Call(GetIndexMethod, target, index, _optionsParam);
+    }
+
+
+
+    private LinqExpression CompileIndexAssign(IndexAssignExpr expr)
+    {
+        var target = Compile(expr.Object);
+        var index = Compile(expr.Index);
+        var value = Compile(expr.Value);
+        
+        var checkStr = LinqExpression.Constant("Index assignment");
+        var check = LinqExpression.Call(CheckAllowAssignmentMethod, _optionsParam, checkStr);
+
+        var set = LinqExpression.Call(SetIndexMethod, target, index, value);
+        
+        return LinqExpression.Block(check, set, value);
     }
 
     private LinqExpression CompileIf(IfStatementExpr ifStmt)

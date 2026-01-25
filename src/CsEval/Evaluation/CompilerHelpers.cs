@@ -167,7 +167,7 @@ public static class CompilerHelpers
                     FieldInfo f => f.GetValue(f.IsStatic ? null : instance),
                     _ => throw new EvalException($"Member '{name}' is not a property or field")
                 };
-                return GuardReflectionLeak(value, $"property {name}");
+                return CheckSandboxType(value, options.Sandbox);
             }
             // Member not in dictionary - not allowed (matches tree-walking evaluator behavior)
             throw new EvalException($"Member '{name}' not found on module '{resolver.Type.Name}'");
@@ -176,14 +176,14 @@ public static class CompilerHelpers
         if (obj is IDictionary<string, object?> dict)
         {
             if (dict.TryGetValue(name, out var value))
-                return GuardReflectionLeak(value, $"property {name}");
+                return CheckSandboxType(value, options.Sandbox);
 
             if (options.IgnoreCase)
             {
                 foreach (var key in dict.Keys)
                 {
                     if (string.Equals(key, name, StringComparison.OrdinalIgnoreCase))
-                        return GuardReflectionLeak(dict[key], $"property {name}");
+                        return CheckSandboxType(dict[key], options.Sandbox);
                 }
             }
 
@@ -198,11 +198,11 @@ public static class CompilerHelpers
         var typeCache = context.TypeCache;
         var prop = typeCache.GetProperty(type, name, bindingFlags);
         if (prop != null)
-            return GuardReflectionLeak(typeCache.GetPropertyValue(prop, obj), $"property {name}");
+            return CheckSandboxType(typeCache.GetPropertyValue(prop, obj), options.Sandbox);
 
         var field = typeCache.GetField(type, name, bindingFlags);
         if (field != null)
-            return GuardReflectionLeak(field.GetValue(obj), $"field {name}");
+            return CheckSandboxType(field.GetValue(obj), options.Sandbox);
 
         throw new EvalException($"Property '{name}' not found on type '{type.Name}'");
     }
@@ -266,14 +266,14 @@ public static class CompilerHelpers
     /// <summary>
     /// Guards against reflection type leaks. Throws if value is a forbidden reflection type.
     /// </summary>
-    private static object? GuardReflectionLeak(object? value, string context)
+    public static object? CheckSandboxType(object? value, SandboxOptions options)
     {
         if (value == null) return null;
 
         var type = value.GetType();
         if (IsForbiddenReflectionType(type))
         {
-            throw new EvalException($"Access to reflection types is not allowed: {type.Name} ({context})");
+            throw new EvalException($"Access to reflection types is not allowed: {type.Name}");
         }
 
         return value;
@@ -321,6 +321,119 @@ public static class CompilerHelpers
     /// <summary>
     /// Checks if assignment is allowed by sandbox. Throws if not.
     /// </summary>
+    public static object? GetIndex(object? obj, object? index, CsEvalOptions options)
+    {
+        if (obj == null)
+            throw new EvalException("Cannot index null");
+
+        if (obj is IDictionary<string, object?> dict)
+        {
+            var key = index?.ToString() ?? "";
+            var val = dict.TryGetValue(key, out var v) ? v : null;
+            CheckSandboxType(val, options.Sandbox);
+            return val;
+        }
+
+        if (obj is System.Collections.IList list)
+        {
+            if (index is int i)
+            {
+                if (i < 0 || i >= list.Count) throw new EvalException($"Index was out of range. Must be non-negative and less than the size of the collection. (Parameter 'index')");
+                var val = list[i];
+                CheckSandboxType(val, options.Sandbox);
+                return val;
+            }
+            throw new EvalException($"Hashtable/List index must be an integer, got {index?.GetType().Name}");
+        }
+        
+        // Handle standard arrays and other indexers via reflection
+        var type = obj.GetType();
+        var indexer = type.GetProperty("Item", BindingFlags.Public | BindingFlags.Instance);
+        
+        if (indexer != null && indexer.GetIndexParameters().Length == 1)
+        {
+             try 
+             {
+                 // Try to convert index to expected type
+                 var paramType = indexer.GetIndexParameters()[0].ParameterType;
+                 var safeIndex = ConvertChangeType(index, paramType);
+                 var val = indexer.GetValue(obj, new[] { safeIndex });
+                 CheckSandboxType(val, options.Sandbox);
+                 return val;
+             }
+             catch (EvalException) { throw; }
+             catch (Exception ex)
+             {
+                 throw new EvalException($"Indexer access failed: {ex.Message}");
+             }
+        }
+
+        throw new EvalException($"Type '{type.Name}' cannot be indexed");
+    }
+
+    public static void SetIndex(object? obj, object? index, object? value)
+    {
+        if (obj == null)
+            throw new EvalException("Cannot index assign null");
+
+        if (obj is IDictionary<string, object?> dict)
+        {
+             var key = index?.ToString() ?? "";
+             dict[key] = value;
+             return;
+        }
+
+        if (obj is System.Collections.IList list)
+        {
+            if (index is int i)
+            {
+                if (i < 0 || i >= list.Count) throw new EvalException($"Index was out of range. Must be non-negative and less than the size of the collection. (Parameter 'index')");
+                
+                // Convert value to match list element type if possible
+                if (list.GetType().IsGenericType)
+                {
+                    var elementType = list.GetType().GetGenericArguments()[0];
+                    list[i] = ConvertChangeType(value, elementType);
+                }
+                else
+                {
+                    list[i] = value;
+                }
+                return;
+            }
+            throw new EvalException($"Hashtable/List index must be an integer, got {index?.GetType().Name}");
+        }
+        
+        var type = obj.GetType();
+        var indexer = type.GetProperty("Item", BindingFlags.Public | BindingFlags.Instance);
+        
+        if (indexer != null && indexer.GetIndexParameters().Length == 1 && indexer.CanWrite)
+        {
+             try 
+             {
+                 var paramType = indexer.GetIndexParameters()[0].ParameterType;
+                 var safeIndex = ConvertChangeType(index, paramType);
+                 
+                 // We might need to convert value too depending on setter type
+                 indexer.SetValue(obj, value, new[] { safeIndex });
+                 return;
+             }
+             catch
+             {
+                 throw new EvalException($"Cannot set index on type '{type.Name}'");
+             }
+        }
+        
+        throw new EvalException($"Type '{type.Name}' does not support index assignment");
+    }
+
+    private static object? ConvertChangeType(object? value, Type targetType)
+    {
+        if (value == null) return null;
+        if (targetType.IsInstanceOfType(value)) return value;
+        return Convert.ChangeType(value, targetType);
+    }
+
     public static void CheckAllowAssignment(CsEvalOptions options, string context)
     {
         if (!options.Sandbox.AllowAssignment)
