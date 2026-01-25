@@ -486,18 +486,22 @@ public class CompilationTests
     #region Automatic Compilation
 
     [Test]
-    public void Parse_CompilesAutomatically()
+    public void Parse_DoesNotCompileAutomatically()
     {
         var engine = new CsEvalEngine()
             .SetVariable("x", 10);
 
         var expr = engine.Parse("x * 2");
 
-        // Should be compiled automatically after Parse()
-        Assert.That(expr.IsCompiled, Is.True);
+        // Parse() should NOT compile automatically - compilation is lazy
+        Assert.That(expr.IsCompiled, Is.False);
 
+        // But Evaluate() should trigger lazy compilation and work
         var result = engine.Evaluate(expr);
         Assert.That(result, Is.EqualTo(20));
+        
+        // After evaluation, it should be compiled (if CompileExpressions is true)
+        Assert.That(expr.IsCompiled, Is.True);
     }
 
     [Test]
@@ -515,6 +519,58 @@ public class CompilationTests
         // But should still work via tree-walking
         var result = engine.Evaluate(expr) as List<object?>;
         Assert.That(result, Has.Count.EqualTo(2));
+    }
+
+    [Test]
+    public void CompileExpressions_False_DoesNotCompileOnEvaluate()
+    {
+        var options = new CsEvalOptions { CompileExpressions = false };
+        var engine = new CsEvalEngine(options)
+            .SetVariable("x", 10);
+
+        var expr = engine.Parse("x * 2");
+        var result = engine.Evaluate(expr);
+
+        // Should work but NOT compile (tree-walking only)
+        Assert.That(result, Is.EqualTo(20));
+        Assert.That(expr.IsCompiled, Is.False);
+    }
+
+    [Test]
+    public void CompileExpressions_True_CompilesOnFirstEvaluate()
+    {
+        var options = new CsEvalOptions { CompileExpressions = true };
+        var engine = new CsEvalEngine(options)
+            .SetVariable("x", 10);
+
+        var expr = engine.Parse("x * 2");
+        
+        // Not compiled after Parse
+        Assert.That(expr.IsCompiled, Is.False);
+        
+        var result = engine.Evaluate(expr);
+
+        // Should work AND be compiled after first evaluation
+        Assert.That(result, Is.EqualTo(20));
+        Assert.That(expr.IsCompiled, Is.True);
+    }
+
+    [Test]
+    public void CompileExpressions_False_ExplicitCompileStillWorks()
+    {
+        var options = new CsEvalOptions { CompileExpressions = false };
+        var engine = new CsEvalEngine(options)
+            .SetVariable("x", 10);
+
+        var expr = engine.Parse("x * 2");
+        
+        // User explicitly compiles regardless of option
+        expr.TryCompile();
+        
+        Assert.That(expr.IsCompiled, Is.True);
+        
+        var result = engine.Evaluate(expr);
+        Assert.That(result, Is.EqualTo(20));
     }
 
     #endregion
@@ -586,7 +642,11 @@ public class CompilationTests
             .SetVariable("x", 5);
         var expr = engine.Parse("x + x");
 
-        // Expression should be compiled automatically
+        // Expression is NOT compiled after Parse()
+        Assert.That(expr.IsCompiled, Is.False);
+        
+        // Explicitly compile before parallel evaluations
+        expr.TryCompile();
         Assert.That(expr.IsCompiled, Is.True);
 
         var results = new System.Collections.Concurrent.ConcurrentBag<object?>();

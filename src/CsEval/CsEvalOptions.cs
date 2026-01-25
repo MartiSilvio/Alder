@@ -33,6 +33,18 @@ public sealed class CsEvalOptions
     public int MaxIterations { get; init; } = 100_000;
     public SandboxOptions Sandbox { get; init; } = new();
 
+    /// <summary>
+    /// When true, expressions are automatically compiled to IL on first evaluation for better performance.
+    /// When false, expressions always use tree-walking interpretation.
+    /// Default: true.
+    /// </summary>
+    /// <remarks>
+    /// Set to false for debugging, when you need consistent tree-walking behavior,
+    /// or when expressions are evaluated only once (compilation overhead not worth it).
+    /// Users can still explicitly call <see cref="CsEvalExpression.TryCompile"/> regardless of this setting.
+    /// </remarks>
+    public bool CompileExpressions { get; init; } = true;
+
     internal StringComparer StringComparer => IgnoreCase ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
     internal StringComparison StringComparison => IgnoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
 }

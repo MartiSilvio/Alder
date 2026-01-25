@@ -48,13 +48,7 @@ public sealed class CsEvalEngine
         var parser = new Parser(tokens);
         var ast = parser.Parse();
 
-        var expr = new CsEvalExpression(expression, ast, _expressionCache);
-
-        // Always try to compile for maximum performance
-        // Non-compilable expressions silently fall back to tree-walking
-        expr.TryCompile();
-
-        return expr;
+        return new CsEvalExpression(expression, ast, _expressionCache);
     }
 
     public bool TryParse(string expression, out CsEvalExpression? result, out string? error)
@@ -99,6 +93,11 @@ public sealed class CsEvalEngine
     {
         ApplyRegisteredTypes(serviceProvider);
 
+        if (_options.CompileExpressions && expression.GetCompiledInfo() == null)
+        {
+            expression.TryCompile();
+        }
+
         // Use compiled delegate if available
         var compiled = expression.GetCompiledInfo();
         if (compiled?.Delegate != null)
@@ -116,14 +115,17 @@ public sealed class CsEvalEngine
     /// If compilation is not possible, the expression will fall back to tree-walking on evaluation.
     /// </summary>
     /// <remarks>
-    /// This method is equivalent to <see cref="Parse"/> since all expressions are now
-    /// automatically compiled during parsing. It is retained for API compatibility.
+    /// Use this method when you want to ensure the expression is compiled regardless
+    /// of the <see cref="CsEvalOptions.CompileExpressions"/> setting, or when you want
+    /// to pay the compilation cost upfront (e.g., during app startup).
     /// </remarks>
     /// <param name="expression">The expression string to parse and compile.</param>
     /// <returns>A pre-parsed and potentially compiled expression.</returns>
     public CsEvalExpression ParseAndCompile(string expression)
     {
-        return Parse(expression);
+        var expr = Parse(expression);
+        expr.TryCompile();
+        return expr;
     }
 
     /// <summary>

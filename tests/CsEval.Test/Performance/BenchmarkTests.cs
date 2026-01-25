@@ -472,7 +472,7 @@ public class BenchmarkTests
         const string expression = "1 + 2 * 3";
 
         var engine = new CsEvalEngine();
-        var expr = engine.Parse(expression);
+        var expr = engine.ParseAndCompile(expression);
 
         // Verify it's compiled
         Assert.That(expr.IsCompiled, Is.True);
@@ -498,7 +498,7 @@ public class BenchmarkTests
             .SetVariable("x", 10L)
             .SetVariable("y", 20L)
             .SetVariable("z", 30L);
-        var expr = engine.Parse(expression);
+        var expr = engine.ParseAndCompile(expression);
 
         Assert.That(expr.IsCompiled, Is.True);
 
@@ -521,7 +521,7 @@ public class BenchmarkTests
 
         var engine = new CsEvalEngine()
             .SetVariable("x", 10L);
-        var expr = engine.Parse(expression);
+        var expr = engine.ParseAndCompile(expression);
 
         Assert.That(expr.IsCompiled, Is.True);
 
@@ -544,7 +544,7 @@ public class BenchmarkTests
 
         var engine = new CsEvalEngine()
             .SetVariable("person", new Person { FirstName = "John", LastName = "Doe", Age = 30 });
-        var expr = engine.Parse(expression);
+        var expr = engine.ParseAndCompile(expression);
 
         Assert.That(expr.IsCompiled, Is.True);
 
