@@ -2,8 +2,9 @@ using CsEval.Parsing;
 
 namespace CsEval.Test.Stress;
 
-[TestFixture]
-public class ParsingFuzzTests : StressTestBase
+[TestFixture(CompilationMode.Eager)]
+[TestFixture(CompilationMode.OnDemand)]
+public class ParsingFuzzTests(CompilationMode mode) : StressTestBase(mode)
 {
     public static IEnumerable<string> FuzzCases()
     {
@@ -47,7 +48,7 @@ public class ParsingFuzzTests : StressTestBase
             Engine.Parse(fuzz);
         }
         catch (ParserException) { }
-        catch (EvalException) { }
+        catch (CsEvalException) { }
         catch (Exception ex)
         {
             // We only care about crashes (unhandled) or hangs.

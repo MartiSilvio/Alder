@@ -1,12 +1,13 @@
 namespace CsEval.Test.Integration;
 
-[TestFixture]
-public class ExpressionCachingTests
+[TestFixture(CompilationMode.Eager)]
+[TestFixture(CompilationMode.OnDemand)]
+public class ExpressionCachingTests(CompilationMode mode) : TestBase
 {
     [Test]
     public void Parse_ReturnsCsEvalExpression()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var expression = engine.Parse("1 + 2");
 
         Assert.That(expression, Is.Not.Null);
@@ -16,7 +17,7 @@ public class ExpressionCachingTests
     [Test]
     public void EvaluateParsed_ReturnsCorrectResult()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var expression = engine.Parse("1 + 2");
 
         var result = engine.Evaluate(expression);
@@ -26,7 +27,7 @@ public class ExpressionCachingTests
     [Test]
     public void EvaluateParsed_MultipleTimesWithDifferentVariables()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var expression = engine.Parse("x * 2");
 
         engine.SetVariable("x", 5);
@@ -45,7 +46,7 @@ public class ExpressionCachingTests
     [Test]
     public void EvaluateParsed_Generic()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var expression = engine.Parse("1 + 2");
 
         var result = engine.Evaluate<long>(expression);
@@ -55,7 +56,7 @@ public class ExpressionCachingTests
     [Test]
     public void EvaluateParsed_ComplexExpression()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         engine.SetVariable("items", new List<int> { 1, 2, 3, 4, 5 });
 
         var expression = engine.Parse("items.Where((x) => x > threshold).Select((x) => x * multiplier)");
@@ -74,7 +75,7 @@ public class ExpressionCachingTests
     [Test]
     public void EvaluateParsed_WithModuleCalls_ReturnsDifferentResults()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var expression = engine.Parse("Math.Max(a, b)");
 
         engine.SetVariable("a", 5.0);
@@ -91,7 +92,7 @@ public class ExpressionCachingTests
     [Test]
     public void ParsedExpressionCanBeReusedAcrossMultipleEngines()
     {
-        var engine1 = new CsEvalEngine();
+        var engine1 = CreateEngine(mode);
         var expression = engine1.Parse("x + y");
 
         engine1.SetVariable("x", 1);
@@ -99,7 +100,7 @@ public class ExpressionCachingTests
         var result1 = engine1.Evaluate(expression);
         Assert.That(result1, Is.EqualTo(3));
 
-        var engine2 = new CsEvalEngine();
+        var engine2 = CreateEngine(mode);
         engine2.SetVariable("x", 10);
         engine2.SetVariable("y", 20);
         var result2 = engine2.Evaluate(expression);

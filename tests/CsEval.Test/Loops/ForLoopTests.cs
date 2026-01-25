@@ -1,14 +1,15 @@
 namespace CsEval.Test.Loops;
 
-[TestFixture]
-public class ForLoopTests
+[TestFixture(CompilationMode.Eager)]
+[TestFixture(CompilationMode.OnDemand)]
+public class ForLoopTests(CompilationMode mode) : TestBase
 {
     #region Basic For Loop
 
     [Test]
     public void ForLoop_BasicCounter_CountsCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var count = 0;
@@ -24,7 +25,7 @@ public class ForLoopTests
     [Test]
     public void ForLoop_FalseCondition_NeverExecutes()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var executed = false;
@@ -40,7 +41,7 @@ public class ForLoopTests
     [Test]
     public void ForLoop_SingleIteration_ExecutesOnce()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var count = 0;
@@ -56,7 +57,7 @@ public class ForLoopTests
     [Test]
     public void ForLoop_CountDown_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var sum = 0;
@@ -77,7 +78,7 @@ public class ForLoopTests
     [Test]
     public void ForLoop_WithExternalVariable_ModifiesCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         engine.SetVariable("limit", 10);
 
         var result = engine.Evaluate(@"
@@ -96,7 +97,7 @@ public class ForLoopTests
     [Test]
     public void ForLoop_LoopVariableAccessible_InBody()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var result = 0;
@@ -113,7 +114,7 @@ public class ForLoopTests
     [Test]
     public void ForLoop_MultipleVariables_TracksAll()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var total = 0;
@@ -135,7 +136,7 @@ public class ForLoopTests
     [Test]
     public void ForLoop_NoInitializer_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var i = 0;
@@ -152,7 +153,7 @@ public class ForLoopTests
     [Test]
     public void ForLoop_NoCondition_IsInfiniteUntilBreak()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var count = 0;
@@ -171,7 +172,7 @@ public class ForLoopTests
     [Test]
     public void ForLoop_NoIncrement_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var count = 0;
@@ -188,7 +189,7 @@ public class ForLoopTests
     [Test]
     public void ForLoop_EmptyParts_WithBreak()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var count = 0;
@@ -211,7 +212,7 @@ public class ForLoopTests
     [Test]
     public void ForLoop_WithAndCondition_EvaluatesCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var count = 0;
@@ -227,7 +228,7 @@ public class ForLoopTests
     [Test]
     public void ForLoop_WithOrCondition_EvaluatesCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var a = 0;
@@ -245,7 +246,7 @@ public class ForLoopTests
     [Test]
     public void ForLoop_WithTernaryInCondition_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         engine.SetVariable("useShort", true);
 
         var result = engine.Evaluate(@"
@@ -267,7 +268,7 @@ public class ForLoopTests
     [Test]
     public void ForLoop_WithEarlyReturn_ExitsImmediately()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             for (var i = 0; i < 100; i = i + 1) {
@@ -284,7 +285,7 @@ public class ForLoopTests
     [Test]
     public void ForLoop_WithConditionalReturn_ReturnsCorrectValue()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         engine.SetVariable("target", 7);
 
         var result = engine.Evaluate(@"
@@ -307,7 +308,7 @@ public class ForLoopTests
     [Test]
     public void ForLoop_WithNestedIf_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var sum = 0;
@@ -326,7 +327,7 @@ public class ForLoopTests
     [Test]
     public void ForLoop_Nested_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var total = 0;
@@ -344,7 +345,7 @@ public class ForLoopTests
     [Test]
     public void ForLoop_DeeplyNested_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var product = 1;
@@ -365,7 +366,7 @@ public class ForLoopTests
     [Test]
     public void ForLoop_NestedWithWhile_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var total = 0;
@@ -389,7 +390,7 @@ public class ForLoopTests
     [Test]
     public void ForLoop_WithArrayIndexing_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var arr = [1, 2, 3, 4, 5];
@@ -406,7 +407,7 @@ public class ForLoopTests
     [Test]
     public void ForLoop_WithListCount_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         engine.SetVariable("items", new List<int> { 10, 20, 30, 40 });
 
         var result = engine.Evaluate(@"
@@ -424,7 +425,7 @@ public class ForLoopTests
     [Test]
     public void ForLoop_BuildingList_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var result = [];
@@ -445,7 +446,7 @@ public class ForLoopTests
     [Test]
     public void ForLoop_WithLinqSum_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var numbers = [];
@@ -461,7 +462,7 @@ public class ForLoopTests
     [Test]
     public void ForLoop_WithLinqWhere_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var numbers = [];
@@ -481,7 +482,7 @@ public class ForLoopTests
     [Test]
     public void ForLoop_WithMathModule_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var sum = 0.0;
@@ -501,7 +502,7 @@ public class ForLoopTests
     [Test]
     public void ForLoop_StringConcatenation_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var str = """";
@@ -517,7 +518,7 @@ public class ForLoopTests
     [Test]
     public void ForLoop_InterpolatedString_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var lines = """";
@@ -537,7 +538,7 @@ public class ForLoopTests
     [Test]
     public void ForLoop_BuildingObjects_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var lastObj = null;
@@ -559,7 +560,7 @@ public class ForLoopTests
     [Test]
     public void ForLoop_SingleStatementBody_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var sum = 0;
@@ -578,9 +579,9 @@ public class ForLoopTests
     [Test]
     public void ForLoop_ExceedsMaxIterations_ThrowsException()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
 
-        var ex = Assert.Throws<CsEval.Evaluation.EvalException>(() =>
+        var ex = Assert.Throws<CsEvalException>(() =>
             engine.Evaluate(@"
             {
                 for (var i = 0; ; i = i + 1) {
@@ -594,9 +595,9 @@ public class ForLoopTests
     [Test]
     public void ForLoop_WithCustomMaxIterations_UsesConfiguredLimit()
     {
-        var engine = new CsEvalEngine(new CsEvalOptions { MaxIterations = 10 });
+        var engine = CreateEngine(CsEvalOptions.Default with { CompilationMode = mode, MaxIterations = 10 });
 
-        var ex = Assert.Throws<CsEval.Evaluation.EvalException>(() =>
+        var ex = Assert.Throws<CsEvalException>(() =>
             engine.Evaluate(@"
             {
                 for (var i = 0; ; i = i + 1) {
@@ -610,7 +611,7 @@ public class ForLoopTests
     [Test]
     public void ForLoop_WithDisabledLimit_AllowsManyIterations()
     {
-        var engine = new CsEvalEngine(new CsEvalOptions { MaxIterations = 0 });
+        var engine = CreateEngine(CsEvalOptions.Default with { CompilationMode = mode, MaxIterations = 0 });
 
         var result = engine.Evaluate(@"
         {
@@ -627,7 +628,7 @@ public class ForLoopTests
     [Test]
     public void ForLoop_WithCancellationToken_CanBeCancelled()
     {
-        var engine = new CsEvalEngine(new CsEvalOptions { MaxIterations = 0 });
+        var engine = CreateEngine(CsEvalOptions.Default with { CompilationMode = mode, MaxIterations = 0 });
         using var cts = new CancellationTokenSource();
 
         var task = Task.Run(() =>
@@ -653,7 +654,7 @@ public class ForLoopTests
     [Test]
     public void ForLoop_EmptyBody_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = 0;
@@ -668,7 +669,7 @@ public class ForLoopTests
     [Test]
     public void ForLoop_StepByTwo_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var count = 0;
@@ -684,7 +685,7 @@ public class ForLoopTests
     [Test]
     public void ForLoop_NegativeStep_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var sum = 0;
@@ -705,7 +706,7 @@ public class ForLoopTests
     [Test]
     public void ForLoop_Factorial_CalculatesCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var factorial = 1;
@@ -721,7 +722,7 @@ public class ForLoopTests
     [Test]
     public void ForLoop_PowerCalculation_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var power = 1;
@@ -737,7 +738,7 @@ public class ForLoopTests
     [Test]
     public void ForLoop_Fibonacci_CalculatesCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var a = 0;
@@ -761,7 +762,7 @@ public class ForLoopTests
     [Test]
     public void ForLoop_TryParse_ValidExpression_Succeeds()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var success = engine.TryParse("{ for (var i = 0; i < 5; i = i + 1) { } return 0; }", out var expr, out var error);
 
         Assert.That(success, Is.True);
@@ -772,7 +773,7 @@ public class ForLoopTests
     [Test]
     public void ForLoop_TryParse_MissingParenthesis_Fails()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var success = engine.TryParse("{ for var i = 0; i < 5; i = i + 1 { } }", out var expr, out var error);
 
         Assert.That(success, Is.False);
@@ -783,7 +784,7 @@ public class ForLoopTests
     [Test]
     public void ForLoop_PreParsed_CanBeEvaluatedMultipleTimes()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var expr = engine.Parse(@"
         {
             var sum = 0;
@@ -809,7 +810,7 @@ public class ForLoopTests
     [Test]
     public void ForLoop_Break_ExitsLoop()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var lastI = -1;
@@ -828,7 +829,7 @@ public class ForLoopTests
     [Test]
     public void ForLoop_Break_AtStart_ExitsImmediately()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var count = 0;
@@ -845,7 +846,7 @@ public class ForLoopTests
     [Test]
     public void ForLoop_Break_PreservesVariableState()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var sum = 0;
@@ -865,7 +866,7 @@ public class ForLoopTests
     [Test]
     public void ForLoop_Break_OnlyExitsInnerLoop()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var outerCount = 0;
@@ -893,7 +894,7 @@ public class ForLoopTests
     [Test]
     public void ForLoop_Continue_SkipsRemainingBody()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var sum = 0;
@@ -913,7 +914,7 @@ public class ForLoopTests
     [Test]
     public void ForLoop_Continue_StillExecutesIncrement()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var skipped = 0;
@@ -935,7 +936,7 @@ public class ForLoopTests
     [Test]
     public void ForLoop_Continue_InNestedLoop_OnlyAffectsInner()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var total = 0;
@@ -957,7 +958,7 @@ public class ForLoopTests
     [Test]
     public void ForLoop_Continue_WithAccumulator()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var product = 1;
@@ -981,7 +982,7 @@ public class ForLoopTests
     [Test]
     public void ForLoop_BreakAndContinue_Combined()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var sum = 0;
@@ -1004,7 +1005,7 @@ public class ForLoopTests
     [Test]
     public void ForLoop_BreakAndContinue_InNestedLoops()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var total = 0;

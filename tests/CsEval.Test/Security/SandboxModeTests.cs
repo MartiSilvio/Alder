@@ -1,14 +1,15 @@
 namespace CsEval.Test.Security;
 
-[TestFixture]
-public class SandboxModeTests
+[TestFixture(CompilationMode.Eager)]
+[TestFixture(CompilationMode.OnDemand)]
+public class SandboxModeTests(CompilationMode mode) : TestBase
 {
     #region Trusted Mode (Default)
 
     [Test]
     public void Trusted_AllowsMethodCalls()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         engine.SetVariable("text", "hello");
 
         var result = engine.Evaluate("text.ToUpper()");
@@ -19,7 +20,7 @@ public class SandboxModeTests
     [Test]
     public void Trusted_AllowsPropertyAccess()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         engine.SetVariable("text", "hello");
 
         var result = engine.Evaluate("text.Length");
@@ -31,10 +32,10 @@ public class SandboxModeTests
     public void Trusted_BlocksGetType_ReflectionBlocked()
     {
         // Reflection types are always blocked, regardless of sandbox mode
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         engine.SetVariable("text", "hello");
 
-        var ex = Assert.Throws<EvalException>(() => engine.Evaluate("text.GetType()"));
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("text.GetType()"));
         Assert.That(ex!.Message, Does.Contain("reflection"));
     }
 
@@ -45,52 +46,56 @@ public class SandboxModeTests
     [Test]
     public void Safe_BlocksMethodCalls()
     {
-        var engine = new CsEvalEngine(new CsEvalOptions
+        var engine = CreateEngine(new CsEvalOptions
         {
+            CompilationMode = mode,
             Sandbox = SandboxOptions.Safe()
         });
         engine.SetVariable("text", "hello");
 
-        var ex = Assert.Throws<EvalException>(() => engine.Evaluate("text.ToUpper()"));
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("text.ToUpper()"));
         Assert.That(ex!.Message, Does.Contain("sandbox"));
     }
 
     [Test]
     public void Safe_BlocksGetType()
     {
-        var engine = new CsEvalEngine(new CsEvalOptions
+        var engine = CreateEngine(new CsEvalOptions
         {
+            CompilationMode = mode,
             Sandbox = SandboxOptions.Safe()
         });
         engine.SetVariable("obj", new { Name = "Test" });
 
-        var ex = Assert.Throws<EvalException>(() => engine.Evaluate("obj.GetType()"));
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("obj.GetType()"));
         Assert.That(ex!.Message, Does.Contain("sandbox"));
     }
 
     [Test]
     public void Safe_BlocksToString()
     {
-        var engine = new CsEvalEngine(new CsEvalOptions
+        var engine = CreateEngine(new CsEvalOptions
         {
+            CompilationMode = mode,
             Sandbox = SandboxOptions.Safe()
         });
         engine.SetVariable("num", 42);
 
-        var ex = Assert.Throws<EvalException>(() => engine.Evaluate("num.ToString()"));
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("num.ToString()"));
         Assert.That(ex!.Message, Does.Contain("sandbox"));
     }
 
     [Test]
     public void Safe_BlocksListMutatingMethods()
     {
-        var engine = new CsEvalEngine(new CsEvalOptions
+        var engine = CreateEngine(new CsEvalOptions
         {
+            CompilationMode = mode,
             Sandbox = SandboxOptions.Safe()
         });
         engine.SetVariable("items", new List<int> { 1, 2, 3 });
 
-        var ex = Assert.Throws<EvalException>(() => engine.Evaluate("items.Add(4)"));
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("items.Add(4)"));
         Assert.That(ex!.Message, Does.Contain("sandbox"));
     }
 
@@ -101,8 +106,9 @@ public class SandboxModeTests
     [Test]
     public void Safe_AllowsPropertyReadByDefault()
     {
-        var engine = new CsEvalEngine(new CsEvalOptions
+        var engine = CreateEngine(new CsEvalOptions
         {
+            CompilationMode = mode,
             Sandbox = SandboxOptions.Safe()
         });
         engine.SetVariable("text", "hello");
@@ -115,8 +121,9 @@ public class SandboxModeTests
     [Test]
     public void Safe_AllowsNestedPropertyRead()
     {
-        var engine = new CsEvalEngine(new CsEvalOptions
+        var engine = CreateEngine(new CsEvalOptions
         {
+            CompilationMode = mode,
             Sandbox = SandboxOptions.Safe()
         });
         engine.SetVariable("person", new { Name = "John", Address = new { City = "NYC" } });
@@ -129,13 +136,14 @@ public class SandboxModeTests
     [Test]
     public void Safe_AllowPropertyReadFalse_BlocksPropertyAccess()
     {
-        var engine = new CsEvalEngine(new CsEvalOptions
+        var engine = CreateEngine(new CsEvalOptions
         {
+            CompilationMode = mode,
             Sandbox = SandboxOptions.Safe() with { AllowPropertyRead = false }
         });
         engine.SetVariable("text", "hello");
 
-        var ex = Assert.Throws<EvalException>(() => engine.Evaluate("text.Length"));
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("text.Length"));
         Assert.That(ex!.Message, Does.Contain("sandbox"));
     }
 
@@ -146,8 +154,9 @@ public class SandboxModeTests
     [Test]
     public void Safe_AllowsModuleMethods()
     {
-        var engine = new CsEvalEngine(new CsEvalOptions
+        var engine = CreateEngine(new CsEvalOptions
         {
+            CompilationMode = mode,
             Sandbox = SandboxOptions.Safe()
         });
 
@@ -159,8 +168,9 @@ public class SandboxModeTests
     [Test]
     public void Safe_AllowsModuleProperties()
     {
-        var engine = new CsEvalEngine(new CsEvalOptions
+        var engine = CreateEngine(new CsEvalOptions
         {
+            CompilationMode = mode,
             Sandbox = SandboxOptions.Safe()
         });
 
@@ -172,8 +182,9 @@ public class SandboxModeTests
     [Test]
     public void Safe_AllowsCustomModuleMethods()
     {
-        var engine = new CsEvalEngine(new CsEvalOptions
+        var engine = CreateEngine(new CsEvalOptions
         {
+            CompilationMode = mode,
             Sandbox = SandboxOptions.Safe()
         });
         engine.RegisterModule<TestModule>("Test");
@@ -190,8 +201,9 @@ public class SandboxModeTests
     [Test]
     public void Safe_AllowsLinqWhere()
     {
-        var engine = new CsEvalEngine(new CsEvalOptions
+        var engine = CreateEngine(new CsEvalOptions
         {
+            CompilationMode = mode,
             Sandbox = SandboxOptions.Safe()
         });
         engine.SetVariable("items", new List<int> { 1, 2, 3, 4, 5 });
@@ -204,8 +216,9 @@ public class SandboxModeTests
     [Test]
     public void Safe_AllowsLinqSelect()
     {
-        var engine = new CsEvalEngine(new CsEvalOptions
+        var engine = CreateEngine(new CsEvalOptions
         {
+            CompilationMode = mode,
             Sandbox = SandboxOptions.Safe()
         });
         engine.SetVariable("items", new List<int> { 1, 2, 3 });
@@ -218,8 +231,9 @@ public class SandboxModeTests
     [Test]
     public void Safe_AllowsLinqAggregate()
     {
-        var engine = new CsEvalEngine(new CsEvalOptions
+        var engine = CreateEngine(new CsEvalOptions
         {
+            CompilationMode = mode,
             Sandbox = SandboxOptions.Safe()
         });
         engine.SetVariable("items", new List<int> { 1, 2, 3, 4, 5 });
@@ -232,8 +246,9 @@ public class SandboxModeTests
     [Test]
     public void Safe_AllowsLinqChaining()
     {
-        var engine = new CsEvalEngine(new CsEvalOptions
+        var engine = CreateEngine(new CsEvalOptions
         {
+            CompilationMode = mode,
             Sandbox = SandboxOptions.Safe()
         });
         engine.SetVariable("items", new List<int> { 1, 2, 3, 4, 5 });
@@ -250,8 +265,9 @@ public class SandboxModeTests
     [Test]
     public void Safe_AllowsArrayIndex()
     {
-        var engine = new CsEvalEngine(new CsEvalOptions
+        var engine = CreateEngine(new CsEvalOptions
         {
+            CompilationMode = mode,
             Sandbox = SandboxOptions.Safe()
         });
         engine.SetVariable("arr", new[] { 10, 20, 30 });
@@ -264,8 +280,9 @@ public class SandboxModeTests
     [Test]
     public void Safe_AllowsDictionaryIndex()
     {
-        var engine = new CsEvalEngine(new CsEvalOptions
+        var engine = CreateEngine(new CsEvalOptions
         {
+            CompilationMode = mode,
             Sandbox = SandboxOptions.Safe()
         });
         engine.SetVariable("dict", new Dictionary<string, object?> { ["key"] = "value" });
@@ -282,8 +299,9 @@ public class SandboxModeTests
     [Test]
     public void Safe_AllowsRegisteredFunctions()
     {
-        var engine = new CsEvalEngine(new CsEvalOptions
+        var engine = CreateEngine(new CsEvalOptions
         {
+            CompilationMode = mode,
             Sandbox = SandboxOptions.Safe()
         });
         engine.RegisterFunction("triple", args => Convert.ToInt64(args[0]) * 3);
@@ -300,29 +318,31 @@ public class SandboxModeTests
     [Test]
     public void Safe_PreventsReflectionAttack()
     {
-        var engine = new CsEvalEngine(new CsEvalOptions
+        var engine = CreateEngine(new CsEvalOptions
         {
+            CompilationMode = mode,
             Sandbox = SandboxOptions.Safe()
         });
         engine.SetVariable("obj", new { Name = "Test" });
 
         // Safe mode blocks method calls before reflection guard is reached
-        var ex = Assert.Throws<EvalException>(() => engine.Evaluate("obj.GetType()"));
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("obj.GetType()"));
         Assert.That(ex!.Message, Does.Contain("sandbox"));
     }
 
     [Test]
     public void Safe_PreventsMutatingMethods()
     {
-        var engine = new CsEvalEngine(new CsEvalOptions
+        var engine = CreateEngine(new CsEvalOptions
         {
+            CompilationMode = mode,
             Sandbox = SandboxOptions.Safe()
         });
         var list = new List<int> { 1, 2, 3 };
         engine.SetVariable("items", list);
 
         // Should block mutating methods
-        var ex = Assert.Throws<EvalException>(() => engine.Evaluate("items.Clear()"));
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("items.Clear()"));
         Assert.That(ex!.Message, Does.Contain("sandbox"));
         Assert.That(list, Has.Count.EqualTo(3)); // List unchanged
     }
@@ -334,8 +354,9 @@ public class SandboxModeTests
     [Test]
     public void Safe_AllowsAssignmentByDefault()
     {
-        var engine = new CsEvalEngine(new CsEvalOptions
+        var engine = CreateEngine(new CsEvalOptions
         {
+            CompilationMode = mode,
             Sandbox = SandboxOptions.Safe()
         });
 
@@ -347,68 +368,74 @@ public class SandboxModeTests
     [Test]
     public void Safe_AllowAssignmentFalse_BlocksSimpleAssignment()
     {
-        var engine = new CsEvalEngine(new CsEvalOptions
+        var engine = CreateEngine(new CsEvalOptions
         {
+            CompilationMode = mode,
             Sandbox = SandboxOptions.Safe() with { AllowAssignment = false }
         });
 
-        var ex = Assert.Throws<EvalException>(() => engine.Evaluate("{ var x = 1; x = 5; return x; }"));
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("{ var x = 1; x = 5; return x; }"));
         Assert.That(ex!.Message, Does.Contain("sandbox"));
     }
 
     [Test]
     public void Safe_AllowAssignmentFalse_BlocksCompoundAssignment()
     {
-        var engine = new CsEvalEngine(new CsEvalOptions
+        var engine = CreateEngine(new CsEvalOptions
         {
+            CompilationMode = mode,
             Sandbox = SandboxOptions.Safe() with { AllowAssignment = false }
         });
 
-        var ex = Assert.Throws<EvalException>(() => engine.Evaluate("{ var x = 1; x += 5; return x; }"));
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("{ var x = 1; x += 5; return x; }"));
         Assert.That(ex!.Message, Does.Contain("sandbox"));
     }
 
     [Test]
     public void Safe_AllowAssignmentFalse_BlocksNullCoalesceAssignment()
     {
-        var engine = new CsEvalEngine(new CsEvalOptions
+        var engine = CreateEngine(new CsEvalOptions
         {
+            CompilationMode = mode,
             Sandbox = SandboxOptions.Safe() with { AllowAssignment = false }
         });
 
-        var ex = Assert.Throws<EvalException>(() => engine.Evaluate("{ var x = null; x ??= 5; return x; }"));
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("{ var x = null; x ??= 5; return x; }"));
         Assert.That(ex!.Message, Does.Contain("sandbox"));
     }
 
     [Test]
     public void Safe_AllowAssignmentFalse_BlocksIncrement()
     {
-        var engine = new CsEvalEngine(new CsEvalOptions
+        var engine = CreateEngine(new CsEvalOptions
         {
+            CompilationMode = mode,
             Sandbox = SandboxOptions.Safe() with { AllowAssignment = false }
         });
 
-        var ex = Assert.Throws<EvalException>(() => engine.Evaluate("{ var x = 1; x++; return x; }"));
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("{ var x = 1; x++; return x; }"));
         Assert.That(ex!.Message, Does.Contain("sandbox"));
     }
 
     [Test]
     public void Safe_AllowAssignmentFalse_BlocksDecrement()
     {
-        var engine = new CsEvalEngine(new CsEvalOptions
+        var engine = CreateEngine(new CsEvalOptions
         {
+            CompilationMode = mode,
             Sandbox = SandboxOptions.Safe() with { AllowAssignment = false }
         });
 
-        var ex = Assert.Throws<EvalException>(() => engine.Evaluate("{ var x = 5; --x; return x; }"));
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("{ var x = 5; --x; return x; }"));
         Assert.That(ex!.Message, Does.Contain("sandbox"));
     }
 
     [Test]
     public void Safe_AllowAssignmentFalse_AllowsVariableDeclaration()
     {
-        var engine = new CsEvalEngine(new CsEvalOptions
+        var engine = CreateEngine(new CsEvalOptions
         {
+            CompilationMode = mode,
             Sandbox = SandboxOptions.Safe() with { AllowAssignment = false }
         });
 
@@ -420,8 +447,9 @@ public class SandboxModeTests
     [Test]
     public void Safe_AllowAssignmentFalse_NullCoalesceSkipsWhenNotNull()
     {
-        var engine = new CsEvalEngine(new CsEvalOptions
+        var engine = CreateEngine(new CsEvalOptions
         {
+            CompilationMode = mode,
             Sandbox = SandboxOptions.Safe() with { AllowAssignment = false }
         });
 
@@ -438,8 +466,9 @@ public class SandboxModeTests
     [Test]
     public void Safe_AllowsPropertySetByDefault()
     {
-        var engine = new CsEvalEngine(new CsEvalOptions
+        var engine = CreateEngine(new CsEvalOptions
         {
+            CompilationMode = mode,
             Sandbox = SandboxOptions.Safe()
         });
 
@@ -456,12 +485,13 @@ public class SandboxModeTests
     [Test]
     public void Safe_AllowPropertySetFalse_BlocksPropertyAssignment()
     {
-        var engine = new CsEvalEngine(new CsEvalOptions
+        var engine = CreateEngine(new CsEvalOptions
         {
+            CompilationMode = mode,
             Sandbox = SandboxOptions.Safe() with { AllowPropertySet = false }
         });
 
-        var ex = Assert.Throws<EvalException>(() => engine.Evaluate(@"
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate(@"
         {
             var obj = new { Value = 1 };
             obj.Value = 42;
@@ -473,8 +503,9 @@ public class SandboxModeTests
     [Test]
     public void Safe_AllowPropertySetFalse_AllowsPropertyRead()
     {
-        var engine = new CsEvalEngine(new CsEvalOptions
+        var engine = CreateEngine(new CsEvalOptions
         {
+            CompilationMode = mode,
             Sandbox = SandboxOptions.Safe() with { AllowPropertySet = false }
         });
 
@@ -490,12 +521,13 @@ public class SandboxModeTests
     [Test]
     public void Safe_AllowPropertySetFalse_BlocksNestedPropertySet()
     {
-        var engine = new CsEvalEngine(new CsEvalOptions
+        var engine = CreateEngine(new CsEvalOptions
         {
+            CompilationMode = mode,
             Sandbox = SandboxOptions.Safe() with { AllowPropertySet = false }
         });
 
-        var ex = Assert.Throws<EvalException>(() => engine.Evaluate(@"
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate(@"
         {
             var obj = new { Inner = new { Value = 1 } };
             obj.Inner.Value = 42;
@@ -511,8 +543,9 @@ public class SandboxModeTests
     [Test]
     public void Safe_AllowsIndexSetByDefault()
     {
-        var engine = new CsEvalEngine(new CsEvalOptions
+        var engine = CreateEngine(new CsEvalOptions
         {
+            CompilationMode = mode,
             Sandbox = SandboxOptions.Safe()
         });
 
@@ -529,12 +562,13 @@ public class SandboxModeTests
     [Test]
     public void Safe_AllowIndexSetFalse_BlocksArrayIndexAssignment()
     {
-        var engine = new CsEvalEngine(new CsEvalOptions
+        var engine = CreateEngine(new CsEvalOptions
         {
+            CompilationMode = mode,
             Sandbox = SandboxOptions.Safe() with { AllowIndexSet = false }
         });
 
-        var ex = Assert.Throws<EvalException>(() => engine.Evaluate(@"
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate(@"
         {
             var arr = [1, 2, 3];
             arr[1] = 99;
@@ -546,8 +580,9 @@ public class SandboxModeTests
     [Test]
     public void Safe_AllowIndexSetFalse_AllowsIndexRead()
     {
-        var engine = new CsEvalEngine(new CsEvalOptions
+        var engine = CreateEngine(new CsEvalOptions
         {
+            CompilationMode = mode,
             Sandbox = SandboxOptions.Safe() with { AllowIndexSet = false }
         });
 
@@ -563,12 +598,13 @@ public class SandboxModeTests
     [Test]
     public void Safe_AllowIndexSetFalse_BlocksDictionaryIndexAssignment()
     {
-        var engine = new CsEvalEngine(new CsEvalOptions
+        var engine = CreateEngine(new CsEvalOptions
         {
+            CompilationMode = mode,
             Sandbox = SandboxOptions.Safe() with { AllowIndexSet = false }
         });
 
-        var ex = Assert.Throws<EvalException>(() => engine.Evaluate(@"
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate(@"
         {
             var dict = new { key = ""value"" };
             dict[""key""] = ""new"";
@@ -580,8 +616,9 @@ public class SandboxModeTests
     [Test]
     public void Safe_AllowIndexSetFalse_AllowsDictionaryRead()
     {
-        var engine = new CsEvalEngine(new CsEvalOptions
+        var engine = CreateEngine(new CsEvalOptions
         {
+            CompilationMode = mode,
             Sandbox = SandboxOptions.Safe() with { AllowIndexSet = false }
         });
 
@@ -601,8 +638,9 @@ public class SandboxModeTests
     [Test]
     public void Strict_AllowsOnlyVariableDeclarationAndRead()
     {
-        var engine = new CsEvalEngine(new CsEvalOptions
+        var engine = CreateEngine(new CsEvalOptions
         {
+            CompilationMode = mode,
             Sandbox = SandboxOptions.Strict()
         });
 
@@ -619,33 +657,36 @@ public class SandboxModeTests
     [Test]
     public void Strict_BlocksAssignment()
     {
-        var engine = new CsEvalEngine(new CsEvalOptions
+        var engine = CreateEngine(new CsEvalOptions
         {
+            CompilationMode = mode,
             Sandbox = SandboxOptions.Strict()
         });
 
-        var ex = Assert.Throws<EvalException>(() => engine.Evaluate("{ var x = 1; x = 5; return x; }"));
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("{ var x = 1; x = 5; return x; }"));
         Assert.That(ex!.Message, Does.Contain("sandbox"));
     }
 
     [Test]
     public void Strict_BlocksMethodCalls()
     {
-        var engine = new CsEvalEngine(new CsEvalOptions
+        var engine = CreateEngine(new CsEvalOptions
         {
+            CompilationMode = mode,
             Sandbox = SandboxOptions.Strict()
         });
         engine.SetVariable("text", "hello");
 
-        var ex = Assert.Throws<EvalException>(() => engine.Evaluate("text.ToUpper()"));
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("text.ToUpper()"));
         Assert.That(ex!.Message, Does.Contain("sandbox"));
     }
 
     [Test]
     public void Strict_AllowsPropertyRead()
     {
-        var engine = new CsEvalEngine(new CsEvalOptions
+        var engine = CreateEngine(new CsEvalOptions
         {
+            CompilationMode = mode,
             Sandbox = SandboxOptions.Strict()
         });
         engine.SetVariable("text", "hello");
@@ -658,12 +699,13 @@ public class SandboxModeTests
     [Test]
     public void Strict_BlocksPropertySet()
     {
-        var engine = new CsEvalEngine(new CsEvalOptions
+        var engine = CreateEngine(new CsEvalOptions
         {
+            CompilationMode = mode,
             Sandbox = SandboxOptions.Strict()
         });
 
-        var ex = Assert.Throws<EvalException>(() => engine.Evaluate(@"
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate(@"
         {
             var obj = new { Value = 1 };
             obj.Value = 42;
@@ -675,12 +717,13 @@ public class SandboxModeTests
     [Test]
     public void Strict_BlocksIndexSet()
     {
-        var engine = new CsEvalEngine(new CsEvalOptions
+        var engine = CreateEngine(new CsEvalOptions
         {
+            CompilationMode = mode,
             Sandbox = SandboxOptions.Strict()
         });
 
-        var ex = Assert.Throws<EvalException>(() => engine.Evaluate(@"
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate(@"
         {
             var arr = [1, 2, 3];
             arr[1] = 99;
@@ -692,8 +735,9 @@ public class SandboxModeTests
     [Test]
     public void Strict_AllowsModuleMethods()
     {
-        var engine = new CsEvalEngine(new CsEvalOptions
+        var engine = CreateEngine(new CsEvalOptions
         {
+            CompilationMode = mode,
             Sandbox = SandboxOptions.Strict()
         });
 
@@ -705,8 +749,9 @@ public class SandboxModeTests
     [Test]
     public void Strict_AllowsLinq()
     {
-        var engine = new CsEvalEngine(new CsEvalOptions
+        var engine = CreateEngine(new CsEvalOptions
         {
+            CompilationMode = mode,
             Sandbox = SandboxOptions.Strict()
         });
         engine.SetVariable("items", new List<int> { 1, 2, 3, 4, 5 });
@@ -723,8 +768,9 @@ public class SandboxModeTests
     [Test]
     public void Safe_WithPropertyAndIndexSetDisabled_AssignmentStillWorks()
     {
-        var engine = new CsEvalEngine(new CsEvalOptions
+        var engine = CreateEngine(new CsEvalOptions
         {
+            CompilationMode = mode,
             Sandbox = SandboxOptions.Safe() with { AllowPropertySet = false, AllowIndexSet = false }
         });
 
@@ -742,8 +788,9 @@ public class SandboxModeTests
     [Test]
     public void Strict_WithAllowAssignmentTrue_AllowsAssignment()
     {
-        var engine = new CsEvalEngine(new CsEvalOptions
+        var engine = CreateEngine(new CsEvalOptions
         {
+            CompilationMode = mode,
             Sandbox = SandboxOptions.Strict() with { AllowAssignment = true }
         });
 
@@ -755,8 +802,9 @@ public class SandboxModeTests
     [Test]
     public void Strict_WithAllowMethodCallsTrue_AllowsMethodCalls()
     {
-        var engine = new CsEvalEngine(new CsEvalOptions
+        var engine = CreateEngine(new CsEvalOptions
         {
+            CompilationMode = mode,
             Sandbox = SandboxOptions.Strict() with { AllowMethodCalls = true }
         });
         engine.SetVariable("text", "hello");

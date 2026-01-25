@@ -24,7 +24,7 @@ public sealed partial class Evaluator
             _cancellationToken.ThrowIfCancellationRequested();
 
             if (maxIterations > 0 && ++iterations > maxIterations)
-                throw new EvalException($"While loop exceeded maximum iterations ({maxIterations}). Possible infinite loop.");
+                throw new CsEvalException($"While loop exceeded maximum iterations ({maxIterations}). Possible infinite loop.");
 
             // Create a child scope for each iteration's body
             var previousContext = _context;
@@ -78,7 +78,7 @@ public sealed partial class Evaluator
                 _cancellationToken.ThrowIfCancellationRequested();
 
                 if (maxIterations > 0 && ++iterations > maxIterations)
-                    throw new EvalException($"For loop exceeded maximum iterations ({maxIterations}). Possible infinite loop.");
+                    throw new CsEvalException($"For loop exceeded maximum iterations ({maxIterations}). Possible infinite loop.");
 
                 // Create a child scope for each iteration's body
                 var iterationContext = _context;
@@ -130,7 +130,7 @@ public sealed partial class Evaluator
             _cancellationToken.ThrowIfCancellationRequested();
 
             if (maxIterations > 0 && ++iterations > maxIterations)
-                throw new EvalException($"Do-while loop exceeded maximum iterations ({maxIterations}). Possible infinite loop.");
+                throw new CsEvalException($"Do-while loop exceeded maximum iterations ({maxIterations}). Possible infinite loop.");
 
             // Create a child scope for each iteration's body
             var previousContext = _context;
@@ -170,7 +170,7 @@ public sealed partial class Evaluator
 
         if (collection is not IEnumerable enumerable)
         {
-            throw new EvalException($"Cannot iterate over type '{collection?.GetType().Name ?? "null"}' in foreach");
+            throw new CsEvalException($"Cannot iterate over type '{collection?.GetType().Name ?? "null"}' in foreach");
         }
 
         foreach (var item in enumerable)
@@ -178,7 +178,7 @@ public sealed partial class Evaluator
             _cancellationToken.ThrowIfCancellationRequested();
 
             if (maxIterations > 0 && ++iterations > maxIterations)
-                throw new EvalException($"Foreach loop exceeded maximum iterations ({maxIterations}). Possible infinite loop.");
+                throw new CsEvalException($"Foreach loop exceeded maximum iterations ({maxIterations}). Possible infinite loop.");
 
             // Create a child scope for each iteration (loop variable + body variables are scoped here)
             var previousContext = _context;

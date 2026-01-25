@@ -2,22 +2,22 @@ using System.Dynamic;
 
 namespace CsEval.Evaluation;
 
-public sealed class EvalContext
+public sealed class CsEvalContext
 {
     private readonly Dictionary<string, object?> _variables;
-    private readonly EvalContext? _parent;
+    private readonly CsEvalContext? _parent;
     private readonly StringComparer _comparer;
     private readonly TypeCache _typeCache;
 
-    public EvalContext(StringComparer? comparer = null) : this(null, comparer, null)
+    public CsEvalContext(StringComparer? comparer = null) : this(null, comparer, null)
     {
     }
 
-    internal EvalContext(StringComparer? comparer, TypeCache? typeCache) : this(null, comparer, typeCache)
+    internal CsEvalContext(StringComparer? comparer, TypeCache? typeCache) : this(null, comparer, typeCache)
     {
     }
 
-    private EvalContext(EvalContext? parent, StringComparer? comparer, TypeCache? typeCache)
+    private CsEvalContext(CsEvalContext? parent, StringComparer? comparer, TypeCache? typeCache)
     {
         _parent = parent;
         _comparer = comparer ?? parent?._comparer ?? StringComparer.Ordinal;
@@ -50,7 +50,7 @@ public sealed class EvalContext
     {
         if (TryGet(name, out var value))
             return value;
-        throw new EvalException($"Undefined variable '{name}'");
+        throw new CsEvalException($"Undefined variable '{name}'");
     }
 
     public void Set(string name, object? value)
@@ -67,7 +67,7 @@ public sealed class EvalContext
             return;
         }
 
-        throw new EvalException($"Undefined variable '{name}'");
+        throw new CsEvalException($"Undefined variable '{name}'");
     }
 
     private bool Contains(string name)
@@ -77,18 +77,18 @@ public sealed class EvalContext
         return _parent?.Contains(name) ?? false;
     }
 
-    public EvalContext CreateChild() => new(this, _comparer, _typeCache);
+    public CsEvalContext CreateChild() => new(this, _comparer, _typeCache);
 
     public IReadOnlyDictionary<string, object?> GetAll() => _variables;
 
-    public static EvalContext FromExpandoObject(ExpandoObject? expando, StringComparer? comparer = null)
+    public static CsEvalContext FromExpandoObject(ExpandoObject? expando, StringComparer? comparer = null)
     {
         return FromExpandoObject(expando, comparer, null);
     }
 
-    internal static EvalContext FromExpandoObject(ExpandoObject? expando, StringComparer? comparer, TypeCache? typeCache)
+    internal static CsEvalContext FromExpandoObject(ExpandoObject? expando, StringComparer? comparer, TypeCache? typeCache)
     {
-        var ctx = new EvalContext(comparer, typeCache);
+        var ctx = new CsEvalContext(comparer, typeCache);
         if (expando == null) return ctx;
 
         foreach (var kvp in (IDictionary<string, object?>)expando)
@@ -98,14 +98,14 @@ public sealed class EvalContext
         return ctx;
     }
 
-    public static EvalContext FromDictionary(IDictionary<string, object?>? dict, StringComparer? comparer = null)
+    public static CsEvalContext FromDictionary(IDictionary<string, object?>? dict, StringComparer? comparer = null)
     {
         return FromDictionary(dict, comparer, null);
     }
 
-    internal static EvalContext FromDictionary(IDictionary<string, object?>? dict, StringComparer? comparer, TypeCache? typeCache)
+    internal static CsEvalContext FromDictionary(IDictionary<string, object?>? dict, StringComparer? comparer, TypeCache? typeCache)
     {
-        var ctx = new EvalContext(comparer, typeCache);
+        var ctx = new CsEvalContext(comparer, typeCache);
         if (dict == null) return ctx;
 
         foreach (var kvp in dict)

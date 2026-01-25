@@ -220,7 +220,7 @@ var engine = new CsEvalEngine(new CsEvalOptions { MaxIterations = 1000 });
 var engine = new CsEvalEngine(new CsEvalOptions { MaxIterations = 0 });
 ```
 
-Exceeding the limit throws an `EvalException`.
+Exceeding the limit throws an `CsEvalException`.
 
 ## Built-in Modules
 
@@ -469,7 +469,7 @@ var result = engine.Evaluate("Members.GetById(123)", serviceProvider);
 var engine = new CsEvalEngine();
 engine.SetVariable("MyVar", 42);
 engine.Evaluate("MyVar");  // OK
-engine.Evaluate("myvar");  // Throws EvalException
+engine.Evaluate("myvar");  // Throws CsEvalException
 
 // Case-insensitive
 var engine = new CsEvalEngine(new CsEvalOptions { IgnoreCase = true });
@@ -611,7 +611,7 @@ try
 {
     var result = engine.Evaluate(expression);
 }
-catch (EvalException ex)
+catch (CsEvalException ex)
 {
     // Runtime error (null access, type mismatch, etc.)
 }

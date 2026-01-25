@@ -27,7 +27,7 @@ public static class RuntimeHelpers
         if (IsNumeric(value))
             return -(dynamic)value!;
 
-        throw new EvalException($"Cannot negate {value?.GetType().Name ?? "null"}");
+        throw new CsEvalException($"Cannot negate {value?.GetType().Name ?? "null"}");
     }
 
     public static object? Add(object? left, object? right, CsEvalOptions options)
@@ -41,7 +41,7 @@ public static class RuntimeHelpers
             return (dynamic)left! + (dynamic)right!;
 
         // Object merging not supported in compiled expressions
-        throw new EvalException(
+        throw new CsEvalException(
             $"Cannot add {left?.GetType().Name ?? "null"} and {right?.GetType().Name ?? "null"} in compiled expression. " +
             "Object merging requires tree-walking evaluation.");
     }
@@ -51,7 +51,7 @@ public static class RuntimeHelpers
         if (IsNumeric(left) && IsNumeric(right))
             return (dynamic)left! - (dynamic)right!;
 
-        throw new EvalException($"Cannot subtract {left?.GetType().Name ?? "null"} and {right?.GetType().Name ?? "null"}");
+        throw new CsEvalException($"Cannot subtract {left?.GetType().Name ?? "null"} and {right?.GetType().Name ?? "null"}");
     }
 
     public static object? Multiply(object? left, object? right, CsEvalOptions options)
@@ -59,7 +59,7 @@ public static class RuntimeHelpers
         if (IsNumeric(left) && IsNumeric(right))
             return (dynamic)left! * (dynamic)right!;
 
-        throw new EvalException($"Cannot multiply {left?.GetType().Name ?? "null"} and {right?.GetType().Name ?? "null"}");
+        throw new CsEvalException($"Cannot multiply {left?.GetType().Name ?? "null"} and {right?.GetType().Name ?? "null"}");
     }
 
     public static object? Divide(object? left, object? right, CsEvalOptions options)
@@ -72,7 +72,7 @@ public static class RuntimeHelpers
             return (dynamic)left! / (dynamic)right!;
         }
 
-        throw new EvalException($"Cannot divide {left?.GetType().Name ?? "null"} and {right?.GetType().Name ?? "null"}");
+        throw new CsEvalException($"Cannot divide {left?.GetType().Name ?? "null"} and {right?.GetType().Name ?? "null"}");
     }
 
     public static object? Modulo(object? left, object? right, CsEvalOptions options)
@@ -85,7 +85,7 @@ public static class RuntimeHelpers
             return (dynamic)left! % (dynamic)right!;
         }
 
-        throw new EvalException($"Cannot modulo {left?.GetType().Name ?? "null"} and {right?.GetType().Name ?? "null"}");
+        throw new CsEvalException($"Cannot modulo {left?.GetType().Name ?? "null"} and {right?.GetType().Name ?? "null"}");
     }
 
     public static object Equals(object? left, object? right, CsEvalOptions options)
@@ -145,7 +145,7 @@ public static class RuntimeHelpers
     internal static int Compare(object? left, object? right, CsEvalOptions options)
     {
         if (left == null || right == null)
-            throw new EvalException("Cannot compare null values");
+            throw new CsEvalException("Cannot compare null values");
 
         // Let C# runtime handle comparison via dynamic
         if (IsNumeric(left) && IsNumeric(right))
@@ -158,20 +158,20 @@ public static class RuntimeHelpers
         {
             string ls when right is string rs => string.Compare(ls, rs, options.StringComparison),
             IComparable comparable => comparable.CompareTo(right),
-            _ => throw new EvalException($"Cannot compare {left.GetType().Name} and {right.GetType().Name}")
+            _ => throw new CsEvalException($"Cannot compare {left.GetType().Name} and {right.GetType().Name}")
         };
     }
 
-    public static object? GetMember(object? obj, string name, CsEvalOptions options, bool nullSafe, EvalContext context)
+    public static object? GetMember(object? obj, string name, CsEvalOptions options, bool nullSafe, CsEvalContext context)
     {
         if (nullSafe && obj == null)
             return null;
 
         if (obj == null)
-            throw new EvalException($"Cannot access property '{name}' on null");
+            throw new CsEvalException($"Cannot access property '{name}' on null");
 
         if (!options.Sandbox.AllowPropertyRead)
-            throw new EvalException($"Property access blocked by sandbox: {name}");
+            throw new CsEvalException($"Property access blocked by sandbox: {name}");
 
         // Handle module resolver - only allow access to members in the Members dictionary
         if (obj is CsEvalEngine.ModuleResolver resolver)
@@ -183,12 +183,12 @@ public static class RuntimeHelpers
                 {
                     PropertyInfo p => p.GetValue(p.GetMethod!.IsStatic ? null : instance),
                     FieldInfo f => f.GetValue(f.IsStatic ? null : instance),
-                    _ => throw new EvalException($"Member '{name}' is not a property or field")
+                    _ => throw new CsEvalException($"Member '{name}' is not a property or field")
                 };
                 return CheckSandboxType(value, options.Sandbox);
             }
             // Member not in dictionary - not allowed (matches tree-walking evaluator behavior)
-            throw new EvalException($"Member '{name}' not found on module '{resolver.Type.Name}'");
+            throw new CsEvalException($"Member '{name}' not found on module '{resolver.Type.Name}'");
         }
 
         if (obj is IDictionary<string, object?> dict)
@@ -205,7 +205,7 @@ public static class RuntimeHelpers
                 }
             }
 
-            throw new EvalException($"Property '{name}' not found");
+            throw new CsEvalException($"Property '{name}' not found");
         }
 
         var type = obj.GetType();
@@ -222,7 +222,7 @@ public static class RuntimeHelpers
         if (field != null)
             return CheckSandboxType(field.GetValue(obj), options.Sandbox);
 
-        throw new EvalException($"Property '{name}' not found on type '{type.Name}'");
+        throw new CsEvalException($"Property '{name}' not found on type '{type.Name}'");
     }
 
     /// <summary>
@@ -291,7 +291,7 @@ public static class RuntimeHelpers
         var type = value.GetType();
         if (IsForbiddenReflectionType(type))
         {
-            throw new EvalException($"Access to reflection types is not allowed: {type.Name}");
+            throw new CsEvalException($"Access to reflection types is not allowed: {type.Name}");
         }
 
         return value;
@@ -305,7 +305,7 @@ public static class RuntimeHelpers
         if (left is bool lb && right is bool rb)
             return lb & rb;
 
-        throw new EvalException($"Cannot apply operator & to {left?.GetType().Name} and {right?.GetType().Name}");
+        throw new CsEvalException($"Cannot apply operator & to {left?.GetType().Name} and {right?.GetType().Name}");
     }
 
     public static object? BitwiseOr(object? left, object? right, CsEvalOptions options)
@@ -316,7 +316,7 @@ public static class RuntimeHelpers
         if (left is bool lb && right is bool rb)
             return lb | rb;
 
-        throw new EvalException($"Cannot apply operator | to {left?.GetType().Name} and {right?.GetType().Name}");
+        throw new CsEvalException($"Cannot apply operator | to {left?.GetType().Name} and {right?.GetType().Name}");
     }
 
     public static object? BitwiseXor(object? left, object? right, CsEvalOptions options)
@@ -327,13 +327,13 @@ public static class RuntimeHelpers
         if (left is bool lb && right is bool rb)
             return lb ^ rb;
 
-        throw new EvalException($"Cannot apply operator ^ to {left?.GetType().Name} and {right?.GetType().Name}");
+        throw new CsEvalException($"Cannot apply operator ^ to {left?.GetType().Name} and {right?.GetType().Name}");
     }
 
     public static object? BitwiseNot(object? value)
     {
         if (!IsNumeric(value))
-            throw new EvalException($"Cannot apply bitwise NOT to {value?.GetType().Name ?? "null"}");
+            throw new CsEvalException($"Cannot apply bitwise NOT to {value?.GetType().Name ?? "null"}");
 
         return ~(dynamic)value!;
     }
@@ -341,7 +341,7 @@ public static class RuntimeHelpers
     public static object? LeftShift(object? left, object? right)
     {
         if (!IsNumeric(left) || !IsNumeric(right))
-            throw new EvalException($"Cannot apply left shift to {left?.GetType().Name ?? "null"} and {right?.GetType().Name ?? "null"}");
+            throw new CsEvalException($"Cannot apply left shift to {left?.GetType().Name ?? "null"} and {right?.GetType().Name ?? "null"}");
 
         return (dynamic)left! << (int)(dynamic)right!;
     }
@@ -349,7 +349,7 @@ public static class RuntimeHelpers
     public static object? RightShift(object? left, object? right)
     {
         if (!IsNumeric(left) || !IsNumeric(right))
-            throw new EvalException($"Cannot apply right shift to {left?.GetType().Name ?? "null"} and {right?.GetType().Name ?? "null"}");
+            throw new CsEvalException($"Cannot apply right shift to {left?.GetType().Name ?? "null"} and {right?.GetType().Name ?? "null"}");
 
         return (dynamic)left! >> (int)(dynamic)right!;
     }
@@ -357,7 +357,7 @@ public static class RuntimeHelpers
     public static bool Contains(object? collection, object? value, CsEvalOptions options)
     {
         if (collection == null)
-            throw new EvalException("Cannot check containment in null collection");
+            throw new CsEvalException("Cannot check containment in null collection");
 
         // String containment: "bc" in "abcd"
         if (collection is string str && value is string substr)
@@ -378,7 +378,7 @@ public static class RuntimeHelpers
             return false;
         }
 
-        throw new EvalException($"Cannot use 'in' operator with {collection.GetType().Name}");
+        throw new CsEvalException($"Cannot use 'in' operator with {collection.GetType().Name}");
     }
 
     internal static bool IsInteger(object? value) =>
@@ -390,7 +390,7 @@ public static class RuntimeHelpers
     public static object? GetIndex(object? obj, object? index, CsEvalOptions options)
     {
         if (obj == null)
-            throw new EvalException("Cannot index null");
+            throw new CsEvalException("Cannot index null");
 
         if (obj is IDictionary<string, object?> dict)
         {
@@ -404,12 +404,12 @@ public static class RuntimeHelpers
         {
             if (index is int i)
             {
-                if (i < 0 || i >= list.Count) throw new EvalException($"Index was out of range. Must be non-negative and less than the size of the collection. (Parameter 'index')");
+                if (i < 0 || i >= list.Count) throw new CsEvalException($"Index was out of range. Must be non-negative and less than the size of the collection. (Parameter 'index')");
                 var val = list[i];
                 CheckSandboxType(val, options.Sandbox);
                 return val;
             }
-            throw new EvalException($"Hashtable/List index must be an integer, got {index?.GetType().Name}");
+            throw new CsEvalException($"Hashtable/List index must be an integer, got {index?.GetType().Name}");
         }
         
         // Handle standard arrays and other indexers via reflection
@@ -427,20 +427,20 @@ public static class RuntimeHelpers
                  CheckSandboxType(val, options.Sandbox);
                  return val;
              }
-             catch (EvalException) { throw; }
+             catch (CsEvalException) { throw; }
              catch (Exception ex)
              {
-                 throw new EvalException($"Indexer access failed: {ex.Message}");
+                 throw new CsEvalException($"Indexer access failed: {ex.Message}");
              }
         }
 
-        throw new EvalException($"Type '{type.Name}' cannot be indexed");
+        throw new CsEvalException($"Type '{type.Name}' cannot be indexed");
     }
 
     public static void SetIndex(object? obj, object? index, object? value)
     {
         if (obj == null)
-            throw new EvalException("Cannot index assign null");
+            throw new CsEvalException("Cannot index assign null");
 
         if (obj is IDictionary<string, object?> dict)
         {
@@ -453,7 +453,7 @@ public static class RuntimeHelpers
         {
             if (index is int i)
             {
-                if (i < 0 || i >= list.Count) throw new EvalException($"Index was out of range. Must be non-negative and less than the size of the collection. (Parameter 'index')");
+                if (i < 0 || i >= list.Count) throw new CsEvalException($"Index was out of range. Must be non-negative and less than the size of the collection. (Parameter 'index')");
                 
                 // Convert value to match list element type if possible
                 if (list.GetType().IsGenericType)
@@ -467,7 +467,7 @@ public static class RuntimeHelpers
                 }
                 return;
             }
-            throw new EvalException($"Hashtable/List index must be an integer, got {index?.GetType().Name}");
+            throw new CsEvalException($"Hashtable/List index must be an integer, got {index?.GetType().Name}");
         }
         
         var type = obj.GetType();
@@ -486,11 +486,11 @@ public static class RuntimeHelpers
              }
              catch
              {
-                 throw new EvalException($"Cannot set index on type '{type.Name}'");
+                 throw new CsEvalException($"Cannot set index on type '{type.Name}'");
              }
         }
         
-        throw new EvalException($"Type '{type.Name}' does not support index assignment");
+        throw new CsEvalException($"Type '{type.Name}' does not support index assignment");
     }
 
     private static object? ConvertChangeType(object? value, Type targetType)
@@ -503,19 +503,19 @@ public static class RuntimeHelpers
     public static void CheckAllowAssignment(CsEvalOptions options, string context)
     {
         if (!options.Sandbox.AllowAssignment)
-            throw new EvalException($"Assignment blocked by sandbox: {context}");
+            throw new CsEvalException($"Assignment blocked by sandbox: {context}");
     }
 
     public static void CheckIterationLimit(long iterations, CsEvalOptions options)
     {
         if (options.MaxIterations > 0 && iterations > options.MaxIterations)
-            throw new EvalException($"Loop exceeded maximum iterations ({options.MaxIterations}). Possible infinite loop.");
+            throw new CsEvalException($"Loop exceeded maximum iterations ({options.MaxIterations}). Possible infinite loop.");
     }
 
     public static System.Collections.IEnumerator GetEnumerator(object? collection)
     {
         if (collection is not System.Collections.IEnumerable enumerable)
-            throw new EvalException($"Cannot iterate over type '{collection?.GetType().Name ?? "null"}' in foreach");
+            throw new CsEvalException($"Cannot iterate over type '{collection?.GetType().Name ?? "null"}' in foreach");
 
         return enumerable.GetEnumerator();
     }

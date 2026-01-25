@@ -51,7 +51,7 @@ internal static class ExpressionCompiler
     {
         try
         {
-            var context = new EvalContext();
+            var context = new CsEvalContext();
             var options = CsEvalOptions.Default;
             var ilDelegate = ILCompiler.TryCompile(ast, context, options);
 

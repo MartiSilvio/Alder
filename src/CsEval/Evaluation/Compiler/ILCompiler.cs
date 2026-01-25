@@ -11,9 +11,9 @@ namespace CsEval.Evaluation.Compiler;
 internal sealed partial class ILCompiler
 {
     // Delegate signature for IL-compiled expressions
-    public delegate object? ILCompiledDelegate(EvalContext context, CsEvalOptions options, CancellationToken ct);
+    public delegate object? ILCompiledDelegate(CsEvalContext context, CsEvalOptions options, CancellationToken ct);
 
-    private readonly EvalContext _context;
+    private readonly CsEvalContext _context;
     private readonly CsEvalOptions _options;
 
     // Parameters for the compiled lambda
@@ -42,10 +42,10 @@ internal sealed partial class ILCompiler
     private const int MaxCompileDepth = 500;
 
     // Cached MethodInfo for helper methods
-    private static readonly MethodInfo GetMethod = typeof(EvalContext).GetMethod("Get", [typeof(string)])!;
-    private static readonly MethodInfo SetMethod = typeof(EvalContext).GetMethod("Set", [typeof(string), typeof(object)])!;
-    private static readonly MethodInfo DefineMethod = typeof(EvalContext).GetMethod("Define", [typeof(string), typeof(object)])!;
-    private static readonly MethodInfo CreateChildMethod = typeof(EvalContext).GetMethod("CreateChild")!;
+    private static readonly MethodInfo GetMethod = typeof(CsEvalContext).GetMethod("Get", [typeof(string)])!;
+    private static readonly MethodInfo SetMethod = typeof(CsEvalContext).GetMethod("Set", [typeof(string), typeof(object)])!;
+    private static readonly MethodInfo DefineMethod = typeof(CsEvalContext).GetMethod("Define", [typeof(string), typeof(object)])!;
+    private static readonly MethodInfo CreateChildMethod = typeof(CsEvalContext).GetMethod("CreateChild")!;
     private static readonly MethodInfo IsTruthyMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.IsTruthy))!;
     private static readonly MethodInfo AddMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.Add))!;
     private static readonly MethodInfo SubtractMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.Subtract))!;
@@ -75,13 +75,13 @@ internal sealed partial class ILCompiler
 
     private record struct ControlFlowContext(LabelTarget BreakTarget, LabelTarget? ContinueTarget, bool IsLoop);
 
-    private ILCompiler(EvalContext context, CsEvalOptions options)
+    private ILCompiler(CsEvalContext context, CsEvalOptions options)
     {
         _context = context;
         _options = options;
 
         // Define parameters
-        _contextParam = LinqExpression.Parameter(typeof(EvalContext), "context");
+        _contextParam = LinqExpression.Parameter(typeof(CsEvalContext), "context");
         _optionsParam = LinqExpression.Parameter(typeof(CsEvalOptions), "options");
         _ctParam = LinqExpression.Parameter(typeof(CancellationToken), "ct");
 
@@ -99,7 +99,7 @@ internal sealed partial class ILCompiler
     /// <summary>
     /// Attempt to compile an AST to IL. Returns null if the expression cannot be IL-compiled.
     /// </summary>
-    public static ILCompiledDelegate? TryCompile(Expr ast, EvalContext context, CsEvalOptions options)
+    public static ILCompiledDelegate? TryCompile(Expr ast, CsEvalContext context, CsEvalOptions options)
     {
         var compiler = new ILCompiler(context, options);
 

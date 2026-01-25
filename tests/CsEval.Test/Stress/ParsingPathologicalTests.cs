@@ -3,8 +3,9 @@ using CsEval.Parsing;
 
 namespace CsEval.Test.Stress;
 
-[TestFixture]
-public class ParsingPathologicalTests : StressTestBase
+[TestFixture(CompilationMode.Eager)]
+[TestFixture(CompilationMode.OnDemand)]
+public class ParsingPathologicalTests(CompilationMode mode) : StressTestBase(mode)
 {
     [Test]
     [Explicit("CRITICAL BUG: Crashes process with StackOverflowException. Run manually to reproduce.")]

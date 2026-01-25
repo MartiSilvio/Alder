@@ -1,14 +1,15 @@
 namespace CsEval.Test.Core;
 
-[TestFixture]
-public class StaticProxyTests
+[TestFixture(CompilationMode.Eager)]
+[TestFixture(CompilationMode.OnDemand)]
+public class StaticProxyTests(CompilationMode mode) : TestBase
 {
     private CsEvalEngine _engine = null!;
 
     [SetUp]
     public void Setup()
     {
-        _engine = new CsEvalEngine();
+        _engine = CreateEngine(mode);
     }
 
     #region Math

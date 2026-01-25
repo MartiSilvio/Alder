@@ -1,14 +1,15 @@
 namespace CsEval.Test.Loops;
 
-[TestFixture]
-public class WhileLoopTests
+[TestFixture(CompilationMode.Eager)]
+[TestFixture(CompilationMode.OnDemand)]
+public class WhileLoopTests(CompilationMode mode) : TestBase
 {
     #region Basic While Loop
 
     [Test]
     public void WhileLoop_BasicCounter_CountsCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var count = 0;
@@ -26,7 +27,7 @@ public class WhileLoopTests
     [Test]
     public void WhileLoop_FalseCondition_NeverExecutes()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var executed = false;
@@ -42,7 +43,7 @@ public class WhileLoopTests
     [Test]
     public void WhileLoop_SingleIteration_ExecutesOnce()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var count = 0;
@@ -64,7 +65,7 @@ public class WhileLoopTests
     [Test]
     public void WhileLoop_WithExternalVariable_ModifiesCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         engine.SetVariable("limit", 10);
 
         var result = engine.Evaluate(@"
@@ -85,7 +86,7 @@ public class WhileLoopTests
     [Test]
     public void WhileLoop_WithMultipleVariables_TracksAll()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var a = 0;
@@ -107,7 +108,7 @@ public class WhileLoopTests
     [Test]
     public void WhileLoop_VariablesScopedToBlock()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var total = 0;
@@ -131,7 +132,7 @@ public class WhileLoopTests
     [Test]
     public void WhileLoop_WithAndCondition_EvaluatesCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = 0;
@@ -149,7 +150,7 @@ public class WhileLoopTests
     [Test]
     public void WhileLoop_WithOrCondition_EvaluatesCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = 0;
@@ -167,7 +168,7 @@ public class WhileLoopTests
     [Test]
     public void WhileLoop_WithNullCheck_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var text = ""test"";
@@ -184,7 +185,7 @@ public class WhileLoopTests
     [Test]
     public void WhileLoop_WithComparisonExpression_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var numbers = [10, 5, 15, 3];
@@ -209,7 +210,7 @@ public class WhileLoopTests
     [Test]
     public void WhileLoop_WithEarlyReturn_ExitsImmediately()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var i = 0;
@@ -228,7 +229,7 @@ public class WhileLoopTests
     [Test]
     public void WhileLoop_WithConditionalReturn_ReturnsCorrectValue()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         engine.SetVariable("target", 7);
 
         var result = engine.Evaluate(@"
@@ -253,7 +254,7 @@ public class WhileLoopTests
     [Test]
     public void WhileLoop_WithNestedIf_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var sum = 0;
@@ -274,7 +275,7 @@ public class WhileLoopTests
     [Test]
     public void WhileLoop_Nested_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var total = 0;
@@ -296,7 +297,7 @@ public class WhileLoopTests
     [Test]
     public void WhileLoop_DeeplyNested_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var product = 1;
@@ -327,7 +328,7 @@ public class WhileLoopTests
     [Test]
     public void WhileLoop_WithArrayIndexing_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var arr = [1, 2, 3, 4, 5];
@@ -346,7 +347,7 @@ public class WhileLoopTests
     [Test]
     public void WhileLoop_WithListCount_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         engine.SetVariable("items", new List<int> { 10, 20, 30, 40 });
 
         var result = engine.Evaluate(@"
@@ -366,7 +367,7 @@ public class WhileLoopTests
     [Test]
     public void WhileLoop_BuildingList_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var result = [];
@@ -389,7 +390,7 @@ public class WhileLoopTests
     [Test]
     public void WhileLoop_WithLinqSum_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var numbers = [];
@@ -407,7 +408,7 @@ public class WhileLoopTests
     [Test]
     public void WhileLoop_WithLinqWhere_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var numbers = [];
@@ -429,7 +430,7 @@ public class WhileLoopTests
     [Test]
     public void WhileLoop_WithMathModule_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var sum = 0.0;
@@ -448,7 +449,7 @@ public class WhileLoopTests
     [Test]
     public void WhileLoop_WithDateTimeModule_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var count = 0;
@@ -473,7 +474,7 @@ public class WhileLoopTests
     [Test]
     public void WhileLoop_StringConcatenation_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var str = """";
@@ -491,7 +492,7 @@ public class WhileLoopTests
     [Test]
     public void WhileLoop_InterpolatedString_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var lines = """";
@@ -513,7 +514,7 @@ public class WhileLoopTests
     [Test]
     public void WhileLoop_BuildingObjects_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var i = 0;
@@ -537,7 +538,7 @@ public class WhileLoopTests
     [Test]
     public void WhileLoop_SingleStatementBody_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var count = 0;
@@ -557,9 +558,9 @@ public class WhileLoopTests
     [Test]
     public void WhileLoop_ExceedsMaxIterations_ThrowsException()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
 
-        var ex = Assert.Throws<CsEval.Evaluation.EvalException>(() =>
+        var ex = Assert.Throws<CsEvalException>(() =>
             engine.Evaluate(@"
             {
                 var i = 0;
@@ -575,9 +576,9 @@ public class WhileLoopTests
     [Test]
     public void WhileLoop_WithCustomMaxIterations_UsesConfiguredLimit()
     {
-        var engine = new CsEvalEngine(new CsEvalOptions { MaxIterations = 10 });
+        var engine = CreateEngine(CsEvalOptions.Default with { CompilationMode = mode, MaxIterations = 10 });
 
-        var ex = Assert.Throws<CsEval.Evaluation.EvalException>(() =>
+        var ex = Assert.Throws<CsEvalException>(() =>
             engine.Evaluate(@"
             {
                 var i = 0;
@@ -593,7 +594,7 @@ public class WhileLoopTests
     [Test]
     public void WhileLoop_WithDisabledLimit_AllowsManyIterations()
     {
-        var engine = new CsEvalEngine(new CsEvalOptions { MaxIterations = 0 });
+        var engine = CreateEngine(CsEvalOptions.Default with { CompilationMode = mode, MaxIterations = 0 });
 
         var result = engine.Evaluate(@"
         {
@@ -613,7 +614,7 @@ public class WhileLoopTests
     public void WhileLoop_WithCancellationToken_CanBeCancelled()
     {
         // Use disabled iteration limit so cancellation is the only way to stop
-        var engine = new CsEvalEngine(new CsEvalOptions { MaxIterations = 0 });
+        var engine = CreateEngine(CsEvalOptions.Default with { CompilationMode = mode, MaxIterations = 0 });
         using var cts = new CancellationTokenSource();
 
         var task = Task.Run(() =>
@@ -641,7 +642,7 @@ public class WhileLoopTests
     [Test]
     public void WhileLoop_EmptyBody_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var i = 5;
@@ -656,7 +657,7 @@ public class WhileLoopTests
     [Test]
     public void WhileLoop_WithTernaryCondition_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         engine.SetVariable("useLimit", true);
 
         var result = engine.Evaluate(@"
@@ -676,7 +677,7 @@ public class WhileLoopTests
     [Test]
     public void WhileLoop_ConditionEvaluatedEachIteration()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var limit = 5;
@@ -699,7 +700,7 @@ public class WhileLoopTests
     [Test]
     public void WhileLoop_WithNullCoalesce_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         engine.SetVariable("maybeNull", null);
 
         var result = engine.Evaluate(@"
@@ -723,7 +724,7 @@ public class WhileLoopTests
     [Test]
     public void WhileLoop_Factorial_CalculatesCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var n = 5;
@@ -741,7 +742,7 @@ public class WhileLoopTests
     [Test]
     public void WhileLoop_GCD_CalculatesCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var a = 48;
@@ -760,7 +761,7 @@ public class WhileLoopTests
     [Test]
     public void WhileLoop_PowerCalculation_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var baseNum = 2;
@@ -783,7 +784,7 @@ public class WhileLoopTests
     [Test]
     public void WhileLoop_TryParse_ValidExpression_Succeeds()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var success = engine.TryParse("{ var i = 0; while (i < 5) { i = i + 1; } return i; }", out var expr, out var error);
 
         Assert.That(success, Is.True);
@@ -794,7 +795,7 @@ public class WhileLoopTests
     [Test]
     public void WhileLoop_TryParse_MissingParenthesis_Fails()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var success = engine.TryParse("{ while i < 5 { } }", out var expr, out var error);
 
         Assert.That(success, Is.False);
@@ -805,7 +806,7 @@ public class WhileLoopTests
     [Test]
     public void WhileLoop_PreParsed_CanBeEvaluatedMultipleTimes()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var expr = engine.Parse(@"
         {
             var sum = 0;
@@ -833,7 +834,7 @@ public class WhileLoopTests
     [Test]
     public void WhileLoop_Break_ExitsLoop()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var i = 0;
@@ -852,7 +853,7 @@ public class WhileLoopTests
     [Test]
     public void WhileLoop_Break_AtStart_ExitsImmediately()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var count = 0;
@@ -869,7 +870,7 @@ public class WhileLoopTests
     [Test]
     public void WhileLoop_Break_PreservesVariableState()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var sum = 0;
@@ -891,7 +892,7 @@ public class WhileLoopTests
     [Test]
     public void WhileLoop_Break_InNestedIf_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var i = 0;
@@ -912,7 +913,7 @@ public class WhileLoopTests
     [Test]
     public void WhileLoop_Break_OnlyExitsInnerLoop()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var outerCount = 0;
@@ -940,7 +941,7 @@ public class WhileLoopTests
     [Test]
     public void WhileLoop_Break_WithCondition_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         engine.SetVariable("target", 42);
 
         var result = engine.Evaluate(@"
@@ -964,7 +965,7 @@ public class WhileLoopTests
     [Test]
     public void WhileLoop_Break_AfterSomeIterations()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var iterations = 0;
@@ -989,7 +990,7 @@ public class WhileLoopTests
     [Test]
     public void WhileLoop_Continue_SkipsRemainingBody()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var sum = 0;
@@ -1011,7 +1012,7 @@ public class WhileLoopTests
     [Test]
     public void WhileLoop_Continue_WithMultipleConditions()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var sum = 0;
@@ -1036,7 +1037,7 @@ public class WhileLoopTests
     [Test]
     public void WhileLoop_Continue_InNestedLoop_OnlyAffectsInner()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var total = 0;
@@ -1062,7 +1063,7 @@ public class WhileLoopTests
     [Test]
     public void WhileLoop_Continue_SkipsToConditionCheck()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var skipped = 0;
@@ -1086,7 +1087,7 @@ public class WhileLoopTests
     [Test]
     public void WhileLoop_Continue_WithAccumulator()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var product = 1;
@@ -1108,7 +1109,7 @@ public class WhileLoopTests
     [Test]
     public void WhileLoop_Continue_DoesNotAffectCondition()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var count = 0;
@@ -1134,7 +1135,7 @@ public class WhileLoopTests
     [Test]
     public void WhileLoop_BreakAndContinue_Combined()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var sum = 0;
@@ -1159,7 +1160,7 @@ public class WhileLoopTests
     [Test]
     public void WhileLoop_BreakAndContinue_InNestedLoops()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var total = 0;
@@ -1190,7 +1191,7 @@ public class WhileLoopTests
     [Test]
     public void WhileLoop_BreakAndContinue_FindFirstMatch()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var data = [1, -2, 3, -4, 5, -6, 7];
@@ -1219,7 +1220,7 @@ public class WhileLoopTests
     [Test]
     public void WhileLoop_MultipleContinues_InSameIteration()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var count = 0;
@@ -1248,7 +1249,7 @@ public class WhileLoopTests
     [Test]
     public void WhileLoop_Break_TryParse_Succeeds()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var success = engine.TryParse("{ var i = 0; while (true) { break; } return i; }", out var expr, out var error);
 
         Assert.That(success, Is.True);
@@ -1259,7 +1260,7 @@ public class WhileLoopTests
     [Test]
     public void WhileLoop_Continue_TryParse_Succeeds()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var success = engine.TryParse("{ var i = 0; while (i < 5) { i = i + 1; continue; } return i; }", out var expr, out var error);
 
         Assert.That(success, Is.True);
@@ -1270,7 +1271,7 @@ public class WhileLoopTests
     [Test]
     public void WhileLoop_BreakWithSemicolon_ParsesCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var i = 0;

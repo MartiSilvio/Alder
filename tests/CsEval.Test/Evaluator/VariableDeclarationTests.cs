@@ -1,21 +1,24 @@
 namespace CsEval.Test.Evaluator;
 
-[TestFixture]
-public class VariableDeclarationTests : EvaluatorTestBase
+[TestFixture(CompilationMode.Eager)]
+[TestFixture(CompilationMode.OnDemand)]
+public class VariableDeclarationTests(CompilationMode mode) : TestBase
 {
     #region Var Declarations
 
     [Test]
     public void Var_InfersType()
     {
-        var result = Eval("{ var x = 42; return x; }");
+        var engine = CreateEngine(mode);
+        var result = engine.Evaluate("{ var x = 42; return x; }");
         Assert.That(result, Is.EqualTo(42));
     }
 
     [Test]
     public void Var_BlockScoped()
     {
-        var result = Eval("{ var x = 10; var y = 20; return x + y; }");
+        var engine = CreateEngine(mode);
+        var result = engine.Evaluate("{ var x = 10; var y = 20; return x + y; }");
         Assert.That(result, Is.EqualTo(30));
     }
 
@@ -26,7 +29,8 @@ public class VariableDeclarationTests : EvaluatorTestBase
     [Test]
     public void TypedDeclaration_Int()
     {
-        var result = Eval("{ int x = 42; return x; }");
+        var engine = CreateEngine(mode);
+        var result = engine.Evaluate("{ int x = 42; return x; }");
         Assert.That(result, Is.TypeOf<int>());
         Assert.That(result, Is.EqualTo(42));
     }
@@ -34,7 +38,8 @@ public class VariableDeclarationTests : EvaluatorTestBase
     [Test]
     public void TypedDeclaration_Long()
     {
-        var result = Eval("{ long x = 42; return x; }");
+        var engine = CreateEngine(mode);
+        var result = engine.Evaluate("{ long x = 42; return x; }");
         Assert.That(result, Is.TypeOf<long>());
         Assert.That(result, Is.EqualTo(42));
     }
@@ -42,7 +47,8 @@ public class VariableDeclarationTests : EvaluatorTestBase
     [Test]
     public void TypedDeclaration_Double()
     {
-        var result = Eval("{ double x = 3.14; return x; }");
+        var engine = CreateEngine(mode);
+        var result = engine.Evaluate("{ double x = 3.14; return x; }");
         Assert.That(result, Is.TypeOf<double>());
         Assert.That(result, Is.EqualTo(3.14));
     }
@@ -50,7 +56,8 @@ public class VariableDeclarationTests : EvaluatorTestBase
     [Test]
     public void TypedDeclaration_Float()
     {
-        var result = Eval("{ float x = 3.14f; return x; }");
+        var engine = CreateEngine(mode);
+        var result = engine.Evaluate("{ float x = 3.14f; return x; }");
         Assert.That(result, Is.TypeOf<float>());
         Assert.That((float)result!, Is.EqualTo(3.14f).Within(0.001f));
     }
@@ -58,7 +65,8 @@ public class VariableDeclarationTests : EvaluatorTestBase
     [Test]
     public void TypedDeclaration_Decimal()
     {
-        var result = Eval("{ decimal x = 3.14m; return x; }");
+        var engine = CreateEngine(mode);
+        var result = engine.Evaluate("{ decimal x = 3.14m; return x; }");
         Assert.That(result, Is.TypeOf<decimal>());
         Assert.That(result, Is.EqualTo(3.14m));
     }
@@ -66,7 +74,8 @@ public class VariableDeclarationTests : EvaluatorTestBase
     [Test]
     public void TypedDeclaration_String()
     {
-        var result = Eval("{ string x = \"hello\"; return x; }");
+        var engine = CreateEngine(mode);
+        var result = engine.Evaluate("{ string x = \"hello\"; return x; }");
         Assert.That(result, Is.TypeOf<string>());
         Assert.That(result, Is.EqualTo("hello"));
     }
@@ -74,7 +83,8 @@ public class VariableDeclarationTests : EvaluatorTestBase
     [Test]
     public void TypedDeclaration_Bool()
     {
-        var result = Eval("{ bool x = true; return x; }");
+        var engine = CreateEngine(mode);
+        var result = engine.Evaluate("{ bool x = true; return x; }");
         Assert.That(result, Is.TypeOf<bool>());
         Assert.That(result, Is.EqualTo(true));
     }
@@ -82,7 +92,8 @@ public class VariableDeclarationTests : EvaluatorTestBase
     [Test]
     public void TypedDeclaration_Object_AcceptsAny()
     {
-        var result = Eval("{ object x = 42; return x; }");
+        var engine = CreateEngine(mode);
+        var result = engine.Evaluate("{ object x = 42; return x; }");
         Assert.That(result, Is.EqualTo(42));
     }
 
@@ -93,9 +104,9 @@ public class VariableDeclarationTests : EvaluatorTestBase
     [Test]
     public void TypedDeclaration_Int_CoercesFromSmaller()
     {
-        var context = new EvalContext();
-        context.Define("b", (byte)100);
-        var result = Eval("{ int x = b; return x; }", context);
+        var engine = CreateEngine(mode);
+        engine.SetVariable("b", (byte)100);
+        var result = engine.Evaluate("{ int x = b; return x; }");
         Assert.That(result, Is.TypeOf<int>());
         Assert.That(result, Is.EqualTo(100));
     }
@@ -103,7 +114,8 @@ public class VariableDeclarationTests : EvaluatorTestBase
     [Test]
     public void TypedDeclaration_Long_CoercesFromInt()
     {
-        var result = Eval("{ long x = 42; return x; }");
+        var engine = CreateEngine(mode);
+        var result = engine.Evaluate("{ long x = 42; return x; }");
         Assert.That(result, Is.TypeOf<long>());
         Assert.That(result, Is.EqualTo(42));
     }
@@ -111,7 +123,8 @@ public class VariableDeclarationTests : EvaluatorTestBase
     [Test]
     public void TypedDeclaration_Double_CoercesFromInt()
     {
-        var result = Eval("{ double x = 42; return x; }");
+        var engine = CreateEngine(mode);
+        var result = engine.Evaluate("{ double x = 42; return x; }");
         Assert.That(result, Is.TypeOf<double>());
         Assert.That(result, Is.EqualTo(42.0));
     }
@@ -123,25 +136,29 @@ public class VariableDeclarationTests : EvaluatorTestBase
     [Test]
     public void TypedDeclaration_Int_ThrowsOnStringAssignment()
     {
-        Assert.Throws<EvalException>(() => Eval("{ int x = \"hello\"; return x; }"));
+        var engine = CreateEngine(mode);
+        Assert.Throws<CsEvalException>(() => engine.Evaluate("{ int x = \"hello\"; return x; }"));
     }
 
     [Test]
     public void TypedDeclaration_Int_ThrowsOnNullAssignment()
     {
-        Assert.Throws<EvalException>(() => Eval("{ int x = null; return x; }"));
+        var engine = CreateEngine(mode);
+        Assert.Throws<CsEvalException>(() => engine.Evaluate("{ int x = null; return x; }"));
     }
 
     [Test]
     public void TypedDeclaration_String_ThrowsOnIntAssignment()
     {
-        Assert.Throws<EvalException>(() => Eval("{ string x = 42; return x; }"));
+        var engine = CreateEngine(mode);
+        Assert.Throws<CsEvalException>(() => engine.Evaluate("{ string x = 42; return x; }"));
     }
 
     [Test]
     public void TypedDeclaration_Bool_ThrowsOnIntAssignment()
     {
-        Assert.Throws<EvalException>(() => Eval("{ bool x = 1; return x; }"));
+        var engine = CreateEngine(mode);
+        Assert.Throws<CsEvalException>(() => engine.Evaluate("{ bool x = 1; return x; }"));
     }
 
     #endregion
@@ -151,7 +168,8 @@ public class VariableDeclarationTests : EvaluatorTestBase
     [Test]
     public void TypedDeclaration_MultipleInBlock()
     {
-        var result = Eval(@"{
+        var engine = CreateEngine(mode);
+        var result = engine.Evaluate(@"{
             int x = 10;
             long y = 20L;
             double z = 1.5;

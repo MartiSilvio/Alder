@@ -361,7 +361,7 @@ public class ILCompilationTests
 
         Assert.That(expr.TryCompile(), Is.True);
 
-        Assert.Throws<Evaluation.EvalException>(() => engine.Evaluate(expr));
+        Assert.Throws<CsEvalException>(() => engine.Evaluate(expr));
     }
 
     #endregion

@@ -1,14 +1,15 @@
 namespace CsEval.Test.Evaluator;
 
-[TestFixture]
-public class AssignmentTests
+[TestFixture(CompilationMode.Eager)]
+[TestFixture(CompilationMode.OnDemand)]
+public class AssignmentTests(CompilationMode mode) : TestBase
 {
     #region Basic Assignment
 
     [Test]
     public void Assignment_SimpleVariable_UpdatesValue()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = 10;
@@ -22,7 +23,7 @@ public class AssignmentTests
     [Test]
     public void Assignment_MultipleAssignments_TracksLatestValue()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = 1;
@@ -38,7 +39,7 @@ public class AssignmentTests
     [Test]
     public void Assignment_ToExpressionResult_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = 5;
@@ -52,7 +53,7 @@ public class AssignmentTests
     [Test]
     public void Assignment_ChainedArithmetic_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = 1;
@@ -73,7 +74,7 @@ public class AssignmentTests
     [Test]
     public void Assignment_StringValue_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var s = ""hello"";
@@ -87,7 +88,7 @@ public class AssignmentTests
     [Test]
     public void Assignment_BooleanValue_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var flag = true;
@@ -101,7 +102,7 @@ public class AssignmentTests
     [Test]
     public void Assignment_NullValue_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var obj = ""something"";
@@ -115,7 +116,7 @@ public class AssignmentTests
     [Test]
     public void Assignment_DoubleValue_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var d = 1.5;
@@ -129,7 +130,7 @@ public class AssignmentTests
     [Test]
     public void Assignment_ArrayValue_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var arr = [1, 2, 3];
@@ -144,7 +145,7 @@ public class AssignmentTests
     [Test]
     public void Assignment_AnonymousObject_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var obj = new { Name = ""John"" };
@@ -164,7 +165,7 @@ public class AssignmentTests
     [Test]
     public void Assignment_ToExternalVariable_UpdatesValue()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         engine.SetVariable("x", 10L);
 
         var result = engine.Evaluate(@"
@@ -179,7 +180,7 @@ public class AssignmentTests
     [Test]
     public void Assignment_CombiningExternalAndLocal_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         engine.SetVariable("multiplier", 3L);
 
         var result = engine.Evaluate(@"
@@ -199,7 +200,7 @@ public class AssignmentTests
     [Test]
     public void Assignment_ReturnsAssignedValue()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = 0;
@@ -213,7 +214,7 @@ public class AssignmentTests
     [Test]
     public void Assignment_ChainedAssignment_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var a = 0;
@@ -233,7 +234,7 @@ public class AssignmentTests
     [Test]
     public void Assignment_InsideIf_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = 0;
@@ -249,7 +250,7 @@ public class AssignmentTests
     [Test]
     public void Assignment_InsideElse_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = 0;
@@ -267,7 +268,7 @@ public class AssignmentTests
     [Test]
     public void Assignment_ConditionalBranches_UpdatesCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         engine.SetVariable("condition", true);
 
         var result = engine.Evaluate(@"
@@ -291,7 +292,7 @@ public class AssignmentTests
     [Test]
     public void Assignment_WithLinqResult_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         engine.SetVariable("numbers", new List<int> { 1, 2, 3, 4, 5 });
 
         var result = engine.Evaluate(@"
@@ -308,7 +309,7 @@ public class AssignmentTests
     [Test]
     public void Assignment_AccumulatingLinqResults_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var items = [1, 2, 3];
@@ -328,7 +329,7 @@ public class AssignmentTests
     [Test]
     public void Assignment_WithMathResult_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var absValue = 0.0;
@@ -342,7 +343,7 @@ public class AssignmentTests
     [Test]
     public void Assignment_WithStringConcat_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var greeting = ""Hello"";
@@ -360,7 +361,7 @@ public class AssignmentTests
     [Test]
     public void Assignment_InnerBlockModifiesOuter_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = 1;
@@ -379,7 +380,7 @@ public class AssignmentTests
     [Test]
     public void Assignment_MultipleVariables_TracksIndependently()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var a = 1;
@@ -402,9 +403,9 @@ public class AssignmentTests
     [Test]
     public void Assignment_ToUndefinedVariable_ThrowsException()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
 
-        Assert.Throws<CsEval.Evaluation.EvalException>(() =>
+        Assert.Throws<CsEvalException>(() =>
             engine.Evaluate(@"
             {
                 undefinedVar = 10;
@@ -419,7 +420,7 @@ public class AssignmentTests
     [Test]
     public void Assignment_InterpolatedString_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var name = ""Alice"";
@@ -440,7 +441,7 @@ public class AssignmentTests
     [Test]
     public void Assignment_FromTernary_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         engine.SetVariable("condition", true);
 
         var result = engine.Evaluate(@"
@@ -460,7 +461,7 @@ public class AssignmentTests
     [Test]
     public void Assignment_FromNullCoalesce_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         engine.SetVariable("maybeNull", null);
 
         var result = engine.Evaluate(@"
@@ -476,7 +477,7 @@ public class AssignmentTests
     [Test]
     public void Assignment_VsNullCoalesceAssign_BothWork()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var a = null;
@@ -498,7 +499,7 @@ public class AssignmentTests
     [Test]
     public void Assignment_PreParsed_CanBeReused()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var expr = engine.Parse(@"
         {
             var x = startVal;
@@ -522,7 +523,7 @@ public class AssignmentTests
     [Test]
     public void CompoundAssignment_PlusEquals_Integer_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = 10;
@@ -536,7 +537,7 @@ public class AssignmentTests
     [Test]
     public void CompoundAssignment_MinusEquals_Integer_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = 20;
@@ -550,7 +551,7 @@ public class AssignmentTests
     [Test]
     public void CompoundAssignment_StarEquals_Integer_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = 6;
@@ -564,7 +565,7 @@ public class AssignmentTests
     [Test]
     public void CompoundAssignment_SlashEquals_Double_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = 100.0;
@@ -578,7 +579,7 @@ public class AssignmentTests
     [Test]
     public void CompoundAssignment_PercentEquals_Integer_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = 17;
@@ -596,7 +597,7 @@ public class AssignmentTests
     [Test]
     public void CompoundAssignment_AmpEquals_BitwiseAnd_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = 15;
@@ -611,7 +612,7 @@ public class AssignmentTests
     [Test]
     public void CompoundAssignment_PipeEquals_BitwiseOr_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = 5;
@@ -626,7 +627,7 @@ public class AssignmentTests
     [Test]
     public void CompoundAssignment_CaretEquals_BitwiseXor_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = 12;
@@ -641,7 +642,7 @@ public class AssignmentTests
     [Test]
     public void CompoundAssignment_LessLessEquals_LeftShift_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = 1;
@@ -656,7 +657,7 @@ public class AssignmentTests
     [Test]
     public void CompoundAssignment_GreaterGreaterEquals_RightShift_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = 32;
@@ -675,7 +676,7 @@ public class AssignmentTests
     [Test]
     public void CompoundAssignment_Long_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             long x = 10000000000;
@@ -689,7 +690,7 @@ public class AssignmentTests
     [Test]
     public void CompoundAssignment_Float_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             float x = 3.14f;
@@ -703,7 +704,7 @@ public class AssignmentTests
     [Test]
     public void CompoundAssignment_Decimal_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             decimal x = 100.50m;
@@ -717,7 +718,7 @@ public class AssignmentTests
     [Test]
     public void CompoundAssignment_MixedTypes_PromotesCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = 10;
@@ -736,7 +737,7 @@ public class AssignmentTests
     [Test]
     public void CompoundAssignment_StringPlusEquals_Concatenates()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var s = ""Hello"";
@@ -750,7 +751,7 @@ public class AssignmentTests
     [Test]
     public void CompoundAssignment_StringPlusEquals_Multiple()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var s = ""A"";
@@ -766,7 +767,7 @@ public class AssignmentTests
     [Test]
     public void CompoundAssignment_StringPlusEquals_WithNumber()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var s = ""Count: "";
@@ -784,7 +785,7 @@ public class AssignmentTests
     [Test]
     public void CompoundAssignment_InWhileLoop_Accumulates()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var sum = 0;
@@ -803,7 +804,7 @@ public class AssignmentTests
     [Test]
     public void CompoundAssignment_InForLoop_Accumulates()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var product = 1;
@@ -820,7 +821,7 @@ public class AssignmentTests
     [Test]
     public void CompoundAssignment_InForEachLoop_Accumulates()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var sum = 0;
@@ -836,7 +837,7 @@ public class AssignmentTests
     [Test]
     public void CompoundAssignment_InDoWhileLoop_Accumulates()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var sum = 0;
@@ -859,7 +860,7 @@ public class AssignmentTests
     [Test]
     public void CompoundAssignment_WithExpressionRHS_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = 10;
@@ -875,7 +876,7 @@ public class AssignmentTests
     [Test]
     public void CompoundAssignment_WithMethodCallRHS_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = 10.0;
@@ -889,7 +890,7 @@ public class AssignmentTests
     [Test]
     public void CompoundAssignment_WithTernaryRHS_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         engine.SetVariable("condition", true);
 
         var result = engine.Evaluate(@"
@@ -905,7 +906,7 @@ public class AssignmentTests
     [Test]
     public void CompoundAssignment_WithNullCoalesceRHS_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         engine.SetVariable("maybeNull", null);
 
         var result = engine.Evaluate(@"
@@ -925,7 +926,7 @@ public class AssignmentTests
     [Test]
     public void CompoundAssignment_MultipleOnSameVariable_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = 10;
@@ -943,7 +944,7 @@ public class AssignmentTests
     [Test]
     public void CompoundAssignment_ReturnsNewValue()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = 5;
@@ -957,7 +958,7 @@ public class AssignmentTests
     [Test]
     public void CompoundAssignment_MultipleVariables_Independent()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var a = 10;
@@ -980,7 +981,7 @@ public class AssignmentTests
     [Test]
     public void CompoundAssignment_ExternalVariable_Updates()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         engine.SetVariable("counter", 100L);
 
         var result = engine.Evaluate(@"
@@ -995,7 +996,7 @@ public class AssignmentTests
     [Test]
     public void CompoundAssignment_CombiningExternalAndLocal()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         engine.SetVariable("baseValue", 100L);
 
         var result = engine.Evaluate(@"
@@ -1018,7 +1019,7 @@ public class AssignmentTests
     [Test]
     public void CompoundAssignment_InsideIfBlock_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = 10;
@@ -1034,7 +1035,7 @@ public class AssignmentTests
     [Test]
     public void CompoundAssignment_InsideElseBlock_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = 10;
@@ -1052,7 +1053,7 @@ public class AssignmentTests
     [Test]
     public void CompoundAssignment_ConditionalPathSelection()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         engine.SetVariable("shouldAdd", true);
 
         var result = engine.Evaluate(@"
@@ -1076,9 +1077,9 @@ public class AssignmentTests
     [Test]
     public void CompoundAssignment_UndefinedVariable_ThrowsException()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
 
-        Assert.Throws<CsEval.Evaluation.EvalException>(() =>
+        Assert.Throws<CsEvalException>(() =>
             engine.Evaluate(@"
             {
                 undefinedVar += 10;
@@ -1089,9 +1090,9 @@ public class AssignmentTests
     [Test]
     public void CompoundAssignment_IncompatibleTypes_ThrowsException()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
 
-        Assert.Throws<CsEval.Evaluation.EvalException>(() =>
+        Assert.Throws<CsEvalException>(() =>
             engine.Evaluate(@"
             {
                 var s = ""hello"";
@@ -1103,7 +1104,7 @@ public class AssignmentTests
     [Test]
     public void CompoundAssignment_DivisionByZero_ThrowsException()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
 
         Assert.Throws<DivideByZeroException>(() =>
             engine.Evaluate(@"
@@ -1117,7 +1118,7 @@ public class AssignmentTests
     [Test]
     public void CompoundAssignment_ModuloByZero_ThrowsException()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
 
         Assert.Throws<DivideByZeroException>(() =>
             engine.Evaluate(@"
@@ -1135,7 +1136,7 @@ public class AssignmentTests
     [Test]
     public void CompoundAssignment_AllArithmeticOperators_WorkCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = 100.0;
@@ -1166,7 +1167,7 @@ public class AssignmentTests
     [Test]
     public void CompoundAssignment_AllBitwiseOperators_WorkCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var andResult = 15;
@@ -1198,7 +1199,7 @@ public class AssignmentTests
     [Test]
     public void CompoundAssignment_PreParsed_CanBeReused()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var expr = engine.Parse(@"
         {
             var x = startVal;
@@ -1224,7 +1225,7 @@ public class AssignmentTests
     [Test]
     public void CompoundAssignment_ZeroValue_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = 0;
@@ -1240,7 +1241,7 @@ public class AssignmentTests
     [Test]
     public void CompoundAssignment_NegativeNumbers_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = -10;
@@ -1254,7 +1255,7 @@ public class AssignmentTests
     [Test]
     public void CompoundAssignment_VeryLargeNumbers_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = 9000000000000000000L;
@@ -1268,7 +1269,7 @@ public class AssignmentTests
     [Test]
     public void CompoundAssignment_ShiftOperations_EdgeCases()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = 255;
@@ -1292,7 +1293,7 @@ public class AssignmentTests
     [Test]
     public void PrefixIncrement_Integer_IncrementsAndReturnsNewValue()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = 5;
@@ -1306,7 +1307,7 @@ public class AssignmentTests
     [Test]
     public void PrefixIncrement_UpdatesVariable()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = 10;
@@ -1320,7 +1321,7 @@ public class AssignmentTests
     [Test]
     public void PrefixIncrement_Long_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             long x = 9000000000;
@@ -1334,7 +1335,7 @@ public class AssignmentTests
     [Test]
     public void PrefixIncrement_Double_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = 3.5;
@@ -1348,7 +1349,7 @@ public class AssignmentTests
     [Test]
     public void PrefixIncrement_Float_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             float x = 2.5f;
@@ -1362,7 +1363,7 @@ public class AssignmentTests
     [Test]
     public void PrefixIncrement_Decimal_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             decimal x = 99.99m;
@@ -1380,7 +1381,7 @@ public class AssignmentTests
     [Test]
     public void PostfixIncrement_Integer_ReturnsOldValue()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = 5;
@@ -1394,7 +1395,7 @@ public class AssignmentTests
     [Test]
     public void PostfixIncrement_UpdatesVariable()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = 5;
@@ -1408,7 +1409,7 @@ public class AssignmentTests
     [Test]
     public void PostfixIncrement_ReturnsDifferentThanVariable()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = 10;
@@ -1423,7 +1424,7 @@ public class AssignmentTests
     [Test]
     public void PostfixIncrement_Long_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             long x = 5000000000;
@@ -1437,7 +1438,7 @@ public class AssignmentTests
     [Test]
     public void PostfixIncrement_Double_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = 1.5;
@@ -1455,7 +1456,7 @@ public class AssignmentTests
     [Test]
     public void PrefixDecrement_Integer_DecrementsAndReturnsNewValue()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = 10;
@@ -1469,7 +1470,7 @@ public class AssignmentTests
     [Test]
     public void PrefixDecrement_UpdatesVariable()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = 5;
@@ -1483,7 +1484,7 @@ public class AssignmentTests
     [Test]
     public void PrefixDecrement_ToNegative_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = 0;
@@ -1497,7 +1498,7 @@ public class AssignmentTests
     [Test]
     public void PrefixDecrement_Long_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             long x = 9000000001;
@@ -1511,7 +1512,7 @@ public class AssignmentTests
     [Test]
     public void PrefixDecrement_Double_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = 5.5;
@@ -1529,7 +1530,7 @@ public class AssignmentTests
     [Test]
     public void PostfixDecrement_Integer_ReturnsOldValue()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = 10;
@@ -1543,7 +1544,7 @@ public class AssignmentTests
     [Test]
     public void PostfixDecrement_UpdatesVariable()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = 10;
@@ -1557,7 +1558,7 @@ public class AssignmentTests
     [Test]
     public void PostfixDecrement_ReturnsDifferentThanVariable()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = 15;
@@ -1576,7 +1577,7 @@ public class AssignmentTests
     [Test]
     public void PrefixIncrement_InForLoop_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var sum = 0;
@@ -1593,7 +1594,7 @@ public class AssignmentTests
     [Test]
     public void PostfixIncrement_InForLoop_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var sum = 0;
@@ -1610,7 +1611,7 @@ public class AssignmentTests
     [Test]
     public void PrefixDecrement_InWhileLoop_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var count = 5;
@@ -1628,7 +1629,7 @@ public class AssignmentTests
     [Test]
     public void PostfixDecrement_InWhileLoop_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var count = 5;
@@ -1646,7 +1647,7 @@ public class AssignmentTests
     [Test]
     public void IncrementDecrement_InDoWhileLoop_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var i = 0;
@@ -1668,7 +1669,7 @@ public class AssignmentTests
     [Test]
     public void MultipleIncrements_OnSameVariable()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = 0;
@@ -1684,7 +1685,7 @@ public class AssignmentTests
     [Test]
     public void MultipleDecrements_OnSameVariable()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = 10;
@@ -1700,7 +1701,7 @@ public class AssignmentTests
     [Test]
     public void MixedIncrementDecrement_OnSameVariable()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = 5;
@@ -1717,7 +1718,7 @@ public class AssignmentTests
     [Test]
     public void IncrementDecrement_MultipleVariables()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var a = 0;
@@ -1740,7 +1741,7 @@ public class AssignmentTests
     [Test]
     public void Increment_WithAddition()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = 5;
@@ -1755,7 +1756,7 @@ public class AssignmentTests
     [Test]
     public void PrefixIncrement_WithAddition()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = 5;
@@ -1770,7 +1771,7 @@ public class AssignmentTests
     [Test]
     public void Increment_WithCompoundAssignment()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = 5;
@@ -1785,7 +1786,7 @@ public class AssignmentTests
     [Test]
     public void Increment_WithConditional()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = 5;
@@ -1806,7 +1807,7 @@ public class AssignmentTests
     [Test]
     public void Increment_ExternalVariable()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         engine.SetVariable("counter", 100L);
 
         var result = engine.Evaluate(@"
@@ -1821,7 +1822,7 @@ public class AssignmentTests
     [Test]
     public void Decrement_ExternalVariable()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         engine.SetVariable("counter", 100L);
 
         var result = engine.Evaluate(@"
@@ -1836,7 +1837,7 @@ public class AssignmentTests
     [Test]
     public void PrefixIncrement_ExternalVariable_ReturnsNewValue()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         engine.SetVariable("val", 50L);
 
         var result = engine.Evaluate(@"
@@ -1851,7 +1852,7 @@ public class AssignmentTests
     [Test]
     public void PostfixIncrement_ExternalVariable_ReturnsOldValue()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         engine.SetVariable("val", 50L);
 
         var result = engine.Evaluate(@"
@@ -1870,7 +1871,7 @@ public class AssignmentTests
     [Test]
     public void Increment_FromZero()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = 0;
@@ -1883,7 +1884,7 @@ public class AssignmentTests
     [Test]
     public void Decrement_ToZero()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = 1;
@@ -1896,7 +1897,7 @@ public class AssignmentTests
     [Test]
     public void Increment_NegativeNumber()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = -5;
@@ -1909,7 +1910,7 @@ public class AssignmentTests
     [Test]
     public void Decrement_NegativeNumber()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = -5;
@@ -1922,7 +1923,7 @@ public class AssignmentTests
     [Test]
     public void Increment_VeryLargeNumber()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             long x = 9223372036854775806;
@@ -1940,7 +1941,7 @@ public class AssignmentTests
     [Test]
     public void PrefixVsPostfix_InExpression()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var a = 5;
@@ -1957,7 +1958,7 @@ public class AssignmentTests
     [Test]
     public void PrefixVsPostfix_SameEndValue()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var a = 5;
@@ -1974,7 +1975,7 @@ public class AssignmentTests
     [Test]
     public void PrefixVsPostfix_DecrementComparison()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var a = 10;
@@ -1995,7 +1996,7 @@ public class AssignmentTests
     [Test]
     public void IncrementDecrement_PreParsed_CanBeReused()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var expr = engine.Parse(@"
         {
             var x = startVal;
@@ -2020,7 +2021,7 @@ public class AssignmentTests
     [Test]
     public void IndexAssignment_List_SetsValue()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var arr = [1, 2, 3];
@@ -2034,7 +2035,7 @@ public class AssignmentTests
     [Test]
     public void IndexAssignment_List_FirstElement()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var arr = [1, 2, 3];
@@ -2048,7 +2049,7 @@ public class AssignmentTests
     [Test]
     public void IndexAssignment_List_LastElement()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var arr = [1, 2, 3];
@@ -2062,7 +2063,7 @@ public class AssignmentTests
     [Test]
     public void IndexAssignment_List_ReturnsAssignedValue()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var arr = [1, 2, 3];
@@ -2076,7 +2077,7 @@ public class AssignmentTests
     [Test]
     public void IndexAssignment_ExternalList_ModifiesOriginal()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var list = new List<int> { 1, 2, 3 };
         engine.SetVariable("arr", list);
 
@@ -2088,7 +2089,7 @@ public class AssignmentTests
     [Test]
     public void IndexAssignment_ExternalArray_ModifiesOriginal()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var arr = new object?[] { 1, 2, 3 };
         engine.SetVariable("arr", arr);
 
@@ -2100,9 +2101,9 @@ public class AssignmentTests
     [Test]
     public void IndexAssignment_OutOfRange_ThrowsException()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
 
-        Assert.Throws<CsEval.Evaluation.EvalException>(() =>
+        Assert.Throws<CsEvalException>(() =>
             engine.Evaluate(@"
             {
                 var arr = [1, 2, 3];
@@ -2114,9 +2115,9 @@ public class AssignmentTests
     [Test]
     public void IndexAssignment_NegativeIndex_ThrowsException()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
 
-        Assert.Throws<CsEval.Evaluation.EvalException>(() =>
+        Assert.Throws<CsEvalException>(() =>
             engine.Evaluate(@"
             {
                 var arr = [1, 2, 3];
@@ -2128,10 +2129,10 @@ public class AssignmentTests
     [Test]
     public void IndexAssignment_OnNull_ThrowsException()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         engine.SetVariable("arr", null);
 
-        Assert.Throws<CsEval.Evaluation.EvalException>(() =>
+        Assert.Throws<CsEvalException>(() =>
             engine.Evaluate("arr[0] = 5"));
     }
 
@@ -2142,7 +2143,7 @@ public class AssignmentTests
     [Test]
     public void IndexAssignment_Dictionary_SetsValue()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var dict = new { name = ""John"" };
@@ -2156,7 +2157,7 @@ public class AssignmentTests
     [Test]
     public void IndexAssignment_Dictionary_AddsNewKey()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var dict = new { name = ""John"" };
@@ -2170,7 +2171,7 @@ public class AssignmentTests
     [Test]
     public void IndexAssignment_ExternalDictionary_ModifiesOriginal()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var dict = new Dictionary<string, object?> { ["key"] = "old" };
         engine.SetVariable("dict", dict);
 
@@ -2182,7 +2183,7 @@ public class AssignmentTests
     [Test]
     public void IndexAssignment_Dictionary_ReturnsAssignedValue()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var dict = new { a = 1 };
@@ -2200,7 +2201,7 @@ public class AssignmentTests
     [Test]
     public void IndexAssignment_InForLoop_PopulatesArray()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var arr = [0, 0, 0, 0, 0];
@@ -2216,7 +2217,7 @@ public class AssignmentTests
     [Test]
     public void IndexAssignment_InWhileLoop_Works()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var arr = [1, 2, 3];
@@ -2238,7 +2239,7 @@ public class AssignmentTests
     [Test]
     public void PropertyAssignment_AnonymousObject_SetsValue()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var obj = new { Name = ""John"" };
@@ -2252,7 +2253,7 @@ public class AssignmentTests
     [Test]
     public void PropertyAssignment_AnonymousObject_AddsNewProperty()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var obj = new { Name = ""John"" };
@@ -2266,7 +2267,7 @@ public class AssignmentTests
     [Test]
     public void PropertyAssignment_ReturnsAssignedValue()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var obj = new { Value = 0 };
@@ -2280,7 +2281,7 @@ public class AssignmentTests
     [Test]
     public void PropertyAssignment_NestedObject()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var obj = new { Inner = new { Value = 10 } };
@@ -2294,10 +2295,10 @@ public class AssignmentTests
     [Test]
     public void PropertyAssignment_OnNull_ThrowsException()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         engine.SetVariable("obj", null);
 
-        Assert.Throws<CsEval.Evaluation.EvalException>(() =>
+        Assert.Throws<CsEvalException>(() =>
             engine.Evaluate("obj.Name = \"test\""));
     }
 
@@ -2308,7 +2309,7 @@ public class AssignmentTests
     [Test]
     public void PropertyAssignment_TypedObject_SetsProperty()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var person = new TestPerson { Name = "John", Age = 25 };
         engine.SetVariable("person", person);
 
@@ -2320,7 +2321,7 @@ public class AssignmentTests
     [Test]
     public void PropertyAssignment_TypedObject_SetsIntProperty()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var person = new TestPerson { Name = "John", Age = 25 };
         engine.SetVariable("person", person);
 
@@ -2332,10 +2333,10 @@ public class AssignmentTests
     [Test]
     public void PropertyAssignment_ReadOnlyProperty_ThrowsException()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         engine.SetVariable("text", "hello");
 
-        Assert.Throws<CsEval.Evaluation.EvalException>(() =>
+        Assert.Throws<CsEvalException>(() =>
             engine.Evaluate("text.Length = 10"));
     }
 
@@ -2352,7 +2353,7 @@ public class AssignmentTests
     [Test]
     public void PropertyAssignment_InForLoop_Works()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var obj = new { Counter = 0 };
@@ -2372,7 +2373,7 @@ public class AssignmentTests
     [Test]
     public void MixedAssignment_ArrayOfObjects()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var items = [new { Value = 1 }, new { Value = 2 }];
@@ -2386,7 +2387,7 @@ public class AssignmentTests
     [Test]
     public void MixedAssignment_ObjectWithArray()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var obj = new { Items = [1, 2, 3] };

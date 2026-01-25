@@ -4,16 +4,18 @@ namespace CsEval.Test.Evaluator;
 /// Comprehensive numeric tests to ensure CsEval handles all numeric types correctly.
 /// Numeric precision and type handling is critical - errors here can cause subtle bugs.
 /// </summary>
-[TestFixture]
-public class NumericTests : EvaluatorTestBase
+[TestFixture(CompilationMode.Eager)]
+[TestFixture(CompilationMode.OnDemand)]
+public class NumericTests(CompilationMode mode) : TestBase
 {
     #region Literal Parsing
 
     [Test]
     public void IntegerLiteral_ParsedAsInt()
     {
+        var engine = CreateEngine(mode);
         // C# behavior: unsuffixed integers are int
-        var result = Eval("42");
+        var result = engine.Evaluate("42");
         Assert.That(result, Is.TypeOf<int>());
         Assert.That(result, Is.EqualTo(42));
     }
@@ -21,7 +23,8 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void ZeroLiteral_ParsedAsInt()
     {
-        var result = Eval("0");
+        var engine = CreateEngine(mode);
+        var result = engine.Evaluate("0");
         Assert.That(result, Is.TypeOf<int>());
         Assert.That(result, Is.EqualTo(0));
     }
@@ -29,7 +32,8 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void NegativeInteger_ParsedAsInt()
     {
-        var result = Eval("-42");
+        var engine = CreateEngine(mode);
+        var result = engine.Evaluate("-42");
         Assert.That(result, Is.TypeOf<int>());
         Assert.That(result, Is.EqualTo(-42));
     }
@@ -37,8 +41,9 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void LargeInteger_AutoPromotesToLong()
     {
+        var engine = CreateEngine(mode);
         // C# behavior: integers too large for int auto-promote to long
-        var result = Eval("9223372036854775807"); // long.MaxValue
+        var result = engine.Evaluate("9223372036854775807"); // long.MaxValue
         Assert.That(result, Is.TypeOf<long>());
         Assert.That(result, Is.EqualTo(long.MaxValue));
     }
@@ -46,7 +51,8 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void IntegerWithLSuffix_ParsedAsLong()
     {
-        var result = Eval("42L");
+        var engine = CreateEngine(mode);
+        var result = engine.Evaluate("42L");
         Assert.That(result, Is.TypeOf<long>());
         Assert.That(result, Is.EqualTo(42));
     }
@@ -54,7 +60,8 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void FloatSuffix_ParsedAsFloat()
     {
-        var result = Eval("3.14f");
+        var engine = CreateEngine(mode);
+        var result = engine.Evaluate("3.14f");
         Assert.That(result, Is.TypeOf<float>());
         Assert.That((float)result!, Is.EqualTo(3.14f).Within(0.001f));
     }
@@ -62,7 +69,8 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void DecimalSuffix_ParsedAsDecimal()
     {
-        var result = Eval("3.14m");
+        var engine = CreateEngine(mode);
+        var result = engine.Evaluate("3.14m");
         Assert.That(result, Is.TypeOf<decimal>());
         Assert.That(result, Is.EqualTo(3.14m));
     }
@@ -70,7 +78,8 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void IntegerWithDecimalSuffix_ParsedAsDecimal()
     {
-        var result = Eval("42m");
+        var engine = CreateEngine(mode);
+        var result = engine.Evaluate("42m");
         Assert.That(result, Is.TypeOf<decimal>());
         Assert.That(result, Is.EqualTo(42m));
     }
@@ -78,7 +87,8 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void DecimalLiteral_ParsedAsDouble()
     {
-        var result = Eval("3.14");
+        var engine = CreateEngine(mode);
+        var result = engine.Evaluate("3.14");
         Assert.That(result, Is.TypeOf<double>());
         Assert.That(result, Is.EqualTo(3.14));
     }
@@ -86,7 +96,8 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void DecimalWithLeadingZero_ParsedAsDouble()
     {
-        var result = Eval("0.5");
+        var engine = CreateEngine(mode);
+        var result = engine.Evaluate("0.5");
         Assert.That(result, Is.TypeOf<double>());
         Assert.That(result, Is.EqualTo(0.5));
     }
@@ -94,7 +105,8 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void NegativeDecimal_ParsedAsDouble()
     {
-        var result = Eval("-3.14");
+        var engine = CreateEngine(mode);
+        var result = engine.Evaluate("-3.14");
         Assert.That(result, Is.TypeOf<double>());
         Assert.That(result, Is.EqualTo(-3.14));
     }
@@ -102,7 +114,8 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void SmallDecimal_PreservesPrecision()
     {
-        var result = Eval("0.00001");
+        var engine = CreateEngine(mode);
+        var result = engine.Evaluate("0.00001");
         Assert.That(result, Is.TypeOf<double>());
         Assert.That(result, Is.EqualTo(0.00001));
     }
@@ -114,8 +127,9 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void IntPlusInt_ReturnsInt()
     {
+        var engine = CreateEngine(mode);
         // C# behavior: int + int → int
-        var result = Eval("5 + 3");
+        var result = engine.Evaluate("5 + 3");
         Assert.That(result, Is.TypeOf<int>());
         Assert.That(result, Is.EqualTo(8));
     }
@@ -123,7 +137,8 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void IntMinusInt_ReturnsInt()
     {
-        var result = Eval("10 - 4");
+        var engine = CreateEngine(mode);
+        var result = engine.Evaluate("10 - 4");
         Assert.That(result, Is.TypeOf<int>());
         Assert.That(result, Is.EqualTo(6));
     }
@@ -131,7 +146,8 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void IntTimesInt_ReturnsInt()
     {
-        var result = Eval("6 * 7");
+        var engine = CreateEngine(mode);
+        var result = engine.Evaluate("6 * 7");
         Assert.That(result, Is.TypeOf<int>());
         Assert.That(result, Is.EqualTo(42));
     }
@@ -139,8 +155,9 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void IntDivideInt_ReturnsInt()
     {
+        var engine = CreateEngine(mode);
         // C# behavior: int / int → int (truncating division)
-        var result = Eval("10 / 4");
+        var result = engine.Evaluate("10 / 4");
         Assert.That(result, Is.TypeOf<int>());
         Assert.That(result, Is.EqualTo(2));
     }
@@ -148,8 +165,9 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void LongPlusLong_ReturnsLong()
     {
+        var engine = CreateEngine(mode);
         // Use L suffix to get long operands
-        var result = Eval("5L + 3L");
+        var result = engine.Evaluate("5L + 3L");
         Assert.That(result, Is.TypeOf<long>());
         Assert.That(result, Is.EqualTo(8));
     }
@@ -157,8 +175,9 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void IntPlusLong_ReturnsLong()
     {
+        var engine = CreateEngine(mode);
         // C# behavior: int + long → long
-        var result = Eval("5 + 3L");
+        var result = engine.Evaluate("5 + 3L");
         Assert.That(result, Is.TypeOf<long>());
         Assert.That(result, Is.EqualTo(8));
     }
@@ -166,7 +185,8 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void DoublePlusDouble_ReturnsDouble()
     {
-        var result = Eval("1.5 + 2.5");
+        var engine = CreateEngine(mode);
+        var result = engine.Evaluate("1.5 + 2.5");
         Assert.That(result, Is.TypeOf<double>());
         Assert.That(result, Is.EqualTo(4.0));
     }
@@ -174,7 +194,8 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void DoubleTimesDouble_ReturnsDouble()
     {
-        var result = Eval("2.5 * 4.0");
+        var engine = CreateEngine(mode);
+        var result = engine.Evaluate("2.5 * 4.0");
         Assert.That(result, Is.TypeOf<double>());
         Assert.That(result, Is.EqualTo(10.0));
     }
@@ -186,7 +207,8 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void LongPlusDouble_ReturnsDouble()
     {
-        var result = Eval("5 + 2.5");
+        var engine = CreateEngine(mode);
+        var result = engine.Evaluate("5 + 2.5");
         Assert.That(result, Is.TypeOf<double>());
         Assert.That(result, Is.EqualTo(7.5));
     }
@@ -194,7 +216,8 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void DoublePlusLong_ReturnsDouble()
     {
-        var result = Eval("2.5 + 5");
+        var engine = CreateEngine(mode);
+        var result = engine.Evaluate("2.5 + 5");
         Assert.That(result, Is.TypeOf<double>());
         Assert.That(result, Is.EqualTo(7.5));
     }
@@ -202,9 +225,9 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void IntTimesInt_FromVariable_ReturnsInt()
     {
-        var context = new EvalContext();
-        context.Define("x", 5); // int
-        var result = Eval("x * 2", context); // 2 is now int (C# behavior)
+        var engine = CreateEngine(mode);
+        engine.SetVariable("x", 5); // int
+        var result = engine.Evaluate("x * 2"); // 2 is now int (C# behavior)
         Assert.That(result, Is.TypeOf<int>());
         Assert.That(result, Is.EqualTo(10));
     }
@@ -212,9 +235,9 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void IntTimesLong_ReturnsLong()
     {
-        var context = new EvalContext();
-        context.Define("x", 5); // int
-        var result = Eval("x * 2L", context); // Use L suffix for long
+        var engine = CreateEngine(mode);
+        engine.SetVariable("x", 5); // int
+        var result = engine.Evaluate("x * 2L"); // Use L suffix for long
         Assert.That(result, Is.TypeOf<long>());
         Assert.That(result, Is.EqualTo(10));
     }
@@ -222,9 +245,9 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void IntTimesDouble_ReturnsDouble()
     {
-        var context = new EvalContext();
-        context.Define("x", 5); // int
-        var result = Eval("x * 2.5", context);
+        var engine = CreateEngine(mode);
+        engine.SetVariable("x", 5); // int
+        var result = engine.Evaluate("x * 2.5");
         Assert.That(result, Is.TypeOf<double>());
         Assert.That(result, Is.EqualTo(12.5));
     }
@@ -237,10 +260,10 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void SByte_Arithmetic()
     {
-        var context = new EvalContext();
-        context.Define("x", (sbyte)10);
-        context.Define("y", (sbyte)5);
-        var result = Eval("x + y", context);
+        var engine = CreateEngine(mode);
+        engine.SetVariable("x", (sbyte)10);
+        engine.SetVariable("y", (sbyte)5);
+        var result = engine.Evaluate("x + y");
         Assert.That(result, Is.TypeOf<int>()); // C# promotes sbyte to int
         Assert.That(result, Is.EqualTo(15));
     }
@@ -248,10 +271,10 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void Short_Arithmetic()
     {
-        var context = new EvalContext();
-        context.Define("x", (short)1000);
-        context.Define("y", (short)234);
-        var result = Eval("x + y", context);
+        var engine = CreateEngine(mode);
+        engine.SetVariable("x", (short)1000);
+        engine.SetVariable("y", (short)234);
+        var result = engine.Evaluate("x + y");
         Assert.That(result, Is.TypeOf<int>()); // C# promotes short to int
         Assert.That(result, Is.EqualTo(1234));
     }
@@ -259,10 +282,10 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void Int_Arithmetic()
     {
-        var context = new EvalContext();
-        context.Define("x", 100000);
-        context.Define("y", 23456);
-        var result = Eval("x + y", context);
+        var engine = CreateEngine(mode);
+        engine.SetVariable("x", 100000);
+        engine.SetVariable("y", 23456);
+        var result = engine.Evaluate("x + y");
         Assert.That(result, Is.TypeOf<int>()); // int + int → int
         Assert.That(result, Is.EqualTo(123456));
     }
@@ -270,10 +293,10 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void Long_Arithmetic()
     {
-        var context = new EvalContext();
-        context.Define("x", 10000000000L);
-        context.Define("y", 2345678901L);
-        var result = Eval("x + y", context);
+        var engine = CreateEngine(mode);
+        engine.SetVariable("x", 10000000000L);
+        engine.SetVariable("y", 2345678901L);
+        var result = engine.Evaluate("x + y");
         Assert.That(result, Is.TypeOf<long>());
         Assert.That(result, Is.EqualTo(12345678901L));
     }
@@ -282,10 +305,10 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void Byte_Arithmetic()
     {
-        var context = new EvalContext();
-        context.Define("x", (byte)200);
-        context.Define("y", (byte)55);
-        var result = Eval("x + y", context);
+        var engine = CreateEngine(mode);
+        engine.SetVariable("x", (byte)200);
+        engine.SetVariable("y", (byte)55);
+        var result = engine.Evaluate("x + y");
         Assert.That(result, Is.TypeOf<int>()); // C# promotes byte to int
         Assert.That(result, Is.EqualTo(255));
     }
@@ -293,10 +316,10 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void UShort_Arithmetic()
     {
-        var context = new EvalContext();
-        context.Define("x", (ushort)60000);
-        context.Define("y", (ushort)5535);
-        var result = Eval("x + y", context);
+        var engine = CreateEngine(mode);
+        engine.SetVariable("x", (ushort)60000);
+        engine.SetVariable("y", (ushort)5535);
+        var result = engine.Evaluate("x + y");
         Assert.That(result, Is.TypeOf<int>()); // C# promotes ushort to int
         Assert.That(result, Is.EqualTo(65535));
     }
@@ -304,11 +327,11 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void UInt_Arithmetic()
     {
+        var engine = CreateEngine(mode);
         // C# behavior: uint + uint → uint
-        var context = new EvalContext();
-        context.Define("x", 4000000000u);
-        context.Define("y", 294967295u);
-        var result = Eval("x + y", context);
+        engine.SetVariable("x", 4000000000u);
+        engine.SetVariable("y", 294967295u);
+        var result = engine.Evaluate("x + y");
         Assert.That(result, Is.TypeOf<uint>());
         Assert.That(result, Is.EqualTo(4294967295u));
     }
@@ -316,11 +339,11 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void ULong_Arithmetic()
     {
+        var engine = CreateEngine(mode);
         // C# behavior: ulong + ulong → ulong
-        var context = new EvalContext();
-        context.Define("x", 10000000000UL);
-        context.Define("y", 5000000000UL);
-        var result = Eval("x + y", context);
+        engine.SetVariable("x", 10000000000UL);
+        engine.SetVariable("y", 5000000000UL);
+        var result = engine.Evaluate("x + y");
         Assert.That(result, Is.TypeOf<ulong>());
         Assert.That(result, Is.EqualTo(15000000000UL));
     }
@@ -329,11 +352,11 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void Float_Arithmetic()
     {
+        var engine = CreateEngine(mode);
         // C# behavior: float + float → float
-        var context = new EvalContext();
-        context.Define("x", 10.5f);
-        context.Define("y", 5.25f);
-        var result = Eval("x + y", context);
+        engine.SetVariable("x", 10.5f);
+        engine.SetVariable("y", 5.25f);
+        var result = engine.Evaluate("x + y");
         Assert.That(result, Is.TypeOf<float>());
         Assert.That((float)result!, Is.EqualTo(15.75f).Within(0.001f));
     }
@@ -341,10 +364,10 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void Double_Arithmetic()
     {
-        var context = new EvalContext();
-        context.Define("x", 10.5d);
-        context.Define("y", 5.25d);
-        var result = Eval("x + y", context);
+        var engine = CreateEngine(mode);
+        engine.SetVariable("x", 10.5d);
+        engine.SetVariable("y", 5.25d);
+        var result = engine.Evaluate("x + y");
         Assert.That(result, Is.TypeOf<double>());
         Assert.That(result, Is.EqualTo(15.75));
     }
@@ -352,10 +375,10 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void Decimal_Arithmetic()
     {
-        var context = new EvalContext();
-        context.Define("x", 10.5m);
-        context.Define("y", 5.25m);
-        var result = Eval("x + y", context);
+        var engine = CreateEngine(mode);
+        engine.SetVariable("x", 10.5m);
+        engine.SetVariable("y", 5.25m);
+        var result = engine.Evaluate("x + y");
         Assert.That(result, Is.TypeOf<decimal>());
         Assert.That(result, Is.EqualTo(15.75m));
     }
@@ -364,11 +387,11 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void BytePlusShort_ReturnsInt()
     {
+        var engine = CreateEngine(mode);
         // C# promotes both to int for arithmetic
-        var context = new EvalContext();
-        context.Define("x", (byte)100);
-        context.Define("y", (short)200);
-        var result = Eval("x + y", context);
+        engine.SetVariable("x", (byte)100);
+        engine.SetVariable("y", (short)200);
+        var result = engine.Evaluate("x + y");
         Assert.That(result, Is.TypeOf<int>());
         Assert.That(result, Is.EqualTo(300));
     }
@@ -376,11 +399,11 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void IntPlusFloat_ReturnsFloat()
     {
+        var engine = CreateEngine(mode);
         // C# behavior: int + float → float
-        var context = new EvalContext();
-        context.Define("x", 10);
-        context.Define("y", 5.5f);
-        var result = Eval("x + y", context);
+        engine.SetVariable("x", 10);
+        engine.SetVariable("y", 5.5f);
+        var result = engine.Evaluate("x + y");
         Assert.That(result, Is.TypeOf<float>());
         Assert.That((float)result!, Is.EqualTo(15.5f).Within(0.001f));
     }
@@ -388,10 +411,10 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void FloatPlusDouble_ReturnsDouble()
     {
-        var context = new EvalContext();
-        context.Define("x", 10.5f);
-        context.Define("y", 5.25d);
-        var result = Eval("x + y", context);
+        var engine = CreateEngine(mode);
+        engine.SetVariable("x", 10.5f);
+        engine.SetVariable("y", 5.25d);
+        var result = engine.Evaluate("x + y");
         Assert.That(result, Is.TypeOf<double>());
         Assert.That((double)result!, Is.EqualTo(15.75).Within(0.001));
     }
@@ -399,10 +422,10 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void IntPlusDecimal_ReturnsDecimal()
     {
-        var context = new EvalContext();
-        context.Define("x", 10);
-        context.Define("y", 5.5m);
-        var result = Eval("x + y", context);
+        var engine = CreateEngine(mode);
+        engine.SetVariable("x", 10);
+        engine.SetVariable("y", 5.5m);
+        var result = engine.Evaluate("x + y");
         Assert.That(result, Is.TypeOf<decimal>());
         Assert.That(result, Is.EqualTo(15.5m));
     }
@@ -410,21 +433,21 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void FloatPlusDecimal_Throws()
     {
+        var engine = CreateEngine(mode);
         // C# forbids mixing float and decimal - compile-time error
-        var context = new EvalContext();
-        context.Define("x", 10.5f);
-        context.Define("y", 5.25m);
-        Assert.Throws<Microsoft.CSharp.RuntimeBinder.RuntimeBinderException>(() => Eval("x + y", context));
+        engine.SetVariable("x", 10.5f);
+        engine.SetVariable("y", 5.25m);
+        Assert.Throws<Microsoft.CSharp.RuntimeBinder.RuntimeBinderException>(() => engine.Evaluate("x + y"));
     }
 
     [Test]
     public void DoublePlusDecimal_Throws()
     {
+        var engine = CreateEngine(mode);
         // C# forbids mixing double and decimal - compile-time error
-        var context = new EvalContext();
-        context.Define("x", 10.5d);
-        context.Define("y", 5.25m);
-        Assert.Throws<Microsoft.CSharp.RuntimeBinder.RuntimeBinderException>(() => Eval("x + y", context));
+        engine.SetVariable("x", 10.5d);
+        engine.SetVariable("y", 5.25m);
+        Assert.Throws<Microsoft.CSharp.RuntimeBinder.RuntimeBinderException>(() => engine.Evaluate("x + y"));
     }
 
     #endregion
@@ -434,39 +457,42 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void IntEqualsLong_Works()
     {
-        var context = new EvalContext();
-        context.Define("x", 42); // int
-        var result = Eval("x == 42", context);
+        var engine = CreateEngine(mode);
+        engine.SetVariable("x", 42); // int
+        var result = engine.Evaluate("x == 42");
         Assert.That(result, Is.True);
     }
 
     [Test]
     public void LongEqualsInt_Works()
     {
-        var context = new EvalContext();
-        context.Define("x", 42L); // long
-        var result = Eval("x == 42", context);
+        var engine = CreateEngine(mode);
+        engine.SetVariable("x", 42L); // long
+        var result = engine.Evaluate("x == 42");
         Assert.That(result, Is.True);
     }
 
     [Test]
     public void DoubleEqualsDouble_Works()
     {
-        var result = Eval("3.14 == 3.14");
+        var engine = CreateEngine(mode);
+        var result = engine.Evaluate("3.14 == 3.14");
         Assert.That(result, Is.True);
     }
 
     [Test]
     public void LongLessThanDouble_Works()
     {
-        var result = Eval("5 < 5.5");
+        var engine = CreateEngine(mode);
+        var result = engine.Evaluate("5 < 5.5");
         Assert.That(result, Is.True);
     }
 
     [Test]
     public void DoubleGreaterThanLong_Works()
     {
-        var result = Eval("5.5 > 5");
+        var engine = CreateEngine(mode);
+        var result = engine.Evaluate("5.5 > 5");
         Assert.That(result, Is.True);
     }
 
@@ -477,49 +503,49 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void Contains_IntListWithLongLiteral_Works()
     {
-        var context = new EvalContext();
-        context.Define("numbers", new List<object?> { 1, 2, 3 }); // boxed ints
-        var result = Eval("numbers.Contains(2)", context); // 2 is long
+        var engine = CreateEngine(mode);
+        engine.SetVariable("numbers", new List<object?> { 1, 2, 3 }); // boxed ints
+        var result = engine.Evaluate("numbers.Contains(2)"); // 2 is long
         Assert.That(result, Is.True);
     }
 
     [Test]
     public void Contains_LongListWithIntVariable_Works()
     {
-        var context = new EvalContext();
-        context.Define("numbers", new List<object?> { 1L, 2L, 3L }); // longs
-        context.Define("search", 2); // int
-        var result = Eval("numbers.Contains(search)", context);
+        var engine = CreateEngine(mode);
+        engine.SetVariable("numbers", new List<object?> { 1L, 2L, 3L }); // longs
+        engine.SetVariable("search", 2); // int
+        var result = engine.Evaluate("numbers.Contains(search)");
         Assert.That(result, Is.True);
     }
 
     [Test]
     public void Contains_DoubleListWithDoubleLiteral_Works()
     {
-        var context = new EvalContext();
-        context.Define("numbers", new List<object?> { 1.5, 2.5, 3.5 });
-        var result = Eval("numbers.Contains(2.5)", context);
+        var engine = CreateEngine(mode);
+        engine.SetVariable("numbers", new List<object?> { 1.5, 2.5, 3.5 });
+        var result = engine.Evaluate("numbers.Contains(2.5)");
         Assert.That(result, Is.True);
     }
 
     [Test]
     public void Contains_DecimalListWithDoubleLiteral_Works()
     {
-        var context = new EvalContext();
-        context.Define("numbers", new List<object?> { 1.5m, 2.5m, 3.5m }); // decimals
-        var result = Eval("numbers.Contains(2.5)", context); // 2.5 is double
+        var engine = CreateEngine(mode);
+        engine.SetVariable("numbers", new List<object?> { 1.5m, 2.5m, 3.5m }); // decimals
+        var result = engine.Evaluate("numbers.Contains(2.5)"); // 2.5 is double
         Assert.That(result, Is.True);
     }
 
     [Test]
     public void Contains_MixedNumericTypes_Works()
     {
-        var context = new EvalContext();
-        context.Define("numbers", new List<object?> { 1, 2L, 3.0, 4.0f }); // mixed
-        Assert.That(Eval("numbers.Contains(1)", context), Is.True);
-        Assert.That(Eval("numbers.Contains(2)", context), Is.True);
-        Assert.That(Eval("numbers.Contains(3)", context), Is.True);
-        Assert.That(Eval("numbers.Contains(4)", context), Is.True);
+        var engine = CreateEngine(mode);
+        engine.SetVariable("numbers", new List<object?> { 1, 2L, 3.0, 4.0f }); // mixed
+        Assert.That(engine.Evaluate("numbers.Contains(1)"), Is.True);
+        Assert.That(engine.Evaluate("numbers.Contains(2)"), Is.True);
+        Assert.That(engine.Evaluate("numbers.Contains(3)"), Is.True);
+        Assert.That(engine.Evaluate("numbers.Contains(4)"), Is.True);
     }
 
     #endregion
@@ -531,7 +557,8 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void Double_ClassicPrecisionIssue_PointOnePointTwo()
     {
-        var result = Eval("0.1 + 0.2");
+        var engine = CreateEngine(mode);
+        var result = engine.Evaluate("0.1 + 0.2");
         Assert.That(result, Is.TypeOf<double>());
         // 0.1 + 0.2 in double is NOT exactly 0.3
         Assert.That((double)result!, Is.Not.EqualTo(0.3));
@@ -541,11 +568,11 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void Decimal_PointOneIsExact()
     {
+        var engine = CreateEngine(mode);
         // Decimal can represent 0.1 exactly (unlike double)
-        var context = new EvalContext();
-        context.Define("x", 0.1m);
-        context.Define("y", 0.2m);
-        var result = Eval("x + y", context);
+        engine.SetVariable("x", 0.1m);
+        engine.SetVariable("y", 0.2m);
+        var result = engine.Evaluate("x + y");
         Assert.That(result, Is.TypeOf<decimal>());
         Assert.That(result, Is.EqualTo(0.3m)); // Exact!
     }
@@ -555,18 +582,18 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void Double_CompoundingError_RepeatedAddition()
     {
-        var context = new EvalContext();
-        context.Define("sum", 0.0);
-        context.Define("increment", 0.01);
+        var engine = CreateEngine(mode);
+        engine.SetVariable("sum", 0.0);
+        engine.SetVariable("increment", 0.01);
 
         // Simulate adding 0.01 ten times
         for (int i = 0; i < 10; i++)
         {
-            var current = (double)Eval("sum", context)!;
-            context.Define("sum", current + 0.01);
+            var current = (double)engine.Evaluate("sum")!;
+            engine.SetVariable("sum", current + 0.01);
         }
 
-        var result = (double)Eval("sum", context)!;
+        var result = (double)engine.Evaluate("sum")!;
         // Should be 0.1, but double accumulates error
         Assert.That(result, Is.Not.EqualTo(0.1));
         Assert.That(result, Is.EqualTo(0.09999999999999999).Within(1e-16));
@@ -575,17 +602,17 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void Decimal_NoCompoundingError_RepeatedAddition()
     {
-        var context = new EvalContext();
-        context.Define("sum", 0.0m);
+        var engine = CreateEngine(mode);
+        engine.SetVariable("sum", 0.0m);
 
         // Simulate adding 0.01 ten times
         for (int i = 0; i < 10; i++)
         {
-            var current = (decimal)Eval("sum", context)!;
-            context.Define("sum", current + 0.01m);
+            var current = (decimal)engine.Evaluate("sum")!;
+            engine.SetVariable("sum", current + 0.01m);
         }
 
-        var result = Eval("sum", context);
+        var result = engine.Evaluate("sum");
         Assert.That(result, Is.TypeOf<decimal>());
         Assert.That(result, Is.EqualTo(0.1m)); // Exact!
     }
@@ -594,9 +621,9 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void Double_DivisionMultiplication_OneThird()
     {
-        var context = new EvalContext();
-        context.Define("x", 1.0 / 3.0);
-        var result = Eval("x * 3", context);
+        var engine = CreateEngine(mode);
+        engine.SetVariable("x", 1.0 / 3.0);
+        var result = engine.Evaluate("x * 3");
         // Double: may not be exactly 1
         Assert.That((double)result!, Is.EqualTo(1.0).Within(1e-15));
     }
@@ -604,9 +631,9 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void Decimal_DivisionMultiplication_OneThird()
     {
-        var context = new EvalContext();
-        context.Define("third", 1.0m / 3.0m);
-        var result = Eval("third * 3", context);
+        var engine = CreateEngine(mode);
+        engine.SetVariable("third", 1.0m / 3.0m);
+        var result = engine.Evaluate("third * 3");
         Assert.That(result, Is.TypeOf<decimal>());
         // Decimal also has rounding, but different behavior
         Assert.That((decimal)result!, Is.EqualTo(1.0m).Within(0.0000000001m));
@@ -616,17 +643,18 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void LargeLongArithmetic_NoOverflow()
     {
-        var context = new EvalContext();
-        context.Define("x", long.MaxValue - 1);
-        var result = Eval("x + 1", context);
+        var engine = CreateEngine(mode);
+        engine.SetVariable("x", long.MaxValue - 1);
+        var result = engine.Evaluate("x + 1");
         Assert.That(result, Is.EqualTo(long.MaxValue));
     }
 
     [Test]
     public void Division_IntDivInt_Truncates()
     {
+        var engine = CreateEngine(mode);
         // C# behavior: int / int → int (truncates)
-        var result = Eval("7 / 3");
+        var result = engine.Evaluate("7 / 3");
         Assert.That(result, Is.TypeOf<int>());
         Assert.That(result, Is.EqualTo(2)); // 7 / 3 = 2 (truncated)
     }
@@ -634,8 +662,9 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void Division_DoubleDivDouble_PreservesFractional()
     {
+        var engine = CreateEngine(mode);
         // Use double literals to get fractional result
-        var result = Eval("7.0 / 3.0");
+        var result = engine.Evaluate("7.0 / 3.0");
         Assert.That(result, Is.TypeOf<double>());
         Assert.That((double)result!, Is.EqualTo(7.0 / 3.0).Within(1e-15));
     }
@@ -644,10 +673,10 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void Decimal_FinancialCalculation_InterestRate()
     {
-        var context = new EvalContext();
-        context.Define("principal", 10000.00m);
-        context.Define("rate", 0.0525m); // 5.25% interest
-        var result = Eval("principal * rate", context);
+        var engine = CreateEngine(mode);
+        engine.SetVariable("principal", 10000.00m);
+        engine.SetVariable("rate", 0.0525m); // 5.25% interest
+        var result = engine.Evaluate("principal * rate");
         Assert.That(result, Is.TypeOf<decimal>());
         Assert.That(result, Is.EqualTo(525.00m)); // Exact
     }
@@ -655,10 +684,10 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void Double_FinancialCalculation_MayHaveError()
     {
-        var context = new EvalContext();
-        context.Define("principal", 10000.00d);
-        context.Define("rate", 0.0525d);
-        var result = Eval("principal * rate", context);
+        var engine = CreateEngine(mode);
+        engine.SetVariable("principal", 10000.00d);
+        engine.SetVariable("rate", 0.0525d);
+        var result = engine.Evaluate("principal * rate");
         Assert.That(result, Is.TypeOf<double>());
         // May or may not be exactly 525.0 depending on representation
         Assert.That((double)result!, Is.EqualTo(525.0).Within(1e-10));
@@ -668,11 +697,11 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void Double_LosesPrecisionAt17Digits()
     {
-        var context = new EvalContext();
+        var engine = CreateEngine(mode);
         // 17 significant digits - at the edge of double precision
-        context.Define("x", 12345678901234567.0);
-        context.Define("y", 1.0);
-        var result = Eval("x + y", context);
+        engine.SetVariable("x", 12345678901234567.0);
+        engine.SetVariable("y", 1.0);
+        var result = engine.Evaluate("x + y");
         // Double may lose precision here
         Assert.That(result, Is.TypeOf<double>());
     }
@@ -680,11 +709,11 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void Decimal_Preserves28Digits()
     {
-        var context = new EvalContext();
+        var engine = CreateEngine(mode);
         // 28 significant digits - within decimal's precision
-        context.Define("x", 1234567890123456789012345678m);
-        context.Define("y", 1m);
-        var result = Eval("x + y", context);
+        engine.SetVariable("x", 1234567890123456789012345678m);
+        engine.SetVariable("y", 1m);
+        var result = engine.Evaluate("x + y");
         Assert.That(result, Is.TypeOf<decimal>());
         Assert.That(result, Is.EqualTo(1234567890123456789012345679m));
     }
@@ -696,10 +725,10 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void DecimalPlusDecimal_ReturnsDecimal()
     {
-        var context = new EvalContext();
-        context.Define("x", 10.5m);
-        context.Define("y", 5.25m);
-        var result = Eval("x + y", context);
+        var engine = CreateEngine(mode);
+        engine.SetVariable("x", 10.5m);
+        engine.SetVariable("y", 5.25m);
+        var result = engine.Evaluate("x + y");
         Assert.That(result, Is.TypeOf<decimal>());
         Assert.That(result, Is.EqualTo(15.75m));
     }
@@ -707,9 +736,9 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void DecimalPlusLong_ReturnsDecimal()
     {
-        var context = new EvalContext();
-        context.Define("x", 10.5m);
-        var result = Eval("x + 5", context);
+        var engine = CreateEngine(mode);
+        engine.SetVariable("x", 10.5m);
+        var result = engine.Evaluate("x + 5");
         Assert.That(result, Is.TypeOf<decimal>());
         Assert.That(result, Is.EqualTo(15.5m));
     }
@@ -717,9 +746,9 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void LongPlusDecimal_ReturnsDecimal()
     {
-        var context = new EvalContext();
-        context.Define("x", 10.5m);
-        var result = Eval("5 + x", context);
+        var engine = CreateEngine(mode);
+        engine.SetVariable("x", 10.5m);
+        var result = engine.Evaluate("5 + x");
         Assert.That(result, Is.TypeOf<decimal>());
         Assert.That(result, Is.EqualTo(15.5m));
     }
@@ -727,10 +756,10 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void DecimalTimesDecimal_ReturnsDecimal()
     {
-        var context = new EvalContext();
-        context.Define("x", 3.5m);
-        context.Define("y", 2.0m);
-        var result = Eval("x * y", context);
+        var engine = CreateEngine(mode);
+        engine.SetVariable("x", 3.5m);
+        engine.SetVariable("y", 2.0m);
+        var result = engine.Evaluate("x * y");
         Assert.That(result, Is.TypeOf<decimal>());
         Assert.That(result, Is.EqualTo(7.0m));
     }
@@ -738,10 +767,10 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void DecimalDivideDecimal_ReturnsDecimal()
     {
-        var context = new EvalContext();
-        context.Define("x", 10.0m);
-        context.Define("y", 4.0m);
-        var result = Eval("x / y", context);
+        var engine = CreateEngine(mode);
+        engine.SetVariable("x", 10.0m);
+        engine.SetVariable("y", 4.0m);
+        var result = engine.Evaluate("x / y");
         Assert.That(result, Is.TypeOf<decimal>());
         Assert.That(result, Is.EqualTo(2.5m));
     }
@@ -749,10 +778,10 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void DecimalMinusDecimal_ReturnsDecimal()
     {
-        var context = new EvalContext();
-        context.Define("x", 10.75m);
-        context.Define("y", 5.25m);
-        var result = Eval("x - y", context);
+        var engine = CreateEngine(mode);
+        engine.SetVariable("x", 10.75m);
+        engine.SetVariable("y", 5.25m);
+        var result = engine.Evaluate("x - y");
         Assert.That(result, Is.TypeOf<decimal>());
         Assert.That(result, Is.EqualTo(5.5m));
     }
@@ -760,10 +789,10 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void DecimalModDecimal_ReturnsDecimal()
     {
-        var context = new EvalContext();
-        context.Define("x", 10.5m);
-        context.Define("y", 3.0m);
-        var result = Eval("x % y", context);
+        var engine = CreateEngine(mode);
+        engine.SetVariable("x", 10.5m);
+        engine.SetVariable("y", 3.0m);
+        var result = engine.Evaluate("x % y");
         Assert.That(result, Is.TypeOf<decimal>());
         Assert.That(result, Is.EqualTo(1.5m));
     }
@@ -771,12 +800,12 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void DecimalPrecision_PreservedHighPrecisionValue()
     {
+        var engine = CreateEngine(mode);
         // Decimal has 28-29 significant digits, double only has 15-17
         // This value has 20 significant digits - would be truncated as double
-        var context = new EvalContext();
-        context.Define("x", 1.1234567890123456789m);
-        context.Define("y", 1.0m);
-        var result = Eval("x + y", context);
+        engine.SetVariable("x", 1.1234567890123456789m);
+        engine.SetVariable("y", 1.0m);
+        var result = engine.Evaluate("x + y");
         Assert.That(result, Is.TypeOf<decimal>());
         Assert.That(result, Is.EqualTo(2.1234567890123456789m));
     }
@@ -785,11 +814,11 @@ public class NumericTests : EvaluatorTestBase
     public void DecimalPrecision_NotLostToDouble()
     {
         // If we converted to double, we'd lose precision here
-        var context = new EvalContext();
+        var engine = CreateEngine(mode);
         var preciseValue = 12345678901234567890.12345678m;
-        context.Define("x", preciseValue);
-        context.Define("y", 0m);
-        var result = Eval("x + y", context);
+        engine.SetVariable("x", preciseValue);
+        engine.SetVariable("y", 0m);
+        var result = engine.Evaluate("x + y");
         Assert.That(result, Is.TypeOf<decimal>());
         Assert.That(result, Is.EqualTo(preciseValue));
     }
@@ -797,9 +826,19 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void NegateDecimal_ReturnsDecimal()
     {
-        var context = new EvalContext();
-        context.Define("x", 10.5m);
-        var result = Eval("-x", context);
+        var engine = CreateEngine(mode);
+        engine.SetVariable("x", 5.5m);
+        var result = engine.Evaluate("-x");
+        Assert.That(result, Is.TypeOf<decimal>());
+        Assert.That(result, Is.EqualTo(-5.5m));
+    }
+
+    [Test]
+    public void NegateDecimal_Variable_ReturnsDecimal()
+    {
+        var engine = CreateEngine(mode);
+        engine.SetVariable("x", 10.5m);
+        var result = engine.Evaluate("-x");
         Assert.That(result, Is.TypeOf<decimal>());
         Assert.That(result, Is.EqualTo(-10.5m));
     }
@@ -811,8 +850,9 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void IntModInt_ReturnsInt()
     {
+        var engine = CreateEngine(mode);
         // C# behavior: int % int → int
-        var result = Eval("10 % 3");
+        var result = engine.Evaluate("10 % 3");
         Assert.That(result, Is.TypeOf<int>());
         Assert.That(result, Is.EqualTo(1));
     }
@@ -820,14 +860,15 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void DoubleModDouble_ReturnsDouble()
     {
+        var engine = CreateEngine(mode);
         // Double modulo may throw or return specific type
         try
         {
-            var result = Eval("10.5 % 3.0");
+            var result = engine.Evaluate("10.5 % 3.0");
             Assert.That(result, Is.Not.Null);
             Assert.That(Convert.ToDouble(result), Is.EqualTo(1.5).Within(0.01));
         }
-        catch (EvalException)
+        catch (CsEvalException)
         {
             // Double modulo not supported is acceptable
             Assert.Pass("Double modulo not supported");
@@ -841,7 +882,7 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void ArrayLiteral_IntElements_ReturnsIntList()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate("[1, 2, 3]") as List<object?>;
 
         Assert.That(result, Is.Not.Null);
@@ -853,7 +894,7 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void ArrayLiteral_LongElements_ReturnsLongList()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate("[1L, 2L, 3L]") as List<object?>;
 
         Assert.That(result, Is.Not.Null);
@@ -865,7 +906,7 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void ArrayLiteral_IndexAccess_PreservesType()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate("{ var arr = [10, 20, 30]; return arr[1]; }");
 
         Assert.That(result, Is.TypeOf<int>());
@@ -879,7 +920,7 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void BlockExpression_IntVariable_ReturnsInt()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate("{ var x = 42; return x; }");
 
         Assert.That(result, Is.TypeOf<int>());
@@ -889,7 +930,7 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void BlockExpression_IntArithmetic_ReturnsInt()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate("{ var x = 10; var y = 5; return x + y; }");
 
         Assert.That(result, Is.TypeOf<int>());
@@ -899,7 +940,7 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void BlockExpression_IntAssignment_ReturnsInt()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate("{ var x = 1; x = 99; return x; }");
 
         Assert.That(result, Is.TypeOf<int>());
@@ -909,7 +950,7 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void BlockExpression_IntCompoundAssignment_ReturnsInt()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate("{ var x = 10; x += 5; return x; }");
 
         Assert.That(result, Is.TypeOf<int>());
@@ -919,7 +960,7 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void BlockExpression_IntIncrement_ReturnsInt()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate("{ var x = 5; x++; return x; }");
 
         Assert.That(result, Is.TypeOf<int>());
@@ -933,7 +974,7 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void BlockExpression_BitwiseAnd_ReturnsInt()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate("{ var x = 15; x &= 9; return x; }");
 
         Assert.That(result, Is.TypeOf<int>());
@@ -943,7 +984,7 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void BlockExpression_BitwiseOr_ReturnsInt()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate("{ var x = 5; x |= 3; return x; }");
 
         Assert.That(result, Is.TypeOf<int>());
@@ -953,7 +994,7 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void BlockExpression_BitwiseXor_ReturnsInt()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate("{ var x = 12; x ^= 5; return x; }");
 
         Assert.That(result, Is.TypeOf<int>());
@@ -963,7 +1004,7 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void BlockExpression_LeftShift_ReturnsInt()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate("{ var x = 1; x <<= 4; return x; }");
 
         Assert.That(result, Is.TypeOf<int>());
@@ -973,7 +1014,7 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void BlockExpression_RightShift_ReturnsInt()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate("{ var x = 32; x >>= 2; return x; }");
 
         Assert.That(result, Is.TypeOf<int>());
@@ -987,7 +1028,7 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void ForLoop_IntCounter_ReturnsInt()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var sum = 0;
@@ -1004,7 +1045,7 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void WhileLoop_IntCounter_ReturnsInt()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var sum = 0;
@@ -1023,7 +1064,7 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void ForEachLoop_IntArraySum_ReturnsInt()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var sum = 0;
@@ -1044,7 +1085,7 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void LinqSelect_IntArray_ReturnsIntValues()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate("[1, 2, 3].Select(x => x * 2).ToList()") as List<object?>;
 
         Assert.That(result, Is.Not.Null);
@@ -1057,7 +1098,7 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void LinqWhere_IntArray_ReturnsIntValues()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate("[1, 2, 3, 4, 5].Where(x => x > 2).ToList()") as List<object?>;
 
         Assert.That(result, Is.Not.Null);
@@ -1068,7 +1109,7 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void LinqSum_IntArray_ReturnsInt()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate("[1, 2, 3, 4, 5].Sum()");
 
         Assert.That(result, Is.TypeOf<int>());
@@ -1078,7 +1119,7 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void LinqChain_IntArray_ReturnsInt()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate("[1, 2, 3, 4, 5].Where(x => x > 2).Select(x => x * 10).Sum()");
 
         Assert.That(result, Is.TypeOf<int>());
@@ -1088,8 +1129,8 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void LinqAverage_IntArray_ReturnsDouble()
     {
+        var engine = CreateEngine(mode);
         // C# behavior: Average of int/long returns double
-        var engine = new CsEvalEngine();
         var result = engine.Evaluate("[1, 2, 3, 4, 5].Average()");
 
         Assert.That(result, Is.TypeOf<double>());
@@ -1099,8 +1140,8 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void LinqAverage_DecimalArray_ReturnsDecimal()
     {
+        var engine = CreateEngine(mode);
         // C# behavior: Average of decimal returns decimal
-        var engine = new CsEvalEngine();
         var result = engine.Evaluate("[1.5m, 2.5m, 3.5m].Average()");
 
         Assert.That(result, Is.TypeOf<decimal>());
@@ -1110,8 +1151,8 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void LinqAverage_LongArray_ReturnsDouble()
     {
+        var engine = CreateEngine(mode);
         // C# behavior: Average of long returns double
-        var engine = new CsEvalEngine();
         var result = engine.Evaluate("[1L, 2L, 3L, 4L, 5L].Average()");
 
         Assert.That(result, Is.TypeOf<double>());
@@ -1121,8 +1162,8 @@ public class NumericTests : EvaluatorTestBase
     [Test]
     public void LinqAverage_DecimalWithSelector_ReturnsDecimal()
     {
+        var engine = CreateEngine(mode);
         // C# behavior: Average with selector returning decimal returns decimal
-        var engine = new CsEvalEngine();
         engine.SetVariable("items", new List<int> { 1, 2, 3 });
         var result = engine.Evaluate("items.Average(x => x * 1.0m)");
 

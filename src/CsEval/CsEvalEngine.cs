@@ -6,7 +6,7 @@ namespace CsEval;
 
 public sealed class CsEvalEngine
 {
-    private readonly EvalContext _context;
+    private readonly CsEvalContext _context;
     private readonly Dictionary<string, Func<object?[], object?>> _functions;
     private readonly CsEvalOptions _options;
     private readonly List<RegisteredType> _registeredTypes = [];
@@ -24,12 +24,22 @@ public sealed class CsEvalEngine
         _options = options;
         _typeCache = new TypeCache();
         _expressionCache = new ExpressionCache();
-        _context = new EvalContext(options.StringComparer, _typeCache);
+        _context = new CsEvalContext(options.StringComparer, _typeCache);
         _functions = new Dictionary<string, Func<object?[], object?>>(options.StringComparer);
         RegisterBuiltInModules();
     }
 
-    private CsEvalEngine(EvalContext context, Dictionary<string, Func<object?[], object?>> functions,
+    public CsEvalEngine(CsEvalOptions options, CsEvalContext context)
+    {
+        _options = options;
+        _context = context;
+        _typeCache = context.TypeCache;
+        _expressionCache = new ExpressionCache();
+        _functions = new Dictionary<string, Func<object?[], object?>>(options.StringComparer);
+        RegisterBuiltInModules();
+    }
+
+    private CsEvalEngine(CsEvalContext context, Dictionary<string, Func<object?[], object?>> functions,
         List<RegisteredType> registeredTypes, CsEvalOptions options, TypeCache typeCache, ExpressionCache expressionCache)
     {
         _context = context;
@@ -93,7 +103,7 @@ public sealed class CsEvalEngine
     {
         ApplyRegisteredTypes(serviceProvider);
 
-        if (_options.CompileExpressions && expression.GetCompiledInfo() == null)
+        if (_options.CompilationMode == CompilationMode.Eager && expression.GetCompiledInfo() == null)
         {
             expression.TryCompile();
         }
@@ -116,7 +126,7 @@ public sealed class CsEvalEngine
     /// </summary>
     /// <remarks>
     /// Use this method when you want to ensure the expression is compiled regardless
-    /// of the <see cref="CsEvalOptions.CompileExpressions"/> setting, or when you want
+    /// of the <see cref="CsEvalOptions.CompilationMode"/> setting, or when you want
     /// to pay the compilation cost upfront (e.g., during app startup).
     /// </remarks>
     /// <param name="expression">The expression string to parse and compile.</param>
@@ -154,6 +164,33 @@ public sealed class CsEvalEngine
         return new CsEvalEngine(_context.CreateChild(), _functions, _registeredTypes, _options, _typeCache, _expressionCache);
     }
 
+    public object? Evaluate(string expression, IDictionary<string, object?> variables, IServiceProvider? serviceProvider = null)
+    {
+        return Evaluate(expression, variables, serviceProvider, CancellationToken.None);
+    }
+
+    public object? Evaluate(
+        string expression, IDictionary<string, object?> variables, IServiceProvider? serviceProvider, CancellationToken cancellationToken)
+    {
+        var child = CreateChild();
+        child.SetVariables(variables);
+        return child.Evaluate(expression, serviceProvider, cancellationToken);
+    }
+
+    public object? Evaluate(
+        CsEvalExpression expression, IDictionary<string, object?> variables, IServiceProvider? serviceProvider = null)
+    {
+        return Evaluate(expression, variables, serviceProvider, CancellationToken.None);
+    }
+
+    public object? Evaluate(CsEvalExpression expression, IDictionary<string, object?> variables,
+        IServiceProvider? serviceProvider, CancellationToken cancellationToken)
+    {
+        var child = CreateChild();
+        child.SetVariables(variables);
+        return child.Evaluate(expression, serviceProvider, cancellationToken);
+    }
+
     public T? Evaluate<T>(string expression, IServiceProvider? serviceProvider = null)
     {
         return Evaluate<T>(expression, serviceProvider, CancellationToken.None);
@@ -170,6 +207,8 @@ public sealed class CsEvalEngine
             _ => (T)Convert.ChangeType(result, typeof(T))
         };
     }
+
+
 
     public T? Evaluate<T>(CsEvalExpression expression, IServiceProvider? serviceProvider = null)
     {
@@ -188,6 +227,8 @@ public sealed class CsEvalEngine
             _ => (T)Convert.ChangeType(result, typeof(T))
         };
     }
+
+
 
     public CsEvalEngine SetVariable(string name, object? value)
     {

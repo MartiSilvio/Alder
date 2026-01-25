@@ -14,7 +14,7 @@ public sealed partial class Evaluator
         var type = value.GetType();
         if (RuntimeHelpers.IsForbiddenReflectionType(type))
         {
-            throw new EvalException($"Access to reflection types is not allowed: {type.Name} ({context})");
+            throw new CsEvalException($"Access to reflection types is not allowed: {type.Name} ({context})");
         }
 
         return value;
@@ -155,7 +155,7 @@ public sealed partial class Evaluator
             }
             else
             {
-                throw new EvalException($"Missing required argument '{parameters[i].Name}'");
+                throw new CsEvalException($"Missing required argument '{parameters[i].Name}'");
             }
         }
 
@@ -180,7 +180,7 @@ public sealed partial class Evaluator
             }
             else
             {
-                throw new EvalException($"Missing required argument '{parameters[i].Name}'");
+                throw new CsEvalException($"Missing required argument '{parameters[i].Name}'");
             }
         }
 
@@ -230,14 +230,14 @@ public sealed partial class Evaluator
                 {
                     MethodInfo m => new ModuleMethodRef(resolver, m),
                     PropertyInfo p => GuardReflectionLeak(_context.TypeCache.GetPropertyValue(p, resolver.Resolve()!), $"property {name}"),
-                    _ => throw new EvalException($"Unsupported member type '{member.GetType().Name}'")
+                    _ => throw new CsEvalException($"Unsupported member type '{member.GetType().Name}'")
                 };
             }
-            throw new EvalException($"Member '{name}' not found on module '{resolver.Type.Name}'");
+            throw new CsEvalException($"Member '{name}' not found on module '{resolver.Type.Name}'");
         }
 
         if (!_options.Sandbox.AllowPropertyRead)
-            throw new EvalException($"Property access blocked by sandbox: {name}");
+            throw new CsEvalException($"Property access blocked by sandbox: {name}");
 
         var ignoreCase = _options.IgnoreCase;
 
@@ -255,7 +255,7 @@ public sealed partial class Evaluator
                 }
             }
 
-            throw new EvalException($"Property '{name}' not found");
+            throw new CsEvalException($"Property '{name}' not found");
         }
 
         var type = obj.GetType();
@@ -271,7 +271,7 @@ public sealed partial class Evaluator
         if (field != null)
             return GuardReflectionLeak(field.GetValue(obj), $"field {name}");
 
-        throw new EvalException($"Property '{name}' not found on type '{type.Name}'");
+        throw new CsEvalException($"Property '{name}' not found on type '{type.Name}'");
     }
 
     private object? GetIndex(object obj, object? index)
@@ -287,7 +287,7 @@ public sealed partial class Evaluator
         {
             var idx = Convert.ToInt32(index);
             if (idx < 0 || idx >= list.Count)
-                throw new EvalException($"Index {idx} out of range");
+                throw new CsEvalException($"Index {idx} out of range");
             return GuardReflectionLeak(list[idx], $"index [{idx}]");
         }
 
@@ -296,13 +296,13 @@ public sealed partial class Evaluator
         if (indexer != null)
             return GuardReflectionLeak(indexer.GetValue(obj, [index]), $"indexer access");
 
-        throw new EvalException($"Cannot index type '{type.Name}'");
+        throw new CsEvalException($"Cannot index type '{type.Name}'");
     }
 
     private void SetIndex(object obj, object? index, object? value)
     {
         if (!_options.Sandbox.AllowIndexSet)
-            throw new EvalException($"Index assignment blocked by sandbox: [{index}] = ...");
+            throw new CsEvalException($"Index assignment blocked by sandbox: [{index}] = ...");
 
         if (obj is IDictionary<string, object?> dict && index is string strKey)
         {
@@ -314,7 +314,7 @@ public sealed partial class Evaluator
         {
             var idx = Convert.ToInt32(index);
             if (idx < 0 || idx >= list.Count)
-                throw new EvalException($"Index {idx} out of range");
+                throw new CsEvalException($"Index {idx} out of range");
             list[idx] = value;
             return;
         }
@@ -327,13 +327,13 @@ public sealed partial class Evaluator
             return;
         }
 
-        throw new EvalException($"Cannot set index on type '{type.Name}'");
+        throw new CsEvalException($"Cannot set index on type '{type.Name}'");
     }
 
     private void SetMember(object obj, string name, object? value)
     {
         if (!_options.Sandbox.AllowPropertySet)
-            throw new EvalException($"Property assignment blocked by sandbox: {name} = ...");
+            throw new CsEvalException($"Property assignment blocked by sandbox: {name} = ...");
 
         var ignoreCase = _options.IgnoreCase;
 
@@ -365,7 +365,7 @@ public sealed partial class Evaluator
         if (prop != null)
         {
             if (!prop.CanWrite)
-                throw new EvalException($"Property '{name}' is read-only");
+                throw new CsEvalException($"Property '{name}' is read-only");
             prop.SetValue(obj, value);
             return;
         }
@@ -374,12 +374,12 @@ public sealed partial class Evaluator
         if (field != null)
         {
             if (field.IsInitOnly)
-                throw new EvalException($"Field '{name}' is read-only");
+                throw new CsEvalException($"Field '{name}' is read-only");
             field.SetValue(obj, value);
             return;
         }
 
-        throw new EvalException($"Property '{name}' not found on type '{type.Name}'");
+        throw new CsEvalException($"Property '{name}' not found on type '{type.Name}'");
     }
 
     private (bool Success, object? Value) TryInvokeMethod(object target, string methodName, object?[] args)
@@ -399,7 +399,7 @@ public sealed partial class Evaluator
 
         // Sandbox blocks method calls on variable objects when AllowMethodCalls is false
         if (_options.Sandbox.BlockMethodCalls)
-            throw new EvalException($"Method calls blocked by sandbox: {methodName}");
+            throw new CsEvalException($"Method calls blocked by sandbox: {methodName}");
 
         var methods = _context.TypeCache.GetMethods(type, methodName, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
 

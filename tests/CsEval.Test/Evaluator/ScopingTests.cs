@@ -1,16 +1,19 @@
+using System.Globalization;
+
 namespace CsEval.Test.Evaluator;
 
-[TestFixture]
-public class ScopingTests
+[TestFixture(CompilationMode.Eager)]
+[TestFixture(CompilationMode.OnDemand)]
+public class ScopingTests(CompilationMode mode) : TestBase
 {
     #region ForEach Loop Scoping
 
     [Test]
     public void ForEachLoop_BodyVariable_DoesNotLeakToParentScope()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
 
-        var ex = Assert.Throws<CsEval.Evaluation.EvalException>(() =>
+        var ex = Assert.Throws<CsEvalException>(() =>
             engine.Evaluate(@"
             {
                 foreach (var i in [1, 2, 3]) {
@@ -25,9 +28,9 @@ public class ScopingTests
     [Test]
     public void ForEachLoop_BodyVariableWithoutBraces_DoesNotLeakToParentScope()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
 
-        var ex = Assert.Throws<CsEval.Evaluation.EvalException>(() =>
+        var ex = Assert.Throws<CsEvalException>(() =>
             engine.Evaluate(@"
             {
                 foreach (var i in [1, 2, 3])
@@ -41,9 +44,9 @@ public class ScopingTests
     [Test]
     public void ForEachLoop_IterationVariable_DoesNotLeakToParentScope()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
 
-        var ex = Assert.Throws<CsEval.Evaluation.EvalException>(() =>
+        var ex = Assert.Throws<CsEvalException>(() =>
             engine.Evaluate(@"
             {
                 foreach (var item in [1, 2, 3]) {
@@ -57,7 +60,7 @@ public class ScopingTests
     [Test]
     public void ForEachLoop_VariableScopedPerIteration_IndependentValues()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var results = [];
@@ -78,9 +81,9 @@ public class ScopingTests
     [Test]
     public void ForEachLoop_NestedLoops_InnerVariableDoesNotLeakToOuter()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
 
-        var ex = Assert.Throws<CsEval.Evaluation.EvalException>(() =>
+        var ex = Assert.Throws<CsEvalException>(() =>
             engine.Evaluate(@"
             {
                 foreach (var i in [1, 2]) {
@@ -102,9 +105,9 @@ public class ScopingTests
     [Test]
     public void ForLoop_InitializerVariable_DoesNotLeakToParentScope()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
 
-        var ex = Assert.Throws<CsEval.Evaluation.EvalException>(() =>
+        var ex = Assert.Throws<CsEvalException>(() =>
             engine.Evaluate(@"
             {
                 for (var i = 0; i < 3; i = i + 1) {
@@ -118,9 +121,9 @@ public class ScopingTests
     [Test]
     public void ForLoop_BodyVariable_DoesNotLeakToParentScope()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
 
-        var ex = Assert.Throws<CsEval.Evaluation.EvalException>(() =>
+        var ex = Assert.Throws<CsEvalException>(() =>
             engine.Evaluate(@"
             {
                 for (var i = 0; i < 3; i = i + 1) {
@@ -135,9 +138,9 @@ public class ScopingTests
     [Test]
     public void ForLoop_BodyVariableWithoutBraces_DoesNotLeakToParentScope()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
 
-        var ex = Assert.Throws<CsEval.Evaluation.EvalException>(() =>
+        var ex = Assert.Throws<CsEvalException>(() =>
             engine.Evaluate(@"
             {
                 for (var i = 0; i < 3; i = i + 1)
@@ -151,7 +154,7 @@ public class ScopingTests
     [Test]
     public void ForLoop_InitializerAccessibleInBody()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var sum = 0;
@@ -167,7 +170,7 @@ public class ScopingTests
     [Test]
     public void ForLoop_InitializerAccessibleInCondition()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var count = 0;
@@ -183,7 +186,7 @@ public class ScopingTests
     [Test]
     public void ForLoop_InitializerAccessibleInIncrement()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var count = 0;
@@ -200,7 +203,7 @@ public class ScopingTests
     [Test]
     public void ForLoop_VariableScopedPerIteration_FreshEachTime()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var results = [];
@@ -225,9 +228,9 @@ public class ScopingTests
     [Test]
     public void WhileLoop_BodyVariable_DoesNotLeakToParentScope()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
 
-        var ex = Assert.Throws<CsEval.Evaluation.EvalException>(() =>
+        var ex = Assert.Throws<CsEvalException>(() =>
             engine.Evaluate(@"
             {
                 var i = 0;
@@ -247,7 +250,7 @@ public class ScopingTests
         // Note: Without braces, only one statement forms the body.
         // Variable declarations as single statements don't make sense
         // (they'd be immediately out of scope), so we test assignment scoping instead.
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var total = 0;
@@ -263,10 +266,10 @@ public class ScopingTests
     [Test]
     public void WhileLoop_SingleStatementBodyVariable_DoesNotLeakToParentScope()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
 
         // This test specifically checks single-statement body scoping
-        var ex = Assert.Throws<CsEval.Evaluation.EvalException>(() =>
+        var ex = Assert.Throws<CsEvalException>(() =>
             engine.Evaluate(@"
             {
                 var count = 3;
@@ -283,7 +286,7 @@ public class ScopingTests
     [Test]
     public void WhileLoop_VariableScopedPerIteration()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var i = 0;
@@ -310,9 +313,9 @@ public class ScopingTests
     [Test]
     public void DoWhileLoop_BodyVariable_DoesNotLeakToParentScope()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
 
-        var ex = Assert.Throws<CsEval.Evaluation.EvalException>(() =>
+        var ex = Assert.Throws<CsEvalException>(() =>
             engine.Evaluate(@"
             {
                 var i = 0;
@@ -329,7 +332,7 @@ public class ScopingTests
     [Test]
     public void DoWhileLoop_VariableScopedPerIteration()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var i = 0;
@@ -356,9 +359,9 @@ public class ScopingTests
     [Test]
     public void IfStatement_ThenBranchVariable_DoesNotLeakToParentScope()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
 
-        var ex = Assert.Throws<CsEval.Evaluation.EvalException>(() =>
+        var ex = Assert.Throws<CsEvalException>(() =>
             engine.Evaluate(@"
             {
                 if (true) {
@@ -373,9 +376,9 @@ public class ScopingTests
     [Test]
     public void IfStatement_ThenBranchVariableWithoutBraces_DoesNotLeakToParentScope()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
 
-        var ex = Assert.Throws<CsEval.Evaluation.EvalException>(() =>
+        var ex = Assert.Throws<CsEvalException>(() =>
             engine.Evaluate(@"
             {
                 if (true)
@@ -389,9 +392,9 @@ public class ScopingTests
     [Test]
     public void IfStatement_ElseBranchVariable_DoesNotLeakToParentScope()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
 
-        var ex = Assert.Throws<CsEval.Evaluation.EvalException>(() =>
+        var ex = Assert.Throws<CsEvalException>(() =>
             engine.Evaluate(@"
             {
                 if (false) {
@@ -408,9 +411,9 @@ public class ScopingTests
     [Test]
     public void IfStatement_ElseBranchVariableWithoutBraces_DoesNotLeakToParentScope()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
 
-        var ex = Assert.Throws<CsEval.Evaluation.EvalException>(() =>
+        var ex = Assert.Throws<CsEvalException>(() =>
             engine.Evaluate(@"
             {
                 if (false)
@@ -426,7 +429,7 @@ public class ScopingTests
     [Test]
     public void IfStatement_ThenAndElseBranchVariables_Independent()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
 
         // Both branches can use the same variable name since they're in different scopes
         var result = engine.Evaluate(@"
@@ -448,9 +451,9 @@ public class ScopingTests
     [Test]
     public void IfStatement_NestedIf_VariablesProperlyScoped()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
 
-        var ex = Assert.Throws<CsEval.Evaluation.EvalException>(() =>
+        var ex = Assert.Throws<CsEvalException>(() =>
             engine.Evaluate(@"
             {
                 if (true) {
@@ -468,9 +471,9 @@ public class ScopingTests
     [Test]
     public void IfStatement_ElseIfChain_VariablesProperlyScoped()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
 
-        var ex = Assert.Throws<CsEval.Evaluation.EvalException>(() =>
+        var ex = Assert.Throws<CsEvalException>(() =>
             engine.Evaluate(@"
             {
                 var n = 2;
@@ -494,9 +497,9 @@ public class ScopingTests
     [Test]
     public void MixedControlFlow_IfInsideFor_ProperScoping()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
 
-        var ex = Assert.Throws<CsEval.Evaluation.EvalException>(() =>
+        var ex = Assert.Throws<CsEvalException>(() =>
             engine.Evaluate(@"
             {
                 for (var i = 0; i < 3; i = i + 1) {
@@ -513,9 +516,9 @@ public class ScopingTests
     [Test]
     public void MixedControlFlow_ForInsideIf_ProperScoping()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
 
-        var ex = Assert.Throws<CsEval.Evaluation.EvalException>(() =>
+        var ex = Assert.Throws<CsEvalException>(() =>
             engine.Evaluate(@"
             {
                 if (true) {
@@ -532,9 +535,9 @@ public class ScopingTests
     [Test]
     public void MixedControlFlow_WhileInsideForEach_ProperScoping()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
 
-        var ex = Assert.Throws<CsEval.Evaluation.EvalException>(() =>
+        var ex = Assert.Throws<CsEvalException>(() =>
             engine.Evaluate(@"
             {
                 foreach (var item in [1, 2, 3]) {
@@ -557,7 +560,7 @@ public class ScopingTests
     [Test]
     public void ForLoop_CanAccessParentScopeVariables()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var total = 0;
@@ -573,7 +576,7 @@ public class ScopingTests
     [Test]
     public void ForEachLoop_CanAccessParentScopeVariables()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var total = 0;
@@ -589,7 +592,7 @@ public class ScopingTests
     [Test]
     public void IfStatement_CanAccessParentScopeVariables()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = 10;
@@ -605,7 +608,7 @@ public class ScopingTests
     [Test]
     public void NestedLoops_CanAccessAllParentScopes()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var total = 0;
@@ -641,9 +644,9 @@ public class ScopingTests
     {
         // CsEval doesn't support standalone block statements, but blocks
         // are created via control structures. This test uses if(true) to create a block.
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
 
-        var ex = Assert.Throws<CsEval.Evaluation.EvalException>(() =>
+        var ex = Assert.Throws<CsEvalException>(() =>
             engine.Evaluate(@"
             {
                 if (true) {
@@ -658,7 +661,7 @@ public class ScopingTests
     [Test]
     public void NestedBlocks_ViaNestedIf_ProperScoping()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var outer = 1;
@@ -682,7 +685,7 @@ public class ScopingTests
     [Test]
     public void ForLoop_BreakPreservesParentScope()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var sum = 0;
@@ -702,7 +705,7 @@ public class ScopingTests
     [Test]
     public void ForEachLoop_ContinuePreservesParentScope()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var sum = 0;
@@ -722,7 +725,7 @@ public class ScopingTests
     [Test]
     public void WhileLoop_BreakAndContinue_ScopeCleanedUp()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var total = 0;

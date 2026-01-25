@@ -89,7 +89,7 @@ public sealed class CsEvalExpression
 /// <param name="cancellationToken">Cancellation token for cooperative cancellation.</param>
 /// <returns>The evaluated result.</returns>
 public delegate object? CompiledExpression(
-    EvalContext context,
+    CsEvalContext context,
     CsEvalOptions options,
     CancellationToken cancellationToken);
 

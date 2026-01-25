@@ -1,14 +1,15 @@
 namespace CsEval.Test.Loops;
 
-[TestFixture]
-public class ForEachLoopTests
+[TestFixture(CompilationMode.Eager)]
+[TestFixture(CompilationMode.OnDemand)]
+public class ForEachLoopTests(CompilationMode mode) : TestBase
 {
     #region Basic ForEach Loop
 
     [Test]
     public void ForEachLoop_BasicIteration_IteratesAllElements()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var sum = 0;
@@ -24,7 +25,7 @@ public class ForEachLoopTests
     [Test]
     public void ForEachLoop_EmptyCollection_NeverExecutes()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var executed = false;
@@ -40,7 +41,7 @@ public class ForEachLoopTests
     [Test]
     public void ForEachLoop_SingleElement_ExecutesOnce()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var count = 0;
@@ -56,7 +57,7 @@ public class ForEachLoopTests
     [Test]
     public void ForEachLoop_ItemAccessible_InBody()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var lastItem = null;
@@ -76,7 +77,7 @@ public class ForEachLoopTests
     [Test]
     public void ForEachLoop_WithExternalList_IteratesCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         engine.SetVariable("items", new List<int> { 1, 2, 3, 4, 5 });
 
         var result = engine.Evaluate(@"
@@ -94,7 +95,7 @@ public class ForEachLoopTests
     [Test]
     public void ForEachLoop_WithExternalArray_IteratesCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         engine.SetVariable("numbers", new int[] { 10, 20, 30 });
 
         var result = engine.Evaluate(@"
@@ -112,7 +113,7 @@ public class ForEachLoopTests
     [Test]
     public void ForEachLoop_WithStringCollection_IteratesCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         engine.SetVariable("names", new List<string> { "Alice", "Bob", "Charlie" });
 
         var result = engine.Evaluate(@"
@@ -134,7 +135,7 @@ public class ForEachLoopTests
     [Test]
     public void ForEachLoop_WithLinqWhere_IteratesFilteredItems()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         engine.SetVariable("numbers", new List<int> { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 });
 
         var result = engine.Evaluate(@"
@@ -153,7 +154,7 @@ public class ForEachLoopTests
     [Test]
     public void ForEachLoop_WithLinqSelect_IteratesTransformedItems()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         engine.SetVariable("numbers", new List<int> { 1, 2, 3 });
 
         var result = engine.Evaluate(@"
@@ -172,7 +173,7 @@ public class ForEachLoopTests
     [Test]
     public void ForEachLoop_WithLinqTake_IteratesLimitedItems()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         engine.SetVariable("numbers", new List<int> { 1, 2, 3, 4, 5 });
 
         var result = engine.Evaluate(@"
@@ -194,7 +195,7 @@ public class ForEachLoopTests
     [Test]
     public void ForEachLoop_WithEarlyReturn_ExitsImmediately()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             foreach (var item in [1, 2, 3, 4, 5]) {
@@ -211,7 +212,7 @@ public class ForEachLoopTests
     [Test]
     public void ForEachLoop_WithConditionalReturn_ReturnsCorrectValue()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         engine.SetVariable("target", 7);
         engine.SetVariable("items", new List<int> { 1, 3, 5, 7, 9 });
 
@@ -235,7 +236,7 @@ public class ForEachLoopTests
     [Test]
     public void ForEachLoop_WithNestedIf_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var evenSum = 0;
@@ -254,7 +255,7 @@ public class ForEachLoopTests
     [Test]
     public void ForEachLoop_Nested_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var total = 0;
@@ -274,7 +275,7 @@ public class ForEachLoopTests
     [Test]
     public void ForEachLoop_NestedWithFor_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var total = 0;
@@ -293,7 +294,7 @@ public class ForEachLoopTests
     [Test]
     public void ForEachLoop_NestedWithWhile_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var total = 0;
@@ -318,7 +319,7 @@ public class ForEachLoopTests
     [Test]
     public void ForEachLoop_WithMixedTypes_HandlesCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var types = """";
@@ -338,7 +339,7 @@ public class ForEachLoopTests
     [Test]
     public void ForEachLoop_WithObjectList_AccessesProperties()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var items = [
@@ -363,7 +364,7 @@ public class ForEachLoopTests
     [Test]
     public void ForEachLoop_StringConcatenation_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var str = """";
@@ -379,7 +380,7 @@ public class ForEachLoopTests
     [Test]
     public void ForEachLoop_InterpolatedString_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var lines = """";
@@ -399,7 +400,7 @@ public class ForEachLoopTests
     [Test]
     public void ForEachLoop_BuildingObjects_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var lastObj = null;
@@ -417,7 +418,7 @@ public class ForEachLoopTests
     [Test]
     public void ForEachLoop_CollectingObjects_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var collected = [];
@@ -438,7 +439,7 @@ public class ForEachLoopTests
     [Test]
     public void ForEachLoop_SingleStatementBody_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var sum = 0;
@@ -457,10 +458,10 @@ public class ForEachLoopTests
     [Test]
     public void ForEachLoop_WithCustomMaxIterations_UsesConfiguredLimit()
     {
-        var engine = new CsEvalEngine(new CsEvalOptions { MaxIterations = 5 });
+        var engine = CreateEngine(CsEvalOptions.Default with { CompilationMode = mode, MaxIterations = 5 });
         engine.SetVariable("items", Enumerable.Range(1, 100).ToList());
 
-        var ex = Assert.Throws<CsEval.Evaluation.EvalException>(() =>
+        var ex = Assert.Throws<CsEvalException>(() =>
             engine.Evaluate(@"
             {
                 var sum = 0;
@@ -476,7 +477,7 @@ public class ForEachLoopTests
     [Test]
     public void ForEachLoop_WithDisabledLimit_AllowsManyIterations()
     {
-        var engine = new CsEvalEngine(new CsEvalOptions { MaxIterations = 0 });
+        var engine = CreateEngine(CsEvalOptions.Default with { CompilationMode = mode, MaxIterations = 0 });
         engine.SetVariable("items", Enumerable.Range(1, 10000).ToList());
 
         var result = engine.Evaluate(@"
@@ -494,7 +495,7 @@ public class ForEachLoopTests
     [Test]
     public void ForEachLoop_WithCancellationToken_CanBeCancelled()
     {
-        var engine = new CsEvalEngine(new CsEvalOptions { MaxIterations = 0 });
+        var engine = CreateEngine(CsEvalOptions.Default with { CompilationMode = mode, MaxIterations = 0 });
         engine.SetVariable("items", Enumerable.Range(1, 100000000).ToList());
         using var cts = new CancellationTokenSource();
 
@@ -523,10 +524,10 @@ public class ForEachLoopTests
     [Test]
     public void ForEachLoop_NonEnumerable_ThrowsException()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         engine.SetVariable("notIterable", 42);
 
-        var ex = Assert.Throws<CsEval.Evaluation.EvalException>(() =>
+        var ex = Assert.Throws<CsEvalException>(() =>
             engine.Evaluate(@"
             {
                 foreach (var item in notIterable) {
@@ -540,10 +541,10 @@ public class ForEachLoopTests
     [Test]
     public void ForEachLoop_NullCollection_ThrowsException()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         engine.SetVariable("nullCollection", null);
 
-        var ex = Assert.Throws<CsEval.Evaluation.EvalException>(() =>
+        var ex = Assert.Throws<CsEvalException>(() =>
             engine.Evaluate(@"
             {
                 foreach (var item in nullCollection) {
@@ -561,7 +562,7 @@ public class ForEachLoopTests
     [Test]
     public void ForEachLoop_TryParse_ValidExpression_Succeeds()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var success = engine.TryParse("{ foreach (var item in [1,2,3]) { } return 0; }", out var expr, out var error);
 
         Assert.That(success, Is.True);
@@ -572,7 +573,7 @@ public class ForEachLoopTests
     [Test]
     public void ForEachLoop_PreParsed_CanBeEvaluatedMultipleTimes()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var expr = engine.Parse(@"
         {
             var sum = 0;
@@ -598,7 +599,7 @@ public class ForEachLoopTests
     [Test]
     public void ForEachLoop_Break_ExitsLoop()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var lastItem = 0;
@@ -617,7 +618,7 @@ public class ForEachLoopTests
     [Test]
     public void ForEachLoop_Break_AtStart_ExitsAfterFirstIteration()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var count = 0;
@@ -634,7 +635,7 @@ public class ForEachLoopTests
     [Test]
     public void ForEachLoop_Break_PreservesVariableState()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var sum = 0;
@@ -654,7 +655,7 @@ public class ForEachLoopTests
     [Test]
     public void ForEachLoop_Break_OnlyExitsInnerLoop()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var outerCount = 0;
@@ -682,7 +683,7 @@ public class ForEachLoopTests
     [Test]
     public void ForEachLoop_Continue_SkipsRemainingBody()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var sum = 0;
@@ -702,7 +703,7 @@ public class ForEachLoopTests
     [Test]
     public void ForEachLoop_Continue_SkipsToNextItem()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var skipped = 0;
@@ -724,7 +725,7 @@ public class ForEachLoopTests
     [Test]
     public void ForEachLoop_Continue_InNestedLoop_OnlyAffectsInner()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var total = 0;
@@ -750,7 +751,7 @@ public class ForEachLoopTests
     [Test]
     public void ForEachLoop_BreakAndContinue_Combined()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var sum = 0;
@@ -773,7 +774,7 @@ public class ForEachLoopTests
     [Test]
     public void ForEachLoop_BreakAndContinue_InNestedLoops()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var total = 0;

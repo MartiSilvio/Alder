@@ -1,14 +1,15 @@
 namespace CsEval.Test.Loops;
 
-[TestFixture]
-public class DoWhileLoopTests
+[TestFixture(CompilationMode.Eager)]
+[TestFixture(CompilationMode.OnDemand)]
+public class DoWhileLoopTests(CompilationMode mode) : TestBase
 {
     #region Basic Do-While Loop
 
     [Test]
     public void DoWhileLoop_BasicCounter_CountsCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var count = 0;
@@ -26,7 +27,7 @@ public class DoWhileLoopTests
     [Test]
     public void DoWhileLoop_FalseCondition_ExecutesOnce()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var executed = 0;
@@ -43,7 +44,7 @@ public class DoWhileLoopTests
     [Test]
     public void DoWhileLoop_TrueCondition_LoopsUntilFalse()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var count = 0;
@@ -63,7 +64,7 @@ public class DoWhileLoopTests
     [Test]
     public void DoWhileLoop_CountDown_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var sum = 0;
@@ -86,7 +87,7 @@ public class DoWhileLoopTests
     [Test]
     public void DoWhileLoop_ExecutesAtLeastOnce_UnlikeWhile()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
 
         // While loop with false condition - never executes
         var whileResult = engine.Evaluate(@"
@@ -115,7 +116,7 @@ public class DoWhileLoopTests
     [Test]
     public void DoWhileLoop_ConditionCheckedAfterBody()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var i = 10;
@@ -137,7 +138,7 @@ public class DoWhileLoopTests
     [Test]
     public void DoWhileLoop_WithExternalVariable_ModifiesCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         engine.SetVariable("limit", 10);
 
         var result = engine.Evaluate(@"
@@ -158,7 +159,7 @@ public class DoWhileLoopTests
     [Test]
     public void DoWhileLoop_MultipleVariables_TracksAll()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var a = 0;
@@ -184,7 +185,7 @@ public class DoWhileLoopTests
     [Test]
     public void DoWhileLoop_WithAndCondition_EvaluatesCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = 0;
@@ -202,7 +203,7 @@ public class DoWhileLoopTests
     [Test]
     public void DoWhileLoop_WithOrCondition_EvaluatesCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = 0;
@@ -220,7 +221,7 @@ public class DoWhileLoopTests
     [Test]
     public void DoWhileLoop_WithTernaryCondition_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         engine.SetVariable("useShort", true);
 
         var result = engine.Evaluate(@"
@@ -244,7 +245,7 @@ public class DoWhileLoopTests
     [Test]
     public void DoWhileLoop_WithEarlyReturn_ExitsImmediately()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var i = 0;
@@ -263,7 +264,7 @@ public class DoWhileLoopTests
     [Test]
     public void DoWhileLoop_WithConditionalReturn_ReturnsCorrectValue()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         engine.SetVariable("target", 7L);
 
         var result = engine.Evaluate(@"
@@ -288,7 +289,7 @@ public class DoWhileLoopTests
     [Test]
     public void DoWhileLoop_WithNestedIf_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var sum = 0;
@@ -309,7 +310,7 @@ public class DoWhileLoopTests
     [Test]
     public void DoWhileLoop_Nested_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var total = 0;
@@ -331,7 +332,7 @@ public class DoWhileLoopTests
     [Test]
     public void DoWhileLoop_NestedWithWhile_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var total = 0;
@@ -353,7 +354,7 @@ public class DoWhileLoopTests
     [Test]
     public void DoWhileLoop_NestedWithFor_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var total = 0;
@@ -377,7 +378,7 @@ public class DoWhileLoopTests
     [Test]
     public void DoWhileLoop_WithArrayIndexing_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var arr = [1, 2, 3, 4, 5];
@@ -396,7 +397,7 @@ public class DoWhileLoopTests
     [Test]
     public void DoWhileLoop_WithListCount_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         engine.SetVariable("items", new List<int> { 10, 20, 30, 40 });
 
         var result = engine.Evaluate(@"
@@ -416,7 +417,7 @@ public class DoWhileLoopTests
     [Test]
     public void DoWhileLoop_BuildingList_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var result = [];
@@ -439,7 +440,7 @@ public class DoWhileLoopTests
     [Test]
     public void DoWhileLoop_StringConcatenation_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var str = """";
@@ -457,7 +458,7 @@ public class DoWhileLoopTests
     [Test]
     public void DoWhileLoop_InterpolatedString_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var lines = """";
@@ -479,7 +480,7 @@ public class DoWhileLoopTests
     [Test]
     public void DoWhileLoop_BuildingObjects_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var i = 0;
@@ -503,7 +504,7 @@ public class DoWhileLoopTests
     [Test]
     public void DoWhileLoop_SingleStatementBody_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var i = 0;
@@ -523,9 +524,9 @@ public class DoWhileLoopTests
     [Test]
     public void DoWhileLoop_ExceedsMaxIterations_ThrowsException()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
 
-        var ex = Assert.Throws<CsEval.Evaluation.EvalException>(() =>
+        var ex = Assert.Throws<CsEvalException>(() =>
             engine.Evaluate(@"
             {
                 var i = 0;
@@ -541,9 +542,9 @@ public class DoWhileLoopTests
     [Test]
     public void DoWhileLoop_WithCustomMaxIterations_UsesConfiguredLimit()
     {
-        var engine = new CsEvalEngine(new CsEvalOptions { MaxIterations = 10 });
+        var engine = CreateEngine(CsEvalOptions.Default with { CompilationMode = mode, MaxIterations = 10 });
 
-        var ex = Assert.Throws<CsEval.Evaluation.EvalException>(() =>
+        var ex = Assert.Throws<CsEvalException>(() =>
             engine.Evaluate(@"
             {
                 var i = 0;
@@ -559,7 +560,7 @@ public class DoWhileLoopTests
     [Test]
     public void DoWhileLoop_WithDisabledLimit_AllowsManyIterations()
     {
-        var engine = new CsEvalEngine(new CsEvalOptions { MaxIterations = 0 });
+        var engine = CreateEngine(CsEvalOptions.Default with { CompilationMode = mode, MaxIterations = 0 });
 
         var result = engine.Evaluate(@"
         {
@@ -578,7 +579,7 @@ public class DoWhileLoopTests
     [Test]
     public void DoWhileLoop_WithCancellationToken_CanBeCancelled()
     {
-        var engine = new CsEvalEngine(new CsEvalOptions { MaxIterations = 0 });
+        var engine = CreateEngine(CsEvalOptions.Default with { CompilationMode = mode, MaxIterations = 0 });
         using var cts = new CancellationTokenSource();
 
         var task = Task.Run(() =>
@@ -606,7 +607,7 @@ public class DoWhileLoopTests
     [Test]
     public void DoWhileLoop_Factorial_CalculatesCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var n = 5;
@@ -624,7 +625,7 @@ public class DoWhileLoopTests
     [Test]
     public void DoWhileLoop_PowerCalculation_WorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var power = 1;
@@ -646,7 +647,7 @@ public class DoWhileLoopTests
     [Test]
     public void DoWhileLoop_TryParse_ValidExpression_Succeeds()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var success = engine.TryParse("{ var i = 0; do { i = i + 1; } while (i < 5); return i; }", out var expr, out var error);
 
         Assert.That(success, Is.True);
@@ -657,7 +658,7 @@ public class DoWhileLoopTests
     [Test]
     public void DoWhileLoop_TryParse_WithoutSemicolon_StillWorks()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var success = engine.TryParse("{ var i = 0; do { i = i + 1; } while (i < 5) return i; }", out var expr, out var error);
 
         Assert.That(success, Is.True);
@@ -667,7 +668,7 @@ public class DoWhileLoopTests
     [Test]
     public void DoWhileLoop_PreParsed_CanBeEvaluatedMultipleTimes()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var expr = engine.Parse(@"
         {
             var sum = 0;
@@ -695,7 +696,7 @@ public class DoWhileLoopTests
     [Test]
     public void DoWhileLoop_Break_ExitsLoop()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var i = 0;
@@ -714,7 +715,7 @@ public class DoWhileLoopTests
     [Test]
     public void DoWhileLoop_Break_AtStart_ExitsAfterFirstIteration()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var count = 0;
@@ -731,7 +732,7 @@ public class DoWhileLoopTests
     [Test]
     public void DoWhileLoop_Break_PreservesVariableState()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var sum = 0;
@@ -753,7 +754,7 @@ public class DoWhileLoopTests
     [Test]
     public void DoWhileLoop_Break_OnlyExitsInnerLoop()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var outerCount = 0;
@@ -785,7 +786,7 @@ public class DoWhileLoopTests
     [Test]
     public void DoWhileLoop_Continue_SkipsRemainingBody()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var sum = 0;
@@ -807,7 +808,7 @@ public class DoWhileLoopTests
     [Test]
     public void DoWhileLoop_Continue_JumpsToCondition()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var skipped = 0;
@@ -831,7 +832,7 @@ public class DoWhileLoopTests
     [Test]
     public void DoWhileLoop_Continue_InNestedLoop_OnlyAffectsInner()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var total = 0;
@@ -861,7 +862,7 @@ public class DoWhileLoopTests
     [Test]
     public void DoWhileLoop_BreakAndContinue_Combined()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var sum = 0;
@@ -886,7 +887,7 @@ public class DoWhileLoopTests
     [Test]
     public void DoWhileLoop_BreakAndContinue_InNestedLoops()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var total = 0;

@@ -115,7 +115,7 @@ public sealed partial class Evaluator
             var result = e.InvokeLambda(selector, [item]);
             if (result is IEnumerable innerEnumerable and not string)
                 return innerEnumerable.Cast<object?>();
-            throw new EvalException("SelectMany selector must return an enumerable");
+            throw new CsEvalException("SelectMany selector must return an enumerable");
         }).ToList());
     }
 
@@ -327,7 +327,7 @@ public sealed partial class Evaluator
         }
 
         if (args.Length >= 1)
-            throw new EvalException($"Zip requires an enumerable argument, got {args[0]?.GetType().Name ?? "null"}");
+            throw new CsEvalException($"Zip requires an enumerable argument, got {args[0]?.GetType().Name ?? "null"}");
 
         return (false, null);
     }
@@ -337,7 +337,7 @@ public sealed partial class Evaluator
         if (args is not [IEnumerable other and not string])
         {
             if (args.Length == 1)
-                throw new EvalException($"Concat requires an enumerable argument, got {args[0]?.GetType().Name ?? "null"}");
+                throw new CsEvalException($"Concat requires an enumerable argument, got {args[0]?.GetType().Name ?? "null"}");
             return (false, null);
         }
         return (true, list.Concat(other.Cast<object?>()).ToList());
@@ -404,7 +404,7 @@ public sealed partial class Evaluator
         if (args is not [IEnumerable other and not string])
         {
             if (args.Length == 1)
-                throw new EvalException($"Except requires an enumerable argument, got {args[0]?.GetType().Name ?? "null"}");
+                throw new CsEvalException($"Except requires an enumerable argument, got {args[0]?.GetType().Name ?? "null"}");
             return (false, null);
         }
         return (true, list.Except(other.Cast<object?>()).ToList());
@@ -415,7 +415,7 @@ public sealed partial class Evaluator
         if (args is not [IEnumerable other and not string])
         {
             if (args.Length == 1)
-                throw new EvalException($"Intersect requires an enumerable argument, got {args[0]?.GetType().Name ?? "null"}");
+                throw new CsEvalException($"Intersect requires an enumerable argument, got {args[0]?.GetType().Name ?? "null"}");
             return (false, null);
         }
         return (true, list.Intersect(other.Cast<object?>()).ToList());
@@ -426,7 +426,7 @@ public sealed partial class Evaluator
         if (args is not [IEnumerable other and not string])
         {
             if (args.Length == 1)
-                throw new EvalException($"Union requires an enumerable argument, got {args[0]?.GetType().Name ?? "null"}");
+                throw new CsEvalException($"Union requires an enumerable argument, got {args[0]?.GetType().Name ?? "null"}");
             return (false, null);
         }
         return (true, list.Union(other.Cast<object?>()).ToList());

@@ -1,17 +1,18 @@
 namespace CsEval.Test.Evaluator;
 
-[TestFixture]
-public class LinqTests : EvaluatorTestBase
+[TestFixture(CompilationMode.Eager)]
+[TestFixture(CompilationMode.OnDemand)]
+public class LinqTests(CompilationMode mode) : TestBase
 {
     #region Where
 
     [Test]
     public void Where_WithPredicate_FiltersElements()
     {
-        var context = new EvalContext();
-        context.Define("numbers", new List<int> { 1, 2, 3, 4, 5 });
+        var engine = CreateEngine(mode);
+        engine.SetVariable("numbers", new List<int> { 1, 2, 3, 4, 5 });
 
-        var result = Eval("numbers.Where((x) => x > 2)", context) as List<object?>;
+        var result = engine.Evaluate("numbers.Where((x) => x > 2)") as List<object?>;
         Assert.That(result, Has.Count.EqualTo(3));
         Assert.That(result, Is.EqualTo(new List<object?> { 3, 4, 5 }));
     }
@@ -19,27 +20,28 @@ public class LinqTests : EvaluatorTestBase
     [Test]
     public void Where_WithoutParens_FiltersElements()
     {
-        var context = new EvalContext();
-        context.Define("numbers", new List<int> { 1, 2, 3, 4, 5 });
+        var engine = CreateEngine(mode);
+        engine.SetVariable("numbers", new List<int> { 1, 2, 3, 4, 5 });
 
-        var result = Eval("numbers.Where(x => x > 2)", context) as List<object?>;
+        var result = engine.Evaluate("numbers.Where(x => x > 2)") as List<object?>;
         Assert.That(result, Has.Count.EqualTo(3));
     }
 
     [Test]
     public void Where_EmptyResult_ReturnsEmptyList()
     {
-        var context = new EvalContext();
-        context.Define("numbers", new List<int> { 1, 2, 3 });
+        var engine = CreateEngine(mode);
+        engine.SetVariable("numbers", new List<int> { 1, 2, 3 });
 
-        var result = Eval("numbers.Where(x => x > 10)", context) as List<object?>;
+        var result = engine.Evaluate("numbers.Where(x => x > 10)") as List<object?>;
         Assert.That(result, Is.Empty);
     }
 
     [Test]
     public void Filter_Alias_WorksAsWhere()
     {
-        var result = Eval("[1, 2, 3, 4].filter(x => x > 2)") as List<object?>;
+        var engine = CreateEngine(mode);
+        var result = engine.Evaluate("[1, 2, 3, 4].filter(x => x > 2)") as List<object?>;
         Assert.That(result, Is.EqualTo(new List<object?> { 3, 4 }));
     }
 
@@ -50,30 +52,31 @@ public class LinqTests : EvaluatorTestBase
     [Test]
     public void Select_WithSelector_ProjectsElements()
     {
-        var context = new EvalContext();
-        context.Define("numbers", new List<int> { 1, 2, 3 });
+        var engine = CreateEngine(mode);
+        engine.SetVariable("numbers", new List<int> { 1, 2, 3 });
 
-        var result = Eval("numbers.Select((x) => x * 2)", context) as List<object?>;
+        var result = engine.Evaluate("numbers.Select((x) => x * 2)") as List<object?>;
         Assert.That(result, Is.EqualTo(new List<object?> { 2, 4, 6 }));
     }
 
     [Test]
     public void Select_WithMemberAccess_ProjectsProperty()
     {
-        var context = new EvalContext();
-        context.Define("items", new List<object> {
+        var engine = CreateEngine(mode);
+        engine.SetVariable("items", new List<object> {
             new { Name = "Alice" },
             new { Name = "Bob" }
         });
 
-        var result = Eval("items.Select(x => x.Name)", context) as List<object?>;
+        var result = engine.Evaluate("items.Select(x => x.Name)") as List<object?>;
         Assert.That(result, Is.EqualTo(new List<object?> { "Alice", "Bob" }));
     }
 
     [Test]
     public void Map_Alias_WorksAsSelect()
     {
-        var result = Eval("[1, 2, 3].map(x => x * 2)") as List<object?>;
+        var engine = CreateEngine(mode);
+        var result = engine.Evaluate("[1, 2, 3].map(x => x * 2)") as List<object?>;
         Assert.That(result, Is.EqualTo(new List<object?> { 2, 4, 6 }));
     }
 
@@ -84,39 +87,39 @@ public class LinqTests : EvaluatorTestBase
     [Test]
     public void SelectMany_FlattensNestedCollections()
     {
-        var context = new EvalContext();
-        context.Define("nested", new List<List<int>> {
+        var engine = CreateEngine(mode);
+        engine.SetVariable("nested", new List<List<int>> {
             new() { 1, 2 },
             new() { 3, 4 }
         });
 
-        var result = Eval("nested.SelectMany(x => x)", context) as List<object?>;
+        var result = engine.Evaluate("nested.SelectMany(x => x)") as List<object?>;
         Assert.That(result, Is.EqualTo(new List<object?> { 1, 2, 3, 4 }));
     }
 
     [Test]
     public void SelectMany_WithProjection_FlattensAndProjects()
     {
-        var context = new EvalContext();
-        context.Define("items", new List<Dictionary<string, object?>> {
+        var engine = CreateEngine(mode);
+        engine.SetVariable("items", new List<Dictionary<string, object?>> {
             new() { ["Tags"] = new List<string> { "a", "b" } },
             new() { ["Tags"] = new List<string> { "c" } }
         });
 
-        var result = Eval("items.SelectMany(x => x.Tags)", context) as List<object?>;
+        var result = engine.Evaluate("items.SelectMany(x => x.Tags)") as List<object?>;
         Assert.That(result, Is.EqualTo(new List<object?> { "a", "b", "c" }));
     }
 
     [Test]
     public void FlatMap_Alias_WorksAsSelectMany()
     {
-        var context = new EvalContext();
-        context.Define("nested", new List<List<int>> {
+        var engine = CreateEngine(mode);
+        engine.SetVariable("nested", new List<List<int>> {
             new() { 1, 2 },
             new() { 3, 4 }
         });
 
-        var result = Eval("nested.flatMap(x => x)", context) as List<object?>;
+        var result = engine.Evaluate("nested.flatMap(x => x)") as List<object?>;
         Assert.That(result, Is.EqualTo(new List<object?> { 1, 2, 3, 4 }));
     }
 
@@ -127,45 +130,47 @@ public class LinqTests : EvaluatorTestBase
     [Test]
     public void Aggregate_WithSeed_ReducesCollection()
     {
-        var context = new EvalContext();
-        context.Define("numbers", new List<int> { 1, 2, 3, 4 });
+        var engine = CreateEngine(mode);
+        engine.SetVariable("numbers", new List<int> { 1, 2, 3, 4 });
 
-        var result = Eval("numbers.Aggregate(0, (acc, x) => acc + x)", context);
+        var result = engine.Evaluate("numbers.Aggregate(0, (acc, x) => acc + x)");
         Assert.That(result, Is.EqualTo(10));
     }
 
     [Test]
     public void Aggregate_WithoutSeed_ReducesCollection()
     {
-        var context = new EvalContext();
-        context.Define("numbers", new List<int> { 1, 2, 3, 4 });
+        var engine = CreateEngine(mode);
+        engine.SetVariable("numbers", new List<int> { 1, 2, 3, 4 });
 
-        var result = Eval("numbers.Aggregate((acc, x) => acc + x)", context);
+        var result = engine.Evaluate("numbers.Aggregate((acc, x) => acc + x)");
         Assert.That(result, Is.EqualTo(10));
     }
 
     [Test]
     public void Aggregate_StringConcat_ConcatenatesStrings()
     {
-        var context = new EvalContext();
-        context.Define("words", new List<string> { "a", "b", "c" });
+        var engine = CreateEngine(mode);
+        engine.SetVariable("words", new List<string> { "a", "b", "c" });
 
-        var result = Eval("words.Aggregate(\"\", (acc, x) => acc + x)", context);
+        var result = engine.Evaluate("words.Aggregate(\"\", (acc, x) => acc + x)");
         Assert.That(result, Is.EqualTo("abc"));
     }
 
     [Test]
     public void Reduce_Alias_WithoutSeed()
     {
-        var result = Eval("[1, 2, 3].reduce((a, b) => a + b)");
+        var engine = CreateEngine(mode);
+        var result = engine.Evaluate("[1, 2, 3].reduce((a, b) => a + b)");
         Assert.That(result, Is.EqualTo(6));
     }
 
     [Test]
     public void Reduce_Alias_WithSeed_JsStyle()
     {
+        var engine = CreateEngine(mode);
         // JS style: reduce(fn, seed) - function first, seed second
-        var result = Eval("[1, 2, 3].reduce((acc, x) => acc + x, 10)");
+        var result = engine.Evaluate("[1, 2, 3].reduce((acc, x) => acc + x, 10)");
         Assert.That(result, Is.EqualTo(16));
     }
 
@@ -176,67 +181,68 @@ public class LinqTests : EvaluatorTestBase
     [Test]
     public void First_ReturnsFirstElement()
     {
-        var context = new EvalContext();
-        context.Define("numbers", new List<int> { 1, 2, 3 });
+        var engine = CreateEngine(mode);
+        engine.SetVariable("numbers", new List<int> { 1, 2, 3 });
 
-        var result = Eval("numbers.First()", context);
+        var result = engine.Evaluate("numbers.First()");
         Assert.That(result, Is.EqualTo(1));
     }
 
     [Test]
     public void First_WithPredicate_ReturnsFirstMatching()
     {
-        var context = new EvalContext();
-        context.Define("numbers", new List<int> { 1, 2, 3, 4, 5 });
+        var engine = CreateEngine(mode);
+        engine.SetVariable("numbers", new List<int> { 1, 2, 3, 4, 5 });
 
-        var result = Eval("numbers.First(x => x > 3)", context);
+        var result = engine.Evaluate("numbers.First(x => x > 3)");
         Assert.That(result, Is.EqualTo(4));
     }
 
     [Test]
     public void First_EmptyCollection_Throws()
     {
-        var context = new EvalContext();
-        context.Define("numbers", new List<int>());
+        var engine = CreateEngine(mode);
+        engine.SetVariable("numbers", new List<int>());
 
-        Assert.Throws<InvalidOperationException>(() => Eval("numbers.First()", context));
+        Assert.Throws<InvalidOperationException>(() => engine.Evaluate("numbers.First()"));
     }
 
     [Test]
     public void FirstOrDefault_ReturnsFirstElement()
     {
-        var context = new EvalContext();
-        context.Define("numbers", new List<int> { 1, 2, 3 });
+        var engine = CreateEngine(mode);
+        engine.SetVariable("numbers", new List<int> { 1, 2, 3 });
 
-        var result = Eval("numbers.FirstOrDefault()", context);
+        var result = engine.Evaluate("numbers.FirstOrDefault()");
         Assert.That(result, Is.EqualTo(1));
     }
 
     [Test]
     public void FirstOrDefault_EmptyCollection_ReturnsNull()
     {
-        var context = new EvalContext();
-        context.Define("numbers", new List<int>());
+        var engine = CreateEngine(mode);
+        engine.SetVariable("numbers", new List<int>());
 
-        var result = Eval("numbers.FirstOrDefault()", context);
+        var result = engine.Evaluate("numbers.FirstOrDefault()");
         Assert.That(result, Is.Null);
     }
 
     [Test]
     public void FirstOrDefault_WithPredicate_NoMatch_ReturnsNull()
     {
-        var context = new EvalContext();
-        context.Define("numbers", new List<int> { 1, 2, 3 });
+        var engine = CreateEngine(mode);
+        engine.SetVariable("numbers", new List<int> { 1, 2, 3 });
 
-        var result = Eval("numbers.FirstOrDefault(x => x > 10)", context);
+        var result = engine.Evaluate("numbers.FirstOrDefault(x => x > 10)");
         Assert.That(result, Is.Null);
     }
 
     [Test]
     public void Find_Alias_WorksAsFirstOrDefault()
     {
-        Assert.That(Eval("[1, 2, 3].find(x => x > 1)"), Is.EqualTo(2));
-        Assert.That(Eval("[1, 2, 3].find(x => x > 5)"), Is.Null);
+        var engine = CreateEngine(mode);
+        Assert.That(engine.Evaluate("[1, 2, 3].find(x => x > 1)"), Is.EqualTo(2));
+        Assert.That(engine.Evaluate("[1, 2, 3].find(x => x > 5)"), Is.Null);
     }
 
     #endregion
@@ -246,30 +252,30 @@ public class LinqTests : EvaluatorTestBase
     [Test]
     public void Last_ReturnsLastElement()
     {
-        var context = new EvalContext();
-        context.Define("numbers", new List<int> { 1, 2, 3 });
+        var engine = CreateEngine(mode);
+        engine.SetVariable("numbers", new List<int> { 1, 2, 3 });
 
-        var result = Eval("numbers.Last()", context);
+        var result = engine.Evaluate("numbers.Last()");
         Assert.That(result, Is.EqualTo(3));
     }
 
     [Test]
     public void Last_WithPredicate_ReturnsLastMatching()
     {
-        var context = new EvalContext();
-        context.Define("numbers", new List<int> { 1, 2, 3, 4, 5 });
+        var engine = CreateEngine(mode);
+        engine.SetVariable("numbers", new List<int> { 1, 2, 3, 4, 5 });
 
-        var result = Eval("numbers.Last(x => x < 4)", context);
+        var result = engine.Evaluate("numbers.Last(x => x < 4)");
         Assert.That(result, Is.EqualTo(3));
     }
 
     [Test]
     public void LastOrDefault_EmptyCollection_ReturnsNull()
     {
-        var context = new EvalContext();
-        context.Define("numbers", new List<int>());
+        var engine = CreateEngine(mode);
+        engine.SetVariable("numbers", new List<int>());
 
-        var result = Eval("numbers.LastOrDefault()", context);
+        var result = engine.Evaluate("numbers.LastOrDefault()");
         Assert.That(result, Is.Null);
     }
 
@@ -280,39 +286,39 @@ public class LinqTests : EvaluatorTestBase
     [Test]
     public void Single_SingleElement_ReturnsIt()
     {
-        var context = new EvalContext();
-        context.Define("numbers", new List<int> { 42 });
+        var engine = CreateEngine(mode);
+        engine.SetVariable("numbers", new List<int> { 42 });
 
-        var result = Eval("numbers.Single()", context);
+        var result = engine.Evaluate("numbers.Single()");
         Assert.That(result, Is.EqualTo(42));
     }
 
     [Test]
     public void Single_MultipleElements_Throws()
     {
-        var context = new EvalContext();
-        context.Define("numbers", new List<int> { 1, 2, 3 });
+        var engine = CreateEngine(mode);
+        engine.SetVariable("numbers", new List<int> { 1, 2, 3 });
 
-        Assert.Throws<InvalidOperationException>(() => Eval("numbers.Single()", context));
+        Assert.Throws<InvalidOperationException>(() => engine.Evaluate("numbers.Single()"));
     }
 
     [Test]
     public void Single_WithPredicate_ReturnsMatching()
     {
-        var context = new EvalContext();
-        context.Define("numbers", new List<int> { 1, 2, 3 });
+        var engine = CreateEngine(mode);
+        engine.SetVariable("numbers", new List<int> { 1, 2, 3 });
 
-        var result = Eval("numbers.Single(x => x == 2)", context);
+        var result = engine.Evaluate("numbers.Single(x => x == 2)");
         Assert.That(result, Is.EqualTo(2));
     }
 
     [Test]
     public void SingleOrDefault_EmptyCollection_ReturnsNull()
     {
-        var context = new EvalContext();
-        context.Define("numbers", new List<int>());
+        var engine = CreateEngine(mode);
+        engine.SetVariable("numbers", new List<int>());
 
-        var result = Eval("numbers.SingleOrDefault()", context);
+        var result = engine.Evaluate("numbers.SingleOrDefault()");
         Assert.That(result, Is.Null);
     }
 
@@ -323,75 +329,77 @@ public class LinqTests : EvaluatorTestBase
     [Test]
     public void Any_NonEmpty_ReturnsTrue()
     {
-        var context = new EvalContext();
-        context.Define("numbers", new List<int> { 1, 2, 3 });
+        var engine = CreateEngine(mode);
+        engine.SetVariable("numbers", new List<int> { 1, 2, 3 });
 
-        var result = Eval("numbers.Any()", context);
+        var result = engine.Evaluate("numbers.Any()");
         Assert.That(result, Is.True);
     }
 
     [Test]
     public void Any_Empty_ReturnsFalse()
     {
-        var context = new EvalContext();
-        context.Define("numbers", new List<int>());
+        var engine = CreateEngine(mode);
+        engine.SetVariable("numbers", new List<int>());
 
-        var result = Eval("numbers.Any()", context);
+        var result = engine.Evaluate("numbers.Any()");
         Assert.That(result, Is.False);
     }
 
     [Test]
     public void Any_WithPredicate_MatchExists_ReturnsTrue()
     {
-        var context = new EvalContext();
-        context.Define("numbers", new List<int> { 1, 2, 3 });
+        var engine = CreateEngine(mode);
+        engine.SetVariable("numbers", new List<int> { 1, 2, 3 });
 
-        var result = Eval("numbers.Any(x => x > 2)", context);
+        var result = engine.Evaluate("numbers.Any(x => x > 2)");
         Assert.That(result, Is.True);
     }
 
     [Test]
     public void Any_WithPredicate_NoMatch_ReturnsFalse()
     {
-        var context = new EvalContext();
-        context.Define("numbers", new List<int> { 1, 2, 3 });
+        var engine = CreateEngine(mode);
+        engine.SetVariable("numbers", new List<int> { 1, 2, 3 });
 
-        var result = Eval("numbers.Any(x => x > 10)", context);
+        var result = engine.Evaluate("numbers.Any(x => x > 10)");
         Assert.That(result, Is.False);
     }
 
     [Test]
     public void All_AllMatch_ReturnsTrue()
     {
-        var context = new EvalContext();
-        context.Define("numbers", new List<int> { 2, 4, 6 });
+        var engine = CreateEngine(mode);
+        engine.SetVariable("numbers", new List<int> { 2, 4, 6 });
 
-        var result = Eval("numbers.All(x => x > 0)", context);
+        var result = engine.Evaluate("numbers.All(x => x > 0)");
         Assert.That(result, Is.True);
     }
 
     [Test]
     public void All_SomeDontMatch_ReturnsFalse()
     {
-        var context = new EvalContext();
-        context.Define("numbers", new List<int> { 1, 2, 3 });
+        var engine = CreateEngine(mode);
+        engine.SetVariable("numbers", new List<int> { 1, 2, 3 });
 
-        var result = Eval("numbers.All(x => x > 1)", context);
+        var result = engine.Evaluate("numbers.All(x => x > 1)");
         Assert.That(result, Is.False);
     }
 
     [Test]
     public void Some_Alias_WorksAsAny()
     {
-        Assert.That(Eval("[1, 2, 3].some(x => x > 2)"), Is.True);
-        Assert.That(Eval("[1, 2, 3].some(x => x > 5)"), Is.False);
+        var engine = CreateEngine(mode);
+        Assert.That(engine.Evaluate("[1, 2, 3].some(x => x > 2)"), Is.True);
+        Assert.That(engine.Evaluate("[1, 2, 3].some(x => x > 5)"), Is.False);
     }
 
     [Test]
     public void Every_Alias_WorksAsAll()
     {
-        Assert.That(Eval("[2, 4, 6].every(x => x > 0)"), Is.True);
-        Assert.That(Eval("[1, 2, 3].every(x => x > 1)"), Is.False);
+        var engine = CreateEngine(mode);
+        Assert.That(engine.Evaluate("[2, 4, 6].every(x => x > 0)"), Is.True);
+        Assert.That(engine.Evaluate("[1, 2, 3].every(x => x > 1)"), Is.False);
     }
 
     #endregion
@@ -401,30 +409,30 @@ public class LinqTests : EvaluatorTestBase
     [Test]
     public void Count_ReturnsElementCount()
     {
-        var context = new EvalContext();
-        context.Define("numbers", new List<int> { 1, 2, 3, 4, 5 });
+        var engine = CreateEngine(mode);
+        engine.SetVariable("numbers", new List<int> { 1, 2, 3, 4, 5 });
 
-        var result = Eval("numbers.Count()", context);
+        var result = engine.Evaluate("numbers.Count()");
         Assert.That(result, Is.EqualTo(5));
     }
 
     [Test]
     public void Count_WithPredicate_ReturnsMatchingCount()
     {
-        var context = new EvalContext();
-        context.Define("numbers", new List<int> { 1, 2, 3, 4, 5 });
+        var engine = CreateEngine(mode);
+        engine.SetVariable("numbers", new List<int> { 1, 2, 3, 4, 5 });
 
-        var result = Eval("numbers.Count(x => x > 2)", context);
+        var result = engine.Evaluate("numbers.Count(x => x > 2)");
         Assert.That(result, Is.EqualTo(3));
     }
 
     [Test]
     public void Count_EmptyCollection_ReturnsZero()
     {
-        var context = new EvalContext();
-        context.Define("numbers", new List<int>());
+        var engine = CreateEngine(mode);
+        engine.SetVariable("numbers", new List<int>());
 
-        var result = Eval("numbers.Count()", context);
+        var result = engine.Evaluate("numbers.Count()");
         Assert.That(result, Is.EqualTo(0));
     }
 
@@ -435,67 +443,67 @@ public class LinqTests : EvaluatorTestBase
     [Test]
     public void Sum_ReturnsSum()
     {
-        var context = new EvalContext();
-        context.Define("numbers", new List<int> { 1, 2, 3, 4, 5 });
+        var engine = CreateEngine(mode);
+        engine.SetVariable("numbers", new List<int> { 1, 2, 3, 4, 5 });
 
-        var result = Eval("numbers.Sum()", context);
+        var result = engine.Evaluate("numbers.Sum()");
         Assert.That(result, Is.EqualTo(15));
     }
 
     [Test]
     public void Sum_WithSelector_ReturnsSumOfSelected()
     {
-        var context = new EvalContext();
-        context.Define("items", new List<Dictionary<string, object?>> {
+        var engine = CreateEngine(mode);
+        engine.SetVariable("items", new List<Dictionary<string, object?>> {
             new() { ["Value"] = 10 },
             new() { ["Value"] = 20 },
             new() { ["Value"] = 30 }
         });
 
-        var result = Eval("items.Sum(x => x.Value)", context);
+        var result = engine.Evaluate("items.Sum(x => x.Value)");
         Assert.That(result, Is.EqualTo(60));
     }
 
     [Test]
     public void Sum_WithStrings_ThrowsException()
     {
-        var context = new EvalContext();
-        context.Define("strings", new List<string> { "a", "b", "c" });
+        var engine = CreateEngine(mode);
+        engine.SetVariable("strings", new List<string> { "a", "b", "c" });
 
-        var ex = Assert.Throws<InvalidOperationException>(() => Eval("strings.Sum()", context));
+        var ex = Assert.Throws<InvalidOperationException>(() => engine.Evaluate("strings.Sum()"));
         Assert.That(ex!.Message, Does.Contain("Sum()").And.Contain("numeric"));
     }
 
     [Test]
     public void Sum_WithMixedNonNumeric_ThrowsException()
     {
-        var context = new EvalContext();
-        context.Define("items", new List<object> { "hello", "world" });
+        var engine = CreateEngine(mode);
+        engine.SetVariable("items", new List<object> { "hello", "world" });
 
-        var ex = Assert.Throws<InvalidOperationException>(() => Eval("items.Sum()", context));
+        var ex = Assert.Throws<InvalidOperationException>(() => engine.Evaluate("items.Sum()"));
         Assert.That(ex!.Message, Does.Contain("Sum()").And.Contain("numeric"));
     }
 
     [Test]
     public void Average_ReturnsAverage()
     {
-        var context = new EvalContext();
-        context.Define("numbers", new List<int> { 10, 20, 30 });
+        var engine = CreateEngine(mode);
+        engine.SetVariable("numbers", new List<int> { 10, 20, 30 });
 
-        var result = Eval("numbers.Average()", context);
+        var result = engine.Evaluate("numbers.Average()");
         Assert.That(result, Is.EqualTo(20.0));
     }
 
     [Test]
     public void Average_WithSelector_ReturnsAverageOfSelected()
     {
-        var context = new EvalContext();
-        context.Define("items", new List<Dictionary<string, object?>> {
+        var engine = CreateEngine(mode);
+        engine.SetVariable("items", new List<Dictionary<string, object?>> {
             new() { ["Value"] = 10 },
             new() { ["Value"] = 20 }
         });
 
-        var result = Eval("items.Average(x => x.Value)", context);
+        var result = engine.Evaluate("items.Average(x => x.Value)");
         Assert.That(result, Is.EqualTo(15.0));
     }
 
@@ -506,62 +514,62 @@ public class LinqTests : EvaluatorTestBase
     [Test]
     public void Min_ReturnsMinimum()
     {
-        var context = new EvalContext();
-        context.Define("numbers", new List<int> { 5, 2, 8, 1, 9 });
+        var engine = CreateEngine(mode);
+        engine.SetVariable("numbers", new List<int> { 5, 2, 8, 1, 9 });
 
-        var result = Eval("numbers.Min()", context);
+        var result = engine.Evaluate("numbers.Min()");
         Assert.That(result, Is.EqualTo(1));
     }
 
     [Test]
     public void Min_WithSelector_ReturnsMinimumOfSelected()
     {
-        var context = new EvalContext();
-        context.Define("items", new List<Dictionary<string, object?>> {
+        var engine = CreateEngine(mode);
+        engine.SetVariable("items", new List<Dictionary<string, object?>> {
             new() { ["Value"] = 30 },
             new() { ["Value"] = 10 },
             new() { ["Value"] = 20 }
         });
 
-        var result = Eval("items.Min(x => x.Value)", context);
+        var result = engine.Evaluate("items.Min(x => x.Value)");
         Assert.That(result, Is.EqualTo(10));
     }
 
     [Test]
     public void Max_ReturnsMaximum()
     {
-        var context = new EvalContext();
-        context.Define("numbers", new List<int> { 5, 2, 8, 1, 9 });
+        var engine = CreateEngine(mode);
+        engine.SetVariable("numbers", new List<int> { 5, 2, 8, 1, 9 });
 
-        var result = Eval("numbers.Max()", context);
+        var result = engine.Evaluate("numbers.Max()");
         Assert.That(result, Is.EqualTo(9));
     }
 
     [Test]
     public void Max_WithSelector_ReturnsMaximumOfSelected()
     {
-        var context = new EvalContext();
-        context.Define("items", new List<Dictionary<string, object?>> {
+        var engine = CreateEngine(mode);
+        engine.SetVariable("items", new List<Dictionary<string, object?>> {
             new() { ["Value"] = 30 },
             new() { ["Value"] = 10 },
             new() { ["Value"] = 20 }
         });
 
-        var result = Eval("items.Max(x => x.Value)", context);
+        var result = engine.Evaluate("items.Max(x => x.Value)");
         Assert.That(result, Is.EqualTo(30));
     }
 
     [Test]
     public void MinBy_ReturnsElementWithMinimumKey()
     {
-        var context = new EvalContext();
-        context.Define("items", new List<Dictionary<string, object?>> {
+        var engine = CreateEngine(mode);
+        engine.SetVariable("items", new List<Dictionary<string, object?>> {
             new() { ["Name"] = "Bob", ["Age"] = 30 },
             new() { ["Name"] = "Alice", ["Age"] = 25 },
             new() { ["Name"] = "Charlie", ["Age"] = 35 }
         });
 
-        var result = Eval("items.MinBy(x => x.Age)", context) as Dictionary<string, object?>;
+        var result = engine.Evaluate("items.MinBy(x => x.Age)") as Dictionary<string, object?>;
         Assert.That(result!["Name"], Is.EqualTo("Alice"));
         Assert.That(result["Age"], Is.EqualTo(25));
     }
@@ -569,37 +577,37 @@ public class LinqTests : EvaluatorTestBase
     [Test]
     public void MinBy_WithStrings_ReturnsElementWithMinimumKey()
     {
-        var context = new EvalContext();
-        context.Define("items", new List<Dictionary<string, object?>> {
+        var engine = CreateEngine(mode);
+        engine.SetVariable("items", new List<Dictionary<string, object?>> {
             new() { ["Name"] = "Charlie", ["Value"] = 3 },
             new() { ["Name"] = "Alice", ["Value"] = 1 },
             new() { ["Name"] = "Bob", ["Value"] = 2 }
         });
 
-        var result = Eval("items.MinBy(x => x.Name)", context) as Dictionary<string, object?>;
+        var result = engine.Evaluate("items.MinBy(x => x.Name)") as Dictionary<string, object?>;
         Assert.That(result!["Name"], Is.EqualTo("Alice"));
     }
 
     [Test]
     public void MinBy_EmptyCollection_Throws()
     {
-        var context = new EvalContext();
-        context.Define("items", new List<int>());
+        var engine = CreateEngine(mode);
+        engine.SetVariable("items", new List<int>());
 
-        Assert.Throws<InvalidOperationException>(() => Eval("items.MinBy(x => x)", context));
+        Assert.Throws<InvalidOperationException>(() => engine.Evaluate("items.MinBy(x => x)"));
     }
 
     [Test]
     public void MaxBy_ReturnsElementWithMaximumKey()
     {
-        var context = new EvalContext();
-        context.Define("items", new List<Dictionary<string, object?>> {
+        var engine = CreateEngine(mode);
+        engine.SetVariable("items", new List<Dictionary<string, object?>> {
             new() { ["Name"] = "Bob", ["Age"] = 30 },
             new() { ["Name"] = "Alice", ["Age"] = 25 },
             new() { ["Name"] = "Charlie", ["Age"] = 35 }
         });
 
-        var result = Eval("items.MaxBy(x => x.Age)", context) as Dictionary<string, object?>;
+        var result = engine.Evaluate("items.MaxBy(x => x.Age)") as Dictionary<string, object?>;
         Assert.That(result!["Name"], Is.EqualTo("Charlie"));
         Assert.That(result["Age"], Is.EqualTo(35));
     }
@@ -607,24 +615,24 @@ public class LinqTests : EvaluatorTestBase
     [Test]
     public void MaxBy_WithStrings_ReturnsElementWithMaximumKey()
     {
-        var context = new EvalContext();
-        context.Define("items", new List<Dictionary<string, object?>> {
+        var engine = CreateEngine(mode);
+        engine.SetVariable("items", new List<Dictionary<string, object?>> {
             new() { ["Name"] = "Alice", ["Value"] = 1 },
             new() { ["Name"] = "Charlie", ["Value"] = 3 },
             new() { ["Name"] = "Bob", ["Value"] = 2 }
         });
 
-        var result = Eval("items.MaxBy(x => x.Name)", context) as Dictionary<string, object?>;
+        var result = engine.Evaluate("items.MaxBy(x => x.Name)") as Dictionary<string, object?>;
         Assert.That(result!["Name"], Is.EqualTo("Charlie"));
     }
 
     [Test]
     public void MaxBy_EmptyCollection_Throws()
     {
-        var context = new EvalContext();
-        context.Define("items", new List<int>());
+        var engine = CreateEngine(mode);
+        engine.SetVariable("items", new List<int>());
 
-        Assert.Throws<InvalidOperationException>(() => Eval("items.MaxBy(x => x)", context));
+        Assert.Throws<InvalidOperationException>(() => engine.Evaluate("items.MaxBy(x => x)"));
     }
 
     #endregion
@@ -634,34 +642,34 @@ public class LinqTests : EvaluatorTestBase
     [Test]
     public void OrderBy_SortsAscending()
     {
-        var context = new EvalContext();
-        context.Define("numbers", new List<int> { 3, 1, 4, 1, 5 });
+        var engine = CreateEngine(mode);
+        engine.SetVariable("numbers", new List<int> { 3, 1, 4, 1, 5 });
 
-        var result = Eval("numbers.OrderBy(x => x)", context) as List<object?>;
+        var result = engine.Evaluate("numbers.OrderBy(x => x)") as List<object?>;
         Assert.That(result, Is.EqualTo(new List<object?> { 1, 1, 3, 4, 5 }));
     }
 
     [Test]
     public void OrderBy_WithPropertySelector_SortsByProperty()
     {
-        var context = new EvalContext();
-        context.Define("items", new List<Dictionary<string, object?>> {
+        var engine = CreateEngine(mode);
+        engine.SetVariable("items", new List<Dictionary<string, object?>> {
             new() { ["Name"] = "Charlie" },
             new() { ["Name"] = "Alice" },
             new() { ["Name"] = "Bob" }
         });
 
-        var result = Eval("items.OrderBy(x => x.Name).Select(x => x.Name)", context) as List<object?>;
+        var result = engine.Evaluate("items.OrderBy(x => x.Name).Select(x => x.Name)") as List<object?>;
         Assert.That(result, Is.EqualTo(new List<object?> { "Alice", "Bob", "Charlie" }));
     }
 
     [Test]
     public void OrderByDescending_SortsDescending()
     {
-        var context = new EvalContext();
-        context.Define("numbers", new List<int> { 3, 1, 4, 1, 5 });
+        var engine = CreateEngine(mode);
+        engine.SetVariable("numbers", new List<int> { 3, 1, 4, 1, 5 });
 
-        var result = Eval("numbers.OrderByDescending(x => x)", context) as List<object?>;
+        var result = engine.Evaluate("numbers.OrderByDescending(x => x)") as List<object?>;
         Assert.That(result, Is.EqualTo(new List<object?> { 5, 4, 3, 1, 1 }));
     }
 
@@ -672,14 +680,14 @@ public class LinqTests : EvaluatorTestBase
     [Test]
     public void GroupBy_GroupsByKey()
     {
-        var context = new EvalContext();
-        context.Define("items", new List<Dictionary<string, object?>> {
+        var engine = CreateEngine(mode);
+        engine.SetVariable("items", new List<Dictionary<string, object?>> {
             new() { ["Category"] = "A", ["Value"] = 1 },
             new() { ["Category"] = "B", ["Value"] = 2 },
             new() { ["Category"] = "A", ["Value"] = 3 }
         });
 
-        var result = Eval("items.GroupBy(x => x.Category)", context) as List<object?>;
+        var result = engine.Evaluate("items.GroupBy(x => x.Category)") as List<object?>;
         Assert.That(result, Has.Count.EqualTo(2));
 
         var groupA = result!.Cast<Dictionary<string, object?>>().First(g => (string)g["Key"]! == "A");
@@ -690,10 +698,10 @@ public class LinqTests : EvaluatorTestBase
     [Test]
     public void GroupBy_ResultHasKeyAndItems()
     {
-        var context = new EvalContext();
-        context.Define("numbers", new List<int> { 1, 2, 3, 4, 5, 6 });
+        var engine = CreateEngine(mode);
+        engine.SetVariable("numbers", new List<int> { 1, 2, 3, 4, 5, 6 });
 
-        var result = Eval("numbers.GroupBy(x => x > 3)", context) as List<object?>;
+        var result = engine.Evaluate("numbers.GroupBy(x => x > 3)") as List<object?>;
         Assert.That(result, Has.Count.EqualTo(2));
 
         foreach (var group in result!.Cast<Dictionary<string, object?>>())
@@ -710,22 +718,22 @@ public class LinqTests : EvaluatorTestBase
     [Test]
     public void Zip_WithSelector_CombinesElements()
     {
-        var context = new EvalContext();
-        context.Define("nums1", new List<int> { 1, 2, 3 });
-        context.Define("nums2", new List<int> { 10, 20, 30 });
+        var engine = CreateEngine(mode);
+        engine.SetVariable("nums1", new List<int> { 1, 2, 3 });
+        engine.SetVariable("nums2", new List<int> { 10, 20, 30 });
 
-        var result = Eval("nums1.Zip(nums2, (a, b) => a + b)", context) as List<object?>;
+        var result = engine.Evaluate("nums1.Zip(nums2, (a, b) => a + b)") as List<object?>;
         Assert.That(result, Is.EqualTo(new List<object?> { 11, 22, 33 }));
     }
 
     [Test]
     public void Zip_WithoutSelector_ReturnsTuples()
     {
-        var context = new EvalContext();
-        context.Define("names", new List<string> { "Alice", "Bob" });
-        context.Define("ages", new List<int> { 30, 25 });
+        var engine = CreateEngine(mode);
+        engine.SetVariable("names", new List<string> { "Alice", "Bob" });
+        engine.SetVariable("ages", new List<int> { 30, 25 });
 
-        var result = Eval("names.Zip(ages)", context) as List<object?>;
+        var result = engine.Evaluate("names.Zip(ages)") as List<object?>;
         Assert.That(result, Has.Count.EqualTo(2));
 
         var first = result![0] as Dictionary<string, object?>;
@@ -736,11 +744,11 @@ public class LinqTests : EvaluatorTestBase
     [Test]
     public void Zip_DifferentLengths_StopsAtShorter()
     {
-        var context = new EvalContext();
-        context.Define("shortList", new List<int> { 1, 2 });
-        context.Define("longList", new List<int> { 10, 20, 30, 40 });
+        var engine = CreateEngine(mode);
+        engine.SetVariable("shortList", new List<int> { 1, 2 });
+        engine.SetVariable("longList", new List<int> { 10, 20, 30, 40 });
 
-        var result = Eval("shortList.Zip(longList, (a, b) => a + b)", context) as List<object?>;
+        var result = engine.Evaluate("shortList.Zip(longList, (a, b) => a + b)") as List<object?>;
         Assert.That(result, Has.Count.EqualTo(2));
     }
 
@@ -751,50 +759,50 @@ public class LinqTests : EvaluatorTestBase
     [Test]
     public void Distinct_RemovesDuplicates()
     {
-        var context = new EvalContext();
-        context.Define("numbers", new List<int> { 1, 2, 2, 3, 3, 3 });
+        var engine = CreateEngine(mode);
+        engine.SetVariable("numbers", new List<int> { 1, 2, 2, 3, 3, 3 });
 
-        var result = Eval("numbers.Distinct()", context) as List<object?>;
+        var result = engine.Evaluate("numbers.Distinct()") as List<object?>;
         Assert.That(result, Is.EqualTo(new List<object?> { 1, 2, 3 }));
     }
 
     [Test]
     public void Take_ReturnsFirstN()
     {
-        var context = new EvalContext();
-        context.Define("numbers", new List<int> { 1, 2, 3, 4, 5 });
+        var engine = CreateEngine(mode);
+        engine.SetVariable("numbers", new List<int> { 1, 2, 3, 4, 5 });
 
-        var result = Eval("numbers.Take(3)", context) as List<object?>;
+        var result = engine.Evaluate("numbers.Take(3)") as List<object?>;
         Assert.That(result, Is.EqualTo(new List<object?> { 1, 2, 3 }));
     }
 
     [Test]
     public void Take_MoreThanCount_ReturnsAll()
     {
-        var context = new EvalContext();
-        context.Define("numbers", new List<int> { 1, 2 });
+        var engine = CreateEngine(mode);
+        engine.SetVariable("numbers", new List<int> { 1, 2 });
 
-        var result = Eval("numbers.Take(10)", context) as List<object?>;
+        var result = engine.Evaluate("numbers.Take(10)") as List<object?>;
         Assert.That(result, Is.EqualTo(new List<object?> { 1, 2 }));
     }
 
     [Test]
     public void Skip_SkipsFirstN()
     {
-        var context = new EvalContext();
-        context.Define("numbers", new List<int> { 1, 2, 3, 4, 5 });
+        var engine = CreateEngine(mode);
+        engine.SetVariable("numbers", new List<int> { 1, 2, 3, 4, 5 });
 
-        var result = Eval("numbers.Skip(2)", context) as List<object?>;
+        var result = engine.Evaluate("numbers.Skip(2)") as List<object?>;
         Assert.That(result, Is.EqualTo(new List<object?> { 3, 4, 5 }));
     }
 
     [Test]
     public void Skip_MoreThanCount_ReturnsEmpty()
     {
-        var context = new EvalContext();
-        context.Define("numbers", new List<int> { 1, 2 });
+        var engine = CreateEngine(mode);
+        engine.SetVariable("numbers", new List<int> { 1, 2 });
 
-        var result = Eval("numbers.Skip(10)", context) as List<object?>;
+        var result = engine.Evaluate("numbers.Skip(10)") as List<object?>;
         Assert.That(result, Is.Empty);
     }
 
@@ -805,47 +813,48 @@ public class LinqTests : EvaluatorTestBase
     [Test]
     public void Contains_ElementExists_ReturnsTrue()
     {
-        var context = new EvalContext();
-        context.Define("numbers", new List<int> { 1, 2, 3 });
+        var engine = CreateEngine(mode);
+        engine.SetVariable("numbers", new List<int> { 1, 2, 3 });
 
-        var result = Eval("numbers.Contains(2)", context);
+        var result = engine.Evaluate("numbers.Contains(2)");
         Assert.That(result, Is.True);
     }
 
     [Test]
     public void Contains_ElementNotExists_ReturnsFalse()
     {
-        var context = new EvalContext();
-        context.Define("numbers", new List<int> { 1, 2, 3 });
+        var engine = CreateEngine(mode);
+        engine.SetVariable("numbers", new List<int> { 1, 2, 3 });
 
-        var result = Eval("numbers.Contains(5)", context);
+        var result = engine.Evaluate("numbers.Contains(5)");
         Assert.That(result, Is.False);
     }
 
     [Test]
     public void Contains_StringElement_Works()
     {
-        var context = new EvalContext();
-        context.Define("names", new List<string> { "Alice", "Bob", "Charlie" });
+        var engine = CreateEngine(mode);
+        engine.SetVariable("names", new List<string> { "Alice", "Bob", "Charlie" });
 
-        var result = Eval("names.Contains(\"Bob\")", context);
+        var result = engine.Evaluate("names.Contains(\"Bob\")");
         Assert.That(result, Is.True);
     }
 
     [Test]
     public void Includes_Alias_WorksAsContains()
     {
-        Assert.That(Eval("[1, 2, 3].includes(2)"), Is.True);
-        Assert.That(Eval("[1, 2, 3].includes(5)"), Is.False);
+        var engine = CreateEngine(mode);
+        Assert.That(engine.Evaluate("[1, 2, 3].includes(2)"), Is.True);
+        Assert.That(engine.Evaluate("[1, 2, 3].includes(5)"), Is.False);
     }
 
     [Test]
     public void Reverse_ReversesOrder()
     {
-        var context = new EvalContext();
-        context.Define("numbers", new List<int> { 1, 2, 3 });
+        var engine = CreateEngine(mode);
+        engine.SetVariable("numbers", new List<int> { 1, 2, 3 });
 
-        var result = Eval("numbers.Reverse()", context) as List<object?>;
+        var result = engine.Evaluate("numbers.Reverse()") as List<object?>;
         Assert.That(result, Is.EqualTo(new List<object?> { 3, 2, 1 }));
     }
 
@@ -856,121 +865,121 @@ public class LinqTests : EvaluatorTestBase
     [Test]
     public void Except_ReturnsElementsNotInSecond()
     {
-        var context = new EvalContext();
-        context.Define("first", new List<int> { 1, 2, 3, 4, 5 });
-        context.Define("second", new List<int> { 3, 4, 5, 6, 7 });
+        var engine = CreateEngine(mode);
+        engine.SetVariable("first", new List<int> { 1, 2, 3, 4, 5 });
+        engine.SetVariable("second", new List<int> { 3, 4, 5, 6, 7 });
 
-        var result = Eval("first.Except(second)", context) as List<object?>;
+        var result = engine.Evaluate("first.Except(second)") as List<object?>;
         Assert.That(result, Is.EqualTo(new List<object?> { 1, 2 }));
     }
 
     [Test]
     public void Except_WithNoOverlap_ReturnsAll()
     {
-        var context = new EvalContext();
-        context.Define("first", new List<int> { 1, 2, 3 });
-        context.Define("second", new List<int> { 4, 5, 6 });
+        var engine = CreateEngine(mode);
+        engine.SetVariable("first", new List<int> { 1, 2, 3 });
+        engine.SetVariable("second", new List<int> { 4, 5, 6 });
 
-        var result = Eval("first.Except(second)", context) as List<object?>;
+        var result = engine.Evaluate("first.Except(second)") as List<object?>;
         Assert.That(result, Is.EqualTo(new List<object?> { 1, 2, 3 }));
     }
 
     [Test]
     public void Except_WithFullOverlap_ReturnsEmpty()
     {
-        var context = new EvalContext();
-        context.Define("first", new List<int> { 1, 2, 3 });
-        context.Define("second", new List<int> { 1, 2, 3, 4, 5 });
+        var engine = CreateEngine(mode);
+        engine.SetVariable("first", new List<int> { 1, 2, 3 });
+        engine.SetVariable("second", new List<int> { 1, 2, 3, 4, 5 });
 
-        var result = Eval("first.Except(second)", context) as List<object?>;
+        var result = engine.Evaluate("first.Except(second)") as List<object?>;
         Assert.That(result, Is.Empty);
     }
 
     [Test]
     public void Except_WithStrings_Works()
     {
-        var context = new EvalContext();
-        context.Define("first", new List<string> { "a", "b", "c" });
-        context.Define("second", new List<string> { "b", "d" });
+        var engine = CreateEngine(mode);
+        engine.SetVariable("first", new List<string> { "a", "b", "c" });
+        engine.SetVariable("second", new List<string> { "b", "d" });
 
-        var result = Eval("first.Except(second)", context) as List<object?>;
+        var result = engine.Evaluate("first.Except(second)") as List<object?>;
         Assert.That(result, Is.EqualTo(new List<object?> { "a", "c" }));
     }
 
     [Test]
     public void Intersect_ReturnsCommonElements()
     {
-        var context = new EvalContext();
-        context.Define("first", new List<int> { 1, 2, 3, 4, 5 });
-        context.Define("second", new List<int> { 3, 4, 5, 6, 7 });
+        var engine = CreateEngine(mode);
+        engine.SetVariable("first", new List<int> { 1, 2, 3, 4, 5 });
+        engine.SetVariable("second", new List<int> { 3, 4, 5, 6, 7 });
 
-        var result = Eval("first.Intersect(second)", context) as List<object?>;
+        var result = engine.Evaluate("first.Intersect(second)") as List<object?>;
         Assert.That(result, Is.EqualTo(new List<object?> { 3, 4, 5 }));
     }
 
     [Test]
     public void Intersect_WithNoOverlap_ReturnsEmpty()
     {
-        var context = new EvalContext();
-        context.Define("first", new List<int> { 1, 2, 3 });
-        context.Define("second", new List<int> { 4, 5, 6 });
+        var engine = CreateEngine(mode);
+        engine.SetVariable("first", new List<int> { 1, 2, 3 });
+        engine.SetVariable("second", new List<int> { 4, 5, 6 });
 
-        var result = Eval("first.Intersect(second)", context) as List<object?>;
+        var result = engine.Evaluate("first.Intersect(second)") as List<object?>;
         Assert.That(result, Is.Empty);
     }
 
     [Test]
     public void Intersect_WithStrings_Works()
     {
-        var context = new EvalContext();
-        context.Define("first", new List<string> { "a", "b", "c" });
-        context.Define("second", new List<string> { "b", "c", "d" });
+        var engine = CreateEngine(mode);
+        engine.SetVariable("first", new List<string> { "a", "b", "c" });
+        engine.SetVariable("second", new List<string> { "b", "c", "d" });
 
-        var result = Eval("first.Intersect(second)", context) as List<object?>;
+        var result = engine.Evaluate("first.Intersect(second)") as List<object?>;
         Assert.That(result, Is.EqualTo(new List<object?> { "b", "c" }));
     }
 
     [Test]
     public void Union_ReturnsCombinedWithoutDuplicates()
     {
-        var context = new EvalContext();
-        context.Define("first", new List<int> { 1, 2, 3 });
-        context.Define("second", new List<int> { 3, 4, 5 });
+        var engine = CreateEngine(mode);
+        engine.SetVariable("first", new List<int> { 1, 2, 3 });
+        engine.SetVariable("second", new List<int> { 3, 4, 5 });
 
-        var result = Eval("first.Union(second)", context) as List<object?>;
+        var result = engine.Evaluate("first.Union(second)") as List<object?>;
         Assert.That(result, Is.EqualTo(new List<object?> { 1, 2, 3, 4, 5 }));
     }
 
     [Test]
     public void Union_WithNoOverlap_ReturnsCombined()
     {
-        var context = new EvalContext();
-        context.Define("first", new List<int> { 1, 2 });
-        context.Define("second", new List<int> { 3, 4 });
+        var engine = CreateEngine(mode);
+        engine.SetVariable("first", new List<int> { 1, 2 });
+        engine.SetVariable("second", new List<int> { 3, 4 });
 
-        var result = Eval("first.Union(second)", context) as List<object?>;
+        var result = engine.Evaluate("first.Union(second)") as List<object?>;
         Assert.That(result, Is.EqualTo(new List<object?> { 1, 2, 3, 4 }));
     }
 
     [Test]
     public void Union_WithFullOverlap_ReturnsDistinct()
     {
-        var context = new EvalContext();
-        context.Define("first", new List<int> { 1, 2, 3 });
-        context.Define("second", new List<int> { 1, 2, 3 });
+        var engine = CreateEngine(mode);
+        engine.SetVariable("first", new List<int> { 1, 2, 3 });
+        engine.SetVariable("second", new List<int> { 1, 2, 3 });
 
-        var result = Eval("first.Union(second)", context) as List<object?>;
+        var result = engine.Evaluate("first.Union(second)") as List<object?>;
         Assert.That(result, Is.EqualTo(new List<object?> { 1, 2, 3 }));
     }
 
     [Test]
     public void Union_WithStrings_Works()
     {
-        var context = new EvalContext();
-        context.Define("first", new List<string> { "a", "b" });
-        context.Define("second", new List<string> { "b", "c" });
+        var engine = CreateEngine(mode);
+        engine.SetVariable("first", new List<string> { "a", "b" });
+        engine.SetVariable("second", new List<string> { "b", "c" });
 
-        var result = Eval("first.Union(second)", context) as List<object?>;
+        var result = engine.Evaluate("first.Union(second)") as List<object?>;
         Assert.That(result, Is.EqualTo(new List<object?> { "a", "b", "c" }));
     }
 
@@ -981,10 +990,10 @@ public class LinqTests : EvaluatorTestBase
     [Test]
     public void ToList_ReturnsList()
     {
-        var context = new EvalContext();
-        context.Define("numbers", new List<int> { 1, 2, 3 });
+        var engine = CreateEngine(mode);
+        engine.SetVariable("numbers", new List<int> { 1, 2, 3 });
 
-        var result = Eval("numbers.ToList()", context);
+        var result = engine.Evaluate("numbers.ToList()");
         Assert.That(result, Is.TypeOf<List<object?>>());
         Assert.That(result, Is.EqualTo(new List<object?> { 1, 2, 3 }));
     }
@@ -992,10 +1001,10 @@ public class LinqTests : EvaluatorTestBase
     [Test]
     public void ToArray_ReturnsArray()
     {
-        var context = new EvalContext();
-        context.Define("numbers", new List<int> { 1, 2, 3 });
+        var engine = CreateEngine(mode);
+        engine.SetVariable("numbers", new List<int> { 1, 2, 3 });
 
-        var result = Eval("numbers.ToArray()", context);
+        var result = engine.Evaluate("numbers.ToArray()");
         Assert.That(result, Is.TypeOf<object?[]>());
         Assert.That(result, Is.EqualTo(new object?[] { 1, 2, 3 }));
     }
@@ -1003,11 +1012,11 @@ public class LinqTests : EvaluatorTestBase
     [Test]
     public void Concat_CombinesSequences()
     {
-        var context = new EvalContext();
-        context.Define("first", new List<int> { 1, 2 });
-        context.Define("second", new List<int> { 3, 4 });
+        var engine = CreateEngine(mode);
+        engine.SetVariable("first", new List<int> { 1, 2 });
+        engine.SetVariable("second", new List<int> { 3, 4 });
 
-        var result = Eval("first.Concat(second)", context) as List<object?>;
+        var result = engine.Evaluate("first.Concat(second)") as List<object?>;
         Assert.That(result, Is.EqualTo(new List<object?> { 1, 2, 3, 4 }));
     }
 
@@ -1018,8 +1027,8 @@ public class LinqTests : EvaluatorTestBase
     [Test]
     public void Chained_WhereSelectOrderBy()
     {
-        var context = new EvalContext();
-        context.Define("items", new List<object>
+        var engine = CreateEngine(mode);
+        engine.SetVariable("items", new List<object>
         {
             CreateItem("Apple", 1.5),
             CreateItem("Banana", 0.75),
@@ -1027,17 +1036,17 @@ public class LinqTests : EvaluatorTestBase
             CreateItem("Mango", 3.0)
         });
 
-        var result = Eval("items.Where(x => x.Price > 1).OrderBy(x => x.Name).Select(x => x.Name)", context) as List<object?>;
+        var result = engine.Evaluate("items.Where(x => x.Price > 1).OrderBy(x => x.Name).Select(x => x.Name)") as List<object?>;
         Assert.That(result, Is.EqualTo(new List<object?> { "Apple", "Mango", "Orange" }));
     }
 
     [Test]
     public void Chained_SelectWhereTake()
     {
-        var context = new EvalContext();
-        context.Define("numbers", new List<int> { 1, 2, 3, 4, 5 });
+        var engine = CreateEngine(mode);
+        engine.SetVariable("numbers", new List<int> { 1, 2, 3, 4, 5 });
 
-        var result = Eval("numbers.Select(x => x * 2).Where(x => x > 4).Take(2)", context) as List<object?>;
+        var result = engine.Evaluate("numbers.Select(x => x * 2).Where(x => x > 4).Take(2)") as List<object?>;
         Assert.That(result, Is.EqualTo(new List<object?> { 6, 8 }));
     }
 

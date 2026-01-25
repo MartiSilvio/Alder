@@ -1,14 +1,15 @@
 namespace CsEval.Test.Evaluator;
 
-[TestFixture]
-public class SwitchStatementTests
+[TestFixture(CompilationMode.Eager)]
+[TestFixture(CompilationMode.OnDemand)]
+public class SwitchStatementTests(CompilationMode mode) : TestBase
 {
     #region Basic Switch
 
     [Test]
     public void Switch_BasicCase_MatchesCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = 2;
@@ -33,7 +34,7 @@ public class SwitchStatementTests
     [Test]
     public void Switch_FirstCase_MatchesCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = 1;
@@ -55,7 +56,7 @@ public class SwitchStatementTests
     [Test]
     public void Switch_LastCase_MatchesCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = 3;
@@ -80,7 +81,7 @@ public class SwitchStatementTests
     [Test]
     public void Switch_NoMatch_ResultUnchanged()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = 99;
@@ -106,7 +107,7 @@ public class SwitchStatementTests
     [Test]
     public void Switch_DefaultCase_ExecutesWhenNoMatch()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = 99;
@@ -131,7 +132,7 @@ public class SwitchStatementTests
     [Test]
     public void Switch_DefaultCase_SkippedWhenCaseMatches()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = 1;
@@ -153,7 +154,7 @@ public class SwitchStatementTests
     [Test]
     public void Switch_DefaultCaseFirst_StillWorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = 99;
@@ -175,7 +176,7 @@ public class SwitchStatementTests
     [Test]
     public void Switch_DefaultCaseMiddle_StillWorksCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = 99;
@@ -200,7 +201,7 @@ public class SwitchStatementTests
     [Test]
     public void Switch_OnlyDefaultCase_ExecutesAlways()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = 42;
@@ -223,7 +224,7 @@ public class SwitchStatementTests
     [Test]
     public void Switch_FallThrough_WithoutBreak()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = 1;
@@ -247,7 +248,7 @@ public class SwitchStatementTests
     [Test]
     public void Switch_FallThroughToDefault()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = 1;
@@ -268,7 +269,7 @@ public class SwitchStatementTests
     [Test]
     public void Switch_FallThroughAllCases()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = 1;
@@ -295,7 +296,7 @@ public class SwitchStatementTests
     [Test]
     public void Switch_StringCase_MatchesExactly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var fruit = ""apple"";
@@ -323,7 +324,7 @@ public class SwitchStatementTests
     [Test]
     public void Switch_StringCase_CaseSensitive()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var fruit = ""Apple"";
@@ -348,7 +349,7 @@ public class SwitchStatementTests
     [Test]
     public void Switch_StringWithVariable()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         engine.SetVariable("input", "test");
         var result = engine.Evaluate(@"
         {
@@ -374,7 +375,7 @@ public class SwitchStatementTests
     [Test]
     public void Switch_ExpressionInSwitchValue()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var a = 3;
@@ -400,7 +401,7 @@ public class SwitchStatementTests
     [Test]
     public void Switch_ExpressionInCasePattern()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = 10;
@@ -423,7 +424,7 @@ public class SwitchStatementTests
     [Test]
     public void Switch_PropertyAccessInSwitch()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         engine.SetVariable("obj", new { Status = "active" });
         var result = engine.Evaluate(@"
         {
@@ -452,7 +453,7 @@ public class SwitchStatementTests
     [Test]
     public void Switch_ReturnInCase_ExitsBlock()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = 2;
@@ -473,7 +474,7 @@ public class SwitchStatementTests
     [Test]
     public void Switch_ReturnInDefault_ExitsBlock()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = 99;
@@ -494,7 +495,7 @@ public class SwitchStatementTests
     [Test]
     public void Switch_NoMatchNoDefault_ContinuesAfter()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = 99;
@@ -517,7 +518,7 @@ public class SwitchStatementTests
     [Test]
     public void Switch_MultipleStatementsInCase()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = 2;
@@ -538,7 +539,7 @@ public class SwitchStatementTests
     [Test]
     public void Switch_LoopInsideCase()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = 1;
@@ -561,7 +562,7 @@ public class SwitchStatementTests
     [Test]
     public void Switch_IfInsideCase()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = 1;
@@ -589,7 +590,7 @@ public class SwitchStatementTests
     [Test]
     public void Switch_NestedSwitch()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var outer = 1;
@@ -619,7 +620,7 @@ public class SwitchStatementTests
     [Test]
     public void Switch_BreakInNestedSwitch_OnlyExitsInner()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var outer = 1;
@@ -649,7 +650,7 @@ public class SwitchStatementTests
     [Test]
     public void Switch_BooleanCase_True()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var flag = true;
@@ -671,7 +672,7 @@ public class SwitchStatementTests
     [Test]
     public void Switch_BooleanCase_False()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var flag = false;
@@ -697,7 +698,7 @@ public class SwitchStatementTests
     [Test]
     public void Switch_NullCase_MatchesNull()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         engine.SetVariable("input", null);
         var result = engine.Evaluate(@"
         {
@@ -719,7 +720,7 @@ public class SwitchStatementTests
     [Test]
     public void Switch_NullCase_DoesNotMatchValue()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         engine.SetVariable("input", "hello");
         var result = engine.Evaluate(@"
         {
@@ -745,7 +746,7 @@ public class SwitchStatementTests
     [Test]
     public void Switch_EmptySwitch_NoError()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = 1;
@@ -760,7 +761,7 @@ public class SwitchStatementTests
     [Test]
     public void Switch_EmptyCase_FallsThroughToNext()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = 1;
@@ -783,7 +784,7 @@ public class SwitchStatementTests
     [Test]
     public void Switch_MultipleFallThroughCases()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = 2;
@@ -811,7 +812,7 @@ public class SwitchStatementTests
     [Test]
     public void Switch_WithIndexAccess()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var arr = [10, 20, 30];
@@ -836,7 +837,7 @@ public class SwitchStatementTests
     [Test]
     public void Switch_InsideLoop()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var items = [1, 2, 3, 2, 1];
@@ -869,7 +870,7 @@ public class SwitchStatementTests
     [Test]
     public void Switch_LongValues()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = 1000000000000;
@@ -891,7 +892,7 @@ public class SwitchStatementTests
     [Test]
     public void Switch_DoubleValues()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = 3.14;
@@ -920,7 +921,7 @@ public class SwitchStatementTests
     [Test]
     public void Switch_TryParse_ValidExpression_Succeeds()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var success = engine.TryParse(@"
         {
             var x = 1;
@@ -940,7 +941,7 @@ public class SwitchStatementTests
     [Test]
     public void Switch_TryParse_MissingParenthesis_Fails()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var success = engine.TryParse("{ switch x { case 1: break; } }", out var expr, out var error);
 
         Assert.That(success, Is.False);
@@ -951,7 +952,7 @@ public class SwitchStatementTests
     [Test]
     public void Switch_TryParse_MissingBrace_Fails()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var success = engine.TryParse("{ switch (x) case 1: break; }", out var expr, out var error);
 
         Assert.That(success, Is.False);
@@ -962,7 +963,7 @@ public class SwitchStatementTests
     [Test]
     public void Switch_TryParse_MissingColon_Fails()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var success = engine.TryParse("{ switch (x) { case 1 break; } }", out var expr, out var error);
 
         Assert.That(success, Is.False);
@@ -973,7 +974,7 @@ public class SwitchStatementTests
     [Test]
     public void Switch_PreParsed_CanBeReused()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var expr = engine.Parse(@"
         {
             var result = """";
@@ -1011,7 +1012,7 @@ public class SwitchStatementTests
     [Test]
     public void Switch_DayOfWeek_Scenario()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var day = 3;
@@ -1051,7 +1052,7 @@ public class SwitchStatementTests
     [Test]
     public void Switch_GradeCalculation_Scenario()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         // Use explicit category value to avoid division type issues
         var result = engine.Evaluate(@"
         {
@@ -1084,7 +1085,7 @@ public class SwitchStatementTests
     [Test]
     public void Switch_HttpStatus_Scenario()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var statusCode = 404;
@@ -1124,7 +1125,7 @@ public class SwitchStatementTests
     [Test]
     public void Switch_CalculatorOperation_Scenario()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var a = 10.0;
@@ -1162,7 +1163,7 @@ public class SwitchStatementTests
     [Test]
     public void Switch_ZeroValue()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = 0;
@@ -1184,7 +1185,7 @@ public class SwitchStatementTests
     [Test]
     public void Switch_NegativeValue()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = -1;
@@ -1209,7 +1210,7 @@ public class SwitchStatementTests
     [Test]
     public void Switch_EmptyString()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = """";
@@ -1231,7 +1232,7 @@ public class SwitchStatementTests
     [Test]
     public void Switch_CaseValueChangesAfterMatch()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         var result = engine.Evaluate(@"
         {
             var x = 1;

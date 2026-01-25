@@ -2,26 +2,27 @@ using CsEval;
 
 namespace CsEval.Test.Stress;
 
-[TestFixture]
-public class EvaluationChaosTests : StressTestBase
+[TestFixture(CompilationMode.Eager)]
+[TestFixture(CompilationMode.OnDemand)]
+public class EvaluationChaosTests(CompilationMode mode) : StressTestBase(mode)
 {
     [Test]
     public void InfiniteLoop_ShouldTerminate_WithMaxIterations()
     {
-        var options = new CsEvalOptions { MaxIterations = 1000 };
-        var engine = new CsEvalEngine(options);
+        var options = CsEvalOptions.Default with { CompilationMode = Mode, MaxIterations = 1000 };
+        var engine = CreateEngine(options);
 
         var expr = "{ var i = 0; while(true) { i++; } }";
 
         // This should throw an exception about max iterations
-        Assert.Throws<EvalException>(() => engine.Evaluate(expr));
+        Assert.Throws<CsEvalException>(() => engine.Evaluate(expr));
     }
 
     [Test]
     public void NestedLoops_ExponentialComplexity_ShouldRespectMaxIterations()
     {
-        var options = new CsEvalOptions { MaxIterations = 5000 };
-        var engine = new CsEvalEngine(options);
+        var options = CsEvalOptions.Default with { CompilationMode = Mode, MaxIterations = 5000};
+        var engine = CreateEngine(options);
 
         // O(N^3)
         const string expr = @"{
@@ -37,7 +38,7 @@ public class EvaluationChaosTests : StressTestBase
         }";
 
         // 100*100*100 = 1,000,000 > 5000. Should throw.
-        Assert.Throws<EvalException>(() => engine.Evaluate(expr));
+        Assert.Throws<CsEvalException>(() => engine.Evaluate(expr));
     }
 
     [Test]
@@ -162,14 +163,15 @@ public class EvaluationChaosTests : StressTestBase
     public void SandboxBypass_Reflection_ShouldBeBlockedInSafeMode()
     {
         // Try to access System.Type or GetType()
-        var safeEngine = new CsEvalEngine(new CsEvalOptions
+        var safeEngine = CreateEngine(new CsEvalOptions
         {
+            CompilationMode = Mode,
             Sandbox = SandboxOptions.Safe()  // Safe mode blocks method calls on variables?
         });
         
         // "string".GetType() is a method call. Should be blocked.
         var expr = "'hello'.GetType()";
         
-        Assert.Throws<EvalException>(() => safeEngine.Evaluate(expr));
+        Assert.Throws<CsEvalException>(() => safeEngine.Evaluate(expr));
     }
 }

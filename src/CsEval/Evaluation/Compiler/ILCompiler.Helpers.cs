@@ -49,7 +49,7 @@ internal sealed partial class ILCompiler
     /// </summary>
     private LinqExpression EnterScopeExpr(out ParameterExpression parentVar)
     {
-        parentVar = LinqExpression.Variable(typeof(EvalContext), $"parent{_contextStack.Count}");
+        parentVar = LinqExpression.Variable(typeof(CsEvalContext), $"parent{_contextStack.Count}");
         _contextStack.Push(parentVar);
 
         var currentContextVar = _currentContext as ParameterExpression;

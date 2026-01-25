@@ -1,16 +1,19 @@
 using System.Dynamic;
+using NUnit.Framework;
 
 namespace CsEval.Test.Evaluator;
 
-[TestFixture]
-public class ObjectMergeTests : EvaluatorTestBase
+[TestFixture(CompilationMode.Eager)]
+[TestFixture(CompilationMode.OnDemand)]
+public class ObjectMergeTests(CompilationMode mode) : TestBase
 {
     #region Dictionary Merge
 
     [Test]
     public void Eval_DictionaryMerge_WithPlusOperator()
     {
-        var result = Eval("new { A = 1 } + new { B = 2 }") as IDictionary<string, object?>;
+        var engine = CreateEngine(mode);
+        var result = engine.Evaluate("new { A = 1 } + new { B = 2 }") as IDictionary<string, object?>;
         Assert.That(result, Is.Not.Null);
         Assert.That(result!["A"], Is.EqualTo(1));
         Assert.That(result["B"], Is.EqualTo(2));
@@ -19,7 +22,8 @@ public class ObjectMergeTests : EvaluatorTestBase
     [Test]
     public void Eval_DictionaryMerge_RightOverwritesLeft()
     {
-        var result = Eval("new { A = 1, B = 2 } + new { B = 3 }") as IDictionary<string, object?>;
+        var engine = CreateEngine(mode);
+        var result = engine.Evaluate("new { A = 1, B = 2 } + new { B = 3 }") as IDictionary<string, object?>;
         Assert.That(result, Is.Not.Null);
         Assert.That(result!["A"], Is.EqualTo(1));
         Assert.That(result["B"], Is.EqualTo(3));
@@ -28,15 +32,15 @@ public class ObjectMergeTests : EvaluatorTestBase
     [Test]
     public void Eval_DictionaryMerge_WithVariables()
     {
-        var context = new EvalContext();
+        var engine = CreateEngine(mode);
         IDictionary<string, object?> left = new ExpandoObject();
         left["Name"] = "John";
         IDictionary<string, object?> right = new ExpandoObject();
         right["Age"] = 30;
-        context.Define("left", left);
-        context.Define("right", right);
+        engine.SetVariable("left", left);
+        engine.SetVariable("right", right);
 
-        var result = Eval("left + right", context) as IDictionary<string, object?>;
+        var result = engine.Evaluate("left + right") as IDictionary<string, object?>;
         Assert.That(result, Is.Not.Null);
         Assert.That(result!["Name"], Is.EqualTo("John"));
         Assert.That(result["Age"], Is.EqualTo(30));
@@ -45,7 +49,8 @@ public class ObjectMergeTests : EvaluatorTestBase
     [Test]
     public void Eval_DictionaryMerge_ChainedOperations()
     {
-        var result = Eval("new { A = 1 } + new { B = 2 } + new { C = 3 }") as IDictionary<string, object?>;
+        var engine = CreateEngine(mode);
+        var result = engine.Evaluate("new { A = 1 } + new { B = 2 } + new { C = 3 }") as IDictionary<string, object?>;
         Assert.That(result, Is.Not.Null);
         Assert.That(result!["A"], Is.EqualTo(1));
         Assert.That(result["B"], Is.EqualTo(2));
@@ -55,7 +60,8 @@ public class ObjectMergeTests : EvaluatorTestBase
     [Test]
     public void Eval_DictionaryMerge_CaseSensitive_KeepsBothKeys()
     {
-        var result = Eval("new { a = 1 } + new { A = 2 }") as IDictionary<string, object?>;
+        var engine = CreateEngine(mode);
+        var result = engine.Evaluate("new { a = 1 } + new { A = 2 }") as IDictionary<string, object?>;
         Assert.That(result, Is.Not.Null);
         Assert.That(result!.Count, Is.EqualTo(2));
         Assert.That(result["a"], Is.EqualTo(1));
@@ -69,10 +75,10 @@ public class ObjectMergeTests : EvaluatorTestBase
     [Test]
     public void Eval_TypedObjectMerge_WithPlusOperator()
     {
-        var context = new EvalContext();
-        context.Define("person", new TestPerson { Name = "John", Age = 30 });
+        var engine = CreateEngine(mode);
+        engine.SetVariable("person", new TestPerson { Name = "John", Age = 30 });
 
-        var result = Eval("person + new { City = \"NYC\" }", context) as IDictionary<string, object?>;
+        var result = engine.Evaluate("person + new { City = \"NYC\" }") as IDictionary<string, object?>;
         Assert.That(result, Is.Not.Null);
         Assert.That(result!["Name"], Is.EqualTo("John"));
         Assert.That(result["Age"], Is.EqualTo(30));
@@ -82,10 +88,10 @@ public class ObjectMergeTests : EvaluatorTestBase
     [Test]
     public void Eval_TypedObjectMerge_RightOverwritesLeft()
     {
-        var context = new EvalContext();
-        context.Define("person", new TestPerson { Name = "John", Age = 30 });
+        var engine = CreateEngine(mode);
+        engine.SetVariable("person", new TestPerson { Name = "John", Age = 30 });
 
-        var result = Eval("person + new { Age = 40 }", context) as IDictionary<string, object?>;
+        var result = engine.Evaluate("person + new { Age = 40 }") as IDictionary<string, object?>;
         Assert.That(result, Is.Not.Null);
         Assert.That(result!["Name"], Is.EqualTo("John"));
         Assert.That(result["Age"], Is.EqualTo(40));
@@ -94,13 +100,13 @@ public class ObjectMergeTests : EvaluatorTestBase
     [Test]
     public void Eval_TypedObjectMerge_WithBlock()
     {
-        var context = new EvalContext();
-        context.Define("person", new TestPerson { Name = "John", Age = 30 });
+        var engine = CreateEngine(mode);
+        engine.SetVariable("person", new TestPerson { Name = "John", Age = 30 });
 
-        var result = Eval(@"{
+        var result = engine.Evaluate(@"{
             var p = person;
             return p + new { City = ""NYC"", Country = ""USA"" };
-        }", context) as IDictionary<string, object?>;
+        }") as IDictionary<string, object?>;
         Assert.That(result, Is.Not.Null);
         Assert.That(result!["Name"], Is.EqualTo("John"));
         Assert.That(result["Age"], Is.EqualTo(30));
@@ -111,14 +117,14 @@ public class ObjectMergeTests : EvaluatorTestBase
     [Test]
     public void Eval_TypedObjectMerge_InSelect()
     {
-        var context = new EvalContext();
-        context.Define("people", new List<TestPerson>
+        var engine = CreateEngine(mode);
+        engine.SetVariable("people", new List<TestPerson>
         {
             new TestPerson { Name = "John", Age = 30 },
             new TestPerson { Name = "Jane", Age = 25 }
         });
 
-        var result = Eval("people.Select(p => p + new { Status = \"Active\" })", context) as List<object?>;
+        var result = engine.Evaluate("people.Select(p => p + new { Status = \"Active\" })") as List<object?>;
         Assert.That(result, Is.Not.Null);
         Assert.That(result, Has.Count.EqualTo(2));
 
@@ -136,10 +142,10 @@ public class ObjectMergeTests : EvaluatorTestBase
     [Test]
     public void Eval_TypedObjectMerge_ChainedWithDictionary()
     {
-        var context = new EvalContext();
-        context.Define("person", new TestPerson { Name = "John", Age = 30 });
+        var engine = CreateEngine(mode);
+        engine.SetVariable("person", new TestPerson { Name = "John", Age = 30 });
 
-        var result = Eval("person + new { City = \"NYC\" } + new { Country = \"USA\" }", context) as IDictionary<string, object?>;
+        var result = engine.Evaluate("person + new { City = \"NYC\" } + new { Country = \"USA\" }") as IDictionary<string, object?>;
         Assert.That(result, Is.Not.Null);
         Assert.That(result!["Name"], Is.EqualTo("John"));
         Assert.That(result["Age"], Is.EqualTo(30));
@@ -150,11 +156,11 @@ public class ObjectMergeTests : EvaluatorTestBase
     [Test]
     public void Eval_TypedObjectMerge_WithNestedObject()
     {
-        var context = new EvalContext();
-        context.Define("person", new TestPerson { Name = "John", Age = 30 });
-        context.Define("address", new TestAddress { City = "NYC", Country = "USA" });
+        var engine = CreateEngine(mode);
+        engine.SetVariable("person", new TestPerson { Name = "John", Age = 30 });
+        engine.SetVariable("address", new TestAddress { City = "NYC", Country = "USA" });
 
-        var result = Eval("person + new { Address = address }", context) as IDictionary<string, object?>;
+        var result = engine.Evaluate("person + new { Address = address }") as IDictionary<string, object?>;
         Assert.That(result, Is.Not.Null);
         Assert.That(result!["Name"], Is.EqualTo("John"));
         var addr = result["Address"] as TestAddress;
@@ -165,13 +171,13 @@ public class ObjectMergeTests : EvaluatorTestBase
     [Test]
     public void Eval_DictionaryPlusTypedObject()
     {
-        var context = new EvalContext();
+        var engine = CreateEngine(mode);
         IDictionary<string, object?> dict = new ExpandoObject();
         dict["Extra"] = "Value";
-        context.Define("dict", dict);
-        context.Define("person", new TestPerson { Name = "John", Age = 30 });
+        engine.SetVariable("dict", dict);
+        engine.SetVariable("person", new TestPerson { Name = "John", Age = 30 });
 
-        var result = Eval("dict + person", context) as IDictionary<string, object?>;
+        var result = engine.Evaluate("dict + person") as IDictionary<string, object?>;
         Assert.That(result, Is.Not.Null);
         Assert.That(result!["Extra"], Is.EqualTo("Value"));
         Assert.That(result["Name"], Is.EqualTo("John"));
@@ -181,11 +187,11 @@ public class ObjectMergeTests : EvaluatorTestBase
     [Test]
     public void Eval_TwoTypedObjects()
     {
-        var context = new EvalContext();
-        context.Define("person", new TestPerson { Name = "John", Age = 30 });
-        context.Define("address", new TestAddress { City = "NYC", Country = "USA" });
+        var engine = CreateEngine(mode);
+        engine.SetVariable("person", new TestPerson { Name = "John", Age = 30 });
+        engine.SetVariable("address", new TestAddress { City = "NYC", Country = "USA" });
 
-        var result = Eval("person + address", context) as IDictionary<string, object?>;
+        var result = engine.Evaluate("person + address") as IDictionary<string, object?>;
         Assert.That(result, Is.Not.Null);
         Assert.That(result!["Name"], Is.EqualTo("John"));
         Assert.That(result["Age"], Is.EqualTo(30));

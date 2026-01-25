@@ -522,9 +522,9 @@ public class CompilationTests
     }
 
     [Test]
-    public void CompileExpressions_False_DoesNotCompileOnEvaluate()
+    public void CompilationMode_OnDemand_DoesNotCompileOnEvaluate()
     {
-        var options = new CsEvalOptions { CompileExpressions = false };
+        var options = new CsEvalOptions { CompilationMode = CompilationMode.OnDemand };
         var engine = new CsEvalEngine(options)
             .SetVariable("x", 10);
 
@@ -537,9 +537,9 @@ public class CompilationTests
     }
 
     [Test]
-    public void CompileExpressions_True_CompilesOnFirstEvaluate()
+    public void CompilationMode_Eager_CompilesOnFirstEvaluate()
     {
-        var options = new CsEvalOptions { CompileExpressions = true };
+        var options = new CsEvalOptions { CompilationMode = CompilationMode.Eager };
         var engine = new CsEvalEngine(options)
             .SetVariable("x", 10);
 
@@ -556,9 +556,9 @@ public class CompilationTests
     }
 
     [Test]
-    public void CompileExpressions_False_ExplicitCompileStillWorks()
+    public void CompilationMode_OnDemand_ExplicitCompileStillWorks()
     {
-        var options = new CsEvalOptions { CompileExpressions = false };
+        var options = new CsEvalOptions { CompilationMode = CompilationMode.OnDemand };
         var engine = new CsEvalEngine(options)
             .SetVariable("x", 10);
 

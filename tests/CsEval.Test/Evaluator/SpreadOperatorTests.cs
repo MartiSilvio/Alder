@@ -1,19 +1,21 @@
 using System.Dynamic;
+using NUnit.Framework;
 
 namespace CsEval.Test.Evaluator;
 
-[TestFixture]
-public class SpreadOperatorTests : EvaluatorTestBase
+[TestFixture(CompilationMode.Eager)]
+[TestFixture(CompilationMode.OnDemand)]
+public class SpreadOperatorTests(CompilationMode mode) : TestBase
 {
     #region Array Spread
 
     [Test]
     public void Eval_ArraySpread_SingleArray()
     {
-        var context = new EvalContext();
-        context.Define("arr", new List<int> { 1, 2, 3 });
+        var engine = CreateEngine(mode);
+        engine.SetVariable("arr", new List<int> { 1, 2, 3 });
 
-        var result = Eval("[...arr]", context) as List<object?>;
+        var result = engine.Evaluate("[...arr]") as List<object?>;
         Assert.That(result, Is.Not.Null);
         Assert.That(result, Has.Count.EqualTo(3));
         Assert.That(result![0], Is.EqualTo(1));
@@ -24,10 +26,10 @@ public class SpreadOperatorTests : EvaluatorTestBase
     [Test]
     public void Eval_ArraySpread_WithOtherElements()
     {
-        var context = new EvalContext();
-        context.Define("arr", new List<int> { 2, 3 });
+        var engine = CreateEngine(mode);
+        engine.SetVariable("arr", new List<int> { 2, 3 });
 
-        var result = Eval("[1, ...arr, 4]", context) as List<object?>;
+        var result = engine.Evaluate("[1, ...arr, 4]") as List<object?>;
         Assert.That(result, Is.Not.Null);
         Assert.That(result, Has.Count.EqualTo(4));
         Assert.That(result![0], Is.EqualTo(1));
@@ -39,11 +41,11 @@ public class SpreadOperatorTests : EvaluatorTestBase
     [Test]
     public void Eval_ArraySpread_MultipleArrays()
     {
-        var context = new EvalContext();
-        context.Define("arr1", new List<int> { 1, 2 });
-        context.Define("arr2", new List<int> { 3, 4 });
+        var engine = CreateEngine(mode);
+        engine.SetVariable("arr1", new List<int> { 1, 2 });
+        engine.SetVariable("arr2", new List<int> { 3, 4 });
 
-        var result = Eval("[...arr1, ...arr2]", context) as List<object?>;
+        var result = engine.Evaluate("[...arr1, ...arr2]") as List<object?>;
         Assert.That(result, Is.Not.Null);
         Assert.That(result, Has.Count.EqualTo(4));
         Assert.That(result![0], Is.EqualTo(1));
@@ -55,10 +57,10 @@ public class SpreadOperatorTests : EvaluatorTestBase
     [Test]
     public void Eval_ArraySpread_WithNativeArray()
     {
-        var context = new EvalContext();
-        context.Define("arr", new[] { "a", "b", "c" });
+        var engine = CreateEngine(mode);
+        engine.SetVariable("arr", new[] { "a", "b", "c" });
 
-        var result = Eval("[...arr]", context) as List<object?>;
+        var result = engine.Evaluate("[...arr]") as List<object?>;
         Assert.That(result, Is.Not.Null);
         Assert.That(result, Has.Count.EqualTo(3));
         Assert.That(result![0], Is.EqualTo("a"));
@@ -71,13 +73,13 @@ public class SpreadOperatorTests : EvaluatorTestBase
     [Test]
     public void Eval_ObjectSpread_SingleObject()
     {
-        var context = new EvalContext();
+        var engine = CreateEngine(mode);
         IDictionary<string, object?> obj = new ExpandoObject();
         obj["A"] = 1L;
         obj["B"] = 2L;
-        context.Define("obj", obj);
+        engine.SetVariable("obj", obj);
 
-        var result = Eval("new { ...obj }", context) as IDictionary<string, object?>;
+        var result = engine.Evaluate("new { ...obj }") as IDictionary<string, object?>;
         Assert.That(result, Is.Not.Null);
         Assert.That(result!["A"], Is.EqualTo(1));
         Assert.That(result["B"], Is.EqualTo(2));
@@ -86,12 +88,12 @@ public class SpreadOperatorTests : EvaluatorTestBase
     [Test]
     public void Eval_ObjectSpread_WithOtherProperties()
     {
-        var context = new EvalContext();
+        var engine = CreateEngine(mode);
         IDictionary<string, object?> obj = new ExpandoObject();
         obj["A"] = 1L;
-        context.Define("obj", obj);
+        engine.SetVariable("obj", obj);
 
-        var result = Eval("new { ...obj, B = 2 }", context) as IDictionary<string, object?>;
+        var result = engine.Evaluate("new { ...obj, B = 2 }") as IDictionary<string, object?>;
         Assert.That(result, Is.Not.Null);
         Assert.That(result!["A"], Is.EqualTo(1));
         Assert.That(result["B"], Is.EqualTo(2));
@@ -100,13 +102,13 @@ public class SpreadOperatorTests : EvaluatorTestBase
     [Test]
     public void Eval_ObjectSpread_OverridesEarlierProperties()
     {
-        var context = new EvalContext();
+        var engine = CreateEngine(mode);
         IDictionary<string, object?> obj = new ExpandoObject();
         obj["A"] = 1L;
         obj["B"] = 2L;
-        context.Define("obj", obj);
+        engine.SetVariable("obj", obj);
 
-        var result = Eval("new { ...obj, B = 99 }", context) as IDictionary<string, object?>;
+        var result = engine.Evaluate("new { ...obj, B = 99 }") as IDictionary<string, object?>;
         Assert.That(result, Is.Not.Null);
         Assert.That(result!["A"], Is.EqualTo(1));
         Assert.That(result["B"], Is.EqualTo(99));
@@ -115,15 +117,15 @@ public class SpreadOperatorTests : EvaluatorTestBase
     [Test]
     public void Eval_ObjectSpread_MultipleObjects()
     {
-        var context = new EvalContext();
+        var engine = CreateEngine(mode);
         IDictionary<string, object?> obj1 = new ExpandoObject();
         obj1["A"] = 1L;
         IDictionary<string, object?> obj2 = new ExpandoObject();
         obj2["B"] = 2L;
-        context.Define("obj1", obj1);
-        context.Define("obj2", obj2);
+        engine.SetVariable("obj1", obj1);
+        engine.SetVariable("obj2", obj2);
 
-        var result = Eval("new { ...obj1, ...obj2 }", context) as IDictionary<string, object?>;
+        var result = engine.Evaluate("new { ...obj1, ...obj2 }") as IDictionary<string, object?>;
         Assert.That(result, Is.Not.Null);
         Assert.That(result!["A"], Is.EqualTo(1));
         Assert.That(result["B"], Is.EqualTo(2));
@@ -132,10 +134,10 @@ public class SpreadOperatorTests : EvaluatorTestBase
     [Test]
     public void Eval_ObjectSpread_FromTypedObject()
     {
-        var context = new EvalContext();
-        context.Define("person", new TestPerson { Name = "John", Age = 30 });
+        var engine = CreateEngine(mode);
+        engine.SetVariable("person", new TestPerson { Name = "John", Age = 30 });
 
-        var result = Eval("new { ...person, City = \"NYC\" }", context) as IDictionary<string, object?>;
+        var result = engine.Evaluate("new { ...person, City = \"NYC\" }") as IDictionary<string, object?>;
         Assert.That(result, Is.Not.Null);
         Assert.That(result!["Name"], Is.EqualTo("John"));
         Assert.That(result["Age"], Is.EqualTo(30));
@@ -145,17 +147,17 @@ public class SpreadOperatorTests : EvaluatorTestBase
     [Test]
     public void Eval_ObjectSpread_LaterSpreadOverridesEarlier()
     {
-        var context = new EvalContext();
+        var engine = CreateEngine(mode);
         IDictionary<string, object?> obj1 = new ExpandoObject();
         obj1["A"] = 1L;
         obj1["B"] = 2L;
         IDictionary<string, object?> obj2 = new ExpandoObject();
         obj2["B"] = 99L;
         obj2["C"] = 3L;
-        context.Define("obj1", obj1);
-        context.Define("obj2", obj2);
+        engine.SetVariable("obj1", obj1);
+        engine.SetVariable("obj2", obj2);
 
-        var result = Eval("new { ...obj1, ...obj2 }", context) as IDictionary<string, object?>;
+        var result = engine.Evaluate("new { ...obj1, ...obj2 }") as IDictionary<string, object?>;
         Assert.That(result, Is.Not.Null);
         Assert.That(result!["A"], Is.EqualTo(1));
         Assert.That(result["B"], Is.EqualTo(99));

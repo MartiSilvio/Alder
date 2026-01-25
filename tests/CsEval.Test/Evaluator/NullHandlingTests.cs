@@ -1,32 +1,34 @@
 namespace CsEval.Test.Evaluator;
 
-[TestFixture]
-public class NullHandlingTests : EvaluatorTestBase
+[TestFixture(CompilationMode.Eager)]
+[TestFixture(CompilationMode.OnDemand)]
+public class NullHandlingTests(CompilationMode mode) : TestBase
 {
     [Test]
     public void Eval_NullCoalesce()
     {
-        var context = new EvalContext();
-        context.Define("x", null);
-        context.Define("y", "default");
+        var engine = CreateEngine(mode);
+        engine.SetVariable("x", null);
+        engine.SetVariable("y", "default");
 
-        Assert.That(Eval("x ?? y", context), Is.EqualTo("default"));
-        Assert.That(Eval("y ?? \"other\"", context), Is.EqualTo("default"));
+        Assert.That(engine.Evaluate("x ?? y"), Is.EqualTo("default"));
+        Assert.That(engine.Evaluate("y ?? \"other\""), Is.EqualTo("default"));
     }
 
     [Test]
     public void Eval_NullSafeAccess()
     {
-        var context = new EvalContext();
-        context.Define("obj", null);
+        var engine = CreateEngine(mode);
+        engine.SetVariable("obj", null);
 
-        Assert.That(Eval("obj?.Name", context), Is.Null);
+        Assert.That(engine.Evaluate("obj?.Name"), Is.Null);
     }
 
     [Test]
     public void Eval_NullCoalesceAssign_AssignsWhenNull()
     {
-        var result = Eval(@"{
+        var engine = CreateEngine(mode);
+        var result = engine.Evaluate(@"{
             var x = null;
             x ??= 42;
             return x;
@@ -37,7 +39,8 @@ public class NullHandlingTests : EvaluatorTestBase
     [Test]
     public void Eval_NullCoalesceAssign_KeepsValueWhenNotNull()
     {
-        var result = Eval(@"{
+        var engine = CreateEngine(mode);
+        var result = engine.Evaluate(@"{
             var x = 10;
             x ??= 42;
             return x;
@@ -48,7 +51,8 @@ public class NullHandlingTests : EvaluatorTestBase
     [Test]
     public void Eval_NullCoalesceAssign_ReturnsAssignedValue()
     {
-        var result = Eval(@"{
+        var engine = CreateEngine(mode);
+        var result = engine.Evaluate(@"{
             var x = null;
             return x ??= 42;
         }");
@@ -58,7 +62,8 @@ public class NullHandlingTests : EvaluatorTestBase
     [Test]
     public void Eval_NullCoalesceAssign_ReturnsExistingValue()
     {
-        var result = Eval(@"{
+        var engine = CreateEngine(mode);
+        var result = engine.Evaluate(@"{
             var x = ""hello"";
             return x ??= ""world"";
         }");
@@ -68,7 +73,8 @@ public class NullHandlingTests : EvaluatorTestBase
     [Test]
     public void Eval_NullCoalesceAssign_WithExpression()
     {
-        var result = Eval(@"{
+        var engine = CreateEngine(mode);
+        var result = engine.Evaluate(@"{
             var x = null;
             x ??= 5 + 5;
             return x;
@@ -79,7 +85,8 @@ public class NullHandlingTests : EvaluatorTestBase
     [Test]
     public void Eval_NullCoalesceAssign_InIfStatement()
     {
-        var result = Eval(@"{
+        var engine = CreateEngine(mode);
+        var result = engine.Evaluate(@"{
             var x = null;
             if (true) {
                 x ??= 100;

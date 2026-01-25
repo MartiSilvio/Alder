@@ -34,7 +34,7 @@ WhileStatementExpr(Condition, Body)  // while (x > 0) { ... }
 
 ### IL Compilation (Primary)
 
-CsEval compiles expressions to native IL using `System.Linq.Expressions` (Expression Trees). This happens automatically during `Parse()` when `CsEvalOptions.CompileExpressions` is true (default).
+CsEval compiles expressions to native IL using `System.Linq.Expressions` (Expression Trees). This happens automatically during **evaluation** when `CsEvalOptions.CompilationMode` is `Eager` (default).
 
 ```csharp
 var engine = new CsEvalEngine();
@@ -55,7 +55,7 @@ The compiled delegate signature:
 
 ```csharp
 delegate object? ILCompiledDelegate(
-    EvalContext context,
+    CsEvalContext context,
     CsEvalOptions options,
     CancellationToken cancellationToken);
 ```

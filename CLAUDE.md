@@ -31,7 +31,7 @@ CsEval/
 │   ├── Evaluation/        # Expression evaluation
 │   │   ├── Evaluator*.cs  # Visitor-pattern evaluator (partial classes)
 │   │   ├── Evaluator.Registry.cs  # Operator/LINQ method registries
-│   │   ├── EvalContext.cs         # Variable scope management
+│   │   ├── CsEvalContext.cs         # Variable scope management
 │   │   ├── ExpressionCompiler.cs  # Optional compilation to delegates
 │   │   ├── TypeCache.cs           # Reflection caching
 │   │   └── StaticProxies.cs       # Built-in modules (Math, DateTime, etc.)

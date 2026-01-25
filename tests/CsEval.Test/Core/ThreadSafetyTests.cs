@@ -2,13 +2,14 @@ using System.Collections.Concurrent;
 
 namespace CsEval.Test.Core;
 
-[TestFixture]
-public class ThreadSafetyTests
+[TestFixture(CompilationMode.Eager)]
+[TestFixture(CompilationMode.OnDemand)]
+public class ThreadSafetyTests(CompilationMode mode) : TestBase
 {
     [Test]
     public void ParallelForEach_WithCreateChild_EvaluatesCorrectly()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         engine.SetVariable("multiplier", 2L);
 
         var items = Enumerable.Range(1, 100).ToList();
@@ -31,7 +32,7 @@ public class ThreadSafetyTests
     [Test]
     public void ParallelForEach_WithCreateChild_ChildIsolation()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         engine.SetVariable("shared", 100L);
 
         var items = Enumerable.Range(1, 50).ToList();
@@ -54,7 +55,7 @@ public class ThreadSafetyTests
     [Test]
     public void ParallelForEach_ChildDoesNotAffectParent()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         engine.SetVariable("x", 10L);
 
         var items = Enumerable.Range(1, 20).ToList();
@@ -71,13 +72,13 @@ public class ThreadSafetyTests
         Assert.That(parentResult, Is.EqualTo(10));
 
         // y should not be defined in parent
-        Assert.Throws<CsEval.Evaluation.EvalException>(() => engine.Evaluate("y"));
+        Assert.Throws<CsEvalException>(() => engine.Evaluate("y"));
     }
 
     [Test]
     public void ParallelForEach_WithLinqExpression()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
 
         var datasets = Enumerable.Range(0, 20)
             .Select(i => Enumerable.Range(1, 10).Select(n => (long)(n + i * 10)).ToList())
@@ -103,7 +104,7 @@ public class ThreadSafetyTests
     [Test]
     public void ParallelForEach_WithComplexExpression()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         engine.SetVariable("threshold", 5L);
 
         var items = Enumerable.Range(1, 50).ToList();
@@ -128,7 +129,7 @@ public class ThreadSafetyTests
     [Test]
     public void ParallelForEach_WithPreParsedExpression()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         engine.SetVariable("factor", 3L);
 
         var expression = engine.Parse("val * factor + offset");
@@ -154,7 +155,7 @@ public class ThreadSafetyTests
     [Test]
     public void ParallelForEach_StressTest()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         engine.SetVariable("baseVal", 1000L);
 
         var items = Enumerable.Range(1, 1000).ToList();
@@ -178,7 +179,7 @@ public class ThreadSafetyTests
     [Test]
     public void ParallelForEach_WithStringInterpolation()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
         engine.SetVariable("prefix", "Item");
 
         var items = Enumerable.Range(1, 50).ToList();
@@ -201,7 +202,7 @@ public class ThreadSafetyTests
     [Test]
     public void ParallelForEach_WithAnonymousObjects()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
 
         var items = Enumerable.Range(1, 50).ToList();
         var results = new ConcurrentBag<(int Input, IDictionary<string, object?> Result)>();
@@ -226,7 +227,7 @@ public class ThreadSafetyTests
     [Test]
     public void ParallelForEach_ModuleAccessInChild()
     {
-        var engine = new CsEvalEngine();
+        var engine = CreateEngine(mode);
 
         var items = Enumerable.Range(-50, 100).ToList();
         var results = new ConcurrentBag<(int Input, double Result)>();

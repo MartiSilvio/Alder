@@ -20,11 +20,11 @@ var engine = new CsEvalEngine(new CsEvalOptions
 
 ## Modes
 
-| Mode | Method Calls | Property Read | Assignment | Property/Index Set |
-|------|:------------:|:-------------:|:----------:|:------------------:|
-| `Trusted()` | Yes | Yes | Yes | Yes |
-| `Safe()` | No | Yes | Yes | Yes |
-| `Strict()` | No | Yes | No | No |
+| Mode        | Method Calls | Property Read | Assignment | Property/Index Set |
+| ----------- | :----------: | :-----------: | :--------: | :----------------: |
+| `Trusted()` |     Yes      |      Yes      |    Yes     |        Yes         |
+| `Safe()`    |      No      |      Yes      |    Yes     |        Yes         |
+| `Strict()`  |      No      |      Yes      |     No     |         No         |
 
 ### Trusted (Default)
 
@@ -48,7 +48,7 @@ var engine = new CsEvalEngine(new CsEvalOptions
 });
 engine.SetVariable("list", new List<int> { 1, 2, 3 });
 
-engine.Evaluate("list.Add(4)");     // Throws EvalException
+engine.Evaluate("list.Add(4)");     // Throws CsEvalException
 engine.Evaluate("list.Count");      // OK - property read
 engine.Evaluate("list.Sum()");      // OK - LINQ
 engine.Evaluate("Math.Abs(-5)");    // OK - module
@@ -87,13 +87,13 @@ Sandbox = SandboxOptions.Safe() with { AllowMethodCalls = true }
 
 ### Available Options
 
-| Option | Description | Trusted | Safe | Strict |
-|--------|-------------|:-------:|:----:|:------:|
-| `AllowMethodCalls` | `str.ToUpper()` | Yes | No | No |
-| `AllowPropertyRead` | `str.Length` | Yes | Yes | Yes |
-| `AllowAssignment` | `x = 5`, `x++` | Yes | Yes | No |
-| `AllowPropertySet` | `obj.Name = "new"` | Yes | Yes | No |
-| `AllowIndexSet` | `arr[0] = 5` | Yes | Yes | No |
+| Option              | Description        | Trusted | Safe | Strict |
+| ------------------- | ------------------ | :-----: | :--: | :----: |
+| `AllowMethodCalls`  | `str.ToUpper()`    |   Yes   |  No  |   No   |
+| `AllowPropertyRead` | `str.Length`       |   Yes   | Yes  |  Yes   |
+| `AllowAssignment`   | `x = 5`, `x++`     |   Yes   | Yes  |   No   |
+| `AllowPropertySet`  | `obj.Name = "new"` |   Yes   | Yes  |   No   |
+| `AllowIndexSet`     | `arr[0] = 5`       |   Yes   | Yes  |   No   |
 
 ## Always Allowed
 
@@ -117,7 +117,7 @@ CsEval blocks reflection types in **all modes**. User code can never obtain:
 - Runtime handles
 
 ```csharp
-// All throw EvalException, regardless of mode:
+// All throw CsEvalException, regardless of mode:
 engine.Evaluate("obj.GetType()");
 engine.Evaluate("holder.TypeProperty");
 engine.Evaluate("items.Select(x => x.GetType())");

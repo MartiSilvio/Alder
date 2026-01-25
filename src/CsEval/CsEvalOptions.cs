@@ -1,5 +1,20 @@
 namespace CsEval;
 
+public enum CompilationMode
+{
+    /// <summary>
+    /// Compile automatically on first evaluation.
+    /// Best for performance-critical or reused expressions.
+    /// </summary>
+    Eager,
+
+    /// <summary>
+    /// Do not compile automatically. Use tree-walking unless <see cref="CsEvalExpression.TryCompile"/> is called explicitly.
+    /// Best for debugging or single-use expressions.
+    /// </summary>
+    OnDemand
+}
+
 /// <summary>
 /// High-level sandbox modes for common security scenarios.
 /// Use SandboxOptions.Trusted/Safe/Strict() unless you need granular control.
@@ -25,7 +40,7 @@ public enum SandboxMode
     Strict
 }
 
-public sealed class CsEvalOptions
+public sealed record CsEvalOptions
 {
     public static CsEvalOptions Default => new();
 
@@ -34,16 +49,14 @@ public sealed class CsEvalOptions
     public SandboxOptions Sandbox { get; init; } = new();
 
     /// <summary>
-    /// When true, expressions are automatically compiled to IL on first evaluation for better performance.
-    /// When false, expressions always use tree-walking interpretation.
-    /// Default: true.
+    /// Controls when expressions are compiled to IL.
+    /// Default: Eager (compile automatically on first evaluation).
     /// </summary>
     /// <remarks>
-    /// Set to false for debugging, when you need consistent tree-walking behavior,
-    /// or when expressions are evaluated only once (compilation overhead not worth it).
-    /// Users can still explicitly call <see cref="CsEvalExpression.TryCompile"/> regardless of this setting.
+    /// <see cref="CompilationMode.Eager"/>: Automatically compile on first evaluation. Good for reused expressions.
+    /// <see cref="CompilationMode.OnDemand"/>: Only compile if explicitly requested via <see cref="CsEvalExpression.TryCompile"/>. Good for debugging or single-use expressions.
     /// </remarks>
-    public bool CompileExpressions { get; init; } = true;
+    public CompilationMode CompilationMode { get; init; } = CompilationMode.Eager;
 
     internal StringComparer StringComparer => IgnoreCase ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
     internal StringComparison StringComparison => IgnoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;

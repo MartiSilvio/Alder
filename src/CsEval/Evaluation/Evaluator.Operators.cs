@@ -90,6 +90,6 @@ public sealed partial class Evaluator
             return merged;
         }
 
-        throw new EvalException($"Cannot add {left?.GetType().Name ?? "null"} and {right?.GetType().Name ?? "null"}");
+        throw new CsEvalException($"Cannot add {left?.GetType().Name ?? "null"} and {right?.GetType().Name ?? "null"}");
     }
 }

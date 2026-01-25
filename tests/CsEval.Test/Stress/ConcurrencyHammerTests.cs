@@ -3,8 +3,9 @@ using CsEval;
 
 namespace CsEval.Test.Stress;
 
-[TestFixture]
-public class ConcurrencyHammerTests : StressTestBase
+[TestFixture(CompilationMode.Eager)]
+[TestFixture(CompilationMode.OnDemand)]
+public class ConcurrencyHammerTests(CompilationMode mode) : StressTestBase(mode)
 {
     [Test]
     public void ParallelChildren_ShouldBeSafe_IfParentIsReadOnly()

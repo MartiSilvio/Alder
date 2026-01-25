@@ -213,6 +213,7 @@ public class CsEvalModuleAttribute : Attribute
 ```
 
 Usage:
+
 ```csharp
 [CsEvalModule("Data")]
 public class DataModule
@@ -246,6 +247,7 @@ public class CsEvalFunctionAttribute : Attribute
 ```
 
 Usage:
+
 ```csharp
 public class GlobalFunctions
 {
@@ -278,26 +280,26 @@ public class LexerException : Exception
 }
 ```
 
-### EvalException
+### CsEvalException
 
 Thrown when expression evaluation fails.
 
 ```csharp
-public class EvalException : Exception
+public class CsEvalException : Exception
 {
-    public EvalException(string message);
+    public CsEvalException(string message);
 }
 ```
 
-## EvalContext
+## CsEvalContext
 
 Internal class for managing variable scope. Exposed for advanced scenarios.
 
 ```csharp
-public sealed class EvalContext
+public sealed class CsEvalContext
 {
     // Constructor
-    public EvalContext(StringComparer? comparer = null);
+    public CsEvalContext(StringComparer? comparer = null);
 
     // Define variable in current scope
     public void Define(string name, object? value);
@@ -312,16 +314,16 @@ public sealed class EvalContext
     public bool TryGet(string name, out object? value);
 
     // Create child scope
-    public EvalContext CreateChild();
+    public CsEvalContext CreateChild();
 
     // Get all variables in current scope
     public IReadOnlyDictionary<string, object?> GetAll();
 
     // Create from ExpandoObject
-    public static EvalContext FromExpandoObject(ExpandoObject? expando, StringComparer? comparer = null);
+    public static CsEvalContext FromExpandoObject(ExpandoObject? expando, StringComparer? comparer = null);
 
     // Create from dictionary
-    public static EvalContext FromDictionary(IDictionary<string, object?>? dict, StringComparer? comparer = null);
+    public static CsEvalContext FromDictionary(IDictionary<string, object?>? dict, StringComparer? comparer = null);
 }
 ```
 

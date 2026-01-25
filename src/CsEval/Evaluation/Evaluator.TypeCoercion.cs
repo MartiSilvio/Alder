@@ -52,13 +52,13 @@ public sealed partial class Evaluator
             return value;
 
         if (!TokenTypeToClrType.TryGetValue(typeToken.Type, out var targetType))
-            throw new EvalException($"Unknown type '{typeToken.Lexeme}'");
+            throw new CsEvalException($"Unknown type '{typeToken.Lexeme}'");
 
         // Null check for value types
         if (value == null)
         {
             if (targetType.IsValueType)
-                throw new EvalException($"Cannot assign null to {typeToken.Lexeme} variable '{varName}'");
+                throw new CsEvalException($"Cannot assign null to {typeToken.Lexeme} variable '{varName}'");
             return null;
         }
 
@@ -79,6 +79,6 @@ public sealed partial class Evaluator
         if (targetType == typeof(char) && value is string { Length: 1 } s)
             return s[0];
 
-        throw new EvalException($"Cannot assign {sourceType.Name} to {typeToken.Lexeme} variable '{varName}'");
+        throw new CsEvalException($"Cannot assign {sourceType.Name} to {typeToken.Lexeme} variable '{varName}'");
     }
 }

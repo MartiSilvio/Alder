@@ -3,15 +3,22 @@ using CsEval;
 
 namespace CsEval.Test.Stress;
 
-public class StressTestBase
+public class StressTestBase : TestBase
 {
     protected readonly Random Random = new(1337); // Fixed seed for reproducibility
     protected CsEvalEngine Engine = null!;
 
+    protected readonly CompilationMode Mode;
+
+    protected StressTestBase(CompilationMode mode)
+    {
+        Mode = mode;
+    }
+
     [SetUp]
     public void Setup()
     {
-        Engine = new CsEvalEngine();
+        Engine = CreateEngine(Mode);
     }
 
     protected string GenerateDeeplyNestedExpression(int depth, string inner = "1")

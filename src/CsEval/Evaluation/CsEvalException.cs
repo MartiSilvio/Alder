@@ -1,6 +1,6 @@
 namespace CsEval.Evaluation;
 
-public class EvalException(string message) : Exception(message);
+public class CsEvalException(string message) : Exception(message);
 
 /// <summary>
 /// Used for early returns in block expressions.

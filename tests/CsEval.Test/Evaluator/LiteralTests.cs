@@ -1,32 +1,35 @@
 namespace CsEval.Test.Evaluator;
 
-[TestFixture]
-public class LiteralTests : EvaluatorTestBase
+[TestFixture(CompilationMode.Eager)]
+[TestFixture(CompilationMode.OnDemand)]
+public class LiteralTests(CompilationMode mode) : TestBase
 {
     [Test]
     public void Eval_Number_ReturnsNumber()
     {
-        var result = Eval("42");
-        Assert.That(result, Is.EqualTo(42));
+        var engine = CreateEngine(mode);
+        Assert.That(engine.Evaluate("42"), Is.EqualTo(42));
     }
 
     [Test]
     public void Eval_String_ReturnsString()
     {
-        var result = Eval("\"hello\"");
-        Assert.That(result, Is.EqualTo("hello"));
+        var engine = CreateEngine(mode);
+        Assert.That(engine.Evaluate("\"hello\""), Is.EqualTo("hello"));
     }
 
     [Test]
     public void Eval_Boolean_ReturnsBoolean()
     {
-        Assert.That(Eval("true"), Is.EqualTo(true));
-        Assert.That(Eval("false"), Is.EqualTo(false));
+        var engine = CreateEngine(mode);
+        Assert.That(engine.Evaluate("true"), Is.EqualTo(true));
+        Assert.That(engine.Evaluate("false"), Is.EqualTo(false));
     }
 
     [Test]
     public void Eval_Null_ReturnsNull()
     {
-        Assert.That(Eval("null"), Is.Null);
+        var engine = CreateEngine(mode);
+        Assert.That(engine.Evaluate("null"), Is.Null);
     }
 }

@@ -5,13 +5,13 @@ namespace CsEval.Evaluation;
 
 public sealed partial class Evaluator : IExprVisitor<object?>
 {
-    private EvalContext _context;
+    private CsEvalContext _context;
     private readonly Dictionary<string, Func<object?[], object?>> _functions;
     private readonly CsEvalOptions _options;
     private readonly CancellationToken _cancellationToken;
     private readonly Func<MethodInfo, object?[], object?[]>? _argumentTransformer;
 
-    public Evaluator(EvalContext context, Dictionary<string, Func<object?[], object?>> functions,
+    public Evaluator(CsEvalContext context, Dictionary<string, Func<object?[], object?>> functions,
         CsEvalOptions? options = null, CancellationToken cancellationToken = default,
         Func<MethodInfo, object?[], object?[]>? argumentTransformer = null)
     {
@@ -37,7 +37,7 @@ public sealed partial class Evaluator : IExprVisitor<object?>
         if (UnaryOperators.TryGetValue(expr.Op.Type, out var op))
             return op(this, right);
 
-        throw new EvalException($"Unknown unary operator '{expr.Op.Lexeme}'");
+        throw new CsEvalException($"Unknown unary operator '{expr.Op.Lexeme}'");
     }
 
     public object? VisitBinary(BinaryExpr expr)
@@ -48,7 +48,7 @@ public sealed partial class Evaluator : IExprVisitor<object?>
         if (BinaryOperators.TryGetValue(expr.Op.Type, out var op))
             return op(this, left, right);
 
-        throw new EvalException($"Unknown binary operator '{expr.Op.Lexeme}'");
+        throw new CsEvalException($"Unknown binary operator '{expr.Op.Lexeme}'");
     }
 
     public object? VisitLogical(LogicalExpr expr)
@@ -87,7 +87,7 @@ public sealed partial class Evaluator : IExprVisitor<object?>
             return null;
 
         if (obj == null)
-            throw new EvalException($"Cannot access property '{expr.Name.Lexeme}' on null");
+            throw new CsEvalException($"Cannot access property '{expr.Name.Lexeme}' on null");
 
         if (obj is IEnumerable and not string and not IDictionary<string, object?>)
         {
@@ -107,7 +107,7 @@ public sealed partial class Evaluator : IExprVisitor<object?>
         var index = Evaluate(expr.Index);
 
         if (obj == null)
-            throw new EvalException("Cannot index null");
+            throw new CsEvalException("Cannot index null");
 
         return GetIndex(obj, index);
     }
@@ -116,7 +116,7 @@ public sealed partial class Evaluator : IExprVisitor<object?>
     {
         // Named arguments should only appear within CallExpr and are handled there.
         // If we get here, it means a named argument was used outside a method call.
-        throw new EvalException("Named arguments can only be used in method calls");
+        throw new CsEvalException("Named arguments can only be used in method calls");
     }
 
     public object? VisitCall(CallExpr expr)
@@ -147,7 +147,7 @@ public sealed partial class Evaluator : IExprVisitor<object?>
             var result = TryInvokeMethod(methodRef.Target, methodRef.MethodName, args);
             if (result.Success)
                 return result.Value;
-            throw new EvalException($"Method '{methodRef.MethodName}' invocation failed");
+            throw new CsEvalException($"Method '{methodRef.MethodName}' invocation failed");
         }
 
         if (callee is ModuleMethodRef filteredRef)
@@ -164,7 +164,7 @@ public sealed partial class Evaluator : IExprVisitor<object?>
         if (callee is LambdaValue lambda)
             return InvokeLambda(lambda, args);
 
-        throw new EvalException($"Cannot call '{callee?.GetType().Name ?? "null"}' as a function");
+        throw new CsEvalException($"Cannot call '{callee?.GetType().Name ?? "null"}' as a function");
     }
 
     public object? VisitLambda(LambdaExpr expr)
@@ -193,7 +193,7 @@ public sealed partial class Evaluator : IExprVisitor<object?>
             return currentValue;
 
         if (!_options.Sandbox.AllowAssignment)
-            throw new EvalException($"Assignment blocked by sandbox: {name} ??= ...");
+            throw new CsEvalException($"Assignment blocked by sandbox: {name} ??= ...");
 
         var newValue = Evaluate(expr.Value);
         _context.Set(name, newValue);
@@ -203,7 +203,7 @@ public sealed partial class Evaluator : IExprVisitor<object?>
     public object? VisitAssign(AssignExpr expr)
     {
         if (!_options.Sandbox.AllowAssignment)
-            throw new EvalException($"Assignment blocked by sandbox: {expr.Name.Lexeme} = ...");
+            throw new CsEvalException($"Assignment blocked by sandbox: {expr.Name.Lexeme} = ...");
 
         var name = expr.Name.Lexeme;
         var value = Evaluate(expr.Value);
@@ -218,7 +218,7 @@ public sealed partial class Evaluator : IExprVisitor<object?>
         var value = Evaluate(expr.Value);
 
         if (obj == null)
-            throw new EvalException("Cannot assign to index on null");
+            throw new CsEvalException("Cannot assign to index on null");
 
         SetIndex(obj, index, value);
         return value;
@@ -230,7 +230,7 @@ public sealed partial class Evaluator : IExprVisitor<object?>
         var value = Evaluate(expr.Value);
 
         if (obj == null)
-            throw new EvalException($"Cannot assign to property '{expr.Name.Lexeme}' on null");
+            throw new CsEvalException($"Cannot assign to property '{expr.Name.Lexeme}' on null");
 
         SetMember(obj, expr.Name.Lexeme, value);
         return value;
@@ -239,17 +239,17 @@ public sealed partial class Evaluator : IExprVisitor<object?>
     public object? VisitCompoundAssign(CompoundAssignExpr expr)
     {
         if (!_options.Sandbox.AllowAssignment)
-            throw new EvalException($"Assignment blocked by sandbox: {expr.Name.Lexeme} {expr.Op.Lexeme} ...");
+            throw new CsEvalException($"Assignment blocked by sandbox: {expr.Name.Lexeme} {expr.Op.Lexeme} ...");
 
         var name = expr.Name.Lexeme;
         var currentValue = _context.Get(name);
         var rightValue = Evaluate(expr.Value);
 
         if (!CompoundToBaseOperator.TryGetValue(expr.Op.Type, out var baseOp))
-            throw new EvalException($"Unknown compound assignment operator '{expr.Op.Lexeme}'");
+            throw new CsEvalException($"Unknown compound assignment operator '{expr.Op.Lexeme}'");
 
         if (!BinaryOperators.TryGetValue(baseOp, out var op))
-            throw new EvalException($"Unknown base operator for '{expr.Op.Lexeme}'");
+            throw new CsEvalException($"Unknown base operator for '{expr.Op.Lexeme}'");
 
         var result = op(this, currentValue, rightValue);
         _context.Set(name, result);
@@ -259,7 +259,7 @@ public sealed partial class Evaluator : IExprVisitor<object?>
     public object? VisitIncrementDecrement(IncrementDecrementExpr expr)
     {
         if (!_options.Sandbox.AllowAssignment)
-            throw new EvalException($"Assignment blocked by sandbox: {expr.Op.Lexeme}{expr.Name.Lexeme}");
+            throw new CsEvalException($"Assignment blocked by sandbox: {expr.Op.Lexeme}{expr.Name.Lexeme}");
 
         var name = expr.Name.Lexeme;
         var currentValue = _context.Get(name);
@@ -326,7 +326,7 @@ public sealed partial class Evaluator : IExprVisitor<object?>
                 }
                 else
                 {
-                    throw new EvalException("Spread operator requires an iterable");
+                    throw new CsEvalException("Spread operator requires an iterable");
                 }
             }
             else
@@ -374,7 +374,7 @@ public sealed partial class Evaluator : IExprVisitor<object?>
     {
         // Spread expressions are handled by VisitArrayLiteral and VisitObjectLiteral
         // This method is only called if spread is used outside of those contexts
-        throw new EvalException("Spread operator can only be used in array or object literals");
+        throw new CsEvalException("Spread operator can only be used in array or object literals");
     }
 
     public object? VisitBlock(BlockExpr expr)
@@ -478,7 +478,7 @@ internal sealed record FunctionRef(string Name, Func<object?[], object?> Functio
     public object? Invoke(object?[] args) => Function(args);
 }
 
-internal sealed record LambdaValue(List<string> Parameters, Expr Body, EvalContext Closure);
+internal sealed record LambdaValue(List<string> Parameters, Expr Body, CsEvalContext Closure);
 
 internal sealed record MethodRef(object Target, string MethodName);
 

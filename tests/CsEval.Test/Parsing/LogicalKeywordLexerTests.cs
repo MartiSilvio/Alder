@@ -4,7 +4,7 @@ using CsEval.Parsing;
 namespace CsEval.Test.Parsing;
 
 [TestFixture]
-public class LogicalKeywordLexerTests
+public class LogicalKeywordLexerTests : TestBase
 {
     [Test]
     public void Lexer_And_ProducesAmpAmpToken()

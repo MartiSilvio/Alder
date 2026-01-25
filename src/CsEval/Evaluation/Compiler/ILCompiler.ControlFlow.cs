@@ -362,7 +362,7 @@ internal sealed partial class ILCompiler
     private LinqExpression CompileBreak()
     {
         if (_controlStack.Count == 0)
-            throw new EvalException("break statement outside of loop or switch");
+            throw new CsEvalException("break statement outside of loop or switch");
 
         var context = _controlStack.Peek();
         return LinqExpression.Break(context.BreakTarget);
@@ -377,7 +377,7 @@ internal sealed partial class ILCompiler
                 return LinqExpression.Continue(context.ContinueTarget);
         }
 
-        throw new EvalException("continue statement outside of loop");
+        throw new CsEvalException("continue statement outside of loop");
     }
 
     private LinqExpression CompileReturn(ReturnExpr ret)
