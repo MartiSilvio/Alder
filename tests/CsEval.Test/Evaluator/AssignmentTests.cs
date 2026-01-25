@@ -1,4 +1,4 @@
-namespace CsEval.Test;
+namespace CsEval.Test.Evaluator;
 
 [TestFixture]
 public class AssignmentTests

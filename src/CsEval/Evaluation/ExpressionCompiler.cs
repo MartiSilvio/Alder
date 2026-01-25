@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using CsEval.Evaluation.Compiler;
 using CsEval.Parsing;
 
 namespace CsEval.Evaluation;
