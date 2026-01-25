@@ -270,7 +270,7 @@ Each child context:
 
 **Sandbox Modes** — `Trusted`, `Safe`, and `Strict` presets with granular overrides for secure evaluation.
 
-**Expression Compilation** — Optional compilation to delegates for maximum performance on repeated evaluations.
+**Expression Compilation** — Optional compilation to delegates (via Expression Trees) for maximum performance on repeated evaluations.
 
 ---
 

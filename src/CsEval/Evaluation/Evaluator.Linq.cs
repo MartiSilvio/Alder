@@ -98,7 +98,7 @@ public sealed partial class Evaluator
     private static (bool, object?) HandleWhere(Evaluator e, List<object?> list, object?[] args)
     {
         if (args is not [LambdaValue predicate]) return (false, null);
-        return (true, list.Where(item => IsTruthy(e.InvokeLambda(predicate, [item]))).ToList());
+        return (true, list.Where(item => RuntimeHelpers.IsTruthy(e.InvokeLambda(predicate, [item]))).ToList());
     }
 
     private static (bool, object?) HandleSelect(Evaluator e, List<object?> list, object?[] args)
@@ -122,62 +122,62 @@ public sealed partial class Evaluator
     private static (bool, object?) HandleFirst(Evaluator e, List<object?> list, object?[] args)
     {
         if (args is [LambdaValue predicate])
-            return (true, list.First(item => IsTruthy(e.InvokeLambda(predicate, [item]))));
+            return (true, list.First(item => RuntimeHelpers.IsTruthy(e.InvokeLambda(predicate, [item]))));
         return (true, list.First());
     }
 
     private static (bool, object?) HandleFirstOrDefault(Evaluator e, List<object?> list, object?[] args)
     {
         if (args is [LambdaValue predicate])
-            return (true, list.FirstOrDefault(item => IsTruthy(e.InvokeLambda(predicate, [item]))));
+            return (true, list.FirstOrDefault(item => RuntimeHelpers.IsTruthy(e.InvokeLambda(predicate, [item]))));
         return (true, list.FirstOrDefault());
     }
 
     private static (bool, object?) HandleLast(Evaluator e, List<object?> list, object?[] args)
     {
         if (args is [LambdaValue predicate])
-            return (true, list.Last(item => IsTruthy(e.InvokeLambda(predicate, [item]))));
+            return (true, list.Last(item => RuntimeHelpers.IsTruthy(e.InvokeLambda(predicate, [item]))));
         return (true, list.Last());
     }
 
     private static (bool, object?) HandleLastOrDefault(Evaluator e, List<object?> list, object?[] args)
     {
         if (args is [LambdaValue predicate])
-            return (true, list.LastOrDefault(item => IsTruthy(e.InvokeLambda(predicate, [item]))));
+            return (true, list.LastOrDefault(item => RuntimeHelpers.IsTruthy(e.InvokeLambda(predicate, [item]))));
         return (true, list.LastOrDefault());
     }
 
     private static (bool, object?) HandleSingle(Evaluator e, List<object?> list, object?[] args)
     {
         if (args is [LambdaValue predicate])
-            return (true, list.Single(item => IsTruthy(e.InvokeLambda(predicate, [item]))));
+            return (true, list.Single(item => RuntimeHelpers.IsTruthy(e.InvokeLambda(predicate, [item]))));
         return (true, list.Single());
     }
 
     private static (bool, object?) HandleSingleOrDefault(Evaluator e, List<object?> list, object?[] args)
     {
         if (args is [LambdaValue predicate])
-            return (true, list.SingleOrDefault(item => IsTruthy(e.InvokeLambda(predicate, [item]))));
+            return (true, list.SingleOrDefault(item => RuntimeHelpers.IsTruthy(e.InvokeLambda(predicate, [item]))));
         return (true, list.SingleOrDefault());
     }
 
     private static (bool, object?) HandleAny(Evaluator e, List<object?> list, object?[] args)
     {
         if (args is [LambdaValue predicate])
-            return (true, list.Any(item => IsTruthy(e.InvokeLambda(predicate, [item]))));
+            return (true, list.Any(item => RuntimeHelpers.IsTruthy(e.InvokeLambda(predicate, [item]))));
         return (true, list.Any());
     }
 
     private static (bool, object?) HandleAll(Evaluator e, List<object?> list, object?[] args)
     {
         if (args is not [LambdaValue predicate]) return (false, null);
-        return (true, list.All(item => IsTruthy(e.InvokeLambda(predicate, [item]))));
+        return (true, list.All(item => RuntimeHelpers.IsTruthy(e.InvokeLambda(predicate, [item]))));
     }
 
     private static (bool, object?) HandleCount(Evaluator e, List<object?> list, object?[] args)
     {
         if (args is [LambdaValue predicate])
-            return (true, list.Count(item => IsTruthy(e.InvokeLambda(predicate, [item]))));
+            return (true, list.Count(item => RuntimeHelpers.IsTruthy(e.InvokeLambda(predicate, [item]))));
         return (true, list.Count);
     }
 
@@ -367,26 +367,8 @@ public sealed partial class Evaluator
         var searchValue = args[0];
         foreach (var item in list)
         {
-            if (item is null && searchValue is null)
+            if ((bool)RuntimeHelpers.Equals(item, searchValue, e._options))
                 return (true, true);
-            if (item is null || searchValue is null)
-                continue;
-            if (IsNumeric(item) && IsNumeric(searchValue))
-            {
-                // C# forbids decimal == float/double, so handle that case specially
-                if (InvolvesDecimalAndFloatingPoint(item, searchValue))
-                {
-                    if (Convert.ToDouble(item) == Convert.ToDouble(searchValue))
-                        return (true, true);
-                }
-                // Use dynamic to let C# runtime handle all other numeric comparisons
-                else if ((dynamic)item == (dynamic)searchValue)
-                    return (true, true);
-            }
-            else if (item.Equals(searchValue))
-            {
-                return (true, true);
-            }
         }
         return (true, false);
     }
@@ -450,18 +432,6 @@ public sealed partial class Evaluator
         return (true, list.Union(other.Cast<object?>()).ToList());
     }
 
-    /// <summary>
-    /// Checks if one value is decimal and the other is float/double.
-    /// C# forbids mixing these types in arithmetic and comparison.
-    /// </summary>
-    private static bool InvolvesDecimalAndFloatingPoint(object? a, object? b)
-    {
-        var aIsDecimal = a is decimal;
-        var bIsDecimal = b is decimal;
-        var aIsFloatingPoint = a is float or double;
-        var bIsFloatingPoint = b is float or double;
-        return (aIsDecimal && bIsFloatingPoint) || (bIsDecimal && aIsFloatingPoint);
-    }
 
     #endregion
 }

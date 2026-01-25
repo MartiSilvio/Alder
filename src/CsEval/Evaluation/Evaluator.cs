@@ -35,7 +35,7 @@ public sealed partial class Evaluator : IExprVisitor<object?>
         var right = Evaluate(expr.Right);
 
         if (UnaryOperators.TryGetValue(expr.Op.Type, out var op))
-            return op(right);
+            return op(this, right);
 
         throw new EvalException($"Unknown unary operator '{expr.Op.Lexeme}'");
     }
@@ -57,14 +57,14 @@ public sealed partial class Evaluator : IExprVisitor<object?>
 
         if (expr.Op.Type == TokenType.PipePipe)
         {
-            if (IsTruthy(left)) return true;
+            if (RuntimeHelpers.IsTruthy(left)) return true;
         }
         else
         {
-            if (!IsTruthy(left)) return false;
+            if (!RuntimeHelpers.IsTruthy(left)) return false;
         }
 
-        return IsTruthy(Evaluate(expr.Right));
+        return RuntimeHelpers.IsTruthy(Evaluate(expr.Right));
     }
 
     public object? VisitGrouping(GroupingExpr expr) => Evaluate(expr.Expression);
@@ -175,7 +175,7 @@ public sealed partial class Evaluator : IExprVisitor<object?>
     public object? VisitConditional(ConditionalExpr expr)
     {
         var condition = Evaluate(expr.Condition);
-        return IsTruthy(condition) ? Evaluate(expr.ThenBranch) : Evaluate(expr.ElseBranch);
+        return RuntimeHelpers.IsTruthy(condition) ? Evaluate(expr.ThenBranch) : Evaluate(expr.ElseBranch);
     }
 
     public object? VisitNullCoalesce(NullCoalesceExpr expr)
@@ -284,7 +284,7 @@ public sealed partial class Evaluator : IExprVisitor<object?>
 
         var newValue = expr.Op.Type == TokenType.PlusPlus
             ? Add(currentValue, one)
-            : Subtract(currentValue, one);
+            : RuntimeHelpers.Subtract(currentValue, one, _options);
 
         _context.Set(name, newValue);
 
@@ -423,7 +423,7 @@ public sealed partial class Evaluator : IExprVisitor<object?>
     {
         var condition = Evaluate(expr.Condition);
 
-        if (IsTruthy(condition))
+        if (RuntimeHelpers.IsTruthy(condition))
         {
             // Create a child scope for the then branch
             var previousContext = _context;

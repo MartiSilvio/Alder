@@ -19,7 +19,7 @@ public sealed partial class Evaluator
         var iterations = 0;
         var maxIterations = _options.MaxIterations;
 
-        while (IsTruthy(Evaluate(expr.Condition)))
+        while (RuntimeHelpers.IsTruthy(Evaluate(expr.Condition)))
         {
             _cancellationToken.ThrowIfCancellationRequested();
 
@@ -73,7 +73,7 @@ public sealed partial class Evaluator
             }
 
             // Loop while condition is true (or forever if no condition)
-            while (expr.Condition == null || IsTruthy(Evaluate(expr.Condition)))
+            while (expr.Condition == null || RuntimeHelpers.IsTruthy(Evaluate(expr.Condition)))
             {
                 _cancellationToken.ThrowIfCancellationRequested();
 
@@ -156,7 +156,7 @@ public sealed partial class Evaluator
             {
                 _context = previousContext;
             }
-        } while (IsTruthy(Evaluate(expr.Condition)));
+        } while (RuntimeHelpers.IsTruthy(Evaluate(expr.Condition)));
 
         return null;
     }

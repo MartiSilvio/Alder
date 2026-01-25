@@ -25,7 +25,7 @@ public sealed partial class Evaluator
             if (!matched)
             {
                 var caseValue = Evaluate(switchCase.Pattern);
-                if (Equals(switchValue, caseValue))
+                if ((bool)RuntimeHelpers.Equals(switchValue, caseValue, _options))
                 {
                     matched = true;
                     // Execute this case and potentially fall through

@@ -78,15 +78,15 @@ Control flow performance:
 
 Expression compilation performance comparing compiled vs tree-walking evaluation:
 
-| Benchmark                              | Description                               |
-| -------------------------------------- | ----------------------------------------- |
-| **Evaluate_Compiled_SimpleArithmetic** | Compiled `1 + 2 * 3` evaluation           |
-| **Evaluate_TreeWalk_SimpleArithmetic** | Tree-walking `1 + 2 * 3` evaluation       |
-| **Evaluate_Compiled_WithVariables**    | Compiled `x + y * z` evaluation           |
-| **Evaluate_TreeWalk_WithVariables**    | Tree-walking `x + y * z` evaluation       |
-| **Evaluate_Compiled_Ternary**          | Compiled ternary expression               |
-| **Evaluate_Compiled_PropertyAccess**   | Compiled property access                  |
-| **CompileTime_\***                     | Time to compile different expression types|
+| Benchmark                              | Description                                |
+| -------------------------------------- | ------------------------------------------ |
+| **Evaluate_Compiled_SimpleArithmetic** | Compiled `1 + 2 * 3` evaluation            |
+| **Evaluate_TreeWalk_SimpleArithmetic** | Tree-walking `1 + 2 * 3` evaluation        |
+| **Evaluate_Compiled_WithVariables**    | Compiled `x + y * z` evaluation            |
+| **Evaluate_TreeWalk_WithVariables**    | Tree-walking `x + y * z` evaluation        |
+| **Evaluate_Compiled_Ternary**          | Compiled ternary expression                |
+| **Evaluate_Compiled_PropertyAccess**   | Compiled property access                   |
+| **CompileTime\_\***                    | Time to compile different expression types |
 
 The `_Compiled` vs `_TreeWalk` comparisons show the speedup from compilation (~5-20x for simple expressions).
 
@@ -177,7 +177,7 @@ Loops scale linearly with iteration count. The per-iteration cost includes:
 
 ### Automatic IL Compilation
 
-CsEval automatically compiles expressions to native IL via `System.Reflection.Emit.DynamicMethod` during `Parse()`. This provides near-native performance for most expressions, with automatic fallback to tree-walking for non-compilable expressions.
+CsEval automatically compiles expressions to native IL via `System.Linq.Expressions` (Expression Trees) during `Parse()`. This provides near-native performance for most expressions, with automatic fallback to tree-walking for non-compilable expressions.
 
 ```csharp
 var engine = new CsEvalEngine();
@@ -191,6 +191,7 @@ engine.Evaluate(expr);  // Uses compiled delegate
 ```
 
 **What compiles to native IL (~5-50x speedup):**
+
 - Literals, identifiers, property access
 - Arithmetic (`+`, `-`, `*`, `/`, `%`) on strings and numerics
 - Comparisons (`==`, `!=`, `<`, `>`, `<=`, `>=`)
@@ -202,6 +203,7 @@ engine.Evaluate(expr);  // Uses compiled delegate
 - Compound assignments (`+=`, `-=`, etc.) and increment/decrement
 
 **What falls back to tree-walking:**
+
 - LINQ methods with lambda expressions
 - Method calls on objects
 - Switch statements
@@ -209,10 +211,10 @@ engine.Evaluate(expr);  // Uses compiled delegate
 
 ## Optimization Summary
 
-| Optimization           | Impact                                      | Location                           |
-| ---------------------- | ------------------------------------------- | ---------------------------------- |
-| Pre-parsing            | ~80% faster for repeated eval               | `CsEvalEngine.Parse()`             |
-| Expression compilation | ~5-20x faster for simple expressions        | `ExpressionCompiler.cs`            |
-| TypeCache              | Eliminates repeated reflection              | `TypeCache.cs`                     |
-| Compiled getters       | ~350x faster than `PropertyInfo.GetValue()` | `TypeCache.GetCompiledGetter()`    |
-| ConcurrentDictionary   | Thread-safe caching                         | All caches                         |
+| Optimization           | Impact                                      | Location                        |
+| ---------------------- | ------------------------------------------- | ------------------------------- |
+| Pre-parsing            | ~80% faster for repeated eval               | `CsEvalEngine.Parse()`          |
+| Expression compilation | ~5-20x faster for simple expressions        | `ExpressionCompiler.cs`         |
+| TypeCache              | Eliminates repeated reflection              | `TypeCache.cs`                  |
+| Compiled getters       | ~350x faster than `PropertyInfo.GetValue()` | `TypeCache.GetCompiledGetter()` |
+| ConcurrentDictionary   | Thread-safe caching                         | All caches                      |

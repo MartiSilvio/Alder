@@ -12,39 +12,39 @@ public sealed partial class Evaluator
     {
         // Arithmetic
         { TokenType.Plus, (e, l, r) => e.Add(l, r) },
-        { TokenType.Minus, (_, l, r) => Subtract(l, r) },
-        { TokenType.Star, (_, l, r) => Multiply(l, r) },
-        { TokenType.Slash, (_, l, r) => Divide(l, r) },
-        { TokenType.Percent, (_, l, r) => Modulo(l, r) },
+        { TokenType.Minus, (e, l, r) => RuntimeHelpers.Subtract(l, r, e._options) },
+        { TokenType.Star, (e, l, r) => RuntimeHelpers.Multiply(l, r, e._options) },
+        { TokenType.Slash, (e, l, r) => RuntimeHelpers.Divide(l, r, e._options) },
+        { TokenType.Percent, (e, l, r) => RuntimeHelpers.Modulo(l, r, e._options) },
 
         // Comparison
-        { TokenType.EqualEqual, (_, l, r) => Equals(l, r) },
-        { TokenType.BangEqual, (_, l, r) => !Equals(l, r) },
-        { TokenType.EqualEqualEqual, (_, l, r) => Equals(l, r) },  // JavaScript === (same as == in C#)
-        { TokenType.BangEqualEqual, (_, l, r) => !Equals(l, r) },  // JavaScript !== (same as != in C#)
-        { TokenType.Less, (e, l, r) => e.Compare(l, r) < 0 },
-        { TokenType.LessEqual, (e, l, r) => e.Compare(l, r) <= 0 },
-        { TokenType.Greater, (e, l, r) => e.Compare(l, r) > 0 },
-        { TokenType.GreaterEqual, (e, l, r) => e.Compare(l, r) >= 0 },
-        { TokenType.In, (_, l, r) => Contains(r, l) },  // Python-style: x in [1, 2, 3]
+        { TokenType.EqualEqual, (e, l, r) => RuntimeHelpers.Equals(l, r, e._options) },
+        { TokenType.BangEqual, (e, l, r) => ! (bool)RuntimeHelpers.Equals(l, r, e._options) },
+        { TokenType.EqualEqualEqual, (e, l, r) => RuntimeHelpers.Equals(l, r, e._options) },  // JavaScript === (same as == in C#)
+        { TokenType.BangEqualEqual, (e, l, r) => ! (bool)RuntimeHelpers.Equals(l, r, e._options) },  // JavaScript !== (same as != in C#)
+        { TokenType.Less, (e, l, r) => RuntimeHelpers.LessThan(l, r, e._options) },
+        { TokenType.LessEqual, (e, l, r) => RuntimeHelpers.LessThanOrEqual(l, r, e._options) },
+        { TokenType.Greater, (e, l, r) => RuntimeHelpers.GreaterThan(l, r, e._options) },
+        { TokenType.GreaterEqual, (e, l, r) => RuntimeHelpers.GreaterThanOrEqual(l, r, e._options) },
+        { TokenType.In, (e, l, r) => RuntimeHelpers.Contains(r, l, e._options) },  // Python-style: x in [1, 2, 3]
 
         // Bitwise
-        { TokenType.Amp, (_, l, r) => BitwiseAnd(l, r) },
-        { TokenType.Pipe, (_, l, r) => BitwiseOr(l, r) },
-        { TokenType.Caret, (_, l, r) => BitwiseXor(l, r) },
-        { TokenType.LessLess, (_, l, r) => LeftShift(l, r) },
-        { TokenType.GreaterGreater, (_, l, r) => RightShift(l, r) },
+        { TokenType.Amp, (e, l, r) => RuntimeHelpers.BitwiseAnd(l, r, e._options) },
+        { TokenType.Pipe, (e, l, r) => RuntimeHelpers.BitwiseOr(l, r, e._options) },
+        { TokenType.Caret, (e, l, r) => RuntimeHelpers.BitwiseXor(l, r, e._options) },
+        { TokenType.LessLess, (e, l, r) => RuntimeHelpers.LeftShift(l, r) },
+        { TokenType.GreaterGreater, (e, l, r) => RuntimeHelpers.RightShift(l, r) },
     };
 
     /// <summary>
     /// Registry of unary operators. Add new operators by adding entries here.
     /// Key: TokenType, Value: (value) => result
     /// </summary>
-    private static readonly Dictionary<TokenType, Func<object?, object?>> UnaryOperators = new()
+    private static readonly Dictionary<TokenType, Func<Evaluator, object?, object?>> UnaryOperators = new()
     {
-        { TokenType.Minus, Negate },
-        { TokenType.Bang, v => !IsTruthy(v) },
-        { TokenType.Tilde, BitwiseNot },
+        { TokenType.Minus, (_, v) => RuntimeHelpers.Negate(v) },
+        { TokenType.Bang, (_, v) => !RuntimeHelpers.IsTruthy(v) },
+        { TokenType.Tilde, (_, v) => RuntimeHelpers.BitwiseNot(v) },
     };
 
     /// <summary>

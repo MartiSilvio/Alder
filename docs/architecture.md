@@ -7,10 +7,10 @@ This document explains the internal architecture of CsEval and key design decisi
 CsEval processes expressions in three phases:
 
 ```
-Source Code → Lexer → Tokens → Parser → AST → IL Compilation → Result
+Source Code → Lexer → Tokens → Parser → AST → IL Compilation (Expression Trees) → Result
 ```
 
-Expressions are compiled to native IL via `System.Reflection.Emit.DynamicMethod` for maximum performance. Non-compilable expressions (LINQ with lambdas, method calls) fall back to tree-walking.
+Expressions are compiled to native IL via `System.Linq.Expressions` for maximum performance. Non-compilable expressions (LINQ with lambdas, method calls) fall back to tree-walking.
 
 ## Phase 1: Lexing
 
@@ -34,21 +34,21 @@ WhileStatementExpr(Condition, Body)  // while (x > 0) { ... }
 
 ### IL Compilation (Primary)
 
-CsEval compiles expressions to native IL using `System.Reflection.Emit.DynamicMethod`. This happens automatically during `Parse()`.
+CsEval compiles expressions to native IL using `System.Linq.Expressions` (Expression Trees). This happens automatically during `Parse()` when `CsEvalOptions.CompileExpressions` is true (default).
 
 ```csharp
 var engine = new CsEvalEngine();
-var expr = engine.Parse("x + y * 2");  // Automatically compiled
+var expr = engine.Parse("x + y * 2");  // Automatically compiled to a delegate
 Console.WriteLine(expr.IsCompiled);    // true
 ```
 
-The [ILCompiler](../src/CsEval/Evaluation/ILCompiler.cs) emits IL instructions for:
+The [ILCompiler](../src/CsEval/Evaluation/Compiler/ILCompiler.cs) translates the AST into an Expression Tree for:
 
-- Literals, identifiers, property access
-- Arithmetic, comparisons, logical operators (with short-circuit)
+- Literals, identifiers
+- Basic arithmetic, comparisons, logical operators (with short-circuit)
 - Ternary (`? :`), null coalesce (`??`)
 - Control flow: `if`/`else`, `for`, `while`, `do-while`, `foreach`
-- `break`, `continue`, `return` (native IL branches)
+- `break`, `continue`, `return` (translated to label jumps)
 - Variable declarations and assignments
 
 The compiled delegate signature:
@@ -62,22 +62,22 @@ delegate object? ILCompiledDelegate(
 
 **Key implementation details:**
 
-1. **Context-Based Scoping**: Control flow blocks create child contexts via `EvalContext.CreateChild()` for proper variable isolation.
+1. **Robust Control Flow**: Expression Trees handle the complexity of IL generation for loops, conditionals, and try/finally blocks (used in `foreach` disposal), ensuring correct stack management.
 
-2. **Loop Control**: `break` and `continue` use IL branch instructions (`br`) to labeled targets, not exceptions.
+2. **Loop Optimization**: Loops use iteration limit checks and cancellation token checks emitted directly into the Expression Tree.
 
-3. **Safety Checks**: Loops emit iteration limit checks and cancellation token checks.
-
-4. **Resource Cleanup**: `foreach` uses try/finally to ensure `IEnumerator.Dispose()` is called.
+3. **Fallback Boundary**: If any part of the expression is not currently supported by the `ILCompiler` (e.g., a method call), it sticks to tree-walking for that entire expression.
 
 ### Tree-Walking (Fallback)
 
-Expressions that cannot be IL-compiled fall back to the [Evaluator](../src/CsEval/Evaluation/Evaluator.cs), which walks the AST using the visitor pattern. This handles:
+Expressions that cannot be IL-compiled or are explicitly marked for interpretation use the [Evaluator](../src/CsEval/Evaluation/Evaluator.cs), which walks the AST using the visitor pattern. Features currently requiring tree-walking include:
 
-- Lambda expressions (closure capture)
-- LINQ method chains
-- Runtime method calls
-- Object merging operations
+- Method calls on objects (`obj.Method()`)
+- Lambda expressions and closures
+- LINQ method handlers
+- Object spread and merging operations
+- Array and object literals
+- Interpolated strings
 
 The fallback is automatic and silent - callers don't need to handle it.
 
@@ -88,6 +88,7 @@ The fallback is automatic and silent - callers don't need to handle it.
 CsEval returns `List<object?>` from LINQ methods rather than `IEnumerable<T>` (immediate evaluation).
 
 **Why:**
+
 - Context may change before deferred enumeration
 - Lists support multiple enumeration and index access
 - Deterministic evaluation without timing dependencies
@@ -99,10 +100,12 @@ CsEval returns `List<object?>` from LINQ methods rather than `IEnumerable<T>` (i
 CsEval matches C# numeric literal and arithmetic behavior exactly:
 
 **Literals:**
+
 - `42` → `int`, `42L` → `long`, `42U` → `uint`, `42UL` → `ulong`
 - `3.14` → `double`, `3.14f` → `float`, `3.14m` → `decimal`
 
 **Arithmetic (via `dynamic`):**
+
 - `int / int` → `int` (truncates!)
 - Mixed types promote: `int + long` → `long`, `int + float` → `float`
 - `decimal + float` or `decimal + double` → **Throws** (C# forbids this)

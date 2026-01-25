@@ -96,9 +96,25 @@ public static class RuntimeHelpers
 
         // Let C# runtime handle numeric comparison via dynamic
         if (IsNumeric(left) && IsNumeric(right))
+        {
+            // C# forbids decimal == float/double, so handle that case specially
+            if (InvolvesDecimalAndFloatingPoint(left, right))
+            {
+                return Convert.ToDouble(left) == Convert.ToDouble(right);
+            }
             return (dynamic)left! == (dynamic)right!;
+        }
 
         return false;
+    }
+
+    private static bool InvolvesDecimalAndFloatingPoint(object? a, object? b)
+    {
+        var aIsDecimal = a is decimal;
+        var bIsDecimal = b is decimal;
+        var aIsFloatingPoint = a is float or double;
+        var bIsFloatingPoint = b is float or double;
+        return (aIsDecimal && bIsFloatingPoint) || (bIsDecimal && aIsFloatingPoint);
     }
 
     public static object NotEquals(object? left, object? right, CsEvalOptions options)
@@ -126,7 +142,7 @@ public static class RuntimeHelpers
         return Compare(left, right, options) >= 0;
     }
 
-    private static int Compare(object? left, object? right, CsEvalOptions options)
+    internal static int Compare(object? left, object? right, CsEvalOptions options)
     {
         if (left == null || right == null)
             throw new EvalException("Cannot compare null values");
@@ -212,7 +228,7 @@ public static class RuntimeHelpers
     /// <summary>
     /// Checks if a type is a forbidden reflection metadata type.
     /// </summary>
-    private static bool IsForbiddenReflectionType(Type? type)
+    internal static bool IsForbiddenReflectionType(Type? type)
     {
         if (type == null) return false;
 
@@ -314,10 +330,61 @@ public static class RuntimeHelpers
         throw new EvalException($"Cannot apply operator ^ to {left?.GetType().Name} and {right?.GetType().Name}");
     }
 
-    private static bool IsInteger(object? value) =>
+    public static object? BitwiseNot(object? value)
+    {
+        if (!IsNumeric(value))
+            throw new EvalException($"Cannot apply bitwise NOT to {value?.GetType().Name ?? "null"}");
+
+        return ~(dynamic)value!;
+    }
+
+    public static object? LeftShift(object? left, object? right)
+    {
+        if (!IsNumeric(left) || !IsNumeric(right))
+            throw new EvalException($"Cannot apply left shift to {left?.GetType().Name ?? "null"} and {right?.GetType().Name ?? "null"}");
+
+        return (dynamic)left! << (int)(dynamic)right!;
+    }
+
+    public static object? RightShift(object? left, object? right)
+    {
+        if (!IsNumeric(left) || !IsNumeric(right))
+            throw new EvalException($"Cannot apply right shift to {left?.GetType().Name ?? "null"} and {right?.GetType().Name ?? "null"}");
+
+        return (dynamic)left! >> (int)(dynamic)right!;
+    }
+
+    public static bool Contains(object? collection, object? value, CsEvalOptions options)
+    {
+        if (collection == null)
+            throw new EvalException("Cannot check containment in null collection");
+
+        // String containment: "bc" in "abcd"
+        if (collection is string str && value is string substr)
+            return str.Contains(substr);
+
+        // Character in string: 'b' in "abc"
+        if (collection is string strForChar && value is char ch)
+            return strForChar.Contains(ch);
+
+        // Collection containment
+        if (collection is System.Collections.IEnumerable enumerable)
+        {
+            foreach (var item in enumerable)
+            {
+                if ((bool)Equals(item, value, options))
+                    return true;
+            }
+            return false;
+        }
+
+        throw new EvalException($"Cannot use 'in' operator with {collection.GetType().Name}");
+    }
+
+    internal static bool IsInteger(object? value) =>
         value is sbyte or byte or short or ushort or int or uint or long or ulong;
 
-    private static bool IsNumeric(object? value) =>
+    internal static bool IsNumeric(object? value) =>
         value is sbyte or byte or short or ushort or int or uint or long or ulong or float or double or decimal;
 
     public static object? GetIndex(object? obj, object? index, CsEvalOptions options)

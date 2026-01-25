@@ -497,7 +497,7 @@ foreach (var dataset in datasets)
 
 ### Automatic IL Compilation
 
-CsEval compiles expressions to native IL via `System.Reflection.Emit.DynamicMethod` for maximum performance. All expressions are automatically compiled during `Parse()` with silent fallback to tree-walking for non-compilable expressions.
+CsEval compiles expressions to native IL via `System.Linq.Expressions` (Expression Trees) for maximum performance. All expressions are automatically compiled during `Parse()` with silent fallback to tree-walking for non-compilable expressions.
 
 ```csharp
 var engine = new CsEvalEngine();

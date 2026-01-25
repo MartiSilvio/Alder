@@ -5,37 +5,6 @@ namespace CsEval.Evaluation;
 public sealed partial class Evaluator
 {
     /// <summary>
-    /// Checks if a type is a forbidden reflection metadata type.
-    /// User code must never obtain a value whose runtime type is System.Type or any reflection metadata type.
-    /// </summary>
-    private static bool IsForbiddenReflectionType(Type? type)
-    {
-        if (type == null) return false;
-
-        // Block System.Type (includes RuntimeType)
-        if (typeof(Type).IsAssignableFrom(type))
-            return true;
-
-        // Block all reflection metadata types (MemberInfo is base for MethodInfo, PropertyInfo, FieldInfo, etc.)
-        if (typeof(MemberInfo).IsAssignableFrom(type))
-            return true;
-
-        // Block Assembly and Module
-        if (typeof(Assembly).IsAssignableFrom(type))
-            return true;
-        if (typeof(Module).IsAssignableFrom(type))
-            return true;
-
-        // Block runtime handles
-        if (type == typeof(RuntimeTypeHandle) ||
-            type == typeof(RuntimeMethodHandle) ||
-            type == typeof(RuntimeFieldHandle))
-            return true;
-
-        return false;
-    }
-
-    /// <summary>
     /// Guards against reflection type leaks. Throws if value is a forbidden reflection type.
     /// </summary>
     private static object? GuardReflectionLeak(object? value, string context)
@@ -43,7 +12,7 @@ public sealed partial class Evaluator
         if (value == null) return null;
 
         var type = value.GetType();
-        if (IsForbiddenReflectionType(type))
+        if (RuntimeHelpers.IsForbiddenReflectionType(type))
         {
             throw new EvalException($"Access to reflection types is not allowed: {type.Name} ({context})");
         }
