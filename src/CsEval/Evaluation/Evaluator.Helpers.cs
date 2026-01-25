@@ -115,7 +115,7 @@ public sealed partial class Evaluator
         finalArgs = PadWithDefaults(fallbackParams, finalArgs);
 
         var fallbackResult = fallbackMethod.Invoke(target, finalArgs);
-        return GuardReflectionLeak(UnwrapTask(fallbackResult), $"method {methodName}");
+        return GuardReflectionLeak(fallbackResult, $"method {methodName}");
     }
 
     private (bool Success, object? Value) InvokeMethodWithArgs(MethodInfo method, object? target, object?[] args)
@@ -129,7 +129,7 @@ public sealed partial class Evaluator
                 convertedArgs = _argumentTransformer(method, convertedArgs);
 
             var result = method.Invoke(target, convertedArgs);
-            return (true, GuardReflectionLeak(UnwrapTask(result), $"method {method.Name}"));
+            return (true, GuardReflectionLeak(result, $"method {method.Name}"));
         }
 
         return (false, null);
@@ -441,7 +441,7 @@ public sealed partial class Evaluator
             if (CanInvokeMethod(parameters, argsWithCancellation, out var convertedArgs))
             {
                 var result = method.Invoke(target, convertedArgs);
-                return (true, GuardReflectionLeak(UnwrapTask(result), $"method {methodName}"));
+                return (true, GuardReflectionLeak(result, $"method {methodName}"));
             }
         }
 
@@ -465,64 +465,118 @@ public sealed partial class Evaluator
         return args;
     }
 
-    private object? UnwrapTask(object? result)
-    {
-        if (result is Task task)
-        {
-            task.ConfigureAwait(false).GetAwaiter().GetResult();
-
-            if (task.GetType().IsGenericType)
-                return ((dynamic)task).Result;
-
-            return null;
-        }
-
-        return result;
-    }
-
     private static bool CanInvokeMethod(ParameterInfo[] parameters, object?[] args, out object?[] convertedArgs)
     {
         convertedArgs = new object?[parameters.Length];
 
-        if (args.Length > parameters.Length)
+        // Separate positional and named arguments
+        var positionalArgs = new List<object?>();
+        var namedArgs = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var arg in args)
+        {
+            if (arg is NamedArg named)
+            {
+                namedArgs[named.Name] = named.Value;
+            }
+            else
+            {
+                positionalArgs.Add(arg);
+            }
+        }
+
+        // Track which parameters have been filled
+        var filledParams = new bool[parameters.Length];
+        var positionalIndex = 0;
+
+        // First, fill parameters with positional arguments (in order)
+        for (var i = 0; i < parameters.Length && positionalIndex < positionalArgs.Count; i++)
+        {
+            // Skip parameters that have been filled by named args
+            // (named args take precedence if specified)
+            if (namedArgs.ContainsKey(parameters[i].Name!))
+                continue;
+
+            var arg = positionalArgs[positionalIndex++];
+            if (!TryConvertArg(arg, parameters[i].ParameterType, out var converted))
+                return false;
+
+            convertedArgs[i] = converted;
+            filledParams[i] = true;
+        }
+
+        // If we have leftover positional args, fail
+        if (positionalIndex < positionalArgs.Count)
             return false;
 
-        for (var i = 0; i < parameters.Length; i++)
+        // Now fill in named arguments
+        foreach (var (name, value) in namedArgs)
         {
-            if (i < args.Length)
+            var paramIndex = -1;
+            for (var i = 0; i < parameters.Length; i++)
             {
-                if (args[i] == null)
+                if (string.Equals(parameters[i].Name, name, StringComparison.OrdinalIgnoreCase))
                 {
-                    if (parameters[i].ParameterType.IsValueType && Nullable.GetUnderlyingType(parameters[i].ParameterType) == null)
-                        return false;
-                    convertedArgs[i] = null;
-                }
-                else if (parameters[i].ParameterType.IsAssignableFrom(args[i]!.GetType()))
-                {
-                    convertedArgs[i] = args[i];
-                }
-                else
-                {
-                    try
-                    {
-                        convertedArgs[i] = Convert.ChangeType(args[i], parameters[i].ParameterType);
-                    }
-                    catch
-                    {
-                        return false;
-                    }
+                    paramIndex = i;
+                    break;
                 }
             }
-            else if (parameters[i].HasDefaultValue)
+
+            if (paramIndex == -1)
+                return false; // No matching parameter found
+
+            if (!TryConvertArg(value, parameters[paramIndex].ParameterType, out var converted))
+                return false;
+
+            convertedArgs[paramIndex] = converted;
+            filledParams[paramIndex] = true;
+        }
+
+        // Fill in default values for unfilled parameters
+        for (var i = 0; i < parameters.Length; i++)
+        {
+            if (filledParams[i])
+                continue;
+
+            if (parameters[i].HasDefaultValue)
             {
                 convertedArgs[i] = parameters[i].DefaultValue;
             }
             else
             {
-                return false;
+                return false; // Required parameter not filled
             }
         }
 
         return true;
+    }
+
+    private static bool TryConvertArg(object? arg, Type targetType, out object? converted)
+    {
+        converted = null;
+
+        if (arg == null)
+        {
+            if (targetType.IsValueType && Nullable.GetUnderlyingType(targetType) == null)
+                return false;
+            converted = null;
+            return true;
+        }
+
+        if (targetType.IsAssignableFrom(arg.GetType()))
+        {
+            converted = arg;
+            return true;
+        }
+
+        try
+        {
+            converted = Convert.ChangeType(arg, targetType);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
     }
 }

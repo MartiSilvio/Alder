@@ -53,26 +53,6 @@ public class ExpressionCachingTests
     }
 
     [Test]
-    public async Task EvaluateParsedAsync_ReturnsCorrectResult()
-    {
-        var engine = new CsEvalEngine();
-        var expression = engine.Parse("1 + 2");
-
-        var result = await engine.EvaluateAsync(expression);
-        Assert.That(result, Is.EqualTo(3));
-    }
-
-    [Test]
-    public async Task EvaluateParsedAsync_Generic()
-    {
-        var engine = new CsEvalEngine();
-        var expression = engine.Parse("1 + 2");
-
-        var result = await engine.EvaluateAsync<long>(expression);
-        Assert.That(result, Is.EqualTo(3));
-    }
-
-    [Test]
     public void EvaluateParsed_ComplexExpression()
     {
         var engine = new CsEvalEngine();

@@ -85,6 +85,7 @@ Features for full C# developer familiarity, plus additions from other languages.
 | 🔴 | Typed constructor | `new DateTime(2024, 1, 1)` | Requires type registry |
 | 🔴 | Object initializer | `new Point { X = 10, Y = 20 }` | |
 | 🟡 | Constructor + initializer | `new Person("John") { Age = 30 }` | |
+| ✅ | Named parameters | `Method(count: 10, enabled: true)` | For method calls only |
 | 🔵 | Collection initializer | `new List<int> { 1, 2, 3 }` | Use `[1,2,3]` instead |
 | 🔵 | Array creation | `new int[] { 1, 2, 3 }` | Use `[1,2,3]` instead |
 | 🔵 | Generic type instantiation | `new List<int>()` | |
@@ -148,11 +149,11 @@ Features for full C# developer familiarity, plus additions from other languages.
 
 | Status | Feature | Notes |
 |:------:|---------|-------|
+| ✅ | Zero dependencies | No external NuGet packages required |
 | ✅ | Pre-parsing | `engine.Parse()` for repeated evaluation |
 | ✅ | Thread-safe contexts | `engine.CreateChild()` |
 | ✅ | DI integration | `IServiceProvider` at evaluation time |
-| ✅ | Async methods | `Task<T>` auto-unwrapped |
-| ✅ | Cancellation | `CancellationToken` auto-passed |
+| ✅ | Cancellation | `CancellationToken` auto-passed to methods |
 | ✅ | Module system | `engine.RegisterModule()` |
 | ✅ | Custom functions | `engine.RegisterFunction()` |
 | ✅ | Sandbox modes | `Sandbox.Trusted()`, `Safe()`, `Strict()` presets |
@@ -220,6 +221,28 @@ Features for full C# developer familiarity, plus additions from other languages.
 | ✅ | `some` | `Any` | |
 | ✅ | `every` | `All` | |
 | ✅ | `includes` | `Contains` | |
+
+### Planned JavaScript Methods
+
+The following JavaScript array methods are registered for forward compatibility but **not yet implemented**:
+
+| Status | JavaScript | Description | Notes |
+|:------:|------------|-------------|-------|
+| 🟡 | `findIndex` | Index of first match | Like `FindIndex` |
+| 🟡 | `indexOf` | Index of element | Like `IndexOf` |
+| 🟡 | `lastIndexOf` | Last index of element | Like `LastIndexOf` |
+| 🟡 | `slice` | Extract portion of array | Like `Skip`+`Take` |
+| 🟡 | `sort` | Sort in place | Like `OrderBy` |
+| 🟡 | `flat` | Flatten nested arrays | Like `SelectMany` |
+| 🟡 | `forEach` | Execute for each element | Side-effect iteration |
+| 🟡 | `push` | Add to end | Mutating |
+| 🟡 | `pop` | Remove from end | Mutating |
+| 🟡 | `shift` | Remove from start | Mutating |
+| 🟡 | `unshift` | Add to start | Mutating |
+| 🟡 | `join` | Join to string | Like `String.Join` |
+| 🟡 | `length` | Property for count | Like `Count()` |
+
+> **Note**: These method names are reserved in the parser. Using them will not throw an error but will fail at runtime until implemented.
 
 ---
 
@@ -430,7 +453,7 @@ Feature parity check: does CsEval have what other .NET expression evaluators hav
 | Thread-safe | ⚠️² | ✅ | ⚠️ | ⚠️ | ⚠️ | ⚠️ |
 | Case-insensitive option | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
 | DI integration | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Async support | ✅ | ⚠️ | ❌ | ❌ | ❌ | ✅ |
+| Async support | ❌ | ⚠️ | ❌ | ❌ | ❌ | ✅ |
 | CancellationToken | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
 
 #### Security
@@ -461,11 +484,14 @@ Feature parity check: does CsEval have what other .NET expression evaluators hav
 
 ## Implementation Notes
 
-### Type Registry for Constructors
+### Type Registry for Constructors (Planned)
 
-Typed constructors require explicit type registration for security:
+> **Note**: This feature is not yet implemented. The API below shows the planned design.
+
+Typed constructors will require explicit type registration for security:
 
 ```csharp
+// Planned API (not yet implemented)
 engine.RegisterType<DateTime>("DateTime");
 engine.RegisterType<Point>("Point");
 
@@ -474,7 +500,7 @@ engine.Evaluate("new DateTime(2024, 1, 1)");
 engine.Evaluate("new Point { X = 10, Y = 20 }");
 ```
 
-Only registered types can be instantiated (prevents arbitrary type creation).
+Only registered types will be instantiable (prevents arbitrary type creation).
 
 ### Benchmarking
 

@@ -191,6 +191,11 @@ public sealed partial class Evaluator
             ? e.InvokeLambda(sel, [list.FirstOrDefault(x => x != null) ?? list[0]])
             : list.FirstOrDefault(x => x != null) ?? list[0];
 
+        // Validate that Sum is only called on numeric types (TypeCode.SByte=5 through TypeCode.Decimal=15)
+        var typeCode = first == null ? TypeCode.Empty : Type.GetTypeCode(first.GetType());
+        if (typeCode < TypeCode.SByte || typeCode > TypeCode.Decimal)
+            throw new InvalidOperationException($"Sum() requires numeric elements, but found '{first?.GetType().Name ?? "null"}'");
+
         // Initialize with typed zero, let C# handle arithmetic via dynamic
         dynamic sum = first switch { decimal => 0m, double => 0.0, float => 0f, long => 0L, _ => 0 };
 

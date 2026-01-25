@@ -9,8 +9,8 @@ See also: [Extensions](extensions.md)
 ## Expression Precedence (lowest to highest)
 
 1. Assignment: `=`, `??=`, `+=`, `-=`, `*=`, `/=`, `%=`, `&=`, `|=`, `^=`, `<<=`, `>>=`
-2. Null-coalescing: `??`
-3. Ternary: `? :`
+2. Ternary: `? :`
+3. Null-coalescing: `??`
 4. Logical OR: `||`, `or`
 5. Logical AND: `&&`, `and`
 6. Bitwise OR: `|`
@@ -222,6 +222,30 @@ object.Method()
 object.Method(arg1, arg2)
 Module.StaticMethod(args)
 ```
+
+### Named Parameters
+
+Named parameters allow specifying arguments by parameter name rather than position:
+
+```csharp
+// Basic named parameters
+str.Substring(startIndex: 0, length: 5)
+
+// Out-of-order parameters
+Math.Round(digits: 2, value: 3.14159)
+
+// Mixed positional and named
+str.Substring(0, length: 5)
+
+// Skip optional parameters
+Method(required: "value")  // optional params use defaults
+```
+
+Named parameters:
+- Match by parameter name (case-insensitive)
+- Can appear in any order after positional arguments
+- Allow skipping optional parameters
+- Work with module methods and object instance methods
 
 ### Index Access
 
@@ -511,6 +535,14 @@ Type keywords (matching C#):
 - `bool`
 - `object`
 
+C# contextual keywords (reserved for forward compatibility):
+- `add`, `alias`, `args`, `ascending`, `by`, `descending`, `equals`
+- `file`, `from`, `get`, `global`, `group`, `init`, `into`, `join`
+- `managed`, `notnull`, `on`, `orderby`, `remove`, `required`, `scoped`
+- `select`, `set`, `unmanaged`, `value`, `when`, `where`, `with`, `yield`
+
+> **Note**: These contextual keywords are reserved but may not have special meaning in CsEval yet. Avoid using them as variable names for forward compatibility.
+
 ## EBNF Grammar
 
 ```ebnf
@@ -539,7 +571,8 @@ primary        = NUMBER | STRING | "true" | "false" | "null" | "undefined"
                | IDENTIFIER ( "=>" expression )? ;
 
 lambda_params  = IDENTIFIER ( "," IDENTIFIER )* ;
-arguments      = expression ( "," expression )* ;
+arguments      = argument ( "," argument )* ;
+argument       = ( IDENTIFIER ":" )? expression ;  // named or positional
 array_elements = ( array_element ( "," array_element )* )? ;
 array_element  = "..." expression | expression ;
 object_properties = ( object_property ( "," object_property )* )? ;

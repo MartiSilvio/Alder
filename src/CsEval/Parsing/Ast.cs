@@ -34,6 +34,7 @@ public interface IExprVisitor<out T>
 
     // Functions & Lambdas
     T VisitCall(CallExpr expr);
+    T VisitNamedArgument(NamedArgumentExpr expr);
     T VisitLambda(LambdaExpr expr);
 
     // Collections & Literals
@@ -178,6 +179,12 @@ public sealed record ConditionalExpr(Expr Condition, Expr ThenBranch, Expr ElseB
 public sealed record CallExpr(Expr Callee, List<Expr> Arguments) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitCall(this);
+}
+
+// Named argument: name: value (used in method calls)
+public sealed record NamedArgumentExpr(Token Name, Expr Value) : Expr
+{
+    public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitNamedArgument(this);
 }
 
 // Lambda: (x) => x * 2, (a, b) => a + b

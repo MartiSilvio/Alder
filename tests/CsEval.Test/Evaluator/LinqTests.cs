@@ -457,6 +457,26 @@ public class LinqTests : EvaluatorTestBase
     }
 
     [Test]
+    public void Sum_WithStrings_ThrowsException()
+    {
+        var context = new EvalContext();
+        context.Define("strings", new List<string> { "a", "b", "c" });
+
+        var ex = Assert.Throws<InvalidOperationException>(() => Eval("strings.Sum()", context));
+        Assert.That(ex!.Message, Does.Contain("Sum()").And.Contain("numeric"));
+    }
+
+    [Test]
+    public void Sum_WithMixedNonNumeric_ThrowsException()
+    {
+        var context = new EvalContext();
+        context.Define("items", new List<object> { "hello", "world" });
+
+        var ex = Assert.Throws<InvalidOperationException>(() => Eval("items.Sum()", context));
+        Assert.That(ex!.Message, Does.Contain("Sum()").And.Contain("numeric"));
+    }
+
+    [Test]
     public void Average_ReturnsAverage()
     {
         var context = new EvalContext();

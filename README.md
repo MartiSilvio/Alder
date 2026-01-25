@@ -4,9 +4,9 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![.NET 7](https://img.shields.io/badge/.NET-7.0-purple.svg)](https://dotnet.microsoft.com/)
 
-## A C# Expression Evaluator and Runtime Scripting Engine for .NET
+## A zero-dependency C# expression evaluator for .NET
 
-CsEval is a lightweight, dynamic **C# expression evaluator** designed for runtime evaluation of formulas, rules, LINQ queries, and scripting logic. Perfect for developers building **dynamic filters**, **calculated fields**, **reporting tools**, **rule engines**, or **runtime scripting**, CsEval executes C# expressions, loops, conditionals, and object merges without requiring compilation.
+CsEval is a **lightweight expression evaluator** that parses C#-like syntax at runtime — no Roslyn, no compilation step, zero external dependencies. Designed for **rule engines**, **dynamic filters**, **calculated fields**, **formula evaluation**, and more, it supports LINQ with lambdas, control flow, object merging, and more — all in a sandboxed environment.
 
 ```csharp
 var engine = new CsEvalEngine();
@@ -18,12 +18,10 @@ With CsEval, you can:
 
 - ✅ Evaluate arithmetic, logical, and string expressions dynamically
 - ✅ Run full **LINQ queries** with lambda expressions on your collections
-- ✅ Use **C# loops**, multi-statement blocks, and early returns at runtime
+- ✅ Use **control flow** — loops, conditionals, multi-statement blocks, early returns
 - ✅ Dynamically **merge objects** and extend data structures on the fly
-- ✅ Inject services and modules from `IServiceProvider` for advanced scenarios
-- ✅ Execute **thread-safe**, isolated evaluation contexts for concurrent processing
-
-Whether you need a dynamic expression engine for dashboards, APIs, or rule-based automation, CsEval brings runtime flexibility and full C# capabilities directly into your .NET application.
+- ✅ **Sandbox** expressions with configurable security modes
+- ✅ Execute in **thread-safe**, isolated evaluation contexts
 
 ---
 
@@ -33,6 +31,7 @@ CsEval goes beyond simple expression evaluation. It supports features that enabl
 
 | Feature                    | Description                                                       |
 | -------------------------- | ----------------------------------------------------------------- |
+| **Zero Dependencies**      | No external NuGet packages — just the .NET SDK                    |
 | **Full LINQ with Lambdas** | `items.Where(x => x.Active).Sum(x => x.Value)`                    |
 | **All C# Loops**           | `while`, `for`, `foreach`, `do-while` with `break` and `continue` |
 | **Block Expressions**      | Variables, conditionals, and early returns                        |
@@ -86,6 +85,7 @@ engine.Evaluate("new { Name = \"John\", Age = 30 }");
 | [**Syntax Reference**](docs/syntax.md)   | Expression grammar, operators, and language constructs        |
 | [**Features Guide**](docs/features.md)   | LINQ methods, loops, assignment, built-in modules             |
 | [**Extensions**](docs/extensions.md)     | Object merging, spread operator, and CsEval-specific features |
+| [**Sandbox Modes**](docs/sandbox.md)     | Security modes and reflection blocking                        |
 | [**API Reference**](docs/api.md)         | Complete public API documentation                             |
 | [**Architecture**](docs/architecture.md) | Internal design and implementation details                    |
 
@@ -212,11 +212,11 @@ engine.RegisterFromAssembly(typeof(DataModule).Assembly);
 engine.Evaluate("Data.GetById(123)", serviceProvider);
 ```
 
-### Async & Cancellation
+### Cancellation
 
 ```csharp
 var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-await engine.EvaluateAsync(expression, serviceProvider, cts.Token);
+engine.Evaluate(expression, serviceProvider, cts.Token);
 ```
 
 ---

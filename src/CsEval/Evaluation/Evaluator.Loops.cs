@@ -26,6 +26,10 @@ public sealed partial class Evaluator
             if (maxIterations > 0 && ++iterations > maxIterations)
                 throw new EvalException($"While loop exceeded maximum iterations ({maxIterations}). Possible infinite loop.");
 
+            // Create a child scope for each iteration's body
+            var previousContext = _context;
+            _context = _context.CreateChild();
+
             try
             {
                 foreach (var stmt in expr.Body)
@@ -42,6 +46,10 @@ public sealed partial class Evaluator
             {
                 continue;
             }
+            finally
+            {
+                _context = previousContext;
+            }
         }
 
         return null;
@@ -52,42 +60,61 @@ public sealed partial class Evaluator
         var iterations = 0;
         var maxIterations = _options.MaxIterations;
 
-        // Execute initializer (if present)
-        if (expr.Initializer != null)
+        // Create a scope for the entire for loop (initializer variable lives here)
+        var loopContext = _context;
+        _context = _context.CreateChild();
+
+        try
         {
-            Evaluate(expr.Initializer);
-        }
-
-        // Loop while condition is true (or forever if no condition)
-        while (expr.Condition == null || IsTruthy(Evaluate(expr.Condition)))
-        {
-            _cancellationToken.ThrowIfCancellationRequested();
-
-            if (maxIterations > 0 && ++iterations > maxIterations)
-                throw new EvalException($"For loop exceeded maximum iterations ({maxIterations}). Possible infinite loop.");
-
-            try
+            // Execute initializer (if present) - in the loop scope
+            if (expr.Initializer != null)
             {
-                foreach (var stmt in expr.Body)
+                Evaluate(expr.Initializer);
+            }
+
+            // Loop while condition is true (or forever if no condition)
+            while (expr.Condition == null || IsTruthy(Evaluate(expr.Condition)))
+            {
+                _cancellationToken.ThrowIfCancellationRequested();
+
+                if (maxIterations > 0 && ++iterations > maxIterations)
+                    throw new EvalException($"For loop exceeded maximum iterations ({maxIterations}). Possible infinite loop.");
+
+                // Create a child scope for each iteration's body
+                var iterationContext = _context;
+                _context = _context.CreateChild();
+
+                try
                 {
-                    _cancellationToken.ThrowIfCancellationRequested();
-                    Evaluate(stmt);
+                    foreach (var stmt in expr.Body)
+                    {
+                        _cancellationToken.ThrowIfCancellationRequested();
+                        Evaluate(stmt);
+                    }
+                }
+                catch (BreakException)
+                {
+                    break;
+                }
+                catch (ContinueException)
+                {
+                    // Continue skips to increment
+                }
+                finally
+                {
+                    _context = iterationContext;
+                }
+
+                // Execute increment (if present) - in the loop scope, not iteration scope
+                if (expr.Increment != null)
+                {
+                    Evaluate(expr.Increment);
                 }
             }
-            catch (BreakException)
-            {
-                break;
-            }
-            catch (ContinueException)
-            {
-                // Continue skips to increment
-            }
-
-            // Execute increment (if present)
-            if (expr.Increment != null)
-            {
-                Evaluate(expr.Increment);
-            }
+        }
+        finally
+        {
+            _context = loopContext;
         }
 
         return null;
@@ -105,6 +132,10 @@ public sealed partial class Evaluator
             if (maxIterations > 0 && ++iterations > maxIterations)
                 throw new EvalException($"Do-while loop exceeded maximum iterations ({maxIterations}). Possible infinite loop.");
 
+            // Create a child scope for each iteration's body
+            var previousContext = _context;
+            _context = _context.CreateChild();
+
             try
             {
                 foreach (var stmt in expr.Body)
@@ -120,6 +151,10 @@ public sealed partial class Evaluator
             catch (ContinueException)
             {
                 continue;
+            }
+            finally
+            {
+                _context = previousContext;
             }
         } while (IsTruthy(Evaluate(expr.Condition)));
 
@@ -145,11 +180,15 @@ public sealed partial class Evaluator
             if (maxIterations > 0 && ++iterations > maxIterations)
                 throw new EvalException($"Foreach loop exceeded maximum iterations ({maxIterations}). Possible infinite loop.");
 
-            // Set the loop variable for this iteration
-            _context.Define(expr.VariableName.Lexeme, item);
+            // Create a child scope for each iteration (loop variable + body variables are scoped here)
+            var previousContext = _context;
+            _context = _context.CreateChild();
 
             try
             {
+                // Set the loop variable for this iteration (in the child scope)
+                _context.Define(expr.VariableName.Lexeme, item);
+
                 foreach (var stmt in expr.Body)
                 {
                     _cancellationToken.ThrowIfCancellationRequested();
@@ -163,6 +202,10 @@ public sealed partial class Evaluator
             catch (ContinueException)
             {
                 continue;
+            }
+            finally
+            {
+                _context = previousContext;
             }
         }
 

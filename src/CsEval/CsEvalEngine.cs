@@ -160,18 +160,6 @@ public sealed class CsEvalEngine
         return new CsEvalEngine(_context.CreateChild(), _functions, _registeredTypes, _options, _typeCache, _expressionCache);
     }
 
-    public Task<object?> EvaluateAsync(string expression, IServiceProvider? serviceProvider = null,
-        CancellationToken cancellationToken = default)
-    {
-        return Task.Run(() => Evaluate(expression, serviceProvider, cancellationToken), cancellationToken);
-    }
-
-    public Task<object?> EvaluateAsync(CsEvalExpression expression, IServiceProvider? serviceProvider = null,
-        CancellationToken cancellationToken = default)
-    {
-        return Task.Run(() => Evaluate(expression, serviceProvider, cancellationToken), cancellationToken);
-    }
-
     public T? Evaluate<T>(string expression, IServiceProvider? serviceProvider = null)
     {
         return Evaluate<T>(expression, serviceProvider, CancellationToken.None);
@@ -180,19 +168,6 @@ public sealed class CsEvalEngine
     public T? Evaluate<T>(string expression, IServiceProvider? serviceProvider, CancellationToken cancellationToken)
     {
         var result = Evaluate(expression, serviceProvider, cancellationToken);
-
-        return result switch
-        {
-            null => default,
-            T typed => typed,
-            _ => (T)Convert.ChangeType(result, typeof(T))
-        };
-    }
-
-    public async Task<T?> EvaluateAsync<T>(string expression, IServiceProvider? serviceProvider = null,
-        CancellationToken cancellationToken = default)
-    {
-        var result = await EvaluateAsync(expression, serviceProvider, cancellationToken).ConfigureAwait(false);
 
         return result switch
         {
@@ -211,19 +186,6 @@ public sealed class CsEvalEngine
         CancellationToken cancellationToken)
     {
         var result = Evaluate(expression, serviceProvider, cancellationToken);
-
-        return result switch
-        {
-            null => default,
-            T typed => typed,
-            _ => (T)Convert.ChangeType(result, typeof(T))
-        };
-    }
-
-    public async Task<T?> EvaluateAsync<T>(CsEvalExpression expression, IServiceProvider? serviceProvider = null,
-        CancellationToken cancellationToken = default)
-    {
-        var result = await EvaluateAsync(expression, serviceProvider, cancellationToken).ConfigureAwait(false);
 
         return result switch
         {
@@ -351,6 +313,10 @@ public sealed class CsEvalEngine
         foreach (var method in type.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly))
         {
             if (method.IsSpecialName)
+                continue;
+
+            // Skip async methods - they return Task/Task<T> which is not supported
+            if (IsAsyncMethod(method))
                 continue;
 
             var attr = method.GetCustomAttribute<CsEvalFunctionAttribute>();
@@ -514,6 +480,20 @@ public sealed class CsEvalEngine
         type == typeof(float) || type == typeof(decimal) || type == typeof(short) ||
         type == typeof(byte) || type == typeof(sbyte) || type == typeof(ushort) ||
         type == typeof(uint) || type == typeof(ulong);
+
+    private static bool IsAsyncMethod(MethodInfo method)
+    {
+        var returnType = method.ReturnType;
+        if (returnType == typeof(Task))
+            return true;
+        if (returnType.IsGenericType && returnType.GetGenericTypeDefinition() == typeof(Task<>))
+            return true;
+        if (returnType == typeof(ValueTask))
+            return true;
+        if (returnType.IsGenericType && returnType.GetGenericTypeDefinition() == typeof(ValueTask<>))
+            return true;
+        return false;
+    }
 
     private void RegisterBuiltInModules()
     {

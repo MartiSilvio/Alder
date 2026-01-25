@@ -8,7 +8,7 @@ public sealed partial class Parser
 
     private Expr ParseAssignment()
     {
-        var expr = ParseNullCoalesce();
+        var expr = ParseConditional();
 
         if (expr is IdentifierExpr identifier)
         {
@@ -55,22 +55,9 @@ public sealed partial class Parser
         return expr;
     }
 
-    private Expr ParseNullCoalesce()
-    {
-        var expr = ParseConditional();
-
-        while (Match(TokenType.QuestionQuestion))
-        {
-            var right = ParseConditional();
-            expr = new NullCoalesceExpr(expr, right);
-        }
-
-        return expr;
-    }
-
     private Expr ParseConditional()
     {
-        var expr = ParseOr();
+        var expr = ParseNullCoalesce();
 
         if (Match(TokenType.Question))
         {
@@ -78,6 +65,19 @@ public sealed partial class Parser
             Consume(TokenType.Colon, "Expected ':' in ternary expression");
             var elseBranch = ParseExpression();
             return new ConditionalExpr(expr, thenBranch, elseBranch);
+        }
+
+        return expr;
+    }
+
+    private Expr ParseNullCoalesce()
+    {
+        var expr = ParseOr();
+
+        while (Match(TokenType.QuestionQuestion))
+        {
+            var right = ParseOr();
+            expr = new NullCoalesceExpr(expr, right);
         }
 
         return expr;
@@ -315,12 +315,64 @@ public sealed partial class Parser
         {
             do
             {
-                arguments.Add(ParseExpression());
+                arguments.Add(ParseArgument());
             } while (Match(TokenType.Comma));
         }
 
         Consume(TokenType.RightParen, "Expected ')' after arguments");
         return new CallExpr(callee, arguments);
+    }
+
+    private Expr ParseArgument()
+    {
+        // Check for named argument: identifier (or contextual keyword) followed by colon
+        if (IsParameterName(Peek().Type) && PeekNext().Type == TokenType.Colon)
+        {
+            var name = Advance(); // consume the identifier/keyword
+            Advance(); // consume the colon
+            var value = ParseExpression();
+            return new NamedArgumentExpr(name, value);
+        }
+
+        return ParseExpression();
+    }
+
+    /// <summary>
+    /// Returns true if the token type can be used as a parameter name in a named argument.
+    /// This includes identifiers and contextual keywords that .NET methods might use as parameter names.
+    /// </summary>
+    private static bool IsParameterName(TokenType type)
+    {
+        return type == TokenType.Identifier ||
+               // Common contextual keywords that appear as .NET parameter names
+               type == TokenType.Value ||
+               type == TokenType.From ||
+               type == TokenType.Where ||
+               type == TokenType.Select ||
+               type == TokenType.Group ||
+               type == TokenType.Into ||
+               type == TokenType.Orderby ||
+               type == TokenType.Join ||
+               type == TokenType.On ||
+               type == TokenType.Equals ||
+               type == TokenType.By ||
+               type == TokenType.Ascending ||
+               type == TokenType.Descending ||
+               type == TokenType.Let ||
+               type == TokenType.Get ||
+               type == TokenType.Set ||
+               type == TokenType.Add ||
+               type == TokenType.Remove ||
+               type == TokenType.Init ||
+               type == TokenType.When ||
+               type == TokenType.With ||
+               type == TokenType.And ||
+               type == TokenType.Or ||
+               type == TokenType.Not ||
+               type == TokenType.File ||
+               type == TokenType.Required ||
+               type == TokenType.Scoped ||
+               type == TokenType.Args;
     }
 
     #endregion

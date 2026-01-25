@@ -45,11 +45,6 @@ T? Evaluate<T>(string expression, IServiceProvider? serviceProvider, Cancellatio
 T? Evaluate<T>(CsEvalExpression expression, IServiceProvider? serviceProvider = null)
 T? Evaluate<T>(CsEvalExpression expression, IServiceProvider? serviceProvider, CancellationToken cancellationToken)
 
-// Async evaluation
-Task<object?> EvaluateAsync(string expression, IServiceProvider? serviceProvider = null, CancellationToken cancellationToken = default)
-Task<object?> EvaluateAsync(CsEvalExpression expression, IServiceProvider? serviceProvider = null, CancellationToken cancellationToken = default)
-Task<T?> EvaluateAsync<T>(string expression, IServiceProvider? serviceProvider = null, CancellationToken cancellationToken = default)
-Task<T?> EvaluateAsync<T>(CsEvalExpression expression, IServiceProvider? serviceProvider = null, CancellationToken cancellationToken = default)
 ```
 
 ### Variables
@@ -606,7 +601,7 @@ var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
 
 try
 {
-    var result = await engine.EvaluateAsync(
+    var result = engine.Evaluate(
         "items.Select(x => ExpensiveOperation(x))",
         serviceProvider,
         cts.Token

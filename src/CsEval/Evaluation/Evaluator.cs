@@ -112,9 +112,22 @@ public sealed partial class Evaluator : IExprVisitor<object?>
         return GetIndex(obj, index);
     }
 
+    public object? VisitNamedArgument(NamedArgumentExpr expr)
+    {
+        // Named arguments should only appear within CallExpr and are handled there.
+        // If we get here, it means a named argument was used outside a method call.
+        throw new EvalException("Named arguments can only be used in method calls");
+    }
+
     public object? VisitCall(CallExpr expr)
     {
-        var args = expr.Arguments.Select(Evaluate).ToArray();
+        // Evaluate arguments, wrapping named arguments in NamedArg
+        var args = expr.Arguments.Select(arg =>
+        {
+            if (arg is NamedArgumentExpr namedArg)
+                return (object?)new NamedArg(namedArg.Name.Lexeme, Evaluate(namedArg.Value));
+            return Evaluate(arg);
+        }).ToArray();
 
         if (expr.Callee is MemberAccessExpr memberAccess)
         {
@@ -412,18 +425,40 @@ public sealed partial class Evaluator : IExprVisitor<object?>
 
         if (IsTruthy(condition))
         {
-            foreach (var stmt in expr.ThenStatements)
+            // Create a child scope for the then branch
+            var previousContext = _context;
+            _context = _context.CreateChild();
+
+            try
             {
-                _cancellationToken.ThrowIfCancellationRequested();
-                Evaluate(stmt);
+                foreach (var stmt in expr.ThenStatements)
+                {
+                    _cancellationToken.ThrowIfCancellationRequested();
+                    Evaluate(stmt);
+                }
+            }
+            finally
+            {
+                _context = previousContext;
             }
         }
         else if (expr.ElseStatements != null)
         {
-            foreach (var stmt in expr.ElseStatements)
+            // Create a child scope for the else branch
+            var previousContext = _context;
+            _context = _context.CreateChild();
+
+            try
             {
-                _cancellationToken.ThrowIfCancellationRequested();
-                Evaluate(stmt);
+                foreach (var stmt in expr.ElseStatements)
+                {
+                    _cancellationToken.ThrowIfCancellationRequested();
+                    Evaluate(stmt);
+                }
+            }
+            finally
+            {
+                _context = previousContext;
             }
         }
 
@@ -448,3 +483,9 @@ internal sealed record LambdaValue(List<string> Parameters, Expr Body, EvalConte
 internal sealed record MethodRef(object Target, string MethodName);
 
 internal sealed record ModuleMethodRef(CsEvalEngine.ModuleResolver Resolver, MethodInfo Method);
+
+/// <summary>
+/// Wrapper for a named argument value. Used to pass parameter name information
+/// through the method invocation stack.
+/// </summary>
+internal sealed record NamedArg(string Name, object? Value);

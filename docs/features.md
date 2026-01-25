@@ -47,9 +47,9 @@ items.SingleOrDefault(x => x.Id == id)
 ```csharp
 items.Count()                        // Number of elements
 items.Count(x => x.Active)           // Number matching predicate
-items.Sum()                          // Sum of numeric collection
-items.Sum(x => x.Value)              // Sum of selected values
-items.Average()                      // Average of numeric collection
+items.Sum()                          // Sum of numeric collection (throws for non-numeric)
+items.Sum(x => x.Value)              // Sum of selected values (selector must return numeric)
+items.Average()                      // Average of numeric collection (throws for non-numeric)
 items.Average(x => x.Value)          // Average of selected values
 items.Min()                          // Minimum value
 items.Min(x => x.Value)              // Minimum of selected values
@@ -548,13 +548,6 @@ foreach (var request in requests)
 }
 ```
 
-### Async Evaluation
-
-```csharp
-var engine = new CsEvalEngine();
-var result = await engine.EvaluateAsync("items.Select(x => x.Process())");
-```
-
 ### Cancellation Support
 
 ```csharp
@@ -683,6 +676,30 @@ When calling methods, CsEval:
 3. Uses default values for missing optional parameters
 4. Auto-appends `CancellationToken` if method expects it
 
+### Named Parameters
+
+Methods can be called with named parameters using `name: value` syntax:
+
+```csharp
+// Specify parameters by name
+str.Substring(startIndex: 0, length: 5)
+
+// Parameters can be in any order when named
+Math.Round(digits: 2, value: 3.14159)
+
+// Mix positional and named (positional must come first)
+str.Substring(0, length: 5)
+
+// Skip optional parameters - they use default values
+engine.RegisterModule("name", type, explicitOnly: true)
+```
+
+Named parameters:
+- Match by parameter name (case-insensitive)
+- Can appear in any order after positional arguments
+- Allow skipping optional parameters with defaults
+- Work with both module methods and object instance methods
+
 ## Tips
 
 1. **Numeric literals match C#**: `42` is `int`, `42L` is `long`, `3.14` is `double`, `3.14m` is `decimal`. Large integers auto-promote to `long`. Arithmetic follows C# type promotion rules exactly. **Important**: `5/2` returns `2` (truncating), use `5.0/2.0` for `2.5`. Mixing `decimal` with `float`/`double` throws.
@@ -704,3 +721,5 @@ When calling methods, CsEval:
 9. **Loop iteration limit**: Loops have a default limit of 100,000 iterations to prevent infinite loops. Configure via `CsEvalOptions.MaxIterations`.
 
 10. **Break/continue scope**: `break` and `continue` only affect the innermost loop.
+
+11. **LINQ aggregation types**: `Sum()` and `Average()` require numeric collections. Calling `Sum()` on strings or non-numeric types throws `InvalidOperationException`.
