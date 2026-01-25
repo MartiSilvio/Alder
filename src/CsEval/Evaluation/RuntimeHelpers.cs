@@ -66,7 +66,8 @@ public static class RuntimeHelpers
     {
         if (IsNumeric(left) && IsNumeric(right))
         {
-            if ((dynamic)right! == 0)
+            // Only throw DivideByZeroException for integers; floats return Infinity
+            if ((dynamic)right! == 0 && IsInteger(left) && IsInteger(right))
                 throw new DivideByZeroException();
             return (dynamic)left! / (dynamic)right!;
         }
@@ -78,7 +79,8 @@ public static class RuntimeHelpers
     {
         if (IsNumeric(left) && IsNumeric(right))
         {
-            if ((dynamic)right! == 0)
+            // Only throw DivideByZeroException for integers; floats return NaN
+            if ((dynamic)right! == 0 && IsInteger(left) && IsInteger(right))
                 throw new DivideByZeroException();
             return (dynamic)left! % (dynamic)right!;
         }

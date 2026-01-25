@@ -1,6 +1,5 @@
 using System.Linq.Expressions;
 using CsEval.Parsing;
-using LinqExpression = System.Linq.Expressions.Expression;
 
 namespace CsEval.Evaluation.Compiler;
 

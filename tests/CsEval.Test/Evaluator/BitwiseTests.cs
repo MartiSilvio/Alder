@@ -201,4 +201,104 @@ public class BitwiseTests : EvaluatorTestBase
     }
 
     #endregion
+
+    #region Boolean AND (&) - Non-Short-Circuit
+
+    [Test]
+    public void Eval_BitwiseAnd_TrueAndTrue_ReturnsTrue()
+    {
+        Assert.That(Eval("true & true"), Is.EqualTo(true));
+    }
+
+    [Test]
+    public void Eval_BitwiseAnd_TrueAndFalse_ReturnsFalse()
+    {
+        Assert.That(Eval("true & false"), Is.EqualTo(false));
+    }
+
+    [Test]
+    public void Eval_BitwiseAnd_FalseAndFalse_ReturnsFalse()
+    {
+        Assert.That(Eval("false & false"), Is.EqualTo(false));
+    }
+
+    #endregion
+
+    #region Boolean OR (|) - Non-Short-Circuit
+
+    [Test]
+    public void Eval_BitwiseOr_TrueOrFalse_ReturnsTrue()
+    {
+        Assert.That(Eval("true | false"), Is.EqualTo(true));
+    }
+
+    [Test]
+    public void Eval_BitwiseOr_FalseOrTrue_ReturnsTrue()
+    {
+        Assert.That(Eval("false | true"), Is.EqualTo(true));
+    }
+
+    [Test]
+    public void Eval_BitwiseOr_FalseOrFalse_ReturnsFalse()
+    {
+        Assert.That(Eval("false | false"), Is.EqualTo(false));
+    }
+
+    #endregion
+
+    #region Boolean XOR (^)
+
+    [Test]
+    public void Eval_BitwiseXor_TrueXorTrue_ReturnsFalse()
+    {
+        Assert.That(Eval("true ^ true"), Is.EqualTo(false));
+    }
+
+    [Test]
+    public void Eval_BitwiseXor_TrueXorFalse_ReturnsTrue()
+    {
+        Assert.That(Eval("true ^ false"), Is.EqualTo(true));
+    }
+
+    [Test]
+    public void Eval_BitwiseXor_FalseXorFalse_ReturnsFalse()
+    {
+        Assert.That(Eval("false ^ false"), Is.EqualTo(false));
+    }
+
+    #endregion
+
+    #region IL Compiled Boolean Bitwise
+
+    [Test]
+    public void ILCompiled_BitwiseAnd_Booleans()
+    {
+        var engine = new CsEvalEngine();
+        var expr = engine.Parse("true & false");
+        
+        Assert.That(expr.TryCompile(), Is.True, "Boolean & should be IL-compilable");
+        Assert.That(engine.Evaluate(expr), Is.EqualTo(false));
+    }
+
+    [Test]
+    public void ILCompiled_BitwiseOr_Booleans()
+    {
+        var engine = new CsEvalEngine();
+        var expr = engine.Parse("false | true");
+        
+        Assert.That(expr.TryCompile(), Is.True);
+        Assert.That(engine.Evaluate(expr), Is.EqualTo(true));
+    }
+
+    [Test]
+    public void ILCompiled_BitwiseXor_Booleans()
+    {
+        var engine = new CsEvalEngine();
+        var expr = engine.Parse("true ^ true");
+        
+        Assert.That(expr.TryCompile(), Is.True);
+        Assert.That(engine.Evaluate(expr), Is.EqualTo(false));
+    }
+
+    #endregion
 }

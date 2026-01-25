@@ -160,8 +160,8 @@ public sealed partial class Evaluator
     {
         if (IsNumeric(left) && IsNumeric(right))
         {
-            // Check for division by zero
-            if ((dynamic)right! == 0)
+            // Check for division by zero - only integers throw; floats return Infinity
+            if ((dynamic)right! == 0 && IsInteger(left) && IsInteger(right))
                 throw new DivideByZeroException();
             return (dynamic)left! / (dynamic)right!;
         }
@@ -173,7 +173,8 @@ public sealed partial class Evaluator
     {
         if (IsNumeric(left) && IsNumeric(right))
         {
-            if ((dynamic)right! == 0)
+            // Check for modulo by zero - only integers throw; floats return NaN
+            if ((dynamic)right! == 0 && IsInteger(left) && IsInteger(right))
                 throw new DivideByZeroException();
             return (dynamic)left! % (dynamic)right!;
         }
@@ -199,26 +200,39 @@ public sealed partial class Evaluator
 
     private static object? BitwiseAnd(object? left, object? right)
     {
-        if (!IsNumeric(left) || !IsNumeric(right))
-            throw new EvalException($"Cannot apply bitwise AND to {left?.GetType().Name ?? "null"} and {right?.GetType().Name ?? "null"}");
 
-        return (dynamic)left! & (dynamic)right!;
+        // C# supports & on integers (bitwise) and booleans (non-short-circuit logical)
+        if (IsInteger(left) && IsInteger(right))
+            return (dynamic)left! & (dynamic)right!;
+        
+        if (left is bool lb && right is bool rb)
+            return lb & rb;
+
+        throw new EvalException($"Cannot apply operator & to {left?.GetType().Name ?? "null"} and {right?.GetType().Name ?? "null"}");
     }
 
     private static object? BitwiseOr(object? left, object? right)
     {
-        if (!IsNumeric(left) || !IsNumeric(right))
-            throw new EvalException($"Cannot apply bitwise OR to {left?.GetType().Name ?? "null"} and {right?.GetType().Name ?? "null"}");
+        // C# supports | on integers (bitwise) and booleans (non-short-circuit logical)
+        if (IsInteger(left) && IsInteger(right))
+            return (dynamic)left! | (dynamic)right!;
+        
+        if (left is bool lb && right is bool rb)
+            return lb | rb;
 
-        return (dynamic)left! | (dynamic)right!;
+        throw new EvalException($"Cannot apply operator | to {left?.GetType().Name ?? "null"} and {right?.GetType().Name ?? "null"}");
     }
 
     private static object? BitwiseXor(object? left, object? right)
     {
-        if (!IsNumeric(left) || !IsNumeric(right))
-            throw new EvalException($"Cannot apply bitwise XOR to {left?.GetType().Name ?? "null"} and {right?.GetType().Name ?? "null"}");
+        // C# supports ^ on integers (bitwise) and booleans (logical XOR)
+        if (IsInteger(left) && IsInteger(right))
+            return (dynamic)left! ^ (dynamic)right!;
+        
+        if (left is bool lb && right is bool rb)
+            return lb ^ rb;
 
-        return (dynamic)left! ^ (dynamic)right!;
+        throw new EvalException($"Cannot apply operator ^ to {left?.GetType().Name ?? "null"} and {right?.GetType().Name ?? "null"}");
     }
 
     private static object? LeftShift(object? left, object? right)
@@ -239,6 +253,9 @@ public sealed partial class Evaluator
 
     private static bool IsNumeric(object? value) =>
         value is sbyte or byte or short or ushort or int or uint or long or ulong or float or double or decimal;
+
+    private static bool IsInteger(object? value) =>
+        value is sbyte or byte or short or ushort or int or uint or long or ulong;
 
     /// <summary>
     /// Checks if a value exists in a collection or string.
