@@ -70,7 +70,7 @@ internal sealed class ILCompiler
     private static readonly MethodInfo DisposeMethod = typeof(IDisposable).GetMethod(nameof(IDisposable.Dispose))!;
     private static readonly MethodInfo CheckAllowAssignmentMethod = typeof(CompilerHelpers).GetMethod(nameof(CompilerHelpers.CheckAllowAssignment))!;
 
-    private record struct LoopLabels(LabelTarget BreakTarget, LabelTarget ContinueTarget, int ScopeDepth);
+    private record struct LoopLabels(LabelTarget BreakTarget, LabelTarget ContinueTarget);
 
     private ILCompiler(EvalContext context, CsEvalOptions options)
     {
@@ -547,39 +547,33 @@ internal sealed class ILCompiler
         var condition = LinqExpression.Call(IsTruthyMethod, Compile(ifStmt.Condition));
 
         // Then branch with scope
-        var thenStatements = new List<LinqExpression>();
-        var thenContext = EnterScopeExpr(out var thenParent);
-        thenStatements.Add(thenContext);
-
-        foreach (var stmt in ifStmt.ThenStatements)
+        var thenBlock = Scoped(() =>
         {
-            thenStatements.Add(CompileCancellationCheck());
-            thenStatements.Add(Compile(stmt));
-        }
-
-        thenStatements.Add(ExitScopeExpr(thenParent));
-        thenStatements.Add(LinqExpression.Constant(null, typeof(object)));
-
-        var thenBlock = LinqExpression.Block(new[] { thenParent }, thenStatements);
+            var thenStatements = new List<LinqExpression>();
+            foreach (var stmt in ifStmt.ThenStatements)
+            {
+                thenStatements.Add(CompileCancellationCheck());
+                thenStatements.Add(Compile(stmt));
+            }
+            thenStatements.Add(LinqExpression.Constant(null, typeof(object)));
+            return LinqExpression.Block(thenStatements);
+        });
 
         // Else branch with scope (if present)
         LinqExpression elseBlock;
         if (ifStmt.ElseStatements != null)
         {
-            var elseStatements = new List<LinqExpression>();
-            var elseContext = EnterScopeExpr(out var elseParent);
-            elseStatements.Add(elseContext);
-
-            foreach (var stmt in ifStmt.ElseStatements)
+            elseBlock = Scoped(() =>
             {
-                elseStatements.Add(CompileCancellationCheck());
-                elseStatements.Add(Compile(stmt));
-            }
-
-            elseStatements.Add(ExitScopeExpr(elseParent));
-            elseStatements.Add(LinqExpression.Constant(null, typeof(object)));
-
-            elseBlock = LinqExpression.Block(new[] { elseParent }, elseStatements);
+                var elseStatements = new List<LinqExpression>();
+                foreach (var stmt in ifStmt.ElseStatements)
+                {
+                    elseStatements.Add(CompileCancellationCheck());
+                    elseStatements.Add(Compile(stmt));
+                }
+                elseStatements.Add(LinqExpression.Constant(null, typeof(object)));
+                return LinqExpression.Block(elseStatements);
+            });
         }
         else
         {
@@ -594,7 +588,7 @@ internal sealed class ILCompiler
         var breakLabel = LinqExpression.Label(typeof(void), "break");
         var continueLabel = LinqExpression.Label(typeof(void), "continue");
 
-        _loopStack.Push(new LoopLabels(breakLabel, continueLabel, _contextStack.Count));
+        _loopStack.Push(new LoopLabels(breakLabel, continueLabel));
 
         var loopStatements = new List<LinqExpression>();
 
@@ -608,17 +602,16 @@ internal sealed class ILCompiler
             LinqExpression.Break(breakLabel)));
 
         // Body with scope
-        var bodyContext = EnterScopeExpr(out var bodyParent);
-        var bodyStatements = new List<LinqExpression> { bodyContext };
-
-        foreach (var stmt in whileStmt.Body)
+        loopStatements.Add(Scoped(() =>
         {
-            bodyStatements.Add(CompileCancellationCheck());
-            bodyStatements.Add(Compile(stmt));
-        }
-
-        bodyStatements.Add(ExitScopeExpr(bodyParent));
-        loopStatements.Add(LinqExpression.Block(new[] { bodyParent }, bodyStatements));
+            var bodyStatements = new List<LinqExpression>();
+            foreach (var stmt in whileStmt.Body)
+            {
+                bodyStatements.Add(CompileCancellationCheck());
+                bodyStatements.Add(Compile(stmt));
+            }
+            return LinqExpression.Block(bodyStatements);
+        }));
 
         // Continue label (after body, before loop back)
         loopStatements.Add(LinqExpression.Label(continueLabel));
@@ -636,59 +629,57 @@ internal sealed class ILCompiler
         var continueLabel = LinqExpression.Label(typeof(void), "continue");
 
         // For loop has its own outer scope for the initializer
-        var outerStatements = new List<LinqExpression>();
-        var outerContext = EnterScopeExpr(out var outerParent);
-        outerStatements.Add(outerContext);
-
-        // Initializer
-        if (forStmt.Initializer != null)
-            outerStatements.Add(Compile(forStmt.Initializer));
-
-        _loopStack.Push(new LoopLabels(breakLabel, continueLabel, _contextStack.Count));
-
-        var loopStatements = new List<LinqExpression>();
-
-        // Cancellation and iteration check
-        loopStatements.Add(CompileCancellationCheck());
-        loopStatements.Add(CompileIterationCheck());
-
-        // Condition check (if present)
-        if (forStmt.Condition != null)
+        return Scoped(() =>
         {
-            loopStatements.Add(LinqExpression.IfThen(
-                LinqExpression.Not(LinqExpression.Call(IsTruthyMethod, Compile(forStmt.Condition))),
-                LinqExpression.Break(breakLabel)));
-        }
+            var outerStatements = new List<LinqExpression>();
 
-        // Body with nested scope
-        var bodyContext = EnterScopeExpr(out var bodyParent);
-        var bodyStatements = new List<LinqExpression> { bodyContext };
+            // Initializer
+            if (forStmt.Initializer != null)
+                outerStatements.Add(Compile(forStmt.Initializer));
 
-        foreach (var stmt in forStmt.Body)
-        {
-            bodyStatements.Add(CompileCancellationCheck());
-            bodyStatements.Add(Compile(stmt));
-        }
+            _loopStack.Push(new LoopLabels(breakLabel, continueLabel));
 
-        bodyStatements.Add(ExitScopeExpr(bodyParent));
-        loopStatements.Add(LinqExpression.Block(new[] { bodyParent }, bodyStatements));
+            var loopStatements = new List<LinqExpression>();
 
-        // Continue label
-        loopStatements.Add(LinqExpression.Label(continueLabel));
+            // Cancellation and iteration check
+            loopStatements.Add(CompileCancellationCheck());
+            loopStatements.Add(CompileIterationCheck());
 
-        // Increment
-        if (forStmt.Increment != null)
-            loopStatements.Add(Compile(forStmt.Increment));
+            // Condition check (if present)
+            if (forStmt.Condition != null)
+            {
+                loopStatements.Add(LinqExpression.IfThen(
+                    LinqExpression.Not(LinqExpression.Call(IsTruthyMethod, Compile(forStmt.Condition))),
+                    LinqExpression.Break(breakLabel)));
+            }
 
-        var loop = LinqExpression.Loop(LinqExpression.Block(loopStatements), breakLabel);
-        outerStatements.Add(loop);
+            // Body with nested scope
+            loopStatements.Add(Scoped(() =>
+            {
+                var bodyStatements = new List<LinqExpression>();
+                foreach (var stmt in forStmt.Body)
+                {
+                    bodyStatements.Add(CompileCancellationCheck());
+                    bodyStatements.Add(Compile(stmt));
+                }
+                return LinqExpression.Block(bodyStatements);
+            }));
 
-        _loopStack.Pop();
+            // Continue label
+            loopStatements.Add(LinqExpression.Label(continueLabel));
 
-        outerStatements.Add(ExitScopeExpr(outerParent));
-        outerStatements.Add(LinqExpression.Constant(null, typeof(object)));
+            // Increment
+            if (forStmt.Increment != null)
+                loopStatements.Add(Compile(forStmt.Increment));
 
-        return LinqExpression.Block(new[] { outerParent }, outerStatements);
+            var loop = LinqExpression.Loop(LinqExpression.Block(loopStatements), breakLabel);
+            outerStatements.Add(loop);
+
+            _loopStack.Pop();
+
+            outerStatements.Add(LinqExpression.Constant(null, typeof(object)));
+            return LinqExpression.Block(outerStatements);
+        });
     }
 
     private LinqExpression CompileDoWhile(DoWhileStatementExpr doWhile)
@@ -696,7 +687,7 @@ internal sealed class ILCompiler
         var breakLabel = LinqExpression.Label(typeof(void), "break");
         var continueLabel = LinqExpression.Label(typeof(void), "continue");
 
-        _loopStack.Push(new LoopLabels(breakLabel, continueLabel, _contextStack.Count));
+        _loopStack.Push(new LoopLabels(breakLabel, continueLabel));
 
         var loopStatements = new List<LinqExpression>();
 
@@ -705,17 +696,16 @@ internal sealed class ILCompiler
         loopStatements.Add(CompileIterationCheck());
 
         // Body with scope (executes first in do-while)
-        var bodyContext = EnterScopeExpr(out var bodyParent);
-        var bodyStatements = new List<LinqExpression> { bodyContext };
-
-        foreach (var stmt in doWhile.Body)
+        loopStatements.Add(Scoped(() =>
         {
-            bodyStatements.Add(CompileCancellationCheck());
-            bodyStatements.Add(Compile(stmt));
-        }
-
-        bodyStatements.Add(ExitScopeExpr(bodyParent));
-        loopStatements.Add(LinqExpression.Block(new[] { bodyParent }, bodyStatements));
+            var bodyStatements = new List<LinqExpression>();
+            foreach (var stmt in doWhile.Body)
+            {
+                bodyStatements.Add(CompileCancellationCheck());
+                bodyStatements.Add(Compile(stmt));
+            }
+            return LinqExpression.Block(bodyStatements);
+        }));
 
         // Continue label
         loopStatements.Add(LinqExpression.Label(continueLabel));
@@ -747,69 +737,66 @@ internal sealed class ILCompiler
             LinqExpression.Call(GetEnumeratorMethod, Compile(forEach.Collection)));
 
         // Enter foreach scope
-        var foreachContext = EnterScopeExpr(out var foreachParent);
-
-        _loopStack.Push(new LoopLabels(breakLabel, continueLabel, _contextStack.Count));
-
-        // Loop body
-        var loopStatements = new List<LinqExpression>();
-
-        // Cancellation and iteration check
-        loopStatements.Add(CompileCancellationCheck());
-        loopStatements.Add(CompileIterationCheck());
-
-        // MoveNext - break if false
-        loopStatements.Add(LinqExpression.IfThen(
-            LinqExpression.Not(LinqExpression.Call(enumerator, MoveNextMethod)),
-            LinqExpression.Break(breakLabel)));
-
-        // Get Current and define variable
-        loopStatements.Add(LinqExpression.Assign(
-            itemValue,
-            LinqExpression.Property(enumerator, nameof(System.Collections.IEnumerator.Current))));
-
-        loopStatements.Add(LinqExpression.Call(_currentContext, DefineMethod,
-            LinqExpression.Constant(forEach.VariableName.Lexeme), itemValue));
-
-        // Body with nested scope
-        var bodyContext = EnterScopeExpr(out var bodyParent);
-        var bodyStatements = new List<LinqExpression> { bodyContext };
-
-        foreach (var stmt in forEach.Body)
+        return Scoped(() =>
         {
-            bodyStatements.Add(CompileCancellationCheck());
-            bodyStatements.Add(Compile(stmt));
-        }
+            _loopStack.Push(new LoopLabels(breakLabel, continueLabel));
 
-        bodyStatements.Add(ExitScopeExpr(bodyParent));
-        loopStatements.Add(LinqExpression.Block(new[] { bodyParent }, bodyStatements));
+            // Loop body
+            var loopStatements = new List<LinqExpression>();
 
-        // Continue label
-        loopStatements.Add(LinqExpression.Label(continueLabel));
+            // Cancellation and iteration check
+            loopStatements.Add(CompileCancellationCheck());
+            loopStatements.Add(CompileIterationCheck());
 
-        var loop = LinqExpression.Loop(LinqExpression.Block(loopStatements), breakLabel);
+            // MoveNext - break if false
+            loopStatements.Add(LinqExpression.IfThen(
+                LinqExpression.Not(LinqExpression.Call(enumerator, MoveNextMethod)),
+                LinqExpression.Break(breakLabel)));
 
-        _loopStack.Pop();
+            // Get Current and define variable
+            loopStatements.Add(LinqExpression.Assign(
+                itemValue,
+                LinqExpression.Property(enumerator, nameof(System.Collections.IEnumerator.Current))));
 
-        // Try-finally for disposal - Expression Trees handle this correctly!
-        var disposeExpr = LinqExpression.IfThen(
-            LinqExpression.TypeIs(enumerator, typeof(IDisposable)),
-            LinqExpression.Call(
-                LinqExpression.Convert(enumerator, typeof(IDisposable)),
-                DisposeMethod));
+            loopStatements.Add(LinqExpression.Call(_currentContext, DefineMethod,
+                LinqExpression.Constant(forEach.VariableName.Lexeme), itemValue));
 
-        var exitScope = ExitScopeExpr(foreachParent);
+            // Body with nested scope
+            loopStatements.Add(Scoped(() =>
+            {
+                var bodyStatements = new List<LinqExpression>();
+                foreach (var stmt in forEach.Body)
+                {
+                    bodyStatements.Add(CompileCancellationCheck());
+                    bodyStatements.Add(Compile(stmt));
+                }
+                return LinqExpression.Block(bodyStatements);
+            }));
 
-        var tryFinally = LinqExpression.TryFinally(
-            LinqExpression.Block(loop, exitScope),
-            disposeExpr);
+            // Continue label
+            loopStatements.Add(LinqExpression.Label(continueLabel));
 
-        return LinqExpression.Block(
-            new[] { enumerator, itemValue, foreachParent },
-            getEnumerator,
-            foreachContext,
-            tryFinally,
-            LinqExpression.Constant(null, typeof(object)));
+            var loop = LinqExpression.Loop(LinqExpression.Block(loopStatements), breakLabel);
+
+            _loopStack.Pop();
+
+            // Try-finally for disposal - Expression Trees handle this correctly!
+            var disposeExpr = LinqExpression.IfThen(
+                LinqExpression.TypeIs(enumerator, typeof(IDisposable)),
+                LinqExpression.Call(
+                    LinqExpression.Convert(enumerator, typeof(IDisposable)),
+                    DisposeMethod));
+
+            var tryFinally = LinqExpression.TryFinally(
+                loop,
+                disposeExpr);
+
+            return LinqExpression.Block(
+                new[] { enumerator, itemValue },
+                getEnumerator,
+                tryFinally,
+                LinqExpression.Constant(null, typeof(object)));
+        });
     }
 
     private LinqExpression CompileBreak()
@@ -818,21 +805,7 @@ internal sealed class ILCompiler
             throw new EvalException("break statement outside of loop");
 
         var labels = _loopStack.Peek();
-
-        // Exit all scopes between current and loop scope (innermost to outermost)
-        // Stack enumerates top→bottom, so ElementAt(0) is innermost scope's parent
-        var scopeExits = new List<LinqExpression>();
-        var scopesToExit = _contextStack.Count - labels.ScopeDepth;
-
-        for (int i = 0; i < scopesToExit; i++)
-        {
-            var parent = _contextStack.ElementAt(i);
-            scopeExits.Add(LinqExpression.Assign(_currentContext, parent));
-        }
-
-        scopeExits.Add(LinqExpression.Break(labels.BreakTarget));
-
-        return LinqExpression.Block(scopeExits);
+        return LinqExpression.Break(labels.BreakTarget);
     }
 
     private LinqExpression CompileContinue()
@@ -841,20 +814,7 @@ internal sealed class ILCompiler
             throw new EvalException("continue statement outside of loop");
 
         var labels = _loopStack.Peek();
-
-        // Exit all scopes between current and loop scope (innermost to outermost)
-        var scopeExits = new List<LinqExpression>();
-        var scopesToExit = _contextStack.Count - labels.ScopeDepth;
-
-        for (int i = 0; i < scopesToExit; i++)
-        {
-            var parent = _contextStack.ElementAt(i);
-            scopeExits.Add(LinqExpression.Assign(_currentContext, parent));
-        }
-
-        scopeExits.Add(LinqExpression.Continue(labels.ContinueTarget));
-
-        return LinqExpression.Block(scopeExits);
+        return LinqExpression.Continue(labels.ContinueTarget);
     }
 
     private LinqExpression CompileReturn(ReturnExpr ret)
@@ -882,6 +842,29 @@ internal sealed class ILCompiler
         return LinqExpression.Block(
             LinqExpression.PostIncrementAssign(_iterationCount),
             LinqExpression.Call(CheckIterationLimitMethod, _iterationCount, _optionsParam));
+    }
+
+    /// <summary>
+    /// Wraps a block of code in a scope (TryFinally for cleanup).
+    /// </summary>
+    private LinqExpression Scoped(Func<LinqExpression> bodyFactory)
+    {
+        // 1. Enter scope (assigns new child context)
+        var enterExpr = EnterScopeExpr(out var parentVar);
+
+        // 2. Compile body (uses current context)
+        var body = bodyFactory();
+
+        // 3. Exit scope (restores parent context)
+        // cleanup is guaranteed by TryFinally
+        var exitExpr = ExitScopeExpr(parentVar);
+
+        return LinqExpression.Block(
+            new[] { parentVar },
+            enterExpr,
+            LinqExpression.TryFinally(
+                body,
+                exitExpr));
     }
 
     /// <summary>
