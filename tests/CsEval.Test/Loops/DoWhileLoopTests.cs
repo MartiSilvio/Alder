@@ -1,7 +1,8 @@
 namespace CsEval.Test.Loops;
 
-[TestFixture(CompilationMode.Eager)]
-[TestFixture(CompilationMode.OnDemand)]
+[TestFixture(CompilationMode.Interpreted)]
+[TestFixture(CompilationMode.Compiled)]
+[TestFixture(CompilationMode.StrictCompiled)]
 public class DoWhileLoopTests(CompilationMode mode) : TestBase
 {
     #region Basic Do-While Loop

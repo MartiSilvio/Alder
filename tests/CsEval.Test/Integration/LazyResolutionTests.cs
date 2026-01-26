@@ -3,8 +3,9 @@ using CsEval.Attributes;
 
 namespace CsEval.Test.Integration;
 
-[TestFixture(CompilationMode.Eager)]
-[TestFixture(CompilationMode.OnDemand)]
+[TestFixture(CompilationMode.Interpreted)]
+[TestFixture(CompilationMode.Compiled)]
+[TestFixture(CompilationMode.StrictCompiled)]
 public class LazyResolutionTests(CompilationMode mode) : TestBase
 {
     [SetUp]
@@ -84,8 +85,9 @@ public class LazyResolutionTests(CompilationMode mode) : TestBase
     }
 }
 
-[TestFixture(CompilationMode.Eager)]
-[TestFixture(CompilationMode.OnDemand)]
+[TestFixture(CompilationMode.Interpreted)]
+[TestFixture(CompilationMode.Compiled)]
+[TestFixture(CompilationMode.StrictCompiled)]
 public class MemberFilteringTests(CompilationMode mode) : TestBase
 {
     [Test]

@@ -44,9 +44,11 @@ internal sealed partial class ILCompiler
         var left = Compile(b.Left);
         var right = Compile(b.Right);
 
+        if (b.Op.Type == TokenType.Plus)
+            return LinqExpression.Call(AddMethod, left, right, _optionsParam, _currentContext);
+
         var method = b.Op.Type switch
         {
-            TokenType.Plus => AddMethod,
             TokenType.Minus => SubtractMethod,
             TokenType.Star => MultiplyMethod,
             TokenType.Slash => DivideMethod,
@@ -127,6 +129,15 @@ internal sealed partial class ILCompiler
         var value = Compile(v.Initializer);
         var temp = LinqExpression.Variable(typeof(object), "temp");
 
+        if (v.DeclaredType != null)
+        {
+            value = LinqExpression.Call(
+                ValidateAndCoerceTypeMethod,
+                LinqExpression.Constant(v.DeclaredType.Value.Lexeme),
+                value,
+                LinqExpression.Constant(v.Name.Lexeme));
+        }
+
         return LinqExpression.Block(
             new[] { temp },
             LinqExpression.Assign(temp, value),
@@ -159,13 +170,13 @@ internal sealed partial class ILCompiler
         var rightValue = Compile(ca.Value);
         var temp = LinqExpression.Variable(typeof(object), "temp");
 
-        var method = ca.Op.Type switch
+        var opCall = ca.Op.Type switch
         {
-            TokenType.PlusEqual => AddMethod,
-            TokenType.MinusEqual => SubtractMethod,
-            TokenType.StarEqual => MultiplyMethod,
-            TokenType.SlashEqual => DivideMethod,
-            TokenType.PercentEqual => ModuloMethod,
+            TokenType.PlusEqual => LinqExpression.Call(AddMethod, currentValue, rightValue, _optionsParam, _currentContext),
+            TokenType.MinusEqual => LinqExpression.Call(SubtractMethod, currentValue, rightValue, _optionsParam),
+            TokenType.StarEqual => LinqExpression.Call(MultiplyMethod, currentValue, rightValue, _optionsParam),
+            TokenType.SlashEqual => LinqExpression.Call(DivideMethod, currentValue, rightValue, _optionsParam),
+            TokenType.PercentEqual => LinqExpression.Call(ModuloMethod, currentValue, rightValue, _optionsParam),
             _ => throw new NotSupportedException($"Compound operator {ca.Op.Type}")
         };
 
@@ -173,7 +184,7 @@ internal sealed partial class ILCompiler
             new[] { temp },
             LinqExpression.Call(CheckAllowAssignmentMethod, _optionsParam,
                 LinqExpression.Constant($"{name} {ca.Op.Lexeme} ...")),
-            LinqExpression.Assign(temp, LinqExpression.Call(method, currentValue, rightValue, _optionsParam)),
+            LinqExpression.Assign(temp, opCall),
             LinqExpression.Call(_currentContext, SetMethod,
                 LinqExpression.Constant(name), temp),
             temp);
@@ -202,31 +213,30 @@ internal sealed partial class ILCompiler
         var temp = LinqExpression.Variable(typeof(object), "temp");
         var original = LinqExpression.Variable(typeof(object), "original");
 
-        var method = isIncrement ? AddMethod : SubtractMethod;
+        LinqExpression MakeOpCall(LinqExpression left) => isIncrement
+            ? LinqExpression.Call(AddMethod, left, one, _optionsParam, _currentContext)
+            : LinqExpression.Call(SubtractMethod, left, one, _optionsParam);
 
-        // Check sandbox
         var checkExpr = LinqExpression.Call(CheckAllowAssignmentMethod, _optionsParam,
             LinqExpression.Constant(isIncrement ? $"{name}++" : $"{name}--"));
 
         if (inc.IsPrefix)
         {
-            // Prefix: return new value
             return LinqExpression.Block(
                 new[] { temp },
                 checkExpr,
-                LinqExpression.Assign(temp, LinqExpression.Call(method, currentValue, one, _optionsParam)),
+                LinqExpression.Assign(temp, MakeOpCall(currentValue)),
                 LinqExpression.Call(_currentContext, SetMethod,
                     LinqExpression.Constant(name), temp),
                 temp);
         }
         else
         {
-            // Postfix: return original value
             return LinqExpression.Block(
                 new[] { temp, original },
                 checkExpr,
                 LinqExpression.Assign(original, currentValue),
-                LinqExpression.Assign(temp, LinqExpression.Call(method, original, one, _optionsParam)),
+                LinqExpression.Assign(temp, MakeOpCall(original)),
                 LinqExpression.Call(_currentContext, SetMethod,
                     LinqExpression.Constant(name), temp),
                 original);

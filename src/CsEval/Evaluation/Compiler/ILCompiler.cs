@@ -47,7 +47,7 @@ internal sealed partial class ILCompiler
     private static readonly MethodInfo DefineMethod = typeof(CsEvalContext).GetMethod("Define", [typeof(string), typeof(object)])!;
     private static readonly MethodInfo CreateChildMethod = typeof(CsEvalContext).GetMethod("CreateChild")!;
     private static readonly MethodInfo IsTruthyMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.IsTruthy))!;
-    private static readonly MethodInfo AddMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.Add))!;
+    private static readonly MethodInfo AddMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.Add), [typeof(object), typeof(object), typeof(CsEvalOptions), typeof(CsEvalContext)])!;
     private static readonly MethodInfo SubtractMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.Subtract))!;
     private static readonly MethodInfo MultiplyMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.Multiply))!;
     private static readonly MethodInfo DivideMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.Divide))!;
@@ -72,6 +72,7 @@ internal sealed partial class ILCompiler
     private static readonly MethodInfo GetCurrentProperty = typeof(System.Collections.IEnumerator).GetProperty(nameof(System.Collections.IEnumerator.Current))!.GetGetMethod()!;
     private static readonly MethodInfo DisposeMethod = typeof(IDisposable).GetMethod(nameof(IDisposable.Dispose))!;
     private static readonly MethodInfo CheckAllowAssignmentMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.CheckAllowAssignment))!;
+    private static readonly MethodInfo ValidateAndCoerceTypeMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.ValidateAndCoerceType))!;
 
     private record struct ControlFlowContext(LabelTarget BreakTarget, LabelTarget? ContinueTarget, bool IsLoop);
 
@@ -97,14 +98,15 @@ internal sealed partial class ILCompiler
     }
 
     /// <summary>
-    /// Attempt to compile an AST to IL. Returns null if the expression cannot be IL-compiled.
+    /// Attempt to compile an AST to IL. Returns (delegate, null) on success, or (null, reason) on failure.
     /// </summary>
-    public static ILCompiledDelegate? TryCompile(Expr ast, CsEvalContext context, CsEvalOptions options)
+    public static (ILCompiledDelegate? Delegate, string? FailureReason) TryCompile(Expr ast, CsEvalContext context, CsEvalOptions options)
     {
         var compiler = new ILCompiler(context, options);
 
-        if (!compiler.CanCompile(ast))
-            return null;
+        var canCompileResult = compiler.CanCompile(ast);
+        if (canCompileResult != null)
+            return (null, canCompileResult);
 
         try
         {
@@ -129,19 +131,20 @@ internal sealed partial class ILCompiler
                 compiler._optionsParam,
                 compiler._ctParam);
 
-            return lambda.Compile();
+            return (lambda.Compile(), null);
         }
-        catch
+        catch (Exception ex)
         {
-            return null;
+            return (null, ex.Message);
         }
     }
 
     /// <summary>
     /// Check if an AST can be IL-compiled.
     /// Uses iterative approach with explicit stack to avoid StackOverflowException on deep expressions.
+    /// Returns null if compilable, or a failure reason string if not.
     /// </summary>
-    private bool CanCompile(Expr expr)
+    private string? CanCompile(Expr expr)
     {
         var stack = new Stack<Expr>();
         stack.Push(expr);
@@ -168,16 +171,16 @@ internal sealed partial class ILCompiler
                     stack.Push(u.Right);
                     break;
 
-                case UnaryExpr:
-                    return false; // Unsupported unary operator
+                case UnaryExpr u:
+                    return $"Unsupported unary operator '{u.Op.Lexeme}'";
 
                 case BinaryExpr b when IsCompilableBinaryOp(b.Op.Type):
                     stack.Push(b.Left);
                     stack.Push(b.Right);
                     break;
 
-                case BinaryExpr:
-                    return false; // Unsupported binary operator
+                case BinaryExpr b:
+                    return $"Unsupported binary operator '{b.Op.Lexeme}'";
 
                 case LogicalExpr l:
                     stack.Push(l.Left);
@@ -212,9 +215,12 @@ internal sealed partial class ILCompiler
                     stack.Push(a.Value);
                     break;
 
-                case CompoundAssignExpr ca:
+                case CompoundAssignExpr ca when IsCompilableCompoundOp(ca.Op.Type):
                     stack.Push(ca.Value);
                     break;
+
+                case CompoundAssignExpr ca:
+                    return $"Unsupported compound operator '{ca.Op.Lexeme}'";
 
                 case IndexAssignExpr ia:
                     stack.Push(ia.Object);
@@ -281,12 +287,16 @@ internal sealed partial class ILCompiler
                     break;
 
                 default:
-                    return false; // Unknown expression type
+                    return $"Unsupported expression type '{current.GetType().Name}'";
             }
         }
 
-        return true;
+        return null; // All expressions are compilable
     }
+
+    private static bool IsCompilableCompoundOp(TokenType op) => op is
+        TokenType.PlusEqual or TokenType.MinusEqual or TokenType.StarEqual or
+        TokenType.SlashEqual or TokenType.PercentEqual;
 
     private static bool IsCompilableBinaryOp(TokenType op) => op is
         TokenType.Plus or TokenType.Minus or TokenType.Star or

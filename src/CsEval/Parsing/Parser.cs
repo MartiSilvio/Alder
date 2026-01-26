@@ -66,6 +66,13 @@ public sealed partial class Parser
             Check(TokenType.Char))
         {
             typeToken = Advance();
+
+            if (Check(TokenType.Question))
+            {
+                Advance();
+                typeToken = typeToken with { Lexeme = typeToken.Lexeme + "?" };
+            }
+
             return true;
         }
         typeToken = default;

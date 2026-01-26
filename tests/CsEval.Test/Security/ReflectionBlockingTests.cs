@@ -5,8 +5,9 @@ namespace CsEval.Test.Security;
 /// User code must never obtain a value whose runtime type is System.Type
 /// or any reflection metadata type (MemberInfo, Assembly, Module, etc.).
 /// </summary>
-[TestFixture(CompilationMode.Eager)]
-[TestFixture(CompilationMode.OnDemand)]
+[TestFixture(CompilationMode.Interpreted)]
+[TestFixture(CompilationMode.Compiled)]
+[TestFixture(CompilationMode.StrictCompiled)]
 public class ReflectionBlockingTests(CompilationMode mode) : TestBase
 {
     protected readonly CompilationMode Mode = mode;

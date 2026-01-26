@@ -3,16 +3,19 @@ namespace CsEval;
 public enum CompilationMode
 {
     /// <summary>
-    /// Compile automatically on first evaluation.
-    /// Best for performance-critical or reused expressions.
+    /// Always use tree-walking interpretation. Best for debugging or AST-only features.
     /// </summary>
-    Eager,
+    Interpreted,
+    
+    /// <summary>
+    /// Compile to IL, fall back to tree-walking if compilation fails. Best for production.
+    /// </summary>
+    Compiled,
 
     /// <summary>
-    /// Do not compile automatically. Use tree-walking unless <see cref="CsEvalExpression.TryCompile"/> is called explicitly.
-    /// Best for debugging or single-use expressions.
+    /// Require IL compilation - throw if compilation fails. Best for testing IL coverage.
     /// </summary>
-    OnDemand
+    StrictCompiled
 }
 
 /// <summary>
@@ -50,13 +53,14 @@ public sealed record CsEvalOptions
 
     /// <summary>
     /// Controls when expressions are compiled to IL.
-    /// Default: Eager (compile automatically on first evaluation).
+    /// Default: Compiled (compile automatically on first evaluation, fall back to tree-walking if compilation fails).
     /// </summary>
     /// <remarks>
-    /// <see cref="CompilationMode.Eager"/>: Automatically compile on first evaluation. Good for reused expressions.
-    /// <see cref="CompilationMode.OnDemand"/>: Only compile if explicitly requested via <see cref="CsEvalExpression.TryCompile"/>. Good for debugging or single-use expressions.
+    /// <see cref="CsEval.CompilationMode.Interpreted"/>: Always use tree-walking. Good for debugging or AST-only features.
+    /// <see cref="CsEval.CompilationMode.Compiled"/>: Automatically compile on first evaluation, fall back to tree-walking if compilation fails. Good for production.
+    /// <see cref="CsEval.CompilationMode.StrictCompiled"/>: Require IL compilation - throws if compilation fails. Good for testing IL coverage.
     /// </remarks>
-    public CompilationMode CompilationMode { get; init; } = CompilationMode.Eager;
+    public CompilationMode CompilationMode { get; init; } = CompilationMode.Compiled;
 
     internal StringComparer StringComparer => IgnoreCase ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
     internal StringComparison StringComparison => IgnoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;

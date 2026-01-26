@@ -522,9 +522,9 @@ public class CompilationTests
     }
 
     [Test]
-    public void CompilationMode_OnDemand_DoesNotCompileOnEvaluate()
+    public void CompilationMode_Interpreted_DoesNotCompileOnEvaluate()
     {
-        var options = new CsEvalOptions { CompilationMode = CompilationMode.OnDemand };
+        var options = new CsEvalOptions { CompilationMode = CompilationMode.Interpreted };
         var engine = new CsEvalEngine(options)
             .SetVariable("x", 10);
 
@@ -537,17 +537,17 @@ public class CompilationTests
     }
 
     [Test]
-    public void CompilationMode_Eager_CompilesOnFirstEvaluate()
+    public void CompilationMode_Compiled_CompilesOnFirstEvaluate()
     {
-        var options = new CsEvalOptions { CompilationMode = CompilationMode.Eager };
+        var options = new CsEvalOptions { CompilationMode = CompilationMode.Compiled };
         var engine = new CsEvalEngine(options)
             .SetVariable("x", 10);
 
         var expr = engine.Parse("x * 2");
-        
+
         // Not compiled after Parse
         Assert.That(expr.IsCompiled, Is.False);
-        
+
         var result = engine.Evaluate(expr);
 
         // Should work AND be compiled after first evaluation
@@ -556,21 +556,35 @@ public class CompilationTests
     }
 
     [Test]
-    public void CompilationMode_OnDemand_ExplicitCompileStillWorks()
+    public void CompilationMode_Interpreted_ExplicitCompileStillWorks()
     {
-        var options = new CsEvalOptions { CompilationMode = CompilationMode.OnDemand };
+        var options = new CsEvalOptions { CompilationMode = CompilationMode.Interpreted };
         var engine = new CsEvalEngine(options)
             .SetVariable("x", 10);
 
         var expr = engine.Parse("x * 2");
-        
+
         // User explicitly compiles regardless of option
         expr.TryCompile();
-        
+
         Assert.That(expr.IsCompiled, Is.True);
-        
+
         var result = engine.Evaluate(expr);
         Assert.That(result, Is.EqualTo(20));
+    }
+
+    [Test]
+    public void CompilationMode_StrictCompiled_ThrowsOnNonCompilableExpression()
+    {
+        var options = new CsEvalOptions { CompilationMode = CompilationMode.StrictCompiled };
+        var engine = new CsEvalEngine(options)
+            .SetVariable("items", new List<int> { 1, 2, 3 });
+
+        var expr = engine.Parse("items.Where((x) => x > 1)");
+
+        // StrictCompiled should throw for non-compilable expressions
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate(expr));
+        Assert.That(ex!.Message, Does.Contain("could not be compiled to IL"));
     }
 
     #endregion

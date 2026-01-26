@@ -22,7 +22,9 @@
       "Bash(grep:*)",
       "Bash(dotnet script:*)",
       "Bash(git checkout:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "WebFetch(domain:github.com)",
+      "Bash(xargs cat:*)"
     ]
   }
 }

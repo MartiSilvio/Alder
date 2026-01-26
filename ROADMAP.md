@@ -11,117 +11,164 @@ Features for full C# developer familiarity, plus additions from other languages.
 | 🟡     | Not implemented - Medium priority |
 | 🔵     | Not implemented - Low priority    |
 
+**Execution Modes:**
+- **AST**: Tree-walking interpretation (feature-complete, baseline performance)
+- **IL**: Compiled to IL via Expression Trees (faster, subset of features)
+
+Features marked ✅ in both AST and IL columns are fully optimized. Features with ✅ AST but ❌ IL will silently fall back to tree-walking (or throw in `StrictCompiled` mode).
+
 ---
 
 ## Operators
 
-| Status | Feature             | Syntax                                                        | Notes                    |
-| :----: | ------------------- | ------------------------------------------------------------- | ------------------------ |
-|   ✅   | Arithmetic          | `+`, `-`, `*`, `/`, `%`                                       | Standard operators       |
-|   ✅   | Comparison          | `==`, `!=`, `<`, `<=`, `>`, `>=`                              |                          |
-|   ✅   | Logical             | `&&`, `\|\|`, `!`                                             | Short-circuit evaluation |
-|   ✅   | Bitwise             | `&`, `\|`, `^`, `~`, `<<`, `>>`                               |                          |
-|   ✅   | Ternary             | `a ? b : c`                                                   |                          |
-|   ✅   | Null-coalescing     | `??`, `??=`                                                   |                          |
-|   ✅   | Null-conditional    | `?.`                                                          | Property access only     |
-|   ✅   | Assignment          | `=`                                                           | Variable reassignment    |
-|   ✅   | Compound assignment | `+=`, `-=`, `*=`, `/=`, `%=`, `&=`, `\|=`, `^=`, `<<=`, `>>=` | All 10 operators         |
-|   ✅   | Increment/decrement | `++x`, `x++`, `--x`, `x--`                                    | Prefix and postfix       |
+| Status | Feature                | Syntax                                                        | AST | IL  | Notes                         |
+| :----: | ---------------------- | ------------------------------------------------------------- | :-: | :-: | ----------------------------- |
+|   ✅   | Arithmetic             | `+`, `-`, `*`, `/`, `%`                                       | ✅  | ✅  | Standard operators            |
+|   ✅   | Comparison             | `==`, `!=`, `<`, `<=`, `>`, `>=`                              | ✅  | ✅  |                               |
+|   ✅   | Logical                | `&&`, `\|\|`, `!`                                             | ✅  | ✅  | Short-circuit evaluation      |
+|   ✅   | Bitwise AND/OR/XOR     | `&`, `\|`, `^`                                                | ✅  | ✅  |                               |
+|   ✅   | Bitwise NOT            | `~`                                                           | ✅  | ❌  | Falls back to AST             |
+|   ✅   | Shift                  | `<<`, `>>`                                                    | ✅  | ❌  | Falls back to AST             |
+|   ✅   | Ternary                | `a ? b : c`                                                   | ✅  | ✅  |                               |
+|   ✅   | Null-coalescing        | `??`                                                          | ✅  | ✅  |                               |
+|   ✅   | Null-coalescing assign | `??=`                                                         | ✅  | ❌  | Falls back to AST             |
+|   ✅   | Null-conditional       | `?.`                                                          | ✅  | ✅  | Property access only          |
+|   🟡   | Null-conditional index | `arr?[0]`                                                     | ❌  | ❌  | C# 6+                         |
+|   ✅   | Assignment             | `=`                                                           | ✅  | ✅  | Variable reassignment         |
+|   ✅   | Compound arithmetic    | `+=`, `-=`, `*=`, `/=`, `%=`                                  | ✅  | ✅  |                               |
+|   ✅   | Compound bitwise       | `&=`, `\|=`, `^=`, `<<=`, `>>=`                               | ✅  | ❌  | Falls back to AST             |
+|   ✅   | Increment/decrement    | `++x`, `x++`, `--x`, `x--`                                    | ✅  | ✅  | Prefix and postfix            |
+|   ✅   | Containment            | `x in list`                                                   | ✅  | ❌  | Python-style, falls back      |
+|   🔵   | Null-forgiving         | `x!`                                                          | ❌  | ❌  | C# 8+                         |
+|   🔵   | Unsigned shift         | `x >>> y`                                                     | ❌  | ❌  | C# 11                         |
+
+---
+
+## Literals
+
+| Status | Feature           | Syntax                        | AST | IL  | Notes                          |
+| :----: | ----------------- | ----------------------------- | :-: | :-: | ------------------------------ |
+|   ✅   | Numeric literals  | `42`, `3.14`, `42L`, `3.14m`  | ✅  | ✅  | int, long, double, decimal     |
+|   ✅   | String literals   | `"hello"`                     | ✅  | ✅  |                                |
+|   ✅   | Boolean literals  | `true`, `false`               | ✅  | ✅  |                                |
+|   ✅   | Null literal      | `null`                        | ✅  | ✅  |                                |
+|   🔴   | Char literals     | `'a'`, `'\t'`, `'\n'`         | ❌  | ❌  | Single quotes for characters   |
+|   🔴   | Hex literals      | `0xFF`, `0x1A`                | ❌  | ❌  | Hexadecimal integers           |
+|   🟡   | Binary literals   | `0b1010`                      | ❌  | ❌  | C# 7.0                         |
+|   🟡   | Digit separators  | `1_000_000`, `0xFF_FF`        | ❌  | ❌  | C# 7.0                         |
+|   🟡   | Unicode escapes   | `'\u0041'`, `"\u0048\u0069"`  | ❌  | ❌  | In char and string literals    |
+|   🔵   | Escape sequences  | `\t`, `\n`, `\r`, `\\`        | ❌  | ❌  | May already work in strings    |
+|   🔵   | DateTime literals | `#2024-01-01#`                | ❌  | ❌  | NCalc-style date literals      |
+|   🔵   | TimeSpan literals | `TimeSpan.FromHours(1)`       | ❌  | ❌  | Via registered module          |
+|   🔵   | Guid literals     | `Guid.NewGuid()`              | ❌  | ❌  | Via registered module          |
 
 ---
 
 ## Control Flow
 
-| Status | Feature             | Syntax                                  | Notes                         |
-| :----: | ------------------- | --------------------------------------- | ----------------------------- |
-|   ✅   | Block expressions   | `{ var x = 1; return x; }`              |                               |
-|   ✅   | If statements       | `if (cond) { } else { }`                |                               |
-|   ✅   | Return              | `return value;`                         | Early return in blocks        |
-|   ✅   | While loop          | `while (cond) { }`                      | With iteration limit          |
-|   ✅   | For loop            | `for (var i = 0; i < n; i++) { }`       |                               |
-|   ✅   | Foreach loop        | `foreach (var x in items) { }`          |                               |
-|   ✅   | Do-while loop       | `do { } while (cond)`                   |                               |
-|   ✅   | Break/continue      | `break;`, `continue;`                   | In all loop types             |
-|   ✅   | Switch statement    | `switch (x) { case 1: ... }`            | With fall-through and default |
-|   🟡   | `switch` expression | `x switch { 1 => "one", _ => "other" }` |                               |
-|   🔵   | `try-catch`         | `try { } catch { }`                     |                               |
-|   🔵   | `throw`             | `throw new Exception("msg")`            |                               |
+| Status | Feature             | Syntax                                  | AST | IL  | Notes                         |
+| :----: | ------------------- | --------------------------------------- | :-: | :-: | ----------------------------- |
+|   ✅   | Block expressions   | `{ var x = 1; return x; }`              | ✅  | ✅  |                               |
+|   ✅   | If statements       | `if (cond) { } else { }`                | ✅  | ✅  |                               |
+|   ✅   | Return              | `return value;`                         | ✅  | ✅  | Early return in blocks        |
+|   ✅   | While loop          | `while (cond) { }`                      | ✅  | ✅  | With iteration limit          |
+|   ✅   | For loop            | `for (var i = 0; i < n; i++) { }`       | ✅  | ✅  |                               |
+|   ✅   | Foreach loop        | `foreach (var x in items) { }`          | ✅  | ✅  | Iterator disposal handled     |
+|   ✅   | Do-while loop       | `do { } while (cond)`                   | ✅  | ✅  |                               |
+|   ✅   | Break/continue      | `break;`, `continue;`                   | ✅  | ✅  | In all loop types             |
+|   ✅   | Switch statement    | `switch (x) { case 1: ... }`            | ✅  | ✅  | With fall-through and default |
+|   🟡   | `switch` expression | `x switch { 1 => "one", _ => "other" }` | ❌  | ❌  |                               |
+|   🔵   | `try-catch`         | `try { } catch { }`                     | ❌  | ❌  |                               |
+|   🔵   | `throw`             | `throw new Exception("msg")`            | ❌  | ❌  |                               |
+|   🔵   | `await`             | `await Task`                            | ❌  | ❌  | For async method calls        |
+|   🔵   | `checked/unchecked` | `checked { ... }`                       | ❌  | ❌  | Overflow context              |
 
 ---
 
 ## Variables & Types
 
-| Status | Feature               | Syntax                       | Notes                                                                   |
-| :----: | --------------------- | ---------------------------- | ----------------------------------------------------------------------- |
-|   ✅   | Variable declaration  | `var x = 5;`                 | Type inferred                                                           |
-|   ✅   | Typed declaration     | `int x = 5;`                 | `int`, `long`, `double`, `float`, `decimal`, `string`, `bool`, `object` |
-|   ✅   | Interpolated strings  | `$"Hello {name}"`            |                                                                         |
-|   🔴   | `is` operator         | `x is string`, `x is null`   | Type checking                                                           |
-|   🔴   | `is not`              | `x is not null`              | Common pattern                                                          |
-|   🔴   | `is` with variable    | `x is string s`              | Declare variable                                                        |
-|   🔴   | `as` operator         | `x as string`                | Safe cast                                                               |
-|   🔴   | Type casting          | `(int)x`                     |                                                                         |
-|   🟡   | `nameof`              | `nameof(property)`           |                                                                         |
-|   🔵   | `default`             | `default(int)`               |                                                                         |
-|   ✅   | Verbatim strings      | `@"path\to\file"`            | Backslashes literal                                                     |
-|   ✅   | Verbatim interpolated | `$@"path\{name}"`, `@$"..."` | Combined syntax                                                         |
-|   🔵   | Raw strings           | `"""text"""`                 | C# 11                                                                   |
+| Status | Feature               | Syntax                       | AST | IL  | Notes                                                                   |
+| :----: | --------------------- | ---------------------------- | :-: | :-: | ----------------------------------------------------------------------- |
+|   ✅   | Variable declaration  | `var x = 5;`                 | ✅  | ✅  | Type inferred                                                           |
+|   ✅   | Typed declaration     | `int x = 5;`                 | ✅  | ✅  | `int`, `long`, `double`, `float`, `decimal`, `string`, `bool`, `object` |
+|   ✅   | Nullable types        | `int? x = null;`             | ✅  | ✅  | Value type nullability                                                  |
+|   🟡   | Multiple declaration  | `int x = 1, y = 2;`          | ❌  | ❌  | Multiple vars in one statement                                          |
+|   🟡   | Tuple literals        | `(1, "hello")`               | ❌  | ❌  | C# 7.0                                                                  |
+|   🟡   | Tuple types           | `(int, string) t = (1, "a")` | ❌  | ❌  | C# 7.0                                                                  |
+|   🟡   | Named tuple elements  | `(count: 1, name: "test")`   | ❌  | ❌  | C# 7.0                                                                  |
+|   🔵   | Tuple deconstruction  | `var (a, b) = tuple;`        | ❌  | ❌  | C# 7.0                                                                  |
+|   ✅   | Interpolated strings  | `$"Hello {name}"`            | ✅  | ❌  | Falls back to AST                                                       |
+|   🔴   | `is` operator         | `x is string`, `x is null`   | ❌  | ❌  | Type checking                                                           |
+|   🔴   | `is not`              | `x is not null`              | ❌  | ❌  | Common pattern                                                          |
+|   🔴   | `is` with variable    | `x is string s`              | ❌  | ❌  | Declare variable                                                        |
+|   🔴   | `as` operator         | `x as string`                | ❌  | ❌  | Safe cast                                                               |
+|   🔴   | Type casting          | `(int)x`                     | ❌  | ❌  |                                                                         |
+|   🟡   | `nameof`              | `nameof(property)`           | ❌  | ❌  |                                                                         |
+|   🔵   | `default`             | `default(int)`               | ❌  | ❌  |                                                                         |
+|   ✅   | Verbatim strings      | `@"path\to\file"`            | ✅  | ✅  | Backslashes literal                                                     |
+|   ✅   | Verbatim interpolated | `$@"path\{name}"`, `@$"..."` | ✅  | ❌  | Falls back to AST                                                       |
+|   🔵   | Raw strings           | `"""text"""`                 | ❌  | ❌  | C# 11                                                                   |
 
 ---
 
 ## Collections & Objects
 
-| Status | Feature                    | Syntax                             | Notes                            |
-| :----: | -------------------------- | ---------------------------------- | -------------------------------- |
-|   ✅   | Array literals             | `[1, 2, 3]`                        |                                  |
-|   ✅   | Anonymous objects          | `new { Name = "John", Age = 30 }`  |                                  |
-|   ✅   | Object spread              | `new { ...obj1, ...obj2 }`         |                                  |
-|   ✅   | Array spread               | `[...arr1, ...arr2]`               |                                  |
-|   ✅   | Object merging             | `obj1 + obj2`                      | Via `+` operator                 |
-|   ✅   | Index access               | `arr[0]`, `dict["key"]`            | Read and write                   |
-|   ✅   | Index assignment           | `arr[0] = value`                   | Arrays, lists, dictionaries      |
-|   ✅   | Property access            | `obj.Property`                     | Read and write                   |
-|   ✅   | Property assignment        | `obj.Prop = value`                 | Anonymous objects, typed objects |
-|   🔴   | Typed constructor          | `new DateTime(2024, 1, 1)`         | Requires type registry           |
-|   🔴   | Object initializer         | `new Point { X = 10, Y = 20 }`     |                                  |
-|   🟡   | Constructor + initializer  | `new Person("John") { Age = 30 }`  |                                  |
-|   ✅   | Named parameters           | `Method(count: 10, enabled: true)` | For method calls only            |
-|   🔵   | Collection initializer     | `new List<int> { 1, 2, 3 }`        | Use `[1,2,3]` instead            |
-|   🔵   | Array creation             | `new int[] { 1, 2, 3 }`            | Use `[1,2,3]` instead            |
-|   🔵   | Generic type instantiation | `new List<int>()`                  |                                  |
-|   🟡   | Index from end             | `arr[^1]`                          | C# 8+                            |
-|   🟡   | Range                      | `arr[1..3]`                        | C# 8+                            |
-|   🔵   | Destructuring              | `var { Name, Age } = person`       |                                  |
+| Status | Feature                    | Syntax                             | AST | IL  | Notes                            |
+| :----: | -------------------------- | ---------------------------------- | :-: | :-: | -------------------------------- |
+|   ✅   | Array literals             | `[1, 2, 3]`                        | ✅  | ❌  | Falls back to AST                |
+|   ✅   | Anonymous objects          | `new { Name = "John", Age = 30 }`  | ✅  | ❌  | Falls back to AST                |
+|   ✅   | Object spread              | `new { ...obj1, ...obj2 }`         | ✅  | ❌  | Falls back to AST                |
+|   ✅   | Array spread               | `[...arr1, ...arr2]`               | ✅  | ❌  | Falls back to AST                |
+|   ✅   | Object merging             | `obj1 + obj2`                      | ✅  | ✅  | Via `+` operator                 |
+|   ✅   | Index access               | `arr[0]`, `dict["key"]`            | ✅  | ✅  | Read and write                   |
+|   ✅   | Index assignment           | `arr[0] = value`                   | ✅  | ✅  | Arrays, lists, dictionaries      |
+|   ✅   | Property access            | `obj.Property`                     | ✅  | ✅  | Read and write                   |
+|   ✅   | Property assignment        | `obj.Prop = value`                 | ✅  | ❌  | Falls back to AST                |
+|   ✅   | Method calls               | `obj.Method()`, `Math.Abs(x)`      | ✅  | ❌  | Falls back to AST                |
+|   🔴   | Typed constructor          | `new DateTime(2024, 1, 1)`         | ❌  | ❌  | Requires type registry           |
+|   🔴   | Object initializer         | `new Point { X = 10, Y = 20 }`     | ❌  | ❌  |                                  |
+|   🟡   | Constructor + initializer  | `new Person("John") { Age = 30 }`  | ❌  | ❌  |                                  |
+|   ✅   | Named parameters           | `Method(count: 10, enabled: true)` | ✅  | ❌  | For method calls only            |
+|   🔵   | Collection initializer     | `new List<int> { 1, 2, 3 }`        | ❌  | ❌  | Use `[1,2,3]` instead            |
+|   🔵   | Array creation             | `new int[] { 1, 2, 3 }`            | ❌  | ❌  | Use `[1,2,3]` instead            |
+|   🔵   | Implicitly typed array     | `new[] { 1, 2, 3 }`                | ❌  | ❌  | Type inferred from elements      |
+|   🔵   | Generic type instantiation | `new List<int>()`                  | ❌  | ❌  |                                  |
+|   🟡   | Index from end             | `arr[^1]`                          | ❌  | ❌  | C# 8+                            |
+|   🟡   | Range                      | `arr[1..3]`                        | ❌  | ❌  | C# 8+                            |
+|   🟡   | `with` expression          | `obj with { Prop = val }`          | ❌  | ❌  | C# 9+                            |
+|   🔵   | Destructuring              | `var { Name, Age } = person`       | ❌  | ❌  |                                  |
 
 ---
 
 ## Pattern Matching
 
-| Status | Feature            | Syntax                  | Notes |
-| :----: | ------------------ | ----------------------- | ----- |
-|   🟡   | Property pattern   | `x is { Name: "John" }` |       |
-|   🟡   | Relational pattern | `x is > 0 and < 100`    |       |
+| Status | Feature            | Syntax                  | AST | IL  | Notes |
+| :----: | ------------------ | ----------------------- | :-: | :-: | ----- |
+|   🟡   | Property pattern   | `x is { Name: "John" }` | ❌  | ❌  |       |
+|   🟡   | Relational pattern | `x is > 0 and < 100`    | ❌  | ❌  |       |
 
 ---
 
 ## LINQ
 
-| Status | Feature                  | Syntax                                                                          | Notes                      |
-| :----: | ------------------------ | ------------------------------------------------------------------------------- | -------------------------- |
-|   ✅   | Filtering                | `Where`, `Distinct`                                                             |                            |
-|   ✅   | Projection               | `Select`, `SelectMany`                                                          |                            |
-|   ✅   | Element                  | `First`, `FirstOrDefault`, `Last`, `LastOrDefault`, `Single`, `SingleOrDefault` |                            |
-|   ✅   | Quantifiers              | `Any`, `All`, `Contains`                                                        |                            |
-|   ✅   | Aggregation              | `Count`, `Sum`, `Average`, `Min`, `Max`, `Aggregate`                            |                            |
-|   ✅   | Ordering                 | `OrderBy`, `OrderByDescending`, `Reverse`                                       |                            |
-|   ✅   | Grouping                 | `GroupBy`                                                                       | Returns `[{ Key, Items }]` |
-|   ✅   | Combining                | `Zip`, `Concat`                                                                 |                            |
-|   ✅   | Partitioning             | `Take`, `Skip`                                                                  |                            |
-|   ✅   | Set Operations           | `Except`, `Intersect`, `Union`                                                  |                            |
-|   ✅   | Min/Max by Key           | `MinBy`, `MaxBy`                                                                | .NET 6+                    |
-|   ✅   | Conversion               | `ToList`, `ToArray`                                                             |                            |
-|   🔵   | `Join`, `GroupJoin`      |                                                                                 | Complex                    |
-|   🔵   | `TakeWhile`, `SkipWhile` |                                                                                 |                            |
+> **Note:** All LINQ methods require lambda expressions and are **AST-only**. They will always fall back to tree-walking evaluation.
+
+| Status | Feature                  | Syntax                                                                          | AST | IL  | Notes                      |
+| :----: | ------------------------ | ------------------------------------------------------------------------------- | :-: | :-: | -------------------------- |
+|   ✅   | Filtering                | `Where`, `Distinct`                                                             | ✅  | ❌  |                            |
+|   ✅   | Projection               | `Select`, `SelectMany`                                                          | ✅  | ❌  |                            |
+|   ✅   | Element                  | `First`, `FirstOrDefault`, `Last`, `LastOrDefault`, `Single`, `SingleOrDefault` | ✅  | ❌  |                            |
+|   ✅   | Quantifiers              | `Any`, `All`, `Contains`                                                        | ✅  | ❌  |                            |
+|   ✅   | Aggregation              | `Count`, `Sum`, `Average`, `Min`, `Max`, `Aggregate`                            | ✅  | ❌  |                            |
+|   ✅   | Ordering                 | `OrderBy`, `OrderByDescending`, `Reverse`                                       | ✅  | ❌  |                            |
+|   ✅   | Grouping                 | `GroupBy`                                                                       | ✅  | ❌  | Returns `[{ Key, Items }]` |
+|   ✅   | Combining                | `Zip`, `Concat`                                                                 | ✅  | ❌  |                            |
+|   ✅   | Partitioning             | `Take`, `Skip`                                                                  | ✅  | ❌  |                            |
+|   ✅   | Set Operations           | `Except`, `Intersect`, `Union`                                                  | ✅  | ❌  |                            |
+|   ✅   | Min/Max by Key           | `MinBy`, `MaxBy`                                                                | ✅  | ❌  | .NET 6+                    |
+|   ✅   | Conversion               | `ToList`, `ToArray`                                                             | ✅  | ❌  |                            |
+|   🔵   | `Join`, `GroupJoin`      |                                                                                 | ❌  | ❌  | Complex                    |
+|   🔵   | `TakeWhile`, `SkipWhile` |                                                                                 | ❌  | ❌  |                            |
 
 ---
 
@@ -157,8 +204,10 @@ Features for full C# developer familiarity, plus additions from other languages.
 |   ✅   | Module system        | `engine.RegisterModule()`                                    |
 |   ✅   | Custom functions     | `engine.RegisterFunction()`                                  |
 |   ✅   | Sandbox modes        | `Sandbox.Trusted()`, `Safe()`, `Strict()` presets            |
+|   ✅   | Compilation modes    | `Interpreted`, `Compiled`, `StrictCompiled`                  |
 |   🟡   | Compile to delegate  | `engine.Compile<Func<T>>()` for typed, reusable delegates    |
 |   🟡   | Compile with DI      | `Compile<T>(IServiceProvider)` for scoped DI in compiled fns |
+|   🔵   | Expression tree export | `Expression<Func<T>>` for LINQ/EF queries                  |
 
 ---
 
@@ -208,6 +257,9 @@ Features for full C# developer familiarity, plus additions from other languages.
 | Primary constructors (C# 12)                | Class declaration syntax                                      |
 | Partial constructors (C# 14)                | Class definition syntax                                       |
 | Constructor chaining (`:this()`, `:base()`) | Class definition syntax                                       |
+| `sizeof`, `stackalloc`                      | Security / Unsafe code                                        |
+| `::` (Namespace alias qualifier)            | Not applicable to expressions                                 |
+| Pointer operators (`->`, `&`, `*`)          | Security / Unsafe code                                        |
 
 ---
 
@@ -334,7 +386,7 @@ Derived from the competitive audit, the following items represent the immediate 
 | **Lazy Late-Binding**      | Add `IParameterResolver` or `Func<string, object?>` support to fetch variables on-demand during execution.                        | Parity with **NCalc** lazy-loading.         |
 | **SafeMode (Whitelist)**   | Implement a "Deny All" security policy requiring explicit `engine.AllowType<T>()` or `AllowMember("Name")`.                       | Parity with **Z.Expressions.Eval**.         |
 | **Expression Caching**     | Implement an internal `LruCache` for `ParsedExpression` objects to avoid redundant parsing costs in high-frequency loops.         | Feature found in **Z.Expressions**.         |
-|  |
+|                            |
 
 ### Phase 2: Feature Parity & Extensibility (Medium Priority)
 
@@ -346,7 +398,7 @@ Derived from the competitive audit, the following items represent the immediate 
 | **Typed Constructors**     | Implementation of `new T(...)` via a secure Type Registry.                                             | Common request in **Flee/Expresso**.    |
 | **Global Manager**         | Implement `CsEvalManager` for setting process-wide default options and performance hooks.              | Feature found in **Z.Expressions**.     |
 | **Compile to Delegate**    | `Compile<Func<T>>()` returns strongly-typed delegate; accepts `IServiceProvider` for scoped DI.        | Parity with **Z.Expressions.Eval**.     |
-|  |
+|                            |
 
 ### Phase 3: Developer Experience & Ecosystem (Low Priority)
 

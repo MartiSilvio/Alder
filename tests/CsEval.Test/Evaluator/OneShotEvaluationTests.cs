@@ -2,8 +2,9 @@ using CsEval.Evaluation;
 
 namespace CsEval.Test.Evaluator;
 
-[TestFixture(CompilationMode.Eager)]
-[TestFixture(CompilationMode.OnDemand)]
+[TestFixture(CompilationMode.Interpreted)]
+[TestFixture(CompilationMode.Compiled)]
+[TestFixture(CompilationMode.StrictCompiled)]
 public class OneShotEvaluationTests(CompilationMode mode) : TestBase
 {
     [Test]

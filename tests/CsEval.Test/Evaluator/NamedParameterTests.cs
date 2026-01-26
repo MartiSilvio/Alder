@@ -1,7 +1,8 @@
 namespace CsEval.Test.Evaluator;
 
-[TestFixture(CompilationMode.Eager)]
-[TestFixture(CompilationMode.OnDemand)]
+[TestFixture(CompilationMode.Interpreted)]
+[TestFixture(CompilationMode.Compiled)]
+[TestFixture(CompilationMode.StrictCompiled)]
 public class NamedParameterTests(CompilationMode mode) : TestBase
 {
     [Test]

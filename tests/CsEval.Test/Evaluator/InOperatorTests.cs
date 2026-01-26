@@ -2,8 +2,9 @@ using NUnit.Framework;
 
 namespace CsEval.Test.Evaluator;
 
-[TestFixture(CompilationMode.Eager)]
-[TestFixture(CompilationMode.OnDemand)]
+[TestFixture(CompilationMode.Interpreted)]
+[TestFixture(CompilationMode.Compiled)]
+[TestFixture(CompilationMode.StrictCompiled)]
 public class InOperatorTests(CompilationMode mode) : TestBase
 {
     [Test]

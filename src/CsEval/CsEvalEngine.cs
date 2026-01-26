@@ -103,7 +103,8 @@ public sealed class CsEvalEngine
     {
         ApplyRegisteredTypes(serviceProvider);
 
-        if (_options.CompilationMode == CompilationMode.Eager && expression.GetCompiledInfo() == null)
+        var shouldCompile = _options.CompilationMode is CompilationMode.Compiled or CompilationMode.StrictCompiled;
+        if (shouldCompile && expression.GetCompiledInfo() == null)
         {
             expression.TryCompile();
         }
@@ -113,6 +114,13 @@ public sealed class CsEvalEngine
         if (compiled?.Delegate != null)
         {
             return compiled.Delegate(_context, _options, cancellationToken);
+        }
+
+        // StrictCompiled mode: throw if compilation failed
+        if (_options.CompilationMode == CompilationMode.StrictCompiled)
+        {
+            var reason = compiled?.FailureReason ?? "Unknown compilation failure";
+            throw new CsEvalException($"Expression could not be compiled to IL: {reason}");
         }
 
         // Fall back to tree-walking for non-compilable expressions

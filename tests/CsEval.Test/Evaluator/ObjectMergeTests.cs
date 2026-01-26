@@ -3,8 +3,9 @@ using NUnit.Framework;
 
 namespace CsEval.Test.Evaluator;
 
-[TestFixture(CompilationMode.Eager)]
-[TestFixture(CompilationMode.OnDemand)]
+[TestFixture(CompilationMode.Interpreted)]
+[TestFixture(CompilationMode.Compiled)]
+[TestFixture(CompilationMode.StrictCompiled)]
 public class ObjectMergeTests(CompilationMode mode) : TestBase
 {
     #region Dictionary Merge

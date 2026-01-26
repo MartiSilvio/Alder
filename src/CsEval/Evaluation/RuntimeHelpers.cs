@@ -1,10 +1,11 @@
+using System.Linq;
 using System.Reflection;
 
 namespace CsEval.Evaluation;
 
 /// <summary>
-/// Static helper methods called by compiled expressions at runtime.
-/// These mirror the behavior in Evaluator.Operators.cs for consistency.
+/// Static helper methods called by both compiled (IL) and interpreted (AST) expressions at runtime.
+/// Centralizes operator logic to ensure consistent behavior between execution modes.
 /// </summary>
 public static class RuntimeHelpers
 {
@@ -30,20 +31,64 @@ public static class RuntimeHelpers
         throw new CsEvalException($"Cannot negate {value?.GetType().Name ?? "null"}");
     }
 
-    public static object? Add(object? left, object? right, CsEvalOptions options)
+    public static object? Add(object? left, object? right, CsEvalOptions options) =>
+        Add(left, right, options, null);
+
+    public static object? Add(object? left, object? right, CsEvalOptions options, CsEvalContext? context)
     {
-        // String concatenation
         if (left is string || right is string)
             return $"{left}{right}";
 
-        // Let C# runtime handle numeric addition via dynamic
         if (IsNumeric(left) && IsNumeric(right))
             return (dynamic)left! + (dynamic)right!;
 
-        // Object merging not supported in compiled expressions
-        throw new CsEvalException(
-            $"Cannot add {left?.GetType().Name ?? "null"} and {right?.GetType().Name ?? "null"} in compiled expression. " +
-            "Object merging requires tree-walking evaluation.");
+        return MergeObjects(left, right, options, context);
+    }
+
+    private static object? MergeObjects(object? left, object? right, CsEvalOptions options, CsEvalContext? context)
+    {
+        var comparer = options.StringComparer;
+        var merged = new Dictionary<string, object?>(comparer);
+
+        CopyObjectProperties(left, merged, context);
+        CopyObjectProperties(right, merged, context);
+
+        if (merged.Count == 0 && (left != null || right != null))
+            throw new CsEvalException($"Cannot add {left?.GetType().Name ?? "null"} and {right?.GetType().Name ?? "null"}");
+
+        return merged;
+    }
+
+    private static void CopyObjectProperties(object? obj, Dictionary<string, object?> target, CsEvalContext? context)
+    {
+        if (obj == null) return;
+
+        if (obj is IDictionary<string, object?> dict)
+        {
+            foreach (var kvp in dict)
+                target[kvp.Key] = kvp.Value;
+            return;
+        }
+
+        var type = obj.GetType();
+        var bindingFlags = BindingFlags.Public | BindingFlags.Instance;
+
+        if (context != null)
+        {
+            foreach (var prop in context.TypeCache.GetProperties(type, bindingFlags))
+            {
+                if (prop.CanRead)
+                    target[prop.Name] = context.TypeCache.GetPropertyValue(prop, obj);
+            }
+        }
+        else
+        {
+            foreach (var prop in type.GetProperties(bindingFlags))
+            {
+                if (prop.CanRead)
+                    target[prop.Name] = prop.GetValue(obj);
+            }
+        }
     }
 
     public static object? Subtract(object? left, object? right, CsEvalOptions options)
@@ -369,14 +414,7 @@ public static class RuntimeHelpers
 
         // Collection containment
         if (collection is System.Collections.IEnumerable enumerable)
-        {
-            foreach (var item in enumerable)
-            {
-                if ((bool)Equals(item, value, options))
-                    return true;
-            }
-            return false;
-        }
+            return enumerable.Cast<object?>().Any(item => (bool)Equals(item, value, options));
 
         throw new CsEvalException($"Cannot use 'in' operator with {collection.GetType().Name}");
     }
@@ -510,6 +548,96 @@ public static class RuntimeHelpers
     {
         if (options.MaxIterations > 0 && iterations > options.MaxIterations)
             throw new CsEvalException($"Loop exceeded maximum iterations ({options.MaxIterations}). Possible infinite loop.");
+    }
+
+    /// <summary>
+    /// Maps type name strings to their corresponding CLR types.
+    /// </summary>
+    private static readonly Dictionary<string, Type> TypeNameToClrType = new()
+    {
+        ["sbyte"] = typeof(sbyte),
+        ["byte"] = typeof(byte),
+        ["short"] = typeof(short),
+        ["ushort"] = typeof(ushort),
+        ["int"] = typeof(int),
+        ["uint"] = typeof(uint),
+        ["long"] = typeof(long),
+        ["ulong"] = typeof(ulong),
+        ["float"] = typeof(float),
+        ["double"] = typeof(double),
+        ["decimal"] = typeof(decimal),
+        ["bool"] = typeof(bool),
+        ["char"] = typeof(char),
+        ["string"] = typeof(string),
+        ["object"] = typeof(object),
+        // Nullable types
+        ["sbyte?"] = typeof(sbyte?),
+        ["byte?"] = typeof(byte?),
+        ["short?"] = typeof(short?),
+        ["ushort?"] = typeof(ushort?),
+        ["int?"] = typeof(int?),
+        ["uint?"] = typeof(uint?),
+        ["long?"] = typeof(long?),
+        ["ulong?"] = typeof(ulong?),
+        ["float?"] = typeof(float?),
+        ["double?"] = typeof(double?),
+        ["decimal?"] = typeof(decimal?),
+        ["bool?"] = typeof(bool?),
+        ["char?"] = typeof(char?),
+    };
+
+    /// <summary>
+    /// C# implicit numeric conversions table.
+    /// Key: source type, Value: set of types it can implicitly convert to.
+    /// Based on ECMA-334 (C# Language Specification).
+    /// </summary>
+    private static readonly Dictionary<Type, HashSet<Type>> ImplicitConversions = new()
+    {
+        [typeof(sbyte)] = [typeof(short), typeof(int), typeof(long), typeof(float), typeof(double), typeof(decimal)],
+        [typeof(byte)] = [typeof(short), typeof(ushort), typeof(int), typeof(uint), typeof(long), typeof(ulong), typeof(float), typeof(double), typeof(decimal)],
+        [typeof(short)] = [typeof(int), typeof(long), typeof(float), typeof(double), typeof(decimal)],
+        [typeof(ushort)] = [typeof(int), typeof(uint), typeof(long), typeof(ulong), typeof(float), typeof(double), typeof(decimal)],
+        [typeof(int)] = [typeof(long), typeof(float), typeof(double), typeof(decimal)],
+        [typeof(uint)] = [typeof(long), typeof(ulong), typeof(float), typeof(double), typeof(decimal)],
+        [typeof(long)] = [typeof(float), typeof(double), typeof(decimal)],
+        [typeof(ulong)] = [typeof(float), typeof(double), typeof(decimal)],
+        [typeof(float)] = [typeof(double)],
+        [typeof(char)] = [typeof(ushort), typeof(int), typeof(uint), typeof(long), typeof(ulong), typeof(float), typeof(double), typeof(decimal)],
+    };
+
+    /// <summary>
+    /// Validates and coerces the value to the declared type for variable declarations.
+    /// </summary>
+    public static object? ValidateAndCoerceType(string typeName, object? value, string varName)
+    {
+        if (typeName == "object")
+            return value;
+
+        if (!TypeNameToClrType.TryGetValue(typeName, out var targetType))
+            throw new CsEvalException($"Unknown type '{typeName}'");
+
+        var isNullable = Nullable.GetUnderlyingType(targetType) != null;
+        var underlyingType = Nullable.GetUnderlyingType(targetType) ?? targetType;
+
+        if (value == null)
+        {
+            if (targetType.IsValueType && !isNullable)
+                throw new CsEvalException($"Cannot assign null to {typeName} variable '{varName}'");
+            return null;
+        }
+
+        var sourceType = value.GetType();
+
+        if (sourceType == underlyingType || sourceType == targetType)
+            return value;
+
+        if (ImplicitConversions.TryGetValue(sourceType, out var allowedTargets) && allowedTargets.Contains(underlyingType))
+            return Convert.ChangeType(value, underlyingType);
+
+        if (underlyingType == typeof(char) && value is string { Length: 1 } s)
+            return s[0];
+
+        throw new CsEvalException($"Cannot assign {sourceType.Name} to {typeName} variable '{varName}'");
     }
 
     public static System.Collections.IEnumerator GetEnumerator(object? collection)

@@ -11,7 +11,7 @@ public sealed partial class Evaluator
     private static readonly Dictionary<TokenType, Func<Evaluator, object?, object?, object?>> BinaryOperators = new()
     {
         // Arithmetic
-        { TokenType.Plus, (e, l, r) => e.Add(l, r) },
+        { TokenType.Plus, (e, l, r) => RuntimeHelpers.Add(l, r, e._options, e._context) },
         { TokenType.Minus, (e, l, r) => RuntimeHelpers.Subtract(l, r, e._options) },
         { TokenType.Star, (e, l, r) => RuntimeHelpers.Multiply(l, r, e._options) },
         { TokenType.Slash, (e, l, r) => RuntimeHelpers.Divide(l, r, e._options) },

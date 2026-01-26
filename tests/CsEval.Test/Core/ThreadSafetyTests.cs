@@ -2,8 +2,9 @@ using System.Collections.Concurrent;
 
 namespace CsEval.Test.Core;
 
-[TestFixture(CompilationMode.Eager)]
-[TestFixture(CompilationMode.OnDemand)]
+[TestFixture(CompilationMode.Interpreted)]
+[TestFixture(CompilationMode.Compiled)]
+[TestFixture(CompilationMode.StrictCompiled)]
 public class ThreadSafetyTests(CompilationMode mode) : TestBase
 {
     [Test]

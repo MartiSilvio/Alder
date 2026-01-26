@@ -1,7 +1,8 @@
 namespace CsEval.Test.Evaluator;
 
-[TestFixture(CompilationMode.Eager)]
-[TestFixture(CompilationMode.OnDemand)]
+[TestFixture(CompilationMode.Interpreted)]
+[TestFixture(CompilationMode.Compiled)]
+[TestFixture(CompilationMode.StrictCompiled)]
 public class VariableDeclarationTests(CompilationMode mode) : TestBase
 {
     #region Var Declarations
@@ -177,6 +178,73 @@ public class VariableDeclarationTests(CompilationMode mode) : TestBase
         }");
         Assert.That(result, Is.TypeOf<double>());
         Assert.That(result, Is.EqualTo(31.5));
+    }
+
+    #endregion
+
+    #region Nullable Types
+
+    [Test]
+    public void NullableInt_AcceptsNull()
+    {
+        var engine = CreateEngine(mode);
+        var result = engine.Evaluate("{ int? x = null; return x; }");
+        Assert.That(result, Is.Null);
+    }
+
+    [Test]
+    public void NullableInt_AcceptsValue()
+    {
+        var engine = CreateEngine(mode);
+        var result = engine.Evaluate("{ int? x = 42; return x; }");
+        Assert.That(result, Is.EqualTo(42));
+    }
+
+    [Test]
+    public void NullableLong_AcceptsNull()
+    {
+        var engine = CreateEngine(mode);
+        var result = engine.Evaluate("{ long? x = null; return x; }");
+        Assert.That(result, Is.Null);
+    }
+
+    [Test]
+    public void NullableLong_CoercesFromInt()
+    {
+        var engine = CreateEngine(mode);
+        var result = engine.Evaluate("{ long? x = 42; return x; }");
+        Assert.That(result, Is.EqualTo(42L));
+    }
+
+    [Test]
+    public void NullableDouble_AcceptsNull()
+    {
+        var engine = CreateEngine(mode);
+        var result = engine.Evaluate("{ double? x = null; return x; }");
+        Assert.That(result, Is.Null);
+    }
+
+    [Test]
+    public void NullableBool_AcceptsNull()
+    {
+        var engine = CreateEngine(mode);
+        var result = engine.Evaluate("{ bool? x = null; return x; }");
+        Assert.That(result, Is.Null);
+    }
+
+    [Test]
+    public void NullableBool_AcceptsValue()
+    {
+        var engine = CreateEngine(mode);
+        var result = engine.Evaluate("{ bool? x = true; return x; }");
+        Assert.That(result, Is.EqualTo(true));
+    }
+
+    [Test]
+    public void NullableInt_ThrowsOnStringAssignment()
+    {
+        var engine = CreateEngine(mode);
+        Assert.Throws<CsEvalException>(() => engine.Evaluate("{ int? x = \"hello\"; return x; }"));
     }
 
     #endregion

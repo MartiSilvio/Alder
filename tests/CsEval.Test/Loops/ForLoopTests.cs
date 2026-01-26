@@ -1,7 +1,8 @@
 namespace CsEval.Test.Loops;
 
-[TestFixture(CompilationMode.Eager)]
-[TestFixture(CompilationMode.OnDemand)]
+[TestFixture(CompilationMode.Interpreted)]
+[TestFixture(CompilationMode.Compiled)]
+[TestFixture(CompilationMode.StrictCompiled)]
 public class ForLoopTests(CompilationMode mode) : TestBase
 {
     #region Basic For Loop

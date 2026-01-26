@@ -18,9 +18,6 @@
     <Compile Update="Evaluation\Evaluator.Loops.cs">
       <DependentUpon>Evaluator.cs</DependentUpon>
     </Compile>
-    <Compile Update="Evaluation\Evaluator.Operators.cs">
-      <DependentUpon>Evaluator.cs</DependentUpon>
-    </Compile>
     <Compile Update="Evaluation\Evaluator.Switch.cs">
       <DependentUpon>Evaluator.cs</DependentUpon>
     </Compile>

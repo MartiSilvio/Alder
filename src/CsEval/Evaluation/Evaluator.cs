@@ -283,7 +283,7 @@ public sealed partial class Evaluator : IExprVisitor<object?>
         };
 
         var newValue = expr.Op.Type == TokenType.PlusPlus
-            ? Add(currentValue, one)
+            ? RuntimeHelpers.Add(currentValue, one, _options, _context)
             : RuntimeHelpers.Subtract(currentValue, one, _options);
 
         _context.Set(name, newValue);
@@ -408,7 +408,7 @@ public sealed partial class Evaluator : IExprVisitor<object?>
 
         // Validate type if declared (strict mode)
         if (expr.DeclaredType != null)
-            value = ValidateAndCoerceType(expr.DeclaredType.Value, value, expr.Name.Lexeme);
+            value = RuntimeHelpers.ValidateAndCoerceType(expr.DeclaredType.Value.Lexeme, value, expr.Name.Lexeme);
 
         _context.Define(expr.Name.Lexeme, value);
         return value;

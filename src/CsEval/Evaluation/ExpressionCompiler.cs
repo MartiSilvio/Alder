@@ -53,16 +53,17 @@ internal static class ExpressionCompiler
         {
             var context = new CsEvalContext();
             var options = CsEvalOptions.Default;
-            var ilDelegate = ILCompiler.TryCompile(ast, context, options);
+            var (ilDelegate, failureReason) = ILCompiler.TryCompile(ast, context, options);
 
             if (ilDelegate != null)
             {
+                return new CompiledExpressionInfo(Compiled, true, null);
+
                 // Wrap the IL delegate to match CompiledExpression signature
-                CompiledExpression compiled = (ctx, opts, ct) => ilDelegate(ctx, opts, ct);
-                return new CompiledExpressionInfo(compiled, true, null);
+                object? Compiled(CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct) => ilDelegate(ctx, opts, ct);
             }
 
-            return new CompiledExpressionInfo(null, false, "Expression type not supported for IL compilation");
+            return new CompiledExpressionInfo(null, false, failureReason);
         }
         catch (Exception ex)
         {

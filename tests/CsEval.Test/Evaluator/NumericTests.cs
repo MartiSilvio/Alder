@@ -4,8 +4,9 @@ namespace CsEval.Test.Evaluator;
 /// Comprehensive numeric tests to ensure CsEval handles all numeric types correctly.
 /// Numeric precision and type handling is critical - errors here can cause subtle bugs.
 /// </summary>
-[TestFixture(CompilationMode.Eager)]
-[TestFixture(CompilationMode.OnDemand)]
+[TestFixture(CompilationMode.Interpreted)]
+[TestFixture(CompilationMode.Compiled)]
+[TestFixture(CompilationMode.StrictCompiled)]
 public class NumericTests(CompilationMode mode) : TestBase
 {
     #region Literal Parsing

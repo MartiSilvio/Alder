@@ -2,8 +2,9 @@ using CsEval;
 
 namespace CsEval.Test.Stress;
 
-[TestFixture(CompilationMode.Eager)]
-[TestFixture(CompilationMode.OnDemand)]
+[TestFixture(CompilationMode.Interpreted)]
+[TestFixture(CompilationMode.Compiled)]
+[TestFixture(CompilationMode.StrictCompiled)]
 public class EvaluationChaosTests(CompilationMode mode) : StressTestBase(mode)
 {
     [Test]
@@ -48,8 +49,8 @@ public class EvaluationChaosTests(CompilationMode mode) : StressTestBase(mode)
         // Enumerable.Range(0, 100000000).ToArray()
         // If the machine has enough RAM, this might succeed. If not, it throws OOM.
         // We just want to ensure the engine doesn't get into a corrupted state.
-        
-        var expr = "Enumerable.Range(0, 10000000).ToArray().Length";
+
+        const string expr = "Enumerable.Range(0, 10000000).ToArray().Length";
         try
         {
             var result = Engine.Evaluate(expr);

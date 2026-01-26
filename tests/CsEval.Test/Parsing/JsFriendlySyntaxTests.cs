@@ -5,8 +5,9 @@ namespace CsEval.Test.Parsing;
 /// <summary>
 /// Tests for JavaScript-friendly syntax features that work alongside C# syntax.
 /// </summary>
-[TestFixture(CompilationMode.Eager)]
-[TestFixture(CompilationMode.OnDemand)]
+[TestFixture(CompilationMode.Interpreted)]
+[TestFixture(CompilationMode.Compiled)]
+[TestFixture(CompilationMode.StrictCompiled)]
 public class JsFriendlySyntaxTests(CompilationMode mode) : TestBase
 {
     #region Let as Var

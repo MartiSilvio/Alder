@@ -4,8 +4,9 @@ namespace CsEval.Test.Evaluator;
 /// Tests for floating-point division and modulo by zero.
 /// C# semantics: integers throw DivideByZeroException, floats return Infinity/NaN.
 /// </summary>
-[TestFixture(CompilationMode.Eager)]
-[TestFixture(CompilationMode.OnDemand)]
+[TestFixture(CompilationMode.Interpreted)]
+[TestFixture(CompilationMode.Compiled)]
+[TestFixture(CompilationMode.StrictCompiled)]
 public class FloatingPointDivisionTests(CompilationMode mode) : TestBase
 {
     #region Division By Zero

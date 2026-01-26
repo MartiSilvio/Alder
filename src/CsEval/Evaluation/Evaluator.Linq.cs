@@ -194,7 +194,7 @@ public sealed partial class Evaluator
         // Validate that Sum is only called on numeric types (TypeCode.SByte=5 through TypeCode.Decimal=15)
         var typeCode = first == null ? TypeCode.Empty : Type.GetTypeCode(first.GetType());
         if (typeCode is < TypeCode.SByte or > TypeCode.Decimal)
-            throw new InvalidOperationException($"Sum() requires numeric elements, but found '{first?.GetType().Name ?? "null"}'");
+            throw new CsEvalException($"Sum() requires numeric elements, but found '{first?.GetType().Name ?? "null"}'");
 
         // Initialize with typed zero, let C# handle arithmetic via dynamic
         dynamic sum = first switch { decimal => 0m, double => 0.0, float => 0f, long => 0L, _ => 0 };
@@ -290,9 +290,7 @@ public sealed partial class Evaluator
 
     private static (bool, object?) HandleReverse(Evaluator e, List<object?> list, object?[] args)
     {
-        var reversed = list.ToList();
-        reversed.Reverse();
-        return (true, reversed);
+        return (true, Enumerable.Reverse(list).ToList());
     }
 
     private static (bool, object?) HandleGroupBy(Evaluator e, List<object?> list, object?[] args)
@@ -363,14 +361,8 @@ public sealed partial class Evaluator
     private static (bool, object?) HandleContains(Evaluator e, List<object?> list, object?[] args)
     {
         if (args.Length != 1) return (false, null);
-
         var searchValue = args[0];
-        foreach (var item in list)
-        {
-            if ((bool)RuntimeHelpers.Equals(item, searchValue, e._options))
-                return (true, true);
-        }
-        return (true, false);
+        return (true, list.Any(item => (bool)RuntimeHelpers.Equals(item, searchValue, e._options)));
     }
 
     private static (bool, object?) HandleToList(Evaluator e, List<object?> list, object?[] args)
