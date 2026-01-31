@@ -3,14 +3,14 @@ namespace CsEval.Test.Security;
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
 [TestFixture(CompilationMode.StrictCompiled)]
-public class SandboxModeTests(CompilationMode mode) : TestBase
+public class SandboxModeTests(CompilationMode mode) 
 {
     #region Trusted Mode (Default)
 
     [Test]
     public void Trusted_AllowsMethodCalls()
     {
-        var engine = CreateEngine(mode);
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         engine.SetVariable("text", "hello");
 
         var result = engine.Evaluate("text.ToUpper()");
@@ -21,7 +21,7 @@ public class SandboxModeTests(CompilationMode mode) : TestBase
     [Test]
     public void Trusted_AllowsPropertyAccess()
     {
-        var engine = CreateEngine(mode);
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         engine.SetVariable("text", "hello");
 
         var result = engine.Evaluate("text.Length");
@@ -33,7 +33,7 @@ public class SandboxModeTests(CompilationMode mode) : TestBase
     public void Trusted_BlocksGetType_ReflectionBlocked()
     {
         // Reflection types are always blocked, regardless of sandbox mode
-        var engine = CreateEngine(mode);
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         engine.SetVariable("text", "hello");
 
         var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("text.GetType()"));
@@ -47,7 +47,7 @@ public class SandboxModeTests(CompilationMode mode) : TestBase
     [Test]
     public void Safe_BlocksMethodCalls()
     {
-        var engine = CreateEngine(new CsEvalOptions
+        var engine = new CsEvalEngine(new CsEvalOptions
         {
             CompilationMode = mode,
             Sandbox = SandboxOptions.Safe()
@@ -61,7 +61,7 @@ public class SandboxModeTests(CompilationMode mode) : TestBase
     [Test]
     public void Safe_BlocksGetType()
     {
-        var engine = CreateEngine(new CsEvalOptions
+        var engine = new CsEvalEngine(new CsEvalOptions
         {
             CompilationMode = mode,
             Sandbox = SandboxOptions.Safe()
@@ -75,7 +75,7 @@ public class SandboxModeTests(CompilationMode mode) : TestBase
     [Test]
     public void Safe_BlocksToString()
     {
-        var engine = CreateEngine(new CsEvalOptions
+        var engine = new CsEvalEngine(new CsEvalOptions
         {
             CompilationMode = mode,
             Sandbox = SandboxOptions.Safe()
@@ -89,7 +89,7 @@ public class SandboxModeTests(CompilationMode mode) : TestBase
     [Test]
     public void Safe_BlocksListMutatingMethods()
     {
-        var engine = CreateEngine(new CsEvalOptions
+        var engine = new CsEvalEngine(new CsEvalOptions
         {
             CompilationMode = mode,
             Sandbox = SandboxOptions.Safe()
@@ -107,7 +107,7 @@ public class SandboxModeTests(CompilationMode mode) : TestBase
     [Test]
     public void Safe_AllowsPropertyReadByDefault()
     {
-        var engine = CreateEngine(new CsEvalOptions
+        var engine = new CsEvalEngine(new CsEvalOptions
         {
             CompilationMode = mode,
             Sandbox = SandboxOptions.Safe()
@@ -122,7 +122,7 @@ public class SandboxModeTests(CompilationMode mode) : TestBase
     [Test]
     public void Safe_AllowsNestedPropertyRead()
     {
-        var engine = CreateEngine(new CsEvalOptions
+        var engine = new CsEvalEngine(new CsEvalOptions
         {
             CompilationMode = mode,
             Sandbox = SandboxOptions.Safe()
@@ -137,7 +137,7 @@ public class SandboxModeTests(CompilationMode mode) : TestBase
     [Test]
     public void Safe_AllowPropertyReadFalse_BlocksPropertyAccess()
     {
-        var engine = CreateEngine(new CsEvalOptions
+        var engine = new CsEvalEngine(new CsEvalOptions
         {
             CompilationMode = mode,
             Sandbox = SandboxOptions.Safe() with { AllowPropertyRead = false }
@@ -155,7 +155,7 @@ public class SandboxModeTests(CompilationMode mode) : TestBase
     [Test]
     public void Safe_AllowsModuleMethods()
     {
-        var engine = CreateEngine(new CsEvalOptions
+        var engine = new CsEvalEngine(new CsEvalOptions
         {
             CompilationMode = mode,
             Sandbox = SandboxOptions.Safe()
@@ -169,7 +169,7 @@ public class SandboxModeTests(CompilationMode mode) : TestBase
     [Test]
     public void Safe_AllowsModuleProperties()
     {
-        var engine = CreateEngine(new CsEvalOptions
+        var engine = new CsEvalEngine(new CsEvalOptions
         {
             CompilationMode = mode,
             Sandbox = SandboxOptions.Safe()
@@ -183,7 +183,7 @@ public class SandboxModeTests(CompilationMode mode) : TestBase
     [Test]
     public void Safe_AllowsCustomModuleMethods()
     {
-        var engine = CreateEngine(new CsEvalOptions
+        var engine = new CsEvalEngine(new CsEvalOptions
         {
             CompilationMode = mode,
             Sandbox = SandboxOptions.Safe()
@@ -202,7 +202,7 @@ public class SandboxModeTests(CompilationMode mode) : TestBase
     [Test]
     public void Safe_AllowsLinqWhere()
     {
-        var engine = CreateEngine(new CsEvalOptions
+        var engine = new CsEvalEngine(new CsEvalOptions
         {
             CompilationMode = mode,
             Sandbox = SandboxOptions.Safe()
@@ -217,7 +217,7 @@ public class SandboxModeTests(CompilationMode mode) : TestBase
     [Test]
     public void Safe_AllowsLinqSelect()
     {
-        var engine = CreateEngine(new CsEvalOptions
+        var engine = new CsEvalEngine(new CsEvalOptions
         {
             CompilationMode = mode,
             Sandbox = SandboxOptions.Safe()
@@ -232,7 +232,7 @@ public class SandboxModeTests(CompilationMode mode) : TestBase
     [Test]
     public void Safe_AllowsLinqAggregate()
     {
-        var engine = CreateEngine(new CsEvalOptions
+        var engine = new CsEvalEngine(new CsEvalOptions
         {
             CompilationMode = mode,
             Sandbox = SandboxOptions.Safe()
@@ -247,7 +247,7 @@ public class SandboxModeTests(CompilationMode mode) : TestBase
     [Test]
     public void Safe_AllowsLinqChaining()
     {
-        var engine = CreateEngine(new CsEvalOptions
+        var engine = new CsEvalEngine(new CsEvalOptions
         {
             CompilationMode = mode,
             Sandbox = SandboxOptions.Safe()
@@ -266,7 +266,7 @@ public class SandboxModeTests(CompilationMode mode) : TestBase
     [Test]
     public void Safe_AllowsArrayIndex()
     {
-        var engine = CreateEngine(new CsEvalOptions
+        var engine = new CsEvalEngine(new CsEvalOptions
         {
             CompilationMode = mode,
             Sandbox = SandboxOptions.Safe()
@@ -281,7 +281,7 @@ public class SandboxModeTests(CompilationMode mode) : TestBase
     [Test]
     public void Safe_AllowsDictionaryIndex()
     {
-        var engine = CreateEngine(new CsEvalOptions
+        var engine = new CsEvalEngine(new CsEvalOptions
         {
             CompilationMode = mode,
             Sandbox = SandboxOptions.Safe()
@@ -300,7 +300,7 @@ public class SandboxModeTests(CompilationMode mode) : TestBase
     [Test]
     public void Safe_AllowsRegisteredFunctions()
     {
-        var engine = CreateEngine(new CsEvalOptions
+        var engine = new CsEvalEngine(new CsEvalOptions
         {
             CompilationMode = mode,
             Sandbox = SandboxOptions.Safe()
@@ -319,7 +319,7 @@ public class SandboxModeTests(CompilationMode mode) : TestBase
     [Test]
     public void Safe_PreventsReflectionAttack()
     {
-        var engine = CreateEngine(new CsEvalOptions
+        var engine = new CsEvalEngine(new CsEvalOptions
         {
             CompilationMode = mode,
             Sandbox = SandboxOptions.Safe()
@@ -334,7 +334,7 @@ public class SandboxModeTests(CompilationMode mode) : TestBase
     [Test]
     public void Safe_PreventsMutatingMethods()
     {
-        var engine = CreateEngine(new CsEvalOptions
+        var engine = new CsEvalEngine(new CsEvalOptions
         {
             CompilationMode = mode,
             Sandbox = SandboxOptions.Safe()
@@ -355,7 +355,7 @@ public class SandboxModeTests(CompilationMode mode) : TestBase
     [Test]
     public void Safe_AllowsAssignmentByDefault()
     {
-        var engine = CreateEngine(new CsEvalOptions
+        var engine = new CsEvalEngine(new CsEvalOptions
         {
             CompilationMode = mode,
             Sandbox = SandboxOptions.Safe()
@@ -369,7 +369,7 @@ public class SandboxModeTests(CompilationMode mode) : TestBase
     [Test]
     public void Safe_AllowAssignmentFalse_BlocksSimpleAssignment()
     {
-        var engine = CreateEngine(new CsEvalOptions
+        var engine = new CsEvalEngine(new CsEvalOptions
         {
             CompilationMode = mode,
             Sandbox = SandboxOptions.Safe() with { AllowAssignment = false }
@@ -382,7 +382,7 @@ public class SandboxModeTests(CompilationMode mode) : TestBase
     [Test]
     public void Safe_AllowAssignmentFalse_BlocksCompoundAssignment()
     {
-        var engine = CreateEngine(new CsEvalOptions
+        var engine = new CsEvalEngine(new CsEvalOptions
         {
             CompilationMode = mode,
             Sandbox = SandboxOptions.Safe() with { AllowAssignment = false }
@@ -395,7 +395,7 @@ public class SandboxModeTests(CompilationMode mode) : TestBase
     [Test]
     public void Safe_AllowAssignmentFalse_BlocksNullCoalesceAssignment()
     {
-        var engine = CreateEngine(new CsEvalOptions
+        var engine = new CsEvalEngine(new CsEvalOptions
         {
             CompilationMode = mode,
             Sandbox = SandboxOptions.Safe() with { AllowAssignment = false }
@@ -408,7 +408,7 @@ public class SandboxModeTests(CompilationMode mode) : TestBase
     [Test]
     public void Safe_AllowAssignmentFalse_BlocksIncrement()
     {
-        var engine = CreateEngine(new CsEvalOptions
+        var engine = new CsEvalEngine(new CsEvalOptions
         {
             CompilationMode = mode,
             Sandbox = SandboxOptions.Safe() with { AllowAssignment = false }
@@ -421,7 +421,7 @@ public class SandboxModeTests(CompilationMode mode) : TestBase
     [Test]
     public void Safe_AllowAssignmentFalse_BlocksDecrement()
     {
-        var engine = CreateEngine(new CsEvalOptions
+        var engine = new CsEvalEngine(new CsEvalOptions
         {
             CompilationMode = mode,
             Sandbox = SandboxOptions.Safe() with { AllowAssignment = false }
@@ -434,7 +434,7 @@ public class SandboxModeTests(CompilationMode mode) : TestBase
     [Test]
     public void Safe_AllowAssignmentFalse_AllowsVariableDeclaration()
     {
-        var engine = CreateEngine(new CsEvalOptions
+        var engine = new CsEvalEngine(new CsEvalOptions
         {
             CompilationMode = mode,
             Sandbox = SandboxOptions.Safe() with { AllowAssignment = false }
@@ -448,7 +448,7 @@ public class SandboxModeTests(CompilationMode mode) : TestBase
     [Test]
     public void Safe_AllowAssignmentFalse_NullCoalesceSkipsWhenNotNull()
     {
-        var engine = CreateEngine(new CsEvalOptions
+        var engine = new CsEvalEngine(new CsEvalOptions
         {
             CompilationMode = mode,
             Sandbox = SandboxOptions.Safe() with { AllowAssignment = false }
@@ -467,7 +467,7 @@ public class SandboxModeTests(CompilationMode mode) : TestBase
     [Test]
     public void Safe_AllowsPropertySetByDefault()
     {
-        var engine = CreateEngine(new CsEvalOptions
+        var engine = new CsEvalEngine(new CsEvalOptions
         {
             CompilationMode = mode,
             Sandbox = SandboxOptions.Safe()
@@ -486,7 +486,7 @@ public class SandboxModeTests(CompilationMode mode) : TestBase
     [Test]
     public void Safe_AllowPropertySetFalse_BlocksPropertyAssignment()
     {
-        var engine = CreateEngine(new CsEvalOptions
+        var engine = new CsEvalEngine(new CsEvalOptions
         {
             CompilationMode = mode,
             Sandbox = SandboxOptions.Safe() with { AllowPropertySet = false }
@@ -504,7 +504,7 @@ public class SandboxModeTests(CompilationMode mode) : TestBase
     [Test]
     public void Safe_AllowPropertySetFalse_AllowsPropertyRead()
     {
-        var engine = CreateEngine(new CsEvalOptions
+        var engine = new CsEvalEngine(new CsEvalOptions
         {
             CompilationMode = mode,
             Sandbox = SandboxOptions.Safe() with { AllowPropertySet = false }
@@ -522,7 +522,7 @@ public class SandboxModeTests(CompilationMode mode) : TestBase
     [Test]
     public void Safe_AllowPropertySetFalse_BlocksNestedPropertySet()
     {
-        var engine = CreateEngine(new CsEvalOptions
+        var engine = new CsEvalEngine(new CsEvalOptions
         {
             CompilationMode = mode,
             Sandbox = SandboxOptions.Safe() with { AllowPropertySet = false }
@@ -544,7 +544,7 @@ public class SandboxModeTests(CompilationMode mode) : TestBase
     [Test]
     public void Safe_AllowsIndexSetByDefault()
     {
-        var engine = CreateEngine(new CsEvalOptions
+        var engine = new CsEvalEngine(new CsEvalOptions
         {
             CompilationMode = mode,
             Sandbox = SandboxOptions.Safe()
@@ -563,7 +563,7 @@ public class SandboxModeTests(CompilationMode mode) : TestBase
     [Test]
     public void Safe_AllowIndexSetFalse_BlocksArrayIndexAssignment()
     {
-        var engine = CreateEngine(new CsEvalOptions
+        var engine = new CsEvalEngine(new CsEvalOptions
         {
             CompilationMode = mode,
             Sandbox = SandboxOptions.Safe() with { AllowIndexSet = false }
@@ -581,7 +581,7 @@ public class SandboxModeTests(CompilationMode mode) : TestBase
     [Test]
     public void Safe_AllowIndexSetFalse_AllowsIndexRead()
     {
-        var engine = CreateEngine(new CsEvalOptions
+        var engine = new CsEvalEngine(new CsEvalOptions
         {
             CompilationMode = mode,
             Sandbox = SandboxOptions.Safe() with { AllowIndexSet = false }
@@ -599,7 +599,7 @@ public class SandboxModeTests(CompilationMode mode) : TestBase
     [Test]
     public void Safe_AllowIndexSetFalse_BlocksDictionaryIndexAssignment()
     {
-        var engine = CreateEngine(new CsEvalOptions
+        var engine = new CsEvalEngine(new CsEvalOptions
         {
             CompilationMode = mode,
             Sandbox = SandboxOptions.Safe() with { AllowIndexSet = false }
@@ -617,7 +617,7 @@ public class SandboxModeTests(CompilationMode mode) : TestBase
     [Test]
     public void Safe_AllowIndexSetFalse_AllowsDictionaryRead()
     {
-        var engine = CreateEngine(new CsEvalOptions
+        var engine = new CsEvalEngine(new CsEvalOptions
         {
             CompilationMode = mode,
             Sandbox = SandboxOptions.Safe() with { AllowIndexSet = false }
@@ -639,7 +639,7 @@ public class SandboxModeTests(CompilationMode mode) : TestBase
     [Test]
     public void Strict_AllowsOnlyVariableDeclarationAndRead()
     {
-        var engine = CreateEngine(new CsEvalOptions
+        var engine = new CsEvalEngine(new CsEvalOptions
         {
             CompilationMode = mode,
             Sandbox = SandboxOptions.Strict()
@@ -658,7 +658,7 @@ public class SandboxModeTests(CompilationMode mode) : TestBase
     [Test]
     public void Strict_BlocksAssignment()
     {
-        var engine = CreateEngine(new CsEvalOptions
+        var engine = new CsEvalEngine(new CsEvalOptions
         {
             CompilationMode = mode,
             Sandbox = SandboxOptions.Strict()
@@ -671,7 +671,7 @@ public class SandboxModeTests(CompilationMode mode) : TestBase
     [Test]
     public void Strict_BlocksMethodCalls()
     {
-        var engine = CreateEngine(new CsEvalOptions
+        var engine = new CsEvalEngine(new CsEvalOptions
         {
             CompilationMode = mode,
             Sandbox = SandboxOptions.Strict()
@@ -685,7 +685,7 @@ public class SandboxModeTests(CompilationMode mode) : TestBase
     [Test]
     public void Strict_AllowsPropertyRead()
     {
-        var engine = CreateEngine(new CsEvalOptions
+        var engine = new CsEvalEngine(new CsEvalOptions
         {
             CompilationMode = mode,
             Sandbox = SandboxOptions.Strict()
@@ -700,7 +700,7 @@ public class SandboxModeTests(CompilationMode mode) : TestBase
     [Test]
     public void Strict_BlocksPropertySet()
     {
-        var engine = CreateEngine(new CsEvalOptions
+        var engine = new CsEvalEngine(new CsEvalOptions
         {
             CompilationMode = mode,
             Sandbox = SandboxOptions.Strict()
@@ -718,7 +718,7 @@ public class SandboxModeTests(CompilationMode mode) : TestBase
     [Test]
     public void Strict_BlocksIndexSet()
     {
-        var engine = CreateEngine(new CsEvalOptions
+        var engine = new CsEvalEngine(new CsEvalOptions
         {
             CompilationMode = mode,
             Sandbox = SandboxOptions.Strict()
@@ -736,7 +736,7 @@ public class SandboxModeTests(CompilationMode mode) : TestBase
     [Test]
     public void Strict_AllowsModuleMethods()
     {
-        var engine = CreateEngine(new CsEvalOptions
+        var engine = new CsEvalEngine(new CsEvalOptions
         {
             CompilationMode = mode,
             Sandbox = SandboxOptions.Strict()
@@ -750,7 +750,7 @@ public class SandboxModeTests(CompilationMode mode) : TestBase
     [Test]
     public void Strict_AllowsLinq()
     {
-        var engine = CreateEngine(new CsEvalOptions
+        var engine = new CsEvalEngine(new CsEvalOptions
         {
             CompilationMode = mode,
             Sandbox = SandboxOptions.Strict()
@@ -769,7 +769,7 @@ public class SandboxModeTests(CompilationMode mode) : TestBase
     [Test]
     public void Safe_WithPropertyAndIndexSetDisabled_AssignmentStillWorks()
     {
-        var engine = CreateEngine(new CsEvalOptions
+        var engine = new CsEvalEngine(new CsEvalOptions
         {
             CompilationMode = mode,
             Sandbox = SandboxOptions.Safe() with { AllowPropertySet = false, AllowIndexSet = false }
@@ -789,7 +789,7 @@ public class SandboxModeTests(CompilationMode mode) : TestBase
     [Test]
     public void Strict_WithAllowAssignmentTrue_AllowsAssignment()
     {
-        var engine = CreateEngine(new CsEvalOptions
+        var engine = new CsEvalEngine(new CsEvalOptions
         {
             CompilationMode = mode,
             Sandbox = SandboxOptions.Strict() with { AllowAssignment = true }
@@ -803,7 +803,7 @@ public class SandboxModeTests(CompilationMode mode) : TestBase
     [Test]
     public void Strict_WithAllowMethodCallsTrue_AllowsMethodCalls()
     {
-        var engine = CreateEngine(new CsEvalOptions
+        var engine = new CsEvalEngine(new CsEvalOptions
         {
             CompilationMode = mode,
             Sandbox = SandboxOptions.Strict() with { AllowMethodCalls = true }

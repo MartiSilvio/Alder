@@ -3,7 +3,7 @@ using CsEval.Parsing;
 namespace CsEval.Test.Parsing;
 
 [TestFixture]
-public class LexerTests : TestBase
+public class LexerTests 
 {
     [Test]
     public void Tokenize_Number_ReturnsNumberToken()

@@ -8,7 +8,7 @@ namespace CsEval.Test.Compilation;
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
 [TestFixture(CompilationMode.StrictCompiled)]
-public class IterationLimitParityTests(CompilationMode mode) : TestBase
+public class IterationLimitParityTests(CompilationMode mode) 
 {
     #region Global Iteration Counter (Nested Loops)
 
@@ -17,7 +17,7 @@ public class IterationLimitParityTests(CompilationMode mode) : TestBase
     {
         // With MaxIterations = 50, nested loops should hit limit based on TOTAL iterations
         // not per-loop iterations. 10 outer * 10 inner = 100 total, should hit 50 limit.
-        var engine = CreateEngine(CsEvalOptions.Default with { CompilationMode = mode, MaxIterations = 50 });
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode, MaxIterations = 50 });
 
         var ex = Assert.Throws<CsEvalException>(() =>
             engine.Evaluate(@"
@@ -39,7 +39,7 @@ public class IterationLimitParityTests(CompilationMode mode) : TestBase
     {
         // 3 outer * 4 inner = 12 total iterations
         // With limit of 15, should succeed
-        var engine = CreateEngine(CsEvalOptions.Default with { CompilationMode = mode, MaxIterations = 15 });
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode, MaxIterations = 15 });
 
         var result = engine.Evaluate(@"
         {
@@ -60,7 +60,7 @@ public class IterationLimitParityTests(CompilationMode mode) : TestBase
     {
         // 3 outer * 4 inner = 12 total iterations
         // With limit of 10, should fail
-        var engine = CreateEngine(CsEvalOptions.Default with { CompilationMode = mode, MaxIterations = 10 });
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode, MaxIterations = 10 });
 
         var ex = Assert.Throws<CsEvalException>(() =>
             engine.Evaluate(@"
@@ -82,7 +82,7 @@ public class IterationLimitParityTests(CompilationMode mode) : TestBase
     {
         // First loop: 6 iterations, Second loop: 6 iterations = 12 total
         // With limit of 10, should fail
-        var engine = CreateEngine(CsEvalOptions.Default with { CompilationMode = mode, MaxIterations = 10 });
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode, MaxIterations = 10 });
 
         var ex = Assert.Throws<CsEvalException>(() =>
             engine.Evaluate(@"
@@ -104,7 +104,7 @@ public class IterationLimitParityTests(CompilationMode mode) : TestBase
     public void DeeplyNestedLoops_GlobalIterationCounter()
     {
         // 2 * 2 * 2 = 8 total iterations with limit 5 should fail
-        var engine = CreateEngine(CsEvalOptions.Default with { CompilationMode = mode, MaxIterations = 5 });
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode, MaxIterations = 5 });
 
         var ex = Assert.Throws<CsEvalException>(() =>
             engine.Evaluate(@"
@@ -131,7 +131,7 @@ public class IterationLimitParityTests(CompilationMode mode) : TestBase
     public void WhileLoop_ExactIterationCount_ThrowsAtCorrectIteration()
     {
         // With MaxIterations = 5, loop should execute exactly 5 times before throwing
-        var engine = CreateEngine(CsEvalOptions.Default with { CompilationMode = mode, MaxIterations = 5 });
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode, MaxIterations = 5 });
 
         var ex = Assert.Throws<CsEvalException>(() =>
             engine.Evaluate(@"
@@ -150,7 +150,7 @@ public class IterationLimitParityTests(CompilationMode mode) : TestBase
     public void ForLoop_ExactIterationCount_ExecutesExactlyMaxIterations()
     {
         // With MaxIterations = 10, a loop of exactly 10 iterations should succeed
-        var engine = CreateEngine(CsEvalOptions.Default with { CompilationMode = mode, MaxIterations = 10 });
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode, MaxIterations = 10 });
 
         var result = engine.Evaluate(@"
         {
@@ -168,7 +168,7 @@ public class IterationLimitParityTests(CompilationMode mode) : TestBase
     public void ForLoop_ExactIterationCount_FailsAt11()
     {
         // With MaxIterations = 10, a loop of 11 iterations should fail
-        var engine = CreateEngine(CsEvalOptions.Default with { CompilationMode = mode, MaxIterations = 10 });
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode, MaxIterations = 10 });
 
         var ex = Assert.Throws<CsEvalException>(() =>
             engine.Evaluate(@"
@@ -191,7 +191,7 @@ public class IterationLimitParityTests(CompilationMode mode) : TestBase
     public void MixedLoopTypes_GlobalIterationCounter()
     {
         // for (3) + while (3) + do-while (3) = 9 total, limit 7 should fail
-        var engine = CreateEngine(CsEvalOptions.Default with { CompilationMode = mode, MaxIterations = 7 });
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode, MaxIterations = 7 });
 
         var ex = Assert.Throws<CsEvalException>(() =>
             engine.Evaluate(@"
@@ -220,7 +220,7 @@ public class IterationLimitParityTests(CompilationMode mode) : TestBase
     public void ForWithWhileNested_GlobalIterationCounter()
     {
         // outer for (3) * inner while (4) = 12 total, limit 10 should fail
-        var engine = CreateEngine(CsEvalOptions.Default with { CompilationMode = mode, MaxIterations = 10 });
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode, MaxIterations = 10 });
 
         var ex = Assert.Throws<CsEvalException>(() =>
             engine.Evaluate(@"

@@ -3,7 +3,7 @@ using CsEval.Parsing;
 namespace CsEval.Test.Parsing;
 
 [TestFixture]
-public class ParserTests : TestBase
+public class ParserTests 
 {
     private static Expr Parse(string source)
     {

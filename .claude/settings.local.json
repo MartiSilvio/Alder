@@ -25,7 +25,8 @@
       "Bash(find:*)",
       "WebFetch(domain:github.com)",
       "Bash(xargs cat:*)",
-      "WebFetch(domain:eval-expression.net)"
+      "WebFetch(domain:eval-expression.net)",
+      "Bash(xargs:*)"
     ]
   }
 }

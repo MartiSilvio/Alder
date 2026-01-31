@@ -8,15 +8,16 @@ namespace CsEval.Test.Security;
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
 [TestFixture(CompilationMode.StrictCompiled)]
-public class ReflectionBlockingTests(CompilationMode mode) : TestBase
+public class ReflectionBlockingTests(CompilationMode mode) 
 {
     protected readonly CompilationMode Mode = mode;
+    
     #region GetType() Blocking
 
     [Test]
     public void BlocksGetType_OnString()
     {
-        var engine = CreateEngine(Mode);
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = Mode });
         engine.SetVariable("text", "hello");
 
         var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("text.GetType()"));
@@ -27,7 +28,7 @@ public class ReflectionBlockingTests(CompilationMode mode) : TestBase
     [Test]
     public void BlocksGetType_OnInt()
     {
-        var engine = CreateEngine(Mode);
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = Mode });
         engine.SetVariable("num", 42);
 
         var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("num.GetType()"));
@@ -37,7 +38,7 @@ public class ReflectionBlockingTests(CompilationMode mode) : TestBase
     [Test]
     public void BlocksGetType_OnList()
     {
-        var engine = CreateEngine(Mode);
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = Mode });
         engine.SetVariable("items", new List<int> { 1, 2, 3 });
 
         var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("items.GetType()"));
@@ -47,7 +48,7 @@ public class ReflectionBlockingTests(CompilationMode mode) : TestBase
     [Test]
     public void BlocksGetType_OnAnonymousObject()
     {
-        var engine = CreateEngine(Mode);
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = Mode });
         engine.SetVariable("obj", new { Name = "Test", Value = 42 });
 
         var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("obj.GetType()"));
@@ -61,7 +62,7 @@ public class ReflectionBlockingTests(CompilationMode mode) : TestBase
     [Test]
     public void BlocksTypePropertyAccess()
     {
-        var engine = CreateEngine(Mode);
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = Mode });
         var holder = new TypeHolder { TypeValue = typeof(string) };
         engine.SetVariable("holder", holder);
 
@@ -72,7 +73,7 @@ public class ReflectionBlockingTests(CompilationMode mode) : TestBase
     [Test]
     public void BlocksTypeFromDictionary()
     {
-        var engine = CreateEngine(Mode);
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = Mode });
         engine.SetVariable("dict", new Dictionary<string, object?> { ["type"] = typeof(int) });
 
         var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("dict[\"type\"]"));
@@ -82,7 +83,7 @@ public class ReflectionBlockingTests(CompilationMode mode) : TestBase
     [Test]
     public void BlocksTypeFromArray()
     {
-        var engine = CreateEngine(Mode);
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = Mode });
         engine.SetVariable("arr", new object[] { typeof(string), typeof(int) });
 
         var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("arr[0]"));
@@ -96,7 +97,7 @@ public class ReflectionBlockingTests(CompilationMode mode) : TestBase
     [Test]
     public void BlocksMethodInfo_FromModule()
     {
-        var engine = CreateEngine(Mode);
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = Mode });
         engine.RegisterModule<ReflectionTestModule>("Test");
 
         var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("Test.GetMethodInfo()"));
@@ -106,7 +107,7 @@ public class ReflectionBlockingTests(CompilationMode mode) : TestBase
     [Test]
     public void BlocksPropertyInfo()
     {
-        var engine = CreateEngine(Mode);
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = Mode });
         engine.RegisterModule<ReflectionTestModule>("Test");
 
         var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("Test.GetPropertyInfo()"));
@@ -116,7 +117,7 @@ public class ReflectionBlockingTests(CompilationMode mode) : TestBase
     [Test]
     public void BlocksFieldInfo()
     {
-        var engine = CreateEngine(Mode);
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = Mode });
         engine.RegisterModule<ReflectionTestModule>("Test");
 
         var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("Test.GetFieldInfo()"));
@@ -130,7 +131,7 @@ public class ReflectionBlockingTests(CompilationMode mode) : TestBase
     [Test]
     public void BlocksAssembly()
     {
-        var engine = CreateEngine(Mode);
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = Mode });
         engine.RegisterModule<ReflectionTestModule>("Test");
 
         var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("Test.GetAssembly()"));
@@ -140,7 +141,7 @@ public class ReflectionBlockingTests(CompilationMode mode) : TestBase
     [Test]
     public void BlocksModule()
     {
-        var engine = CreateEngine(Mode);
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = Mode });
         engine.RegisterModule<ReflectionTestModule>("Test");
 
         var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("Test.GetModule()"));
@@ -154,7 +155,7 @@ public class ReflectionBlockingTests(CompilationMode mode) : TestBase
     [Test]
     public void BlocksSelectReturningType()
     {
-        var engine = CreateEngine(Mode);
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = Mode });
         engine.SetVariable("items", new List<object> { "hello", 42, 3.14 });
 
         // Even through LINQ, reflection types are blocked
@@ -170,7 +171,7 @@ public class ReflectionBlockingTests(CompilationMode mode) : TestBase
     [Test]
     public void AllowsNormalMethodCalls()
     {
-        var engine = CreateEngine(Mode);
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = Mode });
         engine.SetVariable("text", "hello");
 
         var result = engine.Evaluate("text.ToUpper()");
@@ -181,7 +182,7 @@ public class ReflectionBlockingTests(CompilationMode mode) : TestBase
     [Test]
     public void AllowsNormalPropertyAccess()
     {
-        var engine = CreateEngine(Mode);
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = Mode });
         engine.SetVariable("text", "hello");
 
         var result = engine.Evaluate("text.Length");
@@ -192,7 +193,7 @@ public class ReflectionBlockingTests(CompilationMode mode) : TestBase
     [Test]
     public void AllowsNormalIndexAccess()
     {
-        var engine = CreateEngine(Mode);
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = Mode });
         engine.SetVariable("arr", new[] { 10, 20, 30 });
 
         var result = engine.Evaluate("arr[1]");
@@ -203,7 +204,7 @@ public class ReflectionBlockingTests(CompilationMode mode) : TestBase
     [Test]
     public void AllowsModuleMethods()
     {
-        var engine = CreateEngine(Mode);
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = Mode });
 
         var result = engine.Evaluate("Math.Abs(-5)");
 
@@ -213,7 +214,7 @@ public class ReflectionBlockingTests(CompilationMode mode) : TestBase
     [Test]
     public void AllowsLinqOperations()
     {
-        var engine = CreateEngine(Mode);
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = Mode });
         engine.SetVariable("items", new List<int> { 1, 2, 3 });
 
         var result = engine.Evaluate("items.Where(x => x > 1).Sum()");

@@ -3,14 +3,14 @@ namespace CsEval.Test.Core;
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
 [TestFixture(CompilationMode.StrictCompiled)]
-public class StaticProxyTests(CompilationMode mode) : TestBase
+public class StaticProxyTests(CompilationMode mode) 
 {
     private CsEvalEngine _engine = null!;
 
     [SetUp]
     public void Setup()
     {
-        _engine = CreateEngine(mode);
+        _engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
     }
 
     #region Math

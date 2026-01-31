@@ -216,6 +216,7 @@ These are intentional differences from standard C# LINQ behavior:
 |   ✅   | Custom functions     | `engine.RegisterFunction()`                                  |
 |   ✅   | Sandbox modes        | `Sandbox.Trusted()`, `Safe()`, `Strict()` presets            |
 |   ✅   | Compilation modes    | `Interpreted`, `Compiled`, `StrictCompiled`                  |
+|   🟡   | Pluggable compiler   | `CustomCompiler` option for FastExpressionCompiler etc.      |
 |   🟡   | Compile to delegate  | `engine.Compile<Func<T>>()` for typed, reusable delegates    |
 |   🟡   | Compile with DI      | `Compile<T>(IServiceProvider)` for scoped DI in compiled fns |
 |   🔵   | Expression tree export | `Expression<Func<T>>` for LINQ/EF queries                  |
@@ -409,6 +410,7 @@ Derived from the competitive audit, the following items represent the immediate 
 | **Typed Constructors**     | Implementation of `new T(...)` via a secure Type Registry.                                             | Common request in **Flee/Expresso**.    |
 | **Global Manager**         | Implement `CsEvalManager` for setting process-wide default options and performance hooks.              | Feature found in **Z.Expressions**.     |
 | **Compile to Delegate**    | `Compile<Func<T>>()` returns strongly-typed delegate; accepts `IServiceProvider` for scoped DI.        | Parity with **Z.Expressions.Eval**.     |
+| **Pluggable Compiler**     | `CustomCompiler` hook for FastExpressionCompiler (10-40x faster). Zero deps; user provides the lambda. | Parity with **Z.Expressions.Eval**.     |
 |                            |
 
 ### Phase 3: Developer Experience & Ecosystem (Low Priority)

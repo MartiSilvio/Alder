@@ -11,7 +11,7 @@ public class EvaluationChaosTests(CompilationMode mode) : StressTestBase(mode)
     public void InfiniteLoop_ShouldTerminate_WithMaxIterations()
     {
         var options = CsEvalOptions.Default with { CompilationMode = Mode, MaxIterations = 1000 };
-        var engine = CreateEngine(options);
+        var engine = new CsEvalEngine(options);
 
         var expr = "{ var i = 0; while(true) { i++; } }";
 
@@ -23,7 +23,7 @@ public class EvaluationChaosTests(CompilationMode mode) : StressTestBase(mode)
     public void NestedLoops_ExponentialComplexity_ShouldRespectMaxIterations()
     {
         var options = CsEvalOptions.Default with { CompilationMode = Mode, MaxIterations = 5000};
-        var engine = CreateEngine(options);
+        var engine = new CsEvalEngine(options);
 
         // O(N^3)
         const string expr = @"{
@@ -164,7 +164,7 @@ public class EvaluationChaosTests(CompilationMode mode) : StressTestBase(mode)
     public void SandboxBypass_Reflection_ShouldBeBlockedInSafeMode()
     {
         // Try to access System.Type or GetType()
-        var safeEngine = CreateEngine(new CsEvalOptions
+        var safeEngine = new CsEvalEngine(new CsEvalOptions
         {
             CompilationMode = Mode,
             Sandbox = SandboxOptions.Safe()  // Safe mode blocks method calls on variables?

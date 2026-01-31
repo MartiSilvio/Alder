@@ -1,6 +1,7 @@
 using System.Reflection;
-using CsEval.Evaluation;
+using CsEval.Compilation;
 using CsEval.Parsing;
+using CsEval.Runtime;
 
 namespace CsEval;
 

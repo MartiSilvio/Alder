@@ -1,6 +1,9 @@
 using CsEval.Attributes;
-using CsEval.Evaluation;
+using CsEval.Compilation;
+using CsEval.Interpretation;
+using CsEval.Modules;
 using CsEval.Parsing;
+using CsEval.Runtime;
 
 namespace CsEval;
 

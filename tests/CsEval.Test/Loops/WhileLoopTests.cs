@@ -3,14 +3,14 @@ namespace CsEval.Test.Loops;
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
 [TestFixture(CompilationMode.StrictCompiled)]
-public class WhileLoopTests(CompilationMode mode) : TestBase
+public class WhileLoopTests(CompilationMode mode) 
 {
     #region Basic While Loop
 
     [Test]
     public void WhileLoop_BasicCounter_CountsCorrectly()
     {
-        var engine = CreateEngine(mode);
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var result = engine.Evaluate(@"
         {
             var count = 0;
@@ -28,7 +28,7 @@ public class WhileLoopTests(CompilationMode mode) : TestBase
     [Test]
     public void WhileLoop_FalseCondition_NeverExecutes()
     {
-        var engine = CreateEngine(mode);
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var result = engine.Evaluate(@"
         {
             var executed = false;
@@ -44,7 +44,7 @@ public class WhileLoopTests(CompilationMode mode) : TestBase
     [Test]
     public void WhileLoop_SingleIteration_ExecutesOnce()
     {
-        var engine = CreateEngine(mode);
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var result = engine.Evaluate(@"
         {
             var count = 0;
@@ -66,7 +66,7 @@ public class WhileLoopTests(CompilationMode mode) : TestBase
     [Test]
     public void WhileLoop_WithExternalVariable_ModifiesCorrectly()
     {
-        var engine = CreateEngine(mode);
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         engine.SetVariable("limit", 10);
 
         var result = engine.Evaluate(@"
@@ -87,7 +87,7 @@ public class WhileLoopTests(CompilationMode mode) : TestBase
     [Test]
     public void WhileLoop_WithMultipleVariables_TracksAll()
     {
-        var engine = CreateEngine(mode);
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var result = engine.Evaluate(@"
         {
             var a = 0;
@@ -109,7 +109,7 @@ public class WhileLoopTests(CompilationMode mode) : TestBase
     [Test]
     public void WhileLoop_VariablesScopedToBlock()
     {
-        var engine = CreateEngine(mode);
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var result = engine.Evaluate(@"
         {
             var total = 0;
@@ -133,7 +133,7 @@ public class WhileLoopTests(CompilationMode mode) : TestBase
     [Test]
     public void WhileLoop_WithAndCondition_EvaluatesCorrectly()
     {
-        var engine = CreateEngine(mode);
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var result = engine.Evaluate(@"
         {
             var x = 0;
@@ -151,7 +151,7 @@ public class WhileLoopTests(CompilationMode mode) : TestBase
     [Test]
     public void WhileLoop_WithOrCondition_EvaluatesCorrectly()
     {
-        var engine = CreateEngine(mode);
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var result = engine.Evaluate(@"
         {
             var x = 0;
@@ -169,7 +169,7 @@ public class WhileLoopTests(CompilationMode mode) : TestBase
     [Test]
     public void WhileLoop_WithNullCheck_WorksCorrectly()
     {
-        var engine = CreateEngine(mode);
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var result = engine.Evaluate(@"
         {
             var text = ""test"";
@@ -186,7 +186,7 @@ public class WhileLoopTests(CompilationMode mode) : TestBase
     [Test]
     public void WhileLoop_WithComparisonExpression_WorksCorrectly()
     {
-        var engine = CreateEngine(mode);
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var result = engine.Evaluate(@"
         {
             var numbers = [10, 5, 15, 3];
@@ -211,7 +211,7 @@ public class WhileLoopTests(CompilationMode mode) : TestBase
     [Test]
     public void WhileLoop_WithEarlyReturn_ExitsImmediately()
     {
-        var engine = CreateEngine(mode);
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var result = engine.Evaluate(@"
         {
             var i = 0;
@@ -230,7 +230,7 @@ public class WhileLoopTests(CompilationMode mode) : TestBase
     [Test]
     public void WhileLoop_WithConditionalReturn_ReturnsCorrectValue()
     {
-        var engine = CreateEngine(mode);
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         engine.SetVariable("target", 7);
 
         var result = engine.Evaluate(@"
@@ -255,7 +255,7 @@ public class WhileLoopTests(CompilationMode mode) : TestBase
     [Test]
     public void WhileLoop_WithNestedIf_WorksCorrectly()
     {
-        var engine = CreateEngine(mode);
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var result = engine.Evaluate(@"
         {
             var sum = 0;
@@ -276,7 +276,7 @@ public class WhileLoopTests(CompilationMode mode) : TestBase
     [Test]
     public void WhileLoop_Nested_WorksCorrectly()
     {
-        var engine = CreateEngine(mode);
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var result = engine.Evaluate(@"
         {
             var total = 0;
@@ -298,7 +298,7 @@ public class WhileLoopTests(CompilationMode mode) : TestBase
     [Test]
     public void WhileLoop_DeeplyNested_WorksCorrectly()
     {
-        var engine = CreateEngine(mode);
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var result = engine.Evaluate(@"
         {
             var product = 1;
@@ -329,7 +329,7 @@ public class WhileLoopTests(CompilationMode mode) : TestBase
     [Test]
     public void WhileLoop_WithArrayIndexing_WorksCorrectly()
     {
-        var engine = CreateEngine(mode);
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var result = engine.Evaluate(@"
         {
             var arr = [1, 2, 3, 4, 5];
@@ -348,7 +348,7 @@ public class WhileLoopTests(CompilationMode mode) : TestBase
     [Test]
     public void WhileLoop_WithListCount_WorksCorrectly()
     {
-        var engine = CreateEngine(mode);
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         engine.SetVariable("items", new List<int> { 10, 20, 30, 40 });
 
         var result = engine.Evaluate(@"
@@ -368,7 +368,7 @@ public class WhileLoopTests(CompilationMode mode) : TestBase
     [Test]
     public void WhileLoop_BuildingList_WorksCorrectly()
     {
-        var engine = CreateEngine(mode);
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var result = engine.Evaluate(@"
         {
             var result = [];
@@ -391,7 +391,7 @@ public class WhileLoopTests(CompilationMode mode) : TestBase
     [Test]
     public void WhileLoop_WithLinqSum_WorksCorrectly()
     {
-        var engine = CreateEngine(mode);
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var result = engine.Evaluate(@"
         {
             var numbers = [];
@@ -409,7 +409,7 @@ public class WhileLoopTests(CompilationMode mode) : TestBase
     [Test]
     public void WhileLoop_WithLinqWhere_WorksCorrectly()
     {
-        var engine = CreateEngine(mode);
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var result = engine.Evaluate(@"
         {
             var numbers = [];
@@ -431,7 +431,7 @@ public class WhileLoopTests(CompilationMode mode) : TestBase
     [Test]
     public void WhileLoop_WithMathModule_WorksCorrectly()
     {
-        var engine = CreateEngine(mode);
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var result = engine.Evaluate(@"
         {
             var sum = 0.0;
@@ -450,7 +450,7 @@ public class WhileLoopTests(CompilationMode mode) : TestBase
     [Test]
     public void WhileLoop_WithDateTimeModule_WorksCorrectly()
     {
-        var engine = CreateEngine(mode);
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var result = engine.Evaluate(@"
         {
             var count = 0;
@@ -475,7 +475,7 @@ public class WhileLoopTests(CompilationMode mode) : TestBase
     [Test]
     public void WhileLoop_StringConcatenation_WorksCorrectly()
     {
-        var engine = CreateEngine(mode);
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var result = engine.Evaluate(@"
         {
             var str = """";
@@ -493,7 +493,7 @@ public class WhileLoopTests(CompilationMode mode) : TestBase
     [Test]
     public void WhileLoop_InterpolatedString_WorksCorrectly()
     {
-        var engine = CreateEngine(mode);
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var result = engine.Evaluate(@"
         {
             var lines = """";
@@ -515,7 +515,7 @@ public class WhileLoopTests(CompilationMode mode) : TestBase
     [Test]
     public void WhileLoop_BuildingObjects_WorksCorrectly()
     {
-        var engine = CreateEngine(mode);
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var result = engine.Evaluate(@"
         {
             var i = 0;
@@ -539,7 +539,7 @@ public class WhileLoopTests(CompilationMode mode) : TestBase
     [Test]
     public void WhileLoop_SingleStatementBody_WorksCorrectly()
     {
-        var engine = CreateEngine(mode);
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var result = engine.Evaluate(@"
         {
             var count = 0;
@@ -559,7 +559,7 @@ public class WhileLoopTests(CompilationMode mode) : TestBase
     [Test]
     public void WhileLoop_ExceedsMaxIterations_ThrowsException()
     {
-        var engine = CreateEngine(mode);
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
 
         var ex = Assert.Throws<CsEvalException>(() =>
             engine.Evaluate(@"
@@ -577,7 +577,7 @@ public class WhileLoopTests(CompilationMode mode) : TestBase
     [Test]
     public void WhileLoop_WithCustomMaxIterations_UsesConfiguredLimit()
     {
-        var engine = CreateEngine(CsEvalOptions.Default with { CompilationMode = mode, MaxIterations = 10 });
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode, MaxIterations = 10 });
 
         var ex = Assert.Throws<CsEvalException>(() =>
             engine.Evaluate(@"
@@ -595,7 +595,7 @@ public class WhileLoopTests(CompilationMode mode) : TestBase
     [Test]
     public void WhileLoop_WithDisabledLimit_AllowsManyIterations()
     {
-        var engine = CreateEngine(CsEvalOptions.Default with { CompilationMode = mode, MaxIterations = 0 });
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode, MaxIterations = 0 });
 
         var result = engine.Evaluate(@"
         {
@@ -615,7 +615,7 @@ public class WhileLoopTests(CompilationMode mode) : TestBase
     public void WhileLoop_WithCancellationToken_CanBeCancelled()
     {
         // Use disabled iteration limit so cancellation is the only way to stop
-        var engine = CreateEngine(CsEvalOptions.Default with { CompilationMode = mode, MaxIterations = 0 });
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode, MaxIterations = 0 });
         using var cts = new CancellationTokenSource();
 
         var task = Task.Run(() =>
@@ -643,7 +643,7 @@ public class WhileLoopTests(CompilationMode mode) : TestBase
     [Test]
     public void WhileLoop_EmptyBody_WorksCorrectly()
     {
-        var engine = CreateEngine(mode);
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var result = engine.Evaluate(@"
         {
             var i = 5;
@@ -658,7 +658,7 @@ public class WhileLoopTests(CompilationMode mode) : TestBase
     [Test]
     public void WhileLoop_WithTernaryCondition_WorksCorrectly()
     {
-        var engine = CreateEngine(mode);
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         engine.SetVariable("useLimit", true);
 
         var result = engine.Evaluate(@"
@@ -678,7 +678,7 @@ public class WhileLoopTests(CompilationMode mode) : TestBase
     [Test]
     public void WhileLoop_ConditionEvaluatedEachIteration()
     {
-        var engine = CreateEngine(mode);
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var result = engine.Evaluate(@"
         {
             var limit = 5;
@@ -701,7 +701,7 @@ public class WhileLoopTests(CompilationMode mode) : TestBase
     [Test]
     public void WhileLoop_WithNullCoalesce_WorksCorrectly()
     {
-        var engine = CreateEngine(mode);
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         engine.SetVariable("maybeNull", null);
 
         var result = engine.Evaluate(@"
@@ -725,7 +725,7 @@ public class WhileLoopTests(CompilationMode mode) : TestBase
     [Test]
     public void WhileLoop_Factorial_CalculatesCorrectly()
     {
-        var engine = CreateEngine(mode);
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var result = engine.Evaluate(@"
         {
             var n = 5;
@@ -743,7 +743,7 @@ public class WhileLoopTests(CompilationMode mode) : TestBase
     [Test]
     public void WhileLoop_GCD_CalculatesCorrectly()
     {
-        var engine = CreateEngine(mode);
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var result = engine.Evaluate(@"
         {
             var a = 48;
@@ -762,7 +762,7 @@ public class WhileLoopTests(CompilationMode mode) : TestBase
     [Test]
     public void WhileLoop_PowerCalculation_WorksCorrectly()
     {
-        var engine = CreateEngine(mode);
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var result = engine.Evaluate(@"
         {
             var baseNum = 2;
@@ -785,7 +785,7 @@ public class WhileLoopTests(CompilationMode mode) : TestBase
     [Test]
     public void WhileLoop_TryParse_ValidExpression_Succeeds()
     {
-        var engine = CreateEngine(mode);
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var success = engine.TryParse("{ var i = 0; while (i < 5) { i = i + 1; } return i; }", out var expr, out var error);
 
         Assert.That(success, Is.True);
@@ -796,7 +796,7 @@ public class WhileLoopTests(CompilationMode mode) : TestBase
     [Test]
     public void WhileLoop_TryParse_MissingParenthesis_Fails()
     {
-        var engine = CreateEngine(mode);
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var success = engine.TryParse("{ while i < 5 { } }", out var expr, out var error);
 
         Assert.That(success, Is.False);
@@ -807,7 +807,7 @@ public class WhileLoopTests(CompilationMode mode) : TestBase
     [Test]
     public void WhileLoop_PreParsed_CanBeEvaluatedMultipleTimes()
     {
-        var engine = CreateEngine(mode);
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var expr = engine.Parse(@"
         {
             var sum = 0;
@@ -835,7 +835,7 @@ public class WhileLoopTests(CompilationMode mode) : TestBase
     [Test]
     public void WhileLoop_Break_ExitsLoop()
     {
-        var engine = CreateEngine(mode);
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var result = engine.Evaluate(@"
         {
             var i = 0;
@@ -854,7 +854,7 @@ public class WhileLoopTests(CompilationMode mode) : TestBase
     [Test]
     public void WhileLoop_Break_AtStart_ExitsImmediately()
     {
-        var engine = CreateEngine(mode);
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var result = engine.Evaluate(@"
         {
             var count = 0;
@@ -871,7 +871,7 @@ public class WhileLoopTests(CompilationMode mode) : TestBase
     [Test]
     public void WhileLoop_Break_PreservesVariableState()
     {
-        var engine = CreateEngine(mode);
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var result = engine.Evaluate(@"
         {
             var sum = 0;
@@ -893,7 +893,7 @@ public class WhileLoopTests(CompilationMode mode) : TestBase
     [Test]
     public void WhileLoop_Break_InNestedIf_WorksCorrectly()
     {
-        var engine = CreateEngine(mode);
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var result = engine.Evaluate(@"
         {
             var i = 0;
@@ -914,7 +914,7 @@ public class WhileLoopTests(CompilationMode mode) : TestBase
     [Test]
     public void WhileLoop_Break_OnlyExitsInnerLoop()
     {
-        var engine = CreateEngine(mode);
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var result = engine.Evaluate(@"
         {
             var outerCount = 0;
@@ -942,7 +942,7 @@ public class WhileLoopTests(CompilationMode mode) : TestBase
     [Test]
     public void WhileLoop_Break_WithCondition_WorksCorrectly()
     {
-        var engine = CreateEngine(mode);
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         engine.SetVariable("target", 42);
 
         var result = engine.Evaluate(@"
@@ -966,7 +966,7 @@ public class WhileLoopTests(CompilationMode mode) : TestBase
     [Test]
     public void WhileLoop_Break_AfterSomeIterations()
     {
-        var engine = CreateEngine(mode);
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var result = engine.Evaluate(@"
         {
             var iterations = 0;
@@ -991,7 +991,7 @@ public class WhileLoopTests(CompilationMode mode) : TestBase
     [Test]
     public void WhileLoop_Continue_SkipsRemainingBody()
     {
-        var engine = CreateEngine(mode);
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var result = engine.Evaluate(@"
         {
             var sum = 0;
@@ -1013,7 +1013,7 @@ public class WhileLoopTests(CompilationMode mode) : TestBase
     [Test]
     public void WhileLoop_Continue_WithMultipleConditions()
     {
-        var engine = CreateEngine(mode);
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var result = engine.Evaluate(@"
         {
             var sum = 0;
@@ -1038,7 +1038,7 @@ public class WhileLoopTests(CompilationMode mode) : TestBase
     [Test]
     public void WhileLoop_Continue_InNestedLoop_OnlyAffectsInner()
     {
-        var engine = CreateEngine(mode);
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var result = engine.Evaluate(@"
         {
             var total = 0;
@@ -1064,7 +1064,7 @@ public class WhileLoopTests(CompilationMode mode) : TestBase
     [Test]
     public void WhileLoop_Continue_SkipsToConditionCheck()
     {
-        var engine = CreateEngine(mode);
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var result = engine.Evaluate(@"
         {
             var skipped = 0;
@@ -1088,7 +1088,7 @@ public class WhileLoopTests(CompilationMode mode) : TestBase
     [Test]
     public void WhileLoop_Continue_WithAccumulator()
     {
-        var engine = CreateEngine(mode);
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var result = engine.Evaluate(@"
         {
             var product = 1;
@@ -1110,7 +1110,7 @@ public class WhileLoopTests(CompilationMode mode) : TestBase
     [Test]
     public void WhileLoop_Continue_DoesNotAffectCondition()
     {
-        var engine = CreateEngine(mode);
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var result = engine.Evaluate(@"
         {
             var count = 0;
@@ -1136,7 +1136,7 @@ public class WhileLoopTests(CompilationMode mode) : TestBase
     [Test]
     public void WhileLoop_BreakAndContinue_Combined()
     {
-        var engine = CreateEngine(mode);
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var result = engine.Evaluate(@"
         {
             var sum = 0;
@@ -1161,7 +1161,7 @@ public class WhileLoopTests(CompilationMode mode) : TestBase
     [Test]
     public void WhileLoop_BreakAndContinue_InNestedLoops()
     {
-        var engine = CreateEngine(mode);
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var result = engine.Evaluate(@"
         {
             var total = 0;
@@ -1192,7 +1192,7 @@ public class WhileLoopTests(CompilationMode mode) : TestBase
     [Test]
     public void WhileLoop_BreakAndContinue_FindFirstMatch()
     {
-        var engine = CreateEngine(mode);
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var result = engine.Evaluate(@"
         {
             var data = [1, -2, 3, -4, 5, -6, 7];
@@ -1221,7 +1221,7 @@ public class WhileLoopTests(CompilationMode mode) : TestBase
     [Test]
     public void WhileLoop_MultipleContinues_InSameIteration()
     {
-        var engine = CreateEngine(mode);
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var result = engine.Evaluate(@"
         {
             var count = 0;
@@ -1250,7 +1250,7 @@ public class WhileLoopTests(CompilationMode mode) : TestBase
     [Test]
     public void WhileLoop_Break_TryParse_Succeeds()
     {
-        var engine = CreateEngine(mode);
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var success = engine.TryParse("{ var i = 0; while (true) { break; } return i; }", out var expr, out var error);
 
         Assert.That(success, Is.True);
@@ -1261,7 +1261,7 @@ public class WhileLoopTests(CompilationMode mode) : TestBase
     [Test]
     public void WhileLoop_Continue_TryParse_Succeeds()
     {
-        var engine = CreateEngine(mode);
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var success = engine.TryParse("{ var i = 0; while (i < 5) { i = i + 1; continue; } return i; }", out var expr, out var error);
 
         Assert.That(success, Is.True);
@@ -1272,7 +1272,7 @@ public class WhileLoopTests(CompilationMode mode) : TestBase
     [Test]
     public void WhileLoop_BreakWithSemicolon_ParsesCorrectly()
     {
-        var engine = CreateEngine(mode);
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var result = engine.Evaluate(@"
         {
             var i = 0;

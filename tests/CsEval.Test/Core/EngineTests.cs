@@ -3,7 +3,7 @@ using CsEval.Attributes;
 namespace CsEval.Test.Core;
 
 [TestFixture]
-public class BasicEvaluationTests : TestBase
+public class BasicEvaluationTests 
 {
     [Test]
     public void SimpleExpression()
@@ -105,7 +105,7 @@ public class BasicEvaluationTests : TestBase
 }
 
 [TestFixture]
-public class BuiltInProxyTests : TestBase
+public class BuiltInProxyTests 
 {
     [Test]
     public void MathProxy()
@@ -133,7 +133,7 @@ public class BuiltInProxyTests : TestBase
 }
 
 [TestFixture]
-public class CustomRegistrationTests : TestBase
+public class CustomRegistrationTests 
 {
     [Test]
     public void CustomFunction()
@@ -162,7 +162,7 @@ public class CustomRegistrationTests : TestBase
 }
 
 [TestFixture]
-public class ExplicitModuleTests : TestBase
+public class ExplicitModuleTests 
 {
     [Test]
     public void ExplicitOnly_OnlyExposesAttributedMethods()
@@ -277,7 +277,7 @@ public class ExplicitModuleTests : TestBase
 }
 
 [TestFixture]
-public class CaseSensitivityTests : TestBase
+public class CaseSensitivityTests 
 {
     [Test]
     public void CaseSensitive_ThrowsOnWrongCase()
