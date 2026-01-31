@@ -13,9 +13,9 @@ Features for full C# developer familiarity, plus additions from other languages.
 
 **Execution Modes:**
 - **AST**: Tree-walking interpretation (feature-complete, baseline performance)
-- **IL**: Compiled to IL via Expression Trees (faster, subset of features)
+- **IL**: Compiled to IL via Expression Trees (faster, near-complete feature parity)
 
-Features marked ✅ in both AST and IL columns are fully optimized. Features with ✅ AST but ❌ IL will silently fall back to tree-walking (or throw in `StrictCompiled` mode).
+Features marked ✅ in both AST and IL columns are fully optimized. Features with ✅ AST but ❌ IL will silently fall back to tree-walking (or throw in `StrictCompiled` mode). Most features are now IL-compiled.
 
 ---
 
@@ -27,18 +27,18 @@ Features marked ✅ in both AST and IL columns are fully optimized. Features wit
 |   ✅   | Comparison             | `==`, `!=`, `<`, `<=`, `>`, `>=`                              | ✅  | ✅  |                               |
 |   ✅   | Logical                | `&&`, `\|\|`, `!`                                             | ✅  | ✅  | Short-circuit evaluation      |
 |   ✅   | Bitwise AND/OR/XOR     | `&`, `\|`, `^`                                                | ✅  | ✅  |                               |
-|   ✅   | Bitwise NOT            | `~`                                                           | ✅  | ❌  | Falls back to AST             |
-|   ✅   | Shift                  | `<<`, `>>`                                                    | ✅  | ❌  | Falls back to AST             |
+|   ✅   | Bitwise NOT            | `~`                                                           | ✅  | ✅  |                               |
+|   ✅   | Shift                  | `<<`, `>>`                                                    | ✅  | ✅  |                               |
 |   ✅   | Ternary                | `a ? b : c`                                                   | ✅  | ✅  |                               |
 |   ✅   | Null-coalescing        | `??`                                                          | ✅  | ✅  |                               |
-|   ✅   | Null-coalescing assign | `??=`                                                         | ✅  | ❌  | Falls back to AST             |
+|   ✅   | Null-coalescing assign | `??=`                                                         | ✅  | ✅  |                               |
 |   ✅   | Null-conditional       | `?.`                                                          | ✅  | ✅  | Property access only          |
 |   🟡   | Null-conditional index | `arr?[0]`                                                     | ❌  | ❌  | C# 6+                         |
 |   ✅   | Assignment             | `=`                                                           | ✅  | ✅  | Variable reassignment         |
 |   ✅   | Compound arithmetic    | `+=`, `-=`, `*=`, `/=`, `%=`                                  | ✅  | ✅  |                               |
-|   ✅   | Compound bitwise       | `&=`, `\|=`, `^=`, `<<=`, `>>=`                               | ✅  | ❌  | Falls back to AST             |
+|   ✅   | Compound bitwise       | `&=`, `\|=`, `^=`, `<<=`, `>>=`                               | ✅  | ✅  |                               |
 |   ✅   | Increment/decrement    | `++x`, `x++`, `--x`, `x--`                                    | ✅  | ✅  | Prefix and postfix            |
-|   ✅   | Containment            | `x in list`                                                   | ✅  | ❌  | Python-style, falls back      |
+|   ✅   | Containment            | `x in list`                                                   | ✅  | ✅  | Python-style, via extension   |
 |   🔵   | Null-forgiving         | `x!`                                                          | ❌  | ❌  | C# 8+                         |
 |   🔵   | Unsigned shift         | `x >>> y`                                                     | ❌  | ❌  | C# 11                         |
 
@@ -57,7 +57,7 @@ Features marked ✅ in both AST and IL columns are fully optimized. Features wit
 |   🟡   | Binary literals   | `0b1010`                      | ❌  | ❌  | C# 7.0                         |
 |   🟡   | Digit separators  | `1_000_000`, `0xFF_FF`        | ❌  | ❌  | C# 7.0                         |
 |   🟡   | Unicode escapes   | `'\u0041'`, `"\u0048\u0069"`  | ❌  | ❌  | In char and string literals    |
-|   🔵   | Escape sequences  | `\t`, `\n`, `\r`, `\\`        | ❌  | ❌  | May already work in strings    |
+|   ✅   | Escape sequences  | `\t`, `\n`, `\r`, `\\`        | ✅  | ✅  | In string literals             |
 |   🔵   | DateTime literals | `#2024-01-01#`                | ❌  | ❌  | NCalc-style date literals      |
 |   🔵   | TimeSpan literals | `TimeSpan.FromHours(1)`       | ❌  | ❌  | Via registered module          |
 |   🔵   | Guid literals     | `Guid.NewGuid()`              | ❌  | ❌  | Via registered module          |
@@ -97,7 +97,7 @@ Features marked ✅ in both AST and IL columns are fully optimized. Features wit
 |   🟡   | Tuple types           | `(int, string) t = (1, "a")` | ❌  | ❌  | C# 7.0                                                                  |
 |   🟡   | Named tuple elements  | `(count: 1, name: "test")`   | ❌  | ❌  | C# 7.0                                                                  |
 |   🔵   | Tuple deconstruction  | `var (a, b) = tuple;`        | ❌  | ❌  | C# 7.0                                                                  |
-|   ✅   | Interpolated strings  | `$"Hello {name}"`            | ✅  | ❌  | Falls back to AST                                                       |
+|   ✅   | Interpolated strings  | `$"Hello {name}"`            | ✅  | ✅  |                                                                         |
 |   🔴   | `is` operator         | `x is string`, `x is null`   | ❌  | ❌  | Type checking                                                           |
 |   🔴   | `is not`              | `x is not null`              | ❌  | ❌  | Common pattern                                                          |
 |   🔴   | `is` with variable    | `x is string s`              | ❌  | ❌  | Declare variable                                                        |
@@ -106,7 +106,7 @@ Features marked ✅ in both AST and IL columns are fully optimized. Features wit
 |   🟡   | `nameof`              | `nameof(property)`           | ❌  | ❌  |                                                                         |
 |   🔵   | `default`             | `default(int)`               | ❌  | ❌  |                                                                         |
 |   ✅   | Verbatim strings      | `@"path\to\file"`            | ✅  | ✅  | Backslashes literal                                                     |
-|   ✅   | Verbatim interpolated | `$@"path\{name}"`, `@$"..."` | ✅  | ❌  | Falls back to AST                                                       |
+|   ✅   | Verbatim interpolated | `$@"path\{name}"`, `@$"..."` | ✅  | ✅  |                                                                         |
 |   🔵   | Raw strings           | `"""text"""`                 | ❌  | ❌  | C# 11                                                                   |
 
 ---
@@ -115,20 +115,20 @@ Features marked ✅ in both AST and IL columns are fully optimized. Features wit
 
 | Status | Feature                    | Syntax                             | AST | IL  | Notes                            |
 | :----: | -------------------------- | ---------------------------------- | :-: | :-: | -------------------------------- |
-|   ✅   | Array literals             | `[1, 2, 3]`                        | ✅  | ❌  | Falls back to AST                |
-|   ✅   | Anonymous objects          | `new { Name = "John", Age = 30 }`  | ✅  | ❌  | Falls back to AST                |
-|   ✅   | Object spread              | `new { ...obj1, ...obj2 }`         | ✅  | ❌  | Falls back to AST                |
-|   ✅   | Array spread               | `[...arr1, ...arr2]`               | ✅  | ❌  | Falls back to AST                |
+|   ✅   | Array literals             | `[1, 2, 3]`                        | ✅  | ✅  |                                  |
+|   ✅   | Anonymous objects          | `new { Name = "John", Age = 30 }`  | ✅  | ✅  |                                  |
+|   ✅   | Object spread              | `new { ...obj1, ...obj2 }`         | ✅  | ✅  |                                  |
+|   ✅   | Array spread               | `[...arr1, ...arr2]`               | ✅  | ✅  |                                  |
 |   ✅   | Object merging             | `obj1 + obj2`                      | ✅  | ✅  | Via `+` operator                 |
 |   ✅   | Index access               | `arr[0]`, `dict["key"]`            | ✅  | ✅  | Read and write                   |
 |   ✅   | Index assignment           | `arr[0] = value`                   | ✅  | ✅  | Arrays, lists, dictionaries      |
 |   ✅   | Property access            | `obj.Property`                     | ✅  | ✅  | Read and write                   |
-|   ✅   | Property assignment        | `obj.Prop = value`                 | ✅  | ❌  | Falls back to AST                |
-|   ✅   | Method calls               | `obj.Method()`, `Math.Abs(x)`      | ✅  | ❌  | Falls back to AST                |
+|   ✅   | Property assignment        | `obj.Prop = value`                 | ✅  | ✅  |                                  |
+|   ✅   | Method calls               | `obj.Method()`, `Math.Abs(x)`      | ✅  | ✅  |                                  |
 |   🔴   | Typed constructor          | `new DateTime(2024, 1, 1)`         | ❌  | ❌  | Requires type registry           |
 |   🔴   | Object initializer         | `new Point { X = 10, Y = 20 }`     | ❌  | ❌  |                                  |
 |   🟡   | Constructor + initializer  | `new Person("John") { Age = 30 }`  | ❌  | ❌  |                                  |
-|   ✅   | Named parameters           | `Method(count: 10, enabled: true)` | ✅  | ❌  | For method calls only            |
+|   ✅   | Named parameters           | `Method(count: 10, enabled: true)` | ✅  | ✅  | For method calls only            |
 |   🔵   | Collection initializer     | `new List<int> { 1, 2, 3 }`        | ❌  | ❌  | Use `[1,2,3]` instead            |
 |   🔵   | Array creation             | `new int[] { 1, 2, 3 }`            | ❌  | ❌  | Use `[1,2,3]` instead            |
 |   🔵   | Implicitly typed array     | `new[] { 1, 2, 3 }`                | ❌  | ❌  | Type inferred from elements      |
@@ -288,18 +288,16 @@ These are intentional differences from standard C# LINQ behavior:
 |   ✅   | `every`    | `All`            |                                  |
 |   ✅   | `includes` | `Contains`       |                                  |
 
-### Planned JavaScript Methods
-
-The following JavaScript array methods are registered for forward compatibility but **not yet implemented**:
+### Additional JavaScript Methods
 
 | Status | JavaScript    | Description              | Notes                 |
 | :----: | ------------- | ------------------------ | --------------------- |
+|   ✅   | `slice`       | Extract portion of array | Maps to `Skip`        |
+|   ✅   | `flat`        | Flatten nested arrays    | Maps to `SelectMany`  |
 |   🟡   | `findIndex`   | Index of first match     | Like `FindIndex`      |
 |   🟡   | `indexOf`     | Index of element         | Like `IndexOf`        |
 |   🟡   | `lastIndexOf` | Last index of element    | Like `LastIndexOf`    |
-|   🟡   | `slice`       | Extract portion of array | Like `Skip`+`Take`    |
 |   🟡   | `sort`        | Sort in place            | Like `OrderBy`        |
-|   🟡   | `flat`        | Flatten nested arrays    | Like `SelectMany`     |
 |   🟡   | `forEach`     | Execute for each element | Side-effect iteration |
 |   🟡   | `push`        | Add to end               | Mutating              |
 |   🟡   | `pop`         | Remove from end          | Mutating              |
@@ -307,8 +305,6 @@ The following JavaScript array methods are registered for forward compatibility 
 |   🟡   | `unshift`     | Add to start             | Mutating              |
 |   🟡   | `join`        | Join to string           | Like `String.Join`    |
 |   🟡   | `length`      | Property for count       | Like `Count()`        |
-
-> **Note**: These method names are reserved in the parser. Using them will not throw an error but will fail at runtime until implemented.
 
 ---
 
@@ -361,9 +357,9 @@ This audit focuses on how each library manages its operational state, security b
 
 #### 1. Performance and Compilation Architecture
 
-- **Identified Weakness**: CsEval relies on `System.Linq.Expressions` for compilation. While efficient for simple arithmetic, it currently falls back to a slow tree-walking interpreter (Visitor pattern) for method calls, LINQ lambdas, and complex object operations.
+- **Current Status**: CsEval compiles most features to IL via `System.Linq.Expressions`, including operators, method calls, control flow, and object literals. The primary remaining AST fallback is **LINQ lambda execution** (lambdas inside `.Where()`, `.Select()`, etc. are interpreted).
 - **Learning Opportunity**: Libraries like **Flee** and **Z.Expressions** generate raw IL via `DynamicMethod` or `Reflection.Emit`. This bypasses the overhead of the Expression Tree abstraction and allows for optimizations like direct stack manipulation that `Expression` trees cannot express.
-- **Action**: Investigate transitioning the `ExpressionCompiler` to `ILGenerator` for core hot paths, or at minimum, eliminate all tree-walking fallbacks.
+- **Action**: Investigate compiling LINQ lambda bodies to IL, or consider `ILGenerator` for specific hot paths.
 
 #### 2. Language Parity (C# Compliance)
 
@@ -392,7 +388,7 @@ Derived from the competitive audit, the following items represent the immediate 
 
 | Item                       | Technical Requirement                                                                                                             | Comparison Context                          |
 | :------------------------- | :-------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------ |
-| **Full Compilation**       | Remove all `_compiler.Compile(...)` fallbacks in `CsEvalEngine.Evaluate`. Every AST node must have an IL-compiled path.           | Parity with **Flee** performance.           |
+| **LINQ Lambda Compilation**| Compile LINQ lambda bodies to IL instead of tree-walking. Currently lambdas fall back to `Evaluator` for execution.              | Last major AST-only fallback.               |
 | **C# Overload Resolution** | Implement `BindingFlags` and argument type matching for method calls, including implicit numeric conversions (`int` to `double`). | Fixes failures seen in **DynamicExpresso**. |
 | **Immutable Fluid API**    | Refactor `CsEvalOptions` to use fluid methods (e.g., `options.WithIgnoreCase(true).WithSafeSandbox()`).                           | Parity with **Roslyn** ergonomics.          |
 | **Lazy Late-Binding**      | Add `IParameterResolver` or `Func<string, object?>` support to fetch variables on-demand during execution.                        | Parity with **NCalc** lazy-loading.         |

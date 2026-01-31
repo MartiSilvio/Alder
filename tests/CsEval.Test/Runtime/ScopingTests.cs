@@ -1,5 +1,3 @@
-using System.Globalization;
-
 namespace CsEval.Test.Runtime;
 
 [TestFixture(CompilationMode.Interpreted)]

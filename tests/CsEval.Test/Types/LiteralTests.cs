@@ -3,34 +3,54 @@ namespace CsEval.Test.Types;
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
 [TestFixture(CompilationMode.StrictCompiled)]
-public class LiteralTests(CompilationMode mode) 
+public class LiteralTests(CompilationMode mode)
 {
     [Test]
-    public void Eval_Number_ReturnsNumber()
+    public async Task Eval_Number_ReturnsNumber()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        Assert.That(engine.Evaluate("42"), Is.EqualTo(42));
+
+        const string expr = "42";
+        var result = engine.Evaluate(expr);
+        Assert.That(result, Is.EqualTo(42));
+        Assert.That(result, Is.EqualTo(await TestHelpers.EvaluateCSharpAsync(expr)));
     }
 
     [Test]
-    public void Eval_String_ReturnsString()
+    public async Task Eval_String_ReturnsString()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        Assert.That(engine.Evaluate("\"hello\""), Is.EqualTo("hello"));
+
+        const string expr = "\"hello\"";
+        var result = engine.Evaluate(expr);
+        Assert.That(result, Is.EqualTo("hello"));
+        Assert.That(result, Is.EqualTo(await TestHelpers.EvaluateCSharpAsync(expr)));
     }
 
     [Test]
-    public void Eval_Boolean_ReturnsBoolean()
+    public async Task Eval_Boolean_ReturnsBoolean()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        Assert.That(engine.Evaluate("true"), Is.EqualTo(true));
-        Assert.That(engine.Evaluate("false"), Is.EqualTo(false));
+
+        const string expr1 = "true";
+        var result1 = engine.Evaluate(expr1);
+        Assert.That(result1, Is.EqualTo(true));
+        Assert.That(result1, Is.EqualTo(await TestHelpers.EvaluateCSharpAsync(expr1)));
+
+        const string expr2 = "false";
+        var result2 = engine.Evaluate(expr2);
+        Assert.That(result2, Is.EqualTo(false));
+        Assert.That(result2, Is.EqualTo(await TestHelpers.EvaluateCSharpAsync(expr2)));
     }
 
     [Test]
-    public void Eval_Null_ReturnsNull()
+    public async Task Eval_Null_ReturnsNull()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        Assert.That(engine.Evaluate("null"), Is.Null);
+
+        const string expr = "null";
+        var result = engine.Evaluate(expr);
+        Assert.That(result, Is.Null);
+        Assert.That(result, Is.EqualTo(await TestHelpers.EvaluateCSharpAsync(expr)));
     }
 }

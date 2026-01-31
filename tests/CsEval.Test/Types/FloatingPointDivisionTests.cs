@@ -7,7 +7,7 @@ namespace CsEval.Test.Types;
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
 [TestFixture(CompilationMode.StrictCompiled)]
-public class FloatingPointDivisionTests(CompilationMode mode) 
+public class FloatingPointDivisionTests(CompilationMode mode)
 {
     #region Division By Zero
 
@@ -26,35 +26,47 @@ public class FloatingPointDivisionTests(CompilationMode mode)
     }
 
     [Test]
-    public void Divide_DoubleByZero_ReturnsPositiveInfinity()
+    public async Task Divide_DoubleByZero_ReturnsPositiveInfinity()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate("1.0 / 0.0");
+
+        const string expr = "1.0 / 0.0";
+        var result = engine.Evaluate(expr);
         Assert.That(result, Is.EqualTo(double.PositiveInfinity));
+        Assert.That(result, Is.EqualTo(await TestHelpers.EvaluateCSharpAsync(expr)));
     }
 
     [Test]
-    public void Divide_NegativeDoubleByZero_ReturnsNegativeInfinity()
+    public async Task Divide_NegativeDoubleByZero_ReturnsNegativeInfinity()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate("-1.0 / 0.0");
+
+        const string expr = "-1.0 / 0.0";
+        var result = engine.Evaluate(expr);
         Assert.That(result, Is.EqualTo(double.NegativeInfinity));
+        Assert.That(result, Is.EqualTo(await TestHelpers.EvaluateCSharpAsync(expr)));
     }
 
     [Test]
-    public void Divide_FloatByZero_ReturnsPositiveInfinity()
+    public async Task Divide_FloatByZero_ReturnsPositiveInfinity()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate("1.0f / 0.0f");
+
+        const string expr = "1.0f / 0.0f";
+        var result = engine.Evaluate(expr);
         Assert.That(result, Is.EqualTo(float.PositiveInfinity));
+        Assert.That(result, Is.EqualTo(await TestHelpers.EvaluateCSharpAsync(expr)));
     }
 
     [Test]
-    public void Divide_ZeroDoubleByZero_ReturnsNaN()
+    public async Task Divide_ZeroDoubleByZero_ReturnsNaN()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate("0.0 / 0.0");
+
+        const string expr = "0.0 / 0.0";
+        var result = engine.Evaluate(expr);
         Assert.That(result, Is.EqualTo(double.NaN));
+        Assert.That(double.IsNaN((double)(await TestHelpers.EvaluateCSharpAsync(expr))!));
     }
 
     #endregion
@@ -69,19 +81,25 @@ public class FloatingPointDivisionTests(CompilationMode mode)
     }
 
     [Test]
-    public void Modulo_DoubleByZero_ReturnsNaN()
+    public async Task Modulo_DoubleByZero_ReturnsNaN()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate("5.0 % 0.0");
+
+        const string expr = "5.0 % 0.0";
+        var result = engine.Evaluate(expr);
         Assert.That(result, Is.EqualTo(double.NaN));
+        Assert.That(double.IsNaN((double)(await TestHelpers.EvaluateCSharpAsync(expr))!));
     }
 
     [Test]
-    public void Modulo_FloatByZero_ReturnsNaN()
+    public async Task Modulo_FloatByZero_ReturnsNaN()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate("5.0f % 0.0f");
+
+        const string expr = "5.0f % 0.0f";
+        var result = engine.Evaluate(expr);
         Assert.That(result, Is.EqualTo(float.NaN));
+        Assert.That(float.IsNaN((float)(await TestHelpers.EvaluateCSharpAsync(expr))!));
     }
 
     #endregion
@@ -89,21 +107,25 @@ public class FloatingPointDivisionTests(CompilationMode mode)
     #region Mixed Types - Promotion Edge Cases
 
     [Test]
-    public void Divide_IntByZeroDouble_ReturnsInfinity()
+    public async Task Divide_IntByZeroDouble_ReturnsInfinity()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        // int / double → promoted to double, should return Infinity
-        var result = engine.Evaluate("10 / 0.0");
+
+        const string expr = "10 / 0.0";
+        var result = engine.Evaluate(expr);
         Assert.That(result, Is.EqualTo(double.PositiveInfinity));
+        Assert.That(result, Is.EqualTo(await TestHelpers.EvaluateCSharpAsync(expr)));
     }
 
     [Test]
-    public void Divide_DoubleByZeroInt_ReturnsInfinity()
+    public async Task Divide_DoubleByZeroInt_ReturnsInfinity()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        // double / int → should still handle correctly (0 is int, but left is double)
-        var result = engine.Evaluate("10.0 / 0");
+
+        const string expr = "10.0 / 0";
+        var result = engine.Evaluate(expr);
         Assert.That(result, Is.EqualTo(double.PositiveInfinity));
+        Assert.That(result, Is.EqualTo(await TestHelpers.EvaluateCSharpAsync(expr)));
     }
 
     #endregion

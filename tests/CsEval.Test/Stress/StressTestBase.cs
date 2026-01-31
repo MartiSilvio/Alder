@@ -1,5 +1,4 @@
 using System.Text;
-using CsEval;
 
 namespace CsEval.Test.Stress;
 

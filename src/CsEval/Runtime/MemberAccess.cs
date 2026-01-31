@@ -18,38 +18,41 @@ public static class MemberAccess
         if (!options.Sandbox.AllowPropertyRead)
             throw new CsEvalException($"Property access blocked by sandbox: {name}");
 
-        if (obj is CsEvalEngine.ModuleResolver resolver)
+        switch (obj)
         {
-            if (resolver.Members.TryGetValue(name, out var memberInfo))
+            case CsEvalEngine.ModuleResolver resolver when resolver.Members.TryGetValue(name, out var memberInfo):
             {
+                // For methods, defer resolution until invocation
+                if (memberInfo is MethodInfo m)
+                    return new ModuleMethodRef(resolver, m);
+
+                // For properties/fields, resolve now to get value
                 var instance = resolver.Resolve();
                 var value = memberInfo switch
                 {
-                    MethodInfo m => new ModuleMethodRef(resolver, m),
                     PropertyInfo p => p.GetValue(p.GetMethod!.IsStatic ? null : instance),
                     FieldInfo f => f.GetValue(f.IsStatic ? null : instance),
                     _ => throw new CsEvalException($"Unsupported member type '{memberInfo.GetType().Name}'")
                 };
                 return TypeHelpers.CheckSandboxType(value, options.Sandbox);
             }
-            throw new CsEvalException($"Member '{name}' not found on module '{resolver.Type.Name}'");
-        }
-
-        if (obj is IDictionary<string, object?> dict)
-        {
-            if (dict.TryGetValue(name, out var value))
+            case CsEvalEngine.ModuleResolver resolver:
+                throw new CsEvalException($"Member '{name}' not found on module '{resolver.Type.Name}'");
+            case IDictionary<string, object?> dict when dict.TryGetValue(name, out var value):
                 return TypeHelpers.CheckSandboxType(value, options.Sandbox);
-
-            if (options.IgnoreCase)
+            case IDictionary<string, object?> dict:
             {
-                foreach (var key in dict.Keys)
+                if (options.IgnoreCase)
                 {
-                    if (string.Equals(key, name, StringComparison.OrdinalIgnoreCase))
-                        return TypeHelpers.CheckSandboxType(dict[key], options.Sandbox);
+                    foreach (var key in dict.Keys)
+                    {
+                        if (string.Equals(key, name, StringComparison.OrdinalIgnoreCase))
+                            return TypeHelpers.CheckSandboxType(dict[key], options.Sandbox);
+                    }
                 }
-            }
 
-            throw new CsEvalException($"Property '{name}' not found");
+                throw new CsEvalException($"Property '{name}' not found");
+            }
         }
 
         var type = obj.GetType();
@@ -71,27 +74,26 @@ public static class MemberAccess
 
     public static object? GetIndex(object? obj, object? index, CsEvalOptions options)
     {
-        if (obj == null)
-            throw new CsEvalException("Cannot index null");
-
-        if (obj is IDictionary<string, object?> dict)
+        switch (obj)
         {
-            var key = index?.ToString() ?? "";
-            var val = dict.TryGetValue(key, out var v) ? v : null;
-            TypeHelpers.CheckSandboxType(val, options.Sandbox);
-            return val;
-        }
-
-        if (obj is System.Collections.IList list)
-        {
-            if (index is int i)
+            case null:
+                throw new CsEvalException("Cannot index null");
+            case IDictionary<string, object?> dict:
+            {
+                var key = index?.ToString() ?? "";
+                var val = dict.TryGetValue(key, out var v) ? v : null;
+                TypeHelpers.CheckSandboxType(val, options.Sandbox);
+                return val;
+            }
+            case IList list when index is int i:
             {
                 if (i < 0 || i >= list.Count) throw new CsEvalException($"Index was out of range. Must be non-negative and less than the size of the collection. (Parameter 'index')");
                 var val = list[i];
                 TypeHelpers.CheckSandboxType(val, options.Sandbox);
                 return val;
             }
-            throw new CsEvalException($"Hashtable/List index must be an integer, got {index?.GetType().Name}");
+            case IList list:
+                throw new CsEvalException($"Hashtable/List index must be an integer, got {index?.GetType().Name}");
         }
 
         var type = obj.GetType();
@@ -117,21 +119,72 @@ public static class MemberAccess
         throw new CsEvalException($"Type '{type.Name}' cannot be indexed");
     }
 
-    public static void SetIndex(object? obj, object? index, object? value)
+    public static void SetMember(object? obj, string name, object? value, CsEvalOptions options, CsEvalContext context)
     {
         if (obj == null)
-            throw new CsEvalException("Cannot index assign null");
+            throw new CsEvalException($"Cannot assign to property '{name}' on null");
+
+        if (!options.Sandbox.AllowPropertySet)
+            throw new CsEvalException($"Property assignment blocked by sandbox: {name} = ...");
+
+        var ignoreCase = options.IgnoreCase;
 
         if (obj is IDictionary<string, object?> dict)
         {
-            var key = index?.ToString() ?? "";
-            dict[key] = value;
+            if (ignoreCase)
+            {
+                foreach (var key in dict.Keys)
+                {
+                    if (string.Equals(key, name, StringComparison.OrdinalIgnoreCase))
+                    {
+                        dict[key] = value;
+                        return;
+                    }
+                }
+            }
+            dict[name] = value;
             return;
         }
 
-        if (obj is System.Collections.IList list)
+        var type = obj.GetType();
+        var bindingFlags = BindingFlags.Public | BindingFlags.Instance;
+        if (ignoreCase)
+            bindingFlags |= BindingFlags.IgnoreCase;
+
+        var prop = context.TypeCache.GetProperty(type, name, bindingFlags);
+        if (prop != null)
         {
-            if (index is int i)
+            if (!prop.CanWrite)
+                throw new CsEvalException($"Property '{name}' is read-only");
+            prop.SetValue(obj, value);
+            return;
+        }
+
+        var field = context.TypeCache.GetField(type, name, bindingFlags);
+        if (field != null)
+        {
+            if (field.IsInitOnly)
+                throw new CsEvalException($"Field '{name}' is read-only");
+            field.SetValue(obj, value);
+            return;
+        }
+
+        throw new CsEvalException($"Property '{name}' not found on type '{type.Name}'");
+    }
+
+    public static void SetIndex(object? obj, object? index, object? value)
+    {
+        switch (obj)
+        {
+            case null:
+                throw new CsEvalException("Cannot index assign null");
+            case IDictionary<string, object?> dict:
+            {
+                var key = index?.ToString() ?? "";
+                dict[key] = value;
+                return;
+            }
+            case IList list when index is int i:
             {
                 if (i < 0 || i >= list.Count) throw new CsEvalException($"Index was out of range. Must be non-negative and less than the size of the collection. (Parameter 'index')");
 
@@ -146,7 +199,8 @@ public static class MemberAccess
                 }
                 return;
             }
-            throw new CsEvalException($"Hashtable/List index must be an integer, got {index?.GetType().Name}");
+            case IList list:
+                throw new CsEvalException($"Hashtable/List index must be an integer, got {index?.GetType().Name}");
         }
 
         var type = obj.GetType();

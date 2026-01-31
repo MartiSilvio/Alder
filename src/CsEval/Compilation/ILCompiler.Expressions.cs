@@ -1,3 +1,4 @@
+using CsEval.Extensions;
 using CsEval.Interpretation;
 using CsEval.Parsing;
 using CsEval.Runtime;
@@ -38,6 +39,7 @@ internal sealed partial class ILCompiler
             TokenType.Bang => LinqExpression.Convert(
                 LinqExpression.Not(LinqExpression.Call(RequireBooleanMethod, operand)),
                 typeof(object)),
+            TokenType.Tilde => LinqExpression.Call(BitwiseNotMethod, operand),
             _ => throw new NotSupportedException($"Unary operator {u.Op.Type}")
         };
     }
@@ -49,6 +51,16 @@ internal sealed partial class ILCompiler
 
         if (b.Op.Type == TokenType.Plus)
             return LinqExpression.Call(AddMethod, left, right, _optionsParam, _currentContext);
+
+        // Shift operators don't take options
+        if (b.Op.Type == TokenType.LessLess)
+            return LinqExpression.Call(LeftShiftMethod, left, right);
+        if (b.Op.Type == TokenType.GreaterGreater)
+            return LinqExpression.Call(RightShiftMethod, left, right);
+
+        // Check extension operators
+        if (_extensionILOperators.TryGetValue(b.Op.Type, out var extOp))
+            return CompileExtensionBinaryOp(extOp, left, right);
 
         var method = b.Op.Type switch
         {
@@ -69,6 +81,19 @@ internal sealed partial class ILCompiler
         };
 
         return LinqExpression.Call(method, left, right, _optionsParam);
+    }
+
+    private LinqExpression CompileExtensionBinaryOp(ILBinaryOperator op, LinqExpression left, LinqExpression right)
+    {
+        var (l, r) = op.SwapOperands ? (right, left) : (left, right);
+
+        LinqExpression call = op.PassOptions
+            ? LinqExpression.Call(op.Method, l, r, _optionsParam)
+            : LinqExpression.Call(op.Method, l, r);
+
+        return op.BoxResult
+            ? LinqExpression.Convert(call, typeof(object))
+            : call;
     }
 
     private LinqExpression CompileLogical(LogicalExpr l)
@@ -180,6 +205,11 @@ internal sealed partial class ILCompiler
             TokenType.StarEqual => LinqExpression.Call(MultiplyMethod, currentValue, rightValue, _optionsParam),
             TokenType.SlashEqual => LinqExpression.Call(DivideMethod, currentValue, rightValue, _optionsParam),
             TokenType.PercentEqual => LinqExpression.Call(ModuloMethod, currentValue, rightValue, _optionsParam),
+            TokenType.AmpEqual => LinqExpression.Call(BitwiseAndMethod, currentValue, rightValue, _optionsParam),
+            TokenType.PipeEqual => LinqExpression.Call(BitwiseOrMethod, currentValue, rightValue, _optionsParam),
+            TokenType.CaretEqual => LinqExpression.Call(BitwiseXorMethod, currentValue, rightValue, _optionsParam),
+            TokenType.LessLessEqual => LinqExpression.Call(LeftShiftMethod, currentValue, rightValue),
+            TokenType.GreaterGreaterEqual => LinqExpression.Call(RightShiftMethod, currentValue, rightValue),
             _ => throw new NotSupportedException($"Compound operator {ca.Op.Type}")
         };
 
@@ -198,13 +228,18 @@ internal sealed partial class ILCompiler
         var target = Compile(expr.Object);
         var index = Compile(expr.Index);
         var value = Compile(expr.Value);
-        
-        var checkStr = LinqExpression.Constant("Index assignment");
-        var check = LinqExpression.Call(CheckAllowAssignmentMethod, _optionsParam, checkStr);
 
-        var set = LinqExpression.Call(SetIndexMethod, target, index, value);
-        
-        return LinqExpression.Block(check, set, value);
+        // Use a temp for index since we need it for both the check and the set
+        var indexTemp = LinqExpression.Variable(typeof(object), "idx");
+        var check = LinqExpression.Call(CheckAllowIndexSetMethod, _optionsParam, indexTemp);
+        var set = LinqExpression.Call(SetIndexMethod, target, indexTemp, value);
+
+        return LinqExpression.Block(
+            new[] { indexTemp },
+            LinqExpression.Assign(indexTemp, index),
+            check,
+            set,
+            value);
     }
 
     private LinqExpression CompileIncrementDecrement(IncrementDecrementExpr inc)
@@ -248,11 +283,11 @@ internal sealed partial class ILCompiler
 
     private LinqExpression CompileCall(CallExpr call)
     {
-        // Compile arguments into an object[] array
+        // Compile arguments into an object[] array, wrapping named arguments in NamedArg
         var argsVar = LinqExpression.Variable(typeof(object?[]), "args");
         var argsInit = LinqExpression.NewArrayInit(
             typeof(object),
-            call.Arguments.Select(Compile));
+            call.Arguments.Select(CompileArgument));
 
         // Check if this is a member access call (target.Method(args))
         if (call.Callee is MemberAccessExpr memberAccess)
@@ -292,9 +327,23 @@ internal sealed partial class ILCompiler
                 _argumentTransformerParam));
     }
 
+    private LinqExpression CompileArgument(Expr arg)
+    {
+        if (arg is NamedArgumentExpr namedArg)
+        {
+            // Wrap named argument in NamedArg: new NamedArg(name, value)
+            return LinqExpression.Convert(
+                LinqExpression.New(
+                    NamedArgCtor,
+                    LinqExpression.Constant(namedArg.Name.Lexeme),
+                    Compile(namedArg.Value)),
+                typeof(object));
+        }
+        return Compile(arg);
+    }
+
     private LinqExpression CompileLambda(LambdaExpr lambda)
     {
-        // Create a LambdaValue at runtime capturing the current context
         var parameterNames = lambda.Parameters.Select(p => p.Lexeme).ToList();
         var listInit = LinqExpression.ListInit(
             LinqExpression.New(typeof(List<string>)),
@@ -307,6 +356,133 @@ internal sealed partial class ILCompiler
             listInit,
             LinqExpression.Constant(lambda.Body, typeof(Expr)),
             _currentContext);
+    }
+
+    private LinqExpression CompileArrayLiteral(ArrayLiteralExpr expr)
+    {
+        var listVar = LinqExpression.Variable(typeof(List<object?>), "list");
+        var statements = new List<LinqExpression>
+        {
+            LinqExpression.Assign(listVar, LinqExpression.New(ListCtor))
+        };
+
+        foreach (var element in expr.Elements)
+        {
+            if (element is SpreadExpr spread)
+            {
+                var spreadValue = Compile(spread.Expression);
+                statements.Add(LinqExpression.Call(SpreadIntoListMethod, listVar, spreadValue));
+            }
+            else
+            {
+                statements.Add(LinqExpression.Call(listVar, ListAddMethod, Compile(element)));
+            }
+        }
+
+        statements.Add(LinqExpression.Convert(listVar, typeof(object)));
+        return LinqExpression.Block(new[] { listVar }, statements);
+    }
+
+    private LinqExpression CompileObjectLiteral(ObjectLiteralExpr expr)
+    {
+        var dictVar = LinqExpression.Variable(typeof(IDictionary<string, object?>), "dict");
+        var statements = new List<LinqExpression>
+        {
+            LinqExpression.Assign(dictVar, LinqExpression.New(ExpandoObjectCtor))
+        };
+
+        var dictItemProperty = typeof(IDictionary<string, object?>).GetProperty("Item")!;
+
+        foreach (var (key, value) in expr.Properties)
+        {
+            if (key.Type == TokenType.DotDotDot && value is SpreadExpr spread)
+            {
+                var spreadValue = Compile(spread.Expression);
+                statements.Add(LinqExpression.Call(SpreadIntoDictMethod, dictVar, spreadValue, _currentContext));
+            }
+            else
+            {
+                statements.Add(LinqExpression.Assign(
+                    LinqExpression.Property(dictVar, dictItemProperty, LinqExpression.Constant(key.Lexeme)),
+                    Compile(value)));
+            }
+        }
+
+        statements.Add(LinqExpression.Convert(dictVar, typeof(object)));
+        return LinqExpression.Block(new[] { dictVar }, statements);
+    }
+
+    private LinqExpression CompileInterpolatedString(InterpolatedStringExpr expr)
+    {
+        var sbVar = LinqExpression.Variable(typeof(StringBuilder), "sb");
+        var statements = new List<LinqExpression>
+        {
+            LinqExpression.Assign(sbVar, LinqExpression.New(StringBuilderCtor))
+        };
+
+        foreach (var part in expr.Parts)
+        {
+            switch (part)
+            {
+                case TextPart text:
+                    statements.Add(LinqExpression.Call(sbVar, StringBuilderAppendMethod,
+                        LinqExpression.Constant(text.Text)));
+                    break;
+                case ExpressionPart exprPart:
+                    var value = Compile(exprPart.Expression);
+                    var valueAsString = LinqExpression.Condition(
+                        LinqExpression.Equal(value, LinqExpression.Constant(null, typeof(object))),
+                        LinqExpression.Constant(""),
+                        LinqExpression.Call(value, ObjectToStringMethod));
+                    statements.Add(LinqExpression.Call(sbVar, StringBuilderAppendMethod, valueAsString));
+                    break;
+            }
+        }
+
+        statements.Add(LinqExpression.Convert(
+            LinqExpression.Call(sbVar, StringBuilderToStringMethod),
+            typeof(object)));
+        return LinqExpression.Block(new[] { sbVar }, statements);
+    }
+
+    private LinqExpression CompileMemberAssign(MemberAssignExpr expr)
+    {
+        var target = Compile(expr.Object);
+        var value = Compile(expr.Value);
+        var temp = LinqExpression.Variable(typeof(object), "temp");
+
+        return LinqExpression.Block(
+            new[] { temp },
+            LinqExpression.Call(CheckAllowAssignmentMethod, _optionsParam,
+                LinqExpression.Constant($"{expr.Name.Lexeme} = ...")),
+            LinqExpression.Assign(temp, value),
+            LinqExpression.Call(SetMemberMethod, target,
+                LinqExpression.Constant(expr.Name.Lexeme), temp, _optionsParam, _currentContext),
+            temp);
+    }
+
+    private LinqExpression CompileNullCoalesceAssign(NullCoalesceAssignExpr expr)
+    {
+        var name = expr.Name.Lexeme;
+        var currentValue = CompileIdentifier(new IdentifierExpr(expr.Name));
+        var temp = LinqExpression.Variable(typeof(object), "temp");
+        var result = LinqExpression.Variable(typeof(object), "result");
+
+        var newValue = Compile(expr.Value);
+
+        return LinqExpression.Block(
+            new[] { temp, result },
+            LinqExpression.Assign(temp, currentValue),
+            LinqExpression.IfThenElse(
+                LinqExpression.NotEqual(temp, LinqExpression.Constant(null, typeof(object))),
+                LinqExpression.Assign(result, temp),
+                LinqExpression.Block(
+                    LinqExpression.Call(CheckAllowAssignmentMethod, _optionsParam,
+                        LinqExpression.Constant($"{name} ??= ...")),
+                    LinqExpression.Assign(result, newValue),
+                    LinqExpression.Call(_currentContext, SetMethod,
+                        LinqExpression.Constant(name), result))),
+            result);
     }
 
     #endregion

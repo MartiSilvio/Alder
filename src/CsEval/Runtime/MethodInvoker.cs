@@ -83,9 +83,9 @@ public static class MethodInvoker
 
         var type = target.GetType();
 
-        if (target is System.Collections.IEnumerable enumerable && !type.IsPrimitive && target is not string)
+        if (target is IEnumerable enumerable && !type.IsPrimitive && target is not string)
         {
-            var result = LinqDispatcher.TryInvokeEnumerableMethod(enumerable, methodName, args, context, options);
+            var result = LinqDispatcher.TryInvokeEnumerableMethod(enumerable, methodName, args, context, options, ct);
             if (result.Success)
                 return result;
         }

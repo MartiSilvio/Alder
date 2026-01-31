@@ -211,7 +211,7 @@ internal sealed partial class ILCompiler
         var breakLabel = LinqExpression.Label(typeof(void), $"break{loopId}");
         var continueLabel = LinqExpression.Label(typeof(void), $"continue{loopId}");
 
-        var enumerator = LinqExpression.Variable(typeof(System.Collections.IEnumerator), $"enumerator{loopId}");
+        var enumerator = LinqExpression.Variable(typeof(IEnumerator), $"enumerator{loopId}");
         var itemValue = LinqExpression.Variable(typeof(object), $"item{loopId}");
 
         // Get enumerator
@@ -235,24 +235,29 @@ internal sealed partial class ILCompiler
 
             loopStatements.Add(CompileIterationCheck());
 
-            // Get Current and define variable
+            // Get Current value
             loopStatements.Add(LinqExpression.Assign(
                 itemValue,
-                LinqExpression.Property(enumerator, nameof(System.Collections.IEnumerator.Current))));
+                LinqExpression.Property(enumerator, nameof(IEnumerator.Current))));
 
-            loopStatements.Add(LinqExpression.Call(_currentContext, DefineMethod,
-                LinqExpression.Constant(forEach.VariableName.Lexeme), itemValue));
-
-            // Body with nested scope
+            // C# 5+ behavior: create a fresh scope for EACH iteration
+            // This ensures lambdas capture a per-iteration variable, not a shared one
             loopStatements.Add(Scoped(() =>
             {
-                var bodyStatements = new List<LinqExpression>();
+                var iterStatements = new List<LinqExpression>();
+
+                // Define loop variable in this per-iteration scope
+                iterStatements.Add(LinqExpression.Call(_currentContext, DefineMethod,
+                    LinqExpression.Constant(forEach.VariableName.Lexeme), itemValue));
+
+                // Body statements in the same per-iteration scope
                 foreach (var stmt in forEach.Body)
                 {
-                    bodyStatements.Add(CompileCancellationCheck());
-                    bodyStatements.Add(Compile(stmt));
+                    iterStatements.Add(CompileCancellationCheck());
+                    iterStatements.Add(Compile(stmt));
                 }
-                return LinqExpression.Block(bodyStatements);
+
+                return LinqExpression.Block(iterStatements);
             }));
 
             // Continue label
@@ -329,6 +334,7 @@ internal sealed partial class ILCompiler
                 statements.Add(LinqExpression.Goto(breakLabel));
 
             // Generate case bodies
+            // C# semantics: only empty cases fall through; non-empty cases implicitly break
             foreach (var c in switchStmt.Cases)
             {
                 // Find label for this case
@@ -337,16 +343,23 @@ internal sealed partial class ILCompiler
                     targetLabel = defaultLabel;
                 else
                     targetLabel = caseLabels.First(x => x.Case == c).Label;
-                
+
                 if (targetLabel != null)
                 {
                     statements.Add(LinqExpression.Label(targetLabel));
+
+                    // Empty case: fall through to next label
+                    if (c.Statements.Count == 0)
+                        continue;
+
                     foreach (var stmt in c.Statements)
                     {
                         statements.Add(CompileCancellationCheck());
                         statements.Add(Compile(stmt));
                     }
-                    // Fallthrough happpens automatically to next label
+
+                    // Non-empty case: implicit break (unless already has explicit break/return)
+                    statements.Add(LinqExpression.Goto(breakLabel));
                 }
             }
 

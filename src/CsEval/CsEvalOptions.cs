@@ -1,3 +1,5 @@
+using CsEval.Extensions;
+
 namespace CsEval;
 
 public enum CompilationMode
@@ -61,6 +63,11 @@ public sealed record CsEvalOptions
     /// <see cref="CsEval.CompilationMode.StrictCompiled"/>: Require IL compilation - throws if compilation fails. Good for testing IL coverage.
     /// </remarks>
     public CompilationMode CompilationMode { get; init; } = CompilationMode.Compiled;
+
+    public IReadOnlyList<ILanguageExtension> Extensions { get; init; } = DefaultExtensions;
+
+    private static readonly IReadOnlyList<ILanguageExtension> DefaultExtensions =
+        [JavaScriptExtension.Instance, PythonExtension.Instance];
 
     internal StringComparer StringComparer => IgnoreCase ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
     internal StringComparison StringComparison => IgnoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;

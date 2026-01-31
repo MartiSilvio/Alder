@@ -1,33 +1,48 @@
-
 namespace CsEval.Test.Operators;
 
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
 [TestFixture(CompilationMode.StrictCompiled)]
-public class BitwiseTests(CompilationMode mode) 
+public class BitwiseTests(CompilationMode mode)
 {
     #region Bitwise AND
 
     [Test]
-    public void Eval_BitwiseAnd_Basic()
+    public async Task Eval_BitwiseAnd_Basic()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        Assert.That(engine.Evaluate("5 & 3"), Is.EqualTo(1));     // 0101 & 0011 = 0001
-        Assert.That(engine.Evaluate("12 & 10"), Is.EqualTo(8));  // 1100 & 1010 = 1000
+
+        const string expr1 = "5 & 3";
+        var result1 = engine.Evaluate(expr1);
+        Assert.That(result1, Is.EqualTo(1));
+        Assert.That(result1, Is.EqualTo(await TestHelpers.EvaluateCSharpAsync(expr1)));
+
+        const string expr2 = "12 & 10";
+        var result2 = engine.Evaluate(expr2);
+        Assert.That(result2, Is.EqualTo(8));
+        Assert.That(result2, Is.EqualTo(await TestHelpers.EvaluateCSharpAsync(expr2)));
     }
 
     [Test]
-    public void Eval_BitwiseAnd_WithZero()
+    public async Task Eval_BitwiseAnd_WithZero()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        Assert.That(engine.Evaluate("255 & 0"), Is.EqualTo(0));
+
+        const string expr = "255 & 0";
+        var result = engine.Evaluate(expr);
+        Assert.That(result, Is.EqualTo(0));
+        Assert.That(result, Is.EqualTo(await TestHelpers.EvaluateCSharpAsync(expr)));
     }
 
     [Test]
-    public void Eval_BitwiseAnd_AllOnes()
+    public async Task Eval_BitwiseAnd_AllOnes()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        Assert.That(engine.Evaluate("15 & 15"), Is.EqualTo(15)); // 1111 & 1111 = 1111
+
+        const string expr = "15 & 15";
+        var result = engine.Evaluate(expr);
+        Assert.That(result, Is.EqualTo(15));
+        Assert.That(result, Is.EqualTo(await TestHelpers.EvaluateCSharpAsync(expr)));
     }
 
     #endregion
@@ -35,25 +50,41 @@ public class BitwiseTests(CompilationMode mode)
     #region Bitwise OR
 
     [Test]
-    public void Eval_BitwiseOr_Basic()
+    public async Task Eval_BitwiseOr_Basic()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        Assert.That(engine.Evaluate("5 | 3"), Is.EqualTo(7));     // 0101 | 0011 = 0111
-        Assert.That(engine.Evaluate("12 | 10"), Is.EqualTo(14)); // 1100 | 1010 = 1110
+
+        const string expr1 = "5 | 3";
+        var result1 = engine.Evaluate(expr1);
+        Assert.That(result1, Is.EqualTo(7));
+        Assert.That(result1, Is.EqualTo(await TestHelpers.EvaluateCSharpAsync(expr1)));
+
+        const string expr2 = "12 | 10";
+        var result2 = engine.Evaluate(expr2);
+        Assert.That(result2, Is.EqualTo(14));
+        Assert.That(result2, Is.EqualTo(await TestHelpers.EvaluateCSharpAsync(expr2)));
     }
 
     [Test]
-    public void Eval_BitwiseOr_WithZero()
+    public async Task Eval_BitwiseOr_WithZero()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        Assert.That(engine.Evaluate("255 | 0"), Is.EqualTo(255));
+
+        const string expr = "255 | 0";
+        var result = engine.Evaluate(expr);
+        Assert.That(result, Is.EqualTo(255));
+        Assert.That(result, Is.EqualTo(await TestHelpers.EvaluateCSharpAsync(expr)));
     }
 
     [Test]
-    public void Eval_BitwiseOr_Combine()
+    public async Task Eval_BitwiseOr_Combine()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        Assert.That(engine.Evaluate("1 | 2 | 4"), Is.EqualTo(7)); // 001 | 010 | 100 = 111
+
+        const string expr = "1 | 2 | 4";
+        var result = engine.Evaluate(expr);
+        Assert.That(result, Is.EqualTo(7));
+        Assert.That(result, Is.EqualTo(await TestHelpers.EvaluateCSharpAsync(expr)));
     }
 
     #endregion
@@ -61,25 +92,41 @@ public class BitwiseTests(CompilationMode mode)
     #region Bitwise XOR
 
     [Test]
-    public void Eval_BitwiseXor_Basic()
+    public async Task Eval_BitwiseXor_Basic()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        Assert.That(engine.Evaluate("5 ^ 3"), Is.EqualTo(6));     // 0101 ^ 0011 = 0110
-        Assert.That(engine.Evaluate("12 ^ 10"), Is.EqualTo(6));  // 1100 ^ 1010 = 0110
+
+        const string expr1 = "5 ^ 3";
+        var result1 = engine.Evaluate(expr1);
+        Assert.That(result1, Is.EqualTo(6));
+        Assert.That(result1, Is.EqualTo(await TestHelpers.EvaluateCSharpAsync(expr1)));
+
+        const string expr2 = "12 ^ 10";
+        var result2 = engine.Evaluate(expr2);
+        Assert.That(result2, Is.EqualTo(6));
+        Assert.That(result2, Is.EqualTo(await TestHelpers.EvaluateCSharpAsync(expr2)));
     }
 
     [Test]
-    public void Eval_BitwiseXor_SameValue()
+    public async Task Eval_BitwiseXor_SameValue()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        Assert.That(engine.Evaluate("42 ^ 42"), Is.EqualTo(0));  // Same values XOR to 0
+
+        const string expr = "42 ^ 42";
+        var result = engine.Evaluate(expr);
+        Assert.That(result, Is.EqualTo(0));
+        Assert.That(result, Is.EqualTo(await TestHelpers.EvaluateCSharpAsync(expr)));
     }
 
     [Test]
-    public void Eval_BitwiseXor_Toggle()
+    public async Task Eval_BitwiseXor_Toggle()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        Assert.That(engine.Evaluate("15 ^ 255"), Is.EqualTo(240)); // Toggle bits
+
+        const string expr = "15 ^ 255";
+        var result = engine.Evaluate(expr);
+        Assert.That(result, Is.EqualTo(240));
+        Assert.That(result, Is.EqualTo(await TestHelpers.EvaluateCSharpAsync(expr)));
     }
 
     #endregion
@@ -87,25 +134,41 @@ public class BitwiseTests(CompilationMode mode)
     #region Bitwise NOT
 
     [Test]
-    public void Eval_BitwiseNot_Basic()
+    public async Task Eval_BitwiseNot_Basic()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        Assert.That(engine.Evaluate("~0"), Is.EqualTo(-1L));
-        Assert.That(engine.Evaluate("~1"), Is.EqualTo(-2L));
+
+        const string expr1 = "~0";
+        var result1 = engine.Evaluate(expr1);
+        Assert.That(result1, Is.EqualTo(-1L));
+        Assert.That(result1, Is.EqualTo(await TestHelpers.EvaluateCSharpAsync(expr1)));
+
+        const string expr2 = "~1";
+        var result2 = engine.Evaluate(expr2);
+        Assert.That(result2, Is.EqualTo(-2L));
+        Assert.That(result2, Is.EqualTo(await TestHelpers.EvaluateCSharpAsync(expr2)));
     }
 
     [Test]
-    public void Eval_BitwiseNot_NegativeOne()
+    public async Task Eval_BitwiseNot_NegativeOne()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        Assert.That(engine.Evaluate("~(-1)"), Is.EqualTo(0));
+
+        const string expr = "~(-1)";
+        var result = engine.Evaluate(expr);
+        Assert.That(result, Is.EqualTo(0));
+        Assert.That(result, Is.EqualTo(await TestHelpers.EvaluateCSharpAsync(expr)));
     }
 
     [Test]
-    public void Eval_BitwiseNot_DoubleNot()
+    public async Task Eval_BitwiseNot_DoubleNot()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        Assert.That(engine.Evaluate("~~42"), Is.EqualTo(42));
+
+        const string expr = "~~42";
+        var result = engine.Evaluate(expr);
+        Assert.That(result, Is.EqualTo(42));
+        Assert.That(result, Is.EqualTo(await TestHelpers.EvaluateCSharpAsync(expr)));
     }
 
     #endregion
@@ -113,28 +176,56 @@ public class BitwiseTests(CompilationMode mode)
     #region Left Shift
 
     [Test]
-    public void Eval_LeftShift_Basic()
+    public async Task Eval_LeftShift_Basic()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        Assert.That(engine.Evaluate("1 << 1"), Is.EqualTo(2));
-        Assert.That(engine.Evaluate("1 << 2"), Is.EqualTo(4));
-        Assert.That(engine.Evaluate("1 << 3"), Is.EqualTo(8));
+
+        const string expr1 = "1 << 1";
+        var result1 = engine.Evaluate(expr1);
+        Assert.That(result1, Is.EqualTo(2));
+        Assert.That(result1, Is.EqualTo(await TestHelpers.EvaluateCSharpAsync(expr1)));
+
+        const string expr2 = "1 << 2";
+        var result2 = engine.Evaluate(expr2);
+        Assert.That(result2, Is.EqualTo(4));
+        Assert.That(result2, Is.EqualTo(await TestHelpers.EvaluateCSharpAsync(expr2)));
+
+        const string expr3 = "1 << 3";
+        var result3 = engine.Evaluate(expr3);
+        Assert.That(result3, Is.EqualTo(8));
+        Assert.That(result3, Is.EqualTo(await TestHelpers.EvaluateCSharpAsync(expr3)));
     }
 
     [Test]
-    public void Eval_LeftShift_MultiplyByPowerOfTwo()
+    public async Task Eval_LeftShift_MultiplyByPowerOfTwo()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        Assert.That(engine.Evaluate("5 << 2"), Is.EqualTo(20));  // 5 * 4 = 20
-        Assert.That(engine.Evaluate("3 << 4"), Is.EqualTo(48)); // 3 * 16 = 48
+
+        const string expr1 = "5 << 2";
+        var result1 = engine.Evaluate(expr1);
+        Assert.That(result1, Is.EqualTo(20));
+        Assert.That(result1, Is.EqualTo(await TestHelpers.EvaluateCSharpAsync(expr1)));
+
+        const string expr2 = "3 << 4";
+        var result2 = engine.Evaluate(expr2);
+        Assert.That(result2, Is.EqualTo(48));
+        Assert.That(result2, Is.EqualTo(await TestHelpers.EvaluateCSharpAsync(expr2)));
     }
 
     [Test]
-    public void Eval_LeftShift_Zero()
+    public async Task Eval_LeftShift_Zero()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        Assert.That(engine.Evaluate("42 << 0"), Is.EqualTo(42));
-        Assert.That(engine.Evaluate("0 << 10"), Is.EqualTo(0));
+
+        const string expr1 = "42 << 0";
+        var result1 = engine.Evaluate(expr1);
+        Assert.That(result1, Is.EqualTo(42));
+        Assert.That(result1, Is.EqualTo(await TestHelpers.EvaluateCSharpAsync(expr1)));
+
+        const string expr2 = "0 << 10";
+        var result2 = engine.Evaluate(expr2);
+        Assert.That(result2, Is.EqualTo(0));
+        Assert.That(result2, Is.EqualTo(await TestHelpers.EvaluateCSharpAsync(expr2)));
     }
 
     #endregion
@@ -142,27 +233,51 @@ public class BitwiseTests(CompilationMode mode)
     #region Right Shift
 
     [Test]
-    public void Eval_RightShift_Basic()
+    public async Task Eval_RightShift_Basic()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        Assert.That(engine.Evaluate("8 >> 1"), Is.EqualTo(4));
-        Assert.That(engine.Evaluate("8 >> 2"), Is.EqualTo(2));
-        Assert.That(engine.Evaluate("8 >> 3"), Is.EqualTo(1));
+
+        const string expr1 = "8 >> 1";
+        var result1 = engine.Evaluate(expr1);
+        Assert.That(result1, Is.EqualTo(4));
+        Assert.That(result1, Is.EqualTo(await TestHelpers.EvaluateCSharpAsync(expr1)));
+
+        const string expr2 = "8 >> 2";
+        var result2 = engine.Evaluate(expr2);
+        Assert.That(result2, Is.EqualTo(2));
+        Assert.That(result2, Is.EqualTo(await TestHelpers.EvaluateCSharpAsync(expr2)));
+
+        const string expr3 = "8 >> 3";
+        var result3 = engine.Evaluate(expr3);
+        Assert.That(result3, Is.EqualTo(1));
+        Assert.That(result3, Is.EqualTo(await TestHelpers.EvaluateCSharpAsync(expr3)));
     }
 
     [Test]
-    public void Eval_RightShift_DivideByPowerOfTwo()
+    public async Task Eval_RightShift_DivideByPowerOfTwo()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        Assert.That(engine.Evaluate("20 >> 2"), Is.EqualTo(5));  // 20 / 4 = 5
-        Assert.That(engine.Evaluate("48 >> 4"), Is.EqualTo(3)); // 48 / 16 = 3
+
+        const string expr1 = "20 >> 2";
+        var result1 = engine.Evaluate(expr1);
+        Assert.That(result1, Is.EqualTo(5));
+        Assert.That(result1, Is.EqualTo(await TestHelpers.EvaluateCSharpAsync(expr1)));
+
+        const string expr2 = "48 >> 4";
+        var result2 = engine.Evaluate(expr2);
+        Assert.That(result2, Is.EqualTo(3));
+        Assert.That(result2, Is.EqualTo(await TestHelpers.EvaluateCSharpAsync(expr2)));
     }
 
     [Test]
-    public void Eval_RightShift_Zero()
+    public async Task Eval_RightShift_Zero()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        Assert.That(engine.Evaluate("42 >> 0"), Is.EqualTo(42));
+
+        const string expr = "42 >> 0";
+        var result = engine.Evaluate(expr);
+        Assert.That(result, Is.EqualTo(42));
+        Assert.That(result, Is.EqualTo(await TestHelpers.EvaluateCSharpAsync(expr)));
     }
 
     #endregion
@@ -170,35 +285,47 @@ public class BitwiseTests(CompilationMode mode)
     #region Precedence
 
     [Test]
-    public void Eval_Bitwise_Precedence_AndBeforeOr()
+    public async Task Eval_Bitwise_Precedence_AndBeforeOr()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        // & has higher precedence than |
-        Assert.That(engine.Evaluate("1 | 2 & 3"), Is.EqualTo(3));  // 1 | (2 & 3) = 1 | 2 = 3
+
+        const string expr = "1 | 2 & 3";
+        var result = engine.Evaluate(expr);
+        Assert.That(result, Is.EqualTo(3));
+        Assert.That(result, Is.EqualTo(await TestHelpers.EvaluateCSharpAsync(expr)));
     }
 
     [Test]
-    public void Eval_Bitwise_Precedence_ShiftBeforeComparison()
+    public async Task Eval_Bitwise_Precedence_ShiftBeforeComparison()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        // << has higher precedence than <
-        Assert.That(engine.Evaluate("1 << 2 < 5"), Is.EqualTo(true));  // (1 << 2) < 5 = 4 < 5
+
+        const string expr = "1 << 2 < 5";
+        var result = engine.Evaluate(expr);
+        Assert.That(result, Is.EqualTo(true));
+        Assert.That(result, Is.EqualTo(await TestHelpers.EvaluateCSharpAsync(expr)));
     }
 
     [Test]
-    public void Eval_Bitwise_Precedence_AndBeforeXor()
+    public async Task Eval_Bitwise_Precedence_AndBeforeXor()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        // & has higher precedence than ^
-        Assert.That(engine.Evaluate("7 ^ 3 & 5"), Is.EqualTo(6));  // 7 ^ (3 & 5) = 7 ^ 1 = 6
+
+        const string expr = "7 ^ 3 & 5";
+        var result = engine.Evaluate(expr);
+        Assert.That(result, Is.EqualTo(6));
+        Assert.That(result, Is.EqualTo(await TestHelpers.EvaluateCSharpAsync(expr)));
     }
 
     [Test]
-    public void Eval_Bitwise_Precedence_XorBeforeOr()
+    public async Task Eval_Bitwise_Precedence_XorBeforeOr()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        // ^ has higher precedence than |
-        Assert.That(engine.Evaluate("1 | 2 ^ 3"), Is.EqualTo(1));  // 1 | (2 ^ 3) = 1 | 1 = 1
+
+        const string expr = "1 | 2 ^ 3";
+        var result = engine.Evaluate(expr);
+        Assert.That(result, Is.EqualTo(1));
+        Assert.That(result, Is.EqualTo(await TestHelpers.EvaluateCSharpAsync(expr)));
     }
 
     #endregion
@@ -206,26 +333,41 @@ public class BitwiseTests(CompilationMode mode)
     #region Combined with Other Operators
 
     [Test]
-    public void Eval_Bitwise_WithArithmetic()
+    public async Task Eval_Bitwise_WithArithmetic()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        Assert.That(engine.Evaluate("(2 + 3) & 7"), Is.EqualTo(5));
-        Assert.That(engine.Evaluate("10 | (3 * 2)"), Is.EqualTo(14)); // 1010 | 0110 = 1110
+
+        const string expr1 = "(2 + 3) & 7";
+        var result1 = engine.Evaluate(expr1);
+        Assert.That(result1, Is.EqualTo(5));
+        Assert.That(result1, Is.EqualTo(await TestHelpers.EvaluateCSharpAsync(expr1)));
+
+        const string expr2 = "10 | (3 * 2)";
+        var result2 = engine.Evaluate(expr2);
+        Assert.That(result2, Is.EqualTo(14));
+        Assert.That(result2, Is.EqualTo(await TestHelpers.EvaluateCSharpAsync(expr2)));
     }
 
     [Test]
-    public void Eval_Bitwise_WithLogical()
+    public async Task Eval_Bitwise_WithLogical()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        // Bitwise should have higher precedence than logical
-        Assert.That(engine.Evaluate("(5 & 1) == 1 && true"), Is.EqualTo(true));
+
+        const string expr = "(5 & 1) == 1 && true";
+        var result = engine.Evaluate(expr);
+        Assert.That(result, Is.EqualTo(true));
+        Assert.That(result, Is.EqualTo(await TestHelpers.EvaluateCSharpAsync(expr)));
     }
 
     [Test]
-    public void Eval_Bitwise_InTernary()
+    public async Task Eval_Bitwise_InTernary()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        Assert.That(engine.Evaluate("true ? 5 & 3 : 0"), Is.EqualTo(1));
+
+        const string expr = "true ? 5 & 3 : 0";
+        var result = engine.Evaluate(expr);
+        Assert.That(result, Is.EqualTo(1));
+        Assert.That(result, Is.EqualTo(await TestHelpers.EvaluateCSharpAsync(expr)));
     }
 
     #endregion
@@ -233,24 +375,36 @@ public class BitwiseTests(CompilationMode mode)
     #region Boolean AND (&) - Non-Short-Circuit
 
     [Test]
-    public void Eval_BitwiseAnd_TrueAndTrue_ReturnsTrue()
+    public async Task Eval_BitwiseAnd_TrueAndTrue_ReturnsTrue()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        Assert.That(engine.Evaluate("true & true"), Is.EqualTo(true));
+
+        const string expr = "true & true";
+        var result = engine.Evaluate(expr);
+        Assert.That(result, Is.EqualTo(true));
+        Assert.That(result, Is.EqualTo(await TestHelpers.EvaluateCSharpAsync(expr)));
     }
 
     [Test]
-    public void Eval_BitwiseAnd_TrueAndFalse_ReturnsFalse()
+    public async Task Eval_BitwiseAnd_TrueAndFalse_ReturnsFalse()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        Assert.That(engine.Evaluate("true & false"), Is.EqualTo(false));
+
+        const string expr = "true & false";
+        var result = engine.Evaluate(expr);
+        Assert.That(result, Is.EqualTo(false));
+        Assert.That(result, Is.EqualTo(await TestHelpers.EvaluateCSharpAsync(expr)));
     }
 
     [Test]
-    public void Eval_BitwiseAnd_FalseAndFalse_ReturnsFalse()
+    public async Task Eval_BitwiseAnd_FalseAndFalse_ReturnsFalse()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        Assert.That(engine.Evaluate("false & false"), Is.EqualTo(false));
+
+        const string expr = "false & false";
+        var result = engine.Evaluate(expr);
+        Assert.That(result, Is.EqualTo(false));
+        Assert.That(result, Is.EqualTo(await TestHelpers.EvaluateCSharpAsync(expr)));
     }
 
     #endregion
@@ -258,24 +412,36 @@ public class BitwiseTests(CompilationMode mode)
     #region Boolean OR (|) - Non-Short-Circuit
 
     [Test]
-    public void Eval_BitwiseOr_TrueOrFalse_ReturnsTrue()
+    public async Task Eval_BitwiseOr_TrueOrFalse_ReturnsTrue()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        Assert.That(engine.Evaluate("true | false"), Is.EqualTo(true));
+
+        const string expr = "true | false";
+        var result = engine.Evaluate(expr);
+        Assert.That(result, Is.EqualTo(true));
+        Assert.That(result, Is.EqualTo(await TestHelpers.EvaluateCSharpAsync(expr)));
     }
 
     [Test]
-    public void Eval_BitwiseOr_FalseOrTrue_ReturnsTrue()
+    public async Task Eval_BitwiseOr_FalseOrTrue_ReturnsTrue()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        Assert.That(engine.Evaluate("false | true"), Is.EqualTo(true));
+
+        const string expr = "false | true";
+        var result = engine.Evaluate(expr);
+        Assert.That(result, Is.EqualTo(true));
+        Assert.That(result, Is.EqualTo(await TestHelpers.EvaluateCSharpAsync(expr)));
     }
 
     [Test]
-    public void Eval_BitwiseOr_FalseOrFalse_ReturnsFalse()
+    public async Task Eval_BitwiseOr_FalseOrFalse_ReturnsFalse()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        Assert.That(engine.Evaluate("false | false"), Is.EqualTo(false));
+
+        const string expr = "false | false";
+        var result = engine.Evaluate(expr);
+        Assert.That(result, Is.EqualTo(false));
+        Assert.That(result, Is.EqualTo(await TestHelpers.EvaluateCSharpAsync(expr)));
     }
 
     #endregion
@@ -283,24 +449,36 @@ public class BitwiseTests(CompilationMode mode)
     #region Boolean XOR (^)
 
     [Test]
-    public void Eval_BitwiseXor_TrueXorTrue_ReturnsFalse()
+    public async Task Eval_BitwiseXor_TrueXorTrue_ReturnsFalse()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        Assert.That(engine.Evaluate("true ^ true"), Is.EqualTo(false));
+
+        const string expr = "true ^ true";
+        var result = engine.Evaluate(expr);
+        Assert.That(result, Is.EqualTo(false));
+        Assert.That(result, Is.EqualTo(await TestHelpers.EvaluateCSharpAsync(expr)));
     }
 
     [Test]
-    public void Eval_BitwiseXor_TrueXorFalse_ReturnsTrue()
+    public async Task Eval_BitwiseXor_TrueXorFalse_ReturnsTrue()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        Assert.That(engine.Evaluate("true ^ false"), Is.EqualTo(true));
+
+        const string expr = "true ^ false";
+        var result = engine.Evaluate(expr);
+        Assert.That(result, Is.EqualTo(true));
+        Assert.That(result, Is.EqualTo(await TestHelpers.EvaluateCSharpAsync(expr)));
     }
 
     [Test]
-    public void Eval_BitwiseXor_FalseXorFalse_ReturnsFalse()
+    public async Task Eval_BitwiseXor_FalseXorFalse_ReturnsFalse()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        Assert.That(engine.Evaluate("false ^ false"), Is.EqualTo(false));
+
+        const string expr = "false ^ false";
+        var result = engine.Evaluate(expr);
+        Assert.That(result, Is.EqualTo(false));
+        Assert.That(result, Is.EqualTo(await TestHelpers.EvaluateCSharpAsync(expr)));
     }
 
     #endregion
@@ -308,33 +486,45 @@ public class BitwiseTests(CompilationMode mode)
     #region IL Compiled Boolean Bitwise
 
     [Test]
-    public void ILCompiled_BitwiseAnd_Booleans()
+    public async Task ILCompiled_BitwiseAnd_Booleans()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var expr = engine.Parse("true & false");
-        
+
+        const string exprStr = "true & false";
+        var expr = engine.Parse(exprStr);
         Assert.That(expr.TryCompile(), Is.True, "Boolean & should be IL-compilable");
-        Assert.That(engine.Evaluate(expr), Is.EqualTo(false));
+
+        var result = engine.Evaluate(expr);
+        Assert.That(result, Is.EqualTo(false));
+        Assert.That(result, Is.EqualTo(await TestHelpers.EvaluateCSharpAsync(exprStr)));
     }
 
     [Test]
-    public void ILCompiled_BitwiseOr_Booleans()
+    public async Task ILCompiled_BitwiseOr_Booleans()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var expr = engine.Parse("false | true");
-        
+
+        const string exprStr = "false | true";
+        var expr = engine.Parse(exprStr);
         Assert.That(expr.TryCompile(), Is.True);
-        Assert.That(engine.Evaluate(expr), Is.EqualTo(true));
+
+        var result = engine.Evaluate(expr);
+        Assert.That(result, Is.EqualTo(true));
+        Assert.That(result, Is.EqualTo(await TestHelpers.EvaluateCSharpAsync(exprStr)));
     }
 
     [Test]
-    public void ILCompiled_BitwiseXor_Booleans()
+    public async Task ILCompiled_BitwiseXor_Booleans()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var expr = engine.Parse("true ^ true");
-        
+
+        const string exprStr = "true ^ true";
+        var expr = engine.Parse(exprStr);
         Assert.That(expr.TryCompile(), Is.True);
-        Assert.That(engine.Evaluate(expr), Is.EqualTo(false));
+
+        var result = engine.Evaluate(expr);
+        Assert.That(result, Is.EqualTo(false));
+        Assert.That(result, Is.EqualTo(await TestHelpers.EvaluateCSharpAsync(exprStr)));
     }
 
     #endregion

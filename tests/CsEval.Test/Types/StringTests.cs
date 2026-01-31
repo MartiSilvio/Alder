@@ -3,13 +3,17 @@ namespace CsEval.Test.Types;
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
 [TestFixture(CompilationMode.StrictCompiled)]
-public class StringTests(CompilationMode mode) 
+public class StringTests(CompilationMode mode)
 {
     [Test]
-    public void Eval_StringConcatenation()
+    public async Task Eval_StringConcatenation()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        Assert.That(engine.Evaluate("\"Hello\" + \" \" + \"World\""), Is.EqualTo("Hello World"));
+
+        const string expr = "\"Hello\" + \" \" + \"World\"";
+        var result = engine.Evaluate(expr);
+        Assert.That(result, Is.EqualTo("Hello World"));
+        Assert.That(result, Is.EqualTo(await TestHelpers.EvaluateCSharpAsync(expr)));
     }
 
     [Test]
@@ -22,29 +26,38 @@ public class StringTests(CompilationMode mode)
     }
 
     [Test]
-    public void Eval_StringMethod_ToLower()
+    public async Task Eval_StringMethod_ToLower()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         engine.SetVariable("s", "HELLO");
 
-        Assert.That(engine.Evaluate("s.ToLower()"), Is.EqualTo("hello"));
+        const string expr = "\"HELLO\".ToLower()";
+        var result = engine.Evaluate("s.ToLower()");
+        Assert.That(result, Is.EqualTo("hello"));
+        Assert.That(result, Is.EqualTo(await TestHelpers.EvaluateCSharpAsync(expr)));
     }
 
     [Test]
-    public void Eval_StringMethod_ToUpper()
+    public async Task Eval_StringMethod_ToUpper()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         engine.SetVariable("s", "hello");
 
-        Assert.That(engine.Evaluate("s.ToUpper()"), Is.EqualTo("HELLO"));
+        const string expr = "\"hello\".ToUpper()";
+        var result = engine.Evaluate("s.ToUpper()");
+        Assert.That(result, Is.EqualTo("HELLO"));
+        Assert.That(result, Is.EqualTo(await TestHelpers.EvaluateCSharpAsync(expr)));
     }
 
     [Test]
-    public void Eval_StringProperty_Length()
+    public async Task Eval_StringProperty_Length()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         engine.SetVariable("s", "hello");
 
-        Assert.That(engine.Evaluate("s.Length"), Is.EqualTo(5));
+        const string expr = "\"hello\".Length";
+        var result = engine.Evaluate("s.Length");
+        Assert.That(result, Is.EqualTo(5));
+        Assert.That(result, Is.EqualTo(await TestHelpers.EvaluateCSharpAsync(expr)));
     }
 }

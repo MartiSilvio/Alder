@@ -1,4 +1,3 @@
-using System.Reflection;
 using CsEval.Compilation;
 using CsEval.Parsing;
 using CsEval.Runtime;

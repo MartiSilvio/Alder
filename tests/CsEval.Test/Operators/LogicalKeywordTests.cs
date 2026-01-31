@@ -1,5 +1,3 @@
-using NUnit.Framework;
-
 namespace CsEval.Test.Operators;
 
 [TestFixture(CompilationMode.Interpreted)]

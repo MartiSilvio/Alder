@@ -409,10 +409,30 @@ public class ILCompilationTests
     }
 
     [Test]
-    public void ILCompile_Switch_FallThrough()
+    public void ILCompile_Switch_FallThrough_EmptyCases()
     {
         var engine = new CsEvalEngine();
-        // Fallthrough without break
+        // C# semantics: only empty cases fall through
+        var expr = engine.Parse(@"{
+            var x = 1;
+            var sum = 0;
+            switch (x) {
+                case 1:
+                case 2: sum += 20; break;
+                case 3: sum += 30; break;
+            }
+            return sum;
+        }");
+
+        Assert.That(expr.TryCompile(), Is.True);
+        Assert.That(engine.Evaluate(expr), Is.EqualTo(20)); // case 1 falls through to case 2
+    }
+
+    [Test]
+    public void ILCompile_Switch_NoFallThrough_NonEmptyCases()
+    {
+        var engine = new CsEvalEngine();
+        // C# semantics: non-empty cases don't fall through (implicit break)
         var expr = engine.Parse(@"{
             var x = 1;
             var sum = 0;
@@ -423,9 +443,9 @@ public class ILCompilationTests
             }
             return sum;
         }");
-        
+
         Assert.That(expr.TryCompile(), Is.True);
-        Assert.That(engine.Evaluate(expr), Is.EqualTo(30)); // 10 + 20
+        Assert.That(engine.Evaluate(expr), Is.EqualTo(10)); // case 1 does NOT fall through
     }
 
     [Test]

@@ -455,13 +455,15 @@ public class CompilationTests
     }
 
     [Test]
-    public void Compile_ReturnsIsCompilableFalse_ForObjectLiteral()
+    public void Compile_NamedArguments()
     {
         var engine = new CsEvalEngine();
-        var expr = engine.Parse("new { a = 1 }");
+        engine.SetVariable("str", "hello");
+        var expr = engine.Parse("str.Substring(startIndex: 0, length: 3)");
 
-        // Object literals are not yet IL-compilable
-        Assert.That(expr.TryCompile(), Is.False);
+        Assert.That(expr.TryCompile(), Is.True);
+        var result = engine.Evaluate(expr);
+        Assert.That(result, Is.EqualTo("hel"));
     }
 
     [Test]
@@ -586,17 +588,18 @@ public class CompilationTests
     }
 
     [Test]
-    public void CompilationMode_StrictCompiled_ThrowsOnNonCompilableExpression()
+    public void CompilationMode_StrictCompiled_CompilesNamedArguments()
     {
         var options = new CsEvalOptions { CompilationMode = CompilationMode.StrictCompiled };
         var engine = new CsEvalEngine(options);
+        engine.SetVariable("str", "hello");
 
-        // Object literals are not yet compilable
-        var expr = engine.Parse("new { a = 1 }");
+        // Named arguments are now IL-compilable
+        var expr = engine.Parse("str.Substring(startIndex: 0, length: 3)");
 
-        // StrictCompiled should throw for non-compilable expressions
-        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate(expr));
-        Assert.That(ex!.Message, Does.Contain("could not be compiled to IL"));
+        // StrictCompiled should compile and run successfully
+        var result = engine.Evaluate(expr);
+        Assert.That(result, Is.EqualTo("hel"));
     }
 
     #endregion
@@ -626,18 +629,17 @@ public class CompilationTests
     }
 
     [Test]
-    public void ParseAndCompile_NonCompilableExpression_StillWorks()
+    public void ParseAndCompile_NamedArgumentsNowCompilable()
     {
         var engine = new CsEvalEngine();
-        var expr = engine.ParseAndCompile("new { a = 1, b = 2 }");
+        engine.SetVariable("str", "hello");
+        var expr = engine.ParseAndCompile("str.Substring(startIndex: 0, length: 3)");
 
-        // Object literals are not yet compilable
-        Assert.That(expr.IsCompiled, Is.False);
+        // Named arguments are now IL-compilable
+        Assert.That(expr.IsCompiled, Is.True);
 
-        // Should still work via tree-walking
-        var result = engine.Evaluate(expr) as IDictionary<string, object?>;
-        Assert.That(result, Is.Not.Null);
-        Assert.That(result!["a"], Is.EqualTo(1));
+        var result = engine.Evaluate(expr);
+        Assert.That(result, Is.EqualTo("hel"));
     }
 
     #endregion

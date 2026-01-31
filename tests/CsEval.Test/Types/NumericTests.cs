@@ -511,13 +511,14 @@ public class NumericTests(CompilationMode mode)
     }
 
     [Test]
-    public void Contains_LongListWithIntVariable_Works()
+    public void Contains_LongListWithIntVariable_MatchesCSharpSemantics()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         engine.SetVariable("numbers", new List<object?> { 1L, 2L, 3L }); // longs
         engine.SetVariable("search", 2); // int
         var result = engine.Evaluate("numbers.Contains(search)");
-        Assert.That(result, Is.True);
+        // In C#, Object.Equals(2L, 2) is false - different types
+        Assert.That(result, Is.False);
     }
 
     [Test]
@@ -530,23 +531,25 @@ public class NumericTests(CompilationMode mode)
     }
 
     [Test]
-    public void Contains_DecimalListWithDoubleLiteral_Works()
+    public void Contains_DecimalListWithDoubleLiteral_MatchesCSharpSemantics()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         engine.SetVariable("numbers", new List<object?> { 1.5m, 2.5m, 3.5m }); // decimals
         var result = engine.Evaluate("numbers.Contains(2.5)"); // 2.5 is double
-        Assert.That(result, Is.True);
+        // In C#, Object.Equals(2.5m, 2.5d) is false - different types
+        Assert.That(result, Is.False);
     }
 
     [Test]
-    public void Contains_MixedNumericTypes_Works()
+    public void Contains_MixedNumericTypes_MatchesCSharpSemantics()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        engine.SetVariable("numbers", new List<object?> { 1, 2L, 3.0, 4.0f }); // mixed
-        Assert.That(engine.Evaluate("numbers.Contains(1)"), Is.True);
-        Assert.That(engine.Evaluate("numbers.Contains(2)"), Is.True);
-        Assert.That(engine.Evaluate("numbers.Contains(3)"), Is.True);
-        Assert.That(engine.Evaluate("numbers.Contains(4)"), Is.True);
+        engine.SetVariable("numbers", new List<object?> { 1, 2L, 3.0, 4.0f }); // mixed: int, long, double, float
+        // In C#, Object.Equals only returns true for same type
+        Assert.That(engine.Evaluate("numbers.Contains(1)"), Is.True);   // 1 (int) == 1 (int)
+        Assert.That(engine.Evaluate("numbers.Contains(2)"), Is.False);  // 2 (int) != 2L (long)
+        Assert.That(engine.Evaluate("numbers.Contains(3)"), Is.False);  // 3 (int) != 3.0 (double)
+        Assert.That(engine.Evaluate("numbers.Contains(4)"), Is.False);  // 4 (int) != 4.0f (float)
     }
 
     #endregion

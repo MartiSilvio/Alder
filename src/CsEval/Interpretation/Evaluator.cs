@@ -48,7 +48,7 @@ public sealed partial class Evaluator : IExprVisitor<object?>
         var left = Evaluate(expr.Left);
         var right = Evaluate(expr.Right);
 
-        if (BinaryOperators.TryGetValue(expr.Op.Type, out var op))
+        if (TryGetBinaryOperator(expr.Op.Type, out var op))
             return op(this, left, right);
 
         throw new CsEvalException($"Unknown binary operator '{expr.Op.Lexeme}'");
@@ -95,7 +95,7 @@ public sealed partial class Evaluator : IExprVisitor<object?>
         if (obj is IEnumerable and not string and not IDictionary<string, object?>)
         {
             var methodName = expr.Name.Lexeme;
-            if (LinqDispatcher.IsLinqMethod(methodName))
+            if (LinqDispatcher.IsLinqMethod(methodName, _options))
             {
                 return new MethodRef(obj, expr.Name.Lexeme);
             }
@@ -225,7 +225,7 @@ public sealed partial class Evaluator : IExprVisitor<object?>
         if (!CompoundToBaseOperator.TryGetValue(expr.Op.Type, out var baseOp))
             throw new CsEvalException($"Unknown compound assignment operator '{expr.Op.Lexeme}'");
 
-        if (!BinaryOperators.TryGetValue(baseOp, out var op))
+        if (!CoreBinaryOperators.TryGetValue(baseOp, out var op))
             throw new CsEvalException($"Unknown base operator for '{expr.Op.Lexeme}'");
 
         var result = op(this, currentValue, rightValue);

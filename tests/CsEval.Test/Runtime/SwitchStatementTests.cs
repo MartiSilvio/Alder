@@ -223,8 +223,33 @@ public class SwitchStatementTests(CompilationMode mode)
     #region Fall-Through Behavior
 
     [Test]
-    public void Switch_FallThrough_WithoutBreak()
+    public void Switch_EmptyCaseFallThrough()
     {
+        // C# allows empty cases to fall through
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var result = engine.Evaluate(@"
+        {
+            var x = 1;
+            var result = """";
+            switch (x) {
+                case 1:
+                case 2:
+                    result = ""one or two"";
+                    break;
+                case 3:
+                    result = ""three"";
+                    break;
+            }
+            return result;
+        }");
+
+        Assert.That(result, Is.EqualTo("one or two"));
+    }
+
+    [Test]
+    public void Switch_NonEmptyCase_ImplicitBreak()
+    {
+        // C# behavior: non-empty cases have implicit break (don't fall through)
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var result = engine.Evaluate(@"
         {
@@ -243,43 +268,22 @@ public class SwitchStatementTests(CompilationMode mode)
             return result;
         }");
 
-        Assert.That(result, Is.EqualTo("onetwo"));
+        // Non-empty case 1 does NOT fall through to case 2
+        Assert.That(result, Is.EqualTo("one"));
     }
 
     [Test]
-    public void Switch_FallThroughToDefault()
+    public void Switch_MultipleEmptyCasesFallThrough()
     {
+        // Multiple empty cases can fall through to a non-empty case
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var result = engine.Evaluate(@"
         {
-            var x = 1;
-            var result = """";
-            switch (x) {
-                case 1:
-                    result = result + ""one"";
-                default:
-                    result = result + ""default"";
-                    break;
-            }
-            return result;
-        }");
-
-        Assert.That(result, Is.EqualTo("onedefault"));
-    }
-
-    [Test]
-    public void Switch_FallThroughAllCases()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(@"
-        {
-            var x = 1;
+            var x = 2;
             var count = 0;
             switch (x) {
                 case 1:
-                    count = count + 1;
                 case 2:
-                    count = count + 1;
                 case 3:
                     count = count + 1;
                     break;
@@ -287,7 +291,7 @@ public class SwitchStatementTests(CompilationMode mode)
             return count;
         }");
 
-        Assert.That(result, Is.EqualTo(3));
+        Assert.That(result, Is.EqualTo(1));
     }
 
     #endregion

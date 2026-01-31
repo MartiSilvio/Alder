@@ -48,12 +48,17 @@ public sealed partial class Evaluator
     /// <summary>
     /// Executes case statements starting from the given index, supporting fall-through.
     /// Returns true if a break was encountered.
+    /// C# semantics: only empty cases fall through; non-empty cases implicitly break.
     /// </summary>
     private bool ExecuteCaseStatements(List<SwitchCaseExpr> cases, int startIndex)
     {
         for (var i = startIndex; i < cases.Count; i++)
         {
             var switchCase = cases[i];
+
+            // Empty case: fall through to next
+            if (switchCase.Statements.Count == 0)
+                continue;
 
             try
             {
@@ -65,16 +70,11 @@ public sealed partial class Evaluator
             }
             catch (BreakException)
             {
-                return true; // break exits the switch
+                return true; // explicit break exits the switch
             }
 
-            // If we reach here without break, fall through to next case
-            // (if there are statements in the next case)
-            if (i + 1 < cases.Count && cases[i + 1].Statements.Count == 0)
-            {
-                // Empty case, continue to next
-                continue;
-            }
+            // Non-empty case without explicit break: implicit break (C# behavior)
+            return false;
         }
 
         return false;

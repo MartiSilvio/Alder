@@ -747,6 +747,65 @@ public class ForEachLoopTests(CompilationMode mode)
 
     #endregion
 
+    #region ForEach Loop Closure Capture
+
+    [Test]
+    public void ForEachLoop_ClosureCapture_CapturesCorrectValue()
+    {
+        // C# 5+ behavior: foreach creates a fresh variable per iteration, so each closure captures its own value
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var result = engine.Evaluate(@"
+        {
+            var funcs = [];
+            foreach (var i in [1, 2, 3]) {
+                funcs = [...funcs, () => i];
+            }
+            return funcs[0]() * 100 + funcs[1]() * 10 + funcs[2]();
+        }");
+
+        // Each lambda captures its own iteration's value: 1*100 + 2*10 + 3 = 123
+        Assert.That(result, Is.EqualTo(123));
+    }
+
+    [Test]
+    public void ForEachLoop_ClosureCapture_WithExternalVariable_CapturesCorrectly()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var result = engine.Evaluate(@"
+        {
+            var funcs = [];
+            var multiplier = 10;
+            foreach (var i in [1, 2, 3]) {
+                funcs = [...funcs, () => i * multiplier];
+            }
+            return funcs[0]() + funcs[1]() + funcs[2]();
+        }");
+
+        // Each lambda captures its iteration's value: (1*10) + (2*10) + (3*10) = 60
+        Assert.That(result, Is.EqualTo(60));
+    }
+
+    [Test]
+    public void ForEachLoop_ClosureCapture_InNestedLoop_CapturesCorrectly()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var result = engine.Evaluate(@"
+        {
+            var funcs = [];
+            foreach (var i in [1, 2]) {
+                foreach (var j in [10, 20]) {
+                    funcs = [...funcs, () => i * j];
+                }
+            }
+            return funcs[0]() + funcs[1]() + funcs[2]() + funcs[3]();
+        }");
+
+        // funcs[0] = 1*10, funcs[1] = 1*20, funcs[2] = 2*10, funcs[3] = 2*20 => 10 + 20 + 20 + 40 = 90
+        Assert.That(result, Is.EqualTo(90));
+    }
+
+    #endregion
+
     #region ForEach Loop with Break and Continue Combined
 
     [Test]

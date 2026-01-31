@@ -13,8 +13,8 @@ public sealed class JavaScriptExtension : ILanguageExtension
 
     public string Name => "JavaScript";
 
-    public IReadOnlyDictionary<string, Func<List<object?>, object?[], CsEvalContext, (bool, object?)>> LinqHandlers { get; } =
-        new Dictionary<string, Func<List<object?>, object?[], CsEvalContext, (bool, object?)>>(StringComparer.OrdinalIgnoreCase)
+    public IReadOnlyDictionary<string, Func<List<object?>, object?[], CsEvalContext, CsEvalOptions, CancellationToken, (bool, object?)>> LinqHandlers { get; } =
+        new Dictionary<string, Func<List<object?>, object?[], CsEvalContext, CsEvalOptions, CancellationToken, (bool, object?)>>(StringComparer.OrdinalIgnoreCase)
         {
             ["Map"] = LinqDispatcher.HandleSelect,
             ["Filter"] = LinqDispatcher.HandleWhere,
@@ -24,6 +24,7 @@ public sealed class JavaScriptExtension : ILanguageExtension
             ["Includes"] = LinqDispatcher.HandleContains,
             ["Slice"] = LinqDispatcher.HandleSkip,
             ["Flat"] = LinqDispatcher.HandleSelectMany,
+            ["FlatMap"] = LinqDispatcher.HandleSelectMany,
             ["Reduce"] = HandleReduce,
         };
 
@@ -34,13 +35,13 @@ public sealed class JavaScriptExtension : ILanguageExtension
             { TokenType.BangEqualEqual, (l, r, opts) => !(bool)Operators.Equals(l, r, opts) },
         };
 
-    private static (bool, object?) HandleReduce(List<object?> list, object?[] args, CsEvalContext ctx)
+    private static (bool, object?) HandleReduce(List<object?> list, object?[] args, CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct)
     {
         if (args is [LambdaValue reducer, var seed])
-            return (true, list.Aggregate(seed, (acc, item) => LinqDispatcher.InvokeLambdaForLinq(reducer, [acc, item], ctx)));
+            return (true, list.Aggregate(seed, (acc, item) => LinqDispatcher.InvokeLambdaForLinq(reducer, [acc, item], ctx, opts, ct)));
 
         if (args is [LambdaValue reducerOnly])
-            return (true, list.Skip(1).Aggregate(list.FirstOrDefault(), (acc, item) => LinqDispatcher.InvokeLambdaForLinq(reducerOnly, [acc, item], ctx)));
+            return (true, list.Skip(1).Aggregate(list.FirstOrDefault(), (acc, item) => LinqDispatcher.InvokeLambdaForLinq(reducerOnly, [acc, item], ctx, opts, ct)));
 
         return (false, null);
     }

@@ -1,5 +1,3 @@
-using CsEval;
-
 namespace CsEval.Test.Stress;
 
 [TestFixture(CompilationMode.Interpreted)]

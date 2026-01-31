@@ -91,26 +91,28 @@ public static class Operators
 
     public static object? Divide(object? left, object? right, CsEvalOptions options)
     {
-        if (TypeHelpers.IsNumeric(left) && TypeHelpers.IsNumeric(right))
+        return (left, right) switch
         {
-            if ((dynamic)right! == 0 && TypeHelpers.IsInteger(left) && TypeHelpers.IsInteger(right))
-                throw new DivideByZeroException();
-            return (dynamic)left! / (dynamic)right!;
-        }
-
-        throw new CsEvalException($"Cannot divide {left?.GetType().Name ?? "null"} and {right?.GetType().Name ?? "null"}");
+            (int l, int r) => l / r,
+            (long l, long r) => l / r,
+            (double l, double r) => l / r,
+            (decimal l, decimal r) => l / r,
+            _ when TypeHelpers.IsNumeric(left) && TypeHelpers.IsNumeric(right) => (dynamic)left! / (dynamic)right!,
+            _ => throw new CsEvalException($"Cannot divide {left?.GetType().Name ?? "null"} and {right?.GetType().Name ?? "null"}")
+        };
     }
 
     public static object? Modulo(object? left, object? right, CsEvalOptions options)
     {
-        if (TypeHelpers.IsNumeric(left) && TypeHelpers.IsNumeric(right))
+        return (left, right) switch
         {
-            if ((dynamic)right! == 0 && TypeHelpers.IsInteger(left) && TypeHelpers.IsInteger(right))
-                throw new DivideByZeroException();
-            return (dynamic)left! % (dynamic)right!;
-        }
-
-        throw new CsEvalException($"Cannot modulo {left?.GetType().Name ?? "null"} and {right?.GetType().Name ?? "null"}");
+            (int l, int r) => l % r,
+            (long l, long r) => l % r,
+            (double l, double r) => l % r,
+            (decimal l, decimal r) => l % r,
+            _ when TypeHelpers.IsNumeric(left) && TypeHelpers.IsNumeric(right) => (dynamic)left! % (dynamic)right!,
+            _ => throw new CsEvalException($"Cannot modulo {left?.GetType().Name ?? "null"} and {right?.GetType().Name ?? "null"}")
+        };
     }
 
     public static object Equals(object? left, object? right, CsEvalOptions options)
@@ -121,23 +123,22 @@ public static class Operators
 
         if (TypeHelpers.IsNumeric(left) && TypeHelpers.IsNumeric(right))
         {
-            if (InvolvesDecimalAndFloatingPoint(left, right))
-            {
-                return Convert.ToDouble(left) == Convert.ToDouble(right);
-            }
+            ThrowIfDecimalAndFloatingPoint(left, right);
             return (dynamic)left! == (dynamic)right!;
         }
 
         return false;
     }
 
-    private static bool InvolvesDecimalAndFloatingPoint(object? a, object? b)
+    private static void ThrowIfDecimalAndFloatingPoint(object? a, object? b)
     {
         var aIsDecimal = a is decimal;
         var bIsDecimal = b is decimal;
         var aIsFloatingPoint = a is float or double;
         var bIsFloatingPoint = b is float or double;
-        return (aIsDecimal && bIsFloatingPoint) || (bIsDecimal && aIsFloatingPoint);
+
+        if ((aIsDecimal && bIsFloatingPoint) || (bIsDecimal && aIsFloatingPoint))
+            throw new CsEvalException("Cannot compare decimal with float or double (C# forbids implicit conversion)");
     }
 
     public static object NotEquals(object? left, object? right, CsEvalOptions options)
@@ -172,6 +173,7 @@ public static class Operators
 
         if (TypeHelpers.IsNumeric(left) && TypeHelpers.IsNumeric(right))
         {
+            ThrowIfDecimalAndFloatingPoint(left, right);
             dynamic l = left, r = right;
             return l < r ? -1 : l > r ? 1 : 0;
         }
@@ -219,7 +221,10 @@ public static class Operators
 
     public static object? BitwiseNot(object? value)
     {
-        if (!TypeHelpers.IsNumeric(value))
+        if (value is bool b)
+            return !b;
+
+        if (!TypeHelpers.IsInteger(value))
             throw new CsEvalException($"Cannot apply bitwise NOT to {value?.GetType().Name ?? "null"}");
 
         return ~(dynamic)value!;
@@ -227,7 +232,7 @@ public static class Operators
 
     public static object? LeftShift(object? left, object? right)
     {
-        if (!TypeHelpers.IsNumeric(left) || !TypeHelpers.IsNumeric(right))
+        if (!TypeHelpers.IsInteger(left) || !TypeHelpers.IsInteger(right))
             throw new CsEvalException($"Cannot apply left shift to {left?.GetType().Name ?? "null"} and {right?.GetType().Name ?? "null"}");
 
         return (dynamic)left! << (int)(dynamic)right!;
@@ -235,7 +240,7 @@ public static class Operators
 
     public static object? RightShift(object? left, object? right)
     {
-        if (!TypeHelpers.IsNumeric(left) || !TypeHelpers.IsNumeric(right))
+        if (!TypeHelpers.IsInteger(left) || !TypeHelpers.IsInteger(right))
             throw new CsEvalException($"Cannot apply right shift to {left?.GetType().Name ?? "null"} and {right?.GetType().Name ?? "null"}");
 
         return (dynamic)left! >> (int)(dynamic)right!;
@@ -252,7 +257,7 @@ public static class Operators
         if (collection is string strForChar && value is char ch)
             return strForChar.Contains(ch);
 
-        if (collection is System.Collections.IEnumerable enumerable)
+        if (collection is IEnumerable enumerable)
             return enumerable.Cast<object?>().Any(item => (bool)Equals(item, value, options));
 
         throw new CsEvalException($"Cannot use 'in' operator with {collection.GetType().Name}");

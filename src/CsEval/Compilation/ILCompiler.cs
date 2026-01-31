@@ -1,4 +1,5 @@
 using System.Linq.Expressions;
+using CsEval.Extensions;
 using CsEval.Parsing;
 using CsEval.Runtime;
 
@@ -11,7 +12,6 @@ namespace CsEval.Compilation;
 /// </summary>
 internal sealed partial class ILCompiler
 {
-    // Delegate signature for IL-compiled expressions
     public delegate object? ILCompiledDelegate(
         CsEvalContext context,
         CsEvalOptions options,
@@ -69,21 +69,48 @@ internal sealed partial class ILCompiler
     private static readonly MethodInfo BitwiseAndMethod = typeof(Operators).GetMethod(nameof(Operators.BitwiseAnd))!;
     private static readonly MethodInfo BitwiseOrMethod = typeof(Operators).GetMethod(nameof(Operators.BitwiseOr))!;
     private static readonly MethodInfo BitwiseXorMethod = typeof(Operators).GetMethod(nameof(Operators.BitwiseXor))!;
+    private static readonly MethodInfo BitwiseNotMethod = typeof(Operators).GetMethod(nameof(Operators.BitwiseNot))!;
+    private static readonly MethodInfo LeftShiftMethod = typeof(Operators).GetMethod(nameof(Operators.LeftShift))!;
+    private static readonly MethodInfo RightShiftMethod = typeof(Operators).GetMethod(nameof(Operators.RightShift))!;
+
+    private readonly Dictionary<TokenType, ILBinaryOperator> _extensionILOperators;
+
+    private Dictionary<TokenType, ILBinaryOperator> BuildExtensionOperators(CsEvalOptions options)
+    {
+        var result = new Dictionary<TokenType, ILBinaryOperator>();
+        foreach (var ext in options.Extensions)
+            foreach (var (tokenType, ilOp) in ext.ILBinaryOperators)
+                result[tokenType] = ilOp;
+        return result;
+    }
     private static readonly MethodInfo GetMemberMethod = typeof(MemberAccess).GetMethod(nameof(MemberAccess.GetMember))!;
     private static readonly MethodInfo GetIndexMethod = typeof(MemberAccess).GetMethod(nameof(MemberAccess.GetIndex))!;
     private static readonly MethodInfo SetIndexMethod = typeof(MemberAccess).GetMethod(nameof(MemberAccess.SetIndex))!;
+    private static readonly MethodInfo SetMemberMethod = typeof(MemberAccess).GetMethod(nameof(MemberAccess.SetMember))!;
+    private static readonly MethodInfo ListAddMethod = typeof(List<object?>).GetMethod(nameof(List<object?>.Add))!;
+    private static readonly MethodInfo ListAddRangeMethod = typeof(List<object?>).GetMethod(nameof(List<object?>.AddRange))!;
+    private static readonly ConstructorInfo ListCtor = typeof(List<object?>).GetConstructor(Type.EmptyTypes)!;
+    private static readonly ConstructorInfo ExpandoObjectCtor = typeof(System.Dynamic.ExpandoObject).GetConstructor(Type.EmptyTypes)!;
+    private static readonly ConstructorInfo StringBuilderCtor = typeof(StringBuilder).GetConstructor(Type.EmptyTypes)!;
+    private static readonly MethodInfo StringBuilderAppendMethod = typeof(StringBuilder).GetMethod(nameof(StringBuilder.Append), [typeof(string)])!;
+    private static readonly MethodInfo StringBuilderToStringMethod = typeof(StringBuilder).GetMethod(nameof(StringBuilder.ToString), Type.EmptyTypes)!;
+    private static readonly MethodInfo ObjectToStringMethod = typeof(object).GetMethod(nameof(ToString))!;
+    private static readonly MethodInfo SpreadIntoDictMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.SpreadIntoDict))!;
+    private static readonly MethodInfo SpreadIntoListMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.SpreadIntoList))!;
     private static readonly MethodInfo NegateMethod = typeof(Operators).GetMethod(nameof(Operators.Negate))!;
     private static readonly MethodInfo ThrowIfCancellationRequestedMethod = typeof(CancellationToken).GetMethod(nameof(CancellationToken.ThrowIfCancellationRequested))!;
     private static readonly MethodInfo CheckIterationLimitMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.CheckIterationLimit))!;
     private static readonly MethodInfo GetEnumeratorMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.GetEnumerator))!;
-    private static readonly MethodInfo MoveNextMethod = typeof(System.Collections.IEnumerator).GetMethod(nameof(System.Collections.IEnumerator.MoveNext))!;
-    private static readonly MethodInfo GetCurrentProperty = typeof(System.Collections.IEnumerator).GetProperty(nameof(System.Collections.IEnumerator.Current))!.GetGetMethod()!;
+    private static readonly MethodInfo MoveNextMethod = typeof(IEnumerator).GetMethod(nameof(IEnumerator.MoveNext))!;
+    private static readonly MethodInfo GetCurrentProperty = typeof(IEnumerator).GetProperty(nameof(IEnumerator.Current))!.GetGetMethod()!;
     private static readonly MethodInfo DisposeMethod = typeof(IDisposable).GetMethod(nameof(IDisposable.Dispose))!;
     private static readonly MethodInfo CheckAllowAssignmentMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.CheckAllowAssignment))!;
+    private static readonly MethodInfo CheckAllowIndexSetMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.CheckAllowIndexSet))!;
     private static readonly MethodInfo ValidateAndCoerceTypeMethod = typeof(TypeHelpers).GetMethod(nameof(TypeHelpers.ValidateAndCoerceType))!;
     private static readonly MethodInfo InvokeCallMethod = typeof(MethodInvoker).GetMethod(nameof(MethodInvoker.InvokeCall))!;
     private static readonly MethodInfo InvokeMemberCallMethod = typeof(MethodInvoker).GetMethod(nameof(MethodInvoker.InvokeMemberCall))!;
     private static readonly MethodInfo ResolveIdentifierMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.ResolveIdentifier))!;
+    private static readonly ConstructorInfo NamedArgCtor = typeof(Interpretation.NamedArg).GetConstructor([typeof(string), typeof(object)])!;
 
     private record struct ControlFlowContext(LabelTarget BreakTarget, LabelTarget? ContinueTarget, bool IsLoop);
 
@@ -91,8 +118,8 @@ internal sealed partial class ILCompiler
     {
         _context = context;
         _options = options;
+        _extensionILOperators = BuildExtensionOperators(options);
 
-        // Define parameters
         _contextParam = LinqExpression.Parameter(typeof(CsEvalContext), "context");
         _optionsParam = LinqExpression.Parameter(typeof(CsEvalOptions), "options");
         _ctParam = LinqExpression.Parameter(typeof(CancellationToken), "ct");
@@ -182,7 +209,7 @@ internal sealed partial class ILCompiler
                     stack.Push(g.Expression);
                     break;
 
-                case UnaryExpr u when u.Op.Type is TokenType.Minus or TokenType.Bang:
+                case UnaryExpr u when u.Op.Type is TokenType.Minus or TokenType.Bang or TokenType.Tilde:
                     stack.Push(u.Right);
                     break;
 
@@ -305,15 +332,52 @@ internal sealed partial class ILCompiler
                     stack.Push(call.Callee);
                     foreach (var arg in call.Arguments)
                     {
-                        if (arg is NamedArgumentExpr)
-                            return "Named arguments not supported in IL compilation";
-                        stack.Push(arg);
+                        if (arg is NamedArgumentExpr namedArg)
+                            stack.Push(namedArg.Value);
+                        else
+                            stack.Push(arg);
                     }
                     break;
 
                 case LambdaExpr lambda:
-                    // Lambda bodies are evaluated at runtime, but we still need to verify they're valid
                     stack.Push(lambda.Body);
+                    break;
+
+                case ArrayLiteralExpr arr:
+                    foreach (var elem in arr.Elements)
+                        stack.Push(elem);
+                    break;
+
+                case ObjectLiteralExpr obj:
+                    foreach (var (_, value) in obj.Properties)
+                        stack.Push(value);
+                    break;
+
+                case NewExpr newExpr:
+                    stack.Push(newExpr.Initializer);
+                    break;
+
+                case InterpolatedStringExpr interp:
+                    foreach (var part in interp.Parts)
+                        if (part is ExpressionPart ep)
+                            stack.Push(ep.Expression);
+                    break;
+
+                case MemberAssignExpr ma:
+                    stack.Push(ma.Object);
+                    stack.Push(ma.Value);
+                    break;
+
+                case NullCoalesceAssignExpr nca:
+                    stack.Push(nca.Value);
+                    break;
+
+                case SpreadExpr spread:
+                    stack.Push(spread.Expression);
+                    break;
+
+                case NamedArgumentExpr namedArg:
+                    stack.Push(namedArg.Value);
                     break;
 
                 default:
@@ -326,16 +390,24 @@ internal sealed partial class ILCompiler
 
     private static bool IsCompilableCompoundOp(TokenType op) => op is
         TokenType.PlusEqual or TokenType.MinusEqual or TokenType.StarEqual or
-        TokenType.SlashEqual or TokenType.PercentEqual;
+        TokenType.SlashEqual or TokenType.PercentEqual or
+        TokenType.AmpEqual or TokenType.PipeEqual or TokenType.CaretEqual or
+        TokenType.LessLessEqual or TokenType.GreaterGreaterEqual;
 
-    private static bool IsCompilableBinaryOp(TokenType op) => op is
-        TokenType.Plus or TokenType.Minus or TokenType.Star or
-        TokenType.Slash or TokenType.Percent or
-        TokenType.EqualEqual or TokenType.EqualEqualEqual or
-        TokenType.BangEqual or TokenType.BangEqualEqual or
-        TokenType.Less or TokenType.LessEqual or
-        TokenType.Greater or TokenType.GreaterEqual or
-        TokenType.Amp or TokenType.Pipe or TokenType.Caret;
+    private bool IsCompilableBinaryOp(TokenType op)
+    {
+        if (op is TokenType.Plus or TokenType.Minus or TokenType.Star or
+            TokenType.Slash or TokenType.Percent or
+            TokenType.EqualEqual or TokenType.EqualEqualEqual or
+            TokenType.BangEqual or TokenType.BangEqualEqual or
+            TokenType.Less or TokenType.LessEqual or
+            TokenType.Greater or TokenType.GreaterEqual or
+            TokenType.Amp or TokenType.Pipe or TokenType.Caret or
+            TokenType.LessLess or TokenType.GreaterGreater)
+            return true;
+
+        return _extensionILOperators.ContainsKey(op);
+    }
 
     /// <summary>
     /// Compile an expression to an Expression Tree.
@@ -377,6 +449,14 @@ internal sealed partial class ILCompiler
                 ReturnExpr ret => CompileReturn(ret),
                 CallExpr call => CompileCall(call),
                 LambdaExpr lambda => CompileLambda(lambda),
+                ArrayLiteralExpr arr => CompileArrayLiteral(arr),
+                ObjectLiteralExpr obj => CompileObjectLiteral(obj),
+                NewExpr newExpr => Compile(newExpr.Initializer),
+                InterpolatedStringExpr interp => CompileInterpolatedString(interp),
+                MemberAssignExpr ma => CompileMemberAssign(ma),
+                NullCoalesceAssignExpr nca => CompileNullCoalesceAssign(nca),
+                SpreadExpr => throw new CsEvalException("Spread operator can only be used in array or object literals"),
+                NamedArgumentExpr => throw new CsEvalException("Named arguments can only be used in method calls"),
                 _ => throw new NotSupportedException($"Cannot compile {expr.GetType().Name}")
             };
         }
