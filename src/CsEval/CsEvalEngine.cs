@@ -113,7 +113,7 @@ public sealed class CsEvalEngine
         var compiled = expression.GetCompiledInfo();
         if (compiled?.Delegate != null)
         {
-            return compiled.Delegate(_context, _options, cancellationToken);
+            return compiled.Delegate(_context, _options, cancellationToken, _functions, ArgumentTransformer);
         }
 
         // StrictCompiled mode: throw if compilation failed

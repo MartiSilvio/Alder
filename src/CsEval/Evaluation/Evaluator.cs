@@ -11,6 +11,8 @@ public sealed partial class Evaluator : IExprVisitor<object?>
     private readonly CancellationToken _cancellationToken;
     private readonly Func<MethodInfo, object?[], object?[]>? _argumentTransformer;
 
+    private long _iterationCount;
+
     public Evaluator(CsEvalContext context, Dictionary<string, Func<object?[], object?>> functions,
         CsEvalOptions? options = null, CancellationToken cancellationToken = default,
         Func<MethodInfo, object?[], object?[]>? argumentTransformer = null)
@@ -57,14 +59,14 @@ public sealed partial class Evaluator : IExprVisitor<object?>
 
         if (expr.Op.Type == TokenType.PipePipe)
         {
-            if (RuntimeHelpers.IsTruthy(left)) return true;
+            if (RuntimeHelpers.RequireBoolean(left)) return true;
         }
         else
         {
-            if (!RuntimeHelpers.IsTruthy(left)) return false;
+            if (!RuntimeHelpers.RequireBoolean(left)) return false;
         }
 
-        return RuntimeHelpers.IsTruthy(Evaluate(expr.Right));
+        return RuntimeHelpers.RequireBoolean(Evaluate(expr.Right));
     }
 
     public object? VisitGrouping(GroupingExpr expr) => Evaluate(expr.Expression);
@@ -91,8 +93,8 @@ public sealed partial class Evaluator : IExprVisitor<object?>
 
         if (obj is IEnumerable and not string and not IDictionary<string, object?>)
         {
-            var methodName = expr.Name.Lexeme.ToLowerInvariant();
-            if (IsEnumerableMethod(methodName))
+            var methodName = expr.Name.Lexeme;
+            if (RuntimeHelpers.IsLinqMethod(methodName))
             {
                 return new MethodRef(obj, expr.Name.Lexeme);
             }
@@ -132,39 +134,13 @@ public sealed partial class Evaluator : IExprVisitor<object?>
         if (expr.Callee is MemberAccessExpr memberAccess)
         {
             var target = Evaluate(memberAccess.Object);
-            if (target != null && target is not CsEvalEngine.ModuleResolver)
-            {
-                var result = TryInvokeMethod(target, memberAccess.Name.Lexeme, args);
-                if (result.Success)
-                    return result.Value;
-            }
+            return RuntimeHelpers.InvokeMemberCall(
+                target, memberAccess.Name.Lexeme, args, memberAccess.NullSafe,
+                _context, _options, _cancellationToken, _functions, _argumentTransformer);
         }
 
         var callee = Evaluate(expr.Callee);
-
-        if (callee is MethodRef methodRef)
-        {
-            var result = TryInvokeMethod(methodRef.Target, methodRef.MethodName, args);
-            if (result.Success)
-                return result.Value;
-            throw new CsEvalException($"Method '{methodRef.MethodName}' invocation failed");
-        }
-
-        if (callee is ModuleMethodRef filteredRef)
-        {
-            return InvokeModuleMethod(filteredRef, args);
-        }
-
-        if (callee is FunctionRef funcRef)
-            return funcRef.Invoke(args);
-
-        if (callee is Delegate del)
-            return del.DynamicInvoke(args);
-
-        if (callee is LambdaValue lambda)
-            return InvokeLambda(lambda, args);
-
-        throw new CsEvalException($"Cannot call '{callee?.GetType().Name ?? "null"}' as a function");
+        return RuntimeHelpers.InvokeCall(callee, args, _functions, _context, _options, _cancellationToken, _argumentTransformer);
     }
 
     public object? VisitLambda(LambdaExpr expr)
@@ -175,7 +151,7 @@ public sealed partial class Evaluator : IExprVisitor<object?>
     public object? VisitConditional(ConditionalExpr expr)
     {
         var condition = Evaluate(expr.Condition);
-        return RuntimeHelpers.IsTruthy(condition) ? Evaluate(expr.ThenBranch) : Evaluate(expr.ElseBranch);
+        return RuntimeHelpers.RequireBoolean(condition) ? Evaluate(expr.ThenBranch) : Evaluate(expr.ElseBranch);
     }
 
     public object? VisitNullCoalesce(NullCoalesceExpr expr)
@@ -423,7 +399,7 @@ public sealed partial class Evaluator : IExprVisitor<object?>
     {
         var condition = Evaluate(expr.Condition);
 
-        if (RuntimeHelpers.IsTruthy(condition))
+        if (RuntimeHelpers.RequireBoolean(condition))
         {
             // Create a child scope for the then branch
             var previousContext = _context;
@@ -473,7 +449,10 @@ public sealed partial class Evaluator : IExprVisitor<object?>
 
 }
 
-internal sealed record FunctionRef(string Name, Func<object?[], object?> Function)
+/// <summary>
+/// Reference to a registered function, used by IL-compiled and interpreted expressions.
+/// </summary>
+public sealed record FunctionRef(string Name, Func<object?[], object?> Function)
 {
     public object? Invoke(object?[] args) => Function(args);
 }

@@ -43,7 +43,7 @@ public sealed partial class Evaluator
     private static readonly Dictionary<TokenType, Func<Evaluator, object?, object?>> UnaryOperators = new()
     {
         { TokenType.Minus, (_, v) => RuntimeHelpers.Negate(v) },
-        { TokenType.Bang, (_, v) => !RuntimeHelpers.IsTruthy(v) },
+        { TokenType.Bang, (_, v) => !RuntimeHelpers.RequireBoolean(v) },
         { TokenType.Tilde, (_, v) => RuntimeHelpers.BitwiseNot(v) },
     };
 
@@ -64,49 +64,4 @@ public sealed partial class Evaluator
         { TokenType.LessLessEqual, TokenType.LessLess },
         { TokenType.GreaterGreaterEqual, TokenType.GreaterGreater },
     };
-
-    /// <summary>
-    /// Set of LINQ method names (lowercase). Add new LINQ methods by adding entries here.
-    /// Includes both C# LINQ names and JavaScript aliases.
-    /// </summary>
-    private static readonly HashSet<string> LinqMethodNames = new(StringComparer.OrdinalIgnoreCase)
-    {
-        // C# LINQ methods
-        "where", "select", "selectmany", "aggregate",
-        "first", "firstordefault", "last", "lastordefault",
-        "single", "singleordefault", "any", "all", "count",
-        "sum", "average", "min", "max", "minby", "maxby",
-        "orderby", "orderbydescending", "groupby", "zip",
-        "distinct", "take", "skip", "contains", "reverse",
-        "except", "intersect", "union",
-        "tolist", "toarray", "concat",
-        // JavaScript aliases
-        "map", "filter", "reduce", "find", "findindex",
-        "some", "every", "includes", "foreach", "flat", "flatmap",
-        "indexof", "lastindexof", "slice", "sort", "push", "pop",
-        "shift", "unshift", "join", "length"
-    };
-
-    /// <summary>
-    /// Method aliases mapping JS names to C# LINQ names.
-    /// </summary>
-    private static readonly Dictionary<string, string> MethodAliases = new(StringComparer.OrdinalIgnoreCase)
-    {
-        { "map", "select" },
-        { "filter", "where" },
-        { "reduce", "aggregate" },
-        { "find", "firstordefault" },
-        { "some", "any" },
-        { "every", "all" },
-        { "includes", "contains" },
-        { "flatmap", "selectmany" },
-    };
-
-    /// <summary>
-    /// Resolves a method alias to its canonical name.
-    /// </summary>
-    internal static string ResolveMethodAlias(string methodName)
-    {
-        return MethodAliases.TryGetValue(methodName, out var canonical) ? canonical : methodName;
-    }
 }

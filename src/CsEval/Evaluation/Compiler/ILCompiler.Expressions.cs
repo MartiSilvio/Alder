@@ -20,9 +20,10 @@ internal sealed partial class ILCompiler
     private LinqExpression CompileIdentifier(IdentifierExpr id)
     {
         return LinqExpression.Call(
+            ResolveIdentifierMethod,
+            LinqExpression.Constant(id.Name.Lexeme),
             _currentContext,
-            GetMethod,
-            LinqExpression.Constant(id.Name.Lexeme));
+            _functionsParam);
     }
 
     private LinqExpression CompileUnary(UnaryExpr u)
@@ -33,7 +34,7 @@ internal sealed partial class ILCompiler
         {
             TokenType.Minus => LinqExpression.Call(NegateMethod, operand),
             TokenType.Bang => LinqExpression.Convert(
-                LinqExpression.Not(LinqExpression.Call(IsTruthyMethod, operand)),
+                LinqExpression.Not(LinqExpression.Call(RequireBooleanMethod, operand)),
                 typeof(object)),
             _ => throw new NotSupportedException($"Unary operator {u.Op.Type}")
         };
@@ -73,8 +74,8 @@ internal sealed partial class ILCompiler
         var left = Compile(l.Left);
         var right = Compile(l.Right);
 
-        var leftTruthy = LinqExpression.Call(IsTruthyMethod, left);
-        var rightTruthy = LinqExpression.Call(IsTruthyMethod, right);
+        var leftTruthy = LinqExpression.Call(RequireBooleanMethod, left);
+        var rightTruthy = LinqExpression.Call(RequireBooleanMethod, right);
 
         // Short-circuit evaluation
         LinqExpression result = l.Op.Type switch
@@ -89,7 +90,7 @@ internal sealed partial class ILCompiler
 
     private LinqExpression CompileConditional(ConditionalExpr c)
     {
-        var condition = LinqExpression.Call(IsTruthyMethod, Compile(c.Condition));
+        var condition = LinqExpression.Call(RequireBooleanMethod, Compile(c.Condition));
         var thenBranch = Compile(c.ThenBranch);
         var elseBranch = Compile(c.ElseBranch);
 
@@ -241,6 +242,69 @@ internal sealed partial class ILCompiler
                     LinqExpression.Constant(name), temp),
                 original);
         }
+    }
+
+    private LinqExpression CompileCall(CallExpr call)
+    {
+        // Compile arguments into an object[] array
+        var argsVar = LinqExpression.Variable(typeof(object?[]), "args");
+        var argsInit = LinqExpression.NewArrayInit(
+            typeof(object),
+            call.Arguments.Select(Compile));
+
+        // Check if this is a member access call (target.Method(args))
+        if (call.Callee is MemberAccessExpr memberAccess)
+        {
+            var target = Compile(memberAccess.Object);
+            var methodName = memberAccess.Name.Lexeme;
+
+            return LinqExpression.Block(
+                new[] { argsVar },
+                LinqExpression.Assign(argsVar, argsInit),
+                LinqExpression.Call(
+                    InvokeMemberCallMethod,
+                    target,
+                    LinqExpression.Constant(methodName),
+                    argsVar,
+                    LinqExpression.Constant(memberAccess.NullSafe),
+                    _currentContext,
+                    _optionsParam,
+                    _ctParam,
+                    _functionsParam,
+                    _argumentTransformerParam));
+        }
+
+        // General call: evaluate callee and invoke
+        var callee = Compile(call.Callee);
+        return LinqExpression.Block(
+            new[] { argsVar },
+            LinqExpression.Assign(argsVar, argsInit),
+            LinqExpression.Call(
+                InvokeCallMethod,
+                callee,
+                argsVar,
+                _functionsParam,
+                _currentContext,
+                _optionsParam,
+                _ctParam,
+                _argumentTransformerParam));
+    }
+
+    private LinqExpression CompileLambda(LambdaExpr lambda)
+    {
+        // Create a LambdaValue at runtime capturing the current context
+        var parameterNames = lambda.Parameters.Select(p => p.Lexeme).ToList();
+        var listInit = LinqExpression.ListInit(
+            LinqExpression.New(typeof(List<string>)),
+            parameterNames.Select(p => LinqExpression.ElementInit(
+                typeof(List<string>).GetMethod("Add")!,
+                LinqExpression.Constant(p))));
+
+        return LinqExpression.New(
+            typeof(LambdaValue).GetConstructor([typeof(List<string>), typeof(Expr), typeof(CsEvalContext)])!,
+            listInit,
+            LinqExpression.Constant(lambda.Body, typeof(Expr)),
+            _currentContext);
     }
 
     #endregion

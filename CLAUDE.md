@@ -30,11 +30,11 @@ CsEval/
 │   │   └── Ast.cs         # Expression AST nodes
 │   ├── Evaluation/        # Expression evaluation
 │   │   ├── Evaluator*.cs  # Visitor-pattern evaluator (partial classes)
-│   │   ├── Evaluator.Registry.cs  # Operator/LINQ method registries
-│   │   ├── CsEvalContext.cs         # Variable scope management
-│   │   ├── ExpressionCompiler.cs  # Optional compilation to delegates
-│   │   ├── TypeCache.cs           # Reflection caching
-│   │   └── StaticProxies.cs       # Built-in modules (Math, DateTime, etc.)
+│   │   ├── RuntimeHelpers.cs  # Shared runtime logic (single source of truth)
+│   │   ├── Compiler/      # IL compilation via Expression Trees
+│   │   ├── CsEvalContext.cs   # Variable scope management
+│   │   ├── TypeCache.cs       # Reflection caching
+│   │   └── StaticProxies.cs   # Built-in modules (Math, DateTime, etc.)
 │   ├── CsEvalEngine.cs    # Main public API
 │   ├── CsEvalExpression.cs # Pre-parsed expression wrapper
 │   └── CsEvalOptions.cs   # Configuration options
@@ -44,15 +44,9 @@ CsEval/
 ## Key Patterns
 
 - **Visitor pattern**: Evaluator implements `IExprVisitor<object?>` to traverse AST
-- **Registry-based dispatch**: Operators and LINQ methods use dictionary lookups (see `Evaluator.Registry.cs`)
+- **RuntimeHelpers as single source of truth**: All shared logic (operators, LINQ, method invocation) lives in `RuntimeHelpers.cs`. Both the tree-walking evaluator and IL compiler delegate to these methods.
 - **Exception-based control flow**: `return`, `break`, `continue` use exceptions caught by parent blocks
 - **Reflection blocking**: All reflection types blocked at evaluation boundary (see [sandbox.md](docs/sandbox.md))
-
-## Extending CsEval
-
-- **New operators**: Add to `BinaryOperators`/`UnaryOperators` in `Evaluator.Registry.cs`
-- **New LINQ methods**: Add to `LinqMethodNames` + implement in `TryInvokeEnumerableMethod`
-- **New statements**: Add AST node to `Ast.cs`, parser logic, and visitor method
 
 ## Tests
 
@@ -60,18 +54,37 @@ CsEval/
 dotnet test
 ```
 
+Tests run in 3 compilation modes via `[TestFixture]` attributes:
+- `CompilationMode.Interpreted` - Tree-walking evaluation
+- `CompilationMode.Compiled` - IL compilation with fallback
+- `CompilationMode.StrictCompiled` - IL compilation only (throws if not compilable)
+
 Test folders: `Core/`, `Parsing/`, `Evaluator/`, `Loops/`, `Compilation/`, `Integration/`, `Security/`, `Performance/`
 
-## Implementation Guidelines
+## Code Style Guidelines
 
-1. **Delegate to C# runtime whenever possible**: Prefer calling .NET runtime methods over custom implementations. For example, LINQ methods should delegate to `System.Linq.Enumerable` rather than implementing logic manually. This ensures correct behavior, better performance, and automatic support for edge cases.
+1. **Delegate to .NET runtime - don't reinvent the wheel**: This is the most important rule. Always prefer calling .NET runtime methods over custom implementations:
+   - LINQ methods delegate to `System.Linq.Enumerable`
+   - IL compilation uses `System.Linq.Expressions` (Expression Trees) - never emit raw IL
+   - Operators delegate to `dynamic` dispatch
+   - Type conversions use `Convert.ChangeType`
+   - If .NET has a method for it, use it
 
-2. **Update documentation when features are implemented**: When adding new features:
-   - Update [ROADMAP.md](ROADMAP.md) to mark features as completed
-   - Update [docs/features.md](docs/features.md) with the new functionality
-   - Update [docs/syntax.md](docs/syntax.md) if new syntax is added
+2. **No code duplication**: If logic is needed by both the IL compiler and tree-walking evaluator, put it in `RuntimeHelpers.cs` and have both call it.
 
-3. **Use typed collections in tests**: Test inputs should use real typed collections (e.g., `List<int>`, `List<string>`) instead of `List<object?>` to simulate realistic usage patterns.
+3. **Delegate to helpers**: Functions that just call another function should not exist - the caller should use the target function directly.
+
+4. **No refactoring comments**: Don't add comments like "single source of truth", "now delegates to X", "consolidated from Y".
+
+5. **Minimal comments**: Only add comments when logic isn't self-evident.
+
+6. **Clean up dead code**: When refactoring, delete unused methods entirely.
+
+## Extending CsEval
+
+- **New operators**: Add to `RuntimeHelpers.cs` and reference from both evaluator and IL compiler
+- **New LINQ methods**: Add handler to `LinqHandlers` dictionary in `RuntimeHelpers.cs`
+- **New statements**: Add AST node to `Ast.cs`, parser logic, visitor method in Evaluator, and IL compilation support
 
 ## Common Gotchas
 

@@ -11,7 +11,12 @@ namespace CsEval.Evaluation.Compiler;
 internal sealed partial class ILCompiler
 {
     // Delegate signature for IL-compiled expressions
-    public delegate object? ILCompiledDelegate(CsEvalContext context, CsEvalOptions options, CancellationToken ct);
+    public delegate object? ILCompiledDelegate(
+        CsEvalContext context,
+        CsEvalOptions options,
+        CancellationToken ct,
+        Dictionary<string, Func<object?[], object?>> functions,
+        Func<MethodInfo, object?[], object?[]>? argumentTransformer);
 
     private readonly CsEvalContext _context;
     private readonly CsEvalOptions _options;
@@ -20,6 +25,8 @@ internal sealed partial class ILCompiler
     private readonly ParameterExpression _contextParam;
     private readonly ParameterExpression _optionsParam;
     private readonly ParameterExpression _ctParam;
+    private readonly ParameterExpression _functionsParam;
+    private readonly ParameterExpression _argumentTransformerParam;
 
     // Current context expression (may be child context in nested scopes)
     private LinqExpression _currentContext;
@@ -46,7 +53,7 @@ internal sealed partial class ILCompiler
     private static readonly MethodInfo SetMethod = typeof(CsEvalContext).GetMethod("Set", [typeof(string), typeof(object)])!;
     private static readonly MethodInfo DefineMethod = typeof(CsEvalContext).GetMethod("Define", [typeof(string), typeof(object)])!;
     private static readonly MethodInfo CreateChildMethod = typeof(CsEvalContext).GetMethod("CreateChild")!;
-    private static readonly MethodInfo IsTruthyMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.IsTruthy))!;
+    private static readonly MethodInfo RequireBooleanMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.RequireBoolean))!;
     private static readonly MethodInfo AddMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.Add), [typeof(object), typeof(object), typeof(CsEvalOptions), typeof(CsEvalContext)])!;
     private static readonly MethodInfo SubtractMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.Subtract))!;
     private static readonly MethodInfo MultiplyMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.Multiply))!;
@@ -73,6 +80,9 @@ internal sealed partial class ILCompiler
     private static readonly MethodInfo DisposeMethod = typeof(IDisposable).GetMethod(nameof(IDisposable.Dispose))!;
     private static readonly MethodInfo CheckAllowAssignmentMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.CheckAllowAssignment))!;
     private static readonly MethodInfo ValidateAndCoerceTypeMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.ValidateAndCoerceType))!;
+    private static readonly MethodInfo InvokeCallMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.InvokeCall))!;
+    private static readonly MethodInfo InvokeMemberCallMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.InvokeMemberCall))!;
+    private static readonly MethodInfo ResolveIdentifierMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.ResolveIdentifier))!;
 
     private record struct ControlFlowContext(LabelTarget BreakTarget, LabelTarget? ContinueTarget, bool IsLoop);
 
@@ -85,6 +95,8 @@ internal sealed partial class ILCompiler
         _contextParam = LinqExpression.Parameter(typeof(CsEvalContext), "context");
         _optionsParam = LinqExpression.Parameter(typeof(CsEvalOptions), "options");
         _ctParam = LinqExpression.Parameter(typeof(CancellationToken), "ct");
+        _functionsParam = LinqExpression.Parameter(typeof(Dictionary<string, Func<object?[], object?>>), "functions");
+        _argumentTransformerParam = LinqExpression.Parameter(typeof(Func<MethodInfo, object?[], object?[]>), "argumentTransformer");
 
         // Current context starts as the parameter
         _currentContext = _contextParam;
@@ -129,7 +141,9 @@ internal sealed partial class ILCompiler
                 fullBody,
                 compiler._contextParam,
                 compiler._optionsParam,
-                compiler._ctParam);
+                compiler._ctParam,
+                compiler._functionsParam,
+                compiler._argumentTransformerParam);
 
             return (lambda.Compile(), null);
         }
@@ -286,6 +300,21 @@ internal sealed partial class ILCompiler
                         stack.Push(r.Value);
                     break;
 
+                case CallExpr call:
+                    stack.Push(call.Callee);
+                    foreach (var arg in call.Arguments)
+                    {
+                        if (arg is NamedArgumentExpr)
+                            return "Named arguments not supported in IL compilation";
+                        stack.Push(arg);
+                    }
+                    break;
+
+                case LambdaExpr lambda:
+                    // Lambda bodies are evaluated at runtime, but we still need to verify they're valid
+                    stack.Push(lambda.Body);
+                    break;
+
                 default:
                     return $"Unsupported expression type '{current.GetType().Name}'";
             }
@@ -345,6 +374,8 @@ internal sealed partial class ILCompiler
                 BreakExpr => CompileBreak(),
                 ContinueExpr => CompileContinue(),
                 ReturnExpr ret => CompileReturn(ret),
+                CallExpr call => CompileCall(call),
+                LambdaExpr lambda => CompileLambda(lambda),
                 _ => throw new NotSupportedException($"Cannot compile {expr.GetType().Name}")
             };
         }

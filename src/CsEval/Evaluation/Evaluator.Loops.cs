@@ -16,15 +16,14 @@ public sealed partial class Evaluator
 
     public object? VisitWhile(WhileStatementExpr expr)
     {
-        var iterations = 0;
         var maxIterations = _options.MaxIterations;
 
-        while (RuntimeHelpers.IsTruthy(Evaluate(expr.Condition)))
+        while (RuntimeHelpers.RequireBoolean(Evaluate(expr.Condition)))
         {
             _cancellationToken.ThrowIfCancellationRequested();
 
-            if (maxIterations > 0 && ++iterations > maxIterations)
-                throw new CsEvalException($"While loop exceeded maximum iterations ({maxIterations}). Possible infinite loop.");
+            if (maxIterations > 0 && ++_iterationCount > maxIterations)
+                throw new CsEvalException($"Loop exceeded maximum iterations ({maxIterations}). Possible infinite loop.");
 
             // Create a child scope for each iteration's body
             var previousContext = _context;
@@ -57,7 +56,6 @@ public sealed partial class Evaluator
 
     public object? VisitFor(ForStatementExpr expr)
     {
-        var iterations = 0;
         var maxIterations = _options.MaxIterations;
 
         // Create a scope for the entire for loop (initializer variable lives here)
@@ -73,12 +71,12 @@ public sealed partial class Evaluator
             }
 
             // Loop while condition is true (or forever if no condition)
-            while (expr.Condition == null || RuntimeHelpers.IsTruthy(Evaluate(expr.Condition)))
+            while (expr.Condition == null || RuntimeHelpers.RequireBoolean(Evaluate(expr.Condition)))
             {
                 _cancellationToken.ThrowIfCancellationRequested();
 
-                if (maxIterations > 0 && ++iterations > maxIterations)
-                    throw new CsEvalException($"For loop exceeded maximum iterations ({maxIterations}). Possible infinite loop.");
+                if (maxIterations > 0 && ++_iterationCount > maxIterations)
+                    throw new CsEvalException($"Loop exceeded maximum iterations ({maxIterations}). Possible infinite loop.");
 
                 // Create a child scope for each iteration's body
                 var iterationContext = _context;
@@ -122,15 +120,14 @@ public sealed partial class Evaluator
 
     public object? VisitDoWhile(DoWhileStatementExpr expr)
     {
-        var iterations = 0;
         var maxIterations = _options.MaxIterations;
 
         do
         {
             _cancellationToken.ThrowIfCancellationRequested();
 
-            if (maxIterations > 0 && ++iterations > maxIterations)
-                throw new CsEvalException($"Do-while loop exceeded maximum iterations ({maxIterations}). Possible infinite loop.");
+            if (maxIterations > 0 && ++_iterationCount > maxIterations)
+                throw new CsEvalException($"Loop exceeded maximum iterations ({maxIterations}). Possible infinite loop.");
 
             // Create a child scope for each iteration's body
             var previousContext = _context;
@@ -156,14 +153,13 @@ public sealed partial class Evaluator
             {
                 _context = previousContext;
             }
-        } while (RuntimeHelpers.IsTruthy(Evaluate(expr.Condition)));
+        } while (RuntimeHelpers.RequireBoolean(Evaluate(expr.Condition)));
 
         return null;
     }
 
     public object? VisitForEach(ForEachStatementExpr expr)
     {
-        var iterations = 0;
         var maxIterations = _options.MaxIterations;
 
         var collection = Evaluate(expr.Collection);
@@ -177,8 +173,8 @@ public sealed partial class Evaluator
         {
             _cancellationToken.ThrowIfCancellationRequested();
 
-            if (maxIterations > 0 && ++iterations > maxIterations)
-                throw new CsEvalException($"Foreach loop exceeded maximum iterations ({maxIterations}). Possible infinite loop.");
+            if (maxIterations > 0 && ++_iterationCount > maxIterations)
+                throw new CsEvalException($"Loop exceeded maximum iterations ({maxIterations}). Possible infinite loop.");
 
             // Create a child scope for each iteration (loop variable + body variables are scoped here)
             var previousContext = _context;

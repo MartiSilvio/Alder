@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Reflection;
 using CsEval.Evaluation.Compiler;
 using CsEval.Parsing;
 
@@ -59,8 +60,10 @@ internal static class ExpressionCompiler
             {
                 return new CompiledExpressionInfo(Compiled, true, null);
 
-                // Wrap the IL delegate to match CompiledExpression signature
-                object? Compiled(CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct) => ilDelegate(ctx, opts, ct);
+                object? Compiled(CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct,
+                    Dictionary<string, Func<object?[], object?>> functions,
+                    Func<MethodInfo, object?[], object?[]>? argumentTransformer)
+                    => ilDelegate(ctx, opts, ct, functions, argumentTransformer);
             }
 
             return new CompiledExpressionInfo(null, false, failureReason);

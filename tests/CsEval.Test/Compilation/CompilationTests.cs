@@ -431,25 +431,36 @@ public class CompilationTests
     }
 
     [Test]
-    public void Compile_ReturnsIsCompilableFalse_ForLinq()
+    public void Compile_ReturnsIsCompilableTrue_ForLinq()
     {
         var engine = new CsEvalEngine()
             .SetVariable("items", new List<int> { 1, 2, 3 });
         var expr = engine.Parse("items.Where((x) => x > 1)");
 
-        Assert.That(expr.TryCompile(), Is.False);
+        // LINQ with lambdas is now IL-compilable
+        Assert.That(expr.TryCompile(), Is.True);
 
-        // Should still work via tree-walking
         var result = engine.Evaluate(expr) as List<object?>;
         Assert.That(result, Has.Count.EqualTo(2));
     }
 
     [Test]
-    public void Compile_ReturnsIsCompilableFalse_ForLambda()
+    public void Compile_ReturnsIsCompilableTrue_ForLambda()
     {
         var engine = new CsEvalEngine();
         var expr = engine.Parse("(x) => x * 2");
 
+        // Lambdas are now IL-compilable
+        Assert.That(expr.TryCompile(), Is.True);
+    }
+
+    [Test]
+    public void Compile_ReturnsIsCompilableFalse_ForObjectLiteral()
+    {
+        var engine = new CsEvalEngine();
+        var expr = engine.Parse("new { a = 1 }");
+
+        // Object literals are not yet IL-compilable
         Assert.That(expr.TryCompile(), Is.False);
     }
 
@@ -507,18 +518,19 @@ public class CompilationTests
     [Test]
     public void Parse_NonCompilableExpressions_FallBackToTreeWalking()
     {
-        var engine = new CsEvalEngine()
-            .SetVariable("items", new List<int> { 1, 2, 3 });
+        var engine = new CsEvalEngine();
 
-        // LINQ with lambdas is not compilable
-        var expr = engine.Parse("items.Where((x) => x > 1)");
+        // Object literals are not yet compilable
+        var expr = engine.Parse("new { a = 1, b = 2 }");
 
-        // Should not be compiled (not compilable)
+        // Should not be compiled after Parse (not compilable)
         Assert.That(expr.IsCompiled, Is.False);
 
         // But should still work via tree-walking
-        var result = engine.Evaluate(expr) as List<object?>;
-        Assert.That(result, Has.Count.EqualTo(2));
+        var result = engine.Evaluate(expr) as IDictionary<string, object?>;
+        Assert.That(result, Is.Not.Null);
+        Assert.That(result!["a"], Is.EqualTo(1));
+        Assert.That(result["b"], Is.EqualTo(2));
     }
 
     [Test]
@@ -577,10 +589,10 @@ public class CompilationTests
     public void CompilationMode_StrictCompiled_ThrowsOnNonCompilableExpression()
     {
         var options = new CsEvalOptions { CompilationMode = CompilationMode.StrictCompiled };
-        var engine = new CsEvalEngine(options)
-            .SetVariable("items", new List<int> { 1, 2, 3 });
+        var engine = new CsEvalEngine(options);
 
-        var expr = engine.Parse("items.Where((x) => x > 1)");
+        // Object literals are not yet compilable
+        var expr = engine.Parse("new { a = 1 }");
 
         // StrictCompiled should throw for non-compilable expressions
         var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate(expr));
@@ -616,16 +628,16 @@ public class CompilationTests
     [Test]
     public void ParseAndCompile_NonCompilableExpression_StillWorks()
     {
-        var engine = new CsEvalEngine()
-            .SetVariable("items", new List<int> { 1, 2, 3 });
-        var expr = engine.ParseAndCompile("items.Where((x) => x > 1)");
+        var engine = new CsEvalEngine();
+        var expr = engine.ParseAndCompile("new { a = 1, b = 2 }");
 
-        // LINQ with lambdas is not compilable
+        // Object literals are not yet compilable
         Assert.That(expr.IsCompiled, Is.False);
 
         // Should still work via tree-walking
-        var result = engine.Evaluate(expr) as List<object?>;
-        Assert.That(result, Has.Count.EqualTo(2));
+        var result = engine.Evaluate(expr) as IDictionary<string, object?>;
+        Assert.That(result, Is.Not.Null);
+        Assert.That(result!["a"], Is.EqualTo(1));
     }
 
     #endregion

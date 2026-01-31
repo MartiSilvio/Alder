@@ -33,6 +33,9 @@
     <Compile Update="Parsing\Parser.Statements.cs">
       <DependentUpon>Parser.cs</DependentUpon>
     </Compile>
+    <Compile Update="Evaluation\Evaluator.Registry.cs">
+      <DependentUpon>Evaluator.cs</DependentUpon>
+    </Compile>
   </ItemGroup>
 
 </Project>

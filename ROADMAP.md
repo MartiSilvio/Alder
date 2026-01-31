@@ -170,6 +170,17 @@ Features marked ✅ in both AST and IL columns are fully optimized. Features wit
 |   🔵   | `Join`, `GroupJoin`      |                                                                                 | ❌  | ❌  | Complex                    |
 |   🔵   | `TakeWhile`, `SkipWhile` |                                                                                 | ❌  | ❌  |                            |
 
+### Known Deviations from C#
+
+These are intentional differences from standard C# LINQ behavior:
+
+| Method    | CsEval Behavior                                         | C# Standard Behavior                          | Rationale                                      |
+| --------- | ------------------------------------------------------- | --------------------------------------------- | ---------------------------------------------- |
+| `GroupBy` | Returns `List<Dictionary>` with `Key` and `Items` props | Returns `IEnumerable<IGrouping<TKey, TElem>>` | No runtime generic types; dictionary is usable |
+| `Zip`     | Without selector returns `{ First, Second }` dictionary | Returns `IEnumerable<(T1, T2)>` tuples        | No tuple syntax support yet                    |
+| `OfType`  | Filters nulls only                                      | Filters by type `T`                           | No runtime generic type parameters             |
+| `Cast`    | No-op (returns input)                                   | Throws if element isn't `T`                   | No runtime generic type parameters             |
+
 ---
 
 ## Security
@@ -245,7 +256,7 @@ Features marked ✅ in both AST and IL columns are fully optimized. Features wit
 | ------------------------------------------- | ------------------------------------------------------------- |
 | `typeof(T)`                                 | Returns `System.Type` which is blocked by reflection security |
 | `ToDictionary`                              | Redundant - use anonymous objects `new { Key = value }`       |
-| `OfType<T>`, `Cast<T>`                      | Requires runtime generic type parameters                      |
+| `OfType<T>`, `Cast<T>` (full behavior)      | Requires runtime generic type parameters (stubs exist)        |
 | `MethodFilter`, `MemberFilter`              | Would require `MethodInfo`/`MemberInfo` which are blocked     |
 | Generic method calls                        | `list.Cast<int>()` requires runtime generic type resolution   |
 | Full C# compilation                         | Use Roslyn for that                                           |

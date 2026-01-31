@@ -27,7 +27,7 @@ internal sealed partial class ILCompiler
 
     private LinqExpression CompileIf(IfStatementExpr ifStmt)
     {
-        var condition = LinqExpression.Call(IsTruthyMethod, Compile(ifStmt.Condition));
+        var condition = LinqExpression.Call(RequireBooleanMethod, Compile(ifStmt.Condition));
 
         // Then branch with scope
         var thenBlock = Scoped(() =>
@@ -75,14 +75,14 @@ internal sealed partial class ILCompiler
 
         var loopStatements = new List<LinqExpression>();
 
-        // Cancellation and iteration check
         loopStatements.Add(CompileCancellationCheck());
-        loopStatements.Add(CompileIterationCheck());
 
         // Condition check - break if false
         loopStatements.Add(LinqExpression.IfThen(
-            LinqExpression.Not(LinqExpression.Call(IsTruthyMethod, Compile(whileStmt.Condition))),
+            LinqExpression.Not(LinqExpression.Call(RequireBooleanMethod, Compile(whileStmt.Condition))),
             LinqExpression.Break(breakLabel)));
+
+        loopStatements.Add(CompileIterationCheck());
 
         // Body with scope
         loopStatements.Add(Scoped(() =>
@@ -124,17 +124,17 @@ internal sealed partial class ILCompiler
 
             var loopStatements = new List<LinqExpression>();
 
-            // Cancellation and iteration check
             loopStatements.Add(CompileCancellationCheck());
-            loopStatements.Add(CompileIterationCheck());
 
             // Condition check (if present)
             if (forStmt.Condition != null)
             {
                 loopStatements.Add(LinqExpression.IfThen(
-                    LinqExpression.Not(LinqExpression.Call(IsTruthyMethod, Compile(forStmt.Condition))),
+                    LinqExpression.Not(LinqExpression.Call(RequireBooleanMethod, Compile(forStmt.Condition))),
                     LinqExpression.Break(breakLabel)));
             }
+
+            loopStatements.Add(CompileIterationCheck());
 
             // Body with nested scope
             loopStatements.Add(Scoped(() =>
@@ -195,7 +195,7 @@ internal sealed partial class ILCompiler
 
         // Condition check - break if false
         loopStatements.Add(LinqExpression.IfThen(
-            LinqExpression.Not(LinqExpression.Call(IsTruthyMethod, Compile(doWhile.Condition))),
+            LinqExpression.Not(LinqExpression.Call(RequireBooleanMethod, Compile(doWhile.Condition))),
             LinqExpression.Break(breakLabel)));
 
         var loop = LinqExpression.Loop(LinqExpression.Block(loopStatements), breakLabel);
@@ -224,17 +224,16 @@ internal sealed partial class ILCompiler
         {
             _controlStack.Push(new ControlFlowContext(breakLabel, continueLabel, IsLoop: true));
 
-            // Loop body
             var loopStatements = new List<LinqExpression>();
 
-            // Cancellation and iteration check
             loopStatements.Add(CompileCancellationCheck());
-            loopStatements.Add(CompileIterationCheck());
 
             // MoveNext - break if false
             loopStatements.Add(LinqExpression.IfThen(
                 LinqExpression.Not(LinqExpression.Call(enumerator, MoveNextMethod)),
                 LinqExpression.Break(breakLabel)));
+
+            loopStatements.Add(CompileIterationCheck());
 
             // Get Current and define variable
             loopStatements.Add(LinqExpression.Assign(
