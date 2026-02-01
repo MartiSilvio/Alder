@@ -43,6 +43,38 @@ public sealed partial class Evaluator : IExprVisitor<object?>
         throw new CsEvalException($"Unknown unary operator '{expr.Op.Lexeme}'");
     }
 
+    public object? VisitCast(CastExpr expr)
+    {
+        var value = Evaluate(expr.Expression);
+        return TypeHelpers.ExplicitCast(value, expr.TargetType.Lexeme);
+    }
+
+    public object? VisitIs(IsExpr expr)
+    {
+        var value = Evaluate(expr.Expression);
+
+        // x is null / x is not null
+        if (expr.TargetType == null)
+        {
+            var isNull = value == null;
+            return expr.IsNegated ? !isNull : isNull;
+        }
+
+        // x is type / x is type name
+        var isMatch = TypeHelpers.IsType(value, expr.TargetType.Value.Lexeme);
+
+        if (isMatch && expr.VariableName != null)
+            _context.Define(expr.VariableName.Value.Lexeme, value);
+
+        return isMatch;
+    }
+
+    public object? VisitAs(AsExpr expr)
+    {
+        var value = Evaluate(expr.Expression);
+        return TypeHelpers.TryAs(value, expr.TargetType.Lexeme);
+    }
+
     public object? VisitBinary(BinaryExpr expr)
     {
         var left = Evaluate(expr.Left);

@@ -169,7 +169,7 @@ public class EvaluationChaosTests(CompilationMode mode) : StressTestBase(mode)
         });
         
         // "string".GetType() is a method call. Should be blocked.
-        var expr = "'hello'.GetType()";
+        var expr = "\"hello\".GetType()";
         
         Assert.Throws<CsEvalException>(() => safeEngine.Evaluate(expr));
     }

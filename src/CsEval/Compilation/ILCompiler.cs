@@ -114,6 +114,9 @@ internal sealed partial class ILCompiler
     private static readonly MethodInfo CheckNullCoalesceAssignAllowedMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.CheckNullCoalesceAssignAllowed))!;
     private static readonly MethodInfo ValidateCompoundAssignmentMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.ValidateCompoundAssignment))!;
     private static readonly MethodInfo ValidateAndCoerceTypeMethod = typeof(TypeHelpers).GetMethod(nameof(TypeHelpers.ValidateAndCoerceType))!;
+    private static readonly MethodInfo ExplicitCastMethod = typeof(TypeHelpers).GetMethod(nameof(TypeHelpers.ExplicitCast))!;
+    private static readonly MethodInfo IsTypeMethod = typeof(TypeHelpers).GetMethod(nameof(TypeHelpers.IsType))!;
+    private static readonly MethodInfo TryAsMethod = typeof(TypeHelpers).GetMethod(nameof(TypeHelpers.TryAs))!;
     private static readonly MethodInfo InvokeCallMethod = typeof(MethodInvoker).GetMethod(nameof(MethodInvoker.InvokeCall))!;
     private static readonly MethodInfo InvokeMemberCallMethod = typeof(MethodInvoker).GetMethod(nameof(MethodInvoker.InvokeMemberCall))!;
     private static readonly MethodInfo ResolveIdentifierMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.ResolveIdentifier))!;
@@ -222,6 +225,18 @@ internal sealed partial class ILCompiler
 
                 case UnaryExpr u:
                     return $"Unsupported unary operator '{u.Op.Lexeme}'";
+
+                case CastExpr cast:
+                    stack.Push(cast.Expression);
+                    break;
+
+                case IsExpr isExpr:
+                    stack.Push(isExpr.Expression);
+                    break;
+
+                case AsExpr asExpr:
+                    stack.Push(asExpr.Expression);
+                    break;
 
                 case BinaryExpr b when IsCompilableBinaryOp(b.Op.Type):
                     stack.Push(b.Left);
@@ -433,6 +448,9 @@ internal sealed partial class ILCompiler
                 IdentifierExpr id => CompileIdentifier(id),
                 GroupingExpr g => Compile(g.Expression),
                 UnaryExpr u => CompileUnary(u),
+                CastExpr cast => CompileCast(cast),
+                IsExpr isExpr => CompileIs(isExpr),
+                AsExpr asExpr => CompileAs(asExpr),
                 BinaryExpr b => CompileBinary(b),
                 LogicalExpr l => CompileLogical(l),
                 ConditionalExpr c => CompileConditional(c),

@@ -74,6 +74,135 @@ public static class TypeHelpers
         throw new CsEvalException($"Unknown type '{typeName}'");
     }
 
+    public static object? ExplicitCast(object? value, string targetTypeName)
+    {
+        if (!TypeNameToClrType.TryGetValue(targetTypeName, out var targetType))
+            throw new CsEvalException($"Unknown type '{targetTypeName}'");
+
+        var underlyingType = Nullable.GetUnderlyingType(targetType) ?? targetType;
+        var isNullable = Nullable.GetUnderlyingType(targetType) != null;
+
+        if (value == null)
+        {
+            if (targetType.IsValueType && !isNullable)
+                throw new CsEvalException($"Cannot cast null to non-nullable type '{targetTypeName}'");
+            return null;
+        }
+
+        var sourceType = value.GetType();
+
+        // Same type - no conversion needed
+        if (sourceType == underlyingType || sourceType == targetType)
+            return value;
+
+        // Handle reference types (string, object)
+        if (underlyingType == typeof(string))
+        {
+            if (value is char c)
+                return c.ToString();
+            throw new InvalidCastException($"Cannot cast {sourceType.Name} to string");
+        }
+
+        if (underlyingType == typeof(object))
+            return value;
+
+        // Numeric and char conversions
+        try
+        {
+            // char to/from numeric
+            if (underlyingType == typeof(char))
+            {
+                if (value is string { Length: 1 } s)
+                    return s[0];
+                // Numeric to char - truncate to int first
+                var numVal = TruncateToLong(value);
+                return (char)numVal;
+            }
+
+            if (sourceType == typeof(char))
+            {
+                var charVal = (char)value;
+                return CastFromLong((long)charVal, underlyingType);
+            }
+
+            // Floating-point to integer: C# uses truncation, not rounding
+            if (IsFloatingPoint(sourceType) && IsIntegerType(underlyingType))
+            {
+                var longVal = TruncateToLong(value);
+                return CastFromLong(longVal, underlyingType);
+            }
+
+            // Integer to integer or floating-point to floating-point: Convert.ChangeType works
+            return Convert.ChangeType(value, underlyingType);
+        }
+        catch (Exception ex) when (ex is InvalidCastException or FormatException or OverflowException)
+        {
+            throw new InvalidCastException($"Cannot cast {sourceType.Name} to {targetTypeName}", ex);
+        }
+    }
+
+    private static bool IsFloatingPoint(Type t) =>
+        t == typeof(float) || t == typeof(double) || t == typeof(decimal);
+
+    private static bool IsIntegerType(Type t) =>
+        t == typeof(sbyte) || t == typeof(byte) || t == typeof(short) || t == typeof(ushort) ||
+        t == typeof(int) || t == typeof(uint) || t == typeof(long) || t == typeof(ulong);
+
+    private static long TruncateToLong(object? value) => value switch
+    {
+        float f => (long)f,
+        double d => (long)d,
+        decimal m => (long)m,
+        _ => Convert.ToInt64(value)
+    };
+
+    private static object CastFromLong(long value, Type targetType)
+    {
+        if (targetType == typeof(sbyte)) return (sbyte)value;
+        if (targetType == typeof(byte)) return (byte)value;
+        if (targetType == typeof(short)) return (short)value;
+        if (targetType == typeof(ushort)) return (ushort)value;
+        if (targetType == typeof(int)) return (int)value;
+        if (targetType == typeof(uint)) return (uint)value;
+        if (targetType == typeof(long)) return value;
+        if (targetType == typeof(ulong)) return (ulong)value;
+        if (targetType == typeof(float)) return (float)value;
+        if (targetType == typeof(double)) return (double)value;
+        if (targetType == typeof(decimal)) return (decimal)value;
+        throw new InvalidCastException($"Cannot cast to {targetType.Name}");
+    }
+
+    public static bool IsType(object? value, string typeName)
+    {
+        if (!TypeNameToClrType.TryGetValue(typeName, out var targetType))
+            throw new CsEvalException($"Unknown type '{typeName}'");
+
+        if (value == null)
+            return false;
+
+        var valueType = value.GetType();
+        var underlyingTarget = Nullable.GetUnderlyingType(targetType) ?? targetType;
+
+        return underlyingTarget.IsAssignableFrom(valueType) || valueType == underlyingTarget;
+    }
+
+    public static object? TryAs(object? value, string typeName)
+    {
+        if (!TypeNameToClrType.TryGetValue(typeName, out var targetType))
+            throw new CsEvalException($"Unknown type '{typeName}'");
+
+        if (value == null)
+            return null;
+
+        var valueType = value.GetType();
+        var underlyingTarget = Nullable.GetUnderlyingType(targetType) ?? targetType;
+
+        if (underlyingTarget.IsAssignableFrom(valueType) || valueType == underlyingTarget)
+            return value;
+
+        return null;
+    }
+
     public static bool IsNullableType(Type type)
     {
         if (!type.IsValueType)
@@ -107,7 +236,7 @@ public static class TypeHelpers
         if (ImplicitConversions.TryGetValue(sourceType, out var allowedTargets) && allowedTargets.Contains(underlyingType))
             return Convert.ChangeType(value, underlyingType);
 
-        // §10.2.11: Implicit constant expression conversions
+        // Implicit constant expression conversions
         // An int constant can be assigned to smaller types if value is in range
         if (sourceType == typeof(int) && value is int intValue)
         {
@@ -142,7 +271,7 @@ public static class TypeHelpers
 
     /// <summary>
     /// Validates assignment and returns the coerced value, or throws if not implicitly convertible.
-    /// Per §10.2: Assignment requires implicit convertibility.
+    /// Assignment requires implicit convertibility.
     /// </summary>
     public static object? ValidateAssignment(Type targetType, object? value, string varName)
     {
@@ -187,7 +316,7 @@ public static class TypeHelpers
     }
 
     /// <summary>
-    /// §10.2.11: Implicit constant expression conversions.
+    /// Implicit constant expression conversions.
     /// An int constant can be converted to sbyte, byte, short, ushort, uint, ulong
     /// if the value is within the target type's range.
     /// </summary>

@@ -20,10 +20,10 @@ CsEval implements a **substantial subset** of the ECMA-334 C# specification. The
 
 | ECMA-334 Section | Coverage | Notes |
 |------------------|:--------:|-------|
-| §6 Lexical Structure | ~80% | Missing: unicode escapes, digit separators |
+| §6 Lexical Structure | ~95% | Unicode escapes ✅, digit separators ✅, exponent notation ✅ |
 | §8 Types | ~85% | Usage of types ✅; Type definitions out of scope |
-| §10 Conversions | ~70% | Missing: explicit cast syntax `(T)x` |
-| §12 Expressions | ~75% | Missing: is/as, typeof, default |
+| §10 Conversions | ~90% | Explicit cast ✅; user-defined conversions not supported |
+| §12 Expressions | ~85% | Missing: typeof, default, pattern matching with variables |
 | §13 Statements | ~80% | Core statements ✅; yield/lock/using out of scope |
 | Operator Precedence | 100% | Correct for all implemented operators |
 
@@ -45,10 +45,10 @@ CsEval implements a **substantial subset** of the ECMA-334 C# specification. The
 
 | Feature | Status | Location | Notes |
 |---------|:------:|----------|-------|
-| `\uHHHH` in strings | ❌ | — | 🔴 HIGH PRIORITY |
-| `\uHHHH` in chars | ❌ | — | 🔴 HIGH PRIORITY |
-| `\uHHHH` in identifiers | ❌ | — | |
-| `\UHHHHHHHH` (8 digits) | ❌ | — | 🔴 HIGH PRIORITY |
+| `\uHHHH` in strings | ✅ | Lexer.cs:730-782 | 4-digit unicode escapes |
+| `\uHHHH` in chars | ✅ | Lexer.cs:730-782 | 4-digit unicode escapes |
+| `\uHHHH` in identifiers | ❌ | — | Not in scope |
+| `\UHHHHHHHH` (8 digits) | ✅ | Lexer.cs:730-782 | BMP characters only (supplementary chars throw) |
 
 ### §6.4.3 Identifiers
 
@@ -70,7 +70,7 @@ CsEval implements a **substantial subset** of the ECMA-334 C# specification. The
 | Feature | Status | Location | Notes |
 |---------|:------:|----------|-------|
 | Decimal: `123` | ✅ | Lexer.cs:571-606 | |
-| Decimal: `1_000_000` | ❌ | — | 🟡 Digit separators |
+| Decimal: `1_000_000` | ✅ | Lexer.cs:654-670 | Digit separators in decimal, hex, binary |
 | Hex: `0xFF` | ✅ | Lexer.cs:608-629 | With auto type promotion |
 | Binary: `0b1010` | ✅ | Lexer.cs:631-652 | With auto type promotion |
 | Suffix: L, U, UL | ✅ | Lexer.cs:624-654 | |
@@ -79,7 +79,7 @@ CsEval implements a **substantial subset** of the ECMA-334 C# specification. The
 | Feature | Status | Location | Notes |
 |---------|:------:|----------|-------|
 | Decimal point: `3.14` | ✅ | Lexer.cs:577-582 | |
-| Exponent: `1e10` | ❌ | — | 🟡 MEDIUM |
+| Exponent: `1e10` | ✅ | Lexer.cs:613-626 | Supports e/E with +/- sign |
 | Leading decimal: `.5` | ❌ | — | 🟡 MEDIUM |
 | Suffix: F, D, M | ✅ | Lexer.cs:633-635 | |
 
@@ -89,7 +89,8 @@ CsEval implements a **substantial subset** of the ECMA-334 C# specification. The
 | `'a'`, `'Z'` | ✅ | Lexer.cs:400-444 | TokenType.Character |
 | Escape sequences | ✅ | Lexer.cs:413-427 | All C# escapes supported |
 | `\xHH` hex escape | ❌ | — | 🟡 Variable-length hex |
-| `\uHHHH` unicode | ❌ | — | 🟡 Unicode escapes |
+| `\uHHHH` unicode | ✅ | Lexer.cs:730-782 | 4-digit unicode |
+| `\UHHHHHHHH` unicode | ✅ | Lexer.cs:730-782 | 8-digit (BMP only) |
 
 #### String Literals (§6.4.5.6)
 | Feature | Status | Location | Notes |
@@ -178,11 +179,11 @@ CsEval implements a **substantial subset** of the ECMA-334 C# specification. The
 
 ### §10.3 Explicit Conversions
 
-| Feature | Status | Notes |
-|---------|:------:|-------|
-| Cast syntax `(T)x` | ❌ | 🔴 HIGH PRIORITY - Parser treats `(expr)` as grouping only |
-| Unboxing `object → int` | ❌ | Requires cast syntax |
-| Narrowing conversions | ❌ | Requires cast syntax |
+| Feature | Status | Location | Notes |
+|---------|:------:|----------|-------|
+| Cast syntax `(T)x` | ✅ | Parser.Expressions.cs, TypeHelpers.cs | All primitive types supported |
+| Unboxing `object → int` | ✅ | TypeHelpers.ExplicitCast() | Via cast syntax |
+| Narrowing conversions | ✅ | TypeHelpers.ExplicitCast() | Truncation semantics |
 
 ### §10.5 User-Defined Conversions
 | Feature | Status | Notes |
@@ -207,11 +208,11 @@ CsEval implements **correct precedence and associativity** for all supported ope
 | Level | ECMA Category | Operators | Status | Location |
 |:-----:|---------------|-----------|:------:|----------|
 | 1 | Primary | `.` `?.` `f()` `a[]` `x++` `x--` | ✅ | ParsePostfix() |
-| 2 | Unary | `-` `!` `~` `++x` `--x` | ⚠️ | ParseUnary() - missing unary `+`, cast |
+| 2 | Unary | `-` `!` `~` `++x` `--x` `(T)x` | ⚠️ | ParseUnary() - missing unary `+` |
 | 3 | Multiplicative | `*` `/` `%` | ✅ | ParseFactor() |
 | 4 | Additive | `+` `-` | ✅ | ParseTerm() |
 | 5 | Shift | `<<` `>>` | ✅ | ParseShift() |
-| 6 | Relational | `<` `>` `<=` `>=` `is` `as` | ⚠️ | ParseComparison() - missing `is`, `as` |
+| 6 | Relational | `<` `>` `<=` `>=` `is` `as` | ✅ | ParseComparison() |
 | 7 | Equality | `==` `!=` | ✅ | ParseEquality() |
 | 8 | Logical AND | `&` | ✅ | ParseBitwiseAnd() |
 | 9 | Logical XOR | `^` | ✅ | ParseBitwiseXor() |
@@ -266,17 +267,17 @@ CsEval implements **correct precedence and associativity** for all supported ope
 | `++x` (prefix increment) | ✅ | |
 | `--x` (prefix decrement) | ✅ | |
 | `+x` (unary plus) | ❌ | Missing |
-| `(T)x` (cast) | ❌ | 🔴 HIGH PRIORITY |
+| `(T)x` (cast) | ✅ | TypeHelpers.ExplicitCast() |
 | `await x` | ❌ | 🔵 |
 
 ### Type Testing Operators
 
 | Operator | Status | Notes |
 |----------|:------:|-------|
-| `is` | ❌ | 🔴 HIGH PRIORITY |
-| `is not` | ❌ | 🔴 HIGH PRIORITY |
-| `is T name` | ❌ | 🔴 HIGH PRIORITY |
-| `as` | ❌ | 🔴 HIGH PRIORITY |
+| `is` | ✅ | TypeHelpers.IsType() |
+| `is not` | ✅ | Evaluator.VisitIs() |
+| `is T name` | ✅ | Evaluator.VisitIs() / ILCompiler.CompileIs() |
+| `as` | ✅ | TypeHelpers.TryAs() |
 
 ---
 
@@ -329,17 +330,9 @@ CsEval implements **correct precedence and associativity** for all supported ope
 
 ### 🔴 HIGH PRIORITY (Remaining Core Features)
 
-1. **Explicit Cast Operator (§10.3)** - `(int)x`, `(long)y` not supported
-   - Impact: No type narrowing, no explicit conversions
-   - Fix: ~100 LOC in Parser + AST node + Evaluator
+1. ~~**Unicode Escapes (§6.4.2)** - `\uHHHH` not supported in strings/chars~~ ✅ Done
 
-2. **Type Testing Operators (§12.12)** - `is`, `as` not implemented
-   - Impact: Cannot check types at runtime
-   - Fix: ~150 LOC
-
-3. **Unicode Escapes (§6.4.2)** - `\uHHHH` not supported in strings/chars
-   - Impact: International text handling limited
-   - Fix: ~100 LOC in Lexer
+2. ~~**Pattern Matching with Variable (§12.12)** - `x is string s` not implemented~~ ✅ Done
 
 ### ✅ RECENTLY IMPLEMENTED
 
@@ -347,11 +340,15 @@ CsEval implements **correct precedence and associativity** for all supported ope
 2. ~~Hexadecimal Literals (§6.4.5.3)~~ - `0xFF`, `0x1A` ✅
 3. ~~Binary Literals (§6.4.5.3)~~ - `0b1010` ✅
 4. ~~Additional Escape Sequences~~ - `\0`, `\a`, `\b`, `\f`, `\v` ✅
+5. ~~Explicit Cast Operator (§10.3)~~ - `(int)x`, `(double)y` ✅
+6. ~~Type Testing Operators (§12.12)~~ - `is`, `is not`, `as` ✅
+7. ~~Unicode Escapes (§6.4.2)~~ - `\uHHHH`, `\UHHHHHHHH` ✅
+8. ~~Pattern Matching with Variable (§12.12)~~ - `x is string s` ✅
 
 ### 🟡 MEDIUM PRIORITY (Nice to Have)
 
-1. Digit separators `1_000_000`
-2. Exponent notation `1e10`, `1.5E-3`
+1. ~~Digit separators `1_000_000`~~ ✅ Done
+2. ~~Exponent notation `1e10`, `1.5E-3`~~ ✅ Done
 3. Tuple literals `(1, "x")`
 4. Typed constructors `new DateTime(2024, 1, 1)`
 
@@ -377,10 +374,10 @@ CsEval implements **correct precedence and associativity** for all supported ope
 
 ### Actual Gaps (Could Be Implemented)
 
-1. **Limited Pattern Matching** - No `is`, `as`, property patterns
-2. **No Explicit Cast** - Cannot write `(int)x` for type conversion
-3. **No Exception Handling** - No try/catch in expressions
-4. **Simplified Overload Resolution** - Uses reflection, not full C# rules
+1. **Limited Pattern Matching** - No property patterns `is { Name: "John" }`
+2. **No Exception Handling** - No try/catch in expressions
+3. **Simplified Overload Resolution** - Uses reflection, not full C# rules
+4. **No Supplementary Characters** - `\UHHHHHHHH` for code points > U+FFFF not supported
 
 ### Out of Scope (By Design)
 
@@ -410,19 +407,20 @@ This ensures no false positives - if CsEval claims to support a feature, it must
 ### Phase 1: Remaining Critical Fixes
 1. ~~Implement character literals~~ ✅ Done
 2. ~~Add hexadecimal/binary parsing~~ ✅ Done
-3. Add explicit cast operator `(T)x`
-4. Implement `is` and `as` operators
+3. ~~Add explicit cast operator `(T)x`~~ ✅ Done
+4. ~~Implement `is` and `as` operators~~ ✅ Done
+5. ~~Add Unicode escapes `\uHHHH`~~ ✅ Done
 
 ### Phase 2: Usability Improvements
-1. Unicode escapes `\uHHHH`
-2. Digit separators `1_000_000`
-3. Exponent notation `1e10`
+1. ~~Pattern matching with variable `x is string s`~~ ✅ Done
+2. ~~Digit separators `1_000_000`~~ ✅ Done
+3. ~~Exponent notation `1e10`~~ ✅ Done
 4. Typed constructors `new Type(...)`
 
 ### Phase 3: Nice to Have
 1. Tuple literals `(1, "x")`
 2. Exception handling (try/catch)
-3. Pattern matching extensions
+3. Property pattern matching `x is { Name: "John" }`
 
 ---
 

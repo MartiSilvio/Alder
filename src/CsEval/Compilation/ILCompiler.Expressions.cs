@@ -44,6 +44,67 @@ internal sealed partial class ILCompiler
         };
     }
 
+    private LinqExpression CompileCast(CastExpr cast)
+    {
+        var value = Compile(cast.Expression);
+        return LinqExpression.Call(
+            ExplicitCastMethod,
+            value,
+            LinqExpression.Constant(cast.TargetType.Lexeme));
+    }
+
+    private LinqExpression CompileIs(IsExpr isExpr)
+    {
+        var value = Compile(isExpr.Expression);
+
+        // x is null / x is not null
+        if (isExpr.TargetType == null)
+        {
+            var isNull = LinqExpression.Equal(value, LinqExpression.Constant(null, typeof(object)));
+            LinqExpression result = isExpr.IsNegated
+                ? LinqExpression.Not(isNull)
+                : isNull;
+            return LinqExpression.Convert(result, typeof(object));
+        }
+
+        // x is type / x is type name
+        var typeCheck = LinqExpression.Call(
+            IsTypeMethod,
+            value,
+            LinqExpression.Constant(isExpr.TargetType.Value.Lexeme));
+
+        if (isExpr.VariableName == null)
+            return LinqExpression.Convert(typeCheck, typeof(object));
+
+        // x is type name - declare variable if match succeeds
+        var valueVar = LinqExpression.Variable(typeof(object), "isValue");
+        var matchVar = LinqExpression.Variable(typeof(bool), "isMatch");
+
+        return LinqExpression.Block(
+            typeof(object),
+            [valueVar, matchVar],
+            LinqExpression.Assign(valueVar, value),
+            LinqExpression.Assign(matchVar, LinqExpression.Call(
+                IsTypeMethod,
+                valueVar,
+                LinqExpression.Constant(isExpr.TargetType.Value.Lexeme))),
+            LinqExpression.IfThen(
+                matchVar,
+                LinqExpression.Call(_currentContext, DefineMethod,
+                    LinqExpression.Constant(isExpr.VariableName.Value.Lexeme),
+                    valueVar)),
+            LinqExpression.Convert(matchVar, typeof(object)));
+    }
+
+    private LinqExpression CompileAs(AsExpr asExpr)
+    {
+        var value = Compile(asExpr.Expression);
+        return LinqExpression.Call(
+            TryAsMethod,
+            value,
+            LinqExpression.Constant(asExpr.TargetType.Lexeme));
+    }
+
     private LinqExpression CompileBinary(BinaryExpr b)
     {
         var left = Compile(b.Left);

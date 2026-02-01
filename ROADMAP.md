@@ -58,11 +58,11 @@ Features marked ✅ in both AST and IL columns are fully optimized. Features wit
 |   ✅   | Char literals     | `'a'`, `'\t'`, `'\n'`         | ✅  | ✅  | Single quotes for characters   |
 |   ✅   | Hex literals      | `0xFF`, `0x1A`                | ✅  | ✅  | Hexadecimal integers           |
 |   ✅   | Binary literals   | `0b1010`                      | ✅  | ✅  | C# 7.0                         |
-|   🟡   | Digit separators  | `1_000_000`, `0xFF_FF`        | ❌  | ❌  | C# 7.0                         |
-|   🟡   | Unicode escapes   | `'\u0041'`, `"\u0048\u0069"`  | ❌  | ❌  | In char and string literals    |
+|   ✅   | Digit separators  | `1_000_000`, `0xFF_FF`        | ✅  | ✅  | C# 7.0                         |
+|   ✅   | Unicode escapes   | `'\u0041'`, `"\u0048\u0069"`  | ✅  | ✅  | In char and string literals    |
 |   ✅   | Escape sequences  | `\t`, `\n`, `\r`, `\\`        | ✅  | ✅  | In string literals             |
 |   ✅   | More escapes      | `\0`, `\a`, `\b`, `\f`, `\v`  | ✅  | ✅  | Additional C# escape sequences |
-|   🟡   | Exponent notation | `1e10`, `1.5E-3`, `3e+5`      | ❌  | ❌  | Scientific notation            |
+|   ✅   | Exponent notation | `1e10`, `1.5E-3`, `3e+5`      | ✅  | ✅  | Scientific notation            |
 |   🟡   | Leading decimal   | `.5`, `.123`                  | ❌  | ❌  | Requires `0.5` currently       |
 |   🔵   | DateTime literals | `#2024-01-01#`                | ❌  | ❌  | NCalc-style date literals      |
 |   🔵   | TimeSpan literals | `TimeSpan.FromHours(1)`       | ❌  | ❌  | Via registered module          |
@@ -104,11 +104,11 @@ Features marked ✅ in both AST and IL columns are fully optimized. Features wit
 |   🟡   | Named tuple elements  | `(count: 1, name: "test")`   | ❌  | ❌  | C# 7.0                                                                  |
 |   🔵   | Tuple deconstruction  | `var (a, b) = tuple;`        | ❌  | ❌  | C# 7.0                                                                  |
 |   ✅   | Interpolated strings  | `$"Hello {name}"`            | ✅  | ✅  |                                                                         |
-|   🔴   | `is` operator         | `x is string`, `x is null`   | ❌  | ❌  | Type checking                                                           |
-|   🔴   | `is not`              | `x is not null`              | ❌  | ❌  | Common pattern                                                          |
-|   🔴   | `is` with variable    | `x is string s`              | ❌  | ❌  | Declare variable                                                        |
-|   🔴   | `as` operator         | `x as string`                | ❌  | ❌  | Safe cast                                                               |
-|   🔴   | Type casting          | `(int)x`                     | ❌  | ❌  |                                                                         |
+|   ✅   | `is` operator         | `x is string`, `x is null`   | ✅  | ✅  | Type checking                                                           |
+|   ✅   | `is not`              | `x is not null`              | ✅  | ✅  | Common pattern                                                          |
+|   ✅   | `is` with variable    | `x is string s`              | ✅  | ✅  | Declare variable in type pattern                                        |
+|   ✅   | `as` operator         | `x as string`                | ✅  | ✅  | Safe cast                                                               |
+|   ✅   | Type casting          | `(int)x`                     | ✅  | ✅  |                                                                         |
 |   🟡   | `nameof`              | `nameof(property)`           | ❌  | ❌  |                                                                         |
 |   🔵   | `default`             | `default(int)`               | ❌  | ❌  |                                                                         |
 |   ✅   | Verbatim strings      | `@"path\to\file"`            | ✅  | ✅  | Backslashes literal                                                     |
@@ -398,9 +398,9 @@ The following gaps were identified in the [ECMA-334 Compliance Audit](docs/ECMA-
 | :--- | :-------------------- | :--------------- |
 | ~~**Character Literals**~~ | ~~Parse `'a'`, `'\n'`, `'\t'` as char type, not string. Add `TokenType.Character`.~~ ✅ Done | §6.4.5.5 |
 | ~~**Hexadecimal Literals**~~ | ~~Detect `0x` prefix in Lexer.ScanNumber() and parse hex digits.~~ ✅ Done | §6.4.5.3 |
-| **Explicit Cast Operator** | Add `CastExpr` AST node, parse `(type)expr` in ParseUnary(), implement in Evaluator. | §10.3 |
-| **Type Testing (`is`, `as`)** | Add `IsExpr`, `AsExpr` AST nodes. Parse in comparison level. Implement runtime type checks. | §12.12 |
-| **Unicode Escapes** | Parse `\uHHHH` and `\UHHHHHHHH` in strings, chars, and identifiers. | §6.4.2 |
+| ~~**Explicit Cast Operator**~~ | ~~Add `CastExpr` AST node, parse `(type)expr` in ParseUnary(), implement in Evaluator.~~ ✅ Done | §10.3 |
+| ~~**Type Testing (`is`, `as`)**~~ | ~~Add `IsExpr`, `AsExpr` AST nodes. Parse in comparison level. Implement runtime type checks.~~ ✅ Done | §12.12 |
+| ~~**Unicode Escapes**~~ | ~~Parse `\uHHHH` and `\UHHHHHHHH` in strings and chars.~~ ✅ Done | §6.4.2 |
 
 ### Phase 1: Core Engine Hardening (High Priority)
 

@@ -17,10 +17,10 @@ public class JsFriendlySyntaxTests(CompilationMode mode)
     [TestCase("undefined === null", true, TestName = "Undefined_StrictEqualsNull")]
     [TestCase("5 === 5", true, TestName = "StrictEquality_SameInt_True")]
     [TestCase("5 === 10", false, TestName = "StrictEquality_DifferentInt_False")]
-    [TestCase("'hello' === 'hello'", true, TestName = "StrictEquality_SameString_True")]
+    [TestCase("\"hello\" === \"hello\"", true, TestName = "StrictEquality_SameString_True")]
     [TestCase("5 !== 10", true, TestName = "StrictInequality_DifferentInt_True")]
     [TestCase("5 !== 5", false, TestName = "StrictInequality_SameInt_False")]
-    [TestCase("'a' !== 'b'", true, TestName = "StrictInequality_DifferentString_True")]
+    [TestCase("\"a\" !== \"b\"", true, TestName = "StrictInequality_DifferentString_True")]
     public void MatchesExpected(string expr, object? expected)
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
@@ -28,7 +28,7 @@ public class JsFriendlySyntaxTests(CompilationMode mode)
     }
 
     // Reserved keyword tests
-    [TestCase("{ const x = 'hello'; return x; }", TestName = "Const_IsReservedKeyword")]
+    [TestCase("{ const x = \"hello\"; return x; }", TestName = "Const_IsReservedKeyword")]
     [TestCase("{ var super = 1; return super; }", TestName = "Super_IsReservedKeyword")]
     public void ReservedKeyword_ThrowsParserException(string expr)
     {
@@ -42,8 +42,8 @@ public class JsFriendlySyntaxTests(CompilationMode mode)
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         engine.SetVariable("x", 5);
-        Assert.That(engine.Evaluate("x === 5 ? 'yes' : 'no'"), Is.EqualTo("yes"));
-        Assert.That(engine.Evaluate("x !== 5 ? 'yes' : 'no'"), Is.EqualTo("no"));
+        Assert.That(engine.Evaluate("x === 5 ? \"yes\" : \"no\""), Is.EqualTo("yes"));
+        Assert.That(engine.Evaluate("x !== 5 ? \"yes\" : \"no\""), Is.EqualTo("no"));
     }
 
     // Anonymous object tests (require dictionary casting)
@@ -51,7 +51,7 @@ public class JsFriendlySyntaxTests(CompilationMode mode)
     public void AnonymousObject_SingleProperty()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate("new { Name = 'John' }") as IDictionary<string, object?>;
+        var result = engine.Evaluate("new { Name = \"John\" }") as IDictionary<string, object?>;
         Assert.That(result, Is.Not.Null);
         Assert.That(result!["Name"], Is.EqualTo("John"));
     }
@@ -60,7 +60,7 @@ public class JsFriendlySyntaxTests(CompilationMode mode)
     public void AnonymousObject_MultipleProperties()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate("new { Name = 'John', Age = 30 }") as IDictionary<string, object?>;
+        var result = engine.Evaluate("new { Name = \"John\", Age = 30 }") as IDictionary<string, object?>;
         Assert.That(result, Is.Not.Null);
         Assert.That(result!["Name"], Is.EqualTo("John"));
         Assert.That(result!["Age"], Is.EqualTo(30));

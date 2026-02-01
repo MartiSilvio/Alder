@@ -129,9 +129,9 @@ public class LexerTests
     }
 
     [Test]
-    public void Tokenize_SingleQuotedString_ReturnsStringToken()
+    public void Tokenize_DoubleQuotedString_ReturnsStringToken()
     {
-        var lexer = new Lexer("'hello world'");
+        var lexer = new Lexer("\"hello world\"");
         var tokens = lexer.Tokenize();
 
         Assert.That(tokens[0].Type, Is.EqualTo(TokenType.String));
@@ -139,9 +139,9 @@ public class LexerTests
     }
 
     [Test]
-    public void Tokenize_SingleQuotedStringWithEscapedQuote_ReturnsStringToken()
+    public void Tokenize_DoubleQuotedStringWithEscapedQuote_ReturnsStringToken()
     {
-        var lexer = new Lexer("'it\\'s working'");
+        var lexer = new Lexer("\"it's working\"");
         var tokens = lexer.Tokenize();
 
         Assert.That(tokens[0].Type, Is.EqualTo(TokenType.String));

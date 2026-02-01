@@ -119,12 +119,7 @@ public sealed partial class Parser
     private bool MatchTypeKeyword(out Token typeToken)
     {
         // All C# primitive type keywords that can be used for variable declarations
-        if (Check(TokenType.Int) || Check(TokenType.Long) || Check(TokenType.Double) ||
-            Check(TokenType.Float) || Check(TokenType.Decimal) || Check(TokenType.StringType) ||
-            Check(TokenType.Bool) || Check(TokenType.Object) ||
-            Check(TokenType.Sbyte) || Check(TokenType.Byte) || Check(TokenType.Short) ||
-            Check(TokenType.Ushort) || Check(TokenType.Uint) || Check(TokenType.Ulong) ||
-            Check(TokenType.Char))
+        if (IsTypeKeyword(Peek().Type))
         {
             typeToken = Advance();
 
@@ -139,6 +134,13 @@ public sealed partial class Parser
         typeToken = default;
         return false;
     }
+
+    private static bool IsTypeKeyword(TokenType type) =>
+        type is TokenType.Int or TokenType.Long or TokenType.Double or
+                TokenType.Float or TokenType.Decimal or TokenType.StringType or
+                TokenType.Bool or TokenType.Object or TokenType.Sbyte or
+                TokenType.Byte or TokenType.Short or TokenType.Ushort or
+                TokenType.Uint or TokenType.Ulong or TokenType.Char;
 
     private bool Check(TokenType type) => !IsAtEnd() && Peek().Type == type;
 

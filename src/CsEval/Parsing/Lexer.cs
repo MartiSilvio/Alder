@@ -372,22 +372,7 @@ public sealed class Lexer
             if (Peek() == '\\')
             {
                 Advance();
-                sb.Append(Peek() switch
-                {
-                    'n' => '\n',
-                    'r' => '\r',
-                    't' => '\t',
-                    '0' => '\0',
-                    'a' => '\a',
-                    'b' => '\b',
-                    'f' => '\f',
-                    'v' => '\v',
-                    '\\' => '\\',
-                    '"' => '"',
-                    '\'' => '\'',
-                    _ => throw new LexerException($"Unknown escape sequence '\\{Peek()}' at {_line}:{_column}")
-                });
-                Advance();
+                sb.Append(ParseEscapeSequence());
             }
             else
             {
@@ -415,22 +400,7 @@ public sealed class Lexer
             if (IsAtEnd())
                 throw new LexerException($"Unterminated character literal at {_line}:{_column}");
 
-            value = Peek() switch
-            {
-                'n' => '\n',
-                'r' => '\r',
-                't' => '\t',
-                '0' => '\0',
-                'a' => '\a',
-                'b' => '\b',
-                'f' => '\f',
-                'v' => '\v',
-                '\\' => '\\',
-                '\'' => '\'',
-                '"' => '"',
-                _ => throw new LexerException($"Unknown escape sequence '\\{Peek()}' at {_line}:{_column}")
-            };
-            Advance();
+            value = ParseEscapeSequence();
         }
         else if (Peek() == '\'')
         {
@@ -490,23 +460,7 @@ public sealed class Lexer
             else if (Peek() == '\\')
             {
                 Advance();
-                sb.Append(Peek() switch
-                {
-                    'n' => '\n',
-                    'r' => '\r',
-                    't' => '\t',
-                    '0' => '\0',
-                    'a' => '\a',
-                    'b' => '\b',
-                    'f' => '\f',
-                    'v' => '\v',
-                    '\\' => '\\',
-                    '"' => '"',
-                    '{' => '{',
-                    '}' => '}',
-                    _ => throw new LexerException($"Unknown escape sequence '\\{Peek()}' at {_line}:{_column}")
-                });
-                Advance();
+                sb.Append(ParseEscapeSequence());
             }
             else
             {
@@ -644,7 +598,8 @@ public sealed class Lexer
             }
         }
 
-        while (char.IsDigit(Peek())) Advance();
+        // Consume digits and digit separators
+        ScanDigitsWithSeparators(char.IsDigit);
 
         // Look for decimal part
         var hasDecimalPoint = false;
@@ -652,16 +607,33 @@ public sealed class Lexer
         {
             hasDecimalPoint = true;
             Advance(); // consume .
-            while (char.IsDigit(Peek())) Advance();
+            ScanDigitsWithSeparators(char.IsDigit);
         }
 
-        var numberText = _source[_start.._current];
+        // Look for exponent part (e.g., 1e10, 1.5E-3)
+        var hasExponent = false;
+        if (char.ToLowerInvariant(Peek()) == 'e')
+        {
+            var next = PeekNext();
+            if (char.IsDigit(next) || next == '+' || next == '-')
+            {
+                hasExponent = true;
+                Advance(); // consume 'e' or 'E'
+                if (Peek() == '+' || Peek() == '-')
+                    Advance(); // consume sign
+                ScanDigitsWithSeparators(char.IsDigit);
+            }
+        }
+
+        var numberText = StripDigitSeparators(_source[_start.._current]);
 
         // Check for type suffix - C# supports: L, U, UL, F, D, M (case-insensitive)
         var suffix = ParseNumericSuffix();
 
+        // Exponent notation defaults to double, but can use F/M suffix
+        var isFloatingPoint = hasDecimalPoint || hasExponent;
+
         // Parse based on suffix and decimal point presence
-        // Matches C# behavior: https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/builtin-types/integral-numeric-types
         object value = suffix switch
         {
             NumericSuffix.Long => long.Parse(numberText),
@@ -669,8 +641,8 @@ public sealed class Lexer
             NumericSuffix.UInt => uint.Parse(numberText),
             NumericSuffix.Float => float.Parse(numberText),
             NumericSuffix.Double => double.Parse(numberText),
-            NumericSuffix.Decimal => decimal.Parse(numberText),
-            NumericSuffix.None => hasDecimalPoint
+            NumericSuffix.Decimal => decimal.Parse(numberText, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture),
+            NumericSuffix.None => isFloatingPoint
                 ? double.Parse(numberText)
                 : ParseIntegerWithPromotion(numberText),
             _ => throw new LexerException($"Unknown numeric suffix at {_line}:{_column}")
@@ -679,15 +651,37 @@ public sealed class Lexer
         AddToken(TokenType.Number, value);
     }
 
+    private void ScanDigitsWithSeparators(Func<char, bool> isValidDigit)
+    {
+        while (isValidDigit(Peek()) || Peek() == '_')
+        {
+            if (Peek() == '_')
+            {
+                var prev = _current > 0 ? _source[_current - 1] : '\0';
+                if (!isValidDigit(prev) && prev != '_')
+                    throw new LexerException($"Digit separator '_' cannot appear at start of number at {_line}:{_column}");
+                Advance();
+                if (!isValidDigit(Peek()))
+                    throw new LexerException($"Digit separator '_' must be followed by a digit at {_line}:{_column}");
+            }
+            else
+            {
+                Advance();
+            }
+        }
+    }
+
+    private static string StripDigitSeparators(string text) => text.Replace("_", "");
+
     private void ScanHexNumber()
     {
         var hexStart = _current;
-        while (IsHexDigit(Peek())) Advance();
+        ScanDigitsWithSeparators(IsHexDigit);
 
         if (_current == hexStart)
             throw new LexerException($"Invalid hex literal at {_line}:{_column}");
 
-        var hexText = _source[hexStart.._current];
+        var hexText = StripDigitSeparators(_source[hexStart.._current]);
         var suffix = ParseNumericSuffix();
 
         object value = suffix switch
@@ -705,12 +699,12 @@ public sealed class Lexer
     private void ScanBinaryNumber()
     {
         var binStart = _current;
-        while (Peek() == '0' || Peek() == '1') Advance();
+        ScanDigitsWithSeparators(c => c == '0' || c == '1');
 
         if (_current == binStart)
             throw new LexerException($"Invalid binary literal at {_line}:{_column}");
 
-        var binText = _source[binStart.._current];
+        var binText = StripDigitSeparators(_source[binStart.._current]);
         var suffix = ParseNumericSuffix();
 
         object value = suffix switch
@@ -727,6 +721,58 @@ public sealed class Lexer
 
     private static bool IsHexDigit(char c) =>
         char.IsDigit(c) || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
+
+    private char ParseEscapeSequence()
+    {
+        var escaped = Peek();
+        return escaped switch
+        {
+            'n' => Consume('\n'),
+            'r' => Consume('\r'),
+            't' => Consume('\t'),
+            '0' => Consume('\0'),
+            'a' => Consume('\a'),
+            'b' => Consume('\b'),
+            'f' => Consume('\f'),
+            'v' => Consume('\v'),
+            '\\' => Consume('\\'),
+            '"' => Consume('"'),
+            '\'' => Consume('\''),
+            '{' => Consume('{'),
+            '}' => Consume('}'),
+            'u' => ParseUnicodeEscape(4),
+            'U' => ParseUnicodeEscape(8),
+            _ => throw new LexerException($"Unknown escape sequence '\\{escaped}' at {_line}:{_column}")
+        };
+
+        char Consume(char c) { Advance(); return c; }
+    }
+
+    private char ParseUnicodeEscape(int digitCount)
+    {
+        Advance(); // consume 'u' or 'U'
+        var startCol = _column;
+        var hexDigits = new StringBuilder(digitCount);
+
+        for (var i = 0; i < digitCount; i++)
+        {
+            if (IsAtEnd() || !IsHexDigit(Peek()))
+                throw new LexerException($"Invalid unicode escape sequence at {_line}:{startCol}. Expected {digitCount} hex digits.");
+            hexDigits.Append(Advance());
+        }
+
+        var codePoint = Convert.ToInt32(hexDigits.ToString(), 16);
+
+        if (digitCount == 8)
+        {
+            if (codePoint > 0x10FFFF)
+                throw new LexerException($"Invalid unicode code point U+{codePoint:X8} at {_line}:{startCol}. Maximum is U+10FFFF.");
+            if (codePoint >= 0x10000)
+                throw new LexerException($"Surrogate pairs from \\U escapes are not supported in char literals at {_line}:{startCol}.");
+        }
+
+        return (char)codePoint;
+    }
 
     private static object ParseHexWithPromotion(string hexText)
     {

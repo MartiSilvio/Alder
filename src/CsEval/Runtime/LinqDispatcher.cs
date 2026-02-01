@@ -378,11 +378,7 @@ public static class LinqDispatcher
         => (true, CreateTypedList(list.Distinct(), elementType));
 
     internal static (bool, object?) HandleReverse(List<object?> list, Type elementType, object?[] args, CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct)
-    {
-        var reversed = new List<object?>(list);
-        reversed.Reverse();
-        return (true, CreateTypedList(reversed, elementType));
-    }
+        => (true, CreateTypedList(list.AsEnumerable().Reverse(), elementType));
 
     internal static (bool, object?) HandleToList(List<object?> list, Type elementType, object?[] args, CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct)
         => (true, CreateTypedList(list, elementType));
