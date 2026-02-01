@@ -333,8 +333,9 @@ public class StaticProxyTests(CompilationMode mode)
     [Test]
     public void Enumerable_Range()
     {
-        var result = _engine.Evaluate("Enumerable.Range(1, 5).ToList()") as List<object?>;
-        Assert.That(result, Is.EqualTo(new List<object?> { 1, 2, 3, 4, 5 }));
+        var result = _engine.Evaluate("Enumerable.Range(1, 5).ToList()");
+        Assert.That(result, Is.TypeOf<List<int>>());
+        Assert.That(result, Is.EqualTo(new[] { 1, 2, 3, 4, 5 }));
     }
 
     [Test]
@@ -347,8 +348,9 @@ public class StaticProxyTests(CompilationMode mode)
     [Test]
     public void Enumerable_Repeat()
     {
-        var result = _engine.Evaluate("Enumerable.Repeat(\"x\", 3).ToList()") as List<object?>;
-        Assert.That(result, Is.EqualTo(new List<object?> { "x", "x", "x" }));
+        var result = _engine.Evaluate("Enumerable.Repeat(\"x\", 3).ToList()");
+        Assert.That(result, Is.TypeOf<List<string>>());
+        Assert.That(result, Is.EqualTo(new[] { "x", "x", "x" }));
     }
 
     [Test]
@@ -360,7 +362,7 @@ public class StaticProxyTests(CompilationMode mode)
     [Test]
     public void Enumerable_Empty()
     {
-        var result = _engine.Evaluate("Enumerable.Empty().ToList()") as List<object?>;
+        var result = _engine.Evaluate("Enumerable.Empty().ToList()") as IList;
         Assert.That(result, Is.Not.Null);
         Assert.That(result, Is.Empty);
     }

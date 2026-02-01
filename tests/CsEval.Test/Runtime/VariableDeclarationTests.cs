@@ -1,3 +1,5 @@
+using CsEval.Parsing;
+
 namespace CsEval.Test.Runtime;
 
 [TestFixture(CompilationMode.Interpreted)]
@@ -21,6 +23,22 @@ public class VariableDeclarationTests(CompilationMode mode)
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var result = engine.Evaluate("{ var x = 10; var y = 20; return x + y; }");
         Assert.That(result, Is.EqualTo(30));
+    }
+
+    [Test]
+    public void Var_NullAssignment_ThrowsParserException()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var ex = Assert.Throws<ParserException>(() => engine.Evaluate("{ var x = null; return x; }"));
+        Assert.That(ex!.Message, Does.Contain("Cannot assign null to an implicitly-typed variable"));
+    }
+
+    [Test]
+    public void Var_NullAssignment_InForLoop_ThrowsParserException()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var ex = Assert.Throws<ParserException>(() => engine.Evaluate("{ for (var x = null; x != null; x = null) { } return 0; }"));
+        Assert.That(ex!.Message, Does.Contain("Cannot assign null to an implicitly-typed variable"));
     }
 
     #endregion

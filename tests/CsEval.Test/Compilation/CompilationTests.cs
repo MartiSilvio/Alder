@@ -437,10 +437,9 @@ public class CompilationTests
             .SetVariable("items", new List<int> { 1, 2, 3 });
         var expr = engine.Parse("items.Where((x) => x > 1)");
 
-        // LINQ with lambdas is now IL-compilable
         Assert.That(expr.TryCompile(), Is.True);
 
-        var result = engine.Evaluate(expr) as List<object?>;
+        var result = engine.Evaluate(expr) as IList;
         Assert.That(result, Has.Count.EqualTo(2));
     }
 

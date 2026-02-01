@@ -156,6 +156,7 @@ internal sealed partial class ILCompiler
     {
         var value = Compile(v.Initializer);
         var temp = LinqExpression.Variable(typeof(object), "temp");
+        var inferredType = LinqExpression.Variable(typeof(Type), "inferredType");
 
         if (v.DeclaredType != null)
         {
@@ -166,11 +167,25 @@ internal sealed partial class ILCompiler
                 LinqExpression.Constant(v.Name.Lexeme));
         }
 
+        LinqExpression getInferredType;
+        if (v.DeclaredType != null)
+        {
+            getInferredType = LinqExpression.Call(ResolveTypeNameMethod, LinqExpression.Constant(v.DeclaredType.Value.Lexeme));
+        }
+        else
+        {
+            getInferredType = LinqExpression.Condition(
+                LinqExpression.NotEqual(temp, LinqExpression.Constant(null, typeof(object))),
+                LinqExpression.Call(temp, typeof(object).GetMethod("GetType")!),
+                LinqExpression.Constant(typeof(object), typeof(Type)));
+        }
+
         return LinqExpression.Block(
-            new[] { temp },
+            new[] { temp, inferredType },
             LinqExpression.Assign(temp, value),
-            LinqExpression.Call(_currentContext, DefineMethod,
-                LinqExpression.Constant(v.Name.Lexeme), temp),
+            LinqExpression.Assign(inferredType, getInferredType),
+            LinqExpression.Call(_currentContext, DefineWithTypeMethod,
+                LinqExpression.Constant(v.Name.Lexeme), temp, inferredType),
             temp);
     }
 
@@ -195,29 +210,34 @@ internal sealed partial class ILCompiler
     {
         var name = ca.Name.Lexeme;
         var currentValue = CompileIdentifier(new IdentifierExpr(ca.Name));
-        var rightValue = Compile(ca.Value);
+        var rightValueExpr = Compile(ca.Value);
         var temp = LinqExpression.Variable(typeof(object), "temp");
+        var rightTemp = LinqExpression.Variable(typeof(object), "rightTemp");
 
         var opCall = ca.Op.Type switch
         {
-            TokenType.PlusEqual => LinqExpression.Call(AddMethod, currentValue, rightValue, _optionsParam, _currentContext),
-            TokenType.MinusEqual => LinqExpression.Call(SubtractMethod, currentValue, rightValue, _optionsParam),
-            TokenType.StarEqual => LinqExpression.Call(MultiplyMethod, currentValue, rightValue, _optionsParam),
-            TokenType.SlashEqual => LinqExpression.Call(DivideMethod, currentValue, rightValue, _optionsParam),
-            TokenType.PercentEqual => LinqExpression.Call(ModuloMethod, currentValue, rightValue, _optionsParam),
-            TokenType.AmpEqual => LinqExpression.Call(BitwiseAndMethod, currentValue, rightValue, _optionsParam),
-            TokenType.PipeEqual => LinqExpression.Call(BitwiseOrMethod, currentValue, rightValue, _optionsParam),
-            TokenType.CaretEqual => LinqExpression.Call(BitwiseXorMethod, currentValue, rightValue, _optionsParam),
-            TokenType.LessLessEqual => LinqExpression.Call(LeftShiftMethod, currentValue, rightValue),
-            TokenType.GreaterGreaterEqual => LinqExpression.Call(RightShiftMethod, currentValue, rightValue),
+            TokenType.PlusEqual => LinqExpression.Call(AddMethod, currentValue, rightTemp, _optionsParam, _currentContext),
+            TokenType.MinusEqual => LinqExpression.Call(SubtractMethod, currentValue, rightTemp, _optionsParam),
+            TokenType.StarEqual => LinqExpression.Call(MultiplyMethod, currentValue, rightTemp, _optionsParam),
+            TokenType.SlashEqual => LinqExpression.Call(DivideMethod, currentValue, rightTemp, _optionsParam),
+            TokenType.PercentEqual => LinqExpression.Call(ModuloMethod, currentValue, rightTemp, _optionsParam),
+            TokenType.AmpEqual => LinqExpression.Call(BitwiseAndMethod, currentValue, rightTemp, _optionsParam),
+            TokenType.PipeEqual => LinqExpression.Call(BitwiseOrMethod, currentValue, rightTemp, _optionsParam),
+            TokenType.CaretEqual => LinqExpression.Call(BitwiseXorMethod, currentValue, rightTemp, _optionsParam),
+            TokenType.LessLessEqual => LinqExpression.Call(LeftShiftMethod, currentValue, rightTemp),
+            TokenType.GreaterGreaterEqual => LinqExpression.Call(RightShiftMethod, currentValue, rightTemp),
             _ => throw new NotSupportedException($"Compound operator {ca.Op.Type}")
         };
 
+        var validateCall = LinqExpression.Call(ValidateCompoundAssignmentMethod,
+            LinqExpression.Constant(name), opCall, rightTemp, _currentContext);
+
         return LinqExpression.Block(
-            new[] { temp },
+            new[] { temp, rightTemp },
             LinqExpression.Call(CheckAllowAssignmentMethod, _optionsParam,
                 LinqExpression.Constant($"{name} {ca.Op.Lexeme} ...")),
-            LinqExpression.Assign(temp, opCall),
+            LinqExpression.Assign(rightTemp, rightValueExpr),
+            LinqExpression.Assign(temp, validateCall),
             LinqExpression.Call(_currentContext, SetMethod,
                 LinqExpression.Constant(name), temp),
             temp);
@@ -379,7 +399,7 @@ internal sealed partial class ILCompiler
             }
         }
 
-        statements.Add(LinqExpression.Convert(listVar, typeof(object)));
+        statements.Add(LinqExpression.Call(CreateTypedListMethod, listVar));
         return LinqExpression.Block(new[] { listVar }, statements);
     }
 
@@ -472,6 +492,8 @@ internal sealed partial class ILCompiler
 
         return LinqExpression.Block(
             new[] { temp, result },
+            LinqExpression.Call(CheckNullCoalesceAssignAllowedMethod,
+                LinqExpression.Constant(name), _currentContext),
             LinqExpression.Assign(temp, currentValue),
             LinqExpression.IfThenElse(
                 LinqExpression.NotEqual(temp, LinqExpression.Constant(null, typeof(object))),

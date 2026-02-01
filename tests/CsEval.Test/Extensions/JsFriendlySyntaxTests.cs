@@ -8,78 +8,37 @@ namespace CsEval.Test.Extensions;
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
 [TestFixture(CompilationMode.StrictCompiled)]
-public class JsFriendlySyntaxTests(CompilationMode mode) 
+public class JsFriendlySyntaxTests(CompilationMode mode)
 {
-    #region Let as Var
-
-    [Test]
-    public void Let_TreatedAsVar()
+    // Expressions that evaluate to expected values
+    [TestCase("{ let x = 42; return x; }", 42, TestName = "Let_TreatedAsVar")]
+    [TestCase("undefined", null, TestName = "Undefined_IsNull")]
+    [TestCase("undefined == null", true, TestName = "Undefined_EqualsNull")]
+    [TestCase("undefined === null", true, TestName = "Undefined_StrictEqualsNull")]
+    [TestCase("5 === 5", true, TestName = "StrictEquality_SameInt_True")]
+    [TestCase("5 === 10", false, TestName = "StrictEquality_DifferentInt_False")]
+    [TestCase("'hello' === 'hello'", true, TestName = "StrictEquality_SameString_True")]
+    [TestCase("5 !== 10", true, TestName = "StrictInequality_DifferentInt_True")]
+    [TestCase("5 !== 5", false, TestName = "StrictInequality_SameInt_False")]
+    [TestCase("'a' !== 'b'", true, TestName = "StrictInequality_DifferentString_True")]
+    public void MatchesExpected(string expr, object? expected)
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate("{ let x = 42; return x; }");
-        Assert.That(result, Is.EqualTo(42));
+        Assert.That(engine.Evaluate(expr), Is.EqualTo(expected));
     }
 
-    [Test]
-    public void Const_IsReservedKeyword()
+    // Reserved keyword tests
+    [TestCase("{ const x = 'hello'; return x; }", TestName = "Const_IsReservedKeyword")]
+    [TestCase("{ var super = 1; return super; }", TestName = "Super_IsReservedKeyword")]
+    public void ReservedKeyword_ThrowsParserException(string expr)
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        // const is a reserved keyword but cannot be used for variable declarations
-        Assert.Throws<ParserException>(() => engine.Evaluate("{ const x = 'hello'; return x; }"));
+        Assert.Throws<ParserException>(() => engine.Evaluate(expr));
     }
 
+    // Strict equality with variables
     [Test]
-    public void Super_IsReservedKeyword()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        // super is reserved (JS equivalent of C# base)
-        Assert.Throws<ParserException>(() => engine.Evaluate("{ var super = 1; return super; }"));
-    }
-
-    #endregion
-
-    #region Undefined
-
-    [Test]
-    public void Undefined_IsNull()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate("undefined");
-        Assert.That(result, Is.Null);
-    }
-
-    [Test]
-    public void Undefined_Comparison()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        Assert.That(engine.Evaluate("undefined == null"), Is.EqualTo(true));
-        Assert.That(engine.Evaluate("undefined === null"), Is.EqualTo(true));
-    }
-
-    #endregion
-
-    #region Strict Equality (=== and !==)
-
-    [Test]
-    public void StrictEquality_Works()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        Assert.That(engine.Evaluate("5 === 5"), Is.EqualTo(true));
-        Assert.That(engine.Evaluate("5 === 10"), Is.EqualTo(false));
-        Assert.That(engine.Evaluate("'hello' === 'hello'"), Is.EqualTo(true));
-    }
-
-    [Test]
-    public void StrictInequality_Works()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        Assert.That(engine.Evaluate("5 !== 10"), Is.EqualTo(true));
-        Assert.That(engine.Evaluate("5 !== 5"), Is.EqualTo(false));
-        Assert.That(engine.Evaluate("'a' !== 'b'"), Is.EqualTo(true));
-    }
-
-    [Test]
-    public void StrictEquality_InExpression()
+    public void StrictEquality_InExpression_WithVariable()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         engine.SetVariable("x", 5);
@@ -87,12 +46,9 @@ public class JsFriendlySyntaxTests(CompilationMode mode)
         Assert.That(engine.Evaluate("x !== 5 ? 'yes' : 'no'"), Is.EqualTo("no"));
     }
 
-    #endregion
-
-    #region Anonymous Objects (C# Style)
-
+    // Anonymous object tests (require dictionary casting)
     [Test]
-    public void AnonymousObject_Works()
+    public void AnonymousObject_SingleProperty()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var result = engine.Evaluate("new { Name = 'John' }") as IDictionary<string, object?>;
@@ -109,6 +65,4 @@ public class JsFriendlySyntaxTests(CompilationMode mode)
         Assert.That(result!["Name"], Is.EqualTo("John"));
         Assert.That(result!["Age"], Is.EqualTo(30));
     }
-
-    #endregion
 }

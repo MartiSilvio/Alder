@@ -1,5 +1,6 @@
 using System.Dynamic;
 using System.Linq;
+using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Scripting;
 using Microsoft.CodeAnalysis.Scripting;
 
@@ -12,7 +13,8 @@ public static class TestHelpers
 {
     private static readonly ScriptOptions DefaultScriptOptions = ScriptOptions.Default
         .AddReferences(typeof(object).Assembly, typeof(Enumerable).Assembly)
-        .AddImports("System", "System.Collections.Generic", "System.Linq");
+        .AddImports("System", "System.Collections.Generic", "System.Linq")
+        .WithLanguageVersion(LanguageVersion.CSharp12);
 
     public static IDictionary<string, object?> CreateItem(string name, double price)
     {

@@ -1,79 +1,49 @@
 namespace CsEval.Test.Operators;
 
+/// <summary>
+/// Tests for 'and', 'or', 'not' keywords (CsEval extension, not standard C#).
+/// </summary>
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
 [TestFixture(CompilationMode.StrictCompiled)]
-public class LogicalKeywordTests(CompilationMode mode) 
+public class LogicalKeywordTests(CompilationMode mode)
 {
-    #region 'and' keyword
-
-    [Test]
-    public void And_BothTrue_ReturnsTrue()
+    // 'and' keyword
+    [TestCase("true and true", true, TestName = "And_BothTrue")]
+    [TestCase("false and true", false, TestName = "And_LeftFalse")]
+    [TestCase("true and false", false, TestName = "And_RightFalse")]
+    [TestCase("(1 < 2) and (3 < 4)", true, TestName = "And_WithExpressions")]
+    // 'or' keyword
+    [TestCase("false or false", false, TestName = "Or_BothFalse")]
+    [TestCase("true or false", true, TestName = "Or_LeftTrue")]
+    [TestCase("false or true", true, TestName = "Or_RightTrue")]
+    [TestCase("(1 > 2) or (3 < 4)", true, TestName = "Or_WithExpressions")]
+    // 'not' keyword
+    [TestCase("not true", false, TestName = "Not_True")]
+    [TestCase("not false", true, TestName = "Not_False")]
+    [TestCase("not (1 > 2)", true, TestName = "Not_WithExpression")]
+    [TestCase("not not true", true, TestName = "Not_DoubleNegation")]
+    // Combined
+    [TestCase("true and not false", true, TestName = "Combined_AndNot")]
+    [TestCase("false or not false", true, TestName = "Combined_OrNot")]
+    [TestCase("not true or not false", true, TestName = "Combined_NotOrNot")]
+    // Mixed with C# symbols
+    [TestCase("true && true and true", true, TestName = "Mixed_AndWithAmpAmp")]
+    [TestCase("false || true or false", true, TestName = "Mixed_OrWithPipePipe")]
+    [TestCase("!false and not false", true, TestName = "Mixed_BangWithNot")]
+    public void MatchesExpected(string expr, bool expected)
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        Assert.That(engine.Evaluate("true and true"), Is.True);
+        Assert.That(engine.Evaluate(expr), Is.EqualTo(expected));
     }
 
-    [Test]
-    public void And_LeftFalse_ReturnsFalse()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        Assert.That(engine.Evaluate("false and true"), Is.False);
-    }
-
-    [Test]
-    public void And_RightFalse_ReturnsFalse()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        Assert.That(engine.Evaluate("true and false"), Is.False);
-    }
-
-    [Test]
-    public void And_WithExpressions_Works()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        Assert.That(engine.Evaluate("(1 < 2) and (3 < 4)"), Is.True);
-    }
-
+    // Short-circuit tests (need variables, can't use TestCase)
     [Test]
     public void And_ShortCircuits()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         engine.SetVariable("x", 0);
-        // If short-circuit works, division by zero shouldn't happen
         Assert.That(engine.Evaluate("false and (1/x > 0)"), Is.False);
-    }
-
-    #endregion
-
-    #region 'or' keyword
-
-    [Test]
-    public void Or_BothFalse_ReturnsFalse()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        Assert.That(engine.Evaluate("false or false"), Is.False);
-    }
-
-    [Test]
-    public void Or_LeftTrue_ReturnsTrue()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        Assert.That(engine.Evaluate("true or false"), Is.True);
-    }
-
-    [Test]
-    public void Or_RightTrue_ReturnsTrue()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        Assert.That(engine.Evaluate("false or true"), Is.True);
-    }
-
-    [Test]
-    public void Or_WithExpressions_Works()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        Assert.That(engine.Evaluate("(1 > 2) or (3 < 4)"), Is.True);
     }
 
     [Test]
@@ -81,72 +51,15 @@ public class LogicalKeywordTests(CompilationMode mode)
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         engine.SetVariable("x", 0);
-        // If short-circuit works, division by zero shouldn't happen
         Assert.That(engine.Evaluate("true or (1/x > 0)"), Is.True);
     }
 
-    #endregion
-
-    #region 'not' keyword
-
+    // Tests using CsEval's 'in' operator
     [Test]
-    public void Not_True_ReturnsFalse()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        Assert.That(engine.Evaluate("not true"), Is.False);
-    }
-
-    [Test]
-    public void Not_False_ReturnsTrue()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        Assert.That(engine.Evaluate("not false"), Is.True);
-    }
-
-    [Test]
-    public void Not_WithExpression_Works()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        Assert.That(engine.Evaluate("not (1 > 2)"), Is.True);
-    }
-
-    [Test]
-    public void Not_DoubleNegation_Works()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        Assert.That(engine.Evaluate("not not true"), Is.True);
-    }
-
-    #endregion
-
-    #region Combined usage
-
-    [Test]
-    public void Combined_AndOrNot_Works()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        Assert.That(engine.Evaluate("true and not false"), Is.True);
-        Assert.That(engine.Evaluate("false or not false"), Is.True);
-        Assert.That(engine.Evaluate("not true or not false"), Is.True);
-    }
-
-    [Test]
-    public void Combined_MixedWithSymbols_Works()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        // Can mix 'and'/'or'/'not' with &&/||/!
-        Assert.That(engine.Evaluate("true && true and true"), Is.True);
-        Assert.That(engine.Evaluate("false || true or false"), Is.True);
-        Assert.That(engine.Evaluate("!false and not false"), Is.True);
-    }
-
-    [Test]
-    public void Combined_WithInOperator_Works()
+    public void Combined_WithInOperator()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         Assert.That(engine.Evaluate("(2 in [1, 2, 3]) and (5 in [4, 5, 6])"), Is.True);
         Assert.That(engine.Evaluate("not (5 in [1, 2, 3])"), Is.True);
     }
-
-    #endregion
 }

@@ -2,7 +2,7 @@ namespace CsEval.Test.Compilation;
 
 /// <summary>
 /// Tests to verify switch statement behavior parity between IL-compiled and tree-walking modes.
-/// C# semantics: only empty cases fall through; non-empty cases have implicit break.
+/// C# semantics: empty cases fall through; non-empty cases MUST have explicit break/return/throw.
 /// </summary>
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
@@ -215,43 +215,21 @@ public class SwitchParityTests(CompilationMode mode)
     #region Non-Empty Case No Fallthrough (C# Behavior)
 
     [Test]
-    public void Switch_NonEmptyCaseNoFallthrough_ImplicitBreak()
+    public void Switch_NonEmptyCaseNoFallthrough_ThrowsError()
     {
-        // C# behavior: non-empty cases don't fall through (implicit break)
+        // C# requires explicit break/return/throw for non-empty cases (CS0163)
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(@"
+        Assert.That(() => engine.Evaluate(@"
         {
             var x = 1;
             var sum = 0;
             switch (x) {
                 case 1: sum += 10;
                 case 2: sum += 20; break;
-                case 3: sum += 30; break;
             }
             return sum;
-        }");
-
-        // Only case 1 executes, does NOT fall through to case 2
-        Assert.That(result, Is.EqualTo(10));
-    }
-
-    [Test]
-    public void Switch_NonEmptyCaseNoFallthrough_MatchCase2()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(@"
-        {
-            var x = 2;
-            var sum = 0;
-            switch (x) {
-                case 1: sum += 10;
-                case 2: sum += 20; break;
-                case 3: sum += 30; break;
-            }
-            return sum;
-        }");
-
-        Assert.That(result, Is.EqualTo(20));
+        }"),
+            Throws.TypeOf<CsEvalException>().With.Message.Contains("CS0163"));
     }
 
     #endregion

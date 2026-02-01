@@ -5,7 +5,7 @@ namespace CsEval.Test.Runtime;
 [TestFixture(CompilationMode.StrictCompiled)]
 public class AssignmentTests(CompilationMode mode) 
 {
-    #region Basic Assignment
+    // Basic Assignment
 
     [Test]
     public void Assignment_SimpleVariable_UpdatesValue()
@@ -68,9 +68,8 @@ public class AssignmentTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(3));
     }
 
-    #endregion
 
-    #region Assignment with Different Types
+    // Assignment with Different Types
 
     [Test]
     public void Assignment_StringValue_WorksCorrectly()
@@ -137,10 +136,10 @@ public class AssignmentTests(CompilationMode mode)
             var arr = [1, 2, 3];
             arr = [4, 5, 6];
             return arr;
-        }") as List<object?>;
+        }");
 
-        Assert.That(result, Is.Not.Null);
-        Assert.That(result, Is.EqualTo(new List<object?> { 4, 5, 6 }));
+        Assert.That(result, Is.TypeOf<List<int>>());
+        Assert.That(result, Is.EqualTo(new List<int> { 4, 5, 6 }));
     }
 
     [Test]
@@ -159,9 +158,8 @@ public class AssignmentTests(CompilationMode mode)
         Assert.That(result["Age"], Is.EqualTo(30));
     }
 
-    #endregion
 
-    #region Assignment with External Variables
+    // Assignment with External Variables
 
     [Test]
     public void Assignment_ToExternalVariable_UpdatesValue()
@@ -182,7 +180,7 @@ public class AssignmentTests(CompilationMode mode)
     public void Assignment_CombiningExternalAndLocal_WorksCorrectly()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        engine.SetVariable("multiplier", 3L);
+        engine.SetVariable("multiplier", 3);
 
         var result = engine.Evaluate(@"
         {
@@ -194,9 +192,8 @@ public class AssignmentTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(30));
     }
 
-    #endregion
 
-    #region Assignment Expression Returns Value
+    // Assignment Expression Returns Value
 
     [Test]
     public void Assignment_ReturnsAssignedValue()
@@ -228,9 +225,8 @@ public class AssignmentTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(300));
     }
 
-    #endregion
 
-    #region Assignment in Conditionals
+    // Assignment in Conditionals
 
     [Test]
     public void Assignment_InsideIf_WorksCorrectly()
@@ -286,9 +282,8 @@ public class AssignmentTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo("was true"));
     }
 
-    #endregion
 
-    #region Assignment with LINQ
+    // Assignment with LINQ
 
     [Test]
     public void Assignment_WithLinqResult_WorksCorrectly()
@@ -296,12 +291,12 @@ public class AssignmentTests(CompilationMode mode)
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         engine.SetVariable("numbers", new List<int> { 1, 2, 3, 4, 5 });
 
+        // CsEval LINQ returns List<object?>, so use a new variable for LINQ result
         var result = engine.Evaluate(@"
         {
-            var filtered = numbers;
-            filtered = numbers.Where(x => x > 2);
+            var filtered = numbers.Where(x => x > 2);
             return filtered;
-        }") as List<object?>;
+        }") as IList;
 
         Assert.That(result, Is.Not.Null);
         Assert.That(result, Is.EqualTo(new List<object?> { 3, 4, 5 }));
@@ -315,17 +310,16 @@ public class AssignmentTests(CompilationMode mode)
         {
             var items = [1, 2, 3];
             items = [...items, 4, 5];
-            items = items.Where(x => x > 2);
-            return items;
-        }") as List<object?>;
+            var filtered = items.Where(x => x > 2);
+            return filtered;
+        }") as IList;
 
         Assert.That(result, Is.Not.Null);
         Assert.That(result, Is.EqualTo(new List<object?> { 3, 4, 5 }));
     }
 
-    #endregion
 
-    #region Assignment with Modules
+    // Assignment with Modules
 
     [Test]
     public void Assignment_WithMathResult_WorksCorrectly()
@@ -355,9 +349,8 @@ public class AssignmentTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo("Hello World"));
     }
 
-    #endregion
 
-    #region Assignment Scoping
+    // Assignment Scoping
 
     [Test]
     public void Assignment_InnerBlockModifiesOuter_WorksCorrectly()
@@ -397,9 +390,8 @@ public class AssignmentTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(114));
     }
 
-    #endregion
 
-    #region Assignment Error Cases
+    // Assignment Error Cases
 
     [Test]
     public void Assignment_ToUndefinedVariable_ThrowsException()
@@ -414,9 +406,8 @@ public class AssignmentTests(CompilationMode mode)
             }"));
     }
 
-    #endregion
 
-    #region Assignment with Interpolated Strings
+    // Assignment with Interpolated Strings
 
     [Test]
     public void Assignment_InterpolatedString_WorksCorrectly()
@@ -435,9 +426,8 @@ public class AssignmentTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo("Hello, Bob!"));
     }
 
-    #endregion
 
-    #region Assignment with Ternary
+    // Assignment with Ternary
 
     [Test]
     public void Assignment_FromTernary_WorksCorrectly()
@@ -455,9 +445,8 @@ public class AssignmentTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(100));
     }
 
-    #endregion
 
-    #region Assignment with Null Coalesce
+    // Assignment with Null Coalesce
 
     [Test]
     public void Assignment_FromNullCoalesce_WorksCorrectly()
@@ -481,8 +470,8 @@ public class AssignmentTests(CompilationMode mode)
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var result = engine.Evaluate(@"
         {
-            var a = null;
-            var b = null;
+            int? a = null;
+            int? b = null;
 
             a = 10;
             b ??= 20;
@@ -493,9 +482,8 @@ public class AssignmentTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(30));
     }
 
-    #endregion
 
-    #region Pre-Parsed Assignment
+    // Pre-Parsed Assignment
 
     [Test]
     public void Assignment_PreParsed_CanBeReused()
@@ -517,9 +505,8 @@ public class AssignmentTests(CompilationMode mode)
         Assert.That(result2, Is.EqualTo(200));
     }
 
-    #endregion
 
-    #region Compound Assignment - Basic Arithmetic
+    // Compound Assignment - Basic Arithmetic
 
     [Test]
     public void CompoundAssignment_PlusEquals_Integer_WorksCorrectly()
@@ -591,9 +578,8 @@ public class AssignmentTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(2));
     }
 
-    #endregion
 
-    #region Compound Assignment - Bitwise Operators
+    // Compound Assignment - Bitwise Operators
 
     [Test]
     public void CompoundAssignment_AmpEquals_BitwiseAnd_WorksCorrectly()
@@ -670,9 +656,8 @@ public class AssignmentTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(8));
     }
 
-    #endregion
 
-    #region Compound Assignment - Different Numeric Types
+    // Compound Assignment - Different Numeric Types
 
     [Test]
     public void CompoundAssignment_Long_WorksCorrectly()
@@ -717,23 +702,19 @@ public class AssignmentTests(CompilationMode mode)
     }
 
     [Test]
-    public void CompoundAssignment_MixedTypes_PromotesCorrectly()
+    public void CompoundAssignment_IntPlusDouble_Throws()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(@"
+        Assert.Throws<CsEvalException>(() => engine.Evaluate(@"
         {
             var x = 10;
             x += 5.5;
             return x;
-        }");
-
-        // int + double = double
-        Assert.That(result, Is.EqualTo(15.5));
+        }"));
     }
 
-    #endregion
 
-    #region Compound Assignment - String Concatenation
+    // Compound Assignment - String Concatenation
 
     [Test]
     public void CompoundAssignment_StringPlusEquals_Concatenates()
@@ -779,9 +760,8 @@ public class AssignmentTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo("Count: 42"));
     }
 
-    #endregion
 
-    #region Compound Assignment - In Loops
+    // Compound Assignment - In Loops
 
     [Test]
     public void CompoundAssignment_InWhileLoop_Accumulates()
@@ -854,9 +834,8 @@ public class AssignmentTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(6));
     }
 
-    #endregion
 
-    #region Compound Assignment - With Expressions
+    // Compound Assignment - With Expressions
 
     [Test]
     public void CompoundAssignment_WithExpressionRHS_WorksCorrectly()
@@ -920,9 +899,8 @@ public class AssignmentTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(15));
     }
 
-    #endregion
 
-    #region Compound Assignment - Chained Operations
+    // Compound Assignment - Chained Operations
 
     [Test]
     public void CompoundAssignment_MultipleOnSameVariable_WorksCorrectly()
@@ -975,9 +953,8 @@ public class AssignmentTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(66));
     }
 
-    #endregion
 
-    #region Compound Assignment - External Variables
+    // Compound Assignment - External Variables
 
     [Test]
     public void CompoundAssignment_ExternalVariable_Updates()
@@ -1000,9 +977,10 @@ public class AssignmentTests(CompilationMode mode)
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         engine.SetVariable("baseValue", 100L);
 
+        // Use long for local since int += long is not valid in C#
         var result = engine.Evaluate(@"
         {
-            var local = 10;
+            var local = 10L;
             local += baseValue;
             baseValue += local;
             return baseValue;
@@ -1013,9 +991,8 @@ public class AssignmentTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(210L));
     }
 
-    #endregion
 
-    #region Compound Assignment - In Conditionals
+    // Compound Assignment - In Conditionals
 
     [Test]
     public void CompoundAssignment_InsideIfBlock_WorksCorrectly()
@@ -1071,9 +1048,8 @@ public class AssignmentTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(10));
     }
 
-    #endregion
 
-    #region Compound Assignment - Error Cases
+    // Compound Assignment - Error Cases
 
     [Test]
     public void CompoundAssignment_UndefinedVariable_ThrowsException()
@@ -1130,9 +1106,8 @@ public class AssignmentTests(CompilationMode mode)
             }"));
     }
 
-    #endregion
 
-    #region Compound Assignment - All Operators Comprehensive
+    // Compound Assignment - All Operators Comprehensive
 
     [Test]
     public void CompoundAssignment_AllArithmeticOperators_WorkCorrectly()
@@ -1193,9 +1168,8 @@ public class AssignmentTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(49));
     }
 
-    #endregion
 
-    #region Compound Assignment - Pre-Parsed
+    // Compound Assignment - Pre-Parsed
 
     [Test]
     public void CompoundAssignment_PreParsed_CanBeReused()
@@ -1219,9 +1193,8 @@ public class AssignmentTests(CompilationMode mode)
         Assert.That(result2, Is.EqualTo(150L));
     }
 
-    #endregion
 
-    #region Compound Assignment - Edge Cases
+    // Compound Assignment - Edge Cases
 
     [Test]
     public void CompoundAssignment_ZeroValue_WorksCorrectly()
@@ -1287,9 +1260,8 @@ public class AssignmentTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(255));
     }
 
-    #endregion
 
-    #region Increment/Decrement - Prefix Increment
+    // Increment/Decrement - Prefix Increment
 
     [Test]
     public void PrefixIncrement_Integer_IncrementsAndReturnsNewValue()
@@ -1375,9 +1347,8 @@ public class AssignmentTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(100.99m));
     }
 
-    #endregion
 
-    #region Increment/Decrement - Postfix Increment
+    // Increment/Decrement - Postfix Increment
 
     [Test]
     public void PostfixIncrement_Integer_ReturnsOldValue()
@@ -1450,9 +1421,8 @@ public class AssignmentTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(1.5));
     }
 
-    #endregion
 
-    #region Increment/Decrement - Prefix Decrement
+    // Increment/Decrement - Prefix Decrement
 
     [Test]
     public void PrefixDecrement_Integer_DecrementsAndReturnsNewValue()
@@ -1524,9 +1494,8 @@ public class AssignmentTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(4.5));
     }
 
-    #endregion
 
-    #region Increment/Decrement - Postfix Decrement
+    // Increment/Decrement - Postfix Decrement
 
     [Test]
     public void PostfixDecrement_Integer_ReturnsOldValue()
@@ -1571,9 +1540,8 @@ public class AssignmentTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(29));
     }
 
-    #endregion
 
-    #region Increment/Decrement - In Loops
+    // Increment/Decrement - In Loops
 
     [Test]
     public void PrefixIncrement_InForLoop_WorksCorrectly()
@@ -1663,9 +1631,8 @@ public class AssignmentTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(6));
     }
 
-    #endregion
 
-    #region Increment/Decrement - Multiple Operations
+    // Increment/Decrement - Multiple Operations
 
     [Test]
     public void MultipleIncrements_OnSameVariable()
@@ -1735,9 +1702,8 @@ public class AssignmentTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(10));
     }
 
-    #endregion
 
-    #region Increment/Decrement - With Other Operations
+    // Increment/Decrement - With Other Operations
 
     [Test]
     public void Increment_WithAddition()
@@ -1801,9 +1767,8 @@ public class AssignmentTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(6));
     }
 
-    #endregion
 
-    #region Increment/Decrement - External Variables
+    // Increment/Decrement - External Variables
 
     [Test]
     public void Increment_ExternalVariable()
@@ -1865,9 +1830,8 @@ public class AssignmentTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(50L));
     }
 
-    #endregion
 
-    #region Increment/Decrement - Edge Cases
+    // Increment/Decrement - Edge Cases
 
     [Test]
     public void Increment_FromZero()
@@ -1935,9 +1899,8 @@ public class AssignmentTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(9223372036854775807L));
     }
 
-    #endregion
 
-    #region Increment/Decrement - Prefix vs Postfix Comparison
+    // Increment/Decrement - Prefix vs Postfix Comparison
 
     [Test]
     public void PrefixVsPostfix_InExpression()
@@ -1990,9 +1953,8 @@ public class AssignmentTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(19));
     }
 
-    #endregion
 
-    #region Increment/Decrement - Pre-Parsed
+    // Increment/Decrement - Pre-Parsed
 
     [Test]
     public void IncrementDecrement_PreParsed_CanBeReused()
@@ -2015,9 +1977,8 @@ public class AssignmentTests(CompilationMode mode)
         Assert.That(result2, Is.EqualTo(102L));
     }
 
-    #endregion
 
-    #region Index Assignment - Array/List
+    // Index Assignment - Array/List
 
     [Test]
     public void IndexAssignment_List_SetsValue()
@@ -2137,9 +2098,8 @@ public class AssignmentTests(CompilationMode mode)
             engine.Evaluate("arr[0] = 5"));
     }
 
-    #endregion
 
-    #region Index Assignment - Dictionary
+    // Index Assignment - Dictionary
 
     [Test]
     public void IndexAssignment_Dictionary_SetsValue()
@@ -2195,9 +2155,8 @@ public class AssignmentTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(100));
     }
 
-    #endregion
 
-    #region Index Assignment - In Loops
+    // Index Assignment - In Loops
 
     [Test]
     public void IndexAssignment_InForLoop_PopulatesArray()
@@ -2233,9 +2192,8 @@ public class AssignmentTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(4));
     }
 
-    #endregion
 
-    #region Property Assignment - Anonymous Object
+    // Property Assignment - Anonymous Object
 
     [Test]
     public void PropertyAssignment_AnonymousObject_SetsValue()
@@ -2303,9 +2261,8 @@ public class AssignmentTests(CompilationMode mode)
             engine.Evaluate("obj.Name = \"test\""));
     }
 
-    #endregion
 
-    #region Property Assignment - Typed Objects
+    // Property Assignment - Typed Objects
 
     [Test]
     public void PropertyAssignment_TypedObject_SetsProperty()
@@ -2347,9 +2304,8 @@ public class AssignmentTests(CompilationMode mode)
         public int Age { get; set; }
     }
 
-    #endregion
 
-    #region Property Assignment - In Loops
+    // Property Assignment - In Loops
 
     [Test]
     public void PropertyAssignment_InForLoop_Works()
@@ -2367,9 +2323,8 @@ public class AssignmentTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(5));
     }
 
-    #endregion
 
-    #region Mixed Index and Property Assignment
+    // Mixed Index and Property Assignment
 
     [Test]
     public void MixedAssignment_ArrayOfObjects()
@@ -2399,5 +2354,4 @@ public class AssignmentTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(99));
     }
 
-    #endregion
 }

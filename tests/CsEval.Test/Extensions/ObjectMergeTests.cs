@@ -5,9 +5,9 @@ namespace CsEval.Test.Extensions;
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
 [TestFixture(CompilationMode.StrictCompiled)]
-public class ObjectMergeTests(CompilationMode mode) 
+public class ObjectMergeTests(CompilationMode mode)
 {
-    #region Dictionary Merge
+    // Dictionary Merge
 
     [Test]
     public void Eval_DictionaryMerge_WithPlusOperator()
@@ -68,9 +68,7 @@ public class ObjectMergeTests(CompilationMode mode)
         Assert.That(result["A"], Is.EqualTo(2));
     }
 
-    #endregion
-
-    #region Typed Object Merge
+    // Typed Object Merge
 
     [Test]
     public void Eval_TypedObjectMerge_WithPlusOperator()
@@ -124,7 +122,7 @@ public class ObjectMergeTests(CompilationMode mode)
             new TestPerson { Name = "Jane", Age = 25 }
         });
 
-        var result = engine.Evaluate("people.Select(p => p + new { Status = \"Active\" })") as List<object?>;
+        var result = engine.Evaluate("people.Select(p => p + new { Status = \"Active\" })") as IList;
         Assert.That(result, Is.Not.Null);
         Assert.That(result, Has.Count.EqualTo(2));
 
@@ -198,6 +196,4 @@ public class ObjectMergeTests(CompilationMode mode)
         Assert.That(result["City"], Is.EqualTo("NYC"));
         Assert.That(result["Country"], Is.EqualTo("USA"));
     }
-
-    #endregion
 }

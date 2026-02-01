@@ -13,9 +13,9 @@ public class LinqTests(CompilationMode mode)
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         engine.SetVariable("numbers", new List<int> { 1, 2, 3, 4, 5 });
 
-        var result = engine.Evaluate("numbers.Where((x) => x > 2)") as List<object?>;
+        var result = engine.Evaluate("numbers.Where((x) => x > 2)") as IList;
         Assert.That(result, Has.Count.EqualTo(3));
-        Assert.That(result, Is.EqualTo(new List<object?> { 3, 4, 5 }));
+        Assert.That(result, Is.EqualTo(new[] { 3, 4, 5 }));
     }
 
     [Test]
@@ -24,7 +24,7 @@ public class LinqTests(CompilationMode mode)
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         engine.SetVariable("numbers", new List<int> { 1, 2, 3, 4, 5 });
 
-        var result = engine.Evaluate("numbers.Where(x => x > 2)") as List<object?>;
+        var result = engine.Evaluate("numbers.Where(x => x > 2)") as IList;
         Assert.That(result, Has.Count.EqualTo(3));
     }
 
@@ -34,7 +34,7 @@ public class LinqTests(CompilationMode mode)
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         engine.SetVariable("numbers", new List<int> { 1, 2, 3 });
 
-        var result = engine.Evaluate("numbers.Where(x => x > 10)") as List<object?>;
+        var result = engine.Evaluate("numbers.Where(x => x > 10)") as IList;
         Assert.That(result, Is.Empty);
     }
 
@@ -42,8 +42,8 @@ public class LinqTests(CompilationMode mode)
     public void Filter_Alias_WorksAsWhere()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate("[1, 2, 3, 4].filter(x => x > 2)") as List<object?>;
-        Assert.That(result, Is.EqualTo(new List<object?> { 3, 4 }));
+        var result = engine.Evaluate("[1, 2, 3, 4].filter(x => x > 2)") as IList;
+        Assert.That(result, Is.EqualTo(new[] { 3, 4 }));
     }
 
     #endregion
@@ -56,8 +56,8 @@ public class LinqTests(CompilationMode mode)
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         engine.SetVariable("numbers", new List<int> { 1, 2, 3 });
 
-        var result = engine.Evaluate("numbers.Select((x) => x * 2)") as List<object?>;
-        Assert.That(result, Is.EqualTo(new List<object?> { 2, 4, 6 }));
+        var result = engine.Evaluate("numbers.Select((x) => x * 2)") as IList;
+        Assert.That(result, Is.EqualTo(new[] { 2, 4, 6 }));
     }
 
     [Test]
@@ -69,16 +69,16 @@ public class LinqTests(CompilationMode mode)
             new { Name = "Bob" }
         });
 
-        var result = engine.Evaluate("items.Select(x => x.Name)") as List<object?>;
-        Assert.That(result, Is.EqualTo(new List<object?> { "Alice", "Bob" }));
+        var result = engine.Evaluate("items.Select(x => x.Name)") as IList;
+        Assert.That(result, Is.EqualTo(new[] { "Alice", "Bob" }));
     }
 
     [Test]
     public void Map_Alias_WorksAsSelect()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate("[1, 2, 3].map(x => x * 2)") as List<object?>;
-        Assert.That(result, Is.EqualTo(new List<object?> { 2, 4, 6 }));
+        var result = engine.Evaluate("[1, 2, 3].map(x => x * 2)") as IList;
+        Assert.That(result, Is.EqualTo(new[] { 2, 4, 6 }));
     }
 
     #endregion
@@ -94,8 +94,8 @@ public class LinqTests(CompilationMode mode)
             new() { 3, 4 }
         });
 
-        var result = engine.Evaluate("nested.SelectMany(x => x)") as List<object?>;
-        Assert.That(result, Is.EqualTo(new List<object?> { 1, 2, 3, 4 }));
+        var result = engine.Evaluate("nested.SelectMany(x => x)") as IList;
+        Assert.That(result, Is.EqualTo(new[] { 1, 2, 3, 4 }));
     }
 
     [Test]
@@ -107,8 +107,8 @@ public class LinqTests(CompilationMode mode)
             new() { ["Tags"] = new List<string> { "c" } }
         });
 
-        var result = engine.Evaluate("items.SelectMany(x => x.Tags)") as List<object?>;
-        Assert.That(result, Is.EqualTo(new List<object?> { "a", "b", "c" }));
+        var result = engine.Evaluate("items.SelectMany(x => x.Tags)") as IList;
+        Assert.That(result, Is.EqualTo(new[] { "a", "b", "c" }));
     }
 
     [Test]
@@ -120,8 +120,8 @@ public class LinqTests(CompilationMode mode)
             new() { 3, 4 }
         });
 
-        var result = engine.Evaluate("nested.flatMap(x => x)") as List<object?>;
-        Assert.That(result, Is.EqualTo(new List<object?> { 1, 2, 3, 4 }));
+        var result = engine.Evaluate("nested.flatMap(x => x)") as IList;
+        Assert.That(result, Is.EqualTo(new[] { 1, 2, 3, 4 }));
     }
 
     #endregion
@@ -646,8 +646,8 @@ public class LinqTests(CompilationMode mode)
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         engine.SetVariable("numbers", new List<int> { 3, 1, 4, 1, 5 });
 
-        var result = engine.Evaluate("numbers.OrderBy(x => x)") as List<object?>;
-        Assert.That(result, Is.EqualTo(new List<object?> { 1, 1, 3, 4, 5 }));
+        var result = engine.Evaluate("numbers.OrderBy(x => x)") as IList;
+        Assert.That(result, Is.EqualTo(new object[] { 1, 1, 3, 4, 5 }));
     }
 
     [Test]
@@ -660,8 +660,8 @@ public class LinqTests(CompilationMode mode)
             new() { ["Name"] = "Bob" }
         });
 
-        var result = engine.Evaluate("items.OrderBy(x => x.Name).Select(x => x.Name)") as List<object?>;
-        Assert.That(result, Is.EqualTo(new List<object?> { "Alice", "Bob", "Charlie" }));
+        var result = engine.Evaluate("items.OrderBy(x => x.Name).Select(x => x.Name)") as IList;
+        Assert.That(result, Is.EqualTo(new object[] { "Alice", "Bob", "Charlie" }));
     }
 
     [Test]
@@ -670,8 +670,8 @@ public class LinqTests(CompilationMode mode)
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         engine.SetVariable("numbers", new List<int> { 3, 1, 4, 1, 5 });
 
-        var result = engine.Evaluate("numbers.OrderByDescending(x => x)") as List<object?>;
-        Assert.That(result, Is.EqualTo(new List<object?> { 5, 4, 3, 1, 1 }));
+        var result = engine.Evaluate("numbers.OrderByDescending(x => x)") as IList;
+        Assert.That(result, Is.EqualTo(new object[] { 5, 4, 3, 1, 1 }));
     }
 
     #endregion
@@ -688,11 +688,11 @@ public class LinqTests(CompilationMode mode)
             new() { ["Category"] = "A", ["Value"] = 3 }
         });
 
-        var result = engine.Evaluate("items.GroupBy(x => x.Category)") as List<object?>;
+        var result = engine.Evaluate("items.GroupBy(x => x.Category)") as IList;
         Assert.That(result, Has.Count.EqualTo(2));
 
         var groupA = result!.Cast<Dictionary<string, object?>>().First(g => (string)g["Key"]! == "A");
-        var groupAItems = groupA["Items"] as List<object?>;
+        var groupAItems = groupA["Items"] as IList;
         Assert.That(groupAItems, Has.Count.EqualTo(2));
     }
 
@@ -702,7 +702,7 @@ public class LinqTests(CompilationMode mode)
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         engine.SetVariable("numbers", new List<int> { 1, 2, 3, 4, 5, 6 });
 
-        var result = engine.Evaluate("numbers.GroupBy(x => x > 3)") as List<object?>;
+        var result = engine.Evaluate("numbers.GroupBy(x => x > 3)") as IList;
         Assert.That(result, Has.Count.EqualTo(2));
 
         foreach (var group in result!.Cast<Dictionary<string, object?>>())
@@ -723,8 +723,8 @@ public class LinqTests(CompilationMode mode)
         engine.SetVariable("nums1", new List<int> { 1, 2, 3 });
         engine.SetVariable("nums2", new List<int> { 10, 20, 30 });
 
-        var result = engine.Evaluate("nums1.Zip(nums2, (a, b) => a + b)") as List<object?>;
-        Assert.That(result, Is.EqualTo(new List<object?> { 11, 22, 33 }));
+        var result = engine.Evaluate("nums1.Zip(nums2, (a, b) => a + b)") as IList;
+        Assert.That(result, Is.EqualTo(new object[] { 11, 22, 33 }));
     }
 
     [Test]
@@ -734,7 +734,7 @@ public class LinqTests(CompilationMode mode)
         engine.SetVariable("names", new List<string> { "Alice", "Bob" });
         engine.SetVariable("ages", new List<int> { 30, 25 });
 
-        var result = engine.Evaluate("names.Zip(ages)") as List<object?>;
+        var result = engine.Evaluate("names.Zip(ages)") as IList;
         Assert.That(result, Has.Count.EqualTo(2));
 
         var first = result![0] as Dictionary<string, object?>;
@@ -749,7 +749,7 @@ public class LinqTests(CompilationMode mode)
         engine.SetVariable("shortList", new List<int> { 1, 2 });
         engine.SetVariable("longList", new List<int> { 10, 20, 30, 40 });
 
-        var result = engine.Evaluate("shortList.Zip(longList, (a, b) => a + b)") as List<object?>;
+        var result = engine.Evaluate("shortList.Zip(longList, (a, b) => a + b)") as IList;
         Assert.That(result, Has.Count.EqualTo(2));
     }
 
@@ -763,8 +763,8 @@ public class LinqTests(CompilationMode mode)
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         engine.SetVariable("numbers", new List<int> { 1, 2, 2, 3, 3, 3 });
 
-        var result = engine.Evaluate("numbers.Distinct()") as List<object?>;
-        Assert.That(result, Is.EqualTo(new List<object?> { 1, 2, 3 }));
+        var result = engine.Evaluate("numbers.Distinct()") as IList;
+        Assert.That(result, Is.EqualTo(new object[] { 1, 2, 3 }));
     }
 
     [Test]
@@ -773,8 +773,8 @@ public class LinqTests(CompilationMode mode)
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         engine.SetVariable("numbers", new List<int> { 1, 2, 3, 4, 5 });
 
-        var result = engine.Evaluate("numbers.Take(3)") as List<object?>;
-        Assert.That(result, Is.EqualTo(new List<object?> { 1, 2, 3 }));
+        var result = engine.Evaluate("numbers.Take(3)") as IList;
+        Assert.That(result, Is.EqualTo(new object[] { 1, 2, 3 }));
     }
 
     [Test]
@@ -783,8 +783,8 @@ public class LinqTests(CompilationMode mode)
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         engine.SetVariable("numbers", new List<int> { 1, 2 });
 
-        var result = engine.Evaluate("numbers.Take(10)") as List<object?>;
-        Assert.That(result, Is.EqualTo(new List<object?> { 1, 2 }));
+        var result = engine.Evaluate("numbers.Take(10)") as IList;
+        Assert.That(result, Is.EqualTo(new object[] { 1, 2 }));
     }
 
     [Test]
@@ -793,8 +793,8 @@ public class LinqTests(CompilationMode mode)
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         engine.SetVariable("numbers", new List<int> { 1, 2, 3, 4, 5 });
 
-        var result = engine.Evaluate("numbers.Skip(2)") as List<object?>;
-        Assert.That(result, Is.EqualTo(new List<object?> { 3, 4, 5 }));
+        var result = engine.Evaluate("numbers.Skip(2)") as IList;
+        Assert.That(result, Is.EqualTo(new object[] { 3, 4, 5 }));
     }
 
     [Test]
@@ -803,7 +803,7 @@ public class LinqTests(CompilationMode mode)
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         engine.SetVariable("numbers", new List<int> { 1, 2 });
 
-        var result = engine.Evaluate("numbers.Skip(10)") as List<object?>;
+        var result = engine.Evaluate("numbers.Skip(10)") as IList;
         Assert.That(result, Is.Empty);
     }
 
@@ -855,8 +855,8 @@ public class LinqTests(CompilationMode mode)
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         engine.SetVariable("numbers", new List<int> { 1, 2, 3 });
 
-        var result = engine.Evaluate("numbers.Reverse()") as List<object?>;
-        Assert.That(result, Is.EqualTo(new List<object?> { 3, 2, 1 }));
+        var result = engine.Evaluate("numbers.Reverse()") as IList;
+        Assert.That(result, Is.EqualTo(new object[] { 3, 2, 1 }));
     }
 
     #endregion
@@ -870,8 +870,8 @@ public class LinqTests(CompilationMode mode)
         engine.SetVariable("first", new List<int> { 1, 2, 3, 4, 5 });
         engine.SetVariable("second", new List<int> { 3, 4, 5, 6, 7 });
 
-        var result = engine.Evaluate("first.Except(second)") as List<object?>;
-        Assert.That(result, Is.EqualTo(new List<object?> { 1, 2 }));
+        var result = engine.Evaluate("first.Except(second)") as IList;
+        Assert.That(result, Is.EqualTo(new object[] { 1, 2 }));
     }
 
     [Test]
@@ -881,8 +881,8 @@ public class LinqTests(CompilationMode mode)
         engine.SetVariable("first", new List<int> { 1, 2, 3 });
         engine.SetVariable("second", new List<int> { 4, 5, 6 });
 
-        var result = engine.Evaluate("first.Except(second)") as List<object?>;
-        Assert.That(result, Is.EqualTo(new List<object?> { 1, 2, 3 }));
+        var result = engine.Evaluate("first.Except(second)") as IList;
+        Assert.That(result, Is.EqualTo(new object[] { 1, 2, 3 }));
     }
 
     [Test]
@@ -892,7 +892,7 @@ public class LinqTests(CompilationMode mode)
         engine.SetVariable("first", new List<int> { 1, 2, 3 });
         engine.SetVariable("second", new List<int> { 1, 2, 3, 4, 5 });
 
-        var result = engine.Evaluate("first.Except(second)") as List<object?>;
+        var result = engine.Evaluate("first.Except(second)") as IList;
         Assert.That(result, Is.Empty);
     }
 
@@ -903,8 +903,8 @@ public class LinqTests(CompilationMode mode)
         engine.SetVariable("first", new List<string> { "a", "b", "c" });
         engine.SetVariable("second", new List<string> { "b", "d" });
 
-        var result = engine.Evaluate("first.Except(second)") as List<object?>;
-        Assert.That(result, Is.EqualTo(new List<object?> { "a", "c" }));
+        var result = engine.Evaluate("first.Except(second)") as IList;
+        Assert.That(result, Is.EqualTo(new object[] { "a", "c" }));
     }
 
     [Test]
@@ -914,8 +914,8 @@ public class LinqTests(CompilationMode mode)
         engine.SetVariable("first", new List<int> { 1, 2, 3, 4, 5 });
         engine.SetVariable("second", new List<int> { 3, 4, 5, 6, 7 });
 
-        var result = engine.Evaluate("first.Intersect(second)") as List<object?>;
-        Assert.That(result, Is.EqualTo(new List<object?> { 3, 4, 5 }));
+        var result = engine.Evaluate("first.Intersect(second)") as IList;
+        Assert.That(result, Is.EqualTo(new object[] { 3, 4, 5 }));
     }
 
     [Test]
@@ -925,7 +925,7 @@ public class LinqTests(CompilationMode mode)
         engine.SetVariable("first", new List<int> { 1, 2, 3 });
         engine.SetVariable("second", new List<int> { 4, 5, 6 });
 
-        var result = engine.Evaluate("first.Intersect(second)") as List<object?>;
+        var result = engine.Evaluate("first.Intersect(second)") as IList;
         Assert.That(result, Is.Empty);
     }
 
@@ -936,8 +936,8 @@ public class LinqTests(CompilationMode mode)
         engine.SetVariable("first", new List<string> { "a", "b", "c" });
         engine.SetVariable("second", new List<string> { "b", "c", "d" });
 
-        var result = engine.Evaluate("first.Intersect(second)") as List<object?>;
-        Assert.That(result, Is.EqualTo(new List<object?> { "b", "c" }));
+        var result = engine.Evaluate("first.Intersect(second)") as IList;
+        Assert.That(result, Is.EqualTo(new object[] { "b", "c" }));
     }
 
     [Test]
@@ -947,8 +947,8 @@ public class LinqTests(CompilationMode mode)
         engine.SetVariable("first", new List<int> { 1, 2, 3 });
         engine.SetVariable("second", new List<int> { 3, 4, 5 });
 
-        var result = engine.Evaluate("first.Union(second)") as List<object?>;
-        Assert.That(result, Is.EqualTo(new List<object?> { 1, 2, 3, 4, 5 }));
+        var result = engine.Evaluate("first.Union(second)") as IList;
+        Assert.That(result, Is.EqualTo(new object[] { 1, 2, 3, 4, 5 }));
     }
 
     [Test]
@@ -958,8 +958,8 @@ public class LinqTests(CompilationMode mode)
         engine.SetVariable("first", new List<int> { 1, 2 });
         engine.SetVariable("second", new List<int> { 3, 4 });
 
-        var result = engine.Evaluate("first.Union(second)") as List<object?>;
-        Assert.That(result, Is.EqualTo(new List<object?> { 1, 2, 3, 4 }));
+        var result = engine.Evaluate("first.Union(second)") as IList;
+        Assert.That(result, Is.EqualTo(new object[] { 1, 2, 3, 4 }));
     }
 
     [Test]
@@ -969,8 +969,8 @@ public class LinqTests(CompilationMode mode)
         engine.SetVariable("first", new List<int> { 1, 2, 3 });
         engine.SetVariable("second", new List<int> { 1, 2, 3 });
 
-        var result = engine.Evaluate("first.Union(second)") as List<object?>;
-        Assert.That(result, Is.EqualTo(new List<object?> { 1, 2, 3 }));
+        var result = engine.Evaluate("first.Union(second)") as IList;
+        Assert.That(result, Is.EqualTo(new object[] { 1, 2, 3 }));
     }
 
     [Test]
@@ -980,8 +980,8 @@ public class LinqTests(CompilationMode mode)
         engine.SetVariable("first", new List<string> { "a", "b" });
         engine.SetVariable("second", new List<string> { "b", "c" });
 
-        var result = engine.Evaluate("first.Union(second)") as List<object?>;
-        Assert.That(result, Is.EqualTo(new List<object?> { "a", "b", "c" }));
+        var result = engine.Evaluate("first.Union(second)") as IList;
+        Assert.That(result, Is.EqualTo(new object[] { "a", "b", "c" }));
     }
 
     #endregion
@@ -995,8 +995,8 @@ public class LinqTests(CompilationMode mode)
         engine.SetVariable("numbers", new List<int> { 1, 2, 3 });
 
         var result = engine.Evaluate("numbers.ToList()");
-        Assert.That(result, Is.TypeOf<List<object?>>());
-        Assert.That(result, Is.EqualTo(new List<object?> { 1, 2, 3 }));
+        Assert.That(result, Is.TypeOf<List<int>>());
+        Assert.That(result, Is.EqualTo(new[] { 1, 2, 3 }));
     }
 
     [Test]
@@ -1006,8 +1006,8 @@ public class LinqTests(CompilationMode mode)
         engine.SetVariable("numbers", new List<int> { 1, 2, 3 });
 
         var result = engine.Evaluate("numbers.ToArray()");
-        Assert.That(result, Is.TypeOf<object?[]>());
-        Assert.That(result, Is.EqualTo(new object?[] { 1, 2, 3 }));
+        Assert.That(result, Is.TypeOf<int[]>());
+        Assert.That(result, Is.EqualTo(new[] { 1, 2, 3 }));
     }
 
     [Test]
@@ -1017,8 +1017,8 @@ public class LinqTests(CompilationMode mode)
         engine.SetVariable("first", new List<int> { 1, 2 });
         engine.SetVariable("second", new List<int> { 3, 4 });
 
-        var result = engine.Evaluate("first.Concat(second)") as List<object?>;
-        Assert.That(result, Is.EqualTo(new List<object?> { 1, 2, 3, 4 }));
+        var result = engine.Evaluate("first.Concat(second)") as IList;
+        Assert.That(result, Is.EqualTo(new object[] { 1, 2, 3, 4 }));
     }
 
     #endregion
@@ -1037,8 +1037,8 @@ public class LinqTests(CompilationMode mode)
             TestHelpers.CreateItem("Mango", 3.0)
         });
 
-        var result = engine.Evaluate("items.Where(x => x.Price > 1).OrderBy(x => x.Name).Select(x => x.Name)") as List<object?>;
-        Assert.That(result, Is.EqualTo(new List<object?> { "Apple", "Mango", "Orange" }));
+        var result = engine.Evaluate("items.Where(x => x.Price > 1).OrderBy(x => x.Name).Select(x => x.Name)") as IList;
+        Assert.That(result, Is.EqualTo(new object[] { "Apple", "Mango", "Orange" }));
     }
 
     [Test]
@@ -1047,8 +1047,8 @@ public class LinqTests(CompilationMode mode)
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         engine.SetVariable("numbers", new List<int> { 1, 2, 3, 4, 5 });
 
-        var result = engine.Evaluate("numbers.Select(x => x * 2).Where(x => x > 4).Take(2)") as List<object?>;
-        Assert.That(result, Is.EqualTo(new List<object?> { 6, 8 }));
+        var result = engine.Evaluate("numbers.Select(x => x * 2).Where(x => x > 4).Take(2)") as IList;
+        Assert.That(result, Is.EqualTo(new object[] { 6, 8 }));
     }
 
     #endregion

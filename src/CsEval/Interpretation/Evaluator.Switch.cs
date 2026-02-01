@@ -48,7 +48,7 @@ public sealed partial class Evaluator
     /// <summary>
     /// Executes case statements starting from the given index, supporting fall-through.
     /// Returns true if a break was encountered.
-    /// C# semantics: only empty cases fall through; non-empty cases implicitly break.
+    /// C# semantics: empty cases fall through; non-empty cases MUST have explicit break/return/throw.
     /// </summary>
     private bool ExecuteCaseStatements(List<SwitchCaseExpr> cases, int startIndex)
     {
@@ -73,8 +73,8 @@ public sealed partial class Evaluator
                 return true; // explicit break exits the switch
             }
 
-            // Non-empty case without explicit break: implicit break (C# behavior)
-            return false;
+            // Non-empty case without explicit break/return/throw: C# error CS0163
+            throw new CsEvalException("CS0163: Control cannot fall through from one case label to another");
         }
 
         return false;

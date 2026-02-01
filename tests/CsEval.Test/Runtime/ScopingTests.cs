@@ -68,13 +68,14 @@ public class ScopingTests(CompilationMode mode)
                 results = [...results, x];
             }
             return results;
-        }") as List<object?>;
+        }");
 
-        Assert.That(result, Is.Not.Null);
-        Assert.That(result!.Count, Is.EqualTo(3));
-        Assert.That(result[0], Is.EqualTo(10));
-        Assert.That(result[1], Is.EqualTo(20));
-        Assert.That(result[2], Is.EqualTo(30));
+        Assert.That(result, Is.TypeOf<List<int>>());
+        var list = (System.Collections.IList)result!;
+        Assert.That(list.Count, Is.EqualTo(3));
+        Assert.That(list[0], Is.EqualTo(10));
+        Assert.That(list[1], Is.EqualTo(20));
+        Assert.That(list[2], Is.EqualTo(30));
     }
 
     [Test]
@@ -211,13 +212,14 @@ public class ScopingTests(CompilationMode mode)
                 results = [...results, x];
             }
             return results;
-        }") as List<object?>;
+        }");
 
-        Assert.That(result, Is.Not.Null);
-        Assert.That(result!.Count, Is.EqualTo(3));
-        Assert.That(result[0], Is.EqualTo(0));
-        Assert.That(result[1], Is.EqualTo(10));
-        Assert.That(result[2], Is.EqualTo(20));
+        Assert.That(result, Is.TypeOf<List<int>>());
+        var list = (System.Collections.IList)result!;
+        Assert.That(list.Count, Is.EqualTo(3));
+        Assert.That(list[0], Is.EqualTo(0));
+        Assert.That(list[1], Is.EqualTo(10));
+        Assert.That(list[2], Is.EqualTo(20));
     }
 
     #endregion
@@ -296,13 +298,14 @@ public class ScopingTests(CompilationMode mode)
                 i = i + 1;
             }
             return results;
-        }") as List<object?>;
+        }");
 
-        Assert.That(result, Is.Not.Null);
-        Assert.That(result!.Count, Is.EqualTo(3));
-        Assert.That(result[0], Is.EqualTo(0));
-        Assert.That(result[1], Is.EqualTo(10));
-        Assert.That(result[2], Is.EqualTo(20));
+        Assert.That(result, Is.TypeOf<List<int>>());
+        var list = (System.Collections.IList)result!;
+        Assert.That(list.Count, Is.EqualTo(3));
+        Assert.That(list[0], Is.EqualTo(0));
+        Assert.That(list[1], Is.EqualTo(10));
+        Assert.That(list[2], Is.EqualTo(20));
     }
 
     #endregion
@@ -342,13 +345,14 @@ public class ScopingTests(CompilationMode mode)
                 i = i + 1;
             } while (i < 3);
             return results;
-        }") as List<object?>;
+        }");
 
-        Assert.That(result, Is.Not.Null);
-        Assert.That(result!.Count, Is.EqualTo(3));
-        Assert.That(result[0], Is.EqualTo(0));
-        Assert.That(result[1], Is.EqualTo(10));
-        Assert.That(result[2], Is.EqualTo(20));
+        Assert.That(result, Is.TypeOf<List<int>>());
+        var list = (System.Collections.IList)result!;
+        Assert.That(list.Count, Is.EqualTo(3));
+        Assert.That(list[0], Is.EqualTo(0));
+        Assert.That(list[1], Is.EqualTo(10));
+        Assert.That(list[2], Is.EqualTo(20));
     }
 
     #endregion

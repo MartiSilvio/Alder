@@ -209,7 +209,7 @@ public class SandboxModeTests(CompilationMode mode)
         });
         engine.SetVariable("items", new List<int> { 1, 2, 3, 4, 5 });
 
-        var result = engine.Evaluate("items.Where(x => x > 2).ToList()") as List<object?>;
+        var result = engine.Evaluate("items.Where(x => x > 2).ToList()") as IList;
 
         Assert.That(result, Has.Count.EqualTo(3));
     }
@@ -224,9 +224,9 @@ public class SandboxModeTests(CompilationMode mode)
         });
         engine.SetVariable("items", new List<int> { 1, 2, 3 });
 
-        var result = engine.Evaluate("items.Select(x => x * 2).ToList()") as List<object?>;
+        var result = engine.Evaluate("items.Select(x => x * 2).ToList()") as IList;
 
-        Assert.That(result, Is.EqualTo(new List<object?> { 2, 4, 6 }));
+        Assert.That(result, Is.EqualTo(new object[] { 2, 4, 6 }));
     }
 
     [Test]
@@ -401,7 +401,7 @@ public class SandboxModeTests(CompilationMode mode)
             Sandbox = SandboxOptions.Safe() with { AllowAssignment = false }
         });
 
-        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("{ var x = null; x ??= 5; return x; }"));
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("{ int? x = null; x ??= 5; return x; }"));
         Assert.That(ex!.Message, Does.Contain("sandbox"));
     }
 
@@ -455,9 +455,10 @@ public class SandboxModeTests(CompilationMode mode)
         });
 
         // When value is not null, ??= doesn't assign, so it should succeed
-        var result = engine.Evaluate("{ var x = 5; x ??= 10; return x; }");
+        // Using string (reference type) since ??= only works on nullable types
+        var result = engine.Evaluate(@"{ var x = ""hello""; x ??= ""world""; return x; }");
 
-        Assert.That(result, Is.EqualTo(5));
+        Assert.That(result, Is.EqualTo("hello"));
     }
 
     #endregion

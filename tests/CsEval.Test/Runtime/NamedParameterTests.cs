@@ -111,8 +111,8 @@ public class NamedParameterTests(CompilationMode mode)
 
         // LINQ methods with named parameters in lambda
         var result = engine.Evaluate("items.Where(x => x.StartsWith(value: \"B\"))");
-        Assert.That(result, Is.InstanceOf<List<object?>>());
-        var list = (List<object?>)result!;
+        Assert.That(result, Is.InstanceOf<List<string>>());
+        var list = (List<string>)result!;
         Assert.That(list, Has.Count.EqualTo(1));
         Assert.That(list[0], Is.EqualTo("Banana"));
     }

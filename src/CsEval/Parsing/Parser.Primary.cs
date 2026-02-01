@@ -29,7 +29,16 @@ public sealed partial class Parser
 
         if (Match(TokenType.New))
         {
-            Consume(TokenType.LeftBrace, "Expected '{' after 'new'");
+            // new[] { ... } - implicitly typed array
+            if (Match(TokenType.LeftBracket))
+            {
+                Consume(TokenType.RightBracket, "Expected ']' after 'new['");
+                Consume(TokenType.LeftBrace, "Expected '{' after 'new[]'");
+                return ParseArrayLiteralBody();
+            }
+
+            // new { ... } - anonymous object
+            Consume(TokenType.LeftBrace, "Expected '{' or '[' after 'new'");
             return new NewExpr(ParseAnonymousObject());
         }
 
@@ -140,6 +149,30 @@ public sealed partial class Parser
         }
 
         Consume(TokenType.RightBracket, "Expected ']' after array elements");
+        return new ArrayLiteralExpr(elements);
+    }
+
+    private Expr ParseArrayLiteralBody()
+    {
+        var elements = new List<Expr>();
+
+        if (!Check(TokenType.RightBrace))
+        {
+            do
+            {
+                if (Match(TokenType.DotDotDot))
+                {
+                    var spreadExpr = ParseExpression();
+                    elements.Add(new SpreadExpr(spreadExpr));
+                }
+                else
+                {
+                    elements.Add(ParseExpression());
+                }
+            } while (Match(TokenType.Comma));
+        }
+
+        Consume(TokenType.RightBrace, "Expected '}' after array elements");
         return new ArrayLiteralExpr(elements);
     }
 

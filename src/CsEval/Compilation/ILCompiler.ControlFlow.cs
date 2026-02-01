@@ -334,7 +334,7 @@ internal sealed partial class ILCompiler
                 statements.Add(LinqExpression.Goto(breakLabel));
 
             // Generate case bodies
-            // C# semantics: only empty cases fall through; non-empty cases implicitly break
+            // C# semantics: empty cases fall through; non-empty cases MUST have explicit break/return
             foreach (var c in switchStmt.Cases)
             {
                 // Find label for this case
@@ -352,14 +352,16 @@ internal sealed partial class ILCompiler
                     if (c.Statements.Count == 0)
                         continue;
 
+                    // Non-empty case: validate it ends with break/return/continue (C# CS0163)
+                    var lastStmt = c.Statements.Last();
+                    if (lastStmt is not BreakExpr && lastStmt is not ReturnExpr && lastStmt is not ContinueExpr)
+                        throw new CsEvalException("CS0163: Control cannot fall through from one case label to another");
+
                     foreach (var stmt in c.Statements)
                     {
                         statements.Add(CompileCancellationCheck());
                         statements.Add(Compile(stmt));
                     }
-
-                    // Non-empty case: implicit break (unless already has explicit break/return)
-                    statements.Add(LinqExpression.Goto(breakLabel));
                 }
             }
 

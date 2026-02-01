@@ -20,10 +20,71 @@ public sealed partial class Parser
 
     public Expr Parse()
     {
+        if (IsStatementKeyword())
+            return ParseProgram();
+
         var expr = ParseExpression();
-        if (!IsAtEnd())
+
+        if (IsAtEnd())
+            return expr;
+
+        if (!Check(TokenType.Semicolon))
             throw new ParserException($"Unexpected token '{Peek().Lexeme}' at {Peek().Line}:{Peek().Column}");
-        return expr;
+
+        _current = 0;
+        return ParseProgram();
+    }
+
+    private Expr ParseProgram()
+    {
+        var statements = new List<Expr>();
+
+        while (!IsAtEnd())
+        {
+            if (IsStatementKeyword())
+            {
+                var stmt = ParseStatement();
+                if (stmt != null)
+                    statements.Add(stmt);
+            }
+            else
+            {
+                var expr = ParseExpression();
+
+                if (Check(TokenType.Semicolon))
+                {
+                    Advance();
+                    statements.Add(expr);
+                }
+                else if (IsAtEnd())
+                {
+                    return new BlockExpr(statements, expr);
+                }
+                else
+                {
+                    throw new ParserException($"Unexpected token '{Peek().Lexeme}' at {Peek().Line}:{Peek().Column}");
+                }
+            }
+        }
+
+        if (statements.Count > 0)
+            return new BlockExpr(statements, null);
+
+        throw new ParserException("Empty expression");
+    }
+
+    private bool IsStatementKeyword()
+    {
+        return Check(TokenType.Return) || Check(TokenType.Break) || Check(TokenType.Continue) ||
+               Check(TokenType.If) || Check(TokenType.While) || Check(TokenType.For) ||
+               Check(TokenType.Do) || Check(TokenType.Foreach) || Check(TokenType.Switch) ||
+               Check(TokenType.Var) ||
+               Check(TokenType.Int) || Check(TokenType.Long) || Check(TokenType.Double) ||
+               Check(TokenType.Float) || Check(TokenType.Decimal) || Check(TokenType.StringType) ||
+               Check(TokenType.Bool) || Check(TokenType.Object) ||
+               Check(TokenType.Sbyte) || Check(TokenType.Byte) || Check(TokenType.Short) ||
+               Check(TokenType.Ushort) || Check(TokenType.Uint) || Check(TokenType.Ulong) ||
+               Check(TokenType.Char);
     }
 
     #region Token Utilities

@@ -27,7 +27,7 @@ public interface ILanguageExtension
     /// Use LinqDispatcher handlers for aliases (e.g., "Map" -> LinqDispatcher.HandleSelect)
     /// or provide custom implementations.
     /// </summary>
-    IReadOnlyDictionary<string, Func<List<object?>, object?[], CsEvalContext, CsEvalOptions, CancellationToken, (bool, object?)>> LinqHandlers { get; }
+    IReadOnlyDictionary<string, LinqDispatcher.LinqHandler> LinqHandlers { get; }
 
     /// <summary>
     /// Binary operators for AST interpretation.

@@ -78,6 +78,8 @@ public sealed partial class Parser
             var name = Consume(TokenType.Identifier, "Expected variable name");
             Consume(TokenType.Equal, "Expected '=' after variable name");
             var initializer = ParseExpression();
+            if (initializer is LiteralExpr { Value: null })
+                throw new ParserException($"Cannot assign null to an implicitly-typed variable '{name.Lexeme}' at {name.Line}:{name.Column}");
             Consume(TokenType.Semicolon, "Expected ';' after variable declaration");
             return new VariableDeclExpr(null, name, initializer);
         }
@@ -236,6 +238,8 @@ public sealed partial class Parser
                 var name = Consume(TokenType.Identifier, "Expected variable name");
                 Consume(TokenType.Equal, "Expected '=' after variable name");
                 var init = ParseExpression();
+                if (init is LiteralExpr { Value: null })
+                    throw new ParserException($"Cannot assign null to an implicitly-typed variable '{name.Lexeme}' at {name.Line}:{name.Column}");
                 initializer = new VariableDeclExpr(null, name, init);
             }
             else if (MatchTypeKeyword(out var typeToken))

@@ -12,8 +12,8 @@ public sealed class PythonExtension : ILanguageExtension
 
     public string Name => "Python";
 
-    public IReadOnlyDictionary<string, Func<List<object?>, object?[], CsEvalContext, CsEvalOptions, CancellationToken, (bool, object?)>> LinqHandlers { get; } =
-        new Dictionary<string, Func<List<object?>, object?[], CsEvalContext, CsEvalOptions, CancellationToken, (bool, object?)>>();
+    public IReadOnlyDictionary<string, LinqDispatcher.LinqHandler> LinqHandlers { get; } =
+        new Dictionary<string, LinqDispatcher.LinqHandler>();
 
     public IReadOnlyDictionary<TokenType, Func<object?, object?, CsEvalOptions, object?>> BinaryOperators { get; } =
         new Dictionary<TokenType, Func<object?, object?, CsEvalOptions, object?>>

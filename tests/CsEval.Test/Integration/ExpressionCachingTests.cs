@@ -64,12 +64,12 @@ public class ExpressionCachingTests(CompilationMode mode)
 
         engine.SetVariable("threshold", 2);
         engine.SetVariable("multiplier", 2);
-        var result1 = engine.Evaluate(expression) as List<object?>;
+        var result1 = engine.Evaluate(expression) as IList;
         Assert.That(result1, Is.EqualTo(new List<object?> { 6, 8, 10 }));
 
         engine.SetVariable("threshold", 3);
         engine.SetVariable("multiplier", 10);
-        var result2 = engine.Evaluate(expression) as List<object?>;
+        var result2 = engine.Evaluate(expression) as IList;
         Assert.That(result2, Is.EqualTo(new List<object?> { 40, 50 }));
     }
 

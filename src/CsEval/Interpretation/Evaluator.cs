@@ -164,6 +164,10 @@ public sealed partial class Evaluator : IExprVisitor<object?>
     public object? VisitNullCoalesceAssign(NullCoalesceAssignExpr expr)
     {
         var name = expr.Name.Lexeme;
+
+        if (_context.TryGetVariableType(name, out var varType) && varType != null && !TypeHelpers.IsNullableType(varType))
+            throw new CsEvalException($"Operator '??=' cannot be applied to operand of type '{varType.Name}'");
+
         var currentValue = _context.Get(name);
 
         if (currentValue != null)
@@ -184,6 +188,12 @@ public sealed partial class Evaluator : IExprVisitor<object?>
 
         var name = expr.Name.Lexeme;
         var value = Evaluate(expr.Value);
+
+        if (_context.TryGetVariableType(name, out var varType) && varType != null && value != null)
+        {
+            value = TypeHelpers.ValidateAssignment(varType, value, name);
+        }
+
         _context.Set(name, value);
         return value;
     }
@@ -229,6 +239,8 @@ public sealed partial class Evaluator : IExprVisitor<object?>
             throw new CsEvalException($"Unknown base operator for '{expr.Op.Lexeme}'");
 
         var result = op(this, currentValue, rightValue);
+        result = RuntimeHelpers.ValidateCompoundAssignment(name, result, rightValue, _context);
+
         _context.Set(name, result);
         return result;
     }
@@ -311,7 +323,7 @@ public sealed partial class Evaluator : IExprVisitor<object?>
                 result.Add(Evaluate(element));
             }
         }
-        return result;
+        return RuntimeHelpers.CreateTypedList(result);
     }
 
     public object? VisitObjectLiteral(ObjectLiteralExpr expr)
@@ -383,11 +395,14 @@ public sealed partial class Evaluator : IExprVisitor<object?>
     {
         var value = Evaluate(expr.Initializer);
 
-        // Validate type if declared (strict mode)
         if (expr.DeclaredType != null)
             value = TypeHelpers.ValidateAndCoerceType(expr.DeclaredType.Value.Lexeme, value, expr.Name.Lexeme);
 
-        _context.Define(expr.Name.Lexeme, value);
+        var inferredType = expr.DeclaredType != null
+            ? TypeHelpers.ResolveTypeName(expr.DeclaredType.Value.Lexeme)
+            : value?.GetType() ?? typeof(object);
+
+        _context.Define(expr.Name.Lexeme, value, inferredType);
         return value;
     }
 

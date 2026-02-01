@@ -3,48 +3,21 @@ namespace CsEval.Test.Types;
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
 [TestFixture(CompilationMode.StrictCompiled)]
-public class VerbatimStringTests(CompilationMode mode) 
+public class VerbatimStringTests(CompilationMode mode)
 {
-    #region Verbatim Strings (@"...")
-
-    [Test]
-    public void VerbatimString_BackslashesAreLiteral()
+    // Verbatim strings (@"...")
+    [TestCase(@"@""path\to\file""", @"path\to\file", TestName = "Verbatim_BackslashesAreLiteral")]
+    [TestCase(@"@""C:\Users\John\Documents""", @"C:\Users\John\Documents", TestName = "Verbatim_MultipleBackslashes")]
+    [TestCase(@"@""She said """"Hello"""".""", @"She said ""Hello"".", TestName = "Verbatim_EscapedQuote")]
+    [TestCase(@"@""""", "", TestName = "Verbatim_EmptyString")]
+    [TestCase(@"@""It's fine""", "It's fine", TestName = "Verbatim_SingleQuoteNoEscape")]
+    [TestCase(@"@""^\d{3}-\d{4}$""", @"^\d{3}-\d{4}$", TestName = "Verbatim_RegexPattern")]
+    // Comparison with regular strings
+    [TestCase(@"""path\\to\\file""", @"path\to\file", TestName = "Regular_BackslashNeedsEscape")]
+    public void MatchesExpected(string expr, string expected)
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(@"@""path\to\file""");
-        Assert.That(result, Is.EqualTo(@"path\to\file"));
-    }
-
-    [Test]
-    public void VerbatimString_MultipleBackslashes()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(@"@""C:\Users\John\Documents""");
-        Assert.That(result, Is.EqualTo(@"C:\Users\John\Documents"));
-    }
-
-    [Test]
-    public void VerbatimString_EscapedQuote()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(@"@""She said """"Hello"""".""");
-        Assert.That(result, Is.EqualTo(@"She said ""Hello""."));
-    }
-
-    [Test]
-    public void VerbatimString_EmptyString()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(@"@""""");
-        Assert.That(result, Is.EqualTo(""));
-    }
-
-    [Test]
-    public void VerbatimString_SingleQuoteDoesNotNeedEscape()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(@"@""It's fine""");
-        Assert.That(result, Is.EqualTo("It's fine"));
+        Assert.That(engine.Evaluate(expr), Is.EqualTo(expected));
     }
 
     [Test]
@@ -56,17 +29,15 @@ public class VerbatimStringTests(CompilationMode mode)
     }
 
     [Test]
-    public void VerbatimString_RegexPattern()
+    public void VerbatimVsRegular_SameResult()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(@"@""^\d{3}-\d{4}$""");
-        Assert.That(result, Is.EqualTo(@"^\d{3}-\d{4}$"));
+        var verbatim = engine.Evaluate(@"@""C:\Windows\System32""");
+        var regular = engine.Evaluate(@"""C:\\Windows\\System32""");
+        Assert.That(verbatim, Is.EqualTo(regular));
     }
 
-    #endregion
-
-    #region Verbatim Interpolated Strings ($@"..." and @$"...")
-
+    // Verbatim interpolated strings ($@"..." and @$"...") - require SetVariable
     [Test]
     public void VerbatimInterpolated_DollarAt_BackslashesAreLiteral()
     {
@@ -131,29 +102,4 @@ public class VerbatimStringTests(CompilationMode mode)
         var result = engine.Evaluate(@"$@""Result: {obj[""key""]}""");
         Assert.That(result, Is.EqualTo("Result: value"));
     }
-
-    #endregion
-
-    #region Comparison with Regular Strings
-
-    [Test]
-    public void RegularString_BackslashNeedsEscape()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        // Regular string needs escaped backslash
-        var result = engine.Evaluate(@"""path\\to\\file""");
-        Assert.That(result, Is.EqualTo(@"path\to\file"));
-    }
-
-    [Test]
-    public void VerbatimVsRegular_SameResult()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        // Both should produce the same result
-        var verbatim = engine.Evaluate(@"@""C:\Windows\System32""");
-        var regular = engine.Evaluate(@"""C:\\Windows\\System32""");
-        Assert.That(verbatim, Is.EqualTo(regular));
-    }
-
-    #endregion
 }

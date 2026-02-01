@@ -5,6 +5,7 @@ namespace CsEval.Runtime;
 public sealed class CsEvalContext
 {
     private readonly Dictionary<string, object?> _variables;
+    private readonly Dictionary<string, Type> _variableTypes;
     private readonly CsEvalContext? _parent;
     private readonly StringComparer _comparer;
     private readonly TypeCache _typeCache;
@@ -23,6 +24,7 @@ public sealed class CsEvalContext
         _comparer = comparer ?? parent?._comparer ?? StringComparer.Ordinal;
         _typeCache = typeCache ?? parent?._typeCache ?? new TypeCache();
         _variables = new Dictionary<string, object?>(_comparer);
+        _variableTypes = new Dictionary<string, Type>(_comparer);
     }
 
     public StringComparer Comparer => _comparer;
@@ -33,6 +35,24 @@ public sealed class CsEvalContext
     internal TypeCache TypeCache => _typeCache;
 
     public void Define(string name, object? value) => _variables[name] = value;
+
+    public void Define(string name, object? value, Type inferredType)
+    {
+        _variables[name] = value;
+        _variableTypes[name] = inferredType;
+    }
+
+    public bool TryGetVariableType(string name, out Type? type)
+    {
+        if (_variableTypes.TryGetValue(name, out type!))
+            return true;
+
+        if (_parent != null)
+            return _parent.TryGetVariableType(name, out type);
+
+        type = null;
+        return false;
+    }
 
     public bool TryGet(string name, out object? value)
     {

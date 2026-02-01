@@ -21,10 +21,36 @@ public static class RuntimeHelpers
             throw new CsEvalException($"Assignment blocked by sandbox: {context}");
     }
 
+    public static void CheckNullCoalesceAssignAllowed(string name, CsEvalContext context)
+    {
+        if (context.TryGetVariableType(name, out var varType) && varType != null && !TypeHelpers.IsNullableType(varType))
+            throw new CsEvalException($"Operator '??=' cannot be applied to operand of type '{varType.Name}'");
+    }
+
     public static void CheckAllowIndexSet(CsEvalOptions options, object? index)
     {
         if (!options.Sandbox.AllowIndexSet)
             throw new CsEvalException($"Index assignment blocked by sandbox: [{index}] = ...");
+    }
+
+    public static object? ValidateCompoundAssignment(string name, object? result, object? rightValue, CsEvalContext context)
+    {
+        if (!context.TryGetVariableType(name, out var varType) || varType == null || result == null)
+            return result;
+
+        var resultType = result.GetType();
+        var rightType = rightValue?.GetType();
+
+        var resultConvertible = resultType == varType || TypeHelpers.CanImplicitlyConvert(resultType, varType);
+        var rhsConvertible = rightType == null || rightType == varType ||
+                             TypeHelpers.CanImplicitlyConvert(rightType, varType);
+
+        if (!resultConvertible && !rhsConvertible)
+        {
+            throw new CsEvalException($"Cannot implicitly convert type '{resultType.Name}' to '{varType.Name}'");
+        }
+
+        return Convert.ChangeType(result, varType);
     }
 
     public static void CheckIterationLimit(long iterations, CsEvalOptions options)
@@ -73,5 +99,43 @@ public static class RuntimeHelpers
         {
             throw new CsEvalException("Spread operator requires an iterable");
         }
+    }
+
+    public static object CreateTypedList(List<object?> source)
+    {
+        if (source.Count == 0)
+            return source;
+
+        Type? commonType = null;
+        bool hasNull = false;
+
+        foreach (var item in source)
+        {
+            if (item == null)
+            {
+                hasNull = true;
+                continue;
+            }
+
+            var itemType = item.GetType();
+            if (commonType == null)
+                commonType = itemType;
+            else if (commonType != itemType)
+                return source;
+        }
+
+        if (commonType == null)
+            return source;
+
+        if (hasNull && commonType.IsValueType)
+            commonType = typeof(Nullable<>).MakeGenericType(commonType);
+
+        var listType = typeof(List<>).MakeGenericType(commonType);
+        var typedList = (System.Collections.IList)Activator.CreateInstance(listType, source.Count)!;
+
+        foreach (var item in source)
+            typedList.Add(item);
+
+        return typedList;
     }
 }

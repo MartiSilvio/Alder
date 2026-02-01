@@ -3,281 +3,191 @@ namespace CsEval.Test.Runtime;
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
 [TestFixture(CompilationMode.StrictCompiled)]
-public class SwitchStatementTests(CompilationMode mode) 
+public class SwitchStatementTests(CompilationMode mode)
 {
     #region Basic Switch
 
-    [Test]
-    public void Switch_BasicCase_MatchesCorrectly()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(@"
+    [TestCase("""
         {
             var x = 2;
-            var result = """";
+            var result = "";
             switch (x) {
                 case 1:
-                    result = ""one"";
+                    result = "one";
                     break;
                 case 2:
-                    result = ""two"";
+                    result = "two";
                     break;
                 case 3:
-                    result = ""three"";
+                    result = "three";
                     break;
             }
             return result;
-        }");
-
-        Assert.That(result, Is.EqualTo("two"));
-    }
-
-    [Test]
-    public void Switch_FirstCase_MatchesCorrectly()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(@"
+        }
+        """,
+        "two",
+        TestName = "BasicCase_MatchesMiddle")]
+    [TestCase("""
         {
             var x = 1;
-            var result = """";
+            var result = "";
             switch (x) {
                 case 1:
-                    result = ""one"";
+                    result = "one";
                     break;
                 case 2:
-                    result = ""two"";
+                    result = "two";
                     break;
             }
             return result;
-        }");
-
-        Assert.That(result, Is.EqualTo("one"));
-    }
-
-    [Test]
-    public void Switch_LastCase_MatchesCorrectly()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(@"
+        }
+        """,
+        "one",
+        TestName = "BasicCase_MatchesFirst")]
+    [TestCase("""
         {
             var x = 3;
-            var result = """";
+            var result = "";
             switch (x) {
                 case 1:
-                    result = ""one"";
+                    result = "one";
                     break;
                 case 2:
-                    result = ""two"";
+                    result = "two";
                     break;
                 case 3:
-                    result = ""three"";
+                    result = "three";
                     break;
             }
             return result;
-        }");
-
-        Assert.That(result, Is.EqualTo("three"));
-    }
-
-    [Test]
-    public void Switch_NoMatch_ResultUnchanged()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(@"
+        }
+        """,
+        "three",
+        TestName = "BasicCase_MatchesLast")]
+    [TestCase("""
         {
             var x = 99;
-            var result = ""initial"";
+            var result = "initial";
             switch (x) {
                 case 1:
-                    result = ""one"";
+                    result = "one";
                     break;
                 case 2:
-                    result = ""two"";
+                    result = "two";
                     break;
             }
             return result;
-        }");
-
-        Assert.That(result, Is.EqualTo("initial"));
-    }
-
-    #endregion
-
-    #region Default Case
-
-    [Test]
-    public void Switch_DefaultCase_ExecutesWhenNoMatch()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(@"
+        }
+        """,
+        "initial",
+        TestName = "NoMatch_ResultUnchanged")]
+    [TestCase("""
         {
             var x = 99;
-            var result = """";
+            var result = "";
             switch (x) {
                 case 1:
-                    result = ""one"";
+                    result = "one";
                     break;
                 case 2:
-                    result = ""two"";
+                    result = "two";
                     break;
                 default:
-                    result = ""other"";
+                    result = "other";
                     break;
             }
             return result;
-        }");
-
-        Assert.That(result, Is.EqualTo("other"));
-    }
-
-    [Test]
-    public void Switch_DefaultCase_SkippedWhenCaseMatches()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(@"
+        }
+        """,
+        "other",
+        TestName = "DefaultCase_ExecutesWhenNoMatch")]
+    [TestCase("""
         {
             var x = 1;
-            var result = """";
+            var result = "";
             switch (x) {
                 case 1:
-                    result = ""one"";
+                    result = "one";
                     break;
                 default:
-                    result = ""other"";
+                    result = "other";
                     break;
             }
             return result;
-        }");
-
-        Assert.That(result, Is.EqualTo("one"));
-    }
-
-    [Test]
-    public void Switch_DefaultCaseFirst_StillWorksCorrectly()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(@"
+        }
+        """,
+        "one",
+        TestName = "DefaultCase_SkippedWhenCaseMatches")]
+    [TestCase("""
         {
             var x = 99;
-            var result = """";
+            var result = "";
             switch (x) {
                 default:
-                    result = ""other"";
+                    result = "other";
                     break;
                 case 1:
-                    result = ""one"";
+                    result = "one";
                     break;
             }
             return result;
-        }");
-
-        Assert.That(result, Is.EqualTo("other"));
-    }
-
-    [Test]
-    public void Switch_DefaultCaseMiddle_StillWorksCorrectly()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(@"
+        }
+        """,
+        "other",
+        TestName = "DefaultCaseFirst_StillWorks")]
+    [TestCase("""
         {
             var x = 99;
-            var result = """";
+            var result = "";
             switch (x) {
                 case 1:
-                    result = ""one"";
+                    result = "one";
                     break;
                 default:
-                    result = ""other"";
+                    result = "other";
                     break;
                 case 2:
-                    result = ""two"";
+                    result = "two";
                     break;
             }
             return result;
-        }");
-
-        Assert.That(result, Is.EqualTo("other"));
-    }
-
-    [Test]
-    public void Switch_OnlyDefaultCase_ExecutesAlways()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(@"
+        }
+        """,
+        "other",
+        TestName = "DefaultCaseMiddle_StillWorks")]
+    [TestCase("""
         {
             var x = 42;
-            var result = """";
+            var result = "";
             switch (x) {
                 default:
-                    result = ""default only"";
+                    result = "default only";
                     break;
             }
             return result;
-        }");
-
-        Assert.That(result, Is.EqualTo("default only"));
-    }
-
-    #endregion
-
-    #region Fall-Through Behavior
-
-    [Test]
-    public void Switch_EmptyCaseFallThrough()
-    {
-        // C# allows empty cases to fall through
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(@"
+        }
+        """,
+        "default only",
+        TestName = "OnlyDefaultCase_ExecutesAlways")]
+    [TestCase("""
         {
             var x = 1;
-            var result = """";
+            var result = "";
             switch (x) {
                 case 1:
                 case 2:
-                    result = ""one or two"";
+                    result = "one or two";
                     break;
                 case 3:
-                    result = ""three"";
+                    result = "three";
                     break;
             }
             return result;
-        }");
-
-        Assert.That(result, Is.EqualTo("one or two"));
-    }
-
-    [Test]
-    public void Switch_NonEmptyCase_ImplicitBreak()
-    {
-        // C# behavior: non-empty cases have implicit break (don't fall through)
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(@"
-        {
-            var x = 1;
-            var result = """";
-            switch (x) {
-                case 1:
-                    result = result + ""one"";
-                case 2:
-                    result = result + ""two"";
-                    break;
-                case 3:
-                    result = result + ""three"";
-                    break;
-            }
-            return result;
-        }");
-
-        // Non-empty case 1 does NOT fall through to case 2
-        Assert.That(result, Is.EqualTo("one"));
-    }
-
-    [Test]
-    public void Switch_MultipleEmptyCasesFallThrough()
-    {
-        // Multiple empty cases can fall through to a non-empty case
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(@"
+        }
+        """,
+        "one or two",
+        TestName = "EmptyCaseFallThrough")]
+    [TestCase("""
         {
             var x = 2;
             var count = 0;
@@ -289,67 +199,564 @@ public class SwitchStatementTests(CompilationMode mode)
                     break;
             }
             return count;
-        }");
+        }
+        """,
+        1,
+        TestName = "MultipleEmptyCasesFallThrough")]
+    [TestCase("""
+        {
+            var fruit = "apple";
+            var category = "";
+            switch (fruit) {
+                case "apple":
+                    category = "pome";
+                    break;
+                case "orange":
+                    category = "citrus";
+                    break;
+                case "banana":
+                    category = "tropical";
+                    break;
+                default:
+                    category = "unknown";
+                    break;
+            }
+            return category;
+        }
+        """,
+        "pome",
+        TestName = "StringCase_MatchesExactly")]
+    [TestCase("""
+        {
+            var fruit = "Apple";
+            var category = "";
+            switch (fruit) {
+                case "apple":
+                    category = "lowercase";
+                    break;
+                case "Apple":
+                    category = "capitalized";
+                    break;
+                default:
+                    category = "unknown";
+                    break;
+            }
+            return category;
+        }
+        """,
+        "capitalized",
+        TestName = "StringCase_CaseSensitive")]
+    [TestCase("""
+        {
+            var a = 3;
+            var b = 2;
+            var result = "";
+            switch (a + b) {
+                case 4:
+                    result = "four";
+                    break;
+                case 5:
+                    result = "five";
+                    break;
+                case 6:
+                    result = "six";
+                    break;
+            }
+            return result;
+        }
+        """,
+        "five",
+        TestName = "ExpressionInSwitchValue")]
+    [TestCase("""
+        {
+            var x = 10;
+            var multiplier = 2;
+            var result = "";
+            switch (x) {
+                case 5 * 2:
+                    result = "matched 5*2";
+                    break;
+                case 3 * 4:
+                    result = "matched 3*4";
+                    break;
+            }
+            return result;
+        }
+        """,
+        "matched 5*2",
+        TestName = "ExpressionInCasePattern")]
+    [TestCase("""
+        {
+            var x = 2;
+            switch (x) {
+                case 1:
+                    return "one";
+                case 2:
+                    return "two";
+                case 3:
+                    return "three";
+            }
+            return "no match";
+        }
+        """,
+        "two",
+        TestName = "ReturnInCase_ExitsBlock")]
+    [TestCase("""
+        {
+            var x = 99;
+            switch (x) {
+                case 1:
+                    return "one";
+                case 2:
+                    return "two";
+                default:
+                    return "default";
+            }
+            return "after switch";
+        }
+        """,
+        "default",
+        TestName = "ReturnInDefault_ExitsBlock")]
+    [TestCase("""
+        {
+            var x = 99;
+            switch (x) {
+                case 1:
+                    return "one";
+                case 2:
+                    return "two";
+            }
+            return "no match";
+        }
+        """,
+        "no match",
+        TestName = "NoMatchNoDefault_ContinuesAfter")]
+    [TestCase("""
+        {
+            var x = 2;
+            var total = 0;
+            switch (x) {
+                case 2:
+                    var a = 10;
+                    var b = 20;
+                    total = a + b;
+                    break;
+            }
+            return total;
+        }
+        """,
+        30,
+        TestName = "MultipleStatementsInCase")]
+    [TestCase("""
+        {
+            var x = 1;
+            var sum = 0;
+            switch (x) {
+                case 1:
+                    var i = 0;
+                    while (i < 5) {
+                        sum = sum + i;
+                        i = i + 1;
+                    }
+                    break;
+            }
+            return sum;
+        }
+        """,
+        10,
+        TestName = "LoopInsideCase")]
+    [TestCase("""
+        {
+            var x = 1;
+            var val = 15;
+            var category = "";
+            switch (x) {
+                case 1:
+                    if (val > 10) {
+                        category = "high";
+                    } else {
+                        category = "low";
+                    }
+                    break;
+            }
+            return category;
+        }
+        """,
+        "high",
+        TestName = "IfInsideCase")]
+    [TestCase("""
+        {
+            var outer = 1;
+            var inner = 2;
+            var result = "";
+            switch (outer) {
+                case 1:
+                    switch (inner) {
+                        case 1:
+                            result = "1-1";
+                            break;
+                        case 2:
+                            result = "1-2";
+                            break;
+                    }
+                    break;
+                case 2:
+                    result = "2-x";
+                    break;
+            }
+            return result;
+        }
+        """,
+        "1-2",
+        TestName = "NestedSwitch")]
+    [TestCase("""
+        {
+            var outer = 1;
+            var inner = 1;
+            var log = "";
+            switch (outer) {
+                case 1:
+                    log = log + "outer1-";
+                    switch (inner) {
+                        case 1:
+                            log = log + "inner1";
+                            break;
+                    }
+                    log = log + "-afterinner";
+                    break;
+            }
+            return log;
+        }
+        """,
+        "outer1-inner1-afterinner",
+        TestName = "BreakInNestedSwitch_OnlyExitsInner")]
+    [TestCase("""
+        {
+            var flag = true;
+            var result = "";
+            switch (flag) {
+                case true:
+                    result = "is true";
+                    break;
+                case false:
+                    result = "is false";
+                    break;
+            }
+            return result;
+        }
+        """,
+        "is true",
+        TestName = "BooleanCase_True")]
+    [TestCase("""
+        {
+            var flag = false;
+            var result = "";
+            switch (flag) {
+                case true:
+                    result = "is true";
+                    break;
+                case false:
+                    result = "is false";
+                    break;
+            }
+            return result;
+        }
+        """,
+        "is false",
+        TestName = "BooleanCase_False")]
+    [TestCase("""
+        {
+            var x = 1;
+            switch (x) {
+            }
+            return "after switch";
+        }
+        """,
+        "after switch",
+        TestName = "EmptySwitch_NoError")]
+    [TestCase("""
+        {
+            var x = 1;
+            var result = "";
+            switch (x) {
+                case 1:
+                case 2:
+                    result = "one or two";
+                    break;
+                case 3:
+                    result = "three";
+                    break;
+            }
+            return result;
+        }
+        """,
+        "one or two",
+        TestName = "EmptyCase_FallsThroughToNext")]
+    [TestCase("""
+        {
+            var x = 2;
+            var result = "";
+            switch (x) {
+                case 1:
+                case 2:
+                case 3:
+                    result = "1, 2, or 3";
+                    break;
+                default:
+                    result = "other";
+                    break;
+            }
+            return result;
+        }
+        """,
+        "1, 2, or 3",
+        TestName = "MultipleFallThroughCases")]
+    [TestCase("""
+        {
+            var x = 1000000000000;
+            var result = "";
+            switch (x) {
+                case 1000000000000:
+                    result = "trillion";
+                    break;
+                default:
+                    result = "other";
+                    break;
+            }
+            return result;
+        }
+        """,
+        "trillion",
+        TestName = "LongValues")]
+    [TestCase("""
+        {
+            var x = 3.14;
+            var result = "";
+            switch (x) {
+                case 3.14:
+                    result = "pi";
+                    break;
+                case 2.71:
+                    result = "e";
+                    break;
+                default:
+                    result = "other";
+                    break;
+            }
+            return result;
+        }
+        """,
+        "pi",
+        TestName = "DoubleValues")]
+    [TestCase("""
+        {
+            var day = 3;
+            var dayName = "";
+            switch (day) {
+                case 0:
+                    dayName = "Sunday";
+                    break;
+                case 1:
+                    dayName = "Monday";
+                    break;
+                case 2:
+                    dayName = "Tuesday";
+                    break;
+                case 3:
+                    dayName = "Wednesday";
+                    break;
+                case 4:
+                    dayName = "Thursday";
+                    break;
+                case 5:
+                    dayName = "Friday";
+                    break;
+                case 6:
+                    dayName = "Saturday";
+                    break;
+                default:
+                    dayName = "Invalid";
+                    break;
+            }
+            return dayName;
+        }
+        """,
+        "Wednesday",
+        TestName = "DayOfWeek_Scenario")]
+    [TestCase("""
+        {
+            var category = 8;
+            var grade = "";
+            switch (category) {
+                case 10:
+                case 9:
+                    grade = "A";
+                    break;
+                case 8:
+                    grade = "B";
+                    break;
+                case 7:
+                    grade = "C";
+                    break;
+                case 6:
+                    grade = "D";
+                    break;
+                default:
+                    grade = "F";
+                    break;
+            }
+            return grade;
+        }
+        """,
+        "B",
+        TestName = "GradeCalculation_Scenario")]
+    [TestCase("""
+        {
+            var statusCode = 404;
+            var message = "";
+            switch (statusCode) {
+                case 200:
+                    message = "OK";
+                    break;
+                case 201:
+                    message = "Created";
+                    break;
+                case 400:
+                    message = "Bad Request";
+                    break;
+                case 401:
+                    message = "Unauthorized";
+                    break;
+                case 403:
+                    message = "Forbidden";
+                    break;
+                case 404:
+                    message = "Not Found";
+                    break;
+                case 500:
+                    message = "Internal Server Error";
+                    break;
+                default:
+                    message = "Unknown Status";
+                    break;
+            }
+            return message;
+        }
+        """,
+        "Not Found",
+        TestName = "HttpStatus_Scenario")]
+    [TestCase("""
+        {
+            var x = 0;
+            var result = "";
+            switch (x) {
+                case 0:
+                    result = "zero";
+                    break;
+                case 1:
+                    result = "one";
+                    break;
+            }
+            return result;
+        }
+        """,
+        "zero",
+        TestName = "ZeroValue")]
+    [TestCase("""
+        {
+            var x = -1;
+            var result = "";
+            switch (x) {
+                case -1:
+                    result = "minus one";
+                    break;
+                case 0:
+                    result = "zero";
+                    break;
+                case 1:
+                    result = "one";
+                    break;
+            }
+            return result;
+        }
+        """,
+        "minus one",
+        TestName = "NegativeValue")]
+    [TestCase("""
+        {
+            var x = "";
+            var result = "";
+            switch (x) {
+                case "":
+                    result = "empty";
+                    break;
+                default:
+                    result = "not empty";
+                    break;
+            }
+            return result;
+        }
+        """,
+        "empty",
+        TestName = "EmptyString")]
+    [TestCase("""
+        {
+            var x = 1;
+            var count = 0;
+            switch (x) {
+                case 1:
+                    x = 2;
+                    count = count + 1;
+                    break;
+                case 2:
+                    count = count + 10;
+                    break;
+            }
+            return count;
+        }
+        """,
+        1,
+        TestName = "CaseValueChangesAfterMatch")]
+    public async Task Eval_Switch(string expr, object expected)
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var result = engine.Evaluate(expr);
+        var csharpResult = await TestHelpers.EvaluateCSharpAsync(expr);
 
-        Assert.That(result, Is.EqualTo(1));
+        Assert.That(result, Is.EqualTo(expected), $"Value mismatch for: {expr}");
+        Assert.That(result, Is.EqualTo(csharpResult), $"C# parity mismatch for: {expr}");
+        Assert.That(result?.GetType(), Is.EqualTo(csharpResult?.GetType()), $"Type mismatch for: {expr}");
     }
 
     #endregion
 
-    #region String Cases
+    #region Invalid Syntax Tests
 
     [Test]
-    public void Switch_StringCase_MatchesExactly()
+    public void NonEmptyCase_WithoutBreak_ThrowsError()
     {
+        // C# requires explicit break/return/throw for non-empty cases (CS0163)
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(@"
-        {
-            var fruit = ""apple"";
-            var category = """";
-            switch (fruit) {
-                case ""apple"":
-                    category = ""pome"";
-                    break;
-                case ""orange"":
-                    category = ""citrus"";
-                    break;
-                case ""banana"":
-                    category = ""tropical"";
-                    break;
-                default:
-                    category = ""unknown"";
-                    break;
+        Assert.That(() => engine.Evaluate("""
+            {
+                var x = 1;
+                var result = "";
+                switch (x) {
+                    case 1:
+                        result = result + "one";
+                    case 2:
+                        result = result + "two";
+                        break;
+                }
+                return result;
             }
-            return category;
-        }");
-
-        Assert.That(result, Is.EqualTo("pome"));
+            """),
+            Throws.TypeOf<CsEvalException>().With.Message.Contains("CS0163"));
     }
 
-    [Test]
-    public void Switch_StringCase_CaseSensitive()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(@"
-        {
-            var fruit = ""Apple"";
-            var category = """";
-            switch (fruit) {
-                case ""apple"":
-                    category = ""lowercase"";
-                    break;
-                case ""Apple"":
-                    category = ""capitalized"";
-                    break;
-                default:
-                    category = ""unknown"";
-                    break;
-            }
-            return category;
-        }");
+    #endregion
 
-        Assert.That(result, Is.EqualTo("capitalized"));
-    }
+    #region Tests with External Variables
 
     [Test]
     public void Switch_StringWithVariable()
@@ -371,59 +778,6 @@ public class SwitchStatementTests(CompilationMode mode)
         }");
 
         Assert.That(result, Is.EqualTo("matched test"));
-    }
-
-    #endregion
-
-    #region Expression Cases
-
-    [Test]
-    public void Switch_ExpressionInSwitchValue()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(@"
-        {
-            var a = 3;
-            var b = 2;
-            var result = """";
-            switch (a + b) {
-                case 4:
-                    result = ""four"";
-                    break;
-                case 5:
-                    result = ""five"";
-                    break;
-                case 6:
-                    result = ""six"";
-                    break;
-            }
-            return result;
-        }");
-
-        Assert.That(result, Is.EqualTo("five"));
-    }
-
-    [Test]
-    public void Switch_ExpressionInCasePattern()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(@"
-        {
-            var x = 10;
-            var multiplier = 2;
-            var result = """";
-            switch (x) {
-                case 5 * 2:
-                    result = ""matched 5*2"";
-                    break;
-                case 3 * 4:
-                    result = ""matched 3*4"";
-                    break;
-            }
-            return result;
-        }");
-
-        Assert.That(result, Is.EqualTo("matched 5*2"));
     }
 
     [Test]
@@ -450,255 +804,6 @@ public class SwitchStatementTests(CompilationMode mode)
 
         Assert.That(result, Is.EqualTo("is active"));
     }
-
-    #endregion
-
-    #region Switch with Return
-
-    [Test]
-    public void Switch_ReturnInCase_ExitsBlock()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(@"
-        {
-            var x = 2;
-            switch (x) {
-                case 1:
-                    return ""one"";
-                case 2:
-                    return ""two"";
-                case 3:
-                    return ""three"";
-            }
-            return ""no match"";
-        }");
-
-        Assert.That(result, Is.EqualTo("two"));
-    }
-
-    [Test]
-    public void Switch_ReturnInDefault_ExitsBlock()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(@"
-        {
-            var x = 99;
-            switch (x) {
-                case 1:
-                    return ""one"";
-                case 2:
-                    return ""two"";
-                default:
-                    return ""default"";
-            }
-            return ""after switch"";
-        }");
-
-        Assert.That(result, Is.EqualTo("default"));
-    }
-
-    [Test]
-    public void Switch_NoMatchNoDefault_ContinuesAfter()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(@"
-        {
-            var x = 99;
-            switch (x) {
-                case 1:
-                    return ""one"";
-                case 2:
-                    return ""two"";
-            }
-            return ""no match"";
-        }");
-
-        Assert.That(result, Is.EqualTo("no match"));
-    }
-
-    #endregion
-
-    #region Multiple Statements in Case
-
-    [Test]
-    public void Switch_MultipleStatementsInCase()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(@"
-        {
-            var x = 2;
-            var total = 0;
-            switch (x) {
-                case 2:
-                    var a = 10;
-                    var b = 20;
-                    total = a + b;
-                    break;
-            }
-            return total;
-        }");
-
-        Assert.That(result, Is.EqualTo(30));
-    }
-
-    [Test]
-    public void Switch_LoopInsideCase()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(@"
-        {
-            var x = 1;
-            var sum = 0;
-            switch (x) {
-                case 1:
-                    var i = 0;
-                    while (i < 5) {
-                        sum = sum + i;
-                        i = i + 1;
-                    }
-                    break;
-            }
-            return sum;
-        }");
-
-        Assert.That(result, Is.EqualTo(10)); // 0+1+2+3+4
-    }
-
-    [Test]
-    public void Switch_IfInsideCase()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(@"
-        {
-            var x = 1;
-            var val = 15;
-            var category = """";
-            switch (x) {
-                case 1:
-                    if (val > 10) {
-                        category = ""high"";
-                    } else {
-                        category = ""low"";
-                    }
-                    break;
-            }
-            return category;
-        }");
-
-        Assert.That(result, Is.EqualTo("high"));
-    }
-
-    #endregion
-
-    #region Nested Switch
-
-    [Test]
-    public void Switch_NestedSwitch()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(@"
-        {
-            var outer = 1;
-            var inner = 2;
-            var result = """";
-            switch (outer) {
-                case 1:
-                    switch (inner) {
-                        case 1:
-                            result = ""1-1"";
-                            break;
-                        case 2:
-                            result = ""1-2"";
-                            break;
-                    }
-                    break;
-                case 2:
-                    result = ""2-x"";
-                    break;
-            }
-            return result;
-        }");
-
-        Assert.That(result, Is.EqualTo("1-2"));
-    }
-
-    [Test]
-    public void Switch_BreakInNestedSwitch_OnlyExitsInner()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(@"
-        {
-            var outer = 1;
-            var inner = 1;
-            var log = """";
-            switch (outer) {
-                case 1:
-                    log = log + ""outer1-"";
-                    switch (inner) {
-                        case 1:
-                            log = log + ""inner1"";
-                            break;
-                    }
-                    log = log + ""-afterinner"";
-                    break;
-            }
-            return log;
-        }");
-
-        Assert.That(result, Is.EqualTo("outer1-inner1-afterinner"));
-    }
-
-    #endregion
-
-    #region Boolean Cases
-
-    [Test]
-    public void Switch_BooleanCase_True()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(@"
-        {
-            var flag = true;
-            var result = """";
-            switch (flag) {
-                case true:
-                    result = ""is true"";
-                    break;
-                case false:
-                    result = ""is false"";
-                    break;
-            }
-            return result;
-        }");
-
-        Assert.That(result, Is.EqualTo("is true"));
-    }
-
-    [Test]
-    public void Switch_BooleanCase_False()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(@"
-        {
-            var flag = false;
-            var result = """";
-            switch (flag) {
-                case true:
-                    result = ""is true"";
-                    break;
-                case false:
-                    result = ""is false"";
-                    break;
-            }
-            return result;
-        }");
-
-        Assert.That(result, Is.EqualTo("is false"));
-    }
-
-    #endregion
-
-    #region Null Cases
 
     [Test]
     public void Switch_NullCase_MatchesNull()
@@ -746,73 +851,7 @@ public class SwitchStatementTests(CompilationMode mode)
 
     #endregion
 
-    #region Empty Cases and Switch
-
-    [Test]
-    public void Switch_EmptySwitch_NoError()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(@"
-        {
-            var x = 1;
-            switch (x) {
-            }
-            return ""after switch"";
-        }");
-
-        Assert.That(result, Is.EqualTo("after switch"));
-    }
-
-    [Test]
-    public void Switch_EmptyCase_FallsThroughToNext()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(@"
-        {
-            var x = 1;
-            var result = """";
-            switch (x) {
-                case 1:
-                case 2:
-                    result = ""one or two"";
-                    break;
-                case 3:
-                    result = ""three"";
-                    break;
-            }
-            return result;
-        }");
-
-        Assert.That(result, Is.EqualTo("one or two"));
-    }
-
-    [Test]
-    public void Switch_MultipleFallThroughCases()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(@"
-        {
-            var x = 2;
-            var result = """";
-            switch (x) {
-                case 1:
-                case 2:
-                case 3:
-                    result = ""1, 2, or 3"";
-                    break;
-                default:
-                    result = ""other"";
-                    break;
-            }
-            return result;
-        }");
-
-        Assert.That(result, Is.EqualTo("1, 2, or 3"));
-    }
-
-    #endregion
-
-    #region Switch with Collections
+    #region Switch with Collections (CsEval-specific syntax)
 
     [Test]
     public void Switch_WithIndexAccess()
@@ -865,58 +904,44 @@ public class SwitchStatementTests(CompilationMode mode)
             return countOnes * 100 + countTwos * 10 + countOthers;
         }");
 
-        Assert.That(result, Is.EqualTo(221)); // 2 ones, 2 twos, 1 other
+        Assert.That(result, Is.EqualTo(221));
     }
 
     #endregion
 
-    #region Switch with Different Numeric Types
+    #region Calculator Scenario
 
     [Test]
-    public void Switch_LongValues()
+    public void Switch_CalculatorOperation_Scenario()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var result = engine.Evaluate(@"
         {
-            var x = 1000000000000;
-            var result = """";
-            switch (x) {
-                case 1000000000000:
-                    result = ""trillion"";
+            var a = 10.0;
+            var b = 3.0;
+            var op = ""/"";
+            var calcResult = 0.0;
+            switch (op) {
+                case ""+"":
+                    calcResult = a + b;
+                    break;
+                case ""-"":
+                    calcResult = a - b;
+                    break;
+                case ""*"":
+                    calcResult = a * b;
+                    break;
+                case ""/"":
+                    calcResult = a / b;
                     break;
                 default:
-                    result = ""other"";
+                    calcResult = 0;
                     break;
             }
-            return result;
+            return calcResult;
         }");
 
-        Assert.That(result, Is.EqualTo("trillion"));
-    }
-
-    [Test]
-    public void Switch_DoubleValues()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(@"
-        {
-            var x = 3.14;
-            var result = """";
-            switch (x) {
-                case 3.14:
-                    result = ""pi"";
-                    break;
-                case 2.71:
-                    result = ""e"";
-                    break;
-                default:
-                    result = ""other"";
-                    break;
-            }
-            return result;
-        }");
-
-        Assert.That(result, Is.EqualTo("pi"));
+        Assert.That(Convert.ToDouble(result), Is.EqualTo(10.0 / 3.0).Within(0.001));
     }
 
     #endregion
@@ -1008,253 +1033,6 @@ public class SwitchStatementTests(CompilationMode mode)
         engine.SetVariable("num", 99L);
         var result3 = engine.Evaluate(expr);
         Assert.That(result3, Is.EqualTo("other"));
-    }
-
-    #endregion
-
-    #region Real-World Scenarios
-
-    [Test]
-    public void Switch_DayOfWeek_Scenario()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(@"
-        {
-            var day = 3;
-            var dayName = """";
-            switch (day) {
-                case 0:
-                    dayName = ""Sunday"";
-                    break;
-                case 1:
-                    dayName = ""Monday"";
-                    break;
-                case 2:
-                    dayName = ""Tuesday"";
-                    break;
-                case 3:
-                    dayName = ""Wednesday"";
-                    break;
-                case 4:
-                    dayName = ""Thursday"";
-                    break;
-                case 5:
-                    dayName = ""Friday"";
-                    break;
-                case 6:
-                    dayName = ""Saturday"";
-                    break;
-                default:
-                    dayName = ""Invalid"";
-                    break;
-            }
-            return dayName;
-        }");
-
-        Assert.That(result, Is.EqualTo("Wednesday"));
-    }
-
-    [Test]
-    public void Switch_GradeCalculation_Scenario()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        // Use explicit category value to avoid division type issues
-        var result = engine.Evaluate(@"
-        {
-            var category = 8;
-            var grade = """";
-            switch (category) {
-                case 10:
-                case 9:
-                    grade = ""A"";
-                    break;
-                case 8:
-                    grade = ""B"";
-                    break;
-                case 7:
-                    grade = ""C"";
-                    break;
-                case 6:
-                    grade = ""D"";
-                    break;
-                default:
-                    grade = ""F"";
-                    break;
-            }
-            return grade;
-        }");
-
-        Assert.That(result, Is.EqualTo("B"));
-    }
-
-    [Test]
-    public void Switch_HttpStatus_Scenario()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(@"
-        {
-            var statusCode = 404;
-            var message = """";
-            switch (statusCode) {
-                case 200:
-                    message = ""OK"";
-                    break;
-                case 201:
-                    message = ""Created"";
-                    break;
-                case 400:
-                    message = ""Bad Request"";
-                    break;
-                case 401:
-                    message = ""Unauthorized"";
-                    break;
-                case 403:
-                    message = ""Forbidden"";
-                    break;
-                case 404:
-                    message = ""Not Found"";
-                    break;
-                case 500:
-                    message = ""Internal Server Error"";
-                    break;
-                default:
-                    message = ""Unknown Status"";
-                    break;
-            }
-            return message;
-        }");
-
-        Assert.That(result, Is.EqualTo("Not Found"));
-    }
-
-    [Test]
-    public void Switch_CalculatorOperation_Scenario()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(@"
-        {
-            var a = 10.0;
-            var b = 3.0;
-            var op = ""/"";
-            var calcResult = 0.0;
-            switch (op) {
-                case ""+"":
-                    calcResult = a + b;
-                    break;
-                case ""-"":
-                    calcResult = a - b;
-                    break;
-                case ""*"":
-                    calcResult = a * b;
-                    break;
-                case ""/"":
-                    calcResult = a / b;
-                    break;
-                default:
-                    calcResult = 0;
-                    break;
-            }
-            return calcResult;
-        }");
-
-        // C# behavior: double / double = double
-        Assert.That(Convert.ToDouble(result), Is.EqualTo(10.0 / 3.0).Within(0.001));
-    }
-
-    #endregion
-
-    #region Edge Cases
-
-    [Test]
-    public void Switch_ZeroValue()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(@"
-        {
-            var x = 0;
-            var result = """";
-            switch (x) {
-                case 0:
-                    result = ""zero"";
-                    break;
-                case 1:
-                    result = ""one"";
-                    break;
-            }
-            return result;
-        }");
-
-        Assert.That(result, Is.EqualTo("zero"));
-    }
-
-    [Test]
-    public void Switch_NegativeValue()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(@"
-        {
-            var x = -1;
-            var result = """";
-            switch (x) {
-                case -1:
-                    result = ""minus one"";
-                    break;
-                case 0:
-                    result = ""zero"";
-                    break;
-                case 1:
-                    result = ""one"";
-                    break;
-            }
-            return result;
-        }");
-
-        Assert.That(result, Is.EqualTo("minus one"));
-    }
-
-    [Test]
-    public void Switch_EmptyString()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(@"
-        {
-            var x = """";
-            var result = """";
-            switch (x) {
-                case """":
-                    result = ""empty"";
-                    break;
-                default:
-                    result = ""not empty"";
-                    break;
-            }
-            return result;
-        }");
-
-        Assert.That(result, Is.EqualTo("empty"));
-    }
-
-    [Test]
-    public void Switch_CaseValueChangesAfterMatch()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(@"
-        {
-            var x = 1;
-            var count = 0;
-            switch (x) {
-                case 1:
-                    x = 2;
-                    count = count + 1;
-                    break;
-                case 2:
-                    count = count + 10;
-                    break;
-            }
-            return count;
-        }");
-
-        Assert.That(result, Is.EqualTo(1)); // Only first case executes
     }
 
     #endregion

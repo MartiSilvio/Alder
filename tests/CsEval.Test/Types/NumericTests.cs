@@ -2,233 +2,117 @@ namespace CsEval.Test.Types;
 
 /// <summary>
 /// Comprehensive numeric tests to ensure CsEval handles all numeric types correctly.
-/// Numeric precision and type handling is critical - errors here can cause subtle bugs.
 /// </summary>
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
 [TestFixture(CompilationMode.StrictCompiled)]
-public class NumericTests(CompilationMode mode) 
+public class NumericTests(CompilationMode mode)
 {
-    #region Literal Parsing
-
-    [Test]
-    public void IntegerLiteral_ParsedAsInt()
+    // Literals
+    [TestCase("42", TestName = "Literal_Int")]
+    [TestCase("0", TestName = "Literal_Zero")]
+    [TestCase("-42", TestName = "Literal_NegativeInt")]
+    [TestCase("9223372036854775807", TestName = "Literal_LongMax")]
+    [TestCase("42L", TestName = "Literal_LongSuffix")]
+    [TestCase("3.14f", TestName = "Literal_Float")]
+    [TestCase("3.14m", TestName = "Literal_Decimal")]
+    [TestCase("42m", TestName = "Literal_IntAsDecimal")]
+    [TestCase("3.14", TestName = "Literal_Double")]
+    [TestCase("0.5", TestName = "Literal_DoubleLeadingZero")]
+    [TestCase("-3.14", TestName = "Literal_NegativeDouble")]
+    [TestCase("0.00001", TestName = "Literal_SmallDouble")]
+    // Arithmetic - same types
+    [TestCase("5 + 3", TestName = "Arithmetic_IntPlusInt")]
+    [TestCase("10 - 4", TestName = "Arithmetic_IntMinusInt")]
+    [TestCase("6 * 7", TestName = "Arithmetic_IntTimesInt")]
+    [TestCase("10 / 4", TestName = "Arithmetic_IntDivInt")]
+    [TestCase("5L + 3L", TestName = "Arithmetic_LongPlusLong")]
+    [TestCase("5 + 3L", TestName = "Arithmetic_IntPlusLong")]
+    [TestCase("1.5 + 2.5", TestName = "Arithmetic_DoublePlusDouble")]
+    [TestCase("2.5 * 4.0", TestName = "Arithmetic_DoubleTimesDouble")]
+    // Arithmetic - mixed types
+    [TestCase("5 + 2.5", TestName = "Arithmetic_IntPlusDouble")]
+    [TestCase("2.5 + 5", TestName = "Arithmetic_DoublePlusInt")]
+    // Comparisons
+    [TestCase("3.14 == 3.14", TestName = "Compare_DoubleEquals")]
+    [TestCase("5 < 5.5", TestName = "Compare_IntLessThanDouble")]
+    [TestCase("5.5 > 5", TestName = "Compare_DoubleGreaterThanInt")]
+    [TestCase("10 >= 10", TestName = "Compare_GreaterOrEqual")]
+    [TestCase("10 <= 10", TestName = "Compare_LessOrEqual")]
+    [TestCase("5 != 6", TestName = "Compare_NotEqual")]
+    // Modulo
+    [TestCase("10 % 3", TestName = "Modulo_IntModInt")]
+    [TestCase("10.5 % 3.0", TestName = "Modulo_DoubleModDouble")]
+    // Division precision
+    [TestCase("7 / 3", TestName = "Division_IntTruncates")]
+    [TestCase("7.0 / 3.0", TestName = "Division_DoublePrecision")]
+    // Floating-point precision
+    [TestCase("0.1 + 0.2", TestName = "Precision_PointOnePointTwo")]
+    // Negation
+    [TestCase("-42", TestName = "Negate_Int")]
+    [TestCase("-3.14", TestName = "Negate_Double")]
+    [TestCase("-3.14m", TestName = "Negate_Decimal")]
+    // Bitwise
+    [TestCase("15 & 9", TestName = "Bitwise_And")]
+    [TestCase("5 | 3", TestName = "Bitwise_Or")]
+    [TestCase("12 ^ 5", TestName = "Bitwise_Xor")]
+    [TestCase("1 << 4", TestName = "Bitwise_LeftShift")]
+    [TestCase("32 >> 2", TestName = "Bitwise_RightShift")]
+    // LINQ
+    [TestCase("new[] { 1, 2, 3 }.Select(x => x * 2).ToList()", TestName = "Linq_Select")]
+    [TestCase("new[] { 1, 2, 3, 4, 5 }.Where(x => x > 2).ToList()", TestName = "Linq_Where")]
+    [TestCase("new[] { 1, 2, 3, 4, 5 }.Sum()", TestName = "Linq_Sum_IntArray")]
+    [TestCase("new[] { 1, 2, 3, 4, 5 }.Where(x => x > 2).Select(x => x * 10).Sum()", TestName = "Linq_WhereSelectSum")]
+    [TestCase("new[] { 1, 2, 3, 4, 5 }.Average()", TestName = "Linq_Average_IntArray")]
+    [TestCase("new[] { 1.5m, 2.5m, 3.5m }.Average()", TestName = "Linq_Average_DecimalArray")]
+    [TestCase("new[] { 1L, 2L, 3L, 4L, 5L }.Average()", TestName = "Linq_Average_LongArray")]
+    [TestCase("Enumerable.Range(1, 5).ToList()", TestName = "Linq_Range_ToList")]
+    [TestCase("Enumerable.Range(1, 5).ToArray()", TestName = "Linq_Range_ToArray")]
+    [TestCase("Enumerable.Range(1, 5).Where(x => x > 2).ToList()", TestName = "Linq_Range_Where")]
+    [TestCase("Enumerable.Range(1, 5).Select(x => x * 2).ToList()", TestName = "Linq_Range_Select")]
+    [TestCase("Enumerable.Range(1, 5).Take(3).ToList()", TestName = "Linq_Range_Take")]
+    [TestCase("Enumerable.Range(1, 5).Skip(2).ToList()", TestName = "Linq_Range_Skip")]
+    [TestCase("Enumerable.Range(1, 5).OrderByDescending(x => x).ToList()", TestName = "Linq_Range_OrderByDescending")]
+    [TestCase("Enumerable.Range(1, 5).Reverse().ToList()", TestName = "Linq_Range_Reverse")]
+    [TestCase("Enumerable.Range(1, 5).Distinct().ToList()", TestName = "Linq_Range_Distinct")]
+    [TestCase("Enumerable.Repeat(42, 3).ToList()", TestName = "Linq_Repeat_Int")]
+    [TestCase("Enumerable.Repeat(\"x\", 3).ToList()", TestName = "Linq_Repeat_String")]
+    [TestCase("new[] { 1, 2, 3 }.Where(x => x > 1).ToList()", TestName = "Linq_Array_Where")]
+    [TestCase("new[] { 1, 2, 3 }.Select(x => x.ToString()).ToList()", TestName = "Linq_Array_SelectToString")]
+    [TestCase("new[] { 1, 2, 3 }.Sum()", TestName = "Linq_Array_Sum")]
+    [TestCase("new[] { 1.5, 2.5, 3.5 }.Sum()", TestName = "Linq_Sum_DoubleArray")]
+    [TestCase("new[] { 1m, 2m, 3m }.Sum()", TestName = "Linq_Sum_DecimalArray")]
+    [TestCase("new[] { 1L, 2L, 3L }.Sum()", TestName = "Linq_Sum_LongArray")]
+    [TestCase("Enumerable.Range(1, 5).Sum()", TestName = "Linq_Range_Sum")]
+    [TestCase("Enumerable.Range(1, 5).Count()", TestName = "Linq_Range_Count")]
+    [TestCase("Enumerable.Range(1, 5).Min()", TestName = "Linq_Range_Min")]
+    [TestCase("Enumerable.Range(1, 5).Max()", TestName = "Linq_Range_Max")]
+    [TestCase("Enumerable.Range(1, 5).Average()", TestName = "Linq_Range_Average")]
+    [TestCase("Enumerable.Range(1, 5).First()", TestName = "Linq_Range_First")]
+    [TestCase("Enumerable.Range(1, 5).Last()", TestName = "Linq_Range_Last")]
+    [TestCase("Enumerable.Range(1, 5).Any()", TestName = "Linq_Range_Any")]
+    [TestCase("Enumerable.Range(1, 5).Any(x => x > 3)", TestName = "Linq_Range_AnyPredicate")]
+    [TestCase("Enumerable.Range(1, 5).All(x => x > 0)", TestName = "Linq_Range_All")]
+    [TestCase("Enumerable.Range(1, 5).Contains(3)", TestName = "Linq_Range_Contains")]
+    [TestCase("Enumerable.Repeat(5, 4).Sum()", TestName = "Linq_Repeat_Sum")]
+    [TestCase("Enumerable.Range(1, 3).Select(x => x * 1.5).Sum()", TestName = "Linq_Range_SelectDoubleSum")]
+    public async Task MatchesCSharp(string expr)
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        // C# behavior: unsuffixed integers are int
-        var result = engine.Evaluate("42");
-        Assert.That(result, Is.TypeOf<int>());
-        Assert.That(result, Is.EqualTo(42));
+        var result = engine.Evaluate(expr);
+        var csharpResult = await TestHelpers.EvaluateCSharpAsync(expr);
+
+        Assert.That(result, Is.EqualTo(csharpResult), $"Value mismatch for: {expr}");
+        Assert.That(result?.GetType(), Is.EqualTo(csharpResult?.GetType()), $"Type mismatch for: {expr}");
     }
 
-    [Test]
-    public void ZeroLiteral_ParsedAsInt()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate("0");
-        Assert.That(result, Is.TypeOf<int>());
-        Assert.That(result, Is.EqualTo(0));
-    }
-
-    [Test]
-    public void NegativeInteger_ParsedAsInt()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate("-42");
-        Assert.That(result, Is.TypeOf<int>());
-        Assert.That(result, Is.EqualTo(-42));
-    }
-
-    [Test]
-    public void LargeInteger_AutoPromotesToLong()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        // C# behavior: integers too large for int auto-promote to long
-        var result = engine.Evaluate("9223372036854775807"); // long.MaxValue
-        Assert.That(result, Is.TypeOf<long>());
-        Assert.That(result, Is.EqualTo(long.MaxValue));
-    }
-
-    [Test]
-    public void IntegerWithLSuffix_ParsedAsLong()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate("42L");
-        Assert.That(result, Is.TypeOf<long>());
-        Assert.That(result, Is.EqualTo(42));
-    }
-
-    [Test]
-    public void FloatSuffix_ParsedAsFloat()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate("3.14f");
-        Assert.That(result, Is.TypeOf<float>());
-        Assert.That((float)result!, Is.EqualTo(3.14f).Within(0.001f));
-    }
-
-    [Test]
-    public void DecimalSuffix_ParsedAsDecimal()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate("3.14m");
-        Assert.That(result, Is.TypeOf<decimal>());
-        Assert.That(result, Is.EqualTo(3.14m));
-    }
-
-    [Test]
-    public void IntegerWithDecimalSuffix_ParsedAsDecimal()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate("42m");
-        Assert.That(result, Is.TypeOf<decimal>());
-        Assert.That(result, Is.EqualTo(42m));
-    }
-
-    [Test]
-    public void DecimalLiteral_ParsedAsDouble()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate("3.14");
-        Assert.That(result, Is.TypeOf<double>());
-        Assert.That(result, Is.EqualTo(3.14));
-    }
-
-    [Test]
-    public void DecimalWithLeadingZero_ParsedAsDouble()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate("0.5");
-        Assert.That(result, Is.TypeOf<double>());
-        Assert.That(result, Is.EqualTo(0.5));
-    }
-
-    [Test]
-    public void NegativeDecimal_ParsedAsDouble()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate("-3.14");
-        Assert.That(result, Is.TypeOf<double>());
-        Assert.That(result, Is.EqualTo(-3.14));
-    }
-
-    [Test]
-    public void SmallDecimal_PreservesPrecision()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate("0.00001");
-        Assert.That(result, Is.TypeOf<double>());
-        Assert.That(result, Is.EqualTo(0.00001));
-    }
-
-    #endregion
-
-    #region Arithmetic Operations - Same Types
-
-    [Test]
-    public void IntPlusInt_ReturnsInt()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        // C# behavior: int + int → int
-        var result = engine.Evaluate("5 + 3");
-        Assert.That(result, Is.TypeOf<int>());
-        Assert.That(result, Is.EqualTo(8));
-    }
-
-    [Test]
-    public void IntMinusInt_ReturnsInt()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate("10 - 4");
-        Assert.That(result, Is.TypeOf<int>());
-        Assert.That(result, Is.EqualTo(6));
-    }
-
-    [Test]
-    public void IntTimesInt_ReturnsInt()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate("6 * 7");
-        Assert.That(result, Is.TypeOf<int>());
-        Assert.That(result, Is.EqualTo(42));
-    }
-
-    [Test]
-    public void IntDivideInt_ReturnsInt()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        // C# behavior: int / int → int (truncating division)
-        var result = engine.Evaluate("10 / 4");
-        Assert.That(result, Is.TypeOf<int>());
-        Assert.That(result, Is.EqualTo(2));
-    }
-
-    [Test]
-    public void LongPlusLong_ReturnsLong()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        // Use L suffix to get long operands
-        var result = engine.Evaluate("5L + 3L");
-        Assert.That(result, Is.TypeOf<long>());
-        Assert.That(result, Is.EqualTo(8));
-    }
-
-    [Test]
-    public void IntPlusLong_ReturnsLong()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        // C# behavior: int + long → long
-        var result = engine.Evaluate("5 + 3L");
-        Assert.That(result, Is.TypeOf<long>());
-        Assert.That(result, Is.EqualTo(8));
-    }
-
-    [Test]
-    public void DoublePlusDouble_ReturnsDouble()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate("1.5 + 2.5");
-        Assert.That(result, Is.TypeOf<double>());
-        Assert.That(result, Is.EqualTo(4.0));
-    }
-
-    [Test]
-    public void DoubleTimesDouble_ReturnsDouble()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate("2.5 * 4.0");
-        Assert.That(result, Is.TypeOf<double>());
-        Assert.That(result, Is.EqualTo(10.0));
-    }
-
-    #endregion
-
-    #region Arithmetic Operations - Mixed Types
-
-    [Test]
-    public void LongPlusDouble_ReturnsDouble()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate("5 + 2.5");
-        Assert.That(result, Is.TypeOf<double>());
-        Assert.That(result, Is.EqualTo(7.5));
-    }
-
-    [Test]
-    public void DoublePlusLong_ReturnsDouble()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate("2.5 + 5");
-        Assert.That(result, Is.TypeOf<double>());
-        Assert.That(result, Is.EqualTo(7.5));
-    }
-
+    // Tests requiring variables (can't parity test against Roslyn)
     [Test]
     public void IntTimesInt_FromVariable_ReturnsInt()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        engine.SetVariable("x", 5); // int
-        var result = engine.Evaluate("x * 2"); // 2 is now int (C# behavior)
+        engine.SetVariable("x", 5);
+        var result = engine.Evaluate("x * 2");
         Assert.That(result, Is.TypeOf<int>());
         Assert.That(result, Is.EqualTo(10));
     }
@@ -237,8 +121,8 @@ public class NumericTests(CompilationMode mode)
     public void IntTimesLong_ReturnsLong()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        engine.SetVariable("x", 5); // int
-        var result = engine.Evaluate("x * 2L"); // Use L suffix for long
+        engine.SetVariable("x", 5);
+        var result = engine.Evaluate("x * 2L");
         Assert.That(result, Is.TypeOf<long>());
         Assert.That(result, Is.EqualTo(10));
     }
@@ -247,17 +131,12 @@ public class NumericTests(CompilationMode mode)
     public void IntTimesDouble_ReturnsDouble()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        engine.SetVariable("x", 5); // int
+        engine.SetVariable("x", 5);
         var result = engine.Evaluate("x * 2.5");
         Assert.That(result, Is.TypeOf<double>());
         Assert.That(result, Is.EqualTo(12.5));
     }
 
-    #endregion
-
-    #region All Numeric Types - Comprehensive Coverage
-
-    // Signed integer types - C# promotes small types to int for arithmetic
     [Test]
     public void SByte_Arithmetic()
     {
@@ -265,7 +144,7 @@ public class NumericTests(CompilationMode mode)
         engine.SetVariable("x", (sbyte)10);
         engine.SetVariable("y", (sbyte)5);
         var result = engine.Evaluate("x + y");
-        Assert.That(result, Is.TypeOf<int>()); // C# promotes sbyte to int
+        Assert.That(result, Is.TypeOf<int>());
         Assert.That(result, Is.EqualTo(15));
     }
 
@@ -276,7 +155,7 @@ public class NumericTests(CompilationMode mode)
         engine.SetVariable("x", (short)1000);
         engine.SetVariable("y", (short)234);
         var result = engine.Evaluate("x + y");
-        Assert.That(result, Is.TypeOf<int>()); // C# promotes short to int
+        Assert.That(result, Is.TypeOf<int>());
         Assert.That(result, Is.EqualTo(1234));
     }
 
@@ -287,7 +166,7 @@ public class NumericTests(CompilationMode mode)
         engine.SetVariable("x", 100000);
         engine.SetVariable("y", 23456);
         var result = engine.Evaluate("x + y");
-        Assert.That(result, Is.TypeOf<int>()); // int + int → int
+        Assert.That(result, Is.TypeOf<int>());
         Assert.That(result, Is.EqualTo(123456));
     }
 
@@ -302,7 +181,6 @@ public class NumericTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(12345678901L));
     }
 
-    // Unsigned integer types - C# promotes byte/ushort to int for arithmetic
     [Test]
     public void Byte_Arithmetic()
     {
@@ -310,7 +188,7 @@ public class NumericTests(CompilationMode mode)
         engine.SetVariable("x", (byte)200);
         engine.SetVariable("y", (byte)55);
         var result = engine.Evaluate("x + y");
-        Assert.That(result, Is.TypeOf<int>()); // C# promotes byte to int
+        Assert.That(result, Is.TypeOf<int>());
         Assert.That(result, Is.EqualTo(255));
     }
 
@@ -321,7 +199,7 @@ public class NumericTests(CompilationMode mode)
         engine.SetVariable("x", (ushort)60000);
         engine.SetVariable("y", (ushort)5535);
         var result = engine.Evaluate("x + y");
-        Assert.That(result, Is.TypeOf<int>()); // C# promotes ushort to int
+        Assert.That(result, Is.TypeOf<int>());
         Assert.That(result, Is.EqualTo(65535));
     }
 
@@ -329,7 +207,6 @@ public class NumericTests(CompilationMode mode)
     public void UInt_Arithmetic()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        // C# behavior: uint + uint → uint
         engine.SetVariable("x", 4000000000u);
         engine.SetVariable("y", 294967295u);
         var result = engine.Evaluate("x + y");
@@ -341,7 +218,6 @@ public class NumericTests(CompilationMode mode)
     public void ULong_Arithmetic()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        // C# behavior: ulong + ulong → ulong
         engine.SetVariable("x", 10000000000UL);
         engine.SetVariable("y", 5000000000UL);
         var result = engine.Evaluate("x + y");
@@ -349,12 +225,10 @@ public class NumericTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(15000000000UL));
     }
 
-    // Floating-point types
     [Test]
     public void Float_Arithmetic()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        // C# behavior: float + float → float
         engine.SetVariable("x", 10.5f);
         engine.SetVariable("y", 5.25f);
         var result = engine.Evaluate("x + y");
@@ -384,12 +258,10 @@ public class NumericTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(15.75m));
     }
 
-    // Mixed type operations
     [Test]
     public void BytePlusShort_ReturnsInt()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        // C# promotes both to int for arithmetic
         engine.SetVariable("x", (byte)100);
         engine.SetVariable("y", (short)200);
         var result = engine.Evaluate("x + y");
@@ -401,7 +273,6 @@ public class NumericTests(CompilationMode mode)
     public void IntPlusFloat_ReturnsFloat()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        // C# behavior: int + float → float
         engine.SetVariable("x", 10);
         engine.SetVariable("y", 5.5f);
         var result = engine.Evaluate("x + y");
@@ -435,7 +306,6 @@ public class NumericTests(CompilationMode mode)
     public void FloatPlusDecimal_Throws()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        // C# forbids mixing float and decimal - compile-time error
         engine.SetVariable("x", 10.5f);
         engine.SetVariable("y", 5.25m);
         Assert.Throws<Microsoft.CSharp.RuntimeBinder.RuntimeBinderException>(() => engine.Evaluate("x + y"));
@@ -445,21 +315,16 @@ public class NumericTests(CompilationMode mode)
     public void DoublePlusDecimal_Throws()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        // C# forbids mixing double and decimal - compile-time error
         engine.SetVariable("x", 10.5d);
         engine.SetVariable("y", 5.25m);
         Assert.Throws<Microsoft.CSharp.RuntimeBinder.RuntimeBinderException>(() => engine.Evaluate("x + y"));
     }
 
-    #endregion
-
-    #region Comparison Operations
-
     [Test]
     public void IntEqualsLong_Works()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        engine.SetVariable("x", 42); // int
+        engine.SetVariable("x", 42);
         var result = engine.Evaluate("x == 42");
         Assert.That(result, Is.True);
     }
@@ -468,45 +333,18 @@ public class NumericTests(CompilationMode mode)
     public void LongEqualsInt_Works()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        engine.SetVariable("x", 42L); // long
+        engine.SetVariable("x", 42L);
         var result = engine.Evaluate("x == 42");
         Assert.That(result, Is.True);
     }
 
-    [Test]
-    public void DoubleEqualsDouble_Works()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate("3.14 == 3.14");
-        Assert.That(result, Is.True);
-    }
-
-    [Test]
-    public void LongLessThanDouble_Works()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate("5 < 5.5");
-        Assert.That(result, Is.True);
-    }
-
-    [Test]
-    public void DoubleGreaterThanLong_Works()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate("5.5 > 5");
-        Assert.That(result, Is.True);
-    }
-
-    #endregion
-
-    #region Contains with Different Types
-
+    // Contains with different types
     [Test]
     public void Contains_IntListWithLongLiteral_Works()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        engine.SetVariable("numbers", new List<object?> { 1, 2, 3 }); // boxed ints
-        var result = engine.Evaluate("numbers.Contains(2)"); // 2 is long
+        engine.SetVariable("numbers", new List<object?> { 1, 2, 3 });
+        var result = engine.Evaluate("numbers.Contains(2)");
         Assert.That(result, Is.True);
     }
 
@@ -514,10 +352,9 @@ public class NumericTests(CompilationMode mode)
     public void Contains_LongListWithIntVariable_MatchesCSharpSemantics()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        engine.SetVariable("numbers", new List<object?> { 1L, 2L, 3L }); // longs
-        engine.SetVariable("search", 2); // int
+        engine.SetVariable("numbers", new List<object?> { 1L, 2L, 3L });
+        engine.SetVariable("search", 2);
         var result = engine.Evaluate("numbers.Contains(search)");
-        // In C#, Object.Equals(2L, 2) is false - different types
         Assert.That(result, Is.False);
     }
 
@@ -534,9 +371,8 @@ public class NumericTests(CompilationMode mode)
     public void Contains_DecimalListWithDoubleLiteral_MatchesCSharpSemantics()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        engine.SetVariable("numbers", new List<object?> { 1.5m, 2.5m, 3.5m }); // decimals
-        var result = engine.Evaluate("numbers.Contains(2.5)"); // 2.5 is double
-        // In C#, Object.Equals(2.5m, 2.5d) is false - different types
+        engine.SetVariable("numbers", new List<object?> { 1.5m, 2.5m, 3.5m });
+        var result = engine.Evaluate("numbers.Contains(2.5)");
         Assert.That(result, Is.False);
     }
 
@@ -544,61 +380,36 @@ public class NumericTests(CompilationMode mode)
     public void Contains_MixedNumericTypes_MatchesCSharpSemantics()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        engine.SetVariable("numbers", new List<object?> { 1, 2L, 3.0, 4.0f }); // mixed: int, long, double, float
-        // In C#, Object.Equals only returns true for same type
-        Assert.That(engine.Evaluate("numbers.Contains(1)"), Is.True);   // 1 (int) == 1 (int)
-        Assert.That(engine.Evaluate("numbers.Contains(2)"), Is.False);  // 2 (int) != 2L (long)
-        Assert.That(engine.Evaluate("numbers.Contains(3)"), Is.False);  // 3 (int) != 3.0 (double)
-        Assert.That(engine.Evaluate("numbers.Contains(4)"), Is.False);  // 4 (int) != 4.0f (float)
+        engine.SetVariable("numbers", new List<object?> { 1, 2L, 3.0, 4.0f });
+        Assert.That(engine.Evaluate("numbers.Contains(1)"), Is.True);
+        Assert.That(engine.Evaluate("numbers.Contains(2)"), Is.False);
+        Assert.That(engine.Evaluate("numbers.Contains(3)"), Is.False);
+        Assert.That(engine.Evaluate("numbers.Contains(4)"), Is.False);
     }
 
-    #endregion
-
-    #region Precision Tests - Mathematical Verification
-
-    // Classic floating-point precision test: 0.1 + 0.2 != 0.3 in IEEE 754
-    // See: https://floating-point-gui.de/basic/
-    [Test]
-    public void Double_ClassicPrecisionIssue_PointOnePointTwo()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate("0.1 + 0.2");
-        Assert.That(result, Is.TypeOf<double>());
-        // 0.1 + 0.2 in double is NOT exactly 0.3
-        Assert.That((double)result!, Is.Not.EqualTo(0.3));
-        Assert.That((double)result!, Is.EqualTo(0.30000000000000004).Within(1e-16));
-    }
-
+    // Precision tests with variables
     [Test]
     public void Decimal_PointOneIsExact()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        // Decimal can represent 0.1 exactly (unlike double)
         engine.SetVariable("x", 0.1m);
         engine.SetVariable("y", 0.2m);
         var result = engine.Evaluate("x + y");
         Assert.That(result, Is.TypeOf<decimal>());
-        Assert.That(result, Is.EqualTo(0.3m)); // Exact!
+        Assert.That(result, Is.EqualTo(0.3m));
     }
 
-    // Compounding error test: adding 0.01 repeatedly
-    // See: https://code-maze.com/csharp-floating-point-types/
     [Test]
     public void Double_CompoundingError_RepeatedAddition()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         engine.SetVariable("sum", 0.0);
-        engine.SetVariable("increment", 0.01);
-
-        // Simulate adding 0.01 ten times
         for (int i = 0; i < 10; i++)
         {
             var current = (double)engine.Evaluate("sum")!;
             engine.SetVariable("sum", current + 0.01);
         }
-
         var result = (double)engine.Evaluate("sum")!;
-        // Should be 0.1, but double accumulates error
         Assert.That(result, Is.Not.EqualTo(0.1));
         Assert.That(result, Is.EqualTo(0.09999999999999999).Within(1e-16));
     }
@@ -608,27 +419,22 @@ public class NumericTests(CompilationMode mode)
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         engine.SetVariable("sum", 0.0m);
-
-        // Simulate adding 0.01 ten times
         for (int i = 0; i < 10; i++)
         {
             var current = (decimal)engine.Evaluate("sum")!;
             engine.SetVariable("sum", current + 0.01m);
         }
-
         var result = engine.Evaluate("sum");
         Assert.That(result, Is.TypeOf<decimal>());
-        Assert.That(result, Is.EqualTo(0.1m)); // Exact!
+        Assert.That(result, Is.EqualTo(0.1m));
     }
 
-    // Division precision: 1/3 * 3 should be 1
     [Test]
     public void Double_DivisionMultiplication_OneThird()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         engine.SetVariable("x", 1.0 / 3.0);
         var result = engine.Evaluate("x * 3");
-        // Double: may not be exactly 1
         Assert.That((double)result!, Is.EqualTo(1.0).Within(1e-15));
     }
 
@@ -639,11 +445,9 @@ public class NumericTests(CompilationMode mode)
         engine.SetVariable("third", 1.0m / 3.0m);
         var result = engine.Evaluate("third * 3");
         Assert.That(result, Is.TypeOf<decimal>());
-        // Decimal also has rounding, but different behavior
         Assert.That((decimal)result!, Is.EqualTo(1.0m).Within(0.0000000001m));
     }
 
-    // Large integer precision
     [Test]
     public void LargeLongArithmetic_NoOverflow()
     {
@@ -654,35 +458,14 @@ public class NumericTests(CompilationMode mode)
     }
 
     [Test]
-    public void Division_IntDivInt_Truncates()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        // C# behavior: int / int → int (truncates)
-        var result = engine.Evaluate("7 / 3");
-        Assert.That(result, Is.TypeOf<int>());
-        Assert.That(result, Is.EqualTo(2)); // 7 / 3 = 2 (truncated)
-    }
-
-    [Test]
-    public void Division_DoubleDivDouble_PreservesFractional()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        // Use double literals to get fractional result
-        var result = engine.Evaluate("7.0 / 3.0");
-        Assert.That(result, Is.TypeOf<double>());
-        Assert.That((double)result!, Is.EqualTo(7.0 / 3.0).Within(1e-15));
-    }
-
-    // Financial calculation: interest rate application
-    [Test]
     public void Decimal_FinancialCalculation_InterestRate()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         engine.SetVariable("principal", 10000.00m);
-        engine.SetVariable("rate", 0.0525m); // 5.25% interest
+        engine.SetVariable("rate", 0.0525m);
         var result = engine.Evaluate("principal * rate");
         Assert.That(result, Is.TypeOf<decimal>());
-        Assert.That(result, Is.EqualTo(525.00m)); // Exact
+        Assert.That(result, Is.EqualTo(525.00m));
     }
 
     [Test]
@@ -693,20 +476,16 @@ public class NumericTests(CompilationMode mode)
         engine.SetVariable("rate", 0.0525d);
         var result = engine.Evaluate("principal * rate");
         Assert.That(result, Is.TypeOf<double>());
-        // May or may not be exactly 525.0 depending on representation
         Assert.That((double)result!, Is.EqualTo(525.0).Within(1e-10));
     }
 
-    // Significant digits test
     [Test]
     public void Double_LosesPrecisionAt17Digits()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        // 17 significant digits - at the edge of double precision
         engine.SetVariable("x", 12345678901234567.0);
         engine.SetVariable("y", 1.0);
         var result = engine.Evaluate("x + y");
-        // Double may lose precision here
         Assert.That(result, Is.TypeOf<double>());
     }
 
@@ -714,17 +493,12 @@ public class NumericTests(CompilationMode mode)
     public void Decimal_Preserves28Digits()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        // 28 significant digits - within decimal's precision
         engine.SetVariable("x", 1234567890123456789012345678m);
         engine.SetVariable("y", 1m);
         var result = engine.Evaluate("x + y");
         Assert.That(result, Is.TypeOf<decimal>());
         Assert.That(result, Is.EqualTo(1234567890123456789012345679m));
     }
-
-    #endregion
-
-    #region Decimal Precision Tests
 
     [Test]
     public void DecimalPlusDecimal_ReturnsDecimal()
@@ -805,8 +579,6 @@ public class NumericTests(CompilationMode mode)
     public void DecimalPrecision_PreservedHighPrecisionValue()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        // Decimal has 28-29 significant digits, double only has 15-17
-        // This value has 20 significant digits - would be truncated as double
         engine.SetVariable("x", 1.1234567890123456789m);
         engine.SetVariable("y", 1.0m);
         var result = engine.Evaluate("x + y");
@@ -817,7 +589,6 @@ public class NumericTests(CompilationMode mode)
     [Test]
     public void DecimalPrecision_NotLostToDouble()
     {
-        // If we converted to double, we'd lose precision here
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var preciseValue = 12345678901234567890.12345678m;
         engine.SetVariable("x", preciseValue);
@@ -837,74 +608,21 @@ public class NumericTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(-5.5m));
     }
 
-    [Test]
-    public void NegateDecimal_Variable_ReturnsDecimal()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        engine.SetVariable("x", 10.5m);
-        var result = engine.Evaluate("-x");
-        Assert.That(result, Is.TypeOf<decimal>());
-        Assert.That(result, Is.EqualTo(-10.5m));
-    }
-
-    #endregion
-
-    #region Modulo Operations
-
-    [Test]
-    public void IntModInt_ReturnsInt()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        // C# behavior: int % int → int
-        var result = engine.Evaluate("10 % 3");
-        Assert.That(result, Is.TypeOf<int>());
-        Assert.That(result, Is.EqualTo(1));
-    }
-
-    [Test]
-    public void DoubleModDouble_ReturnsDouble()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        // Double modulo may throw or return specific type
-        try
-        {
-            var result = engine.Evaluate("10.5 % 3.0");
-            Assert.That(result, Is.Not.Null);
-            Assert.That(Convert.ToDouble(result), Is.EqualTo(1.5).Within(0.01));
-        }
-        catch (CsEvalException)
-        {
-            // Double modulo not supported is acceptable
-            Assert.Pass("Double modulo not supported");
-        }
-    }
-
-    #endregion
-
-    #region Array Literals - Type Verification
-
+    // CsEval-specific syntax tests (can't parity test - [1,2,3] syntax not in C#)
     [Test]
     public void ArrayLiteral_IntElements_ReturnsIntList()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate("[1, 2, 3]") as List<object?>;
-
-        Assert.That(result, Is.Not.Null);
-        Assert.That(result![0], Is.TypeOf<int>());
-        Assert.That(result[1], Is.TypeOf<int>());
-        Assert.That(result[2], Is.TypeOf<int>());
+        var result = engine.Evaluate("[1, 2, 3]");
+        Assert.That(result, Is.TypeOf<List<int>>());
     }
 
     [Test]
     public void ArrayLiteral_LongElements_ReturnsLongList()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate("[1L, 2L, 3L]") as List<object?>;
-
-        Assert.That(result, Is.Not.Null);
-        Assert.That(result![0], Is.TypeOf<long>());
-        Assert.That(result[1], Is.TypeOf<long>());
-        Assert.That(result[2], Is.TypeOf<long>());
+        var result = engine.Evaluate("[1L, 2L, 3L]");
+        Assert.That(result, Is.TypeOf<List<long>>());
     }
 
     [Test]
@@ -912,21 +630,15 @@ public class NumericTests(CompilationMode mode)
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var result = engine.Evaluate("{ var arr = [10, 20, 30]; return arr[1]; }");
-
         Assert.That(result, Is.TypeOf<int>());
         Assert.That(result, Is.EqualTo(20));
     }
-
-    #endregion
-
-    #region Block Expressions - Type Verification
 
     [Test]
     public void BlockExpression_IntVariable_ReturnsInt()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var result = engine.Evaluate("{ var x = 42; return x; }");
-
         Assert.That(result, Is.TypeOf<int>());
         Assert.That(result, Is.EqualTo(42));
     }
@@ -936,7 +648,6 @@ public class NumericTests(CompilationMode mode)
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var result = engine.Evaluate("{ var x = 10; var y = 5; return x + y; }");
-
         Assert.That(result, Is.TypeOf<int>());
         Assert.That(result, Is.EqualTo(15));
     }
@@ -946,7 +657,6 @@ public class NumericTests(CompilationMode mode)
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var result = engine.Evaluate("{ var x = 1; x = 99; return x; }");
-
         Assert.That(result, Is.TypeOf<int>());
         Assert.That(result, Is.EqualTo(99));
     }
@@ -956,7 +666,6 @@ public class NumericTests(CompilationMode mode)
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var result = engine.Evaluate("{ var x = 10; x += 5; return x; }");
-
         Assert.That(result, Is.TypeOf<int>());
         Assert.That(result, Is.EqualTo(15));
     }
@@ -966,21 +675,15 @@ public class NumericTests(CompilationMode mode)
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var result = engine.Evaluate("{ var x = 5; x++; return x; }");
-
         Assert.That(result, Is.TypeOf<int>());
         Assert.That(result, Is.EqualTo(6));
     }
-
-    #endregion
-
-    #region Bitwise Operations in Blocks - Type Verification
 
     [Test]
     public void BlockExpression_BitwiseAnd_ReturnsInt()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var result = engine.Evaluate("{ var x = 15; x &= 9; return x; }");
-
         Assert.That(result, Is.TypeOf<int>());
         Assert.That(result, Is.EqualTo(9));
     }
@@ -990,7 +693,6 @@ public class NumericTests(CompilationMode mode)
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var result = engine.Evaluate("{ var x = 5; x |= 3; return x; }");
-
         Assert.That(result, Is.TypeOf<int>());
         Assert.That(result, Is.EqualTo(7));
     }
@@ -1000,7 +702,6 @@ public class NumericTests(CompilationMode mode)
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var result = engine.Evaluate("{ var x = 12; x ^= 5; return x; }");
-
         Assert.That(result, Is.TypeOf<int>());
         Assert.That(result, Is.EqualTo(9));
     }
@@ -1010,7 +711,6 @@ public class NumericTests(CompilationMode mode)
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var result = engine.Evaluate("{ var x = 1; x <<= 4; return x; }");
-
         Assert.That(result, Is.TypeOf<int>());
         Assert.That(result, Is.EqualTo(16));
     }
@@ -1020,14 +720,9 @@ public class NumericTests(CompilationMode mode)
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var result = engine.Evaluate("{ var x = 32; x >>= 2; return x; }");
-
         Assert.That(result, Is.TypeOf<int>());
         Assert.That(result, Is.EqualTo(8));
     }
-
-    #endregion
-
-    #region Loop Counter - Type Verification
 
     [Test]
     public void ForLoop_IntCounter_ReturnsInt()
@@ -1041,9 +736,8 @@ public class NumericTests(CompilationMode mode)
             }
             return sum;
         }");
-
         Assert.That(result, Is.TypeOf<int>());
-        Assert.That(result, Is.EqualTo(10)); // 0+1+2+3+4
+        Assert.That(result, Is.EqualTo(10));
     }
 
     [Test]
@@ -1060,9 +754,8 @@ public class NumericTests(CompilationMode mode)
             }
             return sum;
         }");
-
         Assert.That(result, Is.TypeOf<int>());
-        Assert.That(result, Is.EqualTo(15)); // 1+2+3+4+5
+        Assert.That(result, Is.EqualTo(15));
     }
 
     [Test]
@@ -1077,103 +770,7 @@ public class NumericTests(CompilationMode mode)
             }
             return sum;
         }");
-
         Assert.That(result, Is.TypeOf<int>());
         Assert.That(result, Is.EqualTo(15));
     }
-
-    #endregion
-
-    #region LINQ Operations on Int Arrays - Type Verification
-
-    [Test]
-    public void LinqSelect_IntArray_ReturnsIntValues()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate("[1, 2, 3].Select(x => x * 2).ToList()") as List<object?>;
-
-        Assert.That(result, Is.Not.Null);
-        Assert.That(result![0], Is.TypeOf<int>());
-        Assert.That(result[0], Is.EqualTo(2));
-        Assert.That(result[1], Is.TypeOf<int>());
-        Assert.That(result[1], Is.EqualTo(4));
-    }
-
-    [Test]
-    public void LinqWhere_IntArray_ReturnsIntValues()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate("[1, 2, 3, 4, 5].Where(x => x > 2).ToList()") as List<object?>;
-
-        Assert.That(result, Is.Not.Null);
-        Assert.That(result![0], Is.TypeOf<int>());
-        Assert.That(result[0], Is.EqualTo(3));
-    }
-
-    [Test]
-    public void LinqSum_IntArray_ReturnsInt()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate("[1, 2, 3, 4, 5].Sum()");
-
-        Assert.That(result, Is.TypeOf<int>());
-        Assert.That(result, Is.EqualTo(15));
-    }
-
-    [Test]
-    public void LinqChain_IntArray_ReturnsInt()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate("[1, 2, 3, 4, 5].Where(x => x > 2).Select(x => x * 10).Sum()");
-
-        Assert.That(result, Is.TypeOf<int>());
-        Assert.That(result, Is.EqualTo(120)); // (3+4+5)*10 = 120
-    }
-
-    [Test]
-    public void LinqAverage_IntArray_ReturnsDouble()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        // C# behavior: Average of int/long returns double
-        var result = engine.Evaluate("[1, 2, 3, 4, 5].Average()");
-
-        Assert.That(result, Is.TypeOf<double>());
-        Assert.That(result, Is.EqualTo(3.0));
-    }
-
-    [Test]
-    public void LinqAverage_DecimalArray_ReturnsDecimal()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        // C# behavior: Average of decimal returns decimal
-        var result = engine.Evaluate("[1.5m, 2.5m, 3.5m].Average()");
-
-        Assert.That(result, Is.TypeOf<decimal>());
-        Assert.That(result, Is.EqualTo(2.5m));
-    }
-
-    [Test]
-    public void LinqAverage_LongArray_ReturnsDouble()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        // C# behavior: Average of long returns double
-        var result = engine.Evaluate("[1L, 2L, 3L, 4L, 5L].Average()");
-
-        Assert.That(result, Is.TypeOf<double>());
-        Assert.That(result, Is.EqualTo(3.0));
-    }
-
-    [Test]
-    public void LinqAverage_DecimalWithSelector_ReturnsDecimal()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        // C# behavior: Average with selector returning decimal returns decimal
-        engine.SetVariable("items", new List<int> { 1, 2, 3 });
-        var result = engine.Evaluate("items.Average(x => x * 1.0m)");
-
-        Assert.That(result, Is.TypeOf<decimal>());
-        Assert.That(result, Is.EqualTo(2.0m));
-    }
-
-    #endregion
 }

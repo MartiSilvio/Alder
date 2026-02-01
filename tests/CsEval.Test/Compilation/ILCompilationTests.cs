@@ -8,7 +8,7 @@ namespace CsEval.Test.Compilation;
 [TestFixture]
 public class ILCompilationTests
 {
-    #region For Loop Compilation
+    // For Loop Compilation
 
     [Test]
     public void ILCompile_ForLoop_Simple()
@@ -46,9 +46,7 @@ public class ILCompilationTests
         Assert.That(result, Is.EqualTo(8)); // 0+1+3+4 = 8 (skipped 2)
     }
 
-    #endregion
-
-    #region While Loop Compilation
+    // While Loop Compilation
 
     [Test]
     public void ILCompile_WhileLoop_Simple()
@@ -95,9 +93,7 @@ public class ILCompilationTests
         Assert.That(result, Is.EqualTo(12)); // 1+2+4+5 = 12 (skipped 3)
     }
 
-    #endregion
-
-    #region Do-While Loop Compilation
+    // Do-While Loop Compilation
 
     [Test]
     public void ILCompile_DoWhileLoop_Simple()
@@ -123,9 +119,7 @@ public class ILCompilationTests
         Assert.That(result, Is.EqualTo(11)); // Started at 10, executed once
     }
 
-    #endregion
-
-    #region ForEach Loop Compilation
+    // ForEach Loop Compilation
 
     [Test]
     public void ILCompile_ForEachLoop_Simple()
@@ -153,9 +147,7 @@ public class ILCompilationTests
         Assert.That(result, Is.EqualTo(6)); // 1+2+3 = 6
     }
 
-    #endregion
-
-    #region Nested Loops Compilation
+    // Nested Loops Compilation
 
     [Test]
     public void ILCompile_NestedLoops_Simple()
@@ -198,9 +190,7 @@ public class ILCompilationTests
         Assert.That(result, Is.EqualTo(6)); // 3 outer * 2 inner = 6
     }
 
-    #endregion
-
-    #region If-Else Compilation
+    // If-Else Compilation
 
     [Test]
     public void ILCompile_IfElse_TrueBranch()
@@ -238,9 +228,7 @@ public class ILCompilationTests
         Assert.That(result, Is.EqualTo(10));
     }
 
-    #endregion
-
-    #region Return Statement Compilation
+    // Return Statement Compilation
 
     [Test]
     public void ILCompile_Return_FromBlock()
@@ -271,9 +259,7 @@ public class ILCompilationTests
         Assert.That(result, Is.EqualTo(7));
     }
 
-    #endregion
-
-    #region Variable Operations Compilation
+    // Variable Operations Compilation
 
     [Test]
     public void ILCompile_VariableDeclaration()
@@ -323,9 +309,7 @@ public class ILCompilationTests
         Assert.That(result, Is.EqualTo(5)); // Postfix returns original value
     }
 
-    #endregion
-
-    #region Performance Comparison
+    // Performance Comparison
 
     [Test]
     public void ILCompile_PerformanceGain_LoopHeavy()
@@ -348,9 +332,7 @@ public class ILCompilationTests
         Assert.That(result, Is.EqualTo(499500)); // Sum of 0..999
     }
 
-    #endregion
-
-    #region Iteration Limit
+    // Iteration Limit
 
     [Test]
     public void ILCompile_RespectsIterationLimit()
@@ -364,9 +346,7 @@ public class ILCompilationTests
         Assert.Throws<CsEvalException>(() => engine.Evaluate(expr));
     }
 
-    #endregion
-
-    #region Cancellation
+    // Cancellation
 
     [Test]
     public void ILCompile_SupportsCancellation()
@@ -385,9 +365,7 @@ public class ILCompilationTests
             engine.Evaluate(expr, null, cts.Token));
     }
 
-    #endregion
-
-    #region Switch Compilation
+    // Switch Compilation
 
     [Test]
     public void ILCompile_Switch_Simple()
@@ -402,7 +380,7 @@ public class ILCompilationTests
             }
             return result;
         }");
-        
+
         Assert.That(expr.TryCompile(), Is.True, "Switch should be compilable");
         Assert.That(expr.IsCompiled, Is.True, "Switch should be compiled");
         Assert.That(engine.Evaluate(expr), Is.EqualTo("two"));
@@ -429,23 +407,21 @@ public class ILCompilationTests
     }
 
     [Test]
-    public void ILCompile_Switch_NoFallThrough_NonEmptyCases()
+    public void ILCompile_Switch_NoFallThrough_NonEmptyCases_ThrowsError()
     {
+        // C# requires explicit break/return/throw for non-empty cases (CS0163)
         var engine = new CsEvalEngine();
-        // C# semantics: non-empty cases don't fall through (implicit break)
         var expr = engine.Parse(@"{
             var x = 1;
             var sum = 0;
             switch (x) {
                 case 1: sum += 10;
                 case 2: sum += 20; break;
-                case 3: sum += 30; break;
             }
             return sum;
         }");
 
-        Assert.That(expr.TryCompile(), Is.True);
-        Assert.That(engine.Evaluate(expr), Is.EqualTo(10)); // case 1 does NOT fall through
+        Assert.That(expr.TryCompile(), Is.False); // Compilation should fail
     }
 
     [Test]
@@ -461,7 +437,7 @@ public class ILCompilationTests
             }
             return res;
         }");
-        
+
         Assert.That(expr.TryCompile(), Is.True);
         Assert.That(engine.Evaluate(expr), Is.EqualTo(100));
     }
@@ -482,7 +458,7 @@ public class ILCompilationTests
             }
             return sum;
         }");
-        
+
         Assert.That(expr.TryCompile(), Is.True);
         Assert.That(engine.Evaluate(expr), Is.EqualTo(6)); // 1 + 2 + 3
     }
@@ -502,7 +478,7 @@ public class ILCompilationTests
             }
             return sum;
         }");
-        
+
         Assert.That(expr.TryCompile(), Is.True);
         Assert.That(engine.Evaluate(expr), Is.EqualTo(8)); // 0+1+3+4 = 8
     }
@@ -518,10 +494,8 @@ public class ILCompilationTests
                 default: return ""no"";
             }
         }");
-        
+
         Assert.That(expr.TryCompile(), Is.True);
         Assert.That(engine.Evaluate(expr), Is.EqualTo("match"));
     }
-
-    #endregion
 }

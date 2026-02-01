@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Dynamic;
 
 namespace CsEval.Test.Extensions;
@@ -5,22 +6,22 @@ namespace CsEval.Test.Extensions;
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
 [TestFixture(CompilationMode.StrictCompiled)]
-public class SpreadOperatorTests(CompilationMode mode) 
+public class SpreadOperatorTests(CompilationMode mode)
 {
-    #region Array Spread
-
+    // Array Spread
     [Test]
     public void Eval_ArraySpread_SingleArray()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         engine.SetVariable("arr", new List<int> { 1, 2, 3 });
 
-        var result = engine.Evaluate("[...arr]") as List<object?>;
-        Assert.That(result, Is.Not.Null);
-        Assert.That(result, Has.Count.EqualTo(3));
-        Assert.That(result![0], Is.EqualTo(1));
-        Assert.That(result[1], Is.EqualTo(2));
-        Assert.That(result[2], Is.EqualTo(3));
+        var result = engine.Evaluate("[...arr]");
+        Assert.That(result, Is.TypeOf<List<int>>());
+        var list = (IList)result!;
+        Assert.That(list, Has.Count.EqualTo(3));
+        Assert.That(list[0], Is.EqualTo(1));
+        Assert.That(list[1], Is.EqualTo(2));
+        Assert.That(list[2], Is.EqualTo(3));
     }
 
     [Test]
@@ -29,13 +30,14 @@ public class SpreadOperatorTests(CompilationMode mode)
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         engine.SetVariable("arr", new List<int> { 2, 3 });
 
-        var result = engine.Evaluate("[1, ...arr, 4]") as List<object?>;
-        Assert.That(result, Is.Not.Null);
-        Assert.That(result, Has.Count.EqualTo(4));
-        Assert.That(result![0], Is.EqualTo(1));
-        Assert.That(result[1], Is.EqualTo(2));
-        Assert.That(result[2], Is.EqualTo(3));
-        Assert.That(result[3], Is.EqualTo(4));
+        var result = engine.Evaluate("[1, ...arr, 4]");
+        Assert.That(result, Is.TypeOf<List<int>>());
+        var list = (IList)result!;
+        Assert.That(list, Has.Count.EqualTo(4));
+        Assert.That(list[0], Is.EqualTo(1));
+        Assert.That(list[1], Is.EqualTo(2));
+        Assert.That(list[2], Is.EqualTo(3));
+        Assert.That(list[3], Is.EqualTo(4));
     }
 
     [Test]
@@ -45,13 +47,14 @@ public class SpreadOperatorTests(CompilationMode mode)
         engine.SetVariable("arr1", new List<int> { 1, 2 });
         engine.SetVariable("arr2", new List<int> { 3, 4 });
 
-        var result = engine.Evaluate("[...arr1, ...arr2]") as List<object?>;
-        Assert.That(result, Is.Not.Null);
-        Assert.That(result, Has.Count.EqualTo(4));
-        Assert.That(result![0], Is.EqualTo(1));
-        Assert.That(result[1], Is.EqualTo(2));
-        Assert.That(result[2], Is.EqualTo(3));
-        Assert.That(result[3], Is.EqualTo(4));
+        var result = engine.Evaluate("[...arr1, ...arr2]");
+        Assert.That(result, Is.TypeOf<List<int>>());
+        var list = (IList)result!;
+        Assert.That(list, Has.Count.EqualTo(4));
+        Assert.That(list[0], Is.EqualTo(1));
+        Assert.That(list[1], Is.EqualTo(2));
+        Assert.That(list[2], Is.EqualTo(3));
+        Assert.That(list[3], Is.EqualTo(4));
     }
 
     [Test]
@@ -60,15 +63,14 @@ public class SpreadOperatorTests(CompilationMode mode)
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         engine.SetVariable("arr", new[] { "a", "b", "c" });
 
-        var result = engine.Evaluate("[...arr]") as List<object?>;
-        Assert.That(result, Is.Not.Null);
-        Assert.That(result, Has.Count.EqualTo(3));
-        Assert.That(result![0], Is.EqualTo("a"));
+        var result = engine.Evaluate("[...arr]");
+        Assert.That(result, Is.TypeOf<List<string>>());
+        var list = (IList)result!;
+        Assert.That(list, Has.Count.EqualTo(3));
+        Assert.That(list[0], Is.EqualTo("a"));
     }
 
-    #endregion
-
-    #region Object Spread
+    // Object Spread
 
     [Test]
     public void Eval_ObjectSpread_SingleObject()
@@ -163,6 +165,4 @@ public class SpreadOperatorTests(CompilationMode mode)
         Assert.That(result["B"], Is.EqualTo(99));
         Assert.That(result["C"], Is.EqualTo(3));
     }
-
-    #endregion
 }

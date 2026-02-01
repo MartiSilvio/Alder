@@ -5,105 +5,25 @@ namespace CsEval.Test.Operators;
 [TestFixture(CompilationMode.StrictCompiled)]
 public class ArithmeticTests(CompilationMode mode)
 {
-    [Test]
-    public async Task Eval_Arithmetic_Addition()
+    [TestCase("1 + 2", 3, TestName = "Add_Integers")]
+    [TestCase("1.5 + 2.5", 4.0, TestName = "Add_Doubles")]
+    [TestCase("5 - 3", 2, TestName = "Subtract_Integers")]
+    [TestCase("3 * 4", 12, TestName = "Multiply_Integers")]
+    [TestCase("10 / 4", 2, TestName = "Divide_IntegerTruncates")]
+    [TestCase("10.0 / 4.0", 2.5, TestName = "Divide_DoublesPreservesFraction")]
+    [TestCase("10 % 3", 1, TestName = "Modulo_Integers")]
+    [TestCase("1 + 2 * 3", 7, TestName = "Precedence_MultiplyBeforeAdd")]
+    [TestCase("(1 + 2) * 3", 9, TestName = "Parentheses_OverridePrecedence")]
+    [TestCase("-5", -5, TestName = "Negate_Integer")]
+    [TestCase("-3.14", -3.14, TestName = "Negate_Double")]
+    public async Task Eval_Arithmetic(string expr, object expected)
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-
-        const string expr1 = "1 + 2";
-        var result1 = engine.Evaluate(expr1);
-        Assert.That(result1, Is.EqualTo(3));
-        Assert.That(result1, Is.EqualTo(await TestHelpers.EvaluateCSharpAsync(expr1)));
-
-        const string expr2 = "1.5 + 2.5";
-        var result2 = engine.Evaluate(expr2);
-        Assert.That(result2, Is.EqualTo(4.0));
-        Assert.That(result2, Is.EqualTo(await TestHelpers.EvaluateCSharpAsync(expr2)));
-    }
-
-    [Test]
-    public async Task Eval_Arithmetic_Subtraction()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-
-        const string expr = "5 - 3";
         var result = engine.Evaluate(expr);
-        Assert.That(result, Is.EqualTo(2));
-        Assert.That(result, Is.EqualTo(await TestHelpers.EvaluateCSharpAsync(expr)));
-    }
+        var csharpResult = await TestHelpers.EvaluateCSharpAsync(expr);
 
-    [Test]
-    public async Task Eval_Arithmetic_Multiplication()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-
-        const string expr = "3 * 4";
-        var result = engine.Evaluate(expr);
-        Assert.That(result, Is.EqualTo(12));
-        Assert.That(result, Is.EqualTo(await TestHelpers.EvaluateCSharpAsync(expr)));
-    }
-
-    [Test]
-    public async Task Eval_Arithmetic_Division()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-
-        const string expr = "10 / 4";
-        var result = engine.Evaluate(expr);
-        Assert.That(result, Is.EqualTo(2));
-        Assert.That(result, Is.EqualTo(await TestHelpers.EvaluateCSharpAsync(expr)));
-    }
-
-    [Test]
-    public async Task Eval_Arithmetic_Division_Double()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-
-        const string expr = "10.0 / 4.0";
-        var result = engine.Evaluate(expr);
-        Assert.That(result, Is.EqualTo(2.5));
-        Assert.That(result, Is.EqualTo(await TestHelpers.EvaluateCSharpAsync(expr)));
-    }
-
-    [Test]
-    public async Task Eval_Arithmetic_Modulo()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-
-        const string expr = "10 % 3";
-        var result = engine.Evaluate(expr);
-        Assert.That(result, Is.EqualTo(1));
-        Assert.That(result, Is.EqualTo(await TestHelpers.EvaluateCSharpAsync(expr)));
-    }
-
-    [Test]
-    public async Task Eval_Arithmetic_Precedence()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-
-        const string expr1 = "1 + 2 * 3";
-        var result1 = engine.Evaluate(expr1);
-        Assert.That(result1, Is.EqualTo(7));
-        Assert.That(result1, Is.EqualTo(await TestHelpers.EvaluateCSharpAsync(expr1)));
-
-        const string expr2 = "(1 + 2) * 3";
-        var result2 = engine.Evaluate(expr2);
-        Assert.That(result2, Is.EqualTo(9));
-        Assert.That(result2, Is.EqualTo(await TestHelpers.EvaluateCSharpAsync(expr2)));
-    }
-
-    [Test]
-    public async Task Eval_Unary_Negation()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-
-        const string expr1 = "-5";
-        var result1 = engine.Evaluate(expr1);
-        Assert.That(result1, Is.EqualTo(-5L).Or.EqualTo(-5));
-
-        const string expr2 = "-3.14";
-        var result2 = engine.Evaluate(expr2);
-        Assert.That(result2, Is.EqualTo(-3.14));
-        Assert.That(result2, Is.EqualTo(await TestHelpers.EvaluateCSharpAsync(expr2)));
+        Assert.That(result, Is.EqualTo(expected), $"Value mismatch for: {expr}");
+        Assert.That(result, Is.EqualTo(csharpResult), $"C# parity mismatch for: {expr}");
+        Assert.That(result?.GetType(), Is.EqualTo(csharpResult?.GetType()), $"Type mismatch for: {expr}");
     }
 }
