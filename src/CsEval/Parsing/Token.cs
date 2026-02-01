@@ -5,6 +5,7 @@ public enum TokenType
     // Literals
     Number,
     String,
+    Character,
     InterpolatedString,
     True,
     False,

@@ -147,4 +147,134 @@ public class LexerTests
         Assert.That(tokens[0].Type, Is.EqualTo(TokenType.String));
         Assert.That(tokens[0].Literal, Is.EqualTo("it's working"));
     }
+
+    #region Escape Sequences
+
+    [TestCase(@"""\0""", "\0", TestName = "NullEscape")]
+    [TestCase(@"""\a""", "\a", TestName = "AlertEscape")]
+    [TestCase(@"""\b""", "\b", TestName = "BackspaceEscape")]
+    [TestCase(@"""\f""", "\f", TestName = "FormFeedEscape")]
+    [TestCase(@"""\v""", "\v", TestName = "VerticalTabEscape")]
+    [TestCase(@"""\t""", "\t", TestName = "TabEscape")]
+    [TestCase(@"""\n""", "\n", TestName = "NewlineEscape")]
+    [TestCase(@"""\r""", "\r", TestName = "CarriageReturnEscape")]
+    [TestCase(@"""\\""", "\\", TestName = "BackslashEscape")]
+    public void Tokenize_EscapeSequence_ReturnsCorrectValue(string input, string expected)
+    {
+        var lexer = new Lexer(input);
+        var tokens = lexer.Tokenize();
+
+        Assert.That(tokens[0].Type, Is.EqualTo(TokenType.String));
+        Assert.That(tokens[0].Literal, Is.EqualTo(expected));
+    }
+
+    [TestCase(@"$""Hello\tWorld""", "Hello\tWorld", TestName = "InterpolatedTabEscape")]
+    [TestCase(@"$""Line1\nLine2""", "Line1\nLine2", TestName = "InterpolatedNewlineEscape")]
+    [TestCase(@"$""Bell\a""", "Bell\a", TestName = "InterpolatedAlertEscape")]
+    [TestCase(@"$""Null\0Char""", "Null\0Char", TestName = "InterpolatedNullEscape")]
+    public void Tokenize_InterpolatedEscapeSequence_ReturnsCorrectValue(string input, string expected)
+    {
+        var lexer = new Lexer(input);
+        var tokens = lexer.Tokenize();
+
+        Assert.That(tokens[0].Type, Is.EqualTo(TokenType.InterpolatedString));
+        Assert.That(tokens[0].Literal, Is.EqualTo(expected));
+    }
+
+    #endregion
+
+    #region Character Literals
+
+    [TestCase("'a'", 'a', TestName = "CharLiteralA")]
+    [TestCase("'Z'", 'Z', TestName = "CharLiteralZ")]
+    [TestCase("'0'", '0', TestName = "CharLiteralDigit")]
+    [TestCase("' '", ' ', TestName = "CharLiteralSpace")]
+    public void Tokenize_CharLiteral_ReturnsCorrectValue(string input, char expected)
+    {
+        var lexer = new Lexer(input);
+        var tokens = lexer.Tokenize();
+
+        Assert.That(tokens[0].Type, Is.EqualTo(TokenType.Character));
+        Assert.That(tokens[0].Literal, Is.EqualTo(expected));
+    }
+
+    [TestCase(@"'\n'", '\n', TestName = "CharEscapeNewline")]
+    [TestCase(@"'\t'", '\t', TestName = "CharEscapeTab")]
+    [TestCase(@"'\r'", '\r', TestName = "CharEscapeCarriageReturn")]
+    [TestCase(@"'\0'", '\0', TestName = "CharEscapeNull")]
+    [TestCase(@"'\\'", '\\', TestName = "CharEscapeBackslash")]
+    [TestCase(@"'\''", '\'', TestName = "CharEscapeSingleQuote")]
+    [TestCase(@"'\a'", '\a', TestName = "CharEscapeAlert")]
+    [TestCase(@"'\b'", '\b', TestName = "CharEscapeBackspace")]
+    [TestCase(@"'\f'", '\f', TestName = "CharEscapeFormFeed")]
+    [TestCase(@"'\v'", '\v', TestName = "CharEscapeVerticalTab")]
+    public void Tokenize_CharLiteralEscape_ReturnsCorrectValue(string input, char expected)
+    {
+        var lexer = new Lexer(input);
+        var tokens = lexer.Tokenize();
+
+        Assert.That(tokens[0].Type, Is.EqualTo(TokenType.Character));
+        Assert.That(tokens[0].Literal, Is.EqualTo(expected));
+    }
+
+    [Test]
+    public void Tokenize_EmptyCharLiteral_Throws()
+    {
+        var lexer = new Lexer("''");
+        Assert.Throws<LexerException>(() => lexer.Tokenize());
+    }
+
+    [Test]
+    public void Tokenize_MultiCharLiteral_Throws()
+    {
+        var lexer = new Lexer("'ab'");
+        Assert.Throws<LexerException>(() => lexer.Tokenize());
+    }
+
+    #endregion
+
+    #region Hex and Binary Literals
+
+    [TestCase("0xFF", 255, TestName = "HexFF")]
+    [TestCase("0x1A", 26, TestName = "Hex1A")]
+    [TestCase("0x0", 0, TestName = "Hex0")]
+    [TestCase("0xABCD", 0xABCD, TestName = "HexABCD")]
+    [TestCase("0xabcd", 0xabcd, TestName = "HexLowercase")]
+    [TestCase("0X10", 16, TestName = "HexUppercaseX")]
+    public void Tokenize_HexLiteral_ReturnsCorrectValue(string input, int expected)
+    {
+        var lexer = new Lexer(input);
+        var tokens = lexer.Tokenize();
+
+        Assert.That(tokens[0].Type, Is.EqualTo(TokenType.Number));
+        Assert.That(tokens[0].Literal, Is.EqualTo(expected));
+    }
+
+    [TestCase("0xFFFFFFFFL", 0xFFFFFFFFL, TestName = "HexLong")]
+    [TestCase("0xFFFFFFFFU", 0xFFFFFFFFU, TestName = "HexUInt")]
+    [TestCase("0xFFFFFFFFFFFFFFFFUL", 0xFFFFFFFFFFFFFFFFUL, TestName = "HexULong")]
+    public void Tokenize_HexLiteralWithSuffix_ReturnsCorrectValue(string input, object expected)
+    {
+        var lexer = new Lexer(input);
+        var tokens = lexer.Tokenize();
+
+        Assert.That(tokens[0].Type, Is.EqualTo(TokenType.Number));
+        Assert.That(tokens[0].Literal, Is.EqualTo(expected));
+    }
+
+    [TestCase("0b1010", 10, TestName = "Binary1010")]
+    [TestCase("0b0", 0, TestName = "Binary0")]
+    [TestCase("0b1", 1, TestName = "Binary1")]
+    [TestCase("0b11111111", 255, TestName = "Binary255")]
+    [TestCase("0B1010", 10, TestName = "BinaryUppercaseB")]
+    public void Tokenize_BinaryLiteral_ReturnsCorrectValue(string input, int expected)
+    {
+        var lexer = new Lexer(input);
+        var tokens = lexer.Tokenize();
+
+        Assert.That(tokens[0].Type, Is.EqualTo(TokenType.Number));
+        Assert.That(tokens[0].Literal, Is.EqualTo(expected));
+    }
+
+    #endregion
 }

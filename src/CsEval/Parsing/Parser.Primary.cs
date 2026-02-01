@@ -7,7 +7,7 @@ public sealed partial class Parser
     private Expr ParsePrimary()
     {
         // Literals
-        if (Match(TokenType.Number, TokenType.String))
+        if (Match(TokenType.Number, TokenType.String, TokenType.Character))
             return new LiteralExpr(Previous().Literal);
 
         if (Match(TokenType.True))

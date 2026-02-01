@@ -321,7 +321,7 @@ public sealed class Lexer
                 break;
 
             case '\'':
-                ScanString('\'');
+                ScanCharacter();
                 break;
 
             case '$':
@@ -377,6 +377,11 @@ public sealed class Lexer
                     'n' => '\n',
                     'r' => '\r',
                     't' => '\t',
+                    '0' => '\0',
+                    'a' => '\a',
+                    'b' => '\b',
+                    'f' => '\f',
+                    'v' => '\v',
                     '\\' => '\\',
                     '"' => '"',
                     '\'' => '\'',
@@ -395,6 +400,52 @@ public sealed class Lexer
 
         Advance(); // closing quote
         AddToken(TokenType.String, sb.ToString());
+    }
+
+    private void ScanCharacter()
+    {
+        char value;
+
+        if (IsAtEnd())
+            throw new LexerException($"Unterminated character literal at {_line}:{_column}");
+
+        if (Peek() == '\\')
+        {
+            Advance(); // consume backslash
+            if (IsAtEnd())
+                throw new LexerException($"Unterminated character literal at {_line}:{_column}");
+
+            value = Peek() switch
+            {
+                'n' => '\n',
+                'r' => '\r',
+                't' => '\t',
+                '0' => '\0',
+                'a' => '\a',
+                'b' => '\b',
+                'f' => '\f',
+                'v' => '\v',
+                '\\' => '\\',
+                '\'' => '\'',
+                '"' => '"',
+                _ => throw new LexerException($"Unknown escape sequence '\\{Peek()}' at {_line}:{_column}")
+            };
+            Advance();
+        }
+        else if (Peek() == '\'')
+        {
+            throw new LexerException($"Empty character literal at {_line}:{_column}");
+        }
+        else
+        {
+            value = Advance();
+        }
+
+        if (Peek() != '\'')
+            throw new LexerException($"Character literal must contain exactly one character at {_line}:{_column}");
+
+        Advance(); // closing quote
+        AddToken(TokenType.Character, value);
     }
 
     private void ScanInterpolatedString()
@@ -444,6 +495,11 @@ public sealed class Lexer
                     'n' => '\n',
                     'r' => '\r',
                     't' => '\t',
+                    '0' => '\0',
+                    'a' => '\a',
+                    'b' => '\b',
+                    'f' => '\f',
+                    'v' => '\v',
                     '\\' => '\\',
                     '"' => '"',
                     '{' => '{',
@@ -570,6 +626,24 @@ public sealed class Lexer
 
     private void ScanNumber()
     {
+        // Check for hex (0x/0X) or binary (0b/0B) prefix
+        if (_source[_start] == '0' && _current == _start + 1)
+        {
+            var nextChar = char.ToLowerInvariant(Peek());
+            if (nextChar == 'x')
+            {
+                Advance(); // consume 'x'
+                ScanHexNumber();
+                return;
+            }
+            if (nextChar == 'b')
+            {
+                Advance(); // consume 'b'
+                ScanBinaryNumber();
+                return;
+            }
+        }
+
         while (char.IsDigit(Peek())) Advance();
 
         // Look for decimal part
@@ -603,6 +677,71 @@ public sealed class Lexer
         };
 
         AddToken(TokenType.Number, value);
+    }
+
+    private void ScanHexNumber()
+    {
+        var hexStart = _current;
+        while (IsHexDigit(Peek())) Advance();
+
+        if (_current == hexStart)
+            throw new LexerException($"Invalid hex literal at {_line}:{_column}");
+
+        var hexText = _source[hexStart.._current];
+        var suffix = ParseNumericSuffix();
+
+        object value = suffix switch
+        {
+            NumericSuffix.Long => Convert.ToInt64(hexText, 16),
+            NumericSuffix.ULong => Convert.ToUInt64(hexText, 16),
+            NumericSuffix.UInt => Convert.ToUInt32(hexText, 16),
+            NumericSuffix.None => ParseHexWithPromotion(hexText),
+            _ => throw new LexerException($"Invalid suffix for hex literal at {_line}:{_column}")
+        };
+
+        AddToken(TokenType.Number, value);
+    }
+
+    private void ScanBinaryNumber()
+    {
+        var binStart = _current;
+        while (Peek() == '0' || Peek() == '1') Advance();
+
+        if (_current == binStart)
+            throw new LexerException($"Invalid binary literal at {_line}:{_column}");
+
+        var binText = _source[binStart.._current];
+        var suffix = ParseNumericSuffix();
+
+        object value = suffix switch
+        {
+            NumericSuffix.Long => Convert.ToInt64(binText, 2),
+            NumericSuffix.ULong => Convert.ToUInt64(binText, 2),
+            NumericSuffix.UInt => Convert.ToUInt32(binText, 2),
+            NumericSuffix.None => ParseBinaryWithPromotion(binText),
+            _ => throw new LexerException($"Invalid suffix for binary literal at {_line}:{_column}")
+        };
+
+        AddToken(TokenType.Number, value);
+    }
+
+    private static bool IsHexDigit(char c) =>
+        char.IsDigit(c) || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
+
+    private static object ParseHexWithPromotion(string hexText)
+    {
+        var value = Convert.ToUInt64(hexText, 16);
+        if (value <= int.MaxValue) return (int)value;
+        if (value <= long.MaxValue) return (long)value;
+        return value;
+    }
+
+    private static object ParseBinaryWithPromotion(string binText)
+    {
+        var value = Convert.ToUInt64(binText, 2);
+        if (value <= int.MaxValue) return (int)value;
+        if (value <= long.MaxValue) return (long)value;
+        return value;
     }
 
     /// <summary>
@@ -696,4 +835,4 @@ public sealed class Lexer
     }
 }
 
-public class LexerException(string message) : Exception(message);
+public class LexerException(string message) : CsEvalException(message);
