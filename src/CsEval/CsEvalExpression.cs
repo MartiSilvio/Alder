@@ -78,8 +78,6 @@ public sealed class CsEvalExpression
     }
 
     internal CompiledExpressionInfo? GetCompiledInfo() => _compiledInfo;
-
-    internal void SetCompiledInfo(CompiledExpressionInfo info) => _compiledInfo = info;
 }
 
 /// <summary>

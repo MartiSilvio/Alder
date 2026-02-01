@@ -507,6 +507,14 @@ public sealed record FunctionRef(string Name, Func<object?[], object?> Function)
 
 internal sealed record LambdaValue(List<string> Parameters, Expr Body, CsEvalContext Closure);
 
+/// <summary>
+/// Compiled lambda with IL-compiled body delegate.
+/// </summary>
+internal sealed record CompiledLambdaValue(
+    List<string> Parameters,
+    Func<object?[], CsEvalContext, object?> CompiledBody,
+    CsEvalContext Closure);
+
 internal sealed record MethodRef(object Target, string MethodName);
 
 internal sealed record ModuleMethodRef(CsEvalEngine.ModuleResolver Resolver, MethodInfo Method);

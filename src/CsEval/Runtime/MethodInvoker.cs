@@ -63,6 +63,9 @@ public static class MethodInvoker
         if (callee is LambdaValue lambda)
             return InvokeLambda(lambda, args, context);
 
+        if (callee is CompiledLambdaValue compiledLambda)
+            return InvokeCompiledLambda(compiledLambda, args);
+
         throw new CsEvalException($"Cannot call '{callee?.GetType().Name ?? "null"}' as a function");
     }
 
@@ -413,5 +416,10 @@ public static class MethodInvoker
 
         var evaluator = new Evaluator(childContext, new Dictionary<string, Func<object?[], object?>>());
         return evaluator.Evaluate(lambda.Body);
+    }
+
+    internal static object? InvokeCompiledLambda(CompiledLambdaValue lambda, object?[] args)
+    {
+        return lambda.CompiledBody(args, lambda.Closure);
     }
 }

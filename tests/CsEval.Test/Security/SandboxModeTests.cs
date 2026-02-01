@@ -224,9 +224,10 @@ public class SandboxModeTests(CompilationMode mode)
         });
         engine.SetVariable("items", new List<int> { 1, 2, 3 });
 
-        var result = engine.Evaluate("items.Select(x => x * 2).ToList()") as IList;
+        var result = engine.Evaluate("items.Select(x => x * 2).ToList()");
 
-        Assert.That(result, Is.EqualTo(new object[] { 2, 4, 6 }));
+        Assert.That(result, Is.InstanceOf<IList>());
+        Assert.That(result, Is.EqualTo(new int[] { 2, 4, 6 }));
     }
 
     [Test]

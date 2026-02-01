@@ -423,19 +423,83 @@ internal sealed partial class ILCompiler
         return Compile(arg);
     }
 
+    private static readonly ConstructorInfo CompiledLambdaValueCtor =
+        typeof(CompiledLambdaValue).GetConstructor([
+            typeof(List<string>),
+            typeof(Func<object?[], CsEvalContext, object?>),
+            typeof(CsEvalContext)
+        ])!;
+
+    private static readonly MethodInfo GetLambdaArgMethod =
+        typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.GetLambdaArg))!;
+
     private LinqExpression CompileLambda(LambdaExpr lambda)
     {
         var parameterNames = lambda.Parameters.Select(p => p.Lexeme).ToList();
+
+        // Create parameter list constant
         var listInit = LinqExpression.ListInit(
             LinqExpression.New(typeof(List<string>)),
             parameterNames.Select(p => LinqExpression.ElementInit(
                 typeof(List<string>).GetMethod("Add")!,
                 LinqExpression.Constant(p))));
 
+        // Create the compiled lambda body
+        var argsParam = LinqExpression.Parameter(typeof(object?[]), "args");
+        var closureParam = LinqExpression.Parameter(typeof(CsEvalContext), "closure");
+
+        // Create a child context for the lambda body
+        var childContextVar = LinqExpression.Variable(typeof(CsEvalContext), "childContext");
+
+        // Build statements to:
+        // 1. Create child context from closure
+        // 2. Define each parameter in the child context
+        // 3. Execute the body
+        var statements = new List<LinqExpression>
+        {
+            LinqExpression.Assign(childContextVar,
+                LinqExpression.Call(closureParam, CreateChildMethod))
+        };
+
+        // Define each parameter in the child context
+        for (var i = 0; i < parameterNames.Count; i++)
+        {
+            statements.Add(LinqExpression.Call(childContextVar, DefineMethod,
+                LinqExpression.Constant(parameterNames[i]),
+                LinqExpression.Call(GetLambdaArgMethod, argsParam, LinqExpression.Constant(i))));
+        }
+
+        // Save the current context and swap to the child context for compiling the body
+        var savedContext = _currentContext;
+        _currentContext = childContextVar;
+
+        try
+        {
+            // Compile the lambda body
+            var compiledBody = Compile(lambda.Body);
+            statements.Add(compiledBody);
+        }
+        finally
+        {
+            _currentContext = savedContext;
+        }
+
+        var lambdaBody = LinqExpression.Block(
+            typeof(object),
+            [childContextVar],
+            statements);
+
+        // Create the delegate: Func<object?[], CsEvalContext, object?>
+        var compiledDelegate = LinqExpression.Lambda<Func<object?[], CsEvalContext, object?>>(
+            lambdaBody,
+            argsParam,
+            closureParam);
+
+        // Create CompiledLambdaValue(parameters, compiledBody, closure)
         return LinqExpression.New(
-            typeof(LambdaValue).GetConstructor([typeof(List<string>), typeof(Expr), typeof(CsEvalContext)])!,
+            CompiledLambdaValueCtor,
             listInit,
-            LinqExpression.Constant(lambda.Body, typeof(Expr)),
+            compiledDelegate,
             _currentContext);
     }
 

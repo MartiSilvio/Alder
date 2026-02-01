@@ -35,13 +35,13 @@ public sealed class JavaScriptExtension : ILanguageExtension
             { TokenType.BangEqualEqual, (l, r, opts) => !(bool)Operators.Equals(l, r, opts) },
         };
 
-    private static (bool, object?) HandleReduce(List<object?> list, Type elementType, object?[] args, CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct)
+    private static (bool, object?) HandleReduce(IEnumerable<object?> source, Type elementType, object?[] args, CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct)
     {
-        if (args is [LambdaValue reducer, var seed])
-            return (true, list.Aggregate(seed, (acc, item) => LinqDispatcher.InvokeLambdaForLinq(reducer, [acc, item], ctx, opts, ct)));
+        if (args is [var reducer, var seed] && LinqDispatcher.IsLambda(reducer))
+            return (true, source.Aggregate(seed, (acc, item) => LinqDispatcher.InvokeAnyLambdaForLinq(reducer, [acc, item], ctx, opts, ct)));
 
-        if (args is [LambdaValue reducerOnly])
-            return (true, list.Skip(1).Aggregate(list.FirstOrDefault(), (acc, item) => LinqDispatcher.InvokeLambdaForLinq(reducerOnly, [acc, item], ctx, opts, ct)));
+        if (args is [var reducerOnly] && LinqDispatcher.IsLambda(reducerOnly))
+            return (true, source.Skip(1).Aggregate(source.FirstOrDefault(), (acc, item) => LinqDispatcher.InvokeAnyLambdaForLinq(reducerOnly, [acc, item], ctx, opts, ct)));
 
         return (false, null);
     }

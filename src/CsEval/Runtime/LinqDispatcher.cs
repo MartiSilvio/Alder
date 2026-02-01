@@ -13,7 +13,7 @@ public static class LinqDispatcher
     /// Delegate for LINQ method handlers.
     /// </summary>
     public delegate (bool Success, object? Value) LinqHandler(
-        List<object?> list,
+        IEnumerable<object?> source,
         Type elementType,
         object?[] args,
         CsEvalContext context,
@@ -140,8 +140,7 @@ public static class LinqDispatcher
             return (false, null);
 
         var elementType = GetElementType(enumerable);
-        var list = enumerable.Cast<object?>().ToList();
-        return handler(list, elementType, args, context, options, cancellationToken);
+        return handler(enumerable.Cast<object?>(), elementType, args, context, options, cancellationToken);
     }
 
     private static bool TryGetHandler(
@@ -179,6 +178,30 @@ public static class LinqDispatcher
         return evaluator.Evaluate(lambda.Body);
     }
 
+    internal static object? InvokeCompiledLambdaForLinq(
+        CompiledLambdaValue lambda,
+        object?[] args)
+    {
+        return lambda.CompiledBody(args, lambda.Closure);
+    }
+
+    internal static object? InvokeAnyLambdaForLinq(
+        object? lambda,
+        object?[] args,
+        CsEvalContext context,
+        CsEvalOptions options,
+        CancellationToken cancellationToken)
+    {
+        return lambda switch
+        {
+            CompiledLambdaValue compiled => InvokeCompiledLambdaForLinq(compiled, args),
+            LambdaValue interpreted => InvokeLambdaForLinq(interpreted, args, context, options, cancellationToken),
+            _ => throw new CsEvalException($"Expected lambda but got {lambda?.GetType().Name ?? "null"}")
+        };
+    }
+
+    internal static bool IsLambda(object? value) => value is LambdaValue or CompiledLambdaValue;
+
     /// <summary>
     /// Backward-compatible overload for extension handlers that don't have access to options/cancellation.
     /// </summary>
@@ -190,102 +213,100 @@ public static class LinqDispatcher
         return InvokeLambdaForLinq(lambda, args, context, CsEvalOptions.Default, CancellationToken.None);
     }
 
-    internal static (bool, object?) HandleWhere(List<object?> list, Type elementType, object?[] args, CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct)
+    internal static (bool, object?) HandleWhere(IEnumerable<object?> source, Type elementType, object?[] args, CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct)
     {
-        if (args is not [LambdaValue predicate]) return (false, null);
-        var result = list.Where(item => TypeHelpers.RequireBoolean(InvokeLambdaForLinq(predicate, [item], ctx, opts, ct)));
-        return (true, CreateTypedList(result, elementType));
+        if (args is not [var predicate] || !IsLambda(predicate)) return (false, null);
+        return (true, source.Where(item => TypeHelpers.RequireBoolean(InvokeAnyLambdaForLinq(predicate, [item], ctx, opts, ct))));
     }
 
-    internal static (bool, object?) HandleSelect(List<object?> list, Type elementType, object?[] args, CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct)
+    internal static (bool, object?) HandleSelect(IEnumerable<object?> source, Type elementType, object?[] args, CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct)
     {
-        if (args is not [LambdaValue selector]) return (false, null);
-        var results = list.Select(item => InvokeLambdaForLinq(selector, [item], ctx, opts, ct)).ToList();
-        return (true, RuntimeHelpers.CreateTypedList(results));
+        if (args is not [var selector] || !IsLambda(selector)) return (false, null);
+        return (true, source.Select(item => InvokeAnyLambdaForLinq(selector, [item], ctx, opts, ct)));
     }
 
-    internal static (bool, object?) HandleSelectMany(List<object?> list, Type elementType, object?[] args, CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct)
+    internal static (bool, object?) HandleSelectMany(IEnumerable<object?> source, Type elementType, object?[] args, CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct)
     {
-        if (args is not [LambdaValue selector]) return (false, null);
-        var results = list.SelectMany(item =>
+        if (args is not [var selector] || !IsLambda(selector)) return (false, null);
+        return (true, source.SelectMany(item =>
         {
-            var result = InvokeLambdaForLinq(selector, [item], ctx, opts, ct);
+            var result = InvokeAnyLambdaForLinq(selector, [item], ctx, opts, ct);
             if (result is IEnumerable ie and not string)
                 return ie.Cast<object?>();
             throw new CsEvalException("SelectMany selector must return an enumerable");
-        }).ToList();
-        return (true, RuntimeHelpers.CreateTypedList(results));
+        }));
     }
 
-    internal static (bool, object?) HandleFirst(List<object?> list, Type elementType, object?[] args, CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct)
+    internal static (bool, object?) HandleFirst(IEnumerable<object?> source, Type elementType, object?[] args, CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct)
     {
-        if (args is [LambdaValue predicate])
-            return (true, list.First(item => TypeHelpers.RequireBoolean(InvokeLambdaForLinq(predicate, [item], ctx, opts, ct))));
-        return (true, list.First());
+        if (args is [var predicate] && IsLambda(predicate))
+            return (true, source.First(item => TypeHelpers.RequireBoolean(InvokeAnyLambdaForLinq(predicate, [item], ctx, opts, ct))));
+        return (true, source.First());
     }
 
-    internal static (bool, object?) HandleFirstOrDefault(List<object?> list, Type elementType, object?[] args, CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct)
+    internal static (bool, object?) HandleFirstOrDefault(IEnumerable<object?> source, Type elementType, object?[] args, CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct)
     {
-        if (args is [LambdaValue predicate])
-            return (true, list.FirstOrDefault(item => TypeHelpers.RequireBoolean(InvokeLambdaForLinq(predicate, [item], ctx, opts, ct))));
-        return (true, list.FirstOrDefault());
+        if (args is [var predicate] && IsLambda(predicate))
+            return (true, source.FirstOrDefault(item => TypeHelpers.RequireBoolean(InvokeAnyLambdaForLinq(predicate, [item], ctx, opts, ct))));
+        return (true, source.FirstOrDefault());
     }
 
-    internal static (bool, object?) HandleLast(List<object?> list, Type elementType, object?[] args, CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct)
+    internal static (bool, object?) HandleLast(IEnumerable<object?> source, Type elementType, object?[] args, CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct)
     {
-        if (args is [LambdaValue predicate])
-            return (true, list.Last(item => TypeHelpers.RequireBoolean(InvokeLambdaForLinq(predicate, [item], ctx, opts, ct))));
-        return (true, list.Last());
+        if (args is [var predicate] && IsLambda(predicate))
+            return (true, source.Last(item => TypeHelpers.RequireBoolean(InvokeAnyLambdaForLinq(predicate, [item], ctx, opts, ct))));
+        return (true, source.Last());
     }
 
-    internal static (bool, object?) HandleLastOrDefault(List<object?> list, Type elementType, object?[] args, CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct)
+    internal static (bool, object?) HandleLastOrDefault(IEnumerable<object?> source, Type elementType, object?[] args, CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct)
     {
-        if (args is [LambdaValue predicate])
-            return (true, list.LastOrDefault(item => TypeHelpers.RequireBoolean(InvokeLambdaForLinq(predicate, [item], ctx, opts, ct))));
-        return (true, list.LastOrDefault());
+        if (args is [var predicate] && IsLambda(predicate))
+            return (true, source.LastOrDefault(item => TypeHelpers.RequireBoolean(InvokeAnyLambdaForLinq(predicate, [item], ctx, opts, ct))));
+        return (true, source.LastOrDefault());
     }
 
-    internal static (bool, object?) HandleSingle(List<object?> list, Type elementType, object?[] args, CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct)
+    internal static (bool, object?) HandleSingle(IEnumerable<object?> source, Type elementType, object?[] args, CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct)
     {
-        if (args is [LambdaValue predicate])
-            return (true, list.Single(item => TypeHelpers.RequireBoolean(InvokeLambdaForLinq(predicate, [item], ctx, opts, ct))));
-        return (true, list.Single());
+        if (args is [var predicate] && IsLambda(predicate))
+            return (true, source.Single(item => TypeHelpers.RequireBoolean(InvokeAnyLambdaForLinq(predicate, [item], ctx, opts, ct))));
+        return (true, source.Single());
     }
 
-    internal static (bool, object?) HandleSingleOrDefault(List<object?> list, Type elementType, object?[] args, CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct)
+    internal static (bool, object?) HandleSingleOrDefault(IEnumerable<object?> source, Type elementType, object?[] args, CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct)
     {
-        if (args is [LambdaValue predicate])
-            return (true, list.SingleOrDefault(item => TypeHelpers.RequireBoolean(InvokeLambdaForLinq(predicate, [item], ctx, opts, ct))));
-        return (true, list.SingleOrDefault());
+        if (args is [var predicate] && IsLambda(predicate))
+            return (true, source.SingleOrDefault(item => TypeHelpers.RequireBoolean(InvokeAnyLambdaForLinq(predicate, [item], ctx, opts, ct))));
+        return (true, source.SingleOrDefault());
     }
 
-    internal static (bool, object?) HandleCount(List<object?> list, Type elementType, object?[] args, CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct)
+    internal static (bool, object?) HandleCount(IEnumerable<object?> source, Type elementType, object?[] args, CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct)
     {
-        if (args is [LambdaValue predicate])
-            return (true, list.Count(item => TypeHelpers.RequireBoolean(InvokeLambdaForLinq(predicate, [item], ctx, opts, ct))));
-        return (true, list.Count);
+        if (args is [var predicate] && IsLambda(predicate))
+            return (true, source.Count(item => TypeHelpers.RequireBoolean(InvokeAnyLambdaForLinq(predicate, [item], ctx, opts, ct))));
+        return (true, source.Count());
     }
 
-    internal static (bool, object?) HandleAny(List<object?> list, Type elementType, object?[] args, CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct)
+    internal static (bool, object?) HandleAny(IEnumerable<object?> source, Type elementType, object?[] args, CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct)
     {
-        if (args is [LambdaValue predicate])
-            return (true, list.Any(item => TypeHelpers.RequireBoolean(InvokeLambdaForLinq(predicate, [item], ctx, opts, ct))));
-        return (true, list.Any());
+        if (args is [var predicate] && IsLambda(predicate))
+            return (true, source.Any(item => TypeHelpers.RequireBoolean(InvokeAnyLambdaForLinq(predicate, [item], ctx, opts, ct))));
+        return (true, source.Any());
     }
 
-    internal static (bool, object?) HandleAll(List<object?> list, Type elementType, object?[] args, CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct)
+    internal static (bool, object?) HandleAll(IEnumerable<object?> source, Type elementType, object?[] args, CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct)
     {
-        if (args is not [LambdaValue predicate]) return (false, null);
-        return (true, list.All(item => TypeHelpers.RequireBoolean(InvokeLambdaForLinq(predicate, [item], ctx, opts, ct))));
+        if (args is not [var predicate] || !IsLambda(predicate)) return (false, null);
+        return (true, source.All(item => TypeHelpers.RequireBoolean(InvokeAnyLambdaForLinq(predicate, [item], ctx, opts, ct))));
     }
 
-    internal static (bool, object?) HandleSum(List<object?> list, Type elementType, object?[] args, CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct)
+    internal static (bool, object?) HandleSum(IEnumerable<object?> source, Type elementType, object?[] args, CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct)
     {
+        var list = source.ToList();
         if (list.Count == 0)
             return (true, 0);
 
-        var first = args is [LambdaValue sel]
-            ? InvokeLambdaForLinq(sel, [list.FirstOrDefault(x => x != null) ?? list[0]], ctx, opts, ct)
+        var first = args is [var sel] && IsLambda(sel)
+            ? InvokeAnyLambdaForLinq(sel, [list.FirstOrDefault(x => x != null) ?? list[0]], ctx, opts, ct)
             : list.FirstOrDefault(x => x != null) ?? list[0];
 
         var typeCode = first == null ? TypeCode.Empty : Type.GetTypeCode(first.GetType());
@@ -294,10 +315,10 @@ public static class LinqDispatcher
 
         dynamic sum = first switch { decimal => 0m, double => 0.0, float => 0f, long => 0L, _ => 0 };
 
-        if (args is [LambdaValue selector])
+        if (args is [var selector] && IsLambda(selector))
         {
             foreach (var item in list)
-                sum += (dynamic)InvokeLambdaForLinq(selector, [item], ctx, opts, ct)!;
+                sum += (dynamic)InvokeAnyLambdaForLinq(selector, [item], ctx, opts, ct)!;
         }
         else
         {
@@ -308,36 +329,37 @@ public static class LinqDispatcher
         return (true, (object)sum);
     }
 
-    internal static (bool, object?) HandleMin(List<object?> list, Type elementType, object?[] args, CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct)
+    internal static (bool, object?) HandleMin(IEnumerable<object?> source, Type elementType, object?[] args, CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct)
     {
-        if (args is [LambdaValue selector])
-            return (true, list.Min(item => InvokeLambdaForLinq(selector, [item], ctx, opts, ct)));
-        return (true, list.Min());
+        if (args is [var selector] && IsLambda(selector))
+            return (true, source.Min(item => InvokeAnyLambdaForLinq(selector, [item], ctx, opts, ct)));
+        return (true, source.Min());
     }
 
-    internal static (bool, object?) HandleMax(List<object?> list, Type elementType, object?[] args, CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct)
+    internal static (bool, object?) HandleMax(IEnumerable<object?> source, Type elementType, object?[] args, CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct)
     {
-        if (args is [LambdaValue selector])
-            return (true, list.Max(item => InvokeLambdaForLinq(selector, [item], ctx, opts, ct)));
-        return (true, list.Max());
+        if (args is [var selector] && IsLambda(selector))
+            return (true, source.Max(item => InvokeAnyLambdaForLinq(selector, [item], ctx, opts, ct)));
+        return (true, source.Max());
     }
 
-    internal static (bool, object?) HandleAverage(List<object?> list, Type elementType, object?[] args, CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct)
+    internal static (bool, object?) HandleAverage(IEnumerable<object?> source, Type elementType, object?[] args, CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct)
     {
+        var list = source.ToList();
         if (list.Count == 0)
             throw new InvalidOperationException("Sequence contains no elements");
 
-        var first = args is [LambdaValue sel]
-            ? InvokeLambdaForLinq(sel, [list.FirstOrDefault(x => x != null) ?? list[0]], ctx, opts, ct)
+        var first = args is [var sel] && IsLambda(sel)
+            ? InvokeAnyLambdaForLinq(sel, [list.FirstOrDefault(x => x != null) ?? list[0]], ctx, opts, ct)
             : list.FirstOrDefault(x => x != null) ?? list[0];
 
         var useDecimal = first is decimal;
         dynamic sum = first switch { decimal => 0m, double or float => 0.0, _ => 0.0 };
 
-        if (args is [LambdaValue selector])
+        if (args is [var selector] && IsLambda(selector))
         {
             foreach (var item in list)
-                sum += (dynamic)InvokeLambdaForLinq(selector, [item], ctx, opts, ct)!;
+                sum += (dynamic)InvokeAnyLambdaForLinq(selector, [item], ctx, opts, ct)!;
         }
         else
         {
@@ -348,168 +370,175 @@ public static class LinqDispatcher
         return (true, useDecimal ? sum / list.Count : sum / (double)list.Count);
     }
 
-    internal static (bool, object?) HandleTake(List<object?> list, Type elementType, object?[] args, CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct)
+    internal static (bool, object?) HandleTake(IEnumerable<object?> source, Type elementType, object?[] args, CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct)
     {
         if (args is not [var countObj] || countObj is not int count) return (false, null);
-        return (true, CreateTypedList(list.Take(count), elementType));
+        return (true, source.Take(count));
     }
 
-    internal static (bool, object?) HandleSkip(List<object?> list, Type elementType, object?[] args, CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct)
+    internal static (bool, object?) HandleSkip(IEnumerable<object?> source, Type elementType, object?[] args, CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct)
     {
         if (args is not [var countObj] || countObj is not int count) return (false, null);
-        return (true, CreateTypedList(list.Skip(count), elementType));
+        return (true, source.Skip(count));
     }
 
-    internal static (bool, object?) HandleOrderBy(List<object?> list, Type elementType, object?[] args, CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct)
+    internal static (bool, object?) HandleOrderBy(IEnumerable<object?> source, Type elementType, object?[] args, CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct)
     {
-        if (args is [LambdaValue keySelector])
-            return (true, CreateTypedList(list.OrderBy(item => InvokeLambdaForLinq(keySelector, [item], ctx, opts, ct)), elementType));
-        return (true, CreateTypedList(list.OrderBy(x => x), elementType));
+        if (args is [var keySelector] && IsLambda(keySelector))
+            return (true, source.OrderBy(item => InvokeAnyLambdaForLinq(keySelector, [item], ctx, opts, ct)));
+        return (true, source.OrderBy(x => x));
     }
 
-    internal static (bool, object?) HandleOrderByDescending(List<object?> list, Type elementType, object?[] args, CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct)
+    internal static (bool, object?) HandleOrderByDescending(IEnumerable<object?> source, Type elementType, object?[] args, CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct)
     {
-        if (args is [LambdaValue keySelector])
-            return (true, CreateTypedList(list.OrderByDescending(item => InvokeLambdaForLinq(keySelector, [item], ctx, opts, ct)), elementType));
-        return (true, CreateTypedList(list.OrderByDescending(x => x), elementType));
+        if (args is [var keySelector] && IsLambda(keySelector))
+            return (true, source.OrderByDescending(item => InvokeAnyLambdaForLinq(keySelector, [item], ctx, opts, ct)));
+        return (true, source.OrderByDescending(x => x));
     }
 
-    internal static (bool, object?) HandleDistinct(List<object?> list, Type elementType, object?[] args, CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct)
-        => (true, CreateTypedList(list.Distinct(), elementType));
+    internal static (bool, object?) HandleDistinct(IEnumerable<object?> source, Type elementType, object?[] args, CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct)
+        => (true, source.Distinct());
 
-    internal static (bool, object?) HandleReverse(List<object?> list, Type elementType, object?[] args, CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct)
-        => (true, CreateTypedList(list.AsEnumerable().Reverse(), elementType));
+    internal static (bool, object?) HandleReverse(IEnumerable<object?> source, Type elementType, object?[] args, CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct)
+        => (true, source.Reverse());
 
-    internal static (bool, object?) HandleToList(List<object?> list, Type elementType, object?[] args, CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct)
-        => (true, CreateTypedList(list, elementType));
+    internal static (bool, object?) HandleToList(IEnumerable<object?> source, Type elementType, object?[] args, CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct)
+        => (true, RuntimeHelpers.CreateTypedList(source.ToList()));
 
-    internal static (bool, object?) HandleToArray(List<object?> list, Type elementType, object?[] args, CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct)
+    internal static (bool, object?) HandleToArray(IEnumerable<object?> source, Type elementType, object?[] args, CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct)
     {
-        if (elementType == typeof(object))
-            return (true, list.ToArray());
-        var array = Array.CreateInstance(elementType, list.Count);
-        for (var i = 0; i < list.Count; i++)
-            array.SetValue(list[i], i);
-        return (true, array);
-    }
-
-    internal static (bool, object?) HandleConcat(List<object?> list, Type elementType, object?[] args, CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct)
-    {
-        if (args is not [IEnumerable other]) return (false, null);
-        return (true, CreateTypedList(list.Concat(other.Cast<object?>()), elementType));
-    }
-
-    internal static (bool, object?) HandleExcept(List<object?> list, Type elementType, object?[] args, CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct)
-    {
-        if (args is not [IEnumerable other]) return (false, null);
-        return (true, CreateTypedList(list.Except(other.Cast<object?>()), elementType));
-    }
-
-    internal static (bool, object?) HandleUnion(List<object?> list, Type elementType, object?[] args, CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct)
-    {
-        if (args is not [IEnumerable other]) return (false, null);
-        return (true, CreateTypedList(list.Union(other.Cast<object?>()), elementType));
-    }
-
-    internal static (bool, object?) HandleIntersect(List<object?> list, Type elementType, object?[] args, CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct)
-    {
-        if (args is not [IEnumerable other]) return (false, null);
-        return (true, CreateTypedList(list.Intersect(other.Cast<object?>()), elementType));
-    }
-
-    internal static (bool, object?) HandleZip(List<object?> list, Type elementType, object?[] args, CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct)
-    {
-        if (args is [IEnumerable other and not string, LambdaValue selector])
+        var list = source.ToList();
+        var typedList = RuntimeHelpers.CreateTypedList(list);
+        if (typedList is Array arr)
+            return (true, arr);
+        if (typedList is System.Collections.IList typedIList)
         {
-            var results = list.Zip(other.Cast<object?>(), (a, b) => InvokeLambdaForLinq(selector, [a, b], ctx, opts, ct)).ToList();
-            return (true, RuntimeHelpers.CreateTypedList(results));
+            var listElementType = typedList.GetType().GetGenericArguments().FirstOrDefault() ?? typeof(object);
+            var array = Array.CreateInstance(listElementType, typedIList.Count);
+            for (var i = 0; i < typedIList.Count; i++)
+                array.SetValue(typedIList[i], i);
+            return (true, array);
+        }
+        return (true, list.ToArray());
+    }
+
+    internal static (bool, object?) HandleConcat(IEnumerable<object?> source, Type elementType, object?[] args, CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct)
+    {
+        if (args is not [IEnumerable other]) return (false, null);
+        return (true, source.Concat(other.Cast<object?>()));
+    }
+
+    internal static (bool, object?) HandleExcept(IEnumerable<object?> source, Type elementType, object?[] args, CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct)
+    {
+        if (args is not [IEnumerable other]) return (false, null);
+        return (true, source.Except(other.Cast<object?>()));
+    }
+
+    internal static (bool, object?) HandleUnion(IEnumerable<object?> source, Type elementType, object?[] args, CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct)
+    {
+        if (args is not [IEnumerable other]) return (false, null);
+        return (true, source.Union(other.Cast<object?>()));
+    }
+
+    internal static (bool, object?) HandleIntersect(IEnumerable<object?> source, Type elementType, object?[] args, CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct)
+    {
+        if (args is not [IEnumerable other]) return (false, null);
+        return (true, source.Intersect(other.Cast<object?>()));
+    }
+
+    internal static (bool, object?) HandleZip(IEnumerable<object?> source, Type elementType, object?[] args, CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct)
+    {
+        if (args is [IEnumerable other and not string, var selector] && IsLambda(selector))
+        {
+            return (true, source.Zip(other.Cast<object?>(), (a, b) => InvokeAnyLambdaForLinq(selector, [a, b], ctx, opts, ct)));
         }
 
         if (args is [IEnumerable zipOther and not string])
         {
-            var otherList = zipOther.Cast<object?>().ToList();
-            return (true, list.Zip(otherList, (first, second) => (object?)new Dictionary<string, object?>
+            return (true, source.Zip(zipOther.Cast<object?>(), (first, second) => (object?)new Dictionary<string, object?>
             {
                 ["First"] = first,
                 ["Second"] = second
-            }).ToList());
+            }));
         }
 
         return (false, null);
     }
 
-    internal static (bool, object?) HandleContains(List<object?> list, Type elementType, object?[] args, CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct)
+    internal static (bool, object?) HandleContains(IEnumerable<object?> source, Type elementType, object?[] args, CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct)
     {
         if (args is not [var item]) return (false, null);
-        return (true, list.Contains(item));
+        return (true, source.Contains(item));
     }
 
-    internal static (bool, object?) HandleSequenceEqual(List<object?> list, Type elementType, object?[] args, CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct)
+    internal static (bool, object?) HandleSequenceEqual(IEnumerable<object?> source, Type elementType, object?[] args, CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct)
     {
         if (args is not [IEnumerable other]) return (false, null);
-        return (true, list.SequenceEqual(other.Cast<object?>()));
+        return (true, source.SequenceEqual(other.Cast<object?>()));
     }
 
-    internal static (bool, object?) HandleAggregate(List<object?> list, Type elementType, object?[] args, CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct)
+    internal static (bool, object?) HandleAggregate(IEnumerable<object?> source, Type elementType, object?[] args, CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct)
     {
-        if (args is [LambdaValue func])
-            return (true, list.Aggregate((acc, item) => InvokeLambdaForLinq(func, [acc, item], ctx, opts, ct)));
-        if (args is [var seed, LambdaValue func2])
-            return (true, list.Aggregate(seed, (acc, item) => InvokeLambdaForLinq(func2, [acc, item], ctx, opts, ct)));
+        if (args is [var func] && IsLambda(func))
+            return (true, source.Aggregate((acc, item) => InvokeAnyLambdaForLinq(func, [acc, item], ctx, opts, ct)));
+        if (args is [var seed, var func2] && IsLambda(func2))
+            return (true, source.Aggregate(seed, (acc, item) => InvokeAnyLambdaForLinq(func2, [acc, item], ctx, opts, ct)));
         return (false, null);
     }
 
-    internal static (bool, object?) HandleGroupBy(List<object?> list, Type elementType, object?[] args, CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct)
+    internal static (bool, object?) HandleGroupBy(IEnumerable<object?> source, Type elementType, object?[] args, CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct)
     {
-        if (args is not [LambdaValue keySelector]) return (false, null);
-        var groups = list.GroupBy(item => InvokeLambdaForLinq(keySelector, [item], ctx, opts, ct));
+        if (args is not [var keySelector] || !IsLambda(keySelector)) return (false, null);
+        var groups = source.GroupBy(item => InvokeAnyLambdaForLinq(keySelector, [item], ctx, opts, ct));
         return (true, groups.Select(g => (object?)new Dictionary<string, object?>
         {
             ["Key"] = g.Key,
             ["Items"] = CreateTypedList(g, elementType)
-        }).ToList());
+        }));
     }
 
-    internal static (bool, object?) HandleElementAt(List<object?> list, Type elementType, object?[] args, CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct)
+    internal static (bool, object?) HandleElementAt(IEnumerable<object?> source, Type elementType, object?[] args, CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct)
     {
         if (args is not [var indexObj]) return (false, null);
         var index = Convert.ToInt32(indexObj);
-        return (true, list.ElementAt(index));
+        return (true, source.ElementAt(index));
     }
 
-    internal static (bool, object?) HandleElementAtOrDefault(List<object?> list, Type elementType, object?[] args, CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct)
+    internal static (bool, object?) HandleElementAtOrDefault(IEnumerable<object?> source, Type elementType, object?[] args, CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct)
     {
         if (args is not [var indexObj]) return (false, null);
         var index = Convert.ToInt32(indexObj);
-        return (true, list.ElementAtOrDefault(index));
+        return (true, source.ElementAtOrDefault(index));
     }
 
-    internal static (bool, object?) HandleDefaultIfEmpty(List<object?> list, Type elementType, object?[] args, CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct)
+    internal static (bool, object?) HandleDefaultIfEmpty(IEnumerable<object?> source, Type elementType, object?[] args, CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct)
     {
         if (args is [var defaultValue])
-            return (true, CreateTypedList(list.DefaultIfEmpty(defaultValue), elementType));
-        return (true, CreateTypedList(list.DefaultIfEmpty(), elementType));
+            return (true, source.DefaultIfEmpty(defaultValue));
+        return (true, source.DefaultIfEmpty());
     }
 
-    internal static (bool, object?) HandleOfType(List<object?> list, Type elementType, object?[] args, CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct)
-        => (true, CreateTypedList(list.Where(x => x != null), elementType));
+    internal static (bool, object?) HandleOfType(IEnumerable<object?> source, Type elementType, object?[] args, CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct)
+        => (true, source.Where(x => x != null));
 
-    internal static (bool, object?) HandleCast(List<object?> list, Type elementType, object?[] args, CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct)
-        => (true, CreateTypedList(list, elementType));
+    internal static (bool, object?) HandleCast(IEnumerable<object?> source, Type elementType, object?[] args, CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct)
+        => (true, source);
 
-    internal static (bool, object?) HandleMinBy(List<object?> list, Type elementType, object?[] args, CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct)
+    internal static (bool, object?) HandleMinBy(IEnumerable<object?> source, Type elementType, object?[] args, CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct)
     {
-        if (args is not [LambdaValue selector]) return (false, null);
+        if (args is not [var selector] || !IsLambda(selector)) return (false, null);
+        var list = source.ToList();
         if (list.Count == 0)
             throw new InvalidOperationException("Sequence contains no elements");
-        return (true, list.MinBy(item => InvokeLambdaForLinq(selector, [item], ctx, opts, ct)));
+        return (true, list.MinBy(item => InvokeAnyLambdaForLinq(selector, [item], ctx, opts, ct)));
     }
 
-    internal static (bool, object?) HandleMaxBy(List<object?> list, Type elementType, object?[] args, CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct)
+    internal static (bool, object?) HandleMaxBy(IEnumerable<object?> source, Type elementType, object?[] args, CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct)
     {
-        if (args is not [LambdaValue selector]) return (false, null);
+        if (args is not [var selector] || !IsLambda(selector)) return (false, null);
+        var list = source.ToList();
         if (list.Count == 0)
             throw new InvalidOperationException("Sequence contains no elements");
-        return (true, list.MaxBy(item => InvokeLambdaForLinq(selector, [item], ctx, opts, ct)));
+        return (true, list.MaxBy(item => InvokeAnyLambdaForLinq(selector, [item], ctx, opts, ct)));
     }
 }

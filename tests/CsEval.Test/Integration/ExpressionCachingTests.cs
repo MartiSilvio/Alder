@@ -60,17 +60,19 @@ public class ExpressionCachingTests(CompilationMode mode)
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         engine.SetVariable("items", new List<int> { 1, 2, 3, 4, 5 });
 
-        var expression = engine.Parse("items.Where((x) => x > threshold).Select((x) => x * multiplier)");
+        var expression = engine.Parse("items.Where((x) => x > threshold).Select((x) => x * multiplier).ToList()");
 
         engine.SetVariable("threshold", 2);
         engine.SetVariable("multiplier", 2);
-        var result1 = engine.Evaluate(expression) as IList;
-        Assert.That(result1, Is.EqualTo(new List<object?> { 6, 8, 10 }));
+        var result1 = engine.Evaluate(expression);
+        Assert.That(result1, Is.InstanceOf<IList>());
+        Assert.That(result1, Is.EqualTo(new List<int> { 6, 8, 10 }));
 
         engine.SetVariable("threshold", 3);
         engine.SetVariable("multiplier", 10);
-        var result2 = engine.Evaluate(expression) as IList;
-        Assert.That(result2, Is.EqualTo(new List<object?> { 40, 50 }));
+        var result2 = engine.Evaluate(expression);
+        Assert.That(result2, Is.InstanceOf<IList>());
+        Assert.That(result2, Is.EqualTo(new List<int> { 40, 50 }));
     }
 
     [Test]

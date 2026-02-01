@@ -435,11 +435,12 @@ public class CompilationTests
     {
         var engine = new CsEvalEngine()
             .SetVariable("items", new List<int> { 1, 2, 3 });
-        var expr = engine.Parse("items.Where((x) => x > 1)");
+        var expr = engine.Parse("items.Where((x) => x > 1).ToList()");
 
         Assert.That(expr.TryCompile(), Is.True);
 
-        var result = engine.Evaluate(expr) as IList;
+        var result = engine.Evaluate(expr);
+        Assert.That(result, Is.InstanceOf<IList>());
         Assert.That(result, Has.Count.EqualTo(2));
     }
 

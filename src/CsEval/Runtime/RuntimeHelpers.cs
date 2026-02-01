@@ -138,4 +138,9 @@ public static class RuntimeHelpers
 
         return typedList;
     }
+
+    public static object? GetLambdaArg(object?[] args, int index)
+    {
+        return index < args.Length ? args[index] : null;
+    }
 }

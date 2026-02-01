@@ -1,7 +1,7 @@
 # ECMA-334 C# Specification Compliance Audit
 
 **Specification Version:** ECMA-334 7th Edition (December 2023)
-**CsEval Commit:** 6ecaa02
+**CsEval Commit:** b78fdf6
 **Audit Date:** 2026-02-01
 
 ---

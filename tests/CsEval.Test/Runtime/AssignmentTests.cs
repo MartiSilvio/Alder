@@ -291,15 +291,14 @@ public class AssignmentTests(CompilationMode mode)
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         engine.SetVariable("numbers", new List<int> { 1, 2, 3, 4, 5 });
 
-        // CsEval LINQ returns List<object?>, so use a new variable for LINQ result
         var result = engine.Evaluate(@"
         {
-            var filtered = numbers.Where(x => x > 2);
+            var filtered = numbers.Where(x => x > 2).ToList();
             return filtered;
-        }") as IList;
+        }");
 
-        Assert.That(result, Is.Not.Null);
-        Assert.That(result, Is.EqualTo(new List<object?> { 3, 4, 5 }));
+        Assert.That(result, Is.InstanceOf<IList>());
+        Assert.That(result, Is.EqualTo(new List<int> { 3, 4, 5 }));
     }
 
     [Test]
@@ -310,12 +309,12 @@ public class AssignmentTests(CompilationMode mode)
         {
             var items = [1, 2, 3];
             items = [...items, 4, 5];
-            var filtered = items.Where(x => x > 2);
+            var filtered = items.Where(x => x > 2).ToList();
             return filtered;
-        }") as IList;
+        }");
 
-        Assert.That(result, Is.Not.Null);
-        Assert.That(result, Is.EqualTo(new List<object?> { 3, 4, 5 }));
+        Assert.That(result, Is.InstanceOf<IList>());
+        Assert.That(result, Is.EqualTo(new List<int> { 3, 4, 5 }));
     }
 
 

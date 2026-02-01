@@ -122,16 +122,17 @@ public class ObjectMergeTests(CompilationMode mode)
             new TestPerson { Name = "Jane", Age = 25 }
         });
 
-        var result = engine.Evaluate("people.Select(p => p + new { Status = \"Active\" })") as IList;
-        Assert.That(result, Is.Not.Null);
+        var result = engine.Evaluate("people.Select(p => p + new { Status = \"Active\" }).ToList()");
+        Assert.That(result, Is.InstanceOf<IList>());
         Assert.That(result, Has.Count.EqualTo(2));
+        var list = (IList)result!;
 
-        var first = result![0] as IDictionary<string, object?>;
+        var first = list[0] as IDictionary<string, object?>;
         Assert.That(first, Is.Not.Null);
         Assert.That(first!["Name"], Is.EqualTo("John"));
         Assert.That(first["Status"], Is.EqualTo("Active"));
 
-        var second = result[1] as IDictionary<string, object?>;
+        var second = list[1] as IDictionary<string, object?>;
         Assert.That(second, Is.Not.Null);
         Assert.That(second!["Name"], Is.EqualTo("Jane"));
         Assert.That(second["Status"], Is.EqualTo("Active"));

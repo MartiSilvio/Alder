@@ -90,8 +90,8 @@ public class ControlFlowTests(CompilationMode mode)
     public void Eval_Ternary_WithArrays()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate("true ? [] : [1, 2, 3]") as IList;
-        Assert.That(result, Is.Not.Null);
+        var result = engine.Evaluate("true ? [] : [1, 2, 3]");
+        Assert.That(result, Is.InstanceOf<IList>());
         Assert.That(result, Has.Count.EqualTo(0));
     }
 

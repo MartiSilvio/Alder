@@ -3,201 +3,713 @@ namespace CsEval.Test.Runtime;
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
 [TestFixture(CompilationMode.StrictCompiled)]
-public class LinqTests(CompilationMode mode) 
+public class LinqTests(CompilationMode mode)
 {
-    #region Where
-
-    [Test]
-    public void Where_WithPredicate_FiltersElements()
+    private async Task RunParityTestAsync(string expr, Dictionary<string, object?> variables, object expected)
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        engine.SetVariable("numbers", new List<int> { 1, 2, 3, 4, 5 });
+        foreach (var (name, value) in variables)
+            engine.SetVariable(name, value);
 
-        var result = engine.Evaluate("numbers.Where((x) => x > 2)") as IList;
-        Assert.That(result, Has.Count.EqualTo(3));
-        Assert.That(result, Is.EqualTo(new[] { 3, 4, 5 }));
+        var result = engine.Evaluate(expr);
+        var csharpResult = await TestHelpers.EvaluateCSharpAsync(expr, variables);
+
+        Assert.That(result, Is.EqualTo(expected));
+        Assert.That(result, Is.EqualTo(csharpResult), "C# parity");
     }
 
     [Test]
-    public void Where_WithoutParens_FiltersElements()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        engine.SetVariable("numbers", new List<int> { 1, 2, 3, 4, 5 });
-
-        var result = engine.Evaluate("numbers.Where(x => x > 2)") as IList;
-        Assert.That(result, Has.Count.EqualTo(3));
-    }
+    [TestCaseSource(nameof(WhereTestCases))]
+    public async Task Where(string expr, Dictionary<string, object?> variables, object expected)
+        => await RunParityTestAsync(expr, variables, expected);
 
     [Test]
-    public void Where_EmptyResult_ReturnsEmptyList()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        engine.SetVariable("numbers", new List<int> { 1, 2, 3 });
-
-        var result = engine.Evaluate("numbers.Where(x => x > 10)") as IList;
-        Assert.That(result, Is.Empty);
-    }
+    [TestCaseSource(nameof(SelectTestCases))]
+    public async Task Select(string expr, Dictionary<string, object?> variables, object expected)
+        => await RunParityTestAsync(expr, variables, expected);
 
     [Test]
-    public void Filter_Alias_WorksAsWhere()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate("[1, 2, 3, 4].filter(x => x > 2)") as IList;
-        Assert.That(result, Is.EqualTo(new[] { 3, 4 }));
-    }
-
-    #endregion
-
-    #region Select
+    [TestCaseSource(nameof(AggregateTestCases))]
+    public async Task Aggregate(string expr, Dictionary<string, object?> variables, object expected)
+        => await RunParityTestAsync(expr, variables, expected);
 
     [Test]
-    public void Select_WithSelector_ProjectsElements()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        engine.SetVariable("numbers", new List<int> { 1, 2, 3 });
-
-        var result = engine.Evaluate("numbers.Select((x) => x * 2)") as IList;
-        Assert.That(result, Is.EqualTo(new[] { 2, 4, 6 }));
-    }
+    [TestCaseSource(nameof(FirstLastTestCases))]
+    public async Task FirstLast(string expr, Dictionary<string, object?> variables, object expected)
+        => await RunParityTestAsync(expr, variables, expected);
 
     [Test]
-    public void Select_WithMemberAccess_ProjectsProperty()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        engine.SetVariable("items", new List<object> {
-            new { Name = "Alice" },
-            new { Name = "Bob" }
-        });
-
-        var result = engine.Evaluate("items.Select(x => x.Name)") as IList;
-        Assert.That(result, Is.EqualTo(new[] { "Alice", "Bob" }));
-    }
+    [TestCaseSource(nameof(SingleTestCases))]
+    public async Task Single(string expr, Dictionary<string, object?> variables, object expected)
+        => await RunParityTestAsync(expr, variables, expected);
 
     [Test]
-    public void Map_Alias_WorksAsSelect()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate("[1, 2, 3].map(x => x * 2)") as IList;
-        Assert.That(result, Is.EqualTo(new[] { 2, 4, 6 }));
-    }
-
-    #endregion
-
-    #region SelectMany
+    [TestCaseSource(nameof(AnyAllTestCases))]
+    public async Task AnyAll(string expr, Dictionary<string, object?> variables, object expected)
+        => await RunParityTestAsync(expr, variables, expected);
 
     [Test]
-    public void SelectMany_FlattensNestedCollections()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        engine.SetVariable("nested", new List<List<int>> {
-            new() { 1, 2 },
-            new() { 3, 4 }
-        });
-
-        var result = engine.Evaluate("nested.SelectMany(x => x)") as IList;
-        Assert.That(result, Is.EqualTo(new[] { 1, 2, 3, 4 }));
-    }
+    [TestCaseSource(nameof(CountTestCases))]
+    public async Task Count(string expr, Dictionary<string, object?> variables, object expected)
+        => await RunParityTestAsync(expr, variables, expected);
 
     [Test]
-    public void SelectMany_WithProjection_FlattensAndProjects()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        engine.SetVariable("items", new List<Dictionary<string, object?>> {
-            new() { ["Tags"] = new List<string> { "a", "b" } },
-            new() { ["Tags"] = new List<string> { "c" } }
-        });
-
-        var result = engine.Evaluate("items.SelectMany(x => x.Tags)") as IList;
-        Assert.That(result, Is.EqualTo(new[] { "a", "b", "c" }));
-    }
+    [TestCaseSource(nameof(SumAverageTestCases))]
+    public async Task SumAverage(string expr, Dictionary<string, object?> variables, object expected)
+        => await RunParityTestAsync(expr, variables, expected);
 
     [Test]
-    public void FlatMap_Alias_WorksAsSelectMany()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        engine.SetVariable("nested", new List<List<int>> {
-            new() { 1, 2 },
-            new() { 3, 4 }
-        });
-
-        var result = engine.Evaluate("nested.flatMap(x => x)") as IList;
-        Assert.That(result, Is.EqualTo(new[] { 1, 2, 3, 4 }));
-    }
-
-    #endregion
-
-    #region Aggregate
+    [TestCaseSource(nameof(MinMaxTestCases))]
+    public async Task MinMax(string expr, Dictionary<string, object?> variables, object expected)
+        => await RunParityTestAsync(expr, variables, expected);
 
     [Test]
-    public void Aggregate_WithSeed_ReducesCollection()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        engine.SetVariable("numbers", new List<int> { 1, 2, 3, 4 });
-
-        var result = engine.Evaluate("numbers.Aggregate(0, (acc, x) => acc + x)");
-        Assert.That(result, Is.EqualTo(10));
-    }
+    [TestCaseSource(nameof(OrderByTestCases))]
+    public async Task OrderBy(string expr, Dictionary<string, object?> variables, object expected)
+        => await RunParityTestAsync(expr, variables, expected);
 
     [Test]
-    public void Aggregate_WithoutSeed_ReducesCollection()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        engine.SetVariable("numbers", new List<int> { 1, 2, 3, 4 });
-
-        var result = engine.Evaluate("numbers.Aggregate((acc, x) => acc + x)");
-        Assert.That(result, Is.EqualTo(10));
-    }
+    [TestCaseSource(nameof(DistinctTakeSkipTestCases))]
+    public async Task DistinctTakeSkip(string expr, Dictionary<string, object?> variables, object expected)
+        => await RunParityTestAsync(expr, variables, expected);
 
     [Test]
-    public void Aggregate_StringConcat_ConcatenatesStrings()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        engine.SetVariable("words", new List<string> { "a", "b", "c" });
-
-        var result = engine.Evaluate("words.Aggregate(\"\", (acc, x) => acc + x)");
-        Assert.That(result, Is.EqualTo("abc"));
-    }
+    [TestCaseSource(nameof(ContainsReverseTestCases))]
+    public async Task ContainsReverse(string expr, Dictionary<string, object?> variables, object expected)
+        => await RunParityTestAsync(expr, variables, expected);
 
     [Test]
-    public void Reduce_Alias_WithoutSeed()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate("[1, 2, 3].reduce((a, b) => a + b)");
-        Assert.That(result, Is.EqualTo(6));
-    }
+    [TestCaseSource(nameof(SetOperationsTestCases))]
+    public async Task SetOperations(string expr, Dictionary<string, object?> variables, object expected)
+        => await RunParityTestAsync(expr, variables, expected);
 
     [Test]
-    public void Reduce_Alias_WithSeed_JsStyle()
+    [TestCaseSource(nameof(ConversionTestCases))]
+    public async Task Conversion(string expr, Dictionary<string, object?> variables, object expected)
+        => await RunParityTestAsync(expr, variables, expected);
+
+    [Test]
+    [TestCaseSource(nameof(ChainedTestCases))]
+    public async Task Chained(string expr, Dictionary<string, object?> variables, object expected)
+        => await RunParityTestAsync(expr, variables, expected);
+    
+    #region Where Test Cases
+
+    private static IEnumerable<TestCaseData> WhereTestCases()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        // JS style: reduce(fn, seed) - function first, seed second
-        var result = engine.Evaluate("[1, 2, 3].reduce((acc, x) => acc + x, 10)");
-        Assert.That(result, Is.EqualTo(16));
+        yield return new TestCaseData(
+            "numbers.Where((x) => x > 2).ToList()",
+            new Dictionary<string, object?>
+            {
+                ["numbers"] = new List<int> { 1, 2, 3, 4, 5 }
+            },
+            new[] { 3, 4, 5 }
+        ).SetName("Where_WithPredicate_FiltersElements");
+
+        yield return new TestCaseData(
+            "numbers.Where(x => x > 2).ToList()",
+            new Dictionary<string, object?>
+            {
+                ["numbers"] = new List<int> { 1, 2, 3, 4, 5 }
+            },
+            new[] { 3, 4, 5 }
+        ).SetName("Where_WithoutParens_FiltersElements");
+
+        yield return new TestCaseData(
+            "numbers.Where(x => x > 10).ToList()",
+            new Dictionary<string, object?>
+            {
+                ["numbers"] = new List<int> { 1, 2, 3 }
+            },
+            Array.Empty<int>()
+        ).SetName("Where_EmptyResult_ReturnsEmptyList");
     }
 
     #endregion
 
-    #region First / FirstOrDefault
+    #region Select Test Cases
 
-    [Test]
-    public void First_ReturnsFirstElement()
+    private static IEnumerable<TestCaseData> SelectTestCases()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        engine.SetVariable("numbers", new List<int> { 1, 2, 3 });
-
-        var result = engine.Evaluate("numbers.First()");
-        Assert.That(result, Is.EqualTo(1));
+        yield return new TestCaseData(
+            "numbers.Select((x) => x * 2).ToList()",
+            new Dictionary<string, object?>
+            {
+                ["numbers"] = new List<int> { 1, 2, 3 }
+            },
+            new[] { 2, 4, 6 }
+        ).SetName("Select_WithSelector_ProjectsElements");
     }
 
+    #endregion
+
+
+    #region Aggregate Test Cases
+
+    private static IEnumerable<TestCaseData> AggregateTestCases()
+    {
+        yield return new TestCaseData(
+            "numbers.Aggregate(0, (acc, x) => acc + x)",
+            new Dictionary<string, object?>
+            {
+                ["numbers"] = new List<int> { 1, 2, 3, 4 }
+            },
+            10
+        ).SetName("Aggregate_WithSeed_ReducesCollection");
+
+        yield return new TestCaseData(
+            "numbers.Aggregate((acc, x) => acc + x)",
+            new Dictionary<string, object?>
+            {
+                ["numbers"] = new List<int> { 1, 2, 3, 4 }
+            },
+            10
+        ).SetName("Aggregate_WithoutSeed_ReducesCollection");
+
+        yield return new TestCaseData(
+            "words.Aggregate(\"\", (acc, x) => acc + x)",
+            new Dictionary<string, object?>
+            {
+                ["words"] = new List<string> { "a", "b", "c" }
+            },
+            "abc"
+        ).SetName("Aggregate_StringConcat_ConcatenatesStrings");
+    }
+
+    #endregion
+
+    #region First / Last Test Cases
+
+    private static IEnumerable<TestCaseData> FirstLastTestCases()
+    {
+        yield return new TestCaseData(
+            "numbers.First()",
+            new Dictionary<string, object?>
+            {
+                ["numbers"] = new List<int> { 1, 2, 3 }
+            },
+            1
+        ).SetName("First_ReturnsFirstElement");
+
+        yield return new TestCaseData(
+            "numbers.First(x => x > 3)",
+            new Dictionary<string, object?>
+            {
+                ["numbers"] = new List<int> { 1, 2, 3, 4, 5 }
+            },
+            4
+        ).SetName("First_WithPredicate_ReturnsFirstMatching");
+
+        yield return new TestCaseData(
+            "numbers.FirstOrDefault()",
+            new Dictionary<string, object?>
+            {
+                ["numbers"] = new List<int> { 1, 2, 3 }
+            },
+            1
+        ).SetName("FirstOrDefault_ReturnsFirstElement");
+
+        yield return new TestCaseData(
+            "numbers.Last()",
+            new Dictionary<string, object?>
+            {
+                ["numbers"] = new List<int> { 1, 2, 3 }
+            },
+            3
+        ).SetName("Last_ReturnsLastElement");
+
+        yield return new TestCaseData(
+            "numbers.Last(x => x < 4)",
+            new Dictionary<string, object?>
+            {
+                ["numbers"] = new List<int> { 1, 2, 3, 4, 5 }
+            },
+            3
+        ).SetName("Last_WithPredicate_ReturnsLastMatching");
+    }
+
+    #endregion
+
+    #region Single Test Cases
+
+    private static IEnumerable<TestCaseData> SingleTestCases()
+    {
+        yield return new TestCaseData(
+            "numbers.Single()",
+            new Dictionary<string, object?>
+            {
+                ["numbers"] = new List<int> { 42 }
+            },
+            42
+        ).SetName("Single_SingleElement_ReturnsIt");
+
+        yield return new TestCaseData(
+            "numbers.Single(x => x == 2)",
+            new Dictionary<string, object?>
+            {
+                ["numbers"] = new List<int> { 1, 2, 3 }
+            },
+            2
+        ).SetName("Single_WithPredicate_ReturnsMatching");
+    }
+
+    #endregion
+
+    #region Any / All Test Cases
+
+    private static IEnumerable<TestCaseData> AnyAllTestCases()
+    {
+        yield return new TestCaseData(
+            "numbers.Any()",
+            new Dictionary<string, object?>
+            {
+                ["numbers"] = new List<int> { 1, 2, 3 }
+            },
+            true
+        ).SetName("Any_NonEmpty_ReturnsTrue");
+
+        yield return new TestCaseData(
+            "numbers.Any()",
+            new Dictionary<string, object?>
+            {
+                ["numbers"] = new List<int>()
+            },
+            false
+        ).SetName("Any_Empty_ReturnsFalse");
+
+        yield return new TestCaseData(
+            "numbers.Any(x => x > 2)",
+            new Dictionary<string, object?>
+            {
+                ["numbers"] = new List<int> { 1, 2, 3 }
+            },
+            true
+        ).SetName("Any_WithPredicate_MatchExists_ReturnsTrue");
+
+        yield return new TestCaseData(
+            "numbers.Any(x => x > 10)",
+            new Dictionary<string, object?>
+            {
+                ["numbers"] = new List<int> { 1, 2, 3 }
+            },
+            false
+        ).SetName("Any_WithPredicate_NoMatch_ReturnsFalse");
+
+        yield return new TestCaseData(
+            "numbers.All(x => x > 0)",
+            new Dictionary<string, object?>
+            {
+                ["numbers"] = new List<int> { 2, 4, 6 }
+            },
+            true
+        ).SetName("All_AllMatch_ReturnsTrue");
+
+        yield return new TestCaseData(
+            "numbers.All(x => x > 1)",
+            new Dictionary<string, object?>
+            {
+                ["numbers"] = new List<int> { 1, 2, 3 }
+            },
+            false
+        ).SetName("All_SomeDontMatch_ReturnsFalse");
+    }
+
+    #endregion
+
+    #region Count Test Cases
+
+    private static IEnumerable<TestCaseData> CountTestCases()
+    {
+        yield return new TestCaseData(
+            "numbers.Count()",
+            new Dictionary<string, object?>
+            {
+                ["numbers"] = new List<int> { 1, 2, 3, 4, 5 }
+            },
+            5
+        ).SetName("Count_ReturnsElementCount");
+
+        yield return new TestCaseData(
+            "numbers.Count(x => x > 2)",
+            new Dictionary<string, object?>
+            {
+                ["numbers"] = new List<int> { 1, 2, 3, 4, 5 }
+            },
+            3
+        ).SetName("Count_WithPredicate_ReturnsMatchingCount");
+
+        yield return new TestCaseData(
+            "numbers.Count()",
+            new Dictionary<string, object?>
+            {
+                ["numbers"] = new List<int>()
+            },
+            0
+        ).SetName("Count_EmptyCollection_ReturnsZero");
+    }
+
+    #endregion
+
+    #region Sum / Average Test Cases
+
+    private static IEnumerable<TestCaseData> SumAverageTestCases()
+    {
+        yield return new TestCaseData(
+            "numbers.Sum()",
+            new Dictionary<string, object?>
+            {
+                ["numbers"] = new List<int> { 1, 2, 3, 4, 5 }
+            },
+            15
+        ).SetName("Sum_ReturnsSum");
+
+        yield return new TestCaseData(
+            "numbers.Average()",
+            new Dictionary<string, object?>
+            {
+                ["numbers"] = new List<int> { 10, 20, 30 }
+            },
+            20.0
+        ).SetName("Average_ReturnsAverage");
+    }
+
+    #endregion
+
+    #region Min / Max Test Cases
+
+    private static IEnumerable<TestCaseData> MinMaxTestCases()
+    {
+        yield return new TestCaseData(
+            "numbers.Min()",
+            new Dictionary<string, object?>
+            {
+                ["numbers"] = new List<int> { 5, 2, 8, 1, 9 }
+            },
+            1
+        ).SetName("Min_ReturnsMinimum");
+
+        yield return new TestCaseData(
+            "numbers.Max()",
+            new Dictionary<string, object?>
+            {
+                ["numbers"] = new List<int> { 5, 2, 8, 1, 9 }
+            },
+            9
+        ).SetName("Max_ReturnsMaximum");
+    }
+
+    #endregion
+
+    #region OrderBy Test Cases
+
+    private static IEnumerable<TestCaseData> OrderByTestCases()
+    {
+        yield return new TestCaseData(
+            "numbers.OrderBy(x => x).ToList()",
+            new Dictionary<string, object?>
+            {
+                ["numbers"] = new List<int> { 3, 1, 4, 1, 5 }
+            },
+            new[] { 1, 1, 3, 4, 5 }
+        ).SetName("OrderBy_SortsAscending");
+
+        yield return new TestCaseData(
+            "numbers.OrderByDescending(x => x).ToList()",
+            new Dictionary<string, object?>
+            {
+                ["numbers"] = new List<int> { 3, 1, 4, 1, 5 }
+            },
+            new[] { 5, 4, 3, 1, 1 }
+        ).SetName("OrderByDescending_SortsDescending");
+    }
+
+    #endregion
+
+    #region Distinct / Take / Skip Test Cases
+
+    private static IEnumerable<TestCaseData> DistinctTakeSkipTestCases()
+    {
+        yield return new TestCaseData(
+            "numbers.Distinct().ToList()",
+            new Dictionary<string, object?>
+            {
+                ["numbers"] = new List<int> { 1, 2, 2, 3, 3, 3 }
+            },
+            new[] { 1, 2, 3 }
+        ).SetName("Distinct_RemovesDuplicates");
+
+        yield return new TestCaseData(
+            "numbers.Take(3).ToList()",
+            new Dictionary<string, object?>
+            {
+                ["numbers"] = new List<int> { 1, 2, 3, 4, 5 }
+            },
+            new[] { 1, 2, 3 }
+        ).SetName("Take_ReturnsFirstN");
+
+        yield return new TestCaseData(
+            "numbers.Take(10).ToList()",
+            new Dictionary<string, object?>
+            {
+                ["numbers"] = new List<int> { 1, 2 }
+            },
+            new[] { 1, 2 }
+        ).SetName("Take_MoreThanCount_ReturnsAll");
+
+        yield return new TestCaseData(
+            "numbers.Skip(2).ToList()",
+            new Dictionary<string, object?>
+            {
+                ["numbers"] = new List<int> { 1, 2, 3, 4, 5 }
+            },
+            new[] { 3, 4, 5 }
+        ).SetName("Skip_SkipsFirstN");
+
+        yield return new TestCaseData(
+            "numbers.Skip(10).ToList()",
+            new Dictionary<string, object?>
+            {
+                ["numbers"] = new List<int> { 1, 2 }
+            },
+            Array.Empty<int>()
+        ).SetName("Skip_MoreThanCount_ReturnsEmpty");
+    }
+
+    #endregion
+
+    #region Contains / Reverse Test Cases
+
+    private static IEnumerable<TestCaseData> ContainsReverseTestCases()
+    {
+        yield return new TestCaseData(
+            "numbers.Contains(2)",
+            new Dictionary<string, object?>
+            {
+                ["numbers"] = new List<int> { 1, 2, 3 }
+            },
+            true
+        ).SetName("Contains_ElementExists_ReturnsTrue");
+
+        yield return new TestCaseData(
+            "numbers.Contains(5)",
+            new Dictionary<string, object?>
+            {
+                ["numbers"] = new List<int> { 1, 2, 3 }
+            },
+            false
+        ).SetName("Contains_ElementNotExists_ReturnsFalse");
+
+        yield return new TestCaseData(
+            "names.Contains(\"Bob\")",
+            new Dictionary<string, object?>
+            {
+                ["names"] = new List<string> { "Alice", "Bob", "Charlie" }
+            },
+            true
+        ).SetName("Contains_StringElement_Works");
+
+        // Note: Reverse test is in the non-parity section because
+        // CsEval's Reverse() uses Enumerable.Reverse while C# List<T>.Reverse() is in-place
+    }
+
+    #endregion
+
+    #region Set Operations Test Cases
+
+    private static IEnumerable<TestCaseData> SetOperationsTestCases()
+    {
+        yield return new TestCaseData(
+            "first.Except(second).ToList()",
+            new Dictionary<string, object?>
+            {
+                ["first"] = new List<int> { 1, 2, 3, 4, 5 },
+                ["second"] = new List<int> { 3, 4, 5, 6, 7 }
+            },
+            new[] { 1, 2 }
+        ).SetName("Except_ReturnsElementsNotInSecond");
+
+        yield return new TestCaseData(
+            "first.Except(second).ToList()",
+            new Dictionary<string, object?>
+            {
+                ["first"] = new List<int> { 1, 2, 3 },
+                ["second"] = new List<int> { 4, 5, 6 }
+            },
+            new[] { 1, 2, 3 }
+        ).SetName("Except_WithNoOverlap_ReturnsAll");
+
+        yield return new TestCaseData(
+            "first.Except(second).ToList()",
+            new Dictionary<string, object?>
+            {
+                ["first"] = new List<int> { 1, 2, 3 },
+                ["second"] = new List<int> { 1, 2, 3, 4, 5 }
+            },
+            Array.Empty<int>()
+        ).SetName("Except_WithFullOverlap_ReturnsEmpty");
+
+        yield return new TestCaseData(
+            "first.Except(second).ToList()",
+            new Dictionary<string, object?>
+            {
+                ["first"] = new List<string> { "a", "b", "c" },
+                ["second"] = new List<string> { "b", "d" }
+            },
+            new[] { "a", "c" }
+        ).SetName("Except_WithStrings_Works");
+
+        yield return new TestCaseData(
+            "first.Intersect(second).ToList()",
+            new Dictionary<string, object?>
+            {
+                ["first"] = new List<int> { 1, 2, 3, 4, 5 },
+                ["second"] = new List<int> { 3, 4, 5, 6, 7 }
+            },
+            new[] { 3, 4, 5 }
+        ).SetName("Intersect_ReturnsCommonElements");
+
+        yield return new TestCaseData(
+            "first.Intersect(second).ToList()",
+            new Dictionary<string, object?>
+            {
+                ["first"] = new List<int> { 1, 2, 3 },
+                ["second"] = new List<int> { 4, 5, 6 }
+            },
+            Array.Empty<int>()
+        ).SetName("Intersect_WithNoOverlap_ReturnsEmpty");
+
+        yield return new TestCaseData(
+            "first.Intersect(second).ToList()",
+            new Dictionary<string, object?>
+            {
+                ["first"] = new List<string> { "a", "b", "c" },
+                ["second"] = new List<string> { "b", "c", "d" }
+            },
+            new[] { "b", "c" }
+        ).SetName("Intersect_WithStrings_Works");
+
+        yield return new TestCaseData(
+            "first.Union(second).ToList()",
+            new Dictionary<string, object?>
+            {
+                ["first"] = new List<int> { 1, 2, 3 },
+                ["second"] = new List<int> { 3, 4, 5 }
+            },
+            new[] { 1, 2, 3, 4, 5 }
+        ).SetName("Union_ReturnsCombinedWithoutDuplicates");
+
+        yield return new TestCaseData(
+            "first.Union(second).ToList()",
+            new Dictionary<string, object?>
+            {
+                ["first"] = new List<int> { 1, 2 },
+                ["second"] = new List<int> { 3, 4 }
+            },
+            new[] { 1, 2, 3, 4 }
+        ).SetName("Union_WithNoOverlap_ReturnsCombined");
+
+        yield return new TestCaseData(
+            "first.Union(second).ToList()",
+            new Dictionary<string, object?>
+            {
+                ["first"] = new List<int> { 1, 2, 3 },
+                ["second"] = new List<int> { 1, 2, 3 }
+            },
+            new[] { 1, 2, 3 }
+        ).SetName("Union_WithFullOverlap_ReturnsDistinct");
+
+        yield return new TestCaseData(
+            "first.Union(second).ToList()",
+            new Dictionary<string, object?>
+            {
+                ["first"] = new List<string> { "a", "b" },
+                ["second"] = new List<string> { "b", "c" }
+            },
+            new[] { "a", "b", "c" }
+        ).SetName("Union_WithStrings_Works");
+    }
+
+    #endregion
+
+    #region Conversion Test Cases
+
+    private static IEnumerable<TestCaseData> ConversionTestCases()
+    {
+        yield return new TestCaseData(
+            "numbers.ToList()",
+            new Dictionary<string, object?>
+            {
+                ["numbers"] = new List<int> { 1, 2, 3 }
+            },
+            new[] { 1, 2, 3 }
+        ).SetName("ToList_ReturnsList");
+
+        yield return new TestCaseData(
+            "numbers.ToArray()",
+            new Dictionary<string, object?>
+            {
+                ["numbers"] = new List<int> { 1, 2, 3 }
+            },
+            new[] { 1, 2, 3 }
+        ).SetName("ToArray_ReturnsArray");
+
+        yield return new TestCaseData(
+            "first.Concat(second).ToList()",
+            new Dictionary<string, object?>
+            {
+                ["first"] = new List<int> { 1, 2 },
+                ["second"] = new List<int> { 3, 4 }
+            },
+            new[] { 1, 2, 3, 4 }
+        ).SetName("Concat_CombinesSequences");
+    }
+
+    #endregion
+
+    #region Chained Operations Test Cases
+
+    private static IEnumerable<TestCaseData> ChainedTestCases()
+    {
+        yield return new TestCaseData(
+            "numbers.Select(x => x * 2).Where(x => x > 4).Take(2).ToList()",
+            new Dictionary<string, object?>
+            {
+                ["numbers"] = new List<int> { 1, 2, 3, 4, 5 }
+            },
+            new[] { 6, 8 }
+        ).SetName("Chained_SelectWhereTake");
+    }
+
+    #endregion
+
+    #region Reverse - CsEval Specific
+
     [Test]
-    public void First_WithPredicate_ReturnsFirstMatching()
+    public async Task Reverse_CsEval_UsesEnumerableReverse()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        engine.SetVariable("numbers", new List<int> { 1, 2, 3, 4, 5 });
+        var numbers = new List<int> { 1, 2, 3 };
+        engine.SetVariable("numbers", numbers);
 
-        var result = engine.Evaluate("numbers.First(x => x > 3)");
-        Assert.That(result, Is.EqualTo(4));
+        // CsEval's Reverse() uses Enumerable.Reverse (returns new sequence)
+        // C# List<T>.Reverse() is in-place and returns void
+        // Use AsEnumerable() in C# to get the same behavior
+        var result = engine.Evaluate("numbers.Reverse().ToList()");
+        var csharpResult = await TestHelpers.EvaluateCSharpAsync(
+            "numbers.AsEnumerable().Reverse().ToList()",
+            new Dictionary<string, object?>
+            {
+                ["numbers"] = numbers
+            }
+        );
+
+        Assert.That(result, Is.EqualTo(new[] { 3, 2, 1 }));
+        Assert.That(result, Is.EqualTo(csharpResult), "C# parity");
     }
+
+    #endregion
+
+    #region Exception Tests (Cannot be parity tested)
 
     [Test]
     public void First_EmptyCollection_Throws()
@@ -206,16 +718,6 @@ public class LinqTests(CompilationMode mode)
         engine.SetVariable("numbers", new List<int>());
 
         Assert.Throws<InvalidOperationException>(() => engine.Evaluate("numbers.First()"));
-    }
-
-    [Test]
-    public void FirstOrDefault_ReturnsFirstElement()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        engine.SetVariable("numbers", new List<int> { 1, 2, 3 });
-
-        var result = engine.Evaluate("numbers.FirstOrDefault()");
-        Assert.That(result, Is.EqualTo(1));
     }
 
     [Test]
@@ -239,38 +741,6 @@ public class LinqTests(CompilationMode mode)
     }
 
     [Test]
-    public void Find_Alias_WorksAsFirstOrDefault()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        Assert.That(engine.Evaluate("[1, 2, 3].find(x => x > 1)"), Is.EqualTo(2));
-        Assert.That(engine.Evaluate("[1, 2, 3].find(x => x > 5)"), Is.Null);
-    }
-
-    #endregion
-
-    #region Last / LastOrDefault
-
-    [Test]
-    public void Last_ReturnsLastElement()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        engine.SetVariable("numbers", new List<int> { 1, 2, 3 });
-
-        var result = engine.Evaluate("numbers.Last()");
-        Assert.That(result, Is.EqualTo(3));
-    }
-
-    [Test]
-    public void Last_WithPredicate_ReturnsLastMatching()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        engine.SetVariable("numbers", new List<int> { 1, 2, 3, 4, 5 });
-
-        var result = engine.Evaluate("numbers.Last(x => x < 4)");
-        Assert.That(result, Is.EqualTo(3));
-    }
-
-    [Test]
     public void LastOrDefault_EmptyCollection_ReturnsNull()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
@@ -278,20 +748,6 @@ public class LinqTests(CompilationMode mode)
 
         var result = engine.Evaluate("numbers.LastOrDefault()");
         Assert.That(result, Is.Null);
-    }
-
-    #endregion
-
-    #region Single / SingleOrDefault
-
-    [Test]
-    public void Single_SingleElement_ReturnsIt()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        engine.SetVariable("numbers", new List<int> { 42 });
-
-        var result = engine.Evaluate("numbers.Single()");
-        Assert.That(result, Is.EqualTo(42));
     }
 
     [Test]
@@ -304,16 +760,6 @@ public class LinqTests(CompilationMode mode)
     }
 
     [Test]
-    public void Single_WithPredicate_ReturnsMatching()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        engine.SetVariable("numbers", new List<int> { 1, 2, 3 });
-
-        var result = engine.Evaluate("numbers.Single(x => x == 2)");
-        Assert.That(result, Is.EqualTo(2));
-    }
-
-    [Test]
     public void SingleOrDefault_EmptyCollection_ReturnsNull()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
@@ -321,148 +767,6 @@ public class LinqTests(CompilationMode mode)
 
         var result = engine.Evaluate("numbers.SingleOrDefault()");
         Assert.That(result, Is.Null);
-    }
-
-    #endregion
-
-    #region Any / All
-
-    [Test]
-    public void Any_NonEmpty_ReturnsTrue()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        engine.SetVariable("numbers", new List<int> { 1, 2, 3 });
-
-        var result = engine.Evaluate("numbers.Any()");
-        Assert.That(result, Is.True);
-    }
-
-    [Test]
-    public void Any_Empty_ReturnsFalse()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        engine.SetVariable("numbers", new List<int>());
-
-        var result = engine.Evaluate("numbers.Any()");
-        Assert.That(result, Is.False);
-    }
-
-    [Test]
-    public void Any_WithPredicate_MatchExists_ReturnsTrue()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        engine.SetVariable("numbers", new List<int> { 1, 2, 3 });
-
-        var result = engine.Evaluate("numbers.Any(x => x > 2)");
-        Assert.That(result, Is.True);
-    }
-
-    [Test]
-    public void Any_WithPredicate_NoMatch_ReturnsFalse()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        engine.SetVariable("numbers", new List<int> { 1, 2, 3 });
-
-        var result = engine.Evaluate("numbers.Any(x => x > 10)");
-        Assert.That(result, Is.False);
-    }
-
-    [Test]
-    public void All_AllMatch_ReturnsTrue()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        engine.SetVariable("numbers", new List<int> { 2, 4, 6 });
-
-        var result = engine.Evaluate("numbers.All(x => x > 0)");
-        Assert.That(result, Is.True);
-    }
-
-    [Test]
-    public void All_SomeDontMatch_ReturnsFalse()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        engine.SetVariable("numbers", new List<int> { 1, 2, 3 });
-
-        var result = engine.Evaluate("numbers.All(x => x > 1)");
-        Assert.That(result, Is.False);
-    }
-
-    [Test]
-    public void Some_Alias_WorksAsAny()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        Assert.That(engine.Evaluate("[1, 2, 3].some(x => x > 2)"), Is.True);
-        Assert.That(engine.Evaluate("[1, 2, 3].some(x => x > 5)"), Is.False);
-    }
-
-    [Test]
-    public void Every_Alias_WorksAsAll()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        Assert.That(engine.Evaluate("[2, 4, 6].every(x => x > 0)"), Is.True);
-        Assert.That(engine.Evaluate("[1, 2, 3].every(x => x > 1)"), Is.False);
-    }
-
-    #endregion
-
-    #region Count
-
-    [Test]
-    public void Count_ReturnsElementCount()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        engine.SetVariable("numbers", new List<int> { 1, 2, 3, 4, 5 });
-
-        var result = engine.Evaluate("numbers.Count()");
-        Assert.That(result, Is.EqualTo(5));
-    }
-
-    [Test]
-    public void Count_WithPredicate_ReturnsMatchingCount()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        engine.SetVariable("numbers", new List<int> { 1, 2, 3, 4, 5 });
-
-        var result = engine.Evaluate("numbers.Count(x => x > 2)");
-        Assert.That(result, Is.EqualTo(3));
-    }
-
-    [Test]
-    public void Count_EmptyCollection_ReturnsZero()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        engine.SetVariable("numbers", new List<int>());
-
-        var result = engine.Evaluate("numbers.Count()");
-        Assert.That(result, Is.EqualTo(0));
-    }
-
-    #endregion
-
-    #region Sum / Average
-
-    [Test]
-    public void Sum_ReturnsSum()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        engine.SetVariable("numbers", new List<int> { 1, 2, 3, 4, 5 });
-
-        var result = engine.Evaluate("numbers.Sum()");
-        Assert.That(result, Is.EqualTo(15));
-    }
-
-    [Test]
-    public void Sum_WithSelector_ReturnsSumOfSelected()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        engine.SetVariable("items", new List<Dictionary<string, object?>> {
-            new() { ["Value"] = 10 },
-            new() { ["Value"] = 20 },
-            new() { ["Value"] = 30 }
-        });
-
-        var result = engine.Evaluate("items.Sum(x => x.Value)");
-        Assert.That(result, Is.EqualTo(60));
     }
 
     [Test]
@@ -486,13 +790,65 @@ public class LinqTests(CompilationMode mode)
     }
 
     [Test]
-    public void Average_ReturnsAverage()
+    public void MinBy_EmptyCollection_Throws()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        engine.SetVariable("numbers", new List<int> { 10, 20, 30 });
+        engine.SetVariable("items", new List<int>());
 
-        var result = engine.Evaluate("numbers.Average()");
-        Assert.That(result, Is.EqualTo(20.0));
+        Assert.Throws<InvalidOperationException>(() => engine.Evaluate("items.MinBy(x => x)"));
+    }
+
+    [Test]
+    public void MaxBy_EmptyCollection_Throws()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        engine.SetVariable("items", new List<int>());
+
+        Assert.Throws<InvalidOperationException>(() => engine.Evaluate("items.MaxBy(x => x)"));
+    }
+
+    #endregion
+
+    #region Tests with Non-Serializable Types (Cannot be parity tested via TestCaseSource)
+
+    [Test]
+    public void Select_WithMemberAccess_ProjectsProperty()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        engine.SetVariable("items", new List<object> {
+            new { Name = "Alice" },
+            new { Name = "Bob" }
+        });
+
+        var result = engine.Evaluate("items.Select(x => x.Name).ToList()");
+        Assert.That(result, Is.EqualTo(new[] { "Alice", "Bob" }));
+    }
+
+    [Test]
+    public void SelectMany_WithProjection_FlattensAndProjects()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        engine.SetVariable("items", new List<Dictionary<string, object?>> {
+            new() { ["Tags"] = new List<string> { "a", "b" } },
+            new() { ["Tags"] = new List<string> { "c" } }
+        });
+
+        var result = engine.Evaluate("items.SelectMany(x => x.Tags).ToList()");
+        Assert.That(result, Is.EqualTo(new[] { "a", "b", "c" }));
+    }
+
+    [Test]
+    public void Sum_WithSelector_ReturnsSumOfSelected()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        engine.SetVariable("items", new List<Dictionary<string, object?>> {
+            new() { ["Value"] = 10 },
+            new() { ["Value"] = 20 },
+            new() { ["Value"] = 30 }
+        });
+
+        var result = engine.Evaluate("items.Sum(x => x.Value)");
+        Assert.That(result, Is.EqualTo(60));
     }
 
     [Test]
@@ -508,20 +864,6 @@ public class LinqTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(15.0));
     }
 
-    #endregion
-
-    #region Min / Max / MinBy / MaxBy
-
-    [Test]
-    public void Min_ReturnsMinimum()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        engine.SetVariable("numbers", new List<int> { 5, 2, 8, 1, 9 });
-
-        var result = engine.Evaluate("numbers.Min()");
-        Assert.That(result, Is.EqualTo(1));
-    }
-
     [Test]
     public void Min_WithSelector_ReturnsMinimumOfSelected()
     {
@@ -534,16 +876,6 @@ public class LinqTests(CompilationMode mode)
 
         var result = engine.Evaluate("items.Min(x => x.Value)");
         Assert.That(result, Is.EqualTo(10));
-    }
-
-    [Test]
-    public void Max_ReturnsMaximum()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        engine.SetVariable("numbers", new List<int> { 5, 2, 8, 1, 9 });
-
-        var result = engine.Evaluate("numbers.Max()");
-        Assert.That(result, Is.EqualTo(9));
     }
 
     [Test]
@@ -590,15 +922,6 @@ public class LinqTests(CompilationMode mode)
     }
 
     [Test]
-    public void MinBy_EmptyCollection_Throws()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        engine.SetVariable("items", new List<int>());
-
-        Assert.Throws<InvalidOperationException>(() => engine.Evaluate("items.MinBy(x => x)"));
-    }
-
-    [Test]
     public void MaxBy_ReturnsElementWithMaximumKey()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
@@ -628,29 +951,6 @@ public class LinqTests(CompilationMode mode)
     }
 
     [Test]
-    public void MaxBy_EmptyCollection_Throws()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        engine.SetVariable("items", new List<int>());
-
-        Assert.Throws<InvalidOperationException>(() => engine.Evaluate("items.MaxBy(x => x)"));
-    }
-
-    #endregion
-
-    #region OrderBy / OrderByDescending
-
-    [Test]
-    public void OrderBy_SortsAscending()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        engine.SetVariable("numbers", new List<int> { 3, 1, 4, 1, 5 });
-
-        var result = engine.Evaluate("numbers.OrderBy(x => x)") as IList;
-        Assert.That(result, Is.EqualTo(new object[] { 1, 1, 3, 4, 5 }));
-    }
-
-    [Test]
     public void OrderBy_WithPropertySelector_SortsByProperty()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
@@ -660,23 +960,9 @@ public class LinqTests(CompilationMode mode)
             new() { ["Name"] = "Bob" }
         });
 
-        var result = engine.Evaluate("items.OrderBy(x => x.Name).Select(x => x.Name)") as IList;
-        Assert.That(result, Is.EqualTo(new object[] { "Alice", "Bob", "Charlie" }));
+        var result = engine.Evaluate("items.OrderBy(x => x.Name).Select(x => x.Name).ToList()");
+        Assert.That(result, Is.EqualTo(new[] { "Alice", "Bob", "Charlie" }));
     }
-
-    [Test]
-    public void OrderByDescending_SortsDescending()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        engine.SetVariable("numbers", new List<int> { 3, 1, 4, 1, 5 });
-
-        var result = engine.Evaluate("numbers.OrderByDescending(x => x)") as IList;
-        Assert.That(result, Is.EqualTo(new object[] { 5, 4, 3, 1, 1 }));
-    }
-
-    #endregion
-
-    #region GroupBy
 
     [Test]
     public void GroupBy_GroupsByKey()
@@ -688,11 +974,14 @@ public class LinqTests(CompilationMode mode)
             new() { ["Category"] = "A", ["Value"] = 3 }
         });
 
-        var result = engine.Evaluate("items.GroupBy(x => x.Category)") as IList;
-        Assert.That(result, Has.Count.EqualTo(2));
+        var result = engine.Evaluate("items.GroupBy(x => x.Category).ToList()");
+        Assert.That(result, Is.InstanceOf<IList>());
+        var list = (IList)result!;
+        Assert.That(list, Has.Count.EqualTo(2));
 
-        var groupA = result!.Cast<Dictionary<string, object?>>().First(g => (string)g["Key"]! == "A");
-        var groupAItems = groupA["Items"] as IList;
+        var groupA = list.Cast<Dictionary<string, object?>>().First(g => (string)g["Key"]! == "A");
+        var groupAItems = groupA["Items"];
+        Assert.That(groupAItems, Is.InstanceOf<IList>());
         Assert.That(groupAItems, Has.Count.EqualTo(2));
     }
 
@@ -702,19 +991,17 @@ public class LinqTests(CompilationMode mode)
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         engine.SetVariable("numbers", new List<int> { 1, 2, 3, 4, 5, 6 });
 
-        var result = engine.Evaluate("numbers.GroupBy(x => x > 3)") as IList;
-        Assert.That(result, Has.Count.EqualTo(2));
+        var result = engine.Evaluate("numbers.GroupBy(x => x > 3).ToList()");
+        Assert.That(result, Is.InstanceOf<IList>());
+        var list = (IList)result!;
+        Assert.That(list, Has.Count.EqualTo(2));
 
-        foreach (var group in result!.Cast<Dictionary<string, object?>>())
+        foreach (var group in list.Cast<Dictionary<string, object?>>())
         {
             Assert.That(group.ContainsKey("Key"), Is.True);
             Assert.That(group.ContainsKey("Items"), Is.True);
         }
     }
-
-    #endregion
-
-    #region Zip
 
     [Test]
     public void Zip_WithSelector_CombinesElements()
@@ -723,8 +1010,8 @@ public class LinqTests(CompilationMode mode)
         engine.SetVariable("nums1", new List<int> { 1, 2, 3 });
         engine.SetVariable("nums2", new List<int> { 10, 20, 30 });
 
-        var result = engine.Evaluate("nums1.Zip(nums2, (a, b) => a + b)") as IList;
-        Assert.That(result, Is.EqualTo(new object[] { 11, 22, 33 }));
+        var result = engine.Evaluate("nums1.Zip(nums2, (a, b) => a + b).ToList()");
+        Assert.That(result, Is.EqualTo(new[] { 11, 22, 33 }));
     }
 
     [Test]
@@ -734,7 +1021,8 @@ public class LinqTests(CompilationMode mode)
         engine.SetVariable("names", new List<string> { "Alice", "Bob" });
         engine.SetVariable("ages", new List<int> { 30, 25 });
 
-        var result = engine.Evaluate("names.Zip(ages)") as IList;
+        var result = engine.Evaluate("names.Zip(ages).ToList()") as IList;
+        Assert.That(result, Is.Not.Null);
         Assert.That(result, Has.Count.EqualTo(2));
 
         var first = result![0] as Dictionary<string, object?>;
@@ -749,281 +1037,9 @@ public class LinqTests(CompilationMode mode)
         engine.SetVariable("shortList", new List<int> { 1, 2 });
         engine.SetVariable("longList", new List<int> { 10, 20, 30, 40 });
 
-        var result = engine.Evaluate("shortList.Zip(longList, (a, b) => a + b)") as IList;
+        var result = engine.Evaluate("shortList.Zip(longList, (a, b) => a + b).ToList()");
         Assert.That(result, Has.Count.EqualTo(2));
     }
-
-    #endregion
-
-    #region Distinct / Take / Skip
-
-    [Test]
-    public void Distinct_RemovesDuplicates()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        engine.SetVariable("numbers", new List<int> { 1, 2, 2, 3, 3, 3 });
-
-        var result = engine.Evaluate("numbers.Distinct()") as IList;
-        Assert.That(result, Is.EqualTo(new object[] { 1, 2, 3 }));
-    }
-
-    [Test]
-    public void Take_ReturnsFirstN()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        engine.SetVariable("numbers", new List<int> { 1, 2, 3, 4, 5 });
-
-        var result = engine.Evaluate("numbers.Take(3)") as IList;
-        Assert.That(result, Is.EqualTo(new object[] { 1, 2, 3 }));
-    }
-
-    [Test]
-    public void Take_MoreThanCount_ReturnsAll()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        engine.SetVariable("numbers", new List<int> { 1, 2 });
-
-        var result = engine.Evaluate("numbers.Take(10)") as IList;
-        Assert.That(result, Is.EqualTo(new object[] { 1, 2 }));
-    }
-
-    [Test]
-    public void Skip_SkipsFirstN()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        engine.SetVariable("numbers", new List<int> { 1, 2, 3, 4, 5 });
-
-        var result = engine.Evaluate("numbers.Skip(2)") as IList;
-        Assert.That(result, Is.EqualTo(new object[] { 3, 4, 5 }));
-    }
-
-    [Test]
-    public void Skip_MoreThanCount_ReturnsEmpty()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        engine.SetVariable("numbers", new List<int> { 1, 2 });
-
-        var result = engine.Evaluate("numbers.Skip(10)") as IList;
-        Assert.That(result, Is.Empty);
-    }
-
-    #endregion
-
-    #region Contains / Reverse
-
-    [Test]
-    public void Contains_ElementExists_ReturnsTrue()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        engine.SetVariable("numbers", new List<int> { 1, 2, 3 });
-
-        var result = engine.Evaluate("numbers.Contains(2)");
-        Assert.That(result, Is.True);
-    }
-
-    [Test]
-    public void Contains_ElementNotExists_ReturnsFalse()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        engine.SetVariable("numbers", new List<int> { 1, 2, 3 });
-
-        var result = engine.Evaluate("numbers.Contains(5)");
-        Assert.That(result, Is.False);
-    }
-
-    [Test]
-    public void Contains_StringElement_Works()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        engine.SetVariable("names", new List<string> { "Alice", "Bob", "Charlie" });
-
-        var result = engine.Evaluate("names.Contains(\"Bob\")");
-        Assert.That(result, Is.True);
-    }
-
-    [Test]
-    public void Includes_Alias_WorksAsContains()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        Assert.That(engine.Evaluate("[1, 2, 3].includes(2)"), Is.True);
-        Assert.That(engine.Evaluate("[1, 2, 3].includes(5)"), Is.False);
-    }
-
-    [Test]
-    public void Reverse_ReversesOrder()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        engine.SetVariable("numbers", new List<int> { 1, 2, 3 });
-
-        var result = engine.Evaluate("numbers.Reverse()") as IList;
-        Assert.That(result, Is.EqualTo(new object[] { 3, 2, 1 }));
-    }
-
-    #endregion
-
-    #region Set Operations (Except / Intersect / Union)
-
-    [Test]
-    public void Except_ReturnsElementsNotInSecond()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        engine.SetVariable("first", new List<int> { 1, 2, 3, 4, 5 });
-        engine.SetVariable("second", new List<int> { 3, 4, 5, 6, 7 });
-
-        var result = engine.Evaluate("first.Except(second)") as IList;
-        Assert.That(result, Is.EqualTo(new object[] { 1, 2 }));
-    }
-
-    [Test]
-    public void Except_WithNoOverlap_ReturnsAll()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        engine.SetVariable("first", new List<int> { 1, 2, 3 });
-        engine.SetVariable("second", new List<int> { 4, 5, 6 });
-
-        var result = engine.Evaluate("first.Except(second)") as IList;
-        Assert.That(result, Is.EqualTo(new object[] { 1, 2, 3 }));
-    }
-
-    [Test]
-    public void Except_WithFullOverlap_ReturnsEmpty()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        engine.SetVariable("first", new List<int> { 1, 2, 3 });
-        engine.SetVariable("second", new List<int> { 1, 2, 3, 4, 5 });
-
-        var result = engine.Evaluate("first.Except(second)") as IList;
-        Assert.That(result, Is.Empty);
-    }
-
-    [Test]
-    public void Except_WithStrings_Works()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        engine.SetVariable("first", new List<string> { "a", "b", "c" });
-        engine.SetVariable("second", new List<string> { "b", "d" });
-
-        var result = engine.Evaluate("first.Except(second)") as IList;
-        Assert.That(result, Is.EqualTo(new object[] { "a", "c" }));
-    }
-
-    [Test]
-    public void Intersect_ReturnsCommonElements()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        engine.SetVariable("first", new List<int> { 1, 2, 3, 4, 5 });
-        engine.SetVariable("second", new List<int> { 3, 4, 5, 6, 7 });
-
-        var result = engine.Evaluate("first.Intersect(second)") as IList;
-        Assert.That(result, Is.EqualTo(new object[] { 3, 4, 5 }));
-    }
-
-    [Test]
-    public void Intersect_WithNoOverlap_ReturnsEmpty()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        engine.SetVariable("first", new List<int> { 1, 2, 3 });
-        engine.SetVariable("second", new List<int> { 4, 5, 6 });
-
-        var result = engine.Evaluate("first.Intersect(second)") as IList;
-        Assert.That(result, Is.Empty);
-    }
-
-    [Test]
-    public void Intersect_WithStrings_Works()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        engine.SetVariable("first", new List<string> { "a", "b", "c" });
-        engine.SetVariable("second", new List<string> { "b", "c", "d" });
-
-        var result = engine.Evaluate("first.Intersect(second)") as IList;
-        Assert.That(result, Is.EqualTo(new object[] { "b", "c" }));
-    }
-
-    [Test]
-    public void Union_ReturnsCombinedWithoutDuplicates()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        engine.SetVariable("first", new List<int> { 1, 2, 3 });
-        engine.SetVariable("second", new List<int> { 3, 4, 5 });
-
-        var result = engine.Evaluate("first.Union(second)") as IList;
-        Assert.That(result, Is.EqualTo(new object[] { 1, 2, 3, 4, 5 }));
-    }
-
-    [Test]
-    public void Union_WithNoOverlap_ReturnsCombined()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        engine.SetVariable("first", new List<int> { 1, 2 });
-        engine.SetVariable("second", new List<int> { 3, 4 });
-
-        var result = engine.Evaluate("first.Union(second)") as IList;
-        Assert.That(result, Is.EqualTo(new object[] { 1, 2, 3, 4 }));
-    }
-
-    [Test]
-    public void Union_WithFullOverlap_ReturnsDistinct()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        engine.SetVariable("first", new List<int> { 1, 2, 3 });
-        engine.SetVariable("second", new List<int> { 1, 2, 3 });
-
-        var result = engine.Evaluate("first.Union(second)") as IList;
-        Assert.That(result, Is.EqualTo(new object[] { 1, 2, 3 }));
-    }
-
-    [Test]
-    public void Union_WithStrings_Works()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        engine.SetVariable("first", new List<string> { "a", "b" });
-        engine.SetVariable("second", new List<string> { "b", "c" });
-
-        var result = engine.Evaluate("first.Union(second)") as IList;
-        Assert.That(result, Is.EqualTo(new object[] { "a", "b", "c" }));
-    }
-
-    #endregion
-
-    #region ToList / ToArray / Concat
-
-    [Test]
-    public void ToList_ReturnsList()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        engine.SetVariable("numbers", new List<int> { 1, 2, 3 });
-
-        var result = engine.Evaluate("numbers.ToList()");
-        Assert.That(result, Is.TypeOf<List<int>>());
-        Assert.That(result, Is.EqualTo(new[] { 1, 2, 3 }));
-    }
-
-    [Test]
-    public void ToArray_ReturnsArray()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        engine.SetVariable("numbers", new List<int> { 1, 2, 3 });
-
-        var result = engine.Evaluate("numbers.ToArray()");
-        Assert.That(result, Is.TypeOf<int[]>());
-        Assert.That(result, Is.EqualTo(new[] { 1, 2, 3 }));
-    }
-
-    [Test]
-    public void Concat_CombinesSequences()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        engine.SetVariable("first", new List<int> { 1, 2 });
-        engine.SetVariable("second", new List<int> { 3, 4 });
-
-        var result = engine.Evaluate("first.Concat(second)") as IList;
-        Assert.That(result, Is.EqualTo(new object[] { 1, 2, 3, 4 }));
-    }
-
-    #endregion
-
-    #region Chained Operations
 
     [Test]
     public void Chained_WhereSelectOrderBy()
@@ -1037,18 +1053,90 @@ public class LinqTests(CompilationMode mode)
             TestHelpers.CreateItem("Mango", 3.0)
         });
 
-        var result = engine.Evaluate("items.Where(x => x.Price > 1).OrderBy(x => x.Name).Select(x => x.Name)") as IList;
-        Assert.That(result, Is.EqualTo(new object[] { "Apple", "Mango", "Orange" }));
+        var result = engine.Evaluate("items.Where(x => x.Price > 1).OrderBy(x => x.Name).Select(x => x.Name).ToList()");
+        Assert.That(result, Is.EqualTo(new[] { "Apple", "Mango", "Orange" }));
+    }
+
+    #endregion
+
+    #region Alias Tests (CsEval-specific syntax, cannot be parity tested)
+
+    [Test]
+    public void Filter_Alias_WorksAsWhere()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var result = engine.Evaluate("[1, 2, 3, 4].filter(x => x > 2).ToList()");
+        Assert.That(result, Is.EqualTo(new[] { 3, 4 }));
     }
 
     [Test]
-    public void Chained_SelectWhereTake()
+    public void Map_Alias_WorksAsSelect()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        engine.SetVariable("numbers", new List<int> { 1, 2, 3, 4, 5 });
+        var result = engine.Evaluate("[1, 2, 3].map(x => x * 2).ToList()");
+        Assert.That(result, Is.EqualTo(new[] { 2, 4, 6 }));
+    }
 
-        var result = engine.Evaluate("numbers.Select(x => x * 2).Where(x => x > 4).Take(2)") as IList;
-        Assert.That(result, Is.EqualTo(new object[] { 6, 8 }));
+    [Test]
+    public void FlatMap_Alias_WorksAsSelectMany()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        engine.SetVariable("nested", new List<List<int>> {
+            new() { 1, 2 },
+            new() { 3, 4 }
+        });
+
+        var result = engine.Evaluate("nested.flatMap(x => x).ToList()");
+        Assert.That(result, Is.EqualTo(new[] { 1, 2, 3, 4 }));
+    }
+
+    [Test]
+    public void Reduce_Alias_WithoutSeed()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var result = engine.Evaluate("[1, 2, 3].reduce((a, b) => a + b)");
+        Assert.That(result, Is.EqualTo(6));
+    }
+
+    [Test]
+    public void Reduce_Alias_WithSeed_JsStyle()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        // JS style: reduce(fn, seed) - function first, seed second
+        var result = engine.Evaluate("[1, 2, 3].reduce((acc, x) => acc + x, 10)");
+        Assert.That(result, Is.EqualTo(16));
+    }
+
+    [Test]
+    public void Find_Alias_WorksAsFirstOrDefault()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        Assert.That(engine.Evaluate("[1, 2, 3].find(x => x > 1)"), Is.EqualTo(2));
+        Assert.That(engine.Evaluate("[1, 2, 3].find(x => x > 5)"), Is.Null);
+    }
+
+    [Test]
+    public void Some_Alias_WorksAsAny()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        Assert.That(engine.Evaluate("[1, 2, 3].some(x => x > 2)"), Is.True);
+        Assert.That(engine.Evaluate("[1, 2, 3].some(x => x > 5)"), Is.False);
+    }
+
+    [Test]
+    public void Every_Alias_WorksAsAll()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        Assert.That(engine.Evaluate("[2, 4, 6].every(x => x > 0)"), Is.True);
+        Assert.That(engine.Evaluate("[1, 2, 3].every(x => x > 1)"), Is.False);
+    }
+
+    [Test]
+    public void Includes_Alias_WorksAsContains()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        Assert.That(engine.Evaluate("[1, 2, 3].includes(2)"), Is.True);
+        Assert.That(engine.Evaluate("[1, 2, 3].includes(5)"), Is.False);
     }
 
     #endregion

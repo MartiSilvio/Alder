@@ -64,10 +64,7 @@ public sealed record CsEvalOptions
     /// </remarks>
     public CompilationMode CompilationMode { get; init; } = CompilationMode.Compiled;
 
-    public IReadOnlyList<ILanguageExtension> Extensions { get; init; } = DefaultExtensions;
-
-    private static readonly IReadOnlyList<ILanguageExtension> DefaultExtensions =
-        [JavaScriptExtension.Instance, PythonExtension.Instance];
+    public IReadOnlyList<ILanguageExtension> Extensions { get; init; } = [JavaScriptExtension.Instance, PythonExtension.Instance];
 
     internal StringComparer StringComparer => IgnoreCase ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
     internal StringComparison StringComparison => IgnoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
@@ -142,7 +139,7 @@ public sealed record SandboxOptions
     }
 
     /// <summary>
-    /// Full access mode. All operations allowed.
+    /// Full access mode. All operations are allowed.
     /// </summary>
     public static SandboxOptions Trusted() => new() { Mode = SandboxMode.Trusted };
 

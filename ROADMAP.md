@@ -157,24 +157,27 @@ Features marked ✅ in both AST and IL columns are fully optimized. Features wit
 
 ## LINQ
 
-> **Note:** All LINQ methods require lambda expressions and are **AST-only**. They will always fall back to tree-walking evaluation.
+> **Note:** LINQ methods now use **lazy evaluation** (`IEnumerable<object?>`) and only materialize at terminal operations (`ToList`, `ToArray`, `Sum`, etc.). Lambda bodies are **IL-compiled** to native delegates via Expression Trees.
 
 | Status | Feature                  | Syntax                                                                          | AST | IL  | Notes                      |
 | :----: | ------------------------ | ------------------------------------------------------------------------------- | :-: | :-: | -------------------------- |
-|   ✅   | Filtering                | `Where`, `Distinct`                                                             | ✅  | ❌  |                            |
-|   ✅   | Projection               | `Select`, `SelectMany`                                                          | ✅  | ❌  |                            |
-|   ✅   | Element                  | `First`, `FirstOrDefault`, `Last`, `LastOrDefault`, `Single`, `SingleOrDefault` | ✅  | ❌  |                            |
-|   ✅   | Quantifiers              | `Any`, `All`, `Contains`                                                        | ✅  | ❌  |                            |
-|   ✅   | Aggregation              | `Count`, `Sum`, `Average`, `Min`, `Max`, `Aggregate`                            | ✅  | ❌  |                            |
-|   ✅   | Ordering                 | `OrderBy`, `OrderByDescending`, `Reverse`                                       | ✅  | ❌  |                            |
-|   ✅   | Grouping                 | `GroupBy`                                                                       | ✅  | ❌  | Returns `[{ Key, Items }]` |
-|   ✅   | Combining                | `Zip`, `Concat`                                                                 | ✅  | ❌  |                            |
-|   ✅   | Partitioning             | `Take`, `Skip`                                                                  | ✅  | ❌  |                            |
-|   ✅   | Set Operations           | `Except`, `Intersect`, `Union`                                                  | ✅  | ❌  |                            |
-|   ✅   | Min/Max by Key           | `MinBy`, `MaxBy`                                                                | ✅  | ❌  | .NET 6+                    |
-|   ✅   | Conversion               | `ToList`, `ToArray`                                                             | ✅  | ❌  |                            |
-|   🔵   | `Join`, `GroupJoin`      |                                                                                 | ❌  | ❌  | Complex                    |
-|   🔵   | `TakeWhile`, `SkipWhile` |                                                                                 | ❌  | ❌  |                            |
+|   ✅   | Filtering                | `Where`, `Distinct`                                                             | ✅  | ✅  |                            |
+|   ✅   | Projection               | `Select`, `SelectMany`                                                          | ✅  | ✅  |                            |
+|   ✅   | Element                  | `First`, `FirstOrDefault`, `Last`, `LastOrDefault`, `Single`, `SingleOrDefault` | ✅  | ✅  |                            |
+|   ✅   | Quantifiers              | `Any`, `All`, `Contains`                                                        | ✅  | ✅  |                            |
+|   ✅   | Aggregation              | `Count`, `Sum`, `Average`, `Min`, `Max`, `Aggregate`                            | ✅  | ✅  |                            |
+|   ✅   | Ordering                 | `OrderBy`, `OrderByDescending`, `Reverse`                                       | ✅  | ✅  |                            |
+|   ✅   | Grouping                 | `GroupBy`                                                                       | ✅  | ✅  | Returns `[{ Key, Items }]` |
+|   ✅   | Combining                | `Zip`, `Concat`                                                                 | ✅  | ✅  |                            |
+|   ✅   | Partitioning             | `Take`, `Skip`                                                                  | ✅  | ✅  |                            |
+|   ✅   | Set Operations           | `Except`, `Intersect`, `Union`                                                  | ✅  | ✅  |                            |
+|   ✅   | Min/Max by Key           | `MinBy`, `MaxBy`                                                                | ✅  | ✅  | .NET 6+                    |
+|   ✅   | Conversion               | `ToList`, `ToArray`                                                             | ✅  | ✅  |                            |
+|   🔵   | `Join`, `GroupJoin`      |                                                                                 | ❌  | ❌  | Complex multi-source join  |
+|   🟡   | `TakeWhile`, `SkipWhile` |                                                                                 | ❌  | ❌  | Easy with lazy eval        |
+|   🟡   | `ThenBy`, `ThenByDescending` |                                                                             | ❌  | ❌  | Secondary ordering         |
+|   🟡   | `Append`, `Prepend`      |                                                                                 | ❌  | ❌  | Easy with lazy eval        |
+|   🟡   | `Chunk`                  | `.Chunk(3)`                                                                     | ❌  | ❌  | .NET 6+                    |
 
 ### Known Deviations from C#
 
@@ -363,9 +366,9 @@ This audit focuses on how each library manages its operational state, security b
 
 #### 1. Performance and Compilation Architecture
 
-- **Current Status**: CsEval compiles most features to IL via `System.Linq.Expressions`, including operators, method calls, control flow, and object literals. The primary remaining AST fallback is **LINQ lambda execution** (lambdas inside `.Where()`, `.Select()`, etc. are interpreted).
+- **Current Status**: CsEval compiles **all features** to IL via `System.Linq.Expressions`, including operators, method calls, control flow, object literals, and **lambda expressions**. Lambda bodies are compiled to native delegates (`CompiledLambdaValue`), eliminating the last major AST-only fallback.
 - **Learning Opportunity**: Libraries like **Flee** and **Z.Expressions** generate raw IL via `DynamicMethod` or `Reflection.Emit`. This bypasses the overhead of the Expression Tree abstraction and allows for optimizations like direct stack manipulation that `Expression` trees cannot express.
-- **Action**: Investigate compiling LINQ lambda bodies to IL, or consider `ILGenerator` for specific hot paths.
+- **Action**: Consider `ILGenerator` for specific hot paths if profiling reveals Expression Tree overhead.
 
 #### 2. Language Parity (C# Compliance)
 
@@ -406,13 +409,12 @@ The following gaps were identified in the [ECMA-334 Compliance Audit](docs/ECMA-
 
 | Item                       | Technical Requirement                                                                                                             | Comparison Context                          |
 | :------------------------- | :-------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------ |
-| **LINQ Lambda Compilation**| Compile LINQ lambda bodies to IL instead of tree-walking. Currently lambdas fall back to `Evaluator` for execution.              | Last major AST-only fallback.               |
+| ~~**LINQ Lambda Compilation**~~| ~~Compile LINQ lambda bodies to IL instead of tree-walking. Currently lambdas fall back to `Evaluator` for execution.~~      | ✅ Done - Lambdas compile to IL delegates.  |
 | **C# Overload Resolution** | Implement `BindingFlags` and argument type matching for method calls, including implicit numeric conversions (`int` to `double`). | Fixes failures seen in **DynamicExpresso**. |
 | **Immutable Fluid API**    | Refactor `CsEvalOptions` to use fluid methods (e.g., `options.WithIgnoreCase(true).WithSafeSandbox()`).                           | Parity with **Roslyn** ergonomics.          |
 | **Lazy Late-Binding**      | Add `IParameterResolver` or `Func<string, object?>` support to fetch variables on-demand during execution.                        | Parity with **NCalc** lazy-loading.         |
 | **SafeMode (Whitelist)**   | Implement a "Deny All" security policy requiring explicit `engine.AllowType<T>()` or `AllowMember("Name")`.                       | Parity with **Z.Expressions.Eval**.         |
-| **Expression Caching**     | Implement an internal `LruCache` for `ParsedExpression` objects to avoid redundant parsing costs in high-frequency loops.         | Feature found in **Z.Expressions**.         |
-|                            |
+| ~~**Expression Caching**~~ | ~~Implement an internal cache for compiled expressions to avoid redundant compilation costs in high-frequency loops.~~            | ✅ Done - `ExpressionCache` with thread-safe `ConcurrentDictionary`. |
 
 ### Phase 2: Feature Parity & Extensibility (Medium Priority)
 
@@ -442,5 +444,5 @@ The following gaps were identified in the [ECMA-334 Compliance Audit](docs/ECMA-
 ## Technical Debt & Known Constraints
 
 1.  **Thread Safety**: The engine is explicitly not thread-safe. While `CreateChild()` mitigates this, the internal `TypeCache` and `ModuleRegistry` must be audited for lock contention under high load.
-2.  **Memory Usage**: Intermediate `List<object?>` creation in LINQ chains causes high GC pressure. No support for `IEnumerable` lazy evaluation.
+2.  ~~**Memory Usage**: Intermediate `List<object?>` creation in LINQ chains causes high GC pressure. No support for `IEnumerable` lazy evaluation.~~ ✅ Fixed - LINQ now uses lazy `IEnumerable<object?>` evaluation.
 3.  **Security Boundaries**: Sandbox modes rely on reflection blocking which can be bypassed if a "Trusted" module leaks a `System.Type` or `MethodInfo` object.
