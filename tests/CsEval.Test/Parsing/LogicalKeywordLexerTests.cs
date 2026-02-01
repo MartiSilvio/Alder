@@ -1,10 +1,9 @@
-using NUnit.Framework;
 using CsEval.Parsing;
 
 namespace CsEval.Test.Parsing;
 
 [TestFixture]
-public class LogicalKeywordLexerTests
+public class LogicalKeywordLexerTests 
 {
     [Test]
     public void Lexer_And_ProducesAmpAmpToken()

@@ -1,26 +1,23 @@
+using CsEval.Extensions;
+
 namespace CsEval;
 
-/// <summary>
-/// Controls how expressions are evaluated.
-/// </summary>
 public enum CompilationMode
 {
     /// <summary>
-    /// Tree-walk only. No compilation. Best for one-off expressions.
+    /// Always use tree-walking interpretation. Best for debugging or AST-only features.
     /// </summary>
-    Disabled,
+    Interpreted,
+    
+    /// <summary>
+    /// Compile to IL, fall back to tree-walking if compilation fails. Best for production.
+    /// </summary>
+    Compiled,
 
     /// <summary>
-    /// Compile immediately during Parse(). Best for expressions evaluated multiple times.
-    /// Non-compilable expressions automatically fall back to tree-walking.
+    /// Require IL compilation - throw if compilation fails. Best for testing IL coverage.
     /// </summary>
-    Eager,
-
-    /// <summary>
-    /// Only compile when Compile() is called explicitly. Default mode.
-    /// Gives full control over when compilation happens.
-    /// </summary>
-    OnDemand
+    StrictCompiled
 }
 
 /// <summary>
@@ -48,7 +45,7 @@ public enum SandboxMode
     Strict
 }
 
-public sealed class CsEvalOptions
+public sealed record CsEvalOptions
 {
     public static CsEvalOptions Default => new();
 
@@ -57,12 +54,17 @@ public sealed class CsEvalOptions
     public SandboxOptions Sandbox { get; init; } = new();
 
     /// <summary>
-    /// Controls expression compilation behavior.
-    /// - Disabled: Always use tree-walking (interpreter)
-    /// - Eager: Compile during Parse() for maximum performance
-    /// - OnDemand: Only compile when Compile() is explicitly called (default)
+    /// Controls when expressions are compiled to IL.
+    /// Default: Compiled (compile automatically on first evaluation, fall back to tree-walking if compilation fails).
     /// </summary>
-    public CompilationMode CompilationMode { get; init; } = CompilationMode.OnDemand;
+    /// <remarks>
+    /// <see cref="CsEval.CompilationMode.Interpreted"/>: Always use tree-walking. Good for debugging or AST-only features.
+    /// <see cref="CsEval.CompilationMode.Compiled"/>: Automatically compile on first evaluation, fall back to tree-walking if compilation fails. Good for production.
+    /// <see cref="CsEval.CompilationMode.StrictCompiled"/>: Require IL compilation - throws if compilation fails. Good for testing IL coverage.
+    /// </remarks>
+    public CompilationMode CompilationMode { get; init; } = CompilationMode.Compiled;
+
+    public IReadOnlyList<ILanguageExtension> Extensions { get; init; } = [JavaScriptExtension.Instance, PythonExtension.Instance];
 
     internal StringComparer StringComparer => IgnoreCase ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
     internal StringComparison StringComparison => IgnoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
@@ -137,7 +139,7 @@ public sealed record SandboxOptions
     }
 
     /// <summary>
-    /// Full access mode. All operations allowed.
+    /// Full access mode. All operations are allowed.
     /// </summary>
     public static SandboxOptions Trusted() => new() { Mode = SandboxMode.Trusted };
 

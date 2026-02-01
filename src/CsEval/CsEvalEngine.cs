@@ -1,12 +1,15 @@
 using CsEval.Attributes;
-using CsEval.Evaluation;
+using CsEval.Compilation;
+using CsEval.Interpretation;
+using CsEval.Modules;
 using CsEval.Parsing;
+using CsEval.Runtime;
 
 namespace CsEval;
 
 public sealed class CsEvalEngine
 {
-    private readonly EvalContext _context;
+    private readonly CsEvalContext _context;
     private readonly Dictionary<string, Func<object?[], object?>> _functions;
     private readonly CsEvalOptions _options;
     private readonly List<RegisteredType> _registeredTypes = [];
@@ -24,12 +27,22 @@ public sealed class CsEvalEngine
         _options = options;
         _typeCache = new TypeCache();
         _expressionCache = new ExpressionCache();
-        _context = new EvalContext(options.StringComparer, _typeCache);
+        _context = new CsEvalContext(options.StringComparer, _typeCache);
         _functions = new Dictionary<string, Func<object?[], object?>>(options.StringComparer);
         RegisterBuiltInModules();
     }
 
-    private CsEvalEngine(EvalContext context, Dictionary<string, Func<object?[], object?>> functions,
+    public CsEvalEngine(CsEvalOptions options, CsEvalContext context)
+    {
+        _options = options;
+        _context = context;
+        _typeCache = context.TypeCache;
+        _expressionCache = new ExpressionCache();
+        _functions = new Dictionary<string, Func<object?[], object?>>(options.StringComparer);
+        RegisterBuiltInModules();
+    }
+
+    private CsEvalEngine(CsEvalContext context, Dictionary<string, Func<object?[], object?>> functions,
         List<RegisteredType> registeredTypes, CsEvalOptions options, TypeCache typeCache, ExpressionCache expressionCache)
     {
         _context = context;
@@ -48,15 +61,7 @@ public sealed class CsEvalEngine
         var parser = new Parser(tokens);
         var ast = parser.Parse();
 
-        var expr = new CsEvalExpression(expression, ast, _expressionCache);
-
-        // Eager mode: compile immediately during Parse()
-        if (_options.CompilationMode == CompilationMode.Eager)
-        {
-            expr.TryCompile();
-        }
-
-        return expr;
+        return new CsEvalExpression(expression, ast, _expressionCache);
     }
 
     public bool TryParse(string expression, out CsEvalExpression? result, out string? error)
@@ -101,17 +106,27 @@ public sealed class CsEvalEngine
     {
         ApplyRegisteredTypes(serviceProvider);
 
-        // Use compiled delegate if available (Eager or OnDemand modes)
-        if (_options.CompilationMode != CompilationMode.Disabled)
+        var shouldCompile = _options.CompilationMode is CompilationMode.Compiled or CompilationMode.StrictCompiled;
+        if (shouldCompile && expression.GetCompiledInfo() == null)
         {
-            var compiled = expression.GetCompiledInfo();
-            if (compiled?.Delegate != null)
-            {
-                return compiled.Delegate(_context, _options, cancellationToken);
-            }
+            expression.TryCompile();
         }
 
-        // Fall back to tree-walking
+        // Use compiled delegate if available
+        var compiled = expression.GetCompiledInfo();
+        if (compiled?.Delegate != null)
+        {
+            return compiled.Delegate(_context, _options, cancellationToken, _functions, ArgumentTransformer);
+        }
+
+        // StrictCompiled mode: throw if compilation failed
+        if (_options.CompilationMode == CompilationMode.StrictCompiled)
+        {
+            var reason = compiled?.FailureReason ?? "Unknown compilation failure";
+            throw new CsEvalException($"Expression could not be compiled to IL: {reason}");
+        }
+
+        // Fall back to tree-walking for non-compilable expressions
         var evaluator = new Evaluator(_context, _functions, _options, cancellationToken, ArgumentTransformer);
         return evaluator.Evaluate(expression.Ast);
     }
@@ -119,19 +134,19 @@ public sealed class CsEvalEngine
     /// <summary>
     /// Parses and attempts to compile an expression upfront for better performance.
     /// If compilation is not possible, the expression will fall back to tree-walking on evaluation.
-    /// Works regardless of CompilationMode setting (explicit compilation request).
     /// </summary>
+    /// <remarks>
+    /// Use this method when you want to ensure the expression is compiled regardless
+    /// of the <see cref="CsEvalOptions.CompilationMode"/> setting, or when you want
+    /// to pay the compilation cost upfront (e.g., during app startup).
+    /// </remarks>
     /// <param name="expression">The expression string to parse and compile.</param>
     /// <returns>A pre-parsed and potentially compiled expression.</returns>
     public CsEvalExpression ParseAndCompile(string expression)
     {
-        var parsed = Parse(expression);
-        // Always try to compile when explicitly requested, regardless of mode
-        if (_options.CompilationMode != CompilationMode.Eager) // Eager already compiled in Parse()
-        {
-            parsed.TryCompile();
-        }
-        return parsed;
+        var expr = Parse(expression);
+        expr.TryCompile();
+        return expr;
     }
 
     /// <summary>
@@ -160,6 +175,33 @@ public sealed class CsEvalEngine
         return new CsEvalEngine(_context.CreateChild(), _functions, _registeredTypes, _options, _typeCache, _expressionCache);
     }
 
+    public object? Evaluate(string expression, IDictionary<string, object?> variables, IServiceProvider? serviceProvider = null)
+    {
+        return Evaluate(expression, variables, serviceProvider, CancellationToken.None);
+    }
+
+    public object? Evaluate(
+        string expression, IDictionary<string, object?> variables, IServiceProvider? serviceProvider, CancellationToken cancellationToken)
+    {
+        var child = CreateChild();
+        child.SetVariables(variables);
+        return child.Evaluate(expression, serviceProvider, cancellationToken);
+    }
+
+    public object? Evaluate(
+        CsEvalExpression expression, IDictionary<string, object?> variables, IServiceProvider? serviceProvider = null)
+    {
+        return Evaluate(expression, variables, serviceProvider, CancellationToken.None);
+    }
+
+    public object? Evaluate(CsEvalExpression expression, IDictionary<string, object?> variables,
+        IServiceProvider? serviceProvider, CancellationToken cancellationToken)
+    {
+        var child = CreateChild();
+        child.SetVariables(variables);
+        return child.Evaluate(expression, serviceProvider, cancellationToken);
+    }
+
     public T? Evaluate<T>(string expression, IServiceProvider? serviceProvider = null)
     {
         return Evaluate<T>(expression, serviceProvider, CancellationToken.None);
@@ -176,6 +218,8 @@ public sealed class CsEvalEngine
             _ => (T)Convert.ChangeType(result, typeof(T))
         };
     }
+
+
 
     public T? Evaluate<T>(CsEvalExpression expression, IServiceProvider? serviceProvider = null)
     {
@@ -194,6 +238,8 @@ public sealed class CsEvalEngine
             _ => (T)Convert.ChangeType(result, typeof(T))
         };
     }
+
+
 
     public CsEvalEngine SetVariable(string name, object? value)
     {

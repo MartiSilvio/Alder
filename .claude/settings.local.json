@@ -21,7 +21,16 @@
       "Bash(dotnet remove:*)",
       "Bash(grep:*)",
       "Bash(dotnet script:*)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(find:*)",
+      "WebFetch(domain:github.com)",
+      "Bash(xargs cat:*)",
+      "WebFetch(domain:eval-expression.net)",
+      "Bash(xargs:*)",
+      "WebFetch(domain:www.informit.com)",
+      "WebFetch(domain:ecma-international.org)",
+      "Bash(dotnet restore:*)",
+      "Bash(dotnet fsi:*)"
     ]
   }
 }

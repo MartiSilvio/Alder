@@ -1,10 +1,11 @@
 using System.Reflection;
-using CsEval.Attributes;
 
 namespace CsEval.Test.Integration;
 
-[TestFixture]
-public class LazyResolutionTests
+[TestFixture(CompilationMode.Interpreted)]
+[TestFixture(CompilationMode.Compiled)]
+[TestFixture(CompilationMode.StrictCompiled)]
+public class LazyResolutionTests(CompilationMode mode) 
 {
     [SetUp]
     public void SetUp()
@@ -16,7 +17,7 @@ public class LazyResolutionTests
     [Test]
     public void RegisterModule_DoesNotInstantiateType()
     {
-        var engine = new CsEvalEngine();
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         engine.RegisterModule("Tracking", typeof(TrackingModule));
 
         Assert.That(TrackingModule.InstanceCount, Is.EqualTo(0));
@@ -25,7 +26,7 @@ public class LazyResolutionTests
     [Test]
     public void RegisterModule_InstantiatesOnlyWhenAccessed()
     {
-        var engine = new CsEvalEngine();
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         engine.RegisterModule("Tracking", typeof(TrackingModule));
 
         Assert.That(TrackingModule.InstanceCount, Is.EqualTo(0));
@@ -38,7 +39,7 @@ public class LazyResolutionTests
     [Test]
     public void RegisterModule_UsesServiceProviderWhenAvailable()
     {
-        var engine = new CsEvalEngine();
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         engine.RegisterModule("Tracking", typeof(TrackingModule));
 
         var providedInstance = new TrackingModule();
@@ -56,7 +57,7 @@ public class LazyResolutionTests
     [Test]
     public void RegisterModule_ResolvesOnEachCall()
     {
-        var engine = new CsEvalEngine();
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         engine.RegisterModule("Tracking", typeof(TrackingModule));
 
         engine.Evaluate("Tracking.DoSomething()");
@@ -69,7 +70,7 @@ public class LazyResolutionTests
     [Test]
     public void RegisterModule_WithInstance_DoesNotCreateNew()
     {
-        var engine = new CsEvalEngine();
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var instance = new TrackingModule();
         engine.RegisterModule("Tracking", instance);
 
@@ -83,13 +84,15 @@ public class LazyResolutionTests
     }
 }
 
-[TestFixture]
-public class MemberFilteringTests
+[TestFixture(CompilationMode.Interpreted)]
+[TestFixture(CompilationMode.Compiled)]
+[TestFixture(CompilationMode.StrictCompiled)]
+public class MemberFilteringTests(CompilationMode mode) 
 {
     [Test]
     public void RegisterModule_WithExplicitMembers_OnlyExposesSpecifiedMethods()
     {
-        var engine = new CsEvalEngine();
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var members = new Dictionary<string, MemberInfo>(StringComparer.OrdinalIgnoreCase)
         {
             ["Sum"] = typeof(CalculatorModule).GetMethod(nameof(CalculatorModule.Sum))!
@@ -98,14 +101,14 @@ public class MemberFilteringTests
 
         Assert.That(engine.Evaluate("Calc.Sum(2, 3)"), Is.EqualTo(5));
 
-        var ex = Assert.Throws<EvalException>(() => engine.Evaluate("Calc.Subtract(5, 2)"));
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("Calc.Subtract(5, 2)"));
         Assert.That(ex!.Message, Does.Contain("not found"));
     }
 
     [Test]
     public void RegisterModule_WithExplicitMembers_SupportsAliases()
     {
-        var engine = new CsEvalEngine();
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var members = new Dictionary<string, MemberInfo>(StringComparer.OrdinalIgnoreCase)
         {
             ["plus"] = typeof(CalculatorModule).GetMethod(nameof(CalculatorModule.Sum))!,
@@ -116,14 +119,14 @@ public class MemberFilteringTests
         Assert.That(engine.Evaluate("Calc.plus(2, 3)"), Is.EqualTo(5));
         Assert.That(engine.Evaluate("Calc.minus(5, 2)"), Is.EqualTo(3));
 
-        var ex = Assert.Throws<EvalException>(() => engine.Evaluate("Calc.Sum(2, 3)"));
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("Calc.Sum(2, 3)"));
         Assert.That(ex!.Message, Does.Contain("not found"));
     }
 
     [Test]
     public void RegisterModule_WithoutExplicitMembers_ExposesAllPublicMembers()
     {
-        var engine = new CsEvalEngine();
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         engine.RegisterModule("Calc", typeof(CalculatorModule));
 
         Assert.That(engine.Evaluate("Calc.Sum(2, 3)"), Is.EqualTo(5));
@@ -134,7 +137,7 @@ public class MemberFilteringTests
     [Test]
     public void RegisterModule_WithExplicitMembers_CanExposeProperties()
     {
-        var engine = new CsEvalEngine();
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var members = new Dictionary<string, MemberInfo>(StringComparer.OrdinalIgnoreCase)
         {
             ["Pi"] = typeof(ConstantsModule).GetProperty(nameof(ConstantsModule.Pi))!
@@ -143,14 +146,14 @@ public class MemberFilteringTests
 
         Assert.That(engine.Evaluate("Constants.Pi"), Is.EqualTo(3.14159));
 
-        var ex = Assert.Throws<EvalException>(() => engine.Evaluate("Constants.E"));
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("Constants.E"));
         Assert.That(ex!.Message, Does.Contain("not found"));
     }
 
     [Test]
     public void RegisterModule_CaseInsensitive_WorksWithExplicitMembers()
     {
-        var engine = new CsEvalEngine(new CsEvalOptions { IgnoreCase = true });
+        var engine = new CsEvalEngine(new CsEvalOptions { CompilationMode = mode, IgnoreCase = true });
         var members = new Dictionary<string, MemberInfo>(StringComparer.OrdinalIgnoreCase)
         {
             ["sum"] = typeof(CalculatorModule).GetMethod(nameof(CalculatorModule.Sum))!

@@ -3,7 +3,7 @@ using CsEval.Attributes;
 namespace CsEval.Test.Core;
 
 [TestFixture]
-public class BasicEvaluationTests
+public class BasicEvaluationTests 
 {
     [Test]
     public void SimpleExpression()
@@ -70,8 +70,8 @@ public class BasicEvaluationTests
         var engine = new CsEvalEngine();
         engine.SetVariable("items", new List<int> { 1, 2, 3, 4, 5 });
 
-        var result = engine.Evaluate("items.Where((x) => x > 2).Select((x) => x * 2)") as List<object?>;
-        Assert.That(result, Is.EqualTo(new List<object?> { 6, 8, 10 }));
+        var result = engine.Evaluate("items.Where((x) => x > 2).Select((x) => x * 2).ToList()");
+        Assert.That(result, Is.EquivalentTo(new List<int> { 6, 8, 10 }));
     }
 
     [Test]
@@ -105,7 +105,7 @@ public class BasicEvaluationTests
 }
 
 [TestFixture]
-public class BuiltInProxyTests
+public class BuiltInProxyTests 
 {
     [Test]
     public void MathProxy()
@@ -133,7 +133,7 @@ public class BuiltInProxyTests
 }
 
 [TestFixture]
-public class CustomRegistrationTests
+public class CustomRegistrationTests 
 {
     [Test]
     public void CustomFunction()
@@ -162,7 +162,7 @@ public class CustomRegistrationTests
 }
 
 [TestFixture]
-public class ExplicitModuleTests
+public class ExplicitModuleTests 
 {
     [Test]
     public void ExplicitOnly_OnlyExposesAttributedMethods()
@@ -175,7 +175,7 @@ public class ExplicitModuleTests
         Assert.That(result, Is.EqualTo("allowed"));
 
         // Non-attributed method should throw
-        var ex = Assert.Throws<EvalException>(() => engine.Evaluate("Mod.NotAllowed()"));
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("Mod.NotAllowed()"));
         Assert.That(ex!.Message, Does.Contain("NotAllowed"));
     }
 
@@ -211,7 +211,7 @@ public class ExplicitModuleTests
         Assert.That(result, Is.EqualTo("exposed"));
 
         // Non-attributed method should throw (ExplicitOnly=true on class)
-        var ex = Assert.Throws<EvalException>(() => engine.Evaluate("Mod.Hidden()"));
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("Mod.Hidden()"));
         Assert.That(ex!.Message, Does.Contain("Hidden"));
     }
 
@@ -233,7 +233,7 @@ public class ExplicitModuleTests
         engine.RegisterModule<ModuleWithProperty>("Mod", explicitOnly: true);
 
         // Properties are not exposed in explicit mode
-        var ex = Assert.Throws<EvalException>(() => engine.Evaluate("Mod.Value"));
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("Mod.Value"));
         Assert.That(ex!.Message, Does.Contain("Value"));
     }
 
@@ -277,7 +277,7 @@ public class ExplicitModuleTests
 }
 
 [TestFixture]
-public class CaseSensitivityTests
+public class CaseSensitivityTests 
 {
     [Test]
     public void CaseSensitive_ThrowsOnWrongCase()
@@ -286,7 +286,7 @@ public class CaseSensitivityTests
         engine.SetVariable("MyVar", 42);
 
         Assert.That(engine.Evaluate("MyVar"), Is.EqualTo(42));
-        Assert.Throws<CsEval.Evaluation.EvalException>(() => engine.Evaluate("myvar"));
+        Assert.Throws<CsEvalException>(() => engine.Evaluate("myvar"));
     }
 
     [Test]

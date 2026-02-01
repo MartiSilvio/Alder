@@ -2,13 +2,17 @@ using CsEval.Attributes;
 
 namespace CsEval.Test.Integration;
 
-[TestFixture]
-public class AttributeRegistrationTests
+[TestFixture(CompilationMode.Interpreted)]
+[TestFixture(CompilationMode.Compiled)]
+[TestFixture(CompilationMode.StrictCompiled)]
+public class AttributeRegistrationTests(CompilationMode mode) 
 {
+    protected readonly CompilationMode Mode = mode;
+
     [Test]
     public void GlobalFunction()
     {
-        var engine = new CsEvalEngine();
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = Mode });
         engine.RegisterFromType<GlobalFunctions>();
 
         var result = engine.Evaluate("triple(4)");
@@ -18,7 +22,7 @@ public class AttributeRegistrationTests
     [Test]
     public void GlobalFunction_WithInstance()
     {
-        var engine = new CsEvalEngine();
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = Mode });
         var instance = new StatefulFunctions { Multiplier = 5 };
         engine.RegisterFromType(instance);
 
@@ -29,7 +33,7 @@ public class AttributeRegistrationTests
     [Test]
     public void Module()
     {
-        var engine = new CsEvalEngine();
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = Mode });
         engine.RegisterFromType<CustomMathModule>();
 
         Assert.That(engine.Evaluate("CustomMath.Square(4)"), Is.EqualTo(16));
@@ -39,7 +43,7 @@ public class AttributeRegistrationTests
     [Test]
     public void Module_WithInstance()
     {
-        var engine = new CsEvalEngine();
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = Mode });
         var instance = new GreeterModule("Hi");
         engine.RegisterFromType(instance);
 
@@ -50,7 +54,7 @@ public class AttributeRegistrationTests
     [Test]
     public void StaticMethods()
     {
-        var engine = new CsEvalEngine();
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = Mode });
         engine.RegisterFromType<StaticHelpers>();
 
         Assert.That(engine.Evaluate("isEven(4)"), Is.EqualTo(true));
@@ -60,7 +64,7 @@ public class AttributeRegistrationTests
     [Test]
     public void FromAssembly()
     {
-        var engine = new CsEvalEngine();
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = Mode });
         engine.RegisterFromAssembly(typeof(AssemblyTestModule).Assembly);
 
         Assert.That(engine.Evaluate("AssemblyTest.Double(5)"), Is.EqualTo(10));
@@ -69,7 +73,7 @@ public class AttributeRegistrationTests
     [Test]
     public void WithServiceProvider()
     {
-        var engine = new CsEvalEngine();
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = Mode });
         engine.RegisterFromType<GreeterModule>();
 
         var serviceProvider = new SimpleServiceProvider();

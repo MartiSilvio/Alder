@@ -186,14 +186,75 @@ public sealed partial class Parser
     {
         var expr = ParseShift();
 
-        while (Match(TokenType.Less, TokenType.LessEqual, TokenType.Greater, TokenType.GreaterEqual, TokenType.In))
+        while (true)
         {
-            var op = Previous();
-            var right = ParseShift();
-            expr = new BinaryExpr(expr, op, right);
+            if (Match(TokenType.Less, TokenType.LessEqual, TokenType.Greater, TokenType.GreaterEqual, TokenType.In))
+            {
+                var op = Previous();
+                var right = ParseShift();
+                expr = new BinaryExpr(expr, op, right);
+            }
+            else if (Match(TokenType.Is))
+            {
+                expr = ParseIsExpression(expr);
+            }
+            else if (Match(TokenType.As))
+            {
+                expr = ParseAsExpression(expr);
+            }
+            else
+            {
+                break;
+            }
         }
 
         return expr;
+    }
+
+    private Expr ParseIsExpression(Expr left)
+    {
+        // x is null
+        if (Match(TokenType.Null))
+            return new IsExpr(left, null, false);
+
+        // x is not null (note: "not" is lexed as Bang)
+        if (Check(TokenType.Bang) && Peek().Lexeme == "not")
+        {
+            Advance();
+            Consume(TokenType.Null, "Expected 'null' after 'is not'");
+            return new IsExpr(left, null, true);
+        }
+
+        // x is type OR x is type name
+        if (MatchTypeKeywordNoNullable(out var typeToken))
+        {
+            Token? varName = null;
+            if (Check(TokenType.Identifier))
+                varName = Advance();
+            return new IsExpr(left, typeToken, false, varName);
+        }
+
+        throw new ParserException($"Expected type or 'null' after 'is' at {Peek().Line}:{Peek().Column}");
+    }
+
+    private bool MatchTypeKeywordNoNullable(out Token typeToken)
+    {
+        if (IsTypeKeyword(Peek().Type))
+        {
+            typeToken = Advance();
+            return true;
+        }
+        typeToken = default;
+        return false;
+    }
+
+    private Expr ParseAsExpression(Expr left)
+    {
+        // x as type
+        if (MatchTypeKeyword(out var typeToken))
+            return new AsExpr(left, typeToken);
+
+        throw new ParserException($"Expected type after 'as' at {Peek().Line}:{Peek().Column}");
     }
 
     private Expr ParseShift()
@@ -248,6 +309,16 @@ public sealed partial class Parser
 
     private Expr ParseUnary()
     {
+        // Cast expression: (int)x, (double)y, (int?)z
+        if (Check(TokenType.LeftParen) && IsCastExpression())
+        {
+            Advance(); // consume '('
+            MatchTypeKeyword(out var typeToken);
+            Consume(TokenType.RightParen, "Expected ')' after cast type");
+            var operand = ParseUnary();
+            return new CastExpr(typeToken, operand);
+        }
+
         if (Match(TokenType.Bang, TokenType.Minus, TokenType.Tilde))
         {
             var op = Previous();
@@ -264,6 +335,38 @@ public sealed partial class Parser
         }
 
         return ParsePostfix();
+    }
+
+    private bool IsCastExpression()
+    {
+        // Look ahead: ( type ) or ( type? )
+        // We're at '(' - check if next token is a type keyword
+        if (_current + 1 >= _tokens.Count)
+            return false;
+
+        var nextToken = _tokens[_current + 1];
+        if (!IsTypeKeyword(nextToken.Type))
+            return false;
+
+        // Check what follows the type: either ')' or '?' then ')'
+        var afterTypeIndex = _current + 2;
+        if (afterTypeIndex >= _tokens.Count)
+            return false;
+
+        var afterType = _tokens[afterTypeIndex];
+        if (afterType.Type == TokenType.RightParen)
+            return true;
+
+        // Check for nullable: type?
+        if (afterType.Type == TokenType.Question)
+        {
+            var afterNullable = afterTypeIndex + 1;
+            if (afterNullable >= _tokens.Count)
+                return false;
+            return _tokens[afterNullable].Type == TokenType.RightParen;
+        }
+
+        return false;
     }
 
     private Expr ParsePostfix()

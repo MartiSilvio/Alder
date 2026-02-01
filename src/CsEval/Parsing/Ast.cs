@@ -19,6 +19,9 @@ public interface IExprVisitor<out T>
     T VisitUnary(UnaryExpr expr);
     T VisitBinary(BinaryExpr expr);
     T VisitLogical(LogicalExpr expr);
+    T VisitCast(CastExpr expr);
+    T VisitIs(IsExpr expr);
+    T VisitAs(AsExpr expr);
 
     // Assignment
     T VisitAssign(AssignExpr expr);
@@ -113,6 +116,26 @@ public sealed record BinaryExpr(Expr Left, Token Op, Expr Right) : Expr
 public sealed record LogicalExpr(Expr Left, Token Op, Expr Right) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitLogical(this);
+}
+
+// Cast: (int)x, (double)y
+public sealed record CastExpr(Token TargetType, Expr Expression) : Expr
+{
+    public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitCast(this);
+}
+
+// Is: x is string, x is null, x is not null, x is string s
+// TargetType is null for "is null" / "is not null" patterns
+// VariableName is set for declaration patterns like "x is string s"
+public sealed record IsExpr(Expr Expression, Token? TargetType, bool IsNegated, Token? VariableName = null) : Expr
+{
+    public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitIs(this);
+}
+
+// As: x as string (safe cast)
+public sealed record AsExpr(Expr Expression, Token TargetType) : Expr
+{
+    public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitAs(this);
 }
 
 #endregion
