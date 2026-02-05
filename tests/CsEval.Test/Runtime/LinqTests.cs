@@ -5,93 +5,80 @@ namespace CsEval.Test.Runtime;
 [TestFixture(CompilationMode.StrictCompiled)]
 public class LinqTests(CompilationMode mode)
 {
-    private async Task RunParityTestAsync(string expr, Dictionary<string, object?> variables, object expected)
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        foreach (var (name, value) in variables)
-            engine.SetVariable(name, value);
-
-        var result = engine.Evaluate(expr);
-        var csharpResult = await TestHelpers.EvaluateCSharpAsync(expr, variables);
-
-        Assert.That(result, Is.EqualTo(expected));
-        Assert.That(result, Is.EqualTo(csharpResult), "C# parity");
-    }
-
     [Test]
     [TestCaseSource(nameof(WhereTestCases))]
     public async Task Where(string expr, Dictionary<string, object?> variables, object expected)
-        => await RunParityTestAsync(expr, variables, expected);
+        => await TestHelpers.RunCSharpParityTestAsync(expr, variables, expected, mode);
 
     [Test]
     [TestCaseSource(nameof(SelectTestCases))]
     public async Task Select(string expr, Dictionary<string, object?> variables, object expected)
-        => await RunParityTestAsync(expr, variables, expected);
+        => await TestHelpers.RunCSharpParityTestAsync(expr, variables, expected, mode);
 
     [Test]
     [TestCaseSource(nameof(AggregateTestCases))]
     public async Task Aggregate(string expr, Dictionary<string, object?> variables, object expected)
-        => await RunParityTestAsync(expr, variables, expected);
+        => await TestHelpers.RunCSharpParityTestAsync(expr, variables, expected, mode);
 
     [Test]
     [TestCaseSource(nameof(FirstLastTestCases))]
     public async Task FirstLast(string expr, Dictionary<string, object?> variables, object expected)
-        => await RunParityTestAsync(expr, variables, expected);
+        => await TestHelpers.RunCSharpParityTestAsync(expr, variables, expected, mode);
 
     [Test]
     [TestCaseSource(nameof(SingleTestCases))]
     public async Task Single(string expr, Dictionary<string, object?> variables, object expected)
-        => await RunParityTestAsync(expr, variables, expected);
+        => await TestHelpers.RunCSharpParityTestAsync(expr, variables, expected, mode);
 
     [Test]
     [TestCaseSource(nameof(AnyAllTestCases))]
     public async Task AnyAll(string expr, Dictionary<string, object?> variables, object expected)
-        => await RunParityTestAsync(expr, variables, expected);
+        => await TestHelpers.RunCSharpParityTestAsync(expr, variables, expected, mode);
 
     [Test]
     [TestCaseSource(nameof(CountTestCases))]
     public async Task Count(string expr, Dictionary<string, object?> variables, object expected)
-        => await RunParityTestAsync(expr, variables, expected);
+        => await TestHelpers.RunCSharpParityTestAsync(expr, variables, expected, mode);
 
     [Test]
     [TestCaseSource(nameof(SumAverageTestCases))]
     public async Task SumAverage(string expr, Dictionary<string, object?> variables, object expected)
-        => await RunParityTestAsync(expr, variables, expected);
+        => await TestHelpers.RunCSharpParityTestAsync(expr, variables, expected, mode);
 
     [Test]
     [TestCaseSource(nameof(MinMaxTestCases))]
     public async Task MinMax(string expr, Dictionary<string, object?> variables, object expected)
-        => await RunParityTestAsync(expr, variables, expected);
+        => await TestHelpers.RunCSharpParityTestAsync(expr, variables, expected, mode);
 
     [Test]
     [TestCaseSource(nameof(OrderByTestCases))]
     public async Task OrderBy(string expr, Dictionary<string, object?> variables, object expected)
-        => await RunParityTestAsync(expr, variables, expected);
+        => await TestHelpers.RunCSharpParityTestAsync(expr, variables, expected, mode);
 
     [Test]
     [TestCaseSource(nameof(DistinctTakeSkipTestCases))]
     public async Task DistinctTakeSkip(string expr, Dictionary<string, object?> variables, object expected)
-        => await RunParityTestAsync(expr, variables, expected);
+        => await TestHelpers.RunCSharpParityTestAsync(expr, variables, expected, mode);
 
     [Test]
     [TestCaseSource(nameof(ContainsReverseTestCases))]
     public async Task ContainsReverse(string expr, Dictionary<string, object?> variables, object expected)
-        => await RunParityTestAsync(expr, variables, expected);
+        => await TestHelpers.RunCSharpParityTestAsync(expr, variables, expected, mode);
 
     [Test]
     [TestCaseSource(nameof(SetOperationsTestCases))]
     public async Task SetOperations(string expr, Dictionary<string, object?> variables, object expected)
-        => await RunParityTestAsync(expr, variables, expected);
+        => await TestHelpers.RunCSharpParityTestAsync(expr, variables, expected, mode);
 
     [Test]
     [TestCaseSource(nameof(ConversionTestCases))]
     public async Task Conversion(string expr, Dictionary<string, object?> variables, object expected)
-        => await RunParityTestAsync(expr, variables, expected);
+        => await TestHelpers.RunCSharpParityTestAsync(expr, variables, expected, mode);
 
     [Test]
     [TestCaseSource(nameof(ChainedTestCases))]
     public async Task Chained(string expr, Dictionary<string, object?> variables, object expected)
-        => await RunParityTestAsync(expr, variables, expected);
+        => await TestHelpers.RunCSharpParityTestAsync(expr, variables, expected, mode);
     
     #region Where Test Cases
 
@@ -142,7 +129,6 @@ public class LinqTests(CompilationMode mode)
     }
 
     #endregion
-
 
     #region Aggregate Test Cases
 
@@ -685,26 +671,15 @@ public class LinqTests(CompilationMode mode)
     #region Reverse - CsEval Specific
 
     [Test]
-    public async Task Reverse_CsEval_UsesEnumerableReverse()
+    public void Reverse_OnArray_UsesEnumerableReverse()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var numbers = new List<int> { 1, 2, 3 };
+        var numbers = new[] { 1, 2, 3 };
         engine.SetVariable("numbers", numbers);
 
-        // CsEval's Reverse() uses Enumerable.Reverse (returns new sequence)
-        // C# List<T>.Reverse() is in-place and returns void
-        // Use AsEnumerable() in C# to get the same behavior
         var result = engine.Evaluate("numbers.Reverse().ToList()");
-        var csharpResult = await TestHelpers.EvaluateCSharpAsync(
-            "numbers.AsEnumerable().Reverse().ToList()",
-            new Dictionary<string, object?>
-            {
-                ["numbers"] = numbers
-            }
-        );
 
         Assert.That(result, Is.EqualTo(new[] { 3, 2, 1 }));
-        Assert.That(result, Is.EqualTo(csharpResult), "C# parity");
     }
 
     #endregion
@@ -721,33 +696,33 @@ public class LinqTests(CompilationMode mode)
     }
 
     [Test]
-    public void FirstOrDefault_EmptyCollection_ReturnsNull()
+    public void FirstOrDefault_EmptyCollection_ReturnsDefault()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         engine.SetVariable("numbers", new List<int>());
 
         var result = engine.Evaluate("numbers.FirstOrDefault()");
-        Assert.That(result, Is.Null);
+        Assert.That(result, Is.EqualTo(0));
     }
 
     [Test]
-    public void FirstOrDefault_WithPredicate_NoMatch_ReturnsNull()
+    public void FirstOrDefault_WithPredicate_NoMatch_ReturnsDefault()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         engine.SetVariable("numbers", new List<int> { 1, 2, 3 });
 
         var result = engine.Evaluate("numbers.FirstOrDefault(x => x > 10)");
-        Assert.That(result, Is.Null);
+        Assert.That(result, Is.EqualTo(0));
     }
 
     [Test]
-    public void LastOrDefault_EmptyCollection_ReturnsNull()
+    public void LastOrDefault_EmptyCollection_ReturnsDefault()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         engine.SetVariable("numbers", new List<int>());
 
         var result = engine.Evaluate("numbers.LastOrDefault()");
-        Assert.That(result, Is.Null);
+        Assert.That(result, Is.EqualTo(0));
     }
 
     [Test]
@@ -760,13 +735,13 @@ public class LinqTests(CompilationMode mode)
     }
 
     [Test]
-    public void SingleOrDefault_EmptyCollection_ReturnsNull()
+    public void SingleOrDefault_EmptyCollection_ReturnsDefault()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         engine.SetVariable("numbers", new List<int>());
 
         var result = engine.Evaluate("numbers.SingleOrDefault()");
-        Assert.That(result, Is.Null);
+        Assert.That(result, Is.EqualTo(0));
     }
 
     [Test]
@@ -775,8 +750,7 @@ public class LinqTests(CompilationMode mode)
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         engine.SetVariable("strings", new List<string> { "a", "b", "c" });
 
-        var ex = Assert.Throws<InvalidOperationException>(() => engine.Evaluate("strings.Sum()"));
-        Assert.That(ex!.Message, Does.Contain("Sum()").And.Contain("numeric"));
+        Assert.Throws<CsEvalException>(() => engine.Evaluate("strings.Sum()"));
     }
 
     [Test]
@@ -785,8 +759,7 @@ public class LinqTests(CompilationMode mode)
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         engine.SetVariable("items", new List<object> { "hello", "world" });
 
-        var ex = Assert.Throws<InvalidOperationException>(() => engine.Evaluate("items.Sum()"));
-        Assert.That(ex!.Message, Does.Contain("Sum()").And.Contain("numeric"));
+        Assert.Throws<CsEvalException>(() => engine.Evaluate("items.Sum()"));
     }
 
     [Test]
@@ -979,14 +952,12 @@ public class LinqTests(CompilationMode mode)
         var list = (IList)result!;
         Assert.That(list, Has.Count.EqualTo(2));
 
-        var groupA = list.Cast<Dictionary<string, object?>>().First(g => (string)g["Key"]! == "A");
-        var groupAItems = groupA["Items"];
-        Assert.That(groupAItems, Is.InstanceOf<IList>());
-        Assert.That(groupAItems, Has.Count.EqualTo(2));
+        var groupA = list.Cast<IGrouping<object?, object?>>().First(g => (string)g.Key! == "A");
+        Assert.That(groupA.Count(), Is.EqualTo(2));
     }
 
     [Test]
-    public void GroupBy_ResultHasKeyAndItems()
+    public void GroupBy_ReturnsIGrouping()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         engine.SetVariable("numbers", new List<int> { 1, 2, 3, 4, 5, 6 });
@@ -996,11 +967,31 @@ public class LinqTests(CompilationMode mode)
         var list = (IList)result!;
         Assert.That(list, Has.Count.EqualTo(2));
 
-        foreach (var group in list.Cast<Dictionary<string, object?>>())
+        foreach (var group in list)
         {
-            Assert.That(group.ContainsKey("Key"), Is.True);
-            Assert.That(group.ContainsKey("Items"), Is.True);
+            Assert.That(group, Is.InstanceOf<IGrouping<bool, int>>());
+            var g = (IGrouping<bool, int>)group!;
+            Assert.That(g.Any(), Is.True);
         }
+    }
+
+    [Test]
+    public void GroupBy_CanPassToFunctionAcceptingIGrouping()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        engine.SetVariable("nums", new[] { 1, 2, 3, 4, 5 });
+
+        // Register a function that accepts IGrouping<bool, int>
+        engine.RegisterFunction("SumGroup", args =>
+        {
+            var group = (IGrouping<bool, int>)args[0]!;
+            return group.Sum();
+        });
+
+        var result = engine.Evaluate("nums.GroupBy(x => x > 2).Select(g => SumGroup(g)).ToList()");
+        var sums = ((IList)result!).Cast<object>().Select(x => (int)x).OrderBy(x => x).ToList();
+
+        Assert.That(sums, Is.EqualTo(new[] { 3, 12 })); // 1+2=3, 3+4+5=12
     }
 
     [Test]
@@ -1025,9 +1016,9 @@ public class LinqTests(CompilationMode mode)
         Assert.That(result, Is.Not.Null);
         Assert.That(result, Has.Count.EqualTo(2));
 
-        var first = result![0] as Dictionary<string, object?>;
-        Assert.That(first!["First"], Is.EqualTo("Alice"));
-        Assert.That(first["Second"], Is.EqualTo(30));
+        var first = ((string, int))result![0]!;
+        Assert.That(first.Item1, Is.EqualTo("Alice"));
+        Assert.That(first.Item2, Is.EqualTo(30));
     }
 
     [Test]
@@ -1059,84 +1050,643 @@ public class LinqTests(CompilationMode mode)
 
     #endregion
 
-    #region Alias Tests (CsEval-specific syntax, cannot be parity tested)
+    #region ThenBy / ThenByDescending
 
     [Test]
-    public void Filter_Alias_WorksAsWhere()
+    public void ThenBy_SecondarySort()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate("[1, 2, 3, 4].filter(x => x > 2).ToList()");
-        Assert.That(result, Is.EqualTo(new[] { 3, 4 }));
-    }
-
-    [Test]
-    public void Map_Alias_WorksAsSelect()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate("[1, 2, 3].map(x => x * 2).ToList()");
-        Assert.That(result, Is.EqualTo(new[] { 2, 4, 6 }));
-    }
-
-    [Test]
-    public void FlatMap_Alias_WorksAsSelectMany()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        engine.SetVariable("nested", new List<List<int>> {
-            new() { 1, 2 },
-            new() { 3, 4 }
+        engine.SetVariable("items", new List<Dictionary<string, object?>>
+        {
+            new() { ["Category"] = "A", ["Name"] = "Zebra" },
+            new() { ["Category"] = "B", ["Name"] = "Apple" },
+            new() { ["Category"] = "A", ["Name"] = "Apple" },
+            new() { ["Category"] = "B", ["Name"] = "Banana" }
         });
 
-        var result = engine.Evaluate("nested.flatMap(x => x).ToList()");
+        var result = engine.Evaluate("items.OrderBy(x => x.Category).ThenBy(x => x.Name).Select(x => x.Name).ToList()");
+        Assert.That(result, Is.EqualTo(new[] { "Apple", "Zebra", "Apple", "Banana" }));
+    }
+
+    [Test]
+    public void ThenByDescending_SecondarySort()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        engine.SetVariable("items", new List<Dictionary<string, object?>>
+        {
+            new() { ["Category"] = "A", ["Name"] = "Apple" },
+            new() { ["Category"] = "A", ["Name"] = "Zebra" },
+            new() { ["Category"] = "B", ["Name"] = "Banana" }
+        });
+
+        var result = engine.Evaluate("items.OrderBy(x => x.Category).ThenByDescending(x => x.Name).Select(x => x.Name).ToList()");
+        Assert.That(result, Is.EqualTo(new[] { "Zebra", "Apple", "Banana" }));
+    }
+
+    #endregion
+
+    #region TakeWhile / SkipWhile
+
+    [Test]
+    public void TakeWhile_TakesWhileConditionTrue()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        engine.SetVariable("numbers", new List<int> { 1, 2, 3, 4, 5, 1, 2 });
+
+        var result = engine.Evaluate("numbers.TakeWhile(x => x < 4).ToList()");
+        Assert.That(result, Is.EqualTo(new[] { 1, 2, 3 }));
+    }
+
+    [Test]
+    public void TakeWhile_AllMatch_ReturnsAll()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        engine.SetVariable("numbers", new List<int> { 1, 2, 3 });
+
+        var result = engine.Evaluate("numbers.TakeWhile(x => x < 10).ToList()");
+        Assert.That(result, Is.EqualTo(new[] { 1, 2, 3 }));
+    }
+
+    [Test]
+    public void TakeWhile_NoneMatch_ReturnsEmpty()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        engine.SetVariable("numbers", new List<int> { 5, 6, 7 });
+
+        var result = engine.Evaluate("numbers.TakeWhile(x => x < 5).ToList()");
+        Assert.That(result, Is.EqualTo(Array.Empty<int>()));
+    }
+
+    [Test]
+    public void SkipWhile_SkipsWhileConditionTrue()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        engine.SetVariable("numbers", new List<int> { 1, 2, 3, 4, 5, 1, 2 });
+
+        var result = engine.Evaluate("numbers.SkipWhile(x => x < 4).ToList()");
+        Assert.That(result, Is.EqualTo(new[] { 4, 5, 1, 2 }));
+    }
+
+    [Test]
+    public void SkipWhile_AllMatch_ReturnsEmpty()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        engine.SetVariable("numbers", new List<int> { 1, 2, 3 });
+
+        var result = engine.Evaluate("numbers.SkipWhile(x => x < 10).ToList()");
+        Assert.That(result, Is.EqualTo(Array.Empty<int>()));
+    }
+
+    [Test]
+    public void SkipWhile_NoneMatch_ReturnsAll()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        engine.SetVariable("numbers", new List<int> { 5, 6, 7 });
+
+        var result = engine.Evaluate("numbers.SkipWhile(x => x < 5).ToList()");
+        Assert.That(result, Is.EqualTo(new[] { 5, 6, 7 }));
+    }
+
+    #endregion
+
+    #region ElementAt / ElementAtOrDefault
+
+    [Test]
+    public void ElementAt_ReturnsElementAtIndex()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        engine.SetVariable("numbers", new List<int> { 10, 20, 30, 40 });
+
+        var result = engine.Evaluate("numbers.ElementAt(2)");
+        Assert.That(result, Is.EqualTo(30));
+    }
+
+    [Test]
+    public void ElementAt_OutOfRange_Throws()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        engine.SetVariable("numbers", new List<int> { 1, 2, 3 });
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => engine.Evaluate("numbers.ElementAt(10)"));
+    }
+
+    [Test]
+    public void ElementAtOrDefault_ReturnsElementAtIndex()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        engine.SetVariable("numbers", new List<int> { 10, 20, 30, 40 });
+
+        var result = engine.Evaluate("numbers.ElementAtOrDefault(2)");
+        Assert.That(result, Is.EqualTo(30));
+    }
+
+    [Test]
+    public void ElementAtOrDefault_OutOfRange_ReturnsDefault()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        engine.SetVariable("numbers", new List<int> { 1, 2, 3 });
+
+        var result = engine.Evaluate("numbers.ElementAtOrDefault(10)");
+        Assert.That(result, Is.EqualTo(0));
+    }
+
+    #endregion
+
+    #region DefaultIfEmpty
+
+    [Test]
+    public void DefaultIfEmpty_NonEmpty_ReturnsOriginal()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        engine.SetVariable("numbers", new List<int> { 1, 2, 3 });
+
+        var result = engine.Evaluate("numbers.DefaultIfEmpty().ToList()");
+        Assert.That(result, Is.EqualTo(new[] { 1, 2, 3 }));
+    }
+
+    [Test]
+    public void DefaultIfEmpty_Empty_ReturnsDefault()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        engine.SetVariable("numbers", new List<int>());
+
+        var result = engine.Evaluate("numbers.DefaultIfEmpty().ToList()");
+        Assert.That(result, Is.EqualTo(new[] { 0 }));
+    }
+
+    [Test]
+    public void DefaultIfEmpty_WithValue_Empty_ReturnsSpecifiedDefault()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        engine.SetVariable("numbers", new List<int>());
+
+        var result = engine.Evaluate("numbers.DefaultIfEmpty(42).ToList()");
+        Assert.That(result, Is.EqualTo(new[] { 42 }));
+    }
+
+    #endregion
+
+    #region Append / Prepend
+
+    [Test]
+    public void Append_AddsToEnd()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        engine.SetVariable("numbers", new List<int> { 1, 2, 3 });
+
+        var result = engine.Evaluate("numbers.Append(4).ToList()");
         Assert.That(result, Is.EqualTo(new[] { 1, 2, 3, 4 }));
     }
 
     [Test]
-    public void Reduce_Alias_WithoutSeed()
+    public void Prepend_AddsToStart()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate("[1, 2, 3].reduce((a, b) => a + b)");
-        Assert.That(result, Is.EqualTo(6));
+        engine.SetVariable("numbers", new List<int> { 2, 3, 4 });
+
+        var result = engine.Evaluate("numbers.Prepend(1).ToList()");
+        Assert.That(result, Is.EqualTo(new[] { 1, 2, 3, 4 }));
+    }
+
+    #endregion
+
+    #region SequenceEqual
+
+    [Test]
+    public void SequenceEqual_SameElements_ReturnsTrue()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        engine.SetVariable("a", new List<int> { 1, 2, 3 });
+        engine.SetVariable("b", new List<int> { 1, 2, 3 });
+
+        var result = engine.Evaluate("a.SequenceEqual(b)");
+        Assert.That(result, Is.True);
     }
 
     [Test]
-    public void Reduce_Alias_WithSeed_JsStyle()
+    public void SequenceEqual_DifferentElements_ReturnsFalse()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        // JS style: reduce(fn, seed) - function first, seed second
-        var result = engine.Evaluate("[1, 2, 3].reduce((acc, x) => acc + x, 10)");
-        Assert.That(result, Is.EqualTo(16));
+        engine.SetVariable("a", new List<int> { 1, 2, 3 });
+        engine.SetVariable("b", new List<int> { 1, 2, 4 });
+
+        var result = engine.Evaluate("a.SequenceEqual(b)");
+        Assert.That(result, Is.False);
     }
 
     [Test]
-    public void Find_Alias_WorksAsFirstOrDefault()
+    public void SequenceEqual_DifferentLength_ReturnsFalse()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        Assert.That(engine.Evaluate("[1, 2, 3].find(x => x > 1)"), Is.EqualTo(2));
-        Assert.That(engine.Evaluate("[1, 2, 3].find(x => x > 5)"), Is.Null);
+        engine.SetVariable("a", new List<int> { 1, 2, 3 });
+        engine.SetVariable("b", new List<int> { 1, 2 });
+
+        var result = engine.Evaluate("a.SequenceEqual(b)");
+        Assert.That(result, Is.False);
+    }
+
+    #endregion
+
+    #region LongCount
+
+    [Test]
+    public void LongCount_ReturnsLongCount()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        engine.SetVariable("numbers", new List<int> { 1, 2, 3, 4, 5 });
+
+        var result = engine.Evaluate("numbers.LongCount()");
+        Assert.That(result, Is.EqualTo(5L));
+        Assert.That(result, Is.TypeOf<long>());
     }
 
     [Test]
-    public void Some_Alias_WorksAsAny()
+    public void LongCount_WithPredicate_ReturnsMatchingCount()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        Assert.That(engine.Evaluate("[1, 2, 3].some(x => x > 2)"), Is.True);
-        Assert.That(engine.Evaluate("[1, 2, 3].some(x => x > 5)"), Is.False);
+        engine.SetVariable("numbers", new List<int> { 1, 2, 3, 4, 5 });
+
+        var result = engine.Evaluate("numbers.LongCount(x => x > 2)");
+        Assert.That(result, Is.EqualTo(3L));
+    }
+
+    #endregion
+
+    #region Cast / OfType
+
+    [Test]
+    public void Cast_WithGenericSyntax()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        engine.SetVariable("objects", new object[] { 1, 2, 3 });
+
+        var result = engine.Evaluate("objects.Cast<int>().ToList()");
+        Assert.That(result, Is.EqualTo(new[] { 1, 2, 3 }));
     }
 
     [Test]
-    public void Every_Alias_WorksAsAll()
+    public void Cast_WithKeywordType()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        Assert.That(engine.Evaluate("[2, 4, 6].every(x => x > 0)"), Is.True);
-        Assert.That(engine.Evaluate("[1, 2, 3].every(x => x > 1)"), Is.False);
+        engine.SetVariable("objects", new object[] { 1L, 2L, 3L });
+
+        var result = engine.Evaluate("objects.Cast<long>().ToList()");
+        Assert.That(result, Is.EqualTo(new[] { 1L, 2L, 3L }));
     }
 
     [Test]
-    public void Includes_Alias_WorksAsContains()
+    public void OfType_FiltersIntegers()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        Assert.That(engine.Evaluate("[1, 2, 3].includes(2)"), Is.True);
-        Assert.That(engine.Evaluate("[1, 2, 3].includes(5)"), Is.False);
+        engine.SetVariable("mixed", new object[] { 1, "hello", 2, "world", 3 });
+
+        var result = engine.Evaluate("mixed.OfType<int>().ToList()");
+        Assert.That(result, Is.EqualTo(new[] { 1, 2, 3 }));
+    }
+
+    [Test]
+    public void OfType_FiltersStrings()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        engine.SetVariable("mixed", new object[] { 1, "hello", 2, "world", 3 });
+
+        var result = engine.Evaluate("mixed.OfType<string>().ToList()");
+        Assert.That(result, Is.EqualTo(new[] { "hello", "world" }));
+    }
+
+    #endregion
+
+    #region ToDictionary
+
+    [Test]
+    public void ToDictionary_WithKeySelector()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        engine.SetVariable("items", new List<Dictionary<string, object?>>
+        {
+            new() { ["Id"] = 1, ["Name"] = "Alice" },
+            new() { ["Id"] = 2, ["Name"] = "Bob" }
+        });
+
+        var result = engine.Evaluate("items.ToDictionary(x => x.Id)") as IDictionary;
+        Assert.That(result, Is.Not.Null);
+        Assert.That(result!.Count, Is.EqualTo(2));
+        Assert.That(result.Contains(1), Is.True);
+        Assert.That(result.Contains(2), Is.True);
+    }
+
+    [Test]
+    public void ToDictionary_WithKeyAndValueSelector()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        engine.SetVariable("items", new List<Dictionary<string, object?>>
+        {
+            new() { ["Id"] = 1, ["Name"] = "Alice" },
+            new() { ["Id"] = 2, ["Name"] = "Bob" }
+        });
+
+        var result = engine.Evaluate("items.ToDictionary(x => x.Id, x => x.Name)") as IDictionary;
+        Assert.That(result, Is.Not.Null);
+        Assert.That(result![1], Is.EqualTo("Alice"));
+        Assert.That(result[2], Is.EqualTo("Bob"));
+    }
+
+    #endregion
+
+    #region ToHashSet
+
+    [Test]
+    public void ToHashSet_RemovesDuplicates()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        engine.SetVariable("numbers", new List<int> { 1, 2, 2, 3, 3, 3 });
+
+        var result = engine.Evaluate("numbers.ToHashSet()");
+        Assert.That(result, Is.InstanceOf<HashSet<int>>());
+        var set = (HashSet<int>)result!;
+        Assert.That(set.Count, Is.EqualTo(3));
+        Assert.That(set.Contains(1), Is.True);
+        Assert.That(set.Contains(2), Is.True);
+        Assert.That(set.Contains(3), Is.True);
+    }
+
+    #endregion
+
+    #region Join
+
+    [Test]
+    public void Join_InnerJoin()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        engine.SetVariable("people", new List<Dictionary<string, object?>>
+        {
+            new() { ["Id"] = 1, ["Name"] = "Alice" },
+            new() { ["Id"] = 2, ["Name"] = "Bob" }
+        });
+        engine.SetVariable("orders", new List<Dictionary<string, object?>>
+        {
+            new() { ["PersonId"] = 1, ["Product"] = "Apple" },
+            new() { ["PersonId"] = 1, ["Product"] = "Banana" },
+            new() { ["PersonId"] = 2, ["Product"] = "Orange" }
+        });
+
+        var result = engine.Evaluate(
+            "people.Join(orders, p => p.Id, o => o.PersonId, (p, o) => p.Name + \": \" + o.Product).ToList()");
+        Assert.That(result, Is.EqualTo(new[] { "Alice: Apple", "Alice: Banana", "Bob: Orange" }));
+    }
+
+    #endregion
+
+    #region GroupJoin
+
+    [Test]
+    public void GroupJoin_GroupsMatchingElements()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        engine.SetVariable("categories", new List<Dictionary<string, object?>>
+        {
+            new() { ["Id"] = 1, ["Name"] = "Fruit" },
+            new() { ["Id"] = 2, ["Name"] = "Vegetable" }
+        });
+        engine.SetVariable("products", new List<Dictionary<string, object?>>
+        {
+            new() { ["CategoryId"] = 1, ["Name"] = "Apple" },
+            new() { ["CategoryId"] = 1, ["Name"] = "Banana" },
+            new() { ["CategoryId"] = 2, ["Name"] = "Carrot" }
+        });
+
+        var result = engine.Evaluate(
+            "categories.GroupJoin(products, c => c.Id, p => p.CategoryId, (c, ps) => c.Name + \": \" + ps.Count()).ToList()");
+        Assert.That(result, Is.EqualTo(new[] { "Fruit: 2", "Vegetable: 1" }));
+    }
+
+    #endregion
+
+    #region Chunk (.NET 6+)
+
+    [Test]
+    public void Chunk_SplitsIntoChunks()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        engine.SetVariable("numbers", new List<int> { 1, 2, 3, 4, 5, 6, 7 });
+
+        var result = engine.Evaluate("numbers.Chunk(3).ToList()") as IList;
+        Assert.That(result, Is.Not.Null);
+        Assert.That(result!.Count, Is.EqualTo(3));
+        Assert.That(result[0], Is.EqualTo(new[] { 1, 2, 3 }));
+        Assert.That(result[1], Is.EqualTo(new[] { 4, 5, 6 }));
+        Assert.That(result[2], Is.EqualTo(new[] { 7 }));
+    }
+
+    #endregion
+
+    #region DistinctBy (.NET 6+)
+
+    [Test]
+    public void DistinctBy_RemovesDuplicatesByKey()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        engine.SetVariable("items", new List<Dictionary<string, object?>>
+        {
+            new() { ["Category"] = "A", ["Name"] = "First" },
+            new() { ["Category"] = "B", ["Name"] = "Second" },
+            new() { ["Category"] = "A", ["Name"] = "Third" }
+        });
+
+        var result = engine.Evaluate("items.DistinctBy(x => x.Category).Select(x => x.Name).ToList()");
+        Assert.That(result, Is.EqualTo(new[] { "First", "Second" }));
+    }
+
+    #endregion
+
+    #region ExceptBy / IntersectBy / UnionBy (.NET 6+)
+
+    [Test]
+    public void ExceptBy_ExcludesByKey()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        engine.SetVariable("items", new List<Dictionary<string, object?>>
+        {
+            new() { ["Id"] = 1, ["Name"] = "Alice" },
+            new() { ["Id"] = 2, ["Name"] = "Bob" },
+            new() { ["Id"] = 3, ["Name"] = "Charlie" }
+        });
+        engine.SetVariable("excludeIds", new List<int> { 2 });
+
+        var result = engine.Evaluate("items.ExceptBy(excludeIds, x => x.Id).Select(x => x.Name).ToList()");
+        Assert.That(result, Is.EqualTo(new[] { "Alice", "Charlie" }));
+    }
+
+    [Test]
+    public void IntersectBy_IntersectsByKey()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        engine.SetVariable("items", new List<Dictionary<string, object?>>
+        {
+            new() { ["Id"] = 1, ["Name"] = "Alice" },
+            new() { ["Id"] = 2, ["Name"] = "Bob" },
+            new() { ["Id"] = 3, ["Name"] = "Charlie" }
+        });
+        engine.SetVariable("keepIds", new List<int> { 1, 3 });
+
+        var result = engine.Evaluate("items.IntersectBy(keepIds, x => x.Id).Select(x => x.Name).ToList()");
+        Assert.That(result, Is.EqualTo(new[] { "Alice", "Charlie" }));
+    }
+
+    [Test]
+    public void UnionBy_UnionsByKey()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        engine.SetVariable("first", new List<Dictionary<string, object?>>
+        {
+            new() { ["Id"] = 1, ["Name"] = "Alice" },
+            new() { ["Id"] = 2, ["Name"] = "Bob" }
+        });
+        engine.SetVariable("second", new List<Dictionary<string, object?>>
+        {
+            new() { ["Id"] = 2, ["Name"] = "Bob2" },
+            new() { ["Id"] = 3, ["Name"] = "Charlie" }
+        });
+
+        var result = engine.Evaluate("first.UnionBy(second, x => x.Id).Select(x => x.Name).ToList()");
+        Assert.That(result, Is.EqualTo(new[] { "Alice", "Bob", "Charlie" }));
+    }
+
+    #endregion
+
+    #region MinBy / MaxBy with multiple items
+
+    [Test]
+    public void MinBy_MultipleWithSameKey_ReturnsFirst()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        engine.SetVariable("items", new List<Dictionary<string, object?>>
+        {
+            new() { ["Name"] = "Alice", ["Age"] = 25 },
+            new() { ["Name"] = "Bob", ["Age"] = 25 },
+            new() { ["Name"] = "Charlie", ["Age"] = 30 }
+        });
+
+        var result = engine.Evaluate("items.MinBy(x => x.Age)") as Dictionary<string, object?>;
+        Assert.That(result!["Name"], Is.EqualTo("Alice"));
+    }
+
+    #endregion
+
+    #region TakeLast / SkipLast
+
+    [Test]
+    public void TakeLast_TakesLastN()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        engine.SetVariable("numbers", new List<int> { 1, 2, 3, 4, 5 });
+
+        var result = engine.Evaluate("numbers.TakeLast(3).ToList()");
+        Assert.That(result, Is.EqualTo(new[] { 3, 4, 5 }));
+    }
+
+    [Test]
+    public void TakeLast_MoreThanCount_ReturnsAll()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        engine.SetVariable("numbers", new List<int> { 1, 2 });
+
+        var result = engine.Evaluate("numbers.TakeLast(10).ToList()");
+        Assert.That(result, Is.EqualTo(new[] { 1, 2 }));
+    }
+
+    [Test]
+    public void SkipLast_SkipsLastN()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        engine.SetVariable("numbers", new List<int> { 1, 2, 3, 4, 5 });
+
+        var result = engine.Evaluate("numbers.SkipLast(2).ToList()");
+        Assert.That(result, Is.EqualTo(new[] { 1, 2, 3 }));
+    }
+
+    [Test]
+    public void SkipLast_MoreThanCount_ReturnsEmpty()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        engine.SetVariable("numbers", new List<int> { 1, 2 });
+
+        var result = engine.Evaluate("numbers.SkipLast(10).ToList()");
+        Assert.That(result, Is.EqualTo(Array.Empty<int>()));
+    }
+
+    #endregion
+
+    #region Static LINQ Methods (Enumerable.Range, Repeat)
+
+    [Test]
+    public void Enumerable_Range()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        engine.RegisterModule("Enumerable", typeof(Enumerable));
+
+        var result = engine.Evaluate("Enumerable.Range(1, 5).ToList()");
+        Assert.That(result, Is.EqualTo(new[] { 1, 2, 3, 4, 5 }));
+    }
+
+    [Test]
+    public void Enumerable_Repeat()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        engine.RegisterModule("Enumerable", typeof(Enumerable));
+
+        var result = engine.Evaluate("Enumerable.Repeat(42, 3).ToList()");
+        Assert.That(result, Is.EqualTo(new[] { 42, 42, 42 }));
+    }
+
+    // Note: Enumerable.Empty<T>() requires generic method invocation which is not yet supported
+
+    #endregion
+
+    #region Sum / Average with selector
+
+    [Test]
+    public void Sum_WithIntSelector()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        engine.SetVariable("numbers", new List<int> { 1, 2, 3, 4, 5 });
+
+        var result = engine.Evaluate("numbers.Sum(x => x * 2)");
+        Assert.That(result, Is.EqualTo(30));
+    }
+
+    [Test]
+    public void Average_WithIntSelector()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        engine.SetVariable("numbers", new List<int> { 1, 2, 3, 4, 5 });
+
+        var result = engine.Evaluate("numbers.Average(x => x * 2)");
+        Assert.That(result, Is.EqualTo(6.0));
+    }
+
+    #endregion
+
+    #region Min / Max with selector returning non-numeric
+
+    [Test]
+    public void Min_WithStringSelector()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        engine.SetVariable("names", new List<string> { "Charlie", "Alice", "Bob" });
+
+        var result = engine.Evaluate("names.Min(x => x.Length)");
+        Assert.That(result, Is.EqualTo(3)); // "Bob" has length 3
+    }
+
+    [Test]
+    public void Max_WithStringSelector()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        engine.SetVariable("names", new List<string> { "Charlie", "Alice", "Bob" });
+
+        var result = engine.Evaluate("names.Max(x => x.Length)");
+        Assert.That(result, Is.EqualTo(7)); // "Charlie" has length 7
     }
 
     #endregion

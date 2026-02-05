@@ -359,15 +359,7 @@ public class DoWhileLoopTests(CompilationMode mode)
         4,
         TestName = "BreakAndContinue_InNestedLoops")]
     public async Task Eval_DoWhileLoop(string expr, object expected)
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate($"{{ {expr} }}");
-        var csharpResult = await TestHelpers.EvaluateCSharpAsync($"{{ {expr} }}");
-
-        Assert.That(result, Is.EqualTo(expected), $"Value mismatch for: {expr}");
-        Assert.That(result, Is.EqualTo(csharpResult), $"C# parity mismatch for: {expr}");
-        Assert.That(result?.GetType(), Is.EqualTo(csharpResult?.GetType()), $"Type mismatch for: {expr}");
-    }
+        => await TestHelpers.RunCSharpParityTestAsync($"{{ {expr} }}", expected, mode);
 
     #region Do-While vs While Comparison
 
@@ -630,6 +622,20 @@ public class DoWhileLoopTests(CompilationMode mode)
         cts.Cancel();
 
         Assert.ThrowsAsync<OperationCanceledException>(() => task);
+    }
+
+    #endregion
+
+    #region ShouldThrow Tests
+
+    [TestCase("{ var i = 0; do { if (++i > 1) break; } while (1); return 0; }", TestName = "NonBoolean_IntCondition")]
+    [TestCase("{ var i = 0; do { if (++i > 1) break; } while (\"true\"); return 0; }", TestName = "NonBoolean_StringCondition")]
+    [TestCase("{ var i = 0; do { if (++i > 1) break; } while (3.14); return 0; }", TestName = "NonBoolean_DoubleCondition")]
+    public async Task Eval_DoWhileLoop_ShouldThrow(string expr)
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        Assert.Catch<Exception>(() => engine.Evaluate(expr));
+        await Assert.ThatAsync(async () => await TestHelpers.EvaluateCSharpAsync(expr), Throws.Exception);
     }
 
     #endregion

@@ -2,15 +2,15 @@ using CsEval.Interpretation;
 
 namespace CsEval.Runtime;
 
-/// <summary>
-/// General runtime helper methods for evaluation flow control.
-/// </summary>
 public static class RuntimeHelpers
 {
-    public static object? ResolveIdentifier(string name, CsEvalContext context, Dictionary<string, Func<object?[], object?>> functions)
+    public static object? ResolveIdentifier(string name, CsEvalContext context)
     {
-        if (functions.TryGetValue(name, out var function))
+        if (context.Functions.TryGetValue(name, out var function))
             return new FunctionRef(name, function);
+
+        if (context.Modules.TryGetValue(name, out var module))
+            return module;
 
         return context.Get(name);
     }
@@ -107,7 +107,7 @@ public static class RuntimeHelpers
             return source;
 
         Type? commonType = null;
-        bool hasNull = false;
+        var hasNull = false;
 
         foreach (var item in source)
         {

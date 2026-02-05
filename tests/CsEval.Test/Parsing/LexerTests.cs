@@ -221,14 +221,14 @@ public class LexerTests
     public void Tokenize_EmptyCharLiteral_Throws()
     {
         var lexer = new Lexer("''");
-        Assert.Throws<LexerException>(() => lexer.Tokenize());
+        Assert.Throws<CsEvalLexerException>(() => lexer.Tokenize());
     }
 
     [Test]
     public void Tokenize_MultiCharLiteral_Throws()
     {
         var lexer = new Lexer("'ab'");
-        Assert.Throws<LexerException>(() => lexer.Tokenize());
+        Assert.Throws<CsEvalLexerException>(() => lexer.Tokenize());
     }
 
     #endregion

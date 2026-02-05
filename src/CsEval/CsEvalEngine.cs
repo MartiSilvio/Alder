@@ -9,12 +9,16 @@ namespace CsEval;
 
 public sealed class CsEvalEngine
 {
-    private readonly CsEvalContext _context;
     private readonly Dictionary<string, Func<object?[], object?>> _functions;
     private readonly CsEvalOptions _options;
     private readonly List<RegisteredType> _registeredTypes = [];
+    private readonly List<Type> _extensionTypes = [];
     private readonly TypeCache _typeCache;
     private readonly ExpressionCache _expressionCache;
+    private readonly Dictionary<string, object?> _pendingVariables;
+
+    private CsEvalConfig? _frozenConfig;
+    private CsEvalContext? _context;
 
     public Func<MethodInfo, object?[], object?[]>? ArgumentTransformer { get; set; }
 
@@ -27,30 +31,69 @@ public sealed class CsEvalEngine
         _options = options;
         _typeCache = new TypeCache();
         _expressionCache = new ExpressionCache();
-        _context = new CsEvalContext(options.StringComparer, _typeCache);
         _functions = new Dictionary<string, Func<object?[], object?>>(options.StringComparer);
+        _pendingVariables = new Dictionary<string, object?>(options.StringComparer);
+        _extensionTypes.Add(typeof(Enumerable));
         RegisterBuiltInModules();
     }
 
-    public CsEvalEngine(CsEvalOptions options, CsEvalContext context)
+    private CsEvalEngine(
+        CsEvalConfig frozenConfig,
+        CsEvalContext parentContext,
+        CsEvalOptions options,
+        ExpressionCache expressionCache)
     {
+        _frozenConfig = frozenConfig;
+        _context = parentContext.CreateChild();
         _options = options;
-        _context = context;
-        _typeCache = context.TypeCache;
-        _expressionCache = new ExpressionCache();
-        _functions = new Dictionary<string, Func<object?[], object?>>(options.StringComparer);
-        RegisterBuiltInModules();
-    }
-
-    private CsEvalEngine(CsEvalContext context, Dictionary<string, Func<object?[], object?>> functions,
-        List<RegisteredType> registeredTypes, CsEvalOptions options, TypeCache typeCache, ExpressionCache expressionCache)
-    {
-        _context = context;
-        _functions = functions;
-        _registeredTypes = registeredTypes;
-        _options = options;
-        _typeCache = typeCache;
+        _typeCache = frozenConfig.TypeCache;
         _expressionCache = expressionCache;
+        _functions = new Dictionary<string, Func<object?[], object?>>(frozenConfig.Functions, options.StringComparer);
+        _pendingVariables = new Dictionary<string, object?>(options.StringComparer);
+        _extensionTypes = [..frozenConfig.ExtensionTypes];
+        _registeredTypes = [];
+    }
+
+    private CsEvalConfig GetOrCreateConfig()
+    {
+        if (_frozenConfig != null)
+            return _frozenConfig;
+
+        var modules = new Dictionary<string, ModuleInfo>(_options.StringComparer);
+        foreach (var reg in _registeredTypes)
+        {
+            var moduleName = reg.ModuleName ?? reg.Type.GetCustomAttribute<CsEvalModuleAttribute>()?.Name;
+            if (moduleName != null)
+            {
+                modules[moduleName] = new ModuleInfo(reg.Type, reg.Instance, reg.Members);
+            }
+            else
+            {
+                RegisterGlobalFunctions(reg);
+            }
+        }
+
+        var newConfig = CsEvalConfig.Create(_functions, modules, _extensionTypes, _typeCache, _options.StringComparer);
+        Interlocked.CompareExchange(ref _frozenConfig, newConfig, null);
+        return _frozenConfig!;
+    }
+
+    private CsEvalContext GetOrCreateContext(IServiceProvider? serviceProvider)
+    {
+        if (_context != null)
+            return _context;
+
+        var config = GetOrCreateConfig();
+        var newContext = new CsEvalContext(config, serviceProvider);
+
+        foreach (var (name, value) in _pendingVariables)
+        {
+            newContext.Define(name, value);
+        }
+        _pendingVariables.Clear();
+
+        Interlocked.CompareExchange(ref _context, newContext, null);
+        return _context!;
     }
 
     public CsEvalExpression Parse(string expression)
@@ -104,7 +147,7 @@ public sealed class CsEvalEngine
     public object? Evaluate(CsEvalExpression expression, IServiceProvider? serviceProvider,
         CancellationToken cancellationToken)
     {
-        ApplyRegisteredTypes(serviceProvider);
+        var context = GetOrCreateContext(serviceProvider);
 
         var shouldCompile = _options.CompilationMode is CompilationMode.Compiled or CompilationMode.StrictCompiled;
         if (shouldCompile && expression.GetCompiledInfo() == null)
@@ -112,36 +155,22 @@ public sealed class CsEvalEngine
             expression.TryCompile();
         }
 
-        // Use compiled delegate if available
         var compiled = expression.GetCompiledInfo();
         if (compiled?.Delegate != null)
         {
-            return compiled.Delegate(_context, _options, cancellationToken, _functions, ArgumentTransformer);
+            return compiled.Delegate(context, _options, cancellationToken, ArgumentTransformer);
         }
 
-        // StrictCompiled mode: throw if compilation failed
         if (_options.CompilationMode == CompilationMode.StrictCompiled)
         {
             var reason = compiled?.FailureReason ?? "Unknown compilation failure";
             throw new CsEvalException($"Expression could not be compiled to IL: {reason}");
         }
 
-        // Fall back to tree-walking for non-compilable expressions
-        var evaluator = new Evaluator(_context, _functions, _options, cancellationToken, ArgumentTransformer);
+        var evaluator = new Evaluator(context, _options, cancellationToken, ArgumentTransformer);
         return evaluator.Evaluate(expression.Ast);
     }
 
-    /// <summary>
-    /// Parses and attempts to compile an expression upfront for better performance.
-    /// If compilation is not possible, the expression will fall back to tree-walking on evaluation.
-    /// </summary>
-    /// <remarks>
-    /// Use this method when you want to ensure the expression is compiled regardless
-    /// of the <see cref="CsEvalOptions.CompilationMode"/> setting, or when you want
-    /// to pay the compilation cost upfront (e.g., during app startup).
-    /// </remarks>
-    /// <param name="expression">The expression string to parse and compile.</param>
-    /// <returns>A pre-parsed and potentially compiled expression.</returns>
     public CsEvalExpression ParseAndCompile(string expression)
     {
         var expr = Parse(expression);
@@ -149,30 +178,11 @@ public sealed class CsEvalEngine
         return expr;
     }
 
-    /// <summary>
-    /// Creates a child engine with an isolated evaluation context.
-    /// The child inherits variables from the parent (read-only) but has its own scope for new variables.
-    /// </summary>
-    /// <remarks>
-    /// <para>
-    /// <b>Thread Safety:</b> CsEvalEngine is not thread-safe. For concurrent evaluation,
-    /// each thread must use its own child context created via this method.
-    /// </para>
-    /// <example>
-    /// <code>
-    /// // Concurrent evaluation pattern
-    /// Parallel.ForEach(items, item => {
-    ///     var child = engine.CreateChild();
-    ///     child.SetVariable("item", item);
-    ///     child.Evaluate(expression);
-    /// });
-    /// </code>
-    /// </example>
-    /// </remarks>
-    /// <returns>A new CsEvalEngine with an isolated child context.</returns>
     public CsEvalEngine CreateChild()
     {
-        return new CsEvalEngine(_context.CreateChild(), _functions, _registeredTypes, _options, _typeCache, _expressionCache);
+        var config = GetOrCreateConfig();
+        var parentContext = GetOrCreateContext(null);
+        return new CsEvalEngine(config, parentContext, _options, _expressionCache);
     }
 
     public object? Evaluate(string expression, IDictionary<string, object?> variables, IServiceProvider? serviceProvider = null)
@@ -219,8 +229,6 @@ public sealed class CsEvalEngine
         };
     }
 
-
-
     public T? Evaluate<T>(CsEvalExpression expression, IServiceProvider? serviceProvider = null)
     {
         return Evaluate<T>(expression, serviceProvider, CancellationToken.None);
@@ -239,21 +247,35 @@ public sealed class CsEvalEngine
         };
     }
 
-
-
     public CsEvalEngine SetVariable(string name, object? value)
     {
-        _context.Define(name, value);
+        if (_context != null)
+        {
+            _context.Define(name, value);
+        }
+        else
+        {
+            _pendingVariables[name] = value;
+        }
         return this;
     }
 
     public CsEvalEngine SetVariables(IDictionary<string, object?> variables)
     {
-        foreach (var (name, value) in variables)
+        if (_context != null)
         {
-            _context.Define(name, value);
+            foreach (var (name, value) in variables)
+            {
+                _context.Define(name, value);
+            }
         }
-
+        else
+        {
+            foreach (var (name, value) in variables)
+            {
+                _pendingVariables[name] = value;
+            }
+        }
         return this;
     }
 
@@ -319,12 +341,6 @@ public sealed class CsEvalEngine
         return this;
     }
 
-    /// <summary>
-    /// Registers a module with explicit control over which methods are exposed.
-    /// </summary>
-    /// <param name="moduleName">The name used to access the module in expressions.</param>
-    /// <param name="type">The module type.</param>
-    /// <param name="explicitOnly">When true, only methods marked with [CsEvalFunction] are exposed.</param>
     public CsEvalEngine RegisterModule(string moduleName, Type type, bool explicitOnly)
     {
         var methods = BuildMemberDictionary(type, explicitOnly);
@@ -332,13 +348,6 @@ public sealed class CsEvalEngine
         return this;
     }
 
-    /// <summary>
-    /// Registers a module with explicit control over which methods are exposed.
-    /// </summary>
-    /// <typeparam name="T">The module type.</typeparam>
-    /// <param name="moduleName">The name used to access the module in expressions.</param>
-    /// <param name="explicitOnly">When true, only methods marked with [CsEvalFunction] are exposed.</param>
-    /// <param name="instance">Optional instance to use (for instance methods).</param>
     public CsEvalEngine RegisterModule<T>(string moduleName, bool explicitOnly, T? instance = default) where T : class
     {
         var methods = BuildMemberDictionary(typeof(T), explicitOnly);
@@ -352,6 +361,15 @@ public sealed class CsEvalEngine
         return this;
     }
 
+    public CsEvalEngine RegisterExtensionMethods(Type type)
+    {
+        if (!_extensionTypes.Contains(type))
+            _extensionTypes.Insert(0, type);
+        return this;
+    }
+
+    public CsEvalEngine RegisterExtensionMethods<T>() => RegisterExtensionMethods(typeof(T));
+
     private IReadOnlyDictionary<string, MemberInfo> BuildMemberDictionary(Type type, bool explicitOnly = false)
     {
         var members = new Dictionary<string, MemberInfo>(_options.StringComparer);
@@ -361,7 +379,6 @@ public sealed class CsEvalEngine
             if (method.IsSpecialName)
                 continue;
 
-            // Skip async methods - they return Task/Task<T> which is not supported
             if (IsAsyncMethod(method))
                 continue;
 
@@ -370,15 +387,12 @@ public sealed class CsEvalEngine
             if (explicitOnly && attr == null)
                 continue;
 
-            // Use attribute name if specified, otherwise use method name
             var name = attr?.Name ?? method.Name;
             members[name] = method;
         }
 
         foreach (var prop in type.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly))
         {
-            // Properties are always included (they're read-only access)
-            // Could add [CsEvalProperty] in the future if needed
             if (!explicitOnly)
                 members[prop.Name] = prop;
         }
@@ -388,15 +402,12 @@ public sealed class CsEvalEngine
 
     public IReadOnlyDictionary<string, RegisteredModule> GetRegisteredModules()
     {
+        var config = GetOrCreateConfig();
         var result = new Dictionary<string, RegisteredModule>(_options.StringComparer);
 
-        foreach (var reg in _registeredTypes)
+        foreach (var (name, info) in config.Modules)
         {
-            var moduleName = reg.ModuleName ?? reg.Type.GetCustomAttribute<CsEvalModuleAttribute>()?.Name;
-            if (moduleName == null)
-                continue;
-
-            result[moduleName] = new RegisteredModule(reg.Type, reg.Instance, reg.Members);
+            result[name] = new RegisteredModule(info.Type, info.Instance, info.Members);
         }
 
         return result;
@@ -404,64 +415,7 @@ public sealed class CsEvalEngine
 
     public sealed record RegisteredModule(Type Type, object? Instance, IReadOnlyDictionary<string, MemberInfo>? Members);
 
-    public sealed class ModuleResolver
-    {
-        public Type Type { get; }
-        public object? Instance { get; }
-        public IServiceProvider? ServiceProvider { get; }
-        public IReadOnlyDictionary<string, MemberInfo> Members { get; }
-
-        public ModuleResolver(Type type, object? instance, IServiceProvider? serviceProvider,
-            IReadOnlyDictionary<string, MemberInfo> members)
-        {
-            Type = type;
-            Instance = instance;
-            ServiceProvider = serviceProvider;
-            Members = members;
-        }
-
-        public object Resolve()
-        {
-            if (Instance != null)
-                return Instance;
-
-            if (ServiceProvider != null)
-            {
-                var resolved = ServiceProvider.GetService(Type);
-                if (resolved != null)
-                    return resolved;
-            }
-
-            if (Type.GetConstructor(Type.EmptyTypes) != null)
-            {
-                return Activator.CreateInstance(Type)
-                       ?? throw new InvalidOperationException($"Cannot create instance of '{Type.FullName}'");
-            }
-
-            throw new InvalidOperationException(
-                $"Cannot resolve instance of '{Type.FullName}'. " +
-                $"Either register it in IServiceProvider or ensure it has a parameterless constructor.");
-        }
-    }
-
-    private void ApplyRegisteredTypes(IServiceProvider? serviceProvider)
-    {
-        foreach (var reg in _registeredTypes)
-        {
-            var moduleName = reg.ModuleName ?? reg.Type.GetCustomAttribute<CsEvalModuleAttribute>()?.Name;
-
-            if (moduleName != null)
-            {
-                _context.Define(moduleName, new ModuleResolver(reg.Type, reg.Instance, serviceProvider, reg.Members));
-            }
-            else
-            {
-                RegisterGlobalFunctions(reg, serviceProvider);
-            }
-        }
-    }
-
-    private void RegisterGlobalFunctions(RegisteredType reg, IServiceProvider? serviceProvider)
+    private void RegisterGlobalFunctions(RegisteredType reg)
     {
         var methods = reg.Type.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static);
 
@@ -471,18 +425,18 @@ public sealed class CsEvalEngine
             if (attr == null) continue;
 
             var functionName = attr.Name ?? method.Name;
-            var resolver = method.IsStatic ? null : new ModuleResolver(reg.Type, reg.Instance, serviceProvider, reg.Members);
-            _functions[functionName] = CreateFunctionDelegate(method, resolver);
+            var moduleInfo = method.IsStatic ? null : new ModuleInfo(reg.Type, reg.Instance, reg.Members);
+            _functions[functionName] = CreateFunctionDelegate(method, moduleInfo);
         }
     }
 
-    private static Func<object?[], object?> CreateFunctionDelegate(MethodInfo method, ModuleResolver? resolver)
+    private static Func<object?[], object?> CreateFunctionDelegate(MethodInfo method, ModuleInfo? moduleInfo)
     {
         return args =>
         {
             var parameters = method.GetParameters();
             var finalArgs = PadWithDefaults(parameters, args);
-            return method.Invoke(resolver?.Resolve(), finalArgs);
+            return method.Invoke(moduleInfo?.Resolve(null), finalArgs);
         };
     }
 
@@ -502,7 +456,7 @@ public sealed class CsEvalEngine
             }
             else
             {
-                throw new ArgumentException($"Missing required argument '{parameters[i].Name}'");
+                throw new ArgumentException($"Missing required argument '{parameters[i].Name}'", parameters[i].Name);
             }
         }
 

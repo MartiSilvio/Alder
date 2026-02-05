@@ -26,18 +26,18 @@ public class VariableDeclarationTests(CompilationMode mode)
     }
 
     [Test]
-    public void Var_NullAssignment_ThrowsParserException()
+    public void Var_NullAssignment_ThrowsCsEvalParserException()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var ex = Assert.Throws<ParserException>(() => engine.Evaluate("{ var x = null; return x; }"));
+        var ex = Assert.Throws<CsEvalParserException>(() => engine.Evaluate("{ var x = null; return x; }"));
         Assert.That(ex!.Message, Does.Contain("Cannot assign null to an implicitly-typed variable"));
     }
 
     [Test]
-    public void Var_NullAssignment_InForLoop_ThrowsParserException()
+    public void Var_NullAssignment_InForLoop_ThrowsCsEvalParserException()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var ex = Assert.Throws<ParserException>(() => engine.Evaluate("{ for (var x = null; x != null; x = null) { } return 0; }"));
+        var ex = Assert.Throws<CsEvalParserException>(() => engine.Evaluate("{ for (var x = null; x != null; x = null) { } return 0; }"));
         Assert.That(ex!.Message, Does.Contain("Cannot assign null to an implicitly-typed variable"));
     }
 

@@ -1,35 +1,43 @@
+using System.Collections.Frozen;
 using System.Dynamic;
 using CsEval.Parsing;
 using CsEval.Runtime;
 
 namespace CsEval.Interpretation;
 
-public sealed partial class Evaluator : IExprVisitor<object?>
+public sealed class Evaluator : IExprVisitor<object?>
 {
     private CsEvalContext _context;
-    private readonly Dictionary<string, Func<object?[], object?>> _functions;
     private readonly CsEvalOptions _options;
     private readonly CancellationToken _cancellationToken;
     private readonly Func<MethodInfo, object?[], object?[]>? _argumentTransformer;
+    private readonly TypeInferrer _typeInferrer;
 
     private long _iterationCount;
 
-    public Evaluator(CsEvalContext context, Dictionary<string, Func<object?[], object?>> functions,
-        CsEvalOptions? options = null, CancellationToken cancellationToken = default,
+    public Evaluator(
+        CsEvalContext context,
+        CsEvalOptions? options = null,
+        CancellationToken cancellationToken = default,
         Func<MethodInfo, object?[], object?[]>? argumentTransformer = null)
     {
         _context = context;
-        _functions = functions;
         _options = options ?? CsEvalOptions.Default;
-        _cancellationToken = cancellationToken;
         _argumentTransformer = argumentTransformer;
+        _typeInferrer = new TypeInferrer(context);
+        _cancellationToken = cancellationToken;
     }
+
+    private FrozenDictionary<string, Func<object?[], object?>> Functions => _context.Functions;
 
     public object? Evaluate(Expr expr)
     {
+        _typeInferrer.InferAll(expr);
         _cancellationToken.ThrowIfCancellationRequested();
         return expr.Accept(this);
     }
+
+    #region Expression Visitors
 
     public object? VisitLiteral(LiteralExpr expr) => expr.Value;
 
@@ -46,27 +54,29 @@ public sealed partial class Evaluator : IExprVisitor<object?>
     public object? VisitCast(CastExpr expr)
     {
         var value = Evaluate(expr.Expression);
-        return TypeHelpers.ExplicitCast(value, expr.TargetType.Lexeme);
+        var sourceStaticType = _typeInferrer.Infer(expr.Expression);
+        return TypeHelpers.ExplicitCast(value, expr.TargetType.Lexeme, sourceStaticType);
     }
 
     public object? VisitIs(IsExpr expr)
     {
         var value = Evaluate(expr.Expression);
 
-        // x is null / x is not null
         if (expr.TargetType == null)
         {
             var isNull = value == null;
             return expr.IsNegated ? !isNull : isNull;
         }
 
-        // x is type / x is type name
         var isMatch = TypeHelpers.IsType(value, expr.TargetType.Value.Lexeme);
 
         if (isMatch && expr.VariableName != null)
-            _context.Define(expr.VariableName.Value.Lexeme, value);
+        {
+            var targetType = TypeHelpers.ResolveTypeName(expr.TargetType.Value.Lexeme);
+            _context.DefineNew(expr.VariableName.Value.Lexeme, value, targetType);
+        }
 
-        return isMatch;
+        return expr.IsNegated ? !isMatch : isMatch;
     }
 
     public object? VisitAs(AsExpr expr)
@@ -80,7 +90,7 @@ public sealed partial class Evaluator : IExprVisitor<object?>
         var left = Evaluate(expr.Left);
         var right = Evaluate(expr.Right);
 
-        if (TryGetBinaryOperator(expr.Op.Type, out var op))
+        if (BinaryOperators.TryGetValue(expr.Op.Type, out var op))
             return op(this, left, right);
 
         throw new CsEvalException($"Unknown binary operator '{expr.Op.Lexeme}'");
@@ -108,8 +118,11 @@ public sealed partial class Evaluator : IExprVisitor<object?>
     {
         var name = expr.Name.Lexeme;
 
-        if (_functions.ContainsKey(name))
-            return new FunctionRef(name, _functions[name]);
+        if (Functions.TryGetValue(name, out var func))
+            return new FunctionRef(name, func);
+
+        if (_context.Modules.TryGetValue(name, out var module))
+            return module;
 
         return _context.Get(name);
     }
@@ -124,16 +137,13 @@ public sealed partial class Evaluator : IExprVisitor<object?>
         if (obj == null)
             throw new CsEvalException($"Cannot access property '{expr.Name.Lexeme}' on null");
 
-        if (obj is IEnumerable and not string and not IDictionary<string, object?>)
-        {
-            var methodName = expr.Name.Lexeme;
-            if (LinqDispatcher.IsLinqMethod(methodName, _options))
-            {
-                return new MethodRef(obj, expr.Name.Lexeme);
-            }
-        }
-
         return GetMember(obj, expr.Name.Lexeme);
+    }
+
+    public object? VisitTypeReference(TypeReferenceExpr expr)
+    {
+        // Return the actual Type object for static member access
+        return TypeHelpers.ResolveTypeName(expr.TypeToken.Lexeme);
     }
 
     public object? VisitIndexAccess(IndexAccessExpr expr)
@@ -149,14 +159,11 @@ public sealed partial class Evaluator : IExprVisitor<object?>
 
     public object? VisitNamedArgument(NamedArgumentExpr expr)
     {
-        // Named arguments should only appear within CallExpr and are handled there.
-        // If we get here, it means a named argument was used outside a method call.
         throw new CsEvalException("Named arguments can only be used in method calls");
     }
 
     public object? VisitCall(CallExpr expr)
     {
-        // Evaluate arguments, wrapping named arguments in NamedArg
         var args = expr.Arguments.Select(arg =>
         {
             if (arg is NamedArgumentExpr namedArg)
@@ -167,13 +174,13 @@ public sealed partial class Evaluator : IExprVisitor<object?>
         if (expr.Callee is MemberAccessExpr memberAccess)
         {
             var target = Evaluate(memberAccess.Object);
-            return MethodInvoker.InvokeMemberCall(
+            return Runtime.MethodInvoker.InvokeMemberCall(
                 target, memberAccess.Name.Lexeme, args, memberAccess.NullSafe,
-                _context, _options, _cancellationToken, _functions, _argumentTransformer);
+                _context, _options, _cancellationToken, _argumentTransformer, expr.TypeArguments);
         }
 
         var callee = Evaluate(expr.Callee);
-        return MethodInvoker.InvokeCall(callee, args, _functions, _context, _options, _cancellationToken, _argumentTransformer);
+        return Runtime.MethodInvoker.InvokeCall(callee, args, _context, _options, _cancellationToken, _argumentTransformer, expr.TypeArguments);
     }
 
     public object? VisitLambda(LambdaExpr expr)
@@ -267,7 +274,7 @@ public sealed partial class Evaluator : IExprVisitor<object?>
         if (!CompoundToBaseOperator.TryGetValue(expr.Op.Type, out var baseOp))
             throw new CsEvalException($"Unknown compound assignment operator '{expr.Op.Lexeme}'");
 
-        if (!CoreBinaryOperators.TryGetValue(baseOp, out var op))
+        if (!BinaryOperators.TryGetValue(baseOp, out var op))
             throw new CsEvalException($"Unknown base operator for '{expr.Op.Lexeme}'");
 
         var result = op(this, currentValue, rightValue);
@@ -285,8 +292,6 @@ public sealed partial class Evaluator : IExprVisitor<object?>
         var name = expr.Name.Lexeme;
         var currentValue = _context.Get(name);
 
-        // Calculate new value (increment or decrement by 1)
-        // Use the appropriate type to preserve type in arithmetic operations
         object one = currentValue switch
         {
             int => 1,
@@ -294,10 +299,10 @@ public sealed partial class Evaluator : IExprVisitor<object?>
             double => 1.0,
             float => 1.0f,
             decimal => 1m,
-            short => 1,  // promotes to int in arithmetic
-            byte => 1,   // promotes to int in arithmetic
-            sbyte => 1,  // promotes to int in arithmetic
-            ushort => 1, // promotes to int in arithmetic
+            short => 1,
+            byte => 1,
+            sbyte => 1,
+            ushort => 1,
             uint => 1u,
             ulong => 1ul,
             _ => 1
@@ -305,11 +310,10 @@ public sealed partial class Evaluator : IExprVisitor<object?>
 
         var newValue = expr.Op.Type == TokenType.PlusPlus
             ? Operators.Add(currentValue, one, _options, _context)
-            : Operators.Subtract(currentValue, one, _options);
+            : Operators.Subtract(currentValue, one);
 
         _context.Set(name, newValue);
 
-        // Prefix returns new value, postfix returns old value
         return expr.IsPrefix ? newValue : currentValue;
     }
 
@@ -365,7 +369,6 @@ public sealed partial class Evaluator : IExprVisitor<object?>
         {
             if (key.Type == TokenType.DotDotDot && value is SpreadExpr spread)
             {
-                // Spread object properties
                 var spreadValue = Evaluate(spread.Expression);
                 if (spreadValue is IDictionary<string, object?> dict)
                 {
@@ -374,7 +377,6 @@ public sealed partial class Evaluator : IExprVisitor<object?>
                 }
                 else if (spreadValue != null)
                 {
-                    // Spread from regular object via compiled getters
                     var type = spreadValue.GetType();
                     foreach (var prop in _context.TypeCache.GetProperties(type, BindingFlags.Public | BindingFlags.Instance))
                     {
@@ -393,8 +395,6 @@ public sealed partial class Evaluator : IExprVisitor<object?>
 
     public object? VisitSpread(SpreadExpr expr)
     {
-        // Spread expressions are handled by VisitArrayLiteral and VisitObjectLiteral
-        // This method is only called if spread is used outside of those contexts
         throw new CsEvalException("Spread operator can only be used in array or object literals");
     }
 
@@ -434,7 +434,7 @@ public sealed partial class Evaluator : IExprVisitor<object?>
             ? TypeHelpers.ResolveTypeName(expr.DeclaredType.Value.Lexeme)
             : value?.GetType() ?? typeof(object);
 
-        _context.Define(expr.Name.Lexeme, value, inferredType);
+        _context.DefineNew(expr.Name.Lexeme, value, inferredType);
         return value;
     }
 
@@ -449,7 +449,6 @@ public sealed partial class Evaluator : IExprVisitor<object?>
 
         if (TypeHelpers.RequireBoolean(condition))
         {
-            // Create a child scope for the then branch
             var previousContext = _context;
             _context = _context.CreateChild();
 
@@ -468,7 +467,6 @@ public sealed partial class Evaluator : IExprVisitor<object?>
         }
         else if (expr.ElseStatements != null)
         {
-            // Create a child scope for the else branch
             var previousContext = _context;
             _context = _context.CreateChild();
 
@@ -495,6 +493,515 @@ public sealed partial class Evaluator : IExprVisitor<object?>
         throw new ReturnValue(value);
     }
 
+    #endregion
+
+    #region Loops
+
+    public object? VisitBreak(BreakExpr expr)
+    {
+        throw new BreakException();
+    }
+
+    public object? VisitContinue(ContinueExpr expr)
+    {
+        throw new ContinueException();
+    }
+
+    public object? VisitWhile(WhileStatementExpr expr)
+    {
+        var maxIterations = _options.MaxIterations;
+
+        while (TypeHelpers.RequireBoolean(Evaluate(expr.Condition)))
+        {
+            _cancellationToken.ThrowIfCancellationRequested();
+
+            if (maxIterations > 0 && ++_iterationCount > maxIterations)
+                throw new CsEvalException($"Loop exceeded maximum iterations ({maxIterations}). Possible infinite loop.");
+
+            var previousContext = _context;
+            _context = _context.CreateChild();
+
+            try
+            {
+                foreach (var stmt in expr.Body)
+                {
+                    _cancellationToken.ThrowIfCancellationRequested();
+                    Evaluate(stmt);
+                }
+            }
+            catch (BreakException)
+            {
+                break;
+            }
+            catch (ContinueException)
+            {
+                continue;
+            }
+            finally
+            {
+                _context = previousContext;
+            }
+        }
+
+        return null;
+    }
+
+    public object? VisitFor(ForStatementExpr expr)
+    {
+        var maxIterations = _options.MaxIterations;
+        var loopContext = _context;
+        _context = _context.CreateChild();
+
+        try
+        {
+            if (expr.Initializer != null)
+            {
+                Evaluate(expr.Initializer);
+            }
+
+            while (expr.Condition == null || TypeHelpers.RequireBoolean(Evaluate(expr.Condition)))
+            {
+                _cancellationToken.ThrowIfCancellationRequested();
+
+                if (maxIterations > 0 && ++_iterationCount > maxIterations)
+                    throw new CsEvalException($"Loop exceeded maximum iterations ({maxIterations}). Possible infinite loop.");
+
+                var iterationContext = _context;
+                _context = _context.CreateChild();
+
+                try
+                {
+                    foreach (var stmt in expr.Body)
+                    {
+                        _cancellationToken.ThrowIfCancellationRequested();
+                        Evaluate(stmt);
+                    }
+                }
+                catch (BreakException)
+                {
+                    break;
+                }
+                catch (ContinueException)
+                {
+                }
+                finally
+                {
+                    _context = iterationContext;
+                }
+
+                if (expr.Increment != null)
+                {
+                    Evaluate(expr.Increment);
+                }
+            }
+        }
+        finally
+        {
+            _context = loopContext;
+        }
+
+        return null;
+    }
+
+    public object? VisitDoWhile(DoWhileStatementExpr expr)
+    {
+        var maxIterations = _options.MaxIterations;
+
+        do
+        {
+            _cancellationToken.ThrowIfCancellationRequested();
+
+            if (maxIterations > 0 && ++_iterationCount > maxIterations)
+                throw new CsEvalException($"Loop exceeded maximum iterations ({maxIterations}). Possible infinite loop.");
+
+            var previousContext = _context;
+            _context = _context.CreateChild();
+
+            try
+            {
+                foreach (var stmt in expr.Body)
+                {
+                    _cancellationToken.ThrowIfCancellationRequested();
+                    Evaluate(stmt);
+                }
+            }
+            catch (BreakException)
+            {
+                break;
+            }
+            catch (ContinueException)
+            {
+                continue;
+            }
+            finally
+            {
+                _context = previousContext;
+            }
+        } while (TypeHelpers.RequireBoolean(Evaluate(expr.Condition)));
+
+        return null;
+    }
+
+    public object? VisitForEach(ForEachStatementExpr expr)
+    {
+        var maxIterations = _options.MaxIterations;
+        var collection = Evaluate(expr.Collection);
+
+        if (collection is not IEnumerable enumerable)
+        {
+            throw new CsEvalException($"Cannot iterate over type '{collection?.GetType().Name ?? "null"}' in foreach");
+        }
+
+        foreach (var item in enumerable)
+        {
+            _cancellationToken.ThrowIfCancellationRequested();
+
+            if (maxIterations > 0 && ++_iterationCount > maxIterations)
+                throw new CsEvalException($"Loop exceeded maximum iterations ({maxIterations}). Possible infinite loop.");
+
+            var previousContext = _context;
+            _context = _context.CreateChild();
+
+            try
+            {
+                _context.DefineNew(expr.VariableName.Lexeme, item, typeof(object));
+
+                foreach (var stmt in expr.Body)
+                {
+                    _cancellationToken.ThrowIfCancellationRequested();
+                    Evaluate(stmt);
+                }
+            }
+            catch (BreakException)
+            {
+                break;
+            }
+            catch (ContinueException)
+            {
+                continue;
+            }
+            finally
+            {
+                _context = previousContext;
+            }
+        }
+
+        return null;
+    }
+
+    #endregion
+
+    #region Switch
+
+    public object? VisitSwitch(SwitchStatementExpr expr)
+    {
+        var switchValue = Evaluate(expr.Expression);
+        var matched = false;
+        var defaultCaseIndex = -1;
+
+        for (var i = 0; i < expr.Cases.Count; i++)
+        {
+            var switchCase = expr.Cases[i];
+
+            if (switchCase.Pattern == null)
+            {
+                defaultCaseIndex = i;
+                continue;
+            }
+
+            if (!matched)
+            {
+                var caseValue = Evaluate(switchCase.Pattern);
+                if ((bool)Operators.Equals(switchValue, caseValue))
+                {
+                    matched = true;
+                    if (ExecuteCaseStatements(expr.Cases, i))
+                        return null;
+                }
+            }
+        }
+
+        if (!matched && defaultCaseIndex >= 0)
+        {
+            ExecuteCaseStatements(expr.Cases, defaultCaseIndex);
+        }
+
+        return null;
+    }
+
+    private bool ExecuteCaseStatements(List<SwitchCaseExpr> cases, int startIndex)
+    {
+        for (var i = startIndex; i < cases.Count; i++)
+        {
+            var switchCase = cases[i];
+
+            if (switchCase.Statements.Count == 0)
+                continue;
+
+            try
+            {
+                foreach (var stmt in switchCase.Statements)
+                {
+                    _cancellationToken.ThrowIfCancellationRequested();
+                    Evaluate(stmt);
+                }
+            }
+            catch (BreakException)
+            {
+                return true;
+            }
+
+            throw new CsEvalException("CS0163: Control cannot fall through from one case label to another");
+        }
+
+        return false;
+    }
+
+    #endregion
+
+    #region Member Access Helpers
+
+    private static object? GuardReflectionLeak(object? value, string context)
+    {
+        if (value == null) return null;
+
+        var type = value.GetType();
+        if (TypeHelpers.IsForbiddenReflectionType(type))
+        {
+            throw new CsEvalException($"Access to reflection types is not allowed: {type.Name} ({context})");
+        }
+
+        return value;
+    }
+
+    private object? GetMember(object obj, string name)
+    {
+        if (obj is ModuleInfo module)
+        {
+            if (module.Members.TryGetValue(name, out var member))
+            {
+                return member switch
+                {
+                    MethodInfo m => new ModuleMethodRef(module, _context.ServiceProvider, m),
+                    PropertyInfo p => GuardReflectionLeak(_context.TypeCache.GetPropertyValue(p, module.Resolve(_context.ServiceProvider)!), $"property {name}"),
+                    _ => throw new CsEvalException($"Unsupported member type '{member.GetType().Name}'")
+                };
+            }
+            throw new CsEvalException($"Member '{name}' not found on module '{module.Type.Name}'");
+        }
+
+        // Handle static member access on Type objects (e.g., double.NaN)
+        if (obj is Type staticType)
+        {
+            var staticBindingFlags = BindingFlags.Public | BindingFlags.Static;
+            if (!_options.IsCaseSensitive)
+                staticBindingFlags |= BindingFlags.IgnoreCase;
+
+            var staticProp = staticType.GetProperty(name, staticBindingFlags);
+            if (staticProp != null)
+                return GuardReflectionLeak(staticProp.GetValue(null), $"static property {name}");
+
+            var staticField = staticType.GetField(name, staticBindingFlags);
+            if (staticField != null)
+                return GuardReflectionLeak(staticField.GetValue(null), $"static field {name}");
+
+            // Return a static method reference for method calls
+            return new StaticMethodRef(staticType, name);
+        }
+
+        if (!_options.Sandbox.AllowPropertyRead)
+            throw new CsEvalException($"Property access blocked by sandbox: {name}");
+
+        var caseInsensitive = !_options.IsCaseSensitive;
+
+        if (obj is IDictionary<string, object?> dict)
+        {
+            if (dict.TryGetValue(name, out var value))
+                return GuardReflectionLeak(value, $"property {name}");
+
+            if (caseInsensitive)
+            {
+                foreach (var key in dict.Keys)
+                {
+                    if (string.Equals(key, name, StringComparison.OrdinalIgnoreCase))
+                        return GuardReflectionLeak(dict[key], $"property {name}");
+                }
+            }
+
+            throw new CsEvalException($"Property '{name}' not found");
+        }
+
+        var type = obj.GetType();
+        var bindingFlags = BindingFlags.Public | BindingFlags.Instance;
+        if (caseInsensitive)
+            bindingFlags |= BindingFlags.IgnoreCase;
+
+        var prop = _context.TypeCache.GetProperty(type, name, bindingFlags);
+        if (prop != null)
+            return GuardReflectionLeak(_context.TypeCache.GetPropertyValue(prop, obj), $"property {name}");
+
+        var field = _context.TypeCache.GetField(type, name, bindingFlags);
+        if (field != null)
+            return GuardReflectionLeak(field.GetValue(obj), $"field {name}");
+
+        return new MethodRef(obj, name);
+    }
+
+    private object? GetIndex(object obj, object? index)
+    {
+        if (obj is IDictionary<string, object?> dict && index is string strKey)
+        {
+            if (dict.TryGetValue(strKey, out var value))
+                return GuardReflectionLeak(value, $"index [{strKey}]");
+            return null;
+        }
+
+        if (obj is IList list && index != null)
+        {
+            var idx = Convert.ToInt32(index);
+            if (idx < 0 || idx >= list.Count)
+                throw new ArgumentOutOfRangeException("index", idx, "Index was out of range. Must be non-negative and less than the size of the collection.");
+            return GuardReflectionLeak(list[idx], $"index [{idx}]");
+        }
+
+        var type = obj.GetType();
+        var indexer = _context.TypeCache.GetIndexer(type);
+        if (indexer != null)
+            return GuardReflectionLeak(indexer.GetValue(obj, [index]), $"indexer access");
+
+        throw new CsEvalException($"Cannot index type '{type.Name}'");
+    }
+
+    private void SetIndex(object obj, object? index, object? value)
+    {
+        if (!_options.Sandbox.AllowIndexSet)
+            throw new CsEvalException($"Index assignment blocked by sandbox: [{index}] = ...");
+
+        switch (obj)
+        {
+            case IDictionary<string, object?> dict when index is string strKey:
+                dict[strKey] = value;
+                return;
+            case IList list when index != null:
+            {
+                var idx = Convert.ToInt32(index);
+                if (idx < 0 || idx >= list.Count)
+                    throw new ArgumentOutOfRangeException("index", idx, "Index was out of range. Must be non-negative and less than the size of the collection.");
+                list[idx] = value;
+                return;
+            }
+        }
+
+        var type = obj.GetType();
+        var indexer = _context.TypeCache.GetIndexer(type);
+        if (indexer != null && indexer.CanWrite)
+        {
+            indexer.SetValue(obj, value, [index]);
+            return;
+        }
+
+        throw new CsEvalException($"Cannot set index on type '{type.Name}'");
+    }
+
+    private void SetMember(object obj, string name, object? value)
+    {
+        if (!_options.Sandbox.AllowPropertySet)
+            throw new CsEvalException($"Property assignment blocked by sandbox: {name} = ...");
+
+        var caseInsensitive = !_options.IsCaseSensitive;
+
+        if (obj is IDictionary<string, object?> dict)
+        {
+            if (caseInsensitive)
+            {
+                foreach (var key in dict.Keys)
+                {
+                    if (string.Equals(key, name, StringComparison.OrdinalIgnoreCase))
+                    {
+                        dict[key] = value;
+                        return;
+                    }
+                }
+            }
+            dict[name] = value;
+            return;
+        }
+
+        var type = obj.GetType();
+        var bindingFlags = BindingFlags.Public | BindingFlags.Instance;
+        if (caseInsensitive)
+            bindingFlags |= BindingFlags.IgnoreCase;
+
+        var prop = _context.TypeCache.GetProperty(type, name, bindingFlags);
+        if (prop != null)
+        {
+            if (!prop.CanWrite)
+                throw new CsEvalException($"Property '{name}' is read-only");
+            prop.SetValue(obj, value);
+            return;
+        }
+
+        var field = _context.TypeCache.GetField(type, name, bindingFlags);
+        if (field != null)
+        {
+            if (field.IsInitOnly)
+                throw new CsEvalException($"Field '{name}' is read-only");
+            field.SetValue(obj, value);
+            return;
+        }
+
+        throw new CsEvalException($"Property '{name}' not found on type '{type.Name}'");
+    }
+
+    #endregion
+
+    #region Operator Registries
+
+    private static readonly Dictionary<TokenType, Func<Evaluator, object?, object?, object?>> BinaryOperators = new()
+    {
+        { TokenType.Plus, (e, l, r) => Operators.Add(l, r, e._options, e._context) },
+        { TokenType.Minus, (_, l, r) => Operators.Subtract(l, r) },
+        { TokenType.Star, (_, l, r) => Operators.Multiply(l, r) },
+        { TokenType.Slash, (_, l, r) => Operators.Divide(l, r) },
+        { TokenType.Percent, (_, l, r) => Operators.Modulo(l, r) },
+        { TokenType.EqualEqual, (_, l, r) => Operators.Equals(l, r) },
+        { TokenType.BangEqual, (_, l, r) => Operators.NotEquals(l, r) },
+        { TokenType.EqualEqualEqual, (_, l, r) => Operators.Equals(l, r) },
+        { TokenType.BangEqualEqual, (_, l, r) => Operators.NotEquals(l, r) },
+        { TokenType.Less, (e, l, r) => Operators.LessThan(l, r, e._options) },
+        { TokenType.LessEqual, (e, l, r) => Operators.LessThanOrEqual(l, r, e._options) },
+        { TokenType.Greater, (e, l, r) => Operators.GreaterThan(l, r, e._options) },
+        { TokenType.GreaterEqual, (e, l, r) => Operators.GreaterThanOrEqual(l, r, e._options) },
+        { TokenType.Amp, (_, l, r) => Operators.BitwiseAnd(l, r) },
+        { TokenType.Pipe, (_, l, r) => Operators.BitwiseOr(l, r) },
+        { TokenType.Caret, (_, l, r) => Operators.BitwiseXor(l, r) },
+        { TokenType.LessLess, (_, l, r) => Operators.LeftShift(l, r) },
+        { TokenType.GreaterGreater, (_, l, r) => Operators.RightShift(l, r) },
+    };
+
+    private static readonly Dictionary<TokenType, Func<Evaluator, object?, object?>> UnaryOperators = new()
+    {
+        { TokenType.Minus, (_, v) => Operators.Negate(v) },
+        { TokenType.Plus, (_, v) => Operators.UnaryPlus(v) },
+        { TokenType.Bang, (_, v) => !TypeHelpers.RequireBoolean(v) },
+        { TokenType.Tilde, (_, v) => Operators.BitwiseNot(v) },
+    };
+
+    private static readonly Dictionary<TokenType, TokenType> CompoundToBaseOperator = new()
+    {
+        { TokenType.PlusEqual, TokenType.Plus },
+        { TokenType.MinusEqual, TokenType.Minus },
+        { TokenType.StarEqual, TokenType.Star },
+        { TokenType.SlashEqual, TokenType.Slash },
+        { TokenType.PercentEqual, TokenType.Percent },
+        { TokenType.AmpEqual, TokenType.Amp },
+        { TokenType.PipeEqual, TokenType.Pipe },
+        { TokenType.CaretEqual, TokenType.Caret },
+        { TokenType.LessLessEqual, TokenType.LessLess },
+        { TokenType.GreaterGreaterEqual, TokenType.GreaterGreater },
+    };
+
+    #endregion
 }
 
 /// <summary>
@@ -517,7 +1024,9 @@ internal sealed record CompiledLambdaValue(
 
 internal sealed record MethodRef(object Target, string MethodName);
 
-internal sealed record ModuleMethodRef(CsEvalEngine.ModuleResolver Resolver, MethodInfo Method);
+internal sealed record StaticMethodRef(Type Type, string MethodName);
+
+internal sealed record ModuleMethodRef(ModuleInfo Module, IServiceProvider? ServiceProvider, MethodInfo Method);
 
 /// <summary>
 /// Wrapper for a named argument value. Used to pass parameter name information

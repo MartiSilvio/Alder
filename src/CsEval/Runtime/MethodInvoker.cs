@@ -15,8 +15,8 @@ public static class MethodInvoker
         CsEvalContext context,
         CsEvalOptions options,
         CancellationToken ct,
-        Dictionary<string, Func<object?[], object?>> functions,
-        Func<MethodInfo, object?[], object?[]>? argumentTransformer)
+        Func<MethodInfo, object?[], object?[]>? argumentTransformer,
+        IReadOnlyList<string>? typeArgs = null)
     {
         if (nullSafe && target == null)
             return null;
@@ -24,26 +24,26 @@ public static class MethodInvoker
         if (target == null)
             throw new CsEvalException($"Cannot call method '{methodName}' on null");
 
-        var result = TryInvokeInstanceMethod(target, methodName, args, context, options, ct, argumentTransformer);
+        var result = TryInvokeInstanceMethod(target, methodName, args, context, options, ct, argumentTransformer, typeArgs);
         if (result.Success)
             return result.Value;
 
         var callee = MemberAccess.GetMember(target, methodName, options, nullSafe, context);
-        return InvokeCall(callee, args, functions, context, options, ct, argumentTransformer);
+        return InvokeCall(callee, args, context, options, ct, argumentTransformer, typeArgs);
     }
 
     public static object? InvokeCall(
         object? callee,
         object?[] args,
-        Dictionary<string, Func<object?[], object?>> functions,
         CsEvalContext context,
         CsEvalOptions options,
         CancellationToken ct,
-        Func<MethodInfo, object?[], object?[]>? argumentTransformer)
+        Func<MethodInfo, object?[], object?[]>? argumentTransformer,
+        IReadOnlyList<string>? typeArgs = null)
     {
         if (callee is MethodRef methodRef)
         {
-            var result = TryInvokeInstanceMethod(methodRef.Target, methodRef.MethodName, args, context, options, ct, argumentTransformer);
+            var result = TryInvokeInstanceMethod(methodRef.Target, methodRef.MethodName, args, context, options, ct, argumentTransformer, typeArgs);
             if (result.Success)
                 return result.Value;
             throw new CsEvalException($"Method '{methodRef.MethodName}' invocation failed");
@@ -52,6 +52,11 @@ public static class MethodInvoker
         if (callee is ModuleMethodRef moduleRef)
         {
             return InvokeModuleMethod(moduleRef, args, context, ct, argumentTransformer);
+        }
+
+        if (callee is StaticMethodRef staticRef)
+        {
+            return InvokeStaticMethod(staticRef.Type, staticRef.MethodName, args, context, options, ct, typeArgs);
         }
 
         if (callee is FunctionRef funcRef)
@@ -76,43 +81,109 @@ public static class MethodInvoker
         CsEvalContext context,
         CsEvalOptions options,
         CancellationToken ct,
-        Func<MethodInfo, object?[], object?[]>? argumentTransformer)
+        Func<MethodInfo, object?[], object?[]>? argumentTransformer,
+        IReadOnlyList<string>? typeArgs = null)
     {
         if (target == null)
             return (false, null);
 
-        if (target is CsEvalEngine.ModuleResolver)
+        if (target is ModuleInfo)
             return (false, null);
 
-        var type = target.GetType();
+        // Try extension methods first - these are always allowed (LINQ, etc.)
+        var extensionResult = ExtensionMethodResolver.TryInvokeExtensionMethod(
+            target, methodName, args, context.ExtensionTypes, ct, argumentTransformer, typeArgs);
+        if (extensionResult.Success)
+            return extensionResult;
 
-        if (target is IEnumerable enumerable && !type.IsPrimitive && target is not string)
-        {
-            var result = LinqDispatcher.TryInvokeEnumerableMethod(enumerable, methodName, args, context, options, ct);
-            if (result.Success)
-                return result;
-        }
-
+        // Instance methods are blocked in sandbox mode
         if (options.Sandbox.BlockMethodCalls)
             throw new CsEvalException($"Method calls blocked by sandbox: {methodName}");
 
+        var type = target.GetType();
         var methods = context.TypeCache.GetMethods(type, methodName, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
 
         foreach (var method in methods)
         {
-            var parameters = method.GetParameters();
+            var concreteMethod = method;
+
+            // Handle explicit type arguments for generic methods
+            if (method.ContainsGenericParameters && typeArgs != null && typeArgs.Count > 0)
+            {
+                concreteMethod = TryMakeConcreteMethodWithTypeArgs(method, typeArgs);
+                if (concreteMethod == null)
+                    continue;
+            }
+
+            var parameters = concreteMethod.GetParameters();
             var argsWithCancellation = TryAppendCancellationToken(parameters, args, ct);
             if (CanInvokeMethod(parameters, argsWithCancellation, out var convertedArgs))
             {
                 if (argumentTransformer != null)
-                    convertedArgs = argumentTransformer(method, convertedArgs);
+                    convertedArgs = argumentTransformer(concreteMethod, convertedArgs);
 
-                var result = method.Invoke(target, convertedArgs);
+                var result = concreteMethod.Invoke(target, convertedArgs);
                 return (true, GuardReflectionLeak(result, $"method {methodName}"));
             }
         }
 
         return (false, null);
+    }
+
+    /// <summary>
+    /// Makes a generic method concrete using explicit type arguments.
+    /// </summary>
+    private static MethodInfo? TryMakeConcreteMethodWithTypeArgs(MethodInfo genericMethod, IReadOnlyList<string> typeArgs)
+    {
+        var genericParams = genericMethod.GetGenericArguments();
+        if (genericParams.Length != typeArgs.Count)
+            return null;
+
+        try
+        {
+            var resolvedTypes = new Type[typeArgs.Count];
+            for (var i = 0; i < typeArgs.Count; i++)
+            {
+                var type = ResolveTypeName(typeArgs[i]);
+                if (type == null)
+                    return null;
+                resolvedTypes[i] = type;
+            }
+            return genericMethod.MakeGenericMethod(resolvedTypes);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Resolves a type name to a Type. Handles both CLR names and common aliases.
+    /// </summary>
+    internal static Type? ResolveTypeName(string typeName)
+    {
+        // First try CLR primitive types
+        return typeName switch
+        {
+            "Int32" or "int" => typeof(int),
+            "Int64" or "long" => typeof(long),
+            "Int16" or "short" => typeof(short),
+            "Byte" or "byte" => typeof(byte),
+            "SByte" or "sbyte" => typeof(sbyte),
+            "UInt16" or "ushort" => typeof(ushort),
+            "UInt32" or "uint" => typeof(uint),
+            "UInt64" or "ulong" => typeof(ulong),
+            "Single" or "float" => typeof(float),
+            "Double" or "double" => typeof(double),
+            "Decimal" or "decimal" => typeof(decimal),
+            "Boolean" or "bool" => typeof(bool),
+            "Char" or "char" => typeof(char),
+            "String" or "string" => typeof(string),
+            "Object" or "object" => typeof(object),
+            "IntPtr" or "nint" => typeof(nint),
+            "UIntPtr" or "nuint" => typeof(nuint),
+            _ => Type.GetType(typeName) ?? Type.GetType($"System.{typeName}")
+        };
     }
 
     private static object? InvokeModuleMethod(
@@ -123,10 +194,10 @@ public static class MethodInvoker
         Func<MethodInfo, object?[], object?[]>? argumentTransformer)
     {
         var methodName = methodRef.Method.Name;
-        var resolver = methodRef.Resolver;
-        var target = methodRef.Method.IsStatic ? null : resolver.Resolve();
+        var module = methodRef.Module;
+        var target = methodRef.Method.IsStatic ? null : module.Resolve(methodRef.ServiceProvider);
 
-        var methods = context.TypeCache.GetMethods(resolver.Type, methodName,
+        var methods = context.TypeCache.GetMethods(module.Type, methodName,
             BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static);
 
         foreach (var method in methods)
@@ -159,6 +230,43 @@ public static class MethodInvoker
 
         var fallbackResult = fallbackMethod.Invoke(target, finalArgs);
         return GuardReflectionLeak(fallbackResult, $"method {methodName}");
+    }
+
+    private static object? InvokeStaticMethod(
+        Type type,
+        string methodName,
+        object?[] args,
+        CsEvalContext context,
+        CsEvalOptions options,
+        CancellationToken ct,
+        IReadOnlyList<string>? typeArgs)
+    {
+        var bindingFlags = BindingFlags.Public | BindingFlags.Static;
+        if (!options.IsCaseSensitive)
+            bindingFlags |= BindingFlags.IgnoreCase;
+
+        var methods = context.TypeCache.GetMethods(type, methodName, bindingFlags);
+
+        foreach (var method in methods)
+        {
+            if (method.ContainsGenericParameters)
+            {
+                var concreteMethod = TryMakeConcreteMethod(method, args);
+                if (concreteMethod != null)
+                {
+                    var result = InvokeMethodWithArgs(concreteMethod, null, args, ct, null);
+                    if (result.Success)
+                        return result.Value;
+                }
+                continue;
+            }
+
+            var invokeResult = InvokeMethodWithArgs(method, null, args, ct, null);
+            if (invokeResult.Success)
+                return invokeResult.Value;
+        }
+
+        throw new CsEvalException($"Static method '{methodName}' not found on type '{type.Name}'");
     }
 
     private static (bool Success, object? Value) InvokeMethodWithArgs(
@@ -339,7 +447,7 @@ public static class MethodInvoker
             else if (parameters[i].HasDefaultValue)
                 result[i] = parameters[i].DefaultValue;
             else
-                throw new CsEvalException($"Missing required argument '{parameters[i].Name}'");
+                throw new ArgumentException($"Missing required argument '{parameters[i].Name}'", parameters[i].Name);
         }
 
         return result;
@@ -357,7 +465,7 @@ public static class MethodInvoker
             else if (parameters[i].HasDefaultValue)
                 result[i] = parameters[i].DefaultValue;
             else
-                throw new CsEvalException($"Missing required argument '{parameters[i].Name}'");
+                throw new ArgumentException($"Missing required argument '{parameters[i].Name}'", parameters[i].Name);
         }
 
         var paramsElementType = paramsParam.ParameterType.GetElementType()!;
@@ -414,7 +522,7 @@ public static class MethodInvoker
             childContext.Define(lambda.Parameters[i], args[i]);
         }
 
-        var evaluator = new Evaluator(childContext, new Dictionary<string, Func<object?[], object?>>());
+        var evaluator = new Evaluator(childContext);
         return evaluator.Evaluate(lambda.Body);
     }
 

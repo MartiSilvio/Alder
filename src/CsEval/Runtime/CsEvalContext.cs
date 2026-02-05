@@ -1,43 +1,64 @@
+using System.Collections.Concurrent;
+using System.Collections.Frozen;
+using System.Collections.Immutable;
 using System.Dynamic;
 
 namespace CsEval.Runtime;
 
+/// <summary>
+/// Thread-safe evaluation context for CsEval expressions.
+/// Uses ConcurrentDictionary for thread-safe variable access across parent/child relationships.
+/// Parent contexts are never modified by child evaluations - children have isolated state.
+/// </summary>
 public sealed class CsEvalContext
 {
-    private readonly Dictionary<string, object?> _variables;
-    private readonly Dictionary<string, Type> _variableTypes;
+    private readonly ConcurrentDictionary<string, object?> _variables;
+    private readonly ConcurrentDictionary<string, Type> _variableTypes;
     private readonly CsEvalContext? _parent;
-    private readonly StringComparer _comparer;
-    private readonly TypeCache _typeCache;
+    private readonly CsEvalConfig _config;
 
-    public CsEvalContext(StringComparer? comparer = null) : this(null, comparer, null)
+    public CsEvalContext(CsEvalConfig config) : this(config, null, null)
     {
     }
 
-    internal CsEvalContext(StringComparer? comparer, TypeCache? typeCache) : this(null, comparer, typeCache)
+    public CsEvalContext(CsEvalConfig config, IServiceProvider? serviceProvider) : this(config, null, serviceProvider)
     {
     }
 
-    private CsEvalContext(CsEvalContext? parent, StringComparer? comparer, TypeCache? typeCache)
+    private CsEvalContext(CsEvalConfig config, CsEvalContext? parent, IServiceProvider? serviceProvider)
     {
+        _config = config;
         _parent = parent;
-        _comparer = comparer ?? parent?._comparer ?? StringComparer.Ordinal;
-        _typeCache = typeCache ?? parent?._typeCache ?? new TypeCache();
-        _variables = new Dictionary<string, object?>(_comparer);
-        _variableTypes = new Dictionary<string, Type>(_comparer);
+        ServiceProvider = serviceProvider ?? parent?.ServiceProvider;
+        _variables = new ConcurrentDictionary<string, object?>(_config.Comparer);
+        _variableTypes = new ConcurrentDictionary<string, Type>(_config.Comparer);
     }
 
-    public StringComparer Comparer => _comparer;
-
-    /// <summary>
-    /// The TypeCache instance for reflection caching. Shared with child contexts.
-    /// </summary>
-    internal TypeCache TypeCache => _typeCache;
+    public CsEvalConfig Config => _config;
+    public StringComparer Comparer => _config.Comparer;
+    public IServiceProvider? ServiceProvider { get; }
+    internal TypeCache TypeCache => _config.TypeCache;
+    internal FrozenDictionary<string, Func<object?[], object?>> Functions => _config.Functions;
+    internal FrozenDictionary<string, ModuleInfo> Modules => _config.Modules;
+    internal ImmutableArray<Type> ExtensionTypes => _config.ExtensionTypes;
 
     public void Define(string name, object? value) => _variables[name] = value;
 
     public void Define(string name, object? value, Type inferredType)
     {
+        _variables[name] = value;
+        _variableTypes[name] = inferredType;
+    }
+
+    /// <summary>
+    /// Defines a new variable, enforcing C# shadowing rules.
+    /// Throws if the variable already exists in the current scope or any parent scope.
+    /// </summary>
+    public void DefineNew(string name, object? value, Type inferredType)
+    {
+        if (Contains(name))
+            throw new CsEvalException($"A local variable named '{name}' is already defined in this scope");
+
         _variables[name] = value;
         _variableTypes[name] = inferredType;
     }
@@ -97,18 +118,13 @@ public sealed class CsEvalContext
         return _parent?.Contains(name) ?? false;
     }
 
-    public CsEvalContext CreateChild() => new(this, _comparer, _typeCache);
+    public CsEvalContext CreateChild() => new(_config, this, null);
 
     public IReadOnlyDictionary<string, object?> GetAll() => _variables;
 
-    public static CsEvalContext FromExpandoObject(ExpandoObject? expando, StringComparer? comparer = null)
+    public static CsEvalContext FromExpandoObject(ExpandoObject? expando, CsEvalConfig config)
     {
-        return FromExpandoObject(expando, comparer, null);
-    }
-
-    internal static CsEvalContext FromExpandoObject(ExpandoObject? expando, StringComparer? comparer, TypeCache? typeCache)
-    {
-        var ctx = new CsEvalContext(comparer, typeCache);
+        var ctx = new CsEvalContext(config);
         if (expando == null) return ctx;
 
         foreach (var kvp in (IDictionary<string, object?>)expando)
@@ -118,14 +134,9 @@ public sealed class CsEvalContext
         return ctx;
     }
 
-    public static CsEvalContext FromDictionary(IDictionary<string, object?>? dict, StringComparer? comparer = null)
+    public static CsEvalContext FromDictionary(IDictionary<string, object?>? dict, CsEvalConfig config)
     {
-        return FromDictionary(dict, comparer, null);
-    }
-
-    internal static CsEvalContext FromDictionary(IDictionary<string, object?>? dict, StringComparer? comparer, TypeCache? typeCache)
-    {
-        var ctx = new CsEvalContext(comparer, typeCache);
+        var ctx = new CsEvalContext(config);
         if (dict == null) return ctx;
 
         foreach (var kvp in dict)

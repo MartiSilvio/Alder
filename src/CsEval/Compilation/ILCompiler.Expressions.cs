@@ -1,4 +1,3 @@
-using CsEval.Extensions;
 using CsEval.Interpretation;
 using CsEval.Parsing;
 using CsEval.Runtime;
@@ -25,8 +24,15 @@ internal sealed partial class ILCompiler
         return LinqExpression.Call(
             ResolveIdentifierMethod,
             LinqExpression.Constant(id.Name.Lexeme),
-            _currentContext,
-            _functionsParam);
+            _currentContext);
+    }
+
+    private LinqExpression CompileTypeReference(TypeReferenceExpr typeRef)
+    {
+        // Return the Type object for static member access
+        return LinqExpression.Call(
+            ResolveTypeNameMethod,
+            LinqExpression.Constant(typeRef.TypeToken.Lexeme));
     }
 
     private LinqExpression CompileUnary(UnaryExpr u)
@@ -36,6 +42,7 @@ internal sealed partial class ILCompiler
         return u.Op.Type switch
         {
             TokenType.Minus => LinqExpression.Call(NegateMethod, operand),
+            TokenType.Plus => LinqExpression.Call(UnaryPlusMethod, operand),
             TokenType.Bang => LinqExpression.Convert(
                 LinqExpression.Not(LinqExpression.Call(RequireBooleanMethod, operand)),
                 typeof(object)),
@@ -47,10 +54,12 @@ internal sealed partial class ILCompiler
     private LinqExpression CompileCast(CastExpr cast)
     {
         var value = Compile(cast.Expression);
+        var sourceStaticType = _typeInferrer.Infer(cast.Expression);
         return LinqExpression.Call(
             ExplicitCastMethod,
             value,
-            LinqExpression.Constant(cast.TargetType.Lexeme));
+            LinqExpression.Constant(cast.TargetType.Lexeme),
+            LinqExpression.Constant(sourceStaticType, typeof(Type)));
     }
 
     private LinqExpression CompileIs(IsExpr isExpr)
@@ -67,14 +76,19 @@ internal sealed partial class ILCompiler
             return LinqExpression.Convert(result, typeof(object));
         }
 
-        // x is type / x is type name
+        // x is type / x is not type / x is type name
         var typeCheck = LinqExpression.Call(
             IsTypeMethod,
             value,
             LinqExpression.Constant(isExpr.TargetType.Value.Lexeme));
 
         if (isExpr.VariableName == null)
-            return LinqExpression.Convert(typeCheck, typeof(object));
+        {
+            LinqExpression result = isExpr.IsNegated
+                ? LinqExpression.Not(typeCheck)
+                : typeCheck;
+            return LinqExpression.Convert(result, typeof(object));
+        }
 
         // x is type name - declare variable if match succeeds
         var valueVar = LinqExpression.Variable(typeof(object), "isValue");
@@ -90,10 +104,11 @@ internal sealed partial class ILCompiler
                 LinqExpression.Constant(isExpr.TargetType.Value.Lexeme))),
             LinqExpression.IfThen(
                 matchVar,
-                LinqExpression.Call(_currentContext, DefineMethod,
+                LinqExpression.Call(_currentContext, DefineNewMethod,
                     LinqExpression.Constant(isExpr.VariableName.Value.Lexeme),
-                    valueVar)),
-            LinqExpression.Convert(matchVar, typeof(object)));
+                    valueVar,
+                    LinqExpression.Call(ResolveTypeNameMethod, LinqExpression.Constant(isExpr.TargetType.Value.Lexeme)))),
+            LinqExpression.Convert(isExpr.IsNegated ? LinqExpression.Not(matchVar) : matchVar, typeof(object)));
     }
 
     private LinqExpression CompileAs(AsExpr asExpr)
@@ -113,48 +128,28 @@ internal sealed partial class ILCompiler
         if (b.Op.Type == TokenType.Plus)
             return LinqExpression.Call(AddMethod, left, right, _optionsParam, _currentContext);
 
-        // Shift operators don't take options
         if (b.Op.Type == TokenType.LessLess)
             return LinqExpression.Call(LeftShiftMethod, left, right);
         if (b.Op.Type == TokenType.GreaterGreater)
             return LinqExpression.Call(RightShiftMethod, left, right);
 
-        // Check extension operators
-        if (_extensionILOperators.TryGetValue(b.Op.Type, out var extOp))
-            return CompileExtensionBinaryOp(extOp, left, right);
-
-        var method = b.Op.Type switch
+        return b.Op.Type switch
         {
-            TokenType.Minus => SubtractMethod,
-            TokenType.Star => MultiplyMethod,
-            TokenType.Slash => DivideMethod,
-            TokenType.Percent => ModuloMethod,
-            TokenType.EqualEqual or TokenType.EqualEqualEqual => EqualsMethod,
-            TokenType.BangEqual or TokenType.BangEqualEqual => NotEqualsMethod,
-            TokenType.Less => LessThanMethod,
-            TokenType.LessEqual => LessThanOrEqualMethod,
-            TokenType.Greater => GreaterThanMethod,
-            TokenType.GreaterEqual => GreaterThanOrEqualMethod,
-            TokenType.Amp => BitwiseAndMethod,
-            TokenType.Pipe => BitwiseOrMethod,
-            TokenType.Caret => BitwiseXorMethod,
+            TokenType.Less => LinqExpression.Call(LessThanMethod, left, right, _optionsParam),
+            TokenType.LessEqual => LinqExpression.Call(LessThanOrEqualMethod, left, right, _optionsParam),
+            TokenType.Greater => LinqExpression.Call(GreaterThanMethod, left, right, _optionsParam),
+            TokenType.GreaterEqual => LinqExpression.Call(GreaterThanOrEqualMethod, left, right, _optionsParam),
+            TokenType.Minus => LinqExpression.Call(SubtractMethod, left, right),
+            TokenType.Star => LinqExpression.Call(MultiplyMethod, left, right),
+            TokenType.Slash => LinqExpression.Call(DivideMethod, left, right),
+            TokenType.Percent => LinqExpression.Call(ModuloMethod, left, right),
+            TokenType.EqualEqual or TokenType.EqualEqualEqual => LinqExpression.Call(EqualsMethod, left, right),
+            TokenType.BangEqual or TokenType.BangEqualEqual => LinqExpression.Call(NotEqualsMethod, left, right),
+            TokenType.Amp => LinqExpression.Call(BitwiseAndMethod, left, right),
+            TokenType.Pipe => LinqExpression.Call(BitwiseOrMethod, left, right),
+            TokenType.Caret => LinqExpression.Call(BitwiseXorMethod, left, right),
             _ => throw new NotSupportedException($"Binary operator {b.Op.Type}")
         };
-
-        return LinqExpression.Call(method, left, right, _optionsParam);
-    }
-
-    private LinqExpression CompileExtensionBinaryOp(ILBinaryOperator op, LinqExpression left, LinqExpression right)
-    {
-        var (l, r) = op.SwapOperands ? (right, left) : (left, right);
-
-        LinqExpression call = op.PassOptions
-            ? LinqExpression.Call(op.Method, l, r, _optionsParam)
-            : LinqExpression.Call(op.Method, l, r);
-
-        return op.BoxResult
-            ? LinqExpression.Convert(call, typeof(object))
-            : call;
     }
 
     private LinqExpression CompileLogical(LogicalExpr l)
@@ -245,7 +240,7 @@ internal sealed partial class ILCompiler
             new[] { temp, inferredType },
             LinqExpression.Assign(temp, value),
             LinqExpression.Assign(inferredType, getInferredType),
-            LinqExpression.Call(_currentContext, DefineWithTypeMethod,
+            LinqExpression.Call(_currentContext, DefineNewMethod,
                 LinqExpression.Constant(v.Name.Lexeme), temp, inferredType),
             temp);
     }
@@ -278,13 +273,13 @@ internal sealed partial class ILCompiler
         var opCall = ca.Op.Type switch
         {
             TokenType.PlusEqual => LinqExpression.Call(AddMethod, currentValue, rightTemp, _optionsParam, _currentContext),
-            TokenType.MinusEqual => LinqExpression.Call(SubtractMethod, currentValue, rightTemp, _optionsParam),
-            TokenType.StarEqual => LinqExpression.Call(MultiplyMethod, currentValue, rightTemp, _optionsParam),
-            TokenType.SlashEqual => LinqExpression.Call(DivideMethod, currentValue, rightTemp, _optionsParam),
-            TokenType.PercentEqual => LinqExpression.Call(ModuloMethod, currentValue, rightTemp, _optionsParam),
-            TokenType.AmpEqual => LinqExpression.Call(BitwiseAndMethod, currentValue, rightTemp, _optionsParam),
-            TokenType.PipeEqual => LinqExpression.Call(BitwiseOrMethod, currentValue, rightTemp, _optionsParam),
-            TokenType.CaretEqual => LinqExpression.Call(BitwiseXorMethod, currentValue, rightTemp, _optionsParam),
+            TokenType.MinusEqual => LinqExpression.Call(SubtractMethod, currentValue, rightTemp),
+            TokenType.StarEqual => LinqExpression.Call(MultiplyMethod, currentValue, rightTemp),
+            TokenType.SlashEqual => LinqExpression.Call(DivideMethod, currentValue, rightTemp),
+            TokenType.PercentEqual => LinqExpression.Call(ModuloMethod, currentValue, rightTemp),
+            TokenType.AmpEqual => LinqExpression.Call(BitwiseAndMethod, currentValue, rightTemp),
+            TokenType.PipeEqual => LinqExpression.Call(BitwiseOrMethod, currentValue, rightTemp),
+            TokenType.CaretEqual => LinqExpression.Call(BitwiseXorMethod, currentValue, rightTemp),
             TokenType.LessLessEqual => LinqExpression.Call(LeftShiftMethod, currentValue, rightTemp),
             TokenType.GreaterGreaterEqual => LinqExpression.Call(RightShiftMethod, currentValue, rightTemp),
             _ => throw new NotSupportedException($"Compound operator {ca.Op.Type}")
@@ -334,7 +329,7 @@ internal sealed partial class ILCompiler
 
         LinqExpression MakeOpCall(LinqExpression left) => isIncrement
             ? LinqExpression.Call(AddMethod, left, one, _optionsParam, _currentContext)
-            : LinqExpression.Call(SubtractMethod, left, one, _optionsParam);
+            : LinqExpression.Call(SubtractMethod, left, one);
 
         var checkExpr = LinqExpression.Call(CheckAllowAssignmentMethod, _optionsParam,
             LinqExpression.Constant(isIncrement ? $"{name}++" : $"{name}--"));
@@ -370,6 +365,10 @@ internal sealed partial class ILCompiler
             typeof(object),
             call.Arguments.Select(CompileArgument));
 
+        var typeArgsExpr = call.TypeArguments != null
+            ? LinqExpression.Constant(call.TypeArguments, typeof(IReadOnlyList<string>))
+            : LinqExpression.Constant(null, typeof(IReadOnlyList<string>));
+
         // Check if this is a member access call (target.Method(args))
         if (call.Callee is MemberAccessExpr memberAccess)
         {
@@ -388,8 +387,8 @@ internal sealed partial class ILCompiler
                     _currentContext,
                     _optionsParam,
                     _ctParam,
-                    _functionsParam,
-                    _argumentTransformerParam));
+                    _argumentTransformerParam,
+                    typeArgsExpr));
         }
 
         // General call: evaluate callee and invoke
@@ -401,11 +400,11 @@ internal sealed partial class ILCompiler
                 InvokeCallMethod,
                 callee,
                 argsVar,
-                _functionsParam,
                 _currentContext,
                 _optionsParam,
                 _ctParam,
-                _argumentTransformerParam));
+                _argumentTransformerParam,
+                typeArgsExpr));
     }
 
     private LinqExpression CompileArgument(Expr arg)

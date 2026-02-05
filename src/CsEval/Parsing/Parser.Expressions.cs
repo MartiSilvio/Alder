@@ -74,10 +74,10 @@ public sealed partial class Parser
     {
         var expr = ParseOr();
 
-        while (Match(TokenType.QuestionQuestion))
+        if (Match(TokenType.QuestionQuestion))
         {
-            var right = ParseOr();
-            expr = new NullCoalesceExpr(expr, right);
+            var right = ParseNullCoalesce();
+            return new NullCoalesceExpr(expr, right);
         }
 
         return expr;
@@ -188,7 +188,7 @@ public sealed partial class Parser
 
         while (true)
         {
-            if (Match(TokenType.Less, TokenType.LessEqual, TokenType.Greater, TokenType.GreaterEqual, TokenType.In))
+            if (Match(TokenType.Less, TokenType.LessEqual, TokenType.Greater, TokenType.GreaterEqual))
             {
                 var op = Previous();
                 var right = ParseShift();
@@ -217,12 +217,17 @@ public sealed partial class Parser
         if (Match(TokenType.Null))
             return new IsExpr(left, null, false);
 
-        // x is not null (note: "not" is lexed as Bang)
+        // x is not null OR x is not type (note: "not" is lexed as Bang)
         if (Check(TokenType.Bang) && Peek().Lexeme == "not")
         {
             Advance();
-            Consume(TokenType.Null, "Expected 'null' after 'is not'");
-            return new IsExpr(left, null, true);
+            // x is not null
+            if (Match(TokenType.Null))
+                return new IsExpr(left, null, true);
+            // x is not type
+            if (MatchTypeKeywordNoNullable(out var negatedType))
+                return new IsExpr(left, negatedType, true);
+            throw new CsEvalParserException($"Expected type or 'null' after 'is not' at {Peek().Line}:{Peek().Column}");
         }
 
         // x is type OR x is type name
@@ -234,7 +239,7 @@ public sealed partial class Parser
             return new IsExpr(left, typeToken, false, varName);
         }
 
-        throw new ParserException($"Expected type or 'null' after 'is' at {Peek().Line}:{Peek().Column}");
+        throw new CsEvalParserException($"Expected type or 'null' after 'is' at {Peek().Line}:{Peek().Column}");
     }
 
     private bool MatchTypeKeywordNoNullable(out Token typeToken)
@@ -254,7 +259,7 @@ public sealed partial class Parser
         if (MatchTypeKeyword(out var typeToken))
             return new AsExpr(left, typeToken);
 
-        throw new ParserException($"Expected type after 'as' at {Peek().Line}:{Peek().Column}");
+        throw new CsEvalParserException($"Expected type after 'as' at {Peek().Line}:{Peek().Column}");
     }
 
     private Expr ParseShift()
@@ -319,7 +324,7 @@ public sealed partial class Parser
             return new CastExpr(typeToken, operand);
         }
 
-        if (Match(TokenType.Bang, TokenType.Minus, TokenType.Tilde))
+        if (Match(TokenType.Bang, TokenType.Minus, TokenType.Plus, TokenType.Tilde))
         {
             var op = Previous();
             var right = ParseUnary();
@@ -391,9 +396,16 @@ public sealed partial class Parser
                 Consume(TokenType.RightBracket, "Expected ']' after index");
                 expr = new IndexAccessExpr(expr, index);
             }
+            else if (Check(TokenType.Less) && TryParseTypeArguments(out var typeArgs))
+            {
+                // Generic method call: Method<T>() or Method<T1, T2>()
+                // Type arguments must be followed by '(' for invocation
+                Consume(TokenType.LeftParen, "Expected '(' after generic type arguments");
+                expr = FinishCall(expr, typeArgs);
+            }
             else if (Match(TokenType.LeftParen))
             {
-                expr = FinishCall(expr);
+                expr = FinishCall(expr, null);
             }
             else if (expr is IdentifierExpr identifier && Match(TokenType.PlusPlus, TokenType.MinusMinus))
             {
@@ -410,7 +422,127 @@ public sealed partial class Parser
         return expr;
     }
 
-    private Expr FinishCall(Expr callee)
+    /// <summary>
+    /// Attempts to parse generic type arguments: &lt;T1, T2, ...&gt;
+    /// Uses lookahead to disambiguate from less-than operator.
+    /// Returns true if successfully parsed, with type arguments in 'typeArgs'.
+    /// </summary>
+    private bool TryParseTypeArguments(out List<string> typeArgs)
+    {
+        typeArgs = new List<string>();
+
+        // Save position for potential backtrack
+        var startPos = _current;
+
+        // Must start with '<'
+        if (!Check(TokenType.Less))
+            return false;
+
+        Advance(); // consume '<'
+
+        // Parse type arguments
+        while (true)
+        {
+            // Each type argument must be a type name (identifier or keyword type)
+            if (!IsTypeName(Peek().Type))
+            {
+                // Not a valid type - backtrack
+                _current = startPos;
+                return false;
+            }
+
+            var typeName = NormalizeTypeName(Advance());
+            typeArgs.Add(typeName);
+
+            // After type: expect ',' for more types, or '>' to end
+            if (Match(TokenType.Comma))
+            {
+                continue;
+            }
+            else if (Match(TokenType.Greater))
+            {
+                // Successfully parsed type arguments
+                // Verify this looks like a generic call (followed by '(' or '.')
+                if (Check(TokenType.LeftParen) || Check(TokenType.Dot) || Check(TokenType.QuestionDot))
+                {
+                    return true;
+                }
+                else
+                {
+                    // Doesn't look like a generic call - backtrack
+                    _current = startPos;
+                    typeArgs.Clear();
+                    return false;
+                }
+            }
+            else
+            {
+                // Unexpected token - backtrack
+                _current = startPos;
+                typeArgs.Clear();
+                return false;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Checks if a token type can be used as a type name in generic arguments.
+    /// </summary>
+    private static bool IsTypeName(TokenType type)
+    {
+        return type == TokenType.Identifier ||
+               // C# primitive type keywords
+               type == TokenType.Int ||
+               type == TokenType.Long ||
+               type == TokenType.Short ||
+               type == TokenType.Byte ||
+               type == TokenType.Sbyte ||
+               type == TokenType.Ushort ||
+               type == TokenType.Uint ||
+               type == TokenType.Ulong ||
+               type == TokenType.Float ||
+               type == TokenType.Double ||
+               type == TokenType.Decimal ||
+               type == TokenType.Bool ||
+               type == TokenType.Char ||
+               type == TokenType.StringType ||
+               type == TokenType.Object ||
+               type == TokenType.Dynamic ||
+               type == TokenType.Nint ||
+               type == TokenType.Nuint;
+    }
+
+    /// <summary>
+    /// Converts a type token to its CLR type name.
+    /// Keyword types are mapped to their full CLR names.
+    /// </summary>
+    private static string NormalizeTypeName(Token token)
+    {
+        return token.Type switch
+        {
+            TokenType.Int => "Int32",
+            TokenType.Long => "Int64",
+            TokenType.Short => "Int16",
+            TokenType.Byte => "Byte",
+            TokenType.Sbyte => "SByte",
+            TokenType.Ushort => "UInt16",
+            TokenType.Uint => "UInt32",
+            TokenType.Ulong => "UInt64",
+            TokenType.Float => "Single",
+            TokenType.Double => "Double",
+            TokenType.Decimal => "Decimal",
+            TokenType.Bool => "Boolean",
+            TokenType.Char => "Char",
+            TokenType.StringType => "String",
+            TokenType.Object => "Object",
+            TokenType.Dynamic => "Object", // dynamic maps to object at runtime
+            TokenType.Nint => "IntPtr",
+            TokenType.Nuint => "UIntPtr",
+            _ => token.Lexeme // For identifiers, use the lexeme directly
+        };
+    }
+
+    private Expr FinishCall(Expr callee, List<string>? typeArgs)
     {
         var arguments = new List<Expr>();
 
@@ -423,7 +555,7 @@ public sealed partial class Parser
         }
 
         Consume(TokenType.RightParen, "Expected ')' after arguments");
-        return new CallExpr(callee, arguments);
+        return new CallExpr(callee, arguments, typeArgs);
     }
 
     private Expr ParseArgument()

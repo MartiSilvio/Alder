@@ -54,6 +54,13 @@ public sealed partial class Parser
         if (Match(TokenType.LeftBrace))
             return ParseBlock();
 
+        // Type keyword followed by . for static member access (double.NaN, int.MaxValue)
+        if (IsTypeKeyword(Peek().Type) && PeekNext().Type == TokenType.Dot)
+        {
+            var typeToken = Advance();
+            return new TypeReferenceExpr(typeToken);
+        }
+
         // Identifier or single-parameter lambda (x => ...)
         if (Match(TokenType.Identifier))
         {
@@ -69,7 +76,7 @@ public sealed partial class Parser
             return new IdentifierExpr(identifier);
         }
 
-        throw new ParserException($"Unexpected token '{Peek().Lexeme}' at {Peek().Line}:{Peek().Column}");
+        throw new CsEvalParserException($"Unexpected token '{Peek().Lexeme}' at {Peek().Line}:{Peek().Column}");
     }
 
     #endregion

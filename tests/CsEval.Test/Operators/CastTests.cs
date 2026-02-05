@@ -28,51 +28,61 @@ public class CastTests(CompilationMode mode)
     [TestCase("(int)(double)42L", 42, TestName = "Cast_ChainedCasts")]
     [TestCase("(int)3.7 + (int)4.2", 7, TestName = "Cast_InArithmetic")]
     [TestCase("(int)3.7m", 3, TestName = "Cast_DecimalToInt")]
-    [TestCase("(int?)42", 42, TestName = "Cast_NullableInt")]
+    [TestCase("(int?)42", 42, TestName = "Cast_IntToNullableInt")]
     [TestCase("(decimal)42", 42, TestName = "Cast_IntToDecimal")]
+    [TestCase("{ var x = 3.7; return (int)x; }", 3, TestName = "Cast_Variable")]
+    [TestCase("{ var x = 3.7; return (int)x > 3 ? \"yes\" : \"no\"; }", "no", TestName = "Cast_InConditional")]
     public async Task Eval_Cast(string expr, object expected)
+        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
+
+    [TestCase("(int?)null", null, TestName = "Cast_NullToNullableInt")]
+    [TestCase("(long?)null", null, TestName = "Cast_NullToNullableLong")]
+    [TestCase("(double?)null", null, TestName = "Cast_NullToNullableDouble")]
+    public async Task Eval_Cast_ToNull(string expr, object? expected)
+        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
+
+    [TestCase("{ object x = null; return (int)x; }", TestName = "CastNullObjectToInt")]
+    [TestCase("{ object x = \"hello\"; return (int)x; }", TestName = "CastStringObjectToInt")]
+    public async Task Eval_Cast_ShouldThrow(string expr)
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(expr);
-        var csharpResult = await TestHelpers.EvaluateCSharpAsync(expr);
-
-        Assert.That(result, Is.EqualTo(expected), $"Value mismatch for: {expr}");
-        Assert.That(result, Is.EqualTo(csharpResult), $"C# parity mismatch for: {expr}");
-        Assert.That(result?.GetType(), Is.EqualTo(csharpResult?.GetType()), $"Type mismatch for: {expr}");
+        Assert.Catch<Exception>(() => engine.Evaluate(expr));
+        await Assert.ThatAsync(async () => await TestHelpers.EvaluateCSharpAsync(expr), Throws.Exception);
     }
 
-    [Test]
-    public async Task Cast_NullToNullableInt()
+    #region Unboxing Requires Exact Type Match
+
+    // C# unboxing rule: when source static type is 'object', you can only unbox to the exact boxed type
+    // (long)(object)42 fails because 42 is boxed as int, not long
+    // CsEval tracks compile-time types to enforce this correctly
+
+    [TestCase("{ object x = 42; return (long)x; }", TestName = "Unboxing_IntToLong")]
+    [TestCase("{ object x = 42; return (double)x; }", TestName = "Unboxing_IntToDouble")]
+    [TestCase("{ object x = true; return (int)x; }", TestName = "Unboxing_BoolToInt")]
+    [TestCase("{ object x = 3.14; return (int)x; }", TestName = "Unboxing_DoubleToInt")]
+    [TestCase("{ object x = 42L; return (int)x; }", TestName = "Unboxing_LongToInt")]
+    [TestCase("{ object x = 3.14f; return (double)x; }", TestName = "Unboxing_FloatToDouble")]
+    public async Task Eval_Cast_InvalidUnboxing_ShouldThrow(string expr)
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate("(int?)null");
-        var csharpResult = await TestHelpers.EvaluateCSharpAsync("(int?)null");
-
-        Assert.That(result, Is.Null);
-        Assert.That(result, Is.EqualTo(csharpResult), "C# parity mismatch");
+        Assert.Throws<InvalidCastException>(() => engine.Evaluate(expr));
+        await Assert.ThatAsync(async () => await TestHelpers.EvaluateCSharpAsync(expr), Throws.Exception);
     }
 
-    [Test]
-    public async Task Cast_Variable()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        engine.SetVariable("x", 3.7);
-        var result = engine.Evaluate("(int)x");
-        var csharpResult = await TestHelpers.EvaluateCSharpAsync("(int)3.7");
+    [TestCase("{ object x = 42; return (int)x; }", 42, TestName = "Unboxing_IntToInt")]
+    [TestCase("{ object x = 42L; return (long)x; }", 42L, TestName = "Unboxing_LongToLong")]
+    [TestCase("{ object x = 3.14; return (double)x; }", 3.14, TestName = "Unboxing_DoubleToDouble")]
+    [TestCase("{ object x = true; return (bool)x; }", true, TestName = "Unboxing_BoolToBool")]
+    [TestCase("{ object x = 'A'; return (char)x; }", 'A', TestName = "Unboxing_CharToChar")]
+    public async Task Eval_Cast_ValidUnboxing(string expr, object expected)
+        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
-        Assert.That(result, Is.EqualTo(3));
-        Assert.That(result, Is.EqualTo(csharpResult), "C# parity mismatch");
-    }
+    [TestCase("{ int x = 42; return (long)x; }", 42L, TestName = "Conversion_IntToLong")]
+    [TestCase("{ int x = 42; return (double)x; }", 42.0, TestName = "Conversion_IntToDouble")]
+    [TestCase("{ long x = 42L; return (int)x; }", 42, TestName = "Conversion_LongToInt")]
+    [TestCase("{ double x = 3.7; return (int)x; }", 3, TestName = "Conversion_DoubleToInt")]
+    public async Task Eval_Cast_NumericConversion_NotUnboxing(string expr, object expected)
+        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
-    [Test]
-    public async Task Cast_InConditional()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        engine.SetVariable("x", 3.7);
-        var result = engine.Evaluate("(int)x > 3 ? \"yes\" : \"no\"");
-        var csharpResult = await TestHelpers.EvaluateCSharpAsync("(int)3.7 > 3 ? \"yes\" : \"no\"");
-
-        Assert.That(result, Is.EqualTo("no"));
-        Assert.That(result, Is.EqualTo(csharpResult), "C# parity mismatch");
-    }
+    #endregion
 }

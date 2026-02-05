@@ -1,3 +1,6 @@
+using System.Collections.Concurrent;
+using System.Linq.Expressions;
+
 namespace CsEval.Runtime;
 
 /// <summary>
@@ -18,6 +21,9 @@ public static class TypeHelpers
 
     internal static bool IsNumeric(object? value) =>
         value is sbyte or byte or short or ushort or int or uint or long or ulong or float or double or decimal;
+
+    private static bool IsIntegerType(Type type) =>
+        Type.GetTypeCode(type) is >= TypeCode.SByte and <= TypeCode.UInt64;
 
     private static readonly Dictionary<string, Type> TypeNameToClrType = new()
     {
@@ -74,7 +80,12 @@ public static class TypeHelpers
         throw new CsEvalException($"Unknown type '{typeName}'");
     }
 
-    public static object? ExplicitCast(object? value, string targetTypeName)
+    /// <summary>
+    /// Performs an explicit cast with optional static type checking.
+    /// When sourceStaticType is 'object', enforces C# unboxing semantics:
+    /// you can only unbox to the exact boxed type.
+    /// </summary>
+    public static object? ExplicitCast(object? value, string targetTypeName, Type? sourceStaticType = null)
     {
         if (!TypeNameToClrType.TryGetValue(targetTypeName, out var targetType))
             throw new CsEvalException($"Unknown type '{targetTypeName}'");
@@ -89,10 +100,10 @@ public static class TypeHelpers
             return null;
         }
 
-        var sourceType = value.GetType();
+        var runtimeType = value.GetType();
 
         // Same type - no conversion needed
-        if (sourceType == underlyingType || sourceType == targetType)
+        if (runtimeType == underlyingType || runtimeType == targetType)
             return value;
 
         // Handle reference types (string, object)
@@ -100,76 +111,46 @@ public static class TypeHelpers
         {
             if (value is char c)
                 return c.ToString();
-            throw new InvalidCastException($"Cannot cast {sourceType.Name} to string");
+            throw new InvalidCastException($"Cannot cast {runtimeType.Name} to string");
         }
 
         if (underlyingType == typeof(object))
             return value;
 
+        // C# unboxing rule: when source static type is 'object', you can only unbox to the exact boxed type
+        // (long)(object)42 fails because 42 is boxed as int, not long
+        if (sourceStaticType == typeof(object) && underlyingType.IsValueType && runtimeType != underlyingType)
+        {
+            throw new InvalidCastException($"Unable to cast object of type '{runtimeType.Name}' to type '{underlyingType.Name}'.");
+        }
+
         // Numeric and char conversions
         try
         {
-            // char to/from numeric
-            if (underlyingType == typeof(char))
-            {
-                if (value is string { Length: 1 } s)
-                    return s[0];
-                // Numeric to char - truncate to int first
-                var numVal = TruncateToLong(value);
-                return (char)numVal;
-            }
+            if (underlyingType == typeof(char) && value is string { Length: 1 } s)
+                return s[0];
 
-            if (sourceType == typeof(char))
-            {
-                var charVal = (char)value;
-                return CastFromLong((long)charVal, underlyingType);
-            }
-
-            // Floating-point to integer: C# uses truncation, not rounding
-            if (IsFloatingPoint(sourceType) && IsIntegerType(underlyingType))
-            {
-                var longVal = TruncateToLong(value);
-                return CastFromLong(longVal, underlyingType);
-            }
-
-            // Integer to integer or floating-point to floating-point: Convert.ChangeType works
-            return Convert.ChangeType(value, underlyingType);
+            return RuntimeCast(value, runtimeType, underlyingType);
         }
         catch (Exception ex) when (ex is InvalidCastException or FormatException or OverflowException)
         {
-            throw new InvalidCastException($"Cannot cast {sourceType.Name} to {targetTypeName}", ex);
+            throw new InvalidCastException($"Cannot cast {runtimeType.Name} to {targetTypeName}", ex);
         }
     }
 
-    private static bool IsFloatingPoint(Type t) =>
-        t == typeof(float) || t == typeof(double) || t == typeof(decimal);
+    private static readonly ConcurrentDictionary<(Type, Type), Func<object, object>> CastCache = new();
 
-    private static bool IsIntegerType(Type t) =>
-        t == typeof(sbyte) || t == typeof(byte) || t == typeof(short) || t == typeof(ushort) ||
-        t == typeof(int) || t == typeof(uint) || t == typeof(long) || t == typeof(ulong);
-
-    private static long TruncateToLong(object? value) => value switch
+    private static object RuntimeCast(object value, Type sourceType, Type targetType)
     {
-        float f => (long)f,
-        double d => (long)d,
-        decimal m => (long)m,
-        _ => Convert.ToInt64(value)
-    };
-
-    private static object CastFromLong(long value, Type targetType)
-    {
-        if (targetType == typeof(sbyte)) return (sbyte)value;
-        if (targetType == typeof(byte)) return (byte)value;
-        if (targetType == typeof(short)) return (short)value;
-        if (targetType == typeof(ushort)) return (ushort)value;
-        if (targetType == typeof(int)) return (int)value;
-        if (targetType == typeof(uint)) return (uint)value;
-        if (targetType == typeof(long)) return value;
-        if (targetType == typeof(ulong)) return (ulong)value;
-        if (targetType == typeof(float)) return (float)value;
-        if (targetType == typeof(double)) return (double)value;
-        if (targetType == typeof(decimal)) return (decimal)value;
-        throw new InvalidCastException($"Cannot cast to {targetType.Name}");
+        var converter = CastCache.GetOrAdd((sourceType, targetType), key =>
+        {
+            var param = LinqExpression.Parameter(typeof(object), "value");
+            var unbox = LinqExpression.Convert(param, key.Item1);
+            var cast = LinqExpression.Convert(unbox, key.Item2);
+            var box = LinqExpression.Convert(cast, typeof(object));
+            return LinqExpression.Lambda<Func<object, object>>(box, param).Compile();
+        });
+        return converter(value);
     }
 
     public static bool IsType(object? value, string typeName)
@@ -236,12 +217,11 @@ public static class TypeHelpers
         if (ImplicitConversions.TryGetValue(sourceType, out var allowedTargets) && allowedTargets.Contains(underlyingType))
             return Convert.ChangeType(value, underlyingType);
 
-        // Implicit constant expression conversions
-        // An int constant can be assigned to smaller types if value is in range
-        if (sourceType == typeof(int) && value is int intValue)
+        // Implicit constant expression conversions - only for narrowing to smaller integer types
+        if (sourceType == typeof(int) && value is int intValue && IsIntegerType(underlyingType))
         {
-            if (TryConstantConversion(intValue, underlyingType, out var converted))
-                return converted;
+            try { return Convert.ChangeType(intValue, underlyingType); }
+            catch (OverflowException) { }
         }
 
         if (underlyingType == typeof(char) && value is string { Length: 1 } s)
@@ -313,49 +293,6 @@ public static class TypeHelpers
 
         // Not implicitly convertible
         throw new CsEvalException($"Cannot implicitly convert type '{sourceType.Name}' to '{targetType.Name}'");
-    }
-
-    /// <summary>
-    /// Implicit constant expression conversions.
-    /// An int constant can be converted to sbyte, byte, short, ushort, uint, ulong
-    /// if the value is within the target type's range.
-    /// </summary>
-    private static bool TryConstantConversion(int value, Type targetType, out object? result)
-    {
-        result = null;
-
-        if (targetType == typeof(sbyte) && value >= sbyte.MinValue && value <= sbyte.MaxValue)
-        {
-            result = (sbyte)value;
-            return true;
-        }
-        if (targetType == typeof(byte) && value >= byte.MinValue && value <= byte.MaxValue)
-        {
-            result = (byte)value;
-            return true;
-        }
-        if (targetType == typeof(short) && value >= short.MinValue && value <= short.MaxValue)
-        {
-            result = (short)value;
-            return true;
-        }
-        if (targetType == typeof(ushort) && value >= ushort.MinValue && value <= ushort.MaxValue)
-        {
-            result = (ushort)value;
-            return true;
-        }
-        if (targetType == typeof(uint) && value >= 0)
-        {
-            result = (uint)value;
-            return true;
-        }
-        if (targetType == typeof(ulong) && value >= 0)
-        {
-            result = (ulong)value;
-            return true;
-        }
-
-        return false;
     }
 
     internal static bool IsForbiddenReflectionType(Type? type)

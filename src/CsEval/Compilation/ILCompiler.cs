@@ -1,5 +1,5 @@
 using System.Linq.Expressions;
-using CsEval.Extensions;
+using CsEval.Interpretation;
 using CsEval.Parsing;
 using CsEval.Runtime;
 
@@ -16,17 +16,16 @@ internal sealed partial class ILCompiler
         CsEvalContext context,
         CsEvalOptions options,
         CancellationToken ct,
-        Dictionary<string, Func<object?[], object?>> functions,
         Func<MethodInfo, object?[], object?[]>? argumentTransformer);
 
     private readonly CsEvalContext _context;
     private readonly CsEvalOptions _options;
+    private readonly TypeInferrer _typeInferrer;
 
     // Parameters for the compiled lambda
     private readonly ParameterExpression _contextParam;
     private readonly ParameterExpression _optionsParam;
     private readonly ParameterExpression _ctParam;
-    private readonly ParameterExpression _functionsParam;
     private readonly ParameterExpression _argumentTransformerParam;
 
     // Current context expression (may be child context in nested scopes)
@@ -54,39 +53,29 @@ internal sealed partial class ILCompiler
     private static readonly MethodInfo SetMethod = typeof(CsEvalContext).GetMethod("Set", [typeof(string), typeof(object)])!;
     private static readonly MethodInfo DefineMethod = typeof(CsEvalContext).GetMethod("Define", [typeof(string), typeof(object)])!;
     private static readonly MethodInfo DefineWithTypeMethod = typeof(CsEvalContext).GetMethod("Define", [typeof(string), typeof(object), typeof(Type)])!;
+    private static readonly MethodInfo DefineNewMethod = typeof(CsEvalContext).GetMethod("DefineNew", [typeof(string), typeof(object), typeof(Type)])!;
     private static readonly MethodInfo TryGetVariableTypeMethod = typeof(CsEvalContext).GetMethod("TryGetVariableType")!;
     private static readonly MethodInfo CreateChildMethod = typeof(CsEvalContext).GetMethod("CreateChild")!;
     private static readonly MethodInfo RequireBooleanMethod = typeof(TypeHelpers).GetMethod(nameof(TypeHelpers.RequireBoolean))!;
     private static readonly MethodInfo ResolveTypeNameMethod = typeof(TypeHelpers).GetMethod(nameof(TypeHelpers.ResolveTypeName))!;
     private static readonly MethodInfo IsNullableTypeMethod = typeof(TypeHelpers).GetMethod(nameof(TypeHelpers.IsNullableType))!;
     private static readonly MethodInfo AddMethod = typeof(Operators).GetMethod(nameof(Operators.Add), [typeof(object), typeof(object), typeof(CsEvalOptions), typeof(CsEvalContext)])!;
-    private static readonly MethodInfo SubtractMethod = typeof(Operators).GetMethod(nameof(Operators.Subtract))!;
-    private static readonly MethodInfo MultiplyMethod = typeof(Operators).GetMethod(nameof(Operators.Multiply))!;
-    private static readonly MethodInfo DivideMethod = typeof(Operators).GetMethod(nameof(Operators.Divide))!;
-    private static readonly MethodInfo ModuloMethod = typeof(Operators).GetMethod(nameof(Operators.Modulo))!;
-    private static readonly MethodInfo EqualsMethod = typeof(Operators).GetMethod("Equals", [typeof(object), typeof(object), typeof(CsEvalOptions)])!;
-    private static readonly MethodInfo NotEqualsMethod = typeof(Operators).GetMethod(nameof(Operators.NotEquals))!;
-    private static readonly MethodInfo LessThanMethod = typeof(Operators).GetMethod(nameof(Operators.LessThan))!;
-    private static readonly MethodInfo LessThanOrEqualMethod = typeof(Operators).GetMethod(nameof(Operators.LessThanOrEqual))!;
-    private static readonly MethodInfo GreaterThanMethod = typeof(Operators).GetMethod(nameof(Operators.GreaterThan))!;
-    private static readonly MethodInfo GreaterThanOrEqualMethod = typeof(Operators).GetMethod(nameof(Operators.GreaterThanOrEqual))!;
-    private static readonly MethodInfo BitwiseAndMethod = typeof(Operators).GetMethod(nameof(Operators.BitwiseAnd))!;
-    private static readonly MethodInfo BitwiseOrMethod = typeof(Operators).GetMethod(nameof(Operators.BitwiseOr))!;
-    private static readonly MethodInfo BitwiseXorMethod = typeof(Operators).GetMethod(nameof(Operators.BitwiseXor))!;
-    private static readonly MethodInfo BitwiseNotMethod = typeof(Operators).GetMethod(nameof(Operators.BitwiseNot))!;
-    private static readonly MethodInfo LeftShiftMethod = typeof(Operators).GetMethod(nameof(Operators.LeftShift))!;
-    private static readonly MethodInfo RightShiftMethod = typeof(Operators).GetMethod(nameof(Operators.RightShift))!;
-
-    private readonly Dictionary<TokenType, ILBinaryOperator> _extensionILOperators;
-
-    private Dictionary<TokenType, ILBinaryOperator> BuildExtensionOperators(CsEvalOptions options)
-    {
-        var result = new Dictionary<TokenType, ILBinaryOperator>();
-        foreach (var ext in options.Extensions)
-            foreach (var (tokenType, ilOp) in ext.ILBinaryOperators)
-                result[tokenType] = ilOp;
-        return result;
-    }
+    private static readonly MethodInfo SubtractMethod = typeof(Operators).GetMethod(nameof(Operators.Subtract), [typeof(object), typeof(object)])!;
+    private static readonly MethodInfo MultiplyMethod = typeof(Operators).GetMethod(nameof(Operators.Multiply), [typeof(object), typeof(object)])!;
+    private static readonly MethodInfo DivideMethod = typeof(Operators).GetMethod(nameof(Operators.Divide), [typeof(object), typeof(object)])!;
+    private static readonly MethodInfo ModuloMethod = typeof(Operators).GetMethod(nameof(Operators.Modulo), [typeof(object), typeof(object)])!;
+    private static readonly MethodInfo EqualsMethod = typeof(Operators).GetMethod("Equals", [typeof(object), typeof(object)])!;
+    private static readonly MethodInfo NotEqualsMethod = typeof(Operators).GetMethod(nameof(Operators.NotEquals), [typeof(object), typeof(object)])!;
+    private static readonly MethodInfo LessThanMethod = typeof(Operators).GetMethod(nameof(Operators.LessThan), [typeof(object), typeof(object), typeof(CsEvalOptions)])!;
+    private static readonly MethodInfo LessThanOrEqualMethod = typeof(Operators).GetMethod(nameof(Operators.LessThanOrEqual), [typeof(object), typeof(object), typeof(CsEvalOptions)])!;
+    private static readonly MethodInfo GreaterThanMethod = typeof(Operators).GetMethod(nameof(Operators.GreaterThan), [typeof(object), typeof(object), typeof(CsEvalOptions)])!;
+    private static readonly MethodInfo GreaterThanOrEqualMethod = typeof(Operators).GetMethod(nameof(Operators.GreaterThanOrEqual), [typeof(object), typeof(object), typeof(CsEvalOptions)])!;
+    private static readonly MethodInfo BitwiseAndMethod = typeof(Operators).GetMethod(nameof(Operators.BitwiseAnd), [typeof(object), typeof(object)])!;
+    private static readonly MethodInfo BitwiseOrMethod = typeof(Operators).GetMethod(nameof(Operators.BitwiseOr), [typeof(object), typeof(object)])!;
+    private static readonly MethodInfo BitwiseXorMethod = typeof(Operators).GetMethod(nameof(Operators.BitwiseXor), [typeof(object), typeof(object)])!;
+    private static readonly MethodInfo BitwiseNotMethod = typeof(Operators).GetMethod(nameof(Operators.BitwiseNot), [typeof(object)])!;
+    private static readonly MethodInfo LeftShiftMethod = typeof(Operators).GetMethod(nameof(Operators.LeftShift), [typeof(object), typeof(object)])!;
+    private static readonly MethodInfo RightShiftMethod = typeof(Operators).GetMethod(nameof(Operators.RightShift), [typeof(object), typeof(object)])!;
     private static readonly MethodInfo GetMemberMethod = typeof(MemberAccess).GetMethod(nameof(MemberAccess.GetMember))!;
     private static readonly MethodInfo GetIndexMethod = typeof(MemberAccess).GetMethod(nameof(MemberAccess.GetIndex))!;
     private static readonly MethodInfo SetIndexMethod = typeof(MemberAccess).GetMethod(nameof(MemberAccess.SetIndex))!;
@@ -102,7 +91,8 @@ internal sealed partial class ILCompiler
     private static readonly MethodInfo SpreadIntoDictMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.SpreadIntoDict))!;
     private static readonly MethodInfo SpreadIntoListMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.SpreadIntoList))!;
     private static readonly MethodInfo CreateTypedListMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.CreateTypedList))!;
-    private static readonly MethodInfo NegateMethod = typeof(Operators).GetMethod(nameof(Operators.Negate))!;
+    private static readonly MethodInfo NegateMethod = typeof(Operators).GetMethod(nameof(Operators.Negate), [typeof(object)])!;
+    private static readonly MethodInfo UnaryPlusMethod = typeof(Operators).GetMethod(nameof(Operators.UnaryPlus), [typeof(object)])!;
     private static readonly MethodInfo ThrowIfCancellationRequestedMethod = typeof(CancellationToken).GetMethod(nameof(CancellationToken.ThrowIfCancellationRequested))!;
     private static readonly MethodInfo CheckIterationLimitMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.CheckIterationLimit))!;
     private static readonly MethodInfo GetEnumeratorMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.GetEnumerator))!;
@@ -114,11 +104,11 @@ internal sealed partial class ILCompiler
     private static readonly MethodInfo CheckNullCoalesceAssignAllowedMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.CheckNullCoalesceAssignAllowed))!;
     private static readonly MethodInfo ValidateCompoundAssignmentMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.ValidateCompoundAssignment))!;
     private static readonly MethodInfo ValidateAndCoerceTypeMethod = typeof(TypeHelpers).GetMethod(nameof(TypeHelpers.ValidateAndCoerceType))!;
-    private static readonly MethodInfo ExplicitCastMethod = typeof(TypeHelpers).GetMethod(nameof(TypeHelpers.ExplicitCast))!;
+    private static readonly MethodInfo ExplicitCastMethod = typeof(TypeHelpers).GetMethod(nameof(TypeHelpers.ExplicitCast), [typeof(object), typeof(string), typeof(Type)])!;
     private static readonly MethodInfo IsTypeMethod = typeof(TypeHelpers).GetMethod(nameof(TypeHelpers.IsType))!;
     private static readonly MethodInfo TryAsMethod = typeof(TypeHelpers).GetMethod(nameof(TypeHelpers.TryAs))!;
-    private static readonly MethodInfo InvokeCallMethod = typeof(MethodInvoker).GetMethod(nameof(MethodInvoker.InvokeCall))!;
-    private static readonly MethodInfo InvokeMemberCallMethod = typeof(MethodInvoker).GetMethod(nameof(MethodInvoker.InvokeMemberCall))!;
+    private static readonly MethodInfo InvokeCallMethod = typeof(Runtime.MethodInvoker).GetMethod(nameof(Runtime.MethodInvoker.InvokeCall))!;
+    private static readonly MethodInfo InvokeMemberCallMethod = typeof(Runtime.MethodInvoker).GetMethod(nameof(Runtime.MethodInvoker.InvokeMemberCall))!;
     private static readonly MethodInfo ResolveIdentifierMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.ResolveIdentifier))!;
     private static readonly ConstructorInfo NamedArgCtor = typeof(Interpretation.NamedArg).GetConstructor([typeof(string), typeof(object)])!;
 
@@ -128,12 +118,11 @@ internal sealed partial class ILCompiler
     {
         _context = context;
         _options = options;
-        _extensionILOperators = BuildExtensionOperators(options);
+        _typeInferrer = new TypeInferrer(context);
 
         _contextParam = LinqExpression.Parameter(typeof(CsEvalContext), "context");
         _optionsParam = LinqExpression.Parameter(typeof(CsEvalOptions), "options");
         _ctParam = LinqExpression.Parameter(typeof(CancellationToken), "ct");
-        _functionsParam = LinqExpression.Parameter(typeof(Dictionary<string, Func<object?[], object?>>), "functions");
         _argumentTransformerParam = LinqExpression.Parameter(typeof(Func<MethodInfo, object?[], object?[]>), "argumentTransformer");
 
         // Current context starts as the parameter
@@ -160,6 +149,9 @@ internal sealed partial class ILCompiler
 
         try
         {
+            // Pre-infer types for the entire AST so variable types are known during compilation
+            compiler._typeInferrer.InferAll(ast);
+
             var body = compiler.Compile(ast);
 
             // Wrap in a block that:
@@ -180,7 +172,6 @@ internal sealed partial class ILCompiler
                 compiler._contextParam,
                 compiler._optionsParam,
                 compiler._ctParam,
-                compiler._functionsParam,
                 compiler._argumentTransformerParam);
 
             return (lambda.Compile(), null);
@@ -209,6 +200,7 @@ internal sealed partial class ILCompiler
             {
                 case LiteralExpr:
                 case IdentifierExpr:
+                case TypeReferenceExpr:
                 case IncrementDecrementExpr:
                 case BreakExpr:
                 case ContinueExpr:
@@ -219,7 +211,7 @@ internal sealed partial class ILCompiler
                     stack.Push(g.Expression);
                     break;
 
-                case UnaryExpr u when u.Op.Type is TokenType.Minus or TokenType.Bang or TokenType.Tilde:
+                case UnaryExpr u when u.Op.Type is TokenType.Minus or TokenType.Plus or TokenType.Bang or TokenType.Tilde:
                     stack.Push(u.Right);
                     break;
 
@@ -428,7 +420,7 @@ internal sealed partial class ILCompiler
             TokenType.LessLess or TokenType.GreaterGreater)
             return true;
 
-        return _extensionILOperators.ContainsKey(op);
+        return false;
     }
 
     /// <summary>
@@ -446,6 +438,7 @@ internal sealed partial class ILCompiler
             {
                 LiteralExpr lit => CompileLiteral(lit),
                 IdentifierExpr id => CompileIdentifier(id),
+                TypeReferenceExpr typeRef => CompileTypeReference(typeRef),
                 GroupingExpr g => Compile(g.Expression),
                 UnaryExpr u => CompileUnary(u),
                 CastExpr cast => CompileCast(cast),

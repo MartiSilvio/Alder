@@ -15,27 +15,11 @@ public class LiteralTests(CompilationMode mode)
     [TestCase("0b1010", 10, TestName = "BinaryLiteral")]
     [TestCase("0b11111111", 255, TestName = "BinaryLiteral2")]
     public async Task Eval_Literal(string expr, object expected)
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(expr);
-        var csharpResult = await TestHelpers.EvaluateCSharpAsync(expr);
-
-        Assert.That(result, Is.EqualTo(expected), $"Value mismatch for: {expr}");
-        Assert.That(result, Is.EqualTo(csharpResult), $"C# parity mismatch for: {expr}");
-        Assert.That(result?.GetType(), Is.EqualTo(csharpResult?.GetType()), $"Type mismatch for: {expr}");
-    }
+        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
     [Test]
     public async Task Eval_Null_ReturnsNull()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-
-        const string expr = "null";
-        var result = engine.Evaluate(expr);
-        var csharpResult = await TestHelpers.EvaluateCSharpAsync(expr);
-        Assert.That(result, Is.Null);
-        Assert.That(result, Is.EqualTo(csharpResult));
-    }
+        => await TestHelpers.RunCSharpParityTestAsync("null", null, mode);
 
     [TestCase(@"""\0""", "\0", TestName = "EscapeNull")]
     [TestCase(@"""\a""", "\a", TestName = "EscapeAlert")]
@@ -43,28 +27,14 @@ public class LiteralTests(CompilationMode mode)
     [TestCase(@"""\f""", "\f", TestName = "EscapeFormFeed")]
     [TestCase(@"""\v""", "\v", TestName = "EscapeVerticalTab")]
     public async Task Eval_EscapeSequence_MatchesCSharp(string expr, string expected)
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(expr);
-        var csharpResult = await TestHelpers.EvaluateCSharpAsync(expr);
-
-        Assert.That(result, Is.EqualTo(expected), $"Value mismatch for: {expr}");
-        Assert.That(result, Is.EqualTo(csharpResult), $"C# parity mismatch for: {expr}");
-    }
+        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
     [TestCase("0xFF + 1", 256, TestName = "HexArithmetic")]
     [TestCase("0b1010 * 2", 20, TestName = "BinaryArithmetic")]
     [TestCase("0xFF == 255", true, TestName = "HexComparison")]
     [TestCase("0b1010 == 10", true, TestName = "BinaryComparison")]
     public async Task Eval_HexBinaryArithmetic_MatchesCSharp(string expr, object expected)
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(expr);
-        var csharpResult = await TestHelpers.EvaluateCSharpAsync(expr);
-
-        Assert.That(result, Is.EqualTo(expected), $"Value mismatch for: {expr}");
-        Assert.That(result, Is.EqualTo(csharpResult), $"C# parity mismatch for: {expr}");
-    }
+        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
     [TestCase("'a'", 'a', TestName = "CharLiteralA")]
     [TestCase("'Z'", 'Z', TestName = "CharLiteralZ")]
@@ -72,28 +42,13 @@ public class LiteralTests(CompilationMode mode)
     [TestCase(@"'\n'", '\n', TestName = "CharEscapeNewline")]
     [TestCase(@"'\t'", '\t', TestName = "CharEscapeTab")]
     public async Task Eval_CharLiteral_MatchesCSharp(string expr, char expected)
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(expr);
-        var csharpResult = await TestHelpers.EvaluateCSharpAsync(expr);
-
-        Assert.That(result, Is.EqualTo(expected), $"Value mismatch for: {expr}");
-        Assert.That(result, Is.EqualTo(csharpResult), $"C# parity mismatch for: {expr}");
-        Assert.That(result?.GetType(), Is.EqualTo(typeof(char)), $"Type should be char for: {expr}");
-    }
+        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
     [TestCase("'a' == 'a'", true, TestName = "CharComparison")]
     [TestCase("'a' < 'b'", true, TestName = "CharLessThan")]
     [TestCase("'a' != 'b'", true, TestName = "CharNotEqual")]
     public async Task Eval_CharOperations_MatchesCSharp(string expr, object expected)
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(expr);
-        var csharpResult = await TestHelpers.EvaluateCSharpAsync(expr);
-
-        Assert.That(result, Is.EqualTo(expected), $"Value mismatch for: {expr}");
-        Assert.That(result, Is.EqualTo(csharpResult), $"C# parity mismatch for: {expr}");
-    }
+        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
     // Digit Separator Tests (C# 7.0+)
 
@@ -108,44 +63,20 @@ public class LiteralTests(CompilationMode mode)
     [TestCase("3.14_159f", 3.14159f, TestName = "DigitSeparator_Float")]
     [TestCase("1_000.50m", 1000.50, TestName = "DigitSeparator_Decimal")]
     public async Task Eval_DigitSeparator_Decimal(string expr, object expected)
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(expr);
-        var csharpResult = await TestHelpers.EvaluateCSharpAsync(expr);
-
-        Assert.That(result, Is.EqualTo(expected), $"Value mismatch for: {expr}");
-        Assert.That(result, Is.EqualTo(csharpResult), $"C# parity mismatch for: {expr}");
-        Assert.That(result?.GetType(), Is.EqualTo(csharpResult?.GetType()), $"Type mismatch for: {expr}");
-    }
+        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
     [TestCase("0xFF_FF", 0xFFFF, TestName = "DigitSeparator_Hex")]
     [TestCase("0x00_FF_00_FF", 0x00FF00FF, TestName = "DigitSeparator_HexBytes")]
     [TestCase("0xAB_CD_EF", 0xABCDEF, TestName = "DigitSeparator_HexMixed")]
     [TestCase("0xFF_FF_FF_FF_FF_FF_FF_FFUL", 0xFFFFFFFFFFFFFFFFUL, TestName = "DigitSeparator_HexULong")]
     public async Task Eval_DigitSeparator_Hex(string expr, object expected)
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(expr);
-        var csharpResult = await TestHelpers.EvaluateCSharpAsync(expr);
-
-        Assert.That(result, Is.EqualTo(expected), $"Value mismatch for: {expr}");
-        Assert.That(result, Is.EqualTo(csharpResult), $"C# parity mismatch for: {expr}");
-        Assert.That(result?.GetType(), Is.EqualTo(csharpResult?.GetType()), $"Type mismatch for: {expr}");
-    }
+        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
     [TestCase("0b1111_0000", 0b11110000, TestName = "DigitSeparator_Binary")]
     [TestCase("0b1010_1010_1010_1010", 0b1010101010101010, TestName = "DigitSeparator_BinaryPattern")]
     [TestCase("0b1111_1111L", 0b11111111L, TestName = "DigitSeparator_BinaryLong")]
     public async Task Eval_DigitSeparator_Binary(string expr, object expected)
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(expr);
-        var csharpResult = await TestHelpers.EvaluateCSharpAsync(expr);
-
-        Assert.That(result, Is.EqualTo(expected), $"Value mismatch for: {expr}");
-        Assert.That(result, Is.EqualTo(csharpResult), $"C# parity mismatch for: {expr}");
-        Assert.That(result?.GetType(), Is.EqualTo(csharpResult?.GetType()), $"Type mismatch for: {expr}");
-    }
+        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
     // Exponent Notation Tests
 
@@ -159,40 +90,17 @@ public class LiteralTests(CompilationMode mode)
     [TestCase("1.6e-19", 1.6e-19, TestName = "Exponent_ElementaryCharge")]
     [TestCase("3.14159e2", 3.14159e2, TestName = "Exponent_Pi100")]
     public async Task Eval_Exponent_Double(string expr, double expected)
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(expr);
-        var csharpResult = await TestHelpers.EvaluateCSharpAsync(expr);
-
-        Assert.That(result, Is.EqualTo(expected), $"Value mismatch for: {expr}");
-        Assert.That(result, Is.EqualTo(csharpResult), $"C# parity mismatch for: {expr}");
-        Assert.That(result?.GetType(), Is.EqualTo(typeof(double)), $"Type should be double for: {expr}");
-    }
+        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
     [TestCase("1e5f", 1e5f, TestName = "Exponent_Float")]
     [TestCase("1.5e-2f", 1.5e-2f, TestName = "Exponent_FloatNegative")]
     public async Task Eval_Exponent_Float(string expr, float expected)
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(expr);
-        var csharpResult = await TestHelpers.EvaluateCSharpAsync(expr);
+        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
-        Assert.That(result, Is.EqualTo(expected), $"Value mismatch for: {expr}");
-        Assert.That(result, Is.EqualTo(csharpResult), $"C# parity mismatch for: {expr}");
-        Assert.That(result?.GetType(), Is.EqualTo(typeof(float)), $"Type should be float for: {expr}");
-    }
-
-    [TestCase("1e5m", TestName = "Exponent_Decimal")]
-    [TestCase("1.5e-2m", TestName = "Exponent_DecimalNegative")]
-    public async Task Eval_Exponent_Decimal(string expr)
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(expr);
-        var csharpResult = await TestHelpers.EvaluateCSharpAsync(expr);
-
-        Assert.That(result, Is.EqualTo(csharpResult), $"Value mismatch for: {expr}");
-        Assert.That(result?.GetType(), Is.EqualTo(typeof(decimal)), $"Type should be decimal for: {expr}");
-    }
+    [TestCase("1e5m", 100000, TestName = "Exponent_Decimal")]
+    [TestCase("1.5e-2m", 0.015, TestName = "Exponent_DecimalNegative")]
+    public async Task Eval_Exponent_Decimal(string expr, object expected)
+        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
     // Combined Digit Separators and Exponents
 
@@ -200,12 +108,22 @@ public class LiteralTests(CompilationMode mode)
     [TestCase("1.234_567e10", 1.234567e10, TestName = "DigitSeparator_DecimalWithExponent")]
     [TestCase("6.022_140_76e23", 6.02214076e23, TestName = "DigitSeparator_Avogadro")]
     public async Task Eval_DigitSeparator_WithExponent(string expr, double expected)
+        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
+
+    [TestCase("0xGG", TestName = "InvalidHex")]
+    [TestCase("1__000", TestName = "DoubleUnderscore")]
+    [TestCase("1000_", TestName = "TrailingUnderscore")]
+    public void Eval_Literal_ShouldThrowLexerException(string expr)
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(expr);
-        var csharpResult = await TestHelpers.EvaluateCSharpAsync(expr);
+        Assert.Throws<CsEval.Parsing.CsEvalLexerException>(() => engine.Evaluate(expr));
+    }
 
-        Assert.That(result, Is.EqualTo(expected), $"Value mismatch for: {expr}");
-        Assert.That(result, Is.EqualTo(csharpResult), $"C# parity mismatch for: {expr}");
+    [TestCase("0b123", TestName = "InvalidBinary_MixedDigits")]
+    public void Eval_Literal_ShouldThrowParserException(string expr)
+    {
+        // 0b123 lexes as 0b1 (valid binary) + 23 (unexpected token)
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        Assert.Throws<CsEval.Parsing.CsEvalParserException>(() => engine.Evaluate(expr));
     }
 }

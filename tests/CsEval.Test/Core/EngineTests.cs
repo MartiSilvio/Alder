@@ -290,9 +290,9 @@ public class CaseSensitivityTests
     }
 
     [Test]
-    public void IgnoreCase_Variable()
+    public void CaseInsensitive_Variable()
     {
-        var engine = new CsEvalEngine(new CsEvalOptions { IgnoreCase = true });
+        var engine = new CsEvalEngine(new CsEvalOptions { IsCaseSensitive = false });
         engine.SetVariable("MyVar", 42);
 
         Assert.That(engine.Evaluate("MyVar"), Is.EqualTo(42));
@@ -301,9 +301,9 @@ public class CaseSensitivityTests
     }
 
     [Test]
-    public void IgnoreCase_MemberAccess()
+    public void CaseInsensitive_MemberAccess()
     {
-        var engine = new CsEvalEngine(new CsEvalOptions { IgnoreCase = true });
+        var engine = new CsEvalEngine(new CsEvalOptions { IsCaseSensitive = false });
         engine.SetVariable("obj", new TestObject { Name = "Test" });
 
         Assert.That(engine.Evaluate("obj.Name"), Is.EqualTo("Test"));
@@ -312,9 +312,9 @@ public class CaseSensitivityTests
     }
 
     [Test]
-    public void IgnoreCase_Proxy()
+    public void CaseInsensitive_Proxy()
     {
-        var engine = new CsEvalEngine(new CsEvalOptions { IgnoreCase = true });
+        var engine = new CsEvalEngine(new CsEvalOptions { IsCaseSensitive = false });
 
         Assert.That(engine.Evaluate("math.abs(-5)"), Is.EqualTo(5.0));
         Assert.That(engine.Evaluate("MATH.ABS(-5)"), Is.EqualTo(5.0));

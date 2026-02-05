@@ -30,10 +30,10 @@ public class JsFriendlySyntaxTests(CompilationMode mode)
     // Reserved keyword tests
     [TestCase("{ const x = \"hello\"; return x; }", TestName = "Const_IsReservedKeyword")]
     [TestCase("{ var super = 1; return super; }", TestName = "Super_IsReservedKeyword")]
-    public void ReservedKeyword_ThrowsParserException(string expr)
+    public void ReservedKeyword_ThrowsCsEvalParserException(string expr)
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        Assert.Throws<ParserException>(() => engine.Evaluate(expr));
+        Assert.Throws<CsEvalParserException>(() => engine.Evaluate(expr));
     }
 
     // Strict equality with variables

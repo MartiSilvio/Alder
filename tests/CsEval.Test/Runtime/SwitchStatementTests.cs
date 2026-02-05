@@ -718,15 +718,7 @@ public class SwitchStatementTests(CompilationMode mode)
         1,
         TestName = "CaseValueChangesAfterMatch")]
     public async Task Eval_Switch(string expr, object expected)
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(expr);
-        var csharpResult = await TestHelpers.EvaluateCSharpAsync(expr);
-
-        Assert.That(result, Is.EqualTo(expected), $"Value mismatch for: {expr}");
-        Assert.That(result, Is.EqualTo(csharpResult), $"C# parity mismatch for: {expr}");
-        Assert.That(result?.GetType(), Is.EqualTo(csharpResult?.GetType()), $"Type mismatch for: {expr}");
-    }
+        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
     #endregion
 

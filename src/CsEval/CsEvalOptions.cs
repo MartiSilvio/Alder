@@ -1,5 +1,3 @@
-using CsEval.Extensions;
-
 namespace CsEval;
 
 public enum CompilationMode
@@ -8,7 +6,7 @@ public enum CompilationMode
     /// Always use tree-walking interpretation. Best for debugging or AST-only features.
     /// </summary>
     Interpreted,
-    
+
     /// <summary>
     /// Compile to IL, fall back to tree-walking if compilation fails. Best for production.
     /// </summary>
@@ -49,7 +47,12 @@ public sealed record CsEvalOptions
 {
     public static CsEvalOptions Default => new();
 
-    public bool IgnoreCase { get; init; } = false;
+    /// <summary>
+    /// Whether member lookup is case-sensitive. Default: true (case-sensitive).
+    /// Set to false for case-insensitive lookup (e.g., `entity.enTItyiD` matches `EntityID`).
+    /// </summary>
+    public bool IsCaseSensitive { get; init; } = true;
+
     public int MaxIterations { get; init; } = 100_000;
     public SandboxOptions Sandbox { get; init; } = new();
 
@@ -58,16 +61,14 @@ public sealed record CsEvalOptions
     /// Default: Compiled (compile automatically on first evaluation, fall back to tree-walking if compilation fails).
     /// </summary>
     /// <remarks>
-    /// <see cref="CsEval.CompilationMode.Interpreted"/>: Always use tree-walking. Good for debugging or AST-only features.
-    /// <see cref="CsEval.CompilationMode.Compiled"/>: Automatically compile on first evaluation, fall back to tree-walking if compilation fails. Good for production.
-    /// <see cref="CsEval.CompilationMode.StrictCompiled"/>: Require IL compilation - throws if compilation fails. Good for testing IL coverage.
+    /// <see cref="CompilationMode.Interpreted"/>: Always use tree-walking. Good for debugging or AST-only features.
+    /// <see cref="CompilationMode.Compiled"/>: Automatically compile on first evaluation, fall back to tree-walking if compilation fails. Good for production.
+    /// <see cref="CompilationMode.StrictCompiled"/>: Require IL compilation - throws if compilation fails. Good for testing IL coverage.
     /// </remarks>
     public CompilationMode CompilationMode { get; init; } = CompilationMode.Compiled;
 
-    public IReadOnlyList<ILanguageExtension> Extensions { get; init; } = [JavaScriptExtension.Instance, PythonExtension.Instance];
-
-    internal StringComparer StringComparer => IgnoreCase ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
-    internal StringComparison StringComparison => IgnoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+    internal StringComparer StringComparer => IsCaseSensitive ? StringComparer.Ordinal : StringComparer.OrdinalIgnoreCase;
+    internal StringComparison StringComparison => IsCaseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
 }
 
 /// <summary>

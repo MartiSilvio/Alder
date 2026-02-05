@@ -15,7 +15,7 @@ public class ParsingPathologicalTests(CompilationMode mode) : StressTestBase(mod
         // Recursion depth stress.
         // A standard C# stack might blow up around a few thousand frames depending on platform/config.
         // We want to see if the parser handles it or crashes.
-        // We assert that it throws a managed exception (ParserException or maybe generic Exception)
+        // We assert that it throws a managed exception (CsEvalParserException or maybe generic Exception)
         // rather than taking down the process with StackOverflowException (which usually can't be caught).
         // Since we can't catch SOE easily in .NET Core, we'll just run it. If the test runner dies, we know why.
         
@@ -31,7 +31,7 @@ public class ParsingPathologicalTests(CompilationMode mode) : StressTestBase(mod
             var result = Engine.Evaluate(expr);
             Assert.That(result, Is.EqualTo(2));
         }
-        catch (ParserException) 
+        catch (CsEvalParserException) 
         {
             // Acceptable failure
         }
@@ -126,7 +126,7 @@ public class ParsingPathologicalTests(CompilationMode mode) : StressTestBase(mod
             var result = Engine.Evaluate(expr);
             Assert.That(result, Is.Not.Null);
         }
-        catch (ParserException) { /* limit reached */ }
+        catch (CsEvalParserException) { /* limit reached */ }
     }
     
     [Test]

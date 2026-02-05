@@ -54,12 +54,4 @@ public class LogicalKeywordTests(CompilationMode mode)
         Assert.That(engine.Evaluate("true or (1/x > 0)"), Is.True);
     }
 
-    // Tests using CsEval's 'in' operator
-    [Test]
-    public void Combined_WithInOperator()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        Assert.That(engine.Evaluate("(2 in [1, 2, 3]) and (5 in [4, 5, 6])"), Is.True);
-        Assert.That(engine.Evaluate("not (5 in [1, 2, 3])"), Is.True);
-    }
 }

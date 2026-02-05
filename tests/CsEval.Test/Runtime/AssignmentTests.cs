@@ -2064,7 +2064,7 @@ public class AssignmentTests(CompilationMode mode)
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
 
-        Assert.Throws<CsEvalException>(() =>
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
             engine.Evaluate(@"
             {
                 var arr = [1, 2, 3];
@@ -2078,7 +2078,7 @@ public class AssignmentTests(CompilationMode mode)
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
 
-        Assert.Throws<CsEvalException>(() =>
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
             engine.Evaluate(@"
             {
                 var arr = [1, 2, 3];

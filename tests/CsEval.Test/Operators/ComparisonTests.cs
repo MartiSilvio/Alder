@@ -21,13 +21,20 @@ public class ComparisonTests(CompilationMode mode)
     [TestCase("2 >= 2", true, TestName = "GreaterOrEqual_Equal")]
     [TestCase("1 >= 2", false, TestName = "GreaterOrEqual_LessThan")]
     public async Task Eval_Comparison(string expr, object expected)
+        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
+
+    [TestCase("1.0m < 1.0", TestName = "LessThan_DecimalDouble")]
+    [TestCase("1.0m > 1.0", TestName = "GreaterThan_DecimalDouble")]
+    [TestCase("1.0m <= 1.0", TestName = "LessOrEqual_DecimalDouble")]
+    [TestCase("1.0m >= 1.0", TestName = "GreaterOrEqual_DecimalDouble")]
+    [TestCase("1.0m == 1.0", TestName = "Equal_DecimalDouble")]
+    [TestCase("1.0m != 1.0", TestName = "NotEqual_DecimalDouble")]
+    [TestCase("1.0 < 1.0m", TestName = "LessThan_DoubleDecimal")]
+    [TestCase("1.0 > 1.0m", TestName = "GreaterThan_DoubleDecimal")]
+    public async Task Eval_Comparison_ShouldThrow(string expr)
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(expr);
-        var csharpResult = await TestHelpers.EvaluateCSharpAsync(expr);
-
-        Assert.That(result, Is.EqualTo(expected), $"Value mismatch for: {expr}");
-        Assert.That(result, Is.EqualTo(csharpResult), $"C# parity mismatch for: {expr}");
-        Assert.That(result?.GetType(), Is.EqualTo(csharpResult?.GetType()), $"Type mismatch for: {expr}");
+        Assert.Catch<Exception>(() => engine.Evaluate(expr));
+        await Assert.ThatAsync(async () => await TestHelpers.EvaluateCSharpAsync(expr), Throws.Exception);
     }
 }

@@ -14,6 +14,7 @@ public interface IExprVisitor<out T>
     T VisitIdentifier(IdentifierExpr expr);
     T VisitMemberAccess(MemberAccessExpr expr);
     T VisitIndexAccess(IndexAccessExpr expr);
+    T VisitTypeReference(TypeReferenceExpr expr);
 
     // Operators
     T VisitUnary(UnaryExpr expr);
@@ -96,11 +97,17 @@ public sealed record IndexAccessExpr(Expr Object, Expr Index) : Expr
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitIndexAccess(this);
 }
 
+// Type reference for static member access: double.NaN, int.MaxValue
+public sealed record TypeReferenceExpr(Token TypeToken) : Expr
+{
+    public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitTypeReference(this);
+}
+
 #endregion
 
 #region Operators
 
-// Unary: -x, !x, ~x
+// Unary: -x, +x, !x, ~x
 public sealed record UnaryExpr(Token Op, Expr Right) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitUnary(this);
@@ -198,8 +205,9 @@ public sealed record ConditionalExpr(Expr Condition, Expr ThenBranch, Expr ElseB
 
 #region Functions & Lambdas
 
-// Function/method call: func(args), obj.Method(args)
-public sealed record CallExpr(Expr Callee, List<Expr> Arguments) : Expr
+// Function/method call: func(args), obj.Method(args), obj.Method<T>(args)
+// TypeArguments contains the type names for generic method calls (e.g., ["int", "string"])
+public sealed record CallExpr(Expr Callee, List<Expr> Arguments, List<string>? TypeArguments = null) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitCall(this);
 }

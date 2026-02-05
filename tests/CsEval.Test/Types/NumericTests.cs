@@ -97,14 +97,7 @@ public class NumericTests(CompilationMode mode)
     [TestCase("Enumerable.Repeat(5, 4).Sum()", TestName = "Linq_Repeat_Sum")]
     [TestCase("Enumerable.Range(1, 3).Select(x => x * 1.5).Sum()", TestName = "Linq_Range_SelectDoubleSum")]
     public async Task MatchesCSharp(string expr)
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(expr);
-        var csharpResult = await TestHelpers.EvaluateCSharpAsync(expr);
-
-        Assert.That(result, Is.EqualTo(csharpResult), $"Value mismatch for: {expr}");
-        Assert.That(result?.GetType(), Is.EqualTo(csharpResult?.GetType()), $"Type mismatch for: {expr}");
-    }
+        => await TestHelpers.RunCSharpParityTestAsync(expr, mode);
 
     // Tests requiring variables (can't parity test against Roslyn)
     [Test]
@@ -308,7 +301,7 @@ public class NumericTests(CompilationMode mode)
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         engine.SetVariable("x", 10.5f);
         engine.SetVariable("y", 5.25m);
-        Assert.Throws<Microsoft.CSharp.RuntimeBinder.RuntimeBinderException>(() => engine.Evaluate("x + y"));
+        Assert.That(() => engine.Evaluate("x + y"), Throws.TypeOf<CsEvalException>());
     }
 
     [Test]
@@ -317,7 +310,7 @@ public class NumericTests(CompilationMode mode)
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         engine.SetVariable("x", 10.5d);
         engine.SetVariable("y", 5.25m);
-        Assert.Throws<Microsoft.CSharp.RuntimeBinder.RuntimeBinderException>(() => engine.Evaluate("x + y"));
+        Assert.That(() => engine.Evaluate("x + y"), Throws.TypeOf<CsEvalException>());
     }
 
     [Test]
@@ -773,4 +766,106 @@ public class NumericTests(CompilationMode mode)
         Assert.That(result, Is.TypeOf<int>());
         Assert.That(result, Is.EqualTo(15));
     }
+
+    #region ECMA-334 Edge Cases - Numeric Boundaries
+
+    // Boundary values for signed types
+    [TestCase("(sbyte)-128", (sbyte)-128, TestName = "Boundary_SByte_MinValue")]
+    [TestCase("(sbyte)127", (sbyte)127, TestName = "Boundary_SByte_MaxValue")]
+    [TestCase("(short)-32768", (short)-32768, TestName = "Boundary_Short_MinValue")]
+    [TestCase("(short)32767", (short)32767, TestName = "Boundary_Short_MaxValue")]
+    [TestCase("-2147483648", -2147483648, TestName = "Boundary_Int_MinValue")]
+    [TestCase("2147483647", 2147483647, TestName = "Boundary_Int_MaxValue")]
+    [TestCase("-9223372036854775808L", -9223372036854775808L, TestName = "Boundary_Long_MinValue")]
+    [TestCase("9223372036854775807L", 9223372036854775807L, TestName = "Boundary_Long_MaxValue")]
+    public async Task Boundary_SignedTypes_MatchesCSharp(string expr, object expected)
+        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
+
+    // Boundary values for unsigned types
+    [TestCase("(byte)0", (byte)0, TestName = "Boundary_Byte_MinValue")]
+    [TestCase("(byte)255", (byte)255, TestName = "Boundary_Byte_MaxValue")]
+    [TestCase("(ushort)0", (ushort)0, TestName = "Boundary_UShort_MinValue")]
+    [TestCase("(ushort)65535", (ushort)65535, TestName = "Boundary_UShort_MaxValue")]
+    [TestCase("0u", 0u, TestName = "Boundary_UInt_MinValue")]
+    [TestCase("4294967295u", 4294967295u, TestName = "Boundary_UInt_MaxValue")]
+    [TestCase("0UL", 0UL, TestName = "Boundary_ULong_MinValue")]
+    [TestCase("18446744073709551615UL", 18446744073709551615UL, TestName = "Boundary_ULong_MaxValue")]
+    public async Task Boundary_UnsignedTypes_MatchesCSharp(string expr, object expected)
+        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
+
+    // Large hex literals
+    [TestCase("0xFFFFFFFF", 0xFFFFFFFF, TestName = "HexLiteral_MaxUInt")]
+    [TestCase("0xFFFF_FFFF_FFFF_FFFF", 0xFFFF_FFFF_FFFF_FFFF, TestName = "HexLiteral_MaxULong")]
+    [TestCase("0x7FFFFFFF", 0x7FFFFFFF, TestName = "HexLiteral_MaxInt")]
+    [TestCase("0x7FFF_FFFF_FFFF_FFFF", 0x7FFF_FFFF_FFFF_FFFF, TestName = "HexLiteral_MaxLong")]
+    public async Task HexLiterals_LargeBoundaries_MatchesCSharp(string expr, object expected)
+        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
+
+    // Binary literals at boundaries
+    [TestCase("0b11111111", 255, TestName = "BinaryLiteral_Byte_Max")]
+    [TestCase("0b1111_1111_1111_1111", 65535, TestName = "BinaryLiteral_UShort_Max")]
+    public async Task BinaryLiterals_Boundaries_MatchesCSharp(string expr, object expected)
+        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
+
+    // Char to int conversions
+    [TestCase("(int)'\\0'", 0, TestName = "CharToInt_NullChar")]
+    [TestCase("(int)'\\x00'", 0, TestName = "CharToInt_HexNull")]
+    [TestCase("(int)'\\uFFFF'", 65535, TestName = "CharToInt_MaxUnicode")]
+    public async Task CharToInt_Boundaries_MatchesCSharp(string expr, object expected)
+        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
+
+    #endregion
+
+    #region ECMA-334 Edge Cases - Variable Shadowing
+
+    // Variable shadowing should NOT be allowed
+    [Test]
+    public void VariableShadowing_InNestedBlock_ShouldThrow()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        // In C#, this is a compile error - can't redeclare in nested scope
+        Assert.Throws<CsEvalException>(() => engine.Evaluate(@"
+        {
+            var x = 1;
+            {
+                var x = 2;
+            }
+            return x;
+        }"));
+    }
+
+    // Variables should be scoped correctly
+    [Test]
+    public void VariableScope_InNestedBlock_ShouldBeIsolated()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        // y is declared inside the block and should not be accessible outside
+        Assert.Throws<CsEvalException>(() => engine.Evaluate(@"
+        {
+            {
+                var y = 5;
+            }
+            return y;
+        }"));
+    }
+
+    #endregion
+
+    #region ECMA-334 Edge Cases - Empty String Type Check
+
+    [Test]
+    public async Task EmptyString_IsString_True()
+    {
+        var expr = "\"\" is string";
+        await TestHelpers.RunCSharpParityTestAsync(expr, true, mode);
+    }
+
+    [Test]
+    public async Task EmptyString_IsObject_True()
+    {
+        var expr = "\"\" is object";
+        await TestHelpers.RunCSharpParityTestAsync(expr, true, mode);
+    }
+
+    #endregion
 }

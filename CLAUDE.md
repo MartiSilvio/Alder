@@ -93,5 +93,5 @@ Test folders: `Core/`, `Parsing/`, `Evaluator/`, `Loops/`, `Compilation/`, `Inte
 3. **Decimal/float mixing throws**: `decimal + double` throws `RuntimeBinderException` (C# forbids this)
 4. **LINQ returns `List<object?>`**: Not `IEnumerable<T>`
 5. **Block scope**: `var` is scoped to block, no shadowing
-6. **Case sensitivity**: Default is case-sensitive, use `CsEvalOptions { IgnoreCase = true }`
+6. **Case sensitivity**: Default is case-sensitive, use `CsEvalOptions { IsCaseSensitive = false }`
 7. **Reserved keywords**: All C# keywords are reserved

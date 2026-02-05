@@ -72,19 +72,19 @@ internal sealed class TypeCache
         try
         {
             // Parameter: object instance
-            var instanceParam = Expression.Parameter(typeof(object), "instance");
+            var instanceParam = LinqExpression.Parameter(typeof(object), "instance");
 
             // Cast to the declaring type: (DeclaringType)instance
-            var castInstance = Expression.Convert(instanceParam, property.DeclaringType!);
+            var castInstance = LinqExpression.Convert(instanceParam, property.DeclaringType!);
 
             // Property access: ((DeclaringType)instance).PropertyName
-            var propertyAccess = Expression.Property(castInstance, property);
+            var propertyAccess = LinqExpression.Property(castInstance, property);
 
             // Box value types: (object)propertyValue
-            var boxedResult = Expression.Convert(propertyAccess, typeof(object));
+            var boxedResult = LinqExpression.Convert(propertyAccess, typeof(object));
 
             // Compile: instance => (object)((DeclaringType)instance).PropertyName
-            var lambda = Expression.Lambda<Func<object, object?>>(boxedResult, instanceParam);
+            var lambda = LinqExpression.Lambda<Func<object, object?>>(boxedResult, instanceParam);
             return lambda.Compile();
         }
         catch

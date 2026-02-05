@@ -85,20 +85,20 @@ public class ThreadSafetyTests(CompilationMode mode)
             .Select(i => Enumerable.Range(1, 10).Select(n => (long)(n + i * 10)).ToList())
             .ToList();
 
-        var results = new ConcurrentBag<(int Index, double Sum)>();
+        var results = new ConcurrentBag<(int Index, long Sum)>();
 
         Parallel.ForEach(datasets.Select((d, i) => (Data: d, Index: i)), tuple =>
         {
             var child = engine.CreateChild();
-            child.SetVariable("items", tuple.Data.Cast<object?>().ToList());
+            child.SetVariable("items", tuple.Data);
             var result = child.Evaluate("items.Sum()");
-            results.Add((tuple.Index, Convert.ToDouble(result)));
+            results.Add((tuple.Index, Convert.ToInt64(result)));
         });
 
         foreach (var (index, sum) in results)
         {
             var expected = datasets[index].Sum();
-            Assert.That(sum, Is.EqualTo((double)expected), $"Dataset {index} sum mismatch");
+            Assert.That(sum, Is.EqualTo(expected), $"Dataset {index} sum mismatch");
         }
     }
 
@@ -114,7 +114,7 @@ public class ThreadSafetyTests(CompilationMode mode)
         Parallel.ForEach(items, item =>
         {
             var child = engine.CreateChild();
-            var data = Enumerable.Range(1, item).Select(n => (long)n).Cast<object?>().ToList();
+            var data = Enumerable.Range(1, item).Select(n => (long)n).ToList();
             child.SetVariable("data", data);
             var result = child.Evaluate("data.Where(x => x > threshold).Count()");
             results.Add((item, Convert.ToInt32(result)));

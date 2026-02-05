@@ -2,11 +2,6 @@ namespace CsEval.Parsing;
 
 /// <summary>
 /// Recursive descent parser for CsEval expressions.
-/// Split into partial classes:
-/// - Parser.cs: Core utilities and entry point
-/// - Parser.Expressions.cs: Expression precedence hierarchy
-/// - Parser.Primary.cs: Primary expressions and literals
-/// - Parser.Statements.cs: Statement and control flow parsing
 /// </summary>
 public sealed partial class Parser
 {
@@ -29,7 +24,7 @@ public sealed partial class Parser
             return expr;
 
         if (!Check(TokenType.Semicolon))
-            throw new ParserException($"Unexpected token '{Peek().Lexeme}' at {Peek().Line}:{Peek().Column}");
+            throw new CsEvalParserException($"Unexpected token '{Peek().Lexeme}' at {Peek().Line}:{Peek().Column}");
 
         _current = 0;
         return ParseProgram();
@@ -62,7 +57,7 @@ public sealed partial class Parser
                 }
                 else
                 {
-                    throw new ParserException($"Unexpected token '{Peek().Lexeme}' at {Peek().Line}:{Peek().Column}");
+                    throw new CsEvalParserException($"Unexpected token '{Peek().Lexeme}' at {Peek().Line}:{Peek().Column}");
                 }
             }
         }
@@ -70,21 +65,23 @@ public sealed partial class Parser
         if (statements.Count > 0)
             return new BlockExpr(statements, null);
 
-        throw new ParserException("Empty expression");
+        throw new CsEvalParserException("Empty expression");
     }
 
     private bool IsStatementKeyword()
     {
-        return Check(TokenType.Return) || Check(TokenType.Break) || Check(TokenType.Continue) ||
-               Check(TokenType.If) || Check(TokenType.While) || Check(TokenType.For) ||
-               Check(TokenType.Do) || Check(TokenType.Foreach) || Check(TokenType.Switch) ||
-               Check(TokenType.Var) ||
-               Check(TokenType.Int) || Check(TokenType.Long) || Check(TokenType.Double) ||
-               Check(TokenType.Float) || Check(TokenType.Decimal) || Check(TokenType.StringType) ||
-               Check(TokenType.Bool) || Check(TokenType.Object) ||
-               Check(TokenType.Sbyte) || Check(TokenType.Byte) || Check(TokenType.Short) ||
-               Check(TokenType.Ushort) || Check(TokenType.Uint) || Check(TokenType.Ulong) ||
-               Check(TokenType.Char);
+        // Control flow keywords are always statement keywords
+        if (Check(TokenType.Return) || Check(TokenType.Break) || Check(TokenType.Continue) ||
+            Check(TokenType.If) || Check(TokenType.While) || Check(TokenType.For) ||
+            Check(TokenType.Do) || Check(TokenType.Foreach) || Check(TokenType.Switch) ||
+            Check(TokenType.Var))
+            return true;
+
+        // Type keywords are statement keywords ONLY if NOT followed by '.' (for static member access like double.NaN)
+        if (IsTypeKeyword(Peek().Type) && PeekNext().Type != TokenType.Dot)
+            return true;
+
+        return false;
     }
 
     #region Token Utilities
@@ -161,10 +158,10 @@ public sealed partial class Parser
     private Token Consume(TokenType type, string message)
     {
         if (Check(type)) return Advance();
-        throw new ParserException($"{message} at {Peek().Line}:{Peek().Column}");
+        throw new CsEvalParserException($"{message} at {Peek().Line}:{Peek().Column}");
     }
 
     #endregion
 }
 
-public class ParserException(string message) : Exception(message);
+public class CsEvalParserException(string message) : CsEvalException(message);

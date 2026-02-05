@@ -278,15 +278,7 @@ public class ForLoopTests(CompilationMode mode)
         4,
         TestName = "BreakAndContinue_InNestedLoops")]
     public async Task Eval_ForLoop(string expr, object expected)
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(expr);
-        var csharpResult = await TestHelpers.EvaluateCSharpAsync(expr);
-
-        Assert.That(result, Is.EqualTo(expected), $"Value mismatch for: {expr}");
-        Assert.That(result, Is.EqualTo(csharpResult), $"C# parity mismatch for: {expr}");
-        Assert.That(result?.GetType(), Is.EqualTo(csharpResult?.GetType()), $"Type mismatch for: {expr}");
-    }
+        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
     #region Tests with External Variables
 
@@ -539,6 +531,20 @@ public class ForLoopTests(CompilationMode mode)
         cts.Cancel();
 
         Assert.ThrowsAsync<OperationCanceledException>(() => task);
+    }
+
+    #endregion
+
+    #region ShouldThrow Tests
+
+    [TestCase("{ for (var i = 0; 1; i++) { break; } return 0; }", TestName = "NonBoolean_IntCondition")]
+    [TestCase("{ for (var i = 0; \"true\"; i++) { break; } return 0; }", TestName = "NonBoolean_StringCondition")]
+    [TestCase("{ for (var i = 0; 3.14; i++) { break; } return 0; }", TestName = "NonBoolean_DoubleCondition")]
+    public async Task Eval_ForLoop_ShouldThrow(string expr)
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        Assert.Catch<Exception>(() => engine.Evaluate(expr));
+        await Assert.ThatAsync(async () => await TestHelpers.EvaluateCSharpAsync(expr), Throws.Exception);
     }
 
     #endregion

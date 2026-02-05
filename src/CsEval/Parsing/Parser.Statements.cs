@@ -79,18 +79,28 @@ public sealed partial class Parser
             Consume(TokenType.Equal, "Expected '=' after variable name");
             var initializer = ParseExpression();
             if (initializer is LiteralExpr { Value: null })
-                throw new ParserException($"Cannot assign null to an implicitly-typed variable '{name.Lexeme}' at {name.Line}:{name.Column}");
+                throw new CsEvalParserException($"Cannot assign null to an implicitly-typed variable '{name.Lexeme}' at {name.Line}:{name.Column}");
             Consume(TokenType.Semicolon, "Expected ';' after variable declaration");
             return new VariableDeclExpr(null, name, initializer);
         }
 
-        if (MatchTypeKeyword(out var typeToken))
+        // Type keyword followed by identifier is a variable declaration (e.g., "int x = 5")
+        // Type keyword followed by dot is a static member access (e.g., "double.NaN") - let expression parsing handle it
+        if (IsTypeKeyword(Peek().Type) && PeekNext().Type != TokenType.Dot && MatchTypeKeyword(out var typeToken))
         {
             var name = Consume(TokenType.Identifier, "Expected variable name");
             Consume(TokenType.Equal, "Expected '=' after variable name");
             var initializer = ParseExpression();
             Consume(TokenType.Semicolon, "Expected ';' after variable declaration");
             return new VariableDeclExpr(typeToken, name, initializer);
+        }
+
+        // Standalone block statement { ... }
+        if (Match(TokenType.LeftBrace))
+        {
+            var statements = ParseStatementList();
+            Consume(TokenType.RightBrace, "Expected '}' after block");
+            return new BlockExpr(statements, null);
         }
 
         var expr = ParseExpression();
@@ -174,7 +184,7 @@ public sealed partial class Parser
             }
             else
             {
-                throw new ParserException($"Expected 'case' or 'default' in switch at {Peek().Line}:{Peek().Column}");
+                throw new CsEvalParserException($"Expected 'case' or 'default' in switch at {Peek().Line}:{Peek().Column}");
             }
         }
 
@@ -239,7 +249,7 @@ public sealed partial class Parser
                 Consume(TokenType.Equal, "Expected '=' after variable name");
                 var init = ParseExpression();
                 if (init is LiteralExpr { Value: null })
-                    throw new ParserException($"Cannot assign null to an implicitly-typed variable '{name.Lexeme}' at {name.Line}:{name.Column}");
+                    throw new CsEvalParserException($"Cannot assign null to an implicitly-typed variable '{name.Lexeme}' at {name.Line}:{name.Column}");
                 initializer = new VariableDeclExpr(null, name, init);
             }
             else if (MatchTypeKeyword(out var typeToken))
@@ -321,7 +331,7 @@ public sealed partial class Parser
         // Parse variable declaration (var varName or type varName)
         if (!Match(TokenType.Var) && !MatchTypeKeyword(out _))
         {
-            throw new ParserException($"Expected 'var' or type keyword in foreach at {Peek().Line}:{Peek().Column}");
+            throw new CsEvalParserException($"Expected 'var' or type keyword in foreach at {Peek().Line}:{Peek().Column}");
         }
 
         var variableName = Consume(TokenType.Identifier, "Expected variable name in foreach");
@@ -329,7 +339,7 @@ public sealed partial class Parser
         // Consume 'in' keyword - it's reserved as a contextual keyword
         if (!Match(TokenType.In))
         {
-            throw new ParserException($"Expected 'in' after variable name in foreach at {Peek().Line}:{Peek().Column}");
+            throw new CsEvalParserException($"Expected 'in' after variable name in foreach at {Peek().Line}:{Peek().Column}");
         }
 
         var collection = ParseExpression();

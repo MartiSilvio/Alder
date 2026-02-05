@@ -51,15 +51,7 @@ public class NullHandlingTests(CompilationMode mode)
         100,
         TestName = "NullCoalesceAssign_InIfStatement")]
     public async Task Eval_NullCoalesceAssign(string expr, object expected)
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(expr);
-        var csharpResult = await TestHelpers.EvaluateCSharpAsync(expr);
-
-        Assert.That(result, Is.EqualTo(expected), $"Value mismatch for: {expr}");
-        Assert.That(result, Is.EqualTo(csharpResult), $"C# parity mismatch for: {expr}");
-        Assert.That(result?.GetType(), Is.EqualTo(csharpResult?.GetType()), $"Type mismatch for: {expr}");
-    }
+        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
     [Test]
     public void Eval_NullCoalesceAssign_ThrowsOnNonNullableType()
@@ -87,6 +79,13 @@ public class NullHandlingTests(CompilationMode mode)
         Assert.That(engine.Evaluate("x ?? y"), Is.EqualTo("default"));
         Assert.That(engine.Evaluate("y ?? \"other\""), Is.EqualTo("default"));
     }
+
+    [TestCase("null ?? null ?? \"c\"", "c", TestName = "NullCoalesce_Chained_BothNull")]
+    [TestCase("null ?? \"b\" ?? \"c\"", "b", TestName = "NullCoalesce_Chained_FirstNull")]
+    [TestCase("\"a\" ?? \"b\" ?? \"c\"", "a", TestName = "NullCoalesce_Chained_NoneNull")]
+    [TestCase("null ?? null ?? null ?? \"d\"", "d", TestName = "NullCoalesce_Chained_ThreeNulls")]
+    public async Task Eval_NullCoalesce_RightAssociativity(string expr, object expected)
+        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
     [Test]
     public void Eval_NullSafeAccess()

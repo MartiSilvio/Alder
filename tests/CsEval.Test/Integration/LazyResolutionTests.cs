@@ -153,7 +153,7 @@ public class MemberFilteringTests(CompilationMode mode)
     [Test]
     public void RegisterModule_CaseInsensitive_WorksWithExplicitMembers()
     {
-        var engine = new CsEvalEngine(new CsEvalOptions { CompilationMode = mode, IgnoreCase = true });
+        var engine = new CsEvalEngine(new CsEvalOptions { CompilationMode = mode, IsCaseSensitive = false });
         var members = new Dictionary<string, MemberInfo>(StringComparer.OrdinalIgnoreCase)
         {
             ["sum"] = typeof(CalculatorModule).GetMethod(nameof(CalculatorModule.Sum))!

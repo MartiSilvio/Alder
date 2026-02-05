@@ -51,7 +51,7 @@ internal static class ExpressionCompiler
     {
         try
         {
-            var context = new CsEvalContext();
+            var context = new CsEvalContext(CsEvalConfig.Empty);
             var options = CsEvalOptions.Default;
             var (ilDelegate, failureReason) = ILCompiler.TryCompile(ast, context, options);
 
@@ -60,9 +60,8 @@ internal static class ExpressionCompiler
                 return new CompiledExpressionInfo(Compiled, true, null);
 
                 object? Compiled(CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct,
-                    Dictionary<string, Func<object?[], object?>> functions,
                     Func<MethodInfo, object?[], object?[]>? argumentTransformer)
-                    => ilDelegate(ctx, opts, ct, functions, argumentTransformer);
+                    => ilDelegate(ctx, opts, ct, argumentTransformer);
             }
 
             return new CompiledExpressionInfo(null, false, failureReason);

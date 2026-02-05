@@ -24,15 +24,7 @@ public class StringTests(CompilationMode mode)
     [TestCase(@""""".Length", 0, TestName = "EmptyString_Length")]
     [TestCase(@"""a"" + ""b"" + ""c""", "abc", TestName = "MultiConcatenation")]
     public async Task Eval_StringOperations(string expr, object expected)
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(expr);
-        var csharpResult = await TestHelpers.EvaluateCSharpAsync(expr);
-
-        Assert.That(result, Is.EqualTo(expected), $"Value mismatch for: {expr}");
-        Assert.That(result, Is.EqualTo(csharpResult), $"C# parity mismatch for: {expr}");
-        Assert.That(result?.GetType(), Is.EqualTo(csharpResult?.GetType()), $"Type mismatch for: {expr}");
-    }
+        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
     // Interpolation Tests
 
@@ -72,14 +64,7 @@ public class StringTests(CompilationMode mode)
     [TestCase("\"\\u20AC\"", "€", TestName = "Unicode4_Euro")]
     [TestCase("\"A\\u0042C\"", "ABC", TestName = "Unicode4_Mixed")]
     public async Task Eval_UnicodeEscape4Digit_String(string expr, string expected)
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(expr);
-        var csharpResult = await TestHelpers.EvaluateCSharpAsync(expr);
-
-        Assert.That(result, Is.EqualTo(expected), $"Value mismatch for: {expr}");
-        Assert.That(result, Is.EqualTo(csharpResult), $"C# parity mismatch for: {expr}");
-    }
+        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
     [TestCase("'\\u0041'", 'A', TestName = "Unicode4_Char_A")]
     [TestCase("'\\u03B1'", 'α', TestName = "Unicode4_Char_Alpha")]
@@ -87,39 +72,18 @@ public class StringTests(CompilationMode mode)
     [TestCase("'\\u0000'", '\0', TestName = "Unicode4_Char_Null")]
     [TestCase("'\\uFFFF'", '\uFFFF', TestName = "Unicode4_Char_Max")]
     public async Task Eval_UnicodeEscape4Digit_Char(string expr, char expected)
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(expr);
-        var csharpResult = await TestHelpers.EvaluateCSharpAsync(expr);
-
-        Assert.That(result, Is.EqualTo(expected), $"Value mismatch for: {expr}");
-        Assert.That(result, Is.EqualTo(csharpResult), $"C# parity mismatch for: {expr}");
-    }
+        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
     [TestCase("\"\\U00000041\"", "A", TestName = "Unicode8_A")]
     [TestCase("\"\\U000003B1\"", "α", TestName = "Unicode8_Alpha")]
     [TestCase("\"\\U00004E2D\"", "中", TestName = "Unicode8_Chinese")]
     public async Task Eval_UnicodeEscape8Digit_String(string expr, string expected)
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(expr);
-        var csharpResult = await TestHelpers.EvaluateCSharpAsync(expr);
-
-        Assert.That(result, Is.EqualTo(expected), $"Value mismatch for: {expr}");
-        Assert.That(result, Is.EqualTo(csharpResult), $"C# parity mismatch for: {expr}");
-    }
+        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
     [TestCase("'\\U00000041'", 'A', TestName = "Unicode8_Char_A")]
     [TestCase("'\\U000003B1'", 'α', TestName = "Unicode8_Char_Alpha")]
     public async Task Eval_UnicodeEscape8Digit_Char(string expr, char expected)
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(expr);
-        var csharpResult = await TestHelpers.EvaluateCSharpAsync(expr);
-
-        Assert.That(result, Is.EqualTo(expected), $"Value mismatch for: {expr}");
-        Assert.That(result, Is.EqualTo(csharpResult), $"C# parity mismatch for: {expr}");
-    }
+        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
     [Test]
     public async Task Eval_UnicodeEscape_InInterpolatedString()
@@ -137,20 +101,46 @@ public class StringTests(CompilationMode mode)
     public void Eval_UnicodeEscape_InvalidHex_Throws()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        Assert.Throws<LexerException>(() => engine.Evaluate("\"\\u00GG\""));
+        Assert.Throws<CsEvalLexerException>(() => engine.Evaluate("\"\\u00GG\""));
     }
 
     [Test]
     public void Eval_UnicodeEscape_TooFewDigits_Throws()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        Assert.Throws<LexerException>(() => engine.Evaluate("\"\\u00\""));
+        Assert.Throws<CsEvalLexerException>(() => engine.Evaluate("\"\\u00\""));
     }
 
     [Test]
     public void Eval_UnicodeEscape8_TooFewDigits_Throws()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        Assert.Throws<LexerException>(() => engine.Evaluate("\"\\U0000\""));
+        Assert.Throws<CsEvalLexerException>(() => engine.Evaluate("\"\\U0000\""));
+    }
+
+    // Hex Escape Tests (\xH to \xHHHH)
+
+    [TestCase("\"\\x41\"", "A", TestName = "HexEscape_2Digit_A")]
+    [TestCase("\"\\x48\\x69\"", "Hi", TestName = "HexEscape_2Digit_Hi")]
+    [TestCase("\"\\x0\"", "\0", TestName = "HexEscape_1Digit_Null")]
+    [TestCase("\"\\x9\"", "\t", TestName = "HexEscape_1Digit_Tab")]
+    [TestCase("\"\\x41B\"", "\x41B", TestName = "HexEscape_3Digit")]
+    [TestCase("\"\\x0041\"", "A", TestName = "HexEscape_4Digit_A")]
+    [TestCase("\"A\\x42C\"", "A\x42C", TestName = "HexEscape_Mixed")]
+    public async Task Eval_HexEscape_String(string expr, string expected)
+        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
+
+    [TestCase("'\\x41'", 'A', TestName = "HexEscape_Char_A")]
+    [TestCase("'\\x0'", '\0', TestName = "HexEscape_Char_Null")]
+    [TestCase("'\\x9'", '\t', TestName = "HexEscape_Char_Tab")]
+    [TestCase("'\\xFF'", '\xFF', TestName = "HexEscape_Char_FF")]
+    public async Task Eval_HexEscape_Char(string expr, char expected)
+        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
+
+    [Test]
+    public void Eval_HexEscape_NoDigits_Throws()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        Assert.Throws<CsEvalLexerException>(() => engine.Evaluate("\"\\xG\""));
     }
 }

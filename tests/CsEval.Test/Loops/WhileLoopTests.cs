@@ -242,15 +242,7 @@ public class WhileLoopTests(CompilationMode mode)
         500,
         TestName = "Continue_DoesNotAffectCondition")]
     public async Task Eval_WhileLoop(string expr, object expected)
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(expr);
-        var csharpResult = await TestHelpers.EvaluateCSharpAsync(expr);
-
-        Assert.That(result, Is.EqualTo(expected), $"Value mismatch for: {expr}");
-        Assert.That(result, Is.EqualTo(csharpResult), $"C# parity mismatch for: {expr}");
-        Assert.That(result?.GetType(), Is.EqualTo(csharpResult?.GetType()), $"Type mismatch for: {expr}");
-    }
+        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
     #region Tests with External Variables
 
@@ -762,6 +754,20 @@ public class WhileLoopTests(CompilationMode mode)
             """);
 
         Assert.That(result, Is.EqualTo(2));
+    }
+
+    #endregion
+
+    #region ShouldThrow Tests
+
+    [TestCase("{ while (1) { break; } return 0; }", TestName = "NonBoolean_IntCondition")]
+    [TestCase("{ while (\"true\") { break; } return 0; }", TestName = "NonBoolean_StringCondition")]
+    [TestCase("{ while (3.14) { break; } return 0; }", TestName = "NonBoolean_DoubleCondition")]
+    public async Task Eval_WhileLoop_ShouldThrow(string expr)
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        Assert.Catch<Exception>(() => engine.Evaluate(expr));
+        await Assert.ThatAsync(async () => await TestHelpers.EvaluateCSharpAsync(expr), Throws.Exception);
     }
 
     #endregion

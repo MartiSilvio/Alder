@@ -16,13 +16,16 @@ public class LogicalTests(CompilationMode mode)
     [TestCase("!true", false, TestName = "Not_True")]
     [TestCase("!false", true, TestName = "Not_False")]
     public async Task Eval_Logical(string expr, object expected)
+        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
+
+    [TestCase("5 && 3", TestName = "And_IntWithInt")]
+    [TestCase("5 || 3", TestName = "Or_IntWithInt")]
+    [TestCase("!5", TestName = "Not_Int")]
+    [TestCase("!\"hello\"", TestName = "Not_String")]
+    public async Task Eval_Logical_ShouldThrow(string expr)
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(expr);
-        var csharpResult = await TestHelpers.EvaluateCSharpAsync(expr);
-
-        Assert.That(result, Is.EqualTo(expected), $"Value mismatch for: {expr}");
-        Assert.That(result, Is.EqualTo(csharpResult), $"C# parity mismatch for: {expr}");
-        Assert.That(result?.GetType(), Is.EqualTo(csharpResult?.GetType()), $"Type mismatch for: {expr}");
+        Assert.Catch<Exception>(() => engine.Evaluate(expr));
+        await Assert.ThatAsync(async () => await TestHelpers.EvaluateCSharpAsync(expr), Throws.Exception);
     }
 }

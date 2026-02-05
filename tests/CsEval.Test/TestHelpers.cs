@@ -18,6 +18,47 @@ public static class TestHelpers
         .AddImports("System", "System.Collections.Generic", "System.Linq")
         .WithLanguageVersion(LanguageVersion.CSharp12);
 
+    #region Parity Test Helpers
+
+    /// <summary>
+    /// Runs a C# parity test: evaluates expression in both CsEval and Roslyn, asserts results and types match.
+    /// </summary>
+    public static Task RunCSharpParityTestAsync(string expr, object? expected, CompilationMode mode)
+        => RunCSharpParityTestAsync(expr, null, expected, mode);
+
+    /// <summary>
+    /// Runs a C# parity test with variables.
+    /// </summary>
+    public static async Task RunCSharpParityTestAsync(string expr, Dictionary<string, object?>? variables, object? expected, CompilationMode mode)
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        if (variables != null)
+            foreach (var (name, value) in variables)
+                engine.SetVariable(name, value);
+
+        var result = engine.Evaluate(expr);
+        var csharpResult = await EvaluateCSharpAsync(expr, variables);
+
+        Assert.That(result, Is.EqualTo(expected), $"Value mismatch for: {expr}");
+        Assert.That(result, Is.EqualTo(csharpResult), $"C# parity mismatch for: {expr}");
+        Assert.That(result?.GetType(), Is.EqualTo(csharpResult?.GetType()), $"Type mismatch for: {expr}");
+    }
+
+    /// <summary>
+    /// Runs a C# parity test without expected value.
+    /// </summary>
+    public static async Task RunCSharpParityTestAsync(string expr, CompilationMode mode)
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var result = engine.Evaluate(expr);
+        var csharpResult = await EvaluateCSharpAsync(expr);
+
+        Assert.That(result, Is.EqualTo(csharpResult), $"Value mismatch for: {expr}");
+        Assert.That(result?.GetType(), Is.EqualTo(csharpResult?.GetType()), $"Type mismatch for: {expr}");
+    }
+
+    #endregion
+
     public static IDictionary<string, object?> CreateItem(string name, double price)
     {
         IDictionary<string, object?> item = new ExpandoObject();
@@ -31,7 +72,7 @@ public static class TestHelpers
     /// </summary>
     public static async Task<object?> EvaluateCSharpAsync(string code)
     {
-        return await CSharpScript.EvaluateAsync(code, DefaultScriptOptions);
+        return await CSharpScript.EvaluateAsync<object>(code, DefaultScriptOptions);
     }
 
     /// <summary>
@@ -53,7 +94,8 @@ public static class TestHelpers
             if (literal == null)
                 return null; // Can't serialize this type, skip Roslyn comparison
 
-            declarations.AppendLine($"var {name} = {literal};");
+            var typeName = GetTypeName(value?.GetType() ?? typeof(object));
+            declarations.AppendLine($"{typeName} {name} = {literal};");
         }
 
         var fullScript = declarations + code;
@@ -68,7 +110,7 @@ public static class TestHelpers
     {
         return value switch
         {
-            null => "null",
+            null => "(object?)null",
             bool b => b ? "true" : "false",
             char c => $"'{EscapeChar(c)}'",
             string s => $"\"{EscapeString(s)}\"",
@@ -128,25 +170,41 @@ public static class TestHelpers
 
     private static string GetTypeName(Type type)
     {
-        return type switch
+        // Handle primitive types
+        if (type == typeof(int)) return "int";
+        if (type == typeof(long)) return "long";
+        if (type == typeof(short)) return "short";
+        if (type == typeof(byte)) return "byte";
+        if (type == typeof(sbyte)) return "sbyte";
+        if (type == typeof(uint)) return "uint";
+        if (type == typeof(ulong)) return "ulong";
+        if (type == typeof(ushort)) return "ushort";
+        if (type == typeof(float)) return "float";
+        if (type == typeof(double)) return "double";
+        if (type == typeof(decimal)) return "decimal";
+        if (type == typeof(bool)) return "bool";
+        if (type == typeof(char)) return "char";
+        if (type == typeof(string)) return "string";
+        if (type == typeof(object)) return "object";
+
+        // Handle generic types like List<int>
+        if (type.IsGenericType)
         {
-            _ when type == typeof(int) => "int",
-            _ when type == typeof(long) => "long",
-            _ when type == typeof(short) => "short",
-            _ when type == typeof(byte) => "byte",
-            _ when type == typeof(sbyte) => "sbyte",
-            _ when type == typeof(uint) => "uint",
-            _ when type == typeof(ulong) => "ulong",
-            _ when type == typeof(ushort) => "ushort",
-            _ when type == typeof(float) => "float",
-            _ when type == typeof(double) => "double",
-            _ when type == typeof(decimal) => "decimal",
-            _ when type == typeof(bool) => "bool",
-            _ when type == typeof(char) => "char",
-            _ when type == typeof(string) => "string",
-            _ when type == typeof(object) => "object",
-            _ => type.Name
-        };
+            var genericDef = type.GetGenericTypeDefinition();
+            var genericArgs = type.GetGenericArguments();
+            var baseName = genericDef.Name.Split('`')[0];
+            var argNames = string.Join(", ", genericArgs.Select(GetTypeName));
+            return $"{baseName}<{argNames}>";
+        }
+
+        // Handle arrays
+        if (type.IsArray)
+        {
+            var elementType = type.GetElementType()!;
+            return $"{GetTypeName(elementType)}[]";
+        }
+
+        return type.Name;
     }
 
     private static string FormatFloat(float n)

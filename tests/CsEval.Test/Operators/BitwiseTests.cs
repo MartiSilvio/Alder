@@ -65,13 +65,19 @@ public class BitwiseTests(CompilationMode mode)
     [TestCase("true ^ false", true, TestName = "BoolXor_TrueFalse")]
     [TestCase("false ^ false", false, TestName = "BoolXor_FalseFalse")]
     public async Task Eval_Bitwise(string expr, object expected)
+        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
+
+    [TestCase("3.14 & 1", TestName = "And_DoubleWithInt")]
+    [TestCase("3.14 | 1", TestName = "Or_DoubleWithInt")]
+    [TestCase("3.14 ^ 1", TestName = "Xor_DoubleWithInt")]
+    [TestCase("3.14 << 1", TestName = "LeftShift_Double")]
+    [TestCase("1 << 3.14", TestName = "LeftShift_DoubleCount")]
+    [TestCase("8 >> 1.5", TestName = "RightShift_DoubleCount")]
+    [TestCase("~3.14", TestName = "Not_Double")]
+    public async Task Eval_Bitwise_ShouldThrow(string expr)
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(expr);
-        var csharpResult = await TestHelpers.EvaluateCSharpAsync(expr);
-
-        Assert.That(result, Is.EqualTo(expected), $"Value mismatch for: {expr}");
-        Assert.That(result, Is.EqualTo(csharpResult), $"C# parity mismatch for: {expr}");
-        Assert.That(result?.GetType(), Is.EqualTo(csharpResult?.GetType()), $"Type mismatch for: {expr}");
+        Assert.Catch<Exception>(() => engine.Evaluate(expr));
+        await Assert.ThatAsync(async () => await TestHelpers.EvaluateCSharpAsync(expr), Throws.Exception);
     }
 }

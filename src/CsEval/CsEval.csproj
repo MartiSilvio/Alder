@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net7.0</TargetFramework>
+    <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
@@ -36,6 +36,9 @@
     <Compile Update="Evaluation\Evaluator.Registry.cs">
       <DependentUpon>Evaluator.cs</DependentUpon>
     </Compile>
+    <Compile Update="Interpretation\Evaluator.Loops.cs" />
+    <Compile Update="Interpretation\Evaluator.Registry.cs" />
+    <Compile Update="Interpretation\Evaluator.Switch.cs" />
   </ItemGroup>
 
 </Project>

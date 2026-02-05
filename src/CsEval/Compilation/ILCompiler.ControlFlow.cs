@@ -9,20 +9,24 @@ internal sealed partial class ILCompiler
 
     private LinqExpression CompileBlock(BlockExpr block)
     {
-        var statements = new List<LinqExpression>();
-
-        foreach (var stmt in block.Statements)
+        // Create a child context for proper block scoping
+        return Scoped(() =>
         {
-            statements.Add(CompileCancellationCheck());
-            statements.Add(Compile(stmt));
-        }
+            var statements = new List<LinqExpression>();
 
-        if (block.ReturnExpr != null)
-            statements.Add(Compile(block.ReturnExpr));
-        else
-            statements.Add(LinqExpression.Constant(null, typeof(object)));
+            foreach (var stmt in block.Statements)
+            {
+                statements.Add(CompileCancellationCheck());
+                statements.Add(Compile(stmt));
+            }
 
-        return LinqExpression.Block(statements);
+            if (block.ReturnExpr != null)
+                statements.Add(Compile(block.ReturnExpr));
+            else
+                statements.Add(LinqExpression.Constant(null, typeof(object)));
+
+            return LinqExpression.Block(statements);
+        });
     }
 
     private LinqExpression CompileIf(IfStatementExpr ifStmt)
@@ -246,9 +250,10 @@ internal sealed partial class ILCompiler
             {
                 var iterStatements = new List<LinqExpression>();
 
-                // Define loop variable in this per-iteration scope
-                iterStatements.Add(LinqExpression.Call(_currentContext, DefineMethod,
-                    LinqExpression.Constant(forEach.VariableName.Lexeme), itemValue));
+                // Define loop variable in this per-iteration scope (with shadowing check)
+                iterStatements.Add(LinqExpression.Call(_currentContext, DefineNewMethod,
+                    LinqExpression.Constant(forEach.VariableName.Lexeme), itemValue,
+                    LinqExpression.Constant(typeof(object), typeof(Type))));
 
                 // Body statements in the same per-iteration scope
                 foreach (var stmt in forEach.Body)
@@ -321,7 +326,7 @@ internal sealed partial class ILCompiler
             foreach (var mapping in caseLabels)
             {
                 var patternVal = Compile(mapping.Case.Pattern!);
-                var condition = LinqExpression.Call(EqualsMethod, switchVar, patternVal, _optionsParam);
+                var condition = LinqExpression.Call(EqualsMethod, switchVar, patternVal);
                 statements.Add(LinqExpression.IfThen(
                     LinqExpression.Convert(condition, typeof(bool)),
                     LinqExpression.Goto(mapping.Label)));

@@ -30,7 +30,12 @@
       "WebFetch(domain:www.informit.com)",
       "WebFetch(domain:ecma-international.org)",
       "Bash(dotnet restore:*)",
-      "Bash(dotnet fsi:*)"
+      "Bash(dotnet fsi:*)",
+      "Bash(dotnet clean:*)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:www.codeproject.com)",
+      "WebFetch(domain:craftinginterpreters.com)",
+      "WebFetch(domain:www.nuget.org)"
     ]
   }
 }
