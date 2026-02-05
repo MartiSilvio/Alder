@@ -636,7 +636,7 @@ public sealed class Lexer
         // Parse based on suffix and decimal point presence
         object value = suffix switch
         {
-            NumericSuffix.Long => long.Parse(numberText),
+            NumericSuffix.Long => ParseLongLiteral(numberText),
             NumericSuffix.ULong => ulong.Parse(numberText),
             NumericSuffix.UInt => uint.Parse(numberText),
             NumericSuffix.Float => float.Parse(numberText),
@@ -794,20 +794,42 @@ public sealed class Lexer
         return (char)value;
     }
 
+    /// <summary>
+    /// Per ECMA-334 §6.4.5.3, hex literals without suffix use: int → uint → long → ulong
+    /// </summary>
     private static object ParseHexWithPromotion(string hexText)
     {
         var value = Convert.ToUInt64(hexText, 16);
         if (value <= int.MaxValue) return (int)value;
+        if (value <= uint.MaxValue) return (uint)value;
         if (value <= long.MaxValue) return (long)value;
         return value;
     }
 
+    /// <summary>
+    /// Per ECMA-334 §6.4.5.3, binary literals without suffix use: int → uint → long → ulong
+    /// </summary>
     private static object ParseBinaryWithPromotion(string binText)
     {
         var value = Convert.ToUInt64(binText, 2);
         if (value <= int.MaxValue) return (int)value;
+        if (value <= uint.MaxValue) return (uint)value;
         if (value <= long.MaxValue) return (long)value;
         return value;
+    }
+
+    /// <summary>
+    /// Parse L-suffixed literal, handling the special case of 9223372036854775808L
+    /// which is exactly |long.MinValue| and needs to be stored as ulong for negation.
+    /// </summary>
+    private static object ParseLongLiteral(string text)
+    {
+        if (long.TryParse(text, out var longValue))
+            return longValue;
+        // Handle 9223372036854775808L (|long.MinValue|) - store as ulong for negation
+        if (ulong.TryParse(text, out var ulongValue) && ulongValue == (ulong)long.MaxValue + 1)
+            return ulongValue;
+        throw new OverflowException($"Long literal '{text}' is too large");
     }
 
     /// <summary>

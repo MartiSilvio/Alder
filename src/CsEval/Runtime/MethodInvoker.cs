@@ -444,49 +444,113 @@ public static class MethodInvoker
     }
 
     /// <summary>
-    /// Scores how well arguments match a method's parameters.
+    /// Scores how well arguments match a method's parameters per ECMA-334 §12.6.4.
+    /// Handles named arguments and optional parameters.
     /// Higher score = better match. -1 = no match.
     /// </summary>
     private static int ScoreMethodMatch(ParameterInfo[] parameters, object?[] args)
     {
-        if (parameters.Length != args.Length)
+        // Separate positional and named arguments
+        var positionalArgs = new List<object?>();
+        var namedArgs = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var arg in args)
+        {
+            if (arg is NamedArg named)
+                namedArgs[named.Name] = named.Value;
+            else
+                positionalArgs.Add(arg);
+        }
+
+        // Check if we have too many positional arguments
+        var maxPositional = parameters.Length - namedArgs.Count;
+        if (positionalArgs.Count > maxPositional)
             return -1;
 
         var score = 0;
+        var filledParams = new bool[parameters.Length];
+        var positionalIndex = 0;
+
+        // Match positional arguments
+        for (var i = 0; i < parameters.Length && positionalIndex < positionalArgs.Count; i++)
+        {
+            if (namedArgs.ContainsKey(parameters[i].Name!))
+                continue;
+
+            var arg = positionalArgs[positionalIndex++];
+            var paramScore = ScoreArgument(arg, parameters[i].ParameterType);
+            if (paramScore < 0)
+                return -1;
+
+            score += paramScore;
+            filledParams[i] = true;
+        }
+
+        // Check all positional args were consumed
+        if (positionalIndex < positionalArgs.Count)
+            return -1;
+
+        // Match named arguments
+        foreach (var (name, value) in namedArgs)
+        {
+            var paramIndex = -1;
+            for (var i = 0; i < parameters.Length; i++)
+            {
+                if (string.Equals(parameters[i].Name, name, StringComparison.OrdinalIgnoreCase))
+                {
+                    paramIndex = i;
+                    break;
+                }
+            }
+
+            if (paramIndex == -1)
+                return -1; // Named argument doesn't match any parameter
+
+            if (filledParams[paramIndex])
+                return -1; // Parameter already filled by positional
+
+            var paramScore = ScoreArgument(value, parameters[paramIndex].ParameterType);
+            if (paramScore < 0)
+                return -1;
+
+            score += paramScore;
+            filledParams[paramIndex] = true;
+        }
+
+        // Check unfilled parameters have defaults
         for (var i = 0; i < parameters.Length; i++)
         {
-            var arg = args[i];
-            var paramType = parameters[i].ParameterType;
-
-            if (arg == null)
-            {
-                if (paramType.IsValueType && Nullable.GetUnderlyingType(paramType) == null)
-                    return -1;
-                score += 1; // Null to nullable is valid but not exact
-                continue;
-            }
-
-            var argType = arg.GetType();
-
-            if (argType == paramType)
-            {
-                score += 100; // Exact match - highest priority
-            }
-            else if (paramType.IsAssignableFrom(argType))
-            {
-                score += 10; // Assignable (base class, interface)
-            }
-            else if (TypeHelpers.CanImplicitlyConvert(argType, paramType))
-            {
-                score += 1; // Implicit conversion - lowest priority
-            }
-            else
-            {
-                return -1; // No valid conversion
-            }
+            if (!filledParams[i] && !parameters[i].HasDefaultValue)
+                return -1;
         }
 
         return score;
+    }
+
+    /// <summary>
+    /// Scores how well a single argument matches a parameter type.
+    /// </summary>
+    private static int ScoreArgument(object? arg, Type paramType)
+    {
+        if (arg == null)
+        {
+            if (paramType.IsValueType && Nullable.GetUnderlyingType(paramType) == null)
+                return -1;
+            return 1; // Null to nullable is valid but not exact
+        }
+
+        var argType = arg.GetType();
+
+        if (argType == paramType)
+            return 100; // Exact match - highest priority
+
+        if (paramType.IsAssignableFrom(argType))
+            return 10; // Assignable (base class, interface)
+
+        if (TypeHelpers.CanImplicitlyConvert(argType, paramType))
+            return 1; // Implicit conversion - lowest priority
+
+        return -1; // No valid conversion
     }
 
     /// <summary>

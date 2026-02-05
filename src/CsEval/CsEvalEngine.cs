@@ -397,6 +397,12 @@ public sealed class CsEvalEngine
                 members[prop.Name] = prop;
         }
 
+        foreach (var field in type.GetFields(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly))
+        {
+            if (!explicitOnly)
+                members[field.Name] = field;
+        }
+
         return members;
     }
 

@@ -55,8 +55,8 @@ Features marked ✅ in both AST and IL columns are fully optimized. Features wit
 |   ✅   | Boolean literals  | `true`, `false`              | ✅  | ✅  |                                |
 |   ✅   | Null literal      | `null`                       | ✅  | ✅  |                                |
 |   ✅   | Char literals     | `'a'`, `'\t'`, `'\n'`        | ✅  | ✅  | Single quotes for characters   |
-|   ⚠️   | Hex literals      | `0xFF`, `0x1A`               | ✅  | ✅  | Type inference incomplete for uint/ulong boundaries |
-|   ⚠️   | Binary literals   | `0b1010`                     | ✅  | ✅  | Type inference incomplete for uint/ulong boundaries |
+|   ✅   | Hex literals      | `0xFF`, `0x1A`               | ✅  | ✅  | Per ECMA §6.4.5.3: int → uint → long → ulong |
+|   ✅   | Binary literals   | `0b1010`                     | ✅  | ✅  | Per ECMA §6.4.5.3: int → uint → long → ulong |
 |   ✅   | Digit separators  | `1_000_000`, `0xFF_FF`       | ✅  | ✅  | C# 7.0                         |
 |   ✅   | Unicode escapes   | `'\u0041'`, `"\u0048\u0069"` | ✅  | ✅  | In char and string literals    |
 |   ✅   | Escape sequences  | `\t`, `\n`, `\r`, `\\`       | ✅  | ✅  | In string literals             |
@@ -853,4 +853,4 @@ engine.Evaluate("1/2");         // 0.5 (double, not int)
 
 ~~12. **`is not <type>` Pattern Incomplete**: The negation pattern only supports `is not null`. Patterns like `x is not string` are not implemented - the parser only recognizes `not` followed by `null`, not arbitrary type patterns.~~ ✅ Fixed - Full `is not Type` pattern now supported (e.g., `x is not string`).
 
-13. **Hex/Binary Literal Type Inference Incomplete**: Per ECMA §6.4.5.3, unsuffixed hex/binary literals should be inferred to the smallest fitting type (int → uint → long → ulong). Currently `0xFFFFFFFF` parses as `long` instead of `uint`, and `long.MinValue` literal (`-9223372036854775808L`) overflows during parsing. The lexer needs proper type inference for boundary values.
+~~13. **Hex/Binary Literal Type Inference Incomplete**: Per ECMA §6.4.5.3, unsuffixed hex/binary literals should be inferred to the smallest fitting type (int → uint → long → ulong).~~ ✅ Fixed - Proper type promotion chain implemented, including int.MinValue and long.MinValue edge cases.

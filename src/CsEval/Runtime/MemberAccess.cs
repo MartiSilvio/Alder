@@ -46,11 +46,18 @@ public static class MemberAccess
                     return new ModuleMethodRef(module, context.ServiceProvider, m);
 
                 // For properties/fields, resolve now to get value
-                var instance = module.Resolve(context.ServiceProvider);
+                // Only resolve instance if member is not static
+                var isStatic = memberInfo switch
+                {
+                    PropertyInfo p => p.GetMethod?.IsStatic ?? p.SetMethod?.IsStatic ?? false,
+                    FieldInfo f => f.IsStatic,
+                    _ => false
+                };
+                var instance = isStatic ? null : module.Resolve(context.ServiceProvider);
                 var value = memberInfo switch
                 {
-                    PropertyInfo p => p.GetValue(p.GetMethod!.IsStatic ? null : instance),
-                    FieldInfo f => f.GetValue(f.IsStatic ? null : instance),
+                    PropertyInfo p => p.GetValue(instance),
+                    FieldInfo f => f.GetValue(instance),
                     _ => throw new CsEvalException($"Unsupported member type '{memberInfo.GetType().Name}'")
                 };
                 return TypeHelpers.CheckSandboxType(value, options.Sandbox);

@@ -783,7 +783,12 @@ public sealed class Evaluator : IExprVisitor<object?>
                 return member switch
                 {
                     MethodInfo m => new ModuleMethodRef(module, _context.ServiceProvider, m),
-                    PropertyInfo p => GuardReflectionLeak(_context.TypeCache.GetPropertyValue(p, module.Resolve(_context.ServiceProvider)!), $"property {name}"),
+                    PropertyInfo p => GuardReflectionLeak(
+                        _context.TypeCache.GetPropertyValue(p, p.GetMethod?.IsStatic == true ? null : module.Resolve(_context.ServiceProvider)),
+                        $"property {name}"),
+                    FieldInfo f => GuardReflectionLeak(
+                        f.GetValue(f.IsStatic ? null : module.Resolve(_context.ServiceProvider)),
+                        $"field {name}"),
                     _ => throw new CsEvalException($"Unsupported member type '{member.GetType().Name}'")
                 };
             }
