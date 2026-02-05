@@ -3,30 +3,6 @@
 namespace CsEval.Modules;
 
 /// <summary>
-/// Proxy for System.Math static methods
-/// </summary>
-public sealed class MathProxy
-{
-    public double Abs(double value) => Math.Abs(value);
-    public double Floor(double value) => Math.Floor(value);
-    public double Ceiling(double value) => Math.Ceiling(value);
-    public double Round(double value) => Math.Round(value);
-    public double Round(double value, int digits) => Math.Round(value, digits);
-    public double Min(double a, double b) => Math.Min(a, b);
-    public double Max(double a, double b) => Math.Max(a, b);
-    public double Pow(double x, double y) => Math.Pow(x, y);
-    public double Sqrt(double value) => Math.Sqrt(value);
-    public double Sin(double value) => Math.Sin(value);
-    public double Cos(double value) => Math.Cos(value);
-    public double Tan(double value) => Math.Tan(value);
-    public double Log(double value) => Math.Log(value);
-    public double Log10(double value) => Math.Log10(value);
-    public double Exp(double value) => Math.Exp(value);
-    public double PI => Math.PI;
-    public double E => Math.E;
-}
-
-/// <summary>
 /// Proxy for System.DateTime static members
 /// </summary>
 public sealed class DateTimeProxy
@@ -49,19 +25,6 @@ public sealed class GuidProxy
     public Guid Empty => Guid.Empty;
     public Guid Parse(string s) => Guid.Parse(s);
     public Guid? TryParse(string s) => Guid.TryParse(s, out var result) ? result : null;
-}
-
-/// <summary>
-/// Proxy for System.Convert static methods
-/// </summary>
-public sealed class ConvertProxy
-{
-    public int ToInt32(object? value) => Convert.ToInt32(value);
-    public long ToInt64(object? value) => Convert.ToInt64(value);
-    public double ToDouble(object? value) => Convert.ToDouble(value);
-    public bool ToBoolean(object? value) => Convert.ToBoolean(value);
-    public string ToString(object? value) => Convert.ToString(value) ?? "";
-    public decimal ToDecimal(object? value) => Convert.ToDecimal(value);
 }
 
 /// <summary>

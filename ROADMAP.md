@@ -55,8 +55,8 @@ Features marked ✅ in both AST and IL columns are fully optimized. Features wit
 |   ✅   | Boolean literals  | `true`, `false`              | ✅  | ✅  |                                |
 |   ✅   | Null literal      | `null`                       | ✅  | ✅  |                                |
 |   ✅   | Char literals     | `'a'`, `'\t'`, `'\n'`        | ✅  | ✅  | Single quotes for characters   |
-|   ✅   | Hex literals      | `0xFF`, `0x1A`               | ✅  | ✅  | Hexadecimal integers           |
-|   ✅   | Binary literals   | `0b1010`                     | ✅  | ✅  | C# 7.0                         |
+|   ⚠️   | Hex literals      | `0xFF`, `0x1A`               | ✅  | ✅  | Type inference incomplete for uint/ulong boundaries |
+|   ⚠️   | Binary literals   | `0b1010`                     | ✅  | ✅  | Type inference incomplete for uint/ulong boundaries |
 |   ✅   | Digit separators  | `1_000_000`, `0xFF_FF`       | ✅  | ✅  | C# 7.0                         |
 |   ✅   | Unicode escapes   | `'\u0041'`, `"\u0048\u0069"` | ✅  | ✅  | In char and string literals    |
 |   ✅   | Escape sequences  | `\t`, `\n`, `\r`, `\\`       | ✅  | ✅  | In string literals             |
@@ -88,7 +88,7 @@ Features marked ✅ in both AST and IL columns are fully optimized. Features wit
 |   🔵   | `try-catch`         | `try { } catch { }`                     | ❌  | ❌  |                               |
 |   🔵   | `throw`             | `throw new Exception("msg")`            | ❌  | ❌  |                               |
 |   🔵   | `await`             | `await Task`                            | ❌  | ❌  | For async method calls        |
-|   🔵   | `checked/unchecked` | `checked { ... }`                       | ❌  | ❌  | Overflow context              |
+|   ⚠️   | `checked/unchecked` | `unchecked((byte)256)`                  | ✅  | ✅  | Parsed but pass-through only  |
 
 ---
 
@@ -678,11 +678,10 @@ This section documents CsEval's compliance with the official C# language specifi
 
 **Medium Priority (Common C# Features):**
 1. ~~✅ Hex escape sequences (`\xHH`) in strings/chars - Fixed~~
-2. 🔴 Char arithmetic (`'A' + 1` => 66, `'B' - 'A'` => 1) - ECMA §12.10.2
-3. 🔴 Bitwise operators with bool promotion (`5 & true` should work)
-4. 🟡 Property patterns (`x is { Name: "John" }`)
-5. 🟡 Null-conditional indexer (`arr?[0]`)
-6. 🟡 Var pattern (`x is var y`)
+2. ~~✅ Char arithmetic (`'A' + 1` => 66, `'B' - 'A'` => 1) - ECMA §12.10.2 - Fixed~~
+3. 🟡 Property patterns (`x is { Name: "John" }`)
+4. 🟡 Null-conditional indexer (`arr?[0]`)
+5. 🟡 Var pattern (`x is var y`)
 
 **Low Priority (Rarely Used):**
 1. 🔵 Verbatim identifiers (`@if`, `@class`)
@@ -853,3 +852,5 @@ engine.Evaluate("1/2");         // 0.5 (double, not int)
 11. **Lambda Arity Limited to 2 Parameters**: Extension method resolution (`ExtensionMethodResolver.cs`) only supports lambdas with 1-2 parameters via `CreateFunc1`/`CreateFunc2`. LINQ methods requiring 3+ parameter lambdas (e.g., `Aggregate` with index, custom extension methods) will fail. Adding `CreateFunc3`+ is straightforward but not yet implemented.
 
 ~~12. **`is not <type>` Pattern Incomplete**: The negation pattern only supports `is not null`. Patterns like `x is not string` are not implemented - the parser only recognizes `not` followed by `null`, not arbitrary type patterns.~~ ✅ Fixed - Full `is not Type` pattern now supported (e.g., `x is not string`).
+
+13. **Hex/Binary Literal Type Inference Incomplete**: Per ECMA §6.4.5.3, unsuffixed hex/binary literals should be inferred to the smallest fitting type (int → uint → long → ulong). Currently `0xFFFFFFFF` parses as `long` instead of `uint`, and `long.MinValue` literal (`-9223372036854775808L`) overflows during parsing. The lexer needs proper type inference for boundary values.

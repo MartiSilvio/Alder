@@ -148,6 +148,13 @@ public static class NumericDispatch
     {
         var type = value.GetType();
 
+        // Per ECMA-334 §12.4.7.2, char is promoted to int
+        if (type == typeof(char))
+        {
+            value = (int)(char)value;
+            type = typeof(int);
+        }
+
         if (NegateOps.TryGetValue(type, out var op))
             return op(value);
 
@@ -156,6 +163,22 @@ public static class NumericDispatch
 #else
         return -(dynamic)value;
 #endif
+    }
+
+    public static object? UnaryPlus(object value)
+    {
+        var type = value.GetType();
+
+        // Per ECMA-334 §12.4.7.2, char is promoted to int
+        if (type == typeof(char))
+            return (int)(char)value;
+
+        // For all numeric types, unary + returns the value (with promotion to int for small types)
+        return type.Name switch
+        {
+            "SByte" or "Byte" or "Int16" or "UInt16" => Convert.ToInt32(value),
+            _ => value
+        };
     }
 
     public static object? BitwiseNot(object value)

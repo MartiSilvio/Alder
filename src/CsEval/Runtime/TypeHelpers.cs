@@ -22,6 +22,13 @@ public static class TypeHelpers
     internal static bool IsNumeric(object? value) =>
         value is sbyte or byte or short or ushort or int or uint or long or ulong or float or double or decimal;
 
+    /// <summary>
+    /// Checks if a value can participate in arithmetic operations.
+    /// Per ECMA-334 §12.4.7.2, char undergoes unary numeric promotion to int.
+    /// </summary>
+    internal static bool IsArithmetic(object? value) =>
+        value is sbyte or byte or short or ushort or int or uint or long or ulong or float or double or decimal or char;
+
     private static bool IsIntegerType(Type type) =>
         Type.GetTypeCode(type) is >= TypeCode.SByte and <= TypeCode.UInt64;
 

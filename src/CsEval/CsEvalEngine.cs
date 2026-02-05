@@ -497,10 +497,10 @@ public sealed class CsEvalEngine
 
     private void RegisterBuiltInModules()
     {
-        RegisterModule("Math", new MathProxy());
+        RegisterModule("Math", typeof(Math));
         RegisterModule("DateTime", new DateTimeProxy());
         RegisterModule("Guid", new GuidProxy());
-        RegisterModule("Convert", new ConvertProxy());
+        RegisterModule("Convert", typeof(Convert));
         RegisterModule("String", new StringProxy());
         RegisterModule("Enumerable", new EnumerableProxy());
     }

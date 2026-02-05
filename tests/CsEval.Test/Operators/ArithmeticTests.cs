@@ -23,6 +23,10 @@ public class ArithmeticTests(CompilationMode mode)
     [TestCase("{ int? a = 5; int? b = null; return a > b; }", false, TestName = "NullableComparison_ReturnsFalse")]
     [TestCase("{ int? a = null; int? b = null; return a + b; }", null, TestName = "NullableAdd_BothNull_ReturnsNull")]
     [TestCase("{ int? a = null; int? b = 5; return a < b; }", false, TestName = "NullableLessThan_ReturnsFalse")]
+    [TestCase("'A' + 1", 66, TestName = "CharPlusInt_NumericResult")]
+    [TestCase("'A' - 'A'", 0, TestName = "CharMinusChar_IntResult")]
+    [TestCase("'B' - 'A'", 1, TestName = "CharMinusChar_Difference")]
+    [TestCase("1 + 'A'", 66, TestName = "IntPlusChar_NumericResult")]
     public async Task Eval_Arithmetic(string expr, object? expected)
         => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 

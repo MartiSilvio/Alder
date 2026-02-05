@@ -61,6 +61,24 @@ public sealed partial class Parser
             return new TypeReferenceExpr(typeToken);
         }
 
+        // unchecked(expr) - pass through (CsEval operates in unchecked mode by default)
+        if (Match(TokenType.Unchecked))
+        {
+            Consume(TokenType.LeftParen, "Expected '(' after 'unchecked'");
+            var expr = ParseExpression();
+            Consume(TokenType.RightParen, "Expected ')' after unchecked expression");
+            return expr;
+        }
+
+        // checked(expr) - pass through (overflow checking not enforced at runtime)
+        if (Match(TokenType.Checked))
+        {
+            Consume(TokenType.LeftParen, "Expected '(' after 'checked'");
+            var expr = ParseExpression();
+            Consume(TokenType.RightParen, "Expected ')' after checked expression");
+            return expr;
+        }
+
         // Identifier or single-parameter lambda (x => ...)
         if (Match(TokenType.Identifier))
         {

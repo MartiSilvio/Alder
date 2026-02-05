@@ -11,7 +11,7 @@ public static class Operators
         if (value == null)
             throw new CsEvalException("Cannot negate null");
 
-        if (TypeHelpers.IsNumeric(value))
+        if (TypeHelpers.IsArithmetic(value))
             return NumericDispatch.Negate(value);
 
         throw new CsEvalException($"Cannot negate {value.GetType().Name}");
@@ -22,8 +22,8 @@ public static class Operators
         if (value == null)
             throw new CsEvalException("Cannot apply unary + to null");
 
-        if (TypeHelpers.IsNumeric(value))
-            return value; // Identity operation per ECMA §12.9.2
+        if (TypeHelpers.IsArithmetic(value))
+            return NumericDispatch.UnaryPlus(value);
 
         throw new CsEvalException($"Operator '+' cannot be applied to operand of type '{value.GetType().Name}'");
     }
@@ -38,13 +38,13 @@ public static class Operators
 
         if (left == null || right == null)
         {
-            if (TypeHelpers.IsNumeric(left) || TypeHelpers.IsNumeric(right))
+            if (TypeHelpers.IsArithmetic(left) || TypeHelpers.IsArithmetic(right))
                 return null; // Nullable arithmetic: num + null = null
             if (left == null && right == null)
                 return null;
         }
 
-        if (TypeHelpers.IsNumeric(left) && TypeHelpers.IsNumeric(right))
+        if (TypeHelpers.IsArithmetic(left) && TypeHelpers.IsArithmetic(right))
             return NumericDispatch.Add(left, right);
 
         return MergeObjects(left, right, options, context);
@@ -101,10 +101,10 @@ public static class Operators
         if (left == null && right == null) return null;
         if (left == null || right == null)
         {
-            if (TypeHelpers.IsNumeric(left) || TypeHelpers.IsNumeric(right))
+            if (TypeHelpers.IsArithmetic(left) || TypeHelpers.IsArithmetic(right))
                 return null;
         }
-        if ((left != null && !TypeHelpers.IsNumeric(left)) || (right != null && !TypeHelpers.IsNumeric(right)))
+        if ((left != null && !TypeHelpers.IsArithmetic(left)) || (right != null && !TypeHelpers.IsArithmetic(right)))
             throw new CsEvalException($"Operator '-' cannot be applied to operands of type '{left?.GetType().Name ?? "null"}' and '{right?.GetType().Name ?? "null"}'");
         return NumericDispatch.Subtract(left!, right!);
     }
@@ -114,10 +114,10 @@ public static class Operators
         if (left == null && right == null) return null;
         if (left == null || right == null)
         {
-            if (TypeHelpers.IsNumeric(left) || TypeHelpers.IsNumeric(right))
+            if (TypeHelpers.IsArithmetic(left) || TypeHelpers.IsArithmetic(right))
                 return null;
         }
-        if ((left != null && !TypeHelpers.IsNumeric(left)) || (right != null && !TypeHelpers.IsNumeric(right)))
+        if ((left != null && !TypeHelpers.IsArithmetic(left)) || (right != null && !TypeHelpers.IsArithmetic(right)))
             throw new CsEvalException($"Operator '*' cannot be applied to operands of type '{left?.GetType().Name ?? "null"}' and '{right?.GetType().Name ?? "null"}'");
         return NumericDispatch.Multiply(left!, right!);
     }
@@ -127,10 +127,10 @@ public static class Operators
         if (left == null && right == null) return null;
         if (left == null || right == null)
         {
-            if (TypeHelpers.IsNumeric(left) || TypeHelpers.IsNumeric(right))
+            if (TypeHelpers.IsArithmetic(left) || TypeHelpers.IsArithmetic(right))
                 return null;
         }
-        if ((left != null && !TypeHelpers.IsNumeric(left)) || (right != null && !TypeHelpers.IsNumeric(right)))
+        if ((left != null && !TypeHelpers.IsArithmetic(left)) || (right != null && !TypeHelpers.IsArithmetic(right)))
             throw new CsEvalException($"Operator '/' cannot be applied to operands of type '{left?.GetType().Name ?? "null"}' and '{right?.GetType().Name ?? "null"}'");
         return NumericDispatch.Divide(left!, right!);
     }
@@ -140,10 +140,10 @@ public static class Operators
         if (left == null && right == null) return null;
         if (left == null || right == null)
         {
-            if (TypeHelpers.IsNumeric(left) || TypeHelpers.IsNumeric(right))
+            if (TypeHelpers.IsArithmetic(left) || TypeHelpers.IsArithmetic(right))
                 return null;
         }
-        if ((left != null && !TypeHelpers.IsNumeric(left)) || (right != null && !TypeHelpers.IsNumeric(right)))
+        if ((left != null && !TypeHelpers.IsArithmetic(left)) || (right != null && !TypeHelpers.IsArithmetic(right)))
             throw new CsEvalException($"Operator '%' cannot be applied to operands of type '{left?.GetType().Name ?? "null"}' and '{right?.GetType().Name ?? "null"}'");
         return NumericDispatch.Modulo(left!, right!);
     }
@@ -158,7 +158,7 @@ public static class Operators
 
         if (left.Equals(right)) return true;
 
-        if (TypeHelpers.IsNumeric(left) && TypeHelpers.IsNumeric(right))
+        if (TypeHelpers.IsArithmetic(left) && TypeHelpers.IsArithmetic(right))
             return NumericDispatch.Compare(left, right) == 0;
 
         return false;
@@ -220,7 +220,7 @@ public static class Operators
 
     internal static int Compare(object? left, object? right, CsEvalOptions options)
     {
-        if (TypeHelpers.IsNumeric(left) && TypeHelpers.IsNumeric(right))
+        if (TypeHelpers.IsArithmetic(left) && TypeHelpers.IsArithmetic(right))
             return NumericDispatch.Compare(left!, right!);
 
         return left switch

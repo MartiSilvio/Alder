@@ -200,25 +200,29 @@ public static class MethodInvoker
         var methods = context.TypeCache.GetMethods(module.Type, methodName,
             BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static);
 
-        foreach (var method in methods)
-        {
-            if (method.ContainsGenericParameters)
-            {
-                var concreteMethod = TryMakeConcreteMethod(method, args);
-                if (concreteMethod != null)
-                {
-                    var result = InvokeMethodWithArgs(concreteMethod, target, args, ct, argumentTransformer);
-                    if (result.Success)
-                        return result.Value;
-                }
-                continue;
-            }
+        var nonGenericMethods = methods.Where(m => !m.ContainsGenericParameters);
+        var bestMethod = FindBestMethod(nonGenericMethods, args);
 
-            var invokeResult = InvokeMethodWithArgs(method, target, args, ct, argumentTransformer);
+        if (bestMethod != null)
+        {
+            var invokeResult = InvokeMethodWithArgs(bestMethod, target, args, ct, argumentTransformer);
             if (invokeResult.Success)
                 return invokeResult.Value;
         }
 
+        // Try generic methods
+        foreach (var method in methods.Where(m => m.ContainsGenericParameters))
+        {
+            var concreteMethod = TryMakeConcreteMethod(method, args);
+            if (concreteMethod != null)
+            {
+                var result = InvokeMethodWithArgs(concreteMethod, target, args, ct, argumentTransformer);
+                if (result.Success)
+                    return result.Value;
+            }
+        }
+
+        // Fallback to the registered method
         var fallbackMethod = methodRef.Method;
         var fallbackParams = fallbackMethod.GetParameters();
         var finalArgs = TryAppendCancellationToken(fallbackParams, args, ct);
@@ -247,23 +251,26 @@ public static class MethodInvoker
 
         var methods = context.TypeCache.GetMethods(type, methodName, bindingFlags);
 
-        foreach (var method in methods)
-        {
-            if (method.ContainsGenericParameters)
-            {
-                var concreteMethod = TryMakeConcreteMethod(method, args);
-                if (concreteMethod != null)
-                {
-                    var result = InvokeMethodWithArgs(concreteMethod, null, args, ct, null);
-                    if (result.Success)
-                        return result.Value;
-                }
-                continue;
-            }
+        var nonGenericMethods = methods.Where(m => !m.ContainsGenericParameters);
+        var bestMethod = FindBestMethod(nonGenericMethods, args);
 
-            var invokeResult = InvokeMethodWithArgs(method, null, args, ct, null);
+        if (bestMethod != null)
+        {
+            var invokeResult = InvokeMethodWithArgs(bestMethod, null, args, ct, null);
             if (invokeResult.Success)
                 return invokeResult.Value;
+        }
+
+        // Try generic methods
+        foreach (var method in methods.Where(m => m.ContainsGenericParameters))
+        {
+            var concreteMethod = TryMakeConcreteMethod(method, args);
+            if (concreteMethod != null)
+            {
+                var result = InvokeMethodWithArgs(concreteMethod, null, args, ct, null);
+                if (result.Success)
+                    return result.Value;
+            }
         }
 
         throw new CsEvalException($"Static method '{methodName}' not found on type '{type.Name}'");
@@ -410,21 +417,99 @@ public static class MethodInvoker
             return true;
         }
 
-        if (targetType.IsAssignableFrom(arg.GetType()))
+        var argType = arg.GetType();
+
+        // Exact type match
+        if (argType == targetType)
         {
             converted = arg;
             return true;
         }
 
-        try
+        // Reference type assignability
+        if (targetType.IsAssignableFrom(argType))
+        {
+            converted = arg;
+            return true;
+        }
+
+        // Only allow implicit numeric conversions (no narrowing)
+        if (TypeHelpers.CanImplicitlyConvert(argType, targetType))
         {
             converted = Convert.ChangeType(arg, targetType);
             return true;
         }
-        catch
+
+        return false;
+    }
+
+    /// <summary>
+    /// Scores how well arguments match a method's parameters.
+    /// Higher score = better match. -1 = no match.
+    /// </summary>
+    private static int ScoreMethodMatch(ParameterInfo[] parameters, object?[] args)
+    {
+        if (parameters.Length != args.Length)
+            return -1;
+
+        var score = 0;
+        for (var i = 0; i < parameters.Length; i++)
         {
-            return false;
+            var arg = args[i];
+            var paramType = parameters[i].ParameterType;
+
+            if (arg == null)
+            {
+                if (paramType.IsValueType && Nullable.GetUnderlyingType(paramType) == null)
+                    return -1;
+                score += 1; // Null to nullable is valid but not exact
+                continue;
+            }
+
+            var argType = arg.GetType();
+
+            if (argType == paramType)
+            {
+                score += 100; // Exact match - highest priority
+            }
+            else if (paramType.IsAssignableFrom(argType))
+            {
+                score += 10; // Assignable (base class, interface)
+            }
+            else if (TypeHelpers.CanImplicitlyConvert(argType, paramType))
+            {
+                score += 1; // Implicit conversion - lowest priority
+            }
+            else
+            {
+                return -1; // No valid conversion
+            }
         }
+
+        return score;
+    }
+
+    /// <summary>
+    /// Finds the best matching method from candidates using overload resolution scoring.
+    /// </summary>
+    private static MethodInfo? FindBestMethod(IEnumerable<MethodInfo> methods, object?[] args)
+    {
+        MethodInfo? bestMethod = null;
+        var bestScore = -1;
+
+        foreach (var method in methods)
+        {
+            var parameters = method.GetParameters();
+            var score = ScoreMethodMatch(parameters, args);
+
+            if (score > bestScore)
+            {
+                bestScore = score;
+                bestMethod = method;
+            }
+        }
+
+        return bestMethod;
     }
 
     private static object?[] PadWithDefaults(ParameterInfo[] parameters, object?[] args)
