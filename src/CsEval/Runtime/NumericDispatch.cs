@@ -381,6 +381,30 @@ public static class NumericDispatch
     private static bool IsSignedInteger(Type type) =>
         type == typeof(sbyte) || type == typeof(short) || type == typeof(int) || type == typeof(long);
 
+    /// <summary>
+    /// Promotes a value to the target type according to numeric promotion rules.
+    /// Used for ternary operator type unification (ECMA-334 §12.18).
+    /// </summary>
+    public static object? PromoteToType(object? value, Type targetType)
+    {
+        if (value == null) return null;
+
+        var sourceType = value.GetType();
+        if (sourceType == targetType) return value;
+
+        return targetType.Name switch
+        {
+            "Int64" => Convert.ToInt64(value),
+            "Double" => Convert.ToDouble(value),
+            "Single" => Convert.ToSingle(value),
+            "Decimal" => Convert.ToDecimal(value),
+            "UInt64" => Convert.ToUInt64(value),
+            "UInt32" => Convert.ToUInt32(value),
+            "Int32" => Convert.ToInt32(value),
+            _ => value
+        };
+    }
+
     #endregion
 
     #region Builder Helpers

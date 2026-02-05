@@ -104,6 +104,14 @@ public class CastTests(CompilationMode mode)
     [TestCase("unchecked((byte)256)", (byte)0, TestName = "IntToByte_Overflow")]
     [TestCase("unchecked((sbyte)128)", (sbyte)-128, TestName = "IntToSbyte_Overflow")]
     [TestCase("unchecked((short)32768)", (short)-32768, TestName = "IntToShort_Overflow")]
+    // ECMA-334 §10.3.2 - More narrowing conversions
+    [TestCase("unchecked((byte)-1)", (byte)255, TestName = "NegativeIntToByte_Wraps")]
+    [TestCase("unchecked((ushort)-1)", (ushort)65535, TestName = "NegativeIntToUShort_Wraps")]
+    [TestCase("unchecked((uint)-1)", 4294967295u, TestName = "NegativeIntToUInt_Wraps")]
+    // ECMA-334 §10.3.2 - Float to int edge cases
+    [TestCase("(int)0.5", 0, TestName = "FloatToInt_RoundsTowardZero_Positive")]
+    [TestCase("(int)-0.5", 0, TestName = "FloatToInt_RoundsTowardZero_Negative")]
+    [TestCase("(int)0.999999", 0, TestName = "FloatToInt_TruncatesHigh")]
     public async Task Conversion_NarrowingOverflow(string expr, object expected)
         => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 

@@ -8,8 +8,9 @@ public static class Operators
 {
     public static object? Negate(object? value)
     {
+        // ECMA-334 §12.4.8: Lifted unary operators return null when operand is null
         if (value == null)
-            throw new CsEvalException("Cannot negate null");
+            return null;
 
         if (TypeHelpers.IsArithmetic(value))
             return NumericDispatch.Negate(value);
@@ -19,8 +20,9 @@ public static class Operators
 
     public static object? UnaryPlus(object? value)
     {
+        // ECMA-334 §12.4.8: Lifted unary operators return null when operand is null
         if (value == null)
-            throw new CsEvalException("Cannot apply unary + to null");
+            return null;
 
         if (TypeHelpers.IsArithmetic(value))
             return NumericDispatch.UnaryPlus(value);
@@ -236,6 +238,13 @@ public static class Operators
         if (left is bool lb && right is bool rb)
             return lb & rb;
 
+        // ECMA-334 §12.4.8: Lifted operators return null when either operand is null
+        if (left == null || right == null)
+        {
+            if (TypeHelpers.IsInteger(left) || TypeHelpers.IsInteger(right) || left == null && right == null)
+                return null;
+        }
+
         if (TypeHelpers.IsInteger(left) && TypeHelpers.IsInteger(right))
             return NumericDispatch.BitwiseAnd(left!, right!);
 
@@ -246,6 +255,13 @@ public static class Operators
     {
         if (left is bool lb && right is bool rb)
             return lb | rb;
+
+        // ECMA-334 §12.4.8: Lifted operators return null when either operand is null
+        if (left == null || right == null)
+        {
+            if (TypeHelpers.IsInteger(left) || TypeHelpers.IsInteger(right) || left == null && right == null)
+                return null;
+        }
 
         if (TypeHelpers.IsInteger(left) && TypeHelpers.IsInteger(right))
             return NumericDispatch.BitwiseOr(left!, right!);
@@ -258,6 +274,13 @@ public static class Operators
         if (left is bool lb && right is bool rb)
             return lb ^ rb;
 
+        // ECMA-334 §12.4.8: Lifted operators return null when either operand is null
+        if (left == null || right == null)
+        {
+            if (TypeHelpers.IsInteger(left) || TypeHelpers.IsInteger(right) || left == null && right == null)
+                return null;
+        }
+
         if (TypeHelpers.IsInteger(left) && TypeHelpers.IsInteger(right))
             return NumericDispatch.BitwiseXor(left!, right!);
 
@@ -266,6 +289,10 @@ public static class Operators
 
     public static object? BitwiseNot(object? value)
     {
+        // ECMA-334 §12.4.8: Lifted unary operators return null when operand is null
+        if (value == null)
+            return null;
+
         if (value is bool b)
             return !b;
         if (TypeHelpers.IsInteger(value))
@@ -275,6 +302,10 @@ public static class Operators
 
     public static object? LeftShift(object? left, object? right)
     {
+        // ECMA-334 §12.4.8: Lifted operators return null when either operand is null
+        if (left == null || right == null)
+            return null;
+
         if (!TypeHelpers.IsInteger(left) || !TypeHelpers.IsInteger(right))
             throw new CsEvalException($"Cannot apply left shift to {left?.GetType().Name ?? "null"} and {right?.GetType().Name ?? "null"}");
 
@@ -283,6 +314,10 @@ public static class Operators
 
     public static object? RightShift(object? left, object? right)
     {
+        // ECMA-334 §12.4.8: Lifted operators return null when either operand is null
+        if (left == null || right == null)
+            return null;
+
         if (!TypeHelpers.IsInteger(left) || !TypeHelpers.IsInteger(right))
             throw new CsEvalException($"Cannot apply right shift to {left?.GetType().Name ?? "null"} and {right?.GetType().Name ?? "null"}");
 

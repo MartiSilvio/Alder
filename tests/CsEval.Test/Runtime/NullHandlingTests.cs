@@ -119,6 +119,35 @@ public class NullHandlingTests(CompilationMode mode)
     public async Task LiftedOperators_Equality(string expr, object? expected)
         => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
+    // ECMA-334 §12.4.8 - Lifted Bitwise Operators
+    [TestCase("{ int? a = 5; int? b = null; return a & b; }", null, TestName = "LiftedBitwiseAnd_WithNull_ReturnsNull")]
+    [TestCase("{ int? a = 5; int? b = 3; return a & b; }", 1, TestName = "LiftedBitwiseAnd_BothNonNull_ReturnsResult")]
+    [TestCase("{ int? a = 5; int? b = null; return a | b; }", null, TestName = "LiftedBitwiseOr_WithNull_ReturnsNull")]
+    [TestCase("{ int? a = 5; int? b = 3; return a | b; }", 7, TestName = "LiftedBitwiseOr_BothNonNull_ReturnsResult")]
+    [TestCase("{ int? a = 5; int? b = null; return a ^ b; }", null, TestName = "LiftedBitwiseXor_WithNull_ReturnsNull")]
+    [TestCase("{ int? a = 5; int? b = 3; return a ^ b; }", 6, TestName = "LiftedBitwiseXor_BothNonNull_ReturnsResult")]
+    [TestCase("{ int? a = null; return ~a; }", null, TestName = "LiftedBitwiseNot_Null_ReturnsNull")]
+    [TestCase("{ int? a = 5; return ~a; }", -6, TestName = "LiftedBitwiseNot_NonNull_ReturnsResult")]
+    public async Task LiftedOperators_Bitwise(string expr, object? expected)
+        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
+
+    // ECMA-334 §12.4.8 - Lifted Shift Operators
+    [TestCase("{ int? a = 1; int? b = null; return a << b; }", null, TestName = "LiftedLeftShift_NullCount_ReturnsNull")]
+    [TestCase("{ int? a = null; return a << 2; }", null, TestName = "LiftedLeftShift_NullValue_ReturnsNull")]
+    [TestCase("{ int? a = 1; return a << 2; }", 4, TestName = "LiftedLeftShift_NonNull_ReturnsResult")]
+    [TestCase("{ int? a = 8; int? b = null; return a >> b; }", null, TestName = "LiftedRightShift_NullCount_ReturnsNull")]
+    [TestCase("{ int? a = 8; return a >> 2; }", 2, TestName = "LiftedRightShift_NonNull_ReturnsResult")]
+    public async Task LiftedOperators_Shift(string expr, object? expected)
+        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
+
+    // ECMA-334 §12.4.8 - Lifted Unary Operators
+    [TestCase("{ int? a = null; return -a; }", null, TestName = "LiftedUnaryMinus_Null_ReturnsNull")]
+    [TestCase("{ int? a = 5; return -a; }", -5, TestName = "LiftedUnaryMinus_NonNull_ReturnsResult")]
+    [TestCase("{ int? a = null; return +a; }", null, TestName = "LiftedUnaryPlus_Null_ReturnsNull")]
+    [TestCase("{ int? a = 5; return +a; }", 5, TestName = "LiftedUnaryPlus_NonNull_ReturnsResult")]
+    public async Task LiftedOperators_Unary(string expr, object? expected)
+        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
+
     #endregion
 
     #region ECMA-334 §12.4.2 - Precedence with Null-Coalescing and Ternary

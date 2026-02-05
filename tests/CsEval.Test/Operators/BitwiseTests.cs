@@ -71,6 +71,18 @@ public class BitwiseTests(CompilationMode mode)
     [TestCase("1 << 2 + 3", 32, TestName = "Precedence_ShiftVsAdd_AddFirst")]
     [TestCase("16 >> 1 + 1", 4, TestName = "Precedence_ShiftVsAdd_RightShift")]
     [TestCase("1 << 1 << 1", 4, TestName = "Precedence_ShiftLeftAssociativity")]
+    // ECMA-334 §12.11 - Shift with multiplication (multiply has higher precedence)
+    [TestCase("1 << 2 * 2", 16, TestName = "Precedence_ShiftVsMul_MulFirst")]
+    [TestCase("8 >> 4 / 2", 2, TestName = "Precedence_ShiftVsDiv_DivFirst")]
+    // ECMA-334 §12.13 - Bitwise AND/XOR/OR precedence chain
+    [TestCase("7 & 3 ^ 1", 2, TestName = "Precedence_AndBeforeXor")]
+    [TestCase("7 ^ 3 | 1", 5, TestName = "Precedence_XorBeforeOr")]
+    [TestCase("7 & 3 ^ 1 | 8", 10, TestName = "Precedence_FullChain_AndXorOr")]
+    // ECMA-334 §12.11 - Large shift counts (masked to type width)
+    [TestCase("1 << 32", 1, TestName = "LeftShift_By32_Wraps")]
+    [TestCase("1 << 33", 2, TestName = "LeftShift_By33_Wraps")]
+    // ECMA-334 §12.11 - Negative shift count behavior
+    [TestCase("16 >> -1", 0, TestName = "RightShift_NegativeCount")]
     public async Task Precedence_ShiftAndArithmetic(string expr, object expected)
         => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
@@ -81,6 +93,8 @@ public class BitwiseTests(CompilationMode mode)
     [TestCase("1 << 3.14", TestName = "LeftShift_DoubleCount")]
     [TestCase("8 >> 1.5", TestName = "RightShift_DoubleCount")]
     [TestCase("~3.14", TestName = "Not_Double")]
+    // ECMA-334 §12.4.2 - == has higher precedence than &, so this parses as 1 & (1 == 1) = 1 & true
+    [TestCase("1 & 1 == 1", TestName = "Precedence_CompareBeforeBitwiseAnd_TypeMismatch")]
     public async Task Eval_Bitwise_ShouldThrow(string expr)
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });

@@ -205,7 +205,22 @@ public sealed class Evaluator : IExprVisitor<object?>
     public object? VisitConditional(ConditionalExpr expr)
     {
         var condition = Evaluate(expr.Condition);
-        return TypeHelpers.RequireBoolean(condition) ? Evaluate(expr.ThenBranch) : Evaluate(expr.ElseBranch);
+        var result = TypeHelpers.RequireBoolean(condition) ? Evaluate(expr.ThenBranch) : Evaluate(expr.ElseBranch);
+
+        // ECMA-334 §12.18: For numeric types, determine common type and promote result
+        // Use static type inference to avoid evaluating both branches (pattern matching binds variables)
+        var thenType = _typeInferrer.Infer(expr.ThenBranch);
+        var elseType = _typeInferrer.Infer(expr.ElseBranch);
+
+        if (result != null && thenType != typeof(object) && elseType != typeof(object) &&
+            TypeHelpers.IsArithmetic(thenType) && TypeHelpers.IsArithmetic(elseType) &&
+            thenType != elseType)
+        {
+            var resultType = NumericDispatch.GetResultType(thenType, elseType);
+            return NumericDispatch.PromoteToType(result, resultType);
+        }
+
+        return result;
     }
 
     public object? VisitNullCoalesce(NullCoalesceExpr expr)

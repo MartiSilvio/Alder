@@ -207,7 +207,23 @@ internal sealed partial class ILCompiler
         var thenBranch = Compile(c.ThenBranch);
         var elseBranch = Compile(c.ElseBranch);
 
-        return LinqExpression.Condition(condition, thenBranch, elseBranch);
+        // Get static types for promotion check (ECMA-334 §12.18)
+        var thenType = _typeInferrer.Infer(c.ThenBranch);
+        var elseType = _typeInferrer.Infer(c.ElseBranch);
+
+        var result = LinqExpression.Condition(condition, thenBranch, elseBranch);
+
+        // Apply type promotion at compile time if both branches are numeric with different types
+        if (thenType != typeof(object) && elseType != typeof(object) &&
+            TypeHelpers.IsArithmetic(thenType) && TypeHelpers.IsArithmetic(elseType) &&
+            thenType != elseType)
+        {
+            var promotionType = NumericDispatch.GetResultType(thenType, elseType);
+            var promoteMethod = typeof(NumericDispatch).GetMethod(nameof(NumericDispatch.PromoteToType))!;
+            return LinqExpression.Call(promoteMethod, result, LinqExpression.Constant(promotionType, typeof(Type)));
+        }
+
+        return result;
     }
 
     private LinqExpression CompileNullCoalesce(NullCoalesceExpr n)

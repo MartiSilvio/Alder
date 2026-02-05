@@ -111,6 +111,7 @@ internal sealed partial class ILCompiler
     private static readonly MethodInfo InvokeCallMethod = typeof(Runtime.MethodInvoker).GetMethod(nameof(Runtime.MethodInvoker.InvokeCall))!;
     private static readonly MethodInfo InvokeMemberCallMethod = typeof(Runtime.MethodInvoker).GetMethod(nameof(Runtime.MethodInvoker.InvokeMemberCall))!;
     private static readonly MethodInfo ResolveIdentifierMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.ResolveIdentifier))!;
+    private static readonly MethodInfo ConditionalTypePromotionMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.ConditionalTypePromotion))!;
     private static readonly ConstructorInfo NamedArgCtor = typeof(Interpretation.NamedArg).GetConstructor([typeof(string), typeof(object)])!;
 
     private record struct ControlFlowContext(LabelTarget BreakTarget, LabelTarget? ContinueTarget, bool IsLoop);

@@ -143,4 +143,25 @@ public static class RuntimeHelpers
     {
         return index < args.Length ? args[index] : null;
     }
+
+    /// <summary>
+    /// ECMA-334 §12.18: Promotes conditional expression result to common type of both branches.
+    /// </summary>
+    public static object? ConditionalTypePromotion(object? result, object? thenValue, object? elseValue)
+    {
+        if (thenValue == null || elseValue == null || result == null)
+            return result;
+
+        if (!TypeHelpers.IsArithmetic(thenValue) || !TypeHelpers.IsArithmetic(elseValue))
+            return result;
+
+        var thenType = thenValue.GetType();
+        var elseType = elseValue.GetType();
+
+        if (thenType == elseType)
+            return result;
+
+        var resultType = NumericDispatch.GetResultType(thenType, elseType);
+        return NumericDispatch.PromoteToType(result, resultType);
+    }
 }

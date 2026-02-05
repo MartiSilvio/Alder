@@ -687,6 +687,10 @@ This section documents CsEval's compliance with the official C# language specifi
 3. ~~✅ **Unboxing exact type match** - Fixed: Correctly throws `InvalidCastException` when unboxing to wrong type~~
 4. ~~✅ **Unary plus operator (`+x`)** - Fixed: Identity operation for numeric types~~
 5. ~~✅ **Null-coalescing associativity** - Fixed: `??` is now right-associative~~
+6. ~~✅ **Lifted bitwise operators** - Fixed: `int? & int?` returns `null` when either operand is null (ECMA-334 §12.4.8)~~
+7. ~~✅ **Lifted shift operators** - Fixed: `int? << int?` returns `null` when either operand is null~~
+8. ~~✅ **Lifted unary operators** - Fixed: `-a` and `+a` return `null` when `a` is null~~
+9. ~~✅ **Ternary type promotion** - Fixed: `true ? 1 : 2L` returns `long` (ECMA-334 §12.18)~~
 
 **Medium Priority (Common C# Features):**
 
@@ -710,12 +714,13 @@ All implemented features are verified against Roslyn via `TestHelpers.EvaluateCS
 **ECMA-334 Compliance Tests:** Edge case tests derived from the ECMA-334 7th Edition specification are distributed across the appropriate test files covering:
 
 - Binary numeric promotion (§12.4.7.3)
-- Lifted operators for nullable types (§12.4.8)
+- Lifted operators for nullable types (§12.4.8) - arithmetic, bitwise, shift, unary
 - Null-coalescing right-associativity (§12.15)
 - Operator precedence edge cases (§12.4.2)
 - Char arithmetic and conversions (§12.10.2)
 - IEEE 754 NaN/Infinity handling
 - Unboxing semantics (§10.3.7)
+- Conditional type promotion (§12.18)
 
 ---
 

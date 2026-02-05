@@ -29,6 +29,9 @@ public static class TypeHelpers
     internal static bool IsArithmetic(object? value) =>
         value is sbyte or byte or short or ushort or int or uint or long or ulong or float or double or decimal or char;
 
+    internal static bool IsArithmetic(Type type) =>
+        Type.GetTypeCode(type) is >= TypeCode.SByte and <= TypeCode.Decimal or TypeCode.Char;
+
     private static bool IsIntegerType(Type type) =>
         Type.GetTypeCode(type) is >= TypeCode.SByte and <= TypeCode.UInt64;
 

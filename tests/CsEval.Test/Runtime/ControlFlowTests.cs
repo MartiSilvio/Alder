@@ -65,6 +65,17 @@ public class ControlFlowTests(CompilationMode mode)
               }
               """,
         10, TestName = "If_NoReturnContinuesExecution")]
+    // ECMA-334 §12.18 - Conditional Operator Type Inference
+    [TestCase("true ? 1 : 2L", 1L, TestName = "Ternary_IntLong_PromotesToLong")]
+    [TestCase("false ? 1 : 2L", 2L, TestName = "Ternary_IntLong_FalseBranch")]
+    [TestCase("true ? 1.0f : 2.0", 1.0, TestName = "Ternary_FloatDouble_PromotesToDouble")]
+    [TestCase("true ? null : \"hello\"", null, TestName = "Ternary_NullString_ReturnsNull")]
+    [TestCase("false ? null : \"hello\"", "hello", TestName = "Ternary_NullString_ReturnsString")]
+    [TestCase("true ? 1 : 2", 1, TestName = "Ternary_SameType_NoPromotion")]
+    // ECMA-334 §12.18 - Nested Ternary
+    [TestCase("true ? true ? 1 : 2 : 3", 1, TestName = "Ternary_Nested_InnerTrue")]
+    [TestCase("true ? false ? 1 : 2 : 3", 2, TestName = "Ternary_Nested_InnerFalse")]
+    [TestCase("false ? 1 : true ? 2 : 3", 2, TestName = "Ternary_Nested_ElseBranch")]
     public async Task Eval_ControlFlow(string expr, object expected)
         => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 

@@ -20,6 +20,23 @@ public class ComparisonTests(CompilationMode mode)
     [TestCase("2 >= 1", true, TestName = "GreaterOrEqual_GreaterThan")]
     [TestCase("2 >= 2", true, TestName = "GreaterOrEqual_Equal")]
     [TestCase("1 >= 2", false, TestName = "GreaterOrEqual_LessThan")]
+    // ECMA-334 §12.12 - Mixed type comparisons with numeric promotion
+    [TestCase("1 < 2L", true, TestName = "LessThan_IntLong")]
+    [TestCase("1L < 2", true, TestName = "LessThan_LongInt")]
+    [TestCase("1 < 2.0", true, TestName = "LessThan_IntDouble")]
+    [TestCase("1.0f < 2.0", true, TestName = "LessThan_FloatDouble")]
+    // ECMA-334 §12.12.8 - Reference equality
+    [TestCase("null == null", true, TestName = "Equal_NullNull")]
+    [TestCase("null != null", false, TestName = "NotEqual_NullNull")]
+    // ECMA-334 §12.12 - Char comparison (lexicographic)
+    [TestCase("'a' < 'b'", true, TestName = "LessThan_CharChar")]
+    [TestCase("'Z' < 'a'", true, TestName = "LessThan_UpperLowerChar")]
+    [TestCase("'a' == 'a'", true, TestName = "Equal_CharChar")]
+    // ECMA-334 §12.12 - Boolean equality only (no ordering)
+    [TestCase("true == true", true, TestName = "Equal_BoolBool")]
+    [TestCase("true != false", true, TestName = "NotEqual_BoolBool")]
+    // Edge case: comparison result type is always bool
+    [TestCase("(1 < 2) == true", true, TestName = "ComparisonResult_IsBool")]
     public async Task Eval_Comparison(string expr, object expected)
         => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
