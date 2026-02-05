@@ -68,6 +68,17 @@ public sealed class Evaluator : IExprVisitor<object?>
             return expr.IsNegated ? !isNull : isNull;
         }
 
+        // var pattern (x is var y) - always matches (ECMA-334 §11.2.4)
+        if (expr.TargetType.Value.Type == TokenType.Var)
+        {
+            if (expr.VariableName != null)
+            {
+                var runtimeType = value?.GetType() ?? typeof(object);
+                _context.DefineNew(expr.VariableName.Value.Lexeme, value, runtimeType);
+            }
+            return true;
+        }
+
         var isMatch = TypeHelpers.IsType(value, expr.TargetType.Value.Lexeme);
 
         if (isMatch && expr.VariableName != null)
@@ -149,11 +160,14 @@ public sealed class Evaluator : IExprVisitor<object?>
     public object? VisitIndexAccess(IndexAccessExpr expr)
     {
         var obj = Evaluate(expr.Object);
-        var index = Evaluate(expr.Index);
+
+        if (expr.NullSafe && obj == null)
+            return null;
 
         if (obj == null)
             throw new CsEvalException("Cannot index null");
 
+        var index = Evaluate(expr.Index);
         return GetIndex(obj, index);
     }
 
@@ -442,6 +456,17 @@ public sealed class Evaluator : IExprVisitor<object?>
     {
         return Evaluate(expr.Initializer);
     }
+
+    public object? VisitDefault(DefaultExpr expr)
+    {
+        if (expr.TypeToken == null)
+            return null;
+
+        var type = TypeHelpers.ResolveTypeName(expr.TypeToken.Value.Lexeme);
+        return type.IsValueType ? Activator.CreateInstance(type) : null;
+    }
+
+    public object? VisitNameof(NameofExpr expr) => expr.Name;
 
     public object? VisitIfStatement(IfStatementExpr expr)
     {

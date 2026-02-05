@@ -65,6 +65,12 @@ public interface IExprVisitor<out T>
 
     // Grouping
     T VisitGrouping(GroupingExpr expr);
+
+    // Default expression
+    T VisitDefault(DefaultExpr expr);
+
+    // Nameof expression
+    T VisitNameof(NameofExpr expr);
 }
 
 #region Literals
@@ -91,8 +97,8 @@ public sealed record MemberAccessExpr(Expr Object, Token Name, bool NullSafe) : 
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitMemberAccess(this);
 }
 
-// Index access: arr[0], dict["key"]
-public sealed record IndexAccessExpr(Expr Object, Expr Index) : Expr
+// Index access: arr[0], dict["key"], arr?[0] (null-safe)
+public sealed record IndexAccessExpr(Expr Object, Expr Index, bool NullSafe = false) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitIndexAccess(this);
 }
@@ -348,6 +354,28 @@ public sealed record VariableDeclExpr(Token? DeclaredType, Token Name, Expr Init
 public sealed record GroupingExpr(Expr Expression) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitGrouping(this);
+}
+
+#endregion
+
+#region Default Expression
+
+// Default expression: default(T) or default
+// TypeToken is null for bare default literal (C# 7.1+)
+public sealed record DefaultExpr(Token? TypeToken) : Expr
+{
+    public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitDefault(this);
+}
+
+#endregion
+
+#region Nameof Expression
+
+// Nameof expression: nameof(identifier), nameof(obj.Property)
+// Name is the final identifier name (e.g., "Property" for obj.Property)
+public sealed record NameofExpr(string Name) : Expr
+{
+    public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitNameof(this);
 }
 
 #endregion

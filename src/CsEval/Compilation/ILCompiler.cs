@@ -58,6 +58,7 @@ internal sealed partial class ILCompiler
     private static readonly MethodInfo CreateChildMethod = typeof(CsEvalContext).GetMethod("CreateChild")!;
     private static readonly MethodInfo RequireBooleanMethod = typeof(TypeHelpers).GetMethod(nameof(TypeHelpers.RequireBoolean))!;
     private static readonly MethodInfo ResolveTypeNameMethod = typeof(TypeHelpers).GetMethod(nameof(TypeHelpers.ResolveTypeName))!;
+    private static readonly MethodInfo GetDefaultValueMethod = typeof(TypeHelpers).GetMethod(nameof(TypeHelpers.GetDefaultValue))!;
     private static readonly MethodInfo IsNullableTypeMethod = typeof(TypeHelpers).GetMethod(nameof(TypeHelpers.IsNullableType))!;
     private static readonly MethodInfo AddMethod = typeof(Operators).GetMethod(nameof(Operators.Add), [typeof(object), typeof(object), typeof(CsEvalOptions), typeof(CsEvalContext)])!;
     private static readonly MethodInfo SubtractMethod = typeof(Operators).GetMethod(nameof(Operators.Subtract), [typeof(object), typeof(object)])!;
@@ -204,6 +205,8 @@ internal sealed partial class ILCompiler
                 case IncrementDecrementExpr:
                 case BreakExpr:
                 case ContinueExpr:
+                case DefaultExpr:
+                case NameofExpr:
                     // These are always compilable, no children to check
                     break;
 
@@ -439,6 +442,8 @@ internal sealed partial class ILCompiler
                 LiteralExpr lit => CompileLiteral(lit),
                 IdentifierExpr id => CompileIdentifier(id),
                 TypeReferenceExpr typeRef => CompileTypeReference(typeRef),
+                DefaultExpr def => CompileDefault(def),
+                NameofExpr nameof => LinqExpression.Constant(nameof.Name, typeof(object)),
                 GroupingExpr g => Compile(g.Expression),
                 UnaryExpr u => CompileUnary(u),
                 CastExpr cast => CompileCast(cast),

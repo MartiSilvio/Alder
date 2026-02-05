@@ -35,6 +35,16 @@ internal sealed partial class ILCompiler
             LinqExpression.Constant(typeRef.TypeToken.Lexeme));
     }
 
+    private LinqExpression CompileDefault(DefaultExpr def)
+    {
+        if (def.TypeToken == null)
+            return LinqExpression.Constant(null, typeof(object));
+
+        return LinqExpression.Call(
+            GetDefaultValueMethod,
+            LinqExpression.Constant(def.TypeToken.Value.Lexeme));
+    }
+
     private LinqExpression CompileUnary(UnaryExpr u)
     {
         var operand = Compile(u.Right);
@@ -76,6 +86,26 @@ internal sealed partial class ILCompiler
             return LinqExpression.Convert(result, typeof(object));
         }
 
+        // x is var name - var pattern always matches (ECMA-334 §11.2.4)
+        if (isExpr.TargetType.Value.Type == TokenType.Var && isExpr.VariableName != null)
+        {
+            var valueVar = LinqExpression.Variable(typeof(object), "varValue");
+            var runtimeType = LinqExpression.Condition(
+                LinqExpression.NotEqual(valueVar, LinqExpression.Constant(null, typeof(object))),
+                LinqExpression.Call(valueVar, typeof(object).GetMethod("GetType")!),
+                LinqExpression.Constant(typeof(object), typeof(Type)));
+
+            return LinqExpression.Block(
+                typeof(object),
+                [valueVar],
+                LinqExpression.Assign(valueVar, value),
+                LinqExpression.Call(_currentContext, DefineNewMethod,
+                    LinqExpression.Constant(isExpr.VariableName.Value.Lexeme),
+                    valueVar,
+                    runtimeType),
+                LinqExpression.Constant(true, typeof(object)));
+        }
+
         // x is type / x is not type / x is type name
         var typeCheck = LinqExpression.Call(
             IsTypeMethod,
@@ -91,22 +121,22 @@ internal sealed partial class ILCompiler
         }
 
         // x is type name - declare variable if match succeeds
-        var valueVar = LinqExpression.Variable(typeof(object), "isValue");
+        var typeValueVar = LinqExpression.Variable(typeof(object), "isValue");
         var matchVar = LinqExpression.Variable(typeof(bool), "isMatch");
 
         return LinqExpression.Block(
             typeof(object),
-            [valueVar, matchVar],
-            LinqExpression.Assign(valueVar, value),
+            [typeValueVar, matchVar],
+            LinqExpression.Assign(typeValueVar, value),
             LinqExpression.Assign(matchVar, LinqExpression.Call(
                 IsTypeMethod,
-                valueVar,
+                typeValueVar,
                 LinqExpression.Constant(isExpr.TargetType.Value.Lexeme))),
             LinqExpression.IfThen(
                 matchVar,
                 LinqExpression.Call(_currentContext, DefineNewMethod,
                     LinqExpression.Constant(isExpr.VariableName.Value.Lexeme),
-                    valueVar,
+                    typeValueVar,
                     LinqExpression.Call(ResolveTypeNameMethod, LinqExpression.Constant(isExpr.TargetType.Value.Lexeme)))),
             LinqExpression.Convert(isExpr.IsNegated ? LinqExpression.Not(matchVar) : matchVar, typeof(object)));
     }
@@ -204,8 +234,24 @@ internal sealed partial class ILCompiler
     private LinqExpression CompileIndexAccess(IndexAccessExpr expr)
     {
         var target = Compile(expr.Object);
-        var index = Compile(expr.Index);
-        return LinqExpression.Call(GetIndexMethod, target, index, _optionsParam);
+
+        if (expr.NullSafe)
+        {
+            // arr?[i] - null-safe index access
+            var targetVar = LinqExpression.Variable(typeof(object), "target");
+            var index = Compile(expr.Index);
+            return LinqExpression.Block(
+                typeof(object),
+                [targetVar],
+                LinqExpression.Assign(targetVar, target),
+                LinqExpression.Condition(
+                    LinqExpression.Equal(targetVar, LinqExpression.Constant(null, typeof(object))),
+                    LinqExpression.Constant(null, typeof(object)),
+                    LinqExpression.Call(GetIndexMethod, targetVar, index, _optionsParam)));
+        }
+
+        var indexValue = Compile(expr.Index);
+        return LinqExpression.Call(GetIndexMethod, target, indexValue, _optionsParam);
     }
 
     private LinqExpression CompileVariableDecl(VariableDeclExpr v)

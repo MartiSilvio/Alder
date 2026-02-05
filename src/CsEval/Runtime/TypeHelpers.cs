@@ -88,6 +88,17 @@ public static class TypeHelpers
     }
 
     /// <summary>
+    /// Returns the default value for a type by name (ECMA-334 §12.8.20).
+    /// For value types, returns the zero/false/null equivalent.
+    /// For reference types and nullable types, returns null.
+    /// </summary>
+    public static object? GetDefaultValue(string typeName)
+    {
+        var type = ResolveTypeName(typeName);
+        return type.IsValueType ? Activator.CreateInstance(type) : null;
+    }
+
+    /// <summary>
     /// Performs an explicit cast with optional static type checking.
     /// When sourceStaticType is 'object', enforces C# unboxing semantics:
     /// you can only unbox to the exact boxed type.

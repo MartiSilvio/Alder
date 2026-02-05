@@ -52,6 +52,7 @@ public enum TokenType
     QuestionQuestion,      // ??
     QuestionQuestionEqual, // ??=
     QuestionDot,           // ?.
+    QuestionLeftBracket,   // ?[
 
     // Assignment & Access
     Equal,

@@ -202,6 +202,8 @@ public sealed class Lexer
             case '.':
                 if (Match('.') && Match('.'))
                     AddToken(TokenType.DotDotDot);
+                else if (char.IsDigit(Peek()))
+                    ScanLeadingDecimalNumber(); // ECMA-334 §6.4.5.4: .5 is valid real literal
                 else
                     AddToken(TokenType.Dot);
                 break;
@@ -277,6 +279,7 @@ public sealed class Lexer
                     else AddToken(TokenType.QuestionQuestion);
                 }
                 else if (Match('.')) AddToken(TokenType.QuestionDot);
+                else if (Match('[')) AddToken(TokenType.QuestionLeftBracket);
                 else AddToken(TokenType.Question);
                 break;
 
@@ -646,6 +649,43 @@ public sealed class Lexer
                 ? double.Parse(numberText)
                 : ParseIntegerWithPromotion(numberText),
             _ => throw new CsEvalLexerException($"Unknown numeric suffix at {_line}:{_column}")
+        };
+
+        AddToken(TokenType.Number, value);
+    }
+
+    /// <summary>
+    /// Scans a leading decimal number like .5, .123, .5e10 per ECMA-334 §6.4.5.4.
+    /// Called when '.' followed by digit is detected. The '.' is already at _start.
+    /// </summary>
+    private void ScanLeadingDecimalNumber()
+    {
+        // Consume the decimal digits after the dot
+        ScanDigitsWithSeparators(char.IsDigit);
+
+        // Look for exponent part (e.g., .5e10, .123E-3)
+        if (char.ToLowerInvariant(Peek()) == 'e')
+        {
+            var next = PeekNext();
+            if (char.IsDigit(next) || next == '+' || next == '-')
+            {
+                Advance(); // consume 'e' or 'E'
+                if (Peek() == '+' || Peek() == '-')
+                    Advance(); // consume sign
+                ScanDigitsWithSeparators(char.IsDigit);
+            }
+        }
+
+        var numberText = StripDigitSeparators(_source[_start.._current]);
+        var suffix = ParseNumericSuffix();
+
+        object value = suffix switch
+        {
+            NumericSuffix.Float => float.Parse(numberText),
+            NumericSuffix.Double => double.Parse(numberText),
+            NumericSuffix.Decimal => decimal.Parse(numberText, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture),
+            NumericSuffix.None => double.Parse(numberText),
+            _ => throw new CsEvalLexerException($"Invalid suffix for decimal literal at {_line}:{_column}")
         };
 
         AddToken(TokenType.Number, value);

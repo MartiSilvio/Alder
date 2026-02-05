@@ -767,6 +767,28 @@ public class NumericTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(15));
     }
 
+    #region ECMA-334 §12.4.7.3 - Binary Numeric Promotion
+
+    [TestCase("1 + 1L", typeof(long), TestName = "NumericPromotion_IntPlusLong_IsLong")]
+    [TestCase("1L + 1", typeof(long), TestName = "NumericPromotion_LongPlusInt_IsLong")]
+    [TestCase("1 + 1.0", typeof(double), TestName = "NumericPromotion_IntPlusDouble_IsDouble")]
+    [TestCase("1.0f + 1.0", typeof(double), TestName = "NumericPromotion_FloatPlusDouble_IsDouble")]
+    [TestCase("1.0f + 1", typeof(float), TestName = "NumericPromotion_FloatPlusInt_IsFloat")]
+    [TestCase("1L + 1.0f", typeof(float), TestName = "NumericPromotion_LongPlusFloat_IsFloat")]
+    [TestCase("(byte)1 + (byte)2", typeof(int), TestName = "NumericPromotion_BytePlusByte_IsInt")]
+    [TestCase("(short)1 + (short)2", typeof(int), TestName = "NumericPromotion_ShortPlusShort_IsInt")]
+    public async Task NumericPromotion_ResultType(string expr, Type expectedType)
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var result = engine.Evaluate(expr);
+        var csharpResult = await TestHelpers.EvaluateCSharpAsync(expr);
+
+        Assert.That(result?.GetType(), Is.EqualTo(expectedType), $"CsEval type mismatch for: {expr}");
+        Assert.That(csharpResult?.GetType(), Is.EqualTo(expectedType), $"C# type mismatch for: {expr}");
+    }
+
+    #endregion
+
     #region ECMA-334 Edge Cases - Numeric Boundaries
 
     // Boundary values for signed types

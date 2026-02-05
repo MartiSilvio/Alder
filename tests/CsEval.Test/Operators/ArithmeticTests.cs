@@ -30,6 +30,24 @@ public class ArithmeticTests(CompilationMode mode)
     public async Task Eval_Arithmetic(string expr, object? expected)
         => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
+    // ECMA-334 §12.9.2, §12.9.3 - Unary Operators
+    [TestCase("+5", 5, TestName = "UnaryPlus_Int")]
+    [TestCase("+5L", 5L, TestName = "UnaryPlus_Long")]
+    [TestCase("+5.0", 5.0, TestName = "UnaryPlus_Double")]
+    [TestCase("+5.0f", 5.0f, TestName = "UnaryPlus_Float")]
+    [TestCase("+-5", -5, TestName = "UnaryPlus_NegativeValue")]
+    [TestCase("-+5", -5, TestName = "UnaryMinus_AfterPlus")]
+    [TestCase("-(-5)", 5, TestName = "DoubleNegation_Parenthesized")]
+    [TestCase("+(+5)", 5, TestName = "DoublePlus_Parenthesized")]
+    public async Task UnaryOperators_Arithmetic(string expr, object expected)
+        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
+
+    // ECMA-334 §12.4.2 - Logical vs Bitwise Precedence
+    [TestCase("true & true && false", false, TestName = "Precedence_BitwiseVsLogicalAnd")]
+    [TestCase("false | false || true", true, TestName = "Precedence_BitwiseVsLogicalOr")]
+    public async Task Precedence_BitwiseVsLogical(string expr, object expected)
+        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
+
     [TestCase("10 / 0", TestName = "DivideByZero_Int")]
     [TestCase("10 % 0", TestName = "ModuloByZero_Int")]
     [TestCase("1.0m + 1.0", TestName = "DecimalPlusDouble")]

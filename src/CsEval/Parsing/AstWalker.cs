@@ -344,4 +344,18 @@ public abstract class AstWalker<T> : IExprVisitor<T>
         Visit(expr.Expression);
         return OnLeave(expr);
     }
+
+    // Default Expression
+    public virtual T VisitDefault(DefaultExpr expr)
+    {
+        OnEnter(expr);
+        return OnLeave(expr);
+    }
+
+    // Nameof Expression
+    public virtual T VisitNameof(NameofExpr expr)
+    {
+        OnEnter(expr);
+        return OnLeave(expr);
+    }
 }

@@ -293,4 +293,34 @@ public class IsAsTests(CompilationMode mode)
     }
 
     #endregion
+
+    #region ECMA-334 §11.2.4 - Var Pattern
+
+    [Test]
+    public void VarPattern_AlwaysMatches()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        engine.SetVariable("x", 42);
+        Assert.That(engine.Evaluate("x is var y"), Is.True);
+        Assert.That(engine.Evaluate("y"), Is.EqualTo(42));
+    }
+
+    [Test]
+    public void VarPattern_MatchesNull()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        engine.SetVariable("x", null);
+        Assert.That(engine.Evaluate("x is var y"), Is.True);
+        Assert.That(engine.Evaluate("y"), Is.Null);
+    }
+
+    [Test]
+    public void VarPattern_InBlock()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var result = engine.Evaluate("{ var x = 42; if (x is var y) { return y * 2; } return 0; }");
+        Assert.That(result, Is.EqualTo(84));
+    }
+
+    #endregion
 }

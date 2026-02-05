@@ -85,4 +85,54 @@ public class CastTests(CompilationMode mode)
         => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
     #endregion
+
+    #region ECMA-334 §10.2.3, §10.3.2 - Conversion Edge Cases
+
+    [TestCase("(int)'A'", 65, TestName = "CharToInt_Conversion")]
+    [TestCase("(long)'A'", 65L, TestName = "CharToLong_Conversion")]
+    [TestCase("(double)'A'", 65.0, TestName = "CharToDouble_Conversion")]
+    public async Task Conversion_CharExplicit(string expr, object expected)
+        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
+
+    [TestCase("(int)3.9", 3, TestName = "DoubleToInt_Truncates")]
+    [TestCase("(int)-3.9", -3, TestName = "NegativeDoubleToInt_Truncates")]
+    [TestCase("(long)3.9", 3L, TestName = "DoubleToLong_Truncates")]
+    [TestCase("(int)3.5f", 3, TestName = "FloatToInt_Truncates")]
+    public async Task Conversion_FloatTruncation(string expr, object expected)
+        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
+
+    [TestCase("unchecked((byte)256)", (byte)0, TestName = "IntToByte_Overflow")]
+    [TestCase("unchecked((sbyte)128)", (sbyte)-128, TestName = "IntToSbyte_Overflow")]
+    [TestCase("unchecked((short)32768)", (short)-32768, TestName = "IntToShort_Overflow")]
+    public async Task Conversion_NarrowingOverflow(string expr, object expected)
+        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
+
+    #endregion
+
+    #region ECMA-334 §10.3.7 - Unboxing Edge Cases
+
+    [Test]
+    public async Task Unboxing_ExactTypeMatch_Required()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        engine.SetVariable("boxed", (object)42);
+
+        Assert.That(engine.Evaluate("(int)boxed"), Is.EqualTo(42));
+        Assert.Catch<InvalidCastException>(() => engine.Evaluate("(long)boxed"));
+
+        var csharpResult = await TestHelpers.EvaluateCSharpAsync("(int)(object)42");
+        Assert.That(csharpResult, Is.EqualTo(42));
+    }
+
+    [Test]
+    public void Unboxing_NullableFromBoxed()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        engine.SetVariable("boxed", (object)42);
+
+        var result = engine.Evaluate("(int?)boxed");
+        Assert.That(result, Is.EqualTo(42));
+    }
+
+    #endregion
 }

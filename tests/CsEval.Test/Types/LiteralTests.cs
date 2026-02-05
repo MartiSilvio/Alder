@@ -102,6 +102,20 @@ public class LiteralTests(CompilationMode mode)
     public async Task Eval_Exponent_Decimal(string expr, object expected)
         => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
+    // Leading Decimal Literals (ECMA-334 §6.4.5.4)
+
+    [TestCase(".5", 0.5, TestName = "LeadingDecimal_Half")]
+    [TestCase(".123", 0.123, TestName = "LeadingDecimal_Fraction")]
+    [TestCase(".0", 0.0, TestName = "LeadingDecimal_Zero")]
+    [TestCase(".999", 0.999, TestName = "LeadingDecimal_NineNine")]
+    [TestCase(".5f", 0.5f, TestName = "LeadingDecimal_Float")]
+    [TestCase(".5m", 0.5, TestName = "LeadingDecimal_Decimal")]
+    [TestCase(".5e2", 50.0, TestName = "LeadingDecimal_WithExponent")]
+    [TestCase(".5e-2", 0.005, TestName = "LeadingDecimal_WithNegativeExponent")]
+    [TestCase(".123_456", 0.123456, TestName = "LeadingDecimal_WithDigitSeparator")]
+    public async Task Eval_LeadingDecimal(string expr, object expected)
+        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
+
     // Combined Digit Separators and Exponents
 
     [TestCase("1_000e3", 1000e3, TestName = "DigitSeparator_WithExponent")]

@@ -79,6 +79,40 @@ public sealed partial class Parser
             return expr;
         }
 
+        // default(T) or default literal (ECMA-334 §12.8.20)
+        if (Match(TokenType.Default))
+        {
+            if (Match(TokenType.LeftParen))
+            {
+                // default(Type) or default(Type?) - typed default
+                var typeToken = Consume(IsTypeKeyword(Peek().Type) ? Peek().Type : TokenType.Identifier,
+                    "Expected type after 'default('");
+                // Handle nullable type suffix (e.g., int? -> int?)
+                if (Match(TokenType.Question))
+                {
+                    typeToken = new Token(typeToken.Type, typeToken.Lexeme + "?", null, typeToken.Line, typeToken.Column);
+                }
+                Consume(TokenType.RightParen, "Expected ')' after default type");
+                return new DefaultExpr(typeToken);
+            }
+            // bare default literal (C# 7.1+)
+            return new DefaultExpr(null);
+        }
+
+        // nameof(expression) - returns the name of the final identifier (ECMA-334 §12.8.22)
+        if (Match(TokenType.Nameof))
+        {
+            Consume(TokenType.LeftParen, "Expected '(' after 'nameof'");
+            // Parse the name chain (x, x.y, x.y.z, etc.)
+            var name = Consume(TokenType.Identifier, "Expected identifier after 'nameof('").Lexeme;
+            while (Match(TokenType.Dot))
+            {
+                name = Consume(TokenType.Identifier, "Expected identifier after '.'").Lexeme;
+            }
+            Consume(TokenType.RightParen, "Expected ')' after nameof expression");
+            return new NameofExpr(name);
+        }
+
         // Identifier or single-parameter lambda (x => ...)
         if (Match(TokenType.Identifier))
         {

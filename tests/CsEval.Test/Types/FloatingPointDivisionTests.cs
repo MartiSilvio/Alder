@@ -105,4 +105,46 @@ public class FloatingPointDivisionTests(CompilationMode mode)
     }
 
     #endregion
+
+    #region ECMA-334 IEEE 754 - NaN/Infinity with Variables
+
+    [Test]
+    public async Task IEEE754_NaN_ZeroDivZero_Variable()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var result = engine.Evaluate("0.0 / 0.0");
+        var csharpResult = await TestHelpers.EvaluateCSharpAsync("0.0 / 0.0");
+
+        Assert.That(double.IsNaN((double)result!));
+        Assert.That(double.IsNaN((double)csharpResult!));
+    }
+
+    [Test]
+    public async Task IEEE754_NaN_Equality_Variable()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        engine.SetVariable("nan", double.NaN);
+
+        Assert.That(engine.Evaluate("nan == nan"), Is.False);
+        Assert.That(engine.Evaluate("nan != nan"), Is.True);
+
+        var eqResult = await TestHelpers.EvaluateCSharpAsync("double.NaN == double.NaN");
+        var neqResult = await TestHelpers.EvaluateCSharpAsync("double.NaN != double.NaN");
+        Assert.That(eqResult, Is.False);
+        Assert.That(neqResult, Is.True);
+    }
+
+    [TestCase("1.0 / 0.0", double.PositiveInfinity, TestName = "IEEE754_Double_PositiveInfinity")]
+    [TestCase("-1.0 / 0.0", double.NegativeInfinity, TestName = "IEEE754_Double_NegativeInfinity")]
+    public async Task IEEE754_Infinity_Division(string expr, double expected)
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var result = engine.Evaluate(expr);
+        var csharpResult = await TestHelpers.EvaluateCSharpAsync(expr);
+
+        Assert.That(result, Is.EqualTo(expected));
+        Assert.That(csharpResult, Is.EqualTo(expected));
+    }
+
+    #endregion
 }

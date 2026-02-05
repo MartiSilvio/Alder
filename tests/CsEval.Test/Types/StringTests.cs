@@ -143,4 +143,45 @@ public class StringTests(CompilationMode mode)
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         Assert.Throws<CsEvalLexerException>(() => engine.Evaluate("\"\\xG\""));
     }
+
+    #region ECMA-334 String Comparison and Null Handling
+
+    [TestCase("\"\" == \"\"", true, TestName = "StringEquality_EmptyStrings")]
+    [TestCase("\"a\" == \"a\"", true, TestName = "StringEquality_Same")]
+    [TestCase("\"a\" == \"b\"", false, TestName = "StringEquality_Different")]
+    public async Task StringEquality(string expr, bool expected)
+        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
+
+    [Test]
+    public void StringEquality_WithNull()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        engine.SetVariable("s", null);
+
+        Assert.That(engine.Evaluate("s == null"), Is.True);
+        Assert.That(engine.Evaluate("s != null"), Is.False);
+        Assert.That(engine.Evaluate("\"hello\" == null"), Is.False);
+    }
+
+    #endregion
+
+    #region ECMA-334 Method Overload Resolution
+
+    [TestCase("Math.Max(1, 2)", 2, TestName = "Overload_IntInt")]
+    [TestCase("Math.Max(1L, 2L)", 2L, TestName = "Overload_LongLong")]
+    [TestCase("Math.Max(1.0, 2.0)", 2.0, TestName = "Overload_DoubleDouble")]
+    [TestCase("Math.Abs(-5)", 5, TestName = "Overload_AbsInt")]
+    [TestCase("Math.Abs(-5L)", 5L, TestName = "Overload_AbsLong")]
+    [TestCase("Math.Abs(-5.0)", 5.0, TestName = "Overload_AbsDouble")]
+    public async Task MethodOverload_NumericTypes(string expr, object expected)
+        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
+
+    [TestCase("\"hello\".Substring(1)", "ello", TestName = "Overload_Substring_OneArg")]
+    [TestCase("\"hello\".Substring(1, 2)", "el", TestName = "Overload_Substring_TwoArgs")]
+    [TestCase("\"hello\".IndexOf('l')", 2, TestName = "Overload_IndexOf_Char")]
+    [TestCase("\"hello\".IndexOf(\"ll\")", 2, TestName = "Overload_IndexOf_String")]
+    public async Task MethodOverload_StringMethods(string expr, object expected)
+        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
+
+    #endregion
 }

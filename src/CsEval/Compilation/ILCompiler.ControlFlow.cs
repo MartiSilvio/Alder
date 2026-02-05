@@ -77,31 +77,28 @@ internal sealed partial class ILCompiler
 
         _controlStack.Push(new ControlFlowContext(breakLabel, continueLabel, IsLoop: true));
 
-        var loopStatements = new List<LinqExpression>();
-
-        loopStatements.Add(CompileCancellationCheck());
-
-        // Condition check - break if false
-        loopStatements.Add(LinqExpression.IfThen(
-            LinqExpression.Not(LinqExpression.Call(RequireBooleanMethod, Compile(whileStmt.Condition))),
-            LinqExpression.Break(breakLabel)));
-
-        loopStatements.Add(CompileIterationCheck());
-
-        // Body with scope
-        loopStatements.Add(Scoped(() =>
+        var loopStatements = new List<LinqExpression>
         {
-            var bodyStatements = new List<LinqExpression>();
-            foreach (var stmt in whileStmt.Body)
+            CompileCancellationCheck(),
+            // Condition check - break if false
+            LinqExpression.IfThen(
+                LinqExpression.Not(LinqExpression.Call(RequireBooleanMethod, Compile(whileStmt.Condition))),
+                LinqExpression.Break(breakLabel)),
+            CompileIterationCheck(),
+            // Body with scope
+            Scoped(() =>
             {
-                bodyStatements.Add(CompileCancellationCheck());
-                bodyStatements.Add(Compile(stmt));
-            }
-            return LinqExpression.Block(bodyStatements);
-        }));
-
-        // Continue label (after body, before loop back)
-        loopStatements.Add(LinqExpression.Label(continueLabel));
+                var bodyStatements = new List<LinqExpression>();
+                foreach (var stmt in whileStmt.Body)
+                {
+                    bodyStatements.Add(CompileCancellationCheck());
+                    bodyStatements.Add(Compile(stmt));
+                }
+                return LinqExpression.Block(bodyStatements);
+            }),
+            // Continue label (after body, before loop back)
+            LinqExpression.Label(continueLabel)
+        };
 
         var loop = LinqExpression.Loop(LinqExpression.Block(loopStatements), breakLabel);
 
@@ -126,9 +123,7 @@ internal sealed partial class ILCompiler
 
             _controlStack.Push(new ControlFlowContext(breakLabel, continueLabel, IsLoop: true));
 
-            var loopStatements = new List<LinqExpression>();
-
-            loopStatements.Add(CompileCancellationCheck());
+            var loopStatements = new List<LinqExpression> { CompileCancellationCheck() };
 
             // Condition check (if present)
             if (forStmt.Condition != null)
@@ -176,31 +171,29 @@ internal sealed partial class ILCompiler
 
         _controlStack.Push(new ControlFlowContext(breakLabel, continueLabel, IsLoop: true));
 
-        var loopStatements = new List<LinqExpression>();
-
-        // Cancellation and iteration check
-        loopStatements.Add(CompileCancellationCheck());
-        loopStatements.Add(CompileIterationCheck());
-
-        // Body with scope (executes first in do-while)
-        loopStatements.Add(Scoped(() =>
+        var loopStatements = new List<LinqExpression>
         {
-            var bodyStatements = new List<LinqExpression>();
-            foreach (var stmt in doWhile.Body)
+            // Cancellation and iteration check
+            CompileCancellationCheck(),
+            CompileIterationCheck(),
+            // Body with scope (executes first in do-while)
+            Scoped(() =>
             {
-                bodyStatements.Add(CompileCancellationCheck());
-                bodyStatements.Add(Compile(stmt));
-            }
-            return LinqExpression.Block(bodyStatements);
-        }));
-
-        // Continue label
-        loopStatements.Add(LinqExpression.Label(continueLabel));
-
-        // Condition check - break if false
-        loopStatements.Add(LinqExpression.IfThen(
-            LinqExpression.Not(LinqExpression.Call(RequireBooleanMethod, Compile(doWhile.Condition))),
-            LinqExpression.Break(breakLabel)));
+                var bodyStatements = new List<LinqExpression>();
+                foreach (var stmt in doWhile.Body)
+                {
+                    bodyStatements.Add(CompileCancellationCheck());
+                    bodyStatements.Add(Compile(stmt));
+                }
+                return LinqExpression.Block(bodyStatements);
+            }),
+            // Continue label
+            LinqExpression.Label(continueLabel),
+            // Condition check - break if false
+            LinqExpression.IfThen(
+                LinqExpression.Not(LinqExpression.Call(RequireBooleanMethod, Compile(doWhile.Condition))),
+                LinqExpression.Break(breakLabel))
+        };
 
         var loop = LinqExpression.Loop(LinqExpression.Block(loopStatements), breakLabel);
 
@@ -228,45 +221,42 @@ internal sealed partial class ILCompiler
         {
             _controlStack.Push(new ControlFlowContext(breakLabel, continueLabel, IsLoop: true));
 
-            var loopStatements = new List<LinqExpression>();
-
-            loopStatements.Add(CompileCancellationCheck());
-
-            // MoveNext - break if false
-            loopStatements.Add(LinqExpression.IfThen(
-                LinqExpression.Not(LinqExpression.Call(enumerator, MoveNextMethod)),
-                LinqExpression.Break(breakLabel)));
-
-            loopStatements.Add(CompileIterationCheck());
-
-            // Get Current value
-            loopStatements.Add(LinqExpression.Assign(
-                itemValue,
-                LinqExpression.Property(enumerator, nameof(IEnumerator.Current))));
-
-            // C# 5+ behavior: create a fresh scope for EACH iteration
-            // This ensures lambdas capture a per-iteration variable, not a shared one
-            loopStatements.Add(Scoped(() =>
+            var loopStatements = new List<LinqExpression>
             {
-                var iterStatements = new List<LinqExpression>();
-
-                // Define loop variable in this per-iteration scope (with shadowing check)
-                iterStatements.Add(LinqExpression.Call(_currentContext, DefineNewMethod,
-                    LinqExpression.Constant(forEach.VariableName.Lexeme), itemValue,
-                    LinqExpression.Constant(typeof(object), typeof(Type))));
-
-                // Body statements in the same per-iteration scope
-                foreach (var stmt in forEach.Body)
+                CompileCancellationCheck(),
+                // MoveNext - break if false
+                LinqExpression.IfThen(
+                    LinqExpression.Not(LinqExpression.Call(enumerator, MoveNextMethod)),
+                    LinqExpression.Break(breakLabel)),
+                CompileIterationCheck(),
+                // Get Current value
+                LinqExpression.Assign(
+                    itemValue,
+                    LinqExpression.Property(enumerator, nameof(IEnumerator.Current))),
+                // C# 5+ behavior: create a fresh scope for EACH iteration
+                // This ensures lambdas capture a per-iteration variable, not a shared one
+                Scoped(() =>
                 {
-                    iterStatements.Add(CompileCancellationCheck());
-                    iterStatements.Add(Compile(stmt));
-                }
+                    var iterStatements = new List<LinqExpression>
+                    {
+                        // Define loop variable in this per-iteration scope (with shadowing check)
+                        LinqExpression.Call(_currentContext, DefineNewMethod,
+                            LinqExpression.Constant(forEach.VariableName.Lexeme), itemValue,
+                            LinqExpression.Constant(typeof(object), typeof(Type)))
+                    };
 
-                return LinqExpression.Block(iterStatements);
-            }));
+                    // Body statements in the same per-iteration scope
+                    foreach (var stmt in forEach.Body)
+                    {
+                        iterStatements.Add(CompileCancellationCheck());
+                        iterStatements.Add(Compile(stmt));
+                    }
 
-            // Continue label
-            loopStatements.Add(LinqExpression.Label(continueLabel));
+                    return LinqExpression.Block(iterStatements);
+                }),
+                // Continue label
+                LinqExpression.Label(continueLabel)
+            };
 
             var loop = LinqExpression.Loop(LinqExpression.Block(loopStatements), breakLabel);
 
@@ -305,9 +295,9 @@ internal sealed partial class ILCompiler
         // Scoped for switch body
         return Scoped(() =>
         {
-            var statements = new List<LinqExpression>();
-            // Assign switch value
-            statements.Add(LinqExpression.Assign(switchVar, switchValue));
+            var statements = new List<LinqExpression> {
+                // Assign switch value
+                LinqExpression.Assign(switchVar, switchValue) };
 
             // Labels for each case
             var caseLabels = new List<(SwitchCaseExpr Case, LabelTarget Label)>();

@@ -67,6 +67,13 @@ public class BitwiseTests(CompilationMode mode)
     public async Task Eval_Bitwise(string expr, object expected)
         => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
+    // ECMA-334 §12.4.2 - Shift vs Addition Precedence (addition/subtraction has higher precedence than shift)
+    [TestCase("1 << 2 + 3", 32, TestName = "Precedence_ShiftVsAdd_AddFirst")]
+    [TestCase("16 >> 1 + 1", 4, TestName = "Precedence_ShiftVsAdd_RightShift")]
+    [TestCase("1 << 1 << 1", 4, TestName = "Precedence_ShiftLeftAssociativity")]
+    public async Task Precedence_ShiftAndArithmetic(string expr, object expected)
+        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
+
     [TestCase("3.14 & 1", TestName = "And_DoubleWithInt")]
     [TestCase("3.14 | 1", TestName = "Or_DoubleWithInt")]
     [TestCase("3.14 ^ 1", TestName = "Xor_DoubleWithInt")]

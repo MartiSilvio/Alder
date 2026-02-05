@@ -230,6 +230,14 @@ public sealed partial class Parser
             throw new CsEvalParserException($"Expected type or 'null' after 'is not' at {Peek().Line}:{Peek().Column}");
         }
 
+        // x is var name (ECMA-334 §11.2.4 - var pattern always matches)
+        if (Match(TokenType.Var))
+        {
+            var varToken = Previous();
+            var varName = Consume(TokenType.Identifier, "Expected identifier after 'is var'");
+            return new IsExpr(left, varToken, false, varName);
+        }
+
         // x is type OR x is type name
         if (MatchTypeKeywordNoNullable(out var typeToken))
         {
@@ -394,7 +402,13 @@ public sealed partial class Parser
             {
                 var index = ParseExpression();
                 Consume(TokenType.RightBracket, "Expected ']' after index");
-                expr = new IndexAccessExpr(expr, index);
+                expr = new IndexAccessExpr(expr, index, false);
+            }
+            else if (Match(TokenType.QuestionLeftBracket))
+            {
+                var index = ParseExpression();
+                Consume(TokenType.RightBracket, "Expected ']' after null-conditional index");
+                expr = new IndexAccessExpr(expr, index, true);
             }
             else if (Check(TokenType.Less) && TryParseTypeArguments(out var typeArgs))
             {
