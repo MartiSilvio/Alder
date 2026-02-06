@@ -131,3 +131,9 @@ $RECYCLE.BIN/
 .DS_Store
 
 _NCrunch*
+
+# GSD planning docs (local only)
+.planning/
+
+# Claude Code
+.claude/

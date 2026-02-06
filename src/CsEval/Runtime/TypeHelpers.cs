@@ -1,0 +1,518 @@
+using System.Collections.Concurrent;
+using System.Linq.Expressions;
+
+namespace CsEval.Runtime;
+
+/// <summary>
+/// Type checking, validation, and conversion utilities.
+/// </summary>
+public static class TypeHelpers
+{
+    public static bool RequireBoolean(object? value)
+    {
+        if (value is bool b)
+            return b;
+
+        throw new CsEvalException($"Condition must evaluate to a boolean, got '{value?.GetType().Name ?? "null"}'");
+    }
+
+    internal static bool IsInteger(object? value) =>
+        value is sbyte or byte or short or ushort or int or uint or long or ulong;
+
+    internal static bool IsNumeric(object? value) =>
+        value is sbyte or byte or short or ushort or int or uint or long or ulong or float or double or decimal;
+
+    /// <summary>
+    /// Checks if a value can participate in arithmetic operations.
+    /// Per ECMA-334 §12.4.7.2, char undergoes unary numeric promotion to int.
+    /// </summary>
+    internal static bool IsArithmetic(object? value) =>
+        value is sbyte or byte or short or ushort or int or uint or long or ulong or float or double or decimal or char;
+
+    internal static bool IsArithmetic(Type type) =>
+        Type.GetTypeCode(type) is >= TypeCode.SByte and <= TypeCode.Decimal or TypeCode.Char;
+
+    private static bool IsIntegerType(Type type) =>
+        Type.GetTypeCode(type) is >= TypeCode.SByte and <= TypeCode.UInt64;
+
+    private static readonly Dictionary<string, Type> TypeNameToClrType = new()
+    {
+        ["sbyte"] = typeof(sbyte),
+        ["byte"] = typeof(byte),
+        ["short"] = typeof(short),
+        ["ushort"] = typeof(ushort),
+        ["int"] = typeof(int),
+        ["uint"] = typeof(uint),
+        ["long"] = typeof(long),
+        ["ulong"] = typeof(ulong),
+        ["float"] = typeof(float),
+        ["double"] = typeof(double),
+        ["decimal"] = typeof(decimal),
+        ["bool"] = typeof(bool),
+        ["char"] = typeof(char),
+        ["string"] = typeof(string),
+        ["object"] = typeof(object),
+        ["sbyte?"] = typeof(sbyte?),
+        ["byte?"] = typeof(byte?),
+        ["short?"] = typeof(short?),
+        ["ushort?"] = typeof(ushort?),
+        ["int?"] = typeof(int?),
+        ["uint?"] = typeof(uint?),
+        ["long?"] = typeof(long?),
+        ["ulong?"] = typeof(ulong?),
+        ["float?"] = typeof(float?),
+        ["double?"] = typeof(double?),
+        ["decimal?"] = typeof(decimal?),
+        ["bool?"] = typeof(bool?),
+        ["char?"] = typeof(char?),
+        ["string?"] = typeof(string),
+        ["object?"] = typeof(object),
+        ["void"] = typeof(void),
+    };
+
+    /// <summary>
+    /// ECMA-334 §10.2.3: Implicit numeric conversions.
+    /// "There are no predefined implicit conversions to the char type, so values of the
+    /// other integral types do not automatically convert to the char type." (§10.2.3)
+    /// </summary>
+    private static readonly Dictionary<Type, HashSet<Type>> ImplicitConversions = new()
+    {
+        [typeof(sbyte)] = [typeof(short), typeof(int), typeof(long), typeof(float), typeof(double), typeof(decimal)],
+        [typeof(byte)] = [typeof(short), typeof(ushort), typeof(int), typeof(uint), typeof(long), typeof(ulong), typeof(float), typeof(double), typeof(decimal)],
+        [typeof(short)] = [typeof(int), typeof(long), typeof(float), typeof(double), typeof(decimal)],
+        [typeof(ushort)] = [typeof(int), typeof(uint), typeof(long), typeof(ulong), typeof(float), typeof(double), typeof(decimal)],
+        [typeof(int)] = [typeof(long), typeof(float), typeof(double), typeof(decimal)],
+        [typeof(uint)] = [typeof(long), typeof(ulong), typeof(float), typeof(double), typeof(decimal)],
+        [typeof(long)] = [typeof(float), typeof(double), typeof(decimal)],
+        [typeof(ulong)] = [typeof(float), typeof(double), typeof(decimal)],
+        [typeof(float)] = [typeof(double)],
+        [typeof(char)] = [typeof(ushort), typeof(int), typeof(uint), typeof(long), typeof(ulong), typeof(float), typeof(double), typeof(decimal)],
+    };
+
+    public static Type ResolveTypeName(string typeName)
+    {
+        if (TypeNameToClrType.TryGetValue(typeName, out var type))
+            return type;
+        throw new CsEvalException($"Unknown type '{typeName}'");
+    }
+
+    /// <summary>
+    /// Resolves a type name using built-in types, then Type.GetType, then "System." prefix,
+    /// then scanning loaded assemblies. Used by typeof and constructor invocation.
+    /// </summary>
+    public static Type ResolveTypeByName(string typeName)
+    {
+        // Try built-in type keywords first
+        if (TypeNameToClrType.TryGetValue(typeName, out var type))
+            return type;
+
+        // Try fully qualified name
+        var resolved = Type.GetType(typeName);
+        if (resolved != null) return resolved;
+
+        // Try with System. prefix
+        resolved = Type.GetType("System." + typeName);
+        if (resolved != null) return resolved;
+
+        // Scan loaded assemblies
+        foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+        {
+            resolved = assembly.GetType(typeName) ?? assembly.GetType("System." + typeName);
+            if (resolved != null) return resolved;
+        }
+
+        throw new CsEvalException($"Unknown type '{typeName}'");
+    }
+
+    /// <summary>
+    /// Returns the default value for a type by name (ECMA-334 §12.8.20).
+    /// For value types, returns the zero/false/null equivalent.
+    /// For reference types and nullable types, returns null.
+    /// </summary>
+    public static object? GetDefaultValue(string typeName)
+    {
+        var type = ResolveTypeName(typeName);
+        return type.IsValueType ? Activator.CreateInstance(type) : null;
+    }
+
+    /// <summary>
+    /// Performs an explicit cast with optional static type checking.
+    /// When sourceStaticType is 'object', enforces C# unboxing semantics:
+    /// you can only unbox to the exact boxed type.
+    /// </summary>
+    public static object? ExplicitCast(object? value, string targetTypeName, Type? sourceStaticType = null)
+    {
+        if (!TypeNameToClrType.TryGetValue(targetTypeName, out var targetType))
+            throw new CsEvalException($"Unknown type '{targetTypeName}'");
+
+        var underlyingType = Nullable.GetUnderlyingType(targetType) ?? targetType;
+        var isNullable = Nullable.GetUnderlyingType(targetType) != null;
+
+        if (value == null)
+        {
+            if (targetType.IsValueType && !isNullable)
+                throw new CsEvalException($"Cannot cast null to non-nullable type '{targetTypeName}'");
+            return null;
+        }
+
+        var runtimeType = value.GetType();
+
+        // Same type - no conversion needed
+        if (runtimeType == underlyingType || runtimeType == targetType)
+            return value;
+
+        // Handle reference types (string, object)
+        if (underlyingType == typeof(string))
+        {
+            if (value is char c)
+                return c.ToString();
+            throw new InvalidCastException($"Cannot cast {runtimeType.Name} to string");
+        }
+
+        if (underlyingType == typeof(object))
+            return value;
+
+        // C# unboxing rule: when source static type is 'object', you can only unbox to the exact boxed type
+        // (long)(object)42 fails because 42 is boxed as int, not long
+        if (sourceStaticType == typeof(object) && underlyingType.IsValueType && runtimeType != underlyingType)
+        {
+            throw new InvalidCastException($"Unable to cast object of type '{runtimeType.Name}' to type '{underlyingType.Name}'.");
+        }
+
+        // Numeric and char conversions
+        try
+        {
+            if (underlyingType == typeof(char) && value is string { Length: 1 } s)
+                return s[0];
+
+            return RuntimeCast(value, runtimeType, underlyingType);
+        }
+        catch (Exception ex) when (ex is InvalidCastException or FormatException or OverflowException)
+        {
+            throw new InvalidCastException($"Cannot cast {runtimeType.Name} to {targetTypeName}", ex);
+        }
+    }
+
+    private static readonly ConcurrentDictionary<(Type, Type), Func<object, object>> CastCache = new();
+
+    internal static object RuntimeCast(object value, Type sourceType, Type targetType)
+    {
+        var converter = CastCache.GetOrAdd((sourceType, targetType), key =>
+        {
+            var param = LinqExpression.Parameter(typeof(object), "value");
+            var unbox = LinqExpression.Convert(param, key.Item1);
+            var cast = LinqExpression.Convert(unbox, key.Item2);
+            var box = LinqExpression.Convert(cast, typeof(object));
+            return LinqExpression.Lambda<Func<object, object>>(box, param).Compile();
+        });
+        return converter(value);
+    }
+
+    /// <summary>
+    /// Converts a numeric value to a target type, handling char specially.
+    /// System.Convert.ChangeType does not support char -> float/double/decimal directly,
+    /// so we first convert char to ushort (its underlying numeric representation per ECMA-334 §8.3.6)
+    /// before calling Convert.ChangeType.
+    /// </summary>
+    private static object ConvertNumeric(object value, Type sourceType, Type targetType)
+    {
+        // ECMA-334 §8.3.6: char is a 16-bit unsigned integer (same range as ushort)
+        // Convert.ChangeType(char, float/double/decimal) throws InvalidCastException,
+        // so convert char to its numeric value first.
+        if (sourceType == typeof(char))
+            return Convert.ChangeType((ushort)(char)value, targetType);
+
+        return Convert.ChangeType(value, targetType);
+    }
+
+    public static bool IsType(object? value, string typeName)
+    {
+        if (!TypeNameToClrType.TryGetValue(typeName, out var targetType))
+            throw new CsEvalException($"Unknown type '{typeName}'");
+
+        if (value == null)
+            return false;
+
+        var valueType = value.GetType();
+        var underlyingTarget = Nullable.GetUnderlyingType(targetType) ?? targetType;
+
+        return underlyingTarget.IsAssignableFrom(valueType) || valueType == underlyingTarget;
+    }
+
+    public static object? TryAs(object? value, string typeName)
+    {
+        if (!TypeNameToClrType.TryGetValue(typeName, out var targetType))
+            throw new CsEvalException($"Unknown type '{typeName}'");
+
+        if (value == null)
+            return null;
+
+        var valueType = value.GetType();
+        var underlyingTarget = Nullable.GetUnderlyingType(targetType) ?? targetType;
+
+        if (underlyingTarget.IsAssignableFrom(valueType) || valueType == underlyingTarget)
+            return value;
+
+        return null;
+    }
+
+    public static bool IsNullableType(Type type)
+    {
+        if (!type.IsValueType)
+            return true;
+        return Nullable.GetUnderlyingType(type) != null;
+    }
+
+    public static object? ValidateAndCoerceType(string typeName, object? value, string varName)
+    {
+        if (typeName == "object")
+            return value;
+
+        if (!TypeNameToClrType.TryGetValue(typeName, out var targetType))
+            throw new CsEvalException($"Unknown type '{typeName}'");
+
+        var isNullable = Nullable.GetUnderlyingType(targetType) != null;
+        var underlyingType = Nullable.GetUnderlyingType(targetType) ?? targetType;
+
+        if (value == null)
+        {
+            if (targetType.IsValueType && !isNullable)
+                throw new CsEvalException($"Cannot assign null to {typeName} variable '{varName}'");
+            return null;
+        }
+
+        var sourceType = value.GetType();
+
+        if (sourceType == underlyingType || sourceType == targetType)
+            return value;
+
+        if (ImplicitConversions.TryGetValue(sourceType, out var allowedTargets) && allowedTargets.Contains(underlyingType))
+            return ConvertNumeric(value, sourceType, underlyingType);
+
+        // ECMA-334 §10.2.11: Implicit constant expression conversions
+        // "A constant_expression of type int can be converted to type sbyte, byte, short,
+        // ushort, uint, or ulong, provided the value of the constant_expression is within
+        // the range of the destination type."
+        // Note: In CsEval, literal int values in typed declarations arrive here as int values.
+        // OverflowException from Convert.ChangeType enforces the range check.
+        if (sourceType == typeof(int) && value is int intValue && IsIntegerType(underlyingType))
+        {
+            try { return Convert.ChangeType(intValue, underlyingType); }
+            catch (OverflowException) { }
+        }
+
+        if (underlyingType == typeof(char) && value is string { Length: 1 } s)
+            return s[0];
+
+        throw new CsEvalException($"Cannot assign {sourceType.Name} to {typeName} variable '{varName}'");
+    }
+
+    /// <summary>
+    /// Checks if a type is a System.ValueTuple generic type.
+    /// ECMA-334 §10.2.13, §10.3.6 - Tuple conversions.
+    /// </summary>
+    public static bool IsTupleType(Type type) =>
+        type.IsGenericType && type.FullName?.StartsWith("System.ValueTuple") == true;
+
+    /// <summary>
+    /// Checks if a value can be implicitly assigned to a target type per C# rules.
+    /// Handles ECMA-334 §10.2.3 implicit numeric conversions,
+    /// ECMA-334 §10.6.1 implicit nullable conversions (T -> T?, S -> T? where S -> T is implicit),
+    /// and ECMA-334 §10.2.13 implicit tuple conversions (element-wise implicit convertibility).
+    /// Used for assignment validation.
+    /// </summary>
+    public static bool CanImplicitlyConvert(Type sourceType, Type targetType)
+    {
+        if (sourceType == targetType)
+            return true;
+
+        // ECMA-334 §10.2.13: Implicit tuple conversions
+        // A tuple type can be implicitly converted to another tuple type with the same arity
+        // if each element can be implicitly converted.
+        if (IsTupleType(sourceType) && IsTupleType(targetType))
+        {
+            var sourceArgs = sourceType.GetGenericArguments();
+            var targetArgs = targetType.GetGenericArguments();
+
+            if (sourceArgs.Length != targetArgs.Length)
+                return false;
+
+            for (var i = 0; i < sourceArgs.Length; i++)
+            {
+                if (!CanImplicitlyConvert(sourceArgs[i], targetArgs[i]))
+                    return false;
+            }
+
+            return true;
+        }
+
+        // ECMA-334 §10.6.1: Implicit nullable conversions
+        // T -> T? (identity lift) and S -> T? (where S -> T is an implicit conversion)
+        var underlyingTarget = Nullable.GetUnderlyingType(targetType);
+        if (underlyingTarget != null)
+        {
+            // T -> T?
+            if (sourceType == underlyingTarget)
+                return true;
+
+            // S -> T? where S -> T is an implicit numeric conversion
+            if (ImplicitConversions.TryGetValue(sourceType, out var nullableTargets) && nullableTargets.Contains(underlyingTarget))
+                return true;
+
+            // S? -> T? where S -> T is an implicit numeric conversion
+            var underlyingSource = Nullable.GetUnderlyingType(sourceType);
+            if (underlyingSource != null)
+            {
+                if (underlyingSource == underlyingTarget)
+                    return true;
+                if (ImplicitConversions.TryGetValue(underlyingSource, out var liftedTargets) && liftedTargets.Contains(underlyingTarget))
+                    return true;
+            }
+        }
+
+        // Reference type assignability
+        if (!targetType.IsValueType && targetType.IsAssignableFrom(sourceType))
+            return true;
+
+        // ECMA-334 §10.2.3: Implicit numeric conversions
+        if (ImplicitConversions.TryGetValue(sourceType, out var allowedTargets) && allowedTargets.Contains(targetType))
+            return true;
+
+        return false;
+    }
+
+    /// <summary>
+    /// Validates assignment and returns the coerced value, or throws if not implicitly convertible.
+    /// Assignment requires implicit convertibility.
+    /// </summary>
+    public static object? ValidateAssignment(Type targetType, object? value, string varName)
+    {
+        if (value == null)
+        {
+            if (targetType.IsValueType && Nullable.GetUnderlyingType(targetType) == null)
+                throw new CsEvalException($"Cannot assign null to non-nullable type '{targetType.Name}'");
+            return null;
+        }
+
+        var sourceType = value.GetType();
+
+        // Exact match
+        if (sourceType == targetType)
+            return value;
+
+        // Nullable type conversion (e.g., int to int?)
+        var underlyingTarget = Nullable.GetUnderlyingType(targetType);
+        if (underlyingTarget != null)
+        {
+            if (sourceType == underlyingTarget)
+                return value;
+            if (ImplicitConversions.TryGetValue(sourceType, out var nullableTargets) && nullableTargets.Contains(underlyingTarget))
+                return ConvertNumeric(value, sourceType, underlyingTarget);
+        }
+
+        // Reference type assignability (e.g., derived class to base class, array covariance)
+        if (!targetType.IsValueType && targetType.IsAssignableFrom(sourceType))
+            return value;
+
+        // Allow assigning any List<T> to List<object?> variables (common pattern: var x = []; x = [...x, item])
+        if (targetType == typeof(List<object?>) && sourceType.IsGenericType &&
+            sourceType.GetGenericTypeDefinition() == typeof(List<>))
+            return value;
+
+        // Implicit numeric conversions (widening)
+        if (ImplicitConversions.TryGetValue(sourceType, out var allowedTargets) && allowedTargets.Contains(targetType))
+            return ConvertNumeric(value, sourceType, targetType);
+
+        // Not implicitly convertible
+        throw new CsEvalException($"Cannot implicitly convert type '{sourceType.Name}' to '{targetType.Name}'");
+    }
+
+    internal static bool IsForbiddenReflectionType(Type? type)
+    {
+        if (type == null) return false;
+
+        if (typeof(Type).IsAssignableFrom(type))
+            return true;
+
+        if (typeof(MemberInfo).IsAssignableFrom(type))
+            return true;
+
+        if (typeof(Assembly).IsAssignableFrom(type))
+            return true;
+        if (typeof(Module).IsAssignableFrom(type))
+            return true;
+
+        if (type == typeof(RuntimeTypeHandle) ||
+            type == typeof(RuntimeMethodHandle) ||
+            type == typeof(RuntimeFieldHandle))
+            return true;
+
+        if (typeof(MethodBody).IsAssignableFrom(type))
+            return true;
+
+        if (type.Namespace is "System.Reflection.Emit")
+            return true;
+
+        if (type.IsPointer || type == typeof(IntPtr) || type == typeof(UIntPtr))
+            return true;
+
+        if (type.IsArray && IsForbiddenReflectionType(type.GetElementType()))
+            return true;
+
+        if (type.IsGenericType)
+        {
+            foreach (var arg in type.GetGenericArguments())
+            {
+                if (IsForbiddenReflectionType(arg))
+                    return true;
+            }
+        }
+
+        return false;
+    }
+
+    public static object? CheckSandboxType(object? value, SandboxOptions options)
+    {
+        if (value == null) return null;
+
+        var type = value.GetType();
+        if (IsForbiddenReflectionType(type))
+        {
+            throw new CsEvalException($"Access to reflection types is not allowed: {type.Name}");
+        }
+
+        return value;
+    }
+
+    internal static object? GuardReflectionLeak(object? value, string context)
+    {
+        if (value == null) return null;
+
+        var type = value.GetType();
+        if (IsForbiddenReflectionType(type))
+            throw new CsEvalException($"Access to reflection types is not allowed: {type.Name} ({context})");
+
+        return value;
+    }
+
+    internal static object? CoerceNumeric(object? arg, Type targetType)
+    {
+        if (arg == null) return null;
+        if (targetType.IsInstanceOfType(arg)) return arg;
+
+        if (arg is IConvertible)
+        {
+            try
+            {
+                var underlying = Nullable.GetUnderlyingType(targetType) ?? targetType;
+                return Convert.ChangeType(arg, underlying);
+            }
+            catch (Exception ex) when (ex is InvalidCastException or OverflowException or FormatException)
+            {
+                return arg;
+            }
+        }
+
+        return arg;
+    }
+}
