@@ -1,3 +1,5 @@
+using CsEval.TestData.Data;
+
 namespace CsEval.Test.Runtime;
 
 [TestFixture(CompilationMode.Interpreted)]
@@ -5,48 +7,15 @@ namespace CsEval.Test.Runtime;
 [TestFixture(CompilationMode.StrictCompiled)]
 public class CompoundAssignmentTests(CompilationMode mode)
 {
-    #region Basic Arithmetic
-
-    [TestCase("{ var x = 10; x += 5; return x; }", 15,
-        TestName = "CompoundAssignment_PlusEquals_Integer_WorksCorrectly")]
-    [TestCase("{ var x = 20; x -= 8; return x; }", 12,
-        TestName = "CompoundAssignment_MinusEquals_Integer_WorksCorrectly")]
-    [TestCase("{ var x = 6; x *= 7; return x; }", 42,
-        TestName = "CompoundAssignment_StarEquals_Integer_WorksCorrectly")]
-    [TestCase("{ var x = 100.0; x /= 4; return x; }", 25.0,
-        TestName = "CompoundAssignment_SlashEquals_Double_WorksCorrectly")]
-    [TestCase("{ var x = 17; x %= 5; return x; }", 2,
-        TestName = "CompoundAssignment_PercentEquals_Integer_WorksCorrectly")]
-    public async Task CompoundAssignment_BasicArithmetic(string expr, object expected)
+    [TestCaseSource(typeof(CompoundAssignmentData), nameof(CompoundAssignmentData.ValueCases))]
+    public async Task CompoundAssignment_Value(string expr, object? expected)
         => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
-    #endregion
-
-    #region Bitwise Operators
-
-    [TestCase("{ var x = 15; x &= 9; return x; }", 9,
-        TestName = "CompoundAssignment_AmpEquals_BitwiseAnd_WorksCorrectly")]
-    [TestCase("{ var x = 5; x |= 3; return x; }", 7,
-        TestName = "CompoundAssignment_PipeEquals_BitwiseOr_WorksCorrectly")]
-    [TestCase("{ var x = 12; x ^= 5; return x; }", 9,
-        TestName = "CompoundAssignment_CaretEquals_BitwiseXor_WorksCorrectly")]
-    [TestCase("{ var x = 1; x <<= 4; return x; }", 16,
-        TestName = "CompoundAssignment_LessLessEquals_LeftShift_WorksCorrectly")]
-    [TestCase("{ var x = 32; x >>= 2; return x; }", 8,
-        TestName = "CompoundAssignment_GreaterGreaterEquals_RightShift_WorksCorrectly")]
-    public async Task CompoundAssignment_Bitwise(string expr, object expected)
-        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
-
-    #endregion
-
-    #region Different Numeric Types
-
-    [TestCase("{ long x = 10000000000; x += 5000000000; return x; }",
-        TestName = "CompoundAssignment_Long_WorksCorrectly")]
-    [TestCase("{ decimal x = 100.50m; x -= 25.25m; return x; }",
-        TestName = "CompoundAssignment_Decimal_WorksCorrectly")]
-    public async Task CompoundAssignment_NumericTypes(string expr)
+    [TestCaseSource(typeof(CompoundAssignmentData), nameof(CompoundAssignmentData.ParityCases))]
+    public async Task CompoundAssignment_Parity(string expr)
         => await TestHelpers.RunCSharpParityTestAsync(expr, mode);
+
+    #region Float (Inline -- tolerance assertion)
 
     [Test]
     public async Task CompoundAssignment_Float_WorksCorrectly()
@@ -60,6 +29,10 @@ public class CompoundAssignmentTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(6.0f).Within(0.001f));
         Assert.That(result?.GetType(), Is.EqualTo(csharpResult?.GetType()));
     }
+
+    #endregion
+
+    #region Type Error (Inline -- error assertion)
 
     [Test]
     public void CompoundAssignment_IntPlusDouble_Throws()
@@ -75,59 +48,8 @@ public class CompoundAssignmentTests(CompilationMode mode)
 
     #endregion
 
-    #region String Concatenation
+    #region ForEach (Inline -- CsEval-specific syntax)
 
-    [TestCase("{ var s = \"Hello\"; s += \" World\"; return s; }", "Hello World",
-        TestName = "CompoundAssignment_StringPlusEquals_Concatenates")]
-    [TestCase("{ var s = \"A\"; s += \"B\"; s += \"C\"; s += \"D\"; return s; }", "ABCD",
-        TestName = "CompoundAssignment_StringPlusEquals_Multiple")]
-    [TestCase("{ var s = \"Count: \"; s += 42; return s; }", "Count: 42",
-        TestName = "CompoundAssignment_StringPlusEquals_WithNumber")]
-    public async Task CompoundAssignment_StringConcat(string expr, object expected)
-        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
-
-    #endregion
-
-    #region In Loops
-
-    [TestCase("""
-        {
-            var sum = 0;
-            var i = 1;
-            while (i <= 5) {
-                sum += i;
-                i += 1;
-            }
-            return sum;
-        }
-        """, 15,
-        TestName = "CompoundAssignment_InWhileLoop_Accumulates")]
-    [TestCase("""
-        {
-            var product = 1;
-            for (var i = 1; i <= 5; i += 1) {
-                product *= i;
-            }
-            return product;
-        }
-        """, 120,
-        TestName = "CompoundAssignment_InForLoop_Accumulates")]
-    [TestCase("""
-        {
-            var sum = 0;
-            var i = 1;
-            do {
-                sum += i;
-                i += 1;
-            } while (i <= 3);
-            return sum;
-        }
-        """, 6,
-        TestName = "CompoundAssignment_InDoWhileLoop_Accumulates")]
-    public async Task CompoundAssignment_InLoops(string expr, object expected)
-        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
-
-    // ForEach with collection expression -- engine-only (CsEval-specific [1,2,3] syntax)
     [Test]
     public void CompoundAssignment_InForEachLoop_Accumulates()
     {
@@ -146,27 +68,7 @@ public class CompoundAssignmentTests(CompilationMode mode)
 
     #endregion
 
-    #region With Expressions
-
-    [TestCase("""
-        {
-            var x = 10;
-            var y = 5;
-            x += y * 2;
-            return x;
-        }
-        """, 20,
-        TestName = "CompoundAssignment_WithExpressionRHS_WorksCorrectly")]
-    [TestCase("""
-        {
-            var x = 10.0;
-            x += Math.Abs(-5);
-            return x;
-        }
-        """, 15.0,
-        TestName = "CompoundAssignment_WithMethodCallRHS_WorksCorrectly")]
-    public async Task CompoundAssignment_WithExpressions(string expr, object expected)
-        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
+    #region With Expressions (Inline -- single-test methods)
 
     [Test]
     public async Task CompoundAssignment_WithTernaryRHS_WorksCorrectly()
@@ -191,42 +93,7 @@ public class CompoundAssignmentTests(CompilationMode mode)
 
     #endregion
 
-    #region Chained Operations
-
-    [TestCase("""
-        {
-            var x = 100.0;
-            x += 50;
-            x -= 25;
-            x *= 2;
-            x /= 4;
-            return x;
-        }
-        """,
-        TestName = "CompoundAssignment_MultipleOnSameVariable_WorksCorrectly")]
-    public async Task CompoundAssignment_MultipleOnSameVariable(string expr)
-        => await TestHelpers.RunCSharpParityTestAsync(expr, mode);
-
-    [TestCase("{ var x = 5; var y = x += 10; return y; }", 15,
-        TestName = "CompoundAssignment_ReturnsNewValue")]
-    [TestCase("""
-        {
-            var a = 10;
-            var b = 20;
-            var c = 30;
-            a += 1;
-            b += 2;
-            c += 3;
-            return a + b + c;
-        }
-        """, 66,
-        TestName = "CompoundAssignment_MultipleVariables_Independent")]
-    public async Task CompoundAssignment_Chained(string expr, object expected)
-        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
-
-    #endregion
-
-    #region External Variables
+    #region External Variables (Inline -- SetVariable)
 
     [Test]
     public async Task CompoundAssignment_ExternalVariable_Updates()
@@ -250,35 +117,6 @@ public class CompoundAssignmentTests(CompilationMode mode)
             """, variables, 210L, mode);
     }
 
-    #endregion
-
-    #region In Conditionals
-
-    [TestCase("""
-        {
-            var x = 10;
-            if (true) {
-                x += 5;
-            }
-            return x;
-        }
-        """, 15,
-        TestName = "CompoundAssignment_InsideIfBlock_WorksCorrectly")]
-    [TestCase("""
-        {
-            var x = 10;
-            if (false) {
-                x += 100;
-            } else {
-                x += 5;
-            }
-            return x;
-        }
-        """, 15,
-        TestName = "CompoundAssignment_InsideElseBlock_WorksCorrectly")]
-    public async Task CompoundAssignment_InConditionals(string expr, object expected)
-        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
-
     [Test]
     public async Task CompoundAssignment_ConditionalPathSelection()
     {
@@ -298,7 +136,7 @@ public class CompoundAssignmentTests(CompilationMode mode)
 
     #endregion
 
-    #region Error Cases
+    #region Error Cases (Inline -- exception assertions)
 
     [Test]
     public void CompoundAssignment_UndefinedVariable_ThrowsException()
@@ -357,48 +195,7 @@ public class CompoundAssignmentTests(CompilationMode mode)
 
     #endregion
 
-    #region All Operators Comprehensive
-
-    [TestCase("""
-        {
-            var x = 100.0;
-            x += 50;
-            var afterPlus = x;
-            x -= 25;
-            var afterMinus = x;
-            x *= 2;
-            var afterMult = x;
-            x /= 5;
-            var afterDiv = x;
-            x = 17;
-            x %= 5;
-            var afterMod = x;
-            return afterPlus + afterMinus + afterMult + afterDiv + afterMod;
-        }
-        """,
-        TestName = "CompoundAssignment_AllArithmeticOperators_WorkCorrectly")]
-    [TestCase("""
-        {
-            var andResult = 15;
-            andResult &= 9;
-            var orResult = 5;
-            orResult |= 3;
-            var xorResult = 12;
-            xorResult ^= 5;
-            var leftShift = 1;
-            leftShift <<= 4;
-            var rightShift = 32;
-            rightShift >>= 2;
-            return andResult + orResult + xorResult + leftShift + rightShift;
-        }
-        """,
-        TestName = "CompoundAssignment_AllBitwiseOperators_WorkCorrectly")]
-    public async Task CompoundAssignment_AllOperators(string expr)
-        => await TestHelpers.RunCSharpParityTestAsync(expr, mode);
-
-    #endregion
-
-    #region Pre-Parsed
+    #region Pre-Parsed (Inline -- engine reuse)
 
     [Test]
     public void CompoundAssignment_PreParsed_CanBeReused()
@@ -421,37 +218,6 @@ public class CompoundAssignmentTests(CompilationMode mode)
         var result2 = engine.Evaluate(expr);
         Assert.That(result2, Is.EqualTo(150L));
     }
-
-    #endregion
-
-    #region Edge Cases
-
-    [TestCase("{ var x = 0; x += 0; x -= 0; x *= 0; return x; }", 0,
-        TestName = "CompoundAssignment_ZeroValue_WorksCorrectly")]
-    [TestCase("{ var x = -10; x += -5; return x; }", -15,
-        TestName = "CompoundAssignment_NegativeNumbers_WorksCorrectly")]
-    public async Task CompoundAssignment_EdgeCases(string expr, object expected)
-        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
-
-    [TestCase("{ var x = 9000000000000000000L; x += 1; return x; }",
-        TestName = "CompoundAssignment_VeryLargeNumbers_WorksCorrectly")]
-    public async Task CompoundAssignment_LargeNumbers(string expr)
-        => await TestHelpers.RunCSharpParityTestAsync(expr, mode);
-
-    [TestCase("""
-        {
-            var x = 255;
-            x <<= 0;
-            var noShift = x;
-            x = 1;
-            x <<= 63;
-            var maxShift = x;
-            return noShift;
-        }
-        """, 255,
-        TestName = "CompoundAssignment_ShiftOperations_EdgeCases")]
-    public async Task CompoundAssignment_ShiftEdgeCases(string expr, object expected)
-        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
     #endregion
 }
