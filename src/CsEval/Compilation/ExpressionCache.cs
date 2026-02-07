@@ -29,25 +29,28 @@ internal sealed class ExpressionCache
 }
 
 /// <summary>
-/// Compiles CsEval AST nodes to native IL using DynamicMethod.
-/// Provides significant performance improvements over tree-walking interpretation,
-/// especially for loops and control flow (uses IL branches instead of exceptions).
-/// Thread-safe with instance-based caching.
+/// Default expression compiler using System.Linq.Expressions.
+/// Implements IExpressionCompiler for pluggable compiler backend support.
 /// </summary>
-internal static class ExpressionCompiler
+internal sealed class ExpressionCompiler : IExpressionCompiler
 {
+    /// <summary>
+    /// Singleton instance for the default compiler.
+    /// </summary>
+    internal static readonly ExpressionCompiler Default = new();
+
     /// <summary>
     /// Get or create compiled delegate for an expression string.
     /// </summary>
-    public static CompiledExpressionInfo GetOrCompile(string expressionText, Expr ast, ExpressionCache cache)
+    public static CompiledExpressionInfo GetOrCompile(string expressionText, Expr ast, ExpressionCache cache, IExpressionCompiler? compiler = null)
     {
-        return cache.GetOrAdd(expressionText, _ => TryCompile(ast));
+        return cache.GetOrAdd(expressionText, _ => (compiler ?? Default).TryCompile(ast));
     }
 
     /// <summary>
     /// Attempt to compile an AST to a native IL delegate.
     /// </summary>
-    public static CompiledExpressionInfo TryCompile(Expr ast)
+    public CompiledExpressionInfo TryCompile(Expr ast)
     {
         try
         {

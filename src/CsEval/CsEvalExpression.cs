@@ -20,16 +20,18 @@ public sealed class CsEvalExpression
     // Compilation state (volatile for thread-safe reads)
     private volatile CompiledExpressionInfo? _compiledInfo;
     private readonly ExpressionCache? _expressionCache;
+    private readonly IExpressionCompiler? _compiler;
 
-    internal CsEvalExpression(string expression, Expr ast) : this(expression, ast, null)
+    internal CsEvalExpression(string expression, Expr ast) : this(expression, ast, null, null)
     {
     }
 
-    internal CsEvalExpression(string expression, Expr ast, ExpressionCache? expressionCache)
+    internal CsEvalExpression(string expression, Expr ast, ExpressionCache? expressionCache, IExpressionCompiler? compiler = null)
     {
         Expression = expression;
         Ast = ast;
         _expressionCache = expressionCache;
+        _compiler = compiler;
     }
 
     /// <summary>
@@ -56,9 +58,9 @@ public sealed class CsEvalExpression
         if (_compiledInfo != null)
             return _compiledInfo.Delegate != null;
 
-        var info = _expressionCache != null ? 
-            ExpressionCompiler.GetOrCompile(Expression, Ast, _expressionCache) : 
-            ExpressionCompiler.TryCompile(Ast);
+        var info = _expressionCache != null ?
+            ExpressionCompiler.GetOrCompile(Expression, Ast, _expressionCache, _compiler) :
+            (_compiler ?? ExpressionCompiler.Default).TryCompile(Ast);
 
         _compiledInfo = info;
         return info.Delegate != null;
@@ -100,7 +102,7 @@ public delegate object? CompiledExpression(
 /// <param name="Delegate">The compiled delegate, or null if compilation failed.</param>
 /// <param name="IsCompilable">Whether the expression can be compiled.</param>
 /// <param name="FailureReason">The reason compilation failed, or null if it succeeded.</param>
-internal record CompiledExpressionInfo(
+public record CompiledExpressionInfo(
     CompiledExpression? Delegate,
     bool IsCompilable,
     string? FailureReason);

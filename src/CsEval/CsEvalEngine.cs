@@ -16,6 +16,7 @@ public sealed class CsEvalEngine
     private readonly TypeCache _typeCache;
     private readonly ExpressionCache _expressionCache;
     private readonly Dictionary<string, object?> _pendingVariables;
+    private readonly IExpressionCompiler? _compiler;
 
     private CsEvalConfig? _frozenConfig;
     private CsEvalContext? _context;
@@ -26,9 +27,10 @@ public sealed class CsEvalEngine
     {
     }
 
-    public CsEvalEngine(CsEvalOptions options)
+    public CsEvalEngine(CsEvalOptions options, IExpressionCompiler? compiler = null)
     {
         _options = options;
+        _compiler = compiler;
         _typeCache = new TypeCache();
         _expressionCache = new ExpressionCache();
         _functions = new Dictionary<string, Func<object?[], object?>>(options.StringComparer);
@@ -41,11 +43,13 @@ public sealed class CsEvalEngine
         CsEvalConfig frozenConfig,
         CsEvalContext parentContext,
         CsEvalOptions options,
-        ExpressionCache expressionCache)
+        ExpressionCache expressionCache,
+        IExpressionCompiler? compiler)
     {
         _frozenConfig = frozenConfig;
         _context = parentContext.CreateChild();
         _options = options;
+        _compiler = compiler;
         _typeCache = frozenConfig.TypeCache;
         _expressionCache = expressionCache;
         _functions = new Dictionary<string, Func<object?[], object?>>(frozenConfig.Functions, options.StringComparer);
@@ -104,7 +108,7 @@ public sealed class CsEvalEngine
         var parser = ExpressionParser.CreateForSubExpression(tokens);
         var ast = parser.Parse();
 
-        return new CsEvalExpression(expression, ast, _expressionCache);
+        return new CsEvalExpression(expression, ast, _expressionCache, _compiler);
     }
 
     public bool TryParse(string expression, out CsEvalExpression? result, out string? error)
@@ -182,7 +186,7 @@ public sealed class CsEvalEngine
     {
         var config = GetOrCreateConfig();
         var parentContext = GetOrCreateContext(null);
-        return new CsEvalEngine(config, parentContext, _options, _expressionCache);
+        return new CsEvalEngine(config, parentContext, _options, _expressionCache, _compiler);
     }
 
     public object? Evaluate(string expression, IDictionary<string, object?> variables, IServiceProvider? serviceProvider = null)
