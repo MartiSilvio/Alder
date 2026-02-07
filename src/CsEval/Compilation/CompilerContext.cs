@@ -239,6 +239,8 @@ internal sealed class CompilerContext
                 VariableDeclExpr v => exprUnit.CompileVariableDecl(v),
                 AssignExpr a => exprUnit.CompileAssign(a),
                 CompoundAssignExpr ca => exprUnit.CompileCompoundAssign(ca),
+                MemberCompoundAssignExpr mca => exprUnit.CompileMemberCompoundAssign(mca),
+                IndexCompoundAssignExpr ica => exprUnit.CompileIndexCompoundAssign(ica),
                 IndexAssignExpr ia => exprUnit.CompileIndexAssign(ia),
                 IncrementDecrementExpr inc => exprUnit.CompileIncrementDecrement(inc),
                 CallExpr call => exprUnit.CompileCall(call),
@@ -436,6 +438,23 @@ internal sealed class CompilerContext
 
                 case CompoundAssignExpr ca:
                     return $"Unsupported compound operator '{ca.Op.Lexeme}'";
+
+                case MemberCompoundAssignExpr mca when IsCompilableCompoundOp(mca.Operator):
+                    stack.Push(mca.Object);
+                    stack.Push(mca.Value);
+                    break;
+
+                case MemberCompoundAssignExpr:
+                    return "Unsupported compound operator on member access";
+
+                case IndexCompoundAssignExpr ica when IsCompilableCompoundOp(ica.Operator):
+                    stack.Push(ica.Object);
+                    stack.Push(ica.Index);
+                    stack.Push(ica.Value);
+                    break;
+
+                case IndexCompoundAssignExpr:
+                    return "Unsupported compound operator on index access";
 
                 case IndexAssignExpr ia:
                     stack.Push(ia.Object);

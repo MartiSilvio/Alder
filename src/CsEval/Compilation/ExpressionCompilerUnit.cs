@@ -81,7 +81,7 @@ internal sealed class ExpressionCompilerUnit
 
     /// <summary>
     /// Compiles parameterless throw; (rethrow) using the Expression Trees rethrow instruction.
-    /// ECMA-334 section 13.10.6 -- only valid inside a catch block body.
+    /// ECMA-334 §13.10.6 -- only valid inside a catch block body.
     /// </summary>
     internal static LinqExpression CompileThrowStatement()
     {
@@ -194,7 +194,7 @@ internal sealed class ExpressionCompilerUnit
         var left = Compile(b.Left);
         var right = Compile(b.Right);
 
-        // ECMA-334 section 10.2.11: Implicit constant expression conversions.
+        // ECMA-334 §10.2.11: Implicit constant expression conversions.
         ApplyConstantPromotion(b, ref left, ref right);
 
         var opInfo = OperatorRegistry.GetBinaryOperator(b.Op.Type);
@@ -215,7 +215,7 @@ internal sealed class ExpressionCompilerUnit
     }
 
     /// <summary>
-    /// ECMA-334 section 10.2.11: At IL-compile time, pre-promote constant literal operands.
+    /// ECMA-334 §10.2.11: At IL-compile time, pre-promote constant literal operands.
     /// Since literal values are known at compile time, we can replace the compiled
     /// LinqExpression.Constant with a promoted-type constant (e.g., int 3 -> uint 3).
     /// </summary>
@@ -276,7 +276,7 @@ internal sealed class ExpressionCompilerUnit
         var thenBranch = Compile(c.ThenBranch);
         var elseBranch = Compile(c.ElseBranch);
 
-        // Get static types for promotion check (ECMA-334 section 12.18)
+        // Get static types for promotion check (ECMA-334 §12.18)
         var thenType = _ctx.TypeInferrer.Infer(c.ThenBranch);
         var elseType = _ctx.TypeInferrer.Infer(c.ElseBranch);
 
@@ -432,6 +432,105 @@ internal sealed class ExpressionCompilerUnit
             LinqExpression.Assign(temp, validateCall),
             LinqExpression.Call(_ctx.CurrentContext, CompilerContext.SetMethod,
                 LinqExpression.Constant(name), temp),
+            temp);
+    }
+
+    internal LinqExpression CompileMemberCompoundAssign(MemberCompoundAssignExpr expr)
+    {
+        var objExpr = Compile(expr.Object);
+        var rightValueExpr = Compile(expr.Value);
+        var objTemp = LinqExpression.Variable(typeof(object), "obj");
+        var rightTemp = LinqExpression.Variable(typeof(object), "rightTemp");
+        var temp = LinqExpression.Variable(typeof(object), "temp");
+
+        // Get current value via MemberAccess.GetMember
+        var currentValue = LinqExpression.Call(
+            CompilerContext.GetMemberMethod,
+            objTemp,
+            LinqExpression.Constant(expr.MemberName),
+            _ctx.OptionsParam,
+            LinqExpression.Constant(false),
+            _ctx.CurrentContext);
+
+        // Map compound op to base binary op
+        if (!OperatorRegistry.CompoundToBaseOperator.TryGetValue(expr.Operator, out var baseOp))
+            throw new NotSupportedException($"Compound operator {expr.Operator}");
+
+        var opInfo = OperatorRegistry.GetBinaryOperator(baseOp);
+        if (opInfo == null)
+            throw new NotSupportedException($"Binary operator for compound {expr.Operator}");
+
+        var info = opInfo.Value;
+        LinqExpression opCall = info.Signature switch
+        {
+            OperatorRegistry.BinaryOpSignature.TwoArgs =>
+                LinqExpression.Call(info.Method, currentValue, rightTemp),
+            OperatorRegistry.BinaryOpSignature.WithOptions =>
+                LinqExpression.Call(info.Method, currentValue, rightTemp, _ctx.OptionsParam),
+            OperatorRegistry.BinaryOpSignature.WithOptionsAndContext =>
+                LinqExpression.Call(info.Method, currentValue, rightTemp, _ctx.OptionsParam, _ctx.CurrentContext),
+            _ => throw new NotSupportedException($"Unknown binary op signature {info.Signature}")
+        };
+
+        // Set via MemberAccess.SetMember
+        var setCall = LinqExpression.Call(CompilerContext.SetMemberMethod,
+            objTemp, LinqExpression.Constant(expr.MemberName), temp, _ctx.OptionsParam, _ctx.CurrentContext);
+
+        return LinqExpression.Block(
+            new[] { objTemp, rightTemp, temp },
+            LinqExpression.Assign(objTemp, objExpr),
+            LinqExpression.Assign(rightTemp, rightValueExpr),
+            LinqExpression.Assign(temp, opCall),
+            setCall,
+            temp);
+    }
+
+    internal LinqExpression CompileIndexCompoundAssign(IndexCompoundAssignExpr expr)
+    {
+        var objExpr = Compile(expr.Object);
+        var indexExpr = Compile(expr.Index);
+        var rightValueExpr = Compile(expr.Value);
+        var objTemp = LinqExpression.Variable(typeof(object), "obj");
+        var indexTemp = LinqExpression.Variable(typeof(object), "idx");
+        var rightTemp = LinqExpression.Variable(typeof(object), "rightTemp");
+        var temp = LinqExpression.Variable(typeof(object), "temp");
+
+        // Get current value via MemberAccess.GetIndex
+        var currentValue = LinqExpression.Call(
+            CompilerContext.GetIndexMethod,
+            objTemp, indexTemp, _ctx.OptionsParam);
+
+        // Map compound op to base binary op
+        if (!OperatorRegistry.CompoundToBaseOperator.TryGetValue(expr.Operator, out var baseOp))
+            throw new NotSupportedException($"Compound operator {expr.Operator}");
+
+        var opInfo = OperatorRegistry.GetBinaryOperator(baseOp);
+        if (opInfo == null)
+            throw new NotSupportedException($"Binary operator for compound {expr.Operator}");
+
+        var info = opInfo.Value;
+        LinqExpression opCall = info.Signature switch
+        {
+            OperatorRegistry.BinaryOpSignature.TwoArgs =>
+                LinqExpression.Call(info.Method, currentValue, rightTemp),
+            OperatorRegistry.BinaryOpSignature.WithOptions =>
+                LinqExpression.Call(info.Method, currentValue, rightTemp, _ctx.OptionsParam),
+            OperatorRegistry.BinaryOpSignature.WithOptionsAndContext =>
+                LinqExpression.Call(info.Method, currentValue, rightTemp, _ctx.OptionsParam, _ctx.CurrentContext),
+            _ => throw new NotSupportedException($"Unknown binary op signature {info.Signature}")
+        };
+
+        // Set via MemberAccess.SetIndex
+        var setCall = LinqExpression.Call(CompilerContext.SetIndexMethod,
+            objTemp, indexTemp, temp);
+
+        return LinqExpression.Block(
+            new[] { objTemp, indexTemp, rightTemp, temp },
+            LinqExpression.Assign(objTemp, objExpr),
+            LinqExpression.Assign(indexTemp, indexExpr),
+            LinqExpression.Assign(rightTemp, rightValueExpr),
+            LinqExpression.Assign(temp, opCall),
+            setCall,
             temp);
     }
 

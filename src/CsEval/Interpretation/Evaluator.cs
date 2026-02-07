@@ -444,12 +444,45 @@ public sealed class Evaluator : IExprVisitor<object?>
 
     public object? VisitMemberCompoundAssign(MemberCompoundAssignExpr expr)
     {
-        throw new NotImplementedException("MemberCompoundAssign not yet implemented");
+        var obj = Evaluate(expr.Object);
+
+        if (obj == null)
+            throw new CsEvalException($"Cannot access property '{expr.MemberName}' on null");
+
+        var currentValue = GetMember(obj, expr.MemberName);
+        var rightValue = Evaluate(expr.Value);
+
+        if (!CompoundToBaseOperator.TryGetValue(expr.Operator, out var baseOp))
+            throw new CsEvalException($"Unknown compound assignment operator");
+
+        if (!BinaryOperators.TryGetValue(baseOp, out var op))
+            throw new CsEvalException($"Unknown base operator for compound assignment");
+
+        var result = op(this, currentValue, rightValue);
+        SetMember(obj, expr.MemberName, result);
+        return result;
     }
 
     public object? VisitIndexCompoundAssign(IndexCompoundAssignExpr expr)
     {
-        throw new NotImplementedException("IndexCompoundAssign not yet implemented");
+        var obj = Evaluate(expr.Object);
+
+        if (obj == null)
+            throw new CsEvalException("Cannot index null");
+
+        var index = Evaluate(expr.Index);
+        var currentValue = GetIndex(obj, index);
+        var rightValue = Evaluate(expr.Value);
+
+        if (!CompoundToBaseOperator.TryGetValue(expr.Operator, out var baseOp))
+            throw new CsEvalException($"Unknown compound assignment operator");
+
+        if (!BinaryOperators.TryGetValue(baseOp, out var op))
+            throw new CsEvalException($"Unknown base operator for compound assignment");
+
+        var result = op(this, currentValue, rightValue);
+        SetIndex(obj, index, result);
+        return result;
     }
 
     public object? VisitIncrementDecrement(IncrementDecrementExpr expr)
