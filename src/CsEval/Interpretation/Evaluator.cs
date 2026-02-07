@@ -634,7 +634,18 @@ public sealed class Evaluator : IExprVisitor<object?>
                     break;
                 case ExpressionPart exprPart:
                     var value = Evaluate(exprPart.Expression);
-                    sb.Append(value?.ToString() ?? "");
+                    if (exprPart.AlignmentSpecifier != null || exprPart.FormatSpecifier != null)
+                    {
+                        var formatStr = "{0";
+                        if (exprPart.AlignmentSpecifier != null) formatStr += "," + exprPart.AlignmentSpecifier;
+                        if (exprPart.FormatSpecifier != null) formatStr += ":" + exprPart.FormatSpecifier;
+                        formatStr += "}";
+                        sb.Append(string.Format(formatStr, value));
+                    }
+                    else
+                    {
+                        sb.Append(value?.ToString() ?? "");
+                    }
                     break;
             }
         }

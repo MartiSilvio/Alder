@@ -936,11 +936,27 @@ internal sealed class ExpressionCompilerUnit
                     break;
                 case ExpressionPart exprPart:
                     var value = Compile(exprPart.Expression);
-                    var valueAsString = LinqExpression.Condition(
-                        LinqExpression.Equal(value, LinqExpression.Constant(null, typeof(object))),
-                        LinqExpression.Constant(""),
-                        LinqExpression.Call(value, CompilerContext.ObjectToStringMethod));
-                    statements.Add(LinqExpression.Call(sbVar, CompilerContext.StringBuilderAppendMethod, valueAsString));
+                    if (exprPart.AlignmentSpecifier != null || exprPart.FormatSpecifier != null)
+                    {
+                        // Build format string like "{0,10:F2}" and call string.Format
+                        var formatStr = "{0";
+                        if (exprPart.AlignmentSpecifier != null) formatStr += "," + exprPart.AlignmentSpecifier;
+                        if (exprPart.FormatSpecifier != null) formatStr += ":" + exprPart.FormatSpecifier;
+                        formatStr += "}";
+                        var formatted = LinqExpression.Call(
+                            CompilerContext.StringFormatMethod,
+                            LinqExpression.Constant(formatStr),
+                            value);
+                        statements.Add(LinqExpression.Call(sbVar, CompilerContext.StringBuilderAppendMethod, formatted));
+                    }
+                    else
+                    {
+                        var valueAsString = LinqExpression.Condition(
+                            LinqExpression.Equal(value, LinqExpression.Constant(null, typeof(object))),
+                            LinqExpression.Constant(""),
+                            LinqExpression.Call(value, CompilerContext.ObjectToStringMethod));
+                        statements.Add(LinqExpression.Call(sbVar, CompilerContext.StringBuilderAppendMethod, valueAsString));
+                    }
                     break;
             }
         }

@@ -114,6 +114,8 @@ internal sealed class CompilerContext
         ])!;
     internal static readonly MethodInfo GetLambdaArgMethod =
         typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.GetLambdaArg))!;
+    internal static readonly MethodInfo StringFormatMethod =
+        typeof(string).GetMethod(nameof(string.Format), [typeof(string), typeof(object)])!;
 
     #endregion
 
