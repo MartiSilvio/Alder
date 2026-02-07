@@ -116,6 +116,16 @@ public static class MemberAccess
                 TypeHelpers.CheckSandboxType(val, options.Sandbox);
                 return val;
             }
+            case string s when index != null:
+            {
+                var i = Convert.ToInt32(index);
+                if (i < 0 || i >= s.Length)
+                    throw new ArgumentOutOfRangeException("index", i,
+                        "Index was out of range. Must be non-negative and less than the size of the collection.");
+                var val = (object)s[i]; // Returns boxed char
+                TypeHelpers.CheckSandboxType(val, options.Sandbox);
+                return val;
+            }
             case IList list when index is int i:
             {
                 if (i < 0 || i >= list.Count) throw new ArgumentOutOfRangeException("index", i, "Index was out of range. Must be non-negative and less than the size of the collection.");

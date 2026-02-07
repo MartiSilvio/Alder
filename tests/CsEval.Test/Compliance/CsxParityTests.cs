@@ -28,13 +28,13 @@ public class CsxParityTests(CompilationMode mode)
     [TestCase("Algorithms/gaussian-elimination.csx", TestName = "GaussianElimination", Ignore = "Gap: explicit cast (int)doubleValue via object unboxing")]
     [TestCase("Algorithms/mandelbrot-ascii.csx", TestName = "MandelbrotAscii", Ignore = "Gap: indexed increment (arr[i]++)")]
     [TestCase("Algorithms/knapsack-01.csx", TestName = "Knapsack01")]
-    [TestCase("Algorithms/levenshtein-distance.csx", TestName = "LevenshteinDistance", Ignore = "Gap: string indexing")]
+    [TestCase("Algorithms/levenshtein-distance.csx", TestName = "LevenshteinDistance")]
     [TestCase("Algorithms/topological-sort.csx", TestName = "TopologicalSort", Ignore = "Gap: indexed increment (arr[i]++)")]
-    [TestCase("Algorithms/lcs-dp.csx", TestName = "LcsDp", Ignore = "Gap: string indexing")]
+    [TestCase("Algorithms/lcs-dp.csx", TestName = "LcsDp")]
     [TestCase("Algorithms/numerical-integration.csx", TestName = "NumericalIntegration", Ignore = "Gap: typed lambda parameters, Func<> type annotations")]
-    [TestCase("Algorithms/state-machine.csx", TestName = "StateMachine", Ignore = "Gap: string indexing")]
-    [TestCase("Algorithms/run-length-encoding.csx", TestName = "RunLengthEncoding", Ignore = "Gap: string indexing")]
-    [TestCase("Algorithms/expression-evaluator.csx", TestName = "ExpressionEvaluator", Ignore = "Gap: string indexing")]
+    [TestCase("Algorithms/state-machine.csx", TestName = "StateMachine")]
+    [TestCase("Algorithms/run-length-encoding.csx", TestName = "RunLengthEncoding")]
+    [TestCase("Algorithms/expression-evaluator.csx", TestName = "ExpressionEvaluator")]
     [TestCase("Algorithms/huffman-frequency.csx", TestName = "HuffmanFrequency", Ignore = "Gap: char array literals")]
     public async Task RunCsxParityTest(string path)
     {

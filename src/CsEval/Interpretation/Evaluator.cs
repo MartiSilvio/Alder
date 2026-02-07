@@ -1190,6 +1190,15 @@ public sealed class Evaluator : IExprVisitor<object?>
             return null;
         }
 
+        if (obj is string str && index != null)
+        {
+            var idx = Convert.ToInt32(index);
+            if (idx < 0 || idx >= str.Length)
+                throw new ArgumentOutOfRangeException("index", idx,
+                    "Index was out of range. Must be non-negative and less than the size of the collection.");
+            return (object)str[idx]; // Returns boxed char
+        }
+
         if (obj is IList list && index != null)
         {
             var idx = Convert.ToInt32(index);
