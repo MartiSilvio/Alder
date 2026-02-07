@@ -243,6 +243,8 @@ internal sealed class CompilerContext
                 IndexCompoundAssignExpr ica => exprUnit.CompileIndexCompoundAssign(ica),
                 IndexAssignExpr ia => exprUnit.CompileIndexAssign(ia),
                 IncrementDecrementExpr inc => exprUnit.CompileIncrementDecrement(inc),
+                MemberIncrementExpr mi => exprUnit.CompileMemberIncrement(mi),
+                IndexIncrementExpr ii => exprUnit.CompileIndexIncrement(ii),
                 CallExpr call => exprUnit.CompileCall(call),
                 LambdaExpr lambda => exprUnit.CompileLambda(lambda),
                 ArrayLiteralExpr arr => exprUnit.CompileArrayLiteral(arr),
@@ -308,6 +310,15 @@ internal sealed class CompilerContext
                 case NameofExpr:
                 case TypeofExpr:
                     // These are always compilable, no children to check
+                    break;
+
+                case MemberIncrementExpr mi:
+                    stack.Push(mi.Object);
+                    break;
+
+                case IndexIncrementExpr ii:
+                    stack.Push(ii.Object);
+                    stack.Push(ii.Index);
                     break;
 
                 case ObjectCreationExpr oc:

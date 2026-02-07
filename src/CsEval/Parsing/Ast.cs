@@ -34,6 +34,8 @@ public interface IExprVisitor<out T>
     T VisitMemberCompoundAssign(MemberCompoundAssignExpr expr);
     T VisitIndexCompoundAssign(IndexCompoundAssignExpr expr);
     T VisitIncrementDecrement(IncrementDecrementExpr expr);
+    T VisitMemberIncrement(MemberIncrementExpr expr);
+    T VisitIndexIncrement(IndexIncrementExpr expr);
     T VisitIndexAssign(IndexAssignExpr expr);
     T VisitMemberAssign(MemberAssignExpr expr);
 
@@ -219,6 +221,18 @@ public sealed record IndexCompoundAssignExpr(Expr Object, Expr Index, TokenType 
 public sealed record IncrementDecrementExpr(Token Name, Token Op, bool IsPrefix) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitIncrementDecrement(this);
+}
+
+// ECMA-334 §12.8.15/§12.9.6 - Increment/decrement on member access: obj.Count++, ++obj.Count
+public sealed record MemberIncrementExpr(Expr Object, string MemberName, bool IsPrefix, bool IsIncrement) : Expr
+{
+    public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitMemberIncrement(this);
+}
+
+// ECMA-334 §12.8.15/§12.9.6 - Increment/decrement on index access: arr[i]++, ++arr[i]
+public sealed record IndexIncrementExpr(Expr Object, Expr Index, bool IsPrefix, bool IsIncrement) : Expr
+{
+    public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitIndexIncrement(this);
 }
 
 // Index assignment: arr[0] = value, dict["key"] = value

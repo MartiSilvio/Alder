@@ -518,6 +518,75 @@ public sealed class Evaluator : IExprVisitor<object?>
         return expr.IsPrefix ? newValue : currentValue;
     }
 
+    public object? VisitMemberIncrement(MemberIncrementExpr expr)
+    {
+        var obj = Evaluate(expr.Object);
+
+        if (obj == null)
+            throw new CsEvalException($"Cannot access property '{expr.MemberName}' on null");
+
+        var currentValue = GetMember(obj, expr.MemberName);
+
+        object one = currentValue switch
+        {
+            int => 1,
+            long => 1L,
+            double => 1.0,
+            float => 1.0f,
+            decimal => 1m,
+            short => 1,
+            byte => 1,
+            sbyte => 1,
+            ushort => 1,
+            uint => 1u,
+            ulong => 1ul,
+            _ => 1
+        };
+
+        var newValue = expr.IsIncrement
+            ? Operators.Add(currentValue, one, _options, _context)
+            : Operators.Subtract(currentValue, one);
+
+        SetMember(obj, expr.MemberName, newValue);
+
+        return expr.IsPrefix ? newValue : currentValue;
+    }
+
+    public object? VisitIndexIncrement(IndexIncrementExpr expr)
+    {
+        var obj = Evaluate(expr.Object);
+
+        if (obj == null)
+            throw new CsEvalException("Cannot index null");
+
+        var index = Evaluate(expr.Index);
+        var currentValue = GetIndex(obj, index);
+
+        object one = currentValue switch
+        {
+            int => 1,
+            long => 1L,
+            double => 1.0,
+            float => 1.0f,
+            decimal => 1m,
+            short => 1,
+            byte => 1,
+            sbyte => 1,
+            ushort => 1,
+            uint => 1u,
+            ulong => 1ul,
+            _ => 1
+        };
+
+        var newValue = expr.IsIncrement
+            ? Operators.Add(currentValue, one, _options, _context)
+            : Operators.Subtract(currentValue, one);
+
+        SetIndex(obj, index, newValue);
+
+        return expr.IsPrefix ? newValue : currentValue;
+    }
+
     public object? VisitInterpolatedString(InterpolatedStringExpr expr)
     {
         var sb = new StringBuilder();

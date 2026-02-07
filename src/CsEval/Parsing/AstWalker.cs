@@ -195,6 +195,21 @@ public abstract class AstWalker<T> : IExprVisitor<T>
         return OnLeave(expr);
     }
 
+    public virtual T VisitMemberIncrement(MemberIncrementExpr expr)
+    {
+        OnEnter(expr);
+        Visit(expr.Object);
+        return OnLeave(expr);
+    }
+
+    public virtual T VisitIndexIncrement(IndexIncrementExpr expr)
+    {
+        OnEnter(expr);
+        Visit(expr.Object);
+        Visit(expr.Index);
+        return OnLeave(expr);
+    }
+
     public virtual T VisitIndexAssign(IndexAssignExpr expr)
     {
         OnEnter(expr);

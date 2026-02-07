@@ -596,6 +596,100 @@ internal sealed class ExpressionCompilerUnit
         }
     }
 
+    internal LinqExpression CompileMemberIncrement(MemberIncrementExpr expr)
+    {
+        var objExpr = Compile(expr.Object);
+        var objTemp = LinqExpression.Variable(typeof(object), "obj");
+        var original = LinqExpression.Variable(typeof(object), "original");
+        var temp = LinqExpression.Variable(typeof(object), "temp");
+        var one = LinqExpression.Convert(LinqExpression.Constant(1), typeof(object));
+
+        var currentValue = LinqExpression.Call(
+            CompilerContext.GetMemberMethod,
+            objTemp,
+            LinqExpression.Constant(expr.MemberName),
+            _ctx.OptionsParam,
+            LinqExpression.Constant(false),
+            _ctx.CurrentContext);
+
+        var addInfo = OperatorRegistry.GetBinaryOperator(TokenType.Plus)!.Value;
+        var subInfo = OperatorRegistry.GetBinaryOperator(TokenType.Minus)!.Value;
+
+        LinqExpression MakeOpCall(LinqExpression left) => expr.IsIncrement
+            ? LinqExpression.Call(addInfo.Method, left, one, _ctx.OptionsParam, _ctx.CurrentContext)
+            : LinqExpression.Call(subInfo.Method, left, one);
+
+        var setCall = LinqExpression.Call(CompilerContext.SetMemberMethod,
+            objTemp, LinqExpression.Constant(expr.MemberName), temp, _ctx.OptionsParam, _ctx.CurrentContext);
+
+        if (expr.IsPrefix)
+        {
+            return LinqExpression.Block(
+                new[] { objTemp, temp },
+                LinqExpression.Assign(objTemp, objExpr),
+                LinqExpression.Assign(temp, MakeOpCall(currentValue)),
+                setCall,
+                temp);
+        }
+        else
+        {
+            return LinqExpression.Block(
+                new[] { objTemp, original, temp },
+                LinqExpression.Assign(objTemp, objExpr),
+                LinqExpression.Assign(original, currentValue),
+                LinqExpression.Assign(temp, MakeOpCall(original)),
+                setCall,
+                original);
+        }
+    }
+
+    internal LinqExpression CompileIndexIncrement(IndexIncrementExpr expr)
+    {
+        var objExpr = Compile(expr.Object);
+        var indexExpr = Compile(expr.Index);
+        var objTemp = LinqExpression.Variable(typeof(object), "obj");
+        var indexTemp = LinqExpression.Variable(typeof(object), "idx");
+        var original = LinqExpression.Variable(typeof(object), "original");
+        var temp = LinqExpression.Variable(typeof(object), "temp");
+        var one = LinqExpression.Convert(LinqExpression.Constant(1), typeof(object));
+
+        var currentValue = LinqExpression.Call(
+            CompilerContext.GetIndexMethod,
+            objTemp, indexTemp, _ctx.OptionsParam);
+
+        var addInfo = OperatorRegistry.GetBinaryOperator(TokenType.Plus)!.Value;
+        var subInfo = OperatorRegistry.GetBinaryOperator(TokenType.Minus)!.Value;
+
+        LinqExpression MakeOpCall(LinqExpression left) => expr.IsIncrement
+            ? LinqExpression.Call(addInfo.Method, left, one, _ctx.OptionsParam, _ctx.CurrentContext)
+            : LinqExpression.Call(subInfo.Method, left, one);
+
+        var setCall = LinqExpression.Call(CompilerContext.SetIndexMethod,
+            objTemp, indexTemp, temp);
+
+        if (expr.IsPrefix)
+        {
+            return LinqExpression.Block(
+                new[] { objTemp, indexTemp, temp },
+                LinqExpression.Assign(objTemp, objExpr),
+                LinqExpression.Assign(indexTemp, indexExpr),
+                LinqExpression.Assign(temp, MakeOpCall(currentValue)),
+                setCall,
+                temp);
+        }
+        else
+        {
+            return LinqExpression.Block(
+                new[] { objTemp, indexTemp, original, temp },
+                LinqExpression.Assign(objTemp, objExpr),
+                LinqExpression.Assign(indexTemp, indexExpr),
+                LinqExpression.Assign(original, currentValue),
+                LinqExpression.Assign(temp, MakeOpCall(original)),
+                setCall,
+                original);
+        }
+    }
+
     internal LinqExpression CompileCall(CallExpr call)
     {
         // Compile arguments into an object[] array, wrapping named arguments in NamedArg

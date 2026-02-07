@@ -485,12 +485,20 @@ public sealed class ExpressionParser : ParserBase
             return new UnaryExpr(op, right);
         }
 
-        // Prefix increment/decrement: ++x, --x
+        // Prefix increment/decrement: ++x, --x, ++obj.Prop, ++arr[i]
         if (Match(TokenType.PlusPlus, TokenType.MinusMinus))
         {
             var op = Previous();
-            var name = Consume(TokenType.Identifier, "Expected variable name after prefix operator");
-            return new IncrementDecrementExpr(name, op, true);
+            var isIncrement = op.Type == TokenType.PlusPlus;
+            // Parse the operand as a postfix expression to support member/index targets
+            var operand = ParsePostfix();
+            return operand switch
+            {
+                MemberAccessExpr m => new MemberIncrementExpr(m.Object, m.Name.Lexeme, true, isIncrement),
+                IndexAccessExpr idx => new IndexIncrementExpr(idx.Object, idx.Index, true, isIncrement),
+                IdentifierExpr id => new IncrementDecrementExpr(id.Name, op, true),
+                _ => throw new CsEvalParserException($"Invalid prefix {op.Lexeme} target at {op.Line}:{op.Column}")
+            };
         }
 
         return ParsePostfix();
@@ -566,11 +574,31 @@ public sealed class ExpressionParser : ParserBase
             {
                 expr = FinishCall(expr, null);
             }
-            else if (expr is IdentifierExpr identifier && Match(TokenType.PlusPlus, TokenType.MinusMinus))
+            else if (Check(TokenType.PlusPlus) || Check(TokenType.MinusMinus))
             {
-                // Postfix increment/decrement: x++, x--
-                var op = Previous();
-                expr = new IncrementDecrementExpr(identifier.Name, op, false);
+                // Postfix increment/decrement: x++, x--, obj.Prop++, arr[i]++
+                if (expr is IdentifierExpr identifier)
+                {
+                    Advance();
+                    var op = Previous();
+                    expr = new IncrementDecrementExpr(identifier.Name, op, false);
+                }
+                else if (expr is MemberAccessExpr memberExpr)
+                {
+                    Advance();
+                    var isIncrement = Previous().Type == TokenType.PlusPlus;
+                    expr = new MemberIncrementExpr(memberExpr.Object, memberExpr.Name.Lexeme, false, isIncrement);
+                }
+                else if (expr is IndexAccessExpr indexExpr)
+                {
+                    Advance();
+                    var isIncrement = Previous().Type == TokenType.PlusPlus;
+                    expr = new IndexIncrementExpr(indexExpr.Object, indexExpr.Index, false, isIncrement);
+                }
+                else
+                {
+                    break;
+                }
             }
             else
             {
