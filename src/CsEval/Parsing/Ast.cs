@@ -334,7 +334,7 @@ public sealed record InterpolatedStringExpr(List<InterpolatedPart> Parts) : Expr
 
 public abstract record InterpolatedPart;
 public sealed record TextPart(string Text) : InterpolatedPart;
-public sealed record ExpressionPart(Expr Expression) : InterpolatedPart;
+public sealed record ExpressionPart(Expr Expression, string? AlignmentSpecifier = null, string? FormatSpecifier = null) : InterpolatedPart;
 
 // New expression: new { Name = "John" }
 public sealed record NewExpr(Expr Initializer) : Expr

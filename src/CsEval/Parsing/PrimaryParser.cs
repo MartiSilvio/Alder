@@ -427,10 +427,17 @@ public sealed class PrimaryParser : ParserBase
                     i++; // skip {
                     var exprStart = i;
                     var braceDepth = 1;
+                    var parenDepth = 0;
+                    var bracketDepth = 0;
+                    string? alignmentSpec = null;
+                    string? formatSpec = null;
+                    var exprEnd = -1;
 
                     while (i < content.Length && braceDepth > 0)
                     {
-                        switch (content[i])
+                        var ch = content[i];
+
+                        switch (ch)
                         {
                             case '{':
                                 braceDepth++;
@@ -438,19 +445,66 @@ public sealed class PrimaryParser : ParserBase
                             case '}':
                                 braceDepth--;
                                 break;
+                            case '(':
+                                if (braceDepth == 1) parenDepth++;
+                                break;
+                            case ')':
+                                if (braceDepth == 1) parenDepth--;
+                                break;
+                            case '[':
+                                if (braceDepth == 1) bracketDepth++;
+                                break;
+                            case ']':
+                                if (braceDepth == 1) bracketDepth--;
+                                break;
+                            case ',' when braceDepth == 1 && parenDepth == 0 && bracketDepth == 0 && alignmentSpec == null && formatSpec == null:
+                            {
+                                // Alignment specifier: everything between , and : or }
+                                exprEnd = i;
+                                i++; // skip ,
+                                var alignStart = i;
+                                // Scan alignment value (may include - for left-align)
+                                while (i < content.Length && content[i] != ':' && content[i] != '}')
+                                    i++;
+                                alignmentSpec = content[alignStart..i].Trim();
+                                if (i < content.Length && content[i] == ':')
+                                {
+                                    i++; // skip :
+                                    var fmtStart = i;
+                                    // Format specifier is everything until closing }
+                                    while (i < content.Length && content[i] != '}')
+                                        i++;
+                                    formatSpec = content[fmtStart..i];
+                                }
+                                // Now i points at } -- let loop decrement braceDepth
+                                continue;
+                            }
+                            case ':' when braceDepth == 1 && parenDepth == 0 && bracketDepth == 0 && alignmentSpec == null && formatSpec == null:
+                            {
+                                // Format specifier only (no alignment)
+                                exprEnd = i;
+                                i++; // skip :
+                                var fmtStart = i;
+                                // Format specifier is everything until closing }
+                                while (i < content.Length && content[i] != '}')
+                                    i++;
+                                formatSpec = content[fmtStart..i];
+                                // Now i points at } -- let loop decrement braceDepth
+                                continue;
+                            }
                         }
 
                         if (braceDepth > 0) i++;
                     }
 
-                    var exprText = content[exprStart..i];
+                    var exprText = exprEnd >= 0 ? content[exprStart..exprEnd] : content[exprStart..i];
                     i++; // skip }
 
                     var lexer = new Lexer(exprText);
                     var parserTokens = lexer.Tokenize();
                     var subParser = ExpressionParser.CreateForSubExpression(parserTokens);
                     var expr = subParser.Parse();
-                    parts.Add(new ExpressionPart(expr));
+                    parts.Add(new ExpressionPart(expr, alignmentSpec, formatSpec));
                     break;
                 }
                 // Check for escaped brace }}
