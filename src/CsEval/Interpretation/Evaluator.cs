@@ -563,14 +563,16 @@ public sealed class Evaluator : IExprVisitor<object?>
             foreach (var stmt in expr.Statements)
             {
                 _cancellationToken.ThrowIfCancellationRequested();
-                Evaluate(stmt);
+                var result = Evaluate(stmt);
+                if (result is ControlFlowSignal signal)
+                {
+                    if (signal.SignalKind == ControlFlowSignal.Kind.Return)
+                        return signal.Value;
+                    return result; // Propagate break/continue upward
+                }
             }
 
             return expr.ReturnExpr != null ? Evaluate(expr.ReturnExpr) : null;
-        }
-        catch (ReturnValue rv)
-        {
-            return rv.Value;
         }
         finally
         {
@@ -666,7 +668,9 @@ public sealed class Evaluator : IExprVisitor<object?>
                 foreach (var stmt in expr.ThenStatements)
                 {
                     _cancellationToken.ThrowIfCancellationRequested();
-                    Evaluate(stmt);
+                    var result = Evaluate(stmt);
+                    if (result is ControlFlowSignal)
+                        return result;
                 }
             }
             finally
@@ -684,7 +688,9 @@ public sealed class Evaluator : IExprVisitor<object?>
                 foreach (var stmt in expr.ElseStatements)
                 {
                     _cancellationToken.ThrowIfCancellationRequested();
-                    Evaluate(stmt);
+                    var result = Evaluate(stmt);
+                    if (result is ControlFlowSignal)
+                        return result;
                 }
             }
             finally
@@ -699,7 +705,7 @@ public sealed class Evaluator : IExprVisitor<object?>
     public object? VisitReturn(ReturnExpr expr)
     {
         var value = expr.Value != null ? Evaluate(expr.Value) : null;
-        throw new ReturnValue(value);
+        return ControlFlowSignal.Return(value);
     }
 
     #endregion
@@ -708,12 +714,12 @@ public sealed class Evaluator : IExprVisitor<object?>
 
     public object? VisitBreak(BreakExpr expr)
     {
-        throw new BreakException();
+        return ControlFlowSignal.Break;
     }
 
     public object? VisitContinue(ContinueExpr expr)
     {
-        throw new ContinueException();
+        return ControlFlowSignal.Continue;
     }
 
     public object? VisitWhile(WhileStatementExpr expr)
@@ -729,26 +735,31 @@ public sealed class Evaluator : IExprVisitor<object?>
 
             var previousContext = _context;
             _context = _context.CreateChild();
+            ControlFlowSignal? signal = null;
 
             try
             {
                 foreach (var stmt in expr.Body)
                 {
                     _cancellationToken.ThrowIfCancellationRequested();
-                    Evaluate(stmt);
+                    var result = Evaluate(stmt);
+                    if (result is ControlFlowSignal s)
+                    {
+                        signal = s;
+                        break; // break out of statement loop
+                    }
                 }
-            }
-            catch (BreakException)
-            {
-                break;
-            }
-            catch (ContinueException)
-            {
-                continue;
             }
             finally
             {
                 _context = previousContext;
+            }
+
+            if (signal != null)
+            {
+                if (signal.SignalKind == ControlFlowSignal.Kind.Break) break;
+                if (signal.SignalKind == ControlFlowSignal.Kind.Continue) continue;
+                return signal; // Return signal propagates upward
             }
         }
 
@@ -777,25 +788,31 @@ public sealed class Evaluator : IExprVisitor<object?>
 
                 var iterationContext = _context;
                 _context = _context.CreateChild();
+                ControlFlowSignal? signal = null;
 
                 try
                 {
                     foreach (var stmt in expr.Body)
                     {
                         _cancellationToken.ThrowIfCancellationRequested();
-                        Evaluate(stmt);
+                        var result = Evaluate(stmt);
+                        if (result is ControlFlowSignal s)
+                        {
+                            signal = s;
+                            break; // break out of statement loop
+                        }
                     }
-                }
-                catch (BreakException)
-                {
-                    break;
-                }
-                catch (ContinueException)
-                {
                 }
                 finally
                 {
                     _context = iterationContext;
+                }
+
+                if (signal != null)
+                {
+                    if (signal.SignalKind == ControlFlowSignal.Kind.Break) break;
+                    if (signal.SignalKind == ControlFlowSignal.Kind.Return) return signal;
+                    // Continue: fall through to increment
                 }
 
                 if (expr.Increment != null)
@@ -825,26 +842,31 @@ public sealed class Evaluator : IExprVisitor<object?>
 
             var previousContext = _context;
             _context = _context.CreateChild();
+            ControlFlowSignal? signal = null;
 
             try
             {
                 foreach (var stmt in expr.Body)
                 {
                     _cancellationToken.ThrowIfCancellationRequested();
-                    Evaluate(stmt);
+                    var result = Evaluate(stmt);
+                    if (result is ControlFlowSignal s)
+                    {
+                        signal = s;
+                        break; // break out of statement loop
+                    }
                 }
-            }
-            catch (BreakException)
-            {
-                break;
-            }
-            catch (ContinueException)
-            {
-                continue;
             }
             finally
             {
                 _context = previousContext;
+            }
+
+            if (signal != null)
+            {
+                if (signal.SignalKind == ControlFlowSignal.Kind.Break) break;
+                if (signal.SignalKind == ControlFlowSignal.Kind.Continue) continue;
+                return signal; // Return signal propagates upward
             }
         } while (TypeHelpers.RequireBoolean(Evaluate(expr.Condition)));
 
@@ -870,6 +892,7 @@ public sealed class Evaluator : IExprVisitor<object?>
 
             var previousContext = _context;
             _context = _context.CreateChild();
+            ControlFlowSignal? signal = null;
 
             try
             {
@@ -878,20 +901,24 @@ public sealed class Evaluator : IExprVisitor<object?>
                 foreach (var stmt in expr.Body)
                 {
                     _cancellationToken.ThrowIfCancellationRequested();
-                    Evaluate(stmt);
+                    var result = Evaluate(stmt);
+                    if (result is ControlFlowSignal s)
+                    {
+                        signal = s;
+                        break; // break out of statement loop
+                    }
                 }
-            }
-            catch (BreakException)
-            {
-                break;
-            }
-            catch (ContinueException)
-            {
-                continue;
             }
             finally
             {
                 _context = previousContext;
+            }
+
+            if (signal != null)
+            {
+                if (signal.SignalKind == ControlFlowSignal.Kind.Break) break;
+                if (signal.SignalKind == ControlFlowSignal.Kind.Continue) continue;
+                return signal; // Return signal propagates upward
             }
         }
 
@@ -924,21 +951,24 @@ public sealed class Evaluator : IExprVisitor<object?>
                 if ((bool)Operators.Equals(switchValue, caseValue))
                 {
                     matched = true;
-                    if (ExecuteCaseStatements(expr.Cases, i))
-                        return null;
+                    var signal = ExecuteCaseStatements(expr.Cases, i);
+                    if (signal != null)
+                        return signal.SignalKind == ControlFlowSignal.Kind.Break ? null : signal;
                 }
             }
         }
 
         if (!matched && defaultCaseIndex >= 0)
         {
-            ExecuteCaseStatements(expr.Cases, defaultCaseIndex);
+            var signal = ExecuteCaseStatements(expr.Cases, defaultCaseIndex);
+            if (signal != null && signal.SignalKind != ControlFlowSignal.Kind.Break)
+                return signal;
         }
 
         return null;
     }
 
-    private bool ExecuteCaseStatements(List<SwitchCaseExpr> cases, int startIndex)
+    private ControlFlowSignal? ExecuteCaseStatements(List<SwitchCaseExpr> cases, int startIndex)
     {
         for (var i = startIndex; i < cases.Count; i++)
         {
@@ -947,23 +977,18 @@ public sealed class Evaluator : IExprVisitor<object?>
             if (switchCase.Statements.Count == 0)
                 continue;
 
-            try
+            foreach (var stmt in switchCase.Statements)
             {
-                foreach (var stmt in switchCase.Statements)
-                {
-                    _cancellationToken.ThrowIfCancellationRequested();
-                    Evaluate(stmt);
-                }
-            }
-            catch (BreakException)
-            {
-                return true;
+                _cancellationToken.ThrowIfCancellationRequested();
+                var result = Evaluate(stmt);
+                if (result is ControlFlowSignal signal)
+                    return signal;
             }
 
             throw new CsEvalException("CS0163: Control cannot fall through from one case label to another");
         }
 
-        return false;
+        return null;
     }
 
     #endregion
