@@ -596,6 +596,71 @@ internal sealed class ExpressionCompilerUnit
         }
     }
 
+    internal LinqExpression CompileMemberNullCoalesceAssign(MemberNullCoalesceAssignExpr expr)
+    {
+        var objExpr = Compile(expr.Object);
+        var objTemp = LinqExpression.Variable(typeof(object), "obj");
+        var temp = LinqExpression.Variable(typeof(object), "temp");
+        var result = LinqExpression.Variable(typeof(object), "result");
+
+        var currentValue = LinqExpression.Call(
+            CompilerContext.GetMemberMethod,
+            objTemp,
+            LinqExpression.Constant(expr.MemberName),
+            _ctx.OptionsParam,
+            LinqExpression.Constant(false),
+            _ctx.CurrentContext);
+
+        var newValue = Compile(expr.Value);
+
+        var setCall = LinqExpression.Call(CompilerContext.SetMemberMethod,
+            objTemp, LinqExpression.Constant(expr.MemberName), result, _ctx.OptionsParam, _ctx.CurrentContext);
+
+        return LinqExpression.Block(
+            new[] { objTemp, temp, result },
+            LinqExpression.Assign(objTemp, objExpr),
+            LinqExpression.Assign(temp, currentValue),
+            LinqExpression.IfThenElse(
+                LinqExpression.NotEqual(temp, LinqExpression.Constant(null, typeof(object))),
+                LinqExpression.Assign(result, temp),
+                LinqExpression.Block(
+                    LinqExpression.Assign(result, newValue),
+                    setCall)),
+            result);
+    }
+
+    internal LinqExpression CompileIndexNullCoalesceAssign(IndexNullCoalesceAssignExpr expr)
+    {
+        var objExpr = Compile(expr.Object);
+        var indexExpr = Compile(expr.Index);
+        var objTemp = LinqExpression.Variable(typeof(object), "obj");
+        var indexTemp = LinqExpression.Variable(typeof(object), "idx");
+        var temp = LinqExpression.Variable(typeof(object), "temp");
+        var result = LinqExpression.Variable(typeof(object), "result");
+
+        var currentValue = LinqExpression.Call(
+            CompilerContext.GetIndexMethod,
+            objTemp, indexTemp, _ctx.OptionsParam);
+
+        var newValue = Compile(expr.Value);
+
+        var setCall = LinqExpression.Call(CompilerContext.SetIndexMethod,
+            objTemp, indexTemp, result);
+
+        return LinqExpression.Block(
+            new[] { objTemp, indexTemp, temp, result },
+            LinqExpression.Assign(objTemp, objExpr),
+            LinqExpression.Assign(indexTemp, indexExpr),
+            LinqExpression.Assign(temp, currentValue),
+            LinqExpression.IfThenElse(
+                LinqExpression.NotEqual(temp, LinqExpression.Constant(null, typeof(object))),
+                LinqExpression.Assign(result, temp),
+                LinqExpression.Block(
+                    LinqExpression.Assign(result, newValue),
+                    setCall)),
+            result);
+    }
+
     internal LinqExpression CompileMemberIncrement(MemberIncrementExpr expr)
     {
         var objExpr = Compile(expr.Object);

@@ -36,6 +36,8 @@ public interface IExprVisitor<out T>
     T VisitIncrementDecrement(IncrementDecrementExpr expr);
     T VisitMemberIncrement(MemberIncrementExpr expr);
     T VisitIndexIncrement(IndexIncrementExpr expr);
+    T VisitMemberNullCoalesceAssign(MemberNullCoalesceAssignExpr expr);
+    T VisitIndexNullCoalesceAssign(IndexNullCoalesceAssignExpr expr);
     T VisitIndexAssign(IndexAssignExpr expr);
     T VisitMemberAssign(MemberAssignExpr expr);
 
@@ -233,6 +235,18 @@ public sealed record MemberIncrementExpr(Expr Object, string MemberName, bool Is
 public sealed record IndexIncrementExpr(Expr Object, Expr Index, bool IsPrefix, bool IsIncrement) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitIndexIncrement(this);
+}
+
+// ECMA-334 §12.21.5 - Null-coalescing assignment on member access: obj.Prop ??= default
+public sealed record MemberNullCoalesceAssignExpr(Expr Object, string MemberName, Expr Value) : Expr
+{
+    public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitMemberNullCoalesceAssign(this);
+}
+
+// ECMA-334 §12.21.5 - Null-coalescing assignment on index access: dict[key] ??= default
+public sealed record IndexNullCoalesceAssignExpr(Expr Object, Expr Index, Expr Value) : Expr
+{
+    public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitIndexNullCoalesceAssign(this);
 }
 
 // Index assignment: arr[0] = value, dict["key"] = value

@@ -210,6 +210,23 @@ public abstract class AstWalker<T> : IExprVisitor<T>
         return OnLeave(expr);
     }
 
+    public virtual T VisitMemberNullCoalesceAssign(MemberNullCoalesceAssignExpr expr)
+    {
+        OnEnter(expr);
+        Visit(expr.Object);
+        Visit(expr.Value);
+        return OnLeave(expr);
+    }
+
+    public virtual T VisitIndexNullCoalesceAssign(IndexNullCoalesceAssignExpr expr)
+    {
+        OnEnter(expr);
+        Visit(expr.Object);
+        Visit(expr.Index);
+        Visit(expr.Value);
+        return OnLeave(expr);
+    }
+
     public virtual T VisitIndexAssign(IndexAssignExpr expr)
     {
         OnEnter(expr);

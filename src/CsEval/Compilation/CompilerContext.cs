@@ -253,6 +253,8 @@ internal sealed class CompilerContext
                 InterpolatedStringExpr interp => exprUnit.CompileInterpolatedString(interp),
                 MemberAssignExpr ma => exprUnit.CompileMemberAssign(ma),
                 NullCoalesceAssignExpr nca => exprUnit.CompileNullCoalesceAssign(nca),
+                MemberNullCoalesceAssignExpr mnca => exprUnit.CompileMemberNullCoalesceAssign(mnca),
+                IndexNullCoalesceAssignExpr inca => exprUnit.CompileIndexNullCoalesceAssign(inca),
 
                 // Pattern nodes
                 IsPatternExpr isExpr => patternUnit.CompileIsPattern(isExpr),
@@ -319,6 +321,17 @@ internal sealed class CompilerContext
                 case IndexIncrementExpr ii:
                     stack.Push(ii.Object);
                     stack.Push(ii.Index);
+                    break;
+
+                case MemberNullCoalesceAssignExpr mnca:
+                    stack.Push(mnca.Object);
+                    stack.Push(mnca.Value);
+                    break;
+
+                case IndexNullCoalesceAssignExpr inca:
+                    stack.Push(inca.Object);
+                    stack.Push(inca.Index);
+                    stack.Push(inca.Value);
                     break;
 
                 case ObjectCreationExpr oc:

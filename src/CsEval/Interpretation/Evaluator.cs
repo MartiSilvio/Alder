@@ -518,6 +518,41 @@ public sealed class Evaluator : IExprVisitor<object?>
         return expr.IsPrefix ? newValue : currentValue;
     }
 
+    public object? VisitMemberNullCoalesceAssign(MemberNullCoalesceAssignExpr expr)
+    {
+        var obj = Evaluate(expr.Object);
+
+        if (obj == null)
+            throw new CsEvalException($"Cannot access property '{expr.MemberName}' on null");
+
+        var currentValue = GetMember(obj, expr.MemberName);
+
+        if (currentValue != null)
+            return currentValue;
+
+        var newValue = Evaluate(expr.Value);
+        SetMember(obj, expr.MemberName, newValue);
+        return newValue;
+    }
+
+    public object? VisitIndexNullCoalesceAssign(IndexNullCoalesceAssignExpr expr)
+    {
+        var obj = Evaluate(expr.Object);
+
+        if (obj == null)
+            throw new CsEvalException("Cannot index null");
+
+        var index = Evaluate(expr.Index);
+        var currentValue = GetIndex(obj, index);
+
+        if (currentValue != null)
+            return currentValue;
+
+        var newValue = Evaluate(expr.Value);
+        SetIndex(obj, index, newValue);
+        return newValue;
+    }
+
     public object? VisitMemberIncrement(MemberIncrementExpr expr)
     {
         var obj = Evaluate(expr.Object);

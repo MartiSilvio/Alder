@@ -158,6 +158,13 @@ public sealed class ExpressionParser : ParserBase
         }
         else if (expr is MemberAccessExpr memberAccess)
         {
+            // Handle obj.Property ??= value
+            if (Match(TokenType.QuestionQuestionEqual))
+            {
+                var value = ParseAssignment();
+                return new MemberNullCoalesceAssignExpr(memberAccess.Object, memberAccess.Name.Lexeme, value);
+            }
+
             // Handle obj.Property = value
             if (Match(TokenType.Equal))
             {
@@ -174,6 +181,13 @@ public sealed class ExpressionParser : ParserBase
         }
         else if (expr is IndexAccessExpr indexAccess)
         {
+            // Handle dict[key] ??= value
+            if (Match(TokenType.QuestionQuestionEqual))
+            {
+                var value = ParseAssignment();
+                return new IndexNullCoalesceAssignExpr(indexAccess.Object, indexAccess.Index, value);
+            }
+
             // Handle arr[0] = value
             if (Match(TokenType.Equal))
             {
