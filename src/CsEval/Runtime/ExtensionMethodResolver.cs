@@ -211,7 +211,7 @@ public static class ExtensionMethodResolver
             var testArgs = CreateTypedDefaultArgs(substitutedInputTypes);
 
             var testResult = TryInvokeLambdaForTypeInference(arg, testArgs);
-            if (testResult == null || testResult is MethodRef)
+            if (testResult is null or MethodRef)
                 continue;
 
             var resultType = testResult.GetType();

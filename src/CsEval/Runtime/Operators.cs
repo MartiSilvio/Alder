@@ -94,7 +94,7 @@ public static class Operators
         return dispatch(left!, right!);
     }
 
-    public static new object Equals(object? left, object? right)
+    public new static object Equals(object? left, object? right)
     {
         if (left == null && right == null) return true;
         if (left == null || right == null) return false;
@@ -202,7 +202,7 @@ public static class Operators
 
         // ECMA-334 §12.13.5: Three-value bool? logic for &
         // Only applies when both operands are bool/null (i.e., bool? & bool?)
-        if ((left is bool || left == null) && (right is bool || right == null))
+        if (left is bool or null && right is bool or null)
         {
             if (left is false || right is false)
                 return false;
@@ -230,7 +230,7 @@ public static class Operators
 
         // ECMA-334 §12.13.5: Three-value bool? logic for |
         // Only applies when both operands are bool/null (i.e., bool? | bool?)
-        if ((left is bool || left == null) && (right is bool || right == null))
+        if (left is bool or null && right is bool or null)
         {
             if (left is true || right is true)
                 return true;
@@ -257,7 +257,7 @@ public static class Operators
 
         // ECMA-334 §12.13.5: Three-value bool? logic for ^
         // Only applies when both operands are bool/null (i.e., bool? ^ bool?)
-        if ((left is bool || left == null) && (right is bool || right == null) && (left == null || right == null))
+        if (left is bool or null && right is bool or null && (left == null || right == null))
             return null;
 
         // ECMA-334 §12.4.8: Lifted integer operators return null when either operand is null

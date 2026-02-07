@@ -89,7 +89,8 @@ public sealed class ExpressionParser : ParserBase
                 }
                 else
                 {
-                    throw new CsEvalParserException($"Unexpected token '{Peek().Lexeme}' at {Peek().Line}:{Peek().Column}");
+                    throw new CsEvalParserException(
+                        $"Unexpected token '{Peek().Lexeme}' at {Peek().Line}:{Peek().Column}");
                 }
             }
         }
@@ -176,7 +177,8 @@ public sealed class ExpressionParser : ParserBase
             if (MatchCompoundAssignment(out var memberOp))
             {
                 var value = ParseAssignment();
-                return new MemberCompoundAssignExpr(memberAccess.Object, memberAccess.Name.Lexeme, memberOp.Type, value);
+                return new MemberCompoundAssignExpr(memberAccess.Object, memberAccess.Name.Lexeme, memberOp.Type,
+                    value);
             }
         }
         else if (expr is IndexAccessExpr indexAccess)
@@ -234,6 +236,7 @@ public sealed class ExpressionParser : ParserBase
                 var throwOperand = ParseAssignment();
                 return new NullCoalesceExpr(expr, new ThrowExpr(throwOperand));
             }
+
             var right = ParseNullCoalesce();
             return new NullCoalesceExpr(expr, right);
         }
@@ -328,7 +331,7 @@ public sealed class ExpressionParser : ParserBase
         var expr = ParseComparison();
 
         while (Match(TokenType.EqualEqual, TokenType.BangEqual,
-                     TokenType.EqualEqualEqual, TokenType.BangEqualEqual))
+                   TokenType.EqualEqualEqual, TokenType.BangEqualEqual))
         {
             var op = Previous();
             var right = ParseComparison();
@@ -403,7 +406,7 @@ public sealed class ExpressionParser : ParserBase
         var name = token.Lexeme;
 
         while (Check(TokenType.Dot) && State.Current + 1 < State.Tokens.Count
-               && State.Tokens[State.Current + 1].Type == TokenType.Identifier)
+                                    && State.Tokens[State.Current + 1].Type == TokenType.Identifier)
         {
             Advance(); // consume '.'
             var next = Advance(); // consume identifier
@@ -460,6 +463,7 @@ public sealed class ExpressionParser : ParserBase
             typeToken = Advance();
             return true;
         }
+
         typeToken = default;
         return false;
     }
@@ -533,6 +537,7 @@ public sealed class ExpressionParser : ParserBase
             {
                 throw new CsEvalParserException($"Expected type in cast at {Peek().Line}:{Peek().Column}");
             }
+
             Consume(TokenType.RightParen, "Expected ')' after cast type");
             var operand = ParseUnary();
             return new CastExpr(typeToken, operand);
@@ -794,25 +799,10 @@ public sealed class ExpressionParser : ParserBase
     /// </summary>
     private static bool IsTypeName(TokenType type)
     {
-        return type == TokenType.Identifier ||
-               type == TokenType.Int ||
-               type == TokenType.Long ||
-               type == TokenType.Short ||
-               type == TokenType.Byte ||
-               type == TokenType.Sbyte ||
-               type == TokenType.Ushort ||
-               type == TokenType.Uint ||
-               type == TokenType.Ulong ||
-               type == TokenType.Float ||
-               type == TokenType.Double ||
-               type == TokenType.Decimal ||
-               type == TokenType.Bool ||
-               type == TokenType.Char ||
-               type == TokenType.StringType ||
-               type == TokenType.Object ||
-               type == TokenType.Dynamic ||
-               type == TokenType.Nint ||
-               type == TokenType.Nuint;
+        return type is TokenType.Identifier or TokenType.Int or TokenType.Long or TokenType.Short or TokenType.Byte
+            or TokenType.Sbyte or TokenType.Ushort or TokenType.Uint or TokenType.Ulong or TokenType.Float
+            or TokenType.Double or TokenType.Decimal or TokenType.Bool or TokenType.Char or TokenType.StringType
+            or TokenType.Object or TokenType.Dynamic or TokenType.Nint or TokenType.Nuint;
     }
 
     /// <summary>
@@ -879,35 +869,12 @@ public sealed class ExpressionParser : ParserBase
     /// </summary>
     private static bool IsParameterName(TokenType type)
     {
-        return type == TokenType.Identifier ||
-               type == TokenType.Value ||
-               type == TokenType.From ||
-               type == TokenType.Where ||
-               type == TokenType.Select ||
-               type == TokenType.Group ||
-               type == TokenType.Into ||
-               type == TokenType.Orderby ||
-               type == TokenType.Join ||
-               type == TokenType.On ||
-               type == TokenType.Equals ||
-               type == TokenType.By ||
-               type == TokenType.Ascending ||
-               type == TokenType.Descending ||
-               type == TokenType.Let ||
-               type == TokenType.Get ||
-               type == TokenType.Set ||
-               type == TokenType.Add ||
-               type == TokenType.Remove ||
-               type == TokenType.Init ||
-               type == TokenType.When ||
-               type == TokenType.With ||
-               type == TokenType.And ||
-               type == TokenType.Or ||
-               type == TokenType.Not ||
-               type == TokenType.File ||
-               type == TokenType.Required ||
-               type == TokenType.Scoped ||
-               type == TokenType.Args;
+        return type is TokenType.Identifier or TokenType.Value or TokenType.From or TokenType.Where or TokenType.Select
+            or TokenType.Group or TokenType.Into or TokenType.Orderby or TokenType.Join or TokenType.On
+            or TokenType.Equals or TokenType.By or TokenType.Ascending or TokenType.Descending or TokenType.Let
+            or TokenType.Get or TokenType.Set or TokenType.Add or TokenType.Remove or TokenType.Init or TokenType.When
+            or TokenType.With or TokenType.And or TokenType.Or or TokenType.Not or TokenType.File or TokenType.Required
+            or TokenType.Scoped or TokenType.Args;
     }
 
     #endregion

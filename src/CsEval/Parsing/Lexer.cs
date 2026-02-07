@@ -739,7 +739,7 @@ public sealed class Lexer
     private void ScanBinaryNumber()
     {
         var binStart = _current;
-        ScanDigitsWithSeparators(c => c == '0' || c == '1');
+        ScanDigitsWithSeparators(c => c is '0' or '1');
 
         if (_current == binStart)
             throw new CsEvalLexerException($"Invalid binary literal at {_line}:{_column}");
