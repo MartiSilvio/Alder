@@ -454,66 +454,6 @@ public sealed class PrimaryParser : ParserBase
         }
     }
 
-    /// <summary>
-    /// Tries to parse a type name, including generic arguments (e.g., Func&lt;int, int&gt;).
-    /// Returns null if no type name can be parsed at the current position.
-    /// Used in typed lambda parameter detection (backtracking context).
-    /// </summary>
-    internal string? TryParseTypeName()
-    {
-        string name;
-        if (IsTypeKeyword(Peek().Type))
-        {
-            name = Advance().Lexeme;
-        }
-        else if (Check(TokenType.Identifier))
-        {
-            name = Advance().Lexeme;
-        }
-        else
-        {
-            return null;
-        }
-
-        // Handle generic args: Func<int, int>
-        if (Check(TokenType.Less))
-        {
-            Advance(); // consume <
-            name += "<";
-
-            var firstArg = TryParseTypeName();
-            if (firstArg == null) return null;
-            name += firstArg;
-
-            while (Match(TokenType.Comma))
-            {
-                name += ", ";
-                var nextArg = TryParseTypeName();
-                if (nextArg == null) return null;
-                name += nextArg;
-            }
-
-            if (!Match(TokenType.Greater)) return null;
-            name += ">";
-        }
-
-        // Handle nullable suffix
-        if (Check(TokenType.Question))
-        {
-            Advance();
-            name += "?";
-        }
-
-        // Handle array suffix
-        if (Check(TokenType.LeftBracket) && PeekNext().Type == TokenType.RightBracket)
-        {
-            Advance(); Advance();
-            name += "[]";
-        }
-
-        return name;
-    }
-
     #endregion
 
     #region Interpolated Strings

@@ -135,6 +135,15 @@ public sealed class StatementParser : ParserBase
             return new VariableDeclExpr(typeToken, name, initializer);
         }
 
+        // Generic type variable declaration: Func<int, int> f = ..., Action<string> a = ...
+        // ECMA-334 §13.6.2 - Local variable declarations with constructed types
+        if (Check(TokenType.Identifier) && PeekNext().Type == TokenType.Less)
+        {
+            var genericResult = TryParseGenericTypeDeclaration();
+            if (genericResult != null)
+                return genericResult;
+        }
+
         // Standalone block statement { ... }
         if (Match(TokenType.LeftBrace))
         {
@@ -146,6 +155,52 @@ public sealed class StatementParser : ParserBase
         var expr = _expression.ParseExpression();
         Consume(TokenType.Semicolon, "Expected ';' after statement");
         return expr;
+    }
+
+    /// <summary>
+    /// Attempts to parse a generic type variable declaration: Identifier&lt;TypeArgs&gt; name = expr;
+    /// Returns null and restores position if the pattern doesn't match.
+    /// ECMA-334 §13.6.2 - Local variable declarations with constructed types.
+    /// </summary>
+    private Expr? TryParseGenericTypeDeclaration()
+    {
+        var saved = State.Current;
+
+        try
+        {
+            var typeName = TryParseTypeName();
+            if (typeName == null || !typeName.Contains('<'))
+            {
+                State.Current = saved;
+                return null;
+            }
+
+            if (!Check(TokenType.Identifier) && !IsContextualKeyword(Peek().Type))
+            {
+                State.Current = saved;
+                return null;
+            }
+
+            var name = Advance();
+
+            if (!Match(TokenType.Equal))
+            {
+                State.Current = saved;
+                return null;
+            }
+
+            var initializer = _expression.ParseExpression();
+            Consume(TokenType.Semicolon, "Expected ';' after variable declaration");
+
+            // Create a synthetic type token with the full generic type name
+            var syntheticTypeToken = new Token(TokenType.Identifier, typeName, null, name.Line, name.Column);
+            return new VariableDeclExpr(syntheticTypeToken, name, initializer);
+        }
+        catch
+        {
+            State.Current = saved;
+            return null;
+        }
     }
 
     #endregion

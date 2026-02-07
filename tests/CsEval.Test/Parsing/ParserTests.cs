@@ -175,6 +175,35 @@ public class ParserTests
     }
 
     [Test]
+    public void Parse_FuncTypeDecl_TwoGenericArgs()
+    {
+        var expr = Parse("{ Func<int, int> f = x => x * 2; return f(5); }");
+        Assert.That(expr, Is.InstanceOf<BlockExpr>());
+
+        var block = (BlockExpr)expr;
+        Assert.That(block.Statements[0], Is.InstanceOf<VariableDeclExpr>());
+
+        var decl = (VariableDeclExpr)block.Statements[0];
+        Assert.That(decl.DeclaredType!.Value.Lexeme, Is.EqualTo("Func<int, int>"));
+        Assert.That(decl.Name.Lexeme, Is.EqualTo("f"));
+    }
+
+    [Test]
+    public void Parse_FuncTypeDecl_ThreeGenericArgs()
+    {
+        var expr = Parse("{ Func<int, int, int> fn = (int a, int b) => a + b; return fn(10, 20); }");
+        Assert.That(expr, Is.InstanceOf<BlockExpr>());
+
+        var block = (BlockExpr)expr;
+        Assert.That(block.Statements[0], Is.InstanceOf<VariableDeclExpr>());
+
+        var decl = (VariableDeclExpr)block.Statements[0];
+        Assert.That(decl.DeclaredType!.Value.Lexeme, Is.EqualTo("Func<int, int, int>"));
+        Assert.That(decl.Name.Lexeme, Is.EqualTo("fn"));
+        Assert.That(decl.Initializer, Is.InstanceOf<LambdaExpr>());
+    }
+
+    [Test]
     public void Parse_UntypedLambda_HasNullTypeNames()
     {
         var expr = Parse("(x, y) => x + y");

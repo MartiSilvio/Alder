@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq.Expressions;
 
 namespace CsEval.Runtime;
@@ -16,17 +17,17 @@ public static class TypeHelpers
         throw new CsEvalException($"Condition must evaluate to a boolean, got '{value?.GetType().Name ?? "null"}'");
     }
 
-    internal static bool IsInteger(object? value) =>
+    internal static bool IsInteger([NotNullWhen(true)] object? value) =>
         value is sbyte or byte or short or ushort or int or uint or long or ulong;
 
-    internal static bool IsNumeric(object? value) =>
+    internal static bool IsNumeric([NotNullWhen(true)] object? value) =>
         value is sbyte or byte or short or ushort or int or uint or long or ulong or float or double or decimal;
 
     /// <summary>
     /// Checks if a value can participate in arithmetic operations.
     /// Per ECMA-334 §12.4.7.2, char undergoes unary numeric promotion to int.
     /// </summary>
-    internal static bool IsArithmetic(object? value) =>
+    internal static bool IsArithmetic([NotNullWhen(true)] object? value) =>
         value is sbyte or byte or short or ushort or int or uint or long or ulong or float or double or decimal or char;
 
     internal static bool IsArithmetic(Type type) =>
@@ -93,6 +94,11 @@ public static class TypeHelpers
     {
         if (TypeNameToClrType.TryGetValue(typeName, out var type))
             return type;
+
+        // Generic type annotations (e.g., Func<int, int>) are informational in the dynamic model
+        if (typeName.Contains('<'))
+            return typeof(object);
+
         throw new CsEvalException($"Unknown type '{typeName}'");
     }
 
@@ -274,6 +280,10 @@ public static class TypeHelpers
     public static object? ValidateAndCoerceType(string typeName, object? value, string varName)
     {
         if (typeName == "object")
+            return value;
+
+        // Generic type annotations (e.g., Func<int, int>) are informational in the dynamic model
+        if (typeName.Contains('<'))
             return value;
 
         if (!TypeNameToClrType.TryGetValue(typeName, out var targetType))

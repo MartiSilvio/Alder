@@ -31,7 +31,7 @@ public class CsxParityTests(CompilationMode mode)
     [TestCase("Algorithms/levenshtein-distance.csx", TestName = "LevenshteinDistance")]
     [TestCase("Algorithms/topological-sort.csx", TestName = "TopologicalSort", Ignore = "Gap: indexed increment (arr[i]++)")]
     [TestCase("Algorithms/lcs-dp.csx", TestName = "LcsDp")]
-    [TestCase("Algorithms/numerical-integration.csx", TestName = "NumericalIntegration", Ignore = "Gap: typed lambda parameters, Func<> type annotations")]
+    [TestCase("Algorithms/numerical-integration.csx", TestName = "NumericalIntegration", Ignore = "Gap: (int)double cast unboxing bug in ExplicitCast")]
     [TestCase("Algorithms/state-machine.csx", TestName = "StateMachine")]
     [TestCase("Algorithms/run-length-encoding.csx", TestName = "RunLengthEncoding")]
     [TestCase("Algorithms/expression-evaluator.csx", TestName = "ExpressionEvaluator")]

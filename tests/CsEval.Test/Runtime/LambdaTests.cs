@@ -99,4 +99,67 @@ public class LambdaTests(CompilationMode mode)
         var result = engine.Evaluate("{ var f = (bool b) => !b; return f(true); }");
         Assert.That(result, Is.EqualTo(false));
     }
+
+    // Func<> generic type annotations in variable declarations
+
+    [Test]
+    public void Eval_FuncTypeDecl_SimpleAssignment()
+    {
+        var engine = CreateEngine();
+        var result = engine.Evaluate(@"
+        {
+            Func<double, double> sqrtFunc = (double x) => Math.Sqrt(x);
+            return sqrtFunc(16.0);
+        }");
+        Assert.That(result, Is.EqualTo(4.0));
+    }
+
+    [Test]
+    public void Eval_FuncTypeDecl_WithUntypedLambda()
+    {
+        var engine = CreateEngine();
+        var result = engine.Evaluate(@"
+        {
+            Func<int, int> doubler = x => x * 2;
+            return doubler(5);
+        }");
+        Assert.That(result, Is.EqualTo(10));
+    }
+
+    [Test]
+    public void Eval_FuncTypeDecl_PassedToHigherOrder()
+    {
+        var engine = CreateEngine();
+        var result = engine.Evaluate(@"
+        {
+            Func<double, double> square = (double x) => x * x;
+            var apply = (Func<double, double> f, double a) => f(a);
+            return apply(square, 7.0);
+        }");
+        Assert.That(result, Is.EqualTo(49.0));
+    }
+
+    [Test]
+    public void Eval_FuncTypeDecl_ThreeGenericArgs()
+    {
+        var engine = CreateEngine();
+        var result = engine.Evaluate("{ Func<int, int, int> fn = (int a, int b) => a + b; return fn(10, 20); }");
+        Assert.That(result, Is.EqualTo(30));
+    }
+
+    [Test]
+    public void Eval_FuncTypeDecl_ExistingVarStillWorks()
+    {
+        var engine = CreateEngine();
+        var result = engine.Evaluate("{ var x = 42; return x; }");
+        Assert.That(result, Is.EqualTo(42));
+    }
+
+    [Test]
+    public void Eval_FuncTypeDecl_ExistingTypedStillWorks()
+    {
+        var engine = CreateEngine();
+        var result = engine.Evaluate("{ int x = 42; return x; }");
+        Assert.That(result, Is.EqualTo(42));
+    }
 }
