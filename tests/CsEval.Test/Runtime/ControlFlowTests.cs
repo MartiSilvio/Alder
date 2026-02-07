@@ -103,8 +103,8 @@ public class ControlFlowTests(CompilationMode mode)
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var result = engine.Evaluate("true ? [] : [1, 2, 3]");
-        Assert.That(result, Is.InstanceOf<IList>());
-        Assert.That(result, Has.Count.EqualTo(0));
+        Assert.That(result, Is.InstanceOf<Array>());
+        Assert.That(result, Has.Length.EqualTo(0));
     }
 
     [Test]

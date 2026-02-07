@@ -65,12 +65,12 @@ public class ScopingTests(CompilationMode mode)
             var results = [];
             foreach (var i in [1, 2, 3]) {
                 var x = i * 10;
-                results = [...results, x];
+                results = [..results, x];
             }
             return results;
         }");
 
-        Assert.That(result, Is.TypeOf<List<int>>());
+        Assert.That(result, Is.TypeOf<int[]>());
         var list = (System.Collections.IList)result!;
         Assert.That(list.Count, Is.EqualTo(3));
         Assert.That(list[0], Is.EqualTo(10));
@@ -209,12 +209,12 @@ public class ScopingTests(CompilationMode mode)
             var results = [];
             for (var i = 0; i < 3; i = i + 1) {
                 var x = i * 10;
-                results = [...results, x];
+                results = [..results, x];
             }
             return results;
         }");
 
-        Assert.That(result, Is.TypeOf<List<int>>());
+        Assert.That(result, Is.TypeOf<int[]>());
         var list = (System.Collections.IList)result!;
         Assert.That(list.Count, Is.EqualTo(3));
         Assert.That(list[0], Is.EqualTo(0));
@@ -294,13 +294,13 @@ public class ScopingTests(CompilationMode mode)
             var results = [];
             while (i < 3) {
                 var x = i * 10;
-                results = [...results, x];
+                results = [..results, x];
                 i = i + 1;
             }
             return results;
         }");
 
-        Assert.That(result, Is.TypeOf<List<int>>());
+        Assert.That(result, Is.TypeOf<int[]>());
         var list = (System.Collections.IList)result!;
         Assert.That(list.Count, Is.EqualTo(3));
         Assert.That(list[0], Is.EqualTo(0));
@@ -341,13 +341,13 @@ public class ScopingTests(CompilationMode mode)
             var results = [];
             do {
                 var x = i * 10;
-                results = [...results, x];
+                results = [..results, x];
                 i = i + 1;
             } while (i < 3);
             return results;
         }");
 
-        Assert.That(result, Is.TypeOf<List<int>>());
+        Assert.That(result, Is.TypeOf<int[]>());
         var list = (System.Collections.IList)result!;
         Assert.That(list.Count, Is.EqualTo(3));
         Assert.That(list[0], Is.EqualTo(0));

@@ -399,7 +399,7 @@ public class BenchmarkTests
     public void Benchmark_ReflectionCache_SpreadOperator()
     {
         // Spread also uses GetProperties
-        const string expression = "new { ...person, Email = \"john@example.com\" }";
+        const string expression = "new { ..person, Email = \"john@example.com\" }";
         var engine = new CsEvalEngine()
             .SetVariable("person", new Person { FirstName = "John", LastName = "Doe", Age = 30 });
 
@@ -443,7 +443,7 @@ public class BenchmarkTests
             {
                 var merged = person + new { FullName = person.FirstName + "" "" + person.LastName };
                 var summary = $""{merged.FullName} ({person.Age}) - {order.Status}: ${order.Total}"";
-                return new { ...merged, Summary = summary, Product = product.Name };
+                return new { ..merged, Summary = summary, Product = product.Name };
             }
         ";
 

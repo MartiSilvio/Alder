@@ -507,14 +507,14 @@ public class DoWhileLoopTests(CompilationMode mode)
             var result = [];
             var i = 0;
             do {
-                result = [...result, i * 2];
+                result = [..result, i * 2];
                 i = i + 1;
             } while (i < 5);
             return result;
         }");
 
-        Assert.That(result, Is.TypeOf<List<int>>());
-        Assert.That(result, Is.EqualTo(new List<int> { 0, 2, 4, 6, 8 }));
+        Assert.That(result, Is.TypeOf<int[]>());
+        Assert.That(result, Is.EqualTo(new int[] { 0, 2, 4, 6, 8 }));
     }
 
     #endregion

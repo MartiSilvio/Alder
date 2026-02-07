@@ -138,8 +138,8 @@ public class AssignmentTests(CompilationMode mode)
             return arr;
         }");
 
-        Assert.That(result, Is.TypeOf<List<int>>());
-        Assert.That(result, Is.EqualTo(new List<int> { 4, 5, 6 }));
+        Assert.That(result, Is.TypeOf<int[]>());
+        Assert.That(result, Is.EqualTo(new int[] { 4, 5, 6 }));
     }
 
     [Test]
@@ -308,7 +308,7 @@ public class AssignmentTests(CompilationMode mode)
         var result = engine.Evaluate(@"
         {
             var items = [1, 2, 3];
-            items = [...items, 4, 5];
+            items = [..items, 4, 5];
             var filtered = items.Where(x => x > 2).ToList();
             return filtered;
         }");

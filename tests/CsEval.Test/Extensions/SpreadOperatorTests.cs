@@ -15,8 +15,8 @@ public class SpreadOperatorTests(CompilationMode mode)
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         engine.SetVariable("arr", new List<int> { 1, 2, 3 });
 
-        var result = engine.Evaluate("[...arr]");
-        Assert.That(result, Is.TypeOf<List<int>>());
+        var result = engine.Evaluate("[..arr]");
+        Assert.That(result, Is.TypeOf<int[]>());
         var list = (IList)result!;
         Assert.That(list, Has.Count.EqualTo(3));
         Assert.That(list[0], Is.EqualTo(1));
@@ -30,8 +30,8 @@ public class SpreadOperatorTests(CompilationMode mode)
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         engine.SetVariable("arr", new List<int> { 2, 3 });
 
-        var result = engine.Evaluate("[1, ...arr, 4]");
-        Assert.That(result, Is.TypeOf<List<int>>());
+        var result = engine.Evaluate("[1, ..arr, 4]");
+        Assert.That(result, Is.TypeOf<int[]>());
         var list = (IList)result!;
         Assert.That(list, Has.Count.EqualTo(4));
         Assert.That(list[0], Is.EqualTo(1));
@@ -47,8 +47,8 @@ public class SpreadOperatorTests(CompilationMode mode)
         engine.SetVariable("arr1", new List<int> { 1, 2 });
         engine.SetVariable("arr2", new List<int> { 3, 4 });
 
-        var result = engine.Evaluate("[...arr1, ...arr2]");
-        Assert.That(result, Is.TypeOf<List<int>>());
+        var result = engine.Evaluate("[..arr1, ..arr2]");
+        Assert.That(result, Is.TypeOf<int[]>());
         var list = (IList)result!;
         Assert.That(list, Has.Count.EqualTo(4));
         Assert.That(list[0], Is.EqualTo(1));
@@ -63,8 +63,8 @@ public class SpreadOperatorTests(CompilationMode mode)
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         engine.SetVariable("arr", new[] { "a", "b", "c" });
 
-        var result = engine.Evaluate("[...arr]");
-        Assert.That(result, Is.TypeOf<List<string>>());
+        var result = engine.Evaluate("[..arr]");
+        Assert.That(result, Is.TypeOf<string[]>());
         var list = (IList)result!;
         Assert.That(list, Has.Count.EqualTo(3));
         Assert.That(list[0], Is.EqualTo("a"));
@@ -81,7 +81,7 @@ public class SpreadOperatorTests(CompilationMode mode)
         obj["B"] = 2L;
         engine.SetVariable("obj", obj);
 
-        var result = engine.Evaluate("new { ...obj }") as IDictionary<string, object?>;
+        var result = engine.Evaluate("new { ..obj }") as IDictionary<string, object?>;
         Assert.That(result, Is.Not.Null);
         Assert.That(result!["A"], Is.EqualTo(1));
         Assert.That(result["B"], Is.EqualTo(2));
@@ -95,7 +95,7 @@ public class SpreadOperatorTests(CompilationMode mode)
         obj["A"] = 1L;
         engine.SetVariable("obj", obj);
 
-        var result = engine.Evaluate("new { ...obj, B = 2 }") as IDictionary<string, object?>;
+        var result = engine.Evaluate("new { ..obj, B = 2 }") as IDictionary<string, object?>;
         Assert.That(result, Is.Not.Null);
         Assert.That(result!["A"], Is.EqualTo(1));
         Assert.That(result["B"], Is.EqualTo(2));
@@ -110,7 +110,7 @@ public class SpreadOperatorTests(CompilationMode mode)
         obj["B"] = 2L;
         engine.SetVariable("obj", obj);
 
-        var result = engine.Evaluate("new { ...obj, B = 99 }") as IDictionary<string, object?>;
+        var result = engine.Evaluate("new { ..obj, B = 99 }") as IDictionary<string, object?>;
         Assert.That(result, Is.Not.Null);
         Assert.That(result!["A"], Is.EqualTo(1));
         Assert.That(result["B"], Is.EqualTo(99));
@@ -127,7 +127,7 @@ public class SpreadOperatorTests(CompilationMode mode)
         engine.SetVariable("obj1", obj1);
         engine.SetVariable("obj2", obj2);
 
-        var result = engine.Evaluate("new { ...obj1, ...obj2 }") as IDictionary<string, object?>;
+        var result = engine.Evaluate("new { ..obj1, ..obj2 }") as IDictionary<string, object?>;
         Assert.That(result, Is.Not.Null);
         Assert.That(result!["A"], Is.EqualTo(1));
         Assert.That(result["B"], Is.EqualTo(2));
@@ -139,7 +139,7 @@ public class SpreadOperatorTests(CompilationMode mode)
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         engine.SetVariable("person", new TestPerson { Name = "John", Age = 30 });
 
-        var result = engine.Evaluate("new { ...person, City = \"NYC\" }") as IDictionary<string, object?>;
+        var result = engine.Evaluate("new { ..person, City = \"NYC\" }") as IDictionary<string, object?>;
         Assert.That(result, Is.Not.Null);
         Assert.That(result!["Name"], Is.EqualTo("John"));
         Assert.That(result["Age"], Is.EqualTo(30));
@@ -159,7 +159,7 @@ public class SpreadOperatorTests(CompilationMode mode)
         engine.SetVariable("obj1", obj1);
         engine.SetVariable("obj2", obj2);
 
-        var result = engine.Evaluate("new { ...obj1, ...obj2 }") as IDictionary<string, object?>;
+        var result = engine.Evaluate("new { ..obj1, ..obj2 }") as IDictionary<string, object?>;
         Assert.That(result, Is.Not.Null);
         Assert.That(result!["A"], Is.EqualTo(1));
         Assert.That(result["B"], Is.EqualTo(99));

@@ -378,13 +378,13 @@ public class ForLoopTests(CompilationMode mode)
         var result = engine.Evaluate("""
             var result = [];
             for (var i = 0; i < 5; i++) {
-                result = [...result, i * 2];
+                result = [..result, i * 2];
             }
             return result;
             """);
 
-        Assert.That(result, Is.TypeOf<List<int>>());
-        Assert.That(result, Is.EqualTo(new List<int> { 0, 2, 4, 6, 8 }));
+        Assert.That(result, Is.TypeOf<int[]>());
+        Assert.That(result, Is.EqualTo(new int[] { 0, 2, 4, 6, 8 }));
     }
 
     #endregion
@@ -398,7 +398,7 @@ public class ForLoopTests(CompilationMode mode)
         var result = engine.Evaluate("""
             var numbers = [];
             for (var i = 1; i <= 5; i++) {
-                numbers = [...numbers, i];
+                numbers = [..numbers, i];
             }
             return numbers.Sum();
             """);
@@ -413,7 +413,7 @@ public class ForLoopTests(CompilationMode mode)
         var result = engine.Evaluate("""
             var numbers = [];
             for (var i = 1; i <= 10; i++) {
-                numbers = [...numbers, i];
+                numbers = [..numbers, i];
             }
             return numbers.Where(x => x % 2 == 0).Count();
             """);

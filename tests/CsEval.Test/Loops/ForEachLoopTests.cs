@@ -229,7 +229,7 @@ public class ForEachLoopTests(CompilationMode mode)
     [TestCase("""
         var funcs = [];
         foreach (var i in [1, 2, 3]) {
-            funcs = [...funcs, () => i];
+            funcs = [..funcs, () => i];
         }
         return funcs[0]() * 100 + funcs[1]() * 10 + funcs[2]();
         """,
@@ -239,7 +239,7 @@ public class ForEachLoopTests(CompilationMode mode)
         var funcs = [];
         var multiplier = 10;
         foreach (var i in [1, 2, 3]) {
-            funcs = [...funcs, () => i * multiplier];
+            funcs = [..funcs, () => i * multiplier];
         }
         return funcs[0]() + funcs[1]() + funcs[2]();
         """,
@@ -249,7 +249,7 @@ public class ForEachLoopTests(CompilationMode mode)
         var funcs = [];
         foreach (var i in [1, 2]) {
             foreach (var j in [10, 20]) {
-                funcs = [...funcs, () => i * j];
+                funcs = [..funcs, () => i * j];
             }
         }
         return funcs[0]() + funcs[1]() + funcs[2]() + funcs[3]();
@@ -491,12 +491,12 @@ public class ForEachLoopTests(CompilationMode mode)
         {
             var collected = [];
             foreach (var i in [1, 2, 3]) {
-                collected = [...collected, new { Value = i, Double = i * 2 }];
+                collected = [..collected, new { Value = i, Double = i * 2 }];
             }
             return collected;
         }");
 
-        Assert.That(result, Is.TypeOf<List<System.Dynamic.ExpandoObject>>());
+        Assert.That(result, Is.TypeOf<System.Dynamic.ExpandoObject[]>());
         var list = (System.Collections.IList)result!;
         Assert.That(list.Count, Is.EqualTo(3));
     }

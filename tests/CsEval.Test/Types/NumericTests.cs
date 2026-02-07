@@ -627,7 +627,7 @@ public class NumericTests(CompilationMode mode)
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var result = engine.Evaluate("[1, 2, 3]");
-        Assert.That(result, Is.TypeOf<List<int>>());
+        Assert.That(result, Is.TypeOf<int[]>());
     }
 
     [Test]
@@ -635,7 +635,7 @@ public class NumericTests(CompilationMode mode)
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var result = engine.Evaluate("[1L, 2L, 3L]");
-        Assert.That(result, Is.TypeOf<List<long>>());
+        Assert.That(result, Is.TypeOf<long[]>());
     }
 
     [Test]

@@ -12,7 +12,7 @@ public class CollectionTests(CompilationMode mode)
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var result = engine.Evaluate("[1, 2, 3]");
-        Assert.That(result, Is.TypeOf<List<int>>());
+        Assert.That(result, Is.TypeOf<int[]>());
         var list = (IList)result!;
         Assert.That(list, Has.Count.EqualTo(3));
         Assert.That(list[0], Is.EqualTo(1));
@@ -23,7 +23,7 @@ public class CollectionTests(CompilationMode mode)
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var result = engine.Evaluate("[\"a\", \"b\", \"c\"]");
-        Assert.That(result, Is.TypeOf<List<string>>());
+        Assert.That(result, Is.TypeOf<string[]>());
     }
 
     [Test]
@@ -31,7 +31,7 @@ public class CollectionTests(CompilationMode mode)
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var result = engine.Evaluate("[1, \"two\", 3.0]");
-        Assert.That(result, Is.TypeOf<List<object?>>());
+        Assert.That(result, Is.TypeOf<object?[]>());
     }
 
     [Test]
@@ -39,7 +39,7 @@ public class CollectionTests(CompilationMode mode)
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var result = engine.Evaluate("[1, null, 3]");
-        Assert.That(result, Is.TypeOf<List<int?>>());
+        Assert.That(result, Is.TypeOf<int?[]>());
     }
 
     [Test]
@@ -47,7 +47,7 @@ public class CollectionTests(CompilationMode mode)
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var result = engine.Evaluate("[\"a\", null, \"c\"]");
-        Assert.That(result, Is.TypeOf<List<string>>());
+        Assert.That(result, Is.TypeOf<string[]>());
     }
 
     [Test]
@@ -55,7 +55,7 @@ public class CollectionTests(CompilationMode mode)
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var result = engine.Evaluate("[]");
-        Assert.That(result, Is.TypeOf<List<object?>>());
+        Assert.That(result, Is.TypeOf<object?[]>());
     }
 
     [Test]
@@ -67,7 +67,7 @@ public class CollectionTests(CompilationMode mode)
     ""two"",
     ""three""
 ]");
-        Assert.That(result, Is.TypeOf<List<string>>());
+        Assert.That(result, Is.TypeOf<string[]>());
         var list = (IList)result!;
         Assert.That(list, Has.Count.EqualTo(3));
         Assert.That(list[0], Is.EqualTo("one"));
@@ -80,7 +80,7 @@ public class CollectionTests(CompilationMode mode)
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var result = engine.Evaluate("[\r\n    \"one\"\r\n]");
-        Assert.That(result, Is.TypeOf<List<string>>());
+        Assert.That(result, Is.TypeOf<string[]>());
         var list = (IList)result!;
         Assert.That(list, Has.Count.EqualTo(1));
         Assert.That(list[0], Is.EqualTo("one"));
