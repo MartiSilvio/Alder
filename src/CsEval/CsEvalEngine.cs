@@ -306,7 +306,7 @@ public sealed class CsEvalEngine
             if (!hasStaticOnly && type.GetConstructor(Type.EmptyTypes) == null)
                 continue;
 
-            _registeredTypes.Add(new RegisteredType(type, null, null, BuildMemberDictionary(type), FromAssemblyScan: true));
+            _registeredTypes.Add(new RegisteredType(type, null, null, BuildMemberDictionary(type)));
         }
 
         return this;
@@ -314,7 +314,7 @@ public sealed class CsEvalEngine
 
     public CsEvalEngine RegisterFromType(Type type, object? instance = null)
     {
-        _registeredTypes.Add(new RegisteredType(type, instance, null, BuildMemberDictionary(type), FromAssemblyScan: false));
+        _registeredTypes.Add(new RegisteredType(type, instance, null, BuildMemberDictionary(type)));
         return this;
     }
 
@@ -328,7 +328,7 @@ public sealed class CsEvalEngine
         var moduleAttr = type.GetCustomAttribute<CsEvalModuleAttribute>();
         var explicitOnly = moduleAttr?.ExplicitOnly ?? false;
         var methods = BuildMemberDictionary(type, explicitOnly);
-        _registeredTypes.Add(new RegisteredType(type, null, moduleName, methods, FromAssemblyScan: false));
+        _registeredTypes.Add(new RegisteredType(type, null, moduleName, methods));
         return this;
     }
 
@@ -337,27 +337,27 @@ public sealed class CsEvalEngine
         var moduleAttr = typeof(T).GetCustomAttribute<CsEvalModuleAttribute>();
         var explicitOnly = moduleAttr?.ExplicitOnly ?? false;
         var methods = BuildMemberDictionary(typeof(T), explicitOnly);
-        _registeredTypes.Add(new RegisteredType(typeof(T), instance, moduleName, methods, FromAssemblyScan: false));
+        _registeredTypes.Add(new RegisteredType(typeof(T), instance, moduleName, methods));
         return this;
     }
 
     public CsEvalEngine RegisterModule(string moduleName, Type type, bool explicitOnly)
     {
         var methods = BuildMemberDictionary(type, explicitOnly);
-        _registeredTypes.Add(new RegisteredType(type, null, moduleName, methods, FromAssemblyScan: false));
+        _registeredTypes.Add(new RegisteredType(type, null, moduleName, methods));
         return this;
     }
 
     public CsEvalEngine RegisterModule<T>(string moduleName, bool explicitOnly, T? instance = default) where T : class
     {
         var methods = BuildMemberDictionary(typeof(T), explicitOnly);
-        _registeredTypes.Add(new RegisteredType(typeof(T), instance, moduleName, methods, FromAssemblyScan: false));
+        _registeredTypes.Add(new RegisteredType(typeof(T), instance, moduleName, methods));
         return this;
     }
 
     public CsEvalEngine RegisterModule(string moduleName, Type type, IReadOnlyDictionary<string, MemberInfo> members)
     {
-        _registeredTypes.Add(new RegisteredType(type, null, moduleName, members, FromAssemblyScan: false));
+        _registeredTypes.Add(new RegisteredType(type, null, moduleName, members));
         return this;
     }
 
@@ -501,6 +501,5 @@ public sealed class CsEvalEngine
         Type Type,
         object? Instance,
         string? ModuleName,
-        IReadOnlyDictionary<string, MemberInfo> Members,
-        bool FromAssemblyScan);
+        IReadOnlyDictionary<string, MemberInfo> Members);
 }
