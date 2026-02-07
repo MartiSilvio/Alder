@@ -30,27 +30,21 @@ internal sealed class ExpressionCache
 
 /// <summary>
 /// Default expression compiler using System.Linq.Expressions.
-/// Implements IExpressionCompiler for pluggable compiler backend support.
 /// </summary>
-internal sealed class ExpressionCompiler : IExpressionCompiler
+internal static class ExpressionCompiler
 {
-    /// <summary>
-    /// Singleton instance for the default compiler.
-    /// </summary>
-    internal static readonly ExpressionCompiler Default = new();
-
     /// <summary>
     /// Get or create compiled delegate for an expression string.
     /// </summary>
-    public static CompiledExpressionInfo GetOrCompile(string expressionText, Expr ast, ExpressionCache cache, IExpressionCompiler? compiler = null)
+    public static CompiledExpressionInfo GetOrCompile(string expressionText, Expr ast, ExpressionCache cache)
     {
-        return cache.GetOrAdd(expressionText, _ => (compiler ?? Default).TryCompile(ast));
+        return cache.GetOrAdd(expressionText, _ => TryCompile(ast));
     }
 
     /// <summary>
     /// Attempt to compile an AST to a native IL delegate.
     /// </summary>
-    public CompiledExpressionInfo TryCompile(Expr ast)
+    public static CompiledExpressionInfo TryCompile(Expr ast)
     {
         try
         {
