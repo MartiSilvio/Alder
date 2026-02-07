@@ -143,7 +143,7 @@ public static class TypeHelpers
     public static object? ExplicitCast(object? value, string targetTypeName, Type? sourceStaticType = null)
     {
         if (!TypeNameToClrType.TryGetValue(targetTypeName, out var targetType))
-            throw new CsEvalException($"Unknown type '{targetTypeName}'");
+            targetType = ResolveTypeByName(targetTypeName);
 
         var underlyingType = Nullable.GetUnderlyingType(targetType) ?? targetType;
         var isNullable = Nullable.GetUnderlyingType(targetType) != null;
@@ -171,6 +171,14 @@ public static class TypeHelpers
 
         if (underlyingType == typeof(object))
             return value;
+
+        // Reference type cast: check assignability for non-value-type targets
+        if (!underlyingType.IsValueType && underlyingType != typeof(string))
+        {
+            if (underlyingType.IsAssignableFrom(runtimeType))
+                return value;
+            throw new InvalidCastException($"Unable to cast object of type '{runtimeType.Name}' to type '{underlyingType.Name}'.");
+        }
 
         // C# unboxing rule: when source static type is 'object', you can only unbox to the exact boxed type
         // (long)(object)42 fails because 42 is boxed as int, not long
@@ -228,7 +236,7 @@ public static class TypeHelpers
     public static bool IsType(object? value, string typeName)
     {
         if (!TypeNameToClrType.TryGetValue(typeName, out var targetType))
-            throw new CsEvalException($"Unknown type '{typeName}'");
+            targetType = ResolveTypeByName(typeName);
 
         if (value == null)
             return false;
@@ -242,7 +250,7 @@ public static class TypeHelpers
     public static object? TryAs(object? value, string typeName)
     {
         if (!TypeNameToClrType.TryGetValue(typeName, out var targetType))
-            throw new CsEvalException($"Unknown type '{typeName}'");
+            targetType = ResolveTypeByName(typeName);
 
         if (value == null)
             return null;

@@ -136,6 +136,46 @@ public class CastTests(CompilationMode mode)
 
     #endregion
 
+    #region Cast with Non-Keyword Class Types
+
+    [Test]
+    public void Cast_ClassType_Compatible()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        engine.SetVariable("obj", (object)new ArgumentException("test"));
+        var result = engine.Evaluate("(Exception)obj");
+        Assert.That(result, Is.InstanceOf<ArgumentException>());
+    }
+
+    [Test]
+    public void Cast_ClassType_ExactMatch()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        engine.SetVariable("obj", (object)new Exception("test"));
+        var result = engine.Evaluate("(Exception)obj");
+        Assert.That(result, Is.InstanceOf<Exception>());
+        Assert.That(((Exception)result!).Message, Is.EqualTo("test"));
+    }
+
+    [Test]
+    public void Cast_ClassType_Incompatible_Throws()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        engine.SetVariable("obj", (object)"hello");
+        Assert.Throws<InvalidCastException>(() => engine.Evaluate("(Exception)obj"));
+    }
+
+    [Test]
+    public void Cast_ClassType_NullValue()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        engine.SetVariable("obj", null);
+        var result = engine.Evaluate("(Exception)obj");
+        Assert.That(result, Is.Null);
+    }
+
+    #endregion
+
     #region ECMA-334 §10.3.7 — Unboxing Edge Cases
 
     [Test]

@@ -146,6 +146,48 @@ public class IsAsTests(CompilationMode mode)
 
     #endregion
 
+    #region ECMA-334 §12.12.13 — As Operator with Non-Keyword Types
+
+    [Test]
+    public void As_ClassType_Match()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        engine.SetVariable("x", new ArgumentException("test"));
+        var result = engine.Evaluate("x as Exception");
+        Assert.That(result, Is.Not.Null);
+        Assert.That(result, Is.InstanceOf<ArgumentException>());
+    }
+
+    [Test]
+    public void As_ClassType_NoMatch()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        engine.SetVariable("x", "hello");
+        var result = engine.Evaluate("x as Exception");
+        Assert.That(result, Is.Null);
+    }
+
+    [Test]
+    public void As_ClassType_NullValue()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        engine.SetVariable("x", null);
+        var result = engine.Evaluate("x as Exception");
+        Assert.That(result, Is.Null);
+    }
+
+    [Test]
+    public void As_ClassType_DerivedMatch()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        engine.SetVariable("x", new InvalidOperationException("oops"));
+        var result = engine.Evaluate("x as Exception");
+        Assert.That(result, Is.Not.Null);
+        Assert.That(result, Is.InstanceOf<InvalidOperationException>());
+    }
+
+    #endregion
+
     #region ECMA-334 §11.2.2 — Type Pattern with Variable Binding
 
     // ECMA-334 §11.2.2: "A declaration pattern ... declares a new local variable"

@@ -141,7 +141,8 @@ public sealed class TypeInferrer : AstWalker<Type>
     public override Type VisitCast(CastExpr expr)
     {
         base.VisitCast(expr);
-        return SetType(expr, TypeHelpers.ResolveTypeName(expr.TargetType.Lexeme));
+        try { return SetType(expr, TypeHelpers.ResolveTypeName(expr.TargetType.Lexeme)); }
+        catch { return SetType(expr, TypeHelpers.ResolveTypeByName(expr.TargetType.Lexeme)); }
     }
 
     public override Type VisitIsPattern(IsPatternExpr expr)
@@ -160,7 +161,8 @@ public sealed class TypeInferrer : AstWalker<Type>
     public override Type VisitAs(AsExpr expr)
     {
         base.VisitAs(expr);
-        return SetType(expr, TypeHelpers.ResolveTypeName(expr.TargetType.Lexeme));
+        try { return SetType(expr, TypeHelpers.ResolveTypeName(expr.TargetType.Lexeme)); }
+        catch { return SetType(expr, TypeHelpers.ResolveTypeByName(expr.TargetType.Lexeme)); }
     }
 
     public override Type VisitAssign(AssignExpr expr)

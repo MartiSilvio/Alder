@@ -379,11 +379,45 @@ public sealed class ExpressionParser : ParserBase
 
     private Expr ParseAsExpression(Expr left)
     {
-        // x as type
+        // x as type (keyword types: int, string, etc.)
         if (MatchTypeKeyword(out var typeToken))
             return new AsExpr(left, typeToken);
 
+        // x as TypeName or x as Namespace.TypeName (non-keyword class types)
+        if (Check(TokenType.Identifier))
+        {
+            var identToken = ParseDottedTypeName();
+            return new AsExpr(left, identToken);
+        }
+
         throw new CsEvalParserException($"Expected type after 'as' at {Peek().Line}:{Peek().Column}");
+    }
+
+    /// <summary>
+    /// Parses a dotted type name (e.g., System.Exception) and returns a single token
+    /// with the full name as lexeme.
+    /// </summary>
+    private Token ParseDottedTypeName()
+    {
+        var token = Consume(TokenType.Identifier, "Expected type name");
+        var name = token.Lexeme;
+
+        while (Check(TokenType.Dot) && State.Current + 1 < State.Tokens.Count
+               && State.Tokens[State.Current + 1].Type == TokenType.Identifier)
+        {
+            Advance(); // consume '.'
+            var next = Advance(); // consume identifier
+            name += "." + next.Lexeme;
+        }
+
+        // Check for nullable suffix: TypeName?
+        if (Check(TokenType.Question))
+        {
+            Advance();
+            name += "?";
+        }
+
+        return token with { Lexeme = name };
     }
 
     #region Switch Expression
@@ -482,11 +516,23 @@ public sealed class ExpressionParser : ParserBase
 
     internal Expr ParseUnary()
     {
-        // Cast expression: (int)x, (double)y, (int?)z
+        // Cast expression: (int)x, (double)y, (int?)z, (Exception)x
         if (Check(TokenType.LeftParen) && IsCastExpression())
         {
             Advance(); // consume '('
-            MatchTypeKeyword(out var typeToken);
+            Token typeToken;
+            if (MatchTypeKeyword(out typeToken))
+            {
+                // keyword type cast
+            }
+            else if (Check(TokenType.Identifier))
+            {
+                typeToken = ParseDottedTypeName();
+            }
+            else
+            {
+                throw new CsEvalParserException($"Expected type in cast at {Peek().Line}:{Peek().Column}");
+            }
             Consume(TokenType.RightParen, "Expected ')' after cast type");
             var operand = ParseUnary();
             return new CastExpr(typeToken, operand);
@@ -521,33 +567,91 @@ public sealed class ExpressionParser : ParserBase
     internal bool IsCastExpression()
     {
         // Look ahead: ( type ) or ( type? )
-        // We're at '(' - check if next token is a type keyword
+        // We're at '(' - check if next token is a type keyword or identifier (class type)
         if (State.Current + 1 >= State.Tokens.Count)
             return false;
 
         var nextToken = State.Tokens[State.Current + 1];
-        if (!IsTypeKeyword(nextToken.Type))
-            return false;
 
-        // Check what follows the type: either ')' or '?' then ')'
-        var afterTypeIndex = State.Current + 2;
-        if (afterTypeIndex >= State.Tokens.Count)
-            return false;
-
-        var afterType = State.Tokens[afterTypeIndex];
-        if (afterType.Type == TokenType.RightParen)
-            return true;
-
-        // Check for nullable: type?
-        if (afterType.Type == TokenType.Question)
+        if (IsTypeKeyword(nextToken.Type))
         {
-            var afterNullable = afterTypeIndex + 1;
-            if (afterNullable >= State.Tokens.Count)
+            // Check what follows the type keyword: either ')' or '?' then ')'
+            var afterTypeIndex = State.Current + 2;
+            if (afterTypeIndex >= State.Tokens.Count)
                 return false;
-            return State.Tokens[afterNullable].Type == TokenType.RightParen;
+
+            var afterType = State.Tokens[afterTypeIndex];
+            if (afterType.Type == TokenType.RightParen)
+                return true;
+
+            // Check for nullable: type?
+            if (afterType.Type == TokenType.Question)
+            {
+                var afterNullable = afterTypeIndex + 1;
+                if (afterNullable >= State.Tokens.Count)
+                    return false;
+                return State.Tokens[afterNullable].Type == TokenType.RightParen;
+            }
+
+            return false;
+        }
+
+        // Identifier cast: (Exception)obj, (System.Exception)obj
+        // Disambiguation: (identifier)expr is a cast if what follows ')' is a value-start token
+        if (nextToken.Type == TokenType.Identifier)
+        {
+            // Walk past the identifier and optional dotted names
+            var scanIndex = State.Current + 2;
+
+            // Skip dotted names: Ident.Ident.Ident
+            while (scanIndex + 1 < State.Tokens.Count
+                   && State.Tokens[scanIndex].Type == TokenType.Dot
+                   && State.Tokens[scanIndex + 1].Type == TokenType.Identifier)
+            {
+                scanIndex += 2;
+            }
+
+            if (scanIndex >= State.Tokens.Count)
+                return false;
+
+            // Optional nullable suffix
+            if (State.Tokens[scanIndex].Type == TokenType.Question
+                && scanIndex + 1 < State.Tokens.Count)
+            {
+                scanIndex++;
+            }
+
+            // Must have ')' next
+            if (State.Tokens[scanIndex].Type != TokenType.RightParen)
+                return false;
+
+            // After ')' must be a value-start token (cast target)
+            var afterParen = scanIndex + 1;
+            if (afterParen >= State.Tokens.Count)
+                return false;
+
+            return IsValueStartToken(State.Tokens[afterParen].Type);
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// Returns true if a token type can start a value expression.
+    /// Used for cast disambiguation: (Type)expr requires expr to start with a value token.
+    /// </summary>
+    private static bool IsValueStartToken(TokenType type)
+    {
+        return type is TokenType.Identifier
+            or TokenType.Number or TokenType.String or TokenType.Character
+            or TokenType.InterpolatedString
+            or TokenType.True or TokenType.False or TokenType.Null
+            or TokenType.New or TokenType.LeftParen
+            or TokenType.Bang or TokenType.Tilde
+            or TokenType.PlusPlus or TokenType.MinusMinus
+            or TokenType.Minus or TokenType.Plus
+            or TokenType.Typeof or TokenType.Nameof or TokenType.Default
+            or TokenType.Throw;
     }
 
     private Expr ParsePostfix()
