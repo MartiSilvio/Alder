@@ -47,9 +47,15 @@ public static class TestHelpers
     /// <summary>
     /// Runs a C# parity test without expected value.
     /// </summary>
-    public static async Task RunCSharpParityTestAsync(string expr, CompilationMode mode)
+    public static Task RunCSharpParityTestAsync(string expr, CompilationMode mode)
+        => RunCSharpParityTestAsync(expr, CsEvalOptions.Default with { CompilationMode = mode });
+
+    /// <summary>
+    /// Runs a C# parity test with custom options.
+    /// </summary>
+    public static async Task RunCSharpParityTestAsync(string expr, CsEvalOptions options)
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = new CsEvalEngine(options);
         var result = engine.Evaluate(expr);
         var csharpResult = await EvaluateCSharpAsync(expr);
 
