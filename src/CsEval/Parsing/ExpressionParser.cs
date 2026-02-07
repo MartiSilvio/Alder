@@ -36,11 +36,9 @@ public sealed class ExpressionParser : ParserBase
 
         // Wire cross-references
         primary.SetExpressionParser(expression);
-        primary.SetPatternParser(pattern);
         primary.SetStatementParser(statement);
         pattern.SetExpressionParser(expression);
         statement.SetExpressionParser(expression);
-        statement.SetPatternParser(pattern);
 
         return expression;
     }
@@ -345,7 +343,7 @@ public sealed class ExpressionParser : ParserBase
         return expr;
     }
 
-    private Expr ParseIsExpression(Expr left)
+    private IsPatternExpr ParseIsExpression(Expr left)
     {
         var pattern = _pattern.ParsePattern();
         return new IsPatternExpr(left, pattern);

@@ -9,7 +9,6 @@ namespace CsEval.Parsing;
 public sealed class PrimaryParser : ParserBase
 {
     private ExpressionParser _expression = null!;
-    private PatternParser _pattern = null!;
     private StatementParser _statement = null!;
 
     internal PrimaryParser(ParserState state) : base(state)
@@ -17,7 +16,6 @@ public sealed class PrimaryParser : ParserBase
     }
 
     internal void SetExpressionParser(ExpressionParser expression) => _expression = expression;
-    internal void SetPatternParser(PatternParser pattern) => _pattern = pattern;
     internal void SetStatementParser(StatementParser statement) => _statement = statement;
 
     #region Primary Dispatch
@@ -422,7 +420,7 @@ public sealed class PrimaryParser : ParserBase
 
     #region Interpolated Strings
 
-    private Expr ParseInterpolatedString(Token token)
+    private InterpolatedStringExpr ParseInterpolatedString(Token token)
     {
         var content = (string)token.Literal!;
         var parts = new List<InterpolatedPart>();
@@ -431,60 +429,64 @@ public sealed class PrimaryParser : ParserBase
 
         while (i < content.Length)
         {
-            if (content[i] == '{')
+            switch (content[i])
             {
                 // Check for escaped brace {{
-                if (i + 1 < content.Length && content[i + 1] == '{')
-                {
+                case '{' when i + 1 < content.Length && content[i + 1] == '{':
                     sb.Append('{');
                     i += 2;
                     continue;
-                }
-
-                if (sb.Length > 0)
+                case '{':
                 {
-                    parts.Add(new TextPart(sb.ToString()));
-                    sb.Clear();
+                    if (sb.Length > 0)
+                    {
+                        parts.Add(new TextPart(sb.ToString()));
+                        sb.Clear();
+                    }
+
+                    i++; // skip {
+                    var exprStart = i;
+                    var braceDepth = 1;
+
+                    while (i < content.Length && braceDepth > 0)
+                    {
+                        switch (content[i])
+                        {
+                            case '{':
+                                braceDepth++;
+                                break;
+                            case '}':
+                                braceDepth--;
+                                break;
+                        }
+
+                        if (braceDepth > 0) i++;
+                    }
+
+                    var exprText = content[exprStart..i];
+                    i++; // skip }
+
+                    var lexer = new Lexer(exprText);
+                    var parserTokens = lexer.Tokenize();
+                    var subParser = ExpressionParser.CreateForSubExpression(parserTokens);
+                    var expr = subParser.Parse();
+                    parts.Add(new ExpressionPart(expr));
+                    break;
                 }
-
-                i++; // skip {
-                var exprStart = i;
-                var braceDepth = 1;
-
-                while (i < content.Length && braceDepth > 0)
-                {
-                    if (content[i] == '{') braceDepth++;
-                    else if (content[i] == '}') braceDepth--;
-                    if (braceDepth > 0) i++;
-                }
-
-                var exprText = content[exprStart..i];
-                i++; // skip }
-
-                var lexer = new Lexer(exprText);
-                var parserTokens = lexer.Tokenize();
-                var subParser = ExpressionParser.CreateForSubExpression(parserTokens);
-                var expr = subParser.Parse();
-                parts.Add(new ExpressionPart(expr));
-            }
-            else if (content[i] == '}')
-            {
                 // Check for escaped brace }}
-                if (i + 1 < content.Length && content[i + 1] == '}')
-                {
+                case '}' when i + 1 < content.Length && content[i + 1] == '}':
                     sb.Append('}');
                     i += 2;
                     continue;
-                }
-
                 // Single } outside expression - just append it
-                sb.Append(content[i]);
-                i++;
-            }
-            else
-            {
-                sb.Append(content[i]);
-                i++;
+                case '}':
+                    sb.Append(content[i]);
+                    i++;
+                    break;
+                default:
+                    sb.Append(content[i]);
+                    i++;
+                    break;
             }
         }
 

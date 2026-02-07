@@ -7,14 +7,12 @@ namespace CsEval.Parsing;
 public sealed class StatementParser : ParserBase
 {
     private ExpressionParser _expression = null!;
-    private PatternParser _pattern = null!;
 
     internal StatementParser(ParserState state) : base(state)
     {
     }
 
     internal void SetExpressionParser(ExpressionParser expression) => _expression = expression;
-    internal void SetPatternParser(PatternParser pattern) => _pattern = pattern;
 
     #region Block and Statement List
 
