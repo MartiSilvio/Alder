@@ -9,7 +9,7 @@ public class ParserTests
     {
         var lexer = new Lexer(source);
         var tokens = lexer.Tokenize();
-        var parser = new Parser(tokens);
+        var parser = ExpressionParser.CreateForSubExpression(tokens);
         return parser.Parse();
     }
 

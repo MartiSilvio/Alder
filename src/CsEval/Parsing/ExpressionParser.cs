@@ -1,15 +1,132 @@
 namespace CsEval.Parsing;
 
-public sealed partial class Parser
+/// <summary>
+/// Parses expressions using recursive descent with Pratt-style precedence climbing.
+/// Serves as the main parser entry point via Parse().
+/// </summary>
+public sealed class ExpressionParser : ParserBase
 {
+    private readonly PrimaryParser _primary;
+    private readonly PatternParser _pattern;
+    private readonly StatementParser _statement;
+
+    internal ExpressionParser(
+        ParserState state,
+        PrimaryParser primary,
+        PatternParser pattern,
+        StatementParser statement)
+        : base(state)
+    {
+        _primary = primary;
+        _pattern = pattern;
+        _statement = statement;
+    }
+
+    /// <summary>
+    /// Creates a fully wired parser graph for a token list. Used by CsEvalEngine and for
+    /// sub-expression parsing (interpolated strings).
+    /// </summary>
+    public static ExpressionParser CreateForSubExpression(List<Token> tokens)
+    {
+        var state = new ParserState(tokens);
+        var primary = new PrimaryParser(state);
+        var pattern = new PatternParser(state);
+        var statement = new StatementParser(state);
+        var expression = new ExpressionParser(state, primary, pattern, statement);
+
+        // Wire cross-references
+        primary.SetExpressionParser(expression);
+        primary.SetPatternParser(pattern);
+        primary.SetStatementParser(statement);
+        pattern.SetExpressionParser(expression);
+        statement.SetExpressionParser(expression);
+        statement.SetPatternParser(pattern);
+
+        return expression;
+    }
+
+    #region Entry Point
+
+    public Expr Parse()
+    {
+        if (IsStatementKeyword())
+            return ParseProgram();
+
+        var expr = ParseExpression();
+
+        if (IsAtEnd())
+            return expr;
+
+        if (!Check(TokenType.Semicolon))
+            throw new CsEvalParserException($"Unexpected token '{Peek().Lexeme}' at {Peek().Line}:{Peek().Column}");
+
+        State.Current = 0;
+        return ParseProgram();
+    }
+
+    private Expr ParseProgram()
+    {
+        var statements = new List<Expr>();
+
+        while (!IsAtEnd())
+        {
+            if (IsStatementKeyword())
+            {
+                var stmt = _statement.ParseStatement();
+                if (stmt != null)
+                    statements.Add(stmt);
+            }
+            else
+            {
+                var expr = ParseExpression();
+
+                if (Check(TokenType.Semicolon))
+                {
+                    Advance();
+                    statements.Add(expr);
+                }
+                else if (IsAtEnd())
+                {
+                    return new BlockExpr(statements, expr);
+                }
+                else
+                {
+                    throw new CsEvalParserException($"Unexpected token '{Peek().Lexeme}' at {Peek().Line}:{Peek().Column}");
+                }
+            }
+        }
+
+        if (statements.Count > 0)
+            return new BlockExpr(statements, null);
+
+        throw new CsEvalParserException("Empty expression");
+    }
+
+    private bool IsStatementKeyword()
+    {
+        // Control flow keywords are always statement keywords
+        if (Check(TokenType.Return) || Check(TokenType.Break) || Check(TokenType.Continue) ||
+            Check(TokenType.If) || Check(TokenType.While) || Check(TokenType.For) ||
+            Check(TokenType.Do) || Check(TokenType.Foreach) || Check(TokenType.Switch) ||
+            Check(TokenType.Try) || Check(TokenType.Var))
+            return true;
+
+        // Type keywords are statement keywords ONLY if NOT followed by '.' (for static member access like double.NaN)
+        if (IsTypeKeyword(Peek().Type) && PeekNext().Type != TokenType.Dot)
+            return true;
+
+        return false;
+    }
+
+    #endregion
+
     #region Expression Precedence
 
-    private Expr ParseExpression() => ParseAssignment();
+    internal Expr ParseExpression() => ParseAssignment();
 
     private Expr ParseAssignment()
     {
-        // Throw expression: throw expr (ECMA-334 §12.16)
-        // Valid in expression contexts: ?? right operand, ?: branches, expression bodies
+        // Throw expression: throw expr (ECMA-334 section 12.16)
         if (Match(TokenType.Throw))
         {
             var throwExpr = ParseAssignment();
@@ -84,7 +201,7 @@ public sealed partial class Parser
 
         if (Match(TokenType.QuestionQuestion))
         {
-            // Right operand of ?? can be a throw expression (ECMA-334 §12.16)
+            // Right operand of ?? can be a throw expression (ECMA-334 section 12.16)
             if (Check(TokenType.Throw))
             {
                 Advance();
@@ -184,8 +301,6 @@ public sealed partial class Parser
     {
         var expr = ParseComparison();
 
-        // Support both == and === (JavaScript), != and !== (JavaScript)
-        // === and !== are treated the same as == and != in C# semantics
         while (Match(TokenType.EqualEqual, TokenType.BangEqual,
                      TokenType.EqualEqualEqual, TokenType.BangEqualEqual))
         {
@@ -232,19 +347,17 @@ public sealed partial class Parser
 
     private Expr ParseIsExpression(Expr left)
     {
-        var pattern = ParsePattern();
+        var pattern = _pattern.ParsePattern();
         return new IsPatternExpr(left, pattern);
     }
 
-    private bool MatchTypeKeywordNoNullable(out Token typeToken)
+    private Expr ParseAsExpression(Expr left)
     {
-        if (IsTypeKeyword(Peek().Type))
-        {
-            typeToken = Advance();
-            return true;
-        }
-        typeToken = default;
-        return false;
+        // x as type
+        if (MatchTypeKeyword(out var typeToken))
+            return new AsExpr(left, typeToken);
+
+        throw new CsEvalParserException($"Expected type after 'as' at {Peek().Line}:{Peek().Column}");
     }
 
     #region Switch Expression
@@ -256,7 +369,7 @@ public sealed partial class Parser
 
         while (!Check(TokenType.RightBrace) && !IsAtEnd())
         {
-            var pattern = ParsePattern();
+            var pattern = _pattern.ParsePattern();
 
             // Optional when guard
             Expr? whenGuard = null;
@@ -280,229 +393,15 @@ public sealed partial class Parser
 
     #endregion
 
-    #region Pattern Parsing
-
-    // ECMA-334 §11.2 - Pattern grammar
-    // Precedence: or < and < not < relational < primary
-    private Pattern ParsePattern() => ParseOrPattern();
-
-    private Pattern ParseOrPattern()
+    private bool MatchTypeKeywordNoNullable(out Token typeToken)
     {
-        var left = ParseAndPattern();
-
-        while (IsPatternKeyword("or"))
-        {
-            Advance(); // consume 'or' (lexed as PipePipe)
-            var right = ParseAndPattern();
-            left = new OrPattern(left, right);
-        }
-
-        return left;
-    }
-
-    private Pattern ParseAndPattern()
-    {
-        var left = ParseNotPattern();
-
-        while (IsPatternKeyword("and"))
-        {
-            Advance(); // consume 'and' (lexed as AmpAmp)
-            var right = ParseNotPattern();
-            left = new AndPattern(left, right);
-        }
-
-        return left;
-    }
-
-    private Pattern ParseNotPattern()
-    {
-        if (IsPatternKeyword("not"))
-        {
-            Advance(); // consume 'not' (lexed as Bang)
-            var operand = ParseNotPattern(); // right-recursive
-            return new NotPattern(operand);
-        }
-
-        return ParseRelationalPattern();
-    }
-
-    private Pattern ParseRelationalPattern()
-    {
-        // Check for relational operators: <, <=, >, >=
-        if (Check(TokenType.Less) || Check(TokenType.LessEqual) ||
-            Check(TokenType.Greater) || Check(TokenType.GreaterEqual))
-        {
-            var op = Advance();
-            var operand = ParseUnary(); // limited expression parse for constant value
-            return new RelationalPattern(op, operand);
-        }
-
-        return ParsePrimaryPattern();
-    }
-
-    private Pattern ParsePrimaryPattern()
-    {
-        // Discard pattern: _
-        if (Check(TokenType.Identifier) && Peek().Lexeme == "_")
-        {
-            Advance();
-            return new DiscardPattern();
-        }
-
-        // Var pattern: var name
-        if (Match(TokenType.Var))
-        {
-            var varName = Consume(TokenType.Identifier, "Expected identifier after 'var'");
-            return new VarPattern(varName);
-        }
-
-        // Property pattern without type: { Name: pattern, ... }
-        if (Check(TokenType.LeftBrace))
-        {
-            return ParsePropertyPattern(null);
-        }
-
-        // Parenthesized pattern: (pattern)
-        if (Check(TokenType.LeftParen) && !IsCastExpression())
-        {
-            Advance(); // consume '('
-            var inner = ParsePattern();
-            Consume(TokenType.RightParen, "Expected ')' after parenthesized pattern");
-            return new ParenthesizedPattern(inner);
-        }
-
-        // Null pattern
-        if (Match(TokenType.Null))
-        {
-            return new ConstantPattern(new LiteralExpr(null, IsConstant: true));
-        }
-
-        // Boolean constants
-        if (Match(TokenType.True))
-        {
-            return new ConstantPattern(new LiteralExpr(true, IsConstant: true));
-        }
-        if (Match(TokenType.False))
-        {
-            return new ConstantPattern(new LiteralExpr(false, IsConstant: true));
-        }
-
-        // Type keyword: int, string, object, etc.
         if (IsTypeKeyword(Peek().Type))
         {
-            var typeToken = Advance();
-
-            // Nullable type: int?, string?, etc.
-            // Only consume '?' if NOT followed by something that looks like a ternary branch.
-            // In C#, 'x is int?' is a nullable type pattern only when followed by a pattern
-            // combinator, variable, or delimiter -- not when '?' starts a ternary expression.
-            if (Check(TokenType.Question) && _current + 1 < _tokens.Count)
-            {
-                var afterQuestion = _tokens[_current + 1];
-                // '?' is nullable suffix if followed by pattern-ending tokens or combinators
-                if (afterQuestion.Type is TokenType.RightParen or TokenType.Comma
-                    or TokenType.RightBrace or TokenType.Arrow
-                    || afterQuestion.Lexeme is "and" or "or" or "not" or "when"
-                    || (afterQuestion.Type == TokenType.Identifier && afterQuestion.Lexeme != "_"))
-                {
-                    Advance();
-                    typeToken = typeToken with { Lexeme = typeToken.Lexeme + "?" };
-                }
-            }
-
-            // Type + property pattern: int { ... }
-            if (Check(TokenType.LeftBrace))
-            {
-                return ParsePropertyPattern(typeToken);
-            }
-
-            // Type + variable binding: string s (but not 'and'/'or'/'not'/'when'/'_')
-            if (Check(TokenType.Identifier) && !IsPatternCombinatorOrReserved(Peek()))
-            {
-                var varName = Advance();
-                return new TypePattern(typeToken, varName);
-            }
-
-            // Plain type pattern: string, int, etc.
-            return new TypePattern(typeToken, null);
-        }
-
-        // Identifier that could be a type name (for user-defined types via identifiers)
-        // But in this evaluator, identifiers in patterns are treated as constant expressions
-        // unless they match a type keyword above.
-
-        // Number/string/character literals and unary expressions (e.g., -1)
-        var expr = ParseUnary();
-        return new ConstantPattern(expr);
-    }
-
-    private Pattern ParsePropertyPattern(Token? typeToken)
-    {
-        Consume(TokenType.LeftBrace, "Expected '{' for property pattern");
-        var properties = new List<(Token Name, Pattern Pattern)>();
-
-        while (!Check(TokenType.RightBrace) && !IsAtEnd())
-        {
-            var name = Consume(TokenType.Identifier, "Expected property name in property pattern");
-            Consume(TokenType.Colon, "Expected ':' after property name in property pattern");
-            var pattern = ParsePattern();
-            properties.Add((name, pattern));
-
-            if (!Match(TokenType.Comma))
-                break;
-        }
-
-        Consume(TokenType.RightBrace, "Expected '}' after property pattern");
-
-        // Optional variable binding after property pattern
-        Token? variableName = null;
-        if (Check(TokenType.Identifier) && !IsPatternCombinatorOrReserved(Peek()))
-        {
-            variableName = Advance();
-        }
-
-        return new PropertyPattern(typeToken, properties, variableName);
-    }
-
-    /// <summary>
-    /// Checks if the current token is a contextual keyword used in pattern matching.
-    /// These keywords (and, or, not) are lexed as AmpAmp, PipePipe, Bang respectively,
-    /// but have the original lexeme preserved.
-    /// </summary>
-    private bool IsPatternKeyword(string keyword)
-    {
-        if (IsAtEnd()) return false;
-        return Peek().Lexeme == keyword && keyword switch
-        {
-            "and" => Peek().Type == TokenType.AmpAmp,
-            "or" => Peek().Type == TokenType.PipePipe,
-            "not" => Peek().Type == TokenType.Bang,
-            _ => false
-        };
-    }
-
-    /// <summary>
-    /// Returns true if token should NOT be consumed as a variable name in a type pattern.
-    /// Pattern combinators (and, or, not), 'when' keyword, and discard '_' stop parsing.
-    /// </summary>
-    private static bool IsPatternCombinatorOrReserved(Token token)
-    {
-        if (token.Lexeme is "and" or "or" or "not" or "_")
+            typeToken = Advance();
             return true;
-        if (token.Type == TokenType.When)
-            return true;
+        }
+        typeToken = default;
         return false;
-    }
-
-    #endregion
-
-    private Expr ParseAsExpression(Expr left)
-    {
-        // x as type
-        if (MatchTypeKeyword(out var typeToken))
-            return new AsExpr(left, typeToken);
-
-        throw new CsEvalParserException($"Expected type after 'as' at {Peek().Line}:{Peek().Column}");
     }
 
     private Expr ParseShift()
@@ -555,7 +454,7 @@ public sealed partial class Parser
 
     #region Unary and Postfix
 
-    private Expr ParseUnary()
+    internal Expr ParseUnary()
     {
         // Cast expression: (int)x, (double)y, (int?)z
         if (Check(TokenType.LeftParen) && IsCastExpression())
@@ -585,23 +484,23 @@ public sealed partial class Parser
         return ParsePostfix();
     }
 
-    private bool IsCastExpression()
+    internal bool IsCastExpression()
     {
         // Look ahead: ( type ) or ( type? )
         // We're at '(' - check if next token is a type keyword
-        if (_current + 1 >= _tokens.Count)
+        if (State.Current + 1 >= State.Tokens.Count)
             return false;
 
-        var nextToken = _tokens[_current + 1];
+        var nextToken = State.Tokens[State.Current + 1];
         if (!IsTypeKeyword(nextToken.Type))
             return false;
 
         // Check what follows the type: either ')' or '?' then ')'
-        var afterTypeIndex = _current + 2;
-        if (afterTypeIndex >= _tokens.Count)
+        var afterTypeIndex = State.Current + 2;
+        if (afterTypeIndex >= State.Tokens.Count)
             return false;
 
-        var afterType = _tokens[afterTypeIndex];
+        var afterType = State.Tokens[afterTypeIndex];
         if (afterType.Type == TokenType.RightParen)
             return true;
 
@@ -609,9 +508,9 @@ public sealed partial class Parser
         if (afterType.Type == TokenType.Question)
         {
             var afterNullable = afterTypeIndex + 1;
-            if (afterNullable >= _tokens.Count)
+            if (afterNullable >= State.Tokens.Count)
                 return false;
-            return _tokens[afterNullable].Type == TokenType.RightParen;
+            return State.Tokens[afterNullable].Type == TokenType.RightParen;
         }
 
         return false;
@@ -619,7 +518,7 @@ public sealed partial class Parser
 
     private Expr ParsePostfix()
     {
-        var expr = ParsePrimary();
+        var expr = _primary.ParsePrimary();
 
         while (true)
         {
@@ -648,7 +547,6 @@ public sealed partial class Parser
             else if (Check(TokenType.Less) && TryParseTypeArguments(out var typeArgs))
             {
                 // Generic method call: Method<T>() or Method<T1, T2>()
-                // Type arguments must be followed by '(' for invocation
                 Consume(TokenType.LeftParen, "Expected '(' after generic type arguments");
                 expr = FinishCall(expr, typeArgs);
             }
@@ -674,14 +572,13 @@ public sealed partial class Parser
     /// <summary>
     /// Attempts to parse generic type arguments: &lt;T1, T2, ...&gt;
     /// Uses lookahead to disambiguate from less-than operator.
-    /// Returns true if successfully parsed, with type arguments in 'typeArgs'.
     /// </summary>
     private bool TryParseTypeArguments(out List<string> typeArgs)
     {
         typeArgs = new List<string>();
 
         // Save position for potential backtrack
-        var startPos = _current;
+        var startPos = State.Current;
 
         // Must start with '<'
         if (!Check(TokenType.Less))
@@ -696,7 +593,7 @@ public sealed partial class Parser
             if (!IsTypeName(Peek().Type))
             {
                 // Not a valid type - backtrack
-                _current = startPos;
+                State.Current = startPos;
                 return false;
             }
 
@@ -719,7 +616,7 @@ public sealed partial class Parser
                 else
                 {
                     // Doesn't look like a generic call - backtrack
-                    _current = startPos;
+                    State.Current = startPos;
                     typeArgs.Clear();
                     return false;
                 }
@@ -727,7 +624,7 @@ public sealed partial class Parser
             else
             {
                 // Unexpected token - backtrack
-                _current = startPos;
+                State.Current = startPos;
                 typeArgs.Clear();
                 return false;
             }
@@ -740,7 +637,6 @@ public sealed partial class Parser
     private static bool IsTypeName(TokenType type)
     {
         return type == TokenType.Identifier ||
-               // C# primitive type keywords
                type == TokenType.Int ||
                type == TokenType.Long ||
                type == TokenType.Short ||
@@ -763,7 +659,6 @@ public sealed partial class Parser
 
     /// <summary>
     /// Converts a type token to its CLR type name.
-    /// Keyword types are mapped to their full CLR names.
     /// </summary>
     private static string NormalizeTypeName(Token token)
     {
@@ -784,10 +679,10 @@ public sealed partial class Parser
             TokenType.Char => "Char",
             TokenType.StringType => "String",
             TokenType.Object => "Object",
-            TokenType.Dynamic => "Object", // dynamic maps to object at runtime
+            TokenType.Dynamic => "Object",
             TokenType.Nint => "IntPtr",
             TokenType.Nuint => "UIntPtr",
-            _ => token.Lexeme // For identifiers, use the lexeme directly
+            _ => token.Lexeme
         };
     }
 
@@ -823,12 +718,10 @@ public sealed partial class Parser
 
     /// <summary>
     /// Returns true if the token type can be used as a parameter name in a named argument.
-    /// This includes identifiers and contextual keywords that .NET methods might use as parameter names.
     /// </summary>
     private static bool IsParameterName(TokenType type)
     {
         return type == TokenType.Identifier ||
-               // Common contextual keywords that appear as .NET parameter names
                type == TokenType.Value ||
                type == TokenType.From ||
                type == TokenType.Where ||

@@ -1,10 +1,24 @@
 namespace CsEval.Parsing;
 
-public sealed partial class Parser
+/// <summary>
+/// Parses statements: if, while, for, do-while, foreach, switch, try/catch/finally,
+/// variable declarations, return, break, continue, and block expressions.
+/// </summary>
+public sealed class StatementParser : ParserBase
 {
+    private ExpressionParser _expression = null!;
+    private PatternParser _pattern = null!;
+
+    internal StatementParser(ParserState state) : base(state)
+    {
+    }
+
+    internal void SetExpressionParser(ExpressionParser expression) => _expression = expression;
+    internal void SetPatternParser(PatternParser pattern) => _pattern = pattern;
+
     #region Block and Statement List
 
-    private Expr ParseBlock()
+    internal Expr ParseBlock()
     {
         if (Check(TokenType.RightBrace))
         {
@@ -18,7 +32,7 @@ public sealed partial class Parser
         return new BlockExpr(statements, null);
     }
 
-    private List<Expr> ParseStatementList()
+    internal List<Expr> ParseStatementList()
     {
         var statements = new List<Expr>();
 
@@ -32,13 +46,13 @@ public sealed partial class Parser
         return statements;
     }
 
-    private Expr? ParseStatement()
+    internal Expr? ParseStatement()
     {
         if (Match(TokenType.Return))
         {
             Expr? value = null;
             if (!Check(TokenType.Semicolon))
-                value = ParseExpression();
+                value = _expression.ParseExpression();
             Match(TokenType.Semicolon);
             return new ReturnExpr(value);
         }
@@ -98,14 +112,14 @@ public sealed partial class Parser
                 }
                 Consume(TokenType.RightParen, "Expected ')' after deconstruction variable list");
                 Consume(TokenType.Equal, "Expected '=' after deconstruction");
-                var valueExpr = ParseExpression();
+                var valueExpr = _expression.ParseExpression();
                 Consume(TokenType.Semicolon, "Expected ';' after deconstruction");
                 return new DeconstructionExpr(variableNames, valueExpr);
             }
 
             var name = Consume(TokenType.Identifier, "Expected variable name");
             Consume(TokenType.Equal, "Expected '=' after variable name");
-            var initializer = ParseExpression();
+            var initializer = _expression.ParseExpression();
             if (initializer is LiteralExpr { Value: null })
                 throw new CsEvalParserException($"Cannot assign null to an implicitly-typed variable '{name.Lexeme}' at {name.Line}:{name.Column}");
             Consume(TokenType.Semicolon, "Expected ';' after variable declaration");
@@ -118,7 +132,7 @@ public sealed partial class Parser
         {
             var name = Consume(TokenType.Identifier, "Expected variable name");
             Consume(TokenType.Equal, "Expected '=' after variable name");
-            var initializer = ParseExpression();
+            var initializer = _expression.ParseExpression();
             Consume(TokenType.Semicolon, "Expected ';' after variable declaration");
             return new VariableDeclExpr(typeToken, name, initializer);
         }
@@ -131,7 +145,7 @@ public sealed partial class Parser
             return new BlockExpr(statements, null);
         }
 
-        var expr = ParseExpression();
+        var expr = _expression.ParseExpression();
         Consume(TokenType.Semicolon, "Expected ';' after statement");
         return expr;
     }
@@ -143,7 +157,7 @@ public sealed partial class Parser
     private Expr ParseIfStatement()
     {
         Consume(TokenType.LeftParen, "Expected '(' after 'if'");
-        var condition = ParseExpression();
+        var condition = _expression.ParseExpression();
         Consume(TokenType.RightParen, "Expected ')' after if condition");
 
         var thenStatements = new List<Expr>();
@@ -184,7 +198,7 @@ public sealed partial class Parser
     private Expr ParseSwitchStatement()
     {
         Consume(TokenType.LeftParen, "Expected '(' after 'switch'");
-        var expression = ParseExpression();
+        var expression = _expression.ParseExpression();
         Consume(TokenType.RightParen, "Expected ')' after switch expression");
         Consume(TokenType.LeftBrace, "Expected '{' before switch cases");
 
@@ -195,7 +209,7 @@ public sealed partial class Parser
             if (Match(TokenType.Case))
             {
                 // Parse case pattern
-                var pattern = ParseExpression();
+                var pattern = _expression.ParseExpression();
                 Consume(TokenType.Colon, "Expected ':' after case pattern");
 
                 // Parse statements until next case, default, or closing brace
@@ -242,7 +256,7 @@ public sealed partial class Parser
     private Expr ParseWhileStatement()
     {
         Consume(TokenType.LeftParen, "Expected '(' after 'while'");
-        var condition = ParseExpression();
+        var condition = _expression.ParseExpression();
         Consume(TokenType.RightParen, "Expected ')' after while condition");
 
         var body = new List<Expr>();
@@ -275,7 +289,7 @@ public sealed partial class Parser
             {
                 var name = Consume(TokenType.Identifier, "Expected variable name");
                 Consume(TokenType.Equal, "Expected '=' after variable name");
-                var init = ParseExpression();
+                var init = _expression.ParseExpression();
                 if (init is LiteralExpr { Value: null })
                     throw new CsEvalParserException($"Cannot assign null to an implicitly-typed variable '{name.Lexeme}' at {name.Line}:{name.Column}");
                 initializer = new VariableDeclExpr(null, name, init);
@@ -284,12 +298,12 @@ public sealed partial class Parser
             {
                 var name = Consume(TokenType.Identifier, "Expected variable name");
                 Consume(TokenType.Equal, "Expected '=' after variable name");
-                var init = ParseExpression();
+                var init = _expression.ParseExpression();
                 initializer = new VariableDeclExpr(typeToken, name, init);
             }
             else
             {
-                initializer = ParseExpression();
+                initializer = _expression.ParseExpression();
             }
         }
         Consume(TokenType.Semicolon, "Expected ';' after for initializer");
@@ -298,7 +312,7 @@ public sealed partial class Parser
         Expr? condition = null;
         if (!Check(TokenType.Semicolon))
         {
-            condition = ParseExpression();
+            condition = _expression.ParseExpression();
         }
         Consume(TokenType.Semicolon, "Expected ';' after for condition");
 
@@ -306,7 +320,7 @@ public sealed partial class Parser
         Expr? increment = null;
         if (!Check(TokenType.RightParen))
         {
-            increment = ParseExpression();
+            increment = _expression.ParseExpression();
         }
         Consume(TokenType.RightParen, "Expected ')' after for clauses");
 
@@ -345,7 +359,7 @@ public sealed partial class Parser
 
         Consume(TokenType.While, "Expected 'while' after do body");
         Consume(TokenType.LeftParen, "Expected '(' after 'while'");
-        var condition = ParseExpression();
+        var condition = _expression.ParseExpression();
         Consume(TokenType.RightParen, "Expected ')' after while condition");
         Match(TokenType.Semicolon); // Optional semicolon
 
@@ -370,7 +384,7 @@ public sealed partial class Parser
             throw new CsEvalParserException($"Expected 'in' after variable name in foreach at {Peek().Line}:{Peek().Column}");
         }
 
-        var collection = ParseExpression();
+        var collection = _expression.ParseExpression();
         Consume(TokenType.RightParen, "Expected ')' after foreach collection");
 
         // Parse body
@@ -441,7 +455,7 @@ public sealed partial class Parser
             {
                 Advance(); // consume 'when'
                 Consume(TokenType.LeftParen, "Expected '(' after 'when'");
-                whenGuard = ParseExpression();
+                whenGuard = _expression.ParseExpression();
                 Consume(TokenType.RightParen, "Expected ')' after when guard");
             }
 

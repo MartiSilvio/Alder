@@ -1,12 +1,29 @@
+using System.Text;
+
 namespace CsEval.Parsing;
 
-public sealed partial class Parser
+/// <summary>
+/// Parses primary expressions: literals, identifiers, new expressions, casts, groupings,
+/// lambdas, tuples, array/object literals, typeof, nameof, default, interpolated strings.
+/// </summary>
+public sealed class PrimaryParser : ParserBase
 {
-    #region Primary Expressions
+    private ExpressionParser _expression = null!;
+    private PatternParser _pattern = null!;
+    private StatementParser _statement = null!;
 
-    private Expr ParsePrimary()
+    internal PrimaryParser(ParserState state) : base(state)
     {
-        // Literals -- IsConstant=true enables ECMA-334 §10.2.11 constant expression conversions
+    }
+
+    internal void SetExpressionParser(ExpressionParser expression) => _expression = expression;
+    internal void SetPatternParser(PatternParser pattern) => _pattern = pattern;
+    internal void SetStatementParser(StatementParser statement) => _statement = statement;
+
+    #region Primary Dispatch
+
+    internal Expr ParsePrimary()
+    {
         if (Match(TokenType.Number, TokenType.String, TokenType.Character))
             return new LiteralExpr(Previous().Literal, IsConstant: true);
 
@@ -19,155 +36,79 @@ public sealed partial class Parser
         if (Match(TokenType.Null))
             return new LiteralExpr(null, IsConstant: true);
 
-        // JavaScript undefined (maps to null in C# semantics)
         if (Match(TokenType.Undefined))
             return new LiteralExpr(null, IsConstant: true);
 
-        // Interpolated string
         if (Match(TokenType.InterpolatedString))
             return ParseInterpolatedString(Previous());
 
         if (Match(TokenType.New))
-        {
-            // new[] { ... } - implicitly typed array
-            if (Match(TokenType.LeftBracket))
-            {
-                Consume(TokenType.RightBracket, "Expected ']' after 'new['");
-                Consume(TokenType.LeftBrace, "Expected '{' after 'new[]'");
-                return ParseArrayLiteralBody();
-            }
+            return ParseNewExpression();
 
-            // new { ... } - anonymous object
-            if (Check(TokenType.LeftBrace))
-            {
-                Advance(); // consume '{'
-                return new NewExpr(ParseAnonymousObject());
-            }
-
-            // new ClassName(args) - constructor invocation (ECMA-334 §12.8.16.2)
-            if (Check(TokenType.Identifier) || IsTypeKeyword(Peek().Type))
-            {
-                return ParseObjectCreation();
-            }
-
-            throw new CsEvalParserException($"Expected '{{', '[', or type name after 'new' at {Peek().Line}:{Peek().Column}");
-        }
-
-        // Grouping, lambda, or tuple
         if (Match(TokenType.LeftParen))
             return ParseParenthesized();
 
-        // Array literal: new[] { } or [ ] - support both
         if (Match(TokenType.LeftBracket))
             return ParseArrayLiteral();
 
-        // Block expression: { statements; return expr; }
         if (Match(TokenType.LeftBrace))
-            return ParseBlock();
+            return _statement.ParseBlock();
 
-        // Type keyword followed by . for static member access (double.NaN, int.MaxValue)
         if (IsTypeKeyword(Peek().Type) && PeekNext().Type == TokenType.Dot)
         {
             var typeToken = Advance();
             return new TypeReferenceExpr(typeToken);
         }
 
-        // unchecked(expr) - pass through (CsEval operates in unchecked mode by default)
         if (Match(TokenType.Unchecked))
-        {
-            Consume(TokenType.LeftParen, "Expected '(' after 'unchecked'");
-            var expr = ParseExpression();
-            Consume(TokenType.RightParen, "Expected ')' after unchecked expression");
-            return expr;
-        }
+            return ParseCheckedUnchecked("unchecked");
 
-        // checked(expr) - pass through (overflow checking not enforced at runtime)
         if (Match(TokenType.Checked))
-        {
-            Consume(TokenType.LeftParen, "Expected '(' after 'checked'");
-            var expr = ParseExpression();
-            Consume(TokenType.RightParen, "Expected ')' after checked expression");
-            return expr;
-        }
+            return ParseCheckedUnchecked("checked");
 
-        // typeof(T) expression (ECMA-334 §12.8.17)
         if (Match(TokenType.Typeof))
-        {
-            Consume(TokenType.LeftParen, "Expected '(' after 'typeof'");
-            // Accept type keywords, void, or identifiers (for non-built-in types)
-            Token typeToken;
-            if (Match(TokenType.Void))
-            {
-                typeToken = Previous();
-            }
-            else if (IsTypeKeyword(Peek().Type))
-            {
-                typeToken = Advance();
-            }
-            else
-            {
-                typeToken = Consume(TokenType.Identifier, "Expected type name after 'typeof('");
-                // Support dotted type names: System.Exception, System.Collections.Generic.List
-                while (Match(TokenType.Dot))
-                {
-                    var next = Consume(TokenType.Identifier, "Expected identifier after '.'");
-                    typeToken = new Token(TokenType.Identifier, typeToken.Lexeme + "." + next.Lexeme, null, typeToken.Line, typeToken.Column);
-                }
-            }
-            Consume(TokenType.RightParen, "Expected ')' after typeof type");
-            return new TypeofExpr(typeToken);
-        }
+            return ParseTypeofExpression();
 
-        // default(T) or default literal (ECMA-334 §12.8.20)
         if (Match(TokenType.Default))
-        {
-            if (Match(TokenType.LeftParen))
-            {
-                // default(Type) or default(Type?) - typed default
-                var typeToken = Consume(IsTypeKeyword(Peek().Type) ? Peek().Type : TokenType.Identifier,
-                    "Expected type after 'default('");
-                // Handle nullable type suffix (e.g., int? -> int?)
-                if (Match(TokenType.Question))
-                {
-                    typeToken = new Token(typeToken.Type, typeToken.Lexeme + "?", null, typeToken.Line, typeToken.Column);
-                }
-                Consume(TokenType.RightParen, "Expected ')' after default type");
-                return new DefaultExpr(typeToken);
-            }
-            // bare default literal (C# 7.1+)
-            return new DefaultExpr(null);
-        }
+            return ParseDefaultExpression();
 
-        // nameof(expression) - returns the name of the final identifier (ECMA-334 §12.8.22)
         if (Match(TokenType.Nameof))
-        {
-            Consume(TokenType.LeftParen, "Expected '(' after 'nameof'");
-            // Parse the name chain (x, x.y, x.y.z, etc.)
-            var name = Consume(TokenType.Identifier, "Expected identifier after 'nameof('").Lexeme;
-            while (Match(TokenType.Dot))
-            {
-                name = Consume(TokenType.Identifier, "Expected identifier after '.'").Lexeme;
-            }
-            Consume(TokenType.RightParen, "Expected ')' after nameof expression");
-            return new NameofExpr(name);
-        }
+            return ParseNameofExpression();
 
-        // Identifier or single-parameter lambda (x => ...)
         if (Match(TokenType.Identifier))
-        {
-            var identifier = Previous();
-
-            // Check for single-parameter lambda: x => expr
-            if (Match(TokenType.Arrow))
-            {
-                var body = ParseExpression();
-                return new LambdaExpr([identifier], body);
-            }
-
-            return new IdentifierExpr(identifier);
-        }
+            return ParseIdentifier();
 
         throw new CsEvalParserException($"Unexpected token '{Peek().Lexeme}' at {Peek().Line}:{Peek().Column}");
+    }
+
+    #endregion
+
+    #region New Expression
+
+    private Expr ParseNewExpression()
+    {
+        // new[] { ... } - implicitly typed array
+        if (Match(TokenType.LeftBracket))
+        {
+            Consume(TokenType.RightBracket, "Expected ']' after 'new['");
+            Consume(TokenType.LeftBrace, "Expected '{' after 'new[]'");
+            return ParseArrayLiteralBody();
+        }
+
+        // new { ... } - anonymous object
+        if (Check(TokenType.LeftBrace))
+        {
+            Advance(); // consume '{'
+            return new NewExpr(ParseAnonymousObject());
+        }
+
+        // new ClassName(args) - constructor invocation (ECMA-334 section 12.8.16.2)
+        if (Check(TokenType.Identifier) || IsTypeKeyword(Peek().Type))
+        {
+            return ParseObjectCreation();
+        }
+
+        throw new CsEvalParserException($"Expected '{{', '[', or type name after 'new' at {Peek().Line}:{Peek().Column}");
     }
 
     /// <summary>
@@ -200,12 +141,113 @@ public sealed partial class Parser
         {
             do
             {
-                arguments.Add(ParseExpression());
+                arguments.Add(_expression.ParseExpression());
             } while (Match(TokenType.Comma));
         }
         Consume(TokenType.RightParen, "Expected ')' after constructor arguments");
 
         return new ObjectCreationExpr(typeName, arguments);
+    }
+
+    #endregion
+
+    #region Checked / Unchecked
+
+    private Expr ParseCheckedUnchecked(string keyword)
+    {
+        Consume(TokenType.LeftParen, $"Expected '(' after '{keyword}'");
+        var expr = _expression.ParseExpression();
+        Consume(TokenType.RightParen, $"Expected ')' after {keyword} expression");
+        return expr;
+    }
+
+    #endregion
+
+    #region Typeof Expression
+
+    private Expr ParseTypeofExpression()
+    {
+        Consume(TokenType.LeftParen, "Expected '(' after 'typeof'");
+        // Accept type keywords, void, or identifiers (for non-built-in types)
+        Token typeToken;
+        if (Match(TokenType.Void))
+        {
+            typeToken = Previous();
+        }
+        else if (IsTypeKeyword(Peek().Type))
+        {
+            typeToken = Advance();
+        }
+        else
+        {
+            typeToken = Consume(TokenType.Identifier, "Expected type name after 'typeof('");
+            // Support dotted type names: System.Exception, System.Collections.Generic.List
+            while (Match(TokenType.Dot))
+            {
+                var next = Consume(TokenType.Identifier, "Expected identifier after '.'");
+                typeToken = new Token(TokenType.Identifier, typeToken.Lexeme + "." + next.Lexeme, null, typeToken.Line, typeToken.Column);
+            }
+        }
+        Consume(TokenType.RightParen, "Expected ')' after typeof type");
+        return new TypeofExpr(typeToken);
+    }
+
+    #endregion
+
+    #region Default Expression
+
+    private Expr ParseDefaultExpression()
+    {
+        if (Match(TokenType.LeftParen))
+        {
+            // default(Type) or default(Type?) - typed default
+            var typeToken = Consume(IsTypeKeyword(Peek().Type) ? Peek().Type : TokenType.Identifier,
+                "Expected type after 'default('");
+            // Handle nullable type suffix (e.g., int? -> int?)
+            if (Match(TokenType.Question))
+            {
+                typeToken = new Token(typeToken.Type, typeToken.Lexeme + "?", null, typeToken.Line, typeToken.Column);
+            }
+            Consume(TokenType.RightParen, "Expected ')' after default type");
+            return new DefaultExpr(typeToken);
+        }
+        // bare default literal (C# 7.1+)
+        return new DefaultExpr(null);
+    }
+
+    #endregion
+
+    #region Nameof Expression
+
+    private Expr ParseNameofExpression()
+    {
+        Consume(TokenType.LeftParen, "Expected '(' after 'nameof'");
+        // Parse the name chain (x, x.y, x.y.z, etc.)
+        var name = Consume(TokenType.Identifier, "Expected identifier after 'nameof('").Lexeme;
+        while (Match(TokenType.Dot))
+        {
+            name = Consume(TokenType.Identifier, "Expected identifier after '.'").Lexeme;
+        }
+        Consume(TokenType.RightParen, "Expected ')' after nameof expression");
+        return new NameofExpr(name);
+    }
+
+    #endregion
+
+    #region Identifier and Lambda
+
+    private Expr ParseIdentifier()
+    {
+        var identifier = Previous();
+
+        // Check for single-parameter lambda: x => expr
+        if (Match(TokenType.Arrow))
+        {
+            var body = _expression.ParseExpression();
+            return new LambdaExpr([identifier], body);
+        }
+
+        return new IdentifierExpr(identifier);
     }
 
     #endregion
@@ -220,12 +262,12 @@ public sealed partial class Parser
         if (Match(TokenType.RightParen))
         {
             Consume(TokenType.Arrow, "Expected '=>' after '()'");
-            var body = ParseExpression();
+            var body = _expression.ParseExpression();
             return new LambdaExpr([], body);
         }
 
         // Try lambda first using backtracking: identifiers followed by ) =>
-        var savedPosition = _current;
+        var savedPosition = State.Current;
         var parameters = new List<Token>();
         var isLambda = false;
 
@@ -248,12 +290,12 @@ public sealed partial class Parser
 
         if (isLambda)
         {
-            var body = ParseExpression();
+            var body = _expression.ParseExpression();
             return new LambdaExpr(parameters, body);
         }
 
         // Not a lambda - backtrack and parse as expression (grouping or tuple)
-        _current = savedPosition;
+        State.Current = savedPosition;
 
         // Parse the first element (could be named: "name: expr")
         var firstElement = ParseTupleElement();
@@ -277,22 +319,19 @@ public sealed partial class Parser
 
     /// <summary>
     /// Parses a single tuple element, which may be named (name: expr) or unnamed (expr).
-    /// For named elements, checks for "identifier :" pattern at start of element.
     /// </summary>
     private TupleElement ParseTupleElement()
     {
         // Check for named element: identifier followed by colon
-        // Be careful not to confuse with ternary ?: -- in tuple element start position,
-        // identifier followed by colon is a name separator.
         if (Check(TokenType.Identifier) && PeekNext().Type == TokenType.Colon)
         {
             var nameToken = Advance(); // consume identifier
             Advance(); // consume colon
-            var expr = ParseExpression();
+            var expr = _expression.ParseExpression();
             return new TupleElement(nameToken.Lexeme, expr);
         }
 
-        var expression = ParseExpression();
+        var expression = _expression.ParseExpression();
         return new TupleElement(null, expression);
     }
 
@@ -311,12 +350,12 @@ public sealed partial class Parser
                 if (Match(TokenType.DotDotDot))
                 {
                     // Spread element: ...expr
-                    var spreadExpr = ParseExpression();
+                    var spreadExpr = _expression.ParseExpression();
                     elements.Add(new SpreadExpr(spreadExpr));
                 }
                 else
                 {
-                    elements.Add(ParseExpression());
+                    elements.Add(_expression.ParseExpression());
                 }
             } while (Match(TokenType.Comma));
         }
@@ -335,12 +374,12 @@ public sealed partial class Parser
             {
                 if (Match(TokenType.DotDotDot))
                 {
-                    var spreadExpr = ParseExpression();
+                    var spreadExpr = _expression.ParseExpression();
                     elements.Add(new SpreadExpr(spreadExpr));
                 }
                 else
                 {
-                    elements.Add(ParseExpression());
+                    elements.Add(_expression.ParseExpression());
                 }
             } while (Match(TokenType.Comma));
         }
@@ -360,7 +399,7 @@ public sealed partial class Parser
                 if (Match(TokenType.DotDotDot))
                 {
                     // Spread property: ...expr
-                    var spreadExpr = ParseExpression();
+                    var spreadExpr = _expression.ParseExpression();
                     // Use a special marker token for spread entries
                     var spreadMarker = new Token(TokenType.DotDotDot, "...", null, 0, 0);
                     properties.Add((spreadMarker, new SpreadExpr(spreadExpr)));
@@ -369,7 +408,7 @@ public sealed partial class Parser
                 {
                     var key = Consume(TokenType.Identifier, "Expected property name");
                     Consume(TokenType.Equal, "Expected '=' after property name");
-                    var value = ParseExpression();
+                    var value = _expression.ParseExpression();
                     properties.Add((key, value));
                 }
             } while (Match(TokenType.Comma));
@@ -424,8 +463,8 @@ public sealed partial class Parser
 
                 var lexer = new Lexer(exprText);
                 var parserTokens = lexer.Tokenize();
-                var parser = new Parser(parserTokens);
-                var expr = parser.Parse();
+                var subParser = ExpressionParser.CreateForSubExpression(parserTokens);
+                var expr = subParser.Parse();
                 parts.Add(new ExpressionPart(expr));
             }
             else if (content[i] == '}')

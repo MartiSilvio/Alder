@@ -21,7 +21,7 @@ public class BenchmarkTests
         {
             var lexer = new Lexer(expression);
             var tokens = lexer.Tokenize();
-            var parser = new Parser(tokens);
+            var parser = ExpressionParser.CreateForSubExpression(tokens);
             parser.Parse();
         }
         sw.Stop();
@@ -41,7 +41,7 @@ public class BenchmarkTests
         {
             var lexer = new Lexer(expression);
             var tokens = lexer.Tokenize();
-            var parser = new Parser(tokens);
+            var parser = ExpressionParser.CreateForSubExpression(tokens);
             parser.Parse();
         }
         sw.Stop();
