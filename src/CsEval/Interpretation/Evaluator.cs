@@ -597,6 +597,14 @@ public sealed class Evaluator : IExprVisitor<object?>
         return RuntimeHelpers.InvokeConstructor(expr.TypeName, args);
     }
 
+    public object? VisitTypedArrayCreation(TypedArrayCreationExpr expr)
+    {
+        var sizeValue = Evaluate(expr.Size);
+        var size = Convert.ToInt32(sizeValue);
+        var elementType = TypeHelpers.ResolveTypeName(expr.ElementTypeName);
+        return Array.CreateInstance(elementType, size);
+    }
+
     public object? VisitThrow(ThrowExpr expr)
     {
         var result = Evaluate(expr.Expression);

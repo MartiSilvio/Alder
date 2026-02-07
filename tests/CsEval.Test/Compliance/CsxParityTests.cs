@@ -1,4 +1,4 @@
-namespace CsEval.Test.TestData;
+namespace CsEval.Test.Compliance;
 
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]

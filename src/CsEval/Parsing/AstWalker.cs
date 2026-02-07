@@ -432,6 +432,14 @@ public abstract class AstWalker<T> : IExprVisitor<T>
         return OnLeave(expr);
     }
 
+    // Typed Array Creation Expression
+    public virtual T VisitTypedArrayCreation(TypedArrayCreationExpr expr)
+    {
+        OnEnter(expr);
+        Visit(expr.Size);
+        return OnLeave(expr);
+    }
+
     // Tuple Expression
     public virtual T VisitTuple(TupleExpr expr)
     {

@@ -185,6 +185,16 @@ public sealed class PrimaryParser : ParserBase
             }
         }
 
+        // Check for array creation syntax: new TypeName[size]
+        // ECMA-334 §12.8.16.4 - must check before constructor path
+        if (Check(TokenType.LeftBracket))
+        {
+            Advance(); // consume '['
+            var sizeExpr = _expression.ParseExpression();
+            Consume(TokenType.RightBracket, "Expected ']' after array size");
+            return new TypedArrayCreationExpr(typeName, sizeExpr);
+        }
+
         // Parse argument list
         Consume(TokenType.LeftParen, $"Expected '(' after type name '{typeName}'");
         var arguments = new List<Expr>();

@@ -83,6 +83,9 @@ public interface IExprVisitor<out T>
     // Object creation expression
     T VisitObjectCreation(ObjectCreationExpr expr);
 
+    // Typed array creation expression
+    T VisitTypedArrayCreation(TypedArrayCreationExpr expr);
+
     // Throw expression
     T VisitThrow(ThrowExpr expr);
 
@@ -416,6 +419,17 @@ public sealed record TypeofExpr(Token TypeToken) : Expr
 public sealed record ObjectCreationExpr(string TypeName, List<Expr> Arguments) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitObjectCreation(this);
+}
+
+#endregion
+
+#region Typed Array Creation Expression
+
+// Typed array creation: new int[5], new bool[n]
+// ECMA-334 §12.8.16.4 - Array creation expressions
+public sealed record TypedArrayCreationExpr(string ElementTypeName, Expr Size) : Expr
+{
+    public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitTypedArrayCreation(this);
 }
 
 #endregion
