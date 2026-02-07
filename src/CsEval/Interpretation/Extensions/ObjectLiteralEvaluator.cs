@@ -5,7 +5,7 @@ using CsEval.Runtime;
 namespace CsEval.Interpretation.Extensions;
 
 /// <summary>
-/// Evaluator for CsEval anonymous object literal expressions: new { Name = "John" }.
+/// Evaluator for anonymous object literal expressions: new { Name = "John" }.
 /// Creates ExpandoObject with property spread support.
 /// Called explicitly from Evaluator.VisitObjectLiteral.
 /// </summary>

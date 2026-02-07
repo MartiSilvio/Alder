@@ -619,8 +619,30 @@ internal sealed class ExpressionCompilerUnit
             _ctx.CurrentContext);
     }
 
-    internal LinqExpression CompileArrayLiteral(ArrayLiteralExpr expr) =>
-        Extensions.ArrayLiteralCompiler.CompileArrayLiteral(expr, _ctx, Compile);
+    internal LinqExpression CompileArrayLiteral(ArrayLiteralExpr expr)
+    {
+        var listVar = LinqExpression.Variable(typeof(List<object?>), "list");
+        var statements = new List<LinqExpression>
+        {
+            LinqExpression.Assign(listVar, LinqExpression.New(CompilerContext.ListCtor))
+        };
+
+        foreach (var element in expr.Elements)
+        {
+            if (element is SpreadExpr spread)
+            {
+                var spreadValue = Compile(spread.Expression);
+                statements.Add(LinqExpression.Call(CompilerContext.SpreadIntoListMethod, listVar, spreadValue));
+            }
+            else
+            {
+                statements.Add(LinqExpression.Call(listVar, CompilerContext.ListAddMethod, Compile(element)));
+            }
+        }
+
+        statements.Add(LinqExpression.Call(CompilerContext.CreateTypedArrayMethod, listVar));
+        return LinqExpression.Block(new[] { listVar }, statements);
+    }
 
     internal LinqExpression CompileObjectLiteral(ObjectLiteralExpr expr) =>
         Extensions.ObjectLiteralCompiler.CompileObjectLiteral(expr, _ctx, Compile);

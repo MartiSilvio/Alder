@@ -1,6 +1,6 @@
 using CsEval.Interpretation;
 
-namespace CsEval.Runtime.Extensions;
+namespace CsEval.Runtime;
 
 /// <summary>
 /// Runtime helpers for spread operator and collection literal creation.

@@ -4,7 +4,7 @@ using CsEval.Parsing;
 namespace CsEval.Compilation.Extensions;
 
 /// <summary>
-/// IL compiler for CsEval anonymous object literal expressions: new { Name = "John" }.
+/// IL compiler for anonymous object literal expressions: new { Name = "John" }.
 /// Creates ExpandoObject with property spread support via cached MethodInfo.
 /// Called explicitly from ExpressionCompilerUnit.CompileObjectLiteral.
 /// </summary>

@@ -1,7 +1,7 @@
 namespace CsEval.Parsing.Extensions;
 
 /// <summary>
-/// Parser for CsEval anonymous object literal syntax: new { Name = "John", Age = 30 }.
+/// Parser for anonymous object literal syntax: new { Name = "John", Age = 30 }.
 /// Creates ExpandoObject (not C# anonymous types). Handles spread operator (..) within object literals.
 /// Called explicitly from PrimaryParser.
 /// </summary>

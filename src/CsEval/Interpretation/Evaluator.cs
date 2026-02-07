@@ -4,7 +4,6 @@ using System.Runtime.ExceptionServices;
 using CsEval.Parsing;
 using CsEval.Runtime;
 using CsEval.Interpretation.Extensions;
-using CsEval.Runtime.Extensions;
 
 namespace CsEval.Interpretation;
 
@@ -495,8 +494,31 @@ public sealed class Evaluator : IExprVisitor<object?>
         return sb.ToString();
     }
 
-    public object? VisitArrayLiteral(ArrayLiteralExpr expr) =>
-        ArrayLiteralEvaluator.EvaluateArrayLiteral(expr, Evaluate, _context);
+    public object? VisitArrayLiteral(ArrayLiteralExpr expr)
+    {
+        var result = new List<object?>();
+        foreach (var element in expr.Elements)
+        {
+            if (element is SpreadExpr spread)
+            {
+                var spreadValue = Evaluate(spread.Expression);
+                if (spreadValue is IEnumerable enumerable and not string)
+                {
+                    foreach (var item in enumerable)
+                        result.Add(item);
+                }
+                else
+                {
+                    throw new CsEvalException("Spread operator requires an iterable");
+                }
+            }
+            else
+            {
+                result.Add(Evaluate(element));
+            }
+        }
+        return SpreadHelpers.CreateTypedArray(result);
+    }
 
     public object? VisitObjectLiteral(ObjectLiteralExpr expr) =>
         ObjectLiteralEvaluator.EvaluateObjectLiteral(expr, Evaluate, _context);

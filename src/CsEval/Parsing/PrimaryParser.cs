@@ -48,7 +48,7 @@ public sealed class PrimaryParser : ParserBase
             return ParseParenthesized();
 
         if (Match(TokenType.LeftBracket))
-            return ArrayLiteralParser.ParseArrayLiteral(this, () => _expression.ParseExpression());
+            return ParseArrayLiteral();
 
         if (Match(TokenType.LeftBrace))
             return _statement.ParseBlock();
@@ -82,6 +82,58 @@ public sealed class PrimaryParser : ParserBase
 
     #endregion
 
+    #region Array Literals
+
+    private Expr ParseArrayLiteral()
+    {
+        var elements = new List<Expr>();
+
+        if (!Check(TokenType.RightBracket))
+        {
+            do
+            {
+                if (Match(TokenType.DotDot))
+                {
+                    var spreadExpr = _expression.ParseExpression();
+                    elements.Add(new SpreadExpr(spreadExpr));
+                }
+                else
+                {
+                    elements.Add(_expression.ParseExpression());
+                }
+            } while (Match(TokenType.Comma));
+        }
+
+        Consume(TokenType.RightBracket, "Expected ']' after array elements");
+        return new ArrayLiteralExpr(elements);
+    }
+
+    private Expr ParseArrayLiteralBody()
+    {
+        var elements = new List<Expr>();
+
+        if (!Check(TokenType.RightBrace))
+        {
+            do
+            {
+                if (Match(TokenType.DotDot))
+                {
+                    var spreadExpr = _expression.ParseExpression();
+                    elements.Add(new SpreadExpr(spreadExpr));
+                }
+                else
+                {
+                    elements.Add(_expression.ParseExpression());
+                }
+            } while (Match(TokenType.Comma));
+        }
+
+        Consume(TokenType.RightBrace, "Expected '}' after array elements");
+        return new ArrayLiteralExpr(elements);
+    }
+
+    #endregion
+
     #region New Expression
 
     private Expr ParseNewExpression()
@@ -91,7 +143,7 @@ public sealed class PrimaryParser : ParserBase
         {
             Consume(TokenType.RightBracket, "Expected ']' after 'new['");
             Consume(TokenType.LeftBrace, "Expected '{' after 'new[]'");
-            return ArrayLiteralParser.ParseArrayLiteralBody(this, () => _expression.ParseExpression());
+            return ParseArrayLiteralBody();
         }
 
         // new { ... } - anonymous object
