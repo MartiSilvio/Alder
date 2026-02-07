@@ -734,64 +734,16 @@ public sealed class Evaluator : IExprVisitor<object?>
         }
         catch (Exception ex)
         {
-            // Only real .NET exceptions arrive here (not control flow)
-            bool handled = false;
-            foreach (var catchClause in expr.CatchClauses)
+            var (handled, catchResult, catchSignal) = TryMatchCatchClause(expr.CatchClauses, ex);
+            if (handled)
             {
-                // Type check
-                if (catchClause.ExceptionTypeName != null)
-                {
-                    var catchType = TypeHelpers.ResolveTypeByName(catchClause.ExceptionTypeName);
-                    if (!catchType.IsInstanceOfType(ex))
-                        continue;
-                }
-                // Bare catch matches everything
-
-                // Child context for catch variable scoping
-                var previousContext = _context;
-                _context = _context.CreateChild();
-                try
-                {
-                    // Bind variable before when guard
-                    if (catchClause.VariableName != null)
-                        _context.DefineNew(catchClause.VariableName.Value.Lexeme, ex, ex.GetType());
-
-                    // Evaluate when guard
-                    if (catchClause.WhenGuard != null)
-                    {
-                        var guardResult = Evaluate(catchClause.WhenGuard);
-                        if (!TypeHelpers.RequireBoolean(guardResult))
-                            continue;
-                    }
-
-                    // Push exception for throw; (rethrow) support
-                    _caughtExceptions.Push(ex);
-                    try
-                    {
-                        foreach (var stmt in catchClause.Body)
-                        {
-                            result = Evaluate(stmt);
-                            if (result is ControlFlowSignal sig)
-                            {
-                                pendingSignal = sig;
-                                break;
-                            }
-                        }
-                    }
-                    finally
-                    {
-                        _caughtExceptions.Pop();
-                    }
-                    handled = true;
-                    break;
-                }
-                finally
-                {
-                    _context = previousContext;
-                }
+                result = catchResult;
+                pendingSignal = catchSignal;
             }
-            if (!handled)
+            else
+            {
                 unhandledException = ex;
+            }
         }
         finally
         {
@@ -811,6 +763,61 @@ public sealed class Evaluator : IExprVisitor<object?>
             return pendingSignal;
 
         return result;
+    }
+
+    private (bool Handled, object? Result, ControlFlowSignal? Signal) TryMatchCatchClause(
+        List<CatchClause> catchClauses, Exception ex)
+    {
+        foreach (var catchClause in catchClauses)
+        {
+            if (catchClause.ExceptionTypeName != null)
+            {
+                var catchType = TypeHelpers.ResolveTypeByName(catchClause.ExceptionTypeName);
+                if (!catchType.IsInstanceOfType(ex))
+                    continue;
+            }
+
+            var previousContext = _context;
+            _context = _context.CreateChild();
+            try
+            {
+                if (catchClause.VariableName != null)
+                    _context.DefineNew(catchClause.VariableName.Value.Lexeme, ex, ex.GetType());
+
+                if (catchClause.WhenGuard != null)
+                {
+                    var guardResult = Evaluate(catchClause.WhenGuard);
+                    if (!TypeHelpers.RequireBoolean(guardResult))
+                        continue;
+                }
+
+                _caughtExceptions.Push(ex);
+                try
+                {
+                    object? result = null;
+                    ControlFlowSignal? signal = null;
+                    foreach (var stmt in catchClause.Body)
+                    {
+                        result = Evaluate(stmt);
+                        if (result is ControlFlowSignal sig)
+                        {
+                            signal = sig;
+                            break;
+                        }
+                    }
+                    return (true, result, signal);
+                }
+                finally
+                {
+                    _caughtExceptions.Pop();
+                }
+            }
+            finally
+            {
+                _context = previousContext;
+            }
+        }
+        return (false, null, null);
     }
 
     public object? VisitThrowStatement(ThrowStatementExpr expr)
