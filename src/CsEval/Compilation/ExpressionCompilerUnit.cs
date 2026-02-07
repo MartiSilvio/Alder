@@ -104,6 +104,19 @@ internal sealed class ExpressionCompilerUnit
             argsInit);
     }
 
+    internal LinqExpression CompileTypedArrayCreation(TypedArrayCreationExpr expr)
+    {
+        var size = Compile(expr.Size);
+
+        // Call RuntimeHelpers.CreateTypedArray(elementTypeName, sizeValue)
+        // Size is already object (all CsEval compiled expressions return object),
+        // and the helper handles Convert.ToInt32 internally.
+        return LinqExpression.Call(
+            CompilerContext.CreateTypedArrayFromTypeNameMethod,
+            LinqExpression.Constant(expr.ElementTypeName),
+            size);
+    }
+
     internal LinqExpression CompileTuple(TupleExpr expr)
     {
         // Compile each element expression into an object[] array

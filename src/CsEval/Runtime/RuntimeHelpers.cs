@@ -201,6 +201,18 @@ public static class RuntimeHelpers
     }
 
     /// <summary>
+    /// Creates a typed array from an element type name and size.
+    /// ECMA-334 §12.8.16.4 - Array creation expressions.
+    /// Used by the IL compiler as a single method call target for typed array creation.
+    /// </summary>
+    public static object CreateTypedArray(string elementTypeName, object sizeValue)
+    {
+        var size = Convert.ToInt32(sizeValue);
+        var elementType = TypeHelpers.ResolveTypeName(elementTypeName);
+        return Array.CreateInstance(elementType, size);
+    }
+
+    /// <summary>
     /// ECMA-334 §12.18: Promotes conditional expression result to common type of both branches.
     /// </summary>
     public static object? ConditionalTypePromotion(object? result, object? thenValue, object? elseValue)

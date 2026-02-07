@@ -66,6 +66,7 @@ internal sealed class CompilerContext
     internal static readonly MethodInfo ResolveTypeNameMethod = typeof(TypeHelpers).GetMethod(nameof(TypeHelpers.ResolveTypeName))!;
     internal static readonly MethodInfo ResolveTypeByNameMethod = typeof(TypeHelpers).GetMethod(nameof(TypeHelpers.ResolveTypeByName))!;
     internal static readonly MethodInfo InvokeConstructorMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.InvokeConstructor))!;
+    internal static readonly MethodInfo CreateTypedArrayFromTypeNameMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.CreateTypedArray))!;
     internal static readonly MethodInfo CreateTupleMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.CreateTuple))!;
     internal static readonly MethodInfo DeconstructTupleMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.DeconstructTuple))!;
     internal static readonly MethodInfo GetDefaultValueMethod = typeof(TypeHelpers).GetMethod(nameof(TypeHelpers.GetDefaultValue))!;
@@ -221,6 +222,7 @@ internal sealed class CompilerContext
                 NameofExpr nameofExpr => LinqExpression.Constant(nameofExpr.Name, typeof(object)),
                 TypeofExpr typeofExpr => exprUnit.CompileTypeof(typeofExpr),
                 ObjectCreationExpr oc => exprUnit.CompileObjectCreation(oc),
+                TypedArrayCreationExpr tac => exprUnit.CompileTypedArrayCreation(tac),
                 TupleExpr tuple => exprUnit.CompileTuple(tuple),
                 DeconstructionExpr deconstruction => exprUnit.CompileDeconstruction(deconstruction),
                 ThrowExpr throwExpr => exprUnit.CompileThrow(throwExpr),
@@ -309,6 +311,10 @@ internal sealed class CompilerContext
                 case ObjectCreationExpr oc:
                     foreach (var arg in oc.Arguments)
                         stack.Push(arg);
+                    break;
+
+                case TypedArrayCreationExpr tac:
+                    stack.Push(tac.Size);
                     break;
 
                 case TupleExpr tuple:
