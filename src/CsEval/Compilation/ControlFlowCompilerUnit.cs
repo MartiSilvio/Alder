@@ -429,7 +429,7 @@ internal sealed class ControlFlowCompilerUnit
 
     /// <summary>
     /// Compiles try/catch/finally using the Expression Trees API.
-    /// ECMA-334 section 13.11 -- The try statement.
+    /// ECMA-334 §13.11 -- The try statement.
     /// Expression Trees use labels for control flow (return/break/continue),
     /// not .NET exceptions, so no special handling is needed for control flow signals.
     /// </summary>

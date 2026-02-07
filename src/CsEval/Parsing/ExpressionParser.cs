@@ -124,7 +124,7 @@ public sealed class ExpressionParser : ParserBase
 
     private Expr ParseAssignment()
     {
-        // Throw expression: throw expr (ECMA-334 section 12.16)
+        // Throw expression: throw expr (ECMA-334 §12.16)
         if (Match(TokenType.Throw))
         {
             var throwExpr = ParseAssignment();
@@ -164,6 +164,13 @@ public sealed class ExpressionParser : ParserBase
                 var value = ParseAssignment();
                 return new MemberAssignExpr(memberAccess.Object, memberAccess.Name, value);
             }
+
+            // Handle obj.Property += value (compound assignment on member access)
+            if (MatchCompoundAssignment(out var memberOp))
+            {
+                var value = ParseAssignment();
+                return new MemberCompoundAssignExpr(memberAccess.Object, memberAccess.Name.Lexeme, memberOp.Type, value);
+            }
         }
         else if (expr is IndexAccessExpr indexAccess)
         {
@@ -172,6 +179,13 @@ public sealed class ExpressionParser : ParserBase
             {
                 var value = ParseAssignment();
                 return new IndexAssignExpr(indexAccess.Object, indexAccess.Index, value);
+            }
+
+            // Handle arr[0] += value (compound assignment on index access)
+            if (MatchCompoundAssignment(out var indexOp))
+            {
+                var value = ParseAssignment();
+                return new IndexCompoundAssignExpr(indexAccess.Object, indexAccess.Index, indexOp.Type, value);
             }
         }
 
@@ -199,7 +213,7 @@ public sealed class ExpressionParser : ParserBase
 
         if (Match(TokenType.QuestionQuestion))
         {
-            // Right operand of ?? can be a throw expression (ECMA-334 section 12.16)
+            // Right operand of ?? can be a throw expression (ECMA-334 §12.16)
             if (Check(TokenType.Throw))
             {
                 Advance();

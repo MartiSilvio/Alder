@@ -38,7 +38,7 @@ internal sealed class PatternCompilerUnit
 
     /// <summary>
     /// Compiles a switch expression to an if-goto chain with per-arm scoping and SwitchExpressionException fallback.
-    /// ECMA-334 section 12.8.21: throws SwitchExpressionException when no arm matches.
+    /// ECMA-334 §12.8.21: throws SwitchExpressionException when no arm matches.
     /// Each arm gets its own child context so pattern variables don't leak between arms.
     /// </summary>
     internal LinqExpression CompileSwitchExpression(SwitchExpressionExpr expr)
@@ -88,7 +88,7 @@ internal sealed class PatternCompilerUnit
             statements.Add(LinqExpression.Assign(_ctx.CurrentContext, parentContextVar));
         }
 
-        // ECMA-334 section 12.8.21: throw SwitchExpressionException when no arm matches
+        // ECMA-334 §12.8.21: throw SwitchExpressionException when no arm matches
         statements.Add(LinqExpression.Throw(LinqExpression.New(
             typeof(System.Runtime.CompilerServices.SwitchExpressionException).GetConstructor([typeof(object)])!,
             subjectVar)));

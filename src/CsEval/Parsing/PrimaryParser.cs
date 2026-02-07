@@ -153,7 +153,7 @@ public sealed class PrimaryParser : ParserBase
             return new NewExpr(ObjectLiteralParser.ParseAnonymousObject(this, () => _expression.ParseExpression()));
         }
 
-        // new ClassName(args) - constructor invocation (ECMA-334 section 12.8.16.2)
+        // new ClassName(args) - constructor invocation (ECMA-334 §12.8.16.2)
         if (Check(TokenType.Identifier) || IsTypeKeyword(Peek().Type))
         {
             return ParseObjectCreation();

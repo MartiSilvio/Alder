@@ -31,6 +31,8 @@ public interface IExprVisitor<out T>
     T VisitAssign(AssignExpr expr);
     T VisitNullCoalesceAssign(NullCoalesceAssignExpr expr);
     T VisitCompoundAssign(CompoundAssignExpr expr);
+    T VisitMemberCompoundAssign(MemberCompoundAssignExpr expr);
+    T VisitIndexCompoundAssign(IndexCompoundAssignExpr expr);
     T VisitIncrementDecrement(IncrementDecrementExpr expr);
     T VisitIndexAssign(IndexAssignExpr expr);
     T VisitMemberAssign(MemberAssignExpr expr);
@@ -199,6 +201,18 @@ public sealed record NullCoalesceAssignExpr(Token Name, Expr Value) : Expr
 public sealed record CompoundAssignExpr(Token Name, Token Op, Expr Value) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitCompoundAssign(this);
+}
+
+// ECMA-334 §12.21.4 - Compound assignment on member access: obj.Prop += value
+public sealed record MemberCompoundAssignExpr(Expr Object, string MemberName, TokenType Operator, Expr Value) : Expr
+{
+    public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitMemberCompoundAssign(this);
+}
+
+// ECMA-334 §12.21.4 - Compound assignment on index access: arr[i] += value
+public sealed record IndexCompoundAssignExpr(Expr Object, Expr Index, TokenType Operator, Expr Value) : Expr
+{
+    public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitIndexCompoundAssign(this);
 }
 
 // Increment/Decrement: ++x, x++, --x, x--

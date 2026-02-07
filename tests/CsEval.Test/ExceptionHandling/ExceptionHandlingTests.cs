@@ -1,7 +1,7 @@
 namespace CsEval.Test.ExceptionHandling;
 
 /// <summary>
-/// ECMA-334 section 13.11 -- Exception handling via try/catch/finally statements.
+/// ECMA-334 §13.11 -- Exception handling via try/catch/finally statements.
 /// Tests basic try/catch, typed catch with exception type filtering and inheritance,
 /// finally block execution on normal and exceptional paths, nested try/catch propagation,
 /// catch-when guards (section 13.11), throw/rethrow semantics (section 13.10.6),
@@ -12,7 +12,7 @@ namespace CsEval.Test.ExceptionHandling;
 [TestFixture(CompilationMode.StrictCompiled)]
 public class ExceptionHandlingTests(CompilationMode mode)
 {
-    #region ECMA-334 section 13.11 -- Basic Try/Catch
+    #region ECMA-334 §13.11 -- Basic Try/Catch
 
     [TestCase(
         "{ var r = \"\"; try { throw new Exception(\"test\"); } catch (Exception ex) { r = ex.Message; } return r; }",
@@ -31,7 +31,7 @@ public class ExceptionHandlingTests(CompilationMode mode)
 
     #endregion
 
-    #region ECMA-334 section 13.11 -- Exception Type Filtering
+    #region ECMA-334 §13.11 -- Exception Type Filtering
 
     [TestCase(
         "{ var r = \"\"; try { throw new ArgumentException(); } catch (InvalidOperationException) { r = \"wrong\"; } catch (ArgumentException) { r = \"right\"; } return r; }",
@@ -54,7 +54,7 @@ public class ExceptionHandlingTests(CompilationMode mode)
 
     #endregion
 
-    #region ECMA-334 section 13.11 -- Finally Block Execution
+    #region ECMA-334 §13.11 -- Finally Block Execution
 
     [TestCase(
         "{ var x = 0; try { x = 1; } finally { x = 2; } return x; }",
@@ -93,7 +93,7 @@ public class ExceptionHandlingTests(CompilationMode mode)
 
     #endregion
 
-    #region ECMA-334 section 13.11 -- Nested Try/Catch
+    #region ECMA-334 §13.11 -- Nested Try/Catch
 
     [TestCase(
         "{ var r = \"\"; try { try { throw new ArgumentException(); } catch (InvalidOperationException) { r = \"inner\"; } } catch (ArgumentException) { r = \"outer\"; } return r; }",
@@ -121,7 +121,7 @@ public class ExceptionHandlingTests(CompilationMode mode)
 
     #endregion
 
-    #region ECMA-334 section 13.11 -- Catch-When Filters
+    #region ECMA-334 §13.11 -- Catch-When Filters
 
     [TestCase(
         "{ var r = 0; try { throw new Exception(\"match\"); } catch (Exception ex) when (ex.Message == \"match\") { r = 1; } catch (Exception) { r = 2; } return r; }",
@@ -141,7 +141,7 @@ public class ExceptionHandlingTests(CompilationMode mode)
 
     #endregion
 
-    #region ECMA-334 section 13.10.6 -- Throw and Rethrow
+    #region ECMA-334 §13.10.6 -- Throw and Rethrow
 
     [TestCase(
         "{ var r = \"\"; try { try { throw new ArgumentException(\"inner\"); } catch (ArgumentException) { throw; } } catch (Exception ex) { r = ex.Message; } return r; }",
@@ -158,7 +158,7 @@ public class ExceptionHandlingTests(CompilationMode mode)
 
     #endregion
 
-    #region ECMA-334 section 13.11 -- Bare Catch
+    #region ECMA-334 §13.11 -- Bare Catch
 
     [TestCase(
         "{ var r = 0; try { throw new Exception(); } catch { r = 1; } return r; }",

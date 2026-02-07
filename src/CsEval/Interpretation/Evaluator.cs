@@ -442,6 +442,16 @@ public sealed class Evaluator : IExprVisitor<object?>
         return result;
     }
 
+    public object? VisitMemberCompoundAssign(MemberCompoundAssignExpr expr)
+    {
+        throw new NotImplementedException("MemberCompoundAssign not yet implemented");
+    }
+
+    public object? VisitIndexCompoundAssign(IndexCompoundAssignExpr expr)
+    {
+        throw new NotImplementedException("IndexCompoundAssign not yet implemented");
+    }
+
     public object? VisitIncrementDecrement(IncrementDecrementExpr expr)
     {
         if (!_options.Sandbox.AllowAssignment)
