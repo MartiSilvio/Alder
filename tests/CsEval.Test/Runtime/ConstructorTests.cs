@@ -1,3 +1,5 @@
+using CsEval.TestData.Data;
+
 namespace CsEval.Test.Runtime;
 
 /// <summary>
@@ -11,9 +13,7 @@ public class ConstructorTests(CompilationMode mode)
     #region ECMA-334 §12.8.16.2 - Object creation expressions
 
     // Basic constructor with member access on result
-    [TestCase("new Exception(\"test\").Message", "test", TestName = "Constructor_Exception_Message")]
-    [TestCase("new ArgumentException(\"msg\", \"param\").ParamName", "param", TestName = "Constructor_ArgumentException_ParamName")]
-    [TestCase("new ArgumentException(\"msg\", \"param\").Message", "msg (Parameter 'param')", TestName = "Constructor_ArgumentException_Message")]
+    [TestCaseSource(typeof(ConstructorData), nameof(ConstructorData.MemberAccessCases))]
     public async Task Constructor_MemberAccess(string expr, object expected)
         => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
@@ -51,7 +51,7 @@ public class ConstructorTests(CompilationMode mode)
     }
 
     // Fully qualified type name
-    [TestCase("new System.Exception(\"test\").Message", "test", TestName = "Constructor_FullyQualified")]
+    [TestCaseSource(typeof(ConstructorData), nameof(ConstructorData.FullyQualifiedCases))]
     public async Task Constructor_FullyQualified(string expr, object expected)
         => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 

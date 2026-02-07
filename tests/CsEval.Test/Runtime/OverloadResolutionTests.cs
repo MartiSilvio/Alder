@@ -1,3 +1,5 @@
+using CsEval.TestData.Data;
+
 namespace CsEval.Test.Runtime;
 
 /// <summary>
@@ -20,10 +22,7 @@ public class OverloadResolutionTests(CompilationMode mode)
     // Math.Abs has overloads for: short, int, long, float, double, decimal, nint
     // Each call should select the overload matching the argument type exactly.
 
-    [TestCase("Math.Abs(5)", 5, TestName = "MathAbs_Int_SelectsIntOverload")]
-    [TestCase("Math.Abs(5L)", 5L, TestName = "MathAbs_Long_SelectsLongOverload")]
-    [TestCase("Math.Abs(5.0)", 5.0, TestName = "MathAbs_Double_SelectsDoubleOverload")]
-    [TestCase("Math.Abs(5.0f)", 5.0f, TestName = "MathAbs_Float_SelectsFloatOverload")]
+    [TestCaseSource(typeof(OverloadResolutionData), nameof(OverloadResolutionData.ExactMatchCases))]
     public async Task ExactMatch_SelectsCorrectOverload(string expr, object expected)
         => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
@@ -104,9 +103,7 @@ public class OverloadResolutionTests(CompilationMode mode)
     }
 
     // ECMA-334 §12.6.4.5: Widening with negative values
-    [TestCase("Math.Abs(-5)", 5, TestName = "MathAbs_NegativeInt_ReturnsPositiveInt")]
-    [TestCase("Math.Abs(-5L)", 5L, TestName = "MathAbs_NegativeLong_ReturnsPositiveLong")]
-    [TestCase("Math.Abs(-5.5)", 5.5, TestName = "MathAbs_NegativeDouble_ReturnsPositiveDouble")]
+    [TestCaseSource(typeof(OverloadResolutionData), nameof(OverloadResolutionData.NegativeValueCases))]
     public async Task ExactMatch_NegativeValues(string expr, object expected)
         => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
@@ -148,9 +145,7 @@ public class OverloadResolutionTests(CompilationMode mode)
         Assert.That(result?.GetType(), Is.EqualTo(csharpResult?.GetType()));
     }
 
-    [TestCase("Math.Round(3.5)", 4.0, TestName = "MathRound_BankersRounding_3_5")]
-    [TestCase("Math.Round(4.5)", 4.0, TestName = "MathRound_BankersRounding_4_5")]
-    [TestCase("Math.Round(2.5)", 2.0, TestName = "MathRound_BankersRounding_2_5")]
+    [TestCaseSource(typeof(OverloadResolutionData), nameof(OverloadResolutionData.BankersRoundingCases))]
     public async Task MathRound_BankersRounding(string expr, object expected)
         => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
@@ -160,8 +155,7 @@ public class OverloadResolutionTests(CompilationMode mode)
 
     // String.Concat has many overloads. Verify correct selection.
 
-    [TestCase("String.Concat(\"hello\", \" \", \"world\")", "hello world", TestName = "StringConcat_ThreeStrings")]
-    [TestCase("String.Concat(\"a\", \"b\")", "ab", TestName = "StringConcat_TwoStrings")]
+    [TestCaseSource(typeof(OverloadResolutionData), nameof(OverloadResolutionData.StringConcatCases))]
     public async Task StringConcat_SelectsCorrectOverload(string expr, object expected)
         => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
@@ -169,12 +163,7 @@ public class OverloadResolutionTests(CompilationMode mode)
 
     #region Math Method Overloads -- Additional
 
-    [TestCase("Math.Max(5, 10)", 10, TestName = "MathMax_Int_ReturnsInt")]
-    [TestCase("Math.Max(5L, 10L)", 10L, TestName = "MathMax_Long_ReturnsLong")]
-    [TestCase("Math.Max(5.0, 10.0)", 10.0, TestName = "MathMax_Double_ReturnsDouble")]
-    [TestCase("Math.Min(5, 10)", 5, TestName = "MathMin_Int_ReturnsInt")]
-    [TestCase("Math.Min(5L, 10L)", 5L, TestName = "MathMin_Long_ReturnsLong")]
-    [TestCase("Math.Min(5.0, 10.0)", 5.0, TestName = "MathMin_Double_ReturnsDouble")]
+    [TestCaseSource(typeof(OverloadResolutionData), nameof(OverloadResolutionData.MathMinMaxCases))]
     public async Task MathMinMax_SelectsCorrectOverload(string expr, object expected)
         => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
@@ -277,8 +266,7 @@ public class OverloadResolutionTests(CompilationMode mode)
 
     #region Convert/ToString Overload Selection
 
-    [TestCase("Convert.ToInt32(\"42\")", 42, TestName = "ConvertToInt32_String_ReturnsInt")]
-    [TestCase("Convert.ToDouble(\"3.14\")", 3.14, TestName = "ConvertToDouble_String_ReturnsDouble")]
+    [TestCaseSource(typeof(OverloadResolutionData), nameof(OverloadResolutionData.ConvertCases))]
     public async Task ConvertMethods_SelectCorrectOverload(string expr, object expected)
         => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 

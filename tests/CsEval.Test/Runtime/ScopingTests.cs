@@ -1,3 +1,5 @@
+using CsEval.TestData.Data;
+
 namespace CsEval.Test.Runtime;
 
 [TestFixture(CompilationMode.Interpreted)]
@@ -154,36 +156,7 @@ public class ScopingTests(CompilationMode mode)
     }
 
     // Parity tests for standard C# scoping behavior
-    [TestCase("""
-        {
-            var sum = 0;
-            for (var i = 1; i <= 5; i = i + 1) {
-                sum = sum + i;
-            }
-            return sum;
-        }
-        """, 15,
-        TestName = "ForLoop_InitializerAccessibleInBody")]
-    [TestCase("""
-        {
-            var count = 0;
-            for (var i = 0; i < 10; i = i + 1) {
-                count = count + 1;
-            }
-            return count;
-        }
-        """, 10,
-        TestName = "ForLoop_InitializerAccessibleInCondition")]
-    [TestCase("""
-        {
-            var count = 0;
-            for (var i = 0; i < 5; i = i + 2) {
-                count = count + 1;
-            }
-            return count;
-        }
-        """, 3,
-        TestName = "ForLoop_InitializerAccessibleInIncrement")]
+    [TestCaseSource(typeof(ScopingData), nameof(ScopingData.ForLoopCases))]
     public async Task ForLoop_Scoping(string expr, object expected)
         => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
@@ -234,16 +207,7 @@ public class ScopingTests(CompilationMode mode)
         Assert.That(ex!.Message, Does.Contain("x").Or.Contain("Undefined"));
     }
 
-    [TestCase("""
-        {
-            var total = 0;
-            var i = 0;
-            while (i < 3)
-                i = i + 1;
-            return i;
-        }
-        """, 3,
-        TestName = "WhileLoop_SingleStatementAssignment_ScopedCorrectly")]
+    [TestCaseSource(typeof(ScopingData), nameof(ScopingData.WhileLoopCases))]
     public async Task WhileLoop_Scoping(string expr, object expected)
         => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
@@ -415,20 +379,7 @@ public class ScopingTests(CompilationMode mode)
         Assert.That(ex!.Message, Does.Contain("x").Or.Contain("Undefined"));
     }
 
-    [TestCase("""
-        {
-            var result = 0;
-            if (true) {
-                var x = 10;
-                result = x;
-            } else {
-                var x = 20;
-                result = x;
-            }
-            return result;
-        }
-        """, 10,
-        TestName = "IfStatement_ThenAndElseBranchVariables_Independent")]
+    [TestCaseSource(typeof(ScopingData), nameof(ScopingData.IfStatementCases))]
     public async Task IfStatement_Scoping(string expr, object expected)
         => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
@@ -542,26 +493,7 @@ public class ScopingTests(CompilationMode mode)
 
     #region Parent Scope Access
 
-    [TestCase("""
-        {
-            var total = 0;
-            for (var i = 0; i < 5; i = i + 1) {
-                total = total + i;
-            }
-            return total;
-        }
-        """, 10,
-        TestName = "ForLoop_CanAccessParentScopeVariables")]
-    [TestCase("""
-        {
-            var x = 10;
-            if (true) {
-                x = x + 5;
-            }
-            return x;
-        }
-        """, 15,
-        TestName = "IfStatement_CanAccessParentScopeVariables")]
+    [TestCaseSource(typeof(ScopingData), nameof(ScopingData.ParentScopeAccessCases))]
     public async Task ParentScopeAccess(string expr, object expected)
         => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
@@ -627,20 +559,7 @@ public class ScopingTests(CompilationMode mode)
         Assert.That(ex!.Message, Does.Contain("x").Or.Contain("Undefined"));
     }
 
-    [TestCase("""
-        {
-            var outer = 1;
-            if (true) {
-                var middle = 2;
-                if (true) {
-                    var inner = 3;
-                    outer = outer + middle + inner;
-                }
-            }
-            return outer;
-        }
-        """, 6,
-        TestName = "NestedBlocks_ViaNestedIf_ProperScoping")]
+    [TestCaseSource(typeof(ScopingData), nameof(ScopingData.BlockScopingCases))]
     public async Task BlockScoping(string expr, object expected)
         => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
@@ -648,21 +567,8 @@ public class ScopingTests(CompilationMode mode)
 
     #region Break and Continue with Scoping
 
-    [TestCase("""
-        {
-            var sum = 0;
-            for (var i = 0; i < 10; i = i + 1) {
-                var temp = i;
-                sum = sum + temp;
-                if (i == 4) {
-                    break;
-                }
-            }
-            return sum;
-        }
-        """, 10,
-        TestName = "ForLoop_BreakPreservesParentScope")]
-    public async Task BreakAndContinue_ForLoop(string expr, object expected)
+    [TestCaseSource(typeof(ScopingData), nameof(ScopingData.BreakContinueCases))]
+    public async Task BreakAndContinue_Loops(string expr, object expected)
         => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
     // Engine-only: uses [1, 2, 3, 4, 5] collection expression syntax
@@ -685,28 +591,6 @@ public class ScopingTests(CompilationMode mode)
 
         Assert.That(result, Is.EqualTo(9));
     }
-
-    [TestCase("""
-        {
-            var total = 0;
-            var i = 0;
-            while (true) {
-                var x = i * 2;
-                i = i + 1;
-                if (i == 3) {
-                    continue;
-                }
-                if (i > 5) {
-                    break;
-                }
-                total = total + x;
-            }
-            return total;
-        }
-        """, 16,
-        TestName = "WhileLoop_BreakAndContinue_ScopeCleanedUp")]
-    public async Task BreakAndContinue_WhileLoop(string expr, object expected)
-        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
     #endregion
 }

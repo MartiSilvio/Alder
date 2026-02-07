@@ -1,4 +1,5 @@
 using System.Collections;
+using CsEval.TestData.Data;
 
 namespace CsEval.Test.Runtime;
 
@@ -9,14 +10,7 @@ public class AssignmentTests(CompilationMode mode)
 {
     #region Basic Assignment
 
-    [TestCase("{ var x = 10; x = 20; return x; }", 20,
-        TestName = "Assignment_SimpleVariable_UpdatesValue")]
-    [TestCase("{ var x = 1; x = 2; x = 3; x = 4; return x; }", 4,
-        TestName = "Assignment_MultipleAssignments_TracksLatestValue")]
-    [TestCase("{ var x = 5; x = x + 10; return x; }", 15,
-        TestName = "Assignment_ToExpressionResult_WorksCorrectly")]
-    [TestCase("{ var x = 1; x = x + 1; x = x * 2; x = x - 1; return x; }", 3,
-        TestName = "Assignment_ChainedArithmetic_WorksCorrectly")]
+    [TestCaseSource(typeof(AssignmentData), nameof(AssignmentData.BasicCases))]
     public async Task Assignment_Basic(string expr, object expected)
         => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
@@ -24,29 +18,11 @@ public class AssignmentTests(CompilationMode mode)
 
     #region Assignment with Different Types
 
-    [TestCase("""
-        {
-            var s = "hello";
-            s = "world";
-            return s;
-        }
-        """, "world",
-        TestName = "Assignment_StringValue_WorksCorrectly")]
-    [TestCase("{ var flag = true; flag = false; return flag; }", false,
-        TestName = "Assignment_BooleanValue_WorksCorrectly")]
-    [TestCase("{ var d = 1.5; d = 3.14; return d; }", 3.14,
-        TestName = "Assignment_DoubleValue_WorksCorrectly")]
+    [TestCaseSource(typeof(AssignmentData), nameof(AssignmentData.TypeCases))]
     public async Task Assignment_Types(string expr, object expected)
         => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
-    [TestCase("""
-        {
-            var obj = "something";
-            obj = null;
-            return obj;
-        }
-        """, null,
-        TestName = "Assignment_NullValue_WorksCorrectly")]
+    [TestCaseSource(typeof(AssignmentData), nameof(AssignmentData.NullCases))]
     public async Task Assignment_Null(string expr, object? expected)
         => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
@@ -119,24 +95,7 @@ public class AssignmentTests(CompilationMode mode)
 
     #region Assignment Expression Returns Value
 
-    [TestCase("""
-        {
-            var x = 0;
-            var y = x = 42;
-            return y;
-        }
-        """, 42,
-        TestName = "Assignment_ReturnsAssignedValue")]
-    [TestCase("""
-        {
-            var a = 0;
-            var b = 0;
-            var c = 0;
-            a = b = c = 100;
-            return a + b + c;
-        }
-        """, 300,
-        TestName = "Assignment_ChainedAssignment_WorksCorrectly")]
+    [TestCaseSource(typeof(AssignmentData), nameof(AssignmentData.ExpressionReturnCases))]
     public async Task Assignment_ExpressionReturns(string expr, object expected)
         => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
@@ -144,28 +103,7 @@ public class AssignmentTests(CompilationMode mode)
 
     #region Assignment in Conditionals
 
-    [TestCase("""
-        {
-            var x = 0;
-            if (true) {
-                x = 100;
-            }
-            return x;
-        }
-        """, 100,
-        TestName = "Assignment_InsideIf_WorksCorrectly")]
-    [TestCase("""
-        {
-            var x = 0;
-            if (false) {
-                x = 50;
-            } else {
-                x = 100;
-            }
-            return x;
-        }
-        """, 100,
-        TestName = "Assignment_InsideElse_WorksCorrectly")]
+    [TestCaseSource(typeof(AssignmentData), nameof(AssignmentData.ConditionalCases))]
     public async Task Assignment_InConditionals(string expr, object expected)
         => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
@@ -227,22 +165,7 @@ public class AssignmentTests(CompilationMode mode)
 
     #region Assignment with Modules
 
-    [TestCase("""
-        {
-            var absValue = 0.0;
-            absValue = Math.Abs(-42.5);
-            return absValue;
-        }
-        """, 42.5,
-        TestName = "Assignment_WithMathResult_WorksCorrectly")]
-    [TestCase("""
-        {
-            var greeting = "Hello";
-            greeting = greeting + " World";
-            return greeting;
-        }
-        """, "Hello World",
-        TestName = "Assignment_WithStringConcat_WorksCorrectly")]
+    [TestCaseSource(typeof(AssignmentData), nameof(AssignmentData.ModuleCases))]
     public async Task Assignment_WithModules(string expr, object expected)
         => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
@@ -250,31 +173,7 @@ public class AssignmentTests(CompilationMode mode)
 
     #region Assignment Scoping
 
-    [TestCase("""
-        {
-            var x = 1;
-            if (true) {
-                x = 2;
-                if (true) {
-                    x = 3;
-                }
-            }
-            return x;
-        }
-        """, 3,
-        TestName = "Assignment_InnerBlockModifiesOuter_WorksCorrectly")]
-    [TestCase("""
-        {
-            var a = 1;
-            var b = 10;
-            var c = 100;
-            a = a + 1;
-            b = b + 1;
-            c = c + 1;
-            return a + b + c;
-        }
-        """, 114,
-        TestName = "Assignment_MultipleVariables_TracksIndependently")]
+    [TestCaseSource(typeof(AssignmentData), nameof(AssignmentData.ScopingCases))]
     public async Task Assignment_Scoping(string expr, object expected)
         => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
@@ -299,17 +198,7 @@ public class AssignmentTests(CompilationMode mode)
 
     #region Assignment with Interpolated Strings
 
-    [TestCase("""
-        {
-            var name = "Alice";
-            var greeting = "";
-            greeting = $"Hello, {name}!";
-            name = "Bob";
-            greeting = $"Hello, {name}!";
-            return greeting;
-        }
-        """, "Hello, Bob!",
-        TestName = "Assignment_InterpolatedString_WorksCorrectly")]
+    [TestCaseSource(typeof(AssignmentData), nameof(AssignmentData.InterpolatedStringCases))]
     public async Task Assignment_InterpolatedStrings(string expr, object expected)
         => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
@@ -334,25 +223,7 @@ public class AssignmentTests(CompilationMode mode)
 
     #region Assignment with Null Coalesce
 
-    [TestCase("""
-        {
-            int? maybeNull = null;
-            var fallback = 0;
-            fallback = maybeNull ?? 42;
-            return fallback;
-        }
-        """, 42,
-        TestName = "Assignment_FromNullCoalesce_WorksCorrectly")]
-    [TestCase("""
-        {
-            int? a = null;
-            int? b = null;
-            a = 10;
-            b ??= 20;
-            return a + b;
-        }
-        """, 30,
-        TestName = "Assignment_VsNullCoalesceAssign_BothWork")]
+    [TestCaseSource(typeof(AssignmentData), nameof(AssignmentData.NullCoalesceCases))]
     public async Task Assignment_NullCoalesce(string expr, object expected)
         => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
