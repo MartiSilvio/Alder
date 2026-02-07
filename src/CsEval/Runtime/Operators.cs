@@ -65,53 +65,8 @@ public static class Operators
         if (TypeHelpers.IsArithmetic(left) && TypeHelpers.IsArithmetic(right))
             return NumericDispatch.Add(left, right);
 
-        return MergeObjects(left, right, options, context);
-    }
-
-    private static object? MergeObjects(object? left, object? right, CsEvalOptions options, CsEvalContext? context)
-    {
-        var comparer = options.StringComparer;
-        var merged = new Dictionary<string, object?>(comparer);
-
-        CopyObjectProperties(left, merged, context);
-        CopyObjectProperties(right, merged, context);
-
-        if (merged.Count == 0 && (left != null || right != null))
-            throw new CsEvalException($"Cannot add {left?.GetType().Name ?? "null"} and {right?.GetType().Name ?? "null"}");
-
-        return merged;
-    }
-
-    private static void CopyObjectProperties(object? obj, Dictionary<string, object?> target, CsEvalContext? context)
-    {
-        if (obj == null) return;
-
-        if (obj is IDictionary<string, object?> dict)
-        {
-            foreach (var kvp in dict)
-                target[kvp.Key] = kvp.Value;
-            return;
-        }
-
-        var type = obj.GetType();
-        var bindingFlags = BindingFlags.Public | BindingFlags.Instance;
-
-        if (context != null)
-        {
-            foreach (var prop in context.TypeCache.GetProperties(type, bindingFlags))
-            {
-                if (prop.CanRead)
-                    target[prop.Name] = context.TypeCache.GetPropertyValue(prop, obj);
-            }
-        }
-        else
-        {
-            foreach (var prop in type.GetProperties(bindingFlags))
-            {
-                if (prop.CanRead)
-                    target[prop.Name] = prop.GetValue(obj);
-            }
-        }
+        // CsEval Extension: object merge via + operator
+        return Extensions.ObjectMergeOperator.MergeObjects(left, right, options, context);
     }
 
     public static object? Subtract(object? left, object? right) =>

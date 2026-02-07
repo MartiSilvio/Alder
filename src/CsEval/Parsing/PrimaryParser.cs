@@ -1,4 +1,5 @@
 using System.Text;
+using CsEval.Parsing.Extensions;
 
 namespace CsEval.Parsing;
 
@@ -337,84 +338,17 @@ public sealed class PrimaryParser : ParserBase
 
     #region Collection Literals
 
-    private Expr ParseArrayLiteral()
-    {
-        var elements = new List<Expr>();
+    // CsEval Extension: array literal [1, 2, 3]
+    private Expr ParseArrayLiteral() =>
+        ArrayLiteralParser.ParseArrayLiteral(this, () => _expression.ParseExpression());
 
-        if (!Check(TokenType.RightBracket))
-        {
-            do
-            {
-                if (Match(TokenType.DotDotDot))
-                {
-                    // Spread element: ...expr
-                    var spreadExpr = _expression.ParseExpression();
-                    elements.Add(new SpreadExpr(spreadExpr));
-                }
-                else
-                {
-                    elements.Add(_expression.ParseExpression());
-                }
-            } while (Match(TokenType.Comma));
-        }
+    // CsEval Extension: array literal body (for new[] { ... } syntax)
+    private Expr ParseArrayLiteralBody() =>
+        ArrayLiteralParser.ParseArrayLiteralBody(this, () => _expression.ParseExpression());
 
-        Consume(TokenType.RightBracket, "Expected ']' after array elements");
-        return new ArrayLiteralExpr(elements);
-    }
-
-    private Expr ParseArrayLiteralBody()
-    {
-        var elements = new List<Expr>();
-
-        if (!Check(TokenType.RightBrace))
-        {
-            do
-            {
-                if (Match(TokenType.DotDotDot))
-                {
-                    var spreadExpr = _expression.ParseExpression();
-                    elements.Add(new SpreadExpr(spreadExpr));
-                }
-                else
-                {
-                    elements.Add(_expression.ParseExpression());
-                }
-            } while (Match(TokenType.Comma));
-        }
-
-        Consume(TokenType.RightBrace, "Expected '}' after array elements");
-        return new ArrayLiteralExpr(elements);
-    }
-
-    private Expr ParseAnonymousObject()
-    {
-        var properties = new List<(Token, Expr)>();
-
-        if (!Check(TokenType.RightBrace))
-        {
-            do
-            {
-                if (Match(TokenType.DotDotDot))
-                {
-                    // Spread property: ...expr
-                    var spreadExpr = _expression.ParseExpression();
-                    // Use a special marker token for spread entries
-                    var spreadMarker = new Token(TokenType.DotDotDot, "...", null, 0, 0);
-                    properties.Add((spreadMarker, new SpreadExpr(spreadExpr)));
-                }
-                else
-                {
-                    var key = Consume(TokenType.Identifier, "Expected property name");
-                    Consume(TokenType.Equal, "Expected '=' after property name");
-                    var value = _expression.ParseExpression();
-                    properties.Add((key, value));
-                }
-            } while (Match(TokenType.Comma));
-        }
-
-        Consume(TokenType.RightBrace, "Expected '}' after anonymous object");
-        return new ObjectLiteralExpr(properties);
-    }
+    // CsEval Extension: anonymous object new { Name = "John" }
+    private Expr ParseAnonymousObject() =>
+        ObjectLiteralParser.ParseAnonymousObject(this, () => _expression.ParseExpression());
 
     #endregion
 

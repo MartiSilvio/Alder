@@ -2,6 +2,7 @@ using System.Linq.Expressions;
 using CsEval.Interpretation;
 using CsEval.Parsing;
 using CsEval.Runtime;
+using CsEval.Runtime.Extensions;
 
 namespace CsEval.Compilation;
 
@@ -82,9 +83,10 @@ internal sealed class CompilerContext
     internal static readonly MethodInfo StringBuilderAppendMethod = typeof(StringBuilder).GetMethod(nameof(StringBuilder.Append), [typeof(string)])!;
     internal static readonly MethodInfo StringBuilderToStringMethod = typeof(StringBuilder).GetMethod(nameof(StringBuilder.ToString), Type.EmptyTypes)!;
     internal static readonly MethodInfo ObjectToStringMethod = typeof(object).GetMethod(nameof(ToString))!;
-    internal static readonly MethodInfo SpreadIntoDictMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.SpreadIntoDict))!;
-    internal static readonly MethodInfo SpreadIntoListMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.SpreadIntoList))!;
-    internal static readonly MethodInfo CreateTypedListMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.CreateTypedList))!;
+    // CsEval Extension: spread and collection literal helpers
+    internal static readonly MethodInfo SpreadIntoDictMethod = typeof(SpreadHelpers).GetMethod(nameof(SpreadHelpers.SpreadIntoDict))!;
+    internal static readonly MethodInfo SpreadIntoListMethod = typeof(SpreadHelpers).GetMethod(nameof(SpreadHelpers.SpreadIntoList))!;
+    internal static readonly MethodInfo CreateTypedListMethod = typeof(SpreadHelpers).GetMethod(nameof(SpreadHelpers.CreateTypedList))!;
     internal static readonly MethodInfo ThrowIfCancellationRequestedMethod = typeof(CancellationToken).GetMethod(nameof(CancellationToken.ThrowIfCancellationRequested))!;
     internal static readonly MethodInfo CheckIterationLimitMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.CheckIterationLimit))!;
     internal static readonly MethodInfo GetEnumeratorMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.GetEnumerator))!;

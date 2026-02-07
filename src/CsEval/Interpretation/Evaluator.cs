@@ -3,6 +3,7 @@ using System.Dynamic;
 using System.Runtime.ExceptionServices;
 using CsEval.Parsing;
 using CsEval.Runtime;
+using CsEval.Runtime.Extensions;
 
 namespace CsEval.Interpretation;
 
@@ -516,7 +517,7 @@ public sealed class Evaluator : IExprVisitor<object?>
                 result.Add(Evaluate(element));
             }
         }
-        return RuntimeHelpers.CreateTypedList(result);
+        return SpreadHelpers.CreateTypedList(result);
     }
 
     public object? VisitObjectLiteral(ObjectLiteralExpr expr)
