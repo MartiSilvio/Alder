@@ -1,3 +1,5 @@
+using CsEval.TestData.Data;
+
 namespace CsEval.Test.Operators;
 
 /// <summary>
@@ -13,24 +15,11 @@ public class IsAsTests(CompilationMode mode)
 {
     #region ECMA-334 §12.12.12 — Is Operator (Type Checking)
 
-    [TestCase("42 is int", true, TestName = "Is_IntIsInt")]
-    [TestCase("42L is long", true, TestName = "Is_LongIsLong")]
-    [TestCase("3.14 is double", true, TestName = "Is_DoubleIsDouble")]
-    [TestCase("3.14f is float", true, TestName = "Is_FloatIsFloat")]
-    [TestCase("3.14m is decimal", true, TestName = "Is_DecimalIsDecimal")]
-    [TestCase("true is bool", true, TestName = "Is_BoolIsBool")]
-    [TestCase("'a' is char", true, TestName = "Is_CharIsChar")]
-    [TestCase("\"hello\" is string", true, TestName = "Is_StringIsString")]
-    [TestCase("42 is long", false, TestName = "Is_IntIsLong_False")]
-    [TestCase("42 is double", false, TestName = "Is_IntIsDouble_False")]
-    [TestCase("42 is string", false, TestName = "Is_IntIsString_False")]
-    [TestCase("\"hello\" is int", false, TestName = "Is_StringIsInt_False")]
-    [TestCase("true is int", false, TestName = "Is_BoolIsInt_False")]
+    [TestCaseSource(typeof(IsAsData), nameof(IsAsData.IsTypeCases))]
     public async Task Eval_IsType(string expr, bool expected)
         => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
-    [TestCase(42, "x is int", true, TestName = "Is_Variable_Int")]
-    [TestCase("hello", "x is string", true, TestName = "Is_Variable_String")]
+    [TestCaseSource(typeof(IsAsData), nameof(IsAsData.IsVariableCases))]
     public async Task Is_Variable(object? varValue, string expr, bool expected)
         => await TestHelpers.RunCSharpParityTestAsync(expr, new() { ["x"] = varValue }, expected, mode);
 
@@ -42,10 +31,7 @@ public class IsAsTests(CompilationMode mode)
         Assert.That(engine.Evaluate(expr), Is.EqualTo(expected));
     }
 
-    // ECMA-334 §12.12.12: "The result is true if ... the reference conversion succeeds"
-    [TestCase(42, "x is object", true, TestName = "Is_IntIsObject")]
-    [TestCase("hello", "x is object", true, TestName = "Is_StringIsObject")]
-    [TestCase(null, "x is object", false, TestName = "Is_NullIsObject")]
+    [TestCaseSource(typeof(IsAsData), nameof(IsAsData.IsObjectCases))]
     public async Task Is_Object(object? varValue, string expr, bool expected)
         => await TestHelpers.RunCSharpParityTestAsync(expr, new() { ["x"] = varValue }, expected, mode);
 
@@ -53,10 +39,7 @@ public class IsAsTests(CompilationMode mode)
 
     #region ECMA-334 §11.2.1 — Null and Not-Null Patterns
 
-    // ECMA-334 §11.2.1: "A null pattern matches null values"
-    [TestCase(null, "x is null", true, TestName = "Is_NullVariable_IsNull")]
-    [TestCase(null, "x is not null", false, TestName = "Is_NullVariable_IsNotNull")]
-    [TestCase("hello", "x is not null", true, TestName = "Is_StringVariable_IsNotNull")]
+    [TestCaseSource(typeof(IsAsData), nameof(IsAsData.NullCheckCases))]
     public async Task Is_NullCheck(object? varValue, string expr, bool expected)
         => await TestHelpers.RunCSharpParityTestAsync(expr, new() { ["x"] = varValue }, expected, mode);
 
@@ -73,8 +56,7 @@ public class IsAsTests(CompilationMode mode)
 
     #region ECMA-334 §11.2.3 — Is Not Type Pattern (C# 9+)
 
-    [TestCase(null, "x is not object", true, TestName = "IsNot_NullIsNotObject_True")]
-    [TestCase(null, "x is not string", true, TestName = "IsNot_NullIsNotString_True")]
+    [TestCaseSource(typeof(IsAsData), nameof(IsAsData.IsNotTypeParityCases))]
     public async Task IsNot_Type_Parity(object? varValue, string expr, bool expected)
         => await TestHelpers.RunCSharpParityTestAsync(expr, new() { ["x"] = varValue }, expected, mode);
 
@@ -102,10 +84,7 @@ public class IsAsTests(CompilationMode mode)
 
     #region ECMA-334 §12.12.12 — Is in Conditions and Combined with Logical Operators
 
-    [TestCase(42, "x is int ? \"yes\" : \"no\"", "yes", TestName = "Is_InConditional")]
-    [TestCase("hello", "x is int ? \"yes\" : \"no\"", "no", TestName = "Is_InConditional_False")]
-    [TestCase(42, "(x is int) == true", true, TestName = "Is_Precedence_WithEquality")]
-    [TestCase("hello", "!(x is int)", true, TestName = "Is_Precedence_WithNegation")]
+    [TestCaseSource(typeof(IsAsData), nameof(IsAsData.IsInConditionCases))]
     public async Task Is_InCondition(object varValue, string expr, object expected)
         => await TestHelpers.RunCSharpParityTestAsync(expr, new() { ["x"] = varValue }, expected, mode);
 
@@ -117,7 +96,7 @@ public class IsAsTests(CompilationMode mode)
         Assert.That(engine.Evaluate(expr), Is.EqualTo(expected));
     }
 
-    [TestCase("hello", "x is int || x is string", true, TestName = "Is_WithLogicalOr")]
+    [TestCaseSource(typeof(IsAsData), nameof(IsAsData.IsWithLogicalCases))]
     public async Task Is_WithLogicalOperators(object varValue, string expr, bool expected)
         => await TestHelpers.RunCSharpParityTestAsync(expr, new() { ["x"] = varValue }, expected, mode);
 
@@ -125,12 +104,7 @@ public class IsAsTests(CompilationMode mode)
 
     #region ECMA-334 §12.12.13 — As Operator
 
-    // ECMA-334 §12.12.13: "The as operator is used to explicitly convert a value to a given reference type ...
-    // using a reference conversion or a boxing conversion. ... the result of the operator is null."
-    [TestCase("hello", "x as string", "hello", TestName = "As_StringToString")]
-    [TestCase(null, "x as string", null, TestName = "As_NullToString")]
-    [TestCase("hello", "(x as string) is not null ? \"found\" : \"not found\"", "found", TestName = "As_InConditional")]
-    [TestCase("hello", "(x as string) ?? \"default\"", "hello", TestName = "As_ChainedWithNullCoalesce_WhenNotNull")]
+    [TestCaseSource(typeof(IsAsData), nameof(IsAsData.AsOperatorCases))]
     public async Task As_Operator(object? varValue, string expr, object? expected)
         => await TestHelpers.RunCSharpParityTestAsync(expr, new() { ["x"] = varValue }, expected, mode);
 
@@ -190,7 +164,18 @@ public class IsAsTests(CompilationMode mode)
 
     #region ECMA-334 §11.2.2 — Type Pattern with Variable Binding
 
-    // ECMA-334 §11.2.2: "A declaration pattern ... declares a new local variable"
+    [TestCaseSource(typeof(IsAsData), nameof(IsAsData.TypePatternInConditionalCases))]
+    public async Task Is_TypePattern_InConditional(object varValue, string expr, object expected)
+        => await TestHelpers.RunCSharpParityTestAsync(expr, new() { ["x"] = varValue }, expected, mode);
+
+    [TestCase(42, "x is string s ? s.ToUpper() : \"not a string\"", "not a string", TestName = "Is_TypePattern_InConditional_NoMatch")]
+    public void Is_TypePattern_InConditional_CrossType(object varValue, string expr, object expected)
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        engine.SetVariable("x", varValue);
+        Assert.That(engine.Evaluate(expr), Is.EqualTo(expected));
+    }
+
     [Test]
     public async Task Is_TypePattern_WithVariable_Match()
     {
@@ -228,18 +213,6 @@ public class IsAsTests(CompilationMode mode)
         Assert.That(result, Is.True);
         Assert.That(iValue, Is.EqualTo(42));
         Assert.That(result, Is.EqualTo(csharpResult), "C# parity mismatch");
-    }
-
-    [TestCase("hello", "x is string s ? s.ToUpper() : \"not a string\"", "HELLO", TestName = "Is_TypePattern_InConditional")]
-    public async Task Is_TypePattern_InConditional(object varValue, string expr, object expected)
-        => await TestHelpers.RunCSharpParityTestAsync(expr, new() { ["x"] = varValue }, expected, mode);
-
-    [TestCase(42, "x is string s ? s.ToUpper() : \"not a string\"", "not a string", TestName = "Is_TypePattern_InConditional_NoMatch")]
-    public void Is_TypePattern_InConditional_CrossType(object varValue, string expr, object expected)
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        engine.SetVariable("x", varValue);
-        Assert.That(engine.Evaluate(expr), Is.EqualTo(expected));
     }
 
     [Test]
@@ -323,9 +296,6 @@ public class IsAsTests(CompilationMode mode)
     public void Is_ClassType_NoBinding()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        // Without binding variable, we can't test plain "x is Exception" as standalone
-        // because Identifier alone isn't treated as type pattern without binding.
-        // But Identifier + Identifier is. Let's test the binding path thoroughly.
         engine.SetVariable("x", new Exception("test"));
         var result = engine.Evaluate("x is Exception ex");
         Assert.That(result, Is.True);
@@ -336,7 +306,6 @@ public class IsAsTests(CompilationMode mode)
 
     #region ECMA-334 §11.2 — Pattern Matching Edge Cases
 
-    // ECMA-334 §11.2.2: Pattern variable is NOT bound when match fails
     [Test]
     public void Is_TypePattern_VariableNotBoundOnFailure()
     {
@@ -372,7 +341,6 @@ public class IsAsTests(CompilationMode mode)
         Assert.That(engine.Evaluate("x is not null"), Is.True);
     }
 
-    // ECMA-334 §10.3.7: Nullable value types unbox to their underlying type
     [TestCase("x is int", true, TestName = "Is_NullableInt_IsInt_True")]
     public void Is_NullableValueType(string expr, bool expected)
     {
@@ -395,7 +363,6 @@ public class IsAsTests(CompilationMode mode)
 
     #region ECMA-334 §11.2.4 — Var Pattern
 
-    // ECMA-334 §11.2.4: "A var pattern always succeeds and assigns the value ... to a fresh local variable"
     [Test]
     public void VarPattern_AlwaysMatches()
     {

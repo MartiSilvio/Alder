@@ -1,3 +1,5 @@
+using CsEval.TestData.Data;
+
 namespace CsEval.Test.Operators;
 
 /// <summary>
@@ -12,9 +14,8 @@ public class ThrowExpressionTests(CompilationMode mode)
 {
     #region ECMA-334 §12.16 - Null-coalescing with throw
 
-    // Non-null left side of ?? returns the value without throwing
-    [TestCase("\"hello\" ?? throw new Exception(\"fail\")", "hello", TestName = "NullCoalesce_NonNullString_ReturnsValue")]
-    public async Task NullCoalesce_NonNull_ReturnsValue(string expr, object expected)
+    [TestCaseSource(typeof(ThrowExpressionData), nameof(ThrowExpressionData.ValueCases))]
+    public async Task Eval_ThrowExpression_ValueCases(string expr, object expected)
         => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
     // Non-null value type with ?? (CsEval treats everything as object? at runtime)
@@ -59,13 +60,6 @@ public class ThrowExpressionTests(CompilationMode mode)
     #endregion
 
     #region ECMA-334 §12.16 - Conditional with throw
-
-    // Condition true, then branch returns value (else branch has throw but is not evaluated)
-    [TestCase("true ? 42 : throw new Exception(\"fail\")", 42, TestName = "Conditional_TrueCondition_ReturnsThenValue")]
-    // Condition false, else branch returns value (then branch has throw but is not evaluated)
-    [TestCase("false ? throw new Exception(\"fail\") : 42", 42, TestName = "Conditional_FalseCondition_ReturnsElseValue")]
-    public async Task Conditional_NonThrowBranch_ReturnsValue(string expr, object expected)
-        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
     // Condition false, else branch throws
     [Test]
