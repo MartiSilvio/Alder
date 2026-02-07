@@ -53,7 +53,7 @@ internal static class ExpressionCompiler
         {
             var context = new CsEvalContext(CsEvalConfig.Empty);
             var options = CsEvalOptions.Default;
-            var (ilDelegate, failureReason) = ILCompiler.TryCompile(ast, context, options);
+            var (ilDelegate, failureReason) = CompilerContext.TryCompile(ast, context, options);
 
             if (ilDelegate != null)
             {

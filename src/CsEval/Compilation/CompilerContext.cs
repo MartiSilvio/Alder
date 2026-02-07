@@ -1,0 +1,620 @@
+using System.Linq.Expressions;
+using CsEval.Interpretation;
+using CsEval.Parsing;
+using CsEval.Runtime;
+
+namespace CsEval.Compilation;
+
+/// <summary>
+/// Delegate type for IL-compiled expressions.
+/// </summary>
+internal delegate object? ILCompiledDelegate(
+    CsEvalContext context,
+    CsEvalOptions options,
+    CancellationToken ct,
+    Func<MethodInfo, object?[], object?[]>? argumentTransformer);
+
+/// <summary>
+/// Shared compilation state passed to all compiler units via composition.
+/// Holds parameters, context stack, control stack, return handling, and cached method lookups.
+/// Also serves as the entry point for compilation via TryCompile.
+/// </summary>
+internal sealed class CompilerContext
+{
+    internal readonly CsEvalContext Context;
+    internal readonly CsEvalOptions Options;
+    internal readonly TypeInferrer TypeInferrer;
+
+    // Parameters for the compiled lambda
+    internal readonly ParameterExpression ContextParam;
+    internal readonly ParameterExpression OptionsParam;
+    internal readonly ParameterExpression CtParam;
+    internal readonly ParameterExpression ArgumentTransformerParam;
+
+    // Current context expression (may be child context in nested scopes)
+    internal LinqExpression CurrentContext;
+
+    // Stack of parent context variables for scope restoration
+    internal readonly Stack<ParameterExpression> ContextStack = new();
+
+    // Loop/Switch stack
+    internal readonly Stack<ControlFlowContext> ControlStack = new();
+
+    // Global iteration counter variable (long to avoid overflow issues with int.MaxValue limits)
+    internal readonly ParameterExpression IterationCount;
+
+    // Return handling
+    internal readonly LabelTarget ReturnLabel;
+    internal readonly ParameterExpression ReturnValue;
+
+    // Recursion depth tracking to prevent stack overflow in Compile
+    internal int CompileDepth;
+    internal const int MaxCompileDepth = 500;
+
+    internal record struct ControlFlowContext(LabelTarget BreakTarget, LabelTarget? ContinueTarget, bool IsLoop);
+
+    #region Cached MethodInfo
+
+    internal static readonly MethodInfo GetMethod = typeof(CsEvalContext).GetMethod("Get", [typeof(string)])!;
+    internal static readonly MethodInfo SetMethod = typeof(CsEvalContext).GetMethod("Set", [typeof(string), typeof(object)])!;
+    internal static readonly MethodInfo DefineMethod = typeof(CsEvalContext).GetMethod("Define", [typeof(string), typeof(object)])!;
+    internal static readonly MethodInfo DefineWithTypeMethod = typeof(CsEvalContext).GetMethod("Define", [typeof(string), typeof(object), typeof(Type)])!;
+    internal static readonly MethodInfo DefineNewMethod = typeof(CsEvalContext).GetMethod("DefineNew", [typeof(string), typeof(object), typeof(Type)])!;
+    internal static readonly MethodInfo TryGetVariableTypeMethod = typeof(CsEvalContext).GetMethod("TryGetVariableType")!;
+    internal static readonly MethodInfo CreateChildMethod = typeof(CsEvalContext).GetMethod("CreateChild")!;
+    internal static readonly MethodInfo RequireBooleanMethod = typeof(TypeHelpers).GetMethod(nameof(TypeHelpers.RequireBoolean))!;
+    internal static readonly MethodInfo ResolveTypeNameMethod = typeof(TypeHelpers).GetMethod(nameof(TypeHelpers.ResolveTypeName))!;
+    internal static readonly MethodInfo ResolveTypeByNameMethod = typeof(TypeHelpers).GetMethod(nameof(TypeHelpers.ResolveTypeByName))!;
+    internal static readonly MethodInfo InvokeConstructorMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.InvokeConstructor))!;
+    internal static readonly MethodInfo CreateTupleMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.CreateTuple))!;
+    internal static readonly MethodInfo DeconstructTupleMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.DeconstructTuple))!;
+    internal static readonly MethodInfo GetDefaultValueMethod = typeof(TypeHelpers).GetMethod(nameof(TypeHelpers.GetDefaultValue))!;
+    internal static readonly MethodInfo IsNullableTypeMethod = typeof(TypeHelpers).GetMethod(nameof(TypeHelpers.IsNullableType))!;
+    internal static readonly MethodInfo GetMemberMethod = typeof(MemberAccess).GetMethod(nameof(MemberAccess.GetMember))!;
+    internal static readonly MethodInfo GetIndexMethod = typeof(MemberAccess).GetMethod(nameof(MemberAccess.GetIndex))!;
+    internal static readonly MethodInfo SetIndexMethod = typeof(MemberAccess).GetMethod(nameof(MemberAccess.SetIndex))!;
+    internal static readonly MethodInfo SetMemberMethod = typeof(MemberAccess).GetMethod(nameof(MemberAccess.SetMember))!;
+    internal static readonly MethodInfo ListAddMethod = typeof(List<object?>).GetMethod(nameof(List<object?>.Add))!;
+    internal static readonly MethodInfo ListAddRangeMethod = typeof(List<object?>).GetMethod(nameof(List<object?>.AddRange))!;
+    internal static readonly ConstructorInfo ListCtor = typeof(List<object?>).GetConstructor(Type.EmptyTypes)!;
+    internal static readonly ConstructorInfo ExpandoObjectCtor = typeof(System.Dynamic.ExpandoObject).GetConstructor(Type.EmptyTypes)!;
+    internal static readonly ConstructorInfo StringBuilderCtor = typeof(StringBuilder).GetConstructor(Type.EmptyTypes)!;
+    internal static readonly MethodInfo StringBuilderAppendMethod = typeof(StringBuilder).GetMethod(nameof(StringBuilder.Append), [typeof(string)])!;
+    internal static readonly MethodInfo StringBuilderToStringMethod = typeof(StringBuilder).GetMethod(nameof(StringBuilder.ToString), Type.EmptyTypes)!;
+    internal static readonly MethodInfo ObjectToStringMethod = typeof(object).GetMethod(nameof(ToString))!;
+    internal static readonly MethodInfo SpreadIntoDictMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.SpreadIntoDict))!;
+    internal static readonly MethodInfo SpreadIntoListMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.SpreadIntoList))!;
+    internal static readonly MethodInfo CreateTypedListMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.CreateTypedList))!;
+    internal static readonly MethodInfo ThrowIfCancellationRequestedMethod = typeof(CancellationToken).GetMethod(nameof(CancellationToken.ThrowIfCancellationRequested))!;
+    internal static readonly MethodInfo CheckIterationLimitMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.CheckIterationLimit))!;
+    internal static readonly MethodInfo GetEnumeratorMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.GetEnumerator))!;
+    internal static readonly MethodInfo MoveNextMethod = typeof(IEnumerator).GetMethod(nameof(IEnumerator.MoveNext))!;
+    internal static readonly MethodInfo GetCurrentProperty = typeof(IEnumerator).GetProperty(nameof(IEnumerator.Current))!.GetGetMethod()!;
+    internal static readonly MethodInfo DisposeMethod = typeof(IDisposable).GetMethod(nameof(IDisposable.Dispose))!;
+    internal static readonly MethodInfo CheckAllowAssignmentMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.CheckAllowAssignment))!;
+    internal static readonly MethodInfo CheckAllowIndexSetMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.CheckAllowIndexSet))!;
+    internal static readonly MethodInfo CheckNullCoalesceAssignAllowedMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.CheckNullCoalesceAssignAllowed))!;
+    internal static readonly MethodInfo ValidateCompoundAssignmentMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.ValidateCompoundAssignment))!;
+    internal static readonly MethodInfo ValidateAndCoerceTypeMethod = typeof(TypeHelpers).GetMethod(nameof(TypeHelpers.ValidateAndCoerceType))!;
+    internal static readonly MethodInfo ExplicitCastMethod = typeof(TypeHelpers).GetMethod(nameof(TypeHelpers.ExplicitCast), [typeof(object), typeof(string), typeof(Type)])!;
+    internal static readonly MethodInfo IsTypeMethod = typeof(TypeHelpers).GetMethod(nameof(TypeHelpers.IsType))!;
+    internal static readonly MethodInfo TryAsMethod = typeof(TypeHelpers).GetMethod(nameof(TypeHelpers.TryAs))!;
+    internal static readonly MethodInfo InvokeCallMethod = typeof(Runtime.MethodInvoker).GetMethod(nameof(Runtime.MethodInvoker.InvokeCall))!;
+    internal static readonly MethodInfo InvokeMemberCallMethod = typeof(Runtime.MethodInvoker).GetMethod(nameof(Runtime.MethodInvoker.InvokeMemberCall))!;
+    internal static readonly MethodInfo ResolveIdentifierMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.ResolveIdentifier))!;
+    internal static readonly MethodInfo ConditionalTypePromotionMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.ConditionalTypePromotion))!;
+    internal static readonly ConstructorInfo NamedArgCtor = typeof(Interpretation.NamedArg).GetConstructor([typeof(string), typeof(object)])!;
+    internal static readonly ConstructorInfo CompiledLambdaValueCtor =
+        typeof(CompiledLambdaValue).GetConstructor([
+            typeof(List<string>),
+            typeof(Func<object?[], CsEvalContext, object?>),
+            typeof(CsEvalContext)
+        ])!;
+    internal static readonly MethodInfo GetLambdaArgMethod =
+        typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.GetLambdaArg))!;
+
+    #endregion
+
+    private CompilerContext(CsEvalContext context, CsEvalOptions options)
+    {
+        Context = context;
+        Options = options;
+        TypeInferrer = new TypeInferrer(context);
+
+        ContextParam = LinqExpression.Parameter(typeof(CsEvalContext), "context");
+        OptionsParam = LinqExpression.Parameter(typeof(CsEvalOptions), "options");
+        CtParam = LinqExpression.Parameter(typeof(CancellationToken), "ct");
+        ArgumentTransformerParam = LinqExpression.Parameter(typeof(Func<MethodInfo, object?[], object?[]>), "argumentTransformer");
+
+        // Current context starts as the parameter
+        CurrentContext = ContextParam;
+
+        // Iteration counter (long to handle MaxIterations up to int.MaxValue without overflow)
+        IterationCount = LinqExpression.Variable(typeof(long), "iterationCount");
+
+        // Return handling - we use a label at the end to handle early returns
+        ReturnLabel = LinqExpression.Label(typeof(object), "return");
+        ReturnValue = LinqExpression.Variable(typeof(object), "returnValue");
+    }
+
+    /// <summary>
+    /// Attempt to compile an AST to IL. Returns (delegate, null) on success, or (null, reason) on failure.
+    /// </summary>
+    public static (ILCompiledDelegate? Delegate, string? FailureReason) TryCompile(Expr ast, CsEvalContext context, CsEvalOptions options)
+    {
+        var ctx = new CompilerContext(context, options);
+
+        var canCompileResult = CanCompile(ast);
+        if (canCompileResult != null)
+            return (null, canCompileResult);
+
+        try
+        {
+            // Pre-infer types for the entire AST so variable types are known during compilation
+            ctx.TypeInferrer.InferAll(ast);
+
+            // Create compilation units
+            var helpers = new CompilerHelpers(ctx);
+            var patternUnit = new PatternCompilerUnit(ctx);
+            var expressionUnit = new ExpressionCompilerUnit(ctx, patternUnit);
+            var controlFlowUnit = new ControlFlowCompilerUnit(ctx, helpers);
+
+            // Wire cross-references
+            patternUnit.SetExpressionUnit(expressionUnit);
+            controlFlowUnit.SetExpressionUnit(expressionUnit);
+            expressionUnit.SetControlFlowUnit(controlFlowUnit);
+
+            var body = Compile(ctx, ast, expressionUnit, controlFlowUnit, patternUnit);
+
+            // Wrap in a block that:
+            // 1. Initializes iteration counter to 0
+            // 2. Executes the body and stores result
+            // 3. Returns via label (for early returns) or falls through with body result
+            var fullBody = LinqExpression.Block(
+                new[] { ctx.IterationCount, ctx.ReturnValue },
+                LinqExpression.Assign(ctx.IterationCount, LinqExpression.Constant(0L)),
+                // Store body result in returnValue so we can use it as default for label
+                LinqExpression.Assign(ctx.ReturnValue, body),
+                // Label with returnValue as default - early returns jump here, normal flow uses body result
+                LinqExpression.Label(ctx.ReturnLabel, ctx.ReturnValue)
+            );
+
+            var lambda = LinqExpression.Lambda<ILCompiledDelegate>(
+                fullBody,
+                ctx.ContextParam,
+                ctx.OptionsParam,
+                ctx.CtParam,
+                ctx.ArgumentTransformerParam);
+
+            return (lambda.Compile(), null);
+        }
+        catch (Exception ex)
+        {
+            return (null, ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Compile an expression to an Expression Tree by dispatching to the correct compilation unit.
+    /// </summary>
+    internal static LinqExpression Compile(
+        CompilerContext ctx,
+        Expr expr,
+        ExpressionCompilerUnit exprUnit,
+        ControlFlowCompilerUnit controlUnit,
+        PatternCompilerUnit patternUnit)
+    {
+        ctx.CompileDepth++;
+        if (ctx.CompileDepth > MaxCompileDepth)
+            throw new InvalidOperationException("Expression too deeply nested for IL compilation");
+
+        try
+        {
+            return expr switch
+            {
+                // Expression nodes
+                LiteralExpr lit => exprUnit.CompileLiteral(lit),
+                IdentifierExpr id => exprUnit.CompileIdentifier(id),
+                TypeReferenceExpr typeRef => exprUnit.CompileTypeReference(typeRef),
+                DefaultExpr def => exprUnit.CompileDefault(def),
+                NameofExpr nameofExpr => LinqExpression.Constant(nameofExpr.Name, typeof(object)),
+                TypeofExpr typeofExpr => exprUnit.CompileTypeof(typeofExpr),
+                ObjectCreationExpr oc => exprUnit.CompileObjectCreation(oc),
+                TupleExpr tuple => exprUnit.CompileTuple(tuple),
+                DeconstructionExpr deconstruction => exprUnit.CompileDeconstruction(deconstruction),
+                ThrowExpr throwExpr => exprUnit.CompileThrow(throwExpr),
+                GroupingExpr g => Compile(ctx, g.Expression, exprUnit, controlUnit, patternUnit),
+                UnaryExpr u => exprUnit.CompileUnary(u),
+                CastExpr cast => exprUnit.CompileCast(cast),
+                AsExpr asExpr => exprUnit.CompileAs(asExpr),
+                BinaryExpr b => exprUnit.CompileBinary(b),
+                LogicalExpr l => exprUnit.CompileLogical(l),
+                ConditionalExpr c => exprUnit.CompileConditional(c),
+                NullCoalesceExpr n => exprUnit.CompileNullCoalesce(n),
+                MemberAccessExpr m => exprUnit.CompileMemberAccess(m),
+                IndexAccessExpr idx => exprUnit.CompileIndexAccess(idx),
+                VariableDeclExpr v => exprUnit.CompileVariableDecl(v),
+                AssignExpr a => exprUnit.CompileAssign(a),
+                CompoundAssignExpr ca => exprUnit.CompileCompoundAssign(ca),
+                IndexAssignExpr ia => exprUnit.CompileIndexAssign(ia),
+                IncrementDecrementExpr inc => exprUnit.CompileIncrementDecrement(inc),
+                CallExpr call => exprUnit.CompileCall(call),
+                LambdaExpr lambda => exprUnit.CompileLambda(lambda),
+                ArrayLiteralExpr arr => exprUnit.CompileArrayLiteral(arr),
+                ObjectLiteralExpr obj => exprUnit.CompileObjectLiteral(obj),
+                NewExpr newExpr => Compile(ctx, newExpr.Initializer, exprUnit, controlUnit, patternUnit),
+                InterpolatedStringExpr interp => exprUnit.CompileInterpolatedString(interp),
+                MemberAssignExpr ma => exprUnit.CompileMemberAssign(ma),
+                NullCoalesceAssignExpr nca => exprUnit.CompileNullCoalesceAssign(nca),
+
+                // Pattern nodes
+                IsPatternExpr isExpr => patternUnit.CompileIsPattern(isExpr),
+                SwitchExpressionExpr se => patternUnit.CompileSwitchExpression(se),
+
+                // Control flow nodes
+                TryCatchFinallyExpr tcf => controlUnit.CompileTryCatchFinally(tcf),
+                ThrowStatementExpr => ExpressionCompilerUnit.CompileThrowStatement(),
+                BlockExpr block => controlUnit.CompileBlock(block),
+                IfStatementExpr ifStmt => controlUnit.CompileIf(ifStmt),
+                SwitchStatementExpr switchStmt => controlUnit.CompileSwitch(switchStmt),
+                WhileStatementExpr whileStmt => controlUnit.CompileWhile(whileStmt),
+                ForStatementExpr forStmt => controlUnit.CompileFor(forStmt),
+                DoWhileStatementExpr doWhile => controlUnit.CompileDoWhile(doWhile),
+                ForEachStatementExpr forEach => controlUnit.CompileForEach(forEach),
+                BreakExpr => controlUnit.CompileBreak(),
+                ContinueExpr => controlUnit.CompileContinue(),
+                ReturnExpr ret => controlUnit.CompileReturn(ret),
+
+                // Error cases
+                SpreadExpr => throw new CsEvalException("Spread operator can only be used in array or object literals"),
+                NamedArgumentExpr => throw new CsEvalException("Named arguments can only be used in method calls"),
+                _ => throw new NotSupportedException($"Cannot compile {expr.GetType().Name}")
+            };
+        }
+        finally
+        {
+            ctx.CompileDepth--;
+        }
+    }
+
+    /// <summary>
+    /// Check if an AST can be IL-compiled.
+    /// Uses iterative approach with explicit stack to avoid StackOverflowException on deep expressions.
+    /// Returns null if compilable, or a failure reason string if not.
+    /// </summary>
+    private static string? CanCompile(Expr expr)
+    {
+        var stack = new Stack<Expr>();
+        stack.Push(expr);
+
+        while (stack.Count > 0)
+        {
+            var current = stack.Pop();
+
+            switch (current)
+            {
+                case LiteralExpr:
+                case IdentifierExpr:
+                case TypeReferenceExpr:
+                case IncrementDecrementExpr:
+                case BreakExpr:
+                case ContinueExpr:
+                case DefaultExpr:
+                case NameofExpr:
+                case TypeofExpr:
+                    // These are always compilable, no children to check
+                    break;
+
+                case ObjectCreationExpr oc:
+                    foreach (var arg in oc.Arguments)
+                        stack.Push(arg);
+                    break;
+
+                case TupleExpr tuple:
+                    foreach (var element in tuple.Elements)
+                        stack.Push(element.Expression);
+                    break;
+
+                case DeconstructionExpr deconstruction:
+                    stack.Push(deconstruction.ValueExpression);
+                    break;
+
+                case ThrowExpr throwExpr:
+                    stack.Push(throwExpr.Expression);
+                    break;
+
+                case TryCatchFinallyExpr tcf:
+                    foreach (var stmt in tcf.TryBody)
+                        stack.Push(stmt);
+                    foreach (var clause in tcf.CatchClauses)
+                    {
+                        foreach (var stmt in clause.Body)
+                            stack.Push(stmt);
+                        if (clause.WhenGuard != null)
+                            stack.Push(clause.WhenGuard);
+                    }
+                    if (tcf.FinallyBody != null)
+                        foreach (var stmt in tcf.FinallyBody)
+                            stack.Push(stmt);
+                    break;
+
+                case ThrowStatementExpr:
+                    break;
+
+                case GroupingExpr g:
+                    stack.Push(g.Expression);
+                    break;
+
+                case UnaryExpr u when u.Op.Type is TokenType.Minus or TokenType.Plus or TokenType.Bang or TokenType.Tilde:
+                    stack.Push(u.Right);
+                    break;
+
+                case UnaryExpr u:
+                    return $"Unsupported unary operator '{u.Op.Lexeme}'";
+
+                case CastExpr cast:
+                    stack.Push(cast.Expression);
+                    break;
+
+                case IsPatternExpr isExpr:
+                {
+                    stack.Push(isExpr.Expression);
+                    var patternReason = CanCompilePattern(isExpr.Pattern);
+                    if (patternReason != null)
+                        return patternReason;
+                    break;
+                }
+
+                case SwitchExpressionExpr se:
+                    stack.Push(se.Expression);
+                    foreach (var arm in se.Arms)
+                    {
+                        var patternReason = CanCompilePattern(arm.Pattern);
+                        if (patternReason != null)
+                            return patternReason;
+                        if (arm.WhenGuard != null)
+                            stack.Push(arm.WhenGuard);
+                        stack.Push(arm.Value);
+                    }
+                    break;
+
+                case AsExpr asExpr:
+                    stack.Push(asExpr.Expression);
+                    break;
+
+                case BinaryExpr b when IsCompilableBinaryOp(b.Op.Type):
+                    stack.Push(b.Left);
+                    stack.Push(b.Right);
+                    break;
+
+                case BinaryExpr b:
+                    return $"Unsupported binary operator '{b.Op.Lexeme}'";
+
+                case LogicalExpr l:
+                    stack.Push(l.Left);
+                    stack.Push(l.Right);
+                    break;
+
+                case ConditionalExpr c:
+                    stack.Push(c.Condition);
+                    stack.Push(c.ThenBranch);
+                    stack.Push(c.ElseBranch);
+                    break;
+
+                case NullCoalesceExpr n:
+                    stack.Push(n.Left);
+                    stack.Push(n.Right);
+                    break;
+
+                case MemberAccessExpr m:
+                    stack.Push(m.Object);
+                    break;
+
+                case IndexAccessExpr idx:
+                    stack.Push(idx.Object);
+                    stack.Push(idx.Index);
+                    break;
+
+                case VariableDeclExpr v:
+                    stack.Push(v.Initializer);
+                    break;
+
+                case AssignExpr a:
+                    stack.Push(a.Value);
+                    break;
+
+                case CompoundAssignExpr ca when IsCompilableCompoundOp(ca.Op.Type):
+                    stack.Push(ca.Value);
+                    break;
+
+                case CompoundAssignExpr ca:
+                    return $"Unsupported compound operator '{ca.Op.Lexeme}'";
+
+                case IndexAssignExpr ia:
+                    stack.Push(ia.Object);
+                    stack.Push(ia.Index);
+                    stack.Push(ia.Value);
+                    break;
+
+                case BlockExpr b:
+                    foreach (var stmt in b.Statements)
+                        stack.Push(stmt);
+                    if (b.ReturnExpr != null)
+                        stack.Push(b.ReturnExpr);
+                    break;
+
+                case IfStatementExpr i:
+                    stack.Push(i.Condition);
+                    foreach (var stmt in i.ThenStatements)
+                        stack.Push(stmt);
+                    if (i.ElseStatements != null)
+                        foreach (var stmt in i.ElseStatements)
+                            stack.Push(stmt);
+                    break;
+
+                case SwitchStatementExpr s:
+                    stack.Push(s.Expression);
+                    foreach (var c in s.Cases)
+                    {
+                        if (c.Pattern != null)
+                            stack.Push(c.Pattern);
+                        foreach (var stmt in c.Statements)
+                            stack.Push(stmt);
+                    }
+                    break;
+
+                case WhileStatementExpr w:
+                    stack.Push(w.Condition);
+                    foreach (var stmt in w.Body)
+                        stack.Push(stmt);
+                    break;
+
+                case ForStatementExpr f:
+                    if (f.Initializer != null) stack.Push(f.Initializer);
+                    if (f.Condition != null) stack.Push(f.Condition);
+                    if (f.Increment != null) stack.Push(f.Increment);
+                    foreach (var stmt in f.Body)
+                        stack.Push(stmt);
+                    break;
+
+                case DoWhileStatementExpr d:
+                    stack.Push(d.Condition);
+                    foreach (var stmt in d.Body)
+                        stack.Push(stmt);
+                    break;
+
+                case ForEachStatementExpr fe:
+                    stack.Push(fe.Collection);
+                    foreach (var stmt in fe.Body)
+                        stack.Push(stmt);
+                    break;
+
+                case ReturnExpr r:
+                    if (r.Value != null)
+                        stack.Push(r.Value);
+                    break;
+
+                case CallExpr call:
+                    stack.Push(call.Callee);
+                    foreach (var arg in call.Arguments)
+                    {
+                        if (arg is NamedArgumentExpr namedArg)
+                            stack.Push(namedArg.Value);
+                        else
+                            stack.Push(arg);
+                    }
+                    break;
+
+                case LambdaExpr lambda:
+                    stack.Push(lambda.Body);
+                    break;
+
+                case ArrayLiteralExpr arr:
+                    foreach (var elem in arr.Elements)
+                        stack.Push(elem);
+                    break;
+
+                case ObjectLiteralExpr obj:
+                    foreach (var (_, value) in obj.Properties)
+                        stack.Push(value);
+                    break;
+
+                case NewExpr newExpr:
+                    stack.Push(newExpr.Initializer);
+                    break;
+
+                case InterpolatedStringExpr interp:
+                    foreach (var part in interp.Parts)
+                        if (part is ExpressionPart ep)
+                            stack.Push(ep.Expression);
+                    break;
+
+                case MemberAssignExpr ma:
+                    stack.Push(ma.Object);
+                    stack.Push(ma.Value);
+                    break;
+
+                case NullCoalesceAssignExpr nca:
+                    stack.Push(nca.Value);
+                    break;
+
+                case SpreadExpr spread:
+                    stack.Push(spread.Expression);
+                    break;
+
+                case NamedArgumentExpr namedArg:
+                    stack.Push(namedArg.Value);
+                    break;
+
+                default:
+                    return $"Unsupported expression type '{current.GetType().Name}'";
+            }
+        }
+
+        return null; // All expressions are compilable
+    }
+
+    /// <summary>
+    /// Check if a pattern can be IL-compiled.
+    /// Returns null if compilable, or a failure reason string if not.
+    /// </summary>
+    private static string? CanCompilePattern(Pattern pattern)
+    {
+        switch (pattern)
+        {
+            case ConstantPattern:
+            case TypePattern:
+            case VarPattern:
+            case DiscardPattern:
+                return null; // always compilable
+
+            case NotPattern np:
+                return CanCompilePattern(np.Operand);
+
+            case AndPattern ap:
+                return CanCompilePattern(ap.Left) ?? CanCompilePattern(ap.Right);
+
+            case OrPattern op:
+                return CanCompilePattern(op.Left) ?? CanCompilePattern(op.Right);
+
+            case ParenthesizedPattern pp:
+                return CanCompilePattern(pp.Inner);
+
+            case RelationalPattern:
+                return null; // compilable
+
+            case PropertyPattern pp:
+                foreach (var (_, subPattern) in pp.Properties)
+                {
+                    var subResult = CanCompilePattern(subPattern);
+                    if (subResult != null)
+                        return subResult;
+                }
+                return null;
+
+            default:
+                return $"Unsupported pattern type '{pattern.GetType().Name}'";
+        }
+    }
+
+    private static bool IsCompilableCompoundOp(TokenType op) => op is
+        TokenType.PlusEqual or TokenType.MinusEqual or TokenType.StarEqual or
+        TokenType.SlashEqual or TokenType.PercentEqual or
+        TokenType.AmpEqual or TokenType.PipeEqual or TokenType.CaretEqual or
+        TokenType.LessLessEqual or TokenType.GreaterGreaterEqual;
+
+    private static bool IsCompilableBinaryOp(TokenType op)
+    {
+        if (op is TokenType.Plus or TokenType.Minus or TokenType.Star or
+            TokenType.Slash or TokenType.Percent or
+            TokenType.EqualEqual or TokenType.EqualEqualEqual or
+            TokenType.BangEqual or TokenType.BangEqualEqual or
+            TokenType.Less or TokenType.LessEqual or
+            TokenType.Greater or TokenType.GreaterEqual or
+            TokenType.Amp or TokenType.Pipe or TokenType.Caret or
+            TokenType.LessLess or TokenType.GreaterGreater)
+            return true;
+
+        return false;
+    }
+}
