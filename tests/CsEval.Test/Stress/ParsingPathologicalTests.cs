@@ -47,7 +47,7 @@ public class ParsingPathologicalTests(CompilationMode mode) : StressTestBase(mod
     }
 
     [Test]
-    [Explicit("CRITICAL BUG: Crashes process with StackOverflowException in ILCompiler.CanCompile. Run manually to reproduce.")]
+    [Explicit("CRITICAL BUG: Crashes process with StackOverflowException in CompilerContext.CanCompile. Run manually to reproduce.")]
     public void ExtremelyLongExpression_ShouldParseWithinReasonableTime()
     {
         // 10,000 operations "1 + 2 * 3 - 4 ..."

@@ -2,7 +2,7 @@ namespace CsEval.Test.Compilation;
 
 /// <summary>
 /// Tests for IL-compiled control flow expressions.
-/// The ILCompiler generates native IL using DynamicMethod for loops
+/// The IL compiler generates native IL using Expression Trees for loops
 /// and other control flow, which is significantly faster than tree-walking.
 /// </summary>
 [TestFixture]
