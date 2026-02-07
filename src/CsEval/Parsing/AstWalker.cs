@@ -449,4 +449,31 @@ public abstract class AstWalker<T> : IExprVisitor<T>
         Visit(expr.ValueExpression);
         return OnLeave(expr);
     }
+
+    // Exception Handling
+    public virtual T VisitTryCatchFinally(TryCatchFinallyExpr expr)
+    {
+        OnEnter(expr);
+        foreach (var stmt in expr.TryBody)
+            Visit(stmt);
+        foreach (var catchClause in expr.CatchClauses)
+        {
+            if (catchClause.WhenGuard != null)
+                Visit(catchClause.WhenGuard);
+            foreach (var stmt in catchClause.Body)
+                Visit(stmt);
+        }
+        if (expr.FinallyBody != null)
+        {
+            foreach (var stmt in expr.FinallyBody)
+                Visit(stmt);
+        }
+        return OnLeave(expr);
+    }
+
+    public virtual T VisitThrowStatement(ThrowStatementExpr expr)
+    {
+        OnEnter(expr);
+        return OnLeave(expr);
+    }
 }

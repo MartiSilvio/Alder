@@ -89,6 +89,10 @@ public interface IExprVisitor<out T>
 
     // Deconstruction expression
     T VisitDeconstruction(DeconstructionExpr expr);
+
+    // Exception handling
+    T VisitTryCatchFinally(TryCatchFinallyExpr expr);
+    T VisitThrowStatement(ThrowStatementExpr expr);
 }
 
 #region Literals
@@ -417,6 +421,35 @@ public sealed record ObjectCreationExpr(string TypeName, List<Expr> Arguments) :
 public sealed record ThrowExpr(Expr Expression) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitThrow(this);
+}
+
+#endregion
+
+#region Exception Handling
+
+// Catch clause data record (not an Expr -- similar to SwitchArm)
+// ECMA-334 §13.11 - The try statement
+public sealed record CatchClause(
+    string? ExceptionTypeName,
+    Token? VariableName,
+    Expr? WhenGuard,
+    List<Expr> Body);
+
+// Try/catch/finally statement: try { } catch (T e) when (guard) { } finally { }
+// ECMA-334 §13.11 - The try statement
+public sealed record TryCatchFinallyExpr(
+    List<Expr> TryBody,
+    List<CatchClause> CatchClauses,
+    List<Expr>? FinallyBody) : Expr
+{
+    public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitTryCatchFinally(this);
+}
+
+// Parameterless throw statement: throw;
+// ECMA-334 §13.10.6 - The throw statement (rethrow)
+public sealed record ThrowStatementExpr : Expr
+{
+    public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitThrowStatement(this);
 }
 
 #endregion

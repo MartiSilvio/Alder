@@ -1,5 +1,6 @@
 using System.Collections.Frozen;
 using System.Dynamic;
+using System.Runtime.ExceptionServices;
 using CsEval.Parsing;
 using CsEval.Runtime;
 
@@ -14,6 +15,7 @@ public sealed class Evaluator : IExprVisitor<object?>
     private readonly TypeInferrer _typeInferrer;
 
     private long _iterationCount;
+    private readonly Stack<Exception> _caughtExceptions = new();
 
     public Evaluator(
         CsEvalContext context,
@@ -706,6 +708,118 @@ public sealed class Evaluator : IExprVisitor<object?>
     {
         var value = expr.Value != null ? Evaluate(expr.Value) : null;
         return ControlFlowSignal.Return(value);
+    }
+
+    #endregion
+
+    #region Exception Handling
+
+    public object? VisitTryCatchFinally(TryCatchFinallyExpr expr)
+    {
+        object? result = null;
+        Exception? unhandledException = null;
+        ControlFlowSignal? pendingSignal = null;
+
+        try
+        {
+            foreach (var stmt in expr.TryBody)
+            {
+                result = Evaluate(stmt);
+                if (result is ControlFlowSignal signal)
+                {
+                    pendingSignal = signal;
+                    break;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            // Only real .NET exceptions arrive here (not control flow)
+            bool handled = false;
+            foreach (var catchClause in expr.CatchClauses)
+            {
+                // Type check
+                if (catchClause.ExceptionTypeName != null)
+                {
+                    var catchType = TypeHelpers.ResolveTypeByName(catchClause.ExceptionTypeName);
+                    if (!catchType.IsInstanceOfType(ex))
+                        continue;
+                }
+                // Bare catch matches everything
+
+                // Child context for catch variable scoping
+                var previousContext = _context;
+                _context = _context.CreateChild();
+                try
+                {
+                    // Bind variable before when guard
+                    if (catchClause.VariableName != null)
+                        _context.DefineNew(catchClause.VariableName.Value.Lexeme, ex, ex.GetType());
+
+                    // Evaluate when guard
+                    if (catchClause.WhenGuard != null)
+                    {
+                        var guardResult = Evaluate(catchClause.WhenGuard);
+                        if (!TypeHelpers.RequireBoolean(guardResult))
+                            continue;
+                    }
+
+                    // Push exception for throw; (rethrow) support
+                    _caughtExceptions.Push(ex);
+                    try
+                    {
+                        foreach (var stmt in catchClause.Body)
+                        {
+                            result = Evaluate(stmt);
+                            if (result is ControlFlowSignal sig)
+                            {
+                                pendingSignal = sig;
+                                break;
+                            }
+                        }
+                    }
+                    finally
+                    {
+                        _caughtExceptions.Pop();
+                    }
+                    handled = true;
+                    break;
+                }
+                finally
+                {
+                    _context = previousContext;
+                }
+            }
+            if (!handled)
+                unhandledException = ex;
+        }
+        finally
+        {
+            if (expr.FinallyBody != null)
+            {
+                foreach (var stmt in expr.FinallyBody)
+                {
+                    Evaluate(stmt);
+                }
+            }
+        }
+
+        if (unhandledException != null)
+            ExceptionDispatchInfo.Capture(unhandledException).Throw();
+
+        if (pendingSignal != null)
+            return pendingSignal;
+
+        return result;
+    }
+
+    public object? VisitThrowStatement(ThrowStatementExpr expr)
+    {
+        if (_caughtExceptions.Count == 0)
+            throw new CsEvalException("throw; used outside of catch block");
+
+        ExceptionDispatchInfo.Capture(_caughtExceptions.Peek()).Throw();
+        return null; // Unreachable
     }
 
     #endregion

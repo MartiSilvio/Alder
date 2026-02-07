@@ -73,6 +73,17 @@ public sealed partial class Parser
         if (Match(TokenType.Switch))
             return ParseSwitchStatement();
 
+        if (Match(TokenType.Try))
+            return ParseTryCatchFinally();
+
+        // Parameterless throw; (rethrow) -- must check before expression fallback
+        if (Check(TokenType.Throw) && PeekNext().Type == TokenType.Semicolon)
+        {
+            Advance(); // consume 'throw'
+            Advance(); // consume ';'
+            return new ThrowStatementExpr();
+        }
+
         if (Match(TokenType.Var))
         {
             // Check for deconstruction pattern: var (x, y, ...) = expr
@@ -377,6 +388,91 @@ public sealed partial class Parser
         }
 
         return new ForEachStatementExpr(variableName, collection, body);
+    }
+
+    #endregion
+
+    #region Exception Handling
+
+    private Expr ParseTryCatchFinally()
+    {
+        // Parse try body
+        Consume(TokenType.LeftBrace, "Expected '{' after 'try'");
+        var tryBody = ParseStatementList();
+        Consume(TokenType.RightBrace, "Expected '}' after try body");
+
+        var catchClauses = new List<CatchClause>();
+        List<Expr>? finallyBody = null;
+
+        // Parse catch clauses
+        while (Check(TokenType.Catch))
+        {
+            Advance(); // consume 'catch'
+
+            string? exceptionTypeName = null;
+            Token? variableName = null;
+
+            if (Check(TokenType.LeftParen))
+            {
+                Advance(); // consume '('
+
+                // Parse type name (may be dot-separated, e.g., System.IO.IOException)
+                var typeParts = new List<string>();
+                typeParts.Add(Consume(TokenType.Identifier, "Expected exception type name").Lexeme);
+                while (Check(TokenType.Dot))
+                {
+                    Advance(); // consume '.'
+                    typeParts.Add(Consume(TokenType.Identifier, "Expected type name part").Lexeme);
+                }
+                exceptionTypeName = string.Join(".", typeParts);
+
+                // Check for variable name (next token is Identifier and not ')')
+                if (Check(TokenType.Identifier))
+                {
+                    variableName = Advance();
+                }
+
+                Consume(TokenType.RightParen, "Expected ')' after catch clause");
+            }
+
+            // Parse optional when guard
+            Expr? whenGuard = null;
+            if (Check(TokenType.When))
+            {
+                Advance(); // consume 'when'
+                Consume(TokenType.LeftParen, "Expected '(' after 'when'");
+                whenGuard = ParseExpression();
+                Consume(TokenType.RightParen, "Expected ')' after when guard");
+            }
+
+            // Parse catch body
+            Consume(TokenType.LeftBrace, "Expected '{' after catch clause");
+            var catchBody = ParseStatementList();
+            Consume(TokenType.RightBrace, "Expected '}' after catch body");
+
+            catchClauses.Add(new CatchClause(exceptionTypeName, variableName, whenGuard, catchBody));
+        }
+
+        // Parse optional finally block
+        if (Match(TokenType.Finally))
+        {
+            Consume(TokenType.LeftBrace, "Expected '{' after 'finally'");
+            finallyBody = ParseStatementList();
+            Consume(TokenType.RightBrace, "Expected '}' after finally body");
+        }
+
+        // Validate: must have at least one catch or a finally
+        if (catchClauses.Count == 0 && finallyBody == null)
+            throw new CsEvalParserException($"Expected 'catch' or 'finally' after try block at {Peek().Line}:{Peek().Column}");
+
+        // Validate: bare catch (no type) must be last
+        for (var i = 0; i < catchClauses.Count - 1; i++)
+        {
+            if (catchClauses[i].ExceptionTypeName == null)
+                throw new CsEvalParserException($"CS1017: A general catch clause must be the last catch clause at {Peek().Line}:{Peek().Column}");
+        }
+
+        return new TryCatchFinallyExpr(tryBody, catchClauses, finallyBody);
     }
 
     #endregion

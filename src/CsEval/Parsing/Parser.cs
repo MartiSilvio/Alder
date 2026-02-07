@@ -74,7 +74,7 @@ public sealed partial class Parser
         if (Check(TokenType.Return) || Check(TokenType.Break) || Check(TokenType.Continue) ||
             Check(TokenType.If) || Check(TokenType.While) || Check(TokenType.For) ||
             Check(TokenType.Do) || Check(TokenType.Foreach) || Check(TokenType.Switch) ||
-            Check(TokenType.Var))
+            Check(TokenType.Try) || Check(TokenType.Var))
             return true;
 
         // Type keywords are statement keywords ONLY if NOT followed by '.' (for static member access like double.NaN)

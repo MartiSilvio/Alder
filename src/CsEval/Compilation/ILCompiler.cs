@@ -234,6 +234,12 @@ internal sealed partial class ILCompiler
                     stack.Push(throwExpr.Expression);
                     break;
 
+                case TryCatchFinallyExpr:
+                    return "try/catch/finally not yet supported in IL compilation";
+
+                case ThrowStatementExpr:
+                    return "throw; (rethrow) not yet supported in IL compilation";
+
                 case GroupingExpr g:
                     stack.Push(g.Expression);
                     break;

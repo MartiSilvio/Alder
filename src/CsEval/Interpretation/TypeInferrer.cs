@@ -423,6 +423,37 @@ public sealed class TypeInferrer : AstWalker<Type>
         return SetType(expr, typeof(object));
     }
 
+    public override Type VisitTryCatchFinally(TryCatchFinallyExpr expr)
+    {
+        foreach (var stmt in expr.TryBody)
+            Visit(stmt);
+        foreach (var catchClause in expr.CatchClauses)
+        {
+            PushScope();
+            if (catchClause.VariableName != null && catchClause.ExceptionTypeName != null)
+            {
+                try { DefineVariable(catchClause.VariableName.Value.Lexeme, TypeHelpers.ResolveTypeByName(catchClause.ExceptionTypeName)); }
+                catch { DefineVariable(catchClause.VariableName.Value.Lexeme, typeof(Exception)); }
+            }
+            if (catchClause.WhenGuard != null)
+                Visit(catchClause.WhenGuard);
+            foreach (var stmt in catchClause.Body)
+                Visit(stmt);
+            PopScope();
+        }
+        if (expr.FinallyBody != null)
+        {
+            foreach (var stmt in expr.FinallyBody)
+                Visit(stmt);
+        }
+        return SetType(expr, typeof(object));
+    }
+
+    public override Type VisitThrowStatement(ThrowStatementExpr expr)
+    {
+        return SetType(expr, ThrowSentinel);
+    }
+
     #endregion
 
     #region Type Helpers
