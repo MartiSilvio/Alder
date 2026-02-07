@@ -2,7 +2,7 @@ namespace CsEval.Parsing.Extensions;
 
 /// <summary>
 /// Parser for CsEval anonymous object literal syntax: new { Name = "John", Age = 30 }.
-/// Creates ExpandoObject (not C# anonymous types). Handles spread operator (...) within object literals.
+/// Creates ExpandoObject (not C# anonymous types). Handles spread operator (..) within object literals.
 /// Called explicitly from PrimaryParser.
 /// </summary>
 internal static class ObjectLiteralParser
@@ -15,12 +15,12 @@ internal static class ObjectLiteralParser
         {
             do
             {
-                if (parser.Match(TokenType.DotDotDot))
+                if (parser.Match(TokenType.DotDot))
                 {
-                    // Spread property: ...expr
+                    // Spread property: ..expr
                     var spreadExpr = parseExpression();
                     // Use a special marker token for spread entries
-                    var spreadMarker = new Token(TokenType.DotDotDot, "...", null, 0, 0);
+                    var spreadMarker = new Token(TokenType.DotDot, "..", null, 0, 0);
                     properties.Add((spreadMarker, new SpreadExpr(spreadExpr)));
                 }
                 else

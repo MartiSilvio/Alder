@@ -57,7 +57,7 @@ public enum TokenType
     // Assignment & Access
     Equal,
     Dot,
-    DotDotDot,             // spread operator (...)
+    DotDot,                // spread operator (..)
 
     // Compound Assignment
     PlusEqual,             // +=

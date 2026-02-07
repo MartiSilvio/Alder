@@ -271,7 +271,7 @@ public sealed record ObjectLiteralExpr(List<(Token Key, Expr Value)> Properties)
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitObjectLiteral(this);
 }
 
-// Spread expression: ...expr (used in arrays and objects) - CsEval extension
+// Spread expression: ..expr (used in arrays and objects) - CsEval extension
 public sealed record SpreadExpr(Expr Expression) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitSpread(this);

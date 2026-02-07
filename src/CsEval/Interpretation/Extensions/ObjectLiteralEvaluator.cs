@@ -16,7 +16,7 @@ internal static class ObjectLiteralEvaluator
         IDictionary<string, object?> result = new ExpandoObject();
         foreach (var (key, value) in expr.Properties)
         {
-            if (key.Type == TokenType.DotDotDot && value is SpreadExpr spread)
+            if (key.Type == TokenType.DotDot && value is SpreadExpr spread)
             {
                 var spreadValue = evaluate(spread.Expression);
                 if (spreadValue is IDictionary<string, object?> dict)

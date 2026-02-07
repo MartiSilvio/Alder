@@ -200,8 +200,8 @@ public sealed class Lexer
             case '%': AddToken(Match('=') ? TokenType.PercentEqual : TokenType.Percent); break;
 
             case '.':
-                if (Match('.') && Match('.'))
-                    AddToken(TokenType.DotDotDot); // spread operator
+                if (Match('.'))
+                    AddToken(TokenType.DotDot); // spread operator (..)
                 else if (char.IsDigit(Peek()))
                     ScanLeadingDecimalNumber(); // ECMA-334 §6.4.5.4: .5 is valid real literal
                 else

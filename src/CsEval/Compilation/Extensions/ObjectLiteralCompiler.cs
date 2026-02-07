@@ -25,7 +25,7 @@ internal static class ObjectLiteralCompiler
 
         foreach (var (key, value) in expr.Properties)
         {
-            if (key.Type == TokenType.DotDotDot && value is SpreadExpr spread)
+            if (key.Type == TokenType.DotDot && value is SpreadExpr spread)
             {
                 var spreadValue = compile(spread.Expression);
                 statements.Add(LinqExpression.Call(CompilerContext.SpreadIntoDictMethod, dictVar, spreadValue, ctx.CurrentContext));

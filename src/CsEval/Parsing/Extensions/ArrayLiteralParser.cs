@@ -2,7 +2,7 @@ namespace CsEval.Parsing.Extensions;
 
 /// <summary>
 /// Parser for CsEval array literal syntax: [1, 2, 3] and new[] { 1, 2, 3 }.
-/// Handles spread operator (...) within array literals.
+/// Handles spread operator (..) within array literals.
 /// Called explicitly from PrimaryParser.
 /// </summary>
 internal static class ArrayLiteralParser
@@ -15,9 +15,9 @@ internal static class ArrayLiteralParser
         {
             do
             {
-                if (parser.Match(TokenType.DotDotDot))
+                if (parser.Match(TokenType.DotDot))
                 {
-                    // Spread element: ...expr
+                    // Spread element: ..expr
                     var spreadExpr = parseExpression();
                     elements.Add(new SpreadExpr(spreadExpr));
                 }
@@ -40,7 +40,7 @@ internal static class ArrayLiteralParser
         {
             do
             {
-                if (parser.Match(TokenType.DotDotDot))
+                if (parser.Match(TokenType.DotDot))
                 {
                     var spreadExpr = parseExpression();
                     elements.Add(new SpreadExpr(spreadExpr));
