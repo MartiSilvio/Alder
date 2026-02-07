@@ -5,31 +5,13 @@ namespace CsEval.Test.TestData;
 [TestFixture(CompilationMode.StrictCompiled)]
 public class CsxParityTests(CompilationMode mode)
 {
-    [Test]
-    public async Task BubbleSort()
+    [TestCase("Algorithms/bubble-sort.csx", TestName = "BubbleSort")]
+    [TestCase("Algorithms/fibonacci-memoized.csx", TestName = "FibonacciMemoized")]
+    [TestCase("Algorithms/linked-list-operations.csx", TestName = "LinkedListOperations")]
+    [TestCase("Algorithms/matrix-multiply.csx", TestName = "MatrixMultiply")]
+    public async Task RunCsxParityTest(string path)
     {
-        var expr = TestHelpers.LoadTestExpression("Algorithms/bubble-sort.csx");
-        await TestHelpers.RunCSharpParityTestAsync(expr, mode);
-    }
-
-    [Test]
-    public async Task FibonacciMemoized()
-    {
-        var expr = TestHelpers.LoadTestExpression("Algorithms/fibonacci-memoized.csx");
-        await TestHelpers.RunCSharpParityTestAsync(expr, mode);
-    }
-
-    [Test]
-    public async Task LinkedListOperations()
-    {
-        var expr = TestHelpers.LoadTestExpression("Algorithms/linked-list-operations.csx");
-        await TestHelpers.RunCSharpParityTestAsync(expr, mode);
-    }
-
-    [Test]
-    public async Task MatrixMultiply()
-    {
-        var expr = TestHelpers.LoadTestExpression("Algorithms/matrix-multiply.csx");
+        var expr = TestHelpers.LoadTestExpression(path);
         await TestHelpers.RunCSharpParityTestAsync(expr, mode);
     }
 }
