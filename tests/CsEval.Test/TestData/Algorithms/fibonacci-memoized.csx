@@ -1,7 +1,6 @@
 {
     // Compute first 20 Fibonacci numbers using an array as memoization cache
-    var memo = new[] { 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L,
-                       0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L };
+    var memo = new long[20];
     var count = memo.Length;
     memo[0] = 0L;
     memo[1] = 1L;

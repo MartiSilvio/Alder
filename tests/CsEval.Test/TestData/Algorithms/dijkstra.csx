@@ -20,9 +20,11 @@
     };
 
     // Distance array and visited tracking
-    var dist = new[] { INF, INF, INF, INF, INF };
-    var visited = new[] { false, false, false, false, false };
-    var prev = new[] { -1, -1, -1, -1, -1 };
+    var dist = new int[5];
+    for (var i = 0; i < 5; i++) dist[i] = INF;
+    var visited = new bool[5];
+    var prev = new int[5];
+    for (var i = 0; i < 5; i++) prev[i] = -1;
 
     // Start from node 0
     dist[0] = 0;

@@ -5,8 +5,8 @@
     var n = arr.Length;
 
     // Simulate stack with pre-sized arrays (max depth = n)
-    var stackLow = new[] { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 };
-    var stackHigh = new[] { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 };
+    var stackLow = new int[15];
+    var stackHigh = new int[15];
     var top = 0;
 
     stackLow[top] = 0;

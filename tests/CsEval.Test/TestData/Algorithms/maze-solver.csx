@@ -16,17 +16,10 @@
     };
 
     // DFS stack (store row*cols+col)
-    var stack = new[] { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 };
-    var parent = new[] { -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1 };
-    var visited = new[] {
-        false,false,false,false,false,false,false,
-        false,false,false,false,false,false,false,
-        false,false,false,false,false,false,false,
-        false,false,false,false,false,false,false,
-        false,false,false,false,false,false,false,
-        false,false,false,false,false,false,false,
-        false,false,false,false,false,false,false
-    };
+    var stack = new int[49];
+    var parent = new int[49];
+    for (var i = 0; i < 49; i++) parent[i] = -1;
+    var visited = new bool[49];
 
     var startR = 0; var startC = 0;
     var endR = 6; var endC = 6;

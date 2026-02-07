@@ -79,8 +79,9 @@
     result += $"error={hasError}|";
 
     // Evaluate the tokenized expression left-to-right
-    var nums = new[] { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-    var ops = new[] { ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ' };
+    var nums = new int[10];
+    var ops = new char[10];
+    for (var ci = 0; ci < 10; ci++) ops[ci] = ' ';
     var numIdx = 0;
     var opIdx = 0;
     var curNum = 0;

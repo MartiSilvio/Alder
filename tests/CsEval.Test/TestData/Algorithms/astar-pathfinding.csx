@@ -23,66 +23,20 @@
     var endR = 9; var endC = 9;
 
     // A* state arrays
-    var gScore = new[] {
-        999,999,999,999,999,999,999,999,999,999,
-        999,999,999,999,999,999,999,999,999,999,
-        999,999,999,999,999,999,999,999,999,999,
-        999,999,999,999,999,999,999,999,999,999,
-        999,999,999,999,999,999,999,999,999,999,
-        999,999,999,999,999,999,999,999,999,999,
-        999,999,999,999,999,999,999,999,999,999,
-        999,999,999,999,999,999,999,999,999,999,
-        999,999,999,999,999,999,999,999,999,999,
-        999,999,999,999,999,999,999,999,999,999
-    };
+    var gScore = new int[100];
+    for (var i = 0; i < 100; i++) gScore[i] = 999;
 
-    var fScore = new[] {
-        999,999,999,999,999,999,999,999,999,999,
-        999,999,999,999,999,999,999,999,999,999,
-        999,999,999,999,999,999,999,999,999,999,
-        999,999,999,999,999,999,999,999,999,999,
-        999,999,999,999,999,999,999,999,999,999,
-        999,999,999,999,999,999,999,999,999,999,
-        999,999,999,999,999,999,999,999,999,999,
-        999,999,999,999,999,999,999,999,999,999,
-        999,999,999,999,999,999,999,999,999,999,
-        999,999,999,999,999,999,999,999,999,999
-    };
+    var fScore = new int[100];
+    for (var i = 0; i < 100; i++) fScore[i] = 999;
 
-    var parent = new[] {
-        -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
-        -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
-        -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
-        -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
-        -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
-        -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
-        -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
-        -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
-        -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
-        -1,-1,-1,-1,-1,-1,-1,-1,-1,-1
-    };
+    var parent = new int[100];
+    for (var i = 0; i < 100; i++) parent[i] = -1;
 
-    var closed = new[] {
-        false,false,false,false,false,false,false,false,false,false,
-        false,false,false,false,false,false,false,false,false,false,
-        false,false,false,false,false,false,false,false,false,false,
-        false,false,false,false,false,false,false,false,false,false,
-        false,false,false,false,false,false,false,false,false,false,
-        false,false,false,false,false,false,false,false,false,false,
-        false,false,false,false,false,false,false,false,false,false,
-        false,false,false,false,false,false,false,false,false,false,
-        false,false,false,false,false,false,false,false,false,false,
-        false,false,false,false,false,false,false,false,false,false
-    };
+    var closed = new bool[100];
 
     // Open set as simple array (linear scan for min f)
-    var openSet = new[] {
-        -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
-        -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
-        -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
-        -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
-        -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1
-    };
+    var openSet = new int[100];
+    for (var i = 0; i < 100; i++) openSet[i] = -1;
     var openCount = 0;
 
     // Manhattan distance heuristic (inline since we can't define methods)

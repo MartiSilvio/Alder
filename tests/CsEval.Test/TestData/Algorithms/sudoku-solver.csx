@@ -19,17 +19,7 @@
     };
 
     // Make a working copy
-    var board = new[] {
-        0,0,0,0,0,0,0,0,0,
-        0,0,0,0,0,0,0,0,0,
-        0,0,0,0,0,0,0,0,0,
-        0,0,0,0,0,0,0,0,0,
-        0,0,0,0,0,0,0,0,0,
-        0,0,0,0,0,0,0,0,0,
-        0,0,0,0,0,0,0,0,0,
-        0,0,0,0,0,0,0,0,0,
-        0,0,0,0,0,0,0,0,0
-    };
+    var board = new int[81];
     for (var i = 0; i < 81; i++) board[i] = grid[i];
 
     // Count initial empty cells
@@ -41,11 +31,8 @@
 
     // Iterative backtracking using a stack of (cellIndex, triedValue)
     // Find all empty cell positions
-    var emptyPositions = new[] {
-        -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
-        -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
-        -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1
-    };
+    var emptyPositions = new int[60];
+    for (var i = 0; i < 60; i++) emptyPositions[i] = -1;
     var numEmpty = 0;
     for (var i = 0; i < 81; i++)
     {
@@ -127,7 +114,7 @@
         // Check all rows
         for (var r = 0; r < 9 && isValid; r++)
         {
-            var seen = new[] { false, false, false, false, false, false, false, false, false, false };
+            var seen = new bool[10];
             for (var c = 0; c < 9; c++)
             {
                 var v = board[r * 9 + c];
@@ -139,7 +126,7 @@
         // Check all columns
         for (var c = 0; c < 9 && isValid; c++)
         {
-            var seen = new[] { false, false, false, false, false, false, false, false, false, false };
+            var seen = new bool[10];
             for (var r = 0; r < 9; r++)
             {
                 var v = board[r * 9 + c];
@@ -151,7 +138,7 @@
         // Check all 3x3 boxes
         for (var box = 0; box < 9 && isValid; box++)
         {
-            var seen = new[] { false, false, false, false, false, false, false, false, false, false };
+            var seen = new bool[10];
             var br = (box / 3) * 3;
             var bc = (box % 3) * 3;
             for (var r = br; r < br + 3; r++)

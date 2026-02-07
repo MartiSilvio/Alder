@@ -6,7 +6,7 @@
     var b = new[] { 9, 8, 7, 6, 5, 4, 3, 2, 1 };
 
     var size = 3;
-    var result = new[] { 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+    var result = new int[9];
 
     // Triple-nested loop for matrix multiplication
     for (var i = 0; i < size; i++)

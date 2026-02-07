@@ -1,8 +1,8 @@
 {
     // Simulate a linked list using parallel arrays
     // values[i] holds the node value, nexts[i] holds the index of next node (-1 = end)
-    var values = new[] { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-    var nexts = new[] { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+    var values = new int[10];
+    var nexts = new int[10];
     var nodeCount = 0;
     var head = -1;
 

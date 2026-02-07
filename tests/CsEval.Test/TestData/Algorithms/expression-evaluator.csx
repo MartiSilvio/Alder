@@ -4,8 +4,9 @@
     var input = "3+4*2-1+10/5";
 
     // Tokenize: extract numbers and operators
-    var numStack = new[] { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-    var opStack = new[] { ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ' };
+    var numStack = new int[10];
+    var opStack = new char[10];
+    for (var ci = 0; ci < 10; ci++) opStack[ci] = ' ';
     var numTop = 0;
     var opTop = 0;
 

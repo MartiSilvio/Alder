@@ -15,9 +15,10 @@
     };
 
     // BFS state arrays
-    var visited = new[] { false, false, false, false, false, false };
-    var queue = new[] { 0, 0, 0, 0, 0, 0 };
-    var distances = new[] { -1, -1, -1, -1, -1, -1 };
+    var visited = new bool[6];
+    var queue = new int[6];
+    var distances = new int[6];
+    for (var i = 0; i < 6; i++) distances[i] = -1;
 
     var qHead = 0;
     var qTail = 0;

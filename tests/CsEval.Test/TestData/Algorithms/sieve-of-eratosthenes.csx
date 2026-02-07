@@ -2,14 +2,8 @@
     // Sieve of Eratosthenes: find all primes up to 50
     // Exercises: arrays, nested loops, modulo, boolean logic, string building
     var limit = 50;
-    var sieve = new[] {
-        true,true,true,true,true,true,true,true,true,true,
-        true,true,true,true,true,true,true,true,true,true,
-        true,true,true,true,true,true,true,true,true,true,
-        true,true,true,true,true,true,true,true,true,true,
-        true,true,true,true,true,true,true,true,true,true,
-        true
-    };
+    var sieve = new bool[51];
+    for (var i = 0; i < 51; i++) sieve[i] = true;
 
     // 0 and 1 are not prime
     sieve[0] = false;
