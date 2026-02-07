@@ -59,6 +59,20 @@ public static class TestHelpers
 
     #endregion
 
+    #region Test Data Loading
+
+    private static string? _testDataDirectory;
+
+    public static string LoadTestExpression(string relativePath)
+    {
+        _testDataDirectory ??= Path.Combine(
+            TestContext.CurrentContext.TestDirectory, "TestData");
+        var fullPath = Path.Combine(_testDataDirectory, relativePath);
+        return File.ReadAllText(fullPath).Trim();
+    }
+
+    #endregion
+
     public static IDictionary<string, object?> CreateItem(string name, double price)
     {
         IDictionary<string, object?> item = new ExpandoObject();
