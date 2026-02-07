@@ -1,5 +1,6 @@
 using System.Linq.Expressions;
 using CsEval.Parsing;
+using CsEval.Runtime;
 
 namespace CsEval.Compilation;
 
@@ -397,6 +398,135 @@ internal sealed partial class ILCompiler
 
         // Use Goto to jump to return label - Expression Trees handle try/finally correctly
         return LinqExpression.Return(_returnLabel, value);
+    }
+
+    /// <summary>
+    /// Compiles try/catch/finally using the Expression Trees API.
+    /// ECMA-334 section 13.11 -- The try statement.
+    /// Expression Trees use labels for control flow (return/break/continue),
+    /// not .NET exceptions, so no special handling is needed for control flow signals.
+    /// </summary>
+    private LinqExpression CompileTryCatchFinally(TryCatchFinallyExpr expr)
+    {
+        // Compile try body into a block returning typeof(object)
+        var tryStatements = new List<LinqExpression>();
+        foreach (var stmt in expr.TryBody)
+        {
+            tryStatements.Add(CompileCancellationCheck());
+            tryStatements.Add(Compile(stmt));
+        }
+        tryStatements.Add(LinqExpression.Default(typeof(object)));
+        var tryBody = LinqExpression.Block(typeof(object), tryStatements);
+
+        // Compile catch blocks
+        var catchBlocks = new List<CatchBlock>();
+        foreach (var catchClause in expr.CatchClauses)
+        {
+            // Resolve exception type
+            var catchType = catchClause.ExceptionTypeName != null
+                ? TypeHelpers.ResolveTypeByName(catchClause.ExceptionTypeName)
+                : typeof(Exception);
+
+            // Create ParameterExpression for the caught exception (typed to the catch type)
+            ParameterExpression? exParam = catchClause.VariableName != null || catchClause.WhenGuard != null
+                ? LinqExpression.Parameter(catchType, catchClause.VariableName?.Lexeme ?? "ex")
+                : null;
+
+            // Compile catch body with scoped variable binding
+            LinqExpression catchBody;
+            if (catchClause.VariableName != null)
+            {
+                catchBody = Scoped(() =>
+                {
+                    var bodyStatements = new List<LinqExpression>
+                    {
+                        // Bind the catch variable in the context
+                        LinqExpression.Call(_currentContext, DefineNewMethod,
+                            LinqExpression.Constant(catchClause.VariableName.Value.Lexeme),
+                            LinqExpression.Convert(exParam!, typeof(object)),
+                            LinqExpression.Constant(catchType, typeof(Type)))
+                    };
+
+                    foreach (var stmt in catchClause.Body)
+                    {
+                        bodyStatements.Add(CompileCancellationCheck());
+                        bodyStatements.Add(Compile(stmt));
+                    }
+                    bodyStatements.Add(LinqExpression.Default(typeof(object)));
+                    return LinqExpression.Block(typeof(object), bodyStatements);
+                });
+            }
+            else
+            {
+                var bodyStatements = new List<LinqExpression>();
+                foreach (var stmt in catchClause.Body)
+                {
+                    bodyStatements.Add(CompileCancellationCheck());
+                    bodyStatements.Add(Compile(stmt));
+                }
+                bodyStatements.Add(LinqExpression.Default(typeof(object)));
+                catchBody = LinqExpression.Block(typeof(object), bodyStatements);
+            }
+
+            // Compile when guard filter (if present)
+            LinqExpression? filterExpr = null;
+            if (catchClause.WhenGuard != null)
+            {
+                // The when guard may reference the catch variable, which is available via exParam.
+                // We need to bind the variable in context before evaluating the guard.
+                if (catchClause.VariableName != null)
+                {
+                    // In a filter, we need the variable bound for the guard to access it.
+                    // Use a block that temporarily defines the variable and evaluates the guard.
+                    filterExpr = LinqExpression.Block(
+                        LinqExpression.Call(_currentContext, DefineMethod,
+                            LinqExpression.Constant(catchClause.VariableName.Value.Lexeme),
+                            LinqExpression.Convert(exParam!, typeof(object))),
+                        LinqExpression.Call(RequireBooleanMethod, Compile(catchClause.WhenGuard)));
+                }
+                else
+                {
+                    filterExpr = LinqExpression.Call(RequireBooleanMethod, Compile(catchClause.WhenGuard));
+                }
+            }
+
+            catchBlocks.Add(LinqExpression.MakeCatchBlock(catchType, exParam, catchBody, filterExpr));
+        }
+
+        // Compile finally body (if present)
+        LinqExpression? finallyBody = null;
+        if (expr.FinallyBody != null)
+        {
+            var finallyStatements = new List<LinqExpression>();
+            foreach (var stmt in expr.FinallyBody)
+            {
+                finallyStatements.Add(CompileCancellationCheck());
+                finallyStatements.Add(Compile(stmt));
+            }
+            finallyBody = LinqExpression.Block(finallyStatements);
+        }
+
+        // Assemble the appropriate try expression
+        LinqExpression tryExpr;
+        if (catchBlocks.Count > 0 && finallyBody != null)
+            tryExpr = LinqExpression.TryCatchFinally(tryBody, finallyBody, catchBlocks.ToArray());
+        else if (catchBlocks.Count > 0)
+            tryExpr = LinqExpression.TryCatch(tryBody, catchBlocks.ToArray());
+        else
+            tryExpr = LinqExpression.TryFinally(tryBody, finallyBody!);
+
+        return tryExpr;
+    }
+
+    /// <summary>
+    /// Compiles parameterless throw; (rethrow) using the Expression Trees rethrow instruction.
+    /// ECMA-334 section 13.10.6 -- only valid inside a catch block body.
+    /// </summary>
+    private static LinqExpression CompileThrowStatement()
+    {
+        // Expression.Rethrow generates the IL rethrow instruction.
+        // Must be typed to match the try/catch return type (typeof(object)).
+        return LinqExpression.Rethrow(typeof(object));
     }
 
     #endregion

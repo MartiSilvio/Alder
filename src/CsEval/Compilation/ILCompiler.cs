@@ -234,11 +234,23 @@ internal sealed partial class ILCompiler
                     stack.Push(throwExpr.Expression);
                     break;
 
-                case TryCatchFinallyExpr:
-                    return "try/catch/finally not yet supported in IL compilation";
+                case TryCatchFinallyExpr tcf:
+                    foreach (var stmt in tcf.TryBody)
+                        stack.Push(stmt);
+                    foreach (var clause in tcf.CatchClauses)
+                    {
+                        foreach (var stmt in clause.Body)
+                            stack.Push(stmt);
+                        if (clause.WhenGuard != null)
+                            stack.Push(clause.WhenGuard);
+                    }
+                    if (tcf.FinallyBody != null)
+                        foreach (var stmt in tcf.FinallyBody)
+                            stack.Push(stmt);
+                    break;
 
                 case ThrowStatementExpr:
-                    return "throw; (rethrow) not yet supported in IL compilation";
+                    break;
 
                 case GroupingExpr g:
                     stack.Push(g.Expression);
@@ -540,6 +552,8 @@ internal sealed partial class ILCompiler
                 TupleExpr tuple => CompileTuple(tuple),
                 DeconstructionExpr deconstruction => CompileDeconstruction(deconstruction),
                 ThrowExpr throwExpr => CompileThrow(throwExpr),
+                TryCatchFinallyExpr tcf => CompileTryCatchFinally(tcf),
+                ThrowStatementExpr => CompileThrowStatement(),
                 GroupingExpr g => Compile(g.Expression),
                 UnaryExpr u => CompileUnary(u),
                 CastExpr cast => CompileCast(cast),
