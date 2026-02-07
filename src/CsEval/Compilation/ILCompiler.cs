@@ -52,6 +52,7 @@ internal sealed partial class ILCompiler
     private static readonly MethodInfo GetMethod = typeof(CsEvalContext).GetMethod("Get", [typeof(string)])!;
     private static readonly MethodInfo SetMethod = typeof(CsEvalContext).GetMethod("Set", [typeof(string), typeof(object)])!;
     private static readonly MethodInfo DefineMethod = typeof(CsEvalContext).GetMethod("Define", [typeof(string), typeof(object)])!;
+    private static readonly MethodInfo DefineWithTypeMethod = typeof(CsEvalContext).GetMethod("Define", [typeof(string), typeof(object), typeof(Type)])!;
     private static readonly MethodInfo DefineNewMethod = typeof(CsEvalContext).GetMethod("DefineNew", [typeof(string), typeof(object), typeof(Type)])!;
     private static readonly MethodInfo TryGetVariableTypeMethod = typeof(CsEvalContext).GetMethod("TryGetVariableType")!;
     private static readonly MethodInfo CreateChildMethod = typeof(CsEvalContext).GetMethod("CreateChild")!;

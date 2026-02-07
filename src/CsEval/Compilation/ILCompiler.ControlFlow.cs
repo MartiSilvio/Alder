@@ -432,7 +432,9 @@ internal sealed partial class ILCompiler
                 ? LinqExpression.Parameter(catchType, catchClause.VariableName?.Lexeme ?? "ex")
                 : null;
 
-            // Compile catch body with scoped variable binding
+            // Compile catch body with scoped variable binding.
+            // Use Define (not DefineNew) because the when-guard filter may have already
+            // registered the variable in the parent context for guard evaluation.
             LinqExpression catchBody;
             if (catchClause.VariableName != null)
             {
@@ -440,8 +442,8 @@ internal sealed partial class ILCompiler
                 {
                     var bodyStatements = new List<LinqExpression>
                     {
-                        // Bind the catch variable in the context
-                        LinqExpression.Call(_currentContext, DefineNewMethod,
+                        // Bind the catch variable in the child context
+                        LinqExpression.Call(_currentContext, DefineWithTypeMethod,
                             LinqExpression.Constant(catchClause.VariableName.Value.Lexeme),
                             LinqExpression.Convert(exParam!, typeof(object)),
                             LinqExpression.Constant(catchType, typeof(Type)))
