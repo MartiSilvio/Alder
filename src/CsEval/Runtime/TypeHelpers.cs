@@ -414,9 +414,8 @@ public static class TypeHelpers
         if (!targetType.IsValueType && targetType.IsAssignableFrom(sourceType))
             return value;
 
-        // Allow assigning any List<T> to List<object?> variables (common pattern: var x = []; x = [...x, item])
-        if (targetType == typeof(List<object?>) && sourceType.IsGenericType &&
-            sourceType.GetGenericTypeDefinition() == typeof(List<>))
+        // Allow assigning any T[] to object?[] variables (array covariance for collection expressions)
+        if (targetType == typeof(object?[]) && sourceType.IsArray)
             return value;
 
         // Implicit numeric conversions (widening)

@@ -6,7 +6,7 @@ namespace CsEval.Interpretation.Extensions;
 
 /// <summary>
 /// Evaluator for CsEval array literal expressions: [1, 2, 3].
-/// Handles spread operator (...) within array elements.
+/// Handles spread operator (..) within array elements.
 /// Called explicitly from Evaluator.VisitArrayLiteral.
 /// </summary>
 internal static class ArrayLiteralEvaluator
@@ -34,6 +34,6 @@ internal static class ArrayLiteralEvaluator
                 result.Add(evaluate(element));
             }
         }
-        return SpreadHelpers.CreateTypedList(result);
+        return SpreadHelpers.CreateTypedArray(result);
     }
 }

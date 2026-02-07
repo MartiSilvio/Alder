@@ -4,8 +4,8 @@ namespace CsEval.Runtime.Extensions;
 
 /// <summary>
 /// Runtime helpers for spread operator and collection literal creation.
-/// SpreadIntoDict/SpreadIntoList handle the ... spread syntax in object/array literals.
-/// CreateTypedList infers element type and creates a typed List&lt;T&gt; from array literals.
+/// SpreadIntoDict/SpreadIntoList handle the .. spread syntax in object/array literals.
+/// CreateTypedArray infers element type and creates a typed T[] from array literals.
 /// Called from Evaluator (directly) and ExpressionCompilerUnit (via cached MethodInfo).
 /// </summary>
 public static class SpreadHelpers
@@ -44,10 +44,10 @@ public static class SpreadHelpers
         }
     }
 
-    public static object CreateTypedList(List<object?> source)
+    public static object CreateTypedArray(List<object?> source)
     {
         if (source.Count == 0)
-            return source;
+            return Array.Empty<object?>();
 
         Type? commonType = null;
         var hasNull = false;
@@ -64,21 +64,18 @@ public static class SpreadHelpers
             if (commonType == null)
                 commonType = itemType;
             else if (commonType != itemType)
-                return source;
+                return source.ToArray(); // mixed types -> object?[]
         }
 
         if (commonType == null)
-            return source;
+            return source.ToArray(); // all nulls -> object?[]
 
         if (hasNull && commonType.IsValueType)
             commonType = typeof(Nullable<>).MakeGenericType(commonType);
 
-        var listType = typeof(List<>).MakeGenericType(commonType);
-        var typedList = (System.Collections.IList)Activator.CreateInstance(listType, source.Count)!;
-
-        foreach (var item in source)
-            typedList.Add(item);
-
-        return typedList;
+        var array = Array.CreateInstance(commonType, source.Count);
+        for (var i = 0; i < source.Count; i++)
+            array.SetValue(source[i], i);
+        return array;
     }
 }

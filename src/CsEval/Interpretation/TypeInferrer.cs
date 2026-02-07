@@ -225,7 +225,7 @@ public sealed class TypeInferrer : AstWalker<Type>
     public override Type VisitArrayLiteral(ArrayLiteralExpr expr)
     {
         base.VisitArrayLiteral(expr);
-        return SetType(expr, typeof(List<object?>));
+        return SetType(expr, typeof(object[]));
     }
 
     public override Type VisitObjectLiteral(ObjectLiteralExpr expr)

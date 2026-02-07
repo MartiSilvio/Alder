@@ -86,7 +86,7 @@ internal sealed class CompilerContext
     // Spread and collection literal helpers
     internal static readonly MethodInfo SpreadIntoDictMethod = typeof(SpreadHelpers).GetMethod(nameof(SpreadHelpers.SpreadIntoDict))!;
     internal static readonly MethodInfo SpreadIntoListMethod = typeof(SpreadHelpers).GetMethod(nameof(SpreadHelpers.SpreadIntoList))!;
-    internal static readonly MethodInfo CreateTypedListMethod = typeof(SpreadHelpers).GetMethod(nameof(SpreadHelpers.CreateTypedList))!;
+    internal static readonly MethodInfo CreateTypedArrayMethod = typeof(SpreadHelpers).GetMethod(nameof(SpreadHelpers.CreateTypedArray))!;
     internal static readonly MethodInfo ThrowIfCancellationRequestedMethod = typeof(CancellationToken).GetMethod(nameof(CancellationToken.ThrowIfCancellationRequested))!;
     internal static readonly MethodInfo CheckIterationLimitMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.CheckIterationLimit))!;
     internal static readonly MethodInfo GetEnumeratorMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.GetEnumerator))!;

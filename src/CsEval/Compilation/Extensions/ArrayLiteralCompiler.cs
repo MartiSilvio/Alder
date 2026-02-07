@@ -5,7 +5,7 @@ namespace CsEval.Compilation.Extensions;
 
 /// <summary>
 /// IL compiler for CsEval array literal expressions: [1, 2, 3].
-/// Handles spread operator (...) within array elements via cached MethodInfo.
+/// Handles spread operator (..) within array elements via cached MethodInfo.
 /// Called explicitly from ExpressionCompilerUnit.CompileArrayLiteral.
 /// </summary>
 internal static class ArrayLiteralCompiler
@@ -34,7 +34,7 @@ internal static class ArrayLiteralCompiler
             }
         }
 
-        statements.Add(LinqExpression.Call(CompilerContext.CreateTypedListMethod, listVar));
+        statements.Add(LinqExpression.Call(CompilerContext.CreateTypedArrayMethod, listVar));
         return LinqExpression.Block(new[] { listVar }, statements);
     }
 }
