@@ -751,27 +751,26 @@ public class SwitchStatementTests(CompilationMode mode)
     #region Tests with External Variables
 
     [Test]
-    public void Switch_StringWithVariable()
+    public async Task Switch_StringWithVariable()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        engine.SetVariable("input", "test");
-        var result = engine.Evaluate(@"
-        {
-            var result = """";
-            switch (input) {
-                case ""test"":
-                    result = ""matched test"";
-                    break;
-                default:
-                    result = ""no match"";
-                    break;
+        var variables = new Dictionary<string, object?> { ["input"] = "test" };
+        await TestHelpers.RunCSharpParityTestAsync("""
+            {
+                var result = "";
+                switch (input) {
+                    case "test":
+                        result = "matched test";
+                        break;
+                    default:
+                        result = "no match";
+                        break;
+                }
+                return result;
             }
-            return result;
-        }");
-
-        Assert.That(result, Is.EqualTo("matched test"));
+            """, variables, "matched test", mode);
     }
 
+    // Engine-only: uses anonymous object as external variable (not serializable to Roslyn)
     [Test]
     public void Switch_PropertyAccessInSwitch()
     {
@@ -798,53 +797,50 @@ public class SwitchStatementTests(CompilationMode mode)
     }
 
     [Test]
-    public void Switch_NullCase_MatchesNull()
+    public async Task Switch_NullCase_MatchesNull()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        engine.SetVariable("input", null);
-        var result = engine.Evaluate(@"
-        {
-            var result = """";
-            switch (input) {
-                case null:
-                    result = ""is null"";
-                    break;
-                default:
-                    result = ""not null"";
-                    break;
+        var variables = new Dictionary<string, object?> { ["input"] = null };
+        await TestHelpers.RunCSharpParityTestAsync("""
+            {
+                var result = "";
+                switch (input) {
+                    case null:
+                        result = "is null";
+                        break;
+                    default:
+                        result = "not null";
+                        break;
+                }
+                return result;
             }
-            return result;
-        }");
-
-        Assert.That(result, Is.EqualTo("is null"));
+            """, variables, "is null", mode);
     }
 
     [Test]
-    public void Switch_NullCase_DoesNotMatchValue()
+    public async Task Switch_NullCase_DoesNotMatchValue()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        engine.SetVariable("input", "hello");
-        var result = engine.Evaluate(@"
-        {
-            var result = """";
-            switch (input) {
-                case null:
-                    result = ""is null"";
-                    break;
-                default:
-                    result = ""not null"";
-                    break;
+        var variables = new Dictionary<string, object?> { ["input"] = "hello" };
+        await TestHelpers.RunCSharpParityTestAsync("""
+            {
+                var result = "";
+                switch (input) {
+                    case null:
+                        result = "is null";
+                        break;
+                    default:
+                        result = "not null";
+                        break;
+                }
+                return result;
             }
-            return result;
-        }");
-
-        Assert.That(result, Is.EqualTo("not null"));
+            """, variables, "not null", mode);
     }
 
     #endregion
 
     #region Switch with Collections (CsEval-specific syntax)
 
+    // Engine-only: uses [10, 20, 30] collection expression syntax
     [Test]
     public void Switch_WithIndexAccess()
     {
@@ -870,6 +866,7 @@ public class SwitchStatementTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo("twenty"));
     }
 
+    // Engine-only: uses [1, 2, 3, 2, 1] collection expression syntax
     [Test]
     public void Switch_InsideLoop()
     {
@@ -903,27 +900,23 @@ public class SwitchStatementTests(CompilationMode mode)
 
     #region Calculator Scenario
 
-    [Test]
-    public void Switch_CalculatorOperation_Scenario()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(@"
+    [TestCase("""
         {
             var a = 10.0;
             var b = 3.0;
-            var op = ""/"";
+            var op = "/";
             var calcResult = 0.0;
             switch (op) {
-                case ""+"":
+                case "+":
                     calcResult = a + b;
                     break;
-                case ""-"":
+                case "-":
                     calcResult = a - b;
                     break;
-                case ""*"":
+                case "*":
                     calcResult = a * b;
                     break;
-                case ""/"":
+                case "/":
                     calcResult = a / b;
                     break;
                 default:
@@ -931,15 +924,17 @@ public class SwitchStatementTests(CompilationMode mode)
                     break;
             }
             return calcResult;
-        }");
-
-        Assert.That(Convert.ToDouble(result), Is.EqualTo(10.0 / 3.0).Within(0.001));
-    }
+        }
+        """,
+        TestName = "Switch_CalculatorOperation_Scenario")]
+    public async Task Switch_Calculator(string expr)
+        => await TestHelpers.RunCSharpParityTestAsync(expr, mode);
 
     #endregion
 
     #region Parsing Tests
 
+    // Engine-only: tests CsEval parsing internals (TryParse)
     [Test]
     public void Switch_TryParse_ValidExpression_Succeeds()
     {
@@ -993,6 +988,7 @@ public class SwitchStatementTests(CompilationMode mode)
         Assert.That(error, Is.Not.Null);
     }
 
+    // Engine-only: tests pre-parsed expression reuse with SetVariable
     [Test]
     public void Switch_PreParsed_CanBeReused()
     {

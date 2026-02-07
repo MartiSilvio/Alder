@@ -3,10 +3,11 @@ namespace CsEval.Test.Runtime;
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
 [TestFixture(CompilationMode.StrictCompiled)]
-public class ScopingTests(CompilationMode mode) 
+public class ScopingTests(CompilationMode mode)
 {
     #region ForEach Loop Scoping
 
+    // Engine-only: error tests and CsEval-specific [1,2,3] syntax
     [Test]
     public void ForEachLoop_BodyVariable_DoesNotLeakToParentScope()
     {
@@ -102,6 +103,7 @@ public class ScopingTests(CompilationMode mode)
 
     #region For Loop Scoping
 
+    // Engine-only: error tests for variable leaking
     [Test]
     public void ForLoop_InitializerVariable_DoesNotLeakToParentScope()
     {
@@ -151,55 +153,41 @@ public class ScopingTests(CompilationMode mode)
         Assert.That(ex!.Message, Does.Contain("x").Or.Contain("Undefined"));
     }
 
-    [Test]
-    public void ForLoop_InitializerAccessibleInBody()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(@"
+    // Parity tests for standard C# scoping behavior
+    [TestCase("""
         {
             var sum = 0;
             for (var i = 1; i <= 5; i = i + 1) {
                 sum = sum + i;
             }
             return sum;
-        }");
-
-        Assert.That(result, Is.EqualTo(15));
-    }
-
-    [Test]
-    public void ForLoop_InitializerAccessibleInCondition()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(@"
+        }
+        """, 15,
+        TestName = "ForLoop_InitializerAccessibleInBody")]
+    [TestCase("""
         {
             var count = 0;
             for (var i = 0; i < 10; i = i + 1) {
                 count = count + 1;
             }
             return count;
-        }");
-
-        Assert.That(result, Is.EqualTo(10));
-    }
-
-    [Test]
-    public void ForLoop_InitializerAccessibleInIncrement()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(@"
+        }
+        """, 10,
+        TestName = "ForLoop_InitializerAccessibleInCondition")]
+    [TestCase("""
         {
             var count = 0;
             for (var i = 0; i < 5; i = i + 2) {
                 count = count + 1;
             }
             return count;
-        }");
+        }
+        """, 3,
+        TestName = "ForLoop_InitializerAccessibleInIncrement")]
+    public async Task ForLoop_Scoping(string expr, object expected)
+        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
-        // i = 0, 2, 4 (3 iterations)
-        Assert.That(result, Is.EqualTo(3));
-    }
-
+    // Engine-only: uses [..results, x] spread syntax
     [Test]
     public void ForLoop_VariableScopedPerIteration_FreshEachTime()
     {
@@ -226,6 +214,7 @@ public class ScopingTests(CompilationMode mode)
 
     #region While Loop Scoping
 
+    // Engine-only: error tests for variable leaking
     [Test]
     public void WhileLoop_BodyVariable_DoesNotLeakToParentScope()
     {
@@ -245,31 +234,24 @@ public class ScopingTests(CompilationMode mode)
         Assert.That(ex!.Message, Does.Contain("x").Or.Contain("Undefined"));
     }
 
-    [Test]
-    public void WhileLoop_SingleStatementAssignment_ScopedCorrectly()
-    {
-        // Note: Without braces, only one statement forms the body.
-        // Variable declarations as single statements don't make sense
-        // (they'd be immediately out of scope), so we test assignment scoping instead.
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(@"
+    [TestCase("""
         {
             var total = 0;
             var i = 0;
             while (i < 3)
                 i = i + 1;
             return i;
-        }");
-
-        Assert.That(result, Is.EqualTo(3));
-    }
+        }
+        """, 3,
+        TestName = "WhileLoop_SingleStatementAssignment_ScopedCorrectly")]
+    public async Task WhileLoop_Scoping(string expr, object expected)
+        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
     [Test]
     public void WhileLoop_SingleStatementBodyVariable_DoesNotLeakToParentScope()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
 
-        // This test specifically checks single-statement body scoping
         var ex = Assert.Throws<CsEvalException>(() =>
             engine.Evaluate(@"
             {
@@ -284,6 +266,7 @@ public class ScopingTests(CompilationMode mode)
         Assert.That(ex!.Message, Does.Contain("temp").Or.Contain("Undefined"));
     }
 
+    // Engine-only: uses [..results, x] spread syntax
     [Test]
     public void WhileLoop_VariableScopedPerIteration()
     {
@@ -312,6 +295,7 @@ public class ScopingTests(CompilationMode mode)
 
     #region Do-While Loop Scoping
 
+    // Engine-only: error tests for variable leaking
     [Test]
     public void DoWhileLoop_BodyVariable_DoesNotLeakToParentScope()
     {
@@ -331,6 +315,7 @@ public class ScopingTests(CompilationMode mode)
         Assert.That(ex!.Message, Does.Contain("x").Or.Contain("Undefined"));
     }
 
+    // Engine-only: uses [..results, x] spread syntax
     [Test]
     public void DoWhileLoop_VariableScopedPerIteration()
     {
@@ -359,6 +344,7 @@ public class ScopingTests(CompilationMode mode)
 
     #region If Statement Scoping
 
+    // Engine-only: error tests for variable leaking
     [Test]
     public void IfStatement_ThenBranchVariable_DoesNotLeakToParentScope()
     {
@@ -429,13 +415,7 @@ public class ScopingTests(CompilationMode mode)
         Assert.That(ex!.Message, Does.Contain("x").Or.Contain("Undefined"));
     }
 
-    [Test]
-    public void IfStatement_ThenAndElseBranchVariables_Independent()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-
-        // Both branches can use the same variable name since they're in different scopes
-        var result = engine.Evaluate(@"
+    [TestCase("""
         {
             var result = 0;
             if (true) {
@@ -446,10 +426,11 @@ public class ScopingTests(CompilationMode mode)
                 result = x;
             }
             return result;
-        }");
-
-        Assert.That(result, Is.EqualTo(10));
-    }
+        }
+        """, 10,
+        TestName = "IfStatement_ThenAndElseBranchVariables_Independent")]
+    public async Task IfStatement_Scoping(string expr, object expected)
+        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
     [Test]
     public void IfStatement_NestedIf_VariablesProperlyScoped()
@@ -497,6 +478,7 @@ public class ScopingTests(CompilationMode mode)
 
     #region Mixed Control Flow Scoping
 
+    // Engine-only: error tests for variable leaking
     [Test]
     public void MixedControlFlow_IfInsideFor_ProperScoping()
     {
@@ -560,22 +542,30 @@ public class ScopingTests(CompilationMode mode)
 
     #region Parent Scope Access
 
-    [Test]
-    public void ForLoop_CanAccessParentScopeVariables()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(@"
+    [TestCase("""
         {
             var total = 0;
             for (var i = 0; i < 5; i = i + 1) {
                 total = total + i;
             }
             return total;
-        }");
+        }
+        """, 10,
+        TestName = "ForLoop_CanAccessParentScopeVariables")]
+    [TestCase("""
+        {
+            var x = 10;
+            if (true) {
+                x = x + 5;
+            }
+            return x;
+        }
+        """, 15,
+        TestName = "IfStatement_CanAccessParentScopeVariables")]
+    public async Task ParentScopeAccess(string expr, object expected)
+        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
-        Assert.That(result, Is.EqualTo(10)); // 0+1+2+3+4
-    }
-
+    // Engine-only: uses [1, 2, 3, 4, 5] collection expression syntax
     [Test]
     public void ForEachLoop_CanAccessParentScopeVariables()
     {
@@ -592,22 +582,7 @@ public class ScopingTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(15));
     }
 
-    [Test]
-    public void IfStatement_CanAccessParentScopeVariables()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(@"
-        {
-            var x = 10;
-            if (true) {
-                x = x + 5;
-            }
-            return x;
-        }");
-
-        Assert.That(result, Is.EqualTo(15));
-    }
-
+    // Engine-only: uses [10, 20] collection expression syntax
     [Test]
     public void NestedLoops_CanAccessAllParentScopes()
     {
@@ -627,14 +602,6 @@ public class ScopingTests(CompilationMode mode)
             return total;
         }");
 
-        // For i=1: foreach j in [10,20]: while k in [0,1]: total += 1 + 10 + k, 1 + 20 + k
-        // i=1, j=10: k=0 -> +11, k=1 -> +12 (23)
-        // i=1, j=20: k=0 -> +21, k=1 -> +22 (43)
-        // i=2, j=10: k=0 -> +12, k=1 -> +13 (25)
-        // i=2, j=20: k=0 -> +22, k=1 -> +23 (45)
-        // i=3, j=10: k=0 -> +13, k=1 -> +14 (27)
-        // i=3, j=20: k=0 -> +23, k=1 -> +24 (47)
-        // Total: 23 + 43 + 25 + 45 + 27 + 47 = 210
         Assert.That(result, Is.EqualTo(210));
     }
 
@@ -642,11 +609,10 @@ public class ScopingTests(CompilationMode mode)
 
     #region Block Statement Scoping (via If)
 
+    // Engine-only: error test for variable leaking
     [Test]
     public void BlockInIf_VariablesScoped_AsExpected()
     {
-        // CsEval doesn't support standalone block statements, but blocks
-        // are created via control structures. This test uses if(true) to create a block.
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
 
         var ex = Assert.Throws<CsEvalException>(() =>
@@ -661,11 +627,7 @@ public class ScopingTests(CompilationMode mode)
         Assert.That(ex!.Message, Does.Contain("x").Or.Contain("Undefined"));
     }
 
-    [Test]
-    public void NestedBlocks_ViaNestedIf_ProperScoping()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(@"
+    [TestCase("""
         {
             var outer = 1;
             if (true) {
@@ -676,20 +638,17 @@ public class ScopingTests(CompilationMode mode)
                 }
             }
             return outer;
-        }");
-
-        Assert.That(result, Is.EqualTo(6)); // 1 + 2 + 3
-    }
+        }
+        """, 6,
+        TestName = "NestedBlocks_ViaNestedIf_ProperScoping")]
+    public async Task BlockScoping(string expr, object expected)
+        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
     #endregion
 
     #region Break and Continue with Scoping
 
-    [Test]
-    public void ForLoop_BreakPreservesParentScope()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(@"
+    [TestCase("""
         {
             var sum = 0;
             for (var i = 0; i < 10; i = i + 1) {
@@ -700,11 +659,13 @@ public class ScopingTests(CompilationMode mode)
                 }
             }
             return sum;
-        }");
+        }
+        """, 10,
+        TestName = "ForLoop_BreakPreservesParentScope")]
+    public async Task BreakAndContinue_ForLoop(string expr, object expected)
+        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
-        Assert.That(result, Is.EqualTo(10)); // 0+1+2+3+4
-    }
-
+    // Engine-only: uses [1, 2, 3, 4, 5] collection expression syntax
     [Test]
     public void ForEachLoop_ContinuePreservesParentScope()
     {
@@ -722,14 +683,10 @@ public class ScopingTests(CompilationMode mode)
             return sum;
         }");
 
-        Assert.That(result, Is.EqualTo(9)); // 1+3+5
+        Assert.That(result, Is.EqualTo(9));
     }
 
-    [Test]
-    public void WhileLoop_BreakAndContinue_ScopeCleanedUp()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(@"
+    [TestCase("""
         {
             var total = 0;
             var i = 0;
@@ -745,16 +702,11 @@ public class ScopingTests(CompilationMode mode)
                 total = total + x;
             }
             return total;
-        }");
-
-        // i=1: x=0, total=0
-        // i=2: x=2, total=2
-        // i=3: continue (x=4 not added)
-        // i=4: x=6, total=8
-        // i=5: x=8, total=16
-        // i=6: break
-        Assert.That(result, Is.EqualTo(16));
-    }
+        }
+        """, 16,
+        TestName = "WhileLoop_BreakAndContinue_ScopeCleanedUp")]
+    public async Task BreakAndContinue_WhileLoop(string expr, object expected)
+        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
     #endregion
 }
