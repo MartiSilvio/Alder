@@ -305,7 +305,7 @@ public sealed class PrimaryParser : ParserBase
         if (Match(TokenType.Arrow))
         {
             var body = _expression.ParseExpression();
-            return new LambdaExpr([identifier], body);
+            return new LambdaExpr([new LambdaParameter(null, identifier)], body);
         }
 
         return new IdentifierExpr(identifier);
@@ -317,7 +317,8 @@ public sealed class PrimaryParser : ParserBase
 
     private Expr ParseParenthesized()
     {
-        // Could be: grouping (expr), lambda (x) => ..., parameter list (a, b) => ..., or tuple (expr1, expr2, ...)
+        // Could be: grouping (expr), lambda (x) => ..., typed lambda (int x) => ...,
+        // parameter list (a, b) => ..., or tuple (expr1, expr2, ...)
 
         // Empty parens - parameterless lambda
         if (Match(TokenType.RightParen))
@@ -327,20 +328,25 @@ public sealed class PrimaryParser : ParserBase
             return new LambdaExpr([], body);
         }
 
-        // Try lambda first using backtracking: identifiers followed by ) =>
+        // Try typed lambda first: (type name, type name, ...) => body
+        var typedLambdaResult = TryParseTypedLambda();
+        if (typedLambdaResult != null)
+            return typedLambdaResult;
+
+        // Try untyped lambda using backtracking: identifiers followed by ) =>
         var savedPosition = State.Current;
-        var parameters = new List<Token>();
+        var parameters = new List<LambdaParameter>();
         var isLambda = false;
 
         if (Check(TokenType.Identifier))
         {
             // Try to parse as parameter list (all identifiers separated by commas)
-            parameters.Add(Advance());
+            parameters.Add(new LambdaParameter(null, Advance()));
             while (Match(TokenType.Comma))
             {
                 if (!Check(TokenType.Identifier))
                     break;
-                parameters.Add(Advance());
+                parameters.Add(new LambdaParameter(null, Advance()));
             }
 
             if (Match(TokenType.RightParen) && Match(TokenType.Arrow))
@@ -394,6 +400,118 @@ public sealed class PrimaryParser : ParserBase
 
         var expression = _expression.ParseExpression();
         return new TupleElement(null, expression);
+    }
+
+    /// <summary>
+    /// Attempts to parse a typed lambda: (type name, type name, ...) => body.
+    /// Returns null if the pattern doesn't match (restores position on failure).
+    /// ECMA-334 §12.19 - Anonymous function expressions with explicitly typed parameters.
+    /// </summary>
+    private Expr? TryParseTypedLambda()
+    {
+        var saved = State.Current;
+
+        try
+        {
+            var parameters = new List<LambdaParameter>();
+
+            // First parameter: must be type followed by name
+            var firstType = TryParseTypeName();
+            if (firstType == null || !Check(TokenType.Identifier))
+            {
+                State.Current = saved;
+                return null;
+            }
+
+            parameters.Add(new LambdaParameter(firstType, Advance()));
+
+            // Additional parameters: comma-separated type-name pairs
+            while (Match(TokenType.Comma))
+            {
+                var paramType = TryParseTypeName();
+                if (paramType == null || !Check(TokenType.Identifier))
+                {
+                    State.Current = saved;
+                    return null;
+                }
+                parameters.Add(new LambdaParameter(paramType, Advance()));
+            }
+
+            // Must end with ) =>
+            if (!Match(TokenType.RightParen) || !Match(TokenType.Arrow))
+            {
+                State.Current = saved;
+                return null;
+            }
+
+            var body = _expression.ParseExpression();
+            return new LambdaExpr(parameters, body);
+        }
+        catch
+        {
+            State.Current = saved;
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Tries to parse a type name, including generic arguments (e.g., Func&lt;int, int&gt;).
+    /// Returns null if no type name can be parsed at the current position.
+    /// Used in typed lambda parameter detection (backtracking context).
+    /// </summary>
+    internal string? TryParseTypeName()
+    {
+        string name;
+        if (IsTypeKeyword(Peek().Type))
+        {
+            name = Advance().Lexeme;
+        }
+        else if (Check(TokenType.Identifier))
+        {
+            name = Advance().Lexeme;
+        }
+        else
+        {
+            return null;
+        }
+
+        // Handle generic args: Func<int, int>
+        if (Check(TokenType.Less))
+        {
+            Advance(); // consume <
+            name += "<";
+
+            var firstArg = TryParseTypeName();
+            if (firstArg == null) return null;
+            name += firstArg;
+
+            while (Match(TokenType.Comma))
+            {
+                name += ", ";
+                var nextArg = TryParseTypeName();
+                if (nextArg == null) return null;
+                name += nextArg;
+            }
+
+            if (!Match(TokenType.Greater)) return null;
+            name += ">";
+        }
+
+        // Handle nullable suffix
+        if (Check(TokenType.Question))
+        {
+            Advance();
+            name += "?";
+        }
+
+        // Handle array suffix
+        if (Check(TokenType.LeftBracket) && PeekNext().Type == TokenType.RightBracket)
+        {
+            Advance(); Advance();
+            name += "[]";
+        }
+
+        return name;
     }
 
     #endregion

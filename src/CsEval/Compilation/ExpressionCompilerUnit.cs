@@ -822,7 +822,7 @@ internal sealed class ExpressionCompilerUnit
 
     internal LinqExpression CompileLambda(LambdaExpr lambda)
     {
-        var parameterNames = lambda.Parameters.Select(p => p.Lexeme).ToList();
+        var parameterNames = lambda.Parameters.Select(p => p.Name.Lexeme).ToList();
 
         // Create parameter list constant
         var listInit = LinqExpression.ListInit(

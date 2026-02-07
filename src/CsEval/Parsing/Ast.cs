@@ -294,8 +294,12 @@ public sealed record NamedArgumentExpr(Token Name, Expr Value) : Expr
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitNamedArgument(this);
 }
 
-// Lambda: (x) => x * 2, (a, b) => a + b
-public sealed record LambdaExpr(List<Token> Parameters, Expr Body) : Expr
+// Lambda parameter: optional type annotation with name
+// ECMA-334 §12.19 - Anonymous function expressions
+public sealed record LambdaParameter(string? TypeName, Token Name);
+
+// Lambda: (x) => x * 2, (int a, int b) => a + b
+public sealed record LambdaExpr(List<LambdaParameter> Parameters, Expr Body) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitLambda(this);
 }

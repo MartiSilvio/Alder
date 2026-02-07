@@ -328,7 +328,7 @@ public sealed class Evaluator : IExprVisitor<object?>
 
     public object? VisitLambda(LambdaExpr expr)
     {
-        return new LambdaValue(expr.Parameters.Select(p => p.Lexeme).ToList(), expr.Body, _context);
+        return new LambdaValue(expr.Parameters.Select(p => p.Name.Lexeme).ToList(), expr.Body, _context);
     }
 
     public object? VisitConditional(ConditionalExpr expr)

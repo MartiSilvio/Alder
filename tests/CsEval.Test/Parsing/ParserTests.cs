@@ -64,7 +64,7 @@ public class ParserTests
 
         var lambda = (LambdaExpr)expr;
         Assert.That(lambda.Parameters, Has.Count.EqualTo(1));
-        Assert.That(lambda.Parameters[0].Lexeme, Is.EqualTo("x"));
+        Assert.That(lambda.Parameters[0].Name.Lexeme, Is.EqualTo("x"));
     }
 
     [Test]
@@ -75,7 +75,7 @@ public class ParserTests
 
         var lambda = (LambdaExpr)expr;
         Assert.That(lambda.Parameters, Has.Count.EqualTo(1));
-        Assert.That(lambda.Parameters[0].Lexeme, Is.EqualTo("x"));
+        Assert.That(lambda.Parameters[0].Name.Lexeme, Is.EqualTo("x"));
     }
 
     [Test]
@@ -86,7 +86,7 @@ public class ParserTests
 
         var lambda = (LambdaExpr)expr;
         Assert.That(lambda.Parameters, Has.Count.EqualTo(1));
-        Assert.That(lambda.Parameters[0].Lexeme, Is.EqualTo("d"));
+        Assert.That(lambda.Parameters[0].Name.Lexeme, Is.EqualTo("d"));
         Assert.That(lambda.Body, Is.InstanceOf<MemberAccessExpr>());
     }
 
@@ -120,6 +120,69 @@ public class ParserTests
 
         var lambda = (LambdaExpr)expr;
         Assert.That(lambda.Parameters, Has.Count.EqualTo(2));
+    }
+
+    [Test]
+    public void Parse_TypedLambda_SingleParameter()
+    {
+        var expr = Parse("(double x) => x * x");
+        Assert.That(expr, Is.InstanceOf<LambdaExpr>());
+
+        var lambda = (LambdaExpr)expr;
+        Assert.That(lambda.Parameters, Has.Count.EqualTo(1));
+        Assert.That(lambda.Parameters[0].TypeName, Is.EqualTo("double"));
+        Assert.That(lambda.Parameters[0].Name.Lexeme, Is.EqualTo("x"));
+    }
+
+    [Test]
+    public void Parse_TypedLambda_MultipleParameters()
+    {
+        var expr = Parse("(int a, int b) => a + b");
+        Assert.That(expr, Is.InstanceOf<LambdaExpr>());
+
+        var lambda = (LambdaExpr)expr;
+        Assert.That(lambda.Parameters, Has.Count.EqualTo(2));
+        Assert.That(lambda.Parameters[0].TypeName, Is.EqualTo("int"));
+        Assert.That(lambda.Parameters[0].Name.Lexeme, Is.EqualTo("a"));
+        Assert.That(lambda.Parameters[1].TypeName, Is.EqualTo("int"));
+        Assert.That(lambda.Parameters[1].Name.Lexeme, Is.EqualTo("b"));
+    }
+
+    [Test]
+    public void Parse_TypedLambda_GenericParameter()
+    {
+        var expr = Parse("(Func<double, double> f) => f(1.0)");
+        Assert.That(expr, Is.InstanceOf<LambdaExpr>());
+
+        var lambda = (LambdaExpr)expr;
+        Assert.That(lambda.Parameters, Has.Count.EqualTo(1));
+        Assert.That(lambda.Parameters[0].TypeName, Is.EqualTo("Func<double, double>"));
+        Assert.That(lambda.Parameters[0].Name.Lexeme, Is.EqualTo("f"));
+    }
+
+    [Test]
+    public void Parse_TypedLambda_MixedGenericAndKeyword()
+    {
+        var expr = Parse("(Func<double, double> f, double a, double b, int n) => a + b");
+        Assert.That(expr, Is.InstanceOf<LambdaExpr>());
+
+        var lambda = (LambdaExpr)expr;
+        Assert.That(lambda.Parameters, Has.Count.EqualTo(4));
+        Assert.That(lambda.Parameters[0].TypeName, Is.EqualTo("Func<double, double>"));
+        Assert.That(lambda.Parameters[1].TypeName, Is.EqualTo("double"));
+        Assert.That(lambda.Parameters[2].TypeName, Is.EqualTo("double"));
+        Assert.That(lambda.Parameters[3].TypeName, Is.EqualTo("int"));
+    }
+
+    [Test]
+    public void Parse_UntypedLambda_HasNullTypeNames()
+    {
+        var expr = Parse("(x, y) => x + y");
+        Assert.That(expr, Is.InstanceOf<LambdaExpr>());
+
+        var lambda = (LambdaExpr)expr;
+        Assert.That(lambda.Parameters[0].TypeName, Is.Null);
+        Assert.That(lambda.Parameters[1].TypeName, Is.Null);
     }
 
     [Test]
