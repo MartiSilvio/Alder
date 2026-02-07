@@ -122,7 +122,7 @@ public sealed class Evaluator : IExprVisitor<object?>
                 var isMatch = TypeHelpers.IsType(value, tp.TypeToken.Lexeme);
                 if (isMatch && tp.VariableName != null)
                 {
-                    var targetType = TypeHelpers.ResolveTypeName(tp.TypeToken.Lexeme);
+                    var targetType = TypeHelpers.ResolveTypeByName(tp.TypeToken.Lexeme);
                     _context.DefineNew(tp.VariableName.Value.Lexeme, value, targetType);
                 }
                 return isMatch;

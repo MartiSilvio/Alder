@@ -168,7 +168,7 @@ internal sealed class PatternCompilerUnit
                 LinqExpression.Call(_ctx.CurrentContext, CompilerContext.DefineNewMethod,
                     LinqExpression.Constant(tp.VariableName.Value.Lexeme),
                     typeValueVar,
-                    LinqExpression.Call(CompilerContext.ResolveTypeNameMethod, LinqExpression.Constant(tp.TypeToken.Lexeme)))),
+                    LinqExpression.Call(CompilerContext.ResolveTypeByNameMethod, LinqExpression.Constant(tp.TypeToken.Lexeme)))),
             LinqExpression.Convert(matchVar, typeof(object)));
     }
 

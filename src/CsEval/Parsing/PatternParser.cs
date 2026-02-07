@@ -157,9 +157,88 @@ public sealed class PatternParser : ParserBase
             return new TypePattern(typeToken, null);
         }
 
+        // Non-keyword type pattern: Exception, ArgumentException, System.IO.IOException, etc.
+        // Identifier followed by Identifier (not a combinator) = type pattern with binding
+        // Identifier followed by '{' = property pattern with type prefix
+        // Identifier alone in pattern position = possible plain type pattern (resolved at runtime)
+        if (Check(TokenType.Identifier) && IsNonKeywordTypePattern())
+        {
+            var typeToken = ParseDottedTypeName();
+
+            // Type + property pattern: Exception { ... }
+            if (Check(TokenType.LeftBrace))
+            {
+                return ParsePropertyPattern(typeToken);
+            }
+
+            // Type + variable binding: Exception ex (but not 'and'/'or'/'not'/'when'/'_')
+            if (Check(TokenType.Identifier) && !IsPatternCombinatorOrReserved(Peek()))
+            {
+                var varName = Advance();
+                return new TypePattern(typeToken, varName);
+            }
+
+            // Plain type pattern: Exception (no binding)
+            return new TypePattern(typeToken, null);
+        }
+
         // Number/string/character literals and unary expressions (e.g., -1)
         var expr = _expression.ParseUnary();
         return new ConstantPattern(expr);
+    }
+
+    /// <summary>
+    /// Determines if the current Identifier token starts a non-keyword type pattern.
+    /// Uses lookahead: Identifier followed by another Identifier (binding variable),
+    /// or Identifier followed by '{' (property pattern), or Identifier.Identifier (dotted type name).
+    /// Single Identifier alone is NOT treated as a type pattern to avoid ambiguity with constants.
+    /// </summary>
+    private bool IsNonKeywordTypePattern()
+    {
+        if (!Check(TokenType.Identifier))
+            return false;
+
+        var scanIndex = State.Current + 1;
+        if (scanIndex >= State.Tokens.Count)
+            return false;
+
+        var next = State.Tokens[scanIndex];
+
+        // Identifier followed by Identifier (non-combinator): type pattern with binding
+        // e.g., Exception ex, ArgumentException argEx
+        if (next.Type == TokenType.Identifier && !IsPatternCombinatorOrReserved(next))
+            return true;
+
+        // Identifier followed by '{': property pattern with type prefix
+        // e.g., Exception { Message: "test" }
+        if (next.Type == TokenType.LeftBrace)
+            return true;
+
+        // Dotted name: System.Exception, etc.
+        if (next.Type == TokenType.Dot)
+            return true;
+
+        return false;
+    }
+
+    /// <summary>
+    /// Parses a dotted type name (e.g., System.Exception) and returns a single token
+    /// with the full name as lexeme.
+    /// </summary>
+    private Token ParseDottedTypeName()
+    {
+        var token = Consume(TokenType.Identifier, "Expected type name");
+        var name = token.Lexeme;
+
+        while (Check(TokenType.Dot) && State.Current + 1 < State.Tokens.Count
+               && State.Tokens[State.Current + 1].Type == TokenType.Identifier)
+        {
+            Advance(); // consume '.'
+            var next = Advance(); // consume identifier
+            name += "." + next.Lexeme;
+        }
+
+        return token with { Lexeme = name };
     }
 
     internal Pattern ParsePropertyPattern(Token? typeToken)
