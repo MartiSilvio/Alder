@@ -44,10 +44,12 @@ public interface IExprVisitor<out T>
     T VisitNamedArgument(NamedArgumentExpr expr);
     T VisitLambda(LambdaExpr expr);
 
-    // Collections & Literals
+    // CsEval Extensions: Collection Literals and Spread
     T VisitArrayLiteral(ArrayLiteralExpr expr);
     T VisitObjectLiteral(ObjectLiteralExpr expr);
     T VisitSpread(SpreadExpr expr);
+
+    // Collections & Literals
     T VisitInterpolatedString(InterpolatedStringExpr expr);
     T VisitNew(NewExpr expr);
 
@@ -255,25 +257,29 @@ public sealed record LambdaExpr(List<Token> Parameters, Expr Body) : Expr
 
 #endregion
 
-#region Collections & Literals
+#region CsEval Extensions: Collection Literals and Spread
 
-// Array literal: [1, 2, 3]
+// Array literal: [1, 2, 3] - CsEval extension (not ECMA-334)
 public sealed record ArrayLiteralExpr(List<Expr> Elements) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitArrayLiteral(this);
 }
 
-// Object literal: new { Name = "John", Age = 30 }
+// Object literal: new { Name = "John", Age = 30 } - CsEval extension (ExpandoObject, not C# anonymous types)
 public sealed record ObjectLiteralExpr(List<(Token Key, Expr Value)> Properties) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitObjectLiteral(this);
 }
 
-// Spread expression: ...expr (used in arrays and objects)
+// Spread expression: ...expr (used in arrays and objects) - CsEval extension
 public sealed record SpreadExpr(Expr Expression) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitSpread(this);
 }
+
+#endregion
+
+#region Collections & Literals
 
 // Interpolated string: $"Hello {name}"
 public sealed record InterpolatedStringExpr(List<InterpolatedPart> Parts) : Expr

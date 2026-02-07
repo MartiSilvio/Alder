@@ -10,7 +10,7 @@ public enum TokenType
     True,
     False,
     Null,
-    Undefined,  // JavaScript undefined
+    Undefined,  // CsEval Extension: JavaScript undefined
 
     // Identifiers
     Identifier,
@@ -30,7 +30,7 @@ public enum TokenType
     Greater,
     GreaterEqual,
 
-    // Operators - Strict Equality (JavaScript)
+    // CsEval Extension: JavaScript strict equality (===, !==)
     EqualEqualEqual,   // ===
     BangEqualEqual,    // !==
 
@@ -57,7 +57,7 @@ public enum TokenType
     // Assignment & Access
     Equal,
     Dot,
-    DotDotDot,             // ... (spread operator)
+    DotDotDot,             // CsEval Extension: spread operator (...)
 
     // Compound Assignment
     PlusEqual,             // +=
@@ -101,8 +101,8 @@ public enum TokenType
     Return,
     Var,
 
-    // JavaScript Keywords
-    Function,  // function keyword (reserved)
+    // CsEval Extension: JavaScript function keyword (reserved)
+    Function,
 
     // Keywords - Control flow (reserved, not implemented)
     Switch,
@@ -170,7 +170,7 @@ public enum TokenType
     // Keywords - Other (reserved, not implemented)
     This,
     Base,
-    Super,  // JavaScript (reserved, equivalent to Base)
+    Super,  // CsEval Extension: JavaScript super keyword (reserved)
     Using,
     Lock,
     Fixed,

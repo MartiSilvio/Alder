@@ -17,9 +17,9 @@ public sealed class Lexer
         ["true"] = TokenType.True,
         ["false"] = TokenType.False,
         ["null"] = TokenType.Null,
-        ["undefined"] = TokenType.Undefined,  // JavaScript
+        ["undefined"] = TokenType.Undefined,  // CsEval Extension: JavaScript undefined
 
-        // Logical operator aliases (Python/SQL style)
+        // CsEval Extensions: non-standard keyword aliases (Python/SQL style)
         ["and"] = TokenType.AmpAmp,
         ["or"] = TokenType.PipePipe,
         ["not"] = TokenType.Bang,
@@ -30,7 +30,7 @@ public sealed class Lexer
         ["else"] = TokenType.Else,
         ["return"] = TokenType.Return,
         ["var"] = TokenType.Var,
-        ["function"] = TokenType.Function,  // JavaScript (reserved)
+        ["function"] = TokenType.Function,  // CsEval Extension: JavaScript reserved
 
         // Keywords - Control flow (reserved)
         ["switch"] = TokenType.Switch,
@@ -98,7 +98,7 @@ public sealed class Lexer
         // Keywords - Other (reserved)
         ["this"] = TokenType.This,
         ["base"] = TokenType.Base,
-        ["super"] = TokenType.Super,  // JavaScript (equivalent to base)
+        ["super"] = TokenType.Super,  // CsEval Extension: JavaScript super
         ["using"] = TokenType.Using,
         ["lock"] = TokenType.Lock,
         ["fixed"] = TokenType.Fixed,
@@ -201,7 +201,7 @@ public sealed class Lexer
 
             case '.':
                 if (Match('.') && Match('.'))
-                    AddToken(TokenType.DotDotDot);
+                    AddToken(TokenType.DotDotDot); // CsEval Extension: spread operator
                 else if (char.IsDigit(Peek()))
                     ScanLeadingDecimalNumber(); // ECMA-334 §6.4.5.4: .5 is valid real literal
                 else
@@ -211,7 +211,7 @@ public sealed class Lexer
             case '!':
                 if (Match('='))
                 {
-                    AddToken(Match('=') ? TokenType.BangEqualEqual : TokenType.BangEqual);
+                    AddToken(Match('=') ? TokenType.BangEqualEqual /* CsEval Extension: JavaScript !== */ : TokenType.BangEqual);
                 }
                 else
                 {
@@ -222,7 +222,7 @@ public sealed class Lexer
             case '=':
                 if (Match('='))
                 {
-                    AddToken(Match('=') ? TokenType.EqualEqualEqual : TokenType.EqualEqual);
+                    AddToken(Match('=') ? TokenType.EqualEqualEqual /* CsEval Extension: JavaScript === */ : TokenType.EqualEqual);
                 }
                 else if (Match('>'))
                 {
@@ -927,7 +927,7 @@ public sealed class Lexer
         var text = _source[_start.._current];
         var type = Keywords.GetValueOrDefault(text, TokenType.Identifier);
 
-        // Treat 'let' as 'var' for JavaScript compatibility
+        // CsEval Extension: treat 'let' as 'var' for JavaScript compatibility
         if (type == TokenType.Let)
         {
             type = TokenType.Var;

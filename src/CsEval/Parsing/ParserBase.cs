@@ -31,7 +31,7 @@ public abstract class ParserBase
 
     #region Token Utilities
 
-    protected bool Match(params TokenType[] types)
+    internal bool Match(params TokenType[] types)
     {
         foreach (var type in types)
         {
@@ -44,7 +44,7 @@ public abstract class ParserBase
         return false;
     }
 
-    protected bool MatchCompoundAssignment(out Token op)
+    internal bool MatchCompoundAssignment(out Token op)
     {
         if (Match(TokenType.PlusEqual, TokenType.MinusEqual, TokenType.StarEqual,
                   TokenType.SlashEqual, TokenType.PercentEqual, TokenType.AmpEqual,
@@ -58,7 +58,7 @@ public abstract class ParserBase
         return false;
     }
 
-    protected bool MatchTypeKeyword(out Token typeToken)
+    internal bool MatchTypeKeyword(out Token typeToken)
     {
         if (IsTypeKeyword(Peek().Type))
         {
@@ -76,30 +76,30 @@ public abstract class ParserBase
         return false;
     }
 
-    protected static bool IsTypeKeyword(TokenType type) =>
+    internal static bool IsTypeKeyword(TokenType type) =>
         type is TokenType.Int or TokenType.Long or TokenType.Double or
                 TokenType.Float or TokenType.Decimal or TokenType.StringType or
                 TokenType.Bool or TokenType.Object or TokenType.Sbyte or
                 TokenType.Byte or TokenType.Short or TokenType.Ushort or
                 TokenType.Uint or TokenType.Ulong or TokenType.Char;
 
-    protected bool Check(TokenType type) => !IsAtEnd() && Peek().Type == type;
+    internal bool Check(TokenType type) => !IsAtEnd() && Peek().Type == type;
 
-    protected Token Advance()
+    internal Token Advance()
     {
         if (!IsAtEnd()) State.Current++;
         return Previous();
     }
 
-    protected bool IsAtEnd() => Peek().Type == TokenType.Eof;
+    internal bool IsAtEnd() => Peek().Type == TokenType.Eof;
 
-    protected Token Peek() => State.Tokens[State.Current];
+    internal Token Peek() => State.Tokens[State.Current];
 
-    protected Token PeekNext() => State.Current + 1 < State.Tokens.Count ? State.Tokens[State.Current + 1] : State.Tokens[^1];
+    internal Token PeekNext() => State.Current + 1 < State.Tokens.Count ? State.Tokens[State.Current + 1] : State.Tokens[^1];
 
-    protected Token Previous() => State.Tokens[State.Current - 1];
+    internal Token Previous() => State.Tokens[State.Current - 1];
 
-    protected Token Consume(TokenType type, string message)
+    internal Token Consume(TokenType type, string message)
     {
         if (Check(type)) return Advance();
         throw new CsEvalParserException($"{message} at {Peek().Line}:{Peek().Column}");
