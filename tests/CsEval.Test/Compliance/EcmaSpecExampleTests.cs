@@ -1,7 +1,9 @@
 // ECMA-334 Spec Example Tests
 // Executable test cases derived directly from ECMA-334 7th Edition (December 2023) examples
-// and normative text. Each test references the specific ECMA-334 §from which it is derived.
+// and normative text. Each test references the specific ECMA-334 section from which it is derived.
 // All tests validate Roslyn parity via TestHelpers.RunCSharpParityTestAsync.
+
+using CsEval.TestData.Data;
 
 namespace CsEval.Test.Compliance;
 
@@ -108,8 +110,7 @@ public class EcmaSpecExampleTests(CompilationMode mode)
     #region ECMA-334 §12.9.4 - Logical Negation Operator
 
     // "If the operand is true, the result is false. If the operand is false, the result is true."
-    [TestCase("!true", false, TestName = "S12_9_4_LogicalNot_True")]
-    [TestCase("!false", true, TestName = "S12_9_4_LogicalNot_False")]
+    [TestCaseSource(typeof(EcmaSpecExampleData), nameof(EcmaSpecExampleData.LogicalNegationCases))]
     public async Task S12_9_4_LogicalNegation(string expr, object expected)
         => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
@@ -275,18 +276,10 @@ public class EcmaSpecExampleTests(CompilationMode mode)
     #region ECMA-334 §12.13.4 - Boolean Logical Operators
 
     // "The result of x & y is true if both x and y are true. Otherwise, the result is false."
-    [TestCase("true & true", true, TestName = "S12_13_4_BoolAnd_TrueTrue")]
-    [TestCase("true & false", false, TestName = "S12_13_4_BoolAnd_TrueFalse")]
-    [TestCase("false & true", false, TestName = "S12_13_4_BoolAnd_FalseTrue")]
-    [TestCase("false & false", false, TestName = "S12_13_4_BoolAnd_FalseFalse")]
     // "The result of x | y is true if either x or y is true. Otherwise, the result is false."
-    [TestCase("true | false", true, TestName = "S12_13_4_BoolOr_TrueFalse")]
-    [TestCase("false | false", false, TestName = "S12_13_4_BoolOr_FalseFalse")]
     // "The result of x ^ y is true if x is true and y is false, or x is false and y is true."
-    [TestCase("true ^ true", false, TestName = "S12_13_4_BoolXor_TrueTrue")]
-    [TestCase("true ^ false", true, TestName = "S12_13_4_BoolXor_TrueFalse")]
     // "When the operands are of type bool, the ^ operator computes the same result as the != operator."
-    [TestCase("true != false", true, TestName = "S12_13_4_BoolXorEqualsNotEqual")]
+    [TestCaseSource(typeof(EcmaSpecExampleData), nameof(EcmaSpecExampleData.BooleanLogicalCases))]
     public async Task S12_13_4_BooleanLogicalOperators(string expr, object expected)
         => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
@@ -295,8 +288,7 @@ public class EcmaSpecExampleTests(CompilationMode mode)
     #region ECMA-334 §12.10.3 - Division Operator
 
     // "The division rounds the result towards zero."
-    [TestCase("7 / 2", 3, TestName = "S12_10_3_IntegerDivision_TruncatesTowardZero")]
-    [TestCase("-7 / 2", -3, TestName = "S12_10_3_IntegerDivision_NegativeTruncatesTowardZero")]
+    [TestCaseSource(typeof(EcmaSpecExampleData), nameof(EcmaSpecExampleData.DivisionCases))]
     public async Task S12_10_3_IntegerDivision(string expr, object expected)
         => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
@@ -305,8 +297,7 @@ public class EcmaSpecExampleTests(CompilationMode mode)
     #region ECMA-334 §12.10.4 - Remainder Operator
 
     // "The result of x % y is the value produced by x - (x / y) * y."
-    [TestCase("7 % 3", 1, TestName = "S12_10_4_IntegerRemainder_Positive")]
-    [TestCase("-7 % 3", -1, TestName = "S12_10_4_IntegerRemainder_NegativeLeftOperand")]
+    [TestCaseSource(typeof(EcmaSpecExampleData), nameof(EcmaSpecExampleData.RemainderCases))]
     public async Task S12_10_4_IntegerRemainder(string expr, object expected)
         => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
@@ -326,8 +317,7 @@ public class EcmaSpecExampleTests(CompilationMode mode)
     }
 
     // "any non-string operand is converted to its string representation"
-    [TestCase("\"i = \" + 1", "i = 1", TestName = "S12_10_5_StringConcat_IntToString")]
-    [TestCase("\"b = \" + true", "b = True", TestName = "S12_10_5_StringConcat_BoolToString")]
+    [TestCaseSource(typeof(EcmaSpecExampleData), nameof(EcmaSpecExampleData.StringConcatCases))]
     public async Task S12_10_5_StringConcatenation(string expr, object expected)
         => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
@@ -338,11 +328,9 @@ public class EcmaSpecExampleTests(CompilationMode mode)
     // Shift count masking per section 12.11:
     // "When the type of x is int or uint, the shift count is given by the low-order five bits of count.
     //  In other words, the shift count is computed from count & 0x1F."
-    [TestCase("1 << 4", 16, TestName = "S12_11_LeftShift_Int")]
-    [TestCase("16 >> 2", 4, TestName = "S12_11_RightShift_Int")]
     // Arithmetic right shift: "the value of the most significant bit (the sign bit) of the operand
     //  is propagated to the high-order empty bit positions"
-    [TestCase("-16 >> 2", -4, TestName = "S12_11_ArithmeticRightShift_Negative")]
+    [TestCaseSource(typeof(EcmaSpecExampleData), nameof(EcmaSpecExampleData.ShiftCases))]
     public async Task S12_11_ShiftOperators(string expr, object expected)
         => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
@@ -357,12 +345,8 @@ public class EcmaSpecExampleTests(CompilationMode mode)
 
     // "If either operand is NaN, the result is false for all operators except !=,
     //  for which the result is true."
-    [TestCase("double.NaN == double.NaN", false, TestName = "S12_12_3_NaN_Equals_False")]
-    [TestCase("double.NaN != double.NaN", true, TestName = "S12_12_3_NaN_NotEquals_True")]
-    [TestCase("double.NaN < 0.0", false, TestName = "S12_12_3_NaN_LessThan_False")]
-    [TestCase("double.NaN > 0.0", false, TestName = "S12_12_3_NaN_GreaterThan_False")]
     // "Negative and positive zeros are considered equal."
-    [TestCase("-0.0 == 0.0", true, TestName = "S12_12_3_NegativeZero_Equals_PositiveZero")]
+    [TestCaseSource(typeof(EcmaSpecExampleData), nameof(EcmaSpecExampleData.FloatingPointComparisonCases))]
     public async Task S12_12_3_FloatingPointComparison(string expr, object expected)
         => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
@@ -372,10 +356,7 @@ public class EcmaSpecExampleTests(CompilationMode mode)
 
     // "The result of == is true if both x and y are true or if both x and y are false."
     // "When the operands are of type bool, the != operator produces the same result as the ^ operator."
-    [TestCase("true == true", true, TestName = "S12_12_5_BoolEqual_TrueTrue")]
-    [TestCase("true == false", false, TestName = "S12_12_5_BoolEqual_TrueFalse")]
-    [TestCase("false != false", false, TestName = "S12_12_5_BoolNotEqual_FalseFalse")]
-    [TestCase("true != false", true, TestName = "S12_12_5_BoolNotEqual_TrueFalse")]
+    [TestCaseSource(typeof(EcmaSpecExampleData), nameof(EcmaSpecExampleData.BooleanEqualityCases))]
     public async Task S12_12_5_BooleanEquality(string expr, object expected)
         => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
@@ -385,10 +366,7 @@ public class EcmaSpecExampleTests(CompilationMode mode)
 
     // "The operation x && y corresponds to the operation x & y, except that y is evaluated only if x is not false."
     // "The operation x || y corresponds to the operation x | y, except that y is evaluated only if x is not true."
-    [TestCase("true && true", true, TestName = "S12_14_2_ConditionalAnd_TrueTrue")]
-    [TestCase("false && true", false, TestName = "S12_14_2_ConditionalAnd_FalseTrue_ShortCircuit")]
-    [TestCase("true || false", true, TestName = "S12_14_2_ConditionalOr_TrueFalse_ShortCircuit")]
-    [TestCase("false || false", false, TestName = "S12_14_2_ConditionalOr_FalseFalse")]
+    [TestCaseSource(typeof(EcmaSpecExampleData), nameof(EcmaSpecExampleData.ConditionalLogicalCases))]
     public async Task S12_14_2_BooleanConditionalLogical(string expr, object expected)
         => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
@@ -431,8 +409,7 @@ public class EcmaSpecExampleTests(CompilationMode mode)
     // "A conditional expression of the form b ? x : y first evaluates the condition b.
     //  Then, if b is true, x is evaluated and becomes the result of the operation.
     //  Otherwise, y is evaluated and becomes the result of the operation."
-    [TestCase("true ? 1 : 2", 1, TestName = "S12_18_Conditional_TrueSelectsFirst")]
-    [TestCase("false ? 1 : 2", 2, TestName = "S12_18_Conditional_FalseSelectsSecond")]
+    [TestCaseSource(typeof(EcmaSpecExampleData), nameof(EcmaSpecExampleData.ConditionalOperatorCases))]
     public async Task S12_18_ConditionalOperator(string expr, object expected)
         => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
@@ -468,8 +445,7 @@ public class EcmaSpecExampleTests(CompilationMode mode)
 
     // section 10.1: "The opposite conversion, from type long to type int, is explicit
     //  and so an explicit cast is required."
-    [TestCase("(int)42L", 42, TestName = "S10_3_2_LongToInt_ExplicitCast")]
-    [TestCase("(char)65", 'A', TestName = "S10_3_2_IntToChar_ExplicitCast")]
+    [TestCaseSource(typeof(EcmaSpecExampleData), nameof(EcmaSpecExampleData.ExplicitConversionCases))]
     public async Task S10_3_2_ExplicitNumericConversions(string expr, object expected)
         => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
@@ -498,16 +474,7 @@ public class EcmaSpecExampleTests(CompilationMode mode)
     #region ECMA-334 §12.8.2 - Literals
 
     // Verify literal types per section 12.8.2 and section 6.4.5.3
-    [TestCase("42", 42, TestName = "S12_8_2_IntLiteral")]
-    [TestCase("42L", 42L, TestName = "S12_8_2_LongLiteral")]
-    [TestCase("42U", 42U, TestName = "S12_8_2_UIntLiteral")]
-    [TestCase("42UL", 42UL, TestName = "S12_8_2_ULongLiteral")]
-    [TestCase("3.14", 3.14, TestName = "S12_8_2_DoubleLiteral")]
-    [TestCase("3.14f", 3.14f, TestName = "S12_8_2_FloatLiteral")]
-    [TestCase("true", true, TestName = "S12_8_2_BoolTrueLiteral")]
-    [TestCase("false", false, TestName = "S12_8_2_BoolFalseLiteral")]
-    [TestCase("null", null, TestName = "S12_8_2_NullLiteral")]
-    [TestCase("'A'", 'A', TestName = "S12_8_2_CharLiteral")]
+    [TestCaseSource(typeof(EcmaSpecExampleData), nameof(EcmaSpecExampleData.LiteralCases))]
     public async Task S12_8_2_Literals(string expr, object? expected)
         => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
@@ -522,9 +489,7 @@ public class EcmaSpecExampleTests(CompilationMode mode)
 
     // "For the predefined integer logical operators: ... The & operator computes the
     //  bitwise logical AND of the two operands"
-    [TestCase("0xFF & 0x0F", 0x0F, TestName = "S12_13_2_BitwiseAnd_Int")]
-    [TestCase("0xF0 | 0x0F", 0xFF, TestName = "S12_13_2_BitwiseOr_Int")]
-    [TestCase("0xFF ^ 0x0F", 0xF0, TestName = "S12_13_2_BitwiseXor_Int")]
+    [TestCaseSource(typeof(EcmaSpecExampleData), nameof(EcmaSpecExampleData.IntegerLogicalCases))]
     public async Task S12_13_2_IntegerLogicalOperators(string expr, object expected)
         => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 

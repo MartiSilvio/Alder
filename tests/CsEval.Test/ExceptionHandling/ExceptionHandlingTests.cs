@@ -1,3 +1,5 @@
+using CsEval.TestData.Data;
+
 namespace CsEval.Test.ExceptionHandling;
 
 /// <summary>
@@ -14,18 +16,7 @@ public class ExceptionHandlingTests(CompilationMode mode)
 {
     #region ECMA-334 §13.11 -- Basic Try/Catch
 
-    [TestCase(
-        "{ var r = \"\"; try { throw new Exception(\"test\"); } catch (Exception ex) { r = ex.Message; } return r; }",
-        TestName = "TryCatch_CatchVariable_ReturnsMessage")]
-    [TestCase(
-        "{ var x = 0; try { x = 1; } catch (Exception) { x = 2; } return x; }",
-        TestName = "TryCatch_NoException_NormalFlow")]
-    [TestCase(
-        "{ var x = 0; try { throw new Exception(); x = 1; } catch (Exception) { x = 2; } return x; }",
-        TestName = "TryCatch_ExceptionThrown_CatchExecutes")]
-    [TestCase(
-        "{ var x = 0; try { x = 42; } catch (Exception) { x = 0; } return x; }",
-        TestName = "TryCatch_NoException_TryBodyCompletes")]
+    [TestCaseSource(typeof(ExceptionHandlingData), nameof(ExceptionHandlingData.BasicTryCatchCases))]
     public async Task BasicTryCatch(string expr)
         => await TestHelpers.RunCSharpParityTestAsync(expr, mode);
 
@@ -33,22 +24,7 @@ public class ExceptionHandlingTests(CompilationMode mode)
 
     #region ECMA-334 §13.11 -- Exception Type Filtering
 
-    [TestCase(
-        "{ var r = \"\"; try { throw new ArgumentException(); } catch (InvalidOperationException) { r = \"wrong\"; } catch (ArgumentException) { r = \"right\"; } return r; }",
-        TestName = "TypeFilter_MatchesCorrectType")]
-    [TestCase(
-        "{ var r = \"\"; try { throw new ArgumentNullException(); } catch (ArgumentException) { r = \"base\"; } return r; }",
-        TestName = "TypeFilter_InheritanceMatch")]
-    [TestCase(
-        "{ var r = \"\"; try { throw new ArgumentException(); } catch (ArgumentNullException) { r = \"derived\"; } catch (ArgumentException) { r = \"base\"; } return r; }",
-        TestName = "TypeFilter_FirstMatchWins")]
-    [TestCase(
-        "{ var r = \"\"; try { throw new InvalidOperationException(); } catch (ArgumentException) { r = \"arg\"; } catch (Exception) { r = \"fallback\"; } return r; }",
-        TestName = "TypeFilter_FallsToBaseException")]
-    [TestCase(
-        "{ var r = \"\"; try { throw new ArgumentException(\"msg\"); } catch (ArgumentException ex) { r = ex.Message; } return r; }",
-        TestName = "TypeFilter_TypedCatchWithVariable")]
-
+    [TestCaseSource(typeof(ExceptionHandlingData), nameof(ExceptionHandlingData.TypeFilterCases))]
     public async Task ExceptionTypeFiltering(string expr)
         => await TestHelpers.RunCSharpParityTestAsync(expr, mode);
 
@@ -56,19 +32,7 @@ public class ExceptionHandlingTests(CompilationMode mode)
 
     #region ECMA-334 §13.11 -- Finally Block Execution
 
-    [TestCase(
-        "{ var x = 0; try { x = 1; } finally { x = 2; } return x; }",
-        TestName = "Finally_RunsOnNormalPath")]
-    [TestCase(
-        "{ var x = 0; try { throw new Exception(); } catch (Exception) { x = 1; } finally { x = 2; } return x; }",
-        TestName = "Finally_RunsAfterCatch")]
-    [TestCase(
-        "{ var x = 0; try { throw new Exception(); } catch (Exception) { } finally { x = 42; } return x; }",
-        TestName = "Finally_SideEffectsObservable")]
-    [TestCase(
-        "{ var x = 0; try { x = 1; } catch (Exception) { x = -1; } finally { x = x + 10; } return x; }",
-        TestName = "Finally_RunsAfterNormalTry_ModifiesValue")]
-
+    [TestCaseSource(typeof(ExceptionHandlingData), nameof(ExceptionHandlingData.FinallyCases))]
     public async Task FinallyBlockExecution(string expr)
         => await TestHelpers.RunCSharpParityTestAsync(expr, mode);
 
@@ -95,19 +59,7 @@ public class ExceptionHandlingTests(CompilationMode mode)
 
     #region ECMA-334 §13.11 -- Nested Try/Catch
 
-    [TestCase(
-        "{ var r = \"\"; try { try { throw new ArgumentException(); } catch (InvalidOperationException) { r = \"inner\"; } } catch (ArgumentException) { r = \"outer\"; } return r; }",
-        TestName = "Nested_InnerCatchMisses_OuterCatches")]
-    [TestCase(
-        "{ var r = \"\"; try { try { throw new ArgumentException(); } catch (ArgumentException) { r = \"inner\"; } } catch (ArgumentException) { r = \"outer\"; } return r; }",
-        TestName = "Nested_InnerCatchMatches")]
-    [TestCase(
-        "{ var r = \"\"; try { try { throw new Exception(\"orig\"); } catch (Exception) { throw new InvalidOperationException(\"new\"); } } catch (InvalidOperationException ex) { r = ex.Message; } return r; }",
-        TestName = "Nested_ExceptionInCatch_CaughtByOuter")]
-    [TestCase(
-        "{ var x = 0; try { try { throw new Exception(); } catch (Exception) { x = 1; } finally { x = x + 10; } } catch (Exception) { x = -1; } return x; }",
-        TestName = "Nested_InnerFinallyAndOuterCatch")]
-
+    [TestCaseSource(typeof(ExceptionHandlingData), nameof(ExceptionHandlingData.NestedTryCatchCases))]
     public async Task NestedTryCatch(string expr)
         => await TestHelpers.RunCSharpParityTestAsync(expr, mode);
 
@@ -123,19 +75,7 @@ public class ExceptionHandlingTests(CompilationMode mode)
 
     #region ECMA-334 §13.11 -- Catch-When Filters
 
-    [TestCase(
-        "{ var r = 0; try { throw new Exception(\"match\"); } catch (Exception ex) when (ex.Message == \"match\") { r = 1; } catch (Exception) { r = 2; } return r; }",
-        TestName = "CatchWhen_GuardMatches")]
-    [TestCase(
-        "{ var r = 0; try { throw new Exception(\"other\"); } catch (Exception ex) when (ex.Message == \"match\") { r = 1; } catch (Exception) { r = 2; } return r; }",
-        TestName = "CatchWhen_GuardFails_FallsToNextCatch")]
-    [TestCase(
-        "{ var r = 0; try { throw new ArgumentException(\"test\"); } catch (ArgumentException ex) when (ex.Message == \"test\") { r = 1; } return r; }",
-        TestName = "CatchWhen_TypedCatchWithGuard")]
-    [TestCase(
-        "{ var r = 0; try { throw new Exception(\"a\"); } catch (Exception ex) when (ex.Message == \"b\") { r = 1; } catch (Exception ex) when (ex.Message == \"a\") { r = 2; } catch (Exception) { r = 3; } return r; }",
-        TestName = "CatchWhen_MultipleGuards_SecondMatches")]
-
+    [TestCaseSource(typeof(ExceptionHandlingData), nameof(ExceptionHandlingData.CatchWhenCases))]
     public async Task CatchWhenFilters(string expr)
         => await TestHelpers.RunCSharpParityTestAsync(expr, mode);
 
@@ -143,16 +83,7 @@ public class ExceptionHandlingTests(CompilationMode mode)
 
     #region ECMA-334 §13.10.6 -- Throw and Rethrow
 
-    [TestCase(
-        "{ var r = \"\"; try { try { throw new ArgumentException(\"inner\"); } catch (ArgumentException) { throw; } } catch (Exception ex) { r = ex.Message; } return r; }",
-        TestName = "Rethrow_PreservesMessage")]
-    [TestCase(
-        "{ var r = \"\"; try { try { throw new Exception(\"orig\"); } catch (Exception ex) { throw ex; } } catch (Exception ex) { r = ex.Message; } return r; }",
-        TestName = "ThrowEx_PreservesMessage")]
-    [TestCase(
-        "{ var r = \"\"; try { try { throw new ArgumentException(\"test\"); } catch (ArgumentException) { throw; } } catch (ArgumentException ex) { r = ex.Message; } return r; }",
-        TestName = "Rethrow_CaughtByTypedOuterCatch")]
-
+    [TestCaseSource(typeof(ExceptionHandlingData), nameof(ExceptionHandlingData.ThrowRethrowCases))]
     public async Task ThrowAndRethrow(string expr)
         => await TestHelpers.RunCSharpParityTestAsync(expr, mode);
 
@@ -160,16 +91,7 @@ public class ExceptionHandlingTests(CompilationMode mode)
 
     #region ECMA-334 §13.11 -- Bare Catch
 
-    [TestCase(
-        "{ var r = 0; try { throw new Exception(); } catch { r = 1; } return r; }",
-        TestName = "BareCatch_CatchesAll")]
-    [TestCase(
-        "{ var r = 0; try { throw new ArgumentException(); } catch { r = 1; } return r; }",
-        TestName = "BareCatch_CatchesDerivedTypes")]
-    [TestCase(
-        "{ var r = \"\"; try { throw new InvalidOperationException(); } catch (ArgumentException) { r = \"arg\"; } catch { r = \"bare\"; } return r; }",
-        TestName = "BareCatch_AsLastFallback")]
-
+    [TestCaseSource(typeof(ExceptionHandlingData), nameof(ExceptionHandlingData.BareCatchCases))]
     public async Task BareCatch(string expr)
         => await TestHelpers.RunCSharpParityTestAsync(expr, mode);
 
@@ -177,16 +99,7 @@ public class ExceptionHandlingTests(CompilationMode mode)
 
     #region Control Flow Through Try Blocks
 
-    [TestCase(
-        "{ var x = 0; for (var i = 0; i < 3; i++) { try { if (i == 1) continue; x += i; } catch (Exception) { } } return x; }",
-        TestName = "ControlFlow_ContinueInsideTry")]
-    [TestCase(
-        "{ var x = 0; for (var i = 0; i < 5; i++) { try { if (i == 2) break; x += i; } catch (Exception) { } } return x; }",
-        TestName = "ControlFlow_BreakInsideTry")]
-    [TestCase(
-        "{ var x = 0; for (var i = 0; i < 3; i++) { try { x += i; } finally { x += 10; } } return x; }",
-        TestName = "ControlFlow_FinallyInLoop")]
-
+    [TestCaseSource(typeof(ExceptionHandlingData), nameof(ExceptionHandlingData.ControlFlowCases))]
     public async Task ControlFlowThroughTry(string expr)
         => await TestHelpers.RunCSharpParityTestAsync(expr, mode);
 
