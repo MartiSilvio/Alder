@@ -1,3 +1,5 @@
+using CsEval.TestData.Data;
+
 namespace CsEval.Test.Types;
 
 [TestFixture(CompilationMode.Interpreted)]
@@ -5,15 +7,8 @@ namespace CsEval.Test.Types;
 [TestFixture(CompilationMode.StrictCompiled)]
 public class VerbatimStringTests(CompilationMode mode)
 {
-    // Verbatim strings (@"...")
-    [TestCase(@"@""path\to\file""", @"path\to\file", TestName = "Verbatim_BackslashesAreLiteral")]
-    [TestCase(@"@""C:\Users\John\Documents""", @"C:\Users\John\Documents", TestName = "Verbatim_MultipleBackslashes")]
-    [TestCase(@"@""She said """"Hello"""".""", @"She said ""Hello"".", TestName = "Verbatim_EscapedQuote")]
-    [TestCase(@"@""""", "", TestName = "Verbatim_EmptyString")]
-    [TestCase(@"@""It's fine""", "It's fine", TestName = "Verbatim_SingleQuoteNoEscape")]
-    [TestCase(@"@""^\d{3}-\d{4}$""", @"^\d{3}-\d{4}$", TestName = "Verbatim_RegexPattern")]
-    // Comparison with regular strings
-    [TestCase(@"""path\\to\\file""", @"path\to\file", TestName = "Regular_BackslashNeedsEscape")]
+    // Verbatim strings (@"...") and comparison with regular strings
+    [TestCaseSource(typeof(VerbatimStringData), nameof(VerbatimStringData.ValueCases))]
     public void MatchesExpected(string expr, string expected)
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });

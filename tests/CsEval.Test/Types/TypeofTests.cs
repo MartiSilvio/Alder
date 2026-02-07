@@ -1,3 +1,5 @@
+using CsEval.TestData.Data;
+
 namespace CsEval.Test.Types;
 
 /// <summary>
@@ -59,17 +61,12 @@ public class TypeofTests(CompilationMode mode)
         => await TestHelpers.RunCSharpParityTestAsync("typeof(byte)", mode);
 
     // Member access on Type object returned by typeof
-    [TestCase("typeof(int).Name", "Int32", TestName = "Typeof_Int_Name")]
-    [TestCase("typeof(string).Name", "String", TestName = "Typeof_String_Name")]
-    [TestCase("typeof(bool).Name", "Boolean", TestName = "Typeof_Bool_Name")]
-    [TestCase("typeof(double).Name", "Double", TestName = "Typeof_Double_Name")]
-    [TestCase("typeof(void).Name", "Void", TestName = "Typeof_Void_Name")]
+    [TestCaseSource(typeof(TypeofData), nameof(TypeofData.MemberAccessCases))]
     public async Task Typeof_MemberAccess(string expr, object expected)
         => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
     // Equality comparison of Type objects (Type singletons)
-    [TestCase("typeof(int) == typeof(int)", true, TestName = "Typeof_EqualsSameType")]
-    [TestCase("typeof(int) != typeof(string)", true, TestName = "Typeof_NotEqualsOtherType")]
+    [TestCaseSource(typeof(TypeofData), nameof(TypeofData.EqualityCases))]
     public async Task Typeof_Equality(string expr, object expected)
         => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 

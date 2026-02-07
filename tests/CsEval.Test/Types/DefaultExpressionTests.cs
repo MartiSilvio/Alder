@@ -1,3 +1,5 @@
+using CsEval.TestData.Data;
+
 namespace CsEval.Test.Types;
 
 /// <summary>
@@ -10,12 +12,7 @@ public class DefaultExpressionTests(CompilationMode mode)
 {
     #region ECMA-334 §12.8.20 - Default Expression
 
-    [TestCase("default(int)", 0, TestName = "Default_Int")]
-    [TestCase("default(long)", 0L, TestName = "Default_Long")]
-    [TestCase("default(bool)", false, TestName = "Default_Bool")]
-    [TestCase("default(double)", 0.0, TestName = "Default_Double")]
-    [TestCase("default(float)", 0.0f, TestName = "Default_Float")]
-    [TestCase("default(char)", '\0', TestName = "Default_Char")]
+    [TestCaseSource(typeof(DefaultExpressionData), nameof(DefaultExpressionData.ValueTypeCases))]
     public async Task Default_ValueTypes(string expr, object expected)
         => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 

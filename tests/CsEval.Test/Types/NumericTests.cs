@@ -1,9 +1,11 @@
+using CsEval.TestData.Data;
+
 namespace CsEval.Test.Types;
 
 /// <summary>
-/// ECMA-334 §6.4.5.2 — Integer literals, §6.4.5.3 — Real literals,
-/// §12.9 — Arithmetic operators, §12.4.7.3 — Binary numeric promotion,
-/// §12.12 — Relational operators, §12.13 — Bitwise operators.
+/// ECMA-334 §6.4.5.2 -- Integer literals, §6.4.5.3 -- Real literals,
+/// §12.9 -- Arithmetic operators, §12.4.7.3 -- Binary numeric promotion,
+/// §12.12 -- Relational operators, §12.13 -- Bitwise operators.
 /// Comprehensive numeric tests covering literal parsing, arithmetic with type promotion,
 /// comparisons, precision semantics, LINQ aggregation, and block expression evaluation.
 /// </summary>
@@ -12,102 +14,15 @@ namespace CsEval.Test.Types;
 [TestFixture(CompilationMode.StrictCompiled)]
 public class NumericTests(CompilationMode mode)
 {
-    #region ECMA-334 §6.4.5, §12.9, §12.12, §12.13 — Numeric Expression Parity
+    #region ECMA-334 §6.4.5, §12.9, §12.12, §12.13 -- Numeric Expression Parity
 
-    // Literals
-    [TestCase("42", TestName = "Literal_Int")]
-    [TestCase("0", TestName = "Literal_Zero")]
-    [TestCase("-42", TestName = "Literal_NegativeInt")]
-    [TestCase("9223372036854775807", TestName = "Literal_LongMax")]
-    [TestCase("42L", TestName = "Literal_LongSuffix")]
-    [TestCase("3.14f", TestName = "Literal_Float")]
-    [TestCase("3.14m", TestName = "Literal_Decimal")]
-    [TestCase("42m", TestName = "Literal_IntAsDecimal")]
-    [TestCase("3.14", TestName = "Literal_Double")]
-    [TestCase("0.5", TestName = "Literal_DoubleLeadingZero")]
-    [TestCase("-3.14", TestName = "Literal_NegativeDouble")]
-    [TestCase("0.00001", TestName = "Literal_SmallDouble")]
-    // Arithmetic - same types
-    [TestCase("5 + 3", TestName = "Arithmetic_IntPlusInt")]
-    [TestCase("10 - 4", TestName = "Arithmetic_IntMinusInt")]
-    [TestCase("6 * 7", TestName = "Arithmetic_IntTimesInt")]
-    [TestCase("10 / 4", TestName = "Arithmetic_IntDivInt")]
-    [TestCase("5L + 3L", TestName = "Arithmetic_LongPlusLong")]
-    [TestCase("5 + 3L", TestName = "Arithmetic_IntPlusLong")]
-    [TestCase("1.5 + 2.5", TestName = "Arithmetic_DoublePlusDouble")]
-    [TestCase("2.5 * 4.0", TestName = "Arithmetic_DoubleTimesDouble")]
-    // Arithmetic - mixed types
-    [TestCase("5 + 2.5", TestName = "Arithmetic_IntPlusDouble")]
-    [TestCase("2.5 + 5", TestName = "Arithmetic_DoublePlusInt")]
-    // Comparisons
-    [TestCase("3.14 == 3.14", TestName = "Compare_DoubleEquals")]
-    [TestCase("5 < 5.5", TestName = "Compare_IntLessThanDouble")]
-    [TestCase("5.5 > 5", TestName = "Compare_DoubleGreaterThanInt")]
-    [TestCase("10 >= 10", TestName = "Compare_GreaterOrEqual")]
-    [TestCase("10 <= 10", TestName = "Compare_LessOrEqual")]
-    [TestCase("5 != 6", TestName = "Compare_NotEqual")]
-    // Modulo
-    [TestCase("10 % 3", TestName = "Modulo_IntModInt")]
-    [TestCase("10.5 % 3.0", TestName = "Modulo_DoubleModDouble")]
-    // Division precision
-    [TestCase("7 / 3", TestName = "Division_IntTruncates")]
-    [TestCase("7.0 / 3.0", TestName = "Division_DoublePrecision")]
-    // Floating-point precision
-    [TestCase("0.1 + 0.2", TestName = "Precision_PointOnePointTwo")]
-    // Negation
-    [TestCase("-42", TestName = "Negate_Int")]
-    [TestCase("-3.14", TestName = "Negate_Double")]
-    [TestCase("-3.14m", TestName = "Negate_Decimal")]
-    // Bitwise
-    [TestCase("15 & 9", TestName = "Bitwise_And")]
-    [TestCase("5 | 3", TestName = "Bitwise_Or")]
-    [TestCase("12 ^ 5", TestName = "Bitwise_Xor")]
-    [TestCase("1 << 4", TestName = "Bitwise_LeftShift")]
-    [TestCase("32 >> 2", TestName = "Bitwise_RightShift")]
-    // LINQ
-    [TestCase("new[] { 1, 2, 3 }.Select(x => x * 2).ToList()", TestName = "Linq_Select")]
-    [TestCase("new[] { 1, 2, 3, 4, 5 }.Where(x => x > 2).ToList()", TestName = "Linq_Where")]
-    [TestCase("new[] { 1, 2, 3, 4, 5 }.Sum()", TestName = "Linq_Sum_IntArray")]
-    [TestCase("new[] { 1, 2, 3, 4, 5 }.Where(x => x > 2).Select(x => x * 10).Sum()", TestName = "Linq_WhereSelectSum")]
-    [TestCase("new[] { 1, 2, 3, 4, 5 }.Average()", TestName = "Linq_Average_IntArray")]
-    [TestCase("new[] { 1.5m, 2.5m, 3.5m }.Average()", TestName = "Linq_Average_DecimalArray")]
-    [TestCase("new[] { 1L, 2L, 3L, 4L, 5L }.Average()", TestName = "Linq_Average_LongArray")]
-    [TestCase("Enumerable.Range(1, 5).ToList()", TestName = "Linq_Range_ToList")]
-    [TestCase("Enumerable.Range(1, 5).ToArray()", TestName = "Linq_Range_ToArray")]
-    [TestCase("Enumerable.Range(1, 5).Where(x => x > 2).ToList()", TestName = "Linq_Range_Where")]
-    [TestCase("Enumerable.Range(1, 5).Select(x => x * 2).ToList()", TestName = "Linq_Range_Select")]
-    [TestCase("Enumerable.Range(1, 5).Take(3).ToList()", TestName = "Linq_Range_Take")]
-    [TestCase("Enumerable.Range(1, 5).Skip(2).ToList()", TestName = "Linq_Range_Skip")]
-    [TestCase("Enumerable.Range(1, 5).OrderByDescending(x => x).ToList()", TestName = "Linq_Range_OrderByDescending")]
-    [TestCase("Enumerable.Range(1, 5).Reverse().ToList()", TestName = "Linq_Range_Reverse")]
-    [TestCase("Enumerable.Range(1, 5).Distinct().ToList()", TestName = "Linq_Range_Distinct")]
-    [TestCase("Enumerable.Repeat(42, 3).ToList()", TestName = "Linq_Repeat_Int")]
-    [TestCase("Enumerable.Repeat(\"x\", 3).ToList()", TestName = "Linq_Repeat_String")]
-    [TestCase("new[] { 1, 2, 3 }.Where(x => x > 1).ToList()", TestName = "Linq_Array_Where")]
-    [TestCase("new[] { 1, 2, 3 }.Select(x => x.ToString()).ToList()", TestName = "Linq_Array_SelectToString")]
-    [TestCase("new[] { 1, 2, 3 }.Sum()", TestName = "Linq_Array_Sum")]
-    [TestCase("new[] { 1.5, 2.5, 3.5 }.Sum()", TestName = "Linq_Sum_DoubleArray")]
-    [TestCase("new[] { 1m, 2m, 3m }.Sum()", TestName = "Linq_Sum_DecimalArray")]
-    [TestCase("new[] { 1L, 2L, 3L }.Sum()", TestName = "Linq_Sum_LongArray")]
-    [TestCase("Enumerable.Range(1, 5).Sum()", TestName = "Linq_Range_Sum")]
-    [TestCase("Enumerable.Range(1, 5).Count()", TestName = "Linq_Range_Count")]
-    [TestCase("Enumerable.Range(1, 5).Min()", TestName = "Linq_Range_Min")]
-    [TestCase("Enumerable.Range(1, 5).Max()", TestName = "Linq_Range_Max")]
-    [TestCase("Enumerable.Range(1, 5).Average()", TestName = "Linq_Range_Average")]
-    [TestCase("Enumerable.Range(1, 5).First()", TestName = "Linq_Range_First")]
-    [TestCase("Enumerable.Range(1, 5).Last()", TestName = "Linq_Range_Last")]
-    [TestCase("Enumerable.Range(1, 5).Any()", TestName = "Linq_Range_Any")]
-    [TestCase("Enumerable.Range(1, 5).Any(x => x > 3)", TestName = "Linq_Range_AnyPredicate")]
-    [TestCase("Enumerable.Range(1, 5).All(x => x > 0)", TestName = "Linq_Range_All")]
-    [TestCase("Enumerable.Range(1, 5).Contains(3)", TestName = "Linq_Range_Contains")]
-    [TestCase("Enumerable.Repeat(5, 4).Sum()", TestName = "Linq_Repeat_Sum")]
-    [TestCase("Enumerable.Range(1, 3).Select(x => x * 1.5).Sum()", TestName = "Linq_Range_SelectDoubleSum")]
+    [TestCaseSource(typeof(NumericData), nameof(NumericData.ParityCases))]
     public async Task MatchesCSharp(string expr)
         => await TestHelpers.RunCSharpParityTestAsync(expr, mode);
 
     #endregion
 
-    #region ECMA-334 §12.4.7.3 — Numeric Type Promotion with Variables
+    #region ECMA-334 §12.4.7.3 -- Numeric Type Promotion with Variables
     [Test]
     public void IntTimesInt_FromVariable_ReturnsInt()
     {
@@ -261,7 +176,7 @@ public class NumericTests(CompilationMode mode)
 
     #endregion
 
-    #region ECMA-334 §12.4.7.3 — Cross-Type Arithmetic and Incompatible Operands
+    #region ECMA-334 §12.4.7.3 -- Cross-Type Arithmetic and Incompatible Operands
 
     [Test]
     public void BytePlusShort_ReturnsInt()
@@ -327,7 +242,7 @@ public class NumericTests(CompilationMode mode)
 
     #endregion
 
-    #region ECMA-334 §12.12.7 — Cross-Type Equality and Contains Semantics
+    #region ECMA-334 §12.12.7 -- Cross-Type Equality and Contains Semantics
 
     [Test]
     public void IntEqualsLong_Works()
@@ -398,7 +313,7 @@ public class NumericTests(CompilationMode mode)
 
     #endregion
 
-    #region ECMA-334 §8.3.7 — Floating-Point and Decimal Precision
+    #region ECMA-334 §8.3.7 -- Floating-Point and Decimal Precision
     [Test]
     public void Decimal_PointOneIsExact()
     {
@@ -621,7 +536,7 @@ public class NumericTests(CompilationMode mode)
 
     #endregion
 
-    #region CsEval-Specific — Array Literal and Block Expression Syntax
+    #region CsEval-Specific -- Array Literal and Block Expression Syntax
     [Test]
     public void ArrayLiteral_IntElements_ReturnsIntList()
     {
@@ -694,7 +609,7 @@ public class NumericTests(CompilationMode mode)
 
     #endregion
 
-    #region ECMA-334 §12.21 — Compound Assignment in Block Expressions
+    #region ECMA-334 §12.21 -- Compound Assignment in Block Expressions
 
     [Test]
     public void BlockExpression_BitwiseAnd_ReturnsInt()
@@ -743,7 +658,7 @@ public class NumericTests(CompilationMode mode)
 
     #endregion
 
-    #region ECMA-334 §13.9 — Loop Statements (for, while, foreach)
+    #region ECMA-334 §13.9 -- Loop Statements (for, while, foreach)
 
     [Test]
     public void ForLoop_IntCounter_ReturnsInt()
@@ -799,6 +714,8 @@ public class NumericTests(CompilationMode mode)
 
     #region ECMA-334 §12.4.7.3 - Binary Numeric Promotion
 
+    // These 8 tests use Type expectedType parameter which cannot be expressed in TestCaseData,
+    // so they stay inline as [TestCase] attributes.
     [TestCase("1 + 1L", typeof(long), TestName = "NumericPromotion_IntPlusLong_IsLong")]
     [TestCase("1L + 1", typeof(long), TestName = "NumericPromotion_LongPlusInt_IsLong")]
     [TestCase("1 + 1.0", typeof(double), TestName = "NumericPromotion_IntPlusDouble_IsDouble")]
@@ -822,47 +739,27 @@ public class NumericTests(CompilationMode mode)
     #region ECMA-334 Edge Cases - Numeric Boundaries
 
     // Boundary values for signed types
-    [TestCase("(sbyte)-128", (sbyte)-128, TestName = "Boundary_SByte_MinValue")]
-    [TestCase("(sbyte)127", (sbyte)127, TestName = "Boundary_SByte_MaxValue")]
-    [TestCase("(short)-32768", (short)-32768, TestName = "Boundary_Short_MinValue")]
-    [TestCase("(short)32767", (short)32767, TestName = "Boundary_Short_MaxValue")]
-    [TestCase("-2147483648", -2147483648, TestName = "Boundary_Int_MinValue")]
-    [TestCase("2147483647", 2147483647, TestName = "Boundary_Int_MaxValue")]
-    [TestCase("-9223372036854775808L", -9223372036854775808L, TestName = "Boundary_Long_MinValue")]
-    [TestCase("9223372036854775807L", 9223372036854775807L, TestName = "Boundary_Long_MaxValue")]
+    [TestCaseSource(typeof(NumericData), nameof(NumericData.BoundarySignedCases))]
     public async Task Boundary_SignedTypes_MatchesCSharp(string expr, object expected)
         => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
     // Boundary values for unsigned types
-    [TestCase("(byte)0", (byte)0, TestName = "Boundary_Byte_MinValue")]
-    [TestCase("(byte)255", (byte)255, TestName = "Boundary_Byte_MaxValue")]
-    [TestCase("(ushort)0", (ushort)0, TestName = "Boundary_UShort_MinValue")]
-    [TestCase("(ushort)65535", (ushort)65535, TestName = "Boundary_UShort_MaxValue")]
-    [TestCase("0u", 0u, TestName = "Boundary_UInt_MinValue")]
-    [TestCase("4294967295u", 4294967295u, TestName = "Boundary_UInt_MaxValue")]
-    [TestCase("0UL", 0UL, TestName = "Boundary_ULong_MinValue")]
-    [TestCase("18446744073709551615UL", 18446744073709551615UL, TestName = "Boundary_ULong_MaxValue")]
+    [TestCaseSource(typeof(NumericData), nameof(NumericData.BoundaryUnsignedCases))]
     public async Task Boundary_UnsignedTypes_MatchesCSharp(string expr, object expected)
         => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
     // Large hex literals
-    [TestCase("0xFFFFFFFF", 0xFFFFFFFF, TestName = "HexLiteral_MaxUInt")]
-    [TestCase("0xFFFF_FFFF_FFFF_FFFF", 0xFFFF_FFFF_FFFF_FFFF, TestName = "HexLiteral_MaxULong")]
-    [TestCase("0x7FFFFFFF", 0x7FFFFFFF, TestName = "HexLiteral_MaxInt")]
-    [TestCase("0x7FFF_FFFF_FFFF_FFFF", 0x7FFF_FFFF_FFFF_FFFF, TestName = "HexLiteral_MaxLong")]
+    [TestCaseSource(typeof(NumericData), nameof(NumericData.HexLiteralBoundaryCases))]
     public async Task HexLiterals_LargeBoundaries_MatchesCSharp(string expr, object expected)
         => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
     // Binary literals at boundaries
-    [TestCase("0b11111111", 255, TestName = "BinaryLiteral_Byte_Max")]
-    [TestCase("0b1111_1111_1111_1111", 65535, TestName = "BinaryLiteral_UShort_Max")]
+    [TestCaseSource(typeof(NumericData), nameof(NumericData.BinaryLiteralBoundaryCases))]
     public async Task BinaryLiterals_Boundaries_MatchesCSharp(string expr, object expected)
         => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
     // Char to int conversions
-    [TestCase("(int)'\\0'", 0, TestName = "CharToInt_NullChar")]
-    [TestCase("(int)'\\x00'", 0, TestName = "CharToInt_HexNull")]
-    [TestCase("(int)'\\uFFFF'", 65535, TestName = "CharToInt_MaxUnicode")]
+    [TestCaseSource(typeof(NumericData), nameof(NumericData.CharToIntBoundaryCases))]
     public async Task CharToInt_Boundaries_MatchesCSharp(string expr, object expected)
         => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
