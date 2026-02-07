@@ -83,7 +83,7 @@ internal sealed class CompilerContext
     internal static readonly MethodInfo StringBuilderAppendMethod = typeof(StringBuilder).GetMethod(nameof(StringBuilder.Append), [typeof(string)])!;
     internal static readonly MethodInfo StringBuilderToStringMethod = typeof(StringBuilder).GetMethod(nameof(StringBuilder.ToString), Type.EmptyTypes)!;
     internal static readonly MethodInfo ObjectToStringMethod = typeof(object).GetMethod(nameof(ToString))!;
-    // CsEval Extension: spread and collection literal helpers
+    // Spread and collection literal helpers
     internal static readonly MethodInfo SpreadIntoDictMethod = typeof(SpreadHelpers).GetMethod(nameof(SpreadHelpers.SpreadIntoDict))!;
     internal static readonly MethodInfo SpreadIntoListMethod = typeof(SpreadHelpers).GetMethod(nameof(SpreadHelpers.SpreadIntoList))!;
     internal static readonly MethodInfo CreateTypedListMethod = typeof(SpreadHelpers).GetMethod(nameof(SpreadHelpers.CreateTypedList))!;

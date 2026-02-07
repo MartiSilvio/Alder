@@ -44,7 +44,7 @@ public interface IExprVisitor<out T>
     T VisitNamedArgument(NamedArgumentExpr expr);
     T VisitLambda(LambdaExpr expr);
 
-    // CsEval Extensions: Collection Literals and Spread
+    // Collection Literals and Spread
     T VisitArrayLiteral(ArrayLiteralExpr expr);
     T VisitObjectLiteral(ObjectLiteralExpr expr);
     T VisitSpread(SpreadExpr expr);
@@ -257,9 +257,9 @@ public sealed record LambdaExpr(List<Token> Parameters, Expr Body) : Expr
 
 #endregion
 
-#region CsEval Extensions: Collection Literals and Spread
+#region Collection Literals and Spread
 
-// Array literal: [1, 2, 3] - CsEval extension (not ECMA-334)
+// Array literal: [1, 2, 3]
 public sealed record ArrayLiteralExpr(List<Expr> Elements) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitArrayLiteral(this);

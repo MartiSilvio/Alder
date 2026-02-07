@@ -237,7 +237,6 @@ public abstract class AstWalker<T> : IExprVisitor<T>
         return OnLeave(expr);
     }
 
-    // CsEval Extension: array literal walker
     public virtual T VisitArrayLiteral(ArrayLiteralExpr expr)
     {
         OnEnter(expr);
@@ -246,7 +245,6 @@ public abstract class AstWalker<T> : IExprVisitor<T>
         return OnLeave(expr);
     }
 
-    // CsEval Extension: object literal walker
     public virtual T VisitObjectLiteral(ObjectLiteralExpr expr)
     {
         OnEnter(expr);
@@ -255,7 +253,6 @@ public abstract class AstWalker<T> : IExprVisitor<T>
         return OnLeave(expr);
     }
 
-    // CsEval Extension: spread expression walker
     public virtual T VisitSpread(SpreadExpr expr)
     {
         OnEnter(expr);

@@ -65,7 +65,7 @@ public static class Operators
         if (TypeHelpers.IsArithmetic(left) && TypeHelpers.IsArithmetic(right))
             return NumericDispatch.Add(left, right);
 
-        // CsEval Extension: object merge via + operator
+        // Object merge via + operator
         return Extensions.ObjectMergeOperator.MergeObjects(left, right, options, context);
     }
 

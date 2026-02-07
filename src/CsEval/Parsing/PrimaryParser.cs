@@ -48,7 +48,7 @@ public sealed class PrimaryParser : ParserBase
             return ParseParenthesized();
 
         if (Match(TokenType.LeftBracket))
-            return ParseArrayLiteral();
+            return ArrayLiteralParser.ParseArrayLiteral(this, () => _expression.ParseExpression());
 
         if (Match(TokenType.LeftBrace))
             return _statement.ParseBlock();
@@ -91,14 +91,14 @@ public sealed class PrimaryParser : ParserBase
         {
             Consume(TokenType.RightBracket, "Expected ']' after 'new['");
             Consume(TokenType.LeftBrace, "Expected '{' after 'new[]'");
-            return ParseArrayLiteralBody();
+            return ArrayLiteralParser.ParseArrayLiteralBody(this, () => _expression.ParseExpression());
         }
 
         // new { ... } - anonymous object
         if (Check(TokenType.LeftBrace))
         {
             Advance(); // consume '{'
-            return new NewExpr(ParseAnonymousObject());
+            return new NewExpr(ObjectLiteralParser.ParseAnonymousObject(this, () => _expression.ParseExpression()));
         }
 
         // new ClassName(args) - constructor invocation (ECMA-334 section 12.8.16.2)
@@ -333,22 +333,6 @@ public sealed class PrimaryParser : ParserBase
         var expression = _expression.ParseExpression();
         return new TupleElement(null, expression);
     }
-
-    #endregion
-
-    #region Collection Literals
-
-    // CsEval Extension: array literal [1, 2, 3]
-    private Expr ParseArrayLiteral() =>
-        ArrayLiteralParser.ParseArrayLiteral(this, () => _expression.ParseExpression());
-
-    // CsEval Extension: array literal body (for new[] { ... } syntax)
-    private Expr ParseArrayLiteralBody() =>
-        ArrayLiteralParser.ParseArrayLiteralBody(this, () => _expression.ParseExpression());
-
-    // CsEval Extension: anonymous object new { Name = "John" }
-    private Expr ParseAnonymousObject() =>
-        ObjectLiteralParser.ParseAnonymousObject(this, () => _expression.ParseExpression());
 
     #endregion
 
