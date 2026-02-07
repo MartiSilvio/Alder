@@ -619,59 +619,11 @@ internal sealed class ExpressionCompilerUnit
             _ctx.CurrentContext);
     }
 
-    internal LinqExpression CompileArrayLiteral(ArrayLiteralExpr expr)
-    {
-        var listVar = LinqExpression.Variable(typeof(List<object?>), "list");
-        var statements = new List<LinqExpression>
-        {
-            LinqExpression.Assign(listVar, LinqExpression.New(CompilerContext.ListCtor))
-        };
+    internal LinqExpression CompileArrayLiteral(ArrayLiteralExpr expr) =>
+        Extensions.ArrayLiteralCompiler.CompileArrayLiteral(expr, _ctx, Compile);
 
-        foreach (var element in expr.Elements)
-        {
-            if (element is SpreadExpr spread)
-            {
-                var spreadValue = Compile(spread.Expression);
-                statements.Add(LinqExpression.Call(CompilerContext.SpreadIntoListMethod, listVar, spreadValue));
-            }
-            else
-            {
-                statements.Add(LinqExpression.Call(listVar, CompilerContext.ListAddMethod, Compile(element)));
-            }
-        }
-
-        statements.Add(LinqExpression.Call(CompilerContext.CreateTypedListMethod, listVar));
-        return LinqExpression.Block(new[] { listVar }, statements);
-    }
-
-    internal LinqExpression CompileObjectLiteral(ObjectLiteralExpr expr)
-    {
-        var dictVar = LinqExpression.Variable(typeof(IDictionary<string, object?>), "dict");
-        var statements = new List<LinqExpression>
-        {
-            LinqExpression.Assign(dictVar, LinqExpression.New(CompilerContext.ExpandoObjectCtor))
-        };
-
-        var dictItemProperty = typeof(IDictionary<string, object?>).GetProperty("Item")!;
-
-        foreach (var (key, value) in expr.Properties)
-        {
-            if (key.Type == TokenType.DotDotDot && value is SpreadExpr spread)
-            {
-                var spreadValue = Compile(spread.Expression);
-                statements.Add(LinqExpression.Call(CompilerContext.SpreadIntoDictMethod, dictVar, spreadValue, _ctx.CurrentContext));
-            }
-            else
-            {
-                statements.Add(LinqExpression.Assign(
-                    LinqExpression.Property(dictVar, dictItemProperty, LinqExpression.Constant(key.Lexeme)),
-                    Compile(value)));
-            }
-        }
-
-        statements.Add(LinqExpression.Convert(dictVar, typeof(object)));
-        return LinqExpression.Block(new[] { dictVar }, statements);
-    }
+    internal LinqExpression CompileObjectLiteral(ObjectLiteralExpr expr) =>
+        Extensions.ObjectLiteralCompiler.CompileObjectLiteral(expr, _ctx, Compile);
 
     internal LinqExpression CompileInterpolatedString(InterpolatedStringExpr expr)
     {

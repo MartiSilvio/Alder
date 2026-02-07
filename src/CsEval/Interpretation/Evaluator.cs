@@ -3,6 +3,7 @@ using System.Dynamic;
 using System.Runtime.ExceptionServices;
 using CsEval.Parsing;
 using CsEval.Runtime;
+using CsEval.Interpretation.Extensions;
 using CsEval.Runtime.Extensions;
 
 namespace CsEval.Interpretation;
@@ -494,62 +495,11 @@ public sealed class Evaluator : IExprVisitor<object?>
         return sb.ToString();
     }
 
-    public object? VisitArrayLiteral(ArrayLiteralExpr expr)
-    {
-        var result = new List<object?>();
-        foreach (var element in expr.Elements)
-        {
-            if (element is SpreadExpr spread)
-            {
-                var spreadValue = Evaluate(spread.Expression);
-                if (spreadValue is IEnumerable enumerable and not string)
-                {
-                    foreach (var item in enumerable)
-                        result.Add(item);
-                }
-                else
-                {
-                    throw new CsEvalException("Spread operator requires an iterable");
-                }
-            }
-            else
-            {
-                result.Add(Evaluate(element));
-            }
-        }
-        return SpreadHelpers.CreateTypedList(result);
-    }
+    public object? VisitArrayLiteral(ArrayLiteralExpr expr) =>
+        ArrayLiteralEvaluator.EvaluateArrayLiteral(expr, Evaluate, _context);
 
-    public object? VisitObjectLiteral(ObjectLiteralExpr expr)
-    {
-        IDictionary<string, object?> result = new ExpandoObject();
-        foreach (var (key, value) in expr.Properties)
-        {
-            if (key.Type == TokenType.DotDotDot && value is SpreadExpr spread)
-            {
-                var spreadValue = Evaluate(spread.Expression);
-                if (spreadValue is IDictionary<string, object?> dict)
-                {
-                    foreach (var kvp in dict)
-                        result[kvp.Key] = kvp.Value;
-                }
-                else if (spreadValue != null)
-                {
-                    var type = spreadValue.GetType();
-                    foreach (var prop in _context.TypeCache.GetProperties(type, BindingFlags.Public | BindingFlags.Instance))
-                    {
-                        if (prop.CanRead)
-                            result[prop.Name] = _context.TypeCache.GetPropertyValue(prop, spreadValue);
-                    }
-                }
-            }
-            else
-            {
-                result[key.Lexeme] = Evaluate(value);
-            }
-        }
-        return result;
-    }
+    public object? VisitObjectLiteral(ObjectLiteralExpr expr) =>
+        ObjectLiteralEvaluator.EvaluateObjectLiteral(expr, Evaluate, _context);
 
     public object? VisitSpread(SpreadExpr expr)
     {
