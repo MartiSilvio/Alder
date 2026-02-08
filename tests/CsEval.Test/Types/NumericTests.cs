@@ -1,5 +1,3 @@
-using CsEval.TestData.Data;
-
 namespace CsEval.Test.Types;
 
 /// <summary>
@@ -14,14 +12,6 @@ namespace CsEval.Test.Types;
 [TestFixture(CompilationMode.StrictCompiled)]
 public class NumericTests(CompilationMode mode)
 {
-    #region ECMA-334 §6.4.5, §12.9, §12.12, §12.13 -- Numeric Expression Parity
-
-    [TestCaseSource(typeof(NumericData), nameof(NumericData.ParityCases))]
-    public async Task MatchesCSharp(string expr)
-        => await TestHelpers.RunCSharpParityTestAsync(expr, mode);
-
-    #endregion
-
     #region ECMA-334 §12.4.7.3 -- Numeric Type Promotion with Variables
     [Test]
     public void IntTimesInt_FromVariable_ReturnsInt()
@@ -733,35 +723,6 @@ public class NumericTests(CompilationMode mode)
         Assert.That(result?.GetType(), Is.EqualTo(expectedType), $"CsEval type mismatch for: {expr}");
         Assert.That(csharpResult?.GetType(), Is.EqualTo(expectedType), $"C# type mismatch for: {expr}");
     }
-
-    #endregion
-
-    #region ECMA-334 Edge Cases - Numeric Boundaries
-
-    // Boundary values for signed types
-    [TestCaseSource(typeof(NumericData), nameof(NumericData.BoundarySignedCases))]
-    public async Task Boundary_SignedTypes_MatchesCSharp(string expr, object expected)
-        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
-
-    // Boundary values for unsigned types
-    [TestCaseSource(typeof(NumericData), nameof(NumericData.BoundaryUnsignedCases))]
-    public async Task Boundary_UnsignedTypes_MatchesCSharp(string expr, object expected)
-        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
-
-    // Large hex literals
-    [TestCaseSource(typeof(NumericData), nameof(NumericData.HexLiteralBoundaryCases))]
-    public async Task HexLiterals_LargeBoundaries_MatchesCSharp(string expr, object expected)
-        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
-
-    // Binary literals at boundaries
-    [TestCaseSource(typeof(NumericData), nameof(NumericData.BinaryLiteralBoundaryCases))]
-    public async Task BinaryLiterals_Boundaries_MatchesCSharp(string expr, object expected)
-        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
-
-    // Char to int conversions
-    [TestCaseSource(typeof(NumericData), nameof(NumericData.CharToIntBoundaryCases))]
-    public async Task CharToInt_Boundaries_MatchesCSharp(string expr, object expected)
-        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
     #endregion
 

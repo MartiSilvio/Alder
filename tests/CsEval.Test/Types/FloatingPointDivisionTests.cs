@@ -1,5 +1,3 @@
-using CsEval.TestData.Data;
-
 namespace CsEval.Test.Types;
 
 /// <summary>
@@ -14,12 +12,10 @@ public class FloatingPointDivisionTests(CompilationMode mode)
 {
     #region ECMA-334 §12.10.3 -- Floating-Point Division by Zero
 
-    [TestCaseSource(typeof(FloatingPointDivisionData), nameof(FloatingPointDivisionData.DivisionByZeroParityCases))]
-    public async Task MatchesCSharp(string expr)
-        => await TestHelpers.RunCSharpParityTestAsync(expr, mode);
-
     // NaN tests need special handling (NaN != NaN)
-    [TestCaseSource(typeof(FloatingPointDivisionData), nameof(FloatingPointDivisionData.NaNProducingCases))]
+    [TestCase("0.0 / 0.0", TestName = "Division_ZeroByZero_NaN")]
+    [TestCase("5.0 % 0.0", TestName = "Modulo_DoubleByZero_NaN")]
+    [TestCase("5.0f % 0.0f", TestName = "Modulo_FloatByZero_NaN")]
     public async Task NaN_MatchesCSharp(string expr)
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
@@ -77,17 +73,6 @@ public class FloatingPointDivisionTests(CompilationMode mode)
 
     #region ECMA-334 §12.10.3 -- NaN and Infinity Semantics
 
-    // ECMA-334 §12.10.3: NaN comparison semantics
-    // NaN is not equal to any value, including itself
-    [TestCaseSource(typeof(FloatingPointDivisionData), nameof(FloatingPointDivisionData.NaNComparisonCases))]
-    public async Task NaN_Comparison_MatchesCSharp(string expr, bool expected)
-        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
-
-    // ECMA-334 §12.10.3: Infinity arithmetic
-    [TestCaseSource(typeof(FloatingPointDivisionData), nameof(FloatingPointDivisionData.InfinityArithmeticCases))]
-    public async Task Infinity_Arithmetic_MatchesCSharp(string expr, object expected)
-        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
-
     // Infinity - Infinity = NaN
     [Test]
     public async Task Infinity_MinusInfinity_IsNaN()
@@ -115,16 +100,6 @@ public class FloatingPointDivisionTests(CompilationMode mode)
     #endregion
 
     #region ECMA-334 §12.12.3 -- float.NaN Comparison Semantics
-
-    // ECMA-334 §12.12.3: float.NaN follows same IEEE 754 rules as double.NaN
-    [TestCaseSource(typeof(FloatingPointDivisionData), nameof(FloatingPointDivisionData.FloatNaNComparisonCases))]
-    public async Task FloatNaN_Comparison_MatchesCSharp(string expr, bool expected)
-        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
-
-    // Cross-type NaN -- float.NaN promoted to double via binary numeric promotion
-    [TestCaseSource(typeof(FloatingPointDivisionData), nameof(FloatingPointDivisionData.CrossTypeNaNCases))]
-    public async Task CrossType_NaN_MatchesCSharp(string expr, bool expected)
-        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
     // float.NaN arithmetic: 0.0f / 0.0f produces NaN
     [Test]
@@ -169,7 +144,8 @@ public class FloatingPointDivisionTests(CompilationMode mode)
         Assert.That(neqResult, Is.True);
     }
 
-    [TestCaseSource(typeof(FloatingPointDivisionData), nameof(FloatingPointDivisionData.IEEE754InfinityDivisionCases))]
+    [TestCase("1.0 / 0.0", double.PositiveInfinity, TestName = "IEEE754_Double_PositiveInfinity")]
+    [TestCase("-1.0 / 0.0", double.NegativeInfinity, TestName = "IEEE754_Double_NegativeInfinity")]
     public async Task IEEE754_Infinity_Division(string expr, double expected)
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });

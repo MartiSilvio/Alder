@@ -1,4 +1,3 @@
-using System.Text;
 using CsEval.Parsing.Extensions;
 
 namespace CsEval.Parsing;
@@ -183,6 +182,30 @@ public sealed class PrimaryParser : ParserBase
                 var next = Consume(TokenType.Identifier, "Expected identifier after '.'");
                 typeName += "." + next.Lexeme;
             }
+        }
+
+        // Support generic type arguments: List<int>, Dictionary<string, int>
+        if (Check(TokenType.Less))
+        {
+            Advance(); // consume <
+            typeName += "<";
+
+            var firstArg = TryParseTypeName();
+            if (firstArg == null)
+                throw new CsEvalParserException($"Expected type argument after '<' at {Peek().Line}:{Peek().Column}");
+            typeName += firstArg;
+
+            while (Match(TokenType.Comma))
+            {
+                typeName += ", ";
+                var nextArg = TryParseTypeName();
+                if (nextArg == null)
+                    throw new CsEvalParserException($"Expected type argument after ',' at {Peek().Line}:{Peek().Column}");
+                typeName += nextArg;
+            }
+
+            Consume(TokenType.Greater, "Expected '>' after generic type arguments");
+            typeName += ">";
         }
 
         // Check for array creation syntax: new TypeName[size]

@@ -1,5 +1,4 @@
 using System.Collections.Frozen;
-using System.Dynamic;
 using System.Runtime.ExceptionServices;
 using CsEval.Parsing;
 using CsEval.Runtime;

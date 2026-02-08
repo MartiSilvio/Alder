@@ -1,0 +1,1 @@
+{ var r = 0; try { throw new Exception("a"); } catch (Exception ex) when (ex.Message == "b") { r = 1; } catch (Exception ex) when (ex.Message == "a") { r = 2; } catch (Exception) { r = 3; } return r; }

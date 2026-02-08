@@ -1,4 +1,3 @@
-using System.Collections;
 using System.Dynamic;
 using System.Globalization;
 using System.Text;
@@ -55,9 +54,10 @@ public static class TestHelpers
     /// </summary>
     public static async Task RunCSharpParityTestAsync(string expr, CsEvalOptions options)
     {
+        var csharpResult = await EvaluateCSharpAsync(expr);
+
         var engine = new CsEvalEngine(options);
         var result = engine.Evaluate(expr);
-        var csharpResult = await EvaluateCSharpAsync(expr);
 
         Assert.That(result, Is.EqualTo(csharpResult), $"Value mismatch for: {expr}");
         Assert.That(result?.GetType(), Is.EqualTo(csharpResult?.GetType()), $"Type mismatch for: {expr}");

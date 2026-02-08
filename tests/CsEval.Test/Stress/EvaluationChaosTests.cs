@@ -20,7 +20,7 @@ public class EvaluationChaosTests(CompilationMode mode) : StressTestBase(mode)
     [Test]
     public void NestedLoops_ExponentialComplexity_ShouldRespectMaxIterations()
     {
-        var options = CsEvalOptions.Default with { CompilationMode = Mode, MaxIterations = 5000};
+        var options = CsEvalOptions.Default with { CompilationMode = Mode, MaxIterations = 5000 };
         var engine = new CsEvalEngine(options);
 
         // O(N^3)
@@ -60,7 +60,7 @@ public class EvaluationChaosTests(CompilationMode mode) : StressTestBase(mode)
         }
         catch (Exception ex)
         {
-             TestContext.WriteLine($"Allocation check: {ex.GetType().Name}");
+            TestContext.WriteLine($"Allocation check: {ex.GetType().Name}");
         }
     }
 
@@ -70,12 +70,12 @@ public class EvaluationChaosTests(CompilationMode mode) : StressTestBase(mode)
         // What happens if we add Int + Bool? Or String + Object?
         // JS like behavior or C# strong typing?
         // Based on "CoerceNumeric", it tries to be smart.
-        
+
         var cases = new[]
         {
             ("1 + true", null), // Likely fail or string concat?
             ("'a' + 1", "a1"),  // Char + Int -> Int or String?
-            ("null + 5", null), 
+            ("null + 5", null),
             ("5 + null", null),
             ("true + false", null)
         };
@@ -101,23 +101,23 @@ public class EvaluationChaosTests(CompilationMode mode) : StressTestBase(mode)
         // function f(n) { if (n<=0) return 0; return 1 + f(n-1); }
         // CsEval might not support function declarations inside expression directly without special syntax?
         // Looking at engine, we can register functions.
-        
+
         // Let's register a C# function that recurses back into engine?
         // Or pure script recursion if supported.
         // Let's assume we can't define functions in script easily (unless it supports lambdas assigned to vars).
-        
-        Engine.RegisterFunction("recurse", args => 
+
+        Engine.RegisterFunction("recurse", args =>
         {
             var n = (int)args[0]!;
             if (n <= 0) return 0;
             // Call invalid? No we can't call back into script easily from here unless we pass Delegate.
-            return n; 
+            return n;
         });
-        
+
         // Let's rely on expression recursion if possible? 
         // "Func<int, int> f = null; f = n => n <= 0 ? 0 : f(n-1); f(10000)"
         // If lambdas are supported.
-        
+
         // "Func<int, int> f = null; f = n => n <= 0 ? 0 : f(n-1); f(10000)"
 
         // Usually self-reference is hard in init. "var f = null; f = ...";
@@ -130,13 +130,16 @@ public class EvaluationChaosTests(CompilationMode mode) : StressTestBase(mode)
             f(5000)
         }";
 
-        try {
+        try
+        {
             Engine.Evaluate(setup);
-        } catch (Exception ex) {
+        }
+        catch (Exception ex)
+        {
             TestContext.WriteLine($"Recursion test: {ex.Message}");
         }
     }
-    
+
     [Test]
     public void ArithmeticOverflow_ShouldCheckCheckedContext()
     {
@@ -146,11 +149,11 @@ public class EvaluationChaosTests(CompilationMode mode) : StressTestBase(mode)
         var result = Engine.Evaluate(expr);
         // If unchecked, it wraps to negative.
         TestContext.WriteLine($"{int.MaxValue} + 1 = {result}");
-        
+
         // Assert it behaves consistently (either wraps or throws, but not crash)
         Assert.That(result, Is.Not.Null);
     }
-    
+
     [Test]
     public void DivisionByZero_ShouldThrow()
     {
@@ -167,10 +170,10 @@ public class EvaluationChaosTests(CompilationMode mode) : StressTestBase(mode)
             CompilationMode = Mode,
             Sandbox = SandboxOptions.Safe()  // Safe mode blocks method calls on variables?
         });
-        
+
         // "string".GetType() is a method call. Should be blocked.
         var expr = "\"hello\".GetType()";
-        
+
         Assert.Throws<CsEvalException>(() => safeEngine.Evaluate(expr));
     }
 }

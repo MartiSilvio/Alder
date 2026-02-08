@@ -1,5 +1,3 @@
-using CsEval.TestData.Data;
-
 namespace CsEval.Test.Operators;
 
 /// <summary>
@@ -13,10 +11,6 @@ namespace CsEval.Test.Operators;
 public class ThrowExpressionTests(CompilationMode mode)
 {
     #region ECMA-334 §12.16 - Null-coalescing with throw
-
-    [TestCaseSource(typeof(ThrowExpressionData), nameof(ThrowExpressionData.ValueCases))]
-    public async Task Eval_ThrowExpression_ValueCases(string expr, object expected)
-        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
     // Non-null value type with ?? (CsEval treats everything as object? at runtime)
     // Note: Roslyn rejects `42 ?? throw` at compile time since int is not nullable,

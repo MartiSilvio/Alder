@@ -1,5 +1,3 @@
-using CsEval.TestData.Data;
-
 namespace CsEval.Test.Runtime;
 
 /// <summary>
@@ -21,10 +19,6 @@ public class OverloadResolutionTests(CompilationMode mode)
     // When an exact type match exists, it should be preferred over implicit conversions.
     // Math.Abs has overloads for: short, int, long, float, double, decimal, nint
     // Each call should select the overload matching the argument type exactly.
-
-    [TestCaseSource(typeof(OverloadResolutionData), nameof(OverloadResolutionData.ExactMatchCases))]
-    public async Task ExactMatch_SelectsCorrectOverload(string expr, object expected)
-        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
     // Decimal cannot be used as TestCase attribute argument, so test separately
     [Test]
@@ -102,11 +96,6 @@ public class OverloadResolutionTests(CompilationMode mode)
         Assert.That(result?.GetType(), Is.EqualTo(csharpResult?.GetType()), "Type should match Roslyn");
     }
 
-    // ECMA-334 §12.6.4.5: Widening with negative values
-    [TestCaseSource(typeof(OverloadResolutionData), nameof(OverloadResolutionData.NegativeValueCases))]
-    public async Task ExactMatch_NegativeValues(string expr, object expected)
-        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
-
     #endregion
 
     #region Multiple Parameter Overloads (ECMA-334 §12.6.4)
@@ -145,27 +134,9 @@ public class OverloadResolutionTests(CompilationMode mode)
         Assert.That(result?.GetType(), Is.EqualTo(csharpResult?.GetType()));
     }
 
-    [TestCaseSource(typeof(OverloadResolutionData), nameof(OverloadResolutionData.BankersRoundingCases))]
-    public async Task MathRound_BankersRounding(string expr, object expected)
-        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
-
-    #endregion
-
-    #region String Method Overloads (ECMA-334 §12.6.4)
-
-    // String.Concat has many overloads. Verify correct selection.
-
-    [TestCaseSource(typeof(OverloadResolutionData), nameof(OverloadResolutionData.StringConcatCases))]
-    public async Task StringConcat_SelectsCorrectOverload(string expr, object expected)
-        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
-
     #endregion
 
     #region Math Method Overloads -- Additional
-
-    [TestCaseSource(typeof(OverloadResolutionData), nameof(OverloadResolutionData.MathMinMaxCases))]
-    public async Task MathMinMax_SelectsCorrectOverload(string expr, object expected)
-        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
     [Test]
     public async Task MathMax_Int_ReturnsIntType()
@@ -261,14 +232,6 @@ public class OverloadResolutionTests(CompilationMode mode)
         var result = engine.Evaluate("numbers.First()");
         Assert.That(result, Is.EqualTo(5));
     }
-
-    #endregion
-
-    #region Convert/ToString Overload Selection
-
-    [TestCaseSource(typeof(OverloadResolutionData), nameof(OverloadResolutionData.ConvertCases))]
-    public async Task ConvertMethods_SelectCorrectOverload(string expr, object expected)
-        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
     #endregion
 

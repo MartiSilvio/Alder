@@ -1,6 +1,3 @@
-using System.Collections;
-using CsEval.TestData.Data;
-
 namespace CsEval.Test.Runtime;
 
 [TestFixture(CompilationMode.Interpreted)]
@@ -8,23 +5,7 @@ namespace CsEval.Test.Runtime;
 [TestFixture(CompilationMode.StrictCompiled)]
 public class AssignmentTests(CompilationMode mode)
 {
-    #region Basic Assignment
-
-    [TestCaseSource(typeof(AssignmentData), nameof(AssignmentData.BasicCases))]
-    public async Task Assignment_Basic(string expr, object expected)
-        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
-
-    #endregion
-
     #region Assignment with Different Types
-
-    [TestCaseSource(typeof(AssignmentData), nameof(AssignmentData.TypeCases))]
-    public async Task Assignment_Types(string expr, object expected)
-        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
-
-    [TestCaseSource(typeof(AssignmentData), nameof(AssignmentData.NullCases))]
-    public async Task Assignment_Null(string expr, object? expected)
-        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
     // CsEval-specific: [1,2,3] collection expression with var -- engine-only test
     [Test]
@@ -93,19 +74,7 @@ public class AssignmentTests(CompilationMode mode)
 
     #endregion
 
-    #region Assignment Expression Returns Value
-
-    [TestCaseSource(typeof(AssignmentData), nameof(AssignmentData.ExpressionReturnCases))]
-    public async Task Assignment_ExpressionReturns(string expr, object expected)
-        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
-
-    #endregion
-
     #region Assignment in Conditionals
-
-    [TestCaseSource(typeof(AssignmentData), nameof(AssignmentData.ConditionalCases))]
-    public async Task Assignment_InConditionals(string expr, object expected)
-        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
     [Test]
     public async Task Assignment_ConditionalBranches_UpdatesCorrectly()
@@ -163,22 +132,6 @@ public class AssignmentTests(CompilationMode mode)
 
     #endregion
 
-    #region Assignment with Modules
-
-    [TestCaseSource(typeof(AssignmentData), nameof(AssignmentData.ModuleCases))]
-    public async Task Assignment_WithModules(string expr, object expected)
-        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
-
-    #endregion
-
-    #region Assignment Scoping
-
-    [TestCaseSource(typeof(AssignmentData), nameof(AssignmentData.ScopingCases))]
-    public async Task Assignment_Scoping(string expr, object expected)
-        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
-
-    #endregion
-
     #region Assignment Error Cases
 
     [Test]
@@ -196,14 +149,6 @@ public class AssignmentTests(CompilationMode mode)
 
     #endregion
 
-    #region Assignment with Interpolated Strings
-
-    [TestCaseSource(typeof(AssignmentData), nameof(AssignmentData.InterpolatedStringCases))]
-    public async Task Assignment_InterpolatedStrings(string expr, object expected)
-        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
-
-    #endregion
-
     #region Assignment with Ternary
 
     [Test]
@@ -218,14 +163,6 @@ public class AssignmentTests(CompilationMode mode)
             }
             """, variables, 100, mode);
     }
-
-    #endregion
-
-    #region Assignment with Null Coalesce
-
-    [TestCaseSource(typeof(AssignmentData), nameof(AssignmentData.NullCoalesceCases))]
-    public async Task Assignment_NullCoalesce(string expr, object expected)
-        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
     #endregion
 

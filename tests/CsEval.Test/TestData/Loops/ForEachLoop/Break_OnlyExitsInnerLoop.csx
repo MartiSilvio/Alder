@@ -1,0 +1,1 @@
+var outerCount = 0; var totalInner = 0; foreach (var i in new[] { 1, 2, 3 }) { foreach (var j in new[] { 10, 20, 30, 40, 50 }) { if (j == 30) { break; } totalInner = totalInner + 1; } outerCount = outerCount + 1; } return outerCount * 100 + totalInner;

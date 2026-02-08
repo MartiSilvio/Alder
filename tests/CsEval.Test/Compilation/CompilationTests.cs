@@ -512,7 +512,7 @@ public class CompilationTests
         // But Evaluate() should trigger lazy compilation and work
         var result = engine.Evaluate(expr);
         Assert.That(result, Is.EqualTo(20));
-        
+
         // After evaluation, it should be compiled (if CompileExpressions is true)
         Assert.That(expr.IsCompiled, Is.True);
     }
@@ -672,7 +672,7 @@ public class CompilationTests
 
         // Expression is NOT compiled after Parse()
         Assert.That(expr.IsCompiled, Is.False);
-        
+
         // Explicitly compile before parallel evaluations
         expr.TryCompile();
         Assert.That(expr.IsCompiled, Is.True);

@@ -1,6 +1,5 @@
 using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
-using System.Linq.Expressions;
 
 namespace CsEval.Runtime;
 
@@ -112,6 +111,10 @@ public static class TypeHelpers
         if (TypeNameToClrType.TryGetValue(typeName, out var type))
             return type;
 
+        // Handle generic types: List<int>, Dictionary<string, int>, etc.
+        if (typeName.Contains('<'))
+            return ResolveGenericType(typeName);
+
         // Try fully qualified name
         var resolved = Type.GetType(typeName);
         if (resolved != null) return resolved;
@@ -128,6 +131,59 @@ public static class TypeHelpers
         }
 
         throw new CsEvalException($"Unknown type '{typeName}'");
+    }
+
+    /// <summary>
+    /// Resolves a generic type name like "List&lt;int&gt;" or "System.Collections.Generic.Dictionary&lt;string, int&gt;"
+    /// by parsing out the base type and type arguments, then constructing the closed generic type.
+    /// </summary>
+    private static Type ResolveGenericType(string typeName)
+    {
+        var ltIndex = typeName.IndexOf('<');
+        var baseName = typeName[..ltIndex];
+        var argsString = typeName[(ltIndex + 1)..^1]; // strip < and >
+
+        // Parse type arguments respecting nested generics
+        var typeArgNames = SplitGenericArgs(argsString);
+        var arity = typeArgNames.Count;
+
+        // Resolve the open generic type using CLR backtick notation
+        var openGenericName = baseName + "`" + arity;
+        var openType = ResolveTypeByName(openGenericName);
+
+        // Resolve each type argument recursively
+        var typeArgs = new Type[arity];
+        for (var i = 0; i < arity; i++)
+            typeArgs[i] = ResolveTypeByName(typeArgNames[i].Trim());
+
+        return openType.MakeGenericType(typeArgs);
+    }
+
+    /// <summary>
+    /// Splits generic type arguments at top-level commas, respecting nested angle brackets.
+    /// e.g. "string, List&lt;int&gt;" → ["string", "List&lt;int&gt;"]
+    /// </summary>
+    private static List<string> SplitGenericArgs(string argsString)
+    {
+        var result = new List<string>();
+        var depth = 0;
+        var start = 0;
+
+        for (var i = 0; i < argsString.Length; i++)
+        {
+            switch (argsString[i])
+            {
+                case '<': depth++; break;
+                case '>': depth--; break;
+                case ',' when depth == 0:
+                    result.Add(argsString[start..i]);
+                    start = i + 1;
+                    break;
+            }
+        }
+
+        result.Add(argsString[start..]);
+        return result;
     }
 
     /// <summary>

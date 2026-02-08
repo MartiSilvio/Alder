@@ -1,0 +1,1 @@
+Enumerable.Repeat(5, 4).Sum()

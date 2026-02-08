@@ -1,0 +1,1 @@
+unchecked((ushort)-1)

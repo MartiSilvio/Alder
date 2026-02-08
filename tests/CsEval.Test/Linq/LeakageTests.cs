@@ -1,6 +1,3 @@
-using CsEval;
-using NUnit.Framework;
-
 namespace CsEval.Test.Linq;
 
 [TestFixture]

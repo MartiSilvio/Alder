@@ -5,7 +5,7 @@ namespace CsEval.Test.Runtime;
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
 [TestFixture(CompilationMode.StrictCompiled)]
-public class MemberAccessTests(CompilationMode mode) 
+public class MemberAccessTests(CompilationMode mode)
 {
     [Test]
     public void Eval_Variable_FromContext()

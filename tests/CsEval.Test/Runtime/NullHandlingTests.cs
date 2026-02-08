@@ -1,5 +1,3 @@
-using CsEval.TestData.Data;
-
 namespace CsEval.Test.Runtime;
 
 /// <summary>
@@ -14,10 +12,6 @@ namespace CsEval.Test.Runtime;
 [TestFixture(CompilationMode.StrictCompiled)]
 public class NullHandlingTests(CompilationMode mode)
 {
-    [TestCaseSource(typeof(NullHandlingData), nameof(NullHandlingData.ValueCases))]
-    public async Task NullHandling_Value(string expr, object? expected)
-        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
-
     #region ECMA-334 §12.21 — Null Coalescing Assignment (??=) Error Case
 
     [Test]

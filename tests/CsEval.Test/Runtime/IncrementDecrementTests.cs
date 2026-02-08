@@ -1,5 +1,3 @@
-using CsEval.TestData.Data;
-
 namespace CsEval.Test.Runtime;
 
 [TestFixture(CompilationMode.Interpreted)]
@@ -7,14 +5,6 @@ namespace CsEval.Test.Runtime;
 [TestFixture(CompilationMode.StrictCompiled)]
 public class IncrementDecrementTests(CompilationMode mode)
 {
-    [TestCaseSource(typeof(IncrementDecrementData), nameof(IncrementDecrementData.ValueCases))]
-    public async Task IncrementDecrement_Value(string expr, object? expected)
-        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
-
-    [TestCaseSource(typeof(IncrementDecrementData), nameof(IncrementDecrementData.ParityCases))]
-    public async Task IncrementDecrement_Parity(string expr)
-        => await TestHelpers.RunCSharpParityTestAsync(expr, mode);
-
     #region Float (Inline -- type assertion)
 
     [Test]

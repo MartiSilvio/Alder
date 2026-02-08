@@ -1,12 +1,7 @@
-using CsEval.Interpretation;
-
 namespace CsEval.Runtime;
 
 /// <summary>
 /// Runtime helpers for spread operator and collection literal creation.
-/// SpreadIntoDict/SpreadIntoList handle the .. spread syntax in object/array literals.
-/// CreateTypedArray infers element type and creates a typed T[] from array literals.
-/// Called from Evaluator (directly) and ExpressionCompilerUnit (via cached MethodInfo).
 /// </summary>
 public static class SpreadHelpers
 {

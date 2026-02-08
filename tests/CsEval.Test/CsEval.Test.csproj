@@ -19,7 +19,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\CsEval\CsEval.csproj" />
-    <ProjectReference Include="..\CsEval.TestData\CsEval.TestData.csproj" />
   </ItemGroup>
 
   <ItemGroup>

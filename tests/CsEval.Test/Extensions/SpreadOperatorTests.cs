@@ -1,4 +1,3 @@
-using System.Collections;
 using System.Dynamic;
 
 namespace CsEval.Test.Extensions;

@@ -1,5 +1,3 @@
-using CsEval.TestData.Data;
-
 namespace CsEval.Test.Runtime;
 
 /// <summary>
@@ -12,14 +10,6 @@ namespace CsEval.Test.Runtime;
 [TestFixture(CompilationMode.StrictCompiled)]
 public class ControlFlowTests(CompilationMode mode)
 {
-    #region ECMA-334 §12.18, §13.6 — Ternary, If/Else, and Block Expressions
-
-    [TestCaseSource(typeof(ControlFlowData), nameof(ControlFlowData.ValueCases))]
-    public async Task Eval_ControlFlow(string expr, object expected)
-        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
-
-    #endregion
-
     #region ECMA-334 §12.18 — Ternary and If/Else with External Variables
 
     [Test]

@@ -1,5 +1,3 @@
-using CsEval.TestData.Data;
-
 namespace CsEval.Test.Runtime;
 
 [TestFixture(CompilationMode.Interpreted)]
@@ -7,14 +5,6 @@ namespace CsEval.Test.Runtime;
 [TestFixture(CompilationMode.StrictCompiled)]
 public class SwitchStatementTests(CompilationMode mode)
 {
-    #region Basic Switch
-
-    [TestCaseSource(typeof(SwitchStatementData), nameof(SwitchStatementData.ValueCases))]
-    public async Task Eval_Switch(string expr, object expected)
-        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
-
-    #endregion
-
     #region Invalid Syntax Tests
 
     [Test]
@@ -188,14 +178,6 @@ public class SwitchStatementTests(CompilationMode mode)
 
         Assert.That(result, Is.EqualTo(221));
     }
-
-    #endregion
-
-    #region Calculator Scenario
-
-    [TestCaseSource(typeof(SwitchStatementData), nameof(SwitchStatementData.ParityCases))]
-    public async Task Switch_Calculator(string expr)
-        => await TestHelpers.RunCSharpParityTestAsync(expr, mode);
 
     #endregion
 

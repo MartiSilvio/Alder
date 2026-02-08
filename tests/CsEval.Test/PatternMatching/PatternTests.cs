@@ -1,5 +1,3 @@
-using CsEval.TestData.Data;
-
 namespace CsEval.Test.PatternMatching;
 
 /// <summary>
@@ -13,58 +11,7 @@ namespace CsEval.Test.PatternMatching;
 [TestFixture(CompilationMode.StrictCompiled)]
 public class PatternTests(CompilationMode mode)
 {
-    #region ECMA-334 §11.2.3 -- Constant Patterns in Is-Expressions
-
-    [TestCaseSource(typeof(PatternData), nameof(PatternData.ConstantPatternCases))]
-    public async Task ConstantPattern_IsExpression(string expr)
-        => await TestHelpers.RunCSharpParityTestAsync(expr, mode);
-
-    #endregion
-
-    #region ECMA-334 §11.2.5 -- Relational Patterns
-
-    [TestCaseSource(typeof(PatternData), nameof(PatternData.RelationalPatternCases))]
-    public async Task RelationalPattern_IsExpression(string expr)
-        => await TestHelpers.RunCSharpParityTestAsync(expr, mode);
-
-    #endregion
-
-    #region ECMA-334 §11.2.6 -- Logical Pattern Combinators (and, or, not)
-
-    // and combinator -- range checks
-    [TestCaseSource(typeof(PatternData), nameof(PatternData.LogicalAndCases))]
-    public async Task LogicalPattern_And(string expr)
-        => await TestHelpers.RunCSharpParityTestAsync(expr, mode);
-
-    // or combinator -- type alternatives
-    [TestCaseSource(typeof(PatternData), nameof(PatternData.LogicalOrCases))]
-    public async Task LogicalPattern_Or(string expr)
-        => await TestHelpers.RunCSharpParityTestAsync(expr, mode);
-
-    // not combinator
-    [TestCaseSource(typeof(PatternData), nameof(PatternData.LogicalNotCases))]
-    public async Task LogicalPattern_Not(string expr)
-        => await TestHelpers.RunCSharpParityTestAsync(expr, mode);
-
-    // Nested logical combinators
-    [TestCaseSource(typeof(PatternData), nameof(PatternData.LogicalNestedCases))]
-    public async Task LogicalPattern_Nested(string expr)
-        => await TestHelpers.RunCSharpParityTestAsync(expr, mode);
-
-    #endregion
-
     #region ECMA-334 §11.2.7 -- Property Patterns
-
-    // Property patterns with a type prefix work with Roslyn parity (the type provides member resolution).
-    [TestCaseSource(typeof(PatternData), nameof(PatternData.PropertyPatternWithTypeCases))]
-    public async Task PropertyPattern_IsExpression_Parity(string expr)
-        => await TestHelpers.RunCSharpParityTestAsync(expr, mode);
-
-    // Property patterns without type prefix: Roslyn requires the static type to resolve members,
-    // so these use string-typed variables for Roslyn parity.
-    [TestCaseSource(typeof(PatternData), nameof(PatternData.PropertyPatternMemberAccessCases))]
-    public async Task PropertyPattern_MemberAccess_Parity(string expr)
-        => await TestHelpers.RunCSharpParityTestAsync(expr, mode);
 
     // Null test for property pattern with member access: engine-only (Roslyn cannot resolve
     // member on object-typed variable, and string? x = null doesn't support is { Length: > 0 }
@@ -76,14 +23,6 @@ public class PatternTests(CompilationMode mode)
         var result = engine.Evaluate("{ object x = null; return x is { Length: > 0 }; }");
         Assert.That(result, Is.EqualTo(false));
     }
-
-    #endregion
-
-    #region ECMA-334 §11.2.2 -- Type Patterns with Variable Binding
-
-    [TestCaseSource(typeof(PatternData), nameof(PatternData.TypePatternCases))]
-    public async Task TypePattern_WithVariableBinding(string expr)
-        => await TestHelpers.RunCSharpParityTestAsync(expr, mode);
 
     #endregion
 
@@ -102,14 +41,6 @@ public class PatternTests(CompilationMode mode)
         // Switch arm discard is covered by SwitchExpressionTests.
         Assert.Pass("Discard pattern tested in switch expression context");
     }
-
-    #endregion
-
-    #region ECMA-334 §11.2 -- Combination Patterns in Is-Expressions
-
-    [TestCaseSource(typeof(PatternData), nameof(PatternData.CombinedPatternCases))]
-    public async Task CombinedPatterns_IsExpression(string expr)
-        => await TestHelpers.RunCSharpParityTestAsync(expr, mode);
 
     #endregion
 }

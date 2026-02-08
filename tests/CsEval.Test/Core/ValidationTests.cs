@@ -3,7 +3,7 @@ namespace CsEval.Test.Core;
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
 [TestFixture(CompilationMode.StrictCompiled)]
-public class ValidationTests(CompilationMode mode) 
+public class ValidationTests(CompilationMode mode)
 {
     [Test]
     public void TryParse_ValidExpression_ReturnsTrue()

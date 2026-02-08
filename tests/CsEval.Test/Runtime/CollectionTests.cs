@@ -1,5 +1,3 @@
-using System.Collections;
-
 namespace CsEval.Test.Runtime;
 
 [TestFixture(CompilationMode.Interpreted)]

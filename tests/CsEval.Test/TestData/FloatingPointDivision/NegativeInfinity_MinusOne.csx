@@ -1,0 +1,1 @@
+double.NegativeInfinity - 1

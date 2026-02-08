@@ -1,5 +1,3 @@
-using CsEval.TestData.Data;
-
 namespace CsEval.Test.Runtime;
 
 /// <summary>
@@ -11,11 +9,6 @@ namespace CsEval.Test.Runtime;
 public class ConstructorTests(CompilationMode mode)
 {
     #region ECMA-334 §12.8.16.2 - Object creation expressions
-
-    // Basic constructor with member access on result
-    [TestCaseSource(typeof(ConstructorData), nameof(ConstructorData.MemberAccessCases))]
-    public async Task Constructor_MemberAccess(string expr, object expected)
-        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
     // Parameterless constructor
     [Test]
@@ -49,11 +42,6 @@ public class ConstructorTests(CompilationMode mode)
         Assert.That(result, Is.Not.Null);
         Assert.That(result, Is.InstanceOf<Exception>());
     }
-
-    // Fully qualified type name
-    [TestCaseSource(typeof(ConstructorData), nameof(ConstructorData.FullyQualifiedCases))]
-    public async Task Constructor_FullyQualified(string expr, object expected)
-        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
     // Error case: non-existent type
     [Test]

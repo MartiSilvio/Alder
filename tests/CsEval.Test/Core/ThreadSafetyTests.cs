@@ -5,7 +5,7 @@ namespace CsEval.Test.Core;
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
 [TestFixture(CompilationMode.StrictCompiled)]
-public class ThreadSafetyTests(CompilationMode mode) 
+public class ThreadSafetyTests(CompilationMode mode)
 {
     [Test]
     public void ParallelForEach_WithCreateChild_EvaluatesCorrectly()

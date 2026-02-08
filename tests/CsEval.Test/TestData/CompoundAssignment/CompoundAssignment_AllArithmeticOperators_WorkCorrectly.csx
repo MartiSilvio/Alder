@@ -1,0 +1,15 @@
+{
+    var x = 100.0;
+    x += 50;
+    var afterPlus = x;
+    x -= 25;
+    var afterMinus = x;
+    x *= 2;
+    var afterMult = x;
+    x /= 5;
+    var afterDiv = x;
+    x = 17;
+    x %= 5;
+    var afterMod = x;
+    return afterPlus + afterMinus + afterMult + afterDiv + afterMod;
+}

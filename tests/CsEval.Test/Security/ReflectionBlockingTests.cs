@@ -8,10 +8,10 @@ namespace CsEval.Test.Security;
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
 [TestFixture(CompilationMode.StrictCompiled)]
-public class ReflectionBlockingTests(CompilationMode mode) 
+public class ReflectionBlockingTests(CompilationMode mode)
 {
     protected readonly CompilationMode Mode = mode;
-    
+
     #region GetType() Blocking
 
     [Test]

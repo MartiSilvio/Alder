@@ -1,5 +1,3 @@
-using CsEval.TestData.Data;
-
 namespace CsEval.Test.Loops;
 
 [TestFixture(CompilationMode.Interpreted)]
@@ -7,10 +5,6 @@ namespace CsEval.Test.Loops;
 [TestFixture(CompilationMode.StrictCompiled)]
 public class DoWhileLoopTests(CompilationMode mode)
 {
-    [TestCaseSource(typeof(DoWhileLoopData), nameof(DoWhileLoopData.ValueCases))]
-    public async Task Eval_DoWhileLoop(string expr, object expected)
-        => await TestHelpers.RunCSharpParityTestAsync($"{{ {expr} }}", expected, mode);
-
     #region Do-While vs While Comparison
 
     [Test]
@@ -272,18 +266,6 @@ public class DoWhileLoopTests(CompilationMode mode)
         cts.Cancel();
 
         Assert.ThrowsAsync<OperationCanceledException>(() => task);
-    }
-
-    #endregion
-
-    #region ShouldThrow Tests
-
-    [TestCaseSource(typeof(DoWhileLoopData), nameof(DoWhileLoopData.ErrorCases))]
-    public async Task Eval_DoWhileLoop_ShouldThrow(string expr)
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        Assert.Catch<Exception>(() => engine.Evaluate(expr));
-        await Assert.ThatAsync(async () => await TestHelpers.EvaluateCSharpAsync(expr), Throws.Exception);
     }
 
     #endregion

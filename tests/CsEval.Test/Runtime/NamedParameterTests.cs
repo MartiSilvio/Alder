@@ -3,7 +3,7 @@ namespace CsEval.Test.Runtime;
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
 [TestFixture(CompilationMode.StrictCompiled)]
-public class NamedParameterTests(CompilationMode mode) 
+public class NamedParameterTests(CompilationMode mode)
 {
     [Test]
     public void Eval_NamedParameter_BasicUsage()

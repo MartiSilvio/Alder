@@ -3,7 +3,7 @@ namespace CsEval.Test.Integration;
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
 [TestFixture(CompilationMode.StrictCompiled)]
-public class ExpressionCachingTests(CompilationMode mode) 
+public class ExpressionCachingTests(CompilationMode mode)
 {
     [Test]
     public void Parse_ReturnsCsEvalExpression()

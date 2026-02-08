@@ -1,5 +1,3 @@
-using CsEval.TestData.Data;
-
 namespace CsEval.Test.Types;
 
 /// <summary>
@@ -11,10 +9,6 @@ namespace CsEval.Test.Types;
 public class DefaultExpressionTests(CompilationMode mode)
 {
     #region ECMA-334 §12.8.20 - Default Expression
-
-    [TestCaseSource(typeof(DefaultExpressionData), nameof(DefaultExpressionData.ValueTypeCases))]
-    public async Task Default_ValueTypes(string expr, object expected)
-        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
     [Test]
     public void Default_ReferenceTypes()

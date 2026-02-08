@@ -12,11 +12,11 @@ public class ConcurrencyHammerTests(CompilationMode mode) : StressTestBase(mode)
     {
         // Correct usage: Parent configured once, then children spawn and run in parallel.
         Engine.SetVariable("globalConfig", 123);
-        
+
         var parallelOptions = new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount * 2 };
         var exceptions = new ConcurrentBag<Exception>();
-        
-        Parallel.For(0, 1000, parallelOptions, i => 
+
+        Parallel.For(0, 1000, parallelOptions, i =>
         {
             try
             {
@@ -30,7 +30,7 @@ public class ConcurrencyHammerTests(CompilationMode mode) : StressTestBase(mode)
                 exceptions.Add(ex);
             }
         });
-        
+
         Assert.That(exceptions, Is.Empty);
     }
 
@@ -40,8 +40,8 @@ public class ConcurrencyHammerTests(CompilationMode mode) : StressTestBase(mode)
         // Multiple threads parsing/evaluating the SAME expression should hit the shared ExpressionCache.
         // If cache is not thread-safe, this will crash.
         var expr = "1 + 1";
-        
-        Parallel.For(0, 10000, i => 
+
+        Parallel.For(0, 10000, i =>
         {
             Engine.Evaluate(expr);
         });
@@ -51,7 +51,7 @@ public class ConcurrencyHammerTests(CompilationMode mode) : StressTestBase(mode)
     public void ParallelParsing_DifferentExpressions_ShouldStressCacheWraps()
     {
         // Generate unique expressions to flood the cache
-        Parallel.For(0, 5000, i => 
+        Parallel.For(0, 5000, i =>
         {
             Engine.Evaluate($"{i} + {i}");
         });
@@ -64,14 +64,14 @@ public class ConcurrencyHammerTests(CompilationMode mode) : StressTestBase(mode)
         // This test exposes the lack of thread safety if the user violates the contract.
         // Children share the _functions dictionary reference from parent.
         // Dictionary<T,K> is not thread safe for read/write.
-        
+
         var running = true;
-        
+
         // Writer thread
-        var writerTask = Task.Run(() => 
+        var writerTask = Task.Run(() =>
         {
             var i = 0;
-            while(running)
+            while (running)
             {
                 Engine.RegisterFunction($"func{i}", args => i);
                 i++;
@@ -79,11 +79,11 @@ public class ConcurrencyHammerTests(CompilationMode mode) : StressTestBase(mode)
                 if (i % 100 == 0) Thread.Sleep(1);
             }
         });
-        
+
         // Reader threads (children)
-        var readerTask = Task.Run(() => 
+        var readerTask = Task.Run(() =>
         {
-            Parallel.For(0, 1000, i => 
+            Parallel.For(0, 1000, i =>
             {
                 try
                 {
@@ -92,7 +92,7 @@ public class ConcurrencyHammerTests(CompilationMode mode) : StressTestBase(mode)
                     // Or evaluating a text that calls a function
                     // "Math.Abs(1)" calls a module, let's try calling a function we just registered?
                     // Or just any evaluation that triggers lookup.
-                    child.Evaluate("1+1"); 
+                    child.Evaluate("1+1");
                 }
                 catch
                 {
@@ -100,19 +100,19 @@ public class ConcurrencyHammerTests(CompilationMode mode) : StressTestBase(mode)
                 }
             });
         });
-        
+
         readerTask.Wait(2000);
         running = false;
         writerTask.Wait(1000);
     }
-    
+
     [Test]
     public void ConcurrentRecursiveEvaluation_ShouldNotDeadlock()
     {
         // If there are any locks in evaluation, recursion + concurrency might deadlock.
         var expr = "1 + 1";
-        
-        Parallel.For(0, 100, i => 
+
+        Parallel.For(0, 100, i =>
         {
             var child = Engine.CreateChild();
             // Nested children?

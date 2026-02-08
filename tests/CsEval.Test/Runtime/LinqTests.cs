@@ -79,7 +79,7 @@ public class LinqTests(CompilationMode mode)
     [TestCaseSource(nameof(ChainedTestCases))]
     public async Task Chained(string expr, Dictionary<string, object?> variables, object expected)
         => await TestHelpers.RunCSharpParityTestAsync(expr, variables, expected, mode);
-    
+
     #region Where Test Cases
 
     private static IEnumerable<TestCaseData> WhereTestCases()

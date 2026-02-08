@@ -1,5 +1,3 @@
-using CsEval.TestData.Data;
-
 namespace CsEval.Test.Runtime;
 
 [TestFixture(CompilationMode.Interpreted)]
@@ -155,11 +153,6 @@ public class ScopingTests(CompilationMode mode)
         Assert.That(ex!.Message, Does.Contain("x").Or.Contain("Undefined"));
     }
 
-    // Parity tests for standard C# scoping behavior
-    [TestCaseSource(typeof(ScopingData), nameof(ScopingData.ForLoopCases))]
-    public async Task ForLoop_Scoping(string expr, object expected)
-        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
-
     // Engine-only: uses [..results, x] spread syntax
     [Test]
     public void ForLoop_VariableScopedPerIteration_FreshEachTime()
@@ -206,10 +199,6 @@ public class ScopingTests(CompilationMode mode)
 
         Assert.That(ex!.Message, Does.Contain("x").Or.Contain("Undefined"));
     }
-
-    [TestCaseSource(typeof(ScopingData), nameof(ScopingData.WhileLoopCases))]
-    public async Task WhileLoop_Scoping(string expr, object expected)
-        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
     [Test]
     public void WhileLoop_SingleStatementBodyVariable_DoesNotLeakToParentScope()
@@ -379,10 +368,6 @@ public class ScopingTests(CompilationMode mode)
         Assert.That(ex!.Message, Does.Contain("x").Or.Contain("Undefined"));
     }
 
-    [TestCaseSource(typeof(ScopingData), nameof(ScopingData.IfStatementCases))]
-    public async Task IfStatement_Scoping(string expr, object expected)
-        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
-
     [Test]
     public void IfStatement_NestedIf_VariablesProperlyScoped()
     {
@@ -493,10 +478,6 @@ public class ScopingTests(CompilationMode mode)
 
     #region Parent Scope Access
 
-    [TestCaseSource(typeof(ScopingData), nameof(ScopingData.ParentScopeAccessCases))]
-    public async Task ParentScopeAccess(string expr, object expected)
-        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
-
     // Engine-only: uses [1, 2, 3, 4, 5] collection expression syntax
     [Test]
     public void ForEachLoop_CanAccessParentScopeVariables()
@@ -559,17 +540,9 @@ public class ScopingTests(CompilationMode mode)
         Assert.That(ex!.Message, Does.Contain("x").Or.Contain("Undefined"));
     }
 
-    [TestCaseSource(typeof(ScopingData), nameof(ScopingData.BlockScopingCases))]
-    public async Task BlockScoping(string expr, object expected)
-        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
-
     #endregion
 
     #region Break and Continue with Scoping
-
-    [TestCaseSource(typeof(ScopingData), nameof(ScopingData.BreakContinueCases))]
-    public async Task BreakAndContinue_Loops(string expr, object expected)
-        => await TestHelpers.RunCSharpParityTestAsync(expr, expected, mode);
 
     // Engine-only: uses [1, 2, 3, 4, 5] collection expression syntax
     [Test]

@@ -57,7 +57,7 @@ public class ParsingFuzzTests(CompilationMode mode) : StressTestBase(mode)
             // But we can't easily distinguish "valid" managed exceptions from "bugs" in a generic catch.
             // So we'll print unexpected ones.
             TestContext.WriteLine($"Fuzz '{fuzz}' caused {ex.GetType().Name}: {ex.Message}");
-            
+
             if (ex is NullReferenceException or IndexOutOfRangeException or ArgumentOutOfRangeException)
             {
                 Assert.Fail($"Parser crashed with internal logic error: {ex.GetType().Name}");

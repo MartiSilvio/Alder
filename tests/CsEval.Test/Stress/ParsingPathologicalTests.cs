@@ -18,20 +18,20 @@ public class ParsingPathologicalTests(CompilationMode mode) : StressTestBase(mod
         // We assert that it throws a managed exception (CsEvalParserException or maybe generic Exception)
         // rather than taking down the process with StackOverflowException (which usually can't be caught).
         // Since we can't catch SOE easily in .NET Core, we'll just run it. If the test runner dies, we know why.
-        
+
         var depth = 2000;
         var expression = GenerateDeeplyNestedExpression(depth, "1 + 1");
-        
-        try 
+
+        try
         {
             var expr = Engine.Parse(expression);
             Assert.That(expr, Is.Not.Null);
-            
+
             // If it parses, can it evaluate?
             var result = Engine.Evaluate(expr);
             Assert.That(result, Is.EqualTo(2));
         }
-        catch (CsEvalParserException) 
+        catch (CsEvalParserException)
         {
             // Acceptable failure
         }
@@ -41,8 +41,8 @@ public class ParsingPathologicalTests(CompilationMode mode) : StressTestBase(mod
         }
         catch (Exception ex)
         {
-             // Other exceptions are fine (Out of memory, etc)
-             TestContext.WriteLine($"Caught expected exception: {ex.GetType().Name}");
+            // Other exceptions are fine (Out of memory, etc)
+            TestContext.WriteLine($"Caught expected exception: {ex.GetType().Name}");
         }
     }
 
@@ -52,14 +52,14 @@ public class ParsingPathologicalTests(CompilationMode mode) : StressTestBase(mod
     {
         // 10,000 operations "1 + 2 * 3 - 4 ..."
         var expression = GenerateLongExpression(10_000);
-        
+
         var sw = System.Diagnostics.Stopwatch.StartNew();
         var expr = Engine.Parse(expression);
         sw.Stop();
-        
+
         Assert.That(expr, Is.Not.Null);
         TestContext.WriteLine($"Parsed 10k ops in {sw.ElapsedMilliseconds}ms");
-        
+
         // Should evaluate
         var result = Engine.Evaluate(expr);
         Assert.That(result, Is.Not.Null);
@@ -71,7 +71,7 @@ public class ParsingPathologicalTests(CompilationMode mode) : StressTestBase(mod
         // 1MB string literal
         var hugeString = new string('a', 1_000_000);
         var expression = $"\"{hugeString}\"";
-        
+
         var result = Engine.Evaluate(expression);
         Assert.That(result, Is.EqualTo(hugeString));
     }
@@ -82,7 +82,7 @@ public class ParsingPathologicalTests(CompilationMode mode) : StressTestBase(mod
         // 1MB string without closing quote
         var hugeString = new string('a', 1_000_000);
         var expression = $"\"{hugeString}"; // Missing quote
-        
+
         Assert.Catch<Exception>(() => Engine.Parse(expression));
     }
 
@@ -93,10 +93,10 @@ public class ParsingPathologicalTests(CompilationMode mode) : StressTestBase(mod
         // If the language spec supports unicode identifiers (C# does), let's see.
         var variableName = "变_😊_variable";
         Engine.SetVariable(variableName, 42);
-        
+
         // Depending on Lexer, this might fail or succeed. 
         // We assert something depending on success, but mostly we want no crash.
-        try 
+        try
         {
             var result = Engine.Evaluate(variableName);
             Assert.That(result, Is.EqualTo(42));
@@ -114,13 +114,13 @@ public class ParsingPathologicalTests(CompilationMode mode) : StressTestBase(mod
     {
         // "s.Length.ToString().Length.ToString()..."
         var sb = new StringBuilder("\"start\"");
-        for(int i=0; i<count; i++)
+        for (int i = 0; i < count; i++)
         {
             sb.Append(".Length.ToString()");
         }
-        
+
         var expr = sb.ToString();
-        
+
         try
         {
             var result = Engine.Evaluate(expr);
@@ -128,7 +128,7 @@ public class ParsingPathologicalTests(CompilationMode mode) : StressTestBase(mod
         }
         catch (CsEvalParserException) { /* limit reached */ }
     }
-    
+
     [Test]
     public void RandomFuzzing_ShouldNotCrash()
     {
