@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using CsEval.Attributes;
 using CsEval.Compilation;
 using CsEval.Interpretation;
@@ -13,6 +14,8 @@ public sealed class CsEvalEngine
     private readonly CsEvalOptions _options;
     private readonly List<RegisteredType> _registeredTypes = [];
     private readonly List<Type> _extensionTypes = [];
+    private readonly List<Assembly> _assemblies = [];
+    private readonly List<string> _usingNamespaces = [];
     private readonly TypeCache _typeCache;
     private readonly ExpressionCache _expressionCache;
     private readonly Dictionary<string, object?> _pendingVariables;
@@ -73,7 +76,12 @@ public sealed class CsEvalEngine
             }
         }
 
-        var newConfig = CsEvalConfig.Create(_functions, modules, _extensionTypes, _typeCache, _options.StringComparer);
+        var typeResolver = TypeResolver.Create(
+            _assemblies.ToImmutableArray(),
+            _usingNamespaces.ToImmutableArray(),
+            true,
+            _options.StringComparer);
+        var newConfig = CsEvalConfig.Create(_functions, modules, _extensionTypes, _typeCache, typeResolver, _options.StringComparer);
         Interlocked.CompareExchange(ref _frozenConfig, newConfig, null);
         return _frozenConfig!;
     }
@@ -358,6 +366,22 @@ public sealed class CsEvalEngine
     public CsEvalEngine RegisterModule(string moduleName, Type type, IReadOnlyDictionary<string, MemberInfo> members)
     {
         _registeredTypes.Add(new RegisteredType(type, null, moduleName, members));
+        return this;
+    }
+
+    public CsEvalEngine AddAssembly(Assembly assembly)
+    {
+        if (_frozenConfig != null)
+            throw new InvalidOperationException("Cannot add assemblies after evaluation has started. Call AddAssembly before the first Evaluate().");
+        _assemblies.Add(assembly);
+        return this;
+    }
+
+    public CsEvalEngine AddUsing(string namespaceName)
+    {
+        if (_frozenConfig != null)
+            throw new InvalidOperationException("Cannot add using directives after evaluation has started. Call AddUsing before the first Evaluate().");
+        _usingNamespaces.Add(namespaceName);
         return this;
     }
 

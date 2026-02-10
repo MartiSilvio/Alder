@@ -14,6 +14,7 @@ public sealed class CsEvalConfig
     internal FrozenDictionary<string, ModuleInfo> Modules { get; }
     internal ImmutableArray<Type> ExtensionTypes { get; }
     internal TypeCache TypeCache { get; }
+    internal TypeResolver TypeResolver { get; }
     public StringComparer Comparer { get; }
 
     private CsEvalConfig(
@@ -21,12 +22,14 @@ public sealed class CsEvalConfig
         FrozenDictionary<string, ModuleInfo> modules,
         ImmutableArray<Type> extensionTypes,
         TypeCache typeCache,
+        TypeResolver typeResolver,
         StringComparer comparer)
     {
         Functions = functions;
         Modules = modules;
         ExtensionTypes = extensionTypes;
         TypeCache = typeCache;
+        TypeResolver = typeResolver;
         Comparer = comparer;
     }
 
@@ -35,6 +38,7 @@ public sealed class CsEvalConfig
         Dictionary<string, ModuleInfo> modules,
         List<Type> extensionTypes,
         TypeCache typeCache,
+        TypeResolver typeResolver,
         StringComparer comparer)
     {
         return new CsEvalConfig(
@@ -42,6 +46,7 @@ public sealed class CsEvalConfig
             modules.ToFrozenDictionary(comparer),
             [..extensionTypes],
             typeCache,
+            typeResolver,
             comparer);
     }
 
@@ -50,6 +55,7 @@ public sealed class CsEvalConfig
         FrozenDictionary<string, ModuleInfo>.Empty,
         [],
         new TypeCache(),
+        TypeResolver.Create([], [], true, StringComparer.Ordinal),
         StringComparer.Ordinal);
 }
 

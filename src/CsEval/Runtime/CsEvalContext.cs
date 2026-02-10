@@ -38,6 +38,7 @@ public sealed class CsEvalContext
     public StringComparer Comparer => _config.Comparer;
     public IServiceProvider? ServiceProvider { get; }
     internal TypeCache TypeCache => _config.TypeCache;
+    internal TypeResolver TypeResolver => _config.TypeResolver;
     internal FrozenDictionary<string, Func<object?[], object?>> Functions => _config.Functions;
     internal FrozenDictionary<string, ModuleInfo> Modules => _config.Modules;
     internal ImmutableArray<Type> ExtensionTypes => _config.ExtensionTypes;

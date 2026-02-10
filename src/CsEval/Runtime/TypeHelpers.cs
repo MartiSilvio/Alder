@@ -35,41 +35,6 @@ public static class TypeHelpers
     private static bool IsIntegerType(Type type) =>
         Type.GetTypeCode(type) is >= TypeCode.SByte and <= TypeCode.UInt64;
 
-    private static readonly Dictionary<string, Type> TypeNameToClrType = new()
-    {
-        ["sbyte"] = typeof(sbyte),
-        ["byte"] = typeof(byte),
-        ["short"] = typeof(short),
-        ["ushort"] = typeof(ushort),
-        ["int"] = typeof(int),
-        ["uint"] = typeof(uint),
-        ["long"] = typeof(long),
-        ["ulong"] = typeof(ulong),
-        ["float"] = typeof(float),
-        ["double"] = typeof(double),
-        ["decimal"] = typeof(decimal),
-        ["bool"] = typeof(bool),
-        ["char"] = typeof(char),
-        ["string"] = typeof(string),
-        ["object"] = typeof(object),
-        ["sbyte?"] = typeof(sbyte?),
-        ["byte?"] = typeof(byte?),
-        ["short?"] = typeof(short?),
-        ["ushort?"] = typeof(ushort?),
-        ["int?"] = typeof(int?),
-        ["uint?"] = typeof(uint?),
-        ["long?"] = typeof(long?),
-        ["ulong?"] = typeof(ulong?),
-        ["float?"] = typeof(float?),
-        ["double?"] = typeof(double?),
-        ["decimal?"] = typeof(decimal?),
-        ["bool?"] = typeof(bool?),
-        ["char?"] = typeof(char?),
-        ["string?"] = typeof(string),
-        ["object?"] = typeof(object),
-        ["void"] = typeof(void),
-    };
-
     /// <summary>
     /// ECMA-334 §10.2.3: Implicit numeric conversions.
     /// "There are no predefined implicit conversions to the char type, so values of the
@@ -89,111 +54,13 @@ public static class TypeHelpers
         [typeof(char)] = [typeof(ushort), typeof(int), typeof(uint), typeof(long), typeof(ulong), typeof(float), typeof(double), typeof(decimal)],
     };
 
-    public static Type ResolveTypeName(string typeName)
-    {
-        if (TypeNameToClrType.TryGetValue(typeName, out var type))
-            return type;
-
-        // Generic type annotations (e.g., Func<int, int>) are informational in the dynamic model
-        if (typeName.Contains('<'))
-            return typeof(object);
-
-        throw new CsEvalException($"Unknown type '{typeName}'");
-    }
-
     /// <summary>
-    /// Resolves a type name using built-in types, then Type.GetType, then "System." prefix,
-    /// then scanning loaded assemblies. Used by typeof and constructor invocation.
-    /// </summary>
-    public static Type ResolveTypeByName(string typeName)
-    {
-        // Try built-in type keywords first
-        if (TypeNameToClrType.TryGetValue(typeName, out var type))
-            return type;
-
-        // Handle generic types: List<int>, Dictionary<string, int>, etc.
-        if (typeName.Contains('<'))
-            return ResolveGenericType(typeName);
-
-        // Try fully qualified name
-        var resolved = Type.GetType(typeName);
-        if (resolved != null) return resolved;
-
-        // Try with System. prefix
-        resolved = Type.GetType("System." + typeName);
-        if (resolved != null) return resolved;
-
-        // Scan loaded assemblies
-        foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
-        {
-            resolved = assembly.GetType(typeName) ?? assembly.GetType("System." + typeName);
-            if (resolved != null) return resolved;
-        }
-
-        throw new CsEvalException($"Unknown type '{typeName}'");
-    }
-
-    /// <summary>
-    /// Resolves a generic type name like "List&lt;int&gt;" or "System.Collections.Generic.Dictionary&lt;string, int&gt;"
-    /// by parsing out the base type and type arguments, then constructing the closed generic type.
-    /// </summary>
-    private static Type ResolveGenericType(string typeName)
-    {
-        var ltIndex = typeName.IndexOf('<');
-        var baseName = typeName[..ltIndex];
-        var argsString = typeName[(ltIndex + 1)..^1]; // strip < and >
-
-        // Parse type arguments respecting nested generics
-        var typeArgNames = SplitGenericArgs(argsString);
-        var arity = typeArgNames.Count;
-
-        // Resolve the open generic type using CLR backtick notation
-        var openGenericName = baseName + "`" + arity;
-        var openType = ResolveTypeByName(openGenericName);
-
-        // Resolve each type argument recursively
-        var typeArgs = new Type[arity];
-        for (var i = 0; i < arity; i++)
-            typeArgs[i] = ResolveTypeByName(typeArgNames[i].Trim());
-
-        return openType.MakeGenericType(typeArgs);
-    }
-
-    /// <summary>
-    /// Splits generic type arguments at top-level commas, respecting nested angle brackets.
-    /// e.g. "string, List&lt;int&gt;" → ["string", "List&lt;int&gt;"]
-    /// </summary>
-    private static List<string> SplitGenericArgs(string argsString)
-    {
-        var result = new List<string>();
-        var depth = 0;
-        var start = 0;
-
-        for (var i = 0; i < argsString.Length; i++)
-        {
-            switch (argsString[i])
-            {
-                case '<': depth++; break;
-                case '>': depth--; break;
-                case ',' when depth == 0:
-                    result.Add(argsString[start..i]);
-                    start = i + 1;
-                    break;
-            }
-        }
-
-        result.Add(argsString[start..]);
-        return result;
-    }
-
-    /// <summary>
-    /// Returns the default value for a type by name (ECMA-334 §12.8.20).
+    /// Returns the default value for a type (ECMA-334 §12.8.20).
     /// For value types, returns the zero/false/null equivalent.
     /// For reference types and nullable types, returns null.
     /// </summary>
-    public static object? GetDefaultValue(string typeName)
+    public static object? GetDefaultValue(Type type)
     {
-        var type = ResolveTypeName(typeName);
         return type.IsValueType ? Activator.CreateInstance(type) : null;
     }
 
@@ -202,18 +69,15 @@ public static class TypeHelpers
     /// When sourceStaticType is 'object', enforces C# unboxing semantics:
     /// you can only unbox to the exact boxed type.
     /// </summary>
-    public static object? ExplicitCast(object? value, string targetTypeName, Type? sourceStaticType = null)
+    public static object? ExplicitCast(object? value, Type targetType, Type? sourceStaticType = null)
     {
-        if (!TypeNameToClrType.TryGetValue(targetTypeName, out var targetType))
-            targetType = ResolveTypeByName(targetTypeName);
-
         var underlyingType = Nullable.GetUnderlyingType(targetType) ?? targetType;
         var isNullable = Nullable.GetUnderlyingType(targetType) != null;
 
         if (value == null)
         {
             if (targetType.IsValueType && !isNullable)
-                throw new CsEvalException($"Cannot cast null to non-nullable type '{targetTypeName}'");
+                throw new CsEvalException($"Cannot cast null to non-nullable type '{targetType.Name}'");
             return null;
         }
 
@@ -259,7 +123,7 @@ public static class TypeHelpers
         }
         catch (Exception ex) when (ex is InvalidCastException or FormatException or OverflowException)
         {
-            throw new InvalidCastException($"Cannot cast {runtimeType.Name} to {targetTypeName}", ex);
+            throw new InvalidCastException($"Cannot cast {runtimeType.Name} to {targetType.Name}", ex);
         }
     }
 
@@ -295,11 +159,8 @@ public static class TypeHelpers
         return Convert.ChangeType(value, targetType);
     }
 
-    public static bool IsType(object? value, string typeName)
+    public static bool IsType(object? value, Type targetType)
     {
-        if (!TypeNameToClrType.TryGetValue(typeName, out var targetType))
-            targetType = ResolveTypeByName(typeName);
-
         if (value == null)
             return false;
 
@@ -309,11 +170,8 @@ public static class TypeHelpers
         return underlyingTarget.IsAssignableFrom(valueType) || valueType == underlyingTarget;
     }
 
-    public static object? TryAs(object? value, string typeName)
+    public static object? TryAs(object? value, Type targetType)
     {
-        if (!TypeNameToClrType.TryGetValue(typeName, out var targetType))
-            targetType = ResolveTypeByName(typeName);
-
         if (value == null)
             return null;
 
@@ -333,17 +191,10 @@ public static class TypeHelpers
         return Nullable.GetUnderlyingType(type) != null;
     }
 
-    public static object? ValidateAndCoerceType(string typeName, object? value, string varName)
+    public static object? ValidateAndCoerceType(Type targetType, object? value, string varName)
     {
-        if (typeName == "object")
+        if (targetType == typeof(object))
             return value;
-
-        // Generic type annotations (e.g., Func<int, int>) are informational in the dynamic model
-        if (typeName.Contains('<'))
-            return value;
-
-        if (!TypeNameToClrType.TryGetValue(typeName, out var targetType))
-            throw new CsEvalException($"Unknown type '{typeName}'");
 
         var isNullable = Nullable.GetUnderlyingType(targetType) != null;
         var underlyingType = Nullable.GetUnderlyingType(targetType) ?? targetType;
@@ -351,7 +202,7 @@ public static class TypeHelpers
         if (value == null)
         {
             if (targetType.IsValueType && !isNullable)
-                throw new CsEvalException($"Cannot assign null to {typeName} variable '{varName}'");
+                throw new CsEvalException($"Cannot assign null to {targetType.Name} variable '{varName}'");
             return null;
         }
 
@@ -378,7 +229,7 @@ public static class TypeHelpers
         if (underlyingType == typeof(char) && value is string { Length: 1 } s)
             return s[0];
 
-        throw new CsEvalException($"Cannot assign {sourceType.Name} to {typeName} variable '{varName}'");
+        throw new CsEvalException($"Cannot assign {sourceType.Name} to {targetType.Name} variable '{varName}'");
     }
 
     /// <summary>
