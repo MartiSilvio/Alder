@@ -1,4 +1,2 @@
-{
-    bool? x = true;
-    return x;
-}
+bool? x = true;
+return x;

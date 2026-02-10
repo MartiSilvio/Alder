@@ -1,5 +1,3 @@
-{
-    long counter = 100;
-    counter--;
-    return counter;
-}
+long counter = 100;
+counter--;
+return counter;

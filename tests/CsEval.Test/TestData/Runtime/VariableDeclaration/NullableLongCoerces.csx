@@ -1,4 +1,2 @@
-{
-    long? x = 42;
-    return x;
-}
+long? x = 42;
+return x;

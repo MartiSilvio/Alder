@@ -6,7 +6,6 @@ namespace CsEval.Test.Runtime;
 /// ECMA-334 §8.5 — Variable declarations, §8.5.1 — Local variable declarations,
 /// §10.2 — Implicit conversions, §10.6.1 — Nullable conversions.
 /// Engine-only tests: error assertions, SetVariable with non-serializable types.
-/// Parity tests migrated to TestData/Runtime/VariableDeclaration/*.csx
 /// </summary>
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]

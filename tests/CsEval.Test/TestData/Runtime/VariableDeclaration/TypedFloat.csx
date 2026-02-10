@@ -1,4 +1,2 @@
-{
-    float x = 3.14f;
-    return x;
-}
+float x = 3.14f;
+return x;

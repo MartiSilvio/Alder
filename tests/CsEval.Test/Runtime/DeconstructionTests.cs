@@ -3,7 +3,6 @@ namespace CsEval.Test.Runtime;
 /// <summary>
 /// Tests for tuple deconstruction (ECMA-334 §12.7 - Deconstruction).
 /// Engine-only tests: error assertions, SetVariable with non-serializable types.
-/// Parity tests migrated to TestData/Runtime/Deconstruction/*.csx
 /// </summary>
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]

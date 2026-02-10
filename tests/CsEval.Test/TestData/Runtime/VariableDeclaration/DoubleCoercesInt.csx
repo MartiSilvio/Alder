@@ -1,4 +1,2 @@
-{
-    double x = 42;
-    return x;
-}
+double x = 42;
+return x;
