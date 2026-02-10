@@ -479,6 +479,7 @@ public class ScopingTests(CompilationMode mode)
     #region Parent Scope Access
 
     // Engine-only: uses [1, 2, 3, 4, 5] collection expression syntax
+    // Parity equivalent: TestData/Runtime/Scoping/ForEach_CanAccessParentScopeVariables.csx
     [Test]
     public void ForEachLoop_CanAccessParentScopeVariables()
     {
@@ -496,6 +497,7 @@ public class ScopingTests(CompilationMode mode)
     }
 
     // Engine-only: uses [10, 20] collection expression syntax
+    // Parity equivalent: TestData/Runtime/Scoping/NestedLoops_CanAccessAllParentScopes.csx
     [Test]
     public void NestedLoops_CanAccessAllParentScopes()
     {
@@ -545,6 +547,7 @@ public class ScopingTests(CompilationMode mode)
     #region Break and Continue with Scoping
 
     // Engine-only: uses [1, 2, 3, 4, 5] collection expression syntax
+    // Parity equivalent: TestData/Runtime/Scoping/ForEach_ContinuePreservesParentScope.csx
     [Test]
     public void ForEachLoop_ContinuePreservesParentScope()
     {

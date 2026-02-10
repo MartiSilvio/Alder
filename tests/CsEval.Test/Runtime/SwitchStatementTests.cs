@@ -33,25 +33,9 @@ public class SwitchStatementTests(CompilationMode mode)
 
     #region Tests with External Variables
 
-    [Test]
-    public async Task Switch_StringWithVariable()
-    {
-        var variables = new Dictionary<string, object?> { ["input"] = "test" };
-        await TestHelpers.RunCSharpParityTestAsync("""
-            {
-                var result = "";
-                switch (input) {
-                    case "test":
-                        result = "matched test";
-                        break;
-                    default:
-                        result = "no match";
-                        break;
-                }
-                return result;
-            }
-            """, variables, "matched test", mode);
-    }
+    // Migrated to .csx: TestData/Runtime/SwitchStatement/Switch_StringVariable_MatchesCase.csx
+    // Migrated to .csx: TestData/Runtime/SwitchStatement/Switch_NullCase_MatchesNull.csx
+    // Migrated to .csx: TestData/Runtime/SwitchStatement/Switch_NullCase_DoesNotMatchValue.csx
 
     // Engine-only: uses anonymous object as external variable (not serializable to Roslyn)
     [Test]
@@ -77,46 +61,6 @@ public class SwitchStatementTests(CompilationMode mode)
         }");
 
         Assert.That(result, Is.EqualTo("is active"));
-    }
-
-    [Test]
-    public async Task Switch_NullCase_MatchesNull()
-    {
-        var variables = new Dictionary<string, object?> { ["input"] = null };
-        await TestHelpers.RunCSharpParityTestAsync("""
-            {
-                var result = "";
-                switch (input) {
-                    case null:
-                        result = "is null";
-                        break;
-                    default:
-                        result = "not null";
-                        break;
-                }
-                return result;
-            }
-            """, variables, "is null", mode);
-    }
-
-    [Test]
-    public async Task Switch_NullCase_DoesNotMatchValue()
-    {
-        var variables = new Dictionary<string, object?> { ["input"] = "hello" };
-        await TestHelpers.RunCSharpParityTestAsync("""
-            {
-                var result = "";
-                switch (input) {
-                    case null:
-                        result = "is null";
-                        break;
-                    default:
-                        result = "not null";
-                        break;
-                }
-                return result;
-            }
-            """, variables, "not null", mode);
     }
 
     #endregion
