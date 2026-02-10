@@ -1,5 +1,8 @@
 namespace CsEval.Test.Linq;
 
+// Engine-only: Tests lambda variable isolation internals - verifies CsEval's scoping implementation
+// ensures no state leakage between lambda invocations across LINQ operations.
+
 [TestFixture]
 public class LeakageTests
 {

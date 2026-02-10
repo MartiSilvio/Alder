@@ -1,5 +1,9 @@
 namespace CsEval.Test.Linq;
 
+// Engine-only: Tests RegisterExtensionMethods() API - CsEval-specific extension method registration system.
+// Standard C# resolves extension methods via using directives and assembly references;
+// CsEval requires explicit registration for sandbox control.
+
 [TestFixture]
 public class ExtensionMethodTests
 {
