@@ -4,16 +4,17 @@ namespace CsEval.Test.Runtime;
 /// ECMA-334 §12.17 — Null coalescing operator (??), §12.21 — Null coalescing assignment (??=),
 /// §12.8.8 — Null-conditional member access (?.), §12.8.12 — Null-conditional element access (?[]),
 /// §12.4.8 — Lifted operators for nullable value types.
-/// Tests null coalescing, null-conditional access, lifted operator semantics,
-/// and precedence with ternary expressions.
+/// Engine-only tests: error assertions, SetVariable with null/non-serializable types.
+/// Parity tests migrated to TestData/Runtime/NullHandling/*.csx
 /// </summary>
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
 [TestFixture(CompilationMode.StrictCompiled)]
 public class NullHandlingTests(CompilationMode mode)
 {
-    #region ECMA-334 §12.21 — Null Coalescing Assignment (??=) Error Case
+    #region Engine-only: error tests (CsEvalException assertions)
 
+    // Engine-only: CsEvalException assertion for ??= on non-nullable type
     [Test]
     public void Eval_NullCoalesceAssign_ThrowsOnNonNullableType()
     {
@@ -30,8 +31,9 @@ public class NullHandlingTests(CompilationMode mode)
 
     #endregion
 
-    #region ECMA-334 §12.17 — Null Coalescing Operator (??) and Null-Conditional Access (Inline)
+    #region Engine-only: SetVariable with null (engine API specific)
 
+    // Engine-only: SetVariable with null + ?? operator
     [Test]
     public void Eval_NullCoalesce()
     {
@@ -43,6 +45,7 @@ public class NullHandlingTests(CompilationMode mode)
         Assert.That(engine.Evaluate("y ?? \"other\""), Is.EqualTo("default"));
     }
 
+    // Engine-only: SetVariable with null + dynamic property access
     [Test]
     public void Eval_NullSafeAccess()
     {
@@ -54,8 +57,9 @@ public class NullHandlingTests(CompilationMode mode)
 
     #endregion
 
-    #region ECMA-334 §12.8.12 — Null-Conditional Element Access (?[]) (Inline)
+    #region Engine-only: SetVariable with non-serializable types (?[] element access)
 
+    // Engine-only: SetVariable with null for ?[] element access
     [Test]
     public void NullConditionalIndex_NullArray_ReturnsNull()
     {
@@ -64,6 +68,7 @@ public class NullHandlingTests(CompilationMode mode)
         Assert.That(engine.Evaluate("arr?[0]"), Is.Null);
     }
 
+    // Engine-only: SetVariable with int[] (non-serializable array type)
     [Test]
     public void NullConditionalIndex_NonNullArray_ReturnsElement()
     {
@@ -72,6 +77,7 @@ public class NullHandlingTests(CompilationMode mode)
         Assert.That(engine.Evaluate("arr?[1]"), Is.EqualTo(2));
     }
 
+    // Engine-only: SetVariable with null + ?[] with ?? fallback
     [Test]
     public void NullConditionalIndex_WithNullCoalescing()
     {
@@ -80,6 +86,7 @@ public class NullHandlingTests(CompilationMode mode)
         Assert.That(engine.Evaluate("arr?[0] ?? 42"), Is.EqualTo(42));
     }
 
+    // Engine-only: SetVariable with Dictionary<string, int> (non-serializable)
     [Test]
     public void NullConditionalIndex_Dictionary()
     {
@@ -90,6 +97,7 @@ public class NullHandlingTests(CompilationMode mode)
         Assert.That(engine.Evaluate("dict?[\"key\"]"), Is.Null);
     }
 
+    // Engine-only: SetVariable with string + null reassignment for ?. method call
     [Test]
     public void NullConditional_MethodCall()
     {
