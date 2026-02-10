@@ -32,7 +32,7 @@ public class OneShotEvaluationTests(CompilationMode mode)
         engine.Evaluate("x * 2", variables);
 
         var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("x"));
-        Assert.That(ex!.Message, Does.Contain("Undefined"));
+        Assert.That(ex!.Message, Does.Contain("does not exist in the current context"));
     }
 
     [Test]

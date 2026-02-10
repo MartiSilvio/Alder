@@ -39,7 +39,7 @@ public class CastTests(CompilationMode mode)
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         engine.SetVariable("obj", (object)"hello");
-        Assert.Throws<InvalidCastException>(() => engine.Evaluate("(Exception)obj"));
+        Assert.Throws<CsEvalException>(() => engine.Evaluate("(Exception)obj"));
     }
 
     [Test]
@@ -62,7 +62,7 @@ public class CastTests(CompilationMode mode)
         engine.SetVariable("boxed", (object)42);
 
         Assert.That(engine.Evaluate("(int)boxed"), Is.EqualTo(42));
-        Assert.Catch<InvalidCastException>(() => engine.Evaluate("(long)boxed"));
+        Assert.Catch<CsEvalException>(() => engine.Evaluate("(long)boxed"));
 
         var csharpResult = await TestHelpers.EvaluateCSharpAsync("(int)(object)42");
         Assert.That(csharpResult, Is.EqualTo(42));

@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
+using CsEval.Diagnostics;
 
 namespace CsEval.Runtime;
 
@@ -13,7 +14,7 @@ public static class TypeHelpers
         if (value is bool b)
             return b;
 
-        throw new CsEvalException($"Condition must evaluate to a boolean, got '{value?.GetType().Name ?? "null"}'");
+        throw new CsEvalException(DiagnosticDescriptors.NoImplicitConversion, value?.GetType().Name ?? "null", "bool");
     }
 
     internal static bool IsInteger([NotNullWhen(true)] object? value) =>
@@ -77,7 +78,7 @@ public static class TypeHelpers
         if (value == null)
         {
             if (targetType.IsValueType && !isNullable)
-                throw new CsEvalException($"Cannot cast null to non-nullable type '{targetType.Name}'");
+                throw new CsEvalException(DiagnosticDescriptors.NullToNonNullable, targetType.Name);
             return null;
         }
 
@@ -92,7 +93,7 @@ public static class TypeHelpers
         {
             if (value is char c)
                 return c.ToString();
-            throw new InvalidCastException($"Cannot cast {runtimeType.Name} to string");
+            throw new CsEvalException(DiagnosticDescriptors.NoExplicitConversion, runtimeType.Name, "String");
         }
 
         if (underlyingType == typeof(object))
@@ -103,14 +104,14 @@ public static class TypeHelpers
         {
             if (underlyingType.IsAssignableFrom(runtimeType))
                 return value;
-            throw new InvalidCastException($"Unable to cast object of type '{runtimeType.Name}' to type '{underlyingType.Name}'.");
+            throw new CsEvalException(DiagnosticDescriptors.NoExplicitConversion, runtimeType.Name, underlyingType.Name);
         }
 
         // C# unboxing rule: when source static type is 'object', you can only unbox to the exact boxed type
         // (long)(object)42 fails because 42 is boxed as int, not long
         if (sourceStaticType == typeof(object) && underlyingType.IsValueType && runtimeType != underlyingType)
         {
-            throw new InvalidCastException($"Unable to cast object of type '{runtimeType.Name}' to type '{underlyingType.Name}'.");
+            throw new CsEvalException(DiagnosticDescriptors.NoExplicitConversion, runtimeType.Name, underlyingType.Name);
         }
 
         // Numeric and char conversions
@@ -123,7 +124,7 @@ public static class TypeHelpers
         }
         catch (Exception ex) when (ex is InvalidCastException or FormatException or OverflowException)
         {
-            throw new InvalidCastException($"Cannot cast {runtimeType.Name} to {targetType.Name}", ex);
+            throw new CsEvalException(DiagnosticDescriptors.NoExplicitConversion, runtimeType.Name, targetType.Name);
         }
     }
 
@@ -202,7 +203,7 @@ public static class TypeHelpers
         if (value == null)
         {
             if (targetType.IsValueType && !isNullable)
-                throw new CsEvalException($"Cannot assign null to {targetType.Name} variable '{varName}'");
+                throw new CsEvalException(DiagnosticDescriptors.NullToNonNullable, targetType.Name);
             return null;
         }
 
@@ -229,7 +230,7 @@ public static class TypeHelpers
         if (underlyingType == typeof(char) && value is string { Length: 1 } s)
             return s[0];
 
-        throw new CsEvalException($"Cannot assign {sourceType.Name} to {targetType.Name} variable '{varName}'");
+        throw new CsEvalException(DiagnosticDescriptors.NoImplicitConversion, sourceType.Name, targetType.Name);
     }
 
     /// <summary>
@@ -311,7 +312,7 @@ public static class TypeHelpers
         if (value == null)
         {
             if (targetType.IsValueType && Nullable.GetUnderlyingType(targetType) == null)
-                throw new CsEvalException($"Cannot assign null to non-nullable type '{targetType.Name}'");
+                throw new CsEvalException(DiagnosticDescriptors.NullToNonNullable, targetType.Name);
             return null;
         }
 
@@ -344,7 +345,7 @@ public static class TypeHelpers
             return ConvertNumeric(value, sourceType, targetType);
 
         // Not implicitly convertible
-        throw new CsEvalException($"Cannot implicitly convert type '{sourceType.Name}' to '{targetType.Name}'");
+        throw new CsEvalException(DiagnosticDescriptors.NoImplicitConversion, sourceType.Name, targetType.Name);
     }
 
     internal static bool IsForbiddenReflectionType(Type? type)
