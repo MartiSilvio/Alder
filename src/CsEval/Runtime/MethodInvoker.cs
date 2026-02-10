@@ -1,3 +1,4 @@
+using CsEval.Diagnostics;
 using CsEval.Interpretation;
 
 namespace CsEval.Runtime;
@@ -266,7 +267,7 @@ public static class MethodInvoker
             }
         }
 
-        throw new CsEvalException($"Static method '{methodName}' not found on type '{type.Name}'");
+        throw new CsEvalException(DiagnosticDescriptors.MemberNotFound, type.Name, methodName);
     }
 
     private static (bool Success, object? Value) InvokeMethodWithArgs(
