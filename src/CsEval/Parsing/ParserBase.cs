@@ -139,6 +139,14 @@ public abstract class ParserBase
         else if (Check(TokenType.Identifier))
         {
             name = Advance().Lexeme;
+            // Support dotted names: System.Collections.Generic.List
+            while (Check(TokenType.Dot))
+            {
+                Advance(); // consume dot
+                if (!Check(TokenType.Identifier))
+                    return null;
+                name += "." + Advance().Lexeme;
+            }
         }
         else
         {

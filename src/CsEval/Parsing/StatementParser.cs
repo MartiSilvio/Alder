@@ -126,6 +126,16 @@ public sealed class StatementParser : ParserBase
             return new VariableDeclExpr(null, name, initializer);
         }
 
+        // Generic type variable declaration: Func<int, int> f = ..., Action<string> a = ...
+        // ECMA-334 §13.6.2 - Local variable declarations with constructed types
+        // MUST come before type keyword check to handle generic types properly
+        if (Check(TokenType.Identifier) && PeekNext().Type == TokenType.Less)
+        {
+            var genericResult = TryParseGenericTypeDeclaration();
+            if (genericResult != null)
+                return genericResult;
+        }
+
         // Type keyword followed by identifier is a variable declaration (e.g., "int x = 5")
         // Type keyword followed by dot is a static member access (e.g., "double.NaN") - let expression parsing handle it
         if (IsTypeKeyword(Peek().Type) && PeekNext().Type != TokenType.Dot && MatchTypeKeyword(out var typeToken))
@@ -135,15 +145,6 @@ public sealed class StatementParser : ParserBase
             var initializer = _expression.ParseExpression();
             Consume(TokenType.Semicolon, "Expected ';' after variable declaration");
             return new VariableDeclExpr(typeToken, name, initializer);
-        }
-
-        // Generic type variable declaration: Func<int, int> f = ..., Action<string> a = ...
-        // ECMA-334 §13.6.2 - Local variable declarations with constructed types
-        if (Check(TokenType.Identifier) && PeekNext().Type == TokenType.Less)
-        {
-            var genericResult = TryParseGenericTypeDeclaration();
-            if (genericResult != null)
-                return genericResult;
         }
 
         // Standalone block statement { ... }
