@@ -1,3 +1,5 @@
+using CsEval.Diagnostics;
+
 namespace CsEval.Parsing;
 
 /// <summary>
@@ -119,7 +121,7 @@ public sealed class StatementParser : ParserBase
             Consume(TokenType.Equal, "Expected '=' after variable name");
             var initializer = _expression.ParseExpression();
             if (initializer is LiteralExpr { Value: null })
-                throw new CsEvalParserException($"Cannot assign null to an implicitly-typed variable '{name.Lexeme}' at {name.Line}:{name.Column}");
+                throw new CsEvalParserException(DiagnosticDescriptors.NullToImplicitlyTyped);
             Consume(TokenType.Semicolon, "Expected ';' after variable declaration");
             return new VariableDeclExpr(null, name, initializer);
         }
@@ -344,7 +346,7 @@ public sealed class StatementParser : ParserBase
                 Consume(TokenType.Equal, "Expected '=' after variable name");
                 var init = _expression.ParseExpression();
                 if (init is LiteralExpr { Value: null })
-                    throw new CsEvalParserException($"Cannot assign null to an implicitly-typed variable '{name.Lexeme}' at {name.Line}:{name.Column}");
+                    throw new CsEvalParserException(DiagnosticDescriptors.NullToImplicitlyTyped);
                 initializer = new VariableDeclExpr(null, name, init);
             }
             else if (MatchTypeKeyword(out var typeToken))
@@ -536,7 +538,7 @@ public sealed class StatementParser : ParserBase
         for (var i = 0; i < catchClauses.Count - 1; i++)
         {
             if (catchClauses[i].ExceptionTypeName == null)
-                throw new CsEvalParserException($"CS1017: A general catch clause must be the last catch clause at {Peek().Line}:{Peek().Column}");
+                throw new CsEvalParserException(DiagnosticDescriptors.GeneralCatchMustBeLast);
         }
 
         return new TryCatchFinallyExpr(tryBody, catchClauses, finallyBody);

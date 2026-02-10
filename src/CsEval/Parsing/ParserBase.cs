@@ -1,3 +1,5 @@
+using CsEval.Diagnostics;
+
 namespace CsEval.Parsing;
 
 /// <summary>
@@ -185,4 +187,8 @@ public abstract class ParserBase
     #endregion
 }
 
-public class CsEvalParserException(string message) : CsEvalException(message);
+public class CsEvalParserException : CsEvalException
+{
+    public CsEvalParserException(string message) : base(message) { }
+    public CsEvalParserException(DiagnosticDescriptor descriptor, params object?[] args) : base(descriptor, args) { }
+}
