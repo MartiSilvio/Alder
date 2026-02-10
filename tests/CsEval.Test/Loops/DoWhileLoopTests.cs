@@ -1,43 +1,17 @@
 namespace CsEval.Test.Loops;
 
+// Engine-only: Remaining tests use SetVariable, CsEval-specific configuration (MaxIterations, CancellationToken),
+// CsEval collection expression syntax ([...], [..spread]), anonymous objects as IDictionary, or test parsing API (TryParse).
+// Execution semantics tests migrated to TestData/Loops/DoWhileLoop/*.csx
+
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
 [TestFixture(CompilationMode.StrictCompiled)]
 public class DoWhileLoopTests(CompilationMode mode)
 {
-    #region Do-While vs While Comparison
-
-    [Test]
-    public void DoWhileLoop_ExecutesAtLeastOnce_UnlikeWhile()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-
-        var whileResult = engine.Evaluate(@"
-        {
-            var count = 0;
-            while (false) {
-                count = count + 1;
-            }
-            return count;
-        }");
-
-        var doWhileResult = engine.Evaluate(@"
-        {
-            var count = 0;
-            do {
-                count = count + 1;
-            } while (false);
-            return count;
-        }");
-
-        Assert.That(whileResult, Is.EqualTo(0));
-        Assert.That(doWhileResult, Is.EqualTo(1));
-    }
-
-    #endregion
-
     #region Do-While Loop with External Variables
 
+    // Engine-only: SetVariable
     [Test]
     public void DoWhileLoop_WithExternalVariable_ModifiesCorrectly()
     {
@@ -58,6 +32,7 @@ public class DoWhileLoopTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(55));
     }
 
+    // Engine-only: SetVariable
     [Test]
     public void DoWhileLoop_WithTernaryCondition_WorksCorrectly()
     {
@@ -78,6 +53,7 @@ public class DoWhileLoopTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(3));
     }
 
+    // Engine-only: SetVariable
     [Test]
     public void DoWhileLoop_WithConditionalReturn_ReturnsCorrectValue()
     {
@@ -103,6 +79,7 @@ public class DoWhileLoopTests(CompilationMode mode)
 
     #region Do-While Loop with Collections
 
+    // Engine-only: CsEval collection expression syntax [1, 2, 3, 4, 5]
     [Test]
     public void DoWhileLoop_WithArrayIndexing_WorksCorrectly()
     {
@@ -122,6 +99,7 @@ public class DoWhileLoopTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(15));
     }
 
+    // Engine-only: SetVariable with List<int>
     [Test]
     public void DoWhileLoop_WithListCount_WorksCorrectly()
     {
@@ -142,6 +120,7 @@ public class DoWhileLoopTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(100));
     }
 
+    // Engine-only: CsEval collection expression syntax ([], [..spread])
     [Test]
     public void DoWhileLoop_BuildingList_WorksCorrectly()
     {
@@ -165,6 +144,7 @@ public class DoWhileLoopTests(CompilationMode mode)
 
     #region Do-While Loop with Anonymous Objects
 
+    // Engine-only: anonymous objects as IDictionary<string, object?>
     [Test]
     public void DoWhileLoop_BuildingObjects_WorksCorrectly()
     {
@@ -189,6 +169,7 @@ public class DoWhileLoopTests(CompilationMode mode)
 
     #region Do-While Loop Safety
 
+    // Engine-only: MaxIterations (CsEval-specific configuration)
     [Test]
     public void DoWhileLoop_ExceedsMaxIterations_ThrowsException()
     {
@@ -207,6 +188,7 @@ public class DoWhileLoopTests(CompilationMode mode)
         Assert.That(ex!.Message, Does.Contain("maximum iterations"));
     }
 
+    // Engine-only: MaxIterations (CsEval-specific configuration)
     [Test]
     public void DoWhileLoop_WithCustomMaxIterations_UsesConfiguredLimit()
     {
@@ -225,6 +207,7 @@ public class DoWhileLoopTests(CompilationMode mode)
         Assert.That(ex!.Message, Does.Contain("10"));
     }
 
+    // Engine-only: MaxIterations (CsEval-specific configuration)
     [Test]
     public void DoWhileLoop_WithDisabledLimit_AllowsManyIterations()
     {
@@ -244,6 +227,7 @@ public class DoWhileLoopTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(200000));
     }
 
+    // Engine-only: CancellationToken (CsEval-specific configuration)
     [Test]
     public void DoWhileLoop_WithCancellationToken_CanBeCancelled()
     {
@@ -272,6 +256,7 @@ public class DoWhileLoopTests(CompilationMode mode)
 
     #region Do-While Loop Parsing Tests
 
+    // Engine-only: TryParse API (CsEval-specific)
     [Test]
     public void DoWhileLoop_TryParse_ValidExpression_Succeeds()
     {
@@ -283,6 +268,7 @@ public class DoWhileLoopTests(CompilationMode mode)
         Assert.That(error, Is.Null);
     }
 
+    // Engine-only: TryParse API (CsEval-specific)
     [Test]
     public void DoWhileLoop_TryParse_WithoutSemicolon_StillWorks()
     {
@@ -293,6 +279,7 @@ public class DoWhileLoopTests(CompilationMode mode)
         Assert.That(expr, Is.Not.Null);
     }
 
+    // Engine-only: Parse/SetVariable API (CsEval-specific), pre-parsed expression reuse
     [Test]
     public void DoWhileLoop_PreParsed_CanBeEvaluatedMultipleTimes()
     {
