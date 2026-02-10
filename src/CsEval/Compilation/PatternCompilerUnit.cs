@@ -142,7 +142,7 @@ internal sealed class PatternCompilerUnit
     {
         // Resolve type via context's TypeResolver
         var resolvedType = LinqExpression.Call(
-            LinqExpression.Call(_ctx.CurrentContext, CompilerContext.GetTypeResolverProperty),
+            _ctx.TypeResolverExpr,
             CompilerContext.ResolveTypeMethod,
             LinqExpression.Constant(tp.TypeToken.Lexeme));
 
@@ -166,7 +166,7 @@ internal sealed class PatternCompilerUnit
             [typeValueVar, matchVar, resolvedTypeVar],
             LinqExpression.Assign(typeValueVar, value),
             LinqExpression.Assign(resolvedTypeVar, LinqExpression.Call(
-                LinqExpression.Call(_ctx.CurrentContext, CompilerContext.GetTypeResolverProperty),
+                _ctx.TypeResolverExpr,
                 CompilerContext.ResolveTypeMethod,
                 LinqExpression.Constant(tp.TypeToken.Lexeme))),
             LinqExpression.Assign(matchVar, LinqExpression.Call(
@@ -267,7 +267,7 @@ internal sealed class PatternCompilerUnit
         if (pp.TypeToken != null)
         {
             var propResolvedType = LinqExpression.Call(
-                LinqExpression.Call(_ctx.CurrentContext, CompilerContext.GetTypeResolverProperty),
+                _ctx.TypeResolverExpr,
                 CompilerContext.ResolveTypeMethod,
                 LinqExpression.Constant(pp.TypeToken.Value.Lexeme));
 
