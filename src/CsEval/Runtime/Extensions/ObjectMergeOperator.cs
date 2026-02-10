@@ -1,3 +1,5 @@
+using CsEval.Diagnostics;
+
 namespace CsEval.Runtime.Extensions;
 
 /// <summary>
@@ -15,7 +17,7 @@ internal static class ObjectMergeOperator
         CopyObjectProperties(right, merged, context);
 
         if (merged.Count == 0 && (left != null || right != null))
-            throw new CsEvalException($"Cannot add {left?.GetType().Name ?? "null"} and {right?.GetType().Name ?? "null"}");
+            throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, "+", left?.GetType().Name ?? "null", right?.GetType().Name ?? "null");
 
         return merged;
     }

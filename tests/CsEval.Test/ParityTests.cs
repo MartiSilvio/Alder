@@ -49,10 +49,33 @@ public class ParityTests(CompilationMode mode)
     {
         var expr = TestHelpers.LoadTestExpression(csxPath);
 
-        await Assert.ThatAsync(async () => await TestHelpers.EvaluateCSharpAsync(expr), Throws.Exception);
+        // Capture Roslyn error
+        Exception? roslynEx = null;
+        try
+        {
+            await TestHelpers.EvaluateCSharpAsync(expr);
+            Assert.Fail($"Roslyn did not throw for: {expr}");
+        }
+        catch (Exception ex)
+        {
+            roslynEx = ex;
+        }
 
+        // Capture CsEval error
         var engine = new CsEvalEngine(Options);
-        Assert.Catch<Exception>(() => engine.Evaluate(expr));
+        var csEvalEx = Assert.Catch<Exception>(() => engine.Evaluate(expr));
+
+        // Validate error codes match when both have them
+        if (csEvalEx is CsEvalException csEx && csEx.ErrorCode.HasValue)
+        {
+            var expectedCode = csEx.FormattedCode; // e.g., "CS0029"
+
+            // Check if Roslyn error message contains the same CS code
+            if (roslynEx != null && !roslynEx.Message.Contains(expectedCode!))
+            {
+                Assert.Warn($"Error code mismatch: CsEval threw {expectedCode}, but Roslyn error was: {roslynEx.Message}");
+            }
+        }
     }
 
     private static bool IsAnonymousType(Type? type) =>

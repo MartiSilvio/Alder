@@ -1,3 +1,5 @@
+using CsEval.Diagnostics;
+
 namespace CsEval.Runtime;
 
 /// <summary>
@@ -35,7 +37,7 @@ public static class SpreadHelpers
         }
         else
         {
-            throw new CsEvalException("Spread operator requires an iterable");
+            throw new CsEvalException(DiagnosticDescriptors.ForeachRequiresIEnumerable, source?.GetType().Name ?? "null");
         }
     }
 
