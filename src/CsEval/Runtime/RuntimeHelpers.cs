@@ -1,3 +1,4 @@
+using CsEval.Diagnostics;
 using CsEval.Interpretation;
 
 namespace CsEval.Runtime;
@@ -24,7 +25,7 @@ public static class RuntimeHelpers
     public static void CheckNullCoalesceAssignAllowed(string name, CsEvalContext context)
     {
         if (context.TryGetVariableType(name, out var varType) && varType != null && !TypeHelpers.IsNullableType(varType))
-            throw new CsEvalException($"Operator '??=' cannot be applied to operand of type '{varType.Name}'");
+            throw new CsEvalException(DiagnosticDescriptors.BadUnaryOp, "??=", varType.Name);
     }
 
     public static void CheckAllowIndexSet(CsEvalOptions options, object? index)
@@ -68,7 +69,7 @@ public static class RuntimeHelpers
 
         if (!resultConvertible && !rhsConvertible)
         {
-            throw new CsEvalException($"Cannot implicitly convert type '{resultType.Name}' to '{varType.Name}'");
+            throw new CsEvalException(DiagnosticDescriptors.NoImplicitConversion, resultType.Name, varType.Name);
         }
 
         // Get the underlying type for nullable targets
@@ -79,7 +80,7 @@ public static class RuntimeHelpers
         }
         catch (Exception ex) when (ex is InvalidCastException or OverflowException)
         {
-            throw new CsEvalException($"Cannot implicitly convert type '{resultType.Name}' to '{varType.Name}'");
+            throw new CsEvalException(DiagnosticDescriptors.NoImplicitConversion, resultType.Name, varType.Name);
         }
     }
 
@@ -115,7 +116,7 @@ public static class RuntimeHelpers
     public static IEnumerator GetEnumerator(object? collection)
     {
         if (collection is not IEnumerable enumerable)
-            throw new CsEvalException($"Cannot iterate over type '{collection?.GetType().Name ?? "null"}' in foreach");
+            throw new CsEvalException(DiagnosticDescriptors.ForeachRequiresIEnumerable, collection?.GetType().Name ?? "null");
 
         return enumerable.GetEnumerator();
     }
@@ -140,7 +141,7 @@ public static class RuntimeHelpers
         }
         catch (MissingMethodException)
         {
-            throw new CsEvalException($"No matching constructor found for '{type.Name}' with {args.Length} argument(s)");
+            throw new CsEvalException(DiagnosticDescriptors.NoMatchingConstructor, type.Name, args.Length);
         }
         catch (TargetInvocationException ex) when (ex.InnerException != null)
         {
