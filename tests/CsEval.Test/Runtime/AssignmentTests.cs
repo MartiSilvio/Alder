@@ -1,3 +1,7 @@
+// Engine-only: CsEval-specific syntax ([1,2,3] collection expressions, mutable anonymous objects),
+// SetVariable API, RegisterExtensionMethods, pre-parsed engine reuse, error assertions.
+// Migratable parity tests extracted to TestData/Runtime/Assignment/*.csx.
+
 namespace CsEval.Test.Runtime;
 
 [TestFixture(CompilationMode.Interpreted)]
@@ -5,9 +9,9 @@ namespace CsEval.Test.Runtime;
 [TestFixture(CompilationMode.StrictCompiled)]
 public class AssignmentTests(CompilationMode mode)
 {
-    #region Assignment with Different Types
+    #region CsEval-Specific Syntax (Engine-Only)
 
-    // CsEval-specific: [1,2,3] collection expression with var -- engine-only test
+    // Engine-only: [1,2,3] collection expression with var -- Roslyn CS9176
     [Test]
     public void Assignment_ArrayValue_WorksCorrectly()
     {
@@ -23,7 +27,7 @@ public class AssignmentTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(new int[] { 4, 5, 6 }));
     }
 
-    // CsEval-specific: mutable anonymous objects -- engine-only test
+    // Engine-only: mutable anonymous objects as IDictionary
     [Test]
     public void Assignment_AnonymousObject_WorksCorrectly()
     {
@@ -40,80 +44,7 @@ public class AssignmentTests(CompilationMode mode)
         Assert.That(result["Age"], Is.EqualTo(30));
     }
 
-    #endregion
-
-    #region Assignment with External Variables
-
-    [Test]
-    public void Assignment_ToExternalVariable_UpdatesValue()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        engine.SetVariable("x", 10L);
-
-        var result = engine.Evaluate(@"
-        {
-            x = 50;
-            return x;
-        }");
-
-        Assert.That(result, Is.EqualTo(50));
-    }
-
-    [Test]
-    public async Task Assignment_CombiningExternalAndLocal_WorksCorrectly()
-    {
-        var variables = new Dictionary<string, object?> { ["multiplier"] = 3 };
-        await TestHelpers.RunCSharpParityTestAsync("""
-            {
-                var total = 0;
-                total = multiplier * 10;
-                return total;
-            }
-            """, variables, 30, mode);
-    }
-
-    #endregion
-
-    #region Assignment in Conditionals
-
-    [Test]
-    public async Task Assignment_ConditionalBranches_UpdatesCorrectly()
-    {
-        var variables = new Dictionary<string, object?> { ["condition"] = true };
-        await TestHelpers.RunCSharpParityTestAsync("""
-            {
-                var msg = "initial";
-                if (condition) {
-                    msg = "was true";
-                } else {
-                    msg = "was false";
-                }
-                return msg;
-            }
-            """, variables, "was true", mode);
-    }
-
-    #endregion
-
-    #region Assignment with LINQ
-
-    [Test]
-    public void Assignment_WithLinqResult_WorksCorrectly()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        engine.SetVariable("numbers", new List<int> { 1, 2, 3, 4, 5 });
-
-        var result = engine.Evaluate(@"
-        {
-            var filtered = numbers.Where(x => x > 2).ToList();
-            return filtered;
-        }");
-
-        Assert.That(result, Is.InstanceOf<IList>());
-        Assert.That(result, Is.EqualTo(new List<int> { 3, 4, 5 }));
-    }
-
-    // CsEval-specific: [..items, 4, 5] spread syntax -- engine-only test
+    // Engine-only: [..items, 4, 5] spread syntax -- Roslyn CS9176
     [Test]
     public void Assignment_AccumulatingLinqResults_WorksCorrectly()
     {
@@ -132,8 +63,46 @@ public class AssignmentTests(CompilationMode mode)
 
     #endregion
 
-    #region Assignment Error Cases
+    #region SetVariable API (Engine-Only)
 
+    // Engine-only: SetVariable with long type + int literal reassignment (CsEval returns int, Roslyn returns long)
+    [Test]
+    public void Assignment_ToExternalVariable_UpdatesValue()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        engine.SetVariable("x", 10L);
+
+        var result = engine.Evaluate(@"
+        {
+            x = 50;
+            return x;
+        }");
+
+        Assert.That(result, Is.EqualTo(50));
+    }
+
+    // Engine-only: SetVariable with non-serializable List<int> type
+    [Test]
+    public void Assignment_WithLinqResult_WorksCorrectly()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        engine.SetVariable("numbers", new List<int> { 1, 2, 3, 4, 5 });
+
+        var result = engine.Evaluate(@"
+        {
+            var filtered = numbers.Where(x => x > 2).ToList();
+            return filtered;
+        }");
+
+        Assert.That(result, Is.InstanceOf<IList>());
+        Assert.That(result, Is.EqualTo(new List<int> { 3, 4, 5 }));
+    }
+
+    #endregion
+
+    #region Error Cases (Engine-Only)
+
+    // Engine-only: CsEvalException assertion
     [Test]
     public void Assignment_ToUndefinedVariable_ThrowsException()
     {
@@ -149,25 +118,9 @@ public class AssignmentTests(CompilationMode mode)
 
     #endregion
 
-    #region Assignment with Ternary
+    #region Pre-Parsed Assignment (Engine-Only)
 
-    [Test]
-    public async Task Assignment_FromTernary_WorksCorrectly()
-    {
-        var variables = new Dictionary<string, object?> { ["condition"] = true };
-        await TestHelpers.RunCSharpParityTestAsync("""
-            {
-                var result = 0;
-                result = condition ? 100 : 200;
-                return result;
-            }
-            """, variables, 100, mode);
-    }
-
-    #endregion
-
-    #region Pre-Parsed Assignment
-
+    // Engine-only: engine.Parse() + SetVariable reuse pattern
     [Test]
     public void Assignment_PreParsed_CanBeReused()
     {

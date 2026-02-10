@@ -1,3 +1,6 @@
+// Engine-only: pre-parsed engine reuse pattern.
+// Migratable parity tests extracted to TestData/Runtime/IncrementDecrement/*.csx.
+
 namespace CsEval.Test.Runtime;
 
 [TestFixture(CompilationMode.Interpreted)]
@@ -5,60 +8,9 @@ namespace CsEval.Test.Runtime;
 [TestFixture(CompilationMode.StrictCompiled)]
 public class IncrementDecrementTests(CompilationMode mode)
 {
-    #region Float (Inline -- type assertion)
+    #region Pre-Parsed (Engine-Only)
 
-    [Test]
-    public async Task PrefixIncrement_Float_WorksCorrectly()
-    {
-        var expr = "{ float x = 2.5f; ++x; return x; }";
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(expr);
-        var csharpResult = await TestHelpers.EvaluateCSharpAsync(expr);
-
-        Assert.That(result, Is.EqualTo(3.5f));
-        Assert.That(result?.GetType(), Is.EqualTo(csharpResult?.GetType()));
-    }
-
-    #endregion
-
-    #region External Variables (Inline -- SetVariable)
-
-    [Test]
-    public async Task Increment_ExternalVariable()
-    {
-        var variables = new Dictionary<string, object?> { ["counter"] = 100L };
-        await TestHelpers.RunCSharpParityTestAsync(
-            "{ counter++; return counter; }", variables, 101L, mode);
-    }
-
-    [Test]
-    public async Task Decrement_ExternalVariable()
-    {
-        var variables = new Dictionary<string, object?> { ["counter"] = 100L };
-        await TestHelpers.RunCSharpParityTestAsync(
-            "{ counter--; return counter; }", variables, 99L, mode);
-    }
-
-    [Test]
-    public async Task PrefixIncrement_ExternalVariable_ReturnsNewValue()
-    {
-        var variables = new Dictionary<string, object?> { ["val"] = 50L };
-        await TestHelpers.RunCSharpParityTestAsync(
-            "{ var captured = ++val; return captured; }", variables, 51L, mode);
-    }
-
-    [Test]
-    public async Task PostfixIncrement_ExternalVariable_ReturnsOldValue()
-    {
-        var variables = new Dictionary<string, object?> { ["val"] = 50L };
-        await TestHelpers.RunCSharpParityTestAsync(
-            "{ var captured = val++; return captured; }", variables, 50L, mode);
-    }
-
-    #endregion
-
-    #region Pre-Parsed (Inline -- engine reuse)
-
+    // Engine-only: engine.Parse() + SetVariable reuse pattern
     [Test]
     public void IncrementDecrement_PreParsed_CanBeReused()
     {
