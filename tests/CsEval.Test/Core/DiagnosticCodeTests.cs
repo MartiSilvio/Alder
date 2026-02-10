@@ -13,9 +13,21 @@ namespace CsEval.Test.Core;
 ///   3. Message contains formatted arguments (no raw {0} placeholders)
 ///
 /// Throw site audit (Phase 10 final):
-///   - 21 CS error codes mapped across all compilation units
-///   - CsEval-specific errors (sandbox, iteration limits, internal) retain null ErrorCode
-///   - All CS-coded throw sites use DiagnosticDescriptors catalog
+///   Total throw sites: 178 (134 CsEvalException + 18 CsEvalParserException + 26 CsEvalLexerException)
+///   CS-coded:          68  (65 CsEvalException + 3 CsEvalParserException) using 21 distinct CS codes
+///   CsEval-specific:  110  (69 CsEvalException + 15 CsEvalParserException + 26 CsEvalLexerException)
+///
+///   CsEval-specific breakdown (no C# compiler equivalent):
+///     Sandbox/security:    12 (assignment/method/property/index blocked)
+///     Null access:         15 (runtime NullReferenceException in real C#)
+///     Iteration limits:     5 (MaxIterations exceeded)
+///     Reflection guards:    3 (reflection type leakage prevention)
+///     Internal/unreachable: 12 (unknown operator, unsupported pattern)
+///     Tuple/deconstruction: 7 (tuple size limits, deconstruction mismatch)
+///     Spread operator:      4 (CsEval extension syntax)
+///     Other CsEval-only:   11 (method invocation, compilation wrapper, etc.)
+///     Parser errors:        15 (parsing-specific messages)
+///     Lexer errors:         26 (deferred per 10-07 decision)
 /// </summary>
 [TestFixture]
 public class DiagnosticCodeTests
