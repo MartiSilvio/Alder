@@ -1,3 +1,5 @@
+using CsEval.Diagnostics;
+
 namespace CsEval.Runtime;
 
 /// <summary>
@@ -180,7 +182,7 @@ public static class NumericDispatch
             return op(value);
 
 #if USE_STATIC_DISPATCH
-        throw new CsEvalException($"Cannot negate {type.Name} (unsupported type)");
+        throw new CsEvalException(DiagnosticDescriptors.BadUnaryOp, "-", type.Name);
 #else
         return -(dynamic)value;
 #endif
@@ -222,7 +224,7 @@ public static class NumericDispatch
             return op(value);
 
 #if USE_STATIC_DISPATCH
-        throw new CsEvalException($"Cannot apply bitwise NOT to {type.Name} (unsupported type)");
+        throw new CsEvalException(DiagnosticDescriptors.BadUnaryOp, "~", type.Name);
 #else
         return ~(dynamic)value;
 #endif
@@ -237,7 +239,7 @@ public static class NumericDispatch
             return op(promotedLeft, promotedRight);
 
 #if USE_STATIC_DISPATCH
-        throw new CsEvalException($"Cannot compare {left.GetType().Name} and {right.GetType().Name} (unsupported types)");
+        throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, "<>", left.GetType().Name, right.GetType().Name);
 #else
         dynamic l = left, r = right;
         return l < r ? -1 : l > r ? 1 : 0;
@@ -267,7 +269,7 @@ public static class NumericDispatch
             byte b => b << shiftAmount,
             sbyte sb => sb << shiftAmount,
 #if USE_STATIC_DISPATCH
-            _ => throw new CsEvalException($"Cannot left shift {left.GetType().Name} (unsupported type)")
+            _ => throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, "<<", left.GetType().Name, "int")
 #else
             _ => (dynamic)left << shiftAmount
 #endif
@@ -296,7 +298,7 @@ public static class NumericDispatch
             byte b => b >> shiftAmount,
             sbyte sb => sb >> shiftAmount,
 #if USE_STATIC_DISPATCH
-            _ => throw new CsEvalException($"Cannot right shift {left.GetType().Name} (unsupported type)")
+            _ => throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, ">>", left.GetType().Name, "int")
 #else
             _ => (dynamic)left >> shiftAmount
 #endif
@@ -440,7 +442,7 @@ public static class NumericDispatch
             if (leftType == typeof(float) || leftType == typeof(double) ||
                 rightType == typeof(float) || rightType == typeof(double))
             {
-                throw new CsEvalException("Cannot mix decimal with float or double (C# forbids implicit conversion)");
+                throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, "+", leftType.Name, rightType.Name);
             }
             return (ConvertToDecimal(left), ConvertToDecimal(right), typeof(decimal));
         }
@@ -459,7 +461,7 @@ public static class NumericDispatch
         {
             if (IsSignedInteger(leftType) || IsSignedInteger(rightType))
             {
-                throw new CsEvalException("Cannot mix ulong with signed integer types");
+                throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, "+", leftType.Name, rightType.Name);
             }
             return (ConvertToUInt64(left), ConvertToUInt64(right), typeof(ulong));
         }
@@ -552,7 +554,7 @@ public static class NumericDispatch
             return op(promotedLeft, promotedRight);
 
 #if USE_STATIC_DISPATCH
-        throw new CsEvalException($"Cannot apply operator '{opName}' to {left.GetType().Name} and {right.GetType().Name} (unsupported types)");
+        throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, opName, left.GetType().Name, right.GetType().Name);
 #else
         return opName switch
         {
@@ -561,7 +563,7 @@ public static class NumericDispatch
             "*" => (dynamic)left * (dynamic)right,
             "/" => (dynamic)left / (dynamic)right,
             "%" => (dynamic)left % (dynamic)right,
-            _ => throw new CsEvalException($"Unknown operator '{opName}'")
+            _ => throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, opName, left.GetType().Name, right.GetType().Name)
         };
 #endif
     }
@@ -582,14 +584,14 @@ public static class NumericDispatch
             return op(promotedLeft, promotedRight);
 
 #if USE_STATIC_DISPATCH
-        throw new CsEvalException($"Cannot apply operator '{opName}' to {left.GetType().Name} and {right.GetType().Name} (unsupported types)");
+        throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, opName, left.GetType().Name, right.GetType().Name);
 #else
         return opName switch
         {
             "&" => (dynamic)left & (dynamic)right,
             "|" => (dynamic)left | (dynamic)right,
             "^" => (dynamic)left ^ (dynamic)right,
-            _ => throw new CsEvalException($"Unknown operator '{opName}'")
+            _ => throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, opName, left.GetType().Name, right.GetType().Name)
         };
 #endif
     }
