@@ -114,6 +114,11 @@ public sealed class ExpressionParser : ParserBase
         if (IsTypeKeyword(Peek().Type) && PeekNext().Type != TokenType.Dot)
             return true;
 
+        // Generic type variable declarations: Func<int, int> f = ..., List<T> items = ...
+        // Identifier followed by '<' indicates a generic type declaration statement
+        if (Check(TokenType.Identifier) && PeekNext().Type == TokenType.Less)
+            return true;
+
         return false;
     }
 
