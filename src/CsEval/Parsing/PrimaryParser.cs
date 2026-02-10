@@ -208,11 +208,29 @@ public sealed class PrimaryParser : ParserBase
             typeName += ">";
         }
 
-        // Check for array creation syntax: new TypeName[size]
+        // Check for array creation syntax: new TypeName[size] or new TypeName[] { ... }
         // ECMA-334 §12.8.16.4 - must check before constructor path
         if (Check(TokenType.LeftBracket))
         {
             Advance(); // consume '['
+
+            // Check for array initializer: new int[] { ... }
+            if (Check(TokenType.RightBracket))
+            {
+                Advance(); // consume ']'
+
+                // Array initializer must follow: new int[] { ... }
+                if (Check(TokenType.LeftBrace))
+                {
+                    Advance(); // consume '{'
+                    var arrayLiteral = (ArrayLiteralExpr)ParseArrayLiteralBody();
+                    return new TypedArrayLiteralExpr(typeName, arrayLiteral);
+                }
+
+                throw new CsEvalParserException($"Expected '{{' after 'new {typeName}[]' at {Peek().Line}:{Peek().Column}");
+            }
+
+            // Array with size: new int[10]
             var sizeExpr = _expression.ParseExpression();
             Consume(TokenType.RightBracket, "Expected ']' after array size");
             return new TypedArrayCreationExpr(typeName, sizeExpr);

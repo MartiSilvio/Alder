@@ -769,6 +769,19 @@ public sealed class Evaluator : IExprVisitor<object?>
         return Array.CreateInstance(elementType, size);
     }
 
+    public object? VisitTypedArrayLiteral(TypedArrayLiteralExpr expr)
+    {
+        var elementType = _context.TypeResolver.ResolveType(expr.ElementTypeName);
+        var elements = expr.Elements.Elements;
+        var array = Array.CreateInstance(elementType, elements.Count);
+        for (var i = 0; i < elements.Count; i++)
+        {
+            var value = Evaluate(elements[i]);
+            array.SetValue(value, i);
+        }
+        return array;
+    }
+
     public object? VisitThrow(ThrowExpr expr)
     {
         var result = Evaluate(expr.Expression);

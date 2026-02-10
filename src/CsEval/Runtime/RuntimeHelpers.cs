@@ -211,6 +211,20 @@ public static class RuntimeHelpers
     }
 
     /// <summary>
+    /// Converts an object?[] array to a typed T[] array.
+    /// Used for typed array literals: new int[] {1, 2, 3}
+    /// </summary>
+    public static object ConvertArrayToTyped(object?[] sourceArray, Type elementType)
+    {
+        var typedArray = Array.CreateInstance(elementType, sourceArray.Length);
+        for (var i = 0; i < sourceArray.Length; i++)
+        {
+            typedArray.SetValue(sourceArray[i], i);
+        }
+        return typedArray;
+    }
+
+    /// <summary>
     /// ECMA-334 §12.18: Promotes conditional expression result to common type of both branches.
     /// </summary>
     public static object? ConditionalTypePromotion(object? result, object? thenValue, object? elseValue)

@@ -92,6 +92,9 @@ public interface IExprVisitor<out T>
     // Typed array creation expression
     T VisitTypedArrayCreation(TypedArrayCreationExpr expr);
 
+    // Typed array literal expression
+    T VisitTypedArrayLiteral(TypedArrayLiteralExpr expr);
+
     // Throw expression
     T VisitThrow(ThrowExpr expr);
 
@@ -476,6 +479,13 @@ public sealed record ObjectCreationExpr(string TypeName, List<Expr> Arguments) :
 public sealed record TypedArrayCreationExpr(string ElementTypeName, Expr Size) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitTypedArrayCreation(this);
+}
+
+// Typed array literal: new int[] {1, 2, 3}, new string[] {"a", "b"}
+// ECMA-334 §12.8.16.5 - Array initializers
+public sealed record TypedArrayLiteralExpr(string ElementTypeName, ArrayLiteralExpr Elements) : Expr
+{
+    public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitTypedArrayLiteral(this);
 }
 
 #endregion

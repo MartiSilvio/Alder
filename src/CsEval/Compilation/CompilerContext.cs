@@ -77,6 +77,7 @@ internal sealed class CompilerContext
     internal static readonly MethodInfo ResolveTypeMethod = typeof(TypeResolver).GetMethod(nameof(TypeResolver.ResolveType))!;
     internal static readonly MethodInfo InvokeConstructorMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.InvokeConstructor))!;
     internal static readonly MethodInfo CreateTypedArrayFromTypeNameMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.CreateTypedArray))!;
+    internal static readonly MethodInfo ConvertArrayToTypedMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.ConvertArrayToTyped))!;
     internal static readonly MethodInfo CreateTupleMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.CreateTuple))!;
     internal static readonly MethodInfo DeconstructTupleMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.DeconstructTuple))!;
     internal static readonly MethodInfo GetDefaultValueMethod = typeof(TypeHelpers).GetMethod(nameof(TypeHelpers.GetDefaultValue), [typeof(Type)])!;
@@ -261,6 +262,7 @@ internal sealed class CompilerContext
                 TypeofExpr typeofExpr => exprUnit.CompileTypeof(typeofExpr),
                 ObjectCreationExpr oc => exprUnit.CompileObjectCreation(oc),
                 TypedArrayCreationExpr tac => exprUnit.CompileTypedArrayCreation(tac),
+                TypedArrayLiteralExpr tal => exprUnit.CompileTypedArrayLiteral(tal),
                 TupleExpr tuple => exprUnit.CompileTuple(tuple),
                 DeconstructionExpr deconstruction => exprUnit.CompileDeconstruction(deconstruction),
                 ThrowExpr throwExpr => exprUnit.CompileThrow(throwExpr),
@@ -379,6 +381,10 @@ internal sealed class CompilerContext
 
                 case TypedArrayCreationExpr tac:
                     stack.Push(tac.Size);
+                    break;
+
+                case TypedArrayLiteralExpr tal:
+                    stack.Push(tal.Elements);
                     break;
 
                 case TupleExpr tuple:

@@ -126,6 +126,27 @@ internal sealed class ExpressionCompilerUnit
             size);
     }
 
+    internal LinqExpression CompileTypedArrayLiteral(TypedArrayLiteralExpr expr)
+    {
+        // Compile the array literal elements (returns object)
+        var arrayLiteral = CompileArrayLiteral(expr.Elements);
+
+        // Cast to object?[]
+        var arrayLiteralTyped = LinqExpression.Convert(arrayLiteral, typeof(object?[]));
+
+        // Resolve the target element type
+        var resolvedType = LinqExpression.Call(
+            _ctx.TypeResolverExpr,
+            CompilerContext.ResolveTypeMethod,
+            LinqExpression.Constant(expr.ElementTypeName));
+
+        // Convert the object?[] array to the typed array T[]
+        return LinqExpression.Call(
+            CompilerContext.ConvertArrayToTypedMethod,
+            arrayLiteralTyped,
+            resolvedType);
+    }
+
     internal LinqExpression CompileTuple(TupleExpr expr)
     {
         // Compile each element expression into an object[] array
