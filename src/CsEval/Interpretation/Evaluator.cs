@@ -1,5 +1,6 @@
 using System.Collections.Frozen;
 using System.Runtime.ExceptionServices;
+using CsEval.Diagnostics;
 using CsEval.Parsing;
 using CsEval.Runtime;
 using CsEval.Interpretation.Extensions;
@@ -365,7 +366,7 @@ public sealed class Evaluator : IExprVisitor<object?>
         var name = expr.Name.Lexeme;
 
         if (_context.TryGetVariableType(name, out var varType) && varType != null && !TypeHelpers.IsNullableType(varType))
-            throw new CsEvalException($"Operator '??=' cannot be applied to operand of type '{varType.Name}'");
+            throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, "??=", varType.Name, varType.Name);
 
         var currentValue = _context.Get(name);
 
