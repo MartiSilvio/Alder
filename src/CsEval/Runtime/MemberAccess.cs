@@ -1,3 +1,4 @@
+using CsEval.Diagnostics;
 using CsEval.Interpretation;
 
 namespace CsEval.Runtime;
@@ -68,7 +69,7 @@ public static class MemberAccess
                 return TypeHelpers.CheckSandboxType(value, options.Sandbox);
             }
             case ModuleInfo module:
-                throw new CsEvalException($"Member '{name}' not found on module '{module.Type.Name}'");
+                throw new CsEvalException(DiagnosticDescriptors.NoMemberOnType, module.Type.Name, name);
             case IDictionary<string, object?> dict when dict.TryGetValue(name, out var value):
                 return TypeHelpers.CheckSandboxType(value, options.Sandbox);
             case IDictionary<string, object?> dict:
@@ -82,7 +83,7 @@ public static class MemberAccess
                     }
                 }
 
-                throw new CsEvalException($"Property '{name}' not found");
+                throw new CsEvalException(DiagnosticDescriptors.NoMemberOnType, obj.GetType().Name, name);
             }
         }
 
@@ -157,7 +158,7 @@ public static class MemberAccess
             }
         }
 
-        throw new CsEvalException($"Type '{type.Name}' cannot be indexed");
+        throw new CsEvalException(DiagnosticDescriptors.BadIndexerAccess, type.Name);
     }
 
     public static void SetMember(object? obj, string name, object? value, CsEvalOptions options, CsEvalContext context)
@@ -196,7 +197,7 @@ public static class MemberAccess
         if (prop != null)
         {
             if (!prop.CanWrite)
-                throw new CsEvalException($"Property '{name}' is read-only");
+                throw new CsEvalException(DiagnosticDescriptors.ReadonlyAssignment);
             prop.SetValue(obj, value);
             return;
         }
@@ -205,12 +206,12 @@ public static class MemberAccess
         if (field != null)
         {
             if (field.IsInitOnly)
-                throw new CsEvalException($"Field '{name}' is read-only");
+                throw new CsEvalException(DiagnosticDescriptors.ReadonlyAssignment);
             field.SetValue(obj, value);
             return;
         }
 
-        throw new CsEvalException($"Property '{name}' not found on type '{type.Name}'");
+        throw new CsEvalException(DiagnosticDescriptors.NoMemberOnType, type.Name, name);
     }
 
     public static void SetIndex(object? obj, object? index, object? value)
@@ -258,11 +259,11 @@ public static class MemberAccess
             }
             catch
             {
-                throw new CsEvalException($"Cannot set index on type '{type.Name}'");
+                throw new CsEvalException(DiagnosticDescriptors.BadIndexerAccess, type.Name);
             }
         }
 
-        throw new CsEvalException($"Type '{type.Name}' does not support index assignment");
+        throw new CsEvalException(DiagnosticDescriptors.BadIndexerAccess, type.Name);
     }
 
     internal static object? ConvertChangeType(object? value, Type targetType)
