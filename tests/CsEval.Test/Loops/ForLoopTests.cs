@@ -1,5 +1,8 @@
 namespace CsEval.Test.Loops;
 
+// Engine-only: All tests use CsEval-specific configuration (MaxIterations, CancellationToken)
+// or test parsing API (TryParse) - not expression evaluation
+
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
 [TestFixture(CompilationMode.StrictCompiled)]

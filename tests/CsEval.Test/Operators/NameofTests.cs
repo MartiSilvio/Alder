@@ -1,5 +1,8 @@
 namespace CsEval.Test.Operators;
 
+// Engine-only: CsEval resolves nameof() syntactically, Roslyn requires member to exist.
+// All tests use SetVariable or reference non-existent members (obj.Property, a.b.c).
+
 /// <summary>
 /// Tests for nameof() expression (ECMA-334 §12.8.22).
 /// </summary>

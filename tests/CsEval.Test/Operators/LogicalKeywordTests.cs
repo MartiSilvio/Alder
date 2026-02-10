@@ -1,5 +1,7 @@
 namespace CsEval.Test.Operators;
 
+// Engine-only: CsEval-specific logical keywords (and, or, not) - not standard C# syntax
+
 /// <summary>
 /// Tests for 'and', 'or', 'not' keywords (CsEval extension, not standard C#).
 /// </summary>

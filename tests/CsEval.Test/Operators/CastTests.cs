@@ -1,5 +1,8 @@
 namespace CsEval.Test.Operators;
 
+// Engine-only: All tests use SetVariable with Exception objects (reference types not value-comparable)
+// or test error cases (InvalidCastException, invalid unboxing)
+
 /// <summary>
 /// ECMA-334 §10.3 — Explicit conversions (cast expressions),
 /// §10.3.7 — Unboxing conversions, §10.3.2 — Explicit numeric conversions.

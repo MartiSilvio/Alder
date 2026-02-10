@@ -1,5 +1,8 @@
 namespace CsEval.Test.PatternMatching;
 
+// Engine-only: PropertyPattern_NullFalse uses object-typed variable with member access
+// (Roslyn cannot resolve member on object type). DiscardPattern test is Assert.Pass() placeholder.
+
 /// <summary>
 /// ECMA-334 §11.2 -- Pattern matching via is-expressions.
 /// Tests constant patterns (section 11.2.3), type patterns with variable binding (section 11.2.2),

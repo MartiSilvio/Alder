@@ -1,5 +1,8 @@
 namespace CsEval.Test.PatternMatching;
 
+// Engine-only: All tests use SetVariable, verify SwitchExpressionException (error tests),
+// or test Roslyn-rejected patterns (CS8510 unreachable pattern arms, variable scoping)
+
 /// <summary>
 /// ECMA-334 §12.8.21 -- Switch expressions.
 /// Tests switch expression parsing and evaluation, constant/type/relational/property pattern arms,
