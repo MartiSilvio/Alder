@@ -1,2 +1,4 @@
-bool? x = null;
-return x;
+{
+    bool? x = null;
+    return x;
+}

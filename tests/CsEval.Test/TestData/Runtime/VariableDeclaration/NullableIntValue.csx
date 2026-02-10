@@ -1,2 +1,4 @@
-int? x = 42;
-return x;
+{
+    int? x = 42;
+    return x;
+}

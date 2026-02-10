@@ -1,2 +1,4 @@
-double? x = null;
-return x;
+{
+    double? x = null;
+    return x;
+}

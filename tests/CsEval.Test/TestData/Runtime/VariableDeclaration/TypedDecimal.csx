@@ -1,2 +1,4 @@
-decimal x = 3.14m;
-return x;
+{
+    decimal x = 3.14m;
+    return x;
+}
