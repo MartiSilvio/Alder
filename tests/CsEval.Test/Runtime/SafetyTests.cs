@@ -1,3 +1,6 @@
+// All tests engine-only: MaxIterations config, CancellationToken, CsEvalException assertions
+// -- CsEval-specific safety features with no Roslyn equivalent.
+
 namespace CsEval.Test.Runtime;
 
 [TestFixture(CompilationMode.Interpreted)]

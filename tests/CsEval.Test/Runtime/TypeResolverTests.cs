@@ -1,3 +1,6 @@
+// All tests engine-only: exercise internal TypeResolver API through CsEvalEngine.Evaluate
+// with typeof/cast/is patterns, AddUsing/AddAssembly config, and error assertions.
+
 namespace CsEval.Test.Runtime;
 
 /// <summary>

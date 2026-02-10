@@ -1,7 +1,10 @@
+// All tests engine-only: test TypeHelpers.CanImplicitlyConvert internal API directly.
+
 namespace CsEval.Test.Runtime;
 
 /// <summary>
 /// Unit tests for TypeHelpers utility methods.
+/// Tests the internal TypeHelpers.CanImplicitlyConvert API directly -- no expression evaluation.
 /// </summary>
 [TestFixture]
 public class TypeHelperTests

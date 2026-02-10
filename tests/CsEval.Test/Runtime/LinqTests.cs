@@ -1,3 +1,6 @@
+// All tests engine-only: RegisterExtensionMethods is CsEval-specific API,
+// lambda isolation is internal behavior (per 09-08 audit).
+
 namespace CsEval.Test.Runtime;
 
 [TestFixture(CompilationMode.Interpreted)]
