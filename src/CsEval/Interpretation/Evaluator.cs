@@ -968,7 +968,7 @@ public sealed class Evaluator : IExprVisitor<object?>
     public object? VisitThrowStatement(ThrowStatementExpr expr)
     {
         if (_caughtExceptions.Count == 0)
-            throw new CsEvalException("throw; used outside of catch block");
+            throw new CsEvalException(DiagnosticDescriptors.ThrowOutsideCatch);
 
         ExceptionDispatchInfo.Capture(_caughtExceptions.Peek()).Throw();
         return null; // Unreachable
@@ -1146,7 +1146,7 @@ public sealed class Evaluator : IExprVisitor<object?>
 
         if (collection is not IEnumerable enumerable)
         {
-            throw new CsEvalException($"Cannot iterate over type '{collection?.GetType().Name ?? "null"}' in foreach");
+            throw new CsEvalException(DiagnosticDescriptors.ForeachRequiresIEnumerable, collection?.GetType().Name ?? "null");
         }
 
         foreach (var item in enumerable)
@@ -1251,7 +1251,7 @@ public sealed class Evaluator : IExprVisitor<object?>
                     return signal;
             }
 
-            throw new CsEvalException("CS0163: Control cannot fall through from one case label to another");
+            throw new CsEvalException(DiagnosticDescriptors.CaseFallThrough);
         }
 
         return null;
@@ -1280,7 +1280,7 @@ public sealed class Evaluator : IExprVisitor<object?>
                     _ => throw new CsEvalException($"Unsupported member type '{member.GetType().Name}'")
                 };
             }
-            throw new CsEvalException($"Member '{name}' not found on module '{module.Type.Name}'");
+            throw new CsEvalException(DiagnosticDescriptors.NoMemberOnType, module.Type.Name, name);
         }
 
         // Handle static member access on Type objects (e.g., double.NaN)
@@ -1326,7 +1326,7 @@ public sealed class Evaluator : IExprVisitor<object?>
                 }
             }
 
-            throw new CsEvalException($"Property '{name}' not found");
+            throw new CsEvalException(DiagnosticDescriptors.MemberNotFound, obj.GetType().Name, name);
         }
 
         var type = obj.GetType();
@@ -1376,7 +1376,7 @@ public sealed class Evaluator : IExprVisitor<object?>
         if (indexer != null)
             return TypeHelpers.GuardReflectionLeak(indexer.GetValue(obj, [index]), $"indexer access");
 
-        throw new CsEvalException($"Cannot index type '{type.Name}'");
+        throw new CsEvalException(DiagnosticDescriptors.BadIndexerAccess, type.Name);
     }
 
     private void SetIndex(object obj, object? index, object? value)
@@ -1407,7 +1407,7 @@ public sealed class Evaluator : IExprVisitor<object?>
             return;
         }
 
-        throw new CsEvalException($"Cannot set index on type '{type.Name}'");
+        throw new CsEvalException(DiagnosticDescriptors.BadIndexerAccess, type.Name);
     }
 
     private void SetMember(object obj, string name, object? value)
@@ -1443,7 +1443,7 @@ public sealed class Evaluator : IExprVisitor<object?>
         if (prop != null)
         {
             if (!prop.CanWrite)
-                throw new CsEvalException($"Property '{name}' is read-only");
+                throw new CsEvalException(DiagnosticDescriptors.ReadonlyAssignment);
             prop.SetValue(obj, value);
             return;
         }
@@ -1452,12 +1452,12 @@ public sealed class Evaluator : IExprVisitor<object?>
         if (field != null)
         {
             if (field.IsInitOnly)
-                throw new CsEvalException($"Field '{name}' is read-only");
+                throw new CsEvalException(DiagnosticDescriptors.ReadonlyAssignment);
             field.SetValue(obj, value);
             return;
         }
 
-        throw new CsEvalException($"Property '{name}' not found on type '{type.Name}'");
+        throw new CsEvalException(DiagnosticDescriptors.MemberNotFound, type.Name, name);
     }
 
     #endregion
