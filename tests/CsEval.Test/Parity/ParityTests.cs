@@ -13,7 +13,7 @@ public class ParityTests(CompilationMode mode)
         MaxIterations = 1_000_000
     };
 
-    [TestCaseSource(nameof(DiscoverValidTests))]
+    [TestCaseSource(nameof(DiscoverExpressions), ["TestData/ValidExpressions"])]
     public async Task ValidExpressionsShouldPass(string csxPath)
     {
         var expr = TestHelpers.LoadTestExpression(csxPath);
@@ -44,7 +44,7 @@ public class ParityTests(CompilationMode mode)
         }
     }
 
-    [TestCaseSource(nameof(DiscoverInvalidTests))]
+    [TestCaseSource(nameof(DiscoverExpressions), ["TestData/InvalidExpressions"])]
     public async Task InvalidExpressionsShouldThrow(string csxPath)
     {
         var expr = TestHelpers.LoadTestExpression(csxPath);
@@ -69,22 +69,9 @@ public class ParityTests(CompilationMode mode)
         }
     }
 
-    private static IEnumerable<TestCaseData> DiscoverValidTests()
+    private static IEnumerable<TestCaseData> DiscoverExpressions(string relativePath)
     {
-        var testDataDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "TestData/ValidExpressions");
-        Assert.That(new DirectoryInfo(testDataDir).Exists, Is.True);
-
-        foreach (var file in Directory.GetFiles(testDataDir, "*.csx", SearchOption.AllDirectories))
-        {
-            var relativeName = Path.GetRelativePath(testDataDir, file).Replace(Path.DirectorySeparatorChar, '/');
-            var testName = relativeName.Replace(".csx", "").Replace('/', '_');
-            yield return new TestCaseData(file).SetName(testName);
-        }
-    }
-
-    private static IEnumerable<TestCaseData> DiscoverInvalidTests()
-    {
-        var testDataDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "TestData/InvalidExpressions");
+        var testDataDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, relativePath);
         Assert.That(new DirectoryInfo(testDataDir).Exists, Is.True);
 
         foreach (var file in Directory.GetFiles(testDataDir, "*.csx", SearchOption.AllDirectories))
