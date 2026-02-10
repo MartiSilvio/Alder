@@ -5,6 +5,11 @@ namespace CsEval.Test.Types;
 /// Validates that CsEval matches Roslyn output for both value AND type
 /// across all three compilation modes.
 ///
+/// Engine-only tests retained here verify result TYPE explicitly via typeof() comparisons,
+/// which cannot be expressed as .csx parity files (parity runner checks value + type automatically,
+/// but these tests assert specific expected types for documentation clarity).
+/// Standard numeric promotion value tests are in TestData/NumericPromotion/*.csx.
+///
 /// References:
 ///   - ECMA-334 §12.4.7.2: Unary numeric promotion
 ///   - ECMA-334 §12.4.7.3: Binary numeric promotion
@@ -17,13 +22,13 @@ public class NumericPromotionTests(CompilationMode mode)
 {
     #region Specific value and type verification for key edge cases
 
-    // These tests verify BOTH value AND type explicitly for the most critical edge cases.
+    // Engine-only: Type object comparison -- these tests verify BOTH value AND type explicitly
 
     [Test]
     public async Task BitwiseNot_Byte_ValueAndType()
     {
+        // Engine-only: Type object comparison (verifies result type is typeof(int))
         // ECMA-334 §12.4.7.2: ~(byte)5 promotes byte to int, then applies ~
-        // Result: ~(int)5 = -6 as int
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var result = engine.Evaluate("~(byte)5");
         var csharpResult = await TestHelpers.EvaluateCSharpAsync("~(byte)5");
@@ -36,8 +41,8 @@ public class NumericPromotionTests(CompilationMode mode)
     [Test]
     public async Task BitwiseNot_Char_ValueAndType()
     {
+        // Engine-only: Type object comparison (verifies result type is typeof(int))
         // ECMA-334 §12.4.7.2: ~(char)'A' promotes char to int, then applies ~
-        // 'A' = 65, ~65 = -66 as int
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var result = engine.Evaluate("~(char)'A'");
         var csharpResult = await TestHelpers.EvaluateCSharpAsync("~(char)'A'");
@@ -50,8 +55,8 @@ public class NumericPromotionTests(CompilationMode mode)
     [Test]
     public async Task CharPlusChar_ValueAndType()
     {
+        // Engine-only: Type object comparison (verifies result type is typeof(int))
         // ECMA-334 §12.4.7.3 Rule 8: char + char -> int
-        // 'A' = 65, 'B' = 66, result = 131 as int
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var result = engine.Evaluate("(char)'A' + (char)'B'");
         var csharpResult = await TestHelpers.EvaluateCSharpAsync("(char)'A' + (char)'B'");
@@ -64,6 +69,7 @@ public class NumericPromotionTests(CompilationMode mode)
     [Test]
     public async Task UIntPlusShort_ValueAndType()
     {
+        // Engine-only: Type object comparison (verifies result type is typeof(long))
         // ECMA-334 §12.4.7.3 Rule 6: uint + short -> both promoted to long
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var result = engine.Evaluate("5U + (short)3");
@@ -77,6 +83,7 @@ public class NumericPromotionTests(CompilationMode mode)
     [Test]
     public async Task ByteLeftShift_ValueAndType()
     {
+        // Engine-only: Type object comparison (verifies result type is typeof(int))
         // ECMA-334 §12.11: byte is promoted to int for shift operators
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var result = engine.Evaluate("(byte)5 << 2");

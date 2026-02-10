@@ -2,37 +2,34 @@ namespace CsEval.Test.Types;
 
 /// <summary>
 /// ECMA-334 §6.4.5 -- Literals (integer, real, boolean, character, string, null).
-/// Tests integer literals (§6.4.5.2), real literals (§6.4.5.3), boolean literals (§6.4.5.6),
-/// character literals (§6.4.5.5), escape sequences (§6.4.5.5), hex/binary literals,
-/// digit separators, exponent notation, and leading decimal literals (§6.4.5.4).
+///
+/// Engine-only tests retained here cover lexer/parser error cases that verify
+/// specific exception types (CsEvalLexerException, CsEvalParserException).
+/// Standard literal expressions are in TestData/Literals/*/*.csx.
 /// </summary>
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
 [TestFixture(CompilationMode.StrictCompiled)]
 public class LiteralTests(CompilationMode mode)
 {
-    #region ECMA-334 §6.4.5.2, §6.4.5.3, §6.4.5.6 -- Basic Literals
-
-    [Test]
-    public async Task Eval_Null_ReturnsNull()
-        => await TestHelpers.RunCSharpParityTestAsync("null", null, mode);
-
-    #endregion
-
     #region ECMA-334 §6.4.5 -- Invalid Literal Error Cases
 
+    // Engine-only: lexer error tests -- verify specific CsEvalLexerException
     [TestCase("0xGG", TestName = "InvalidHex")]
     [TestCase("1__000", TestName = "DoubleUnderscore")]
     [TestCase("1000_", TestName = "TrailingUnderscore")]
     public void Eval_Literal_ShouldThrowLexerException(string expr)
     {
+        // Engine-only: lexer error test
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         Assert.Throws<CsEval.Parsing.CsEvalLexerException>(() => engine.Evaluate(expr));
     }
 
+    // Engine-only: parser error test -- verify specific CsEvalParserException
     [TestCase("0b123", TestName = "InvalidBinary_MixedDigits")]
     public void Eval_Literal_ShouldThrowParserException(string expr)
     {
+        // Engine-only: parser error test
         // 0b123 lexes as 0b1 (valid binary) + 23 (unexpected token)
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         Assert.Throws<CsEval.Parsing.CsEvalParserException>(() => engine.Evaluate(expr));
