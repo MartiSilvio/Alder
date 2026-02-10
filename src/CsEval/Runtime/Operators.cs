@@ -1,3 +1,5 @@
+using CsEval.Diagnostics;
+
 namespace CsEval.Runtime;
 
 /// <summary>
@@ -15,7 +17,7 @@ public static class Operators
         if (TypeHelpers.IsArithmetic(value))
             return NumericDispatch.Negate(value);
 
-        throw new CsEvalException($"Cannot negate {value.GetType().Name}");
+        throw new CsEvalException(DiagnosticDescriptors.BadUnaryOp, "-", value.GetType().Name);
     }
 
     public static object? UnaryPlus(object? value)
@@ -27,7 +29,7 @@ public static class Operators
         if (TypeHelpers.IsArithmetic(value))
             return NumericDispatch.UnaryPlus(value);
 
-        throw new CsEvalException($"Operator '+' cannot be applied to operand of type '{value.GetType().Name}'");
+        throw new CsEvalException(DiagnosticDescriptors.BadUnaryOp, "+", value.GetType().Name);
     }
 
     /// <summary>
@@ -43,7 +45,7 @@ public static class Operators
         if (value is bool b)
             return !b;
 
-        throw new CsEvalException($"Operator '!' cannot be applied to operand of type '{value.GetType().Name}'");
+        throw new CsEvalException(DiagnosticDescriptors.BadUnaryOp, "!", value.GetType().Name);
     }
 
     public static object? Add(object? left, object? right, CsEvalOptions options) =>
@@ -90,7 +92,7 @@ public static class Operators
                 return null;
         }
         if ((left != null && !TypeHelpers.IsArithmetic(left)) || (right != null && !TypeHelpers.IsArithmetic(right)))
-            throw new CsEvalException($"Operator '{op}' cannot be applied to operands of type '{left?.GetType().Name ?? "null"}' and '{right?.GetType().Name ?? "null"}'");
+            throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, op, left?.GetType().Name ?? "null", right?.GetType().Name ?? "null");
         return dispatch(left!, right!);
     }
 
@@ -191,7 +193,7 @@ public static class Operators
         {
             string ls when right is string rs => string.Compare(ls, rs, options.StringComparison),
             IComparable comparable => comparable.CompareTo(right),
-            _ => throw new CsEvalException($"Cannot compare {left?.GetType().Name ?? "null"} and {right?.GetType().Name ?? "null"}")
+            _ => throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, "<>", left?.GetType().Name ?? "null", right?.GetType().Name ?? "null")
         };
     }
 
@@ -220,7 +222,7 @@ public static class Operators
         if (IsIntegerOrChar(left) && IsIntegerOrChar(right))
             return NumericDispatch.BitwiseAnd(left!, right!);
 
-        throw new CsEvalException($"Cannot apply operator & to {left?.GetType().Name} and {right?.GetType().Name}");
+        throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, "&", left?.GetType().Name ?? "null", right?.GetType().Name ?? "null");
     }
 
     public static object? BitwiseOr(object? left, object? right)
@@ -247,7 +249,7 @@ public static class Operators
         if (IsIntegerOrChar(left) && IsIntegerOrChar(right))
             return NumericDispatch.BitwiseOr(left!, right!);
 
-        throw new CsEvalException($"Cannot apply operator | to {left?.GetType().Name} and {right?.GetType().Name}");
+        throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, "|", left?.GetType().Name ?? "null", right?.GetType().Name ?? "null");
     }
 
     public static object? BitwiseXor(object? left, object? right)
@@ -270,7 +272,7 @@ public static class Operators
         if (IsIntegerOrChar(left) && IsIntegerOrChar(right))
             return NumericDispatch.BitwiseXor(left!, right!);
 
-        throw new CsEvalException($"Cannot apply operator ^ to {left?.GetType().Name} and {right?.GetType().Name}");
+        throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, "^", left?.GetType().Name ?? "null", right?.GetType().Name ?? "null");
     }
 
     public static object? BitwiseNot(object? value)
@@ -285,7 +287,7 @@ public static class Operators
         // (char undergoes unary numeric promotion to int per §12.4.7.2)
         if (TypeHelpers.IsInteger(value) || value is char)
             return NumericDispatch.BitwiseNot(value!);
-        throw new CsEvalException($"Cannot apply bitwise NOT to {value?.GetType().Name ?? "null"}");
+        throw new CsEvalException(DiagnosticDescriptors.BadUnaryOp, "~", value?.GetType().Name ?? "null");
     }
 
     public static object? LeftShift(object? left, object? right)
@@ -296,7 +298,7 @@ public static class Operators
 
         // ECMA-334 §12.11: Shift operators accept integer types and char
         if (!IsIntegerOrChar(left) || !TypeHelpers.IsInteger(right))
-            throw new CsEvalException($"Cannot apply left shift to {left?.GetType().Name ?? "null"} and {right?.GetType().Name ?? "null"}");
+            throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, "<<", left?.GetType().Name ?? "null", right?.GetType().Name ?? "null");
 
         return NumericDispatch.LeftShift(left!, right!);
     }
@@ -308,7 +310,7 @@ public static class Operators
             return null;
 
         if (!IsIntegerOrChar(left) || !TypeHelpers.IsInteger(right))
-            throw new CsEvalException($"Cannot apply right shift to {left?.GetType().Name ?? "null"} and {right?.GetType().Name ?? "null"}");
+            throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, ">>", left?.GetType().Name ?? "null", right?.GetType().Name ?? "null");
 
         return NumericDispatch.RightShift(left!, right!);
     }
