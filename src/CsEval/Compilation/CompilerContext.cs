@@ -47,6 +47,9 @@ internal sealed class CompilerContext
     internal readonly LabelTarget ReturnLabel;
     internal readonly ParameterExpression ReturnValue;
 
+    // Stack for nested return contexts (e.g., lambdas with block bodies)
+    private readonly Stack<(LabelTarget Label, ParameterExpression Value)> _returnStack = new();
+
     /// <summary>
     /// Expression that accesses TypeResolver from the current context: context.TypeResolver.
     /// Used by compilation units to emit type resolution calls at runtime.
@@ -147,6 +150,32 @@ internal sealed class CompilerContext
         ReturnLabel = LinqExpression.Label(typeof(object), "return");
         ReturnValue = LinqExpression.Variable(typeof(object), "returnValue");
     }
+
+    /// <summary>
+    /// Pushes a new return context for nested scopes (e.g., lambda bodies).
+    /// </summary>
+    internal void PushReturnContext(LabelTarget label, ParameterExpression value)
+    {
+        _returnStack.Push((label, value));
+    }
+
+    /// <summary>
+    /// Pops the current return context, restoring the previous one.
+    /// </summary>
+    internal void PopReturnContext()
+    {
+        _returnStack.Pop();
+    }
+
+    /// <summary>
+    /// Gets the current active return label (from stack if present, otherwise the default).
+    /// </summary>
+    internal LabelTarget CurrentReturnLabel => _returnStack.Count > 0 ? _returnStack.Peek().Label : ReturnLabel;
+
+    /// <summary>
+    /// Gets the current active return value variable (from stack if present, otherwise the default).
+    /// </summary>
+    internal ParameterExpression CurrentReturnValue => _returnStack.Count > 0 ? _returnStack.Peek().Value : ReturnValue;
 
     /// <summary>
     /// Attempt to compile an AST to IL. Returns (delegate, null) on success, or (null, reason) on failure.

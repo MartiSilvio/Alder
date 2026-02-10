@@ -425,7 +425,8 @@ internal sealed class ControlFlowCompilerUnit
             : LinqExpression.Constant(null, typeof(object));
 
         // Use Goto to jump to return label - Expression Trees handle try/finally correctly
-        return LinqExpression.Return(_ctx.ReturnLabel, value);
+        // Use CurrentReturnLabel to support nested scopes (lambdas)
+        return LinqExpression.Return(_ctx.CurrentReturnLabel, value);
     }
 
     /// <summary>

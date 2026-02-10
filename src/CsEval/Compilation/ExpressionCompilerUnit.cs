@@ -900,24 +900,37 @@ internal sealed class ExpressionCompilerUnit
                 LinqExpression.Call(CompilerContext.GetLambdaArgMethod, argsParam, LinqExpression.Constant(i))));
         }
 
-        // Save the current context and swap to the child context for compiling the body
+        // Save the current context and create new return context for the lambda
         var savedContext = _ctx.CurrentContext;
         _ctx.CurrentContext = childContextVar;
+
+        // Lambda needs its own return label for return statements in block bodies
+        var lambdaReturnLabel = LinqExpression.Label(typeof(object), "lambdaReturn");
+        var lambdaReturnValue = LinqExpression.Variable(typeof(object), "lambdaReturnValue");
+
+        // Push new return context for the lambda body
+        _ctx.PushReturnContext(lambdaReturnLabel, lambdaReturnValue);
 
         try
         {
             // Compile the lambda body
             var compiledBody = Compile(lambda.Body);
-            statements.Add(compiledBody);
+
+            // Assign the body result to the return value variable
+            statements.Add(LinqExpression.Assign(lambdaReturnValue, compiledBody));
         }
         finally
         {
             _ctx.CurrentContext = savedContext;
+            _ctx.PopReturnContext();
         }
+
+        // Add the return label at the end - early returns jump here
+        statements.Add(LinqExpression.Label(lambdaReturnLabel, lambdaReturnValue));
 
         var lambdaBody = LinqExpression.Block(
             typeof(object),
-            [childContextVar],
+            [childContextVar, lambdaReturnValue],
             statements);
 
         // Create the delegate: Func<object?[], CsEvalContext, object?>

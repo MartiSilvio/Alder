@@ -230,6 +230,10 @@ public static class TypeHelpers
         if (underlyingType == typeof(char) && value is string { Length: 1 } s)
             return s[0];
 
+        var delegateInstance = LambdaDelegateConverter.TryConvert(value, underlyingType);
+        if (delegateInstance != null)
+            return delegateInstance;
+
         throw new CsEvalException(DiagnosticDescriptors.NoImplicitConversion, sourceType.Name, targetType.Name);
     }
 
