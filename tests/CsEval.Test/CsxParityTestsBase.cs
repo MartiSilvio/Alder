@@ -81,4 +81,17 @@ public abstract class CsxParityTestsBase(CompilationMode mode)
         foreach (var file in Directory.GetFiles(testDataDir, "*.csx", SearchOption.TopDirectoryOnly))
             yield return new TestCaseData(file).SetName(Path.GetFileNameWithoutExtension(file));
     }
+
+    protected static IEnumerable<TestCaseData> DiscoverTestsRecursive(string relativePath)
+    {
+        var testDataDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, relativePath);
+        Assert.That(new DirectoryInfo(testDataDir).Exists, Is.True);
+
+        foreach (var file in Directory.GetFiles(testDataDir, "*.csx", SearchOption.AllDirectories))
+        {
+            var relativeName = Path.GetRelativePath(testDataDir, file).Replace(Path.DirectorySeparatorChar, '/');
+            var testName = Path.GetFileNameWithoutExtension(relativeName).Replace('/', '_');
+            yield return new TestCaseData(file).SetName(testName);
+        }
+    }
 }
