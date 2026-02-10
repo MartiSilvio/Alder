@@ -89,8 +89,29 @@ public abstract class CsxParityTestsBase(CompilationMode mode)
 
         foreach (var file in Directory.GetFiles(testDataDir, "*.csx", SearchOption.AllDirectories))
         {
+            // Exclude NotAllowed folders
+            if (file.Contains($"{Path.DirectorySeparatorChar}NotAllowed{Path.DirectorySeparatorChar}"))
+                continue;
+
             var relativeName = Path.GetRelativePath(testDataDir, file).Replace(Path.DirectorySeparatorChar, '/');
-            var testName = Path.GetFileNameWithoutExtension(relativeName).Replace('/', '_');
+            var testName = relativeName.Replace(".csx", "").Replace('/', '_');
+            yield return new TestCaseData(file).SetName(testName);
+        }
+    }
+
+    protected static IEnumerable<TestCaseData> DiscoverNotAllowedTestsRecursive(string relativePath)
+    {
+        var testDataDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, relativePath);
+        Assert.That(new DirectoryInfo(testDataDir).Exists, Is.True);
+
+        foreach (var file in Directory.GetFiles(testDataDir, "*.csx", SearchOption.AllDirectories))
+        {
+            // Only include NotAllowed folders
+            if (!file.Contains($"{Path.DirectorySeparatorChar}NotAllowed{Path.DirectorySeparatorChar}"))
+                continue;
+
+            var relativeName = Path.GetRelativePath(testDataDir, file).Replace(Path.DirectorySeparatorChar, '/');
+            var testName = relativeName.Replace(".csx", "").Replace('/', '_');
             yield return new TestCaseData(file).SetName(testName);
         }
     }

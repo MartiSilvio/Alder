@@ -14,13 +14,13 @@ public class AllParityTests(CompilationMode mode) : CsxParityTestsBase(mode)
 
 /// <summary>
 /// Universal parity test runner for invalid .csx files that should throw exceptions.
-/// Discovers all .csx files in TestData/Invalid recursively.
+/// Discovers all .csx files in NotAllowed folders recursively.
 /// </summary>
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
 [TestFixture(CompilationMode.StrictCompiled)]
 public class AllParityThrowsTests(CompilationMode mode) : CsxParityTestsBase(mode)
 {
-    [TestCaseSource(nameof(DiscoverTestsRecursive), ["TestData/Invalid"])]
+    [TestCaseSource(nameof(DiscoverNotAllowedTestsRecursive), ["TestData"])]
     public Task ParityThrowsTest(string csxPath) => RunShouldThrow(csxPath);
 }
