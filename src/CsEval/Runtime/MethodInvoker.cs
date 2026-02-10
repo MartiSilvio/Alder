@@ -108,7 +108,7 @@ public static class MethodInvoker
                 // Handle explicit type arguments for generic methods
                 if (method.ContainsGenericParameters && typeArgs != null && typeArgs.Count > 0)
                 {
-                    concreteMethod = TryMakeConcreteMethodWithTypeArgs(method, typeArgs);
+                    concreteMethod = TryMakeConcreteMethodWithTypeArgs(method, typeArgs, context.TypeResolver);
                     if (concreteMethod == null)
                         continue;
                 }
@@ -136,7 +136,7 @@ public static class MethodInvoker
         // No applicable instance method found (or instance methods blocked).
         // Try extension methods per ECMA-334 §12.8.9.2.
         var extensionResult = ExtensionMethodResolver.TryInvokeExtensionMethod(
-            target, methodName, args, context.ExtensionTypes, ct, argumentTransformer, typeArgs);
+            target, methodName, args, context.ExtensionTypes, ct, argumentTransformer, typeArgs, context.TypeResolver);
         if (extensionResult.Success)
             return extensionResult;
 
@@ -149,8 +149,9 @@ public static class MethodInvoker
 
     /// <summary>
     /// Makes a generic method concrete using explicit type arguments.
+    /// Uses TypeResolver when available, falls back to Type.GetType for IL-compiled code paths.
     /// </summary>
-    private static MethodInfo? TryMakeConcreteMethodWithTypeArgs(MethodInfo genericMethod, IReadOnlyList<string> typeArgs)
+    private static MethodInfo? TryMakeConcreteMethodWithTypeArgs(MethodInfo genericMethod, IReadOnlyList<string> typeArgs, TypeResolver? resolver = null)
     {
         var genericParams = genericMethod.GetGenericArguments();
         if (genericParams.Length != typeArgs.Count)
@@ -161,7 +162,11 @@ public static class MethodInvoker
             var resolvedTypes = new Type[typeArgs.Count];
             for (var i = 0; i < typeArgs.Count; i++)
             {
-                var type = ResolveTypeName(typeArgs[i]);
+                Type? type;
+                if (resolver != null)
+                    type = resolver.TryResolveType(typeArgs[i]);
+                else
+                    type = Type.GetType(typeArgs[i]) ?? Type.GetType($"System.{typeArgs[i]}");
                 if (type == null)
                     return null;
                 resolvedTypes[i] = type;
@@ -172,35 +177,6 @@ public static class MethodInvoker
         {
             return null;
         }
-    }
-
-    /// <summary>
-    /// Resolves a type name to a Type. Handles both CLR names and common aliases.
-    /// </summary>
-    internal static Type? ResolveTypeName(string typeName)
-    {
-        // First try CLR primitive types
-        return typeName switch
-        {
-            "Int32" or "int" => typeof(int),
-            "Int64" or "long" => typeof(long),
-            "Int16" or "short" => typeof(short),
-            "Byte" or "byte" => typeof(byte),
-            "SByte" or "sbyte" => typeof(sbyte),
-            "UInt16" or "ushort" => typeof(ushort),
-            "UInt32" or "uint" => typeof(uint),
-            "UInt64" or "ulong" => typeof(ulong),
-            "Single" or "float" => typeof(float),
-            "Double" or "double" => typeof(double),
-            "Decimal" or "decimal" => typeof(decimal),
-            "Boolean" or "bool" => typeof(bool),
-            "Char" or "char" => typeof(char),
-            "String" or "string" => typeof(string),
-            "Object" or "object" => typeof(object),
-            "IntPtr" or "nint" => typeof(nint),
-            "UIntPtr" or "nuint" => typeof(nuint),
-            _ => Type.GetType(typeName) ?? Type.GetType($"System.{typeName}")
-        };
     }
 
     private static object? InvokeModuleMethod(

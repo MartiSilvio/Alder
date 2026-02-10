@@ -6,20 +6,21 @@ namespace CsEval.Runtime;
 
 public static class ExtensionMethodResolver
 {
-    public static (bool Success, object? Value) TryInvokeExtensionMethod(
+    internal static (bool Success, object? Value) TryInvokeExtensionMethod(
         object target,
         string methodName,
         object?[] args,
         ImmutableArray<Type> extensionTypes,
         CancellationToken ct,
         Func<MethodInfo, object?[], object?[]>? argumentTransformer,
-        IReadOnlyList<string>? typeArgs = null)
+        IReadOnlyList<string>? typeArgs = null,
+        TypeResolver? resolver = null)
     {
         var targetType = target.GetType();
 
         foreach (var extType in extensionTypes)
         {
-            var result = TryInvokeFromType(target, targetType, methodName, args, extType, ct, argumentTransformer, typeArgs);
+            var result = TryInvokeFromType(target, targetType, methodName, args, extType, ct, argumentTransformer, typeArgs, resolver);
             if (result.Success)
                 return result;
         }
@@ -35,7 +36,8 @@ public static class ExtensionMethodResolver
         Type extensionType,
         CancellationToken ct,
         Func<MethodInfo, object?[], object?[]>? argumentTransformer,
-        IReadOnlyList<string>? typeArgs = null)
+        IReadOnlyList<string>? typeArgs = null,
+        TypeResolver? resolver = null)
     {
         var methods = extensionType
             .GetMethods(BindingFlags.Public | BindingFlags.Static)
@@ -55,7 +57,7 @@ public static class ExtensionMethodResolver
             {
                 // If explicit type arguments provided, use them
                 if (typeArgs != null && typeArgs.Count > 0)
-                    concreteMethod = TryMakeConcreteMethodWithExplicitArgs(method, typeArgs);
+                    concreteMethod = TryMakeConcreteMethodWithExplicitArgs(method, typeArgs, resolver);
                 else
                     concreteMethod = TryMakeConcreteMethod(method, targetType, args);
             }
@@ -86,7 +88,7 @@ public static class ExtensionMethodResolver
         return (false, null);
     }
 
-    private static MethodInfo? TryMakeConcreteMethodWithExplicitArgs(MethodInfo genericMethod, IReadOnlyList<string> typeArgs)
+    private static MethodInfo? TryMakeConcreteMethodWithExplicitArgs(MethodInfo genericMethod, IReadOnlyList<string> typeArgs, TypeResolver? resolver = null)
     {
         var genericParams = genericMethod.GetGenericArguments();
         if (genericParams.Length != typeArgs.Count)
@@ -97,7 +99,11 @@ public static class ExtensionMethodResolver
             var resolvedTypes = new Type[typeArgs.Count];
             for (var i = 0; i < typeArgs.Count; i++)
             {
-                var type = MethodInvoker.ResolveTypeName(typeArgs[i]);
+                Type? type;
+                if (resolver != null)
+                    type = resolver.TryResolveType(typeArgs[i]);
+                else
+                    type = Type.GetType(typeArgs[i]) ?? Type.GetType($"System.{typeArgs[i]}");
                 if (type == null)
                     return null;
                 resolvedTypes[i] = type;

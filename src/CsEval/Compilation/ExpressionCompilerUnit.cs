@@ -53,16 +53,19 @@ internal sealed class ExpressionCompilerUnit
 
     internal LinqExpression CompileTypeReference(TypeReferenceExpr typeRef)
     {
-        // Return the Type object for static member access
-        return LinqExpression.Call(
-            CompilerContext.ResolveTypeNameMethod,
-            LinqExpression.Constant(typeRef.TypeToken.Lexeme));
+        // Return the Type object for static member access via context's TypeResolver
+        return LinqExpression.Convert(
+            LinqExpression.Call(
+                LinqExpression.Call(_ctx.CurrentContext, CompilerContext.GetTypeResolverProperty),
+                CompilerContext.ResolveTypeMethod,
+                LinqExpression.Constant(typeRef.TypeToken.Lexeme)),
+            typeof(object));
     }
 
     internal LinqExpression CompileTypeof(TypeofExpr expr)
     {
-        // Resolve the type at compile time and embed as constant
-        var resolvedType = TypeHelpers.ResolveTypeByName(expr.TypeToken.Lexeme);
+        // Resolve the type at compile time using the context's TypeResolver and embed as constant
+        var resolvedType = _ctx.Context.TypeResolver.ResolveType(expr.TypeToken.Lexeme);
         return LinqExpression.Constant(resolvedType, typeof(object));
     }
 
@@ -95,10 +98,15 @@ internal sealed class ExpressionCompilerUnit
             typeof(object),
             expr.Arguments.Select(Compile));
 
-        // Call RuntimeHelpers.InvokeConstructor(typeName, args)
+        // Resolve type via context's TypeResolver then call RuntimeHelpers.InvokeConstructor(type, args)
+        var resolvedType = LinqExpression.Call(
+            LinqExpression.Call(_ctx.CurrentContext, CompilerContext.GetTypeResolverProperty),
+            CompilerContext.ResolveTypeMethod,
+            LinqExpression.Constant(expr.TypeName));
+
         return LinqExpression.Call(
             CompilerContext.InvokeConstructorMethod,
-            LinqExpression.Constant(expr.TypeName),
+            resolvedType,
             argsInit);
     }
 
@@ -106,12 +114,15 @@ internal sealed class ExpressionCompilerUnit
     {
         var size = Compile(expr.Size);
 
-        // Call RuntimeHelpers.CreateTypedArray(elementTypeName, sizeValue)
-        // Size is already object (all CsEval compiled expressions return object),
-        // and the helper handles Convert.ToInt32 internally.
+        // Resolve element type via context's TypeResolver then call RuntimeHelpers.CreateTypedArray(elementType, sizeValue)
+        var resolvedType = LinqExpression.Call(
+            LinqExpression.Call(_ctx.CurrentContext, CompilerContext.GetTypeResolverProperty),
+            CompilerContext.ResolveTypeMethod,
+            LinqExpression.Constant(expr.ElementTypeName));
+
         return LinqExpression.Call(
             CompilerContext.CreateTypedArrayFromTypeNameMethod,
-            LinqExpression.Constant(expr.ElementTypeName),
+            resolvedType,
             size);
     }
 
@@ -151,9 +162,15 @@ internal sealed class ExpressionCompilerUnit
         if (def.TypeToken == null)
             return LinqExpression.Constant(null, typeof(object));
 
+        // Resolve type via context's TypeResolver then call TypeHelpers.GetDefaultValue(Type)
+        var resolvedType = LinqExpression.Call(
+            LinqExpression.Call(_ctx.CurrentContext, CompilerContext.GetTypeResolverProperty),
+            CompilerContext.ResolveTypeMethod,
+            LinqExpression.Constant(def.TypeToken.Value.Lexeme));
+
         return LinqExpression.Call(
             CompilerContext.GetDefaultValueMethod,
-            LinqExpression.Constant(def.TypeToken.Value.Lexeme));
+            resolvedType);
     }
 
     internal LinqExpression CompileUnary(UnaryExpr u)
@@ -171,20 +188,34 @@ internal sealed class ExpressionCompilerUnit
     {
         var value = Compile(cast.Expression);
         var sourceStaticType = _ctx.TypeInferrer.Infer(cast.Expression);
+
+        // Resolve target type via context's TypeResolver
+        var resolvedType = LinqExpression.Call(
+            LinqExpression.Call(_ctx.CurrentContext, CompilerContext.GetTypeResolverProperty),
+            CompilerContext.ResolveTypeMethod,
+            LinqExpression.Constant(cast.TargetType.Lexeme));
+
         return LinqExpression.Call(
             CompilerContext.ExplicitCastMethod,
             value,
-            LinqExpression.Constant(cast.TargetType.Lexeme),
+            resolvedType,
             LinqExpression.Constant(sourceStaticType, typeof(Type)));
     }
 
     internal LinqExpression CompileAs(AsExpr asExpr)
     {
         var value = Compile(asExpr.Expression);
+
+        // Resolve target type via context's TypeResolver
+        var resolvedType = LinqExpression.Call(
+            LinqExpression.Call(_ctx.CurrentContext, CompilerContext.GetTypeResolverProperty),
+            CompilerContext.ResolveTypeMethod,
+            LinqExpression.Constant(asExpr.TargetType.Lexeme));
+
         return LinqExpression.Call(
             CompilerContext.TryAsMethod,
             value,
-            LinqExpression.Constant(asExpr.TargetType.Lexeme));
+            resolvedType);
     }
 
     internal LinqExpression CompileBinary(BinaryExpr b)
@@ -345,17 +376,32 @@ internal sealed class ExpressionCompilerUnit
 
         if (v.DeclaredType != null)
         {
-            value = LinqExpression.Call(
-                CompilerContext.ValidateAndCoerceTypeMethod,
-                LinqExpression.Constant(v.DeclaredType.Value.Lexeme),
-                value,
-                LinqExpression.Constant(v.Name.Lexeme));
+            // Resolve type via context's TypeResolver
+            var resolvedDeclType = LinqExpression.Call(
+                LinqExpression.Call(_ctx.CurrentContext, CompilerContext.GetTypeResolverProperty),
+                CompilerContext.ResolveTypeMethod,
+                LinqExpression.Constant(v.DeclaredType.Value.Lexeme));
+
+            var declTypeVar = LinqExpression.Variable(typeof(Type), "declType");
+
+            value = LinqExpression.Block(
+                new[] { declTypeVar },
+                LinqExpression.Assign(declTypeVar, resolvedDeclType),
+                LinqExpression.Call(
+                    CompilerContext.ValidateAndCoerceTypeMethod,
+                    declTypeVar,
+                    value,
+                    LinqExpression.Constant(v.Name.Lexeme)));
         }
 
         LinqExpression getInferredType;
         if (v.DeclaredType != null)
         {
-            getInferredType = LinqExpression.Call(CompilerContext.ResolveTypeNameMethod, LinqExpression.Constant(v.DeclaredType.Value.Lexeme));
+            // Resolve type via context's TypeResolver
+            getInferredType = LinqExpression.Call(
+                LinqExpression.Call(_ctx.CurrentContext, CompilerContext.GetTypeResolverProperty),
+                CompilerContext.ResolveTypeMethod,
+                LinqExpression.Constant(v.DeclaredType.Value.Lexeme));
         }
         else
         {

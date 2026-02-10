@@ -221,7 +221,7 @@ internal sealed class TypeResolver
     ];
 
     /// <summary>
-    /// Built-in C# type keyword map. Matches TypeHelpers.TypeNameToClrType exactly.
+    /// Built-in C# type keyword map per ECMA-334 §8.3.5.
     /// </summary>
     private static readonly Dictionary<string, Type> BuiltInTypeKeywords = new()
     {

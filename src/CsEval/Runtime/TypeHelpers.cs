@@ -262,13 +262,9 @@ public static class TypeHelpers
             if (sourceArgs.Length != targetArgs.Length)
                 return false;
 
-            for (var i = 0; i < sourceArgs.Length; i++)
-            {
-                if (!CanImplicitlyConvert(sourceArgs[i], targetArgs[i]))
-                    return false;
-            }
-
-            return true;
+            return !sourceArgs
+                .Where((t, i) => !CanImplicitlyConvert(t, targetArgs[i]))
+                .Any();
         }
 
         // ECMA-334 §10.6.1: Implicit nullable conversions

@@ -57,7 +57,8 @@ public sealed class Evaluator : IExprVisitor<object?>
     {
         var value = Evaluate(expr.Expression);
         var sourceStaticType = _typeInferrer.Infer(expr.Expression);
-        return TypeHelpers.ExplicitCast(value, expr.TargetType.Lexeme, sourceStaticType);
+        var targetType = _context.TypeResolver.ResolveType(expr.TargetType.Lexeme);
+        return TypeHelpers.ExplicitCast(value, targetType, sourceStaticType);
     }
 
     public object? VisitIsPattern(IsPatternExpr expr)
@@ -118,10 +119,10 @@ public sealed class Evaluator : IExprVisitor<object?>
 
             case TypePattern tp:
             {
-                var isMatch = TypeHelpers.IsType(value, tp.TypeToken.Lexeme);
+                var targetType = _context.TypeResolver.ResolveType(tp.TypeToken.Lexeme);
+                var isMatch = TypeHelpers.IsType(value, targetType);
                 if (isMatch && tp.VariableName != null)
                 {
-                    var targetType = TypeHelpers.ResolveTypeByName(tp.TypeToken.Lexeme);
                     _context.DefineNew(tp.VariableName.Value.Lexeme, value, targetType);
                 }
                 return isMatch;
@@ -168,7 +169,8 @@ public sealed class Evaluator : IExprVisitor<object?>
                 // Type check first if type specified
                 if (pp.TypeToken != null)
                 {
-                    if (!TypeHelpers.IsType(value, pp.TypeToken.Value.Lexeme))
+                    var propTargetType = _context.TypeResolver.ResolveType(pp.TypeToken.Value.Lexeme);
+                    if (!TypeHelpers.IsType(value, propTargetType))
                         return false;
                 }
 
@@ -200,7 +202,8 @@ public sealed class Evaluator : IExprVisitor<object?>
     public object? VisitAs(AsExpr expr)
     {
         var value = Evaluate(expr.Expression);
-        return TypeHelpers.TryAs(value, expr.TargetType.Lexeme);
+        var targetType = _context.TypeResolver.ResolveType(expr.TargetType.Lexeme);
+        return TypeHelpers.TryAs(value, targetType);
     }
 
     public object? VisitBinary(BinaryExpr expr)
@@ -282,7 +285,7 @@ public sealed class Evaluator : IExprVisitor<object?>
     public object? VisitTypeReference(TypeReferenceExpr expr)
     {
         // Return the actual Type object for static member access
-        return TypeHelpers.ResolveTypeName(expr.TypeToken.Lexeme);
+        return _context.TypeResolver.ResolveType(expr.TypeToken.Lexeme);
     }
 
     public object? VisitIndexAccess(IndexAccessExpr expr)
@@ -716,12 +719,14 @@ public sealed class Evaluator : IExprVisitor<object?>
     {
         var value = Evaluate(expr.Initializer);
 
+        Type? declType = null;
         if (expr.DeclaredType != null)
-            value = TypeHelpers.ValidateAndCoerceType(expr.DeclaredType.Value.Lexeme, value, expr.Name.Lexeme);
+        {
+            declType = _context.TypeResolver.ResolveType(expr.DeclaredType.Value.Lexeme);
+            value = TypeHelpers.ValidateAndCoerceType(declType, value, expr.Name.Lexeme);
+        }
 
-        var inferredType = expr.DeclaredType != null
-            ? TypeHelpers.ResolveTypeName(expr.DeclaredType.Value.Lexeme)
-            : value?.GetType() ?? typeof(object);
+        var inferredType = declType ?? value?.GetType() ?? typeof(object);
 
         _context.DefineNew(expr.Name.Lexeme, value, inferredType);
         return value;
@@ -737,7 +742,7 @@ public sealed class Evaluator : IExprVisitor<object?>
         if (expr.TypeToken == null)
             return null;
 
-        var type = TypeHelpers.ResolveTypeName(expr.TypeToken.Value.Lexeme);
+        var type = _context.TypeResolver.ResolveType(expr.TypeToken.Value.Lexeme);
         return type.IsValueType ? Activator.CreateInstance(type) : null;
     }
 
@@ -745,20 +750,21 @@ public sealed class Evaluator : IExprVisitor<object?>
 
     public object? VisitTypeof(TypeofExpr expr)
     {
-        return TypeHelpers.ResolveTypeByName(expr.TypeToken.Lexeme);
+        return _context.TypeResolver.ResolveType(expr.TypeToken.Lexeme);
     }
 
     public object? VisitObjectCreation(ObjectCreationExpr expr)
     {
         var args = expr.Arguments.Select(arg => Evaluate(arg)).ToArray();
-        return RuntimeHelpers.InvokeConstructor(expr.TypeName, args);
+        var type = _context.TypeResolver.ResolveType(expr.TypeName);
+        return RuntimeHelpers.InvokeConstructor(type, args);
     }
 
     public object? VisitTypedArrayCreation(TypedArrayCreationExpr expr)
     {
         var sizeValue = Evaluate(expr.Size);
         var size = Convert.ToInt32(sizeValue);
-        var elementType = TypeHelpers.ResolveTypeName(expr.ElementTypeName);
+        var elementType = _context.TypeResolver.ResolveType(expr.ElementTypeName);
         return Array.CreateInstance(elementType, size);
     }
 
@@ -910,7 +916,7 @@ public sealed class Evaluator : IExprVisitor<object?>
         {
             if (catchClause.ExceptionTypeName != null)
             {
-                var catchType = TypeHelpers.ResolveTypeByName(catchClause.ExceptionTypeName);
+                var catchType = _context.TypeResolver.ResolveType(catchClause.ExceptionTypeName);
                 if (!catchType.IsInstanceOfType(ex))
                     continue;
             }

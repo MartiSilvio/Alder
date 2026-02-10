@@ -449,9 +449,9 @@ internal sealed class ControlFlowCompilerUnit
         var catchBlocks = new List<CatchBlock>();
         foreach (var catchClause in expr.CatchClauses)
         {
-            // Resolve exception type
+            // Resolve exception type via context's TypeResolver at compile time
             var catchType = catchClause.ExceptionTypeName != null
-                ? TypeHelpers.ResolveTypeByName(catchClause.ExceptionTypeName)
+                ? _ctx.Context.TypeResolver.ResolveType(catchClause.ExceptionTypeName)
                 : typeof(Exception);
 
             // Create ParameterExpression for the caught exception (typed to the catch type)

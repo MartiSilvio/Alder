@@ -140,10 +140,16 @@ internal sealed class PatternCompilerUnit
 
     private LinqExpression CompileTypePattern(LinqExpression value, TypePattern tp)
     {
+        // Resolve type via context's TypeResolver
+        var resolvedType = LinqExpression.Call(
+            LinqExpression.Call(_ctx.CurrentContext, CompilerContext.GetTypeResolverProperty),
+            CompilerContext.ResolveTypeMethod,
+            LinqExpression.Constant(tp.TypeToken.Lexeme));
+
         var typeCheck = LinqExpression.Call(
             CompilerContext.IsTypeMethod,
             value,
-            LinqExpression.Constant(tp.TypeToken.Lexeme));
+            resolvedType);
 
         if (tp.VariableName == null)
         {
@@ -153,21 +159,26 @@ internal sealed class PatternCompilerUnit
         // x is type name - declare variable if match succeeds
         var typeValueVar = LinqExpression.Variable(typeof(object), "isValue");
         var matchVar = LinqExpression.Variable(typeof(bool), "isMatch");
+        var resolvedTypeVar = LinqExpression.Variable(typeof(Type), "resolvedType");
 
         return LinqExpression.Block(
             typeof(object),
-            [typeValueVar, matchVar],
+            [typeValueVar, matchVar, resolvedTypeVar],
             LinqExpression.Assign(typeValueVar, value),
+            LinqExpression.Assign(resolvedTypeVar, LinqExpression.Call(
+                LinqExpression.Call(_ctx.CurrentContext, CompilerContext.GetTypeResolverProperty),
+                CompilerContext.ResolveTypeMethod,
+                LinqExpression.Constant(tp.TypeToken.Lexeme))),
             LinqExpression.Assign(matchVar, LinqExpression.Call(
                 CompilerContext.IsTypeMethod,
                 typeValueVar,
-                LinqExpression.Constant(tp.TypeToken.Lexeme))),
+                resolvedTypeVar)),
             LinqExpression.IfThen(
                 matchVar,
                 LinqExpression.Call(_ctx.CurrentContext, CompilerContext.DefineNewMethod,
                     LinqExpression.Constant(tp.VariableName.Value.Lexeme),
                     typeValueVar,
-                    LinqExpression.Call(CompilerContext.ResolveTypeByNameMethod, LinqExpression.Constant(tp.TypeToken.Lexeme)))),
+                    resolvedTypeVar)),
             LinqExpression.Convert(matchVar, typeof(object)));
     }
 
@@ -255,11 +266,16 @@ internal sealed class PatternCompilerUnit
         // Type check if type specified
         if (pp.TypeToken != null)
         {
+            var propResolvedType = LinqExpression.Call(
+                LinqExpression.Call(_ctx.CurrentContext, CompilerContext.GetTypeResolverProperty),
+                CompilerContext.ResolveTypeMethod,
+                LinqExpression.Constant(pp.TypeToken.Value.Lexeme));
+
             matchStatements.Add(LinqExpression.IfThen(
                 LinqExpression.Not(LinqExpression.Call(
                     CompilerContext.IsTypeMethod,
                     valueVar,
-                    LinqExpression.Constant(pp.TypeToken.Value.Lexeme))),
+                    propResolvedType)),
                 LinqExpression.Assign(matchResult, LinqExpression.Constant(false))));
         }
 

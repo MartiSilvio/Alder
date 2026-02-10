@@ -141,8 +141,8 @@ public sealed class TypeInferrer : AstWalker<Type>
     public override Type VisitCast(CastExpr expr)
     {
         base.VisitCast(expr);
-        try { return SetType(expr, TypeHelpers.ResolveTypeName(expr.TargetType.Lexeme)); }
-        catch { return SetType(expr, TypeHelpers.ResolveTypeByName(expr.TargetType.Lexeme)); }
+        var resolved = _context.TypeResolver.TryResolveType(expr.TargetType.Lexeme);
+        return SetType(expr, resolved ?? typeof(object));
     }
 
     public override Type VisitIsPattern(IsPatternExpr expr)
@@ -161,8 +161,8 @@ public sealed class TypeInferrer : AstWalker<Type>
     public override Type VisitAs(AsExpr expr)
     {
         base.VisitAs(expr);
-        try { return SetType(expr, TypeHelpers.ResolveTypeName(expr.TargetType.Lexeme)); }
-        catch { return SetType(expr, TypeHelpers.ResolveTypeByName(expr.TargetType.Lexeme)); }
+        var resolved = _context.TypeResolver.TryResolveType(expr.TargetType.Lexeme);
+        return SetType(expr, resolved ?? typeof(object));
     }
 
     public override Type VisitAssign(AssignExpr expr)
@@ -366,7 +366,7 @@ public sealed class TypeInferrer : AstWalker<Type>
         Visit(expr.Initializer);
 
         Type type = expr.DeclaredType != null
-            ? TypeHelpers.ResolveTypeName(expr.DeclaredType.Value.Lexeme)
+            ? _context.TypeResolver.TryResolveType(expr.DeclaredType.Value.Lexeme) ?? typeof(object)
             : ResolveSentinel(GetInferredType(expr.Initializer));
 
         DefineVariable(expr.Name.Lexeme, type);
@@ -396,15 +396,8 @@ public sealed class TypeInferrer : AstWalker<Type>
     public override Type VisitObjectCreation(ObjectCreationExpr expr)
     {
         base.VisitObjectCreation(expr);
-        try
-        {
-            var type = TypeHelpers.ResolveTypeByName(expr.TypeName);
-            return SetType(expr, type);
-        }
-        catch
-        {
-            return SetType(expr, typeof(object));
-        }
+        var resolved = _context.TypeResolver.TryResolveType(expr.TypeName);
+        return SetType(expr, resolved ?? typeof(object));
     }
 
     public override Type VisitTuple(TupleExpr expr)
@@ -434,8 +427,8 @@ public sealed class TypeInferrer : AstWalker<Type>
             PushScope();
             if (catchClause.VariableName != null && catchClause.ExceptionTypeName != null)
             {
-                try { DefineVariable(catchClause.VariableName.Value.Lexeme, TypeHelpers.ResolveTypeByName(catchClause.ExceptionTypeName)); }
-                catch { DefineVariable(catchClause.VariableName.Value.Lexeme, typeof(Exception)); }
+                var catchType = _context.TypeResolver.TryResolveType(catchClause.ExceptionTypeName) ?? typeof(Exception);
+                DefineVariable(catchClause.VariableName.Value.Lexeme, catchType);
             }
             if (catchClause.WhenGuard != null)
                 Visit(catchClause.WhenGuard);

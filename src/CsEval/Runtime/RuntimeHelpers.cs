@@ -126,13 +126,11 @@ public static class RuntimeHelpers
     }
 
     /// <summary>
-    /// Invokes a constructor for the given type name with the given arguments.
+    /// Invokes a constructor for the given type with the given arguments.
     /// ECMA-334 §12.8.16.2 - Object creation expressions.
     /// </summary>
-    public static object? InvokeConstructor(string typeName, object?[] args)
+    public static object? InvokeConstructor(Type type, object?[] args)
     {
-        var type = TypeHelpers.ResolveTypeByName(typeName);
-
         try
         {
             if (args.Length == 0)
@@ -142,7 +140,7 @@ public static class RuntimeHelpers
         }
         catch (MissingMethodException)
         {
-            throw new CsEvalException($"No matching constructor found for '{typeName}' with {args.Length} argument(s)");
+            throw new CsEvalException($"No matching constructor found for '{type.Name}' with {args.Length} argument(s)");
         }
         catch (TargetInvocationException ex) when (ex.InnerException != null)
         {
@@ -201,14 +199,13 @@ public static class RuntimeHelpers
     }
 
     /// <summary>
-    /// Creates a typed array from an element type name and size.
+    /// Creates a typed array from an element type and size.
     /// ECMA-334 §12.8.16.4 - Array creation expressions.
     /// Used by the IL compiler as a single method call target for typed array creation.
     /// </summary>
-    public static object CreateTypedArray(string elementTypeName, object sizeValue)
+    public static object CreateTypedArray(Type elementType, object sizeValue)
     {
         var size = Convert.ToInt32(sizeValue);
-        var elementType = TypeHelpers.ResolveTypeName(elementTypeName);
         return Array.CreateInstance(elementType, size);
     }
 
