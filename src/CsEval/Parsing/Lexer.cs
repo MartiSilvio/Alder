@@ -701,14 +701,19 @@ public sealed class Lexer
                 if (!isValidDigit(prev) && prev != '_')
                     throw new CsEvalLexerException($"Digit separator '_' cannot appear at start of number at {_line}:{_column}");
                 Advance();
-                if (!isValidDigit(Peek()))
-                    throw new CsEvalLexerException($"Digit separator '_' must be followed by a digit at {_line}:{_column}");
+                if (!isValidDigit(Peek()) && Peek() != '_')
+                    throw new CsEvalLexerException($"Digit separator '_' must be followed by a digit or another separator at {_line}:{_column}");
             }
             else
             {
                 Advance();
             }
         }
+
+        // Check for trailing underscore
+        var lastChar = _current > 0 ? _source[_current - 1] : '\0';
+        if (lastChar == '_')
+            throw new CsEvalLexerException($"Digit separator '_' cannot appear at end of number at {_line}:{_column}");
     }
 
     private static string StripDigitSeparators(string text) => text.Replace("_", "");
