@@ -14,7 +14,7 @@ public class ParityTests(CompilationMode mode)
     };
 
     [TestCaseSource(nameof(DiscoverValidTests))]
-    public async Task ValidExpressions(string csxPath)
+    public async Task ValidExpressionsShouldPass(string csxPath)
     {
         var expr = TestHelpers.LoadTestExpression(csxPath);
 
@@ -45,7 +45,7 @@ public class ParityTests(CompilationMode mode)
     }
 
     [TestCaseSource(nameof(DiscoverInvalidTests))]
-    public async Task InvalidExpressions(string csxPath)
+    public async Task InvalidExpressionsShouldThrow(string csxPath)
     {
         var expr = TestHelpers.LoadTestExpression(csxPath);
 
