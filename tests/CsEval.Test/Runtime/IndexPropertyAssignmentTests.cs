@@ -1,5 +1,11 @@
 namespace CsEval.Test.Runtime;
 
+/// <summary>
+/// Engine-only tests for index and property assignment.
+/// All tests use CsEval-specific syntax ([1,2,3] collection expressions,
+/// mutable anonymous objects, SetVariable with non-serializable types).
+/// No tests migratable to .csx parity format.
+/// </summary>
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
 [TestFixture(CompilationMode.StrictCompiled)]
@@ -7,7 +13,7 @@ public class IndexPropertyAssignmentTests(CompilationMode mode)
 {
     #region Index Assignment - Array/List
 
-    // These use CsEval-specific [1,2,3] collection expression syntax -- engine-only tests
+    // Engine-only: CsEval-specific [1,2,3] collection expression syntax
     [Test]
     public void IndexAssignment_List_SetsValue()
     {
