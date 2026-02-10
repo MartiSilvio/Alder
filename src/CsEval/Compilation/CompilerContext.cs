@@ -422,7 +422,7 @@ internal sealed class CompilerContext
                     stack.Push(g.Expression);
                     break;
 
-                case UnaryExpr u when u.Op.Type is TokenType.Minus or TokenType.Plus or TokenType.Bang or TokenType.Tilde:
+                case UnaryExpr { Op.Type: TokenType.Minus or TokenType.Plus or TokenType.Bang or TokenType.Tilde } u:
                     stack.Push(u.Right);
                     break;
 

@@ -765,7 +765,7 @@ public sealed class Lexer
     }
 
     private static bool IsHexDigit(char c) =>
-        char.IsDigit(c) || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
+        char.IsDigit(c) || c is >= 'a' and <= 'f' || c is >= 'A' and <= 'F';
 
     private char ParseEscapeSequence()
     {

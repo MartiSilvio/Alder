@@ -66,7 +66,7 @@ public class ParityTests(CompilationMode mode)
         var csEvalEx = Assert.Catch<Exception>(() => engine.Evaluate(expr));
 
         // Validate error codes match when both have them
-        if (csEvalEx is CsEvalException csEx && csEx.ErrorCode.HasValue)
+        if (csEvalEx is CsEvalException { ErrorCode: not null } csEx)
         {
             var expectedCode = csEx.FormattedCode; // e.g., "CS0029"
 

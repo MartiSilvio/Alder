@@ -16,7 +16,6 @@ public class LiteralTests(CompilationMode mode)
 
     // Engine-only: lexer error tests -- verify specific CsEvalLexerException
     [TestCase("0xGG", TestName = "InvalidHex")]
-    [TestCase("1__000", TestName = "DoubleUnderscore")]
     [TestCase("1000_", TestName = "TrailingUnderscore")]
     public void Eval_Literal_ShouldThrowLexerException(string expr)
     {

@@ -107,7 +107,7 @@ public static class MethodInvoker
                 var concreteMethod = method;
 
                 // Handle explicit type arguments for generic methods
-                if (method.ContainsGenericParameters && typeArgs != null && typeArgs.Count > 0)
+                if (method.ContainsGenericParameters && typeArgs is { Count: > 0 })
                 {
                     concreteMethod = TryMakeConcreteMethodWithTypeArgs(method, typeArgs, context.TypeResolver);
                     if (concreteMethod == null)

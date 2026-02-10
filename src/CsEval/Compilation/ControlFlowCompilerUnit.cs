@@ -411,7 +411,7 @@ internal sealed class ControlFlowCompilerUnit
         // Search stack for nearest loop
         foreach (var context in _ctx.ControlStack)
         {
-            if (context.IsLoop && context.ContinueTarget != null)
+            if (context is { IsLoop: true, ContinueTarget: not null })
                 return LinqExpression.Continue(context.ContinueTarget);
         }
 

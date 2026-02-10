@@ -56,7 +56,7 @@ public static class ExtensionMethodResolver
             if (method.ContainsGenericParameters)
             {
                 // If explicit type arguments provided, use them
-                if (typeArgs != null && typeArgs.Count > 0)
+                if (typeArgs is { Count: > 0 })
                     concreteMethod = TryMakeConcreteMethodWithExplicitArgs(method, typeArgs, resolver);
                 else
                     concreteMethod = TryMakeConcreteMethod(method, targetType, args);

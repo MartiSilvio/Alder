@@ -425,7 +425,7 @@ public sealed class TypeInferrer : AstWalker<Type>
         foreach (var catchClause in expr.CatchClauses)
         {
             PushScope();
-            if (catchClause.VariableName != null && catchClause.ExceptionTypeName != null)
+            if (catchClause is { VariableName: not null, ExceptionTypeName: not null })
             {
                 var catchType = _context.TypeResolver.TryResolveType(catchClause.ExceptionTypeName) ?? typeof(Exception);
                 DefineVariable(catchClause.VariableName.Value.Lexeme, catchType);
