@@ -47,6 +47,13 @@ internal sealed class CompilerContext
     internal readonly LabelTarget ReturnLabel;
     internal readonly ParameterExpression ReturnValue;
 
+    /// <summary>
+    /// Expression that accesses TypeResolver from the current context: context.TypeResolver.
+    /// Used by compilation units to emit type resolution calls at runtime.
+    /// </summary>
+    internal LinqExpression TypeResolverExpr =>
+        LinqExpression.Call(CurrentContext, GetTypeResolverProperty);
+
     // Recursion depth tracking to prevent stack overflow in Compile
     internal int CompileDepth;
     internal const int MaxCompileDepth = 500;

@@ -208,6 +208,18 @@ internal sealed class TypeResolver
     }
 
     /// <summary>
+    /// Static bridge for IL compiler emission. Resolves type name via resolver instance.
+    /// </summary>
+    internal static Type ResolveTypeStatic(TypeResolver resolver, string typeName)
+        => resolver.ResolveType(typeName);
+
+    /// <summary>
+    /// Static bridge for IL compiler emission. Non-throwing variant.
+    /// </summary>
+    internal static Type? TryResolveTypeStatic(TypeResolver resolver, string typeName)
+        => resolver.TryResolveType(typeName);
+
+    /// <summary>
     /// Implicit import namespaces for common BCL types when ImplicitBclImports is enabled.
     /// ECMA-334 compatible: System, System.Collections.Generic, System.Threading.Tasks.
     /// System.Linq is NOT included (extended BCL requires explicit registration).
