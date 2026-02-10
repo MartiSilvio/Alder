@@ -1,18 +1,18 @@
-// Engine-only: Reference type construction (new Object(), new Exception()) - reference identity not value-comparable
-
 namespace CsEval.Test.Runtime;
 
 /// <summary>
 /// Tests for new ClassName(args) constructor invocation (ECMA-334 §12.8.16.2 - Object creation expressions).
+/// All tests engine-only: reference type identity not value-comparable (new Object(), new Exception()),
+/// deterministic Random seed comparison, error assertion (CsEvalException).
 /// </summary>
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
 [TestFixture(CompilationMode.StrictCompiled)]
 public class ConstructorTests(CompilationMode mode)
 {
-    #region ECMA-334 §12.8.16.2 - Object creation expressions
+    #region Engine-only: reference type identity (not value-comparable)
 
-    // Parameterless constructor
+    // Engine-only: new Object() creates reference type, not value-comparable with Is.EqualTo
     [Test]
     public void Constructor_Parameterless()
     {
@@ -22,7 +22,7 @@ public class ConstructorTests(CompilationMode mode)
         Assert.That(result!.GetType(), Is.EqualTo(typeof(object)));
     }
 
-    // Constructor then method call (chaining)
+    // Engine-only: Random instance identity, deterministic seed comparison
     [Test]
     public void Constructor_ThenMethodCall()
     {
@@ -30,12 +30,11 @@ public class ConstructorTests(CompilationMode mode)
         var result = engine.Evaluate("new Random(42).Next(1, 100)");
         Assert.That(result, Is.Not.Null);
         Assert.That(result, Is.TypeOf<int>());
-        // Random(42) is deterministic, so same seed gives same result
         var expected = new Random(42).Next(1, 100);
         Assert.That(result, Is.EqualTo(expected));
     }
 
-    // Exception instance creation (parameterless)
+    // Engine-only: new Exception() creates reference type, not value-comparable
     [Test]
     public void Constructor_Exception_Parameterless()
     {
@@ -45,7 +44,11 @@ public class ConstructorTests(CompilationMode mode)
         Assert.That(result, Is.InstanceOf<Exception>());
     }
 
-    // Error case: non-existent type
+    #endregion
+
+    #region Engine-only: error tests (CsEvalException assertions)
+
+    // Engine-only: CsEvalException assertion for non-existent type
     [Test]
     public void Constructor_NonExistentType_Throws()
     {
@@ -53,13 +56,11 @@ public class ConstructorTests(CompilationMode mode)
         Assert.Catch<CsEvalException>(() => engine.Evaluate("new NonExistentType123()"));
     }
 
-    // Built-in type constructor (e.g., new string)
+    // Engine-only: new int() returns default(int) = 0, verifies Activator.CreateInstance
     [Test]
     public void Constructor_BuiltInType_Int()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        // new int() is equivalent to default(int) = 0
-        // But Activator.CreateInstance(typeof(int)) returns 0
         var result = engine.Evaluate("new int()");
         Assert.That(result, Is.EqualTo(0));
     }

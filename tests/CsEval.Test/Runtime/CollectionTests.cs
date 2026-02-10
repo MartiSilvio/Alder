@@ -1,12 +1,17 @@
-// Engine-only: CsEval-specific [1,2,3] collection expression syntax, anonymous objects as IDictionary
-
 namespace CsEval.Test.Runtime;
 
+/// <summary>
+/// All tests engine-only: CsEval-specific [...] collection expression syntax (Roslyn rejects CS9176
+/// without target type), anonymous objects as mutable IDictionary (not value-comparable).
+/// </summary>
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
 [TestFixture(CompilationMode.StrictCompiled)]
 public class CollectionTests(CompilationMode mode)
 {
+    #region Engine-only: CsEval [] collection expression syntax (Roslyn rejects CS9176)
+
+    // Engine-only: CsEval [] syntax for typed array literal
     [Test]
     public void Eval_ArrayLiteral()
     {
@@ -18,6 +23,7 @@ public class CollectionTests(CompilationMode mode)
         Assert.That(list[0], Is.EqualTo(1));
     }
 
+    // Engine-only: CsEval [] syntax for string array type inference
     [Test]
     public void Eval_ArrayLiteral_TypeInference_Strings()
     {
@@ -26,6 +32,7 @@ public class CollectionTests(CompilationMode mode)
         Assert.That(result, Is.TypeOf<string[]>());
     }
 
+    // Engine-only: CsEval [] syntax for mixed-type fallback
     [Test]
     public void Eval_ArrayLiteral_MixedTypes_FallbackToObjectList()
     {
@@ -34,6 +41,7 @@ public class CollectionTests(CompilationMode mode)
         Assert.That(result, Is.TypeOf<object?[]>());
     }
 
+    // Engine-only: CsEval [] syntax with nulls and value types
     [Test]
     public void Eval_ArrayLiteral_WithNulls_ValueType_CreatesNullableList()
     {
@@ -42,6 +50,7 @@ public class CollectionTests(CompilationMode mode)
         Assert.That(result, Is.TypeOf<int?[]>());
     }
 
+    // Engine-only: CsEval [] syntax with nulls and reference types
     [Test]
     public void Eval_ArrayLiteral_WithNulls_ReferenceType_TypedList()
     {
@@ -50,6 +59,7 @@ public class CollectionTests(CompilationMode mode)
         Assert.That(result, Is.TypeOf<string[]>());
     }
 
+    // Engine-only: CsEval [] syntax for empty array
     [Test]
     public void Eval_ArrayLiteral_Empty_ReturnsObjectList()
     {
@@ -58,6 +68,7 @@ public class CollectionTests(CompilationMode mode)
         Assert.That(result, Is.TypeOf<object?[]>());
     }
 
+    // Engine-only: CsEval [] syntax with multiline formatting
     [Test]
     public void Eval_ArrayLiteral_Multiline()
     {
@@ -75,6 +86,7 @@ public class CollectionTests(CompilationMode mode)
         Assert.That(list[2], Is.EqualTo("three"));
     }
 
+    // Engine-only: CsEval [] syntax with CRLF line endings
     [Test]
     public void Eval_ArrayLiteral_CRLF()
     {
@@ -86,6 +98,11 @@ public class CollectionTests(CompilationMode mode)
         Assert.That(list[0], Is.EqualTo("one"));
     }
 
+    #endregion
+
+    #region Engine-only: anonymous objects as mutable IDictionary (not value-comparable)
+
+    // Engine-only: anonymous object returns IDictionary, not compiler-generated type
     [Test]
     public void Eval_AnonymousObject()
     {
@@ -95,4 +112,6 @@ public class CollectionTests(CompilationMode mode)
         Assert.That(result!["Name"], Is.EqualTo("John"));
         Assert.That(result["Age"], Is.EqualTo(30));
     }
+
+    #endregion
 }

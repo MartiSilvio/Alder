@@ -1,19 +1,18 @@
-// Engine-only: SetVariable with TestPerson, CsEval [] syntax, anonymous objects as IDictionary
-
 namespace CsEval.Test.Runtime;
 
 /// <summary>
 /// ECMA-334 §12.18 — Conditional operator (?:), §13.6 — Selection statements (if/else).
-/// Tests ternary expressions, if/else statements, block expressions with return,
-/// conditional type promotion (§12.4.7.3), and nested ternary evaluation.
+/// All tests engine-only: SetVariable with long, CsEval [] collection expression syntax,
+/// TestPerson + anonymous object merge (non-serializable types).
 /// </summary>
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
 [TestFixture(CompilationMode.StrictCompiled)]
 public class ControlFlowTests(CompilationMode mode)
 {
-    #region ECMA-334 §12.18 — Ternary and If/Else with External Variables
+    #region Engine-only: SetVariable and CsEval-specific syntax
 
+    // Engine-only: SetVariable with long type
     [Test]
     public void Eval_Ternary_WithExpression()
     {
@@ -22,6 +21,7 @@ public class ControlFlowTests(CompilationMode mode)
         Assert.That(engine.Evaluate("x > 5 ? \"big\" : \"small\""), Is.EqualTo("big"));
     }
 
+    // Engine-only: CsEval [] collection expression syntax (Roslyn rejects CS9176)
     [Test]
     public void Eval_Ternary_WithArrays()
     {
@@ -31,6 +31,7 @@ public class ControlFlowTests(CompilationMode mode)
         Assert.That(result, Has.Length.EqualTo(0));
     }
 
+    // Engine-only: SetVariable with TestPerson (non-serializable) + anonymous object merge
     [Test]
     public void Eval_IfStatement_NullCheck_Pattern()
     {

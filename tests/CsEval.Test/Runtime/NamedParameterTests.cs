@@ -27,6 +27,21 @@ public class NamedParameterTests(CompilationMode mode)
 
     #endregion
 
+    #region Engine-only: CsEval-specific behavior (case-insensitive parameter names)
+
+    // Engine-only: CsEval case-insensitive named parameter matching (Roslyn is case-sensitive)
+    [Test]
+    public void Eval_NamedParameter_CaseInsensitive()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        engine.SetVariable("str", "Hello World");
+
+        var result = engine.Evaluate("str.Substring(STARTINDEX: 0, LENGTH: 5)");
+        Assert.That(result, Is.EqualTo("Hello"));
+    }
+
+    #endregion
+
     #region Engine-only: error tests (CsEvalException assertions)
 
     // Engine-only: CsEvalException assertion for invalid parameter name

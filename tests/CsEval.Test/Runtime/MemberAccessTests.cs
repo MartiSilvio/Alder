@@ -1,14 +1,19 @@
-// Engine-only: ExpandoObject dynamic access, SetVariable with non-serializable types (TestPerson, ExpandoObject)
-
 using System.Dynamic;
 
 namespace CsEval.Test.Runtime;
 
+/// <summary>
+/// All tests engine-only: ExpandoObject dynamic member access, SetVariable with
+/// non-serializable types (ExpandoObject, List{int}), CsEvalException error assertion.
+/// </summary>
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
 [TestFixture(CompilationMode.StrictCompiled)]
 public class MemberAccessTests(CompilationMode mode)
 {
+    #region Engine-only: SetVariable with long type
+
+    // Engine-only: SetVariable with long type for variable context access
     [Test]
     public void Eval_Variable_FromContext()
     {
@@ -19,6 +24,11 @@ public class MemberAccessTests(CompilationMode mode)
         Assert.That(engine.Evaluate("x + 5"), Is.EqualTo(15));
     }
 
+    #endregion
+
+    #region Engine-only: ExpandoObject dynamic member access (non-serializable)
+
+    // Engine-only: SetVariable with ExpandoObject for dynamic member access
     [Test]
     public void Eval_MemberAccess_OnExpandoObject()
     {
@@ -32,6 +42,7 @@ public class MemberAccessTests(CompilationMode mode)
         Assert.That(engine.Evaluate("user.Age"), Is.EqualTo(30));
     }
 
+    // Engine-only: SetVariable with nested ExpandoObject for chained access
     [Test]
     public void Eval_ChainedMemberAccess()
     {
@@ -45,6 +56,7 @@ public class MemberAccessTests(CompilationMode mode)
         Assert.That(engine.Evaluate("user.Address.City"), Is.EqualTo("New York"));
     }
 
+    // Engine-only: SetVariable with ExpandoObject + CsEvalException for case mismatch
     [Test]
     public void Eval_CaseSensitive_MemberAccess()
     {
@@ -57,6 +69,11 @@ public class MemberAccessTests(CompilationMode mode)
         Assert.Throws<CsEvalException>(() => engine.Evaluate("user.name"));
     }
 
+    #endregion
+
+    #region Engine-only: SetVariable with non-serializable collection types
+
+    // Engine-only: SetVariable with List<int> for index access
     [Test]
     public void Eval_IndexAccess_OnList()
     {
@@ -67,6 +84,7 @@ public class MemberAccessTests(CompilationMode mode)
         Assert.That(engine.Evaluate("arr[2]"), Is.EqualTo(3));
     }
 
+    // Engine-only: SetVariable with ExpandoObject for dictionary index access
     [Test]
     public void Eval_IndexAccess_OnDictionary()
     {
@@ -77,4 +95,6 @@ public class MemberAccessTests(CompilationMode mode)
 
         Assert.That(engine.Evaluate("dict[\"key\"]"), Is.EqualTo("value"));
     }
+
+    #endregion
 }
