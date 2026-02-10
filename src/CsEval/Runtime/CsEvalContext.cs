@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Collections.Frozen;
 using System.Collections.Immutable;
 using System.Dynamic;
+using CsEval.Diagnostics;
 
 namespace CsEval.Runtime;
 
@@ -58,7 +59,7 @@ public sealed class CsEvalContext
     public void DefineNew(string name, object? value, Type inferredType)
     {
         if (Contains(name))
-            throw new CsEvalException($"A local variable named '{name}' is already defined in this scope");
+            throw new CsEvalException(DiagnosticDescriptors.DuplicateLocalVariable, name);
 
         _variables[name] = value;
         _variableTypes[name] = inferredType;
@@ -92,7 +93,7 @@ public sealed class CsEvalContext
     {
         if (TryGet(name, out var value))
             return value;
-        throw new CsEvalException($"Undefined variable '{name}'");
+        throw new CsEvalException(DiagnosticDescriptors.NameNotInContext, name);
     }
 
     public void Set(string name, object? value)
@@ -109,7 +110,7 @@ public sealed class CsEvalContext
             return;
         }
 
-        throw new CsEvalException($"Undefined variable '{name}'");
+        throw new CsEvalException(DiagnosticDescriptors.NameNotInContext, name);
     }
 
     private bool Contains(string name)

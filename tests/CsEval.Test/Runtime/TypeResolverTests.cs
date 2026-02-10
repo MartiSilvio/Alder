@@ -580,7 +580,7 @@ public class TypeResolverTests(CompilationMode mode)
         var engine = CreateEngine();
         var ex = Assert.Throws<CsEvalException>(() =>
             engine.Evaluate("new StringBuilder()"));
-        Assert.That(ex!.Message, Does.Contain("AddUsing").Or.Contain("AddAssembly").Or.Contain("fully qualified"));
+        Assert.That(ex!.Message, Does.Contain("using directive").Or.Contain("assembly reference"));
     }
 
     [Test]

@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Collections.Frozen;
 using System.Collections.Immutable;
+using CsEval.Diagnostics;
 
 namespace CsEval.Runtime;
 
@@ -45,9 +46,7 @@ internal sealed class TypeResolver
             return ResolveGenericType(typeName);
 
         return _cache.GetOrAdd(typeName, ResolveTypeCore)
-            ?? throw new CsEvalException(
-                $"Unknown type '{typeName}'. Ensure the type's assembly is registered with AddAssembly() " +
-                "and its namespace is imported with AddUsing(), or use its fully qualified name.");
+            ?? throw new CsEvalException(DiagnosticDescriptors.TypeNotFound, typeName);
     }
 
     /// <summary>
@@ -99,10 +98,10 @@ internal sealed class TypeResolver
 
         if (ambiguousMatches != null)
         {
-            var candidates = string.Join("\n", ambiguousMatches.Select(m => $"  - {m.Namespace}.{typeName}"));
-            throw new CsEvalException(
-                $"Ambiguous type reference: '{typeName}' could refer to:\n{candidates}\n" +
-                "Use a fully qualified name to disambiguate.");
+            throw new CsEvalException(DiagnosticDescriptors.AmbiguousReference,
+                typeName,
+                $"{ambiguousMatches[0].Namespace}.{typeName}",
+                $"{ambiguousMatches[1].Namespace}.{typeName}");
         }
 
         if (importedMatch != null)
