@@ -1,5 +1,9 @@
 namespace CsEval.Test.Operators;
 
+// Engine-only: All remaining tests verify exception throwing behavior (Assert.Catch),
+// use SetVariable, or test CsEval-specific runtime model (int ?? throw).
+// Non-throwing paths migrated to TestData/ThrowExpression/*.csx
+
 /// <summary>
 /// Tests for throw expressions (ECMA-334 §12.16 - Throw expression operator).
 /// Throw expressions allow exception throwing in expression contexts like null-coalescing (??)
@@ -12,9 +16,7 @@ public class ThrowExpressionTests(CompilationMode mode)
 {
     #region ECMA-334 §12.16 - Null-coalescing with throw
 
-    // Non-null value type with ?? (CsEval treats everything as object? at runtime)
-    // Note: Roslyn rejects `42 ?? throw` at compile time since int is not nullable,
-    // but CsEval's runtime model accepts it since all values are boxed as object?
+    // Engine-only: CsEval runtime model treats int as object?, Roslyn rejects `42 ?? throw` (int not nullable)
     [Test]
     public void NullCoalesce_NonNullInt_ReturnsValue()
     {
@@ -23,7 +25,7 @@ public class ThrowExpressionTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(42));
     }
 
-    // Null left side of ?? evaluates the throw and throws
+    // Engine-only: exception verification, SetVariable
     [Test]
     public void NullCoalesce_Null_ThrowsException()
     {
@@ -37,7 +39,7 @@ public class ThrowExpressionTests(CompilationMode mode)
         Assert.That(ex!.Message, Is.EqualTo("value was null"));
     }
 
-    // Null coalescing with ArgumentException (multi-arg constructor)
+    // Engine-only: exception verification, SetVariable
     [Test]
     public void NullCoalesce_Null_ThrowsArgumentException()
     {
@@ -55,7 +57,7 @@ public class ThrowExpressionTests(CompilationMode mode)
 
     #region ECMA-334 §12.16 - Conditional with throw
 
-    // Condition false, else branch throws
+    // Engine-only: exception verification
     [Test]
     public void Conditional_FalseCondition_ElseThrows()
     {
@@ -66,7 +68,7 @@ public class ThrowExpressionTests(CompilationMode mode)
         Assert.That(ex!.Message, Is.EqualTo("not allowed"));
     }
 
-    // Condition true, then branch throws
+    // Engine-only: exception verification
     [Test]
     public void Conditional_TrueCondition_ThenThrows()
     {
@@ -81,7 +83,7 @@ public class ThrowExpressionTests(CompilationMode mode)
 
     #region ECMA-334 §12.16 - Standalone throw expression
 
-    // Throw as a standalone expression always throws
+    // Engine-only: exception verification
     [Test]
     public void Standalone_ThrowExpression_Throws()
     {
@@ -96,7 +98,7 @@ public class ThrowExpressionTests(CompilationMode mode)
 
     #region Error cases
 
-    // Throwing a non-Exception type should produce an error
+    // Engine-only: error test
     [Test]
     public void Throw_NonExceptionType_ProducesError()
     {
