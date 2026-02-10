@@ -1,3 +1,5 @@
+// Engine-only: SetVariable with TestPerson, CsEval [] syntax, anonymous objects as IDictionary
+
 namespace CsEval.Test.Runtime;
 
 /// <summary>

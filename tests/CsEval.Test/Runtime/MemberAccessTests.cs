@@ -1,3 +1,5 @@
+// Engine-only: ExpandoObject dynamic access, SetVariable with non-serializable types (TestPerson, ExpandoObject)
+
 using System.Dynamic;
 
 namespace CsEval.Test.Runtime;

@@ -1,3 +1,5 @@
+// Engine-only: Reference type construction (new Object(), new Exception()) - reference identity not value-comparable
+
 namespace CsEval.Test.Runtime;
 
 /// <summary>

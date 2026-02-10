@@ -1,3 +1,6 @@
+// Engine-only: All tests verify variable scoping via error assertions (CsEvalException for leaked variables)
+// or use CsEval-specific [1,2,3] collection expression and [..spread] syntax
+
 namespace CsEval.Test.Runtime;
 
 [TestFixture(CompilationMode.Interpreted)]

@@ -1,3 +1,5 @@
+// Engine-only: Switch statement tests with error assertions, SetVariable, CsEval-specific syntax
+
 namespace CsEval.Test.Runtime;
 
 [TestFixture(CompilationMode.Interpreted)]

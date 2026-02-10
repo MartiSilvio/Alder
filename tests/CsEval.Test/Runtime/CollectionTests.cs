@@ -1,3 +1,5 @@
+// Engine-only: CsEval-specific [1,2,3] collection expression syntax, anonymous objects as IDictionary
+
 namespace CsEval.Test.Runtime;
 
 [TestFixture(CompilationMode.Interpreted)]
