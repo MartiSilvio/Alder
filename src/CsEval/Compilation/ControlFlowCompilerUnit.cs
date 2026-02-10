@@ -1,4 +1,5 @@
 using System.Linq.Expressions;
+using CsEval.Diagnostics;
 using CsEval.Parsing;
 using CsEval.Runtime;
 
@@ -378,7 +379,7 @@ internal sealed class ControlFlowCompilerUnit
                     // Non-empty case: validate it ends with break/return/continue (C# CS0163)
                     var lastStmt = c.Statements.Last();
                     if (lastStmt is not BreakExpr && lastStmt is not ReturnExpr && lastStmt is not ContinueExpr)
-                        throw new CsEvalException("CS0163: Control cannot fall through from one case label to another");
+                        throw new CsEvalException(DiagnosticDescriptors.CaseFallThrough);
 
                     foreach (var stmt in c.Statements)
                     {
@@ -399,7 +400,7 @@ internal sealed class ControlFlowCompilerUnit
     internal LinqExpression CompileBreak()
     {
         if (_ctx.ControlStack.Count == 0)
-            throw new CsEvalException("break statement outside of loop or switch");
+            throw new CsEvalException(DiagnosticDescriptors.BreakOrContinueOutsideLoop);
 
         var context = _ctx.ControlStack.Peek();
         return LinqExpression.Break(context.BreakTarget);
@@ -414,7 +415,7 @@ internal sealed class ControlFlowCompilerUnit
                 return LinqExpression.Continue(context.ContinueTarget);
         }
 
-        throw new CsEvalException("continue statement outside of loop");
+        throw new CsEvalException(DiagnosticDescriptors.BreakOrContinueOutsideLoop);
     }
 
     internal LinqExpression CompileReturn(ReturnExpr ret)
