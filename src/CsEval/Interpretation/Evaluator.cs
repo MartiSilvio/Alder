@@ -274,6 +274,16 @@ public sealed class Evaluator : IExprVisitor<object?>
         if (_context.Modules.TryGetValue(name, out var module))
             return module;
 
+        // Try variable lookup first (fast path for common case)
+        if (_context.TryGet(name, out var value))
+            return value;
+
+        // If not a variable/function/module, check if it's a namespace prefix.
+        // This enables FQN type access like System.Linq.Enumerable.Where(...)
+        if (_context.TypeResolver.IsNamespaceOrPrefix(name))
+            return new NamespaceRef(name);
+
+        // Fall through to context.Get which throws CS0103 with proper error message
         return _context.Get(name);
     }
 
@@ -1415,6 +1425,25 @@ public sealed class Evaluator : IExprVisitor<object?>
 
     private object? GetMember(object obj, string name)
     {
+        // Handle namespace sentinel: accumulate path segments for FQN type resolution.
+        // Example: NamespaceRef("System") + "Linq" -> NamespaceRef("System.Linq") or Type
+        if (obj is NamespaceRef nsRef)
+        {
+            var accumulated = nsRef.Path + "." + name;
+
+            // Try to resolve as a complete type name
+            var resolvedType = _context.TypeResolver.TryResolveType(accumulated);
+            if (resolvedType != null)
+                return resolvedType;
+
+            // Check if it's still a valid namespace prefix
+            if (_context.TypeResolver.IsNamespaceOrPrefix(accumulated))
+                return new NamespaceRef(accumulated);
+
+            // Neither a type nor a namespace prefix -- this is an error
+            throw new CsEvalException(DiagnosticDescriptors.TypeNotFound, accumulated);
+        }
+
         if (obj is ModuleInfo module)
         {
             if (module.Members.TryGetValue(name, out var member))

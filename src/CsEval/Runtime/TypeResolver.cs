@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Collections.Frozen;
 using System.Collections.Immutable;
+using System.Linq;
 using CsEval.Diagnostics;
 
 namespace CsEval.Runtime;
@@ -296,6 +297,7 @@ internal sealed class TypeResolver
         assemblySet.Add(typeof(object).Assembly);        // System.Private.CoreLib
         assemblySet.Add(typeof(List<>).Assembly);         // System.Collections
         assemblySet.Add(typeof(Task).Assembly);           // System.Threading.Tasks (may be same as CoreLib)
+        assemblySet.Add(typeof(Enumerable).Assembly);    // System.Linq (required for FQN and extension method resolution)
 
         var allAssemblies = assemblySet.ToImmutableArray();
 
