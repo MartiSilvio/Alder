@@ -261,6 +261,7 @@ internal sealed class CompilerContext
                 DefaultExpr def => exprUnit.CompileDefault(def),
                 NameofExpr nameofExpr => LinqExpression.Constant(nameofExpr.Name, typeof(object)),
                 TypeofExpr typeofExpr => exprUnit.CompileTypeof(typeofExpr),
+                SizeofExpr sizeofExpr => exprUnit.CompileSizeof(sizeofExpr),
                 ObjectCreationExpr oc => exprUnit.CompileObjectCreation(oc),
                 TypedArrayCreationExpr tac => exprUnit.CompileTypedArrayCreation(tac),
                 TypedArrayLiteralExpr tal => exprUnit.CompileTypedArrayLiteral(tal),
@@ -352,6 +353,7 @@ internal sealed class CompilerContext
                 case DefaultExpr:
                 case NameofExpr:
                 case TypeofExpr:
+                case SizeofExpr:
                     // These are always compilable, no children to check
                     break;
 

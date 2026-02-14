@@ -86,6 +86,9 @@ public interface IExprVisitor<out T>
     // Typeof expression
     T VisitTypeof(TypeofExpr expr);
 
+    // Sizeof expression
+    T VisitSizeof(SizeofExpr expr);
+
     // Object creation expression
     T VisitObjectCreation(ObjectCreationExpr expr);
 
@@ -457,6 +460,17 @@ public sealed record DefaultExpr(Token? TypeToken) : Expr
 public sealed record TypeofExpr(Token TypeToken) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitTypeof(this);
+}
+
+#endregion
+
+#region Sizeof Expression
+
+// Sizeof expression: sizeof(int), sizeof(double)
+// ECMA-334 §23.6.9 - The sizeof operator
+public sealed record SizeofExpr(string TypeName) : Expr
+{
+    public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitSizeof(this);
 }
 
 #endregion

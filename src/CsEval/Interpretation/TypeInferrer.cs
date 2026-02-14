@@ -384,6 +384,12 @@ public sealed class TypeInferrer : AstWalker<Type>
         return SetType(expr, typeof(Type));
     }
 
+    public override Type VisitSizeof(SizeofExpr expr)
+    {
+        base.VisitSizeof(expr);
+        return SetType(expr, typeof(int));
+    }
+
     public override Type VisitThrow(ThrowExpr expr)
     {
         base.VisitThrow(expr);

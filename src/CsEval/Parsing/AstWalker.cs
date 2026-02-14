@@ -464,6 +464,13 @@ public abstract class AstWalker<T> : IExprVisitor<T>
         return OnLeave(expr);
     }
 
+    // Sizeof Expression
+    public virtual T VisitSizeof(SizeofExpr expr)
+    {
+        OnEnter(expr);
+        return OnLeave(expr);
+    }
+
     // Throw Expression
     public virtual T VisitThrow(ThrowExpr expr)
     {

@@ -73,6 +73,9 @@ public sealed class PrimaryParser : ParserBase
         if (Match(TokenType.Nameof))
             return ParseNameofExpression();
 
+        if (Match(TokenType.Sizeof))
+            return ParseSizeofExpression();
+
         if (Match(TokenType.Identifier))
             return ParseIdentifier();
 
@@ -332,6 +335,27 @@ public sealed class PrimaryParser : ParserBase
         }
         Consume(TokenType.RightParen, "Expected ')' after nameof expression");
         return new NameofExpr(name);
+    }
+
+    #endregion
+
+    #region Sizeof Expression
+
+    private Expr ParseSizeofExpression()
+    {
+        Consume(TokenType.LeftParen, "Expected '(' after 'sizeof'");
+        string typeName;
+        if (IsTypeKeyword(Peek().Type))
+        {
+            MatchTypeKeyword(out var typeToken);
+            typeName = typeToken.Lexeme;
+        }
+        else
+        {
+            typeName = Consume(TokenType.Identifier, "Expected type name in sizeof").Lexeme;
+        }
+        Consume(TokenType.RightParen, "Expected ')' after sizeof type");
+        return new SizeofExpr(typeName);
     }
 
     #endregion
