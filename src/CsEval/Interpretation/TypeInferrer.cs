@@ -484,6 +484,24 @@ public sealed class TypeInferrer : AstWalker<Type>
         }
     }
 
+    public override Type VisitMultiDimIndexAccess(MultiDimIndexAccessExpr expr)
+    {
+        base.VisitMultiDimIndexAccess(expr);
+        return SetType(expr, typeof(object));
+    }
+
+    public override Type VisitMultiDimTypedArrayCreation(MultiDimTypedArrayCreationExpr expr)
+    {
+        base.VisitMultiDimTypedArrayCreation(expr);
+        return SetType(expr, typeof(Array));
+    }
+
+    public override Type VisitMultiDimIndexAssign(MultiDimIndexAssignExpr expr)
+    {
+        base.VisitMultiDimIndexAssign(expr);
+        return SetType(expr, GetInferredType(expr.Value));
+    }
+
     #endregion
 
     #region Type Helpers

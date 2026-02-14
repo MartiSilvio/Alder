@@ -216,6 +216,15 @@ public sealed class ExpressionParser : ParserBase
                 return new IndexCompoundAssignExpr(indexAccess.Object, indexAccess.Index, indexOp.Type, value);
             }
         }
+        else if (target is MultiDimIndexAccessExpr multiIndex)
+        {
+            // Handle arr[i, j] = value
+            if (Match(TokenType.Equal))
+            {
+                var value = ParseAssignment();
+                return new MultiDimIndexAssignExpr(multiIndex.Object, multiIndex.Indices, value);
+            }
+        }
 
         return expr;
     }
@@ -689,15 +698,39 @@ public sealed class ExpressionParser : ParserBase
             }
             else if (Match(TokenType.LeftBracket))
             {
-                var index = ParseExpression();
-                Consume(TokenType.RightBracket, "Expected ']' after index");
-                expr = new IndexAccessExpr(expr, index, false);
+                var firstIndex = ParseExpression();
+                if (Check(TokenType.Comma))
+                {
+                    // Multi-dimensional access: arr[i, j, k]
+                    var indices = new List<Expr> { firstIndex };
+                    while (Match(TokenType.Comma))
+                        indices.Add(ParseExpression());
+                    Consume(TokenType.RightBracket, "Expected ']' after indices");
+                    expr = new MultiDimIndexAccessExpr(expr, indices, false);
+                }
+                else
+                {
+                    Consume(TokenType.RightBracket, "Expected ']' after index");
+                    expr = new IndexAccessExpr(expr, firstIndex, false);
+                }
             }
             else if (Match(TokenType.QuestionLeftBracket))
             {
-                var index = ParseExpression();
-                Consume(TokenType.RightBracket, "Expected ']' after null-conditional index");
-                expr = new IndexAccessExpr(expr, index, true);
+                var firstIndex = ParseExpression();
+                if (Check(TokenType.Comma))
+                {
+                    // Multi-dimensional null-safe access: arr?[i, j]
+                    var indices = new List<Expr> { firstIndex };
+                    while (Match(TokenType.Comma))
+                        indices.Add(ParseExpression());
+                    Consume(TokenType.RightBracket, "Expected ']' after null-conditional indices");
+                    expr = new MultiDimIndexAccessExpr(expr, indices, true);
+                }
+                else
+                {
+                    Consume(TokenType.RightBracket, "Expected ']' after null-conditional index");
+                    expr = new IndexAccessExpr(expr, firstIndex, true);
+                }
             }
             else if (Check(TokenType.Less) && TryParseTypeArguments(out var typeArgs))
             {

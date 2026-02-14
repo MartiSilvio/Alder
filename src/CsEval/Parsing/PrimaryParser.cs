@@ -233,25 +233,78 @@ public sealed class PrimaryParser : ParserBase
                 throw new CsEvalParserException($"Expected '{{' after 'new {typeName}[]' at {Peek().Line}:{Peek().Column}");
             }
 
-            // Array with size: new int[10]
-            var sizeExpr = _expression.ParseExpression();
-            Consume(TokenType.RightBracket, "Expected ']' after array size");
-            return new TypedArrayCreationExpr(typeName, sizeExpr);
-        }
-
-        // Parse argument list
-        Consume(TokenType.LeftParen, $"Expected '(' after type name '{typeName}'");
-        var arguments = new List<Expr>();
-        if (!Check(TokenType.RightParen))
-        {
-            do
+            // Array with size: new int[10] or multi-dim: new int[3, 3]
+            var firstSize = _expression.ParseExpression();
+            if (Check(TokenType.Comma))
             {
-                arguments.Add(_expression.ParseExpression());
-            } while (Match(TokenType.Comma));
+                // Multi-dimensional: new int[3, 3]
+                var sizes = new List<Expr> { firstSize };
+                while (Match(TokenType.Comma))
+                    sizes.Add(_expression.ParseExpression());
+                Consume(TokenType.RightBracket, "Expected ']' after array sizes");
+                return new MultiDimTypedArrayCreationExpr(typeName, sizes);
+            }
+            Consume(TokenType.RightBracket, "Expected ']' after array size");
+            return new TypedArrayCreationExpr(typeName, firstSize);
         }
-        Consume(TokenType.RightParen, "Expected ')' after constructor arguments");
 
-        return new ObjectCreationExpr(typeName, arguments);
+        // Parse optional argument list - parentheses may be omitted with initializer: new X { Prop = val }
+        var arguments = new List<Expr>();
+        if (Check(TokenType.LeftParen))
+        {
+            Advance(); // consume '('
+            if (!Check(TokenType.RightParen))
+            {
+                do
+                {
+                    arguments.Add(_expression.ParseExpression());
+                } while (Match(TokenType.Comma));
+            }
+            Consume(TokenType.RightParen, "Expected ')' after constructor arguments");
+        }
+
+        // Check for object/collection initializer: new X() { ... } or new X { ... }
+        ObjectInitializer? initializer = null;
+        if (Check(TokenType.LeftBrace))
+        {
+            initializer = ParseObjectInitializer();
+        }
+
+        return new ObjectCreationExpr(typeName, arguments, initializer);
+    }
+
+    /// <summary>
+    /// Parses an object or collection initializer: { Name = value, ... } or { elem1, elem2, ... }
+    /// ECMA-334 §12.8.16.3 - Object initializers / §12.8.16.6 - Collection initializers
+    /// </summary>
+    private ObjectInitializer ParseObjectInitializer()
+    {
+        Consume(TokenType.LeftBrace, "Expected '{' for object initializer");
+        var entries = new List<InitializerEntry>();
+
+        while (!Check(TokenType.RightBrace) && !IsAtEnd())
+        {
+            if (Check(TokenType.Identifier) && PeekNext().Type == TokenType.Equal)
+            {
+                // Property initializer: Name = value
+                var propName = Advance().Lexeme;
+                Advance(); // consume =
+                var value = _expression.ParseExpression();
+                entries.Add(new InitializerEntry(propName, value));
+            }
+            else
+            {
+                // Collection initializer element
+                var value = _expression.ParseExpression();
+                entries.Add(new InitializerEntry(null, value));
+            }
+
+            if (!Match(TokenType.Comma))
+                break; // no trailing comma required
+        }
+
+        Consume(TokenType.RightBrace, "Expected '}' after object initializer");
+        return new ObjectInitializer(entries);
     }
 
     #endregion

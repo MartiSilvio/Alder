@@ -779,7 +779,66 @@ public sealed class Evaluator : IExprVisitor<object?>
     {
         var args = expr.Arguments.Select(arg => Evaluate(arg)).ToArray();
         var type = _context.TypeResolver.ResolveType(expr.TypeName);
-        return RuntimeHelpers.InvokeConstructor(type, args);
+        var result = RuntimeHelpers.InvokeConstructor(type, args);
+
+        // Apply object/collection initializer if present
+        if (expr.Initializer != null)
+        {
+            foreach (var entry in expr.Initializer.Entries)
+            {
+                var value = Evaluate(entry.Value);
+                if (entry.PropertyName != null)
+                {
+                    // Property initializer: set property on newly created object
+                    SetMember(result!, entry.PropertyName, value);
+                }
+                else
+                {
+                    // Collection initializer: call Add method
+                    var addMethod = result!.GetType().GetMethod("Add");
+                    if (addMethod != null)
+                    {
+                        addMethod.Invoke(result, new[] { value });
+                    }
+                    else
+                    {
+                        throw new CsEvalException($"Type '{result.GetType().Name}' does not have an 'Add' method for collection initializer");
+                    }
+                }
+            }
+        }
+
+        return result;
+    }
+
+    public object? VisitMultiDimIndexAccess(MultiDimIndexAccessExpr expr)
+    {
+        var obj = Evaluate(expr.Object);
+        if (expr.NullSafe && obj == null) return null;
+        var indices = expr.Indices.Select(i => Convert.ToInt32(Evaluate(i))).ToArray();
+        if (obj is Array arr)
+            return arr.GetValue(indices);
+        throw new CsEvalException($"Multi-dimensional index access not supported on type '{obj?.GetType().Name}'");
+    }
+
+    public object? VisitMultiDimTypedArrayCreation(MultiDimTypedArrayCreationExpr expr)
+    {
+        var sizes = expr.Sizes.Select(s => Convert.ToInt32(Evaluate(s))).ToArray();
+        var elementType = _context.TypeResolver.ResolveType(expr.ElementTypeName);
+        return Array.CreateInstance(elementType, sizes);
+    }
+
+    public object? VisitMultiDimIndexAssign(MultiDimIndexAssignExpr expr)
+    {
+        var obj = Evaluate(expr.Object);
+        var indices = expr.Indices.Select(i => Convert.ToInt32(Evaluate(i))).ToArray();
+        var value = Evaluate(expr.Value);
+        if (obj is Array arr)
+        {
+            arr.SetValue(value, indices);
+            return value;
+        }
+        throw new CsEvalException($"Multi-dimensional index assignment not supported on type '{obj?.GetType().Name}'");
     }
 
     public object? VisitTypedArrayCreation(TypedArrayCreationExpr expr)

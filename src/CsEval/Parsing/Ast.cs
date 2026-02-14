@@ -116,6 +116,11 @@ public interface IExprVisitor<out T>
 
     // Synchronization
     T VisitLockStatement(LockStatementExpr expr);
+
+    // Multi-dimensional array operations
+    T VisitMultiDimIndexAccess(MultiDimIndexAccessExpr expr);
+    T VisitMultiDimTypedArrayCreation(MultiDimTypedArrayCreationExpr expr);
+    T VisitMultiDimIndexAssign(MultiDimIndexAssignExpr expr);
 }
 
 #region Literals
@@ -495,9 +500,17 @@ public sealed record SizeofExpr(string TypeName) : Expr
 
 #region Object Creation Expression
 
+// Initializer entry: either a property assignment or a collection element
+// ECMA-334 §12.8.16.3 - Object initializers / §12.8.16.6 - Collection initializers
+public sealed record InitializerEntry(string? PropertyName, Expr Value);
+
+// Object/collection initializer block: { entries... }
+public sealed record ObjectInitializer(List<InitializerEntry> Entries);
+
 // Object creation expression: new Exception("msg"), new ArgumentException("msg", "param")
 // ECMA-334 §12.8.16.2 - Object creation expressions
-public sealed record ObjectCreationExpr(string TypeName, List<Expr> Arguments) : Expr
+// Initializer is optional - used for object/collection initializers: new X() { Prop = val }
+public sealed record ObjectCreationExpr(string TypeName, List<Expr> Arguments, ObjectInitializer? Initializer = null) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitObjectCreation(this);
 }
@@ -518,6 +531,28 @@ public sealed record TypedArrayCreationExpr(string ElementTypeName, Expr Size) :
 public sealed record TypedArrayLiteralExpr(string ElementTypeName, ArrayLiteralExpr Elements) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitTypedArrayLiteral(this);
+}
+
+#endregion
+
+#region Multi-dimensional Array Expressions
+
+// Multi-dimensional index access: arr[i, j, k]
+public sealed record MultiDimIndexAccessExpr(Expr Object, List<Expr> Indices, bool NullSafe) : Expr
+{
+    public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitMultiDimIndexAccess(this);
+}
+
+// Multi-dimensional array creation: new int[3, 3]
+public sealed record MultiDimTypedArrayCreationExpr(string ElementTypeName, List<Expr> Sizes) : Expr
+{
+    public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitMultiDimTypedArrayCreation(this);
+}
+
+// Multi-dimensional index assignment: arr[i, j] = value
+public sealed record MultiDimIndexAssignExpr(Expr Object, List<Expr> Indices, Expr Value) : Expr
+{
+    public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitMultiDimIndexAssign(this);
 }
 
 #endregion

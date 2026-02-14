@@ -485,6 +485,11 @@ public abstract class AstWalker<T> : IExprVisitor<T>
         OnEnter(expr);
         foreach (var arg in expr.Arguments)
             Visit(arg);
+        if (expr.Initializer != null)
+        {
+            foreach (var entry in expr.Initializer.Entries)
+                Visit(entry.Value);
+        }
         return OnLeave(expr);
     }
 
@@ -562,6 +567,34 @@ public abstract class AstWalker<T> : IExprVisitor<T>
         OnEnter(expr);
         Visit(expr.LockObject);
         Visit(expr.Body);
+        return OnLeave(expr);
+    }
+
+    // Multi-dimensional Array Operations
+    public virtual T VisitMultiDimIndexAccess(MultiDimIndexAccessExpr expr)
+    {
+        OnEnter(expr);
+        Visit(expr.Object);
+        foreach (var index in expr.Indices)
+            Visit(index);
+        return OnLeave(expr);
+    }
+
+    public virtual T VisitMultiDimTypedArrayCreation(MultiDimTypedArrayCreationExpr expr)
+    {
+        OnEnter(expr);
+        foreach (var size in expr.Sizes)
+            Visit(size);
+        return OnLeave(expr);
+    }
+
+    public virtual T VisitMultiDimIndexAssign(MultiDimIndexAssignExpr expr)
+    {
+        OnEnter(expr);
+        Visit(expr.Object);
+        foreach (var index in expr.Indices)
+            Visit(index);
+        Visit(expr.Value);
         return OnLeave(expr);
     }
 }

@@ -318,6 +318,11 @@ internal sealed class CompilerContext
                 ContinueExpr => controlUnit.CompileContinue(),
                 ReturnExpr ret => controlUnit.CompileReturn(ret),
 
+                // Multi-dimensional array operations (interpreted only)
+                MultiDimIndexAccessExpr => throw new NotSupportedException("Multi-dimensional index access not supported in IL compilation"),
+                MultiDimTypedArrayCreationExpr => throw new NotSupportedException("Multi-dimensional array creation not supported in IL compilation"),
+                MultiDimIndexAssignExpr => throw new NotSupportedException("Multi-dimensional index assignment not supported in IL compilation"),
+
                 // Error cases
                 SpreadExpr => throw new CsEvalException("Spread operator can only be used in array or object literals"),
                 NamedArgumentExpr => throw new CsEvalException("Named arguments can only be used in method calls"),
@@ -380,9 +385,16 @@ internal sealed class CompilerContext
                     break;
 
                 case ObjectCreationExpr oc:
+                    if (oc.Initializer != null)
+                        return "Object/collection initializers not supported in IL compilation";
                     foreach (var arg in oc.Arguments)
                         stack.Push(arg);
                     break;
+
+                case MultiDimIndexAccessExpr:
+                case MultiDimTypedArrayCreationExpr:
+                case MultiDimIndexAssignExpr:
+                    return "Multi-dimensional array operations not supported in IL compilation";
 
                 case TypedArrayCreationExpr tac:
                     stack.Push(tac.Size);
