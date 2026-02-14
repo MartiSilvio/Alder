@@ -305,6 +305,26 @@ public static class NumericDispatch
         };
     }
 
+    public static object? UnsignedRightShift(object left, object right)
+    {
+        var shiftAmount = Convert.ToInt32(right);
+
+        if (left is char c) left = (int)c;
+
+        return left switch
+        {
+            int i => (int)((uint)i >> (shiftAmount & 0x1F)),
+            long l => (long)((ulong)l >> (shiftAmount & 0x3F)),
+            uint u => u >> (shiftAmount & 0x1F),
+            ulong ul => ul >> (shiftAmount & 0x3F),
+            short s => (int)((uint)(int)s >> (shiftAmount & 0x1F)),
+            ushort us => us >> (shiftAmount & 0x1F),
+            byte b => b >> (shiftAmount & 0x1F),
+            sbyte sb => (int)((uint)(int)sb >> (shiftAmount & 0x1F)),
+            _ => throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, ">>>", left.GetType().Name, "int")
+        };
+    }
+
     #endregion
 
     #region Constant Expression Promotion (ECMA-334 §10.2.11)

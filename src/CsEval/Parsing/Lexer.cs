@@ -246,7 +246,16 @@ public sealed class Lexer
             case '>':
                 if (Match('>'))
                 {
-                    AddToken(Match('=') ? TokenType.GreaterGreaterEqual : TokenType.GreaterGreater);
+                    if (Match('>'))
+                    {
+                        // >>> or >>>=
+                        AddToken(Match('=') ? TokenType.GreaterGreaterGreaterEqual : TokenType.GreaterGreaterGreater);
+                    }
+                    else
+                    {
+                        // >> or >>=
+                        AddToken(Match('=') ? TokenType.GreaterGreaterEqual : TokenType.GreaterGreater);
+                    }
                 }
                 else if (Match('=')) AddToken(TokenType.GreaterEqual);
                 else AddToken(TokenType.Greater);
@@ -320,7 +329,15 @@ public sealed class Lexer
                 break;
 
             case '"':
-                ScanString('"');
+                // Check for raw string literal (C# 11)
+                if (Peek() == '"' && PeekNext() == '"')
+                {
+                    ScanRawStringLiteral();
+                }
+                else
+                {
+                    ScanString('"');
+                }
                 break;
 
             case '\'':
@@ -477,6 +494,47 @@ public sealed class Lexer
 
         Advance(); // closing "
         AddToken(TokenType.InterpolatedString, sb.ToString());
+    }
+
+    private void ScanRawStringLiteral()
+    {
+        // First " already consumed. Count opening quotes (at least 3).
+        int openQuotes = 1;
+        while (Peek() == '"')
+        {
+            Advance();
+            openQuotes++;
+        }
+
+        var sb = new StringBuilder();
+        while (!IsAtEnd())
+        {
+            if (Peek() == '"')
+            {
+                int closeQuotes = 0;
+                while (Peek() == '"')
+                {
+                    closeQuotes++;
+                    Advance();
+                }
+                if (closeQuotes >= openQuotes)
+                {
+                    break;
+                }
+                else
+                {
+                    sb.Append(new string('"', closeQuotes));
+                }
+            }
+            else
+            {
+                if (Peek() == '\n') { _line++; _column = 0; }
+                sb.Append(Peek());
+                Advance();
+            }
+        }
+
+        AddToken(TokenType.String, sb.ToString());
     }
 
     private void ScanVerbatimString()

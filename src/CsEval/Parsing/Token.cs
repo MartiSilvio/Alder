@@ -70,6 +70,8 @@ public enum TokenType
     CaretEqual,            // ^=
     LessLessEqual,         // <<=
     GreaterGreaterEqual,   // >>=
+    GreaterGreaterGreater,      // >>>
+    GreaterGreaterGreaterEqual, // >>>=
 
     // Increment/Decrement
     PlusPlus,              // ++

@@ -1218,7 +1218,7 @@ public sealed class Evaluator : IExprVisitor<object?>
         {
             var switchCase = expr.Cases[i];
 
-            if (switchCase.Pattern == null)
+            if (switchCase.CasePattern == null)
             {
                 defaultCaseIndex = i;
                 continue;
@@ -1226,13 +1226,29 @@ public sealed class Evaluator : IExprVisitor<object?>
 
             if (!matched)
             {
-                var caseValue = Evaluate(switchCase.Pattern);
-                if ((bool)Operators.Equals(switchValue, caseValue))
+                // Create child scope for pattern variable bindings
+                var previousContext = _context;
+                _context = _context.CreateChild();
+
+                try
                 {
-                    matched = true;
-                    var signal = ExecuteCaseStatements(expr.Cases, i);
-                    if (signal != null)
-                        return signal.SignalKind == ControlFlowSignal.Kind.Break ? null : signal;
+                    if ((bool)MatchPattern(switchValue, switchCase.CasePattern)!)
+                    {
+                        // Check when guard if present
+                        if (switchCase.WhenGuard != null && !TypeHelpers.RequireBoolean(Evaluate(switchCase.WhenGuard)))
+                            continue; // when guard failed, try next case
+
+                        matched = true;
+                        var signal = ExecuteCaseStatements(expr.Cases, i);
+                        if (signal != null)
+                            return signal.SignalKind == ControlFlowSignal.Kind.Break ? null : signal;
+                    }
+                }
+                finally
+                {
+                    // Only restore context if pattern didn't match (matched cases keep bindings)
+                    if (!matched)
+                        _context = previousContext;
                 }
             }
         }
@@ -1273,7 +1289,6 @@ public sealed class Evaluator : IExprVisitor<object?>
     #endregion
 
     #region Member Access Helpers
-
 
     private object? GetMember(object obj, string name)
     {
@@ -1497,6 +1512,7 @@ public sealed class Evaluator : IExprVisitor<object?>
         { TokenType.Caret, (_, l, r) => Operators.BitwiseXor(l, r) },
         { TokenType.LessLess, (_, l, r) => Operators.LeftShift(l, r) },
         { TokenType.GreaterGreater, (_, l, r) => Operators.RightShift(l, r) },
+        { TokenType.GreaterGreaterGreater, (_, l, r) => Operators.UnsignedRightShift(l, r) },
     };
 
     private static readonly Dictionary<TokenType, Func<Evaluator, object?, object?>> UnaryOperators = new()
@@ -1519,6 +1535,7 @@ public sealed class Evaluator : IExprVisitor<object?>
         { TokenType.CaretEqual, TokenType.Caret },
         { TokenType.LessLessEqual, TokenType.LessLess },
         { TokenType.GreaterGreaterEqual, TokenType.GreaterGreater },
+        { TokenType.GreaterGreaterGreaterEqual, TokenType.GreaterGreaterGreater },
     };
 
     #endregion

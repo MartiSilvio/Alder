@@ -419,8 +419,8 @@ public abstract class AstWalker<T> : IExprVisitor<T>
         Visit(expr.Expression);
         foreach (var caseExpr in expr.Cases)
         {
-            if (caseExpr.Pattern != null)
-                Visit(caseExpr.Pattern);
+            if (caseExpr.WhenGuard != null)
+                Visit(caseExpr.WhenGuard);
             foreach (var stmt in caseExpr.Statements)
                 Visit(stmt);
         }

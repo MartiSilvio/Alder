@@ -16,6 +16,7 @@ internal sealed class ControlFlowCompilerUnit
 
     // Lazily set reference for cross-unit dispatch
     private ExpressionCompilerUnit? _exprUnit;
+    private PatternCompilerUnit? _patternUnit;
 
     internal ControlFlowCompilerUnit(CompilerContext ctx, CompilerHelpers helpers)
     {
@@ -26,6 +27,11 @@ internal sealed class ControlFlowCompilerUnit
     internal void SetExpressionUnit(ExpressionCompilerUnit exprUnit)
     {
         _exprUnit = exprUnit;
+    }
+
+    internal void SetPatternUnit(PatternCompilerUnit patternUnit)
+    {
+        _patternUnit = patternUnit;
     }
 
     /// <summary>
@@ -318,9 +324,6 @@ internal sealed class ControlFlowCompilerUnit
         var switchValue = Compile(switchStmt.Expression);
         var switchVar = LinqExpression.Variable(typeof(object), "switchValue");
 
-        // Get Equals method from registry
-        var equalsInfo = OperatorRegistry.GetBinaryOperator(TokenType.EqualEqual)!.Value;
-
         // Scoped for switch body
         return _helpers.Scoped(() =>
         {
@@ -334,21 +337,44 @@ internal sealed class ControlFlowCompilerUnit
 
             foreach (var c in switchStmt.Cases)
             {
-                if (c.Pattern != null)
+                if (c.CasePattern != null)
                     caseLabels.Add((c, LinqExpression.Label("case")));
                 else
                     defaultLabel = LinqExpression.Label("default");
             }
 
-            // Create dispatch logic (If-Else chain)
-            // if (Eq(val, case1)) goto label1; ...
+            // Create dispatch logic using pattern matching (If-Else chain)
+            // Each case gets its own scope for pattern variable bindings
+            var parentContextVar = LinqExpression.Variable(typeof(CsEvalContext), "parentCtx");
+
             foreach (var mapping in caseLabels)
             {
-                var patternVal = Compile(mapping.Case.Pattern!);
-                var condition = LinqExpression.Call(equalsInfo.Method, switchVar, patternVal);
-                statements.Add(LinqExpression.IfThen(
-                    LinqExpression.Convert(condition, typeof(bool)),
-                    LinqExpression.Goto(mapping.Label)));
+                // Save context, create child for pattern bindings
+                var saveContext = LinqExpression.Assign(parentContextVar, _ctx.CurrentContext);
+                var createChild = LinqExpression.Assign(_ctx.CurrentContext,
+                    LinqExpression.Call(_ctx.CurrentContext, CompilerContext.CreateChildMethod));
+
+                // Compile pattern match
+                var patternMatch = _patternUnit!.CompilePatternMatch(switchVar, mapping.Case.CasePattern!);
+                var matchBool = LinqExpression.Call(CompilerContext.RequireBooleanMethod, patternMatch);
+
+                // Build condition with optional when guard
+                LinqExpression condition = matchBool;
+                if (mapping.Case.WhenGuard != null)
+                {
+                    var guardResult = Compile(mapping.Case.WhenGuard);
+                    var guardBool = LinqExpression.Call(CompilerContext.RequireBooleanMethod, guardResult);
+                    condition = LinqExpression.AndAlso(matchBool, guardBool);
+                }
+
+                // If pattern matches: goto case label (keep child context for bindings)
+                // If no match: restore parent context
+                statements.Add(saveContext);
+                statements.Add(createChild);
+                statements.Add(LinqExpression.IfThenElse(
+                    condition,
+                    LinqExpression.Goto(mapping.Label),
+                    LinqExpression.Assign(_ctx.CurrentContext, parentContextVar)));
             }
 
             // Goto default or break if no match
@@ -363,7 +389,7 @@ internal sealed class ControlFlowCompilerUnit
             {
                 // Find label for this case
                 LabelTarget? targetLabel = null;
-                if (c.Pattern == null)
+                if (c.CasePattern == null)
                     targetLabel = defaultLabel;
                 else
                     targetLabel = caseLabels.First(x => x.Case == c).Label;
@@ -393,7 +419,7 @@ internal sealed class ControlFlowCompilerUnit
 
             _ctx.ControlStack.Pop();
 
-            return LinqExpression.Block(new[] { switchVar }, statements);
+            return LinqExpression.Block(new[] { switchVar, parentContextVar }, statements);
         });
     }
 

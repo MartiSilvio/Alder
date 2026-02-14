@@ -407,9 +407,9 @@ public sealed record ReturnExpr(Expr? Value) : Expr
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitReturn(this);
 }
 
-// Switch case: case pattern: statements or default: statements
-// Pattern is null for default case
-public sealed record SwitchCaseExpr(Expr? Pattern, List<Expr> Statements);
+// Switch case: case pattern [when guard]: statements or default: statements
+// CasePattern is null for default case
+public sealed record SwitchCaseExpr(Pattern? CasePattern, Expr? WhenGuard, List<Expr> Statements);
 
 // Switch statement: switch (expr) { case 1: ... default: ... }
 public sealed record SwitchStatementExpr(Expr Expression, List<SwitchCaseExpr> Cases) : Expr

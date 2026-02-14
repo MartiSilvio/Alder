@@ -46,6 +46,7 @@ internal static class OperatorRegistry
         [TokenType.Caret] = new(typeof(Operators).GetMethod(nameof(Operators.BitwiseXor), [typeof(object), typeof(object)])!, BinaryOpSignature.TwoArgs),
         [TokenType.LessLess] = new(typeof(Operators).GetMethod(nameof(Operators.LeftShift), [typeof(object), typeof(object)])!, BinaryOpSignature.TwoArgs),
         [TokenType.GreaterGreater] = new(typeof(Operators).GetMethod(nameof(Operators.RightShift), [typeof(object), typeof(object)])!, BinaryOpSignature.TwoArgs),
+        [TokenType.GreaterGreaterGreater] = new(typeof(Operators).GetMethod(nameof(Operators.UnsignedRightShift), [typeof(object), typeof(object)])!, BinaryOpSignature.TwoArgs),
     };
 
     private static readonly Dictionary<TokenType, MethodInfo> UnaryOperators = new()
@@ -71,6 +72,7 @@ internal static class OperatorRegistry
         [TokenType.CaretEqual] = TokenType.Caret,
         [TokenType.LessLessEqual] = TokenType.LessLess,
         [TokenType.GreaterGreaterEqual] = TokenType.GreaterGreater,
+        [TokenType.GreaterGreaterGreaterEqual] = TokenType.GreaterGreaterGreater,
     };
 
     /// <summary>

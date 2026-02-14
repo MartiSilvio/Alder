@@ -349,10 +349,9 @@ public sealed class TypeInferrer : AstWalker<Type>
 
         foreach (var caseExpr in expr.Cases)
         {
-            if (caseExpr.Pattern != null)
-                Visit(caseExpr.Pattern);
-
             PushScope();
+            if (caseExpr.WhenGuard != null)
+                Visit(caseExpr.WhenGuard);
             foreach (var stmt in caseExpr.Statements)
                 Visit(stmt);
             PopScope();
@@ -473,8 +472,6 @@ public sealed class TypeInferrer : AstWalker<Type>
         // Delegate to ECMA-334 rules
         return NumericDispatch.GetResultType(left, right);
     }
-
-
 
     private static Type GetCommonType(Type a, Type b)
     {

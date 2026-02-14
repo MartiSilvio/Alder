@@ -203,6 +203,7 @@ internal sealed class CompilerContext
             // Wire cross-references
             patternUnit.SetExpressionUnit(expressionUnit);
             controlFlowUnit.SetExpressionUnit(expressionUnit);
+            controlFlowUnit.SetPatternUnit(patternUnit);
             expressionUnit.SetControlFlowUnit(controlFlowUnit);
 
             var body = Compile(ctx, ast, expressionUnit, controlFlowUnit, patternUnit);
@@ -550,8 +551,8 @@ internal sealed class CompilerContext
                     stack.Push(s.Expression);
                     foreach (var c in s.Cases)
                     {
-                        if (c.Pattern != null)
-                            stack.Push(c.Pattern);
+                        if (c.WhenGuard != null)
+                            stack.Push(c.WhenGuard);
                         foreach (var stmt in c.Statements)
                             stack.Push(stmt);
                     }
@@ -695,7 +696,8 @@ internal sealed class CompilerContext
         TokenType.PlusEqual or TokenType.MinusEqual or TokenType.StarEqual or
         TokenType.SlashEqual or TokenType.PercentEqual or
         TokenType.AmpEqual or TokenType.PipeEqual or TokenType.CaretEqual or
-        TokenType.LessLessEqual or TokenType.GreaterGreaterEqual;
+        TokenType.LessLessEqual or TokenType.GreaterGreaterEqual or
+        TokenType.GreaterGreaterGreaterEqual;
 
     private static bool IsCompilableBinaryOp(TokenType op)
     {
@@ -706,7 +708,8 @@ internal sealed class CompilerContext
             TokenType.Less or TokenType.LessEqual or
             TokenType.Greater or TokenType.GreaterEqual or
             TokenType.Amp or TokenType.Pipe or TokenType.Caret or
-            TokenType.LessLess or TokenType.GreaterGreater)
+            TokenType.LessLess or TokenType.GreaterGreater or
+            TokenType.GreaterGreaterGreater)
             return true;
 
         return false;

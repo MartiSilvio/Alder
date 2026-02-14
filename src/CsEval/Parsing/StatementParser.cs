@@ -9,12 +9,14 @@ namespace CsEval.Parsing;
 public sealed class StatementParser : ParserBase
 {
     private ExpressionParser _expression = null!;
+    private PatternParser _pattern = null!;
 
     internal StatementParser(ParserState state) : base(state)
     {
     }
 
     internal void SetExpressionParser(ExpressionParser expression) => _expression = expression;
+    internal void SetPatternParser(PatternParser pattern) => _pattern = pattern;
 
     #region Block and Statement List
 
@@ -264,13 +266,19 @@ public sealed class StatementParser : ParserBase
         {
             if (Match(TokenType.Case))
             {
-                // Parse case pattern
-                var pattern = _expression.ParseExpression();
+                // Parse case pattern (type patterns, relational, constant, etc.)
+                var pattern = _pattern.ParsePattern();
+
+                // Parse optional when guard
+                Expr? whenGuard = null;
+                if (Match(TokenType.When))
+                    whenGuard = _expression.ParseExpression();
+
                 Consume(TokenType.Colon, "Expected ':' after case pattern");
 
                 // Parse statements until next case, default, or closing brace
                 var statements = ParseCaseStatements();
-                cases.Add(new SwitchCaseExpr(pattern, statements));
+                cases.Add(new SwitchCaseExpr(pattern, whenGuard, statements));
             }
             else if (Match(TokenType.Default))
             {
@@ -278,7 +286,7 @@ public sealed class StatementParser : ParserBase
 
                 // Parse statements until next case or closing brace
                 var statements = ParseCaseStatements();
-                cases.Add(new SwitchCaseExpr(null, statements));
+                cases.Add(new SwitchCaseExpr(null, null, statements));
             }
             else
             {

@@ -315,6 +315,17 @@ public static class Operators
         return NumericDispatch.RightShift(left!, right!);
     }
 
+    public static object? UnsignedRightShift(object? left, object? right)
+    {
+        if (left == null || right == null)
+            return null;
+
+        if (!IsIntegerOrChar(left) || !TypeHelpers.IsInteger(right))
+            throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, ">>>", left?.GetType().Name ?? "null", right?.GetType().Name ?? "null");
+
+        return NumericDispatch.UnsignedRightShift(left!, right!);
+    }
+
     /// <summary>
     /// Checks if a value is an integer type or char.
     /// Char participates in integer operations via numeric promotion per ECMA-334 §12.4.7.
