@@ -150,11 +150,8 @@ internal sealed class ExpressionCompilerUnit
 
     internal LinqExpression CompileTypedArrayLiteral(TypedArrayLiteralExpr expr)
     {
-        // Compile the array literal elements (returns object)
+        // Compile the array literal elements (returns a typed array from CreateTypedArray)
         var arrayLiteral = CompileArrayLiteral(expr.Elements);
-
-        // Cast to object?[]
-        var arrayLiteralTyped = LinqExpression.Convert(arrayLiteral, typeof(object?[]));
 
         // Resolve the target element type
         var resolvedType = LinqExpression.Call(
@@ -162,10 +159,11 @@ internal sealed class ExpressionCompilerUnit
             CompilerContext.ResolveTypeMethod,
             LinqExpression.Constant(expr.ElementTypeName));
 
-        // Convert the object?[] array to the typed array T[]
+        // Convert the source array to the typed array T[]
+        // ConvertArrayToTyped accepts object (any Array) so no cast to object?[] needed
         return LinqExpression.Call(
             CompilerContext.ConvertArrayToTypedMethod,
-            arrayLiteralTyped,
+            arrayLiteral,
             resolvedType);
     }
 
@@ -232,6 +230,12 @@ internal sealed class ExpressionCompilerUnit
         var value = Compile(cast.Expression);
         var sourceStaticType = _ctx.TypeInferrer.Infer(cast.Expression);
 
+        // Only enforce unboxing semantics when the source expression is a simple identifier
+        // with a known explicit type (e.g., object x = 42). For complex expressions (binary,
+        // grouping, index access, etc.), the TypeInferrer defaults to typeof(object) which would
+        // incorrectly block valid numeric conversions like (int)dynamicDouble.
+        var effectiveSourceType = cast.Expression is IdentifierExpr ? sourceStaticType : null;
+
         // Resolve target type via context's TypeResolver
         var resolvedType = LinqExpression.Call(
             _ctx.TypeResolverExpr,
@@ -242,7 +246,7 @@ internal sealed class ExpressionCompilerUnit
             CompilerContext.ExplicitCastMethod,
             value,
             resolvedType,
-            LinqExpression.Constant(sourceStaticType, typeof(Type)));
+            LinqExpression.Constant(effectiveSourceType, typeof(Type)));
     }
 
     internal LinqExpression CompileAs(AsExpr asExpr)

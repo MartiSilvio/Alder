@@ -125,7 +125,7 @@ public sealed class StatementParser : ParserBase
                 return new DeconstructionExpr(variableNames, valueExpr);
             }
 
-            var name = Consume(TokenType.Identifier, "Expected variable name");
+            var name = ConsumeIdentifierOrContextualKeyword("Expected variable name");
             Consume(TokenType.Equal, "Expected '=' after variable name");
             var initializer = _expression.ParseExpression();
             if (initializer is LiteralExpr { Value: null })
@@ -148,7 +148,7 @@ public sealed class StatementParser : ParserBase
         // Type keyword followed by dot is a static member access (e.g., "double.NaN") - let expression parsing handle it
         if (IsTypeKeyword(Peek().Type) && PeekNext().Type != TokenType.Dot && MatchTypeKeyword(out var typeToken))
         {
-            var name = Consume(TokenType.Identifier, "Expected variable name");
+            var name = ConsumeIdentifierOrContextualKeyword("Expected variable name");
             Consume(TokenType.Equal, "Expected '=' after variable name");
             var initializer = _expression.ParseExpression();
             Consume(TokenType.Semicolon, "Expected ';' after variable declaration");
@@ -357,7 +357,7 @@ public sealed class StatementParser : ParserBase
         {
             if (Match(TokenType.Var))
             {
-                var name = Consume(TokenType.Identifier, "Expected variable name");
+                var name = ConsumeIdentifierOrContextualKeyword("Expected variable name");
                 Consume(TokenType.Equal, "Expected '=' after variable name");
                 var init = _expression.ParseExpression();
                 if (init is LiteralExpr { Value: null })
@@ -365,7 +365,7 @@ public sealed class StatementParser : ParserBase
                 initializers.Add(new VariableDeclExpr(null, name, init));
                 while (Match(TokenType.Comma))
                 {
-                    var name2 = Consume(TokenType.Identifier, "Expected variable name");
+                    var name2 = ConsumeIdentifierOrContextualKeyword("Expected variable name");
                     Consume(TokenType.Equal, "Expected '=' after variable name");
                     var init2 = _expression.ParseExpression();
                     if (init2 is LiteralExpr { Value: null })
@@ -375,13 +375,13 @@ public sealed class StatementParser : ParserBase
             }
             else if (MatchTypeKeyword(out var typeToken))
             {
-                var name = Consume(TokenType.Identifier, "Expected variable name");
+                var name = ConsumeIdentifierOrContextualKeyword("Expected variable name");
                 Consume(TokenType.Equal, "Expected '=' after variable name");
                 var init = _expression.ParseExpression();
                 initializers.Add(new VariableDeclExpr(typeToken, name, init));
                 while (Match(TokenType.Comma))
                 {
-                    var name2 = Consume(TokenType.Identifier, "Expected variable name");
+                    var name2 = ConsumeIdentifierOrContextualKeyword("Expected variable name");
                     Consume(TokenType.Equal, "Expected '=' after variable name");
                     var init2 = _expression.ParseExpression();
                     initializers.Add(new VariableDeclExpr(typeToken, name2, init2));
@@ -466,7 +466,7 @@ public sealed class StatementParser : ParserBase
             throw new CsEvalParserException($"Expected 'var' or type keyword in foreach at {Peek().Line}:{Peek().Column}");
         }
 
-        var variableName = Consume(TokenType.Identifier, "Expected variable name in foreach");
+        var variableName = ConsumeIdentifierOrContextualKeyword("Expected variable name in foreach");
 
         // Consume 'in' keyword - it's reserved as a contextual keyword
         if (!Match(TokenType.In))
@@ -506,14 +506,14 @@ public sealed class StatementParser : ParserBase
         Expr resource;
         if (Match(TokenType.Var))
         {
-            var name = Consume(TokenType.Identifier, "Expected variable name");
+            var name = ConsumeIdentifierOrContextualKeyword("Expected variable name");
             Consume(TokenType.Equal, "Expected '=' in using declaration");
             var init = _expression.ParseExpression();
             resource = new VariableDeclExpr(null, name, init);
         }
         else if (IsTypeKeyword(Peek().Type) && PeekNext().Type != TokenType.Dot && MatchTypeKeyword(out var typeToken))
         {
-            var name = Consume(TokenType.Identifier, "Expected variable name");
+            var name = ConsumeIdentifierOrContextualKeyword("Expected variable name");
             Consume(TokenType.Equal, "Expected '=' in using declaration");
             var init = _expression.ParseExpression();
             resource = new VariableDeclExpr(typeToken, name, init);

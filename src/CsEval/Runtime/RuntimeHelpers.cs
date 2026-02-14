@@ -211,15 +211,17 @@ public static class RuntimeHelpers
     }
 
     /// <summary>
-    /// Converts an object?[] array to a typed T[] array.
+    /// Converts a source array to a typed T[] array.
+    /// Accepts any array type (object?[], int[], etc.) as the source.
     /// Used for typed array literals: new int[] {1, 2, 3}
     /// </summary>
-    public static object ConvertArrayToTyped(object?[] sourceArray, Type elementType)
+    public static object ConvertArrayToTyped(object sourceArrayObj, Type elementType)
     {
+        var sourceArray = (Array)sourceArrayObj;
         var typedArray = Array.CreateInstance(elementType, sourceArray.Length);
         for (var i = 0; i < sourceArray.Length; i++)
         {
-            typedArray.SetValue(sourceArray[i], i);
+            typedArray.SetValue(sourceArray.GetValue(i), i);
         }
         return typedArray;
     }

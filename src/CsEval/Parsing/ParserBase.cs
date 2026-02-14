@@ -109,6 +109,18 @@ public abstract class ParserBase
     }
 
     /// <summary>
+    /// Consumes an identifier or contextual keyword token for use as a variable name.
+    /// ECMA-334 §6.4.4 - Contextual keywords are not reserved and can appear as identifiers
+    /// in variable declaration contexts (e.g., var from = ..., int where = ...).
+    /// </summary>
+    internal Token ConsumeIdentifierOrContextualKeyword(string message)
+    {
+        if (Check(TokenType.Identifier) || IsContextualKeyword(Peek().Type))
+            return Advance();
+        throw new CsEvalParserException($"{message} at {Peek().Line}:{Peek().Column}");
+    }
+
+    /// <summary>
     /// Checks if a token type is a contextual keyword that can be used as an identifier.
     /// ECMA-334 §6.4.4 - Contextual keywords are not reserved and can appear as identifiers.
     /// </summary>

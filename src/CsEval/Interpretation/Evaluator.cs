@@ -57,8 +57,15 @@ public sealed class Evaluator : IExprVisitor<object?>
     public object? VisitCast(CastExpr expr)
     {
         var value = Evaluate(expr.Expression);
-        var sourceStaticType = _typeInferrer.Infer(expr.Expression);
         var targetType = _context.TypeResolver.ResolveType(expr.TargetType.Lexeme);
+
+        // Only enforce unboxing semantics when the source expression is a simple identifier
+        // with a known explicit type (e.g., object x = 42). For complex expressions (binary,
+        // grouping, index access, etc.), the TypeInferrer defaults to typeof(object) which would
+        // incorrectly block valid numeric conversions like (int)dynamicDouble.
+        Type? sourceStaticType = null;
+        if (expr.Expression is IdentifierExpr)
+            sourceStaticType = _typeInferrer.Infer(expr.Expression);
         return TypeHelpers.ExplicitCast(value, targetType, sourceStaticType);
     }
 

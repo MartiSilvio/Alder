@@ -182,8 +182,8 @@ public sealed class PatternParser : ParserBase
             return new TypePattern(typeToken, null);
         }
 
-        // Number/string/character literals and unary expressions (e.g., -1)
-        var expr = _expression.ParseUnary();
+        // Number/string/character literals and constant expressions (e.g., -1, 5 * 2)
+        var expr = _expression.ParseExpression();
         return new ConstantPattern(expr);
     }
 

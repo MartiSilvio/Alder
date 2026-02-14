@@ -79,6 +79,14 @@ public sealed class PrimaryParser : ParserBase
         if (Match(TokenType.Identifier))
             return ParseIdentifier();
 
+        // Contextual keywords can be used as identifiers in expression contexts
+        // ECMA-334 §6.4.4 - e.g., var from = 5; return from + 1;
+        if (IsContextualKeyword(Peek().Type))
+        {
+            Advance();
+            return ParseIdentifier();
+        }
+
         throw new CsEvalParserException($"Unexpected token '{Peek().Lexeme}' at {Peek().Line}:{Peek().Column}");
     }
 
@@ -562,7 +570,18 @@ public sealed class PrimaryParser : ParserBase
                 return null;
             }
 
-            var body = _expression.ParseExpression();
+            // Block body: (params) => { ... } -- parse as block statement
+            // Expression body: (params) => expr
+            Expr body;
+            if (Check(TokenType.LeftBrace))
+            {
+                Advance(); // consume '{'
+                body = _statement.ParseBlock();
+            }
+            else
+            {
+                body = _expression.ParseExpression();
+            }
             return new LambdaExpr(parameters, body);
         }
         catch
@@ -679,7 +698,7 @@ public sealed class PrimaryParser : ParserBase
                     var lexer = new Lexer(exprText);
                     var parserTokens = lexer.Tokenize();
                     var subParser = ExpressionParser.CreateForSubExpression(parserTokens);
-                    var expr = subParser.Parse();
+                    var expr = subParser.ParseExpression();
                     parts.Add(new ExpressionPart(expr, alignmentSpec, formatSpec));
                     break;
                 }
