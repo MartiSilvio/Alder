@@ -13,6 +13,16 @@ public static class RuntimeHelpers
         if (context.Modules.TryGetValue(name, out var module))
             return module;
 
+        // Try variable lookup first (fast path for common case)
+        if (context.TryGet(name, out var value))
+            return value;
+
+        // If not a variable/function/module, check if it's a namespace prefix.
+        // This enables FQN type access like System.Linq.Enumerable.Where(...)
+        if (context.TypeResolver.IsNamespaceOrPrefix(name))
+            return new NamespaceRef(name);
+
+        // Fall through to context.Get which throws CS0103 with proper error message
         return context.Get(name);
     }
 

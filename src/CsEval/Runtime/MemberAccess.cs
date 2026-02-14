@@ -19,6 +19,25 @@ public static class MemberAccess
         if (!options.Sandbox.AllowPropertyRead)
             throw new CsEvalException($"Property access blocked by sandbox: {name}");
 
+        // Handle namespace sentinel: accumulate path segments for FQN type resolution.
+        // Example: NamespaceRef("System") + "Linq" -> NamespaceRef("System.Linq") or Type
+        if (obj is NamespaceRef nsRef)
+        {
+            var accumulated = nsRef.Path + "." + name;
+
+            // Try to resolve as a complete type name
+            var resolvedType = context.TypeResolver.TryResolveType(accumulated);
+            if (resolvedType != null)
+                return resolvedType;
+
+            // Check if it's still a valid namespace prefix
+            if (context.TypeResolver.IsNamespaceOrPrefix(accumulated))
+                return new NamespaceRef(accumulated);
+
+            // Neither a type nor a namespace prefix -- this is an error
+            throw new CsEvalException(DiagnosticDescriptors.TypeNotFound, accumulated);
+        }
+
         // Handle static member access on Type objects (e.g., double.NaN)
         if (obj is Type staticType)
         {
