@@ -1053,9 +1053,9 @@ public sealed class Evaluator : IExprVisitor<object?>
 
         try
         {
-            if (expr.Initializer != null)
+            foreach (var init in expr.Initializers)
             {
-                Evaluate(expr.Initializer);
+                Evaluate(init);
             }
 
             while (expr.Condition == null || TypeHelpers.RequireBoolean(Evaluate(expr.Condition)))
@@ -1094,9 +1094,9 @@ public sealed class Evaluator : IExprVisitor<object?>
                     // Continue: fall through to increment
                 }
 
-                if (expr.Increment != null)
+                foreach (var inc in expr.Increments)
                 {
-                    Evaluate(expr.Increment);
+                    Evaluate(inc);
                 }
             }
         }

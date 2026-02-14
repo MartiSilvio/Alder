@@ -300,12 +300,12 @@ public sealed class TypeInferrer : AstWalker<Type>
     public override Type VisitFor(ForStatementExpr expr)
     {
         PushScope();
-        if (expr.Initializer != null)
-            Visit(expr.Initializer);
+        foreach (var init in expr.Initializers)
+            Visit(init);
         if (expr.Condition != null)
             Visit(expr.Condition);
-        if (expr.Increment != null)
-            Visit(expr.Increment);
+        foreach (var inc in expr.Increments)
+            Visit(inc);
         foreach (var stmt in expr.Body)
             Visit(stmt);
         PopScope();

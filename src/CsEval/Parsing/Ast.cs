@@ -372,7 +372,7 @@ public sealed record WhileStatementExpr(Expr Condition, List<Expr> Body) : Expr
 }
 
 // For statement: for (init; cond; incr) { ... }
-public sealed record ForStatementExpr(Expr? Initializer, Expr? Condition, Expr? Increment, List<Expr> Body) : Expr
+public sealed record ForStatementExpr(List<Expr> Initializers, Expr? Condition, List<Expr> Increments, List<Expr> Body) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitFor(this);
 }

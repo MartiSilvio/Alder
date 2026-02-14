@@ -337,8 +337,8 @@ public sealed class StatementParser : ParserBase
     {
         Consume(TokenType.LeftParen, "Expected '(' after 'for'");
 
-        // Parse initializer (can be var declaration, expression, or empty)
-        Expr? initializer = null;
+        // Parse initializers (can be var declarations, typed declarations, expressions, or empty)
+        var initializers = new List<Expr>();
         if (!Check(TokenType.Semicolon))
         {
             if (Match(TokenType.Var))
@@ -348,18 +348,36 @@ public sealed class StatementParser : ParserBase
                 var init = _expression.ParseExpression();
                 if (init is LiteralExpr { Value: null })
                     throw new CsEvalParserException(DiagnosticDescriptors.NullToImplicitlyTyped);
-                initializer = new VariableDeclExpr(null, name, init);
+                initializers.Add(new VariableDeclExpr(null, name, init));
+                while (Match(TokenType.Comma))
+                {
+                    var name2 = Consume(TokenType.Identifier, "Expected variable name");
+                    Consume(TokenType.Equal, "Expected '=' after variable name");
+                    var init2 = _expression.ParseExpression();
+                    if (init2 is LiteralExpr { Value: null })
+                        throw new CsEvalParserException(DiagnosticDescriptors.NullToImplicitlyTyped);
+                    initializers.Add(new VariableDeclExpr(null, name2, init2));
+                }
             }
             else if (MatchTypeKeyword(out var typeToken))
             {
                 var name = Consume(TokenType.Identifier, "Expected variable name");
                 Consume(TokenType.Equal, "Expected '=' after variable name");
                 var init = _expression.ParseExpression();
-                initializer = new VariableDeclExpr(typeToken, name, init);
+                initializers.Add(new VariableDeclExpr(typeToken, name, init));
+                while (Match(TokenType.Comma))
+                {
+                    var name2 = Consume(TokenType.Identifier, "Expected variable name");
+                    Consume(TokenType.Equal, "Expected '=' after variable name");
+                    var init2 = _expression.ParseExpression();
+                    initializers.Add(new VariableDeclExpr(typeToken, name2, init2));
+                }
             }
             else
             {
-                initializer = _expression.ParseExpression();
+                initializers.Add(_expression.ParseExpression());
+                while (Match(TokenType.Comma))
+                    initializers.Add(_expression.ParseExpression());
             }
         }
         Consume(TokenType.Semicolon, "Expected ';' after for initializer");
@@ -372,11 +390,13 @@ public sealed class StatementParser : ParserBase
         }
         Consume(TokenType.Semicolon, "Expected ';' after for condition");
 
-        // Parse increment (or empty)
-        Expr? increment = null;
+        // Parse increments (comma-separated, or empty)
+        var increments = new List<Expr>();
         if (!Check(TokenType.RightParen))
         {
-            increment = _expression.ParseExpression();
+            increments.Add(_expression.ParseExpression());
+            while (Match(TokenType.Comma))
+                increments.Add(_expression.ParseExpression());
         }
         Consume(TokenType.RightParen, "Expected ')' after for clauses");
 
@@ -394,7 +414,7 @@ public sealed class StatementParser : ParserBase
                 body.Add(stmt);
         }
 
-        return new ForStatementExpr(initializer, condition, increment, body);
+        return new ForStatementExpr(initializers, condition, increments, body);
     }
 
     private Expr ParseDoWhileStatement()

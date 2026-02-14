@@ -143,9 +143,9 @@ internal sealed class ControlFlowCompilerUnit
         {
             var outerStatements = new List<LinqExpression>();
 
-            // Initializer
-            if (forStmt.Initializer != null)
-                outerStatements.Add(Compile(forStmt.Initializer));
+            // Initializers
+            foreach (var init in forStmt.Initializers)
+                outerStatements.Add(Compile(init));
 
             _ctx.ControlStack.Push(new CompilerContext.ControlFlowContext(breakLabel, continueLabel, IsLoop: true));
 
@@ -176,9 +176,9 @@ internal sealed class ControlFlowCompilerUnit
             // Continue label
             loopStatements.Add(LinqExpression.Label(continueLabel));
 
-            // Increment
-            if (forStmt.Increment != null)
-                loopStatements.Add(Compile(forStmt.Increment));
+            // Increments
+            foreach (var inc in forStmt.Increments)
+                loopStatements.Add(Compile(inc));
 
             var loop = LinqExpression.Loop(LinqExpression.Block(loopStatements), breakLabel);
             outerStatements.Add(loop);

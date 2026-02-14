@@ -364,12 +364,12 @@ public abstract class AstWalker<T> : IExprVisitor<T>
     public virtual T VisitFor(ForStatementExpr expr)
     {
         OnEnter(expr);
-        if (expr.Initializer != null)
-            Visit(expr.Initializer);
+        foreach (var init in expr.Initializers)
+            Visit(init);
         if (expr.Condition != null)
             Visit(expr.Condition);
-        if (expr.Increment != null)
-            Visit(expr.Increment);
+        foreach (var inc in expr.Increments)
+            Visit(inc);
         foreach (var stmt in expr.Body)
             Visit(stmt);
         return OnLeave(expr);

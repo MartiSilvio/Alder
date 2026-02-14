@@ -564,9 +564,9 @@ internal sealed class CompilerContext
                     break;
 
                 case ForStatementExpr f:
-                    if (f.Initializer != null) stack.Push(f.Initializer);
+                    foreach (var init in f.Initializers) stack.Push(init);
                     if (f.Condition != null) stack.Push(f.Condition);
-                    if (f.Increment != null) stack.Push(f.Increment);
+                    foreach (var inc in f.Increments) stack.Push(inc);
                     foreach (var stmt in f.Body)
                         stack.Push(stmt);
                     break;
