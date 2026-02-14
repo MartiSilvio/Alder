@@ -454,6 +454,36 @@ public sealed class TypeInferrer : AstWalker<Type>
         return SetType(expr, ThrowSentinel);
     }
 
+    public override Type VisitUsingStatement(UsingStatementExpr expr)
+    {
+        Visit(expr.ResourceDeclaration);
+        PushScope();
+        try
+        {
+            var bodyType = Visit(expr.Body);
+            return SetType(expr, bodyType);
+        }
+        finally
+        {
+            PopScope();
+        }
+    }
+
+    public override Type VisitLockStatement(LockStatementExpr expr)
+    {
+        Visit(expr.LockObject);
+        PushScope();
+        try
+        {
+            var bodyType = Visit(expr.Body);
+            return SetType(expr, bodyType);
+        }
+        finally
+        {
+            PopScope();
+        }
+    }
+
     #endregion
 
     #region Type Helpers

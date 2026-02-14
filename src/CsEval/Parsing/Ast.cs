@@ -110,6 +110,12 @@ public interface IExprVisitor<out T>
     // Exception handling
     T VisitTryCatchFinally(TryCatchFinallyExpr expr);
     T VisitThrowStatement(ThrowStatementExpr expr);
+
+    // Resource management
+    T VisitUsingStatement(UsingStatementExpr expr);
+
+    // Synchronization
+    T VisitLockStatement(LockStatementExpr expr);
 }
 
 #region Literals
@@ -418,6 +424,18 @@ public sealed record SwitchCaseExpr(Pattern? CasePattern, Expr? WhenGuard, List<
 public sealed record SwitchStatementExpr(Expr Expression, List<SwitchCaseExpr> Cases) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitSwitch(this);
+}
+
+// ECMA-334 section 13.14 - using statement
+public sealed record UsingStatementExpr(Expr ResourceDeclaration, Expr Body) : Expr
+{
+    public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitUsingStatement(this);
+}
+
+// ECMA-334 section 13.13 - lock statement
+public sealed record LockStatementExpr(Expr LockObject, Expr Body) : Expr
+{
+    public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitLockStatement(this);
 }
 
 #endregion

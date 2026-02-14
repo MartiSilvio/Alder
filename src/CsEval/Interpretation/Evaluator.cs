@@ -1227,6 +1227,37 @@ public sealed class Evaluator : IExprVisitor<object?>
 
     #endregion
 
+    #region Resource Management & Synchronization
+
+    public object? VisitUsingStatement(UsingStatementExpr expr)
+    {
+        var resource = Evaluate(expr.ResourceDeclaration);
+        try
+        {
+            return Evaluate(expr.Body);
+        }
+        finally
+        {
+            if (resource is IDisposable d)
+                d.Dispose();
+            else if (resource is IAsyncDisposable asyncD)
+                asyncD.DisposeAsync().AsTask().GetAwaiter().GetResult();
+        }
+    }
+
+    public object? VisitLockStatement(LockStatementExpr expr)
+    {
+        var lockObj = Evaluate(expr.LockObject);
+        if (lockObj == null)
+            throw new CsEvalException("lock statement requires a non-null reference");
+        lock (lockObj)
+        {
+            return Evaluate(expr.Body);
+        }
+    }
+
+    #endregion
+
     #region Switch
 
     public object? VisitSwitch(SwitchStatementExpr expr)

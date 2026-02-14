@@ -304,6 +304,8 @@ internal sealed class CompilerContext
 
                 // Control flow nodes
                 TryCatchFinallyExpr tcf => controlUnit.CompileTryCatchFinally(tcf),
+                UsingStatementExpr usingStmt => controlUnit.CompileUsing(usingStmt),
+                LockStatementExpr lockStmt => controlUnit.CompileLock(lockStmt),
                 ThrowStatementExpr => ExpressionCompilerUnit.CompileThrowStatement(),
                 BlockExpr block => controlUnit.CompileBlock(block),
                 IfStatementExpr ifStmt => controlUnit.CompileIf(ifStmt),
@@ -416,6 +418,16 @@ internal sealed class CompilerContext
                     if (tcf.FinallyBody != null)
                         foreach (var stmt in tcf.FinallyBody)
                             stack.Push(stmt);
+                    break;
+
+                case UsingStatementExpr usingStmt:
+                    stack.Push(usingStmt.ResourceDeclaration);
+                    stack.Push(usingStmt.Body);
+                    break;
+
+                case LockStatementExpr lockStmt:
+                    stack.Push(lockStmt.LockObject);
+                    stack.Push(lockStmt.Body);
                     break;
 
                 case ThrowStatementExpr:

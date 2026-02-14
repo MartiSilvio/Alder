@@ -461,6 +461,64 @@ internal sealed class ControlFlowCompilerUnit
     /// Expression Trees use labels for control flow (return/break/continue),
     /// not .NET exceptions, so no special handling is needed for control flow signals.
     /// </summary>
+    internal LinqExpression CompileUsing(UsingStatementExpr expr)
+    {
+        // Compile resource declaration
+        var resource = Compile(expr.ResourceDeclaration);
+        var resourceVar = LinqExpression.Variable(typeof(object), "usingResource");
+
+        // Compile body
+        var body = Compile(expr.Body);
+
+        // Build try/finally with Dispose call
+        var disposeMethod = typeof(IDisposable).GetMethod("Dispose")!;
+        var disposeCall = LinqExpression.IfThen(
+            LinqExpression.TypeIs(resourceVar, typeof(IDisposable)),
+            LinqExpression.Call(
+                LinqExpression.Convert(resourceVar, typeof(IDisposable)),
+                disposeMethod));
+
+        var tryFinally = LinqExpression.TryFinally(body, disposeCall);
+
+        return LinqExpression.Block(
+            new[] { resourceVar },
+            LinqExpression.Assign(resourceVar, resource),
+            tryFinally);
+    }
+
+    internal LinqExpression CompileLock(LockStatementExpr expr)
+    {
+        // Compile lock object
+        var lockObj = Compile(expr.LockObject);
+        var lockVar = LinqExpression.Variable(typeof(object), "lockObj");
+        var lockTaken = LinqExpression.Variable(typeof(bool), "lockTaken");
+
+        // Compile body
+        var body = Compile(expr.Body);
+
+        // Build Monitor.Enter/Exit pattern
+        var enterMethod = typeof(System.Threading.Monitor).GetMethod("Enter", new[] { typeof(object), typeof(bool).MakeByRefType() })!;
+        var exitMethod = typeof(System.Threading.Monitor).GetMethod("Exit", new[] { typeof(object) })!;
+
+        var monitorEnter = LinqExpression.Call(
+            enterMethod,
+            lockVar,
+            lockTaken);
+
+        var monitorExit = LinqExpression.IfThen(
+            lockTaken,
+            LinqExpression.Call(exitMethod, lockVar));
+
+        var tryFinally = LinqExpression.TryFinally(body, monitorExit);
+
+        return LinqExpression.Block(
+            new[] { lockVar, lockTaken },
+            LinqExpression.Assign(lockVar, lockObj),
+            LinqExpression.Assign(lockTaken, LinqExpression.Constant(false)),
+            monitorEnter,
+            tryFinally);
+    }
+
     internal LinqExpression CompileTryCatchFinally(TryCatchFinallyExpr expr)
     {
         // Compile try body into a block returning typeof(object)

@@ -546,4 +546,22 @@ public abstract class AstWalker<T> : IExprVisitor<T>
         OnEnter(expr);
         return OnLeave(expr);
     }
+
+    // Resource Management
+    public virtual T VisitUsingStatement(UsingStatementExpr expr)
+    {
+        OnEnter(expr);
+        Visit(expr.ResourceDeclaration);
+        Visit(expr.Body);
+        return OnLeave(expr);
+    }
+
+    // Synchronization
+    public virtual T VisitLockStatement(LockStatementExpr expr)
+    {
+        OnEnter(expr);
+        Visit(expr.LockObject);
+        Visit(expr.Body);
+        return OnLeave(expr);
+    }
 }

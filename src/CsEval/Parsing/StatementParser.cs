@@ -89,6 +89,12 @@ public sealed class StatementParser : ParserBase
         if (Match(TokenType.Switch))
             return ParseSwitchStatement();
 
+        if (Match(TokenType.Using))
+            return ParseUsingStatement();
+
+        if (Match(TokenType.Lock))
+            return ParseLockStatement();
+
         if (Match(TokenType.Try))
             return ParseTryCatchFinally();
 
@@ -486,6 +492,75 @@ public sealed class StatementParser : ParserBase
         }
 
         return new ForEachStatementExpr(variableName, collection, body);
+    }
+
+    #endregion
+
+    #region Resource Management & Synchronization
+
+    private Expr ParseUsingStatement()
+    {
+        Consume(TokenType.LeftParen, "Expected '(' after 'using'");
+
+        // Parse resource declaration (var x = expr or TypeName x = expr or just expression)
+        Expr resource;
+        if (Match(TokenType.Var))
+        {
+            var name = Consume(TokenType.Identifier, "Expected variable name");
+            Consume(TokenType.Equal, "Expected '=' in using declaration");
+            var init = _expression.ParseExpression();
+            resource = new VariableDeclExpr(null, name, init);
+        }
+        else if (IsTypeKeyword(Peek().Type) && PeekNext().Type != TokenType.Dot && MatchTypeKeyword(out var typeToken))
+        {
+            var name = Consume(TokenType.Identifier, "Expected variable name");
+            Consume(TokenType.Equal, "Expected '=' in using declaration");
+            var init = _expression.ParseExpression();
+            resource = new VariableDeclExpr(typeToken, name, init);
+        }
+        else
+        {
+            resource = _expression.ParseExpression();
+        }
+
+        Consume(TokenType.RightParen, "Expected ')' after using resource");
+
+        // Parse body: block or single statement
+        Expr body;
+        if (Match(TokenType.LeftBrace))
+        {
+            var statements = ParseStatementList();
+            Consume(TokenType.RightBrace, "Expected '}' after using body");
+            body = new BlockExpr(statements, null);
+        }
+        else
+        {
+            body = ParseStatement()!;
+        }
+
+        return new UsingStatementExpr(resource, body);
+    }
+
+    private Expr ParseLockStatement()
+    {
+        Consume(TokenType.LeftParen, "Expected '(' after 'lock'");
+        var lockObj = _expression.ParseExpression();
+        Consume(TokenType.RightParen, "Expected ')' after lock expression");
+
+        // Parse body: block or single statement
+        Expr body;
+        if (Match(TokenType.LeftBrace))
+        {
+            var statements = ParseStatementList();
+            Consume(TokenType.RightBrace, "Expected '}' after lock body");
+            body = new BlockExpr(statements, null);
+        }
+        else
+        {
+            body = ParseStatement()!;
+        }
+
+        return new LockStatementExpr(lockObj, body);
     }
 
     #endregion
