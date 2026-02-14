@@ -39,6 +39,7 @@ public sealed class ExpressionParser : ParserBase
         primary.SetStatementParser(statement);
         pattern.SetExpressionParser(expression);
         statement.SetExpressionParser(expression);
+        statement.SetPatternParser(pattern);
 
         return expression;
     }
