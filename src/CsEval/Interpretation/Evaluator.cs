@@ -729,7 +729,10 @@ public sealed class Evaluator : IExprVisitor<object?>
 
         var inferredType = declType ?? value?.GetType() ?? typeof(object);
 
-        _context.DefineNew(expr.Name.Lexeme, value, inferredType);
+        if (expr.Name.Lexeme == "_")
+            _context.Define(expr.Name.Lexeme, value);
+        else
+            _context.DefineNew(expr.Name.Lexeme, value, inferredType);
         return value;
     }
 

@@ -458,9 +458,18 @@ internal sealed class ExpressionCompilerUnit
             new[] { temp, inferredType },
             LinqExpression.Assign(temp, value),
             LinqExpression.Assign(inferredType, getInferredType),
-            LinqExpression.Call(_ctx.CurrentContext, CompilerContext.DefineNewMethod,
-                LinqExpression.Constant(v.Name.Lexeme), temp, inferredType),
-            temp);
+            LinqExpression.Condition(
+                LinqExpression.Equal(
+                    LinqExpression.Constant(v.Name.Lexeme),
+                    LinqExpression.Constant("_")),
+                LinqExpression.Block(
+                    LinqExpression.Call(_ctx.CurrentContext, CompilerContext.DefineMethod,
+                        LinqExpression.Constant(v.Name.Lexeme), temp),
+                    temp),
+                LinqExpression.Block(
+                    LinqExpression.Call(_ctx.CurrentContext, CompilerContext.DefineNewMethod,
+                        LinqExpression.Constant(v.Name.Lexeme), temp, inferredType),
+                    temp)));
     }
 
     internal LinqExpression CompileAssign(AssignExpr a)

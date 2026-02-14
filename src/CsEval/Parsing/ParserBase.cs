@@ -83,7 +83,8 @@ public abstract class ParserBase
                 TokenType.Float or TokenType.Decimal or TokenType.StringType or
                 TokenType.Bool or TokenType.Object or TokenType.Sbyte or
                 TokenType.Byte or TokenType.Short or TokenType.Ushort or
-                TokenType.Uint or TokenType.Ulong or TokenType.Char;
+                TokenType.Uint or TokenType.Ulong or TokenType.Char or
+            TokenType.Void;
 
     internal bool Check(TokenType type) => !IsAtEnd() && Peek().Type == type;
 
