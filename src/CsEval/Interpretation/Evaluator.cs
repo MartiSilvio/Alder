@@ -729,10 +729,7 @@ public sealed class Evaluator : IExprVisitor<object?>
 
         var inferredType = declType ?? value?.GetType() ?? typeof(object);
 
-        if (expr.Name.Lexeme == "_")
-            _context.Define(expr.Name.Lexeme, value);
-        else
-            _context.DefineNew(expr.Name.Lexeme, value, inferredType);
+        _context.DefineNew(expr.Name.Lexeme, value, inferredType);
         return value;
     }
 
@@ -1242,7 +1239,7 @@ public sealed class Evaluator : IExprVisitor<object?>
         {
             var switchCase = expr.Cases[i];
 
-            if (switchCase.Pattern == null)
+            if (switchCase.CasePattern == null)
             {
                 defaultCaseIndex = i;
                 continue;
@@ -1250,13 +1247,33 @@ public sealed class Evaluator : IExprVisitor<object?>
 
             if (!matched)
             {
-                var caseValue = Evaluate(switchCase.Pattern);
-                if ((bool)Operators.Equals(switchValue, caseValue))
+                // Create child scope for pattern variable bindings
+                var previousContext = _context;
+                _context = _context.CreateChild();
+                try
                 {
-                    matched = true;
-                    var signal = ExecuteCaseStatements(expr.Cases, i);
-                    if (signal != null)
-                        return signal.SignalKind == ControlFlowSignal.Kind.Break ? null : signal;
+                    if ((bool)MatchPattern(switchValue, switchCase.CasePattern)!)
+                    {
+                        // Check when guard if present
+                        if (switchCase.WhenGuard != null)
+                        {
+                            var guardResult = Evaluate(switchCase.WhenGuard);
+                            if (!TypeHelpers.RequireBoolean(guardResult))
+                            {
+                                _context = previousContext;
+                                continue;
+                            }
+                        }
+
+                        matched = true;
+                        var signal = ExecuteCaseStatements(expr.Cases, i);
+                        if (signal != null)
+                            return signal.SignalKind == ControlFlowSignal.Kind.Break ? null : signal;
+                    }
+                }
+                finally
+                {
+                    _context = previousContext;
                 }
             }
         }

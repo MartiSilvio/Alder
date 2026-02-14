@@ -552,8 +552,14 @@ internal sealed class CompilerContext
                     stack.Push(s.Expression);
                     foreach (var c in s.Cases)
                     {
-                        if (c.Pattern != null)
-                            stack.Push(c.Pattern);
+                        if (c.CasePattern != null)
+                        {
+                            var patternReason = CanCompilePattern(c.CasePattern);
+                            if (patternReason != null)
+                                return patternReason;
+                        }
+                        if (c.WhenGuard != null)
+                            stack.Push(c.WhenGuard);
                         foreach (var stmt in c.Statements)
                             stack.Push(stmt);
                     }
