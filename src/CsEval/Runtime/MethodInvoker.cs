@@ -303,14 +303,64 @@ public static class MethodInvoker
         if (firstArg == null)
             return null;
 
+        var firstArgType = firstArg.GetType();
+
+        // Try proper generic type inference from the first parameter's type structure
+        // e.g., IEnumerable<TSource> + List<int> → TSource = int
+        var parameters = genericMethod.GetParameters();
+        if (parameters.Length > 0)
+        {
+            var inferred = TryInferGenericArg(parameters[0].ParameterType, firstArgType, genericArgs[0]);
+            if (inferred != null)
+            {
+                try { return genericMethod.MakeGenericMethod(inferred); }
+                catch (Exception ex) when (ex is ArgumentException or TypeLoadException or InvalidOperationException) { }
+            }
+        }
+
+        // Fallback: use the argument type directly
         try
         {
-            return genericMethod.MakeGenericMethod(firstArg.GetType());
+            return genericMethod.MakeGenericMethod(firstArgType);
         }
         catch (Exception ex) when (ex is ArgumentException or TypeLoadException or InvalidOperationException)
         {
             return null;
         }
+    }
+
+    /// <summary>
+    /// Infers a generic type argument by matching a parameter's generic type structure
+    /// against the actual argument type. For example, IEnumerable&lt;TSource&gt; matched
+    /// against List&lt;int&gt; infers TSource = int.
+    /// </summary>
+    private static Type? TryInferGenericArg(Type parameterType, Type argumentType, Type genericArg)
+    {
+        if (parameterType == genericArg)
+            return argumentType;
+
+        if (!parameterType.IsGenericType)
+            return null;
+
+        var genericDef = parameterType.GetGenericTypeDefinition();
+
+        // Check if argumentType itself or its interfaces match the generic definition
+        foreach (var candidate in argumentType.GetInterfaces().Prepend(argumentType))
+        {
+            if (!candidate.IsGenericType || candidate.GetGenericTypeDefinition() != genericDef)
+                continue;
+
+            var candidateArgs = candidate.GetGenericArguments();
+            var paramArgs = parameterType.GetGenericArguments();
+
+            for (var i = 0; i < paramArgs.Length; i++)
+            {
+                if (paramArgs[i] == genericArg)
+                    return candidateArgs[i];
+            }
+        }
+
+        return null;
     }
 
     private static object?[] TryAppendCancellationToken(ParameterInfo[] parameters, object?[] args, CancellationToken ct)
@@ -434,6 +484,17 @@ public static class MethodInvoker
             return true;
         }
 
+        // Lambda to delegate conversion (e.g., LambdaValue -> Func<int>)
+        if (arg is LambdaValue or CompiledLambdaValue)
+        {
+            var delegateResult = LambdaDelegateConverter.TryConvert(arg, targetType);
+            if (delegateResult != null)
+            {
+                converted = delegateResult;
+                return true;
+            }
+        }
+
         return false;
     }
 
@@ -543,6 +604,10 @@ public static class MethodInvoker
 
         if (TypeHelpers.CanImplicitlyConvert(argType, paramType))
             return 1; // Implicit conversion - lowest priority
+
+        // Lambda to delegate (e.g., LambdaValue -> Func<int, bool>)
+        if (arg is LambdaValue or CompiledLambdaValue && LambdaDelegateConverter.IsSupportedDelegateType(paramType))
+            return 5; // Better than implicit numeric but worse than assignable
 
         return -1; // No valid conversion
     }

@@ -34,9 +34,9 @@ internal static class LambdaDelegateConverter
     /// <summary>
     /// Checks if a type is a supported delegate type (Func or Action).
     /// </summary>
-    private static bool IsSupportedDelegateType(Type type)
+    internal static bool IsSupportedDelegateType(Type type)
     {
-        if (!type.IsGenericType)
+        if (!type.IsGenericType || type.ContainsGenericParameters)
             return false;
 
         var fullName = type.GetGenericTypeDefinition().FullName;

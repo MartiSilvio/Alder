@@ -137,6 +137,40 @@ public abstract class ParserBase
     #region Type Name Parsing
 
     /// <summary>
+    /// Matches a closing '>' for generic type arguments, handling the classic C# ambiguity
+    /// where the lexer greedily produces '>>' or '>>>' tokens.
+    /// ECMA-334 §8.2.6 - Grammar ambiguities: >> in nested generics.
+    /// Splits multi-character tokens by replacing them in the token list.
+    /// </summary>
+    internal bool MatchClosingAngleBracket()
+    {
+        if (Match(TokenType.Greater))
+            return true;
+
+        if (Check(TokenType.GreaterGreater))
+        {
+            // Split >> into > (consumed now) + > (left for parent generic)
+            var token = Peek();
+            State.Tokens[State.Current] = token with { Type = TokenType.Greater, Lexeme = ">" };
+            State.Tokens.Insert(State.Current + 1, token with { Type = TokenType.Greater, Lexeme = ">" });
+            Advance();
+            return true;
+        }
+
+        if (Check(TokenType.GreaterGreaterGreater))
+        {
+            // Split >>> into > (consumed now) + >> (left for parent)
+            var token = Peek();
+            State.Tokens[State.Current] = token with { Type = TokenType.Greater, Lexeme = ">" };
+            State.Tokens.Insert(State.Current + 1, token with { Type = TokenType.GreaterGreater, Lexeme = ">>" });
+            Advance();
+            return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
     /// Tries to parse a type name at the current position, including generic arguments
     /// (e.g., int, string, Func&lt;int, int&gt;, int?, int[]).
     /// Returns null if no type name can be parsed. Used in backtracking contexts.
@@ -184,7 +218,7 @@ public abstract class ParserBase
                 name += nextArg;
             }
 
-            if (!Match(TokenType.Greater)) return null;
+            if (!MatchClosingAngleBracket()) return null;
             name += ">";
         }
 

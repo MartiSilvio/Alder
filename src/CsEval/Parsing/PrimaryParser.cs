@@ -215,7 +215,8 @@ public sealed class PrimaryParser : ParserBase
                 typeName += nextArg;
             }
 
-            Consume(TokenType.Greater, "Expected '>' after generic type arguments");
+            if (!MatchClosingAngleBracket())
+                throw new CsEvalParserException($"Expected '>' after generic type arguments at {Peek().Line}:{Peek().Column}");
             typeName += ">";
         }
 
