@@ -227,6 +227,69 @@ public static class RuntimeHelpers
     }
 
     /// <summary>
+    /// Applies a property initializer entry to an object: obj.PropertyName = value.
+    /// Used by the IL compiler for object initializers.
+    /// </summary>
+    public static object? ApplyPropertyInitializer(object obj, string propertyName, object? value, CsEvalOptions options, CsEvalContext context)
+    {
+        MemberAccess.SetMember(obj, propertyName, value, options, context);
+        return obj;
+    }
+
+    /// <summary>
+    /// Applies a collection initializer entry to an object: obj.Add(value).
+    /// Used by the IL compiler for collection initializers.
+    /// </summary>
+    public static object? ApplyCollectionInitializer(object obj, object? value)
+    {
+        var addMethod = obj.GetType().GetMethod("Add");
+        if (addMethod != null)
+            addMethod.Invoke(obj, new[] { value });
+        else
+            throw new CsEvalException($"Type '{obj.GetType().Name}' does not have an 'Add' method for collection initializer");
+        return obj;
+    }
+
+    /// <summary>
+    /// Creates a multi-dimensional array from an element type and sizes.
+    /// Used by the IL compiler for expressions like new int[3, 3].
+    /// </summary>
+    public static object CreateMultiDimArray(Type elementType, object[] sizes)
+    {
+        var intSizes = new int[sizes.Length];
+        for (var i = 0; i < sizes.Length; i++)
+            intSizes[i] = Convert.ToInt32(sizes[i]);
+        return Array.CreateInstance(elementType, intSizes);
+    }
+
+    /// <summary>
+    /// Gets a value from a multi-dimensional array at the given indices.
+    /// Used by the IL compiler for expressions like arr[i, j].
+    /// </summary>
+    public static object? MultiDimArrayGet(object arrayObj, object[] indices)
+    {
+        var arr = (Array)arrayObj;
+        var intIndices = new int[indices.Length];
+        for (var i = 0; i < indices.Length; i++)
+            intIndices[i] = Convert.ToInt32(indices[i]);
+        return arr.GetValue(intIndices);
+    }
+
+    /// <summary>
+    /// Sets a value in a multi-dimensional array at the given indices. Returns the value.
+    /// Used by the IL compiler for expressions like arr[i, j] = value.
+    /// </summary>
+    public static object? MultiDimArraySet(object arrayObj, object[] indices, object? value)
+    {
+        var arr = (Array)arrayObj;
+        var intIndices = new int[indices.Length];
+        for (var i = 0; i < indices.Length; i++)
+            intIndices[i] = Convert.ToInt32(indices[i]);
+        arr.SetValue(value, intIndices);
+        return value;
+    }
+
+    /// <summary>
     /// ECMA-334 §12.18: Promotes conditional expression result to common type of both branches.
     /// </summary>
     public static object? ConditionalTypePromotion(object? result, object? thenValue, object? elseValue)

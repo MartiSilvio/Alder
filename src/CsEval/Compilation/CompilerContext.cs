@@ -99,6 +99,11 @@ internal sealed class CompilerContext
     internal static readonly MethodInfo SpreadIntoListMethod = typeof(SpreadHelpers).GetMethod(nameof(SpreadHelpers.SpreadIntoList))!;
     internal static readonly MethodInfo CreateTypedArrayMethod = typeof(SpreadHelpers).GetMethod(nameof(SpreadHelpers.CreateTypedArray))!;
     internal static readonly MethodInfo ThrowIfCancellationRequestedMethod = typeof(CancellationToken).GetMethod(nameof(CancellationToken.ThrowIfCancellationRequested))!;
+    internal static readonly MethodInfo ApplyPropertyInitializerMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.ApplyPropertyInitializer))!;
+    internal static readonly MethodInfo ApplyCollectionInitializerMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.ApplyCollectionInitializer))!;
+    internal static readonly MethodInfo CreateMultiDimArrayMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.CreateMultiDimArray))!;
+    internal static readonly MethodInfo MultiDimArrayGetMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.MultiDimArrayGet))!;
+    internal static readonly MethodInfo MultiDimArraySetMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.MultiDimArraySet))!;
     internal static readonly MethodInfo CheckIterationLimitMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.CheckIterationLimit))!;
     internal static readonly MethodInfo GetEnumeratorMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.GetEnumerator))!;
     internal static readonly MethodInfo MoveNextMethod = typeof(IEnumerator).GetMethod(nameof(IEnumerator.MoveNext))!;
@@ -318,10 +323,10 @@ internal sealed class CompilerContext
                 ContinueExpr => controlUnit.CompileContinue(),
                 ReturnExpr ret => controlUnit.CompileReturn(ret),
 
-                // Multi-dimensional array operations (interpreted only)
-                MultiDimIndexAccessExpr => throw new NotSupportedException("Multi-dimensional index access not supported in IL compilation"),
-                MultiDimTypedArrayCreationExpr => throw new NotSupportedException("Multi-dimensional array creation not supported in IL compilation"),
-                MultiDimIndexAssignExpr => throw new NotSupportedException("Multi-dimensional index assignment not supported in IL compilation"),
+                // Multi-dimensional array operations
+                MultiDimIndexAccessExpr mdia => exprUnit.CompileMultiDimIndexAccess(mdia),
+                MultiDimTypedArrayCreationExpr mdtac => exprUnit.CompileMultiDimTypedArrayCreation(mdtac),
+                MultiDimIndexAssignExpr mdiassign => exprUnit.CompileMultiDimIndexAssign(mdiassign),
 
                 // Error cases
                 SpreadExpr => throw new CsEvalException("Spread operator can only be used in array or object literals"),
@@ -385,16 +390,27 @@ internal sealed class CompilerContext
                     break;
 
                 case ObjectCreationExpr oc:
-                    if (oc.Initializer != null)
-                        return "Object/collection initializers not supported in IL compilation";
                     foreach (var arg in oc.Arguments)
                         stack.Push(arg);
+                    if (oc.Initializer != null)
+                        foreach (var entry in oc.Initializer.Entries)
+                            stack.Push(entry.Value);
                     break;
 
-                case MultiDimIndexAccessExpr:
-                case MultiDimTypedArrayCreationExpr:
-                case MultiDimIndexAssignExpr:
-                    return "Multi-dimensional array operations not supported in IL compilation";
+                case MultiDimIndexAccessExpr mdia:
+                    stack.Push(mdia.Object);
+                    foreach (var idx in mdia.Indices) stack.Push(idx);
+                    break;
+
+                case MultiDimTypedArrayCreationExpr mdtac:
+                    foreach (var size in mdtac.Sizes) stack.Push(size);
+                    break;
+
+                case MultiDimIndexAssignExpr mdiassign:
+                    stack.Push(mdiassign.Object);
+                    foreach (var idx in mdiassign.Indices) stack.Push(idx);
+                    stack.Push(mdiassign.Value);
+                    break;
 
                 case TypedArrayCreationExpr tac:
                     stack.Push(tac.Size);

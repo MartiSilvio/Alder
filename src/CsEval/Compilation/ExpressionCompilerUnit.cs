@@ -126,10 +126,44 @@ internal sealed class ExpressionCompilerUnit
             CompilerContext.ResolveTypeMethod,
             LinqExpression.Constant(expr.TypeName));
 
-        return LinqExpression.Call(
+        LinqExpression result = LinqExpression.Call(
             CompilerContext.InvokeConstructorMethod,
             resolvedType,
             argsInit);
+
+        if (expr.Initializer != null)
+        {
+            // Apply each initializer entry sequentially
+            var objVar = LinqExpression.Variable(typeof(object), "initObj");
+            var statements = new List<LinqExpression> { LinqExpression.Assign(objVar, result) };
+
+            foreach (var entry in expr.Initializer.Entries)
+            {
+                var value = Compile(entry.Value);
+                if (entry.PropertyName != null)
+                {
+                    statements.Add(LinqExpression.Call(
+                        CompilerContext.ApplyPropertyInitializerMethod,
+                        objVar,
+                        LinqExpression.Constant(entry.PropertyName),
+                        value,
+                        _ctx.OptionsParam,
+                        _ctx.CurrentContext));
+                }
+                else
+                {
+                    statements.Add(LinqExpression.Call(
+                        CompilerContext.ApplyCollectionInitializerMethod,
+                        objVar,
+                        value));
+                }
+            }
+
+            statements.Add(objVar);
+            result = LinqExpression.Block(typeof(object), [objVar], statements);
+        }
+
+        return result;
     }
 
     internal LinqExpression CompileTypedArrayCreation(TypedArrayCreationExpr expr)
@@ -146,6 +180,57 @@ internal sealed class ExpressionCompilerUnit
             CompilerContext.CreateTypedArrayFromTypeNameMethod,
             resolvedType,
             size);
+    }
+
+    internal LinqExpression CompileMultiDimTypedArrayCreation(MultiDimTypedArrayCreationExpr expr)
+    {
+        var resolvedType = LinqExpression.Call(
+            _ctx.TypeResolverExpr,
+            CompilerContext.ResolveTypeMethod,
+            LinqExpression.Constant(expr.ElementTypeName));
+
+        var sizesArray = LinqExpression.NewArrayInit(
+            typeof(object),
+            expr.Sizes.Select(s => Compile(s)));
+
+        return LinqExpression.Call(
+            CompilerContext.CreateMultiDimArrayMethod,
+            resolvedType,
+            sizesArray);
+    }
+
+    internal LinqExpression CompileMultiDimIndexAccess(MultiDimIndexAccessExpr expr)
+    {
+        var obj = Compile(expr.Object);
+        var indicesArray = LinqExpression.NewArrayInit(
+            typeof(object),
+            expr.Indices.Select(i => Compile(i)));
+
+        if (expr.NullSafe)
+        {
+            var targetVar = LinqExpression.Variable(typeof(object), "target");
+            return LinqExpression.Block(
+                typeof(object),
+                [targetVar],
+                LinqExpression.Assign(targetVar, obj),
+                LinqExpression.Condition(
+                    LinqExpression.Equal(targetVar, LinqExpression.Constant(null, typeof(object))),
+                    LinqExpression.Constant(null, typeof(object)),
+                    LinqExpression.Call(CompilerContext.MultiDimArrayGetMethod, targetVar, indicesArray)));
+        }
+
+        return LinqExpression.Call(CompilerContext.MultiDimArrayGetMethod, obj, indicesArray);
+    }
+
+    internal LinqExpression CompileMultiDimIndexAssign(MultiDimIndexAssignExpr expr)
+    {
+        var obj = Compile(expr.Object);
+        var indicesArray = LinqExpression.NewArrayInit(
+            typeof(object),
+            expr.Indices.Select(i => Compile(i)));
+        var value = Compile(expr.Value);
+
+        return LinqExpression.Call(CompilerContext.MultiDimArraySetMethod, obj, indicesArray, value);
     }
 
     internal LinqExpression CompileTypedArrayLiteral(TypedArrayLiteralExpr expr)
