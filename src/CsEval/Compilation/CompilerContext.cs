@@ -203,6 +203,7 @@ internal sealed class CompilerContext
             // Wire cross-references
             patternUnit.SetExpressionUnit(expressionUnit);
             controlFlowUnit.SetExpressionUnit(expressionUnit);
+            controlFlowUnit.SetPatternUnit(patternUnit);
             expressionUnit.SetControlFlowUnit(controlFlowUnit);
 
             var body = Compile(ctx, ast, expressionUnit, controlFlowUnit, patternUnit);
