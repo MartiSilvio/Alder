@@ -1689,6 +1689,13 @@ internal sealed record StaticMethodRef(Type Type, string MethodName);
 internal sealed record ModuleMethodRef(ModuleInfo Module, IServiceProvider? ServiceProvider, MethodInfo Method);
 
 /// <summary>
+/// Sentinel for partially-resolved namespace paths during FQN type access.
+/// Flows through MemberAccess chains until TypeResolver resolves a full type name.
+/// Example: IdentifierExpr("System") -> NamespaceRef("System") -> member "Linq" -> NamespaceRef("System.Linq") -> member "Enumerable" -> Type
+/// </summary>
+internal sealed record NamespaceRef(string Path);
+
+/// <summary>
 /// Wrapper for a named argument value. Used to pass parameter name information
 /// through the method invocation stack.
 /// </summary>

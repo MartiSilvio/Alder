@@ -20,6 +20,7 @@ internal sealed class TypeResolver
     private readonly ImmutableArray<string> _importedNamespaces;
     private readonly FrozenDictionary<string, FrozenDictionary<string, Type>> _namespaceIndex;
     private readonly ImmutableArray<Assembly> _registeredAssemblies;
+    private readonly FrozenSet<string> _namespacePrefixes;
     private readonly ConcurrentDictionary<string, Type?> _cache = new();
 
     private TypeResolver(
@@ -27,13 +28,15 @@ internal sealed class TypeResolver
         FrozenDictionary<string, Type>? implicitImports,
         ImmutableArray<string> importedNamespaces,
         FrozenDictionary<string, FrozenDictionary<string, Type>> namespaceIndex,
-        ImmutableArray<Assembly> registeredAssemblies)
+        ImmutableArray<Assembly> registeredAssemblies,
+        FrozenSet<string> namespacePrefixes)
     {
         _builtInTypes = builtInTypes;
         _implicitImports = implicitImports;
         _importedNamespaces = importedNamespaces;
         _namespaceIndex = namespaceIndex;
         _registeredAssemblies = registeredAssemblies;
+        _namespacePrefixes = namespacePrefixes;
     }
 
     /// <summary>
@@ -62,6 +65,13 @@ internal sealed class TypeResolver
 
         return _cache.GetOrAdd(typeName, ResolveTypeCore);
     }
+
+    /// <summary>
+    /// Checks if the given name is a known namespace or a prefix of a known namespace.
+    /// Used by the resolution pipeline to determine if an unresolved identifier could be
+    /// the start of a fully-qualified type name (e.g., "System" is a prefix of "System.Linq").
+    /// </summary>
+    internal bool IsNamespaceOrPrefix(string name) => _namespacePrefixes.Contains(name);
 
     private Type? ResolveTypeCore(string typeName)
     {
@@ -302,7 +312,9 @@ internal sealed class TypeResolver
             implicitImports = BuildImplicitImports(namespaceIndex, comparer);
         }
 
-        return new TypeResolver(builtInTypes, implicitImports, importedNamespaces, namespaceIndex, allAssemblies);
+        var namespacePrefixes = BuildNamespacePrefixes(namespaceIndex);
+
+        return new TypeResolver(builtInTypes, implicitImports, importedNamespaces, namespaceIndex, allAssemblies, namespacePrefixes);
     }
 
     /// <summary>
@@ -390,5 +402,28 @@ internal sealed class TypeResolver
         }
 
         return imports.ToFrozenDictionary(comparer);
+    }
+
+    /// <summary>
+    /// Builds a set of all namespace strings and all their prefixes.
+    /// For "System.Collections.Generic", adds: "System", "System.Collections", "System.Collections.Generic".
+    /// Enables O(1) lookup for IsNamespaceOrPrefix.
+    /// </summary>
+    private static FrozenSet<string> BuildNamespacePrefixes(
+        FrozenDictionary<string, FrozenDictionary<string, Type>> namespaceIndex)
+    {
+        var prefixes = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var ns in namespaceIndex.Keys)
+        {
+            prefixes.Add(ns);
+            // Add all prefixes: "System.Collections.Generic" -> "System", "System.Collections"
+            var dotIndex = ns.IndexOf('.');
+            while (dotIndex > 0)
+            {
+                prefixes.Add(ns[..dotIndex]);
+                dotIndex = ns.IndexOf('.', dotIndex + 1);
+            }
+        }
+        return prefixes.ToFrozenSet(StringComparer.Ordinal);
     }
 }
