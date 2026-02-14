@@ -754,6 +754,27 @@ public sealed class Evaluator : IExprVisitor<object?>
         return _context.TypeResolver.ResolveType(expr.TypeToken.Lexeme);
     }
 
+    public object? VisitSizeof(SizeofExpr expr)
+    {
+        return expr.TypeName switch
+        {
+            "bool" or "Boolean" or "System.Boolean" => 1,
+            "byte" or "Byte" or "System.Byte" => 1,
+            "sbyte" or "SByte" or "System.SByte" => 1,
+            "char" or "Char" or "System.Char" => 2,
+            "short" or "Int16" or "System.Int16" => 2,
+            "ushort" or "UInt16" or "System.UInt16" => 2,
+            "int" or "Int32" or "System.Int32" => 4,
+            "uint" or "UInt32" or "System.UInt32" => 4,
+            "float" or "Single" or "System.Single" => 4,
+            "long" or "Int64" or "System.Int64" => 8,
+            "ulong" or "UInt64" or "System.UInt64" => 8,
+            "double" or "Double" or "System.Double" => 8,
+            "decimal" or "Decimal" or "System.Decimal" => 16,
+            _ => throw new CsEvalException($"Cannot take the sizeof of type '{expr.TypeName}'")
+        };
+    }
+
     public object? VisitObjectCreation(ObjectCreationExpr expr)
     {
         var args = expr.Arguments.Select(arg => Evaluate(arg)).ToArray();
