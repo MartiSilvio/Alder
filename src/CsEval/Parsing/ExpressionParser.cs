@@ -39,7 +39,6 @@ public sealed class ExpressionParser : ParserBase
         primary.SetStatementParser(statement);
         pattern.SetExpressionParser(expression);
         statement.SetExpressionParser(expression);
-        statement.SetPatternParser(pattern);
 
         return expression;
     }
@@ -662,7 +661,6 @@ public sealed class ExpressionParser : ParserBase
             or TokenType.PlusPlus or TokenType.MinusMinus
             or TokenType.Minus or TokenType.Plus
             or TokenType.Typeof or TokenType.Nameof or TokenType.Default
-            or TokenType.Sizeof
             or TokenType.Throw;
     }
 
@@ -729,13 +727,6 @@ public sealed class ExpressionParser : ParserBase
                 {
                     break;
                 }
-            }
-            else if (Check(TokenType.Bang))
-            {
-                // Null-forgiving operator: expr! -- no-op at runtime in dynamic evaluator.
-                // Since the lexer produces BangEqual for !=, a lone Bang in postfix is unambiguously null-forgiving.
-                Advance(); // consume '!'
-                // expr stays unchanged -- null-forgiving is a compile-time hint only
             }
             else
             {

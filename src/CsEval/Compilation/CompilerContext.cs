@@ -203,7 +203,6 @@ internal sealed class CompilerContext
             // Wire cross-references
             patternUnit.SetExpressionUnit(expressionUnit);
             controlFlowUnit.SetExpressionUnit(expressionUnit);
-            controlFlowUnit.SetPatternUnit(patternUnit);
             expressionUnit.SetControlFlowUnit(controlFlowUnit);
 
             var body = Compile(ctx, ast, expressionUnit, controlFlowUnit, patternUnit);
@@ -261,7 +260,6 @@ internal sealed class CompilerContext
                 DefaultExpr def => exprUnit.CompileDefault(def),
                 NameofExpr nameofExpr => LinqExpression.Constant(nameofExpr.Name, typeof(object)),
                 TypeofExpr typeofExpr => exprUnit.CompileTypeof(typeofExpr),
-                SizeofExpr sizeofExpr => exprUnit.CompileSizeof(sizeofExpr),
                 ObjectCreationExpr oc => exprUnit.CompileObjectCreation(oc),
                 TypedArrayCreationExpr tac => exprUnit.CompileTypedArrayCreation(tac),
                 TypedArrayLiteralExpr tal => exprUnit.CompileTypedArrayLiteral(tal),
@@ -353,7 +351,6 @@ internal sealed class CompilerContext
                 case DefaultExpr:
                 case NameofExpr:
                 case TypeofExpr:
-                case SizeofExpr:
                     // These are always compilable, no children to check
                     break;
 
@@ -553,8 +550,8 @@ internal sealed class CompilerContext
                     stack.Push(s.Expression);
                     foreach (var c in s.Cases)
                     {
-                        if (c.WhenGuard != null)
-                            stack.Push(c.WhenGuard);
+                        if (c.Pattern != null)
+                            stack.Push(c.Pattern);
                         foreach (var stmt in c.Statements)
                             stack.Push(stmt);
                     }
