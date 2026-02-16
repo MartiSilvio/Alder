@@ -384,52 +384,6 @@ public class ScopingTests(CompilationMode mode)
 
     #endregion
 
-    #region Parent Scope Access
-
-    // Engine-only: uses [1, 2, 3, 4, 5] collection expression syntax
-    // Parity equivalent: TestData/Runtime/Scoping/ForEach_CanAccessParentScopeVariables.csx
-    [Test]
-    public void ForEachLoop_CanAccessParentScopeVariables()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(@"
-        {
-            var total = 0;
-            foreach (var item in [1, 2, 3, 4, 5]) {
-                total = total + item;
-            }
-            return total;
-        }");
-
-        Assert.That(result, Is.EqualTo(15));
-    }
-
-    // Engine-only: uses [10, 20] collection expression syntax
-    // Parity equivalent: TestData/Runtime/Scoping/NestedLoops_CanAccessAllParentScopes.csx
-    [Test]
-    public void NestedLoops_CanAccessAllParentScopes()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(@"
-        {
-            var total = 0;
-            for (var i = 1; i <= 3; i = i + 1) {
-                foreach (var j in [10, 20]) {
-                    var k = 0;
-                    while (k < 2) {
-                        total = total + i + j + k;
-                        k = k + 1;
-                    }
-                }
-            }
-            return total;
-        }");
-
-        Assert.That(result, Is.EqualTo(210));
-    }
-
-    #endregion
-
     #region Block Statement Scoping (via If)
 
     // Engine-only: error test for variable leaking
@@ -448,32 +402,6 @@ public class ScopingTests(CompilationMode mode)
             }"));
 
         Assert.That(ex!.Message, Does.Contain("x").Or.Contain("Undefined"));
-    }
-
-    #endregion
-
-    #region Break and Continue with Scoping
-
-    // Engine-only: uses [1, 2, 3, 4, 5] collection expression syntax
-    // Parity equivalent: TestData/Runtime/Scoping/ForEach_ContinuePreservesParentScope.csx
-    [Test]
-    public void ForEachLoop_ContinuePreservesParentScope()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(@"
-        {
-            var sum = 0;
-            foreach (var i in [1, 2, 3, 4, 5]) {
-                var temp = i;
-                if (i % 2 == 0) {
-                    continue;
-                }
-                sum = sum + temp;
-            }
-            return sum;
-        }");
-
-        Assert.That(result, Is.EqualTo(9));
     }
 
     #endregion

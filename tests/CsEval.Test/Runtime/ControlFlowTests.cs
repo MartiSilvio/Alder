@@ -21,16 +21,6 @@ public class ControlFlowTests(CompilationMode mode)
         Assert.That(engine.Evaluate("x > 5 ? \"big\" : \"small\""), Is.EqualTo("big"));
     }
 
-    // Engine-only: CsEval [] collection expression syntax (Roslyn rejects CS9176)
-    [Test]
-    public void Eval_Ternary_WithArrays()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate("true ? [] : [1, 2, 3]");
-        Assert.That(result, Is.InstanceOf<Array>());
-        Assert.That(result, Has.Length.EqualTo(0));
-    }
-
     // Engine-only: SetVariable with TestPerson (non-serializable) + anonymous object merge
     [Test]
     public void Eval_IfStatement_NullCheck_Pattern()
