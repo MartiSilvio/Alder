@@ -16,13 +16,23 @@ public class ParityTests(CompilationMode mode)
     [TestCaseSource(nameof(DiscoverExpressions), ["TestData/ValidExpressions"])]
     public async Task ValidExpressionsShouldPass(string csxPath)
     {
-        var expr = TestHelpers.LoadTestExpression(csxPath);
+        var csEvalExpr = TestHelpers.LoadTestExpression(csxPath);
+
+        // Check for .roslyn.csx sibling -- use it for Roslyn evaluation if it exists
+        var roslynSiblingPath = csxPath.Replace(".csx", ".roslyn.csx");
+        var roslynExpr = File.Exists(roslynSiblingPath)
+            ? File.ReadAllText(roslynSiblingPath).Trim()
+            : csEvalExpr;
+
+        var exprInfo = csEvalExpr == roslynExpr
+            ? csEvalExpr
+            : $"CsEval: {csEvalExpr}\nRoslyn: {roslynExpr}";
 
         try
         {
-            var csharpResult = await TestHelpers.EvaluateCSharpAsync(expr);
+            var csharpResult = await TestHelpers.EvaluateCSharpAsync(roslynExpr);
             var engine = new CsEvalEngine(Options);
-            var result = engine.Evaluate(expr);
+            var result = engine.Evaluate(csEvalExpr);
 
             if (result is IDictionary<string, object?> dict && IsAnonymousType(csharpResult?.GetType()))
             {
@@ -30,8 +40,10 @@ public class ParityTests(CompilationMode mode)
             }
             else
             {
-                Assert.That(result, Is.EqualTo(csharpResult));
-                Assert.That(result?.GetType(), Is.EqualTo(csharpResult?.GetType()));
+                Assert.That(result, Is.EqualTo(csharpResult),
+                    $"Value mismatch.\n{exprInfo}");
+                Assert.That(result?.GetType(), Is.EqualTo(csharpResult?.GetType()),
+                    $"Type mismatch.\n{exprInfo}");
             }
         }
         catch (AssertionException)
@@ -40,7 +52,7 @@ public class ParityTests(CompilationMode mode)
         }
         catch (Exception ex)
         {
-            Assert.Fail($"{expr}\n{ex.GetType().Name}: {ex.Message}");
+            Assert.Fail($"{exprInfo}\n{ex.GetType().Name}: {ex.Message}");
         }
     }
 
@@ -99,6 +111,10 @@ public class ParityTests(CompilationMode mode)
 
         foreach (var file in Directory.GetFiles(testDataDir, "*.csx", SearchOption.AllDirectories))
         {
+            // Skip .roslyn.csx sibling files -- used only for Roslyn comparison
+            if (file.EndsWith(".roslyn.csx", StringComparison.OrdinalIgnoreCase))
+                continue;
+
             var relativeName = Path.GetRelativePath(testDataDir, file).Replace(Path.DirectorySeparatorChar, '/');
             var testName = relativeName.Replace(".csx", "").Replace('/', '_');
             yield return new TestCaseData(file).SetName(testName);
