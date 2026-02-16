@@ -122,6 +122,11 @@ public sealed class Evaluator : IExprVisitor<object?>
             case ConstantPattern cp:
             {
                 var constantValue = Evaluate(cp.Value);
+                // If the constant expression evaluates to a Type, treat as a type check
+                // This handles: x is Exception (bare identifier type pattern without binding)
+                // where the parser couldn't disambiguate type vs constant at parse time
+                if (constantValue is Type typeValue)
+                    return TypeHelpers.IsType(value, typeValue);
                 return (bool)Operators.Equals(value, constantValue);
             }
 

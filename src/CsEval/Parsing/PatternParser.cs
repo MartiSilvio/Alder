@@ -190,7 +190,8 @@ public sealed class PatternParser : ParserBase
     /// <summary>
     /// Determines if the current Identifier token starts a non-keyword type pattern.
     /// Uses lookahead: Identifier followed by another Identifier (binding variable),
-    /// or Identifier followed by '{' (property pattern), or Identifier.Identifier (dotted type name).
+    /// Identifier followed by '{' (property pattern), Identifier.Identifier (dotted type name),
+    /// or Identifier&lt; (generic type like List&lt;int&gt;).
     /// Single Identifier alone is NOT treated as a type pattern to avoid ambiguity with constants.
     /// </summary>
     private bool IsNonKeywordTypePattern()
@@ -218,12 +219,20 @@ public sealed class PatternParser : ParserBase
         if (next.Type == TokenType.Dot)
             return true;
 
+        // Generic type: List<int>, Dictionary<string, int>, etc.
+        // In pattern context, Identifier< always starts a generic type (never a comparison)
+        if (next.Type == TokenType.Less)
+            return true;
+
         return false;
     }
 
     /// <summary>
-    /// Parses a dotted type name (e.g., System.Exception) and returns a single token
-    /// with the full name as lexeme.
+    /// Parses a type name for pattern matching contexts, including dotted names
+    /// and generic type arguments.
+    /// Handles: Exception, System.IO.IOException, List&lt;int&gt;, Dictionary&lt;string, int&gt;
+    /// Does NOT consume nullable suffix here -- nullable disambiguation is handled
+    /// at the pattern level (ParsePrimaryPattern) to avoid conflicting with ternary operator.
     /// </summary>
     private Token ParseDottedTypeName()
     {
@@ -236,6 +245,31 @@ public sealed class PatternParser : ParserBase
             Advance(); // consume '.'
             var next = Advance(); // consume identifier
             name += "." + next.Lexeme;
+        }
+
+        // Handle generic type arguments: List<int>, Dictionary<string, int>
+        if (Check(TokenType.Less))
+        {
+            Advance(); // consume <
+            name += "<";
+
+            var firstArg = TryParseTypeName();
+            if (firstArg == null)
+                throw new CsEvalParserException($"Expected type argument after '<' at {Peek().Line}:{Peek().Column}");
+            name += firstArg;
+
+            while (Match(TokenType.Comma))
+            {
+                name += ", ";
+                var nextArg = TryParseTypeName();
+                if (nextArg == null)
+                    throw new CsEvalParserException($"Expected type argument after ',' at {Peek().Line}:{Peek().Column}");
+                name += nextArg;
+            }
+
+            if (!MatchClosingAngleBracket())
+                throw new CsEvalParserException($"Expected '>' after generic type arguments at {Peek().Line}:{Peek().Column}");
+            name += ">";
         }
 
         return token with { Lexeme = name };

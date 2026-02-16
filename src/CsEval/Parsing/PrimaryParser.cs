@@ -363,24 +363,18 @@ public sealed class PrimaryParser : ParserBase
     {
         Consume(TokenType.LeftParen, "Expected '(' after 'typeof'");
         // Accept type keywords, void, or identifiers (for non-built-in types)
+        // Use TryParseTypeName to handle generics: typeof(List<int>), typeof(Dictionary<string, int>)
         Token typeToken;
         if (Match(TokenType.Void))
         {
             typeToken = Previous();
         }
-        else if (IsTypeKeyword(Peek().Type))
-        {
-            typeToken = Advance();
-        }
         else
         {
-            typeToken = Consume(TokenType.Identifier, "Expected type name after 'typeof('");
-            // Support dotted type names: System.Exception, System.Collections.Generic.List
-            while (Match(TokenType.Dot))
-            {
-                var next = Consume(TokenType.Identifier, "Expected identifier after '.'");
-                typeToken = new Token(TokenType.Identifier, typeToken.Lexeme + "." + next.Lexeme, null, typeToken.Line, typeToken.Column);
-            }
+            var typeName = TryParseTypeName();
+            if (typeName == null)
+                throw new CsEvalParserException($"Expected type name after 'typeof(' at {Peek().Line}:{Peek().Column}");
+            typeToken = new Token(TokenType.Identifier, typeName, null, Peek().Line, Peek().Column);
         }
         Consume(TokenType.RightParen, "Expected ')' after typeof type");
         return new TypeofExpr(typeToken);

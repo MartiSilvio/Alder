@@ -132,10 +132,24 @@ internal sealed class PatternCompilerUnit
             var isNull = LinqExpression.Equal(value, LinqExpression.Constant(null, typeof(object)));
             return LinqExpression.Convert(isNull, typeof(object));
         }
-        // General constant: Operators.Equals(value, constant)
+        // General constant: evaluate, then check if it's a Type (for bare identifier type patterns
+        // like "x is Exception" where parser couldn't disambiguate type vs constant)
         var constValue = Compile(cp.Value);
+        var constVar = LinqExpression.Variable(typeof(object), "constPatternValue");
         var equalsInfo = OperatorRegistry.GetBinaryOperator(TokenType.EqualEqual)!.Value;
-        return LinqExpression.Call(equalsInfo.Method, value, constValue);
+
+        // If constant is a Type, do TypeHelpers.IsType check; otherwise do Operators.Equals
+        var isTypeCheck = LinqExpression.TypeIs(constVar, typeof(Type));
+        var typeCheckResult = LinqExpression.Convert(
+            LinqExpression.Call(CompilerContext.IsTypeMethod, value, LinqExpression.Convert(constVar, typeof(Type))),
+            typeof(object));
+        var equalityResult = LinqExpression.Call(equalsInfo.Method, value, constVar);
+
+        return LinqExpression.Block(
+            typeof(object),
+            [constVar],
+            LinqExpression.Assign(constVar, constValue),
+            LinqExpression.Condition(isTypeCheck, typeCheckResult, equalityResult));
     }
 
     private LinqExpression CompileTypePattern(LinqExpression value, TypePattern tp)

@@ -403,18 +403,14 @@ public sealed class ExpressionParser : ParserBase
 
     private Expr ParseAsExpression(Expr left)
     {
-        // x as type (keyword types: int, string, etc.)
-        if (MatchTypeKeyword(out var typeToken))
-            return new AsExpr(left, typeToken);
+        // Use TryParseTypeName to handle all type forms including generics:
+        // x as string, x as List<int>, x as Dictionary<string, int>?, x as System.Exception
+        var typeName = TryParseTypeName();
+        if (typeName == null)
+            throw new CsEvalParserException($"Expected type after 'as' at {Peek().Line}:{Peek().Column}");
 
-        // x as TypeName or x as Namespace.TypeName (non-keyword class types)
-        if (Check(TokenType.Identifier))
-        {
-            var identToken = ParseDottedTypeName();
-            return new AsExpr(left, identToken);
-        }
-
-        throw new CsEvalParserException($"Expected type after 'as' at {Peek().Line}:{Peek().Column}");
+        var typeToken = new Token(TokenType.Identifier, typeName, null, Previous().Line, Previous().Column);
+        return new AsExpr(left, typeToken);
     }
 
     /// <summary>
@@ -779,6 +775,8 @@ public sealed class ExpressionParser : ParserBase
 
     /// <summary>
     /// Attempts to parse generic type arguments: &lt;T1, T2, ...&gt;
+    /// Uses TryParseTypeName for each argument to support nested generics, dotted names,
+    /// and nullable types: Method&lt;Dictionary&lt;string, int&gt;&gt;(), Method&lt;int?&gt;()
     /// Uses lookahead to disambiguate from less-than operator.
     /// </summary>
     private bool TryParseTypeArguments(out List<string> typeArgs)
@@ -794,26 +792,27 @@ public sealed class ExpressionParser : ParserBase
 
         Advance(); // consume '<'
 
-        // Parse type arguments
+        // Parse type arguments using TryParseTypeName for full type name support
         while (true)
         {
-            // Each type argument must be a type name (identifier or keyword type)
-            if (!IsTypeName(Peek().Type))
+            var typeName = TryParseTypeName();
+            if (typeName == null)
             {
                 // Not a valid type - backtrack
                 State.Current = startPos;
+                typeArgs.Clear();
                 return false;
             }
 
-            var typeName = NormalizeTypeName(Advance());
-            typeArgs.Add(typeName);
+            // Normalize keyword type names to CLR names for runtime resolution
+            typeArgs.Add(NormalizeTypeNameString(typeName));
 
             // After type: expect ',' for more types, or '>' to end
             if (Match(TokenType.Comma))
             {
                 continue;
             }
-            else if (Match(TokenType.Greater))
+            else if (MatchClosingAngleBracket())
             {
                 // Successfully parsed type arguments
                 // Verify this looks like a generic call (followed by '(' or '.')
@@ -840,42 +839,33 @@ public sealed class ExpressionParser : ParserBase
     }
 
     /// <summary>
-    /// Checks if a token type can be used as a type name in generic arguments.
+    /// Normalizes a type name string from C# keyword form to CLR form.
+    /// Handles both simple names (int -> Int32) and compound names (preserving generics/arrays).
     /// </summary>
-    private static bool IsTypeName(TokenType type)
+    private static string NormalizeTypeNameString(string typeName)
     {
-        return type is TokenType.Identifier or TokenType.Int or TokenType.Long or TokenType.Short or TokenType.Byte
-            or TokenType.Sbyte or TokenType.Ushort or TokenType.Uint or TokenType.Ulong or TokenType.Float
-            or TokenType.Double or TokenType.Decimal or TokenType.Bool or TokenType.Char or TokenType.StringType
-            or TokenType.Object or TokenType.Dynamic or TokenType.Nint or TokenType.Nuint;
-    }
-
-    /// <summary>
-    /// Converts a type token to its CLR type name.
-    /// </summary>
-    private static string NormalizeTypeName(Token token)
-    {
-        return token.Type switch
+        // Only normalize simple keyword type names, not compound/generic ones
+        return typeName switch
         {
-            TokenType.Int => "Int32",
-            TokenType.Long => "Int64",
-            TokenType.Short => "Int16",
-            TokenType.Byte => "Byte",
-            TokenType.Sbyte => "SByte",
-            TokenType.Ushort => "UInt16",
-            TokenType.Uint => "UInt32",
-            TokenType.Ulong => "UInt64",
-            TokenType.Float => "Single",
-            TokenType.Double => "Double",
-            TokenType.Decimal => "Decimal",
-            TokenType.Bool => "Boolean",
-            TokenType.Char => "Char",
-            TokenType.StringType => "String",
-            TokenType.Object => "Object",
-            TokenType.Dynamic => "Object",
-            TokenType.Nint => "IntPtr",
-            TokenType.Nuint => "UIntPtr",
-            _ => token.Lexeme
+            "int" => "Int32",
+            "long" => "Int64",
+            "short" => "Int16",
+            "byte" => "Byte",
+            "sbyte" => "SByte",
+            "ushort" => "UInt16",
+            "uint" => "UInt32",
+            "ulong" => "UInt64",
+            "float" => "Single",
+            "double" => "Double",
+            "decimal" => "Decimal",
+            "bool" => "Boolean",
+            "char" => "Char",
+            "string" => "String",
+            "object" => "Object",
+            "dynamic" => "Object",
+            "nint" => "IntPtr",
+            "nuint" => "UIntPtr",
+            _ => typeName
         };
     }
 
