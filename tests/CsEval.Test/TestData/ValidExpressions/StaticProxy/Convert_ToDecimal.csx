@@ -1,0 +1,1 @@
+Convert.ToDecimal("123.45")
