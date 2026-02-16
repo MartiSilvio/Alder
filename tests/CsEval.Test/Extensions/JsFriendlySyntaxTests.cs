@@ -10,24 +10,7 @@ namespace CsEval.Test.Extensions;
 [TestFixture(CompilationMode.StrictCompiled)]
 public class JsFriendlySyntaxTests(CompilationMode mode)
 {
-    // Expressions that evaluate to expected values
-    [TestCase("{ let x = 42; return x; }", 42, TestName = "Let_TreatedAsVar")]
-    [TestCase("undefined", null, TestName = "Undefined_IsNull")]
-    [TestCase("undefined == null", true, TestName = "Undefined_EqualsNull")]
-    [TestCase("undefined === null", true, TestName = "Undefined_StrictEqualsNull")]
-    [TestCase("5 === 5", true, TestName = "StrictEquality_SameInt_True")]
-    [TestCase("5 === 10", false, TestName = "StrictEquality_DifferentInt_False")]
-    [TestCase("\"hello\" === \"hello\"", true, TestName = "StrictEquality_SameString_True")]
-    [TestCase("5 !== 10", true, TestName = "StrictInequality_DifferentInt_True")]
-    [TestCase("5 !== 5", false, TestName = "StrictInequality_SameInt_False")]
-    [TestCase("\"a\" !== \"b\"", true, TestName = "StrictInequality_DifferentString_True")]
-    public void MatchesExpected(string expr, object? expected)
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        Assert.That(engine.Evaluate(expr), Is.EqualTo(expected));
-    }
-
-    // Reserved keyword tests
+    // Reserved keyword tests (engine-only: testing error behavior)
     [TestCase("{ const x = \"hello\"; return x; }", TestName = "Const_IsReservedKeyword")]
     [TestCase("{ var super = 1; return super; }", TestName = "Super_IsReservedKeyword")]
     public void ReservedKeyword_ThrowsCsEvalParserException(string expr)
