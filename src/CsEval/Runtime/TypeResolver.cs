@@ -231,8 +231,7 @@ internal sealed class TypeResolver
 
     /// <summary>
     /// Implicit import namespaces for common BCL types when ImplicitBclImports is enabled.
-    /// ECMA-334 compatible: System, System.Collections.Generic, System.Threading.Tasks.
-    /// System.Linq is NOT included (extended BCL requires explicit registration).
+    /// ECMA-334 compatible: System, System.Collections.Generic, System.Threading.Tasks, System.Linq.
     /// System.Reflection is EXCLUDED for security.
     /// </summary>
     private static readonly string[] DefaultImplicitNamespaces =
@@ -240,6 +239,7 @@ internal sealed class TypeResolver
         "System",
         "System.Collections.Generic",
         "System.Threading.Tasks",
+        "System.Linq",
     ];
 
     /// <summary>

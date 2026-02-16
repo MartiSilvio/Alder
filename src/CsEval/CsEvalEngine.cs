@@ -2,7 +2,6 @@ using System.Collections.Immutable;
 using CsEval.Attributes;
 using CsEval.Compilation;
 using CsEval.Interpretation;
-using CsEval.Modules;
 using CsEval.Parsing;
 using CsEval.Runtime;
 
@@ -514,11 +513,7 @@ public sealed class CsEvalEngine
     private void RegisterBuiltInModules()
     {
         RegisterModule("Math", typeof(Math));
-        RegisterModule("DateTime", new DateTimeProxy());
-        RegisterModule("Guid", new GuidProxy());
         RegisterModule("Convert", typeof(Convert));
-        RegisterModule("String", new StringProxy());
-        RegisterModule("Enumerable", new EnumerableProxy());
     }
 
     private sealed record RegisteredType(
