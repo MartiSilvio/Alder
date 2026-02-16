@@ -3,7 +3,7 @@ namespace CsEval.Test.Core;
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
 [TestFixture(CompilationMode.StrictCompiled)]
-public class StaticProxyTests(CompilationMode mode)
+public class BclStaticMethodTests(CompilationMode mode)
 {
     private CsEvalEngine _engine = null!;
 
