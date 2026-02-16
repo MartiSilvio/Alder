@@ -1,0 +1,1 @@
+Array.Empty<int>().Length
