@@ -29,12 +29,18 @@ public class ParityTests(CompilationMode mode)
         {
             // For .csx files, check for .roslyn.csx sibling
             csEvalExpr = TestHelpers.LoadTestExpression(csxPath);
-            var roslynSiblingPath = csxPath.Replace(".csx", ".roslyn.csx");
-            roslynExpr = File.Exists(roslynSiblingPath)
-                ? (await File.ReadAllTextAsync(roslynSiblingPath)).Trim()
-                : csEvalExpr;
-        }
 
+            var roslynSiblingPath = csxPath.Replace(".csx", ".roslyn.csx");
+            if (File.Exists(roslynSiblingPath))
+            {
+                roslynExpr = (await File.ReadAllTextAsync(roslynSiblingPath)).Trim();
+            }
+            else
+            {
+                roslynExpr = csEvalExpr;
+            }
+        }
+        
         var exprInfo = csEvalExpr == roslynExpr
             ? csEvalExpr
             : $"CsEval: {csEvalExpr}\nRoslyn: {roslynExpr}";
