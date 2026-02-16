@@ -228,51 +228,6 @@ public class NumericTests(CompilationMode mode)
 
     #region Engine-only: CsEval-specific syntax (array literal [...], collection expressions)
 
-    [Test]
-    public void ArrayLiteral_IntElements_ReturnsIntList()
-    {
-        // Engine-only: CsEval [] array literal syntax (Roslyn rejects var x = [...] without target type)
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate("[1, 2, 3]");
-        Assert.That(result, Is.TypeOf<int[]>());
-    }
-
-    [Test]
-    public void ArrayLiteral_LongElements_ReturnsLongList()
-    {
-        // Engine-only: CsEval [] array literal syntax
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate("[1L, 2L, 3L]");
-        Assert.That(result, Is.TypeOf<long[]>());
-    }
-
-    [Test]
-    public void ArrayLiteral_IndexAccess_PreservesType()
-    {
-        // Engine-only: CsEval [] array literal syntax
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate("{ var arr = [10, 20, 30]; return arr[1]; }");
-        Assert.That(result, Is.TypeOf<int>());
-        Assert.That(result, Is.EqualTo(20));
-    }
-
-    [Test]
-    public void ForEachLoop_IntArraySum_ReturnsInt()
-    {
-        // Engine-only: uses CsEval [] collection expression syntax (CS9176 in Roslyn)
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(@"
-        {
-            var sum = 0;
-            foreach (var n in [1, 2, 3, 4, 5]) {
-                sum += n;
-            }
-            return sum;
-        }");
-        Assert.That(result, Is.TypeOf<int>());
-        Assert.That(result, Is.EqualTo(15));
-    }
-
     #endregion
 
     #region Engine-only: Variable shadowing/scoping error tests

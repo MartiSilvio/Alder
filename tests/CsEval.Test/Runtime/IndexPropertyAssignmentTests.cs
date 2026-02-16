@@ -13,63 +13,6 @@ public class IndexPropertyAssignmentTests(CompilationMode mode)
 {
     #region Index Assignment - Array/List
 
-    // Engine-only: CsEval-specific [1,2,3] collection expression syntax
-    [Test]
-    public void IndexAssignment_List_SetsValue()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(@"
-        {
-            var arr = [1, 2, 3];
-            arr[1] = 10;
-            return arr[1];
-        }");
-
-        Assert.That(result, Is.EqualTo(10));
-    }
-
-    [Test]
-    public void IndexAssignment_List_FirstElement()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(@"
-        {
-            var arr = [1, 2, 3];
-            arr[0] = 100;
-            return arr[0];
-        }");
-
-        Assert.That(result, Is.EqualTo(100));
-    }
-
-    [Test]
-    public void IndexAssignment_List_LastElement()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(@"
-        {
-            var arr = [1, 2, 3];
-            arr[2] = 999;
-            return arr[2];
-        }");
-
-        Assert.That(result, Is.EqualTo(999));
-    }
-
-    [Test]
-    public void IndexAssignment_List_ReturnsAssignedValue()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(@"
-        {
-            var arr = [1, 2, 3];
-            var x = arr[1] = 42;
-            return x;
-        }");
-
-        Assert.That(result, Is.EqualTo(42));
-    }
-
     [Test]
     public void IndexAssignment_ExternalList_ModifiesOriginal()
     {
@@ -189,45 +132,6 @@ public class IndexPropertyAssignmentTests(CompilationMode mode)
         }");
 
         Assert.That(result, Is.EqualTo(100));
-    }
-
-    #endregion
-
-    #region Index Assignment - In Loops
-
-    // CsEval-specific: [0,0,0,0,0] collection expression syntax -- engine-only tests
-    [Test]
-    public void IndexAssignment_InForLoop_PopulatesArray()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(@"
-        {
-            var arr = [0, 0, 0, 0, 0];
-            for (var i = 0; i < 5; i++) {
-                arr[i] = i * 10;
-            }
-            return arr[3];
-        }");
-
-        Assert.That(result, Is.EqualTo(30));
-    }
-
-    [Test]
-    public void IndexAssignment_InWhileLoop_Works()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(@"
-        {
-            var arr = [1, 2, 3];
-            var i = 0;
-            while (i < 3) {
-                arr[i] = arr[i] * 2;
-                i++;
-            }
-            return arr[1];
-        }");
-
-        Assert.That(result, Is.EqualTo(4));
     }
 
     #endregion

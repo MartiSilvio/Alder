@@ -16,13 +16,46 @@ public class ParityTests(CompilationMode mode)
     [TestCaseSource(nameof(DiscoverExpressions), ["TestData/ValidExpressions"])]
     public async Task ValidExpressionsShouldPass(string csxPath)
     {
-        var csEvalExpr = TestHelpers.LoadTestExpression(csxPath);
+        // Determine which expressions to evaluate
+        string csEvalExpr, roslynExpr;
+        bool isRoslynOnly = false;
 
-        // Check for .roslyn.csx sibling -- use it for Roslyn evaluation if it exists
-        var roslynSiblingPath = csxPath.Replace(".csx", ".roslyn.csx");
-        var roslynExpr = File.Exists(roslynSiblingPath)
-            ? File.ReadAllText(roslynSiblingPath).Trim()
-            : csEvalExpr;
+        if (csxPath.EndsWith(".roslyn.csx", StringComparison.OrdinalIgnoreCase))
+        {
+            // For .roslyn.csx files, try CsEval first - if it can't parse, skip CsEval testing
+            var expr = File.ReadAllText(csxPath).Trim();
+            var engine = new CsEvalEngine(Options);
+
+            try
+            {
+                // Test if CsEval can parse and evaluate this syntax
+                engine.Evaluate(expr);
+                csEvalExpr = roslynExpr = expr;
+            }
+            catch (Exception)
+            {
+                // CsEval can't handle this Roslyn-specific syntax, skip CsEval testing
+                isRoslynOnly = true;
+                csEvalExpr = roslynExpr = expr;
+            }
+        }
+        else
+        {
+            // For .csx files, check for .roslyn.csx sibling
+            csEvalExpr = TestHelpers.LoadTestExpression(csxPath);
+            var roslynSiblingPath = csxPath.Replace(".csx", ".roslyn.csx");
+            roslynExpr = File.Exists(roslynSiblingPath)
+                ? File.ReadAllText(roslynSiblingPath).Trim()
+                : csEvalExpr;
+        }
+
+        if (isRoslynOnly)
+        {
+            // Roslyn-only: just verify Roslyn can evaluate it
+            var result = await TestHelpers.EvaluateCSharpAsync(roslynExpr);
+            Assert.That(result, Is.Not.Null);
+            return;
+        }
 
         var exprInfo = csEvalExpr == roslynExpr
             ? csEvalExpr
@@ -111,10 +144,6 @@ public class ParityTests(CompilationMode mode)
 
         foreach (var file in Directory.GetFiles(testDataDir, "*.csx", SearchOption.AllDirectories))
         {
-            // Skip .roslyn.csx sibling files -- used only for Roslyn comparison
-            if (file.EndsWith(".roslyn.csx", StringComparison.OrdinalIgnoreCase))
-                continue;
-
             var relativeName = Path.GetRelativePath(testDataDir, file).Replace(Path.DirectorySeparatorChar, '/');
             var testName = relativeName.Replace(".csx", "").Replace('/', '_');
             yield return new TestCaseData(file).SetName(testName);

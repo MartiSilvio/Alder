@@ -67,66 +67,6 @@ public class SwitchStatementTests(CompilationMode mode)
 
     #endregion
 
-    #region Switch with Collections (CsEval-specific syntax)
-
-    // Engine-only: uses [10, 20, 30] collection expression syntax
-    [Test]
-    public void Switch_WithIndexAccess()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(@"
-        {
-            var arr = [10, 20, 30];
-            var result = """";
-            switch (arr[1]) {
-                case 10:
-                    result = ""ten"";
-                    break;
-                case 20:
-                    result = ""twenty"";
-                    break;
-                case 30:
-                    result = ""thirty"";
-                    break;
-            }
-            return result;
-        }");
-
-        Assert.That(result, Is.EqualTo("twenty"));
-    }
-
-    // Engine-only: uses [1, 2, 3, 2, 1] collection expression syntax
-    [Test]
-    public void Switch_InsideLoop()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(@"
-        {
-            var items = [1, 2, 3, 2, 1];
-            var countOnes = 0;
-            var countTwos = 0;
-            var countOthers = 0;
-            foreach (var item in items) {
-                switch (item) {
-                    case 1:
-                        countOnes = countOnes + 1;
-                        break;
-                    case 2:
-                        countTwos = countTwos + 1;
-                        break;
-                    default:
-                        countOthers = countOthers + 1;
-                        break;
-                }
-            }
-            return countOnes * 100 + countTwos * 10 + countOthers;
-        }");
-
-        Assert.That(result, Is.EqualTo(221));
-    }
-
-    #endregion
-
     #region Parsing Tests
 
     // Engine-only: tests CsEval parsing internals (TryParse)

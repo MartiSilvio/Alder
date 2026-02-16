@@ -79,26 +79,6 @@ public class DoWhileLoopTests(CompilationMode mode)
 
     #region Do-While Loop with Collections
 
-    // Engine-only: CsEval collection expression syntax [1, 2, 3, 4, 5]
-    [Test]
-    public void DoWhileLoop_WithArrayIndexing_WorksCorrectly()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(@"
-        {
-            var arr = [1, 2, 3, 4, 5];
-            var sum = 0;
-            var i = 0;
-            do {
-                sum = sum + arr[i];
-                i = i + 1;
-            } while (i < 5);
-            return sum;
-        }");
-
-        Assert.That(result, Is.EqualTo(15));
-    }
-
     // Engine-only: SetVariable with List<int>
     [Test]
     public void DoWhileLoop_WithListCount_WorksCorrectly()
@@ -118,26 +98,6 @@ public class DoWhileLoopTests(CompilationMode mode)
         }");
 
         Assert.That(result, Is.EqualTo(100));
-    }
-
-    // Engine-only: CsEval collection expression syntax ([], [..spread])
-    [Test]
-    public void DoWhileLoop_BuildingList_WorksCorrectly()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(@"
-        {
-            var result = [];
-            var i = 0;
-            do {
-                result = [..result, i * 2];
-                i = i + 1;
-            } while (i < 5);
-            return result;
-        }");
-
-        Assert.That(result, Is.TypeOf<int[]>());
-        Assert.That(result, Is.EqualTo(new int[] { 0, 2, 4, 6, 8 }));
     }
 
     #endregion

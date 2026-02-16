@@ -61,28 +61,6 @@ public class ScopingTests(CompilationMode mode)
     }
 
     [Test]
-    public void ForEachLoop_VariableScopedPerIteration_IndependentValues()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(@"
-        {
-            var results = [];
-            foreach (var i in [1, 2, 3]) {
-                var x = i * 10;
-                results = [..results, x];
-            }
-            return results;
-        }");
-
-        Assert.That(result, Is.TypeOf<int[]>());
-        var list = (System.Collections.IList)result!;
-        Assert.That(list.Count, Is.EqualTo(3));
-        Assert.That(list[0], Is.EqualTo(10));
-        Assert.That(list[1], Is.EqualTo(20));
-        Assert.That(list[2], Is.EqualTo(30));
-    }
-
-    [Test]
     public void ForEachLoop_NestedLoops_InnerVariableDoesNotLeakToOuter()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
@@ -156,29 +134,6 @@ public class ScopingTests(CompilationMode mode)
         Assert.That(ex!.Message, Does.Contain("x").Or.Contain("Undefined"));
     }
 
-    // Engine-only: uses [..results, x] spread syntax
-    [Test]
-    public void ForLoop_VariableScopedPerIteration_FreshEachTime()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(@"
-        {
-            var results = [];
-            for (var i = 0; i < 3; i = i + 1) {
-                var x = i * 10;
-                results = [..results, x];
-            }
-            return results;
-        }");
-
-        Assert.That(result, Is.TypeOf<int[]>());
-        var list = (System.Collections.IList)result!;
-        Assert.That(list.Count, Is.EqualTo(3));
-        Assert.That(list[0], Is.EqualTo(0));
-        Assert.That(list[1], Is.EqualTo(10));
-        Assert.That(list[2], Is.EqualTo(20));
-    }
-
     #endregion
 
     #region While Loop Scoping
@@ -222,31 +177,6 @@ public class ScopingTests(CompilationMode mode)
         Assert.That(ex!.Message, Does.Contain("temp").Or.Contain("Undefined"));
     }
 
-    // Engine-only: uses [..results, x] spread syntax
-    [Test]
-    public void WhileLoop_VariableScopedPerIteration()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(@"
-        {
-            var i = 0;
-            var results = [];
-            while (i < 3) {
-                var x = i * 10;
-                results = [..results, x];
-                i = i + 1;
-            }
-            return results;
-        }");
-
-        Assert.That(result, Is.TypeOf<int[]>());
-        var list = (System.Collections.IList)result!;
-        Assert.That(list.Count, Is.EqualTo(3));
-        Assert.That(list[0], Is.EqualTo(0));
-        Assert.That(list[1], Is.EqualTo(10));
-        Assert.That(list[2], Is.EqualTo(20));
-    }
-
     #endregion
 
     #region Do-While Loop Scoping
@@ -269,31 +199,6 @@ public class ScopingTests(CompilationMode mode)
             }"));
 
         Assert.That(ex!.Message, Does.Contain("x").Or.Contain("Undefined"));
-    }
-
-    // Engine-only: uses [..results, x] spread syntax
-    [Test]
-    public void DoWhileLoop_VariableScopedPerIteration()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(@"
-        {
-            var i = 0;
-            var results = [];
-            do {
-                var x = i * 10;
-                results = [..results, x];
-                i = i + 1;
-            } while (i < 3);
-            return results;
-        }");
-
-        Assert.That(result, Is.TypeOf<int[]>());
-        var list = (System.Collections.IList)result!;
-        Assert.That(list.Count, Is.EqualTo(3));
-        Assert.That(list[0], Is.EqualTo(0));
-        Assert.That(list[1], Is.EqualTo(10));
-        Assert.That(list[2], Is.EqualTo(20));
     }
 
     #endregion

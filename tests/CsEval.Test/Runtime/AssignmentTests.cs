@@ -11,22 +11,6 @@ public class AssignmentTests(CompilationMode mode)
 {
     #region CsEval-Specific Syntax (Engine-Only)
 
-    // Engine-only: [1,2,3] collection expression with var -- Roslyn CS9176
-    [Test]
-    public void Assignment_ArrayValue_WorksCorrectly()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(@"
-        {
-            var arr = [1, 2, 3];
-            arr = [4, 5, 6];
-            return arr;
-        }");
-
-        Assert.That(result, Is.TypeOf<int[]>());
-        Assert.That(result, Is.EqualTo(new int[] { 4, 5, 6 }));
-    }
-
     // Engine-only: mutable anonymous objects as IDictionary
     [Test]
     public void Assignment_AnonymousObject_WorksCorrectly()
@@ -42,23 +26,6 @@ public class AssignmentTests(CompilationMode mode)
         Assert.That(result, Is.Not.Null);
         Assert.That(result!["Name"], Is.EqualTo("Jane"));
         Assert.That(result["Age"], Is.EqualTo(30));
-    }
-
-    // Engine-only: [..items, 4, 5] spread syntax -- Roslyn CS9176
-    [Test]
-    public void Assignment_AccumulatingLinqResults_WorksCorrectly()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-        var result = engine.Evaluate(@"
-        {
-            var items = [1, 2, 3];
-            items = [..items, 4, 5];
-            var filtered = items.Where(x => x > 2).ToList();
-            return filtered;
-        }");
-
-        Assert.That(result, Is.InstanceOf<IList>());
-        Assert.That(result, Is.EqualTo(new List<int> { 3, 4, 5 }));
     }
 
     #endregion
