@@ -1,0 +1,1 @@
+int.TryParse("42", out _)

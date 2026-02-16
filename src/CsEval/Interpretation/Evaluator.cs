@@ -351,16 +351,43 @@ public sealed class Evaluator : IExprVisitor<object?>
             return Evaluate(arg);
         }).ToArray();
 
+        // Detect if any arguments are out parameter markers
+        var hasOutArgs = args.Any(a => a is OutArgMarker);
+
+        object? result;
+
         if (expr.Callee is MemberAccessExpr memberAccess)
         {
             var target = Evaluate(memberAccess.Object);
-            return Runtime.MethodInvoker.InvokeMemberCall(
+            result = Runtime.MethodInvoker.InvokeMemberCall(
                 target, memberAccess.Name.Lexeme, args, memberAccess.NullSafe,
                 _context, _options, _cancellationToken, _argumentTransformer, expr.TypeArguments);
         }
+        else
+        {
+            var callee = Evaluate(expr.Callee);
+            result = Runtime.MethodInvoker.InvokeCall(callee, args, _context, _options, _cancellationToken, _argumentTransformer, expr.TypeArguments);
+        }
 
-        var callee = Evaluate(expr.Callee);
-        return Runtime.MethodInvoker.InvokeCall(callee, args, _context, _options, _cancellationToken, _argumentTransformer, expr.TypeArguments);
+        // After method invocation, MethodInvoker.CopyBackOutArgs has replaced OutArgMarker
+        // entries in the args array with the actual values produced by the method.
+        // Define out variables in the current scope.
+        if (hasOutArgs)
+        {
+            for (var i = 0; i < args.Length; i++)
+            {
+                if (expr.Arguments[i] is OutArgExpr outArg && !outArg.IsDiscard)
+                {
+                    var outValue = args[i];
+                    var varType = outValue?.GetType() ?? typeof(object);
+                    if (outArg.TypeName != null)
+                        varType = _context.TypeResolver.ResolveType(outArg.TypeName);
+                    _context.DefineNew(outArg.VariableName, outValue, varType);
+                }
+            }
+        }
+
+        return result;
     }
 
     public object? VisitLambda(LambdaExpr expr)

@@ -124,6 +124,7 @@ public static class MethodInvoker
                     try
                     {
                         var result = concreteMethod.Invoke(target, convertedArgs);
+                        CopyBackOutArgs(args, convertedArgs, parameters);
                         return (true, TypeHelpers.GuardReflectionLeak(result, $"method {methodName}"));
                     }
                     catch (TargetInvocationException ex) when (ex.InnerException != null)
@@ -296,6 +297,7 @@ public static class MethodInvoker
                 convertedArgs = argumentTransformer(method, convertedArgs);
 
             var result = method.Invoke(target, convertedArgs);
+            CopyBackOutArgs(args, convertedArgs, parameters);
             return (true, TypeHelpers.GuardReflectionLeak(result, $"method {method.Name}"));
         }
 
@@ -316,7 +318,7 @@ public static class MethodInvoker
         var firstArgType = firstArg.GetType();
 
         // Try proper generic type inference from the first parameter's type structure
-        // e.g., IEnumerable<TSource> + List<int> → TSource = int
+        // e.g., IEnumerable<TSource> + List<int> -> TSource = int
         var parameters = genericMethod.GetParameters();
         if (parameters.Length > 0)
         {
@@ -414,6 +416,16 @@ public static class MethodInvoker
                 continue;
 
             var arg = positionalArgs[positionalIndex++];
+
+            // OutArgMarker matches ByRef parameters (out/ref)
+            if (arg is OutArgMarker && parameters[i].ParameterType.IsByRef)
+            {
+                var elementType = parameters[i].ParameterType.GetElementType()!;
+                convertedArgs[i] = elementType.IsValueType ? Activator.CreateInstance(elementType) : null;
+                filledParams[i] = true;
+                continue;
+            }
+
             if (!TryConvertArg(arg, parameters[i].ParameterType, out var converted))
                 return false;
 
@@ -421,8 +433,12 @@ public static class MethodInvoker
             filledParams[i] = true;
         }
 
+        // ECMA-334 §12.6.4.2: If too many positional args remain, try params expanded form.
         if (positionalIndex < positionalArgs.Count)
-            return false;
+        {
+            if (!TryPackParamsExpanded(parameters, positionalArgs, positionalIndex, convertedArgs, filledParams))
+                return false;
+        }
 
         foreach (var (name, value) in namedArgs)
         {
@@ -452,11 +468,61 @@ public static class MethodInvoker
                 continue;
 
             if (parameters[i].HasDefaultValue)
+            {
                 convertedArgs[i] = parameters[i].DefaultValue;
+            }
+            else if (parameters[i].IsDefined(typeof(ParamArrayAttribute), false))
+            {
+                // ECMA-334 §12.6.4.2: Unfilled params parameter gets an empty typed array
+                var elementType = parameters[i].ParameterType.GetElementType()!;
+                convertedArgs[i] = Array.CreateInstance(elementType, 0);
+                filledParams[i] = true;
+            }
             else
+            {
                 return false;
+            }
         }
 
+        return true;
+    }
+
+    /// <summary>
+    /// Attempts to pack surplus positional arguments into a params array for the last parameter.
+    /// ECMA-334 §12.6.4.2: expanded form of methods with params parameters.
+    /// </summary>
+    private static bool TryPackParamsExpanded(
+        ParameterInfo[] parameters,
+        List<object?> positionalArgs,
+        int positionalIndex,
+        object?[] convertedArgs,
+        bool[] filledParams)
+    {
+        if (parameters.Length == 0)
+            return false;
+
+        var lastParam = parameters[^1];
+        if (!lastParam.IsDefined(typeof(ParamArrayAttribute), false))
+            return false;
+
+        var elementType = lastParam.ParameterType.GetElementType()!;
+        var lastParamIndex = parameters.Length - 1;
+
+        var paramsArgCount = positionalArgs.Count - lastParamIndex;
+        if (paramsArgCount < 0)
+            return false;
+
+        var paramsArray = Array.CreateInstance(elementType, paramsArgCount);
+        for (var i = 0; i < paramsArgCount; i++)
+        {
+            var arg = positionalArgs[lastParamIndex + i];
+            if (!TryConvertArg(arg, elementType, out var converted))
+                return false;
+            paramsArray.SetValue(converted, i);
+        }
+
+        convertedArgs[lastParamIndex] = paramsArray;
+        filledParams[lastParamIndex] = true;
         return true;
     }
 
@@ -510,12 +576,24 @@ public static class MethodInvoker
 
     /// <summary>
     /// Scores how well arguments match a method's parameters per ECMA-334 §12.6.4.
-    /// Handles named arguments and optional parameters.
+    /// Tries normal form first, then expanded params form per §12.6.4.2.
     /// Higher score = better match. -1 = no match.
     /// </summary>
     private static int ScoreMethodMatch(ParameterInfo[] parameters, object?[] args)
     {
-        // Separate positional and named arguments
+        var normalScore = ScoreMethodMatchNormalForm(parameters, args);
+        if (normalScore >= 0)
+            return normalScore;
+
+        // ECMA-334 §12.6.4.2: If normal form fails, try expanded form for params methods.
+        return ScoreMethodMatchExpandedForm(parameters, args);
+    }
+
+    /// <summary>
+    /// Scores normal form: each arg maps 1:1 to a parameter. No params expansion.
+    /// </summary>
+    private static int ScoreMethodMatchNormalForm(ParameterInfo[] parameters, object?[] args)
+    {
         var positionalArgs = new List<object?>();
         var namedArgs = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
 
@@ -527,7 +605,6 @@ public static class MethodInvoker
                 positionalArgs.Add(arg);
         }
 
-        // Check if we have too many positional arguments
         var maxPositional = parameters.Length - namedArgs.Count;
         if (positionalArgs.Count > maxPositional)
             return -1;
@@ -536,7 +613,6 @@ public static class MethodInvoker
         var filledParams = new bool[parameters.Length];
         var positionalIndex = 0;
 
-        // Match positional arguments
         for (var i = 0; i < parameters.Length && positionalIndex < positionalArgs.Count; i++)
         {
             if (namedArgs.ContainsKey(parameters[i].Name!))
@@ -551,11 +627,9 @@ public static class MethodInvoker
             filledParams[i] = true;
         }
 
-        // Check all positional args were consumed
         if (positionalIndex < positionalArgs.Count)
             return -1;
 
-        // Match named arguments
         foreach (var (name, value) in namedArgs)
         {
             var paramIndex = -1;
@@ -569,10 +643,10 @@ public static class MethodInvoker
             }
 
             if (paramIndex == -1)
-                return -1; // Named argument doesn't match any parameter
+                return -1;
 
             if (filledParams[paramIndex])
-                return -1; // Parameter already filled by positional
+                return -1;
 
             var paramScore = ScoreArgument(value, parameters[paramIndex].ParameterType);
             if (paramScore < 0)
@@ -582,7 +656,6 @@ public static class MethodInvoker
             filledParams[paramIndex] = true;
         }
 
-        // Check unfilled parameters have defaults
         for (var i = 0; i < parameters.Length; i++)
         {
             if (!filledParams[i] && !parameters[i].HasDefaultValue)
@@ -590,6 +663,103 @@ public static class MethodInvoker
         }
 
         return score;
+    }
+
+    /// <summary>
+    /// Scores expanded params form per ECMA-334 §12.6.4.2:
+    /// surplus positional args are packed into the params array.
+    /// Returns a lower score than normal form to ensure normal form is preferred.
+    /// </summary>
+    private static int ScoreMethodMatchExpandedForm(ParameterInfo[] parameters, object?[] args)
+    {
+        if (parameters.Length == 0)
+            return -1;
+
+        var lastParam = parameters[^1];
+        if (!lastParam.IsDefined(typeof(ParamArrayAttribute), false))
+            return -1;
+
+        var elementType = lastParam.ParameterType.GetElementType()!;
+        var lastParamIndex = parameters.Length - 1;
+
+        var positionalArgs = new List<object?>();
+        var namedArgs = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var arg in args)
+        {
+            if (arg is NamedArg named)
+                namedArgs[named.Name] = named.Value;
+            else
+                positionalArgs.Add(arg);
+        }
+
+        var score = 0;
+        var filledParams = new bool[parameters.Length];
+        var positionalIndex = 0;
+
+        // Score non-params parameters normally
+        for (var i = 0; i < lastParamIndex && positionalIndex < positionalArgs.Count; i++)
+        {
+            if (namedArgs.ContainsKey(parameters[i].Name!))
+                continue;
+
+            var arg = positionalArgs[positionalIndex++];
+            var paramScore = ScoreArgument(arg, parameters[i].ParameterType);
+            if (paramScore < 0)
+                return -1;
+
+            score += paramScore;
+            filledParams[i] = true;
+        }
+
+        // Score remaining positional args against the params element type
+        while (positionalIndex < positionalArgs.Count)
+        {
+            var arg = positionalArgs[positionalIndex++];
+            var paramScore = ScoreArgument(arg, elementType);
+            if (paramScore < 0)
+                return -1;
+            score += paramScore;
+        }
+        filledParams[lastParamIndex] = true;
+
+        // Match named arguments (non-params parameters only)
+        foreach (var (name, value) in namedArgs)
+        {
+            var paramIndex = -1;
+            for (var i = 0; i < lastParamIndex; i++)
+            {
+                if (string.Equals(parameters[i].Name, name, StringComparison.OrdinalIgnoreCase))
+                {
+                    paramIndex = i;
+                    break;
+                }
+            }
+
+            if (paramIndex == -1)
+                return -1;
+
+            if (filledParams[paramIndex])
+                return -1;
+
+            var paramScore = ScoreArgument(value, parameters[paramIndex].ParameterType);
+            if (paramScore < 0)
+                return -1;
+
+            score += paramScore;
+            filledParams[paramIndex] = true;
+        }
+
+        // Check unfilled non-params parameters have defaults
+        for (var i = 0; i < lastParamIndex; i++)
+        {
+            if (!filledParams[i] && !parameters[i].HasDefaultValue)
+                return -1;
+        }
+
+        // ECMA-334 §12.6.4.3: Normal form is always preferred over expanded form.
+        const int expandedFormPenalty = 50;
+        return Math.Max(0, score - expandedFormPenalty);
     }
 
     /// <summary>
@@ -603,6 +773,10 @@ public static class MethodInvoker
                 return -1;
             return 1; // Null to nullable is valid but not exact
         }
+
+        // OutArgMarker matches ByRef parameters (out/ref) as exact match
+        if (arg is OutArgMarker && paramType.IsByRef)
+            return 100;
 
         var argType = arg.GetType();
 
@@ -700,8 +874,19 @@ public static class MethodInvoker
         return result;
     }
 
-
-
+    /// <summary>
+    /// After a method with ByRef parameters is invoked, copies the modified values from
+    /// the converted args array back to the original args array for each OutArgMarker position.
+    /// This allows the Evaluator to read the out parameter values from the original args array.
+    /// </summary>
+    private static void CopyBackOutArgs(object?[] originalArgs, object?[] convertedArgs, ParameterInfo[] parameters)
+    {
+        for (var i = 0; i < originalArgs.Length && i < parameters.Length; i++)
+        {
+            if (originalArgs[i] is OutArgMarker && parameters[i].ParameterType.IsByRef)
+                originalArgs[i] = convertedArgs[i];
+        }
+    }
 
     internal static object? InvokeLambda(LambdaValue lambda, object?[] args, CsEvalContext context)
     {

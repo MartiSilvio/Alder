@@ -952,34 +952,34 @@ internal sealed class ExpressionCompilerUnit
             ? LinqExpression.Constant(call.TypeArguments, typeof(IReadOnlyList<string>))
             : LinqExpression.Constant(null, typeof(IReadOnlyList<string>));
 
+        // Check if any arguments are out parameters (need post-call variable definition)
+        var hasOutArgs = call.Arguments.Any(a => a is OutArgExpr);
+
+        LinqExpression callExpr;
+
         // Check if this is a member access call (target.Method(args))
         if (call.Callee is MemberAccessExpr memberAccess)
         {
             var target = Compile(memberAccess.Object);
             var methodName = memberAccess.Name.Lexeme;
 
-            return LinqExpression.Block(
-                new[] { argsVar },
-                LinqExpression.Assign(argsVar, argsInit),
-                LinqExpression.Call(
-                    CompilerContext.InvokeMemberCallMethod,
-                    target,
-                    LinqExpression.Constant(methodName),
-                    argsVar,
-                    LinqExpression.Constant(memberAccess.NullSafe),
-                    _ctx.CurrentContext,
-                    _ctx.OptionsParam,
-                    _ctx.CtParam,
-                    _ctx.ArgumentTransformerParam,
-                    typeArgsExpr));
+            callExpr = LinqExpression.Call(
+                CompilerContext.InvokeMemberCallMethod,
+                target,
+                LinqExpression.Constant(methodName),
+                argsVar,
+                LinqExpression.Constant(memberAccess.NullSafe),
+                _ctx.CurrentContext,
+                _ctx.OptionsParam,
+                _ctx.CtParam,
+                _ctx.ArgumentTransformerParam,
+                typeArgsExpr);
         }
-
-        // General call: evaluate callee and invoke
-        var callee = Compile(call.Callee);
-        return LinqExpression.Block(
-            new[] { argsVar },
-            LinqExpression.Assign(argsVar, argsInit),
-            LinqExpression.Call(
+        else
+        {
+            // General call: evaluate callee and invoke
+            var callee = Compile(call.Callee);
+            callExpr = LinqExpression.Call(
                 CompilerContext.InvokeCallMethod,
                 callee,
                 argsVar,
@@ -987,7 +987,85 @@ internal sealed class ExpressionCompilerUnit
                 _ctx.OptionsParam,
                 _ctx.CtParam,
                 _ctx.ArgumentTransformerParam,
-                typeArgsExpr));
+                typeArgsExpr);
+        }
+
+        if (!hasOutArgs)
+        {
+            // Simple case: no out args, just call and return
+            return LinqExpression.Block(
+                new[] { argsVar },
+                LinqExpression.Assign(argsVar, argsInit),
+                callExpr);
+        }
+
+        // Out args case: call, then define out variables from modified args array
+        var resultVar = LinqExpression.Variable(typeof(object), "callResult");
+        var statements = new List<LinqExpression>
+        {
+            LinqExpression.Assign(argsVar, argsInit),
+            LinqExpression.Assign(resultVar, callExpr)
+        };
+
+        // After the call, MethodInvoker.CopyBackOutArgs has replaced OutArgMarker entries
+        // in argsVar with the actual values. Define variables for non-discard out args.
+        for (var i = 0; i < call.Arguments.Count; i++)
+        {
+            if (call.Arguments[i] is OutArgExpr outArg && !outArg.IsDiscard)
+            {
+                // Read the out value from argsVar[i]
+                var outValue = LinqExpression.ArrayIndex(argsVar, LinqExpression.Constant(i));
+
+                // Resolve type: if explicit type specified, use it; otherwise use runtime type
+                LinqExpression typeExpr;
+                if (outArg.TypeName != null)
+                {
+                    typeExpr = LinqExpression.Call(
+                        _ctx.TypeResolverExpr,
+                        CompilerContext.ResolveTypeMethod,
+                        LinqExpression.Constant(outArg.TypeName));
+                }
+                else
+                {
+                    // typeof(object) — the runtime type will be set by the value itself
+                    // Use a conditional: value?.GetType() ?? typeof(object)
+                    var getTypeMethod = typeof(object).GetMethod(nameof(GetType))!;
+                    typeExpr = LinqExpression.Condition(
+                        LinqExpression.NotEqual(outValue, LinqExpression.Constant(null, typeof(object))),
+                        LinqExpression.Call(outValue, getTypeMethod),
+                        LinqExpression.Constant(typeof(object), typeof(Type)));
+                }
+
+                statements.Add(LinqExpression.Call(
+                    _ctx.CurrentContext,
+                    CompilerContext.DefineNewMethod,
+                    LinqExpression.Constant(outArg.VariableName),
+                    outValue,
+                    typeExpr));
+            }
+        }
+
+        // Return the call result
+        statements.Add(resultVar);
+
+        return LinqExpression.Block(
+            new[] { argsVar, resultVar },
+            statements);
+    }
+
+    /// <summary>
+    /// Compiles an OutArgExpr to create an OutArgMarker at runtime.
+    /// The marker flows through MethodInvoker which recognizes it for ByRef parameter handling.
+    /// </summary>
+    internal LinqExpression CompileOutArg(OutArgExpr outArg)
+    {
+        return LinqExpression.Convert(
+            LinqExpression.New(
+                CompilerContext.OutArgMarkerCtor,
+                LinqExpression.Constant(outArg.VariableName),
+                LinqExpression.Constant(outArg.TypeName, typeof(string)),
+                LinqExpression.Constant(outArg.IsDiscard)),
+            typeof(object));
     }
 
     private LinqExpression CompileArgument(Expr arg)

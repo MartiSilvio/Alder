@@ -133,6 +133,9 @@ internal sealed class CompilerContext
     internal static readonly MethodInfo StringFormatMethod =
         typeof(string).GetMethod(nameof(string.Format), [typeof(string), typeof(object)])!;
 
+    internal static readonly ConstructorInfo OutArgMarkerCtor =
+        typeof(OutArgMarker).GetConstructor([typeof(string), typeof(string), typeof(bool)])!;
+
     #endregion
 
     private CompilerContext(CsEvalContext context, CsEvalOptions options)
@@ -328,10 +331,12 @@ internal sealed class CompilerContext
                 MultiDimTypedArrayCreationExpr mdtac => exprUnit.CompileMultiDimTypedArrayCreation(mdtac),
                 MultiDimIndexAssignExpr mdiassign => exprUnit.CompileMultiDimIndexAssign(mdiassign),
 
+                // Out argument (compiled to OutArgMarker for MethodInvoker)
+                OutArgExpr outArg => exprUnit.CompileOutArg(outArg),
+
                 // Error cases
                 SpreadExpr => throw new CsEvalException("Spread operator can only be used in array or object literals"),
                 NamedArgumentExpr => throw new CsEvalException("Named arguments can only be used in method calls"),
-                OutArgExpr => throw new CsEvalException("Out arguments can only be used in method calls"),
                 _ => throw new NotSupportedException($"Cannot compile {expr.GetType().Name}")
             };
         }
@@ -639,15 +644,13 @@ internal sealed class CompilerContext
                     break;
 
                 case CallExpr call:
-                    // Calls containing out arguments cannot be IL-compiled
-                    // (ByRef parameter passing requires evaluator-level args array manipulation)
-                    if (call.Arguments.Any(a => a is OutArgExpr))
-                        return "Out parameter arguments require evaluator fallback";
                     stack.Push(call.Callee);
                     foreach (var arg in call.Arguments)
                     {
                         if (arg is NamedArgumentExpr namedArg)
                             stack.Push(namedArg.Value);
+                        else if (arg is OutArgExpr)
+                            { } // OutArgExpr is a leaf node, handled at compile time
                         else
                             stack.Push(arg);
                     }
