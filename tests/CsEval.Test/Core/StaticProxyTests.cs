@@ -164,18 +164,17 @@ public class StaticProxyTests(CompilationMode mode)
     [Test]
     public void DateTime_TryParse()
     {
-        var result = (DateTime?)_engine.Evaluate("DateTime.TryParse(\"2024-06-15\")");
-        Assert.That(result, Is.Not.Null);
-        Assert.That(result!.Value.Year, Is.EqualTo(2024));
-        Assert.That(result.Value.Month, Is.EqualTo(6));
-        Assert.That(result.Value.Day, Is.EqualTo(15));
+        var result = (DateTime)_engine.Evaluate("{ DateTime.TryParse(\"2024-06-15\", out var dt); return dt; }")!;
+        Assert.That(result.Year, Is.EqualTo(2024));
+        Assert.That(result.Month, Is.EqualTo(6));
+        Assert.That(result.Day, Is.EqualTo(15));
     }
 
     [Test]
     public void DateTime_TryParse_Invalid()
     {
-        var result = _engine.Evaluate("DateTime.TryParse(\"not-a-date\")");
-        Assert.That(result, Is.Null);
+        var success = (bool)_engine.Evaluate("DateTime.TryParse(\"not-a-date\", out var dt)")!;
+        Assert.That(success, Is.False);
     }
 
     #endregion
@@ -215,16 +214,15 @@ public class StaticProxyTests(CompilationMode mode)
         var guidString = "550e8400-e29b-41d4-a716-446655440000";
         _engine.SetVariable("guidStr", guidString);
 
-        var result = (Guid?)_engine.Evaluate("Guid.TryParse(guidStr)");
-        Assert.That(result, Is.Not.Null);
+        var result = (Guid)_engine.Evaluate("{ Guid.TryParse(guidStr, out var g); return g; }")!;
         Assert.That(result, Is.EqualTo(Guid.Parse(guidString)));
     }
 
     [Test]
     public void Guid_TryParse_Invalid()
     {
-        var result = _engine.Evaluate("Guid.TryParse(\"not-a-guid\")");
-        Assert.That(result, Is.Null);
+        var success = (bool)_engine.Evaluate("Guid.TryParse(\"not-a-guid\", out var g)")!;
+        Assert.That(success, Is.False);
     }
 
     #endregion
@@ -362,7 +360,7 @@ public class StaticProxyTests(CompilationMode mode)
     [Test]
     public void Enumerable_Empty()
     {
-        var result = _engine.Evaluate("Enumerable.Empty().ToList()") as IList;
+        var result = _engine.Evaluate("Enumerable.Empty<object>().ToList()") as IList;
         Assert.That(result, Is.Not.Null);
         Assert.That(result, Is.Empty);
     }
