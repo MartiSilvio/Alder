@@ -283,6 +283,12 @@ public sealed class Evaluator : IExprVisitor<object?>
         if (_context.TypeResolver.IsNamespaceOrPrefix(name))
             return new NamespaceRef(name);
 
+        // Try resolving as a type name for static member access
+        // Enables: Array.Empty<int>(), Math.Max(1, 2), Enumerable.Range(0, 10)
+        var resolvedType = _context.TypeResolver.TryResolveType(name);
+        if (resolvedType != null)
+            return resolvedType;
+
         // Fall through to context.Get which throws CS0103 with proper error message
         return _context.Get(name);
     }

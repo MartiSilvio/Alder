@@ -220,41 +220,30 @@ public sealed class PrimaryParser : ParserBase
             typeName += ">";
         }
 
+        // Handle nullable type suffix: new int?[] or new int?(42)
+        // After 'new Type', ? is always nullable suffix (ternary makes no sense after 'new')
+        if (Check(TokenType.Question))
+        {
+            Advance(); // consume ?
+            typeName += "?";
+        }
+
+        // Handle nullable array creation: new int?[] or new int?[size]
+        // The lexer tokenizes ?[ as a single QuestionLeftBracket token,
+        // so we handle it here by adding ? to typeName and jumping into
+        // the array creation logic (the [ has already been consumed).
+        if (Match(TokenType.QuestionLeftBracket))
+        {
+            typeName += "?";
+            return ParseArrayCreationBody(typeName);
+        }
+
         // Check for array creation syntax: new TypeName[size] or new TypeName[] { ... }
         // ECMA-334 §12.8.16.4 - must check before constructor path
         if (Check(TokenType.LeftBracket))
         {
             Advance(); // consume '['
-
-            // Check for array initializer: new int[] { ... }
-            if (Check(TokenType.RightBracket))
-            {
-                Advance(); // consume ']'
-
-                // Array initializer must follow: new int[] { ... }
-                if (Check(TokenType.LeftBrace))
-                {
-                    Advance(); // consume '{'
-                    var arrayLiteral = (ArrayLiteralExpr)ParseArrayLiteralBody();
-                    return new TypedArrayLiteralExpr(typeName, arrayLiteral);
-                }
-
-                throw new CsEvalParserException($"Expected '{{' after 'new {typeName}[]' at {Peek().Line}:{Peek().Column}");
-            }
-
-            // Array with size: new int[10] or multi-dim: new int[3, 3]
-            var firstSize = _expression.ParseExpression();
-            if (Check(TokenType.Comma))
-            {
-                // Multi-dimensional: new int[3, 3]
-                var sizes = new List<Expr> { firstSize };
-                while (Match(TokenType.Comma))
-                    sizes.Add(_expression.ParseExpression());
-                Consume(TokenType.RightBracket, "Expected ']' after array sizes");
-                return new MultiDimTypedArrayCreationExpr(typeName, sizes);
-            }
-            Consume(TokenType.RightBracket, "Expected ']' after array size");
-            return new TypedArrayCreationExpr(typeName, firstSize);
+            return ParseArrayCreationBody(typeName);
         }
 
         // Parse optional argument list - parentheses may be omitted with initializer: new X { Prop = val }
@@ -280,6 +269,44 @@ public sealed class PrimaryParser : ParserBase
         }
 
         return new ObjectCreationExpr(typeName, arguments, initializer);
+    }
+
+    /// <summary>
+    /// Parses the body of an array creation expression after '[' has been consumed.
+    /// Handles: new int[] { ... }, new int[10], new int[3, 3]
+    /// Called from ParseObjectCreation for both regular (LeftBracket) and nullable (QuestionLeftBracket) paths.
+    /// </summary>
+    private Expr ParseArrayCreationBody(string typeName)
+    {
+        // Check for array initializer: new int[] { ... }
+        if (Check(TokenType.RightBracket))
+        {
+            Advance(); // consume ']'
+
+            // Array initializer must follow: new int[] { ... }
+            if (Check(TokenType.LeftBrace))
+            {
+                Advance(); // consume '{'
+                var arrayLiteral = (ArrayLiteralExpr)ParseArrayLiteralBody();
+                return new TypedArrayLiteralExpr(typeName, arrayLiteral);
+            }
+
+            throw new CsEvalParserException($"Expected '{{' after 'new {typeName}[]' at {Peek().Line}:{Peek().Column}");
+        }
+
+        // Array with size: new int[10] or multi-dim: new int[3, 3]
+        var firstSize = _expression.ParseExpression();
+        if (Check(TokenType.Comma))
+        {
+            // Multi-dimensional: new int[3, 3]
+            var sizes = new List<Expr> { firstSize };
+            while (Match(TokenType.Comma))
+                sizes.Add(_expression.ParseExpression());
+            Consume(TokenType.RightBracket, "Expected ']' after array sizes");
+            return new MultiDimTypedArrayCreationExpr(typeName, sizes);
+        }
+        Consume(TokenType.RightBracket, "Expected ']' after array size");
+        return new TypedArrayCreationExpr(typeName, firstSize);
     }
 
     /// <summary>

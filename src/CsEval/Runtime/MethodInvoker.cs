@@ -255,10 +255,20 @@ public static class MethodInvoker
                 return invokeResult.Value;
         }
 
-        // Try generic methods
+        // Try generic methods with explicit type arguments first, then inference
         foreach (var method in methods.Where(m => m.ContainsGenericParameters))
         {
-            var concreteMethod = TryMakeConcreteMethod(method, args);
+            MethodInfo? concreteMethod = null;
+
+            // Try explicit type arguments first (e.g., Array.Empty<int>())
+            if (typeArgs is { Count: > 0 })
+            {
+                concreteMethod = TryMakeConcreteMethodWithTypeArgs(method, typeArgs, context.TypeResolver);
+            }
+
+            // Fall back to inference from arguments
+            concreteMethod ??= TryMakeConcreteMethod(method, args);
+
             if (concreteMethod != null)
             {
                 var result = InvokeMethodWithArgs(concreteMethod, null, args, ct, null);
