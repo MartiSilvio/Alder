@@ -331,6 +331,7 @@ internal sealed class CompilerContext
                 // Error cases
                 SpreadExpr => throw new CsEvalException("Spread operator can only be used in array or object literals"),
                 NamedArgumentExpr => throw new CsEvalException("Named arguments can only be used in method calls"),
+                OutArgExpr => throw new CsEvalException("Out arguments can only be used in method calls"),
                 _ => throw new NotSupportedException($"Cannot compile {expr.GetType().Name}")
             };
         }
@@ -638,6 +639,10 @@ internal sealed class CompilerContext
                     break;
 
                 case CallExpr call:
+                    // Calls containing out arguments cannot be IL-compiled
+                    // (ByRef parameter passing requires evaluator-level args array manipulation)
+                    if (call.Arguments.Any(a => a is OutArgExpr))
+                        return "Out parameter arguments require evaluator fallback";
                     stack.Push(call.Callee);
                     foreach (var arg in call.Arguments)
                     {
@@ -687,6 +692,10 @@ internal sealed class CompilerContext
 
                 case NamedArgumentExpr namedArg:
                     stack.Push(namedArg.Value);
+                    break;
+
+                case OutArgExpr:
+                    // OutArgExpr as standalone is invalid; inside CallExpr it's handled above
                     break;
 
                 default:

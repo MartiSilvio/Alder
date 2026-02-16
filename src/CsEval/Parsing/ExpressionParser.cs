@@ -887,6 +887,13 @@ public sealed class ExpressionParser : ParserBase
 
     private Expr ParseArgument()
     {
+        // Check for out argument: out var x, out int x, out _
+        // ECMA-334 §12.6.2 - Output parameters
+        if (Match(TokenType.Out))
+        {
+            return ParseOutArgument();
+        }
+
         // Check for named argument: identifier (or contextual keyword) followed by colon
         if (IsParameterName(Peek().Type) && PeekNext().Type == TokenType.Colon)
         {
@@ -897,6 +904,48 @@ public sealed class ExpressionParser : ParserBase
         }
 
         return ParseExpression();
+    }
+
+    /// <summary>
+    /// Parses an out argument after the 'out' keyword has been consumed.
+    /// Handles: out _, out var x, out int x, out SomeType x
+    /// </summary>
+    private Expr ParseOutArgument()
+    {
+        // out _ (discard)
+        if (Check(TokenType.Identifier) && Peek().Lexeme == "_")
+        {
+            Advance(); // consume _
+            return new OutArgExpr("_", null, true);
+        }
+
+        // out var x
+        if (Match(TokenType.Var))
+        {
+            var varName = ConsumeIdentifierOrContextualKeyword("Expected variable name after 'out var'");
+            return new OutArgExpr(varName.Lexeme, null, false);
+        }
+
+        // out <type> x -- type keyword (int, string, double, etc.) or identifier type
+        string? typeName = TryParseTypeName();
+        if (typeName != null && Check(TokenType.Identifier))
+        {
+            var varName = Advance();
+            return new OutArgExpr(varName.Lexeme, typeName, false);
+        }
+
+        // Fallback: out <existing_variable> -- variable already declared
+        // If TryParseTypeName consumed something but there's no identifier after, it's an existing var.
+        // We need to handle this case. But TryParseTypeName backtracks on failure.
+        // If typeName is not null, it means it parsed what looked like a type -- but
+        // there's no identifier following. This could be `out existingVar`.
+        // Since we already consumed the type name, treat it as a variable name.
+        if (typeName != null)
+        {
+            return new OutArgExpr(typeName, null, false);
+        }
+
+        throw new CsEvalParserException($"Expected variable declaration or discard after 'out' at {Peek().Line}:{Peek().Column}");
     }
 
     /// <summary>

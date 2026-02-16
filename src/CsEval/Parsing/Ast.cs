@@ -48,6 +48,7 @@ public interface IExprVisitor<out T>
     // Functions & Lambdas
     T VisitCall(CallExpr expr);
     T VisitNamedArgument(NamedArgumentExpr expr);
+    T VisitOutArg(OutArgExpr expr);
     T VisitLambda(LambdaExpr expr);
 
     // Collection Literals and Spread
@@ -309,6 +310,13 @@ public sealed record CallExpr(Expr Callee, List<Expr> Arguments, List<string>? T
 public sealed record NamedArgumentExpr(Token Name, Expr Value) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitNamedArgument(this);
+}
+
+// Out argument: out var x, out int x, out _ (used in method calls)
+// ECMA-334 §12.6.2 - Argument lists, output parameters
+public sealed record OutArgExpr(string VariableName, string? TypeName, bool IsDiscard) : Expr
+{
+    public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitOutArg(this);
 }
 
 // Lambda parameter: optional type annotation with name

@@ -279,6 +279,12 @@ public abstract class AstWalker<T> : IExprVisitor<T>
         return OnLeave(expr);
     }
 
+    public virtual T VisitOutArg(OutArgExpr expr)
+    {
+        OnEnter(expr);
+        return OnLeave(expr);
+    }
+
     public virtual T VisitLambda(LambdaExpr expr)
     {
         OnEnter(expr);

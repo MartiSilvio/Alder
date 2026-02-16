@@ -336,6 +336,12 @@ public sealed class Evaluator : IExprVisitor<object?>
         throw new CsEvalException("Named arguments can only be used in method calls");
     }
 
+    public object? VisitOutArg(OutArgExpr expr)
+    {
+        // Returns a marker that VisitCall detects and uses for ByRef parameter handling
+        return new OutArgMarker(expr.VariableName, expr.TypeName, expr.IsDiscard);
+    }
+
     public object? VisitCall(CallExpr expr)
     {
         var args = expr.Arguments.Select(arg =>
@@ -1740,3 +1746,11 @@ internal sealed record NamespaceRef(string Path);
 /// through the method invocation stack.
 /// </summary>
 internal sealed record NamedArg(string Name, object? Value);
+
+/// <summary>
+/// Marker for out parameter arguments. Flows through the method invocation stack
+/// so MethodInvoker can detect ByRef parameters and set up the args array correctly.
+/// After method invocation, the evaluator reads modified values from the args array
+/// and defines variables in the current scope.
+/// </summary>
+internal sealed record OutArgMarker(string VariableName, string? TypeName, bool IsDiscard);
