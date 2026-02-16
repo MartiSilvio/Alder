@@ -1,0 +1,1 @@
+System.String.Concat("a", "b", "c")
