@@ -403,8 +403,7 @@ internal sealed class ControlFlowCompilerUnit
                         continue;
 
                     // Non-empty case: validate it ends with break/return/continue (C# CS0163)
-                    var lastStmt = c.Statements.Last();
-                    if (lastStmt is not BreakExpr && lastStmt is not ReturnExpr && lastStmt is not ContinueExpr)
+                    if (!TerminatesControlFlow(c.Statements.Last()))
                         throw new CsEvalException(DiagnosticDescriptors.CaseFallThrough);
 
                     foreach (var stmt in c.Statements)
@@ -422,6 +421,20 @@ internal sealed class ControlFlowCompilerUnit
             return LinqExpression.Block(new[] { switchVar, parentContextVar }, statements);
         });
     }
+
+    /// <summary>
+    /// Checks whether an expression unconditionally terminates control flow,
+    /// unwrapping block expressions to inspect their last statement.
+    /// </summary>
+    private static bool TerminatesControlFlow(Expr expr) => expr switch
+    {
+        BreakExpr => true,
+        ReturnExpr => true,
+        ContinueExpr => true,
+        ThrowExpr => true,
+        BlockExpr b when b.Statements.Count > 0 => TerminatesControlFlow(b.Statements.Last()),
+        _ => false
+    };
 
     internal LinqExpression CompileBreak()
     {
