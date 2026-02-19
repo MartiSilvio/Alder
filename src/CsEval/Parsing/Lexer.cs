@@ -196,7 +196,19 @@ public sealed class Lexer
             case ';': AddToken(TokenType.Semicolon); break;
             case '+': AddToken(Match('+') ? TokenType.PlusPlus : Match('=') ? TokenType.PlusEqual : TokenType.Plus); break;
             case '-': AddToken(Match('-') ? TokenType.MinusMinus : Match('=') ? TokenType.MinusEqual : TokenType.Minus); break;
-            case '*': AddToken(Match('=') ? TokenType.StarEqual : TokenType.Star); break;
+            case '*':
+                if (Match('*'))
+                {
+                    if (Match('='))
+                        AddToken(TokenType.StarStarEqual);
+                    else
+                        AddToken(TokenType.StarStar);
+                }
+                else if (Match('='))
+                    AddToken(TokenType.StarEqual);
+                else
+                    AddToken(TokenType.Star);
+                break;
             case '%': AddToken(Match('=') ? TokenType.PercentEqual : TokenType.Percent); break;
 
             case '.':

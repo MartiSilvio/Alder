@@ -87,6 +87,31 @@ public static class Operators
     public static object? Modulo(object? left, object? right) =>
         ApplyBinaryArithmetic(left, right, "%", NumericDispatch.Modulo);
 
+    /// <summary>
+    /// Power operator: left ** right. Returns double via Math.Pow.
+    /// Supports nullable arithmetic: null ** x = null, x ** null = null.
+    /// </summary>
+    public static object? Power(object? left, object? right)
+    {
+        if (left == null || right == null)
+        {
+            if (TypeHelpers.IsArithmetic(left) || TypeHelpers.IsArithmetic(right))
+                return null; // Nullable arithmetic
+            if (left == null && right == null)
+                return null;
+            throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, "**",
+                left?.GetType().Name ?? "null", right?.GetType().Name ?? "null");
+        }
+
+        if (!TypeHelpers.IsArithmetic(left) || !TypeHelpers.IsArithmetic(right))
+            throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, "**",
+                left.GetType().Name, right.GetType().Name);
+
+        var l = Convert.ToDouble(left);
+        var r = Convert.ToDouble(right);
+        return Math.Pow(l, r);
+    }
+
     private static object? ApplyBinaryArithmetic(object? left, object? right, string op, Func<object, object, object?> dispatch)
     {
         if (left == null && right == null) return null;

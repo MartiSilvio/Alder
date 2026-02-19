@@ -527,13 +527,38 @@ public sealed class ExpressionParser : ParserBase
 
     private Expr ParseFactor()
     {
-        var expr = ParseUnary();
+        var expr = ParsePower();
 
         while (Match(TokenType.Star, TokenType.Slash, TokenType.Percent))
         {
             var op = Previous();
-            var right = ParseUnary();
+            var right = ParsePower();
             expr = new BinaryExpr(expr, op, right);
+        }
+
+        return expr;
+    }
+
+    /// <summary>
+    /// Parses the ** power operator with right-associativity.
+    /// Precedence: higher than *, /, %; lower than unary -.
+    /// Right-associative: 2 ** 3 ** 2 = 2 ** (3 ** 2) = 512
+    /// </summary>
+    private Expr ParsePower()
+    {
+        var expr = ParseUnary();
+
+        if (State.LanguageMode == LanguageMode.Extended && Match(TokenType.StarStar))
+        {
+            var op = Previous();
+            var right = ParsePower(); // RECURSIVE call = right-associative
+            expr = new BinaryExpr(expr, op, right);
+        }
+        else if (State.LanguageMode == LanguageMode.Standard && Check(TokenType.StarStar))
+        {
+            throw new CsEvalParserException(
+                $"Power operator '**' is not available in Standard mode. " +
+                $"Use LanguageMode.Extended to enable non-standard syntax extensions.");
         }
 
         return expr;

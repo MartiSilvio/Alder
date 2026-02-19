@@ -21,6 +21,8 @@ public enum TokenType
     Star,
     Slash,
     Percent,
+    StarStar,          // ** power operator (Extended mode)
+
 
     // Operators - Comparison
     EqualEqual,
@@ -72,6 +74,7 @@ public enum TokenType
     GreaterGreaterEqual,   // >>=
     GreaterGreaterGreater,      // >>>
     GreaterGreaterGreaterEqual, // >>>=
+    StarStarEqual,             // **= (Extended mode)
 
     // Increment/Decrement
     PlusPlus,              // ++
