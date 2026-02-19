@@ -106,7 +106,7 @@ public sealed class StatementParser : ParserBase
             return new ThrowStatementExpr();
         }
 
-        if (Match(TokenType.Var))
+        if (MatchVar())
         {
             // Check for deconstruction pattern: var (x, y, ...) = expr
             if (Check(TokenType.LeftParen))
@@ -355,7 +355,7 @@ public sealed class StatementParser : ParserBase
         var initializers = new List<Expr>();
         if (!Check(TokenType.Semicolon))
         {
-            if (Match(TokenType.Var))
+            if (MatchVar())
             {
                 var name = ConsumeIdentifierOrContextualKeyword("Expected variable name");
                 Consume(TokenType.Equal, "Expected '=' after variable name");
@@ -461,7 +461,7 @@ public sealed class StatementParser : ParserBase
         Consume(TokenType.LeftParen, "Expected '(' after 'foreach'");
 
         // Parse variable declaration (var varName or type varName)
-        if (!Match(TokenType.Var) && !MatchTypeKeyword(out _))
+        if (!MatchVar() && !MatchTypeKeyword(out _))
         {
             throw new CsEvalParserException($"Expected 'var' or type keyword in foreach at {Peek().Line}:{Peek().Column}");
         }
@@ -504,7 +504,7 @@ public sealed class StatementParser : ParserBase
 
         // Parse resource declaration (var x = expr or TypeName x = expr or just expression)
         Expr resource;
-        if (Match(TokenType.Var))
+        if (MatchVar())
         {
             var name = ConsumeIdentifierOrContextualKeyword("Expected variable name");
             Consume(TokenType.Equal, "Expected '=' in using declaration");

@@ -67,7 +67,11 @@ public static class Operators
         if (TypeHelpers.IsArithmetic(left) && TypeHelpers.IsArithmetic(right))
             return NumericDispatch.Add(left, right);
 
-        // Object merge via + operator
+        // Object merge via + operator (Extended mode only)
+        if (options.LanguageMode == LanguageMode.Standard)
+            throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, "+",
+                left?.GetType().Name ?? "null", right?.GetType().Name ?? "null");
+
         return Extensions.ObjectMergeOperator.MergeObjects(left, right, options, context);
     }
 

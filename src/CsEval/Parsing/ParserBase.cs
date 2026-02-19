@@ -10,11 +10,13 @@ internal sealed class ParserState
 {
     public readonly List<Token> Tokens;
     public int Current;
+    public readonly LanguageMode LanguageMode;
 
-    public ParserState(List<Token> tokens)
+    public ParserState(List<Token> tokens, LanguageMode languageMode = LanguageMode.Standard)
     {
         Tokens = tokens;
         Current = 0;
+        LanguageMode = languageMode;
     }
 }
 
@@ -26,12 +28,26 @@ public abstract class ParserBase
 {
     private protected readonly ParserState State;
 
+    internal LanguageMode LanguageMode => State.LanguageMode;
+
     private protected ParserBase(ParserState state)
     {
         State = state;
     }
 
     #region Token Utilities
+
+    /// <summary>
+    /// Checks if the current token is 'var' or (in Extended mode) 'let'.
+    /// </summary>
+    internal bool CheckVar() =>
+        Check(TokenType.Var) || (State.LanguageMode == LanguageMode.Extended && Check(TokenType.Let));
+
+    /// <summary>
+    /// Matches 'var' or (in Extended mode) 'let', advancing past the token.
+    /// </summary>
+    internal bool MatchVar() =>
+        Match(TokenType.Var) || (State.LanguageMode == LanguageMode.Extended && Match(TokenType.Let));
 
     internal bool Match(params TokenType[] types)
     {

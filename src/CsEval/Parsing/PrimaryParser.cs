@@ -35,7 +35,13 @@ public sealed class PrimaryParser : ParserBase
             return new LiteralExpr(null, IsConstant: true);
 
         if (Match(TokenType.Undefined))
+        {
+            if (State.LanguageMode == LanguageMode.Standard)
+                throw new CsEvalParserException(
+                    "'undefined' is not available in Standard mode. " +
+                    "Use LanguageMode.Extended to enable non-standard syntax extensions.");
             return new LiteralExpr(null, IsConstant: true);
+        }
 
         if (Match(TokenType.InterpolatedString))
             return ParseInterpolatedString(Previous());
@@ -47,7 +53,13 @@ public sealed class PrimaryParser : ParserBase
             return ParseParenthesized();
 
         if (Match(TokenType.LeftBracket))
+        {
+            if (State.LanguageMode == LanguageMode.Standard)
+                throw new CsEvalParserException(
+                    "Collection expression literals '[...]' are not available in Standard mode. " +
+                    "Use LanguageMode.Extended to enable non-standard syntax extensions.");
             return ParseArrayLiteral();
+        }
 
         if (Match(TokenType.LeftBrace))
             return _statement.ParseBlock();
@@ -104,6 +116,10 @@ public sealed class PrimaryParser : ParserBase
             {
                 if (Match(TokenType.DotDot))
                 {
+                    if (State.LanguageMode == LanguageMode.Standard)
+                        throw new CsEvalParserException(
+                            "Spread operator '..' is not available in Standard mode. " +
+                            "Use LanguageMode.Extended to enable non-standard syntax extensions.");
                     var spreadExpr = _expression.ParseExpression();
                     elements.Add(new SpreadExpr(spreadExpr));
                 }
@@ -128,6 +144,10 @@ public sealed class PrimaryParser : ParserBase
             {
                 if (Match(TokenType.DotDot))
                 {
+                    if (State.LanguageMode == LanguageMode.Standard)
+                        throw new CsEvalParserException(
+                            "Spread operator '..' is not available in Standard mode. " +
+                            "Use LanguageMode.Extended to enable non-standard syntax extensions.");
                     var spreadExpr = _expression.ParseExpression();
                     elements.Add(new SpreadExpr(spreadExpr));
                 }
@@ -719,7 +739,7 @@ public sealed class PrimaryParser : ParserBase
 
                     var lexer = new Lexer(exprText);
                     var parserTokens = lexer.Tokenize();
-                    var subParser = ExpressionParser.CreateForSubExpression(parserTokens);
+                    var subParser = ExpressionParser.CreateForSubExpression(parserTokens, State.LanguageMode);
                     var expr = subParser.ParseExpression();
                     parts.Add(new ExpressionPart(expr, alignmentSpec, formatSpec));
                     break;

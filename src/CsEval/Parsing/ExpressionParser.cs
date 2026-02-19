@@ -28,9 +28,9 @@ public sealed class ExpressionParser : ParserBase
     /// Creates a fully wired parser graph for a token list. Used by CsEvalEngine and for
     /// sub-expression parsing (interpolated strings).
     /// </summary>
-    public static ExpressionParser CreateForSubExpression(List<Token> tokens)
+    public static ExpressionParser CreateForSubExpression(List<Token> tokens, LanguageMode languageMode = LanguageMode.Standard)
     {
-        var state = new ParserState(tokens);
+        var state = new ParserState(tokens, languageMode);
         var primary = new PrimaryParser(state);
         var pattern = new PatternParser(state);
         var statement = new StatementParser(state);
@@ -110,7 +110,7 @@ public sealed class ExpressionParser : ParserBase
         if (Check(TokenType.Return) || Check(TokenType.Break) || Check(TokenType.Continue) ||
             Check(TokenType.If) || Check(TokenType.While) || Check(TokenType.For) ||
             Check(TokenType.Do) || Check(TokenType.Foreach) || Check(TokenType.Switch) ||
-            Check(TokenType.Try) || Check(TokenType.Var) ||
+            Check(TokenType.Try) || CheckVar() ||
             Check(TokenType.Using) || Check(TokenType.Lock))
             return true;
 
@@ -356,6 +356,13 @@ public sealed class ExpressionParser : ParserBase
                    TokenType.EqualEqualEqual, TokenType.BangEqualEqual))
         {
             var op = Previous();
+            if ((op.Type == TokenType.EqualEqualEqual || op.Type == TokenType.BangEqualEqual)
+                && State.LanguageMode == LanguageMode.Standard)
+            {
+                throw new CsEvalParserException(
+                    $"'{op.Lexeme}' is not available in Standard mode. " +
+                    "Use LanguageMode.Extended to enable non-standard syntax extensions.");
+            }
             var right = ParseComparison();
             expr = new BinaryExpr(expr, op, right);
         }
@@ -921,7 +928,7 @@ public sealed class ExpressionParser : ParserBase
         }
 
         // out var x
-        if (Match(TokenType.Var))
+        if (MatchVar())
         {
             var varName = ConsumeIdentifierOrContextualKeyword("Expected variable name after 'out var'");
             return new OutArgExpr(varName.Lexeme, null, false);

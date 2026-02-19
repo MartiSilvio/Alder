@@ -990,12 +990,6 @@ public sealed class Lexer
         var text = _source[_start.._current];
         var type = Keywords.GetValueOrDefault(text, TokenType.Identifier);
 
-        // Treat 'let' as 'var' for JavaScript compatibility
-        if (type == TokenType.Let)
-        {
-            type = TokenType.Var;
-        }
-
         AddToken(type);
     }
 

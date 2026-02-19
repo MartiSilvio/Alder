@@ -43,6 +43,23 @@ public enum SandboxMode
     Strict
 }
 
+/// <summary>
+/// Controls which syntax features are available during evaluation.
+/// </summary>
+public enum LanguageMode
+{
+    /// <summary>
+    /// Strict ECMA-334 compliance. All non-standard syntax extensions are rejected.
+    /// </summary>
+    Standard,
+
+    /// <summary>
+    /// Extended mode. Enables all non-standard syntax sugar features
+    /// (spread, object merge, collection expression literals, ===, !==, etc.)
+    /// </summary>
+    Extended
+}
+
 public sealed record CsEvalOptions
 {
     public static CsEvalOptions Default => new();
@@ -76,6 +93,21 @@ public sealed record CsEvalOptions
     /// <see cref="CompilationMode.StrictCompiled"/>: Require IL compilation - throws if compilation fails. Good for testing IL coverage.
     /// </remarks>
     public CompilationMode CompilationMode { get; init; } = CompilationMode.Compiled;
+
+    /// <summary>
+    /// Controls which syntax features are available.
+    /// Standard: strict ECMA-334 only.
+    /// Extended: enables non-standard syntax sugar (spread, object merge, ===, !==, etc.)
+    /// Default: Standard.
+    /// </summary>
+    public LanguageMode LanguageMode { get; init; } = LanguageMode.Standard;
+
+    /// <summary>
+    /// Strategy used to compile LINQ expression trees to delegates.
+    /// Defaults to the built-in <see cref="System.Linq.Expressions"/> compiler.
+    /// Supply an alternative implementation (e.g., FastExpressionCompiler) to override.
+    /// </summary>
+    public IExpressionCompiler ExpressionCompiler { get; init; } = DefaultExpressionCompiler.Instance;
 
     internal StringComparer StringComparer => IsCaseSensitive ? StringComparer.Ordinal : StringComparer.OrdinalIgnoreCase;
     internal StringComparison StringComparison => IsCaseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;

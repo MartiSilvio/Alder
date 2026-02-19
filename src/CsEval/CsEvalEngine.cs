@@ -31,7 +31,7 @@ public sealed class CsEvalEngine
     public CsEvalEngine(CsEvalOptions options)
     {
         _options = options;
-        _typeCache = new TypeCache();
+        _typeCache = new TypeCache(_options.ExpressionCompiler);
         _expressionCache = new ExpressionCache();
         _functions = new Dictionary<string, Func<object?[], object?>>(options.StringComparer);
         _pendingVariables = new Dictionary<string, object?>(options.StringComparer);
@@ -110,7 +110,7 @@ public sealed class CsEvalEngine
             var lexer = new Lexer(expression);
             var tokens = lexer.Tokenize();
 
-            var parser = ExpressionParser.CreateForSubExpression(tokens);
+            var parser = ExpressionParser.CreateForSubExpression(tokens, _options.LanguageMode);
             var ast = parser.Parse();
 
             return new CsEvalExpression(expression, ast, _expressionCache);
@@ -166,7 +166,7 @@ public sealed class CsEvalEngine
         var shouldCompile = _options.CompilationMode is CompilationMode.Compiled or CompilationMode.StrictCompiled;
         if (shouldCompile && expression.GetCompiledInfo() == null)
         {
-            expression.TryCompile();
+            expression.TryCompile(_options);
         }
 
         var compiled = expression.GetCompiledInfo();
@@ -188,7 +188,7 @@ public sealed class CsEvalEngine
     public CsEvalExpression ParseAndCompile(string expression)
     {
         var expr = Parse(expression);
-        expr.TryCompile();
+        expr.TryCompile(_options);
         return expr;
     }
 
