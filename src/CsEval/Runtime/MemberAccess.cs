@@ -139,6 +139,8 @@ public static class MemberAccess
             case string s when index != null:
             {
                 var i = Convert.ToInt32(index);
+                if (i < 0 && options.LanguageMode == LanguageMode.Extended)
+                    i = s.Length + i;
                 if (i < 0 || i >= s.Length)
                     throw new ArgumentOutOfRangeException("index", i,
                         "Index was out of range. Must be non-negative and less than the size of the collection.");
@@ -148,8 +150,11 @@ public static class MemberAccess
             }
             case IList list when index is int i:
             {
-                if (i < 0 || i >= list.Count) throw new ArgumentOutOfRangeException("index", i, "Index was out of range. Must be non-negative and less than the size of the collection.");
-                var val = list[i];
+                var idx = i;
+                if (idx < 0 && options.LanguageMode == LanguageMode.Extended)
+                    idx = list.Count + idx;
+                if (idx < 0 || idx >= list.Count) throw new ArgumentOutOfRangeException("index", idx, "Index was out of range. Must be non-negative and less than the size of the collection.");
+                var val = list[idx];
                 TypeHelpers.CheckSandboxType(val, options.Sandbox);
                 return val;
             }
@@ -233,7 +238,7 @@ public static class MemberAccess
         throw new CsEvalException(DiagnosticDescriptors.NoMemberOnType, type.Name, name);
     }
 
-    public static void SetIndex(object? obj, object? index, object? value)
+    public static void SetIndex(object? obj, object? index, object? value, CsEvalOptions? options = null)
     {
         switch (obj)
         {
@@ -247,16 +252,19 @@ public static class MemberAccess
             }
             case IList list when index is int i:
             {
-                if (i < 0 || i >= list.Count) throw new ArgumentOutOfRangeException("index", i, "Index was out of range. Must be non-negative and less than the size of the collection.");
+                var idx = i;
+                if (idx < 0 && options?.LanguageMode == LanguageMode.Extended)
+                    idx = list.Count + idx;
+                if (idx < 0 || idx >= list.Count) throw new ArgumentOutOfRangeException("index", idx, "Index was out of range. Must be non-negative and less than the size of the collection.");
 
                 if (list.GetType().IsGenericType)
                 {
                     var elementType = list.GetType().GetGenericArguments()[0];
-                    list[i] = ConvertChangeType(value, elementType);
+                    list[idx] = ConvertChangeType(value, elementType);
                 }
                 else
                 {
-                    list[i] = value;
+                    list[idx] = value;
                 }
                 return;
             }

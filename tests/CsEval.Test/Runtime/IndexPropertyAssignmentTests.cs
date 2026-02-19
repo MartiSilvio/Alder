@@ -52,14 +52,29 @@ public class IndexPropertyAssignmentTests(CompilationMode mode)
     }
 
     [Test]
-    public void IndexAssignment_NegativeIndex_ThrowsException()
+    public void IndexAssignment_NegativeIndex_SetsLastElement_InExtendedMode()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode, LanguageMode = LanguageMode.Extended });
+
+        var result = engine.Evaluate(@"
+            {
+                var arr = [1, 2, 3];
+                arr[-1] = 5;
+                return arr;
+            }") as int[];
+        Assert.That(result, Is.Not.Null);
+        Assert.That(result!, Is.EqualTo(new[] { 1, 2, 5 }));
+    }
+
+    [Test]
+    public void IndexAssignment_NegativeIndex_ThrowsException_InStandardMode()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode, LanguageMode = LanguageMode.Standard });
 
         Assert.Throws<ArgumentOutOfRangeException>(() =>
             engine.Evaluate(@"
             {
-                var arr = [1, 2, 3];
+                var arr = new int[] {1, 2, 3};
                 arr[-1] = 5;
                 return arr;
             }"));

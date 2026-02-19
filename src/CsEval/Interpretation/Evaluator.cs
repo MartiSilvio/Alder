@@ -1592,6 +1592,8 @@ public sealed class Evaluator : IExprVisitor<object?>
         if (obj is string str && index != null)
         {
             var idx = Convert.ToInt32(index);
+            if (idx < 0 && _options.LanguageMode == LanguageMode.Extended)
+                idx = str.Length + idx;
             if (idx < 0 || idx >= str.Length)
                 throw new ArgumentOutOfRangeException("index", idx,
                     "Index was out of range. Must be non-negative and less than the size of the collection.");
@@ -1601,6 +1603,8 @@ public sealed class Evaluator : IExprVisitor<object?>
         if (obj is IList list && index != null)
         {
             var idx = Convert.ToInt32(index);
+            if (idx < 0 && _options.LanguageMode == LanguageMode.Extended)
+                idx = list.Count + idx;
             if (idx < 0 || idx >= list.Count)
                 throw new ArgumentOutOfRangeException("index", idx, "Index was out of range. Must be non-negative and less than the size of the collection.");
             return TypeHelpers.GuardReflectionLeak(list[idx], $"index [{idx}]");
@@ -1627,6 +1631,8 @@ public sealed class Evaluator : IExprVisitor<object?>
             case IList list when index != null:
             {
                 var idx = Convert.ToInt32(index);
+                if (idx < 0 && _options.LanguageMode == LanguageMode.Extended)
+                    idx = list.Count + idx;
                 if (idx < 0 || idx >= list.Count)
                     throw new ArgumentOutOfRangeException("index", idx, "Index was out of range. Must be non-negative and less than the size of the collection.");
                 list[idx] = value;

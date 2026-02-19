@@ -707,7 +707,7 @@ internal sealed class ExpressionCompilerUnit
 
         // Set via MemberAccess.SetIndex
         var setCall = LinqExpression.Call(CompilerContext.SetIndexMethod,
-            objTemp, indexTemp, temp);
+            objTemp, indexTemp, temp, _ctx.OptionsParam);
 
         return LinqExpression.Block(
             new[] { objTemp, indexTemp, rightTemp, temp },
@@ -728,7 +728,7 @@ internal sealed class ExpressionCompilerUnit
         // Use a temp for index since we need it for both the check and the set
         var indexTemp = LinqExpression.Variable(typeof(object), "idx");
         var check = LinqExpression.Call(CompilerContext.CheckAllowIndexSetMethod, _ctx.OptionsParam, indexTemp);
-        var set = LinqExpression.Call(CompilerContext.SetIndexMethod, target, indexTemp, value);
+        var set = LinqExpression.Call(CompilerContext.SetIndexMethod, target, indexTemp, value, _ctx.OptionsParam);
 
         return LinqExpression.Block(
             new[] { indexTemp },
@@ -830,7 +830,7 @@ internal sealed class ExpressionCompilerUnit
         var newValue = Compile(expr.Value);
 
         var setCall = LinqExpression.Call(CompilerContext.SetIndexMethod,
-            objTemp, indexTemp, result);
+            objTemp, indexTemp, result, _ctx.OptionsParam);
 
         return LinqExpression.Block(
             new[] { objTemp, indexTemp, temp, result },
@@ -915,7 +915,7 @@ internal sealed class ExpressionCompilerUnit
             : LinqExpression.Call(subInfo.Method, left, one);
 
         var setCall = LinqExpression.Call(CompilerContext.SetIndexMethod,
-            objTemp, indexTemp, temp);
+            objTemp, indexTemp, temp, _ctx.OptionsParam);
 
         if (expr.IsPrefix)
         {

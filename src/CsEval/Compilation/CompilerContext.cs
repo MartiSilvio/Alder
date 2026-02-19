@@ -83,7 +83,7 @@ internal sealed class CompilerContext
     internal static readonly MethodInfo IsNullableTypeMethod = typeof(TypeHelpers).GetMethod(nameof(TypeHelpers.IsNullableType))!;
     internal static readonly MethodInfo GetMemberMethod = typeof(MemberAccess).GetMethod(nameof(MemberAccess.GetMember))!;
     internal static readonly MethodInfo GetIndexMethod = typeof(MemberAccess).GetMethod(nameof(MemberAccess.GetIndex))!;
-    internal static readonly MethodInfo SetIndexMethod = typeof(MemberAccess).GetMethod(nameof(MemberAccess.SetIndex))!;
+    internal static readonly MethodInfo SetIndexMethod = typeof(MemberAccess).GetMethod(nameof(MemberAccess.SetIndex), [typeof(object), typeof(object), typeof(object), typeof(CsEvalOptions)])!;
     internal static readonly MethodInfo SetMemberMethod = typeof(MemberAccess).GetMethod(nameof(MemberAccess.SetMember))!;
     internal static readonly MethodInfo ListAddMethod = typeof(List<object?>).GetMethod(nameof(List<object?>.Add))!;
     internal static readonly MethodInfo ListAddRangeMethod = typeof(List<object?>).GetMethod(nameof(List<object?>.AddRange))!;
