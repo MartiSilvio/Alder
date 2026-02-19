@@ -9,6 +9,14 @@ public abstract class AstWalker<T> : IExprVisitor<T>
     protected abstract T DefaultValue { get; }
 
     /// <summary>
+    /// Maximum traversal depth. When exceeded, throws CsEvalException to prevent
+    /// uncatchable StackOverflowException on deeply nested ASTs.
+    /// Subclasses can set this (e.g., TypeInferrer reads it from CsEvalOptions).
+    /// </summary>
+    protected int MaxVisitDepth { get; set; } = 512;
+    private int _visitDepth;
+
+    /// <summary>
     /// Called before visiting children. Override to add pre-processing.
     /// </summary>
     protected virtual void OnEnter(Expr expr) { }
@@ -18,7 +26,20 @@ public abstract class AstWalker<T> : IExprVisitor<T>
     /// </summary>
     protected virtual T OnLeave(Expr expr) => DefaultValue;
 
-    protected T Visit(Expr expr) => expr.Accept(this);
+    protected T Visit(Expr expr)
+    {
+        _visitDepth++;
+        if (_visitDepth > MaxVisitDepth)
+            throw new CsEvalDepthException("traversal", MaxVisitDepth);
+        try
+        {
+            return expr.Accept(this);
+        }
+        finally
+        {
+            _visitDepth--;
+        }
+    }
 
     // Literals
     public virtual T VisitLiteral(LiteralExpr expr)

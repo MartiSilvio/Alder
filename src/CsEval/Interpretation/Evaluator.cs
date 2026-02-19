@@ -29,7 +29,7 @@ public sealed class Evaluator : IExprVisitor<object?>
         _context = context;
         _options = options ?? CsEvalOptions.Default;
         _argumentTransformer = argumentTransformer;
-        _typeInferrer = new TypeInferrer(context);
+        _typeInferrer = new TypeInferrer(context, _options.MaxExpressionDepth);
         _cancellationToken = cancellationToken;
         _maxDepth = _options.MaxExpressionDepth;
     }
@@ -40,9 +40,7 @@ public sealed class Evaluator : IExprVisitor<object?>
     {
         _depth++;
         if (_depth > _maxDepth)
-            throw new CsEvalException(
-                $"Expression evaluation depth exceeded maximum of {_maxDepth}. " +
-                "Configure CsEvalOptions.MaxExpressionDepth to adjust this limit.");
+            throw new CsEvalDepthException("evaluation", _maxDepth);
         try
         {
             _typeInferrer.InferAll(expr);

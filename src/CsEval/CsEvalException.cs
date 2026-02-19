@@ -37,6 +37,21 @@ public class CsEvalException : Exception
 }
 
 /// <summary>
+/// Thrown when expression nesting exceeds <see cref="CsEvalOptions.MaxExpressionDepth"/>.
+/// Caught by the host process — unlike StackOverflowException, this is catchable.
+/// </summary>
+public class CsEvalDepthException : CsEvalException
+{
+    public int MaxDepth { get; }
+
+    public CsEvalDepthException(string subsystem, int maxDepth)
+        : base($"Expression {subsystem} depth exceeded maximum of {maxDepth}. Configure CsEvalOptions.MaxExpressionDepth to adjust this limit.")
+    {
+        MaxDepth = maxDepth;
+    }
+}
+
+/// <summary>
 /// Sentinel value for control flow signals (return, break, continue).
 /// Not an Exception -- avoids expensive stack trace capture and SEH unwinding,
 /// and prevents user catch blocks from intercepting internal control flow.

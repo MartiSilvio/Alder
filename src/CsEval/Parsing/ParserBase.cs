@@ -11,7 +11,10 @@ internal sealed class ParserState
     public readonly List<Token> Tokens;
     public int Current;
     public int Depth;
-    public int MaxDepth = 512;
+    // Parser uses 1/16 of MaxExpressionDepth because each logical nesting level
+    // creates ~20 recursive stack frames at ~455 bytes each on ARM64.
+    // Default 512/16=32 keeps peak stack usage well under 1MB.
+    public int MaxDepth = 32;
 
     public ParserState(List<Token> tokens)
     {
@@ -39,9 +42,7 @@ public abstract class ParserBase
     {
         State.Depth++;
         if (State.Depth > State.MaxDepth)
-            throw new CsEvalParserException(
-                $"Expression nesting depth exceeded maximum of {State.MaxDepth}. " +
-                "Configure CsEvalOptions.MaxExpressionDepth to adjust this limit.");
+            throw new CsEvalDepthException("parsing", State.MaxDepth);
     }
 
     private protected void ExitExpression()

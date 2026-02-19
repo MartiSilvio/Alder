@@ -59,7 +59,6 @@ internal sealed class CompilerContext
 
     // Recursion depth tracking to prevent stack overflow in Compile
     internal int CompileDepth;
-    internal const int MaxCompileDepth = 500;
 
     internal record struct ControlFlowContext(LabelTarget BreakTarget, LabelTarget? ContinueTarget, bool IsLoop);
 
@@ -142,7 +141,7 @@ internal sealed class CompilerContext
     {
         Context = context;
         Options = options;
-        TypeInferrer = new TypeInferrer(context);
+        TypeInferrer = new TypeInferrer(context, options.MaxExpressionDepth);
 
         ContextParam = LinqExpression.Parameter(typeof(CsEvalContext), "context");
         OptionsParam = LinqExpression.Parameter(typeof(CsEvalOptions), "options");
@@ -238,6 +237,10 @@ internal sealed class CompilerContext
 
             return (lambda.Compile(), null);
         }
+        catch (CsEvalDepthException)
+        {
+            throw; // Depth limits are recoverable — let them propagate so callers can surface them
+        }
         catch (Exception ex)
         {
             return (null, ex.Message);
@@ -255,8 +258,8 @@ internal sealed class CompilerContext
         PatternCompilerUnit patternUnit)
     {
         ctx.CompileDepth++;
-        if (ctx.CompileDepth > MaxCompileDepth)
-            throw new InvalidOperationException("Expression too deeply nested for IL compilation");
+        if (ctx.CompileDepth > ctx.Options.MaxExpressionDepth)
+            throw new CsEvalDepthException("compilation", ctx.Options.MaxExpressionDepth);
 
         try
         {

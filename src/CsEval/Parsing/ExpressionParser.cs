@@ -26,9 +26,16 @@ public sealed class ExpressionParser : ParserBase
     /// Creates a fully wired parser graph for a token list. Used by CsEvalEngine and for
     /// sub-expression parsing (interpolated strings).
     /// </summary>
+    // Each logical expression nesting level creates ~14 recursive parser stack frames.
+    // The parser cap is scaled down to stay within the default 1MB .NET thread stack.
+    // Each logical nesting level creates ~20 recursive stack frames; on ARM64 each
+    // frame uses ~455 bytes. At /16: 32 levels × 20 × 455 ≈ 291KB (safe under 1MB).
+    private static int ToParserDepth(int maxExpressionDepth) =>
+        Math.Max(8, maxExpressionDepth / 16);
+
     public static ExpressionParser CreateForSubExpression(List<Token> tokens, int maxDepth = 512)
     {
-        var state = new ParserState(tokens) { MaxDepth = maxDepth };
+        var state = new ParserState(tokens) { MaxDepth = ToParserDepth(maxDepth) };
         var primary = new PrimaryParser(state);
         var pattern = new PatternParser(state);
         var statement = new StatementParser(state);

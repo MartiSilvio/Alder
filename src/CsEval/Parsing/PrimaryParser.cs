@@ -468,6 +468,13 @@ public sealed class PrimaryParser : ParserBase
         // Could be: grouping (expr), lambda (x) => ..., typed lambda (int x) => ...,
         // parameter list (a, b) => ..., or tuple (expr1, expr2, ...)
 
+        // Guard: fire BEFORE any method call. The ParseExpression depth counter already
+        // reached MaxDepth entering this frame's chain. One more '(' would recursively
+        // call ParseExpression at MaxDepth+1 and overflow the .NET stack before the
+        // EnterExpression check in ParseExpression can run.
+        if (State.Depth >= State.MaxDepth)
+            throw new CsEvalDepthException("parsing", State.MaxDepth);
+
         // Empty parens - parameterless lambda
         if (Match(TokenType.RightParen))
         {

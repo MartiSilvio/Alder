@@ -34,9 +34,10 @@ public sealed class TypeInferrer : AstWalker<Type>
 
     protected override Type DefaultValue => typeof(object);
 
-    public TypeInferrer(CsEvalContext context)
+    public TypeInferrer(CsEvalContext context, int maxDepth = 512)
     {
         _context = context;
+        MaxVisitDepth = maxDepth;
     }
 
     public IReadOnlyDictionary<Expr, Type> Types => _types;

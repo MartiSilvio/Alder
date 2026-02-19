@@ -9,60 +9,33 @@ namespace CsEval.Test.Stress;
 public class ParsingPathologicalTests(CompilationMode mode) : StressTestBase(mode)
 {
     [Test]
-    [Explicit("CRITICAL BUG: Crashes process with StackOverflowException. Run manually to reproduce.")]
     public void DeeplyNestedParentheses_ShouldNotCrashProcess()
     {
-        // Recursion depth stress.
-        // A standard C# stack might blow up around a few thousand frames depending on platform/config.
-        // We want to see if the parser handles it or crashes.
-        // We assert that it throws a managed exception (CsEvalParserException or maybe generic Exception)
-        // rather than taking down the process with StackOverflowException (which usually can't be caught).
-        // Since we can't catch SOE easily in .NET Core, we'll just run it. If the test runner dies, we know why.
-
+        // 2000 nested parentheses far exceeds the parser's depth cap.
+        // Parser cap = MaxExpressionDepth / 16 = 32 (each logical level ≈ 20 stack frames
+        // at ~455 bytes each on ARM64; scaled to stay well within the 1MB .NET thread stack).
+        // Throws CsEvalDepthException instead of crashing with StackOverflowException.
         var depth = 2000;
         var expression = GenerateDeeplyNestedExpression(depth, "1 + 1");
 
-        try
-        {
-            var expr = Engine.Parse(expression);
-            Assert.That(expr, Is.Not.Null);
-
-            // If it parses, can it evaluate?
-            var result = Engine.Evaluate(expr);
-            Assert.That(result, Is.EqualTo(2));
-        }
-        catch (CsEvalParserException)
-        {
-            // Acceptable failure
-        }
-        catch (StackOverflowException)
-        {
-            Assert.Fail("StackOverflowException occurred during parsing/evaluation!");
-        }
-        catch (Exception ex)
-        {
-            // Other exceptions are fine (Out of memory, etc)
-            TestContext.WriteLine($"Caught expected exception: {ex.GetType().Name}");
-        }
+        var ex = Assert.Throws<CsEvalDepthException>(() => Engine.Parse(expression));
+        Assert.That(ex!.MaxDepth, Is.EqualTo(32)); // parser cap = 512 / 16
     }
 
     [Test]
-    [Explicit("CRITICAL BUG: Crashes process with StackOverflowException in CompilerContext.CanCompile. Run manually to reproduce.")]
-    public void ExtremelyLongExpression_ShouldParseWithinReasonableTime()
+    public void ExtremelyLongExpression_ShouldThrowCatchableException()
     {
-        // 10,000 operations "1 + 2 * 3 - 4 ..."
+        // 10,000 binary operations produce a deep left-leaning AST.
+        // Parsing uses iterative while-loops so it succeeds (parser depth stays at 1).
+        // Evaluation recurses left-deep ~10,000 levels; the evaluator cap (MaxExpressionDepth=512)
+        // triggers a catchable CsEvalDepthException before the .NET stack can overflow.
         var expression = GenerateLongExpression(10_000);
 
-        var sw = System.Diagnostics.Stopwatch.StartNew();
         var expr = Engine.Parse(expression);
-        sw.Stop();
-
         Assert.That(expr, Is.Not.Null);
-        TestContext.WriteLine($"Parsed 10k ops in {sw.ElapsedMilliseconds}ms");
 
-        // Should evaluate
-        var result = Engine.Evaluate(expr);
-        Assert.That(result, Is.Not.Null);
+        var ex = Assert.Throws<CsEvalDepthException>(() => Engine.Evaluate(expr));
+        Assert.That(ex!.MaxDepth, Is.EqualTo(512));
     }
 
     [Test]
@@ -109,10 +82,12 @@ public class ParsingPathologicalTests(CompilationMode mode) : StressTestBase(mod
 
     [TestCase(100)]
     [TestCase(1000)]
-    [Explicit("CRITICAL BUG: Crashes process with StackOverflowException in Evaluator.Evaluate. Run manually to reproduce.")]
     public void ManyChainedPropertyAccesses_ShouldNotStackOverflow(int count)
     {
-        // "s.Length.ToString().Length.ToString()..."
+        // "start".Length.ToString().Length.ToString()...
+        // Each iteration adds ~3 AST nodes (MemberAccess, MemberAccess, Call).
+        // count=100 (~300 evaluator depth) is under the 512 evaluator cap: succeeds.
+        // count=1000 (~3000 evaluator depth) exceeds the 512 cap: throws CsEvalDepthException.
         var sb = new StringBuilder("\"start\"");
         for (int i = 0; i < count; i++)
         {
@@ -121,12 +96,16 @@ public class ParsingPathologicalTests(CompilationMode mode) : StressTestBase(mod
 
         var expr = sb.ToString();
 
-        try
+        if (count <= 512)
         {
             var result = Engine.Evaluate(expr);
             Assert.That(result, Is.Not.Null);
         }
-        catch (CsEvalParserException) { /* limit reached */ }
+        else
+        {
+            var ex = Assert.Throws<CsEvalDepthException>(() => Engine.Evaluate(expr));
+            Assert.That(ex!.MaxDepth, Is.EqualTo(512));
+        }
     }
 
     [Test]

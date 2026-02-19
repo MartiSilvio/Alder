@@ -63,6 +63,10 @@ internal static class ExpressionCompiler
 
             return new CompiledExpressionInfo(null, false, failureReason);
         }
+        catch (CsEvalDepthException)
+        {
+            throw; // Depth limits are recoverable — let them propagate so callers can surface them
+        }
         catch (Exception ex)
         {
             return new CompiledExpressionInfo(null, false, ex.Message);
