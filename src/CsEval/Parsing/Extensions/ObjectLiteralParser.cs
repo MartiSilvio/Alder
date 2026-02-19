@@ -18,7 +18,7 @@ internal static class ObjectLiteralParser
                 if (parser.Match(TokenType.DotDot))
                 {
                     if (parser.LanguageMode == LanguageMode.Standard)
-                        throw new CsEvalParserException(
+                        throw new CsEvalLanguageModeException("..",
                             "Spread operator '..' is not available in Standard mode. " +
                             "Use LanguageMode.Extended to enable non-standard syntax extensions.");
                     // Spread property: ..expr

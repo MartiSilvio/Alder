@@ -359,7 +359,7 @@ public sealed class ExpressionParser : ParserBase
             if ((op.Type == TokenType.EqualEqualEqual || op.Type == TokenType.BangEqualEqual)
                 && State.LanguageMode == LanguageMode.Standard)
             {
-                throw new CsEvalParserException(
+                throw new CsEvalLanguageModeException(op.Lexeme,
                     $"'{op.Lexeme}' is not available in Standard mode. " +
                     "Use LanguageMode.Extended to enable non-standard syntax extensions.");
             }
@@ -667,9 +667,9 @@ public sealed class ExpressionParser : ParserBase
         }
         else if (State.LanguageMode == LanguageMode.Standard && Check(TokenType.StarStar))
         {
-            throw new CsEvalParserException(
-                $"Power operator '**' is not available in Standard mode. " +
-                $"Use LanguageMode.Extended to enable non-standard syntax extensions.");
+            throw new CsEvalLanguageModeException("**",
+                "Power operator '**' is not available in Standard mode. " +
+                "Use LanguageMode.Extended to enable non-standard syntax extensions.");
         }
 
         return expr;

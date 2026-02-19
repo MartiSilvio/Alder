@@ -52,6 +52,31 @@ public class CsEvalDepthException : CsEvalException
 }
 
 /// <summary>
+/// Thrown when an Extended mode syntax feature is used with <see cref="LanguageMode.Standard"/>.
+/// Extends <see cref="CsEvalParserException"/> so existing catch blocks still work.
+/// Use this type specifically when you want to detect and handle language mode mismatches.
+/// </summary>
+/// <summary>
+/// Thrown when an Extended mode syntax feature is used with <see cref="LanguageMode.Standard"/>.
+/// Catchable independently of general <see cref="CsEvalException"/> or parser errors.
+/// Use this type specifically when you want to detect and handle language mode mismatches,
+/// e.g. to suggest enabling Extended mode to the user.
+/// </summary>
+public class CsEvalLanguageModeException : CsEvalException
+{
+    /// <summary>
+    /// The name of the feature that requires Extended mode (e.g., "**", "in", "[:]", "..").
+    /// </summary>
+    public string FeatureName { get; }
+
+    public CsEvalLanguageModeException(string featureName, string message)
+        : base(message)
+    {
+        FeatureName = featureName;
+    }
+}
+
+/// <summary>
 /// Sentinel value for control flow signals (return, break, continue).
 /// Not an Exception -- avoids expensive stack trace capture and SEH unwinding,
 /// and prevents user catch blocks from intercepting internal control flow.

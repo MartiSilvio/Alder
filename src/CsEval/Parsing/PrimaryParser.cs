@@ -37,7 +37,7 @@ public sealed class PrimaryParser : ParserBase
         if (Match(TokenType.Undefined))
         {
             if (State.LanguageMode == LanguageMode.Standard)
-                throw new CsEvalParserException(
+                throw new CsEvalLanguageModeException("undefined",
                     "'undefined' is not available in Standard mode. " +
                     "Use LanguageMode.Extended to enable non-standard syntax extensions.");
             return new LiteralExpr(null, IsConstant: true);
@@ -55,7 +55,7 @@ public sealed class PrimaryParser : ParserBase
         if (Match(TokenType.LeftBracket))
         {
             if (State.LanguageMode == LanguageMode.Standard)
-                throw new CsEvalParserException(
+                throw new CsEvalLanguageModeException("[...]",
                     "Collection expression literals '[...]' are not available in Standard mode. " +
                     "Use LanguageMode.Extended to enable non-standard syntax extensions.");
             return ParseArrayLiteral();
@@ -117,7 +117,7 @@ public sealed class PrimaryParser : ParserBase
                 if (Match(TokenType.DotDot))
                 {
                     if (State.LanguageMode == LanguageMode.Standard)
-                        throw new CsEvalParserException(
+                        throw new CsEvalLanguageModeException("..",
                             "Spread operator '..' is not available in Standard mode. " +
                             "Use LanguageMode.Extended to enable non-standard syntax extensions.");
                     var spreadExpr = _expression.ParseExpression();
@@ -145,7 +145,7 @@ public sealed class PrimaryParser : ParserBase
                 if (Match(TokenType.DotDot))
                 {
                     if (State.LanguageMode == LanguageMode.Standard)
-                        throw new CsEvalParserException(
+                        throw new CsEvalLanguageModeException("..",
                             "Spread operator '..' is not available in Standard mode. " +
                             "Use LanguageMode.Extended to enable non-standard syntax extensions.");
                     var spreadExpr = _expression.ParseExpression();
