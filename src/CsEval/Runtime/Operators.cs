@@ -399,7 +399,7 @@ public static class Operators
     /// Wraps Contains with (value, collection) parameter order for use by the IL compiler,
     /// which passes BinaryExpr operands as (left=value, right=collection).
     /// </summary>
-    public static bool InOperator(object? value, object? collection)
+    public static object InOperator(object? value, object? collection)
     {
         return Contains(collection, value);
     }
@@ -407,7 +407,7 @@ public static class Operators
     /// <summary>
     /// Wraps NotContains with (value, collection) parameter order for use by the IL compiler.
     /// </summary>
-    public static bool NotInOperator(object? value, object? collection)
+    public static object NotInOperator(object? value, object? collection)
     {
         return !Contains(collection, value);
     }

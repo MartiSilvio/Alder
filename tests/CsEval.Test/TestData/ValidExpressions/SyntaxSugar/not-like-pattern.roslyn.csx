@@ -1,0 +1,1 @@
+!"hello".StartsWith("x")
