@@ -56,9 +56,11 @@ public sealed record CsEvalOptions
     public int MaxIterations { get; init; } = 100_000;
 
     /// <summary>
-    /// Maximum nesting depth for expressions. Parser, evaluator, and IL compiler all enforce
-    /// this cap independently. When exceeded, a catchable CsEvalException is thrown instead of
-    /// risking an uncatchable StackOverflowException. Default: 512.
+    /// Maximum nesting depth for expression evaluation and compilation. The evaluator and IL compiler
+    /// enforce this cap independently. The parser uses RuntimeHelpers.EnsureSufficientExecutionStack()
+    /// instead, which lets the .NET runtime decide when stack space is exhausted.
+    /// When exceeded, a catchable CsEvalException is thrown instead of risking an uncatchable
+    /// StackOverflowException. Default: 512.
     /// </summary>
     public int MaxExpressionDepth { get; init; } = 512;
 

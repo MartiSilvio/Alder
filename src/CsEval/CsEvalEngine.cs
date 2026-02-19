@@ -105,13 +105,20 @@ public sealed class CsEvalEngine
 
     public CsEvalExpression Parse(string expression)
     {
-        var lexer = new Lexer(expression);
-        var tokens = lexer.Tokenize();
+        try
+        {
+            var lexer = new Lexer(expression);
+            var tokens = lexer.Tokenize();
 
-        var parser = ExpressionParser.CreateForSubExpression(tokens, _options.MaxExpressionDepth);
-        var ast = parser.Parse();
+            var parser = ExpressionParser.CreateForSubExpression(tokens);
+            var ast = parser.Parse();
 
-        return new CsEvalExpression(expression, ast, _expressionCache);
+            return new CsEvalExpression(expression, ast, _expressionCache);
+        }
+        catch (System.InsufficientExecutionStackException)
+        {
+            throw new CsEvalException("Expression nesting depth exceeded available stack space.");
+        }
     }
 
     public bool TryParse(string expression, out CsEvalExpression? result, out string? error)
