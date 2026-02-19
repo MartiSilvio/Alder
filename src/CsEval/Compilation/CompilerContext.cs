@@ -83,6 +83,7 @@ internal sealed class CompilerContext
     internal static readonly MethodInfo IsNullableTypeMethod = typeof(TypeHelpers).GetMethod(nameof(TypeHelpers.IsNullableType))!;
     internal static readonly MethodInfo GetMemberMethod = typeof(MemberAccess).GetMethod(nameof(MemberAccess.GetMember))!;
     internal static readonly MethodInfo GetIndexMethod = typeof(MemberAccess).GetMethod(nameof(MemberAccess.GetIndex))!;
+    internal static readonly MethodInfo GetSliceMethod = typeof(MemberAccess).GetMethod(nameof(MemberAccess.GetSlice))!;
     internal static readonly MethodInfo SetIndexMethod = typeof(MemberAccess).GetMethod(nameof(MemberAccess.SetIndex), [typeof(object), typeof(object), typeof(object), typeof(CsEvalOptions)])!;
     internal static readonly MethodInfo SetMemberMethod = typeof(MemberAccess).GetMethod(nameof(MemberAccess.SetMember))!;
     internal static readonly MethodInfo ListAddMethod = typeof(List<object?>).GetMethod(nameof(List<object?>.Add))!;
@@ -288,6 +289,7 @@ internal sealed class CompilerContext
                 NullCoalesceExpr n => exprUnit.CompileNullCoalesce(n),
                 MemberAccessExpr m => exprUnit.CompileMemberAccess(m),
                 IndexAccessExpr idx => exprUnit.CompileIndexAccess(idx),
+                SliceExpr slice => exprUnit.CompileSlice(slice),
                 VariableDeclExpr v => exprUnit.CompileVariableDecl(v),
                 AssignExpr a => exprUnit.CompileAssign(a),
                 CompoundAssignExpr ca => exprUnit.CompileCompoundAssign(ca),
@@ -537,6 +539,12 @@ internal sealed class CompilerContext
                 case IndexAccessExpr idx:
                     stack.Push(idx.Object);
                     stack.Push(idx.Index);
+                    break;
+
+                case SliceExpr slice:
+                    stack.Push(slice.Target);
+                    if (slice.Start != null) stack.Push(slice.Start);
+                    if (slice.End != null) stack.Push(slice.End);
                     break;
 
                 case VariableDeclExpr v:

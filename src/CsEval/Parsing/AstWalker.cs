@@ -70,6 +70,15 @@ public abstract class AstWalker<T> : IExprVisitor<T>
         return OnLeave(expr);
     }
 
+    public virtual T VisitSlice(SliceExpr expr)
+    {
+        OnEnter(expr);
+        Visit(expr.Target);
+        if (expr.Start != null) Visit(expr.Start);
+        if (expr.End != null) Visit(expr.End);
+        return OnLeave(expr);
+    }
+
     public virtual T VisitTypeReference(TypeReferenceExpr expr)
     {
         OnEnter(expr);

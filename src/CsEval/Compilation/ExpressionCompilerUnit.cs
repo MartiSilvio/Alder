@@ -500,6 +500,18 @@ internal sealed class ExpressionCompilerUnit
         return LinqExpression.Call(CompilerContext.GetIndexMethod, target, indexValue, _ctx.OptionsParam);
     }
 
+    internal LinqExpression CompileSlice(SliceExpr expr)
+    {
+        var target = Compile(expr.Target);
+        var start = expr.Start != null
+            ? Compile(expr.Start)
+            : LinqExpression.Constant(null, typeof(object));
+        var end = expr.End != null
+            ? Compile(expr.End)
+            : LinqExpression.Constant(null, typeof(object));
+        return LinqExpression.Call(CompilerContext.GetSliceMethod, target, start, end, _ctx.OptionsParam);
+    }
+
     internal LinqExpression CompileVariableDecl(VariableDeclExpr v)
     {
         var value = Compile(v.Initializer);

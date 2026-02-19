@@ -293,6 +293,82 @@ public static class MemberAccess
         throw new CsEvalException(DiagnosticDescriptors.BadIndexerAccess, type.Name);
     }
 
+    /// <summary>
+    /// Python-style slice: obj[start:end] where start is inclusive, end is exclusive.
+    /// Omitted start defaults to 0, omitted end defaults to length.
+    /// Out-of-bounds indices are clamped (Python behavior).
+    /// Returns same type as input: T[] -> T[], List&lt;T&gt; -> List&lt;T&gt;, string -> string.
+    /// </summary>
+    public static object? GetSlice(object? obj, object? start, object? end, CsEvalOptions options)
+    {
+        if (obj == null)
+            throw new CsEvalException("Cannot slice null");
+
+        switch (obj)
+        {
+            case string s:
+            {
+                int startIdx = start != null ? Convert.ToInt32(start) : 0;
+                int endIdx = end != null ? Convert.ToInt32(end) : s.Length;
+                ClampSliceIndices(ref startIdx, ref endIdx, s.Length);
+                if (startIdx >= endIdx) return (object)"";
+                return (object)s.Substring(startIdx, endIdx - startIdx);
+            }
+            case Array arr:
+            {
+                int startIdx = start != null ? Convert.ToInt32(start) : 0;
+                int endIdx = end != null ? Convert.ToInt32(end) : arr.Length;
+                ClampSliceIndices(ref startIdx, ref endIdx, arr.Length);
+                int count = Math.Max(0, endIdx - startIdx);
+                var elementType = arr.GetType().GetElementType()!;
+                var result = Array.CreateInstance(elementType, count);
+                if (count > 0)
+                    Array.Copy(arr, startIdx, result, 0, count);
+                return result;
+            }
+            case IList list:
+            {
+                int startIdx = start != null ? Convert.ToInt32(start) : 0;
+                int endIdx = end != null ? Convert.ToInt32(end) : list.Count;
+                ClampSliceIndices(ref startIdx, ref endIdx, list.Count);
+                int count = Math.Max(0, endIdx - startIdx);
+                // Preserve List<T> type
+                var listType = list.GetType();
+                if (listType.IsGenericType && listType.GetGenericTypeDefinition() == typeof(List<>))
+                {
+                    var elementType = listType.GetGenericArguments()[0];
+                    var resultList = (IList)Activator.CreateInstance(typeof(List<>).MakeGenericType(elementType))!;
+                    for (int i = startIdx; i < startIdx + count; i++)
+                        resultList.Add(list[i]);
+                    return resultList;
+                }
+                // Fallback: return object[]
+                var fallback = new object?[count];
+                for (int i = 0; i < count; i++)
+                    fallback[i] = list[startIdx + i];
+                return fallback;
+            }
+            default:
+                throw new CsEvalException($"Cannot slice type '{obj.GetType().Name}' -- slicing requires an array, List<T>, or string");
+        }
+    }
+
+    /// <summary>
+    /// Clamps slice indices to valid range (Python behavior).
+    /// Negative indices are converted: -1 -> length-1, etc.
+    /// Out-of-range indices are clamped to [0, length].
+    /// </summary>
+    private static void ClampSliceIndices(ref int start, ref int end, int length)
+    {
+        // Handle negative indices (Python semantics)
+        if (start < 0) start = Math.Max(0, length + start);
+        if (end < 0) end = Math.Max(0, length + end);
+
+        // Clamp to valid range
+        start = Math.Clamp(start, 0, length);
+        end = Math.Clamp(end, 0, length);
+    }
+
     internal static object? ConvertChangeType(object? value, Type targetType)
     {
         if (value == null) return null;

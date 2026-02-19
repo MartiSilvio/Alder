@@ -342,6 +342,14 @@ public sealed class Evaluator : IExprVisitor<object?>
         return GetIndex(obj, index);
     }
 
+    public object? VisitSlice(SliceExpr expr)
+    {
+        var target = Evaluate(expr.Target);
+        var start = expr.Start != null ? Evaluate(expr.Start) : null;
+        var end = expr.End != null ? Evaluate(expr.End) : null;
+        return MemberAccess.GetSlice(target, start, end, _options);
+    }
+
     public object? VisitNamedArgument(NamedArgumentExpr expr)
     {
         throw new CsEvalException("Named arguments can only be used in method calls");

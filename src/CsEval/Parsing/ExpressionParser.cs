@@ -783,20 +783,42 @@ public sealed class ExpressionParser : ParserBase
             }
             else if (Match(TokenType.LeftBracket))
             {
-                var firstIndex = ParseExpression();
-                if (Check(TokenType.Comma))
+                // Check for slice with omitted start: [:end] or [:]
+                if (State.LanguageMode == LanguageMode.Extended && Match(TokenType.Colon))
                 {
-                    // Multi-dimensional access: arr[i, j, k]
-                    var indices = new List<Expr> { firstIndex };
-                    while (Match(TokenType.Comma))
-                        indices.Add(ParseExpression());
-                    Consume(TokenType.RightBracket, "Expected ']' after indices");
-                    expr = new MultiDimIndexAccessExpr(expr, indices, false);
+                    Expr? end = null;
+                    if (!Check(TokenType.RightBracket))
+                        end = ParseExpression();
+                    Consume(TokenType.RightBracket, "Expected ']' after slice");
+                    expr = new SliceExpr(expr, null, end);
                 }
                 else
                 {
-                    Consume(TokenType.RightBracket, "Expected ']' after index");
-                    expr = new IndexAccessExpr(expr, firstIndex, false);
+                    var firstIndex = ParseExpression();
+
+                    if (State.LanguageMode == LanguageMode.Extended && Match(TokenType.Colon))
+                    {
+                        // [start:end] or [start:]
+                        Expr? end = null;
+                        if (!Check(TokenType.RightBracket))
+                            end = ParseExpression();
+                        Consume(TokenType.RightBracket, "Expected ']' after slice");
+                        expr = new SliceExpr(expr, firstIndex, end);
+                    }
+                    else if (Check(TokenType.Comma))
+                    {
+                        // Multi-dimensional access: arr[i, j, k]
+                        var indices = new List<Expr> { firstIndex };
+                        while (Match(TokenType.Comma))
+                            indices.Add(ParseExpression());
+                        Consume(TokenType.RightBracket, "Expected ']' after indices");
+                        expr = new MultiDimIndexAccessExpr(expr, indices, false);
+                    }
+                    else
+                    {
+                        Consume(TokenType.RightBracket, "Expected ']' after index");
+                        expr = new IndexAccessExpr(expr, firstIndex, false);
+                    }
                 }
             }
             else if (Match(TokenType.QuestionLeftBracket))

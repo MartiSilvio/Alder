@@ -14,6 +14,7 @@ public interface IExprVisitor<out T>
     T VisitIdentifier(IdentifierExpr expr);
     T VisitMemberAccess(MemberAccessExpr expr);
     T VisitIndexAccess(IndexAccessExpr expr);
+    T VisitSlice(SliceExpr expr);
     T VisitTypeReference(TypeReferenceExpr expr);
 
     // Operators
@@ -151,6 +152,12 @@ public sealed record MemberAccessExpr(Expr Object, Token Name, bool NullSafe) : 
 public sealed record IndexAccessExpr(Expr Object, Expr Index, bool NullSafe = false) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitIndexAccess(this);
+}
+
+// Slice access: list[1:4], arr[:3], str[2:] (Extended mode only)
+public sealed record SliceExpr(Expr Target, Expr? Start, Expr? End) : Expr
+{
+    public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitSlice(this);
 }
 
 // Type reference for static member access: double.NaN, int.MaxValue
