@@ -54,6 +54,14 @@ public sealed record CsEvalOptions
     public bool IsCaseSensitive { get; init; } = true;
 
     public int MaxIterations { get; init; } = 100_000;
+
+    /// <summary>
+    /// Maximum nesting depth for expressions. Parser, evaluator, and IL compiler all enforce
+    /// this cap independently. When exceeded, a catchable CsEvalException is thrown instead of
+    /// risking an uncatchable StackOverflowException. Default: 512.
+    /// </summary>
+    public int MaxExpressionDepth { get; init; } = 512;
+
     public SandboxOptions Sandbox { get; init; } = new();
 
     /// <summary>

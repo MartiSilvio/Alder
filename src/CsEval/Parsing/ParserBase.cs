@@ -10,6 +10,8 @@ internal sealed class ParserState
 {
     public readonly List<Token> Tokens;
     public int Current;
+    public int Depth;
+    public int MaxDepth = 512;
 
     public ParserState(List<Token> tokens)
     {
@@ -30,6 +32,24 @@ public abstract class ParserBase
     {
         State = state;
     }
+
+    #region Depth Tracking
+
+    private protected void EnterExpression()
+    {
+        State.Depth++;
+        if (State.Depth > State.MaxDepth)
+            throw new CsEvalParserException(
+                $"Expression nesting depth exceeded maximum of {State.MaxDepth}. " +
+                "Configure CsEvalOptions.MaxExpressionDepth to adjust this limit.");
+    }
+
+    private protected void ExitExpression()
+    {
+        State.Depth--;
+    }
+
+    #endregion
 
     #region Token Utilities
 

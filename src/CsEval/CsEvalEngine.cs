@@ -108,7 +108,7 @@ public sealed class CsEvalEngine
         var lexer = new Lexer(expression);
         var tokens = lexer.Tokenize();
 
-        var parser = ExpressionParser.CreateForSubExpression(tokens);
+        var parser = ExpressionParser.CreateForSubExpression(tokens, _options.MaxExpressionDepth);
         var ast = parser.Parse();
 
         return new CsEvalExpression(expression, ast, _expressionCache);

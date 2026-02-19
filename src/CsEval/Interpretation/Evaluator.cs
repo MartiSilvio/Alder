@@ -16,6 +16,8 @@ public sealed class Evaluator : IExprVisitor<object?>
     private readonly TypeInferrer _typeInferrer;
 
     private long _iterationCount;
+    private int _depth;
+    private readonly int _maxDepth;
     private readonly Stack<Exception> _caughtExceptions = new();
 
     public Evaluator(
@@ -29,15 +31,28 @@ public sealed class Evaluator : IExprVisitor<object?>
         _argumentTransformer = argumentTransformer;
         _typeInferrer = new TypeInferrer(context);
         _cancellationToken = cancellationToken;
+        _maxDepth = _options.MaxExpressionDepth;
     }
 
     private FrozenDictionary<string, Func<object?[], object?>> Functions => _context.Functions;
 
     public object? Evaluate(Expr expr)
     {
-        _typeInferrer.InferAll(expr);
-        _cancellationToken.ThrowIfCancellationRequested();
-        return expr.Accept(this);
+        _depth++;
+        if (_depth > _maxDepth)
+            throw new CsEvalException(
+                $"Expression evaluation depth exceeded maximum of {_maxDepth}. " +
+                "Configure CsEvalOptions.MaxExpressionDepth to adjust this limit.");
+        try
+        {
+            _typeInferrer.InferAll(expr);
+            _cancellationToken.ThrowIfCancellationRequested();
+            return expr.Accept(this);
+        }
+        finally
+        {
+            _depth--;
+        }
     }
 
     #region Expression Visitors

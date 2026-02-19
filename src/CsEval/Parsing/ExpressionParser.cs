@@ -26,9 +26,9 @@ public sealed class ExpressionParser : ParserBase
     /// Creates a fully wired parser graph for a token list. Used by CsEvalEngine and for
     /// sub-expression parsing (interpolated strings).
     /// </summary>
-    public static ExpressionParser CreateForSubExpression(List<Token> tokens)
+    public static ExpressionParser CreateForSubExpression(List<Token> tokens, int maxDepth = 512)
     {
-        var state = new ParserState(tokens);
+        var state = new ParserState(tokens) { MaxDepth = maxDepth };
         var primary = new PrimaryParser(state);
         var pattern = new PatternParser(state);
         var statement = new StatementParser(state);
@@ -128,7 +128,18 @@ public sealed class ExpressionParser : ParserBase
 
     #region Expression Precedence
 
-    internal Expr ParseExpression() => ParseAssignment();
+    internal Expr ParseExpression()
+    {
+        EnterExpression();
+        try
+        {
+            return ParseAssignment();
+        }
+        finally
+        {
+            ExitExpression();
+        }
+    }
 
     private Expr ParseAssignment()
     {
