@@ -235,7 +235,7 @@ internal sealed class CompilerContext
                 ctx.CtParam,
                 ctx.ArgumentTransformerParam);
 
-            return (lambda.Compile(), null);
+            return (options.ExpressionCompiler.Compile(lambda), null);
         }
         catch (CsEvalDepthException)
         {
@@ -755,7 +755,7 @@ internal sealed class CompilerContext
         TokenType.SlashEqual or TokenType.PercentEqual or
         TokenType.AmpEqual or TokenType.PipeEqual or TokenType.CaretEqual or
         TokenType.LessLessEqual or TokenType.GreaterGreaterEqual or
-        TokenType.GreaterGreaterGreaterEqual;
+        TokenType.GreaterGreaterGreaterEqual or TokenType.StarStarEqual;
 
     private static bool IsCompilableBinaryOp(TokenType op)
     {
@@ -767,7 +767,7 @@ internal sealed class CompilerContext
             TokenType.Greater or TokenType.GreaterEqual or
             TokenType.Amp or TokenType.Pipe or TokenType.Caret or
             TokenType.LessLess or TokenType.GreaterGreater or
-            TokenType.GreaterGreaterGreater)
+            TokenType.GreaterGreaterGreater or TokenType.StarStar)
             return true;
 
         return false;

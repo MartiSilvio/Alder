@@ -527,38 +527,13 @@ public sealed class ExpressionParser : ParserBase
 
     private Expr ParseFactor()
     {
-        var expr = ParsePower();
+        var expr = ParseUnary();
 
         while (Match(TokenType.Star, TokenType.Slash, TokenType.Percent))
         {
             var op = Previous();
-            var right = ParsePower();
+            var right = ParseUnary();
             expr = new BinaryExpr(expr, op, right);
-        }
-
-        return expr;
-    }
-
-    /// <summary>
-    /// Parses the ** power operator with right-associativity.
-    /// Precedence: higher than *, /, %; lower than unary -.
-    /// Right-associative: 2 ** 3 ** 2 = 2 ** (3 ** 2) = 512
-    /// </summary>
-    private Expr ParsePower()
-    {
-        var expr = ParseUnary();
-
-        if (State.LanguageMode == LanguageMode.Extended && Match(TokenType.StarStar))
-        {
-            var op = Previous();
-            var right = ParsePower(); // RECURSIVE call = right-associative
-            expr = new BinaryExpr(expr, op, right);
-        }
-        else if (State.LanguageMode == LanguageMode.Standard && Check(TokenType.StarStar))
-        {
-            throw new CsEvalParserException(
-                $"Power operator '**' is not available in Standard mode. " +
-                $"Use LanguageMode.Extended to enable non-standard syntax extensions.");
         }
 
         return expr;
@@ -566,8 +541,14 @@ public sealed class ExpressionParser : ParserBase
 
     #endregion
 
-    #region Unary and Postfix
+    #region Unary, Power, and Postfix
 
+    /// <summary>
+    /// Parses unary operators: -, +, !, ~, casts, prefix ++/--.
+    /// Falls through to ParsePower() for non-unary expressions.
+    /// Precedence: unary minus binds LOOSER than ** (like Python).
+    /// So -2 ** 2 = -(2 ** 2) = -4, not (-2) ** 2 = 4.
+    /// </summary>
     internal Expr ParseUnary()
     {
         // Cast expression: (int)x, (double)y, (int?)z, (Exception)x
@@ -616,7 +597,35 @@ public sealed class ExpressionParser : ParserBase
             };
         }
 
-        return ParsePostfix();
+        return ParsePower();
+    }
+
+    /// <summary>
+    /// Parses the ** power operator with right-associativity.
+    /// Precedence: higher than unary -; lower than postfix and primary.
+    /// Right-associative: 2 ** 3 ** 2 = 2 ** (3 ** 2) = 512.
+    /// Left operand via ParsePostfix (no unary), right operand via ParseUnary
+    /// (allows unary and recursion for right-associativity).
+    /// Like Python: -2 ** 2 = -(2 ** 2), but 2 ** -2 = 2 ** (-2).
+    /// </summary>
+    private Expr ParsePower()
+    {
+        var expr = ParsePostfix();
+
+        if (State.LanguageMode == LanguageMode.Extended && Match(TokenType.StarStar))
+        {
+            var op = Previous();
+            var right = ParseUnary(); // Right via ParseUnary for right-associativity + unary support
+            expr = new BinaryExpr(expr, op, right);
+        }
+        else if (State.LanguageMode == LanguageMode.Standard && Check(TokenType.StarStar))
+        {
+            throw new CsEvalParserException(
+                $"Power operator '**' is not available in Standard mode. " +
+                $"Use LanguageMode.Extended to enable non-standard syntax extensions.");
+        }
+
+        return expr;
     }
 
     internal bool IsCastExpression()

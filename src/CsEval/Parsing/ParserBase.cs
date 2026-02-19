@@ -67,7 +67,8 @@ public abstract class ParserBase
         if (Match(TokenType.PlusEqual, TokenType.MinusEqual, TokenType.StarEqual,
                   TokenType.SlashEqual, TokenType.PercentEqual, TokenType.AmpEqual,
                   TokenType.PipeEqual, TokenType.CaretEqual, TokenType.LessLessEqual,
-                  TokenType.GreaterGreaterEqual, TokenType.GreaterGreaterGreaterEqual))
+                  TokenType.GreaterGreaterEqual, TokenType.GreaterGreaterGreaterEqual,
+                  TokenType.StarStarEqual))
         {
             op = Previous();
             return true;

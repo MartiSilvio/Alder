@@ -1720,6 +1720,7 @@ public sealed class Evaluator : IExprVisitor<object?>
         { TokenType.LessLess, (_, l, r) => Operators.LeftShift(l, r) },
         { TokenType.GreaterGreater, (_, l, r) => Operators.RightShift(l, r) },
         { TokenType.GreaterGreaterGreater, (_, l, r) => Operators.UnsignedRightShift(l, r) },
+        { TokenType.StarStar, (_, l, r) => Operators.Power(l, r) },
     };
 
     private static readonly Dictionary<TokenType, Func<Evaluator, object?, object?>> UnaryOperators = new()
@@ -1743,6 +1744,7 @@ public sealed class Evaluator : IExprVisitor<object?>
         { TokenType.LessLessEqual, TokenType.LessLess },
         { TokenType.GreaterGreaterEqual, TokenType.GreaterGreater },
         { TokenType.GreaterGreaterGreaterEqual, TokenType.GreaterGreaterGreater },
+        { TokenType.StarStarEqual, TokenType.StarStar },
     };
 
     #endregion
