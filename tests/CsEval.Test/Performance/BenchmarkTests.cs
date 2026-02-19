@@ -187,7 +187,7 @@ public class BenchmarkTests
     public void Benchmark_Evaluate_ArrayLiteral()
     {
         const string expression = "[1, 2, 3, 4, 5]";
-        var engine = new CsEvalEngine();
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { LanguageMode = LanguageMode.Extended });
 
         Warmup(() => engine.Evaluate(expression));
 
@@ -380,7 +380,7 @@ public class BenchmarkTests
     {
         // Object merging uses GetProperties heavily
         const string expression = "person + new { FullName = person.FirstName + \" \" + person.LastName, IsAdult = person.Age >= 18 }";
-        var engine = new CsEvalEngine()
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { LanguageMode = LanguageMode.Extended })
             .SetVariable("person", new Person { FirstName = "John", LastName = "Doe", Age = 30 });
 
         Warmup(() => engine.Evaluate(expression));
@@ -400,7 +400,7 @@ public class BenchmarkTests
     {
         // Spread also uses GetProperties
         const string expression = "new { ..person, Email = \"john@example.com\" }";
-        var engine = new CsEvalEngine()
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { LanguageMode = LanguageMode.Extended })
             .SetVariable("person", new Person { FirstName = "John", LastName = "Doe", Age = 30 });
 
         Warmup(() => engine.Evaluate(expression));
@@ -447,7 +447,7 @@ public class BenchmarkTests
             }
         ";
 
-        var engine = new CsEvalEngine()
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { LanguageMode = LanguageMode.Extended })
             .SetVariable("person", new Person { FirstName = "John", LastName = "Doe", Age = 30 })
             .SetVariable("order", new Order { Id = 1, Total = 99.99m, Status = "Complete" })
             .SetVariable("product", new Product { Name = "Widget", Price = 19.99, InStock = true });

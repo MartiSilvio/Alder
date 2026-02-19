@@ -403,7 +403,7 @@ public sealed class Evaluator : IExprVisitor<object?>
 
     public object? VisitLambda(LambdaExpr expr)
     {
-        return new LambdaValue(expr.Parameters.Select(p => p.Name.Lexeme).ToList(), expr.Body, _context);
+        return new LambdaValue(expr.Parameters.Select(p => p.Name.Lexeme).ToList(), expr.Body, _context, _options);
     }
 
     public object? VisitConditional(ConditionalExpr expr)
@@ -1756,7 +1756,7 @@ public sealed record FunctionRef(string Name, Func<object?[], object?> Function)
     public object? Invoke(object?[] args) => Function(args);
 }
 
-internal sealed record LambdaValue(List<string> Parameters, Expr Body, CsEvalContext Closure);
+internal sealed record LambdaValue(List<string> Parameters, Expr Body, CsEvalContext Closure, CsEvalOptions? Options = null);
 
 /// <summary>
 /// Compiled lambda with IL-compiled body delegate.

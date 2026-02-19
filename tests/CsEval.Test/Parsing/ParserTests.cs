@@ -5,11 +5,11 @@ namespace CsEval.Test.Parsing;
 [TestFixture]
 public class ParserTests
 {
-    private static Expr Parse(string source)
+    private static Expr Parse(string source, LanguageMode languageMode = LanguageMode.Extended)
     {
         var lexer = new Lexer(source);
         var tokens = lexer.Tokenize();
-        var parser = ExpressionParser.CreateForSubExpression(tokens);
+        var parser = ExpressionParser.CreateForSubExpression(tokens, languageMode);
         return parser.Parse();
     }
 

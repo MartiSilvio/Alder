@@ -14,7 +14,7 @@ public class ScopingTests(CompilationMode mode)
     [Test]
     public void ForEachLoop_BodyVariable_DoesNotLeakToParentScope()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode, LanguageMode = LanguageMode.Extended });
 
         var ex = Assert.Throws<CsEvalException>(() =>
             engine.Evaluate(@"
@@ -31,7 +31,7 @@ public class ScopingTests(CompilationMode mode)
     [Test]
     public void ForEachLoop_BodyVariableWithoutBraces_DoesNotLeakToParentScope()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode, LanguageMode = LanguageMode.Extended });
 
         var ex = Assert.Throws<CsEvalException>(() =>
             engine.Evaluate(@"
@@ -47,7 +47,7 @@ public class ScopingTests(CompilationMode mode)
     [Test]
     public void ForEachLoop_IterationVariable_DoesNotLeakToParentScope()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode, LanguageMode = LanguageMode.Extended });
 
         var ex = Assert.Throws<CsEvalException>(() =>
             engine.Evaluate(@"
@@ -63,7 +63,7 @@ public class ScopingTests(CompilationMode mode)
     [Test]
     public void ForEachLoop_NestedLoops_InnerVariableDoesNotLeakToOuter()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode, LanguageMode = LanguageMode.Extended });
 
         var ex = Assert.Throws<CsEvalException>(() =>
             engine.Evaluate(@"
@@ -88,7 +88,7 @@ public class ScopingTests(CompilationMode mode)
     [Test]
     public void ForLoop_InitializerVariable_DoesNotLeakToParentScope()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode, LanguageMode = LanguageMode.Extended });
 
         var ex = Assert.Throws<CsEvalException>(() =>
             engine.Evaluate(@"
@@ -104,7 +104,7 @@ public class ScopingTests(CompilationMode mode)
     [Test]
     public void ForLoop_BodyVariable_DoesNotLeakToParentScope()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode, LanguageMode = LanguageMode.Extended });
 
         var ex = Assert.Throws<CsEvalException>(() =>
             engine.Evaluate(@"
@@ -121,7 +121,7 @@ public class ScopingTests(CompilationMode mode)
     [Test]
     public void ForLoop_BodyVariableWithoutBraces_DoesNotLeakToParentScope()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode, LanguageMode = LanguageMode.Extended });
 
         var ex = Assert.Throws<CsEvalException>(() =>
             engine.Evaluate(@"
@@ -142,7 +142,7 @@ public class ScopingTests(CompilationMode mode)
     [Test]
     public void WhileLoop_BodyVariable_DoesNotLeakToParentScope()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode, LanguageMode = LanguageMode.Extended });
 
         var ex = Assert.Throws<CsEvalException>(() =>
             engine.Evaluate(@"
@@ -161,7 +161,7 @@ public class ScopingTests(CompilationMode mode)
     [Test]
     public void WhileLoop_SingleStatementBodyVariable_DoesNotLeakToParentScope()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode, LanguageMode = LanguageMode.Extended });
 
         var ex = Assert.Throws<CsEvalException>(() =>
             engine.Evaluate(@"
@@ -185,7 +185,7 @@ public class ScopingTests(CompilationMode mode)
     [Test]
     public void DoWhileLoop_BodyVariable_DoesNotLeakToParentScope()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode, LanguageMode = LanguageMode.Extended });
 
         var ex = Assert.Throws<CsEvalException>(() =>
             engine.Evaluate(@"
@@ -209,7 +209,7 @@ public class ScopingTests(CompilationMode mode)
     [Test]
     public void IfStatement_ThenBranchVariable_DoesNotLeakToParentScope()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode, LanguageMode = LanguageMode.Extended });
 
         var ex = Assert.Throws<CsEvalException>(() =>
             engine.Evaluate(@"
@@ -226,7 +226,7 @@ public class ScopingTests(CompilationMode mode)
     [Test]
     public void IfStatement_ThenBranchVariableWithoutBraces_DoesNotLeakToParentScope()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode, LanguageMode = LanguageMode.Extended });
 
         var ex = Assert.Throws<CsEvalException>(() =>
             engine.Evaluate(@"
@@ -242,7 +242,7 @@ public class ScopingTests(CompilationMode mode)
     [Test]
     public void IfStatement_ElseBranchVariable_DoesNotLeakToParentScope()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode, LanguageMode = LanguageMode.Extended });
 
         var ex = Assert.Throws<CsEvalException>(() =>
             engine.Evaluate(@"
@@ -261,7 +261,7 @@ public class ScopingTests(CompilationMode mode)
     [Test]
     public void IfStatement_ElseBranchVariableWithoutBraces_DoesNotLeakToParentScope()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode, LanguageMode = LanguageMode.Extended });
 
         var ex = Assert.Throws<CsEvalException>(() =>
             engine.Evaluate(@"
@@ -279,7 +279,7 @@ public class ScopingTests(CompilationMode mode)
     [Test]
     public void IfStatement_NestedIf_VariablesProperlyScoped()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode, LanguageMode = LanguageMode.Extended });
 
         var ex = Assert.Throws<CsEvalException>(() =>
             engine.Evaluate(@"
@@ -299,7 +299,7 @@ public class ScopingTests(CompilationMode mode)
     [Test]
     public void IfStatement_ElseIfChain_VariablesProperlyScoped()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode, LanguageMode = LanguageMode.Extended });
 
         var ex = Assert.Throws<CsEvalException>(() =>
             engine.Evaluate(@"
@@ -326,7 +326,7 @@ public class ScopingTests(CompilationMode mode)
     [Test]
     public void MixedControlFlow_IfInsideFor_ProperScoping()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode, LanguageMode = LanguageMode.Extended });
 
         var ex = Assert.Throws<CsEvalException>(() =>
             engine.Evaluate(@"
@@ -345,7 +345,7 @@ public class ScopingTests(CompilationMode mode)
     [Test]
     public void MixedControlFlow_ForInsideIf_ProperScoping()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode, LanguageMode = LanguageMode.Extended });
 
         var ex = Assert.Throws<CsEvalException>(() =>
             engine.Evaluate(@"
@@ -364,7 +364,7 @@ public class ScopingTests(CompilationMode mode)
     [Test]
     public void MixedControlFlow_WhileInsideForEach_ProperScoping()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode, LanguageMode = LanguageMode.Extended });
 
         var ex = Assert.Throws<CsEvalException>(() =>
             engine.Evaluate(@"
@@ -390,7 +390,7 @@ public class ScopingTests(CompilationMode mode)
     [Test]
     public void BlockInIf_VariablesScoped_AsExpected()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode, LanguageMode = LanguageMode.Extended });
 
         var ex = Assert.Throws<CsEvalException>(() =>
             engine.Evaluate(@"

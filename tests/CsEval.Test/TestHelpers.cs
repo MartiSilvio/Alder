@@ -30,7 +30,7 @@ public static class TestHelpers
     /// </summary>
     public static async Task RunCSharpParityTestAsync(string expr, Dictionary<string, object?>? variables, object? expected, CompilationMode mode)
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode, LanguageMode = LanguageMode.Extended });
         if (variables != null)
             foreach (var (name, value) in variables)
                 engine.SetVariable(name, value);

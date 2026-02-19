@@ -896,7 +896,7 @@ public static class MethodInvoker
             childContext.Define(lambda.Parameters[i], args[i]);
         }
 
-        var evaluator = new Evaluator(childContext);
+        var evaluator = new Evaluator(childContext, lambda.Options);
         return evaluator.Evaluate(lambda.Body);
     }
 

@@ -15,7 +15,7 @@ public class JsFriendlySyntaxTests(CompilationMode mode)
     [TestCase("{ var super = 1; return super; }", TestName = "Super_IsReservedKeyword")]
     public void ReservedKeyword_ThrowsCsEvalParserException(string expr)
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode, LanguageMode = LanguageMode.Extended });
         Assert.Throws<CsEvalParserException>(() => engine.Evaluate(expr));
     }
 
@@ -23,7 +23,7 @@ public class JsFriendlySyntaxTests(CompilationMode mode)
     [Test]
     public void StrictEquality_InExpression_WithVariable()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode, LanguageMode = LanguageMode.Extended });
         engine.SetVariable("x", 5);
         Assert.That(engine.Evaluate("x === 5 ? \"yes\" : \"no\""), Is.EqualTo("yes"));
         Assert.That(engine.Evaluate("x !== 5 ? \"yes\" : \"no\""), Is.EqualTo("no"));
@@ -33,7 +33,7 @@ public class JsFriendlySyntaxTests(CompilationMode mode)
     [Test]
     public void AnonymousObject_SingleProperty()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode, LanguageMode = LanguageMode.Extended });
         var result = engine.Evaluate("new { Name = \"John\" }") as IDictionary<string, object?>;
         Assert.That(result, Is.Not.Null);
         Assert.That(result!["Name"], Is.EqualTo("John"));
@@ -42,7 +42,7 @@ public class JsFriendlySyntaxTests(CompilationMode mode)
     [Test]
     public void AnonymousObject_MultipleProperties()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode, LanguageMode = LanguageMode.Extended });
         var result = engine.Evaluate("new { Name = \"John\", Age = 30 }") as IDictionary<string, object?>;
         Assert.That(result, Is.Not.Null);
         Assert.That(result!["Name"], Is.EqualTo("John"));

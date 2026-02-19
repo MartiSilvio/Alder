@@ -16,7 +16,7 @@ public class IndexPropertyAssignmentTests(CompilationMode mode)
     [Test]
     public void IndexAssignment_ExternalList_ModifiesOriginal()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode, LanguageMode = LanguageMode.Extended });
         var list = new List<int> { 1, 2, 3 };
         engine.SetVariable("arr", list);
 
@@ -28,7 +28,7 @@ public class IndexPropertyAssignmentTests(CompilationMode mode)
     [Test]
     public void IndexAssignment_ExternalArray_ModifiesOriginal()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode, LanguageMode = LanguageMode.Extended });
         var arr = new object?[] { 1, 2, 3 };
         engine.SetVariable("arr", arr);
 
@@ -40,7 +40,7 @@ public class IndexPropertyAssignmentTests(CompilationMode mode)
     [Test]
     public void IndexAssignment_OutOfRange_ThrowsException()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode, LanguageMode = LanguageMode.Extended });
 
         Assert.Throws<ArgumentOutOfRangeException>(() =>
             engine.Evaluate(@"
@@ -54,7 +54,7 @@ public class IndexPropertyAssignmentTests(CompilationMode mode)
     [Test]
     public void IndexAssignment_NegativeIndex_ThrowsException()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode, LanguageMode = LanguageMode.Extended });
 
         Assert.Throws<ArgumentOutOfRangeException>(() =>
             engine.Evaluate(@"
@@ -68,7 +68,7 @@ public class IndexPropertyAssignmentTests(CompilationMode mode)
     [Test]
     public void IndexAssignment_OnNull_ThrowsException()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode, LanguageMode = LanguageMode.Extended });
         engine.SetVariable("arr", null);
 
         Assert.Throws<CsEvalException>(() =>
@@ -83,7 +83,7 @@ public class IndexPropertyAssignmentTests(CompilationMode mode)
     [Test]
     public void IndexAssignment_Dictionary_SetsValue()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode, LanguageMode = LanguageMode.Extended });
         var result = engine.Evaluate(@"
         {
             var dict = new { name = ""John"" };
@@ -97,7 +97,7 @@ public class IndexPropertyAssignmentTests(CompilationMode mode)
     [Test]
     public void IndexAssignment_Dictionary_AddsNewKey()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode, LanguageMode = LanguageMode.Extended });
         var result = engine.Evaluate(@"
         {
             var dict = new { name = ""John"" };
@@ -111,7 +111,7 @@ public class IndexPropertyAssignmentTests(CompilationMode mode)
     [Test]
     public void IndexAssignment_ExternalDictionary_ModifiesOriginal()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode, LanguageMode = LanguageMode.Extended });
         var dict = new Dictionary<string, object?> { ["key"] = "old" };
         engine.SetVariable("dict", dict);
 
@@ -123,7 +123,7 @@ public class IndexPropertyAssignmentTests(CompilationMode mode)
     [Test]
     public void IndexAssignment_Dictionary_ReturnsAssignedValue()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode, LanguageMode = LanguageMode.Extended });
         var result = engine.Evaluate(@"
         {
             var dict = new { a = 1 };
@@ -141,7 +141,7 @@ public class IndexPropertyAssignmentTests(CompilationMode mode)
     [Test]
     public void PropertyAssignment_AnonymousObject_SetsValue()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode, LanguageMode = LanguageMode.Extended });
         var result = engine.Evaluate(@"
         {
             var obj = new { Name = ""John"" };
@@ -155,7 +155,7 @@ public class IndexPropertyAssignmentTests(CompilationMode mode)
     [Test]
     public void PropertyAssignment_AnonymousObject_AddsNewProperty()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode, LanguageMode = LanguageMode.Extended });
         var result = engine.Evaluate(@"
         {
             var obj = new { Name = ""John"" };
@@ -169,7 +169,7 @@ public class IndexPropertyAssignmentTests(CompilationMode mode)
     [Test]
     public void PropertyAssignment_ReturnsAssignedValue()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode, LanguageMode = LanguageMode.Extended });
         var result = engine.Evaluate(@"
         {
             var obj = new { Value = 0 };
@@ -183,7 +183,7 @@ public class IndexPropertyAssignmentTests(CompilationMode mode)
     [Test]
     public void PropertyAssignment_NestedObject()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode, LanguageMode = LanguageMode.Extended });
         var result = engine.Evaluate(@"
         {
             var obj = new { Inner = new { Value = 10 } };
@@ -197,7 +197,7 @@ public class IndexPropertyAssignmentTests(CompilationMode mode)
     [Test]
     public void PropertyAssignment_OnNull_ThrowsException()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode, LanguageMode = LanguageMode.Extended });
         engine.SetVariable("obj", null);
 
         Assert.Throws<CsEvalException>(() =>
@@ -211,7 +211,7 @@ public class IndexPropertyAssignmentTests(CompilationMode mode)
     [Test]
     public void PropertyAssignment_TypedObject_SetsProperty()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode, LanguageMode = LanguageMode.Extended });
         var person = new TestPerson { Name = "John", Age = 25 };
         engine.SetVariable("person", person);
 
@@ -223,7 +223,7 @@ public class IndexPropertyAssignmentTests(CompilationMode mode)
     [Test]
     public void PropertyAssignment_TypedObject_SetsIntProperty()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode, LanguageMode = LanguageMode.Extended });
         var person = new TestPerson { Name = "John", Age = 25 };
         engine.SetVariable("person", person);
 
@@ -235,7 +235,7 @@ public class IndexPropertyAssignmentTests(CompilationMode mode)
     [Test]
     public void PropertyAssignment_ReadOnlyProperty_ThrowsException()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode, LanguageMode = LanguageMode.Extended });
         engine.SetVariable("text", "hello");
 
         Assert.Throws<CsEvalException>(() =>
@@ -255,7 +255,7 @@ public class IndexPropertyAssignmentTests(CompilationMode mode)
     [Test]
     public void PropertyAssignment_InForLoop_Works()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode, LanguageMode = LanguageMode.Extended });
         var result = engine.Evaluate(@"
         {
             var obj = new { Counter = 0 };
@@ -275,7 +275,7 @@ public class IndexPropertyAssignmentTests(CompilationMode mode)
     [Test]
     public void MixedAssignment_ArrayOfObjects()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode, LanguageMode = LanguageMode.Extended });
         var result = engine.Evaluate(@"
         {
             var items = [new { Value = 1 }, new { Value = 2 }];
@@ -289,7 +289,7 @@ public class IndexPropertyAssignmentTests(CompilationMode mode)
     [Test]
     public void MixedAssignment_ObjectWithArray()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode, LanguageMode = LanguageMode.Extended });
         var result = engine.Evaluate(@"
         {
             var obj = new { Items = [1, 2, 3] };

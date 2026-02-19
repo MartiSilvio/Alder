@@ -208,7 +208,7 @@ public class MiscTests(CompilationMode mode)
     [Test]
     public void NCalcIssue494_InvalidDateTimeAddition_DoesNotCrashRuntime()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode, LanguageMode = LanguageMode.Extended });
         engine.SetVariable("a", new DateTime(2024, 1, 1));
         engine.SetVariable("b", new DateTime(2024, 1, 2));
         var result = engine.Evaluate("a + b");

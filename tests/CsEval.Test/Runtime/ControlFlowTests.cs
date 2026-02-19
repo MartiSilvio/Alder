@@ -25,7 +25,7 @@ public class ControlFlowTests(CompilationMode mode)
     [Test]
     public void Eval_IfStatement_NullCheck_Pattern()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode, LanguageMode = LanguageMode.Extended });
         engine.SetVariable("person", new TestPerson { Name = "John", Age = 30 });
 
         var result = engine.Evaluate(@"{

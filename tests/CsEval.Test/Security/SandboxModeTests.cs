@@ -549,6 +549,7 @@ public class SandboxModeTests(CompilationMode mode)
         var engine = new CsEvalEngine(new CsEvalOptions
         {
             CompilationMode = mode,
+            LanguageMode = LanguageMode.Extended,
             Sandbox = SandboxOptions.Safe()
         });
 
@@ -568,6 +569,7 @@ public class SandboxModeTests(CompilationMode mode)
         var engine = new CsEvalEngine(new CsEvalOptions
         {
             CompilationMode = mode,
+            LanguageMode = LanguageMode.Extended,
             Sandbox = SandboxOptions.Safe() with { AllowIndexSet = false }
         });
 
@@ -586,6 +588,7 @@ public class SandboxModeTests(CompilationMode mode)
         var engine = new CsEvalEngine(new CsEvalOptions
         {
             CompilationMode = mode,
+            LanguageMode = LanguageMode.Extended,
             Sandbox = SandboxOptions.Safe() with { AllowIndexSet = false }
         });
 
@@ -723,6 +726,7 @@ public class SandboxModeTests(CompilationMode mode)
         var engine = new CsEvalEngine(new CsEvalOptions
         {
             CompilationMode = mode,
+            LanguageMode = LanguageMode.Extended,
             Sandbox = SandboxOptions.Strict()
         });
 

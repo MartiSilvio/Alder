@@ -1,6 +1,6 @@
 using System.Runtime.CompilerServices;
 
-namespace CsEval.Test.Parity;
+namespace CsEval.Test;
 
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
@@ -10,7 +10,8 @@ public class ParityTests(CompilationMode mode)
     private CsEvalOptions Options => CsEvalOptions.Default with
     {
         CompilationMode = mode,
-        MaxIterations = 1_000_000
+        MaxIterations = 1_000_000,
+        LanguageMode = LanguageMode.Extended
     };
 
     [TestCaseSource(nameof(DiscoverExpressions), ["TestData/ValidExpressions"])]
