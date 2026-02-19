@@ -1703,7 +1703,7 @@ public sealed class Evaluator : IExprVisitor<object?>
     {
         { TokenType.Plus, (e, l, r) => Operators.Add(l, r, e._options, e._context) },
         { TokenType.Minus, (_, l, r) => Operators.Subtract(l, r) },
-        { TokenType.Star, (_, l, r) => Operators.Multiply(l, r) },
+        { TokenType.Star, (e, l, r) => Operators.Multiply(l, r, e._options) },
         { TokenType.Slash, (_, l, r) => Operators.Divide(l, r) },
         { TokenType.Percent, (_, l, r) => Operators.Modulo(l, r) },
         { TokenType.EqualEqual, (_, l, r) => Operators.Equals(l, r) },
@@ -1721,6 +1721,10 @@ public sealed class Evaluator : IExprVisitor<object?>
         { TokenType.GreaterGreater, (_, l, r) => Operators.RightShift(l, r) },
         { TokenType.GreaterGreaterGreater, (_, l, r) => Operators.UnsignedRightShift(l, r) },
         { TokenType.StarStar, (_, l, r) => Operators.Power(l, r) },
+        { TokenType.In, (_, l, r) => (object)Operators.Contains(r, l) },  // Note: collection is RIGHT, value is LEFT
+        { TokenType.NotIn, (_, l, r) => (object)Operators.NotContains(r, l) },
+        { TokenType.Like, (_, l, r) => Operators.Like(l, r) },
+        { TokenType.NotLike, (_, l, r) => Operators.NotLike(l, r) },
     };
 
     private static readonly Dictionary<TokenType, Func<Evaluator, object?, object?>> UnaryOperators = new()

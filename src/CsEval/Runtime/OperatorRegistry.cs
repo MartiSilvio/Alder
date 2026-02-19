@@ -30,7 +30,7 @@ internal static class OperatorRegistry
     {
         [TokenType.Plus] = new(typeof(Operators).GetMethod(nameof(Operators.Add), [typeof(object), typeof(object), typeof(CsEvalOptions), typeof(CsEvalContext)])!, BinaryOpSignature.WithOptionsAndContext),
         [TokenType.Minus] = new(typeof(Operators).GetMethod(nameof(Operators.Subtract), [typeof(object), typeof(object)])!, BinaryOpSignature.TwoArgs),
-        [TokenType.Star] = new(typeof(Operators).GetMethod(nameof(Operators.Multiply), [typeof(object), typeof(object)])!, BinaryOpSignature.TwoArgs),
+        [TokenType.Star] = new(typeof(Operators).GetMethod(nameof(Operators.Multiply), [typeof(object), typeof(object), typeof(CsEvalOptions)])!, BinaryOpSignature.WithOptions),
         [TokenType.Slash] = new(typeof(Operators).GetMethod(nameof(Operators.Divide), [typeof(object), typeof(object)])!, BinaryOpSignature.TwoArgs),
         [TokenType.Percent] = new(typeof(Operators).GetMethod(nameof(Operators.Modulo), [typeof(object), typeof(object)])!, BinaryOpSignature.TwoArgs),
         [TokenType.EqualEqual] = new(typeof(Operators).GetMethod("Equals", [typeof(object), typeof(object)])!, BinaryOpSignature.TwoArgs),
@@ -48,6 +48,10 @@ internal static class OperatorRegistry
         [TokenType.GreaterGreater] = new(typeof(Operators).GetMethod(nameof(Operators.RightShift), [typeof(object), typeof(object)])!, BinaryOpSignature.TwoArgs),
         [TokenType.GreaterGreaterGreater] = new(typeof(Operators).GetMethod(nameof(Operators.UnsignedRightShift), [typeof(object), typeof(object)])!, BinaryOpSignature.TwoArgs),
         [TokenType.StarStar] = new(typeof(Operators).GetMethod(nameof(Operators.Power), [typeof(object), typeof(object)])!, BinaryOpSignature.TwoArgs),
+        [TokenType.In] = new(typeof(Operators).GetMethod(nameof(Operators.InOperator), [typeof(object), typeof(object)])!, BinaryOpSignature.TwoArgs),
+        [TokenType.NotIn] = new(typeof(Operators).GetMethod(nameof(Operators.NotInOperator), [typeof(object), typeof(object)])!, BinaryOpSignature.TwoArgs),
+        [TokenType.Like] = new(typeof(Operators).GetMethod(nameof(Operators.Like), [typeof(object), typeof(object)])!, BinaryOpSignature.TwoArgs),
+        [TokenType.NotLike] = new(typeof(Operators).GetMethod(nameof(Operators.NotLike), [typeof(object), typeof(object)])!, BinaryOpSignature.TwoArgs),
     };
 
     private static readonly Dictionary<TokenType, MethodInfo> UnaryOperators = new()

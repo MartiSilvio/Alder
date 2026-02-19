@@ -394,6 +394,53 @@ public sealed class ExpressionParser : ParserBase
             {
                 expr = ParseSwitchExpression(expr);
             }
+            else if (State.LanguageMode == LanguageMode.Extended && Match(TokenType.In))
+            {
+                var op = Previous();
+                var right = ParseShift();
+                expr = new BinaryExpr(expr, op, right);
+            }
+            else if (State.LanguageMode == LanguageMode.Extended
+                     && Check(TokenType.Bang) && CheckNext(TokenType.In))
+            {
+                Advance(); // consume 'not'
+                var notToken = Previous();
+                Advance(); // consume 'in'
+                var op = new Token(TokenType.NotIn, "not in", null, notToken.Line, notToken.Column);
+                var right = ParseShift();
+                expr = new BinaryExpr(expr, op, right);
+            }
+            else if (State.LanguageMode == LanguageMode.Extended && Match(TokenType.Like))
+            {
+                var op = Previous();
+                var right = ParseShift();
+                expr = new BinaryExpr(expr, op, right);
+            }
+            else if (State.LanguageMode == LanguageMode.Extended
+                     && Check(TokenType.Bang) && CheckNext(TokenType.Like))
+            {
+                Advance(); // consume 'not'
+                var notToken = Previous();
+                Advance(); // consume 'like'
+                var op = new Token(TokenType.NotLike, "not like", null, notToken.Line, notToken.Column);
+                var right = ParseShift();
+                expr = new BinaryExpr(expr, op, right);
+            }
+            else if (State.LanguageMode == LanguageMode.Extended && Match(TokenType.Between))
+            {
+                // between...and is a ternary-style operator: expr between low and high
+                // Desugar to (expr >= low && expr <= high) at parse time
+                var betweenToken = Previous();
+                var low = ParseShift();
+                Consume(TokenType.AmpAmp, "Expected 'and' after 'between' lower bound");
+                var high = ParseShift();
+                var geExpr = new BinaryExpr(expr,
+                    new Token(TokenType.GreaterEqual, ">=", null, betweenToken.Line, betweenToken.Column), low);
+                var leExpr = new BinaryExpr(expr,
+                    new Token(TokenType.LessEqual, "<=", null, betweenToken.Line, betweenToken.Column), high);
+                expr = new LogicalExpr(geExpr,
+                    new Token(TokenType.AmpAmp, "&&", null, betweenToken.Line, betweenToken.Column), leExpr);
+            }
             else
             {
                 break;
@@ -1000,7 +1047,8 @@ public sealed class ExpressionParser : ParserBase
             or TokenType.Equals or TokenType.By or TokenType.Ascending or TokenType.Descending or TokenType.Let
             or TokenType.Get or TokenType.Set or TokenType.Add or TokenType.Remove or TokenType.Init or TokenType.When
             or TokenType.With or TokenType.And or TokenType.Or or TokenType.Not or TokenType.File or TokenType.Required
-            or TokenType.Scoped or TokenType.Args;
+            or TokenType.Scoped or TokenType.Args
+            or TokenType.Like or TokenType.Between;
     }
 
     #endregion

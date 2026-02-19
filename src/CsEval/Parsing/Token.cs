@@ -246,6 +246,14 @@ public enum TokenType
     With,
     Yield,
 
+    // Extended mode operators (contextual keywords)
+    Like,              // like (SQL pattern matching, Extended mode)
+    Between,           // between (SQL range check, Extended mode)
+
+    // Synthetic tokens (created by parser, not lexer)
+    NotIn,             // not in (Extended mode compound keyword operator)
+    NotLike,           // not like (Extended mode compound keyword operator)
+
     // Special
     Eof
 }

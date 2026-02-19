@@ -105,6 +105,16 @@ public abstract class ParserBase
 
     internal bool Check(TokenType type) => !IsAtEnd() && Peek().Type == type;
 
+    /// <summary>
+    /// Checks if the token one position ahead of current has the given type.
+    /// Used for two-token lookahead (e.g., "not in", "not like").
+    /// </summary>
+    internal bool CheckNext(TokenType type)
+    {
+        if (State.Current + 1 >= State.Tokens.Count) return false;
+        return State.Tokens[State.Current + 1].Type == type;
+    }
+
     internal Token Advance()
     {
         if (!IsAtEnd()) State.Current++;
@@ -147,7 +157,8 @@ public abstract class ParserBase
             or TokenType.Equals or TokenType.By or TokenType.Ascending or TokenType.Descending or TokenType.Let
             or TokenType.Get or TokenType.Set or TokenType.Add or TokenType.Remove or TokenType.Init or TokenType.When
             or TokenType.With or TokenType.And or TokenType.Or or TokenType.Not or TokenType.File or TokenType.Required
-            or TokenType.Scoped or TokenType.Args;
+            or TokenType.Scoped or TokenType.Args
+            or TokenType.Like or TokenType.Between;
 
     #endregion
 

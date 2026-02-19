@@ -79,7 +79,18 @@ public static class Operators
         ApplyBinaryArithmetic(left, right, "-", NumericDispatch.Subtract);
 
     public static object? Multiply(object? left, object? right) =>
-        ApplyBinaryArithmetic(left, right, "*", NumericDispatch.Multiply);
+        Multiply(left, right, null);
+
+    public static object? Multiply(object? left, object? right, CsEvalOptions? options)
+    {
+        if (left is string || right is string)
+        {
+            if (options?.LanguageMode == LanguageMode.Extended)
+                return StringMultiply(left, right);
+            // In Standard mode, string * anything falls through to arithmetic and throws
+        }
+        return ApplyBinaryArithmetic(left, right, "*", NumericDispatch.Multiply);
+    }
 
     public static object? Divide(object? left, object? right) =>
         ApplyBinaryArithmetic(left, right, "/", NumericDispatch.Divide);
@@ -377,5 +388,92 @@ public static class Operators
             return enumerable.Cast<object?>().Any(item => (bool)Equals(item, value));
 
         throw new CsEvalException($"Cannot use 'in' operator with {collection.GetType().Name}");
+    }
+
+    public static bool NotContains(object? collection, object? value)
+    {
+        return !Contains(collection, value);
+    }
+
+    /// <summary>
+    /// Wraps Contains with (value, collection) parameter order for use by the IL compiler,
+    /// which passes BinaryExpr operands as (left=value, right=collection).
+    /// </summary>
+    public static bool InOperator(object? value, object? collection)
+    {
+        return Contains(collection, value);
+    }
+
+    /// <summary>
+    /// Wraps NotContains with (value, collection) parameter order for use by the IL compiler.
+    /// </summary>
+    public static bool NotInOperator(object? value, object? collection)
+    {
+        return !Contains(collection, value);
+    }
+
+    /// <summary>
+    /// String repetition: "abc" * 3 or 3 * "abc" returns "abcabcabc".
+    /// Extended mode only. Inspired by both Python and Ruby string repeat syntax.
+    /// </summary>
+    public static object? StringMultiply(object? left, object? right)
+    {
+        string? str;
+        object? countObj;
+
+        if (left is string s)
+        {
+            str = s;
+            countObj = right;
+        }
+        else if (right is string s2)
+        {
+            str = s2;
+            countObj = left;
+        }
+        else
+        {
+            throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, "*",
+                left?.GetType().Name ?? "null", right?.GetType().Name ?? "null");
+        }
+
+        if (countObj == null)
+            throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, "*",
+                left?.GetType().Name ?? "null", right?.GetType().Name ?? "null");
+
+        if (!TypeHelpers.IsInteger(countObj))
+            throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, "*",
+                left?.GetType().Name ?? "null", right?.GetType().Name ?? "null");
+
+        int count = Convert.ToInt32(countObj);
+        if (count < 0)
+            throw new CsEvalException("String repeat count must be non-negative");
+        if (count == 0)
+            return "";
+
+        return string.Concat(Enumerable.Repeat(str, count));
+    }
+
+    /// <summary>
+    /// SQL LIKE pattern matching: str like pattern.
+    /// Pattern uses % for any characters, _ for single character.
+    /// </summary>
+    public static object Like(object? left, object? right)
+    {
+        if (left is not string str || right is not string pattern)
+            throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, "like",
+                left?.GetType().Name ?? "null", right?.GetType().Name ?? "null");
+
+        var regexPattern = "^" + System.Text.RegularExpressions.Regex.Escape(pattern)
+            .Replace("%", ".*")
+            .Replace("_", ".") + "$";
+
+        return System.Text.RegularExpressions.Regex.IsMatch(str, regexPattern,
+            System.Text.RegularExpressions.RegexOptions.Singleline);
+    }
+
+    public static object NotLike(object? left, object? right)
+    {
+        return !(bool)Like(left, right);
     }
 }

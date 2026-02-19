@@ -129,6 +129,10 @@ public sealed class Lexer
         ["nuint"] = TokenType.Nuint,
         ["dynamic"] = TokenType.Dynamic,
 
+        // Extended mode operators (contextual keywords)
+        ["like"] = TokenType.Like,
+        ["between"] = TokenType.Between,
+
         // Contextual keywords (reserved for forward compatibility)
         ["add"] = TokenType.Add,
         ["alias"] = TokenType.Alias,
