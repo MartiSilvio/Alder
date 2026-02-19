@@ -147,12 +147,7 @@ public sealed class ExpressionParser : ParserBase
 
         var expr = ParseConditional();
 
-        // Unwrap parenthesized assignment targets: (x) = 5, ((x)) = 5
-        var target = expr;
-        while (target is GroupingExpr grouping)
-            target = grouping.Expression;
-
-        if (target is IdentifierExpr identifier)
+        if (expr is IdentifierExpr identifier)
         {
             // Handle ??= as an expression (for use in return statements, etc.)
             if (Match(TokenType.QuestionQuestionEqual))
@@ -175,7 +170,7 @@ public sealed class ExpressionParser : ParserBase
                 return new CompoundAssignExpr(identifier.Name, op, value);
             }
         }
-        else if (target is MemberAccessExpr memberAccess)
+        else if (expr is MemberAccessExpr memberAccess)
         {
             // Handle obj.Property ??= value
             if (Match(TokenType.QuestionQuestionEqual))
@@ -199,7 +194,7 @@ public sealed class ExpressionParser : ParserBase
                     value);
             }
         }
-        else if (target is IndexAccessExpr indexAccess)
+        else if (expr is IndexAccessExpr indexAccess)
         {
             // Handle dict[key] ??= value
             if (Match(TokenType.QuestionQuestionEqual))
@@ -222,7 +217,7 @@ public sealed class ExpressionParser : ParserBase
                 return new IndexCompoundAssignExpr(indexAccess.Object, indexAccess.Index, indexOp.Type, value);
             }
         }
-        else if (target is MultiDimIndexAccessExpr multiIndex)
+        else if (expr is MultiDimIndexAccessExpr multiIndex)
         {
             // Handle arr[i, j] = value
             if (Match(TokenType.Equal))

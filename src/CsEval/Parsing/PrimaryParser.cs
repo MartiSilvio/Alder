@@ -527,9 +527,9 @@ public sealed class PrimaryParser : ParserBase
             return new TupleExpr(elements);
         }
 
-        // No comma - this is grouping: (expr)
+        // No comma - this is grouping: (expr) returns inner expression directly
         Consume(TokenType.RightParen, "Expected ')' after expression");
-        return new GroupingExpr(firstElement.Expression);
+        return firstElement.Expression;
     }
 
     /// <summary>

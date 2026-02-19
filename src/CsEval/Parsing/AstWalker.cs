@@ -462,14 +462,6 @@ public abstract class AstWalker<T> : IExprVisitor<T>
         return OnLeave(expr);
     }
 
-    // Grouping
-    public virtual T VisitGrouping(GroupingExpr expr)
-    {
-        OnEnter(expr);
-        Visit(expr.Expression);
-        return OnLeave(expr);
-    }
-
     // Default Expression
     public virtual T VisitDefault(DefaultExpr expr)
     {

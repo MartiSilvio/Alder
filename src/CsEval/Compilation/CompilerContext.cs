@@ -279,7 +279,6 @@ internal sealed class CompilerContext
                 TupleExpr tuple => exprUnit.CompileTuple(tuple),
                 DeconstructionExpr deconstruction => exprUnit.CompileDeconstruction(deconstruction),
                 ThrowExpr throwExpr => exprUnit.CompileThrow(throwExpr),
-                GroupingExpr g => Compile(ctx, g.Expression, exprUnit, controlUnit, patternUnit),
                 UnaryExpr u => exprUnit.CompileUnary(u),
                 CastExpr cast => exprUnit.CompileCast(cast),
                 AsExpr asExpr => exprUnit.CompileAs(asExpr),
@@ -468,10 +467,6 @@ internal sealed class CompilerContext
                     break;
 
                 case ThrowStatementExpr:
-                    break;
-
-                case GroupingExpr g:
-                    stack.Push(g.Expression);
                     break;
 
                 case UnaryExpr { Op.Type: TokenType.Minus or TokenType.Plus or TokenType.Bang or TokenType.Tilde } u:

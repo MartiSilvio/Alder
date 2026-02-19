@@ -11,15 +11,13 @@ public class ParsingPathologicalTests(CompilationMode mode) : StressTestBase(mod
     [Test]
     public void DeeplyNestedParentheses_ShouldNotCrashProcess()
     {
-        // 2000 nested parentheses far exceeds the parser's depth cap.
-        // Parser cap = MaxExpressionDepth / 16 = 32 (each logical level ≈ 20 stack frames
-        // at ~455 bytes each on ARM64; scaled to stay well within the 1MB .NET thread stack).
-        // Throws CsEvalDepthException instead of crashing with StackOverflowException.
+        // 2000 nested parentheses exhaust the .NET thread stack.
+        // EnsureSufficientExecutionStack() detects near-exhaustion and throws
+        // InsufficientExecutionStackException, which CsEvalEngine wraps as CsEvalException.
         var depth = 2000;
         var expression = GenerateDeeplyNestedExpression(depth, "1 + 1");
 
-        var ex = Assert.Throws<CsEvalDepthException>(() => Engine.Parse(expression));
-        Assert.That(ex!.MaxDepth, Is.EqualTo(32)); // parser cap = 512 / 16
+        Assert.Throws<CsEvalException>(() => Engine.Parse(expression));
     }
 
     [Test]

@@ -280,8 +280,6 @@ public sealed class Evaluator : IExprVisitor<object?>
         return TypeHelpers.RequireBoolean(Evaluate(expr.Right));
     }
 
-    public object? VisitGrouping(GroupingExpr expr) => Evaluate(expr.Expression);
-
     public object? VisitIdentifier(IdentifierExpr expr)
     {
         var name = expr.Name.Lexeme;

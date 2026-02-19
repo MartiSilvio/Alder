@@ -75,9 +75,6 @@ public interface IExprVisitor<out T>
     // Declarations
     T VisitVariableDecl(VariableDeclExpr expr);
 
-    // Grouping
-    T VisitGrouping(GroupingExpr expr);
-
     // Default expression
     T VisitDefault(DefaultExpr expr);
 
@@ -459,16 +456,6 @@ public sealed record LockStatementExpr(Expr LockObject, Expr Body) : Expr
 public sealed record VariableDeclExpr(Token? DeclaredType, Token Name, Expr Initializer) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitVariableDecl(this);
-}
-
-#endregion
-
-#region Grouping
-
-// Grouping: (expr)
-public sealed record GroupingExpr(Expr Expression) : Expr
-{
-    public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitGrouping(this);
 }
 
 #endregion

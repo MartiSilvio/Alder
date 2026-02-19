@@ -53,7 +53,9 @@ public class ParserTests
 
         var multiply = (BinaryExpr)expr;
         Assert.That(multiply.Op.Type, Is.EqualTo(TokenType.Star));
-        Assert.That(multiply.Left, Is.InstanceOf<GroupingExpr>());
+        Assert.That(multiply.Left, Is.InstanceOf<BinaryExpr>());
+        var addition = (BinaryExpr)multiply.Left;
+        Assert.That(addition.Op.Type, Is.EqualTo(TokenType.Plus));
     }
 
     [Test]

@@ -373,12 +373,6 @@ public sealed class TypeInferrer : AstWalker<Type>
         return SetType(expr, type);
     }
 
-    public override Type VisitGrouping(GroupingExpr expr)
-    {
-        base.VisitGrouping(expr);
-        return SetType(expr, GetInferredType(expr.Expression));
-    }
-
     public override Type VisitTypeof(TypeofExpr expr)
     {
         base.VisitTypeof(expr);
