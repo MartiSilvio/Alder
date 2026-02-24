@@ -1263,8 +1263,6 @@ internal sealed class ExpressionCompilerUnit
 
         return LinqExpression.Block(
             new[] { temp },
-            LinqExpression.Call(CompilerContext.CheckAllowAssignmentMethod, _ctx.OptionsParam,
-                LinqExpression.Constant($"{expr.Name.Lexeme} = ...")),
             LinqExpression.Assign(temp, value),
             LinqExpression.Call(CompilerContext.SetMemberMethod, target,
                 LinqExpression.Constant(expr.Name.Lexeme), temp, _ctx.OptionsParam, _ctx.CurrentContext),

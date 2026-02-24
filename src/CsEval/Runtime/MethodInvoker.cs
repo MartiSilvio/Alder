@@ -42,37 +42,56 @@ public static class MethodInvoker
         Func<MethodInfo, object?[], object?[]>? argumentTransformer,
         IReadOnlyList<string>? typeArgs = null)
     {
-        if (callee is MethodRef methodRef)
+        return callee switch
         {
-            var result = TryInvokeInstanceMethod(methodRef.Target, methodRef.MethodName, args, context, options, ct, argumentTransformer, typeArgs);
-            if (result.Success)
-                return result.Value;
-            throw new CsEvalException($"Method '{methodRef.MethodName}' invocation failed");
-        }
+            // ── Tier 1: Always allowed ──────────────────────────────────────
+            // Host-registered or expression-authored callees. The host explicitly
+            // made these available, so sandbox restrictions do not apply.
+            ModuleMethodRef moduleRef =>
+                InvokeModuleMethod(moduleRef, args, context, ct, argumentTransformer),
 
-        if (callee is ModuleMethodRef moduleRef)
-        {
-            return InvokeModuleMethod(moduleRef, args, context, ct, argumentTransformer);
-        }
+            FunctionRef funcRef =>
+                funcRef.Invoke(args),
 
-        if (callee is StaticMethodRef staticRef)
-        {
-            return InvokeStaticMethod(staticRef.Type, staticRef.MethodName, args, context, options, ct, typeArgs);
-        }
+            LambdaValue lambda =>
+                InvokeLambda(lambda, args, context),
 
-        if (callee is FunctionRef funcRef)
-            return funcRef.Invoke(args);
+            CompiledLambdaValue compiled =>
+                InvokeCompiledLambda(compiled, args),
 
-        if (callee is Delegate del)
-            return del.DynamicInvoke(args);
+            StaticMethodRef staticRef =>
+                InvokeStaticMethod(staticRef.Type, staticRef.MethodName, args, context, options, ct, typeArgs),
 
-        if (callee is LambdaValue lambda)
-            return InvokeLambda(lambda, args, context);
+            Delegate del =>
+                del.DynamicInvoke(args),
 
-        if (callee is CompiledLambdaValue compiledLambda)
-            return InvokeCompiledLambda(compiledLambda, args);
+            // ── Tier 2: Requires AllowMethodCalls ───────────────────────────
+            // Instance method calls on user-provided objects. These are the only
+            // calls gated by AllowMethodCalls.
+            MethodRef methodRef =>
+                InvokeMethodRef(methodRef, args, context, options, ct, argumentTransformer, typeArgs),
 
-        throw new CsEvalException($"Cannot call '{callee?.GetType().Name ?? "null"}' as a function");
+            // ── Unrecognized ────────────────────────────────────────────────
+            null => throw new CsEvalException("Cannot call null as a function"),
+            _ => throw new CsEvalException($"Cannot call '{callee.GetType().Name}' as a function")
+        };
+    }
+
+    private static object? InvokeMethodRef(
+        MethodRef methodRef,
+        object?[] args,
+        CsEvalContext context,
+        CsEvalOptions options,
+        CancellationToken ct,
+        Func<MethodInfo, object?[], object?[]>? argumentTransformer,
+        IReadOnlyList<string>? typeArgs)
+    {
+        var result = TryInvokeInstanceMethod(
+            methodRef.Target, methodRef.MethodName, args,
+            context, options, ct, argumentTransformer, typeArgs);
+        if (result.Success)
+            return result.Value;
+        throw new CsEvalException($"Method '{methodRef.MethodName}' invocation failed");
     }
 
     public static (bool Success, object? Value) TryInvokeInstanceMethod(
