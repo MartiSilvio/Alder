@@ -9,12 +9,18 @@ namespace CsEval.Runtime;
 /// </summary>
 internal sealed class TypeCache
 {
+    private readonly IExpressionCompiler _compiler;
     private readonly ConcurrentDictionary<(Type, string, BindingFlags), PropertyInfo?> _propertyCache = new();
     private readonly ConcurrentDictionary<(Type, string, BindingFlags), FieldInfo?> _fieldCache = new();
     private readonly ConcurrentDictionary<(Type, BindingFlags), PropertyInfo[]> _propertiesCache = new();
     private readonly ConcurrentDictionary<(Type, string, BindingFlags), MethodInfo[]> _methodsCache = new();
     private readonly ConcurrentDictionary<Type, PropertyInfo?> _indexerCache = new();
     private readonly ConcurrentDictionary<PropertyInfo, Func<object, object?>> _compiledGetters = new();
+
+    internal TypeCache(IExpressionCompiler? compiler = null)
+    {
+        _compiler = compiler ?? DefaultExpressionCompiler.Instance;
+    }
 
     public PropertyInfo? GetProperty(Type type, string name, BindingFlags flags)
     {
@@ -53,7 +59,7 @@ internal sealed class TypeCache
     /// </summary>
     public Func<object, object?> GetCompiledGetter(PropertyInfo property)
     {
-        return _compiledGetters.GetOrAdd(property, CompileGetter);
+        return _compiledGetters.GetOrAdd(property, p => CompileGetter(p));
     }
 
     /// <summary>
@@ -66,7 +72,7 @@ internal sealed class TypeCache
         return getter(instance);
     }
 
-    private static Func<object, object?> CompileGetter(PropertyInfo property)
+    private Func<object, object?> CompileGetter(PropertyInfo property)
     {
         try
         {
@@ -84,7 +90,7 @@ internal sealed class TypeCache
 
             // Compile: instance => (object)((DeclaringType)instance).PropertyName
             var lambda = LinqExpression.Lambda<Func<object, object?>>(boxedResult, instanceParam);
-            return lambda.Compile();
+            return _compiler.Compile(lambda);
         }
         catch
         {

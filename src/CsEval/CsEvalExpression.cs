@@ -57,8 +57,21 @@ public sealed class CsEvalExpression
             return _compiledInfo.Delegate != null;
 
         var info = _expressionCache != null ?
-            ExpressionCompiler.GetOrCompile(Expression, Ast, _expressionCache) :
-            ExpressionCompiler.TryCompile(Ast);
+            ILExpressionCompiler.GetOrCompile(Expression, Ast, _expressionCache) :
+            ILExpressionCompiler.TryCompile(Ast);
+
+        _compiledInfo = info;
+        return info.Delegate != null;
+    }
+
+    internal bool TryCompile(CsEvalOptions options)
+    {
+        if (_compiledInfo != null)
+            return _compiledInfo.Delegate != null;
+
+        var info = _expressionCache != null ?
+            ILExpressionCompiler.GetOrCompile(Expression, Ast, _expressionCache, options) :
+            ILExpressionCompiler.TryCompile(Ast, options);
 
         _compiledInfo = info;
         return info.Delegate != null;

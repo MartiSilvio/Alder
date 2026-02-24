@@ -356,8 +356,7 @@ public sealed class ExpressionParser : ParserBase
                    TokenType.EqualEqualEqual, TokenType.BangEqualEqual))
         {
             var op = Previous();
-            if ((op.Type == TokenType.EqualEqualEqual || op.Type == TokenType.BangEqualEqual)
-                && State.LanguageMode == LanguageMode.Standard)
+            if (op.Type is TokenType.EqualEqualEqual or TokenType.BangEqualEqual && State.LanguageMode == LanguageMode.Standard)
             {
                 throw new CsEvalLanguageModeException(op.Lexeme,
                     $"'{op.Lexeme}' is not available in Standard mode. " +

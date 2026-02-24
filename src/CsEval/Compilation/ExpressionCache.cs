@@ -29,28 +29,28 @@ internal sealed class ExpressionCache
 }
 
 /// <summary>
-/// Default expression compiler using System.Linq.Expressions.
+/// Orchestrates AST-to-IL compilation via <see cref="CompilerContext"/>.
 /// </summary>
-internal static class ExpressionCompiler
+internal static class ILExpressionCompiler
 {
     /// <summary>
     /// Get or create compiled delegate for an expression string.
     /// </summary>
-    public static CompiledExpressionInfo GetOrCompile(string expressionText, Expr ast, ExpressionCache cache)
+    public static CompiledExpressionInfo GetOrCompile(string expressionText, Expr ast, ExpressionCache cache, CsEvalOptions? options = null)
     {
-        return cache.GetOrAdd(expressionText, _ => TryCompile(ast));
+        return cache.GetOrAdd(expressionText, _ => TryCompile(ast, options));
     }
 
     /// <summary>
     /// Attempt to compile an AST to a native IL delegate.
     /// </summary>
-    public static CompiledExpressionInfo TryCompile(Expr ast)
+    public static CompiledExpressionInfo TryCompile(Expr ast, CsEvalOptions? options = null)
     {
         try
         {
             var context = new CsEvalContext(CsEvalConfig.Empty);
-            var options = CsEvalOptions.Default;
-            var (ilDelegate, failureReason) = CompilerContext.TryCompile(ast, context, options);
+            var opts = options ?? CsEvalOptions.Default;
+            var (ilDelegate, failureReason) = CompilerContext.TryCompile(ast, context, opts);
 
             if (ilDelegate != null)
             {
