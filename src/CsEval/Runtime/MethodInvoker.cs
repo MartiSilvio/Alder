@@ -100,7 +100,10 @@ public static class MethodInvoker
         if (options.Sandbox.AllowMethodCalls)
         {
             var type = target.GetType();
-            var methods = context.TypeCache.GetMethods(type, methodName, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
+            var flags = BindingFlags.Public | BindingFlags.Instance;
+            if (!options.IsCaseSensitive)
+                flags |= BindingFlags.IgnoreCase;
+            var methods = context.TypeCache.GetMethods(type, methodName, flags);
 
             foreach (var method in methods)
             {

@@ -44,9 +44,14 @@ internal sealed class TypeCache
     {
         var key = (type, name, flags);
         return _methodsCache.GetOrAdd(key, k =>
-            k.Item1.GetMethods(k.Item3)
-                .Where(m => string.Equals(m.Name, k.Item2, StringComparison.OrdinalIgnoreCase))
-                .ToArray());
+        {
+            var comparison = k.Item3.HasFlag(BindingFlags.IgnoreCase)
+                ? StringComparison.OrdinalIgnoreCase
+                : StringComparison.Ordinal;
+            return k.Item1.GetMethods(k.Item3)
+                .Where(m => string.Equals(m.Name, k.Item2, comparison))
+                .ToArray();
+        });
     }
 
     public PropertyInfo? GetIndexer(Type type)
