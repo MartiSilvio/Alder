@@ -823,6 +823,132 @@ public class SandboxModeTests(CompilationMode mode)
 
     #endregion
 
+    #region Deny-All Default
+
+    [Test]
+    public void DenyAll_DefaultSandbox_BlocksMethodCalls()
+    {
+        var engine = new CsEvalEngine(new CsEvalOptions
+        {
+            CompilationMode = mode,
+            Sandbox = new SandboxOptions()
+        });
+        engine.SetVariable("text", "hello");
+
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("text.ToUpper()"));
+        Assert.That(ex!.Message, Does.Contain("sandbox"));
+    }
+
+    [Test]
+    public void DenyAll_DefaultSandbox_BlocksPropertyRead()
+    {
+        var engine = new CsEvalEngine(new CsEvalOptions
+        {
+            CompilationMode = mode,
+            Sandbox = new SandboxOptions()
+        });
+        engine.SetVariable("text", "hello");
+
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("text.Length"));
+        Assert.That(ex!.Message, Does.Contain("sandbox"));
+    }
+
+    [Test]
+    public void DenyAll_DefaultSandbox_BlocksAssignment()
+    {
+        var engine = new CsEvalEngine(new CsEvalOptions
+        {
+            CompilationMode = mode,
+            Sandbox = new SandboxOptions()
+        });
+
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("{ var x = 1; x = 5; return x; }"));
+        Assert.That(ex!.Message, Does.Contain("sandbox"));
+    }
+
+    [Test]
+    public void DenyAll_DefaultSandbox_BlocksPropertySet()
+    {
+        var engine = new CsEvalEngine(new CsEvalOptions
+        {
+            CompilationMode = mode,
+            Sandbox = new SandboxOptions()
+        });
+
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate(@"
+        {
+            var obj = new { Value = 1 };
+            obj.Value = 42;
+            return obj.Value;
+        }"));
+        Assert.That(ex!.Message, Does.Contain("sandbox"));
+    }
+
+    [Test]
+    public void DenyAll_DefaultSandbox_BlocksIndexSet()
+    {
+        var engine = new CsEvalEngine(new CsEvalOptions
+        {
+            CompilationMode = mode,
+            LanguageMode = LanguageMode.Extended,
+            Sandbox = new SandboxOptions()
+        });
+
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate(@"
+        {
+            var arr = [1, 2, 3];
+            arr[1] = 99;
+            return arr[1];
+        }"));
+        Assert.That(ex!.Message, Does.Contain("sandbox"));
+    }
+
+    [Test]
+    public void DenyAll_DefaultSandbox_AllowsVariableDeclaration()
+    {
+        // Variable declarations are always allowed even in deny-all mode
+        var engine = new CsEvalEngine(new CsEvalOptions
+        {
+            CompilationMode = mode,
+            Sandbox = new SandboxOptions()
+        });
+
+        var result = engine.Evaluate("{ var x = 42; return x; }");
+
+        Assert.That(result, Is.EqualTo(42));
+    }
+
+    [Test]
+    public void DenyAll_DefaultSandbox_AllowsModuleMethods()
+    {
+        // Modules are always allowed even in deny-all mode
+        var engine = new CsEvalEngine(new CsEvalOptions
+        {
+            CompilationMode = mode,
+            Sandbox = new SandboxOptions()
+        });
+
+        var result = engine.Evaluate("Math.Abs(-5)");
+
+        Assert.That(result, Is.EqualTo(5));
+    }
+
+    [Test]
+    public void DenyAll_DefaultSandbox_AllowsPureExpressions()
+    {
+        var engine = new CsEvalEngine(new CsEvalOptions
+        {
+            CompilationMode = mode,
+            Sandbox = new SandboxOptions()
+        });
+
+        var result = engine.Evaluate("2 + 3 * 4");
+
+        Assert.That(result, Is.EqualTo(14));
+    }
+
+    #endregion
+
     #region Helper Classes
 
     public class TestModule

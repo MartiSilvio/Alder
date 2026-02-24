@@ -16,9 +16,6 @@ public static class MemberAccess
         if (obj == null)
             throw new CsEvalException($"Cannot access property '{name}' on null");
 
-        if (!options.Sandbox.AllowPropertyRead)
-            throw new CsEvalException($"Property access blocked by sandbox: {name}");
-
         // Handle namespace sentinel: accumulate path segments for FQN type resolution.
         // Example: NamespaceRef("System") + "Linq" -> NamespaceRef("System.Linq") or Type
         if (obj is NamespaceRef nsRef)
@@ -62,9 +59,12 @@ public static class MemberAccess
             // (e.g., typeof(int).Name accesses instance property Type.Name)
         }
 
-        switch (obj)
+        // Module members are always accessible regardless of sandbox settings.
+        // Check modules before the AllowPropertyRead guard so that module methods,
+        // properties, and fields are never blocked by the sandbox.
+        if (obj is ModuleInfo module)
         {
-            case ModuleInfo module when module.Members.TryGetValue(name, out var memberInfo):
+            if (module.Members.TryGetValue(name, out var memberInfo))
             {
                 // For methods, defer resolution until invocation
                 if (memberInfo is MethodInfo m)
@@ -87,8 +87,17 @@ public static class MemberAccess
                 };
                 return TypeHelpers.CheckSandboxType(value, options.Sandbox);
             }
-            case ModuleInfo module:
-                throw new CsEvalException(DiagnosticDescriptors.NoMemberOnType, module.Type.Name, name);
+            throw new CsEvalException(DiagnosticDescriptors.NoMemberOnType, module.Type.Name, name);
+        }
+
+        // Sandbox guard: block property/field reads on variable objects when not allowed.
+        // This check is intentionally placed AFTER module/namespace/type handling so that
+        // modules, namespaces, and static type members are always accessible.
+        if (!options.Sandbox.AllowPropertyRead)
+            throw new CsEvalException($"Property access blocked by sandbox: {name}");
+
+        switch (obj)
+        {
             case IDictionary<string, object?> dict when dict.TryGetValue(name, out var value):
                 return TypeHelpers.CheckSandboxType(value, options.Sandbox);
             case IDictionary<string, object?> dict:

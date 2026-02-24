@@ -356,7 +356,7 @@ public class DiagnosticCodeTests
         // CsEval-specific errors (sandbox, iteration limits) have null ErrorCode
         var engine = new CsEvalEngine(CsEvalOptions.Default with
         {
-            Sandbox = new SandboxOptions { Mode = SandboxMode.Strict, AllowAssignment = false }
+            Sandbox = SandboxOptions.Strict() with { AllowAssignment = false }
         });
         engine.SetVariable("x", 10);
         var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("x = 5"));
