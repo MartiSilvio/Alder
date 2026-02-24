@@ -97,7 +97,7 @@ public static class MethodInvoker
         // Try instance methods first, then fall back to extension methods.
 
         // Instance methods are blocked in sandbox mode
-        if (!options.Sandbox.BlockMethodCalls)
+        if (options.Sandbox.AllowMethodCalls)
         {
             var type = target.GetType();
             var methods = context.TypeCache.GetMethods(type, methodName, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
@@ -143,7 +143,7 @@ public static class MethodInvoker
             return extensionResult;
 
         // If sandbox blocks method calls and no extension method matched, report the block
-        if (options.Sandbox.BlockMethodCalls)
+        if (!options.Sandbox.AllowMethodCalls)
             throw new CsEvalException($"Method calls blocked by sandbox: {methodName}");
 
         return (false, null);

@@ -19,31 +19,6 @@ public enum CompilationMode
 }
 
 /// <summary>
-/// High-level sandbox modes for common security scenarios.
-/// Use SandboxOptions.Trusted/Safe/Strict() unless you need granular control.
-/// </summary>
-public enum SandboxMode
-{
-    /// <summary>
-    /// Full access. Method calls, property mutations, assignments all allowed.
-    /// Use for trusted internal expressions.
-    /// </summary>
-    Trusted,
-
-    /// <summary>
-    /// No method calls on variable objects. Property reads, assignments, LINQ, and modules allowed.
-    /// Use for user-provided expressions where you want to prevent arbitrary method invocation.
-    /// </summary>
-    Safe,
-
-    /// <summary>
-    /// Read-only mode. No method calls, no assignments, no property/index writes.
-    /// Use for untrusted expressions that should only compute values.
-    /// </summary>
-    Strict
-}
-
-/// <summary>
 /// Controls which syntax features are available during evaluation.
 /// </summary>
 public enum LanguageMode
@@ -81,7 +56,7 @@ public sealed record CsEvalOptions
     /// </summary>
     public int MaxExpressionDepth { get; init; } = 512;
 
-    public SandboxOptions Sandbox { get; init; } = new();
+    public SandboxOptions Sandbox { get; init; } = SandboxOptions.Trusted();
 
     /// <summary>
     /// Controls when expressions are compiled to IL.
@@ -114,90 +89,73 @@ public sealed record CsEvalOptions
 }
 
 /// <summary>
-/// Sandbox configuration with preset modes and granular overrides.
-/// Start with a preset (Trusted/Safe/Strict) and override specific settings if needed.
+/// Sandbox configuration controlling which operations expressions can perform.
+/// Default: deny-all. Use factory methods (Trusted/Safe/Strict) to grant permissions.
 /// </summary>
 public sealed record SandboxOptions
 {
     /// <summary>
-    /// The base sandbox mode. Determines default values for all other settings.
-    /// </summary>
-    public SandboxMode Mode { get; init; } = SandboxMode.Trusted;
-
-    // Nullable overrides - when null, use mode defaults
-    private bool? _allowMethodCalls;
-    private bool? _allowPropertyRead;
-    private bool? _allowAssignment;
-    private bool? _allowPropertySet;
-    private bool? _allowIndexSet;
-
-    /// <summary>
     /// Allow method calls on variable objects (e.g., str.ToUpper()).
-    /// Default: true for Trusted, false for Safe/Strict.
+    /// Default: false. Modules, registered functions, lambdas, and extension methods (LINQ)
+    /// are always allowed regardless of this setting.
     /// </summary>
-    public bool AllowMethodCalls
-    {
-        get => _allowMethodCalls ?? Mode == SandboxMode.Trusted;
-        init => _allowMethodCalls = value;
-    }
+    public bool AllowMethodCalls { get; init; }
 
     /// <summary>
-    /// Allow reading properties on variable objects (e.g., str.Length).
-    /// Default: true for all modes.
+    /// Allow reading properties/fields on variable objects (e.g., str.Length).
+    /// Default: false.
     /// </summary>
-    public bool AllowPropertyRead
-    {
-        get => _allowPropertyRead ?? true;
-        init => _allowPropertyRead = value;
-    }
+    public bool AllowPropertyRead { get; init; }
 
     /// <summary>
-    /// Allow variable reassignment (e.g., x = 5, x++).
-    /// Default: true for Trusted/Safe, false for Strict.
+    /// Allow variable reassignment (e.g., x = 5, x++, x += 1).
+    /// Default: false. Variable declarations (var x = 5) are always allowed.
     /// </summary>
-    public bool AllowAssignment
-    {
-        get => _allowAssignment ?? Mode != SandboxMode.Strict;
-        init => _allowAssignment = value;
-    }
+    public bool AllowAssignment { get; init; }
 
     /// <summary>
-    /// Allow property assignment (e.g., obj.Name = "new").
-    /// Default: true for Trusted/Safe, false for Strict.
+    /// Allow property/field assignment on objects (e.g., obj.Name = "new").
+    /// Default: false.
     /// </summary>
-    public bool AllowPropertySet
-    {
-        get => _allowPropertySet ?? Mode != SandboxMode.Strict;
-        init => _allowPropertySet = value;
-    }
+    public bool AllowPropertySet { get; init; }
 
     /// <summary>
-    /// Allow index assignment (e.g., arr[0] = 5).
-    /// Default: true for Trusted/Safe, false for Strict.
+    /// Allow index assignment (e.g., arr[0] = 5, dict["key"] = value).
+    /// Default: false.
     /// </summary>
-    public bool AllowIndexSet
-    {
-        get => _allowIndexSet ?? Mode != SandboxMode.Strict;
-        init => _allowIndexSet = value;
-    }
+    public bool AllowIndexSet { get; init; }
 
     /// <summary>
     /// Full access mode. All operations are allowed.
+    /// Use for trusted internal expressions.
     /// </summary>
-    public static SandboxOptions Trusted() => new() { Mode = SandboxMode.Trusted };
+    public static SandboxOptions Trusted() => new()
+    {
+        AllowMethodCalls = true,
+        AllowPropertyRead = true,
+        AllowAssignment = true,
+        AllowPropertySet = true,
+        AllowIndexSet = true
+    };
 
     /// <summary>
     /// Safe mode. Blocks method calls on variable objects.
     /// Property reads, assignments, LINQ, and modules still allowed.
     /// </summary>
-    public static SandboxOptions Safe() => new() { Mode = SandboxMode.Safe };
+    public static SandboxOptions Safe() => new()
+    {
+        AllowPropertyRead = true,
+        AllowAssignment = true,
+        AllowPropertySet = true,
+        AllowIndexSet = true
+    };
 
     /// <summary>
     /// Strict read-only mode. No method calls, no mutations.
-    /// Only variable declarations, reads, and pure expressions allowed.
+    /// Only variable declarations, reads, property reads, and pure expressions allowed.
     /// </summary>
-    public static SandboxOptions Strict() => new() { Mode = SandboxMode.Strict };
-
-    // Internal: indicates if method calls should be blocked (used by evaluator)
-    internal bool BlockMethodCalls => !AllowMethodCalls;
+    public static SandboxOptions Strict() => new()
+    {
+        AllowPropertyRead = true
+    };
 }
