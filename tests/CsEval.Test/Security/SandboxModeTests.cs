@@ -949,6 +949,138 @@ public class SandboxModeTests(CompilationMode mode)
 
     #endregion
 
+    #region Tier 1 Dispatch - Always Allowed
+
+    [Test]
+    public void Safe_AllowsDelegateInvocation()
+    {
+        // Delegate is Tier 1 -- always allowed even when AllowMethodCalls=false
+        var engine = new CsEvalEngine(new CsEvalOptions
+        {
+            CompilationMode = mode,
+            Sandbox = SandboxOptions.Safe()
+        });
+        Func<int, int> doubler = x => x * 2;
+        engine.SetVariable("doubler", doubler);
+
+        var result = engine.Evaluate("doubler(5)");
+
+        Assert.That(result, Is.EqualTo(10));
+    }
+
+    [Test]
+    public void Strict_AllowsDelegateInvocation()
+    {
+        // Delegate is Tier 1 -- always allowed even in Strict mode
+        var engine = new CsEvalEngine(new CsEvalOptions
+        {
+            CompilationMode = mode,
+            Sandbox = SandboxOptions.Strict()
+        });
+        Func<string, int> parser = s => int.Parse(s);
+        engine.SetVariable("parser", parser);
+
+        var result = engine.Evaluate("parser(\"42\")");
+
+        Assert.That(result, Is.EqualTo(42));
+    }
+
+    [Test]
+    public void DenyAll_AllowsDelegateInvocation()
+    {
+        // Delegate is Tier 1 -- always allowed even in deny-all mode
+        var engine = new CsEvalEngine(new CsEvalOptions
+        {
+            CompilationMode = mode,
+            Sandbox = new SandboxOptions()
+        });
+        Func<int, int, int> add = (a, b) => a + b;
+        engine.SetVariable("add", add);
+
+        var result = engine.Evaluate("add(3, 4)");
+
+        Assert.That(result, Is.EqualTo(7));
+    }
+
+    [Test]
+    public void DenyAll_AllowsRegisteredFunctions()
+    {
+        // FunctionRef is Tier 1 -- always allowed even in deny-all
+        var engine = new CsEvalEngine(new CsEvalOptions
+        {
+            CompilationMode = mode,
+            Sandbox = new SandboxOptions()
+        });
+        engine.RegisterFunction("add", args => (int)args[0]! + (int)args[1]!);
+
+        var result = engine.Evaluate("add(3, 4)");
+
+        Assert.That(result, Is.EqualTo(7));
+    }
+
+    [Test]
+    public void Safe_AllowsRegisteredFunctions_Tier1()
+    {
+        // FunctionRef is Tier 1 -- always allowed in Safe mode
+        var engine = new CsEvalEngine(new CsEvalOptions
+        {
+            CompilationMode = mode,
+            Sandbox = SandboxOptions.Safe()
+        });
+        engine.RegisterFunction("multiply", args => (int)args[0]! * (int)args[1]!);
+
+        var result = engine.Evaluate("multiply(6, 7)");
+
+        Assert.That(result, Is.EqualTo(42));
+    }
+
+    [Test]
+    public void Trusted_AllowsLambdaInvocation()
+    {
+        // LambdaValue/CompiledLambdaValue is Tier 1 -- expression-defined lambdas always allowed
+        var engine = new CsEvalEngine(new CsEvalOptions
+        {
+            CompilationMode = mode,
+            Sandbox = SandboxOptions.Trusted()
+        });
+
+        // Lambda stored in variable and then called
+        var result = engine.Evaluate(@"
+        {
+            var triple = (x) => x * 3;
+            return triple(7);
+        }");
+
+        Assert.That(result, Is.EqualTo(21));
+    }
+
+    #endregion
+
+    #region CompileMemberAssign Fix
+
+    [Test]
+    public void MemberAssign_AllowAssignmentFalse_AllowPropertySetTrue_Succeeds()
+    {
+        // Member assignment (obj.Prop = val) should only check AllowPropertySet,
+        // NOT AllowAssignment. This verifies the CompileMemberAssign fix.
+        var engine = new CsEvalEngine(new CsEvalOptions
+        {
+            CompilationMode = mode,
+            Sandbox = SandboxOptions.Trusted() with { AllowAssignment = false }
+        });
+
+        var result = engine.Evaluate(@"
+        {
+            var obj = new { Value = 1 };
+            obj.Value = 42;
+            return obj.Value;
+        }");
+
+        Assert.That(result, Is.EqualTo(42));
+    }
+
+    #endregion
+
     #region Helper Classes
 
     public class TestModule
