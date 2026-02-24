@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Runtime.CompilerServices;
 using CsEval.Attributes;
 using CsEval.Compilation;
 using CsEval.Interpretation;
@@ -295,12 +296,14 @@ public sealed class CsEvalEngine
 
     public CsEvalEngine RegisterFunction(string name, Func<object?[], object?> function)
     {
+        EnsureNotFrozen();
         _functions[name] = function;
         return this;
     }
 
     public CsEvalEngine RegisterFromAssembly(Assembly assembly)
     {
+        EnsureNotFrozen();
         foreach (var type in assembly.GetTypes())
         {
             if (type.IsAbstract || type.IsInterface)
@@ -328,6 +331,7 @@ public sealed class CsEvalEngine
 
     public CsEvalEngine RegisterFromType(Type type, object? instance = null)
     {
+        EnsureNotFrozen();
         _registeredTypes.Add(new RegisteredType(type, instance, null, BuildMemberDictionary(type)));
         return this;
     }
@@ -339,6 +343,7 @@ public sealed class CsEvalEngine
 
     public CsEvalEngine RegisterModule(string moduleName, Type type)
     {
+        EnsureNotFrozen();
         var moduleAttr = type.GetCustomAttribute<CsEvalModuleAttribute>();
         var explicitOnly = moduleAttr?.ExplicitOnly ?? false;
         var methods = BuildMemberDictionary(type, explicitOnly);
@@ -348,6 +353,7 @@ public sealed class CsEvalEngine
 
     public CsEvalEngine RegisterModule<T>(string moduleName, T? instance = default) where T : class
     {
+        EnsureNotFrozen();
         var moduleAttr = typeof(T).GetCustomAttribute<CsEvalModuleAttribute>();
         var explicitOnly = moduleAttr?.ExplicitOnly ?? false;
         var methods = BuildMemberDictionary(typeof(T), explicitOnly);
@@ -357,6 +363,7 @@ public sealed class CsEvalEngine
 
     public CsEvalEngine RegisterModule(string moduleName, Type type, bool explicitOnly)
     {
+        EnsureNotFrozen();
         var methods = BuildMemberDictionary(type, explicitOnly);
         _registeredTypes.Add(new RegisteredType(type, null, moduleName, methods));
         return this;
@@ -364,6 +371,7 @@ public sealed class CsEvalEngine
 
     public CsEvalEngine RegisterModule<T>(string moduleName, bool explicitOnly, T? instance = default) where T : class
     {
+        EnsureNotFrozen();
         var methods = BuildMemberDictionary(typeof(T), explicitOnly);
         _registeredTypes.Add(new RegisteredType(typeof(T), instance, moduleName, methods));
         return this;
@@ -371,28 +379,28 @@ public sealed class CsEvalEngine
 
     public CsEvalEngine RegisterModule(string moduleName, Type type, IReadOnlyDictionary<string, MemberInfo> members)
     {
+        EnsureNotFrozen();
         _registeredTypes.Add(new RegisteredType(type, null, moduleName, members));
         return this;
     }
 
     public CsEvalEngine AddAssembly(Assembly assembly)
     {
-        if (_frozenConfig != null)
-            throw new InvalidOperationException("Cannot add assemblies after evaluation has started. Call AddAssembly before the first Evaluate().");
+        EnsureNotFrozen();
         _assemblies.Add(assembly);
         return this;
     }
 
     public CsEvalEngine AddUsing(string namespaceName)
     {
-        if (_frozenConfig != null)
-            throw new InvalidOperationException("Cannot add using directives after evaluation has started. Call AddUsing before the first Evaluate().");
+        EnsureNotFrozen();
         _usingNamespaces.Add(namespaceName);
         return this;
     }
 
     public CsEvalEngine RegisterExtensionMethods(Type type)
     {
+        EnsureNotFrozen();
         if (!_extensionTypes.Contains(type))
             _extensionTypes.Insert(0, type);
         return this;
@@ -515,6 +523,14 @@ public sealed class CsEvalEngine
         if (returnType.IsGenericType && returnType.GetGenericTypeDefinition() == typeof(ValueTask<>))
             return true;
         return false;
+    }
+
+    private void EnsureNotFrozen([CallerMemberName] string? caller = null)
+    {
+        if (_frozenConfig != null)
+            throw new InvalidOperationException(
+                $"Cannot call {caller} after evaluation has started. " +
+                $"Call {caller} before the first Evaluate().");
     }
 
     private void RegisterBuiltInModules()
