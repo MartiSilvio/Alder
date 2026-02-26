@@ -16,6 +16,11 @@ namespace CsEval.Test.Compliance;
 ///   Area 4 (String concat) - All cases match Roslyn. No leniency found.
 ///   Area 5 (Bool enforce)  - Logical operators correctly enforce bool. Matches Roslyn.
 ///   Area 6 (Assignment)    - Invalid assignment targets rejected. Matches Roslyn.
+///
+/// Audit conclusion (Task 2): No semantic leniencies discovered. CsEval Standard mode
+/// matches Roslyn behavior in all 6 areas. No runtime fixes required. The research
+/// correctly flagged potential leniency areas, but empirical testing confirms the
+/// actual behavior aligns with Roslyn for all tested expressions.
 /// </summary>
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
