@@ -1,26 +1,9 @@
 namespace CsEval.Test.Compliance;
 
 /// <summary>
-/// Semantic leniency audit: Compares CsEval Standard mode behavior against Roslyn
-/// for 6 areas identified in research as potential leniency points.
-///
-/// Audit methodology for each expression:
-///   1. Run through Roslyn scripting to get baseline (accept/reject, result, type)
-///   2. Run through CsEval Standard mode
-///   3. Assert behavior matches (both accept with same result+type, or both reject)
-///
-/// Findings summary:
-///   Area 1 (CoerceNumeric) - All tested expressions match Roslyn. No leniency found.
-///   Area 2 (IComparable)   - DateTime/TimeSpan comparisons match Roslyn (both accept via predefined operators).
-///   Area 3 (Cross-type eq) - All numeric promotion cases match Roslyn. No leniency found.
-///   Area 4 (String concat) - All cases match Roslyn. No leniency found.
-///   Area 5 (Bool enforce)  - Logical operators correctly enforce bool. Matches Roslyn.
-///   Area 6 (Assignment)    - Invalid assignment targets rejected. Matches Roslyn.
-///
-/// Audit conclusion (Task 2): No semantic leniencies discovered. CsEval Standard mode
-/// matches Roslyn behavior in all 6 areas. No runtime fixes required. The research
-/// correctly flagged potential leniency areas, but empirical testing confirms the
-/// actual behavior aligns with Roslyn for all tested expressions.
+/// Verifies CsEval Standard mode matches Roslyn across 6 semantic areas:
+/// numeric coercion, IComparable comparisons, cross-type equality,
+/// string concatenation, bool enforcement, and assignment targets.
 /// </summary>
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
@@ -33,12 +16,8 @@ public class SemanticLeniencyTests(CompilationMode mode)
         LanguageMode = LanguageMode.Standard
     };
 
-    #region Helper: Roslyn Parity Assertion
+    #region Helpers
 
-    /// <summary>
-    /// Asserts that CsEval Standard mode produces the same result and type as Roslyn.
-    /// Both must accept the expression and return identical value+type.
-    /// </summary>
     private async Task AssertMatchesRoslyn(string expr)
     {
         var roslynResult = await TestHelpers.EvaluateCSharpAsync(expr);
@@ -52,12 +31,8 @@ public class SemanticLeniencyTests(CompilationMode mode)
             $"Type mismatch for: {expr}\n  CsEval type={csEvalResult?.GetType()?.Name}\n  Roslyn type={roslynResult?.GetType()?.Name}");
     }
 
-    /// <summary>
-    /// Asserts that both CsEval Standard mode and Roslyn reject the expression.
-    /// </summary>
     private async Task AssertBothThrow(string expr)
     {
-        // Verify Roslyn rejects
         Exception? roslynEx = null;
         try { await TestHelpers.EvaluateCSharpAsync(expr); }
         catch (Exception ex) { roslynEx = ex; }
@@ -65,7 +40,6 @@ public class SemanticLeniencyTests(CompilationMode mode)
         Assert.That(roslynEx, Is.Not.Null,
             $"Expected Roslyn to reject: {expr}");
 
-        // Verify CsEval Standard mode also rejects
         var engine = new CsEvalEngine(Options);
         Assert.Catch<Exception>(() => engine.Evaluate(expr),
             $"CsEval accepted but Roslyn rejected: {expr}");
@@ -74,11 +48,6 @@ public class SemanticLeniencyTests(CompilationMode mode)
     #endregion
 
     #region Area 1: Method Argument Coercion (CoerceNumeric)
-
-    // Research concern: TypeHelpers.CoerceNumeric uses Convert.ChangeType which
-    // allows narrowing conversions. However, since CsEval resolves methods via
-    // reflection at runtime, the correct overload is picked first, and CoerceNumeric
-    // only coerces when the argument is already compatible at the numeric level.
 
     [Test]
     public async Task Area1_MathMax_IntInt()
@@ -112,11 +81,7 @@ public class SemanticLeniencyTests(CompilationMode mode)
 
     #endregion
 
-    #region Area 2: Comparison Operator Type Acceptance (IComparable fallback)
-
-    // Research concern: Operators.Compare falls back to IComparable.CompareTo
-    // for non-numeric/non-string types. DateTime and TimeSpan have predefined
-    // relational operators, so Roslyn accepts > < etc. on them.
+    #region Area 2: Comparison Operators (IComparable)
 
     [Test]
     public async Task Area2_DateTime_GreaterThan()
@@ -145,10 +110,6 @@ public class SemanticLeniencyTests(CompilationMode mode)
     #endregion
 
     #region Area 3: Cross-Type Equality
-
-    // Research concern: After left.Equals(right) fails, Operators.Equals falls back
-    // to NumericDispatch.Compare for arithmetic types. Roslyn performs numeric promotion
-    // per ECMA-334 (e.g., int promoted to long for int==long).
 
     [Test]
     public async Task Area3_IntEqualsLong()
@@ -190,9 +151,6 @@ public class SemanticLeniencyTests(CompilationMode mode)
 
     #region Area 4: String Concatenation
 
-    // Research concern: Operators.Add returns $"{left}{right}" when either side is string.
-    // Roslyn also allows string + <any> via ToString(). Should match.
-
     [Test]
     public async Task Area4_StringPlusInt()
     {
@@ -227,9 +185,6 @@ public class SemanticLeniencyTests(CompilationMode mode)
 
     #region Area 5: Logical Operators Bool Enforcement
 
-    // Research concern: LogicalNot requires bool and throws for non-bool.
-    // The Evaluator also calls RequireBoolean for && and ||. Matches Roslyn.
-
     [Test]
     public async Task Area5_LogicalNot_True()
     {
@@ -258,10 +213,6 @@ public class SemanticLeniencyTests(CompilationMode mode)
     #endregion
 
     #region Area 6: Assignment Target Validation
-
-    // Research concern: Parser allows assignment to identifiers, member access,
-    // and index access only. Roslyn has the same restriction.
-    // This was confirmed correct by research. One negative test for validation.
 
     [Test]
     public async Task Area6_InvalidAssignmentTarget_BothThrow()
