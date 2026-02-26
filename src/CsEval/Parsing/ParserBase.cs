@@ -67,12 +67,24 @@ public abstract class ParserBase
         if (Match(TokenType.PlusEqual, TokenType.MinusEqual, TokenType.StarEqual,
                   TokenType.SlashEqual, TokenType.PercentEqual, TokenType.AmpEqual,
                   TokenType.PipeEqual, TokenType.CaretEqual, TokenType.LessLessEqual,
-                  TokenType.GreaterGreaterEqual, TokenType.GreaterGreaterGreaterEqual,
-                  TokenType.StarStarEqual))
+                  TokenType.GreaterGreaterEqual, TokenType.GreaterGreaterGreaterEqual))
         {
             op = Previous();
             return true;
         }
+
+        // **= is an Extended-only compound assignment (matches ** gating in ExpressionParser)
+        if (Check(TokenType.StarStarEqual))
+        {
+            if (State.LanguageMode == LanguageMode.Standard)
+                throw new CsEvalLanguageModeException("**=",
+                    "Compound power assignment '**=' is not available in Standard mode. " +
+                    "Use LanguageMode.Extended to enable non-standard syntax extensions.");
+            Advance();
+            op = Previous();
+            return true;
+        }
+
         op = default;
         return false;
     }
