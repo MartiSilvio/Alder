@@ -440,6 +440,28 @@ public sealed class ExpressionParser : ParserBase
                 expr = new LogicalExpr(geExpr,
                     new Token(TokenType.AmpAmp, "&&", null, betweenToken.Line, betweenToken.Column), leExpr);
             }
+            // Active rejection in Standard mode for Extended-only operators at operator position.
+            // These tokens are contextual keywords that can be used as identifiers in primary
+            // expressions; here they appear after an expression (infix position) so they must
+            // be operator usage.
+            else if (State.LanguageMode == LanguageMode.Standard && Check(TokenType.In))
+            {
+                throw new CsEvalLanguageModeException("in",
+                    "The 'in' operator is not available in Standard mode. " +
+                    "Use LanguageMode.Extended to enable non-standard syntax extensions.");
+            }
+            else if (State.LanguageMode == LanguageMode.Standard && Check(TokenType.Like))
+            {
+                throw new CsEvalLanguageModeException("like",
+                    "The 'like' operator is not available in Standard mode. " +
+                    "Use LanguageMode.Extended to enable non-standard syntax extensions.");
+            }
+            else if (State.LanguageMode == LanguageMode.Standard && Check(TokenType.Between))
+            {
+                throw new CsEvalLanguageModeException("between",
+                    "The 'between' operator is not available in Standard mode. " +
+                    "Use LanguageMode.Extended to enable non-standard syntax extensions.");
+            }
             else
             {
                 break;
