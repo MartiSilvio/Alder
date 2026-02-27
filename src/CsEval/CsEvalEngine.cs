@@ -283,6 +283,30 @@ public sealed class CsEvalEngine
             var context = GetOrCreateContext(null);
             var inferrer = new TypeInferrer(context, _options.MaxExpressionDepth);
             inferrer.InferAll(ast);
+
+            // Check for unbound variables not resolvable in context
+            var collector = new VariableCollector();
+            collector.Collect(ast);
+            var unboundErrors = new List<CsEvalDiagnostic>();
+            foreach (var name in collector.Variables)
+            {
+                if (context.TryGet(name, out _)) continue;
+                if (context.Functions.ContainsKey(name)) continue;
+                if (context.Modules.ContainsKey(name)) continue;
+                if (context.TypeResolver.IsNamespaceOrPrefix(name)) continue;
+                if (context.TypeResolver.TryResolveType(name) != null) continue;
+
+                unboundErrors.Add(new CsEvalDiagnostic(
+                    DiagnosticSeverity.Error,
+                    $"CS0103: The name '{name}' does not exist in the current context",
+                    DiagnosticCode.CS0103));
+            }
+
+            if (unboundErrors.Count > 0)
+            {
+                diagnostics = unboundErrors;
+                return false;
+            }
         }
         catch (Exception ex)
         {
