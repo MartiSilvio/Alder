@@ -22,8 +22,10 @@ public class SafetyTests(CompilationMode mode)
 
     private static IEnumerable<TestCaseData> WithinLimitCases() =>
     [
-        new("{ var c = 0; for (var i = 0; i < 3; i++) { for (var j = 0; j < 4; j++) { c = c + 1; } } return c; }", 15, 12) { TestName = "Nested_3x4_Limit15" },
-        new("{ var c = 0; for (var i = 0; i < 10; i++) { c = c + 1; } return c; }", 10, 10) { TestName = "ForExact10_Limit10" },
+        // 2 block stmts (var c, for) + 3 outer iters + 12 inner iters + 1 block stmt (return) = 18
+        new("{ var c = 0; for (var i = 0; i < 3; i++) { for (var j = 0; j < 4; j++) { c = c + 1; } } return c; }", 18, 12) { TestName = "Nested_3x4_Limit18" },
+        // 1 block stmt (var c) + 1 block stmt (for) + 10 loop iters + 1 block stmt (return) = 13
+        new("{ var c = 0; for (var i = 0; i < 10; i++) { c = c + 1; } return c; }", 13, 10) { TestName = "ForExact10_Limit13" },
     ];
 
     [TestCaseSource(nameof(LimitViolationCases))]

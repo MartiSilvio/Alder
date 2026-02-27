@@ -48,7 +48,7 @@ internal sealed class ControlFlowCompilerUnit
 
             foreach (var stmt in block.Statements)
             {
-                statements.Add(CompileCancellationCheck());
+                statements.Add(CompileConstraintCheck());
                 statements.Add(Compile(stmt));
             }
 

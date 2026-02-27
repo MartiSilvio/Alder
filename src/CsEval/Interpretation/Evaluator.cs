@@ -770,6 +770,8 @@ public sealed class Evaluator : IExprVisitor<object?>
 
     public object? VisitBlock(BlockExpr expr)
     {
+        var constraintState = _context.ConstraintState;
+        var constraints = _options.Constraints;
         var previousContext = _context;
         _context = _context.CreateChild();
 
@@ -777,7 +779,7 @@ public sealed class Evaluator : IExprVisitor<object?>
         {
             foreach (var stmt in expr.Statements)
             {
-                _cancellationToken.ThrowIfCancellationRequested();
+                RuntimeHelpers.CheckExecutionConstraints(constraintState, constraints, _cancellationToken);
                 var result = Evaluate(stmt);
                 if (result is ControlFlowSignal signal)
                 {
