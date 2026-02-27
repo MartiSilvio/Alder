@@ -115,7 +115,7 @@ public sealed class CsEvalExpression
 /// <param name="cancellationToken">Cancellation token for cooperative cancellation.</param>
 /// <param name="argumentTransformer">Optional argument transformer for method calls.</param>
 /// <returns>The evaluated result.</returns>
-public delegate object? CompiledExpression(
+public delegate object? CompiledExpressionDelegate(
     CsEvalContext context,
     CsEvalOptions options,
     CancellationToken cancellationToken,
@@ -128,6 +128,6 @@ public delegate object? CompiledExpression(
 /// <param name="IsCompilable">Whether the expression can be compiled.</param>
 /// <param name="FailureReason">The reason compilation failed, or null if it succeeded.</param>
 public record CompiledExpressionInfo(
-    CompiledExpression? Delegate,
+    CompiledExpressionDelegate? Delegate,
     bool IsCompilable,
     string? FailureReason);

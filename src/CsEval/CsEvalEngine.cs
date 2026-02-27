@@ -335,6 +335,58 @@ public sealed class CsEvalEngine
         return expr;
     }
 
+    /// <summary>
+    /// Compiles an expression and returns a <see cref="CompiledExpression{T}"/> that can be invoked
+    /// repeatedly without engine dispatch overhead. Throws if the expression cannot be compiled.
+    /// </summary>
+    /// <typeparam name="T">The expected return type of the expression.</typeparam>
+    /// <param name="expression">The expression string to compile.</param>
+    /// <returns>A compiled expression wrapper for repeated invocation.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when the expression cannot be compiled to IL.</exception>
+    public CompiledExpression<T> Compile<T>(string expression)
+    {
+        var parsed = Parse(expression);
+        if (!parsed.TryCompile(_options))
+        {
+            var reason = parsed.CompilationFailureReason ?? "Unknown compilation failure";
+            throw new InvalidOperationException(
+                $"Cannot compile expression '{expression}': {reason}");
+        }
+
+        var compiledDelegate = parsed.GetCompiledInfo()!.Delegate!;
+        return new CompiledExpression<T>(compiledDelegate, this, _options, ArgumentTransformer);
+    }
+
+    /// <summary>
+    /// Compiles an expression and returns a <see cref="CompiledExpression{T}"/> with object? result type.
+    /// Throws if the expression cannot be compiled.
+    /// </summary>
+    /// <param name="expression">The expression string to compile.</param>
+    /// <returns>A compiled expression wrapper for repeated invocation.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when the expression cannot be compiled to IL.</exception>
+    public CompiledExpression<object?> Compile(string expression) => Compile<object?>(expression);
+
+    /// <summary>
+    /// Compiles an expression and returns a <see cref="Func{T}"/> for zero-overhead hot-path invocation.
+    /// The returned delegate captures the engine context by reference -- variables set via
+    /// <see cref="SetVariable"/> after compilation are visible to subsequent invocations.
+    /// </summary>
+    /// <typeparam name="T">The expected return type of the expression.</typeparam>
+    /// <param name="expression">The expression string to compile.</param>
+    /// <returns>A function that evaluates the compiled expression and returns the result.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when the expression cannot be compiled to IL.</exception>
+    public Func<T?> CompileToFunc<T>(string expression)
+    {
+        var compiled = Compile<T>(expression);
+        return () => compiled.Invoke();
+    }
+
+    /// <summary>
+    /// Exposes the engine's evaluation context for use by <see cref="CompiledExpression{T}"/>.
+    /// The context is captured by reference so that variable changes after compilation are visible.
+    /// </summary>
+    internal CsEvalContext GetContextForCompiled() => GetOrCreateContext(null);
+
     public CsEvalEngine CreateChild()
     {
         var config = GetOrCreateConfig();
