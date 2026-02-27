@@ -203,7 +203,7 @@ public class DoWhileLoopTests(CompilationMode mode)
                     i = i + 1;
                 } while (i < 1000000000);
                 return i;
-            }", null, cts.Token);
+            }", cancellationToken: cts.Token);
         });
 
         Thread.Sleep(100);

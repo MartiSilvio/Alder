@@ -49,7 +49,7 @@ public class LazyResolutionTests(CompilationMode mode)
 
         Assert.That(TrackingModule.InstanceCount, Is.EqualTo(1));
 
-        engine.Evaluate("Tracking.DoSomething()", sp);
+        engine.Evaluate("Tracking.DoSomething()", serviceProvider: sp);
 
         Assert.That(TrackingModule.InstanceCount, Is.EqualTo(1));
         Assert.That(TrackingModule.MethodCallCount, Is.EqualTo(1));
@@ -73,7 +73,7 @@ public class LazyResolutionTests(CompilationMode mode)
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var instance = new TrackingModule();
-        engine.RegisterModule("Tracking", instance);
+        engine.RegisterModule("Tracking", instance: instance);
 
         Assert.That(TrackingModule.InstanceCount, Is.EqualTo(1));
 

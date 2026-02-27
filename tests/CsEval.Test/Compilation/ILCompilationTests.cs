@@ -362,7 +362,7 @@ public class ILCompilationTests
         cts.CancelAfter(50); // Cancel after 50ms
 
         Assert.Throws<OperationCanceledException>(() =>
-            engine.Evaluate(expr, null, cts.Token));
+            engine.Evaluate(expr, cancellationToken: cts.Token));
     }
 
     // Switch Compilation

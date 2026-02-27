@@ -78,7 +78,7 @@ public class WhileLoopTests(CompilationMode mode)
                     while (i < 1000000000) { i = i + 1; }
                     return i;
                 }
-                """, null, cts.Token);
+                """, cancellationToken: cts.Token);
         });
 
         Thread.Sleep(100);

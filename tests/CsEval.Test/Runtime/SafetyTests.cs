@@ -60,7 +60,7 @@ public class SafetyTests(CompilationMode mode)
                     sum = sum + item;
                 }
                 return sum;
-            }", null, cts.Token);
+            }", cancellationToken: cts.Token);
         });
 
         // Give it a tiny bit of time to start

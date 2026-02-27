@@ -67,7 +67,7 @@ public class ForLoopTests(CompilationMode mode)
             return engine.Evaluate("""
                 for (var i = 0; i < 1000000000; i++) { }
                 return 0;
-                """, null, cts.Token);
+                """, cancellationToken: cts.Token);
         });
 
         Thread.Sleep(100);

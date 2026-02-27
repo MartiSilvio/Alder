@@ -143,26 +143,30 @@ public sealed class CsEvalEngine
         return TryParse(expression, out result, out _);
     }
 
-    public object? Evaluate(string expression, IServiceProvider? serviceProvider = null)
-    {
-        return Evaluate(expression, serviceProvider, CancellationToken.None);
-    }
-
-    public object? Evaluate(string expression, IServiceProvider? serviceProvider, CancellationToken cancellationToken)
+    public object? Evaluate(
+        string expression,
+        IDictionary<string, object?>? variables = null,
+        IServiceProvider? serviceProvider = null,
+        CancellationToken cancellationToken = default)
     {
         var parsed = Parse(expression);
-        return Evaluate(parsed, serviceProvider, cancellationToken);
+        return Evaluate(parsed, variables, serviceProvider, cancellationToken);
     }
 
-    public object? Evaluate(CsEvalExpression expression, IServiceProvider? serviceProvider = null)
+    public object? Evaluate(
+        CsEvalExpression expression,
+        IDictionary<string, object?>? variables = null,
+        IServiceProvider? serviceProvider = null,
+        CancellationToken cancellationToken = default)
     {
-        return Evaluate(expression, serviceProvider, CancellationToken.None);
-    }
+        var target = this;
+        if (variables != null)
+        {
+            target = CreateChild();
+            target.SetVariables(variables);
+        }
 
-    public object? Evaluate(CsEvalExpression expression, IServiceProvider? serviceProvider,
-        CancellationToken cancellationToken)
-    {
-        var context = GetOrCreateContext(serviceProvider);
+        var context = target.GetOrCreateContext(serviceProvider);
 
         var shouldCompile = _options.CompilationMode is CompilationMode.Compiled or CompilationMode.StrictCompiled;
         if (shouldCompile && expression.GetCompiledInfo() == null)
@@ -186,6 +190,36 @@ public sealed class CsEvalEngine
         return evaluator.Evaluate(expression.Ast);
     }
 
+    public T? Evaluate<T>(
+        string expression,
+        IDictionary<string, object?>? variables = null,
+        IServiceProvider? serviceProvider = null,
+        CancellationToken cancellationToken = default)
+    {
+        var result = Evaluate(expression, variables, serviceProvider, cancellationToken);
+        return ConvertResult<T>(result);
+    }
+
+    public T? Evaluate<T>(
+        CsEvalExpression expression,
+        IDictionary<string, object?>? variables = null,
+        IServiceProvider? serviceProvider = null,
+        CancellationToken cancellationToken = default)
+    {
+        var result = Evaluate(expression, variables, serviceProvider, cancellationToken);
+        return ConvertResult<T>(result);
+    }
+
+    private static T? ConvertResult<T>(object? result)
+    {
+        return result switch
+        {
+            null => default,
+            T typed => typed,
+            _ => (T)Convert.ChangeType(result, typeof(T))
+        };
+    }
+
     public CsEvalExpression ParseAndCompile(string expression)
     {
         var expr = Parse(expression);
@@ -198,68 +232,6 @@ public sealed class CsEvalEngine
         var config = GetOrCreateConfig();
         var parentContext = GetOrCreateContext(null);
         return new CsEvalEngine(config, parentContext, _options, _expressionCache);
-    }
-
-    public object? Evaluate(string expression, IDictionary<string, object?> variables, IServiceProvider? serviceProvider = null)
-    {
-        return Evaluate(expression, variables, serviceProvider, CancellationToken.None);
-    }
-
-    public object? Evaluate(
-        string expression, IDictionary<string, object?> variables, IServiceProvider? serviceProvider, CancellationToken cancellationToken)
-    {
-        var child = CreateChild();
-        child.SetVariables(variables);
-        return child.Evaluate(expression, serviceProvider, cancellationToken);
-    }
-
-    public object? Evaluate(
-        CsEvalExpression expression, IDictionary<string, object?> variables, IServiceProvider? serviceProvider = null)
-    {
-        return Evaluate(expression, variables, serviceProvider, CancellationToken.None);
-    }
-
-    public object? Evaluate(CsEvalExpression expression, IDictionary<string, object?> variables,
-        IServiceProvider? serviceProvider, CancellationToken cancellationToken)
-    {
-        var child = CreateChild();
-        child.SetVariables(variables);
-        return child.Evaluate(expression, serviceProvider, cancellationToken);
-    }
-
-    public T? Evaluate<T>(string expression, IServiceProvider? serviceProvider = null)
-    {
-        return Evaluate<T>(expression, serviceProvider, CancellationToken.None);
-    }
-
-    public T? Evaluate<T>(string expression, IServiceProvider? serviceProvider, CancellationToken cancellationToken)
-    {
-        var result = Evaluate(expression, serviceProvider, cancellationToken);
-
-        return result switch
-        {
-            null => default,
-            T typed => typed,
-            _ => (T)Convert.ChangeType(result, typeof(T))
-        };
-    }
-
-    public T? Evaluate<T>(CsEvalExpression expression, IServiceProvider? serviceProvider = null)
-    {
-        return Evaluate<T>(expression, serviceProvider, CancellationToken.None);
-    }
-
-    public T? Evaluate<T>(CsEvalExpression expression, IServiceProvider? serviceProvider,
-        CancellationToken cancellationToken)
-    {
-        var result = Evaluate(expression, serviceProvider, cancellationToken);
-
-        return result switch
-        {
-            null => default,
-            T typed => typed,
-            _ => (T)Convert.ChangeType(result, typeof(T))
-        };
     }
 
     public CsEvalEngine SetVariable(string name, object? value)
@@ -341,40 +313,22 @@ public sealed class CsEvalEngine
         return RegisterFromType(typeof(T), instance);
     }
 
-    public CsEvalEngine RegisterModule(string moduleName, Type type)
+    public CsEvalEngine RegisterModule(string moduleName, Type type, bool explicitOnly = false, object? instance = null)
     {
         EnsureNotFrozen();
-        var moduleAttr = type.GetCustomAttribute<CsEvalModuleAttribute>();
-        var explicitOnly = moduleAttr?.ExplicitOnly ?? false;
+        if (!explicitOnly)
+        {
+            var moduleAttr = type.GetCustomAttribute<CsEvalModuleAttribute>();
+            explicitOnly = moduleAttr?.ExplicitOnly ?? false;
+        }
         var methods = BuildMemberDictionary(type, explicitOnly);
-        _registeredTypes.Add(new RegisteredType(type, null, moduleName, methods));
+        _registeredTypes.Add(new RegisteredType(type, instance, moduleName, methods));
         return this;
     }
 
-    public CsEvalEngine RegisterModule<T>(string moduleName, T? instance = default) where T : class
+    public CsEvalEngine RegisterModule<T>(string moduleName, bool explicitOnly = false, T? instance = default) where T : class
     {
-        EnsureNotFrozen();
-        var moduleAttr = typeof(T).GetCustomAttribute<CsEvalModuleAttribute>();
-        var explicitOnly = moduleAttr?.ExplicitOnly ?? false;
-        var methods = BuildMemberDictionary(typeof(T), explicitOnly);
-        _registeredTypes.Add(new RegisteredType(typeof(T), instance, moduleName, methods));
-        return this;
-    }
-
-    public CsEvalEngine RegisterModule(string moduleName, Type type, bool explicitOnly)
-    {
-        EnsureNotFrozen();
-        var methods = BuildMemberDictionary(type, explicitOnly);
-        _registeredTypes.Add(new RegisteredType(type, null, moduleName, methods));
-        return this;
-    }
-
-    public CsEvalEngine RegisterModule<T>(string moduleName, bool explicitOnly, T? instance = default) where T : class
-    {
-        EnsureNotFrozen();
-        var methods = BuildMemberDictionary(typeof(T), explicitOnly);
-        _registeredTypes.Add(new RegisteredType(typeof(T), instance, moduleName, methods));
-        return this;
+        return RegisterModule(moduleName, typeof(T), explicitOnly, instance);
     }
 
     public CsEvalEngine RegisterModule(string moduleName, Type type, IReadOnlyDictionary<string, MemberInfo> members)

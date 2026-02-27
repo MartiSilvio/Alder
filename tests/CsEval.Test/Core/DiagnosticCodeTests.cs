@@ -150,7 +150,7 @@ public class DiagnosticCodeTests
     {
         // CS0117 fires for module member access and dict property access.
         // RegisterModule creates a module; accessing a non-existent member throws CS0117.
-        _engine.RegisterModule("MyMod", new TestModule());
+        _engine.RegisterModule("MyMod", instance: new TestModule());
         var ex = Assert.Throws<CsEvalException>(() => _engine.Evaluate("MyMod.NonExistentProp"));
         Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0117));
         Assert.That(ex.FormattedCode, Is.EqualTo("CS0117"));

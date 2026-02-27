@@ -19,7 +19,7 @@ public class NamedParameterTests(CompilationMode mode)
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
 
-        engine.RegisterModule("Test", new TestModule());
+        engine.RegisterModule("Test", instance: new TestModule());
 
         var result = engine.Evaluate("Test.Greet(name: \"World\")");
         Assert.That(result, Is.EqualTo("Hello, World!"));
