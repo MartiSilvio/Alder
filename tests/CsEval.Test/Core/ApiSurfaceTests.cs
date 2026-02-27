@@ -37,6 +37,7 @@ public class ApiSurfaceTests
             "GetRegisteredModules",
             "Parse",
             "ParseAndCompile",
+            "ParseAsExpression",
             "RegisterExtensionMethods",
             "RegisterFromAssembly",
             "RegisterFromType",
@@ -46,6 +47,7 @@ public class ApiSurfaceTests
             "SetVariables",
             "TryEvaluate",
             "TryParse",
+            "TryParseAsExpression",
             "TryValidate",
         }.OrderBy(n => n).ToList();
 
