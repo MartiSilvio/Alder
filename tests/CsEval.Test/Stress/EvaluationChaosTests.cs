@@ -6,21 +6,28 @@ namespace CsEval.Test.Stress;
 public class EvaluationChaosTests(CompilationMode mode) : StressTestBase(mode)
 {
     [Test]
-    public void InfiniteLoop_ShouldTerminate_WithMaxIterations()
+    public void InfiniteLoop_ShouldTerminate_WithMaxStatements()
     {
-        var options = CsEvalOptions.Default with { CompilationMode = Mode, MaxIterations = 1000 };
+        var options = CsEvalOptions.Default with
+        {
+            CompilationMode = Mode,
+            Constraints = new ExecutionConstraints { MaxStatements = 1000 }
+        };
         var engine = new CsEvalEngine(options);
 
         var expr = "{ var i = 0; while(true) { i++; } }";
 
-        // This should throw an exception about max iterations
-        Assert.Throws<CsEvalException>(() => engine.Evaluate(expr));
+        Assert.Throws<CsEvalExecutionLimitException>(() => engine.Evaluate(expr));
     }
 
     [Test]
-    public void NestedLoops_ExponentialComplexity_ShouldRespectMaxIterations()
+    public void NestedLoops_ExponentialComplexity_ShouldRespectMaxStatements()
     {
-        var options = CsEvalOptions.Default with { CompilationMode = Mode, MaxIterations = 5000 };
+        var options = CsEvalOptions.Default with
+        {
+            CompilationMode = Mode,
+            Constraints = new ExecutionConstraints { MaxStatements = 5000 }
+        };
         var engine = new CsEvalEngine(options);
 
         // O(N^3)
@@ -37,7 +44,7 @@ public class EvaluationChaosTests(CompilationMode mode) : StressTestBase(mode)
         }";
 
         // 100*100*100 = 1,000,000 > 5000. Should throw.
-        Assert.Throws<CsEvalException>(() => engine.Evaluate(expr));
+        Assert.Throws<CsEvalExecutionLimitException>(() => engine.Evaluate(expr));
     }
 
     [Test]
@@ -95,7 +102,7 @@ public class EvaluationChaosTests(CompilationMode mode) : StressTestBase(mode)
     }
 
     [Test]
-    public void RecursionFunction_ShouldThrowStackOverflow_OrMaxIterations()
+    public void RecursionFunction_ShouldThrowStackOverflow_OrConstraintLimit()
     {
         // Define a recursive function
         // function f(n) { if (n<=0) return 0; return 1 + f(n-1); }

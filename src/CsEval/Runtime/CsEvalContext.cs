@@ -43,6 +43,7 @@ public sealed class CsEvalContext
     internal FrozenDictionary<string, Func<object?[], object?>> Functions => _config.Functions;
     internal FrozenDictionary<string, ModuleInfo> Modules => _config.Modules;
     internal ImmutableArray<Type> ExtensionTypes => _config.ExtensionTypes;
+    internal ExecutionConstraintState? ConstraintState { get; set; }
 
     public void Define(string name, object? value) => _variables[name] = value;
 
@@ -120,7 +121,12 @@ public sealed class CsEvalContext
         return _parent?.Contains(name) ?? false;
     }
 
-    public CsEvalContext CreateChild() => new(_config, this, null);
+    public CsEvalContext CreateChild()
+    {
+        var child = new CsEvalContext(_config, this, null);
+        child.ConstraintState = ConstraintState;
+        return child;
+    }
 
     public IReadOnlyDictionary<string, object?> GetAll() => _variables;
 

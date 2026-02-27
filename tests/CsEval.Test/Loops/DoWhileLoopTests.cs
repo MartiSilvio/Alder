@@ -1,6 +1,6 @@
 namespace CsEval.Test.Loops;
 
-// Engine-only: Remaining tests use SetVariable, CsEval-specific configuration (MaxIterations, CancellationToken),
+// Engine-only: Remaining tests use SetVariable, CsEval-specific configuration (Constraints, CancellationToken),
 // CsEval collection expression syntax ([...], [..spread]), anonymous objects as IDictionary, or test parsing API (TryParse).
 // Execution semantics tests migrated to TestData/Loops/DoWhileLoop/*.csx
 
@@ -129,49 +129,57 @@ public class DoWhileLoopTests(CompilationMode mode)
 
     #region Do-While Loop Safety
 
-    // Engine-only: MaxIterations (CsEval-specific configuration)
+    // Engine-only: Constraints (CsEval-specific configuration)
     [Test]
-    public void DoWhileLoop_ExceedsMaxIterations_ThrowsException()
+    public void DoWhileLoop_ExceedsMaxStatements_ThrowsException()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with
+        {
+            CompilationMode = mode,
+            Constraints = new ExecutionConstraints { MaxStatements = 1000 }
+        });
+
+        var ex = Assert.Throws<CsEvalExecutionLimitException>(() =>
+            engine.Evaluate(@"
+            {
+                var i = 0;
+                do {
+                    i = i + 1;
+                } while (true);
+                return i;
+            }"));
+
+        Assert.That(ex!.LimitType, Is.EqualTo(ExecutionLimitType.Statements));
+    }
+
+    // Engine-only: Constraints (CsEval-specific configuration)
+    [Test]
+    public void DoWhileLoop_WithCustomMaxStatements_UsesConfiguredLimit()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with
+        {
+            CompilationMode = mode,
+            Constraints = new ExecutionConstraints { MaxStatements = 10 }
+        });
+
+        var ex = Assert.Throws<CsEvalExecutionLimitException>(() =>
+            engine.Evaluate(@"
+            {
+                var i = 0;
+                do {
+                    i = i + 1;
+                } while (true);
+                return i;
+            }"));
+
+        Assert.That(ex!.LimitValue, Is.EqualTo(10));
+    }
+
+    // Engine-only: Constraints (CsEval-specific configuration)
+    [Test]
+    public void DoWhileLoop_WithNoConstraints_AllowsManyIterations()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-
-        var ex = Assert.Throws<CsEvalException>(() =>
-            engine.Evaluate(@"
-            {
-                var i = 0;
-                do {
-                    i = i + 1;
-                } while (true);
-                return i;
-            }"));
-
-        Assert.That(ex!.Message, Does.Contain("maximum iterations"));
-    }
-
-    // Engine-only: MaxIterations (CsEval-specific configuration)
-    [Test]
-    public void DoWhileLoop_WithCustomMaxIterations_UsesConfiguredLimit()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode, MaxIterations = 10 });
-
-        var ex = Assert.Throws<CsEvalException>(() =>
-            engine.Evaluate(@"
-            {
-                var i = 0;
-                do {
-                    i = i + 1;
-                } while (true);
-                return i;
-            }"));
-
-        Assert.That(ex!.Message, Does.Contain("10"));
-    }
-
-    // Engine-only: MaxIterations (CsEval-specific configuration)
-    [Test]
-    public void DoWhileLoop_WithDisabledLimit_AllowsManyIterations()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode, MaxIterations = 0 });
 
         var result = engine.Evaluate(@"
         {
@@ -191,7 +199,7 @@ public class DoWhileLoopTests(CompilationMode mode)
     [Test]
     public void DoWhileLoop_WithCancellationToken_CanBeCancelled()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode, MaxIterations = 0 });
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         using var cts = new CancellationTokenSource();
 
         var task = Task.Run(() =>

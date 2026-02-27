@@ -15,7 +15,6 @@ public sealed class Evaluator : IExprVisitor<object?>
     private readonly Func<MethodInfo, object?[], object?[]>? _argumentTransformer;
     private readonly TypeInferrer _typeInferrer;
 
-    private long _iterationCount;
     private int _depth;
     private readonly int _maxDepth;
     private readonly Stack<Exception> _caughtExceptions = new();
@@ -1163,14 +1162,12 @@ public sealed class Evaluator : IExprVisitor<object?>
 
     public object? VisitWhile(WhileStatementExpr expr)
     {
-        var maxIterations = _options.MaxIterations;
+        var constraintState = _context.ConstraintState;
+        var constraints = _options.Constraints;
 
         while (TypeHelpers.RequireBoolean(Evaluate(expr.Condition)))
         {
-            _cancellationToken.ThrowIfCancellationRequested();
-
-            if (maxIterations > 0 && ++_iterationCount > maxIterations)
-                throw new CsEvalException($"Loop exceeded maximum iterations ({maxIterations}). Possible infinite loop.");
+            RuntimeHelpers.CheckExecutionConstraints(constraintState, constraints, _cancellationToken);
 
             var previousContext = _context;
             _context = _context.CreateChild();
@@ -1207,7 +1204,8 @@ public sealed class Evaluator : IExprVisitor<object?>
 
     public object? VisitFor(ForStatementExpr expr)
     {
-        var maxIterations = _options.MaxIterations;
+        var constraintState = _context.ConstraintState;
+        var constraints = _options.Constraints;
         var loopContext = _context;
         _context = _context.CreateChild();
 
@@ -1220,10 +1218,7 @@ public sealed class Evaluator : IExprVisitor<object?>
 
             while (expr.Condition == null || TypeHelpers.RequireBoolean(Evaluate(expr.Condition)))
             {
-                _cancellationToken.ThrowIfCancellationRequested();
-
-                if (maxIterations > 0 && ++_iterationCount > maxIterations)
-                    throw new CsEvalException($"Loop exceeded maximum iterations ({maxIterations}). Possible infinite loop.");
+                RuntimeHelpers.CheckExecutionConstraints(constraintState, constraints, _cancellationToken);
 
                 var iterationContext = _context;
                 _context = _context.CreateChild();
@@ -1270,14 +1265,12 @@ public sealed class Evaluator : IExprVisitor<object?>
 
     public object? VisitDoWhile(DoWhileStatementExpr expr)
     {
-        var maxIterations = _options.MaxIterations;
+        var constraintState = _context.ConstraintState;
+        var constraints = _options.Constraints;
 
         do
         {
-            _cancellationToken.ThrowIfCancellationRequested();
-
-            if (maxIterations > 0 && ++_iterationCount > maxIterations)
-                throw new CsEvalException($"Loop exceeded maximum iterations ({maxIterations}). Possible infinite loop.");
+            RuntimeHelpers.CheckExecutionConstraints(constraintState, constraints, _cancellationToken);
 
             var previousContext = _context;
             _context = _context.CreateChild();
@@ -1314,7 +1307,8 @@ public sealed class Evaluator : IExprVisitor<object?>
 
     public object? VisitForEach(ForEachStatementExpr expr)
     {
-        var maxIterations = _options.MaxIterations;
+        var constraintState = _context.ConstraintState;
+        var constraints = _options.Constraints;
         var collection = Evaluate(expr.Collection);
 
         if (collection is not IEnumerable enumerable)
@@ -1324,10 +1318,7 @@ public sealed class Evaluator : IExprVisitor<object?>
 
         foreach (var item in enumerable)
         {
-            _cancellationToken.ThrowIfCancellationRequested();
-
-            if (maxIterations > 0 && ++_iterationCount > maxIterations)
-                throw new CsEvalException($"Loop exceeded maximum iterations ({maxIterations}). Possible infinite loop.");
+            RuntimeHelpers.CheckExecutionConstraints(constraintState, constraints, _cancellationToken);
 
             var previousContext = _context;
             _context = _context.CreateChild();

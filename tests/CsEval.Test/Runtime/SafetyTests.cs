@@ -1,4 +1,4 @@
-// All tests engine-only: MaxIterations config, CancellationToken, CsEvalException assertions
+// All tests engine-only: Constraints config, CancellationToken, CsEvalExecutionLimitException assertions
 // -- CsEval-specific safety features with no Roslyn equivalent.
 
 namespace CsEval.Test.Runtime;
@@ -27,17 +27,26 @@ public class SafetyTests(CompilationMode mode)
     ];
 
     [TestCaseSource(nameof(LimitViolationCases))]
-    public void IterationLimit_ThrowsCsEvalException(string expr, int limit)
+    public void StatementLimit_ThrowsCsEvalExecutionLimitException(string expr, int limit)
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode, MaxIterations = limit });
-        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate(expr));
-        Assert.That(ex!.Message, Does.Contain(limit.ToString()));
+        var engine = new CsEvalEngine(CsEvalOptions.Default with
+        {
+            CompilationMode = mode,
+            Constraints = new ExecutionConstraints { MaxStatements = limit }
+        });
+        var ex = Assert.Throws<CsEvalExecutionLimitException>(() => engine.Evaluate(expr));
+        Assert.That(ex!.LimitType, Is.EqualTo(ExecutionLimitType.Statements));
+        Assert.That(ex.LimitValue, Is.EqualTo(limit));
     }
 
     [TestCaseSource(nameof(WithinLimitCases))]
-    public void IterationLimit_WithinLimit_Succeeds(string expr, int limit, object expected)
+    public void StatementLimit_WithinLimit_Succeeds(string expr, int limit, object expected)
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode, MaxIterations = limit });
+        var engine = new CsEvalEngine(CsEvalOptions.Default with
+        {
+            CompilationMode = mode,
+            Constraints = new ExecutionConstraints { MaxStatements = limit }
+        });
         var result = engine.Evaluate(expr);
         Assert.That(result, Is.EqualTo(expected));
     }
@@ -45,7 +54,7 @@ public class SafetyTests(CompilationMode mode)
     [Test]
     public void CancellationToken_CanBeCancelled()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode, MaxIterations = 0 });
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         // Use a very large array to ensure it takes some time
         var items = Enumerable.Range(1, 10_000_000).ToArray();
         engine.SetVariable("items", items);

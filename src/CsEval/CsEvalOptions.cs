@@ -45,7 +45,12 @@ public sealed record CsEvalOptions
     /// </summary>
     public bool IsCaseSensitive { get; init; } = true;
 
-    public int MaxIterations { get; init; } = 100_000;
+    /// <summary>
+    /// Execution resource limits. Null means no constraints (default).
+    /// When set, MaxStatements and MaxTimeout are enforced at statement boundaries.
+    /// Constraints can be mutated between evaluations.
+    /// </summary>
+    public ExecutionConstraints? Constraints { get; init; }
 
     /// <summary>
     /// Maximum nesting depth for expression evaluation and compilation. The evaluator and IL compiler

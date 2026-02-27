@@ -1,6 +1,6 @@
 namespace CsEval.Test.Loops;
 
-// Engine-only: All tests use CsEval-specific configuration (MaxIterations, CancellationToken)
+// Engine-only: All tests use CsEval-specific configuration (Constraints, CancellationToken)
 // or test parsing API (TryParse) - not expression evaluation
 
 [TestFixture(CompilationMode.Interpreted)]
@@ -11,43 +11,51 @@ public class WhileLoopTests(CompilationMode mode)
     #region Safety Tests
 
     [Test]
-    public void WhileLoop_ExceedsMaxIterations_ThrowsException()
+    public void WhileLoop_ExceedsMaxStatements_ThrowsException()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with
+        {
+            CompilationMode = mode,
+            Constraints = new ExecutionConstraints { MaxStatements = 1000 }
+        });
+
+        var ex = Assert.Throws<CsEvalExecutionLimitException>(() =>
+            engine.Evaluate("""
+                {
+                    var i = 0;
+                    while (true) { i = i + 1; }
+                    return i;
+                }
+                """));
+
+        Assert.That(ex!.LimitType, Is.EqualTo(ExecutionLimitType.Statements));
+    }
+
+    [Test]
+    public void WhileLoop_WithCustomMaxStatements_UsesConfiguredLimit()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with
+        {
+            CompilationMode = mode,
+            Constraints = new ExecutionConstraints { MaxStatements = 10 }
+        });
+
+        var ex = Assert.Throws<CsEvalExecutionLimitException>(() =>
+            engine.Evaluate("""
+                {
+                    var i = 0;
+                    while (true) { i = i + 1; }
+                    return i;
+                }
+                """));
+
+        Assert.That(ex!.LimitValue, Is.EqualTo(10));
+    }
+
+    [Test]
+    public void WhileLoop_WithNoConstraints_AllowsManyIterations()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-
-        var ex = Assert.Throws<CsEvalException>(() =>
-            engine.Evaluate("""
-                {
-                    var i = 0;
-                    while (true) { i = i + 1; }
-                    return i;
-                }
-                """));
-
-        Assert.That(ex!.Message, Does.Contain("maximum iterations"));
-    }
-
-    [Test]
-    public void WhileLoop_WithCustomMaxIterations_UsesConfiguredLimit()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode, MaxIterations = 10 });
-
-        var ex = Assert.Throws<CsEvalException>(() =>
-            engine.Evaluate("""
-                {
-                    var i = 0;
-                    while (true) { i = i + 1; }
-                    return i;
-                }
-                """));
-
-        Assert.That(ex!.Message, Does.Contain("10"));
-    }
-
-    [Test]
-    public void WhileLoop_WithDisabledLimit_AllowsManyIterations()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode, MaxIterations = 0 });
 
         var result = engine.Evaluate("""
             {
@@ -67,7 +75,7 @@ public class WhileLoopTests(CompilationMode mode)
     [Test]
     public void WhileLoop_WithCancellationToken_CanBeCancelled()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode, MaxIterations = 0 });
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         using var cts = new CancellationTokenSource();
 
         var task = Task.Run(() =>

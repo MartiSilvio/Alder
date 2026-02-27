@@ -116,7 +116,7 @@ internal sealed class ControlFlowCompilerUnit
             LinqExpression.IfThen(
                 LinqExpression.Not(LinqExpression.Call(CompilerContext.RequireBooleanMethod, Compile(whileStmt.Condition))),
                 LinqExpression.Break(breakLabel)),
-            CompileIterationCheck(),
+            CompileConstraintCheck(),
             // Body with scope
             _helpers.Scoped(() =>
             {
@@ -165,7 +165,7 @@ internal sealed class ControlFlowCompilerUnit
                     LinqExpression.Break(breakLabel)));
             }
 
-            loopStatements.Add(CompileIterationCheck());
+            loopStatements.Add(CompileConstraintCheck());
 
             // Body with nested scope
             loopStatements.Add(_helpers.Scoped(() =>
@@ -207,7 +207,7 @@ internal sealed class ControlFlowCompilerUnit
         {
             // Cancellation and iteration check
             CompileCancellationCheck(),
-            CompileIterationCheck(),
+            CompileConstraintCheck(),
             // Body with scope (executes first in do-while)
             _helpers.Scoped(() =>
             {
@@ -260,7 +260,7 @@ internal sealed class ControlFlowCompilerUnit
                 LinqExpression.IfThen(
                     LinqExpression.Not(LinqExpression.Call(enumerator, CompilerContext.MoveNextMethod)),
                     LinqExpression.Break(breakLabel)),
-                CompileIterationCheck(),
+                CompileConstraintCheck(),
                 // Get Current value
                 LinqExpression.Assign(
                     itemValue,
@@ -651,11 +651,13 @@ internal sealed class ControlFlowCompilerUnit
         return LinqExpression.Call(_ctx.CtParam, CompilerContext.ThrowIfCancellationRequestedMethod);
     }
 
-    private LinqExpression CompileIterationCheck()
+    private LinqExpression CompileConstraintCheck()
     {
-        // _iterationCount++; CheckIterationLimit(_iterationCount, options);
-        return LinqExpression.Block(
-            LinqExpression.PostIncrementAssign(_ctx.IterationCount),
-            LinqExpression.Call(CompilerContext.CheckIterationLimitMethod, _ctx.IterationCount, _ctx.OptionsParam));
+        // CheckExecutionConstraints(context.ConstraintState, options.Constraints, ct);
+        return LinqExpression.Call(
+            CompilerContext.CheckExecutionConstraintsMethod,
+            LinqExpression.Call(_ctx.CurrentContext, CompilerContext.GetConstraintStateProperty),
+            LinqExpression.Call(_ctx.OptionsParam, CompilerContext.GetConstraintsProperty),
+            _ctx.CtParam);
     }
 }

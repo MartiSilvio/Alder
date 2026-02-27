@@ -10,7 +10,7 @@ public class ParityTests(CompilationMode mode)
     private CsEvalOptions Options => CsEvalOptions.Default with
     {
         CompilationMode = mode,
-        MaxIterations = 1_000_000,
+        Constraints = new ExecutionConstraints { MaxStatements = 1_000_000 },
         LanguageMode = LanguageMode.Extended
     };
 

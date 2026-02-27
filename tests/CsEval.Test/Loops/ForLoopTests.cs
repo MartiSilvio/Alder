@@ -1,6 +1,6 @@
 namespace CsEval.Test.Loops;
 
-// Engine-only: All tests use CsEval-specific configuration (MaxIterations, CancellationToken)
+// Engine-only: All tests use CsEval-specific configuration (Constraints, CancellationToken)
 // or test parsing API (TryParse) - not expression evaluation
 
 [TestFixture(CompilationMode.Interpreted)]
@@ -13,37 +13,46 @@ public class ForLoopTests(CompilationMode mode)
     #region Safety Tests
 
     [Test]
-    public void ForLoop_ExceedsMaxIterations_ThrowsException()
+    public void ForLoop_ExceedsMaxStatements_ThrowsException()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with
+        {
+            CompilationMode = mode,
+            Constraints = new ExecutionConstraints { MaxStatements = 1000 }
+        });
+
+        var ex = Assert.Throws<CsEvalExecutionLimitException>(() =>
+            engine.Evaluate("""
+                for (var i = 0; ; i++) { }
+                return 0;
+                """));
+
+        Assert.That(ex!.LimitType, Is.EqualTo(ExecutionLimitType.Statements));
+        Assert.That(ex.LimitValue, Is.EqualTo(1000));
+    }
+
+    [Test]
+    public void ForLoop_WithCustomMaxStatements_UsesConfiguredLimit()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with
+        {
+            CompilationMode = mode,
+            Constraints = new ExecutionConstraints { MaxStatements = 10 }
+        });
+
+        var ex = Assert.Throws<CsEvalExecutionLimitException>(() =>
+            engine.Evaluate("""
+                for (var i = 0; ; i++) { }
+                return 0;
+                """));
+
+        Assert.That(ex!.LimitValue, Is.EqualTo(10));
+    }
+
+    [Test]
+    public void ForLoop_WithNoConstraints_AllowsManyIterations()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
-
-        var ex = Assert.Throws<CsEvalException>(() =>
-            engine.Evaluate("""
-                for (var i = 0; ; i++) { }
-                return 0;
-                """));
-
-        Assert.That(ex!.Message, Does.Contain("maximum iterations"));
-    }
-
-    [Test]
-    public void ForLoop_WithCustomMaxIterations_UsesConfiguredLimit()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode, MaxIterations = 10 });
-
-        var ex = Assert.Throws<CsEvalException>(() =>
-            engine.Evaluate("""
-                for (var i = 0; ; i++) { }
-                return 0;
-                """));
-
-        Assert.That(ex!.Message, Does.Contain("10"));
-    }
-
-    [Test]
-    public void ForLoop_WithDisabledLimit_AllowsManyIterations()
-    {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode, MaxIterations = 0 });
 
         var result = engine.Evaluate("""
             var count = 0;
@@ -59,7 +68,7 @@ public class ForLoopTests(CompilationMode mode)
     [Test]
     public void ForLoop_WithCancellationToken_CanBeCancelled()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode, MaxIterations = 0 });
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         using var cts = new CancellationTokenSource();
 
         var task = Task.Run(() =>

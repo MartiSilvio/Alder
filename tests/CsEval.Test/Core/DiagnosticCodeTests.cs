@@ -20,7 +20,7 @@ namespace CsEval.Test.Core;
 ///   CsEval-specific breakdown (no C# compiler equivalent):
 ///     Sandbox/security:    12 (assignment/method/property/index blocked)
 ///     Null access:         15 (runtime NullReferenceException in real C#)
-///     Iteration limits:     5 (MaxIterations exceeded)
+///     Execution limits:     5 (statement/timeout constraints)
 ///     Reflection guards:    3 (reflection type leakage prevention)
 ///     Internal/unreachable: 12 (unknown operator, unsupported pattern)
 ///     Tuple/deconstruction: 7 (tuple size limits, deconstruction mismatch)

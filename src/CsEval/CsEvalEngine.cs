@@ -170,6 +170,17 @@ public sealed class CsEvalEngine
 
         var context = target.GetOrCreateContext(serviceProvider);
 
+        // Initialize or reset constraint state for this evaluation
+        var constraints = _options.Constraints;
+        if (constraints != null)
+        {
+            if (context.ConstraintState == null)
+            {
+                context.ConstraintState = new ExecutionConstraintState();
+            }
+            context.ConstraintState.Reset(constraints);
+        }
+
         var shouldCompile = _options.CompilationMode is CompilationMode.Compiled or CompilationMode.StrictCompiled;
         if (shouldCompile && expression.GetCompiledInfo() == null)
         {

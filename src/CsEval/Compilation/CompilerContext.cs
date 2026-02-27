@@ -40,9 +40,6 @@ internal sealed class CompilerContext
     // Loop/Switch stack
     internal readonly Stack<ControlFlowContext> ControlStack = new();
 
-    // Global iteration counter variable (long to avoid overflow issues with int.MaxValue limits)
-    internal readonly ParameterExpression IterationCount;
-
     // Return handling
     internal readonly LabelTarget ReturnLabel;
     internal readonly ParameterExpression ReturnValue;
@@ -104,7 +101,9 @@ internal sealed class CompilerContext
     internal static readonly MethodInfo CreateMultiDimArrayMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.CreateMultiDimArray))!;
     internal static readonly MethodInfo MultiDimArrayGetMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.MultiDimArrayGet))!;
     internal static readonly MethodInfo MultiDimArraySetMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.MultiDimArraySet))!;
-    internal static readonly MethodInfo CheckIterationLimitMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.CheckIterationLimit))!;
+    internal static readonly MethodInfo CheckExecutionConstraintsMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.CheckExecutionConstraints))!;
+    internal static readonly MethodInfo GetConstraintStateProperty = typeof(CsEvalContext).GetProperty(nameof(CsEvalContext.ConstraintState), BindingFlags.NonPublic | BindingFlags.Instance)!.GetGetMethod(true)!;
+    internal static readonly MethodInfo GetConstraintsProperty = typeof(CsEvalOptions).GetProperty(nameof(CsEvalOptions.Constraints))!.GetGetMethod()!;
     internal static readonly MethodInfo GetEnumeratorMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.GetEnumerator))!;
     internal static readonly MethodInfo MoveNextMethod = typeof(IEnumerator).GetMethod(nameof(IEnumerator.MoveNext))!;
     internal static readonly MethodInfo GetCurrentProperty = typeof(IEnumerator).GetProperty(nameof(IEnumerator.Current))!.GetGetMethod()!;
@@ -151,9 +150,6 @@ internal sealed class CompilerContext
 
         // Current context starts as the parameter
         CurrentContext = ContextParam;
-
-        // Iteration counter (long to handle MaxIterations up to int.MaxValue without overflow)
-        IterationCount = LinqExpression.Variable(typeof(long), "iterationCount");
 
         // Return handling - we use a label at the end to handle early returns
         ReturnLabel = LinqExpression.Label(typeof(object), "return");
@@ -217,12 +213,10 @@ internal sealed class CompilerContext
             var body = Compile(ctx, ast, expressionUnit, controlFlowUnit, patternUnit);
 
             // Wrap in a block that:
-            // 1. Initializes iteration counter to 0
-            // 2. Executes the body and stores result
-            // 3. Returns via label (for early returns) or falls through with body result
+            // 1. Executes the body and stores result
+            // 2. Returns via label (for early returns) or falls through with body result
             var fullBody = LinqExpression.Block(
-                new[] { ctx.IterationCount, ctx.ReturnValue },
-                LinqExpression.Assign(ctx.IterationCount, LinqExpression.Constant(0L)),
+                new[] { ctx.ReturnValue },
                 // Store body result in returnValue so we can use it as default for label
                 LinqExpression.Assign(ctx.ReturnValue, body),
                 // Label with returnValue as default - early returns jump here, normal flow uses body result

@@ -332,18 +332,18 @@ public class ILCompilationTests
         Assert.That(result, Is.EqualTo(499500)); // Sum of 0..999
     }
 
-    // Iteration Limit
+    // Statement Limit
 
     [Test]
-    public void ILCompile_RespectsIterationLimit()
+    public void ILCompile_RespectsStatementLimit()
     {
-        var options = new CsEvalOptions { MaxIterations = 100 };
+        var options = new CsEvalOptions { Constraints = new ExecutionConstraints { MaxStatements = 100 } };
         var engine = new CsEvalEngine(options);
         var expr = engine.Parse("{ var i = 0; while (true) { i = i + 1; } return i; }");
 
         Assert.That(expr.TryCompile(), Is.True);
 
-        Assert.Throws<CsEvalException>(() => engine.Evaluate(expr));
+        Assert.Throws<CsEvalExecutionLimitException>(() => engine.Evaluate(expr));
     }
 
     // Cancellation
@@ -351,8 +351,7 @@ public class ILCompilationTests
     [Test]
     public void ILCompile_SupportsCancellation()
     {
-        // Use very high iteration limit to ensure cancellation is tested, not iteration limit
-        var options = new CsEvalOptions { MaxIterations = int.MaxValue };
+        var options = new CsEvalOptions();
         var engine = new CsEvalEngine(options);
         var expr = engine.Parse("{ var i = 0; while (i < 100000000) { i = i + 1; } return i; }");
 

@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using CsEval.Diagnostics;
 using CsEval.Interpretation;
 
@@ -123,10 +124,45 @@ public static class RuntimeHelpers
         return false;
     }
 
-    public static void CheckIterationLimit(long iterations, CsEvalOptions options)
+    /// <summary>
+    /// Unified execution constraint check. Called at statement boundaries in both
+    /// interpreted and compiled paths. Checks CancellationToken, MaxStatements,
+    /// and MaxTimeout in a single call.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static void CheckExecutionConstraints(
+        ExecutionConstraintState? state,
+        ExecutionConstraints? constraints,
+        CancellationToken ct)
     {
-        if (options.MaxIterations > 0 && iterations > options.MaxIterations)
-            throw new CsEvalException($"Loop exceeded maximum iterations ({options.MaxIterations}). Possible infinite loop.");
+        ct.ThrowIfCancellationRequested();
+
+        if (state == null || constraints == null) return;
+
+        state.StatementCount++;
+
+        if (constraints.MaxStatements is { } maxStmts && maxStmts > 0
+            && state.StatementCount > maxStmts)
+        {
+            throw new CsEvalExecutionLimitException(
+                ExecutionLimitType.Statements,
+                maxStmts,
+                state.StatementCount,
+                state.StatementCount,
+                state.Timer?.Elapsed ?? TimeSpan.Zero);
+        }
+
+        if (state.Timer != null
+            && constraints.MaxTimeout is { } maxTimeout
+            && state.Timer.Elapsed > maxTimeout)
+        {
+            throw new CsEvalExecutionLimitException(
+                ExecutionLimitType.Timeout,
+                (long)maxTimeout.TotalMilliseconds,
+                (long)state.Timer.ElapsedMilliseconds,
+                state.StatementCount,
+                state.Timer.Elapsed);
+        }
     }
 
     public static IEnumerator GetEnumerator(object? collection)
