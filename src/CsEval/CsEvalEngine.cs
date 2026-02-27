@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Linq.Expressions;
 using System.Runtime.CompilerServices;
 using CsEval.Attributes;
 using CsEval.Compilation;
@@ -379,6 +380,142 @@ public sealed class CsEvalEngine
     {
         var compiled = Compile<T>(expression);
         return () => compiled.Invoke();
+    }
+
+    /// <summary>
+    /// Parses a lambda expression string into a typed <see cref="Expression{TDelegate}"/>
+    /// suitable for Entity Framework, IQueryable providers, and in-memory compilation.
+    /// Always parses in Standard mode regardless of engine LanguageMode.
+    /// </summary>
+    /// <typeparam name="TDelegate">A Func delegate type (e.g., Func&lt;int, bool&gt;).
+    /// Parameter types are inferred from the generic arguments.</typeparam>
+    /// <param name="expression">A lambda expression string (e.g., "x => x > 5").</param>
+    /// <returns>A typed expression tree that can be passed to LINQ providers or compiled.</returns>
+    /// <exception cref="CsEvalException">Thrown when the expression contains unsupported nodes
+    /// or has parameter/type mismatches.</exception>
+    public Expression<TDelegate> ParseAsExpression<TDelegate>(string expression)
+        where TDelegate : Delegate
+    {
+        try
+        {
+            var delegateType = typeof(TDelegate);
+            if (!delegateType.IsGenericType)
+                throw new CsEvalException(
+                    $"'{delegateType.Name}' is not a generic delegate type. " +
+                    $"Use a Func<> type (e.g., Func<int, bool>).");
+
+            var genericArgs = delegateType.GetGenericArguments();
+            var paramTypes = genericArgs[..^1];
+            var returnType = genericArgs[^1];
+
+            // Always parse in Standard mode regardless of engine LanguageMode
+            var lexer = new Lexer(expression);
+            var tokens = lexer.Tokenize();
+            var parser = ExpressionParser.CreateForSubExpression(tokens, LanguageMode.Standard);
+            var ast = parser.Parse();
+
+            // The top-level AST must be a lambda
+            if (ast is not LambdaExpr lambdaExpr)
+                throw new CsEvalException(
+                    "Expression must be a lambda (e.g., 'x => x > 5')");
+
+            // Validate parameter count
+            if (lambdaExpr.Parameters.Count != paramTypes.Length)
+                throw new CsEvalException(
+                    $"Expression has {lambdaExpr.Parameters.Count} parameter(s) " +
+                    $"but {delegateType.Name} expects {paramTypes.Length}");
+
+            // Build parameter scope: name -> typed ParameterExpression
+            var parameterScope = new Dictionary<string, ParameterExpression>();
+            var parameterExpressions = new ParameterExpression[paramTypes.Length];
+            for (var i = 0; i < paramTypes.Length; i++)
+            {
+                var paramName = lambdaExpr.Parameters[i].Name.Lexeme;
+                var paramExpr = LinqExpression.Parameter(paramTypes[i], paramName);
+                parameterScope[paramName] = paramExpr;
+                parameterExpressions[i] = paramExpr;
+            }
+
+            // Collect engine variables for ConstantExpression capture
+            var engineVariables = CollectEngineVariables();
+
+            // Create emitter and translate the lambda body
+            var config = GetOrCreateConfig();
+            var emitter = new ExpressionTreeEmitter(parameterScope, engineVariables, config.TypeResolver);
+            var body = emitter.Emit(lambdaExpr.Body);
+
+            // If body type doesn't match return type, insert conversion
+            if (body.Type != returnType)
+            {
+                try
+                {
+                    body = LinqExpression.Convert(body, returnType);
+                }
+                catch (InvalidOperationException)
+                {
+                    throw new CsEvalException(
+                        $"Cannot convert expression body type '{body.Type.Name}' " +
+                        $"to return type '{returnType.Name}'");
+                }
+            }
+
+            return LinqExpression.Lambda<TDelegate>(body, parameterExpressions);
+        }
+        catch (InsufficientExecutionStackException)
+        {
+            throw new CsEvalException("Expression nesting depth exceeded available stack space.");
+        }
+    }
+
+    /// <summary>
+    /// Attempts to parse a lambda expression string into a typed expression tree.
+    /// Returns false with diagnostics if parsing or translation fails.
+    /// </summary>
+    /// <typeparam name="TDelegate">A Func delegate type.</typeparam>
+    /// <param name="expression">A lambda expression string.</param>
+    /// <param name="result">The resulting expression tree, or null if parsing failed.</param>
+    /// <param name="diagnostics">Diagnostic information when parsing fails.</param>
+    /// <returns>True if parsing succeeded, false otherwise.</returns>
+    public bool TryParseAsExpression<TDelegate>(
+        string expression,
+        out Expression<TDelegate>? result,
+        out IReadOnlyList<CsEvalDiagnostic> diagnostics)
+        where TDelegate : Delegate
+    {
+        try
+        {
+            result = ParseAsExpression<TDelegate>(expression);
+            diagnostics = [];
+            return true;
+        }
+        catch (Exception ex)
+        {
+            result = null;
+            diagnostics = [CsEvalDiagnostic.FromException(ex)];
+            return false;
+        }
+    }
+
+    private Dictionary<string, object?> CollectEngineVariables()
+    {
+        var variables = new Dictionary<string, object?>(_options.StringComparer);
+
+        // Collect from pending variables (not yet materialized into context)
+        foreach (var (name, value) in _pendingVariables)
+        {
+            variables[name] = value;
+        }
+
+        // Collect from materialized context if it exists
+        if (_context != null)
+        {
+            foreach (var (name, value) in _context.GetAll())
+            {
+                variables[name] = value;
+            }
+        }
+
+        return variables;
     }
 
     /// <summary>
