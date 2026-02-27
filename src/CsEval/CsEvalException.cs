@@ -77,6 +77,60 @@ public class CsEvalLanguageModeException : CsEvalException
 }
 
 /// <summary>
+/// The type of execution limit that was exceeded.
+/// </summary>
+public enum ExecutionLimitType
+{
+    /// <summary>Maximum statement count exceeded.</summary>
+    Statements,
+    /// <summary>Maximum wall-clock timeout exceeded.</summary>
+    Timeout
+}
+
+/// <summary>
+/// Thrown when an execution resource limit is exceeded during evaluation.
+/// Catchable independently of other CsEval exceptions.
+/// The engine remains healthy after this exception -- subsequent evaluations work normally.
+/// </summary>
+public class CsEvalExecutionLimitException : CsEvalException
+{
+    /// <summary>Which limit was exceeded.</summary>
+    public ExecutionLimitType LimitType { get; }
+
+    /// <summary>The configured limit value (statement count or timeout milliseconds).</summary>
+    public long LimitValue { get; }
+
+    /// <summary>The actual value when the limit was hit.</summary>
+    public long ActualValue { get; }
+
+    /// <summary>Total statements executed when the exception was thrown.</summary>
+    public long StatementsExecuted { get; }
+
+    /// <summary>Wall-clock time elapsed when the exception was thrown. Zero if no timer was running.</summary>
+    public TimeSpan ElapsedTime { get; }
+
+    public CsEvalExecutionLimitException(
+        ExecutionLimitType limitType, long limitValue, long actualValue,
+        long statementsExecuted, TimeSpan elapsedTime)
+        : base(FormatLimitMessage(limitType, limitValue, actualValue))
+    {
+        LimitType = limitType;
+        LimitValue = limitValue;
+        ActualValue = actualValue;
+        StatementsExecuted = statementsExecuted;
+        ElapsedTime = elapsedTime;
+    }
+
+    private static string FormatLimitMessage(ExecutionLimitType type, long limit, long actual) =>
+        type switch
+        {
+            ExecutionLimitType.Statements => $"Execution exceeded maximum statement count ({limit}). {actual} statements executed.",
+            ExecutionLimitType.Timeout => $"Execution exceeded maximum timeout ({limit}ms). {actual}ms elapsed.",
+            _ => $"Execution limit exceeded: {type}"
+        };
+}
+
+/// <summary>
 /// Sentinel value for control flow signals (return, break, continue).
 /// Not an Exception -- avoids expensive stack trace capture and SEH unwinding,
 /// and prevents user catch blocks from intercepting internal control flow.
