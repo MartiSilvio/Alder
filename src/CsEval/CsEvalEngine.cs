@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using System.Runtime.CompilerServices;
 using CsEval.Attributes;
 using CsEval.Compilation;
+using CsEval.Diagnostics;
 using CsEval.Interpretation;
 using CsEval.Parsing;
 using CsEval.Runtime;
@@ -208,6 +209,89 @@ public sealed class CsEvalEngine
     {
         var result = Evaluate(expression, variables, serviceProvider, cancellationToken);
         return ConvertResult<T>(result);
+    }
+
+    /// <summary>
+    /// Evaluates an expression without throwing exceptions.
+    /// Returns true if evaluation succeeded, false otherwise.
+    /// </summary>
+    public bool TryEvaluate(
+        string expression,
+        out object? result,
+        IDictionary<string, object?>? variables = null,
+        IServiceProvider? serviceProvider = null,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            result = Evaluate(expression, variables, serviceProvider, cancellationToken);
+            return true;
+        }
+        catch
+        {
+            result = null;
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Evaluates an expression and converts the result to the specified type without throwing exceptions.
+    /// Returns true if evaluation and conversion succeeded, false otherwise.
+    /// </summary>
+    public bool TryEvaluate<T>(
+        string expression,
+        out T? result,
+        IDictionary<string, object?>? variables = null,
+        IServiceProvider? serviceProvider = null,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            result = Evaluate<T>(expression, variables, serviceProvider, cancellationToken);
+            return true;
+        }
+        catch
+        {
+            result = default;
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Validates an expression for syntax and semantic correctness without evaluating it.
+    /// Returns true if the expression is valid, false otherwise.
+    /// When false, the diagnostics list contains structured error information.
+    /// </summary>
+    public bool TryValidate(string expression, out IReadOnlyList<CsEvalDiagnostic> diagnostics)
+    {
+        Expr ast;
+        try
+        {
+            var lexer = new Lexer(expression);
+            var tokens = lexer.Tokenize();
+            var parser = ExpressionParser.CreateForSubExpression(tokens, _options.LanguageMode);
+            ast = parser.Parse();
+        }
+        catch (Exception ex)
+        {
+            diagnostics = [CsEvalDiagnostic.FromException(ex)];
+            return false;
+        }
+
+        try
+        {
+            var context = GetOrCreateContext(null);
+            var inferrer = new TypeInferrer(context, _options.MaxExpressionDepth);
+            inferrer.InferAll(ast);
+        }
+        catch (Exception ex)
+        {
+            diagnostics = [CsEvalDiagnostic.FromException(ex)];
+            return false;
+        }
+
+        diagnostics = [];
+        return true;
     }
 
     private static T? ConvertResult<T>(object? result)

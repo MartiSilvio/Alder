@@ -10,7 +10,10 @@ namespace CsEval;
 /// </summary>
 public sealed class CsEvalExpression
 {
-    internal Expr Ast { get; }
+    /// <summary>
+    /// The parsed AST for this expression. Enables walking/analysis by consumers.
+    /// </summary>
+    public Expr Ast { get; }
 
     /// <summary>
     /// The original expression string.
@@ -88,6 +91,17 @@ public sealed class CsEvalExpression
             throw new InvalidOperationException(
                 $"Cannot compile expression '{Expression}': {_compiledInfo?.FailureReason ?? "Unknown reason"}");
         }
+    }
+
+    /// <summary>
+    /// Returns the distinct names of unbound identifiers found in the expression AST.
+    /// Useful for detecting which variables an expression references.
+    /// </summary>
+    public IReadOnlyList<string> GetVariables()
+    {
+        var collector = new VariableCollector();
+        collector.Collect(Ast);
+        return collector.Variables;
     }
 
     internal CompiledExpressionInfo? GetCompiledInfo() => _compiledInfo;

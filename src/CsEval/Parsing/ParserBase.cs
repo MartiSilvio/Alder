@@ -144,7 +144,8 @@ public abstract class ParserBase
     internal Token Consume(TokenType type, string message)
     {
         if (Check(type)) return Advance();
-        throw new CsEvalParserException($"{message} at {Peek().Line}:{Peek().Column}");
+        var token = Peek();
+        throw new CsEvalParserException($"{message} at {token.Line}:{token.Column}", token.Line, token.Column);
     }
 
     /// <summary>
@@ -156,7 +157,8 @@ public abstract class ParserBase
     {
         if (Check(TokenType.Identifier) || IsContextualKeyword(Peek().Type))
             return Advance();
-        throw new CsEvalParserException($"{message} at {Peek().Line}:{Peek().Column}");
+        var token = Peek();
+        throw new CsEvalParserException($"{message} at {token.Line}:{token.Column}", token.Line, token.Column);
     }
 
     /// <summary>
@@ -284,6 +286,25 @@ public abstract class ParserBase
 
 public class CsEvalParserException : CsEvalException
 {
+    public int? Line { get; }
+    public int? Column { get; }
+
     public CsEvalParserException(string message) : base(message) { }
-    public CsEvalParserException(DiagnosticDescriptor descriptor, params object?[] args) : base(descriptor, args) { }
+
+    public CsEvalParserException(string message, int line, int column)
+        : base(message)
+    {
+        Line = line;
+        Column = column;
+    }
+
+    public CsEvalParserException(DiagnosticDescriptor descriptor, params object?[] args)
+        : base(descriptor, args) { }
+
+    public CsEvalParserException(DiagnosticDescriptor descriptor, int line, int column, params object?[] args)
+        : base(descriptor, args)
+    {
+        Line = line;
+        Column = column;
+    }
 }
