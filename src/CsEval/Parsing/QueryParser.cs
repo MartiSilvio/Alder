@@ -77,7 +77,7 @@ internal sealed class QueryParser : ParserBase
         var rangeVarToken = ConsumeIdentifierOrContextualKeyword("Expected range variable name after 'from'");
         var rangeVarName = rangeVarToken.Lexeme;
 
-        Consume(TokenType.In, "Expected 'in' after range variable in from clause");
+        Consume(TokenType.In, $"Expected 'in' after range variable '{rangeVarName}' in from clause");
 
         var source = ParseQuerySourceExpression();
 
@@ -179,7 +179,7 @@ internal sealed class QueryParser : ParserBase
         var rangeVar2Token = ConsumeIdentifierOrContextualKeyword("Expected range variable name after 'from'");
         var rangeVar2Name = rangeVar2Token.Lexeme;
 
-        Consume(TokenType.In, "Expected 'in' after range variable in from clause");
+        Consume(TokenType.In, $"Expected 'in' after range variable '{rangeVar2Name}' in from clause");
 
         var source2Expr = ParseQuerySourceExpression();
 
@@ -241,7 +241,7 @@ internal sealed class QueryParser : ParserBase
         var varNameToken = ConsumeIdentifierOrContextualKeyword("Expected variable name after 'let'");
         var varName = varNameToken.Lexeme;
 
-        Consume(TokenType.Equal, "Expected '=' after let variable name");
+        Consume(TokenType.Equal, $"Expected '=' after let variable '{varName}'");
 
         var expr = ParseQueryBodyExpression();
 
@@ -345,7 +345,7 @@ internal sealed class QueryParser : ParserBase
         var outerKey = ParseQueryBodyExpression();
         outerKey = RewriteIdentifiers(outerKey, scope);
 
-        Consume(TokenType.Equals, "Expected 'equals' in join clause");
+        Consume(TokenType.Equals, "Expected 'equals' in join clause (use 'equals' instead of '==')"); // ECMA-334 §12.20.3.7
 
         // Inner key: references only the inner range variable, NOT the transparent identifier scope.
         // We temporarily create a simple scope for the inner variable.
