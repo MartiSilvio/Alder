@@ -34,11 +34,14 @@ public sealed class ExpressionParser : ParserBase
         var primary = new PrimaryParser(state);
         var pattern = new PatternParser(state);
         var statement = new StatementParser(state);
+        var queryParser = new QueryParser(state);
         var expression = new ExpressionParser(state, primary, pattern, statement);
 
         // Wire cross-references
         primary.SetExpressionParser(expression);
         primary.SetStatementParser(statement);
+        primary.SetQueryParser(queryParser);
+        queryParser.SetExpressionParser(expression);
         pattern.SetExpressionParser(expression);
         statement.SetExpressionParser(expression);
         statement.SetPatternParser(pattern);

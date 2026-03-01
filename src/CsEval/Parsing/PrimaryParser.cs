@@ -10,6 +10,7 @@ public sealed class PrimaryParser : ParserBase
 {
     private ExpressionParser _expression = null!;
     private StatementParser _statement = null!;
+    private QueryParser _queryParser = null!;
 
     internal PrimaryParser(ParserState state) : base(state)
     {
@@ -17,6 +18,7 @@ public sealed class PrimaryParser : ParserBase
 
     internal void SetExpressionParser(ExpressionParser expression) => _expression = expression;
     internal void SetStatementParser(StatementParser statement) => _statement = statement;
+    internal void SetQueryParser(QueryParser queryParser) => _queryParser = queryParser;
 
     #region Primary Dispatch
 
@@ -90,6 +92,11 @@ public sealed class PrimaryParser : ParserBase
 
         if (Match(TokenType.Identifier))
             return ParseIdentifier();
+
+        // Query expression: from x in source where ... select ...
+        // ECMA-334 §12.20 - Must check before contextual keyword fallback
+        if (Check(TokenType.From) && _queryParser.IsQueryExpressionStart())
+            return _queryParser.ParseQueryExpression();
 
         // Contextual keywords can be used as identifiers in expression contexts
         // ECMA-334 §6.4.4 - e.g., var from = 5; return from + 1;
