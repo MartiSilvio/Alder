@@ -109,16 +109,27 @@ internal sealed class QueryParser : ParserBase
                 // calls ParseQueryBody recursively for the general case.
                 return ParseSecondFromClause(source, scope);
             }
+            else if (Check(TokenType.Let))
+            {
+                source = ParseLetClause(source, scope);
+            }
+            else if (Check(TokenType.Orderby))
+            {
+                source = ParseOrderByClause(source, scope);
+            }
+            else if (Check(TokenType.Join))
+            {
+                source = ParseJoinClause(source, scope);
+            }
             else if (Check(TokenType.Select))
             {
                 // Terminal: select clause
-                return ParseSelectClause(source, scope);
+                return ParseTerminalWithContinuation(ParseSelectClause(source, scope), scope);
             }
             else if (Check(TokenType.Group))
             {
-                // Terminal: group...by clause (deferred to Plan 2)
-                throw new CsEvalParserException(
-                    $"'group...by' clause is not yet supported at {Peek().Line}:{Peek().Column}");
+                // Terminal: group...by clause
+                return ParseTerminalWithContinuation(ParseGroupByClause(source, scope), scope);
             }
             else
             {
@@ -217,6 +228,168 @@ internal sealed class QueryParser : ParserBase
         return ParseQueryBody(result, scope);
     }
 
+    /// <summary>
+    /// Parses: let varName = expression
+    /// Desugars to: source.Select(param => new { param, varName = expression })
+    /// Uses transparent identifier nesting (same as SelectMany).
+    /// ECMA-334 section 12.20.3.5
+    /// </summary>
+    private Expr ParseLetClause(Expr source, QueryScope scope)
+    {
+        Advance(); // consume 'let'
+
+        var varNameToken = ConsumeIdentifierOrContextualKeyword("Expected variable name after 'let'");
+        var varName = varNameToken.Lexeme;
+
+        Consume(TokenType.Equal, "Expected '=' after let variable name");
+
+        var expr = ParseQueryBodyExpression();
+
+        // Rewrite the expression through the current scope
+        expr = RewriteIdentifiers(expr, scope);
+
+        var currentParam = scope.CurrentParameterName;
+
+        // Build: new { currentParam, varName = expr }
+        // The currentParam property preserves access to all existing variables via nesting.
+        var anonymousObj = MakeAnonymousObject(
+            (currentParam, new IdentifierExpr(SyntheticToken(currentParam))),
+            (varName, expr));
+
+        var lambda = MakeLambda(currentParam, anonymousObj);
+
+        var result = MakeMethodCall(source, "Select", lambda);
+
+        // Update scope: introduce new transparent identifier
+        var transparentId = GenerateTransparentId();
+        scope.AbsorbIntoTransparentIdentifier(transparentId, varName);
+
+        return result;
+    }
+
+    /// <summary>
+    /// Parses: orderby key1 [ascending|descending], key2 [ascending|descending], ...
+    /// Desugars to: source.OrderBy(param => key1).ThenBy(param => key2)...
+    /// ECMA-334 section 12.20.3.6
+    /// </summary>
+    private Expr ParseOrderByClause(Expr source, QueryScope scope)
+    {
+        Advance(); // consume 'orderby'
+
+        var lambdaParam = scope.CurrentParameterName;
+        var isFirst = true;
+
+        while (true)
+        {
+            var keyExpr = ParseQueryBodyExpression();
+            keyExpr = RewriteIdentifiers(keyExpr, scope);
+
+            // Check for ascending/descending (default is ascending)
+            var descending = false;
+            if (Check(TokenType.Ascending))
+            {
+                Advance(); // consume 'ascending'
+            }
+            else if (Check(TokenType.Descending))
+            {
+                Advance(); // consume 'descending'
+                descending = true;
+            }
+
+            var keyLambda = MakeLambda(lambdaParam, keyExpr);
+
+            string methodName;
+            if (isFirst)
+            {
+                methodName = descending ? "OrderByDescending" : "OrderBy";
+                isFirst = false;
+            }
+            else
+            {
+                methodName = descending ? "ThenByDescending" : "ThenBy";
+            }
+
+            source = MakeMethodCall(source, methodName, keyLambda);
+
+            // Check for comma (additional sort keys)
+            if (Check(TokenType.Comma))
+            {
+                Advance(); // consume ','
+                continue;
+            }
+
+            break;
+        }
+
+        // Orderby does not change scope -- no new range variables introduced
+        return source;
+    }
+
+    /// <summary>
+    /// Parses: join innerVar in innerSource on outerKey equals innerKey [into groupVar]
+    /// Inner join desugars to: source.Join(innerSource, outerParam => outerKey, innerVar => innerKey, (outerParam, innerVar) => new { ... })
+    /// Group join desugars to: source.GroupJoin(innerSource, outerParam => outerKey, innerVar => innerKey, (outerParam, groupVar) => new { ... })
+    /// ECMA-334 section 12.20.3.7 and 12.20.3.8
+    /// </summary>
+    private Expr ParseJoinClause(Expr source, QueryScope scope)
+    {
+        Advance(); // consume 'join'
+
+        var innerVarToken = ConsumeIdentifierOrContextualKeyword("Expected range variable name after 'join'");
+        var innerVarName = innerVarToken.Lexeme;
+
+        Consume(TokenType.In, "Expected 'in' after join range variable");
+        var innerSource = ParseQuerySourceExpression();
+
+        Consume(TokenType.On, "Expected 'on' in join clause");
+        var outerKey = ParseQueryBodyExpression();
+        outerKey = RewriteIdentifiers(outerKey, scope);
+
+        Consume(TokenType.Equals, "Expected 'equals' in join clause");
+
+        // Inner key: references only the inner range variable, NOT the transparent identifier scope.
+        // We temporarily create a simple scope for the inner variable.
+        var innerKey = ParseQueryBodyExpression();
+        var innerScope = new QueryScope(innerVarName);
+        innerKey = RewriteIdentifiers(innerKey, innerScope);
+
+        var outerParam = scope.CurrentParameterName;
+        var outerKeyLambda = MakeLambda(outerParam, outerKey);
+        var innerKeyLambda = MakeLambda(innerVarName, innerKey);
+
+        // Check for 'into' -- group join
+        if (Check(TokenType.Into))
+        {
+            Advance(); // consume 'into'
+            var groupVarToken = ConsumeIdentifierOrContextualKeyword("Expected group variable name after 'into'");
+            var groupVarName = groupVarToken.Lexeme;
+
+            // Build: new { <existing vars...>, groupVar = groupVar }
+            var resultBody = MakeTransparentObject(scope, groupVarName, outerParam, groupVarName);
+            var resultLambda = MakeLambda2(outerParam, groupVarName, resultBody);
+
+            var result = MakeMethodCall(source, "GroupJoin", innerSource, outerKeyLambda, innerKeyLambda, resultLambda);
+
+            // Update scope: add groupVar (NOT innerVar)
+            var transparentId = GenerateTransparentId();
+            scope.AbsorbIntoTransparentIdentifier(transparentId, groupVarName);
+
+            return result;
+        }
+
+        // Inner join: Build: new { <existing vars...>, innerVar = innerVar }
+        var joinResultBody = MakeTransparentObject(scope, innerVarName, outerParam, innerVarName);
+        var joinResultLambda = MakeLambda2(outerParam, innerVarName, joinResultBody);
+
+        var joinResult = MakeMethodCall(source, "Join", innerSource, outerKeyLambda, innerKeyLambda, joinResultLambda);
+
+        // Update scope: add innerVar
+        var joinTransparentId = GenerateTransparentId();
+        scope.AbsorbIntoTransparentIdentifier(joinTransparentId, innerVarName);
+
+        return joinResult;
+    }
+
     #endregion
 
     #region Terminal Clauses
@@ -238,6 +411,67 @@ internal sealed class QueryParser : ParserBase
         var lambda = MakeLambda(lambdaParam, projection);
 
         return MakeMethodCall(source, "Select", lambda);
+    }
+
+    /// <summary>
+    /// Parses: group elementExpr by keyExpr
+    /// Desugars to: source.GroupBy(param => keyExpr) for identity projection,
+    /// or source.GroupBy(param => keyExpr, param => elementExpr) for custom projection.
+    /// ECMA-334 section 12.20.3.9
+    /// </summary>
+    private Expr ParseGroupByClause(Expr source, QueryScope scope)
+    {
+        Advance(); // consume 'group'
+
+        var elementExpr = ParseQueryBodyExpression();
+        elementExpr = RewriteIdentifiers(elementExpr, scope);
+
+        Consume(TokenType.By, "Expected 'by' after group expression");
+
+        var keyExpr = ParseQueryBodyExpression();
+        keyExpr = RewriteIdentifiers(keyExpr, scope);
+
+        var lambdaParam = scope.CurrentParameterName;
+        var keyLambda = MakeLambda(lambdaParam, keyExpr);
+
+        // Check if element expression is identity (just the range variable)
+        if (IsIdentityProjection(elementExpr, scope))
+        {
+            return MakeMethodCall(source, "GroupBy", keyLambda);
+        }
+
+        var elementLambda = MakeLambda(lambdaParam, elementExpr);
+        return MakeMethodCall(source, "GroupBy", keyLambda, elementLambda);
+    }
+
+    /// <summary>
+    /// Checks for 'into' continuation after a terminal clause (select or group...by).
+    /// ECMA-334 section 12.20.3.2: into z ... becomes a new query over the prior result.
+    /// </summary>
+    private Expr ParseTerminalWithContinuation(Expr terminalResult, QueryScope scope)
+    {
+        if (!Check(TokenType.Into))
+            return terminalResult;
+
+        Advance(); // consume 'into'
+
+        var continuationVarToken = ConsumeIdentifierOrContextualKeyword("Expected variable name after 'into'");
+        var continuationVarName = continuationVarToken.Lexeme;
+
+        // Reset scope: the continuation variable ranges over the result of the prior query
+        var newScope = new QueryScope(continuationVarName);
+
+        // Continue parsing body clauses with the terminal result as source
+        return ParseQueryBody(terminalResult, newScope);
+    }
+
+    /// <summary>
+    /// Returns true if the expression is the identity projection -- just the current
+    /// lambda parameter. Used to optimize group...by to single-parameter GroupBy form.
+    /// </summary>
+    private static bool IsIdentityProjection(Expr expr, QueryScope scope)
+    {
+        return expr is IdentifierExpr id && id.Name.Lexeme == scope.CurrentParameterName;
     }
 
     #endregion
@@ -545,23 +779,32 @@ internal sealed class QueryParser : ParserBase
         }
 
         /// <summary>
-        /// After a SelectMany with transparent identifier, all existing variables
-        /// become accessible through the transparent identifier's properties,
-        /// and the new variable is also added.
+        /// After a let/SelectMany/join with transparent identifier, all existing variables
+        /// get their access paths prefixed with the old parameter name, and the new variable
+        /// is added as a direct member of the transparent identifier.
         /// </summary>
         public void AbsorbIntoTransparentIdentifier(string transparentId, string newVarName)
         {
-            // Existing variables: each gets wrapped with one level of member access
+            var oldParam = CurrentParameterName;
             var oldVars = _variables.ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
             _variables.Clear();
 
-            foreach (var (varName, _) in oldVars)
+            foreach (var (varName, access) in oldVars)
             {
-                _variables[varName] = new VariableAccess.ThroughMember(transparentId, varName);
+                // Prefix the old access path with the old parameter name
+                // Direct(paramName) -> chain through [oldParam, varName] if oldParam is the var
+                // ThroughChain(path) -> prepend oldParam to the chain
+                var newPath = access switch
+                {
+                    VariableAccess.Direct => new List<string> { oldParam },
+                    VariableAccess.ThroughChain tc => new List<string> { oldParam }.Concat(tc.MemberPath).ToList(),
+                    _ => throw new InvalidOperationException()
+                };
+                _variables[varName] = new VariableAccess.ThroughChain(newPath);
             }
 
-            // New variable: accessed through transparent identifier
-            _variables[newVarName] = new VariableAccess.ThroughMember(transparentId, newVarName);
+            // New variable: accessed directly as param.newVarName
+            _variables[newVarName] = new VariableAccess.ThroughChain([newVarName]);
 
             // The lambda parameter is now the transparent identifier
             CurrentParameterName = transparentId;
@@ -584,12 +827,9 @@ internal sealed class QueryParser : ParserBase
                     // Direct reference: use the variable's own parameter name
                     new IdentifierExpr(SyntheticToken(d.ParamName)),
 
-                VariableAccess.ThroughMember m =>
-                    // Access through transparent identifier: _t0.varName
-                    new MemberAccessExpr(
-                        new IdentifierExpr(SyntheticToken(CurrentParameterName)),
-                        SyntheticToken(m.MemberName),
-                        false),
+                VariableAccess.ThroughChain tc =>
+                    // Build chained member access: param.member1.member2...
+                    BuildChainedAccess(CurrentParameterName, tc.MemberPath),
 
                 _ => throw new InvalidOperationException($"Unknown access type for variable '{variableName}'")
             };
@@ -599,7 +839,7 @@ internal sealed class QueryParser : ParserBase
 
         /// <summary>
         /// Gets the access expression for a variable in the context of a specific parameter name.
-        /// Used when building result selector lambdas.
+        /// Used when building result selector lambdas and transparent identifier objects.
         /// </summary>
         public Expr GetAccessExpression(string variableName, string paramName)
         {
@@ -609,14 +849,24 @@ internal sealed class QueryParser : ParserBase
                 VariableAccess.Direct =>
                     new IdentifierExpr(SyntheticToken(paramName)),
 
-                VariableAccess.ThroughMember m =>
-                    new MemberAccessExpr(
-                        new IdentifierExpr(SyntheticToken(paramName)),
-                        SyntheticToken(m.MemberName),
-                        false),
+                VariableAccess.ThroughChain tc =>
+                    BuildChainedAccess(paramName, tc.MemberPath),
 
                 _ => throw new InvalidOperationException($"Unknown access type for variable '{variableName}'")
             };
+        }
+
+        /// <summary>
+        /// Builds a chained member access expression: paramName.member1.member2...
+        /// </summary>
+        private static Expr BuildChainedAccess(string paramName, List<string> memberPath)
+        {
+            Expr current = new IdentifierExpr(SyntheticToken(paramName));
+            foreach (var member in memberPath)
+            {
+                current = new MemberAccessExpr(current, SyntheticToken(member), false);
+            }
+            return current;
         }
 
         /// <summary>
@@ -641,8 +891,13 @@ internal sealed class QueryParser : ParserBase
             /// <summary>Direct access: the variable is the lambda parameter itself.</summary>
             public sealed record Direct(string ParamName) : VariableAccess;
 
-            /// <summary>Access through transparent identifier member: _t0.memberName</summary>
-            public sealed record ThroughMember(string TransparentId, string MemberName) : VariableAccess;
+            /// <summary>
+            /// Access through transparent identifier member chain.
+            /// MemberPath is the list of member names to walk from the current parameter.
+            /// For single-level: ["varName"] means param.varName
+            /// For nested: ["_t0", "varName"] means param._t0.varName
+            /// </summary>
+            public sealed record ThroughChain(List<string> MemberPath) : VariableAccess;
         }
     }
 
