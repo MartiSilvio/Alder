@@ -48,7 +48,8 @@ internal sealed class ExpressionCompilerUnit
         return LinqExpression.Call(
             CompilerContext.ResolveIdentifierMethod,
             LinqExpression.Constant(id.Name.Lexeme),
-            _ctx.CurrentContext);
+            _ctx.CurrentContext,
+            _ctx.OptionsParam);
     }
 
     internal LinqExpression CompileTypeReference(TypeReferenceExpr typeRef)
@@ -981,6 +982,21 @@ internal sealed class ExpressionCompilerUnit
                 LinqExpression.Constant(methodName),
                 argsVar,
                 LinqExpression.Constant(memberAccess.NullSafe),
+                _ctx.CurrentContext,
+                _ctx.OptionsParam,
+                _ctx.CtParam,
+                _ctx.ArgumentTransformerParam,
+                typeArgsExpr);
+        }
+        else if (_ctx.Options.LanguageMode == LanguageMode.Extended &&
+                 call.Callee is IdentifierExpr calleeId)
+        {
+            // Extended mode: resolve bare math function names (sin, cos, etc.)
+            // via runtime helper that checks BareMathNames before normal call dispatch
+            callExpr = LinqExpression.Call(
+                CompilerContext.InvokeBareMathOrCallMethod,
+                LinqExpression.Constant(calleeId.Name.Lexeme),
+                argsVar,
                 _ctx.CurrentContext,
                 _ctx.OptionsParam,
                 _ctx.CtParam,

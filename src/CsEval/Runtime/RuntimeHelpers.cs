@@ -1,12 +1,13 @@
 using System.Runtime.CompilerServices;
 using CsEval.Diagnostics;
 using CsEval.Interpretation;
+using CsEval.Runtime.Extensions;
 
 namespace CsEval.Runtime;
 
 public static class RuntimeHelpers
 {
-    public static object? ResolveIdentifier(string name, CsEvalContext context)
+    public static object? ResolveIdentifier(string name, CsEvalContext context, CsEvalOptions options)
     {
         if (context.Functions.TryGetValue(name, out var function))
             return new FunctionRef(name, function);
@@ -29,8 +30,42 @@ public static class RuntimeHelpers
         if (resolvedType != null)
             return resolvedType;
 
+        // Bare math constants in Extended mode (pi, e, tau, infinity, nan)
+        // User variables shadow these -- checked above via TryGet
+        if (options.LanguageMode == LanguageMode.Extended &&
+            BareMathNames.TryGetConstant(name, out var constant))
+            return constant;
+
         // Fall through to context.Get which throws CS0103 with proper error message
         return context.Get(name);
+    }
+
+    /// <summary>
+    /// Resolves a bare math function call in Extended mode.
+    /// Called from the compiled path when the callee is an unresolved identifier.
+    /// Tries bare math function lookup before falling back to the normal call path.
+    /// </summary>
+    public static object? InvokeBareMathOrCall(
+        string name,
+        object?[] args,
+        CsEvalContext context,
+        CsEvalOptions options,
+        CancellationToken ct,
+        Func<MethodInfo, object?[], object?[]>? argumentTransformer,
+        IReadOnlyList<string>? typeArgs)
+    {
+        // Only intercept in Extended mode when name is not in user scope
+        if (options.LanguageMode == LanguageMode.Extended &&
+            !context.TryGet(name, out _) &&
+            !context.Functions.ContainsKey(name) &&
+            BareMathNames.TryGetFunction(name, args.Length, out var mathFunc))
+        {
+            return mathFunc(args);
+        }
+
+        // Fall back to normal resolution + call
+        var callee = ResolveIdentifier(name, context, options);
+        return MethodInvoker.InvokeCall(callee, args, context, options, ct, argumentTransformer, typeArgs);
     }
 
     public static void CheckAllowAssignment(CsEvalOptions options, string context)

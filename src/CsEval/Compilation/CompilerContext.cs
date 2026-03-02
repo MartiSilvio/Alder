@@ -119,6 +119,7 @@ internal sealed class CompilerContext
     internal static readonly MethodInfo InvokeCallMethod = typeof(Runtime.MethodInvoker).GetMethod(nameof(Runtime.MethodInvoker.InvokeCall))!;
     internal static readonly MethodInfo InvokeMemberCallMethod = typeof(Runtime.MethodInvoker).GetMethod(nameof(Runtime.MethodInvoker.InvokeMemberCall))!;
     internal static readonly MethodInfo ResolveIdentifierMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.ResolveIdentifier))!;
+    internal static readonly MethodInfo InvokeBareMathOrCallMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.InvokeBareMathOrCall))!;
     internal static readonly MethodInfo ConditionalTypePromotionMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.ConditionalTypePromotion))!;
     internal static readonly ConstructorInfo NamedArgCtor = typeof(Interpretation.NamedArg).GetConstructor([typeof(string), typeof(object)])!;
     internal static readonly ConstructorInfo CompiledLambdaValueCtor =

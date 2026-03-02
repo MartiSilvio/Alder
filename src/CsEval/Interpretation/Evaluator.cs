@@ -3,6 +3,7 @@ using System.Runtime.ExceptionServices;
 using CsEval.Diagnostics;
 using CsEval.Parsing;
 using CsEval.Runtime;
+using CsEval.Runtime.Extensions;
 using CsEval.Interpretation.Extensions;
 
 namespace CsEval.Interpretation;
@@ -304,6 +305,12 @@ public sealed class Evaluator : IExprVisitor<object?>
         if (resolvedType != null)
             return resolvedType;
 
+        // Bare math constants in Extended mode (pi, e, tau, infinity, nan)
+        // User variables shadow these -- checked above via TryGet
+        if (_options.LanguageMode == LanguageMode.Extended &&
+            BareMathNames.TryGetConstant(name, out var constant))
+            return constant;
+
         // Fall through to context.Get which throws CS0103 with proper error message
         return _context.Get(name);
     }
@@ -383,8 +390,21 @@ public sealed class Evaluator : IExprVisitor<object?>
         }
         else
         {
-            var callee = Evaluate(expr.Callee);
-            result = Runtime.MethodInvoker.InvokeCall(callee, args, _context, _options, _cancellationToken, _argumentTransformer, expr.TypeArguments);
+            // Bare math functions in Extended mode (sin, cos, sqrt, etc.)
+            // User-defined variables/functions take precedence -- check scope first
+            if (_options.LanguageMode == LanguageMode.Extended &&
+                expr.Callee is IdentifierExpr id &&
+                !_context.TryGet(id.Name.Lexeme, out _) &&
+                !Functions.ContainsKey(id.Name.Lexeme) &&
+                BareMathNames.TryGetFunction(id.Name.Lexeme, args.Length, out var mathFunc))
+            {
+                result = mathFunc(args);
+            }
+            else
+            {
+                var callee = Evaluate(expr.Callee);
+                result = Runtime.MethodInvoker.InvokeCall(callee, args, _context, _options, _cancellationToken, _argumentTransformer, expr.TypeArguments);
+            }
         }
 
         // After method invocation, MethodInvoker.CopyBackOutArgs has replaced OutArgMarker
