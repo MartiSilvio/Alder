@@ -191,6 +191,14 @@ internal sealed class ExpressionTreeEmitter
             LockStatementExpr => throw new CsEvalException(
                 "Expression tree cannot contain a lock statement"),
 
+            // Polyglot Extended Features -- explicit rejection with descriptive messages
+            RangeExpr => throw new CsEvalException(
+                "Expression tree output not supported for range literals"),
+            PipelineExpr => throw new CsEvalException(
+                "Expression tree output not supported for pipeline operator"),
+            ChainedComparisonExpr => throw new CsEvalException(
+                "Expression tree output not supported for chained comparison"),
+
             _ => throw new CsEvalException(
                 $"Expression tree cannot contain this expression type: {expr.GetType().Name}")
         };
