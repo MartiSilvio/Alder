@@ -298,6 +298,7 @@ internal sealed class TypeResolver
         assemblySet.Add(typeof(List<>).Assembly);         // System.Collections
         assemblySet.Add(typeof(Task).Assembly);           // System.Threading.Tasks (may be same as CoreLib)
         assemblySet.Add(typeof(Enumerable).Assembly);    // System.Linq (required for FQN and extension method resolution)
+        assemblySet.Add(typeof(System.Text.RegularExpressions.Regex).Assembly); // System.Text.RegularExpressions
 
         var allAssemblies = assemblySet.ToImmutableArray();
 
