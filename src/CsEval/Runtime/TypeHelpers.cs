@@ -9,6 +9,24 @@ namespace CsEval.Runtime;
 /// </summary>
 public static class TypeHelpers
 {
+    public static int GetSizeOf(string typeName) => typeName switch
+    {
+        "bool" or "Boolean" or "System.Boolean" => 1,
+        "byte" or "Byte" or "System.Byte" => 1,
+        "sbyte" or "SByte" or "System.SByte" => 1,
+        "char" or "Char" or "System.Char" => 2,
+        "short" or "Int16" or "System.Int16" => 2,
+        "ushort" or "UInt16" or "System.UInt16" => 2,
+        "int" or "Int32" or "System.Int32" => 4,
+        "uint" or "UInt32" or "System.UInt32" => 4,
+        "float" or "Single" or "System.Single" => 4,
+        "long" or "Int64" or "System.Int64" => 8,
+        "ulong" or "UInt64" or "System.UInt64" => 8,
+        "double" or "Double" or "System.Double" => 8,
+        "decimal" or "Decimal" or "System.Decimal" => 16,
+        _ => throw new CsEvalException($"Cannot take the sizeof of type '{typeName}'")
+    };
+
     public static bool RequireBoolean(object? value)
     {
         if (value is bool b)
@@ -396,20 +414,7 @@ public static class TypeHelpers
         return false;
     }
 
-    public static object? CheckSandboxType(object? value, SandboxOptions options)
-    {
-        if (value == null) return null;
-
-        var type = value.GetType();
-        if (IsForbiddenReflectionType(type))
-        {
-            throw new CsEvalException($"Access to reflection types is not allowed: {type.Name}");
-        }
-
-        return value;
-    }
-
-    internal static object? GuardReflectionLeak(object? value, string context)
+    public static object? GuardReflectionLeak(object? value, string context)
     {
         if (value == null) return null;
 

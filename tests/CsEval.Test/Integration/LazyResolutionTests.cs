@@ -103,7 +103,7 @@ public class MemberFilteringTests(CompilationMode mode)
         Assert.That(engine.Evaluate("Calc.Sum(2, 3)"), Is.EqualTo(5));
 
         var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("Calc.Subtract(5, 2)"));
-        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CS0117));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0117));
     }
 
     [Test]
@@ -121,7 +121,7 @@ public class MemberFilteringTests(CompilationMode mode)
         Assert.That(engine.Evaluate("Calc.minus(5, 2)"), Is.EqualTo(3));
 
         var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("Calc.Sum(2, 3)"));
-        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CS0117));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0117));
     }
 
     [Test]
@@ -148,7 +148,7 @@ public class MemberFilteringTests(CompilationMode mode)
         Assert.That(engine.Evaluate("Constants.Pi"), Is.EqualTo(3.14159));
 
         var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("Constants.E"));
-        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CS0117));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0117));
     }
 
     [Test]

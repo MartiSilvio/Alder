@@ -44,11 +44,11 @@ public static class MemberAccess
 
             var staticProp = staticType.GetProperty(name, staticBindingFlags);
             if (staticProp != null)
-                return TypeHelpers.CheckSandboxType(staticProp.GetValue(null), options.Sandbox);
+                return TypeHelpers.GuardReflectionLeak(staticProp.GetValue(null), $"static property {name}");
 
             var staticField = staticType.GetField(name, staticBindingFlags);
             if (staticField != null)
-                return TypeHelpers.CheckSandboxType(staticField.GetValue(null), options.Sandbox);
+                return TypeHelpers.GuardReflectionLeak(staticField.GetValue(null), $"static field {name}");
 
             // Check if this is a static method before falling through to instance members
             var staticMethods = staticType.GetMethods(staticBindingFlags);
@@ -81,11 +81,11 @@ public static class MemberAccess
                 var instance = isStatic ? null : module.Resolve(context.ServiceProvider);
                 var value = memberInfo switch
                 {
-                    PropertyInfo p => p.GetValue(instance),
+                    PropertyInfo p => context.TypeCache.GetPropertyValue(p, instance!),
                     FieldInfo f => f.GetValue(instance),
                     _ => throw new CsEvalException($"Unsupported member type '{memberInfo.GetType().Name}'")
                 };
-                return TypeHelpers.CheckSandboxType(value, options.Sandbox);
+                return TypeHelpers.GuardReflectionLeak(value, $"module member {name}");
             }
             throw new CsEvalException(DiagnosticDescriptors.NoMemberOnType, module.Type.Name, name);
         }
@@ -99,7 +99,7 @@ public static class MemberAccess
         switch (obj)
         {
             case IDictionary<string, object?> dict when dict.TryGetValue(name, out var value):
-                return TypeHelpers.CheckSandboxType(value, options.Sandbox);
+                return TypeHelpers.GuardReflectionLeak(value, $"property {name}");
             case IDictionary<string, object?> dict:
             {
                 if (!options.IsCaseSensitive)
@@ -107,11 +107,11 @@ public static class MemberAccess
                     foreach (var key in dict.Keys)
                     {
                         if (string.Equals(key, name, StringComparison.OrdinalIgnoreCase))
-                            return TypeHelpers.CheckSandboxType(dict[key], options.Sandbox);
+                            return TypeHelpers.GuardReflectionLeak(dict[key], $"property {name}");
                     }
                 }
 
-                throw new CsEvalException(DiagnosticDescriptors.NoMemberOnType, obj.GetType().Name, name);
+                throw new CsEvalException(DiagnosticDescriptors.MemberNotFound, obj.GetType().Name, name);
             }
         }
 
@@ -123,52 +123,47 @@ public static class MemberAccess
         var typeCache = context.TypeCache;
         var prop = typeCache.GetProperty(type, name, bindingFlags);
         if (prop != null)
-            return TypeHelpers.CheckSandboxType(typeCache.GetPropertyValue(prop, obj), options.Sandbox);
+            return TypeHelpers.GuardReflectionLeak(typeCache.GetPropertyValue(prop, obj), $"property {name}");
 
         var field = typeCache.GetField(type, name, bindingFlags);
         if (field != null)
-            return TypeHelpers.CheckSandboxType(field.GetValue(obj), options.Sandbox);
+            return TypeHelpers.GuardReflectionLeak(field.GetValue(obj), $"field {name}");
 
         return new MethodRef(obj, name);
     }
 
     public static object? GetIndex(object? obj, object? index, CsEvalOptions options)
     {
-        switch (obj)
+        if (obj == null)
+            throw new CsEvalException("Cannot index null");
+
+        if (obj is IDictionary<string, object?> dict && index is string strKey)
         {
-            case null:
-                throw new CsEvalException("Cannot index null");
-            case IDictionary<string, object?> dict:
-            {
-                var key = index?.ToString() ?? "";
-                var val = dict.TryGetValue(key, out var v) ? v : null;
-                TypeHelpers.CheckSandboxType(val, options.Sandbox);
-                return val;
-            }
-            case string s when index != null:
-            {
-                var i = Convert.ToInt32(index);
-                if (i < 0 && options.LanguageMode == LanguageMode.Extended)
-                    i = s.Length + i;
-                if (i < 0 || i >= s.Length)
-                    throw new ArgumentOutOfRangeException("index", i,
-                        "Index was out of range. Must be non-negative and less than the size of the collection.");
-                var val = (object)s[i]; // Returns boxed char
-                TypeHelpers.CheckSandboxType(val, options.Sandbox);
-                return val;
-            }
-            case IList list when index is int i:
-            {
-                var idx = i;
-                if (idx < 0 && options.LanguageMode == LanguageMode.Extended)
-                    idx = list.Count + idx;
-                if (idx < 0 || idx >= list.Count) throw new ArgumentOutOfRangeException("index", idx, "Index was out of range. Must be non-negative and less than the size of the collection.");
-                var val = list[idx];
-                TypeHelpers.CheckSandboxType(val, options.Sandbox);
-                return val;
-            }
-            case IList list:
-                throw new ArgumentException($"Index must be an integer, got {index?.GetType().Name}", "index");
+            if (dict.TryGetValue(strKey, out var value))
+                return TypeHelpers.GuardReflectionLeak(value, $"index [{strKey}]");
+            return null;
+        }
+
+        if (obj is string s && index != null)
+        {
+            var i = Convert.ToInt32(index);
+            if (i < 0 && options.LanguageMode == LanguageMode.Extended)
+                i = s.Length + i;
+            if (i < 0 || i >= s.Length)
+                throw new ArgumentOutOfRangeException("index", i,
+                    "Index was out of range. Must be non-negative and less than the size of the collection.");
+            return (object)s[i];
+        }
+
+        if (obj is IList list && index != null)
+        {
+            var idx = Convert.ToInt32(index);
+            if (idx < 0 && options.LanguageMode == LanguageMode.Extended)
+                idx = list.Count + idx;
+            if (idx < 0 || idx >= list.Count)
+                throw new ArgumentOutOfRangeException("index", idx,
+                    "Index was out of range. Must be non-negative and less than the size of the collection.");
+            return TypeHelpers.GuardReflectionLeak(list[idx], $"index [{idx}]");
         }
 
         var type = obj.GetType();
@@ -181,7 +176,7 @@ public static class MemberAccess
                 var paramType = indexer.GetIndexParameters()[0].ParameterType;
                 var safeIndex = ConvertChangeType(index, paramType);
                 var val = indexer.GetValue(obj, new[] { safeIndex });
-                TypeHelpers.CheckSandboxType(val, options.Sandbox);
+                TypeHelpers.GuardReflectionLeak(val, "indexer access");
                 return val;
             }
             catch (CsEvalException) { throw; }
@@ -244,41 +239,30 @@ public static class MemberAccess
             return;
         }
 
-        throw new CsEvalException(DiagnosticDescriptors.NoMemberOnType, type.Name, name);
+        throw new CsEvalException(DiagnosticDescriptors.MemberNotFound, type.Name, name);
     }
 
     public static void SetIndex(object? obj, object? index, object? value, CsEvalOptions? options = null)
     {
-        switch (obj)
-        {
-            case null:
-                throw new CsEvalException("Cannot index assign null");
-            case IDictionary<string, object?> dict:
-            {
-                var key = index?.ToString() ?? "";
-                dict[key] = value;
-                return;
-            }
-            case IList list when index is int i:
-            {
-                var idx = i;
-                if (idx < 0 && options?.LanguageMode == LanguageMode.Extended)
-                    idx = list.Count + idx;
-                if (idx < 0 || idx >= list.Count) throw new ArgumentOutOfRangeException("index", idx, "Index was out of range. Must be non-negative and less than the size of the collection.");
+        if (obj == null)
+            throw new CsEvalException("Cannot index assign null");
 
-                if (list.GetType().IsGenericType)
-                {
-                    var elementType = list.GetType().GetGenericArguments()[0];
-                    list[idx] = ConvertChangeType(value, elementType);
-                }
-                else
-                {
-                    list[idx] = value;
-                }
-                return;
-            }
-            case IList list:
-                throw new ArgumentException($"Index must be an integer, got {index?.GetType().Name}", "index");
+        if (obj is IDictionary<string, object?> dict && index is string strKey)
+        {
+            dict[strKey] = value;
+            return;
+        }
+
+        if (obj is IList list && index != null)
+        {
+            var idx = Convert.ToInt32(index);
+            if (idx < 0 && options?.LanguageMode == LanguageMode.Extended)
+                idx = list.Count + idx;
+            if (idx < 0 || idx >= list.Count)
+                throw new ArgumentOutOfRangeException("index", idx,
+                    "Index was out of range. Must be non-negative and less than the size of the collection.");
+            list[idx] = value;
+            return;
         }
 
         var type = obj.GetType();

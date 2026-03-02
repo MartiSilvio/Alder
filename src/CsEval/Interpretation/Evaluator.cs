@@ -531,12 +531,7 @@ public sealed class Evaluator : IExprVisitor<object?>
         var name = expr.Name.Lexeme;
         var currentValue = _context.Get(name);
         var rightValue = Evaluate(expr.Value);
-
-        if (!CompoundToBaseOperator.TryGetValue(expr.Op.Type, out var baseOp))
-            throw new CsEvalException($"Unknown compound assignment operator '{expr.Op.Lexeme}'");
-
-        if (!BinaryOperators.TryGetValue(baseOp, out var op))
-            throw new CsEvalException($"Unknown base operator for '{expr.Op.Lexeme}'");
+        var op = ResolveCompoundOperator(expr.Op.Type, expr.Op.Lexeme);
 
         var result = op(this, currentValue, rightValue);
         result = RuntimeHelpers.ValidateCompoundAssignment(name, result, rightValue, _context);
@@ -554,12 +549,7 @@ public sealed class Evaluator : IExprVisitor<object?>
 
         var currentValue = GetMember(obj, expr.MemberName);
         var rightValue = Evaluate(expr.Value);
-
-        if (!CompoundToBaseOperator.TryGetValue(expr.Operator, out var baseOp))
-            throw new CsEvalException($"Unknown compound assignment operator");
-
-        if (!BinaryOperators.TryGetValue(baseOp, out var op))
-            throw new CsEvalException($"Unknown base operator for compound assignment");
+        var op = ResolveCompoundOperator(expr.Operator, expr.Operator.ToString());
 
         var result = op(this, currentValue, rightValue);
         SetMember(obj, expr.MemberName, result);
@@ -576,12 +566,7 @@ public sealed class Evaluator : IExprVisitor<object?>
         var index = Evaluate(expr.Index);
         var currentValue = GetIndex(obj, index);
         var rightValue = Evaluate(expr.Value);
-
-        if (!CompoundToBaseOperator.TryGetValue(expr.Operator, out var baseOp))
-            throw new CsEvalException($"Unknown compound assignment operator");
-
-        if (!BinaryOperators.TryGetValue(baseOp, out var op))
-            throw new CsEvalException($"Unknown base operator for compound assignment");
+        var op = ResolveCompoundOperator(expr.Operator, expr.Operator.ToString());
 
         var result = op(this, currentValue, rightValue);
         SetIndex(obj, index, result);
@@ -595,22 +580,7 @@ public sealed class Evaluator : IExprVisitor<object?>
 
         var name = expr.Name.Lexeme;
         var currentValue = _context.Get(name);
-
-        object one = currentValue switch
-        {
-            int => 1,
-            long => 1L,
-            double => 1.0,
-            float => 1.0f,
-            decimal => 1m,
-            short => 1,
-            byte => 1,
-            sbyte => 1,
-            ushort => 1,
-            uint => 1u,
-            ulong => 1ul,
-            _ => 1
-        };
+        var one = GetNumericOne(currentValue);
 
         var newValue = expr.Op.Type == TokenType.PlusPlus
             ? Operators.Add(currentValue, one, _options, _context)
@@ -664,22 +634,7 @@ public sealed class Evaluator : IExprVisitor<object?>
             throw new CsEvalException($"Cannot access property '{expr.MemberName}' on null");
 
         var currentValue = GetMember(obj, expr.MemberName);
-
-        object one = currentValue switch
-        {
-            int => 1,
-            long => 1L,
-            double => 1.0,
-            float => 1.0f,
-            decimal => 1m,
-            short => 1,
-            byte => 1,
-            sbyte => 1,
-            ushort => 1,
-            uint => 1u,
-            ulong => 1ul,
-            _ => 1
-        };
+        var one = GetNumericOne(currentValue);
 
         var newValue = expr.IsIncrement
             ? Operators.Add(currentValue, one, _options, _context)
@@ -699,22 +654,7 @@ public sealed class Evaluator : IExprVisitor<object?>
 
         var index = Evaluate(expr.Index);
         var currentValue = GetIndex(obj, index);
-
-        object one = currentValue switch
-        {
-            int => 1,
-            long => 1L,
-            double => 1.0,
-            float => 1.0f,
-            decimal => 1m,
-            short => 1,
-            byte => 1,
-            sbyte => 1,
-            ushort => 1,
-            uint => 1u,
-            ulong => 1ul,
-            _ => 1
-        };
+        var one = GetNumericOne(currentValue);
 
         var newValue = expr.IsIncrement
             ? Operators.Add(currentValue, one, _options, _context)
@@ -858,23 +798,7 @@ public sealed class Evaluator : IExprVisitor<object?>
 
     public object? VisitSizeof(SizeofExpr expr)
     {
-        return expr.TypeName switch
-        {
-            "bool" or "Boolean" or "System.Boolean" => 1,
-            "byte" or "Byte" or "System.Byte" => 1,
-            "sbyte" or "SByte" or "System.SByte" => 1,
-            "char" or "Char" or "System.Char" => 2,
-            "short" or "Int16" or "System.Int16" => 2,
-            "ushort" or "UInt16" or "System.UInt16" => 2,
-            "int" or "Int32" or "System.Int32" => 4,
-            "uint" or "UInt32" or "System.UInt32" => 4,
-            "float" or "Single" or "System.Single" => 4,
-            "long" or "Int64" or "System.Int64" => 8,
-            "ulong" or "UInt64" or "System.UInt64" => 8,
-            "double" or "Double" or "System.Double" => 8,
-            "decimal" or "Decimal" or "System.Decimal" => 16,
-            _ => throw new CsEvalException($"Cannot take the sizeof of type '{expr.TypeName}'")
-        };
+        return TypeHelpers.GetSizeOf(expr.TypeName);
     }
 
     public object? VisitObjectCreation(ObjectCreationExpr expr)
@@ -1215,20 +1139,11 @@ public sealed class Evaluator : IExprVisitor<object?>
 
             var previousContext = _context;
             _context = _context.CreateChild();
-            ControlFlowSignal? signal = null;
 
+            ControlFlowSignal? signal;
             try
             {
-                foreach (var stmt in expr.Body)
-                {
-                    _cancellationToken.ThrowIfCancellationRequested();
-                    var result = Evaluate(stmt);
-                    if (result is ControlFlowSignal s)
-                    {
-                        signal = s;
-                        break; // break out of statement loop
-                    }
-                }
+                signal = ExecuteStatementBlock(expr.Body);
             }
             finally
             {
@@ -1239,7 +1154,7 @@ public sealed class Evaluator : IExprVisitor<object?>
             {
                 if (signal.SignalKind == ControlFlowSignal.Kind.Break) break;
                 if (signal.SignalKind == ControlFlowSignal.Kind.Continue) continue;
-                return signal; // Return signal propagates upward
+                return signal;
             }
         }
 
@@ -1266,20 +1181,11 @@ public sealed class Evaluator : IExprVisitor<object?>
 
                 var iterationContext = _context;
                 _context = _context.CreateChild();
-                ControlFlowSignal? signal = null;
 
+                ControlFlowSignal? signal;
                 try
                 {
-                    foreach (var stmt in expr.Body)
-                    {
-                        _cancellationToken.ThrowIfCancellationRequested();
-                        var result = Evaluate(stmt);
-                        if (result is ControlFlowSignal s)
-                        {
-                            signal = s;
-                            break; // break out of statement loop
-                        }
-                    }
+                    signal = ExecuteStatementBlock(expr.Body);
                 }
                 finally
                 {
@@ -1290,7 +1196,6 @@ public sealed class Evaluator : IExprVisitor<object?>
                 {
                     if (signal.SignalKind == ControlFlowSignal.Kind.Break) break;
                     if (signal.SignalKind == ControlFlowSignal.Kind.Return) return signal;
-                    // Continue: fall through to increment
                 }
 
                 foreach (var inc in expr.Increments)
@@ -1318,20 +1223,11 @@ public sealed class Evaluator : IExprVisitor<object?>
 
             var previousContext = _context;
             _context = _context.CreateChild();
-            ControlFlowSignal? signal = null;
 
+            ControlFlowSignal? signal;
             try
             {
-                foreach (var stmt in expr.Body)
-                {
-                    _cancellationToken.ThrowIfCancellationRequested();
-                    var result = Evaluate(stmt);
-                    if (result is ControlFlowSignal s)
-                    {
-                        signal = s;
-                        break; // break out of statement loop
-                    }
-                }
+                signal = ExecuteStatementBlock(expr.Body);
             }
             finally
             {
@@ -1342,7 +1238,7 @@ public sealed class Evaluator : IExprVisitor<object?>
             {
                 if (signal.SignalKind == ControlFlowSignal.Kind.Break) break;
                 if (signal.SignalKind == ControlFlowSignal.Kind.Continue) continue;
-                return signal; // Return signal propagates upward
+                return signal;
             }
         } while (TypeHelpers.RequireBoolean(Evaluate(expr.Condition)));
 
@@ -1366,22 +1262,12 @@ public sealed class Evaluator : IExprVisitor<object?>
 
             var previousContext = _context;
             _context = _context.CreateChild();
-            ControlFlowSignal? signal = null;
 
+            ControlFlowSignal? signal;
             try
             {
                 _context.DefineNew(expr.VariableName.Lexeme, item, typeof(object));
-
-                foreach (var stmt in expr.Body)
-                {
-                    _cancellationToken.ThrowIfCancellationRequested();
-                    var result = Evaluate(stmt);
-                    if (result is ControlFlowSignal s)
-                    {
-                        signal = s;
-                        break; // break out of statement loop
-                    }
-                }
+                signal = ExecuteStatementBlock(expr.Body);
             }
             finally
             {
@@ -1392,7 +1278,7 @@ public sealed class Evaluator : IExprVisitor<object?>
             {
                 if (signal.SignalKind == ControlFlowSignal.Kind.Break) break;
                 if (signal.SignalKind == ControlFlowSignal.Kind.Continue) continue;
-                return signal; // Return signal propagates upward
+                return signal;
             }
         }
 
@@ -1520,228 +1406,52 @@ public sealed class Evaluator : IExprVisitor<object?>
 
     #region Member Access Helpers
 
-
     private object? GetMember(object obj, string name)
-    {
-        // Handle namespace sentinel: accumulate path segments for FQN type resolution.
-        // Example: NamespaceRef("System") + "Linq" -> NamespaceRef("System.Linq") or Type
-        if (obj is NamespaceRef nsRef)
-        {
-            var accumulated = nsRef.Path + "." + name;
-
-            // Try to resolve as a complete type name
-            var resolvedType = _context.TypeResolver.TryResolveType(accumulated);
-            if (resolvedType != null)
-                return resolvedType;
-
-            // Check if it's still a valid namespace prefix
-            if (_context.TypeResolver.IsNamespaceOrPrefix(accumulated))
-                return new NamespaceRef(accumulated);
-
-            // Neither a type nor a namespace prefix -- this is an error
-            throw new CsEvalException(DiagnosticDescriptors.TypeNotFound, accumulated);
-        }
-
-        if (obj is ModuleInfo module)
-        {
-            if (module.Members.TryGetValue(name, out var member))
-            {
-                return member switch
-                {
-                    MethodInfo m => new ModuleMethodRef(module, _context.ServiceProvider, m),
-                    PropertyInfo p => TypeHelpers.GuardReflectionLeak(
-                        _context.TypeCache.GetPropertyValue(p, p.GetMethod?.IsStatic == true ? null : module.Resolve(_context.ServiceProvider)),
-                        $"property {name}"),
-                    FieldInfo f => TypeHelpers.GuardReflectionLeak(
-                        f.GetValue(f.IsStatic ? null : module.Resolve(_context.ServiceProvider)),
-                        $"field {name}"),
-                    _ => throw new CsEvalException($"Unsupported member type '{member.GetType().Name}'")
-                };
-            }
-            throw new CsEvalException(DiagnosticDescriptors.NoMemberOnType, module.Type.Name, name);
-        }
-
-        // Handle static member access on Type objects (e.g., double.NaN)
-        if (obj is Type staticType)
-        {
-            var staticBindingFlags = BindingFlags.Public | BindingFlags.Static;
-            if (!_options.IsCaseSensitive)
-                staticBindingFlags |= BindingFlags.IgnoreCase;
-
-            var staticProp = staticType.GetProperty(name, staticBindingFlags);
-            if (staticProp != null)
-                return TypeHelpers.GuardReflectionLeak(staticProp.GetValue(null), $"static property {name}");
-
-            var staticField = staticType.GetField(name, staticBindingFlags);
-            if (staticField != null)
-                return TypeHelpers.GuardReflectionLeak(staticField.GetValue(null), $"static field {name}");
-
-            // Check if this is a static method before falling through to instance members
-            var staticMethods = staticType.GetMethods(staticBindingFlags);
-            if (staticMethods.Any(m => string.Equals(m.Name, name, _options.IsCaseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase)))
-                return new StaticMethodRef(staticType, name);
-
-            // Fall through to instance member access on the Type object itself
-            // (e.g., typeof(int).Name accesses instance property Type.Name)
-        }
-
-        if (!_options.Sandbox.AllowPropertyRead)
-            throw new CsEvalException($"Property access blocked by sandbox: {name}");
-
-        var caseInsensitive = !_options.IsCaseSensitive;
-
-        if (obj is IDictionary<string, object?> dict)
-        {
-            if (dict.TryGetValue(name, out var value))
-                return TypeHelpers.GuardReflectionLeak(value, $"property {name}");
-
-            if (caseInsensitive)
-            {
-                foreach (var key in dict.Keys)
-                {
-                    if (string.Equals(key, name, StringComparison.OrdinalIgnoreCase))
-                        return TypeHelpers.GuardReflectionLeak(dict[key], $"property {name}");
-                }
-            }
-
-            throw new CsEvalException(DiagnosticDescriptors.MemberNotFound, obj.GetType().Name, name);
-        }
-
-        var type = obj.GetType();
-        var bindingFlags = BindingFlags.Public | BindingFlags.Instance;
-        if (caseInsensitive)
-            bindingFlags |= BindingFlags.IgnoreCase;
-
-        var prop = _context.TypeCache.GetProperty(type, name, bindingFlags);
-        if (prop != null)
-            return TypeHelpers.GuardReflectionLeak(_context.TypeCache.GetPropertyValue(prop, obj), $"property {name}");
-
-        var field = _context.TypeCache.GetField(type, name, bindingFlags);
-        if (field != null)
-            return TypeHelpers.GuardReflectionLeak(field.GetValue(obj), $"field {name}");
-
-        return new MethodRef(obj, name);
-    }
+        => MemberAccess.GetMember(obj, name, _options, nullSafe: false, _context);
 
     private object? GetIndex(object obj, object? index)
-    {
-        if (obj is IDictionary<string, object?> dict && index is string strKey)
-        {
-            if (dict.TryGetValue(strKey, out var value))
-                return TypeHelpers.GuardReflectionLeak(value, $"index [{strKey}]");
-            return null;
-        }
-
-        if (obj is string str && index != null)
-        {
-            var idx = Convert.ToInt32(index);
-            if (idx < 0 && _options.LanguageMode == LanguageMode.Extended)
-                idx = str.Length + idx;
-            if (idx < 0 || idx >= str.Length)
-                throw new ArgumentOutOfRangeException("index", idx,
-                    "Index was out of range. Must be non-negative and less than the size of the collection.");
-            return (object)str[idx]; // Returns boxed char
-        }
-
-        if (obj is IList list && index != null)
-        {
-            var idx = Convert.ToInt32(index);
-            if (idx < 0 && _options.LanguageMode == LanguageMode.Extended)
-                idx = list.Count + idx;
-            if (idx < 0 || idx >= list.Count)
-                throw new ArgumentOutOfRangeException("index", idx, "Index was out of range. Must be non-negative and less than the size of the collection.");
-            return TypeHelpers.GuardReflectionLeak(list[idx], $"index [{idx}]");
-        }
-
-        var type = obj.GetType();
-        var indexer = _context.TypeCache.GetIndexer(type);
-        if (indexer != null)
-            return TypeHelpers.GuardReflectionLeak(indexer.GetValue(obj, [index]), $"indexer access");
-
-        throw new CsEvalException(DiagnosticDescriptors.BadIndexerAccess, type.Name);
-    }
+        => MemberAccess.GetIndex(obj, index, _options);
 
     private void SetIndex(object obj, object? index, object? value)
     {
         if (!_options.Sandbox.AllowIndexSet)
             throw new CsEvalException($"Index assignment blocked by sandbox: [{index}] = ...");
-
-        switch (obj)
-        {
-            case IDictionary<string, object?> dict when index is string strKey:
-                dict[strKey] = value;
-                return;
-            case IList list when index != null:
-            {
-                var idx = Convert.ToInt32(index);
-                if (idx < 0 && _options.LanguageMode == LanguageMode.Extended)
-                    idx = list.Count + idx;
-                if (idx < 0 || idx >= list.Count)
-                    throw new ArgumentOutOfRangeException("index", idx, "Index was out of range. Must be non-negative and less than the size of the collection.");
-                list[idx] = value;
-                return;
-            }
-        }
-
-        var type = obj.GetType();
-        var indexer = _context.TypeCache.GetIndexer(type);
-        if (indexer != null && indexer.CanWrite)
-        {
-            indexer.SetValue(obj, value, [index]);
-            return;
-        }
-
-        throw new CsEvalException(DiagnosticDescriptors.BadIndexerAccess, type.Name);
+        MemberAccess.SetIndex(obj, index, value, _options);
     }
 
     private void SetMember(object obj, string name, object? value)
+        => MemberAccess.SetMember(obj, name, value, _options, _context);
+
+    #endregion
+
+    #region Shared Helpers
+
+    private static object GetNumericOne(object? value) => value switch
     {
-        if (!_options.Sandbox.AllowPropertySet)
-            throw new CsEvalException($"Property assignment blocked by sandbox: {name} = ...");
+        int => 1, long => 1L, double => 1.0, float => 1.0f, decimal => 1m,
+        short => 1, byte => 1, sbyte => 1, ushort => 1, uint => 1u, ulong => 1ul,
+        _ => 1
+    };
 
-        var caseInsensitive = !_options.IsCaseSensitive;
+    private Func<Evaluator, object?, object?, object?> ResolveCompoundOperator(TokenType compoundOp, string opLexeme)
+    {
+        if (!CompoundToBaseOperator.TryGetValue(compoundOp, out var baseOp))
+            throw new CsEvalException($"Unknown compound assignment operator '{opLexeme}'");
+        if (!BinaryOperators.TryGetValue(baseOp, out var op))
+            throw new CsEvalException($"Unknown base operator for '{opLexeme}'");
+        return op;
+    }
 
-        if (obj is IDictionary<string, object?> dict)
+    private ControlFlowSignal? ExecuteStatementBlock(List<Expr> statements)
+    {
+        foreach (var stmt in statements)
         {
-            if (caseInsensitive)
-            {
-                foreach (var key in dict.Keys)
-                {
-                    if (string.Equals(key, name, StringComparison.OrdinalIgnoreCase))
-                    {
-                        dict[key] = value;
-                        return;
-                    }
-                }
-            }
-            dict[name] = value;
-            return;
+            _cancellationToken.ThrowIfCancellationRequested();
+            var result = Evaluate(stmt);
+            if (result is ControlFlowSignal s)
+                return s;
         }
-
-        var type = obj.GetType();
-        var bindingFlags = BindingFlags.Public | BindingFlags.Instance;
-        if (caseInsensitive)
-            bindingFlags |= BindingFlags.IgnoreCase;
-
-        var prop = _context.TypeCache.GetProperty(type, name, bindingFlags);
-        if (prop != null)
-        {
-            if (!prop.CanWrite)
-                throw new CsEvalException(DiagnosticDescriptors.ReadonlyAssignment);
-            prop.SetValue(obj, value);
-            return;
-        }
-
-        var field = _context.TypeCache.GetField(type, name, bindingFlags);
-        if (field != null)
-        {
-            if (field.IsInitOnly)
-                throw new CsEvalException(DiagnosticDescriptors.ReadonlyAssignment);
-            field.SetValue(obj, value);
-            return;
-        }
-
-        throw new CsEvalException(DiagnosticDescriptors.MemberNotFound, type.Name, name);
+        return null;
     }
 
     #endregion
@@ -1844,48 +1554,3 @@ public sealed class Evaluator : IExprVisitor<object?>
 
     #endregion
 }
-
-/// <summary>
-/// Reference to a registered function, used by IL-compiled and interpreted expressions.
-/// </summary>
-public sealed record FunctionRef(string Name, Func<object?[], object?> Function)
-{
-    public object? Invoke(object?[] args) => Function(args);
-}
-
-internal sealed record LambdaValue(List<string> Parameters, Expr Body, CsEvalContext Closure, CsEvalOptions? Options = null);
-
-/// <summary>
-/// Compiled lambda with IL-compiled body delegate.
-/// </summary>
-internal sealed record CompiledLambdaValue(
-    List<string> Parameters,
-    Func<object?[], CsEvalContext, object?> CompiledBody,
-    CsEvalContext Closure);
-
-internal sealed record MethodRef(object Target, string MethodName);
-
-internal sealed record StaticMethodRef(Type Type, string MethodName);
-
-internal sealed record ModuleMethodRef(ModuleInfo Module, IServiceProvider? ServiceProvider, MethodInfo Method);
-
-/// <summary>
-/// Sentinel for partially-resolved namespace paths during FQN type access.
-/// Flows through MemberAccess chains until TypeResolver resolves a full type name.
-/// Example: IdentifierExpr("System") -> NamespaceRef("System") -> member "Linq" -> NamespaceRef("System.Linq") -> member "Enumerable" -> Type
-/// </summary>
-internal sealed record NamespaceRef(string Path);
-
-/// <summary>
-/// Wrapper for a named argument value. Used to pass parameter name information
-/// through the method invocation stack.
-/// </summary>
-internal sealed record NamedArg(string Name, object? Value);
-
-/// <summary>
-/// Marker for out parameter arguments. Flows through the method invocation stack
-/// so MethodInvoker can detect ByRef parameters and set up the args array correctly.
-/// After method invocation, the evaluator reads modified values from the args array
-/// and defines variables in the current scope.
-/// </summary>
-internal sealed record OutArgMarker(string VariableName, string? TypeName, bool IsDiscard);

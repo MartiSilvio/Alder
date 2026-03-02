@@ -1,5 +1,4 @@
 using CsEval.Diagnostics;
-using CsEval.Interpretation;
 
 namespace CsEval.Runtime.Extensions;
 
@@ -37,9 +36,9 @@ internal static class PipelineOperator
     }
 
     private static bool IsCallable(object value) => value is
-        Interpretation.LambdaValue or
-        Interpretation.CompiledLambdaValue or
-        Interpretation.FunctionRef or
+        LambdaValue or
+        CompiledLambdaValue or
+        FunctionRef or
         Delegate or
         ModuleMethodRef or
         StaticMethodRef or
