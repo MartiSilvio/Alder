@@ -640,6 +640,20 @@ public sealed class ExpressionParser : ParserBase
     {
         var expr = ParseUnary();
 
+        // Implicit multiplication (Extended mode): number followed by identifier or '('
+        // desugars to multiplication at the same precedence as explicit *.
+        // 2x -> 2 * x, 3.5y -> 3.5 * y, 2(x+1) -> 2 * (x+1)
+        // Only fires when left side is a numeric literal. Identifiers/parens on the
+        // left are NOT implicit multiply (they stay as invocation or separate expressions).
+        if (State.LanguageMode == LanguageMode.Extended
+            && expr is LiteralExpr { Value: var numValue } && IsNumericValue(numValue)
+            && (Check(TokenType.Identifier) || Check(TokenType.LeftParen)))
+        {
+            var syntheticStar = new Token(TokenType.Star, "*", null, Peek().Line, Peek().Column);
+            var right = ParseUnary();
+            expr = new BinaryExpr(expr, syntheticStar, right);
+        }
+
         while (Match(TokenType.Star, TokenType.Slash, TokenType.Percent))
         {
             var op = Previous();
@@ -649,6 +663,14 @@ public sealed class ExpressionParser : ParserBase
 
         return expr;
     }
+
+    /// <summary>
+    /// Returns true if the value is a numeric type (int, long, double, float, decimal, etc.).
+    /// Used for implicit multiplication detection.
+    /// </summary>
+    private static bool IsNumericValue(object? value) =>
+        value is int or long or double or float or decimal
+            or uint or ulong or short or ushort or byte or sbyte;
 
     #endregion
 
@@ -908,6 +930,15 @@ public sealed class ExpressionParser : ParserBase
                 // Generic method call: Method<T>() or Method<T1, T2>()
                 Consume(TokenType.LeftParen, "Expected '(' after generic type arguments");
                 expr = FinishCall(expr, typeArgs);
+            }
+            else if (Check(TokenType.LeftParen)
+                     && State.LanguageMode == LanguageMode.Extended
+                     && expr is LiteralExpr { Value: var lpVal } && IsNumericValue(lpVal))
+            {
+                // In Extended mode, numeric literal followed by '(' is implicit multiplication
+                // (e.g., 2(x+1) -> 2 * (x+1)), NOT a function call. Break out of postfix loop
+                // so ParseFactor can handle it.
+                break;
             }
             else if (Match(TokenType.LeftParen))
             {
