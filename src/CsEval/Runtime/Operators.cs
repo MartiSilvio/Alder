@@ -476,4 +476,28 @@ public static class Operators
     {
         return !(bool)Like(left, right);
     }
+
+    /// <summary>
+    /// Regex match: left =~ right. Left is converted to string, right must be a regex pattern string.
+    /// </summary>
+    public static object RegexMatch(object? left, object? right)
+    {
+        return Extensions.RegexMatchOperator.IsMatch(left, right);
+    }
+
+    /// <summary>
+    /// Negated regex match: left !~ right.
+    /// </summary>
+    public static object RegexNotMatch(object? left, object? right)
+    {
+        return Extensions.RegexMatchOperator.IsNotMatch(left, right);
+    }
+
+    /// <summary>
+    /// Three-way comparison: left &lt;=&gt; right returns -1, 0, or 1.
+    /// </summary>
+    public static object Spaceship(object? left, object? right)
+    {
+        return Extensions.SpaceshipOperator.Compare(left, right);
+    }
 }

@@ -787,7 +787,9 @@ internal sealed class CompilerContext
             TokenType.LessLess or TokenType.GreaterGreater or
             TokenType.GreaterGreaterGreater or TokenType.StarStar or
             TokenType.In or TokenType.NotIn or
-            TokenType.Like or TokenType.NotLike)
+            TokenType.Like or TokenType.NotLike or
+            TokenType.EqualTilde or TokenType.BangTilde or
+            TokenType.LessEqualGreater)
             return true;
 
         return false;

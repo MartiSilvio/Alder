@@ -52,6 +52,9 @@ internal static class OperatorRegistry
         [TokenType.NotIn] = new(typeof(Operators).GetMethod(nameof(Operators.NotInOperator), [typeof(object), typeof(object)])!, BinaryOpSignature.TwoArgs),
         [TokenType.Like] = new(typeof(Operators).GetMethod(nameof(Operators.Like), [typeof(object), typeof(object)])!, BinaryOpSignature.TwoArgs),
         [TokenType.NotLike] = new(typeof(Operators).GetMethod(nameof(Operators.NotLike), [typeof(object), typeof(object)])!, BinaryOpSignature.TwoArgs),
+        [TokenType.EqualTilde] = new(typeof(Operators).GetMethod(nameof(Operators.RegexMatch), [typeof(object), typeof(object)])!, BinaryOpSignature.TwoArgs),
+        [TokenType.BangTilde] = new(typeof(Operators).GetMethod(nameof(Operators.RegexNotMatch), [typeof(object), typeof(object)])!, BinaryOpSignature.TwoArgs),
+        [TokenType.LessEqualGreater] = new(typeof(Operators).GetMethod(nameof(Operators.Spaceship), [typeof(object), typeof(object)])!, BinaryOpSignature.TwoArgs),
     };
 
     private static readonly Dictionary<TokenType, MethodInfo> UnaryOperators = new()

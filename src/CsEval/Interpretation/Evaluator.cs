@@ -1753,6 +1753,9 @@ public sealed class Evaluator : IExprVisitor<object?>
         { TokenType.NotIn, (_, l, r) => (object)Operators.NotContains(r, l) },
         { TokenType.Like, (_, l, r) => Operators.Like(l, r) },
         { TokenType.NotLike, (_, l, r) => Operators.NotLike(l, r) },
+        { TokenType.EqualTilde, (_, l, r) => Operators.RegexMatch(l, r) },
+        { TokenType.BangTilde, (_, l, r) => Operators.RegexNotMatch(l, r) },
+        { TokenType.LessEqualGreater, (_, l, r) => Operators.Spaceship(l, r) },
     };
 
     private static readonly Dictionary<TokenType, Func<Evaluator, object?, object?>> UnaryOperators = new()
