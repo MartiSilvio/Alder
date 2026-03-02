@@ -1,3 +1,4 @@
+using System.Reflection;
 using CsEval.Parsing;
 using CsEval.Runtime;
 
@@ -1310,4 +1311,37 @@ internal sealed class ExpressionCompilerUnit
                         LinqExpression.Constant(name), result))),
             result);
     }
+
+    #region Polyglot Extended Features
+
+    private static readonly MethodInfo GenerateRangeMethod =
+        typeof(Runtime.Extensions.RangeHelpers).GetMethod(nameof(Runtime.Extensions.RangeHelpers.GenerateRange))!;
+
+    private static readonly MethodInfo ConvertToInt32Method =
+        typeof(Convert).GetMethod(nameof(Convert.ToInt32), [typeof(object)])!;
+
+    /// <summary>
+    /// Compiles a range expression (start..end or start..&lt;end) to a call to
+    /// RangeHelpers.GenerateRange(int start, int end, bool exclusiveEnd).
+    /// Returns IEnumerable&lt;int&gt; boxed as object.
+    /// </summary>
+    internal LinqExpression CompileRange(RangeExpr expr)
+    {
+        var start = Compile(expr.Start);
+        var end = Compile(expr.End);
+
+        // Convert both operands to int via Convert.ToInt32(object)
+        var startInt = LinqExpression.Call(ConvertToInt32Method, start);
+        var endInt = LinqExpression.Call(ConvertToInt32Method, end);
+
+        var call = LinqExpression.Call(
+            GenerateRangeMethod,
+            startInt,
+            endInt,
+            LinqExpression.Constant(expr.ExclusiveEnd));
+
+        return LinqExpression.Convert(call, typeof(object));
+    }
+
+    #endregion
 }

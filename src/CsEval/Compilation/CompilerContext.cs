@@ -333,6 +333,9 @@ internal sealed class CompilerContext
                 // Out argument (compiled to OutArgMarker for MethodInvoker)
                 OutArgExpr outArg => exprUnit.CompileOutArg(outArg),
 
+                // Polyglot Extended Features
+                RangeExpr range => exprUnit.CompileRange(range),
+
                 // Error cases
                 SpreadExpr => throw new CsEvalException("Spread operator can only be used in array or object literals"),
                 NamedArgumentExpr => throw new CsEvalException("Named arguments can only be used in method calls"),
@@ -700,6 +703,11 @@ internal sealed class CompilerContext
 
                 case OutArgExpr:
                     // OutArgExpr as standalone is invalid; inside CallExpr it's handled above
+                    break;
+
+                case RangeExpr range:
+                    stack.Push(range.Start);
+                    stack.Push(range.End);
                     break;
 
                 default:

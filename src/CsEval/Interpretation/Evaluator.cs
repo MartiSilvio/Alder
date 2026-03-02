@@ -1782,8 +1782,14 @@ public sealed class Evaluator : IExprVisitor<object?>
 
     #region Polyglot Extended Features (stubs)
 
-    public object? VisitRange(RangeExpr expr) =>
-        throw new NotImplementedException("VisitRange not yet implemented");
+    public object? VisitRange(RangeExpr expr)
+    {
+        var start = Evaluate(expr.Start);
+        var end = Evaluate(expr.End);
+        int startInt = Convert.ToInt32(start);
+        int endInt = Convert.ToInt32(end);
+        return RangeHelpers.GenerateRange(startInt, endInt, expr.ExclusiveEnd);
+    }
 
     public object? VisitPipeline(PipelineExpr expr) =>
         throw new NotImplementedException("VisitPipeline not yet implemented");
