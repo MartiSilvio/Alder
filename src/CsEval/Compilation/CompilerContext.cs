@@ -711,6 +711,11 @@ internal sealed class CompilerContext
                     stack.Push(range.End);
                     break;
 
+                case PipelineExpr pipeline:
+                    stack.Push(pipeline.Left);
+                    stack.Push(pipeline.Right);
+                    break;
+
                 default:
                     return $"Unsupported expression type '{current.GetType().Name}'";
             }
