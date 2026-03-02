@@ -983,17 +983,38 @@ public sealed class Evaluator : IExprVisitor<object?>
     public object? VisitDeconstruction(DeconstructionExpr expr)
     {
         var value = Evaluate(expr.ValueExpression);
-        if (value is not System.Runtime.CompilerServices.ITuple tuple)
-            throw new CsEvalException($"Cannot deconstruct non-tuple value of type '{value?.GetType().Name ?? "null"}'");
-        if (tuple.Length != expr.VariableNames.Count)
-            throw new CsEvalException($"Deconstruction requires {expr.VariableNames.Count} values but tuple has {tuple.Length} elements");
-        for (var i = 0; i < expr.VariableNames.Count; i++)
+
+        // ITuple path (ValueTuple)
+        if (value is System.Runtime.CompilerServices.ITuple tuple)
         {
-            var elementValue = tuple[i];
-            var elementType = elementValue?.GetType() ?? typeof(object);
-            _context.DefineNew(expr.VariableNames[i], elementValue, elementType);
+            if (tuple.Length != expr.VariableNames.Count)
+                throw new CsEvalException($"Deconstruction requires {expr.VariableNames.Count} values but tuple has {tuple.Length} elements");
+            for (var i = 0; i < expr.VariableNames.Count; i++)
+            {
+                var elementValue = tuple[i];
+                var elementType = elementValue?.GetType() ?? typeof(object);
+                _context.DefineNew(expr.VariableNames[i], elementValue, elementType);
+            }
+            return value;
         }
-        return value;
+
+        // Deconstruct() method path -- types with public void Deconstruct(out T1, out T2, ...)
+        if (value is not null)
+        {
+            var deconstructed = RuntimeHelpers.TryDeconstruct(value, expr.VariableNames.Count);
+            if (deconstructed != null)
+            {
+                for (var i = 0; i < expr.VariableNames.Count; i++)
+                {
+                    var elementValue = deconstructed[i];
+                    var elementType = elementValue?.GetType() ?? typeof(object);
+                    _context.DefineNew(expr.VariableNames[i], elementValue, elementType);
+                }
+                return value;
+            }
+        }
+
+        throw new CsEvalException($"Cannot deconstruct value of type '{value?.GetType().Name ?? "null"}': no ITuple implementation or Deconstruct() method found");
     }
 
     public object? VisitIfStatement(IfStatementExpr expr)

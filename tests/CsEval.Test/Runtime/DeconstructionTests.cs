@@ -19,7 +19,7 @@ public class DeconstructionTests(CompilationMode mode)
         engine.SetVariable("val", 42);
         var ex = Assert.Throws<CsEvalException>(() =>
             engine.Evaluate("{ var (x, y) = val; return x; }"));
-        Assert.That(ex!.Message, Does.Contain("Cannot deconstruct non-tuple value"));
+        Assert.That(ex!.Message, Does.Contain("Cannot deconstruct"));
     }
 
     // Engine-only: error test (arity mismatch assertion)

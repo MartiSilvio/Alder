@@ -268,22 +268,66 @@ public static class RuntimeHelpers
     }
 
     /// <summary>
-    /// Deconstructs a tuple into individual variables in the given context.
+    /// Deconstructs a value into individual variables in the given context.
+    /// Supports ITuple (ValueTuple) and types with a Deconstruct() method.
     /// ECMA-334 §12.7 - Deconstruction.
     /// </summary>
     public static object? DeconstructTuple(object? tupleValue, string[] variableNames, CsEvalContext context)
     {
-        if (tupleValue is not System.Runtime.CompilerServices.ITuple tuple)
-            throw new CsEvalException($"Cannot deconstruct non-tuple value of type '{tupleValue?.GetType().Name ?? "null"}'");
-        if (tuple.Length != variableNames.Length)
-            throw new CsEvalException($"Deconstruction requires {variableNames.Length} values but tuple has {tuple.Length} elements");
-        for (var i = 0; i < variableNames.Length; i++)
+        // ITuple path (ValueTuple)
+        if (tupleValue is System.Runtime.CompilerServices.ITuple tuple)
         {
-            var elementValue = tuple[i];
-            var elementType = elementValue?.GetType() ?? typeof(object);
-            context.DefineNew(variableNames[i], elementValue, elementType);
+            if (tuple.Length != variableNames.Length)
+                throw new CsEvalException($"Deconstruction requires {variableNames.Length} values but tuple has {tuple.Length} elements");
+            for (var i = 0; i < variableNames.Length; i++)
+            {
+                var elementValue = tuple[i];
+                var elementType = elementValue?.GetType() ?? typeof(object);
+                context.DefineNew(variableNames[i], elementValue, elementType);
+            }
+            return tupleValue;
         }
-        return tupleValue;
+
+        // Deconstruct() method path
+        if (tupleValue is not null)
+        {
+            var deconstructed = TryDeconstruct(tupleValue, variableNames.Length);
+            if (deconstructed != null)
+            {
+                for (var i = 0; i < variableNames.Length; i++)
+                {
+                    var elementValue = deconstructed[i];
+                    var elementType = elementValue?.GetType() ?? typeof(object);
+                    context.DefineNew(variableNames[i], elementValue, elementType);
+                }
+                return tupleValue;
+            }
+        }
+
+        throw new CsEvalException($"Cannot deconstruct value of type '{tupleValue?.GetType().Name ?? "null"}': no ITuple implementation or Deconstruct() method found");
+    }
+
+    /// <summary>
+    /// Tries to call a Deconstruct() method on the given value with the specified number of out parameters.
+    /// Returns the deconstructed values as an array, or null if no matching Deconstruct() method is found.
+    /// ECMA-334 §12.7 - Deconstruction via Deconstruct() method.
+    /// </summary>
+    public static object?[]? TryDeconstruct(object value, int parameterCount)
+    {
+        var type = value.GetType();
+        var methods = type.GetMethods(BindingFlags.Public | BindingFlags.Instance)
+            .Where(m => m.Name == "Deconstruct"
+                        && m.GetParameters().Length == parameterCount
+                        && m.GetParameters().All(p => p.IsOut))
+            .ToArray();
+
+        if (methods.Length == 0)
+            return null;
+
+        var method = methods[0];
+        var args = new object?[parameterCount];
+        method.Invoke(value, args);
+        return args;
     }
 
     /// <summary>
