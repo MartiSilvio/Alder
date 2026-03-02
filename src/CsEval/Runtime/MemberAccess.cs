@@ -309,57 +309,177 @@ public static class MemberAccess
     /// Returns same type as input: T[] -> T[], List&lt;T&gt; -> List&lt;T&gt;, string -> string.
     /// </summary>
     public static object? GetSlice(object? obj, object? start, object? end, CsEvalOptions options)
+        => GetSlice(obj, start, end, null, options);
+
+    /// <summary>
+    /// Python-style slice with step: obj[start:end:step].
+    /// When step is provided, iterates with the given increment.
+    /// Positive step iterates forward, negative step iterates backward.
+    /// Step of zero throws an error.
+    /// </summary>
+    public static object? GetSlice(object? obj, object? start, object? end, object? step, CsEvalOptions options)
     {
         if (obj == null)
             throw new CsEvalException("Cannot slice null");
+
+        int? stepVal = step != null ? Convert.ToInt32(step) : null;
+        if (stepVal == 0)
+            throw new CsEvalException("Slice step cannot be zero");
+
+        int length = obj switch
+        {
+            string s => s.Length,
+            Array arr => arr.Length,
+            IList list => list.Count,
+            _ => throw new CsEvalException($"Cannot slice type '{obj.GetType().Name}' -- slicing requires an array, List<T>, or string")
+        };
+
+        if (stepVal == null || stepVal == 1)
+        {
+            // Fast path: no step or step=1, use original sequential logic
+            int startIdx = ResolveIndex(start, stepVal, length, isStart: true);
+            int endIdx = ResolveIndex(end, stepVal, length, isStart: false);
+            ClampSliceIndices(ref startIdx, ref endIdx, length);
+            return SliceSequential(obj, startIdx, endIdx, length);
+        }
+
+        // Stepped slice
+        return SliceStepped(obj, start, end, stepVal.Value, length);
+    }
+
+    private static object? SliceSequential(object obj, int startIdx, int endIdx, int length)
+    {
+        if (startIdx >= endIdx)
+        {
+            return obj switch
+            {
+                string => (object)"",
+                Array arr => Array.CreateInstance(arr.GetType().GetElementType()!, 0),
+                IList list => CreateEmptyResult(list),
+                _ => throw new CsEvalException($"Cannot slice type '{obj.GetType().Name}'")
+            };
+        }
+
+        int count = endIdx - startIdx;
+        switch (obj)
+        {
+            case string s:
+                return (object)s.Substring(startIdx, count);
+            case Array arr:
+            {
+                var elementType = arr.GetType().GetElementType()!;
+                var result = Array.CreateInstance(elementType, count);
+                Array.Copy(arr, startIdx, result, 0, count);
+                return result;
+            }
+            case IList list:
+                return CollectFromList(list, Enumerable.Range(startIdx, count));
+            default:
+                throw new CsEvalException($"Cannot slice type '{obj.GetType().Name}'");
+        }
+    }
+
+    private static object? SliceStepped(object obj, object? start, object? end, int step, int length)
+    {
+        int startIdx, endIdx;
+
+        if (step > 0)
+        {
+            startIdx = start != null ? ResolveNegativeIndex(Convert.ToInt32(start), length) : 0;
+            endIdx = end != null ? ResolveNegativeIndex(Convert.ToInt32(end), length) : length;
+            startIdx = Math.Clamp(startIdx, 0, length);
+            endIdx = Math.Clamp(endIdx, 0, length);
+        }
+        else
+        {
+            // Negative step: default start is last index, default end is "before beginning"
+            startIdx = start != null ? ResolveNegativeIndex(Convert.ToInt32(start), length) : length - 1;
+            endIdx = end != null ? ResolveNegativeIndex(Convert.ToInt32(end), length) : -1;
+            startIdx = Math.Clamp(startIdx, -1, length - 1);
+            // endIdx can be -1 (meaning include index 0)
+            endIdx = Math.Clamp(endIdx, -1, length);
+        }
+
+        var indices = new List<int>();
+        if (step > 0)
+        {
+            for (int i = startIdx; i < endIdx; i += step)
+                indices.Add(i);
+        }
+        else
+        {
+            for (int i = startIdx; i > endIdx; i += step)
+                indices.Add(i);
+        }
 
         switch (obj)
         {
             case string s:
             {
-                int startIdx = start != null ? Convert.ToInt32(start) : 0;
-                int endIdx = end != null ? Convert.ToInt32(end) : s.Length;
-                ClampSliceIndices(ref startIdx, ref endIdx, s.Length);
-                if (startIdx >= endIdx) return (object)"";
-                return (object)s.Substring(startIdx, endIdx - startIdx);
+                var sb = new System.Text.StringBuilder(indices.Count);
+                foreach (var i in indices)
+                    sb.Append(s[i]);
+                return (object)sb.ToString();
             }
             case Array arr:
             {
-                int startIdx = start != null ? Convert.ToInt32(start) : 0;
-                int endIdx = end != null ? Convert.ToInt32(end) : arr.Length;
-                ClampSliceIndices(ref startIdx, ref endIdx, arr.Length);
-                int count = Math.Max(0, endIdx - startIdx);
                 var elementType = arr.GetType().GetElementType()!;
-                var result = Array.CreateInstance(elementType, count);
-                if (count > 0)
-                    Array.Copy(arr, startIdx, result, 0, count);
+                var result = Array.CreateInstance(elementType, indices.Count);
+                for (int j = 0; j < indices.Count; j++)
+                    result.SetValue(arr.GetValue(indices[j]), j);
                 return result;
             }
             case IList list:
-            {
-                int startIdx = start != null ? Convert.ToInt32(start) : 0;
-                int endIdx = end != null ? Convert.ToInt32(end) : list.Count;
-                ClampSliceIndices(ref startIdx, ref endIdx, list.Count);
-                int count = Math.Max(0, endIdx - startIdx);
-                // Preserve List<T> type
-                var listType = list.GetType();
-                if (listType.IsGenericType && listType.GetGenericTypeDefinition() == typeof(List<>))
-                {
-                    var elementType = listType.GetGenericArguments()[0];
-                    var resultList = (IList)Activator.CreateInstance(typeof(List<>).MakeGenericType(elementType))!;
-                    for (int i = startIdx; i < startIdx + count; i++)
-                        resultList.Add(list[i]);
-                    return resultList;
-                }
-                // Fallback: return object[]
-                var fallback = new object?[count];
-                for (int i = 0; i < count; i++)
-                    fallback[i] = list[startIdx + i];
-                return fallback;
-            }
+                return CollectFromList(list, indices);
             default:
-                throw new CsEvalException($"Cannot slice type '{obj.GetType().Name}' -- slicing requires an array, List<T>, or string");
+                throw new CsEvalException($"Cannot slice type '{obj.GetType().Name}'");
         }
+    }
+
+    private static int ResolveIndex(object? value, int? step, int length, bool isStart)
+    {
+        if (value != null)
+        {
+            int idx = Convert.ToInt32(value);
+            return idx;
+        }
+        // Default for null: depends on step direction (but this path is only for step=null or step=1)
+        return isStart ? 0 : length;
+    }
+
+    private static int ResolveNegativeIndex(int idx, int length)
+    {
+        if (idx < 0) return length + idx;
+        return idx;
+    }
+
+    private static object CreateEmptyResult(IList list)
+    {
+        var listType = list.GetType();
+        if (listType.IsGenericType && listType.GetGenericTypeDefinition() == typeof(List<>))
+        {
+            var elementType = listType.GetGenericArguments()[0];
+            return Activator.CreateInstance(typeof(List<>).MakeGenericType(elementType))!;
+        }
+        return Array.Empty<object?>();
+    }
+
+    private static object CollectFromList(IList list, IEnumerable<int> indices)
+    {
+        var listType = list.GetType();
+        if (listType.IsGenericType && listType.GetGenericTypeDefinition() == typeof(List<>))
+        {
+            var elementType = listType.GetGenericArguments()[0];
+            var resultList = (IList)Activator.CreateInstance(typeof(List<>).MakeGenericType(elementType))!;
+            foreach (var i in indices)
+                resultList.Add(list[i]);
+            return resultList;
+        }
+        // Fallback: return object[]
+        var result = new List<object?>();
+        foreach (var i in indices)
+            result.Add(list[i]);
+        return result.ToArray();
     }
 
     /// <summary>

@@ -897,14 +897,20 @@ public sealed class ExpressionParser : ParserBase
             }
             else if (Match(TokenType.LeftBracket))
             {
-                // Check for slice with omitted start: [:end] or [:]
+                // Check for slice with omitted start: [:end] or [:] or [::step] or [:end:step]
                 if (State.LanguageMode == LanguageMode.Extended && Match(TokenType.Colon))
                 {
                     Expr? end = null;
-                    if (!Check(TokenType.RightBracket))
+                    Expr? step = null;
+                    if (!Check(TokenType.RightBracket) && !Check(TokenType.Colon))
                         end = ParseExpression();
+                    if (Match(TokenType.Colon))
+                    {
+                        if (!Check(TokenType.RightBracket))
+                            step = ParseExpression();
+                    }
                     Consume(TokenType.RightBracket, "Expected ']' after slice");
-                    expr = new SliceExpr(expr, null, end);
+                    expr = new SliceExpr(expr, null, end, step);
                 }
                 else
                 {
@@ -912,12 +918,18 @@ public sealed class ExpressionParser : ParserBase
 
                     if (State.LanguageMode == LanguageMode.Extended && Match(TokenType.Colon))
                     {
-                        // [start:end] or [start:]
+                        // [start:end] or [start:] or [start:end:step] or [start::step]
                         Expr? end = null;
-                        if (!Check(TokenType.RightBracket))
+                        Expr? step = null;
+                        if (!Check(TokenType.RightBracket) && !Check(TokenType.Colon))
                             end = ParseExpression();
+                        if (Match(TokenType.Colon))
+                        {
+                            if (!Check(TokenType.RightBracket))
+                                step = ParseExpression();
+                        }
                         Consume(TokenType.RightBracket, "Expected ']' after slice");
-                        expr = new SliceExpr(expr, firstIndex, end);
+                        expr = new SliceExpr(expr, firstIndex, end, step);
                     }
                     else if (Check(TokenType.Comma))
                     {
