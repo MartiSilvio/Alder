@@ -434,6 +434,24 @@ public sealed class ExpressionParser : ParserBase
                     "Use LanguageMode.Extended to enable non-standard syntax extensions.");
             }
             var right = ParseComparison();
+
+            // Chained comparisons (Python/Julia): a == b == c chains as a == b && b == c
+            if (State.LanguageMode == LanguageMode.Extended && IsChainableComparisonOperator(Peek().Type))
+            {
+                var operands = new List<Expr> { expr, right };
+                var operators = new List<Token> { op };
+
+                while (IsChainableComparisonOperator(Peek().Type))
+                {
+                    var nextOp = Advance();
+                    var nextOperand = ParseShift();
+                    operators.Add(nextOp);
+                    operands.Add(nextOperand);
+                }
+
+                return new ChainedComparisonExpr(operands, operators);
+            }
+
             expr = new BinaryExpr(expr, op, right);
         }
 
@@ -450,6 +468,24 @@ public sealed class ExpressionParser : ParserBase
             {
                 var op = Previous();
                 var right = ParseShift();
+
+                // Chained comparisons (Python/Julia): 0 < x < 10 chains as 0 < x && x < 10
+                if (State.LanguageMode == LanguageMode.Extended && IsChainableComparisonOperator(Peek().Type))
+                {
+                    var operands = new List<Expr> { expr, right };
+                    var operators = new List<Token> { op };
+
+                    while (IsChainableComparisonOperator(Peek().Type))
+                    {
+                        var nextOp = Advance();
+                        var nextOperand = ParseShift();
+                        operators.Add(nextOp);
+                        operands.Add(nextOperand);
+                    }
+
+                    return new ChainedComparisonExpr(operands, operators);
+                }
+
                 expr = new BinaryExpr(expr, op, right);
             }
             else if (Match(TokenType.Is))
@@ -569,6 +605,10 @@ public sealed class ExpressionParser : ParserBase
 
         return expr;
     }
+
+    private static bool IsChainableComparisonOperator(TokenType type) =>
+        type is TokenType.Less or TokenType.LessEqual or TokenType.Greater or TokenType.GreaterEqual
+            or TokenType.EqualEqual or TokenType.BangEqual;
 
     private IsPatternExpr ParseIsExpression(Expr left)
     {

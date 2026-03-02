@@ -1802,8 +1802,24 @@ public sealed class Evaluator : IExprVisitor<object?>
         return PipelineOperator.InvokePipeline(left, right, _context, _options, _cancellationToken);
     }
 
-    public object? VisitChainedComparison(ChainedComparisonExpr expr) =>
-        throw new NotImplementedException("VisitChainedComparison not yet implemented");
+    public object? VisitChainedComparison(ChainedComparisonExpr expr)
+    {
+        // Evaluate first operand
+        var prevValue = Evaluate(expr.Operands[0]);
+
+        for (int i = 0; i < expr.Operators.Count; i++)
+        {
+            var nextValue = Evaluate(expr.Operands[i + 1]);
+
+            if (!Runtime.Extensions.ChainedComparisonHelper.PerformComparison(
+                    prevValue, nextValue, expr.Operators[i].Type, _options))
+                return (object)false; // Short-circuit: remaining operands not evaluated
+
+            prevValue = nextValue; // Reuse evaluated value for next comparison
+        }
+
+        return (object)true;
+    }
 
     #endregion
 }
