@@ -250,7 +250,7 @@ public sealed class ExpressionParser : ParserBase
 
     private Expr ParseNullCoalesce()
     {
-        var expr = ParseOr();
+        var expr = ParseRange();
 
         if (Match(TokenType.QuestionQuestion))
         {
@@ -264,6 +264,46 @@ public sealed class ExpressionParser : ParserBase
 
             var right = ParseNullCoalesce();
             return new NullCoalesceExpr(expr, right);
+        }
+
+        return expr;
+    }
+
+    /// <summary>
+    /// Parses range literals: start..end (inclusive) or start..&lt;end (exclusive).
+    /// Precedence: below null-coalesce, above logical OR.
+    /// Range .. is INFIX (between two expressions). Spread .. is PREFIX (inside collection literals).
+    /// Since we reach here only after parsing a left-hand expression, this is always range context.
+    /// </summary>
+    private Expr ParseRange()
+    {
+        var expr = ParseOr();
+
+        if (State.LanguageMode == LanguageMode.Extended)
+        {
+            if (Match(TokenType.DotDot))
+            {
+                var end = ParseOr();
+                return new RangeExpr(expr, end, ExclusiveEnd: false);
+            }
+
+            if (Match(TokenType.DotDotLess))
+            {
+                var end = ParseOr();
+                return new RangeExpr(expr, end, ExclusiveEnd: true);
+            }
+        }
+        else if (Check(TokenType.DotDot) || Check(TokenType.DotDotLess))
+        {
+            // Active rejection: if we see .. or ..< in infix position in Standard mode,
+            // and the next token isn't a comma/bracket (which would be spread context handled
+            // elsewhere), reject with a clear message.
+            // But we must be careful: DotDot in Standard mode at this level could be spread
+            // context leaking through. Only reject if it's clearly infix (we already parsed
+            // a left-hand expression and this isn't inside array/object literal brackets).
+            // Since spread is always handled in PrimaryParser before reaching here, any DotDot
+            // at this level in Standard mode is either a genuine range attempt or a stray token.
+            // We don't reject here to avoid breaking spread; the stray token will fail naturally.
         }
 
         return expr;
