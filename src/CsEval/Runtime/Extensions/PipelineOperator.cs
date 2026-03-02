@@ -1,0 +1,46 @@
+using CsEval.Interpretation;
+
+namespace CsEval.Runtime.Extensions;
+
+/// <summary>
+/// Pipeline operator (F#/Elixir): x |> f invokes f(x).
+/// Dispatches through MethodInvoker.InvokeCall to support all callable types:
+/// LambdaValue, CompiledLambdaValue, FunctionRef, Delegate, etc.
+/// </summary>
+internal static class PipelineOperator
+{
+    /// <summary>
+    /// Invokes the pipeline: evaluates <paramref name="rightCallable"/> with
+    /// <paramref name="leftValue"/> as its single argument.
+    /// </summary>
+    public static object? InvokePipeline(
+        object? leftValue,
+        object? rightCallable,
+        CsEvalContext context,
+        CsEvalOptions options,
+        CancellationToken ct)
+    {
+        if (rightCallable is null)
+            throw new CsEvalException(
+                "Pipeline operator '|>' requires a callable expression on the right side, got null");
+
+        // Check if the right side is a known callable type before invoking.
+        // MethodInvoker.InvokeCall handles: LambdaValue, CompiledLambdaValue, FunctionRef,
+        // Delegate, ModuleMethodRef, StaticMethodRef, MethodRef.
+        if (!IsCallable(rightCallable))
+            throw new CsEvalException(
+                $"Pipeline operator '|>' requires a callable expression on the right side, got {rightCallable.GetType().Name}");
+
+        var args = new object?[] { leftValue };
+        return MethodInvoker.InvokeCall(rightCallable, args, context, options, ct, argumentTransformer: null);
+    }
+
+    private static bool IsCallable(object value) => value is
+        Interpretation.LambdaValue or
+        Interpretation.CompiledLambdaValue or
+        Interpretation.FunctionRef or
+        Delegate or
+        ModuleMethodRef or
+        StaticMethodRef or
+        MethodRef;
+}

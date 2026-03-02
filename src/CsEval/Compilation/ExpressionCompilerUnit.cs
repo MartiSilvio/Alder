@@ -1314,6 +1314,27 @@ internal sealed class ExpressionCompilerUnit
 
     #region Polyglot Extended Features
 
+    private static readonly MethodInfo InvokePipelineMethod =
+        typeof(Runtime.Extensions.PipelineOperator).GetMethod(nameof(Runtime.Extensions.PipelineOperator.InvokePipeline))!;
+
+    /// <summary>
+    /// Compiles a pipeline expression (x |> f) to a call to
+    /// PipelineOperator.InvokePipeline(leftValue, rightCallable, context, options, ct).
+    /// </summary>
+    internal LinqExpression CompilePipeline(PipelineExpr expr)
+    {
+        var left = Compile(expr.Left);
+        var right = Compile(expr.Right);
+
+        return LinqExpression.Call(
+            InvokePipelineMethod,
+            left,
+            right,
+            _ctx.CurrentContext,
+            _ctx.OptionsParam,
+            _ctx.CtParam);
+    }
+
     private static readonly MethodInfo GenerateRangeMethod =
         typeof(Runtime.Extensions.RangeHelpers).GetMethod(nameof(Runtime.Extensions.RangeHelpers.GenerateRange))!;
 

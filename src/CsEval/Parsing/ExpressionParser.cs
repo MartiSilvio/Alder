@@ -148,7 +148,7 @@ public sealed class ExpressionParser : ParserBase
             return new ThrowExpr(throwExpr);
         }
 
-        var expr = ParseConditional();
+        var expr = ParsePipeline();
 
         if (expr is IdentifierExpr identifier)
         {
@@ -228,6 +228,34 @@ public sealed class ExpressionParser : ParserBase
                 var value = ParseAssignment();
                 return new MultiDimIndexAssignExpr(multiIndex.Object, multiIndex.Indices, value);
             }
+        }
+
+        return expr;
+    }
+
+    /// <summary>
+    /// Parses pipeline expressions: x |> f passes x as argument to f.
+    /// Left-associative: x |> f |> g evaluates as (x |> f) |> g.
+    /// Precedence: below assignment, above ternary conditional.
+    /// Extended mode only.
+    /// </summary>
+    private Expr ParsePipeline()
+    {
+        var expr = ParseConditional();
+
+        if (State.LanguageMode == LanguageMode.Extended)
+        {
+            while (Match(TokenType.PipeGreater))
+            {
+                var right = ParseConditional();
+                expr = new PipelineExpr(expr, right);
+            }
+        }
+        else if (Check(TokenType.PipeGreater))
+        {
+            throw new CsEvalLanguageModeException("|>",
+                "The '|>' pipeline operator is not available in Standard mode. " +
+                "Use LanguageMode.Extended to enable non-standard syntax extensions.");
         }
 
         return expr;

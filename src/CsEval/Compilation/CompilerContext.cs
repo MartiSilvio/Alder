@@ -335,6 +335,7 @@ internal sealed class CompilerContext
 
                 // Polyglot Extended Features
                 RangeExpr range => exprUnit.CompileRange(range),
+                PipelineExpr pipeline => exprUnit.CompilePipeline(pipeline),
 
                 // Error cases
                 SpreadExpr => throw new CsEvalException("Spread operator can only be used in array or object literals"),

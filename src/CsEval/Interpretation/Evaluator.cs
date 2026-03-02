@@ -1791,8 +1791,12 @@ public sealed class Evaluator : IExprVisitor<object?>
         return RangeHelpers.GenerateRange(startInt, endInt, expr.ExclusiveEnd);
     }
 
-    public object? VisitPipeline(PipelineExpr expr) =>
-        throw new NotImplementedException("VisitPipeline not yet implemented");
+    public object? VisitPipeline(PipelineExpr expr)
+    {
+        var left = Evaluate(expr.Left);
+        var right = Evaluate(expr.Right);
+        return PipelineOperator.InvokePipeline(left, right, _context, _options, _cancellationToken);
+    }
 
     public object? VisitChainedComparison(ChainedComparisonExpr expr) =>
         throw new NotImplementedException("VisitChainedComparison not yet implemented");
