@@ -337,6 +337,7 @@ internal sealed class CompilerContext
                 // Polyglot Extended Features
                 RangeExpr range => exprUnit.CompileRange(range),
                 PipelineExpr pipeline => exprUnit.CompilePipeline(pipeline),
+                ChainedComparisonExpr chain => exprUnit.CompileChainedComparison(chain),
 
                 // Error cases
                 SpreadExpr => throw new CsEvalException("Spread operator can only be used in array or object literals"),
@@ -715,6 +716,11 @@ internal sealed class CompilerContext
                 case PipelineExpr pipeline:
                     stack.Push(pipeline.Left);
                     stack.Push(pipeline.Right);
+                    break;
+
+                case ChainedComparisonExpr chain:
+                    foreach (var operand in chain.Operands)
+                        stack.Push(operand);
                     break;
 
                 default:

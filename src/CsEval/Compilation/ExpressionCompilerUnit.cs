@@ -1371,5 +1371,60 @@ internal sealed class ExpressionCompilerUnit
         return LinqExpression.Convert(call, typeof(object));
     }
 
+    private static readonly MethodInfo PerformComparisonMethod =
+        typeof(Runtime.Extensions.ChainedComparisonHelper).GetMethod(nameof(Runtime.Extensions.ChainedComparisonHelper.PerformComparison))!;
+
+    /// <summary>
+    /// Compiles a chained comparison (0 &lt; x &lt; 10) with lazy evaluation and short-circuit.
+    /// Each operand is evaluated exactly once; short-circuits on first false comparison.
+    /// Emits a block that assigns each operand to a local variable and checks pairs sequentially.
+    /// </summary>
+    internal LinqExpression CompileChainedComparison(Parsing.ChainedComparisonExpr expr)
+    {
+        // We build a block expression:
+        //   var v0 = compile(operand[0]);
+        //   var v1 = compile(operand[1]);
+        //   if (!PerformComparison(v0, v1, op0, options)) return (object)false;
+        //   var v2 = compile(operand[2]);
+        //   if (!PerformComparison(v1, v2, op1, options)) return (object)false;
+        //   ...
+        //   return (object)true;
+
+        var resultLabel = LinqExpression.Label(typeof(object), "chainResult");
+        var variables = new List<System.Linq.Expressions.ParameterExpression>();
+        var body = new List<LinqExpression>();
+
+        // Evaluate first operand
+        var v0 = LinqExpression.Variable(typeof(object), "v0");
+        variables.Add(v0);
+        body.Add(LinqExpression.Assign(v0, Compile(expr.Operands[0])));
+
+        for (int i = 0; i < expr.Operators.Count; i++)
+        {
+            // Evaluate next operand
+            var vi = LinqExpression.Variable(typeof(object), $"v{i + 1}");
+            variables.Add(vi);
+            body.Add(LinqExpression.Assign(vi, Compile(expr.Operands[i + 1])));
+
+            // Check comparison; short-circuit to false if it fails
+            var prevVar = variables[i];
+            var comparison = LinqExpression.Call(
+                PerformComparisonMethod,
+                prevVar,
+                vi,
+                LinqExpression.Constant(expr.Operators[i].Type),
+                _ctx.OptionsParam);
+
+            body.Add(LinqExpression.IfThen(
+                LinqExpression.Not(comparison),
+                LinqExpression.Return(resultLabel, LinqExpression.Constant(false, typeof(object)))));
+        }
+
+        // All comparisons passed
+        body.Add(LinqExpression.Label(resultLabel, LinqExpression.Constant(true, typeof(object))));
+
+        return LinqExpression.Block(typeof(object), variables.ToArray(), body.ToArray());
+    }
+
     #endregion
 }
