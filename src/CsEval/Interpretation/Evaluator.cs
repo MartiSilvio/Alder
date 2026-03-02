@@ -353,7 +353,8 @@ public sealed class Evaluator : IExprVisitor<object?>
         var target = Evaluate(expr.Target);
         var start = expr.Start != null ? Evaluate(expr.Start) : null;
         var end = expr.End != null ? Evaluate(expr.End) : null;
-        return MemberAccess.GetSlice(target, start, end, _options);
+        var step = expr.Step != null ? Evaluate(expr.Step) : null;
+        return MemberAccess.GetSlice(target, start, end, step, _options);
     }
 
     public object? VisitNamedArgument(NamedArgumentExpr expr)

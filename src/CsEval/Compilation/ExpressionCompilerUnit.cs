@@ -511,6 +511,13 @@ internal sealed class ExpressionCompilerUnit
         var end = expr.End != null
             ? Compile(expr.End)
             : LinqExpression.Constant(null, typeof(object));
+
+        if (expr.Step != null)
+        {
+            var step = Compile(expr.Step);
+            return LinqExpression.Call(CompilerContext.GetSliceStepMethod, target, start, end, step, _ctx.OptionsParam);
+        }
+
         return LinqExpression.Call(CompilerContext.GetSliceMethod, target, start, end, _ctx.OptionsParam);
     }
 
