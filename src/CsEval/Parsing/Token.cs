@@ -249,6 +249,15 @@ public enum TokenType
     // Extended mode operators (contextual keywords)
     Like,              // like (SQL pattern matching, Extended mode)
     Between,           // between (SQL range check, Extended mode)
+    Unless,            // unless (negated if, Extended mode)
+    Until,             // until (negated while, Extended mode)
+
+    // Extended mode operators (symbol tokens)
+    PipeGreater,           // |> (pipeline operator, Extended mode)
+    EqualTilde,            // =~ (regex match, Extended mode)
+    BangTilde,             // !~ (negated regex match, Extended mode)
+    LessEqualGreater,      // <=> (spaceship operator, Extended mode)
+    DotDotLess,            // ..< (exclusive range, Extended mode)
 
     // Synthetic tokens (created by parser, not lexer)
     NotIn,             // not in (Extended mode compound keyword operator)

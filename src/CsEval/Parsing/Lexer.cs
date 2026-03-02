@@ -132,6 +132,8 @@ public sealed class Lexer
         // Extended mode operators (contextual keywords)
         ["like"] = TokenType.Like,
         ["between"] = TokenType.Between,
+        ["unless"] = TokenType.Unless,
+        ["until"] = TokenType.Until,
 
         // Contextual keywords (reserved for forward compatibility)
         ["add"] = TokenType.Add,
@@ -217,7 +219,10 @@ public sealed class Lexer
 
             case '.':
                 if (Match('.'))
-                    AddToken(TokenType.DotDot); // spread operator (..)
+                {
+                    if (Match('<')) AddToken(TokenType.DotDotLess);
+                    else AddToken(TokenType.DotDot); // spread operator (..)
+                }
                 else if (char.IsDigit(Peek()))
                     ScanLeadingDecimalNumber(); // ECMA-334 §6.4.5.4: .5 is valid real literal
                 else
@@ -228,6 +233,10 @@ public sealed class Lexer
                 if (Match('='))
                 {
                     AddToken(Match('=') ? TokenType.BangEqualEqual : TokenType.BangEqual);
+                }
+                else if (Match('~'))
+                {
+                    AddToken(TokenType.BangTilde);
                 }
                 else
                 {
@@ -244,6 +253,10 @@ public sealed class Lexer
                 {
                     AddToken(TokenType.Arrow);
                 }
+                else if (Match('~'))
+                {
+                    AddToken(TokenType.EqualTilde);
+                }
                 else
                 {
                     AddToken(TokenType.Equal);
@@ -255,7 +268,11 @@ public sealed class Lexer
                 {
                     AddToken(Match('=') ? TokenType.LessLessEqual : TokenType.LessLess);
                 }
-                else if (Match('=')) AddToken(TokenType.LessEqual);
+                else if (Match('='))
+                {
+                    if (Match('>')) AddToken(TokenType.LessEqualGreater);
+                    else AddToken(TokenType.LessEqual);
+                }
                 else AddToken(TokenType.Less);
                 break;
 
@@ -285,6 +302,7 @@ public sealed class Lexer
 
             case '|':
                 if (Match('|')) AddToken(TokenType.PipePipe);
+                else if (Match('>')) AddToken(TokenType.PipeGreater);
                 else if (Match('=')) AddToken(TokenType.PipeEqual);
                 else AddToken(TokenType.Pipe);
                 break;
