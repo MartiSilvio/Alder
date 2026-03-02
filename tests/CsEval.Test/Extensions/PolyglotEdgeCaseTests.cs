@@ -1,0 +1,306 @@
+namespace CsEval.Test.Extensions;
+
+/// <summary>
+/// Edge cases, error handling, standard mode rejection, and side-effect tests
+/// for polyglot extended features. Happy-path behavior is covered by .csx parity
+/// tests in TestData/ValidExpressions/SyntaxSugar/.
+/// </summary>
+[TestFixture(CompilationMode.Interpreted)]
+[TestFixture(CompilationMode.Compiled)]
+[TestFixture(CompilationMode.StrictCompiled)]
+public class PolyglotEdgeCaseTests(CompilationMode mode)
+{
+    private CsEvalEngine CreateEngine() =>
+        new(CsEvalOptions.Default with { CompilationMode = mode, LanguageMode = LanguageMode.Extended });
+
+    private CsEvalEngine CreateStandardEngine() =>
+        new(CsEvalOptions.Default with { CompilationMode = mode, LanguageMode = LanguageMode.Standard });
+
+    #region Bare math: shadowing
+
+    [Test]
+    public void BareMath_UserVariableShadowsConstant()
+    {
+        var engine = CreateEngine();
+        engine.SetVariable("pi", 3);
+        Assert.That(engine.Evaluate("pi"), Is.EqualTo(3));
+    }
+
+    [Test]
+    public void BareMath_UserFunctionShadowsBuiltIn()
+    {
+        var engine = CreateEngine();
+        engine.RegisterFunction("sin", args => 42);
+        Assert.That(engine.Evaluate("sin(5.0)"), Is.EqualTo(42));
+    }
+
+    [Test]
+    public void BareMath_ShadowDoesNotLeakToNewEngine()
+    {
+        var engine = CreateEngine();
+        engine.SetVariable("pi", 3);
+        Assert.That(engine.Evaluate("pi"), Is.EqualTo(3));
+
+        var engine2 = CreateEngine();
+        Assert.That(engine2.Evaluate("pi"), Is.EqualTo(Math.PI));
+    }
+
+    #endregion
+
+    #region Range: edge cases
+
+    [Test]
+    public void Range_ReversedRange_ReturnsEmpty()
+    {
+        var engine = CreateEngine();
+        Assert.That(engine.Evaluate("(10..1).Count()"), Is.EqualTo(0));
+    }
+
+    [Test]
+    public void Range_SpreadStillWorks()
+    {
+        var engine = CreateEngine();
+        var result = engine.Evaluate("{ var a = new[] {1, 2}; var b = new[] {3, 4}; return [..a, ..b]; }");
+        Assert.That(result, Is.EqualTo(new[] { 1, 2, 3, 4 }));
+    }
+
+    #endregion
+
+    #region Implicit multiply: edge cases
+
+    [Test]
+    public void ImplicitMultiply_WholeIdentifier_2xy()
+    {
+        var engine = CreateEngine();
+        engine.SetVariable("xy", 5);
+        Assert.That(engine.Evaluate("2xy"), Is.EqualTo(10));
+    }
+
+    [Test]
+    public void ImplicitMultiply_ScientificNotation_NotTriggered()
+    {
+        var engine = CreateEngine();
+        Assert.That(engine.Evaluate("2e10"), Is.EqualTo(2e10));
+    }
+
+    [Test]
+    public void ImplicitMultiply_LambdaCall_NotTriggered()
+    {
+        var engine = CreateEngine();
+        engine.SetVariable("f", (Func<int, int>)(x => x * 2));
+        Assert.That(engine.Evaluate("f(5)"), Is.EqualTo(10));
+    }
+
+    #endregion
+
+    #region Pipeline: error handling
+
+    [Test]
+    public void Pipeline_NonCallableRight_Throws()
+    {
+        var engine = CreateEngine();
+        Assert.That(() => engine.Evaluate("5 |> 10"),
+            Throws.InstanceOf<CsEvalException>().With.Message.Contains("|>"));
+    }
+
+    [Test]
+    public void Pipeline_NullRight_Throws()
+    {
+        var engine = CreateEngine();
+        Assert.That(() => engine.Evaluate("5 |> null"),
+            Throws.InstanceOf<CsEvalException>().With.Message.Contains("|>"));
+    }
+
+    [Test]
+    public void Pipeline_NullLeft_PassesNullToFunction()
+    {
+        var engine = CreateEngine();
+        Assert.That(engine.Evaluate("null |> (x => x == null)"), Is.EqualTo(true));
+    }
+
+    [Test]
+    public void Pipeline_Precedence_ArithmeticBindsTighter()
+    {
+        var engine = CreateEngine();
+        Assert.That(engine.Evaluate("2 + 3 |> (x => x * 2)"), Is.EqualTo(10));
+    }
+
+    #endregion
+
+    #region Slice step: error handling
+
+    [Test]
+    public void SliceStep_ZeroStep_Throws()
+    {
+        var engine = CreateEngine();
+        Assert.That(() => engine.Evaluate("{ var arr = new[] {1, 2, 3}; return arr[::0]; }"),
+            Throws.InstanceOf<CsEvalException>());
+    }
+
+    [Test]
+    public void SliceStep_TwoArgSlice_Unchanged()
+    {
+        var engine = CreateEngine();
+        var result = engine.Evaluate("{ var arr = new[] {10, 20, 30, 40, 50}; return arr[1:4]; }");
+        Assert.That(result, Is.EqualTo(new[] { 20, 30, 40 }));
+    }
+
+    #endregion
+
+    #region Regex: error handling
+
+    [Test]
+    public void Regex_LeftNull_Throws()
+    {
+        var engine = CreateEngine();
+        Assert.That(() => engine.Evaluate("null =~ \"pattern\""),
+            Throws.InstanceOf<CsEvalException>());
+    }
+
+    [Test]
+    public void Regex_RightNull_Throws()
+    {
+        var engine = CreateEngine();
+        Assert.That(() => engine.Evaluate("\"text\" =~ null"),
+            Throws.InstanceOf<CsEvalException>());
+    }
+
+    #endregion
+
+    #region Spaceship: null handling
+
+    [Test]
+    public void Spaceship_BothNull_ReturnsZero()
+    {
+        var engine = CreateEngine();
+        Assert.That(engine.Evaluate("null <=> null"), Is.EqualTo(0));
+    }
+
+    [Test]
+    public void Spaceship_LeftNull_ReturnsNegativeOne()
+    {
+        var engine = CreateEngine();
+        Assert.That(engine.Evaluate("null <=> 5"), Is.EqualTo(-1));
+    }
+
+    [Test]
+    public void Spaceship_RightNull_ReturnsOne()
+    {
+        var engine = CreateEngine();
+        Assert.That(engine.Evaluate("5 <=> null"), Is.EqualTo(1));
+    }
+
+    #endregion
+
+    #region Chained comparison: side effects and short-circuit
+
+    [Test]
+    public void ChainedComparison_MiddleOperandEvaluatedOnce()
+    {
+        var engine = CreateEngine();
+        var result = engine.Evaluate("""
+            var counter = 0;
+            var f = () => { counter = counter + 1; return counter; };
+            var result = 0 < f() < 10;
+            result.ToString() + "," + counter.ToString()
+            """);
+        Assert.That(result, Is.EqualTo("True,1"));
+    }
+
+    [Test]
+    public void ChainedComparison_ShortCircuitsOnFalse()
+    {
+        var engine = CreateEngine();
+        var result = engine.Evaluate("""
+            var counter = 0;
+            var g = () => { counter = counter + 1; return 100; };
+            var result = 5 < 3 < g();
+            result.ToString() + "," + counter.ToString()
+            """);
+        Assert.That(result, Is.EqualTo("False,0"));
+    }
+
+    [Test]
+    public void ChainedComparison_EqualityChain()
+    {
+        var engine = CreateEngine();
+        engine.SetVariable("a", 5);
+        engine.SetVariable("b", 5);
+        Assert.That(engine.Evaluate("a == b == 5"), Is.EqualTo(true));
+    }
+
+    [Test]
+    public void ChainedComparison_WithNaN_ReturnsFalse()
+    {
+        var engine = CreateEngine();
+        Assert.That(engine.Evaluate("0.0 < double.NaN < 10.0"), Is.EqualTo(false));
+    }
+
+    #endregion
+
+    #region Deconstruction: error handling
+
+    [Test]
+    public void Deconstruction_NoDeconstructMethod_Throws()
+    {
+        var engine = CreateEngine();
+        Assert.That(() => engine.Evaluate("{ var (a, b) = 42; return a; }"),
+            Throws.InstanceOf<CsEvalException>());
+    }
+
+    #endregion
+
+    #region Standard mode rejection (all features)
+
+    [Test]
+    public void StandardMode_BareMathSin_Throws()
+        => Assert.That(() => CreateStandardEngine().Evaluate("sin(1.0)"),
+            Throws.InstanceOf<CsEvalException>());
+
+    [Test]
+    public void StandardMode_BareMathPi_Throws()
+        => Assert.That(() => CreateStandardEngine().Evaluate("pi"),
+            Throws.InstanceOf<CsEvalException>());
+
+[Test]
+    public void StandardMode_Range_Throws()
+        => Assert.That(() => CreateStandardEngine().Evaluate("(1..10).Count()"),
+            Throws.InstanceOf<CsEvalException>());
+
+    [Test]
+    public void StandardMode_Pipeline_Throws()
+        => Assert.That(() => CreateStandardEngine().Evaluate("5 |> (x => x * 2)"),
+            Throws.InstanceOf<CsEvalException>());
+
+    [Test]
+    public void StandardMode_SliceStep_Throws()
+        => Assert.That(() => CreateStandardEngine().Evaluate("{ var a = new[] {1,2,3}; return a[::2]; }"),
+            Throws.InstanceOf<CsEvalException>());
+
+    [Test]
+    public void StandardMode_RegexMatch_Throws()
+        => Assert.That(() => CreateStandardEngine().Evaluate("\"hi\" =~ \"h\""),
+            Throws.InstanceOf<CsEvalException>());
+
+    [Test]
+    public void StandardMode_RegexNotMatch_Throws()
+        => Assert.That(() => CreateStandardEngine().Evaluate("\"hi\" !~ \"h\""),
+            Throws.InstanceOf<CsEvalException>());
+
+    [Test]
+    public void StandardMode_Spaceship_Throws()
+        => Assert.That(() => CreateStandardEngine().Evaluate("1 <=> 2"),
+            Throws.InstanceOf<CsEvalException>());
+
+[Test]
+    public void StandardMode_Unless_Throws()
+        => Assert.That(() => CreateStandardEngine().Evaluate("{ var x = 0; unless (false) { x = 1; } return x; }"),
+            Throws.InstanceOf<CsEvalException>());
+
+    [Test]
+    public void StandardMode_Until_Throws()
+        => Assert.That(() => CreateStandardEngine().Evaluate("{ var x = 0; until (true) { x = 1; } return x; }"),
+            Throws.InstanceOf<CsEvalException>());
+
+    #endregion
+}
