@@ -35,6 +35,18 @@ public static class TypeHelpers
         throw new CsEvalException(DiagnosticDescriptors.NoImplicitConversion, value?.GetType().Name ?? "null", "bool");
     }
 
+    public static bool RequireBooleanForLogicalOperator(object? value, string opLexeme, string otherOperandTypeName)
+    {
+        if (value is bool b)
+            return b;
+
+        throw new CsEvalException(
+            DiagnosticDescriptors.BadBinaryOps,
+            opLexeme,
+            value?.GetType().Name ?? "null",
+            otherOperandTypeName);
+    }
+
     internal static bool IsInteger([NotNullWhen(true)] object? value) =>
         value is sbyte or byte or short or ushort or int or uint or long or ulong;
 
@@ -53,6 +65,15 @@ public static class TypeHelpers
 
     private static bool IsIntegerType(Type type) =>
         Type.GetTypeCode(type) is >= TypeCode.SByte and <= TypeCode.UInt64;
+
+    private static bool IsNumericOrCharType(Type type) =>
+        Type.GetTypeCode(type) is >= TypeCode.SByte and <= TypeCode.Decimal or TypeCode.Char;
+
+    private static bool IsConstantIntConversionTarget(Type type) =>
+        type == typeof(sbyte) || type == typeof(byte) ||
+        type == typeof(short) || type == typeof(ushort) ||
+        type == typeof(uint) || type == typeof(ulong) ||
+        type == typeof(char);
 
     /// <summary>
     /// ECMA-334 §10.2.3: Implicit numeric conversions.
@@ -242,7 +263,13 @@ public static class TypeHelpers
         if (sourceType == typeof(int) && value is int intValue && IsIntegerType(underlyingType))
         {
             try { return Convert.ChangeType(intValue, underlyingType); }
-            catch (OverflowException) { }
+            catch (OverflowException)
+            {
+                throw new CsEvalException(
+                    DiagnosticDescriptors.ConstantValueCannotConvert,
+                    intValue,
+                    underlyingType.Name);
+            }
         }
 
         if (underlyingType == typeof(char) && value is string { Length: 1 } s)
@@ -252,7 +279,7 @@ public static class TypeHelpers
         if (delegateInstance != null)
             return delegateInstance;
 
-        throw new CsEvalException(DiagnosticDescriptors.NoImplicitConversion, sourceType.Name, targetType.Name);
+        throw CreateImplicitConversionException(sourceType, targetType, value);
     }
 
     /// <summary>
@@ -366,8 +393,56 @@ public static class TypeHelpers
         if (ImplicitConversions.TryGetValue(sourceType, out var allowedTargets) && allowedTargets.Contains(targetType))
             return ConvertNumeric(value, sourceType, targetType);
 
+        // ECMA-334 §10.2.11: implicit constant expression conversion for int literals.
+        if (sourceType == typeof(int) && value is int intValue && IsConstantIntConversionTarget(targetType))
+        {
+            try { return Convert.ChangeType(intValue, targetType); }
+            catch (OverflowException)
+            {
+                throw new CsEvalException(
+                    DiagnosticDescriptors.ConstantValueCannotConvert,
+                    intValue,
+                    targetType.Name);
+            }
+        }
+
         // Not implicitly convertible
-        throw new CsEvalException(DiagnosticDescriptors.NoImplicitConversion, sourceType.Name, targetType.Name);
+        throw CreateImplicitConversionException(sourceType, targetType, value);
+    }
+
+    private static CsEvalException CreateImplicitConversionException(Type sourceType, Type targetType, object? value)
+    {
+        var underlyingTarget = Nullable.GetUnderlyingType(targetType) ?? targetType;
+
+        if (sourceType == typeof(int) &&
+            value is int intValue &&
+            IsConstantIntConversionTarget(underlyingTarget))
+        {
+            try
+            {
+                Convert.ChangeType(intValue, underlyingTarget);
+            }
+            catch (OverflowException)
+            {
+                return new CsEvalException(
+                    DiagnosticDescriptors.ConstantValueCannotConvert,
+                    intValue,
+                    underlyingTarget.Name);
+            }
+        }
+
+        if (IsNumericOrCharType(sourceType) && IsNumericOrCharType(underlyingTarget))
+        {
+            return new CsEvalException(
+                DiagnosticDescriptors.ExplicitConversionExists,
+                sourceType.Name,
+                targetType.Name);
+        }
+
+        return new CsEvalException(
+            DiagnosticDescriptors.NoImplicitConversion,
+            sourceType.Name,
+            targetType.Name);
     }
 
     internal static bool IsForbiddenReflectionType(Type? type)

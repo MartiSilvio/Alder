@@ -267,17 +267,38 @@ public sealed class Evaluator : IExprVisitor<object?>
     public object? VisitLogical(LogicalExpr expr)
     {
         var left = Evaluate(expr.Left);
+        var opLexeme = expr.Op.Lexeme;
+
+        if (left is not bool)
+        {
+            var rightForType = Evaluate(expr.Right);
+            throw new CsEvalException(
+                DiagnosticDescriptors.BadBinaryOps,
+                opLexeme,
+                left?.GetType().Name ?? "null",
+                rightForType?.GetType().Name ?? "null");
+        }
 
         if (expr.Op.Type == TokenType.PipePipe)
         {
-            if (TypeHelpers.RequireBoolean(left)) return true;
+            if ((bool)left) return true;
         }
         else
         {
-            if (!TypeHelpers.RequireBoolean(left)) return false;
+            if (!(bool)left) return false;
         }
 
-        return TypeHelpers.RequireBoolean(Evaluate(expr.Right));
+        var right = Evaluate(expr.Right);
+        if (right is not bool)
+        {
+            throw new CsEvalException(
+                DiagnosticDescriptors.BadBinaryOps,
+                opLexeme,
+                left.GetType().Name,
+                right?.GetType().Name ?? "null");
+        }
+
+        return (bool)right;
     }
 
     public object? VisitIdentifier(IdentifierExpr expr)

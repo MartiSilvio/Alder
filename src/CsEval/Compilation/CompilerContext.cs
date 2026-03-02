@@ -69,6 +69,7 @@ internal sealed class CompilerContext
     internal static readonly MethodInfo TryGetVariableTypeMethod = typeof(CsEvalContext).GetMethod("TryGetVariableType")!;
     internal static readonly MethodInfo CreateChildMethod = typeof(CsEvalContext).GetMethod("CreateChild")!;
     internal static readonly MethodInfo RequireBooleanMethod = typeof(TypeHelpers).GetMethod(nameof(TypeHelpers.RequireBoolean))!;
+    internal static readonly MethodInfo RequireBooleanForLogicalOperatorMethod = typeof(TypeHelpers).GetMethod(nameof(TypeHelpers.RequireBooleanForLogicalOperator))!;
     internal static readonly MethodInfo GetTypeResolverProperty = typeof(CsEvalContext).GetProperty(nameof(CsEvalContext.TypeResolver), BindingFlags.NonPublic | BindingFlags.Instance)!.GetGetMethod(true)!;
     internal static readonly MethodInfo ResolveTypeMethod = typeof(TypeResolver).GetMethod(nameof(TypeResolver.ResolveType))!;
     internal static readonly MethodInfo InvokeConstructorMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.InvokeConstructor))!;

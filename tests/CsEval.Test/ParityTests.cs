@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
+using System.Text.RegularExpressions;
 
 namespace CsEval.Test;
 
@@ -7,6 +8,8 @@ namespace CsEval.Test;
 [TestFixture(CompilationMode.StrictCompiled)]
 public class ParityTests(CompilationMode mode)
 {
+    private static readonly Regex RoslynCodeRegex = new(@"\bCS\d{4}\b", RegexOptions.Compiled);
+
     private CsEvalOptions Options => CsEvalOptions.Default with
     {
         CompilationMode = mode,
@@ -98,14 +101,28 @@ public class ParityTests(CompilationMode mode)
         // Validate error codes match when both have them
         if (csEvalEx is CsEvalException { ErrorCode: not null } csEx)
         {
-            var expectedCode = csEx.FormattedCode; // e.g., "CS0029"
+            var csEvalCode = csEx.FormattedCode; // e.g., "CS0029"
+            var roslynCode = ExtractRoslynErrorCode(roslynEx?.Message);
 
-            // Check if Roslyn error message contains the same CS code
-            if (roslynEx != null && !roslynEx.Message.Contains(expectedCode!))
+            // If Roslyn threw a runtime exception (no compiler code), only require both sides to throw.
+            if (roslynCode == null)
+                return;
+
+            // Check exact code parity for compiler diagnostics.
+            if (!string.Equals(csEvalCode, roslynCode, StringComparison.Ordinal))
             {
-                Assert.Warn($"Error code mismatch: CsEval threw {expectedCode}, but Roslyn error was: {roslynEx.Message}");
+                Assert.Fail($"Error code mismatch: CsEval threw {csEvalCode}, Roslyn threw {roslynCode}. Roslyn error was: {roslynEx?.Message}");
             }
         }
+    }
+
+    private static string? ExtractRoslynErrorCode(string? message)
+    {
+        if (string.IsNullOrWhiteSpace(message))
+            return null;
+
+        var match = RoslynCodeRegex.Match(message);
+        return match.Success ? match.Value : null;
     }
 
     private static bool IsAnonymousType(Type? type) =>

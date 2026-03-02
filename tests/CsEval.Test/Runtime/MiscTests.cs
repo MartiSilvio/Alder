@@ -149,6 +149,37 @@ public class MiscTests(CompilationMode mode)
                 .Or.Contain("not in a correct format"));
     }
 
+    // Dynamic Expresso issue (closed) #351:
+    // https://github.com/dynamicexpresso/DynamicExpresso/issues/351
+    [Test]
+    public void Issue351_TryValidate_PropertyAccessOnRegisteredVariable_HasNoUnknownIdentifierDiagnostics()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        engine.SetVariable("test", new { Name = "abc", Age = 1 });
+
+        var success = engine.TryValidate("test.Name", out var diagnostics);
+
+        Assert.That(success, Is.True);
+        Assert.That(diagnostics, Is.Empty);
+    }
+
+    // Dynamic Expresso issue (closed) #295:
+    // https://github.com/dynamicexpresso/DynamicExpresso/issues/295
+    [Test]
+    public void Issue295_ExpandoStringMember_CanBePassedToStringFunctionWithoutExplicitCast()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        engine.RegisterFunction("PathCombine", args => System.IO.Path.Combine((string)args[0]!, (string)args[1]!));
+
+        dynamic globalSettings = new ExpandoObject();
+        globalSettings.MyTestPath = "C:\\delme\\";
+        engine.SetVariable("GlobalSettings", globalSettings);
+
+        var result = engine.Evaluate("PathCombine(GlobalSettings.MyTestPath, \"test.txt\")");
+
+        Assert.That(result, Is.EqualTo(System.IO.Path.Combine("C:\\delme\\", "test.txt")));
+    }
+
     // Dynamic Expresso issue (closed) #285:
     // https://github.com/dynamicexpresso/DynamicExpresso/issues/285
     [Test]

@@ -53,6 +53,14 @@ public class DiagnosticCodeTests
         Assert.That(ex.Message, Does.Not.Contain("{0}"));
     }
 
+    [Test]
+    public void CS0019_BadBinaryOps_LogicalAnd_IntInt()
+    {
+        var ex = Assert.Throws<CsEvalException>(() => _engine.Evaluate("1 && 1"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0019));
+        Assert.That(ex.FormattedCode, Is.EqualTo("CS0019"));
+    }
+
     // --- CS0021: Cannot apply indexing ---
 
     [Test]
@@ -259,8 +267,7 @@ public class DiagnosticCodeTests
     [Test]
     public void CS0266_ExplicitConversionExists_DirectConstruction()
     {
-        // CS0266 is defined but not yet referenced at any throw site.
-        // Verify the descriptor wiring via direct construction.
+        // Verify descriptor wiring independent of runtime throw paths.
         var ex = new CsEvalException(DiagnosticDescriptors.ExplicitConversionExists, "long", "int");
         Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CS0266));
         Assert.That(ex.FormattedCode, Is.EqualTo("CS0266"));
@@ -268,6 +275,22 @@ public class DiagnosticCodeTests
         Assert.That(ex.Message, Does.Contain("int"));
         Assert.That(ex.Message, Does.Contain("missing a cast"));
         Assert.That(ex.Message, Does.Not.Contain("{0}"));
+    }
+
+    [Test]
+    public void CS0266_ExplicitConversionExists_AssignmentLongToInt()
+    {
+        var ex = Assert.Throws<CsEvalException>(() => _engine.Evaluate("{ int x = 1L; }"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0266));
+        Assert.That(ex.FormattedCode, Is.EqualTo("CS0266"));
+    }
+
+    [Test]
+    public void CS0031_ConstantValueOutOfRange_AssignmentIntToByte()
+    {
+        var ex = Assert.Throws<CsEvalException>(() => _engine.Evaluate("{ byte b = 256; }"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0031));
+        Assert.That(ex.FormattedCode, Is.EqualTo("CS0031"));
     }
 
     // --- CS0815: Cannot assign null to an implicitly-typed variable ---

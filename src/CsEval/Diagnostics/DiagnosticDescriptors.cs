@@ -30,6 +30,10 @@ public static class DiagnosticDescriptors
     public static readonly DiagnosticDescriptor NoExplicitConversion =
         new(DiagnosticCode.CS0030, "Cannot convert type '{0}' to '{1}'");
 
+    /// <summary>CS0031: Constant value '{0}' cannot be converted to a '{1}'</summary>
+    public static readonly DiagnosticDescriptor ConstantValueCannotConvert =
+        new(DiagnosticCode.CS0031, "Constant value '{0}' cannot be converted to a '{1}'");
+
     /// <summary>CS0037: Cannot convert null to '{0}' because it is a non-nullable value type</summary>
     public static readonly DiagnosticDescriptor NullToNonNullable =
         new(DiagnosticCode.CS0037, "Cannot convert null to '{0}' because it is a non-nullable value type");

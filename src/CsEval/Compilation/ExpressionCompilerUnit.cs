@@ -403,8 +403,20 @@ internal sealed class ExpressionCompilerUnit
         var left = Compile(l.Left);
         var right = Compile(l.Right);
 
-        var leftTruthy = LinqExpression.Call(CompilerContext.RequireBooleanMethod, left);
-        var rightTruthy = LinqExpression.Call(CompilerContext.RequireBooleanMethod, right);
+        var opLexeme = l.Op.Lexeme;
+        var leftTypeName = _ctx.TypeInferrer.Infer(l.Left).Name;
+        var rightTypeName = _ctx.TypeInferrer.Infer(l.Right).Name;
+
+        var leftTruthy = LinqExpression.Call(
+            CompilerContext.RequireBooleanForLogicalOperatorMethod,
+            left,
+            LinqExpression.Constant(opLexeme),
+            LinqExpression.Constant(rightTypeName));
+        var rightTruthy = LinqExpression.Call(
+            CompilerContext.RequireBooleanForLogicalOperatorMethod,
+            right,
+            LinqExpression.Constant(opLexeme),
+            LinqExpression.Constant(leftTypeName));
 
         // Short-circuit evaluation
         LinqExpression result = l.Op.Type switch

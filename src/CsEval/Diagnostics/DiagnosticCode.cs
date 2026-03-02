@@ -25,6 +25,9 @@ public enum DiagnosticCode
     /// <summary>Cannot convert type '{0}' to '{1}'</summary>
     CS0030 = 30,
 
+    /// <summary>Constant value '{0}' cannot be converted to a '{1}'</summary>
+    CS0031 = 31,
+
     /// <summary>Cannot convert null to '{0}' because it is a non-nullable value type</summary>
     CS0037 = 37,
 
