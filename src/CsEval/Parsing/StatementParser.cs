@@ -74,8 +74,16 @@ public sealed class StatementParser : ParserBase
         if (Match(TokenType.If))
             return ParseIfStatement();
 
+        // unless (cond) { body } desugars to if (!cond) { body } (Extended mode, Ruby/Perl)
+        if (LanguageMode == LanguageMode.Extended && Match(TokenType.Unless))
+            return ParseUnlessStatement();
+
         if (Match(TokenType.While))
             return ParseWhileStatement();
+
+        // until (cond) { body } desugars to while (!cond) { body } (Extended mode, Ruby/Perl)
+        if (LanguageMode == LanguageMode.Extended && Match(TokenType.Until))
+            return ParseUntilStatement();
 
         if (Match(TokenType.For))
             return ParseForStatement();
@@ -257,6 +265,85 @@ public sealed class StatementParser : ParserBase
         }
 
         return new IfStatementExpr(condition, thenStatements, elseStatements);
+    }
+
+    /// <summary>
+    /// Parses unless (cond) { body } [else { body }] and desugars to if (!cond) { body } [else { body }].
+    /// No new AST nodes needed -- unless is purely a parse-time transformation.
+    /// </summary>
+    private Expr ParseUnlessStatement()
+    {
+        var unlessToken = Previous();
+        Consume(TokenType.LeftParen, "Expected '(' after 'unless'");
+        var condition = _expression.ParseExpression();
+        Consume(TokenType.RightParen, "Expected ')' after unless condition");
+
+        var thenStatements = new List<Expr>();
+        if (Match(TokenType.LeftBrace))
+        {
+            thenStatements = ParseStatementList();
+            Consume(TokenType.RightBrace, "Expected '}' after unless body");
+        }
+        else
+        {
+            var stmt = ParseStatement();
+            if (stmt != null)
+                thenStatements.Add(stmt);
+        }
+
+        List<Expr>? elseStatements = null;
+        if (Match(TokenType.Else))
+        {
+            elseStatements = [];
+            if (Match(TokenType.LeftBrace))
+            {
+                elseStatements = ParseStatementList();
+                Consume(TokenType.RightBrace, "Expected '}' after else body");
+            }
+            else
+            {
+                var stmt = ParseStatement();
+                if (stmt != null)
+                    elseStatements.Add(stmt);
+            }
+        }
+
+        // Desugar: unless (cond) -> if (!cond)
+        var negatedCondition = new UnaryExpr(
+            new Token(TokenType.Bang, "!", null, unlessToken.Line, unlessToken.Column),
+            condition);
+        return new IfStatementExpr(negatedCondition, thenStatements, elseStatements);
+    }
+
+    /// <summary>
+    /// Parses until (cond) { body } and desugars to while (!cond) { body }.
+    /// No new AST nodes needed -- until is purely a parse-time transformation.
+    /// </summary>
+    private Expr ParseUntilStatement()
+    {
+        var untilToken = Previous();
+        Consume(TokenType.LeftParen, "Expected '(' after 'until'");
+        var condition = _expression.ParseExpression();
+        Consume(TokenType.RightParen, "Expected ')' after until condition");
+
+        var body = new List<Expr>();
+        if (Match(TokenType.LeftBrace))
+        {
+            body = ParseStatementList();
+            Consume(TokenType.RightBrace, "Expected '}' after until body");
+        }
+        else
+        {
+            var stmt = ParseStatement();
+            if (stmt != null)
+                body.Add(stmt);
+        }
+
+        // Desugar: until (cond) -> while (!cond)
+        var negatedCondition = new UnaryExpr(
+            new Token(TokenType.Bang, "!", null, untilToken.Line, untilToken.Column),
+            condition);
+        return new WhileStatementExpr(negatedCondition, body);
     }
 
     private Expr ParseSwitchStatement()

@@ -117,6 +117,11 @@ public sealed class ExpressionParser : ParserBase
             Check(TokenType.Using) || Check(TokenType.Lock))
             return true;
 
+        // unless/until are statement keywords in Extended mode (Ruby/Perl)
+        if (State.LanguageMode == LanguageMode.Extended &&
+            (Check(TokenType.Unless) || Check(TokenType.Until)))
+            return true;
+
         // Type keywords are statement keywords ONLY if NOT followed by '.' (for static member access like double.NaN)
         if (IsTypeKeyword(Peek().Type) && PeekNext().Type != TokenType.Dot)
             return true;
