@@ -376,7 +376,8 @@ public static class Operators
     public static bool Contains(object? collection, object? value)
     {
         if (collection == null)
-            throw new CsEvalException("Cannot check containment in null collection");
+            throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, "in",
+                value?.GetType().Name ?? "null", "null");
 
         if (collection is string str && value is string substr)
             return str.Contains(substr);
@@ -387,7 +388,8 @@ public static class Operators
         if (collection is IEnumerable enumerable)
             return enumerable.Cast<object?>().Any(item => (bool)Equals(item, value));
 
-        throw new CsEvalException($"Cannot use 'in' operator with {collection.GetType().Name}");
+        throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, "in",
+            value?.GetType().Name ?? "null", collection.GetType().Name);
     }
 
     public static bool NotContains(object? collection, object? value)
@@ -447,7 +449,8 @@ public static class Operators
 
         int count = Convert.ToInt32(countObj);
         if (count < 0)
-            throw new CsEvalException("String repeat count must be non-negative");
+            throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, "*",
+                left?.GetType().Name ?? "null", right?.GetType().Name ?? "null");
         if (count == 0)
             return "";
 

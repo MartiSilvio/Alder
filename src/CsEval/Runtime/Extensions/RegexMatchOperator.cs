@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using CsEval.Diagnostics;
 
 namespace CsEval.Runtime.Extensions;
 
@@ -14,11 +15,13 @@ public static class RegexMatchOperator
     /// </summary>
     public static bool IsMatch(object? left, object? right)
     {
-        var str = left?.ToString()
-            ?? throw new CsEvalException("Left operand of =~ cannot be null");
-        var pattern = right as string
-            ?? throw new CsEvalException("Right operand of =~ must be a string pattern");
-        return Regex.IsMatch(str, pattern);
+        if (left is null)
+            throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, "=~",
+                "null", right?.GetType().Name ?? "null");
+        if (right is not string pattern)
+            throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, "=~",
+                left.GetType().Name, right?.GetType().Name ?? "null");
+        return Regex.IsMatch(left.ToString()!, pattern);
     }
 
     /// <summary>

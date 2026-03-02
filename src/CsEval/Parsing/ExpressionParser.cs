@@ -511,6 +511,13 @@ public sealed class ExpressionParser : ParserBase
                 expr = new LogicalExpr(geExpr,
                     new Token(TokenType.AmpAmp, "&&", null, betweenToken.Line, betweenToken.Column), leExpr);
             }
+            else if (State.LanguageMode == LanguageMode.Extended
+                     && Match(TokenType.EqualTilde, TokenType.BangTilde, TokenType.LessEqualGreater))
+            {
+                var op = Previous();
+                var right = ParseShift();
+                expr = new BinaryExpr(expr, op, right);
+            }
             // Active rejection in Standard mode for Extended-only operators at operator position.
             // These tokens are contextual keywords that can be used as identifiers in primary
             // expressions; here they appear after an expression (infix position) so they must
@@ -531,6 +538,27 @@ public sealed class ExpressionParser : ParserBase
             {
                 throw new CsEvalLanguageModeException("between",
                     "The 'between' operator is not available in Standard mode. " +
+                    "Use LanguageMode.Extended to enable non-standard syntax extensions.");
+            }
+            else if (State.LanguageMode == LanguageMode.Standard
+                     && Check(TokenType.EqualTilde))
+            {
+                throw new CsEvalLanguageModeException("=~",
+                    "The '=~' operator is not available in Standard mode. " +
+                    "Use LanguageMode.Extended to enable non-standard syntax extensions.");
+            }
+            else if (State.LanguageMode == LanguageMode.Standard
+                     && Check(TokenType.BangTilde))
+            {
+                throw new CsEvalLanguageModeException("!~",
+                    "The '!~' operator is not available in Standard mode. " +
+                    "Use LanguageMode.Extended to enable non-standard syntax extensions.");
+            }
+            else if (State.LanguageMode == LanguageMode.Standard
+                     && Check(TokenType.LessEqualGreater))
+            {
+                throw new CsEvalLanguageModeException("<=>",
+                    "The '<=>' operator is not available in Standard mode. " +
                     "Use LanguageMode.Extended to enable non-standard syntax extensions.");
             }
             else

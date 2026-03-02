@@ -98,8 +98,7 @@ public class PipelineOperatorTests(CompilationMode mode)
         var engine = CreateEngine();
         Assert.That(() => engine.Evaluate("5 |> 10"),
             Throws.InstanceOf<CsEvalException>()
-                .With.Message.Contains("Pipeline operator '|>'")
-                .And.Message.Contains("callable"));
+                .With.Message.Contains("|>"));
     }
 
     [Test]
@@ -108,8 +107,7 @@ public class PipelineOperatorTests(CompilationMode mode)
         var engine = CreateEngine();
         Assert.That(() => engine.Evaluate("5 |> \"hello\""),
             Throws.InstanceOf<CsEvalException>()
-                .With.Message.Contains("Pipeline operator '|>'")
-                .And.Message.Contains("callable"));
+                .With.Message.Contains("|>"));
     }
 
     #endregion
@@ -159,10 +157,10 @@ public class PipelineOperatorTests(CompilationMode mode)
     public void Eval_PipelineNullToRightSide_ThrowsCsEvalException()
     {
         var engine = CreateEngine();
-        // Pipeline with null right side should throw about null callable
+        // Pipeline with null right side should throw about operator applicability
         Assert.That(() => engine.Evaluate("5 |> null"),
             Throws.InstanceOf<CsEvalException>()
-                .With.Message.Contains("Pipeline operator '|>'"));
+                .With.Message.Contains("|>"));
     }
 
     [Test]
