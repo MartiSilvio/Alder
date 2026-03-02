@@ -76,6 +76,7 @@ public abstract class AstWalker<T> : IExprVisitor<T>
         Visit(expr.Target);
         if (expr.Start != null) Visit(expr.Start);
         if (expr.End != null) Visit(expr.End);
+        if (expr.Step != null) Visit(expr.Step);
         return OnLeave(expr);
     }
 
@@ -623,6 +624,31 @@ public abstract class AstWalker<T> : IExprVisitor<T>
         foreach (var index in expr.Indices)
             Visit(index);
         Visit(expr.Value);
+        return OnLeave(expr);
+    }
+
+    // Polyglot Extended Features
+    public virtual T VisitRange(RangeExpr expr)
+    {
+        OnEnter(expr);
+        Visit(expr.Start);
+        Visit(expr.End);
+        return OnLeave(expr);
+    }
+
+    public virtual T VisitPipeline(PipelineExpr expr)
+    {
+        OnEnter(expr);
+        Visit(expr.Left);
+        Visit(expr.Right);
+        return OnLeave(expr);
+    }
+
+    public virtual T VisitChainedComparison(ChainedComparisonExpr expr)
+    {
+        OnEnter(expr);
+        foreach (var operand in expr.Operands)
+            Visit(operand);
         return OnLeave(expr);
     }
 }

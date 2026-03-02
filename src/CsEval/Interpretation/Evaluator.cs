@@ -1759,6 +1759,19 @@ public sealed class Evaluator : IExprVisitor<object?>
     };
 
     #endregion
+
+    #region Polyglot Extended Features (stubs)
+
+    public object? VisitRange(RangeExpr expr) =>
+        throw new NotImplementedException("VisitRange not yet implemented");
+
+    public object? VisitPipeline(PipelineExpr expr) =>
+        throw new NotImplementedException("VisitPipeline not yet implemented");
+
+    public object? VisitChainedComparison(ChainedComparisonExpr expr) =>
+        throw new NotImplementedException("VisitChainedComparison not yet implemented");
+
+    #endregion
 }
 
 /// <summary>

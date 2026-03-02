@@ -120,6 +120,11 @@ public interface IExprVisitor<out T>
     T VisitMultiDimIndexAccess(MultiDimIndexAccessExpr expr);
     T VisitMultiDimTypedArrayCreation(MultiDimTypedArrayCreationExpr expr);
     T VisitMultiDimIndexAssign(MultiDimIndexAssignExpr expr);
+
+    // Polyglot Extended Features
+    T VisitRange(RangeExpr expr);
+    T VisitPipeline(PipelineExpr expr);
+    T VisitChainedComparison(ChainedComparisonExpr expr);
 }
 
 #region Literals
@@ -154,8 +159,8 @@ public sealed record IndexAccessExpr(Expr Object, Expr Index, bool NullSafe = fa
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitIndexAccess(this);
 }
 
-// Slice access: list[1:4], arr[:3], str[2:] (Extended mode only)
-public sealed record SliceExpr(Expr Target, Expr? Start, Expr? End) : Expr
+// Slice access: list[1:4], arr[:3], str[2:], list[0:10:2] (Extended mode only)
+public sealed record SliceExpr(Expr Target, Expr? Start, Expr? End, Expr? Step = null) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitSlice(this);
 }
@@ -631,6 +636,28 @@ public sealed record TupleExpr(List<TupleElement> Elements) : Expr
 public sealed record DeconstructionExpr(List<string> VariableNames, Expr ValueExpression) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitDeconstruction(this);
+}
+
+#endregion
+
+#region Polyglot Extended Features
+
+// Range expression: start..end (inclusive) or start..<end (exclusive)
+public sealed record RangeExpr(Expr Start, Expr End, bool ExclusiveEnd) : Expr
+{
+    public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitRange(this);
+}
+
+// Pipeline expression: expr |> func
+public sealed record PipelineExpr(Expr Left, Expr Right) : Expr
+{
+    public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitPipeline(this);
+}
+
+// Chained comparison: a < b < c desugars to a < b && b < c
+public sealed record ChainedComparisonExpr(List<Expr> Operands, List<Token> Operators) : Expr
+{
+    public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitChainedComparison(this);
 }
 
 #endregion
