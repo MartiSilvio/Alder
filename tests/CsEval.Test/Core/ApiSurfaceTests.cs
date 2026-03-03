@@ -31,6 +31,7 @@ public class ApiSurfaceTests
             "AddAssembly",
             "AddUsing",
             "Compile",
+            "CompileExpression",
             "CompileToFunc",
             "CreateChild",
             "Evaluate",

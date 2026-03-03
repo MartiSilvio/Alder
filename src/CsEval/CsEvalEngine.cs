@@ -336,6 +336,10 @@ public sealed class CsEvalEngine
         {
             null => default,
             T typed => typed,
+            _ when LambdaDelegateConverter.IsSupportedDelegateType(typeof(T)) =>
+                (T)(object)(LambdaDelegateConverter.TryConvert(result, typeof(T))
+                    ?? throw new CsEvalException(
+                        $"Cannot convert {result.GetType().Name} to delegate type '{typeof(T).Name}'")),
             _ => (T)Convert.ChangeType(result, typeof(T))
         };
     }
@@ -505,6 +509,15 @@ public sealed class CsEvalEngine
             diagnostics = [CsEvalDiagnostic.FromException(ex)];
             return false;
         }
+    }
+
+    /// <summary>
+    /// Parses a lambda expression string into an expression tree and compiles it to a native delegate.
+    /// Equivalent to <c>ParseAsExpression&lt;TDelegate&gt;(expression).Compile()</c>.
+    /// </summary>
+    public TDelegate CompileExpression<TDelegate>(string expression) where TDelegate : Delegate
+    {
+        return ParseAsExpression<TDelegate>(expression).Compile();
     }
 
     private Dictionary<string, object?> CollectEngineVariables()

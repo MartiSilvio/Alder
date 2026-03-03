@@ -942,4 +942,148 @@ public class ExpressionTreeTests
     }
 
     #endregion
+
+    #region Evaluate<Func<>> — Delegate Conversion
+
+    [Test]
+    public void Evaluate_Func_ReturnsUsableDelegate()
+    {
+        var doubler = _engine.Evaluate<Func<int, int>>("x => x * 2");
+
+        Assert.That(doubler, Is.Not.Null);
+        Assert.That(doubler!(5), Is.EqualTo(10));
+        Assert.That(doubler(0), Is.EqualTo(0));
+        Assert.That(doubler(-3), Is.EqualTo(-6));
+    }
+
+    [Test]
+    public void Evaluate_Func_MultiParam()
+    {
+        var add = _engine.Evaluate<Func<int, int, int>>("(a, b) => a + b");
+
+        Assert.That(add, Is.Not.Null);
+        Assert.That(add!(3, 4), Is.EqualTo(7));
+        Assert.That(add(0, 0), Is.EqualTo(0));
+        Assert.That(add(-1, 1), Is.EqualTo(0));
+    }
+
+    [Test]
+    public void Evaluate_Func_BoolReturn()
+    {
+        var isPositive = _engine.Evaluate<Func<int, bool>>("x => x > 0");
+
+        Assert.That(isPositive, Is.Not.Null);
+        Assert.That(isPositive!(5), Is.True);
+        Assert.That(isPositive(0), Is.False);
+        Assert.That(isPositive(-1), Is.False);
+    }
+
+    [Test]
+    public void Evaluate_Func_ParameterMismatch_Throws()
+    {
+        Assert.Throws<CsEvalException>(() =>
+            _engine.Evaluate<Func<int, int, int>>("x => x * 2"));
+    }
+
+    #endregion
+
+    #region CompileExpression<TDelegate>
+
+    [Test]
+    public void CompileExpression_ReturnsNativeDelegate()
+    {
+        var greaterThan5 = _engine.CompileExpression<Func<int, bool>>("x => x > 5");
+
+        Assert.That(greaterThan5(10), Is.True);
+        Assert.That(greaterThan5(5), Is.False);
+        Assert.That(greaterThan5(3), Is.False);
+    }
+
+    [Test]
+    public void CompileExpression_MatchesParseAsExpression()
+    {
+        var compiled = _engine.CompileExpression<Func<int, int>>("x => x * x + 1");
+        var fromTree = _engine.ParseAsExpression<Func<int, int>>("x => x * x + 1").Compile();
+
+        for (var i = -5; i <= 5; i++)
+            Assert.That(compiled(i), Is.EqualTo(fromTree(i)));
+    }
+
+    [Test]
+    public void CompileExpression_MultiParam()
+    {
+        var multiply = _engine.CompileExpression<Func<double, double, double>>("(a, b) => a * b");
+
+        Assert.That(multiply(3.0, 4.0), Is.EqualTo(12.0));
+        Assert.That(multiply(0.5, 2.0), Is.EqualTo(1.0));
+    }
+
+    #endregion
+
+    #region IQueryable Integration
+
+    [Test]
+    public void ParseAsExpression_WorksWithIQueryable_Where()
+    {
+        var data = new[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 }.AsQueryable();
+        var predicate = _engine.ParseAsExpression<Func<int, bool>>("x => x > 5");
+
+        var results = data.Where(predicate).ToList();
+
+        Assert.That(results, Is.EqualTo(new[] { 6, 7, 8, 9, 10 }));
+    }
+
+    [Test]
+    public void ParseAsExpression_WorksWithIQueryable_Select()
+    {
+        var data = new[] { 1, 2, 3, 4, 5 }.AsQueryable();
+        var projection = _engine.ParseAsExpression<Func<int, int>>("x => x * x");
+
+        var results = data.Select(projection).ToList();
+
+        Assert.That(results, Is.EqualTo(new[] { 1, 4, 9, 16, 25 }));
+    }
+
+    [Test]
+    public void ParseAsExpression_WorksWithIQueryable_OrderBy()
+    {
+        var data = new[] { 5, 3, 1, 4, 2 }.AsQueryable();
+        var keySelector = _engine.ParseAsExpression<Func<int, int>>("x => x");
+
+        var results = data.OrderBy(keySelector).ToList();
+
+        Assert.That(results, Is.EqualTo(new[] { 1, 2, 3, 4, 5 }));
+    }
+
+    [Test]
+    public void ParseAsExpression_WorksWithIQueryable_ComplexObject()
+    {
+        var people = new[]
+        {
+            new TestPerson { Name = "Alice", Age = 30 },
+            new TestPerson { Name = "Bob", Age = 25 },
+            new TestPerson { Name = "Charlie", Age = 35 },
+            new TestPerson { Name = "Diana", Age = 28 }
+        }.AsQueryable();
+
+        var filter = _engine.ParseAsExpression<Func<TestPerson, bool>>("p => p.Age >= 30");
+        var results = people.Where(filter).Select(p => p.Name).ToList();
+
+        Assert.That(results, Is.EqualTo(new[] { "Alice", "Charlie" }));
+    }
+
+    [Test]
+    public void ParseAsExpression_WorksWithIQueryable_ChainedOperations()
+    {
+        var data = new[] { 10, 3, 7, 1, 8, 5, 2, 9, 4, 6 }.AsQueryable();
+
+        var predicate = _engine.ParseAsExpression<Func<int, bool>>("x => x >= 5");
+        var transform = _engine.ParseAsExpression<Func<int, int>>("x => x * 2");
+
+        var results = data.Where(predicate).OrderBy(x => x).Select(transform).ToList();
+
+        Assert.That(results, Is.EqualTo(new[] { 10, 12, 14, 16, 18, 20 }));
+    }
+
+    #endregion
 }
