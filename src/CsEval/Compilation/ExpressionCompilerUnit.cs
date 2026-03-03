@@ -742,17 +742,18 @@ internal sealed class ExpressionCompilerUnit
         var index = Compile(expr.Index);
         var value = Compile(expr.Value);
 
-        // Use a temp for index since we need it for both the check and the set
         var indexTemp = LinqExpression.Variable(typeof(object), "idx");
+        var valueTemp = LinqExpression.Variable(typeof(object), "val");
         var check = LinqExpression.Call(CompilerContext.CheckAllowIndexSetMethod, _ctx.OptionsParam, indexTemp);
-        var set = LinqExpression.Call(CompilerContext.SetIndexMethod, target, indexTemp, value, _ctx.OptionsParam);
+        var set = LinqExpression.Call(CompilerContext.SetIndexMethod, target, indexTemp, valueTemp, _ctx.OptionsParam);
 
         return LinqExpression.Block(
-            new[] { indexTemp },
+            new[] { indexTemp, valueTemp },
             LinqExpression.Assign(indexTemp, index),
+            LinqExpression.Assign(valueTemp, value),
             check,
             set,
-            value);
+            valueTemp);
     }
 
     internal LinqExpression CompileIncrementDecrement(IncrementDecrementExpr inc)

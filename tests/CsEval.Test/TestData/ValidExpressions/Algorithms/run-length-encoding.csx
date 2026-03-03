@@ -1,9 +1,6 @@
 {
-    // Run-length encoding and decoding
-    // Exercises: string indexing, char comparison, while loops, string interpolation, nested logic
     var input = "AAABBBCCDDDDAAEFFFFF";
 
-    // Encode
     var encoded = "";
     var i = 0;
     while (i < input.Length)
@@ -18,46 +15,36 @@
         i += count;
     }
 
-    // Decode the encoded string back
     var decoded = "";
     var j = 0;
     while (j < encoded.Length)
     {
-        // Parse the number
         var numStr = "";
-        while (j < encoded.Length && encoded[j] >= '0' && encoded[j] <= '9')
+        while (j < encoded.Length && encoded[j].ToString() =~ "^[0-9]$")
         {
             numStr += encoded[j];
             j++;
         }
 
-        // Parse the character
         if (j < encoded.Length)
         {
             var letter = encoded[j];
             j++;
 
-            // Convert numStr to int manually
             var repeat = 0;
-            for (var k = 0; k < numStr.Length; k++)
+            foreach (var k in 0..<numStr.Length)
             {
                 repeat = repeat * 10 + (numStr[k] - '0');
             }
 
-            // Append repeated character
-            for (var k = 0; k < repeat; k++)
-            {
-                decoded += letter;
-            }
+            decoded += letter.ToString() * repeat;
         }
     }
 
-    // Compression ratio
     var originalLen = input.Length;
     var encodedLen = encoded.Length;
     var isCompressed = encodedLen < originalLen;
 
-    // Verify roundtrip
     var roundtripOk = decoded == input;
 
     var result = $"input={input}|encoded={encoded}|decoded={decoded}|";

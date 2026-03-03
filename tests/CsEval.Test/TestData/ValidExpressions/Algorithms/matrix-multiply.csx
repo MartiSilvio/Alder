@@ -1,20 +1,16 @@
 {
-    // Multiply two 3x3 matrices using flat arrays (row-major layout)
-    // Matrix A: [[1,2,3],[4,5,6],[7,8,9]]
-    var a = new[] { 1, 2, 3, 4, 5, 6, 7, 8, 9 };
-    // Matrix B: [[9,8,7],[6,5,4],[3,2,1]]
-    var b = new[] { 9, 8, 7, 6, 5, 4, 3, 2, 1 };
+    var a = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+    var b = [9, 8, 7, 6, 5, 4, 3, 2, 1];
 
     var size = 3;
     var result = new int[9];
 
-    // Triple-nested loop for matrix multiplication
-    for (var i = 0; i < size; i++)
+    foreach (var i in 0..<size)
     {
-        for (var j = 0; j < size; j++)
+        foreach (var j in 0..<size)
         {
             var sum = 0;
-            for (var k = 0; k < size; k++)
+            foreach (var k in 0..<size)
             {
                 sum = sum + a[i * size + k] * b[k * size + j];
             }
@@ -22,13 +18,12 @@
         }
     }
 
-    // Format result matrix as string: "row;row;row" where each row is "v,v,v"
     var output = "";
-    for (var i = 0; i < size; i++)
+    foreach (var i in 0..<size)
     {
         if (i > 0)
             output = output + ";";
-        for (var j = 0; j < size; j++)
+        foreach (var j in 0..<size)
         {
             if (j > 0)
                 output = output + ",";
@@ -36,7 +31,6 @@
         }
     }
 
-    // Verify trace (sum of diagonal elements)
     var trace = result[0] + result[4] + result[8];
     return "matrix:" + output + ",trace:" + trace;
 }

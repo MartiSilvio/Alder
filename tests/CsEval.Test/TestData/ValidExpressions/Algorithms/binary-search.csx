@@ -1,9 +1,7 @@
 {
-    // Binary search with multiple variations
-    var sorted = new[] { 2, 5, 8, 12, 16, 23, 38, 42, 56, 72, 91, 105 };
+    var sorted = [2, 5, 8, 12, 16, 23, 38, 42, 56, 72, 91, 105];
     var result = "";
 
-    // Standard binary search
     var target = 23;
     var low = 0;
     var high = sorted.Length - 1;
@@ -24,7 +22,6 @@
     }
     result += $"found23={foundIndex}|";
 
-    // Search for missing element
     target = 50;
     low = 0;
     high = sorted.Length - 1;
@@ -44,7 +41,6 @@
     }
     result += $"found50={foundIndex}|";
 
-    // Find insertion point (lower bound)
     target = 20;
     low = 0;
     high = sorted.Length;
@@ -58,11 +54,9 @@
     }
     result += $"insertionPoint20={low}|";
 
-    // Count elements in range [10, 50]
     var rangeLow = 10;
     var rangeHigh = 50;
 
-    // Find first >= rangeLow
     low = 0;
     high = sorted.Length;
     while (low < high)
@@ -75,7 +69,6 @@
     }
     var rangeStart = low;
 
-    // Find first > rangeHigh
     low = 0;
     high = sorted.Length;
     while (low < high)
@@ -90,18 +83,16 @@
 
     result += $"countInRange={rangeEnd - rangeStart}|";
 
-    // Verify with linear search
     var linearCount = 0;
-    for (var i = 0; i < sorted.Length; i++)
+    foreach (var i in 0..<sorted.Length)
     {
-        if (sorted[i] >= rangeLow && sorted[i] <= rangeHigh)
+        if (sorted[i] between rangeLow and rangeHigh)
             linearCount++;
     }
     result += $"verified={linearCount == (rangeEnd - rangeStart)}|";
 
-    // Search all elements to verify
     var allFound = true;
-    for (var i = 0; i < sorted.Length; i++)
+    foreach (var i in 0..<sorted.Length)
     {
         target = sorted[i];
         low = 0;

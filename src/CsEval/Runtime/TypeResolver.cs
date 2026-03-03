@@ -46,6 +46,12 @@ internal sealed class TypeResolver
     /// </summary>
     public Type ResolveType(string typeName)
     {
+        if (typeName.EndsWith("[]"))
+        {
+            var elementType = ResolveType(typeName[..^2]);
+            return elementType.MakeArrayType();
+        }
+
         if (typeName.Contains('<'))
             return ResolveGenericType(typeName);
 
@@ -58,6 +64,12 @@ internal sealed class TypeResolver
     /// </summary>
     public Type? TryResolveType(string typeName)
     {
+        if (typeName.EndsWith("[]"))
+        {
+            var elementType = TryResolveType(typeName[..^2]);
+            return elementType?.MakeArrayType();
+        }
+
         if (typeName.Contains('<'))
         {
             try { return ResolveGenericType(typeName); }

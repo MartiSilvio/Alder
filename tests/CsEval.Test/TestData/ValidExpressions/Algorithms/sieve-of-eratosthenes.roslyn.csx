@@ -1,11 +1,15 @@
 {
+    // Sieve of Eratosthenes: find all primes up to 50
+    // Exercises: arrays, nested loops, modulo, boolean logic, string building
     var limit = 50;
     var sieve = new bool[51];
-    foreach (var i in 0..50) sieve[i] = true;
+    for (var i = 0; i < 51; i++) sieve[i] = true;
 
+    // 0 and 1 are not prime
     sieve[0] = false;
     sieve[1] = false;
 
+    // Mark composites
     for (var i = 2; i * i <= limit; i++)
     {
         if (sieve[i])
@@ -17,9 +21,10 @@
         }
     }
 
+    // Collect primes
     var primes = "";
     var primeCount = 0;
-    foreach (var i in 2..limit)
+    for (var i = 2; i <= limit; i++)
     {
         if (sieve[i])
         {
@@ -29,12 +34,14 @@
         }
     }
 
+    // Verify some known primes
     var check2 = sieve[2];
     var check17 = sieve[17];
-    var check49 = sieve[49];
+    var check49 = sieve[49]; // 49 = 7*7, not prime
 
+    // Sum of all primes
     var sum = 0;
-    foreach (var i in 2..limit)
+    for (var i = 2; i <= limit; i++)
     {
         if (sieve[i]) sum += i;
     }

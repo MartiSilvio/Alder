@@ -333,7 +333,17 @@ public sealed class PrimaryParser : ParserBase
             return new MultiDimTypedArrayCreationExpr(typeName, sizes);
         }
         Consume(TokenType.RightBracket, "Expected ']' after array size");
-        return new TypedArrayCreationExpr(typeName, firstSize);
+
+        // Jagged array: new int[3][] or new int[3][][]
+        var jaggedTypeName = typeName;
+        while (Check(TokenType.LeftBracket) && CheckNext(TokenType.RightBracket))
+        {
+            Advance(); // consume '['
+            Advance(); // consume ']'
+            jaggedTypeName += "[]";
+        }
+
+        return new TypedArrayCreationExpr(jaggedTypeName, firstSize);
     }
 
     /// <summary>
