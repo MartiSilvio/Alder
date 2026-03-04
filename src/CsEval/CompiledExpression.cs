@@ -9,14 +9,14 @@ namespace CsEval;
 /// <see cref="Invoke(IDictionary{string, object?}, CancellationToken)"/>.
 /// </summary>
 /// <typeparam name="T">The expected return type of the expression.</typeparam>
-public sealed class CompiledExpression<T>
+public sealed class CsEvalCompiledExpression<T>
 {
     private readonly CompiledExpressionDelegate _delegate;
     private readonly CsEvalEngine _engine;
     private readonly CsEvalOptions _options;
     private readonly Func<MethodInfo, object?[], object?[]>? _argumentTransformer;
 
-    internal CompiledExpression(
+    internal CsEvalCompiledExpression(
         CompiledExpressionDelegate compiledDelegate,
         CsEvalEngine engine,
         CsEvalOptions options,

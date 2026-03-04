@@ -1,4 +1,5 @@
 using System.Reflection;
+using CsEval.Diagnostics;
 using CsEval.Parsing;
 
 namespace CsEval.Test.Core;
@@ -28,22 +29,23 @@ public class ApiSurfaceTests
 
         var expected = new[]
         {
-            "AddAssembly",
-            "AddUsing",
             "Compile",
             "CompileExpression",
             "CompileToFunc",
             "CreateChild",
+            "Dispose",
             "Evaluate",
             "GetRegisteredModules",
             "Parse",
             "ParseAndCompile",
             "ParseAsExpression",
+            "RegisterAssembly",
             "RegisterExtensionMethods",
             "RegisterFromAssembly",
             "RegisterFromType",
             "RegisterFunction",
             "RegisterModule",
+            "RegisterNamespace",
             "SetVariable",
             "SetVariables",
             "TryEvaluate",
@@ -67,11 +69,11 @@ public class ApiSurfaceTests
             .Where(m => m.Name == "Evaluate")
             .ToList();
 
-        Assert.That(overloads, Has.Count.EqualTo(4));
+        Assert.That(overloads, Has.Count.EqualTo(8));
     }
 
     [Test]
-    public void Evaluate_Has2NonGeneric_And2Generic()
+    public void Evaluate_Has4NonGeneric_And4Generic()
     {
         var overloads = typeof(CsEvalEngine)
             .GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
@@ -81,8 +83,8 @@ public class ApiSurfaceTests
         var nonGeneric = overloads.Where(m => !m.IsGenericMethod).ToList();
         var generic = overloads.Where(m => m.IsGenericMethod).ToList();
 
-        Assert.That(nonGeneric, Has.Count.EqualTo(2));
-        Assert.That(generic, Has.Count.EqualTo(2));
+        Assert.That(nonGeneric, Has.Count.EqualTo(4));
+        Assert.That(generic, Has.Count.EqualTo(4));
     }
 
     [Test]
@@ -116,11 +118,13 @@ public class ApiSurfaceTests
     // ----------------------------------------------------------------
 
     [Test]
-    public void CsEvalExpression_Ast_IsPublic()
+    public void CsEvalExpression_Ast_IsInternal()
     {
         var astProp = typeof(CsEvalExpression).GetProperty("Ast", BindingFlags.Public | BindingFlags.Instance);
-        Assert.That(astProp, Is.Not.Null);
-        Assert.That(astProp!.PropertyType, Is.EqualTo(typeof(Expr)));
+        Assert.That(astProp, Is.Null, "Ast should not be public");
+
+        var internalAst = typeof(CsEvalExpression).GetProperty("Ast", BindingFlags.NonPublic | BindingFlags.Instance);
+        Assert.That(internalAst, Is.Not.Null, "Ast should be internal");
     }
 
     [Test]
@@ -169,17 +173,17 @@ public class ApiSurfaceTests
     }
 
     // ----------------------------------------------------------------
-    // CompiledExpression<T> and CompiledExpressionDelegate
+    // CsEvalCompiledExpression<T> and CompiledExpressionDelegate
     // ----------------------------------------------------------------
 
     [Test]
-    public void CompiledExpression_GenericType_Exists_WithInvokeMethods()
+    public void CsEvalCompiledExpression_GenericType_Exists_WithInvokeMethods()
     {
-        var openType = typeof(CompiledExpression<>);
+        var openType = typeof(CsEvalCompiledExpression<>);
         Assert.That(openType, Is.Not.Null);
         Assert.That(openType.IsGenericTypeDefinition, Is.True);
 
-        var closedType = typeof(CompiledExpression<int>);
+        var closedType = typeof(CsEvalCompiledExpression<int>);
         var invokeMethods = closedType
             .GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
             .Where(m => m.Name == "Invoke")
@@ -189,11 +193,12 @@ public class ApiSurfaceTests
     }
 
     [Test]
-    public void CompiledExpressionDelegate_TypeExists()
+    public void CompiledExpressionDelegate_IsInternal()
     {
         var type = typeof(CompiledExpressionDelegate);
         Assert.That(type, Is.Not.Null);
         Assert.That(typeof(Delegate).IsAssignableFrom(type), Is.True);
+        Assert.That(type.IsPublic, Is.False, "CompiledExpressionDelegate should be internal");
     }
 
     // ----------------------------------------------------------------
@@ -350,5 +355,92 @@ public class ApiSurfaceTests
         Assert.That(type.IsPublic, Is.True);
         Assert.That(Enum.GetNames(type), Does.Contain("Error"));
         Assert.That(Enum.GetNames(type), Does.Contain("Warning"));
+    }
+
+    // ----------------------------------------------------------------
+    // Public API surface inventory
+    // ----------------------------------------------------------------
+
+    [Test]
+    public void PublicApiSurface_ContainsOnlyExpectedTypes()
+    {
+        var assembly = typeof(CsEvalEngine).Assembly;
+        var publicTypes = assembly.GetExportedTypes()
+            .Select(t => t.FullName!)
+            .OrderBy(n => n)
+            .ToList();
+
+        var expected = new[]
+        {
+            "CsEval.CsEvalEngine",
+            "CsEval.CsEvalEngine+RegisteredModule",
+            "CsEval.CsEvalException",
+            "CsEval.CsEvalDepthException",
+            "CsEval.CsEvalDiagnostic",
+            "CsEval.CsEvalExecutionLimitException",
+            "CsEval.CsEvalExpression",
+            "CsEval.CsEvalLanguageModeException",
+            "CsEval.CsEvalOptions",
+            "CsEval.CompilationMode",
+            "CsEval.CsEvalCompiledExpression`1",
+            "CsEval.DefaultExpressionCompiler",
+            "CsEval.DiagnosticSeverity",
+            "CsEval.ExecutionConstraints",
+            "CsEval.ExecutionLimitType",
+            "CsEval.IExpressionCompiler",
+            "CsEval.LanguageMode",
+            "CsEval.SandboxOptions",
+            "CsEval.Attributes.CsEvalFunctionAttribute",
+            "CsEval.Attributes.CsEvalModuleAttribute",
+            "CsEval.Diagnostics.DiagnosticCode",
+            "CsEval.Diagnostics.DiagnosticDescriptor",
+            "CsEval.Diagnostics.DiagnosticDescriptors",
+            "CsEval.Parsing.CsEvalLexerException",
+            "CsEval.Parsing.CsEvalParserException",
+        }.OrderBy(n => n).ToList();
+
+        Assert.That(publicTypes, Is.EqualTo(expected),
+            $"Unexpected public types: {string.Join(", ", publicTypes.Except(expected))}\n" +
+            $"Missing expected types: {string.Join(", ", expected.Except(publicTypes))}");
+    }
+
+    [Test]
+    public void ParserTypes_AreNotPublic()
+    {
+        var assembly = typeof(CsEvalEngine).Assembly;
+        var parserTypes = assembly.GetTypes()
+            .Where(t => t.Namespace == "CsEval.Parsing" && t.IsPublic)
+            .Where(t => t.Name != "CsEvalLexerException" && t.Name != "CsEvalParserException")
+            .Select(t => t.Name)
+            .ToList();
+
+        Assert.That(parserTypes, Is.Empty,
+            $"Parser types should be internal: {string.Join(", ", parserTypes)}");
+    }
+
+    [Test]
+    public void RuntimeTypes_AreNotPublic()
+    {
+        var assembly = typeof(CsEvalEngine).Assembly;
+        var runtimeTypes = assembly.GetTypes()
+            .Where(t => t.Namespace?.StartsWith("CsEval.Runtime") == true && t.IsPublic)
+            .Select(t => t.Name)
+            .ToList();
+
+        Assert.That(runtimeTypes, Is.Empty,
+            $"Runtime types should be internal: {string.Join(", ", runtimeTypes)}");
+    }
+
+    [Test]
+    public void InterpretationTypes_AreNotPublic()
+    {
+        var assembly = typeof(CsEvalEngine).Assembly;
+        var interpretationTypes = assembly.GetTypes()
+            .Where(t => t.Namespace?.StartsWith("CsEval.Interpretation") == true && t.IsPublic)
+            .Select(t => t.Name)
+            .ToList();
+
+        Assert.That(interpretationTypes, Is.Empty,
+            $"Interpretation types should be internal: {string.Join(", ", interpretationTypes)}");
     }
 }

@@ -4,7 +4,7 @@ namespace CsEval.Parsing;
 /// Parses pattern grammar (ECMA-334 §11.2).
 /// Handles type, relational, logical (and/or/not), property, var, discard, and constant patterns.
 /// </summary>
-public sealed class PatternParser : ParserBase
+internal sealed class PatternParser : ParserBase
 {
     private ExpressionParser _expression = null!;
 

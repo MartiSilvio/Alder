@@ -5,7 +5,7 @@ using CsEval.Runtime.Extensions;
 
 namespace CsEval.Runtime;
 
-public static class RuntimeHelpers
+internal static class RuntimeHelpers
 {
     public static object? ResolveIdentifier(string name, CsEvalContext context, CsEvalOptions options)
     {

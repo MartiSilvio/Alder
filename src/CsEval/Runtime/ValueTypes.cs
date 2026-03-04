@@ -5,7 +5,7 @@ namespace CsEval.Runtime;
 /// <summary>
 /// Reference to a registered function, used by IL-compiled and interpreted expressions.
 /// </summary>
-public sealed record FunctionRef(string Name, Func<object?[], object?> Function)
+internal sealed record FunctionRef(string Name, Func<object?[], object?> Function)
 {
     public object? Invoke(object?[] args) => Function(args);
 }

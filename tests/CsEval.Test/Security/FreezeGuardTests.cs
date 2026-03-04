@@ -62,23 +62,23 @@ public class FreezeGuardTests
     }
 
     [Test]
-    public void AddAssembly_AfterEvaluate_Throws()
+    public void RegisterAssembly_AfterEvaluate_Throws()
     {
         var engine = CreateFrozenEngine();
 
         var ex = Assert.Throws<InvalidOperationException>(() =>
-            engine.AddAssembly(typeof(object).Assembly));
-        Assert.That(ex!.Message, Does.Contain("AddAssembly"));
+            engine.RegisterAssembly(typeof(object).Assembly));
+        Assert.That(ex!.Message, Does.Contain("RegisterAssembly"));
     }
 
     [Test]
-    public void AddUsing_AfterEvaluate_Throws()
+    public void RegisterNamespace_AfterEvaluate_Throws()
     {
         var engine = CreateFrozenEngine();
 
         var ex = Assert.Throws<InvalidOperationException>(() =>
-            engine.AddUsing("System.IO"));
-        Assert.That(ex!.Message, Does.Contain("AddUsing"));
+            engine.RegisterNamespace("System.IO"));
+        Assert.That(ex!.Message, Does.Contain("RegisterNamespace"));
     }
 
     [Test]

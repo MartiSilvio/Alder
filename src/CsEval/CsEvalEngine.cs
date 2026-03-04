@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Collections.Immutable;
 using System.Linq.Expressions;
 using System.Runtime.CompilerServices;
@@ -10,7 +11,21 @@ using CsEval.Runtime;
 
 namespace CsEval;
 
-public sealed class CsEvalEngine
+/// <summary>
+/// The main entry point for CsEval expression evaluation.
+/// </summary>
+/// <remarks>
+/// <para><b>Thread Safety:</b></para>
+/// <para>Configuration methods (RegisterModule, RegisterFunction, RegisterAssembly, RegisterNamespace,
+/// SetVariable before first evaluation, etc.) are NOT thread-safe and must be called before the first
+/// Evaluate() call. After the first evaluation, the engine configuration is frozen.</para>
+/// <para>Evaluate, Parse, Compile, TryValidate, and related methods are thread-safe and can be
+/// called concurrently from multiple threads after the engine is frozen.</para>
+/// <para>SetVariable is thread-safe during the evaluation phase.</para>
+/// <para>Child engines created via CreateChild() can be evaluated concurrently with the parent
+/// and with each other.</para>
+/// </remarks>
+public sealed class CsEvalEngine : IDisposable
 {
     private readonly Dictionary<string, Func<object?[], object?>> _functions;
     private readonly CsEvalOptions _options;
@@ -20,12 +35,26 @@ public sealed class CsEvalEngine
     private readonly List<string> _usingNamespaces = [];
     private readonly TypeCache _typeCache;
     private readonly ExpressionCache _expressionCache;
-    private readonly Dictionary<string, object?> _pendingVariables;
+    private readonly ConcurrentDictionary<string, object?> _pendingVariables;
 
     private CsEvalConfig? _frozenConfig;
     private CsEvalContext? _context;
+    private bool _disposed;
 
     public Func<MethodInfo, object?[], object?[]>? ArgumentTransformer { get; set; }
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        _expressionCache.Clear();
+        _typeCache.Clear();
+    }
+
+    private void ThrowIfDisposed()
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+    }
 
     public CsEvalEngine() : this(CsEvalOptions.Default)
     {
@@ -37,7 +66,7 @@ public sealed class CsEvalEngine
         _typeCache = new TypeCache(_options.ExpressionCompiler);
         _expressionCache = new ExpressionCache();
         _functions = new Dictionary<string, Func<object?[], object?>>(options.StringComparer);
-        _pendingVariables = new Dictionary<string, object?>(options.StringComparer);
+        _pendingVariables = new ConcurrentDictionary<string, object?>(options.StringComparer);
         _extensionTypes.Add(typeof(Enumerable));
         RegisterBuiltInModules();
     }
@@ -54,7 +83,7 @@ public sealed class CsEvalEngine
         _typeCache = frozenConfig.TypeCache;
         _expressionCache = expressionCache;
         _functions = new Dictionary<string, Func<object?[], object?>>(frozenConfig.Functions, options.StringComparer);
-        _pendingVariables = new Dictionary<string, object?>(options.StringComparer);
+        _pendingVariables = new ConcurrentDictionary<string, object?>(options.StringComparer);
         _extensionTypes = [..frozenConfig.ExtensionTypes];
         _registeredTypes = [];
     }
@@ -96,11 +125,16 @@ public sealed class CsEvalEngine
         var config = GetOrCreateConfig();
         var newContext = new CsEvalContext(config, serviceProvider);
 
-        foreach (var (name, value) in _pendingVariables)
+        // Snapshot and clear atomically -- individual ConcurrentDictionary ops are
+        // thread-safe but the combination must not lose entries added between ToArray/Clear.
+        KeyValuePair<string, object?>[] pending;
+        lock (_pendingVariables)
         {
-            newContext.Define(name, value);
+            pending = _pendingVariables.ToArray();
+            _pendingVariables.Clear();
         }
-        _pendingVariables.Clear();
+        foreach (var (name, value) in pending)
+            newContext.Define(name, value);
 
         Interlocked.CompareExchange(ref _context, newContext, null);
         return _context!;
@@ -108,6 +142,7 @@ public sealed class CsEvalEngine
 
     public CsEvalExpression Parse(string expression)
     {
+        ThrowIfDisposed();
         try
         {
             var lexer = new Lexer(expression);
@@ -126,6 +161,7 @@ public sealed class CsEvalEngine
 
     public bool TryParse(string expression, out CsEvalExpression? result, out string? error)
     {
+        ThrowIfDisposed();
         try
         {
             result = Parse(expression);
@@ -151,6 +187,7 @@ public sealed class CsEvalEngine
         IServiceProvider? serviceProvider = null,
         CancellationToken cancellationToken = default)
     {
+        ThrowIfDisposed();
         var parsed = Parse(expression);
         return Evaluate(parsed, variables, serviceProvider, cancellationToken);
     }
@@ -161,6 +198,7 @@ public sealed class CsEvalEngine
         IServiceProvider? serviceProvider = null,
         CancellationToken cancellationToken = default)
     {
+        ThrowIfDisposed();
         var target = this;
         if (variables != null)
         {
@@ -203,6 +241,20 @@ public sealed class CsEvalEngine
         return evaluator.Evaluate(expression.Ast);
     }
 
+    public object? Evaluate(
+        string expression,
+        object variables,
+        IServiceProvider? serviceProvider = null,
+        CancellationToken cancellationToken = default)
+        => Evaluate(expression, ToVariableDictionary(variables), serviceProvider, cancellationToken);
+
+    public object? Evaluate(
+        CsEvalExpression expression,
+        object variables,
+        IServiceProvider? serviceProvider = null,
+        CancellationToken cancellationToken = default)
+        => Evaluate(expression, ToVariableDictionary(variables), serviceProvider, cancellationToken);
+
     public T? Evaluate<T>(
         string expression,
         IDictionary<string, object?>? variables = null,
@@ -223,6 +275,20 @@ public sealed class CsEvalEngine
         return ConvertResult<T>(result);
     }
 
+    public T? Evaluate<T>(
+        string expression,
+        object variables,
+        IServiceProvider? serviceProvider = null,
+        CancellationToken cancellationToken = default)
+        => ConvertResult<T>(Evaluate(expression, ToVariableDictionary(variables), serviceProvider, cancellationToken));
+
+    public T? Evaluate<T>(
+        CsEvalExpression expression,
+        object variables,
+        IServiceProvider? serviceProvider = null,
+        CancellationToken cancellationToken = default)
+        => ConvertResult<T>(Evaluate(expression, ToVariableDictionary(variables), serviceProvider, cancellationToken));
+
     /// <summary>
     /// Evaluates an expression without throwing exceptions.
     /// Returns true if evaluation succeeded, false otherwise.
@@ -234,6 +300,7 @@ public sealed class CsEvalEngine
         IServiceProvider? serviceProvider = null,
         CancellationToken cancellationToken = default)
     {
+        ThrowIfDisposed();
         try
         {
             result = Evaluate(expression, variables, serviceProvider, cancellationToken);
@@ -257,6 +324,7 @@ public sealed class CsEvalEngine
         IServiceProvider? serviceProvider = null,
         CancellationToken cancellationToken = default)
     {
+        ThrowIfDisposed();
         try
         {
             result = Evaluate<T>(expression, variables, serviceProvider, cancellationToken);
@@ -276,6 +344,7 @@ public sealed class CsEvalEngine
     /// </summary>
     public bool TryValidate(string expression, out IReadOnlyList<CsEvalDiagnostic> diagnostics)
     {
+        ThrowIfDisposed();
         Expr ast;
         try
         {
@@ -344,23 +413,33 @@ public sealed class CsEvalEngine
         };
     }
 
+    private static Dictionary<string, object?> ToVariableDictionary(object obj)
+    {
+        var dict = new Dictionary<string, object?>();
+        foreach (var prop in obj.GetType().GetProperties(BindingFlags.Public | BindingFlags.Instance))
+            dict[prop.Name] = prop.GetValue(obj);
+        return dict;
+    }
+
     public CsEvalExpression ParseAndCompile(string expression)
     {
+        ThrowIfDisposed();
         var expr = Parse(expression);
         expr.TryCompile(_options);
         return expr;
     }
 
     /// <summary>
-    /// Compiles an expression and returns a <see cref="CompiledExpression{T}"/> that can be invoked
+    /// Compiles an expression and returns a <see cref="CsEvalCompiledExpression{T}"/> that can be invoked
     /// repeatedly without engine dispatch overhead. Throws if the expression cannot be compiled.
     /// </summary>
     /// <typeparam name="T">The expected return type of the expression.</typeparam>
     /// <param name="expression">The expression string to compile.</param>
     /// <returns>A compiled expression wrapper for repeated invocation.</returns>
     /// <exception cref="InvalidOperationException">Thrown when the expression cannot be compiled to IL.</exception>
-    public CompiledExpression<T> Compile<T>(string expression)
+    public CsEvalCompiledExpression<T> Compile<T>(string expression)
     {
+        ThrowIfDisposed();
         var parsed = Parse(expression);
         if (!parsed.TryCompile(_options))
         {
@@ -370,17 +449,17 @@ public sealed class CsEvalEngine
         }
 
         var compiledDelegate = parsed.GetCompiledInfo()!.Delegate!;
-        return new CompiledExpression<T>(compiledDelegate, this, _options, ArgumentTransformer);
+        return new CsEvalCompiledExpression<T>(compiledDelegate, this, _options, ArgumentTransformer);
     }
 
     /// <summary>
-    /// Compiles an expression and returns a <see cref="CompiledExpression{T}"/> with object? result type.
+    /// Compiles an expression and returns a <see cref="CsEvalCompiledExpression{T}"/> with object? result type.
     /// Throws if the expression cannot be compiled.
     /// </summary>
     /// <param name="expression">The expression string to compile.</param>
     /// <returns>A compiled expression wrapper for repeated invocation.</returns>
     /// <exception cref="InvalidOperationException">Thrown when the expression cannot be compiled to IL.</exception>
-    public CompiledExpression<object?> Compile(string expression) => Compile<object?>(expression);
+    public CsEvalCompiledExpression<object?> Compile(string expression) => Compile<object?>(expression);
 
     /// <summary>
     /// Compiles an expression and returns a <see cref="Func{T}"/> for zero-overhead hot-path invocation.
@@ -393,6 +472,7 @@ public sealed class CsEvalEngine
     /// <exception cref="InvalidOperationException">Thrown when the expression cannot be compiled to IL.</exception>
     public Func<T?> CompileToFunc<T>(string expression)
     {
+        ThrowIfDisposed();
         var compiled = Compile<T>(expression);
         return () => compiled.Invoke();
     }
@@ -411,6 +491,7 @@ public sealed class CsEvalEngine
     public Expression<TDelegate> ParseAsExpression<TDelegate>(string expression)
         where TDelegate : Delegate
     {
+        ThrowIfDisposed();
         try
         {
             var delegateType = typeof(TDelegate);
@@ -497,6 +578,7 @@ public sealed class CsEvalEngine
         out IReadOnlyList<CsEvalDiagnostic> diagnostics)
         where TDelegate : Delegate
     {
+        ThrowIfDisposed();
         try
         {
             result = ParseAsExpression<TDelegate>(expression);
@@ -517,6 +599,7 @@ public sealed class CsEvalEngine
     /// </summary>
     public TDelegate CompileExpression<TDelegate>(string expression) where TDelegate : Delegate
     {
+        ThrowIfDisposed();
         return ParseAsExpression<TDelegate>(expression).Compile();
     }
 
@@ -525,7 +608,7 @@ public sealed class CsEvalEngine
         var variables = new Dictionary<string, object?>(_options.StringComparer);
 
         // Collect from pending variables (not yet materialized into context)
-        foreach (var (name, value) in _pendingVariables)
+        foreach (var (name, value) in _pendingVariables.ToArray())
         {
             variables[name] = value;
         }
@@ -543,13 +626,14 @@ public sealed class CsEvalEngine
     }
 
     /// <summary>
-    /// Exposes the engine's evaluation context for use by <see cref="CompiledExpression{T}"/>.
+    /// Exposes the engine's evaluation context for use by <see cref="CsEvalCompiledExpression{T}"/>.
     /// The context is captured by reference so that variable changes after compilation are visible.
     /// </summary>
     internal CsEvalContext GetContextForCompiled() => GetOrCreateContext(null);
 
     public CsEvalEngine CreateChild()
     {
+        ThrowIfDisposed();
         var config = GetOrCreateConfig();
         var parentContext = GetOrCreateContext(null);
         return new CsEvalEngine(config, parentContext, _options, _expressionCache);
@@ -659,14 +743,14 @@ public sealed class CsEvalEngine
         return this;
     }
 
-    public CsEvalEngine AddAssembly(Assembly assembly)
+    public CsEvalEngine RegisterAssembly(Assembly assembly)
     {
         EnsureNotFrozen();
         _assemblies.Add(assembly);
         return this;
     }
 
-    public CsEvalEngine AddUsing(string namespaceName)
+    public CsEvalEngine RegisterNamespace(string namespaceName)
     {
         EnsureNotFrozen();
         _usingNamespaces.Add(namespaceName);
@@ -781,9 +865,6 @@ public sealed class CsEvalEngine
 
         return result;
     }
-
-
-
 
 
     private static bool IsAsyncMethod(MethodInfo method)

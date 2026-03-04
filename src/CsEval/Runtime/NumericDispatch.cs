@@ -6,7 +6,7 @@ namespace CsEval.Runtime;
 /// Fast numeric operator dispatch without dynamic.
 /// Implements ECMA-334 §12.4.7.3 binary numeric promotion rules.
 /// </summary>
-public static class NumericDispatch
+internal static class NumericDispatch
 {
     public delegate object BinaryOp(object left, object right);
     public delegate object UnaryOp(object value);

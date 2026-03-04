@@ -7,7 +7,7 @@ namespace CsEval.Runtime.Extensions;
 /// Each middle operand is evaluated exactly once. Short-circuits on first false.
 /// Inspired by Python/Julia mathematical comparison chaining.
 /// </summary>
-public static class ChainedComparisonHelper
+internal static class ChainedComparisonHelper
 {
     /// <summary>
     /// Performs a pairwise comparison using the specified operator token type.

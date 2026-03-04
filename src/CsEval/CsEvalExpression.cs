@@ -10,15 +10,12 @@ namespace CsEval;
 /// </summary>
 public sealed class CsEvalExpression
 {
-    /// <summary>
-    /// The parsed AST for this expression. Enables walking/analysis by consumers.
-    /// </summary>
-    public Expr Ast { get; }
+    internal Expr Ast { get; }
 
     /// <summary>
     /// The original expression string.
     /// </summary>
-    public string Expression { get; }
+    public string Source { get; }
 
     // Compilation state (volatile for thread-safe reads)
     private volatile CompiledExpressionInfo? _compiledInfo;
@@ -30,7 +27,7 @@ public sealed class CsEvalExpression
 
     internal CsEvalExpression(string expression, Expr ast, ExpressionCache? expressionCache)
     {
-        Expression = expression;
+        Source = expression;
         Ast = ast;
         _expressionCache = expressionCache;
     }
@@ -60,7 +57,7 @@ public sealed class CsEvalExpression
             return _compiledInfo.Delegate != null;
 
         var info = _expressionCache != null ?
-            ILExpressionCompiler.GetOrCompile(Expression, Ast, _expressionCache) :
+            ILExpressionCompiler.GetOrCompile(Source, Ast, _expressionCache) :
             ILExpressionCompiler.TryCompile(Ast);
 
         _compiledInfo = info;
@@ -73,7 +70,7 @@ public sealed class CsEvalExpression
             return _compiledInfo.Delegate != null;
 
         var info = _expressionCache != null ?
-            ILExpressionCompiler.GetOrCompile(Expression, Ast, _expressionCache, options) :
+            ILExpressionCompiler.GetOrCompile(Source, Ast, _expressionCache, options) :
             ILExpressionCompiler.TryCompile(Ast, options);
 
         _compiledInfo = info;
@@ -89,7 +86,7 @@ public sealed class CsEvalExpression
         if (!TryCompile())
         {
             throw new InvalidOperationException(
-                $"Cannot compile expression '{Expression}': {_compiledInfo?.FailureReason ?? "Unknown reason"}");
+                $"Cannot compile expression '{Source}': {_compiledInfo?.FailureReason ?? "Unknown reason"}");
         }
     }
 
@@ -115,7 +112,7 @@ public sealed class CsEvalExpression
 /// <param name="cancellationToken">Cancellation token for cooperative cancellation.</param>
 /// <param name="argumentTransformer">Optional argument transformer for method calls.</param>
 /// <returns>The evaluated result.</returns>
-public delegate object? CompiledExpressionDelegate(
+internal delegate object? CompiledExpressionDelegate(
     CsEvalContext context,
     CsEvalOptions options,
     CancellationToken cancellationToken,
@@ -127,7 +124,7 @@ public delegate object? CompiledExpressionDelegate(
 /// <param name="Delegate">The compiled delegate, or null if compilation failed.</param>
 /// <param name="IsCompilable">Whether the expression can be compiled.</param>
 /// <param name="FailureReason">The reason compilation failed, or null if it succeeded.</param>
-public record CompiledExpressionInfo(
+internal record CompiledExpressionInfo(
     CompiledExpressionDelegate? Delegate,
     bool IsCompilable,
     string? FailureReason);

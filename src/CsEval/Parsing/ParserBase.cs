@@ -24,7 +24,7 @@ internal sealed class ParserState
 /// Abstract base for all parser classes. Provides shared token stream utilities
 /// (Match, Check, Advance, Peek, Consume, etc.) backed by a shared ParserState.
 /// </summary>
-public abstract class ParserBase
+internal abstract class ParserBase
 {
     private protected readonly ParserState State;
 

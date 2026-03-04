@@ -233,6 +233,33 @@ public class LexerTests
 
     #endregion
 
+    #region Exponent Validation
+
+    [TestCase("1e+", TestName = "ExponentPlusNoDigits")]
+    [TestCase("1e-", TestName = "ExponentMinusNoDigits")]
+    [TestCase(".5e+", TestName = "LeadingDecimalExponentPlusNoDigits")]
+    [TestCase(".5e-", TestName = "LeadingDecimalExponentMinusNoDigits")]
+    public void Tokenize_InvalidExponent_Throws(string input)
+    {
+        var lexer = new Lexer(input);
+        Assert.Throws<CsEvalLexerException>(() => lexer.Tokenize());
+    }
+
+    [TestCase("1e10", 1e10, TestName = "ExponentNoSign")]
+    [TestCase("1e+10", 1e+10, TestName = "ExponentPlusDigits")]
+    [TestCase("1.5E-3", 1.5E-3, TestName = "ExponentMinusDigits")]
+    [TestCase(".5e2", .5e2, TestName = "LeadingDecimalExponent")]
+    public void Tokenize_ValidExponent_ReturnsCorrectValue(string input, double expected)
+    {
+        var lexer = new Lexer(input);
+        var tokens = lexer.Tokenize();
+
+        Assert.That(tokens[0].Type, Is.EqualTo(TokenType.Number));
+        Assert.That(tokens[0].Literal, Is.EqualTo(expected));
+    }
+
+    #endregion
+
     #region Hex and Binary Literals
 
     [TestCase("0xFF", 255, TestName = "HexFF")]

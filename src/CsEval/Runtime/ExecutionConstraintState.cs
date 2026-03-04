@@ -6,7 +6,7 @@ namespace CsEval.Runtime;
 /// Mutable state tracking execution constraints during a single Evaluate() call.
 /// Created/reset at evaluation start, shared across nested evaluations via CsEvalContext.
 /// </summary>
-public sealed class ExecutionConstraintState
+internal sealed class ExecutionConstraintState
 {
     public long StatementCount;
     public Stopwatch? Timer;

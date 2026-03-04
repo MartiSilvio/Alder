@@ -4,7 +4,7 @@ namespace CsEval.Parsing;
 /// Base class for AST visitors that need to traverse all nodes.
 /// Handles traversal automatically - subclasses just override to add behavior.
 /// </summary>
-public abstract class AstWalker<T> : IExprVisitor<T>
+internal abstract class AstWalker<T> : IExprVisitor<T>
 {
     protected abstract T DefaultValue { get; }
 

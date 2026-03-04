@@ -7,7 +7,7 @@ namespace CsEval.Runtime.Extensions;
 /// Regex match operators: =~ (match) and !~ (negated match).
 /// Inspired by Ruby/Perl regex match syntax.
 /// </summary>
-public static class RegexMatchOperator
+internal static class RegexMatchOperator
 {
     /// <summary>
     /// Returns true if the string representation of <paramref name="left"/> matches the regex

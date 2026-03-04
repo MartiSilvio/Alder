@@ -1,6 +1,6 @@
 namespace CsEval.Parsing;
 
-public sealed class Lexer
+internal sealed class Lexer
 {
     private readonly string _source;
     private readonly List<Token> _tokens = [];
@@ -716,6 +716,8 @@ public sealed class Lexer
                 Advance(); // consume 'e' or 'E'
                 if (Peek() == '+' || Peek() == '-')
                     Advance(); // consume sign
+                if (!char.IsDigit(Peek()))
+                    throw new CsEvalLexerException($"Invalid exponent: expected digit after sign at {_line}:{_column}");
                 ScanDigitsWithSeparators(char.IsDigit);
             }
         }
@@ -734,11 +736,11 @@ public sealed class Lexer
             NumericSuffix.Long => ParseLongLiteral(numberText),
             NumericSuffix.ULong => ulong.Parse(numberText),
             NumericSuffix.UInt => uint.Parse(numberText),
-            NumericSuffix.Float => float.Parse(numberText),
-            NumericSuffix.Double => double.Parse(numberText),
+            NumericSuffix.Float => float.Parse(numberText, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture),
+            NumericSuffix.Double => double.Parse(numberText, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture),
             NumericSuffix.Decimal => decimal.Parse(numberText, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture),
             NumericSuffix.None => isFloatingPoint
-                ? double.Parse(numberText)
+                ? double.Parse(numberText, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture)
                 : ParseIntegerWithPromotion(numberText),
             _ => throw new CsEvalLexerException($"Unknown numeric suffix at {_line}:{_column}")
         };
@@ -764,6 +766,8 @@ public sealed class Lexer
                 Advance(); // consume 'e' or 'E'
                 if (Peek() == '+' || Peek() == '-')
                     Advance(); // consume sign
+                if (!char.IsDigit(Peek()))
+                    throw new CsEvalLexerException($"Invalid exponent: expected digit after sign at {_line}:{_column}");
                 ScanDigitsWithSeparators(char.IsDigit);
             }
         }
@@ -773,10 +777,10 @@ public sealed class Lexer
 
         object value = suffix switch
         {
-            NumericSuffix.Float => float.Parse(numberText),
-            NumericSuffix.Double => double.Parse(numberText),
+            NumericSuffix.Float => float.Parse(numberText, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture),
+            NumericSuffix.Double => double.Parse(numberText, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture),
             NumericSuffix.Decimal => decimal.Parse(numberText, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture),
-            NumericSuffix.None => double.Parse(numberText),
+            NumericSuffix.None => double.Parse(numberText, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture),
             _ => throw new CsEvalLexerException($"Invalid suffix for decimal literal at {_line}:{_column}")
         };
 

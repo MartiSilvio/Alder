@@ -8,7 +8,7 @@ namespace CsEval.Runtime;
 /// Once created, this configuration is thread-safe and can be shared across multiple threads.
 /// Uses FrozenDictionary for optimal read performance on immutable data.
 /// </summary>
-public sealed class CsEvalConfig
+internal sealed class CsEvalConfig
 {
     public FrozenDictionary<string, Func<object?[], object?>> Functions { get; }
     internal FrozenDictionary<string, ModuleInfo> Modules { get; }

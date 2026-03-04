@@ -6,7 +6,7 @@ namespace CsEval.Parsing;
 /// Parses statements: if, while, for, do-while, foreach, switch, try/catch/finally,
 /// variable declarations, return, break, continue, and block expressions.
 /// </summary>
-public sealed class StatementParser : ParserBase
+internal sealed class StatementParser : ParserBase
 {
     private ExpressionParser _expression = null!;
     private PatternParser _pattern = null!;

@@ -12,7 +12,7 @@ public class ExpressionCachingTests(CompilationMode mode)
         var expression = engine.Parse("1 + 2");
 
         Assert.That(expression, Is.Not.Null);
-        Assert.That(expression.Expression, Is.EqualTo("1 + 2"));
+        Assert.That(expression.Source, Is.EqualTo("1 + 2"));
     }
 
     [Test]

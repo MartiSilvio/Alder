@@ -10,7 +10,7 @@ namespace CsEval.Runtime;
 /// Unified type resolution with Roslyn-inspired precedence:
 /// 1. Built-in type keywords (int, string, bool, etc.)
 /// 2. Implicit BCL imports (List, Dictionary, Task, etc.) when enabled
-/// 3. Explicit namespace imports (from AddUsing)
+/// 3. Explicit namespace imports (from RegisterNamespace)
 /// 4. Fully qualified name against registered assemblies
 /// 5. FAIL with clear error
 /// </summary>

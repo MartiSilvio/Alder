@@ -1,11 +1,11 @@
 namespace CsEval.Parsing;
 
-public abstract record Expr
+internal abstract record Expr
 {
     public abstract T Accept<T>(IExprVisitor<T> visitor);
 }
 
-public interface IExprVisitor<out T>
+internal interface IExprVisitor<out T>
 {
     // Literals
     T VisitLiteral(LiteralExpr expr);
@@ -132,7 +132,7 @@ public interface IExprVisitor<out T>
 // Literals: 42, "hello", true, null
 // IsConstant: true for parsed literal tokens, enabling ECMA-334 §10.2.11
 // implicit constant expression conversions in binary numeric promotion.
-public sealed record LiteralExpr(object? Value, bool IsConstant = false) : Expr
+internal sealed record LiteralExpr(object? Value, bool IsConstant = false) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitLiteral(this);
 }
@@ -142,31 +142,31 @@ public sealed record LiteralExpr(object? Value, bool IsConstant = false) : Expr
 #region Identifiers & Access
 
 // Identifier: foo, bar
-public sealed record IdentifierExpr(Token Name) : Expr
+internal sealed record IdentifierExpr(Token Name) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitIdentifier(this);
 }
 
 // Member access: obj.Property, obj?.Property
-public sealed record MemberAccessExpr(Expr Object, Token Name, bool NullSafe) : Expr
+internal sealed record MemberAccessExpr(Expr Object, Token Name, bool NullSafe) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitMemberAccess(this);
 }
 
 // Index access: arr[0], dict["key"], arr?[0] (null-safe)
-public sealed record IndexAccessExpr(Expr Object, Expr Index, bool NullSafe = false) : Expr
+internal sealed record IndexAccessExpr(Expr Object, Expr Index, bool NullSafe = false) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitIndexAccess(this);
 }
 
 // Slice access: list[1:4], arr[:3], str[2:], list[0:10:2] (Extended mode only)
-public sealed record SliceExpr(Expr Target, Expr? Start, Expr? End, Expr? Step = null) : Expr
+internal sealed record SliceExpr(Expr Target, Expr? Start, Expr? End, Expr? Step = null) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitSlice(this);
 }
 
 // Type reference for static member access: double.NaN, int.MaxValue
-public sealed record TypeReferenceExpr(Token TypeToken) : Expr
+internal sealed record TypeReferenceExpr(Token TypeToken) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitTypeReference(this);
 }
@@ -176,38 +176,38 @@ public sealed record TypeReferenceExpr(Token TypeToken) : Expr
 #region Operators
 
 // Unary: -x, +x, !x, ~x
-public sealed record UnaryExpr(Token Op, Expr Right) : Expr
+internal sealed record UnaryExpr(Token Op, Expr Right) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitUnary(this);
 }
 
 // Binary: x + y, x * y, x == y, etc.
-public sealed record BinaryExpr(Expr Left, Token Op, Expr Right) : Expr
+internal sealed record BinaryExpr(Expr Left, Token Op, Expr Right) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitBinary(this);
 }
 
 // Logical: x && y, x || y
-public sealed record LogicalExpr(Expr Left, Token Op, Expr Right) : Expr
+internal sealed record LogicalExpr(Expr Left, Token Op, Expr Right) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitLogical(this);
 }
 
 // Cast: (int)x, (double)y
-public sealed record CastExpr(Token TargetType, Expr Expression) : Expr
+internal sealed record CastExpr(Token TargetType, Expr Expression) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitCast(this);
 }
 
 // Is pattern: x is <pattern> -- unified pattern matching via Pattern hierarchy
 // ECMA-334 §11.2: all 'is' expressions use patterns
-public sealed record IsPatternExpr(Expr Expression, Pattern Pattern) : Expr
+internal sealed record IsPatternExpr(Expr Expression, Pattern Pattern) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitIsPattern(this);
 }
 
 // As: x as string (safe cast)
-public sealed record AsExpr(Expr Expression, Token TargetType) : Expr
+internal sealed record AsExpr(Expr Expression, Token TargetType) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitAs(this);
 }
@@ -217,73 +217,73 @@ public sealed record AsExpr(Expr Expression, Token TargetType) : Expr
 #region Assignment
 
 // Assignment: x = y
-public sealed record AssignExpr(Token Name, Expr Value) : Expr
+internal sealed record AssignExpr(Token Name, Expr Value) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitAssign(this);
 }
 
 // Null coalesce assignment: x ??= y
-public sealed record NullCoalesceAssignExpr(Token Name, Expr Value) : Expr
+internal sealed record NullCoalesceAssignExpr(Token Name, Expr Value) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitNullCoalesceAssign(this);
 }
 
 // Compound assignment: x += y, x -= y, x *= y, etc.
-public sealed record CompoundAssignExpr(Token Name, Token Op, Expr Value) : Expr
+internal sealed record CompoundAssignExpr(Token Name, Token Op, Expr Value) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitCompoundAssign(this);
 }
 
 // ECMA-334 §12.21.4 - Compound assignment on member access: obj.Prop += value
-public sealed record MemberCompoundAssignExpr(Expr Object, string MemberName, TokenType Operator, Expr Value) : Expr
+internal sealed record MemberCompoundAssignExpr(Expr Object, string MemberName, TokenType Operator, Expr Value) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitMemberCompoundAssign(this);
 }
 
 // ECMA-334 §12.21.4 - Compound assignment on index access: arr[i] += value
-public sealed record IndexCompoundAssignExpr(Expr Object, Expr Index, TokenType Operator, Expr Value) : Expr
+internal sealed record IndexCompoundAssignExpr(Expr Object, Expr Index, TokenType Operator, Expr Value) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitIndexCompoundAssign(this);
 }
 
 // Increment/Decrement: ++x, x++, --x, x--
-public sealed record IncrementDecrementExpr(Token Name, Token Op, bool IsPrefix) : Expr
+internal sealed record IncrementDecrementExpr(Token Name, Token Op, bool IsPrefix) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitIncrementDecrement(this);
 }
 
 // ECMA-334 §12.8.15/§12.9.6 - Increment/decrement on member access: obj.Count++, ++obj.Count
-public sealed record MemberIncrementExpr(Expr Object, string MemberName, bool IsPrefix, bool IsIncrement) : Expr
+internal sealed record MemberIncrementExpr(Expr Object, string MemberName, bool IsPrefix, bool IsIncrement) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitMemberIncrement(this);
 }
 
 // ECMA-334 §12.8.15/§12.9.6 - Increment/decrement on index access: arr[i]++, ++arr[i]
-public sealed record IndexIncrementExpr(Expr Object, Expr Index, bool IsPrefix, bool IsIncrement) : Expr
+internal sealed record IndexIncrementExpr(Expr Object, Expr Index, bool IsPrefix, bool IsIncrement) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitIndexIncrement(this);
 }
 
 // ECMA-334 §12.21.5 - Null-coalescing assignment on member access: obj.Prop ??= default
-public sealed record MemberNullCoalesceAssignExpr(Expr Object, string MemberName, Expr Value) : Expr
+internal sealed record MemberNullCoalesceAssignExpr(Expr Object, string MemberName, Expr Value) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitMemberNullCoalesceAssign(this);
 }
 
 // ECMA-334 §12.21.5 - Null-coalescing assignment on index access: dict[key] ??= default
-public sealed record IndexNullCoalesceAssignExpr(Expr Object, Expr Index, Expr Value) : Expr
+internal sealed record IndexNullCoalesceAssignExpr(Expr Object, Expr Index, Expr Value) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitIndexNullCoalesceAssign(this);
 }
 
 // Index assignment: arr[0] = value, dict["key"] = value
-public sealed record IndexAssignExpr(Expr Object, Expr Index, Expr Value) : Expr
+internal sealed record IndexAssignExpr(Expr Object, Expr Index, Expr Value) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitIndexAssign(this);
 }
 
 // Member assignment: obj.Property = value
-public sealed record MemberAssignExpr(Expr Object, Token Name, Expr Value) : Expr
+internal sealed record MemberAssignExpr(Expr Object, Token Name, Expr Value) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitMemberAssign(this);
 }
@@ -293,13 +293,13 @@ public sealed record MemberAssignExpr(Expr Object, Token Name, Expr Value) : Exp
 #region Null Handling & Conditionals
 
 // Null coalesce: x ?? y
-public sealed record NullCoalesceExpr(Expr Left, Expr Right) : Expr
+internal sealed record NullCoalesceExpr(Expr Left, Expr Right) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitNullCoalesce(this);
 }
 
 // Conditional: condition ? thenBranch : elseBranch
-public sealed record ConditionalExpr(Expr Condition, Expr ThenBranch, Expr ElseBranch) : Expr
+internal sealed record ConditionalExpr(Expr Condition, Expr ThenBranch, Expr ElseBranch) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitConditional(this);
 }
@@ -310,30 +310,30 @@ public sealed record ConditionalExpr(Expr Condition, Expr ThenBranch, Expr ElseB
 
 // Function/method call: func(args), obj.Method(args), obj.Method<T>(args)
 // TypeArguments contains the type names for generic method calls (e.g., ["int", "string"])
-public sealed record CallExpr(Expr Callee, List<Expr> Arguments, List<string>? TypeArguments = null) : Expr
+internal sealed record CallExpr(Expr Callee, List<Expr> Arguments, List<string>? TypeArguments = null) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitCall(this);
 }
 
 // Named argument: name: value (used in method calls)
-public sealed record NamedArgumentExpr(Token Name, Expr Value) : Expr
+internal sealed record NamedArgumentExpr(Token Name, Expr Value) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitNamedArgument(this);
 }
 
 // Out argument: out var x, out int x, out _ (used in method calls)
 // ECMA-334 §12.6.2 - Argument lists, output parameters
-public sealed record OutArgExpr(string VariableName, string? TypeName, bool IsDiscard) : Expr
+internal sealed record OutArgExpr(string VariableName, string? TypeName, bool IsDiscard) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitOutArg(this);
 }
 
 // Lambda parameter: optional type annotation with name
 // ECMA-334 §12.19 - Anonymous function expressions
-public sealed record LambdaParameter(string? TypeName, Token Name);
+internal sealed record LambdaParameter(string? TypeName, Token Name);
 
 // Lambda: (x) => x * 2, (int a, int b) => a + b
-public sealed record LambdaExpr(List<LambdaParameter> Parameters, Expr Body) : Expr
+internal sealed record LambdaExpr(List<LambdaParameter> Parameters, Expr Body) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitLambda(this);
 }
@@ -343,19 +343,19 @@ public sealed record LambdaExpr(List<LambdaParameter> Parameters, Expr Body) : E
 #region Collection Literals and Spread
 
 // Array literal: [1, 2, 3]
-public sealed record ArrayLiteralExpr(List<Expr> Elements) : Expr
+internal sealed record ArrayLiteralExpr(List<Expr> Elements) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitArrayLiteral(this);
 }
 
 // Object literal: new { Name = "John", Age = 30 } - CsEval extension (ExpandoObject, not C# anonymous types)
-public sealed record ObjectLiteralExpr(List<(Token Key, Expr Value)> Properties) : Expr
+internal sealed record ObjectLiteralExpr(List<(Token Key, Expr Value)> Properties) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitObjectLiteral(this);
 }
 
 // Spread expression: ..expr (used in arrays and objects) - CsEval extension
-public sealed record SpreadExpr(Expr Expression) : Expr
+internal sealed record SpreadExpr(Expr Expression) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitSpread(this);
 }
@@ -365,17 +365,17 @@ public sealed record SpreadExpr(Expr Expression) : Expr
 #region Collections & Literals
 
 // Interpolated string: $"Hello {name}"
-public sealed record InterpolatedStringExpr(List<InterpolatedPart> Parts) : Expr
+internal sealed record InterpolatedStringExpr(List<InterpolatedPart> Parts) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitInterpolatedString(this);
 }
 
-public abstract record InterpolatedPart;
-public sealed record TextPart(string Text) : InterpolatedPart;
-public sealed record ExpressionPart(Expr Expression, string? AlignmentSpecifier = null, string? FormatSpecifier = null) : InterpolatedPart;
+internal abstract record InterpolatedPart;
+internal sealed record TextPart(string Text) : InterpolatedPart;
+internal sealed record ExpressionPart(Expr Expression, string? AlignmentSpecifier = null, string? FormatSpecifier = null) : InterpolatedPart;
 
 // New expression: new { Name = "John" }
-public sealed record NewExpr(Expr Initializer) : Expr
+internal sealed record NewExpr(Expr Initializer) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitNew(this);
 }
@@ -385,77 +385,77 @@ public sealed record NewExpr(Expr Initializer) : Expr
 #region Control Flow
 
 // Block: { var x = 1; var y = 2; return x + y; }
-public sealed record BlockExpr(List<Expr> Statements, Expr? ReturnExpr) : Expr
+internal sealed record BlockExpr(List<Expr> Statements, Expr? ReturnExpr) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitBlock(this);
 }
 
 // If statement: if (cond) { ... } else { ... }
-public sealed record IfStatementExpr(Expr Condition, List<Expr> ThenStatements, List<Expr>? ElseStatements) : Expr
+internal sealed record IfStatementExpr(Expr Condition, List<Expr> ThenStatements, List<Expr>? ElseStatements) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitIfStatement(this);
 }
 
 // While statement: while (cond) { ... }
-public sealed record WhileStatementExpr(Expr Condition, List<Expr> Body) : Expr
+internal sealed record WhileStatementExpr(Expr Condition, List<Expr> Body) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitWhile(this);
 }
 
 // For statement: for (init; cond; incr) { ... }
-public sealed record ForStatementExpr(List<Expr> Initializers, Expr? Condition, List<Expr> Increments, List<Expr> Body) : Expr
+internal sealed record ForStatementExpr(List<Expr> Initializers, Expr? Condition, List<Expr> Increments, List<Expr> Body) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitFor(this);
 }
 
 // Do-while statement: do { ... } while (cond);
-public sealed record DoWhileStatementExpr(List<Expr> Body, Expr Condition) : Expr
+internal sealed record DoWhileStatementExpr(List<Expr> Body, Expr Condition) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitDoWhile(this);
 }
 
 // Foreach statement: foreach (var item in collection) { ... }
-public sealed record ForEachStatementExpr(Token VariableName, Expr Collection, List<Expr> Body) : Expr
+internal sealed record ForEachStatementExpr(Token VariableName, Expr Collection, List<Expr> Body) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitForEach(this);
 }
 
 // Break statement: break;
-public sealed record BreakExpr : Expr
+internal sealed record BreakExpr : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitBreak(this);
 }
 
 // Continue statement: continue;
-public sealed record ContinueExpr : Expr
+internal sealed record ContinueExpr : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitContinue(this);
 }
 
 // Return statement: return expr;
-public sealed record ReturnExpr(Expr? Value) : Expr
+internal sealed record ReturnExpr(Expr? Value) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitReturn(this);
 }
 
 // Switch case: case pattern [when guard]: statements or default: statements
 // CasePattern is null for default case
-public sealed record SwitchCaseExpr(Pattern? CasePattern, Expr? WhenGuard, List<Expr> Statements);
+internal sealed record SwitchCaseExpr(Pattern? CasePattern, Expr? WhenGuard, List<Expr> Statements);
 
 // Switch statement: switch (expr) { case 1: ... default: ... }
-public sealed record SwitchStatementExpr(Expr Expression, List<SwitchCaseExpr> Cases) : Expr
+internal sealed record SwitchStatementExpr(Expr Expression, List<SwitchCaseExpr> Cases) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitSwitch(this);
 }
 
 // ECMA-334 section 13.14 - using statement
-public sealed record UsingStatementExpr(Expr ResourceDeclaration, Expr Body) : Expr
+internal sealed record UsingStatementExpr(Expr ResourceDeclaration, Expr Body) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitUsingStatement(this);
 }
 
 // ECMA-334 section 13.13 - lock statement
-public sealed record LockStatementExpr(Expr LockObject, Expr Body) : Expr
+internal sealed record LockStatementExpr(Expr LockObject, Expr Body) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitLockStatement(this);
 }
@@ -465,7 +465,7 @@ public sealed record LockStatementExpr(Expr LockObject, Expr Body) : Expr
 #region Declarations
 
 // Variable declaration: var x = 5 or int x = 5
-public sealed record VariableDeclExpr(Token? DeclaredType, Token Name, Expr Initializer) : Expr
+internal sealed record VariableDeclExpr(Token? DeclaredType, Token Name, Expr Initializer) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitVariableDecl(this);
 }
@@ -476,7 +476,7 @@ public sealed record VariableDeclExpr(Token? DeclaredType, Token Name, Expr Init
 
 // Default expression: default(T) or default
 // TypeToken is null for bare default literal (C# 7.1+)
-public sealed record DefaultExpr(Token? TypeToken) : Expr
+internal sealed record DefaultExpr(Token? TypeToken) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitDefault(this);
 }
@@ -487,7 +487,7 @@ public sealed record DefaultExpr(Token? TypeToken) : Expr
 
 // Typeof expression: typeof(int), typeof(string), typeof(void)
 // ECMA-334 §12.8.17 - The typeof operator
-public sealed record TypeofExpr(Token TypeToken) : Expr
+internal sealed record TypeofExpr(Token TypeToken) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitTypeof(this);
 }
@@ -498,7 +498,7 @@ public sealed record TypeofExpr(Token TypeToken) : Expr
 
 // Sizeof expression: sizeof(int), sizeof(double)
 // ECMA-334 §23.6.9 - The sizeof operator
-public sealed record SizeofExpr(string TypeName) : Expr
+internal sealed record SizeofExpr(string TypeName) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitSizeof(this);
 }
@@ -509,15 +509,15 @@ public sealed record SizeofExpr(string TypeName) : Expr
 
 // Initializer entry: either a property assignment or a collection element
 // ECMA-334 §12.8.16.3 - Object initializers / §12.8.16.6 - Collection initializers
-public sealed record InitializerEntry(string? PropertyName, Expr Value);
+internal sealed record InitializerEntry(string? PropertyName, Expr Value);
 
 // Object/collection initializer block: { entries... }
-public sealed record ObjectInitializer(List<InitializerEntry> Entries);
+internal sealed record ObjectInitializer(List<InitializerEntry> Entries);
 
 // Object creation expression: new Exception("msg"), new ArgumentException("msg", "param")
 // ECMA-334 §12.8.16.2 - Object creation expressions
 // Initializer is optional - used for object/collection initializers: new X() { Prop = val }
-public sealed record ObjectCreationExpr(string TypeName, List<Expr> Arguments, ObjectInitializer? Initializer = null) : Expr
+internal sealed record ObjectCreationExpr(string TypeName, List<Expr> Arguments, ObjectInitializer? Initializer = null) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitObjectCreation(this);
 }
@@ -528,14 +528,14 @@ public sealed record ObjectCreationExpr(string TypeName, List<Expr> Arguments, O
 
 // Typed array creation: new int[5], new bool[n]
 // ECMA-334 §12.8.16.4 - Array creation expressions
-public sealed record TypedArrayCreationExpr(string ElementTypeName, Expr Size) : Expr
+internal sealed record TypedArrayCreationExpr(string ElementTypeName, Expr Size) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitTypedArrayCreation(this);
 }
 
 // Typed array literal: new int[] {1, 2, 3}, new string[] {"a", "b"}
 // ECMA-334 §12.8.16.5 - Array initializers
-public sealed record TypedArrayLiteralExpr(string ElementTypeName, ArrayLiteralExpr Elements) : Expr
+internal sealed record TypedArrayLiteralExpr(string ElementTypeName, ArrayLiteralExpr Elements) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitTypedArrayLiteral(this);
 }
@@ -545,19 +545,19 @@ public sealed record TypedArrayLiteralExpr(string ElementTypeName, ArrayLiteralE
 #region Multi-dimensional Array Expressions
 
 // Multi-dimensional index access: arr[i, j, k]
-public sealed record MultiDimIndexAccessExpr(Expr Object, List<Expr> Indices, bool NullSafe) : Expr
+internal sealed record MultiDimIndexAccessExpr(Expr Object, List<Expr> Indices, bool NullSafe) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitMultiDimIndexAccess(this);
 }
 
 // Multi-dimensional array creation: new int[3, 3]
-public sealed record MultiDimTypedArrayCreationExpr(string ElementTypeName, List<Expr> Sizes) : Expr
+internal sealed record MultiDimTypedArrayCreationExpr(string ElementTypeName, List<Expr> Sizes) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitMultiDimTypedArrayCreation(this);
 }
 
 // Multi-dimensional index assignment: arr[i, j] = value
-public sealed record MultiDimIndexAssignExpr(Expr Object, List<Expr> Indices, Expr Value) : Expr
+internal sealed record MultiDimIndexAssignExpr(Expr Object, List<Expr> Indices, Expr Value) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitMultiDimIndexAssign(this);
 }
@@ -568,7 +568,7 @@ public sealed record MultiDimIndexAssignExpr(Expr Object, List<Expr> Indices, Ex
 
 // Throw expression: throw new Exception("msg")
 // ECMA-334 §12.16 - Throw expression operator
-public sealed record ThrowExpr(Expr Expression) : Expr
+internal sealed record ThrowExpr(Expr Expression) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitThrow(this);
 }
@@ -579,7 +579,7 @@ public sealed record ThrowExpr(Expr Expression) : Expr
 
 // Catch clause data record (not an Expr -- similar to SwitchArm)
 // ECMA-334 §13.11 - The try statement
-public sealed record CatchClause(
+internal sealed record CatchClause(
     string? ExceptionTypeName,
     Token? VariableName,
     Expr? WhenGuard,
@@ -587,7 +587,7 @@ public sealed record CatchClause(
 
 // Try/catch/finally statement: try { } catch (T e) when (guard) { } finally { }
 // ECMA-334 §13.11 - The try statement
-public sealed record TryCatchFinallyExpr(
+internal sealed record TryCatchFinallyExpr(
     List<Expr> TryBody,
     List<CatchClause> CatchClauses,
     List<Expr>? FinallyBody) : Expr
@@ -597,7 +597,7 @@ public sealed record TryCatchFinallyExpr(
 
 // Parameterless throw statement: throw;
 // ECMA-334 §13.10.6 - The throw statement (rethrow)
-public sealed record ThrowStatementExpr : Expr
+internal sealed record ThrowStatementExpr : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitThrowStatement(this);
 }
@@ -608,7 +608,7 @@ public sealed record ThrowStatementExpr : Expr
 
 // Nameof expression: nameof(identifier), nameof(obj.Property)
 // Name is the final identifier name (e.g., "Property" for obj.Property)
-public sealed record NameofExpr(string Name) : Expr
+internal sealed record NameofExpr(string Name) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitNameof(this);
 }
@@ -618,11 +618,11 @@ public sealed record NameofExpr(string Name) : Expr
 #region Tuple Expression
 
 // Tuple element: optionally named expression within a tuple (e.g., "x: 1" or just "1")
-public record TupleElement(string? Name, Expr Expression);
+internal record TupleElement(string? Name, Expr Expression);
 
 // Tuple expression: (expr1, expr2, ...) creates a System.ValueTuple
 // ECMA-334 §12.8.6 - Tuple expressions
-public sealed record TupleExpr(List<TupleElement> Elements) : Expr
+internal sealed record TupleExpr(List<TupleElement> Elements) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitTuple(this);
 }
@@ -633,7 +633,7 @@ public sealed record TupleExpr(List<TupleElement> Elements) : Expr
 
 // Deconstruction expression: var (x, y) = tupleExpr
 // ECMA-334 §12.7 - Deconstruction
-public sealed record DeconstructionExpr(List<string> VariableNames, Expr ValueExpression) : Expr
+internal sealed record DeconstructionExpr(List<string> VariableNames, Expr ValueExpression) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitDeconstruction(this);
 }
@@ -643,19 +643,19 @@ public sealed record DeconstructionExpr(List<string> VariableNames, Expr ValueEx
 #region Polyglot Extended Features
 
 // Range expression: start..end (inclusive) or start..<end (exclusive)
-public sealed record RangeExpr(Expr Start, Expr End, bool ExclusiveEnd) : Expr
+internal sealed record RangeExpr(Expr Start, Expr End, bool ExclusiveEnd) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitRange(this);
 }
 
 // Pipeline expression: expr |> func
-public sealed record PipelineExpr(Expr Left, Expr Right) : Expr
+internal sealed record PipelineExpr(Expr Left, Expr Right) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitPipeline(this);
 }
 
 // Chained comparison: a < b < c desugars to a < b && b < c
-public sealed record ChainedComparisonExpr(List<Expr> Operands, List<Token> Operators) : Expr
+internal sealed record ChainedComparisonExpr(List<Expr> Operands, List<Token> Operators) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitChainedComparison(this);
 }
@@ -666,40 +666,40 @@ public sealed record ChainedComparisonExpr(List<Expr> Operands, List<Token> Oper
 
 // ECMA-334 §11.2 - Pattern matching
 // Abstract base for all pattern types in the pattern matching hierarchy
-public abstract record Pattern;
+internal abstract record Pattern;
 
 // ECMA-334 §11.2.1 - Constant pattern: matches a constant value (null, true, false, literals)
-public sealed record ConstantPattern(Expr Value) : Pattern;
+internal sealed record ConstantPattern(Expr Value) : Pattern;
 
 // ECMA-334 §11.2.2 - Type pattern: matches a type, optionally binding to a variable
-public sealed record TypePattern(Token TypeToken, Token? VariableName) : Pattern;
+internal sealed record TypePattern(Token TypeToken, Token? VariableName) : Pattern;
 
 // ECMA-334 §11.2.3 - Relational pattern: <, <=, >, >= against a constant
-public sealed record RelationalPattern(Token Operator, Expr Operand) : Pattern;
+internal sealed record RelationalPattern(Token Operator, Expr Operand) : Pattern;
 
 // ECMA-334 §11.2.5 - Logical patterns: and, or, not combinators
-public sealed record AndPattern(Pattern Left, Pattern Right) : Pattern;
-public sealed record OrPattern(Pattern Left, Pattern Right) : Pattern;
-public sealed record NotPattern(Pattern Operand) : Pattern;
+internal sealed record AndPattern(Pattern Left, Pattern Right) : Pattern;
+internal sealed record OrPattern(Pattern Left, Pattern Right) : Pattern;
+internal sealed record NotPattern(Pattern Operand) : Pattern;
 
 // ECMA-334 §11.2.6 - Property pattern: { Name: pattern, ... }
-public sealed record PropertyPattern(Token? TypeToken, List<(Token Name, Pattern Pattern)> Properties, Token? VariableName) : Pattern;
+internal sealed record PropertyPattern(Token? TypeToken, List<(Token Name, Pattern Pattern)> Properties, Token? VariableName) : Pattern;
 
 // ECMA-334 §11.2.4 - Var pattern: var x (always matches, binds variable)
-public sealed record VarPattern(Token VariableName) : Pattern;
+internal sealed record VarPattern(Token VariableName) : Pattern;
 
 // Discard pattern: _ (always matches, no binding)
-public sealed record DiscardPattern : Pattern;
+internal sealed record DiscardPattern : Pattern;
 
 // Parenthesized pattern: (pattern) for grouping
-public sealed record ParenthesizedPattern(Pattern Inner) : Pattern;
+internal sealed record ParenthesizedPattern(Pattern Inner) : Pattern;
 
 // Switch arm: pattern [when guard] => value
-public sealed record SwitchArm(Pattern Pattern, Expr? WhenGuard, Expr Value);
+internal sealed record SwitchArm(Pattern Pattern, Expr? WhenGuard, Expr Value);
 
 // Switch expression: expr switch { arm, arm, ... }
 // ECMA-334 §12.8.21 - Switch expression
-public sealed record SwitchExpressionExpr(Expr Expression, List<SwitchArm> Arms) : Expr
+internal sealed record SwitchExpressionExpr(Expr Expression, List<SwitchArm> Arms) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitSwitchExpression(this);
 }

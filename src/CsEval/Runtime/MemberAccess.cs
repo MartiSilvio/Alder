@@ -6,7 +6,7 @@ namespace CsEval.Runtime;
 /// <summary>
 /// Property, field, and index access operations.
 /// </summary>
-public static class MemberAccess
+internal static class MemberAccess
 {
     public static object? GetMember(object? obj, string name, CsEvalOptions options, bool nullSafe, CsEvalContext context)
     {

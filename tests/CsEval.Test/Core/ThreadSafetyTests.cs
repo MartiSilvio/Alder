@@ -246,4 +246,42 @@ public class ThreadSafetyTests(CompilationMode mode)
             Assert.That(result, Is.EqualTo(Math.Abs(input)));
         }
     }
+
+    [Test]
+    public void ConcurrentSetVariable_DoesNotThrow()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+
+        Assert.DoesNotThrow(() =>
+        {
+            Parallel.For(0, 200, i =>
+            {
+                engine.SetVariable($"var_{i}", (long)i);
+            });
+        });
+    }
+
+    [Test]
+    public void ConcurrentEvaluate_AfterConfiguration_DoesNotThrow()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        engine.SetVariable("baseVal", 100L);
+
+        // Force context creation
+        engine.Evaluate("baseVal");
+
+        var results = new ConcurrentBag<long>();
+        Assert.DoesNotThrow(() =>
+        {
+            Parallel.For(0, 200, i =>
+            {
+                var child = engine.CreateChild();
+                child.SetVariable("n", (long)i);
+                var result = child.Evaluate("baseVal + n");
+                results.Add((long)result!);
+            });
+        });
+
+        Assert.That(results.Count, Is.EqualTo(200));
+    }
 }

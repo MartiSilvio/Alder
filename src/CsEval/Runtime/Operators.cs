@@ -6,7 +6,7 @@ namespace CsEval.Runtime;
 /// Arithmetic, comparison, and bitwise operators.
 /// Delegates to NumericDispatch for type-safe numeric operations.
 /// </summary>
-public static class Operators
+internal static class Operators
 {
     public static object? Negate(object? value)
     {

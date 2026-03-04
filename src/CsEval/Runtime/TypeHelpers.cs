@@ -7,7 +7,7 @@ namespace CsEval.Runtime;
 /// <summary>
 /// Type checking, validation, and conversion utilities.
 /// </summary>
-public static class TypeHelpers
+internal static class TypeHelpers
 {
     public static int GetSizeOf(string typeName) => typeName switch
     {

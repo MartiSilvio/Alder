@@ -4,7 +4,7 @@ using CsEval.Interpretation;
 
 namespace CsEval.Runtime;
 
-public static class ExtensionMethodResolver
+internal static class ExtensionMethodResolver
 {
     internal static (bool Success, object? Value) TryInvokeExtensionMethod(
         object target,

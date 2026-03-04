@@ -6,7 +6,7 @@ namespace CsEval.Runtime;
 /// <summary>
 /// Method invocation and dispatch.
 /// </summary>
-public static class MethodInvoker
+internal static class MethodInvoker
 {
     public static object? InvokeMemberCall(
         object? target,
@@ -59,15 +59,17 @@ public static class MethodInvoker
             CompiledLambdaValue compiled =>
                 InvokeCompiledLambda(compiled, args),
 
-            StaticMethodRef staticRef =>
-                InvokeStaticMethod(staticRef.Type, staticRef.MethodName, args, context, options, ct, typeArgs),
-
             Delegate del =>
                 del.DynamicInvoke(args),
 
             // ── Tier 2: Requires AllowMethodCalls ───────────────────────────
-            // Instance method calls on user-provided objects. These are the only
-            // calls gated by AllowMethodCalls.
+            // Instance and static method calls on user-provided or resolved types.
+            // Gated by AllowMethodCalls.
+            StaticMethodRef staticRef =>
+                options.Sandbox.AllowMethodCalls
+                    ? InvokeStaticMethod(staticRef.Type, staticRef.MethodName, args, context, options, ct, typeArgs)
+                    : throw new CsEvalException($"Static method calls blocked by sandbox: {staticRef.Type.Name}.{staticRef.MethodName}"),
+
             MethodRef methodRef =>
                 InvokeMethodRef(methodRef, args, context, options, ct, argumentTransformer, typeArgs),
 

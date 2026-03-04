@@ -8,7 +8,7 @@ using CsEval.Interpretation.Extensions;
 
 namespace CsEval.Interpretation;
 
-public sealed class Evaluator : IExprVisitor<object?>
+internal sealed class Evaluator : IExprVisitor<object?>
 {
     private CsEvalContext _context;
     private readonly CsEvalOptions _options;
@@ -43,7 +43,8 @@ public sealed class Evaluator : IExprVisitor<object?>
             throw new CsEvalDepthException("evaluation", _maxDepth);
         try
         {
-            _typeInferrer.InferAll(expr);
+            if (_depth == 1)
+                _typeInferrer.InferAll(expr);
             _cancellationToken.ThrowIfCancellationRequested();
             return expr.Accept(this);
         }

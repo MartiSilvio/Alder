@@ -6,7 +6,7 @@ namespace CsEval.Parsing;
 /// Parses expressions using recursive descent with Pratt-style precedence climbing.
 /// Serves as the main parser entry point via Parse().
 /// </summary>
-public sealed class ExpressionParser : ParserBase
+internal sealed class ExpressionParser : ParserBase
 {
     private readonly PrimaryParser _primary;
     private readonly PatternParser _pattern;

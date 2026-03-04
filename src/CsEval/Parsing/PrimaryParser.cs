@@ -6,7 +6,7 @@ namespace CsEval.Parsing;
 /// Parses primary expressions: literals, identifiers, new expressions, casts, groupings,
 /// lambdas, tuples, array/object literals, typeof, nameof, default, interpolated strings.
 /// </summary>
-public sealed class PrimaryParser : ParserBase
+internal sealed class PrimaryParser : ParserBase
 {
     private ExpressionParser _expression = null!;
     private StatementParser _statement = null!;
@@ -425,14 +425,10 @@ public sealed class PrimaryParser : ParserBase
     {
         if (Match(TokenType.LeftParen))
         {
-            // default(Type) or default(Type?) - typed default
-            var typeToken = Consume(IsTypeKeyword(Peek().Type) ? Peek().Type : TokenType.Identifier,
-                "Expected type after 'default('");
-            // Handle nullable type suffix (e.g., int? -> int?)
-            if (Match(TokenType.Question))
-            {
-                typeToken = new Token(typeToken.Type, typeToken.Lexeme + "?", null, typeToken.Line, typeToken.Column);
-            }
+            var typeName = TryParseTypeName();
+            if (typeName == null)
+                throw new CsEvalParserException($"Expected type after 'default(' at {Peek().Line}:{Peek().Column}");
+            var typeToken = new Token(TokenType.Identifier, typeName, null, Previous().Line, Previous().Column);
             Consume(TokenType.RightParen, "Expected ')' after default type");
             return new DefaultExpr(typeToken);
         }

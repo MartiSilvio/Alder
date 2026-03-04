@@ -4,7 +4,7 @@ namespace CsEval.Runtime.Extensions;
 /// Three-way comparison operator: a &lt;=&gt; b returns -1, 0, or 1.
 /// Inspired by Ruby/Perl/PHP spaceship operator.
 /// </summary>
-public static class SpaceshipOperator
+internal static class SpaceshipOperator
 {
     /// <summary>
     /// Compares <paramref name="left"/> and <paramref name="right"/>, returning -1, 0, or 1.

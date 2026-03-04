@@ -11,7 +11,7 @@ namespace CsEval.Runtime;
 /// Uses ConcurrentDictionary for thread-safe variable access across parent/child relationships.
 /// Parent contexts are never modified by child evaluations - children have isolated state.
 /// </summary>
-public sealed class CsEvalContext
+internal sealed class CsEvalContext
 {
     private readonly ConcurrentDictionary<string, object?> _variables;
     private readonly ConcurrentDictionary<string, Type> _variableTypes;

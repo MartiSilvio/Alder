@@ -1,6 +1,6 @@
 namespace CsEval.Parsing;
 
-public enum TokenType
+internal enum TokenType
 {
     // Literals
     Number,
@@ -267,7 +267,7 @@ public enum TokenType
     Eof
 }
 
-public readonly record struct Token(TokenType Type, string Lexeme, object? Literal, int Line, int Column)
+internal readonly record struct Token(TokenType Type, string Lexeme, object? Literal, int Line, int Column)
 {
     public override string ToString() => $"{Type} '{Lexeme}' at {Line}:{Column}";
 }

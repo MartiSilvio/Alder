@@ -8,7 +8,7 @@ namespace CsEval.Interpretation;
 /// In C#, casting from 'object' requires unboxing to the exact boxed type.
 /// This visitor computes compile-time types so the evaluator can detect invalid unboxing.
 /// </summary>
-public sealed class TypeInferrer : AstWalker<Type>
+internal sealed class TypeInferrer : AstWalker<Type>
 {
     /// <summary>
     /// Sentinel type for throw expressions -- throw never produces a value,
