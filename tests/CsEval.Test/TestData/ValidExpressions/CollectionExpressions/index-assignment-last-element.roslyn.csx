@@ -1,5 +1,3 @@
-{
-    var arr = new[] { 1, 2, 3 };
-    arr[2] = 999;
-    return arr[2];
-}
+var arr = new[] { 1, 2, 3 };
+arr[2] = 999;
+return arr[2];

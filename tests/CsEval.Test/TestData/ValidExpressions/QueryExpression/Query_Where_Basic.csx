@@ -1,4 +1,2 @@
-{
-    var list = new[] { 1, 2, 3, 4, 5 };
-    return (from x in list where x % 2 == 0 select x).ToList();
-}
+var list = new[] { 1, 2, 3, 4, 5 };
+return (from x in list where x % 2 == 0 select x).ToList();

@@ -1,4 +1,2 @@
-{
-    string? s = null;
-    return s?.ToUpper();
-}
+string? s = null;
+return s?.ToUpper();

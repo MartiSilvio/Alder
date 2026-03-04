@@ -1,5 +1,3 @@
-{
-    int? x = null;
-    x ??= 42;
-    return x;
-}
+int? x = null;
+x ??= 42;
+return x;

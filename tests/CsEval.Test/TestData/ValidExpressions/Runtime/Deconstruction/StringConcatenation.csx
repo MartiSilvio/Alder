@@ -1,4 +1,2 @@
-{
-    var (first, last) = ("John", "Doe");
-    return first + " " + last;
-}
+var (first, last) = ("John", "Doe");
+return first + " " + last;

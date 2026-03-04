@@ -1,4 +1,2 @@
-{
-    long? x = null;
-    return x;
-}
+long? x = null;
+return x;

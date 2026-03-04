@@ -1,4 +1,2 @@
-{
-    var x = 42;
-    return x;
-}
+var x = 42;
+return x;

@@ -1,5 +1,3 @@
-{
-    var obj = "something";
-    obj = null;
-    return obj;
-}
+var obj = "something";
+obj = null;
+return obj;

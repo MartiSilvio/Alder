@@ -1,4 +1,2 @@
-{
-    string s = "value";
-    return s ?? "default";
-}
+string s = "value";
+return s ?? "default";

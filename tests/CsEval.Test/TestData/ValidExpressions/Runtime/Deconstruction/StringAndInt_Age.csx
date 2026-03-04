@@ -1,4 +1,2 @@
-{
-    var (name, age) = ("Alice", 30);
-    return age;
-}
+var (name, age) = ("Alice", 30);
+return age;

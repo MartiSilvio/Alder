@@ -1,4 +1,2 @@
-{
-    var (x, y) = (42, 99);
-    return x;
-}
+var (x, y) = (42, 99);
+return x;

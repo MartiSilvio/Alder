@@ -1,5 +1,3 @@
-{
-    var greeting = "Hello";
-    greeting = greeting + " World";
-    return greeting;
-}
+var greeting = "Hello";
+greeting = greeting + " World";
+return greeting;

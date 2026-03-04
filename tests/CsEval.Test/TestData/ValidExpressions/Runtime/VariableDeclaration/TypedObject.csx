@@ -1,4 +1,2 @@
-{
-    object x = 42;
-    return x;
-}
+object x = 42;
+return x;

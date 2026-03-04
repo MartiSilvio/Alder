@@ -1,4 +1,2 @@
-{
-    string s = "hello";
-    return s?.Length;
-}
+string s = "hello";
+return s?.Length;

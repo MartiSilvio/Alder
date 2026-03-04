@@ -1,5 +1,3 @@
-{
-    var x = 10;
-    var captured = x++;
-    return captured + x;
-}
+var x = 10;
+var captured = x++;
+return captured + x;

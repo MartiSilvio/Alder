@@ -1,4 +1,2 @@
-{
-    var (x, y) = (1, 2);
-    return x;
-}
+var (x, y) = (1, 2);
+return x;

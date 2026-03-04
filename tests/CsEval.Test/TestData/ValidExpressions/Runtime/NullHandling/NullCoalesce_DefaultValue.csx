@@ -1,4 +1,2 @@
-{
-    string? s = null;
-    return s ?? "default";
-}
+string? s = null;
+return s ?? "default";

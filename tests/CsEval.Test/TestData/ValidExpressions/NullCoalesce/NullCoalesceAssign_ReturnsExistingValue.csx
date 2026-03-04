@@ -1,4 +1,2 @@
-{
-    var x = "hello";
-    return x ??= "world";
-}
+var x = "hello";
+return x ??= "world";

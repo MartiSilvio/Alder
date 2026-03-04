@@ -1,4 +1,2 @@
-{
-    string s = "hello";
-    return s?.ToUpper();
-}
+string s = "hello";
+return s?.ToUpper();

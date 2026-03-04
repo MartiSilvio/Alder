@@ -1,4 +1,2 @@
-{
-    string str = "Hello World";
-    return str.Substring(0, 5);
-}
+string str = "Hello World";
+return str.Substring(0, 5);

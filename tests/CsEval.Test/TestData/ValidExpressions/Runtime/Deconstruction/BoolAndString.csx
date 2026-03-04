@@ -1,4 +1,2 @@
-{
-    var (flag, msg) = (true, "ok");
-    return flag;
-}
+var (flag, msg) = (true, "ok");
+return flag;

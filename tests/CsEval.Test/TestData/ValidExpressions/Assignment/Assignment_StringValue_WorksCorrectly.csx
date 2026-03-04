@@ -1,5 +1,3 @@
-{
-    var s = "hello";
-    s = "world";
-    return s;
-}
+var s = "hello";
+s = "world";
+return s;

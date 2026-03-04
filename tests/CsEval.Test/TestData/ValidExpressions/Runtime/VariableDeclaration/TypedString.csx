@@ -1,4 +1,2 @@
-{
-    string x = "hello";
-    return x;
-}
+string x = "hello";
+return x;
