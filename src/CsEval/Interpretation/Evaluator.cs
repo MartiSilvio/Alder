@@ -19,6 +19,7 @@ internal sealed class Evaluator : IExprVisitor<object?>
     private int _depth;
     private readonly int _maxDepth;
     private readonly Stack<Exception> _caughtExceptions = new();
+    private bool _isChecked;
 
     public Evaluator(
         CsEvalContext context,
@@ -80,7 +81,7 @@ internal sealed class Evaluator : IExprVisitor<object?>
         Type? sourceStaticType = null;
         if (expr.Expression is IdentifierExpr)
             sourceStaticType = _typeInferrer.Infer(expr.Expression);
-        return TypeHelpers.ExplicitCast(value, targetType, sourceStaticType);
+        return TypeHelpers.ExplicitCast(value, targetType, sourceStaticType, _isChecked);
     }
 
     public object? VisitIsPattern(IsPatternExpr expr)
@@ -605,8 +606,8 @@ internal sealed class Evaluator : IExprVisitor<object?>
         var one = GetNumericOne(currentValue);
 
         var newValue = expr.Op.Type == TokenType.PlusPlus
-            ? Operators.Add(currentValue, one, _options, _context)
-            : Operators.Subtract(currentValue, one);
+            ? Operators.Add(currentValue, one, _options, _context, _isChecked)
+            : Operators.Subtract(currentValue, one, _isChecked);
 
         _context.Set(name, newValue);
 
@@ -659,8 +660,8 @@ internal sealed class Evaluator : IExprVisitor<object?>
         var one = GetNumericOne(currentValue);
 
         var newValue = expr.IsIncrement
-            ? Operators.Add(currentValue, one, _options, _context)
-            : Operators.Subtract(currentValue, one);
+            ? Operators.Add(currentValue, one, _options, _context, _isChecked)
+            : Operators.Subtract(currentValue, one, _isChecked);
 
         SetMember(obj, expr.MemberName, newValue);
 
@@ -679,8 +680,8 @@ internal sealed class Evaluator : IExprVisitor<object?>
         var one = GetNumericOne(currentValue);
 
         var newValue = expr.IsIncrement
-            ? Operators.Add(currentValue, one, _options, _context)
-            : Operators.Subtract(currentValue, one);
+            ? Operators.Add(currentValue, one, _options, _context, _isChecked)
+            : Operators.Subtract(currentValue, one, _isChecked);
 
         SetIndex(obj, index, newValue);
 
@@ -1482,9 +1483,9 @@ internal sealed class Evaluator : IExprVisitor<object?>
 
     private static readonly Dictionary<TokenType, Func<Evaluator, object?, object?, object?>> BinaryOperators = new()
     {
-        { TokenType.Plus, (e, l, r) => Operators.Add(l, r, e._options, e._context) },
-        { TokenType.Minus, (_, l, r) => Operators.Subtract(l, r) },
-        { TokenType.Star, (e, l, r) => Operators.Multiply(l, r, e._options) },
+        { TokenType.Plus, (e, l, r) => Operators.Add(l, r, e._options, e._context, e._isChecked) },
+        { TokenType.Minus, (e, l, r) => Operators.Subtract(l, r, e._isChecked) },
+        { TokenType.Star, (e, l, r) => Operators.Multiply(l, r, e._options, e._isChecked) },
         { TokenType.Slash, (_, l, r) => Operators.Divide(l, r) },
         { TokenType.Percent, (_, l, r) => Operators.Modulo(l, r) },
         { TokenType.EqualEqual, (_, l, r) => Operators.Equals(l, r) },
@@ -1513,7 +1514,7 @@ internal sealed class Evaluator : IExprVisitor<object?>
 
     private static readonly Dictionary<TokenType, Func<Evaluator, object?, object?>> UnaryOperators = new()
     {
-        { TokenType.Minus, (_, v) => Operators.Negate(v) },
+        { TokenType.Minus, (e, v) => Operators.Negate(v, e._isChecked) },
         { TokenType.Plus, (_, v) => Operators.UnaryPlus(v) },
         { TokenType.Bang, (_, v) => Operators.LogicalNot(v) },
         { TokenType.Tilde, (_, v) => Operators.BitwiseNot(v) },
@@ -1534,6 +1535,24 @@ internal sealed class Evaluator : IExprVisitor<object?>
         { TokenType.GreaterGreaterGreaterEqual, TokenType.GreaterGreaterGreater },
         { TokenType.StarStarEqual, TokenType.StarStar },
     };
+
+    #endregion
+
+    #region Checked/Unchecked
+
+    public object? VisitChecked(CheckedExpr expr)
+    {
+        var previous = _isChecked;
+        _isChecked = expr.IsChecked;
+        try
+        {
+            return Evaluate(expr.Expression);
+        }
+        finally
+        {
+            _isChecked = previous;
+        }
+    }
 
     #endregion
 

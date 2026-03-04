@@ -33,6 +33,27 @@ internal sealed class ExpressionCompilerUnit
     internal LinqExpression Compile(Expr expr) =>
         CompilerContext.Compile(_ctx, expr, this, _controlUnit!, _patternUnit);
 
+    private LinqExpression EmitBinaryOpCall(OperatorRegistry.BinaryOpInfo info, LinqExpression left, LinqExpression right)
+    {
+        var checkedConst = LinqExpression.Constant(_ctx.IsChecked);
+        return info.Signature switch
+        {
+            OperatorRegistry.BinaryOpSignature.TwoArgs =>
+                LinqExpression.Call(info.Method, left, right),
+            OperatorRegistry.BinaryOpSignature.WithOptions =>
+                LinqExpression.Call(info.Method, left, right, _ctx.OptionsParam),
+            OperatorRegistry.BinaryOpSignature.WithOptionsAndContext =>
+                LinqExpression.Call(info.Method, left, right, _ctx.OptionsParam, _ctx.CurrentContext),
+            OperatorRegistry.BinaryOpSignature.TwoArgsChecked =>
+                LinqExpression.Call(info.Method, left, right, checkedConst),
+            OperatorRegistry.BinaryOpSignature.WithOptionsChecked =>
+                LinqExpression.Call(info.Method, left, right, _ctx.OptionsParam, checkedConst),
+            OperatorRegistry.BinaryOpSignature.WithOptionsAndContextChecked =>
+                LinqExpression.Call(info.Method, left, right, _ctx.OptionsParam, _ctx.CurrentContext, checkedConst),
+            _ => throw new NotSupportedException($"Unknown binary op signature {info.Signature}")
+        };
+    }
+
     internal LinqExpression CompileLiteral(LiteralExpr lit)
     {
         if (lit.Value == null)
@@ -289,11 +310,14 @@ internal sealed class ExpressionCompilerUnit
     {
         var operand = Compile(u.Right);
 
-        var method = OperatorRegistry.GetUnaryMethod(u.Op.Type);
-        if (method == null)
+        var opInfo = OperatorRegistry.GetUnaryOperator(u.Op.Type);
+        if (opInfo == null)
             throw new NotSupportedException($"Unary operator {u.Op.Type}");
 
-        return LinqExpression.Call(method, operand);
+        var info = opInfo.Value;
+        return info.HasCheckedParam
+            ? LinqExpression.Call(info.Method, operand, LinqExpression.Constant(_ctx.IsChecked))
+            : LinqExpression.Call(info.Method, operand);
     }
 
     internal LinqExpression CompileCast(CastExpr cast)
@@ -317,7 +341,8 @@ internal sealed class ExpressionCompilerUnit
             CompilerContext.ExplicitCastMethod,
             value,
             resolvedType,
-            LinqExpression.Constant(effectiveSourceType, typeof(Type)));
+            LinqExpression.Constant(effectiveSourceType, typeof(Type)),
+            LinqExpression.Constant(_ctx.IsChecked));
     }
 
     internal LinqExpression CompileAs(AsExpr asExpr)
@@ -348,17 +373,7 @@ internal sealed class ExpressionCompilerUnit
         if (opInfo == null)
             throw new NotSupportedException($"Binary operator {b.Op.Type}");
 
-        var info = opInfo.Value;
-        return info.Signature switch
-        {
-            OperatorRegistry.BinaryOpSignature.TwoArgs =>
-                LinqExpression.Call(info.Method, left, right),
-            OperatorRegistry.BinaryOpSignature.WithOptions =>
-                LinqExpression.Call(info.Method, left, right, _ctx.OptionsParam),
-            OperatorRegistry.BinaryOpSignature.WithOptionsAndContext =>
-                LinqExpression.Call(info.Method, left, right, _ctx.OptionsParam, _ctx.CurrentContext),
-            _ => throw new NotSupportedException($"Unknown binary op signature {info.Signature}")
-        };
+        return EmitBinaryOpCall(opInfo.Value, left, right);
     }
 
     /// <summary>
@@ -611,17 +626,7 @@ internal sealed class ExpressionCompilerUnit
         if (opInfo == null)
             throw new NotSupportedException($"Binary operator for compound {ca.Op.Type}");
 
-        var info = opInfo.Value;
-        LinqExpression opCall = info.Signature switch
-        {
-            OperatorRegistry.BinaryOpSignature.TwoArgs =>
-                LinqExpression.Call(info.Method, currentValue, rightTemp),
-            OperatorRegistry.BinaryOpSignature.WithOptions =>
-                LinqExpression.Call(info.Method, currentValue, rightTemp, _ctx.OptionsParam),
-            OperatorRegistry.BinaryOpSignature.WithOptionsAndContext =>
-                LinqExpression.Call(info.Method, currentValue, rightTemp, _ctx.OptionsParam, _ctx.CurrentContext),
-            _ => throw new NotSupportedException($"Unknown binary op signature {info.Signature}")
-        };
+        LinqExpression opCall = EmitBinaryOpCall(opInfo.Value, currentValue, rightTemp);
 
         var validateCall = LinqExpression.Call(CompilerContext.ValidateCompoundAssignmentMethod,
             LinqExpression.Constant(name), opCall, rightTemp, _ctx.CurrentContext);
@@ -662,17 +667,7 @@ internal sealed class ExpressionCompilerUnit
         if (opInfo == null)
             throw new NotSupportedException($"Binary operator for compound {expr.Operator}");
 
-        var info = opInfo.Value;
-        LinqExpression opCall = info.Signature switch
-        {
-            OperatorRegistry.BinaryOpSignature.TwoArgs =>
-                LinqExpression.Call(info.Method, currentValue, rightTemp),
-            OperatorRegistry.BinaryOpSignature.WithOptions =>
-                LinqExpression.Call(info.Method, currentValue, rightTemp, _ctx.OptionsParam),
-            OperatorRegistry.BinaryOpSignature.WithOptionsAndContext =>
-                LinqExpression.Call(info.Method, currentValue, rightTemp, _ctx.OptionsParam, _ctx.CurrentContext),
-            _ => throw new NotSupportedException($"Unknown binary op signature {info.Signature}")
-        };
+        LinqExpression opCall = EmitBinaryOpCall(opInfo.Value, currentValue, rightTemp);
 
         // Set via MemberAccess.SetMember
         var setCall = LinqExpression.Call(CompilerContext.SetMemberMethod,
@@ -710,17 +705,7 @@ internal sealed class ExpressionCompilerUnit
         if (opInfo == null)
             throw new NotSupportedException($"Binary operator for compound {expr.Operator}");
 
-        var info = opInfo.Value;
-        LinqExpression opCall = info.Signature switch
-        {
-            OperatorRegistry.BinaryOpSignature.TwoArgs =>
-                LinqExpression.Call(info.Method, currentValue, rightTemp),
-            OperatorRegistry.BinaryOpSignature.WithOptions =>
-                LinqExpression.Call(info.Method, currentValue, rightTemp, _ctx.OptionsParam),
-            OperatorRegistry.BinaryOpSignature.WithOptionsAndContext =>
-                LinqExpression.Call(info.Method, currentValue, rightTemp, _ctx.OptionsParam, _ctx.CurrentContext),
-            _ => throw new NotSupportedException($"Unknown binary op signature {info.Signature}")
-        };
+        LinqExpression opCall = EmitBinaryOpCall(opInfo.Value, currentValue, rightTemp);
 
         // Set via MemberAccess.SetIndex
         var setCall = LinqExpression.Call(CompilerContext.SetIndexMethod,
@@ -770,8 +755,8 @@ internal sealed class ExpressionCompilerUnit
         var subInfo = OperatorRegistry.GetBinaryOperator(TokenType.Minus)!.Value;
 
         LinqExpression MakeOpCall(LinqExpression left) => isIncrement
-            ? LinqExpression.Call(addInfo.Method, left, one, _ctx.OptionsParam, _ctx.CurrentContext)
-            : LinqExpression.Call(subInfo.Method, left, one);
+            ? EmitBinaryOpCall(addInfo, left, one)
+            : EmitBinaryOpCall(subInfo, left, one);
 
         var checkExpr = LinqExpression.Call(CompilerContext.CheckAllowAssignmentMethod, _ctx.OptionsParam,
             LinqExpression.Constant(isIncrement ? $"{name}++" : $"{name}--"));
@@ -884,8 +869,8 @@ internal sealed class ExpressionCompilerUnit
         var subInfo = OperatorRegistry.GetBinaryOperator(TokenType.Minus)!.Value;
 
         LinqExpression MakeOpCall(LinqExpression left) => expr.IsIncrement
-            ? LinqExpression.Call(addInfo.Method, left, one, _ctx.OptionsParam, _ctx.CurrentContext)
-            : LinqExpression.Call(subInfo.Method, left, one);
+            ? EmitBinaryOpCall(addInfo, left, one)
+            : EmitBinaryOpCall(subInfo, left, one);
 
         var setCall = LinqExpression.Call(CompilerContext.SetMemberMethod,
             objTemp, LinqExpression.Constant(expr.MemberName), temp, _ctx.OptionsParam, _ctx.CurrentContext);
@@ -929,8 +914,8 @@ internal sealed class ExpressionCompilerUnit
         var subInfo = OperatorRegistry.GetBinaryOperator(TokenType.Minus)!.Value;
 
         LinqExpression MakeOpCall(LinqExpression left) => expr.IsIncrement
-            ? LinqExpression.Call(addInfo.Method, left, one, _ctx.OptionsParam, _ctx.CurrentContext)
-            : LinqExpression.Call(subInfo.Method, left, one);
+            ? EmitBinaryOpCall(addInfo, left, one)
+            : EmitBinaryOpCall(subInfo, left, one);
 
         var setCall = LinqExpression.Call(CompilerContext.SetIndexMethod,
             objTemp, indexTemp, temp, _ctx.OptionsParam);

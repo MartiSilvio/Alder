@@ -479,6 +479,12 @@ internal sealed class TypeInferrer : AstWalker<Type>
         }
     }
 
+    public override Type VisitChecked(CheckedExpr expr)
+    {
+        var innerType = Visit(expr.Expression);
+        return SetType(expr, innerType);
+    }
+
     public override Type VisitMultiDimIndexAccess(MultiDimIndexAccessExpr expr)
     {
         base.VisitMultiDimIndexAccess(expr);

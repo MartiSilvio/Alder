@@ -121,6 +121,9 @@ internal interface IExprVisitor<out T>
     T VisitMultiDimTypedArrayCreation(MultiDimTypedArrayCreationExpr expr);
     T VisitMultiDimIndexAssign(MultiDimIndexAssignExpr expr);
 
+    // Checked/Unchecked
+    T VisitChecked(CheckedExpr expr);
+
     // Polyglot Extended Features
     T VisitRange(RangeExpr expr);
     T VisitPipeline(PipelineExpr expr);
@@ -636,6 +639,15 @@ internal sealed record TupleExpr(List<TupleElement> Elements) : Expr
 internal sealed record DeconstructionExpr(List<string> VariableNames, Expr ValueExpression) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitDeconstruction(this);
+}
+
+#endregion
+
+#region Checked/Unchecked Expression
+
+internal sealed record CheckedExpr(Expr Expression, bool IsChecked) : Expr
+{
+    public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitChecked(this);
 }
 
 #endregion

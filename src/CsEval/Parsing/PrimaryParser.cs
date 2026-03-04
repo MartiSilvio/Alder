@@ -389,7 +389,7 @@ internal sealed class PrimaryParser : ParserBase
         Consume(TokenType.LeftParen, $"Expected '(' after '{keyword}'");
         var expr = _expression.ParseExpression();
         Consume(TokenType.RightParen, $"Expected ')' after {keyword} expression");
-        return expr;
+        return new CheckedExpr(expr, keyword == "checked");
     }
 
     #endregion

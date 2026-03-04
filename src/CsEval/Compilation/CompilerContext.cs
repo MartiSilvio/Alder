@@ -57,6 +57,9 @@ internal sealed class CompilerContext
     // Recursion depth tracking to prevent stack overflow in Compile
     internal int CompileDepth;
 
+    // Checked/unchecked overflow context for arithmetic operations
+    internal bool IsChecked;
+
     internal record struct ControlFlowContext(LabelTarget BreakTarget, LabelTarget? ContinueTarget, bool IsLoop);
 
     #region Cached MethodInfo
@@ -115,7 +118,7 @@ internal sealed class CompilerContext
     internal static readonly MethodInfo CheckNullCoalesceAssignAllowedMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.CheckNullCoalesceAssignAllowed))!;
     internal static readonly MethodInfo ValidateCompoundAssignmentMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.ValidateCompoundAssignment))!;
     internal static readonly MethodInfo ValidateAndCoerceTypeMethod = typeof(TypeHelpers).GetMethod(nameof(TypeHelpers.ValidateAndCoerceType), [typeof(Type), typeof(object), typeof(string)])!;
-    internal static readonly MethodInfo ExplicitCastMethod = typeof(TypeHelpers).GetMethod(nameof(TypeHelpers.ExplicitCast), [typeof(object), typeof(Type), typeof(Type)])!;
+    internal static readonly MethodInfo ExplicitCastMethod = typeof(TypeHelpers).GetMethod(nameof(TypeHelpers.ExplicitCast), [typeof(object), typeof(Type), typeof(Type), typeof(bool)])!;
     internal static readonly MethodInfo IsTypeMethod = typeof(TypeHelpers).GetMethod(nameof(TypeHelpers.IsType), [typeof(object), typeof(Type)])!;
     internal static readonly MethodInfo TryAsMethod = typeof(TypeHelpers).GetMethod(nameof(TypeHelpers.TryAs), [typeof(object), typeof(Type)])!;
     internal static readonly MethodInfo InvokeCallMethod = typeof(Runtime.MethodInvoker).GetMethod(nameof(Runtime.MethodInvoker.InvokeCall))!;
@@ -335,6 +338,9 @@ internal sealed class CompilerContext
                 // Out argument (compiled to OutArgMarker for MethodInvoker)
                 OutArgExpr outArg => exprUnit.CompileOutArg(outArg),
 
+                // Checked/Unchecked
+                CheckedExpr checkedExpr => CompileChecked(ctx, checkedExpr, exprUnit, controlUnit, patternUnit),
+
                 // Polyglot Extended Features
                 RangeExpr range => exprUnit.CompileRange(range),
                 PipelineExpr pipeline => exprUnit.CompilePipeline(pipeline),
@@ -349,6 +355,22 @@ internal sealed class CompilerContext
         finally
         {
             ctx.CompileDepth--;
+        }
+    }
+
+    private static LinqExpression CompileChecked(
+        CompilerContext ctx, CheckedExpr checkedExpr,
+        ExpressionCompilerUnit exprUnit, ControlFlowCompilerUnit controlUnit, PatternCompilerUnit patternUnit)
+    {
+        var previous = ctx.IsChecked;
+        ctx.IsChecked = checkedExpr.IsChecked;
+        try
+        {
+            return Compile(ctx, checkedExpr.Expression, exprUnit, controlUnit, patternUnit);
+        }
+        finally
+        {
+            ctx.IsChecked = previous;
         }
     }
 
@@ -707,6 +729,10 @@ internal sealed class CompilerContext
 
                 case OutArgExpr:
                     // OutArgExpr as standalone is invalid; inside CallExpr it's handled above
+                    break;
+
+                case CheckedExpr checkedExpr:
+                    stack.Push(checkedExpr.Expression);
                     break;
 
                 case RangeExpr range:

@@ -8,14 +8,14 @@ namespace CsEval.Runtime;
 /// </summary>
 internal static class Operators
 {
-    public static object? Negate(object? value)
+    public static object? Negate(object? value, bool isChecked = false)
     {
         // ECMA-334 §12.4.8: Lifted unary operators return null when operand is null
         if (value == null)
             return null;
 
         if (TypeHelpers.IsArithmetic(value))
-            return NumericDispatch.Negate(value);
+            return NumericDispatch.Negate(value, isChecked);
 
         throw new CsEvalException(DiagnosticDescriptors.BadUnaryOp, "-", value.GetType().Name);
     }
@@ -51,7 +51,7 @@ internal static class Operators
     public static object? Add(object? left, object? right, CsEvalOptions options) =>
         Add(left, right, options, null);
 
-    public static object? Add(object? left, object? right, CsEvalOptions options, CsEvalContext? context)
+    public static object? Add(object? left, object? right, CsEvalOptions options, CsEvalContext? context, bool isChecked = false)
     {
         if (left is string || right is string)
             return $"{left}{right}";
@@ -65,7 +65,7 @@ internal static class Operators
         }
 
         if (TypeHelpers.IsArithmetic(left) && TypeHelpers.IsArithmetic(right))
-            return NumericDispatch.Add(left, right);
+            return NumericDispatch.Add(left, right, isChecked);
 
         // Object merge via + operator (Extended mode only)
         if (options.LanguageMode == LanguageMode.Standard)
@@ -75,13 +75,13 @@ internal static class Operators
         return Extensions.ObjectMergeOperator.MergeObjects(left, right, options, context);
     }
 
-    public static object? Subtract(object? left, object? right) =>
-        ApplyBinaryArithmetic(left, right, "-", NumericDispatch.Subtract);
+    public static object? Subtract(object? left, object? right, bool isChecked = false) =>
+        ApplyBinaryArithmetic(left, right, "-", (l, r) => NumericDispatch.Subtract(l, r, isChecked));
 
     public static object? Multiply(object? left, object? right) =>
         Multiply(left, right, null);
 
-    public static object? Multiply(object? left, object? right, CsEvalOptions? options)
+    public static object? Multiply(object? left, object? right, CsEvalOptions? options, bool isChecked = false)
     {
         if (left is string || right is string)
         {
@@ -89,7 +89,7 @@ internal static class Operators
                 return StringMultiply(left, right);
             // In Standard mode, string * anything falls through to arithmetic and throws
         }
-        return ApplyBinaryArithmetic(left, right, "*", NumericDispatch.Multiply);
+        return ApplyBinaryArithmetic(left, right, "*", (l, r) => NumericDispatch.Multiply(l, r, isChecked));
     }
 
     public static object? Divide(object? left, object? right) =>

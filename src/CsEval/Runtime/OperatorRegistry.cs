@@ -24,13 +24,19 @@ internal static class OperatorRegistry
         WithOptions,
         /// <summary>Four params: (object?, object?, CsEvalOptions, CsEvalContext?)</summary>
         WithOptionsAndContext,
+        /// <summary>(object?, object?, bool) - TwoArgs + isChecked</summary>
+        TwoArgsChecked,
+        /// <summary>(object?, object?, CsEvalOptions, bool) - WithOptions + isChecked</summary>
+        WithOptionsChecked,
+        /// <summary>(object?, object?, CsEvalOptions, CsEvalContext?, bool) - WithOptionsAndContext + isChecked</summary>
+        WithOptionsAndContextChecked,
     }
 
     private static readonly Dictionary<TokenType, BinaryOpInfo> BinaryOperators = new()
     {
-        [TokenType.Plus] = new(typeof(Operators).GetMethod(nameof(Operators.Add), [typeof(object), typeof(object), typeof(CsEvalOptions), typeof(CsEvalContext)])!, BinaryOpSignature.WithOptionsAndContext),
-        [TokenType.Minus] = new(typeof(Operators).GetMethod(nameof(Operators.Subtract), [typeof(object), typeof(object)])!, BinaryOpSignature.TwoArgs),
-        [TokenType.Star] = new(typeof(Operators).GetMethod(nameof(Operators.Multiply), [typeof(object), typeof(object), typeof(CsEvalOptions)])!, BinaryOpSignature.WithOptions),
+        [TokenType.Plus] = new(typeof(Operators).GetMethod(nameof(Operators.Add), [typeof(object), typeof(object), typeof(CsEvalOptions), typeof(CsEvalContext), typeof(bool)])!, BinaryOpSignature.WithOptionsAndContextChecked),
+        [TokenType.Minus] = new(typeof(Operators).GetMethod(nameof(Operators.Subtract), [typeof(object), typeof(object), typeof(bool)])!, BinaryOpSignature.TwoArgsChecked),
+        [TokenType.Star] = new(typeof(Operators).GetMethod(nameof(Operators.Multiply), [typeof(object), typeof(object), typeof(CsEvalOptions), typeof(bool)])!, BinaryOpSignature.WithOptionsChecked),
         [TokenType.Slash] = new(typeof(Operators).GetMethod(nameof(Operators.Divide), [typeof(object), typeof(object)])!, BinaryOpSignature.TwoArgs),
         [TokenType.Percent] = new(typeof(Operators).GetMethod(nameof(Operators.Modulo), [typeof(object), typeof(object)])!, BinaryOpSignature.TwoArgs),
         [TokenType.EqualEqual] = new(typeof(Operators).GetMethod("Equals", [typeof(object), typeof(object)])!, BinaryOpSignature.TwoArgs),
@@ -57,12 +63,14 @@ internal static class OperatorRegistry
         [TokenType.LessEqualGreater] = new(typeof(Operators).GetMethod(nameof(Operators.Spaceship), [typeof(object), typeof(object)])!, BinaryOpSignature.TwoArgs),
     };
 
-    private static readonly Dictionary<TokenType, MethodInfo> UnaryOperators = new()
+    internal readonly record struct UnaryOpInfo(MethodInfo Method, bool HasCheckedParam);
+
+    private static readonly Dictionary<TokenType, UnaryOpInfo> UnaryOperators = new()
     {
-        [TokenType.Minus] = typeof(Operators).GetMethod(nameof(Operators.Negate), [typeof(object)])!,
-        [TokenType.Plus] = typeof(Operators).GetMethod(nameof(Operators.UnaryPlus), [typeof(object)])!,
-        [TokenType.Bang] = typeof(Operators).GetMethod(nameof(Operators.LogicalNot), [typeof(object)])!,
-        [TokenType.Tilde] = typeof(Operators).GetMethod(nameof(Operators.BitwiseNot), [typeof(object)])!,
+        [TokenType.Minus] = new(typeof(Operators).GetMethod(nameof(Operators.Negate), [typeof(object), typeof(bool)])!, true),
+        [TokenType.Plus] = new(typeof(Operators).GetMethod(nameof(Operators.UnaryPlus), [typeof(object)])!, false),
+        [TokenType.Bang] = new(typeof(Operators).GetMethod(nameof(Operators.LogicalNot), [typeof(object)])!, false),
+        [TokenType.Tilde] = new(typeof(Operators).GetMethod(nameof(Operators.BitwiseNot), [typeof(object)])!, false),
     };
 
     /// <summary>
@@ -91,8 +99,8 @@ internal static class OperatorRegistry
         BinaryOperators.TryGetValue(op, out var info) ? info : null;
 
     /// <summary>
-    /// Gets unary operator MethodInfo for the given token type, or null if not found.
+    /// Gets unary operator info for the given token type, or null if not found.
     /// </summary>
-    public static MethodInfo? GetUnaryMethod(TokenType op) =>
-        UnaryOperators.TryGetValue(op, out var method) ? method : null;
+    public static UnaryOpInfo? GetUnaryOperator(TokenType op) =>
+        UnaryOperators.TryGetValue(op, out var info) ? info : null;
 }

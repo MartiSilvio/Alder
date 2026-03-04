@@ -627,6 +627,14 @@ internal abstract class AstWalker<T> : IExprVisitor<T>
         return OnLeave(expr);
     }
 
+    // Checked/Unchecked
+    public virtual T VisitChecked(CheckedExpr expr)
+    {
+        OnEnter(expr);
+        Visit(expr.Expression);
+        return OnLeave(expr);
+    }
+
     // Polyglot Extended Features
     public virtual T VisitRange(RangeExpr expr)
     {

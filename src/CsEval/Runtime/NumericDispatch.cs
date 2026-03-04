@@ -87,6 +87,40 @@ internal static class NumericDispatch
 
     #endregion
 
+    #region Checked Binary Operator Delegates
+
+    private static readonly Dictionary<(Type, Type), BinaryOp> CheckedAddOps = BuildBinaryOps(
+        (int l, int r) => checked(l + r),
+        (long l, long r) => checked(l + r),
+        (float l, float r) => l + r,
+        (double l, double r) => l + r,
+        (decimal l, decimal r) => checked(l + r),
+        (uint l, uint r) => checked(l + r),
+        (ulong l, ulong r) => checked(l + r)
+    );
+
+    private static readonly Dictionary<(Type, Type), BinaryOp> CheckedSubtractOps = BuildBinaryOps(
+        (int l, int r) => checked(l - r),
+        (long l, long r) => checked(l - r),
+        (float l, float r) => l - r,
+        (double l, double r) => l - r,
+        (decimal l, decimal r) => checked(l - r),
+        (uint l, uint r) => checked(l - r),
+        (ulong l, ulong r) => checked(l - r)
+    );
+
+    private static readonly Dictionary<(Type, Type), BinaryOp> CheckedMultiplyOps = BuildBinaryOps(
+        (int l, int r) => checked(l * r),
+        (long l, long r) => checked(l * r),
+        (float l, float r) => l * r,
+        (double l, double r) => l * r,
+        (decimal l, decimal r) => checked(l * r),
+        (uint l, uint r) => checked(l * r),
+        (ulong l, ulong r) => checked(l * r)
+    );
+
+    #endregion
+
     #region Comparison Delegates
 
     private static readonly Dictionary<(Type, Type), CompareOp> CompareOps = BuildCompareOps();
@@ -109,6 +143,19 @@ internal static class NumericDispatch
         [typeof(ushort)] = v => -(int)(ushort)v,
     };
 
+    private static readonly Dictionary<Type, UnaryOp> CheckedNegateOps = new()
+    {
+        [typeof(int)] = v => checked(-(int)v),
+        [typeof(long)] = v => checked(-(long)v),
+        [typeof(float)] = v => -(float)v,
+        [typeof(double)] = v => -(double)v,
+        [typeof(decimal)] = v => checked(-(decimal)v),
+        [typeof(short)] = v => checked(-(int)(short)v),
+        [typeof(sbyte)] = v => checked(-(int)(sbyte)v),
+        [typeof(byte)] = v => -(int)(byte)v,
+        [typeof(ushort)] = v => -(int)(ushort)v,
+    };
+
     private static readonly Dictionary<Type, UnaryOp> BitwiseNotOps = new()
     {
         [typeof(int)] = v => ~(int)v,
@@ -126,14 +173,14 @@ internal static class NumericDispatch
 
     #region Public API
 
-    public static object? Add(object left, object right)
-        => ExecuteBinaryOp(left, right, AddOps, "+");
+    public static object? Add(object left, object right, bool isChecked = false)
+        => ExecuteBinaryOp(left, right, isChecked ? CheckedAddOps : AddOps, "+");
 
-    public static object? Subtract(object left, object right)
-        => ExecuteBinaryOp(left, right, SubtractOps, "-");
+    public static object? Subtract(object left, object right, bool isChecked = false)
+        => ExecuteBinaryOp(left, right, isChecked ? CheckedSubtractOps : SubtractOps, "-");
 
-    public static object? Multiply(object left, object right)
-        => ExecuteBinaryOp(left, right, MultiplyOps, "*");
+    public static object? Multiply(object left, object right, bool isChecked = false)
+        => ExecuteBinaryOp(left, right, isChecked ? CheckedMultiplyOps : MultiplyOps, "*");
 
     public static object? Divide(object left, object right)
         => ExecuteBinaryOp(left, right, DivideOps, "/");
@@ -150,7 +197,7 @@ internal static class NumericDispatch
     public static object? BitwiseXor(object left, object right)
         => ExecuteIntegerBinaryOp(left, right, BitwiseXorOps, "^");
 
-    public static object? Negate(object value)
+    public static object? Negate(object value, bool isChecked = false)
     {
         var type = value.GetType();
 
@@ -178,7 +225,8 @@ internal static class NumericDispatch
                 return long.MinValue;
         }
 
-        if (NegateOps.TryGetValue(type, out var op))
+        var ops = isChecked ? CheckedNegateOps : NegateOps;
+        if (ops.TryGetValue(type, out var op))
             return op(value);
 
 #if USE_STATIC_DISPATCH

@@ -148,17 +148,57 @@ public class EvaluationChaosTests(CompilationMode mode) : StressTestBase(mode)
     }
 
     [Test]
-    public void ArithmeticOverflow_ShouldCheckCheckedContext()
+    public void ArithmeticOverflow_DefaultContext_WrapsToNegative()
     {
-        // int.MaxValue + 1
-        // By default C# is unchecked. 
-        var expr = $"{int.MaxValue} + 1";
-        var result = Engine.Evaluate(expr);
-        // If unchecked, it wraps to negative.
-        TestContext.WriteLine($"{int.MaxValue} + 1 = {result}");
+        var result = Engine.Evaluate($"{int.MaxValue} + 1");
+        Assert.That(result, Is.EqualTo(int.MinValue));
+        Assert.That(result, Is.TypeOf<int>());
+    }
 
-        // Assert it behaves consistently (either wraps or throws, but not crash)
-        Assert.That(result, Is.Not.Null);
+    [Test]
+    public void ArithmeticOverflow_CheckedContext_ThrowsOverflow()
+    {
+        Assert.Throws<OverflowException>(() => Engine.Evaluate("checked(int.MaxValue + 1)"));
+    }
+
+    [Test]
+    public void ArithmeticOverflow_UncheckedContext_WrapsToNegative()
+    {
+        var result = Engine.Evaluate("unchecked(int.MaxValue + 1)");
+        Assert.That(result, Is.EqualTo(int.MinValue));
+        Assert.That(result, Is.TypeOf<int>());
+    }
+
+    [Test]
+    public void CheckedContext_UintOverflow_Throws()
+    {
+        Assert.Throws<OverflowException>(() => Engine.Evaluate("checked(uint.MaxValue + 1u)"));
+    }
+
+    [Test]
+    public void CheckedContext_UlongOverflow_Throws()
+    {
+        Assert.Throws<OverflowException>(() => Engine.Evaluate("checked(ulong.MaxValue + 1UL)"));
+    }
+
+    [Test]
+    public void CheckedContext_MultipleOps_OnlyLastOverflows()
+    {
+        Assert.Throws<OverflowException>(() => Engine.Evaluate("checked(1 + 2 + int.MaxValue)"));
+    }
+
+    [Test]
+    public void CheckedContext_NarrowingCast_Throws()
+    {
+        Assert.Throws<OverflowException>(() => Engine.Evaluate("checked((byte)256)"));
+    }
+
+    [Test]
+    public void UncheckedContext_NarrowingCast_Truncates()
+    {
+        var result = Engine.Evaluate("unchecked((byte)256)");
+        Assert.That(result, Is.EqualTo((byte)0));
+        Assert.That(result, Is.TypeOf<byte>());
     }
 
     [Test]

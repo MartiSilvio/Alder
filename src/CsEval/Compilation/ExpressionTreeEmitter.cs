@@ -15,6 +15,7 @@ internal sealed class ExpressionTreeEmitter
     private readonly Dictionary<string, ParameterExpression> _parameterScope;
     private readonly Dictionary<string, object?> _engineVariables;
     private readonly TypeResolver _typeResolver;
+    private bool _isChecked;
 
     private static readonly MethodInfo StringConcat2 =
         typeof(string).GetMethod("Concat", [typeof(string), typeof(string)])!;
@@ -83,6 +84,7 @@ internal sealed class ExpressionTreeEmitter
             ConditionalExpr e => EmitConditional(e),
             NullCoalesceExpr e => EmitNullCoalesce(e),
             CastExpr e => EmitCast(e),
+            CheckedExpr e => EmitChecked(e),
             IsPatternExpr e => EmitIsPattern(e),
             IndexAccessExpr e => EmitIndexAccess(e),
             ObjectCreationExpr e => EmitObjectCreation(e),
@@ -244,9 +246,9 @@ internal sealed class ExpressionTreeEmitter
 
         return expr.Op.Type switch
         {
-            TokenType.Plus => LinqExpression.Add(left, right),
-            TokenType.Minus => LinqExpression.Subtract(left, right),
-            TokenType.Star => LinqExpression.Multiply(left, right),
+            TokenType.Plus => _isChecked ? LinqExpression.AddChecked(left, right) : LinqExpression.Add(left, right),
+            TokenType.Minus => _isChecked ? LinqExpression.SubtractChecked(left, right) : LinqExpression.Subtract(left, right),
+            TokenType.Star => _isChecked ? LinqExpression.MultiplyChecked(left, right) : LinqExpression.Multiply(left, right),
             TokenType.Slash => LinqExpression.Divide(left, right),
             TokenType.Percent => LinqExpression.Modulo(left, right),
             TokenType.EqualEqual => LinqExpression.Equal(left, right),
@@ -285,7 +287,7 @@ internal sealed class ExpressionTreeEmitter
 
         return expr.Op.Type switch
         {
-            TokenType.Minus => LinqExpression.Negate(operand),
+            TokenType.Minus => _isChecked ? LinqExpression.NegateChecked(operand) : LinqExpression.Negate(operand),
             TokenType.Plus => operand,
             TokenType.Bang => LinqExpression.Not(operand),
             TokenType.Tilde => LinqExpression.Not(operand),
@@ -463,11 +465,27 @@ internal sealed class ExpressionTreeEmitter
         return LinqExpression.Coalesce(left, right);
     }
 
+    private LinqExpression EmitChecked(CheckedExpr expr)
+    {
+        var previous = _isChecked;
+        _isChecked = expr.IsChecked;
+        try
+        {
+            return Emit(expr.Expression);
+        }
+        finally
+        {
+            _isChecked = previous;
+        }
+    }
+
     private LinqExpression EmitCast(CastExpr expr)
     {
         var operand = Emit(expr.Expression);
         var targetType = ResolveTypeFromToken(expr.TargetType);
-        return LinqExpression.Convert(operand, targetType);
+        return _isChecked
+            ? LinqExpression.ConvertChecked(operand, targetType)
+            : LinqExpression.Convert(operand, targetType);
     }
 
     private LinqExpression EmitIsPattern(IsPatternExpr expr)

@@ -109,7 +109,7 @@ internal static class TypeHelpers
     /// When sourceStaticType is 'object', enforces C# unboxing semantics:
     /// you can only unbox to the exact boxed type.
     /// </summary>
-    public static object? ExplicitCast(object? value, Type targetType, Type? sourceStaticType = null)
+    public static object? ExplicitCast(object? value, Type targetType, Type? sourceStaticType = null, bool isChecked = false)
     {
         var underlyingType = Nullable.GetUnderlyingType(targetType) ?? targetType;
         var isNullable = Nullable.GetUnderlyingType(targetType) != null;
@@ -159,7 +159,11 @@ internal static class TypeHelpers
             if (underlyingType == typeof(char) && value is string { Length: 1 } s)
                 return s[0];
 
-            return RuntimeCast(value, runtimeType, underlyingType);
+            return RuntimeCast(value, runtimeType, underlyingType, isChecked);
+        }
+        catch (OverflowException) when (isChecked)
+        {
+            throw;
         }
         catch (Exception ex) when (ex is InvalidCastException or FormatException or OverflowException)
         {
@@ -167,15 +171,17 @@ internal static class TypeHelpers
         }
     }
 
-    private static readonly ConcurrentDictionary<(Type, Type), Func<object, object>> CastCache = new();
+    private static readonly ConcurrentDictionary<(Type, Type, bool), Func<object, object>> CastCache = new();
 
-    internal static object RuntimeCast(object value, Type sourceType, Type targetType)
+    internal static object RuntimeCast(object value, Type sourceType, Type targetType, bool isChecked = false)
     {
-        var converter = CastCache.GetOrAdd((sourceType, targetType), key =>
+        var converter = CastCache.GetOrAdd((sourceType, targetType, isChecked), key =>
         {
             var param = LinqExpression.Parameter(typeof(object), "value");
             var unbox = LinqExpression.Convert(param, key.Item1);
-            var cast = LinqExpression.Convert(unbox, key.Item2);
+            var cast = key.Item3
+                ? LinqExpression.ConvertChecked(unbox, key.Item2)
+                : LinqExpression.Convert(unbox, key.Item2);
             var box = LinqExpression.Convert(cast, typeof(object));
             return LinqExpression.Lambda<Func<object, object>>(box, param).Compile();
         });
