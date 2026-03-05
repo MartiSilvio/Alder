@@ -236,7 +236,7 @@ public sealed class CsEvalEngine : IDisposable
                 throw csEvalFailure;
 
             var reason = compiled?.FailureReason ?? "Unknown compilation failure";
-            throw new CsEvalException($"Expression could not be compiled to IL: {reason}");
+            throw new CsEvalException(DiagnosticDescriptors.StrictCompilationFailed, reason);
         }
 
         var evaluator = new Evaluator(executionContext, _options, cancellationToken);
@@ -379,10 +379,8 @@ public sealed class CsEvalEngine : IDisposable
                 if (context.TypeResolver.IsNamespaceOrPrefix(name)) continue;
                 if (context.TypeResolver.TryResolveType(name) != null) continue;
 
-                unboundErrors.Add(new CsEvalDiagnostic(
-                    DiagnosticSeverity.Error,
-                    $"CS0103: The name '{name}' does not exist in the current context",
-                    DiagnosticCode.CS0103));
+                var ex = new CsEvalException(DiagnosticDescriptors.NameNotInContext, name);
+                unboundErrors.Add(CsEvalDiagnostic.FromException(ex));
             }
 
             if (unboundErrors.Count > 0)
@@ -446,7 +444,8 @@ public sealed class CsEvalEngine : IDisposable
         if (!parsed.TryCompile(_options))
         {
             var reason = parsed.CompilationFailureReason ?? "Unknown compilation failure";
-            throw new InvalidOperationException(
+            throw new CsEvalException(
+                DiagnosticDescriptors.StrictCompilationFailed,
                 $"Cannot compile expression '{expression}': {reason}");
         }
 
@@ -840,12 +839,12 @@ public sealed class CsEvalEngine : IDisposable
         return args =>
         {
             var parameters = method.GetParameters();
-            var finalArgs = PadWithDefaults(parameters, args);
+            var finalArgs = PadWithDefaults(parameters, args, method.Name);
             return method.Invoke(moduleInfo?.Resolve(null), finalArgs);
         };
     }
 
-    private static object?[] PadWithDefaults(ParameterInfo[] parameters, object?[] args)
+    private static object?[] PadWithDefaults(ParameterInfo[] parameters, object?[] args, string callableName)
     {
         var result = new object?[parameters.Length];
 
@@ -861,7 +860,10 @@ public sealed class CsEvalEngine : IDisposable
             }
             else
             {
-                throw new ArgumentException($"Missing required argument '{parameters[i].Name}'", parameters[i].Name);
+                throw new CsEvalException(
+                    DiagnosticDescriptors.MissingRequiredArgument,
+                    parameters[i].Name,
+                    callableName);
             }
         }
 

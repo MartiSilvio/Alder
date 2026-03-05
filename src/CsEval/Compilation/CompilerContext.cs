@@ -117,6 +117,7 @@ internal sealed class CompilerContext
     internal static readonly MethodInfo CheckNullCoalesceAssignAllowedMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.CheckNullCoalesceAssignAllowed))!;
     internal static readonly MethodInfo DisposeResourceMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.DisposeResource))!;
     internal static readonly MethodInfo ValidateLockObjectMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.ValidateLockObject))!;
+    internal static readonly MethodInfo ValidateThrowOperandMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.ValidateThrowOperand))!;
     internal static readonly MethodInfo ValidateCompoundAssignmentMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.ValidateCompoundAssignment))!;
     internal static readonly MethodInfo EvaluateCatchWhenGuardMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.EvaluateCatchWhenGuard))!;
     internal static readonly MethodInfo ValidateAndCoerceTypeMethod = typeof(TypeHelpers).GetMethod(nameof(TypeHelpers.ValidateAndCoerceType), [typeof(Type), typeof(object), typeof(string)])!;

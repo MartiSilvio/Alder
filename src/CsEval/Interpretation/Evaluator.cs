@@ -19,6 +19,8 @@ internal sealed class Evaluator : IExprVisitor<object?>
     private readonly int _maxDepth;
     private readonly Stack<Exception> _caughtExceptions = new();
     private bool _isChecked;
+    private int _breakContextDepth;
+    private int _loopDepth;
 
     public Evaluator(
         CsEvalContext context,
@@ -368,7 +370,7 @@ internal sealed class Evaluator : IExprVisitor<object?>
             return null;
 
         if (obj == null)
-            throw new CsEvalException("Cannot index null");
+            throw new CsEvalException(DiagnosticDescriptors.BadIndexerAccess, "null");
 
         var index = Evaluate(expr.Index);
         return GetIndex(obj, index);
@@ -531,7 +533,7 @@ internal sealed class Evaluator : IExprVisitor<object?>
         var value = Evaluate(expr.Value);
 
         if (obj == null)
-            throw new CsEvalException("Cannot assign to index on null");
+            throw new CsEvalException(DiagnosticDescriptors.BadIndexerAccess, "null");
 
         SetIndex(obj, index, value);
         return value;
@@ -587,7 +589,7 @@ internal sealed class Evaluator : IExprVisitor<object?>
         var obj = Evaluate(expr.Object);
 
         if (obj == null)
-            throw new CsEvalException("Cannot index null");
+            throw new CsEvalException(DiagnosticDescriptors.BadIndexerAccess, "null");
 
         var index = Evaluate(expr.Index);
         var currentValue = GetIndex(obj, index);
@@ -639,7 +641,7 @@ internal sealed class Evaluator : IExprVisitor<object?>
         var obj = Evaluate(expr.Object);
 
         if (obj == null)
-            throw new CsEvalException("Cannot index null");
+            throw new CsEvalException(DiagnosticDescriptors.BadIndexerAccess, "null");
 
         var index = Evaluate(expr.Index);
         var currentValue = GetIndex(obj, index);
@@ -676,7 +678,7 @@ internal sealed class Evaluator : IExprVisitor<object?>
         var obj = Evaluate(expr.Object);
 
         if (obj == null)
-            throw new CsEvalException("Cannot index null");
+            throw new CsEvalException(DiagnosticDescriptors.BadIndexerAccess, "null");
 
         var index = Evaluate(expr.Index);
         var currentValue = GetIndex(obj, index);
@@ -870,7 +872,17 @@ internal sealed class Evaluator : IExprVisitor<object?>
         var indices = expr.Indices.Select(i => Convert.ToInt32(Evaluate(i))).ToArray();
         if (obj is Array arr)
             return arr.GetValue(indices);
-        throw new CsEvalException($"Multi-dimensional index access not supported on type '{obj?.GetType().Name}'");
+        if (obj != null && expr.Indices.Count > 1)
+        {
+            var hasMatchingIndexer = obj.GetType()
+                .GetProperties(BindingFlags.Public | BindingFlags.Instance)
+                .Any(p => p.Name == "Item" && p.GetIndexParameters().Length == expr.Indices.Count);
+            if (hasMatchingIndexer)
+                throw new CsEvalException(DiagnosticDescriptors.MultiParameterIndexerNotSupported, obj.GetType().Name);
+        }
+        throw new CsEvalException(
+            DiagnosticDescriptors.BadIndexerAccess,
+            obj?.GetType().Name ?? "null");
     }
 
     public object? VisitMultiDimTypedArrayCreation(MultiDimTypedArrayCreationExpr expr)
@@ -890,7 +902,17 @@ internal sealed class Evaluator : IExprVisitor<object?>
             arr.SetValue(value, indices);
             return value;
         }
-        throw new CsEvalException($"Multi-dimensional index assignment not supported on type '{obj?.GetType().Name}'");
+        if (obj != null && expr.Indices.Count > 1)
+        {
+            var hasMatchingIndexer = obj.GetType()
+                .GetProperties(BindingFlags.Public | BindingFlags.Instance)
+                .Any(p => p.Name == "Item" && p.GetIndexParameters().Length == expr.Indices.Count);
+            if (hasMatchingIndexer)
+                throw new CsEvalException(DiagnosticDescriptors.MultiParameterIndexerNotSupported, obj.GetType().Name);
+        }
+        throw new CsEvalException(
+            DiagnosticDescriptors.BadIndexerAccess,
+            obj?.GetType().Name ?? "null");
     }
 
     public object? VisitTypedArrayCreation(TypedArrayCreationExpr expr)
@@ -917,8 +939,7 @@ internal sealed class Evaluator : IExprVisitor<object?>
     public object? VisitThrow(ThrowExpr expr)
     {
         var result = Evaluate(expr.Expression);
-        if (result is not Exception ex)
-            throw new CsEvalException($"Cannot throw object of type '{result?.GetType().Name ?? "null"}': throw expression must throw an Exception type");
+        var ex = RuntimeHelpers.ValidateThrowOperand(result);
         throw ex;
     }
 
@@ -1158,11 +1179,15 @@ internal sealed class Evaluator : IExprVisitor<object?>
 
     public object? VisitBreak(BreakExpr expr)
     {
+        if (_breakContextDepth == 0)
+            throw new CsEvalException(DiagnosticDescriptors.BreakOrContinueOutsideLoop);
         return ControlFlowSignal.Break;
     }
 
     public object? VisitContinue(ContinueExpr expr)
     {
+        if (_loopDepth == 0)
+            throw new CsEvalException(DiagnosticDescriptors.BreakOrContinueOutsideLoop);
         return ControlFlowSignal.Continue;
     }
 
@@ -1171,32 +1196,42 @@ internal sealed class Evaluator : IExprVisitor<object?>
         var constraintState = _context.ConstraintState;
         var constraints = _options.Constraints;
 
-        while (TypeHelpers.RequireBoolean(Evaluate(expr.Condition)))
+        _breakContextDepth++;
+        _loopDepth++;
+        try
         {
-            RuntimeHelpers.CheckExecutionConstraints(constraintState, constraints, _cancellationToken);
-
-            var previousContext = _context;
-            _context = _context.CreateChild();
-
-            ControlFlowSignal? signal;
-            try
+            while (TypeHelpers.RequireBoolean(Evaluate(expr.Condition)))
             {
-                signal = ExecuteStatementBlock(expr.Body);
-            }
-            finally
-            {
-                _context = previousContext;
+                RuntimeHelpers.CheckExecutionConstraints(constraintState, constraints, _cancellationToken);
+
+                var previousContext = _context;
+                _context = _context.CreateChild();
+
+                ControlFlowSignal? signal;
+                try
+                {
+                    signal = ExecuteStatementBlock(expr.Body);
+                }
+                finally
+                {
+                    _context = previousContext;
+                }
+
+                if (signal != null)
+                {
+                    if (signal.SignalKind == ControlFlowSignal.Kind.Break) break;
+                    if (signal.SignalKind == ControlFlowSignal.Kind.Continue) continue;
+                    return signal;
+                }
             }
 
-            if (signal != null)
-            {
-                if (signal.SignalKind == ControlFlowSignal.Kind.Break) break;
-                if (signal.SignalKind == ControlFlowSignal.Kind.Continue) continue;
-                return signal;
-            }
+            return null;
         }
-
-        return null;
+        finally
+        {
+            _loopDepth--;
+            _breakContextDepth--;
+        }
     }
 
     public object? VisitFor(ForStatementExpr expr)
@@ -1206,6 +1241,8 @@ internal sealed class Evaluator : IExprVisitor<object?>
         var loopContext = _context;
         _context = _context.CreateChild();
 
+        _breakContextDepth++;
+        _loopDepth++;
         try
         {
             foreach (var init in expr.Initializers)
@@ -1244,6 +1281,8 @@ internal sealed class Evaluator : IExprVisitor<object?>
         }
         finally
         {
+            _loopDepth--;
+            _breakContextDepth--;
             _context = loopContext;
         }
 
@@ -1255,32 +1294,42 @@ internal sealed class Evaluator : IExprVisitor<object?>
         var constraintState = _context.ConstraintState;
         var constraints = _options.Constraints;
 
-        do
+        _breakContextDepth++;
+        _loopDepth++;
+        try
         {
-            RuntimeHelpers.CheckExecutionConstraints(constraintState, constraints, _cancellationToken);
-
-            var previousContext = _context;
-            _context = _context.CreateChild();
-
-            ControlFlowSignal? signal;
-            try
+            do
             {
-                signal = ExecuteStatementBlock(expr.Body);
-            }
-            finally
-            {
-                _context = previousContext;
-            }
+                RuntimeHelpers.CheckExecutionConstraints(constraintState, constraints, _cancellationToken);
 
-            if (signal != null)
-            {
-                if (signal.SignalKind == ControlFlowSignal.Kind.Break) break;
-                if (signal.SignalKind == ControlFlowSignal.Kind.Continue) continue;
-                return signal;
-            }
-        } while (TypeHelpers.RequireBoolean(Evaluate(expr.Condition)));
+                var previousContext = _context;
+                _context = _context.CreateChild();
 
-        return null;
+                ControlFlowSignal? signal;
+                try
+                {
+                    signal = ExecuteStatementBlock(expr.Body);
+                }
+                finally
+                {
+                    _context = previousContext;
+                }
+
+                if (signal != null)
+                {
+                    if (signal.SignalKind == ControlFlowSignal.Kind.Break) break;
+                    if (signal.SignalKind == ControlFlowSignal.Kind.Continue) continue;
+                    return signal;
+                }
+            } while (TypeHelpers.RequireBoolean(Evaluate(expr.Condition)));
+
+            return null;
+        }
+        finally
+        {
+            _loopDepth--;
+            _breakContextDepth--;
+        }
     }
 
     public object? VisitForEach(ForEachStatementExpr expr)
@@ -1294,33 +1343,43 @@ internal sealed class Evaluator : IExprVisitor<object?>
             throw new CsEvalException(DiagnosticDescriptors.ForeachRequiresIEnumerable, collection?.GetType().Name ?? "null");
         }
 
-        foreach (var item in enumerable)
+        _breakContextDepth++;
+        _loopDepth++;
+        try
         {
-            RuntimeHelpers.CheckExecutionConstraints(constraintState, constraints, _cancellationToken);
-
-            var previousContext = _context;
-            _context = _context.CreateChild();
-
-            ControlFlowSignal? signal;
-            try
+            foreach (var item in enumerable)
             {
-                _context.DefineNew(expr.VariableName.Lexeme, item, typeof(object));
-                signal = ExecuteStatementBlock(expr.Body);
-            }
-            finally
-            {
-                _context = previousContext;
+                RuntimeHelpers.CheckExecutionConstraints(constraintState, constraints, _cancellationToken);
+
+                var previousContext = _context;
+                _context = _context.CreateChild();
+
+                ControlFlowSignal? signal;
+                try
+                {
+                    _context.DefineNew(expr.VariableName.Lexeme, item, typeof(object));
+                    signal = ExecuteStatementBlock(expr.Body);
+                }
+                finally
+                {
+                    _context = previousContext;
+                }
+
+                if (signal != null)
+                {
+                    if (signal.SignalKind == ControlFlowSignal.Kind.Break) break;
+                    if (signal.SignalKind == ControlFlowSignal.Kind.Continue) continue;
+                    return signal;
+                }
             }
 
-            if (signal != null)
-            {
-                if (signal.SignalKind == ControlFlowSignal.Kind.Break) break;
-                if (signal.SignalKind == ControlFlowSignal.Kind.Continue) continue;
-                return signal;
-            }
+            return null;
         }
-
-        return null;
+        finally
+        {
+            _loopDepth--;
+            _breakContextDepth--;
+        }
     }
 
     #endregion
@@ -1364,57 +1423,65 @@ internal sealed class Evaluator : IExprVisitor<object?>
         var matched = false;
         var defaultCaseIndex = -1;
 
-        for (var i = 0; i < expr.Cases.Count; i++)
+        _breakContextDepth++;
+        try
         {
-            var switchCase = expr.Cases[i];
-
-            if (switchCase.CasePattern == null)
+            for (var i = 0; i < expr.Cases.Count; i++)
             {
-                defaultCaseIndex = i;
-                continue;
-            }
+                var switchCase = expr.Cases[i];
 
-            if (!matched)
-            {
-                // Create child scope for pattern variable bindings
-                var previousContext = _context;
-                _context = _context.CreateChild();
-                try
+                if (switchCase.CasePattern == null)
                 {
-                    if ((bool)MatchPattern(switchValue, switchCase.CasePattern)!)
-                    {
-                        // Check when guard if present
-                        if (switchCase.WhenGuard != null)
-                        {
-                            var guardResult = Evaluate(switchCase.WhenGuard);
-                            if (!TypeHelpers.RequireBoolean(guardResult))
-                            {
-                                _context = previousContext;
-                                continue;
-                            }
-                        }
+                    defaultCaseIndex = i;
+                    continue;
+                }
 
-                        matched = true;
-                        var signal = ExecuteCaseStatements(expr.Cases, i);
-                        if (signal != null)
-                            return signal.SignalKind == ControlFlowSignal.Kind.Break ? null : signal;
+                if (!matched)
+                {
+                    // Create child scope for pattern variable bindings
+                    var previousContext = _context;
+                    _context = _context.CreateChild();
+                    try
+                    {
+                        if ((bool)MatchPattern(switchValue, switchCase.CasePattern)!)
+                        {
+                            // Check when guard if present
+                            if (switchCase.WhenGuard != null)
+                            {
+                                var guardResult = Evaluate(switchCase.WhenGuard);
+                                if (!TypeHelpers.RequireBoolean(guardResult))
+                                {
+                                    _context = previousContext;
+                                    continue;
+                                }
+                            }
+
+                            matched = true;
+                            var signal = ExecuteCaseStatements(expr.Cases, i);
+                            if (signal != null)
+                                return signal.SignalKind == ControlFlowSignal.Kind.Break ? null : signal;
+                        }
+                    }
+                    finally
+                    {
+                        _context = previousContext;
                     }
                 }
-                finally
-                {
-                    _context = previousContext;
-                }
             }
-        }
 
-        if (!matched && defaultCaseIndex >= 0)
+            if (!matched && defaultCaseIndex >= 0)
+            {
+                var signal = ExecuteCaseStatements(expr.Cases, defaultCaseIndex);
+                if (signal != null && signal.SignalKind != ControlFlowSignal.Kind.Break)
+                    return signal;
+            }
+
+            return null;
+        }
+        finally
         {
-            var signal = ExecuteCaseStatements(expr.Cases, defaultCaseIndex);
-            if (signal != null && signal.SignalKind != ControlFlowSignal.Kind.Break)
-                return signal;
+            _breakContextDepth--;
         }
-
-        return null;
     }
 
     private ControlFlowSignal? ExecuteCaseStatements(List<SwitchCaseExpr> cases, int startIndex)

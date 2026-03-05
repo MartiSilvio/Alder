@@ -62,6 +62,10 @@ public static class DiagnosticDescriptors
     public static readonly DiagnosticDescriptor BreakOrContinueOutsideLoop =
         new(DiagnosticCode.CS0139, "No enclosing loop out of which to break or continue");
 
+    /// <summary>CS0155: The type caught or thrown must be derived from System.Exception</summary>
+    public static readonly DiagnosticDescriptor ThrowExpressionMustBeException =
+        new(DiagnosticCode.CS0155, "The type caught or thrown must be derived from System.Exception");
+
     /// <summary>CS0156: A throw statement with no arguments is not allowed outside of a catch clause</summary>
     public static readonly DiagnosticDescriptor ThrowOutsideCatch =
         new(DiagnosticCode.CS0156, "A throw statement with no arguments is not allowed outside of a catch clause");
@@ -98,6 +102,10 @@ public static class DiagnosticDescriptors
     public static readonly DiagnosticDescriptor GeneralCatchMustBeLast =
         new(DiagnosticCode.CS1017, "Try statement already has an empty catch block");
 
+    /// <summary>CS1021: Integral constant is too large</summary>
+    public static readonly DiagnosticDescriptor IntegralConstantTooLarge =
+        new(DiagnosticCode.CS1021, "Integral constant is too large");
+
     // ECMA-334 member resolution
 
     /// <summary>CS1061: '{0}' does not contain a definition for '{1}'</summary>
@@ -115,4 +123,20 @@ public static class DiagnosticDescriptors
     /// <summary>CS1729: '{0}' does not contain a constructor that takes {1} arguments</summary>
     public static readonly DiagnosticDescriptor NoMatchingConstructor =
         new(DiagnosticCode.CS1729, "'{0}' does not contain a constructor that takes {1} arguments");
+
+    /// <summary>CS7036: There is no argument given that corresponds to the required parameter '{0}' of '{1}'</summary>
+    public static readonly DiagnosticDescriptor MissingRequiredArgument =
+        new(DiagnosticCode.CS7036, "There is no argument given that corresponds to the required parameter '{0}' of '{1}'");
+
+    /// <summary>CSEV0001: Strict compilation mode could not compile the expression to IL: {0}</summary>
+    public static readonly DiagnosticDescriptor StrictCompilationFailed =
+        new(DiagnosticCode.CSEV0001, "Strict compilation mode could not compile the expression to IL: {0}");
+
+    /// <summary>CSEV0002: Feature '{0}' is not available in Standard mode. Use LanguageMode.Extended to enable non-standard syntax extensions.</summary>
+    public static readonly DiagnosticDescriptor ExtendedModeRequired =
+        new(DiagnosticCode.CSEV0002, "Feature '{0}' is not available in Standard mode. Use LanguageMode.Extended to enable non-standard syntax extensions.");
+
+    /// <summary>CSEV0003: Indexer overloads with multiple parameters are not supported yet on type '{0}'.</summary>
+    public static readonly DiagnosticDescriptor MultiParameterIndexerNotSupported =
+        new(DiagnosticCode.CSEV0003, "Indexer overloads with multiple parameters are not supported yet on type '{0}'.");
 }

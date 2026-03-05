@@ -1,3 +1,5 @@
+using CsEval.Diagnostics;
+
 namespace CsEval.Parsing;
 
 internal sealed class Lexer
@@ -384,12 +386,12 @@ internal sealed class Lexer
                     if (Match('"'))
                         ScanVerbatimInterpolatedString();
                     else
-                        throw new CsEvalLexerException($"Unexpected character sequence '$@' at {_line}:{_column}. Did you mean '$@\"...'?");
+                        throw LexError($"Unexpected character sequence '$@' at {_line}:{_column}. Did you mean '$@\"...'?");
                 }
                 else if (Match('"'))
                     ScanInterpolatedString();
                 else
-                    throw new CsEvalLexerException($"Unexpected character '$' at {_line}:{_column}. Did you mean '$\"...'?");
+                    throw LexError($"Unexpected character '$' at {_line}:{_column}. Did you mean '$\"...'?");
                 break;
 
             case '@':
@@ -398,12 +400,12 @@ internal sealed class Lexer
                     if (Match('"'))
                         ScanVerbatimInterpolatedString();
                     else
-                        throw new CsEvalLexerException($"Unexpected character sequence '@$' at {_line}:{_column}. Did you mean '@$\"...'?");
+                        throw LexError($"Unexpected character sequence '@$' at {_line}:{_column}. Did you mean '@$\"...'?");
                 }
                 else if (Match('"'))
                     ScanVerbatimString();
                 else
-                    throw new CsEvalLexerException($"Unexpected character '@' at {_line}:{_column}. Did you mean '@\"...'?");
+                    throw LexError($"Unexpected character '@' at {_line}:{_column}. Did you mean '@\"...'?");
                 break;
 
             default:
@@ -412,7 +414,7 @@ internal sealed class Lexer
                 else if (char.IsLetter(c) || c == '_')
                     ScanIdentifier();
                 else
-                    throw new CsEvalLexerException($"Unexpected character '{c}' at {_line}:{_column}");
+                    throw LexError($"Unexpected character '{c}' at {_line}:{_column}");
                 break;
         }
     }
@@ -423,7 +425,7 @@ internal sealed class Lexer
         while (Peek() != quote && !IsAtEnd())
         {
             if (Peek() == '\n')
-                throw new CsEvalLexerException($"Newline in constant at {_line}:{_column}");
+                throw LexError($"Newline in constant at {_line}:{_column}");
             if (Peek() == '\\')
             {
                 Advance();
@@ -436,7 +438,7 @@ internal sealed class Lexer
         }
 
         if (IsAtEnd())
-            throw new CsEvalLexerException($"Unterminated string at {_line}:{_column}");
+            throw LexError($"Unterminated string at {_line}:{_column}");
 
         Advance(); // closing quote
         AddToken(TokenType.String, sb.ToString());
@@ -447,22 +449,22 @@ internal sealed class Lexer
         char value;
 
         if (IsAtEnd())
-            throw new CsEvalLexerException($"Unterminated character literal at {_line}:{_column}");
+            throw LexError($"Unterminated character literal at {_line}:{_column}");
 
         if (Peek() == '\\')
         {
             Advance(); // consume backslash
             if (IsAtEnd())
-                throw new CsEvalLexerException($"Unterminated character literal at {_line}:{_column}");
+                throw LexError($"Unterminated character literal at {_line}:{_column}");
 
             var escaped = ParseEscapeSequence(forCharacterLiteral: true);
             if (escaped.Length != 1)
-                throw new CsEvalLexerException($"Character literal must contain exactly one character at {_line}:{_column}");
+                throw LexError($"Character literal must contain exactly one character at {_line}:{_column}");
             value = escaped[0];
         }
         else if (Peek() == '\'')
         {
-            throw new CsEvalLexerException($"Empty character literal at {_line}:{_column}");
+            throw LexError($"Empty character literal at {_line}:{_column}");
         }
         else
         {
@@ -470,7 +472,7 @@ internal sealed class Lexer
         }
 
         if (Peek() != '\'')
-            throw new CsEvalLexerException($"Character literal must contain exactly one character at {_line}:{_column}");
+            throw LexError($"Character literal must contain exactly one character at {_line}:{_column}");
 
         Advance(); // closing quote
         AddToken(TokenType.Character, value);
@@ -528,7 +530,7 @@ internal sealed class Lexer
         }
 
         if (IsAtEnd())
-            throw new CsEvalLexerException($"Unterminated interpolated string at {_line}:{_column}");
+            throw LexError($"Unterminated interpolated string at {_line}:{_column}");
 
         Advance(); // closing "
         AddToken(TokenType.InterpolatedString, sb.ToString());
@@ -575,7 +577,7 @@ internal sealed class Lexer
         }
 
         if (!closed)
-            throw new CsEvalLexerException($"Unterminated raw string literal at {_line}:{_column}");
+            throw LexError($"Unterminated raw string literal at {_line}:{_column}");
 
         AddToken(TokenType.String, sb.ToString());
     }
@@ -610,7 +612,7 @@ internal sealed class Lexer
         }
 
         if (IsAtEnd())
-            throw new CsEvalLexerException($"Unterminated verbatim string at {_line}:{_column}");
+            throw LexError($"Unterminated verbatim string at {_line}:{_column}");
 
         Advance(); // closing "
         AddToken(TokenType.String, sb.ToString());
@@ -676,7 +678,7 @@ internal sealed class Lexer
         }
 
         if (IsAtEnd())
-            throw new CsEvalLexerException($"Unterminated verbatim interpolated string at {_line}:{_column}");
+            throw LexError($"Unterminated verbatim interpolated string at {_line}:{_column}");
 
         Advance(); // closing "
         AddToken(TokenType.InterpolatedString, sb.ToString());
@@ -726,7 +728,7 @@ internal sealed class Lexer
                 if (Peek() == '+' || Peek() == '-')
                     Advance(); // consume sign
                 if (!char.IsDigit(Peek()))
-                    throw new CsEvalLexerException($"Invalid exponent: expected digit after sign at {_line}:{_column}");
+                    throw LexError($"Invalid exponent: expected digit after sign at {_line}:{_column}");
                 ScanDigitsWithSeparators(char.IsDigit);
             }
         }
@@ -740,19 +742,30 @@ internal sealed class Lexer
         var isFloatingPoint = hasDecimalPoint || hasExponent;
 
         // Parse based on suffix and decimal point presence
-        object value = suffix switch
+        object value;
+        try
         {
-            NumericSuffix.Long => ParseLongLiteral(numberText),
-            NumericSuffix.ULong => ulong.Parse(numberText),
-            NumericSuffix.UInt => uint.Parse(numberText),
-            NumericSuffix.Float => float.Parse(numberText, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture),
-            NumericSuffix.Double => double.Parse(numberText, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture),
-            NumericSuffix.Decimal => decimal.Parse(numberText, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture),
-            NumericSuffix.None => isFloatingPoint
-                ? double.Parse(numberText, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture)
-                : ParseIntegerWithPromotion(numberText),
-            _ => throw new CsEvalLexerException($"Unknown numeric suffix at {_line}:{_column}")
-        };
+            value = suffix switch
+            {
+                NumericSuffix.Long => ParseLongLiteral(numberText),
+                NumericSuffix.ULong => ulong.Parse(numberText),
+                NumericSuffix.UInt => uint.Parse(numberText),
+                NumericSuffix.Float => float.Parse(numberText, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture),
+                NumericSuffix.Double => double.Parse(numberText, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture),
+                NumericSuffix.Decimal => decimal.Parse(numberText, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture),
+                NumericSuffix.None => isFloatingPoint
+                    ? double.Parse(numberText, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture)
+                    : ParseIntegerWithPromotion(numberText),
+                _ => throw LexError($"Unknown numeric suffix at {_line}:{_column}")
+            };
+        }
+        catch (OverflowException)
+        {
+            throw new CsEvalLexerException(
+                DiagnosticDescriptors.IntegralConstantTooLarge,
+                _line,
+                _column);
+        }
 
         AddToken(TokenType.Number, value);
     }
@@ -776,7 +789,7 @@ internal sealed class Lexer
                 if (Peek() == '+' || Peek() == '-')
                     Advance(); // consume sign
                 if (!char.IsDigit(Peek()))
-                    throw new CsEvalLexerException($"Invalid exponent: expected digit after sign at {_line}:{_column}");
+                    throw LexError($"Invalid exponent: expected digit after sign at {_line}:{_column}");
                 ScanDigitsWithSeparators(char.IsDigit);
             }
         }
@@ -790,7 +803,7 @@ internal sealed class Lexer
             NumericSuffix.Double => double.Parse(numberText, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture),
             NumericSuffix.Decimal => decimal.Parse(numberText, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture),
             NumericSuffix.None => double.Parse(numberText, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture),
-            _ => throw new CsEvalLexerException($"Invalid suffix for decimal literal at {_line}:{_column}")
+            _ => throw LexError($"Invalid suffix for decimal literal at {_line}:{_column}")
         };
 
         AddToken(TokenType.Number, value);
@@ -804,10 +817,10 @@ internal sealed class Lexer
             {
                 var prev = _current > 0 ? _source[_current - 1] : '\0';
                 if (!isValidDigit(prev) && prev != '_')
-                    throw new CsEvalLexerException($"Digit separator '_' cannot appear at start of number at {_line}:{_column}");
+                    throw LexError($"Digit separator '_' cannot appear at start of number at {_line}:{_column}");
                 Advance();
                 if (!isValidDigit(Peek()) && Peek() != '_')
-                    throw new CsEvalLexerException($"Digit separator '_' must be followed by a digit or another separator at {_line}:{_column}");
+                    throw LexError($"Digit separator '_' must be followed by a digit or another separator at {_line}:{_column}");
             }
             else
             {
@@ -818,7 +831,7 @@ internal sealed class Lexer
         // Check for trailing underscore
         var lastChar = _current > 0 ? _source[_current - 1] : '\0';
         if (lastChar == '_')
-            throw new CsEvalLexerException($"Digit separator '_' cannot appear at end of number at {_line}:{_column}");
+            throw LexError($"Digit separator '_' cannot appear at end of number at {_line}:{_column}");
     }
 
     private static string StripDigitSeparators(string text) => text.Replace("_", "");
@@ -829,19 +842,30 @@ internal sealed class Lexer
         ScanDigitsWithSeparators(IsHexDigit);
 
         if (_current == hexStart)
-            throw new CsEvalLexerException($"Invalid hex literal at {_line}:{_column}");
+            throw LexError($"Invalid hex literal at {_line}:{_column}");
 
         var hexText = StripDigitSeparators(_source[hexStart.._current]);
         var suffix = ParseNumericSuffix();
 
-        object value = suffix switch
+        object value;
+        try
         {
-            NumericSuffix.Long => Convert.ToInt64(hexText, 16),
-            NumericSuffix.ULong => Convert.ToUInt64(hexText, 16),
-            NumericSuffix.UInt => Convert.ToUInt32(hexText, 16),
-            NumericSuffix.None => ParseHexWithPromotion(hexText),
-            _ => throw new CsEvalLexerException($"Invalid suffix for hex literal at {_line}:{_column}")
-        };
+            value = suffix switch
+            {
+                NumericSuffix.Long => Convert.ToInt64(hexText, 16),
+                NumericSuffix.ULong => Convert.ToUInt64(hexText, 16),
+                NumericSuffix.UInt => Convert.ToUInt32(hexText, 16),
+                NumericSuffix.None => ParseHexWithPromotion(hexText),
+                _ => throw LexError($"Invalid suffix for hex literal at {_line}:{_column}")
+            };
+        }
+        catch (OverflowException)
+        {
+            throw new CsEvalLexerException(
+                DiagnosticDescriptors.IntegralConstantTooLarge,
+                _line,
+                _column);
+        }
 
         AddToken(TokenType.Number, value);
     }
@@ -852,19 +876,30 @@ internal sealed class Lexer
         ScanDigitsWithSeparators(c => c is '0' or '1');
 
         if (_current == binStart)
-            throw new CsEvalLexerException($"Invalid binary literal at {_line}:{_column}");
+            throw LexError($"Invalid binary literal at {_line}:{_column}");
 
         var binText = StripDigitSeparators(_source[binStart.._current]);
         var suffix = ParseNumericSuffix();
 
-        object value = suffix switch
+        object value;
+        try
         {
-            NumericSuffix.Long => Convert.ToInt64(binText, 2),
-            NumericSuffix.ULong => Convert.ToUInt64(binText, 2),
-            NumericSuffix.UInt => Convert.ToUInt32(binText, 2),
-            NumericSuffix.None => ParseBinaryWithPromotion(binText),
-            _ => throw new CsEvalLexerException($"Invalid suffix for binary literal at {_line}:{_column}")
-        };
+            value = suffix switch
+            {
+                NumericSuffix.Long => Convert.ToInt64(binText, 2),
+                NumericSuffix.ULong => Convert.ToUInt64(binText, 2),
+                NumericSuffix.UInt => Convert.ToUInt32(binText, 2),
+                NumericSuffix.None => ParseBinaryWithPromotion(binText),
+                _ => throw LexError($"Invalid suffix for binary literal at {_line}:{_column}")
+            };
+        }
+        catch (OverflowException)
+        {
+            throw new CsEvalLexerException(
+                DiagnosticDescriptors.IntegralConstantTooLarge,
+                _line,
+                _column);
+        }
 
         AddToken(TokenType.Number, value);
     }
@@ -891,7 +926,7 @@ internal sealed class Lexer
             'u' => ParseUnicodeEscape(4, forCharacterLiteral),
             'U' => ParseUnicodeEscape(8, forCharacterLiteral),
             'x' => ParseHexEscape().ToString(),
-            _ => throw new CsEvalLexerException($"Unknown escape sequence '\\{escaped}' at {_line}:{_column}")
+            _ => throw LexError($"Unknown escape sequence '\\{escaped}' at {_line}:{_column}")
         };
 
         char Consume(char c) { Advance(); return c; }
@@ -906,7 +941,7 @@ internal sealed class Lexer
         for (var i = 0; i < digitCount; i++)
         {
             if (IsAtEnd() || !IsHexDigit(Peek()))
-                throw new CsEvalLexerException($"Invalid unicode escape sequence at {_line}:{startCol}. Expected {digitCount} hex digits.");
+                throw LexError($"Invalid unicode escape sequence at {_line}:{startCol}. Expected {digitCount} hex digits.");
             hexDigits.Append(Advance());
         }
 
@@ -915,9 +950,9 @@ internal sealed class Lexer
         if (digitCount == 8)
         {
             if (codePoint > 0x10FFFF)
-                throw new CsEvalLexerException($"Invalid unicode code point U+{codePoint:X8} at {_line}:{startCol}. Maximum is U+10FFFF.");
+                throw LexError($"Invalid unicode code point U+{codePoint:X8} at {_line}:{startCol}. Maximum is U+10FFFF.");
             if (forCharacterLiteral && codePoint >= 0x10000)
-                throw new CsEvalLexerException($"Surrogate pairs from \\U escapes are not supported in char literals at {_line}:{startCol}.");
+                throw LexError($"Surrogate pairs from \\U escapes are not supported in char literals at {_line}:{startCol}.");
         }
 
         if (codePoint >= 0x10000)
@@ -939,7 +974,7 @@ internal sealed class Lexer
         }
 
         if (hexDigits.Length == 0)
-            throw new CsEvalLexerException($"Invalid hex escape sequence at {_line}:{startCol}. Expected at least 1 hex digit after \\x.");
+            throw LexError($"Invalid hex escape sequence at {_line}:{startCol}. Expected at least 1 hex digit after \\x.");
 
         var value = Convert.ToInt32(hexDigits.ToString(), 16);
         return (char)value;
@@ -973,14 +1008,17 @@ internal sealed class Lexer
     /// Parse L-suffixed literal, handling the special case of 9223372036854775808L
     /// which is exactly |long.MinValue| and needs to be stored as ulong for negation.
     /// </summary>
-    private static object ParseLongLiteral(string text)
+    private object ParseLongLiteral(string text)
     {
         if (long.TryParse(text, out var longValue))
             return longValue;
         // Handle 9223372036854775808L (|long.MinValue|) - store as ulong for negation
         if (ulong.TryParse(text, out var ulongValue) && ulongValue == (ulong)long.MaxValue + 1)
             return ulongValue;
-        throw new OverflowException($"Long literal '{text}' is too large");
+        throw new CsEvalLexerException(
+            DiagnosticDescriptors.IntegralConstantTooLarge,
+            _line,
+            _column);
     }
 
     /// <summary>
@@ -990,7 +1028,7 @@ internal sealed class Lexer
     /// - If fits in ulong → ulong
     /// - Otherwise → error
     /// </summary>
-    private static object ParseIntegerWithPromotion(string text)
+    private object ParseIntegerWithPromotion(string text)
     {
         if (int.TryParse(text, out var intValue))
             return intValue;
@@ -998,7 +1036,10 @@ internal sealed class Lexer
             return longValue;
         if (ulong.TryParse(text, out var ulongValue))
             return ulongValue;
-        throw new OverflowException($"Integer literal '{text}' is too large");
+        throw new CsEvalLexerException(
+            DiagnosticDescriptors.IntegralConstantTooLarge,
+            _line,
+            _column);
     }
 
     private enum NumericSuffix { None, Long, ULong, UInt, Float, Double, Decimal }
@@ -1068,6 +1109,23 @@ internal sealed class Lexer
         var text = _source[_start.._current];
         _tokens.Add(new Token(type, text, literal, _line, _column - text.Length));
     }
+
+    private CsEvalLexerException LexError(
+        string message,
+        int? line = null,
+        int? column = null,
+        int? spanStart = null,
+        int? spanLength = null)
+        => new(message, line ?? _line, column ?? _column, spanStart, spanLength);
 }
 
-public class CsEvalLexerException(string message) : CsEvalException(message);
+public class CsEvalLexerException : CsEvalException
+{
+    public CsEvalLexerException(string message) : base(message) { }
+
+    public CsEvalLexerException(string message, int line, int column, int? spanStart = null, int? spanLength = null)
+        : base(message, line, column, spanStart, spanLength) { }
+
+    public CsEvalLexerException(DiagnosticDescriptor descriptor, int line, int column, params object?[] args)
+        : base(descriptor, line, column, null, null, args) { }
+}

@@ -12,13 +12,36 @@ public class CsEvalException : Exception
     /// <summary>
     /// The error code formatted as a CS#### string (e.g., "CS0103"), or null if no error code.
     /// </summary>
-    public string? FormattedCode => ErrorCode.HasValue ? $"CS{(int)ErrorCode.Value:D4}" : null;
+    public string? FormattedCode => ErrorCode?.ToDiagnosticId();
+
+    /// <summary>1-based line number where available.</summary>
+    public int? Line { get; }
+
+    /// <summary>1-based column number where available.</summary>
+    public int? Column { get; }
+
+    /// <summary>0-based source span start index where available.</summary>
+    public int? SpanStart { get; }
+
+    /// <summary>Source span length where available.</summary>
+    public int? SpanLength { get; }
 
     /// <summary>
     /// Backward-compatible constructor. Existing throw sites and subclasses continue to work.
     /// ErrorCode is null for exceptions created through this path.
     /// </summary>
-    public CsEvalException(string message) : base(message) { }
+    public CsEvalException(
+        string message,
+        int? line = null,
+        int? column = null,
+        int? spanStart = null,
+        int? spanLength = null) : base(message)
+    {
+        Line = line;
+        Column = column;
+        SpanStart = spanStart;
+        SpanLength = spanLength;
+    }
 
     /// <summary>
     /// Diagnostic-aware constructor. Formats message as "CS####: {message}" and sets ErrorCode.
@@ -29,10 +52,26 @@ public class CsEvalException : Exception
         ErrorCode = descriptor.Code;
     }
 
+    public CsEvalException(
+        DiagnosticDescriptor descriptor,
+        int? line,
+        int? column,
+        int? spanStart,
+        int? spanLength,
+        params object?[] args)
+        : base(FormatMessage(descriptor, args))
+    {
+        ErrorCode = descriptor.Code;
+        Line = line;
+        Column = column;
+        SpanStart = spanStart;
+        SpanLength = spanLength;
+    }
+
     private static string FormatMessage(DiagnosticDescriptor descriptor, object?[] args)
     {
         var message = descriptor.FormatMessage(args);
-        return $"CS{(int)descriptor.Code:D4}: {message}";
+        return $"{descriptor.Code.ToDiagnosticId()}: {message}";
     }
 }
 
@@ -70,7 +109,7 @@ public class CsEvalLanguageModeException : CsEvalException
     public string FeatureName { get; }
 
     public CsEvalLanguageModeException(string featureName, string message)
-        : base(message)
+        : base(DiagnosticDescriptors.ExtendedModeRequired, featureName)
     {
         FeatureName = featureName;
     }

@@ -237,7 +237,7 @@ internal static class MethodInvoker
         var fallbackParams = fallbackMethod.GetParameters();
         var finalArgs = TryAppendCancellationToken(fallbackParams, args, ct);
 
-        finalArgs = PadWithDefaults(fallbackParams, finalArgs);
+        finalArgs = PadWithDefaults(fallbackParams, finalArgs, fallbackMethod.Name);
 
         var fallbackResult = fallbackMethod.Invoke(target, finalArgs);
         return TypeHelpers.GuardReflectionLeak(fallbackResult, $"method {methodName}");
@@ -983,7 +983,7 @@ internal static class MethodInvoker
         return implicitCount;
     }
 
-    private static object?[] PadWithDefaults(ParameterInfo[] parameters, object?[] args)
+    private static object?[] PadWithDefaults(ParameterInfo[] parameters, object?[] args, string callableName)
     {
         if (parameters.Length == 0)
             return [];
@@ -992,7 +992,7 @@ internal static class MethodInvoker
         var isParams = lastParam.IsDefined(typeof(ParamArrayAttribute), false);
 
         if (isParams)
-            return PadWithParamsArray(parameters, args, lastParam);
+            return PadWithParamsArray(parameters, args, lastParam, callableName);
 
         var result = new object?[parameters.Length];
 
@@ -1003,13 +1003,16 @@ internal static class MethodInvoker
             else if (parameters[i].HasDefaultValue)
                 result[i] = parameters[i].DefaultValue;
             else
-                throw new ArgumentException($"Missing required argument '{parameters[i].Name}'", parameters[i].Name);
+                throw new CsEvalException(
+                    DiagnosticDescriptors.MissingRequiredArgument,
+                    parameters[i].Name,
+                    callableName);
         }
 
         return result;
     }
 
-    private static object?[] PadWithParamsArray(ParameterInfo[] parameters, object?[] args, ParameterInfo paramsParam)
+    private static object?[] PadWithParamsArray(ParameterInfo[] parameters, object?[] args, ParameterInfo paramsParam, string callableName)
     {
         var normalParamCount = parameters.Length - 1;
         var result = new object?[parameters.Length];
@@ -1021,7 +1024,10 @@ internal static class MethodInvoker
             else if (parameters[i].HasDefaultValue)
                 result[i] = parameters[i].DefaultValue;
             else
-                throw new ArgumentException($"Missing required argument '{parameters[i].Name}'", parameters[i].Name);
+                throw new CsEvalException(
+                    DiagnosticDescriptors.MissingRequiredArgument,
+                    parameters[i].Name,
+                    callableName);
         }
 
         var paramsElementType = paramsParam.ParameterType.GetElementType()!;

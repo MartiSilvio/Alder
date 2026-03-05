@@ -137,7 +137,7 @@ internal sealed class StatementParser : ParserBase
             Consume(TokenType.Equal, "Expected '=' after variable name");
             var initializer = _expression.ParseExpression();
             if (initializer is LiteralExpr { Value: null })
-                throw new CsEvalParserException(DiagnosticDescriptors.NullToImplicitlyTyped);
+                throw new CsEvalParserException(DiagnosticDescriptors.NullToImplicitlyTyped, name.Line, name.Column);
             Consume(TokenType.Semicolon, "Expected ';' after variable declaration");
             return new VariableDeclExpr(null, name, initializer);
         }
@@ -448,7 +448,7 @@ internal sealed class StatementParser : ParserBase
                 Consume(TokenType.Equal, "Expected '=' after variable name");
                 var init = _expression.ParseExpression();
                 if (init is LiteralExpr { Value: null })
-                    throw new CsEvalParserException(DiagnosticDescriptors.NullToImplicitlyTyped);
+                    throw new CsEvalParserException(DiagnosticDescriptors.NullToImplicitlyTyped, name.Line, name.Column);
                 initializers.Add(new VariableDeclExpr(null, name, init));
                 while (Match(TokenType.Comma))
                 {
@@ -456,7 +456,7 @@ internal sealed class StatementParser : ParserBase
                     Consume(TokenType.Equal, "Expected '=' after variable name");
                     var init2 = _expression.ParseExpression();
                     if (init2 is LiteralExpr { Value: null })
-                        throw new CsEvalParserException(DiagnosticDescriptors.NullToImplicitlyTyped);
+                        throw new CsEvalParserException(DiagnosticDescriptors.NullToImplicitlyTyped, name2.Line, name2.Column);
                     initializers.Add(new VariableDeclExpr(null, name2, init2));
                 }
             }
@@ -729,7 +729,10 @@ internal sealed class StatementParser : ParserBase
         for (var i = 0; i < catchClauses.Count - 1; i++)
         {
             if (catchClauses[i].ExceptionTypeName == null)
-                throw new CsEvalParserException(DiagnosticDescriptors.GeneralCatchMustBeLast);
+                throw new CsEvalParserException(
+                    DiagnosticDescriptors.GeneralCatchMustBeLast,
+                    Peek().Line,
+                    Peek().Column);
         }
 
         return new TryCatchFinallyExpr(tryBody, catchClauses, finallyBody);

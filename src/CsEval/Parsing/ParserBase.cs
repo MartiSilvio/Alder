@@ -297,25 +297,14 @@ internal abstract class ParserBase
 
 public class CsEvalParserException : CsEvalException
 {
-    public int? Line { get; }
-    public int? Column { get; }
-
     public CsEvalParserException(string message) : base(message) { }
 
     public CsEvalParserException(string message, int line, int column)
-        : base(message)
-    {
-        Line = line;
-        Column = column;
-    }
+        : base(message, line, column) { }
 
     public CsEvalParserException(DiagnosticDescriptor descriptor, params object?[] args)
         : base(descriptor, args) { }
 
     public CsEvalParserException(DiagnosticDescriptor descriptor, int line, int column, params object?[] args)
-        : base(descriptor, args)
-    {
-        Line = line;
-        Column = column;
-    }
+        : base(descriptor, line, column, null, null, args) { }
 }

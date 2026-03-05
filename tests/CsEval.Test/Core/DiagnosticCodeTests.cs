@@ -73,6 +73,19 @@ public class DiagnosticCodeTests
         Assert.That(ex.Message, Does.Not.Contain("{0}"));
     }
 
+    [Test]
+    public void CS0021_BadIndexerAccess_MultiDimOnNonArray_AllCompilationModes()
+    {
+        const string expr = "{ var x = 42; return x[0,0]; }";
+        foreach (var mode in new[] { CompilationMode.Interpreted, CompilationMode.Compiled, CompilationMode.StrictCompiled })
+        {
+            var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+            var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate(expr));
+            Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0021), $"Mode: {mode}");
+            Assert.That(ex.FormattedCode, Is.EqualTo("CS0021"), $"Mode: {mode}");
+        }
+    }
+
     // --- CS0023: Operator cannot be applied to operand ---
 
     [Test]
@@ -200,6 +213,18 @@ public class DiagnosticCodeTests
         Assert.That(ex.Message, Does.Not.Contain("{0}"));
     }
 
+    [Test]
+    public void CS0139_BreakOutsideLoop_AllCompilationModes()
+    {
+        foreach (var mode in new[] { CompilationMode.Interpreted, CompilationMode.Compiled, CompilationMode.StrictCompiled })
+        {
+            var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+            var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("{ break; }"));
+            Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0139), $"Mode: {mode}");
+            Assert.That(ex.FormattedCode, Is.EqualTo("CS0139"), $"Mode: {mode}");
+        }
+    }
+
     // --- CS0156: Throw statement with no arguments outside catch ---
 
     [Test]
@@ -209,6 +234,18 @@ public class DiagnosticCodeTests
         Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0156));
         Assert.That(ex.FormattedCode, Is.EqualTo("CS0156"));
         Assert.That(ex.Message, Does.Not.Contain("{0}"));
+    }
+
+    [Test]
+    public void CS0155_ThrowOperandMustBeException_AllCompilationModes()
+    {
+        foreach (var mode in new[] { CompilationMode.Interpreted, CompilationMode.Compiled, CompilationMode.StrictCompiled })
+        {
+            var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+            var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("throw 42"));
+            Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0155), $"Mode: {mode}");
+            Assert.That(ex.FormattedCode, Is.EqualTo("CS0155"), $"Mode: {mode}");
+        }
     }
 
     // --- CS0163: Control cannot fall through from one case label to another ---
@@ -291,6 +328,14 @@ public class DiagnosticCodeTests
         var ex = Assert.Throws<CsEvalException>(() => _engine.Evaluate("{ byte b = 256; }"));
         Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0031));
         Assert.That(ex.FormattedCode, Is.EqualTo("CS0031"));
+    }
+
+    [Test]
+    public void CS1021_IntegerLiteralTooLarge()
+    {
+        var ex = Assert.Catch<CsEvalException>(() => _engine.Evaluate("9999999999999999999999999999999999999999999"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS1021));
+        Assert.That(ex.FormattedCode, Is.EqualTo("CS1021"));
     }
 
     // --- CS0815: Cannot assign null to an implicitly-typed variable ---

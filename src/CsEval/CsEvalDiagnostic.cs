@@ -11,12 +11,13 @@ public sealed record CsEvalDiagnostic(
     string Message,
     DiagnosticCode? Code = null,
     int? Line = null,
-    int? Column = null)
+    int? Column = null,
+    int? SpanStart = null,
+    int? SpanLength = null)
 {
     internal static CsEvalDiagnostic FromException(CsEvalException ex) => ex switch
     {
-        CsEvalParserException pex => new(DiagnosticSeverity.Error, ex.Message, ex.ErrorCode, pex.Line, pex.Column),
-        _ => new(DiagnosticSeverity.Error, ex.Message, ex.ErrorCode)
+        _ => new(DiagnosticSeverity.Error, ex.Message, ex.ErrorCode, ex.Line, ex.Column, ex.SpanStart, ex.SpanLength)
     };
 
     internal static CsEvalDiagnostic FromException(Exception ex) => ex switch

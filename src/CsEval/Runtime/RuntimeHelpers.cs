@@ -96,6 +96,15 @@ internal static class RuntimeHelpers
         return lockObj;
     }
 
+    public static Exception ValidateThrowOperand(object? value)
+    {
+        if (value is Exception ex)
+            return ex;
+
+        throw new CsEvalException(
+            DiagnosticDescriptors.ThrowExpressionMustBeException);
+    }
+
     public static bool EvaluateCatchWhenGuard(
         Expr guardExpression,
         string? catchVariableName,
@@ -460,11 +469,30 @@ internal static class RuntimeHelpers
     /// </summary>
     public static object? MultiDimArrayGet(object arrayObj, object[] indices)
     {
-        var arr = (Array)arrayObj;
-        var intIndices = new int[indices.Length];
-        for (var i = 0; i < indices.Length; i++)
-            intIndices[i] = Convert.ToInt32(indices[i]);
-        return arr.GetValue(intIndices);
+        var targetType = arrayObj.GetType();
+        if (arrayObj is not Array arr)
+        {
+            if (indices.Length > 1 && HasIndexerWithArity(targetType, indices.Length))
+                throw new CsEvalException(DiagnosticDescriptors.MultiParameterIndexerNotSupported, targetType.Name);
+
+            throw new CsEvalException(DiagnosticDescriptors.BadIndexerAccess, targetType.Name);
+        }
+
+        try
+        {
+            var intIndices = new int[indices.Length];
+            for (var i = 0; i < indices.Length; i++)
+                intIndices[i] = Convert.ToInt32(indices[i]);
+            return arr.GetValue(intIndices);
+        }
+        catch (CsEvalException)
+        {
+            throw;
+        }
+        catch
+        {
+            throw new CsEvalException(DiagnosticDescriptors.BadIndexerAccess, arr.GetType().Name);
+        }
     }
 
     /// <summary>
@@ -473,12 +501,31 @@ internal static class RuntimeHelpers
     /// </summary>
     public static object? MultiDimArraySet(object arrayObj, object[] indices, object? value)
     {
-        var arr = (Array)arrayObj;
-        var intIndices = new int[indices.Length];
-        for (var i = 0; i < indices.Length; i++)
-            intIndices[i] = Convert.ToInt32(indices[i]);
-        arr.SetValue(value, intIndices);
-        return value;
+        var targetType = arrayObj.GetType();
+        if (arrayObj is not Array arr)
+        {
+            if (indices.Length > 1 && HasIndexerWithArity(targetType, indices.Length))
+                throw new CsEvalException(DiagnosticDescriptors.MultiParameterIndexerNotSupported, targetType.Name);
+
+            throw new CsEvalException(DiagnosticDescriptors.BadIndexerAccess, targetType.Name);
+        }
+
+        try
+        {
+            var intIndices = new int[indices.Length];
+            for (var i = 0; i < indices.Length; i++)
+                intIndices[i] = Convert.ToInt32(indices[i]);
+            arr.SetValue(value, intIndices);
+            return value;
+        }
+        catch (CsEvalException)
+        {
+            throw;
+        }
+        catch
+        {
+            throw new CsEvalException(DiagnosticDescriptors.BadIndexerAccess, arr.GetType().Name);
+        }
     }
 
     /// <summary>
@@ -500,5 +547,17 @@ internal static class RuntimeHelpers
 
         var resultType = NumericDispatch.GetResultType(thenType, elseType);
         return NumericDispatch.PromoteToType(result, resultType);
+    }
+
+    private static bool HasIndexerWithArity(Type targetType, int parameterCount)
+    {
+        var properties = targetType.GetProperties(BindingFlags.Public | BindingFlags.Instance);
+        foreach (var property in properties)
+        {
+            if (property.Name == "Item" && property.GetIndexParameters().Length == parameterCount)
+                return true;
+        }
+
+        return false;
     }
 }

@@ -85,7 +85,8 @@ public sealed class CsEvalExpression
     {
         if (!TryCompile())
         {
-            throw new InvalidOperationException(
+            throw new CsEvalException(
+                Diagnostics.DiagnosticDescriptors.StrictCompilationFailed,
                 $"Cannot compile expression '{Source}': {_compiledInfo?.FailureReason ?? "Unknown reason"}");
         }
     }

@@ -50,6 +50,9 @@ public enum DiagnosticCode
     /// <summary>No enclosing loop out of which to break or continue</summary>
     CS0139 = 139,
 
+    /// <summary>The type caught or thrown must be derived from System.Exception</summary>
+    CS0155 = 155,
+
     /// <summary>A throw statement with no arguments is not allowed outside of a catch clause</summary>
     CS0156 = 156,
 
@@ -79,6 +82,9 @@ public enum DiagnosticCode
     /// <summary>Try statement already has an empty catch block</summary>
     CS1017 = 1017,
 
+    /// <summary>Integral constant is too large</summary>
+    CS1021 = 1021,
+
     // ECMA-334 member resolution
 
     /// <summary>'{0}' does not contain a definition for '{1}'</summary>
@@ -93,4 +99,29 @@ public enum DiagnosticCode
 
     /// <summary>'{0}' does not contain a constructor that takes {1} arguments</summary>
     CS1729 = 1729,
+
+    /// <summary>There is no argument given that corresponds to the required parameter '{0}' of '{1}'</summary>
+    CS7036 = 7036,
+
+    // CsEval-local diagnostics (no direct Roslyn equivalent)
+
+    /// <summary>Strict compilation mode could not compile the expression to IL.</summary>
+    CSEV0001 = 1_000_001,
+
+    /// <summary>Feature requires LanguageMode.Extended.</summary>
+    CSEV0002 = 1_000_002,
+
+    /// <summary>Indexer overloads with more than one parameter are not supported yet.</summary>
+    CSEV0003 = 1_000_003,
+}
+
+internal static class DiagnosticCodeExtensions
+{
+    internal static string ToDiagnosticId(this DiagnosticCode code)
+    {
+        var value = (int)code;
+        if (value >= 1_000_000)
+            return $"CSEV{value - 1_000_000:D4}";
+        return $"CS{value:D4}";
+    }
 }

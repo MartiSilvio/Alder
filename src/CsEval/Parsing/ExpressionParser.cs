@@ -104,7 +104,7 @@ internal sealed class ExpressionParser : ParserBase
         if (statements.Count > 0)
             return new BlockExpr(statements, null);
 
-        throw new CsEvalParserException("Empty expression");
+        throw new CsEvalParserException("Empty expression", Peek().Line, Peek().Column);
     }
 
     private bool IsStatementKeyword()

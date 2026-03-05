@@ -101,12 +101,14 @@ internal sealed class ExpressionCompilerUnit
 
     internal LinqExpression CompileThrow(ThrowExpr expr)
     {
-        var exceptionExpr = Compile(expr.Expression);
+        var exceptionExpr = LinqExpression.Call(
+            CompilerContext.ValidateThrowOperandMethod,
+            Compile(expr.Expression));
         // LinqExpression.Throw returns void, but we need object return type.
         // Wrap in block with unreachable default value to satisfy the type system.
         return LinqExpression.Block(
             typeof(object),
-            LinqExpression.Throw(LinqExpression.Convert(exceptionExpr, typeof(Exception))),
+            LinqExpression.Throw(exceptionExpr),
             LinqExpression.Default(typeof(object)));
     }
 
