@@ -110,13 +110,11 @@ public sealed class CsEvalExpression
 /// <param name="context">The evaluation context containing variables.</param>
 /// <param name="options">The evaluation options.</param>
 /// <param name="cancellationToken">Cancellation token for cooperative cancellation.</param>
-/// <param name="argumentTransformer">Optional argument transformer for method calls.</param>
 /// <returns>The evaluated result.</returns>
 internal delegate object? CompiledExpressionDelegate(
     CsEvalContext context,
     CsEvalOptions options,
-    CancellationToken cancellationToken,
-    Func<MethodInfo, object?[], object?[]>? argumentTransformer);
+    CancellationToken cancellationToken);
 
 /// <summary>
 /// Contains information about a compiled expression.

@@ -92,9 +92,8 @@ internal static class ILExpressionCompiler
             {
                 return new CompiledExpressionInfo(Compiled, true, null);
 
-                object? Compiled(CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct,
-                    Func<MethodInfo, object?[], object?[]>? argumentTransformer)
-                    => ilDelegate(ctx, opts, ct, argumentTransformer);
+                object? Compiled(CsEvalContext ctx, CsEvalOptions opts, CancellationToken ct)
+                    => ilDelegate(ctx, opts, ct);
             }
 
             return new CompiledExpressionInfo(null, false, failureReason, failureException);

@@ -12,7 +12,6 @@ internal static class ExtensionMethodResolver
         object?[] args,
         ImmutableArray<Type> extensionTypes,
         CancellationToken ct,
-        Func<MethodInfo, object?[], object?[]>? argumentTransformer,
         bool isCaseSensitive,
         IReadOnlyList<string>? typeArgs = null,
         TypeResolver? resolver = null)
@@ -21,7 +20,7 @@ internal static class ExtensionMethodResolver
 
         foreach (var extType in extensionTypes)
         {
-            var result = TryInvokeFromType(target, targetType, methodName, args, extType, ct, argumentTransformer, isCaseSensitive, typeArgs, resolver);
+            var result = TryInvokeFromType(target, targetType, methodName, args, extType, ct, isCaseSensitive, typeArgs, resolver);
             if (result.Success)
                 return result;
         }
@@ -36,7 +35,6 @@ internal static class ExtensionMethodResolver
         object?[] args,
         Type extensionType,
         CancellationToken ct,
-        Func<MethodInfo, object?[], object?[]>? argumentTransformer,
         bool isCaseSensitive,
         IReadOnlyList<string>? typeArgs = null,
         TypeResolver? resolver = null)
@@ -90,7 +88,7 @@ internal static class ExtensionMethodResolver
 
         (bool Success, object? Value) lambdaFallbackResult = (false, null);
         var best = MethodInvoker.FindBestMethod(candidates, invocationArgs, ct, out var ambiguous);
-        if (ambiguous && !TryResolveLambdaSelectorAmbiguity(candidates, invocationArgs, ct, argumentTransformer, out lambdaFallbackResult))
+        if (ambiguous && !TryResolveLambdaSelectorAmbiguity(candidates, invocationArgs, ct, out lambdaFallbackResult))
             throw new CsEvalException($"Ambiguous method invocation: '{methodName}'");
 
         if (lambdaFallbackResult.Success)
@@ -99,7 +97,7 @@ internal static class ExtensionMethodResolver
         if (best == null)
             return (false, null);
 
-        var invokeResult = MethodInvoker.InvokeMethodWithArgs(best, null, invocationArgs, ct, argumentTransformer);
+        var invokeResult = MethodInvoker.InvokeMethodWithArgs(best, null, invocationArgs, ct);
         if (invokeResult.Success)
             return invokeResult;
 
@@ -110,7 +108,6 @@ internal static class ExtensionMethodResolver
         List<MethodInfo> candidates,
         object?[] invocationArgs,
         CancellationToken ct,
-        Func<MethodInfo, object?[], object?[]>? argumentTransformer,
         out (bool Success, object? Value) result)
     {
         result = (false, null);
@@ -123,7 +120,7 @@ internal static class ExtensionMethodResolver
                      .OrderBy(m => m.MetadataToken)
                      .ThenBy(m => m.GetParameters().Length))
         {
-            var candidateResult = MethodInvoker.InvokeMethodWithArgs(candidate, null, invocationArgs, ct, argumentTransformer);
+            var candidateResult = MethodInvoker.InvokeMethodWithArgs(candidate, null, invocationArgs, ct);
             if (candidateResult.Success)
             {
                 result = candidateResult;

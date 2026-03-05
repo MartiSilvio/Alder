@@ -979,7 +979,6 @@ internal sealed class ExpressionCompilerUnit
                 _ctx.CurrentContext,
                 _ctx.OptionsParam,
                 _ctx.CtParam,
-                _ctx.ArgumentTransformerParam,
                 typeArgsExpr);
         }
         else if (_ctx.Options.LanguageMode == LanguageMode.Extended &&
@@ -994,7 +993,6 @@ internal sealed class ExpressionCompilerUnit
                 _ctx.CurrentContext,
                 _ctx.OptionsParam,
                 _ctx.CtParam,
-                _ctx.ArgumentTransformerParam,
                 typeArgsExpr);
         }
         else
@@ -1008,7 +1006,6 @@ internal sealed class ExpressionCompilerUnit
                 _ctx.CurrentContext,
                 _ctx.OptionsParam,
                 _ctx.CtParam,
-                _ctx.ArgumentTransformerParam,
                 typeArgsExpr);
         }
 

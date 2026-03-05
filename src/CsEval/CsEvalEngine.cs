@@ -41,8 +41,6 @@ public sealed class CsEvalEngine : IDisposable
     private CsEvalContext? _context;
     private bool _disposed;
 
-    public Func<MethodInfo, object?[], object?[]>? ArgumentTransformer { get; set; }
-
     public void Dispose()
     {
         if (_disposed) return;
@@ -229,7 +227,7 @@ public sealed class CsEvalEngine : IDisposable
         var compiled = expression.GetCompiledInfo();
         if (compiled?.Delegate != null)
         {
-            return compiled.Delegate(executionContext, _options, cancellationToken, ArgumentTransformer);
+            return compiled.Delegate(executionContext, _options, cancellationToken);
         }
 
         if (_options.CompilationMode == CompilationMode.StrictCompiled)
@@ -241,7 +239,7 @@ public sealed class CsEvalEngine : IDisposable
             throw new CsEvalException($"Expression could not be compiled to IL: {reason}");
         }
 
-        var evaluator = new Evaluator(executionContext, _options, cancellationToken, ArgumentTransformer);
+        var evaluator = new Evaluator(executionContext, _options, cancellationToken);
         return evaluator.Evaluate(expression.Ast);
     }
 
@@ -453,7 +451,7 @@ public sealed class CsEvalEngine : IDisposable
         }
 
         var compiledDelegate = parsed.GetCompiledInfo()!.Delegate!;
-        return new CsEvalCompiledExpression<T>(compiledDelegate, this, _options, ArgumentTransformer);
+        return new CsEvalCompiledExpression<T>(compiledDelegate, this, _options);
     }
 
     /// <summary>
@@ -771,7 +769,7 @@ public sealed class CsEvalEngine : IDisposable
 
     public CsEvalEngine RegisterExtensionMethods<T>() => RegisterExtensionMethods(typeof(T));
 
-    private IReadOnlyDictionary<string, MemberInfo> BuildMemberDictionary(Type type, bool explicitOnly = false)
+    private Dictionary<string, MemberInfo> BuildMemberDictionary(Type type, bool explicitOnly = false)
     {
         var members = new Dictionary<string, MemberInfo>(_options.StringComparer);
 

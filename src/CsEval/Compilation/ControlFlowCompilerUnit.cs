@@ -628,8 +628,7 @@ internal sealed class ControlFlowCompilerUnit
                         : LinqExpression.Constant(null, typeof(object)),
                     _ctx.CurrentContext,
                     _ctx.OptionsParam,
-                    _ctx.CtParam,
-                    _ctx.ArgumentTransformerParam);
+                    _ctx.CtParam);
             }
 
             catchBlocks.Add(LinqExpression.MakeCatchBlock(catchType, exParam, catchBody, filterExpr));

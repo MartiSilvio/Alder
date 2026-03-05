@@ -16,7 +16,6 @@ internal static class MethodInvoker
         CsEvalContext context,
         CsEvalOptions options,
         CancellationToken ct,
-        Func<MethodInfo, object?[], object?[]>? argumentTransformer,
         IReadOnlyList<string>? typeArgs = null)
     {
         if (nullSafe && target == null)
@@ -25,12 +24,12 @@ internal static class MethodInvoker
         if (target == null)
             throw new CsEvalException($"Cannot call method '{methodName}' on null");
 
-        var result = TryInvokeInstanceMethod(target, methodName, args, context, options, ct, argumentTransformer, typeArgs);
+        var result = TryInvokeInstanceMethod(target, methodName, args, context, options, ct, typeArgs);
         if (result.Success)
             return result.Value;
 
         var callee = MemberAccess.GetMember(target, methodName, options, nullSafe, context);
-        return InvokeCall(callee, args, context, options, ct, argumentTransformer, typeArgs);
+        return InvokeCall(callee, args, context, options, ct, typeArgs);
     }
 
     public static object? InvokeCall(
@@ -39,7 +38,6 @@ internal static class MethodInvoker
         CsEvalContext context,
         CsEvalOptions options,
         CancellationToken ct,
-        Func<MethodInfo, object?[], object?[]>? argumentTransformer,
         IReadOnlyList<string>? typeArgs = null)
     {
         return callee switch
@@ -48,7 +46,7 @@ internal static class MethodInvoker
             // Host-registered or expression-authored callees. The host explicitly
             // made these available, so sandbox restrictions do not apply.
             ModuleMethodRef moduleRef =>
-                InvokeModuleMethod(moduleRef, args, context, ct, argumentTransformer),
+                InvokeModuleMethod(moduleRef, args, context, ct),
 
             FunctionRef funcRef =>
                 funcRef.Invoke(args),
@@ -71,7 +69,7 @@ internal static class MethodInvoker
                     : throw new CsEvalException($"Static method calls blocked by sandbox: {staticRef.Type.Name}.{staticRef.MethodName}"),
 
             MethodRef methodRef =>
-                InvokeMethodRef(methodRef, args, context, options, ct, argumentTransformer, typeArgs),
+                InvokeMethodRef(methodRef, args, context, options, ct, typeArgs),
 
             // ── Unrecognized ────────────────────────────────────────────────
             null => throw new CsEvalException("Cannot call null as a function"),
@@ -85,12 +83,11 @@ internal static class MethodInvoker
         CsEvalContext context,
         CsEvalOptions options,
         CancellationToken ct,
-        Func<MethodInfo, object?[], object?[]>? argumentTransformer,
         IReadOnlyList<string>? typeArgs)
     {
         var result = TryInvokeInstanceMethod(
             methodRef.Target, methodRef.MethodName, args,
-            context, options, ct, argumentTransformer, typeArgs);
+            context, options, ct, typeArgs);
         if (result.Success)
             return result.Value;
         throw new CsEvalException($"Method '{methodRef.MethodName}' invocation failed");
@@ -103,7 +100,6 @@ internal static class MethodInvoker
         CsEvalContext context,
         CsEvalOptions options,
         CancellationToken ct,
-        Func<MethodInfo, object?[], object?[]>? argumentTransformer,
         IReadOnlyList<string>? typeArgs = null)
     {
         if (target == null)
@@ -147,7 +143,7 @@ internal static class MethodInvoker
 
             if (bestMethod != null)
             {
-                var invokeResult = InvokeMethodWithArgs(bestMethod, target, args, ct, argumentTransformer);
+                var invokeResult = InvokeMethodWithArgs(bestMethod, target, args, ct);
                 if (invokeResult.Success)
                     return invokeResult;
             }
@@ -156,7 +152,7 @@ internal static class MethodInvoker
         // No applicable instance method found (or instance methods blocked).
         // Try extension methods per ECMA-334 §12.8.9.2.
         var extensionResult = ExtensionMethodResolver.TryInvokeExtensionMethod(
-            target, methodName, args, context.ExtensionTypes, ct, argumentTransformer, options.IsCaseSensitive, typeArgs, context.TypeResolver);
+            target, methodName, args, context.ExtensionTypes, ct, options.IsCaseSensitive, typeArgs, context.TypeResolver);
         if (extensionResult.Success)
             return extensionResult;
 
@@ -203,8 +199,7 @@ internal static class MethodInvoker
         ModuleMethodRef methodRef,
         object?[] args,
         CsEvalContext context,
-        CancellationToken ct,
-        Func<MethodInfo, object?[], object?[]>? argumentTransformer)
+        CancellationToken ct)
     {
         var methodName = methodRef.Method.Name;
         var module = methodRef.Module;
@@ -220,7 +215,7 @@ internal static class MethodInvoker
 
         if (bestMethod != null)
         {
-            var invokeResult = InvokeMethodWithArgs(bestMethod, target, args, ct, argumentTransformer);
+            var invokeResult = InvokeMethodWithArgs(bestMethod, target, args, ct);
             if (invokeResult.Success)
                 return invokeResult.Value;
         }
@@ -231,7 +226,7 @@ internal static class MethodInvoker
             var concreteMethod = TryMakeConcreteMethod(method, args);
             if (concreteMethod != null)
             {
-                var result = InvokeMethodWithArgs(concreteMethod, target, args, ct, argumentTransformer);
+                var result = InvokeMethodWithArgs(concreteMethod, target, args, ct);
                 if (result.Success)
                     return result.Value;
             }
@@ -241,9 +236,6 @@ internal static class MethodInvoker
         var fallbackMethod = methodRef.Method;
         var fallbackParams = fallbackMethod.GetParameters();
         var finalArgs = TryAppendCancellationToken(fallbackParams, args, ct);
-
-        if (argumentTransformer != null)
-            finalArgs = argumentTransformer(fallbackMethod, finalArgs);
 
         finalArgs = PadWithDefaults(fallbackParams, finalArgs);
 
@@ -273,7 +265,7 @@ internal static class MethodInvoker
 
         if (bestMethod != null)
         {
-            var invokeResult = InvokeMethodWithArgs(bestMethod, null, args, ct, null);
+            var invokeResult = InvokeMethodWithArgs(bestMethod, null, args, ct);
             if (invokeResult.Success)
                 return invokeResult.Value;
         }
@@ -294,7 +286,7 @@ internal static class MethodInvoker
 
             if (concreteMethod != null)
             {
-                var result = InvokeMethodWithArgs(concreteMethod, null, args, ct, null);
+                var result = InvokeMethodWithArgs(concreteMethod, null, args, ct);
                 if (result.Success)
                     return result.Value;
             }
@@ -307,16 +299,13 @@ internal static class MethodInvoker
         MethodInfo method,
         object? target,
         object?[] args,
-        CancellationToken ct,
-        Func<MethodInfo, object?[], object?[]>? argumentTransformer)
+        CancellationToken ct)
     {
         var parameters = method.GetParameters();
         var argsWithCancellation = TryAppendCancellationToken(parameters, args, ct);
 
         if (CanInvokeMethod(parameters, argsWithCancellation, out var convertedArgs))
         {
-            if (argumentTransformer != null)
-                convertedArgs = argumentTransformer(method, convertedArgs);
             try
             {
                 var result = method.Invoke(target, convertedArgs);

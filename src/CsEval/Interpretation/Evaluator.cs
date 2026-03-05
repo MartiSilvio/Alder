@@ -13,7 +13,6 @@ internal sealed class Evaluator : IExprVisitor<object?>
     private CsEvalContext _context;
     private readonly CsEvalOptions _options;
     private readonly CancellationToken _cancellationToken;
-    private readonly Func<MethodInfo, object?[], object?[]>? _argumentTransformer;
     private readonly TypeInferrer _typeInferrer;
 
     private int _depth;
@@ -24,12 +23,10 @@ internal sealed class Evaluator : IExprVisitor<object?>
     public Evaluator(
         CsEvalContext context,
         CsEvalOptions? options = null,
-        CancellationToken cancellationToken = default,
-        Func<MethodInfo, object?[], object?[]>? argumentTransformer = null)
+        CancellationToken cancellationToken = default)
     {
         _context = context;
         _options = options ?? CsEvalOptions.Default;
-        _argumentTransformer = argumentTransformer;
         _typeInferrer = new TypeInferrer(context, _options.MaxExpressionDepth);
         _cancellationToken = cancellationToken;
         _maxDepth = _options.MaxExpressionDepth;
@@ -416,7 +413,7 @@ internal sealed class Evaluator : IExprVisitor<object?>
             var target = Evaluate(memberAccess.Object);
             result = Runtime.MethodInvoker.InvokeMemberCall(
                 target, memberAccess.Name.Lexeme, args, memberAccess.NullSafe,
-                _context, _options, _cancellationToken, _argumentTransformer, expr.TypeArguments);
+                _context, _options, _cancellationToken, expr.TypeArguments);
         }
         else
         {
@@ -433,7 +430,7 @@ internal sealed class Evaluator : IExprVisitor<object?>
             else
             {
                 var callee = Evaluate(expr.Callee);
-                result = Runtime.MethodInvoker.InvokeCall(callee, args, _context, _options, _cancellationToken, _argumentTransformer, expr.TypeArguments);
+                result = Runtime.MethodInvoker.InvokeCall(callee, args, _context, _options, _cancellationToken, expr.TypeArguments);
             }
         }
 

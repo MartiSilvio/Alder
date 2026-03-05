@@ -11,8 +11,7 @@ namespace CsEval.Compilation;
 internal delegate object? ILCompiledDelegate(
     CsEvalContext context,
     CsEvalOptions options,
-    CancellationToken ct,
-    Func<MethodInfo, object?[], object?[]>? argumentTransformer);
+    CancellationToken ct);
 
 /// <summary>
 /// Shared compilation state passed to all compiler units via composition.
@@ -29,7 +28,6 @@ internal sealed class CompilerContext
     internal readonly ParameterExpression ContextParam;
     internal readonly ParameterExpression OptionsParam;
     internal readonly ParameterExpression CtParam;
-    internal readonly ParameterExpression ArgumentTransformerParam;
 
     // Current context expression (may be child context in nested scopes)
     internal LinqExpression CurrentContext;
@@ -156,7 +154,6 @@ internal sealed class CompilerContext
         ContextParam = LinqExpression.Parameter(typeof(CsEvalContext), "context");
         OptionsParam = LinqExpression.Parameter(typeof(CsEvalOptions), "options");
         CtParam = LinqExpression.Parameter(typeof(CancellationToken), "ct");
-        ArgumentTransformerParam = LinqExpression.Parameter(typeof(Func<MethodInfo, object?[], object?[]>), "argumentTransformer");
 
         // Current context starts as the parameter
         CurrentContext = ContextParam;
@@ -237,8 +234,7 @@ internal sealed class CompilerContext
                 fullBody,
                 ctx.ContextParam,
                 ctx.OptionsParam,
-                ctx.CtParam,
-                ctx.ArgumentTransformerParam);
+                ctx.CtParam);
 
             return (options.ExpressionCompiler.Compile(lambda), null, null);
         }

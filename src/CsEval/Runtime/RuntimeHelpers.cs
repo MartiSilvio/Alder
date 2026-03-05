@@ -52,7 +52,6 @@ internal static class RuntimeHelpers
         CsEvalContext context,
         CsEvalOptions options,
         CancellationToken ct,
-        Func<MethodInfo, object?[], object?[]>? argumentTransformer,
         IReadOnlyList<string>? typeArgs)
     {
         // Only intercept in Extended mode when name is not in user scope
@@ -66,7 +65,7 @@ internal static class RuntimeHelpers
 
         // Fall back to normal resolution + call
         var callee = ResolveIdentifier(name, context, options);
-        return MethodInvoker.InvokeCall(callee, args, context, options, ct, argumentTransformer, typeArgs);
+        return MethodInvoker.InvokeCall(callee, args, context, options, ct, typeArgs);
     }
 
     public static void CheckAllowAssignment(CsEvalOptions options, string context)
@@ -103,8 +102,7 @@ internal static class RuntimeHelpers
         object? caughtException,
         CsEvalContext context,
         CsEvalOptions options,
-        CancellationToken ct,
-        Func<MethodInfo, object?[], object?[]>? argumentTransformer)
+        CancellationToken ct)
     {
         var guardContext = context.CreateChild();
         if (!string.IsNullOrEmpty(catchVariableName))
@@ -112,7 +110,7 @@ internal static class RuntimeHelpers
 
         try
         {
-            var evaluator = new Evaluator(guardContext, options, ct, argumentTransformer);
+            var evaluator = new Evaluator(guardContext, options, ct);
             var guardResult = evaluator.Evaluate(guardExpression);
             return TypeHelpers.RequireBoolean(guardResult);
         }

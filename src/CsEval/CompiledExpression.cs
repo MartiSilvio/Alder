@@ -14,18 +14,15 @@ public sealed class CsEvalCompiledExpression<T>
     private readonly CompiledExpressionDelegate _delegate;
     private readonly CsEvalEngine _engine;
     private readonly CsEvalOptions _options;
-    private readonly Func<MethodInfo, object?[], object?[]>? _argumentTransformer;
 
     internal CsEvalCompiledExpression(
         CompiledExpressionDelegate compiledDelegate,
         CsEvalEngine engine,
-        CsEvalOptions options,
-        Func<MethodInfo, object?[], object?[]>? argumentTransformer)
+        CsEvalOptions options)
     {
         _delegate = compiledDelegate;
         _engine = engine;
         _options = options;
-        _argumentTransformer = argumentTransformer;
     }
 
     /// <summary>
@@ -39,7 +36,7 @@ public sealed class CsEvalCompiledExpression<T>
     {
         var baseContext = _engine.GetContextForCompiled();
         var executionContext = PrepareExecutionContext(baseContext);
-        var result = _delegate(executionContext, _options, cancellationToken, _argumentTransformer);
+        var result = _delegate(executionContext, _options, cancellationToken);
         return ConvertResult(result);
     }
 
@@ -59,7 +56,7 @@ public sealed class CsEvalCompiledExpression<T>
             childContext.Define(name, value);
         }
         var executionContext = PrepareExecutionContext(childContext);
-        var result = _delegate(executionContext, _options, cancellationToken, _argumentTransformer);
+        var result = _delegate(executionContext, _options, cancellationToken);
         return ConvertResult(result);
     }
 
