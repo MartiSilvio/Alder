@@ -182,14 +182,11 @@ internal sealed class Evaluator : IExprVisitor<object?>
             case RelationalPattern rp:
             {
                 var operand = Evaluate(rp.Operand);
-                return rp.Operator.Type switch
-                {
-                    TokenType.Less => (bool)Operators.LessThan(value, operand, _options),
-                    TokenType.LessEqual => (bool)Operators.LessThanOrEqual(value, operand, _options),
-                    TokenType.Greater => (bool)Operators.GreaterThan(value, operand, _options),
-                    TokenType.GreaterEqual => (bool)Operators.GreaterThanOrEqual(value, operand, _options),
-                    _ => throw new CsEvalException($"Unknown relational pattern operator '{rp.Operator.Lexeme}'")
-                };
+
+                if (!BinaryOperators.TryGetValue(rp.Operator.Type, out var op))
+                    throw new CsEvalException($"Unknown relational pattern operator '{rp.Operator.Lexeme}'");
+
+                return TypeHelpers.RequireBoolean(op(this, value, operand));
             }
 
             case PropertyPattern pp:

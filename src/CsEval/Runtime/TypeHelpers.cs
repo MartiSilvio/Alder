@@ -359,6 +359,38 @@ internal static class TypeHelpers
     }
 
     /// <summary>
+    /// Checks whether a source type can be assigned or implicitly converted to a target type.
+    /// This is the canonical compatibility check used by compile-time emitters when selecting
+    /// method overloads and constructors.
+    /// </summary>
+    public static bool CanAssignOrImplicitlyConvert(Type sourceType, Type targetType)
+    {
+        if (targetType.IsAssignableFrom(sourceType))
+            return true;
+
+        var sourceUnderlying = Nullable.GetUnderlyingType(sourceType) ?? sourceType;
+        var targetUnderlying = Nullable.GetUnderlyingType(targetType) ?? targetType;
+
+        if (targetUnderlying.IsAssignableFrom(sourceUnderlying))
+            return true;
+
+        return CanImplicitlyConvert(sourceType, targetType) ||
+               CanImplicitlyConvert(sourceUnderlying, targetUnderlying);
+    }
+
+    /// <summary>
+    /// Returns the ECMA-334 binary numeric promotion type for arithmetic operands,
+    /// or null when either operand is non-arithmetic.
+    /// </summary>
+    public static Type? TryGetBinaryNumericPromotionType(Type leftType, Type rightType)
+    {
+        if (!IsArithmetic(leftType) || !IsArithmetic(rightType))
+            return null;
+
+        return NumericDispatch.GetResultType(leftType, rightType);
+    }
+
+    /// <summary>
     /// Validates assignment and returns the coerced value, or throws if not implicitly convertible.
     /// Assignment requires implicit convertibility.
     /// </summary>

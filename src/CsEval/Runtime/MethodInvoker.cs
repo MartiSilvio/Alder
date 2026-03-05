@@ -171,7 +171,7 @@ internal static class MethodInvoker
     /// Makes a generic method concrete using explicit type arguments.
     /// Uses TypeResolver when available, falls back to Type.GetType for IL-compiled code paths.
     /// </summary>
-    private static MethodInfo? TryMakeConcreteMethodWithTypeArgs(MethodInfo genericMethod, IReadOnlyList<string> typeArgs, TypeResolver? resolver = null)
+    internal static MethodInfo? TryMakeConcreteMethodWithTypeArgs(MethodInfo genericMethod, IReadOnlyList<string> typeArgs, TypeResolver? resolver = null)
     {
         var genericParams = genericMethod.GetGenericArguments();
         if (genericParams.Length != typeArgs.Count)

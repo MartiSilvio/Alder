@@ -20,46 +20,6 @@ internal sealed class ExpressionTreeEmitter
     private static readonly MethodInfo StringConcat2 =
         typeof(string).GetMethod("Concat", [typeof(string), typeof(string)])!;
 
-    /// <summary>
-    /// Numeric promotion hierarchy index. Lower index = narrower type.
-    /// </summary>
-    private static readonly Dictionary<Type, int> NumericRank = new()
-    {
-        [typeof(byte)] = 0,
-        [typeof(sbyte)] = 0,
-        [typeof(short)] = 1,
-        [typeof(ushort)] = 1,
-        [typeof(int)] = 2,
-        [typeof(uint)] = 3,
-        [typeof(long)] = 4,
-        [typeof(ulong)] = 5,
-        [typeof(float)] = 6,
-        [typeof(double)] = 7,
-        [typeof(decimal)] = 8,
-    };
-
-    /// <summary>
-    /// Maps type keyword strings to their .NET types for cast resolution.
-    /// </summary>
-    private static readonly Dictionary<string, Type> TypeKeywords = new(StringComparer.Ordinal)
-    {
-        ["sbyte"] = typeof(sbyte),
-        ["byte"] = typeof(byte),
-        ["short"] = typeof(short),
-        ["ushort"] = typeof(ushort),
-        ["int"] = typeof(int),
-        ["uint"] = typeof(uint),
-        ["long"] = typeof(long),
-        ["ulong"] = typeof(ulong),
-        ["float"] = typeof(float),
-        ["double"] = typeof(double),
-        ["decimal"] = typeof(decimal),
-        ["bool"] = typeof(bool),
-        ["char"] = typeof(char),
-        ["string"] = typeof(string),
-        ["object"] = typeof(object),
-    };
-
     public ExpressionTreeEmitter(
         Dictionary<string, ParameterExpression> parameterScope,
         Dictionary<string, object?> engineVariables,
@@ -533,12 +493,7 @@ internal sealed class ExpressionTreeEmitter
             throw new CsEvalException(
                 "Expression tree cannot contain object initializer");
 
-        var type = _typeResolver.TryResolveType(expr.TypeName);
-        if (type == null && TypeKeywords.TryGetValue(expr.TypeName, out var keyword))
-            type = keyword;
-        if (type == null)
-            throw new CsEvalException(
-                $"The type or namespace name '{expr.TypeName}' could not be found");
+        var type = ResolveTypeByName(expr.TypeName);
 
         var args = expr.Arguments.Select(Emit).ToArray();
         var argTypes = args.Select(a => a.Type).ToArray();
@@ -562,11 +517,11 @@ internal sealed class ExpressionTreeEmitter
 
     private Type ResolveTypeFromToken(Token token)
     {
-        var typeName = token.Lexeme;
+        return ResolveTypeByName(token.Lexeme);
+    }
 
-        if (TypeKeywords.TryGetValue(typeName, out var builtIn))
-            return builtIn;
-
+    private Type ResolveTypeByName(string typeName)
+    {
         var resolved = _typeResolver.TryResolveType(typeName);
         if (resolved != null)
             return resolved;
@@ -641,13 +596,7 @@ internal sealed class ExpressionTreeEmitter
 
     private static bool IsAssignableOrConvertible(Type from, Type to)
     {
-        if (to.IsAssignableFrom(from))
-            return true;
-        if (NumericRank.ContainsKey(from) && NumericRank.ContainsKey(to))
-            return true;
-        if (from == typeof(char) && NumericRank.ContainsKey(to))
-            return true;
-        return false;
+        return TypeHelpers.CanAssignOrImplicitlyConvert(from, to);
     }
 
     private static LinqExpression[] CoerceArguments(MethodInfo method, LinqExpression[] args)
@@ -739,22 +688,7 @@ internal sealed class ExpressionTreeEmitter
     /// </summary>
     private static Type? GetNumericPromotionType(Type left, Type right)
     {
-        if (!NumericRank.TryGetValue(left, out var leftRank) ||
-            !NumericRank.TryGetValue(right, out var rightRank))
-            return null;
-
-        // Special cases per C# spec:
-        // byte/sbyte/short/ushort all promote to int
-        if (leftRank <= 1 && rightRank <= 1)
-            return typeof(int);
-
-        // int + uint -> long
-        if ((left == typeof(int) && right == typeof(uint)) ||
-            (left == typeof(uint) && right == typeof(int)))
-            return typeof(long);
-
-        // Otherwise, promote to the wider type
-        return leftRank >= rightRank ? left : right;
+        return TypeHelpers.TryGetBinaryNumericPromotionType(left, right);
     }
 
     #endregion
