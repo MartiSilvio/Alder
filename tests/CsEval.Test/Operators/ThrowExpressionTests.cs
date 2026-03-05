@@ -107,5 +107,13 @@ public class ThrowExpressionTests(CompilationMode mode)
         Assert.Catch(() => engine.Evaluate("throw new Object()"));
     }
 
+    [Test]
+    public void ThrowStatementOutsideCatch_UsesCS0156Diagnostic()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("{ throw; }"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(CsEval.Diagnostics.DiagnosticCode.CS0156));
+    }
+
     #endregion
 }

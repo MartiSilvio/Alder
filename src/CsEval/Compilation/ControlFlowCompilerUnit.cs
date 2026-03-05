@@ -345,7 +345,11 @@ internal sealed class ControlFlowCompilerUnit
 
             // Create dispatch logic using pattern matching (If-Else chain)
             // Each case gets its own scope for pattern variable bindings
+            var switchParentContextVar = LinqExpression.Variable(typeof(CsEvalContext), "switchParentCtx");
             var parentContextVar = LinqExpression.Variable(typeof(CsEvalContext), "parentCtx");
+            statements.Add(LinqExpression.Assign(switchParentContextVar, _ctx.CurrentContext));
+
+            var switchBodyStatements = new List<LinqExpression>();
 
             foreach (var mapping in caseLabels)
             {
@@ -367,11 +371,11 @@ internal sealed class ControlFlowCompilerUnit
                     condition = LinqExpression.AndAlso(matchBool, guardBool);
                 }
 
-                // If pattern matches: goto case label (keep child context for bindings)
-                // If no match: restore parent context
-                statements.Add(saveContext);
-                statements.Add(createChild);
-                statements.Add(LinqExpression.IfThenElse(
+                // If pattern matches: keep child scope and jump to case body so bindings remain available.
+                // If not matched: restore parent and evaluate next case.
+                switchBodyStatements.Add(saveContext);
+                switchBodyStatements.Add(createChild);
+                switchBodyStatements.Add(LinqExpression.IfThenElse(
                     condition,
                     LinqExpression.Goto(mapping.Label),
                     LinqExpression.Assign(_ctx.CurrentContext, parentContextVar)));
@@ -379,9 +383,9 @@ internal sealed class ControlFlowCompilerUnit
 
             // Goto default or break if no match
             if (defaultLabel != null)
-                statements.Add(LinqExpression.Goto(defaultLabel));
+                switchBodyStatements.Add(LinqExpression.Goto(defaultLabel));
             else
-                statements.Add(LinqExpression.Goto(breakLabel));
+                switchBodyStatements.Add(LinqExpression.Goto(breakLabel));
 
             // Generate case bodies
             // C# semantics: empty cases fall through; non-empty cases MUST have explicit break/return
@@ -396,7 +400,7 @@ internal sealed class ControlFlowCompilerUnit
 
                 if (targetLabel != null)
                 {
-                    statements.Add(LinqExpression.Label(targetLabel));
+                    switchBodyStatements.Add(LinqExpression.Label(targetLabel));
 
                     // Empty case: fall through to next label
                     if (c.Statements.Count == 0)
@@ -408,17 +412,20 @@ internal sealed class ControlFlowCompilerUnit
 
                     foreach (var stmt in c.Statements)
                     {
-                        statements.Add(CompileCancellationCheck());
-                        statements.Add(Compile(stmt));
+                        switchBodyStatements.Add(CompileCancellationCheck());
+                        switchBodyStatements.Add(Compile(stmt));
                     }
                 }
             }
 
-            statements.Add(LinqExpression.Label(breakLabel));
+            switchBodyStatements.Add(LinqExpression.Label(breakLabel));
+            statements.Add(LinqExpression.TryFinally(
+                LinqExpression.Block(switchBodyStatements),
+                LinqExpression.Assign(_ctx.CurrentContext, switchParentContextVar)));
 
             _ctx.ControlStack.Pop();
 
-            return LinqExpression.Block(new[] { switchVar, parentContextVar }, statements);
+            return LinqExpression.Block(new[] { switchVar, parentContextVar, switchParentContextVar }, statements);
         });
     }
 
@@ -483,13 +490,8 @@ internal sealed class ControlFlowCompilerUnit
         // Compile body
         var body = Compile(expr.Body);
 
-        // Build try/finally with Dispose call
-        var disposeMethod = typeof(IDisposable).GetMethod("Dispose")!;
-        var disposeCall = LinqExpression.IfThen(
-            LinqExpression.TypeIs(resourceVar, typeof(IDisposable)),
-            LinqExpression.Call(
-                LinqExpression.Convert(resourceVar, typeof(IDisposable)),
-                disposeMethod));
+        // Build try/finally with parity disposal semantics (IDisposable + IAsyncDisposable)
+        var disposeCall = LinqExpression.Call(CompilerContext.DisposeResourceMethod, resourceVar);
 
         var tryFinally = LinqExpression.TryFinally(body, disposeCall);
 
@@ -526,7 +528,8 @@ internal sealed class ControlFlowCompilerUnit
 
         return LinqExpression.Block(
             new[] { lockVar, lockTaken },
-            LinqExpression.Assign(lockVar, lockObj),
+            LinqExpression.Assign(lockVar,
+                LinqExpression.Call(CompilerContext.ValidateLockObjectMethod, lockObj)),
             LinqExpression.Assign(lockTaken, LinqExpression.Constant(false)),
             monitorEnter,
             tryFinally);
@@ -575,10 +578,18 @@ internal sealed class ControlFlowCompilerUnit
                             LinqExpression.Constant(catchType, typeof(Type)))
                     };
 
-                    foreach (var stmt in catchClause.Body)
+                    _ctx.CatchDepth++;
+                    try
                     {
-                        bodyStatements.Add(CompileCancellationCheck());
-                        bodyStatements.Add(Compile(stmt));
+                        foreach (var stmt in catchClause.Body)
+                        {
+                            bodyStatements.Add(CompileCancellationCheck());
+                            bodyStatements.Add(Compile(stmt));
+                        }
+                    }
+                    finally
+                    {
+                        _ctx.CatchDepth--;
                     }
                     bodyStatements.Add(LinqExpression.Default(typeof(object)));
                     return LinqExpression.Block(typeof(object), bodyStatements);
@@ -587,10 +598,18 @@ internal sealed class ControlFlowCompilerUnit
             else
             {
                 var bodyStatements = new List<LinqExpression>();
-                foreach (var stmt in catchClause.Body)
+                _ctx.CatchDepth++;
+                try
                 {
-                    bodyStatements.Add(CompileCancellationCheck());
-                    bodyStatements.Add(Compile(stmt));
+                    foreach (var stmt in catchClause.Body)
+                    {
+                        bodyStatements.Add(CompileCancellationCheck());
+                        bodyStatements.Add(Compile(stmt));
+                    }
+                }
+                finally
+                {
+                    _ctx.CatchDepth--;
                 }
                 bodyStatements.Add(LinqExpression.Default(typeof(object)));
                 catchBody = LinqExpression.Block(typeof(object), bodyStatements);
@@ -600,22 +619,17 @@ internal sealed class ControlFlowCompilerUnit
             LinqExpression? filterExpr = null;
             if (catchClause.WhenGuard != null)
             {
-                // The when guard may reference the catch variable, which is available via exParam.
-                // We need to bind the variable in context before evaluating the guard.
-                if (catchClause.VariableName != null)
-                {
-                    // In a filter, we need the variable bound for the guard to access it.
-                    // Use a block that temporarily defines the variable and evaluates the guard.
-                    filterExpr = LinqExpression.Block(
-                        LinqExpression.Call(_ctx.CurrentContext, CompilerContext.DefineMethod,
-                            LinqExpression.Constant(catchClause.VariableName.Value.Lexeme),
-                            LinqExpression.Convert(exParam!, typeof(object))),
-                        LinqExpression.Call(CompilerContext.RequireBooleanMethod, Compile(catchClause.WhenGuard)));
-                }
-                else
-                {
-                    filterExpr = LinqExpression.Call(CompilerContext.RequireBooleanMethod, Compile(catchClause.WhenGuard));
-                }
+                filterExpr = LinqExpression.Call(
+                    CompilerContext.EvaluateCatchWhenGuardMethod,
+                    LinqExpression.Constant(catchClause.WhenGuard, typeof(Expr)),
+                    LinqExpression.Constant(catchClause.VariableName?.Lexeme, typeof(string)),
+                    exParam != null
+                        ? LinqExpression.Convert(exParam, typeof(object))
+                        : LinqExpression.Constant(null, typeof(object)),
+                    _ctx.CurrentContext,
+                    _ctx.OptionsParam,
+                    _ctx.CtParam,
+                    _ctx.ArgumentTransformerParam);
             }
 
             catchBlocks.Add(LinqExpression.MakeCatchBlock(catchType, exParam, catchBody, filterExpr));

@@ -44,11 +44,19 @@ internal static class MemberAccess
 
             var staticProp = staticType.GetProperty(name, staticBindingFlags);
             if (staticProp != null)
+            {
+                if (!options.Sandbox.AllowStaticPropertyRead)
+                    throw new CsEvalException($"Static property access blocked by sandbox: {staticType.Name}.{name}");
                 return TypeHelpers.GuardReflectionLeak(staticProp.GetValue(null), $"static property {name}");
+            }
 
             var staticField = staticType.GetField(name, staticBindingFlags);
             if (staticField != null)
+            {
+                if (!options.Sandbox.AllowStaticFieldRead)
+                    throw new CsEvalException($"Static field access blocked by sandbox: {staticType.Name}.{name}");
                 return TypeHelpers.GuardReflectionLeak(staticField.GetValue(null), $"static field {name}");
+            }
 
             // Check if this is a static method before falling through to instance members
             var staticMethods = staticType.GetMethods(staticBindingFlags);

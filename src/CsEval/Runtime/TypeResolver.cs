@@ -46,10 +46,10 @@ internal sealed class TypeResolver
     /// </summary>
     public Type ResolveType(string typeName)
     {
-        if (typeName.EndsWith("[]"))
+        if (TryParseArraySuffix(typeName, out var elementTypeName, out var rank))
         {
-            var elementType = ResolveType(typeName[..^2]);
-            return elementType.MakeArrayType();
+            var elementType = ResolveType(elementTypeName);
+            return rank == 1 ? elementType.MakeArrayType() : elementType.MakeArrayType(rank);
         }
 
         if (typeName.Contains('<'))
@@ -64,19 +64,46 @@ internal sealed class TypeResolver
     /// </summary>
     public Type? TryResolveType(string typeName)
     {
-        if (typeName.EndsWith("[]"))
+        if (TryParseArraySuffix(typeName, out var elementTypeName, out var rank))
         {
-            var elementType = TryResolveType(typeName[..^2]);
-            return elementType?.MakeArrayType();
+            var elementType = TryResolveType(elementTypeName);
+            if (elementType == null)
+                return null;
+
+            return rank == 1 ? elementType.MakeArrayType() : elementType.MakeArrayType(rank);
         }
 
         if (typeName.Contains('<'))
         {
             try { return ResolveGenericType(typeName); }
-            catch { return null; }
+            catch (CsEvalException) { return null; }
+            catch (ArgumentException) { return null; }
+            catch (TypeLoadException) { return null; }
+            catch (InvalidOperationException) { return null; }
         }
 
         return _cache.GetOrAdd(typeName, ResolveTypeCore);
+    }
+
+    private static bool TryParseArraySuffix(string typeName, out string elementTypeName, out int rank)
+    {
+        elementTypeName = string.Empty;
+        rank = 0;
+
+        if (!typeName.EndsWith(']'))
+            return false;
+
+        var openIndex = typeName.LastIndexOf('[');
+        if (openIndex < 0 || openIndex > typeName.Length - 2)
+            return false;
+
+        var rankPart = typeName[(openIndex + 1)..^1];
+        if (!rankPart.All(c => c == ','))
+            return false;
+
+        elementTypeName = typeName[..openIndex];
+        rank = rankPart.Length + 1;
+        return true;
     }
 
     /// <summary>

@@ -76,7 +76,7 @@ public class StaticMethodSandboxTests(CompilationMode mode)
     }
 
     [Test]
-    public void Safe_StaticPropertyAccessUnaffected()
+    public void Safe_StaticPropertyAccessBlocked()
     {
         var engine = new CsEvalEngine(new CsEvalOptions
         {
@@ -84,13 +84,12 @@ public class StaticMethodSandboxTests(CompilationMode mode)
             Sandbox = SandboxOptions.Safe()
         });
 
-        var result = engine.Evaluate("int.MaxValue");
-
-        Assert.That(result, Is.EqualTo(int.MaxValue));
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("int.MaxValue"));
+        Assert.That(ex!.Message, Does.Contain("sandbox"));
     }
 
     [Test]
-    public void Safe_StaticFieldAccessUnaffected()
+    public void Safe_StaticFieldAccessBlocked()
     {
         var engine = new CsEvalEngine(new CsEvalOptions
         {
@@ -98,8 +97,20 @@ public class StaticMethodSandboxTests(CompilationMode mode)
             Sandbox = SandboxOptions.Safe()
         });
 
-        var result = engine.Evaluate("double.NaN");
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("double.NaN"));
+        Assert.That(ex!.Message, Does.Contain("sandbox"));
+    }
 
-        Assert.That(result, Is.EqualTo(double.NaN));
+    [Test]
+    public void Trusted_StaticPropertyAndFieldAccessAllowed()
+    {
+        var engine = new CsEvalEngine(new CsEvalOptions
+        {
+            CompilationMode = mode,
+            Sandbox = SandboxOptions.Trusted()
+        });
+
+        Assert.That(engine.Evaluate("int.MaxValue"), Is.EqualTo(int.MaxValue));
+        Assert.That(engine.Evaluate("double.NaN"), Is.EqualTo(double.NaN));
     }
 }

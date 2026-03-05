@@ -13,6 +13,7 @@ internal static class ExtensionMethodResolver
         ImmutableArray<Type> extensionTypes,
         CancellationToken ct,
         Func<MethodInfo, object?[], object?[]>? argumentTransformer,
+        bool isCaseSensitive,
         IReadOnlyList<string>? typeArgs = null,
         TypeResolver? resolver = null)
     {
@@ -20,7 +21,7 @@ internal static class ExtensionMethodResolver
 
         foreach (var extType in extensionTypes)
         {
-            var result = TryInvokeFromType(target, targetType, methodName, args, extType, ct, argumentTransformer, typeArgs, resolver);
+            var result = TryInvokeFromType(target, targetType, methodName, args, extType, ct, argumentTransformer, isCaseSensitive, typeArgs, resolver);
             if (result.Success)
                 return result;
         }
@@ -36,15 +37,18 @@ internal static class ExtensionMethodResolver
         Type extensionType,
         CancellationToken ct,
         Func<MethodInfo, object?[], object?[]>? argumentTransformer,
+        bool isCaseSensitive,
         IReadOnlyList<string>? typeArgs = null,
         TypeResolver? resolver = null)
     {
+        var comparison = isCaseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
         var methods = extensionType
             .GetMethods(BindingFlags.Public | BindingFlags.Static)
-            .Where(m => m.Name.Equals(methodName, StringComparison.OrdinalIgnoreCase) &&
+            .Where(m => m.Name.Equals(methodName, comparison) &&
                         m.IsDefined(typeof(ExtensionAttribute), false))
             .ToList();
 
+        var candidates = new List<MethodInfo>();
         foreach (var method in methods)
         {
             var parameters = method.GetParameters();
@@ -74,16 +78,40 @@ internal static class ExtensionMethodResolver
             // Check if first parameter is compatible with target type
             if (!IsCompatible(targetType, concreteParams[0].ParameterType))
                 continue;
-
-            // Build full args array: [target, ...args]
-            var fullArgs = BuildFullArgs(target, args, concreteParams, ct);
-            if (fullArgs == null)
-                continue;
-
-            // Try to invoke
-            if (TryInvoke(concreteMethod, fullArgs, argumentTransformer, out var result))
-                return (true, result);
+            candidates.Add(concreteMethod);
         }
+
+        if (candidates.Count == 0)
+            return (false, null);
+
+        var invocationArgs = new object?[args.Length + 1];
+        invocationArgs[0] = target;
+        Array.Copy(args, 0, invocationArgs, 1, args.Length);
+
+        var best = MethodInvoker.FindBestMethod(candidates, invocationArgs, ct, out var ambiguous);
+        if (ambiguous)
+        {
+            // Keep strict ambiguity for non-lambda calls.
+            // For selector-style LINQ overload sets (Sum/Min/Max/Average with lambda),
+            // preserve the previous "first successful candidate" fallback behavior.
+            var hasLambdaArg = invocationArgs.Skip(1).Any(a => a is LambdaValue or CompiledLambdaValue);
+            if (!hasLambdaArg)
+                throw new CsEvalException($"Ambiguous method invocation: '{methodName}'");
+
+            foreach (var candidate in candidates)
+            {
+                var candidateResult = MethodInvoker.InvokeMethodWithArgs(candidate, null, invocationArgs, ct, argumentTransformer);
+                if (candidateResult.Success)
+                    return candidateResult;
+            }
+        }
+
+        if (best == null)
+            return (false, null);
+
+        var invokeResult = MethodInvoker.InvokeMethodWithArgs(best, null, invocationArgs, ct, argumentTransformer);
+        if (invokeResult.Success)
+            return invokeResult;
 
         return (false, null);
     }
@@ -443,13 +471,28 @@ internal static class ExtensionMethodResolver
         object target,
         object?[] args,
         ParameterInfo[] parameters,
-        CancellationToken ct)
+        CancellationToken ct,
+        bool isCaseSensitive)
     {
-        // Build: [target, args..., optional defaults, optional cancellation token]
         var fullArgs = new object?[parameters.Length];
         fullArgs[0] = target;
+        var filled = new bool[parameters.Length];
+        filled[0] = true;
 
-        var argsIndex = 0;
+        var namedComparer = isCaseSensitive ? StringComparer.Ordinal : StringComparer.OrdinalIgnoreCase;
+        var nameComparison = isCaseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
+
+        var positionalArgs = new List<object?>();
+        var namedArgs = new Dictionary<string, object?>(namedComparer);
+        foreach (var arg in args)
+        {
+            if (arg is NamedArg named)
+                namedArgs[named.Name] = named.Value;
+            else
+                positionalArgs.Add(arg);
+        }
+
+        var positionalIndex = 0;
         for (var i = 1; i < parameters.Length; i++)
         {
             var param = parameters[i];
@@ -458,30 +501,100 @@ internal static class ExtensionMethodResolver
             if (param.ParameterType == typeof(CancellationToken))
             {
                 fullArgs[i] = ct;
+                filled[i] = true;
                 continue;
             }
 
-            // Use provided arg if available
-            if (argsIndex < args.Length)
+            if (namedArgs.ContainsKey(param.Name!))
+                continue;
+
+            if (positionalIndex < positionalArgs.Count)
             {
-                var arg = args[argsIndex++];
+                var arg = positionalArgs[positionalIndex++];
                 if (!TryConvertArg(arg, param.ParameterType, out var converted))
                     return null;
                 fullArgs[i] = converted;
-            }
-            else if (param.HasDefaultValue)
-            {
-                fullArgs[i] = param.DefaultValue;
-            }
-            else
-            {
-                return null; // Missing required argument
+                filled[i] = true;
             }
         }
 
-        // Check we used all args
-        if (argsIndex < args.Length)
-            return null;
+        if (positionalIndex < positionalArgs.Count)
+        {
+            if (parameters.Length == 0 || !parameters[^1].IsDefined(typeof(ParamArrayAttribute), false))
+                return null;
+
+            var paramsIndex = parameters.Length - 1;
+            if (namedArgs.ContainsKey(parameters[paramsIndex].Name!))
+                return null;
+
+            var elementType = parameters[paramsIndex].ParameterType.GetElementType()!;
+            var paramsCount = positionalArgs.Count - positionalIndex;
+            var paramsArray = Array.CreateInstance(elementType, paramsCount);
+            for (var i = 0; i < paramsCount; i++)
+            {
+                if (!TryConvertArg(positionalArgs[positionalIndex + i], elementType, out var converted))
+                    return null;
+                paramsArray.SetValue(converted, i);
+            }
+            fullArgs[paramsIndex] = paramsArray;
+            filled[paramsIndex] = true;
+        }
+
+        foreach (var (name, value) in namedArgs)
+        {
+            var paramIndex = -1;
+            for (var i = 1; i < parameters.Length; i++)
+            {
+                if (string.Equals(parameters[i].Name, name, nameComparison))
+                {
+                    paramIndex = i;
+                    break;
+                }
+            }
+
+            if (paramIndex < 0 || filled[paramIndex])
+                return null;
+
+            if (parameters[paramIndex].ParameterType == typeof(CancellationToken))
+            {
+                fullArgs[paramIndex] = ct;
+                filled[paramIndex] = true;
+                continue;
+            }
+
+            if (!TryConvertArg(value, parameters[paramIndex].ParameterType, out var converted))
+                return null;
+
+            fullArgs[paramIndex] = converted;
+            filled[paramIndex] = true;
+        }
+
+        for (var i = 1; i < parameters.Length; i++)
+        {
+            if (filled[i])
+                continue;
+
+            if (parameters[i].ParameterType == typeof(CancellationToken))
+            {
+                fullArgs[i] = ct;
+                filled[i] = true;
+            }
+            else if (parameters[i].HasDefaultValue)
+            {
+                fullArgs[i] = parameters[i].DefaultValue;
+                filled[i] = true;
+            }
+            else if (parameters[i].IsDefined(typeof(ParamArrayAttribute), false))
+            {
+                var elementType = parameters[i].ParameterType.GetElementType()!;
+                fullArgs[i] = Array.CreateInstance(elementType, 0);
+                filled[i] = true;
+            }
+            else
+            {
+                return null;
+            }
+        }
 
         return fullArgs;
     }

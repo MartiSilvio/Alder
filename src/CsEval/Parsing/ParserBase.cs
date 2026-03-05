@@ -271,11 +271,22 @@ internal abstract class ParserBase
             name += "?";
         }
 
-        // Handle array suffix
-        if (Check(TokenType.LeftBracket) && PeekNext().Type == TokenType.RightBracket)
+        // Handle array suffixes, including multi-dimensional arrays.
+        while (Check(TokenType.LeftBracket))
         {
-            Advance(); Advance();
-            name += "[]";
+            Advance(); // consume '['
+
+            var rank = 1;
+            while (Check(TokenType.Comma))
+            {
+                Advance();
+                rank++;
+            }
+
+            if (!Match(TokenType.RightBracket))
+                return null;
+
+            name += "[" + new string(',', rank - 1) + "]";
         }
 
         return name;

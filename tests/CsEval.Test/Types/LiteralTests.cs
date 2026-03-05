@@ -34,5 +34,14 @@ public class LiteralTests(CompilationMode mode)
         Assert.Throws<CsEval.Parsing.CsEvalParserException>(() => engine.Evaluate(expr));
     }
 
+    [Test]
+    public void Eval_DecimalIntegerBeyondLongMax_ParsesAsULong()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var result = engine.Evaluate("9223372036854775808");
+        Assert.That(result, Is.EqualTo(9223372036854775808UL));
+        Assert.That(result, Is.TypeOf<ulong>());
+    }
+
     #endregion
 }

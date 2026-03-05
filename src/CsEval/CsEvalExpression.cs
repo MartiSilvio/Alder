@@ -124,7 +124,9 @@ internal delegate object? CompiledExpressionDelegate(
 /// <param name="Delegate">The compiled delegate, or null if compilation failed.</param>
 /// <param name="IsCompilable">Whether the expression can be compiled.</param>
 /// <param name="FailureReason">The reason compilation failed, or null if it succeeded.</param>
+/// <param name="FailureException">Original failure exception when available.</param>
 internal record CompiledExpressionInfo(
     CompiledExpressionDelegate? Delegate,
     bool IsCompilable,
-    string? FailureReason);
+    string? FailureReason,
+    Exception? FailureException = null);

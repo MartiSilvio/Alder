@@ -37,8 +37,9 @@ public sealed class CsEvalCompiledExpression<T>
     /// <returns>The evaluated result, converted to <typeparamref name="T"/>.</returns>
     public T? Invoke(CancellationToken cancellationToken = default)
     {
-        var context = _engine.GetContextForCompiled();
-        var result = _delegate(context, _options, cancellationToken, _argumentTransformer);
+        var baseContext = _engine.GetContextForCompiled();
+        var executionContext = PrepareExecutionContext(baseContext);
+        var result = _delegate(executionContext, _options, cancellationToken, _argumentTransformer);
         return ConvertResult(result);
     }
 
@@ -57,8 +58,21 @@ public sealed class CsEvalCompiledExpression<T>
         {
             childContext.Define(name, value);
         }
-        var result = _delegate(childContext, _options, cancellationToken, _argumentTransformer);
+        var executionContext = PrepareExecutionContext(childContext);
+        var result = _delegate(executionContext, _options, cancellationToken, _argumentTransformer);
         return ConvertResult(result);
+    }
+
+    private CsEvalContext PrepareExecutionContext(CsEvalContext context)
+    {
+        if (_options.Constraints == null)
+            return context;
+
+        var executionContext = context.CreateChild();
+        var state = new ExecutionConstraintState();
+        state.Reset(_options.Constraints);
+        executionContext.ConstraintState = state;
+        return executionContext;
     }
 
     private static T? ConvertResult(object? result)

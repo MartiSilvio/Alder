@@ -26,6 +26,7 @@ public class NullHandlingTests(CompilationMode mode)
                                                                           return x;
                                                                       }
                                                                       """));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(CsEval.Diagnostics.DiagnosticCode.CS0019));
         Assert.That(ex!.Message, Does.Contain("??=").And.Contain("Int32"));
     }
 

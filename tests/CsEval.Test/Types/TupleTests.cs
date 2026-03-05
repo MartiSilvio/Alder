@@ -52,6 +52,16 @@ public class TupleTests(CompilationMode mode)
         Assert.That(result!.GetType().Name, Does.Contain("ValueTuple"));
     }
 
+    [Test]
+    public void Tuple_EightElements_CreatesValueTuple()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var result = engine.Evaluate("(1, 2, 3, 4, 5, 6, 7, 8)");
+        Assert.That(result, Is.Not.Null);
+        Assert.That(result!.GetType().Name, Does.Contain("ValueTuple"));
+        Assert.That(((System.Runtime.CompilerServices.ITuple)result).Length, Is.EqualTo(8));
+    }
+
     #endregion
 
     #region Engine-only: Nested tuple returning inner tuple (asserts type name, not value)

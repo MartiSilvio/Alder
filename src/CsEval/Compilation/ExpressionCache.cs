@@ -86,7 +86,7 @@ internal static class ILExpressionCompiler
         {
             var context = new CsEvalContext(CsEvalConfig.Empty);
             var opts = options ?? CsEvalOptions.Default;
-            var (ilDelegate, failureReason) = CompilerContext.TryCompile(ast, context, opts);
+            var (ilDelegate, failureReason, failureException) = CompilerContext.TryCompile(ast, context, opts);
 
             if (ilDelegate != null)
             {
@@ -97,7 +97,7 @@ internal static class ILExpressionCompiler
                     => ilDelegate(ctx, opts, ct, argumentTransformer);
             }
 
-            return new CompiledExpressionInfo(null, false, failureReason);
+            return new CompiledExpressionInfo(null, false, failureReason, failureException);
         }
         catch (CsEvalDepthException)
         {
@@ -105,7 +105,7 @@ internal static class ILExpressionCompiler
         }
         catch (Exception ex)
         {
-            return new CompiledExpressionInfo(null, false, ex.Message);
+            return new CompiledExpressionInfo(null, false, ex.Message, ex);
         }
     }
 }

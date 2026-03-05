@@ -126,6 +126,7 @@ internal static class MethodInvoker
                 flags |= BindingFlags.IgnoreCase;
             var methods = context.TypeCache.GetMethods(type, methodName, flags);
 
+            var candidateMethods = new List<MethodInfo>();
             foreach (var method in methods)
             {
                 var concreteMethod = method;
@@ -137,32 +138,25 @@ internal static class MethodInvoker
                     if (concreteMethod == null)
                         continue;
                 }
+                candidateMethods.Add(concreteMethod);
+            }
 
-                var parameters = concreteMethod.GetParameters();
-                var argsWithCancellation = TryAppendCancellationToken(parameters, args, ct);
-                if (CanInvokeMethod(parameters, argsWithCancellation, out var convertedArgs))
-                {
-                    if (argumentTransformer != null)
-                        convertedArgs = argumentTransformer(concreteMethod, convertedArgs);
+            var bestMethod = FindBestMethod(candidateMethods, args, ct, out var ambiguous);
+            if (ambiguous)
+                throw new CsEvalException($"Ambiguous method invocation: '{methodName}'");
 
-                    try
-                    {
-                        var result = concreteMethod.Invoke(target, convertedArgs);
-                        CopyBackOutArgs(args, convertedArgs, parameters);
-                        return (true, TypeHelpers.GuardReflectionLeak(result, $"method {methodName}"));
-                    }
-                    catch (TargetInvocationException ex) when (ex.InnerException != null)
-                    {
-                        throw ex.InnerException;
-                    }
-                }
+            if (bestMethod != null)
+            {
+                var invokeResult = InvokeMethodWithArgs(bestMethod, target, args, ct, argumentTransformer);
+                if (invokeResult.Success)
+                    return invokeResult;
             }
         }
 
         // No applicable instance method found (or instance methods blocked).
         // Try extension methods per ECMA-334 §12.8.9.2.
         var extensionResult = ExtensionMethodResolver.TryInvokeExtensionMethod(
-            target, methodName, args, context.ExtensionTypes, ct, argumentTransformer, typeArgs, context.TypeResolver);
+            target, methodName, args, context.ExtensionTypes, ct, argumentTransformer, options.IsCaseSensitive, typeArgs, context.TypeResolver);
         if (extensionResult.Success)
             return extensionResult;
 
@@ -220,7 +214,9 @@ internal static class MethodInvoker
             BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static);
 
         var nonGenericMethods = methods.Where(m => !m.ContainsGenericParameters);
-        var bestMethod = FindBestMethod(nonGenericMethods, args);
+        var bestMethod = FindBestMethod(nonGenericMethods, args, ct, out var ambiguous);
+        if (ambiguous)
+            throw new CsEvalException($"Ambiguous method invocation: '{methodName}'");
 
         if (bestMethod != null)
         {
@@ -271,7 +267,9 @@ internal static class MethodInvoker
         var methods = context.TypeCache.GetMethods(type, methodName, bindingFlags);
 
         var nonGenericMethods = methods.Where(m => !m.ContainsGenericParameters);
-        var bestMethod = FindBestMethod(nonGenericMethods, args);
+        var bestMethod = FindBestMethod(nonGenericMethods, args, ct, out var ambiguous);
+        if (ambiguous)
+            throw new CsEvalException($"Ambiguous method invocation: '{type.Name}.{methodName}'");
 
         if (bestMethod != null)
         {
@@ -305,7 +303,7 @@ internal static class MethodInvoker
         throw new CsEvalException(DiagnosticDescriptors.MemberNotFound, type.Name, methodName);
     }
 
-    private static (bool Success, object? Value) InvokeMethodWithArgs(
+    internal static (bool Success, object? Value) InvokeMethodWithArgs(
         MethodInfo method,
         object? target,
         object?[] args,
@@ -319,10 +317,16 @@ internal static class MethodInvoker
         {
             if (argumentTransformer != null)
                 convertedArgs = argumentTransformer(method, convertedArgs);
-
-            var result = method.Invoke(target, convertedArgs);
-            CopyBackOutArgs(args, convertedArgs, parameters);
-            return (true, TypeHelpers.GuardReflectionLeak(result, $"method {method.Name}"));
+            try
+            {
+                var result = method.Invoke(target, convertedArgs);
+                CopyBackOutArgs(args, convertedArgs, parameters);
+                return (true, TypeHelpers.GuardReflectionLeak(result, $"method {method.Name}"));
+            }
+            catch (TargetInvocationException ex) when (ex.InnerException != null)
+            {
+                throw ex.InnerException;
+            }
         }
 
         return (false, null);
@@ -421,7 +425,7 @@ internal static class MethodInvoker
         convertedArgs = new object?[parameters.Length];
 
         var positionalArgs = new List<object?>();
-        var namedArgs = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
+        var namedArgs = new Dictionary<string, object?>(StringComparer.Ordinal);
 
         foreach (var arg in args)
         {
@@ -469,7 +473,7 @@ internal static class MethodInvoker
             var paramIndex = -1;
             for (var i = 0; i < parameters.Length; i++)
             {
-                if (string.Equals(parameters[i].Name, name, StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(parameters[i].Name, name, StringComparison.Ordinal))
                 {
                     paramIndex = i;
                     break;
@@ -580,7 +584,7 @@ internal static class MethodInvoker
         // Only allow implicit numeric conversions (no narrowing)
         if (TypeHelpers.CanImplicitlyConvert(argType, targetType))
         {
-            converted = Convert.ChangeType(arg, targetType);
+            converted = TypeHelpers.CoerceNumeric(arg, targetType);
             return true;
         }
 
@@ -619,7 +623,7 @@ internal static class MethodInvoker
     private static int ScoreMethodMatchNormalForm(ParameterInfo[] parameters, object?[] args)
     {
         var positionalArgs = new List<object?>();
-        var namedArgs = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
+        var namedArgs = new Dictionary<string, object?>(StringComparer.Ordinal);
 
         foreach (var arg in args)
         {
@@ -634,6 +638,7 @@ internal static class MethodInvoker
             return -1;
 
         var score = 0;
+        var defaultsUsed = 0;
         var filledParams = new bool[parameters.Length];
         var positionalIndex = 0;
 
@@ -659,7 +664,7 @@ internal static class MethodInvoker
             var paramIndex = -1;
             for (var i = 0; i < parameters.Length; i++)
             {
-                if (string.Equals(parameters[i].Name, name, StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(parameters[i].Name, name, StringComparison.Ordinal))
                 {
                     paramIndex = i;
                     break;
@@ -684,9 +689,14 @@ internal static class MethodInvoker
         {
             if (!filledParams[i] && !parameters[i].HasDefaultValue)
                 return -1;
+
+            if (!filledParams[i] && parameters[i].HasDefaultValue)
+                defaultsUsed++;
         }
 
-        return score;
+        const int applicableBaseScore = 1000;
+        const int defaultArgumentPenalty = 10;
+        return applicableBaseScore + score - (defaultsUsed * defaultArgumentPenalty);
     }
 
     /// <summary>
@@ -707,7 +717,7 @@ internal static class MethodInvoker
         var lastParamIndex = parameters.Length - 1;
 
         var positionalArgs = new List<object?>();
-        var namedArgs = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
+        var namedArgs = new Dictionary<string, object?>(StringComparer.Ordinal);
 
         foreach (var arg in args)
         {
@@ -718,6 +728,7 @@ internal static class MethodInvoker
         }
 
         var score = 0;
+        var defaultsUsed = 0;
         var filledParams = new bool[parameters.Length];
         var positionalIndex = 0;
 
@@ -753,7 +764,7 @@ internal static class MethodInvoker
             var paramIndex = -1;
             for (var i = 0; i < lastParamIndex; i++)
             {
-                if (string.Equals(parameters[i].Name, name, StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(parameters[i].Name, name, StringComparison.Ordinal))
                 {
                     paramIndex = i;
                     break;
@@ -779,11 +790,15 @@ internal static class MethodInvoker
         {
             if (!filledParams[i] && !parameters[i].HasDefaultValue)
                 return -1;
+
+            if (!filledParams[i] && parameters[i].HasDefaultValue)
+                defaultsUsed++;
         }
 
         // ECMA-334 §12.6.4.3: Normal form is always preferred over expanded form.
-        const int expandedFormPenalty = 50;
-        return Math.Max(0, score - expandedFormPenalty);
+        const int expandedBaseScore = 500;
+        const int defaultArgumentPenalty = 10;
+        return expandedBaseScore + score - (defaultsUsed * defaultArgumentPenalty);
     }
 
     /// <summary>
@@ -815,7 +830,16 @@ internal static class MethodInvoker
 
         // Lambda to delegate (e.g., LambdaValue -> Func<int, bool>)
         if (arg is LambdaValue or CompiledLambdaValue && LambdaDelegateConverter.IsSupportedDelegateType(paramType))
-            return 5; // Better than implicit numeric but worse than assignable
+        {
+            try
+            {
+                return LambdaDelegateConverter.TryConvert(arg, paramType) != null ? 5 : -1;
+            }
+            catch (CsEvalException)
+            {
+                return -1;
+            }
+        }
 
         return -1; // No valid conversion
     }
@@ -823,24 +847,151 @@ internal static class MethodInvoker
     /// <summary>
     /// Finds the best matching method from candidates using overload resolution scoring.
     /// </summary>
-    private static MethodInfo? FindBestMethod(IEnumerable<MethodInfo> methods, object?[] args)
+    internal static MethodInfo? FindBestMethod(IEnumerable<MethodInfo> methods, object?[] args, CancellationToken ct, out bool ambiguous)
     {
+        ambiguous = false;
         MethodInfo? bestMethod = null;
         var bestScore = -1;
 
         foreach (var method in methods)
         {
             var parameters = method.GetParameters();
-            var score = ScoreMethodMatch(parameters, args);
+            var argsWithCancellation = TryAppendCancellationToken(parameters, args, ct);
+            var score = ScoreMethodMatch(parameters, argsWithCancellation);
 
             if (score > bestScore)
             {
                 bestScore = score;
                 bestMethod = method;
+                ambiguous = false;
+            }
+            else if (score >= 0 && score == bestScore && bestMethod != null)
+            {
+                var tieBreak = CompareMethodSpecificity(bestMethod, method, args, ct);
+                if (tieBreak < 0)
+                {
+                    bestMethod = method;
+                    ambiguous = false;
+                }
+                else if (tieBreak == 0)
+                {
+                    ambiguous = true;
+                }
             }
         }
 
+        if (ambiguous)
+            return null;
+
         return bestMethod;
+    }
+
+    private static int CompareMethodSpecificity(MethodInfo left, MethodInfo right, object?[] args, CancellationToken ct)
+    {
+        var leftParams = left.GetParameters();
+        var rightParams = right.GetParameters();
+
+        var leftIsParams = IsParamsMethod(leftParams);
+        var rightIsParams = IsParamsMethod(rightParams);
+
+        if (leftIsParams != rightIsParams)
+            return leftIsParams ? -1 : 1;
+
+        // Prefer non-generic methods over generic methods when other factors tie.
+        if (left.IsGenericMethod != right.IsGenericMethod)
+            return left.IsGenericMethod ? -1 : 1;
+
+        var leftImplicitArgs = CountImplicitlySuppliedArgs(leftParams, args, ct);
+        var rightImplicitArgs = CountImplicitlySuppliedArgs(rightParams, args, ct);
+        if (leftImplicitArgs != rightImplicitArgs)
+            return leftImplicitArgs < rightImplicitArgs ? 1 : -1;
+
+        if (leftParams.Length != rightParams.Length)
+            return leftParams.Length < rightParams.Length ? 1 : -1;
+
+        var leftBetter = false;
+        var rightBetter = false;
+        var length = Math.Min(leftParams.Length, rightParams.Length);
+
+        for (var i = 0; i < length; i++)
+        {
+            var leftType = GetSpecificityParameterType(leftParams, i);
+            var rightType = GetSpecificityParameterType(rightParams, i);
+
+            if (leftType == rightType)
+                continue;
+
+            if (leftType.IsAssignableFrom(rightType) && !rightType.IsAssignableFrom(leftType))
+                rightBetter = true;
+            else if (rightType.IsAssignableFrom(leftType) && !leftType.IsAssignableFrom(rightType))
+                leftBetter = true;
+        }
+
+        return (leftBetter, rightBetter) switch
+        {
+            (true, false) => 1,
+            (false, true) => -1,
+            _ => 0
+        };
+    }
+
+    private static Type GetSpecificityParameterType(ParameterInfo[] parameters, int index)
+    {
+        var parameterType = parameters[index].ParameterType;
+        if (index == parameters.Length - 1 && parameters[index].IsDefined(typeof(ParamArrayAttribute), false))
+            return parameterType.GetElementType() ?? parameterType;
+        return parameterType;
+    }
+
+    private static bool IsParamsMethod(ParameterInfo[] parameters)
+    {
+        return parameters.Length > 0 && parameters[^1].IsDefined(typeof(ParamArrayAttribute), false);
+    }
+
+    private static int CountImplicitlySuppliedArgs(ParameterInfo[] parameters, object?[] args, CancellationToken ct)
+    {
+        var argsWithCancellation = TryAppendCancellationToken(parameters, args, ct);
+        var positionalArgs = new List<object?>();
+        var namedArgs = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (var arg in argsWithCancellation)
+        {
+            if (arg is NamedArg named)
+                namedArgs.Add(named.Name);
+            else
+                positionalArgs.Add(arg);
+        }
+
+        var implicitCount = 0;
+        var positionalIndex = 0;
+        var lastParamIndex = parameters.Length - 1;
+        var isParams = IsParamsMethod(parameters);
+
+        for (var i = 0; i < parameters.Length; i++)
+        {
+            if (namedArgs.Contains(parameters[i].Name!))
+                continue;
+
+            if (positionalIndex < positionalArgs.Count)
+            {
+                positionalIndex++;
+                continue;
+            }
+
+            if (parameters[i].HasDefaultValue)
+            {
+                implicitCount++;
+                continue;
+            }
+
+            if (isParams && i == lastParamIndex)
+            {
+                implicitCount++;
+                continue;
+            }
+        }
+
+        return implicitCount;
     }
 
     private static object?[] PadWithDefaults(ParameterInfo[] parameters, object?[] args)

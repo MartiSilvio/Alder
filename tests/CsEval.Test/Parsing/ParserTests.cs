@@ -32,6 +32,15 @@ public class ParserTests
     }
 
     [Test]
+    public void Parse_IdentifierLessIdentifier_IsComparisonExpression()
+    {
+        var expr = Parse("a < b");
+        Assert.That(expr, Is.InstanceOf<BinaryExpr>());
+        var binary = (BinaryExpr)expr;
+        Assert.That(binary.Op.Type, Is.EqualTo(TokenType.Less));
+    }
+
+    [Test]
     public void Parse_Precedence_MultiplyBeforeAdd()
     {
         var expr = Parse("1 + 2 * 3");

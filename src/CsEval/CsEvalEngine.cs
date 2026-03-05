@@ -207,16 +207,17 @@ public sealed class CsEvalEngine : IDisposable
         }
 
         var context = target.GetOrCreateContext(serviceProvider);
+        var executionContext = context;
 
-        // Initialize or reset constraint state for this evaluation
+        // Isolate execution constraints per invocation to avoid cross-request
+        // interference when the same engine is evaluated concurrently.
         var constraints = _options.Constraints;
         if (constraints != null)
         {
-            if (context.ConstraintState == null)
-            {
-                context.ConstraintState = new ExecutionConstraintState();
-            }
-            context.ConstraintState.Reset(constraints);
+            executionContext = context.CreateChild();
+            var state = new ExecutionConstraintState();
+            state.Reset(constraints);
+            executionContext.ConstraintState = state;
         }
 
         var shouldCompile = _options.CompilationMode is CompilationMode.Compiled or CompilationMode.StrictCompiled;
@@ -228,16 +229,19 @@ public sealed class CsEvalEngine : IDisposable
         var compiled = expression.GetCompiledInfo();
         if (compiled?.Delegate != null)
         {
-            return compiled.Delegate(context, _options, cancellationToken, ArgumentTransformer);
+            return compiled.Delegate(executionContext, _options, cancellationToken, ArgumentTransformer);
         }
 
         if (_options.CompilationMode == CompilationMode.StrictCompiled)
         {
+            if (compiled?.FailureException is CsEvalException csEvalFailure)
+                throw csEvalFailure;
+
             var reason = compiled?.FailureReason ?? "Unknown compilation failure";
             throw new CsEvalException($"Expression could not be compiled to IL: {reason}");
         }
 
-        var evaluator = new Evaluator(context, _options, cancellationToken, ArgumentTransformer);
+        var evaluator = new Evaluator(executionContext, _options, cancellationToken, ArgumentTransformer);
         return evaluator.Evaluate(expression.Ast);
     }
 

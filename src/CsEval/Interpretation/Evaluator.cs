@@ -273,12 +273,11 @@ internal sealed class Evaluator : IExprVisitor<object?>
 
         if (left is not bool)
         {
-            var rightForType = Evaluate(expr.Right);
             throw new CsEvalException(
                 DiagnosticDescriptors.BadBinaryOps,
                 opLexeme,
                 left?.GetType().Name ?? "null",
-                rightForType?.GetType().Name ?? "null");
+                GetExpressionTypeName(expr.Right));
         }
 
         if (expr.Op.Type == TokenType.PipePipe)
@@ -301,6 +300,16 @@ internal sealed class Evaluator : IExprVisitor<object?>
         }
 
         return (bool)right;
+    }
+
+    private static string GetExpressionTypeName(Expr expr)
+    {
+        return expr switch
+        {
+            LiteralExpr { Value: null } => "null",
+            LiteralExpr { Value: { } v } => v.GetType().Name,
+            _ => "unknown"
+        };
     }
 
     public object? VisitIdentifier(IdentifierExpr expr)
@@ -1094,8 +1103,20 @@ internal sealed class Evaluator : IExprVisitor<object?>
 
                 if (catchClause.WhenGuard != null)
                 {
-                    var guardResult = Evaluate(catchClause.WhenGuard);
-                    if (!TypeHelpers.RequireBoolean(guardResult))
+                    bool guardMatched;
+                    try
+                    {
+                        var guardResult = Evaluate(catchClause.WhenGuard);
+                        guardMatched = TypeHelpers.RequireBoolean(guardResult);
+                    }
+                    catch
+                    {
+                        // ECMA-334: exceptions thrown while evaluating a catch filter
+                        // are treated as filter-false and matching continues.
+                        guardMatched = false;
+                    }
+
+                    if (!guardMatched)
                         continue;
                 }
 

@@ -1,6 +1,7 @@
 using System.Runtime.CompilerServices;
 using CsEval.Diagnostics;
 using CsEval.Interpretation;
+using CsEval.Parsing;
 using CsEval.Runtime.Extensions;
 
 namespace CsEval.Runtime;
@@ -77,7 +78,50 @@ internal static class RuntimeHelpers
     public static void CheckNullCoalesceAssignAllowed(string name, CsEvalContext context)
     {
         if (context.TryGetVariableType(name, out var varType) && varType != null && !TypeHelpers.IsNullableType(varType))
-            throw new CsEvalException(DiagnosticDescriptors.BadUnaryOp, "??=", varType.Name);
+            throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, "??=", varType.Name, varType.Name);
+    }
+
+    public static void DisposeResource(object? resource)
+    {
+        if (resource is IDisposable d)
+            d.Dispose();
+        else if (resource is IAsyncDisposable asyncD)
+            asyncD.DisposeAsync().AsTask().GetAwaiter().GetResult();
+    }
+
+    public static object ValidateLockObject(object? lockObj)
+    {
+        if (lockObj == null)
+            throw new CsEvalException("lock statement requires a non-null reference");
+
+        return lockObj;
+    }
+
+    public static bool EvaluateCatchWhenGuard(
+        Expr guardExpression,
+        string? catchVariableName,
+        object? caughtException,
+        CsEvalContext context,
+        CsEvalOptions options,
+        CancellationToken ct,
+        Func<MethodInfo, object?[], object?[]>? argumentTransformer)
+    {
+        var guardContext = context.CreateChild();
+        if (!string.IsNullOrEmpty(catchVariableName))
+            guardContext.Define(catchVariableName, caughtException);
+
+        try
+        {
+            var evaluator = new Evaluator(guardContext, options, ct, argumentTransformer);
+            var guardResult = evaluator.Evaluate(guardExpression);
+            return TypeHelpers.RequireBoolean(guardResult);
+        }
+        catch
+        {
+            // ECMA-334: exceptions thrown during catch filter evaluation
+            // are treated as filter-false.
+            return false;
+        }
     }
 
     public static void CheckAllowIndexSet(CsEvalOptions options, object? index)
@@ -239,32 +283,51 @@ internal static class RuntimeHelpers
     /// <summary>
     /// Creates a System.ValueTuple from an array of elements.
     /// ECMA-334 §12.8.6 - Tuple expressions.
-    /// Supports 2-7 element tuples.
+    /// Supports tuples with 2+ elements (arity > 7 uses nested Rest tuple).
     /// </summary>
     public static object CreateTuple(object?[] elements)
     {
-        if (elements.Length < 2)
+        if (elements.Length == 0)
             throw new CsEvalException("Tuples must have at least 2 elements");
-        if (elements.Length > 7)
-            throw new CsEvalException("Tuples with more than 7 elements are not supported");
 
-        var types = new Type[elements.Length];
-        for (var i = 0; i < elements.Length; i++)
-            types[i] = elements[i]?.GetType() ?? typeof(object);
-
-        var openGenericType = elements.Length switch
+        if (elements.Length <= 7)
         {
-            2 => typeof(ValueTuple<,>),
-            3 => typeof(ValueTuple<,,>),
-            4 => typeof(ValueTuple<,,,>),
-            5 => typeof(ValueTuple<,,,,>),
-            6 => typeof(ValueTuple<,,,,,>),
-            7 => typeof(ValueTuple<,,,,,,>),
-            _ => throw new CsEvalException("Tuples with more than 7 elements are not supported")
-        };
+            var types = new Type[elements.Length];
+            for (var i = 0; i < elements.Length; i++)
+                types[i] = elements[i]?.GetType() ?? typeof(object);
 
-        var tupleType = openGenericType.MakeGenericType(types);
-        return Activator.CreateInstance(tupleType, elements)!;
+            var openGenericType = elements.Length switch
+            {
+                1 => typeof(ValueTuple<>),
+                2 => typeof(ValueTuple<,>),
+                3 => typeof(ValueTuple<,,>),
+                4 => typeof(ValueTuple<,,,>),
+                5 => typeof(ValueTuple<,,,,>),
+                6 => typeof(ValueTuple<,,,,,>),
+                7 => typeof(ValueTuple<,,,,,,>),
+                _ => throw new CsEvalException("Tuples must have at least 2 elements")
+            };
+
+            var tupleType = openGenericType.MakeGenericType(types);
+            return Activator.CreateInstance(tupleType, elements)!;
+        }
+
+        var restElements = elements[7..];
+        var restTuple = CreateTuple(restElements);
+        var genericArgs = new Type[8];
+        var ctorArgs = new object?[8];
+
+        for (var i = 0; i < 7; i++)
+        {
+            genericArgs[i] = elements[i]?.GetType() ?? typeof(object);
+            ctorArgs[i] = elements[i];
+        }
+
+        genericArgs[7] = restTuple.GetType();
+        ctorArgs[7] = restTuple;
+
+        var nestedTupleType = typeof(ValueTuple<,,,,,,,>).MakeGenericType(genericArgs);
+        return Activator.CreateInstance(nestedTupleType, ctorArgs)!;
     }
 
     /// <summary>

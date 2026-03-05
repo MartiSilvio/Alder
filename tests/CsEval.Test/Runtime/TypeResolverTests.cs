@@ -90,6 +90,14 @@ public class TypeResolverTests(CompilationMode mode)
     }
 
     [Test]
+    public void ResolveType_MultidimensionalArrayKeywordType_ReturnsCorrectType()
+    {
+        var engine = CreateEngine();
+        var result = (Type)engine.Evaluate("typeof(int[,])")!;
+        Assert.That(result, Is.EqualTo(typeof(int[,])));
+    }
+
+    [Test]
     public void ResolveType_ObjectKeyword_AsOperator()
     {
         var engine = CreateEngine();

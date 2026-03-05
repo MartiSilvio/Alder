@@ -168,6 +168,37 @@ public class LexerTests
         Assert.That(tokens[0].Literal, Is.EqualTo(expected));
     }
 
+    [Test]
+    public void Tokenize_RegularStringContainingRawNewline_Throws()
+    {
+        var lexer = new Lexer("\"line1\nline2\"");
+        Assert.Throws<CsEvalLexerException>(() => lexer.Tokenize());
+    }
+
+    [TestCase(@"""\{""")]
+    [TestCase(@"'\{'")]
+    public void Tokenize_InvalidEscapeSequence_Throws(string input)
+    {
+        var lexer = new Lexer(input);
+        Assert.Throws<CsEvalLexerException>(() => lexer.Tokenize());
+    }
+
+    [Test]
+    public void Tokenize_UnicodeSupplementaryEscape_ReturnsCorrectString()
+    {
+        var lexer = new Lexer(@"""\U0001F600""");
+        var tokens = lexer.Tokenize();
+        Assert.That(tokens[0].Type, Is.EqualTo(TokenType.String));
+        Assert.That(tokens[0].Literal, Is.EqualTo(char.ConvertFromUtf32(0x1F600)));
+    }
+
+    [Test]
+    public void Tokenize_UnterminatedRawString_Throws()
+    {
+        var lexer = new Lexer("\"\"\"abc");
+        Assert.Throws<CsEvalLexerException>(() => lexer.Tokenize());
+    }
+
     [TestCase(@"$""Hello\tWorld""", "Hello\tWorld", TestName = "InterpolatedTabEscape")]
     [TestCase(@"$""Line1\nLine2""", "Line1\nLine2", TestName = "InterpolatedNewlineEscape")]
     [TestCase(@"$""Bell\a""", "Bell\a", TestName = "InterpolatedAlertEscape")]

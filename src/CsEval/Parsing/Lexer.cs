@@ -422,7 +422,8 @@ internal sealed class Lexer
         var sb = new StringBuilder();
         while (Peek() != quote && !IsAtEnd())
         {
-            if (Peek() == '\n') { _line++; _column = 0; }
+            if (Peek() == '\n')
+                throw new CsEvalLexerException($"Newline in constant at {_line}:{_column}");
             if (Peek() == '\\')
             {
                 Advance();
@@ -454,7 +455,10 @@ internal sealed class Lexer
             if (IsAtEnd())
                 throw new CsEvalLexerException($"Unterminated character literal at {_line}:{_column}");
 
-            value = ParseEscapeSequence();
+            var escaped = ParseEscapeSequence(forCharacterLiteral: true);
+            if (escaped.Length != 1)
+                throw new CsEvalLexerException($"Character literal must contain exactly one character at {_line}:{_column}");
+            value = escaped[0];
         }
         else if (Peek() == '\'')
         {
@@ -541,6 +545,7 @@ internal sealed class Lexer
         }
 
         var sb = new StringBuilder();
+        var closed = false;
         while (!IsAtEnd())
         {
             if (Peek() == '"')
@@ -553,6 +558,7 @@ internal sealed class Lexer
                 }
                 if (closeQuotes >= openQuotes)
                 {
+                    closed = true;
                     break;
                 }
                 else
@@ -567,6 +573,9 @@ internal sealed class Lexer
                 Advance();
             }
         }
+
+        if (!closed)
+            throw new CsEvalLexerException($"Unterminated raw string literal at {_line}:{_column}");
 
         AddToken(TokenType.String, sb.ToString());
     }
@@ -863,34 +872,32 @@ internal sealed class Lexer
     private static bool IsHexDigit(char c) =>
         char.IsDigit(c) || c is >= 'a' and <= 'f' || c is >= 'A' and <= 'F';
 
-    private char ParseEscapeSequence()
+    private string ParseEscapeSequence(bool forCharacterLiteral = false)
     {
         var escaped = Peek();
         return escaped switch
         {
-            'n' => Consume('\n'),
-            'r' => Consume('\r'),
-            't' => Consume('\t'),
-            '0' => Consume('\0'),
-            'a' => Consume('\a'),
-            'b' => Consume('\b'),
-            'f' => Consume('\f'),
-            'v' => Consume('\v'),
-            '\\' => Consume('\\'),
-            '"' => Consume('"'),
-            '\'' => Consume('\''),
-            '{' => Consume('{'),
-            '}' => Consume('}'),
-            'u' => ParseUnicodeEscape(4),
-            'U' => ParseUnicodeEscape(8),
-            'x' => ParseHexEscape(),
+            'n' => Consume('\n').ToString(),
+            'r' => Consume('\r').ToString(),
+            't' => Consume('\t').ToString(),
+            '0' => Consume('\0').ToString(),
+            'a' => Consume('\a').ToString(),
+            'b' => Consume('\b').ToString(),
+            'f' => Consume('\f').ToString(),
+            'v' => Consume('\v').ToString(),
+            '\\' => Consume('\\').ToString(),
+            '"' => Consume('"').ToString(),
+            '\'' => Consume('\'').ToString(),
+            'u' => ParseUnicodeEscape(4, forCharacterLiteral),
+            'U' => ParseUnicodeEscape(8, forCharacterLiteral),
+            'x' => ParseHexEscape().ToString(),
             _ => throw new CsEvalLexerException($"Unknown escape sequence '\\{escaped}' at {_line}:{_column}")
         };
 
         char Consume(char c) { Advance(); return c; }
     }
 
-    private char ParseUnicodeEscape(int digitCount)
+    private string ParseUnicodeEscape(int digitCount, bool forCharacterLiteral)
     {
         Advance(); // consume 'u' or 'U'
         var startCol = _column;
@@ -909,11 +916,14 @@ internal sealed class Lexer
         {
             if (codePoint > 0x10FFFF)
                 throw new CsEvalLexerException($"Invalid unicode code point U+{codePoint:X8} at {_line}:{startCol}. Maximum is U+10FFFF.");
-            if (codePoint >= 0x10000)
+            if (forCharacterLiteral && codePoint >= 0x10000)
                 throw new CsEvalLexerException($"Surrogate pairs from \\U escapes are not supported in char literals at {_line}:{startCol}.");
         }
 
-        return (char)codePoint;
+        if (codePoint >= 0x10000)
+            return char.ConvertFromUtf32(codePoint);
+
+        return ((char)codePoint).ToString();
     }
 
     private char ParseHexEscape()
@@ -977,6 +987,7 @@ internal sealed class Lexer
     /// Parse integer literal with automatic type promotion (C# behavior):
     /// - If fits in int → int
     /// - If fits in long → long
+    /// - If fits in ulong → ulong
     /// - Otherwise → error
     /// </summary>
     private static object ParseIntegerWithPromotion(string text)
@@ -985,7 +996,8 @@ internal sealed class Lexer
             return intValue;
         if (long.TryParse(text, out var longValue))
             return longValue;
-        // For very large numbers, could support ulong, but keeping it simple
+        if (ulong.TryParse(text, out var ulongValue))
+            return ulongValue;
         throw new OverflowException($"Integer literal '{text}' is too large");
     }
 

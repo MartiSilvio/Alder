@@ -1,4 +1,5 @@
 using System.Reflection;
+using CsEval.Diagnostics;
 using CsEval.Parsing;
 using CsEval.Runtime;
 
@@ -113,8 +114,11 @@ internal sealed class ExpressionCompilerUnit
     /// Compiles parameterless throw; (rethrow) using the Expression Trees rethrow instruction.
     /// ECMA-334 §13.10.6 -- only valid inside a catch block body.
     /// </summary>
-    internal static LinqExpression CompileThrowStatement()
+    internal LinqExpression CompileThrowStatement()
     {
+        if (_ctx.CatchDepth == 0)
+            throw new CsEvalException(DiagnosticDescriptors.ThrowOutsideCatch);
+
         // Expression.Rethrow generates the IL rethrow instruction.
         // Must be typed to match the try/catch return type (typeof(object)).
         return LinqExpression.Rethrow(typeof(object));

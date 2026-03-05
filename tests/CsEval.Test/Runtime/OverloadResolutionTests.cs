@@ -93,5 +93,33 @@ public class OverloadResolutionTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(5));
     }
 
+    [Test]
+    public void AmbiguousOverloads_Throws()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        engine.SetVariable("ambig", new AmbiguousOverloads());
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("ambig.M(1, 1)"));
+        Assert.That(ex!.Message, Does.Contain("Ambiguous"));
+    }
+
+    [Test]
+    public void NamedArgument_CaseSensitive_MismatchThrows()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        engine.SetVariable("named", new NamedCaseTarget());
+        Assert.Throws<CsEvalException>(() => engine.Evaluate("named.M(VALUE: 1)"));
+    }
+
     #endregion
+
+    private sealed class AmbiguousOverloads
+    {
+        public string M(int a, long b) => "int,long";
+        public string M(long a, int b) => "long,int";
+    }
+
+    private sealed class NamedCaseTarget
+    {
+        public int M(int value) => value;
+    }
 }

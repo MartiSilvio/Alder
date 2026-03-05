@@ -113,6 +113,18 @@ public sealed record SandboxOptions
     public bool AllowPropertyRead { get; init; }
 
     /// <summary>
+    /// Allow reading static properties from Type targets (e.g., int.MaxValue).
+    /// Default: false.
+    /// </summary>
+    public bool AllowStaticPropertyRead { get; init; }
+
+    /// <summary>
+    /// Allow reading static fields from Type targets.
+    /// Default: false.
+    /// </summary>
+    public bool AllowStaticFieldRead { get; init; }
+
+    /// <summary>
     /// Allow variable reassignment (e.g., x = 5, x++, x += 1).
     /// Default: false. Variable declarations (var x = 5) are always allowed.
     /// </summary>
@@ -138,6 +150,8 @@ public sealed record SandboxOptions
     {
         AllowMethodCalls = true,
         AllowPropertyRead = true,
+        AllowStaticPropertyRead = true,
+        AllowStaticFieldRead = true,
         AllowAssignment = true,
         AllowPropertySet = true,
         AllowIndexSet = true

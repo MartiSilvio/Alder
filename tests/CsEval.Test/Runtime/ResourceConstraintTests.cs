@@ -210,6 +210,41 @@ public class ResourceConstraintTests(CompilationMode mode)
 
     #endregion
 
+    #region Concurrency Isolation
+
+    [Test]
+    public async Task ConcurrentEvaluations_WithStatementConstraints_DoNotInterfere()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with
+        {
+            CompilationMode = mode,
+            Constraints = new ExecutionConstraints { MaxStatements = 4 }
+        });
+
+        const string expr = "{ var a = 1; var b = 2; var c = 3; return a + b + c; }";
+        var failures = 0;
+
+        for (var i = 0; i < 200; i++)
+        {
+            var t1 = Task.Run(() => engine.Evaluate(expr));
+            var t2 = Task.Run(() => engine.Evaluate(expr));
+            try
+            {
+                await Task.WhenAll(t1, t2);
+                if (!Equals(t1.Result, 6) || !Equals(t2.Result, 6))
+                    failures++;
+            }
+            catch
+            {
+                failures++;
+            }
+        }
+
+        Assert.That(failures, Is.EqualTo(0));
+    }
+
+    #endregion
+
     #region Exception Properties
 
     [Test]

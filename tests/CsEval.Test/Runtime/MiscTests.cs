@@ -265,9 +265,167 @@ public class MiscTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(0.01).Within(1e-12));
     }
 
+    [Test]
+    public void LockOnNull_ThrowsCsEvalExceptionWithConsistentMessage()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("{ object o = null; lock (o) { } }"));
+        Assert.That(ex!.Message, Does.Contain("lock statement requires a non-null reference"));
+    }
+
+    [Test]
+    public void UsingStatement_DisposesIAsyncDisposableInAllModes()
+    {
+        var probe = new AsyncDisposeProbe();
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        engine.SetVariable("probe", probe);
+
+        engine.Evaluate("{ using (probe) { } }");
+
+        Assert.That(probe.DisposeCount, Is.EqualTo(1));
+    }
+
+    [Test]
+    public void CatchVariable_WithWhenFalse_IsOutOfScopeAfterTryCatch()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("""
+        {
+            try { throw new Exception("boom"); }
+            catch (Exception ex) when (false) { }
+            catch (Exception) { }
+            return ex;
+        }
+        """));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(CsEval.Diagnostics.DiagnosticCode.CS0103));
+    }
+
+    [Test]
+    public void CatchFilter_WhenGuardThrows_IsTreatedAsFalse()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var result = engine.Evaluate("""
+        {
+            var r = "";
+            try { throw new Exception("boom"); }
+            catch (Exception ex) when (1 / 0 == 0) { r = "bad"; }
+            catch (Exception) { r = "ok"; }
+            return r;
+        }
+        """);
+        Assert.That(result, Is.EqualTo("ok"));
+    }
+
+    [Test]
+    public void CatchFilter_WhenGuardThrows_CatchVariableRemainsOutOfScope()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("""
+        {
+            try { throw new Exception("boom"); }
+            catch (Exception ex) when (1 / 0 == 0) { }
+            catch (Exception) { }
+            return ex;
+        }
+        """));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(CsEval.Diagnostics.DiagnosticCode.CS0103));
+    }
+
+    [Test]
+    public void LogicalError_DoesNotEvaluateRightOperandForTypeDiagnostics()
+    {
+        var counter = new CounterProbe();
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        engine.SetVariable("counter", counter);
+
+        Assert.Throws<CsEvalException>(() => engine.Evaluate("1 && counter.Bump()"));
+        Assert.That(counter.Count, Is.EqualTo(0));
+    }
+
+    [Test]
+    public void SwitchExpression_WhenGuardThrows_DoesNotLeakPatternVariable()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("""
+        {
+            try
+            {
+                var z = 1 switch { int n when (1/0 == 0) => n, _ => 0 };
+            }
+            catch { }
+            return n;
+        }
+        """));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(CsEval.Diagnostics.DiagnosticCode.CS0103));
+    }
+
+    [Test]
+    public void TopLevelComparison_IdentifierLessIdentifier_ParsesAsExpression()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        engine.SetVariable("a", 1);
+        engine.SetVariable("b", 2);
+        Assert.That(engine.Evaluate("a < b"), Is.EqualTo(true));
+    }
+
+    [Test]
+    public void ExtensionMethodLookup_RespectsCaseSensitivityOption()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with
+        {
+            CompilationMode = mode,
+            IsCaseSensitive = true
+        });
+        engine.RegisterExtensionMethods(typeof(CaseSensitiveExtensionProbe));
+
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("\"abc\".flipcasex()"));
+        Assert.That(ex!.Message, Does.Contain("Method"));
+    }
+
+    [Test]
+    public void ExtensionMethod_SupportsNamedArguments()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        engine.RegisterExtensionMethods(typeof(CaseSensitiveExtensionProbe));
+
+        var result = engine.Evaluate("1.ExtAdd(y: 2, z: 3)");
+        Assert.That(result, Is.EqualTo(6));
+    }
+
+    [Test]
+    public void ExtensionMethod_AmbiguousOverloads_Throws()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        engine.RegisterExtensionMethods(typeof(CaseSensitiveExtensionProbe));
+
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("1.ExtAmb((byte)1)"));
+        Assert.That(ex!.Message, Does.Contain("Ambiguous"));
+    }
+
     private sealed class TwoKeyIndex
     {
         public string this[string a, string b] => $"{a}:{b}";
+    }
+
+    private sealed class AsyncDisposeProbe : IAsyncDisposable
+    {
+        public int DisposeCount { get; private set; }
+
+        public ValueTask DisposeAsync()
+        {
+            DisposeCount++;
+            return ValueTask.CompletedTask;
+        }
+    }
+
+    private sealed class CounterProbe
+    {
+        public int Count { get; private set; }
+        public bool Bump()
+        {
+            Count++;
+            return true;
+        }
     }
 
     public sealed class ImplicitFrom
@@ -287,4 +445,12 @@ public class MiscTests(CompilationMode mode)
     {
         public int Accept(ImplicitTo value) => value.Value;
     }
+}
+
+internal static class CaseSensitiveExtensionProbe
+{
+    public static string FlipCaseX(this string value) => value.ToUpperInvariant();
+    public static int ExtAdd(this int value, int y, int z = 0) => value + y + z;
+    public static string ExtAmb(this int value, short x) => "short";
+    public static string ExtAmb(this int value, ushort x) => "ushort";
 }

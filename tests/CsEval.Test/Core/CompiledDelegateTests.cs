@@ -165,4 +165,30 @@ public class CompiledDelegateTests
         // y should not exist in engine context -- using it without per-invocation vars should throw
         Assert.Throws<CsEvalException>(() => engine.Evaluate("y"));
     }
+
+    [Test]
+    public void Compile_Invoke_EnforcesExecutionConstraints()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with
+        {
+            CompilationMode = CompilationMode.Compiled,
+            Constraints = new ExecutionConstraints { MaxStatements = 3 }
+        });
+
+        var compiled = engine.Compile<object?>("{ var a = 1; var b = 2; var c = 3; return a + b + c; }");
+        Assert.Throws<CsEvalExecutionLimitException>(() => compiled.Invoke());
+    }
+
+    [Test]
+    public void CompileToFunc_Invoke_EnforcesExecutionConstraints()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with
+        {
+            CompilationMode = CompilationMode.Compiled,
+            Constraints = new ExecutionConstraints { MaxStatements = 3 }
+        });
+
+        var func = engine.CompileToFunc<object?>("{ var a = 1; var b = 2; var c = 3; return a + b + c; }");
+        Assert.Throws<CsEvalExecutionLimitException>(() => func());
+    }
 }

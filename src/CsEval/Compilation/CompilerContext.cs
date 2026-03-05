@@ -59,6 +59,7 @@ internal sealed class CompilerContext
 
     // Checked/unchecked overflow context for arithmetic operations
     internal bool IsChecked;
+    internal int CatchDepth;
 
     internal record struct ControlFlowContext(LabelTarget BreakTarget, LabelTarget? ContinueTarget, bool IsLoop);
 
@@ -116,7 +117,10 @@ internal sealed class CompilerContext
     internal static readonly MethodInfo CheckAllowAssignmentMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.CheckAllowAssignment))!;
     internal static readonly MethodInfo CheckAllowIndexSetMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.CheckAllowIndexSet))!;
     internal static readonly MethodInfo CheckNullCoalesceAssignAllowedMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.CheckNullCoalesceAssignAllowed))!;
+    internal static readonly MethodInfo DisposeResourceMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.DisposeResource))!;
+    internal static readonly MethodInfo ValidateLockObjectMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.ValidateLockObject))!;
     internal static readonly MethodInfo ValidateCompoundAssignmentMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.ValidateCompoundAssignment))!;
+    internal static readonly MethodInfo EvaluateCatchWhenGuardMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.EvaluateCatchWhenGuard))!;
     internal static readonly MethodInfo ValidateAndCoerceTypeMethod = typeof(TypeHelpers).GetMethod(nameof(TypeHelpers.ValidateAndCoerceType), [typeof(Type), typeof(object), typeof(string)])!;
     internal static readonly MethodInfo ExplicitCastMethod = typeof(TypeHelpers).GetMethod(nameof(TypeHelpers.ExplicitCast), [typeof(object), typeof(Type), typeof(Type), typeof(bool)])!;
     internal static readonly MethodInfo IsTypeMethod = typeof(TypeHelpers).GetMethod(nameof(TypeHelpers.IsType), [typeof(object), typeof(Type)])!;
@@ -191,13 +195,13 @@ internal sealed class CompilerContext
     /// <summary>
     /// Attempt to compile an AST to IL. Returns (delegate, null) on success, or (null, reason) on failure.
     /// </summary>
-    public static (ILCompiledDelegate? Delegate, string? FailureReason) TryCompile(Expr ast, CsEvalContext context, CsEvalOptions options)
+    public static (ILCompiledDelegate? Delegate, string? FailureReason, Exception? FailureException) TryCompile(Expr ast, CsEvalContext context, CsEvalOptions options)
     {
         var ctx = new CompilerContext(context, options);
 
         var canCompileResult = CanCompile(ast);
         if (canCompileResult != null)
-            return (null, canCompileResult);
+            return (null, canCompileResult, null);
 
         try
         {
@@ -236,7 +240,7 @@ internal sealed class CompilerContext
                 ctx.CtParam,
                 ctx.ArgumentTransformerParam);
 
-            return (options.ExpressionCompiler.Compile(lambda), null);
+            return (options.ExpressionCompiler.Compile(lambda), null, null);
         }
         catch (CsEvalDepthException)
         {
@@ -244,7 +248,7 @@ internal sealed class CompilerContext
         }
         catch (Exception ex)
         {
-            return (null, ex.Message);
+            return (null, ex.Message, ex);
         }
     }
 
@@ -318,7 +322,7 @@ internal sealed class CompilerContext
                 TryCatchFinallyExpr tcf => controlUnit.CompileTryCatchFinally(tcf),
                 UsingStatementExpr usingStmt => controlUnit.CompileUsing(usingStmt),
                 LockStatementExpr lockStmt => controlUnit.CompileLock(lockStmt),
-                ThrowStatementExpr => ExpressionCompilerUnit.CompileThrowStatement(),
+                ThrowStatementExpr => exprUnit.CompileThrowStatement(),
                 BlockExpr block => controlUnit.CompileBlock(block),
                 IfStatementExpr ifStmt => controlUnit.CompileIf(ifStmt),
                 SwitchStatementExpr switchStmt => controlUnit.CompileSwitch(switchStmt),

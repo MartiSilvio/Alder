@@ -77,14 +77,12 @@ internal sealed class PatternCompilerUnit
             var armResult = Compile(arm.Value);
 
             // If condition: store result, restore context, goto end
-            statements.Add(LinqExpression.IfThen(condition,
-                LinqExpression.Block(
-                    LinqExpression.Assign(resultVar, armResult),
-                    LinqExpression.Assign(_ctx.CurrentContext, parentContextVar),
-                    LinqExpression.Goto(endLabel, resultVar, typeof(object)))));
-
-            // Restore parent context (arm didn't match)
-            statements.Add(LinqExpression.Assign(_ctx.CurrentContext, parentContextVar));
+            statements.Add(LinqExpression.TryFinally(
+                LinqExpression.IfThen(condition,
+                    LinqExpression.Block(
+                        LinqExpression.Assign(resultVar, armResult),
+                        LinqExpression.Goto(endLabel, resultVar, typeof(object)))),
+                LinqExpression.Assign(_ctx.CurrentContext, parentContextVar)));
         }
 
         // ECMA-334 §12.8.21: throw SwitchExpressionException when no arm matches
