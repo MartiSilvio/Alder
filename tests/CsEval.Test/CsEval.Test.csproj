@@ -22,7 +22,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\CsEval\CsEval.csproj" />
-    <ProjectReference Include="..\..\benchmarks\CsEval.Benchmarks\CsEval.Benchmarks.csproj" />
   </ItemGroup>
 
   <ItemGroup>

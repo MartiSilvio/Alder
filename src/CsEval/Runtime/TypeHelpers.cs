@@ -32,7 +32,7 @@ internal static class TypeHelpers
         if (value is bool b)
             return b;
 
-        throw new CsEvalException(DiagnosticDescriptors.NoImplicitConversion, value?.GetType().Name ?? "null", "bool");
+        throw new CsEvalException(DiagnosticDescriptors.NoImplicitConversion, TypeNameFormatter.Of(value), "bool");
     }
 
     public static bool RequireBooleanForLogicalOperator(object? value, string opLexeme, string otherOperandTypeName)
@@ -43,7 +43,7 @@ internal static class TypeHelpers
         throw new CsEvalException(
             DiagnosticDescriptors.BadBinaryOps,
             opLexeme,
-            value?.GetType().Name ?? "null",
+            TypeNameFormatter.Of(value),
             otherOperandTypeName);
     }
 

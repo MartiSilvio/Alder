@@ -154,7 +154,7 @@ internal static class RuntimeHelpers
             throw new CsEvalException(
                 DiagnosticDescriptors.BadBinaryOps,
                 TokenLexemes.GetCanonical(TokenType.PipeGreater),
-                leftValue?.GetType().Name ?? "null",
+                TypeNameFormatter.Of(leftValue),
                 module.GetType().Name);
         }
 
@@ -165,8 +165,8 @@ internal static class RuntimeHelpers
                 throw new CsEvalException(
                     DiagnosticDescriptors.BadBinaryOps,
                     TokenLexemes.GetCanonical(TokenType.PipeGreater),
-                    leftValue?.GetType().Name ?? "null",
-                    variableValue?.GetType().Name ?? "null");
+                    TypeNameFormatter.Of(leftValue),
+                    TypeNameFormatter.Of(variableValue));
             }
 
             return MethodInvoker.InvokeCall(variableValue, args, context, options, ct, null);
@@ -179,8 +179,8 @@ internal static class RuntimeHelpers
             throw new CsEvalException(
                 DiagnosticDescriptors.BadBinaryOps,
                 TokenLexemes.GetCanonical(TokenType.PipeGreater),
-                leftValue?.GetType().Name ?? "null",
-                callee?.GetType().Name ?? "null");
+                TypeNameFormatter.Of(leftValue),
+                TypeNameFormatter.Of(callee));
         }
 
         return MethodInvoker.InvokeCall(callee, args, context, options, ct, null);
@@ -397,7 +397,7 @@ internal static class RuntimeHelpers
     public static IEnumerator GetEnumerator(object? collection)
     {
         if (collection is not IEnumerable enumerable)
-            throw new CsEvalException(DiagnosticDescriptors.ForeachRequiresIEnumerable, collection?.GetType().Name ?? "null");
+            throw new CsEvalException(DiagnosticDescriptors.ForeachRequiresIEnumerable, TypeNameFormatter.Of(collection));
 
         return enumerable.GetEnumerator();
     }
@@ -517,7 +517,7 @@ internal static class RuntimeHelpers
             }
         }
 
-        throw new CsEvalException($"Cannot deconstruct value of type '{tupleValue?.GetType().Name ?? "null"}': no ITuple implementation or Deconstruct() method found");
+        throw new CsEvalException($"Cannot deconstruct value of type '{TypeNameFormatter.Of(tupleValue)}': no ITuple implementation or Deconstruct() method found");
     }
 
     /// <summary>

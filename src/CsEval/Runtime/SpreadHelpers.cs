@@ -37,7 +37,7 @@ internal static class SpreadHelpers
         }
         else
         {
-            throw new CsEvalException(DiagnosticDescriptors.ForeachRequiresIEnumerable, source?.GetType().Name ?? "null");
+            throw new CsEvalException(DiagnosticDescriptors.ForeachRequiresIEnumerable, TypeNameFormatter.Of(source));
         }
     }
 

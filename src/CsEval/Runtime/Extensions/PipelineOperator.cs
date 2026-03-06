@@ -25,8 +25,8 @@ internal static class PipelineOperator
             throw new CsEvalException(
                 DiagnosticDescriptors.BadBinaryOps,
                 TokenLexemes.GetCanonical(TokenType.PipeGreater),
-                leftValue?.GetType().Name ?? "null",
-                "null");
+                TypeNameFormatter.Of(leftValue),
+                TypeNameFormatter.Null);
 
         // Check if the right side is a known callable type before invoking.
         // MethodInvoker.InvokeCall handles: LambdaValue, CompiledLambdaValue, FunctionRef,
@@ -35,7 +35,7 @@ internal static class PipelineOperator
             throw new CsEvalException(
                 DiagnosticDescriptors.BadBinaryOps,
                 TokenLexemes.GetCanonical(TokenType.PipeGreater),
-                leftValue?.GetType().Name ?? "null",
+                TypeNameFormatter.Of(leftValue),
                 rightCallable.GetType().Name);
 
         var args = new object?[] { leftValue };

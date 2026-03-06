@@ -17,7 +17,7 @@ internal static class ObjectMergeOperator
         CopyObjectProperties(right, merged, context);
 
         if (merged.Count == 0 && (left != null || right != null))
-            throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, "+", left?.GetType().Name ?? "null", right?.GetType().Name ?? "null");
+            throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, "+", TypeNameFormatter.Of(left), TypeNameFormatter.Of(right));
 
         return merged;
     }

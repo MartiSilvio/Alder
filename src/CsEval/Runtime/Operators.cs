@@ -80,7 +80,7 @@ internal static class Operators
         // Object merge via + operator (Extended mode only)
         if (options.LanguageMode == LanguageMode.Standard)
             throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, "+",
-                left?.GetType().Name ?? "null", right?.GetType().Name ?? "null");
+                TypeNameFormatter.Of(left), TypeNameFormatter.Of(right));
 
         return Extensions.ObjectMergeOperator.MergeObjects(left, right, options, context);
     }
@@ -123,8 +123,8 @@ internal static class Operators
             throw new CsEvalException(
                 DiagnosticDescriptors.BadBinaryOps,
                 TokenLexemes.GetCanonical(TokenType.StarStar),
-                left?.GetType().Name ?? "null",
-                right?.GetType().Name ?? "null");
+                TypeNameFormatter.Of(left),
+                TypeNameFormatter.Of(right));
         }
 
         if (!TypeHelpers.IsArithmetic(left) || !TypeHelpers.IsArithmetic(right))
@@ -148,7 +148,7 @@ internal static class Operators
                 return null;
         }
         if ((left != null && !TypeHelpers.IsArithmetic(left)) || (right != null && !TypeHelpers.IsArithmetic(right)))
-            throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, op, left?.GetType().Name ?? "null", right?.GetType().Name ?? "null");
+            throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, op, TypeNameFormatter.Of(left), TypeNameFormatter.Of(right));
         return dispatch(left!, right!);
     }
 
@@ -249,7 +249,7 @@ internal static class Operators
         {
             string ls when right is string rs => string.Compare(ls, rs, options.StringComparison),
             IComparable comparable => comparable.CompareTo(right),
-            _ => throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, "<>", left?.GetType().Name ?? "null", right?.GetType().Name ?? "null")
+            _ => throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, "<>", TypeNameFormatter.Of(left), TypeNameFormatter.Of(right))
         };
     }
 
@@ -278,7 +278,7 @@ internal static class Operators
         if (IsIntegerOrChar(left) && IsIntegerOrChar(right))
             return NumericDispatch.BitwiseAnd(left!, right!);
 
-        throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, "&", left?.GetType().Name ?? "null", right?.GetType().Name ?? "null");
+        throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, "&", TypeNameFormatter.Of(left), TypeNameFormatter.Of(right));
     }
 
     public static object? BitwiseOr(object? left, object? right)
@@ -305,7 +305,7 @@ internal static class Operators
         if (IsIntegerOrChar(left) && IsIntegerOrChar(right))
             return NumericDispatch.BitwiseOr(left!, right!);
 
-        throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, "|", left?.GetType().Name ?? "null", right?.GetType().Name ?? "null");
+        throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, "|", TypeNameFormatter.Of(left), TypeNameFormatter.Of(right));
     }
 
     public static object? BitwiseXor(object? left, object? right)
@@ -328,7 +328,7 @@ internal static class Operators
         if (IsIntegerOrChar(left) && IsIntegerOrChar(right))
             return NumericDispatch.BitwiseXor(left!, right!);
 
-        throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, "^", left?.GetType().Name ?? "null", right?.GetType().Name ?? "null");
+        throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, "^", TypeNameFormatter.Of(left), TypeNameFormatter.Of(right));
     }
 
     public static object? BitwiseNot(object? value)
@@ -343,7 +343,7 @@ internal static class Operators
         // (char undergoes unary numeric promotion to int per §12.4.7.2)
         if (TypeHelpers.IsInteger(value) || value is char)
             return NumericDispatch.BitwiseNot(value!);
-        throw new CsEvalException(DiagnosticDescriptors.BadUnaryOp, "~", value?.GetType().Name ?? "null");
+        throw new CsEvalException(DiagnosticDescriptors.BadUnaryOp, "~", TypeNameFormatter.Of(value));
     }
 
     public static object? LeftShift(object? left, object? right)
@@ -354,7 +354,7 @@ internal static class Operators
 
         // ECMA-334 §12.11: Shift operators accept integer types and char
         if (!IsIntegerOrChar(left) || !TypeHelpers.IsInteger(right))
-            throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, "<<", left?.GetType().Name ?? "null", right?.GetType().Name ?? "null");
+            throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, "<<", TypeNameFormatter.Of(left), TypeNameFormatter.Of(right));
 
         return NumericDispatch.LeftShift(left!, right!);
     }
@@ -366,7 +366,7 @@ internal static class Operators
             return null;
 
         if (!IsIntegerOrChar(left) || !TypeHelpers.IsInteger(right))
-            throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, ">>", left?.GetType().Name ?? "null", right?.GetType().Name ?? "null");
+            throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, ">>", TypeNameFormatter.Of(left), TypeNameFormatter.Of(right));
 
         return NumericDispatch.RightShift(left!, right!);
     }
@@ -377,7 +377,7 @@ internal static class Operators
             return null;
 
         if (!IsIntegerOrChar(left) || !TypeHelpers.IsInteger(right))
-            throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, ">>>", left?.GetType().Name ?? "null", right?.GetType().Name ?? "null");
+            throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, ">>>", TypeNameFormatter.Of(left), TypeNameFormatter.Of(right));
 
         return NumericDispatch.UnsignedRightShift(left!, right!);
     }
@@ -395,8 +395,8 @@ internal static class Operators
             throw new CsEvalException(
                 DiagnosticDescriptors.BadBinaryOps,
                 TokenLexemes.GetCanonical(TokenType.In),
-                value?.GetType().Name ?? "null",
-                "null");
+                TypeNameFormatter.Of(value),
+                TypeNameFormatter.Null);
 
         if (collection is string str && value is string substr)
             return str.Contains(substr);
@@ -424,7 +424,7 @@ internal static class Operators
         throw new CsEvalException(
             DiagnosticDescriptors.BadBinaryOps,
             TokenLexemes.GetCanonical(TokenType.In),
-            value?.GetType().Name ?? "null",
+            TypeNameFormatter.Of(value),
             collection.GetType().Name);
     }
 
@@ -490,21 +490,21 @@ internal static class Operators
         else
         {
             throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, "*",
-                left?.GetType().Name ?? "null", right?.GetType().Name ?? "null");
+                TypeNameFormatter.Of(left), TypeNameFormatter.Of(right));
         }
 
         if (countObj == null)
             throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, "*",
-                left?.GetType().Name ?? "null", right?.GetType().Name ?? "null");
+                TypeNameFormatter.Of(left), TypeNameFormatter.Of(right));
 
         if (!TypeHelpers.IsInteger(countObj))
             throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, "*",
-                left?.GetType().Name ?? "null", right?.GetType().Name ?? "null");
+                TypeNameFormatter.Of(left), TypeNameFormatter.Of(right));
 
         int count = Convert.ToInt32(countObj);
         if (count < 0)
             throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, "*",
-                left?.GetType().Name ?? "null", right?.GetType().Name ?? "null");
+                TypeNameFormatter.Of(left), TypeNameFormatter.Of(right));
         if (count == 0)
             return "";
 
@@ -521,8 +521,8 @@ internal static class Operators
             throw new CsEvalException(
                 DiagnosticDescriptors.BadBinaryOps,
                 TokenLexemes.GetCanonical(TokenType.Like),
-                left?.GetType().Name ?? "null",
-                right?.GetType().Name ?? "null");
+                TypeNameFormatter.Of(left),
+                TypeNameFormatter.Of(right));
 
         if (pattern.Length == 0)
             return str.Length == 0;

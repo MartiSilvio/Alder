@@ -143,7 +143,7 @@ internal static class MemberAccess
     public static object? GetIndex(object? obj, object? index, CsEvalOptions options)
     {
         if (obj == null)
-            throw new CsEvalException(DiagnosticDescriptors.BadIndexerAccess, "null");
+            throw new CsEvalException(DiagnosticDescriptors.BadIndexerAccess, TypeNameFormatter.Null);
 
         if (obj is IDictionary<string, object?> dict && index is string strKey)
         {
@@ -255,7 +255,7 @@ internal static class MemberAccess
     public static void SetIndex(object? obj, object? index, object? value, CsEvalOptions? options = null)
     {
         if (obj == null)
-            throw new CsEvalException(DiagnosticDescriptors.BadIndexerAccess, "null");
+            throw new CsEvalException(DiagnosticDescriptors.BadIndexerAccess, TypeNameFormatter.Null);
 
         if (obj is IDictionary<string, object?> dict && index is string strKey)
         {

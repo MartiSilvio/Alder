@@ -20,14 +20,14 @@ internal static class RegexMatchOperator
             throw new CsEvalException(
                 DiagnosticDescriptors.BadBinaryOps,
                 TokenLexemes.GetCanonical(TokenType.EqualTilde),
-                "null",
-                right?.GetType().Name ?? "null");
+                TypeNameFormatter.Null,
+                TypeNameFormatter.Of(right));
         if (right is not string pattern)
             throw new CsEvalException(
                 DiagnosticDescriptors.BadBinaryOps,
                 TokenLexemes.GetCanonical(TokenType.EqualTilde),
                 left.GetType().Name,
-                right?.GetType().Name ?? "null");
+                TypeNameFormatter.Of(right));
         return Regex.IsMatch(left.ToString()!, pattern);
     }
 

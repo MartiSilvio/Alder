@@ -1,6 +1,7 @@
 using CsEval.Benchmarks;
+using NUnit.Framework;
 
-namespace CsEval.Test.Performance;
+namespace CsEval.Benchmarks.Tests;
 
 [TestFixture]
 public class BenchmarkSuiteDesignTests

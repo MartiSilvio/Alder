@@ -283,7 +283,7 @@ internal sealed class Evaluator : IExprVisitor<object?>
             throw new CsEvalException(
                 DiagnosticDescriptors.BadBinaryOps,
                 opLexeme,
-                left?.GetType().Name ?? "null",
+                TypeNameFormatter.Of(left),
                 GetExpressionTypeName(expr.Right));
         }
 
@@ -303,7 +303,7 @@ internal sealed class Evaluator : IExprVisitor<object?>
                 DiagnosticDescriptors.BadBinaryOps,
                 opLexeme,
                 left.GetType().Name,
-                right?.GetType().Name ?? "null");
+                TypeNameFormatter.Of(right));
         }
 
         return (bool)right;
@@ -313,7 +313,7 @@ internal sealed class Evaluator : IExprVisitor<object?>
     {
         return expr switch
         {
-            LiteralExpr { Value: null } => "null",
+            LiteralExpr { Value: null } => TypeNameFormatter.Null,
             LiteralExpr { Value: { } v } => v.GetType().Name,
             _ => "unknown"
         };
@@ -381,7 +381,7 @@ internal sealed class Evaluator : IExprVisitor<object?>
             return null;
 
         if (obj == null)
-            throw new CsEvalException(DiagnosticDescriptors.BadIndexerAccess, "null");
+            throw new CsEvalException(DiagnosticDescriptors.BadIndexerAccess, TypeNameFormatter.Null);
 
         var index = Evaluate(expr.Index);
         return GetIndex(obj, index);
@@ -545,7 +545,7 @@ internal sealed class Evaluator : IExprVisitor<object?>
         var value = Evaluate(expr.Value);
 
         if (obj == null)
-            throw new CsEvalException(DiagnosticDescriptors.BadIndexerAccess, "null");
+            throw new CsEvalException(DiagnosticDescriptors.BadIndexerAccess, TypeNameFormatter.Null);
 
         SetIndex(obj, index, value);
         return value;
@@ -601,7 +601,7 @@ internal sealed class Evaluator : IExprVisitor<object?>
         var obj = Evaluate(expr.Object);
 
         if (obj == null)
-            throw new CsEvalException(DiagnosticDescriptors.BadIndexerAccess, "null");
+            throw new CsEvalException(DiagnosticDescriptors.BadIndexerAccess, TypeNameFormatter.Null);
 
         var index = Evaluate(expr.Index);
         var currentValue = GetIndex(obj, index);
@@ -653,7 +653,7 @@ internal sealed class Evaluator : IExprVisitor<object?>
         var obj = Evaluate(expr.Object);
 
         if (obj == null)
-            throw new CsEvalException(DiagnosticDescriptors.BadIndexerAccess, "null");
+            throw new CsEvalException(DiagnosticDescriptors.BadIndexerAccess, TypeNameFormatter.Null);
 
         var index = Evaluate(expr.Index);
         var currentValue = GetIndex(obj, index);
@@ -690,7 +690,7 @@ internal sealed class Evaluator : IExprVisitor<object?>
         var obj = Evaluate(expr.Object);
 
         if (obj == null)
-            throw new CsEvalException(DiagnosticDescriptors.BadIndexerAccess, "null");
+            throw new CsEvalException(DiagnosticDescriptors.BadIndexerAccess, TypeNameFormatter.Null);
 
         var index = Evaluate(expr.Index);
         var currentValue = GetIndex(obj, index);
@@ -894,7 +894,7 @@ internal sealed class Evaluator : IExprVisitor<object?>
         }
         throw new CsEvalException(
             DiagnosticDescriptors.BadIndexerAccess,
-            obj?.GetType().Name ?? "null");
+            TypeNameFormatter.Of(obj));
     }
 
     public object? VisitMultiDimTypedArrayCreation(MultiDimTypedArrayCreationExpr expr)
@@ -924,7 +924,7 @@ internal sealed class Evaluator : IExprVisitor<object?>
         }
         throw new CsEvalException(
             DiagnosticDescriptors.BadIndexerAccess,
-            obj?.GetType().Name ?? "null");
+            TypeNameFormatter.Of(obj));
     }
 
     public object? VisitTypedArrayCreation(TypedArrayCreationExpr expr)
@@ -997,7 +997,7 @@ internal sealed class Evaluator : IExprVisitor<object?>
             }
         }
 
-        throw new CsEvalException($"Cannot deconstruct value of type '{value?.GetType().Name ?? "null"}': no ITuple implementation or Deconstruct() method found");
+        throw new CsEvalException($"Cannot deconstruct value of type '{TypeNameFormatter.Of(value)}': no ITuple implementation or Deconstruct() method found");
     }
 
     public object? VisitIfStatement(IfStatementExpr expr)
@@ -1352,7 +1352,7 @@ internal sealed class Evaluator : IExprVisitor<object?>
 
         if (collection is not IEnumerable enumerable)
         {
-            throw new CsEvalException(DiagnosticDescriptors.ForeachRequiresIEnumerable, collection?.GetType().Name ?? "null");
+            throw new CsEvalException(DiagnosticDescriptors.ForeachRequiresIEnumerable, TypeNameFormatter.Of(collection));
         }
 
         _breakContextDepth++;
