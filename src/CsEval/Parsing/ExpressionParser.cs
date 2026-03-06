@@ -514,13 +514,11 @@ internal sealed class ExpressionParser : ParserBase
                 var right = ParseShift();
                 expr = new BinaryExpr(expr, op, right);
             }
-            else if (State.LanguageMode == LanguageMode.Extended
-                     && Check(TokenType.Bang) && CheckNext(TokenType.In))
+            else if (State.LanguageMode == LanguageMode.Extended && Match(TokenType.NotIn))
             {
-                Advance(); // consume 'not'
-                var notToken = Previous();
-                var unaryNot = TokenLexemes.CreateSynthetic(TokenType.Bang, notToken);
-                var op = Advance(); // consume 'in'
+                var aliasToken = Previous();
+                var unaryNot = TokenLexemes.CreateSynthetic(TokenType.Bang, aliasToken);
+                var op = TokenLexemes.CreateSynthetic(TokenType.In, aliasToken);
                 var right = ParseShift();
                 expr = new UnaryExpr(unaryNot, new BinaryExpr(expr, op, right));
             }
@@ -530,13 +528,11 @@ internal sealed class ExpressionParser : ParserBase
                 var right = ParseShift();
                 expr = new BinaryExpr(expr, op, right);
             }
-            else if (State.LanguageMode == LanguageMode.Extended
-                     && Check(TokenType.Bang) && CheckNext(TokenType.Like))
+            else if (State.LanguageMode == LanguageMode.Extended && Match(TokenType.NotLike))
             {
-                Advance(); // consume 'not'
-                var notToken = Previous();
-                var unaryNot = TokenLexemes.CreateSynthetic(TokenType.Bang, notToken);
-                var op = Advance(); // consume 'like'
+                var aliasToken = Previous();
+                var unaryNot = TokenLexemes.CreateSynthetic(TokenType.Bang, aliasToken);
+                var op = TokenLexemes.CreateSynthetic(TokenType.Like, aliasToken);
                 var right = ParseShift();
                 expr = new UnaryExpr(unaryNot, new BinaryExpr(expr, op, right));
             }

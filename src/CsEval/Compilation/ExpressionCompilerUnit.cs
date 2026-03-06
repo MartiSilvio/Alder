@@ -108,7 +108,7 @@ internal sealed class ExpressionCompilerUnit
     private bool TryCompileTypedIdentifier(Expr expr, Type knownType, out LinqExpression compiled)
     {
         compiled = null!;
-        if (knownType == typeof(object) || knownType == typeof(bool) || expr is not IdentifierExpr id)
+        if (knownType == typeof(object) || expr is not IdentifierExpr id)
             return false;
 
         var name = id.Name.Lexeme;
@@ -120,20 +120,36 @@ internal sealed class ExpressionCompilerUnit
             variableType == knownType)
         {
             var typedVariableGetter = CompilerContext.GetVariableTypedMethodFor(knownType);
-            compiled = LinqExpression.Call(
+            var directRead = LinqExpression.Call(
                 typedVariableGetter,
                 LinqExpression.Constant(name),
                 _ctx.CurrentContext);
+            compiled = EmitLazyTypedIdentifierRead(name, knownType, directRead);
             return true;
         }
 
         var typedResolver = CompilerContext.GetResolveIdentifierTypedMethod(knownType);
-        compiled = LinqExpression.Call(
+        var resolvedRead = LinqExpression.Call(
             typedResolver,
             LinqExpression.Constant(name),
             _ctx.CurrentContext,
             _ctx.OptionsParam);
+        compiled = EmitLazyTypedIdentifierRead(name, knownType, resolvedRead);
         return true;
+    }
+
+    private LinqExpression EmitLazyTypedIdentifierRead(string name, Type valueType, LinqExpression directRead)
+    {
+        if (!_ctx.TryGetOrCreateLazyIdentifierSlot(name, valueType, out var valueVar, out var initializedVar))
+            return directRead;
+
+        return LinqExpression.Condition(
+            initializedVar,
+            valueVar,
+            LinqExpression.Block(
+                LinqExpression.Assign(valueVar, directRead),
+                LinqExpression.Assign(initializedVar, LinqExpression.Constant(true)),
+                valueVar));
     }
 
     private static bool TryUnboxObjectConversion(LinqExpression compiled, out LinqExpression unboxed)
@@ -1682,31 +1698,44 @@ internal sealed class ExpressionCompilerUnit
         // Deep chained calls should remain on runtime dispatch to avoid compile-stack blowups.
         if (memberAccess.Object is MemberAccessExpr or CallExpr) return null;
 
-        var objectType = _ctx.TypeInferrer.Infer(memberAccess.Object);
-
         Type? targetType;
         BindingFlags flags;
         bool isStatic;
 
-        if (objectType == typeof(Type) && memberAccess.Object is TypeReferenceExpr typeRef)
+        if (memberAccess.Object is IdentifierExpr moduleId &&
+            !_ctx.Context.Functions.ContainsKey(moduleId.Name.Lexeme) &&
+            _ctx.Context.Modules.TryGetValue(moduleId.Name.Lexeme, out var moduleInfo) &&
+            moduleInfo.Instance == null &&
+            moduleInfo.Type is { IsAbstract: true, IsSealed: true })
         {
-            targetType = _ctx.Context.TypeResolver.TryResolveType(typeRef.TypeToken.Lexeme);
+            // Built-in static modules (e.g., Math, Convert): bind directly to static methods.
+            targetType = moduleInfo.Type;
             flags = BindingFlags.Public | BindingFlags.Static;
             isStatic = true;
         }
-        else if (objectType == typeof(Type) && memberAccess.Object is IdentifierExpr idExpr)
+        else
         {
-            targetType = _ctx.Context.TypeResolver.TryResolveType(idExpr.Name.Lexeme);
-            flags = BindingFlags.Public | BindingFlags.Static;
-            isStatic = true;
+            var objectType = _ctx.TypeInferrer.Infer(memberAccess.Object);
+            if (objectType == typeof(Type) && memberAccess.Object is TypeReferenceExpr typeRef)
+            {
+                targetType = _ctx.Context.TypeResolver.TryResolveType(typeRef.TypeToken.Lexeme);
+                flags = BindingFlags.Public | BindingFlags.Static;
+                isStatic = true;
+            }
+            else if (objectType == typeof(Type) && memberAccess.Object is IdentifierExpr idExpr)
+            {
+                targetType = _ctx.Context.TypeResolver.TryResolveType(idExpr.Name.Lexeme);
+                flags = BindingFlags.Public | BindingFlags.Static;
+                isStatic = true;
+            }
+            else if (objectType != typeof(object) && !objectType.IsArray)
+            {
+                targetType = objectType;
+                flags = BindingFlags.Public | BindingFlags.Instance;
+                isStatic = false;
+            }
+            else return null;
         }
-        else if (objectType != typeof(object) && !objectType.IsArray)
-        {
-            targetType = objectType;
-            flags = BindingFlags.Public | BindingFlags.Instance;
-            isStatic = false;
-        }
-        else return null;
 
         if (!_ctx.Options.IsCaseSensitive)
             flags |= BindingFlags.IgnoreCase;

@@ -14,9 +14,48 @@ internal sealed class ParserState
 
     public ParserState(List<Token> tokens, LanguageMode languageMode = LanguageMode.Standard)
     {
-        Tokens = tokens;
+        Tokens = languageMode == LanguageMode.Extended
+            ? NormalizeExtendedCompoundOperators(tokens)
+            : tokens;
         Current = 0;
         LanguageMode = languageMode;
+    }
+
+    private static List<Token> NormalizeExtendedCompoundOperators(List<Token> tokens)
+    {
+        if (tokens.Count < 3)
+            return tokens;
+
+        var normalized = new List<Token>(tokens.Count);
+
+        for (var i = 0; i < tokens.Count; i++)
+        {
+            var current = tokens[i];
+
+            if (current.Type == TokenType.Bang &&
+                string.Equals(current.Lexeme, TokenLexemes.GetCanonical(TokenType.Not), StringComparison.Ordinal) &&
+                i + 1 < tokens.Count)
+            {
+                var next = tokens[i + 1];
+                if (next.Type == TokenType.In)
+                {
+                    normalized.Add(TokenLexemes.CreateSynthetic(TokenType.NotIn, current));
+                    i++;
+                    continue;
+                }
+
+                if (next.Type == TokenType.Like)
+                {
+                    normalized.Add(TokenLexemes.CreateSynthetic(TokenType.NotLike, current));
+                    i++;
+                    continue;
+                }
+            }
+
+            normalized.Add(current);
+        }
+
+        return normalized;
     }
 }
 

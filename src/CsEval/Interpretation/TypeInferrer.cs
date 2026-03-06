@@ -515,7 +515,12 @@ internal sealed class TypeInferrer : AstWalker<Type>
         Type? targetType = null;
         BindingFlags flags;
 
-        if (objectType == typeof(Type) && expr.Object is TypeReferenceExpr typeRef)
+        if (TryGetStaticModuleType(expr.Object, out var staticModuleType))
+        {
+            targetType = staticModuleType;
+            flags = BindingFlags.Public | BindingFlags.Static;
+        }
+        else if (objectType == typeof(Type) && expr.Object is TypeReferenceExpr typeRef)
         {
             targetType = _context.TypeResolver.TryResolveType(typeRef.TypeToken.Lexeme);
             flags = BindingFlags.Public | BindingFlags.Static;
@@ -563,7 +568,12 @@ internal sealed class TypeInferrer : AstWalker<Type>
             Type? targetType = null;
             BindingFlags flags;
 
-            if (objectType == typeof(Type) && memberAccess.Object is TypeReferenceExpr typeRef2)
+            if (TryGetStaticModuleType(memberAccess.Object, out var staticModuleType))
+            {
+                targetType = staticModuleType;
+                flags = BindingFlags.Public | BindingFlags.Static;
+            }
+            else if (objectType == typeof(Type) && memberAccess.Object is TypeReferenceExpr typeRef2)
             {
                 targetType = _context.TypeResolver.TryResolveType(typeRef2.TypeToken.Lexeme);
                 flags = BindingFlags.Public | BindingFlags.Static;
@@ -623,6 +633,30 @@ internal sealed class TypeInferrer : AstWalker<Type>
     /// </summary>
     private static Type ResolveSentinel(Type type) =>
         type == ThrowSentinel || type == NullSentinel ? typeof(object) : type;
+
+    private bool TryGetStaticModuleType(Expr moduleExpr, out Type? staticType)
+    {
+        staticType = null;
+        if (moduleExpr is not IdentifierExpr idExpr)
+            return false;
+
+        var moduleName = idExpr.Name.Lexeme;
+        // Keep aligned with runtime precedence: functions shadow modules by identifier.
+        if (_context.Functions.ContainsKey(moduleName))
+            return false;
+
+        if (!_context.Modules.TryGetValue(moduleName, out var moduleInfo))
+            return false;
+
+        if (moduleInfo.Instance != null)
+            return false;
+
+        if (!moduleInfo.Type.IsAbstract || !moduleInfo.Type.IsSealed)
+            return false;
+
+        staticType = moduleInfo.Type;
+        return true;
+    }
 
     private static Type GetBinaryResultType(Type left, Type right)
     {

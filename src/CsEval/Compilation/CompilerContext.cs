@@ -59,6 +59,10 @@ internal sealed class CompilerContext
     // Checked/unchecked overflow context for arithmetic operations
     internal bool IsChecked;
     internal int CatchDepth;
+    internal bool UseLazyTypedIdentifierReads;
+
+    private readonly Dictionary<(string Name, Type Type), (ParameterExpression Value, ParameterExpression Initialized)> _lazyIdentifierSlots = new();
+    internal readonly List<ParameterExpression> LazyIdentifierVariables = [];
 
     internal record struct ControlFlowContext(LabelTarget BreakTarget, LabelTarget? ContinueTarget, bool IsLoop);
 
@@ -171,6 +175,36 @@ internal sealed class CompilerContext
             valueType,
             static t => GuardReflectionLeakTypedMethod.MakeGenericMethod(t));
 
+    internal bool TryGetOrCreateLazyIdentifierSlot(
+        string name,
+        Type valueType,
+        out ParameterExpression valueVar,
+        out ParameterExpression initializedVar)
+    {
+        valueVar = null!;
+        initializedVar = null!;
+
+        if (!UseLazyTypedIdentifierReads)
+            return false;
+
+        var key = (name, valueType);
+        if (_lazyIdentifierSlots.TryGetValue(key, out var existing))
+        {
+            valueVar = existing.Value;
+            initializedVar = existing.Initialized;
+            return true;
+        }
+
+        var suffix = _lazyIdentifierSlots.Count;
+        valueVar = LinqExpression.Variable(valueType, $"idCacheValue_{suffix}");
+        initializedVar = LinqExpression.Variable(typeof(bool), $"idCacheReady_{suffix}");
+
+        _lazyIdentifierSlots[key] = (valueVar, initializedVar);
+        LazyIdentifierVariables.Add(valueVar);
+        LazyIdentifierVariables.Add(initializedVar);
+        return true;
+    }
+
     private CompilerContext(CsEvalContext context, CsEvalOptions options)
     {
         Context = context;
@@ -226,6 +260,7 @@ internal sealed class CompilerContext
         {
             // Pre-infer types for the entire AST so variable types are known during compilation
             ctx.TypeInferrer.InferAll(ast);
+            ctx.UseLazyTypedIdentifierReads = CanUseLazyTypedIdentifierReads(ast);
 
             // Create compilation units
             var helpers = new CompilerHelpers(ctx);
@@ -246,8 +281,15 @@ internal sealed class CompilerContext
             // Wrap in a block that:
             // 1. Executes the body and stores result
             // 2. Returns via label (for early returns) or falls through with body result
+            var blockVariables = new List<ParameterExpression>(1 + ctx.LazyIdentifierVariables.Count)
+            {
+                ctx.ReturnValue
+            };
+            if (ctx.LazyIdentifierVariables.Count > 0)
+                blockVariables.AddRange(ctx.LazyIdentifierVariables);
+
             var fullBody = LinqExpression.Block(
-                new[] { ctx.ReturnValue },
+                blockVariables,
                 // Store body result in returnValue so we can use it as default for label
                 LinqExpression.Assign(ctx.ReturnValue, body),
                 // Label with returnValue as default - early returns jump here, normal flow uses body result
@@ -271,6 +313,77 @@ internal sealed class CompilerContext
             var canCompileResult = CanCompile(ast);
             return (null, canCompileResult ?? ex.Message, ex);
         }
+    }
+
+    private static bool CanUseLazyTypedIdentifierReads(Expr ast)
+    {
+        // Enable only for side-effect-free expression trees so lazy read-caching cannot
+        // hide writes or external side effects between identifier reads.
+        var stack = new Stack<Expr>();
+        stack.Push(ast);
+
+        while (stack.Count > 0)
+        {
+            switch (stack.Pop())
+            {
+                case LiteralExpr:
+                case IdentifierExpr:
+                case TypeReferenceExpr:
+                case NameofExpr:
+                case DefaultExpr:
+                case TypeofExpr:
+                case SizeofExpr:
+                    continue;
+
+                case UnaryExpr { Op.Type: TokenType.Minus or TokenType.Plus or TokenType.Bang or TokenType.Tilde } unary:
+                    stack.Push(unary.Right);
+                    continue;
+
+                case BinaryExpr binary when IsCompilableBinaryOp(binary.Op.Type):
+                    stack.Push(binary.Left);
+                    stack.Push(binary.Right);
+                    continue;
+
+                case LogicalExpr logical:
+                    stack.Push(logical.Left);
+                    stack.Push(logical.Right);
+                    continue;
+
+                case ConditionalExpr conditional:
+                    stack.Push(conditional.Condition);
+                    stack.Push(conditional.ThenBranch);
+                    stack.Push(conditional.ElseBranch);
+                    continue;
+
+                case NullCoalesceExpr coalesce:
+                    stack.Push(coalesce.Left);
+                    stack.Push(coalesce.Right);
+                    continue;
+
+                case CastExpr cast:
+                    stack.Push(cast.Expression);
+                    continue;
+
+                case CheckedExpr checkedExpr:
+                    stack.Push(checkedExpr.Expression);
+                    continue;
+
+                case ChainedComparisonExpr chain:
+                    for (var i = 0; i < chain.Operands.Count; i++)
+                        stack.Push(chain.Operands[i]);
+                    continue;
+
+                case RangeExpr range:
+                    stack.Push(range.Start);
+                    stack.Push(range.End);
+                    continue;
+
+                default:
+                    return false;
+            }
+        }
+
+        return true;
     }
 
     /// <summary>
