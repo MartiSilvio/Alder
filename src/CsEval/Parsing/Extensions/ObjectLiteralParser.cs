@@ -18,13 +18,11 @@ internal static class ObjectLiteralParser
                 if (parser.Match(TokenType.DotDot))
                 {
                     if (parser.LanguageMode == LanguageMode.Standard)
-                        throw new CsEvalLanguageModeException("..",
-                            "Spread operator '..' is not available in Standard mode. " +
-                            "Use LanguageMode.Extended to enable non-standard syntax extensions.");
+                        throw new CsEvalLanguageModeException(TokenLexemes.GetCanonical(TokenType.DotDot));
                     // Spread property: ..expr
                     var spreadExpr = parseExpression();
                     // Use a special marker token for spread entries
-                    var spreadMarker = new Token(TokenType.DotDot, "..", null, 0, 0);
+                    var spreadMarker = TokenLexemes.CreateSynthetic(TokenType.DotDot, parser.Previous());
                     properties.Add((spreadMarker, new SpreadExpr(spreadExpr)));
                 }
                 else

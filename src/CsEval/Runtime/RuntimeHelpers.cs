@@ -9,6 +9,9 @@ namespace CsEval.Runtime;
 internal static class RuntimeHelpers
 {
     public static object? ResolveIdentifier(string name, CsEvalContext context, CsEvalOptions options)
+        => ResolveIdentifierCore(name, context, options);
+
+    private static object? ResolveIdentifierCore(string name, CsEvalContext context, CsEvalOptions options)
     {
         if (context.Functions.TryGetValue(name, out var function))
             return new FunctionRef(name, function);
@@ -20,16 +23,16 @@ internal static class RuntimeHelpers
         if (context.TryGet(name, out var value))
             return value;
 
-        // If not a variable/function/module, check if it's a namespace prefix.
-        // This enables FQN type access like System.Linq.Enumerable.Where(...)
-        if (context.TypeResolver.IsNamespaceOrPrefix(name))
-            return new NamespaceRef(name);
-
         // Try resolving as a type name for static member access
         // Enables: Array.Empty<int>(), Math.Max(1, 2), Enumerable.Range(0, 10)
         var resolvedType = context.TypeResolver.TryResolveType(name);
         if (resolvedType != null)
             return resolvedType;
+
+        // If not a variable/function/module/type, check if it's a namespace prefix.
+        // This enables FQN type access like System.Linq.Enumerable.Where(...).
+        if (context.TypeResolver.IsNamespaceOrPrefix(name))
+            return new NamespaceRef(name);
 
         // Bare math constants in Extended mode (pi, e, tau, infinity, nan)
         // User variables shadow these -- checked above via TryGet
@@ -41,12 +44,49 @@ internal static class RuntimeHelpers
         return context.Get(name);
     }
 
+    public static T ResolveIdentifierTyped<T>(string name, CsEvalContext context, CsEvalOptions options)
+        => CoerceIdentifierValue<T>(ResolveIdentifierCore(name, context, options));
+
+    public static T GetVariableTyped<T>(string name, CsEvalContext context)
+    {
+        if (!context.TryGet(name, out var value))
+            throw new CsEvalException(DiagnosticDescriptors.NameNotInContext, name);
+
+        return CoerceIdentifierValue<T>(value);
+    }
+
+    private static T CoerceIdentifierValue<T>(object? value)
+    {
+        if (value is T typedValue)
+            return typedValue;
+
+        value = CoerceNumericForTargetType<T>(value);
+        if (value is T coercedTyped)
+            return coercedTyped;
+
+        return CastIdentifierValue<T>(value);
+    }
+
+    private static object? CoerceNumericForTargetType<T>(object? value)
+    {
+        var targetType = typeof(T);
+        var numericTarget = Nullable.GetUnderlyingType(targetType) ?? targetType;
+        if (!TypeHelpers.IsArithmetic(numericTarget))
+            return value;
+
+        return TypeHelpers.CoerceNumeric(value, targetType);
+    }
+
+    private static T CastIdentifierValue<T>(object? value)
+    {
+        return (T)value!;
+    }
+
     /// <summary>
-    /// Resolves a bare math function call in Extended mode.
-    /// Called from the compiled path when the callee is an unresolved identifier.
-    /// Tries bare math function lookup before falling back to the normal call path.
+    /// Invokes an identifier call target while preserving CsEval's call resolution precedence.
+    /// This avoids creating intermediate FunctionRef wrappers for the common registered-function case.
     /// </summary>
-    public static object? InvokeBareMathOrCall(
+    public static object? InvokeIdentifierCall(
         string name,
         object?[] args,
         CsEvalContext context,
@@ -54,19 +94,118 @@ internal static class RuntimeHelpers
         CancellationToken ct,
         IReadOnlyList<string>? typeArgs)
     {
-        // Only intercept in Extended mode when name is not in user scope
+        // Registered functions have highest precedence and are always callable.
+        if (context.Functions.TryGetValue(name, out var function))
+            return function(args);
+
+        var hasVariable = context.TryGet(name, out var variableValue);
+
+        // Preserve existing Extended-mode bare-math shadowing behavior:
+        // variables shadow bare math; modules do not.
         if (options.LanguageMode == LanguageMode.Extended &&
-            !context.TryGet(name, out _) &&
-            !context.Functions.ContainsKey(name) &&
+            !hasVariable &&
             BareMathNames.TryGetFunction(name, args.Length, out var mathFunc))
         {
             return mathFunc(args);
         }
 
-        // Fall back to normal resolution + call
+        // Modules resolve before variables for normal identifier lookup.
+        if (context.Modules.TryGetValue(name, out var module))
+            return MethodInvoker.InvokeCall(module, args, context, options, ct, typeArgs);
+
+        if (hasVariable || context.TryGet(name, out variableValue))
+            return MethodInvoker.InvokeCall(variableValue, args, context, options, ct, typeArgs);
+
+        // Fall back to normal resolution for type/namespace/error flows.
         var callee = ResolveIdentifier(name, context, options);
         return MethodInvoker.InvokeCall(callee, args, context, options, ct, typeArgs);
     }
+
+    /// <summary>
+    /// Optimized pipeline dispatch for identifier RHS: left |> identifier.
+    /// Preserves pipeline-specific diagnostics while avoiding intermediate FunctionRef allocation.
+    /// </summary>
+    public static object? InvokePipelineIdentifier(
+        object? leftValue,
+        string rightIdentifier,
+        CsEvalContext context,
+        CsEvalOptions options,
+        CancellationToken ct)
+    {
+        var args = new object?[] { leftValue };
+
+        // Registered functions have highest precedence and are always callable.
+        if (context.Functions.TryGetValue(rightIdentifier, out var function))
+            return function(args);
+
+        var hasVariable = context.TryGet(rightIdentifier, out var variableValue);
+
+        // Preserve Extended-mode bare math behavior: variables shadow bare math.
+        if (options.LanguageMode == LanguageMode.Extended &&
+            !hasVariable &&
+            BareMathNames.TryGetFunction(rightIdentifier, args.Length, out var mathFunc))
+        {
+            return mathFunc(args);
+        }
+
+        // Modules resolve before variables for normal identifier lookup.
+        if (context.Modules.TryGetValue(rightIdentifier, out var module))
+        {
+            throw new CsEvalException(
+                DiagnosticDescriptors.BadBinaryOps,
+                TokenLexemes.GetCanonical(TokenType.PipeGreater),
+                leftValue?.GetType().Name ?? "null",
+                module.GetType().Name);
+        }
+
+        if (hasVariable || context.TryGet(rightIdentifier, out variableValue))
+        {
+            if (!IsPipelineCallable(variableValue))
+            {
+                throw new CsEvalException(
+                    DiagnosticDescriptors.BadBinaryOps,
+                    TokenLexemes.GetCanonical(TokenType.PipeGreater),
+                    leftValue?.GetType().Name ?? "null",
+                    variableValue?.GetType().Name ?? "null");
+            }
+
+            return MethodInvoker.InvokeCall(variableValue, args, context, options, ct, null);
+        }
+
+        // Fall back to full identifier resolution for type/namespace/error flows.
+        var callee = ResolveIdentifier(rightIdentifier, context, options);
+        if (!IsPipelineCallable(callee))
+        {
+            throw new CsEvalException(
+                DiagnosticDescriptors.BadBinaryOps,
+                TokenLexemes.GetCanonical(TokenType.PipeGreater),
+                leftValue?.GetType().Name ?? "null",
+                callee?.GetType().Name ?? "null");
+        }
+
+        return MethodInvoker.InvokeCall(callee, args, context, options, ct, null);
+    }
+
+    private static bool IsPipelineCallable(object? value) => value is
+        LambdaValue or
+        CompiledLambdaValue or
+        FunctionRef or
+        Delegate or
+        ModuleMethodRef or
+        StaticMethodRef or
+        MethodRef;
+
+    /// <summary>
+    /// Backward-compatible alias for older compiled call sites.
+    /// </summary>
+    public static object? InvokeBareMathOrCall(
+        string name,
+        object?[] args,
+        CsEvalContext context,
+        CsEvalOptions options,
+        CancellationToken ct,
+        IReadOnlyList<string>? typeArgs) =>
+        InvokeIdentifierCall(name, args, context, options, ct, typeArgs);
 
     public static void CheckAllowAssignment(CsEvalOptions options, string context)
     {
@@ -77,7 +216,11 @@ internal static class RuntimeHelpers
     public static void CheckNullCoalesceAssignAllowed(string name, CsEvalContext context)
     {
         if (context.TryGetVariableType(name, out var varType) && varType != null && !TypeHelpers.IsNullableType(varType))
-            throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, "??=", varType.Name, varType.Name);
+            throw new CsEvalException(
+                DiagnosticDescriptors.BadBinaryOps,
+                TokenLexemes.GetCanonical(TokenType.QuestionQuestionEqual),
+                varType.Name,
+                varType.Name);
     }
 
     public static void DisposeResource(object? resource)
@@ -227,7 +370,7 @@ internal static class RuntimeHelpers
 
         state.StatementCount++;
 
-        if (constraints.MaxStatements is { } maxStmts && maxStmts > 0
+        if (constraints.MaxStatements is { } maxStmts and > 0
             && state.StatementCount > maxStmts)
         {
             throw new CsEvalExecutionLimitException(

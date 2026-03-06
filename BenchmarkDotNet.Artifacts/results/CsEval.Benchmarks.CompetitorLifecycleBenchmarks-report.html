@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+<meta charset='utf-8' />
+<title>CsEval.Benchmarks.CompetitorLifecycleBenchmarks-20260306-125142</title>
+
+<style type="text/css">
+	table { border-collapse: collapse; display: block; width: 100%; overflow: auto; }
+	td, th { padding: 6px 13px; border: 1px solid #ddd; text-align: right; }
+	tr { background-color: #fff; border-top: 1px solid #ccc; }
+	tr:nth-child(even) { background: #f8f8f8; }
+</style>
+</head>
+<body>
+<pre><code>
+BenchmarkDotNet v0.14.0, macOS Sequoia 15.7.2 (24G325) [Darwin 24.6.0]
+Apple M3 Max, 1 CPU, 14 logical and 14 physical cores
+.NET SDK 8.0.204
+  [Host]     : .NET 8.0.4 (8.0.424.16909), Arm64 RyuJIT AdvSIMD
+  Job-JMXUSA : .NET 8.0.4 (8.0.424.16909), Arm64 RyuJIT AdvSIMD
+</code></pre>
+<pre><code>Runtime=.NET 8.0  IterationCount=12  WarmupCount=4  
+Categories=Lifecycle  
+</code></pre>
+
+<table>
+<thead><tr><th>Method                     </th><th>Mean  </th><th>Error</th><th>StdDev</th><th>Median</th><th>Min   </th><th>Max   </th><th>Ratio</th><th>RatioSD</th><th>Gen0</th><th>Gen1</th><th>Allocated</th><th>Alloc Ratio</th>
+</tr>
+</thead><tbody><tr><td>NCalc_CreateExpression</td><td>52.96 ns</td><td>0.179 ns</td><td>0.130 ns</td><td>53.02 ns</td><td>52.75 ns</td><td>53.10 ns</td><td>0.04</td><td>0.00</td><td>0.0488</td><td>-</td><td>408 B</td><td>0.05</td>
+</tr><tr><td>CsEval_CreateCompiledEngine</td><td>1,449.59 ns</td><td>4.377 ns</td><td>3.417 ns</td><td>1,449.77 ns</td><td>1,444.32 ns</td><td>1,455.78 ns</td><td>1.00</td><td>0.00</td><td>1.0777</td><td>0.0305</td><td>9024 B</td><td>1.00</td>
+</tr><tr><td>CsEval_CreateInterpretedEngine</td><td>1,450.32 ns</td><td>3.740 ns</td><td>2.920 ns</td><td>1,450.04 ns</td><td>1,446.73 ns</td><td>1,455.38 ns</td><td>1.00</td><td>0.00</td><td>1.0777</td><td>0.0305</td><td>9024 B</td><td>1.00</td>
+</tr><tr><td>DynamicExpresso_CreateInterpreter</td><td>86,857.46 ns</td><td>164.449 ns</td><td>108.773 ns</td><td>86,867.89 ns</td><td>86,688.35 ns</td><td>87,005.21 ns</td><td>59.89</td><td>0.14</td><td>3.6621</td><td>-</td><td>31564 B</td><td>3.50</td>
+</tr><tr><td>Flee_CreateContext</td><td>91,240.04 ns</td><td>625.420 ns</td><td>488.287 ns</td><td>91,180.55 ns</td><td>90,454.14 ns</td><td>92,106.13 ns</td><td>62.91</td><td>0.35</td><td>16.8457</td><td>3.4180</td><td>142133 B</td><td>15.75</td>
+</tr></tbody></table>
+</body>
+</html>

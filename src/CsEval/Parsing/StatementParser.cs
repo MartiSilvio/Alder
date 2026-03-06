@@ -120,12 +120,13 @@ internal sealed class StatementParser : ParserBase
             if (Check(TokenType.LeftParen))
             {
                 Advance(); // consume '('
-                var variableNames = new List<string>();
-                variableNames.Add(Consume(TokenType.Identifier, "Expected variable name in deconstruction").Lexeme);
+                var variableNames = new List<string>
+                    { Consume(TokenType.Identifier, "Expected variable name in deconstruction").Lexeme };
                 while (Match(TokenType.Comma))
                 {
                     variableNames.Add(Consume(TokenType.Identifier, "Expected variable name in deconstruction").Lexeme);
                 }
+
                 Consume(TokenType.RightParen, "Expected ')' after deconstruction variable list");
                 Consume(TokenType.Equal, "Expected '=' after deconstruction");
                 var valueExpr = _expression.ParseExpression();
@@ -310,7 +311,7 @@ internal sealed class StatementParser : ParserBase
 
         // Desugar: unless (cond) -> if (!cond)
         var negatedCondition = new UnaryExpr(
-            new Token(TokenType.Bang, "!", null, unlessToken.Line, unlessToken.Column),
+            TokenLexemes.CreateSynthetic(TokenType.Bang, unlessToken),
             condition);
         return new IfStatementExpr(negatedCondition, thenStatements, elseStatements);
     }
@@ -341,7 +342,7 @@ internal sealed class StatementParser : ParserBase
 
         // Desugar: until (cond) -> while (!cond)
         var negatedCondition = new UnaryExpr(
-            new Token(TokenType.Bang, "!", null, untilToken.Line, untilToken.Column),
+            TokenLexemes.CreateSynthetic(TokenType.Bang, untilToken),
             condition);
         return new WhileStatementExpr(negatedCondition, body);
     }
@@ -383,7 +384,8 @@ internal sealed class StatementParser : ParserBase
             }
             else
             {
-                throw new CsEvalParserException($"Expected 'case' or 'default' in switch at {Peek().Line}:{Peek().Column}");
+                throw new CsEvalParserException(
+                    $"Expected 'case' or 'default' in switch at {Peek().Line}:{Peek().Column}");
             }
         }
 
@@ -448,7 +450,8 @@ internal sealed class StatementParser : ParserBase
                 Consume(TokenType.Equal, "Expected '=' after variable name");
                 var init = _expression.ParseExpression();
                 if (init is LiteralExpr { Value: null })
-                    throw new CsEvalParserException(DiagnosticDescriptors.NullToImplicitlyTyped, name.Line, name.Column);
+                    throw new CsEvalParserException(DiagnosticDescriptors.NullToImplicitlyTyped, name.Line,
+                        name.Column);
                 initializers.Add(new VariableDeclExpr(null, name, init));
                 while (Match(TokenType.Comma))
                 {
@@ -456,7 +459,8 @@ internal sealed class StatementParser : ParserBase
                     Consume(TokenType.Equal, "Expected '=' after variable name");
                     var init2 = _expression.ParseExpression();
                     if (init2 is LiteralExpr { Value: null })
-                        throw new CsEvalParserException(DiagnosticDescriptors.NullToImplicitlyTyped, name2.Line, name2.Column);
+                        throw new CsEvalParserException(DiagnosticDescriptors.NullToImplicitlyTyped, name2.Line,
+                            name2.Column);
                     initializers.Add(new VariableDeclExpr(null, name2, init2));
                 }
             }
@@ -481,6 +485,7 @@ internal sealed class StatementParser : ParserBase
                     initializers.Add(_expression.ParseExpression());
             }
         }
+
         Consume(TokenType.Semicolon, "Expected ';' after for initializer");
 
         // Parse condition (or empty for infinite loop)
@@ -489,6 +494,7 @@ internal sealed class StatementParser : ParserBase
         {
             condition = _expression.ParseExpression();
         }
+
         Consume(TokenType.Semicolon, "Expected ';' after for condition");
 
         // Parse increments (comma-separated, or empty)
@@ -499,6 +505,7 @@ internal sealed class StatementParser : ParserBase
             while (Match(TokenType.Comma))
                 increments.Add(_expression.ParseExpression());
         }
+
         Consume(TokenType.RightParen, "Expected ')' after for clauses");
 
         // Parse body
@@ -550,7 +557,8 @@ internal sealed class StatementParser : ParserBase
         // Parse variable declaration (var varName or type varName)
         if (!MatchVar() && !MatchTypeKeyword(out _))
         {
-            throw new CsEvalParserException($"Expected 'var' or type keyword in foreach at {Peek().Line}:{Peek().Column}");
+            throw new CsEvalParserException(
+                $"Expected 'var' or type keyword in foreach at {Peek().Line}:{Peek().Column}");
         }
 
         var variableName = ConsumeIdentifierOrContextualKeyword("Expected variable name in foreach");
@@ -558,7 +566,8 @@ internal sealed class StatementParser : ParserBase
         // Consume 'in' keyword - it's reserved as a contextual keyword
         if (!Match(TokenType.In))
         {
-            throw new CsEvalParserException($"Expected 'in' after variable name in foreach at {Peek().Line}:{Peek().Column}");
+            throw new CsEvalParserException(
+                $"Expected 'in' after variable name in foreach at {Peek().Line}:{Peek().Column}");
         }
 
         var collection = _expression.ParseExpression();
@@ -677,13 +686,16 @@ internal sealed class StatementParser : ParserBase
                 Advance(); // consume '('
 
                 // Parse type name (may be dot-separated, e.g., System.IO.IOException)
-                var typeParts = new List<string>();
-                typeParts.Add(Consume(TokenType.Identifier, "Expected exception type name").Lexeme);
+                var typeParts = new List<string>
+                {
+                    Consume(TokenType.Identifier, "Expected exception type name").Lexeme
+                };
                 while (Check(TokenType.Dot))
                 {
                     Advance(); // consume '.'
                     typeParts.Add(Consume(TokenType.Identifier, "Expected type name part").Lexeme);
                 }
+
                 exceptionTypeName = string.Join(".", typeParts);
 
                 // Check for variable name (next token is Identifier and not ')')
@@ -723,7 +735,8 @@ internal sealed class StatementParser : ParserBase
 
         // Validate: must have at least one catch or a finally
         if (catchClauses.Count == 0 && finallyBody == null)
-            throw new CsEvalParserException($"Expected 'catch' or 'finally' after try block at {Peek().Line}:{Peek().Column}");
+            throw new CsEvalParserException(
+                $"Expected 'catch' or 'finally' after try block at {Peek().Line}:{Peek().Column}");
 
         // Validate: bare catch (no type) must be last
         for (var i = 0; i < catchClauses.Count - 1; i++)

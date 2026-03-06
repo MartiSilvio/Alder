@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Linq.Expressions;
 using CsEval.Interpretation;
 using CsEval.Parsing;
@@ -124,10 +125,15 @@ internal sealed class CompilerContext
     internal static readonly MethodInfo ExplicitCastMethod = typeof(TypeHelpers).GetMethod(nameof(TypeHelpers.ExplicitCast), [typeof(object), typeof(Type), typeof(Type), typeof(bool)])!;
     internal static readonly MethodInfo IsTypeMethod = typeof(TypeHelpers).GetMethod(nameof(TypeHelpers.IsType), [typeof(object), typeof(Type)])!;
     internal static readonly MethodInfo TryAsMethod = typeof(TypeHelpers).GetMethod(nameof(TypeHelpers.TryAs), [typeof(object), typeof(Type)])!;
+    internal static readonly MethodInfo GuardReflectionLeakMethod = typeof(TypeHelpers).GetMethod(nameof(TypeHelpers.GuardReflectionLeak), [typeof(object), typeof(string)])!;
+    internal static readonly MethodInfo GuardReflectionLeakTypedMethod = typeof(TypeHelpers).GetMethod(nameof(TypeHelpers.GuardReflectionLeakTyped))!;
+    internal static readonly MethodInfo CoerceNumericMethod = typeof(TypeHelpers).GetMethod("CoerceNumeric", BindingFlags.NonPublic | BindingFlags.Static)!;
     internal static readonly MethodInfo InvokeCallMethod = typeof(Runtime.MethodInvoker).GetMethod(nameof(Runtime.MethodInvoker.InvokeCall))!;
     internal static readonly MethodInfo InvokeMemberCallMethod = typeof(Runtime.MethodInvoker).GetMethod(nameof(Runtime.MethodInvoker.InvokeMemberCall))!;
+    internal static readonly MethodInfo GetVariableTypedMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.GetVariableTyped))!;
     internal static readonly MethodInfo ResolveIdentifierMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.ResolveIdentifier))!;
-    internal static readonly MethodInfo InvokeBareMathOrCallMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.InvokeBareMathOrCall))!;
+    internal static readonly MethodInfo ResolveIdentifierTypedMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.ResolveIdentifierTyped))!;
+    internal static readonly MethodInfo InvokeIdentifierCallMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.InvokeIdentifierCall))!;
     internal static readonly MethodInfo ConditionalTypePromotionMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.ConditionalTypePromotion))!;
     internal static readonly ConstructorInfo NamedArgCtor = typeof(NamedArg).GetConstructor([typeof(string), typeof(object)])!;
     internal static readonly ConstructorInfo CompiledLambdaValueCtor =
@@ -144,7 +150,26 @@ internal sealed class CompilerContext
     internal static readonly ConstructorInfo OutArgMarkerCtor =
         typeof(OutArgMarker).GetConstructor([typeof(string), typeof(string), typeof(bool)])!;
 
+    private static readonly ConcurrentDictionary<Type, MethodInfo> ResolveIdentifierTypedMethodCache = new();
+    private static readonly ConcurrentDictionary<Type, MethodInfo> GetVariableTypedMethodCache = new();
+    private static readonly ConcurrentDictionary<Type, MethodInfo> GuardReflectionLeakTypedMethodCache = new();
+
     #endregion
+
+    internal static MethodInfo GetResolveIdentifierTypedMethod(Type valueType) =>
+        ResolveIdentifierTypedMethodCache.GetOrAdd(
+            valueType,
+            static t => ResolveIdentifierTypedMethod.MakeGenericMethod(t));
+
+    internal static MethodInfo GetVariableTypedMethodFor(Type valueType) =>
+        GetVariableTypedMethodCache.GetOrAdd(
+            valueType,
+            static t => GetVariableTypedMethod.MakeGenericMethod(t));
+
+    internal static MethodInfo GetGuardReflectionLeakTypedMethod(Type valueType) =>
+        GuardReflectionLeakTypedMethodCache.GetOrAdd(
+            valueType,
+            static t => GuardReflectionLeakTypedMethod.MakeGenericMethod(t));
 
     private CompilerContext(CsEvalContext context, CsEvalOptions options)
     {
@@ -197,10 +222,6 @@ internal sealed class CompilerContext
     {
         var ctx = new CompilerContext(context, options);
 
-        var canCompileResult = CanCompile(ast);
-        if (canCompileResult != null)
-            return (null, canCompileResult, null);
-
         try
         {
             // Pre-infer types for the entire AST so variable types are known during compilation
@@ -219,6 +240,8 @@ internal sealed class CompilerContext
             expressionUnit.SetControlFlowUnit(controlFlowUnit);
 
             var body = Compile(ctx, ast, expressionUnit, controlFlowUnit, patternUnit);
+            if (body.Type != typeof(object))
+                body = LinqExpression.Convert(body, typeof(object));
 
             // Wrap in a block that:
             // 1. Executes the body and stores result
@@ -245,7 +268,8 @@ internal sealed class CompilerContext
         }
         catch (Exception ex)
         {
-            return (null, ex.Message, ex);
+            var canCompileResult = CanCompile(ast);
+            return (null, canCompileResult ?? ex.Message, ex);
         }
     }
 

@@ -81,10 +81,13 @@ internal static class ILExpressionCompiler
     /// Attempt to compile an AST to a native IL delegate.
     /// </summary>
     public static CompiledExpressionInfo TryCompile(Expr ast, CsEvalOptions? options = null)
+        => TryCompile(ast, options, null);
+
+    public static CompiledExpressionInfo TryCompile(Expr ast, CsEvalOptions? options, CsEvalContext? typeHintContext)
     {
         try
         {
-            var context = new CsEvalContext(CsEvalConfig.Empty);
+            var context = typeHintContext ?? new CsEvalContext(CsEvalConfig.Empty);
             var opts = options ?? CsEvalOptions.Default;
             var (ilDelegate, failureReason, failureException) = CompilerContext.TryCompile(ast, context, opts);
 

@@ -409,7 +409,7 @@ public class ApiSurfaceTests
     {
         var assembly = typeof(CsEvalEngine).Assembly;
         var parserTypes = assembly.GetTypes()
-            .Where(t => t.Namespace == "CsEval.Parsing" && t.IsPublic)
+            .Where(t => t is { Namespace: "CsEval.Parsing", IsPublic: true })
             .Where(t => t.Name != "CsEvalLexerException" && t.Name != "CsEvalParserException")
             .Select(t => t.Name)
             .ToList();

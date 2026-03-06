@@ -122,6 +122,32 @@ internal static class MethodInvoker
                 flags |= BindingFlags.IgnoreCase;
             var methods = context.TypeCache.GetMethods(type, methodName, flags);
 
+            if (typeArgs == null || typeArgs.Count == 0)
+            {
+                var canFastPath = true;
+                var argTypes = new Type[args.Length];
+                for (var i = 0; i < args.Length; i++)
+                {
+                    if (args[i] == null || args[i] is NamedArg || args[i] is OutArgMarker)
+                    {
+                        canFastPath = false;
+                        break;
+                    }
+                    argTypes[i] = args[i]!.GetType();
+                }
+
+                if (canFastPath)
+                {
+                    var fastMethod = MethodResolver.TryResolveMethod(type, methodName, argTypes, flags);
+                    if (fastMethod != null)
+                    {
+                        var invokeResult = InvokeMethodWithArgs(fastMethod, target, args, ct);
+                        if (invokeResult.Success)
+                            return invokeResult;
+                    }
+                }
+            }
+
             var candidateMethods = new List<MethodInfo>();
             foreach (var method in methods)
             {
@@ -257,6 +283,32 @@ internal static class MethodInvoker
             bindingFlags |= BindingFlags.IgnoreCase;
 
         var methods = context.TypeCache.GetMethods(type, methodName, bindingFlags);
+
+        if (typeArgs == null || typeArgs.Count == 0)
+        {
+            var canFastPath = true;
+            var argTypes = new Type[args.Length];
+            for (var i = 0; i < args.Length; i++)
+            {
+                if (args[i] == null || args[i] is NamedArg || args[i] is OutArgMarker)
+                {
+                    canFastPath = false;
+                    break;
+                }
+                argTypes[i] = args[i]!.GetType();
+            }
+
+            if (canFastPath)
+            {
+                var fastMethod = MethodResolver.TryResolveMethod(type, methodName, argTypes, bindingFlags);
+                if (fastMethod != null)
+                {
+                    var invokeResult = InvokeMethodWithArgs(fastMethod, null, args, ct);
+                    if (invokeResult.Success)
+                        return invokeResult.Value;
+                }
+            }
+        }
 
         var nonGenericMethods = methods.Where(m => !m.ContainsGenericParameters);
         var bestMethod = FindBestMethod(nonGenericMethods, args, ct, out var ambiguous);

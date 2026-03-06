@@ -439,7 +439,7 @@ internal sealed class ControlFlowCompilerUnit
         ReturnExpr => true,
         ContinueExpr => true,
         ThrowExpr => true,
-        BlockExpr b when b.Statements.Count > 0 => TerminatesControlFlow(b.Statements.Last()),
+        BlockExpr { Statements.Count: > 0 } b => TerminatesControlFlow(b.Statements.Last()),
         _ => false
     };
 

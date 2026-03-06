@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+<meta charset='utf-8' />
+<title>CsEval.Benchmarks.ExtendedSyntaxParityBenchmarks-20260306-125847</title>
+
+<style type="text/css">
+	table { border-collapse: collapse; display: block; width: 100%; overflow: auto; }
+	td, th { padding: 6px 13px; border: 1px solid #ddd; text-align: right; }
+	tr { background-color: #fff; border-top: 1px solid #ccc; }
+	tr:nth-child(even) { background: #f8f8f8; }
+</style>
+</head>
+<body>
+<pre><code>
+BenchmarkDotNet v0.14.0, macOS Sequoia 15.7.2 (24G325) [Darwin 24.6.0]
+Apple M3 Max, 1 CPU, 14 logical and 14 physical cores
+.NET SDK 8.0.204
+  [Host]     : .NET 8.0.4 (8.0.424.16909), Arm64 RyuJIT AdvSIMD
+  Job-JMXUSA : .NET 8.0.4 (8.0.424.16909), Arm64 RyuJIT AdvSIMD
+</code></pre>
+<pre><code>Runtime=.NET 8.0  IterationCount=12  WarmupCount=4  
+</code></pre>
+
+<table>
+<thead><tr><th>Method        </th><th>Categories         </th><th>Scenario      </th><th>Mean </th><th>Error</th><th>StdDev</th><th>Median</th><th>Min  </th><th>Max  </th><th>Ratio</th><th>Gen0</th><th>Gen1</th><th>Allocated</th><th>Alloc Ratio</th>
+</tr>
+</thead><tbody><tr><td>Extended_Compiled</td><td>ExtendedParityCompiled</td><td>Exten(...)eMath [23]</td><td>34.77 ns</td><td>0.080 ns</td><td>0.053 ns</td><td>34.76 ns</td><td>34.65 ns</td><td>34.84 ns</td><td>0.14</td><td>0.0067</td><td>-</td><td>56 B</td><td>0.08</td>
+</tr><tr><td>Standard_Compiled</td><td>ExtendedParityCompiled</td><td>Exten(...)eMath [23]</td><td>254.32 ns</td><td>0.686 ns</td><td>0.496 ns</td><td>254.16 ns</td><td>253.70 ns</td><td>255.37 ns</td><td>1.00</td><td>0.0887</td><td>-</td><td>744 B</td><td>1.00</td>
+</tr><tr><td>Extended_Compiled</td><td>ExtendedParityCompiled</td><td>Exten(...)rison [32]</td><td>19.56 ns</td><td>0.032 ns</td><td>0.025 ns</td><td>19.56 ns</td><td>19.54 ns</td><td>19.62 ns</td><td>0.75</td><td>0.0029</td><td>-</td><td>24 B</td><td>1.00</td>
+</tr><tr><td>Standard_Compiled</td><td>ExtendedParityCompiled</td><td>Exten(...)rison [32]</td><td>26.17 ns</td><td>0.037 ns</td><td>0.029 ns</td><td>26.18 ns</td><td>26.14 ns</td><td>26.22 ns</td><td>1.00</td><td>0.0029</td><td>-</td><td>24 B</td><td>1.00</td>
+</tr><tr><td>Extended_Compiled</td><td>ExtendedParityCompiled</td><td>Exten(...)rator [25]</td><td>24.54 ns</td><td>0.085 ns</td><td>0.066 ns</td><td>24.54 ns</td><td>24.44 ns</td><td>24.65 ns</td><td>0.93</td><td>0.0029</td><td>-</td><td>24 B</td><td>1.00</td>
+</tr><tr><td>Standard_Compiled</td><td>ExtendedParityCompiled</td><td>Exten(...)rator [25]</td><td>26.45 ns</td><td>0.160 ns</td><td>0.116 ns</td><td>26.50 ns</td><td>26.22 ns</td><td>26.63 ns</td><td>1.00</td><td>0.0029</td><td>-</td><td>24 B</td><td>1.00</td>
+</tr><tr><td>Extended_Compiled</td><td>ExtendedParityCompiled</td><td>Exten(...)rator [27]</td><td>14.45 ns</td><td>0.038 ns</td><td>0.030 ns</td><td>14.45 ns</td><td>14.41 ns</td><td>14.50 ns</td><td>0.64</td><td>0.0029</td><td>-</td><td>24 B</td><td>1.00</td>
+</tr><tr><td>Standard_Compiled</td><td>ExtendedParityCompiled</td><td>Exten(...)rator [27]</td><td>22.62 ns</td><td>0.028 ns</td><td>0.018 ns</td><td>22.62 ns</td><td>22.59 ns</td><td>22.65 ns</td><td>1.00</td><td>0.0029</td><td>-</td><td>24 B</td><td>1.00</td>
+</tr><tr><td>Extended_Compiled</td><td>ExtendedParityCompiled</td><td>Exten(...)Alias [25]</td><td>24.64 ns</td><td>0.117 ns</td><td>0.091 ns</td><td>24.64 ns</td><td>24.52 ns</td><td>24.81 ns</td><td>0.85</td><td>0.0029</td><td>-</td><td>24 B</td><td>0.50</td>
+</tr><tr><td>Standard_Compiled</td><td>ExtendedParityCompiled</td><td>Exten(...)Alias [25]</td><td>28.83 ns</td><td>0.056 ns</td><td>0.044 ns</td><td>28.84 ns</td><td>28.76 ns</td><td>28.89 ns</td><td>1.00</td><td>0.0057</td><td>-</td><td>48 B</td><td>1.00</td>
+</tr><tr><td>Extended_Compiled</td><td>ExtendedParityCompiled</td><td>Exten(...)Alias [27]</td><td>14.42 ns</td><td>0.020 ns</td><td>0.015 ns</td><td>14.42 ns</td><td>14.41 ns</td><td>14.45 ns</td><td>0.58</td><td>0.0029</td><td>-</td><td>24 B</td><td>0.50</td>
+</tr><tr><td>Standard_Compiled</td><td>ExtendedParityCompiled</td><td>Exten(...)Alias [27]</td><td>24.67 ns</td><td>0.119 ns</td><td>0.093 ns</td><td>24.66 ns</td><td>24.54 ns</td><td>24.85 ns</td><td>1.00</td><td>0.0057</td><td>-</td><td>48 B</td><td>1.00</td>
+</tr><tr><td>Extended_Compiled</td><td>ExtendedParityCompiled</td><td>Exten(...)ction [31]</td><td>18.77 ns</td><td>0.028 ns</td><td>0.022 ns</td><td>18.77 ns</td><td>18.74 ns</td><td>18.81 ns</td><td>0.99</td><td>0.0067</td><td>-</td><td>56 B</td><td>1.00</td>
+</tr><tr><td>Standard_Compiled</td><td>ExtendedParityCompiled</td><td>Exten(...)ction [31]</td><td>19.03 ns</td><td>0.038 ns</td><td>0.027 ns</td><td>19.01 ns</td><td>19.00 ns</td><td>19.08 ns</td><td>1.00</td><td>0.0067</td><td>-</td><td>56 B</td><td>1.00</td>
+</tr><tr><td>Extended_Compiled</td><td>ExtendedParityCompiled</td><td>Exten(...)rator [28]</td><td>30.89 ns</td><td>0.038 ns</td><td>0.027 ns</td><td>30.89 ns</td><td>30.86 ns</td><td>30.95 ns</td><td>0.09</td><td>0.0057</td><td>-</td><td>48 B</td><td>0.06</td>
+</tr><tr><td>Standard_Compiled</td><td>ExtendedParityCompiled</td><td>Exten(...)rator [28]</td><td>338.59 ns</td><td>1.330 ns</td><td>0.962 ns</td><td>338.56 ns</td><td>336.88 ns</td><td>339.98 ns</td><td>1.00</td><td>0.0982</td><td>-</td><td>824 B</td><td>1.00</td>
+</tr><tr><td>Extended_Compiled</td><td>ExtendedParityCompiled</td><td>Exten(...)Match [25]</td><td>45.51 ns</td><td>0.073 ns</td><td>0.057 ns</td><td>45.50 ns</td><td>45.45 ns</td><td>45.61 ns</td><td>0.009</td><td>0.0029</td><td>-</td><td>24 B</td><td>0.002</td>
+</tr><tr><td>Standard_Compiled</td><td>ExtendedParityCompiled</td><td>Exten(...)Match [25]</td><td>5,316.22 ns</td><td>26.075 ns</td><td>18.854 ns</td><td>5,321.33 ns</td><td>5,289.99 ns</td><td>5,350.47 ns</td><td>1.000</td><td>1.3428</td><td>-</td><td>11265 B</td><td>1.000</td>
+</tr><tr><td>Extended_Compiled</td><td>ExtendedParityCompiled</td><td>Exten(...)Match [28]</td><td>54.61 ns</td><td>0.074 ns</td><td>0.053 ns</td><td>54.59 ns</td><td>54.53 ns</td><td>54.72 ns</td><td>0.01</td><td>0.0029</td><td>-</td><td>24 B</td><td>0.002</td>
+</tr><tr><td>Standard_Compiled</td><td>ExtendedParityCompiled</td><td>Exten(...)Match [28]</td><td>5,330.89 ns</td><td>24.944 ns</td><td>19.474 ns</td><td>5,329.17 ns</td><td>5,302.30 ns</td><td>5,365.07 ns</td><td>1.00</td><td>1.3428</td><td>-</td><td>11293 B</td><td>1.000</td>
+</tr><tr><td>Extended_Compiled</td><td>ExtendedParityCompiled</td><td>Exten(...)eship [24]</td><td>19.77 ns</td><td>0.023 ns</td><td>0.017 ns</td><td>19.77 ns</td><td>19.75 ns</td><td>19.80 ns</td><td>0.91</td><td>0.0029</td><td>-</td><td>24 B</td><td>1.00</td>
+</tr><tr><td>Standard_Compiled</td><td>ExtendedParityCompiled</td><td>Exten(...)eship [24]</td><td>21.67 ns</td><td>0.021 ns</td><td>0.017 ns</td><td>21.67 ns</td><td>21.64 ns</td><td>21.69 ns</td><td>1.00</td><td>0.0029</td><td>-</td><td>24 B</td><td>1.00</td>
+</tr><tr><td>Extended_Interpreted</td><td>ExtendedParityInterpreted</td><td>Exten(...)eMath [23]</td><td>225.65 ns</td><td>1.435 ns</td><td>1.120 ns</td><td>225.45 ns</td><td>224.09 ns</td><td>227.85 ns</td><td>0.46</td><td>0.0937</td><td>-</td><td>784 B</td><td>0.47</td>
+</tr><tr><td>Standard_Interpreted</td><td>ExtendedParityInterpreted</td><td>Exten(...)eMath [23]</td><td>490.65 ns</td><td>3.066 ns</td><td>2.394 ns</td><td>489.72 ns</td><td>487.46 ns</td><td>494.97 ns</td><td>1.00</td><td>0.1945</td><td>-</td><td>1656 B</td><td>1.00</td>
+</tr><tr><td>Extended_Interpreted</td><td>ExtendedParityInterpreted</td><td>Exten(...)rison [32]</td><td>242.66 ns</td><td>0.767 ns</td><td>0.555 ns</td><td>242.74 ns</td><td>241.68 ns</td><td>243.52 ns</td><td>0.64</td><td>0.0792</td><td>-</td><td>664 B</td><td>0.73</td>
+</tr><tr><td>Standard_Interpreted</td><td>ExtendedParityInterpreted</td><td>Exten(...)rison [32]</td><td>376.62 ns</td><td>1.969 ns</td><td>1.537 ns</td><td>376.46 ns</td><td>374.25 ns</td><td>378.90 ns</td><td>1.00</td><td>0.1087</td><td>-</td><td>912 B</td><td>1.00</td>
+</tr><tr><td>Extended_Interpreted</td><td>ExtendedParityInterpreted</td><td>Exten(...)rator [25]</td><td>175.04 ns</td><td>1.222 ns</td><td>0.954 ns</td><td>174.75 ns</td><td>173.69 ns</td><td>176.67 ns</td><td>0.30</td><td>0.0620</td><td>-</td><td>520 B</td><td>0.30</td>
+</tr><tr><td>Standard_Interpreted</td><td>ExtendedParityInterpreted</td><td>Exten(...)rator [25]</td><td>588.77 ns</td><td>5.980 ns</td><td>4.669 ns</td><td>587.39 ns</td><td>583.39 ns</td><td>596.01 ns</td><td>1.00</td><td>0.2060</td><td>-</td><td>1728 B</td><td>1.00</td>
+</tr><tr><td>Extended_Interpreted</td><td>ExtendedParityInterpreted</td><td>Exten(...)rator [27]</td><td>154.96 ns</td><td>0.562 ns</td><td>0.406 ns</td><td>154.91 ns</td><td>154.27 ns</td><td>155.60 ns</td><td>0.25</td><td>0.0620</td><td>-</td><td>520 B</td><td>0.28</td>
+</tr><tr><td>Standard_Interpreted</td><td>ExtendedParityInterpreted</td><td>Exten(...)rator [27]</td><td>630.08 ns</td><td>2.526 ns</td><td>1.972 ns</td><td>630.18 ns</td><td>627.02 ns</td><td>634.23 ns</td><td>1.00</td><td>0.2232</td><td>-</td><td>1872 B</td><td>1.00</td>
+</tr><tr><td>Extended_Interpreted</td><td>ExtendedParityInterpreted</td><td>Exten(...)Alias [25]</td><td>182.06 ns</td><td>1.369 ns</td><td>0.990 ns</td><td>181.93 ns</td><td>180.96 ns</td><td>183.74 ns</td><td>0.29</td><td>0.0648</td><td>-</td><td>544 B</td><td>0.31</td>
+</tr><tr><td>Standard_Interpreted</td><td>ExtendedParityInterpreted</td><td>Exten(...)Alias [25]</td><td>633.28 ns</td><td>2.301 ns</td><td>1.796 ns</td><td>632.86 ns</td><td>631.04 ns</td><td>636.24 ns</td><td>1.00</td><td>0.2089</td><td>-</td><td>1752 B</td><td>1.00</td>
+</tr><tr><td>Extended_Interpreted</td><td>ExtendedParityInterpreted</td><td>Exten(...)Alias [27]</td><td>161.95 ns</td><td>0.425 ns</td><td>0.332 ns</td><td>162.01 ns</td><td>161.47 ns</td><td>162.48 ns</td><td>0.24</td><td>0.0648</td><td>-</td><td>544 B</td><td>0.29</td>
+</tr><tr><td>Standard_Interpreted</td><td>ExtendedParityInterpreted</td><td>Exten(...)Alias [27]</td><td>673.34 ns</td><td>3.672 ns</td><td>2.867 ns</td><td>672.45 ns</td><td>670.13 ns</td><td>678.54 ns</td><td>1.00</td><td>0.2260</td><td>-</td><td>1896 B</td><td>1.00</td>
+</tr><tr><td>Standard_Interpreted</td><td>ExtendedParityInterpreted</td><td>Exten(...)ction [31]</td><td>175.16 ns</td><td>0.652 ns</td><td>0.509 ns</td><td>175.03 ns</td><td>174.59 ns</td><td>175.89 ns</td><td>1.00</td><td>0.0861</td><td>-</td><td>720 B</td><td>1.00</td>
+</tr><tr><td>Extended_Interpreted</td><td>ExtendedParityInterpreted</td><td>Exten(...)ction [31]</td><td>183.98 ns</td><td>0.700 ns</td><td>0.547 ns</td><td>183.97 ns</td><td>183.24 ns</td><td>184.83 ns</td><td>1.05</td><td>0.1013</td><td>-</td><td>848 B</td><td>1.18</td>
+</tr><tr><td>Extended_Interpreted</td><td>ExtendedParityInterpreted</td><td>Exten(...)rator [28]</td><td>173.89 ns</td><td>0.502 ns</td><td>0.392 ns</td><td>173.90 ns</td><td>173.07 ns</td><td>174.53 ns</td><td>0.29</td><td>0.0620</td><td>-</td><td>520 B</td><td>0.30</td>
+</tr><tr><td>Standard_Interpreted</td><td>ExtendedParityInterpreted</td><td>Exten(...)rator [28]</td><td>606.75 ns</td><td>2.979 ns</td><td>2.154 ns</td><td>606.63 ns</td><td>603.60 ns</td><td>610.00 ns</td><td>1.00</td><td>0.2041</td><td>-</td><td>1712 B</td><td>1.00</td>
+</tr><tr><td>Extended_Interpreted</td><td>ExtendedParityInterpreted</td><td>Exten(...)Match [25]</td><td>181.84 ns</td><td>0.727 ns</td><td>0.568 ns</td><td>181.84 ns</td><td>181.15 ns</td><td>183.08 ns</td><td>0.03</td><td>0.0620</td><td>-</td><td>520 B</td><td>0.04</td>
+</tr><tr><td>Standard_Interpreted</td><td>ExtendedParityInterpreted</td><td>Exten(...)Match [25]</td><td>5,816.04 ns</td><td>48.586 ns</td><td>37.933 ns</td><td>5,798.48 ns</td><td>5,778.65 ns</td><td>5,874.98 ns</td><td>1.00</td><td>1.4954</td><td>-</td><td>12709 B</td><td>1.00</td>
+</tr><tr><td>Extended_Interpreted</td><td>ExtendedParityInterpreted</td><td>Exten(...)Match [28]</td><td>188.46 ns</td><td>1.351 ns</td><td>1.055 ns</td><td>187.95 ns</td><td>187.30 ns</td><td>190.46 ns</td><td>0.03</td><td>0.0620</td><td>-</td><td>520 B</td><td>0.04</td>
+</tr><tr><td>Standard_Interpreted</td><td>ExtendedParityInterpreted</td><td>Exten(...)Match [28]</td><td>5,858.04 ns</td><td>21.259 ns</td><td>16.598 ns</td><td>5,855.25 ns</td><td>5,835.52 ns</td><td>5,883.28 ns</td><td>1.00</td><td>1.5182</td><td>0.0076</td><td>12732 B</td><td>1.00</td>
+</tr><tr><td>Extended_Interpreted</td><td>ExtendedParityInterpreted</td><td>Exten(...)eship [24]</td><td>188.59 ns</td><td>0.351 ns</td><td>0.254 ns</td><td>188.56 ns</td><td>188.28 ns</td><td>189.06 ns</td><td>0.30</td><td>0.0677</td><td>-</td><td>568 B</td><td>0.31</td>
+</tr><tr><td>Standard_Interpreted</td><td>ExtendedParityInterpreted</td><td>Exten(...)eship [24]</td><td>619.82 ns</td><td>3.351 ns</td><td>2.616 ns</td><td>619.60 ns</td><td>615.95 ns</td><td>625.47 ns</td><td>1.00</td><td>0.2174</td><td>-</td><td>1824 B</td><td>1.00</td>
+</tr></tbody></table>
+</body>
+</html>

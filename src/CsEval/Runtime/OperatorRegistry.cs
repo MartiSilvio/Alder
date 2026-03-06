@@ -11,7 +11,10 @@ internal static class OperatorRegistry
     /// <summary>
     /// Metadata for a binary operator method, including parameter signature information.
     /// </summary>
-    internal readonly record struct BinaryOpInfo(MethodInfo Method, BinaryOpSignature Signature);
+    internal readonly record struct BinaryOpInfo(
+        MethodInfo Method,
+        BinaryOpSignature Signature,
+        bool NegateBooleanResult = false);
 
     /// <summary>
     /// Describes the parameter signature beyond the two operands (left, right).
@@ -32,36 +35,48 @@ internal static class OperatorRegistry
         WithOptionsAndContextChecked,
     }
 
-    private static readonly Dictionary<TokenType, BinaryOpInfo> BinaryOperators = new()
+    private static readonly Dictionary<TokenType, BinaryOpInfo> BinaryOperators = BuildBinaryOperators();
+
+    private static Dictionary<TokenType, BinaryOpInfo> BuildBinaryOperators()
     {
-        [TokenType.Plus] = new(typeof(Operators).GetMethod(nameof(Operators.Add), [typeof(object), typeof(object), typeof(CsEvalOptions), typeof(CsEvalContext), typeof(bool)])!, BinaryOpSignature.WithOptionsAndContextChecked),
-        [TokenType.Minus] = new(typeof(Operators).GetMethod(nameof(Operators.Subtract), [typeof(object), typeof(object), typeof(bool)])!, BinaryOpSignature.TwoArgsChecked),
-        [TokenType.Star] = new(typeof(Operators).GetMethod(nameof(Operators.Multiply), [typeof(object), typeof(object), typeof(CsEvalOptions), typeof(bool)])!, BinaryOpSignature.WithOptionsChecked),
-        [TokenType.Slash] = new(typeof(Operators).GetMethod(nameof(Operators.Divide), [typeof(object), typeof(object)])!, BinaryOpSignature.TwoArgs),
-        [TokenType.Percent] = new(typeof(Operators).GetMethod(nameof(Operators.Modulo), [typeof(object), typeof(object)])!, BinaryOpSignature.TwoArgs),
-        [TokenType.EqualEqual] = new(typeof(Operators).GetMethod("Equals", [typeof(object), typeof(object)])!, BinaryOpSignature.TwoArgs),
-        [TokenType.EqualEqualEqual] = new(typeof(Operators).GetMethod("Equals", [typeof(object), typeof(object)])!, BinaryOpSignature.TwoArgs),
-        [TokenType.BangEqual] = new(typeof(Operators).GetMethod(nameof(Operators.NotEquals), [typeof(object), typeof(object)])!, BinaryOpSignature.TwoArgs),
-        [TokenType.BangEqualEqual] = new(typeof(Operators).GetMethod(nameof(Operators.NotEquals), [typeof(object), typeof(object)])!, BinaryOpSignature.TwoArgs),
-        [TokenType.Less] = new(typeof(Operators).GetMethod(nameof(Operators.LessThan), [typeof(object), typeof(object), typeof(CsEvalOptions)])!, BinaryOpSignature.WithOptions),
-        [TokenType.LessEqual] = new(typeof(Operators).GetMethod(nameof(Operators.LessThanOrEqual), [typeof(object), typeof(object), typeof(CsEvalOptions)])!, BinaryOpSignature.WithOptions),
-        [TokenType.Greater] = new(typeof(Operators).GetMethod(nameof(Operators.GreaterThan), [typeof(object), typeof(object), typeof(CsEvalOptions)])!, BinaryOpSignature.WithOptions),
-        [TokenType.GreaterEqual] = new(typeof(Operators).GetMethod(nameof(Operators.GreaterThanOrEqual), [typeof(object), typeof(object), typeof(CsEvalOptions)])!, BinaryOpSignature.WithOptions),
-        [TokenType.Amp] = new(typeof(Operators).GetMethod(nameof(Operators.BitwiseAnd), [typeof(object), typeof(object)])!, BinaryOpSignature.TwoArgs),
-        [TokenType.Pipe] = new(typeof(Operators).GetMethod(nameof(Operators.BitwiseOr), [typeof(object), typeof(object)])!, BinaryOpSignature.TwoArgs),
-        [TokenType.Caret] = new(typeof(Operators).GetMethod(nameof(Operators.BitwiseXor), [typeof(object), typeof(object)])!, BinaryOpSignature.TwoArgs),
-        [TokenType.LessLess] = new(typeof(Operators).GetMethod(nameof(Operators.LeftShift), [typeof(object), typeof(object)])!, BinaryOpSignature.TwoArgs),
-        [TokenType.GreaterGreater] = new(typeof(Operators).GetMethod(nameof(Operators.RightShift), [typeof(object), typeof(object)])!, BinaryOpSignature.TwoArgs),
-        [TokenType.GreaterGreaterGreater] = new(typeof(Operators).GetMethod(nameof(Operators.UnsignedRightShift), [typeof(object), typeof(object)])!, BinaryOpSignature.TwoArgs),
-        [TokenType.StarStar] = new(typeof(Operators).GetMethod(nameof(Operators.Power), [typeof(object), typeof(object)])!, BinaryOpSignature.TwoArgs),
-        [TokenType.In] = new(typeof(Operators).GetMethod(nameof(Operators.InOperator), [typeof(object), typeof(object)])!, BinaryOpSignature.TwoArgs),
-        [TokenType.NotIn] = new(typeof(Operators).GetMethod(nameof(Operators.NotInOperator), [typeof(object), typeof(object)])!, BinaryOpSignature.TwoArgs),
-        [TokenType.Like] = new(typeof(Operators).GetMethod(nameof(Operators.Like), [typeof(object), typeof(object)])!, BinaryOpSignature.TwoArgs),
-        [TokenType.NotLike] = new(typeof(Operators).GetMethod(nameof(Operators.NotLike), [typeof(object), typeof(object)])!, BinaryOpSignature.TwoArgs),
-        [TokenType.EqualTilde] = new(typeof(Operators).GetMethod(nameof(Operators.RegexMatch), [typeof(object), typeof(object)])!, BinaryOpSignature.TwoArgs),
-        [TokenType.BangTilde] = new(typeof(Operators).GetMethod(nameof(Operators.RegexNotMatch), [typeof(object), typeof(object)])!, BinaryOpSignature.TwoArgs),
-        [TokenType.LessEqualGreater] = new(typeof(Operators).GetMethod(nameof(Operators.Spaceship), [typeof(object), typeof(object)])!, BinaryOpSignature.TwoArgs),
-    };
+        var binaryOps = new Dictionary<TokenType, BinaryOpInfo>
+        {
+            [TokenType.Plus] = new(ResolveMethod(nameof(Operators.Add), typeof(object), typeof(object), typeof(CsEvalOptions), typeof(CsEvalContext), typeof(bool)), BinaryOpSignature.WithOptionsAndContextChecked),
+            [TokenType.Minus] = new(ResolveMethod(nameof(Operators.Subtract), typeof(object), typeof(object), typeof(bool)), BinaryOpSignature.TwoArgsChecked),
+            [TokenType.Star] = new(ResolveMethod(nameof(Operators.Multiply), typeof(object), typeof(object), typeof(CsEvalOptions), typeof(bool)), BinaryOpSignature.WithOptionsChecked),
+            [TokenType.Slash] = new(ResolveMethod(nameof(Operators.Divide), typeof(object), typeof(object)), BinaryOpSignature.TwoArgs),
+            [TokenType.Percent] = new(ResolveMethod(nameof(Operators.Modulo), typeof(object), typeof(object)), BinaryOpSignature.TwoArgs),
+            [TokenType.EqualEqual] = new(ResolveMethod("Equals", typeof(object), typeof(object)), BinaryOpSignature.TwoArgs),
+            [TokenType.EqualEqualEqual] = new(ResolveMethod("Equals", typeof(object), typeof(object)), BinaryOpSignature.TwoArgs),
+            [TokenType.BangEqual] = new(ResolveMethod(nameof(Operators.NotEquals), typeof(object), typeof(object)), BinaryOpSignature.TwoArgs),
+            [TokenType.BangEqualEqual] = new(ResolveMethod(nameof(Operators.NotEquals), typeof(object), typeof(object)), BinaryOpSignature.TwoArgs),
+            [TokenType.Less] = new(ResolveMethod(nameof(Operators.LessThan), typeof(object), typeof(object), typeof(CsEvalOptions)), BinaryOpSignature.WithOptions),
+            [TokenType.LessEqual] = new(ResolveMethod(nameof(Operators.LessThanOrEqual), typeof(object), typeof(object), typeof(CsEvalOptions)), BinaryOpSignature.WithOptions),
+            [TokenType.Greater] = new(ResolveMethod(nameof(Operators.GreaterThan), typeof(object), typeof(object), typeof(CsEvalOptions)), BinaryOpSignature.WithOptions),
+            [TokenType.GreaterEqual] = new(ResolveMethod(nameof(Operators.GreaterThanOrEqual), typeof(object), typeof(object), typeof(CsEvalOptions)), BinaryOpSignature.WithOptions),
+            [TokenType.Amp] = new(ResolveMethod(nameof(Operators.BitwiseAnd), typeof(object), typeof(object)), BinaryOpSignature.TwoArgs),
+            [TokenType.Pipe] = new(ResolveMethod(nameof(Operators.BitwiseOr), typeof(object), typeof(object)), BinaryOpSignature.TwoArgs),
+            [TokenType.Caret] = new(ResolveMethod(nameof(Operators.BitwiseXor), typeof(object), typeof(object)), BinaryOpSignature.TwoArgs),
+            [TokenType.LessLess] = new(ResolveMethod(nameof(Operators.LeftShift), typeof(object), typeof(object)), BinaryOpSignature.TwoArgs),
+            [TokenType.GreaterGreater] = new(ResolveMethod(nameof(Operators.RightShift), typeof(object), typeof(object)), BinaryOpSignature.TwoArgs),
+            [TokenType.GreaterGreaterGreater] = new(ResolveMethod(nameof(Operators.UnsignedRightShift), typeof(object), typeof(object)), BinaryOpSignature.TwoArgs),
+            [TokenType.StarStar] = new(ResolveMethod(nameof(Operators.Power), typeof(object), typeof(object)), BinaryOpSignature.TwoArgs),
+            [TokenType.In] = new(ResolveMethod(nameof(Operators.InOperator), typeof(object), typeof(object)), BinaryOpSignature.TwoArgs),
+            [TokenType.Like] = new(ResolveMethod(nameof(Operators.Like), typeof(object), typeof(object)), BinaryOpSignature.TwoArgs),
+            [TokenType.EqualTilde] = new(ResolveMethod(nameof(Operators.RegexMatch), typeof(object), typeof(object)), BinaryOpSignature.TwoArgs),
+            [TokenType.BangTilde] = new(ResolveMethod(nameof(Operators.RegexNotMatch), typeof(object), typeof(object)), BinaryOpSignature.TwoArgs),
+            [TokenType.LessEqualGreater] = new(ResolveMethod(nameof(Operators.Spaceship), typeof(object), typeof(object)), BinaryOpSignature.TwoArgs),
+        };
+
+        // Alias operators share the same hot implementation and apply only a boolean negation.
+        binaryOps[TokenType.NotIn] = binaryOps[TokenType.In] with { NegateBooleanResult = true };
+        binaryOps[TokenType.NotLike] = binaryOps[TokenType.Like] with { NegateBooleanResult = true };
+
+        return binaryOps;
+    }
+
+    private static MethodInfo ResolveMethod(string name, params Type[] parameters) =>
+        typeof(Operators).GetMethod(name, parameters)!;
 
     internal readonly record struct UnaryOpInfo(MethodInfo Method, bool HasCheckedParam);
 

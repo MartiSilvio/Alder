@@ -1,5 +1,6 @@
 using System.Text.RegularExpressions;
 using CsEval.Diagnostics;
+using CsEval.Parsing;
 
 namespace CsEval.Runtime.Extensions;
 
@@ -16,11 +17,17 @@ internal static class RegexMatchOperator
     public static bool IsMatch(object? left, object? right)
     {
         if (left is null)
-            throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, "=~",
-                "null", right?.GetType().Name ?? "null");
+            throw new CsEvalException(
+                DiagnosticDescriptors.BadBinaryOps,
+                TokenLexemes.GetCanonical(TokenType.EqualTilde),
+                "null",
+                right?.GetType().Name ?? "null");
         if (right is not string pattern)
-            throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, "=~",
-                left.GetType().Name, right?.GetType().Name ?? "null");
+            throw new CsEvalException(
+                DiagnosticDescriptors.BadBinaryOps,
+                TokenLexemes.GetCanonical(TokenType.EqualTilde),
+                left.GetType().Name,
+                right?.GetType().Name ?? "null");
         return Regex.IsMatch(left.ToString()!, pattern);
     }
 

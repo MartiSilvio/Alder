@@ -1,4 +1,5 @@
 using CsEval.Diagnostics;
+using CsEval.Parsing;
 
 namespace CsEval.Runtime;
 
@@ -8,6 +9,15 @@ namespace CsEval.Runtime;
 /// </summary>
 internal static class Operators
 {
+    internal enum LikePatternMode
+    {
+        Exact,
+        Prefix,
+        Suffix,
+        Contains,
+        General
+    }
+
     public static object? Negate(object? value, bool isChecked = false)
     {
         // ECMA-334 §12.4.8: Lifted unary operators return null when operand is null
@@ -110,13 +120,19 @@ internal static class Operators
                 return null; // Nullable arithmetic
             if (left == null && right == null)
                 return null;
-            throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, "**",
-                left?.GetType().Name ?? "null", right?.GetType().Name ?? "null");
+            throw new CsEvalException(
+                DiagnosticDescriptors.BadBinaryOps,
+                TokenLexemes.GetCanonical(TokenType.StarStar),
+                left?.GetType().Name ?? "null",
+                right?.GetType().Name ?? "null");
         }
 
         if (!TypeHelpers.IsArithmetic(left) || !TypeHelpers.IsArithmetic(right))
-            throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, "**",
-                left.GetType().Name, right.GetType().Name);
+            throw new CsEvalException(
+                DiagnosticDescriptors.BadBinaryOps,
+                TokenLexemes.GetCanonical(TokenType.StarStar),
+                left.GetType().Name,
+                right.GetType().Name);
 
         var l = Convert.ToDouble(left);
         var r = Convert.ToDouble(right);
@@ -376,8 +392,11 @@ internal static class Operators
     public static bool Contains(object? collection, object? value)
     {
         if (collection == null)
-            throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, "in",
-                value?.GetType().Name ?? "null", "null");
+            throw new CsEvalException(
+                DiagnosticDescriptors.BadBinaryOps,
+                TokenLexemes.GetCanonical(TokenType.In),
+                value?.GetType().Name ?? "null",
+                "null");
 
         if (collection is string str && value is string substr)
             return str.Contains(substr);
@@ -385,33 +404,68 @@ internal static class Operators
         if (collection is string strForChar && value is char ch)
             return strForChar.Contains(ch);
 
+        // Prefer collection-native membership when available.
+        // This avoids LINQ iterator allocations and lets types like List<T>
+        // use their optimized Contains implementations.
+        if (collection is IList list)
+            return list.Contains(value);
+
         if (collection is IEnumerable enumerable)
-            return enumerable.Cast<object?>().Any(item => (bool)Equals(item, value));
+        {
+            foreach (var item in enumerable)
+            {
+                if ((bool)Equals(item, value))
+                    return true;
+            }
 
-        throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, "in",
-            value?.GetType().Name ?? "null", collection.GetType().Name);
-    }
+            return false;
+        }
 
-    public static bool NotContains(object? collection, object? value)
-    {
-        return !Contains(collection, value);
+        throw new CsEvalException(
+            DiagnosticDescriptors.BadBinaryOps,
+            TokenLexemes.GetCanonical(TokenType.In),
+            value?.GetType().Name ?? "null",
+            collection.GetType().Name);
     }
 
     /// <summary>
     /// Wraps Contains with (value, collection) parameter order for use by the IL compiler,
     /// which passes BinaryExpr operands as (left=value, right=collection).
     /// </summary>
-    public static object InOperator(object? value, object? collection)
+    public static bool InOperator(object? value, object? collection)
     {
         return Contains(collection, value);
     }
 
-    /// <summary>
-    /// Wraps NotContains with (value, collection) parameter order for use by the IL compiler.
-    /// </summary>
-    public static object NotInOperator(object? value, object? collection)
+    internal static LikePatternMode ClassifyLikePattern(string pattern)
     {
-        return !Contains(collection, value);
+        if (pattern.Length == 0)
+            return LikePatternMode.Exact;
+
+        var firstPercent = pattern.IndexOf('%');
+        var firstUnderscore = pattern.IndexOf('_');
+
+        if (firstPercent < 0 && firstUnderscore < 0)
+            return LikePatternMode.Exact;
+
+        if (firstUnderscore >= 0)
+            return LikePatternMode.General;
+
+        if (firstPercent == pattern.Length - 1 && pattern.LastIndexOf('%') == firstPercent)
+            return LikePatternMode.Prefix;
+
+        if (firstPercent == 0 && pattern.LastIndexOf('%') == 0)
+            return LikePatternMode.Suffix;
+
+        if (pattern.Length >= 2 &&
+            pattern[0] == '%' &&
+            pattern[^1] == '%' &&
+            pattern.IndexOf('%', 1) == pattern.Length - 1)
+        {
+            return LikePatternMode.Contains;
+        }
+
+        return LikePatternMode.General;
     }
 
     /// <summary>
@@ -461,23 +515,70 @@ internal static class Operators
     /// SQL LIKE pattern matching: str like pattern.
     /// Pattern uses % for any characters, _ for single character.
     /// </summary>
-    public static object Like(object? left, object? right)
+    public static bool Like(object? left, object? right)
     {
         if (left is not string str || right is not string pattern)
-            throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, "like",
-                left?.GetType().Name ?? "null", right?.GetType().Name ?? "null");
+            throw new CsEvalException(
+                DiagnosticDescriptors.BadBinaryOps,
+                TokenLexemes.GetCanonical(TokenType.Like),
+                left?.GetType().Name ?? "null",
+                right?.GetType().Name ?? "null");
 
-        var regexPattern = "^" + System.Text.RegularExpressions.Regex.Escape(pattern)
-            .Replace("%", ".*")
-            .Replace("_", ".") + "$";
+        if (pattern.Length == 0)
+            return str.Length == 0;
 
-        return System.Text.RegularExpressions.Regex.IsMatch(str, regexPattern,
-            System.Text.RegularExpressions.RegexOptions.Singleline);
+        return ClassifyLikePattern(pattern) switch
+        {
+            LikePatternMode.Exact =>
+                string.Equals(str, pattern, StringComparison.Ordinal),
+            LikePatternMode.Prefix =>
+                str.AsSpan().StartsWith(pattern.AsSpan(0, pattern.Length - 1), StringComparison.Ordinal),
+            LikePatternMode.Suffix =>
+                str.AsSpan().EndsWith(pattern.AsSpan(1), StringComparison.Ordinal),
+            LikePatternMode.Contains =>
+                str.AsSpan().Contains(pattern.AsSpan(1, pattern.Length - 2), StringComparison.Ordinal),
+            _ => LikeMatchesPattern(str.AsSpan(), pattern.AsSpan())
+        };
     }
 
-    public static object NotLike(object? left, object? right)
+    private static bool LikeMatchesPattern(ReadOnlySpan<char> value, ReadOnlySpan<char> pattern)
     {
-        return !(bool)Like(left, right);
+        var valueIndex = 0;
+        var patternIndex = 0;
+        var lastPercentIndex = -1;
+        var fallbackValueIndex = 0;
+
+        while (valueIndex < value.Length)
+        {
+            if (patternIndex < pattern.Length &&
+                (pattern[patternIndex] == '_' || pattern[patternIndex] == value[valueIndex]))
+            {
+                patternIndex++;
+                valueIndex++;
+                continue;
+            }
+
+            if (patternIndex < pattern.Length && pattern[patternIndex] == '%')
+            {
+                lastPercentIndex = patternIndex++;
+                fallbackValueIndex = valueIndex;
+                continue;
+            }
+
+            if (lastPercentIndex >= 0)
+            {
+                patternIndex = lastPercentIndex + 1;
+                valueIndex = ++fallbackValueIndex;
+                continue;
+            }
+
+            return false;
+        }
+
+        while (patternIndex < pattern.Length && pattern[patternIndex] == '%')
+            patternIndex++;
+
+        return patternIndex == pattern.Length;
     }
 
     /// <summary>

@@ -108,7 +108,7 @@ public class CsEvalLanguageModeException : CsEvalException
     /// </summary>
     public string FeatureName { get; }
 
-    public CsEvalLanguageModeException(string featureName, string message)
+    public CsEvalLanguageModeException(string featureName, string? message = null)
         : base(DiagnosticDescriptors.ExtendedModeRequired, featureName)
     {
         FeatureName = featureName;

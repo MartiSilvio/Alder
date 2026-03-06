@@ -256,6 +256,17 @@ internal sealed class Evaluator : IExprVisitor<object?>
             }
         }
 
+        if (NegatedAliasOperators.TryGetValue(expr.Op.Type, out var baseOpType))
+        {
+            if (!BinaryOperators.TryGetValue(baseOpType, out var baseOperator))
+                throw new CsEvalException($"Unknown binary operator '{expr.Op.Lexeme}'");
+
+            var result = baseOperator(this, left, right);
+            if (result is not bool boolResult)
+                throw new CsEvalException($"Unknown binary operator '{expr.Op.Lexeme}'");
+            return !boolResult;
+        }
+
         if (BinaryOperators.TryGetValue(expr.Op.Type, out var op))
             return op(this, left, right);
 
@@ -417,23 +428,20 @@ internal sealed class Evaluator : IExprVisitor<object?>
                 target, memberAccess.Name.Lexeme, args, memberAccess.NullSafe,
                 _context, _options, _cancellationToken, expr.TypeArguments);
         }
+        else if (expr.Callee is IdentifierExpr id)
+        {
+            result = RuntimeHelpers.InvokeIdentifierCall(
+                id.Name.Lexeme,
+                args,
+                _context,
+                _options,
+                _cancellationToken,
+                expr.TypeArguments);
+        }
         else
         {
-            // Bare math functions in Extended mode (sin, cos, sqrt, etc.)
-            // User-defined variables/functions take precedence -- check scope first
-            if (_options.LanguageMode == LanguageMode.Extended &&
-                expr.Callee is IdentifierExpr id &&
-                !_context.TryGet(id.Name.Lexeme, out _) &&
-                !Functions.ContainsKey(id.Name.Lexeme) &&
-                BareMathNames.TryGetFunction(id.Name.Lexeme, args.Length, out var mathFunc))
-            {
-                result = mathFunc(args);
-            }
-            else
-            {
-                var callee = Evaluate(expr.Callee);
-                result = Runtime.MethodInvoker.InvokeCall(callee, args, _context, _options, _cancellationToken, expr.TypeArguments);
-            }
+            var callee = Evaluate(expr.Callee);
+            result = Runtime.MethodInvoker.InvokeCall(callee, args, _context, _options, _cancellationToken, expr.TypeArguments);
         }
 
         // After method invocation, MethodInvoker.CopyBackOutArgs has replaced OutArgMarker
@@ -443,7 +451,7 @@ internal sealed class Evaluator : IExprVisitor<object?>
         {
             for (var i = 0; i < args.Length; i++)
             {
-                if (expr.Arguments[i] is OutArgExpr outArg && !outArg.IsDiscard)
+                if (expr.Arguments[i] is OutArgExpr { IsDiscard: false } outArg)
                 {
                     var outValue = args[i];
                     var varType = outValue?.GetType() ?? typeof(object);
@@ -494,7 +502,11 @@ internal sealed class Evaluator : IExprVisitor<object?>
         var name = expr.Name.Lexeme;
 
         if (_context.TryGetVariableType(name, out var varType) && varType != null && !TypeHelpers.IsNullableType(varType))
-            throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, "??=", varType.Name, varType.Name);
+            throw new CsEvalException(
+                DiagnosticDescriptors.BadBinaryOps,
+                TokenLexemes.GetCanonical(TokenType.QuestionQuestionEqual),
+                varType.Name,
+                varType.Name);
 
         var currentValue = _context.Get(name);
 
@@ -1585,13 +1597,17 @@ internal sealed class Evaluator : IExprVisitor<object?>
         { TokenType.GreaterGreater, (_, l, r) => Operators.RightShift(l, r) },
         { TokenType.GreaterGreaterGreater, (_, l, r) => Operators.UnsignedRightShift(l, r) },
         { TokenType.StarStar, (_, l, r) => Operators.Power(l, r) },
-        { TokenType.In, (_, l, r) => (object)Operators.Contains(r, l) },  // Note: collection is RIGHT, value is LEFT
-        { TokenType.NotIn, (_, l, r) => (object)Operators.NotContains(r, l) },
+        { TokenType.In, (_, l, r) => Operators.InOperator(l, r) },
         { TokenType.Like, (_, l, r) => Operators.Like(l, r) },
-        { TokenType.NotLike, (_, l, r) => Operators.NotLike(l, r) },
         { TokenType.EqualTilde, (_, l, r) => Operators.RegexMatch(l, r) },
         { TokenType.BangTilde, (_, l, r) => Operators.RegexNotMatch(l, r) },
         { TokenType.LessEqualGreater, (_, l, r) => Operators.Spaceship(l, r) },
+    };
+
+    private static readonly Dictionary<TokenType, TokenType> NegatedAliasOperators = new()
+    {
+        { TokenType.NotIn, TokenType.In },
+        { TokenType.NotLike, TokenType.Like },
     };
 
     private static readonly Dictionary<TokenType, Func<Evaluator, object?, object?>> UnaryOperators = new()
@@ -1651,6 +1667,23 @@ internal sealed class Evaluator : IExprVisitor<object?>
 
     public object? VisitPipeline(PipelineExpr expr)
     {
+        if (expr.Right is IdentifierExpr rightIdentifier)
+        {
+            if (Functions.ContainsKey(rightIdentifier.Name.Lexeme))
+            {
+                // Keep function-identifier pipelines on the same interpreted call path as f(x).
+                return VisitCall(new CallExpr(rightIdentifier, [expr.Left]));
+            }
+
+            var leftValue = Evaluate(expr.Left);
+            return RuntimeHelpers.InvokePipelineIdentifier(
+                leftValue,
+                rightIdentifier.Name.Lexeme,
+                _context,
+                _options,
+                _cancellationToken);
+        }
+
         var left = Evaluate(expr.Left);
         var right = Evaluate(expr.Right);
         return PipelineOperator.InvokePipeline(left, right, _context, _options, _cancellationToken);

@@ -35,6 +35,14 @@ public class PolyglotEdgeCaseTests(CompilationMode mode)
     }
 
     [Test]
+    public void BareMath_ModuleNameDoesNotShadowBuiltInFunction()
+    {
+        var engine = CreateEngine();
+        engine.RegisterModule("sin", typeof(Math));
+        Assert.That(engine.Evaluate("sin(0.0)"), Is.EqualTo(0.0).Within(1e-12));
+    }
+
+    [Test]
     public void BareMath_ShadowDoesNotLeakToNewEngine()
     {
         var engine = CreateEngine();
@@ -43,6 +51,24 @@ public class PolyglotEdgeCaseTests(CompilationMode mode)
 
         var engine2 = CreateEngine();
         Assert.That(engine2.Evaluate("pi"), Is.EqualTo(Math.PI));
+    }
+
+    [Test]
+    public void IdentifierCall_FunctionShadowsVariable()
+    {
+        var engine = CreateEngine();
+        engine.SetVariable("inc", (Func<int, int>)(x => x + 100));
+        engine.RegisterFunction("inc", args => Convert.ToInt32(args[0]) + 1);
+        Assert.That(engine.Evaluate("inc(5)"), Is.EqualTo(6));
+    }
+
+    [Test]
+    public void IdentifierCall_ModuleShadowsVariable()
+    {
+        var engine = CreateEngine();
+        engine.SetVariable("Math", (Func<int, int>)(x => x + 1));
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("Math(5)"));
+        Assert.That(ex!.Message, Does.Contain("ModuleInfo"));
     }
 
     #endregion
@@ -119,6 +145,23 @@ public class PolyglotEdgeCaseTests(CompilationMode mode)
     }
 
     [Test]
+    public void Pipeline_NonCallableIdentifier_Throws()
+    {
+        var engine = CreateEngine();
+        engine.SetVariable("f", 10);
+        Assert.That(() => engine.Evaluate("5 |> f"),
+            Throws.InstanceOf<CsEvalException>());
+    }
+
+    [Test]
+    public void Pipeline_IdentifierCall_MatchesDirectCall()
+    {
+        var engine = CreateEngine();
+        engine.RegisterFunction("inc", args => Convert.ToInt32(args[0]) + 1);
+        Assert.That(engine.Evaluate("5 |> inc"), Is.EqualTo(engine.Evaluate("inc(5)")));
+    }
+
+    [Test]
     public void Pipeline_Precedence_ArithmeticBindsTighter()
     {
         var engine = CreateEngine();
@@ -143,6 +186,67 @@ public class PolyglotEdgeCaseTests(CompilationMode mode)
         var engine = CreateEngine();
         var result = engine.Evaluate("{ var arr = new[] {10, 20, 30, 40, 50}; return arr[1:4]; }");
         Assert.That(result, Is.EqualTo(new[] { 20, 30, 40 }));
+    }
+
+    #endregion
+
+    #region Like pattern: wildcard semantics
+
+    [Test]
+    public void LikeOperator_UnderscoreMatchesSingleCharacter()
+    {
+        var engine = CreateEngine();
+        Assert.That(engine.Evaluate("\"abc\" like \"a_c\""), Is.EqualTo(true));
+        Assert.That(engine.Evaluate("\"ac\" like \"a_c\""), Is.EqualTo(false));
+    }
+
+    [Test]
+    public void LikeOperator_MultiPercentPattern_Matches()
+    {
+        var engine = CreateEngine();
+        Assert.That(engine.Evaluate("\"abXXcdYYef\" like \"ab%cd%ef\""), Is.EqualTo(true));
+    }
+
+    [Test]
+    public void LikeOperator_RegexMetacharactersStayLiteral()
+    {
+        var engine = CreateEngine();
+        Assert.That(engine.Evaluate("\"a.c\" like \"a.c\""), Is.EqualTo(true));
+        Assert.That(engine.Evaluate("\"abc\" like \"a.c\""), Is.EqualTo(false));
+    }
+
+    [Test]
+    public void LikeOperator_NullLeftOperand_ThrowsConsistentException()
+    {
+        var engine = CreateEngine();
+        engine.SetVariable<string>("text", null!);
+
+        Assert.That(() => engine.Evaluate("text like \"a%\""),
+            Throws.InstanceOf<CsEvalException>().With.Message.Contains("like"));
+    }
+
+    #endregion
+
+    #region In operator: null handling
+
+    [Test]
+    public void InOperator_NullCollectionVariable_ThrowsConsistentException()
+    {
+        var engine = CreateEngine();
+        engine.SetVariable<List<int>>("numbers", null!);
+
+        Assert.That(() => engine.Evaluate("1 in numbers"),
+            Throws.InstanceOf<CsEvalException>().With.Message.Contains("in"));
+    }
+
+    [Test]
+    public void NotInAlias_NullCollectionVariable_ThrowsConsistentException()
+    {
+        var engine = CreateEngine();
+        engine.SetVariable<List<int>>("numbers", null!);
+
+        Assert.That(() => engine.Evaluate("1 not in numbers"),
+            Throws.InstanceOf<CsEvalException>().With.Message.Contains("in"));
     }
 
     #endregion
@@ -262,7 +366,25 @@ public class PolyglotEdgeCaseTests(CompilationMode mode)
         => Assert.That(() => CreateStandardEngine().Evaluate("pi"),
             Throws.InstanceOf<CsEvalException>());
 
-[Test]
+    [Test]
+    public void StandardMode_IdentifierCall_FunctionShadowsVariable()
+    {
+        var engine = CreateStandardEngine();
+        engine.SetVariable("inc", (Func<int, int>)(x => x + 100));
+        engine.RegisterFunction("inc", args => Convert.ToInt32(args[0]) + 1);
+        Assert.That(engine.Evaluate("inc(5)"), Is.EqualTo(6));
+    }
+
+    [Test]
+    public void StandardMode_IdentifierCall_ModuleShadowsVariable()
+    {
+        var engine = CreateStandardEngine();
+        engine.SetVariable("Math", (Func<int, int>)(x => x + 1));
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("Math(5)"));
+        Assert.That(ex!.Message, Does.Contain("ModuleInfo"));
+    }
+
+    [Test]
     public void StandardMode_Range_Throws()
         => Assert.That(() => CreateStandardEngine().Evaluate("(1..10).Count()"),
             Throws.InstanceOf<CsEvalException>());

@@ -538,6 +538,19 @@ internal static class TypeHelpers
         return value;
     }
 
+    public static T GuardReflectionLeakTyped<T>(T value, string context)
+    {
+        // Reflection types are reference types; value types are always safe here.
+        if (!typeof(T).IsValueType && value is not null)
+        {
+            var type = value.GetType();
+            if (IsForbiddenReflectionType(type))
+                throw new CsEvalException($"Access to reflection types is not allowed: {type.Name} ({context})");
+        }
+
+        return value;
+    }
+
     internal static object? CoerceNumeric(object? arg, Type targetType)
     {
         if (arg == null) return null;

@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Collections.Frozen;
 using System.Collections.Immutable;
 using System.Linq;
+using System.Threading;
 using CsEval.Diagnostics;
 
 namespace CsEval.Runtime;
@@ -17,27 +18,38 @@ namespace CsEval.Runtime;
 internal sealed class TypeResolver
 {
     private readonly FrozenDictionary<string, Type> _builtInTypes;
-    private readonly FrozenDictionary<string, Type>? _implicitImports;
     private readonly ImmutableArray<string> _importedNamespaces;
-    private readonly FrozenDictionary<string, FrozenDictionary<string, Type>> _namespaceIndex;
     private readonly ImmutableArray<Assembly> _registeredAssemblies;
-    private readonly FrozenSet<string> _namespacePrefixes;
+    private readonly StringComparer _comparer;
+    private readonly bool _ignoreCase;
+    private readonly bool _implicitBclImports;
+    private readonly Lazy<FrozenDictionary<string, FrozenDictionary<string, Type>>> _namespaceIndex;
+    private readonly Lazy<FrozenSet<string>> _namespacePrefixes;
+    private readonly Lazy<FrozenDictionary<string, Type>?> _implicitImports;
     private readonly ConcurrentDictionary<string, Type?> _cache = new();
 
     private TypeResolver(
         FrozenDictionary<string, Type> builtInTypes,
-        FrozenDictionary<string, Type>? implicitImports,
         ImmutableArray<string> importedNamespaces,
-        FrozenDictionary<string, FrozenDictionary<string, Type>> namespaceIndex,
         ImmutableArray<Assembly> registeredAssemblies,
-        FrozenSet<string> namespacePrefixes)
+        bool implicitBclImports,
+        StringComparer comparer)
     {
         _builtInTypes = builtInTypes;
-        _implicitImports = implicitImports;
         _importedNamespaces = importedNamespaces;
-        _namespaceIndex = namespaceIndex;
         _registeredAssemblies = registeredAssemblies;
-        _namespacePrefixes = namespacePrefixes;
+        _implicitBclImports = implicitBclImports;
+        _comparer = comparer;
+        _ignoreCase = comparer.Equals("A", "a");
+        _namespaceIndex = new Lazy<FrozenDictionary<string, FrozenDictionary<string, Type>>>(
+            () => BuildNamespaceIndex(_registeredAssemblies, _comparer),
+            LazyThreadSafetyMode.ExecutionAndPublication);
+        _namespacePrefixes = new Lazy<FrozenSet<string>>(
+            () => BuildNamespacePrefixes(_namespaceIndex.Value),
+            LazyThreadSafetyMode.ExecutionAndPublication);
+        _implicitImports = new Lazy<FrozenDictionary<string, Type>?>(
+            () => _implicitBclImports ? BuildImplicitImports(_namespaceIndex.Value, _comparer) : null,
+            LazyThreadSafetyMode.ExecutionAndPublication);
     }
 
     /// <summary>
@@ -111,7 +123,7 @@ internal sealed class TypeResolver
     /// Used by the resolution pipeline to determine if an unresolved identifier could be
     /// the start of a fully-qualified type name (e.g., "System" is a prefix of "System.Linq").
     /// </summary>
-    internal bool IsNamespaceOrPrefix(string name) => _namespacePrefixes.Contains(name);
+    internal bool IsNamespaceOrPrefix(string name) => _namespacePrefixes.Value.Contains(name);
 
     private Type? ResolveTypeCore(string typeName)
     {
@@ -120,7 +132,15 @@ internal sealed class TypeResolver
             return builtIn;
 
         // Step 2: Implicit BCL imports
-        if (_implicitImports != null && _implicitImports.TryGetValue(typeName, out var implicitType))
+        if (_implicitBclImports)
+        {
+            var fastImplicit = TryResolveImplicitImportFast(typeName);
+            if (fastImplicit != null)
+                return fastImplicit;
+        }
+
+        var implicitImports = _implicitImports.Value;
+        if (implicitImports != null && implicitImports.TryGetValue(typeName, out var implicitType))
             return implicitType;
 
         // Step 3: Explicit namespace imports (check for ambiguity)
@@ -130,7 +150,7 @@ internal sealed class TypeResolver
 
         foreach (var ns in _importedNamespaces)
         {
-            if (_namespaceIndex.TryGetValue(ns, out var types) &&
+            if (_namespaceIndex.Value.TryGetValue(ns, out var types) &&
                 types.TryGetValue(typeName, out var found))
             {
                 if (importedMatch == null)
@@ -182,7 +202,7 @@ internal sealed class TypeResolver
             var namespacePart = typeName[..lastDot];
             var typeNamePart = typeName[(lastDot + 1)..];
 
-            if (_namespaceIndex.TryGetValue(namespacePart, out var types) &&
+            if (_namespaceIndex.Value.TryGetValue(namespacePart, out var types) &&
                 types.TryGetValue(typeNamePart, out var found))
             {
                 return found;
@@ -201,6 +221,57 @@ internal sealed class TypeResolver
         }
 
         return null;
+    }
+
+    private Type? TryResolveImplicitImportFast(string typeName)
+    {
+        foreach (var ns in DefaultImplicitNamespaces)
+        {
+            var resolved = TryResolveTypeInNamespace(ns, typeName);
+            if (resolved != null && !IsReflectionType(resolved))
+                return resolved;
+        }
+
+        // Preserve support for generic type names without explicit arity
+        // (e.g., "List" -> "List`1") in implicit namespaces.
+        if (CanProbeGenericArity(typeName))
+        {
+            for (var arity = 1; arity <= 8; arity++)
+            {
+                var genericName = $"{typeName}`{arity}";
+                foreach (var ns in DefaultImplicitNamespaces)
+                {
+                    var resolved = TryResolveTypeInNamespace(ns, genericName);
+                    if (resolved != null && !IsReflectionType(resolved))
+                        return resolved;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private static bool CanProbeGenericArity(string typeName)
+        => typeName.IndexOfAny(['`', '<', '>', '.', '[', ']']) < 0;
+
+    private Type? TryResolveTypeInNamespace(string ns, string shortTypeName)
+    {
+        var qualifiedName = string.Concat(ns, ".", shortTypeName);
+        foreach (var assembly in _registeredAssemblies)
+        {
+            var resolved = assembly.GetType(qualifiedName, throwOnError: false, ignoreCase: _ignoreCase);
+            if (resolved != null)
+                return resolved;
+        }
+
+        return null;
+    }
+
+    private static bool IsReflectionType(Type type)
+    {
+        var ns = type.Namespace;
+        return ns is "System.Reflection" ||
+               (ns != null && ns.StartsWith("System.Reflection.", StringComparison.Ordinal));
     }
 
     /// <summary>
@@ -319,6 +390,12 @@ internal sealed class TypeResolver
         ["void"] = typeof(void),
     };
 
+    private static readonly FrozenDictionary<string, Type> BuiltInTypeKeywordsOrdinal =
+        BuiltInTypeKeywords.ToFrozenDictionary(StringComparer.Ordinal);
+
+    private static readonly FrozenDictionary<string, Type> BuiltInTypeKeywordsOrdinalIgnoreCase =
+        BuiltInTypeKeywords.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
+
     /// <summary>
     /// Creates a TypeResolver from the given configuration.
     /// Builds the namespace index from registered assemblies at freeze time.
@@ -330,33 +407,30 @@ internal sealed class TypeResolver
         StringComparer comparer)
     {
         // Deduplicate assemblies
-        var assemblySet = new HashSet<Assembly>(assemblies);
-
-        // Always include default assemblies
-        assemblySet.Add(typeof(object).Assembly);        // System.Private.CoreLib
-        assemblySet.Add(typeof(List<>).Assembly);         // System.Collections
-        assemblySet.Add(typeof(Task).Assembly);           // System.Threading.Tasks (may be same as CoreLib)
-        assemblySet.Add(typeof(Enumerable).Assembly);    // System.Linq (required for FQN and extension method resolution)
-        assemblySet.Add(typeof(System.Text.RegularExpressions.Regex).Assembly); // System.Text.RegularExpressions
+        var assemblySet = new HashSet<Assembly>(assemblies)
+        {
+            // Always include default assemblies
+            typeof(object).Assembly, // System.Private.CoreLib
+            typeof(List<>).Assembly, // System.Collections
+            typeof(Task).Assembly, // System.Threading.Tasks (may be same as CoreLib)
+            typeof(Enumerable).Assembly, // System.Linq (required for FQN and extension method resolution)
+            typeof(System.Text.RegularExpressions.Regex).Assembly // System.Text.RegularExpressions
+        };
 
         var allAssemblies = assemblySet.ToImmutableArray();
+        var builtInTypes = GetBuiltInTypeMap(comparer);
+        return new TypeResolver(builtInTypes, importedNamespaces, allAssemblies, implicitBclImports, comparer);
+    }
 
-        // Build namespace index from all assemblies
-        var namespaceIndex = BuildNamespaceIndex(allAssemblies, comparer);
+    private static FrozenDictionary<string, Type> GetBuiltInTypeMap(StringComparer comparer)
+    {
+        if (ReferenceEquals(comparer, StringComparer.Ordinal))
+            return BuiltInTypeKeywordsOrdinal;
 
-        // Build built-in type keyword map
-        var builtInTypes = BuiltInTypeKeywords.ToFrozenDictionary(comparer);
+        if (ReferenceEquals(comparer, StringComparer.OrdinalIgnoreCase))
+            return BuiltInTypeKeywordsOrdinalIgnoreCase;
 
-        // Build implicit import map if enabled
-        FrozenDictionary<string, Type>? implicitImports = null;
-        if (implicitBclImports)
-        {
-            implicitImports = BuildImplicitImports(namespaceIndex, comparer);
-        }
-
-        var namespacePrefixes = BuildNamespacePrefixes(namespaceIndex);
-
-        return new TypeResolver(builtInTypes, implicitImports, importedNamespaces, namespaceIndex, allAssemblies, namespacePrefixes);
+        return BuiltInTypeKeywords.ToFrozenDictionary(comparer);
     }
 
     /// <summary>

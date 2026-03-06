@@ -1,4 +1,5 @@
 using CsEval.Diagnostics;
+using CsEval.Parsing;
 
 namespace CsEval.Runtime.Extensions;
 
@@ -21,15 +22,21 @@ internal static class PipelineOperator
         CancellationToken ct)
     {
         if (rightCallable is null)
-            throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, "|>",
-                leftValue?.GetType().Name ?? "null", "null");
+            throw new CsEvalException(
+                DiagnosticDescriptors.BadBinaryOps,
+                TokenLexemes.GetCanonical(TokenType.PipeGreater),
+                leftValue?.GetType().Name ?? "null",
+                "null");
 
         // Check if the right side is a known callable type before invoking.
         // MethodInvoker.InvokeCall handles: LambdaValue, CompiledLambdaValue, FunctionRef,
         // Delegate, ModuleMethodRef, StaticMethodRef, MethodRef.
         if (!IsCallable(rightCallable))
-            throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, "|>",
-                leftValue?.GetType().Name ?? "null", rightCallable.GetType().Name);
+            throw new CsEvalException(
+                DiagnosticDescriptors.BadBinaryOps,
+                TokenLexemes.GetCanonical(TokenType.PipeGreater),
+                leftValue?.GetType().Name ?? "null",
+                rightCallable.GetType().Name);
 
         var args = new object?[] { leftValue };
         return MethodInvoker.InvokeCall(rightCallable, args, context, options, ct);

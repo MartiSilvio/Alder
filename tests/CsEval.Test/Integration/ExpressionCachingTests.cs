@@ -93,6 +93,22 @@ public class ExpressionCachingTests(CompilationMode mode)
     }
 
     [Test]
+    public void EvaluateParsed_WithModuleCalls_AllowsNumericRuntimeTypeChanges()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var expression = engine.Parse("Math.Abs(x)");
+
+        engine.SetVariable<long>("x", -42L);
+        var result1 = engine.Evaluate(expression);
+        Assert.That(result1, Is.EqualTo(42L));
+
+        // Reassign using non-generic API to change runtime type on the same variable name.
+        engine.SetVariable("x", -7);
+        var result2 = engine.Evaluate(expression);
+        Assert.That(result2, Is.EqualTo(7));
+    }
+
+    [Test]
     public void ParsedExpressionCanBeReusedAcrossMultipleEngines()
     {
         var engine1 = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });

@@ -39,9 +39,7 @@ internal sealed class PrimaryParser : ParserBase
         if (Match(TokenType.Undefined))
         {
             if (State.LanguageMode == LanguageMode.Standard)
-                throw new CsEvalLanguageModeException("undefined",
-                    "'undefined' is not available in Standard mode. " +
-                    "Use LanguageMode.Extended to enable non-standard syntax extensions.");
+                throw new CsEvalLanguageModeException(TokenLexemes.GetCanonical(TokenType.Undefined));
             return new LiteralExpr(null, IsConstant: true);
         }
 
@@ -57,9 +55,7 @@ internal sealed class PrimaryParser : ParserBase
         if (Match(TokenType.LeftBracket))
         {
             if (State.LanguageMode == LanguageMode.Standard)
-                throw new CsEvalLanguageModeException("[...]",
-                    "Collection expression literals '[...]' are not available in Standard mode. " +
-                    "Use LanguageMode.Extended to enable non-standard syntax extensions.");
+                throw new CsEvalLanguageModeException(TokenLexemes.CollectionExpressionLiteral);
             return ParseArrayLiteral();
         }
 
@@ -124,9 +120,7 @@ internal sealed class PrimaryParser : ParserBase
                 if (Match(TokenType.DotDot))
                 {
                     if (State.LanguageMode == LanguageMode.Standard)
-                        throw new CsEvalLanguageModeException("..",
-                            "Spread operator '..' is not available in Standard mode. " +
-                            "Use LanguageMode.Extended to enable non-standard syntax extensions.");
+                        throw new CsEvalLanguageModeException(TokenLexemes.GetCanonical(TokenType.DotDot));
                     var spreadExpr = _expression.ParseExpression();
                     elements.Add(new SpreadExpr(spreadExpr));
                 }
@@ -152,9 +146,7 @@ internal sealed class PrimaryParser : ParserBase
                 if (Match(TokenType.DotDot))
                 {
                     if (State.LanguageMode == LanguageMode.Standard)
-                        throw new CsEvalLanguageModeException("..",
-                            "Spread operator '..' is not available in Standard mode. " +
-                            "Use LanguageMode.Extended to enable non-standard syntax extensions.");
+                        throw new CsEvalLanguageModeException(TokenLexemes.GetCanonical(TokenType.DotDot));
                     var spreadExpr = _expression.ParseExpression();
                     elements.Add(new SpreadExpr(spreadExpr));
                 }

@@ -77,9 +77,7 @@ internal abstract class ParserBase
         if (Check(TokenType.StarStarEqual))
         {
             if (State.LanguageMode == LanguageMode.Standard)
-                throw new CsEvalLanguageModeException("**=",
-                    "Compound power assignment '**=' is not available in Standard mode. " +
-                    "Use LanguageMode.Extended to enable non-standard syntax extensions.");
+                throw new CsEvalLanguageModeException(TokenLexemes.GetCanonical(TokenType.StarStarEqual));
             Advance();
             op = Previous();
             return true;
@@ -193,8 +191,9 @@ internal abstract class ParserBase
         {
             // Split >> into > (consumed now) + > (left for parent generic)
             var token = Peek();
-            State.Tokens[State.Current] = token with { Type = TokenType.Greater, Lexeme = ">" };
-            State.Tokens.Insert(State.Current + 1, token with { Type = TokenType.Greater, Lexeme = ">" });
+            var greaterLexeme = TokenLexemes.GetCanonical(TokenType.Greater);
+            State.Tokens[State.Current] = token with { Type = TokenType.Greater, Lexeme = greaterLexeme };
+            State.Tokens.Insert(State.Current + 1, token with { Type = TokenType.Greater, Lexeme = greaterLexeme });
             Advance();
             return true;
         }
@@ -203,8 +202,16 @@ internal abstract class ParserBase
         {
             // Split >>> into > (consumed now) + >> (left for parent)
             var token = Peek();
-            State.Tokens[State.Current] = token with { Type = TokenType.Greater, Lexeme = ">" };
-            State.Tokens.Insert(State.Current + 1, token with { Type = TokenType.GreaterGreater, Lexeme = ">>" });
+            State.Tokens[State.Current] = token with
+            {
+                Type = TokenType.Greater,
+                Lexeme = TokenLexemes.GetCanonical(TokenType.Greater)
+            };
+            State.Tokens.Insert(State.Current + 1, token with
+            {
+                Type = TokenType.GreaterGreater,
+                Lexeme = TokenLexemes.GetCanonical(TokenType.GreaterGreater)
+            });
             Advance();
             return true;
         }

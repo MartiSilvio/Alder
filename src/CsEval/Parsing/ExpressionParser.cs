@@ -265,9 +265,7 @@ internal sealed class ExpressionParser : ParserBase
         }
         else if (Check(TokenType.PipeGreater))
         {
-            throw new CsEvalLanguageModeException("|>",
-                "The '|>' pipeline operator is not available in Standard mode. " +
-                "Use LanguageMode.Extended to enable non-standard syntax extensions.");
+            throw new CsEvalLanguageModeException(TokenLexemes.GetCanonical(TokenType.PipeGreater));
         }
 
         return expr;
@@ -441,9 +439,7 @@ internal sealed class ExpressionParser : ParserBase
             var op = Previous();
             if (op.Type is TokenType.EqualEqualEqual or TokenType.BangEqualEqual && State.LanguageMode == LanguageMode.Standard)
             {
-                throw new CsEvalLanguageModeException(op.Lexeme,
-                    $"'{op.Lexeme}' is not available in Standard mode. " +
-                    "Use LanguageMode.Extended to enable non-standard syntax extensions.");
+                throw new CsEvalLanguageModeException(TokenLexemes.GetCanonical(op.Type));
             }
             var right = ParseComparison();
 
@@ -524,7 +520,7 @@ internal sealed class ExpressionParser : ParserBase
                 Advance(); // consume 'not'
                 var notToken = Previous();
                 Advance(); // consume 'in'
-                var op = new Token(TokenType.NotIn, "not in", null, notToken.Line, notToken.Column);
+                var op = TokenLexemes.CreateSynthetic(TokenType.NotIn, notToken);
                 var right = ParseShift();
                 expr = new BinaryExpr(expr, op, right);
             }
@@ -540,7 +536,7 @@ internal sealed class ExpressionParser : ParserBase
                 Advance(); // consume 'not'
                 var notToken = Previous();
                 Advance(); // consume 'like'
-                var op = new Token(TokenType.NotLike, "not like", null, notToken.Line, notToken.Column);
+                var op = TokenLexemes.CreateSynthetic(TokenType.NotLike, notToken);
                 var right = ParseShift();
                 expr = new BinaryExpr(expr, op, right);
             }
@@ -552,12 +548,9 @@ internal sealed class ExpressionParser : ParserBase
                 var low = ParseShift();
                 Consume(TokenType.AmpAmp, "Expected 'and' after 'between' lower bound");
                 var high = ParseShift();
-                var geExpr = new BinaryExpr(expr,
-                    new Token(TokenType.GreaterEqual, ">=", null, betweenToken.Line, betweenToken.Column), low);
-                var leExpr = new BinaryExpr(expr,
-                    new Token(TokenType.LessEqual, "<=", null, betweenToken.Line, betweenToken.Column), high);
-                expr = new LogicalExpr(geExpr,
-                    new Token(TokenType.AmpAmp, "&&", null, betweenToken.Line, betweenToken.Column), leExpr);
+                var geExpr = new BinaryExpr(expr, TokenLexemes.CreateSynthetic(TokenType.GreaterEqual, betweenToken), low);
+                var leExpr = new BinaryExpr(expr, TokenLexemes.CreateSynthetic(TokenType.LessEqual, betweenToken), high);
+                expr = new LogicalExpr(geExpr, TokenLexemes.CreateSynthetic(TokenType.AmpAmp, betweenToken), leExpr);
             }
             else if (State.LanguageMode == LanguageMode.Extended
                      && Match(TokenType.EqualTilde, TokenType.BangTilde, TokenType.LessEqualGreater))
@@ -572,42 +565,30 @@ internal sealed class ExpressionParser : ParserBase
             // be operator usage.
             else if (State.LanguageMode == LanguageMode.Standard && Check(TokenType.In))
             {
-                throw new CsEvalLanguageModeException("in",
-                    "The 'in' operator is not available in Standard mode. " +
-                    "Use LanguageMode.Extended to enable non-standard syntax extensions.");
+                throw new CsEvalLanguageModeException(TokenLexemes.GetCanonical(TokenType.In));
             }
             else if (State.LanguageMode == LanguageMode.Standard && Check(TokenType.Like))
             {
-                throw new CsEvalLanguageModeException("like",
-                    "The 'like' operator is not available in Standard mode. " +
-                    "Use LanguageMode.Extended to enable non-standard syntax extensions.");
+                throw new CsEvalLanguageModeException(TokenLexemes.GetCanonical(TokenType.Like));
             }
             else if (State.LanguageMode == LanguageMode.Standard && Check(TokenType.Between))
             {
-                throw new CsEvalLanguageModeException("between",
-                    "The 'between' operator is not available in Standard mode. " +
-                    "Use LanguageMode.Extended to enable non-standard syntax extensions.");
+                throw new CsEvalLanguageModeException(TokenLexemes.GetCanonical(TokenType.Between));
             }
             else if (State.LanguageMode == LanguageMode.Standard
                      && Check(TokenType.EqualTilde))
             {
-                throw new CsEvalLanguageModeException("=~",
-                    "The '=~' operator is not available in Standard mode. " +
-                    "Use LanguageMode.Extended to enable non-standard syntax extensions.");
+                throw new CsEvalLanguageModeException(TokenLexemes.GetCanonical(TokenType.EqualTilde));
             }
             else if (State.LanguageMode == LanguageMode.Standard
                      && Check(TokenType.BangTilde))
             {
-                throw new CsEvalLanguageModeException("!~",
-                    "The '!~' operator is not available in Standard mode. " +
-                    "Use LanguageMode.Extended to enable non-standard syntax extensions.");
+                throw new CsEvalLanguageModeException(TokenLexemes.GetCanonical(TokenType.BangTilde));
             }
             else if (State.LanguageMode == LanguageMode.Standard
                      && Check(TokenType.LessEqualGreater))
             {
-                throw new CsEvalLanguageModeException("<=>",
-                    "The '<=>' operator is not available in Standard mode. " +
-                    "Use LanguageMode.Extended to enable non-standard syntax extensions.");
+                throw new CsEvalLanguageModeException(TokenLexemes.GetCanonical(TokenType.LessEqualGreater));
             }
             else
             {
@@ -757,7 +738,7 @@ internal sealed class ExpressionParser : ParserBase
             && expr is LiteralExpr { Value: var numValue } && IsNumericValue(numValue)
             && (Check(TokenType.Identifier) || Check(TokenType.LeftParen)))
         {
-            var syntheticStar = new Token(TokenType.Star, "*", null, Peek().Line, Peek().Column);
+            var syntheticStar = TokenLexemes.CreateSynthetic(TokenType.Star, Peek());
             var right = ParseUnary();
             expr = new BinaryExpr(expr, syntheticStar, right);
         }
@@ -861,9 +842,7 @@ internal sealed class ExpressionParser : ParserBase
         }
         else if (State.LanguageMode == LanguageMode.Standard && Check(TokenType.StarStar))
         {
-            throw new CsEvalLanguageModeException("**",
-                "Power operator '**' is not available in Standard mode. " +
-                "Use LanguageMode.Extended to enable non-standard syntax extensions.");
+            throw new CsEvalLanguageModeException(TokenLexemes.GetCanonical(TokenType.StarStar));
         }
 
         return expr;

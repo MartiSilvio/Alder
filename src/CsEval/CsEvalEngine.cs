@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using System.Collections.Immutable;
 using System.Linq.Expressions;
 using System.Runtime.CompilerServices;
@@ -27,6 +26,8 @@ namespace CsEval;
 /// </remarks>
 public sealed class CsEvalEngine : IDisposable
 {
+    private readonly record struct PendingVariable(object? Value, Type InferredType);
+
     private readonly Dictionary<string, Func<object?[], object?>> _functions;
     private readonly CsEvalOptions _options;
     private readonly List<RegisteredType> _registeredTypes = [];
@@ -35,7 +36,8 @@ public sealed class CsEvalEngine : IDisposable
     private readonly List<string> _usingNamespaces = [];
     private readonly TypeCache _typeCache;
     private readonly ExpressionCache _expressionCache;
-    private readonly ConcurrentDictionary<string, object?> _pendingVariables;
+    private readonly Dictionary<string, PendingVariable> _pendingVariables;
+    private readonly object _contextInitLock = new();
 
     private CsEvalConfig? _frozenConfig;
     private CsEvalContext? _context;
@@ -64,7 +66,7 @@ public sealed class CsEvalEngine : IDisposable
         _typeCache = new TypeCache(_options.ExpressionCompiler);
         _expressionCache = new ExpressionCache();
         _functions = new Dictionary<string, Func<object?[], object?>>(options.StringComparer);
-        _pendingVariables = new ConcurrentDictionary<string, object?>(options.StringComparer);
+        _pendingVariables = new Dictionary<string, PendingVariable>(options.StringComparer);
         _extensionTypes.Add(typeof(Enumerable));
         RegisterBuiltInModules();
     }
@@ -81,7 +83,7 @@ public sealed class CsEvalEngine : IDisposable
         _typeCache = frozenConfig.TypeCache;
         _expressionCache = expressionCache;
         _functions = new Dictionary<string, Func<object?[], object?>>(frozenConfig.Functions, options.StringComparer);
-        _pendingVariables = new ConcurrentDictionary<string, object?>(options.StringComparer);
+        _pendingVariables = new Dictionary<string, PendingVariable>(options.StringComparer);
         _extensionTypes = [..frozenConfig.ExtensionTypes];
         _registeredTypes = [];
     }
@@ -120,22 +122,23 @@ public sealed class CsEvalEngine : IDisposable
         if (_context != null)
             return _context;
 
-        var config = GetOrCreateConfig();
-        var newContext = new CsEvalContext(config, serviceProvider);
-
-        // Snapshot and clear atomically -- individual ConcurrentDictionary ops are
-        // thread-safe but the combination must not lose entries added between ToArray/Clear.
-        KeyValuePair<string, object?>[] pending;
-        lock (_pendingVariables)
+        lock (_contextInitLock)
         {
-            pending = _pendingVariables.ToArray();
-            _pendingVariables.Clear();
-        }
-        foreach (var (name, value) in pending)
-            newContext.Define(name, value);
+            if (_context != null)
+                return _context;
 
-        Interlocked.CompareExchange(ref _context, newContext, null);
-        return _context!;
+            var config = GetOrCreateConfig();
+            var newContext = new CsEvalContext(config, serviceProvider);
+
+            foreach (var (name, pending) in _pendingVariables)
+            {
+                newContext.Define(name, pending.Value, pending.InferredType);
+            }
+            _pendingVariables.Clear();
+
+            _context = newContext;
+            return _context;
+        }
     }
 
     public CsEvalExpression Parse(string expression)
@@ -220,9 +223,7 @@ public sealed class CsEvalEngine : IDisposable
 
         var shouldCompile = _options.CompilationMode is CompilationMode.Compiled or CompilationMode.StrictCompiled;
         if (shouldCompile && expression.GetCompiledInfo() == null)
-        {
-            expression.TryCompile(_options);
-        }
+            expression.TryCompile(_options, context);
 
         var compiled = expression.GetCompiledInfo();
         if (compiled?.Delegate != null)
@@ -609,9 +610,12 @@ public sealed class CsEvalEngine : IDisposable
         var variables = new Dictionary<string, object?>(_options.StringComparer);
 
         // Collect from pending variables (not yet materialized into context)
-        foreach (var (name, value) in _pendingVariables.ToArray())
+        lock (_contextInitLock)
         {
-            variables[name] = value;
+            foreach (var (name, pending) in _pendingVariables)
+            {
+                variables[name] = pending.Value;
+            }
         }
 
         // Collect from materialized context if it exists
@@ -642,33 +646,26 @@ public sealed class CsEvalEngine : IDisposable
 
     public CsEvalEngine SetVariable(string name, object? value)
     {
-        if (_context != null)
-        {
-            _context.Define(name, value);
-        }
-        else
-        {
-            _pendingVariables[name] = value;
-        }
+        // Non-generic SetVariable intentionally keeps the compile-time type as object.
+        // This preserves C# unboxing semantics for object-typed values while still
+        // clearing any previous strongly-typed metadata for the same variable name.
+        DefineOrStageVariable(name, value, typeof(object));
+        return this;
+    }
+
+    /// <summary>
+    /// Sets a variable with compile-time type information, enabling optimized expression compilation.
+    /// Use this overload when the variable type is known at call time for better performance.
+    /// </summary>
+    public CsEvalEngine SetVariable<T>(string name, T value)
+    {
+        DefineOrStageVariable(name, value, typeof(T));
         return this;
     }
 
     public CsEvalEngine SetVariables(IDictionary<string, object?> variables)
     {
-        if (_context != null)
-        {
-            foreach (var (name, value) in variables)
-            {
-                _context.Define(name, value);
-            }
-        }
-        else
-        {
-            foreach (var (name, value) in variables)
-            {
-                _pendingVariables[name] = value;
-            }
-        }
+        DefineOrStageVariables(variables, typeof(object));
         return this;
     }
 
@@ -701,7 +698,7 @@ public sealed class CsEvalEngine : IDisposable
             if (!hasStaticOnly && type.GetConstructor(Type.EmptyTypes) == null)
                 continue;
 
-            _registeredTypes.Add(new RegisteredType(type, null, null, BuildMemberDictionary(type)));
+            _registeredTypes.Add(new RegisteredType(type, null, null, ModuleMemberMetadata.Build(type, explicitOnly: false, _options.StringComparer)));
         }
 
         return this;
@@ -710,7 +707,7 @@ public sealed class CsEvalEngine : IDisposable
     public CsEvalEngine RegisterFromType(Type type, object? instance = null)
     {
         EnsureNotFrozen();
-        _registeredTypes.Add(new RegisteredType(type, instance, null, BuildMemberDictionary(type)));
+        _registeredTypes.Add(new RegisteredType(type, instance, null, ModuleMemberMetadata.Build(type, explicitOnly: false, _options.StringComparer)));
         return this;
     }
 
@@ -727,7 +724,7 @@ public sealed class CsEvalEngine : IDisposable
             var moduleAttr = type.GetCustomAttribute<CsEvalModuleAttribute>();
             explicitOnly = moduleAttr?.ExplicitOnly ?? false;
         }
-        var methods = BuildMemberDictionary(type, explicitOnly);
+        var methods = ModuleMemberMetadata.Build(type, explicitOnly, _options.StringComparer);
         _registeredTypes.Add(new RegisteredType(type, instance, moduleName, methods));
         return this;
     }
@@ -767,42 +764,6 @@ public sealed class CsEvalEngine : IDisposable
     }
 
     public CsEvalEngine RegisterExtensionMethods<T>() => RegisterExtensionMethods(typeof(T));
-
-    private Dictionary<string, MemberInfo> BuildMemberDictionary(Type type, bool explicitOnly = false)
-    {
-        var members = new Dictionary<string, MemberInfo>(_options.StringComparer);
-
-        foreach (var method in type.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly))
-        {
-            if (method.IsSpecialName)
-                continue;
-
-            if (IsAsyncMethod(method))
-                continue;
-
-            var attr = method.GetCustomAttribute<CsEvalFunctionAttribute>();
-
-            if (explicitOnly && attr == null)
-                continue;
-
-            var name = attr?.Name ?? method.Name;
-            members[name] = method;
-        }
-
-        foreach (var prop in type.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly))
-        {
-            if (!explicitOnly)
-                members[prop.Name] = prop;
-        }
-
-        foreach (var field in type.GetFields(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly))
-        {
-            if (!explicitOnly)
-                members[field.Name] = field;
-        }
-
-        return members;
-    }
 
     public IReadOnlyDictionary<string, RegisteredModule> GetRegisteredModules()
     {
@@ -871,20 +832,6 @@ public sealed class CsEvalEngine : IDisposable
     }
 
 
-    private static bool IsAsyncMethod(MethodInfo method)
-    {
-        var returnType = method.ReturnType;
-        if (returnType == typeof(Task))
-            return true;
-        if (returnType.IsGenericType && returnType.GetGenericTypeDefinition() == typeof(Task<>))
-            return true;
-        if (returnType == typeof(ValueTask))
-            return true;
-        if (returnType.IsGenericType && returnType.GetGenericTypeDefinition() == typeof(ValueTask<>))
-            return true;
-        return false;
-    }
-
     private void EnsureNotFrozen([CallerMemberName] string? caller = null)
     {
         if (_frozenConfig != null)
@@ -895,8 +842,52 @@ public sealed class CsEvalEngine : IDisposable
 
     private void RegisterBuiltInModules()
     {
-        RegisterModule("Math", typeof(Math));
-        RegisterModule("Convert", typeof(Convert));
+        var mathMembers = ModuleMemberMetadata.GetBuiltInMathMembers(_options.StringComparer);
+        var convertMembers = ModuleMemberMetadata.GetBuiltInConvertMembers(_options.StringComparer);
+
+        _registeredTypes.Add(new RegisteredType(typeof(Math), null, "Math", mathMembers));
+        _registeredTypes.Add(new RegisteredType(typeof(Convert), null, "Convert", convertMembers));
+    }
+
+    private void DefineOrStageVariable(string name, object? value, Type inferredType)
+    {
+        if (_context != null)
+        {
+            _context.Define(name, value, inferredType);
+            return;
+        }
+
+        lock (_contextInitLock)
+        {
+            if (_context != null)
+                _context.Define(name, value, inferredType);
+            else
+                _pendingVariables[name] = new PendingVariable(value, inferredType);
+        }
+    }
+
+    private void DefineOrStageVariables(IDictionary<string, object?> variables, Type inferredType)
+    {
+        if (_context != null)
+        {
+            foreach (var (name, value) in variables)
+                _context.Define(name, value, inferredType);
+            return;
+        }
+
+        lock (_contextInitLock)
+        {
+            if (_context != null)
+            {
+                foreach (var (name, value) in variables)
+                    _context.Define(name, value, inferredType);
+            }
+            else
+            {
+                foreach (var (name, value) in variables)
+                    _pendingVariables[name] = new PendingVariable(value, inferredType);
+            }
+        }
     }
 
     private sealed record RegisteredType(

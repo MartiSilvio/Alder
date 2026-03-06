@@ -49,8 +49,7 @@ internal sealed class PatternCompilerUnit
         var parentContextVar = LinqExpression.Variable(typeof(CsEvalContext), "switchParent");
         var endLabel = LinqExpression.Label(typeof(object), "switchEnd");
 
-        var statements = new List<LinqExpression>();
-        statements.Add(LinqExpression.Assign(subjectVar, subjectValue));
+        var statements = new List<LinqExpression> { LinqExpression.Assign(subjectVar, subjectValue) };
 
         // For each arm: enter scope, check pattern+guard, store result+goto end, exit scope
         foreach (var arm in expr.Arms)

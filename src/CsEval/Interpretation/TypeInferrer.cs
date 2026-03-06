@@ -25,7 +25,9 @@ internal sealed class TypeInferrer : AstWalker<Type>
     private sealed class NullSentinelMarker { }
 
     private readonly CsEvalContext _context;
-    private readonly Dictionary<Expr, Type> _types = new();
+    // Expr nodes are record types with structural equality/hash based on children.
+    // Using reference identity here avoids deep recursive hashing on large ASTs.
+    private readonly Dictionary<Expr, Type> _types = new(ReferenceEqualityComparer.Instance);
 
     // Local scope for tracking variable types declared during inference
     private readonly Stack<Dictionary<string, Type>> _scopes = new();
@@ -97,8 +99,20 @@ internal sealed class TypeInferrer : AstWalker<Type>
     public override Type VisitIdentifier(IdentifierExpr expr)
     {
         base.VisitIdentifier(expr);
-        if (TryGetVariableType(expr.Name.Lexeme, out var varType) && varType != null)
+        var name = expr.Name.Lexeme;
+
+        // Keep static type inference aligned with runtime identifier precedence.
+        // Runtime resolves functions/modules before variables, so use object for those cases.
+        if (_context.Functions.ContainsKey(name) || _context.Modules.ContainsKey(name))
+            return SetType(expr, typeof(object));
+
+        if (TryGetVariableType(name, out var varType) && varType != null)
             return SetType(expr, varType);
+
+        // Check if identifier resolves to a type (e.g., "Math" -> System.Math)
+        if (_context.TypeResolver.TryResolveType(name) != null)
+            return SetType(expr, typeof(Type));
+
         return SetType(expr, typeof(object));
     }
 
@@ -122,11 +136,18 @@ internal sealed class TypeInferrer : AstWalker<Type>
         base.VisitBinary(expr);
 
         if (expr.Op.Type is TokenType.EqualEqual or TokenType.BangEqual or
+            TokenType.EqualEqualEqual or TokenType.BangEqualEqual or
             TokenType.Less or TokenType.LessEqual or
-            TokenType.Greater or TokenType.GreaterEqual)
+            TokenType.Greater or TokenType.GreaterEqual or
+            TokenType.In or TokenType.NotIn or
+            TokenType.Like or TokenType.NotLike or
+            TokenType.EqualTilde or TokenType.BangTilde)
         {
             return SetType(expr, typeof(bool));
         }
+
+        if (expr.Op.Type == TokenType.LessEqualGreater)
+            return SetType(expr, typeof(int));
 
         var leftType = GetInferredType(expr.Left);
         var rightType = GetInferredType(expr.Right);
@@ -483,6 +504,95 @@ internal sealed class TypeInferrer : AstWalker<Type>
     {
         var innerType = Visit(expr.Expression);
         return SetType(expr, innerType);
+    }
+
+    public override Type VisitMemberAccess(MemberAccessExpr expr)
+    {
+        Visit(expr.Object);
+        var objectType = GetInferredType(expr.Object);
+        var memberName = expr.Name.Lexeme;
+
+        Type? targetType = null;
+        BindingFlags flags;
+
+        if (objectType == typeof(Type) && expr.Object is TypeReferenceExpr typeRef)
+        {
+            targetType = _context.TypeResolver.TryResolveType(typeRef.TypeToken.Lexeme);
+            flags = BindingFlags.Public | BindingFlags.Static;
+        }
+        else if (objectType == typeof(Type) && expr.Object is IdentifierExpr idExpr)
+        {
+            targetType = _context.TypeResolver.TryResolveType(idExpr.Name.Lexeme);
+            flags = BindingFlags.Public | BindingFlags.Static;
+        }
+        else if (objectType != typeof(object))
+        {
+            targetType = objectType;
+            flags = BindingFlags.Public | BindingFlags.Instance;
+        }
+        else
+        {
+            return SetType(expr, typeof(object));
+        }
+
+        if (targetType != null)
+        {
+            var prop = _context.TypeCache.GetProperty(targetType, memberName, flags);
+            if (prop != null)
+                return SetType(expr, prop.PropertyType);
+
+            var field = _context.TypeCache.GetField(targetType, memberName, flags);
+            if (field != null)
+                return SetType(expr, field.FieldType);
+        }
+
+        return SetType(expr, typeof(object));
+    }
+
+    public override Type VisitCall(CallExpr expr)
+    {
+        Visit(expr.Callee);
+        foreach (var arg in expr.Arguments)
+            Visit(arg);
+
+        if (expr.Callee is MemberAccessExpr memberAccess)
+        {
+            var objectType = GetInferredType(memberAccess.Object);
+            var methodName = memberAccess.Name.Lexeme;
+
+            Type? targetType = null;
+            BindingFlags flags;
+
+            if (objectType == typeof(Type) && memberAccess.Object is TypeReferenceExpr typeRef2)
+            {
+                targetType = _context.TypeResolver.TryResolveType(typeRef2.TypeToken.Lexeme);
+                flags = BindingFlags.Public | BindingFlags.Static;
+            }
+            else if (objectType == typeof(Type) && memberAccess.Object is IdentifierExpr idExpr2)
+            {
+                targetType = _context.TypeResolver.TryResolveType(idExpr2.Name.Lexeme);
+                flags = BindingFlags.Public | BindingFlags.Static;
+            }
+            else if (objectType != typeof(object))
+            {
+                targetType = objectType;
+                flags = BindingFlags.Public | BindingFlags.Instance;
+            }
+            else
+            {
+                return SetType(expr, typeof(object));
+            }
+
+            if (targetType != null)
+            {
+                var argTypes = expr.Arguments.Select(a => GetInferredType(a)).ToArray();
+                var method = MethodResolver.TryResolveMethod(targetType, methodName, argTypes, flags);
+                if (method != null)
+                    return SetType(expr, method.ReturnType);
+            }
+        }
+
+        return SetType(expr, typeof(object));
     }
 
     public override Type VisitMultiDimIndexAccess(MultiDimIndexAccessExpr expr)

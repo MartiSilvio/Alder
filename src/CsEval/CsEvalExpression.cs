@@ -77,6 +77,16 @@ public sealed class CsEvalExpression
         return info.Delegate != null;
     }
 
+    internal bool TryCompile(CsEvalOptions options, CsEvalContext context)
+    {
+        if (_compiledInfo != null)
+            return _compiledInfo.Delegate != null;
+
+        var info = ILExpressionCompiler.TryCompile(Ast, options, context);
+        _compiledInfo = info;
+        return info.Delegate != null;
+    }
+
     /// <summary>
     /// Compiles this expression. Throws if compilation fails.
     /// </summary>

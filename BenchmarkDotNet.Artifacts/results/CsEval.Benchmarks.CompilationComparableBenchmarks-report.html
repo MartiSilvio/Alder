@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+<meta charset='utf-8' />
+<title>CsEval.Benchmarks.CompilationComparableBenchmarks-20260306-125246</title>
+
+<style type="text/css">
+	table { border-collapse: collapse; display: block; width: 100%; overflow: auto; }
+	td, th { padding: 6px 13px; border: 1px solid #ddd; text-align: right; }
+	tr { background-color: #fff; border-top: 1px solid #ccc; }
+	tr:nth-child(even) { background: #f8f8f8; }
+</style>
+</head>
+<body>
+<pre><code>
+BenchmarkDotNet v0.14.0, macOS Sequoia 15.7.2 (24G325) [Darwin 24.6.0]
+Apple M3 Max, 1 CPU, 14 logical and 14 physical cores
+.NET SDK 8.0.204
+  [Host]     : .NET 8.0.4 (8.0.424.16909), Arm64 RyuJIT AdvSIMD
+  Job-JMXUSA : .NET 8.0.4 (8.0.424.16909), Arm64 RyuJIT AdvSIMD
+</code></pre>
+<pre><code>Runtime=.NET 8.0  IterationCount=12  WarmupCount=4  
+Categories=Compilation  
+</code></pre>
+
+<table>
+<thead><tr><th>Method            </th><th>Scenario      </th><th>Mean      </th><th>Error   </th><th>StdDev  </th><th>Median    </th><th>Min       </th><th>Max       </th><th>Ratio</th><th>RatioSD</th><th>Gen0</th><th>Gen1</th><th>Allocated</th><th>Alloc Ratio</th>
+</tr>
+</thead><tbody><tr><td>NCalc_Parse</td><td>Compi(...)tress [33]</td><td>59.81 ns</td><td>0.244 ns</td><td>0.190 ns</td><td>59.84 ns</td><td>59.51 ns</td><td>60.10 ns</td><td>0.000</td><td>0.00</td><td>0.0488</td><td>-</td><td>408 B</td><td>0.000</td>
+</tr><tr><td>CsEval_Compiled_Parse</td><td>Compi(...)tress [33]</td><td>449,196.39 ns</td><td>1,474.734 ns</td><td>1,151.375 ns</td><td>449,270.08 ns</td><td>447,161.17 ns</td><td>450,716.15 ns</td><td>0.966</td><td>0.00</td><td>124.0234</td><td>-</td><td>1039425 B</td><td>1.000</td>
+</tr><tr><td>CsEval_Interpreted_Parse</td><td>Compi(...)tress [33]</td><td>464,769.85 ns</td><td>1,644.995 ns</td><td>1,284.304 ns</td><td>464,834.12 ns</td><td>462,804.79 ns</td><td>467,499.69 ns</td><td>1.000</td><td>0.00</td><td>124.0234</td><td>0.4883</td><td>1039425 B</td><td>1.000</td>
+</tr><tr><td>Flee_Compile</td><td>Compi(...)tress [33]</td><td>4,363,179.09 ns</td><td>9,015.008 ns</td><td>7,038.325 ns</td><td>4,363,309.58 ns</td><td>4,350,842.45 ns</td><td>4,371,902.34 ns</td><td>9.388</td><td>0.03</td><td>625.0000</td><td>312.5000</td><td>5347972 B</td><td>5.145</td>
+</tr><tr><td>DynamicExpresso_Parse</td><td>Compi(...)tress [33]</td><td>6,512,710.28 ns</td><td>20,397.630 ns</td><td>13,491.769 ns</td><td>6,517,063.78 ns</td><td>6,484,932.28 ns</td><td>6,530,319.00 ns</td><td>14.013</td><td>0.05</td><td>1250.0000</td><td>62.5000</td><td>10478652 B</td><td>10.081</td>
+</tr><tr><td>Roslyn_Script_Compile</td><td>Compi(...)tress [33]</td><td>18,306,797.59 ns</td><td>154,119.397 ns</td><td>111,438.422 ns</td><td>18,345,997.41 ns</td><td>18,110,098.97 ns</td><td>18,467,152.34 ns</td><td>39.389</td><td>0.25</td><td>531.2500</td><td>187.5000</td><td>4462002 B</td><td>4.293</td>
+</tr><tr><td>NCalc_Parse</td><td>Compi(...)metic [32]</td><td>58.02 ns</td><td>0.144 ns</td><td>0.104 ns</td><td>58.03 ns</td><td>57.88 ns</td><td>58.24 ns</td><td>0.01</td><td>0.00</td><td>0.0488</td><td>-</td><td>408 B</td><td>0.04</td>
+</tr><tr><td>CsEval_Interpreted_Parse</td><td>Compi(...)metic [32]</td><td>4,784.93 ns</td><td>25.362 ns</td><td>19.801 ns</td><td>4,785.09 ns</td><td>4,756.55 ns</td><td>4,814.30 ns</td><td>1.00</td><td>0.01</td><td>1.3351</td><td>0.0076</td><td>11176 B</td><td>1.00</td>
+</tr><tr><td>CsEval_Compiled_Parse</td><td>Compi(...)metic [32]</td><td>4,804.27 ns</td><td>39.780 ns</td><td>31.057 ns</td><td>4,814.17 ns</td><td>4,749.76 ns</td><td>4,848.10 ns</td><td>1.00</td><td>0.01</td><td>1.3351</td><td>0.0076</td><td>11176 B</td><td>1.00</td>
+</tr><tr><td>DynamicExpresso_Parse</td><td>Compi(...)metic [32]</td><td>35,178.84 ns</td><td>256.153 ns</td><td>199.988 ns</td><td>35,217.58 ns</td><td>34,906.26 ns</td><td>35,440.86 ns</td><td>7.35</td><td>0.05</td><td>7.0190</td><td>0.0610</td><td>58710 B</td><td>5.25</td>
+</tr><tr><td>Flee_Compile</td><td>Compi(...)metic [32]</td><td>48,511.81 ns</td><td>623.205 ns</td><td>486.558 ns</td><td>48,452.07 ns</td><td>47,849.71 ns</td><td>49,176.76 ns</td><td>10.14</td><td>0.11</td><td>11.7188</td><td>2.9297</td><td>100068 B</td><td>8.95</td>
+</tr><tr><td>Roslyn_Script_Compile</td><td>Compi(...)metic [32]</td><td>16,663,808.36 ns</td><td>287,882.031 ns</td><td>208,157.571 ns</td><td>16,611,677.09 ns</td><td>16,502,151.03 ns</td><td>17,118,743.50 ns</td><td>3,482.62</td><td>43.88</td><td>437.5000</td><td>156.2500</td><td>3711188 B</td><td>332.07</td>
+</tr><tr><td>NCalc_Parse</td><td>Compi(...)ching [31]</td><td>58.04 ns</td><td>0.122 ns</td><td>0.088 ns</td><td>58.06 ns</td><td>57.90 ns</td><td>58.21 ns</td><td>0.003</td><td>0.00</td><td>0.0488</td><td>-</td><td>408 B</td><td>0.01</td>
+</tr><tr><td>CsEval_Compiled_Parse</td><td>Compi(...)ching [31]</td><td>17,412.18 ns</td><td>86.692 ns</td><td>67.683 ns</td><td>17,384.10 ns</td><td>17,310.63 ns</td><td>17,512.01 ns</td><td>0.998</td><td>0.01</td><td>4.6082</td><td>0.1221</td><td>38704 B</td><td>1.00</td>
+</tr><tr><td>CsEval_Interpreted_Parse</td><td>Compi(...)ching [31]</td><td>17,444.44 ns</td><td>108.331 ns</td><td>84.578 ns</td><td>17,409.56 ns</td><td>17,340.25 ns</td><td>17,626.21 ns</td><td>1.000</td><td>0.01</td><td>4.6082</td><td>0.1221</td><td>38704 B</td><td>1.00</td>
+</tr><tr><td>Flee_Compile</td><td>Compi(...)ching [31]</td><td>133,659.65 ns</td><td>630.704 ns</td><td>375.322 ns</td><td>133,780.96 ns</td><td>132,725.26 ns</td><td>133,949.91 ns</td><td>7.662</td><td>0.04</td><td>31.2500</td><td>7.8125</td><td>264784 B</td><td>6.84</td>
+</tr><tr><td>DynamicExpresso_Parse</td><td>Compi(...)ching [31]</td><td>201,783.81 ns</td><td>784.797 ns</td><td>612.718 ns</td><td>201,744.12 ns</td><td>200,631.59 ns</td><td>202,652.42 ns</td><td>11.567</td><td>0.06</td><td>40.0391</td><td>-</td><td>335137 B</td><td>8.66</td>
+</tr><tr><td>Roslyn_Script_Compile</td><td>Compi(...)ching [31]</td><td>16,851,466.93 ns</td><td>297,256.666 ns</td><td>196,616.880 ns</td><td>16,789,448.56 ns</td><td>16,661,830.72 ns</td><td>17,341,356.78 ns</td><td>966.029</td><td>11.64</td><td>437.5000</td><td>156.2500</td><td>3741680 B</td><td>96.67</td>
+</tr><tr><td>NCalc_Parse</td><td>Compi(...)ality [43]</td><td>59.45 ns</td><td>0.173 ns</td><td>0.135 ns</td><td>59.39 ns</td><td>59.32 ns</td><td>59.72 ns</td><td>0.01</td><td>0.00</td><td>0.0488</td><td>-</td><td>408 B</td><td>0.04</td>
+</tr><tr><td>CsEval_Interpreted_Parse</td><td>Compi(...)ality [43]</td><td>4,222.24 ns</td><td>15.992 ns</td><td>12.486 ns</td><td>4,218.11 ns</td><td>4,202.50 ns</td><td>4,246.70 ns</td><td>1.00</td><td>0.00</td><td>1.1520</td><td>-</td><td>9680 B</td><td>1.00</td>
+</tr><tr><td>CsEval_Compiled_Parse</td><td>Compi(...)ality [43]</td><td>4,231.30 ns</td><td>33.610 ns</td><td>26.241 ns</td><td>4,216.67 ns</td><td>4,203.85 ns</td><td>4,271.56 ns</td><td>1.00</td><td>0.01</td><td>1.1520</td><td>-</td><td>9680 B</td><td>1.00</td>
+</tr><tr><td>Flee_Compile</td><td>Compi(...)ality [43]</td><td>30,329.04 ns</td><td>496.432 ns</td><td>387.581 ns</td><td>30,139.49 ns</td><td>29,973.18 ns</td><td>30,959.05 ns</td><td>7.18</td><td>0.09</td><td>8.0566</td><td>2.6855</td><td>69207 B</td><td>7.15</td>
+</tr><tr><td>DynamicExpresso_Parse</td><td>Compi(...)ality [43]</td><td>76,503.23 ns</td><td>260.683 ns</td><td>188.491 ns</td><td>76,409.44 ns</td><td>76,300.56 ns</td><td>76,962.60 ns</td><td>18.12</td><td>0.07</td><td>15.2588</td><td>0.1221</td><td>127986 B</td><td>13.22</td>
+</tr><tr><td>Roslyn_Script_Compile</td><td>Compi(...)ality [43]</td><td>16,626,328.65 ns</td><td>935,229.198 ns</td><td>618,596.209 ns</td><td>16,504,302.73 ns</td><td>16,007,369.81 ns</td><td>18,024,397.16 ns</td><td>3,937.83</td><td>140.02</td><td>406.2500</td><td>125.0000</td><td>3521875 B</td><td>363.83</td>
+</tr><tr><td>NCalc_Parse</td><td>Compi(...)ation [34]</td><td>59.46 ns</td><td>0.203 ns</td><td>0.147 ns</td><td>59.44 ns</td><td>59.22 ns</td><td>59.76 ns</td><td>0.02</td><td>0.00</td><td>0.0488</td><td>-</td><td>408 B</td><td>0.05</td>
+</tr><tr><td>CsEval_Interpreted_Parse</td><td>Compi(...)ation [34]</td><td>3,223.64 ns</td><td>12.720 ns</td><td>9.931 ns</td><td>3,223.58 ns</td><td>3,208.22 ns</td><td>3,236.67 ns</td><td>1.00</td><td>0.00</td><td>0.9537</td><td>0.0038</td><td>7992 B</td><td>1.00</td>
+</tr><tr><td>CsEval_Compiled_Parse</td><td>Compi(...)ation [34]</td><td>3,228.91 ns</td><td>15.081 ns</td><td>11.774 ns</td><td>3,228.54 ns</td><td>3,214.52 ns</td><td>3,251.28 ns</td><td>1.00</td><td>0.00</td><td>0.9537</td><td>0.0038</td><td>7992 B</td><td>1.00</td>
+</tr><tr><td>DynamicExpresso_Parse</td><td>Compi(...)ation [34]</td><td>12,295.45 ns</td><td>37.950 ns</td><td>29.629 ns</td><td>12,302.00 ns</td><td>12,253.51 ns</td><td>12,344.01 ns</td><td>3.81</td><td>0.01</td><td>2.5177</td><td>-</td><td>21175 B</td><td>2.65</td>
+</tr><tr><td>Flee_Compile</td><td>Compi(...)ation [34]</td><td>27,567.73 ns</td><td>774.063 ns</td><td>604.337 ns</td><td>27,191.61 ns</td><td>27,090.60 ns</td><td>28,808.36 ns</td><td>8.55</td><td>0.18</td><td>7.5684</td><td>2.4414</td><td>63446 B</td><td>7.94</td>
+</tr><tr><td>Roslyn_Script_Compile</td><td>Compi(...)ation [34]</td><td>16,535,682.03 ns</td><td>208,440.016 ns</td><td>137,870.165 ns</td><td>16,499,133.45 ns</td><td>16,363,427.09 ns</td><td>16,856,740.88 ns</td><td>5,129.54</td><td>43.49</td><td>437.5000</td><td>156.2500</td><td>3702168 B</td><td>463.23</td>
+</tr></tbody></table>
+</body>
+</html>
