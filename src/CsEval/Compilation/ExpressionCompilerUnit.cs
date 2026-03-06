@@ -1054,18 +1054,6 @@ internal sealed class ExpressionCompilerUnit
     private LinqExpression EmitDirectAccess(
         MemberAccessExpr m, bool isStatic, Func<LinqExpression?, LinqExpression> buildAccess)
     {
-        LinqExpression WrapGuard(LinqExpression value)
-        {
-            if (value.Type.IsValueType)
-                return value;
-
-            var typedGuard = CompilerContext.GetGuardReflectionLeakTypedMethod(value.Type);
-            return LinqExpression.Call(
-                typedGuard,
-                value,
-                LinqExpression.Constant($"direct member access {m.Name.Lexeme}"));
-        }
-
         if (isStatic)
             return LinqExpression.Convert(WrapGuard(buildAccess(null)), typeof(object));
 
@@ -1088,6 +1076,18 @@ internal sealed class ExpressionCompilerUnit
                     LinqExpression.Equal(objVar, LinqExpression.Constant(null, typeof(object))),
                     LinqExpression.Constant(null, typeof(object)),
                     LinqExpression.Convert(WrapGuard(buildAccess(typedVar)), typeof(object))));
+
+        LinqExpression WrapGuard(LinqExpression value)
+        {
+            if (value.Type.IsValueType)
+                return value;
+
+            var typedGuard = CompilerContext.GetGuardReflectionLeakTypedMethod(value.Type);
+            return LinqExpression.Call(
+                typedGuard,
+                value,
+                LinqExpression.Constant($"direct member access {m.Name.Lexeme}"));
+        }
     }
 
     internal LinqExpression CompileIndexAccess(IndexAccessExpr expr)

@@ -256,17 +256,6 @@ internal sealed class Evaluator : IExprVisitor<object?>
             }
         }
 
-        if (NegatedAliasOperators.TryGetValue(expr.Op.Type, out var baseOpType))
-        {
-            if (!BinaryOperators.TryGetValue(baseOpType, out var baseOperator))
-                throw new CsEvalException($"Unknown binary operator '{expr.Op.Lexeme}'");
-
-            var result = baseOperator(this, left, right);
-            if (result is not bool boolResult)
-                throw new CsEvalException($"Unknown binary operator '{expr.Op.Lexeme}'");
-            return !boolResult;
-        }
-
         if (BinaryOperators.TryGetValue(expr.Op.Type, out var op))
             return op(this, left, right);
 
@@ -1602,12 +1591,6 @@ internal sealed class Evaluator : IExprVisitor<object?>
         { TokenType.EqualTilde, (_, l, r) => Operators.RegexMatch(l, r) },
         { TokenType.BangTilde, (_, l, r) => Operators.RegexNotMatch(l, r) },
         { TokenType.LessEqualGreater, (_, l, r) => Operators.Spaceship(l, r) },
-    };
-
-    private static readonly Dictionary<TokenType, TokenType> NegatedAliasOperators = new()
-    {
-        { TokenType.NotIn, TokenType.In },
-        { TokenType.NotLike, TokenType.Like },
     };
 
     private static readonly Dictionary<TokenType, Func<Evaluator, object?, object?>> UnaryOperators = new()

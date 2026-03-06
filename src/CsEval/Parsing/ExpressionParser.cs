@@ -519,10 +519,10 @@ internal sealed class ExpressionParser : ParserBase
             {
                 Advance(); // consume 'not'
                 var notToken = Previous();
-                Advance(); // consume 'in'
-                var op = TokenLexemes.CreateSynthetic(TokenType.NotIn, notToken);
+                var unaryNot = TokenLexemes.CreateSynthetic(TokenType.Bang, notToken);
+                var op = Advance(); // consume 'in'
                 var right = ParseShift();
-                expr = new BinaryExpr(expr, op, right);
+                expr = new UnaryExpr(unaryNot, new BinaryExpr(expr, op, right));
             }
             else if (State.LanguageMode == LanguageMode.Extended && Match(TokenType.Like))
             {
@@ -535,10 +535,10 @@ internal sealed class ExpressionParser : ParserBase
             {
                 Advance(); // consume 'not'
                 var notToken = Previous();
-                Advance(); // consume 'like'
-                var op = TokenLexemes.CreateSynthetic(TokenType.NotLike, notToken);
+                var unaryNot = TokenLexemes.CreateSynthetic(TokenType.Bang, notToken);
+                var op = Advance(); // consume 'like'
                 var right = ParseShift();
-                expr = new BinaryExpr(expr, op, right);
+                expr = new UnaryExpr(unaryNot, new BinaryExpr(expr, op, right));
             }
             else if (State.LanguageMode == LanguageMode.Extended && Match(TokenType.Between))
             {

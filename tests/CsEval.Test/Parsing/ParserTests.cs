@@ -351,4 +351,32 @@ public class ParserTests
         var unary = (UnaryExpr)expr;
         Assert.That(unary.Op.Type, Is.EqualTo(TokenType.Bang));
     }
+
+    [Test]
+    public void Parse_NotIn_LowersToCanonicalNotPlusIn()
+    {
+        var expr = Parse("x not in y");
+        Assert.That(expr, Is.InstanceOf<UnaryExpr>());
+
+        var unary = (UnaryExpr)expr;
+        Assert.That(unary.Op.Type, Is.EqualTo(TokenType.Bang));
+        Assert.That(unary.Right, Is.InstanceOf<BinaryExpr>());
+
+        var binary = (BinaryExpr)unary.Right;
+        Assert.That(binary.Op.Type, Is.EqualTo(TokenType.In));
+    }
+
+    [Test]
+    public void Parse_NotLike_LowersToCanonicalNotPlusLike()
+    {
+        var expr = Parse("x not like y");
+        Assert.That(expr, Is.InstanceOf<UnaryExpr>());
+
+        var unary = (UnaryExpr)expr;
+        Assert.That(unary.Op.Type, Is.EqualTo(TokenType.Bang));
+        Assert.That(unary.Right, Is.InstanceOf<BinaryExpr>());
+
+        var binary = (BinaryExpr)unary.Right;
+        Assert.That(binary.Op.Type, Is.EqualTo(TokenType.Like));
+    }
 }
