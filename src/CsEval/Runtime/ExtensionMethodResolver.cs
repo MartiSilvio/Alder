@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
 using CsEval.Interpretation;
 
@@ -6,6 +7,37 @@ namespace CsEval.Runtime;
 
 internal static class ExtensionMethodResolver
 {
+    private enum InvocationArgumentKind : byte
+    {
+        Null,
+        RuntimeType,
+        InterpretedLambda,
+        CompiledLambda
+    }
+
+    private readonly record struct InvocationArgumentShape(
+        InvocationArgumentKind Kind,
+        Type? RuntimeType,
+        int LambdaArity);
+
+    private readonly record struct InvocationCacheKey(
+        Type ExtensionType,
+        Type TargetType,
+        string MethodNameKey,
+        bool IsCaseSensitive,
+        string TypeArgSignature,
+        ImmutableArray<InvocationArgumentShape> ArgumentShapes);
+
+    private static readonly ConcurrentDictionary<(Type ExtensionType, string MethodNameKey, bool IsCaseSensitive), MethodInfo[]> ExtensionMethodsByNameCache = new();
+    private static readonly ConcurrentDictionary<(Type ExtensionType, string MethodNameKey, bool IsCaseSensitive, int InvocationArgCount), MethodInfo[]> ExtensionMethodsByArityCache = new();
+    private static readonly ConcurrentDictionary<MethodInfo, ParameterInfo[]> MethodParametersCache = new();
+    private static readonly ConcurrentDictionary<InvocationCacheKey, ExtensionCallSitePlan?> ResolvedPlanByInvocationCache = new();
+
+    private sealed record ExtensionCallSitePlan(MethodInfo Method);
+
+    private static string NormalizeMethodName(string methodName, bool isCaseSensitive) =>
+        isCaseSensitive ? methodName : methodName.ToUpperInvariant();
+
     internal static (bool Success, object? Value) TryInvokeExtensionMethod(
         object target,
         string methodName,
@@ -39,52 +71,36 @@ internal static class ExtensionMethodResolver
         IReadOnlyList<string>? typeArgs = null,
         TypeResolver? resolver = null)
     {
-        var comparison = isCaseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
-        var methods = extensionType
-            .GetMethods(BindingFlags.Public | BindingFlags.Static)
-            .Where(m => m.Name.Equals(methodName, comparison) &&
-                        m.IsDefined(typeof(ExtensionAttribute), false))
-            .ToList();
-
-        var candidates = new List<MethodInfo>();
-        foreach (var method in methods)
-        {
-            var parameters = method.GetParameters();
-            if (parameters.Length == 0)
-                continue;
-
-            // Try to make the method concrete if it's generic
-            MethodInfo? concreteMethod;
-            if (method.ContainsGenericParameters)
-            {
-                // If explicit type arguments provided, use them
-                if (typeArgs is { Count: > 0 })
-                    concreteMethod = MethodInvoker.TryMakeConcreteMethodWithTypeArgs(method, typeArgs, resolver);
-                else
-                    concreteMethod = TryMakeConcreteMethod(method, targetType, args);
-            }
-            else
-            {
-                concreteMethod = method;
-            }
-
-            if (concreteMethod == null)
-                continue;
-
-            var concreteParams = concreteMethod.GetParameters();
-
-            // Check if first parameter is compatible with target type
-            if (!IsCompatible(targetType, concreteParams[0].ParameterType))
-                continue;
-            candidates.Add(concreteMethod);
-        }
-
-        if (candidates.Count == 0)
-            return (false, null);
-
         var invocationArgs = new object?[args.Length + 1];
         invocationArgs[0] = target;
         Array.Copy(args, 0, invocationArgs, 1, args.Length);
+
+        InvocationCacheKey? invocationCacheKey = null;
+        if (TryCreateInvocationCacheKey(
+                extensionType,
+                targetType,
+                methodName,
+                args,
+                isCaseSensitive,
+                typeArgs,
+                out var cacheKey))
+        {
+            invocationCacheKey = cacheKey;
+            if (ResolvedPlanByInvocationCache.TryGetValue(cacheKey, out var cachedMethod))
+            {
+                if (cachedMethod == null)
+                    return (false, null);
+
+                var cachedInvokeResult = MethodInvoker.InvokeMethodWithArgs(cachedMethod.Method, null, invocationArgs, ct);
+                return cachedInvokeResult.Success ? cachedInvokeResult : (false, null);
+            }
+        }
+
+        var methods = GetExtensionMethodsForArity(extensionType, methodName, isCaseSensitive, invocationArgs.Length);
+        var candidates = BuildCandidates(methods, targetType, args, typeArgs, resolver);
+
+        if (candidates.Count == 0)
+            return (false, null);
 
         (bool Success, object? Value) lambdaFallbackResult = (false, null);
         var best = MethodInvoker.FindBestMethod(candidates, invocationArgs, ct, out var ambiguous);
@@ -95,13 +111,195 @@ internal static class ExtensionMethodResolver
             return lambdaFallbackResult;
 
         if (best == null)
+        {
+            if (invocationCacheKey is { } missingCacheKey)
+                ResolvedPlanByInvocationCache.TryAdd(missingCacheKey, null);
             return (false, null);
+        }
+
+        if (invocationCacheKey is { } resolvedCacheKey)
+            ResolvedPlanByInvocationCache.TryAdd(resolvedCacheKey, new ExtensionCallSitePlan(best));
 
         var invokeResult = MethodInvoker.InvokeMethodWithArgs(best, null, invocationArgs, ct);
         if (invokeResult.Success)
             return invokeResult;
 
         return (false, null);
+    }
+
+    private static MethodInfo[] GetExtensionMethods(Type extensionType, string methodName, bool isCaseSensitive)
+    {
+        var methodNameKey = NormalizeMethodName(methodName, isCaseSensitive);
+        return ExtensionMethodsByNameCache.GetOrAdd(
+            (extensionType, methodNameKey, isCaseSensitive),
+            static key =>
+            {
+                var comparison = key.IsCaseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
+
+                return key.ExtensionType
+                    .GetMethods(BindingFlags.Public | BindingFlags.Static)
+                    .Where(m => m.Name.Equals(key.MethodNameKey, comparison) &&
+                                m.IsDefined(typeof(ExtensionAttribute), false))
+                    .ToArray();
+            });
+    }
+
+    private static MethodInfo[] GetExtensionMethodsForArity(
+        Type extensionType,
+        string methodName,
+        bool isCaseSensitive,
+        int invocationArgCount)
+    {
+        var methodNameKey = NormalizeMethodName(methodName, isCaseSensitive);
+        return ExtensionMethodsByArityCache.GetOrAdd(
+            (extensionType, methodNameKey, isCaseSensitive, invocationArgCount),
+            static key =>
+            {
+                var methods = GetExtensionMethods(key.ExtensionType, key.MethodNameKey, key.IsCaseSensitive);
+                var filtered = new List<MethodInfo>(methods.Length);
+                foreach (var method in methods)
+                {
+                    var parameters = GetParameters(method);
+                    if (CanParameterCountMatch(parameters, key.InvocationArgCount))
+                        filtered.Add(method);
+                }
+                return filtered.ToArray();
+            });
+    }
+
+    private static ParameterInfo[] GetParameters(MethodInfo method) =>
+        MethodParametersCache.GetOrAdd(method, static m => m.GetParameters());
+
+    private static bool CanParameterCountMatch(ParameterInfo[] parameters, int invocationArgCount)
+    {
+        if (parameters.Length == invocationArgCount)
+            return true;
+
+        var requiredCount = 0;
+        foreach (var parameter in parameters)
+        {
+            if (parameter.IsDefined(typeof(ParamArrayAttribute), false) || parameter.HasDefaultValue)
+                continue;
+            requiredCount++;
+        }
+
+        if (invocationArgCount < requiredCount)
+            return false;
+
+        var hasParams = parameters.Length > 0 && parameters[^1].IsDefined(typeof(ParamArrayAttribute), false);
+        if (hasParams)
+            return invocationArgCount >= parameters.Length - 1;
+
+        return invocationArgCount <= parameters.Length;
+    }
+
+    private static bool TryCreateInvocationCacheKey(
+        Type extensionType,
+        Type targetType,
+        string methodName,
+        object?[] args,
+        bool isCaseSensitive,
+        IReadOnlyList<string>? typeArgs,
+        out InvocationCacheKey key)
+    {
+        var argumentShapes = ImmutableArray.CreateBuilder<InvocationArgumentShape>(args.Length);
+        for (var i = 0; i < args.Length; i++)
+        {
+            var arg = args[i];
+            switch (arg)
+            {
+                case NamedArg:
+                case OutArgMarker:
+                    key = default;
+                    return false;
+                case LambdaValue interpreted:
+                    argumentShapes.Add(
+                        new InvocationArgumentShape(
+                            InvocationArgumentKind.InterpretedLambda,
+                            RuntimeType: null,
+                            LambdaArity: interpreted.Parameters.Count));
+                    break;
+                case CompiledLambdaValue compiled:
+                    argumentShapes.Add(
+                        new InvocationArgumentShape(
+                            InvocationArgumentKind.CompiledLambda,
+                            RuntimeType: null,
+                            LambdaArity: compiled.Parameters.Count));
+                    break;
+                case null:
+                    argumentShapes.Add(
+                        new InvocationArgumentShape(
+                            InvocationArgumentKind.Null,
+                            RuntimeType: null,
+                            LambdaArity: 0));
+                    break;
+                default:
+                    argumentShapes.Add(
+                        new InvocationArgumentShape(
+                            InvocationArgumentKind.RuntimeType,
+                            RuntimeType: arg.GetType(),
+                            LambdaArity: 0));
+                    break;
+            }
+        }
+
+        var methodNameKey = NormalizeMethodName(methodName, isCaseSensitive);
+        var typeArgSignature = typeArgs is { Count: > 0 }
+            ? string.Join(",", typeArgs)
+            : string.Empty;
+
+        key = new InvocationCacheKey(
+            extensionType,
+            targetType,
+            methodNameKey,
+            isCaseSensitive,
+            typeArgSignature,
+            argumentShapes.ToImmutable());
+        return true;
+    }
+
+    private static List<MethodInfo> BuildCandidates(
+        IReadOnlyList<MethodInfo> methods,
+        Type targetType,
+        object?[] args,
+        IReadOnlyList<string>? typeArgs,
+        TypeResolver? resolver)
+    {
+        var candidates = new List<MethodInfo>(methods.Count);
+        foreach (var method in methods)
+        {
+            var parameters = GetParameters(method);
+            if (parameters.Length == 0)
+                continue;
+
+            var concreteMethod = TryBindConcreteMethod(method, targetType, args, typeArgs, resolver);
+            if (concreteMethod == null)
+                continue;
+
+            var concreteParams = GetParameters(concreteMethod);
+            if (!IsCompatible(targetType, concreteParams[0].ParameterType))
+                continue;
+
+            candidates.Add(concreteMethod);
+        }
+
+        return candidates;
+    }
+
+    private static MethodInfo? TryBindConcreteMethod(
+        MethodInfo method,
+        Type targetType,
+        object?[] args,
+        IReadOnlyList<string>? typeArgs,
+        TypeResolver? resolver)
+    {
+        if (!method.ContainsGenericParameters)
+            return method;
+
+        if (typeArgs is { Count: > 0 })
+            return MethodInvoker.TryMakeConcreteMethodWithTypeArgs(method, typeArgs, resolver);
+
+        return TryMakeConcreteMethod(method, targetType, args);
     }
 
     private static bool TryResolveLambdaSelectorAmbiguity(

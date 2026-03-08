@@ -100,16 +100,10 @@ internal sealed partial class ExpressionCompilerUnit
 
     private LinqExpression EmitLazyTypedIdentifierRead(string name, Type valueType, LinqExpression directRead)
     {
-        if (!_ctx.TryGetOrCreateLazyIdentifierSlot(name, valueType, out var valueVar, out var initializedVar))
+        if (!_ctx.TryGetOrCreateLazyIdentifierSlot(name, valueType, directRead, out var valueVar))
             return directRead;
 
-        return LinqExpression.Condition(
-            initializedVar,
-            valueVar,
-            LinqExpression.Block(
-                LinqExpression.Assign(valueVar, directRead),
-                LinqExpression.Assign(initializedVar, LinqExpression.Constant(true)),
-                valueVar));
+        return valueVar;
     }
 
     private static bool TryUnboxObjectConversion(LinqExpression compiled, out LinqExpression unboxed)

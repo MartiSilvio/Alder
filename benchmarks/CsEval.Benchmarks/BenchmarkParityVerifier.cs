@@ -136,6 +136,7 @@ public static class BenchmarkParityVerifier
         }
     }
 
+
     public static ParityResult VerifyCompilationScenario(CompilationScenario scenario, BenchmarkGlobalData globals)
     {
         try
@@ -176,6 +177,7 @@ public static class BenchmarkParityVerifier
 
     private static ParityResult Failure(LinqScenario scenario, string engineName, object? expected, object? actual)
         => new(false, $"{scenario.Name}: {engineName} mismatch. expected={Format(expected)}, actual={Format(actual)}");
+
 
     private static void ConfigureExtendedParityEngine(CsEvalEngine engine)
     {

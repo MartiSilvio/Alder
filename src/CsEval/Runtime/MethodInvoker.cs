@@ -138,7 +138,7 @@ internal static class MethodInvoker
 
                 if (canFastPath)
                 {
-                    var fastMethod = MethodResolver.TryResolveMethod(type, methodName, argTypes, flags);
+                    var fastMethod = MethodResolver.TryResolveMethod(methods, argTypes);
                     if (fastMethod != null)
                     {
                         var invokeResult = InvokeMethodWithArgs(fastMethod, target, args, ct);
@@ -300,7 +300,7 @@ internal static class MethodInvoker
 
             if (canFastPath)
             {
-                var fastMethod = MethodResolver.TryResolveMethod(type, methodName, argTypes, bindingFlags);
+                var fastMethod = MethodResolver.TryResolveMethod(methods, argTypes);
                 if (fastMethod != null)
                 {
                     var invokeResult = InvokeMethodWithArgs(fastMethod, null, args, ct);
@@ -356,6 +356,20 @@ internal static class MethodInvoker
         var parameters = method.GetParameters();
         var argsWithCancellation = TryAppendCancellationToken(parameters, args, ct);
 
+        // Fast path: exact simple invocation (no named args, no out/ref, no params, no conversions).
+        if (CanInvokeDirect(parameters, argsWithCancellation))
+        {
+            try
+            {
+                var directResult = method.Invoke(target, argsWithCancellation);
+                return (true, TypeHelpers.GuardReflectionLeak(directResult, $"method {method.Name}"));
+            }
+            catch (TargetInvocationException ex) when (ex.InnerException != null)
+            {
+                throw ex.InnerException;
+            }
+        }
+
         if (CanInvokeMethod(parameters, argsWithCancellation, out var convertedArgs))
         {
             try
@@ -371,6 +385,43 @@ internal static class MethodInvoker
         }
 
         return (false, null);
+    }
+
+    private static bool CanInvokeDirect(
+        ParameterInfo[] parameters,
+        object?[] args)
+    {
+        if (parameters.Length != args.Length)
+            return false;
+
+        for (var i = 0; i < parameters.Length; i++)
+        {
+            var parameter = parameters[i];
+            if (parameter.ParameterType.IsByRef || parameter.IsDefined(typeof(ParamArrayAttribute), false))
+                return false;
+
+            var arg = args[i];
+            if (arg is NamedArg or OutArgMarker)
+                return false;
+
+            if (arg == null)
+            {
+                if (parameter.ParameterType.IsValueType &&
+                    Nullable.GetUnderlyingType(parameter.ParameterType) == null)
+                {
+                    return false;
+                }
+                continue;
+            }
+
+            var argType = arg.GetType();
+            if (argType == parameter.ParameterType || parameter.ParameterType.IsAssignableFrom(argType))
+                continue;
+
+            return false;
+        }
+
+        return true;
     }
 
     private static MethodInfo? TryMakeConcreteMethod(MethodInfo genericMethod, object?[] args)
@@ -1125,5 +1176,29 @@ internal static class MethodInvoker
     internal static object? InvokeCompiledLambda(CompiledLambdaValue lambda, object?[] args)
     {
         return lambda.CompiledBody(args, lambda.Closure);
+    }
+
+    internal static object? InvokeCompiledLambda0(CompiledLambdaValue lambda)
+    {
+        if (lambda.CompiledBody0 != null)
+            return lambda.CompiledBody0(lambda.Closure);
+
+        return lambda.CompiledBody([], lambda.Closure);
+    }
+
+    internal static object? InvokeCompiledLambda1(CompiledLambdaValue lambda, object? arg0)
+    {
+        if (lambda.CompiledBody1 != null)
+            return lambda.CompiledBody1(arg0, lambda.Closure);
+
+        return lambda.CompiledBody([arg0], lambda.Closure);
+    }
+
+    internal static object? InvokeCompiledLambda2(CompiledLambdaValue lambda, object? arg0, object? arg1)
+    {
+        if (lambda.CompiledBody2 != null)
+            return lambda.CompiledBody2(arg0, arg1, lambda.Closure);
+
+        return lambda.CompiledBody([arg0, arg1], lambda.Closure);
     }
 }

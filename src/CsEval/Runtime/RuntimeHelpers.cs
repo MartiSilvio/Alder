@@ -262,7 +262,7 @@ internal static class RuntimeHelpers
 
         try
         {
-            var evaluator = new Evaluator(guardContext, options, ct);
+            var evaluator = new Evaluator(guardContext, options, cancellationToken: ct);
             var guardResult = evaluator.Evaluate(guardExpression);
             return TypeHelpers.RequireBoolean(guardResult);
         }

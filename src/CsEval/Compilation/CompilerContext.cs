@@ -81,8 +81,9 @@ internal sealed class CompilerContext
 
     internal void PopLambdaParams() => _lambdaParamStack.Pop();
 
-    private readonly Dictionary<(string Name, Type Type), (ParameterExpression Value, ParameterExpression Initialized)> _lazyIdentifierSlots = new();
+    private readonly Dictionary<(string Name, Type Type), ParameterExpression> _lazyIdentifierSlots = new();
     internal readonly List<ParameterExpression> LazyIdentifierVariables = [];
+    internal readonly List<LinqExpression> LazyIdentifierInitializers = [];
 
     internal record struct ControlFlowContext(LabelTarget BreakTarget, LabelTarget? ContinueTarget, bool IsLoop);
 
@@ -164,7 +165,11 @@ internal sealed class CompilerContext
         typeof(CompiledLambdaValue).GetConstructor([
             typeof(List<string>),
             typeof(Func<object?[], CsEvalContext, object?>),
-            typeof(CsEvalContext)
+            typeof(CsEvalContext),
+            typeof(Func<CsEvalContext, object?>),
+            typeof(Func<object?, CsEvalContext, object?>),
+            typeof(Func<object?, object?, CsEvalContext, object?>),
+            typeof(LambdaExpr)
         ])!;
     internal static readonly MethodInfo GetLambdaArgMethod =
         typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.GetLambdaArg))!;
@@ -198,11 +203,10 @@ internal sealed class CompilerContext
     internal bool TryGetOrCreateLazyIdentifierSlot(
         string name,
         Type valueType,
-        out ParameterExpression valueVar,
-        out ParameterExpression initializedVar)
+        LinqExpression initializer,
+        out ParameterExpression valueVar)
     {
         valueVar = null!;
-        initializedVar = null!;
 
         if (!UseLazyTypedIdentifierReads)
             return false;
@@ -210,18 +214,16 @@ internal sealed class CompilerContext
         var key = (name, valueType);
         if (_lazyIdentifierSlots.TryGetValue(key, out var existing))
         {
-            valueVar = existing.Value;
-            initializedVar = existing.Initialized;
+            valueVar = existing;
             return true;
         }
 
         var suffix = _lazyIdentifierSlots.Count;
         valueVar = LinqExpression.Variable(valueType, $"idCacheValue_{suffix}");
-        initializedVar = LinqExpression.Variable(typeof(bool), $"idCacheReady_{suffix}");
 
-        _lazyIdentifierSlots[key] = (valueVar, initializedVar);
+        _lazyIdentifierSlots[key] = valueVar;
         LazyIdentifierVariables.Add(valueVar);
-        LazyIdentifierVariables.Add(initializedVar);
+        LazyIdentifierInitializers.Add(LinqExpression.Assign(valueVar, initializer));
         return true;
     }
 
@@ -312,13 +314,16 @@ internal sealed class CompilerContext
             if (ctx.LazyIdentifierVariables.Count > 0)
                 blockVariables.AddRange(ctx.LazyIdentifierVariables);
 
-            var fullBody = LinqExpression.Block(
-                blockVariables,
-                // Store body result in returnValue so we can use it as default for label
-                LinqExpression.Assign(ctx.ReturnValue, body),
-                // Label with returnValue as default - early returns jump here, normal flow uses body result
-                LinqExpression.Label(ctx.ReturnLabel, ctx.ReturnValue)
-            );
+            var blockBody = new List<LinqExpression>(ctx.LazyIdentifierInitializers.Count + 2);
+            if (ctx.LazyIdentifierInitializers.Count > 0)
+                blockBody.AddRange(ctx.LazyIdentifierInitializers);
+
+            // Store body result in returnValue so we can use it as default for label
+            blockBody.Add(LinqExpression.Assign(ctx.ReturnValue, body));
+            // Label with returnValue as default - early returns jump here, normal flow uses body result
+            blockBody.Add(LinqExpression.Label(ctx.ReturnLabel, ctx.ReturnValue));
+
+            var fullBody = LinqExpression.Block(blockVariables, blockBody);
 
             var lambda = LinqExpression.Lambda<ILCompiledDelegate>(
                 fullBody,

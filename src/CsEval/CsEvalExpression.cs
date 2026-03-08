@@ -1,6 +1,8 @@
 using CsEval.Compilation;
+using CsEval.Interpretation;
 using CsEval.Parsing;
 using CsEval.Runtime;
+using System.Runtime.CompilerServices;
 
 namespace CsEval;
 
@@ -20,6 +22,7 @@ public sealed class CsEvalExpression
     // Compilation state (volatile for thread-safe reads)
     private volatile CompiledExpressionInfo? _compiledInfo;
     private readonly ExpressionCache? _expressionCache;
+    private readonly ConditionalWeakTable<CsEvalContext, CachedTypeInferrer> _typeInferrerCacheByContext = new();
 
     internal CsEvalExpression(string expression, Expr ast) : this(expression, ast, null)
     {
@@ -113,6 +116,24 @@ public sealed class CsEvalExpression
     }
 
     internal CompiledExpressionInfo? GetCompiledInfo() => _compiledInfo;
+
+    internal TypeInferrer GetOrCreateTypeInferrer(CsEvalContext context, int maxDepth)
+    {
+        var currentVersion = context.GetTypeInferenceVersion();
+        if (_typeInferrerCacheByContext.TryGetValue(context, out var cached) &&
+            cached.Version == currentVersion)
+        {
+            return cached.Inferrer;
+        }
+
+        var inferrer = new TypeInferrer(context, maxDepth);
+        inferrer.InferAll(Ast);
+        _typeInferrerCacheByContext.Remove(context);
+        _typeInferrerCacheByContext.Add(context, new CachedTypeInferrer(currentVersion, inferrer));
+        return inferrer;
+    }
+
+    private sealed record CachedTypeInferrer(int Version, TypeInferrer Inferrer);
 }
 
 /// <summary>

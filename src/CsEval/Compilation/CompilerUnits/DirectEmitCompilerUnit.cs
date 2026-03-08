@@ -84,7 +84,7 @@ internal sealed partial class DirectEmitCompilerUnit
 
         try
         {
-            var evaluator = new Evaluator(_ctx.Context, _ctx.Options, CancellationToken.None);
+            var evaluator = new Evaluator(_ctx.Context, _ctx.Options, cancellationToken: CancellationToken.None);
             var value = evaluator.Evaluate(expr);
             folded = LinqExpression.Constant(value, typeof(object));
             return true;

@@ -18,7 +18,11 @@ internal sealed record LambdaValue(List<string> Parameters, Expr Body, CsEvalCon
 internal sealed record CompiledLambdaValue(
     List<string> Parameters,
     Func<object?[], CsEvalContext, object?> CompiledBody,
-    CsEvalContext Closure);
+    CsEvalContext Closure,
+    Func<CsEvalContext, object?>? CompiledBody0 = null,
+    Func<object?, CsEvalContext, object?>? CompiledBody1 = null,
+    Func<object?, object?, CsEvalContext, object?>? CompiledBody2 = null,
+    LambdaExpr? Source = null);
 
 internal sealed record MethodRef(object Target, string MethodName);
 

@@ -17,6 +17,7 @@ internal sealed class CsEvalContext
     private readonly ConcurrentDictionary<string, Type> _variableTypes;
     private readonly CsEvalContext? _parent;
     private readonly CsEvalConfig _config;
+    private int _variableTypeVersion;
 
     public CsEvalContext(CsEvalConfig config) : this(config, null, null)
     {
@@ -51,6 +52,7 @@ internal sealed class CsEvalContext
     {
         _variables[name] = value;
         _variableTypes[name] = inferredType;
+        Interlocked.Increment(ref _variableTypeVersion);
     }
 
     /// <summary>
@@ -64,6 +66,7 @@ internal sealed class CsEvalContext
 
         _variables[name] = value;
         _variableTypes[name] = inferredType;
+        Interlocked.Increment(ref _variableTypeVersion);
     }
 
     public bool TryGetVariableType(string name, out Type? type)
@@ -129,6 +132,14 @@ internal sealed class CsEvalContext
     }
 
     public IReadOnlyDictionary<string, object?> GetAll() => _variables;
+
+    internal int GetTypeInferenceVersion()
+    {
+        var version = _variableTypeVersion;
+        if (_parent != null)
+            version = HashCode.Combine(version, _parent.GetTypeInferenceVersion());
+        return version;
+    }
 
     public static CsEvalContext FromExpandoObject(ExpandoObject? expando, CsEvalConfig config)
     {

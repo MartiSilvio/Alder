@@ -22,7 +22,7 @@ internal sealed class PatternParser : ParserBase
     {
         var left = ParseAndPattern();
 
-        while (IsPatternKeyword("or"))
+        while (IsPatternKeyword(TokenType.Or))
         {
             Advance(); // consume 'or' (lexed as PipePipe)
             var right = ParseAndPattern();
@@ -36,7 +36,7 @@ internal sealed class PatternParser : ParserBase
     {
         var left = ParseNotPattern();
 
-        while (IsPatternKeyword("and"))
+        while (IsPatternKeyword(TokenType.And))
         {
             Advance(); // consume 'and' (lexed as AmpAmp)
             var right = ParseNotPattern();
@@ -48,7 +48,7 @@ internal sealed class PatternParser : ParserBase
 
     private Pattern ParseNotPattern()
     {
-        if (IsPatternKeyword("not"))
+        if (IsPatternKeyword(TokenType.Not))
         {
             Advance(); // consume 'not' (lexed as Bang)
             var operand = ParseNotPattern(); // right-recursive
@@ -75,7 +75,8 @@ internal sealed class PatternParser : ParserBase
     private Pattern ParsePrimaryPattern()
     {
         // Discard pattern: _
-        if (Check(TokenType.Identifier) && Peek().Lexeme == "_")
+        if (Check(TokenType.Identifier) &&
+            string.Equals(Peek().Lexeme, TokenLexemes.DiscardIdentifier, StringComparison.Ordinal))
         {
             Advance();
             return new DiscardPattern();
@@ -132,8 +133,10 @@ internal sealed class PatternParser : ParserBase
                 // '?' is nullable suffix if followed by pattern-ending tokens or combinators
                 if (afterQuestion.Type is TokenType.RightParen or TokenType.Comma
                     or TokenType.RightBrace or TokenType.Arrow
-                    || afterQuestion.Lexeme is "and" or "or" or "not" or "when"
-                    || (afterQuestion.Type == TokenType.Identifier && afterQuestion.Lexeme != "_"))
+                    || IsPatternKeywordToken(afterQuestion)
+                    || afterQuestion.Type == TokenType.When
+                    || (afterQuestion.Type == TokenType.Identifier &&
+                        !string.Equals(afterQuestion.Lexeme, TokenLexemes.DiscardIdentifier, StringComparison.Ordinal)))
                 {
                     Advance();
                     typeToken = typeToken with { Lexeme = typeToken.Lexeme + "?" };
@@ -308,14 +311,20 @@ internal sealed class PatternParser : ParserBase
     /// These keywords (and, or, not) are lexed as AmpAmp, PipePipe, Bang respectively,
     /// but have the original lexeme preserved.
     /// </summary>
-    private bool IsPatternKeyword(string keyword)
+    private bool IsPatternKeyword(TokenType keywordType)
     {
-        if (IsAtEnd()) return false;
-        return Peek().Lexeme == keyword && keyword switch
+        if (IsAtEnd())
+            return false;
+
+        var token = Peek();
+        return keywordType switch
         {
-            "and" => Peek().Type == TokenType.AmpAmp,
-            "or" => Peek().Type == TokenType.PipePipe,
-            "not" => Peek().Type == TokenType.Bang,
+            TokenType.And => token.Type == TokenType.AmpAmp &&
+                             string.Equals(token.Lexeme, TokenLexemes.GetCanonical(TokenType.And), StringComparison.Ordinal),
+            TokenType.Or => token.Type == TokenType.PipePipe &&
+                            string.Equals(token.Lexeme, TokenLexemes.GetCanonical(TokenType.Or), StringComparison.Ordinal),
+            TokenType.Not => token.Type == TokenType.Bang &&
+                             string.Equals(token.Lexeme, TokenLexemes.GetCanonical(TokenType.Not), StringComparison.Ordinal),
             _ => false
         };
     }
@@ -326,10 +335,22 @@ internal sealed class PatternParser : ParserBase
     /// </summary>
     private static bool IsPatternCombinatorOrReserved(Token token)
     {
-        if (token.Lexeme is "and" or "or" or "not" or "_")
+        if (IsPatternKeywordToken(token))
+            return true;
+        if (token.Type == TokenType.Identifier &&
+            string.Equals(token.Lexeme, TokenLexemes.DiscardIdentifier, StringComparison.Ordinal))
             return true;
         if (token.Type == TokenType.When)
             return true;
         return false;
     }
+
+    private static bool IsPatternKeywordToken(Token token) =>
+        token switch
+        {
+            { Type: TokenType.AmpAmp } => string.Equals(token.Lexeme, TokenLexemes.GetCanonical(TokenType.And), StringComparison.Ordinal),
+            { Type: TokenType.PipePipe } => string.Equals(token.Lexeme, TokenLexemes.GetCanonical(TokenType.Or), StringComparison.Ordinal),
+            { Type: TokenType.Bang } => string.Equals(token.Lexeme, TokenLexemes.GetCanonical(TokenType.Not), StringComparison.Ordinal),
+            _ => false
+        };
 }

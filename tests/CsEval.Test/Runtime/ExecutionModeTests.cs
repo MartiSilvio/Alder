@@ -1,0 +1,26 @@
+using System.Reflection;
+
+namespace CsEval.Test.Runtime;
+
+[TestFixture]
+public class ExecutionModeTests
+{
+    [Test]
+    public void InterpretedMode_DoesNotExecute_PrecompiledDelegate()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = CompilationMode.Interpreted });
+        var expression = engine.Parse("1 + 1");
+
+        var fakeCompiled = new CompiledExpressionInfo(
+            Delegate: (_, _, _) => 999,
+            IsCompilable: true,
+            FailureReason: null);
+
+        var field = typeof(CsEvalExpression).GetField("_compiledInfo", BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.That(field, Is.Not.Null);
+        field!.SetValue(expression, fakeCompiled);
+
+        var result = engine.Evaluate(expression);
+        Assert.That(result, Is.EqualTo(2));
+    }
+}

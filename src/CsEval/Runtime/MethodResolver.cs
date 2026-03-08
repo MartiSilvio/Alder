@@ -4,28 +4,17 @@ namespace CsEval.Runtime;
 
 internal static class MethodResolver
 {
-    public static MethodInfo? TryResolveMethod(Type targetType, string methodName, Type[] argTypes, BindingFlags flags)
+    public static MethodInfo? TryResolveMethod(MethodInfo[] methods, Type[] argTypes)
     {
-        try
-        {
-            var method = targetType.GetMethod(methodName, flags, null, argTypes, null);
-            if (method != null && !method.ContainsGenericParameters)
-                return method;
-        }
-        catch (AmbiguousMatchException)
-        {
-        }
-
-        var methods = targetType.GetMethods(flags)
-            .Where(m => m.Name == methodName && !m.ContainsGenericParameters)
-            .ToArray();
-
         MethodInfo? best = null;
         var bestScore = -1;
         var ambiguous = false;
 
         foreach (var method in methods)
         {
+            if (method.ContainsGenericParameters)
+                continue;
+
             var parameters = method.GetParameters();
             var score = ScoreMethodByTypes(parameters, argTypes);
             if (score > bestScore)
@@ -41,6 +30,24 @@ internal static class MethodResolver
         }
 
         return ambiguous ? null : best;
+    }
+
+    public static MethodInfo? TryResolveMethod(Type targetType, string methodName, Type[] argTypes, BindingFlags flags)
+    {
+        try
+        {
+            var method = targetType.GetMethod(methodName, flags, null, argTypes, null);
+            if (method != null && !method.ContainsGenericParameters)
+                return method;
+        }
+        catch (AmbiguousMatchException)
+        {
+        }
+
+        var methods = targetType.GetMethods(flags)
+            .Where(m => m.Name == methodName && !m.ContainsGenericParameters)
+            .ToArray();
+        return TryResolveMethod(methods, argTypes);
     }
 
     private static int ScoreMethodByTypes(ParameterInfo[] parameters, Type[] argTypes)

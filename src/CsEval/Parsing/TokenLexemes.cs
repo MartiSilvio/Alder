@@ -6,6 +6,7 @@ namespace CsEval.Parsing;
 internal static class TokenLexemes
 {
     internal const string CollectionExpressionLiteral = "[...]";
+    internal const string DiscardIdentifier = "_";
 
     public static string GetCanonical(TokenType type) => type switch
     {

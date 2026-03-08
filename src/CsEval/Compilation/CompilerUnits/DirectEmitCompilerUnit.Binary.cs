@@ -26,6 +26,9 @@ internal sealed partial class DirectEmitCompilerUnit
         var (leftExpr, leftType) = CompileTyped(b.Left);
         var (rightExpr, rightType) = CompileTyped(b.Right);
 
+        if (TryEmitDirectComparableEquality(op, leftExpr, leftType, rightExpr, rightType) is { } equalityDirect)
+            return equalityDirect;
+
         if (TryEmitDirectContainsBinary(op, leftExpr, leftType, rightExpr, rightType) is { } containsDirect)
             return containsDirect;
         if (TryEmitDirectLikeBinary(b, op, leftExpr, leftType) is { } likeDirect)
@@ -159,6 +162,39 @@ internal sealed partial class DirectEmitCompilerUnit
 
         return LinqExpression.Convert(result, typeof(object));
     }
+
+    private static LinqExpression? TryEmitDirectComparableEquality(
+        TokenType op,
+        LinqExpression leftExpr,
+        Type leftType,
+        LinqExpression rightExpr,
+        Type rightType)
+    {
+        if (op is not TokenType.EqualEqual and not TokenType.BangEqual)
+            return null;
+
+        if (leftType == typeof(object) || rightType == typeof(object))
+            return null;
+
+        if (leftType != rightType || !IsDirectEqualityComparableType(leftType))
+            return null;
+
+        var typedLeft = EnsureTypedExpression(leftExpr, leftType);
+        var typedRight = EnsureTypedExpression(rightExpr, rightType);
+
+        LinqExpression result = op == TokenType.EqualEqual
+            ? LinqExpression.Equal(typedLeft, typedRight)
+            : LinqExpression.NotEqual(typedLeft, typedRight);
+
+        return LinqExpression.Convert(result, typeof(object));
+    }
+
+    private static bool IsDirectEqualityComparableType(Type type) =>
+        type == typeof(bool) ||
+        type == typeof(string) ||
+        type == typeof(char) ||
+        TypeHelpers.IsNumeric(type) ||
+        type.IsEnum;
 
     private LinqExpression? TryEmitDirectContainsBinary(
         TokenType op,

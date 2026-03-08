@@ -25,11 +25,12 @@ internal sealed class Evaluator : IExprVisitor<object?>
     public Evaluator(
         CsEvalContext context,
         CsEvalOptions? options = null,
+        TypeInferrer? typeInferrer = null,
         CancellationToken cancellationToken = default)
     {
         _context = context;
         _options = options ?? CsEvalOptions.Default;
-        _typeInferrer = new TypeInferrer(context, _options.MaxExpressionDepth);
+        _typeInferrer = typeInferrer ?? new TypeInferrer(context, _options.MaxExpressionDepth);
         _cancellationToken = cancellationToken;
         _maxDepth = _options.MaxExpressionDepth;
     }
@@ -43,8 +44,6 @@ internal sealed class Evaluator : IExprVisitor<object?>
             throw new CsEvalDepthException("evaluation", _maxDepth);
         try
         {
-            if (_depth == 1)
-                _typeInferrer.InferAll(expr);
             _cancellationToken.ThrowIfCancellationRequested();
             return expr.Accept(this);
         }
@@ -398,15 +397,22 @@ internal sealed class Evaluator : IExprVisitor<object?>
 
     public object? VisitCall(CallExpr expr)
     {
-        var args = expr.Arguments.Select(arg =>
+        var args = new object?[expr.Arguments.Count];
+        var hasOutArgs = false;
+        for (var i = 0; i < expr.Arguments.Count; i++)
         {
-            if (arg is NamedArgumentExpr namedArg)
-                return (object?)new NamedArg(namedArg.Name.Lexeme, Evaluate(namedArg.Value));
-            return Evaluate(arg);
-        }).ToArray();
+            var argument = expr.Arguments[i];
+            if (argument is NamedArgumentExpr namedArg)
+            {
+                args[i] = new NamedArg(namedArg.Name.Lexeme, Evaluate(namedArg.Value));
+                continue;
+            }
 
-        // Detect if any arguments are out parameter markers
-        var hasOutArgs = args.Any(a => a is OutArgMarker);
+            var evaluated = Evaluate(argument);
+            if (!hasOutArgs && evaluated is OutArgMarker)
+                hasOutArgs = true;
+            args[i] = evaluated;
+        }
 
         object? result;
 

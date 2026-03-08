@@ -222,25 +222,27 @@ public sealed class CsEvalEngine : IDisposable
         }
 
         var shouldCompile = _options.CompilationMode is CompilationMode.Compiled or CompilationMode.StrictCompiled;
-        if (shouldCompile && expression.GetCompiledInfo() == null)
-            expression.TryCompile(_options, context);
-
-        var compiled = expression.GetCompiledInfo();
-        if (compiled?.Delegate != null)
+        if (shouldCompile)
         {
-            return compiled.Delegate(executionContext, _options, cancellationToken);
+            if (expression.GetCompiledInfo() == null)
+                expression.TryCompile(_options, context);
+
+            var compiled = expression.GetCompiledInfo();
+            if (compiled?.Delegate != null)
+                return compiled.Delegate(executionContext, _options, cancellationToken);
+
+            if (_options.CompilationMode == CompilationMode.StrictCompiled)
+            {
+                if (compiled?.FailureException is CsEvalException csEvalFailure)
+                    throw csEvalFailure;
+
+                var reason = compiled?.FailureReason ?? "Unknown compilation failure";
+                throw new CsEvalException(DiagnosticDescriptors.StrictCompilationFailed, reason);
+            }
         }
 
-        if (_options.CompilationMode == CompilationMode.StrictCompiled)
-        {
-            if (compiled?.FailureException is CsEvalException csEvalFailure)
-                throw csEvalFailure;
-
-            var reason = compiled?.FailureReason ?? "Unknown compilation failure";
-            throw new CsEvalException(DiagnosticDescriptors.StrictCompilationFailed, reason);
-        }
-
-        var evaluator = new Evaluator(executionContext, _options, cancellationToken);
+        var typeInferrer = expression.GetOrCreateTypeInferrer(context, _options.MaxExpressionDepth);
+        var evaluator = new Evaluator(executionContext, _options, typeInferrer, cancellationToken);
         return evaluator.Evaluate(expression.Ast);
     }
 

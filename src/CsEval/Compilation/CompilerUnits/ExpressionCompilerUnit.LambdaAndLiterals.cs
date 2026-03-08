@@ -16,16 +16,65 @@ internal sealed partial class ExpressionCompilerUnit
                 typeof(List<string>).GetMethod("Add")!,
                 LinqExpression.Constant(p))));
 
-        // Create the compiled lambda body
-        var argsParam = LinqExpression.Parameter(typeof(object?[]), "args");
         var closureParam = LinqExpression.Parameter(typeof(CsEvalContext), "closure");
 
-        // Map lambda parameter names to direct args[i] access — avoids context allocation
-        var paramMap = new Dictionary<string, LinqExpression>();
+        // Generic object-array delegate (fallback path)
+        var argsParam = LinqExpression.Parameter(typeof(object?[]), "args");
+        var genericAccessors = new List<LinqExpression>(parameterNames.Count);
         for (var i = 0; i < parameterNames.Count; i++)
+            genericAccessors.Add(LinqExpression.ArrayIndex(argsParam, LinqExpression.Constant(i)));
+
+        var genericBody = BuildCompiledLambdaBody(lambda, parameterNames, genericAccessors, closureParam);
+        var compiledDelegate = LinqExpression.Lambda<Func<object?[], CsEvalContext, object?>>(
+            genericBody,
+            argsParam,
+            closureParam);
+
+        // Fast-path delegates for common LINQ selector/predicate arities
+        LinqExpression fast0Expr = LinqExpression.Constant(null, typeof(Func<CsEvalContext, object?>));
+        LinqExpression fast1Expr = LinqExpression.Constant(null, typeof(Func<object?, CsEvalContext, object?>));
+        LinqExpression fast2Expr = LinqExpression.Constant(null, typeof(Func<object?, object?, CsEvalContext, object?>));
+
+        if (parameterNames.Count == 0)
         {
-            paramMap[parameterNames[i]] = LinqExpression.ArrayIndex(argsParam, LinqExpression.Constant(i));
+            var body0 = BuildCompiledLambdaBody(lambda, parameterNames, [], closureParam);
+            fast0Expr = LinqExpression.Lambda<Func<CsEvalContext, object?>>(body0, closureParam);
         }
+        else if (parameterNames.Count == 1)
+        {
+            var arg0 = LinqExpression.Parameter(typeof(object), "arg0");
+            var body1 = BuildCompiledLambdaBody(lambda, parameterNames, [arg0], closureParam);
+            fast1Expr = LinqExpression.Lambda<Func<object?, CsEvalContext, object?>>(body1, arg0, closureParam);
+        }
+        else if (parameterNames.Count == 2)
+        {
+            var arg0 = LinqExpression.Parameter(typeof(object), "arg0");
+            var arg1 = LinqExpression.Parameter(typeof(object), "arg1");
+            var body2 = BuildCompiledLambdaBody(lambda, parameterNames, [arg0, arg1], closureParam);
+            fast2Expr = LinqExpression.Lambda<Func<object?, object?, CsEvalContext, object?>>(body2, arg0, arg1, closureParam);
+        }
+
+        // Create CompiledLambdaValue(parameters, compiledBody, closure, fast0, fast1, fast2)
+        return LinqExpression.New(
+            CompilerContext.CompiledLambdaValueCtor,
+            listInit,
+            compiledDelegate,
+            _ctx.CurrentContext,
+            fast0Expr,
+            fast1Expr,
+            fast2Expr,
+            LinqExpression.Constant(lambda, typeof(LambdaExpr)));
+    }
+
+    private LinqExpression BuildCompiledLambdaBody(
+        LambdaExpr lambda,
+        List<string> parameterNames,
+        IReadOnlyList<LinqExpression> parameterAccessors,
+        System.Linq.Expressions.ParameterExpression closureParam)
+    {
+        var paramMap = new Dictionary<string, LinqExpression>(parameterNames.Count, StringComparer.Ordinal);
+        for (var i = 0; i < parameterNames.Count; i++)
+            paramMap[parameterNames[i]] = parameterAccessors[i];
 
         var needsChildContext = lambda.Body is BlockExpr;
         var statements = new List<LinqExpression>();
@@ -34,24 +83,20 @@ internal sealed partial class ExpressionCompilerUnit
         System.Linq.Expressions.ParameterExpression? childContextVar = null;
         if (needsChildContext)
         {
-            // Block bodies may declare variables — need a child context for scoping
             childContextVar = LinqExpression.Variable(typeof(CsEvalContext), "childContext");
             blockVars.Add(childContextVar);
-            statements.Add(LinqExpression.Assign(childContextVar,
+            statements.Add(LinqExpression.Assign(
+                childContextVar,
                 LinqExpression.Call(closureParam, CompilerContext.CreateChildMethod)));
         }
 
-        // Save the current context and set to closure (or child context for blocks)
         var savedContext = _ctx.CurrentContext;
         _ctx.CurrentContext = needsChildContext ? childContextVar! : closureParam;
         _ctx.PushLambdaParams(paramMap);
 
-        // Lambda needs its own return label for return statements in block bodies
         var lambdaReturnLabel = LinqExpression.Label(typeof(object), "lambdaReturn");
         var lambdaReturnValue = LinqExpression.Variable(typeof(object), "lambdaReturnValue");
         blockVars.Add(lambdaReturnValue);
-
-        // Push new return context for the lambda body
         _ctx.PushReturnContext(lambdaReturnLabel, lambdaReturnValue);
 
         try
@@ -66,26 +111,8 @@ internal sealed partial class ExpressionCompilerUnit
             _ctx.PopReturnContext();
         }
 
-        // Add the return label at the end - early returns jump here
         statements.Add(LinqExpression.Label(lambdaReturnLabel, lambdaReturnValue));
-
-        var lambdaBody = LinqExpression.Block(
-            typeof(object),
-            blockVars,
-            statements);
-
-        // Create the delegate: Func<object?[], CsEvalContext, object?>
-        var compiledDelegate = LinqExpression.Lambda<Func<object?[], CsEvalContext, object?>>(
-            lambdaBody,
-            argsParam,
-            closureParam);
-
-        // Create CompiledLambdaValue(parameters, compiledBody, closure)
-        return LinqExpression.New(
-            CompilerContext.CompiledLambdaValueCtor,
-            listInit,
-            compiledDelegate,
-            _ctx.CurrentContext);
+        return LinqExpression.Block(typeof(object), blockVars, statements);
     }
 
     internal LinqExpression CompileArrayLiteral(ArrayLiteralExpr expr)
