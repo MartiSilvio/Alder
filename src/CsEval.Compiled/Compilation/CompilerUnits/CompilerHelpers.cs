@@ -1,7 +1,7 @@
 using System.Linq.Expressions;
 using CsEval.Runtime;
 
-namespace CsEval.Compilation;
+namespace CsEval.Compiled.Compilation.CompilerUnits;
 
 /// <summary>
 /// Scope management utilities for the IL compiler.
@@ -49,8 +49,7 @@ internal sealed class CompilerHelpers
         parentVar = LinqExpression.Variable(typeof(CsEvalContext), $"parent{_ctx.ContextStack.Count}");
         _ctx.ContextStack.Push(parentVar);
 
-        var currentContextVar = _ctx.CurrentContext as ParameterExpression;
-        if (currentContextVar == null)
+        if (_ctx.CurrentContext is not ParameterExpression currentContextVar)
         {
             // First scope - current context is the parameter
             currentContextVar = _ctx.ContextParam;

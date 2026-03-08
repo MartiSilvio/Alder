@@ -229,11 +229,7 @@ internal static class NumericDispatch
         if (ops.TryGetValue(type, out var op))
             return op(value);
 
-#if USE_STATIC_DISPATCH
-        throw new CsEvalException(DiagnosticDescriptors.BadUnaryOp, "-", type.Name);
-#else
         return -(dynamic)value;
-#endif
     }
 
     public static object? UnaryPlus(object value)
@@ -271,11 +267,7 @@ internal static class NumericDispatch
         if (BitwiseNotOps.TryGetValue(type, out var op))
             return op(value);
 
-#if USE_STATIC_DISPATCH
-        throw new CsEvalException(DiagnosticDescriptors.BadUnaryOp, "~", type.Name);
-#else
         return ~(dynamic)value;
-#endif
     }
 
     public static int Compare(object left, object right)
@@ -286,12 +278,8 @@ internal static class NumericDispatch
         if (CompareOps.TryGetValue(key, out var op))
             return op(promotedLeft, promotedRight);
 
-#if USE_STATIC_DISPATCH
-        throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, "<>", left.GetType().Name, right.GetType().Name);
-#else
         dynamic l = left, r = right;
         return l < r ? -1 : l > r ? 1 : 0;
-#endif
     }
 
     /// <summary>
@@ -316,11 +304,7 @@ internal static class NumericDispatch
             ushort us => us << shiftAmount,
             byte b => b << shiftAmount,
             sbyte sb => sb << shiftAmount,
-#if USE_STATIC_DISPATCH
-            _ => throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, "<<", left.GetType().Name, "int")
-#else
             _ => (dynamic)left << shiftAmount
-#endif
         };
     }
 
@@ -345,11 +329,7 @@ internal static class NumericDispatch
             ushort us => us >> shiftAmount,
             byte b => b >> shiftAmount,
             sbyte sb => sb >> shiftAmount,
-#if USE_STATIC_DISPATCH
-            _ => throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, ">>", left.GetType().Name, "int")
-#else
             _ => (dynamic)left >> shiftAmount
-#endif
         };
     }
 
@@ -621,9 +601,6 @@ internal static class NumericDispatch
         if (ops.TryGetValue(key, out var op))
             return op(promotedLeft, promotedRight);
 
-#if USE_STATIC_DISPATCH
-        throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, opName, left.GetType().Name, right.GetType().Name);
-#else
         return opName switch
         {
             "+" => (dynamic)left + (dynamic)right,
@@ -633,7 +610,6 @@ internal static class NumericDispatch
             "%" => (dynamic)left % (dynamic)right,
             _ => throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, opName, left.GetType().Name, right.GetType().Name)
         };
-#endif
     }
 
     /// <summary>
@@ -651,9 +627,6 @@ internal static class NumericDispatch
         if (ops.TryGetValue(key, out var op))
             return op(promotedLeft, promotedRight);
 
-#if USE_STATIC_DISPATCH
-        throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, opName, left.GetType().Name, right.GetType().Name);
-#else
         return opName switch
         {
             "&" => (dynamic)left & (dynamic)right,
@@ -661,7 +634,6 @@ internal static class NumericDispatch
             "^" => (dynamic)left ^ (dynamic)right,
             _ => throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, opName, left.GetType().Name, right.GetType().Name)
         };
-#endif
     }
 
     private static Dictionary<(Type, Type), BinaryOp> BuildBinaryOps(

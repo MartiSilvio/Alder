@@ -22,6 +22,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\CsEval\CsEval.csproj" />
+    <ProjectReference Include="..\..\src\CsEval.Compiled\CsEval.Compiled.csproj" />
   </ItemGroup>
 
   <ItemGroup>

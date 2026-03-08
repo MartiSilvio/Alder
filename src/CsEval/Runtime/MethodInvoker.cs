@@ -260,7 +260,7 @@ internal static class MethodInvoker
 
         // Fallback to the registered method
         var fallbackMethod = methodRef.Method;
-        var fallbackParams = fallbackMethod.GetParameters();
+        var fallbackParams = MethodDispatchCache.GetParameters(fallbackMethod);
         var finalArgs = TryAppendCancellationToken(fallbackParams, args, ct);
 
         finalArgs = PadWithDefaults(fallbackParams, finalArgs, fallbackMethod.Name);
@@ -353,7 +353,7 @@ internal static class MethodInvoker
         object?[] args,
         CancellationToken ct)
     {
-        var parameters = method.GetParameters();
+        var parameters = MethodDispatchCache.GetParameters(method);
         var argsWithCancellation = TryAppendCancellationToken(parameters, args, ct);
 
         // Fast path: exact simple invocation (no named args, no out/ref, no params, no conversions).
@@ -361,7 +361,9 @@ internal static class MethodInvoker
         {
             try
             {
-                var directResult = method.Invoke(target, argsWithCancellation);
+                object? directResult;
+                if (!MethodDispatchCache.TryInvokeFast(method, target, argsWithCancellation, out directResult))
+                    directResult = method.Invoke(target, argsWithCancellation);
                 return (true, TypeHelpers.GuardReflectionLeak(directResult, $"method {method.Name}"));
             }
             catch (TargetInvocationException ex) when (ex.InnerException != null)
@@ -439,7 +441,7 @@ internal static class MethodInvoker
 
         // Try proper generic type inference from the first parameter's type structure
         // e.g., IEnumerable<TSource> + List<int> -> TSource = int
-        var parameters = genericMethod.GetParameters();
+        var parameters = MethodDispatchCache.GetParameters(genericMethod);
         if (parameters.Length > 0)
         {
             var inferred = TryInferGenericArg(parameters[0].ParameterType, firstArgType, genericArgs[0]);
@@ -947,7 +949,7 @@ internal static class MethodInvoker
 
         foreach (var method in methods)
         {
-            var parameters = method.GetParameters();
+            var parameters = MethodDispatchCache.GetParameters(method);
             var argsWithCancellation = TryAppendCancellationToken(parameters, args, ct);
             var score = ScoreMethodMatch(parameters, argsWithCancellation);
 
@@ -980,8 +982,8 @@ internal static class MethodInvoker
 
     private static int CompareMethodSpecificity(MethodInfo left, MethodInfo right, object?[] args, CancellationToken ct)
     {
-        var leftParams = left.GetParameters();
-        var rightParams = right.GetParameters();
+        var leftParams = MethodDispatchCache.GetParameters(left);
+        var rightParams = MethodDispatchCache.GetParameters(right);
 
         var leftIsParams = IsParamsMethod(leftParams);
         var rightIsParams = IsParamsMethod(rightParams);

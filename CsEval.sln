@@ -13,6 +13,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CsEval.Test", "tests\CsEval
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CsEval.Benchmarks.Tests", "benchmarks\CsEval.Benchmarks.Tests\CsEval.Benchmarks.Tests.csproj", "{27BBEA7C-74B1-4E90-A11D-C4EEF2AEAD4E}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{6927EFCD-DFD3-4FB2-A24C-CE19923FDCC4}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CsEval.Compiled", "src\CsEval.Compiled\CsEval.Compiled.csproj", "{3CA4ECBA-79B9-4922-BC5C-A06D55F5BC66}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -35,9 +39,15 @@ Global
 		{27BBEA7C-74B1-4E90-A11D-C4EEF2AEAD4E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{27BBEA7C-74B1-4E90-A11D-C4EEF2AEAD4E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{27BBEA7C-74B1-4E90-A11D-C4EEF2AEAD4E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3CA4ECBA-79B9-4922-BC5C-A06D55F5BC66}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3CA4ECBA-79B9-4922-BC5C-A06D55F5BC66}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3CA4ECBA-79B9-4922-BC5C-A06D55F5BC66}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3CA4ECBA-79B9-4922-BC5C-A06D55F5BC66}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{236ABAD7-BD57-4F0C-ACC8-AE57BD7AFC59} = {0710DCBC-EAE6-4B5F-B83F-B4C1C1E81915}
 		{27BBEA7C-74B1-4E90-A11D-C4EEF2AEAD4E} = {0710DCBC-EAE6-4B5F-B83F-B4C1C1E81915}
+		{3CA4ECBA-79B9-4922-BC5C-A06D55F5BC66} = {6927EFCD-DFD3-4FB2-A24C-CE19923FDCC4}
+		{A1B2C3D4-E5F6-7890-ABCD-EF1234567890} = {6927EFCD-DFD3-4FB2-A24C-CE19923FDCC4}
 	EndGlobalSection
 EndGlobal

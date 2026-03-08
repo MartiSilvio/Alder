@@ -1,6 +1,6 @@
 using CsEval.Parsing;
 
-namespace CsEval.Compilation;
+namespace CsEval.Compiled.Compilation.CompilerUnits;
 
 internal sealed partial class ExpressionCompilerUnit
 {

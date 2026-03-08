@@ -602,6 +602,28 @@ public class CompilationTests
         Assert.That(result, Is.EqualTo("hel"));
     }
 
+    [Test]
+    public void CompilationMode_StrictCompiled_DoesNotFallBackToInterpreted_WhenNotCompilable()
+    {
+        var options = new CsEvalOptions { CompilationMode = CompilationMode.StrictCompiled };
+        var engine = new CsEvalEngine(options);
+
+        // Known non-compilable pattern: switch with fall-through from a non-empty case.
+        var expr = engine.Parse(@"{
+            var x = 1;
+            var sum = 0;
+            switch (x) {
+                case 1: sum += 10;
+                case 2: sum += 20; break;
+            }
+            return sum;
+        }");
+
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate(expr));
+        Assert.That(ex!.Message, Does.Contain("CS0163"));
+        Assert.That(expr.IsCompiled, Is.False);
+    }
+
     #endregion
 
     #region ParseAndCompile

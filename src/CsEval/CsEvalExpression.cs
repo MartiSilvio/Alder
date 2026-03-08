@@ -56,36 +56,33 @@ public sealed class CsEvalExpression
     /// </summary>
     public bool TryCompile()
     {
-        if (_compiledInfo != null)
-            return _compiledInfo.Delegate != null;
-
-        var info = _expressionCache != null ?
-            ILExpressionCompiler.GetOrCompile(Source, Ast, _expressionCache) :
-            ILExpressionCompiler.TryCompile(Ast);
-
-        _compiledInfo = info;
-        return info.Delegate != null;
+        return TryCompileCore(static (self, _, _) => self._expressionCache != null
+            ? CompiledProviderRegistry.GetOrCompile(self.Source, self.Ast, self._expressionCache)
+            : CompiledProviderRegistry.TryCompile(self.Ast));
     }
 
     internal bool TryCompile(CsEvalOptions options)
     {
-        if (_compiledInfo != null)
-            return _compiledInfo.Delegate != null;
-
-        var info = _expressionCache != null ?
-            ILExpressionCompiler.GetOrCompile(Source, Ast, _expressionCache, options) :
-            ILExpressionCompiler.TryCompile(Ast, options);
-
-        _compiledInfo = info;
-        return info.Delegate != null;
+        return TryCompileCore(static (self, opts, _) => self._expressionCache != null
+            ? CompiledProviderRegistry.GetOrCompile(self.Source, self.Ast, self._expressionCache, opts)
+            : CompiledProviderRegistry.TryCompile(self.Ast, opts), options);
     }
 
     internal bool TryCompile(CsEvalOptions options, CsEvalContext context)
     {
+        return TryCompileCore(static (self, opts, ctx) =>
+            CompiledProviderRegistry.TryCompile(self.Ast, opts, ctx), options, context);
+    }
+
+    private bool TryCompileCore(
+        Func<CsEvalExpression, CsEvalOptions?, CsEvalContext?, CompiledExpressionInfo> compile,
+        CsEvalOptions? options = null,
+        CsEvalContext? context = null)
+    {
         if (_compiledInfo != null)
             return _compiledInfo.Delegate != null;
 
-        var info = ILExpressionCompiler.TryCompile(Ast, options, context);
+        var info = compile(this, options, context);
         _compiledInfo = info;
         return info.Delegate != null;
     }

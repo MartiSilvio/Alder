@@ -1,8 +1,7 @@
 using CsEval.Parsing;
-using CsEval.Runtime;
 using CsEval.Runtime.Extensions;
 
-namespace CsEval.Compilation;
+namespace CsEval.Compiled.Compilation.CompilerUnits;
 
 /// <summary>
 /// Compiles Extended-mode syntax sugar (pipeline, range, chained comparison, object literals)

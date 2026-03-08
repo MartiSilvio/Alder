@@ -1,9 +1,8 @@
-using System.Reflection;
 using CsEval.Interpretation;
 using CsEval.Parsing;
 using CsEval.Runtime;
 
-namespace CsEval.Compilation;
+namespace CsEval.Compiled.Compilation.CompilerUnits;
 
 /// <summary>
 /// Compiles expression nodes to typed IL when the operand types are known at compile time,

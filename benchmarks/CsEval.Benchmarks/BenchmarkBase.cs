@@ -3,11 +3,17 @@ using Flee.PublicTypes;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Scripting;
 using Microsoft.CodeAnalysis.Scripting;
+using CsEval.Compiled;
 
 namespace CsEval.Benchmarks;
 
 public abstract class BenchmarkBase
 {
+    static BenchmarkBase()
+    {
+        CsEvalCompiledExtensions.RegisterCompiledProvider();
+    }
+
     protected static readonly ScriptOptions RoslynOptions = ScriptOptions.Default
         .AddReferences(typeof(object).Assembly, typeof(Enumerable).Assembly)
         .AddImports("System", "System.Collections.Generic", "System.Linq")

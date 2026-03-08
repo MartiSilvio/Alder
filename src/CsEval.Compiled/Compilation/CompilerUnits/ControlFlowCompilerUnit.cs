@@ -3,7 +3,7 @@ using CsEval.Diagnostics;
 using CsEval.Parsing;
 using CsEval.Runtime;
 
-namespace CsEval.Compilation;
+namespace CsEval.Compiled.Compilation.CompilerUnits;
 
 /// <summary>
 /// Compiles control flow nodes (if, while, for, foreach, switch, try/catch/finally, etc.)

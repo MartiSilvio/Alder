@@ -171,22 +171,384 @@ internal static class TypeHelpers
         }
     }
 
-    private static readonly ConcurrentDictionary<(Type, Type, bool), Func<object, object>> CastCache = new();
+    private static readonly ConcurrentDictionary<(Type SourceType, Type TargetType, bool IsChecked), Func<object, object>> CastCache = new();
 
     internal static object RuntimeCast(object value, Type sourceType, Type targetType, bool isChecked = false)
     {
-        var converter = CastCache.GetOrAdd((sourceType, targetType, isChecked), key =>
-        {
-            var param = LinqExpression.Parameter(typeof(object), "value");
-            var unbox = LinqExpression.Convert(param, key.Item1);
-            var cast = key.Item3
-                ? LinqExpression.ConvertChecked(unbox, key.Item2)
-                : LinqExpression.Convert(unbox, key.Item2);
-            var box = LinqExpression.Convert(cast, typeof(object));
-            return LinqExpression.Lambda<Func<object, object>>(box, param).Compile();
-        });
+        var converter = CastCache.GetOrAdd(
+            (sourceType, targetType, isChecked),
+            static key => CreateCastConverter(key.SourceType, key.TargetType, key.IsChecked));
         return converter(value);
     }
+
+    private static Func<object, object> CreateCastConverter(Type sourceType, Type targetType, bool isChecked)
+    {
+        if (sourceType == targetType)
+            return static value => value;
+
+        if (TryCreateEnumCastConverter(sourceType, targetType, isChecked, out var enumConverter))
+            return enumConverter;
+
+        if (TryGetRuntimeNumericTypeCode(sourceType, out var sourceCode) &&
+            TryGetRuntimeNumericTypeCode(targetType, out var targetCode))
+        {
+            return value => ConvertPrimitive(value, sourceCode, targetCode, isChecked);
+        }
+
+        if (TryResolveUserDefinedConversion(sourceType, targetType, out var userDefinedMethod))
+            return value => userDefinedMethod.Invoke(null, [value])!;
+
+        return _ => throw new InvalidCastException(
+            $"No explicit conversion exists from '{sourceType.Name}' to '{targetType.Name}'.");
+    }
+
+    private static bool TryCreateEnumCastConverter(
+        Type sourceType,
+        Type targetType,
+        bool isChecked,
+        [NotNullWhen(true)] out Func<object, object>? converter)
+    {
+        converter = null;
+
+        if (!sourceType.IsEnum && !targetType.IsEnum)
+            return false;
+
+        if (sourceType.IsEnum)
+        {
+            var sourceUnderlying = Enum.GetUnderlyingType(sourceType);
+            if (!TryGetRuntimeNumericTypeCode(sourceUnderlying, out var sourceCode))
+                return false;
+
+            if (targetType.IsEnum)
+            {
+                var targetUnderlying = Enum.GetUnderlyingType(targetType);
+                if (!TryGetRuntimeNumericTypeCode(targetUnderlying, out var targetCode))
+                    return false;
+
+                converter = value =>
+                {
+                    var underlyingValue = GetEnumUnderlyingValue(value, sourceCode);
+                    var converted = ConvertPrimitive(underlyingValue, sourceCode, targetCode, isChecked);
+                    return Enum.ToObject(targetType, converted);
+                };
+                return true;
+            }
+
+            if (!TryGetRuntimeNumericTypeCode(targetType, out var numericTargetCode))
+                return false;
+
+            converter = value =>
+            {
+                var underlyingValue = GetEnumUnderlyingValue(value, sourceCode);
+                return ConvertPrimitive(underlyingValue, sourceCode, numericTargetCode, isChecked);
+            };
+            return true;
+        }
+
+        if (!TryGetRuntimeNumericTypeCode(sourceType, out var numericSourceCode))
+            return false;
+
+        var enumUnderlyingType = Enum.GetUnderlyingType(targetType);
+        if (!TryGetRuntimeNumericTypeCode(enumUnderlyingType, out var enumTargetCode))
+            return false;
+
+        converter = value =>
+        {
+            var converted = ConvertPrimitive(value, numericSourceCode, enumTargetCode, isChecked);
+            return Enum.ToObject(targetType, converted);
+        };
+        return true;
+    }
+
+    private static bool TryResolveUserDefinedConversion(
+        Type sourceType,
+        Type targetType,
+        [NotNullWhen(true)] out MethodInfo? conversionMethod)
+    {
+        const BindingFlags flags = BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy;
+        conversionMethod = null;
+
+        var searchTypes = sourceType == targetType
+            ? new[] { sourceType }
+            : new[] { sourceType, targetType };
+
+        foreach (var declaringType in searchTypes)
+        {
+            foreach (var method in declaringType.GetMethods(flags))
+            {
+                if (method.Name is not ("op_Explicit" or "op_Implicit"))
+                    continue;
+
+                if (method.ReturnType != targetType)
+                    continue;
+
+                var parameters = method.GetParameters();
+                if (parameters.Length != 1)
+                    continue;
+
+                var parameterType = parameters[0].ParameterType;
+                if (parameterType != sourceType && !parameterType.IsAssignableFrom(sourceType))
+                    continue;
+
+                conversionMethod = method;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool TryGetRuntimeNumericTypeCode(Type type, out TypeCode typeCode)
+    {
+        typeCode = Type.GetTypeCode(type);
+        return typeCode is
+            TypeCode.SByte or
+            TypeCode.Byte or
+            TypeCode.Int16 or
+            TypeCode.UInt16 or
+            TypeCode.Int32 or
+            TypeCode.UInt32 or
+            TypeCode.Int64 or
+            TypeCode.UInt64 or
+            TypeCode.Char or
+            TypeCode.Single or
+            TypeCode.Double or
+            TypeCode.Decimal;
+    }
+
+    private static object GetEnumUnderlyingValue(object value, TypeCode underlyingCode) => underlyingCode switch
+    {
+        TypeCode.SByte => Convert.ToSByte(value),
+        TypeCode.Byte => Convert.ToByte(value),
+        TypeCode.Int16 => Convert.ToInt16(value),
+        TypeCode.UInt16 => Convert.ToUInt16(value),
+        TypeCode.Int32 => Convert.ToInt32(value),
+        TypeCode.UInt32 => Convert.ToUInt32(value),
+        TypeCode.Int64 => Convert.ToInt64(value),
+        TypeCode.UInt64 => Convert.ToUInt64(value),
+        _ => throw new InvalidCastException($"Unsupported enum underlying type '{underlyingCode}'.")
+    };
+
+    private static object ConvertPrimitive(object value, TypeCode sourceCode, TypeCode targetCode, bool isChecked) => sourceCode switch
+    {
+        TypeCode.SByte => ConvertFromSByte((sbyte)value, targetCode, isChecked),
+        TypeCode.Byte => ConvertFromByte((byte)value, targetCode, isChecked),
+        TypeCode.Int16 => ConvertFromInt16((short)value, targetCode, isChecked),
+        TypeCode.UInt16 => ConvertFromUInt16((ushort)value, targetCode, isChecked),
+        TypeCode.Int32 => ConvertFromInt32((int)value, targetCode, isChecked),
+        TypeCode.UInt32 => ConvertFromUInt32((uint)value, targetCode, isChecked),
+        TypeCode.Int64 => ConvertFromInt64((long)value, targetCode, isChecked),
+        TypeCode.UInt64 => ConvertFromUInt64((ulong)value, targetCode, isChecked),
+        TypeCode.Char => ConvertFromChar((char)value, targetCode, isChecked),
+        TypeCode.Single => ConvertFromSingle((float)value, targetCode, isChecked),
+        TypeCode.Double => ConvertFromDouble((double)value, targetCode, isChecked),
+        TypeCode.Decimal => ConvertFromDecimal((decimal)value, targetCode, isChecked),
+        _ => throw new InvalidCastException($"No explicit conversion exists from '{sourceCode}' to '{targetCode}'.")
+    };
+
+    private static object ConvertFromSByte(sbyte value, TypeCode targetCode, bool isChecked) => targetCode switch
+    {
+        TypeCode.SByte => value,
+        TypeCode.Byte => isChecked ? checked((byte)value) : unchecked((byte)value),
+        TypeCode.Int16 => value,
+        TypeCode.UInt16 => isChecked ? checked((ushort)value) : unchecked((ushort)value),
+        TypeCode.Int32 => value,
+        TypeCode.UInt32 => isChecked ? checked((uint)value) : unchecked((uint)value),
+        TypeCode.Int64 => value,
+        TypeCode.UInt64 => isChecked ? checked((ulong)value) : unchecked((ulong)value),
+        TypeCode.Char => isChecked ? checked((char)value) : unchecked((char)value),
+        TypeCode.Single => value,
+        TypeCode.Double => value,
+        TypeCode.Decimal => value,
+        _ => throw new InvalidCastException($"No explicit conversion exists from '{TypeCode.SByte}' to '{targetCode}'.")
+    };
+
+    private static object ConvertFromByte(byte value, TypeCode targetCode, bool isChecked) => targetCode switch
+    {
+        TypeCode.SByte => isChecked ? checked((sbyte)value) : unchecked((sbyte)value),
+        TypeCode.Byte => value,
+        TypeCode.Int16 => value,
+        TypeCode.UInt16 => value,
+        TypeCode.Int32 => value,
+        TypeCode.UInt32 => value,
+        TypeCode.Int64 => value,
+        TypeCode.UInt64 => value,
+        TypeCode.Char => (char)value,
+        TypeCode.Single => value,
+        TypeCode.Double => value,
+        TypeCode.Decimal => value,
+        _ => throw new InvalidCastException($"No explicit conversion exists from '{TypeCode.Byte}' to '{targetCode}'.")
+    };
+
+    private static object ConvertFromInt16(short value, TypeCode targetCode, bool isChecked) => targetCode switch
+    {
+        TypeCode.SByte => isChecked ? checked((sbyte)value) : unchecked((sbyte)value),
+        TypeCode.Byte => isChecked ? checked((byte)value) : unchecked((byte)value),
+        TypeCode.Int16 => value,
+        TypeCode.UInt16 => isChecked ? checked((ushort)value) : unchecked((ushort)value),
+        TypeCode.Int32 => value,
+        TypeCode.UInt32 => isChecked ? checked((uint)value) : unchecked((uint)value),
+        TypeCode.Int64 => value,
+        TypeCode.UInt64 => isChecked ? checked((ulong)value) : unchecked((ulong)value),
+        TypeCode.Char => isChecked ? checked((char)value) : unchecked((char)value),
+        TypeCode.Single => value,
+        TypeCode.Double => value,
+        TypeCode.Decimal => value,
+        _ => throw new InvalidCastException($"No explicit conversion exists from '{TypeCode.Int16}' to '{targetCode}'.")
+    };
+
+    private static object ConvertFromUInt16(ushort value, TypeCode targetCode, bool isChecked) => targetCode switch
+    {
+        TypeCode.SByte => isChecked ? checked((sbyte)value) : unchecked((sbyte)value),
+        TypeCode.Byte => isChecked ? checked((byte)value) : unchecked((byte)value),
+        TypeCode.Int16 => isChecked ? checked((short)value) : unchecked((short)value),
+        TypeCode.UInt16 => value,
+        TypeCode.Int32 => value,
+        TypeCode.UInt32 => value,
+        TypeCode.Int64 => value,
+        TypeCode.UInt64 => value,
+        TypeCode.Char => (char)value,
+        TypeCode.Single => value,
+        TypeCode.Double => value,
+        TypeCode.Decimal => value,
+        _ => throw new InvalidCastException($"No explicit conversion exists from '{TypeCode.UInt16}' to '{targetCode}'.")
+    };
+
+    private static object ConvertFromInt32(int value, TypeCode targetCode, bool isChecked) => targetCode switch
+    {
+        TypeCode.SByte => isChecked ? checked((sbyte)value) : unchecked((sbyte)value),
+        TypeCode.Byte => isChecked ? checked((byte)value) : unchecked((byte)value),
+        TypeCode.Int16 => isChecked ? checked((short)value) : unchecked((short)value),
+        TypeCode.UInt16 => isChecked ? checked((ushort)value) : unchecked((ushort)value),
+        TypeCode.Int32 => value,
+        TypeCode.UInt32 => isChecked ? checked((uint)value) : unchecked((uint)value),
+        TypeCode.Int64 => value,
+        TypeCode.UInt64 => isChecked ? checked((ulong)value) : unchecked((ulong)value),
+        TypeCode.Char => isChecked ? checked((char)value) : unchecked((char)value),
+        TypeCode.Single => value,
+        TypeCode.Double => value,
+        TypeCode.Decimal => value,
+        _ => throw new InvalidCastException($"No explicit conversion exists from '{TypeCode.Int32}' to '{targetCode}'.")
+    };
+
+    private static object ConvertFromUInt32(uint value, TypeCode targetCode, bool isChecked) => targetCode switch
+    {
+        TypeCode.SByte => isChecked ? checked((sbyte)value) : unchecked((sbyte)value),
+        TypeCode.Byte => isChecked ? checked((byte)value) : unchecked((byte)value),
+        TypeCode.Int16 => isChecked ? checked((short)value) : unchecked((short)value),
+        TypeCode.UInt16 => isChecked ? checked((ushort)value) : unchecked((ushort)value),
+        TypeCode.Int32 => isChecked ? checked((int)value) : unchecked((int)value),
+        TypeCode.UInt32 => value,
+        TypeCode.Int64 => value,
+        TypeCode.UInt64 => value,
+        TypeCode.Char => isChecked ? checked((char)value) : unchecked((char)value),
+        TypeCode.Single => value,
+        TypeCode.Double => value,
+        TypeCode.Decimal => value,
+        _ => throw new InvalidCastException($"No explicit conversion exists from '{TypeCode.UInt32}' to '{targetCode}'.")
+    };
+
+    private static object ConvertFromInt64(long value, TypeCode targetCode, bool isChecked) => targetCode switch
+    {
+        TypeCode.SByte => isChecked ? checked((sbyte)value) : unchecked((sbyte)value),
+        TypeCode.Byte => isChecked ? checked((byte)value) : unchecked((byte)value),
+        TypeCode.Int16 => isChecked ? checked((short)value) : unchecked((short)value),
+        TypeCode.UInt16 => isChecked ? checked((ushort)value) : unchecked((ushort)value),
+        TypeCode.Int32 => isChecked ? checked((int)value) : unchecked((int)value),
+        TypeCode.UInt32 => isChecked ? checked((uint)value) : unchecked((uint)value),
+        TypeCode.Int64 => value,
+        TypeCode.UInt64 => isChecked ? checked((ulong)value) : unchecked((ulong)value),
+        TypeCode.Char => isChecked ? checked((char)value) : unchecked((char)value),
+        TypeCode.Single => value,
+        TypeCode.Double => value,
+        TypeCode.Decimal => value,
+        _ => throw new InvalidCastException($"No explicit conversion exists from '{TypeCode.Int64}' to '{targetCode}'.")
+    };
+
+    private static object ConvertFromUInt64(ulong value, TypeCode targetCode, bool isChecked) => targetCode switch
+    {
+        TypeCode.SByte => isChecked ? checked((sbyte)value) : unchecked((sbyte)value),
+        TypeCode.Byte => isChecked ? checked((byte)value) : unchecked((byte)value),
+        TypeCode.Int16 => isChecked ? checked((short)value) : unchecked((short)value),
+        TypeCode.UInt16 => isChecked ? checked((ushort)value) : unchecked((ushort)value),
+        TypeCode.Int32 => isChecked ? checked((int)value) : unchecked((int)value),
+        TypeCode.UInt32 => isChecked ? checked((uint)value) : unchecked((uint)value),
+        TypeCode.Int64 => isChecked ? checked((long)value) : unchecked((long)value),
+        TypeCode.UInt64 => value,
+        TypeCode.Char => isChecked ? checked((char)value) : unchecked((char)value),
+        TypeCode.Single => value,
+        TypeCode.Double => value,
+        TypeCode.Decimal => value,
+        _ => throw new InvalidCastException($"No explicit conversion exists from '{TypeCode.UInt64}' to '{targetCode}'.")
+    };
+
+    private static object ConvertFromChar(char value, TypeCode targetCode, bool isChecked) => targetCode switch
+    {
+        TypeCode.SByte => isChecked ? checked((sbyte)value) : unchecked((sbyte)value),
+        TypeCode.Byte => isChecked ? checked((byte)value) : unchecked((byte)value),
+        TypeCode.Int16 => isChecked ? checked((short)value) : unchecked((short)value),
+        TypeCode.UInt16 => value,
+        TypeCode.Int32 => value,
+        TypeCode.UInt32 => value,
+        TypeCode.Int64 => value,
+        TypeCode.UInt64 => value,
+        TypeCode.Char => value,
+        TypeCode.Single => value,
+        TypeCode.Double => value,
+        TypeCode.Decimal => value,
+        _ => throw new InvalidCastException($"No explicit conversion exists from '{TypeCode.Char}' to '{targetCode}'.")
+    };
+
+    private static object ConvertFromSingle(float value, TypeCode targetCode, bool isChecked) => targetCode switch
+    {
+        TypeCode.SByte => isChecked ? checked((sbyte)value) : (sbyte)value,
+        TypeCode.Byte => isChecked ? checked((byte)value) : (byte)value,
+        TypeCode.Int16 => isChecked ? checked((short)value) : (short)value,
+        TypeCode.UInt16 => isChecked ? checked((ushort)value) : (ushort)value,
+        TypeCode.Int32 => isChecked ? checked((int)value) : (int)value,
+        TypeCode.UInt32 => isChecked ? checked((uint)value) : (uint)value,
+        TypeCode.Int64 => isChecked ? checked((long)value) : (long)value,
+        TypeCode.UInt64 => isChecked ? checked((ulong)value) : (ulong)value,
+        TypeCode.Char => isChecked ? checked((char)value) : (char)value,
+        TypeCode.Single => value,
+        TypeCode.Double => value,
+        TypeCode.Decimal => isChecked ? checked((decimal)value) : (decimal)value,
+        _ => throw new InvalidCastException($"No explicit conversion exists from '{TypeCode.Single}' to '{targetCode}'.")
+    };
+
+    private static object ConvertFromDouble(double value, TypeCode targetCode, bool isChecked) => targetCode switch
+    {
+        TypeCode.SByte => isChecked ? checked((sbyte)value) : (sbyte)value,
+        TypeCode.Byte => isChecked ? checked((byte)value) : (byte)value,
+        TypeCode.Int16 => isChecked ? checked((short)value) : (short)value,
+        TypeCode.UInt16 => isChecked ? checked((ushort)value) : (ushort)value,
+        TypeCode.Int32 => isChecked ? checked((int)value) : (int)value,
+        TypeCode.UInt32 => isChecked ? checked((uint)value) : (uint)value,
+        TypeCode.Int64 => isChecked ? checked((long)value) : (long)value,
+        TypeCode.UInt64 => isChecked ? checked((ulong)value) : (ulong)value,
+        TypeCode.Char => isChecked ? checked((char)value) : (char)value,
+        TypeCode.Single => (float)value,
+        TypeCode.Double => value,
+        TypeCode.Decimal => isChecked ? checked((decimal)value) : (decimal)value,
+        _ => throw new InvalidCastException($"No explicit conversion exists from '{TypeCode.Double}' to '{targetCode}'.")
+    };
+
+    private static object ConvertFromDecimal(decimal value, TypeCode targetCode, bool isChecked) => targetCode switch
+    {
+        TypeCode.SByte => isChecked ? checked((sbyte)value) : (sbyte)value,
+        TypeCode.Byte => isChecked ? checked((byte)value) : (byte)value,
+        TypeCode.Int16 => isChecked ? checked((short)value) : (short)value,
+        TypeCode.UInt16 => isChecked ? checked((ushort)value) : (ushort)value,
+        TypeCode.Int32 => isChecked ? checked((int)value) : (int)value,
+        TypeCode.UInt32 => isChecked ? checked((uint)value) : (uint)value,
+        TypeCode.Int64 => isChecked ? checked((long)value) : (long)value,
+        TypeCode.UInt64 => isChecked ? checked((ulong)value) : (ulong)value,
+        TypeCode.Char => isChecked ? checked((char)value) : (char)value,
+        TypeCode.Single => (float)value,
+        TypeCode.Double => (double)value,
+        TypeCode.Decimal => value,
+        _ => throw new InvalidCastException($"No explicit conversion exists from '{TypeCode.Decimal}' to '{targetCode}'.")
+    };
 
     /// <summary>
     /// Converts a numeric value to a target type, handling char specially.

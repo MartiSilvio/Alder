@@ -1,6 +1,6 @@
 using CsEval.Parsing;
 
-namespace CsEval.Compilation;
+namespace CsEval.Compiled.Compilation.CompilerUnits;
 
 /// <summary>
 /// Static checker that determines whether an AST can be IL-compiled.

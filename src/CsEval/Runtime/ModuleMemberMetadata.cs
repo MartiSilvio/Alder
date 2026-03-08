@@ -1,4 +1,5 @@
 using System.Collections.Frozen;
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using CsEval.Attributes;
 
@@ -25,7 +26,13 @@ internal static class ModuleMemberMetadata
             ? BuiltInConvertMembersOrdinal
             : BuiltInConvertMembersOrdinalIgnoreCase;
 
-    internal static FrozenDictionary<string, MemberInfo> Build(Type type, bool explicitOnly, StringComparer comparer)
+    internal static FrozenDictionary<string, MemberInfo> Build(
+        [DynamicallyAccessedMembers(
+            DynamicallyAccessedMemberTypes.PublicMethods |
+            DynamicallyAccessedMemberTypes.PublicProperties |
+            DynamicallyAccessedMemberTypes.PublicFields)] Type type,
+        bool explicitOnly,
+        StringComparer comparer)
     {
         var members = new Dictionary<string, MemberInfo>(comparer);
 

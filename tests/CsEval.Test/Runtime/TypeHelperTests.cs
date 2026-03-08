@@ -105,4 +105,45 @@ public class TypeHelperTests
             Is.False,
             "long -> int is NOT an implicit conversion (requires explicit cast)");
     }
+
+    [Test]
+    public void RuntimeCast_UncheckedIntToByte_Wraps()
+    {
+        var result = CsEval.Runtime.TypeHelpers.RuntimeCast(256, typeof(int), typeof(byte), isChecked: false);
+        Assert.That(result, Is.EqualTo((byte)0));
+    }
+
+    [Test]
+    public void RuntimeCast_CheckedIntToByte_ThrowsOverflow()
+    {
+        Assert.Throws<OverflowException>(
+            () => CsEval.Runtime.TypeHelpers.RuntimeCast(256, typeof(int), typeof(byte), isChecked: true));
+    }
+
+    [Test]
+    public void RuntimeCast_EnumToInt_ReturnsUnderlyingValue()
+    {
+        var result = CsEval.Runtime.TypeHelpers.RuntimeCast(CastProbe.B, typeof(CastProbe), typeof(int));
+        Assert.That(result, Is.EqualTo(2));
+    }
+
+    [Test]
+    public void RuntimeCast_IntToEnum_ReturnsEnumValue()
+    {
+        var result = CsEval.Runtime.TypeHelpers.RuntimeCast(2, typeof(int), typeof(CastProbe));
+        Assert.That(result, Is.EqualTo(CastProbe.B));
+    }
+
+    [Test]
+    public void RuntimeCast_BoolToInt_ThrowsInvalidCast()
+    {
+        Assert.Throws<InvalidCastException>(
+            () => CsEval.Runtime.TypeHelpers.RuntimeCast(true, typeof(bool), typeof(int)));
+    }
+
+    private enum CastProbe
+    {
+        A = 1,
+        B = 2
+    }
 }

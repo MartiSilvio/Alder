@@ -1,9 +1,8 @@
 using System.Linq.Expressions;
-using System.Reflection;
 using CsEval.Parsing;
 using CsEval.Runtime;
 
-namespace CsEval.Compilation;
+namespace CsEval.Compiled.Compilation;
 
 /// <summary>
 /// Translates CsEval AST nodes into typed System.Linq.Expressions trees.

@@ -1,5 +1,5 @@
 using System.Collections.Immutable;
-using System.Linq.Expressions;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using CsEval.Attributes;
 using CsEval.Compilation;
@@ -63,7 +63,7 @@ public sealed class CsEvalEngine : IDisposable
     public CsEvalEngine(CsEvalOptions options)
     {
         _options = options;
-        _typeCache = new TypeCache(_options.ExpressionCompiler);
+        _typeCache = new TypeCache();
         _expressionCache = new ExpressionCache();
         _functions = new Dictionary<string, Func<object?[], object?>>(options.StringComparer);
         _pendingVariables = new Dictionary<string, PendingVariable>(options.StringComparer);
@@ -424,189 +424,6 @@ public sealed class CsEvalEngine : IDisposable
         return dict;
     }
 
-    public CsEvalExpression ParseAndCompile(string expression)
-    {
-        ThrowIfDisposed();
-        var expr = Parse(expression);
-        expr.TryCompile(_options);
-        return expr;
-    }
-
-    /// <summary>
-    /// Compiles an expression and returns a <see cref="CsEvalCompiledExpression{T}"/> that can be invoked
-    /// repeatedly without engine dispatch overhead. Throws if the expression cannot be compiled.
-    /// </summary>
-    /// <typeparam name="T">The expected return type of the expression.</typeparam>
-    /// <param name="expression">The expression string to compile.</param>
-    /// <returns>A compiled expression wrapper for repeated invocation.</returns>
-    /// <exception cref="InvalidOperationException">Thrown when the expression cannot be compiled to IL.</exception>
-    public CsEvalCompiledExpression<T> Compile<T>(string expression)
-    {
-        ThrowIfDisposed();
-        var parsed = Parse(expression);
-        if (!parsed.TryCompile(_options))
-        {
-            var reason = parsed.CompilationFailureReason ?? "Unknown compilation failure";
-            throw new CsEvalException(
-                DiagnosticDescriptors.StrictCompilationFailed,
-                $"Cannot compile expression '{expression}': {reason}");
-        }
-
-        var compiledDelegate = parsed.GetCompiledInfo()!.Delegate!;
-        return new CsEvalCompiledExpression<T>(compiledDelegate, this, _options);
-    }
-
-    /// <summary>
-    /// Compiles an expression and returns a <see cref="CsEvalCompiledExpression{T}"/> with object? result type.
-    /// Throws if the expression cannot be compiled.
-    /// </summary>
-    /// <param name="expression">The expression string to compile.</param>
-    /// <returns>A compiled expression wrapper for repeated invocation.</returns>
-    /// <exception cref="InvalidOperationException">Thrown when the expression cannot be compiled to IL.</exception>
-    public CsEvalCompiledExpression<object?> Compile(string expression) => Compile<object?>(expression);
-
-    /// <summary>
-    /// Compiles an expression and returns a <see cref="Func{T}"/> for zero-overhead hot-path invocation.
-    /// The returned delegate captures the engine context by reference -- variables set via
-    /// <see cref="SetVariable"/> after compilation are visible to subsequent invocations.
-    /// </summary>
-    /// <typeparam name="T">The expected return type of the expression.</typeparam>
-    /// <param name="expression">The expression string to compile.</param>
-    /// <returns>A function that evaluates the compiled expression and returns the result.</returns>
-    /// <exception cref="InvalidOperationException">Thrown when the expression cannot be compiled to IL.</exception>
-    public Func<T?> CompileToFunc<T>(string expression)
-    {
-        ThrowIfDisposed();
-        var compiled = Compile<T>(expression);
-        return () => compiled.Invoke();
-    }
-
-    /// <summary>
-    /// Parses a lambda expression string into a typed <see cref="Expression{TDelegate}"/>
-    /// suitable for Entity Framework, IQueryable providers, and in-memory compilation.
-    /// Always parses in Standard mode regardless of engine LanguageMode.
-    /// </summary>
-    /// <typeparam name="TDelegate">A Func delegate type (e.g., Func&lt;int, bool&gt;).
-    /// Parameter types are inferred from the generic arguments.</typeparam>
-    /// <param name="expression">A lambda expression string (e.g., "x => x > 5").</param>
-    /// <returns>A typed expression tree that can be passed to LINQ providers or compiled.</returns>
-    /// <exception cref="CsEvalException">Thrown when the expression contains unsupported nodes
-    /// or has parameter/type mismatches.</exception>
-    public Expression<TDelegate> ParseAsExpression<TDelegate>(string expression)
-        where TDelegate : Delegate
-    {
-        ThrowIfDisposed();
-        try
-        {
-            var delegateType = typeof(TDelegate);
-            if (!delegateType.IsGenericType)
-                throw new CsEvalException(
-                    $"'{delegateType.Name}' is not a generic delegate type. " +
-                    $"Use a Func<> type (e.g., Func<int, bool>).");
-
-            var genericArgs = delegateType.GetGenericArguments();
-            var paramTypes = genericArgs[..^1];
-            var returnType = genericArgs[^1];
-
-            // Always parse in Standard mode regardless of engine LanguageMode
-            var lexer = new Lexer(expression);
-            var tokens = lexer.Tokenize();
-            var parser = ExpressionParser.CreateForSubExpression(tokens, LanguageMode.Standard);
-            var ast = parser.Parse();
-
-            // The top-level AST must be a lambda
-            if (ast is not LambdaExpr lambdaExpr)
-                throw new CsEvalException(
-                    "Expression must be a lambda (e.g., 'x => x > 5')");
-
-            // Validate parameter count
-            if (lambdaExpr.Parameters.Count != paramTypes.Length)
-                throw new CsEvalException(
-                    $"Expression has {lambdaExpr.Parameters.Count} parameter(s) " +
-                    $"but {delegateType.Name} expects {paramTypes.Length}");
-
-            // Build parameter scope: name -> typed ParameterExpression
-            var parameterScope = new Dictionary<string, ParameterExpression>();
-            var parameterExpressions = new ParameterExpression[paramTypes.Length];
-            for (var i = 0; i < paramTypes.Length; i++)
-            {
-                var paramName = lambdaExpr.Parameters[i].Name.Lexeme;
-                var paramExpr = LinqExpression.Parameter(paramTypes[i], paramName);
-                parameterScope[paramName] = paramExpr;
-                parameterExpressions[i] = paramExpr;
-            }
-
-            // Collect engine variables for ConstantExpression capture
-            var engineVariables = CollectEngineVariables();
-
-            // Create emitter and translate the lambda body
-            var config = GetOrCreateConfig();
-            var emitter = new ExpressionTreeEmitter(parameterScope, engineVariables, config.TypeResolver);
-            var body = emitter.Emit(lambdaExpr.Body);
-
-            // If body type doesn't match return type, insert conversion
-            if (body.Type != returnType)
-            {
-                try
-                {
-                    body = LinqExpression.Convert(body, returnType);
-                }
-                catch (InvalidOperationException)
-                {
-                    throw new CsEvalException(
-                        $"Cannot convert expression body type '{body.Type.Name}' " +
-                        $"to return type '{returnType.Name}'");
-                }
-            }
-
-            return LinqExpression.Lambda<TDelegate>(body, parameterExpressions);
-        }
-        catch (InsufficientExecutionStackException)
-        {
-            throw new CsEvalException("Expression nesting depth exceeded available stack space.");
-        }
-    }
-
-    /// <summary>
-    /// Attempts to parse a lambda expression string into a typed expression tree.
-    /// Returns false with diagnostics if parsing or translation fails.
-    /// </summary>
-    /// <typeparam name="TDelegate">A Func delegate type.</typeparam>
-    /// <param name="expression">A lambda expression string.</param>
-    /// <param name="result">The resulting expression tree, or null if parsing failed.</param>
-    /// <param name="diagnostics">Diagnostic information when parsing fails.</param>
-    /// <returns>True if parsing succeeded, false otherwise.</returns>
-    public bool TryParseAsExpression<TDelegate>(
-        string expression,
-        out Expression<TDelegate>? result,
-        out IReadOnlyList<CsEvalDiagnostic> diagnostics)
-        where TDelegate : Delegate
-    {
-        ThrowIfDisposed();
-        try
-        {
-            result = ParseAsExpression<TDelegate>(expression);
-            diagnostics = [];
-            return true;
-        }
-        catch (Exception ex)
-        {
-            result = null;
-            diagnostics = [CsEvalDiagnostic.FromException(ex)];
-            return false;
-        }
-    }
-
-    /// <summary>
-    /// Parses a lambda expression string into an expression tree and compiles it to a native delegate.
-    /// Equivalent to <c>ParseAsExpression&lt;TDelegate&gt;(expression).Compile()</c>.
-    /// </summary>
-    public TDelegate CompileExpression<TDelegate>(string expression) where TDelegate : Delegate
-    {
-        ThrowIfDisposed();
-        return ParseAsExpression<TDelegate>(expression).Compile();
-    }
-
     private Dictionary<string, object?> CollectEngineVariables()
     {
         var variables = new Dictionary<string, object?>(_options.StringComparer);
@@ -630,6 +447,23 @@ public sealed class CsEvalEngine : IDisposable
         }
 
         return variables;
+    }
+
+    internal CompiledFeatureAccess GetCompiledFeatureAccess() => new(this);
+
+    internal sealed class CompiledFeatureAccess
+    {
+        private readonly CsEvalEngine _engine;
+
+        internal CompiledFeatureAccess(CsEvalEngine engine)
+        {
+            _engine = engine;
+        }
+
+        internal CsEvalOptions Options => _engine._options;
+        internal CsEvalConfig GetOrCreateConfig() => _engine.GetOrCreateConfig();
+        internal Dictionary<string, object?> CollectEngineVariables() => _engine.CollectEngineVariables();
+        internal void ThrowIfDisposed() => _engine.ThrowIfDisposed();
     }
 
     /// <summary>
@@ -678,6 +512,7 @@ public sealed class CsEvalEngine : IDisposable
         return this;
     }
 
+    [RequiresUnreferencedCode("Registering from assembly scans all types and members via reflection.")]
     public CsEvalEngine RegisterFromAssembly(Assembly assembly)
     {
         EnsureNotFrozen();
@@ -706,19 +541,38 @@ public sealed class CsEvalEngine : IDisposable
         return this;
     }
 
-    public CsEvalEngine RegisterFromType(Type type, object? instance = null)
+    public CsEvalEngine RegisterFromType(
+        [DynamicallyAccessedMembers(
+            DynamicallyAccessedMemberTypes.PublicParameterlessConstructor |
+            DynamicallyAccessedMemberTypes.PublicMethods |
+            DynamicallyAccessedMemberTypes.PublicProperties |
+            DynamicallyAccessedMemberTypes.PublicFields)] Type type,
+        object? instance = null)
     {
         EnsureNotFrozen();
         _registeredTypes.Add(new RegisteredType(type, instance, null, ModuleMemberMetadata.Build(type, explicitOnly: false, _options.StringComparer)));
         return this;
     }
 
-    public CsEvalEngine RegisterFromType<T>(T? instance = default) where T : class
+    public CsEvalEngine RegisterFromType<
+        [DynamicallyAccessedMembers(
+            DynamicallyAccessedMemberTypes.PublicParameterlessConstructor |
+            DynamicallyAccessedMemberTypes.PublicMethods |
+            DynamicallyAccessedMemberTypes.PublicProperties |
+            DynamicallyAccessedMemberTypes.PublicFields)] T>(T? instance = default) where T : class
     {
         return RegisterFromType(typeof(T), instance);
     }
 
-    public CsEvalEngine RegisterModule(string moduleName, Type type, bool explicitOnly = false, object? instance = null)
+    public CsEvalEngine RegisterModule(
+        string moduleName,
+        [DynamicallyAccessedMembers(
+            DynamicallyAccessedMemberTypes.PublicParameterlessConstructor |
+            DynamicallyAccessedMemberTypes.PublicMethods |
+            DynamicallyAccessedMemberTypes.PublicProperties |
+            DynamicallyAccessedMemberTypes.PublicFields)] Type type,
+        bool explicitOnly = false,
+        object? instance = null)
     {
         EnsureNotFrozen();
         if (!explicitOnly)
@@ -731,12 +585,24 @@ public sealed class CsEvalEngine : IDisposable
         return this;
     }
 
-    public CsEvalEngine RegisterModule<T>(string moduleName, bool explicitOnly = false, T? instance = default) where T : class
+    public CsEvalEngine RegisterModule<
+        [DynamicallyAccessedMembers(
+            DynamicallyAccessedMemberTypes.PublicParameterlessConstructor |
+            DynamicallyAccessedMemberTypes.PublicMethods |
+            DynamicallyAccessedMemberTypes.PublicProperties |
+            DynamicallyAccessedMemberTypes.PublicFields)] T>(string moduleName, bool explicitOnly = false, T? instance = default) where T : class
     {
         return RegisterModule(moduleName, typeof(T), explicitOnly, instance);
     }
 
-    public CsEvalEngine RegisterModule(string moduleName, Type type, IReadOnlyDictionary<string, MemberInfo> members)
+    public CsEvalEngine RegisterModule(
+        string moduleName,
+        [DynamicallyAccessedMembers(
+            DynamicallyAccessedMemberTypes.PublicParameterlessConstructor |
+            DynamicallyAccessedMemberTypes.PublicMethods |
+            DynamicallyAccessedMemberTypes.PublicProperties |
+            DynamicallyAccessedMemberTypes.PublicFields)] Type type,
+        IReadOnlyDictionary<string, MemberInfo> members)
     {
         EnsureNotFrozen();
         _registeredTypes.Add(new RegisteredType(type, null, moduleName, members));
@@ -893,6 +759,11 @@ public sealed class CsEvalEngine : IDisposable
     }
 
     private sealed record RegisteredType(
+        [property: DynamicallyAccessedMembers(
+            DynamicallyAccessedMemberTypes.PublicParameterlessConstructor |
+            DynamicallyAccessedMemberTypes.PublicMethods |
+            DynamicallyAccessedMemberTypes.PublicProperties |
+            DynamicallyAccessedMemberTypes.PublicFields)]
         Type Type,
         object? Instance,
         string? ModuleName,

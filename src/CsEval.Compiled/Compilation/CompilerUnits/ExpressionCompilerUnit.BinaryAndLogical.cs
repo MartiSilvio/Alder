@@ -1,7 +1,7 @@
 using CsEval.Parsing;
 using CsEval.Runtime;
 
-namespace CsEval.Compilation;
+namespace CsEval.Compiled.Compilation.CompilerUnits;
 
 internal sealed partial class ExpressionCompilerUnit
 {

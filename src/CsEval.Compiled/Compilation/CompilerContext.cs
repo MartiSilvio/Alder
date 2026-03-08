@@ -1,10 +1,11 @@
 using System.Collections.Concurrent;
 using System.Linq.Expressions;
+using CsEval.Compiled.Compilation.CompilerUnits;
 using CsEval.Interpretation;
 using CsEval.Parsing;
 using CsEval.Runtime;
 
-namespace CsEval.Compilation;
+namespace CsEval.Compiled.Compilation;
 
 /// <summary>
 /// Delegate type for IL-compiled expressions.

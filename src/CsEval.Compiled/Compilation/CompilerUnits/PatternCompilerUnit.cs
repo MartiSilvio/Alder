@@ -1,7 +1,7 @@
 using CsEval.Parsing;
 using CsEval.Runtime;
 
-namespace CsEval.Compilation;
+namespace CsEval.Compiled.Compilation.CompilerUnits;
 
 /// <summary>
 /// Compiles pattern matching nodes (is-pattern, switch expression, all pattern types)

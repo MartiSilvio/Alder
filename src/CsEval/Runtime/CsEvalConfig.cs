@@ -1,5 +1,6 @@
 using System.Collections.Frozen;
 using System.Collections.Immutable;
+using System.Diagnostics.CodeAnalysis;
 
 namespace CsEval.Runtime;
 
@@ -61,11 +62,24 @@ internal sealed class CsEvalConfig
 
 internal sealed class ModuleInfo
 {
+    [DynamicallyAccessedMembers(
+        DynamicallyAccessedMemberTypes.PublicParameterlessConstructor |
+        DynamicallyAccessedMemberTypes.PublicMethods |
+        DynamicallyAccessedMemberTypes.PublicProperties |
+        DynamicallyAccessedMemberTypes.PublicFields)]
     public Type Type { get; }
     public object? Instance { get; }
     public IReadOnlyDictionary<string, MemberInfo> Members { get; }
 
-    public ModuleInfo(Type type, object? instance, IReadOnlyDictionary<string, MemberInfo> members)
+    public ModuleInfo(
+        [DynamicallyAccessedMembers(
+            DynamicallyAccessedMemberTypes.PublicParameterlessConstructor |
+            DynamicallyAccessedMemberTypes.PublicMethods |
+            DynamicallyAccessedMemberTypes.PublicProperties |
+            DynamicallyAccessedMemberTypes.PublicFields)]
+        Type type,
+        object? instance,
+        IReadOnlyDictionary<string, MemberInfo> members)
     {
         Type = type;
         Instance = instance;
