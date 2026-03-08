@@ -17,11 +17,6 @@ internal sealed class TypeCache
     private readonly ConcurrentDictionary<(Type, string, BindingFlags), MethodInfo[]> _methodsCache = new();
     private readonly ConcurrentDictionary<Type, PropertyInfo?> _indexerCache = new();
     private readonly ConcurrentDictionary<PropertyInfo, Func<object, object?>> _compiledGetters = new();
-    private static readonly ConcurrentDictionary<(Type DeclaringType, Type PropertyType, bool IsStatic), Func<MethodInfo, Func<object, object?>>> GetterFactoryCache = new();
-    private static readonly MethodInfo CreateInstanceGetterFactoryMethod =
-        typeof(TypeCache).GetMethod(nameof(CreateInstanceGetterFactory), BindingFlags.NonPublic | BindingFlags.Static)!;
-    private static readonly MethodInfo CreateStaticGetterFactoryMethod =
-        typeof(TypeCache).GetMethod(nameof(CreateStaticGetterFactory), BindingFlags.NonPublic | BindingFlags.Static)!;
 
     internal TypeCache()
     {
@@ -99,43 +94,10 @@ internal sealed class TypeCache
         if (getter == null)
             return obj => property.GetValue(obj);
 
-        try
-        {
-            var key = (property.DeclaringType!, property.PropertyType, getter.IsStatic);
-            var factory = GetterFactoryCache.GetOrAdd(key, static k => BuildGetterFactory(k.DeclaringType, k.PropertyType, k.IsStatic));
-            return factory(getter);
-        }
-        catch
-        {
-            // Fallback to reflection if compilation fails (e.g., for some edge cases)
-            return obj => property.GetValue(obj);
-        }
-    }
+        if (getter.IsStatic)
+            return _ => getter.Invoke(null, null);
 
-    private static Func<MethodInfo, Func<object, object?>> BuildGetterFactory(Type declaringType, Type propertyType, bool isStatic)
-    {
-        var genericFactoryMethod = (isStatic ? CreateStaticGetterFactoryMethod : CreateInstanceGetterFactoryMethod)
-            .MakeGenericMethod(declaringType, propertyType);
-
-        return (Func<MethodInfo, Func<object, object?>>)genericFactoryMethod.Invoke(null, null)!;
-    }
-
-    private static Func<MethodInfo, Func<object, object?>> CreateInstanceGetterFactory<TDeclaring, TValue>()
-    {
-        return getterMethod =>
-        {
-            var typedGetter = (Func<TDeclaring, TValue>)getterMethod.CreateDelegate(typeof(Func<TDeclaring, TValue>));
-            return instance => typedGetter((TDeclaring)instance);
-        };
-    }
-
-    private static Func<MethodInfo, Func<object, object?>> CreateStaticGetterFactory<TDeclaring, TValue>()
-    {
-        return getterMethod =>
-        {
-            var typedGetter = (Func<TValue>)getterMethod.CreateDelegate(typeof(Func<TValue>));
-            return _ => typedGetter();
-        };
+        return instance => getter.Invoke(instance, null);
     }
 
     /// <summary>

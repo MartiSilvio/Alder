@@ -1,4 +1,5 @@
 using CsEval.Diagnostics;
+using CsEval.Parsing;
 
 namespace CsEval.Runtime;
 
@@ -8,6 +9,8 @@ namespace CsEval.Runtime;
 /// </summary>
 internal static class NumericDispatch
 {
+    private static readonly string SpaceshipOperatorLexeme = TokenLexemes.GetCanonical(TokenType.LessEqualGreater);
+
     public delegate object BinaryOp(object left, object right);
     public delegate object UnaryOp(object value);
     public delegate int CompareOp(object left, object right);
@@ -267,7 +270,7 @@ internal static class NumericDispatch
         if (BitwiseNotOps.TryGetValue(type, out var op))
             return op(value);
 
-        return ~(dynamic)value;
+        throw new CsEvalException(DiagnosticDescriptors.BadUnaryOp, "~", type.Name);
     }
 
     public static int Compare(object left, object right)
@@ -278,8 +281,11 @@ internal static class NumericDispatch
         if (CompareOps.TryGetValue(key, out var op))
             return op(promotedLeft, promotedRight);
 
-        dynamic l = left, r = right;
-        return l < r ? -1 : l > r ? 1 : 0;
+        throw new CsEvalException(
+            DiagnosticDescriptors.BadBinaryOps,
+            SpaceshipOperatorLexeme,
+            left.GetType().Name,
+            right.GetType().Name);
     }
 
     /// <summary>
@@ -304,7 +310,7 @@ internal static class NumericDispatch
             ushort us => us << shiftAmount,
             byte b => b << shiftAmount,
             sbyte sb => sb << shiftAmount,
-            _ => (dynamic)left << shiftAmount
+            _ => throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, "<<", left.GetType().Name, right.GetType().Name)
         };
     }
 
@@ -329,7 +335,7 @@ internal static class NumericDispatch
             ushort us => us >> shiftAmount,
             byte b => b >> shiftAmount,
             sbyte sb => sb >> shiftAmount,
-            _ => (dynamic)left >> shiftAmount
+            _ => throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, ">>", left.GetType().Name, right.GetType().Name)
         };
     }
 
@@ -601,15 +607,7 @@ internal static class NumericDispatch
         if (ops.TryGetValue(key, out var op))
             return op(promotedLeft, promotedRight);
 
-        return opName switch
-        {
-            "+" => (dynamic)left + (dynamic)right,
-            "-" => (dynamic)left - (dynamic)right,
-            "*" => (dynamic)left * (dynamic)right,
-            "/" => (dynamic)left / (dynamic)right,
-            "%" => (dynamic)left % (dynamic)right,
-            _ => throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, opName, left.GetType().Name, right.GetType().Name)
-        };
+        throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, opName, left.GetType().Name, right.GetType().Name);
     }
 
     /// <summary>
@@ -627,13 +625,7 @@ internal static class NumericDispatch
         if (ops.TryGetValue(key, out var op))
             return op(promotedLeft, promotedRight);
 
-        return opName switch
-        {
-            "&" => (dynamic)left & (dynamic)right,
-            "|" => (dynamic)left | (dynamic)right,
-            "^" => (dynamic)left ^ (dynamic)right,
-            _ => throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, opName, left.GetType().Name, right.GetType().Name)
-        };
+        throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, opName, left.GetType().Name, right.GetType().Name);
     }
 
     private static Dictionary<(Type, Type), BinaryOp> BuildBinaryOps(

@@ -208,7 +208,7 @@ internal static class MethodInvoker
                 if (resolver != null)
                     type = resolver.TryResolveType(typeArgs[i]);
                 else
-                    type = Type.GetType(typeArgs[i]) ?? Type.GetType($"System.{typeArgs[i]}");
+                    return null;
                 if (type == null)
                     return null;
                 resolvedTypes[i] = type;

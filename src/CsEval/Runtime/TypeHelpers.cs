@@ -350,16 +350,16 @@ internal static class TypeHelpers
     {
         TypeCode.SByte => value,
         TypeCode.Byte => isChecked ? checked((byte)value) : unchecked((byte)value),
-        TypeCode.Int16 => value,
+        TypeCode.Int16 => (short)value,
         TypeCode.UInt16 => isChecked ? checked((ushort)value) : unchecked((ushort)value),
-        TypeCode.Int32 => value,
+        TypeCode.Int32 => (int)value,
         TypeCode.UInt32 => isChecked ? checked((uint)value) : unchecked((uint)value),
-        TypeCode.Int64 => value,
+        TypeCode.Int64 => (long)value,
         TypeCode.UInt64 => isChecked ? checked((ulong)value) : unchecked((ulong)value),
         TypeCode.Char => isChecked ? checked((char)value) : unchecked((char)value),
-        TypeCode.Single => value,
-        TypeCode.Double => value,
-        TypeCode.Decimal => value,
+        TypeCode.Single => (float)value,
+        TypeCode.Double => (double)value,
+        TypeCode.Decimal => (decimal)value,
         _ => throw new InvalidCastException($"No explicit conversion exists from '{TypeCode.SByte}' to '{targetCode}'.")
     };
 
@@ -367,16 +367,16 @@ internal static class TypeHelpers
     {
         TypeCode.SByte => isChecked ? checked((sbyte)value) : unchecked((sbyte)value),
         TypeCode.Byte => value,
-        TypeCode.Int16 => value,
-        TypeCode.UInt16 => value,
-        TypeCode.Int32 => value,
-        TypeCode.UInt32 => value,
-        TypeCode.Int64 => value,
-        TypeCode.UInt64 => value,
+        TypeCode.Int16 => (short)value,
+        TypeCode.UInt16 => (ushort)value,
+        TypeCode.Int32 => (int)value,
+        TypeCode.UInt32 => (uint)value,
+        TypeCode.Int64 => (long)value,
+        TypeCode.UInt64 => (ulong)value,
         TypeCode.Char => (char)value,
-        TypeCode.Single => value,
-        TypeCode.Double => value,
-        TypeCode.Decimal => value,
+        TypeCode.Single => (float)value,
+        TypeCode.Double => (double)value,
+        TypeCode.Decimal => (decimal)value,
         _ => throw new InvalidCastException($"No explicit conversion exists from '{TypeCode.Byte}' to '{targetCode}'.")
     };
 
@@ -386,14 +386,14 @@ internal static class TypeHelpers
         TypeCode.Byte => isChecked ? checked((byte)value) : unchecked((byte)value),
         TypeCode.Int16 => value,
         TypeCode.UInt16 => isChecked ? checked((ushort)value) : unchecked((ushort)value),
-        TypeCode.Int32 => value,
+        TypeCode.Int32 => (int)value,
         TypeCode.UInt32 => isChecked ? checked((uint)value) : unchecked((uint)value),
-        TypeCode.Int64 => value,
+        TypeCode.Int64 => (long)value,
         TypeCode.UInt64 => isChecked ? checked((ulong)value) : unchecked((ulong)value),
         TypeCode.Char => isChecked ? checked((char)value) : unchecked((char)value),
-        TypeCode.Single => value,
-        TypeCode.Double => value,
-        TypeCode.Decimal => value,
+        TypeCode.Single => (float)value,
+        TypeCode.Double => (double)value,
+        TypeCode.Decimal => (decimal)value,
         _ => throw new InvalidCastException($"No explicit conversion exists from '{TypeCode.Int16}' to '{targetCode}'.")
     };
 
@@ -403,14 +403,14 @@ internal static class TypeHelpers
         TypeCode.Byte => isChecked ? checked((byte)value) : unchecked((byte)value),
         TypeCode.Int16 => isChecked ? checked((short)value) : unchecked((short)value),
         TypeCode.UInt16 => value,
-        TypeCode.Int32 => value,
-        TypeCode.UInt32 => value,
-        TypeCode.Int64 => value,
-        TypeCode.UInt64 => value,
+        TypeCode.Int32 => (int)value,
+        TypeCode.UInt32 => (uint)value,
+        TypeCode.Int64 => (long)value,
+        TypeCode.UInt64 => (ulong)value,
         TypeCode.Char => (char)value,
-        TypeCode.Single => value,
-        TypeCode.Double => value,
-        TypeCode.Decimal => value,
+        TypeCode.Single => (float)value,
+        TypeCode.Double => (double)value,
+        TypeCode.Decimal => (decimal)value,
         _ => throw new InvalidCastException($"No explicit conversion exists from '{TypeCode.UInt16}' to '{targetCode}'.")
     };
 
@@ -422,12 +422,12 @@ internal static class TypeHelpers
         TypeCode.UInt16 => isChecked ? checked((ushort)value) : unchecked((ushort)value),
         TypeCode.Int32 => value,
         TypeCode.UInt32 => isChecked ? checked((uint)value) : unchecked((uint)value),
-        TypeCode.Int64 => value,
+        TypeCode.Int64 => (long)value,
         TypeCode.UInt64 => isChecked ? checked((ulong)value) : unchecked((ulong)value),
         TypeCode.Char => isChecked ? checked((char)value) : unchecked((char)value),
-        TypeCode.Single => value,
-        TypeCode.Double => value,
-        TypeCode.Decimal => value,
+        TypeCode.Single => (float)value,
+        TypeCode.Double => (double)value,
+        TypeCode.Decimal => (decimal)value,
         _ => throw new InvalidCastException($"No explicit conversion exists from '{TypeCode.Int32}' to '{targetCode}'.")
     };
 
@@ -439,12 +439,12 @@ internal static class TypeHelpers
         TypeCode.UInt16 => isChecked ? checked((ushort)value) : unchecked((ushort)value),
         TypeCode.Int32 => isChecked ? checked((int)value) : unchecked((int)value),
         TypeCode.UInt32 => value,
-        TypeCode.Int64 => value,
-        TypeCode.UInt64 => value,
+        TypeCode.Int64 => (long)value,
+        TypeCode.UInt64 => (ulong)value,
         TypeCode.Char => isChecked ? checked((char)value) : unchecked((char)value),
-        TypeCode.Single => value,
-        TypeCode.Double => value,
-        TypeCode.Decimal => value,
+        TypeCode.Single => (float)value,
+        TypeCode.Double => (double)value,
+        TypeCode.Decimal => (decimal)value,
         _ => throw new InvalidCastException($"No explicit conversion exists from '{TypeCode.UInt32}' to '{targetCode}'.")
     };
 
@@ -459,9 +459,9 @@ internal static class TypeHelpers
         TypeCode.Int64 => value,
         TypeCode.UInt64 => isChecked ? checked((ulong)value) : unchecked((ulong)value),
         TypeCode.Char => isChecked ? checked((char)value) : unchecked((char)value),
-        TypeCode.Single => value,
-        TypeCode.Double => value,
-        TypeCode.Decimal => value,
+        TypeCode.Single => (float)value,
+        TypeCode.Double => (double)value,
+        TypeCode.Decimal => (decimal)value,
         _ => throw new InvalidCastException($"No explicit conversion exists from '{TypeCode.Int64}' to '{targetCode}'.")
     };
 
@@ -476,9 +476,9 @@ internal static class TypeHelpers
         TypeCode.Int64 => isChecked ? checked((long)value) : unchecked((long)value),
         TypeCode.UInt64 => value,
         TypeCode.Char => isChecked ? checked((char)value) : unchecked((char)value),
-        TypeCode.Single => value,
-        TypeCode.Double => value,
-        TypeCode.Decimal => value,
+        TypeCode.Single => (float)value,
+        TypeCode.Double => (double)value,
+        TypeCode.Decimal => (decimal)value,
         _ => throw new InvalidCastException($"No explicit conversion exists from '{TypeCode.UInt64}' to '{targetCode}'.")
     };
 
@@ -487,15 +487,15 @@ internal static class TypeHelpers
         TypeCode.SByte => isChecked ? checked((sbyte)value) : unchecked((sbyte)value),
         TypeCode.Byte => isChecked ? checked((byte)value) : unchecked((byte)value),
         TypeCode.Int16 => isChecked ? checked((short)value) : unchecked((short)value),
-        TypeCode.UInt16 => value,
-        TypeCode.Int32 => value,
-        TypeCode.UInt32 => value,
-        TypeCode.Int64 => value,
-        TypeCode.UInt64 => value,
+        TypeCode.UInt16 => (ushort)value,
+        TypeCode.Int32 => (int)value,
+        TypeCode.UInt32 => (uint)value,
+        TypeCode.Int64 => (long)value,
+        TypeCode.UInt64 => (ulong)value,
         TypeCode.Char => value,
-        TypeCode.Single => value,
-        TypeCode.Double => value,
-        TypeCode.Decimal => value,
+        TypeCode.Single => (float)value,
+        TypeCode.Double => (double)value,
+        TypeCode.Decimal => (decimal)value,
         _ => throw new InvalidCastException($"No explicit conversion exists from '{TypeCode.Char}' to '{targetCode}'.")
     };
 
@@ -511,7 +511,7 @@ internal static class TypeHelpers
         TypeCode.UInt64 => isChecked ? checked((ulong)value) : (ulong)value,
         TypeCode.Char => isChecked ? checked((char)value) : (char)value,
         TypeCode.Single => value,
-        TypeCode.Double => value,
+        TypeCode.Double => (double)value,
         TypeCode.Decimal => isChecked ? checked((decimal)value) : (decimal)value,
         _ => throw new InvalidCastException($"No explicit conversion exists from '{TypeCode.Single}' to '{targetCode}'.")
     };
@@ -528,7 +528,7 @@ internal static class TypeHelpers
         TypeCode.UInt64 => isChecked ? checked((ulong)value) : (ulong)value,
         TypeCode.Char => isChecked ? checked((char)value) : (char)value,
         TypeCode.Single => (float)value,
-        TypeCode.Double => value,
+        TypeCode.Double => (double)value,
         TypeCode.Decimal => isChecked ? checked((decimal)value) : (decimal)value,
         _ => throw new InvalidCastException($"No explicit conversion exists from '{TypeCode.Double}' to '{targetCode}'.")
     };

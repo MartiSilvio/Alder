@@ -1,4 +1,5 @@
 using System.Reflection;
+using CsEval.Compiled;
 using CsEval.Diagnostics;
 using CsEval.Parsing;
 
@@ -29,16 +30,11 @@ public class ApiSurfaceTests
 
         var expected = new[]
         {
-            "Compile",
-            "CompileExpression",
-            "CompileToFunc",
             "CreateChild",
             "Dispose",
             "Evaluate",
             "GetRegisteredModules",
             "Parse",
-            "ParseAndCompile",
-            "ParseAsExpression",
             "RegisterAssembly",
             "RegisterExtensionMethods",
             "RegisterFromAssembly",
@@ -50,7 +46,6 @@ public class ApiSurfaceTests
             "SetVariables",
             "TryEvaluate",
             "TryParse",
-            "TryParseAsExpression",
             "TryValidate",
         }.OrderBy(n => n).ToList();
 
@@ -228,31 +223,53 @@ public class ApiSurfaceTests
     }
 
     // ----------------------------------------------------------------
-    // Compile / CompileToFunc presence
+    // Compile API split (core instance API vs compiled extension API)
     // ----------------------------------------------------------------
 
     [Test]
-    public void Compile_Methods_ExistOnEngine()
+    public void Compile_Methods_DoNotExistOnCoreEngine()
     {
         var methods = typeof(CsEvalEngine)
             .GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
             .Where(m => m.Name == "Compile")
             .ToList();
 
-        // Compile<T>(string) and Compile(string)
-        Assert.That(methods, Has.Count.EqualTo(2));
+        Assert.That(methods, Is.Empty);
     }
 
     [Test]
-    public void CompileToFunc_Exists()
+    public void CompileToFunc_DoesNotExistOnCoreEngine()
     {
         var method = typeof(CsEvalEngine)
             .GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
             .Where(m => m.Name == "CompileToFunc")
             .SingleOrDefault();
 
-        Assert.That(method, Is.Not.Null);
-        Assert.That(method!.IsGenericMethod, Is.True);
+        Assert.That(method, Is.Null);
+    }
+
+    [Test]
+    public void CompiledExtensionApi_Exists()
+    {
+        var extensionMethods = typeof(CsEvalCompiledEngineExtensions)
+            .GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.DeclaredOnly)
+            .Where(m => m.IsDefined(typeof(System.Runtime.CompilerServices.ExtensionAttribute), inherit: false))
+            .Select(m => m.Name)
+            .Distinct()
+            .OrderBy(n => n)
+            .ToList();
+
+        var expected = new[]
+        {
+            "Compile",
+            "CompileExpression",
+            "CompileToFunc",
+            "ParseAndCompile",
+            "ParseAsExpression",
+            "TryParseAsExpression",
+        }.OrderBy(n => n).ToList();
+
+        Assert.That(extensionMethods, Is.EqualTo(expected));
     }
 
     // ----------------------------------------------------------------
