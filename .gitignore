@@ -13,7 +13,7 @@
 x64/
 [Bb]in/
 [Oo]bj/
-BenchmarkDotNet.Artifacts/
+BenchmarkDotNet.Artifacts*/
 
 # MSTest test Results
 [Tt]est[Rr]esult*/

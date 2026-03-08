@@ -551,6 +551,39 @@ internal static class TypeHelpers
         return value;
     }
 
+    internal static bool RequiresReflectionLeakGuard(Type type)
+    {
+        if (type.IsValueType)
+            return false;
+
+        if (type == typeof(string))
+            return false;
+
+        if (type == typeof(object))
+            return true;
+
+        if (IsForbiddenReflectionType(type))
+            return true;
+
+        if (type.IsArray)
+        {
+            var elementType = type.GetElementType();
+            return elementType == null || RequiresReflectionLeakGuard(elementType);
+        }
+
+        if (type.IsGenericType)
+        {
+            foreach (var arg in type.GetGenericArguments())
+            {
+                if (RequiresReflectionLeakGuard(arg))
+                    return true;
+            }
+        }
+
+        // For non-sealed reference types, runtime values can still be forbidden subtypes.
+        return !type.IsSealed;
+    }
+
     internal static object? CoerceNumeric(object? arg, Type targetType)
     {
         if (arg == null) return null;

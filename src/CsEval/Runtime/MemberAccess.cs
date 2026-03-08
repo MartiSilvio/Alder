@@ -154,23 +154,13 @@ internal static class MemberAccess
 
         if (obj is string s && index != null)
         {
-            var i = Convert.ToInt32(index);
-            if (i < 0 && options.LanguageMode == LanguageMode.Extended)
-                i = s.Length + i;
-            if (i < 0 || i >= s.Length)
-                throw new ArgumentOutOfRangeException("index", i,
-                    "Index was out of range. Must be non-negative and less than the size of the collection.");
+            var i = NormalizeIndex(Convert.ToInt32(index), s.Length, options.LanguageMode);
             return (object)s[i];
         }
 
         if (obj is IList list && index != null)
         {
-            var idx = Convert.ToInt32(index);
-            if (idx < 0 && options.LanguageMode == LanguageMode.Extended)
-                idx = list.Count + idx;
-            if (idx < 0 || idx >= list.Count)
-                throw new ArgumentOutOfRangeException("index", idx,
-                    "Index was out of range. Must be non-negative and less than the size of the collection.");
+            var idx = NormalizeIndex(Convert.ToInt32(index), list.Count, options.LanguageMode);
             return TypeHelpers.GuardReflectionLeak(list[idx], $"index [{idx}]");
         }
 
@@ -265,12 +255,7 @@ internal static class MemberAccess
 
         if (obj is IList list && index != null)
         {
-            var idx = Convert.ToInt32(index);
-            if (idx < 0 && options?.LanguageMode == LanguageMode.Extended)
-                idx = list.Count + idx;
-            if (idx < 0 || idx >= list.Count)
-                throw new ArgumentOutOfRangeException("index", idx,
-                    "Index was out of range. Must be non-negative and less than the size of the collection.");
+            var idx = NormalizeIndex(Convert.ToInt32(index), list.Count, options?.LanguageMode ?? LanguageMode.Standard);
             list[idx] = value;
             return;
         }
@@ -294,6 +279,20 @@ internal static class MemberAccess
         }
 
         throw new CsEvalException(DiagnosticDescriptors.BadIndexerAccess, type.Name);
+    }
+
+    public static int NormalizeIndex(int index, int length, LanguageMode languageMode)
+    {
+        if (index < 0 && languageMode == LanguageMode.Extended)
+            index = length + index;
+
+        if (index < 0 || index >= length)
+            throw new ArgumentOutOfRangeException(
+                "index",
+                index,
+                "Index was out of range. Must be non-negative and less than the size of the collection.");
+
+        return index;
     }
 
     /// <summary>
@@ -328,7 +327,7 @@ internal static class MemberAccess
             _ => throw new CsEvalException($"Cannot slice type '{obj.GetType().Name}' -- slicing requires an array, List<T>, or string")
         };
 
-        if (stepVal == null || stepVal == 1)
+        if (stepVal is null or 1)
         {
             // Fast path: no step or step=1, use original sequential logic
             int startIdx = ResolveIndex(start, stepVal, length, isStart: true);

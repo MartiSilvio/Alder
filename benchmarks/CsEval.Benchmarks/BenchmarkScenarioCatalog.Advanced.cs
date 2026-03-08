@@ -33,6 +33,24 @@ public static partial class BenchmarkScenarioCatalog
             "orders[0].Quantity + orders[1].Quantity + orders.Count",
             "Orders[0].Quantity + Orders[1].Quantity + Orders.Count",
             "orders[0].Quantity + orders[1].Quantity + orders.Count",
-            "orders[0].Quantity + orders[1].Quantity + orders.Count")
+            "orders[0].Quantity + orders[1].Quantity + orders.Count"),
+        new(
+            "Advanced/StringChain",
+            "text.Trim().ToUpper().Length",
+            "Text.Trim().ToUpper().Length",
+            "text.Trim().ToUpper().Length",
+            "text.Trim().ToUpper().Length"),
+        new(
+            "Advanced/StringContains",
+            "text.Contains(\"lph\") && text.StartsWith(\"a\")",
+            "Text.Contains(\"lph\") && Text.StartsWith(\"a\")",
+            "text.Contains(\"lph\") && text.StartsWith(\"a\")",
+            "text.Contains(\"lph\") and text.StartsWith(\"a\")"),
+        new(
+            "Advanced/NestedFunctionCalls",
+            "Math.Max(Math.Abs(x - y), Math.Min(y, z))",
+            "Math.Max(Math.Abs(X - Y), Math.Min(Y, Z))",
+            "Math.Max(Math.Abs(x - y), Math.Min(y, z))",
+            "Max(Abs(x - y), Min(y, z))")
     ];
 }

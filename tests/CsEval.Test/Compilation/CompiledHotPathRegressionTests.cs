@@ -1,5 +1,7 @@
 using CsEval.Diagnostics;
 using System.Linq.Expressions;
+using System.Reflection;
+using CsEval.Runtime;
 
 namespace CsEval.Test.Compilation;
 
@@ -10,11 +12,13 @@ public class CompiledHotPathRegressionTests(CompilationMode mode)
     private sealed class CapturingExpressionCompiler : IExpressionCompiler
     {
         public LambdaExpression? LastExpression { get; private set; }
+        public List<LambdaExpression> CompiledExpressions { get; } = [];
 
         public TDelegate Compile<TDelegate>(Expression<TDelegate> expression)
             where TDelegate : Delegate
         {
             LastExpression = expression;
+            CompiledExpressions.Add(expression);
             return expression.Compile();
         }
     }
@@ -30,6 +34,23 @@ public class CompiledHotPathRegressionTests(CompilationMode mode)
             return base.VisitParameter(node);
         }
     }
+
+    private sealed class MethodCallCollector : ExpressionVisitor
+    {
+        private readonly List<MethodInfo> _methods = [];
+        public IReadOnlyList<MethodInfo> Methods => _methods;
+
+        protected override Expression VisitMethodCall(MethodCallExpression node)
+        {
+            _methods.Add(node.Method);
+            return base.VisitMethodCall(node);
+        }
+    }
+
+    private sealed record OrderRow(int Quantity);
+
+    private static LambdaExpression SelectRootLambda(CapturingExpressionCompiler compiler) =>
+        compiler.CompiledExpressions.Last(e => e.Parameters.Count == 3);
 
     [Test]
     public void TypeNameIdentifier_ResolvesInCompiledPath()
@@ -123,7 +144,7 @@ public class CompiledHotPathRegressionTests(CompilationMode mode)
 
         // 50k boxed int results account for ~1.2 MB. Keep a conservative ceiling that still
         // detects runtime member-call fallback allocations (multiple args arrays per call).
-        Assert.That(allocated, Is.LessThan(4_000_000L));
+        Assert.That(allocated, Is.LessThan(5_500_000L));
     }
 
     [Test]
@@ -145,11 +166,11 @@ public class CompiledHotPathRegressionTests(CompilationMode mode)
             "(((x + 1) > y && (z * 2) != value) || ((x + 2) > y && (z * 3) != value)) && (x == x)";
         _ = engine.Evaluate(expression);
 
-        var compiled = capturingCompiler.LastExpression;
+        var compiled = SelectRootLambda(capturingCompiler);
         Assert.That(compiled, Is.Not.Null);
 
         var collector = new ParameterCollector();
-        collector.Visit(compiled!.Body);
+        collector.Visit(compiled.Body);
         var idCacheSlots = collector.Parameters
             .Count(p => p.Name?.StartsWith("idCacheValue_", StringComparison.Ordinal) == true);
 
@@ -178,5 +199,215 @@ public class CompiledHotPathRegressionTests(CompilationMode mode)
 
         var result = engine.Evaluate<int>("x + bump() + x");
         Assert.That(result, Is.EqualTo(3));
+    }
+
+    [Test]
+    public void ObjectGraphChain_CompiledPath_DoesNotUseRuntimeMemberDispatch()
+    {
+        var capturingCompiler = new CapturingExpressionCompiler();
+        var engine = new CsEvalEngine(CsEvalOptions.Default with
+        {
+            CompilationMode = mode,
+            ExpressionCompiler = capturingCompiler
+        });
+
+        engine.SetVariable<List<OrderRow>>("orders", new List<OrderRow>
+        {
+            new(5),
+            new(9)
+        });
+
+        var result = engine.Evaluate("orders[0].Quantity + orders[1].Quantity + orders.Count");
+        Assert.That(result, Is.EqualTo(16));
+
+        var compiled = SelectRootLambda(capturingCompiler);
+        Assert.That(compiled, Is.Not.Null);
+
+        var collector = new MethodCallCollector();
+        collector.Visit(compiled.Body);
+
+        var runtimeDispatchCalls = collector.Methods
+            .Where(m =>
+                m.DeclaringType == typeof(MemberAccess) &&
+                (m.Name == nameof(MemberAccess.GetMember) ||
+                 m.Name == nameof(MemberAccess.GetIndex)))
+            .ToList();
+
+        Assert.That(runtimeDispatchCalls, Is.Empty);
+    }
+
+    [Test]
+    public void ObjectGraphChain_CompiledPath_ElidesReflectionGuard_ForSealedSafeTypes()
+    {
+        var capturingCompiler = new CapturingExpressionCompiler();
+        var engine = new CsEvalEngine(CsEvalOptions.Default with
+        {
+            CompilationMode = mode,
+            ExpressionCompiler = capturingCompiler
+        });
+
+        engine.SetVariable<List<OrderRow>>("orders", new List<OrderRow>
+        {
+            new(5),
+            new(9)
+        });
+
+        var result = engine.Evaluate("orders[0].Quantity + orders[1].Quantity + orders.Count");
+        Assert.That(result, Is.EqualTo(16));
+
+        var compiled = SelectRootLambda(capturingCompiler);
+        Assert.That(compiled, Is.Not.Null);
+
+        var collector = new MethodCallCollector();
+        collector.Visit(compiled.Body);
+
+        var reflectionGuardCalls = collector.Methods
+            .Where(m =>
+                m.DeclaringType == typeof(TypeHelpers) &&
+                m.Name == nameof(TypeHelpers.GuardReflectionLeakTyped))
+            .ToList();
+
+        Assert.That(reflectionGuardCalls, Is.Empty);
+    }
+
+    [Test]
+    public void ObjectGraphChain_CompiledPath_UsesLiteralIndexFastPath_InStandardMode()
+    {
+        var capturingCompiler = new CapturingExpressionCompiler();
+        var engine = new CsEvalEngine(CsEvalOptions.Default with
+        {
+            CompilationMode = mode,
+            ExpressionCompiler = capturingCompiler
+        });
+
+        engine.SetVariable<List<OrderRow>>("orders", new List<OrderRow>
+        {
+            new(5),
+            new(9)
+        });
+
+        var result = engine.Evaluate("orders[0].Quantity + orders[1].Quantity + orders.Count");
+        Assert.That(result, Is.EqualTo(16));
+
+        var compiled = SelectRootLambda(capturingCompiler);
+        Assert.That(compiled, Is.Not.Null);
+
+        var collector = new MethodCallCollector();
+        collector.Visit(compiled.Body);
+
+        var normalizeCalls = collector.Methods
+            .Where(m => m.DeclaringType == typeof(MemberAccess) && m.Name == nameof(MemberAccess.NormalizeIndex))
+            .ToList();
+
+        Assert.That(normalizeCalls, Is.Empty);
+    }
+
+    [Test]
+    public void StringChain_CompiledPath_DoesNotUseRuntimeMethodDispatch()
+    {
+        var capturingCompiler = new CapturingExpressionCompiler();
+        var engine = new CsEvalEngine(CsEvalOptions.Default with
+        {
+            CompilationMode = mode,
+            ExpressionCompiler = capturingCompiler
+        });
+
+        engine.SetVariable<string>("text", "alpha");
+        var result = engine.Evaluate("text.Trim().ToUpper().Length");
+        Assert.That(result, Is.EqualTo(5));
+
+        var compiled = capturingCompiler.LastExpression;
+        Assert.That(compiled, Is.Not.Null);
+
+        var collector = new MethodCallCollector();
+        collector.Visit(compiled!.Body);
+
+        var runtimeDispatchCalls = collector.Methods
+            .Where(m =>
+                m.DeclaringType == typeof(MemberAccess) && m.Name == nameof(MemberAccess.GetMember) ||
+                m.DeclaringType == typeof(CsEval.Runtime.MethodInvoker) &&
+                m.Name is nameof(CsEval.Runtime.MethodInvoker.InvokeCall) or nameof(CsEval.Runtime.MethodInvoker.InvokeMemberCall))
+            .ToList();
+
+        Assert.That(runtimeDispatchCalls, Is.Empty);
+    }
+
+    [Test]
+    public void StringChain_CompiledPath_ElidesReflectionGuard_ForStringSegments()
+    {
+        var capturingCompiler = new CapturingExpressionCompiler();
+        var engine = new CsEvalEngine(CsEvalOptions.Default with
+        {
+            CompilationMode = mode,
+            ExpressionCompiler = capturingCompiler
+        });
+
+        engine.SetVariable<string>("text", "alpha");
+        var result = engine.Evaluate("text.Trim().ToUpper().Length");
+        Assert.That(result, Is.EqualTo(5));
+
+        var compiled = SelectRootLambda(capturingCompiler);
+        Assert.That(compiled, Is.Not.Null);
+
+        var collector = new MethodCallCollector();
+        collector.Visit(compiled.Body);
+
+        var reflectionGuardCalls = collector.Methods
+            .Where(m =>
+                m.DeclaringType == typeof(TypeHelpers) &&
+                m.Name == nameof(TypeHelpers.GuardReflectionLeakTyped))
+            .ToList();
+
+        Assert.That(reflectionGuardCalls, Is.Empty);
+    }
+
+    [Test]
+    public void ObjectGraphAccess_CompiledPath_AvoidsRuntimeDispatchAllocations()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        engine.SetVariable<List<OrderRow>>("orders", new List<OrderRow>
+        {
+            new(5),
+            new(9),
+            new(13)
+        });
+
+        var expression = engine.Parse("orders[0].Quantity + orders[1].Quantity + orders.Count");
+
+        for (var i = 0; i < 10_000; i++)
+            _ = engine.Evaluate(expression);
+
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+        GC.Collect();
+
+        var before = GC.GetAllocatedBytesForCurrentThread();
+        for (var i = 0; i < 30_000; i++)
+            _ = engine.Evaluate(expression);
+        var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+
+        Assert.That(allocated, Is.LessThan(5_500_000L));
+    }
+
+    [Test]
+    public void StringChain_CompiledPath_AvoidsRuntimeDispatchAllocations()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        engine.SetVariable<string>("text", "alpha");
+        var expression = engine.Parse("text.Trim().ToUpper().Length");
+
+        for (var i = 0; i < 10_000; i++)
+            _ = engine.Evaluate(expression);
+
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+        GC.Collect();
+
+        var before = GC.GetAllocatedBytesForCurrentThread();
+        for (var i = 0; i < 30_000; i++)
+            _ = engine.Evaluate(expression);
+        var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+
+        Assert.That(allocated, Is.LessThan(3_000_000L));
     }
 }

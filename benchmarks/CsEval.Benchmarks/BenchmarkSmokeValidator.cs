@@ -28,6 +28,13 @@ public static class BenchmarkSmokeValidator
                 failures.Add(parity.Message);
         }
 
+        foreach (var scenario in BenchmarkScenarioCatalog.GetLinqScenarios())
+        {
+            var parity = BenchmarkParityVerifier.VerifyLinqScenario(scenario, globals);
+            if (!parity.IsSuccess)
+                failures.Add(parity.Message);
+        }
+
         foreach (var scenario in BenchmarkScenarioCatalog.GetCompilationScenarios())
         {
             var parity = BenchmarkParityVerifier.VerifyCompilationScenario(scenario, globals);
@@ -37,7 +44,7 @@ public static class BenchmarkSmokeValidator
 
         if (failures.Count == 0)
         {
-            Console.WriteLine("Benchmark smoke validation passed for comparable, advanced, extended parity, and compilation scenarios.");
+            Console.WriteLine("Benchmark smoke validation passed for comparable, advanced, extended parity, LINQ, and compilation scenarios.");
             return 0;
         }
 

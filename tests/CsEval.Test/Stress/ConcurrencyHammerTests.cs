@@ -39,7 +39,7 @@ public class ConcurrencyHammerTests(CompilationMode mode) : StressTestBase(mode)
     {
         // Multiple threads parsing/evaluating the SAME expression should hit the shared ExpressionCache.
         // If cache is not thread-safe, this will crash.
-        var expr = "1 + 1";
+        const string expr = "1 + 1";
 
         Parallel.For(0, 10000, i =>
         {

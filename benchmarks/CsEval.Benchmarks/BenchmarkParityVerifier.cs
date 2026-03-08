@@ -112,6 +112,30 @@ public static class BenchmarkParityVerifier
         }
     }
 
+    public static ParityResult VerifyLinqScenario(LinqScenario scenario, BenchmarkGlobalData globals)
+    {
+        try
+        {
+            var expected = scenario.NativeEvaluator(globals);
+            var interpreted = EvaluateCsEval(globals, scenario.CsEvalExpression, CompilationMode.Interpreted);
+            var compiled = EvaluateCsEval(globals, scenario.CsEvalExpression, CompilationMode.StrictCompiled);
+            var roslyn = EvaluateRoslyn(globals, scenario.RoslynExpression);
+
+            if (!AreEquivalent(expected, interpreted))
+                return Failure(scenario, "CsEval Interpreted", expected, interpreted);
+            if (!AreEquivalent(expected, compiled))
+                return Failure(scenario, "CsEval Compiled", expected, compiled);
+            if (!AreEquivalent(expected, roslyn))
+                return Failure(scenario, "Roslyn Script", expected, roslyn);
+
+            return new ParityResult(true, $"{scenario.Name} aligned across engines.");
+        }
+        catch (Exception ex)
+        {
+            return new ParityResult(false, $"{scenario.Name} LINQ parity failed: {ex.GetType().Name} - {ex.Message}");
+        }
+    }
+
     public static ParityResult VerifyCompilationScenario(CompilationScenario scenario, BenchmarkGlobalData globals)
     {
         try
@@ -148,6 +172,9 @@ public static class BenchmarkParityVerifier
         => new(false, $"{scenario.Name}: {engineName} mismatch. expected={Format(expected)}, actual={Format(actual)}");
 
     private static ParityResult Failure(ExtendedParityScenario scenario, string engineName, object? expected, object? actual)
+        => new(false, $"{scenario.Name}: {engineName} mismatch. expected={Format(expected)}, actual={Format(actual)}");
+
+    private static ParityResult Failure(LinqScenario scenario, string engineName, object? expected, object? actual)
         => new(false, $"{scenario.Name}: {engineName} mismatch. expected={Format(expected)}, actual={Format(actual)}");
 
     private static void ConfigureExtendedParityEngine(CsEvalEngine engine)

@@ -40,3 +40,12 @@ public sealed record CompilationScenario(
 {
     public override string ToString() => Name;
 }
+
+public sealed record LinqScenario(
+    string Name,
+    string CsEvalExpression,
+    string RoslynExpression,
+    Func<BenchmarkGlobalData, object?> NativeEvaluator)
+{
+    public override string ToString() => Name;
+}

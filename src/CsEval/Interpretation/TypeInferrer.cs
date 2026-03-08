@@ -249,7 +249,30 @@ internal sealed class TypeInferrer : AstWalker<Type>
     public override Type VisitArrayLiteral(ArrayLiteralExpr expr)
     {
         base.VisitArrayLiteral(expr);
-        return SetType(expr, typeof(object[]));
+        if (expr.Elements.Count == 0)
+            return SetType(expr, typeof(object[]));
+
+        Type? elementType = null;
+        foreach (var element in expr.Elements)
+        {
+            var current = ResolveSentinel(GetInferredType(element));
+            if (current == typeof(object))
+                return SetType(expr, typeof(object[]));
+
+            if (elementType == null)
+            {
+                elementType = current;
+                continue;
+            }
+
+            if (elementType != current)
+                return SetType(expr, typeof(object[]));
+        }
+
+        if (elementType == null)
+            return SetType(expr, typeof(object[]));
+
+        return SetType(expr, elementType.MakeArrayType());
     }
 
     public override Type VisitObjectLiteral(ObjectLiteralExpr expr)
@@ -550,6 +573,34 @@ internal sealed class TypeInferrer : AstWalker<Type>
             if (field != null)
                 return SetType(expr, field.FieldType);
         }
+
+        return SetType(expr, typeof(object));
+    }
+
+    public override Type VisitIndexAccess(IndexAccessExpr expr)
+    {
+        Visit(expr.Object);
+        Visit(expr.Index);
+
+        var objectType = GetInferredType(expr.Object);
+        if (objectType == typeof(object))
+            return SetType(expr, typeof(object));
+
+        if (objectType == typeof(string))
+            return SetType(expr, typeof(char));
+
+        if (objectType.IsArray)
+            return SetType(expr, objectType.GetElementType() ?? typeof(object));
+
+        var genericListInterface = objectType
+            .GetInterfaces()
+            .FirstOrDefault(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IList<>));
+        if (genericListInterface != null)
+            return SetType(expr, genericListInterface.GetGenericArguments()[0]);
+
+        var indexer = objectType.GetProperty("Item", BindingFlags.Public | BindingFlags.Instance);
+        if (indexer != null && indexer.GetIndexParameters().Length == 1)
+            return SetType(expr, indexer.PropertyType);
 
         return SetType(expr, typeof(object));
     }
