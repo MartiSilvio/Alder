@@ -398,7 +398,7 @@ internal sealed class Evaluator : IExprVisitor<object?>
     public object? VisitCall(CallExpr expr)
     {
         var args = new object?[expr.Arguments.Count];
-        var hasOutArgs = false;
+        List<OutVariableBinding>? outBindings = null;
         for (var i = 0; i < expr.Arguments.Count; i++)
         {
             var argument = expr.Arguments[i];
@@ -408,9 +408,16 @@ internal sealed class Evaluator : IExprVisitor<object?>
                 continue;
             }
 
+            if (argument is OutArgExpr outArgExpr)
+            {
+                if (!outArgExpr.IsDiscard)
+                {
+                    outBindings ??= [];
+                    outBindings.Add(new OutVariableBinding(i, outArgExpr.VariableName, outArgExpr.TypeName));
+                }
+            }
+
             var evaluated = Evaluate(argument);
-            if (!hasOutArgs && evaluated is OutArgMarker)
-                hasOutArgs = true;
             args[i] = evaluated;
         }
 
@@ -442,20 +449,8 @@ internal sealed class Evaluator : IExprVisitor<object?>
         // After method invocation, MethodInvoker.CopyBackOutArgs has replaced OutArgMarker
         // entries in the args array with the actual values produced by the method.
         // Define out variables in the current scope.
-        if (hasOutArgs)
-        {
-            for (var i = 0; i < args.Length; i++)
-            {
-                if (expr.Arguments[i] is OutArgExpr { IsDiscard: false } outArg)
-                {
-                    var outValue = args[i];
-                    var varType = outValue?.GetType() ?? typeof(object);
-                    if (outArg.TypeName != null)
-                        varType = _context.TypeResolver.ResolveType(outArg.TypeName);
-                    _context.DefineNew(outArg.VariableName, outValue, varType);
-                }
-            }
-        }
+        if (outBindings is { Count: > 0 })
+            RuntimeHelpers.DefineOutVariables(args, outBindings, _context);
 
         return result;
     }
@@ -1658,12 +1653,6 @@ internal sealed class Evaluator : IExprVisitor<object?>
     {
         if (expr.Right is IdentifierExpr rightIdentifier)
         {
-            if (Functions.ContainsKey(rightIdentifier.Name.Lexeme))
-            {
-                // Keep function-identifier pipelines on the same interpreted call path as f(x).
-                return VisitCall(new CallExpr(rightIdentifier, [expr.Left]));
-            }
-
             var leftValue = Evaluate(expr.Left);
             return RuntimeHelpers.InvokePipelineIdentifier(
                 leftValue,

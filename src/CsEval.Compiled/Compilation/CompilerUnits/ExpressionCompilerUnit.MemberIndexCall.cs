@@ -1,4 +1,5 @@
 using CsEval.Parsing;
+using CsEval.Runtime;
 
 namespace CsEval.Compiled.Compilation.CompilerUnits;
 
@@ -85,8 +86,8 @@ internal sealed partial class ExpressionCompilerUnit
             ? LinqExpression.Constant(call.TypeArguments, typeof(IReadOnlyList<string>))
             : LinqExpression.Constant(null, typeof(IReadOnlyList<string>));
 
-        // Check if any arguments are out parameters (need post-call variable definition)
-        var hasOutArgs = call.Arguments.Any(a => a is OutArgExpr);
+        var outBindings = CollectOutBindings(call.Arguments);
+        var hasOutArgs = outBindings.Length > 0;
 
         LinqExpression callExpr;
 
@@ -160,46 +161,13 @@ internal sealed partial class ExpressionCompilerUnit
         var statements = new List<LinqExpression>
         {
             LinqExpression.Assign(argsVar, argsInit),
-            LinqExpression.Assign(resultVar, callExpr)
+            LinqExpression.Assign(resultVar, callExpr),
+            LinqExpression.Call(
+                CompilerContext.DefineOutVariablesMethod,
+                argsVar,
+                LinqExpression.Constant(outBindings, typeof(IReadOnlyList<OutVariableBinding>)),
+                _ctx.CurrentContext)
         };
-
-        // After the call, MethodInvoker.CopyBackOutArgs has replaced OutArgMarker entries
-        // in argsVar with the actual values. Define variables for non-discard out args.
-        for (var i = 0; i < call.Arguments.Count; i++)
-        {
-            if (call.Arguments[i] is OutArgExpr { IsDiscard: false } outArg)
-            {
-                // Read the out value from argsVar[i]
-                var outValue = LinqExpression.ArrayIndex(argsVar, LinqExpression.Constant(i));
-
-                // Resolve type: if explicit type specified, use it; otherwise use runtime type
-                LinqExpression typeExpr;
-                if (outArg.TypeName != null)
-                {
-                    typeExpr = LinqExpression.Call(
-                        _ctx.TypeResolverExpr,
-                        CompilerContext.ResolveTypeMethod,
-                        LinqExpression.Constant(outArg.TypeName));
-                }
-                else
-                {
-                    // typeof(object) — the runtime type will be set by the value itself
-                    // Use a conditional: value?.GetType() ?? typeof(object)
-                    var getTypeMethod = typeof(object).GetMethod(nameof(GetType))!;
-                    typeExpr = LinqExpression.Condition(
-                        LinqExpression.NotEqual(outValue, LinqExpression.Constant(null, typeof(object))),
-                        LinqExpression.Call(outValue, getTypeMethod),
-                        LinqExpression.Constant(typeof(object), typeof(Type)));
-                }
-
-                statements.Add(LinqExpression.Call(
-                    _ctx.CurrentContext,
-                    CompilerContext.DefineNewMethod,
-                    LinqExpression.Constant(outArg.VariableName),
-                    outValue,
-                    typeExpr));
-            }
-        }
 
         // Return the call result
         statements.Add(resultVar);
@@ -207,6 +175,24 @@ internal sealed partial class ExpressionCompilerUnit
         return LinqExpression.Block(
             new[] { argsVar, resultVar },
             statements);
+    }
+
+    private static OutVariableBinding[] CollectOutBindings(IReadOnlyList<Expr> arguments)
+    {
+        if (arguments.Count == 0)
+            return [];
+
+        List<OutVariableBinding>? bindings = null;
+        for (var i = 0; i < arguments.Count; i++)
+        {
+            if (arguments[i] is OutArgExpr { IsDiscard: false } outArg)
+            {
+                bindings ??= [];
+                bindings.Add(new OutVariableBinding(i, outArg.VariableName, outArg.TypeName));
+            }
+        }
+
+        return bindings?.ToArray() ?? [];
     }
 
     /// <summary>

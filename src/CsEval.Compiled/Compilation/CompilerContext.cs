@@ -160,6 +160,8 @@ internal sealed class CompilerContext
     internal static readonly MethodInfo ResolveIdentifierMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.ResolveIdentifier))!;
     internal static readonly MethodInfo ResolveIdentifierTypedMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.ResolveIdentifierTyped))!;
     internal static readonly MethodInfo InvokeIdentifierCallMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.InvokeIdentifierCall))!;
+    internal static readonly MethodInfo InvokePipelineIdentifierMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.InvokePipelineIdentifier))!;
+    internal static readonly MethodInfo DefineOutVariablesMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.DefineOutVariables))!;
     internal static readonly MethodInfo ConditionalTypePromotionMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.ConditionalTypePromotion))!;
     internal static readonly ConstructorInfo NamedArgCtor = typeof(NamedArg).GetConstructor([typeof(string), typeof(object)])!;
     internal static readonly ConstructorInfo CompiledLambdaValueCtor =

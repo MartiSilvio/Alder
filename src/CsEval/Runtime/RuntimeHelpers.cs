@@ -207,6 +207,29 @@ internal static class RuntimeHelpers
         IReadOnlyList<string>? typeArgs) =>
         InvokeIdentifierCall(name, args, context, options, ct, typeArgs);
 
+    /// <summary>
+    /// Defines non-discard out variables from invocation arguments after MethodInvoker copy-back.
+    /// </summary>
+    public static void DefineOutVariables(
+        object?[] invocationArgs,
+        IReadOnlyList<OutVariableBinding> bindings,
+        CsEvalContext context)
+    {
+        for (var i = 0; i < bindings.Count; i++)
+        {
+            var binding = bindings[i];
+            if ((uint)binding.ArgumentIndex >= (uint)invocationArgs.Length)
+                throw new CsEvalException($"Invalid out argument index '{binding.ArgumentIndex}'.");
+
+            var outValue = invocationArgs[binding.ArgumentIndex];
+            var variableType = binding.TypeName != null
+                ? context.TypeResolver.ResolveType(binding.TypeName)
+                : outValue?.GetType() ?? typeof(object);
+
+            context.DefineNew(binding.VariableName, outValue, variableType);
+        }
+    }
+
     public static void CheckAllowAssignment(CsEvalOptions options, string context)
     {
         if (!options.Sandbox.AllowAssignment)

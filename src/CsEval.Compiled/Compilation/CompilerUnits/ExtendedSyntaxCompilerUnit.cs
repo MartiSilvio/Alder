@@ -38,8 +38,13 @@ internal sealed class ExtendedSyntaxCompilerUnit
     {
         if (expr.Right is IdentifierExpr rightIdentifier)
         {
-            // Compile identifier pipelines on the same code path as direct calls: x |> f  =>  f(x)
-            return _exprUnit!.CompileCall(new CallExpr(rightIdentifier, [expr.Left]));
+            return LinqExpression.Call(
+                CompilerContext.InvokePipelineIdentifierMethod,
+                Compile(expr.Left),
+                LinqExpression.Constant(rightIdentifier.Name.Lexeme),
+                _ctx.CurrentContext,
+                _ctx.OptionsParam,
+                _ctx.CtParam);
         }
 
         var left = Compile(expr.Left);

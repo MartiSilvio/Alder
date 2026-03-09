@@ -50,3 +50,8 @@ internal sealed record NamedArg(string Name, object? Value);
 /// and defines variables in the current scope.
 /// </summary>
 internal sealed record OutArgMarker(string VariableName, string? TypeName, bool IsDiscard);
+
+/// <summary>
+/// Immutable metadata for defining out variables after method invocation.
+/// </summary>
+internal readonly record struct OutVariableBinding(int ArgumentIndex, string VariableName, string? TypeName);
