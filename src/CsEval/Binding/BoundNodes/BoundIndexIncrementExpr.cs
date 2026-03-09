@@ -1,10 +1,8 @@
-using CsEval.Binding.Plans;
-
 namespace CsEval.Binding.BoundNodes;
 
-internal sealed record BoundIndexAccessExpr(
+internal sealed record BoundIndexIncrementExpr(
     BoundExpr Target,
     BoundExpr Index,
-    BoundIndexPlan? Plan,
-    bool NullSafe,
+    bool IsPrefix,
+    bool IsIncrement,
     Type StaticType) : BoundExpr(StaticType);

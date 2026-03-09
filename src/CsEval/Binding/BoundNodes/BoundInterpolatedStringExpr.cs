@@ -1,0 +1,16 @@
+using System.Collections.Immutable;
+
+namespace CsEval.Binding.BoundNodes;
+
+internal abstract record BoundInterpolatedPart;
+
+internal sealed record BoundInterpolatedTextPart(string Text) : BoundInterpolatedPart;
+
+internal sealed record BoundInterpolatedExpressionPart(
+    BoundExpr Expression,
+    string? AlignmentSpecifier,
+    string? FormatSpecifier) : BoundInterpolatedPart;
+
+internal sealed record BoundInterpolatedStringExpr(
+    ImmutableArray<BoundInterpolatedPart> Parts,
+    Type StaticType) : BoundExpr(StaticType);

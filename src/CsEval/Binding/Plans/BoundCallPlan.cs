@@ -11,4 +11,5 @@ internal sealed record BoundConversionPlan(
 internal sealed record BoundCallPlan(
     MethodInfo SelectedMethod,
     ImmutableArray<BoundConversionPlan> ArgumentConversions,
-    bool IsStaticCall);
+    bool IsStaticCall,
+    bool IsModuleCall = false);

@@ -242,20 +242,33 @@ public sealed class CsEvalEngine : IDisposable
             }
         }
 
-        if (_options.CompilationMode == CompilationMode.Interpreted &&
-            expression.TryGetOrCreateBoundExpression(executionContext, out var boundExpression) &&
-            boundExpression != null)
+        if (_options.CompilationMode == CompilationMode.Interpreted)
         {
-            try
+            if (expression.TryGetOrCreateBoundExpression(executionContext, out var boundExpression, out var boundFailureReason))
             {
-                var boundEvaluator = new BoundEvaluator(executionContext, _options, cancellationToken);
-                var boundResult = boundEvaluator.Evaluate(boundExpression);
-                expression.RecordBoundExecution();
-                return boundResult;
+                if (boundExpression != null)
+                {
+                    try
+                    {
+                        var boundEvaluator = new BoundEvaluator(executionContext, _options, cancellationToken);
+                        var boundResult = boundEvaluator.Evaluate(boundExpression);
+                        expression.RecordBoundExecution();
+                        return boundResult;
+                    }
+                    catch (BindingNotSupportedException ex)
+                    {
+                        expression.RecordBoundFallback(ex.Message);
+                        // Fall through to existing evaluator until full bound-node coverage is complete.
+                    }
+                }
+                else
+                {
+                    expression.RecordBoundFallback(boundFailureReason);
+                }
             }
-            catch (BindingNotSupportedException)
+            else
             {
-                // Fall through to existing evaluator until full bound-node coverage is complete.
+                expression.RecordBoundFallback(boundFailureReason);
             }
         }
 

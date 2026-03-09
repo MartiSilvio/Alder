@@ -13,27 +13,37 @@ namespace CsEval.Runtime;
 /// </summary>
 internal sealed class CsEvalContext
 {
-    private readonly ConcurrentDictionary<string, object?> _variables;
-    private readonly ConcurrentDictionary<string, Type> _variableTypes;
+    private readonly ConcurrentDictionary<string, object?>? _concurrentVariables;
+    private readonly ConcurrentDictionary<string, Type>? _concurrentVariableTypes;
+    private readonly Dictionary<string, object?>? _localVariables;
+    private readonly Dictionary<string, Type>? _localVariableTypes;
     private readonly CsEvalContext? _parent;
     private readonly CsEvalConfig _config;
     private int _variableTypeVersion;
 
-    public CsEvalContext(CsEvalConfig config) : this(config, null, null)
+    public CsEvalContext(CsEvalConfig config) : this(config, null, null, useConcurrentStore: true)
     {
     }
 
-    public CsEvalContext(CsEvalConfig config, IServiceProvider? serviceProvider) : this(config, null, serviceProvider)
+    public CsEvalContext(CsEvalConfig config, IServiceProvider? serviceProvider) : this(config, null, serviceProvider, useConcurrentStore: true)
     {
     }
 
-    private CsEvalContext(CsEvalConfig config, CsEvalContext? parent, IServiceProvider? serviceProvider)
+    private CsEvalContext(CsEvalConfig config, CsEvalContext? parent, IServiceProvider? serviceProvider, bool useConcurrentStore)
     {
         _config = config;
         _parent = parent;
         ServiceProvider = serviceProvider ?? parent?.ServiceProvider;
-        _variables = new ConcurrentDictionary<string, object?>(_config.Comparer);
-        _variableTypes = new ConcurrentDictionary<string, Type>(_config.Comparer);
+        if (useConcurrentStore)
+        {
+            _concurrentVariables = new ConcurrentDictionary<string, object?>(_config.Comparer);
+            _concurrentVariableTypes = new ConcurrentDictionary<string, Type>(_config.Comparer);
+        }
+        else
+        {
+            _localVariables = new Dictionary<string, object?>(_config.Comparer);
+            _localVariableTypes = new Dictionary<string, Type>(_config.Comparer);
+        }
     }
 
     public CsEvalConfig Config => _config;
@@ -46,12 +56,12 @@ internal sealed class CsEvalContext
     internal ImmutableArray<Type> ExtensionTypes => _config.ExtensionTypes;
     internal ExecutionConstraintState? ConstraintState { get; set; }
 
-    public void Define(string name, object? value) => _variables[name] = value;
+    public void Define(string name, object? value) => SetLocalVariable(name, value);
 
     public void Define(string name, object? value, Type inferredType)
     {
-        _variables[name] = value;
-        _variableTypes[name] = inferredType;
+        SetLocalVariable(name, value);
+        SetLocalVariableType(name, inferredType);
         Interlocked.Increment(ref _variableTypeVersion);
     }
 
@@ -64,15 +74,18 @@ internal sealed class CsEvalContext
         if (Contains(name))
             throw new CsEvalException(DiagnosticDescriptors.DuplicateLocalVariable, name);
 
-        _variables[name] = value;
-        _variableTypes[name] = inferredType;
+        SetLocalVariable(name, value);
+        SetLocalVariableType(name, inferredType);
         Interlocked.Increment(ref _variableTypeVersion);
     }
 
     public bool TryGetVariableType(string name, out Type? type)
     {
-        if (_variableTypes.TryGetValue(name, out type!))
+        if (TryGetLocalVariableType(name, out var localType))
+        {
+            type = localType;
             return true;
+        }
 
         if (_parent != null)
             return _parent.TryGetVariableType(name, out type);
@@ -83,7 +96,7 @@ internal sealed class CsEvalContext
 
     public bool TryGet(string name, out object? value)
     {
-        if (_variables.TryGetValue(name, out value))
+        if (TryGetLocalVariable(name, out value))
             return true;
 
         if (_parent != null)
@@ -102,9 +115,9 @@ internal sealed class CsEvalContext
 
     public void Set(string name, object? value)
     {
-        if (_variables.ContainsKey(name))
+        if (ContainsLocal(name))
         {
-            _variables[name] = value;
+            SetLocalVariable(name, value);
             return;
         }
 
@@ -119,19 +132,35 @@ internal sealed class CsEvalContext
 
     private bool Contains(string name)
     {
-        if (_variables.ContainsKey(name))
+        if (ContainsLocal(name))
             return true;
         return _parent?.Contains(name) ?? false;
     }
 
     public CsEvalContext CreateChild()
     {
-        var child = new CsEvalContext(_config, this, null);
+        var child = new CsEvalContext(_config, this, null, useConcurrentStore: false);
         child.ConstraintState = ConstraintState;
         return child;
     }
 
-    public IReadOnlyDictionary<string, object?> GetAll() => _variables;
+    internal void ClearScope()
+    {
+        if (_localVariables != null)
+            _localVariables.Clear();
+        else
+            _concurrentVariables!.Clear();
+
+        if (_localVariableTypes != null)
+            _localVariableTypes.Clear();
+        else
+            _concurrentVariableTypes!.Clear();
+
+        Interlocked.Increment(ref _variableTypeVersion);
+    }
+
+    public IReadOnlyDictionary<string, object?> GetAll() =>
+        _localVariables ?? (IReadOnlyDictionary<string, object?>)_concurrentVariables!;
 
     internal int GetTypeInferenceVersion()
     {
@@ -163,5 +192,45 @@ internal sealed class CsEvalContext
             ctx.Define(kvp.Key, kvp.Value);
         }
         return ctx;
+    }
+
+    private bool TryGetLocalVariable(string name, out object? value)
+    {
+        if (_localVariables != null)
+            return _localVariables.TryGetValue(name, out value);
+
+        return _concurrentVariables!.TryGetValue(name, out value);
+    }
+
+    private bool TryGetLocalVariableType(string name, out Type type)
+    {
+        if (_localVariableTypes != null)
+            return _localVariableTypes.TryGetValue(name, out type!);
+
+        return _concurrentVariableTypes!.TryGetValue(name, out type!);
+    }
+
+    private bool ContainsLocal(string name)
+    {
+        if (_localVariables != null)
+            return _localVariables.ContainsKey(name);
+
+        return _concurrentVariables!.ContainsKey(name);
+    }
+
+    private void SetLocalVariable(string name, object? value)
+    {
+        if (_localVariables != null)
+            _localVariables[name] = value;
+        else
+            _concurrentVariables![name] = value;
+    }
+
+    private void SetLocalVariableType(string name, Type type)
+    {
+        if (_localVariableTypes != null)
+            _localVariableTypes[name] = type;
+        else
+            _concurrentVariableTypes![name] = type;
     }
 }

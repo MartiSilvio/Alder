@@ -13,10 +13,12 @@ public class BindingMicroBenchmarks : BenchmarkBase
     private CsEvalExpression _warmInterpretedExpression = null!;
     private CsEvalExpression _warmCompiledExpression = null!;
     private CsEvalExpression _extendedWarmExpression = null!;
+    private CsEvalExpression _loopMutationWarmExpression = null!;
     private CsEvalEngine _extendedInterpretedEngine = null!;
 
     private const string MethodHeavyExpression = "Math.Abs(x - y) + Math.Max(y, z)";
     private const string ExtendedAliasExpression = "x not in numbers";
+    private const string LoopMutationExpression = "{ var sum = 0; for (var i = 0; i < 128; i++) { sum += i; } return sum; }";
 
     [GlobalSetup]
     public void Setup()
@@ -24,6 +26,7 @@ public class BindingMicroBenchmarks : BenchmarkBase
         SetupEngines(_globals);
         _warmInterpretedExpression = InterpretedEngine.Parse(MethodHeavyExpression);
         _warmCompiledExpression = CompiledEngine.Parse(MethodHeavyExpression);
+        _loopMutationWarmExpression = InterpretedEngine.Parse(LoopMutationExpression);
 
         _extendedInterpretedEngine = CreateEngine(CompilationMode.Interpreted, _globals, LanguageMode.Extended);
         _extendedWarmExpression = _extendedInterpretedEngine.Parse(ExtendedAliasExpression);
@@ -70,4 +73,9 @@ public class BindingMicroBenchmarks : BenchmarkBase
     [BenchmarkCategory("BindingWarm")]
     public object EvaluateWarm_ExtendedAlias_Interpreted() =>
         _extendedInterpretedEngine.Evaluate(_extendedWarmExpression)!;
+
+    [Benchmark]
+    [BenchmarkCategory("BindingWarm")]
+    public object EvaluateWarm_LoopMutation_Interpreted() =>
+        InterpretedEngine.Evaluate(_loopMutationWarmExpression)!;
 }

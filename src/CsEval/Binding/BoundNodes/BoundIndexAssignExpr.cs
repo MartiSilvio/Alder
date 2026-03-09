@@ -1,10 +1,7 @@
-using CsEval.Binding.Plans;
-
 namespace CsEval.Binding.BoundNodes;
 
-internal sealed record BoundIndexAccessExpr(
+internal sealed record BoundIndexAssignExpr(
     BoundExpr Target,
     BoundExpr Index,
-    BoundIndexPlan? Plan,
-    bool NullSafe,
+    BoundExpr Value,
     Type StaticType) : BoundExpr(StaticType);

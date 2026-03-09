@@ -1,10 +1,7 @@
-using CsEval.Binding.Plans;
-
 namespace CsEval.Binding.BoundNodes;
 
-internal sealed record BoundMemberAccessExpr(
+internal sealed record BoundMemberAssignExpr(
     BoundExpr Target,
     string MemberName,
-    bool NullSafe,
-    BoundMemberPlan? Plan,
+    BoundExpr Value,
     Type StaticType) : BoundExpr(StaticType);
