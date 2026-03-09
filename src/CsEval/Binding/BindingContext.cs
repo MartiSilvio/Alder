@@ -11,6 +11,9 @@ internal sealed class BindingContext
         _context = context;
     }
 
+    internal CsEvalContext RuntimeContext => _context;
+    internal bool IsCaseSensitive => _context.Comparer == StringComparer.Ordinal;
+
     public bool TryGetVariableType(string name, out Type type)
     {
         if (_context.TryGetVariableType(name, out var declaredType) && declaredType != null)
