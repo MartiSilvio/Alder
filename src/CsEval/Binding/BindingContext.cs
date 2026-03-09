@@ -18,13 +18,19 @@ internal sealed class BindingContext
     {
         if (_context.TryGetVariableType(name, out var declaredType) && declaredType != null)
         {
+            if (declaredType == typeof(object) && _context.TryGet(name, out var runtimeValue) && runtimeValue != null)
+            {
+                type = runtimeValue.GetType();
+                return true;
+            }
+
             type = declaredType;
             return true;
         }
 
-        if (_context.TryGet(name, out var runtimeValue) && runtimeValue != null)
+        if (_context.TryGet(name, out var fallbackValue) && fallbackValue != null)
         {
-            type = runtimeValue.GetType();
+            type = fallbackValue.GetType();
             return true;
         }
 

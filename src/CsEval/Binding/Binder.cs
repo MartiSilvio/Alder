@@ -1,4 +1,5 @@
 using CsEval.Binding.BoundNodes;
+using CsEval.Binding.Plans;
 using CsEval.Binding.Services;
 using CsEval.Parsing;
 using CsEval.Runtime;
@@ -23,7 +24,7 @@ internal sealed class Binder
             MemberAccessExpr memberAccess => BindMemberAccess(memberAccess, context),
             IndexAccessExpr indexAccess => BindIndexAccess(indexAccess, context),
             CallExpr call => BindCall(call, context),
-            _ => throw new CsEvalException(
+            _ => throw new BindingNotSupportedException(
                 $"Binding for expression type '{expr.GetType().Name}' is not implemented")
         };
     }
@@ -34,9 +35,13 @@ internal sealed class Binder
         return new BoundLiteralExpr(resolvedType, typeof(Type));
     }
 
-    private static BoundIdentifierExpr BindIdentifier(IdentifierExpr identifier, BindingContext context)
+    private static BoundExpr BindIdentifier(IdentifierExpr identifier, BindingContext context)
     {
         var name = identifier.Name.Lexeme;
+        var resolvedType = context.RuntimeContext.TypeResolver.TryResolveType(name);
+        if (resolvedType != null)
+            return new BoundLiteralExpr(resolvedType, typeof(Type));
+
         context.TryGetVariableType(name, out var staticType);
         return new BoundIdentifierExpr(name, staticType);
     }
@@ -67,7 +72,15 @@ internal sealed class Binder
         var (targetType, isStatic) = ResolveMemberTarget(target);
 
         var memberBinder = new MemberBinderService();
-        var plan = memberBinder.BindMemberRead(targetType, memberAccess.Name.Lexeme, isStatic, context.IsCaseSensitive);
+        BoundMemberPlan plan;
+        try
+        {
+            plan = memberBinder.BindMemberRead(targetType, memberAccess.Name.Lexeme, isStatic, context.IsCaseSensitive);
+        }
+        catch (CsEvalException ex)
+        {
+            throw new BindingNotSupportedException(ex.Message);
+        }
 
         var staticType = plan.Member switch
         {
@@ -102,14 +115,21 @@ internal sealed class Binder
             var argumentTypes = arguments.Select(static argument => argument.StaticType).ToArray();
             var callBinder = new CallBinderService(context.RuntimeContext);
 
-            var plan = memberAccess.Plan.IsStatic && memberAccess.Target is BoundLiteralExpr { Value: Type staticDeclaringType }
-                ? callBinder.BindStaticCall(staticDeclaringType, memberAccess.MemberName, argumentTypes, context.IsCaseSensitive)
-                : callBinder.BindInstanceCall(memberAccess.Plan.DeclaringType, memberAccess.MemberName, argumentTypes, context.IsCaseSensitive);
+            try
+            {
+                var plan = memberAccess.Plan.IsStatic && memberAccess.Target is BoundLiteralExpr { Value: Type staticDeclaringType }
+                    ? callBinder.BindStaticCall(staticDeclaringType, memberAccess.MemberName, argumentTypes, context.IsCaseSensitive)
+                    : callBinder.BindInstanceCall(memberAccess.Plan.DeclaringType, memberAccess.MemberName, argumentTypes, context.IsCaseSensitive);
 
-            return new BoundCallExpr(callee, arguments, plan, plan.SelectedMethod.ReturnType);
+                return new BoundCallExpr(callee, arguments, plan, plan.SelectedMethod.ReturnType);
+            }
+            catch (CsEvalException ex)
+            {
+                throw new BindingNotSupportedException(ex.Message);
+            }
         }
 
-        throw new CsEvalException("Only method-group call binding is currently supported");
+        throw new BindingNotSupportedException("Only method-group call binding is currently supported");
     }
 
     private static (Type TargetType, bool IsStatic) ResolveMemberTarget(BoundExpr target)

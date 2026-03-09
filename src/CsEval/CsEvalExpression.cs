@@ -22,6 +22,8 @@ public sealed class CsEvalExpression
 
     // Compilation state (volatile for thread-safe reads)
     private volatile CompiledExpressionInfo? _compiledInfo;
+    private volatile bool _bindingUnavailable;
+    private int _boundExecutionCount;
     private readonly ExpressionCache? _expressionCache;
     private readonly ConditionalWeakTable<CsEvalContext, CachedTypeInferrer> _typeInferrerCacheByContext = new();
     private readonly ConditionalWeakTable<CsEvalContext, CachedBoundExpression> _boundExpressionCacheByContext = new();
@@ -132,6 +134,30 @@ public sealed class CsEvalExpression
         _boundExpressionCacheByContext.Add(context, new CachedBoundExpression(currentVersion, bound));
         return bound;
     }
+
+    internal bool TryGetOrCreateBoundExpression(CsEvalContext context, out BoundExpr? bound)
+    {
+        if (_bindingUnavailable)
+        {
+            bound = null;
+            return false;
+        }
+
+        try
+        {
+            bound = GetOrCreateBoundExpression(context);
+            return true;
+        }
+        catch (BindingNotSupportedException)
+        {
+            _bindingUnavailable = true;
+            bound = null;
+            return false;
+        }
+    }
+
+    internal int BoundExecutionCount => _boundExecutionCount;
+    internal void RecordBoundExecution() => Interlocked.Increment(ref _boundExecutionCount);
 
     internal TypeInferrer GetOrCreateTypeInferrer(CsEvalContext context, int maxDepth)
     {
