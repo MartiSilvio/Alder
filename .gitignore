@@ -139,3 +139,6 @@ _NCrunch*
 # Claude Code
 .claude/
 CLAUDE.md
+
+# Git worktrees (local)
+.worktrees/
