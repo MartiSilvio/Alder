@@ -1,4 +1,5 @@
 using CsEval.Compilation;
+using CsEval.Binding;
 using CsEval.Interpretation;
 using CsEval.Parsing;
 using CsEval.Runtime;
@@ -21,8 +22,14 @@ public sealed class CsEvalExpression
 
     // Compilation state (volatile for thread-safe reads)
     private volatile CompiledExpressionInfo? _compiledInfo;
+    private volatile bool _bindingUnavailable;
+    private volatile string? _bindingUnavailableReason;
+    private int _boundExecutionCount;
+    private int _boundFallbackCount;
+    private volatile string? _lastBoundFallbackReason;
     private readonly ExpressionCache? _expressionCache;
     private readonly ConditionalWeakTable<CsEvalContext, CachedTypeInferrer> _typeInferrerCacheByContext = new();
+    private readonly ConditionalWeakTable<CsEvalContext, CachedBoundExpression> _boundExpressionCacheByContext = new();
 
     internal CsEvalExpression(string expression, Expr ast) : this(expression, ast, null)
     {
@@ -114,6 +121,59 @@ public sealed class CsEvalExpression
 
     internal CompiledExpressionInfo? GetCompiledInfo() => _compiledInfo;
 
+    internal BoundExpr GetOrCreateBoundExpression(CsEvalContext context)
+    {
+        var currentVersion = context.GetTypeInferenceVersion();
+        if (_boundExpressionCacheByContext.TryGetValue(context, out var cached) &&
+            cached != null &&
+            cached.Version == currentVersion)
+        {
+            return cached.Bound;
+        }
+
+        var binder = new CsEval.Binding.Binder();
+        var bound = binder.Bind(Ast, new BindingContext(context));
+        _boundExpressionCacheByContext.Remove(context);
+        _boundExpressionCacheByContext.Add(context, new CachedBoundExpression(currentVersion, bound));
+        return bound;
+    }
+
+    internal bool TryGetOrCreateBoundExpression(CsEvalContext context, out BoundExpr? bound, out string? failureReason)
+    {
+        if (_bindingUnavailable)
+        {
+            bound = null;
+            failureReason = _bindingUnavailableReason;
+            return false;
+        }
+
+        try
+        {
+            bound = GetOrCreateBoundExpression(context);
+            failureReason = null;
+            return true;
+        }
+        catch (BindingNotSupportedException ex)
+        {
+            _bindingUnavailable = true;
+            _bindingUnavailableReason = ex.Message;
+            bound = null;
+            failureReason = ex.Message;
+            return false;
+        }
+    }
+
+    internal int BoundExecutionCount => _boundExecutionCount;
+    internal void RecordBoundExecution() => Interlocked.Increment(ref _boundExecutionCount);
+    internal int BoundFallbackCount => _boundFallbackCount;
+    internal string? LastBoundFallbackReason => _lastBoundFallbackReason;
+    internal void RecordBoundFallback(string? reason)
+    {
+        Interlocked.Increment(ref _boundFallbackCount);
+        if (!string.IsNullOrWhiteSpace(reason))
+            _lastBoundFallbackReason = reason;
+    }
+
     internal TypeInferrer GetOrCreateTypeInferrer(CsEvalContext context, int maxDepth)
     {
         var currentVersion = context.GetTypeInferenceVersion();
@@ -130,6 +190,7 @@ public sealed class CsEvalExpression
         return inferrer;
     }
 
+    private sealed record CachedBoundExpression(int Version, BoundExpr Bound);
     private sealed record CachedTypeInferrer(int Version, TypeInferrer Inferrer);
 }
 
@@ -145,6 +206,13 @@ internal delegate object? CompiledExpressionDelegate(
     CsEvalOptions options,
     CancellationToken cancellationToken);
 
+internal enum CompiledPipeline
+{
+    None = 0,
+    Bound = 1,
+    Ast = 2
+}
+
 /// <summary>
 /// Contains information about a compiled expression.
 /// </summary>
@@ -152,8 +220,10 @@ internal delegate object? CompiledExpressionDelegate(
 /// <param name="IsCompilable">Whether the expression can be compiled.</param>
 /// <param name="FailureReason">The reason compilation failed, or null if it succeeded.</param>
 /// <param name="FailureException">Original failure exception when available.</param>
+/// <param name="Pipeline">Which compilation pipeline produced the delegate.</param>
 internal record CompiledExpressionInfo(
     CompiledExpressionDelegate? Delegate,
     bool IsCompilable,
     string? FailureReason,
-    Exception? FailureException = null);
+    Exception? FailureException = null,
+    CompiledPipeline Pipeline = CompiledPipeline.None);

@@ -148,6 +148,38 @@ public class CompiledHotPathRegressionTests(CompilationMode mode)
     }
 
     [Test]
+    public void MathMix_CompiledPath_DoesNotUseRuntimeMethodDispatch()
+    {
+        var capturingCompiler = new CapturingExpressionCompiler();
+        var engine = new CsEvalEngine(CsEvalOptions.Default with
+        {
+            CompilationMode = mode,
+            ExpressionCompiler = capturingCompiler
+        });
+
+        engine.SetVariable<int>("x", 11);
+        engine.SetVariable<int>("y", 7);
+        engine.SetVariable<int>("z", 9);
+
+        var result = engine.Evaluate("Math.Abs(x - y) + Math.Max(y, z)");
+        Assert.That(result, Is.EqualTo(13));
+
+        var compiled = SelectRootLambda(capturingCompiler);
+        Assert.That(compiled, Is.Not.Null);
+
+        var collector = new MethodCallCollector();
+        collector.Visit(compiled.Body);
+
+        var runtimeDispatchCalls = collector.Methods
+            .Where(m =>
+                m.DeclaringType == typeof(CsEval.Runtime.MethodInvoker) &&
+                m.Name is nameof(CsEval.Runtime.MethodInvoker.InvokeCall) or nameof(CsEval.Runtime.MethodInvoker.InvokeMemberCall))
+            .ToList();
+
+        Assert.That(runtimeDispatchCalls, Is.Empty);
+    }
+
+    [Test]
     public void PureReadOnlyExpression_UsesLazyTypedIdentifierCacheSlots()
     {
         var capturingCompiler = new CapturingExpressionCompiler();

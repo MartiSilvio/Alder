@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using CsEval.Attributes;
+using CsEval.Binding;
 using CsEval.Compilation;
 using CsEval.Diagnostics;
 using CsEval.Interpretation;
@@ -238,6 +239,36 @@ public sealed class CsEvalEngine : IDisposable
 
                 var reason = compiled?.FailureReason ?? "Unknown compilation failure";
                 throw new CsEvalException(DiagnosticDescriptors.StrictCompilationFailed, reason);
+            }
+        }
+
+        if (_options.CompilationMode == CompilationMode.Interpreted)
+        {
+            if (expression.TryGetOrCreateBoundExpression(executionContext, out var boundExpression, out var boundFailureReason))
+            {
+                if (boundExpression != null)
+                {
+                    try
+                    {
+                        var boundEvaluator = new BoundEvaluator(executionContext, _options, cancellationToken);
+                        var boundResult = boundEvaluator.Evaluate(boundExpression);
+                        expression.RecordBoundExecution();
+                        return boundResult;
+                    }
+                    catch (BindingNotSupportedException ex)
+                    {
+                        expression.RecordBoundFallback(ex.Message);
+                        // Fall through to existing evaluator until full bound-node coverage is complete.
+                    }
+                }
+                else
+                {
+                    expression.RecordBoundFallback(boundFailureReason);
+                }
+            }
+            else
+            {
+                expression.RecordBoundFallback(boundFailureReason);
             }
         }
 
