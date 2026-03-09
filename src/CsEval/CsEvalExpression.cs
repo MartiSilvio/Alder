@@ -1,4 +1,5 @@
 using CsEval.Compilation;
+using CsEval.Binding;
 using CsEval.Interpretation;
 using CsEval.Parsing;
 using CsEval.Runtime;
@@ -23,6 +24,7 @@ public sealed class CsEvalExpression
     private volatile CompiledExpressionInfo? _compiledInfo;
     private readonly ExpressionCache? _expressionCache;
     private readonly ConditionalWeakTable<CsEvalContext, CachedTypeInferrer> _typeInferrerCacheByContext = new();
+    private readonly ConditionalWeakTable<CsEvalContext, CachedBoundExpression> _boundExpressionCacheByContext = new();
 
     internal CsEvalExpression(string expression, Expr ast) : this(expression, ast, null)
     {
@@ -114,6 +116,23 @@ public sealed class CsEvalExpression
 
     internal CompiledExpressionInfo? GetCompiledInfo() => _compiledInfo;
 
+    internal BoundExpr GetOrCreateBoundExpression(CsEvalContext context)
+    {
+        var currentVersion = context.GetTypeInferenceVersion();
+        if (_boundExpressionCacheByContext.TryGetValue(context, out var cached) &&
+            cached != null &&
+            cached.Version == currentVersion)
+        {
+            return cached.Bound;
+        }
+
+        var binder = new CsEval.Binding.Binder();
+        var bound = binder.Bind(Ast, new BindingContext(context));
+        _boundExpressionCacheByContext.Remove(context);
+        _boundExpressionCacheByContext.Add(context, new CachedBoundExpression(currentVersion, bound));
+        return bound;
+    }
+
     internal TypeInferrer GetOrCreateTypeInferrer(CsEvalContext context, int maxDepth)
     {
         var currentVersion = context.GetTypeInferenceVersion();
@@ -130,6 +149,7 @@ public sealed class CsEvalExpression
         return inferrer;
     }
 
+    private sealed record CachedBoundExpression(int Version, BoundExpr Bound);
     private sealed record CachedTypeInferrer(int Version, TypeInferrer Inferrer);
 }
 
