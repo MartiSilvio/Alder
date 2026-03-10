@@ -121,7 +121,7 @@ public sealed class CsEvalExpression
 
     internal CompiledExpressionInfo? GetCompiledInfo() => _compiledInfo;
 
-    internal BoundExpr GetOrCreateBoundExpression(CsEvalContext context)
+    internal BoundExpr GetOrCreateBoundExpression(CsEvalContext context, int maxDepth)
     {
         var currentVersion = context.GetTypeInferenceVersion();
         if (_boundExpressionCacheByContext.TryGetValue(context, out var cached) &&
@@ -131,6 +131,7 @@ public sealed class CsEvalExpression
             return cached.Bound;
         }
 
+        AstDepthValidator.EnsureWithinLimit(Ast, maxDepth);
         var binder = new CsEval.Binding.Binder();
         var bound = binder.Bind(Ast, new BindingContext(context));
         _boundExpressionCacheByContext.Remove(context);
@@ -138,7 +139,7 @@ public sealed class CsEvalExpression
         return bound;
     }
 
-    internal bool TryGetOrCreateBoundExpression(CsEvalContext context, out BoundExpr? bound, out string? failureReason)
+    internal bool TryGetOrCreateBoundExpression(CsEvalContext context, int maxDepth, out BoundExpr? bound, out string? failureReason)
     {
         if (_bindingUnavailable)
         {
@@ -149,7 +150,7 @@ public sealed class CsEvalExpression
 
         try
         {
-            bound = GetOrCreateBoundExpression(context);
+            bound = GetOrCreateBoundExpression(context, maxDepth);
             failureReason = null;
             return true;
         }
@@ -209,8 +210,7 @@ internal delegate object? CompiledExpressionDelegate(
 internal enum CompiledPipeline
 {
     None = 0,
-    Bound = 1,
-    Ast = 2
+    Bound = 1
 }
 
 /// <summary>

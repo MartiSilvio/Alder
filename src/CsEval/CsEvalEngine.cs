@@ -242,39 +242,31 @@ public sealed class CsEvalEngine : IDisposable
             }
         }
 
-        if (_options.CompilationMode == CompilationMode.Interpreted)
+        if (expression.TryGetOrCreateBoundExpression(executionContext, _options.MaxExpressionDepth, out var boundExpression, out var boundFailureReason))
         {
-            if (expression.TryGetOrCreateBoundExpression(executionContext, out var boundExpression, out var boundFailureReason))
+            if (boundExpression != null)
             {
-                if (boundExpression != null)
+                try
                 {
-                    try
-                    {
-                        var boundEvaluator = new BoundEvaluator(executionContext, _options, cancellationToken);
-                        var boundResult = boundEvaluator.Evaluate(boundExpression);
-                        expression.RecordBoundExecution();
-                        return boundResult;
-                    }
-                    catch (BindingNotSupportedException ex)
-                    {
-                        expression.RecordBoundFallback(ex.Message);
-                        // Fall through to existing evaluator until full bound-node coverage is complete.
-                    }
+                    var boundEvaluator = new BoundEvaluator(executionContext, _options, cancellationToken);
+                    var boundResult = boundEvaluator.Evaluate(boundExpression);
+                    expression.RecordBoundExecution();
+                    return boundResult;
                 }
-                else
+                catch (BindingNotSupportedException ex)
                 {
-                    expression.RecordBoundFallback(boundFailureReason);
+                    expression.RecordBoundFallback(ex.Message);
+                    if (IsDepthFailure(ex.Message))
+                        throw new CsEvalDepthException("binding", _options.MaxExpressionDepth);
+                    throw new CsEvalException(ex.Message);
                 }
-            }
-            else
-            {
-                expression.RecordBoundFallback(boundFailureReason);
             }
         }
 
-        var typeInferrer = expression.GetOrCreateTypeInferrer(context, _options.MaxExpressionDepth);
-        var evaluator = new Evaluator(executionContext, _options, typeInferrer, cancellationToken);
-        return evaluator.Evaluate(expression.Ast);
+        expression.RecordBoundFallback(boundFailureReason);
+        if (IsDepthFailure(boundFailureReason))
+            throw new CsEvalDepthException("binding", _options.MaxExpressionDepth);
+        throw new CsEvalException(boundFailureReason ?? "Binding failed for expression.");
     }
 
     public object? Evaluate(
@@ -453,6 +445,12 @@ public sealed class CsEvalEngine : IDisposable
         foreach (var prop in obj.GetType().GetProperties(BindingFlags.Public | BindingFlags.Instance))
             dict[prop.Name] = prop.GetValue(obj);
         return dict;
+    }
+
+    private static bool IsDepthFailure(string? message)
+    {
+        return !string.IsNullOrEmpty(message) &&
+               message.Contains("nesting depth exceeded", StringComparison.OrdinalIgnoreCase);
     }
 
     private Dictionary<string, object?> CollectEngineVariables()

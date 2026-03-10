@@ -25,6 +25,7 @@ internal sealed class BoundExpressionEmitter
     private readonly ParameterExpression _ctParam;
     private bool _isChecked;
     private int _loopDepth;
+    private int _switchDepth;
     private int _catchDepth;
     public BoundExpressionEmitter(
         ParameterExpression contextParam,
@@ -63,6 +64,7 @@ internal sealed class BoundExpressionEmitter
             BoundContinueExpr continueExpr => EmitContinue(continueExpr),
             BoundThrowStatementExpr throwStatementExpr => EmitThrowStatement(throwStatementExpr),
             BoundReturnExpr returnExpr => EmitReturn(returnExpr),
+            BoundSwitchStatementExpr switchStatement => EmitSwitchStatement(switchStatement),
             BoundSwitchExpressionExpr switchExpression => EmitSwitchExpression(switchExpression),
             BoundCheckedExpr checkedExpr => EmitChecked(checkedExpr),
             BoundChainedComparisonExpr chainedComparison => EmitChainedComparison(chainedComparison),
@@ -610,7 +612,7 @@ internal sealed class BoundExpressionEmitter
 
     private LinqExpression EmitBreak(BoundBreakExpr _)
     {
-        if (_loopDepth > 0)
+        if (_loopDepth > 0 || _switchDepth > 0)
             return LinqExpression.Convert(LinqExpression.Field(null, ControlFlowBreakField), typeof(object));
 
         return LinqExpression.Throw(
@@ -756,7 +758,7 @@ internal sealed class BoundExpressionEmitter
         if (catchClause.WhenGuard != null)
         {
             whenFilter = LinqExpression.Call(
-                EvaluateBoundCatchWhenGuardMethod,
+                EvaluateCatchWhenGuardMethod,
                 LinqExpression.Constant(catchClause.WhenGuard, typeof(BoundExpr)),
                 LinqExpression.Constant(catchClause.VariableName, typeof(string)),
                 LinqExpression.Convert(exParam, typeof(object)),
@@ -824,6 +826,164 @@ internal sealed class BoundExpressionEmitter
         statements.Add(resultVar);
 
         return LinqExpression.Block(typeof(object), [valueVar, resultVar], statements);
+    }
+
+    private LinqExpression EmitSwitchStatement(BoundSwitchStatementExpr switchStatement)
+    {
+        var valueVar = LinqExpression.Variable(typeof(object), "switchValue");
+        var matchedVar = LinqExpression.Variable(typeof(bool), "switchMatched");
+        var resultVar = LinqExpression.Variable(typeof(object), "switchResult");
+        var signalVar = LinqExpression.Variable(typeof(ControlFlowSignal), "switchSignal");
+        var doneLabel = LinqExpression.Label("switchDone");
+        var statements = new List<LinqExpression>
+        {
+            LinqExpression.Assign(valueVar, BoundEmitterSupport.AsObject(Emit(switchStatement.Expression))),
+            LinqExpression.Assign(matchedVar, LinqExpression.Constant(false)),
+            LinqExpression.Assign(resultVar, LinqExpression.Constant(null, typeof(object)))
+        };
+
+        var defaultCaseIndex = -1;
+        var previousSwitchDepth = _switchDepth;
+        _switchDepth = previousSwitchDepth + 1;
+        try
+        {
+            for (var i = 0; i < switchStatement.Cases.Length; i++)
+            {
+                var switchCase = switchStatement.Cases[i];
+                if (switchCase.CasePattern == null)
+                {
+                    defaultCaseIndex = i;
+                    continue;
+                }
+
+                var previousContextVar = LinqExpression.Variable(typeof(CsEvalContext), $"switchPrevCtx{i}");
+                var matchCondition = BuildSwitchCaseMatchCondition(valueVar, switchCase);
+                var executeCase = EmitSwitchCaseExecution(switchStatement.Cases, i, resultVar, signalVar, doneLabel);
+
+                statements.Add(
+                    LinqExpression.Block(
+                        typeof(void),
+                        [previousContextVar],
+                        LinqExpression.Assign(previousContextVar, _contextParam),
+                        LinqExpression.Assign(_contextParam, LinqExpression.Call(_contextParam, ContextCreateChildMethod)),
+                        LinqExpression.TryFinally(
+                            LinqExpression.IfThen(
+                                LinqExpression.AndAlso(LinqExpression.Not(matchedVar), matchCondition),
+                                LinqExpression.Block(
+                                    LinqExpression.Assign(matchedVar, LinqExpression.Constant(true)),
+                                    LinqExpression.Assign(resultVar, executeCase),
+                                    LinqExpression.Goto(doneLabel))),
+                            LinqExpression.Assign(_contextParam, previousContextVar))));
+            }
+
+            if (defaultCaseIndex >= 0)
+            {
+                var executeDefault = EmitSwitchCaseExecution(switchStatement.Cases, defaultCaseIndex, resultVar, signalVar, doneLabel);
+                statements.Add(
+                    LinqExpression.IfThen(
+                        LinqExpression.Not(matchedVar),
+                        LinqExpression.Block(
+                            LinqExpression.Assign(resultVar, executeDefault),
+                            LinqExpression.Goto(doneLabel))));
+            }
+
+            statements.Add(LinqExpression.Label(doneLabel));
+            statements.Add(resultVar);
+            return LinqExpression.Block(typeof(object), [valueVar, matchedVar, resultVar, signalVar], statements);
+        }
+        finally
+        {
+            _switchDepth = previousSwitchDepth;
+        }
+    }
+
+    private LinqExpression BuildSwitchCaseMatchCondition(
+        ParameterExpression valueVar,
+        BoundSwitchCase switchCase)
+    {
+        var patternMatch = LinqExpression.Call(
+            MatchPatternMethod,
+            valueVar,
+            LinqExpression.Constant(switchCase.CasePattern!, typeof(Pattern)),
+            _contextParam,
+            _optionsParam,
+            _ctParam);
+
+        if (switchCase.WhenGuard == null)
+            return patternMatch;
+
+        return LinqExpression.AndAlso(
+            patternMatch,
+            LinqExpression.Call(RequireBooleanMethod, BoundEmitterSupport.AsObject(Emit(switchCase.WhenGuard))));
+    }
+
+    private LinqExpression EmitSwitchCaseExecution(
+        ImmutableArray<BoundSwitchCase> cases,
+        int startIndex,
+        ParameterExpression resultVar,
+        ParameterExpression signalVar,
+        LabelTarget doneLabel)
+    {
+        var statements = new List<LinqExpression>();
+
+        for (var i = startIndex; i < cases.Length; i++)
+        {
+            var switchCase = cases[i];
+            if (switchCase.Statements.IsDefaultOrEmpty)
+                continue;
+
+            if (!TerminatesControlFlow(switchCase.Statements[^1]))
+                throw new CsEvalException(DiagnosticDescriptors.CaseFallThrough);
+
+            var caseDone = LinqExpression.Label($"switchCaseDone{i}");
+            EmitStatementListBody(
+                statements,
+                switchCase.Statements,
+                resultVar,
+                signalVar,
+                caseDone,
+                unwrapReturnSignal: false);
+            statements.Add(LinqExpression.Label(caseDone));
+
+            var kindExpr = LinqExpression.Property(signalVar, ControlFlowSignalKindProperty);
+            statements.Add(
+                LinqExpression.IfThen(
+                    LinqExpression.TypeIs(resultVar, typeof(ControlFlowSignal)),
+                    LinqExpression.Block(
+                        LinqExpression.Assign(signalVar, LinqExpression.TypeAs(resultVar, typeof(ControlFlowSignal))),
+                        LinqExpression.IfThen(
+                            LinqExpression.Equal(kindExpr, LinqExpression.Constant(ControlFlowSignal.Kind.Break)),
+                            LinqExpression.Block(
+                                LinqExpression.Assign(resultVar, LinqExpression.Constant(null, typeof(object))),
+                                LinqExpression.Goto(doneLabel))),
+                        LinqExpression.Goto(doneLabel))));
+
+            statements.Add(
+                LinqExpression.Throw(
+                    LinqExpression.Constant(new CsEvalException(DiagnosticDescriptors.CaseFallThrough)),
+                    typeof(void)));
+            break;
+        }
+
+        if (statements.Count == 0)
+            return LinqExpression.Constant(null, typeof(object));
+
+        statements.Add(resultVar);
+        return LinqExpression.Block(typeof(object), statements);
+    }
+
+    private static bool TerminatesControlFlow(BoundExpr expr)
+    {
+        return expr switch
+        {
+            BoundBreakExpr => true,
+            BoundReturnExpr => true,
+            BoundContinueExpr => true,
+            BoundThrowExpr => true,
+            BoundThrowStatementExpr => true,
+            BoundBlockExpr { Statements.Length: > 0 } block => TerminatesControlFlow(block.Statements[^1]),
+            _ => false
+        };
     }
 
     private LinqExpression EmitStatementSequence(ImmutableArray<BoundExpr> statements)

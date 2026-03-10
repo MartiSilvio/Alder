@@ -180,8 +180,8 @@ internal static class BoundRuntimeMethodCache
     internal static readonly MethodInfo ValidateLockObjectMethod =
         typeof(ExecutionRuntime).GetMethod(nameof(ExecutionRuntime.ValidateLockObject))!;
 
-    internal static readonly MethodInfo EvaluateBoundCatchWhenGuardMethod =
-        typeof(ExecutionRuntime).GetMethod(nameof(ExecutionRuntime.EvaluateBoundCatchWhenGuard))!;
+    internal static readonly MethodInfo EvaluateCatchWhenGuardMethod =
+        typeof(ExecutionRuntime).GetMethod(nameof(ExecutionRuntime.EvaluateCatchWhenGuard))!;
 
     internal static readonly MethodInfo MonitorEnterMethod =
         typeof(Monitor).GetMethod(nameof(Monitor.Enter), [typeof(object)])!;

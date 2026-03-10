@@ -1,5 +1,7 @@
 using CsEval.Diagnostics;
+using CsEval.Binding;
 using CsEval.Interpretation;
+using CsEval.Parsing;
 
 namespace CsEval.Runtime;
 
@@ -1152,7 +1154,7 @@ internal static class MethodInvoker
     /// <summary>
     /// After a method with ByRef parameters is invoked, copies the modified values from
     /// the converted args array back to the original args array for each OutArgMarker position.
-    /// This allows the Evaluator to read the out parameter values from the original args array.
+    /// This allows lambda invocation to read the out parameter values from the original args array.
     /// </summary>
     private static void CopyBackOutArgs(object?[] originalArgs, object?[] convertedArgs, ParameterInfo[] parameters)
     {
@@ -1171,8 +1173,11 @@ internal static class MethodInvoker
             childContext.Define(lambda.Parameters[i], args[i]);
         }
 
-        var evaluator = new Evaluator(childContext, lambda.Options);
-        return evaluator.Evaluate(lambda.Body);
+        AstDepthValidator.EnsureWithinLimit(lambda.Body, lambda.Options?.MaxExpressionDepth ?? CsEvalOptions.Default.MaxExpressionDepth);
+        var binder = new Binding.Binder();
+        var bound = binder.Bind(lambda.Body, new BindingContext(childContext));
+        var evaluator = new BoundEvaluator(childContext, lambda.Options!);
+        return evaluator.Evaluate(bound);
     }
 
     internal static object? InvokeCompiledLambda(CompiledLambdaValue lambda, object?[] args)

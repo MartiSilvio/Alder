@@ -114,30 +114,6 @@ internal static class ExecutionRuntime
     }
 
     public static bool EvaluateCatchWhenGuard(
-        Expr guardExpression,
-        string? catchVariableName,
-        object? caughtException,
-        CsEvalContext context,
-        CsEvalOptions options,
-        CancellationToken ct)
-    {
-        var guardContext = context.CreateChild();
-        if (!string.IsNullOrEmpty(catchVariableName))
-            guardContext.Define(catchVariableName, caughtException);
-
-        try
-        {
-            var evaluator = new Evaluator(guardContext, options, cancellationToken: ct);
-            var guardResult = evaluator.Evaluate(guardExpression);
-            return TypeHelpers.RequireBoolean(guardResult);
-        }
-        catch
-        {
-            return false;
-        }
-    }
-
-    public static bool EvaluateBoundCatchWhenGuard(
         BoundExpr guardExpression,
         string? catchVariableName,
         object? caughtException,

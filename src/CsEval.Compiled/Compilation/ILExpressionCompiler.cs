@@ -5,8 +5,13 @@ using CsEval.Runtime;
 
 namespace CsEval.Compiled.Compilation;
 
+internal delegate object? ILCompiledDelegate(
+    CsEvalContext context,
+    CsEvalOptions options,
+    CancellationToken ct);
+
 /// <summary>
-/// Orchestrates AST-to-IL compilation via <see cref="CompilerContext"/>.
+/// Orchestrates bound-node IL compilation.
 /// </summary>
 internal static class ILExpressionCompiler
 {
@@ -40,17 +45,7 @@ internal static class ILExpressionCompiler
                     => boundDelegate(ctx, optionsValue, ct);
             }
 
-            var (ilDelegate, failureReason, failureException) = CompilerContext.TryCompile(ast, context, opts);
-
-            if (ilDelegate != null)
-            {
-                return new CompiledExpressionInfo(Compiled, true, null, Pipeline: CompiledPipeline.Ast);
-
-                object? Compiled(CsEvalContext ctx, CsEvalOptions optionsValue, CancellationToken ct)
-                    => ilDelegate(ctx, optionsValue, ct);
-            }
-
-            return new CompiledExpressionInfo(null, false, failureReason, failureException);
+            return new CompiledExpressionInfo(null, false, "Bound compilation returned null");
         }
         catch (CsEvalDepthException)
         {
@@ -66,6 +61,7 @@ internal static class ILExpressionCompiler
     {
         try
         {
+            AstDepthValidator.EnsureWithinLimit(ast, options.MaxExpressionDepth);
             var binder = new CsEval.Binding.Binder();
             var bound = binder.Bind(ast, new BindingContext(context));
 
@@ -81,9 +77,19 @@ internal static class ILExpressionCompiler
             var lambda = LinqExpression.Lambda<ILCompiledDelegate>(body, contextParam, optionsParam, ctParam);
             return options.ExpressionCompiler.Compile(lambda);
         }
+        catch (BindingNotSupportedException ex) when (IsDepthFailure(ex.Message))
+        {
+            throw new CsEvalDepthException("binding", options.MaxExpressionDepth);
+        }
         catch (BindingNotSupportedException)
         {
             return null;
         }
+    }
+
+    private static bool IsDepthFailure(string? message)
+    {
+        return !string.IsNullOrEmpty(message) &&
+               message.Contains("nesting depth exceeded", StringComparison.OrdinalIgnoreCase);
     }
 }

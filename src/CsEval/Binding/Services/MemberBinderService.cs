@@ -33,13 +33,22 @@ internal sealed class MemberBinderService
 
     public BoundIndexPlan BindIndexRead(Type targetType, Type indexType)
     {
-        var isDirectCollectionAccess =
-            (targetType == typeof(string) && indexType == typeof(int)) ||
-            (typeof(IList).IsAssignableFrom(targetType) && indexType == typeof(int)) ||
-            (typeof(IDictionary<string, object?>).IsAssignableFrom(targetType) && indexType == typeof(string));
+        if (targetType == typeof(string) && indexType == typeof(int))
+            return new BoundIndexPlan(targetType, indexType, typeof(char), true);
 
-        if (isDirectCollectionAccess)
-            return new BoundIndexPlan(targetType, indexType, typeof(object), true);
+        if (typeof(IList).IsAssignableFrom(targetType) && indexType == typeof(int))
+        {
+            var resultType = TryResolveListElementType(targetType, out var elementType)
+                ? elementType
+                : typeof(object);
+            return new BoundIndexPlan(targetType, indexType, resultType, true);
+        }
+
+        if (indexType == typeof(string) &&
+            TryResolveStringDictionaryValueType(targetType, out var dictionaryValueType))
+        {
+            return new BoundIndexPlan(targetType, indexType, dictionaryValueType, true);
+        }
 
         var indexer = targetType.GetProperty("Item", BindingFlags.Public | BindingFlags.Instance);
         if (indexer != null)
@@ -56,5 +65,77 @@ internal sealed class MemberBinderService
         }
 
         throw new CsEvalException($"No indexer found on type '{targetType.Name}'");
+    }
+
+    private static bool TryResolveListElementType(Type targetType, out Type elementType)
+    {
+        if (targetType.IsArray)
+        {
+            elementType = targetType.GetElementType() ?? typeof(object);
+            return true;
+        }
+
+        var directIndexer = targetType.GetProperties(BindingFlags.Public | BindingFlags.Instance)
+            .FirstOrDefault(property =>
+            {
+                if (!string.Equals(property.Name, "Item", StringComparison.Ordinal))
+                    return false;
+                var parameters = property.GetIndexParameters();
+                return parameters.Length == 1 && parameters[0].ParameterType == typeof(int);
+            });
+        if (directIndexer != null)
+        {
+            elementType = directIndexer.PropertyType;
+            return true;
+        }
+
+        foreach (var candidate in EnumerateSelfAndInterfaces(targetType))
+        {
+            if (!candidate.IsGenericType)
+                continue;
+
+            var genericDef = candidate.GetGenericTypeDefinition();
+            if (genericDef == typeof(IList<>) || genericDef == typeof(IReadOnlyList<>))
+            {
+                elementType = candidate.GetGenericArguments()[0];
+                return true;
+            }
+        }
+
+        elementType = typeof(object);
+        return false;
+    }
+
+    private static bool TryResolveStringDictionaryValueType(Type targetType, out Type valueType)
+    {
+        foreach (var candidate in EnumerateSelfAndInterfaces(targetType))
+        {
+            if (!candidate.IsGenericType)
+                continue;
+
+            var genericDef = candidate.GetGenericTypeDefinition();
+            if (genericDef != typeof(IDictionary<,>) &&
+                genericDef != typeof(IReadOnlyDictionary<,>))
+            {
+                continue;
+            }
+
+            var args = candidate.GetGenericArguments();
+            if (args[0] != typeof(string))
+                continue;
+
+            valueType = args[1];
+            return true;
+        }
+
+        valueType = typeof(object);
+        return false;
+    }
+
+    private static IEnumerable<Type> EnumerateSelfAndInterfaces(Type type)
+    {
+        yield return type;
+        foreach (var interfaceType in type.GetInterfaces())
+            yield return interfaceType;
     }
 }

@@ -202,20 +202,7 @@ public class CompiledHotPathRegressionTests(CompilationMode mode)
         var compiled = SelectRootLambda(capturingCompiler);
         Assert.That(compiled, Is.Not.Null);
 
-        var collector = new ParameterCollector();
-        collector.Visit(compiled.Body);
-        var idCacheSlots = collector.Parameters
-            .Count(p => p.Name?.StartsWith("idCacheValue_", StringComparison.Ordinal) == true);
-
-        var pipeline = expression.GetCompiledInfo()!.Pipeline;
-        if (pipeline == CompiledPipeline.Ast)
-        {
-            Assert.That(idCacheSlots, Is.GreaterThan(0));
-        }
-        else
-        {
-            Assert.That(pipeline, Is.EqualTo(CompiledPipeline.Bound));
-        }
+        Assert.That(expression.GetCompiledInfo()!.Pipeline, Is.EqualTo(CompiledPipeline.Bound));
     }
 
     [Test]

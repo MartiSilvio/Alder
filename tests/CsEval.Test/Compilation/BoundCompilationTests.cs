@@ -24,7 +24,7 @@ public sealed class BoundCompilationTests
     }
 
     [Test]
-    public void StrictCompiled_ShouldFallbackForBoundUnsupportedNodes()
+    public void StrictCompiled_ShouldUseBoundPipeline_ForSwitchStatements()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with
         {
@@ -37,7 +37,7 @@ public sealed class BoundCompilationTests
 
         var info = expression.GetCompiledInfo();
         Assert.That(info, Is.Not.Null);
-        Assert.That(info!.Pipeline, Is.EqualTo(CompiledPipeline.Ast));
+        Assert.That(info!.Pipeline, Is.EqualTo(CompiledPipeline.Bound));
     }
 
     [Test]
