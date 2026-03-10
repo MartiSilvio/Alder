@@ -111,11 +111,12 @@ internal static class AssignmentRuntime
         object? target,
         object? index,
         object? value,
-        CsEvalOptions options)
+        CsEvalOptions options,
+        CsEvalContext context)
     {
         target = ExecutionRuntime.EnsureIndexTargetNotNull(target);
         CheckAllowIndexSet(options, index);
-        MemberAccess.SetIndex(target, index, value, options);
+        MemberAccess.SetIndex(target, index, value, options, context);
         return value;
     }
 
@@ -145,10 +146,10 @@ internal static class AssignmentRuntime
         bool isChecked)
     {
         target = ExecutionRuntime.EnsureIndexTargetNotNull(target);
-        var currentValue = MemberAccess.GetIndex(target, index, options);
+        var currentValue = MemberAccess.GetIndex(target, index, options, context);
         var result = ApplyBinaryOperator(ResolveCompoundBaseOperator(compoundOperator), currentValue, rightValue, options, context, isChecked);
         CheckAllowIndexSet(options, index);
-        MemberAccess.SetIndex(target, index, result, options);
+        MemberAccess.SetIndex(target, index, result, options, context);
         return result;
     }
 
@@ -171,14 +172,15 @@ internal static class AssignmentRuntime
         object? target,
         object? index,
         object? value,
-        CsEvalOptions options)
+        CsEvalOptions options,
+        CsEvalContext context)
     {
         target = ExecutionRuntime.EnsureIndexTargetNotNull(target);
-        var currentValue = MemberAccess.GetIndex(target, index, options);
+        var currentValue = MemberAccess.GetIndex(target, index, options, context);
         if (currentValue != null)
             return currentValue;
         CheckAllowIndexSet(options, index);
-        MemberAccess.SetIndex(target, index, value, options);
+        MemberAccess.SetIndex(target, index, value, options, context);
         return value;
     }
 
@@ -211,13 +213,13 @@ internal static class AssignmentRuntime
         bool isChecked)
     {
         target = ExecutionRuntime.EnsureIndexTargetNotNull(target);
-        var currentValue = MemberAccess.GetIndex(target, index, options);
+        var currentValue = MemberAccess.GetIndex(target, index, options, context);
         var one = GetNumericOne(currentValue);
         var newValue = isIncrement
             ? Operators.Add(currentValue, one, options, context, isChecked)
             : Operators.Subtract(currentValue, one, isChecked);
         CheckAllowIndexSet(options, index);
-        MemberAccess.SetIndex(target, index, newValue, options);
+        MemberAccess.SetIndex(target, index, newValue, options, context);
         return isPrefix ? newValue : currentValue;
     }
 

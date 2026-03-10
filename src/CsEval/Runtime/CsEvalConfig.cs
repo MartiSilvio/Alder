@@ -14,7 +14,7 @@ internal sealed class CsEvalConfig
     public FrozenDictionary<string, Func<object?[], object?>> Functions { get; }
     internal FrozenDictionary<string, ModuleInfo> Modules { get; }
     internal ImmutableArray<Type> ExtensionTypes { get; }
-    internal TypeCache TypeCache { get; }
+    internal TypeMetadataProvider TypeMetadata { get; }
     internal TypeResolver TypeResolver { get; }
     public StringComparer Comparer { get; }
 
@@ -22,14 +22,14 @@ internal sealed class CsEvalConfig
         FrozenDictionary<string, Func<object?[], object?>> functions,
         FrozenDictionary<string, ModuleInfo> modules,
         ImmutableArray<Type> extensionTypes,
-        TypeCache typeCache,
+        TypeMetadataProvider typeMetadata,
         TypeResolver typeResolver,
         StringComparer comparer)
     {
         Functions = functions;
         Modules = modules;
         ExtensionTypes = extensionTypes;
-        TypeCache = typeCache;
+        TypeMetadata = typeMetadata;
         TypeResolver = typeResolver;
         Comparer = comparer;
     }
@@ -38,7 +38,7 @@ internal sealed class CsEvalConfig
         Dictionary<string, Func<object?[], object?>> functions,
         Dictionary<string, ModuleInfo> modules,
         List<Type> extensionTypes,
-        TypeCache typeCache,
+        TypeMetadataProvider typeMetadata,
         TypeResolver typeResolver,
         StringComparer comparer)
     {
@@ -46,7 +46,7 @@ internal sealed class CsEvalConfig
             functions.ToFrozenDictionary(comparer),
             modules.ToFrozenDictionary(comparer),
             [..extensionTypes],
-            typeCache,
+            typeMetadata,
             typeResolver,
             comparer);
     }
@@ -55,7 +55,7 @@ internal sealed class CsEvalConfig
         FrozenDictionary<string, Func<object?[], object?>>.Empty,
         FrozenDictionary<string, ModuleInfo>.Empty,
         [],
-        new TypeCache(),
+        new TypeMetadataProvider(),
         TypeResolver.Create([], [], true, StringComparer.Ordinal),
         StringComparer.Ordinal);
 }

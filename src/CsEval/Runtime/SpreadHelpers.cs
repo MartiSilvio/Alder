@@ -22,10 +22,10 @@ internal static class SpreadHelpers
         }
 
         var type = source.GetType();
-        foreach (var prop in context.TypeCache.GetProperties(type, BindingFlags.Public | BindingFlags.Instance))
+        foreach (var prop in context.TypeMetadata.GetProperties(type, BindingFlags.Public | BindingFlags.Instance))
         {
             if (prop.CanRead)
-                target[prop.Name] = context.TypeCache.GetPropertyValue(prop, source);
+                target[prop.Name] = context.TypeMetadata.GetPropertyValue(prop, source);
         }
     }
 
@@ -68,9 +68,9 @@ internal static class SpreadHelpers
             return source.ToArray(); // all nulls -> object?[]
 
         if (hasNull && commonType.IsValueType)
-            commonType = typeof(Nullable<>).MakeGenericType(commonType);
+            commonType = RuntimeGenericFactory.CloseGenericType(typeof(Nullable<>), [commonType]);
 
-        var array = Array.CreateInstance(commonType, source.Count);
+        var array = RuntimeArrayFactory.Create(commonType, source.Count);
         for (var i = 0; i < source.Count; i++)
             array.SetValue(source[i], i);
         return array;

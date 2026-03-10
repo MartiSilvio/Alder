@@ -1,30 +1,33 @@
 using CsEval.Binding.Plans;
+using CsEval.Runtime;
 using System.Reflection;
 
 namespace CsEval.Binding.Services;
 
 internal sealed class MemberBinderService
 {
+    private readonly TypeMetadataProvider _typeMetadata;
+
+    public MemberBinderService(TypeMetadataProvider typeMetadata)
+    {
+        _typeMetadata = typeMetadata;
+    }
+
     public BoundMemberPlan BindMemberRead(Type targetType, string memberName, bool isStatic, bool isCaseSensitive)
     {
         var flags = BindingFlags.Public | (isStatic ? BindingFlags.Static : BindingFlags.Instance);
         if (!isCaseSensitive)
             flags |= BindingFlags.IgnoreCase;
 
-        var property = targetType.GetProperty(memberName, flags);
+        var property = _typeMetadata.GetProperty(targetType, memberName, flags);
         if (property != null)
             return new BoundMemberPlan(targetType, memberName, property, IsMethodGroup: false, isStatic);
 
-        var field = targetType.GetField(memberName, flags);
+        var field = _typeMetadata.GetField(targetType, memberName, flags);
         if (field != null)
             return new BoundMemberPlan(targetType, memberName, field, IsMethodGroup: false, isStatic);
 
-        var hasMethods = targetType
-            .GetMethods(flags)
-            .Any(method => string.Equals(
-                method.Name,
-                memberName,
-                isCaseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase));
+        var hasMethods = _typeMetadata.GetMethods(targetType, memberName, flags).Length > 0;
         if (hasMethods)
             return new BoundMemberPlan(targetType, memberName, Member: null, IsMethodGroup: true, isStatic);
 
@@ -50,7 +53,7 @@ internal sealed class MemberBinderService
             return new BoundIndexPlan(targetType, indexType, dictionaryValueType, true);
         }
 
-        var indexer = targetType.GetProperty("Item", BindingFlags.Public | BindingFlags.Instance);
+        var indexer = _typeMetadata.GetIndexer(targetType);
         if (indexer != null)
         {
             var parameters = indexer.GetIndexParameters();
@@ -67,7 +70,7 @@ internal sealed class MemberBinderService
         throw new CsEvalException($"No indexer found on type '{targetType.Name}'");
     }
 
-    private static bool TryResolveListElementType(Type targetType, out Type elementType)
+    private bool TryResolveListElementType(Type targetType, out Type elementType)
     {
         if (targetType.IsArray)
         {
@@ -75,7 +78,7 @@ internal sealed class MemberBinderService
             return true;
         }
 
-        var directIndexer = targetType.GetProperties(BindingFlags.Public | BindingFlags.Instance)
+        var directIndexer = _typeMetadata.GetProperties(targetType, BindingFlags.Public | BindingFlags.Instance)
             .FirstOrDefault(property =>
             {
                 if (!string.Equals(property.Name, "Item", StringComparison.Ordinal))
@@ -135,7 +138,7 @@ internal sealed class MemberBinderService
     private static IEnumerable<Type> EnumerateSelfAndInterfaces(Type type)
     {
         yield return type;
-        foreach (var interfaceType in type.GetInterfaces())
+        foreach (var interfaceType in ReflectionRuntime.GetInterfaces(type))
             yield return interfaceType;
     }
 }

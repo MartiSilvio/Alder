@@ -377,13 +377,15 @@ internal sealed class BoundExpressionEmitter
     private bool TryEmitPrimitiveBinaryFastPath(BoundBinaryExpr binary, out LinqExpression direct)
     {
         direct = null!;
-        var leftType = binary.Left.StaticType;
-        var rightType = binary.Right.StaticType;
-        if (leftType != rightType || !IsPrimitiveBinaryFastPathType(leftType))
+        if (!TryGetNumericFastPathType(binary, out var promotedType))
             return false;
 
-        var left = BoundEmitterSupport.EnsureTypedExpression(Emit(binary.Left), leftType);
-        var right = BoundEmitterSupport.EnsureTypedExpression(Emit(binary.Right), rightType);
+        var left = BoundEmitterSupport.EnsureTypedExpression(Emit(binary.Left), binary.Left.StaticType);
+        var right = BoundEmitterSupport.EnsureTypedExpression(Emit(binary.Right), binary.Right.StaticType);
+        if (left.Type != promotedType)
+            left = LinqExpression.Convert(left, promotedType);
+        if (right.Type != promotedType)
+            right = LinqExpression.Convert(right, promotedType);
 
         LinqExpression? typed = binary.Operator switch
         {
@@ -408,9 +410,90 @@ internal sealed class BoundExpressionEmitter
         return true;
     }
 
+    private static bool TryGetNumericFastPathType(BoundBinaryExpr binary, out Type promotedType)
+    {
+        promotedType = null!;
+        if (!IsFastPathNumericOperator(binary.Operator))
+            return false;
+
+        var leftType = binary.Left.StaticType;
+        var rightType = binary.Right.StaticType;
+        if (!IsPrimitiveBinaryFastPathType(leftType) || !IsPrimitiveBinaryFastPathType(rightType))
+            return false;
+
+        if ((leftType == typeof(decimal) && (rightType == typeof(float) || rightType == typeof(double))) ||
+            (rightType == typeof(decimal) && (leftType == typeof(float) || leftType == typeof(double))))
+        {
+            return false;
+        }
+
+        if (TryGetConstantPromotionType(binary, leftType, rightType, out promotedType))
+            return true;
+
+        promotedType = NumericDispatch.GetResultType(leftType, rightType);
+        return IsPrimitiveBinaryFastPathType(promotedType);
+    }
+
+    private static bool IsFastPathNumericOperator(TokenType op)
+    {
+        return op is TokenType.Plus or TokenType.Minus or TokenType.Star or TokenType.Slash or TokenType.Percent or
+            TokenType.EqualEqual or TokenType.EqualEqualEqual or TokenType.BangEqual or TokenType.BangEqualEqual or
+            TokenType.Less or TokenType.LessEqual or TokenType.Greater or TokenType.GreaterEqual;
+    }
+
+    private static bool TryGetConstantPromotionType(BoundBinaryExpr binary, Type leftType, Type rightType, out Type promotedType)
+    {
+        promotedType = null!;
+        var leftLiteral = binary.Left as BoundLiteralExpr;
+        var rightLiteral = binary.Right as BoundLiteralExpr;
+
+        if (leftType == typeof(uint) && rightLiteral?.Value is int rightInt && rightInt >= 0)
+        {
+            promotedType = typeof(uint);
+            return true;
+        }
+
+        if (rightType == typeof(uint) && leftLiteral?.Value is int leftInt && leftInt >= 0)
+        {
+            promotedType = typeof(uint);
+            return true;
+        }
+
+        if (leftType == typeof(ulong) && rightLiteral?.Value is int rightIntForUlong && rightIntForUlong >= 0)
+        {
+            promotedType = typeof(ulong);
+            return true;
+        }
+
+        if (rightType == typeof(ulong) && leftLiteral?.Value is int leftIntForUlong && leftIntForUlong >= 0)
+        {
+            promotedType = typeof(ulong);
+            return true;
+        }
+
+        if (leftType == typeof(ulong) && rightLiteral?.Value is long rightLongForUlong && rightLongForUlong >= 0)
+        {
+            promotedType = typeof(ulong);
+            return true;
+        }
+
+        if (rightType == typeof(ulong) && leftLiteral?.Value is long leftLongForUlong && leftLongForUlong >= 0)
+        {
+            promotedType = typeof(ulong);
+            return true;
+        }
+
+        return false;
+    }
+
     private static bool IsPrimitiveBinaryFastPathType(Type type)
     {
-        return type == typeof(int) ||
+        return type == typeof(sbyte) ||
+               type == typeof(byte) ||
+               type == typeof(short) ||
+               type == typeof(ushort) ||
+               type == typeof(char) ||
+               type == typeof(int) ||
                type == typeof(long) ||
                type == typeof(uint) ||
                type == typeof(ulong) ||
@@ -476,27 +559,67 @@ internal sealed class BoundExpressionEmitter
 
     private LinqExpression EmitConditional(BoundConditionalExpr conditional)
     {
-        var condition = LinqExpression.Call(RequireBooleanMethod, BoundEmitterSupport.AsObject(Emit(conditional.Condition)));
-        var thenExpr = BoundEmitterSupport.AsObject(Emit(conditional.ThenBranch));
-        var elseExpr = BoundEmitterSupport.AsObject(Emit(conditional.ElseBranch));
+        var conditionCandidate = Emit(conditional.Condition);
+        var condition = conditionCandidate.Type == typeof(bool)
+            ? conditionCandidate
+            : LinqExpression.Call(RequireBooleanMethod, BoundEmitterSupport.AsObject(conditionCandidate));
 
-        var result = LinqExpression.Condition(condition, thenExpr, elseExpr);
+        var thenCandidate = Emit(conditional.ThenBranch);
+        var elseCandidate = Emit(conditional.ElseBranch);
+
+        if (TryEmitTypedArithmeticConditional(conditional, condition, thenCandidate, elseCandidate, out var typed))
+            return typed;
+
+        return LinqExpression.Condition(
+            condition,
+            BoundEmitterSupport.AsObject(thenCandidate),
+            BoundEmitterSupport.AsObject(elseCandidate));
+    }
+
+    private static bool TryEmitTypedArithmeticConditional(
+        BoundConditionalExpr conditional,
+        LinqExpression condition,
+        LinqExpression thenCandidate,
+        LinqExpression elseCandidate,
+        out LinqExpression typed)
+    {
+        typed = null!;
         var thenType = conditional.ThenBranch.StaticType;
         var elseType = conditional.ElseBranch.StaticType;
-        if (thenType != typeof(object) &&
-            elseType != typeof(object) &&
-            thenType != elseType &&
-            TypeHelpers.IsArithmetic(thenType) &&
-            TypeHelpers.IsArithmetic(elseType))
+        var resultType = conditional.StaticType;
+
+        if (!TypeHelpers.IsArithmetic(thenType) ||
+            !TypeHelpers.IsArithmetic(elseType) ||
+            !TypeHelpers.IsArithmetic(resultType) ||
+            !IsPrimitiveBinaryFastPathType(resultType))
         {
-            var resultType = NumericDispatch.GetResultType(thenType, elseType);
-            return LinqExpression.Call(
-                PromoteToTypeMethod,
-                result,
-                LinqExpression.Constant(resultType, typeof(Type)));
+            return false;
         }
 
-        return result;
+        if ((resultType == typeof(decimal) &&
+             (thenType == typeof(float) || thenType == typeof(double) ||
+              elseType == typeof(float) || elseType == typeof(double))))
+        {
+            return false;
+        }
+
+        try
+        {
+            var thenTyped = BoundEmitterSupport.EnsureTypedExpression(thenCandidate, thenType);
+            var elseTyped = BoundEmitterSupport.EnsureTypedExpression(elseCandidate, elseType);
+
+            if (thenTyped.Type != resultType)
+                thenTyped = LinqExpression.Convert(thenTyped, resultType);
+            if (elseTyped.Type != resultType)
+                elseTyped = LinqExpression.Convert(elseTyped, resultType);
+
+            typed = LinqExpression.Condition(condition, thenTyped, elseTyped);
+            return true;
+        }
+        catch (InvalidOperationException)
+        {
+            return false;
+        }
     }
 
     private LinqExpression EmitBlock(BoundBlockExpr block)
@@ -1465,7 +1588,8 @@ internal sealed class BoundExpressionEmitter
             BoundEmitterSupport.AsObject(Emit(indexAssign.Target)),
             BoundEmitterSupport.AsObject(Emit(indexAssign.Index)),
             BoundEmitterSupport.AsObject(Emit(indexAssign.Value)),
-            _optionsParam);
+            _optionsParam,
+            _contextParam);
     }
 
     private LinqExpression EmitMemberCompoundAssign(BoundMemberCompoundAssignExpr memberCompoundAssign)
@@ -1512,7 +1636,8 @@ internal sealed class BoundExpressionEmitter
             BoundEmitterSupport.AsObject(Emit(indexNullCoalesceAssign.Target)),
             BoundEmitterSupport.AsObject(Emit(indexNullCoalesceAssign.Index)),
             BoundEmitterSupport.AsObject(Emit(indexNullCoalesceAssign.Value)),
-            _optionsParam);
+            _optionsParam,
+            _contextParam);
     }
 
     private LinqExpression EmitMemberIncrement(BoundMemberIncrementExpr memberIncrement)
@@ -1736,7 +1861,8 @@ internal sealed class BoundExpressionEmitter
                 GetIndexMethod,
                 targetExpr,
                 indexExpr,
-                _optionsParam);
+                _optionsParam,
+                _contextParam);
         }
 
         var targetVar = LinqExpression.Variable(typeof(object), "indexTarget");
@@ -1744,10 +1870,10 @@ internal sealed class BoundExpressionEmitter
             typeof(object),
             [targetVar],
             LinqExpression.Assign(targetVar, targetExpr),
-            LinqExpression.Condition(
-                LinqExpression.Equal(targetVar, LinqExpression.Constant(null, typeof(object))),
-                LinqExpression.Constant(null, typeof(object)),
-                LinqExpression.Call(GetIndexMethod, targetVar, indexExpr, _optionsParam)));
+                LinqExpression.Condition(
+                    LinqExpression.Equal(targetVar, LinqExpression.Constant(null, typeof(object))),
+                    LinqExpression.Constant(null, typeof(object)),
+                    LinqExpression.Call(GetIndexMethod, targetVar, indexExpr, _optionsParam, _contextParam)));
     }
 
     private LinqExpression EmitCall(BoundCallExpr call)
@@ -1870,7 +1996,8 @@ internal sealed class BoundExpressionEmitter
             GetIndexMethod,
             BoundEmitterSupport.AsObject(Emit(indexAccess.Target)),
             BoundEmitterSupport.AsObject(Emit(indexAccess.Index)),
-            _optionsParam);
+            _optionsParam,
+            _contextParam);
     }
 
     private LinqExpression EmitDirectStringIndexAccess(BoundIndexAccessExpr indexAccess)

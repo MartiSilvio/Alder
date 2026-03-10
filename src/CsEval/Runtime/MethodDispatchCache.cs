@@ -128,7 +128,7 @@ internal static class MethodDispatchCache
 
     private static FastInvoker CloseFactory(MethodInfo factoryMethod, Type[] genericArgs, MethodInfo targetMethod)
     {
-        var closedFactory = factoryMethod.MakeGenericMethod(genericArgs);
+        var closedFactory = RuntimeGenericFactory.CloseGenericMethod(factoryMethod, genericArgs);
         return (FastInvoker)closedFactory.Invoke(null, [targetMethod])!;
     }
 

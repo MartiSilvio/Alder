@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
+using System.Runtime.CompilerServices;
 using CsEval.Diagnostics;
 
 namespace CsEval.Runtime;
@@ -101,7 +102,33 @@ internal static class TypeHelpers
     /// </summary>
     public static object? GetDefaultValue(Type type)
     {
-        return type.IsValueType ? Activator.CreateInstance(type) : null;
+        if (!type.IsValueType)
+            return null;
+
+        if (Nullable.GetUnderlyingType(type) != null)
+            return null;
+
+        if (type.IsEnum)
+            return Enum.ToObject(type, 0);
+
+        return Type.GetTypeCode(type) switch
+        {
+            TypeCode.Boolean => false,
+            TypeCode.Char => '\0',
+            TypeCode.SByte => (sbyte)0,
+            TypeCode.Byte => (byte)0,
+            TypeCode.Int16 => (short)0,
+            TypeCode.UInt16 => (ushort)0,
+            TypeCode.Int32 => 0,
+            TypeCode.UInt32 => 0u,
+            TypeCode.Int64 => 0L,
+            TypeCode.UInt64 => 0UL,
+            TypeCode.Single => 0f,
+            TypeCode.Double => 0d,
+            TypeCode.Decimal => 0m,
+            TypeCode.DateTime => default(DateTime),
+            _ => RuntimeHelpers.GetUninitializedObject(type)
+        };
     }
 
     /// <summary>
@@ -274,7 +301,7 @@ internal static class TypeHelpers
 
         foreach (var declaringType in searchTypes)
         {
-            foreach (var method in declaringType.GetMethods(flags))
+            foreach (var method in ReflectionRuntime.GetMethods(declaringType, flags))
             {
                 if (method.Name is not ("op_Explicit" or "op_Implicit"))
                     continue;

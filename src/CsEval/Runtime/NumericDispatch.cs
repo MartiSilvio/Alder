@@ -1,5 +1,7 @@
 using CsEval.Diagnostics;
 using CsEval.Parsing;
+using System.Reflection;
+using System.Runtime.ExceptionServices;
 
 namespace CsEval.Runtime;
 
@@ -232,7 +234,60 @@ internal static class NumericDispatch
         if (ops.TryGetValue(type, out var op))
             return op(value);
 
-        return -(dynamic)value;
+        if (TryFindUnaryNegationOperator(type, isChecked, out var operatorMethod))
+        {
+            try
+            {
+                return operatorMethod.Invoke(null, [value]);
+            }
+            catch (TargetInvocationException tie) when (tie.InnerException != null)
+            {
+                ExceptionDispatchInfo.Capture(tie.InnerException).Throw();
+                throw;
+            }
+        }
+
+        throw new CsEvalException(DiagnosticDescriptors.BadUnaryOp, "-", type.Name);
+    }
+
+    private static bool TryFindUnaryNegationOperator(Type operandType, bool isChecked, out MethodInfo method)
+    {
+        const BindingFlags flags = BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy;
+        var methods = ReflectionRuntime.GetMethods(operandType, flags);
+
+        if (isChecked)
+        {
+            var checkedMethod = methods.FirstOrDefault(candidate =>
+            {
+                if (!string.Equals(candidate.Name, "op_CheckedUnaryNegation", StringComparison.Ordinal))
+                    return false;
+
+                var parameters = candidate.GetParameters();
+                return parameters.Length == 1 && parameters[0].ParameterType == operandType;
+            });
+            if (checkedMethod != null)
+            {
+                method = checkedMethod;
+                return true;
+            }
+        }
+
+        var regularMethod = methods.FirstOrDefault(candidate =>
+        {
+            if (!string.Equals(candidate.Name, "op_UnaryNegation", StringComparison.Ordinal))
+                return false;
+
+            var parameters = candidate.GetParameters();
+            return parameters.Length == 1 && parameters[0].ParameterType == operandType;
+        });
+        if (regularMethod != null)
+        {
+            method = regularMethod;
+            return true;
+        }
+
+        method = null!;
+        return false;
     }
 
     public static object? UnaryPlus(object value)

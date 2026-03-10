@@ -136,8 +136,8 @@ internal static class ExtensionMethodResolver
             {
                 var comparison = key.IsCaseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
 
-                return key.ExtensionType
-                    .GetMethods(BindingFlags.Public | BindingFlags.Static)
+                return ReflectionRuntime
+                    .GetMethods(key.ExtensionType, BindingFlags.Public | BindingFlags.Static)
                     .Where(m => m.Name.Equals(key.MethodNameKey, comparison) &&
                                 m.IsDefined(typeof(ExtensionAttribute), false))
                     .ToArray();
@@ -374,8 +374,7 @@ internal static class ExtensionMethodResolver
                 }
             }
 
-            var result = genericMethod.MakeGenericMethod(typeArgs);
-            return result;
+            return RuntimeGenericFactory.CloseGenericMethod(genericMethod, typeArgs);
         }
         catch (Exception ex) when (ex is ArgumentException or TypeLoadException or InvalidOperationException)
         {
@@ -494,7 +493,7 @@ internal static class ExtensionMethodResolver
             var args = type.GetGenericArguments()
                 .Select(t => SubstituteTypeArg(t, genericParams, typeArgs))
                 .ToArray();
-            return type.GetGenericTypeDefinition().MakeGenericType(args);
+            return RuntimeGenericFactory.CloseGenericType(type.GetGenericTypeDefinition(), args);
         }
         return type;
     }
@@ -510,24 +509,27 @@ internal static class ExtensionMethodResolver
     private static object? CreateDefaultValue(Type type)
     {
         if (type.IsValueType)
-            return Activator.CreateInstance(type);
+            return TypeHelpers.GetDefaultValue(type);
         if (type.IsArray)
         {
             var elementType = type.GetElementType()!;
-            var arr = Array.CreateInstance(elementType, 1);
+            var arr = RuntimeArrayFactory.Create(elementType, 1);
             arr.SetValue(CreateDefaultValue(elementType), 0);
             return arr;
         }
         if (type == typeof(string))
             return "";
-        try
+        if (!type.IsAbstract && !type.IsInterface)
         {
-            return Activator.CreateInstance(type);
+            try
+            {
+                return RuntimeHelpers.GetUninitializedObject(type);
+            }
+            catch
+            {
+            }
         }
-        catch (Exception ex) when (ex is MissingMethodException or MethodAccessException or MemberAccessException)
-        {
-            return null;
-        }
+        return null;
     }
 
     private static Type? ExtractTypeArgFromWrapper(Type actualType, Type wrapperGenericDef, Type expectedType, Type genericParam)
@@ -545,7 +547,7 @@ internal static class ExtensionMethodResolver
         }
         else
         {
-            foreach (var iface in actualType.GetInterfaces())
+            foreach (var iface in ReflectionRuntime.GetInterfaces(actualType))
             {
                 if (iface.IsGenericType && iface.GetGenericTypeDefinition() == wrapperGenericDef)
                 {
@@ -619,7 +621,7 @@ internal static class ExtensionMethodResolver
             }
             else
             {
-                foreach (var iface in argType.GetInterfaces())
+                foreach (var iface in ReflectionRuntime.GetInterfaces(argType))
                 {
                     if (iface.IsGenericType && iface.GetGenericTypeDefinition() == paramGenericDef)
                     {
@@ -648,7 +650,7 @@ internal static class ExtensionMethodResolver
             return true;
 
         // Check interfaces
-        foreach (var iface in sourceType.GetInterfaces())
+        foreach (var iface in ReflectionRuntime.GetInterfaces(sourceType))
         {
             if (targetType.IsAssignableFrom(iface))
                 return true;

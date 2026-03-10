@@ -34,18 +34,12 @@ internal static class MethodResolver
 
     public static MethodInfo? TryResolveMethod(Type targetType, string methodName, Type[] argTypes, BindingFlags flags)
     {
-        try
-        {
-            var method = targetType.GetMethod(methodName, flags, null, argTypes, null);
-            if (method != null && !method.ContainsGenericParameters)
-                return method;
-        }
-        catch (AmbiguousMatchException)
-        {
-        }
+        var comparison = (flags & BindingFlags.IgnoreCase) != 0
+            ? StringComparison.OrdinalIgnoreCase
+            : StringComparison.Ordinal;
 
-        var methods = targetType.GetMethods(flags)
-            .Where(m => m.Name == methodName && !m.ContainsGenericParameters)
+        var methods = ReflectionRuntime.GetMethods(targetType, flags)
+            .Where(m => string.Equals(m.Name, methodName, comparison) && !m.ContainsGenericParameters)
             .ToArray();
         return TryResolveMethod(methods, argTypes);
     }

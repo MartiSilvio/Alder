@@ -125,7 +125,7 @@ internal static class LambdaDelegateFactory
         if ((uint)arity >= (uint)factories.Length)
             throw new InvalidOperationException($"Unsupported delegate arity: {arity}");
 
-        var factory = factories[arity].MakeGenericMethod(genericArgs);
+        var factory = RuntimeGenericFactory.CloseGenericMethod(factories[arity], genericArgs);
         return (Delegate)factory.Invoke(null, [lambda])!;
     }
 

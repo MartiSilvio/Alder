@@ -35,7 +35,7 @@ public sealed class CallBinderServiceTests
     [Test]
     public void MemberBinder_ShouldReturnMethodGroupAndIndexPlan()
     {
-        var memberBinder = new MemberBinderService();
+        var memberBinder = new MemberBinderService(new TypeMetadataProvider());
 
         var methodGroup = memberBinder.BindMemberRead(typeof(string), nameof(string.Contains), isStatic: false, isCaseSensitive: true);
         Assert.That(methodGroup.IsMethodGroup, Is.True);

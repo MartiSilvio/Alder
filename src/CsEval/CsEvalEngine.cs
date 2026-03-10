@@ -35,7 +35,7 @@ public sealed class CsEvalEngine : IDisposable
     private readonly List<Type> _extensionTypes = [];
     private readonly List<Assembly> _assemblies = [];
     private readonly List<string> _usingNamespaces = [];
-    private readonly TypeCache _typeCache;
+    private readonly TypeMetadataProvider _typeMetadata;
     private readonly ExpressionCache _expressionCache;
     private readonly Dictionary<string, PendingVariable> _pendingVariables;
     private readonly object _contextInitLock = new();
@@ -49,7 +49,7 @@ public sealed class CsEvalEngine : IDisposable
         if (_disposed) return;
         _disposed = true;
         _expressionCache.Clear();
-        _typeCache.Clear();
+        _typeMetadata.Clear();
     }
 
     private void ThrowIfDisposed()
@@ -64,7 +64,7 @@ public sealed class CsEvalEngine : IDisposable
     public CsEvalEngine(CsEvalOptions options)
     {
         _options = options;
-        _typeCache = new TypeCache();
+        _typeMetadata = new TypeMetadataProvider();
         _expressionCache = new ExpressionCache();
         _functions = new Dictionary<string, Func<object?[], object?>>(options.StringComparer);
         _pendingVariables = new Dictionary<string, PendingVariable>(options.StringComparer);
@@ -81,7 +81,7 @@ public sealed class CsEvalEngine : IDisposable
         _frozenConfig = frozenConfig;
         _context = parentContext.CreateChild();
         _options = options;
-        _typeCache = frozenConfig.TypeCache;
+        _typeMetadata = frozenConfig.TypeMetadata;
         _expressionCache = expressionCache;
         _functions = new Dictionary<string, Func<object?[], object?>>(frozenConfig.Functions, options.StringComparer);
         _pendingVariables = new Dictionary<string, PendingVariable>(options.StringComparer);
@@ -113,7 +113,7 @@ public sealed class CsEvalEngine : IDisposable
             _usingNamespaces.ToImmutableArray(),
             true,
             _options.StringComparer);
-        var newConfig = CsEvalConfig.Create(_functions, modules, _extensionTypes, _typeCache, typeResolver, _options.StringComparer);
+        var newConfig = CsEvalConfig.Create(_functions, modules, _extensionTypes, _typeMetadata, typeResolver, _options.StringComparer);
         Interlocked.CompareExchange(ref _frozenConfig, newConfig, null);
         return _frozenConfig!;
     }
@@ -786,6 +786,11 @@ public sealed class CsEvalEngine : IDisposable
     }
 
     private sealed record RegisteredType(
+        [DynamicallyAccessedMembers(
+            DynamicallyAccessedMemberTypes.PublicParameterlessConstructor |
+            DynamicallyAccessedMemberTypes.PublicMethods |
+            DynamicallyAccessedMemberTypes.PublicProperties |
+            DynamicallyAccessedMemberTypes.PublicFields)]
         [property: DynamicallyAccessedMembers(
             DynamicallyAccessedMemberTypes.PublicParameterlessConstructor |
             DynamicallyAccessedMemberTypes.PublicMethods |

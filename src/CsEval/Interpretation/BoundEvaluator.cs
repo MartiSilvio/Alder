@@ -193,7 +193,9 @@ internal sealed class BoundEvaluator
             }
             else
             {
-                var addMethod = result!.GetType().GetMethod("Add");
+                var addMethod = _context.TypeMetadata
+                    .GetMethods(result!.GetType(), "Add", BindingFlags.Public | BindingFlags.Instance)
+                    .FirstOrDefault(static method => method.GetParameters().Length == 1);
                 if (addMethod == null)
                     throw new CsEvalException(
                         $"Type '{result.GetType().Name}' does not have an 'Add' method for collection initializer");
@@ -209,13 +211,13 @@ internal sealed class BoundEvaluator
         var sizeValue = Evaluate(typedArrayCreation.Size);
         var size = Convert.ToInt32(sizeValue);
         var elementType = _context.TypeResolver.ResolveType(typedArrayCreation.ElementTypeName);
-        return Array.CreateInstance(elementType, size);
+        return RuntimeArrayFactory.Create(elementType, size);
     }
 
     private object? EvaluateTypedArrayLiteral(BoundTypedArrayLiteralExpr typedArrayLiteral)
     {
         var elementType = _context.TypeResolver.ResolveType(typedArrayLiteral.ElementTypeName);
-        var array = Array.CreateInstance(elementType, typedArrayLiteral.Elements.Length);
+        var array = RuntimeArrayFactory.Create(elementType, typedArrayLiteral.Elements.Length);
         for (var i = 0; i < typedArrayLiteral.Elements.Length; i++)
         {
             var value = Evaluate(typedArrayLiteral.Elements[i]);
@@ -239,7 +241,7 @@ internal sealed class BoundEvaluator
         for (var i = 0; i < multiDimTypedArrayCreation.Sizes.Length; i++)
             sizes[i] = Convert.ToInt32(Evaluate(multiDimTypedArrayCreation.Sizes[i]));
         var elementType = _context.TypeResolver.ResolveType(multiDimTypedArrayCreation.ElementTypeName);
-        return Array.CreateInstance(elementType, sizes);
+        return RuntimeArrayFactory.Create(elementType, sizes);
     }
 
     private object? EvaluateDeconstruction(BoundDeconstructionExpr deconstruction)
@@ -584,7 +586,7 @@ internal sealed class BoundEvaluator
         var target = Evaluate(indexAssign.Target);
         var index = Evaluate(indexAssign.Index);
         var value = Evaluate(indexAssign.Value);
-        return AssignmentRuntime.ApplyIndexAssign(target, index, value, _options);
+        return AssignmentRuntime.ApplyIndexAssign(target, index, value, _options, _context);
     }
 
     private object? EvaluateMemberCompoundAssign(BoundMemberCompoundAssignExpr memberCompoundAssign)
@@ -633,7 +635,7 @@ internal sealed class BoundEvaluator
         var target = Evaluate(indexNullCoalesceAssign.Target);
         var index = Evaluate(indexNullCoalesceAssign.Index);
         var newValue = Evaluate(indexNullCoalesceAssign.Value);
-        return AssignmentRuntime.ApplyIndexNullCoalesceAssign(target, index, newValue, _options);
+        return AssignmentRuntime.ApplyIndexNullCoalesceAssign(target, index, newValue, _options, _context);
     }
 
     private object? EvaluateMemberIncrement(BoundMemberIncrementExpr memberIncrement)
@@ -1206,7 +1208,7 @@ internal sealed class BoundEvaluator
             throw new CsEvalException(DiagnosticDescriptors.BadIndexerAccess, TypeNameFormatter.Null);
 
         var index = Evaluate(indexAccess.Index);
-        return MemberAccess.GetIndex(target, index, _options);
+        return MemberAccess.GetIndex(target, index, _options, _context);
     }
 
     private object? EvaluateMultiDimIndexAccess(BoundMultiDimIndexAccessExpr multiDimIndexAccess)
@@ -1224,8 +1226,8 @@ internal sealed class BoundEvaluator
 
         if (target != null && multiDimIndexAccess.Indices.Length > 1)
         {
-            var hasMatchingIndexer = target.GetType()
-                .GetProperties(BindingFlags.Public | BindingFlags.Instance)
+            var hasMatchingIndexer = _context.TypeMetadata
+                .GetProperties(target.GetType(), BindingFlags.Public | BindingFlags.Instance)
                 .Any(property => property.Name == "Item" && property.GetIndexParameters().Length == multiDimIndexAccess.Indices.Length);
             if (hasMatchingIndexer)
                 throw new CsEvalException(DiagnosticDescriptors.MultiParameterIndexerNotSupported, target.GetType().Name);
@@ -1252,8 +1254,8 @@ internal sealed class BoundEvaluator
 
         if (target != null && multiDimIndexAssign.Indices.Length > 1)
         {
-            var hasMatchingIndexer = target.GetType()
-                .GetProperties(BindingFlags.Public | BindingFlags.Instance)
+            var hasMatchingIndexer = _context.TypeMetadata
+                .GetProperties(target.GetType(), BindingFlags.Public | BindingFlags.Instance)
                 .Any(property => property.Name == "Item" && property.GetIndexParameters().Length == multiDimIndexAssign.Indices.Length);
             if (hasMatchingIndexer)
                 throw new CsEvalException(DiagnosticDescriptors.MultiParameterIndexerNotSupported, target.GetType().Name);

@@ -28,7 +28,7 @@ internal sealed class CallBinderService
         if (!isCaseSensitive)
             flags |= BindingFlags.IgnoreCase;
 
-        var methods = _context.TypeCache.GetMethods(declaringType, methodName, flags);
+        var methods = _context.TypeMetadata.GetMethods(declaringType, methodName, flags);
         var sourceTypes = args.Select(static arg => arg?.GetType() ?? typeof(object)).ToArray();
         return BindFromTypes(methods, sourceTypes, methodName, isStaticCall: true);
     }
@@ -39,7 +39,7 @@ internal sealed class CallBinderService
         if (!isCaseSensitive)
             flags |= BindingFlags.IgnoreCase;
 
-        var methods = _context.TypeCache.GetMethods(targetType, methodName, flags);
+        var methods = _context.TypeMetadata.GetMethods(targetType, methodName, flags);
         var sourceTypes = args.Select(static arg => arg?.GetType() ?? typeof(object)).ToArray();
         return BindFromTypes(methods, sourceTypes, methodName, isStaticCall: false);
     }
@@ -54,7 +54,7 @@ internal sealed class CallBinderService
         if (!isCaseSensitive)
             flags |= BindingFlags.IgnoreCase;
 
-        var methods = _context.TypeCache.GetMethods(declaringType, methodName, flags);
+        var methods = _context.TypeMetadata.GetMethods(declaringType, methodName, flags);
         return BindFromTypes(methods, argumentTypes, methodName, isStaticCall: true);
     }
 
@@ -68,7 +68,7 @@ internal sealed class CallBinderService
         if (!isCaseSensitive)
             flags |= BindingFlags.IgnoreCase;
 
-        var methods = _context.TypeCache.GetMethods(targetType, methodName, flags);
+        var methods = _context.TypeMetadata.GetMethods(targetType, methodName, flags);
         return BindFromTypes(methods, argumentTypes, methodName, isStaticCall: false);
     }
 

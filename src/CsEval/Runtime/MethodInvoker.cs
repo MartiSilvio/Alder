@@ -124,7 +124,7 @@ internal static class MethodInvoker
             var flags = BindingFlags.Public | BindingFlags.Instance;
             if (!options.IsCaseSensitive)
                 flags |= BindingFlags.IgnoreCase;
-            var methods = context.TypeCache.GetMethods(type, methodName, flags);
+            var methods = context.TypeMetadata.GetMethods(type, methodName, flags);
 
             if (typeArgs == null || typeArgs.Count == 0)
             {
@@ -217,7 +217,9 @@ internal static class MethodInvoker
                     return null;
                 resolvedTypes[i] = type;
             }
-            return genericMethod.MakeGenericMethod(resolvedTypes);
+            if (RuntimeGenericFactory.TryCloseGenericMethod(genericMethod, resolvedTypes, out var closedMethod))
+                return closedMethod;
+            return null;
         }
         catch (Exception ex) when (ex is ArgumentException or TypeLoadException or InvalidOperationException)
         {
@@ -235,7 +237,7 @@ internal static class MethodInvoker
         var module = methodRef.Module;
         var target = methodRef.Method.IsStatic ? null : module.Resolve(methodRef.ServiceProvider);
 
-        var methods = context.TypeCache.GetMethods(module.Type, methodName,
+        var methods = context.TypeMetadata.GetMethods(module.Type, methodName,
             BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static);
 
         var nonGenericMethods = methods.Where(m => !m.ContainsGenericParameters);
@@ -286,7 +288,7 @@ internal static class MethodInvoker
         if (!options.IsCaseSensitive)
             bindingFlags |= BindingFlags.IgnoreCase;
 
-        var methods = context.TypeCache.GetMethods(type, methodName, bindingFlags);
+        var methods = context.TypeMetadata.GetMethods(type, methodName, bindingFlags);
 
         if (typeArgs == null || typeArgs.Count == 0)
         {
@@ -577,9 +579,7 @@ internal static class MethodInvoker
         var defaultValue = parameter.DefaultValue;
         if (defaultValue == Type.Missing || defaultValue == DBNull.Value)
         {
-            value = parameter.ParameterType.IsValueType
-                ? Activator.CreateInstance(parameter.ParameterType)
-                : null;
+            value = TypeHelpers.GetDefaultValue(parameter.ParameterType);
             return true;
         }
 
@@ -587,7 +587,7 @@ internal static class MethodInvoker
             parameter.ParameterType.IsValueType &&
             Nullable.GetUnderlyingType(parameter.ParameterType) == null)
         {
-            value = Activator.CreateInstance(parameter.ParameterType);
+            value = TypeHelpers.GetDefaultValue(parameter.ParameterType);
             return true;
         }
 
@@ -615,7 +615,7 @@ internal static class MethodInvoker
         if (startIndex + count > sourceArgs.Length || startIndex + count > conversions.Length)
             return false;
 
-        paramsArray = Array.CreateInstance(elementType, count);
+        paramsArray = RuntimeArrayFactory.Create(elementType, count);
         for (var i = 0; i < count; i++)
         {
             var sourceIndex = startIndex + i;
@@ -685,20 +685,15 @@ internal static class MethodInvoker
             var inferred = TryInferGenericArg(parameters[0].ParameterType, firstArgType, genericArgs[0]);
             if (inferred != null)
             {
-                try { return genericMethod.MakeGenericMethod(inferred); }
-                catch (Exception ex) when (ex is ArgumentException or TypeLoadException or InvalidOperationException) { }
+                if (RuntimeGenericFactory.TryCloseGenericMethod(genericMethod, [inferred], out var inferredMethod))
+                    return inferredMethod;
             }
         }
 
         // Fallback: use the argument type directly
-        try
-        {
-            return genericMethod.MakeGenericMethod(firstArgType);
-        }
-        catch (Exception ex) when (ex is ArgumentException or TypeLoadException or InvalidOperationException)
-        {
-            return null;
-        }
+        return RuntimeGenericFactory.TryCloseGenericMethod(genericMethod, [firstArgType], out var fallbackMethod)
+            ? fallbackMethod
+            : null;
     }
 
     /// <summary>
@@ -717,7 +712,7 @@ internal static class MethodInvoker
         var genericDef = parameterType.GetGenericTypeDefinition();
 
         // Check if argumentType itself or its interfaces match the generic definition
-        foreach (var candidate in argumentType.GetInterfaces().Prepend(argumentType))
+        foreach (var candidate in ReflectionRuntime.GetInterfaces(argumentType).Prepend(argumentType))
         {
             if (!candidate.IsGenericType || candidate.GetGenericTypeDefinition() != genericDef)
                 continue;
@@ -836,7 +831,7 @@ internal static class MethodInvoker
             if (parameters[i].IsDefined(typeof(ParamArrayAttribute), false))
             {
                 var elementType = parameters[i].ParameterType.GetElementType()!;
-                convertedArgs[i] = Array.CreateInstance(elementType, 0);
+                convertedArgs[i] = RuntimeArrayFactory.Create(elementType, 0);
                 continue;
             }
 
@@ -931,7 +926,7 @@ internal static class MethodInvoker
         if (paramsProvidedByName)
             return remainingCount == 0;
 
-        var paramsArray = Array.CreateInstance(paramsElementType, remainingCount);
+        var paramsArray = RuntimeArrayFactory.Create(paramsElementType, remainingCount);
         for (var i = 0; i < remainingCount; i++)
         {
             var arg = positionalArgs[positionalIndex + i];
@@ -962,7 +957,7 @@ internal static class MethodInvoker
         if (arg is OutArgMarker && parameter.ParameterType.IsByRef)
         {
             var elementType = parameter.ParameterType.GetElementType()!;
-            converted = elementType.IsValueType ? Activator.CreateInstance(elementType) : null;
+            converted = TypeHelpers.GetDefaultValue(elementType);
             return true;
         }
 
@@ -1458,7 +1453,7 @@ internal static class MethodInvoker
 
         var paramsElementType = paramsParam.ParameterType.GetElementType()!;
         var paramsCount = Math.Max(0, args.Length - normalParamCount);
-        var paramsArray = Array.CreateInstance(paramsElementType, paramsCount);
+        var paramsArray = RuntimeArrayFactory.Create(paramsElementType, paramsCount);
 
         for (var i = 0; i < paramsCount; i++)
         {

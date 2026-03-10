@@ -41,7 +41,9 @@ internal static class BoundRuntimeMethodCache
         typeof(MemberAccess).GetMethod(nameof(MemberAccess.GetMember))!;
 
     internal static readonly MethodInfo GetIndexMethod =
-        typeof(MemberAccess).GetMethod(nameof(MemberAccess.GetIndex))!;
+        typeof(MemberAccess).GetMethod(
+            nameof(MemberAccess.GetIndex),
+            [typeof(object), typeof(object), typeof(CsEvalOptions), typeof(CsEvalContext)])!;
 
     internal static readonly MethodInfo NormalizeIndexMethod =
         typeof(MemberAccess).GetMethod(nameof(MemberAccess.NormalizeIndex), [typeof(int), typeof(int), typeof(LanguageMode)])!;
@@ -230,9 +232,6 @@ internal static class BoundRuntimeMethodCache
 
     internal static readonly MethodInfo MatchPatternMethod =
         typeof(PatternRuntime).GetMethod(nameof(PatternRuntime.MatchPattern))!;
-
-    internal static readonly MethodInfo PromoteToTypeMethod =
-        typeof(NumericDispatch).GetMethod(nameof(NumericDispatch.PromoteToType), [typeof(object), typeof(Type)])!;
 
     internal static readonly MethodInfo ApplyConstantNumericPromotionMethod =
         typeof(NumericPromotionRuntime).GetMethod(nameof(NumericPromotionRuntime.ApplyConstantNumericPromotion))!;

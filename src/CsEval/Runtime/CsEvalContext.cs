@@ -49,7 +49,7 @@ internal sealed class CsEvalContext
     public CsEvalConfig Config => _config;
     public StringComparer Comparer => _config.Comparer;
     public IServiceProvider? ServiceProvider { get; }
-    internal TypeCache TypeCache => _config.TypeCache;
+    internal TypeMetadataProvider TypeMetadata => _config.TypeMetadata;
     internal TypeResolver TypeResolver => _config.TypeResolver;
     internal FrozenDictionary<string, Func<object?[], object?>> Functions => _config.Functions;
     internal FrozenDictionary<string, ModuleInfo> Modules => _config.Modules;

@@ -112,7 +112,7 @@ internal sealed class Binder
             return new BoundLiteralExpr(null, typeof(object));
 
         var resolvedType = context.RuntimeContext.TypeResolver.ResolveType(defaultExpr.TypeToken.Value.Lexeme);
-        var value = resolvedType.IsValueType ? Activator.CreateInstance(resolvedType) : null;
+        var value = TypeHelpers.GetDefaultValue(resolvedType);
         return new BoundLiteralExpr(value, resolvedType);
     }
 
@@ -181,7 +181,9 @@ internal sealed class Binder
     {
         var size = Bind(typedArrayCreation.Size, context);
         var elementType = context.RuntimeContext.TypeResolver.TryResolveType(typedArrayCreation.ElementTypeName);
-        var arrayType = elementType?.MakeArrayType() ?? typeof(Array);
+        var arrayType = elementType != null
+            ? RuntimeArrayFactory.GetArrayType(elementType)
+            : typeof(Array);
         return new BoundTypedArrayCreationExpr(typedArrayCreation.ElementTypeName, size, arrayType);
     }
 
@@ -191,7 +193,9 @@ internal sealed class Binder
             .Select(element => Bind(element, context))
             .ToImmutableArray();
         var elementType = context.RuntimeContext.TypeResolver.TryResolveType(typedArrayLiteral.ElementTypeName);
-        var arrayType = elementType?.MakeArrayType() ?? typeof(Array);
+        var arrayType = elementType != null
+            ? RuntimeArrayFactory.GetArrayType(elementType)
+            : typeof(Array);
         return new BoundTypedArrayLiteralExpr(typedArrayLiteral.ElementTypeName, elements, arrayType);
     }
 
@@ -212,7 +216,9 @@ internal sealed class Binder
             .Select(size => Bind(size, context))
             .ToImmutableArray();
         var elementType = context.RuntimeContext.TypeResolver.TryResolveType(multiDimTypedArrayCreation.ElementTypeName);
-        var arrayType = elementType?.MakeArrayType(multiDimTypedArrayCreation.Sizes.Count) ?? typeof(Array);
+        var arrayType = elementType != null
+            ? RuntimeArrayFactory.GetArrayType(elementType, multiDimTypedArrayCreation.Sizes.Count)
+            : typeof(Array);
         return new BoundMultiDimTypedArrayCreationExpr(multiDimTypedArrayCreation.ElementTypeName, sizes, arrayType);
     }
 
@@ -264,7 +270,7 @@ internal sealed class Binder
                 7 => typeof(ValueTuple<,,,,,,>),
                 _ => throw new InvalidOperationException("Unsupported tuple arity.")
             };
-            return openType.MakeGenericType(elementTypes);
+            return RuntimeGenericFactory.CloseGenericType(openType, elementTypes);
         }
 
         var headTypes = new Type[8];
@@ -273,7 +279,7 @@ internal sealed class Binder
         Array.Copy(elementTypes, 7, restTypes, 0, restTypes.Length);
         headTypes[7] = CreateTupleStaticType(restTypes);
 
-        return typeof(ValueTuple<,,,,,,,>).MakeGenericType(headTypes);
+        return RuntimeGenericFactory.CloseGenericType(typeof(ValueTuple<,,,,,,,>), headTypes);
     }
 
     private BoundInterpolatedStringExpr BindInterpolatedString(InterpolatedStringExpr interpolatedString, BindingContext context)
@@ -872,7 +878,7 @@ internal sealed class Binder
         var target = Bind(memberAccess.Object, context);
         var (targetType, isStatic) = ResolveMemberTarget(target);
 
-        var memberBinder = new MemberBinderService();
+        var memberBinder = new MemberBinderService(context.RuntimeContext.TypeMetadata);
         BoundMemberPlan? plan;
         try
         {
@@ -903,7 +909,7 @@ internal sealed class Binder
 
         try
         {
-            var memberBinder = new MemberBinderService();
+            var memberBinder = new MemberBinderService(context.RuntimeContext.TypeMetadata);
             plan = memberBinder.BindIndexRead(target.StaticType, index.StaticType);
             staticType = plan.ResultType;
         }

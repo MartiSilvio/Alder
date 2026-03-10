@@ -333,9 +333,9 @@ public class BenchmarkTests
     }
 
     [Test]
-    public void Benchmark_ReflectionCache_TypedObjectPropertyAccess()
+    public void Benchmark_MetadataProvider_TypedObjectPropertyAccess()
     {
-        // This test stresses the TypeCache by accessing properties on typed objects
+        // This test stresses the TypeMetadataProvider by accessing properties on typed objects
         const string expression = "person.FirstName + \" \" + person.LastName + \" (\" + person.Age + \")\"";
         var engine = new CsEvalEngine()
             .SetVariable("person", new Person { FirstName = "John", LastName = "Doe", Age = 30 });

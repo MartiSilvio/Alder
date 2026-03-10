@@ -29,10 +29,14 @@ internal static readonly MethodInfo DeconstructTupleMethod = typeof(Construction
 internal static readonly MethodInfo GetDefaultValueMethod = typeof(TypeHelpers).GetMethod(nameof(TypeHelpers.GetDefaultValue), [typeof(Type)])!;
 internal static readonly MethodInfo IsNullableTypeMethod = typeof(TypeHelpers).GetMethod(nameof(TypeHelpers.IsNullableType))!;
 internal static readonly MethodInfo GetMemberMethod = typeof(MemberAccess).GetMethod(nameof(MemberAccess.GetMember))!;
-internal static readonly MethodInfo GetIndexMethod = typeof(MemberAccess).GetMethod(nameof(MemberAccess.GetIndex))!;
+internal static readonly MethodInfo GetIndexMethod = typeof(MemberAccess).GetMethod(
+    nameof(MemberAccess.GetIndex),
+    [typeof(object), typeof(object), typeof(CsEvalOptions), typeof(CsEvalContext)])!;
 internal static readonly MethodInfo GetSliceMethod = typeof(MemberAccess).GetMethod(nameof(MemberAccess.GetSlice), [typeof(object), typeof(object), typeof(object), typeof(CsEvalOptions)])!;
 internal static readonly MethodInfo GetSliceStepMethod = typeof(MemberAccess).GetMethod(nameof(MemberAccess.GetSlice), [typeof(object), typeof(object), typeof(object), typeof(object), typeof(CsEvalOptions)])!;
-internal static readonly MethodInfo SetIndexMethod = typeof(MemberAccess).GetMethod(nameof(MemberAccess.SetIndex), [typeof(object), typeof(object), typeof(object), typeof(CsEvalOptions)])!;
+internal static readonly MethodInfo SetIndexMethod = typeof(MemberAccess).GetMethod(
+    nameof(MemberAccess.SetIndex),
+    [typeof(object), typeof(object), typeof(object), typeof(CsEvalOptions), typeof(CsEvalContext)])!;
 internal static readonly MethodInfo SetMemberMethod = typeof(MemberAccess).GetMethod(nameof(MemberAccess.SetMember))!;
 internal static readonly MethodInfo ListAddMethod = typeof(List<object?>).GetMethod(nameof(List<object?>.Add))!;
 internal static readonly MethodInfo ListAddRangeMethod = typeof(List<object?>).GetMethod(nameof(List<object?>.AddRange))!;

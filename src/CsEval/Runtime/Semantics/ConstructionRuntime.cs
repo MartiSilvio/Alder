@@ -48,7 +48,7 @@ internal static class ConstructionRuntime
                 _ => throw new CsEvalException("Tuples must have at least 2 elements")
             };
 
-            var tupleType = openGenericType.MakeGenericType(types);
+            var tupleType = RuntimeGenericFactory.CloseGenericType(openGenericType, types);
             return Activator.CreateInstance(tupleType, elements)!;
         }
 
@@ -66,7 +66,7 @@ internal static class ConstructionRuntime
         genericArgs[7] = restTuple.GetType();
         ctorArgs[7] = restTuple;
 
-        var nestedTupleType = typeof(ValueTuple<,,,,,,,>).MakeGenericType(genericArgs);
+        var nestedTupleType = RuntimeGenericFactory.CloseGenericType(typeof(ValueTuple<,,,,,,,>), genericArgs);
         return Activator.CreateInstance(nestedTupleType, ctorArgs)!;
     }
 
@@ -108,7 +108,7 @@ internal static class ConstructionRuntime
     public static object?[]? TryDeconstruct(object value, int parameterCount)
     {
         var type = value.GetType();
-        var methods = type.GetMethods(BindingFlags.Public | BindingFlags.Instance)
+        var methods = ReflectionRuntime.GetMethods(type, BindingFlags.Public | BindingFlags.Instance)
             .Where(m => m.Name == "Deconstruct"
                         && m.GetParameters().Length == parameterCount
                         && m.GetParameters().All(p => p.IsOut))
@@ -126,13 +126,13 @@ internal static class ConstructionRuntime
     public static object CreateTypedArray(Type elementType, object sizeValue)
     {
         var size = Convert.ToInt32(sizeValue);
-        return Array.CreateInstance(elementType, size);
+        return RuntimeArrayFactory.Create(elementType, size);
     }
 
     public static object ConvertArrayToTyped(object sourceArrayObj, Type elementType)
     {
         var sourceArray = (Array)sourceArrayObj;
-        var typedArray = Array.CreateInstance(elementType, sourceArray.Length);
+        var typedArray = RuntimeArrayFactory.Create(elementType, sourceArray.Length);
         for (var i = 0; i < sourceArray.Length; i++)
             typedArray.SetValue(sourceArray.GetValue(i), i);
         return typedArray;
@@ -146,7 +146,11 @@ internal static class ConstructionRuntime
 
     public static object? ApplyCollectionInitializer(object obj, object? value)
     {
-        var addMethod = obj.GetType().GetMethod("Add");
+        var addMethod = ReflectionRuntime
+            .GetMethods(obj.GetType(), BindingFlags.Public | BindingFlags.Instance)
+            .FirstOrDefault(static method =>
+                string.Equals(method.Name, "Add", StringComparison.Ordinal) &&
+                method.GetParameters().Length == 1);
         if (addMethod != null)
             addMethod.Invoke(obj, new[] { value });
         else
@@ -159,7 +163,7 @@ internal static class ConstructionRuntime
         var intSizes = new int[sizes.Length];
         for (var i = 0; i < sizes.Length; i++)
             intSizes[i] = Convert.ToInt32(sizes[i]);
-        return Array.CreateInstance(elementType, intSizes);
+        return RuntimeArrayFactory.Create(elementType, intSizes);
     }
 
     public static object? MultiDimArrayGet(object arrayObj, object[] indices)
@@ -239,7 +243,7 @@ internal static class ConstructionRuntime
 
     private static bool HasIndexerWithArity(Type targetType, int parameterCount)
     {
-        var properties = targetType.GetProperties(BindingFlags.Public | BindingFlags.Instance);
+        var properties = ReflectionRuntime.GetProperties(targetType, BindingFlags.Public | BindingFlags.Instance);
         foreach (var property in properties)
         {
             if (property.Name == "Item" && property.GetIndexParameters().Length == parameterCount)

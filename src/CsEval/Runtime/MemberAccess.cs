@@ -38,11 +38,12 @@ internal static class MemberAccess
         // Handle static member access on Type objects (e.g., double.NaN)
         if (obj is Type staticType)
         {
+            var staticTypeCache = context.TypeMetadata;
             var staticBindingFlags = BindingFlags.Public | BindingFlags.Static;
             if (!options.IsCaseSensitive)
                 staticBindingFlags |= BindingFlags.IgnoreCase;
 
-            var staticProp = staticType.GetProperty(name, staticBindingFlags);
+            var staticProp = staticTypeCache.GetProperty(staticType, name, staticBindingFlags);
             if (staticProp != null)
             {
                 if (!options.Sandbox.AllowStaticPropertyRead)
@@ -50,7 +51,7 @@ internal static class MemberAccess
                 return TypeHelpers.GuardReflectionLeak(staticProp.GetValue(null), $"static property {name}");
             }
 
-            var staticField = staticType.GetField(name, staticBindingFlags);
+            var staticField = staticTypeCache.GetField(staticType, name, staticBindingFlags);
             if (staticField != null)
             {
                 if (!options.Sandbox.AllowStaticFieldRead)
@@ -59,8 +60,8 @@ internal static class MemberAccess
             }
 
             // Check if this is a static method before falling through to instance members
-            var staticMethods = staticType.GetMethods(staticBindingFlags);
-            if (staticMethods.Any(m => string.Equals(m.Name, name, options.IsCaseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase)))
+            var staticMethods = staticTypeCache.GetMethods(staticType, name, staticBindingFlags);
+            if (staticMethods.Length > 0)
                 return new StaticMethodRef(staticType, name);
 
             // Fall through to instance member access on the Type object itself
@@ -89,7 +90,7 @@ internal static class MemberAccess
                 var instance = isStatic ? null : module.Resolve(context.ServiceProvider);
                 var value = memberInfo switch
                 {
-                    PropertyInfo p => context.TypeCache.GetPropertyValue(p, instance!),
+                    PropertyInfo p => context.TypeMetadata.GetPropertyValue(p, instance!),
                     FieldInfo f => f.GetValue(instance),
                     _ => throw new CsEvalException($"Unsupported member type '{memberInfo.GetType().Name}'")
                 };
@@ -128,19 +129,19 @@ internal static class MemberAccess
         if (!options.IsCaseSensitive)
             bindingFlags |= BindingFlags.IgnoreCase;
 
-        var typeCache = context.TypeCache;
-        var prop = typeCache.GetProperty(type, name, bindingFlags);
+        var typeMetadata = context.TypeMetadata;
+        var prop = typeMetadata.GetProperty(type, name, bindingFlags);
         if (prop != null)
-            return TypeHelpers.GuardReflectionLeak(typeCache.GetPropertyValue(prop, obj), $"property {name}");
+            return TypeHelpers.GuardReflectionLeak(typeMetadata.GetPropertyValue(prop, obj), $"property {name}");
 
-        var field = typeCache.GetField(type, name, bindingFlags);
+        var field = typeMetadata.GetField(type, name, bindingFlags);
         if (field != null)
             return TypeHelpers.GuardReflectionLeak(field.GetValue(obj), $"field {name}");
 
         return new MethodRef(obj, name);
     }
 
-    public static object? GetIndex(object? obj, object? index, CsEvalOptions options)
+    public static object? GetIndex(object? obj, object? index, CsEvalOptions options, CsEvalContext context)
     {
         if (obj == null)
             throw new CsEvalException(DiagnosticDescriptors.BadIndexerAccess, TypeNameFormatter.Null);
@@ -165,7 +166,7 @@ internal static class MemberAccess
         }
 
         var type = obj.GetType();
-        var indexer = type.GetProperty("Item", BindingFlags.Public | BindingFlags.Instance);
+        var indexer = context.TypeMetadata.GetIndexer(type);
         if (indexer != null && indexer.GetIndexParameters().Length > 1)
             throw new CsEvalException(DiagnosticDescriptors.MultiParameterIndexerNotSupported, type.Name);
 
@@ -221,7 +222,7 @@ internal static class MemberAccess
         if (caseInsensitive)
             bindingFlags |= BindingFlags.IgnoreCase;
 
-        var prop = context.TypeCache.GetProperty(type, name, bindingFlags);
+        var prop = context.TypeMetadata.GetProperty(type, name, bindingFlags);
         if (prop != null)
         {
             if (!prop.CanWrite)
@@ -230,7 +231,7 @@ internal static class MemberAccess
             return;
         }
 
-        var field = context.TypeCache.GetField(type, name, bindingFlags);
+        var field = context.TypeMetadata.GetField(type, name, bindingFlags);
         if (field != null)
         {
             if (field.IsInitOnly)
@@ -242,7 +243,7 @@ internal static class MemberAccess
         throw new CsEvalException(DiagnosticDescriptors.MemberNotFound, type.Name, name);
     }
 
-    public static void SetIndex(object? obj, object? index, object? value, CsEvalOptions? options = null)
+    public static void SetIndex(object? obj, object? index, object? value, CsEvalOptions options, CsEvalContext context)
     {
         if (obj == null)
             throw new CsEvalException(DiagnosticDescriptors.BadIndexerAccess, TypeNameFormatter.Null);
@@ -255,13 +256,13 @@ internal static class MemberAccess
 
         if (obj is IList list && index != null)
         {
-            var idx = NormalizeIndex(Convert.ToInt32(index), list.Count, options?.LanguageMode ?? LanguageMode.Standard);
+            var idx = NormalizeIndex(Convert.ToInt32(index), list.Count, options.LanguageMode);
             list[idx] = value;
             return;
         }
 
         var type = obj.GetType();
-        var indexer = type.GetProperty("Item", BindingFlags.Public | BindingFlags.Instance);
+        var indexer = context.TypeMetadata.GetIndexer(type);
 
         if (indexer != null && indexer.GetIndexParameters().Length == 1 && indexer.CanWrite)
         {
@@ -347,7 +348,7 @@ internal static class MemberAccess
             return obj switch
             {
                 string => (object)"",
-                Array arr => Array.CreateInstance(arr.GetType().GetElementType()!, 0),
+                Array arr => RuntimeArrayFactory.Create(arr.GetType().GetElementType()!, 0),
                 IList list => CreateEmptyResult(list),
                 _ => throw new CsEvalException($"Cannot slice type '{obj.GetType().Name}'")
             };
@@ -361,7 +362,7 @@ internal static class MemberAccess
             case Array arr:
             {
                 var elementType = arr.GetType().GetElementType()!;
-                var result = Array.CreateInstance(elementType, count);
+                var result = RuntimeArrayFactory.Create(elementType, count);
                 Array.Copy(arr, startIdx, result, 0, count);
                 return result;
             }
@@ -417,7 +418,7 @@ internal static class MemberAccess
             case Array arr:
             {
                 var elementType = arr.GetType().GetElementType()!;
-                var result = Array.CreateInstance(elementType, indices.Count);
+                var result = RuntimeArrayFactory.Create(elementType, indices.Count);
                 for (int j = 0; j < indices.Count; j++)
                     result.SetValue(arr.GetValue(indices[j]), j);
                 return result;
@@ -452,7 +453,8 @@ internal static class MemberAccess
         if (listType.IsGenericType && listType.GetGenericTypeDefinition() == typeof(List<>))
         {
             var elementType = listType.GetGenericArguments()[0];
-            return Activator.CreateInstance(typeof(List<>).MakeGenericType(elementType))!;
+            var closedListType = RuntimeGenericFactory.CloseGenericType(typeof(List<>), [elementType]);
+            return Activator.CreateInstance(closedListType)!;
         }
         return Array.Empty<object?>();
     }
@@ -463,7 +465,8 @@ internal static class MemberAccess
         if (listType.IsGenericType && listType.GetGenericTypeDefinition() == typeof(List<>))
         {
             var elementType = listType.GetGenericArguments()[0];
-            var resultList = (IList)Activator.CreateInstance(typeof(List<>).MakeGenericType(elementType))!;
+            var closedListType = RuntimeGenericFactory.CloseGenericType(typeof(List<>), [elementType]);
+            var resultList = (IList)Activator.CreateInstance(closedListType)!;
             foreach (var i in indices)
                 resultList.Add(list[i]);
             return resultList;

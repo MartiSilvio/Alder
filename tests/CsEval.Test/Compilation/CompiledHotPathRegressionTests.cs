@@ -179,6 +179,58 @@ public class CompiledHotPathRegressionTests(CompilationMode mode)
     }
 
     [Test]
+    public void SmallBranching_CompiledPath_DoesNotUseRuntimeNumericOperators()
+    {
+        var capturingCompiler = new CapturingExpressionCompiler();
+        var engine = new CsEvalEngine(CsEvalOptions.Default with
+        {
+            CompilationMode = mode,
+            ExpressionCompiler = capturingCompiler
+        });
+
+        engine.SetVariable<int>("x", 11);
+        engine.SetVariable<int>("y", 7);
+
+        var result = engine.Evaluate(
+            "((23 > 15 && 3 * 7 == 21) || (25 / 5 > 10 && 6 + 8 == 14)) ? " +
+            "((2.1 == 2.1) ? ((4 * 3 - x) * (14.0 / 3.0) + y) : 0.0) : ((14.0 / 3.0) + y)");
+        Assert.That(Convert.ToDouble(result), Is.EqualTo(11.666666666666666).Within(1e-12));
+
+        var compiled = SelectRootLambda(capturingCompiler);
+        Assert.That(compiled, Is.Not.Null);
+
+        var collector = new MethodCallCollector();
+        collector.Visit(compiled.Body);
+
+        var runtimeNumericOperatorCalls = collector.Methods
+            .Where(m =>
+                m.DeclaringType == typeof(global::CsEval.Runtime.Operators) &&
+                m.Name is nameof(global::CsEval.Runtime.Operators.Add)
+                    or nameof(global::CsEval.Runtime.Operators.Subtract)
+                    or nameof(global::CsEval.Runtime.Operators.Multiply)
+                    or nameof(global::CsEval.Runtime.Operators.Divide))
+            .ToList();
+
+        Assert.That(runtimeNumericOperatorCalls, Is.Empty);
+
+        var numericPromotionCalls = collector.Methods
+            .Where(m =>
+                m.DeclaringType == typeof(NumericDispatch) &&
+                m.Name == nameof(NumericDispatch.PromoteToType))
+            .ToList();
+
+        Assert.That(numericPromotionCalls, Is.Empty);
+
+        var requireBooleanCalls = collector.Methods
+            .Where(m =>
+                m.DeclaringType == typeof(TypeHelpers) &&
+                m.Name == nameof(TypeHelpers.RequireBoolean))
+            .ToList();
+
+        Assert.That(requireBooleanCalls, Is.Empty);
+    }
+
+    [Test]
     public void PureReadOnlyExpression_UsesLazyTypedIdentifierCacheSlots()
     {
         var capturingCompiler = new CapturingExpressionCompiler();

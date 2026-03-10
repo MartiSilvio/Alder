@@ -24,6 +24,7 @@ internal sealed class TypeResolver
     private readonly bool _ignoreCase;
     private readonly bool _implicitBclImports;
     private readonly Lazy<FrozenDictionary<string, FrozenDictionary<string, Type>>> _namespaceIndex;
+    private readonly Lazy<FrozenDictionary<string, Type>> _fullNameIndex;
     private readonly Lazy<FrozenSet<string>> _namespacePrefixes;
     private readonly Lazy<FrozenDictionary<string, Type>?> _implicitImports;
     private readonly ConcurrentDictionary<string, Type?> _cache = new();
@@ -44,6 +45,9 @@ internal sealed class TypeResolver
         _namespaceIndex = new Lazy<FrozenDictionary<string, FrozenDictionary<string, Type>>>(
             () => BuildNamespaceIndex(_registeredAssemblies, _comparer),
             LazyThreadSafetyMode.ExecutionAndPublication);
+        _fullNameIndex = new Lazy<FrozenDictionary<string, Type>>(
+            () => BuildFullNameIndex(_registeredAssemblies, _comparer),
+            LazyThreadSafetyMode.ExecutionAndPublication);
         _namespacePrefixes = new Lazy<FrozenSet<string>>(
             () => BuildNamespacePrefixes(_namespaceIndex.Value),
             LazyThreadSafetyMode.ExecutionAndPublication);
@@ -61,7 +65,7 @@ internal sealed class TypeResolver
         if (TryParseArraySuffix(typeName, out var elementTypeName, out var rank))
         {
             var elementType = ResolveType(elementTypeName);
-            return rank == 1 ? elementType.MakeArrayType() : elementType.MakeArrayType(rank);
+            return RuntimeArrayFactory.GetArrayType(elementType, rank);
         }
 
         if (typeName.Contains('<'))
@@ -82,7 +86,7 @@ internal sealed class TypeResolver
             if (elementType == null)
                 return null;
 
-            return rank == 1 ? elementType.MakeArrayType() : elementType.MakeArrayType(rank);
+            return RuntimeArrayFactory.GetArrayType(elementType, rank);
         }
 
         if (typeName.Contains('<'))
@@ -211,13 +215,18 @@ internal sealed class TypeResolver
             lastDot = typeName.LastIndexOf('.', lastDot - 1);
         }
 
-        // Try Assembly.GetType on each registered assembly (handles nested types
-        // like OuterClass.InnerClass where CLR uses + notation internally)
-        foreach (var assembly in _registeredAssemblies)
+        if (_fullNameIndex.Value.TryGetValue(typeName, out var direct))
+            return direct;
+
+        var nestedProbe = typeName;
+        var dotIndex = nestedProbe.LastIndexOf('.');
+        while (dotIndex > 0)
         {
-            var resolved = assembly.GetType(typeName);
-            if (resolved != null)
-                return resolved;
+            nestedProbe = nestedProbe[..dotIndex] + "+" + nestedProbe[(dotIndex + 1)..];
+            if (_fullNameIndex.Value.TryGetValue(nestedProbe, out var nested))
+                return nested;
+
+            dotIndex = nestedProbe.LastIndexOf('.');
         }
 
         return null;
@@ -256,15 +265,10 @@ internal sealed class TypeResolver
 
     private Type? TryResolveTypeInNamespace(string ns, string shortTypeName)
     {
-        var qualifiedName = string.Concat(ns, ".", shortTypeName);
-        foreach (var assembly in _registeredAssemblies)
-        {
-            var resolved = assembly.GetType(qualifiedName, throwOnError: false, ignoreCase: _ignoreCase);
-            if (resolved != null)
-                return resolved;
-        }
-
-        return null;
+        return _namespaceIndex.Value.TryGetValue(ns, out var types) &&
+               types.TryGetValue(shortTypeName, out var resolved)
+            ? resolved
+            : null;
     }
 
     private static bool IsReflectionType(Type type)
@@ -297,7 +301,7 @@ internal sealed class TypeResolver
         for (var i = 0; i < arity; i++)
             typeArgs[i] = ResolveType(typeArgNames[i].Trim());
 
-        return openType.MakeGenericType(typeArgs);
+        return RuntimeGenericFactory.CloseGenericType(openType, typeArgs);
     }
 
     /// <summary>
@@ -444,18 +448,7 @@ internal sealed class TypeResolver
 
         foreach (var assembly in assemblies)
         {
-            Type[] exportedTypes;
-            try
-            {
-                exportedTypes = assembly.GetExportedTypes();
-            }
-            catch (ReflectionTypeLoadException ex)
-            {
-                // Some assemblies have unloadable types; use what we can
-                exportedTypes = ex.Types.Where(t => t != null).ToArray()!;
-            }
-
-            foreach (var type in exportedTypes)
+            foreach (var type in EnumerateAssemblyTypes(assembly))
             {
                 var ns = type.Namespace;
                 if (ns == null) continue;
@@ -477,6 +470,35 @@ internal sealed class TypeResolver
             kvp => kvp.Key,
             kvp => kvp.Value.ToFrozenDictionary(comparer),
             comparer);
+    }
+
+    private static FrozenDictionary<string, Type> BuildFullNameIndex(
+        ImmutableArray<Assembly> assemblies,
+        StringComparer comparer)
+    {
+        var index = new Dictionary<string, Type>(comparer);
+        foreach (var assembly in assemblies)
+        {
+            foreach (var type in EnumerateAssemblyTypes(assembly))
+            {
+                if (type.FullName is { } fullName)
+                    index.TryAdd(fullName, type);
+            }
+        }
+
+        return index.ToFrozenDictionary(comparer);
+    }
+
+    private static IEnumerable<Type> EnumerateAssemblyTypes(Assembly assembly)
+    {
+        try
+        {
+            return assembly.DefinedTypes.Select(static typeInfo => typeInfo.AsType()).ToArray();
+        }
+        catch (ReflectionTypeLoadException ex)
+        {
+            return ex.Types.Where(static type => type != null).Cast<Type>().ToArray();
+        }
     }
 
     /// <summary>

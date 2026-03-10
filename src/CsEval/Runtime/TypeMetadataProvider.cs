@@ -1,0 +1,122 @@
+using System.Collections.Concurrent;
+using System.Reflection;
+
+namespace CsEval.Runtime;
+
+/// <summary>
+/// Central metadata access service for runtime reflection queries.
+/// Internally memoizes lookups per engine instance and shares state with child engines.
+/// Includes compiled property getters for improved access performance.
+/// </summary>
+internal sealed class TypeMetadataProvider
+{
+    private readonly ConcurrentDictionary<PropertyLookupKey, PropertyInfo?> _propertyCache = new();
+    private readonly ConcurrentDictionary<FieldLookupKey, FieldInfo?> _fieldCache = new();
+    private readonly ConcurrentDictionary<PropertiesLookupKey, PropertyInfo[]> _propertiesCache = new();
+    private readonly ConcurrentDictionary<MethodLookupKey, MethodInfo[]> _methodsCache = new();
+    private readonly ConcurrentDictionary<Type, PropertyInfo?> _indexerCache = new();
+    private readonly ConcurrentDictionary<PropertyInfo, Func<object, object?>> _compiledGetters = new();
+
+    private readonly record struct PropertyLookupKey(
+        Type Type,
+        string Name,
+        BindingFlags Flags);
+
+    private readonly record struct FieldLookupKey(
+        Type Type,
+        string Name,
+        BindingFlags Flags);
+
+    private readonly record struct PropertiesLookupKey(
+        Type Type,
+        BindingFlags Flags);
+
+    private readonly record struct MethodLookupKey(
+        Type Type,
+        string Name,
+        BindingFlags Flags);
+
+    internal TypeMetadataProvider()
+    {
+    }
+
+    public PropertyInfo? GetProperty(Type type, string name, BindingFlags flags)
+    {
+        var key = new PropertyLookupKey(type, name, flags);
+        return _propertyCache.GetOrAdd(key, static k => ReflectionRuntime.FindProperty(k.Type, k.Name, k.Flags));
+    }
+
+    public FieldInfo? GetField(Type type, string name, BindingFlags flags)
+    {
+        var key = new FieldLookupKey(type, name, flags);
+        return _fieldCache.GetOrAdd(key, static k => ReflectionRuntime.FindField(k.Type, k.Name, k.Flags));
+    }
+
+    public PropertyInfo[] GetProperties(Type type, BindingFlags flags)
+    {
+        var key = new PropertiesLookupKey(type, flags);
+        return _propertiesCache.GetOrAdd(key, static k => ReflectionRuntime.GetProperties(k.Type, k.Flags));
+    }
+
+    public MethodInfo[] GetMethods(Type type, string name, BindingFlags flags)
+    {
+        var key = new MethodLookupKey(type, name, flags);
+        return _methodsCache.GetOrAdd(key, static k =>
+        {
+            var comparison = k.Flags.HasFlag(BindingFlags.IgnoreCase)
+                ? StringComparison.OrdinalIgnoreCase
+                : StringComparison.Ordinal;
+            return ReflectionRuntime.GetMethods(k.Type, k.Flags)
+                .Where(m => string.Equals(m.Name, k.Name, comparison))
+                .ToArray();
+        });
+    }
+
+    public PropertyInfo? GetIndexer(Type type)
+    {
+        return _indexerCache.GetOrAdd(type, ReflectionRuntime.FindIndexer);
+    }
+
+    /// <summary>
+    /// Gets or creates a compiled getter delegate for the property.
+    /// </summary>
+    public Func<object, object?> GetCompiledGetter(PropertyInfo property)
+    {
+        return _compiledGetters.GetOrAdd(property, p => CompileGetter(p));
+    }
+
+    /// <summary>
+    /// Gets the property value using a compiled getter for better performance.
+    /// Falls back to PropertyInfo.GetValue() only if compilation fails.
+    /// </summary>
+    public object? GetPropertyValue(PropertyInfo property, object instance)
+    {
+        var getter = GetCompiledGetter(property);
+        return getter(instance);
+    }
+
+    private Func<object, object?> CompileGetter(PropertyInfo property)
+    {
+        var getter = property.GetMethod;
+        if (getter == null)
+            return obj => property.GetValue(obj);
+
+        if (getter.IsStatic)
+            return _ => getter.Invoke(null, null);
+
+        return instance => getter.Invoke(instance, null);
+    }
+
+    /// <summary>
+    /// Clears all memoized metadata entries.
+    /// </summary>
+    public void Clear()
+    {
+        _propertyCache.Clear();
+        _fieldCache.Clear();
+        _propertiesCache.Clear();
+        _methodsCache.Clear();
+        _indexerCache.Clear();
+        _compiledGetters.Clear();
+    }
+}

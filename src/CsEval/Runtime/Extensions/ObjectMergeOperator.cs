@@ -38,15 +38,15 @@ internal static class ObjectMergeOperator
 
         if (context != null)
         {
-            foreach (var prop in context.TypeCache.GetProperties(type, bindingFlags))
+            foreach (var prop in context.TypeMetadata.GetProperties(type, bindingFlags))
             {
                 if (prop.CanRead)
-                    target[prop.Name] = context.TypeCache.GetPropertyValue(prop, obj);
+                    target[prop.Name] = context.TypeMetadata.GetPropertyValue(prop, obj);
             }
         }
         else
         {
-            foreach (var prop in type.GetProperties(bindingFlags))
+            foreach (var prop in ReflectionRuntime.GetProperties(type, bindingFlags))
             {
                 if (prop.CanRead)
                     target[prop.Name] = prop.GetValue(obj);
