@@ -95,7 +95,7 @@ internal static class ILExpressionCompiler
             var ctParam = LinqExpression.Parameter(typeof(CancellationToken), "ct");
 
             var emitter = new BoundExpressionEmitter(contextParam, optionsParam, ctParam);
-            var body = emitter.Emit(bound);
+            var body = emitter.EmitRoot(bound);
             if (body.Type != typeof(object))
                 body = LinqExpression.Convert(body, typeof(object));
 

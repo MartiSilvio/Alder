@@ -4,6 +4,7 @@ using System.Linq.Expressions;
 using System.Reflection;
 using CsEval.Binding;
 using CsEval.Binding.BoundNodes;
+using CsEval.Binding.Plans;
 using CsEval.Runtime;
 
 namespace CsEval.Compiled.Compilation;
@@ -24,21 +25,57 @@ internal static class BoundEmitterSupport
             : LinqExpression.Convert(expression, targetType);
     }
 
-    internal static bool CanEmitDirectMethodCall(MethodInfo method, int argumentCount)
+    internal static bool CanEmitDirectMethodCall(BoundCallPlan plan, int sourceArgumentCount)
     {
+        var method = plan.SelectedMethod;
         if (method.ContainsGenericParameters)
             return false;
 
         var parameters = MethodDispatchCache.GetParameters(method);
-        if (parameters.Length != argumentCount)
+        if (parameters.Length != plan.ParameterBindings.Length)
+            return false;
+
+        if (plan.ArgumentConversions.Length != sourceArgumentCount)
             return false;
 
         foreach (var parameter in parameters)
         {
-            if (parameter.ParameterType.IsByRef ||
-                parameter.IsDefined(typeof(ParamArrayAttribute), false))
+            if (parameter.ParameterType.IsByRef)
             {
                 return false;
+            }
+        }
+
+        foreach (var binding in plan.ParameterBindings)
+        {
+            if ((uint)binding.ParameterIndex >= (uint)parameters.Length)
+                return false;
+
+            switch (binding.Kind)
+            {
+                case BoundParameterBindingKind.Argument:
+                    if (binding.SourceArgumentCount != 1)
+                        return false;
+                    if ((uint)binding.SourceArgumentIndex >= (uint)sourceArgumentCount)
+                        return false;
+                    break;
+
+                case BoundParameterBindingKind.DefaultValue:
+                    if (!parameters[binding.ParameterIndex].HasDefaultValue)
+                        return false;
+                    break;
+
+                case BoundParameterBindingKind.ParamsArray:
+                    if (!parameters[binding.ParameterIndex].IsDefined(typeof(ParamArrayAttribute), false))
+                        return false;
+                    if (binding.SourceArgumentIndex < 0 || binding.SourceArgumentCount < 0)
+                        return false;
+                    if (binding.SourceArgumentIndex + binding.SourceArgumentCount > sourceArgumentCount)
+                        return false;
+                    break;
+
+                default:
+                    return false;
             }
         }
 

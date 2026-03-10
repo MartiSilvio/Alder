@@ -1,4 +1,5 @@
 using CsEval.Binding.Services;
+using CsEval.Binding.Plans;
 using CsEval.Runtime;
 
 namespace CsEval.Test;
@@ -41,5 +42,72 @@ public sealed class CallBinderServiceTests
 
         var indexPlan = memberBinder.BindIndexRead(typeof(List<int>), typeof(int));
         Assert.That(indexPlan.IsDirectCollectionAccess, Is.True);
+    }
+
+    [Test]
+    public void CallBinder_ShouldPlanOptionalArgument_WithDefaultBinding()
+    {
+        var engine = new CsEvalEngine();
+        var context = engine.GetContextForCompiled();
+        var binder = new CallBinderService(context);
+
+        var plan = binder.BindInstanceCall(
+            typeof(InvocationTarget),
+            nameof(InvocationTarget.WithOptional),
+            [typeof(int)],
+            isCaseSensitive: true);
+
+        Assert.That(plan.ParameterBindings.Length, Is.EqualTo(2));
+        Assert.That(plan.ParameterBindings[0].Kind, Is.EqualTo(BoundParameterBindingKind.Argument));
+        Assert.That(plan.ParameterBindings[0].SourceArgumentIndex, Is.EqualTo(0));
+        Assert.That(plan.ParameterBindings[1].Kind, Is.EqualTo(BoundParameterBindingKind.DefaultValue));
+    }
+
+    [Test]
+    public void CallBinder_ShouldPlanParamsExpandedBinding()
+    {
+        var engine = new CsEvalEngine();
+        var context = engine.GetContextForCompiled();
+        var binder = new CallBinderService(context);
+
+        var plan = binder.BindInstanceCall(
+            typeof(InvocationTarget),
+            nameof(InvocationTarget.Sum),
+            [typeof(int), typeof(int), typeof(int), typeof(int)],
+            isCaseSensitive: true);
+
+        Assert.That(plan.ParameterBindings.Length, Is.EqualTo(1));
+        Assert.That(plan.ParameterBindings[0].Kind, Is.EqualTo(BoundParameterBindingKind.ParamsArray));
+        Assert.That(plan.ParameterBindings[0].SourceArgumentIndex, Is.EqualTo(0));
+        Assert.That(plan.ParameterBindings[0].SourceArgumentCount, Is.EqualTo(4));
+    }
+
+    [Test]
+    public void CallBinder_ShouldDeferRuntimeResolution_ForObjectTypedArgumentsWithOverloads()
+    {
+        var engine = new CsEvalEngine();
+        var context = engine.GetContextForCompiled();
+        var binder = new CallBinderService(context);
+
+        var ex = Assert.Throws<CsEvalException>(() =>
+            binder.BindStaticCall(
+                typeof(OverloadTarget),
+                nameof(OverloadTarget.Pick),
+                [typeof(object)],
+                isCaseSensitive: true));
+
+        Assert.That(ex!.Message, Does.Contain("runtime overload resolution"));
+    }
+
+    private sealed class InvocationTarget
+    {
+        public int Sum(params int[] values) => values.Sum();
+        public int WithOptional(int value, int extra = 10) => value + extra;
+    }
+
+    private static class OverloadTarget
+    {
+        public static string Pick(object value) => value.ToString() ?? string.Empty;
+        public static string Pick(IEnumerable<string> values) => string.Join(",", values);
     }
 }

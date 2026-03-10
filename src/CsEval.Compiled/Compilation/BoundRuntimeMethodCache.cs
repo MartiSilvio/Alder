@@ -2,6 +2,7 @@ using System.Collections;
 using System.Dynamic;
 using System.Reflection;
 using System.Text;
+using System.Collections.Concurrent;
 using CsEval.Runtime;
 using CsEval.Runtime.Extensions;
 
@@ -11,6 +12,9 @@ internal static class BoundRuntimeMethodCache
 {
     internal static readonly MethodInfo ResolveIdentifierMethod =
         typeof(IdentifierRuntime).GetMethod(nameof(IdentifierRuntime.ResolveIdentifier))!;
+
+    internal static readonly MethodInfo GetVariableTypedMethod =
+        typeof(IdentifierRuntime).GetMethod(nameof(IdentifierRuntime.GetVariableTyped))!;
 
     internal static readonly MethodInfo ContextGetMethod =
         typeof(CsEvalContext).GetMethod(nameof(CsEvalContext.Get), [typeof(string)])!;
@@ -370,4 +374,11 @@ internal static class BoundRuntimeMethodCache
 
     internal static readonly MethodInfo ObjectToStringMethod =
         typeof(object).GetMethod(nameof(ToString))!;
+
+    private static readonly ConcurrentDictionary<Type, MethodInfo> GetVariableTypedMethodCache = new();
+
+    internal static MethodInfo GetVariableTypedMethodFor(Type valueType) =>
+        GetVariableTypedMethodCache.GetOrAdd(
+            valueType,
+            static t => GetVariableTypedMethod.MakeGenericMethod(t));
 }

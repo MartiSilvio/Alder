@@ -1276,13 +1276,6 @@ internal sealed class BoundEvaluator
 
     private object? EvaluateCall(BoundCallExpr call)
     {
-        var args = new object?[call.Arguments.Length];
-        var outBindings = CollectOutBindings(call.Arguments);
-        for (var i = 0; i < call.Arguments.Length; i++)
-        {
-            args[i] = Evaluate(call.Arguments[i]);
-        }
-
         if (call.Callee is BoundMemberAccessExpr memberAccess && memberAccess.Plan != null)
         {
             var target = memberAccess.Plan.IsStatic ? null : Evaluate(memberAccess.Target);
@@ -1297,17 +1290,36 @@ internal sealed class BoundEvaluator
                     call.Plan.IsStaticCall ? call.Plan.SelectedMethod.DeclaringType : null);
             }
 
+            var plannedArgs = new object?[call.Arguments.Length];
+            for (var i = 0; i < call.Arguments.Length; i++)
+            {
+                plannedArgs[i] = Evaluate(call.Arguments[i]);
+            }
+
+            var plannedResult = CsEval.Runtime.MethodInvoker.InvokePlannedMethod(
+                call.Plan,
+                target,
+                plannedArgs,
+                _cancellationToken);
+            if (plannedResult.Success)
+                return plannedResult.Value;
+
             var result = CsEval.Runtime.MethodInvoker.InvokeMethodWithArgs(
                 call.Plan.SelectedMethod,
                 target,
-                args,
+                plannedArgs,
                 _cancellationToken);
             if (result.Success)
             {
-                if (outBindings.Length > 0)
-                    IdentifierRuntime.DefineOutVariables(args, outBindings, _context);
                 return result.Value;
             }
+        }
+
+        var args = new object?[call.Arguments.Length];
+        var outBindings = CollectOutBindings(call.Arguments);
+        for (var i = 0; i < call.Arguments.Length; i++)
+        {
+            args[i] = Evaluate(call.Arguments[i]);
         }
 
         var callee = Evaluate(call.Callee);

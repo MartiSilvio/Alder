@@ -1,7 +1,9 @@
 using CsEval.Diagnostics;
 using CsEval.Binding;
+using CsEval.Binding.Plans;
 using CsEval.Interpretation;
 using CsEval.Parsing;
+using System.Collections.Immutable;
 
 namespace CsEval.Runtime;
 
@@ -391,6 +393,240 @@ internal static class MethodInvoker
         return (false, null);
     }
 
+    internal static (bool Success, object? Value) InvokePlannedMethod(
+        BoundCallPlan plan,
+        object? target,
+        object?[] sourceArgs,
+        CancellationToken ct)
+    {
+        var method = plan.SelectedMethod;
+        var parameters = MethodDispatchCache.GetParameters(method);
+
+        if (plan.ParameterBindings.Length != parameters.Length)
+            return (false, null);
+
+        if (!TryPreparePlannedArgumentsInPlace(plan, parameters, sourceArgs, out var preparedArgs) &&
+            !TryBuildPlannedArguments(plan, parameters, sourceArgs, out preparedArgs))
+        {
+            return (false, null);
+        }
+
+        try
+        {
+            object? result;
+            if (!MethodDispatchCache.TryInvokeFast(method, target, preparedArgs, out result))
+                result = method.Invoke(target, preparedArgs);
+
+            return (true, TypeHelpers.GuardReflectionLeak(result, $"method {method.Name}"));
+        }
+        catch (TargetInvocationException ex) when (ex.InnerException != null)
+        {
+            throw ex.InnerException;
+        }
+    }
+
+    private static bool TryPreparePlannedArgumentsInPlace(
+        BoundCallPlan plan,
+        ParameterInfo[] parameters,
+        object?[] sourceArgs,
+        out object?[] preparedArgs)
+    {
+        preparedArgs = Array.Empty<object?>();
+
+        if (parameters.Length != sourceArgs.Length ||
+            plan.ParameterBindings.Length != sourceArgs.Length ||
+            plan.ArgumentConversions.Length != sourceArgs.Length)
+        {
+            return false;
+        }
+
+        for (var i = 0; i < plan.ParameterBindings.Length; i++)
+        {
+            var binding = plan.ParameterBindings[i];
+            if (binding.Kind != BoundParameterBindingKind.Argument ||
+                binding.ParameterIndex != i ||
+                binding.SourceArgumentIndex != i ||
+                binding.SourceArgumentCount != 1)
+            {
+                return false;
+            }
+
+            if (!TryConvertPlannedArgument(sourceArgs[i], plan.ArgumentConversions[i], out var converted))
+                return false;
+
+            sourceArgs[i] = converted;
+        }
+
+        preparedArgs = sourceArgs;
+        return true;
+    }
+
+    private static bool TryBuildPlannedArguments(
+        BoundCallPlan plan,
+        ParameterInfo[] parameters,
+        object?[] sourceArgs,
+        out object?[] preparedArgs)
+    {
+        preparedArgs = new object?[parameters.Length];
+        var conversions = plan.ArgumentConversions;
+
+        for (var i = 0; i < plan.ParameterBindings.Length; i++)
+        {
+            var binding = plan.ParameterBindings[i];
+            if ((uint)binding.ParameterIndex >= (uint)parameters.Length)
+                return false;
+
+            switch (binding.Kind)
+            {
+                case BoundParameterBindingKind.Argument:
+                    if (!TryGetConvertedSourceArgument(
+                            sourceArgs,
+                            conversions,
+                            binding.SourceArgumentIndex,
+                            out var convertedArgument))
+                    {
+                        return false;
+                    }
+
+                    preparedArgs[binding.ParameterIndex] = convertedArgument;
+                    break;
+
+                case BoundParameterBindingKind.DefaultValue:
+                    if (!TryGetDefaultParameterValue(parameters[binding.ParameterIndex], out var defaultValue))
+                        return false;
+                    preparedArgs[binding.ParameterIndex] = defaultValue;
+                    break;
+
+                case BoundParameterBindingKind.ParamsArray:
+                    if (!TryCreatePlannedParamsArray(
+                            parameters[binding.ParameterIndex],
+                            sourceArgs,
+                            conversions,
+                            binding.SourceArgumentIndex,
+                            binding.SourceArgumentCount,
+                            out var paramsArray))
+                    {
+                        return false;
+                    }
+
+                    preparedArgs[binding.ParameterIndex] = paramsArray;
+                    break;
+
+                default:
+                    return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool TryGetConvertedSourceArgument(
+        object?[] sourceArgs,
+        ImmutableArray<BoundConversionPlan> conversions,
+        int sourceIndex,
+        out object? converted)
+    {
+        converted = null;
+
+        if ((uint)sourceIndex >= (uint)sourceArgs.Length)
+            return false;
+
+        if ((uint)sourceIndex >= (uint)conversions.Length)
+            return false;
+
+        var conversion = conversions[sourceIndex];
+        var value = sourceArgs[sourceIndex];
+        return TryConvertPlannedArgument(value, conversion, out converted);
+    }
+
+    private static bool TryConvertPlannedArgument(
+        object? value,
+        BoundConversionPlan conversion,
+        out object? converted)
+    {
+        if (conversion.IsIdentity)
+        {
+            if (value == null)
+            {
+                if (conversion.TargetType.IsValueType && Nullable.GetUnderlyingType(conversion.TargetType) == null)
+                {
+                    converted = null;
+                    return false;
+                }
+
+                converted = null;
+                return true;
+            }
+
+            if (conversion.TargetType.IsInstanceOfType(value))
+            {
+                converted = value;
+                return true;
+            }
+        }
+
+        return TryConvertArg(value, conversion.TargetType, out converted);
+    }
+
+    private static bool TryGetDefaultParameterValue(ParameterInfo parameter, out object? value)
+    {
+        value = null;
+        if (!parameter.HasDefaultValue)
+            return false;
+
+        var defaultValue = parameter.DefaultValue;
+        if (defaultValue == Type.Missing || defaultValue == DBNull.Value)
+        {
+            value = parameter.ParameterType.IsValueType
+                ? Activator.CreateInstance(parameter.ParameterType)
+                : null;
+            return true;
+        }
+
+        if (defaultValue == null &&
+            parameter.ParameterType.IsValueType &&
+            Nullable.GetUnderlyingType(parameter.ParameterType) == null)
+        {
+            value = Activator.CreateInstance(parameter.ParameterType);
+            return true;
+        }
+
+        value = defaultValue;
+        return true;
+    }
+
+    private static bool TryCreatePlannedParamsArray(
+        ParameterInfo paramsParameter,
+        object?[] sourceArgs,
+        ImmutableArray<BoundConversionPlan> conversions,
+        int startIndex,
+        int count,
+        out Array paramsArray)
+    {
+        paramsArray = Array.Empty<object>();
+
+        if (count < 0 || startIndex < 0)
+            return false;
+
+        var elementType = paramsParameter.ParameterType.GetElementType();
+        if (elementType == null)
+            return false;
+
+        if (startIndex + count > sourceArgs.Length || startIndex + count > conversions.Length)
+            return false;
+
+        paramsArray = Array.CreateInstance(elementType, count);
+        for (var i = 0; i < count; i++)
+        {
+            var sourceIndex = startIndex + i;
+            if (!TryConvertPlannedArgument(sourceArgs[sourceIndex], conversions[sourceIndex], out var converted))
+                return false;
+            paramsArray.SetValue(converted, i);
+        }
+
+        return true;
+    }
+
     private static bool CanInvokeDirect(
         ParameterInfo[] parameters,
         object?[] args)
@@ -518,10 +754,25 @@ internal static class MethodInvoker
 
     private static bool CanInvokeMethod(ParameterInfo[] parameters, object?[] args, out object?[] convertedArgs)
     {
-        convertedArgs = new object?[parameters.Length];
+        SplitNamedAndPositionalArguments(args, out var positionalArgs, out var namedArgs);
 
-        var positionalArgs = new List<object?>();
-        var namedArgs = new Dictionary<string, object?>(StringComparer.Ordinal);
+        if (TryBindNormalForm(parameters, positionalArgs, namedArgs, out convertedArgs))
+            return true;
+
+        if (TryBindExpandedParamsForm(parameters, positionalArgs, namedArgs, out convertedArgs))
+            return true;
+
+        convertedArgs = [];
+        return false;
+    }
+
+    private static void SplitNamedAndPositionalArguments(
+        object?[] args,
+        out List<object?> positionalArgs,
+        out Dictionary<string, object?> namedArgs)
+    {
+        positionalArgs = new List<object?>(args.Length);
+        namedArgs = new Dictionary<string, object?>(StringComparer.Ordinal);
 
         foreach (var arg in args)
         {
@@ -530,7 +781,15 @@ internal static class MethodInvoker
             else
                 positionalArgs.Add(arg);
         }
+    }
 
+    private static bool TryBindNormalForm(
+        ParameterInfo[] parameters,
+        List<object?> positionalArgs,
+        Dictionary<string, object?> namedArgs,
+        out object?[] convertedArgs)
+    {
+        convertedArgs = new object?[parameters.Length];
         var filledParams = new bool[parameters.Length];
         var positionalIndex = 0;
 
@@ -540,46 +799,23 @@ internal static class MethodInvoker
                 continue;
 
             var arg = positionalArgs[positionalIndex++];
-
-            // OutArgMarker matches ByRef parameters (out/ref)
-            if (arg is OutArgMarker && parameters[i].ParameterType.IsByRef)
-            {
-                var elementType = parameters[i].ParameterType.GetElementType()!;
-                convertedArgs[i] = elementType.IsValueType ? Activator.CreateInstance(elementType) : null;
-                filledParams[i] = true;
-                continue;
-            }
-
-            if (!TryConvertArg(arg, parameters[i].ParameterType, out var converted))
+            if (!TryConvertArgumentForParameter(arg, parameters[i], out var converted))
                 return false;
 
             convertedArgs[i] = converted;
             filledParams[i] = true;
         }
 
-        // ECMA-334 §12.6.4.2: If too many positional args remain, try params expanded form.
         if (positionalIndex < positionalArgs.Count)
-        {
-            if (!TryPackParamsExpanded(parameters, positionalArgs, positionalIndex, convertedArgs, filledParams))
-                return false;
-        }
+            return false;
 
         foreach (var (name, value) in namedArgs)
         {
-            var paramIndex = -1;
-            for (var i = 0; i < parameters.Length; i++)
-            {
-                if (string.Equals(parameters[i].Name, name, StringComparison.Ordinal))
-                {
-                    paramIndex = i;
-                    break;
-                }
-            }
-
-            if (paramIndex == -1)
+            var paramIndex = FindParameterIndex(parameters, name);
+            if (paramIndex < 0 || filledParams[paramIndex])
                 return false;
 
-            if (!TryConvertArg(value, parameters[paramIndex].ParameterType, out var converted))
+            if (!TryConvertArgumentForParameter(value, parameters[paramIndex], out var converted))
                 return false;
 
             convertedArgs[paramIndex] = converted;
@@ -594,60 +830,143 @@ internal static class MethodInvoker
             if (parameters[i].HasDefaultValue)
             {
                 convertedArgs[i] = parameters[i].DefaultValue;
+                continue;
             }
-            else if (parameters[i].IsDefined(typeof(ParamArrayAttribute), false))
+
+            if (parameters[i].IsDefined(typeof(ParamArrayAttribute), false))
             {
-                // ECMA-334 §12.6.4.2: Unfilled params parameter gets an empty typed array
                 var elementType = parameters[i].ParameterType.GetElementType()!;
                 convertedArgs[i] = Array.CreateInstance(elementType, 0);
-                filledParams[i] = true;
+                continue;
             }
-            else
-            {
-                return false;
-            }
+
+            return false;
         }
 
         return true;
     }
 
-    /// <summary>
-    /// Attempts to pack surplus positional arguments into a params array for the last parameter.
-    /// ECMA-334 §12.6.4.2: expanded form of methods with params parameters.
-    /// </summary>
-    private static bool TryPackParamsExpanded(
+    private static bool TryBindExpandedParamsForm(
         ParameterInfo[] parameters,
         List<object?> positionalArgs,
-        int positionalIndex,
-        object?[] convertedArgs,
-        bool[] filledParams)
+        Dictionary<string, object?> namedArgs,
+        out object?[] convertedArgs)
     {
+        convertedArgs = [];
+
         if (parameters.Length == 0)
             return false;
 
-        var lastParam = parameters[^1];
-        if (!lastParam.IsDefined(typeof(ParamArrayAttribute), false))
+        var paramsIndex = parameters.Length - 1;
+        var paramsParameter = parameters[paramsIndex];
+        if (!paramsParameter.IsDefined(typeof(ParamArrayAttribute), false))
             return false;
 
-        var elementType = lastParam.ParameterType.GetElementType()!;
-        var lastParamIndex = parameters.Length - 1;
-
-        var paramsArgCount = positionalArgs.Count - lastParamIndex;
-        if (paramsArgCount < 0)
+        var paramsElementType = paramsParameter.ParameterType.GetElementType();
+        if (paramsElementType == null)
             return false;
 
-        var paramsArray = Array.CreateInstance(elementType, paramsArgCount);
-        for (var i = 0; i < paramsArgCount; i++)
+        convertedArgs = new object?[parameters.Length];
+        var filledParams = new bool[parameters.Length];
+        var positionalIndex = 0;
+
+        for (var i = 0; i < paramsIndex; i++)
         {
-            var arg = positionalArgs[lastParamIndex + i];
-            if (!TryConvertArg(arg, elementType, out var converted))
+            if (namedArgs.ContainsKey(parameters[i].Name!))
+                continue;
+
+            if (positionalIndex >= positionalArgs.Count)
+                break;
+
+            var arg = positionalArgs[positionalIndex++];
+            if (!TryConvertArgumentForParameter(arg, parameters[i], out var converted))
+                return false;
+
+            convertedArgs[i] = converted;
+            filledParams[i] = true;
+        }
+
+        var paramsProvidedByName = false;
+        foreach (var (name, value) in namedArgs)
+        {
+            var paramIndex = FindParameterIndex(parameters, name);
+            if (paramIndex < 0)
+                return false;
+
+            if (paramIndex == paramsIndex)
+            {
+                if (!TryConvertArgumentForParameter(value, parameters[paramIndex], out var namedParamsValue))
+                    return false;
+
+                convertedArgs[paramIndex] = namedParamsValue;
+                paramsProvidedByName = true;
+                continue;
+            }
+
+            if (filledParams[paramIndex])
+                return false;
+
+            if (!TryConvertArgumentForParameter(value, parameters[paramIndex], out var converted))
+                return false;
+
+            convertedArgs[paramIndex] = converted;
+            filledParams[paramIndex] = true;
+        }
+
+        for (var i = 0; i < paramsIndex; i++)
+        {
+            if (filledParams[i])
+                continue;
+
+            if (!parameters[i].HasDefaultValue)
+                return false;
+
+            convertedArgs[i] = parameters[i].DefaultValue;
+        }
+
+        var remainingCount = positionalArgs.Count - positionalIndex;
+        if (remainingCount < 0)
+            return false;
+
+        if (paramsProvidedByName)
+            return remainingCount == 0;
+
+        var paramsArray = Array.CreateInstance(paramsElementType, remainingCount);
+        for (var i = 0; i < remainingCount; i++)
+        {
+            var arg = positionalArgs[positionalIndex + i];
+            if (!TryConvertArg(arg, paramsElementType, out var converted))
                 return false;
             paramsArray.SetValue(converted, i);
         }
 
-        convertedArgs[lastParamIndex] = paramsArray;
-        filledParams[lastParamIndex] = true;
+        convertedArgs[paramsIndex] = paramsArray;
         return true;
+    }
+
+    private static int FindParameterIndex(
+        ParameterInfo[] parameters,
+        string name)
+    {
+        for (var i = 0; i < parameters.Length; i++)
+        {
+            if (string.Equals(parameters[i].Name, name, StringComparison.Ordinal))
+                return i;
+        }
+
+        return -1;
+    }
+
+    private static bool TryConvertArgumentForParameter(object? arg, ParameterInfo parameter, out object? converted)
+    {
+        if (arg is OutArgMarker && parameter.ParameterType.IsByRef)
+        {
+            var elementType = parameter.ParameterType.GetElementType()!;
+            converted = elementType.IsValueType ? Activator.CreateInstance(elementType) : null;
+            return true;
+        }
+
+        return TryConvertArg(arg, parameter.ParameterType, out converted);
     }
 
     private static bool TryConvertArg(object? arg, Type targetType, out object? converted)

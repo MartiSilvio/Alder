@@ -1,0 +1,70 @@
+namespace CsEval.Test.Runtime;
+
+[TestFixture(CompilationMode.Interpreted)]
+[TestFixture(CompilationMode.Compiled)]
+public sealed class InvocationPipelineTests(CompilationMode mode)
+{
+    [Test]
+    public void ParamsArrayExpansion_UsesAllPositionalArguments()
+    {
+        var engine = CreateEngine();
+        var target = new InvocationTarget();
+        engine.SetVariable("target", target);
+        engine.SetVariable("x", 1);
+        engine.SetVariable("y", 2);
+        engine.SetVariable("z", 3);
+        engine.SetVariable("value", 4);
+
+        var result = engine.Evaluate("target.Sum(x, y, z, value)");
+
+        Assert.That(result, Is.EqualTo(10));
+    }
+
+    [Test]
+    public void OptionalArgument_UsesDefault_WhenNotSupplied()
+    {
+        var engine = CreateEngine();
+        var target = new InvocationTarget();
+        engine.SetVariable("target", target);
+        engine.SetVariable("x", 7);
+
+        var result = engine.Evaluate("target.WithOptional(x)");
+
+        Assert.That(result, Is.EqualTo(17));
+    }
+
+    [Test]
+    public void OptionalArgument_UsesExplicitValue_WhenSupplied()
+    {
+        var engine = CreateEngine();
+        var target = new InvocationTarget();
+        engine.SetVariable("target", target);
+        engine.SetVariable("x", 7);
+        engine.SetVariable("y", 2);
+
+        var result = engine.Evaluate("target.WithOptional(x, y)");
+
+        Assert.That(result, Is.EqualTo(9));
+    }
+
+    private CsEvalEngine CreateEngine()
+    {
+        return new CsEvalEngine(CsEvalOptions.Default with
+        {
+            CompilationMode = mode
+        });
+    }
+
+    private sealed class InvocationTarget
+    {
+        public int Sum(params int[] values)
+        {
+            var total = 0;
+            for (var i = 0; i < values.Length; i++)
+                total += values[i];
+            return total;
+        }
+
+        public int WithOptional(int value, int extra = 10) => value + extra;
+    }
+}

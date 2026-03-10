@@ -274,15 +274,11 @@ internal sealed class ExpressionTreeEmitter
     private LinqExpression EmitCall(BoundCallExpr expr)
     {
         var method = expr.Plan.SelectedMethod;
-        var args = new LinqExpression[expr.Arguments.Length];
-        for (var i = 0; i < expr.Arguments.Length; i++)
-        {
-            var arg = Emit(expr.Arguments[i]);
-            var conversion = expr.Plan.ArgumentConversions[i];
-            args[i] = conversion.IsIdentity || arg.Type == conversion.TargetType
-                ? arg
-                : LinqExpression.Convert(arg, conversion.TargetType);
-        }
+        if (!BoundEmitterSupport.CanEmitDirectMethodCall(expr.Plan, expr.Arguments.Length))
+            throw new CsEvalException("Expression tree cannot contain this call expression");
+
+        var parameters = MethodDispatchCache.GetParameters(method);
+        var args = EmitPlannedCallArguments(expr, parameters);
 
         if (expr.Plan.IsStaticCall)
             return LinqExpression.Call(method, args);
@@ -295,6 +291,79 @@ internal sealed class ExpressionTreeEmitter
 
         var target = Emit(memberCallee.Target);
         return LinqExpression.Call(target, method, args);
+    }
+
+    private LinqExpression[] EmitPlannedCallArguments(BoundCallExpr expr, ParameterInfo[] parameters)
+    {
+        var emitted = new LinqExpression[parameters.Length];
+        var conversions = expr.Plan.ArgumentConversions;
+
+        foreach (var binding in expr.Plan.ParameterBindings)
+        {
+            switch (binding.Kind)
+            {
+                case BoundParameterBindingKind.Argument:
+                {
+                    var sourceIndex = binding.SourceArgumentIndex;
+                    var conversion = conversions[sourceIndex];
+                    var argument = Emit(expr.Arguments[sourceIndex]);
+                    emitted[binding.ParameterIndex] = conversion.IsIdentity || argument.Type == conversion.TargetType
+                        ? argument
+                        : LinqExpression.Convert(argument, conversion.TargetType);
+                    break;
+                }
+
+                case BoundParameterBindingKind.DefaultValue:
+                    emitted[binding.ParameterIndex] = EmitDefaultArgument(parameters[binding.ParameterIndex]);
+                    break;
+
+                case BoundParameterBindingKind.ParamsArray:
+                {
+                    var parameter = parameters[binding.ParameterIndex];
+                    var elementType = parameter.ParameterType.GetElementType()
+                                     ?? throw new CsEvalException("Expression tree cannot contain this call expression");
+                    var args = new LinqExpression[binding.SourceArgumentCount];
+
+                    for (var i = 0; i < binding.SourceArgumentCount; i++)
+                    {
+                        var sourceIndex = binding.SourceArgumentIndex + i;
+                        var conversion = conversions[sourceIndex];
+                        var argument = Emit(expr.Arguments[sourceIndex]);
+                        var converted = conversion.IsIdentity || argument.Type == conversion.TargetType
+                            ? argument
+                            : LinqExpression.Convert(argument, conversion.TargetType);
+                        args[i] = converted.Type == elementType
+                            ? converted
+                            : LinqExpression.Convert(converted, elementType);
+                    }
+
+                    emitted[binding.ParameterIndex] = LinqExpression.NewArrayInit(elementType, args);
+                    break;
+                }
+
+                default:
+                    throw new CsEvalException("Expression tree cannot contain this call expression");
+            }
+        }
+
+        for (var i = 0; i < emitted.Length; i++)
+        {
+            if (emitted[i] == null)
+                throw new CsEvalException("Expression tree cannot contain this call expression");
+        }
+
+        return emitted;
+    }
+
+    private static LinqExpression EmitDefaultArgument(ParameterInfo parameter)
+    {
+        var parameterType = parameter.ParameterType;
+        var defaultValue = parameter.DefaultValue;
+
+        if (defaultValue == Type.Missing || defaultValue == DBNull.Value)
+            return LinqExpression.Default(parameterType);
+
+        return LinqExpression.Constant(defaultValue, parameterType);
     }
 
     private LinqExpression EmitConditional(BoundConditionalExpr expr)

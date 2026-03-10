@@ -929,7 +929,10 @@ internal sealed class Binder
 
         if (callee is BoundMemberAccessExpr memberAccess &&
             memberAccess.Plan?.IsMethodGroup == true &&
-            arguments.All(static argument => argument is not BoundLambdaExpr))
+            arguments.All(static argument =>
+                argument is not BoundLambdaExpr &&
+                argument is not BoundNamedArgumentExpr &&
+                argument is not BoundOutArgExpr))
         {
             var argumentTypes = arguments.Select(static argument => argument.StaticType).ToArray();
             var callBinder = new CallBinderService(context.RuntimeContext);
