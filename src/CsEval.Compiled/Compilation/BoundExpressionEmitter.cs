@@ -56,9 +56,9 @@ internal sealed class BoundExpressionEmitter
                     LinqExpression.Assign(
                         hoisted.Variable,
                         LinqExpression.Call(
+                            _contextParam,
                             GetVariableTypedMethodFor(hoisted.Type),
-                            LinqExpression.Constant(name),
-                            _contextParam)));
+                            LinqExpression.Constant(name))));
             }
 
             statements.Add(body);
@@ -237,9 +237,9 @@ internal sealed class BoundExpressionEmitter
         if (identifier.StaticType != typeof(object))
         {
             return LinqExpression.Call(
+                _contextParam,
                 GetVariableTypedMethodFor(identifier.StaticType),
-                LinqExpression.Constant(identifier.Name),
-                _contextParam);
+                LinqExpression.Constant(identifier.Name));
         }
 
         return LinqExpression.Call(
@@ -2116,12 +2116,13 @@ internal sealed class BoundExpressionEmitter
                 BoundEmitterSupport.WrapGuardedValue(staticCall, method.ReturnType, BoundEmitterSupport.CreateMethodGuardContext(method.Name)));
         }
 
+        var targetType = method.DeclaringType ?? memberAccess.Plan!.DeclaringType;
         var targetObjVar = LinqExpression.Variable(typeof(object), "callTarget");
         var checkedTarget = LinqExpression.Call(
             EnsureCallTargetNotNullMethod,
             targetObjVar,
             LinqExpression.Constant(method.Name));
-        var typedTarget = BoundEmitterSupport.EnsureTypedExpression(checkedTarget, method.DeclaringType ?? memberAccess.Plan!.DeclaringType);
+        var typedTarget = BoundEmitterSupport.EnsureTypedExpression(checkedTarget, targetType);
         var instanceCall = LinqExpression.Call(typedTarget, method, args);
 
         if (memberAccess.NullSafe)
@@ -2149,23 +2150,42 @@ internal sealed class BoundExpressionEmitter
                     nullSafeBody));
         }
 
+        var targetVar = LinqExpression.Variable(targetType, "callTargetTyped");
+        var assignTarget = LinqExpression.Assign(
+            targetVar,
+            BoundEmitterSupport.EnsureTypedExpression(Emit(memberAccess.Target), targetType));
+        var ensureNonNullTarget = IsNonNullableValueType(targetType)
+            ? (LinqExpression)LinqExpression.Empty()
+            : LinqExpression.Call(
+                EnsureCallTargetNotNullMethod,
+                BoundEmitterSupport.AsObject(targetVar),
+                LinqExpression.Constant(method.Name));
+        var directInstanceCall = LinqExpression.Call(targetVar, method, args);
+
         if (method.ReturnType == typeof(void))
         {
             return LinqExpression.Block(
                 typeof(object),
-                [targetObjVar],
+                [targetVar],
                 guardCheck,
-                LinqExpression.Assign(targetObjVar, BoundEmitterSupport.AsObject(Emit(memberAccess.Target))),
-                instanceCall,
+                assignTarget,
+                ensureNonNullTarget,
+                directInstanceCall,
                 LinqExpression.Constant(null, typeof(object)));
         }
 
         return LinqExpression.Block(
             method.ReturnType,
-            [targetObjVar],
+            [targetVar],
             guardCheck,
-            LinqExpression.Assign(targetObjVar, BoundEmitterSupport.AsObject(Emit(memberAccess.Target))),
-            BoundEmitterSupport.WrapGuardedValue(instanceCall, method.ReturnType, BoundEmitterSupport.CreateMethodGuardContext(method.Name)));
+            assignTarget,
+            ensureNonNullTarget,
+            BoundEmitterSupport.WrapGuardedValue(directInstanceCall, method.ReturnType, BoundEmitterSupport.CreateMethodGuardContext(method.Name)));
+    }
+
+    private static bool IsNonNullableValueType(Type type)
+    {
+        return type.IsValueType && Nullable.GetUnderlyingType(type) == null;
     }
 
     private LinqExpression[] EmitPlannedCallArguments(BoundCallExpr call, ParameterInfo[] parameters)

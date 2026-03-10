@@ -15,6 +15,7 @@ internal static class ExecutionRuntime
             throw new CsEvalException($"Assignment blocked by sandbox: {context}");
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static void EnsureMethodCallsAllowed(
         CsEvalOptions options,
         string methodName,
@@ -33,6 +34,7 @@ internal static class ExecutionRuntime
         throw new CsEvalException($"Method calls blocked by sandbox: {methodName}");
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static void EnsureMemberReadAllowed(
         CsEvalOptions options,
         string memberName,
@@ -58,6 +60,7 @@ internal static class ExecutionRuntime
             throw new CsEvalException($"Static property access blocked by sandbox: {staticDeclaringType?.Name ?? "type"}.{memberName}");
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static object EnsureMemberTargetNotNull(object? target, string memberName)
     {
         if (target == null)
@@ -65,6 +68,7 @@ internal static class ExecutionRuntime
         return target;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static object EnsureCallTargetNotNull(object? target, string methodName)
     {
         if (target == null)
@@ -72,6 +76,7 @@ internal static class ExecutionRuntime
         return target;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static object EnsureIndexTargetNotNull(object? target)
     {
         if (target == null)

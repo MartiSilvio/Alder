@@ -120,6 +120,40 @@ public class CompiledHotPathRegressionTests(CompilationMode mode)
     }
 
     [Test]
+    public void CompiledHotPath_NoCancellationInvoker_SeesUpdatedVariables()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        engine.SetVariable<int>("x", 1);
+        var expression = engine.Parse("x + 1");
+
+        Assert.That(engine.Evaluate(expression), Is.EqualTo(2));
+
+        engine.SetVariable<int>("x", 10);
+        Assert.That(engine.Evaluate(expression), Is.EqualTo(11));
+    }
+
+    [Test]
+    public void CompiledHotPath_NoCancellationInvoker_SwitchesAcrossExpressionsSafely()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        engine.SetVariable<int>("x", 2);
+        engine.SetVariable<int>("y", 3);
+
+        var first = engine.Parse("x + 1");
+        var second = engine.Parse("y + 10");
+
+        Assert.That(engine.Evaluate(first), Is.EqualTo(3));
+        Assert.That(engine.Evaluate(second), Is.EqualTo(13));
+        Assert.That(engine.Evaluate(first), Is.EqualTo(3));
+
+        engine.SetVariable<int>("x", 7);
+        engine.SetVariable<int>("y", 9);
+
+        Assert.That(engine.Evaluate(first), Is.EqualTo(8));
+        Assert.That(engine.Evaluate(second), Is.EqualTo(19));
+    }
+
+    [Test]
     public void MathMix_CompiledPath_AvoidsRuntimeCallDispatchAllocations()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });

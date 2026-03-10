@@ -40,8 +40,14 @@ public sealed class CsEvalEngine : IDisposable
     private readonly Dictionary<string, PendingVariable> _pendingVariables;
     private readonly object _contextInitLock = new();
 
+    private sealed record CompiledNoCancellationFastPath(
+        CsEvalExpression Expression,
+        CompiledExpressionFastDelegate Delegate,
+        CsEvalContext Context);
+
     private CsEvalConfig? _frozenConfig;
     private CsEvalContext? _context;
+    private volatile CompiledNoCancellationFastPath? _compiledNoCancellationFastPath;
     private bool _disposed;
 
     public void Dispose()
@@ -50,6 +56,7 @@ public sealed class CsEvalEngine : IDisposable
         _disposed = true;
         _expressionCache.Clear();
         _typeMetadata.Clear();
+        _compiledNoCancellationFastPath = null;
     }
 
     private void ThrowIfDisposed()
@@ -201,6 +208,30 @@ public sealed class CsEvalEngine : IDisposable
         CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();
+        if (_options.CompilationMode == CompilationMode.Compiled &&
+            variables == null &&
+            serviceProvider == null &&
+            _options.Constraints == null &&
+            !cancellationToken.CanBeCanceled)
+        {
+            if (TryEvaluateCompiledNoCancellationCached(expression, out var cachedResult))
+                return cachedResult;
+
+            var fastContext = GetOrCreateContext(null);
+            if (TryGetCompiledNoCancellationFastDelegate(expression, fastContext, out var cachedDelegate))
+            {
+                CacheCompiledNoCancellationFastPath(expression, cachedDelegate, fastContext);
+                return cachedDelegate(fastContext);
+            }
+
+            return ExecuteCompiledExpression(
+                expression,
+                fastContext,
+                fastContext,
+                cancellationToken,
+                allowNoCancellationFastPath: true);
+        }
+
         var target = this;
         if (variables != null)
         {
@@ -224,18 +255,13 @@ public sealed class CsEvalEngine : IDisposable
 
         if (_options.CompilationMode == CompilationMode.Compiled)
         {
-            if (expression.GetCompiledInfo() == null)
-                expression.TryCompile(_options, context);
-
-            var compiled = expression.GetCompiledInfo();
-            if (compiled?.Delegate != null)
-                return compiled.Delegate(executionContext, _options, cancellationToken);
-
-            if (compiled?.FailureException is CsEvalException csEvalFailure)
-                throw csEvalFailure;
-
-            var reason = compiled?.FailureReason ?? "Unknown compilation failure";
-            throw new CsEvalException(DiagnosticDescriptors.StrictCompilationFailed, reason);
+            var allowNoCancellationFastPath = constraints == null && !cancellationToken.CanBeCanceled;
+            return ExecuteCompiledExpression(
+                expression,
+                context,
+                executionContext,
+                cancellationToken,
+                allowNoCancellationFastPath);
         }
 
         if (expression.TryGetOrCreateBoundExpression(executionContext, _options.MaxExpressionDepth, out var boundExpression, out var boundFailureReason))
@@ -263,6 +289,89 @@ public sealed class CsEvalEngine : IDisposable
         if (IsDepthFailure(boundFailureReason))
             throw new CsEvalDepthException("binding", _options.MaxExpressionDepth);
         throw new CsEvalException(boundFailureReason ?? "Binding failed for expression.");
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private bool TryEvaluateCompiledNoCancellationCached(CsEvalExpression expression, out object? result)
+    {
+        var cached = _compiledNoCancellationFastPath;
+        if (cached != null && ReferenceEquals(cached.Expression, expression))
+        {
+            result = cached.Delegate(cached.Context);
+            return true;
+        }
+
+        result = null;
+        return false;
+    }
+
+    private bool TryGetCompiledNoCancellationFastDelegate(
+        CsEvalExpression expression,
+        CsEvalContext context,
+        [NotNullWhen(true)] out CompiledExpressionFastDelegate? fastDelegate)
+    {
+        var compiled = expression.GetCompiledInfo();
+        if (compiled == null)
+        {
+            expression.TryCompile(_options, context);
+            compiled = expression.GetCompiledInfo();
+        }
+
+        if (compiled?.FastDelegate is { } candidate &&
+            ReferenceEquals(compiled.FastDelegateOptions, _options))
+        {
+            fastDelegate = candidate;
+            return true;
+        }
+
+        fastDelegate = null;
+        return false;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void CacheCompiledNoCancellationFastPath(
+        CsEvalExpression expression,
+        CompiledExpressionFastDelegate fastDelegate,
+        CsEvalContext context)
+    {
+        _compiledNoCancellationFastPath = new CompiledNoCancellationFastPath(expression, fastDelegate, context);
+    }
+
+    private object? ExecuteCompiledExpression(
+        CsEvalExpression expression,
+        CsEvalContext compileContext,
+        CsEvalContext executionContext,
+        CancellationToken cancellationToken,
+        bool allowNoCancellationFastPath)
+    {
+        var compiled = expression.GetCompiledInfo();
+        if (compiled == null)
+        {
+            expression.TryCompile(_options, compileContext);
+            compiled = expression.GetCompiledInfo();
+        }
+
+        if (compiled?.Delegate != null)
+        {
+            if (allowNoCancellationFastPath)
+            {
+                if (compiled.FastDelegate is { } fastDelegate &&
+                    ReferenceEquals(compiled.FastDelegateOptions, _options))
+                {
+                    return fastDelegate(executionContext);
+                }
+
+                return compiled.Delegate(executionContext, _options, default);
+            }
+
+            return compiled.Delegate(executionContext, _options, cancellationToken);
+        }
+
+        if (compiled?.FailureException is CsEvalException csEvalFailure)
+            throw csEvalFailure;
+
+        var reason = compiled?.FailureReason ?? "Unknown compilation failure";
+        throw new CsEvalException(DiagnosticDescriptors.StrictCompilationFailed, reason);
     }
 
     public object? Evaluate(

@@ -1,4 +1,5 @@
 using System.Linq;
+using System.Runtime.CompilerServices;
 using CsEval.Binding;
 using CsEval.Diagnostics;
 using CsEval.Interpretation;
@@ -15,6 +16,7 @@ internal static class IdentifierRuntime
     public static T ResolveIdentifierTyped<T>(string name, CsEvalContext context, CsEvalOptions options)
         => CoerceIdentifierValue<T>(ResolveIdentifierCore(name, context, options));
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static T GetVariableTyped<T>(string name, CsEvalContext context)
     {
         if (!context.TryGet(name, out var value))

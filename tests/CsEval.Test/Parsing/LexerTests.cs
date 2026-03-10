@@ -107,6 +107,16 @@ public class LexerTests
     }
 
     [Test]
+    public void Tokenize_Identifier_ReturnsIdentifierToken()
+    {
+        var lexer = new Lexer("value_123");
+        var tokens = lexer.Tokenize();
+
+        Assert.That(tokens[0].Type, Is.EqualTo(TokenType.Identifier));
+        Assert.That(tokens[0].Lexeme, Is.EqualTo("value_123"));
+    }
+
+    [Test]
     public void Tokenize_Comment_IsIgnored()
     {
         var lexer = new Lexer("1 // this is a comment\n2");
@@ -126,6 +136,48 @@ public class LexerTests
         Assert.That(tokens, Has.Count.EqualTo(3));
         Assert.That(tokens[0].Literal, Is.EqualTo(1));
         Assert.That(tokens[1].Literal, Is.EqualTo(2));
+    }
+
+    [Test]
+    public void Tokenize_DelimitedComments_DoNotNest()
+    {
+        var lexer = new Lexer("1 /* outer /* inner */ + 2");
+        var tokens = lexer.Tokenize();
+
+        Assert.That(tokens.Select(t => t.Type), Is.EqualTo(new[]
+        {
+            TokenType.Number, TokenType.Plus, TokenType.Number, TokenType.Eof
+        }));
+        Assert.That(tokens[0].Literal, Is.EqualTo(1));
+        Assert.That(tokens[2].Literal, Is.EqualTo(2));
+    }
+
+    [Test]
+    public void Tokenize_LineTerminators_CRLF_SeparateTokens()
+    {
+        var lexer = new Lexer("1\r\n2");
+        var tokens = lexer.Tokenize();
+
+        Assert.That(tokens.Select(t => t.Type), Is.EqualTo(new[]
+        {
+            TokenType.Number, TokenType.Number, TokenType.Eof
+        }));
+        Assert.That(tokens[0].Literal, Is.EqualTo(1));
+        Assert.That(tokens[1].Literal, Is.EqualTo(2));
+    }
+
+    [Test]
+    public void Tokenize_Whitespace_TabAndCarriageReturn_AreIgnored()
+    {
+        var lexer = new Lexer("1\t+\r 2");
+        var tokens = lexer.Tokenize();
+
+        Assert.That(tokens.Select(t => t.Type), Is.EqualTo(new[]
+        {
+            TokenType.Number, TokenType.Plus, TokenType.Number, TokenType.Eof
+        }));
+        Assert.That(tokens[0].Literal, Is.EqualTo(1));
+        Assert.That(tokens[2].Literal, Is.EqualTo(2));
     }
 
     [Test]

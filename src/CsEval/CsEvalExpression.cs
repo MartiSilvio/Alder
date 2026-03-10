@@ -198,6 +198,8 @@ internal delegate object? CompiledExpressionDelegate(
     CsEvalOptions options,
     CancellationToken cancellationToken);
 
+internal delegate object? CompiledExpressionFastDelegate(CsEvalContext context);
+
 internal enum CompiledPipeline
 {
     None = 0,
@@ -212,9 +214,13 @@ internal enum CompiledPipeline
 /// <param name="FailureReason">The reason compilation failed, or null if it succeeded.</param>
 /// <param name="FailureException">Original failure exception when available.</param>
 /// <param name="Pipeline">Which compilation pipeline produced the delegate.</param>
+/// <param name="FastDelegate">Optional specialized delegate for non-cancelable execution with fixed options.</param>
+/// <param name="FastDelegateOptions">Options instance bound into <paramref name="FastDelegate"/>.</param>
 internal record CompiledExpressionInfo(
     CompiledExpressionDelegate? Delegate,
     bool IsCompilable,
     string? FailureReason,
     Exception? FailureException = null,
-    CompiledPipeline Pipeline = CompiledPipeline.None);
+    CompiledPipeline Pipeline = CompiledPipeline.None,
+    CompiledExpressionFastDelegate? FastDelegate = null,
+    CsEvalOptions? FastDelegateOptions = null);

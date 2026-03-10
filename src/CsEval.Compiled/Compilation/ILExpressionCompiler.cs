@@ -2,19 +2,19 @@ using CsEval.Compilation;
 using CsEval.Binding;
 using CsEval.Parsing;
 using CsEval.Runtime;
+using System.Linq.Expressions;
 
 namespace CsEval.Compiled.Compilation;
-
-internal delegate object? ILCompiledDelegate(
-    CsEvalContext context,
-    CsEvalOptions options,
-    CancellationToken ct);
 
 /// <summary>
 /// Orchestrates bound-node IL compilation.
 /// </summary>
 internal static class ILExpressionCompiler
 {
+    private readonly record struct CompiledBoundDelegates(
+        CompiledExpressionDelegate Standard,
+        CompiledExpressionFastDelegate? Fast);
+
     /// <summary>
     /// Get or create compiled delegate for an expression string.
     /// </summary>
@@ -36,13 +36,16 @@ internal static class ILExpressionCompiler
             var binder = new CsEval.Binding.Binder();
             var bound = binder.Bind(ast, new BindingContext(context));
 
-            var boundDelegate = TryCompileBound(bound, opts);
-            if (boundDelegate != null)
+            var compiledDelegates = TryCompileBound(bound, opts);
+            if (compiledDelegates != null)
             {
-                return new CompiledExpressionInfo(CompiledBound, true, null, Pipeline: CompiledPipeline.Bound);
-
-                object? CompiledBound(CsEvalContext ctx, CsEvalOptions optionsValue, CancellationToken ct)
-                    => boundDelegate(ctx, optionsValue, ct);
+                return new CompiledExpressionInfo(
+                    Delegate: compiledDelegates.Value.Standard,
+                    IsCompilable: true,
+                    FailureReason: null,
+                    Pipeline: CompiledPipeline.Bound,
+                    FastDelegate: compiledDelegates.Value.Fast,
+                    FastDelegateOptions: compiledDelegates.Value.Fast != null ? opts : null);
             }
 
             return new CompiledExpressionInfo(null, false, "Bound compilation returned null");
@@ -65,13 +68,16 @@ internal static class ILExpressionCompiler
         try
         {
             var opts = options ?? CsEvalOptions.Default;
-            var boundDelegate = TryCompileBound(bound, opts);
-            if (boundDelegate != null)
+            var compiledDelegates = TryCompileBound(bound, opts);
+            if (compiledDelegates != null)
             {
-                return new CompiledExpressionInfo(CompiledBound, true, null, Pipeline: CompiledPipeline.Bound);
-
-                object? CompiledBound(CsEvalContext ctx, CsEvalOptions optionsValue, CancellationToken ct)
-                    => boundDelegate(ctx, optionsValue, ct);
+                return new CompiledExpressionInfo(
+                    Delegate: compiledDelegates.Value.Standard,
+                    IsCompilable: true,
+                    FailureReason: null,
+                    Pipeline: CompiledPipeline.Bound,
+                    FastDelegate: compiledDelegates.Value.Fast,
+                    FastDelegateOptions: compiledDelegates.Value.Fast != null ? opts : null);
             }
 
             return new CompiledExpressionInfo(null, false, "Bound compilation returned null");
@@ -86,7 +92,7 @@ internal static class ILExpressionCompiler
         }
     }
 
-    private static ILCompiledDelegate? TryCompileBound(BoundExpr bound, CsEvalOptions options)
+    private static CompiledBoundDelegates? TryCompileBound(BoundExpr bound, CsEvalOptions options)
     {
         try
         {
@@ -99,8 +105,20 @@ internal static class ILExpressionCompiler
             if (body.Type != typeof(object))
                 body = LinqExpression.Convert(body, typeof(object));
 
-            var lambda = LinqExpression.Lambda<ILCompiledDelegate>(body, contextParam, optionsParam, ctParam);
-            return options.ExpressionCompiler.Compile(lambda);
+            var lambda = LinqExpression.Lambda<CompiledExpressionDelegate>(body, contextParam, optionsParam, ctParam);
+            var standardDelegate = options.ExpressionCompiler.Compile(lambda);
+
+            var rewrittenBody = new ParameterSubstitutionVisitor(
+                optionsParam,
+                ctParam,
+                LinqExpression.Constant(options, typeof(CsEvalOptions)),
+                LinqExpression.Constant(default(CancellationToken), typeof(CancellationToken)))
+                .Visit(body)!;
+
+            var fastLambda = LinqExpression.Lambda<CompiledExpressionFastDelegate>(rewrittenBody, contextParam);
+            var fastDelegate = options.ExpressionCompiler.Compile(fastLambda);
+
+            return new CompiledBoundDelegates(standardDelegate, fastDelegate);
         }
         catch (BindingNotSupportedException ex) when (IsDepthFailure(ex.Message))
         {
@@ -116,5 +134,34 @@ internal static class ILExpressionCompiler
     {
         return !string.IsNullOrEmpty(message) &&
                message.Contains("nesting depth exceeded", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private sealed class ParameterSubstitutionVisitor : ExpressionVisitor
+    {
+        private readonly ParameterExpression _optionsParam;
+        private readonly ParameterExpression _ctParam;
+        private readonly LinqExpression _optionsReplacement;
+        private readonly LinqExpression _ctReplacement;
+
+        public ParameterSubstitutionVisitor(
+            ParameterExpression optionsParam,
+            ParameterExpression ctParam,
+            LinqExpression optionsReplacement,
+            LinqExpression ctReplacement)
+        {
+            _optionsParam = optionsParam;
+            _ctParam = ctParam;
+            _optionsReplacement = optionsReplacement;
+            _ctReplacement = ctReplacement;
+        }
+
+        protected override LinqExpression VisitParameter(ParameterExpression node)
+        {
+            if (node == _optionsParam)
+                return _optionsReplacement;
+            if (node == _ctParam)
+                return _ctReplacement;
+            return base.VisitParameter(node);
+        }
     }
 }

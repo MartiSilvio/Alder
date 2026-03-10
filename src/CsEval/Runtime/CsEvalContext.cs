@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Collections.Frozen;
 using System.Collections.Immutable;
 using System.Dynamic;
+using System.Runtime.CompilerServices;
 using CsEval.Diagnostics;
 
 namespace CsEval.Runtime;
@@ -94,6 +95,7 @@ internal sealed class CsEvalContext
         return false;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool TryGet(string name, out object? value)
     {
         if (TryGetLocalVariable(name, out value))
@@ -111,6 +113,35 @@ internal sealed class CsEvalContext
         if (TryGet(name, out var value))
             return value;
         throw new CsEvalException(DiagnosticDescriptors.NameNotInContext, name);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public T GetVariableTyped<T>(string name)
+    {
+        object? value;
+        if (_parent == null)
+        {
+            if (!TryGetLocalVariable(name, out value))
+                throw new CsEvalException(DiagnosticDescriptors.NameNotInContext, name);
+        }
+        else if (!TryGet(name, out value))
+        {
+            throw new CsEvalException(DiagnosticDescriptors.NameNotInContext, name);
+        }
+
+        if (value is T typedValue)
+            return typedValue;
+
+        var targetType = typeof(T);
+        var numericTarget = Nullable.GetUnderlyingType(targetType) ?? targetType;
+        if (TypeHelpers.IsArithmetic(numericTarget))
+        {
+            value = TypeHelpers.CoerceNumeric(value, targetType);
+            if (value is T coercedValue)
+                return coercedValue;
+        }
+
+        return (T)value!;
     }
 
     public void Set(string name, object? value)
@@ -194,6 +225,7 @@ internal sealed class CsEvalContext
         return ctx;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private bool TryGetLocalVariable(string name, out object? value)
     {
         if (_localVariables != null)

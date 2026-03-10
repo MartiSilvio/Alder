@@ -14,7 +14,7 @@ internal static class BoundRuntimeMethodCache
         typeof(IdentifierRuntime).GetMethod(nameof(IdentifierRuntime.ResolveIdentifier))!;
 
     internal static readonly MethodInfo GetVariableTypedMethod =
-        typeof(IdentifierRuntime).GetMethod(nameof(IdentifierRuntime.GetVariableTyped))!;
+        typeof(CsEvalContext).GetMethod(nameof(CsEvalContext.GetVariableTyped))!;
 
     internal static readonly MethodInfo ContextGetMethod =
         typeof(CsEvalContext).GetMethod(nameof(CsEvalContext.Get), [typeof(string)])!;
