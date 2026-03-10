@@ -8,7 +8,6 @@ namespace CsEval.Test.Runtime;
 /// </summary>
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
-[TestFixture(CompilationMode.StrictCompiled)]
 public class NamedParameterTests(CompilationMode mode)
 {
     #region Engine-only: RegisterModule (CsEval-specific API)

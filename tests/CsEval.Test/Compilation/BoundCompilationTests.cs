@@ -4,11 +4,11 @@ namespace CsEval.Test;
 public sealed class BoundCompilationTests
 {
     [Test]
-    public void StrictCompiled_ShouldEvaluateBoundCapableExpression()
+    public void Compiled_ShouldEvaluateBoundCapableExpression()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with
         {
-            CompilationMode = CompilationMode.StrictCompiled
+            CompilationMode = CompilationMode.Compiled
         });
         engine.SetVariable("x", -4);
         engine.SetVariable("y", 2);
@@ -24,11 +24,11 @@ public sealed class BoundCompilationTests
     }
 
     [Test]
-    public void StrictCompiled_ShouldUseBoundPipeline_ForSwitchStatements()
+    public void Compiled_ShouldUseBoundPipeline_ForSwitchStatements()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with
         {
-            CompilationMode = CompilationMode.StrictCompiled
+            CompilationMode = CompilationMode.Compiled
         });
         var expression = engine.Parse(
             "{ var x = 7; switch (x) { case > 0: return 1; default: return 0; } }");
@@ -41,11 +41,11 @@ public sealed class BoundCompilationTests
     }
 
     [Test]
-    public void StrictCompiled_ShouldUseBoundPipeline_ForNamedArguments()
+    public void Compiled_ShouldUseBoundPipeline_ForNamedArguments()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with
         {
-            CompilationMode = CompilationMode.StrictCompiled
+            CompilationMode = CompilationMode.Compiled
         });
 
         var namedArgExpr = engine.Parse("Math.Round(value: 3.14159, digits: 2)");
@@ -55,11 +55,11 @@ public sealed class BoundCompilationTests
     }
 
     [Test]
-    public void StrictCompiled_ShouldEvaluateTypeArgumentInvocation()
+    public void Compiled_ShouldEvaluateTypeArgumentInvocation()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with
         {
-            CompilationMode = CompilationMode.StrictCompiled
+            CompilationMode = CompilationMode.Compiled
         });
 
         var typeArgExpr = engine.Parse("Array.Empty<int>().Length");
@@ -68,11 +68,11 @@ public sealed class BoundCompilationTests
     }
 
     [Test]
-    public void StrictCompiled_ShouldUseBoundPipeline_ForExtendedSyntaxExpressions()
+    public void Compiled_ShouldUseBoundPipeline_ForExtendedSyntaxExpressions()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with
         {
-            CompilationMode = CompilationMode.StrictCompiled,
+            CompilationMode = CompilationMode.Compiled,
             LanguageMode = LanguageMode.Extended
         });
 
@@ -88,11 +88,11 @@ public sealed class BoundCompilationTests
     }
 
     [Test]
-    public void StrictCompiled_ShouldUseBoundPipeline_ForMutationExpressions()
+    public void Compiled_ShouldUseBoundPipeline_ForMutationExpressions()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with
         {
-            CompilationMode = CompilationMode.StrictCompiled,
+            CompilationMode = CompilationMode.Compiled,
             LanguageMode = LanguageMode.Extended
         });
 
@@ -123,11 +123,11 @@ public sealed class BoundCompilationTests
     }
 
     [Test]
-    public void StrictCompiled_ShouldUseBoundPipeline_ForIsPatternExpressions()
+    public void Compiled_ShouldUseBoundPipeline_ForIsPatternExpressions()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with
         {
-            CompilationMode = CompilationMode.StrictCompiled
+            CompilationMode = CompilationMode.Compiled
         });
 
         engine.SetVariable("x", 42);
@@ -139,11 +139,11 @@ public sealed class BoundCompilationTests
     }
 
     [Test]
-    public void StrictCompiled_ShouldUseBoundPipeline_ForBlockIfReturn()
+    public void Compiled_ShouldUseBoundPipeline_ForBlockIfReturn()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with
         {
-            CompilationMode = CompilationMode.StrictCompiled
+            CompilationMode = CompilationMode.Compiled
         });
 
         var expression = engine.Parse("{ var x = 10; if (x > 5) { return \"big\"; } return \"small\"; }");
@@ -154,11 +154,11 @@ public sealed class BoundCompilationTests
     }
 
     [Test]
-    public void StrictCompiled_ShouldUseBoundPipeline_ForLoopConstructs()
+    public void Compiled_ShouldUseBoundPipeline_ForLoopConstructs()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with
         {
-            CompilationMode = CompilationMode.StrictCompiled
+            CompilationMode = CompilationMode.Compiled
         });
 
         var whileExpr = engine.Parse("{ var i = 0; var sum = 0; while (i < 5) { i++; if (i == 3) continue; sum += i; } return sum; }");
@@ -176,11 +176,11 @@ public sealed class BoundCompilationTests
     }
 
     [Test]
-    public void StrictCompiled_ShouldUseBoundPipeline_ForUsingAndLockStatements()
+    public void Compiled_ShouldUseBoundPipeline_ForUsingAndLockStatements()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with
         {
-            CompilationMode = CompilationMode.StrictCompiled
+            CompilationMode = CompilationMode.Compiled
         });
 
         engine.SetVariable("res", new System.IO.MemoryStream());

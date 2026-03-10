@@ -6,7 +6,6 @@ using CsEval.Runtime;
 namespace CsEval.Test.Compilation;
 
 [TestFixture(CompilationMode.Compiled)]
-[TestFixture(CompilationMode.StrictCompiled)]
 public class CompiledHotPathRegressionTests(CompilationMode mode)
 {
     private sealed class CapturingExpressionCompiler : IExpressionCompiler

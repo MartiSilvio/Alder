@@ -11,7 +11,7 @@ internal abstract class AstWalker<T> : IExprVisitor<T>
     /// <summary>
     /// Maximum traversal depth. When exceeded, throws CsEvalException to prevent
     /// uncatchable StackOverflowException on deeply nested ASTs.
-    /// Subclasses can set this (e.g., TypeInferrer reads it from CsEvalOptions).
+    /// Subclasses can override this for scenario-specific limits.
     /// </summary>
     protected int MaxVisitDepth { get; set; } = 512;
     private int _visitDepth;

@@ -40,7 +40,7 @@ public class ColdStartComparableBenchmarks : BenchmarkBase
     [BenchmarkCategory("ColdStart")]
     public object CsEval_Compiled_Cold()
     {
-        using var engine = CreateEngine(CompilationMode.StrictCompiled, _globals);
+        using var engine = CreateEngine(CompilationMode.Compiled, _globals);
         return engine.Evaluate(Scenario.CsEvalExpression)!;
     }
 

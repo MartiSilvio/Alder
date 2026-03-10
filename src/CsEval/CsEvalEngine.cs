@@ -222,8 +222,7 @@ public sealed class CsEvalEngine : IDisposable
             executionContext.ConstraintState = state;
         }
 
-        var shouldCompile = _options.CompilationMode is CompilationMode.Compiled or CompilationMode.StrictCompiled;
-        if (shouldCompile)
+        if (_options.CompilationMode == CompilationMode.Compiled)
         {
             if (expression.GetCompiledInfo() == null)
                 expression.TryCompile(_options, context);
@@ -232,14 +231,11 @@ public sealed class CsEvalEngine : IDisposable
             if (compiled?.Delegate != null)
                 return compiled.Delegate(executionContext, _options, cancellationToken);
 
-            if (_options.CompilationMode == CompilationMode.StrictCompiled)
-            {
-                if (compiled?.FailureException is CsEvalException csEvalFailure)
-                    throw csEvalFailure;
+            if (compiled?.FailureException is CsEvalException csEvalFailure)
+                throw csEvalFailure;
 
-                var reason = compiled?.FailureReason ?? "Unknown compilation failure";
-                throw new CsEvalException(DiagnosticDescriptors.StrictCompilationFailed, reason);
-            }
+            var reason = compiled?.FailureReason ?? "Unknown compilation failure";
+            throw new CsEvalException(DiagnosticDescriptors.StrictCompilationFailed, reason);
         }
 
         if (expression.TryGetOrCreateBoundExpression(executionContext, _options.MaxExpressionDepth, out var boundExpression, out var boundFailureReason))
@@ -390,8 +386,9 @@ public sealed class CsEvalEngine : IDisposable
         try
         {
             var context = GetOrCreateContext(null);
-            var inferrer = new TypeInferrer(context, _options.MaxExpressionDepth);
-            inferrer.InferAll(ast);
+            AstDepthValidator.EnsureWithinLimit(ast, _options.MaxExpressionDepth);
+            var binder = new CsEval.Binding.Binder();
+            _ = binder.Bind(ast, new BindingContext(context));
 
             // Check for unbound variables not resolvable in context
             var collector = new VariableCollector();
@@ -491,6 +488,7 @@ public sealed class CsEvalEngine : IDisposable
 
         internal CsEvalOptions Options => _engine._options;
         internal CsEvalConfig GetOrCreateConfig() => _engine.GetOrCreateConfig();
+        internal CsEvalContext GetOrCreateContext() => _engine.GetOrCreateContext(null);
         internal Dictionary<string, object?> CollectEngineVariables() => _engine.CollectEngineVariables();
         internal void ThrowIfDisposed() => _engine.ThrowIfDisposed();
     }

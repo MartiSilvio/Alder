@@ -9,7 +9,6 @@ namespace CsEval.Test.Types;
 /// </summary>
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
-[TestFixture(CompilationMode.StrictCompiled)]
 public class LiteralTests(CompilationMode mode)
 {
     #region ECMA-334 §6.4.5 -- Invalid Literal Error Cases

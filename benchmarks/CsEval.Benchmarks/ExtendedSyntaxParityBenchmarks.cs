@@ -31,9 +31,9 @@ public class ExtendedSyntaxParityBenchmarks : BenchmarkBase
     public void Setup()
     {
         _extendedInterpreted = CreateEngine(CompilationMode.Interpreted, _globals, LanguageMode.Extended);
-        _extendedCompiled = CreateEngine(CompilationMode.StrictCompiled, _globals, LanguageMode.Extended);
+        _extendedCompiled = CreateEngine(CompilationMode.Compiled, _globals, LanguageMode.Extended);
         _standardInterpreted = CreateEngine(CompilationMode.Interpreted, _globals, LanguageMode.Standard);
-        _standardCompiled = CreateEngine(CompilationMode.StrictCompiled, _globals, LanguageMode.Standard);
+        _standardCompiled = CreateEngine(CompilationMode.Compiled, _globals, LanguageMode.Standard);
 
         ConfigureShared(_extendedInterpreted);
         ConfigureShared(_extendedCompiled);

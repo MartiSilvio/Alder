@@ -11,7 +11,6 @@ namespace CsEval.Test.Runtime;
 /// </summary>
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
-[TestFixture(CompilationMode.StrictCompiled)]
 public class OverloadResolutionTests(CompilationMode mode)
 {
     #region Extension Method Precedence (ECMA-334 §12.8.9.2)

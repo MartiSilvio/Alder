@@ -9,7 +9,6 @@ namespace CsEval.Test;
 /// </summary>
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
-[TestFixture(CompilationMode.StrictCompiled)]
 public class QueryPreVerificationTests(CompilationMode mode)
 {
     private CsEvalOptions Options => CsEvalOptions.Default with

@@ -8,7 +8,6 @@ namespace CsEval.Test.Operators;
 /// </summary>
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
-[TestFixture(CompilationMode.StrictCompiled)]
 public class NameofTests(CompilationMode mode)
 {
     #region ECMA-334 §12.8.22 - Nameof Expression

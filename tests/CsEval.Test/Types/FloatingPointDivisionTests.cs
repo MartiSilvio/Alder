@@ -11,7 +11,6 @@ namespace CsEval.Test.Types;
 /// </summary>
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
-[TestFixture(CompilationMode.StrictCompiled)]
 public class FloatingPointDivisionTests(CompilationMode mode)
 {
     #region ECMA-334 §12.10.3 -- Floating-Point Division by Zero (NaN)

@@ -1,5 +1,6 @@
 using CsEval.Compilation;
 using CsEval.Compiled.Compilation;
+using CsEval.Binding;
 using CsEval.Parsing;
 using CsEval.Runtime;
 
@@ -10,8 +11,11 @@ internal sealed class CompiledProvider : ICompiledProvider
     public CompiledExpressionInfo GetOrCompile(string expressionText, Expr ast, ExpressionCache cache, CsEvalOptions? options = null)
         => ILExpressionCompiler.GetOrCompile(expressionText, ast, cache, options);
 
-    public CompiledExpressionInfo TryCompile(Expr ast, CsEvalOptions? options = null, CsEvalContext? typeHintContext = null)
-        => ILExpressionCompiler.TryCompile(ast, options, typeHintContext);
+    public CompiledExpressionInfo TryCompile(Expr ast, CsEvalOptions? options = null)
+        => ILExpressionCompiler.TryCompile(ast, options);
+
+    public CompiledExpressionInfo TryCompile(BoundExpr bound, CsEvalOptions? options = null)
+        => ILExpressionCompiler.TryCompile(bound, options);
 }
 
 internal static class CompiledProviderRegistration

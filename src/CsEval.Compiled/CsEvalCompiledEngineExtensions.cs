@@ -1,8 +1,10 @@
 using System.Linq.Expressions;
+using CsEval.Binding;
 using CsEval.Compilation;
 using CsEval.Compiled.Compilation;
 using CsEval.Diagnostics;
 using CsEval.Parsing;
+using CsEval.Runtime;
 
 namespace CsEval.Compiled;
 
@@ -19,7 +21,7 @@ public static class CsEvalCompiledEngineExtensions
         var access = engine.GetCompiledFeatureAccess();
         access.ThrowIfDisposed();
         var expr = engine.Parse(expression);
-        expr.TryCompile(access.Options);
+        expr.TryCompile(access.Options, access.GetOrCreateContext());
         return expr;
     }
 
@@ -37,7 +39,7 @@ public static class CsEvalCompiledEngineExtensions
         var access = engine.GetCompiledFeatureAccess();
         access.ThrowIfDisposed();
         var parsed = engine.Parse(expression);
-        if (!parsed.TryCompile(access.Options))
+        if (!parsed.TryCompile(access.Options, access.GetOrCreateContext()))
         {
             var reason = parsed.CompilationFailureReason ?? "Unknown compilation failure";
             throw new CsEvalException(
@@ -131,8 +133,24 @@ public static class CsEvalCompiledEngineExtensions
 
             var engineVariables = access.CollectEngineVariables();
             var config = access.GetOrCreateConfig();
+
+            AstDepthValidator.EnsureWithinLimit(lambdaExpr.Body, access.Options.MaxExpressionDepth);
+
+            var bindingRuntimeContext = new CsEvalContext(config);
+            foreach (var pair in engineVariables)
+                bindingRuntimeContext.Define(pair.Key, pair.Value, pair.Value?.GetType() ?? typeof(object));
+
+            for (var i = 0; i < paramTypes.Length; i++)
+            {
+                var parameterName = lambdaExpr.Parameters[i].Name.Lexeme;
+                bindingRuntimeContext.Define(parameterName, null, paramTypes[i]);
+            }
+
+            var binder = new CsEval.Binding.Binder();
+            var boundBody = binder.Bind(lambdaExpr.Body, new BindingContext(bindingRuntimeContext));
+
             var emitter = new ExpressionTreeEmitter(parameterScope, engineVariables, config.TypeResolver);
-            var body = emitter.Emit(lambdaExpr.Body);
+            var body = emitter.Emit(boundBody);
 
             if (body.Type != returnType)
             {

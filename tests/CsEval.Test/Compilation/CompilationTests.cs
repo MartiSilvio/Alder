@@ -1,3 +1,5 @@
+using System.Linq.Expressions;
+
 namespace CsEval.Test.Compilation;
 
 [TestFixture]
@@ -588,24 +590,24 @@ public class CompilationTests
     }
 
     [Test]
-    public void CompilationMode_StrictCompiled_CompilesNamedArguments()
+    public void CompilationMode_Compiled_CompilesNamedArguments()
     {
-        var options = new CsEvalOptions { CompilationMode = CompilationMode.StrictCompiled };
+        var options = new CsEvalOptions { CompilationMode = CompilationMode.Compiled };
         var engine = new CsEvalEngine(options);
         engine.SetVariable("str", "hello");
 
         // Named arguments are now IL-compilable
         var expr = engine.Parse("str.Substring(startIndex: 0, length: 3)");
 
-        // StrictCompiled should compile and run successfully
+        // Compiled mode should compile and run successfully
         var result = engine.Evaluate(expr);
         Assert.That(result, Is.EqualTo("hel"));
     }
 
     [Test]
-    public void CompilationMode_StrictCompiled_DoesNotFallBackToInterpreted_WhenNotCompilable()
+    public void CompilationMode_Compiled_DoesNotFallBackToInterpreted_WhenNotCompilable()
     {
-        var options = new CsEvalOptions { CompilationMode = CompilationMode.StrictCompiled };
+        var options = new CsEvalOptions { CompilationMode = CompilationMode.Compiled };
         var engine = new CsEvalEngine(options);
 
         // Known non-compilable pattern: switch with fall-through from a non-empty case.
@@ -624,7 +626,30 @@ public class CompilationTests
         Assert.That(expr.IsCompiled, Is.False);
     }
 
+    [Test]
+    public void CompilationMode_Compiled_DoesNotFallBack_WhenIlEmitterDoesNotSupportNode()
+    {
+        var options = new CsEvalOptions
+        {
+            CompilationMode = CompilationMode.Compiled,
+            ExpressionCompiler = new ThrowingExpressionCompiler()
+        };
+        var engine = new CsEvalEngine(options);
+        var expr = engine.Parse("1 + 2");
+
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate(expr));
+        Assert.That(ex!.Message, Does.Contain("Forced compile failure"));
+        Assert.That(expr.IsCompiled, Is.False);
+    }
+
     #endregion
+
+    private sealed class ThrowingExpressionCompiler : IExpressionCompiler
+    {
+        public TDelegate Compile<TDelegate>(Expression<TDelegate> expression)
+            where TDelegate : Delegate
+            => throw new InvalidOperationException("Forced compile failure");
+    }
 
     #region ParseAndCompile
 

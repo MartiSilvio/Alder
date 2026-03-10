@@ -9,7 +9,6 @@ namespace CsEval.Test.Types;
 /// </summary>
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
-[TestFixture(CompilationMode.StrictCompiled)]
 public class NumericTests(CompilationMode mode)
 {
     #region Engine-only: Float tolerance tests (use .Within() which parity checks don't support)

@@ -5,7 +5,6 @@ namespace CsEval.Test.Runtime;
 
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
-[TestFixture(CompilationMode.StrictCompiled)]
 public class ScopingTests(CompilationMode mode)
 {
     #region ForEach Loop Scoping

@@ -5,7 +5,6 @@ namespace CsEval.Test.Loops;
 
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
-[TestFixture(CompilationMode.StrictCompiled)]
 public class ForLoopTests(CompilationMode mode)
 {
 

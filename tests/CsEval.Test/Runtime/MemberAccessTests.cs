@@ -8,7 +8,6 @@ namespace CsEval.Test.Runtime;
 /// </summary>
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
-[TestFixture(CompilationMode.StrictCompiled)]
 public class MemberAccessTests(CompilationMode mode)
 {
     #region Engine-only: SetVariable with long type

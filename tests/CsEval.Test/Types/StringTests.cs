@@ -10,7 +10,6 @@ namespace CsEval.Test.Types;
 /// </summary>
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
-[TestFixture(CompilationMode.StrictCompiled)]
 public class StringTests(CompilationMode mode)
 {
     #region Engine-only: Unicode/hex escape error tests (CsEvalLexerException assertions)

@@ -6,7 +6,6 @@ namespace CsEval.Test.Loops;
 
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
-[TestFixture(CompilationMode.StrictCompiled)]
 public class DoWhileLoopTests(CompilationMode mode)
 {
     #region Do-While Loop with External Variables

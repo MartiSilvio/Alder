@@ -10,28 +10,4 @@
     <Description>CsEval expression engine with AOT-safe interpreted execution.</Description>
   </PropertyGroup>
 
-  <ItemGroup>
-    <Compile Update="Evaluation\Evaluator.Helpers.cs">
-      <DependentUpon>Evaluator.cs</DependentUpon>
-    </Compile>
-    <Compile Update="Evaluation\Evaluator.Linq.cs">
-      <DependentUpon>Evaluator.cs</DependentUpon>
-    </Compile>
-    <Compile Update="Evaluation\Evaluator.Loops.cs">
-      <DependentUpon>Evaluator.cs</DependentUpon>
-    </Compile>
-    <Compile Update="Evaluation\Evaluator.Switch.cs">
-      <DependentUpon>Evaluator.cs</DependentUpon>
-    </Compile>
-    <Compile Update="Evaluation\Evaluator.TypeCoercion.cs">
-      <DependentUpon>Evaluator.cs</DependentUpon>
-    </Compile>
-    <Compile Update="Evaluation\Evaluator.Registry.cs">
-      <DependentUpon>Evaluator.cs</DependentUpon>
-    </Compile>
-    <Compile Update="Interpretation\Evaluator.Loops.cs" />
-    <Compile Update="Interpretation\Evaluator.Registry.cs" />
-    <Compile Update="Interpretation\Evaluator.Switch.cs" />
-  </ItemGroup>
-
 </Project>

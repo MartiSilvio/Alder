@@ -10,7 +10,6 @@ namespace CsEval.Test.Operators;
 /// </summary>
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
-[TestFixture(CompilationMode.StrictCompiled)]
 public class CastTests(CompilationMode mode)
 {
     #region Cast with Non-Keyword Class Types

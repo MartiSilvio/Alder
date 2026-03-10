@@ -5,7 +5,6 @@ namespace CsEval.Test.Integration;
 
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
-[TestFixture(CompilationMode.StrictCompiled)]
 public class LazyResolutionTests(CompilationMode mode)
 {
     [SetUp]
@@ -87,7 +86,6 @@ public class LazyResolutionTests(CompilationMode mode)
 
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
-[TestFixture(CompilationMode.StrictCompiled)]
 public class MemberFilteringTests(CompilationMode mode)
 {
     [Test]

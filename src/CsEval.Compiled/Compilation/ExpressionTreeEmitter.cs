@@ -1,11 +1,14 @@
 using System.Linq.Expressions;
+using CsEval.Binding;
+using CsEval.Binding.BoundNodes;
+using CsEval.Binding.Plans;
 using CsEval.Parsing;
 using CsEval.Runtime;
 
 namespace CsEval.Compiled.Compilation;
 
 /// <summary>
-/// Translates CsEval AST nodes into typed System.Linq.Expressions trees.
+/// Translates bound CsEval nodes into typed System.Linq.Expressions trees.
 /// Produces provider-transparent expression trees suitable for Entity Framework,
 /// IQueryable providers, and in-memory compilation via .Compile().
 /// </summary>
@@ -29,143 +32,133 @@ internal sealed class ExpressionTreeEmitter
         _typeResolver = typeResolver;
     }
 
-    public LinqExpression Emit(Expr expr)
+    public LinqExpression Emit(BoundExpr expr)
     {
         return expr switch
         {
-            LiteralExpr e => EmitLiteral(e),
-            IdentifierExpr e => EmitIdentifier(e),
-            BinaryExpr e => EmitBinary(e),
-            LogicalExpr e => EmitLogical(e),
-            UnaryExpr e => EmitUnary(e),
-            MemberAccessExpr e => EmitMemberAccess(e),
-            CallExpr e => EmitCall(e),
-            ConditionalExpr e => EmitConditional(e),
-            NullCoalesceExpr e => EmitNullCoalesce(e),
-            CastExpr e => EmitCast(e),
-            CheckedExpr e => EmitChecked(e),
-            IsPatternExpr e => EmitIsPattern(e),
-            IndexAccessExpr e => EmitIndexAccess(e),
-            ObjectCreationExpr e => EmitObjectCreation(e),
-            TypeReferenceExpr => throw new CsEvalException(
-                "Expression tree cannot contain a standalone type reference"),
+            BoundLiteralExpr e => EmitLiteral(e),
+            BoundIdentifierExpr e => EmitIdentifier(e),
+            BoundBinaryExpr e => EmitBinary(e),
+            BoundLogicalExpr e => EmitLogical(e),
+            BoundUnaryExpr e => EmitUnary(e),
+            BoundMemberAccessExpr e => EmitMemberAccess(e),
+            BoundCallExpr e => EmitCall(e),
+            BoundConditionalExpr e => EmitConditional(e),
+            BoundNullCoalesceExpr e => EmitNullCoalesce(e),
+            BoundCastExpr e => EmitCast(e),
+            BoundCheckedExpr e => EmitChecked(e),
+            BoundIsPatternExpr e => EmitIsPattern(e),
+            BoundIndexAccessExpr e => EmitIndexAccess(e),
+            BoundObjectCreationExpr e => EmitObjectCreation(e),
 
             // Unsupported nodes with descriptive messages
-            SwitchExpressionExpr => throw new CsEvalException(
+            BoundSwitchExpressionExpr => throw new CsEvalException(
                 "Expression tree cannot contain a switch expression"),
-            BlockExpr => throw new CsEvalException(
+            BoundBlockExpr => throw new CsEvalException(
                 "Expression tree cannot contain a block"),
-            IfStatementExpr => throw new CsEvalException(
+            BoundIfStatementExpr => throw new CsEvalException(
                 "Expression tree cannot contain an if statement"),
-            WhileStatementExpr => throw new CsEvalException(
+            BoundWhileExpr => throw new CsEvalException(
                 "Expression tree cannot contain a while loop"),
-            ForStatementExpr => throw new CsEvalException(
+            BoundForExpr => throw new CsEvalException(
                 "Expression tree cannot contain a for loop"),
-            ForEachStatementExpr => throw new CsEvalException(
+            BoundForEachExpr => throw new CsEvalException(
                 "Expression tree cannot contain a foreach loop"),
-            DoWhileStatementExpr => throw new CsEvalException(
+            BoundDoWhileExpr => throw new CsEvalException(
                 "Expression tree cannot contain a do-while loop"),
-            AssignExpr => throw new CsEvalException(
+            BoundAssignExpr => throw new CsEvalException(
                 "Expression tree cannot contain an assignment"),
-            MemberAssignExpr => throw new CsEvalException(
+            BoundMemberAssignExpr => throw new CsEvalException(
                 "Expression tree cannot contain an assignment"),
-            IndexAssignExpr => throw new CsEvalException(
+            BoundIndexAssignExpr => throw new CsEvalException(
                 "Expression tree cannot contain an assignment"),
-            CompoundAssignExpr => throw new CsEvalException(
+            BoundCompoundAssignExpr => throw new CsEvalException(
                 "Expression tree cannot contain an assignment"),
-            MemberCompoundAssignExpr => throw new CsEvalException(
+            BoundMemberCompoundAssignExpr => throw new CsEvalException(
                 "Expression tree cannot contain an assignment"),
-            IndexCompoundAssignExpr => throw new CsEvalException(
+            BoundIndexCompoundAssignExpr => throw new CsEvalException(
                 "Expression tree cannot contain an assignment"),
-            NullCoalesceAssignExpr => throw new CsEvalException(
+            BoundNullCoalesceAssignExpr => throw new CsEvalException(
                 "Expression tree cannot contain an assignment"),
-            MemberNullCoalesceAssignExpr => throw new CsEvalException(
+            BoundMemberNullCoalesceAssignExpr => throw new CsEvalException(
                 "Expression tree cannot contain an assignment"),
-            IndexNullCoalesceAssignExpr => throw new CsEvalException(
+            BoundIndexNullCoalesceAssignExpr => throw new CsEvalException(
                 "Expression tree cannot contain an assignment"),
-            IncrementDecrementExpr => throw new CsEvalException(
+            BoundIncrementDecrementExpr => throw new CsEvalException(
                 "Expression tree cannot contain an assignment"),
-            MemberIncrementExpr => throw new CsEvalException(
+            BoundMemberIncrementExpr => throw new CsEvalException(
                 "Expression tree cannot contain an assignment"),
-            IndexIncrementExpr => throw new CsEvalException(
+            BoundIndexIncrementExpr => throw new CsEvalException(
                 "Expression tree cannot contain an assignment"),
-            VariableDeclExpr => throw new CsEvalException(
+            BoundVariableDeclExpr => throw new CsEvalException(
                 "Expression tree cannot contain a variable declaration"),
-            TryCatchFinallyExpr => throw new CsEvalException(
+            BoundTryCatchFinallyExpr => throw new CsEvalException(
                 "Expression tree cannot contain try/catch"),
-            ArrayLiteralExpr => throw new CsEvalException(
+            BoundArrayLiteralExpr => throw new CsEvalException(
                 "Expression tree cannot contain a collection expression"),
-            ObjectLiteralExpr => throw new CsEvalException(
+            BoundObjectLiteralExpr => throw new CsEvalException(
                 "Expression tree cannot contain an object literal"),
-            SpreadExpr => throw new CsEvalException(
+            BoundSpreadExpr => throw new CsEvalException(
                 "Expression tree cannot contain spread"),
-            SliceExpr => throw new CsEvalException(
+            BoundSliceExpr => throw new CsEvalException(
                 "Expression tree cannot contain slice"),
-            LambdaExpr => throw new CsEvalException(
+            BoundLambdaExpr => throw new CsEvalException(
                 "Expression tree cannot contain a nested lambda"),
-            InterpolatedStringExpr => throw new CsEvalException(
+            BoundInterpolatedStringExpr => throw new CsEvalException(
                 "Expression tree cannot contain an interpolated string"),
-            ThrowExpr => throw new CsEvalException(
+            BoundThrowExpr => throw new CsEvalException(
                 "Expression tree cannot contain a throw expression"),
-            ThrowStatementExpr => throw new CsEvalException(
+            BoundThrowStatementExpr => throw new CsEvalException(
                 "Expression tree cannot contain a throw statement"),
-            NewExpr => throw new CsEvalException(
-                "Expression tree cannot contain an anonymous object creation"),
-            TupleExpr => throw new CsEvalException(
+            BoundTupleExpr => throw new CsEvalException(
                 "Expression tree cannot contain a tuple expression"),
-            DeconstructionExpr => throw new CsEvalException(
+            BoundDeconstructionExpr => throw new CsEvalException(
                 "Expression tree cannot contain deconstruction"),
-            SwitchStatementExpr => throw new CsEvalException(
+            BoundSwitchStatementExpr => throw new CsEvalException(
                 "Expression tree cannot contain a switch statement"),
-            ReturnExpr => throw new CsEvalException(
+            BoundReturnExpr => throw new CsEvalException(
                 "Expression tree cannot contain a return statement"),
-            BreakExpr => throw new CsEvalException(
+            BoundBreakExpr => throw new CsEvalException(
                 "Expression tree cannot contain a break statement"),
-            ContinueExpr => throw new CsEvalException(
+            BoundContinueExpr => throw new CsEvalException(
                 "Expression tree cannot contain a continue statement"),
-            AsExpr => throw new CsEvalException(
+            BoundAsExpr => throw new CsEvalException(
                 "Expression tree cannot contain an 'as' expression"),
-            DefaultExpr => throw new CsEvalException(
-                "Expression tree cannot contain a default expression"),
-            NameofExpr => throw new CsEvalException(
-                "Expression tree cannot contain a nameof expression"),
-            TypeofExpr => throw new CsEvalException(
-                "Expression tree cannot contain a typeof expression"),
-            SizeofExpr => throw new CsEvalException(
-                "Expression tree cannot contain a sizeof expression"),
-            TypedArrayCreationExpr => throw new CsEvalException(
+            BoundTypedArrayCreationExpr => throw new CsEvalException(
                 "Expression tree cannot contain an array creation expression"),
-            TypedArrayLiteralExpr => throw new CsEvalException(
+            BoundTypedArrayLiteralExpr => throw new CsEvalException(
                 "Expression tree cannot contain an array creation expression"),
-            MultiDimIndexAccessExpr => throw new CsEvalException(
+            BoundMultiDimIndexAccessExpr => throw new CsEvalException(
                 "Expression tree cannot contain multi-dimensional indexing"),
-            MultiDimTypedArrayCreationExpr => throw new CsEvalException(
+            BoundMultiDimTypedArrayCreationExpr => throw new CsEvalException(
                 "Expression tree cannot contain multi-dimensional array creation"),
-            MultiDimIndexAssignExpr => throw new CsEvalException(
+            BoundMultiDimIndexAssignExpr => throw new CsEvalException(
                 "Expression tree cannot contain an assignment"),
-            NamedArgumentExpr => throw new CsEvalException(
+            BoundNamedArgumentExpr => throw new CsEvalException(
                 "Expression tree cannot contain a named argument"),
-            OutArgExpr => throw new CsEvalException(
+            BoundOutArgExpr => throw new CsEvalException(
                 "Expression tree cannot contain an out argument"),
-            UsingStatementExpr => throw new CsEvalException(
+            BoundUsingStatementExpr => throw new CsEvalException(
                 "Expression tree cannot contain a using statement"),
-            LockStatementExpr => throw new CsEvalException(
+            BoundLockStatementExpr => throw new CsEvalException(
                 "Expression tree cannot contain a lock statement"),
 
             // Polyglot Extended Features -- explicit rejection with descriptive messages
-            RangeExpr => throw new CsEvalException(
+            BoundRangeExpr => throw new CsEvalException(
                 "Expression tree output not supported for range literals"),
-            PipelineExpr => throw new CsEvalException(
+            BoundPipelineExpr => throw new CsEvalException(
                 "Expression tree output not supported for pipeline operator"),
-            ChainedComparisonExpr => throw new CsEvalException(
+            BoundChainedComparisonExpr => throw new CsEvalException(
                 "Expression tree output not supported for chained comparison"),
+            BoundInvokeExpr => throw new CsEvalException(
+                "Expression tree cannot contain this call expression"),
 
             _ => throw new CsEvalException(
                 $"Expression tree cannot contain this expression type: {expr.GetType().Name}")
         };
     }
 
-    private LinqExpression EmitLiteral(LiteralExpr expr)
+    private static LinqExpression EmitLiteral(BoundLiteralExpr expr)
     {
         if (expr.Value is null)
             return LinqExpression.Constant(null, typeof(object));
@@ -173,9 +166,9 @@ internal sealed class ExpressionTreeEmitter
         return LinqExpression.Constant(expr.Value, expr.Value.GetType());
     }
 
-    private LinqExpression EmitIdentifier(IdentifierExpr expr)
+    private LinqExpression EmitIdentifier(BoundIdentifierExpr expr)
     {
-        var name = expr.Name.Lexeme;
+        var name = expr.Name;
 
         if (_parameterScope.TryGetValue(name, out var param))
             return param;
@@ -186,24 +179,22 @@ internal sealed class ExpressionTreeEmitter
         throw new CsEvalException($"The name '{name}' does not exist in the current context");
     }
 
-    private LinqExpression EmitBinary(BinaryExpr expr)
+    private LinqExpression EmitBinary(BoundBinaryExpr expr)
     {
         var left = Emit(expr.Left);
         var right = Emit(expr.Right);
 
-        // String concatenation: if either operand is string, use string.Concat
-        if (expr.Op.Type == TokenType.Plus && IsStringConcatenation(left, right))
+        if (expr.Operator == TokenType.Plus && IsStringConcatenation(left, right))
         {
             var leftStr = EnsureString(left);
             var rightStr = EnsureString(right);
             return LinqExpression.Call(StringConcat2, leftStr, rightStr);
         }
 
-        // Numeric promotion for arithmetic and comparison operations
-        if (NeedsNumericPromotion(expr.Op.Type))
+        if (NeedsNumericPromotion(expr.Operator))
             PromoteNumericOperands(ref left, ref right);
 
-        return expr.Op.Type switch
+        return expr.Operator switch
         {
             TokenType.Plus => _isChecked ? LinqExpression.AddChecked(left, right) : LinqExpression.Add(left, right),
             TokenType.Minus => _isChecked ? LinqExpression.SubtractChecked(left, right) : LinqExpression.Subtract(left, right),
@@ -222,186 +213,96 @@ internal sealed class ExpressionTreeEmitter
             TokenType.LessLess => LinqExpression.LeftShift(left, right),
             TokenType.GreaterGreater => LinqExpression.RightShift(left, right),
             _ => throw new CsEvalException(
-                $"Expression tree cannot contain operator '{expr.Op.Lexeme}'")
+                $"Expression tree cannot contain operator '{TokenLexemes.GetCanonical(expr.Operator)}'")
         };
     }
 
-    private LinqExpression EmitLogical(LogicalExpr expr)
+    private LinqExpression EmitLogical(BoundLogicalExpr expr)
     {
         var left = Emit(expr.Left);
         var right = Emit(expr.Right);
 
-        return expr.Op.Type switch
+        return expr.Operator switch
         {
             TokenType.AmpAmp => LinqExpression.AndAlso(left, right),
             TokenType.PipePipe => LinqExpression.OrElse(left, right),
             _ => throw new CsEvalException(
-                $"Expression tree cannot contain operator '{expr.Op.Lexeme}'")
+                $"Expression tree cannot contain operator '{TokenLexemes.GetCanonical(expr.Operator)}'")
         };
     }
 
-    private LinqExpression EmitUnary(UnaryExpr expr)
+    private LinqExpression EmitUnary(BoundUnaryExpr expr)
     {
-        var operand = Emit(expr.Right);
+        var operand = Emit(expr.Operand);
 
-        return expr.Op.Type switch
+        return expr.Operator switch
         {
             TokenType.Minus => _isChecked ? LinqExpression.NegateChecked(operand) : LinqExpression.Negate(operand),
             TokenType.Plus => operand,
             TokenType.Bang => LinqExpression.Not(operand),
             TokenType.Tilde => LinqExpression.Not(operand),
             _ => throw new CsEvalException(
-                $"Expression tree cannot contain unary operator '{expr.Op.Lexeme}'")
+                $"Expression tree cannot contain unary operator '{TokenLexemes.GetCanonical(expr.Operator)}'")
         };
     }
 
-    private LinqExpression EmitMemberAccess(MemberAccessExpr expr)
+    private LinqExpression EmitMemberAccess(BoundMemberAccessExpr expr)
     {
         if (expr.NullSafe)
             throw new CsEvalException("Expression tree cannot contain null-conditional access");
 
-        // Handle static member access: TypeReferenceExpr.Member
-        if (expr.Object is TypeReferenceExpr typeRef)
-        {
-            var type = ResolveTypeFromToken(typeRef.TypeToken);
-            return EmitStaticMemberAccess(type, expr.Name.Lexeme);
-        }
+        var target = Emit(expr.Target);
+        var plan = expr.Plan;
+        if (plan?.Member is PropertyInfo property)
+            return plan.IsStatic
+                ? LinqExpression.Property(null, property)
+                : LinqExpression.Property(target, property);
 
-        var obj = Emit(expr.Object);
-        var memberName = expr.Name.Lexeme;
+        if (plan?.Member is FieldInfo field)
+            return plan.IsStatic
+                ? LinqExpression.Field(null, field)
+                : LinqExpression.Field(target, field);
 
-        var property = obj.Type.GetProperty(memberName,
-            BindingFlags.Public | BindingFlags.Instance);
-        if (property != null)
-            return LinqExpression.Property(obj, property);
-
-        var field = obj.Type.GetField(memberName,
-            BindingFlags.Public | BindingFlags.Instance);
-        if (field != null)
-            return LinqExpression.Field(obj, field);
-
-        // Try static members on the instance type
-        var staticProp = obj.Type.GetProperty(memberName,
-            BindingFlags.Public | BindingFlags.Static);
-        if (staticProp != null)
-            return LinqExpression.Property(null, staticProp);
-
-        var staticField = obj.Type.GetField(memberName,
-            BindingFlags.Public | BindingFlags.Static);
-        if (staticField != null)
-            return LinqExpression.Field(null, staticField);
+        if (plan?.IsMethodGroup == true)
+            throw new CsEvalException(
+                "Expression tree cannot contain unresolved method groups");
 
         throw new CsEvalException(
-            $"'{obj.Type.Name}' does not contain a definition for '{memberName}'");
+            $"'{target.Type.Name}' does not contain a definition for '{expr.MemberName}'");
     }
 
-    private LinqExpression EmitStaticMemberAccess(Type type, string memberName)
+    private LinqExpression EmitCall(BoundCallExpr expr)
     {
-        var property = type.GetProperty(memberName,
-            BindingFlags.Public | BindingFlags.Static);
-        if (property != null)
-            return LinqExpression.Property(null, property);
-
-        var field = type.GetField(memberName,
-            BindingFlags.Public | BindingFlags.Static);
-        if (field != null)
-            return LinqExpression.Field(null, field);
-
-        throw new CsEvalException(
-            $"'{type.Name}' does not contain a static definition for '{memberName}'");
-    }
-
-    private LinqExpression EmitCall(CallExpr expr)
-    {
-        var args = expr.Arguments.Select(Emit).ToArray();
-        var argTypes = args.Select(a => a.Type).ToArray();
-
-        // Instance method call: callee is MemberAccessExpr
-        if (expr.Callee is MemberAccessExpr memberAccess)
+        var method = expr.Plan.SelectedMethod;
+        var args = new LinqExpression[expr.Arguments.Length];
+        for (var i = 0; i < expr.Arguments.Length; i++)
         {
-            if (memberAccess.NullSafe)
-                throw new CsEvalException(
-                    "Expression tree cannot contain null-conditional access");
-
-            var methodName = memberAccess.Name.Lexeme;
-
-            // Static method call: object is TypeReferenceExpr
-            if (memberAccess.Object is TypeReferenceExpr typeRef)
-            {
-                var type = ResolveTypeFromToken(typeRef.TypeToken);
-                return EmitStaticMethodCall(type, methodName, args, argTypes);
-            }
-
-            // Static method call: chained member access reaching a type (e.g., System.Math.Abs)
-            if (TryResolveTypeFromMemberChain(memberAccess.Object, out var staticType))
-            {
-                return EmitStaticMethodCall(staticType!, methodName, args, argTypes);
-            }
-
-            var obj = Emit(memberAccess.Object);
-            return EmitInstanceMethodCall(obj, methodName, args, argTypes);
+            var arg = Emit(expr.Arguments[i]);
+            var conversion = expr.Plan.ArgumentConversions[i];
+            args[i] = conversion.IsIdentity || arg.Type == conversion.TargetType
+                ? arg
+                : LinqExpression.Convert(arg, conversion.TargetType);
         }
 
-        // Direct function call via identifier -- check if it resolves to a static type method
-        if (expr.Callee is IdentifierExpr idExpr)
-        {
-            var name = idExpr.Name.Lexeme;
+        if (expr.Plan.IsStaticCall)
+            return LinqExpression.Call(method, args);
 
-            // Try as a delegate variable
-            if (_parameterScope.TryGetValue(name, out var paramExpr) &&
-                typeof(Delegate).IsAssignableFrom(paramExpr.Type))
-            {
-                var invokeMethod = paramExpr.Type.GetMethod("Invoke")!;
-                return LinqExpression.Invoke(paramExpr, args);
-            }
+        if (expr.Callee is not BoundMemberAccessExpr memberCallee)
+            throw new CsEvalException("Expression tree cannot contain this call expression");
 
-            throw new CsEvalException(
-                $"Expression tree cannot contain a call to unresolved function '{name}'");
-        }
+        if (memberCallee.NullSafe)
+            throw new CsEvalException("Expression tree cannot contain null-conditional access");
 
-        throw new CsEvalException(
-            "Expression tree cannot contain this call expression");
+        var target = Emit(memberCallee.Target);
+        return LinqExpression.Call(target, method, args);
     }
 
-    private LinqExpression EmitInstanceMethodCall(
-        LinqExpression obj, string methodName,
-        LinqExpression[] args, Type[] argTypes)
-    {
-        var method = ResolveMethod(obj.Type, methodName,
-            BindingFlags.Public | BindingFlags.Instance, argTypes);
-
-        if (method == null)
-            throw new CsEvalException(
-                $"'{obj.Type.Name}' does not contain a method '{methodName}' " +
-                $"matching the given arguments");
-
-        args = CoerceArguments(method, args);
-        return LinqExpression.Call(obj, method, args);
-    }
-
-    private LinqExpression EmitStaticMethodCall(
-        Type type, string methodName,
-        LinqExpression[] args, Type[] argTypes)
-    {
-        var method = ResolveMethod(type, methodName,
-            BindingFlags.Public | BindingFlags.Static, argTypes);
-
-        if (method == null)
-            throw new CsEvalException(
-                $"'{type.Name}' does not contain a static method '{methodName}' " +
-                $"matching the given arguments");
-
-        args = CoerceArguments(method, args);
-        return LinqExpression.Call(method, args);
-    }
-
-    private LinqExpression EmitConditional(ConditionalExpr expr)
+    private LinqExpression EmitConditional(BoundConditionalExpr expr)
     {
         var test = Emit(expr.Condition);
         var ifTrue = Emit(expr.ThenBranch);
         var ifFalse = Emit(expr.ElseBranch);
 
-        // Ensure both branches have compatible types
         if (ifTrue.Type != ifFalse.Type)
         {
             var commonType = GetCommonType(ifTrue.Type, ifFalse.Type);
@@ -417,14 +318,14 @@ internal sealed class ExpressionTreeEmitter
         return LinqExpression.Condition(test, ifTrue, ifFalse);
     }
 
-    private LinqExpression EmitNullCoalesce(NullCoalesceExpr expr)
+    private LinqExpression EmitNullCoalesce(BoundNullCoalesceExpr expr)
     {
         var left = Emit(expr.Left);
         var right = Emit(expr.Right);
         return LinqExpression.Coalesce(left, right);
     }
 
-    private LinqExpression EmitChecked(CheckedExpr expr)
+    private LinqExpression EmitChecked(BoundCheckedExpr expr)
     {
         var previous = _isChecked;
         _isChecked = expr.IsChecked;
@@ -438,43 +339,40 @@ internal sealed class ExpressionTreeEmitter
         }
     }
 
-    private LinqExpression EmitCast(CastExpr expr)
+    private LinqExpression EmitCast(BoundCastExpr expr)
     {
         var operand = Emit(expr.Expression);
-        var targetType = ResolveTypeFromToken(expr.TargetType);
         return _isChecked
-            ? LinqExpression.ConvertChecked(operand, targetType)
-            : LinqExpression.Convert(operand, targetType);
+            ? LinqExpression.ConvertChecked(operand, expr.TargetType)
+            : LinqExpression.Convert(operand, expr.TargetType);
     }
 
-    private LinqExpression EmitIsPattern(IsPatternExpr expr)
+    private LinqExpression EmitIsPattern(BoundIsPatternExpr expr)
     {
         if (expr.Pattern is TypePattern typePattern)
         {
             var operand = Emit(expr.Expression);
-            var type = ResolveTypeFromToken(typePattern.TypeToken);
+            var type = _typeResolver.ResolveType(typePattern.TypeToken.Lexeme);
             return LinqExpression.TypeIs(operand, type);
         }
 
         throw new CsEvalException("Expression tree cannot contain pattern matching");
     }
 
-    private LinqExpression EmitIndexAccess(IndexAccessExpr expr)
+    private LinqExpression EmitIndexAccess(BoundIndexAccessExpr expr)
     {
         if (expr.NullSafe)
             throw new CsEvalException("Expression tree cannot contain null-conditional access");
 
-        var obj = Emit(expr.Object);
+        var obj = Emit(expr.Target);
         var index = Emit(expr.Index);
 
         if (obj.Type.IsArray)
-            return LinqExpression.ArrayIndex(obj, index);
+            return LinqExpression.ArrayIndex(obj, EnsureIndexType(index));
 
-        // Look for an indexer property (Item)
         var indexer = obj.Type.GetProperty("Item");
         if (indexer != null)
         {
-            // Coerce index type to match indexer parameter
             var indexerParams = indexer.GetIndexParameters();
             if (indexerParams.Length == 1 && index.Type != indexerParams[0].ParameterType)
                 index = LinqExpression.Convert(index, indexerParams[0].ParameterType);
@@ -482,29 +380,30 @@ internal sealed class ExpressionTreeEmitter
             return LinqExpression.MakeIndex(obj, indexer, [index]);
         }
 
-        throw new CsEvalException(
-            $"'{obj.Type.Name}' does not have an indexer");
+        throw new CsEvalException($"'{obj.Type.Name}' does not have an indexer");
     }
 
-    private LinqExpression EmitObjectCreation(ObjectCreationExpr expr)
+    private LinqExpression EmitObjectCreation(BoundObjectCreationExpr expr)
     {
-        if (expr.Initializer != null)
-            throw new CsEvalException(
-                "Expression tree cannot contain object initializer");
+        if (expr.InitializerEntries.Length > 0)
+            throw new CsEvalException("Expression tree cannot contain object initializer");
 
-        var type = ResolveTypeByName(expr.TypeName);
+        var targetType = expr.StaticType != typeof(object)
+            ? expr.StaticType
+            : _typeResolver.ResolveType(expr.TypeName);
 
         var args = expr.Arguments.Select(Emit).ToArray();
         var argTypes = args.Select(a => a.Type).ToArray();
 
-        var ctor = type.GetConstructor(argTypes);
+        var ctor = targetType.GetConstructor(argTypes);
         if (ctor == null)
         {
-            // Try with implicit numeric conversions
-            ctor = FindCompatibleConstructor(type, argTypes);
+            ctor = FindCompatibleConstructor(targetType, argTypes);
             if (ctor == null)
+            {
                 throw new CsEvalException(
-                    $"'{type.Name}' does not contain a constructor matching the given arguments");
+                    $"'{targetType.Name}' does not contain a constructor matching the given arguments");
+            }
 
             args = CoerceConstructorArguments(ctor, args);
         }
@@ -512,109 +411,32 @@ internal sealed class ExpressionTreeEmitter
         return LinqExpression.New(ctor, args);
     }
 
-    #region Type Resolution Helpers
-
-    private Type ResolveTypeFromToken(Token token)
+    private static LinqExpression EnsureIndexType(LinqExpression index)
     {
-        return ResolveTypeByName(token.Lexeme);
+        if (index.Type == typeof(int))
+            return index;
+
+        if (IsIntegralType(index.Type))
+            return LinqExpression.Convert(index, typeof(int));
+
+        return index;
     }
 
-    private Type ResolveTypeByName(string typeName)
+    private static bool IsIntegralType(Type type)
     {
-        var resolved = _typeResolver.TryResolveType(typeName);
-        if (resolved != null)
-            return resolved;
-
-        throw new CsEvalException(
-            $"The type or namespace name '{typeName}' could not be found");
-    }
-
-    /// <summary>
-    /// Tries to resolve a chain of MemberAccessExpr nodes to a static type.
-    /// For example, System.Math resolves to typeof(Math).
-    /// </summary>
-    private bool TryResolveTypeFromMemberChain(Expr expr, out Type? type)
-    {
-        type = null;
-        var name = BuildMemberChainName(expr);
-        if (name == null)
-            return false;
-
-        type = _typeResolver.TryResolveType(name);
-        return type != null;
-    }
-
-    private static string? BuildMemberChainName(Expr expr)
-    {
-        return expr switch
+        type = Nullable.GetUnderlyingType(type) ?? type;
+        return Type.GetTypeCode(type) switch
         {
-            IdentifierExpr id => id.Name.Lexeme,
-            TypeReferenceExpr typeRef => typeRef.TypeToken.Lexeme,
-            MemberAccessExpr ma => BuildMemberChainName(ma.Object) is { } objName
-                ? $"{objName}.{ma.Name.Lexeme}"
-                : null,
-            _ => null
+            TypeCode.SByte or
+            TypeCode.Byte or
+            TypeCode.Int16 or
+            TypeCode.UInt16 or
+            TypeCode.Int32 or
+            TypeCode.UInt32 or
+            TypeCode.Int64 or
+            TypeCode.UInt64 => true,
+            _ => false
         };
-    }
-
-    #endregion
-
-    #region Method Resolution Helpers
-
-    private static MethodInfo? ResolveMethod(
-        Type type, string name, BindingFlags flags, Type[] argTypes)
-    {
-        // Try exact match first
-        var method = type.GetMethod(name, flags, argTypes);
-        if (method != null)
-            return method;
-
-        // Fall back to scanning methods with compatible parameter counts
-        var candidates = type.GetMethods(flags)
-            .Where(m => m.Name == name && m.GetParameters().Length == argTypes.Length)
-            .ToArray();
-
-        foreach (var candidate in candidates)
-        {
-            var parameters = candidate.GetParameters();
-            var compatible = true;
-            for (var i = 0; i < parameters.Length; i++)
-            {
-                if (!IsAssignableOrConvertible(argTypes[i], parameters[i].ParameterType))
-                {
-                    compatible = false;
-                    break;
-                }
-            }
-            if (compatible)
-                return candidate;
-        }
-
-        return null;
-    }
-
-    private static bool IsAssignableOrConvertible(Type from, Type to)
-    {
-        return TypeHelpers.CanAssignOrImplicitlyConvert(from, to);
-    }
-
-    private static LinqExpression[] CoerceArguments(MethodInfo method, LinqExpression[] args)
-    {
-        var parameters = method.GetParameters();
-        var result = new LinqExpression[args.Length];
-        for (var i = 0; i < args.Length; i++)
-        {
-            if (args[i].Type != parameters[i].ParameterType &&
-                !parameters[i].ParameterType.IsAssignableFrom(args[i].Type))
-            {
-                result[i] = LinqExpression.Convert(args[i], parameters[i].ParameterType);
-            }
-            else
-            {
-                result[i] = args[i];
-            }
-        }
-        return result;
     }
 
     private static LinqExpression[] CoerceConstructorArguments(
@@ -637,26 +459,25 @@ internal sealed class ExpressionTreeEmitter
         foreach (var ctor in type.GetConstructors())
         {
             var parameters = ctor.GetParameters();
-            if (parameters.Length != argTypes.Length) continue;
+            if (parameters.Length != argTypes.Length)
+                continue;
 
             var compatible = true;
             for (var i = 0; i < parameters.Length; i++)
             {
-                if (!IsAssignableOrConvertible(argTypes[i], parameters[i].ParameterType))
+                if (!TypeHelpers.CanAssignOrImplicitlyConvert(argTypes[i], parameters[i].ParameterType))
                 {
                     compatible = false;
                     break;
                 }
             }
+
             if (compatible)
                 return ctor;
         }
+
         return null;
     }
-
-    #endregion
-
-    #region Numeric Promotion Helpers
 
     private static bool NeedsNumericPromotion(TokenType op) => op is
         TokenType.Plus or TokenType.Minus or TokenType.Star or
@@ -665,13 +486,12 @@ internal sealed class ExpressionTreeEmitter
         TokenType.Less or TokenType.LessEqual or
         TokenType.Greater or TokenType.GreaterEqual;
 
-    private static void PromoteNumericOperands(
-        ref LinqExpression left, ref LinqExpression right)
+    private static void PromoteNumericOperands(ref LinqExpression left, ref LinqExpression right)
     {
         if (left.Type == right.Type)
             return;
 
-        var promoted = GetNumericPromotionType(left.Type, right.Type);
+        var promoted = TypeHelpers.TryGetBinaryNumericPromotionType(left.Type, right.Type);
         if (promoted == null)
             return;
 
@@ -681,33 +501,14 @@ internal sealed class ExpressionTreeEmitter
             right = LinqExpression.Convert(right, promoted);
     }
 
-    /// <summary>
-    /// Returns the promoted type for binary operations following C# numeric promotion rules.
-    /// Returns null if the types are not both numeric.
-    /// </summary>
-    private static Type? GetNumericPromotionType(Type left, Type right)
-    {
-        return TypeHelpers.TryGetBinaryNumericPromotionType(left, right);
-    }
-
-    #endregion
-
-    #region String Helpers
-
     private static bool IsStringConcatenation(LinqExpression left, LinqExpression right)
-    {
-        return left.Type == typeof(string) || right.Type == typeof(string);
-    }
+        => left.Type == typeof(string) || right.Type == typeof(string);
 
-    /// <summary>
-    /// Ensures an expression produces a string, inserting a ToString() call if needed.
-    /// </summary>
     private static LinqExpression EnsureString(LinqExpression expr)
     {
         if (expr.Type == typeof(string))
             return expr;
 
-        // For value types, box first then call ToString; for reference types, call directly
         if (expr.Type.IsValueType)
         {
             var boxed = LinqExpression.Convert(expr, typeof(object));
@@ -719,33 +520,20 @@ internal sealed class ExpressionTreeEmitter
         return LinqExpression.Call(expr, objToString);
     }
 
-    #endregion
-
-    #region Type Compatibility Helpers
-
-    /// <summary>
-    /// Finds a common type for conditional expression branches.
-    /// Uses numeric promotion for numeric types, or IsAssignableFrom for reference types.
-    /// </summary>
     private static Type? GetCommonType(Type left, Type right)
     {
-        // Numeric promotion
-        var promoted = GetNumericPromotionType(left, right);
+        var promoted = TypeHelpers.TryGetBinaryNumericPromotionType(left, right);
         if (promoted != null)
             return promoted;
 
-        // Reference type compatibility
         if (left.IsAssignableFrom(right))
             return left;
         if (right.IsAssignableFrom(left))
             return right;
 
-        // Both are reference types -- try common base
         if (!left.IsValueType && !right.IsValueType)
             return typeof(object);
 
         return null;
     }
-
-    #endregion
 }

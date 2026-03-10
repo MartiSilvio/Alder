@@ -7,7 +7,6 @@ namespace CsEval.Test.Runtime;
 /// </summary>
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
-[TestFixture(CompilationMode.StrictCompiled)]
 public class ConstructorTests(CompilationMode mode)
 {
     #region Engine-only: reference type identity (not value-comparable)

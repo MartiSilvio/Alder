@@ -4,7 +4,6 @@ namespace CsEval.Test.Extensions;
 
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
-[TestFixture(CompilationMode.StrictCompiled)]
 public class ObjectMergeTests(CompilationMode mode)
 {
     // Dictionary Merge

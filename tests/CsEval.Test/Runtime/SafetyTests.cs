@@ -5,7 +5,6 @@ namespace CsEval.Test.Runtime;
 
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
-[TestFixture(CompilationMode.StrictCompiled)]
 public class SafetyTests(CompilationMode mode)
 {
     private static IEnumerable<TestCaseData> LimitViolationCases() =>

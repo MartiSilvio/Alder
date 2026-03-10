@@ -11,7 +11,7 @@ namespace CsEval.Test.Compilation;
 [TestFixture]
 public class FecCompilerTests
 {
-    private static CsEvalEngine Engine(CompilationMode mode = CompilationMode.StrictCompiled) =>
+    private static CsEvalEngine Engine(CompilationMode mode = CompilationMode.Compiled) =>
         new(new CsEvalOptions
         {
             CompilationMode = mode,

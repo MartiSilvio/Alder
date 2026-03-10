@@ -2,7 +2,6 @@ namespace CsEval.Test.Security;
 
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
-[TestFixture(CompilationMode.StrictCompiled)]
 public class SandboxModeTests(CompilationMode mode)
 {
     #region Trusted Mode (Default)

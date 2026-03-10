@@ -11,7 +11,6 @@ namespace CsEval.Test.PatternMatching;
 /// </summary>
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
-[TestFixture(CompilationMode.StrictCompiled)]
 public class SwitchExpressionTests(CompilationMode mode)
 {
     #region ECMA-334 §12.8.21 -- SwitchExpressionException for Non-Exhaustive Match

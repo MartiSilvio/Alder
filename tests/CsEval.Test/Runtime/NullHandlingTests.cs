@@ -9,7 +9,6 @@ namespace CsEval.Test.Runtime;
 /// </summary>
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
-[TestFixture(CompilationMode.StrictCompiled)]
 public class NullHandlingTests(CompilationMode mode)
 {
     #region Engine-only: error tests (CsEvalException assertions)

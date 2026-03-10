@@ -7,7 +7,6 @@ namespace CsEval.Test.Extensions;
 /// </summary>
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
-[TestFixture(CompilationMode.StrictCompiled)]
 public class JsFriendlySyntaxTests(CompilationMode mode)
 {
     // Reserved keyword tests (engine-only: testing error behavior)

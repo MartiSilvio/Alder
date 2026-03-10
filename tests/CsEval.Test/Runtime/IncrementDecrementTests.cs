@@ -5,7 +5,6 @@ namespace CsEval.Test.Runtime;
 
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
-[TestFixture(CompilationMode.StrictCompiled)]
 public class IncrementDecrementTests(CompilationMode mode)
 {
     #region Pre-Parsed (Engine-Only)

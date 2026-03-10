@@ -1,6 +1,5 @@
 using CsEval.Compilation;
 using CsEval.Binding;
-using CsEval.Interpretation;
 using CsEval.Parsing;
 using CsEval.Runtime;
 using System.Runtime.CompilerServices;
@@ -28,7 +27,6 @@ public sealed class CsEvalExpression
     private int _boundFallbackCount;
     private volatile string? _lastBoundFallbackReason;
     private readonly ExpressionCache? _expressionCache;
-    private readonly ConditionalWeakTable<CsEvalContext, CachedTypeInferrer> _typeInferrerCacheByContext = new();
     private readonly ConditionalWeakTable<CsEvalContext, CachedBoundExpression> _boundExpressionCacheByContext = new();
 
     internal CsEvalExpression(string expression, Expr ast) : this(expression, ast, null)
@@ -77,8 +75,18 @@ public sealed class CsEvalExpression
 
     internal bool TryCompile(CsEvalOptions options, CsEvalContext context)
     {
-        return TryCompileCore(static (self, opts, ctx) =>
-            CompiledProviderRegistry.TryCompile(self.Ast, opts, ctx), options, context);
+        if (_compiledInfo != null)
+            return _compiledInfo.Delegate != null;
+
+        if (!TryGetOrCreateBoundExpression(context, options.MaxExpressionDepth, out var bound, out var failureReason) ||
+            bound == null)
+        {
+            _compiledInfo = new CompiledExpressionInfo(null, false, failureReason ?? "Binding failed for expression.");
+            return false;
+        }
+
+        _compiledInfo = CompiledProviderRegistry.TryCompile(bound, options);
+        return _compiledInfo.Delegate != null;
     }
 
     private bool TryCompileCore(
@@ -175,24 +183,7 @@ public sealed class CsEvalExpression
             _lastBoundFallbackReason = reason;
     }
 
-    internal TypeInferrer GetOrCreateTypeInferrer(CsEvalContext context, int maxDepth)
-    {
-        var currentVersion = context.GetTypeInferenceVersion();
-        if (_typeInferrerCacheByContext.TryGetValue(context, out var cached) &&
-            cached.Version == currentVersion)
-        {
-            return cached.Inferrer;
-        }
-
-        var inferrer = new TypeInferrer(context, maxDepth);
-        inferrer.InferAll(Ast);
-        _typeInferrerCacheByContext.Remove(context);
-        _typeInferrerCacheByContext.Add(context, new CachedTypeInferrer(currentVersion, inferrer));
-        return inferrer;
-    }
-
     private sealed record CachedBoundExpression(int Version, BoundExpr Bound);
-    private sealed record CachedTypeInferrer(int Version, TypeInferrer Inferrer);
 }
 
 /// <summary>

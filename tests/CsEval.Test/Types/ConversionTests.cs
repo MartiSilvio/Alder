@@ -10,7 +10,6 @@ namespace CsEval.Test.Types;
 /// </summary>
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
-[TestFixture(CompilationMode.StrictCompiled)]
 public class ConversionTests(CompilationMode mode)
 {
     #region CanImplicitlyConvert API -- Direct Verification

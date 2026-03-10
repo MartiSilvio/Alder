@@ -5,7 +5,6 @@ namespace CsEval.Test;
 
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
-[TestFixture(CompilationMode.StrictCompiled)]
 public class ParityTests(CompilationMode mode)
 {
     private static readonly Regex RoslynCodeRegex = new(@"\bCS\d{4}\b", RegexOptions.Compiled);
@@ -53,7 +52,9 @@ public class ParityTests(CompilationMode mode)
         {
             var csharpResult = await TestHelpers.EvaluateCSharpAsync(roslynExpr);
             var engine = new CsEvalEngine(Options);
-            var result = engine.Evaluate(csEvalExpr);
+            var expression = engine.Parse(csEvalExpr);
+            var result = engine.Evaluate(expression);
+            AssertNoFallbackInCompiledMode(expression, csEvalExpr);
 
             if (result is IDictionary<string, object?> dict && IsAnonymousType(csharpResult?.GetType()))
             {
@@ -127,6 +128,15 @@ public class ParityTests(CompilationMode mode)
 
     private static bool IsAnonymousType(Type? type) =>
         type != null && Attribute.IsDefined(type, typeof(CompilerGeneratedAttribute)) && type.Name.Contains("AnonymousType");
+
+    private void AssertNoFallbackInCompiledMode(CsEvalExpression expression, string source)
+    {
+        if (mode != CompilationMode.Compiled)
+            return;
+
+        Assert.That(expression.IsCompiled, Is.True, $"Compiled mode did not produce IL delegate for: {source}");
+        Assert.That(expression.BoundFallbackCount, Is.EqualTo(0), $"Compiled mode used fallback for: {source}");
+    }
 
     private static void AssertAnonymousObjectEqual(IDictionary<string, object?> dict, object anonymous)
     {

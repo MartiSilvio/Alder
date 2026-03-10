@@ -5,7 +5,6 @@ namespace CsEval.Test.Runtime;
 
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
-[TestFixture(CompilationMode.StrictCompiled)]
 public class ResourceConstraintTests(CompilationMode mode)
 {
     private static CsEvalEngine CreateEngine(long? maxStatements = null, TimeSpan? maxTimeout = null,

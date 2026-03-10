@@ -11,7 +11,6 @@ namespace CsEval.Test.PatternMatching;
 /// </summary>
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
-[TestFixture(CompilationMode.StrictCompiled)]
 public class PatternTests(CompilationMode mode)
 {
     #region ECMA-334 §11.2.7 -- Property Patterns

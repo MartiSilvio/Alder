@@ -17,7 +17,6 @@ namespace CsEval.Test.Types;
 /// </summary>
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
-[TestFixture(CompilationMode.StrictCompiled)]
 public class NumericPromotionTests(CompilationMode mode)
 {
     #region Specific value and type verification for key edge cases

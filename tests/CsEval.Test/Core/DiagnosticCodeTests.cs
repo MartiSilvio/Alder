@@ -77,7 +77,7 @@ public class DiagnosticCodeTests
     public void CS0021_BadIndexerAccess_MultiDimOnNonArray_AllCompilationModes()
     {
         const string expr = "{ var x = 42; return x[0,0]; }";
-        foreach (var mode in new[] { CompilationMode.Interpreted, CompilationMode.Compiled, CompilationMode.StrictCompiled })
+        foreach (var mode in new[] { CompilationMode.Interpreted, CompilationMode.Compiled, CompilationMode.Compiled })
         {
             var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
             var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate(expr));
@@ -216,7 +216,7 @@ public class DiagnosticCodeTests
     [Test]
     public void CS0139_BreakOutsideLoop_AllCompilationModes()
     {
-        foreach (var mode in new[] { CompilationMode.Interpreted, CompilationMode.Compiled, CompilationMode.StrictCompiled })
+        foreach (var mode in new[] { CompilationMode.Interpreted, CompilationMode.Compiled, CompilationMode.Compiled })
         {
             var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
             var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("{ break; }"));
@@ -239,7 +239,7 @@ public class DiagnosticCodeTests
     [Test]
     public void CS0155_ThrowOperandMustBeException_AllCompilationModes()
     {
-        foreach (var mode in new[] { CompilationMode.Interpreted, CompilationMode.Compiled, CompilationMode.StrictCompiled })
+        foreach (var mode in new[] { CompilationMode.Interpreted, CompilationMode.Compiled, CompilationMode.Compiled })
         {
             var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
             var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("throw 42"));

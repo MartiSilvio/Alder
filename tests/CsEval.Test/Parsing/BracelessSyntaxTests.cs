@@ -2,7 +2,6 @@ namespace CsEval.Test.Parsing;
 
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
-[TestFixture(CompilationMode.StrictCompiled)]
 public class BracelessSyntaxTests(CompilationMode mode)
 {
     #region Program-Level Braceless Syntax

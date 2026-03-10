@@ -27,7 +27,7 @@ public class CompetitorLifecycleBenchmarks : BenchmarkBase
     [BenchmarkCategory("Lifecycle")]
     public int CsEval_CreateCompiledEngine()
     {
-        using var engine = CreateEngine(CompilationMode.StrictCompiled, _globals);
+        using var engine = CreateEngine(CompilationMode.Compiled, _globals);
         return engine.GetHashCode();
     }
 

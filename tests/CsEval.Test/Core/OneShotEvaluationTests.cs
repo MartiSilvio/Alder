@@ -2,7 +2,6 @@ namespace CsEval.Test.Core;
 
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
-[TestFixture(CompilationMode.StrictCompiled)]
 public class OneShotEvaluationTests(CompilationMode mode)
 {
     [Test]

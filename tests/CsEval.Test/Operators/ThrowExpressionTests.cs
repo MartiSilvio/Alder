@@ -11,7 +11,6 @@ namespace CsEval.Test.Operators;
 /// </summary>
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
-[TestFixture(CompilationMode.StrictCompiled)]
 public class ThrowExpressionTests(CompilationMode mode)
 {
     #region ECMA-334 §12.16 - Null-coalescing with throw

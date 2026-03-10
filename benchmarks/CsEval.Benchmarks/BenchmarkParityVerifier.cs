@@ -14,7 +14,7 @@ public static class BenchmarkParityVerifier
         {
             var expected = scenario.NativeEvaluator(globals);
             var interpreted = EvaluateCsEval(globals, scenario.CsEvalExpression, CompilationMode.Interpreted);
-            var compiled = EvaluateCsEval(globals, scenario.CsEvalExpression, CompilationMode.StrictCompiled);
+            var compiled = EvaluateCsEval(globals, scenario.CsEvalExpression, CompilationMode.Compiled);
             var roslyn = EvaluateRoslyn(globals, scenario.RoslynExpression);
             var ncalc = EvaluateNCalc(globals, scenario.NCalcExpression);
             var dynamicExpresso = EvaluateDynamicExpresso(globals, scenario.DynamicExpressoExpression);
@@ -46,7 +46,7 @@ public static class BenchmarkParityVerifier
         try
         {
             var interpreted = EvaluateCsEval(globals, scenario.CsEvalExpression, CompilationMode.Interpreted);
-            var compiled = EvaluateCsEval(globals, scenario.CsEvalExpression, CompilationMode.StrictCompiled);
+            var compiled = EvaluateCsEval(globals, scenario.CsEvalExpression, CompilationMode.Compiled);
             var roslyn = EvaluateRoslyn(globals, scenario.RoslynExpression);
             var dynamicExpresso = EvaluateDynamicExpresso(globals, scenario.DynamicExpressoExpression);
             var flee = EvaluateFlee(globals, scenario.FleeExpression);
@@ -77,7 +77,7 @@ public static class BenchmarkParityVerifier
                 globals,
                 LanguageMode.Extended);
             using var extCompiled = BenchmarkBase.CreateEngine(
-                CompilationMode.StrictCompiled,
+                CompilationMode.Compiled,
                 globals,
                 LanguageMode.Extended);
             using var stdInterpreted = BenchmarkBase.CreateEngine(
@@ -85,7 +85,7 @@ public static class BenchmarkParityVerifier
                 globals,
                 LanguageMode.Standard);
             using var stdCompiled = BenchmarkBase.CreateEngine(
-                CompilationMode.StrictCompiled,
+                CompilationMode.Compiled,
                 globals,
                 LanguageMode.Standard);
 
@@ -118,7 +118,7 @@ public static class BenchmarkParityVerifier
         {
             var expected = scenario.NativeEvaluator(globals);
             var interpreted = EvaluateCsEval(globals, scenario.CsEvalExpression, CompilationMode.Interpreted);
-            var compiled = EvaluateCsEval(globals, scenario.CsEvalExpression, CompilationMode.StrictCompiled);
+            var compiled = EvaluateCsEval(globals, scenario.CsEvalExpression, CompilationMode.Compiled);
             var roslyn = EvaluateRoslyn(globals, scenario.RoslynExpression);
 
             if (!AreEquivalent(expected, interpreted))
@@ -142,7 +142,7 @@ public static class BenchmarkParityVerifier
         try
         {
             using var interpretedEngine = BenchmarkBase.CreateEngine(CompilationMode.Interpreted, globals);
-            using var compiledEngine = BenchmarkBase.CreateEngine(CompilationMode.StrictCompiled, globals);
+            using var compiledEngine = BenchmarkBase.CreateEngine(CompilationMode.Compiled, globals);
 
             interpretedEngine.Parse(scenario.CsEvalExpression);
             compiledEngine.Parse(scenario.CsEvalExpression);

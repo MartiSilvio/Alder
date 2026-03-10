@@ -7,7 +7,6 @@ namespace CsEval.Test.Compliance;
 /// </summary>
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
-[TestFixture(CompilationMode.StrictCompiled)]
 public class SemanticLeniencyTests(CompilationMode mode)
 {
     private CsEvalOptions Options => CsEvalOptions.Default with

@@ -7,7 +7,6 @@ namespace CsEval.Test.Operators;
 /// </summary>
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
-[TestFixture(CompilationMode.StrictCompiled)]
 public class LogicalKeywordTests(CompilationMode mode)
 {
     // Short-circuit tests (engine-only: use SetVariable)

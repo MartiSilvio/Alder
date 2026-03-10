@@ -39,7 +39,7 @@ public abstract class BenchmarkBase
     protected void SetupEngines(BenchmarkGlobalData globals)
     {
         InterpretedEngine = CreateEngine(CompilationMode.Interpreted, globals);
-        CompiledEngine = CreateEngine(CompilationMode.StrictCompiled, globals);
+        CompiledEngine = CreateEngine(CompilationMode.Compiled, globals);
     }
 
     protected static void ApplyGlobals(CsEvalEngine engine, BenchmarkGlobalData globals)

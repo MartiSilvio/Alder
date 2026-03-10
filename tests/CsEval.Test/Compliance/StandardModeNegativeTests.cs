@@ -9,7 +9,6 @@ namespace CsEval.Test.Compliance;
 /// </summary>
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
-[TestFixture(CompilationMode.StrictCompiled)]
 public class StandardModeNegativeTests(CompilationMode mode)
 {
     private CsEvalOptions StandardOptions => CsEvalOptions.Default with

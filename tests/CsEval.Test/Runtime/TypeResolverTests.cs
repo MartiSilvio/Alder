@@ -14,7 +14,6 @@ namespace CsEval.Test.Runtime;
 /// </summary>
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
-[TestFixture(CompilationMode.StrictCompiled)]
 public class TypeResolverTests(CompilationMode mode)
 {
     private CsEvalEngine CreateEngine()

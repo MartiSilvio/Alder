@@ -7,7 +7,6 @@ namespace CsEval.Test.Security;
 /// </summary>
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
-[TestFixture(CompilationMode.StrictCompiled)]
 public class ReflectionBlockingTests(CompilationMode mode)
 {
     protected readonly CompilationMode Mode = mode;

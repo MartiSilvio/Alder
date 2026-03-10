@@ -8,14 +8,9 @@ public enum CompilationMode
     Interpreted,
 
     /// <summary>
-    /// Compile to IL, fall back to tree-walking if compilation fails. Best for production.
+    /// Compile to IL and execute only compiled delegates. Throws if compilation fails.
     /// </summary>
-    Compiled,
-
-    /// <summary>
-    /// Require IL compilation - throw if compilation fails. Best for testing IL coverage.
-    /// </summary>
-    StrictCompiled
+    Compiled
 }
 
 /// <summary>
@@ -65,12 +60,11 @@ public sealed record CsEvalOptions
 
     /// <summary>
     /// Controls when expressions are compiled to IL.
-    /// Default: Compiled (compile automatically on first evaluation, fall back to tree-walking if compilation fails).
+    /// Default: Compiled (compile automatically on first evaluation, throw if compilation fails).
     /// </summary>
     /// <remarks>
     /// <see cref="CompilationMode.Interpreted"/>: Always use tree-walking. Good for debugging or AST-only features.
-    /// <see cref="CompilationMode.Compiled"/>: Automatically compile on first evaluation, fall back to tree-walking if compilation fails. Good for production.
-    /// <see cref="CompilationMode.StrictCompiled"/>: Require IL compilation - throws if compilation fails. Good for testing IL coverage.
+    /// <see cref="CompilationMode.Compiled"/>: Automatically compile on first evaluation and throw if compilation fails.
     /// </remarks>
     public CompilationMode CompilationMode { get; init; } = CompilationMode.Compiled;
 

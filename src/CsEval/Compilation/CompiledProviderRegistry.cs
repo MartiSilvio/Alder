@@ -1,3 +1,4 @@
+using CsEval.Binding;
 using CsEval.Parsing;
 using CsEval.Runtime;
 
@@ -6,7 +7,8 @@ namespace CsEval.Compilation;
 internal interface ICompiledProvider
 {
     CompiledExpressionInfo GetOrCompile(string expressionText, Expr ast, ExpressionCache cache, CsEvalOptions? options = null);
-    CompiledExpressionInfo TryCompile(Expr ast, CsEvalOptions? options = null, CsEvalContext? typeHintContext = null);
+    CompiledExpressionInfo TryCompile(Expr ast, CsEvalOptions? options = null);
+    CompiledExpressionInfo TryCompile(BoundExpr bound, CsEvalOptions? options = null);
 }
 
 internal static class CompiledProviderRegistry
@@ -38,13 +40,22 @@ internal static class CompiledProviderRegistry
 
     internal static CompiledExpressionInfo TryCompile(
         Expr ast,
-        CsEvalOptions? options = null,
-        CsEvalContext? typeHintContext = null)
+        CsEvalOptions? options = null)
     {
         var provider = GetProvider();
         return provider == null
             ? new CompiledExpressionInfo(null, false, MissingProviderReason)
-            : provider.TryCompile(ast, options, typeHintContext);
+            : provider.TryCompile(ast, options);
+    }
+
+    internal static CompiledExpressionInfo TryCompile(
+        BoundExpr bound,
+        CsEvalOptions? options = null)
+    {
+        var provider = GetProvider();
+        return provider == null
+            ? new CompiledExpressionInfo(null, false, MissingProviderReason)
+            : provider.TryCompile(bound, options);
     }
 
     private static ICompiledProvider? GetProvider() => _provider;

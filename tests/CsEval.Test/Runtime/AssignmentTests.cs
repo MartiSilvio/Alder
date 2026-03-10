@@ -6,7 +6,6 @@ namespace CsEval.Test.Runtime;
 
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
-[TestFixture(CompilationMode.StrictCompiled)]
 public class AssignmentTests(CompilationMode mode)
 {
     #region CsEval-Specific Syntax (Engine-Only)

@@ -7,7 +7,6 @@ namespace CsEval.Test.Types;
 /// </summary>
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
-[TestFixture(CompilationMode.StrictCompiled)]
 public class TupleTests(CompilationMode mode)
 {
     #region Engine-only: Type name assertions (GetType().Name checks, not value comparison)

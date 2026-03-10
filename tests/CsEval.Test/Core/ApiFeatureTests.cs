@@ -4,7 +4,6 @@ namespace CsEval.Test.Core;
 
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
-[TestFixture(CompilationMode.StrictCompiled)]
 public class ApiFeatureTests(CompilationMode mode)
 {
     private CsEvalEngine CreateEngine() =>

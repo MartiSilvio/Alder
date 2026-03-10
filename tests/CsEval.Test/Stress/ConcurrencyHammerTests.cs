@@ -4,7 +4,6 @@ namespace CsEval.Test.Stress;
 
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
-[TestFixture(CompilationMode.StrictCompiled)]
 public class ConcurrencyHammerTests(CompilationMode mode) : StressTestBase(mode)
 {
     [Test]
