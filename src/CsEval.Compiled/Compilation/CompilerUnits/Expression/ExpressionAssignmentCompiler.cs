@@ -3,11 +3,22 @@ using CsEval.Runtime;
 
 namespace CsEval.Compiled.Compilation.CompilerUnits;
 
-internal sealed partial class ExpressionCompilerUnit
+internal sealed class ExpressionAssignmentCompiler
 {
+    private readonly ExpressionCompilerUnit _owner;
+    private readonly ExpressionBinaryCompiler _binary;
+
+    internal ExpressionAssignmentCompiler(
+        ExpressionCompilerUnit owner,
+        ExpressionBinaryCompiler binary)
+    {
+        _owner = owner;
+        _binary = binary;
+    }
+
     internal LinqExpression CompileVariableDecl(VariableDeclExpr v)
     {
-        var value = Compile(v.Initializer);
+        var value = _owner.Compile(v.Initializer);
         var temp = LinqExpression.Variable(typeof(object), "temp");
         var inferredType = LinqExpression.Variable(typeof(Type), "inferredType");
 
@@ -15,8 +26,8 @@ internal sealed partial class ExpressionCompilerUnit
         {
             // Resolve type via context's TypeResolver
             var resolvedDeclType = LinqExpression.Call(
-                _ctx.TypeResolverExpr,
-                CompilerContext.ResolveTypeMethod,
+                _owner.Context.TypeResolverExpr,
+                CompilerReflectionCache.ResolveTypeMethod,
                 LinqExpression.Constant(v.DeclaredType.Value.Lexeme));
 
             var declTypeVar = LinqExpression.Variable(typeof(Type), "declType");
@@ -25,7 +36,7 @@ internal sealed partial class ExpressionCompilerUnit
                 new[] { declTypeVar },
                 LinqExpression.Assign(declTypeVar, resolvedDeclType),
                 LinqExpression.Call(
-                    CompilerContext.ValidateAndCoerceTypeMethod,
+                    CompilerReflectionCache.ValidateAndCoerceTypeMethod,
                     declTypeVar,
                     value,
                     LinqExpression.Constant(v.Name.Lexeme)));
@@ -36,8 +47,8 @@ internal sealed partial class ExpressionCompilerUnit
         {
             // Resolve type via context's TypeResolver
             getInferredType = LinqExpression.Call(
-                _ctx.TypeResolverExpr,
-                CompilerContext.ResolveTypeMethod,
+                _owner.Context.TypeResolverExpr,
+                CompilerReflectionCache.ResolveTypeMethod,
                 LinqExpression.Constant(v.DeclaredType.Value.Lexeme));
         }
         else
@@ -57,11 +68,11 @@ internal sealed partial class ExpressionCompilerUnit
                     LinqExpression.Constant(v.Name.Lexeme),
                     LinqExpression.Constant("_")),
                 LinqExpression.Block(
-                    LinqExpression.Call(_ctx.CurrentContext, CompilerContext.DefineMethod,
+                    LinqExpression.Call(_owner.Context.CurrentContext, CompilerReflectionCache.DefineMethod,
                         LinqExpression.Constant(v.Name.Lexeme), temp),
                     temp),
                 LinqExpression.Block(
-                    LinqExpression.Call(_ctx.CurrentContext, CompilerContext.DefineNewMethod,
+                    LinqExpression.Call(_owner.Context.CurrentContext, CompilerReflectionCache.DefineNewMethod,
                         LinqExpression.Constant(v.Name.Lexeme), temp, inferredType),
                     temp)));
     }
@@ -69,16 +80,16 @@ internal sealed partial class ExpressionCompilerUnit
     internal LinqExpression CompileAssign(AssignExpr a)
     {
         var name = a.Name.Lexeme;
-        var value = Compile(a.Value);
+        var value = _owner.Compile(a.Value);
         var temp = LinqExpression.Variable(typeof(object), "temp");
 
         return LinqExpression.Block(
             new[] { temp },
             // Check sandbox allows assignment
-            LinqExpression.Call(CompilerContext.CheckAllowAssignmentMethod, _ctx.OptionsParam,
+            LinqExpression.Call(CompilerReflectionCache.CheckAllowAssignmentMethod, _owner.Context.OptionsParam,
                 LinqExpression.Constant($"{name} = ...")),
             LinqExpression.Assign(temp, value),
-            LinqExpression.Call(_ctx.CurrentContext, CompilerContext.SetMethod,
+            LinqExpression.Call(_owner.Context.CurrentContext, CompilerReflectionCache.SetMethod,
                 LinqExpression.Constant(name), temp),
             temp);
     }
@@ -86,8 +97,8 @@ internal sealed partial class ExpressionCompilerUnit
     internal LinqExpression CompileCompoundAssign(CompoundAssignExpr ca)
     {
         var name = ca.Name.Lexeme;
-        var currentValue = CompileIdentifier(new IdentifierExpr(ca.Name));
-        var rightValueExpr = Compile(ca.Value);
+        var currentValue = _owner.CompileIdentifier(new IdentifierExpr(ca.Name));
+        var rightValueExpr = _owner.Compile(ca.Value);
         var temp = LinqExpression.Variable(typeof(object), "temp");
         var rightTemp = LinqExpression.Variable(typeof(object), "rightTemp");
 
@@ -99,38 +110,38 @@ internal sealed partial class ExpressionCompilerUnit
         if (opInfo == null)
             throw new NotSupportedException($"Binary operator for compound {ca.Op.Type}");
 
-        LinqExpression opCall = EmitBinaryOpCall(opInfo.Value, currentValue, rightTemp);
+        LinqExpression opCall = _binary.EmitBinaryOpCall(opInfo.Value, currentValue, rightTemp);
 
-        var validateCall = LinqExpression.Call(CompilerContext.ValidateCompoundAssignmentMethod,
-            LinqExpression.Constant(name), opCall, rightTemp, _ctx.CurrentContext);
+        var validateCall = LinqExpression.Call(CompilerReflectionCache.ValidateCompoundAssignmentMethod,
+            LinqExpression.Constant(name), opCall, rightTemp, _owner.Context.CurrentContext);
 
         return LinqExpression.Block(
             new[] { temp, rightTemp },
-            LinqExpression.Call(CompilerContext.CheckAllowAssignmentMethod, _ctx.OptionsParam,
+            LinqExpression.Call(CompilerReflectionCache.CheckAllowAssignmentMethod, _owner.Context.OptionsParam,
                 LinqExpression.Constant($"{name} {ca.Op.Lexeme} ...")),
             LinqExpression.Assign(rightTemp, rightValueExpr),
             LinqExpression.Assign(temp, validateCall),
-            LinqExpression.Call(_ctx.CurrentContext, CompilerContext.SetMethod,
+            LinqExpression.Call(_owner.Context.CurrentContext, CompilerReflectionCache.SetMethod,
                 LinqExpression.Constant(name), temp),
             temp);
     }
 
     internal LinqExpression CompileMemberCompoundAssign(MemberCompoundAssignExpr expr)
     {
-        var objExpr = Compile(expr.Object);
-        var rightValueExpr = Compile(expr.Value);
+        var objExpr = _owner.Compile(expr.Object);
+        var rightValueExpr = _owner.Compile(expr.Value);
         var objTemp = LinqExpression.Variable(typeof(object), "obj");
         var rightTemp = LinqExpression.Variable(typeof(object), "rightTemp");
         var temp = LinqExpression.Variable(typeof(object), "temp");
 
         // Get current value via MemberAccess.GetMember
         var currentValue = LinqExpression.Call(
-            CompilerContext.GetMemberMethod,
+            CompilerReflectionCache.GetMemberMethod,
             objTemp,
             LinqExpression.Constant(expr.MemberName),
-            _ctx.OptionsParam,
+            _owner.Context.OptionsParam,
             LinqExpression.Constant(false),
-            _ctx.CurrentContext);
+            _owner.Context.CurrentContext);
 
         // Map compound op to base binary op
         if (!OperatorRegistry.CompoundToBaseOperator.TryGetValue(expr.Operator, out var baseOp))
@@ -140,11 +151,11 @@ internal sealed partial class ExpressionCompilerUnit
         if (opInfo == null)
             throw new NotSupportedException($"Binary operator for compound {expr.Operator}");
 
-        LinqExpression opCall = EmitBinaryOpCall(opInfo.Value, currentValue, rightTemp);
+        LinqExpression opCall = _binary.EmitBinaryOpCall(opInfo.Value, currentValue, rightTemp);
 
         // Set via MemberAccess.SetMember
-        var setCall = LinqExpression.Call(CompilerContext.SetMemberMethod,
-            objTemp, LinqExpression.Constant(expr.MemberName), temp, _ctx.OptionsParam, _ctx.CurrentContext);
+        var setCall = LinqExpression.Call(CompilerReflectionCache.SetMemberMethod,
+            objTemp, LinqExpression.Constant(expr.MemberName), temp, _owner.Context.OptionsParam, _owner.Context.CurrentContext);
 
         return LinqExpression.Block(
             new[] { objTemp, rightTemp, temp },
@@ -157,9 +168,9 @@ internal sealed partial class ExpressionCompilerUnit
 
     internal LinqExpression CompileIndexCompoundAssign(IndexCompoundAssignExpr expr)
     {
-        var objExpr = Compile(expr.Object);
-        var indexExpr = Compile(expr.Index);
-        var rightValueExpr = Compile(expr.Value);
+        var objExpr = _owner.Compile(expr.Object);
+        var indexExpr = _owner.Compile(expr.Index);
+        var rightValueExpr = _owner.Compile(expr.Value);
         var objTemp = LinqExpression.Variable(typeof(object), "obj");
         var indexTemp = LinqExpression.Variable(typeof(object), "idx");
         var rightTemp = LinqExpression.Variable(typeof(object), "rightTemp");
@@ -167,8 +178,8 @@ internal sealed partial class ExpressionCompilerUnit
 
         // Get current value via MemberAccess.GetIndex
         var currentValue = LinqExpression.Call(
-            CompilerContext.GetIndexMethod,
-            objTemp, indexTemp, _ctx.OptionsParam);
+            CompilerReflectionCache.GetIndexMethod,
+            objTemp, indexTemp, _owner.Context.OptionsParam);
 
         // Map compound op to base binary op
         if (!OperatorRegistry.CompoundToBaseOperator.TryGetValue(expr.Operator, out var baseOp))
@@ -178,11 +189,11 @@ internal sealed partial class ExpressionCompilerUnit
         if (opInfo == null)
             throw new NotSupportedException($"Binary operator for compound {expr.Operator}");
 
-        LinqExpression opCall = EmitBinaryOpCall(opInfo.Value, currentValue, rightTemp);
+        LinqExpression opCall = _binary.EmitBinaryOpCall(opInfo.Value, currentValue, rightTemp);
 
         // Set via MemberAccess.SetIndex
-        var setCall = LinqExpression.Call(CompilerContext.SetIndexMethod,
-            objTemp, indexTemp, temp, _ctx.OptionsParam);
+        var setCall = LinqExpression.Call(CompilerReflectionCache.SetIndexMethod,
+            objTemp, indexTemp, temp, _owner.Context.OptionsParam);
 
         return LinqExpression.Block(
             new[] { objTemp, indexTemp, rightTemp, temp },
@@ -196,14 +207,14 @@ internal sealed partial class ExpressionCompilerUnit
 
     internal LinqExpression CompileIndexAssign(IndexAssignExpr expr)
     {
-        var target = Compile(expr.Object);
-        var index = Compile(expr.Index);
-        var value = Compile(expr.Value);
+        var target = _owner.Compile(expr.Object);
+        var index = _owner.Compile(expr.Index);
+        var value = _owner.Compile(expr.Value);
 
         var indexTemp = LinqExpression.Variable(typeof(object), "idx");
         var valueTemp = LinqExpression.Variable(typeof(object), "val");
-        var check = LinqExpression.Call(CompilerContext.CheckAllowIndexSetMethod, _ctx.OptionsParam, indexTemp);
-        var set = LinqExpression.Call(CompilerContext.SetIndexMethod, target, indexTemp, valueTemp, _ctx.OptionsParam);
+        var check = LinqExpression.Call(CompilerReflectionCache.CheckAllowIndexSetMethod, _owner.Context.OptionsParam, indexTemp);
+        var set = LinqExpression.Call(CompilerReflectionCache.SetIndexMethod, target, indexTemp, valueTemp, _owner.Context.OptionsParam);
 
         return LinqExpression.Block(
             new[] { indexTemp, valueTemp },
@@ -218,7 +229,7 @@ internal sealed partial class ExpressionCompilerUnit
     {
         var name = inc.Name.Lexeme;
         var isIncrement = inc.Op.Type == TokenType.PlusPlus;
-        var currentValue = CompileIdentifier(new IdentifierExpr(inc.Name));
+        var currentValue = _owner.CompileIdentifier(new IdentifierExpr(inc.Name));
         var one = LinqExpression.Convert(LinqExpression.Constant(1), typeof(object));
         var temp = LinqExpression.Variable(typeof(object), "temp");
         var original = LinqExpression.Variable(typeof(object), "original");
@@ -228,10 +239,10 @@ internal sealed partial class ExpressionCompilerUnit
         var subInfo = OperatorRegistry.GetBinaryOperator(TokenType.Minus)!.Value;
 
         LinqExpression MakeOpCall(LinqExpression left) => isIncrement
-            ? EmitBinaryOpCall(addInfo, left, one)
-            : EmitBinaryOpCall(subInfo, left, one);
+            ? _binary.EmitBinaryOpCall(addInfo, left, one)
+            : _binary.EmitBinaryOpCall(subInfo, left, one);
 
-        var checkExpr = LinqExpression.Call(CompilerContext.CheckAllowAssignmentMethod, _ctx.OptionsParam,
+        var checkExpr = LinqExpression.Call(CompilerReflectionCache.CheckAllowAssignmentMethod, _owner.Context.OptionsParam,
             LinqExpression.Constant(isIncrement ? $"{name}++" : $"{name}--"));
 
         if (inc.IsPrefix)
@@ -240,7 +251,7 @@ internal sealed partial class ExpressionCompilerUnit
                 new[] { temp },
                 checkExpr,
                 LinqExpression.Assign(temp, MakeOpCall(currentValue)),
-                LinqExpression.Call(_ctx.CurrentContext, CompilerContext.SetMethod,
+                LinqExpression.Call(_owner.Context.CurrentContext, CompilerReflectionCache.SetMethod,
                     LinqExpression.Constant(name), temp),
                 temp);
         }
@@ -251,7 +262,7 @@ internal sealed partial class ExpressionCompilerUnit
                 checkExpr,
                 LinqExpression.Assign(original, currentValue),
                 LinqExpression.Assign(temp, MakeOpCall(original)),
-                LinqExpression.Call(_ctx.CurrentContext, CompilerContext.SetMethod,
+                LinqExpression.Call(_owner.Context.CurrentContext, CompilerReflectionCache.SetMethod,
                     LinqExpression.Constant(name), temp),
                 original);
         }
@@ -259,23 +270,23 @@ internal sealed partial class ExpressionCompilerUnit
 
     internal LinqExpression CompileMemberNullCoalesceAssign(MemberNullCoalesceAssignExpr expr)
     {
-        var objExpr = Compile(expr.Object);
+        var objExpr = _owner.Compile(expr.Object);
         var objTemp = LinqExpression.Variable(typeof(object), "obj");
         var temp = LinqExpression.Variable(typeof(object), "temp");
         var result = LinqExpression.Variable(typeof(object), "result");
 
         var currentValue = LinqExpression.Call(
-            CompilerContext.GetMemberMethod,
+            CompilerReflectionCache.GetMemberMethod,
             objTemp,
             LinqExpression.Constant(expr.MemberName),
-            _ctx.OptionsParam,
+            _owner.Context.OptionsParam,
             LinqExpression.Constant(false),
-            _ctx.CurrentContext);
+            _owner.Context.CurrentContext);
 
-        var newValue = Compile(expr.Value);
+        var newValue = _owner.Compile(expr.Value);
 
-        var setCall = LinqExpression.Call(CompilerContext.SetMemberMethod,
-            objTemp, LinqExpression.Constant(expr.MemberName), result, _ctx.OptionsParam, _ctx.CurrentContext);
+        var setCall = LinqExpression.Call(CompilerReflectionCache.SetMemberMethod,
+            objTemp, LinqExpression.Constant(expr.MemberName), result, _owner.Context.OptionsParam, _owner.Context.CurrentContext);
 
         return LinqExpression.Block(
             new[] { objTemp, temp, result },
@@ -292,21 +303,21 @@ internal sealed partial class ExpressionCompilerUnit
 
     internal LinqExpression CompileIndexNullCoalesceAssign(IndexNullCoalesceAssignExpr expr)
     {
-        var objExpr = Compile(expr.Object);
-        var indexExpr = Compile(expr.Index);
+        var objExpr = _owner.Compile(expr.Object);
+        var indexExpr = _owner.Compile(expr.Index);
         var objTemp = LinqExpression.Variable(typeof(object), "obj");
         var indexTemp = LinqExpression.Variable(typeof(object), "idx");
         var temp = LinqExpression.Variable(typeof(object), "temp");
         var result = LinqExpression.Variable(typeof(object), "result");
 
         var currentValue = LinqExpression.Call(
-            CompilerContext.GetIndexMethod,
-            objTemp, indexTemp, _ctx.OptionsParam);
+            CompilerReflectionCache.GetIndexMethod,
+            objTemp, indexTemp, _owner.Context.OptionsParam);
 
-        var newValue = Compile(expr.Value);
+        var newValue = _owner.Compile(expr.Value);
 
-        var setCall = LinqExpression.Call(CompilerContext.SetIndexMethod,
-            objTemp, indexTemp, result, _ctx.OptionsParam);
+        var setCall = LinqExpression.Call(CompilerReflectionCache.SetIndexMethod,
+            objTemp, indexTemp, result, _owner.Context.OptionsParam);
 
         return LinqExpression.Block(
             new[] { objTemp, indexTemp, temp, result },
@@ -324,29 +335,29 @@ internal sealed partial class ExpressionCompilerUnit
 
     internal LinqExpression CompileMemberIncrement(MemberIncrementExpr expr)
     {
-        var objExpr = Compile(expr.Object);
+        var objExpr = _owner.Compile(expr.Object);
         var objTemp = LinqExpression.Variable(typeof(object), "obj");
         var original = LinqExpression.Variable(typeof(object), "original");
         var temp = LinqExpression.Variable(typeof(object), "temp");
         var one = LinqExpression.Convert(LinqExpression.Constant(1), typeof(object));
 
         var currentValue = LinqExpression.Call(
-            CompilerContext.GetMemberMethod,
+            CompilerReflectionCache.GetMemberMethod,
             objTemp,
             LinqExpression.Constant(expr.MemberName),
-            _ctx.OptionsParam,
+            _owner.Context.OptionsParam,
             LinqExpression.Constant(false),
-            _ctx.CurrentContext);
+            _owner.Context.CurrentContext);
 
         var addInfo = OperatorRegistry.GetBinaryOperator(TokenType.Plus)!.Value;
         var subInfo = OperatorRegistry.GetBinaryOperator(TokenType.Minus)!.Value;
 
         LinqExpression MakeOpCall(LinqExpression left) => expr.IsIncrement
-            ? EmitBinaryOpCall(addInfo, left, one)
-            : EmitBinaryOpCall(subInfo, left, one);
+            ? _binary.EmitBinaryOpCall(addInfo, left, one)
+            : _binary.EmitBinaryOpCall(subInfo, left, one);
 
-        var setCall = LinqExpression.Call(CompilerContext.SetMemberMethod,
-            objTemp, LinqExpression.Constant(expr.MemberName), temp, _ctx.OptionsParam, _ctx.CurrentContext);
+        var setCall = LinqExpression.Call(CompilerReflectionCache.SetMemberMethod,
+            objTemp, LinqExpression.Constant(expr.MemberName), temp, _owner.Context.OptionsParam, _owner.Context.CurrentContext);
 
         if (expr.IsPrefix)
         {
@@ -371,8 +382,8 @@ internal sealed partial class ExpressionCompilerUnit
 
     internal LinqExpression CompileIndexIncrement(IndexIncrementExpr expr)
     {
-        var objExpr = Compile(expr.Object);
-        var indexExpr = Compile(expr.Index);
+        var objExpr = _owner.Compile(expr.Object);
+        var indexExpr = _owner.Compile(expr.Index);
         var objTemp = LinqExpression.Variable(typeof(object), "obj");
         var indexTemp = LinqExpression.Variable(typeof(object), "idx");
         var original = LinqExpression.Variable(typeof(object), "original");
@@ -380,18 +391,18 @@ internal sealed partial class ExpressionCompilerUnit
         var one = LinqExpression.Convert(LinqExpression.Constant(1), typeof(object));
 
         var currentValue = LinqExpression.Call(
-            CompilerContext.GetIndexMethod,
-            objTemp, indexTemp, _ctx.OptionsParam);
+            CompilerReflectionCache.GetIndexMethod,
+            objTemp, indexTemp, _owner.Context.OptionsParam);
 
         var addInfo = OperatorRegistry.GetBinaryOperator(TokenType.Plus)!.Value;
         var subInfo = OperatorRegistry.GetBinaryOperator(TokenType.Minus)!.Value;
 
         LinqExpression MakeOpCall(LinqExpression left) => expr.IsIncrement
-            ? EmitBinaryOpCall(addInfo, left, one)
-            : EmitBinaryOpCall(subInfo, left, one);
+            ? _binary.EmitBinaryOpCall(addInfo, left, one)
+            : _binary.EmitBinaryOpCall(subInfo, left, one);
 
-        var setCall = LinqExpression.Call(CompilerContext.SetIndexMethod,
-            objTemp, indexTemp, temp, _ctx.OptionsParam);
+        var setCall = LinqExpression.Call(CompilerReflectionCache.SetIndexMethod,
+            objTemp, indexTemp, temp, _owner.Context.OptionsParam);
 
         if (expr.IsPrefix)
         {

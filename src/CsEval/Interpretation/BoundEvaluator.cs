@@ -39,7 +39,7 @@ internal sealed class BoundEvaluator
         return expr switch
         {
             BoundLiteralExpr literal => literal.Value,
-            BoundIdentifierExpr identifier => RuntimeHelpers.ResolveIdentifier(identifier.Name, _context, _options),
+            BoundIdentifierExpr identifier => IdentifierRuntime.ResolveIdentifier(identifier.Name, _context, _options),
             BoundCastExpr cast => EvaluateCast(cast),
             BoundAsExpr asExpr => EvaluateAs(asExpr),
             BoundIsPatternExpr isPattern => EvaluateIsPattern(isPattern),
@@ -182,14 +182,14 @@ internal sealed class BoundEvaluator
             args[i] = Evaluate(objectCreation.Arguments[i]);
 
         var type = _context.TypeResolver.ResolveType(objectCreation.TypeName);
-        var result = RuntimeHelpers.InvokeConstructor(type, args);
+        var result = ConstructionRuntime.InvokeConstructor(type, args);
 
         foreach (var entry in objectCreation.InitializerEntries)
         {
             var value = Evaluate(entry.Value);
             if (entry.PropertyName != null)
             {
-                SetMember(result!, entry.PropertyName, value);
+                MemberAccess.SetMember(result!, entry.PropertyName, value, _options, _context);
             }
             else
             {
@@ -230,7 +230,7 @@ internal sealed class BoundEvaluator
         var values = new object?[tuple.Elements.Length];
         for (var i = 0; i < tuple.Elements.Length; i++)
             values[i] = Evaluate(tuple.Elements[i]);
-        return RuntimeHelpers.CreateTuple(values);
+        return ConstructionRuntime.CreateTuple(values);
     }
 
     private object? EvaluateMultiDimTypedArrayCreation(BoundMultiDimTypedArrayCreationExpr multiDimTypedArrayCreation)
@@ -266,7 +266,7 @@ internal sealed class BoundEvaluator
 
         if (value != null)
         {
-            var deconstructed = RuntimeHelpers.TryDeconstruct(value, deconstruction.VariableNames.Length);
+            var deconstructed = ConstructionRuntime.TryDeconstruct(value, deconstruction.VariableNames.Length);
             if (deconstructed != null)
             {
                 for (var i = 0; i < deconstruction.VariableNames.Length; i++)
@@ -341,25 +341,11 @@ internal sealed class BoundEvaluator
         var left = Evaluate(binary.Left);
         var right = Evaluate(binary.Right);
 
-        // Preserve ECMA constant-int numeric promotion behavior used by the
-        // legacy evaluator (e.g., uint + 0 should remain uint when representable).
-        if (left != null && right != null &&
-            TypeHelpers.IsArithmetic(left) && TypeHelpers.IsArithmetic(right))
-        {
-            bool leftIsConstant = binary.Left is BoundLiteralExpr;
-            bool rightIsConstant = binary.Right is BoundLiteralExpr;
-
-            if (leftIsConstant || rightIsConstant)
-            {
-                var promoted = NumericDispatch.TryConstantPromotion(
-                    left, leftIsConstant, right, rightIsConstant);
-                if (promoted != null)
-                {
-                    left = promoted.Value.Left;
-                    right = promoted.Value.Right;
-                }
-            }
-        }
+        (left, right) = NumericPromotionRuntime.ApplyConstantNumericPromotion(
+            left,
+            binary.Left is BoundLiteralExpr,
+            right,
+            binary.Right is BoundLiteralExpr);
 
         return binary.Operator switch
         {
@@ -475,7 +461,7 @@ internal sealed class BoundEvaluator
         {
             foreach (var statement in block.Statements)
             {
-                RuntimeHelpers.CheckExecutionConstraints(constraintState, constraints, _cancellationToken);
+                ExecutionRuntime.CheckExecutionConstraints(constraintState, constraints, _cancellationToken);
                 var result = Evaluate(statement);
                 if (result is ControlFlowSignal signal)
                 {
@@ -496,14 +482,7 @@ internal sealed class BoundEvaluator
     private object? EvaluateVariableDecl(BoundVariableDeclExpr variableDecl)
     {
         var value = Evaluate(variableDecl.Initializer);
-        if (variableDecl.DeclaredType != null)
-        {
-            value = TypeHelpers.ValidateAndCoerceType(variableDecl.DeclaredType, value, variableDecl.Name);
-        }
-
-        var inferredType = variableDecl.DeclaredType ?? value?.GetType() ?? typeof(object);
-        _context.DefineNew(variableDecl.Name, value, inferredType);
-        return value;
+        return AssignmentRuntime.DefineVariable(variableDecl.Name, value, variableDecl.DeclaredType, _context);
     }
 
     private object? EvaluateIfStatement(BoundIfStatementExpr ifStatement)
@@ -547,15 +526,9 @@ internal sealed class BoundEvaluator
 
     private object? EvaluateAssign(BoundAssignExpr assign)
     {
-        if (!_options.Sandbox.AllowAssignment)
-            throw new CsEvalException($"Assignment blocked by sandbox: {assign.Name} = ...");
-
         var value = Evaluate(assign.Value);
-        if (_context.TryGetVariableType(assign.Name, out var varType) && varType != null && value != null)
-        {
-            value = TypeHelpers.ValidateAssignment(varType, value, assign.Name);
-        }
-
+        ExecutionRuntime.CheckAllowAssignment(_options, $"{assign.Name} = ...");
+        value = AssignmentRuntime.ValidateVariableAssignment(assign.Name, value, _context);
         _context.Set(assign.Name, value);
         return value;
     }
@@ -563,24 +536,13 @@ internal sealed class BoundEvaluator
     private object? EvaluateNullCoalesceAssign(BoundNullCoalesceAssignExpr nullCoalesceAssign)
     {
         var name = nullCoalesceAssign.Name;
-
-        if (_context.TryGetVariableType(name, out var variableType) &&
-            variableType != null &&
-            !TypeHelpers.IsNullableType(variableType))
-        {
-            throw new CsEvalException(
-                DiagnosticDescriptors.BadBinaryOps,
-                TokenLexemes.GetCanonical(TokenType.QuestionQuestionEqual),
-                variableType.Name,
-                variableType.Name);
-        }
+        ExecutionRuntime.CheckNullCoalesceAssignAllowed(name, _context);
 
         var currentValue = _context.Get(name);
         if (currentValue != null)
             return currentValue;
 
-        if (!_options.Sandbox.AllowAssignment)
-            throw new CsEvalException($"Assignment blocked by sandbox: {name} ??= ...");
+        ExecutionRuntime.CheckAllowAssignment(_options, $"{name} ??= ...");
 
         var newValue = Evaluate(nullCoalesceAssign.Value);
         _context.Set(name, newValue);
@@ -589,165 +551,122 @@ internal sealed class BoundEvaluator
 
     private object? EvaluateCompoundAssign(BoundCompoundAssignExpr compoundAssign)
     {
-        if (!_options.Sandbox.AllowAssignment)
-            throw new CsEvalException(
-                $"Assignment blocked by sandbox: {compoundAssign.Name} {TokenLexemes.GetCanonical(compoundAssign.Operator)} ...");
-
-        var name = compoundAssign.Name;
-        var currentValue = _context.Get(name);
         var rightValue = Evaluate(compoundAssign.Value);
-
-        var baseOperator = ResolveCompoundBaseOperator(compoundAssign.Operator);
-        var result = ApplyBinaryOperator(baseOperator, currentValue, rightValue);
-        result = RuntimeHelpers.ValidateCompoundAssignment(name, result, rightValue, _context);
-
-        _context.Set(name, result);
-        return result;
+        return AssignmentRuntime.ApplyCompoundAssign(
+            compoundAssign.Name,
+            compoundAssign.Operator,
+            rightValue,
+            _context,
+            _options,
+            _isChecked);
     }
 
     private object? EvaluateIncrementDecrement(BoundIncrementDecrementExpr incrementDecrement)
     {
-        if (!_options.Sandbox.AllowAssignment)
-        {
-            throw new CsEvalException(
-                $"Assignment blocked by sandbox: {TokenLexemes.GetCanonical(incrementDecrement.Operator)}{incrementDecrement.Name}");
-        }
-
-        var currentValue = _context.Get(incrementDecrement.Name);
-        var one = GetNumericOne(currentValue);
-
-        var newValue = incrementDecrement.Operator == TokenType.PlusPlus
-            ? Operators.Add(currentValue, one, _options, _context, _isChecked)
-            : Operators.Subtract(currentValue, one, _isChecked);
-
-        _context.Set(incrementDecrement.Name, newValue);
-        return incrementDecrement.IsPrefix ? newValue : currentValue;
+        return AssignmentRuntime.ApplyIncrementDecrement(
+            incrementDecrement.Name,
+            incrementDecrement.Operator == TokenType.PlusPlus,
+            incrementDecrement.IsPrefix,
+            _context,
+            _options,
+            _isChecked);
     }
 
     private object? EvaluateMemberAssign(BoundMemberAssignExpr memberAssign)
     {
-        var obj = Evaluate(memberAssign.Target);
+        var target = Evaluate(memberAssign.Target);
         var value = Evaluate(memberAssign.Value);
-
-        if (obj == null)
-            throw new CsEvalException($"Cannot assign to property '{memberAssign.MemberName}' on null");
-
-        SetMember(obj, memberAssign.MemberName, value);
-        return value;
+        return AssignmentRuntime.ApplyMemberAssign(target, memberAssign.MemberName, value, _options, _context);
     }
 
     private object? EvaluateIndexAssign(BoundIndexAssignExpr indexAssign)
     {
-        var obj = Evaluate(indexAssign.Target);
+        var target = Evaluate(indexAssign.Target);
         var index = Evaluate(indexAssign.Index);
         var value = Evaluate(indexAssign.Value);
-
-        if (obj == null)
-            throw new CsEvalException(DiagnosticDescriptors.BadIndexerAccess, TypeNameFormatter.Null);
-
-        SetIndex(obj, index, value);
-        return value;
+        return AssignmentRuntime.ApplyIndexAssign(target, index, value, _options);
     }
 
     private object? EvaluateMemberCompoundAssign(BoundMemberCompoundAssignExpr memberCompoundAssign)
     {
-        var obj = Evaluate(memberCompoundAssign.Target);
-        if (obj == null)
-            throw new CsEvalException($"Cannot access property '{memberCompoundAssign.MemberName}' on null");
-
-        var currentValue = GetMember(obj, memberCompoundAssign.MemberName);
+        var target = Evaluate(memberCompoundAssign.Target);
         var rightValue = Evaluate(memberCompoundAssign.Value);
-        var baseOperator = ResolveCompoundBaseOperator(memberCompoundAssign.Operator);
-        var result = ApplyBinaryOperator(baseOperator, currentValue, rightValue);
-
-        SetMember(obj, memberCompoundAssign.MemberName, result);
-        return result;
+        return AssignmentRuntime.ApplyMemberCompoundAssign(
+            target,
+            memberCompoundAssign.MemberName,
+            memberCompoundAssign.Operator,
+            rightValue,
+            _options,
+            _context,
+            _isChecked);
     }
 
     private object? EvaluateIndexCompoundAssign(BoundIndexCompoundAssignExpr indexCompoundAssign)
     {
-        var obj = Evaluate(indexCompoundAssign.Target);
-        if (obj == null)
-            throw new CsEvalException(DiagnosticDescriptors.BadIndexerAccess, TypeNameFormatter.Null);
-
+        var target = Evaluate(indexCompoundAssign.Target);
         var index = Evaluate(indexCompoundAssign.Index);
-        var currentValue = GetIndex(obj, index);
         var rightValue = Evaluate(indexCompoundAssign.Value);
-        var baseOperator = ResolveCompoundBaseOperator(indexCompoundAssign.Operator);
-        var result = ApplyBinaryOperator(baseOperator, currentValue, rightValue);
-
-        SetIndex(obj, index, result);
-        return result;
+        return AssignmentRuntime.ApplyIndexCompoundAssign(
+            target,
+            index,
+            indexCompoundAssign.Operator,
+            rightValue,
+            _options,
+            _context,
+            _isChecked);
     }
 
     private object? EvaluateMemberNullCoalesceAssign(BoundMemberNullCoalesceAssignExpr memberNullCoalesceAssign)
     {
-        var obj = Evaluate(memberNullCoalesceAssign.Target);
-        if (obj == null)
-            throw new CsEvalException($"Cannot access property '{memberNullCoalesceAssign.MemberName}' on null");
-
-        var currentValue = GetMember(obj, memberNullCoalesceAssign.MemberName);
-        if (currentValue != null)
-            return currentValue;
-
+        var target = Evaluate(memberNullCoalesceAssign.Target);
         var newValue = Evaluate(memberNullCoalesceAssign.Value);
-        SetMember(obj, memberNullCoalesceAssign.MemberName, newValue);
-        return newValue;
+        return AssignmentRuntime.ApplyMemberNullCoalesceAssign(
+            target,
+            memberNullCoalesceAssign.MemberName,
+            newValue,
+            _options,
+            _context);
     }
 
     private object? EvaluateIndexNullCoalesceAssign(BoundIndexNullCoalesceAssignExpr indexNullCoalesceAssign)
     {
-        var obj = Evaluate(indexNullCoalesceAssign.Target);
-        if (obj == null)
-            throw new CsEvalException(DiagnosticDescriptors.BadIndexerAccess, TypeNameFormatter.Null);
-
+        var target = Evaluate(indexNullCoalesceAssign.Target);
         var index = Evaluate(indexNullCoalesceAssign.Index);
-        var currentValue = GetIndex(obj, index);
-        if (currentValue != null)
-            return currentValue;
-
         var newValue = Evaluate(indexNullCoalesceAssign.Value);
-        SetIndex(obj, index, newValue);
-        return newValue;
+        return AssignmentRuntime.ApplyIndexNullCoalesceAssign(target, index, newValue, _options);
     }
 
     private object? EvaluateMemberIncrement(BoundMemberIncrementExpr memberIncrement)
     {
-        var obj = Evaluate(memberIncrement.Target);
-        if (obj == null)
-            throw new CsEvalException($"Cannot access property '{memberIncrement.MemberName}' on null");
-
-        var currentValue = GetMember(obj, memberIncrement.MemberName);
-        var one = GetNumericOne(currentValue);
-        var newValue = memberIncrement.IsIncrement
-            ? Operators.Add(currentValue, one, _options, _context, _isChecked)
-            : Operators.Subtract(currentValue, one, _isChecked);
-
-        SetMember(obj, memberIncrement.MemberName, newValue);
-        return memberIncrement.IsPrefix ? newValue : currentValue;
+        var target = Evaluate(memberIncrement.Target);
+        return AssignmentRuntime.ApplyMemberIncrement(
+            target,
+            memberIncrement.MemberName,
+            memberIncrement.IsIncrement,
+            memberIncrement.IsPrefix,
+            _options,
+            _context,
+            _isChecked);
     }
 
     private object? EvaluateIndexIncrement(BoundIndexIncrementExpr indexIncrement)
     {
-        var obj = Evaluate(indexIncrement.Target);
-        if (obj == null)
-            throw new CsEvalException(DiagnosticDescriptors.BadIndexerAccess, TypeNameFormatter.Null);
-
+        var target = Evaluate(indexIncrement.Target);
         var index = Evaluate(indexIncrement.Index);
-        var currentValue = GetIndex(obj, index);
-        var one = GetNumericOne(currentValue);
-        var newValue = indexIncrement.IsIncrement
-            ? Operators.Add(currentValue, one, _options, _context, _isChecked)
-            : Operators.Subtract(currentValue, one, _isChecked);
-
-        SetIndex(obj, index, newValue);
-        return indexIncrement.IsPrefix ? newValue : currentValue;
+        return AssignmentRuntime.ApplyIndexIncrement(
+            target,
+            index,
+            indexIncrement.IsIncrement,
+            indexIncrement.IsPrefix,
+            _options,
+            _context,
+            _isChecked);
     }
 
     private object? EvaluateThrow(BoundThrowExpr throwExpr)
     {
         var result = Evaluate(throwExpr.Expression);
-        var exception = RuntimeHelpers.ValidateThrowOperand(result);
+        var exception = ExecutionRuntime.ValidateThrowOperand(result);
         throw exception;
     }
 
@@ -894,7 +813,7 @@ internal sealed class BoundEvaluator
         {
             while (TypeHelpers.RequireBoolean(Evaluate(whileExpr.Condition)))
             {
-                RuntimeHelpers.CheckExecutionConstraints(constraintState, constraints, _cancellationToken);
+                ExecutionRuntime.CheckExecutionConstraints(constraintState, constraints, _cancellationToken);
                 iterationContext.ClearScope();
 
                 var previousContext = _context;
@@ -946,7 +865,7 @@ internal sealed class BoundEvaluator
 
             while (forExpr.Condition == null || TypeHelpers.RequireBoolean(Evaluate(forExpr.Condition)))
             {
-                RuntimeHelpers.CheckExecutionConstraints(constraintState, constraints, _cancellationToken);
+                ExecutionRuntime.CheckExecutionConstraints(constraintState, constraints, _cancellationToken);
                 bodyContext.ClearScope();
 
                 var previousContext = _context;
@@ -996,7 +915,7 @@ internal sealed class BoundEvaluator
         {
             do
             {
-                RuntimeHelpers.CheckExecutionConstraints(constraintState, constraints, _cancellationToken);
+                ExecutionRuntime.CheckExecutionConstraints(constraintState, constraints, _cancellationToken);
                 iterationContext.ClearScope();
 
                 var previousContext = _context;
@@ -1046,7 +965,7 @@ internal sealed class BoundEvaluator
         {
             foreach (var item in enumerable)
             {
-                RuntimeHelpers.CheckExecutionConstraints(constraintState, constraints, _cancellationToken);
+                ExecutionRuntime.CheckExecutionConstraints(constraintState, constraints, _cancellationToken);
 
                 var previousContext = _context;
                 _context = _context.CreateChild();
@@ -1358,12 +1277,10 @@ internal sealed class BoundEvaluator
     private object? EvaluateCall(BoundCallExpr call)
     {
         var args = new object?[call.Arguments.Length];
-        var hasOutArgs = false;
+        var outBindings = CollectOutBindings(call.Arguments);
         for (var i = 0; i < call.Arguments.Length; i++)
         {
             args[i] = Evaluate(call.Arguments[i]);
-            if (!hasOutArgs && call.Arguments[i] is BoundOutArgExpr)
-                hasOutArgs = true;
         }
 
         if (call.Callee is BoundMemberAccessExpr memberAccess && memberAccess.Plan != null)
@@ -1374,7 +1291,7 @@ internal sealed class BoundEvaluator
 
             if (!call.Plan.IsModuleCall)
             {
-                RuntimeHelpers.EnsureMethodCallsAllowed(
+                ExecutionRuntime.EnsureMethodCallsAllowed(
                     _options,
                     call.Plan.SelectedMethod.Name,
                     call.Plan.IsStaticCall ? call.Plan.SelectedMethod.DeclaringType : null);
@@ -1387,28 +1304,26 @@ internal sealed class BoundEvaluator
                 _cancellationToken);
             if (result.Success)
             {
-                if (hasOutArgs)
-                    DefineOutVariables(call.Arguments, args);
+                if (outBindings.Length > 0)
+                    IdentifierRuntime.DefineOutVariables(args, outBindings, _context);
                 return result.Value;
             }
         }
 
         var callee = Evaluate(call.Callee);
         var invokeResult = CsEval.Runtime.MethodInvoker.InvokeCall(callee, args, _context, _options, _cancellationToken);
-        if (hasOutArgs)
-            DefineOutVariables(call.Arguments, args);
+        if (outBindings.Length > 0)
+            IdentifierRuntime.DefineOutVariables(args, outBindings, _context);
         return invokeResult;
     }
 
     private object? EvaluateInvoke(BoundInvokeExpr invoke)
     {
         var args = new object?[invoke.Arguments.Length];
-        var hasOutArgs = false;
+        var outBindings = CollectOutBindings(invoke.Arguments);
         for (var i = 0; i < invoke.Arguments.Length; i++)
         {
             args[i] = Evaluate(invoke.Arguments[i]);
-            if (!hasOutArgs && invoke.Arguments[i] is BoundOutArgExpr)
-                hasOutArgs = true;
         }
 
         IReadOnlyList<string>? typeArguments = invoke.TypeArguments.IsDefaultOrEmpty
@@ -1417,15 +1332,15 @@ internal sealed class BoundEvaluator
 
         if (invoke.Callee is BoundIdentifierExpr identifier)
         {
-            var result = RuntimeHelpers.InvokeIdentifierCall(
+            var result = IdentifierRuntime.InvokeIdentifierCall(
                 identifier.Name,
                 args,
                 _context,
                 _options,
                 _cancellationToken,
                 typeArguments);
-            if (hasOutArgs)
-                DefineOutVariables(invoke.Arguments, args);
+            if (outBindings.Length > 0)
+                IdentifierRuntime.DefineOutVariables(args, outBindings, _context);
             return result;
         }
 
@@ -1441,8 +1356,8 @@ internal sealed class BoundEvaluator
                 _options,
                 _cancellationToken,
                 typeArguments);
-            if (hasOutArgs)
-                DefineOutVariables(invoke.Arguments, args);
+            if (outBindings.Length > 0)
+                IdentifierRuntime.DefineOutVariables(args, outBindings, _context);
             return result;
         }
 
@@ -1454,24 +1369,24 @@ internal sealed class BoundEvaluator
             _options,
             _cancellationToken,
             typeArguments);
-        if (hasOutArgs)
-            DefineOutVariables(invoke.Arguments, args);
+        if (outBindings.Length > 0)
+            IdentifierRuntime.DefineOutVariables(args, outBindings, _context);
         return invokeResult;
     }
 
-    private void DefineOutVariables(IReadOnlyList<BoundExpr> arguments, object?[] values)
+    private static OutVariableBinding[] CollectOutBindings(IReadOnlyList<BoundExpr> arguments)
     {
-        for (var i = 0; i < values.Length; i++)
+        List<OutVariableBinding>? bindings = null;
+        for (var i = 0; i < arguments.Count; i++)
         {
-            if (arguments[i] is not BoundOutArgExpr { IsDiscard: false } outArg)
-                continue;
-
-            var outValue = values[i];
-            var variableType = outValue?.GetType() ?? typeof(object);
-            if (outArg.TypeName != null)
-                variableType = _context.TypeResolver.ResolveType(outArg.TypeName);
-            _context.DefineNew(outArg.VariableName, outValue, variableType);
+            if (arguments[i] is BoundOutArgExpr { IsDiscard: false } outArg)
+            {
+                bindings ??= [];
+                bindings.Add(new OutVariableBinding(i, outArg.VariableName, outArg.TypeName));
+            }
         }
+
+        return bindings?.ToArray() ?? [];
     }
 
     private object? EvaluateLambda(BoundLambdaExpr lambda)
@@ -1485,7 +1400,7 @@ internal sealed class BoundEvaluator
 
         if (pipeline.Right is BoundIdentifierExpr rightIdentifier)
         {
-            return RuntimeHelpers.InvokePipelineIdentifier(
+            return IdentifierRuntime.InvokePipelineIdentifier(
                 left,
                 rightIdentifier.Name,
                 _context,
@@ -1504,51 +1419,6 @@ internal sealed class BoundEvaluator
         var start = Convert.ToInt32(startValue);
         var end = Convert.ToInt32(endValue);
         return RangeHelpers.GenerateRange(start, end, range.ExclusiveEnd);
-    }
-
-    private static object GetNumericOne(object? value) => value switch
-    {
-        int => 1, long => 1L, double => 1.0, float => 1.0f, decimal => 1m,
-        short => 1, byte => 1, sbyte => 1, ushort => 1, uint => 1u, ulong => 1ul,
-        _ => 1
-    };
-
-    private static TokenType ResolveCompoundBaseOperator(TokenType compoundOperator)
-    {
-        if (OperatorRegistry.CompoundToBaseOperator.TryGetValue(compoundOperator, out var baseOperator))
-            return baseOperator;
-
-        throw new BindingNotSupportedException(
-            $"Unknown compound assignment operator '{TokenLexemes.GetCanonical(compoundOperator)}'");
-    }
-
-    private object? ApplyBinaryOperator(TokenType operatorType, object? left, object? right)
-    {
-        return operatorType switch
-        {
-            TokenType.Plus => Operators.Add(left, right, _options, _context, _isChecked),
-            TokenType.Minus => Operators.Subtract(left, right, _isChecked),
-            TokenType.Star => Operators.Multiply(left, right, _options, _isChecked),
-            TokenType.Slash => Operators.Divide(left, right),
-            TokenType.Percent => Operators.Modulo(left, right),
-            TokenType.EqualEqual => Operators.Equals(left, right),
-            TokenType.BangEqual => Operators.NotEquals(left, right),
-            TokenType.EqualEqualEqual => Operators.Equals(left, right),
-            TokenType.BangEqualEqual => Operators.NotEquals(left, right),
-            TokenType.Less => Operators.LessThan(left, right, _options),
-            TokenType.LessEqual => Operators.LessThanOrEqual(left, right, _options),
-            TokenType.Greater => Operators.GreaterThan(left, right, _options),
-            TokenType.GreaterEqual => Operators.GreaterThanOrEqual(left, right, _options),
-            TokenType.Amp => Operators.BitwiseAnd(left, right),
-            TokenType.Pipe => Operators.BitwiseOr(left, right),
-            TokenType.Caret => Operators.BitwiseXor(left, right),
-            TokenType.LessLess => Operators.LeftShift(left, right),
-            TokenType.GreaterGreater => Operators.RightShift(left, right),
-            TokenType.GreaterGreaterGreater => Operators.UnsignedRightShift(left, right),
-            TokenType.StarStar => Operators.Power(left, right),
-            _ => throw new BindingNotSupportedException(
-                $"Compound assignment base operator '{operatorType}' is not implemented")
-        };
     }
 
     private object? EvaluateChecked(BoundCheckedExpr checkedExpr)
@@ -1588,117 +1458,5 @@ internal sealed class BoundEvaluator
     }
 
     private object? MatchPattern(object? value, Pattern pattern)
-    {
-        switch (pattern)
-        {
-            case ConstantPattern constantPattern:
-            {
-                var constantValue = EvaluatePatternExpression(constantPattern.Value);
-                if (constantValue is Type typeValue)
-                    return TypeHelpers.IsType(value, typeValue);
-                return (bool)Operators.Equals(value, constantValue);
-            }
-
-            case TypePattern typePattern:
-            {
-                var targetType = _context.TypeResolver.ResolveType(typePattern.TypeToken.Lexeme);
-                var isMatch = TypeHelpers.IsType(value, targetType);
-                if (isMatch && typePattern.VariableName != null)
-                    _context.DefineNew(typePattern.VariableName.Value.Lexeme, value, targetType);
-                return isMatch;
-            }
-
-            case VarPattern varPattern:
-            {
-                var runtimeType = value?.GetType() ?? typeof(object);
-                _context.DefineNew(varPattern.VariableName.Lexeme, value, runtimeType);
-                return true;
-            }
-
-            case DiscardPattern:
-                return true;
-
-            case NotPattern notPattern:
-                return !TypeHelpers.RequireBoolean(MatchPattern(value, notPattern.Operand));
-
-            case AndPattern andPattern:
-                return TypeHelpers.RequireBoolean(MatchPattern(value, andPattern.Left)) &&
-                       TypeHelpers.RequireBoolean(MatchPattern(value, andPattern.Right));
-
-            case OrPattern orPattern:
-                return TypeHelpers.RequireBoolean(MatchPattern(value, orPattern.Left)) ||
-                       TypeHelpers.RequireBoolean(MatchPattern(value, orPattern.Right));
-
-            case ParenthesizedPattern parenthesizedPattern:
-                return MatchPattern(value, parenthesizedPattern.Inner);
-
-            case RelationalPattern relationalPattern:
-            {
-                var operand = EvaluatePatternExpression(relationalPattern.Operand);
-                return relationalPattern.Operator.Type switch
-                {
-                    TokenType.Less => TypeHelpers.RequireBoolean(Operators.LessThan(value, operand, _options)),
-                    TokenType.LessEqual => TypeHelpers.RequireBoolean(Operators.LessThanOrEqual(value, operand, _options)),
-                    TokenType.Greater => TypeHelpers.RequireBoolean(Operators.GreaterThan(value, operand, _options)),
-                    TokenType.GreaterEqual => TypeHelpers.RequireBoolean(Operators.GreaterThanOrEqual(value, operand, _options)),
-                    _ => throw new CsEvalException(
-                        $"Unknown relational pattern operator '{relationalPattern.Operator.Lexeme}'")
-                };
-            }
-
-            case PropertyPattern propertyPattern:
-            {
-                if (propertyPattern.TypeToken != null)
-                {
-                    var propertyTargetType = _context.TypeResolver.ResolveType(propertyPattern.TypeToken.Value.Lexeme);
-                    if (!TypeHelpers.IsType(value, propertyTargetType))
-                        return false;
-                }
-
-                if (value == null)
-                    return false;
-
-                foreach (var (name, subPattern) in propertyPattern.Properties)
-                {
-                    var propertyValue = GetMember(value, name.Lexeme);
-                    if (!TypeHelpers.RequireBoolean(MatchPattern(propertyValue, subPattern)))
-                        return false;
-                }
-
-                if (propertyPattern.VariableName != null)
-                {
-                    var runtimeType = value.GetType();
-                    _context.DefineNew(propertyPattern.VariableName.Value.Lexeme, value, runtimeType);
-                }
-
-                return true;
-            }
-
-            default:
-                throw new CsEvalException($"Pattern type '{pattern.GetType().Name}' not yet implemented");
-        }
-    }
-
-    private object? EvaluatePatternExpression(Expr expression)
-    {
-        var binder = new CsEval.Binding.Binder();
-        var boundExpression = binder.Bind(expression, new BindingContext(_context));
-        return Evaluate(boundExpression);
-    }
-
-    private object? GetMember(object obj, string name)
-        => MemberAccess.GetMember(obj, name, _options, nullSafe: false, _context);
-
-    private object? GetIndex(object obj, object? index)
-        => MemberAccess.GetIndex(obj, index, _options);
-
-    private void SetMember(object obj, string name, object? value)
-        => MemberAccess.SetMember(obj, name, value, _options, _context);
-
-    private void SetIndex(object obj, object? index, object? value)
-    {
-        if (!_options.Sandbox.AllowIndexSet)
-            throw new CsEvalException($"Index assignment blocked by sandbox: [{index}] = ...");
-        MemberAccess.SetIndex(obj, index, value, _options);
-    }
+        => PatternRuntime.MatchPattern(value, pattern, _context, _options, _cancellationToken);
 }

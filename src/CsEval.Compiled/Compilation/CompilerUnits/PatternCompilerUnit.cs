@@ -5,7 +5,7 @@ namespace CsEval.Compiled.Compilation.CompilerUnits;
 
 /// <summary>
 /// Compiles pattern matching nodes (is-pattern, switch expression, all pattern types)
-/// to Expression Trees. Receives shared state via CompilerContext.
+/// to Expression Trees. Receives shared state via CompilerReflectionCache.
 /// </summary>
 internal sealed class PatternCompilerUnit
 {
@@ -57,18 +57,18 @@ internal sealed class PatternCompilerUnit
             // Save parent context and create child context for this arm
             statements.Add(LinqExpression.Assign(parentContextVar, _ctx.CurrentContext));
             statements.Add(LinqExpression.Assign(_ctx.CurrentContext,
-                LinqExpression.Call(_ctx.CurrentContext, CompilerContext.CreateChildMethod)));
+                LinqExpression.Call(_ctx.CurrentContext, CompilerReflectionCache.CreateChildMethod)));
 
             // Compile pattern match against the cached subject
             var patternMatch = CompilePatternMatch(subjectVar, arm.Pattern);
-            var matchBool = LinqExpression.Call(CompilerContext.RequireBooleanMethod, patternMatch);
+            var matchBool = LinqExpression.Call(CompilerReflectionCache.RequireBooleanMethod, patternMatch);
 
             // Build the condition: pattern matches AND when guard (if present)
             LinqExpression condition = matchBool;
             if (arm.WhenGuard != null)
             {
                 var guardResult = Compile(arm.WhenGuard);
-                var guardBool = LinqExpression.Call(CompilerContext.RequireBooleanMethod, guardResult);
+                var guardBool = LinqExpression.Call(CompilerReflectionCache.RequireBooleanMethod, guardResult);
                 condition = LinqExpression.AndAlso(matchBool, guardBool);
             }
 
@@ -138,7 +138,7 @@ internal sealed class PatternCompilerUnit
         // If constant is a Type, do TypeHelpers.IsType check; otherwise do Operators.Equals
         var isTypeCheck = LinqExpression.TypeIs(constVar, typeof(Type));
         var typeCheckResult = LinqExpression.Convert(
-            LinqExpression.Call(CompilerContext.IsTypeMethod, value, LinqExpression.Convert(constVar, typeof(Type))),
+            LinqExpression.Call(CompilerReflectionCache.IsTypeMethod, value, LinqExpression.Convert(constVar, typeof(Type))),
             typeof(object));
         var equalityResult = LinqExpression.Call(equalsInfo.Method, value, constVar);
 
@@ -154,11 +154,11 @@ internal sealed class PatternCompilerUnit
         // Resolve type via context's TypeResolver
         var resolvedType = LinqExpression.Call(
             _ctx.TypeResolverExpr,
-            CompilerContext.ResolveTypeMethod,
+            CompilerReflectionCache.ResolveTypeMethod,
             LinqExpression.Constant(tp.TypeToken.Lexeme));
 
         var typeCheck = LinqExpression.Call(
-            CompilerContext.IsTypeMethod,
+            CompilerReflectionCache.IsTypeMethod,
             value,
             resolvedType);
 
@@ -178,15 +178,15 @@ internal sealed class PatternCompilerUnit
             LinqExpression.Assign(typeValueVar, value),
             LinqExpression.Assign(resolvedTypeVar, LinqExpression.Call(
                 _ctx.TypeResolverExpr,
-                CompilerContext.ResolveTypeMethod,
+                CompilerReflectionCache.ResolveTypeMethod,
                 LinqExpression.Constant(tp.TypeToken.Lexeme))),
             LinqExpression.Assign(matchVar, LinqExpression.Call(
-                CompilerContext.IsTypeMethod,
+                CompilerReflectionCache.IsTypeMethod,
                 typeValueVar,
                 resolvedTypeVar)),
             LinqExpression.IfThen(
                 matchVar,
-                LinqExpression.Call(_ctx.CurrentContext, CompilerContext.DefineNewMethod,
+                LinqExpression.Call(_ctx.CurrentContext, CompilerReflectionCache.DefineNewMethod,
                     LinqExpression.Constant(tp.VariableName.Value.Lexeme),
                     typeValueVar,
                     resolvedTypeVar)),
@@ -205,7 +205,7 @@ internal sealed class PatternCompilerUnit
             typeof(object),
             [valueVar],
             LinqExpression.Assign(valueVar, value),
-            LinqExpression.Call(_ctx.CurrentContext, CompilerContext.DefineNewMethod,
+            LinqExpression.Call(_ctx.CurrentContext, CompilerReflectionCache.DefineNewMethod,
                 LinqExpression.Constant(vp.VariableName.Lexeme),
                 valueVar,
                 runtimeType),
@@ -220,7 +220,7 @@ internal sealed class PatternCompilerUnit
     private LinqExpression CompileNotPattern(LinqExpression value, NotPattern np)
     {
         var inner = CompilePatternMatch(value, np.Operand);
-        var innerBool = LinqExpression.Call(CompilerContext.RequireBooleanMethod, inner);
+        var innerBool = LinqExpression.Call(CompilerReflectionCache.RequireBooleanMethod, inner);
         return LinqExpression.Convert(LinqExpression.Not(innerBool), typeof(object));
     }
 
@@ -228,8 +228,8 @@ internal sealed class PatternCompilerUnit
     {
         var leftResult = CompilePatternMatch(value, ap.Left);
         var rightResult = CompilePatternMatch(value, ap.Right);
-        var leftBool = LinqExpression.Call(CompilerContext.RequireBooleanMethod, leftResult);
-        var rightBool = LinqExpression.Call(CompilerContext.RequireBooleanMethod, rightResult);
+        var leftBool = LinqExpression.Call(CompilerReflectionCache.RequireBooleanMethod, leftResult);
+        var rightBool = LinqExpression.Call(CompilerReflectionCache.RequireBooleanMethod, rightResult);
         return LinqExpression.Convert(LinqExpression.AndAlso(leftBool, rightBool), typeof(object));
     }
 
@@ -237,8 +237,8 @@ internal sealed class PatternCompilerUnit
     {
         var leftResult = CompilePatternMatch(value, op.Left);
         var rightResult = CompilePatternMatch(value, op.Right);
-        var leftBool = LinqExpression.Call(CompilerContext.RequireBooleanMethod, leftResult);
-        var rightBool = LinqExpression.Call(CompilerContext.RequireBooleanMethod, rightResult);
+        var leftBool = LinqExpression.Call(CompilerReflectionCache.RequireBooleanMethod, leftResult);
+        var rightBool = LinqExpression.Call(CompilerReflectionCache.RequireBooleanMethod, rightResult);
         return LinqExpression.Convert(LinqExpression.OrElse(leftBool, rightBool), typeof(object));
     }
 
@@ -279,12 +279,12 @@ internal sealed class PatternCompilerUnit
         {
             var propResolvedType = LinqExpression.Call(
                 _ctx.TypeResolverExpr,
-                CompilerContext.ResolveTypeMethod,
+                CompilerReflectionCache.ResolveTypeMethod,
                 LinqExpression.Constant(pp.TypeToken.Value.Lexeme));
 
             matchStatements.Add(LinqExpression.IfThen(
                 LinqExpression.Not(LinqExpression.Call(
-                    CompilerContext.IsTypeMethod,
+                    CompilerReflectionCache.IsTypeMethod,
                     valueVar,
                     propResolvedType)),
                 LinqExpression.Assign(matchResult, LinqExpression.Constant(false))));
@@ -295,7 +295,7 @@ internal sealed class PatternCompilerUnit
         {
             // Get member value: MemberAccess.GetMember(value, name, options, false, context)
             var propValue = LinqExpression.Call(
-                CompilerContext.GetMemberMethod,
+                CompilerReflectionCache.GetMemberMethod,
                 valueVar,
                 LinqExpression.Constant(name.Lexeme),
                 _ctx.OptionsParam,
@@ -304,7 +304,7 @@ internal sealed class PatternCompilerUnit
 
             // Recursively compile sub-pattern match
             var subMatch = CompilePatternMatch(propValue, subPattern);
-            var subMatchBool = LinqExpression.Call(CompilerContext.RequireBooleanMethod, subMatch);
+            var subMatchBool = LinqExpression.Call(CompilerReflectionCache.RequireBooleanMethod, subMatch);
 
             matchStatements.Add(LinqExpression.IfThen(
                 matchResult, // Only check if still matching
@@ -319,7 +319,7 @@ internal sealed class PatternCompilerUnit
             var runtimeType = LinqExpression.Call(valueVar, typeof(object).GetMethod("GetType")!);
             matchStatements.Add(LinqExpression.IfThen(
                 matchResult,
-                LinqExpression.Call(_ctx.CurrentContext, CompilerContext.DefineNewMethod,
+                LinqExpression.Call(_ctx.CurrentContext, CompilerReflectionCache.DefineNewMethod,
                     LinqExpression.Constant(pp.VariableName.Value.Lexeme),
                     valueVar,
                     runtimeType)));

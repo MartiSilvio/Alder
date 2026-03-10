@@ -432,7 +432,7 @@ internal sealed class Evaluator : IExprVisitor<object?>
         }
         else if (expr.Callee is IdentifierExpr id)
         {
-            result = RuntimeHelpers.InvokeIdentifierCall(
+            result = IdentifierRuntime.InvokeIdentifierCall(
                 id.Name.Lexeme,
                 args,
                 _context,
@@ -450,7 +450,7 @@ internal sealed class Evaluator : IExprVisitor<object?>
         // entries in the args array with the actual values produced by the method.
         // Define out variables in the current scope.
         if (outBindings is { Count: > 0 })
-            RuntimeHelpers.DefineOutVariables(args, outBindings, _context);
+            IdentifierRuntime.DefineOutVariables(args, outBindings, _context);
 
         return result;
     }
@@ -564,7 +564,7 @@ internal sealed class Evaluator : IExprVisitor<object?>
         var op = ResolveCompoundOperator(expr.Op.Type, expr.Op.Lexeme);
 
         var result = op(this, currentValue, rightValue);
-        result = RuntimeHelpers.ValidateCompoundAssignment(name, result, rightValue, _context);
+        result = AssignmentRuntime.ValidateCompoundAssignment(name, result, rightValue, _context);
 
         _context.Set(name, result);
         return result;
@@ -770,7 +770,7 @@ internal sealed class Evaluator : IExprVisitor<object?>
         {
             foreach (var stmt in expr.Statements)
             {
-                RuntimeHelpers.CheckExecutionConstraints(constraintState, constraints, _cancellationToken);
+                ExecutionRuntime.CheckExecutionConstraints(constraintState, constraints, _cancellationToken);
                 var result = Evaluate(stmt);
                 if (result is ControlFlowSignal signal)
                 {
@@ -835,7 +835,7 @@ internal sealed class Evaluator : IExprVisitor<object?>
     {
         var args = expr.Arguments.Select(arg => Evaluate(arg)).ToArray();
         var type = _context.TypeResolver.ResolveType(expr.TypeName);
-        var result = RuntimeHelpers.InvokeConstructor(type, args);
+        var result = ConstructionRuntime.InvokeConstructor(type, args);
 
         // Apply object/collection initializer if present
         if (expr.Initializer != null)
@@ -941,7 +941,7 @@ internal sealed class Evaluator : IExprVisitor<object?>
     public object? VisitThrow(ThrowExpr expr)
     {
         var result = Evaluate(expr.Expression);
-        var ex = RuntimeHelpers.ValidateThrowOperand(result);
+        var ex = ExecutionRuntime.ValidateThrowOperand(result);
         throw ex;
     }
 
@@ -950,7 +950,7 @@ internal sealed class Evaluator : IExprVisitor<object?>
         var values = new object?[expr.Elements.Count];
         for (var i = 0; i < expr.Elements.Count; i++)
             values[i] = Evaluate(expr.Elements[i].Expression);
-        return RuntimeHelpers.CreateTuple(values);
+        return ConstructionRuntime.CreateTuple(values);
     }
 
     public object? VisitDeconstruction(DeconstructionExpr expr)
@@ -974,7 +974,7 @@ internal sealed class Evaluator : IExprVisitor<object?>
         // Deconstruct() method path -- types with public void Deconstruct(out T1, out T2, ...)
         if (value is not null)
         {
-            var deconstructed = RuntimeHelpers.TryDeconstruct(value, expr.VariableNames.Count);
+            var deconstructed = ConstructionRuntime.TryDeconstruct(value, expr.VariableNames.Count);
             if (deconstructed != null)
             {
                 for (var i = 0; i < expr.VariableNames.Count; i++)
@@ -1204,7 +1204,7 @@ internal sealed class Evaluator : IExprVisitor<object?>
         {
             while (TypeHelpers.RequireBoolean(Evaluate(expr.Condition)))
             {
-                RuntimeHelpers.CheckExecutionConstraints(constraintState, constraints, _cancellationToken);
+                ExecutionRuntime.CheckExecutionConstraints(constraintState, constraints, _cancellationToken);
 
                 var previousContext = _context;
                 _context = _context.CreateChild();
@@ -1254,7 +1254,7 @@ internal sealed class Evaluator : IExprVisitor<object?>
 
             while (expr.Condition == null || TypeHelpers.RequireBoolean(Evaluate(expr.Condition)))
             {
-                RuntimeHelpers.CheckExecutionConstraints(constraintState, constraints, _cancellationToken);
+                ExecutionRuntime.CheckExecutionConstraints(constraintState, constraints, _cancellationToken);
 
                 var iterationContext = _context;
                 _context = _context.CreateChild();
@@ -1302,7 +1302,7 @@ internal sealed class Evaluator : IExprVisitor<object?>
         {
             do
             {
-                RuntimeHelpers.CheckExecutionConstraints(constraintState, constraints, _cancellationToken);
+                ExecutionRuntime.CheckExecutionConstraints(constraintState, constraints, _cancellationToken);
 
                 var previousContext = _context;
                 _context = _context.CreateChild();
@@ -1351,7 +1351,7 @@ internal sealed class Evaluator : IExprVisitor<object?>
         {
             foreach (var item in enumerable)
             {
-                RuntimeHelpers.CheckExecutionConstraints(constraintState, constraints, _cancellationToken);
+                ExecutionRuntime.CheckExecutionConstraints(constraintState, constraints, _cancellationToken);
 
                 var previousContext = _context;
                 _context = _context.CreateChild();
@@ -1654,7 +1654,7 @@ internal sealed class Evaluator : IExprVisitor<object?>
         if (expr.Right is IdentifierExpr rightIdentifier)
         {
             var leftValue = Evaluate(expr.Left);
-            return RuntimeHelpers.InvokePipelineIdentifier(
+            return IdentifierRuntime.InvokePipelineIdentifier(
                 leftValue,
                 rightIdentifier.Name.Lexeme,
                 _context,

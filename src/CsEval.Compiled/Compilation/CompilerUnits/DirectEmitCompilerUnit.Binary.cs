@@ -97,7 +97,7 @@ internal sealed partial class DirectEmitCompilerUnit
             : leftExpr.Type == typeof(object)
                 ? LinqExpression.Convert(
                     LinqExpression.Call(
-                        CompilerContext.CoerceNumericMethod,
+                        CompilerReflectionCache.CoerceNumericMethod,
                         leftExpr,
                         LinqExpression.Constant(leftType, typeof(Type))),
                     leftType)
@@ -107,7 +107,7 @@ internal sealed partial class DirectEmitCompilerUnit
             : rightExpr.Type == typeof(object)
                 ? LinqExpression.Convert(
                     LinqExpression.Call(
-                        CompilerContext.CoerceNumericMethod,
+                        CompilerReflectionCache.CoerceNumericMethod,
                         rightExpr,
                         LinqExpression.Constant(rightType, typeof(Type))),
                     rightType)
@@ -127,7 +127,7 @@ internal sealed partial class DirectEmitCompilerUnit
                 : rightExpr.Type == typeof(object)
                     ? LinqExpression.Convert(
                         LinqExpression.Call(
-                            CompilerContext.CoerceNumericMethod,
+                            CompilerReflectionCache.CoerceNumericMethod,
                             rightExpr,
                             LinqExpression.Constant(typeof(int), typeof(Type))),
                         typeof(int))
@@ -382,7 +382,7 @@ internal sealed partial class DirectEmitCompilerUnit
         {
             converted = LinqExpression.Convert(
                 LinqExpression.Call(
-                    CompilerContext.CoerceNumericMethod,
+                    CompilerReflectionCache.CoerceNumericMethod,
                     converted,
                     LinqExpression.Constant(targetType, typeof(Type))),
                 targetType);

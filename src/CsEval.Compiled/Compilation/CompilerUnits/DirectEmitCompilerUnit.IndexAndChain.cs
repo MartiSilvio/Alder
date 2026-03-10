@@ -20,7 +20,7 @@ internal sealed partial class DirectEmitCompilerUnit
             metadataType != typeof(object))
         {
             targetType = metadataType;
-            var typedVariableGetter = CompilerContext.GetVariableTypedMethodFor(targetType);
+            var typedVariableGetter = CompilerReflectionCache.GetVariableTypedMethodFor(targetType);
             targetExpr = LinqExpression.Call(
                 typedVariableGetter,
                 LinqExpression.Constant(identifier.Name.Lexeme),
@@ -280,7 +280,7 @@ internal sealed partial class DirectEmitCompilerUnit
                     else if (compiledArg.Type == typeof(object))
                     {
                         var coerced = LinqExpression.Call(
-                            CompilerContext.CoerceNumericMethod,
+                            CompilerReflectionCache.CoerceNumericMethod,
                             compiledArg,
                             LinqExpression.Constant(parameters[a].ParameterType, typeof(Type)));
                         typedArgs[a] = LinqExpression.Convert(coerced, parameters[a].ParameterType);

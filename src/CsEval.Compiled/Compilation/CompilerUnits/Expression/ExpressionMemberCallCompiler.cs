@@ -3,38 +3,45 @@ using CsEval.Runtime;
 
 namespace CsEval.Compiled.Compilation.CompilerUnits;
 
-internal sealed partial class ExpressionCompilerUnit
+internal sealed class ExpressionMemberCallCompiler
 {
+    private readonly ExpressionCompilerUnit _owner;
+
+    internal ExpressionMemberCallCompiler(ExpressionCompilerUnit owner)
+    {
+        _owner = owner;
+    }
+
     internal LinqExpression CompileMemberAccess(MemberAccessExpr m)
     {
-        var directResult = _directEmit.TryEmitDirectMemberAccess(m);
+        var directResult = _owner.DirectEmit.TryEmitDirectMemberAccess(m);
         if (directResult != null)
             return directResult;
 
-        var obj = Compile(m.Object);
+        var obj = _owner.Compile(m.Object);
 
         return LinqExpression.Call(
-            CompilerContext.GetMemberMethod,
+            CompilerReflectionCache.GetMemberMethod,
             obj,
             LinqExpression.Constant(m.Name.Lexeme),
-            _ctx.OptionsParam,
+            _owner.Context.OptionsParam,
             LinqExpression.Constant(m.NullSafe),
-            _ctx.CurrentContext);
+            _owner.Context.CurrentContext);
     }
 
     internal LinqExpression CompileIndexAccess(IndexAccessExpr expr)
     {
-        var directResult = _directEmit.TryEmitDirectIndexAccess(expr);
+        var directResult = _owner.DirectEmit.TryEmitDirectIndexAccess(expr);
         if (directResult != null)
             return directResult;
 
-        var target = Compile(expr.Object);
+        var target = _owner.Compile(expr.Object);
 
         if (expr.NullSafe)
         {
             // arr?[i] - null-safe index access
             var targetVar = LinqExpression.Variable(typeof(object), "target");
-            var index = Compile(expr.Index);
+            var index = _owner.Compile(expr.Index);
             return LinqExpression.Block(
                 typeof(object),
                 [targetVar],
@@ -42,37 +49,37 @@ internal sealed partial class ExpressionCompilerUnit
                 LinqExpression.Condition(
                     LinqExpression.Equal(targetVar, LinqExpression.Constant(null, typeof(object))),
                     LinqExpression.Constant(null, typeof(object)),
-                    LinqExpression.Call(CompilerContext.GetIndexMethod, targetVar, index, _ctx.OptionsParam)));
+                    LinqExpression.Call(CompilerReflectionCache.GetIndexMethod, targetVar, index, _owner.Context.OptionsParam)));
         }
 
-        var indexValue = Compile(expr.Index);
-        return LinqExpression.Call(CompilerContext.GetIndexMethod, target, indexValue, _ctx.OptionsParam);
+        var indexValue = _owner.Compile(expr.Index);
+        return LinqExpression.Call(CompilerReflectionCache.GetIndexMethod, target, indexValue, _owner.Context.OptionsParam);
     }
 
     internal LinqExpression CompileSlice(SliceExpr expr)
     {
-        var target = Compile(expr.Target);
+        var target = _owner.Compile(expr.Target);
         var start = expr.Start != null
-            ? Compile(expr.Start)
+            ? _owner.Compile(expr.Start)
             : LinqExpression.Constant(null, typeof(object));
         var end = expr.End != null
-            ? Compile(expr.End)
+            ? _owner.Compile(expr.End)
             : LinqExpression.Constant(null, typeof(object));
 
         if (expr.Step != null)
         {
-            var step = Compile(expr.Step);
-            return LinqExpression.Call(CompilerContext.GetSliceStepMethod, target, start, end, step, _ctx.OptionsParam);
+            var step = _owner.Compile(expr.Step);
+            return LinqExpression.Call(CompilerReflectionCache.GetSliceStepMethod, target, start, end, step, _owner.Context.OptionsParam);
         }
 
-        return LinqExpression.Call(CompilerContext.GetSliceMethod, target, start, end, _ctx.OptionsParam);
+        return LinqExpression.Call(CompilerReflectionCache.GetSliceMethod, target, start, end, _owner.Context.OptionsParam);
     }
 
     internal LinqExpression CompileCall(CallExpr call)
     {
         if (call.Callee is MemberAccessExpr ma)
         {
-            var directResult = _directEmit.TryEmitDirectCall(call, ma);
+            var directResult = _owner.DirectEmit.TryEmitDirectCall(call, ma);
             if (directResult != null) return directResult;
         }
 
@@ -94,56 +101,56 @@ internal sealed partial class ExpressionCompilerUnit
         // Check if this is a member access call (target.Method(args))
         if (call.Callee is MemberAccessExpr memberAccess)
         {
-            var target = Compile(memberAccess.Object);
+            var target = _owner.Compile(memberAccess.Object);
             var methodName = memberAccess.Name.Lexeme;
 
             callExpr = LinqExpression.Call(
-                CompilerContext.InvokeMemberCallMethod,
+                CompilerReflectionCache.InvokeMemberCallMethod,
                 target,
                 LinqExpression.Constant(methodName),
                 argsVar,
                 LinqExpression.Constant(memberAccess.NullSafe),
-                _ctx.CurrentContext,
-                _ctx.OptionsParam,
-                _ctx.CtParam,
+                _owner.Context.CurrentContext,
+                _owner.Context.OptionsParam,
+                _owner.Context.CtParam,
                 typeArgsExpr);
         }
         else if (call.Callee is IdentifierExpr calleeId &&
-                 _ctx.TryGetLambdaParam(calleeId.Name.Lexeme, out var lambdaCallee))
+                 _owner.Context.TryGetLambdaParam(calleeId.Name.Lexeme, out var lambdaCallee))
         {
             // Lambda parameter used as callee: resolve from args[] and invoke as value
             callExpr = LinqExpression.Call(
-                CompilerContext.InvokeCallMethod,
+                CompilerReflectionCache.InvokeCallMethod,
                 lambdaCallee,
                 argsVar,
-                _ctx.CurrentContext,
-                _ctx.OptionsParam,
-                _ctx.CtParam,
+                _owner.Context.CurrentContext,
+                _owner.Context.OptionsParam,
+                _owner.Context.CtParam,
                 typeArgsExpr);
         }
         else if (call.Callee is IdentifierExpr calleeId2)
         {
             // Identifier call target: use direct dispatcher for both Standard and Extended modes.
             callExpr = LinqExpression.Call(
-                CompilerContext.InvokeIdentifierCallMethod,
+                CompilerReflectionCache.InvokeIdentifierCallMethod,
                 LinqExpression.Constant(calleeId2.Name.Lexeme),
                 argsVar,
-                _ctx.CurrentContext,
-                _ctx.OptionsParam,
-                _ctx.CtParam,
+                _owner.Context.CurrentContext,
+                _owner.Context.OptionsParam,
+                _owner.Context.CtParam,
                 typeArgsExpr);
         }
         else
         {
             // General call: evaluate callee and invoke
-            var callee = Compile(call.Callee);
+            var callee = _owner.Compile(call.Callee);
             callExpr = LinqExpression.Call(
-                CompilerContext.InvokeCallMethod,
+                CompilerReflectionCache.InvokeCallMethod,
                 callee,
                 argsVar,
-                _ctx.CurrentContext,
-                _ctx.OptionsParam,
-                _ctx.CtParam,
+                _owner.Context.CurrentContext,
+                _owner.Context.OptionsParam,
+                _owner.Context.CtParam,
                 typeArgsExpr);
         }
 
@@ -163,10 +170,10 @@ internal sealed partial class ExpressionCompilerUnit
             LinqExpression.Assign(argsVar, argsInit),
             LinqExpression.Assign(resultVar, callExpr),
             LinqExpression.Call(
-                CompilerContext.DefineOutVariablesMethod,
+                CompilerReflectionCache.DefineOutVariablesMethod,
                 argsVar,
                 LinqExpression.Constant(outBindings, typeof(IReadOnlyList<OutVariableBinding>)),
-                _ctx.CurrentContext)
+                _owner.Context.CurrentContext)
         };
 
         // Return the call result
@@ -203,7 +210,7 @@ internal sealed partial class ExpressionCompilerUnit
     {
         return LinqExpression.Convert(
             LinqExpression.New(
-                CompilerContext.OutArgMarkerCtor,
+                CompilerReflectionCache.OutArgMarkerCtor,
                 LinqExpression.Constant(outArg.VariableName),
                 LinqExpression.Constant(outArg.TypeName, typeof(string)),
                 LinqExpression.Constant(outArg.IsDiscard)),
@@ -217,11 +224,11 @@ internal sealed partial class ExpressionCompilerUnit
             // Wrap named argument in NamedArg: new NamedArg(name, value)
             return LinqExpression.Convert(
                 LinqExpression.New(
-                    CompilerContext.NamedArgCtor,
+                    CompilerReflectionCache.NamedArgCtor,
                     LinqExpression.Constant(namedArg.Name.Lexeme),
-                    Compile(namedArg.Value)),
+                    _owner.Compile(namedArg.Value)),
                 typeof(object));
         }
-        return Compile(arg);
+        return _owner.Compile(arg);
     }
 }

@@ -59,7 +59,7 @@ internal sealed class CompilerHelpers
         var saveParent = LinqExpression.Assign(parentVar, _ctx.CurrentContext);
         var createChild = LinqExpression.Assign(
             _ctx.CurrentContext,
-            LinqExpression.Call(_ctx.CurrentContext, CompilerContext.CreateChildMethod));
+            LinqExpression.Call(_ctx.CurrentContext, CompilerReflectionCache.CreateChildMethod));
 
         return LinqExpression.Block(saveParent, createChild);
     }

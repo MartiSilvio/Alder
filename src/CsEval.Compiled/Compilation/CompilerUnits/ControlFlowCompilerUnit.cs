@@ -7,7 +7,7 @@ namespace CsEval.Compiled.Compilation.CompilerUnits;
 
 /// <summary>
 /// Compiles control flow nodes (if, while, for, foreach, switch, try/catch/finally, etc.)
-/// to Expression Trees. Receives shared state via CompilerContext.
+/// to Expression Trees. Receives shared state via CompilerReflectionCache.
 /// </summary>
 internal sealed class ControlFlowCompilerUnit
 {
@@ -63,7 +63,7 @@ internal sealed class ControlFlowCompilerUnit
 
     internal LinqExpression CompileIf(IfStatementExpr ifStmt)
     {
-        var condition = LinqExpression.Call(CompilerContext.RequireBooleanMethod, Compile(ifStmt.Condition));
+        var condition = LinqExpression.Call(CompilerReflectionCache.RequireBooleanMethod, Compile(ifStmt.Condition));
 
         // Then branch with scope
         var thenBlock = _helpers.Scoped(() =>
@@ -114,7 +114,7 @@ internal sealed class ControlFlowCompilerUnit
             CompileCancellationCheck(),
             // Condition check - break if false
             LinqExpression.IfThen(
-                LinqExpression.Not(LinqExpression.Call(CompilerContext.RequireBooleanMethod, Compile(whileStmt.Condition))),
+                LinqExpression.Not(LinqExpression.Call(CompilerReflectionCache.RequireBooleanMethod, Compile(whileStmt.Condition))),
                 LinqExpression.Break(breakLabel)),
             CompileConstraintCheck(),
             // Body with scope
@@ -161,7 +161,7 @@ internal sealed class ControlFlowCompilerUnit
             if (forStmt.Condition != null)
             {
                 loopStatements.Add(LinqExpression.IfThen(
-                    LinqExpression.Not(LinqExpression.Call(CompilerContext.RequireBooleanMethod, Compile(forStmt.Condition))),
+                    LinqExpression.Not(LinqExpression.Call(CompilerReflectionCache.RequireBooleanMethod, Compile(forStmt.Condition))),
                     LinqExpression.Break(breakLabel)));
             }
 
@@ -223,7 +223,7 @@ internal sealed class ControlFlowCompilerUnit
             LinqExpression.Label(continueLabel),
             // Condition check - break if false
             LinqExpression.IfThen(
-                LinqExpression.Not(LinqExpression.Call(CompilerContext.RequireBooleanMethod, Compile(doWhile.Condition))),
+                LinqExpression.Not(LinqExpression.Call(CompilerReflectionCache.RequireBooleanMethod, Compile(doWhile.Condition))),
                 LinqExpression.Break(breakLabel))
         };
 
@@ -246,7 +246,7 @@ internal sealed class ControlFlowCompilerUnit
         // Get enumerator
         var getEnumerator = LinqExpression.Assign(
             enumerator,
-            LinqExpression.Call(CompilerContext.GetEnumeratorMethod, Compile(forEach.Collection)));
+            LinqExpression.Call(CompilerReflectionCache.GetEnumeratorMethod, Compile(forEach.Collection)));
 
         // Enter foreach scope
         return _helpers.Scoped(() =>
@@ -258,7 +258,7 @@ internal sealed class ControlFlowCompilerUnit
                 CompileCancellationCheck(),
                 // MoveNext - break if false
                 LinqExpression.IfThen(
-                    LinqExpression.Not(LinqExpression.Call(enumerator, CompilerContext.MoveNextMethod)),
+                    LinqExpression.Not(LinqExpression.Call(enumerator, CompilerReflectionCache.MoveNextMethod)),
                     LinqExpression.Break(breakLabel)),
                 CompileConstraintCheck(),
                 // Get Current value
@@ -272,7 +272,7 @@ internal sealed class ControlFlowCompilerUnit
                     var iterStatements = new List<LinqExpression>
                     {
                         // Define loop variable in this per-iteration scope (with shadowing check)
-                        LinqExpression.Call(_ctx.CurrentContext, CompilerContext.DefineNewMethod,
+                        LinqExpression.Call(_ctx.CurrentContext, CompilerReflectionCache.DefineNewMethod,
                             LinqExpression.Constant(forEach.VariableName.Lexeme), itemValue,
                             LinqExpression.Constant(typeof(object), typeof(Type)))
                     };
@@ -299,7 +299,7 @@ internal sealed class ControlFlowCompilerUnit
                 LinqExpression.TypeIs(enumerator, typeof(IDisposable)),
                 LinqExpression.Call(
                     LinqExpression.Convert(enumerator, typeof(IDisposable)),
-                    CompilerContext.DisposeMethod));
+                    CompilerReflectionCache.DisposeMethod));
 
             var tryFinally = LinqExpression.TryFinally(
                 loop,
@@ -356,18 +356,18 @@ internal sealed class ControlFlowCompilerUnit
                 // Save context, create child for pattern bindings
                 var saveContext = LinqExpression.Assign(parentContextVar, _ctx.CurrentContext);
                 var createChild = LinqExpression.Assign(_ctx.CurrentContext,
-                    LinqExpression.Call(_ctx.CurrentContext, CompilerContext.CreateChildMethod));
+                    LinqExpression.Call(_ctx.CurrentContext, CompilerReflectionCache.CreateChildMethod));
 
                 // Compile pattern match
                 var patternMatch = _patternUnit!.CompilePatternMatch(switchVar, mapping.Case.CasePattern!);
-                var matchBool = LinqExpression.Call(CompilerContext.RequireBooleanMethod, patternMatch);
+                var matchBool = LinqExpression.Call(CompilerReflectionCache.RequireBooleanMethod, patternMatch);
 
                 // Build condition with optional when guard
                 LinqExpression condition = matchBool;
                 if (mapping.Case.WhenGuard != null)
                 {
                     var guardResult = Compile(mapping.Case.WhenGuard);
-                    var guardBool = LinqExpression.Call(CompilerContext.RequireBooleanMethod, guardResult);
+                    var guardBool = LinqExpression.Call(CompilerReflectionCache.RequireBooleanMethod, guardResult);
                     condition = LinqExpression.AndAlso(matchBool, guardBool);
                 }
 
@@ -491,7 +491,7 @@ internal sealed class ControlFlowCompilerUnit
         var body = Compile(expr.Body);
 
         // Build try/finally with parity disposal semantics (IDisposable + IAsyncDisposable)
-        var disposeCall = LinqExpression.Call(CompilerContext.DisposeResourceMethod, resourceVar);
+        var disposeCall = LinqExpression.Call(CompilerReflectionCache.DisposeResourceMethod, resourceVar);
 
         var tryFinally = LinqExpression.TryFinally(body, disposeCall);
 
@@ -529,7 +529,7 @@ internal sealed class ControlFlowCompilerUnit
         return LinqExpression.Block(
             new[] { lockVar, lockTaken },
             LinqExpression.Assign(lockVar,
-                LinqExpression.Call(CompilerContext.ValidateLockObjectMethod, lockObj)),
+                LinqExpression.Call(CompilerReflectionCache.ValidateLockObjectMethod, lockObj)),
             LinqExpression.Assign(lockTaken, LinqExpression.Constant(false)),
             monitorEnter,
             tryFinally);
@@ -572,7 +572,7 @@ internal sealed class ControlFlowCompilerUnit
                     var bodyStatements = new List<LinqExpression>
                     {
                         // Bind the catch variable in the child context
-                        LinqExpression.Call(_ctx.CurrentContext, CompilerContext.DefineWithTypeMethod,
+                        LinqExpression.Call(_ctx.CurrentContext, CompilerReflectionCache.DefineWithTypeMethod,
                             LinqExpression.Constant(catchClause.VariableName.Value.Lexeme),
                             LinqExpression.Convert(exParam!, typeof(object)),
                             LinqExpression.Constant(catchType, typeof(Type)))
@@ -620,7 +620,7 @@ internal sealed class ControlFlowCompilerUnit
             if (catchClause.WhenGuard != null)
             {
                 filterExpr = LinqExpression.Call(
-                    CompilerContext.EvaluateCatchWhenGuardMethod,
+                    CompilerReflectionCache.EvaluateCatchWhenGuardMethod,
                     LinqExpression.Constant(catchClause.WhenGuard, typeof(Expr)),
                     LinqExpression.Constant(catchClause.VariableName?.Lexeme, typeof(string)),
                     exParam != null
@@ -661,16 +661,16 @@ internal sealed class ControlFlowCompilerUnit
 
     private LinqExpression CompileCancellationCheck()
     {
-        return LinqExpression.Call(_ctx.CtParam, CompilerContext.ThrowIfCancellationRequestedMethod);
+        return LinqExpression.Call(_ctx.CtParam, CompilerReflectionCache.ThrowIfCancellationRequestedMethod);
     }
 
     private LinqExpression CompileConstraintCheck()
     {
         // CheckExecutionConstraints(context.ConstraintState, options.Constraints, ct);
         return LinqExpression.Call(
-            CompilerContext.CheckExecutionConstraintsMethod,
-            LinqExpression.Call(_ctx.CurrentContext, CompilerContext.GetConstraintStateProperty),
-            LinqExpression.Call(_ctx.OptionsParam, CompilerContext.GetConstraintsProperty),
+            CompilerReflectionCache.CheckExecutionConstraintsMethod,
+            LinqExpression.Call(_ctx.CurrentContext, CompilerReflectionCache.GetConstraintStateProperty),
+            LinqExpression.Call(_ctx.OptionsParam, CompilerReflectionCache.GetConstraintsProperty),
             _ctx.CtParam);
     }
 }

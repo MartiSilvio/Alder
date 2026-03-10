@@ -3,28 +3,35 @@ using CsEval.Runtime;
 
 namespace CsEval.Compiled.Compilation.CompilerUnits;
 
-internal sealed partial class ExpressionCompilerUnit
+internal sealed class ExpressionBinaryCompiler
 {
-    private LinqExpression EmitBinaryOpCall(OperatorRegistry.BinaryOpInfo info, LinqExpression left, LinqExpression right)
+    private readonly ExpressionCompilerUnit _owner;
+
+    internal ExpressionBinaryCompiler(ExpressionCompilerUnit owner)
+    {
+        _owner = owner;
+    }
+
+    internal LinqExpression EmitBinaryOpCall(OperatorRegistry.BinaryOpInfo info, LinqExpression left, LinqExpression right)
     {
         left = EnsureObjectExpression(left);
         right = EnsureObjectExpression(right);
 
-        var checkedConst = LinqExpression.Constant(_ctx.IsChecked);
+        var checkedConst = LinqExpression.Constant(_owner.Context.IsChecked);
         LinqExpression call = info.Signature switch
         {
             OperatorRegistry.BinaryOpSignature.TwoArgs =>
                 LinqExpression.Call(info.Method, left, right),
             OperatorRegistry.BinaryOpSignature.WithOptions =>
-                LinqExpression.Call(info.Method, left, right, _ctx.OptionsParam),
+                LinqExpression.Call(info.Method, left, right, _owner.Context.OptionsParam),
             OperatorRegistry.BinaryOpSignature.WithOptionsAndContext =>
-                LinqExpression.Call(info.Method, left, right, _ctx.OptionsParam, _ctx.CurrentContext),
+                LinqExpression.Call(info.Method, left, right, _owner.Context.OptionsParam, _owner.Context.CurrentContext),
             OperatorRegistry.BinaryOpSignature.TwoArgsChecked =>
                 LinqExpression.Call(info.Method, left, right, checkedConst),
             OperatorRegistry.BinaryOpSignature.WithOptionsChecked =>
-                LinqExpression.Call(info.Method, left, right, _ctx.OptionsParam, checkedConst),
+                LinqExpression.Call(info.Method, left, right, _owner.Context.OptionsParam, checkedConst),
             OperatorRegistry.BinaryOpSignature.WithOptionsAndContextChecked =>
-                LinqExpression.Call(info.Method, left, right, _ctx.OptionsParam, _ctx.CurrentContext, checkedConst),
+                LinqExpression.Call(info.Method, left, right, _owner.Context.OptionsParam, _owner.Context.CurrentContext, checkedConst),
             _ => throw new NotSupportedException($"Unknown binary op signature {info.Signature}")
         };
 
@@ -50,14 +57,14 @@ internal sealed partial class ExpressionCompilerUnit
 
     internal LinqExpression CompileBinary(BinaryExpr b)
     {
-        if (_directEmit.TryFoldPureConstantExpression(b, out var folded))
+        if (_owner.DirectEmit.TryFoldPureConstantExpression(b, out var folded))
             return folded;
 
-        if (_directEmit.TryEmitDirectBinary(b) is { } direct)
+        if (_owner.DirectEmit.TryEmitDirectBinary(b) is { } direct)
             return direct;
 
-        var left = Compile(b.Left);
-        var right = Compile(b.Right);
+        var left = _owner.Compile(b.Left);
+        var right = _owner.Compile(b.Right);
 
         // ECMA-334 §10.2.11: Implicit constant expression conversions.
         ApplyConstantPromotion(b, ref left, ref right);
@@ -109,8 +116,8 @@ internal sealed partial class ExpressionCompilerUnit
     internal LinqExpression CompileLogical(LogicalExpr l)
     {
         var opLexeme = l.Op.Lexeme;
-        var leftTypeName = _ctx.TypeInferrer.Infer(l.Left).Name;
-        var rightTypeName = _ctx.TypeInferrer.Infer(l.Right).Name;
+        var leftTypeName = _owner.Context.TypeInferrer.Infer(l.Left).Name;
+        var rightTypeName = _owner.Context.TypeInferrer.Infer(l.Right).Name;
 
         var leftTruthy = CompileLogicalOperandAsBoolean(l.Left, opLexeme, rightTypeName);
         var rightTruthy = CompileLogicalOperandAsBoolean(l.Right, opLexeme, leftTypeName);
@@ -131,7 +138,7 @@ internal sealed partial class ExpressionCompilerUnit
         string opLexeme,
         string otherOperandTypeName)
     {
-        var (compiled, knownType) = CompileTyped(operand);
+        var (compiled, knownType) = _owner.CompileTyped(operand);
 
         if (knownType == typeof(bool) && compiled.Type == typeof(bool))
             return compiled;
@@ -141,7 +148,7 @@ internal sealed partial class ExpressionCompilerUnit
             : LinqExpression.Convert(compiled, typeof(object));
 
         return LinqExpression.Call(
-            CompilerContext.RequireBooleanForLogicalOperatorMethod,
+            CompilerReflectionCache.RequireBooleanForLogicalOperatorMethod,
             boxed,
             LinqExpression.Constant(opLexeme),
             LinqExpression.Constant(otherOperandTypeName));
@@ -149,13 +156,13 @@ internal sealed partial class ExpressionCompilerUnit
 
     internal LinqExpression CompileConditional(ConditionalExpr c)
     {
-        var condition = LinqExpression.Call(CompilerContext.RequireBooleanMethod, Compile(c.Condition));
-        var thenBranch = Compile(c.ThenBranch);
-        var elseBranch = Compile(c.ElseBranch);
+        var condition = LinqExpression.Call(CompilerReflectionCache.RequireBooleanMethod, _owner.Compile(c.Condition));
+        var thenBranch = _owner.Compile(c.ThenBranch);
+        var elseBranch = _owner.Compile(c.ElseBranch);
 
         // Get static types for promotion check (ECMA-334 §12.18)
-        var thenType = _ctx.TypeInferrer.Infer(c.ThenBranch);
-        var elseType = _ctx.TypeInferrer.Infer(c.ElseBranch);
+        var thenType = _owner.Context.TypeInferrer.Infer(c.ThenBranch);
+        var elseType = _owner.Context.TypeInferrer.Infer(c.ElseBranch);
 
         var result = LinqExpression.Condition(condition, thenBranch, elseBranch);
 
@@ -174,8 +181,8 @@ internal sealed partial class ExpressionCompilerUnit
 
     internal LinqExpression CompileNullCoalesce(NullCoalesceExpr n)
     {
-        var left = Compile(n.Left);
-        var right = Compile(n.Right);
+        var left = _owner.Compile(n.Left);
+        var right = _owner.Compile(n.Right);
 
         return LinqExpression.Coalesce(left, right);
     }

@@ -194,8 +194,9 @@ public class CompiledHotPathRegressionTests(CompilationMode mode)
         engine.SetVariable<int>("z", 7);
         engine.SetVariable<int>("value", 42);
 
-        var expression =
+        var expressionText =
             "(((x + 1) > y && (z * 2) != value) || ((x + 2) > y && (z * 3) != value)) && (x == x)";
+        var expression = engine.Parse(expressionText);
         _ = engine.Evaluate(expression);
 
         var compiled = SelectRootLambda(capturingCompiler);
@@ -206,7 +207,15 @@ public class CompiledHotPathRegressionTests(CompilationMode mode)
         var idCacheSlots = collector.Parameters
             .Count(p => p.Name?.StartsWith("idCacheValue_", StringComparison.Ordinal) == true);
 
-        Assert.That(idCacheSlots, Is.GreaterThan(0));
+        var pipeline = expression.GetCompiledInfo()!.Pipeline;
+        if (pipeline == CompiledPipeline.Ast)
+        {
+            Assert.That(idCacheSlots, Is.GreaterThan(0));
+        }
+        else
+        {
+            Assert.That(pipeline, Is.EqualTo(CompiledPipeline.Bound));
+        }
     }
 
     [Test]

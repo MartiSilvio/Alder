@@ -230,7 +230,7 @@ internal sealed partial class DirectEmitCompilerUnit
             else if (compiled.Type == typeof(object))
             {
                 var coerced = LinqExpression.Call(
-                    CompilerContext.CoerceNumericMethod,
+                    CompilerReflectionCache.CoerceNumericMethod,
                     compiled,
                     LinqExpression.Constant(parameters[i].ParameterType, typeof(Type)));
                 typedArgs[i] = LinqExpression.Convert(coerced, parameters[i].ParameterType);
@@ -298,7 +298,7 @@ internal sealed partial class DirectEmitCompilerUnit
             return value;
 
         return LinqExpression.Call(
-            CompilerContext.GetGuardReflectionLeakTypedMethod(valueType),
+            CompilerReflectionCache.GetGuardReflectionLeakTypedMethod(valueType),
             value,
             LinqExpression.Constant(context));
     }

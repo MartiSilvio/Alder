@@ -6,14 +6,18 @@ namespace CsEval.Compiled.Compilation.CompilerUnits;
 
 /// <summary>
 /// Compiles expression nodes (literals, binary, unary, member access, calls, lambdas, etc.)
-/// to Expression Trees. Receives shared state via CompilerContext.
+/// to Expression Trees. Receives shared state via CompilerReflectionCache.
 /// </summary>
-internal sealed partial class ExpressionCompilerUnit
+internal sealed class ExpressionCompilerUnit
 {
     private readonly CompilerContext _ctx;
     private readonly PatternCompilerUnit _patternUnit;
     private readonly DirectEmitCompilerUnit _directEmit;
     private readonly ExtendedSyntaxCompilerUnit _extendedSyntax;
+    private readonly ExpressionBinaryCompiler _binaryCompiler;
+    private readonly ExpressionAssignmentCompiler _assignmentCompiler;
+    private readonly ExpressionMemberCallCompiler _memberIndexCallCompiler;
+    private readonly ExpressionLambdaCompiler _lambdaAndLiteralsCompiler;
 
     // Lazily set references for cross-unit dispatch
     private ControlFlowCompilerUnit? _controlUnit;
@@ -28,7 +32,15 @@ internal sealed partial class ExpressionCompilerUnit
         _patternUnit = patternUnit;
         _directEmit = directEmit;
         _extendedSyntax = extendedSyntax;
+        _binaryCompiler = new ExpressionBinaryCompiler(this);
+        _assignmentCompiler = new ExpressionAssignmentCompiler(this, _binaryCompiler);
+        _memberIndexCallCompiler = new ExpressionMemberCallCompiler(this);
+        _lambdaAndLiteralsCompiler = new ExpressionLambdaCompiler(this);
     }
+
+    internal CompilerContext Context => _ctx;
+    internal DirectEmitCompilerUnit DirectEmit => _directEmit;
+    internal ExtendedSyntaxCompilerUnit ExtendedSyntax => _extendedSyntax;
 
     internal void SetControlFlowUnit(ControlFlowCompilerUnit controlUnit)
     {
@@ -79,7 +91,7 @@ internal sealed partial class ExpressionCompilerUnit
         if (_ctx.Context.TryGetVariableType(name, out var variableType) &&
             variableType == knownType)
         {
-            var typedVariableGetter = CompilerContext.GetVariableTypedMethodFor(knownType);
+            var typedVariableGetter = CompilerReflectionCache.GetVariableTypedMethodFor(knownType);
             var directRead = LinqExpression.Call(
                 typedVariableGetter,
                 LinqExpression.Constant(name),
@@ -88,7 +100,7 @@ internal sealed partial class ExpressionCompilerUnit
             return true;
         }
 
-        var typedResolver = CompilerContext.GetResolveIdentifierTypedMethod(knownType);
+        var typedResolver = CompilerReflectionCache.GetResolveIdentifierTypedMethod(knownType);
         var resolvedRead = LinqExpression.Call(
             typedResolver,
             LinqExpression.Constant(name),
@@ -140,7 +152,7 @@ internal sealed partial class ExpressionCompilerUnit
             return lambdaArg;
 
         return LinqExpression.Call(
-            CompilerContext.ResolveIdentifierMethod,
+            CompilerReflectionCache.ResolveIdentifierMethod,
             LinqExpression.Constant(id.Name.Lexeme),
             _ctx.CurrentContext,
             _ctx.OptionsParam);
@@ -152,7 +164,7 @@ internal sealed partial class ExpressionCompilerUnit
         return LinqExpression.Convert(
             LinqExpression.Call(
                 _ctx.TypeResolverExpr,
-                CompilerContext.ResolveTypeMethod,
+                CompilerReflectionCache.ResolveTypeMethod,
                 LinqExpression.Constant(typeRef.TypeToken.Lexeme)),
             typeof(object));
     }
@@ -173,7 +185,7 @@ internal sealed partial class ExpressionCompilerUnit
     internal LinqExpression CompileThrow(ThrowExpr expr)
     {
         var exceptionExpr = LinqExpression.Call(
-            CompilerContext.ValidateThrowOperandMethod,
+            CompilerReflectionCache.ValidateThrowOperandMethod,
             Compile(expr.Expression));
         // LinqExpression.Throw returns void, but we need object return type.
         // Wrap in block with unreachable default value to satisfy the type system.
@@ -204,14 +216,14 @@ internal sealed partial class ExpressionCompilerUnit
             typeof(object),
             expr.Arguments.Select(Compile));
 
-        // Resolve type via context's TypeResolver then call RuntimeHelpers.InvokeConstructor(type, args)
+        // Resolve type via context's TypeResolver then call ConstructionRuntime.InvokeConstructor(type, args)
         var resolvedType = LinqExpression.Call(
             _ctx.TypeResolverExpr,
-            CompilerContext.ResolveTypeMethod,
+            CompilerReflectionCache.ResolveTypeMethod,
             LinqExpression.Constant(expr.TypeName));
 
         LinqExpression result = LinqExpression.Call(
-            CompilerContext.InvokeConstructorMethod,
+            CompilerReflectionCache.InvokeConstructorMethod,
             resolvedType,
             argsInit);
 
@@ -227,7 +239,7 @@ internal sealed partial class ExpressionCompilerUnit
                 if (entry.PropertyName != null)
                 {
                     statements.Add(LinqExpression.Call(
-                        CompilerContext.ApplyPropertyInitializerMethod,
+                        CompilerReflectionCache.ApplyPropertyInitializerMethod,
                         objVar,
                         LinqExpression.Constant(entry.PropertyName),
                         value,
@@ -237,7 +249,7 @@ internal sealed partial class ExpressionCompilerUnit
                 else
                 {
                     statements.Add(LinqExpression.Call(
-                        CompilerContext.ApplyCollectionInitializerMethod,
+                        CompilerReflectionCache.ApplyCollectionInitializerMethod,
                         objVar,
                         value));
                 }
@@ -254,14 +266,14 @@ internal sealed partial class ExpressionCompilerUnit
     {
         var size = Compile(expr.Size);
 
-        // Resolve element type via context's TypeResolver then call RuntimeHelpers.CreateTypedArray(elementType, sizeValue)
+        // Resolve element type via context's TypeResolver then call ConstructionRuntime.CreateTypedArray(elementType, sizeValue)
         var resolvedType = LinqExpression.Call(
             _ctx.TypeResolverExpr,
-            CompilerContext.ResolveTypeMethod,
+            CompilerReflectionCache.ResolveTypeMethod,
             LinqExpression.Constant(expr.ElementTypeName));
 
         return LinqExpression.Call(
-            CompilerContext.CreateTypedArrayFromTypeNameMethod,
+            CompilerReflectionCache.CreateTypedArrayFromTypeNameMethod,
             resolvedType,
             size);
     }
@@ -270,7 +282,7 @@ internal sealed partial class ExpressionCompilerUnit
     {
         var resolvedType = LinqExpression.Call(
             _ctx.TypeResolverExpr,
-            CompilerContext.ResolveTypeMethod,
+            CompilerReflectionCache.ResolveTypeMethod,
             LinqExpression.Constant(expr.ElementTypeName));
 
         var sizesArray = LinqExpression.NewArrayInit(
@@ -278,7 +290,7 @@ internal sealed partial class ExpressionCompilerUnit
             expr.Sizes.Select(s => Compile(s)));
 
         return LinqExpression.Call(
-            CompilerContext.CreateMultiDimArrayMethod,
+            CompilerReflectionCache.CreateMultiDimArrayMethod,
             resolvedType,
             sizesArray);
     }
@@ -300,10 +312,10 @@ internal sealed partial class ExpressionCompilerUnit
                 LinqExpression.Condition(
                     LinqExpression.Equal(targetVar, LinqExpression.Constant(null, typeof(object))),
                     LinqExpression.Constant(null, typeof(object)),
-                    LinqExpression.Call(CompilerContext.MultiDimArrayGetMethod, targetVar, indicesArray)));
+                    LinqExpression.Call(CompilerReflectionCache.MultiDimArrayGetMethod, targetVar, indicesArray)));
         }
 
-        return LinqExpression.Call(CompilerContext.MultiDimArrayGetMethod, obj, indicesArray);
+        return LinqExpression.Call(CompilerReflectionCache.MultiDimArrayGetMethod, obj, indicesArray);
     }
 
     internal LinqExpression CompileMultiDimIndexAssign(MultiDimIndexAssignExpr expr)
@@ -314,7 +326,7 @@ internal sealed partial class ExpressionCompilerUnit
             expr.Indices.Select(i => Compile(i)));
         var value = Compile(expr.Value);
 
-        return LinqExpression.Call(CompilerContext.MultiDimArraySetMethod, obj, indicesArray, value);
+        return LinqExpression.Call(CompilerReflectionCache.MultiDimArraySetMethod, obj, indicesArray, value);
     }
 
     internal LinqExpression CompileTypedArrayLiteral(TypedArrayLiteralExpr expr)
@@ -325,13 +337,13 @@ internal sealed partial class ExpressionCompilerUnit
         // Resolve the target element type
         var resolvedType = LinqExpression.Call(
             _ctx.TypeResolverExpr,
-            CompilerContext.ResolveTypeMethod,
+            CompilerReflectionCache.ResolveTypeMethod,
             LinqExpression.Constant(expr.ElementTypeName));
 
         // Convert the source array to the typed array T[]
         // ConvertArrayToTyped accepts object (any Array) so no cast to object?[] needed
         return LinqExpression.Call(
-            CompilerContext.ConvertArrayToTypedMethod,
+            CompilerReflectionCache.ConvertArrayToTypedMethod,
             arrayLiteral,
             resolvedType);
     }
@@ -343,9 +355,9 @@ internal sealed partial class ExpressionCompilerUnit
             typeof(object),
             expr.Elements.Select(e => Compile(e.Expression)));
 
-        // Call RuntimeHelpers.CreateTuple(elements)
+        // Call ConstructionRuntime.CreateTuple(elements)
         return LinqExpression.Call(
-            CompilerContext.CreateTupleMethod,
+            CompilerReflectionCache.CreateTupleMethod,
             elementsInit);
     }
 
@@ -359,9 +371,9 @@ internal sealed partial class ExpressionCompilerUnit
             typeof(string),
             expr.VariableNames.Select(n => LinqExpression.Constant(n)));
 
-        // Call RuntimeHelpers.DeconstructTuple(value, variableNames, context)
+        // Call ConstructionRuntime.DeconstructTuple(value, variableNames, context)
         return LinqExpression.Call(
-            CompilerContext.DeconstructTupleMethod,
+            CompilerReflectionCache.DeconstructTupleMethod,
             value,
             variableNamesArray,
             _ctx.CurrentContext);
@@ -375,11 +387,11 @@ internal sealed partial class ExpressionCompilerUnit
         // Resolve type via context's TypeResolver then call TypeHelpers.GetDefaultValue(Type)
         var resolvedType = LinqExpression.Call(
             _ctx.TypeResolverExpr,
-            CompilerContext.ResolveTypeMethod,
+            CompilerReflectionCache.ResolveTypeMethod,
             LinqExpression.Constant(def.TypeToken.Value.Lexeme));
 
         return LinqExpression.Call(
-            CompilerContext.GetDefaultValueMethod,
+            CompilerReflectionCache.GetDefaultValueMethod,
             resolvedType);
     }
 
@@ -411,11 +423,11 @@ internal sealed partial class ExpressionCompilerUnit
         // Resolve target type via context's TypeResolver
         var resolvedType = LinqExpression.Call(
             _ctx.TypeResolverExpr,
-            CompilerContext.ResolveTypeMethod,
+            CompilerReflectionCache.ResolveTypeMethod,
             LinqExpression.Constant(cast.TargetType.Lexeme));
 
         return LinqExpression.Call(
-            CompilerContext.ExplicitCastMethod,
+            CompilerReflectionCache.ExplicitCastMethod,
             value,
             resolvedType,
             LinqExpression.Constant(effectiveSourceType, typeof(Type)),
@@ -429,16 +441,100 @@ internal sealed partial class ExpressionCompilerUnit
         // Resolve target type via context's TypeResolver
         var resolvedType = LinqExpression.Call(
             _ctx.TypeResolverExpr,
-            CompilerContext.ResolveTypeMethod,
+            CompilerReflectionCache.ResolveTypeMethod,
             LinqExpression.Constant(asExpr.TargetType.Lexeme));
 
         return LinqExpression.Call(
-            CompilerContext.TryAsMethod,
+            CompilerReflectionCache.TryAsMethod,
             value,
             resolvedType);
     }
 
+    internal LinqExpression CompileBinary(BinaryExpr b) =>
+        _binaryCompiler.CompileBinary(b);
 
+    internal LinqExpression CompileLogical(LogicalExpr l) =>
+        _binaryCompiler.CompileLogical(l);
 
+    internal LinqExpression CompileConditional(ConditionalExpr c) =>
+        _binaryCompiler.CompileConditional(c);
+
+    internal LinqExpression CompileNullCoalesce(NullCoalesceExpr n) =>
+        _binaryCompiler.CompileNullCoalesce(n);
+
+    internal LinqExpression CompileVariableDecl(VariableDeclExpr v) =>
+        _assignmentCompiler.CompileVariableDecl(v);
+
+    internal LinqExpression CompileAssign(AssignExpr a) =>
+        _assignmentCompiler.CompileAssign(a);
+
+    internal LinqExpression CompileCompoundAssign(CompoundAssignExpr ca) =>
+        _assignmentCompiler.CompileCompoundAssign(ca);
+
+    internal LinqExpression CompileMemberCompoundAssign(MemberCompoundAssignExpr expr) =>
+        _assignmentCompiler.CompileMemberCompoundAssign(expr);
+
+    internal LinqExpression CompileIndexCompoundAssign(IndexCompoundAssignExpr expr) =>
+        _assignmentCompiler.CompileIndexCompoundAssign(expr);
+
+    internal LinqExpression CompileIndexAssign(IndexAssignExpr expr) =>
+        _assignmentCompiler.CompileIndexAssign(expr);
+
+    internal LinqExpression CompileIncrementDecrement(IncrementDecrementExpr inc) =>
+        _assignmentCompiler.CompileIncrementDecrement(inc);
+
+    internal LinqExpression CompileMemberNullCoalesceAssign(MemberNullCoalesceAssignExpr expr) =>
+        _assignmentCompiler.CompileMemberNullCoalesceAssign(expr);
+
+    internal LinqExpression CompileIndexNullCoalesceAssign(IndexNullCoalesceAssignExpr expr) =>
+        _assignmentCompiler.CompileIndexNullCoalesceAssign(expr);
+
+    internal LinqExpression CompileMemberIncrement(MemberIncrementExpr expr) =>
+        _assignmentCompiler.CompileMemberIncrement(expr);
+
+    internal LinqExpression CompileIndexIncrement(IndexIncrementExpr expr) =>
+        _assignmentCompiler.CompileIndexIncrement(expr);
+
+    internal LinqExpression CompileMemberAccess(MemberAccessExpr m) =>
+        _memberIndexCallCompiler.CompileMemberAccess(m);
+
+    internal LinqExpression CompileIndexAccess(IndexAccessExpr expr) =>
+        _memberIndexCallCompiler.CompileIndexAccess(expr);
+
+    internal LinqExpression CompileSlice(SliceExpr expr) =>
+        _memberIndexCallCompiler.CompileSlice(expr);
+
+    internal LinqExpression CompileCall(CallExpr call) =>
+        _memberIndexCallCompiler.CompileCall(call);
+
+    internal LinqExpression CompileOutArg(OutArgExpr outArg) =>
+        _memberIndexCallCompiler.CompileOutArg(outArg);
+
+    internal LinqExpression CompileLambda(LambdaExpr lambda) =>
+        _lambdaAndLiteralsCompiler.CompileLambda(lambda);
+
+    internal LinqExpression CompileArrayLiteral(ArrayLiteralExpr expr) =>
+        _lambdaAndLiteralsCompiler.CompileArrayLiteral(expr);
+
+    internal LinqExpression CompileObjectLiteral(ObjectLiteralExpr expr) =>
+        _lambdaAndLiteralsCompiler.CompileObjectLiteral(expr);
+
+    internal LinqExpression CompileInterpolatedString(InterpolatedStringExpr expr) =>
+        _lambdaAndLiteralsCompiler.CompileInterpolatedString(expr);
+
+    internal LinqExpression CompileMemberAssign(MemberAssignExpr expr) =>
+        _lambdaAndLiteralsCompiler.CompileMemberAssign(expr);
+
+    internal LinqExpression CompileNullCoalesceAssign(NullCoalesceAssignExpr expr) =>
+        _lambdaAndLiteralsCompiler.CompileNullCoalesceAssign(expr);
+
+    internal LinqExpression CompilePipeline(PipelineExpr expr) =>
+        _lambdaAndLiteralsCompiler.CompilePipeline(expr);
+
+    internal LinqExpression CompileRange(RangeExpr expr) =>
+        _lambdaAndLiteralsCompiler.CompileRange(expr);
+
+    internal LinqExpression CompileChainedComparison(Parsing.ChainedComparisonExpr expr) =>
+        _lambdaAndLiteralsCompiler.CompileChainedComparison(expr);
 
 }

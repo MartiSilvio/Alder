@@ -3,8 +3,15 @@ using CsEval.Runtime;
 
 namespace CsEval.Compiled.Compilation.CompilerUnits;
 
-internal sealed partial class ExpressionCompilerUnit
+internal sealed class ExpressionLambdaCompiler
 {
+    private readonly ExpressionCompilerUnit _owner;
+
+    internal ExpressionLambdaCompiler(ExpressionCompilerUnit owner)
+    {
+        _owner = owner;
+    }
+
     internal LinqExpression CompileLambda(LambdaExpr lambda)
     {
         var parameterNames = lambda.Parameters.Select(p => p.Name.Lexeme).ToList();
@@ -56,10 +63,10 @@ internal sealed partial class ExpressionCompilerUnit
 
         // Create CompiledLambdaValue(parameters, compiledBody, closure, fast0, fast1, fast2)
         return LinqExpression.New(
-            CompilerContext.CompiledLambdaValueCtor,
+            CompilerReflectionCache.CompiledLambdaValueCtor,
             listInit,
             compiledDelegate,
-            _ctx.CurrentContext,
+            _owner.Context.CurrentContext,
             fast0Expr,
             fast1Expr,
             fast2Expr,
@@ -87,28 +94,28 @@ internal sealed partial class ExpressionCompilerUnit
             blockVars.Add(childContextVar);
             statements.Add(LinqExpression.Assign(
                 childContextVar,
-                LinqExpression.Call(closureParam, CompilerContext.CreateChildMethod)));
+                LinqExpression.Call(closureParam, CompilerReflectionCache.CreateChildMethod)));
         }
 
-        var savedContext = _ctx.CurrentContext;
-        _ctx.CurrentContext = needsChildContext ? childContextVar! : closureParam;
-        _ctx.PushLambdaParams(paramMap);
+        var savedContext = _owner.Context.CurrentContext;
+        _owner.Context.CurrentContext = needsChildContext ? childContextVar! : closureParam;
+        _owner.Context.PushLambdaParams(paramMap);
 
         var lambdaReturnLabel = LinqExpression.Label(typeof(object), "lambdaReturn");
         var lambdaReturnValue = LinqExpression.Variable(typeof(object), "lambdaReturnValue");
         blockVars.Add(lambdaReturnValue);
-        _ctx.PushReturnContext(lambdaReturnLabel, lambdaReturnValue);
+        _owner.Context.PushReturnContext(lambdaReturnLabel, lambdaReturnValue);
 
         try
         {
-            var compiledBody = Compile(lambda.Body);
+            var compiledBody = _owner.Compile(lambda.Body);
             statements.Add(LinqExpression.Assign(lambdaReturnValue, compiledBody));
         }
         finally
         {
-            _ctx.CurrentContext = savedContext;
-            _ctx.PopLambdaParams();
-            _ctx.PopReturnContext();
+            _owner.Context.CurrentContext = savedContext;
+            _owner.Context.PopLambdaParams();
+            _owner.Context.PopReturnContext();
         }
 
         statements.Add(LinqExpression.Label(lambdaReturnLabel, lambdaReturnValue));
@@ -120,35 +127,35 @@ internal sealed partial class ExpressionCompilerUnit
         var listVar = LinqExpression.Variable(typeof(List<object?>), "list");
         var statements = new List<LinqExpression>
         {
-            LinqExpression.Assign(listVar, LinqExpression.New(CompilerContext.ListCtor))
+            LinqExpression.Assign(listVar, LinqExpression.New(CompilerReflectionCache.ListCtor))
         };
 
         foreach (var element in expr.Elements)
         {
             if (element is SpreadExpr spread)
             {
-                var spreadValue = Compile(spread.Expression);
-                statements.Add(LinqExpression.Call(CompilerContext.SpreadIntoListMethod, listVar, spreadValue));
+                var spreadValue = _owner.Compile(spread.Expression);
+                statements.Add(LinqExpression.Call(CompilerReflectionCache.SpreadIntoListMethod, listVar, spreadValue));
             }
             else
             {
-                statements.Add(LinqExpression.Call(listVar, CompilerContext.ListAddMethod, Compile(element)));
+                statements.Add(LinqExpression.Call(listVar, CompilerReflectionCache.ListAddMethod, _owner.Compile(element)));
             }
         }
 
-        statements.Add(LinqExpression.Call(CompilerContext.CreateTypedArrayMethod, listVar));
+        statements.Add(LinqExpression.Call(CompilerReflectionCache.CreateTypedArrayMethod, listVar));
         return LinqExpression.Block(new[] { listVar }, statements);
     }
 
     internal LinqExpression CompileObjectLiteral(ObjectLiteralExpr expr) =>
-        _extendedSyntax.CompileObjectLiteral(expr);
+        _owner.ExtendedSyntax.CompileObjectLiteral(expr);
 
     internal LinqExpression CompileInterpolatedString(InterpolatedStringExpr expr)
     {
         var sbVar = LinqExpression.Variable(typeof(StringBuilder), "sb");
         var statements = new List<LinqExpression>
         {
-            LinqExpression.Assign(sbVar, LinqExpression.New(CompilerContext.StringBuilderCtor))
+            LinqExpression.Assign(sbVar, LinqExpression.New(CompilerReflectionCache.StringBuilderCtor))
         };
 
         foreach (var part in expr.Parts)
@@ -156,11 +163,11 @@ internal sealed partial class ExpressionCompilerUnit
             switch (part)
             {
                 case TextPart text:
-                    statements.Add(LinqExpression.Call(sbVar, CompilerContext.StringBuilderAppendMethod,
+                    statements.Add(LinqExpression.Call(sbVar, CompilerReflectionCache.StringBuilderAppendMethod,
                         LinqExpression.Constant(text.Text)));
                     break;
                 case ExpressionPart exprPart:
-                    var value = Compile(exprPart.Expression);
+                    var value = _owner.Compile(exprPart.Expression);
                     if (exprPart.AlignmentSpecifier != null || exprPart.FormatSpecifier != null)
                     {
                         // Build format string like "{0,10:F2}" and call string.Format
@@ -169,75 +176,75 @@ internal sealed partial class ExpressionCompilerUnit
                         if (exprPart.FormatSpecifier != null) formatStr += ":" + exprPart.FormatSpecifier;
                         formatStr += "}";
                         var formatted = LinqExpression.Call(
-                            CompilerContext.StringFormatMethod,
+                            CompilerReflectionCache.StringFormatMethod,
                             LinqExpression.Constant(formatStr),
                             value);
-                        statements.Add(LinqExpression.Call(sbVar, CompilerContext.StringBuilderAppendMethod, formatted));
+                        statements.Add(LinqExpression.Call(sbVar, CompilerReflectionCache.StringBuilderAppendMethod, formatted));
                     }
                     else
                     {
                         var valueAsString = LinqExpression.Condition(
                             LinqExpression.Equal(value, LinqExpression.Constant(null, typeof(object))),
                             LinqExpression.Constant(""),
-                            LinqExpression.Call(value, CompilerContext.ObjectToStringMethod));
-                        statements.Add(LinqExpression.Call(sbVar, CompilerContext.StringBuilderAppendMethod, valueAsString));
+                            LinqExpression.Call(value, CompilerReflectionCache.ObjectToStringMethod));
+                        statements.Add(LinqExpression.Call(sbVar, CompilerReflectionCache.StringBuilderAppendMethod, valueAsString));
                     }
                     break;
             }
         }
 
         statements.Add(LinqExpression.Convert(
-            LinqExpression.Call(sbVar, CompilerContext.StringBuilderToStringMethod),
+            LinqExpression.Call(sbVar, CompilerReflectionCache.StringBuilderToStringMethod),
             typeof(object)));
         return LinqExpression.Block(new[] { sbVar }, statements);
     }
 
     internal LinqExpression CompileMemberAssign(MemberAssignExpr expr)
     {
-        var target = Compile(expr.Object);
-        var value = Compile(expr.Value);
+        var target = _owner.Compile(expr.Object);
+        var value = _owner.Compile(expr.Value);
         var temp = LinqExpression.Variable(typeof(object), "temp");
 
         return LinqExpression.Block(
             new[] { temp },
             LinqExpression.Assign(temp, value),
-            LinqExpression.Call(CompilerContext.SetMemberMethod, target,
-                LinqExpression.Constant(expr.Name.Lexeme), temp, _ctx.OptionsParam, _ctx.CurrentContext),
+            LinqExpression.Call(CompilerReflectionCache.SetMemberMethod, target,
+                LinqExpression.Constant(expr.Name.Lexeme), temp, _owner.Context.OptionsParam, _owner.Context.CurrentContext),
             temp);
     }
 
     internal LinqExpression CompileNullCoalesceAssign(NullCoalesceAssignExpr expr)
     {
         var name = expr.Name.Lexeme;
-        var currentValue = CompileIdentifier(new IdentifierExpr(expr.Name));
+        var currentValue = _owner.CompileIdentifier(new IdentifierExpr(expr.Name));
         var temp = LinqExpression.Variable(typeof(object), "temp");
         var result = LinqExpression.Variable(typeof(object), "result");
 
-        var newValue = Compile(expr.Value);
+        var newValue = _owner.Compile(expr.Value);
 
         return LinqExpression.Block(
             new[] { temp, result },
-            LinqExpression.Call(CompilerContext.CheckNullCoalesceAssignAllowedMethod,
-                LinqExpression.Constant(name), _ctx.CurrentContext),
+            LinqExpression.Call(CompilerReflectionCache.CheckNullCoalesceAssignAllowedMethod,
+                LinqExpression.Constant(name), _owner.Context.CurrentContext),
             LinqExpression.Assign(temp, currentValue),
             LinqExpression.IfThenElse(
                 LinqExpression.NotEqual(temp, LinqExpression.Constant(null, typeof(object))),
                 LinqExpression.Assign(result, temp),
                 LinqExpression.Block(
-                    LinqExpression.Call(CompilerContext.CheckAllowAssignmentMethod, _ctx.OptionsParam,
+                    LinqExpression.Call(CompilerReflectionCache.CheckAllowAssignmentMethod, _owner.Context.OptionsParam,
                         LinqExpression.Constant($"{name} ??= ...")),
                     LinqExpression.Assign(result, newValue),
-                    LinqExpression.Call(_ctx.CurrentContext, CompilerContext.SetMethod,
+                    LinqExpression.Call(_owner.Context.CurrentContext, CompilerReflectionCache.SetMethod,
                         LinqExpression.Constant(name), result))),
             result);
     }
 
     internal LinqExpression CompilePipeline(PipelineExpr expr) =>
-        _extendedSyntax.CompilePipeline(expr);
+        _owner.ExtendedSyntax.CompilePipeline(expr);
 
     internal LinqExpression CompileRange(RangeExpr expr) =>
-        _extendedSyntax.CompileRange(expr);
+        _owner.ExtendedSyntax.CompileRange(expr);
 
     internal LinqExpression CompileChainedComparison(Parsing.ChainedComparisonExpr expr) =>
-        _extendedSyntax.CompileChainedComparison(expr);
+        _owner.ExtendedSyntax.CompileChainedComparison(expr);
 }

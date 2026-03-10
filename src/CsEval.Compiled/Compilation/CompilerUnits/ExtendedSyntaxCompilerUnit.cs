@@ -5,7 +5,7 @@ namespace CsEval.Compiled.Compilation.CompilerUnits;
 
 /// <summary>
 /// Compiles Extended-mode syntax sugar (pipeline, range, chained comparison, object literals)
-/// to Expression Trees. Receives shared state via CompilerContext.
+/// to Expression Trees. Receives shared state via CompilerReflectionCache.
 /// </summary>
 internal sealed class ExtendedSyntaxCompilerUnit
 {
@@ -39,7 +39,7 @@ internal sealed class ExtendedSyntaxCompilerUnit
         if (expr.Right is IdentifierExpr rightIdentifier)
         {
             return LinqExpression.Call(
-                CompilerContext.InvokePipelineIdentifierMethod,
+                CompilerReflectionCache.InvokePipelineIdentifierMethod,
                 Compile(expr.Left),
                 LinqExpression.Constant(rightIdentifier.Name.Lexeme),
                 _ctx.CurrentContext,
@@ -140,7 +140,7 @@ internal sealed class ExtendedSyntaxCompilerUnit
         var dictVar = LinqExpression.Variable(typeof(IDictionary<string, object?>), "dict");
         var statements = new List<LinqExpression>
         {
-            LinqExpression.Assign(dictVar, LinqExpression.New(CompilerContext.ExpandoObjectCtor))
+            LinqExpression.Assign(dictVar, LinqExpression.New(CompilerReflectionCache.ExpandoObjectCtor))
         };
 
         var dictItemProperty = typeof(IDictionary<string, object?>).GetProperty("Item")!;
@@ -150,7 +150,7 @@ internal sealed class ExtendedSyntaxCompilerUnit
             if (key.Type == TokenType.DotDot && value is SpreadExpr spread)
             {
                 var spreadValue = Compile(spread.Expression);
-                statements.Add(LinqExpression.Call(CompilerContext.SpreadIntoDictMethod, dictVar, spreadValue, _ctx.CurrentContext));
+                statements.Add(LinqExpression.Call(CompilerReflectionCache.SpreadIntoDictMethod, dictVar, spreadValue, _ctx.CurrentContext));
             }
             else
             {

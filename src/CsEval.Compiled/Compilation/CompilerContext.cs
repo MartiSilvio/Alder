@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using System.Linq.Expressions;
 using CsEval.Compiled.Compilation.CompilerUnits;
 using CsEval.Interpretation;
@@ -52,7 +51,7 @@ internal sealed class CompilerContext
     /// Used by compilation units to emit type resolution calls at runtime.
     /// </summary>
     internal LinqExpression TypeResolverExpr =>
-        LinqExpression.Call(CurrentContext, GetTypeResolverProperty);
+        LinqExpression.Call(CurrentContext, CompilerReflectionCache.GetTypeResolverProperty);
 
     // Recursion depth tracking to prevent stack overflow in Compile
     internal int CompileDepth;
@@ -87,122 +86,6 @@ internal sealed class CompilerContext
     internal readonly List<LinqExpression> LazyIdentifierInitializers = [];
 
     internal record struct ControlFlowContext(LabelTarget BreakTarget, LabelTarget? ContinueTarget, bool IsLoop);
-
-    #region Cached MethodInfo
-
-    internal static readonly MethodInfo GetMethod = typeof(CsEvalContext).GetMethod("Get", [typeof(string)])!;
-    internal static readonly MethodInfo SetMethod = typeof(CsEvalContext).GetMethod("Set", [typeof(string), typeof(object)])!;
-    internal static readonly MethodInfo DefineMethod = typeof(CsEvalContext).GetMethod("Define", [typeof(string), typeof(object)])!;
-    internal static readonly MethodInfo DefineWithTypeMethod = typeof(CsEvalContext).GetMethod("Define", [typeof(string), typeof(object), typeof(Type)])!;
-    internal static readonly MethodInfo DefineNewMethod = typeof(CsEvalContext).GetMethod("DefineNew", [typeof(string), typeof(object), typeof(Type)])!;
-    internal static readonly MethodInfo TryGetVariableTypeMethod = typeof(CsEvalContext).GetMethod("TryGetVariableType")!;
-    internal static readonly MethodInfo CreateChildMethod = typeof(CsEvalContext).GetMethod("CreateChild")!;
-    internal static readonly MethodInfo RequireBooleanMethod = typeof(TypeHelpers).GetMethod(nameof(TypeHelpers.RequireBoolean))!;
-    internal static readonly MethodInfo RequireBooleanForLogicalOperatorMethod = typeof(TypeHelpers).GetMethod(nameof(TypeHelpers.RequireBooleanForLogicalOperator))!;
-    internal static readonly MethodInfo GetTypeResolverProperty = typeof(CsEvalContext).GetProperty(nameof(CsEvalContext.TypeResolver), BindingFlags.NonPublic | BindingFlags.Instance)!.GetGetMethod(true)!;
-    internal static readonly MethodInfo ResolveTypeMethod = typeof(TypeResolver).GetMethod(nameof(TypeResolver.ResolveType))!;
-    internal static readonly MethodInfo InvokeConstructorMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.InvokeConstructor))!;
-    internal static readonly MethodInfo CreateTypedArrayFromTypeNameMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.CreateTypedArray))!;
-    internal static readonly MethodInfo ConvertArrayToTypedMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.ConvertArrayToTyped))!;
-    internal static readonly MethodInfo CreateTupleMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.CreateTuple))!;
-    internal static readonly MethodInfo DeconstructTupleMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.DeconstructTuple))!;
-    internal static readonly MethodInfo GetDefaultValueMethod = typeof(TypeHelpers).GetMethod(nameof(TypeHelpers.GetDefaultValue), [typeof(Type)])!;
-    internal static readonly MethodInfo IsNullableTypeMethod = typeof(TypeHelpers).GetMethod(nameof(TypeHelpers.IsNullableType))!;
-    internal static readonly MethodInfo GetMemberMethod = typeof(MemberAccess).GetMethod(nameof(MemberAccess.GetMember))!;
-    internal static readonly MethodInfo GetIndexMethod = typeof(MemberAccess).GetMethod(nameof(MemberAccess.GetIndex))!;
-    internal static readonly MethodInfo GetSliceMethod = typeof(MemberAccess).GetMethod(nameof(MemberAccess.GetSlice), [typeof(object), typeof(object), typeof(object), typeof(CsEvalOptions)])!;
-    internal static readonly MethodInfo GetSliceStepMethod = typeof(MemberAccess).GetMethod(nameof(MemberAccess.GetSlice), [typeof(object), typeof(object), typeof(object), typeof(object), typeof(CsEvalOptions)])!;
-    internal static readonly MethodInfo SetIndexMethod = typeof(MemberAccess).GetMethod(nameof(MemberAccess.SetIndex), [typeof(object), typeof(object), typeof(object), typeof(CsEvalOptions)])!;
-    internal static readonly MethodInfo SetMemberMethod = typeof(MemberAccess).GetMethod(nameof(MemberAccess.SetMember))!;
-    internal static readonly MethodInfo ListAddMethod = typeof(List<object?>).GetMethod(nameof(List<object?>.Add))!;
-    internal static readonly MethodInfo ListAddRangeMethod = typeof(List<object?>).GetMethod(nameof(List<object?>.AddRange))!;
-    internal static readonly ConstructorInfo ListCtor = typeof(List<object?>).GetConstructor(Type.EmptyTypes)!;
-    internal static readonly ConstructorInfo ExpandoObjectCtor = typeof(System.Dynamic.ExpandoObject).GetConstructor(Type.EmptyTypes)!;
-    internal static readonly ConstructorInfo StringBuilderCtor = typeof(StringBuilder).GetConstructor(Type.EmptyTypes)!;
-    internal static readonly MethodInfo StringBuilderAppendMethod = typeof(StringBuilder).GetMethod(nameof(StringBuilder.Append), [typeof(string)])!;
-    internal static readonly MethodInfo StringBuilderToStringMethod = typeof(StringBuilder).GetMethod(nameof(StringBuilder.ToString), Type.EmptyTypes)!;
-    internal static readonly MethodInfo ObjectToStringMethod = typeof(object).GetMethod(nameof(ToString))!;
-    // Spread and collection literal helpers
-    internal static readonly MethodInfo SpreadIntoDictMethod = typeof(SpreadHelpers).GetMethod(nameof(SpreadHelpers.SpreadIntoDict))!;
-    internal static readonly MethodInfo SpreadIntoListMethod = typeof(SpreadHelpers).GetMethod(nameof(SpreadHelpers.SpreadIntoList))!;
-    internal static readonly MethodInfo CreateTypedArrayMethod = typeof(SpreadHelpers).GetMethod(nameof(SpreadHelpers.CreateTypedArray))!;
-    internal static readonly MethodInfo ThrowIfCancellationRequestedMethod = typeof(CancellationToken).GetMethod(nameof(CancellationToken.ThrowIfCancellationRequested))!;
-    internal static readonly MethodInfo ApplyPropertyInitializerMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.ApplyPropertyInitializer))!;
-    internal static readonly MethodInfo ApplyCollectionInitializerMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.ApplyCollectionInitializer))!;
-    internal static readonly MethodInfo CreateMultiDimArrayMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.CreateMultiDimArray))!;
-    internal static readonly MethodInfo MultiDimArrayGetMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.MultiDimArrayGet))!;
-    internal static readonly MethodInfo MultiDimArraySetMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.MultiDimArraySet))!;
-    internal static readonly MethodInfo CheckExecutionConstraintsMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.CheckExecutionConstraints))!;
-    internal static readonly MethodInfo GetConstraintStateProperty = typeof(CsEvalContext).GetProperty(nameof(CsEvalContext.ConstraintState), BindingFlags.NonPublic | BindingFlags.Instance)!.GetGetMethod(true)!;
-    internal static readonly MethodInfo GetConstraintsProperty = typeof(CsEvalOptions).GetProperty(nameof(CsEvalOptions.Constraints))!.GetGetMethod()!;
-    internal static readonly MethodInfo GetEnumeratorMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.GetEnumerator))!;
-    internal static readonly MethodInfo MoveNextMethod = typeof(IEnumerator).GetMethod(nameof(IEnumerator.MoveNext))!;
-    internal static readonly MethodInfo GetCurrentProperty = typeof(IEnumerator).GetProperty(nameof(IEnumerator.Current))!.GetGetMethod()!;
-    internal static readonly MethodInfo DisposeMethod = typeof(IDisposable).GetMethod(nameof(IDisposable.Dispose))!;
-    internal static readonly MethodInfo CheckAllowAssignmentMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.CheckAllowAssignment))!;
-    internal static readonly MethodInfo CheckAllowIndexSetMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.CheckAllowIndexSet))!;
-    internal static readonly MethodInfo CheckNullCoalesceAssignAllowedMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.CheckNullCoalesceAssignAllowed))!;
-    internal static readonly MethodInfo DisposeResourceMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.DisposeResource))!;
-    internal static readonly MethodInfo ValidateLockObjectMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.ValidateLockObject))!;
-    internal static readonly MethodInfo ValidateThrowOperandMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.ValidateThrowOperand))!;
-    internal static readonly MethodInfo ValidateCompoundAssignmentMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.ValidateCompoundAssignment))!;
-    internal static readonly MethodInfo EvaluateCatchWhenGuardMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.EvaluateCatchWhenGuard))!;
-    internal static readonly MethodInfo ValidateAndCoerceTypeMethod = typeof(TypeHelpers).GetMethod(nameof(TypeHelpers.ValidateAndCoerceType), [typeof(Type), typeof(object), typeof(string)])!;
-    internal static readonly MethodInfo ExplicitCastMethod = typeof(TypeHelpers).GetMethod(nameof(TypeHelpers.ExplicitCast), [typeof(object), typeof(Type), typeof(Type), typeof(bool)])!;
-    internal static readonly MethodInfo IsTypeMethod = typeof(TypeHelpers).GetMethod(nameof(TypeHelpers.IsType), [typeof(object), typeof(Type)])!;
-    internal static readonly MethodInfo TryAsMethod = typeof(TypeHelpers).GetMethod(nameof(TypeHelpers.TryAs), [typeof(object), typeof(Type)])!;
-    internal static readonly MethodInfo GuardReflectionLeakMethod = typeof(TypeHelpers).GetMethod(nameof(TypeHelpers.GuardReflectionLeak), [typeof(object), typeof(string)])!;
-    internal static readonly MethodInfo GuardReflectionLeakTypedMethod = typeof(TypeHelpers).GetMethod(nameof(TypeHelpers.GuardReflectionLeakTyped))!;
-    internal static readonly MethodInfo CoerceNumericMethod = typeof(TypeHelpers).GetMethod("CoerceNumeric", BindingFlags.NonPublic | BindingFlags.Static)!;
-    internal static readonly MethodInfo InvokeCallMethod = typeof(Runtime.MethodInvoker).GetMethod(nameof(Runtime.MethodInvoker.InvokeCall))!;
-    internal static readonly MethodInfo InvokeMemberCallMethod = typeof(Runtime.MethodInvoker).GetMethod(nameof(Runtime.MethodInvoker.InvokeMemberCall))!;
-    internal static readonly MethodInfo GetVariableTypedMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.GetVariableTyped))!;
-    internal static readonly MethodInfo ResolveIdentifierMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.ResolveIdentifier))!;
-    internal static readonly MethodInfo ResolveIdentifierTypedMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.ResolveIdentifierTyped))!;
-    internal static readonly MethodInfo InvokeIdentifierCallMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.InvokeIdentifierCall))!;
-    internal static readonly MethodInfo InvokePipelineIdentifierMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.InvokePipelineIdentifier))!;
-    internal static readonly MethodInfo DefineOutVariablesMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.DefineOutVariables))!;
-    internal static readonly MethodInfo ConditionalTypePromotionMethod = typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.ConditionalTypePromotion))!;
-    internal static readonly ConstructorInfo NamedArgCtor = typeof(NamedArg).GetConstructor([typeof(string), typeof(object)])!;
-    internal static readonly ConstructorInfo CompiledLambdaValueCtor =
-        typeof(CompiledLambdaValue).GetConstructor([
-            typeof(List<string>),
-            typeof(Func<object?[], CsEvalContext, object?>),
-            typeof(CsEvalContext),
-            typeof(Func<CsEvalContext, object?>),
-            typeof(Func<object?, CsEvalContext, object?>),
-            typeof(Func<object?, object?, CsEvalContext, object?>),
-            typeof(LambdaExpr)
-        ])!;
-    internal static readonly MethodInfo GetLambdaArgMethod =
-        typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.GetLambdaArg))!;
-    internal static readonly MethodInfo StringFormatMethod =
-        typeof(string).GetMethod(nameof(string.Format), [typeof(string), typeof(object)])!;
-
-    internal static readonly ConstructorInfo OutArgMarkerCtor =
-        typeof(OutArgMarker).GetConstructor([typeof(string), typeof(string), typeof(bool)])!;
-
-    private static readonly ConcurrentDictionary<Type, MethodInfo> ResolveIdentifierTypedMethodCache = new();
-    private static readonly ConcurrentDictionary<Type, MethodInfo> GetVariableTypedMethodCache = new();
-    private static readonly ConcurrentDictionary<Type, MethodInfo> GuardReflectionLeakTypedMethodCache = new();
-
-    #endregion
-
-    internal static MethodInfo GetResolveIdentifierTypedMethod(Type valueType) =>
-        ResolveIdentifierTypedMethodCache.GetOrAdd(
-            valueType,
-            static t => ResolveIdentifierTypedMethod.MakeGenericMethod(t));
-
-    internal static MethodInfo GetVariableTypedMethodFor(Type valueType) =>
-        GetVariableTypedMethodCache.GetOrAdd(
-            valueType,
-            static t => GetVariableTypedMethod.MakeGenericMethod(t));
-
-    internal static MethodInfo GetGuardReflectionLeakTypedMethod(Type valueType) =>
-        GuardReflectionLeakTypedMethodCache.GetOrAdd(
-            valueType,
-            static t => GuardReflectionLeakTypedMethod.MakeGenericMethod(t));
-
     internal bool TryGetOrCreateLazyIdentifierSlot(
         string name,
         Type valueType,
