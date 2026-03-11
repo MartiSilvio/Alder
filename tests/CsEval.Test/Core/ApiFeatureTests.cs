@@ -131,6 +131,21 @@ public class ApiFeatureTests(CompilationMode mode)
         Assert.That(diagnostics[0].Column, Is.Not.Null);
     }
 
+    [Test]
+    public void TryValidate_MultipleUndefinedIdentifiers_ReportCodesAndLocations()
+    {
+        var engine = CreateEngine();
+        var success = engine.TryValidate("foo + bar + baz", out var diagnostics);
+
+        Assert.That(success, Is.False);
+        Assert.That(diagnostics, Has.Count.EqualTo(3));
+        Assert.That(diagnostics.All(d => d.Code == CsEval.Diagnostics.DiagnosticCode.CS0103), Is.True);
+        Assert.That(diagnostics.All(d => d.Line.HasValue && d.Column.HasValue), Is.True);
+        Assert.That(diagnostics.Select(d => d.Message), Has.Some.Contains("foo"));
+        Assert.That(diagnostics.Select(d => d.Message), Has.Some.Contains("bar"));
+        Assert.That(diagnostics.Select(d => d.Message), Has.Some.Contains("baz"));
+    }
+
     #endregion
 
     #region AST Access

@@ -101,8 +101,8 @@ public static class CsEvalCompiledEngineExtensions
             var delegateType = typeof(TDelegate);
             if (!delegateType.IsGenericType)
                 throw new CsEvalException(
-                    $"'{delegateType.Name}' is not a generic delegate type. " +
-                    "Use a Func<> type (e.g., Func<int, bool>).");
+                    DiagnosticDescriptors.ParseAsExpressionRequiresGenericDelegate,
+                    delegateType.Name);
 
             var genericArgs = delegateType.GetGenericArguments();
             var paramTypes = genericArgs[..^1];
@@ -114,12 +114,16 @@ public static class CsEvalCompiledEngineExtensions
             var ast = parser.Parse();
 
             if (ast is not LambdaExpr lambdaExpr)
-                throw new CsEvalException("Expression must be a lambda (e.g., 'x => x > 5')");
+                throw new CsEvalException(
+                    DiagnosticDescriptors.ParseAsExpressionRequiresLambda,
+                    "x => x > 5");
 
             if (lambdaExpr.Parameters.Count != paramTypes.Length)
                 throw new CsEvalException(
-                    $"Expression has {lambdaExpr.Parameters.Count} parameter(s) " +
-                    $"but {delegateType.Name} expects {paramTypes.Length}");
+                    DiagnosticDescriptors.ParseAsExpressionParameterCountMismatch,
+                    lambdaExpr.Parameters.Count,
+                    delegateType.Name,
+                    paramTypes.Length);
 
             var parameterScope = new Dictionary<string, ParameterExpression>();
             var parameterExpressions = new ParameterExpression[paramTypes.Length];
@@ -161,8 +165,9 @@ public static class CsEvalCompiledEngineExtensions
                 catch (InvalidOperationException)
                 {
                     throw new CsEvalException(
-                        $"Cannot convert expression body type '{body.Type.Name}' " +
-                        $"to return type '{returnType.Name}'");
+                        DiagnosticDescriptors.ParseAsExpressionReturnTypeMismatch,
+                        body.Type.Name,
+                        returnType.Name);
                 }
             }
 
@@ -170,7 +175,7 @@ public static class CsEvalCompiledEngineExtensions
         }
         catch (InsufficientExecutionStackException)
         {
-            throw new CsEvalException("Expression nesting depth exceeded available stack space.");
+            throw new CsEvalException(DiagnosticDescriptors.ExpressionNestingDepthExceeded);
         }
     }
 

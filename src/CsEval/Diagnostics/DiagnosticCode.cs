@@ -113,6 +113,30 @@ public enum DiagnosticCode
 
     /// <summary>Indexer overloads with more than one parameter are not supported yet.</summary>
     CSEV0003 = 1_000_003,
+
+    /// <summary>Expression tree output does not support the requested node or construct.</summary>
+    CSEV0004 = 1_000_004,
+
+    /// <summary>Expression tree output does not support the requested call shape.</summary>
+    CSEV0005 = 1_000_005,
+
+    /// <summary>ParseAsExpression requires a generic Func-style delegate type.</summary>
+    CSEV0006 = 1_000_006,
+
+    /// <summary>ParseAsExpression requires lambda input.</summary>
+    CSEV0007 = 1_000_007,
+
+    /// <summary>ParseAsExpression lambda parameter count mismatch.</summary>
+    CSEV0008 = 1_000_008,
+
+    /// <summary>ParseAsExpression could not convert body to requested return type.</summary>
+    CSEV0009 = 1_000_009,
+
+    /// <summary>Semantic validation failed.</summary>
+    CSEV0010 = 1_000_010,
+
+    /// <summary>Expression nesting depth exceeded available stack space.</summary>
+    CSEV0011 = 1_000_011,
 }
 
 internal static class DiagnosticCodeExtensions

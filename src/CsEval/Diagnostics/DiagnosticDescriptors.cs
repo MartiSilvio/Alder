@@ -139,4 +139,36 @@ public static class DiagnosticDescriptors
     /// <summary>CSEV0003: Indexer overloads with multiple parameters are not supported yet on type '{0}'.</summary>
     public static readonly DiagnosticDescriptor MultiParameterIndexerNotSupported =
         new(DiagnosticCode.CSEV0003, "Indexer overloads with multiple parameters are not supported yet on type '{0}'.");
+
+    /// <summary>CSEV0004: Expression tree output does not support '{0}'.</summary>
+    public static readonly DiagnosticDescriptor ExpressionTreeUnsupportedNode =
+        new(DiagnosticCode.CSEV0004, "Expression tree output does not support '{0}'.");
+
+    /// <summary>CSEV0005: Expression tree output does not support call shape '{0}'.</summary>
+    public static readonly DiagnosticDescriptor ExpressionTreeUnsupportedCallShape =
+        new(DiagnosticCode.CSEV0005, "Expression tree output does not support call shape '{0}'.");
+
+    /// <summary>CSEV0006: ParseAsExpression requires a generic Func-style delegate type; got '{0}'.</summary>
+    public static readonly DiagnosticDescriptor ParseAsExpressionRequiresGenericDelegate =
+        new(DiagnosticCode.CSEV0006, "ParseAsExpression requires a generic Func-style delegate type; got '{0}'.");
+
+    /// <summary>CSEV0007: ParseAsExpression requires a lambda expression input.</summary>
+    public static readonly DiagnosticDescriptor ParseAsExpressionRequiresLambda =
+        new(DiagnosticCode.CSEV0007, "Expression must be a lambda (e.g., '{0}').");
+
+    /// <summary>CSEV0008: ParseAsExpression lambda parameter count mismatch.</summary>
+    public static readonly DiagnosticDescriptor ParseAsExpressionParameterCountMismatch =
+        new(DiagnosticCode.CSEV0008, "Expression has {0} parameter(s) but {1} expects {2}.");
+
+    /// <summary>CSEV0009: ParseAsExpression return type conversion failed.</summary>
+    public static readonly DiagnosticDescriptor ParseAsExpressionReturnTypeMismatch =
+        new(DiagnosticCode.CSEV0009, "Cannot convert expression body type '{0}' to return type '{1}'.");
+
+    /// <summary>CSEV0010: Semantic validation failed: {0}</summary>
+    public static readonly DiagnosticDescriptor SemanticValidationFailed =
+        new(DiagnosticCode.CSEV0010, "Semantic validation failed: {0}");
+
+    /// <summary>CSEV0011: Expression nesting depth exceeded available stack space.</summary>
+    public static readonly DiagnosticDescriptor ExpressionNestingDepthExceeded =
+        new(DiagnosticCode.CSEV0011, "Expression nesting depth exceeded available stack space.");
 }

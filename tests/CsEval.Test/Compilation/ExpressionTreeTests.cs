@@ -647,10 +647,12 @@ public class ExpressionTreeTests
     [Test]
     public void ParseAsExpression_UnsupportedBlock_ThrowsCsEvalException()
     {
-        Assert.That(
-            () => _engine.ParseAsExpression<Func<int, int>>("x => { return x + 1; }"),
-            Throws.InstanceOf<CsEvalException>()
-                .With.Message.Contains("block"));
+        var ex = Assert.Throws<CsEvalException>(
+            () => _engine.ParseAsExpression<Func<int, int>>("x => { return x + 1; }"));
+
+        Assert.That(ex, Is.Not.Null);
+        Assert.That(ex!.ErrorCode, Is.EqualTo(CsEval.Diagnostics.DiagnosticCode.CSEV0004));
+        Assert.That(ex.Message, Does.Contain("block"));
     }
 
     [Test]
@@ -688,6 +690,19 @@ public class ExpressionTreeTests
         Assert.That(result, Is.Null);
         Assert.That(diagnostics, Has.Count.GreaterThan(0));
         Assert.That(diagnostics[0].Message, Does.Contain("interpolated string"));
+    }
+
+    [Test]
+    public void TryParse_UnsupportedNamedArgument_ReturnsSpecificDiagnosticWithCode()
+    {
+        var success = _engine.TryParseAsExpression<Func<int, int>>(
+            "x => Math.Max(val1: x, val2: 2)", out var result, out var diagnostics);
+
+        Assert.That(success, Is.False);
+        Assert.That(result, Is.Null);
+        Assert.That(diagnostics, Has.Count.GreaterThan(0));
+        Assert.That(diagnostics[0].Code, Is.EqualTo(CsEval.Diagnostics.DiagnosticCode.CSEV0005));
+        Assert.That(diagnostics[0].Message, Does.Contain("named argument").IgnoreCase);
     }
 
     [Test]

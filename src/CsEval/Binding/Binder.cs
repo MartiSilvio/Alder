@@ -1,6 +1,7 @@
 using CsEval.Binding.BoundNodes;
 using CsEval.Binding.Plans;
 using CsEval.Binding.Services;
+using CsEval.Diagnostics;
 using CsEval.Parsing;
 using CsEval.Runtime;
 using System.Collections.Generic;
@@ -92,6 +93,70 @@ internal sealed class Binder
                 _ => throw new BindingNotSupportedException(
                     $"Binding for expression type '{expr.GetType().Name}' is not implemented")
         };
+    }
+
+    public IReadOnlyList<CsEvalDiagnostic> CollectDiagnostics(Expr expr, BindingContext context)
+    {
+        ArgumentNullException.ThrowIfNull(expr);
+        ArgumentNullException.ThrowIfNull(context);
+
+        var diagnostics = new List<CsEvalDiagnostic>();
+        if (expr is BlockExpr block)
+        {
+            var blockScope = context.CreateChildScope();
+            foreach (var statement in block.Statements)
+                TryBindForDiagnostics(statement, blockScope, diagnostics);
+            if (block.ReturnExpr != null)
+                TryBindForDiagnostics(block.ReturnExpr, blockScope, diagnostics);
+        }
+        else
+        {
+            TryBindForDiagnostics(expr, context, diagnostics);
+        }
+
+        return diagnostics;
+    }
+
+    private void TryBindForDiagnostics(
+        Expr expr,
+        BindingContext context,
+        List<CsEvalDiagnostic> diagnostics)
+    {
+        try
+        {
+            _ = Bind(expr, context);
+        }
+        catch (Exception ex)
+        {
+            diagnostics.Add(NormalizeDiagnostic(ex, expr));
+        }
+    }
+
+    private static CsEvalDiagnostic NormalizeDiagnostic(Exception ex, Expr expr)
+    {
+        var diagnostic = CsEvalDiagnostic.FromException(ex);
+
+        if ((diagnostic.Line is null || diagnostic.Column is null) &&
+            ExprTokenLocator.TryGetPrimaryToken(expr, out var token))
+        {
+            diagnostic = diagnostic with
+            {
+                Line = token.Line,
+                Column = token.Column
+            };
+        }
+
+        if (diagnostic.Code != null)
+            return diagnostic;
+
+        var wrapped = new CsEvalException(
+            DiagnosticDescriptors.SemanticValidationFailed,
+            diagnostic.Line,
+            diagnostic.Column,
+            diagnostic.SpanStart,
+            diagnostic.SpanLength,
+            ex.Message);
+        return CsEvalDiagnostic.FromException(wrapped);
     }
 
     private static BoundLiteralExpr BindTypeReference(TypeReferenceExpr typeReference, BindingContext context)

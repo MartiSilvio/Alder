@@ -2,6 +2,7 @@ using System.Linq.Expressions;
 using CsEval.Binding;
 using CsEval.Binding.BoundNodes;
 using CsEval.Binding.Plans;
+using CsEval.Diagnostics;
 using CsEval.Parsing;
 using CsEval.Runtime;
 
@@ -52,109 +53,59 @@ internal sealed class ExpressionTreeEmitter
             BoundObjectCreationExpr e => EmitObjectCreation(e),
 
             // Unsupported nodes with descriptive messages
-            BoundSwitchExpressionExpr => throw new CsEvalException(
-                "Expression tree cannot contain a switch expression"),
-            BoundBlockExpr => throw new CsEvalException(
-                "Expression tree cannot contain a block"),
-            BoundIfStatementExpr => throw new CsEvalException(
-                "Expression tree cannot contain an if statement"),
-            BoundWhileExpr => throw new CsEvalException(
-                "Expression tree cannot contain a while loop"),
-            BoundForExpr => throw new CsEvalException(
-                "Expression tree cannot contain a for loop"),
-            BoundForEachExpr => throw new CsEvalException(
-                "Expression tree cannot contain a foreach loop"),
-            BoundDoWhileExpr => throw new CsEvalException(
-                "Expression tree cannot contain a do-while loop"),
-            BoundAssignExpr => throw new CsEvalException(
-                "Expression tree cannot contain an assignment"),
-            BoundMemberAssignExpr => throw new CsEvalException(
-                "Expression tree cannot contain an assignment"),
-            BoundIndexAssignExpr => throw new CsEvalException(
-                "Expression tree cannot contain an assignment"),
-            BoundCompoundAssignExpr => throw new CsEvalException(
-                "Expression tree cannot contain an assignment"),
-            BoundMemberCompoundAssignExpr => throw new CsEvalException(
-                "Expression tree cannot contain an assignment"),
-            BoundIndexCompoundAssignExpr => throw new CsEvalException(
-                "Expression tree cannot contain an assignment"),
-            BoundNullCoalesceAssignExpr => throw new CsEvalException(
-                "Expression tree cannot contain an assignment"),
-            BoundMemberNullCoalesceAssignExpr => throw new CsEvalException(
-                "Expression tree cannot contain an assignment"),
-            BoundIndexNullCoalesceAssignExpr => throw new CsEvalException(
-                "Expression tree cannot contain an assignment"),
-            BoundIncrementDecrementExpr => throw new CsEvalException(
-                "Expression tree cannot contain an assignment"),
-            BoundMemberIncrementExpr => throw new CsEvalException(
-                "Expression tree cannot contain an assignment"),
-            BoundIndexIncrementExpr => throw new CsEvalException(
-                "Expression tree cannot contain an assignment"),
-            BoundVariableDeclExpr => throw new CsEvalException(
-                "Expression tree cannot contain a variable declaration"),
-            BoundTryCatchFinallyExpr => throw new CsEvalException(
-                "Expression tree cannot contain try/catch"),
-            BoundArrayLiteralExpr => throw new CsEvalException(
-                "Expression tree cannot contain a collection expression"),
-            BoundObjectLiteralExpr => throw new CsEvalException(
-                "Expression tree cannot contain an object literal"),
-            BoundSpreadExpr => throw new CsEvalException(
-                "Expression tree cannot contain spread"),
-            BoundSliceExpr => throw new CsEvalException(
-                "Expression tree cannot contain slice"),
-            BoundLambdaExpr => throw new CsEvalException(
-                "Expression tree cannot contain a nested lambda"),
-            BoundInterpolatedStringExpr => throw new CsEvalException(
-                "Expression tree cannot contain an interpolated string"),
-            BoundThrowExpr => throw new CsEvalException(
-                "Expression tree cannot contain a throw expression"),
-            BoundThrowStatementExpr => throw new CsEvalException(
-                "Expression tree cannot contain a throw statement"),
-            BoundTupleExpr => throw new CsEvalException(
-                "Expression tree cannot contain a tuple expression"),
-            BoundDeconstructionExpr => throw new CsEvalException(
-                "Expression tree cannot contain deconstruction"),
-            BoundSwitchStatementExpr => throw new CsEvalException(
-                "Expression tree cannot contain a switch statement"),
-            BoundReturnExpr => throw new CsEvalException(
-                "Expression tree cannot contain a return statement"),
-            BoundBreakExpr => throw new CsEvalException(
-                "Expression tree cannot contain a break statement"),
-            BoundContinueExpr => throw new CsEvalException(
-                "Expression tree cannot contain a continue statement"),
-            BoundAsExpr => throw new CsEvalException(
-                "Expression tree cannot contain an 'as' expression"),
-            BoundTypedArrayCreationExpr => throw new CsEvalException(
-                "Expression tree cannot contain an array creation expression"),
-            BoundTypedArrayLiteralExpr => throw new CsEvalException(
-                "Expression tree cannot contain an array creation expression"),
-            BoundMultiDimIndexAccessExpr => throw new CsEvalException(
-                "Expression tree cannot contain multi-dimensional indexing"),
-            BoundMultiDimTypedArrayCreationExpr => throw new CsEvalException(
-                "Expression tree cannot contain multi-dimensional array creation"),
-            BoundMultiDimIndexAssignExpr => throw new CsEvalException(
-                "Expression tree cannot contain an assignment"),
-            BoundNamedArgumentExpr => throw new CsEvalException(
-                "Expression tree cannot contain a named argument"),
-            BoundOutArgExpr => throw new CsEvalException(
-                "Expression tree cannot contain an out argument"),
-            BoundUsingStatementExpr => throw new CsEvalException(
-                "Expression tree cannot contain a using statement"),
-            BoundLockStatementExpr => throw new CsEvalException(
-                "Expression tree cannot contain a lock statement"),
+            BoundSwitchExpressionExpr => throw UnsupportedNode("a switch expression"),
+            BoundBlockExpr => throw UnsupportedNode("a block"),
+            BoundIfStatementExpr => throw UnsupportedNode("an if statement"),
+            BoundWhileExpr => throw UnsupportedNode("a while loop"),
+            BoundForExpr => throw UnsupportedNode("a for loop"),
+            BoundForEachExpr => throw UnsupportedNode("a foreach loop"),
+            BoundDoWhileExpr => throw UnsupportedNode("a do-while loop"),
+            BoundAssignExpr => throw UnsupportedNode("an assignment"),
+            BoundMemberAssignExpr => throw UnsupportedNode("an assignment"),
+            BoundIndexAssignExpr => throw UnsupportedNode("an assignment"),
+            BoundCompoundAssignExpr => throw UnsupportedNode("an assignment"),
+            BoundMemberCompoundAssignExpr => throw UnsupportedNode("an assignment"),
+            BoundIndexCompoundAssignExpr => throw UnsupportedNode("an assignment"),
+            BoundNullCoalesceAssignExpr => throw UnsupportedNode("an assignment"),
+            BoundMemberNullCoalesceAssignExpr => throw UnsupportedNode("an assignment"),
+            BoundIndexNullCoalesceAssignExpr => throw UnsupportedNode("an assignment"),
+            BoundIncrementDecrementExpr => throw UnsupportedNode("an assignment"),
+            BoundMemberIncrementExpr => throw UnsupportedNode("an assignment"),
+            BoundIndexIncrementExpr => throw UnsupportedNode("an assignment"),
+            BoundVariableDeclExpr => throw UnsupportedNode("a variable declaration"),
+            BoundTryCatchFinallyExpr => throw UnsupportedNode("try/catch"),
+            BoundArrayLiteralExpr => throw UnsupportedNode("a collection expression"),
+            BoundObjectLiteralExpr => throw UnsupportedNode("an object literal"),
+            BoundSpreadExpr => throw UnsupportedNode("spread"),
+            BoundSliceExpr => throw UnsupportedNode("slice"),
+            BoundLambdaExpr => throw UnsupportedNode("a nested lambda"),
+            BoundInterpolatedStringExpr => throw UnsupportedNode("an interpolated string"),
+            BoundThrowExpr => throw UnsupportedNode("a throw expression"),
+            BoundThrowStatementExpr => throw UnsupportedNode("a throw statement"),
+            BoundTupleExpr => throw UnsupportedNode("a tuple expression"),
+            BoundDeconstructionExpr => throw UnsupportedNode("deconstruction"),
+            BoundSwitchStatementExpr => throw UnsupportedNode("a switch statement"),
+            BoundReturnExpr => throw UnsupportedNode("a return statement"),
+            BoundBreakExpr => throw UnsupportedNode("a break statement"),
+            BoundContinueExpr => throw UnsupportedNode("a continue statement"),
+            BoundAsExpr => throw UnsupportedNode("an 'as' expression"),
+            BoundTypedArrayCreationExpr => throw UnsupportedNode("an array creation expression"),
+            BoundTypedArrayLiteralExpr => throw UnsupportedNode("an array creation expression"),
+            BoundMultiDimIndexAccessExpr => throw UnsupportedNode("multi-dimensional indexing"),
+            BoundMultiDimTypedArrayCreationExpr => throw UnsupportedNode("multi-dimensional array creation"),
+            BoundMultiDimIndexAssignExpr => throw UnsupportedNode("an assignment"),
+            BoundNamedArgumentExpr => throw UnsupportedNode("a named argument"),
+            BoundOutArgExpr => throw UnsupportedNode("an out argument"),
+            BoundUsingStatementExpr => throw UnsupportedNode("a using statement"),
+            BoundLockStatementExpr => throw UnsupportedNode("a lock statement"),
 
             // Polyglot Extended Features -- explicit rejection with descriptive messages
-            BoundRangeExpr => throw new CsEvalException(
-                "Expression tree output not supported for range literals"),
-            BoundPipelineExpr => throw new CsEvalException(
-                "Expression tree output not supported for pipeline operator"),
-            BoundChainedComparisonExpr => throw new CsEvalException(
-                "Expression tree output not supported for chained comparison"),
-            BoundInvokeExpr => throw new CsEvalException(
-                "Expression tree cannot contain this call expression"),
+            BoundRangeExpr => throw UnsupportedNode("range literals"),
+            BoundPipelineExpr => throw UnsupportedNode("pipeline operator"),
+            BoundChainedComparisonExpr => throw UnsupportedNode("chained comparison"),
+            BoundInvokeExpr e => throw UnsupportedCallShape(DescribeInvokeShape(e)),
 
-            _ => throw new CsEvalException(
-                $"Expression tree cannot contain this expression type: {expr.GetType().Name}")
+            _ => throw UnsupportedNode($"expression type '{expr.GetType().Name}'")
         };
     }
 
@@ -176,7 +127,7 @@ internal sealed class ExpressionTreeEmitter
         if (_engineVariables.TryGetValue(name, out var value))
             return LinqExpression.Constant(value, value?.GetType() ?? typeof(object));
 
-        throw new CsEvalException($"The name '{name}' does not exist in the current context");
+        throw new CsEvalException(DiagnosticDescriptors.NameNotInContext, name);
     }
 
     private LinqExpression EmitBinary(BoundBinaryExpr expr)
@@ -212,8 +163,7 @@ internal sealed class ExpressionTreeEmitter
             TokenType.Caret => LinqExpression.ExclusiveOr(left, right),
             TokenType.LessLess => LinqExpression.LeftShift(left, right),
             TokenType.GreaterGreater => LinqExpression.RightShift(left, right),
-            _ => throw new CsEvalException(
-                $"Expression tree cannot contain operator '{TokenLexemes.GetCanonical(expr.Operator)}'")
+            _ => throw UnsupportedNode($"operator '{TokenLexemes.GetCanonical(expr.Operator)}'")
         };
     }
 
@@ -226,8 +176,7 @@ internal sealed class ExpressionTreeEmitter
         {
             TokenType.AmpAmp => LinqExpression.AndAlso(left, right),
             TokenType.PipePipe => LinqExpression.OrElse(left, right),
-            _ => throw new CsEvalException(
-                $"Expression tree cannot contain operator '{TokenLexemes.GetCanonical(expr.Operator)}'")
+            _ => throw UnsupportedNode($"operator '{TokenLexemes.GetCanonical(expr.Operator)}'")
         };
     }
 
@@ -241,15 +190,14 @@ internal sealed class ExpressionTreeEmitter
             TokenType.Plus => operand,
             TokenType.Bang => LinqExpression.Not(operand),
             TokenType.Tilde => LinqExpression.Not(operand),
-            _ => throw new CsEvalException(
-                $"Expression tree cannot contain unary operator '{TokenLexemes.GetCanonical(expr.Operator)}'")
+            _ => throw UnsupportedNode($"unary operator '{TokenLexemes.GetCanonical(expr.Operator)}'")
         };
     }
 
     private LinqExpression EmitMemberAccess(BoundMemberAccessExpr expr)
     {
         if (expr.NullSafe)
-            throw new CsEvalException("Expression tree cannot contain null-conditional access");
+            throw UnsupportedNode("null-conditional access");
 
         var target = Emit(expr.Target);
         var plan = expr.Plan;
@@ -264,18 +212,24 @@ internal sealed class ExpressionTreeEmitter
                 : LinqExpression.Field(target, field);
 
         if (plan?.IsMethodGroup == true)
-            throw new CsEvalException(
-                "Expression tree cannot contain unresolved method groups");
+            throw UnsupportedCallShape("unresolved method group");
 
-        throw new CsEvalException(
-            $"'{target.Type.Name}' does not contain a definition for '{expr.MemberName}'");
+        throw new CsEvalException(DiagnosticDescriptors.MemberNotFound, target.Type.Name, expr.MemberName);
     }
 
     private LinqExpression EmitCall(BoundCallExpr expr)
     {
+        for (var i = 0; i < expr.Arguments.Length; i++)
+        {
+            if (expr.Arguments[i] is BoundNamedArgumentExpr)
+                throw UnsupportedCallShape("named argument");
+            if (expr.Arguments[i] is BoundOutArgExpr)
+                throw UnsupportedCallShape("out argument");
+        }
+
         var method = expr.Plan.SelectedMethod;
         if (!BoundEmitterSupport.CanEmitDirectMethodCall(expr.Plan, expr.Arguments.Length))
-            throw new CsEvalException("Expression tree cannot contain this call expression");
+            throw UnsupportedCallShape("dynamic or unresolved call target");
 
         var parameters = MethodDispatchCache.GetParameters(method);
         var args = EmitPlannedCallArguments(expr, parameters);
@@ -284,10 +238,10 @@ internal sealed class ExpressionTreeEmitter
             return LinqExpression.Call(method, args);
 
         if (expr.Callee is not BoundMemberAccessExpr memberCallee)
-            throw new CsEvalException("Expression tree cannot contain this call expression");
+            throw UnsupportedCallShape("non-member call target");
 
         if (memberCallee.NullSafe)
-            throw new CsEvalException("Expression tree cannot contain null-conditional access");
+            throw UnsupportedNode("null-conditional access");
 
         var target = Emit(memberCallee.Target);
         return LinqExpression.Call(target, method, args);
@@ -321,7 +275,7 @@ internal sealed class ExpressionTreeEmitter
                 {
                     var parameter = parameters[binding.ParameterIndex];
                     var elementType = parameter.ParameterType.GetElementType()
-                                     ?? throw new CsEvalException("Expression tree cannot contain this call expression");
+                                     ?? throw UnsupportedCallShape("params argument with non-array parameter");
                     var args = new LinqExpression[binding.SourceArgumentCount];
 
                     for (var i = 0; i < binding.SourceArgumentCount; i++)
@@ -342,14 +296,14 @@ internal sealed class ExpressionTreeEmitter
                 }
 
                 default:
-                    throw new CsEvalException("Expression tree cannot contain this call expression");
+                    throw UnsupportedCallShape($"parameter binding kind '{binding.Kind}'");
             }
         }
 
         for (var i = 0; i < emitted.Length; i++)
         {
             if (emitted[i] == null)
-                throw new CsEvalException("Expression tree cannot contain this call expression");
+                throw UnsupportedCallShape("incomplete argument emission");
         }
 
         return emitted;
@@ -425,13 +379,13 @@ internal sealed class ExpressionTreeEmitter
             return LinqExpression.TypeIs(operand, type);
         }
 
-        throw new CsEvalException("Expression tree cannot contain pattern matching");
+        throw UnsupportedNode("pattern matching");
     }
 
     private LinqExpression EmitIndexAccess(BoundIndexAccessExpr expr)
     {
         if (expr.NullSafe)
-            throw new CsEvalException("Expression tree cannot contain null-conditional access");
+            throw UnsupportedNode("null-conditional access");
 
         var obj = Emit(expr.Target);
         var index = Emit(expr.Index);
@@ -449,13 +403,13 @@ internal sealed class ExpressionTreeEmitter
             return LinqExpression.MakeIndex(obj, indexer, [index]);
         }
 
-        throw new CsEvalException($"'{obj.Type.Name}' does not have an indexer");
+        throw new CsEvalException(DiagnosticDescriptors.BadIndexerAccess, obj.Type.Name);
     }
 
     private LinqExpression EmitObjectCreation(BoundObjectCreationExpr expr)
     {
         if (expr.InitializerEntries.Length > 0)
-            throw new CsEvalException("Expression tree cannot contain object initializer");
+            throw UnsupportedNode("object initializer");
 
         var targetType = expr.StaticType != typeof(object)
             ? expr.StaticType
@@ -471,7 +425,9 @@ internal sealed class ExpressionTreeEmitter
             if (ctor == null)
             {
                 throw new CsEvalException(
-                    $"'{targetType.Name}' does not contain a constructor matching the given arguments");
+                    DiagnosticDescriptors.NoMatchingConstructor,
+                    targetType.Name,
+                    args.Length);
             }
 
             args = CoerceConstructorArguments(ctor, args);
@@ -604,5 +560,24 @@ internal sealed class ExpressionTreeEmitter
             return typeof(object);
 
         return null;
+    }
+
+    private static CsEvalException UnsupportedNode(string feature) =>
+        new(DiagnosticDescriptors.ExpressionTreeUnsupportedNode, feature);
+
+    private static CsEvalException UnsupportedCallShape(string shape) =>
+        new(DiagnosticDescriptors.ExpressionTreeUnsupportedCallShape, shape);
+
+    private static string DescribeInvokeShape(BoundInvokeExpr invoke)
+    {
+        for (var i = 0; i < invoke.Arguments.Length; i++)
+        {
+            if (invoke.Arguments[i] is BoundNamedArgumentExpr)
+                return "named argument";
+            if (invoke.Arguments[i] is BoundOutArgExpr)
+                return "out argument";
+        }
+
+        return "direct invocation";
     }
 }

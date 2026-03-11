@@ -164,7 +164,7 @@ public sealed class CsEvalEngine : IDisposable
         }
         catch (System.InsufficientExecutionStackException)
         {
-            throw new CsEvalException("Expression nesting depth exceeded available stack space.");
+            throw new CsEvalException(DiagnosticDescriptors.ExpressionNestingDepthExceeded);
         }
     }
 
@@ -497,27 +497,34 @@ public sealed class CsEvalEngine : IDisposable
             var context = GetOrCreateContext(null);
             AstDepthValidator.EnsureWithinLimit(ast, _options.MaxExpressionDepth);
             var binder = new CsEval.Binding.Binder();
-            _ = binder.Bind(ast, new BindingContext(context));
+            var bindingContext = new BindingContext(context);
+            var validationDiagnostics = new List<CsEvalDiagnostic>(binder.CollectDiagnostics(ast, bindingContext));
 
-            // Check for unbound variables not resolvable in context
-            var collector = new VariableCollector();
+            var collector = new IdentifierOccurrenceCollector();
             collector.Collect(ast);
-            var unboundErrors = new List<CsEvalDiagnostic>();
-            foreach (var name in collector.Variables)
+            foreach (var identifier in collector.GetUnboundTokens(_options.StringComparer))
             {
+                var name = identifier.Lexeme;
                 if (context.TryGet(name, out _)) continue;
                 if (context.Functions.ContainsKey(name)) continue;
                 if (context.Modules.ContainsKey(name)) continue;
                 if (context.TypeResolver.IsNamespaceOrPrefix(name)) continue;
                 if (context.TypeResolver.TryResolveType(name) != null) continue;
 
-                var ex = new CsEvalException(DiagnosticDescriptors.NameNotInContext, name);
-                unboundErrors.Add(CsEvalDiagnostic.FromException(ex));
+                var ex = new CsEvalException(
+                    DiagnosticDescriptors.NameNotInContext,
+                    identifier.Line,
+                    identifier.Column,
+                    null,
+                    null,
+                    name);
+                validationDiagnostics.Add(CsEvalDiagnostic.FromException(ex));
             }
 
-            if (unboundErrors.Count > 0)
+            var deduplicated = DeduplicateDiagnostics(validationDiagnostics);
+            if (deduplicated.Count > 0)
             {
-                diagnostics = unboundErrors;
+                diagnostics = deduplicated;
                 return false;
             }
         }
@@ -529,6 +536,24 @@ public sealed class CsEvalEngine : IDisposable
 
         diagnostics = [];
         return true;
+    }
+
+    private static IReadOnlyList<CsEvalDiagnostic> DeduplicateDiagnostics(List<CsEvalDiagnostic> diagnostics)
+    {
+        if (diagnostics.Count <= 1)
+            return diagnostics;
+
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        var result = new List<CsEvalDiagnostic>(diagnostics.Count);
+        foreach (var diagnostic in diagnostics)
+        {
+            var key = $"{diagnostic.Code}|{diagnostic.Line}|{diagnostic.Column}|{diagnostic.Message}";
+            if (!seen.Add(key))
+                continue;
+            result.Add(diagnostic);
+        }
+
+        return result;
     }
 
     private static T? ConvertResult<T>(object? result)
