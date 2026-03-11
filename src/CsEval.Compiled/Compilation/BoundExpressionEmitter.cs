@@ -352,8 +352,8 @@ internal sealed partial class BoundExpressionEmitter
             TokenType.Percent => LinqExpression.Call(ModuloMethod, left, right),
             TokenType.EqualEqual => LinqExpression.Call(EqualsMethod, left, right),
             TokenType.BangEqual => LinqExpression.Call(NotEqualsMethod, left, right),
-            TokenType.EqualEqualEqual => LinqExpression.Call(EqualsMethod, left, right),
-            TokenType.BangEqualEqual => LinqExpression.Call(NotEqualsMethod, left, right),
+            TokenType.EqualEqualEqual => LinqExpression.Call(StrictEqualsMethod, left, right),
+            TokenType.BangEqualEqual => LinqExpression.Call(StrictNotEqualsMethod, left, right),
             TokenType.Less => LinqExpression.Call(LessThanMethod, left, right, _optionsParam),
             TokenType.LessEqual => LinqExpression.Call(LessThanOrEqualMethod, left, right, _optionsParam),
             TokenType.Greater => LinqExpression.Call(GreaterThanMethod, left, right, _optionsParam),
@@ -394,8 +394,8 @@ internal sealed partial class BoundExpressionEmitter
             TokenType.Star => _isChecked ? LinqExpression.MultiplyChecked(left, right) : LinqExpression.Multiply(left, right),
             TokenType.Slash => LinqExpression.Divide(left, right),
             TokenType.Percent => LinqExpression.Modulo(left, right),
-            TokenType.EqualEqual or TokenType.EqualEqualEqual => LinqExpression.Equal(left, right),
-            TokenType.BangEqual or TokenType.BangEqualEqual => LinqExpression.NotEqual(left, right),
+            TokenType.EqualEqual => LinqExpression.Equal(left, right),
+            TokenType.BangEqual => LinqExpression.NotEqual(left, right),
             TokenType.Less => LinqExpression.LessThan(left, right),
             TokenType.LessEqual => LinqExpression.LessThanOrEqual(left, right),
             TokenType.Greater => LinqExpression.GreaterThan(left, right),
@@ -437,7 +437,7 @@ internal sealed partial class BoundExpressionEmitter
     private static bool IsFastPathNumericOperator(TokenType op)
     {
         return op is TokenType.Plus or TokenType.Minus or TokenType.Star or TokenType.Slash or TokenType.Percent or
-            TokenType.EqualEqual or TokenType.EqualEqualEqual or TokenType.BangEqual or TokenType.BangEqualEqual or
+            TokenType.EqualEqual or TokenType.BangEqual or
             TokenType.Less or TokenType.LessEqual or TokenType.Greater or TokenType.GreaterEqual;
     }
 

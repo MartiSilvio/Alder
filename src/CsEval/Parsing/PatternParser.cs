@@ -186,7 +186,9 @@ internal sealed class PatternParser : ParserBase
         }
 
         // Number/string/character literals and constant expressions (e.g., -1, 5 * 2)
-        var expr = _expression.ParseExpression();
+        // Use ParseBitwiseOr (not ParseExpression) to avoid consuming pattern combinators
+        // (and/or/not) which live at the ParseAnd/ParseOr levels.
+        var expr = _expression.ParseBitwiseOr();
         return new ConstantPattern(expr);
     }
 

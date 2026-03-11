@@ -40,6 +40,29 @@ public class ScopingTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo("Ada:20"));
     }
 
+    [Test]
+    public void LetInDestructuring_TempVarDoesNotShadowUserVariable()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with
+        {
+            CompilationMode = mode,
+            LanguageMode = LanguageMode.Extended
+        });
+        // The destructuring temp variable uses a <angle-bracket> name that
+        // is illegal in user C# code, so it cannot collide with user variables.
+        engine.SetVariable("person", new Dictionary<string, object?>
+        {
+            ["Name"] = "Ada",
+            ["Age"] = 20
+        });
+        // Set a variable with the old-style temp name to prove it doesn't interfere
+        engine.SetVariable("__let_tmp_1_1_0", "SHADOW");
+
+        var result = engine.Evaluate("let { Name, Age } = person in Name + \":\" + Age");
+
+        Assert.That(result, Is.EqualTo("Ada:20"));
+    }
+
     #region ForEach Loop Scoping
 
     // Engine-only: error tests and CsEval-specific [1,2,3] syntax

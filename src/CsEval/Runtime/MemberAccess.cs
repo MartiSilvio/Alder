@@ -150,26 +150,26 @@ internal static class MemberAccess
 
     public static object? GetIndex(object? obj, object? index, CsEvalOptions options, CsEvalContext context)
     {
-        if (obj == null)
-            throw new CsEvalException(DiagnosticDescriptors.BadIndexerAccess, TypeNameFormatter.Null);
-
-        if (obj is IDictionary<string, object?> dict && index is string strKey)
+        switch (obj)
         {
-            if (dict.TryGetValue(strKey, out var value))
-                return TypeHelpers.GuardReflectionLeak(value, $"index [{strKey}]");
-            return null;
-        }
-
-        if (obj is string s && index != null)
-        {
-            var i = NormalizeIndex(Convert.ToInt32(index), s.Length, options.LanguageMode);
-            return (object)s[i];
-        }
-
-        if (obj is IList list && index != null)
-        {
-            var idx = NormalizeIndex(Convert.ToInt32(index), list.Count, options.LanguageMode);
-            return TypeHelpers.GuardReflectionLeak(list[idx], $"index [{idx}]");
+            case null:
+                throw new CsEvalException(DiagnosticDescriptors.BadIndexerAccess, TypeNameFormatter.Null);
+            case IDictionary<string, object?> dict when index is string strKey:
+            {
+                if (dict.TryGetValue(strKey, out var value))
+                    return TypeHelpers.GuardReflectionLeak(value, $"index [{strKey}]");
+                return null;
+            }
+            case string s when index != null:
+            {
+                var i = NormalizeIndex(Convert.ToInt32(index), s.Length, options.LanguageMode);
+                return (object)s[i];
+            }
+            case IList list when index != null:
+            {
+                var idx = NormalizeIndex(Convert.ToInt32(index), list.Count, options.LanguageMode);
+                return TypeHelpers.GuardReflectionLeak(list[idx], $"index [{idx}]");
+            }
         }
 
         var type = obj.GetType();

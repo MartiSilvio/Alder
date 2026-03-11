@@ -53,15 +53,23 @@ public class PolyglotEdgeCaseTests(CompilationMode mode)
     }
 
     [Test]
-    public void ScopeFunctions_LetAlsoApplyRunWith_Work()
+    public void ScopeFunctions_LetAlsoRunWith_Work()
     {
         var engine = CreateEngine();
 
         Assert.That(engine.Evaluate("7.let(x => x * x)"), Is.EqualTo(49));
         Assert.That(engine.Evaluate("7.also(x => x + 1)"), Is.EqualTo(7));
-        Assert.That(engine.Evaluate("7.apply(x => x + 1)"), Is.EqualTo(7));
         Assert.That(engine.Evaluate("7.run(x => x + 1)"), Is.EqualTo(8));
         Assert.That(engine.Evaluate("7.with(x => x * x)"), Is.EqualTo(49));
+    }
+
+    [Test]
+    public void ScopeFunctions_ApplyDoesNotExist()
+    {
+        var engine = CreateEngine();
+
+        // apply is removed — it was identical to also, which is misleading vs Kotlin semantics
+        Assert.Throws<CsEvalException>(() => engine.Evaluate("7.apply(x => x + 1)"));
     }
 
     [Test]
@@ -361,6 +369,161 @@ public class PolyglotEdgeCaseTests(CompilationMode mode)
         var engine = CreateEngine();
         Assert.That(() => engine.Evaluate("{ var (a, b) = 42; return a; }"),
             Throws.InstanceOf<CsEvalException>());
+    }
+
+    #endregion
+
+    #region and/or/not: general-purpose boolean operators
+
+    [Test]
+    public void ExtendedMode_And_WorksAsGeneralBooleanOperator()
+    {
+        var engine = CreateEngine();
+        Assert.That(engine.Evaluate("true and true"), Is.True);
+        Assert.That(engine.Evaluate("true and false"), Is.False);
+    }
+
+    [Test]
+    public void ExtendedMode_Or_WorksAsGeneralBooleanOperator()
+    {
+        var engine = CreateEngine();
+        Assert.That(engine.Evaluate("false or true"), Is.True);
+        Assert.That(engine.Evaluate("false or false"), Is.False);
+    }
+
+    [Test]
+    public void ExtendedMode_Not_WorksAsGeneralBooleanOperator()
+    {
+        var engine = CreateEngine();
+        Assert.That(engine.Evaluate("not true"), Is.False);
+        Assert.That(engine.Evaluate("not false"), Is.True);
+    }
+
+    [Test]
+    public void StandardMode_And_InExpression_Throws()
+        => Assert.That(() => CreateStandardEngine().Evaluate("true and false"),
+            Throws.InstanceOf<CsEvalLanguageModeException>());
+
+    [Test]
+    public void StandardMode_Or_InExpression_Throws()
+        => Assert.That(() => CreateStandardEngine().Evaluate("false or true"),
+            Throws.InstanceOf<CsEvalLanguageModeException>());
+
+    [Test]
+    public void StandardMode_Not_InExpression_Throws()
+        => Assert.That(() => CreateStandardEngine().Evaluate("not true"),
+            Throws.InstanceOf<CsEvalLanguageModeException>());
+
+    [Test]
+    public void StandardMode_And_InPattern_StillWorks()
+    {
+        var engine = CreateStandardEngine();
+        engine.SetVariable("x", 5);
+        Assert.That(engine.Evaluate("x is > 0 and < 10"), Is.True);
+    }
+
+    [Test]
+    public void StandardMode_Or_InPattern_StillWorks()
+    {
+        var engine = CreateStandardEngine();
+        engine.SetVariable("x", 5);
+        Assert.That(engine.Evaluate("x is 5 or 10"), Is.True);
+        Assert.That(engine.Evaluate("x is 3 or 5"), Is.True);
+        Assert.That(engine.Evaluate("x is 3 or 4"), Is.False);
+    }
+
+    [Test]
+    public void StandardMode_Not_InPattern_StillWorks()
+    {
+        var engine = CreateStandardEngine();
+        engine.SetVariable("x", 5);
+        Assert.That(engine.Evaluate("x is not null"), Is.True);
+    }
+
+    [Test]
+    public void StandardMode_SymbolicAndOr_StillWork()
+    {
+        var engine = CreateStandardEngine();
+        Assert.That(engine.Evaluate("true && true"), Is.True);
+        Assert.That(engine.Evaluate("false || true"), Is.True);
+        Assert.That(engine.Evaluate("!false"), Is.True);
+    }
+
+    #endregion
+
+    #region Strict equality: type-exact semantics
+
+    [Test]
+    public void StrictEquality_SameTypeSameValue_ReturnsTrue()
+    {
+        var engine = CreateEngine();
+        Assert.That(engine.Evaluate("1 === 1"), Is.True);
+    }
+
+    [Test]
+    public void StrictEquality_DifferentNumericTypes_ReturnsFalse()
+    {
+        var engine = CreateEngine();
+        Assert.That(engine.Evaluate("1 === 1L"), Is.False);       // int vs long
+        Assert.That(engine.Evaluate("1 === 1.0"), Is.False);      // int vs double
+        Assert.That(engine.Evaluate("1.0f === 1.0"), Is.False);   // float vs double
+    }
+
+    [Test]
+    public void StrictEquality_Strings_ReturnsTrue()
+    {
+        var engine = CreateEngine();
+        Assert.That(engine.Evaluate("\"abc\" === \"abc\""), Is.True);
+    }
+
+    [Test]
+    public void StrictEquality_NullBothSides_ReturnsTrue()
+    {
+        var engine = CreateEngine();
+        Assert.That(engine.Evaluate("null === null"), Is.True);
+    }
+
+    [Test]
+    public void StrictEquality_NullVsValue_ReturnsFalse()
+    {
+        var engine = CreateEngine();
+        Assert.That(engine.Evaluate("null === 0"), Is.False);
+        Assert.That(engine.Evaluate("0 === null"), Is.False);
+    }
+
+    [Test]
+    public void StrictEquality_BoolVsInt_ReturnsFalse()
+    {
+        var engine = CreateEngine();
+        Assert.That(engine.Evaluate("true === 1"), Is.False);
+    }
+
+    [Test]
+    public void StrictInequality_DifferentNumericTypes_ReturnsTrue()
+    {
+        var engine = CreateEngine();
+        Assert.That(engine.Evaluate("1 !== 1L"), Is.True);
+    }
+
+    [Test]
+    public void StrictInequality_SameTypeSameValue_ReturnsFalse()
+    {
+        var engine = CreateEngine();
+        Assert.That(engine.Evaluate("1 !== 1"), Is.False);
+    }
+
+    [Test]
+    public void StrictEquality_NaN_ReturnsFalse()
+    {
+        var engine = CreateEngine();
+        Assert.That(engine.Evaluate("double.NaN === double.NaN"), Is.False);
+    }
+
+    [Test]
+    public void RegularEquality_StillWidens()
+    {
+        var engine = CreateEngine();
+        Assert.That(engine.Evaluate("1 == 1L"), Is.True);
     }
 
     #endregion

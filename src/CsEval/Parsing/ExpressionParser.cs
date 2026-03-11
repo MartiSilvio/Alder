@@ -291,7 +291,7 @@ internal sealed partial class ExpressionParser : ParserBase
             Consume(TokenType.Equal, "Expected '=' after let destructuring");
             var initializer = ParseLetInInitializer();
 
-            var tempName = $"__let_tmp_{letToken.Line}_{letToken.Column}_{State.Current}";
+            var tempName = $"<let>__{letToken.Line}_{letToken.Column}_{State.Current}";
             var tempToken = new Token(TokenType.Identifier, tempName, null, letToken.Line, letToken.Column);
             statements.Add(new VariableDeclExpr(null, tempToken, initializer));
 
@@ -637,6 +637,7 @@ internal sealed partial class ExpressionParser : ParserBase
         while (Match(TokenType.PipePipe))
         {
             var op = Previous();
+            RejectWordOperatorInStandardMode(op, "or");
             var right = ParseAnd();
             expr = new LogicalExpr(expr, op, right);
         }
@@ -651,6 +652,7 @@ internal sealed partial class ExpressionParser : ParserBase
         while (Match(TokenType.AmpAmp))
         {
             var op = Previous();
+            RejectWordOperatorInStandardMode(op, "and");
             var right = ParseBitwiseOr();
             expr = new LogicalExpr(expr, op, right);
         }
@@ -662,7 +664,7 @@ internal sealed partial class ExpressionParser : ParserBase
 
     #region Bitwise Operators
 
-    private Expr ParseBitwiseOr()
+    internal Expr ParseBitwiseOr()
     {
         var expr = ParseBitwiseXor();
 
@@ -1074,6 +1076,8 @@ internal sealed partial class ExpressionParser : ParserBase
         if (Match(TokenType.Bang, TokenType.Minus, TokenType.Plus, TokenType.Tilde))
         {
             var op = Previous();
+            if (op.Type == TokenType.Bang)
+                RejectWordOperatorInStandardMode(op, "not");
             var right = ParseUnary();
             return new UnaryExpr(op, right);
         }
@@ -1121,6 +1125,15 @@ internal sealed partial class ExpressionParser : ParserBase
         }
 
         return expr;
+    }
+
+    private void RejectWordOperatorInStandardMode(Token op, string keyword)
+    {
+        if (State.LanguageMode == LanguageMode.Standard &&
+            string.Equals(op.Lexeme, keyword, StringComparison.Ordinal))
+        {
+            throw new CsEvalLanguageModeException(keyword);
+        }
     }
 
     internal bool IsCastExpression()

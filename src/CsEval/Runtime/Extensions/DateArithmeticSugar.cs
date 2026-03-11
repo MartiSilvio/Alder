@@ -2,6 +2,25 @@ namespace CsEval.Runtime.Extensions;
 
 internal static class DateArithmeticSugar
 {
+    private static readonly Dictionary<string, Func<double, TimeSpan>> TimeSpanUnits = new(StringComparer.Ordinal)
+    {
+        [ExtendedBuiltInNames.Day] = TimeSpan.FromDays,
+        [ExtendedBuiltInNames.Days] = TimeSpan.FromDays,
+        [ExtendedBuiltInNames.Hour] = TimeSpan.FromHours,
+        [ExtendedBuiltInNames.Hours] = TimeSpan.FromHours,
+        [ExtendedBuiltInNames.Minute] = TimeSpan.FromMinutes,
+        [ExtendedBuiltInNames.Minutes] = TimeSpan.FromMinutes,
+        [ExtendedBuiltInNames.Second] = TimeSpan.FromSeconds,
+        [ExtendedBuiltInNames.Seconds] = TimeSpan.FromSeconds,
+        [ExtendedBuiltInNames.Millisecond] = TimeSpan.FromMilliseconds,
+        [ExtendedBuiltInNames.Milliseconds] = TimeSpan.FromMilliseconds,
+        [ExtendedBuiltInNames.Week] = amount => TimeSpan.FromDays(amount * 7d),
+        [ExtendedBuiltInNames.Weeks] = amount => TimeSpan.FromDays(amount * 7d),
+    };
+
+    private static readonly Dictionary<string, Func<double, TimeSpan>> TimeSpanUnitsOrdinalIgnoreCase =
+        new(TimeSpanUnits, StringComparer.OrdinalIgnoreCase);
+
     internal static bool TryResolveTimeSpanUnit(
         object target,
         string memberName,
@@ -12,53 +31,22 @@ internal static class DateArithmeticSugar
         if (!TypeHelpers.IsArithmetic(target))
             return false;
 
-        var amount = Convert.ToDouble(target);
-        var comparison = isCaseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
+        var units = isCaseSensitive ? TimeSpanUnits : TimeSpanUnitsOrdinalIgnoreCase;
+        if (!units.TryGetValue(memberName, out var factory))
+            return false;
 
-        if (string.Equals(memberName, ExtendedBuiltInNames.Day, comparison) ||
-            string.Equals(memberName, ExtendedBuiltInNames.Days, comparison))
-        {
-            value = TimeSpan.FromDays(amount);
-            return true;
-        }
-
-        if (string.Equals(memberName, ExtendedBuiltInNames.Hour, comparison) ||
-            string.Equals(memberName, ExtendedBuiltInNames.Hours, comparison))
-        {
-            value = TimeSpan.FromHours(amount);
-            return true;
-        }
-
-        if (string.Equals(memberName, ExtendedBuiltInNames.Minute, comparison) ||
-            string.Equals(memberName, ExtendedBuiltInNames.Minutes, comparison))
-        {
-            value = TimeSpan.FromMinutes(amount);
-            return true;
-        }
-
-        if (string.Equals(memberName, ExtendedBuiltInNames.Second, comparison) ||
-            string.Equals(memberName, ExtendedBuiltInNames.Seconds, comparison))
-        {
-            value = TimeSpan.FromSeconds(amount);
-            return true;
-        }
-
-        if (string.Equals(memberName, ExtendedBuiltInNames.Millisecond, comparison) ||
-            string.Equals(memberName, ExtendedBuiltInNames.Milliseconds, comparison))
-        {
-            value = TimeSpan.FromMilliseconds(amount);
-            return true;
-        }
-
-        if (string.Equals(memberName, ExtendedBuiltInNames.Week, comparison) ||
-            string.Equals(memberName, ExtendedBuiltInNames.Weeks, comparison))
-        {
-            value = TimeSpan.FromDays(amount * 7d);
-            return true;
-        }
-
-        return false;
+        value = factory(Convert.ToDouble(target));
+        return true;
     }
+
+    private static readonly Dictionary<string, Func<object>> ClockFunctions = new(StringComparer.Ordinal)
+    {
+        [ExtendedBuiltInNames.Now] = () => DateTime.Now,
+        [ExtendedBuiltInNames.Today] = () => DateTime.Today,
+    };
+
+    private static readonly Dictionary<string, Func<object>> ClockFunctionsOrdinalIgnoreCase =
+        new(ClockFunctions, StringComparer.OrdinalIgnoreCase);
 
     internal static bool TryInvokeClockFunction(
         string name,
@@ -70,19 +58,11 @@ internal static class DateArithmeticSugar
         if (args.Length != 0)
             return false;
 
-        var comparison = isCaseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
-        if (string.Equals(name, ExtendedBuiltInNames.Now, comparison))
-        {
-            value = DateTime.Now;
-            return true;
-        }
+        var lookup = isCaseSensitive ? ClockFunctions : ClockFunctionsOrdinalIgnoreCase;
+        if (!lookup.TryGetValue(name, out var factory))
+            return false;
 
-        if (string.Equals(name, ExtendedBuiltInNames.Today, comparison))
-        {
-            value = DateTime.Today;
-            return true;
-        }
-
-        return false;
+        value = factory();
+        return true;
     }
 }

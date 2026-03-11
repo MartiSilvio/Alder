@@ -5,45 +5,30 @@ namespace CsEval.Runtime.Extensions;
 
 internal static class AggregateBuiltins
 {
+    private static readonly Dictionary<string, Func<object?, object?>> Aggregates = new(StringComparer.Ordinal)
+    {
+        [ExtendedBuiltInNames.Sum] = Sum,
+        [ExtendedBuiltInNames.Avg] = source => Average(source),
+        [ExtendedBuiltInNames.Count] = source => Count(source),
+        [ExtendedBuiltInNames.Min] = Min,
+        [ExtendedBuiltInNames.Max] = Max,
+    };
+
+    private static readonly Dictionary<string, Func<object?, object?>> AggregatesOrdinalIgnoreCase =
+        new(Aggregates, StringComparer.OrdinalIgnoreCase);
+
     internal static bool TryInvoke(string name, object?[] args, bool isCaseSensitive, out object? result)
     {
         result = null;
         if (args.Length != 1)
             return false;
 
-        var comparison = isCaseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
+        var lookup = isCaseSensitive ? Aggregates : AggregatesOrdinalIgnoreCase;
+        if (!lookup.TryGetValue(name, out var aggregate))
+            return false;
 
-        if (string.Equals(name, ExtendedBuiltInNames.Sum, comparison))
-        {
-            result = Sum(args[0]);
-            return true;
-        }
-
-        if (string.Equals(name, ExtendedBuiltInNames.Avg, comparison))
-        {
-            result = Average(args[0]);
-            return true;
-        }
-
-        if (string.Equals(name, ExtendedBuiltInNames.Count, comparison))
-        {
-            result = Count(args[0]);
-            return true;
-        }
-
-        if (string.Equals(name, ExtendedBuiltInNames.Min, comparison))
-        {
-            result = Min(args[0]);
-            return true;
-        }
-
-        if (string.Equals(name, ExtendedBuiltInNames.Max, comparison))
-        {
-            result = Max(args[0]);
-            return true;
-        }
-
-        return false;
+        result = aggregate(args[0]);
+        return true;
     }
 
     internal static object? Sum(object? source)

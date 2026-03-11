@@ -290,6 +290,12 @@ internal static class BoundRuntimeMethodCache
     internal static readonly MethodInfo NotEqualsMethod =
         typeof(Operators).GetMethod(nameof(Operators.NotEquals), [typeof(object), typeof(object)])!;
 
+    internal static readonly MethodInfo StrictEqualsMethod =
+        typeof(Operators).GetMethod(nameof(Operators.StrictEquals), [typeof(object), typeof(object)])!;
+
+    internal static readonly MethodInfo StrictNotEqualsMethod =
+        typeof(Operators).GetMethod(nameof(Operators.StrictNotEquals), [typeof(object), typeof(object)])!;
+
     internal static readonly MethodInfo LessThanMethod =
         typeof(Operators).GetMethod(nameof(Operators.LessThan), [typeof(object), typeof(object), typeof(CsEvalOptions)])!;
 

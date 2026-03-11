@@ -23,7 +23,7 @@ public class LinqTests(CompilationMode mode)
     }
 
     [Test]
-    public void Select_ImplicitDiscardPlaceholder_Works()
+    public void Select_DiscardIdentifier_IsNotImplicitPlaceholder()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with
         {
@@ -32,9 +32,8 @@ public class LinqTests(CompilationMode mode)
         });
         engine.SetVariable("numbers", new List<int> { 1, 2, 3, 4 });
 
-        var result = engine.Evaluate("numbers.Select(_ * 10).ToArray()");
-
-        Assert.That(result, Is.EqualTo(new[] { 10, 20, 30, 40 }));
+        // _ is C#'s discard, not a placeholder — should fail as unresolved identifier
+        Assert.Throws<CsEvalException>(() => engine.Evaluate("numbers.Select(_ * 10).ToArray()"));
     }
 
     [Test]

@@ -278,17 +278,15 @@ public class ParserTests
     }
 
     [Test]
-    public void Parse_ImplicitDiscardCallArgument_LowersToLambda()
+    public void Parse_DiscardIdentifier_IsNotImplicitPlaceholder()
     {
+        // _ is C#'s discard identifier — it should NOT be lowered to a lambda
         var expr = Parse("numbers.Select(_ * 2)");
         Assert.That(expr, Is.InstanceOf<CallExpr>());
 
         var call = (CallExpr)expr;
         Assert.That(call.Arguments, Has.Count.EqualTo(1));
-        Assert.That(call.Arguments[0], Is.InstanceOf<LambdaExpr>());
-        var lambda = (LambdaExpr)call.Arguments[0];
-        Assert.That(lambda.Parameters, Has.Count.EqualTo(1));
-        Assert.That(lambda.Parameters[0].Name.Lexeme, Is.EqualTo("_"));
+        Assert.That(call.Arguments[0], Is.Not.InstanceOf<LambdaExpr>());
     }
 
     [Test]

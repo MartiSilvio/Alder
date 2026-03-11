@@ -107,6 +107,5 @@ internal static class TokenLexemes
         CreateSynthetic(type, anchor.Line, anchor.Column, literal);
 
     public static bool IsImplicitPlaceholderIdentifier(string lexeme) =>
-        string.Equals(lexeme, ImplicitPlaceholderIdentifier, StringComparison.Ordinal) ||
-        string.Equals(lexeme, DiscardIdentifier, StringComparison.Ordinal);
+        string.Equals(lexeme, ImplicitPlaceholderIdentifier, StringComparison.Ordinal);
 }

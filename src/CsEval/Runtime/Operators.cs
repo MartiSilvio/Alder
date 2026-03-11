@@ -236,6 +236,20 @@ internal static class Operators
         return !(bool)Equals(left, right);
     }
 
+    public static object StrictEquals(object? left, object? right)
+    {
+        if (left == null && right == null) return true;
+        if (left == null || right == null) return false;
+        if (IsNaN(left) || IsNaN(right)) return false;
+        if (left.GetType() != right.GetType()) return false;
+        return left.Equals(right);
+    }
+
+    public static object StrictNotEquals(object? left, object? right)
+    {
+        return !(bool)StrictEquals(left, right);
+    }
+
     public static object LessThan(object? left, object? right, CsEvalOptions options)
     {
         if (left == null || right == null)
