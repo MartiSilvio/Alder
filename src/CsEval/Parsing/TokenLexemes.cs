@@ -7,6 +7,7 @@ internal static class TokenLexemes
 {
     internal const string CollectionExpressionLiteral = "[...]";
     internal const string DiscardIdentifier = "_";
+    internal const string ImplicitPlaceholderIdentifier = "it";
 
     public static string GetCanonical(TokenType type) => type switch
     {
@@ -104,4 +105,8 @@ internal static class TokenLexemes
 
     public static Token CreateSynthetic(TokenType type, Token anchor, object? literal = null) =>
         CreateSynthetic(type, anchor.Line, anchor.Column, literal);
+
+    public static bool IsImplicitPlaceholderIdentifier(string lexeme) =>
+        string.Equals(lexeme, ImplicitPlaceholderIdentifier, StringComparison.Ordinal) ||
+        string.Equals(lexeme, DiscardIdentifier, StringComparison.Ordinal);
 }

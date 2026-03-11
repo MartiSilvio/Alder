@@ -15,37 +15,43 @@ internal static class DateArithmeticSugar
         var amount = Convert.ToDouble(target);
         var comparison = isCaseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
 
-        if (string.Equals(memberName, "day", comparison) || string.Equals(memberName, "days", comparison))
+        if (string.Equals(memberName, ExtendedBuiltInNames.Day, comparison) ||
+            string.Equals(memberName, ExtendedBuiltInNames.Days, comparison))
         {
             value = TimeSpan.FromDays(amount);
             return true;
         }
 
-        if (string.Equals(memberName, "hour", comparison) || string.Equals(memberName, "hours", comparison))
+        if (string.Equals(memberName, ExtendedBuiltInNames.Hour, comparison) ||
+            string.Equals(memberName, ExtendedBuiltInNames.Hours, comparison))
         {
             value = TimeSpan.FromHours(amount);
             return true;
         }
 
-        if (string.Equals(memberName, "minute", comparison) || string.Equals(memberName, "minutes", comparison))
+        if (string.Equals(memberName, ExtendedBuiltInNames.Minute, comparison) ||
+            string.Equals(memberName, ExtendedBuiltInNames.Minutes, comparison))
         {
             value = TimeSpan.FromMinutes(amount);
             return true;
         }
 
-        if (string.Equals(memberName, "second", comparison) || string.Equals(memberName, "seconds", comparison))
+        if (string.Equals(memberName, ExtendedBuiltInNames.Second, comparison) ||
+            string.Equals(memberName, ExtendedBuiltInNames.Seconds, comparison))
         {
             value = TimeSpan.FromSeconds(amount);
             return true;
         }
 
-        if (string.Equals(memberName, "millisecond", comparison) || string.Equals(memberName, "milliseconds", comparison))
+        if (string.Equals(memberName, ExtendedBuiltInNames.Millisecond, comparison) ||
+            string.Equals(memberName, ExtendedBuiltInNames.Milliseconds, comparison))
         {
             value = TimeSpan.FromMilliseconds(amount);
             return true;
         }
 
-        if (string.Equals(memberName, "week", comparison) || string.Equals(memberName, "weeks", comparison))
+        if (string.Equals(memberName, ExtendedBuiltInNames.Week, comparison) ||
+            string.Equals(memberName, ExtendedBuiltInNames.Weeks, comparison))
         {
             value = TimeSpan.FromDays(amount * 7d);
             return true;
@@ -65,13 +71,13 @@ internal static class DateArithmeticSugar
             return false;
 
         var comparison = isCaseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
-        if (string.Equals(name, "now", comparison))
+        if (string.Equals(name, ExtendedBuiltInNames.Now, comparison))
         {
             value = DateTime.Now;
             return true;
         }
 
-        if (string.Equals(name, "today", comparison))
+        if (string.Equals(name, ExtendedBuiltInNames.Today, comparison))
         {
             value = DateTime.Today;
             return true;

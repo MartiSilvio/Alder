@@ -13,31 +13,31 @@ internal static class AggregateBuiltins
 
         var comparison = isCaseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
 
-        if (string.Equals(name, "sum", comparison))
+        if (string.Equals(name, ExtendedBuiltInNames.Sum, comparison))
         {
             result = Sum(args[0]);
             return true;
         }
 
-        if (string.Equals(name, "avg", comparison))
+        if (string.Equals(name, ExtendedBuiltInNames.Avg, comparison))
         {
             result = Average(args[0]);
             return true;
         }
 
-        if (string.Equals(name, "count", comparison))
+        if (string.Equals(name, ExtendedBuiltInNames.Count, comparison))
         {
             result = Count(args[0]);
             return true;
         }
 
-        if (string.Equals(name, "min", comparison))
+        if (string.Equals(name, ExtendedBuiltInNames.Min, comparison))
         {
             result = Min(args[0]);
             return true;
         }
 
-        if (string.Equals(name, "max", comparison))
+        if (string.Equals(name, ExtendedBuiltInNames.Max, comparison))
         {
             result = Max(args[0]);
             return true;
@@ -182,7 +182,7 @@ internal static class AggregateBuiltins
                 default:
                     throw new CsEvalException(
                         DiagnosticDescriptors.BadBinaryOps,
-                        "sum",
+                        ExtendedBuiltInNames.Sum,
                         value.GetType().Name,
                         "numeric");
             }
