@@ -309,6 +309,38 @@ public class ParserTests
     }
 
     [Test]
+    public void Parse_Block_EmptyStatement_IsIgnored()
+    {
+        var expr = Parse("{ int x = 1; ; return x; }", LanguageMode.Standard);
+        Assert.That(expr, Is.InstanceOf<BlockExpr>());
+
+        var block = (BlockExpr)expr;
+        Assert.That(block.Statements, Has.Count.EqualTo(2));
+        Assert.That(block.Statements[0], Is.InstanceOf<VariableDeclExpr>());
+        Assert.That(block.Statements[1], Is.InstanceOf<ReturnExpr>());
+    }
+
+    [Test]
+    public void Parse_Block_LocalFunctionDeclaration_DesugarsToLambdaVariable()
+    {
+        var expr = Parse("{ int i = 0; int Next() { i = i + 1; return i; } return Next() * 10 + Next(); }",
+            LanguageMode.Standard);
+        Assert.That(expr, Is.InstanceOf<BlockExpr>());
+
+        var block = (BlockExpr)expr;
+        Assert.That(block.Statements, Has.Count.EqualTo(3));
+        Assert.That(block.Statements[1], Is.InstanceOf<VariableDeclExpr>());
+
+        var decl = (VariableDeclExpr)block.Statements[1];
+        Assert.That(decl.Name.Lexeme, Is.EqualTo("Next"));
+        Assert.That(decl.Initializer, Is.InstanceOf<LambdaExpr>());
+
+        var lambda = (LambdaExpr)decl.Initializer;
+        Assert.That(lambda.Parameters, Has.Count.EqualTo(0));
+        Assert.That(lambda.Body, Is.InstanceOf<BlockExpr>());
+    }
+
+    [Test]
     public void Parse_NullCoalesce_ReturnsNullCoalesceExpr()
     {
         var expr = Parse("x ?? y");

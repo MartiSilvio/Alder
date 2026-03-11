@@ -50,6 +50,9 @@ internal sealed class StatementParser : ParserBase
 
     internal Expr? ParseStatement()
     {
+        if (Match(TokenType.Semicolon))
+            return null;
+
         if (Match(TokenType.Return))
         {
             Expr? value = null;
@@ -158,6 +161,9 @@ internal sealed class StatementParser : ParserBase
         if (IsTypeKeyword(Peek().Type) && PeekNext().Type != TokenType.Dot && MatchTypeKeyword(out var typeToken))
         {
             var name = ConsumeIdentifierOrContextualKeyword("Expected variable name");
+            if (Check(TokenType.LeftParen))
+                return ParseLocalFunctionDeclaration(typeToken, name);
+
             Consume(TokenType.Equal, "Expected '=' after variable name");
             var initializer = _expression.ParseExpression();
             Consume(TokenType.Semicolon, "Expected ';' after variable declaration");
@@ -175,6 +181,34 @@ internal sealed class StatementParser : ParserBase
         var expr = _expression.ParseExpression();
         Consume(TokenType.Semicolon, "Expected ';' after statement");
         return expr;
+    }
+
+    private Expr ParseLocalFunctionDeclaration(Token _returnType, Token functionName)
+    {
+        Consume(TokenType.LeftParen, "Expected '(' after local function name");
+        var parameters = new List<LambdaParameter>();
+
+        if (!Check(TokenType.RightParen))
+        {
+            while (true)
+            {
+                string? parameterType = null;
+                if (IsTypeKeyword(Peek().Type))
+                    parameterType = TryParseTypeName();
+
+                var parameterName = ConsumeIdentifierOrContextualKeyword("Expected parameter name");
+                parameters.Add(new LambdaParameter(parameterType, parameterName));
+
+                if (!Match(TokenType.Comma))
+                    break;
+            }
+        }
+
+        Consume(TokenType.RightParen, "Expected ')' after parameter list");
+        Consume(TokenType.LeftBrace, "Expected '{' before local function body");
+        var body = ParseBlock();
+        var lambda = new LambdaExpr(parameters, body);
+        return new VariableDeclExpr(null, functionName, lambda);
     }
 
     /// <summary>
