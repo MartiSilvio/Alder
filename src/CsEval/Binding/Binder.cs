@@ -509,8 +509,13 @@ internal sealed class Binder
             ? context.RuntimeContext.TypeResolver.ResolveType(variableDecl.DeclaredType.Value.Lexeme)
             : null;
         var staticType = declaredType ?? initializer.StaticType;
-        context.DeclareLocal(variableDecl.Name.Lexeme, staticType);
-        return new BoundVariableDeclExpr(variableDecl.Name.Lexeme, initializer, declaredType, staticType);
+        context.DeclareLocal(variableDecl.Name.Lexeme, staticType, variableDecl.IsConst);
+        return new BoundVariableDeclExpr(
+            variableDecl.Name.Lexeme,
+            initializer,
+            declaredType,
+            staticType,
+            IsConst: variableDecl.IsConst);
     }
 
     private BoundWhileExpr BindWhile(WhileStatementExpr whileStatement, BindingContext context)
@@ -671,6 +676,7 @@ internal sealed class Binder
 
     private BoundAssignExpr BindAssign(AssignExpr assign, BindingContext context)
     {
+        EnsureVariableIsAssignable(assign.Name.Lexeme, context);
         var value = Bind(assign.Value, context);
         var staticType = context.TryGetVariableType(assign.Name.Lexeme, out var variableType)
             ? variableType
@@ -680,6 +686,7 @@ internal sealed class Binder
 
     private BoundNullCoalesceAssignExpr BindNullCoalesceAssign(NullCoalesceAssignExpr nullCoalesceAssign, BindingContext context)
     {
+        EnsureVariableIsAssignable(nullCoalesceAssign.Name.Lexeme, context);
         var value = Bind(nullCoalesceAssign.Value, context);
         var staticType = context.TryGetVariableType(nullCoalesceAssign.Name.Lexeme, out var variableType)
             ? variableType
@@ -689,6 +696,7 @@ internal sealed class Binder
 
     private BoundCompoundAssignExpr BindCompoundAssign(CompoundAssignExpr compoundAssign, BindingContext context)
     {
+        EnsureVariableIsAssignable(compoundAssign.Name.Lexeme, context);
         var value = Bind(compoundAssign.Value, context);
         var staticType = context.TryGetVariableType(compoundAssign.Name.Lexeme, out var variableType)
             ? variableType
@@ -698,6 +706,7 @@ internal sealed class Binder
 
     private BoundIncrementDecrementExpr BindIncrementDecrement(IncrementDecrementExpr incrementDecrement, BindingContext context)
     {
+        EnsureVariableIsAssignable(incrementDecrement.Name.Lexeme, context);
         var staticType = context.TryGetVariableType(incrementDecrement.Name.Lexeme, out var variableType)
             ? variableType
             : typeof(object);
@@ -706,6 +715,12 @@ internal sealed class Binder
             incrementDecrement.Op.Type,
             incrementDecrement.IsPrefix,
             staticType);
+    }
+
+    private static void EnsureVariableIsAssignable(string variableName, BindingContext context)
+    {
+        if (context.IsReadOnlyLocal(variableName))
+            throw new CsEvalException(DiagnosticDescriptors.AssignmentRequiresVariable);
     }
 
     private BoundMemberAssignExpr BindMemberAssign(MemberAssignExpr memberAssign, BindingContext context)

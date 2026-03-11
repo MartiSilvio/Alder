@@ -33,6 +33,7 @@ public class ApiSurfaceTests
             "CreateChild",
             "Dispose",
             "Evaluate",
+            "EvaluateWithTrace",
             "GetRegisteredModules",
             "Parse",
             "RegisterAssembly",
@@ -414,6 +415,8 @@ public class ApiSurfaceTests
             "CsEval.Diagnostics.DiagnosticDescriptors",
             "CsEval.Parsing.CsEvalLexerException",
             "CsEval.Parsing.CsEvalParserException",
+            "CsEval.Tracing.EvaluationTraceResult",
+            "CsEval.Tracing.EvaluationTraceStep",
         }.OrderBy(n => n).ToList();
 
         Assert.That(publicTypes, Is.EqualTo(expected),

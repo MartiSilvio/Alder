@@ -1,5 +1,6 @@
 using CsEval.Diagnostics;
 using CsEval.Interpretation;
+using CsEval.Runtime.Extensions;
 
 namespace CsEval.Runtime;
 
@@ -15,6 +16,12 @@ internal static class MemberAccess
 
         if (obj == null)
             throw new CsEvalException($"Cannot access property '{name}' on null");
+
+        if (options.LanguageMode == LanguageMode.Extended &&
+            DateArithmeticSugar.TryResolveTimeSpanUnit(obj, name, options.IsCaseSensitive, out var timeSpan))
+        {
+            return timeSpan;
+        }
 
         // Handle namespace sentinel: accumulate path segments for FQN type resolution.
         // Example: NamespaceRef("System") + "Linq" -> NamespaceRef("System.Linq") or Type

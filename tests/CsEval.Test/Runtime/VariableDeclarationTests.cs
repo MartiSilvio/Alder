@@ -1,4 +1,5 @@
 using CsEval.Parsing;
+using CsEval.Diagnostics;
 
 namespace CsEval.Test.Runtime;
 
@@ -44,6 +45,45 @@ public class VariableDeclarationTests(CompilationMode mode)
         var result = engine.Evaluate("{ int x = b; return x; }");
         Assert.That(result, Is.TypeOf<int>());
         Assert.That(result, Is.EqualTo(100));
+    }
+
+    #endregion
+
+    #region Const declarations
+
+    [Test]
+    public void ConstDeclaration_TypedLocal_Works()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var result = engine.Evaluate("{ const int x = 42; return x; }");
+        Assert.That(result, Is.EqualTo(42));
+    }
+
+    [Test]
+    public void ConstDeclaration_Assignment_ThrowsCs0131()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("{ const int x = 1; x = 2; return x; }"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0131));
+        Assert.That(ex.FormattedCode, Is.EqualTo("CS0131"));
+    }
+
+    [Test]
+    public void ConstDeclaration_CompoundAssignment_ThrowsCs0131()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("{ const int x = 1; x += 2; return x; }"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0131));
+        Assert.That(ex.FormattedCode, Is.EqualTo("CS0131"));
+    }
+
+    [Test]
+    public void ConstDeclaration_Increment_ThrowsCs0131()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("{ const int x = 1; x++; return x; }"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0131));
+        Assert.That(ex.FormattedCode, Is.EqualTo("CS0131"));
     }
 
     #endregion

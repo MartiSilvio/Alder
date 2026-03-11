@@ -7,6 +7,39 @@ namespace CsEval.Test.Runtime;
 [TestFixture(CompilationMode.Compiled)]
 public class ScopingTests(CompilationMode mode)
 {
+    [Test]
+    public void LetInExpression_EvaluatesWithLocalScope()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with
+        {
+            CompilationMode = mode,
+            LanguageMode = LanguageMode.Extended
+        });
+
+        var result = engine.Evaluate("let x = 5 in x * x");
+
+        Assert.That(result, Is.EqualTo(25));
+    }
+
+    [Test]
+    public void LetInDestructuring_EvaluatesWithScopedBindings()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with
+        {
+            CompilationMode = mode,
+            LanguageMode = LanguageMode.Extended
+        });
+        engine.SetVariable("person", new Dictionary<string, object?>
+        {
+            ["Name"] = "Ada",
+            ["Age"] = 20
+        });
+
+        var result = engine.Evaluate("let { Name, Age } = person in Name + \":\" + Age");
+
+        Assert.That(result, Is.EqualTo("Ada:20"));
+    }
+
     #region ForEach Loop Scoping
 
     // Engine-only: error tests and CsEval-specific [1,2,3] syntax

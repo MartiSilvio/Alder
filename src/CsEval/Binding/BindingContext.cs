@@ -7,6 +7,7 @@ internal sealed class BindingContext
     private readonly CsEvalContext _context;
     private readonly BindingContext? _parent;
     private readonly Dictionary<string, Type> _locals;
+    private readonly HashSet<string> _readOnlyLocals;
 
     public BindingContext(CsEvalContext context)
         : this(context, parent: null)
@@ -18,15 +19,28 @@ internal sealed class BindingContext
         _context = context;
         _parent = parent;
         _locals = new Dictionary<string, Type>(context.Comparer);
+        _readOnlyLocals = new HashSet<string>(context.Comparer);
     }
 
     internal CsEvalContext RuntimeContext => _context;
     internal bool IsCaseSensitive => _context.Comparer == StringComparer.Ordinal;
     internal BindingContext CreateChildScope() => new(_context, this);
 
-    internal void DeclareLocal(string name, Type type)
+    internal void DeclareLocal(string name, Type type, bool isReadOnly = false)
     {
         _locals[name] = type;
+        if (isReadOnly)
+            _readOnlyLocals.Add(name);
+        else
+            _readOnlyLocals.Remove(name);
+    }
+
+    internal bool IsReadOnlyLocal(string name)
+    {
+        if (_locals.ContainsKey(name))
+            return _readOnlyLocals.Contains(name);
+
+        return _parent?.IsReadOnlyLocal(name) ?? false;
     }
 
     private bool TryGetLocalType(string name, out Type type)

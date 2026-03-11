@@ -3,6 +3,33 @@ namespace CsEval.Test;
 [TestFixture]
 public sealed class ExecutionModeParityTests
 {
+    [Test]
+    public void Trace_InterpretedAndCompiled_ShouldMatch()
+    {
+        var interpreted = new CsEvalEngine(CsEvalOptions.Default with
+        {
+            CompilationMode = CompilationMode.Interpreted,
+            LanguageMode = LanguageMode.Extended
+        });
+
+        var compiled = new CsEvalEngine(CsEvalOptions.Default with
+        {
+            CompilationMode = CompilationMode.Compiled,
+            LanguageMode = LanguageMode.Extended
+        });
+
+        var interpretedTrace = interpreted.EvaluateWithTrace("4 * 5 + 2");
+        var compiledTrace = compiled.EvaluateWithTrace("4 * 5 + 2");
+
+        Assert.That(compiledTrace.Result, Is.EqualTo(interpretedTrace.Result));
+        Assert.That(
+            compiledTrace.Steps.Select(step => step.NodeKind),
+            Is.EqualTo(interpretedTrace.Steps.Select(step => step.NodeKind)));
+        Assert.That(
+            compiledTrace.Steps.Select(step => step.Value?.ToString()),
+            Is.EqualTo(interpretedTrace.Steps.Select(step => step.Value?.ToString())));
+    }
+
     [TestCaseSource(typeof(BinderParityFixture), nameof(BinderParityFixture.StandardScenarios))]
     public void StandardMode_InterpretedAndCompiled_ShouldMatch(ExecutionParityScenario scenario)
     {

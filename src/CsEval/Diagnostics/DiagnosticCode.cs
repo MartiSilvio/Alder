@@ -45,6 +45,9 @@ public enum DiagnosticCode
     /// <summary>A local variable or function named '{0}' is already defined in this scope</summary>
     CS0128 = 128,
 
+    /// <summary>The left-hand side of an assignment must be a variable, property or indexer</summary>
+    CS0131 = 131,
+
     // ECMA-334 control flow
 
     /// <summary>No enclosing loop out of which to break or continue</summary>

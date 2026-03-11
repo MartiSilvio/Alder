@@ -4,6 +4,7 @@ using CsEval.Diagnostics;
 using CsEval.Parsing;
 using CsEval.Runtime;
 using CsEval.Runtime.Extensions;
+using CsEval.Tracing;
 using System.Collections;
 using System.Collections.Immutable;
 using System.Dynamic;
@@ -18,6 +19,7 @@ internal sealed class BoundEvaluator
     private CsEvalContext _context;
     private readonly CsEvalOptions _options;
     private readonly CancellationToken _cancellationToken;
+    private readonly List<EvaluationTraceStep>? _traceSteps;
     private readonly Stack<Exception> _caughtExceptions = new();
     private int _breakContextDepth;
     private int _loopDepth;
@@ -26,18 +28,20 @@ internal sealed class BoundEvaluator
     public BoundEvaluator(
         CsEvalContext context,
         CsEvalOptions options,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        List<EvaluationTraceStep>? traceSteps = null)
     {
         _context = context;
         _options = options;
         _cancellationToken = cancellationToken;
+        _traceSteps = traceSteps;
     }
 
     public object? Evaluate(BoundExpr expr)
     {
         _cancellationToken.ThrowIfCancellationRequested();
 
-        return expr switch
+        var result = expr switch
         {
             BoundLiteralExpr literal => literal.Value,
             BoundIdentifierExpr identifier => IdentifierRuntime.ResolveIdentifier(identifier.Name, _context, _options),
@@ -105,6 +109,20 @@ internal sealed class BoundEvaluator
             _ => throw new BindingNotSupportedException(
                 $"Bound execution for node '{expr.GetType().Name}' is not implemented")
         };
+
+        RecordTrace(expr, result);
+        return result;
+    }
+
+    private void RecordTrace(BoundExpr expr, object? value)
+    {
+        if (_traceSteps == null)
+            return;
+
+        _traceSteps.Add(new EvaluationTraceStep(
+            expr.GetType().Name,
+            value,
+            value?.ToString()));
     }
 
     private object? EvaluateCast(BoundCastExpr cast)
@@ -485,7 +503,12 @@ internal sealed class BoundEvaluator
     private object? EvaluateVariableDecl(BoundVariableDeclExpr variableDecl)
     {
         var value = Evaluate(variableDecl.Initializer);
-        return AssignmentRuntime.DefineVariable(variableDecl.Name, value, variableDecl.DeclaredType, _context);
+        return AssignmentRuntime.DefineVariable(
+            variableDecl.Name,
+            value,
+            variableDecl.DeclaredType,
+            _context,
+            variableDecl.IsConst);
     }
 
     private object? EvaluateIfStatement(BoundIfStatementExpr ifStatement)

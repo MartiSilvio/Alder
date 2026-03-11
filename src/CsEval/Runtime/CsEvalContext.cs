@@ -16,8 +16,10 @@ internal sealed class CsEvalContext
 {
     private readonly ConcurrentDictionary<string, object?>? _concurrentVariables;
     private readonly ConcurrentDictionary<string, Type>? _concurrentVariableTypes;
+    private readonly ConcurrentDictionary<string, bool>? _concurrentReadOnlyVariables;
     private readonly Dictionary<string, object?>? _localVariables;
     private readonly Dictionary<string, Type>? _localVariableTypes;
+    private readonly Dictionary<string, bool>? _localReadOnlyVariables;
     private readonly CsEvalContext? _parent;
     private readonly CsEvalConfig _config;
     private int _variableTypeVersion;
@@ -39,11 +41,13 @@ internal sealed class CsEvalContext
         {
             _concurrentVariables = new ConcurrentDictionary<string, object?>(_config.Comparer);
             _concurrentVariableTypes = new ConcurrentDictionary<string, Type>(_config.Comparer);
+            _concurrentReadOnlyVariables = new ConcurrentDictionary<string, bool>(_config.Comparer);
         }
         else
         {
             _localVariables = new Dictionary<string, object?>(_config.Comparer);
             _localVariableTypes = new Dictionary<string, Type>(_config.Comparer);
+            _localReadOnlyVariables = new Dictionary<string, bool>(_config.Comparer);
         }
     }
 
@@ -59,10 +63,11 @@ internal sealed class CsEvalContext
 
     public void Define(string name, object? value) => SetLocalVariable(name, value);
 
-    public void Define(string name, object? value, Type inferredType)
+    public void Define(string name, object? value, Type inferredType, bool isReadOnly = false)
     {
         SetLocalVariable(name, value);
         SetLocalVariableType(name, inferredType);
+        SetLocalReadOnly(name, isReadOnly);
         Interlocked.Increment(ref _variableTypeVersion);
     }
 
@@ -70,13 +75,14 @@ internal sealed class CsEvalContext
     /// Defines a new variable, enforcing C# shadowing rules.
     /// Throws if the variable already exists in the current scope or any parent scope.
     /// </summary>
-    public void DefineNew(string name, object? value, Type inferredType)
+    public void DefineNew(string name, object? value, Type inferredType, bool isReadOnly = false)
     {
         if (Contains(name))
             throw new CsEvalException(DiagnosticDescriptors.DuplicateLocalVariable, name);
 
         SetLocalVariable(name, value);
         SetLocalVariableType(name, inferredType);
+        SetLocalReadOnly(name, isReadOnly);
         Interlocked.Increment(ref _variableTypeVersion);
     }
 
@@ -148,6 +154,8 @@ internal sealed class CsEvalContext
     {
         if (ContainsLocal(name))
         {
+            if (IsLocalReadOnly(name))
+                throw new CsEvalException(DiagnosticDescriptors.ReadonlyAssignment);
             SetLocalVariable(name, value);
             return;
         }
@@ -186,6 +194,11 @@ internal sealed class CsEvalContext
             _localVariableTypes.Clear();
         else
             _concurrentVariableTypes!.Clear();
+
+        if (_localReadOnlyVariables != null)
+            _localReadOnlyVariables.Clear();
+        else
+            _concurrentReadOnlyVariables!.Clear();
 
         Interlocked.Increment(ref _variableTypeVersion);
     }
@@ -264,5 +277,21 @@ internal sealed class CsEvalContext
             _localVariableTypes[name] = type;
         else
             _concurrentVariableTypes![name] = type;
+    }
+
+    private bool IsLocalReadOnly(string name)
+    {
+        if (_localReadOnlyVariables != null)
+            return _localReadOnlyVariables.TryGetValue(name, out var isReadOnly) && isReadOnly;
+
+        return _concurrentReadOnlyVariables!.TryGetValue(name, out var concurrentIsReadOnly) && concurrentIsReadOnly;
+    }
+
+    private void SetLocalReadOnly(string name, bool isReadOnly)
+    {
+        if (_localReadOnlyVariables != null)
+            _localReadOnlyVariables[name] = isReadOnly;
+        else
+            _concurrentReadOnlyVariables![name] = isReadOnly;
     }
 }

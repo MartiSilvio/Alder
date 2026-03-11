@@ -23,7 +23,7 @@ internal static class BoundRuntimeMethodCache
         typeof(CsEvalContext).GetMethod(nameof(CsEvalContext.Set), [typeof(string), typeof(object)])!;
 
     internal static readonly MethodInfo ContextDefineNewMethod =
-        typeof(CsEvalContext).GetMethod(nameof(CsEvalContext.DefineNew), [typeof(string), typeof(object), typeof(Type)])!;
+        typeof(CsEvalContext).GetMethod(nameof(CsEvalContext.DefineNew), [typeof(string), typeof(object), typeof(Type), typeof(bool)])!;
 
     internal static readonly MethodInfo ContextCreateChildMethod =
         typeof(CsEvalContext).GetMethod(nameof(CsEvalContext.CreateChild))!;

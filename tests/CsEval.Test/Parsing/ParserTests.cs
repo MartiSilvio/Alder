@@ -264,6 +264,66 @@ public class ParserTests
     }
 
     [Test]
+    public void Parse_ImplicitItCallArgument_LowersToLambda()
+    {
+        var expr = Parse("numbers.Where(it > 2)");
+        Assert.That(expr, Is.InstanceOf<CallExpr>());
+
+        var call = (CallExpr)expr;
+        Assert.That(call.Arguments, Has.Count.EqualTo(1));
+        Assert.That(call.Arguments[0], Is.InstanceOf<LambdaExpr>());
+        var lambda = (LambdaExpr)call.Arguments[0];
+        Assert.That(lambda.Parameters, Has.Count.EqualTo(1));
+        Assert.That(lambda.Parameters[0].Name.Lexeme, Is.EqualTo("it"));
+    }
+
+    [Test]
+    public void Parse_ImplicitDiscardCallArgument_LowersToLambda()
+    {
+        var expr = Parse("numbers.Select(_ * 2)");
+        Assert.That(expr, Is.InstanceOf<CallExpr>());
+
+        var call = (CallExpr)expr;
+        Assert.That(call.Arguments, Has.Count.EqualTo(1));
+        Assert.That(call.Arguments[0], Is.InstanceOf<LambdaExpr>());
+        var lambda = (LambdaExpr)call.Arguments[0];
+        Assert.That(lambda.Parameters, Has.Count.EqualTo(1));
+        Assert.That(lambda.Parameters[0].Name.Lexeme, Is.EqualTo("_"));
+    }
+
+    [Test]
+    public void Parse_ExplicitItLambdaArgument_IsPreserved()
+    {
+        var expr = Parse("numbers.Where(it => it > 2)");
+        Assert.That(expr, Is.InstanceOf<CallExpr>());
+
+        var call = (CallExpr)expr;
+        Assert.That(call.Arguments, Has.Count.EqualTo(1));
+        Assert.That(call.Arguments[0], Is.InstanceOf<LambdaExpr>());
+
+        var lambda = (LambdaExpr)call.Arguments[0];
+        Assert.That(lambda.Parameters, Has.Count.EqualTo(1));
+        Assert.That(lambda.Parameters[0].Name.Lexeme, Is.EqualTo("it"));
+        Assert.That(lambda.Body, Is.Not.InstanceOf<LambdaExpr>());
+    }
+
+    [Test]
+    public void Parse_ExplicitDiscardLambdaArgument_IsPreserved()
+    {
+        var expr = Parse("numbers.Select(_ => _ * 2)");
+        Assert.That(expr, Is.InstanceOf<CallExpr>());
+
+        var call = (CallExpr)expr;
+        Assert.That(call.Arguments, Has.Count.EqualTo(1));
+        Assert.That(call.Arguments[0], Is.InstanceOf<LambdaExpr>());
+
+        var lambda = (LambdaExpr)call.Arguments[0];
+        Assert.That(lambda.Parameters, Has.Count.EqualTo(1));
+        Assert.That(lambda.Parameters[0].Name.Lexeme, Is.EqualTo("_"));
+        Assert.That(lambda.Body, Is.Not.InstanceOf<LambdaExpr>());
+    }
+
+    [Test]
     public void Parse_MethodCall_ReturnsCallExpr()
     {
         var expr = Parse("obj.Method(x)");
@@ -341,6 +401,23 @@ public class ParserTests
     }
 
     [Test]
+    public void Parse_Block_ConstDeclaration_MarksVariableAsConst()
+    {
+        var expr = Parse("{ const int x = 42; return x; }", LanguageMode.Standard);
+        Assert.That(expr, Is.InstanceOf<BlockExpr>());
+
+        var block = (BlockExpr)expr;
+        Assert.That(block.Statements, Has.Count.EqualTo(2));
+        Assert.That(block.Statements[0], Is.InstanceOf<VariableDeclExpr>());
+
+        var decl = (VariableDeclExpr)block.Statements[0];
+        Assert.That(decl.IsConst, Is.True);
+        Assert.That(decl.DeclaredType, Is.Not.Null);
+        Assert.That(decl.DeclaredType!.Value.Lexeme, Is.EqualTo("int"));
+        Assert.That(decl.Name.Lexeme, Is.EqualTo("x"));
+    }
+
+    [Test]
     public void Parse_NullCoalesce_ReturnsNullCoalesceExpr()
     {
         var expr = Parse("x ?? y");
@@ -410,5 +487,53 @@ public class ParserTests
 
         var binary = (BinaryExpr)unary.Right;
         Assert.That(binary.Op.Type, Is.EqualTo(TokenType.Like));
+    }
+
+    [Test]
+    public void Parse_LetIn_LowersToBlockExpr()
+    {
+        var expr = Parse("let x = 5 in x * x");
+        Assert.That(expr, Is.InstanceOf<BlockExpr>());
+
+        var block = (BlockExpr)expr;
+        Assert.That(block.Statements, Has.Count.EqualTo(1));
+        Assert.That(block.Statements[0], Is.InstanceOf<VariableDeclExpr>());
+        Assert.That(block.ReturnExpr, Is.Not.Null);
+
+        var decl = (VariableDeclExpr)block.Statements[0];
+        Assert.That(decl.Name.Lexeme, Is.EqualTo("x"));
+    }
+
+    [Test]
+    public void Parse_IfExpression_LowersToConditionalExpr()
+    {
+        var expr = Parse("if (x > 0) x else -x");
+        Assert.That(expr, Is.InstanceOf<ConditionalExpr>());
+    }
+
+    [Test]
+    public void Parse_Comprehension_LowersToMethodChain()
+    {
+        var expr = Parse("[x * x for x in 1..10 if x % 2 == 0]");
+        Assert.That(expr, Is.InstanceOf<CallExpr>());
+
+        var toArrayCall = (CallExpr)expr;
+        Assert.That(toArrayCall.Callee, Is.InstanceOf<MemberAccessExpr>());
+        var member = (MemberAccessExpr)toArrayCall.Callee;
+        Assert.That(member.Name.Lexeme, Is.EqualTo("ToArray"));
+    }
+
+    [Test]
+    public void Parse_LetInDestructuring_LowersToTempAndMembers()
+    {
+        var expr = Parse("let { Name, Age } = person in Name + \":\" + Age");
+        Assert.That(expr, Is.InstanceOf<BlockExpr>());
+
+        var block = (BlockExpr)expr;
+        Assert.That(block.Statements, Has.Count.EqualTo(3));
+        Assert.That(block.Statements[0], Is.InstanceOf<VariableDeclExpr>());
+        Assert.That(block.Statements[1], Is.InstanceOf<VariableDeclExpr>());
+        Assert.That(block.Statements[2], Is.InstanceOf<VariableDeclExpr>());
+        Assert.That(block.ReturnExpr, Is.Not.Null);
     }
 }

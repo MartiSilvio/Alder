@@ -275,6 +275,86 @@ public class StandardModeNegativeTests(CompilationMode mode)
         Assert.That(engine.Evaluate("{ let x = 5; return x; }"), Is.EqualTo(5));
     }
 
+    [Test]
+    public void StandardMode_AcceptsConstDeclaration()
+    {
+        var engine = new CsEvalEngine(StandardOptions);
+        Assert.That(engine.Evaluate("{ const int x = 5; return x * x; }"), Is.EqualTo(25));
+    }
+
+    [Test]
+    public void ExtendedMode_AcceptsConstDeclaration()
+    {
+        var engine = new CsEvalEngine(ExtendedOptions);
+        Assert.That(engine.Evaluate("{ const int x = 5; return x * x; }"), Is.EqualTo(25));
+    }
+
+    [Test]
+    public void StandardMode_RejectsConstReassignment()
+    {
+        var engine = new CsEvalEngine(StandardOptions);
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("{ const int x = 5; x = 6; return x; }"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(CsEval.Diagnostics.DiagnosticCode.CS0131));
+    }
+
+    [Test]
+    public void ExtendedMode_RejectsConstReassignment()
+    {
+        var engine = new CsEvalEngine(ExtendedOptions);
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("{ const int x = 5; x = 6; return x; }"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(CsEval.Diagnostics.DiagnosticCode.CS0131));
+    }
+
+    [Test]
+    public void StandardMode_RejectsLetInExpression()
+    {
+        var engine = new CsEvalEngine(StandardOptions);
+        var ex = Assert.Throws<CsEvalLanguageModeException>(
+            () => engine.Evaluate("let x = 5 in x"));
+        Assert.That(ex!.FeatureName, Is.EqualTo("let-in"));
+    }
+
+    [Test]
+    public void ExtendedMode_AcceptsLetInExpression()
+    {
+        var engine = new CsEvalEngine(ExtendedOptions);
+        Assert.That(engine.Evaluate("let x = 5 in x * x"), Is.EqualTo(25));
+    }
+
+    [Test]
+    public void StandardMode_RejectsIfExpression()
+    {
+        var engine = new CsEvalEngine(StandardOptions);
+        var ex = Assert.Throws<CsEvalLanguageModeException>(
+            () => engine.Evaluate("if (x > 0) x else -x"));
+        Assert.That(ex!.FeatureName, Is.EqualTo("if-expression"));
+    }
+
+    [Test]
+    public void ExtendedMode_AcceptsIfExpression()
+    {
+        var engine = new CsEvalEngine(ExtendedOptions);
+        engine.SetVariable("x", -5);
+        Assert.That(engine.Evaluate("if (x > 0) x else -x"), Is.EqualTo(5));
+    }
+
+    [Test]
+    public void StandardMode_RejectsComprehensionExpression()
+    {
+        var engine = new CsEvalEngine(StandardOptions);
+        var ex = Assert.Throws<CsEvalLanguageModeException>(
+            () => engine.Evaluate("[x for x in 1..3]"));
+        Assert.That(ex!.FeatureName, Is.EqualTo("comprehension"));
+    }
+
+    [Test]
+    public void ExtendedMode_AcceptsComprehensionExpression()
+    {
+        var engine = new CsEvalEngine(ExtendedOptions);
+        var result = engine.Evaluate("[x for x in 1..3]");
+        Assert.That(result, Is.EqualTo(new[] { 1, 2, 3 }));
+    }
+
     #endregion
 
     #region Runtime-Level Gates (CsEvalException or standard .NET exceptions)
@@ -356,6 +436,48 @@ public class StandardModeNegativeTests(CompilationMode mode)
         Assert.That(result, Is.Not.Null);
         Assert.That(result!["A"], Is.EqualTo(1));
         Assert.That(result["B"], Is.EqualTo(2));
+    }
+
+    [Test]
+    public void StandardMode_RejectsScopeFunctions()
+    {
+        var engine = new CsEvalEngine(StandardOptions);
+        Assert.Catch<CsEvalException>(() => engine.Evaluate("7.let(x => x)"));
+    }
+
+    [Test]
+    public void ExtendedMode_AcceptsScopeFunctions()
+    {
+        var engine = new CsEvalEngine(ExtendedOptions);
+        Assert.That(engine.Evaluate("7.let(x => x * x)"), Is.EqualTo(49));
+    }
+
+    [Test]
+    public void StandardMode_RejectsAggregateBuiltins()
+    {
+        var engine = new CsEvalEngine(StandardOptions);
+        Assert.Catch<CsEvalException>(() => engine.Evaluate("sum(new[] { 1, 2, 3 })"));
+    }
+
+    [Test]
+    public void ExtendedMode_AcceptsAggregateBuiltins()
+    {
+        var engine = new CsEvalEngine(ExtendedOptions);
+        Assert.That(engine.Evaluate("sum(new[] { 1, 2, 3 })"), Is.EqualTo(6));
+    }
+
+    [Test]
+    public void StandardMode_RejectsDateUnitSugar()
+    {
+        var engine = new CsEvalEngine(StandardOptions);
+        Assert.Catch<CsEvalException>(() => engine.Evaluate("new DateTime(2026, 1, 1) + 30.days"));
+    }
+
+    [Test]
+    public void ExtendedMode_AcceptsDateUnitSugar()
+    {
+        var engine = new CsEvalEngine(ExtendedOptions);
+        Assert.That(engine.Evaluate("30.days"), Is.EqualTo(TimeSpan.FromDays(30)));
     }
 
     #endregion

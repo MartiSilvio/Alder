@@ -47,6 +47,34 @@ public static partial class BenchmarkScenarioCatalog
         new(
             "ExtendedParity/Spaceship",
             "x <=> y",
-            "x.CompareTo(y)")
+            "x.CompareTo(y)"),
+        new(
+            "ExtendedParity/ImplicitIt",
+            "numbers.Where(it > x).Count()",
+            "numbers.Where(n => n > x).Count()"),
+        new(
+            "ExtendedParity/ComprehensionCount",
+            "count([n * n for n in numbers if n % 2 == 0])",
+            "numbers.Where(n => n % 2 == 0).Select(n => n * n).Count()"),
+        new(
+            "ExtendedParity/LetInExpression",
+            "let tax = x * 0.1m in x + tax",
+            "{ var tax = x * 0.1m; return x + tax; }"),
+        new(
+            "ExtendedParity/IfExpression",
+            "if (x > y) x else y",
+            "x > y ? x : y"),
+        new(
+            "ExtendedParity/ScopeFunctionLet",
+            "x.let(v => v * v + 1)",
+            "((Func<int, int>)(v => v * v + 1))(x)"),
+        new(
+            "ExtendedParity/AggregateBuiltins",
+            "sum(numbers.Where(it > x))",
+            "numbers.Where(n => n > x).Sum()"),
+        new(
+            "ExtendedParity/DateArithmeticSugar",
+            "new DateTime(2026, 1, 1) + 30.days",
+            "new DateTime(2026, 1, 1) + TimeSpan.FromDays(30)")
     ];
 }

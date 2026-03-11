@@ -37,5 +37,19 @@ public class CollectionTests(CompilationMode mode)
         Assert.That(result["Age"], Is.EqualTo(30));
     }
 
+    [Test]
+    public void Eval_Comprehension_WithFilter_Works()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with
+        {
+            CompilationMode = mode,
+            LanguageMode = LanguageMode.Extended
+        });
+
+        var result = engine.Evaluate("[x * x for x in 1..10 if x % 2 == 0]");
+
+        Assert.That(result, Is.EqualTo(new[] { 4, 16, 36, 64, 100 }));
+    }
+
     #endregion
 }

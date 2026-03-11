@@ -109,13 +109,32 @@ internal sealed class ExpressionParser : ParserBase
 
     private bool IsStatementKeyword()
     {
+        if (Check(TokenType.If))
+        {
+            if (IsIfExpressionStart())
+                return false;
+            return true;
+        }
+
         // Control flow keywords are always statement keywords
         if (Check(TokenType.Return) || Check(TokenType.Break) || Check(TokenType.Continue) ||
-            Check(TokenType.If) || Check(TokenType.While) || Check(TokenType.For) ||
+            Check(TokenType.While) || Check(TokenType.For) ||
             Check(TokenType.Do) || Check(TokenType.Foreach) || Check(TokenType.Switch) ||
-            Check(TokenType.Try) || CheckVar() ||
+            Check(TokenType.Try) || Check(TokenType.Const) ||
             Check(TokenType.Using) || Check(TokenType.Lock))
             return true;
+
+        if (CheckVar())
+        {
+            if (State.LanguageMode == LanguageMode.Extended &&
+                Check(TokenType.Let) &&
+                IsLetInExpressionStart())
+            {
+                return false;
+            }
+
+            return true;
+        }
 
         // unless/until are statement keywords in Extended mode (Ruby/Perl)
         if (State.LanguageMode == LanguageMode.Extended &&
@@ -153,6 +172,15 @@ internal sealed class ExpressionParser : ParserBase
 
     private Expr ParseAssignment()
     {
+        if (Check(TokenType.Let))
+        {
+            if (State.LanguageMode == LanguageMode.Standard)
+                throw new CsEvalLanguageModeException("let-in");
+
+            Advance();
+            return ParseLetInExpression(Previous());
+        }
+
         // Throw expression: throw expr (ECMA-334 §12.16)
         if (Match(TokenType.Throw))
         {
@@ -245,6 +273,162 @@ internal sealed class ExpressionParser : ParserBase
         return expr;
     }
 
+    private Expr ParseLetInExpression(Token letToken)
+    {
+        var statements = new List<Expr>();
+
+        if (Match(TokenType.LeftBrace))
+        {
+            var names = new List<Token>
+            {
+                ConsumeIdentifierOrContextualKeyword("Expected property name in let destructuring")
+            };
+
+            while (Match(TokenType.Comma))
+                names.Add(ConsumeIdentifierOrContextualKeyword("Expected property name in let destructuring"));
+
+            Consume(TokenType.RightBrace, "Expected '}' after let destructuring");
+            Consume(TokenType.Equal, "Expected '=' after let destructuring");
+            var initializer = ParseLetInInitializer();
+
+            var tempName = $"__let_tmp_{letToken.Line}_{letToken.Column}_{State.Current}";
+            var tempToken = new Token(TokenType.Identifier, tempName, null, letToken.Line, letToken.Column);
+            statements.Add(new VariableDeclExpr(null, tempToken, initializer));
+
+            foreach (var name in names)
+            {
+                var memberToken = new Token(TokenType.Identifier, name.Lexeme, null, name.Line, name.Column);
+                var memberAccess = new MemberAccessExpr(new IdentifierExpr(tempToken), memberToken, false);
+                statements.Add(new VariableDeclExpr(null, name, memberAccess));
+            }
+        }
+        else
+        {
+            var name = ConsumeIdentifierOrContextualKeyword("Expected variable name after 'let'");
+            Consume(TokenType.Equal, "Expected '=' after variable name");
+            var initializer = ParseLetInInitializer();
+            statements.Add(new VariableDeclExpr(null, name, initializer));
+        }
+
+        var body = ParseExpression();
+        return new BlockExpr(statements, body);
+    }
+
+    private Expr ParseLetInInitializer()
+    {
+        if (!TryFindTopLevelDelimiter(TokenType.In, State.Current, out var delimiterIndex))
+            throw new CsEvalParserException($"Expected 'in' in let-in expression at {Peek().Line}:{Peek().Column}");
+
+        var initializer = ParseExpressionSlice(State.Current, delimiterIndex);
+        State.Current = delimiterIndex + 1; // consume 'in'
+        return initializer;
+    }
+
+    private Expr ParseExpressionSlice(int startInclusive, int endExclusive)
+    {
+        if (endExclusive <= startInclusive)
+            throw new CsEvalParserException("Expected expression in let-in initializer", Peek().Line, Peek().Column);
+
+        var tokens = new List<Token>(endExclusive - startInclusive + 1);
+        for (var i = startInclusive; i < endExclusive; i++)
+            tokens.Add(State.Tokens[i]);
+
+        var anchor = State.Tokens[Math.Min(endExclusive, State.Tokens.Count - 1)];
+        tokens.Add(new Token(TokenType.Eof, string.Empty, null, anchor.Line, anchor.Column));
+
+        var parser = CreateForSubExpression(tokens, State.LanguageMode);
+        return parser.ParseExpression();
+    }
+
+    private bool IsLetInExpressionStart()
+    {
+        if (!Check(TokenType.Let))
+            return false;
+
+        var index = State.Current + 1;
+        if (index >= State.Tokens.Count)
+            return false;
+
+        if (State.Tokens[index].Type == TokenType.LeftBrace)
+        {
+            index++;
+            if (index >= State.Tokens.Count || State.Tokens[index].Type != TokenType.Identifier)
+                return false;
+
+            while (index < State.Tokens.Count && State.Tokens[index].Type != TokenType.RightBrace)
+                index++;
+
+            if (index >= State.Tokens.Count || State.Tokens[index].Type != TokenType.RightBrace)
+                return false;
+
+            index++;
+            if (index >= State.Tokens.Count || State.Tokens[index].Type != TokenType.Equal)
+                return false;
+
+            index++;
+            return TryFindTopLevelDelimiter(TokenType.In, index, out _);
+        }
+
+        if (State.Tokens[index].Type != TokenType.Identifier)
+            return false;
+
+        index++;
+        if (index >= State.Tokens.Count || State.Tokens[index].Type != TokenType.Equal)
+            return false;
+
+        index++;
+        return TryFindTopLevelDelimiter(TokenType.In, index, out _);
+    }
+
+    private bool TryFindTopLevelDelimiter(TokenType delimiter, int startIndex, out int delimiterIndex)
+    {
+        var parenDepth = 0;
+        var bracketDepth = 0;
+        var braceDepth = 0;
+
+        for (var i = startIndex; i < State.Tokens.Count; i++)
+        {
+            var tokenType = State.Tokens[i].Type;
+
+            switch (tokenType)
+            {
+                case TokenType.LeftParen:
+                    parenDepth++;
+                    break;
+                case TokenType.RightParen:
+                    parenDepth = Math.Max(0, parenDepth - 1);
+                    break;
+                case TokenType.LeftBracket:
+                    bracketDepth++;
+                    break;
+                case TokenType.RightBracket:
+                    bracketDepth = Math.Max(0, bracketDepth - 1);
+                    break;
+                case TokenType.LeftBrace:
+                    braceDepth++;
+                    break;
+                case TokenType.RightBrace:
+                    braceDepth = Math.Max(0, braceDepth - 1);
+                    break;
+            }
+
+            if (parenDepth == 0 && bracketDepth == 0 && braceDepth == 0)
+            {
+                if (tokenType == delimiter)
+                {
+                    delimiterIndex = i;
+                    return true;
+                }
+
+                if (tokenType == TokenType.Semicolon || tokenType == TokenType.Eof)
+                    break;
+            }
+        }
+
+        delimiterIndex = -1;
+        return false;
+    }
+
     /// <summary>
     /// Parses pipeline expressions: x |> f passes x as argument to f.
     /// Left-associative: x |> f |> g evaluates as (x |> f) |> g.
@@ -273,6 +457,15 @@ internal sealed class ExpressionParser : ParserBase
 
     private Expr ParseConditional()
     {
+        if (Check(TokenType.If))
+        {
+            if (State.LanguageMode == LanguageMode.Standard)
+                throw new CsEvalLanguageModeException("if-expression");
+
+            if (IsIfExpressionStart())
+                return ParseIfExpression();
+        }
+
         var expr = ParseNullCoalesce();
 
         if (Match(TokenType.Question))
@@ -284,6 +477,92 @@ internal sealed class ExpressionParser : ParserBase
         }
 
         return expr;
+    }
+
+    private Expr ParseIfExpression()
+    {
+        Consume(TokenType.If, "Expected 'if' at start of if-expression");
+        Consume(TokenType.LeftParen, "Expected '(' after 'if'");
+        var condition = ParseExpression();
+        Consume(TokenType.RightParen, "Expected ')' after if condition");
+
+        if (Check(TokenType.LeftBrace))
+            throw new CsEvalParserException($"If-expression branches must be expressions at {Peek().Line}:{Peek().Column}");
+
+        var thenBranch = ParseExpression();
+        Consume(TokenType.Else, "Expected 'else' in if-expression");
+        var elseBranch = ParseExpression();
+        return new ConditionalExpr(condition, thenBranch, elseBranch);
+    }
+
+    private bool IsIfExpressionStart()
+    {
+        if (!Check(TokenType.If) || !CheckNext(TokenType.LeftParen))
+            return false;
+
+        var index = State.Current + 2;
+        var parenDepth = 1;
+        while (index < State.Tokens.Count && parenDepth > 0)
+        {
+            switch (State.Tokens[index].Type)
+            {
+                case TokenType.LeftParen:
+                    parenDepth++;
+                    break;
+                case TokenType.RightParen:
+                    parenDepth--;
+                    break;
+            }
+
+            index++;
+        }
+
+        if (parenDepth != 0 || index >= State.Tokens.Count)
+            return false;
+
+        if (State.Tokens[index].Type == TokenType.LeftBrace)
+            return false;
+
+        var branchParenDepth = 0;
+        var branchBracketDepth = 0;
+        var branchBraceDepth = 0;
+
+        for (var i = index; i < State.Tokens.Count; i++)
+        {
+            var tokenType = State.Tokens[i].Type;
+            switch (tokenType)
+            {
+                case TokenType.LeftParen:
+                    branchParenDepth++;
+                    break;
+                case TokenType.RightParen:
+                    branchParenDepth = Math.Max(0, branchParenDepth - 1);
+                    break;
+                case TokenType.LeftBracket:
+                    branchBracketDepth++;
+                    break;
+                case TokenType.RightBracket:
+                    branchBracketDepth = Math.Max(0, branchBracketDepth - 1);
+                    break;
+                case TokenType.LeftBrace:
+                    branchBraceDepth++;
+                    break;
+                case TokenType.RightBrace:
+                    branchBraceDepth = Math.Max(0, branchBraceDepth - 1);
+                    break;
+            }
+
+            if (branchParenDepth == 0 && branchBracketDepth == 0 && branchBraceDepth == 0)
+            {
+                if (tokenType == TokenType.Else)
+                    return true;
+
+                if (tokenType == TokenType.Semicolon || tokenType == TokenType.Eof)
+                    return false;
+            }
+        }
+
+        return false;
     }
 
     private Expr ParseNullCoalesce()
@@ -942,12 +1221,12 @@ internal sealed class ExpressionParser : ParserBase
         {
             if (Match(TokenType.Dot))
             {
-                var name = Consume(TokenType.Identifier, "Expected property name after '.'");
+                var name = ConsumeIdentifierOrContextualKeyword("Expected property name after '.'");
                 expr = new MemberAccessExpr(expr, name, false);
             }
             else if (Match(TokenType.QuestionDot))
             {
-                var name = Consume(TokenType.Identifier, "Expected property name after '?.'");
+                var name = ConsumeIdentifierOrContextualKeyword("Expected property name after '?.'");
                 expr = new MemberAccessExpr(expr, name, true);
             }
             else if (Match(TokenType.LeftBracket))
@@ -1204,7 +1483,46 @@ internal sealed class ExpressionParser : ParserBase
             return new NamedArgumentExpr(name, value);
         }
 
-        return ParseExpression();
+        var argument = ParseExpression();
+        if (TryLowerImplicitPlaceholderLambda(argument, out var lowered))
+            return lowered;
+
+        return argument;
+    }
+
+    private bool TryLowerImplicitPlaceholderLambda(Expr argument, out Expr lowered)
+    {
+        lowered = argument;
+
+        if (State.LanguageMode != LanguageMode.Extended || argument is LambdaExpr)
+            return false;
+
+        var collector = new IdentifierOccurrenceCollector();
+        collector.Collect(argument);
+
+        var foundPlaceholder = false;
+        Token placeholderToken = default;
+        foreach (var token in collector.GetUnboundTokens(StringComparer.Ordinal))
+        {
+            if (token.Type != TokenType.Identifier)
+                continue;
+
+            if (string.Equals(token.Lexeme, "it", StringComparison.Ordinal) ||
+                string.Equals(token.Lexeme, TokenLexemes.DiscardIdentifier, StringComparison.Ordinal))
+            {
+                if (!foundPlaceholder)
+                {
+                    foundPlaceholder = true;
+                    placeholderToken = token;
+                }
+            }
+        }
+
+        if (!foundPlaceholder)
+            return false;
+
+        lowered = new LambdaExpr([new LambdaParameter(null, placeholderToken)], argument);
+        return true;
     }
 
     /// <summary>

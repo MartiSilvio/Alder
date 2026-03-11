@@ -76,6 +76,10 @@ public static class DiagnosticDescriptors
 
     // ECMA-334 assignment
 
+    /// <summary>CS0131: The left-hand side of an assignment must be a variable, property or indexer</summary>
+    public static readonly DiagnosticDescriptor AssignmentRequiresVariable =
+        new(DiagnosticCode.CS0131, "The left-hand side of an assignment must be a variable, property or indexer");
+
     /// <summary>CS0191: A readonly field cannot be assigned to</summary>
     public static readonly DiagnosticDescriptor ReadonlyAssignment =
         new(DiagnosticCode.CS0191, "A readonly field cannot be assigned to");

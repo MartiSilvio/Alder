@@ -988,7 +988,8 @@ internal sealed class BoundExpressionEmitter
                     ContextDefineNewMethod,
                     LinqExpression.Constant(catchClause.VariableName),
                     LinqExpression.Convert(exParam, typeof(object)),
-                    LinqExpression.Call(exParam, typeof(object).GetMethod(nameof(GetType))!)));
+                    LinqExpression.Call(exParam, typeof(object).GetMethod(nameof(GetType))!),
+                    LinqExpression.Constant(false)));
         }
 
         scopedStatements.Add(
@@ -1331,7 +1332,8 @@ internal sealed class BoundExpressionEmitter
                 ContextDefineNewMethod,
                 LinqExpression.Constant(variableName),
                 currentValue,
-                LinqExpression.Constant(typeof(object), typeof(Type)))
+                LinqExpression.Constant(typeof(object), typeof(Type)),
+                LinqExpression.Constant(false))
         };
         EmitStatementListBody(
             body,
@@ -1492,7 +1494,8 @@ internal sealed class BoundExpressionEmitter
             variableDecl.DeclaredType != null
                 ? LinqExpression.Constant(variableDecl.DeclaredType, typeof(Type))
                 : LinqExpression.Constant(null, typeof(Type)),
-            _contextParam);
+            _contextParam,
+            LinqExpression.Constant(variableDecl.IsConst));
     }
 
     private LinqExpression EmitAssign(BoundAssignExpr assign)

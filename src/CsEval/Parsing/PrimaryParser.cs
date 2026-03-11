@@ -55,7 +55,11 @@ internal sealed class PrimaryParser : ParserBase
         if (Match(TokenType.LeftBracket))
         {
             if (State.LanguageMode == LanguageMode.Standard)
+            {
+                if (IsComprehensionAhead())
+                    throw new CsEvalLanguageModeException("comprehension");
                 throw new CsEvalLanguageModeException(TokenLexemes.CollectionExpressionLiteral);
+            }
             return ParseArrayLiteral();
         }
 
@@ -111,28 +115,75 @@ internal sealed class PrimaryParser : ParserBase
 
     private Expr ParseArrayLiteral()
     {
-        var elements = new List<Expr>();
-
-        if (!Check(TokenType.RightBracket))
+        if (Check(TokenType.RightBracket))
         {
-            do
+            Consume(TokenType.RightBracket, "Expected ']' after array elements");
+            return new ArrayLiteralExpr([]);
+        }
+
+        var elements = new List<Expr>();
+        Expr firstElement;
+        if (Match(TokenType.DotDot))
+        {
+            if (State.LanguageMode == LanguageMode.Standard)
+                throw new CsEvalLanguageModeException(TokenLexemes.GetCanonical(TokenType.DotDot));
+            firstElement = new SpreadExpr(_expression.ParseExpression());
+        }
+        else
+        {
+            firstElement = _expression.ParseExpression();
+        }
+
+        if (firstElement is not SpreadExpr && Match(TokenType.For))
+            return ParseComprehension(firstElement);
+
+        elements.Add(firstElement);
+        while (Match(TokenType.Comma))
+        {
+            if (Match(TokenType.DotDot))
             {
-                if (Match(TokenType.DotDot))
-                {
-                    if (State.LanguageMode == LanguageMode.Standard)
-                        throw new CsEvalLanguageModeException(TokenLexemes.GetCanonical(TokenType.DotDot));
-                    var spreadExpr = _expression.ParseExpression();
-                    elements.Add(new SpreadExpr(spreadExpr));
-                }
-                else
-                {
-                    elements.Add(_expression.ParseExpression());
-                }
-            } while (Match(TokenType.Comma));
+                if (State.LanguageMode == LanguageMode.Standard)
+                    throw new CsEvalLanguageModeException(TokenLexemes.GetCanonical(TokenType.DotDot));
+                var spreadExpr = _expression.ParseExpression();
+                elements.Add(new SpreadExpr(spreadExpr));
+            }
+            else
+            {
+                elements.Add(_expression.ParseExpression());
+            }
         }
 
         Consume(TokenType.RightBracket, "Expected ']' after array elements");
         return new ArrayLiteralExpr(elements);
+    }
+
+    private Expr ParseComprehension(Expr projection)
+    {
+        var rangeVariable = ConsumeIdentifierOrContextualKeyword("Expected identifier after 'for' in comprehension");
+        Consume(TokenType.In, "Expected 'in' in comprehension");
+        var source = _expression.ParseExpression();
+
+        Expr? filter = null;
+        if (Match(TokenType.If))
+            filter = _expression.ParseExpression();
+
+        Consume(TokenType.RightBracket, "Expected ']' after comprehension");
+
+        var lambdaParameter = new LambdaParameter(null, rangeVariable);
+        Expr query = source;
+
+        if (filter != null)
+        {
+            var whereToken = new Token(TokenType.Identifier, "Where", null, rangeVariable.Line, rangeVariable.Column);
+            var whereLambda = new LambdaExpr([lambdaParameter], filter);
+            query = new CallExpr(new MemberAccessExpr(query, whereToken, false), [whereLambda]);
+        }
+
+        var selectToken = new Token(TokenType.Identifier, "Select", null, rangeVariable.Line, rangeVariable.Column);
+        var selectLambda = new LambdaExpr([lambdaParameter], projection);
+        var selectCall = new CallExpr(new MemberAccessExpr(query, selectToken, false), [selectLambda]);
+        var toArrayToken = new Token(TokenType.Identifier, "ToArray", null, rangeVariable.Line, rangeVariable.Column);
+        return new CallExpr(new MemberAccessExpr(selectCall, toArrayToken, false), []);
     }
 
     private Expr ParseArrayLiteralBody()
@@ -159,6 +210,49 @@ internal sealed class PrimaryParser : ParserBase
 
         Consume(TokenType.RightBrace, "Expected '}' after array elements");
         return new ArrayLiteralExpr(elements);
+    }
+
+    private bool IsComprehensionAhead()
+    {
+        var parenDepth = 0;
+        var bracketDepth = 0;
+        var braceDepth = 0;
+
+        for (var i = State.Current; i < State.Tokens.Count; i++)
+        {
+            var tokenType = State.Tokens[i].Type;
+            switch (tokenType)
+            {
+                case TokenType.LeftParen:
+                    parenDepth++;
+                    break;
+                case TokenType.RightParen:
+                    parenDepth = Math.Max(0, parenDepth - 1);
+                    break;
+                case TokenType.LeftBracket:
+                    bracketDepth++;
+                    break;
+                case TokenType.RightBracket:
+                    if (bracketDepth == 0)
+                        return false;
+                    bracketDepth--;
+                    break;
+                case TokenType.LeftBrace:
+                    braceDepth++;
+                    break;
+                case TokenType.RightBrace:
+                    braceDepth = Math.Max(0, braceDepth - 1);
+                    break;
+                case TokenType.For:
+                    if (parenDepth == 0 && bracketDepth == 0 && braceDepth == 0)
+                        return true;
+                    break;
+                case TokenType.Eof:
+                    return false;
+            }
+        }
+
+        return false;
     }
 
     #endregion

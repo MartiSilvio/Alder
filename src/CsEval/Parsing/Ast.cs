@@ -467,8 +467,8 @@ internal sealed record LockStatementExpr(Expr LockObject, Expr Body) : Expr
 
 #region Declarations
 
-// Variable declaration: var x = 5 or int x = 5
-internal sealed record VariableDeclExpr(Token? DeclaredType, Token Name, Expr Initializer) : Expr
+// Variable declaration: var x = 5 / int x = 5 / const int x = 5
+internal sealed record VariableDeclExpr(Token? DeclaredType, Token Name, Expr Initializer, bool IsConst = false) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitVariableDecl(this);
 }

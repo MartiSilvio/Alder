@@ -53,6 +53,18 @@ public class PolyglotEdgeCaseTests(CompilationMode mode)
     }
 
     [Test]
+    public void ScopeFunctions_LetAlsoApplyRunWith_Work()
+    {
+        var engine = CreateEngine();
+
+        Assert.That(engine.Evaluate("7.let(x => x * x)"), Is.EqualTo(49));
+        Assert.That(engine.Evaluate("7.also(x => x + 1)"), Is.EqualTo(7));
+        Assert.That(engine.Evaluate("7.apply(x => x + 1)"), Is.EqualTo(7));
+        Assert.That(engine.Evaluate("7.run(x => x + 1)"), Is.EqualTo(8));
+        Assert.That(engine.Evaluate("7.with(x => x * x)"), Is.EqualTo(49));
+    }
+
+    [Test]
     public void IdentifierCall_FunctionShadowsVariable()
     {
         var engine = CreateEngine();

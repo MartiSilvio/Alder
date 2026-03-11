@@ -35,13 +35,18 @@ internal static class AssignmentRuntime
         return value;
     }
 
-    public static object? DefineVariable(string name, object? value, Type? declaredType, CsEvalContext context)
+    public static object? DefineVariable(
+        string name,
+        object? value,
+        Type? declaredType,
+        CsEvalContext context,
+        bool isReadOnly = false)
     {
         if (declaredType != null)
             value = TypeHelpers.ValidateAndCoerceType(declaredType, value, name);
 
         var variableType = declaredType ?? value?.GetType() ?? typeof(object);
-        context.DefineNew(name, value, variableType);
+        context.DefineNew(name, value, variableType, isReadOnly);
         return value;
     }
 
@@ -85,7 +90,8 @@ internal static class AssignmentRuntime
         CsEvalOptions options,
         bool isChecked)
     {
-        ExecutionRuntime.CheckAllowAssignment(options, (isIncrement ? "++" : "--") + name);
+        var incrementLexeme = TokenLexemes.GetCanonical(isIncrement ? TokenType.PlusPlus : TokenType.MinusMinus);
+        ExecutionRuntime.CheckAllowAssignment(options, incrementLexeme + name);
         var currentValue = context.Get(name);
         var one = GetNumericOne(currentValue);
         var newValue = isIncrement

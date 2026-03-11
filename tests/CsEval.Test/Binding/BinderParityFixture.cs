@@ -56,6 +56,39 @@ internal static class BinderParityFixture
             "Extended/RegexMatch",
             "text =~ \"^alp\"",
             ("text", "alpha"));
+
+        yield return CreateScenario(
+            "Extended/ImplicitItWhereCount",
+            "numbers.Where(it > threshold).Count()",
+            ("numbers", new List<int> { 1, 3, 5, 9, 10 }),
+            ("threshold", 4));
+
+        yield return CreateScenario(
+            "Extended/DateArithmeticSugar",
+            "start + 30.days - start",
+            ("start", new DateTime(2026, 1, 1)));
+
+        yield return CreateScenario(
+            "Extended/LetInExpression",
+            "let x = 5 in x * x");
+
+        yield return CreateScenario(
+            "Extended/ScopeFunctionLet",
+            "7.let(x => x * x)");
+
+        yield return CreateScenario(
+            "Extended/IfExpression",
+            "if (value > 0) value else -value",
+            ("value", -7));
+
+        yield return CreateScenario(
+            "Extended/Comprehension",
+            "[x * x for x in 1..10 if x % 2 == 0]");
+
+        yield return CreateScenario(
+            "Extended/LetInDestructuring",
+            "let { Name, Age } = person in Name + \":\" + Age",
+            ("person", new Dictionary<string, object?> { ["Name"] = "Ada", ["Age"] = 20 }));
     }
 
     public static CsEvalEngine CreateEngine(

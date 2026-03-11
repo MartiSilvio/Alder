@@ -8,6 +8,83 @@ namespace CsEval.Test.Runtime;
 public class LinqTests(CompilationMode mode)
 {
     [Test]
+    public void Where_ImplicitItPredicate_Works()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with
+        {
+            CompilationMode = mode,
+            LanguageMode = LanguageMode.Extended
+        });
+        engine.SetVariable("numbers", new List<int> { 1, 2, 3, 4 });
+
+        var result = engine.Evaluate("numbers.Where(it > 2).ToArray()");
+
+        Assert.That(result, Is.EqualTo(new[] { 3, 4 }));
+    }
+
+    [Test]
+    public void Select_ImplicitDiscardPlaceholder_Works()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with
+        {
+            CompilationMode = mode,
+            LanguageMode = LanguageMode.Extended
+        });
+        engine.SetVariable("numbers", new List<int> { 1, 2, 3, 4 });
+
+        var result = engine.Evaluate("numbers.Select(_ * 10).ToArray()");
+
+        Assert.That(result, Is.EqualTo(new[] { 10, 20, 30, 40 }));
+    }
+
+    [Test]
+    public void Where_ExplicitItLambda_Works()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with
+        {
+            CompilationMode = mode,
+            LanguageMode = LanguageMode.Extended
+        });
+        engine.SetVariable("numbers", new List<int> { 1, 2, 3, 4 });
+
+        var result = engine.Evaluate("numbers.Where(it => it > 2).ToArray()");
+
+        Assert.That(result, Is.EqualTo(new[] { 3, 4 }));
+    }
+
+    [Test]
+    public void Select_ExplicitDiscardLambda_Works()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with
+        {
+            CompilationMode = mode,
+            LanguageMode = LanguageMode.Extended
+        });
+        engine.SetVariable("numbers", new List<int> { 1, 2, 3, 4 });
+
+        var result = engine.Evaluate("numbers.Select(_ => _ * 10).ToArray()");
+
+        Assert.That(result, Is.EqualTo(new[] { 10, 20, 30, 40 }));
+    }
+
+    [Test]
+    public void AggregateBuiltins_SumCountAvgMinMax_Work()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with
+        {
+            CompilationMode = mode,
+            LanguageMode = LanguageMode.Extended
+        });
+        engine.SetVariable("numbers", new List<int> { 1, 2, 3, 4 });
+
+        Assert.That(engine.Evaluate("sum(numbers)"), Is.EqualTo(10));
+        Assert.That(engine.Evaluate("count(numbers.Where(it > 2))"), Is.EqualTo(2));
+        Assert.That(engine.Evaluate("avg(numbers)"), Is.EqualTo(2.5d));
+        Assert.That(engine.Evaluate("min(numbers)"), Is.EqualTo(1));
+        Assert.That(engine.Evaluate("max(numbers)"), Is.EqualTo(4));
+    }
+
+    [Test]
     [TestCaseSource(nameof(WhereTestCases))]
     public async Task Where(string expr, Dictionary<string, object?> variables, object expected)
         => await TestHelpers.RunCSharpParityTestAsync(expr, variables, expected, mode);

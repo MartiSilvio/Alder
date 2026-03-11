@@ -117,6 +117,9 @@ internal sealed class StatementParser : ParserBase
             return new ThrowStatementExpr();
         }
 
+        if (Match(TokenType.Const))
+            return ParseConstDeclaration();
+
         if (MatchVar())
         {
             // Check for deconstruction pattern: var (x, y, ...) = expr
@@ -209,6 +212,27 @@ internal sealed class StatementParser : ParserBase
         var body = ParseBlock();
         var lambda = new LambdaExpr(parameters, body);
         return new VariableDeclExpr(null, functionName, lambda);
+    }
+
+    private Expr ParseConstDeclaration()
+    {
+        var constToken = Previous();
+        var typeName = TryParseTypeName();
+        if (typeName == null)
+        {
+            throw new CsEvalParserException(
+                $"Expected type after '{TokenLexemes.GetCanonical(TokenType.Const)}' at {constToken.Line}:{constToken.Column}",
+                constToken.Line,
+                constToken.Column);
+        }
+
+        var name = ConsumeIdentifierOrContextualKeyword("Expected variable name");
+        Consume(TokenType.Equal, "Expected '=' after variable name");
+        var initializer = _expression.ParseExpression();
+        Consume(TokenType.Semicolon, "Expected ';' after variable declaration");
+
+        var declaredType = new Token(TokenType.Identifier, typeName, null, constToken.Line, constToken.Column);
+        return new VariableDeclExpr(declaredType, name, initializer, IsConst: true);
     }
 
     /// <summary>

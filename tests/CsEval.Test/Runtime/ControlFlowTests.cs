@@ -38,5 +38,16 @@ public class ControlFlowTests(CompilationMode mode)
         Assert.That(result["Extra"], Is.EqualTo("test"));
     }
 
+    [Test]
+    public void Eval_IfExpression_ReturnsBranchValue()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode, LanguageMode = LanguageMode.Extended });
+        engine.SetVariable("x", -5);
+
+        var result = engine.Evaluate("if (x > 0) x else -x");
+
+        Assert.That(result, Is.EqualTo(5));
+    }
+
     #endregion
 }

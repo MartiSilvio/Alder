@@ -45,6 +45,20 @@ internal static class IdentifierRuntime
             return mathFunc(args);
         }
 
+        if (options.LanguageMode == LanguageMode.Extended &&
+            !hasVariable &&
+            DateArithmeticSugar.TryInvokeClockFunction(name, args, options.IsCaseSensitive, out var clockValue))
+        {
+            return clockValue;
+        }
+
+        if (options.LanguageMode == LanguageMode.Extended &&
+            !hasVariable &&
+            AggregateBuiltins.TryInvoke(name, args, options.IsCaseSensitive, out var aggregateResult))
+        {
+            return aggregateResult;
+        }
+
         if (context.Modules.TryGetValue(name, out var module))
             return MethodInvoker.InvokeCall(module, args, context, options, ct, typeArgs);
 
@@ -74,6 +88,20 @@ internal static class IdentifierRuntime
             BareMathNames.TryGetFunction(rightIdentifier, args.Length, out var mathFunc))
         {
             return mathFunc(args);
+        }
+
+        if (options.LanguageMode == LanguageMode.Extended &&
+            !hasVariable &&
+            DateArithmeticSugar.TryInvokeClockFunction(rightIdentifier, args, options.IsCaseSensitive, out var clockValue))
+        {
+            return clockValue;
+        }
+
+        if (options.LanguageMode == LanguageMode.Extended &&
+            !hasVariable &&
+            AggregateBuiltins.TryInvoke(rightIdentifier, args, options.IsCaseSensitive, out var aggregateResult))
+        {
+            return aggregateResult;
         }
 
         if (context.Modules.TryGetValue(rightIdentifier, out var module))

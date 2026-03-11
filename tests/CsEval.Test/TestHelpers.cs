@@ -1,6 +1,7 @@
 using System.Dynamic;
 using System.Globalization;
 using System.Text;
+using System.Text.RegularExpressions;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Scripting;
 using Microsoft.CodeAnalysis.Scripting;
@@ -12,6 +13,8 @@ namespace CsEval.Test;
 /// </summary>
 public static class TestHelpers
 {
+    private static readonly Regex RoslynCodeRegex = new(@"\bCS\d{4}\b", RegexOptions.Compiled);
+
     private static readonly ScriptOptions DefaultScriptOptions = ScriptOptions.Default
         .AddReferences(typeof(object).Assembly, typeof(Enumerable).Assembly)
         .AddImports("System", "System.Collections.Generic", "System.Linq")
@@ -64,6 +67,13 @@ public static class TestHelpers
     }
 
     #endregion
+
+    public static string NormalizeExceptionKey(Exception ex) =>
+        ex switch
+        {
+            CsEvalException cs when cs.ErrorCode is not null => $"{cs.FormattedCode}:{ex.GetType().Name}",
+            _ => TryGetRoslynErrorCode(ex.Message) is { } code ? $"{code}:{ex.GetType().Name}" : ex.GetType().Name
+        };
 
     #region Test Data Loading
 
@@ -148,6 +158,15 @@ public static class TestHelpers
             IList list => TrySerializeList(list),
             _ => null // Unsupported type
         };
+    }
+
+    private static string? TryGetRoslynErrorCode(string? message)
+    {
+        if (string.IsNullOrWhiteSpace(message))
+            return null;
+
+        var match = RoslynCodeRegex.Match(message);
+        return match.Success ? match.Value : null;
     }
 
     private static string? TrySerializeList(IList list)

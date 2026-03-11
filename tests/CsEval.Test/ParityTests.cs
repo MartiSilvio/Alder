@@ -98,6 +98,10 @@ public class ParityTests(CompilationMode mode)
         // Capture CsEval error
         var engine = new CsEvalEngine(Options);
         var csEvalEx = Assert.Catch<Exception>(() => engine.Evaluate(expr));
+        Assert.That(csEvalEx, Is.Not.Null, "CsEval should throw for invalid expression parity.");
+
+        var csEvalKey = TestHelpers.NormalizeExceptionKey(csEvalEx!);
+        var roslynKey = roslynEx != null ? TestHelpers.NormalizeExceptionKey(roslynEx) : "unknown";
 
         // Validate error codes match when both have them
         if (csEvalEx is CsEvalException { ErrorCode: not null } csEx)
@@ -112,7 +116,9 @@ public class ParityTests(CompilationMode mode)
             // Check exact code parity for compiler diagnostics.
             if (!string.Equals(csEvalCode, roslynCode, StringComparison.Ordinal))
             {
-                Assert.Fail($"Error code mismatch: CsEval threw {csEvalCode}, Roslyn threw {roslynCode}. Roslyn error was: {roslynEx?.Message}");
+                Assert.Fail(
+                    $"Error code mismatch: CsEval threw {csEvalCode}, Roslyn threw {roslynCode}. " +
+                    $"Keys: CsEval={csEvalKey}, Roslyn={roslynKey}. Roslyn error was: {roslynEx?.Message}");
             }
         }
     }

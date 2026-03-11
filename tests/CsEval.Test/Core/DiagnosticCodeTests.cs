@@ -77,7 +77,7 @@ public class DiagnosticCodeTests
     public void CS0021_BadIndexerAccess_MultiDimOnNonArray_AllCompilationModes()
     {
         const string expr = "{ var x = 42; return x[0,0]; }";
-        foreach (var mode in new[] { CompilationMode.Interpreted, CompilationMode.Compiled, CompilationMode.Compiled })
+        foreach (var mode in new[] { CompilationMode.Interpreted, CompilationMode.Compiled })
         {
             var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
             var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate(expr));
@@ -216,7 +216,7 @@ public class DiagnosticCodeTests
     [Test]
     public void CS0139_BreakOutsideLoop_AllCompilationModes()
     {
-        foreach (var mode in new[] { CompilationMode.Interpreted, CompilationMode.Compiled, CompilationMode.Compiled })
+        foreach (var mode in new[] { CompilationMode.Interpreted, CompilationMode.Compiled })
         {
             var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
             var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("{ break; }"));
@@ -239,7 +239,7 @@ public class DiagnosticCodeTests
     [Test]
     public void CS0155_ThrowOperandMustBeException_AllCompilationModes()
     {
-        foreach (var mode in new[] { CompilationMode.Interpreted, CompilationMode.Compiled, CompilationMode.Compiled })
+        foreach (var mode in new[] { CompilationMode.Interpreted, CompilationMode.Compiled })
         {
             var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
             var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("throw 42"));
@@ -284,6 +284,17 @@ public class DiagnosticCodeTests
         var ex = Assert.Throws<CsEvalException>(() => _engine.Evaluate("dt.Ticks = 0"));
         Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0191));
         Assert.That(ex.FormattedCode, Is.EqualTo("CS0191"));
+        Assert.That(ex.Message, Does.Not.Contain("{0}"));
+    }
+
+    // --- CS0131: The left-hand side of an assignment must be a variable, property or indexer ---
+
+    [Test]
+    public void CS0131_ConstLocalAssignment()
+    {
+        var ex = Assert.Throws<CsEvalException>(() => _engine.Evaluate("{ const int x = 1; x = 2; return x; }"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0131));
+        Assert.That(ex.FormattedCode, Is.EqualTo("CS0131"));
         Assert.That(ex.Message, Does.Not.Contain("{0}"));
     }
 

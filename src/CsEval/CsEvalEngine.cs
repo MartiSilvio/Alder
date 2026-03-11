@@ -8,6 +8,7 @@ using CsEval.Diagnostics;
 using CsEval.Interpretation;
 using CsEval.Parsing;
 using CsEval.Runtime;
+using CsEval.Tracing;
 
 namespace CsEval;
 
@@ -76,6 +77,8 @@ public sealed class CsEvalEngine : IDisposable
         _functions = new Dictionary<string, Func<object?[], object?>>(options.StringComparer);
         _pendingVariables = new Dictionary<string, PendingVariable>(options.StringComparer);
         _extensionTypes.Add(typeof(Enumerable));
+        if (options.LanguageMode == LanguageMode.Extended)
+            _extensionTypes.Add(typeof(Runtime.Extensions.ScopeFunctionExtensions));
         RegisterBuiltInModules();
     }
 
@@ -289,6 +292,60 @@ public sealed class CsEvalEngine : IDisposable
         if (IsDepthFailure(boundFailureReason))
             throw new CsEvalDepthException("binding", _options.MaxExpressionDepth);
         throw new CsEvalException(boundFailureReason ?? "Binding failed for expression.");
+    }
+
+    public EvaluationTraceResult EvaluateWithTrace(
+        string expression,
+        IDictionary<string, object?>? variables = null,
+        IServiceProvider? serviceProvider = null,
+        CancellationToken cancellationToken = default)
+    {
+        ThrowIfDisposed();
+        var parsed = Parse(expression);
+        return EvaluateWithTrace(parsed, variables, serviceProvider, cancellationToken);
+    }
+
+    public EvaluationTraceResult EvaluateWithTrace(
+        CsEvalExpression expression,
+        IDictionary<string, object?>? variables = null,
+        IServiceProvider? serviceProvider = null,
+        CancellationToken cancellationToken = default)
+    {
+        ThrowIfDisposed();
+
+        var target = this;
+        if (variables != null)
+        {
+            target = CreateChild();
+            target.SetVariables(variables);
+        }
+
+        var context = target.GetOrCreateContext(serviceProvider);
+        var executionContext = context;
+
+        var constraints = _options.Constraints;
+        if (constraints != null)
+        {
+            executionContext = context.CreateChild();
+            var state = new ExecutionConstraintState();
+            state.Reset(constraints);
+            executionContext.ConstraintState = state;
+        }
+
+        if (!expression.TryGetOrCreateBoundExpression(executionContext, _options.MaxExpressionDepth, out var boundExpression, out var failureReason) ||
+            boundExpression == null)
+        {
+            expression.RecordBoundFallback(failureReason);
+            if (IsDepthFailure(failureReason))
+                throw new CsEvalDepthException("binding", _options.MaxExpressionDepth);
+            throw new CsEvalException(failureReason ?? "Binding failed for expression.");
+        }
+
+        var steps = new List<EvaluationTraceStep>();
+        var evaluator = new BoundEvaluator(executionContext, _options, cancellationToken, steps);
+        var result = evaluator.Evaluate(boundExpression);
+        expression.RecordBoundExecution();
+        return new EvaluationTraceResult(result, steps);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

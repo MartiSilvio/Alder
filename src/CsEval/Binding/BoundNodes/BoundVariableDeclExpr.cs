@@ -4,4 +4,5 @@ internal sealed record BoundVariableDeclExpr(
     string Name,
     BoundExpr Initializer,
     Type? DeclaredType,
-    Type StaticType) : BoundExpr(StaticType);
+    Type StaticType,
+    bool IsConst = false) : BoundExpr(StaticType);

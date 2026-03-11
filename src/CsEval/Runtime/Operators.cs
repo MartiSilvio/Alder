@@ -27,7 +27,10 @@ internal static class Operators
         if (TypeHelpers.IsArithmetic(value))
             return NumericDispatch.Negate(value, isChecked);
 
-        throw new CsEvalException(DiagnosticDescriptors.BadUnaryOp, "-", value.GetType().Name);
+        throw new CsEvalException(
+            DiagnosticDescriptors.BadUnaryOp,
+            TokenLexemes.GetCanonical(TokenType.Minus),
+            value.GetType().Name);
     }
 
     public static object? UnaryPlus(object? value)
@@ -39,7 +42,10 @@ internal static class Operators
         if (TypeHelpers.IsArithmetic(value))
             return NumericDispatch.UnaryPlus(value);
 
-        throw new CsEvalException(DiagnosticDescriptors.BadUnaryOp, "+", value.GetType().Name);
+        throw new CsEvalException(
+            DiagnosticDescriptors.BadUnaryOp,
+            TokenLexemes.GetCanonical(TokenType.Plus),
+            value.GetType().Name);
     }
 
     /// <summary>
@@ -55,7 +61,10 @@ internal static class Operators
         if (value is bool b)
             return !b;
 
-        throw new CsEvalException(DiagnosticDescriptors.BadUnaryOp, "!", value.GetType().Name);
+        throw new CsEvalException(
+            DiagnosticDescriptors.BadUnaryOp,
+            TokenLexemes.GetCanonical(TokenType.Bang),
+            value.GetType().Name);
     }
 
     public static object? Add(object? left, object? right, CsEvalOptions options) =>
@@ -63,6 +72,15 @@ internal static class Operators
 
     public static object? Add(object? left, object? right, CsEvalOptions options, CsEvalContext? context, bool isChecked = false)
     {
+        if (left is DateTime leftDate && right is TimeSpan rightSpan)
+            return leftDate + rightSpan;
+
+        if (left is TimeSpan leftSpan && right is DateTime rightDate)
+            return rightDate + leftSpan;
+
+        if (left is TimeSpan leftTimeSpan && right is TimeSpan rightTimeSpan)
+            return leftTimeSpan + rightTimeSpan;
+
         if (left is string || right is string)
             return $"{left}{right}";
 
@@ -79,14 +97,31 @@ internal static class Operators
 
         // Object merge via + operator (Extended mode only)
         if (options.LanguageMode == LanguageMode.Standard)
-            throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, "+",
+            throw new CsEvalException(
+                DiagnosticDescriptors.BadBinaryOps,
+                TokenLexemes.GetCanonical(TokenType.Plus),
                 TypeNameFormatter.Of(left), TypeNameFormatter.Of(right));
 
         return Extensions.ObjectMergeOperator.MergeObjects(left, right, options, context);
     }
 
-    public static object? Subtract(object? left, object? right, bool isChecked = false) =>
-        ApplyBinaryArithmetic(left, right, "-", (l, r) => NumericDispatch.Subtract(l, r, isChecked));
+    public static object? Subtract(object? left, object? right, bool isChecked = false)
+    {
+        if (left is DateTime leftDate && right is DateTime rightDate)
+            return leftDate - rightDate;
+
+        if (left is DateTime date && right is TimeSpan span)
+            return date - span;
+
+        if (left is TimeSpan leftSpan && right is TimeSpan rightSpan)
+            return leftSpan - rightSpan;
+
+        return ApplyBinaryArithmetic(
+            left,
+            right,
+            TokenLexemes.GetCanonical(TokenType.Minus),
+            (l, r) => NumericDispatch.Subtract(l, r, isChecked));
+    }
 
     public static object? Multiply(object? left, object? right) =>
         Multiply(left, right, null);
@@ -99,14 +134,18 @@ internal static class Operators
                 return StringMultiply(left, right);
             // In Standard mode, string * anything falls through to arithmetic and throws
         }
-        return ApplyBinaryArithmetic(left, right, "*", (l, r) => NumericDispatch.Multiply(l, r, isChecked));
+        return ApplyBinaryArithmetic(
+            left,
+            right,
+            TokenLexemes.GetCanonical(TokenType.Star),
+            (l, r) => NumericDispatch.Multiply(l, r, isChecked));
     }
 
     public static object? Divide(object? left, object? right) =>
-        ApplyBinaryArithmetic(left, right, "/", NumericDispatch.Divide);
+        ApplyBinaryArithmetic(left, right, TokenLexemes.GetCanonical(TokenType.Slash), NumericDispatch.Divide);
 
     public static object? Modulo(object? left, object? right) =>
-        ApplyBinaryArithmetic(left, right, "%", NumericDispatch.Modulo);
+        ApplyBinaryArithmetic(left, right, TokenLexemes.GetCanonical(TokenType.Percent), NumericDispatch.Modulo);
 
     /// <summary>
     /// Power operator: left ** right. Returns double via Math.Pow.
@@ -278,7 +317,11 @@ internal static class Operators
         if (IsIntegerOrChar(left) && IsIntegerOrChar(right))
             return NumericDispatch.BitwiseAnd(left!, right!);
 
-        throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, "&", TypeNameFormatter.Of(left), TypeNameFormatter.Of(right));
+        throw new CsEvalException(
+            DiagnosticDescriptors.BadBinaryOps,
+            TokenLexemes.GetCanonical(TokenType.Amp),
+            TypeNameFormatter.Of(left),
+            TypeNameFormatter.Of(right));
     }
 
     public static object? BitwiseOr(object? left, object? right)
@@ -305,7 +348,11 @@ internal static class Operators
         if (IsIntegerOrChar(left) && IsIntegerOrChar(right))
             return NumericDispatch.BitwiseOr(left!, right!);
 
-        throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, "|", TypeNameFormatter.Of(left), TypeNameFormatter.Of(right));
+        throw new CsEvalException(
+            DiagnosticDescriptors.BadBinaryOps,
+            TokenLexemes.GetCanonical(TokenType.Pipe),
+            TypeNameFormatter.Of(left),
+            TypeNameFormatter.Of(right));
     }
 
     public static object? BitwiseXor(object? left, object? right)
@@ -328,7 +375,11 @@ internal static class Operators
         if (IsIntegerOrChar(left) && IsIntegerOrChar(right))
             return NumericDispatch.BitwiseXor(left!, right!);
 
-        throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, "^", TypeNameFormatter.Of(left), TypeNameFormatter.Of(right));
+        throw new CsEvalException(
+            DiagnosticDescriptors.BadBinaryOps,
+            TokenLexemes.GetCanonical(TokenType.Caret),
+            TypeNameFormatter.Of(left),
+            TypeNameFormatter.Of(right));
     }
 
     public static object? BitwiseNot(object? value)
@@ -343,7 +394,10 @@ internal static class Operators
         // (char undergoes unary numeric promotion to int per §12.4.7.2)
         if (TypeHelpers.IsInteger(value) || value is char)
             return NumericDispatch.BitwiseNot(value!);
-        throw new CsEvalException(DiagnosticDescriptors.BadUnaryOp, "~", TypeNameFormatter.Of(value));
+        throw new CsEvalException(
+            DiagnosticDescriptors.BadUnaryOp,
+            TokenLexemes.GetCanonical(TokenType.Tilde),
+            TypeNameFormatter.Of(value));
     }
 
     public static object? LeftShift(object? left, object? right)
@@ -354,7 +408,11 @@ internal static class Operators
 
         // ECMA-334 §12.11: Shift operators accept integer types and char
         if (!IsIntegerOrChar(left) || !TypeHelpers.IsInteger(right))
-            throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, "<<", TypeNameFormatter.Of(left), TypeNameFormatter.Of(right));
+            throw new CsEvalException(
+                DiagnosticDescriptors.BadBinaryOps,
+                TokenLexemes.GetCanonical(TokenType.LessLess),
+                TypeNameFormatter.Of(left),
+                TypeNameFormatter.Of(right));
 
         return NumericDispatch.LeftShift(left!, right!);
     }
@@ -366,7 +424,11 @@ internal static class Operators
             return null;
 
         if (!IsIntegerOrChar(left) || !TypeHelpers.IsInteger(right))
-            throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, ">>", TypeNameFormatter.Of(left), TypeNameFormatter.Of(right));
+            throw new CsEvalException(
+                DiagnosticDescriptors.BadBinaryOps,
+                TokenLexemes.GetCanonical(TokenType.GreaterGreater),
+                TypeNameFormatter.Of(left),
+                TypeNameFormatter.Of(right));
 
         return NumericDispatch.RightShift(left!, right!);
     }
@@ -377,7 +439,11 @@ internal static class Operators
             return null;
 
         if (!IsIntegerOrChar(left) || !TypeHelpers.IsInteger(right))
-            throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, ">>>", TypeNameFormatter.Of(left), TypeNameFormatter.Of(right));
+            throw new CsEvalException(
+                DiagnosticDescriptors.BadBinaryOps,
+                TokenLexemes.GetCanonical(TokenType.GreaterGreaterGreater),
+                TypeNameFormatter.Of(left),
+                TypeNameFormatter.Of(right));
 
         return NumericDispatch.UnsignedRightShift(left!, right!);
     }
@@ -489,21 +555,29 @@ internal static class Operators
         }
         else
         {
-            throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, "*",
+            throw new CsEvalException(
+                DiagnosticDescriptors.BadBinaryOps,
+                TokenLexemes.GetCanonical(TokenType.Star),
                 TypeNameFormatter.Of(left), TypeNameFormatter.Of(right));
         }
 
         if (countObj == null)
-            throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, "*",
+            throw new CsEvalException(
+                DiagnosticDescriptors.BadBinaryOps,
+                TokenLexemes.GetCanonical(TokenType.Star),
                 TypeNameFormatter.Of(left), TypeNameFormatter.Of(right));
 
         if (!TypeHelpers.IsInteger(countObj))
-            throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, "*",
+            throw new CsEvalException(
+                DiagnosticDescriptors.BadBinaryOps,
+                TokenLexemes.GetCanonical(TokenType.Star),
                 TypeNameFormatter.Of(left), TypeNameFormatter.Of(right));
 
         int count = Convert.ToInt32(countObj);
         if (count < 0)
-            throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, "*",
+            throw new CsEvalException(
+                DiagnosticDescriptors.BadBinaryOps,
+                TokenLexemes.GetCanonical(TokenType.Star),
                 TypeNameFormatter.Of(left), TypeNameFormatter.Of(right));
         if (count == 0)
             return "";
