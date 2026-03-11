@@ -26,4 +26,5 @@ internal sealed record BoundCallPlan(
     ImmutableArray<BoundConversionPlan> ArgumentConversions,
     ImmutableArray<BoundParameterBinding> ParameterBindings,
     bool IsStaticCall,
-    bool IsModuleCall = false);
+    bool IsModuleCall = false,
+    bool IsDirectArgumentMapping = false);

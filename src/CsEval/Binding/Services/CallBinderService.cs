@@ -146,14 +146,30 @@ internal sealed class CallBinderService
         if (parameters.Any(static parameter => parameter.ParameterType.IsByRef))
             return false;
 
-        if (!TryBuildNormalPlan(parameters, sourceTypes, out var normalConversions, out var normalBindings, out var normalScore))
+        var normalDirectMapping = false;
+        if (!TryBuildNormalPlan(
+                parameters,
+                sourceTypes,
+                out var normalConversions,
+                out var normalBindings,
+                out var normalScore,
+                out normalDirectMapping))
+        {
             normalScore = int.MinValue;
+        }
 
         var expandedScore = int.MinValue;
+        var expandedDirectMapping = false;
         ImmutableArray<BoundConversionPlan> expandedConversions = default;
         ImmutableArray<BoundParameterBinding> expandedBindings = default;
 
-        if (TryBuildExpandedParamsPlan(parameters, sourceTypes, out var conversions, out var bindings, out var scoreCandidate))
+        if (TryBuildExpandedParamsPlan(
+                parameters,
+                sourceTypes,
+                out var conversions,
+                out var bindings,
+                out var scoreCandidate,
+                out expandedDirectMapping))
         {
             expandedScore = scoreCandidate;
             expandedConversions = conversions;
@@ -167,12 +183,16 @@ internal sealed class CallBinderService
         var selectedConversions = useExpanded ? expandedConversions : normalConversions;
         var selectedBindings = useExpanded ? expandedBindings : normalBindings;
         score = useExpanded ? expandedScore : normalScore;
+        var isDirectArgumentMapping = useExpanded
+            ? expandedDirectMapping
+            : normalDirectMapping;
 
         plan = new BoundCallPlan(
             selectedMethod,
             selectedConversions,
             selectedBindings,
-            isStaticCall);
+            isStaticCall,
+            IsDirectArgumentMapping: isDirectArgumentMapping);
         return true;
     }
 
@@ -181,18 +201,21 @@ internal sealed class CallBinderService
         IReadOnlyList<Type> sourceTypes,
         out ImmutableArray<BoundConversionPlan> conversions,
         out ImmutableArray<BoundParameterBinding> bindings,
-        out int score)
+        out int score,
+        out bool isDirectArgumentMapping)
     {
         var sourceCount = sourceTypes.Count;
         var parameterCount = parameters.Length;
         var lastParameterIndex = parameterCount - 1;
         var hasParams = parameterCount > 0 && parameters[lastParameterIndex].IsDefined(typeof(ParamArrayAttribute), false);
+        isDirectArgumentMapping = sourceCount == parameterCount;
 
         if (sourceCount > parameterCount)
         {
             conversions = default;
             bindings = default;
             score = int.MinValue;
+            isDirectArgumentMapping = false;
             return false;
         }
 
@@ -209,6 +232,7 @@ internal sealed class CallBinderService
                 conversions = default;
                 bindings = default;
                 score = int.MinValue;
+                isDirectArgumentMapping = false;
                 return false;
             }
 
@@ -218,8 +242,12 @@ internal sealed class CallBinderService
                 conversions = default;
                 bindings = default;
                 score = int.MinValue;
+                isDirectArgumentMapping = false;
                 return false;
             }
+
+            if (sourceTypes[i] != targetType)
+                isDirectArgumentMapping = false;
 
             runningScore += argScore;
             conversionBuilder.Add(new BoundConversionPlan(
@@ -238,6 +266,7 @@ internal sealed class CallBinderService
         {
             if (hasParams && i == lastParameterIndex)
             {
+                isDirectArgumentMapping = false;
                 bindingBuilder.Add(new BoundParameterBinding(
                     BoundParameterBindingKind.ParamsArray,
                     i,
@@ -251,10 +280,12 @@ internal sealed class CallBinderService
                 conversions = default;
                 bindings = default;
                 score = int.MinValue;
+                isDirectArgumentMapping = false;
                 return false;
             }
 
             defaultsUsed++;
+            isDirectArgumentMapping = false;
             bindingBuilder.Add(new BoundParameterBinding(
                 BoundParameterBindingKind.DefaultValue,
                 i,
@@ -273,11 +304,13 @@ internal sealed class CallBinderService
         IReadOnlyList<Type> sourceTypes,
         out ImmutableArray<BoundConversionPlan> conversions,
         out ImmutableArray<BoundParameterBinding> bindings,
-        out int score)
+        out int score,
+        out bool isDirectArgumentMapping)
     {
         conversions = default;
         bindings = default;
         score = int.MinValue;
+        isDirectArgumentMapping = false;
 
         if (parameters.Length == 0)
             return false;

@@ -364,32 +364,13 @@ internal static class MethodInvoker
 
         // Fast path: exact simple invocation (no named args, no out/ref, no params, no conversions).
         if (CanInvokeDirect(parameters, argsWithCancellation))
-        {
-            try
-            {
-                object? directResult;
-                if (!MethodDispatchCache.TryInvokeFast(method, target, argsWithCancellation, out directResult))
-                    directResult = method.Invoke(target, argsWithCancellation);
-                return (true, TypeHelpers.GuardReflectionLeak(directResult, $"method {method.Name}"));
-            }
-            catch (TargetInvocationException ex) when (ex.InnerException != null)
-            {
-                throw ex.InnerException;
-            }
-        }
+            return (true, InvokeMethodCore(method, target, argsWithCancellation));
 
         if (CanInvokeMethod(parameters, argsWithCancellation, out var convertedArgs))
         {
-            try
-            {
-                var result = method.Invoke(target, convertedArgs);
-                CopyBackOutArgs(args, convertedArgs, parameters);
-                return (true, TypeHelpers.GuardReflectionLeak(result, $"method {method.Name}"));
-            }
-            catch (TargetInvocationException ex) when (ex.InnerException != null)
-            {
-                throw ex.InnerException;
-            }
+            var result = InvokeMethodCore(method, target, convertedArgs);
+            CopyBackOutArgs(args, convertedArgs, parameters);
+            return (true, result);
         }
 
         return (false, null);
@@ -407,19 +388,30 @@ internal static class MethodInvoker
         if (plan.ParameterBindings.Length != parameters.Length)
             return (false, null);
 
+        if (plan.IsDirectArgumentMapping && sourceArgs.Length == parameters.Length)
+            return (true, InvokeMethodCore(method, target, sourceArgs));
+
         if (!TryPreparePlannedArgumentsInPlace(plan, parameters, sourceArgs, out var preparedArgs) &&
             !TryBuildPlannedArguments(plan, parameters, sourceArgs, out preparedArgs))
         {
             return (false, null);
         }
 
+        return (true, InvokeMethodCore(method, target, preparedArgs));
+    }
+
+    private static object? InvokeMethodCore(
+        MethodInfo method,
+        object? target,
+        object?[] args)
+    {
         try
         {
             object? result;
-            if (!MethodDispatchCache.TryInvokeFast(method, target, preparedArgs, out result))
-                result = method.Invoke(target, preparedArgs);
+            if (!MethodDispatchCache.TryInvokeFast(method, target, args, out result))
+                result = method.Invoke(target, args);
 
-            return (true, TypeHelpers.GuardReflectionLeak(result, $"method {method.Name}"));
+            return TypeHelpers.GuardReflectionLeak(result, $"method {method.Name}");
         }
         catch (TargetInvocationException ex) when (ex.InnerException != null)
         {

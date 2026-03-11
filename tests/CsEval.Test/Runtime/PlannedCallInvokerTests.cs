@@ -17,6 +17,8 @@ public sealed class PlannedCallInvokerTests
             [typeof(int)],
             isCaseSensitive: true);
 
+        Assert.That(plan.IsDirectArgumentMapping, Is.False);
+
         var target = new PlannedInvocationTarget();
         var result = MethodInvoker.InvokePlannedMethod(plan, target, [7], CancellationToken.None);
 
@@ -35,11 +37,33 @@ public sealed class PlannedCallInvokerTests
             [typeof(int), typeof(int), typeof(int), typeof(int)],
             isCaseSensitive: true);
 
+        Assert.That(plan.IsDirectArgumentMapping, Is.False);
+
         var target = new PlannedInvocationTarget();
         var result = MethodInvoker.InvokePlannedMethod(plan, target, [1, 2, 3, 4], CancellationToken.None);
 
         Assert.That(result.Success, Is.True);
         Assert.That(result.Value, Is.EqualTo(10));
+    }
+
+    [Test]
+    public void InvokePlannedMethod_DirectIdentityMapping_UsesDirectPath()
+    {
+        var context = new CsEvalContext(CsEvalConfig.Empty);
+        var binder = new CallBinderService(context);
+        var plan = binder.BindInstanceCall(
+            typeof(PlannedInvocationTarget),
+            nameof(PlannedInvocationTarget.Echo),
+            [typeof(int)],
+            isCaseSensitive: true);
+
+        Assert.That(plan.IsDirectArgumentMapping, Is.True);
+
+        var target = new PlannedInvocationTarget();
+        var result = MethodInvoker.InvokePlannedMethod(plan, target, [7], CancellationToken.None);
+
+        Assert.That(result.Success, Is.True);
+        Assert.That(result.Value, Is.EqualTo(7));
     }
 
     private sealed class PlannedInvocationTarget
@@ -53,5 +77,7 @@ public sealed class PlannedCallInvokerTests
         }
 
         public int WithOptional(int value, int extra = 10) => value + extra;
+
+        public int Echo(int value) => value;
     }
 }

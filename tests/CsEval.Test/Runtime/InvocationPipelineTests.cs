@@ -47,6 +47,18 @@ public sealed class InvocationPipelineTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(9));
     }
 
+    [Test]
+    public void NestedInvocationArguments_DoNotOverwriteSiblingArguments()
+    {
+        var engine = CreateEngine();
+        var target = new InvocationTarget();
+        engine.SetVariable("target", target);
+
+        var result = engine.Evaluate("target.Combine(target.One(), target.Two())");
+
+        Assert.That(result, Is.EqualTo(12));
+    }
+
     private CsEvalEngine CreateEngine()
     {
         return new CsEvalEngine(CsEvalOptions.Default with
@@ -66,5 +78,11 @@ public sealed class InvocationPipelineTests(CompilationMode mode)
         }
 
         public int WithOptional(int value, int extra = 10) => value + extra;
+
+        public int One() => 1;
+
+        public int Two() => 2;
+
+        public int Combine(int left, int right) => left * 10 + right;
     }
 }

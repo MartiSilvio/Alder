@@ -5,6 +5,7 @@ using CsEval.Parsing;
 using CsEval.Runtime;
 using CsEval.Runtime.Extensions;
 using System.Collections;
+using System.Collections.Immutable;
 using System.Dynamic;
 using System.Reflection;
 using System.Runtime.ExceptionServices;
@@ -1292,11 +1293,7 @@ internal sealed class BoundEvaluator
                     call.Plan.IsStaticCall ? call.Plan.SelectedMethod.DeclaringType : null);
             }
 
-            var plannedArgs = new object?[call.Arguments.Length];
-            for (var i = 0; i < call.Arguments.Length; i++)
-            {
-                plannedArgs[i] = Evaluate(call.Arguments[i]);
-            }
+            var plannedArgs = EvaluateArguments(call.Arguments);
 
             var plannedResult = CsEval.Runtime.MethodInvoker.InvokePlannedMethod(
                 call.Plan,
@@ -1312,33 +1309,20 @@ internal sealed class BoundEvaluator
                 plannedArgs,
                 _cancellationToken);
             if (result.Success)
-            {
                 return result.Value;
-            }
         }
 
-        var args = new object?[call.Arguments.Length];
-        var outBindings = CollectOutBindings(call.Arguments);
-        for (var i = 0; i < call.Arguments.Length; i++)
-        {
-            args[i] = Evaluate(call.Arguments[i]);
-        }
+        var (args, outBindings) = EvaluateArgumentsWithOutBindings(call.Arguments);
 
         var callee = Evaluate(call.Callee);
         var invokeResult = CsEval.Runtime.MethodInvoker.InvokeCall(callee, args, _context, _options, _cancellationToken);
-        if (outBindings.Length > 0)
-            IdentifierRuntime.DefineOutVariables(args, outBindings, _context);
+        DefineOutVariablesIfAny(args, outBindings);
         return invokeResult;
     }
 
     private object? EvaluateInvoke(BoundInvokeExpr invoke)
     {
-        var args = new object?[invoke.Arguments.Length];
-        var outBindings = CollectOutBindings(invoke.Arguments);
-        for (var i = 0; i < invoke.Arguments.Length; i++)
-        {
-            args[i] = Evaluate(invoke.Arguments[i]);
-        }
+        var (args, outBindings) = EvaluateArgumentsWithOutBindings(invoke.Arguments);
 
         IReadOnlyList<string>? typeArguments = invoke.TypeArguments.IsDefaultOrEmpty
             ? null
@@ -1353,8 +1337,7 @@ internal sealed class BoundEvaluator
                 _options,
                 _cancellationToken,
                 typeArguments);
-            if (outBindings.Length > 0)
-                IdentifierRuntime.DefineOutVariables(args, outBindings, _context);
+            DefineOutVariablesIfAny(args, outBindings);
             return result;
         }
 
@@ -1370,37 +1353,57 @@ internal sealed class BoundEvaluator
                 _options,
                 _cancellationToken,
                 typeArguments);
-            if (outBindings.Length > 0)
-                IdentifierRuntime.DefineOutVariables(args, outBindings, _context);
+            DefineOutVariablesIfAny(args, outBindings);
             return result;
         }
 
         var callee = Evaluate(invoke.Callee);
-        var invokeResult = CsEval.Runtime.MethodInvoker.InvokeCall(
+        var invokeCallResult = CsEval.Runtime.MethodInvoker.InvokeCall(
             callee,
             args,
             _context,
             _options,
             _cancellationToken,
             typeArguments);
-        if (outBindings.Length > 0)
-            IdentifierRuntime.DefineOutVariables(args, outBindings, _context);
-        return invokeResult;
+        DefineOutVariablesIfAny(args, outBindings);
+        return invokeCallResult;
     }
 
-    private static OutVariableBinding[] CollectOutBindings(IReadOnlyList<BoundExpr> arguments)
+    private object?[] EvaluateArguments(ImmutableArray<BoundExpr> arguments)
     {
+        var argumentCount = arguments.Length;
+        var values = new object?[argumentCount];
+
+        for (var i = 0; i < argumentCount; i++)
+            values[i] = Evaluate(arguments[i]);
+
+        return values;
+    }
+
+    private (object?[] Values, OutVariableBinding[] OutBindings) EvaluateArgumentsWithOutBindings(ImmutableArray<BoundExpr> arguments)
+    {
+        var argumentCount = arguments.Length;
+        var values = new object?[argumentCount];
         List<OutVariableBinding>? bindings = null;
-        for (var i = 0; i < arguments.Count; i++)
+
+        for (var i = 0; i < argumentCount; i++)
         {
-            if (arguments[i] is BoundOutArgExpr { IsDiscard: false } outArg)
+            var argument = arguments[i];
+            values[i] = Evaluate(argument);
+            if (argument is BoundOutArgExpr { IsDiscard: false } outArg)
             {
                 bindings ??= [];
                 bindings.Add(new OutVariableBinding(i, outArg.VariableName, outArg.TypeName));
             }
         }
 
-        return bindings?.ToArray() ?? [];
+        return (values, bindings?.ToArray() ?? []);
+    }
+
+    private void DefineOutVariablesIfAny(object?[] args, OutVariableBinding[] outBindings)
+    {
+        if (outBindings.Length > 0)
+            IdentifierRuntime.DefineOutVariables(args, outBindings, _context);
     }
 
     private object? EvaluateLambda(BoundLambdaExpr lambda)
