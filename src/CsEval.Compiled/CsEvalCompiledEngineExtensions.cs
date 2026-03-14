@@ -1,6 +1,5 @@
 using System.Linq.Expressions;
 using CsEval.Binding;
-using CsEval.Compilation;
 using CsEval.Compiled.Compilation;
 using CsEval.Diagnostics;
 using CsEval.Parsing;

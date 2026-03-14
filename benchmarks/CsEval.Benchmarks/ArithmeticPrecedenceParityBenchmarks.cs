@@ -1,6 +1,5 @@
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Configs;
-using BenchmarkDotNet.Order;
 using CsEval.Compiled;
 using CsEval.Runtime;
 using Flee.PublicTypes;

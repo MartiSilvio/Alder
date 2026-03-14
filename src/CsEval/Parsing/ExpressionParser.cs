@@ -76,9 +76,7 @@ internal sealed partial class ExpressionParser : ParserBase
         {
             if (IsStatementKeyword())
             {
-                var stmt = _statement.ParseStatement();
-                if (stmt != null)
-                    statements.Add(stmt);
+                _statement.ParseStatementInto(statements);
             }
             else
             {
@@ -596,31 +594,22 @@ internal sealed partial class ExpressionParser : ParserBase
     {
         var expr = ParseOr();
 
-        if (State.LanguageMode == LanguageMode.Extended)
+        if (Match(TokenType.DotDot))
         {
-            if (Match(TokenType.DotDot))
+            if (State.LanguageMode == LanguageMode.Extended)
             {
                 var end = ParseOr();
                 return new RangeExpr(expr, end, ExclusiveEnd: false);
             }
-
-            if (Match(TokenType.DotDotLess))
-            {
-                var end = ParseOr();
-                return new RangeExpr(expr, end, ExclusiveEnd: true);
-            }
+            // Standard mode: expr..expr → System.Range (exclusive-end per C# spec)
+            var rangeEnd = ParseOr();
+            return new RangeExpr(expr, rangeEnd, ExclusiveEnd: true);
         }
-        else if (Check(TokenType.DotDot) || Check(TokenType.DotDotLess))
+
+        if (State.LanguageMode == LanguageMode.Extended && Match(TokenType.DotDotLess))
         {
-            // Active rejection: if we see .. or ..< in infix position in Standard mode,
-            // and the next token isn't a comma/bracket (which would be spread context handled
-            // elsewhere), reject with a clear message.
-            // But we must be careful: DotDot in Standard mode at this level could be spread
-            // context leaking through. Only reject if it's clearly infix (we already parsed
-            // a left-hand expression and this isn't inside array/object literal brackets).
-            // Since spread is always handled in PrimaryParser before reaching here, any DotDot
-            // at this level in Standard mode is either a genuine range attempt or a stray token.
-            // We don't reject here to avoid breaking spread; the stray token will fail naturally.
+            var end = ParseOr();
+            return new RangeExpr(expr, end, ExclusiveEnd: true);
         }
 
         return expr;
@@ -1050,24 +1039,16 @@ internal sealed partial class ExpressionParser : ParserBase
     /// </summary>
     internal Expr ParseUnary()
     {
-        // Cast expression: (int)x, (double)y, (int?)z, (Exception)x
+        // Cast expression: (int)x, (double)y, (int?)z, (Exception)x, (int[])x, (List<int>)x
         if (Check(TokenType.LeftParen) && IsCastExpression())
         {
             Advance(); // consume '('
-            Token typeToken;
-            if (MatchTypeKeyword(out typeToken))
-            {
-                // keyword type cast
-            }
-            else if (Check(TokenType.Identifier))
-            {
-                typeToken = ParseDottedTypeName();
-            }
-            else
-            {
-                throw new CsEvalParserException($"Expected type in cast at {Peek().Line}:{Peek().Column}");
-            }
+            var startToken = Peek();
+            var typeName = TryParseTypeName();
+            if (typeName == null)
+                throw new CsEvalParserException($"Expected type in cast at {startToken.Line}:{startToken.Column}");
 
+            var typeToken = new Token(TokenType.Identifier, typeName, null, startToken.Line, startToken.Column);
             Consume(TokenType.RightParen, "Expected ')' after cast type");
             var operand = ParseUnary();
             return new CastExpr(typeToken, operand);
@@ -1080,6 +1061,13 @@ internal sealed partial class ExpressionParser : ParserBase
                 RejectWordOperatorInStandardMode(op, "not");
             var right = ParseUnary();
             return new UnaryExpr(op, right);
+        }
+
+        // §12.8.11: Index from end — ^expr → System.Index(expr, fromEnd: true)
+        if (Match(TokenType.Caret))
+        {
+            var operand = ParseUnary();
+            return new IndexFromEndExpr(operand);
         }
 
         // Prefix increment/decrement: ++x, --x, ++obj.Prop, ++arr[i]
@@ -1138,7 +1126,7 @@ internal sealed partial class ExpressionParser : ParserBase
 
     internal bool IsCastExpression()
     {
-        // Look ahead: ( type ) or ( type? )
+        // Look ahead: ( type ) or ( type? ) or ( type[] ) or ( Type<T> )
         // We're at '(' - check if next token is a type keyword or identifier (class type)
         if (State.Current + 1 >= State.Tokens.Count)
             return false;
@@ -1147,28 +1135,45 @@ internal sealed partial class ExpressionParser : ParserBase
 
         if (IsTypeKeyword(nextToken.Type))
         {
-            // Check what follows the type keyword: either ')' or '?' then ')'
-            var afterTypeIndex = State.Current + 2;
-            if (afterTypeIndex >= State.Tokens.Count)
+            var scanIndex = State.Current + 2;
+            if (scanIndex >= State.Tokens.Count)
                 return false;
 
-            var afterType = State.Tokens[afterTypeIndex];
+            // Skip array rank specifiers: [], [,], [,,], etc.
+            scanIndex = SkipArrayRankSpecifiers(scanIndex);
+
+            var afterType = State.Tokens[scanIndex];
             if (afterType.Type == TokenType.RightParen)
                 return true;
 
-            // Check for nullable: type?
+            // Check for nullable: type? or type?[]
             if (afterType.Type == TokenType.Question)
             {
-                var afterNullable = afterTypeIndex + 1;
+                var afterNullable = scanIndex + 1;
                 if (afterNullable >= State.Tokens.Count)
                     return false;
+                afterNullable = SkipArrayRankSpecifiers(afterNullable);
                 return State.Tokens[afterNullable].Type == TokenType.RightParen;
+            }
+
+            // Nullable array: type?[] — lexer tokenizes ?[ as QuestionLeftBracket
+            if (afterType.Type == TokenType.QuestionLeftBracket)
+            {
+                var afterQBracket = scanIndex + 1;
+                // Skip commas for multi-dim arrays, then consume ]
+                while (afterQBracket < State.Tokens.Count && State.Tokens[afterQBracket].Type == TokenType.Comma)
+                    afterQBracket++;
+                if (afterQBracket >= State.Tokens.Count || State.Tokens[afterQBracket].Type != TokenType.RightBracket)
+                    return false;
+                afterQBracket++;
+                afterQBracket = SkipArrayRankSpecifiers(afterQBracket);
+                return afterQBracket < State.Tokens.Count && State.Tokens[afterQBracket].Type == TokenType.RightParen;
             }
 
             return false;
         }
 
-        // Identifier cast: (Exception)obj, (System.Exception)obj
+        // Identifier cast: (Exception)obj, (List<int>)obj, (System.Exception)obj
         // Disambiguation: (identifier)expr is a cast if what follows ')' is a value-start token
         if (nextToken.Type == TokenType.Identifier)
         {
@@ -1186,12 +1191,27 @@ internal sealed partial class ExpressionParser : ParserBase
             if (scanIndex >= State.Tokens.Count)
                 return false;
 
+            // Skip generic arguments: <T>, <T1, T2>, <List<int>>, etc.
+            if (State.Tokens[scanIndex].Type == TokenType.Less)
+            {
+                scanIndex = SkipBalancedAngleBrackets(scanIndex);
+                if (scanIndex < 0)
+                    return false;
+            }
+
+            // Skip array rank specifiers: [], [,], etc.
+            scanIndex = SkipArrayRankSpecifiers(scanIndex);
+
             // Optional nullable suffix
-            if (State.Tokens[scanIndex].Type == TokenType.Question
+            if (scanIndex < State.Tokens.Count
+                && State.Tokens[scanIndex].Type == TokenType.Question
                 && scanIndex + 1 < State.Tokens.Count)
             {
                 scanIndex++;
             }
+
+            if (scanIndex >= State.Tokens.Count)
+                return false;
 
             // Must have ')' next
             if (State.Tokens[scanIndex].Type != TokenType.RightParen)
@@ -1206,6 +1226,49 @@ internal sealed partial class ExpressionParser : ParserBase
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// Skips balanced angle brackets for generic type arguments in cast lookahead.
+    /// Returns the index after the closing '>', or -1 if unbalanced.
+    /// </summary>
+    private int SkipBalancedAngleBrackets(int index)
+    {
+        if (index >= State.Tokens.Count || State.Tokens[index].Type != TokenType.Less)
+            return -1;
+
+        var depth = 1;
+        index++;
+        while (index < State.Tokens.Count && depth > 0)
+        {
+            var tt = State.Tokens[index].Type;
+            if (tt == TokenType.Less) depth++;
+            else if (tt == TokenType.Greater) depth--;
+            else if (tt == TokenType.RightParen) return -1; // hit ')' before closing '>'
+            index++;
+        }
+
+        return depth == 0 ? index : -1;
+    }
+
+    /// <summary>
+    /// Skips array rank specifiers ([],[,],[,,], etc.) in cast lookahead.
+    /// Returns the index after the last ']', or the input index if no brackets.
+    /// </summary>
+    private int SkipArrayRankSpecifiers(int index)
+    {
+        while (index < State.Tokens.Count && State.Tokens[index].Type == TokenType.LeftBracket)
+        {
+            var bracketStart = index;
+            index++; // skip '['
+            // Skip commas (for multidim: [,] [,,])
+            while (index < State.Tokens.Count && State.Tokens[index].Type == TokenType.Comma)
+                index++;
+            if (index >= State.Tokens.Count || State.Tokens[index].Type != TokenType.RightBracket)
+                return bracketStart; // not an array rank specifier
+            index++; // skip ']'
+        }
+        return index;
     }
 
     /// <summary>

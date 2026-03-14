@@ -1,3 +1,5 @@
+using CsEval.Diagnostics;
+
 namespace CsEval.Runtime.Extensions;
 
 /// <summary>
@@ -17,5 +19,22 @@ internal static class RangeHelpers
         int limit = exclusiveEnd ? end : end + 1;
         for (int i = start; i < limit; i++)
             yield return i;
+    }
+
+    public static object EnsureEnumerable(object collection)
+    {
+        if (collection is InclusiveRange inclusive)
+        {
+            if (inclusive.Value.Start.IsFromEnd || inclusive.Value.End.IsFromEnd)
+                throw new CsEvalException(DiagnosticDescriptors.ForeachRequiresIEnumerable, "System.Range (from-end indices cannot be iterated)");
+            return GenerateRange(inclusive.Value.Start.Value, inclusive.Value.End.Value, exclusiveEnd: false);
+        }
+        if (collection is Range range)
+        {
+            if (range.Start.IsFromEnd || range.End.IsFromEnd)
+                throw new CsEvalException(DiagnosticDescriptors.ForeachRequiresIEnumerable, "System.Range (from-end indices cannot be iterated)");
+            return GenerateRange(range.Start.Value, range.End.Value, exclusiveEnd: true);
+        }
+        return collection;
     }
 }

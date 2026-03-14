@@ -1,0 +1,1 @@
+System.DayOfWeek.Friday - System.DayOfWeek.Monday

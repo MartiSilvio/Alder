@@ -1,5 +1,4 @@
 using CsEval.Diagnostics;
-using CsEval.Interpretation;
 using CsEval.Runtime.Extensions;
 
 namespace CsEval.Runtime;
@@ -131,6 +130,14 @@ internal static class MemberAccess
             }
         }
 
+        if (obj is NamedTupleValue namedTuple)
+        {
+            if (namedTuple.TryGetIndex(name, out var idx))
+                return namedTuple[idx];
+            // Fall through to access fields on the underlying ValueTuple (e.g., Item1, Item2)
+            obj = namedTuple.Tuple;
+        }
+
         var type = obj.GetType();
         var bindingFlags = BindingFlags.Public | BindingFlags.Instance;
         if (!options.IsCaseSensitive)
@@ -150,6 +157,42 @@ internal static class MemberAccess
 
     public static object? GetIndex(object? obj, object? index, CsEvalOptions options, CsEvalContext context)
     {
+        // Unwrap InclusiveRange to raw Range for indexing (inclusive-end only matters for iteration)
+        if (index is InclusiveRange inclusive)
+            index = inclusive.Value;
+
+        // §12.8.11: System.Index support — resolve from-end indices
+        if (index is Index sysIndex && obj != null)
+        {
+            var length = obj switch
+            {
+                string s => s.Length,
+                Array a => a.Length,
+                ICollection c => c.Count,
+                _ => -1
+            };
+            if (length >= 0)
+                return GetIndex(obj, (object)sysIndex.GetOffset(length), options, context);
+        }
+
+        // §12.8.11: System.Range support — slice arrays/strings
+        if (index is Range sysRange && obj != null)
+        {
+            if (obj is string str)
+            {
+                var (offset, len) = sysRange.GetOffsetAndLength(str.Length);
+                return str.Substring(offset, len);
+            }
+            if (obj is Array arr)
+            {
+                var (offset, len) = sysRange.GetOffsetAndLength(arr.Length);
+                var elemType = arr.GetType().GetElementType()!;
+                var result = Array.CreateInstance(elemType, len);
+                Array.Copy(arr, offset, result, 0, len);
+                return result;
+            }
+        }
+
         switch (obj)
         {
             case null:
@@ -174,8 +217,6 @@ internal static class MemberAccess
 
         var type = obj.GetType();
         var indexer = context.TypeMetadata.GetIndexer(type);
-        if (indexer != null && indexer.GetIndexParameters().Length > 1)
-            throw new CsEvalException(DiagnosticDescriptors.MultiParameterIndexerNotSupported, type.Name);
 
         if (indexer != null && indexer.GetIndexParameters().Length == 1)
         {
@@ -264,6 +305,13 @@ internal static class MemberAccess
         if (obj is IList list && index != null)
         {
             var idx = NormalizeIndex(Convert.ToInt32(index), list.Count, options.LanguageMode);
+            // Coerce value to the array's element type to avoid ArrayTypeMismatchException
+            if (obj is Array arr && value != null)
+            {
+                var elementType = arr.GetType().GetElementType()!;
+                if (value.GetType() != elementType && TypeHelpers.CanImplicitlyConvert(value.GetType(), elementType))
+                    value = Convert.ChangeType(value, elementType);
+            }
             list[idx] = value;
             return;
         }

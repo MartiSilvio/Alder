@@ -10,6 +10,7 @@ internal sealed class StatementParser : ParserBase
 {
     private ExpressionParser _expression = null!;
     private PatternParser _pattern = null!;
+    private readonly List<Expr> _pendingDecls = new();
 
     internal StatementParser(ParserState state) : base(state)
     {
@@ -40,12 +41,23 @@ internal sealed class StatementParser : ParserBase
 
         while (!Check(TokenType.RightBrace) && !IsAtEnd())
         {
-            var stmt = ParseStatement();
-            if (stmt != null)
-                statements.Add(stmt);
+            ParseStatementInto(statements);
         }
 
         return statements;
+    }
+
+    internal void ParseStatementInto(List<Expr> statements)
+    {
+        var stmt = ParseStatement();
+        if (stmt != null)
+            statements.Add(stmt);
+        // ECMA-334 §13.6.2: Multi-var declarations produce extra decls via _pendingDecls
+        if (_pendingDecls.Count > 0)
+        {
+            statements.AddRange(_pendingDecls);
+            _pendingDecls.Clear();
+        }
     }
 
     internal Expr? ParseStatement()
@@ -72,6 +84,34 @@ internal sealed class StatementParser : ParserBase
         {
             Match(TokenType.Semicolon);
             return new ContinueExpr();
+        }
+
+        // ECMA-334 §13.10.4: goto label; / goto case expr; / goto default;
+        if (Match(TokenType.Goto))
+        {
+            if (Match(TokenType.Case))
+            {
+                var value = _expression.ParseExpression();
+                Consume(TokenType.Semicolon, "Expected ';' after goto case");
+                return new GotoCaseExpr(value);
+            }
+            if (Match(TokenType.Default))
+            {
+                Consume(TokenType.Semicolon, "Expected ';' after goto default");
+                return new GotoDefaultExpr();
+            }
+            var label = Consume(TokenType.Identifier, "Expected label name after goto").Lexeme;
+            Consume(TokenType.Semicolon, "Expected ';' after goto");
+            return new GotoExpr(label);
+        }
+
+        // Label: identifier followed by ':' (not part of ternary or case)
+        if (Check(TokenType.Identifier) && PeekNext().Type == TokenType.Colon)
+        {
+            // Disambiguate from ternary (x ? y : z) - labels only appear at statement level
+            var label = Advance(); // consume identifier
+            Advance(); // consume ':'
+            return new LabelExpr(label.Lexeme);
         }
 
         if (Match(TokenType.If))
@@ -159,6 +199,34 @@ internal sealed class StatementParser : ParserBase
                 return genericResult;
         }
 
+        // Non-generic type name variable declaration: Action f = ..., Exception ex = ...
+        // ECMA-334 §13.6.2 - Pattern: Identifier Identifier = expr;
+        // Disambiguated from expression statements by the Identifier Identifier = pattern.
+        if (Check(TokenType.Identifier) && PeekNext().Type == TokenType.Identifier)
+        {
+            var peekAt2 = State.Current + 2 < State.Tokens.Count ? State.Tokens[State.Current + 2] : State.Tokens[^1];
+            if (peekAt2.Type is TokenType.Equal or TokenType.Semicolon)
+            {
+                var typeName = Advance(); // consume type name
+                var name = ConsumeIdentifierOrContextualKeyword("Expected variable name");
+                if (Check(TokenType.LeftParen))
+                    return ParseLocalFunctionDeclaration(typeName, name);
+                Consume(TokenType.Equal, "Expected '=' after variable name");
+                var initializer = _expression.ParseExpression();
+                Consume(TokenType.Semicolon, "Expected ';' after variable declaration");
+                return new VariableDeclExpr(typeName, name, initializer);
+            }
+        }
+
+        // Fully-qualified type name variable declaration: System.DayOfWeek d = 0;
+        // Pattern: Identifier.Identifier[.Identifier...] Identifier = expr;
+        if (Check(TokenType.Identifier) && PeekNext().Type == TokenType.Dot)
+        {
+            var fqnResult = TryParseFqnTypeDeclaration();
+            if (fqnResult != null)
+                return fqnResult;
+        }
+
         // Type keyword followed by identifier is a variable declaration (e.g., "int x = 5")
         // Type keyword followed by dot is a static member access (e.g., "double.NaN") - let expression parsing handle it
         if (IsTypeKeyword(Peek().Type) && PeekNext().Type != TokenType.Dot && MatchTypeKeyword(out var typeToken))
@@ -169,6 +237,22 @@ internal sealed class StatementParser : ParserBase
 
             Consume(TokenType.Equal, "Expected '=' after variable name");
             var initializer = _expression.ParseExpression();
+
+            // ECMA-334 §13.6.2: Multiple variable declarations — int x = 1, y = 2;
+            // Handled by ParseMultiVarDecl which adds extra declarations to _pendingDecls
+            if (Check(TokenType.Comma))
+            {
+                while (Match(TokenType.Comma))
+                {
+                    var nextName = ConsumeIdentifierOrContextualKeyword("Expected variable name");
+                    Consume(TokenType.Equal, "Expected '=' after variable name");
+                    var nextInit = _expression.ParseExpression();
+                    _pendingDecls.Add(new VariableDeclExpr(typeToken, nextName, nextInit));
+                }
+                Consume(TokenType.Semicolon, "Expected ';' after variable declaration");
+                return new VariableDeclExpr(typeToken, name, initializer);
+            }
+
             Consume(TokenType.Semicolon, "Expected ';' after variable declaration");
             return new VariableDeclExpr(typeToken, name, initializer);
         }
@@ -271,6 +355,46 @@ internal sealed class StatementParser : ParserBase
             Consume(TokenType.Semicolon, "Expected ';' after variable declaration");
 
             // Create a synthetic type token with the full generic type name
+            var syntheticTypeToken = new Token(TokenType.Identifier, typeName, null, name.Line, name.Column);
+            return new VariableDeclExpr(syntheticTypeToken, name, initializer);
+        }
+        catch
+        {
+            State.Current = saved;
+            return null;
+        }
+    }
+
+    private Expr? TryParseFqnTypeDeclaration()
+    {
+        var saved = State.Current;
+
+        try
+        {
+            var typeName = TryParseTypeName();
+            if (typeName == null || !typeName.Contains('.'))
+            {
+                State.Current = saved;
+                return null;
+            }
+
+            if (!Check(TokenType.Identifier) && !IsContextualKeyword(Peek().Type))
+            {
+                State.Current = saved;
+                return null;
+            }
+
+            var name = Advance();
+
+            if (!Match(TokenType.Equal))
+            {
+                State.Current = saved;
+                return null;
+            }
+
+            var initializer = _expression.ParseExpression();
+            Consume(TokenType.Semicolon, "Expected ';' after variable declaration");
+
             var syntheticTypeToken = new Token(TokenType.Identifier, typeName, null, name.Line, name.Column);
             return new VariableDeclExpr(syntheticTypeToken, name, initializer);
         }

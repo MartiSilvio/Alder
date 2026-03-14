@@ -60,4 +60,33 @@ internal static class RuntimeArrayFactory
             ? Create(elementType, lengths[0])
             : Array.CreateInstance(elementType, lengths);
     }
+
+    /// <summary>
+    /// Creates a multidimensional array and fills it from a flat value list in row-major order.
+    /// Used by the compiled emitter for multidim array initializers.
+    /// </summary>
+    public static Array CreateAndFill(Type elementType, int[] dimensions, object?[] flatValues)
+    {
+        var array = Create(elementType, dimensions);
+        var rank = dimensions.Length;
+        var indices = new int[rank];
+
+        for (var i = 0; i < flatValues.Length; i++)
+        {
+            var value = flatValues[i];
+            if (value != null)
+                value = Convert.ChangeType(value, elementType);
+            array.SetValue(value, indices);
+
+            for (var d = rank - 1; d >= 0; d--)
+            {
+                indices[d]++;
+                if (indices[d] < dimensions[d])
+                    break;
+                indices[d] = 0;
+            }
+        }
+
+        return array;
+    }
 }

@@ -1,7 +1,4 @@
 using System.Reflection;
-using CsEval.Compiled;
-using CsEval.Diagnostics;
-using CsEval.Parsing;
 
 namespace CsEval.Test.Core;
 

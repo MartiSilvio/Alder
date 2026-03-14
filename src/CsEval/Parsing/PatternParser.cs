@@ -95,13 +95,21 @@ internal sealed class PatternParser : ParserBase
             return ParsePropertyPattern(null);
         }
 
-        // Parenthesized pattern: (pattern)
+        // Parenthesized or positional (tuple) pattern: (pattern) or (pattern, pattern, ...)
         if (Check(TokenType.LeftParen) && !_expression.IsCastExpression())
         {
             Advance(); // consume '('
-            var inner = ParsePattern();
+            var first = ParsePattern();
+            if (Check(TokenType.Comma))
+            {
+                var subpatterns = new List<Pattern> { first };
+                while (Match(TokenType.Comma))
+                    subpatterns.Add(ParsePattern());
+                Consume(TokenType.RightParen, "Expected ')' after positional pattern");
+                return new PositionalPattern(subpatterns);
+            }
             Consume(TokenType.RightParen, "Expected ')' after parenthesized pattern");
-            return new ParenthesizedPattern(inner);
+            return new ParenthesizedPattern(first);
         }
 
         // Null pattern

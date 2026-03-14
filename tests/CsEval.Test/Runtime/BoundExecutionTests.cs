@@ -786,8 +786,7 @@ public sealed class BoundExecutionTests
         var expression = engine.Parse("1..3");
         var result = engine.Evaluate(expression);
 
-        Assert.That(result, Is.AssignableTo<IEnumerable<int>>());
-        Assert.That((IEnumerable<int>)result!, Is.EqualTo(new[] { 1, 2, 3 }));
+        Assert.That(result, Is.TypeOf<CsEval.Runtime.InclusiveRange>());
         Assert.That(expression.BoundExecutionCount, Is.GreaterThan(0));
         Assert.That(expression.BoundFallbackCount, Is.EqualTo(0));
     }

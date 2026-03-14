@@ -450,6 +450,31 @@ internal abstract class AstWalker<T> : IExprVisitor<T>
         return OnLeave(expr);
     }
 
+    public virtual T VisitGoto(GotoExpr expr)
+    {
+        OnEnter(expr);
+        return OnLeave(expr);
+    }
+
+    public virtual T VisitGotoCase(GotoCaseExpr expr)
+    {
+        OnEnter(expr);
+        Visit(expr.Value);
+        return OnLeave(expr);
+    }
+
+    public virtual T VisitGotoDefault(GotoDefaultExpr expr)
+    {
+        OnEnter(expr);
+        return OnLeave(expr);
+    }
+
+    public virtual T VisitLabel(LabelExpr expr)
+    {
+        OnEnter(expr);
+        return OnLeave(expr);
+    }
+
     public virtual T VisitSwitch(SwitchStatementExpr expr)
     {
         OnEnter(expr);
@@ -617,6 +642,17 @@ internal abstract class AstWalker<T> : IExprVisitor<T>
         return OnLeave(expr);
     }
 
+    public virtual T VisitMultiDimArrayInit(MultiDimArrayInitExpr expr)
+    {
+        OnEnter(expr);
+        if (expr.ExplicitSizes != null)
+            foreach (var size in expr.ExplicitSizes)
+                Visit(size);
+        foreach (var value in expr.FlatValues)
+            Visit(value);
+        return OnLeave(expr);
+    }
+
     public virtual T VisitMultiDimIndexAssign(MultiDimIndexAssignExpr expr)
     {
         OnEnter(expr);
@@ -632,6 +668,13 @@ internal abstract class AstWalker<T> : IExprVisitor<T>
     {
         OnEnter(expr);
         Visit(expr.Expression);
+        return OnLeave(expr);
+    }
+
+    public virtual T VisitIndexFromEnd(IndexFromEndExpr expr)
+    {
+        OnEnter(expr);
+        Visit(expr.Operand);
         return OnLeave(expr);
     }
 

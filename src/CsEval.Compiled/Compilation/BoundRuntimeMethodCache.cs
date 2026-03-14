@@ -1,7 +1,4 @@
-using System.Collections;
 using System.Dynamic;
-using System.Reflection;
-using System.Text;
 using System.Collections.Concurrent;
 using CsEval.Runtime;
 using CsEval.Runtime.Extensions;
@@ -74,6 +71,15 @@ internal static class BoundRuntimeMethodCache
 
     internal static readonly FieldInfo ControlFlowContinueField =
         typeof(ControlFlowSignal).GetField(nameof(ControlFlowSignal.Continue), BindingFlags.Public | BindingFlags.Static)!;
+
+    internal static readonly FieldInfo ControlFlowGotoDefaultField =
+        typeof(ControlFlowSignal).GetField(nameof(ControlFlowSignal.GotoDefaultSignal), BindingFlags.Public | BindingFlags.Static)!;
+
+    internal static readonly MethodInfo ControlFlowGotoCaseMethod =
+        typeof(ControlFlowSignal).GetMethod(nameof(ControlFlowSignal.GotoCaseSignal))!;
+
+    internal static readonly MethodInfo ControlFlowGotoMethod =
+        typeof(ControlFlowSignal).GetMethod(nameof(ControlFlowSignal.GotoSignal))!;
 
     internal static readonly PropertyInfo ControlFlowSignalKindProperty =
         typeof(ControlFlowSignal).GetProperty(nameof(ControlFlowSignal.SignalKind))!;
@@ -162,8 +168,17 @@ internal static class BoundRuntimeMethodCache
     internal static readonly MethodInfo ConvertArrayToTypedMethod =
         typeof(ConstructionRuntime).GetMethod(nameof(ConstructionRuntime.ConvertArrayToTyped))!;
 
+    internal static readonly MethodInfo CreateSystemRangeMethod =
+        typeof(ConstructionRuntime).GetMethod(nameof(ConstructionRuntime.CreateSystemRange))!;
+
+    internal static readonly MethodInfo EnsureEnumerableMethod =
+        typeof(RangeHelpers).GetMethod(nameof(RangeHelpers.EnsureEnumerable))!;
+
     internal static readonly MethodInfo CreateTupleMethod =
         typeof(ConstructionRuntime).GetMethod(nameof(ConstructionRuntime.CreateTuple))!;
+
+    internal static readonly MethodInfo CreateNamedTupleMethod =
+        typeof(ConstructionRuntime).GetMethod(nameof(ConstructionRuntime.CreateNamedTuple))!;
 
     internal static readonly MethodInfo DeconstructTupleMethod =
         typeof(ConstructionRuntime).GetMethod(nameof(ConstructionRuntime.DeconstructTuple))!;
@@ -195,11 +210,20 @@ internal static class BoundRuntimeMethodCache
     internal static readonly MethodInfo MonitorExitMethod =
         typeof(Monitor).GetMethod(nameof(Monitor.Exit), [typeof(object)])!;
 
+    internal static readonly MethodInfo NullableBoolAndMethod =
+        typeof(TypeHelpers).GetMethod(nameof(TypeHelpers.NullableBoolAnd))!;
+
+    internal static readonly MethodInfo NullableBoolOrMethod =
+        typeof(TypeHelpers).GetMethod(nameof(TypeHelpers.NullableBoolOr))!;
+
     internal static readonly MethodInfo ApplyPropertyInitializerMethod =
         typeof(ConstructionRuntime).GetMethod(nameof(ConstructionRuntime.ApplyPropertyInitializer))!;
 
     internal static readonly MethodInfo ApplyCollectionInitializerMethod =
         typeof(ConstructionRuntime).GetMethod(nameof(ConstructionRuntime.ApplyCollectionInitializer))!;
+
+    internal static readonly MethodInfo ApplyIndexerInitializerMethod =
+        typeof(ConstructionRuntime).GetMethod(nameof(ConstructionRuntime.ApplyIndexerInitializer))!;
 
     internal static readonly MethodInfo EnsureMethodCallsAllowedMethod =
         typeof(ExecutionRuntime).GetMethod(nameof(ExecutionRuntime.EnsureMethodCallsAllowed))!;
@@ -270,7 +294,7 @@ internal static class BoundRuntimeMethodCache
         typeof(Operators).GetMethod(nameof(Operators.BitwiseNot), [typeof(object)])!;
 
     internal static readonly MethodInfo AddMethod =
-        typeof(Operators).GetMethod(nameof(Operators.Add), [typeof(object), typeof(object), typeof(CsEvalOptions), typeof(CsEvalContext), typeof(bool)])!;
+        typeof(Operators).GetMethod(nameof(Operators.Add), [typeof(object), typeof(object), typeof(CsEvalOptions), typeof(CsEvalContext), typeof(bool), typeof(bool)])!;
 
     internal static readonly MethodInfo SubtractMethod =
         typeof(Operators).GetMethod(nameof(Operators.Subtract), [typeof(object), typeof(object), typeof(bool)])!;

@@ -4,9 +4,7 @@ using CsEval.Binding.Services;
 using CsEval.Diagnostics;
 using CsEval.Parsing;
 using CsEval.Runtime;
-using System.Collections.Generic;
 using System.Collections.Immutable;
-using System.Reflection;
 
 namespace CsEval.Binding;
 
@@ -38,6 +36,7 @@ internal sealed class Binder
                 TypedArrayCreationExpr typedArrayCreation => BindTypedArrayCreation(typedArrayCreation, context),
                 TypedArrayLiteralExpr typedArrayLiteral => BindTypedArrayLiteral(typedArrayLiteral, context),
                 MultiDimTypedArrayCreationExpr multiDimTypedArrayCreation => BindMultiDimTypedArrayCreation(multiDimTypedArrayCreation, context),
+                MultiDimArrayInitExpr multiDimArrayInit => BindMultiDimArrayInit(multiDimArrayInit, context),
                 MultiDimIndexAccessExpr multiDimIndexAccess => BindMultiDimIndexAccess(multiDimIndexAccess, context),
                 MultiDimIndexAssignExpr multiDimIndexAssign => BindMultiDimIndexAssign(multiDimIndexAssign, context),
                 DeconstructionExpr deconstruction => BindDeconstruction(deconstruction, context),
@@ -65,6 +64,10 @@ internal sealed class Binder
                 ChainedComparisonExpr chainedComparison => BindChainedComparison(chainedComparison, context),
                 BreakExpr => new BoundBreakExpr(typeof(object)),
                 ContinueExpr => new BoundContinueExpr(typeof(object)),
+                GotoExpr gotoExpr => new BoundGotoExpr(gotoExpr.Label, typeof(object)),
+                GotoCaseExpr gotoCaseExpr => new BoundGotoCaseExpr(Bind(gotoCaseExpr.Value, context), typeof(object)),
+                GotoDefaultExpr => new BoundGotoDefaultExpr(typeof(object)),
+                LabelExpr labelExpr => new BoundLabelExpr(labelExpr.Name, typeof(object)),
                 VariableDeclExpr variableDecl => BindVariableDecl(variableDecl, context),
                 AssignExpr assign => BindAssign(assign, context),
                 NullCoalesceAssignExpr nullCoalesceAssign => BindNullCoalesceAssign(nullCoalesceAssign, context),
@@ -87,6 +90,7 @@ internal sealed class Binder
                 LambdaExpr lambda => BindLambda(lambda),
                 PipelineExpr pipeline => BindPipeline(pipeline, context),
                 RangeExpr rangeExpr => BindRange(rangeExpr, context),
+                IndexFromEndExpr indexFromEnd => BindIndexFromEnd(indexFromEnd, context),
                 NamedArgumentExpr namedArgument => BindNamedArgument(namedArgument, context),
                 OutArgExpr outArg => BindOutArg(outArg),
                 CallExpr call => BindCall(call, context),
@@ -235,7 +239,10 @@ internal sealed class Binder
             .ToImmutableArray();
         var initializerEntries = objectCreation.Initializer != null
             ? objectCreation.Initializer.Entries
-                .Select(entry => new BoundInitializerEntry(entry.PropertyName, Bind(entry.Value, context)))
+                .Select(entry => new BoundInitializerEntry(
+                    entry.PropertyName,
+                    Bind(entry.Value, context),
+                    entry.IndexerKey != null ? Bind(entry.IndexerKey, context) : null))
                 .ToImmutableArray()
             : ImmutableArray<BoundInitializerEntry>.Empty;
         var resolvedType = context.RuntimeContext.TypeResolver.TryResolveType(objectCreation.TypeName) ?? typeof(object);
@@ -269,8 +276,11 @@ internal sealed class Binder
         var elements = tupleExpr.Elements
             .Select(element => Bind(element.Expression, context))
             .ToImmutableArray();
+        var names = tupleExpr.Elements
+            .Select(static element => element.Name)
+            .ToImmutableArray();
         var tupleType = CreateTupleStaticType(elements.Select(static element => element.StaticType).ToArray());
-        return new BoundTupleExpr(elements, tupleType);
+        return new BoundTupleExpr(elements, names, tupleType);
     }
 
     private BoundMultiDimTypedArrayCreationExpr BindMultiDimTypedArrayCreation(
@@ -285,6 +295,29 @@ internal sealed class Binder
             ? RuntimeArrayFactory.GetArrayType(elementType, multiDimTypedArrayCreation.Sizes.Count)
             : typeof(Array);
         return new BoundMultiDimTypedArrayCreationExpr(multiDimTypedArrayCreation.ElementTypeName, sizes, arrayType);
+    }
+
+    private BoundMultiDimArrayInitExpr BindMultiDimArrayInit(
+        MultiDimArrayInitExpr multiDimArrayInit,
+        BindingContext context)
+    {
+        var explicitSizes = multiDimArrayInit.ExplicitSizes?
+            .Select(size => Bind(size, context))
+            .ToImmutableArray();
+        var flatValues = multiDimArrayInit.FlatValues
+            .Select(value => Bind(value, context))
+            .ToImmutableArray();
+        var elementType = context.RuntimeContext.TypeResolver.TryResolveType(multiDimArrayInit.ElementTypeName);
+        var arrayType = elementType != null
+            ? RuntimeArrayFactory.GetArrayType(elementType, multiDimArrayInit.Rank)
+            : typeof(Array);
+        return new BoundMultiDimArrayInitExpr(
+            multiDimArrayInit.ElementTypeName,
+            multiDimArrayInit.Rank,
+            explicitSizes,
+            flatValues,
+            multiDimArrayInit.InferredDimensions,
+            arrayType);
     }
 
     private BoundMultiDimIndexAccessExpr BindMultiDimIndexAccess(
@@ -561,12 +594,30 @@ internal sealed class Binder
     private BoundForEachExpr BindForEach(ForEachStatementExpr forEachStatement, BindingContext context)
     {
         var collection = Bind(forEachStatement.Collection, context);
+        var elementType = InferElementType(collection.StaticType);
         var bodyScope = context.CreateChildScope();
-        bodyScope.DeclareLocal(forEachStatement.VariableName.Lexeme, typeof(object));
+        bodyScope.DeclareLocal(forEachStatement.VariableName.Lexeme, elementType);
         var body = forEachStatement.Body
             .Select(statement => Bind(statement, bodyScope))
             .ToImmutableArray();
-        return new BoundForEachExpr(forEachStatement.VariableName.Lexeme, collection, body, typeof(object));
+        return new BoundForEachExpr(forEachStatement.VariableName.Lexeme, collection, body, elementType, typeof(object));
+    }
+
+    private static Type InferElementType(Type collectionType)
+    {
+        if (collectionType.IsArray)
+            return collectionType.GetElementType()!;
+
+        foreach (var iface in collectionType.GetInterfaces())
+        {
+            if (iface.IsGenericType && iface.GetGenericTypeDefinition() == typeof(IEnumerable<>))
+                return iface.GetGenericArguments()[0];
+        }
+
+        if (collectionType.IsGenericType && collectionType.GetGenericTypeDefinition() == typeof(IEnumerable<>))
+            return collectionType.GetGenericArguments()[0];
+
+        return typeof(object);
     }
 
     private BoundUsingStatementExpr BindUsingStatement(UsingStatementExpr usingStatement, BindingContext context)
@@ -595,7 +646,12 @@ internal sealed class Binder
             {
                 var catchScope = context.CreateChildScope();
                 if (catchClause.VariableName != null)
-                    catchScope.DeclareLocal(catchClause.VariableName.Value.Lexeme, typeof(Exception));
+                {
+                    var exceptionType = catchClause.ExceptionTypeName != null
+                        ? context.RuntimeContext.TypeResolver.TryResolveType(catchClause.ExceptionTypeName) ?? typeof(Exception)
+                        : typeof(Exception);
+                    catchScope.DeclareLocal(catchClause.VariableName.Value.Lexeme, exceptionType);
+                }
 
                 var whenGuard = catchClause.WhenGuard != null
                     ? Bind(catchClause.WhenGuard, catchScope)
@@ -836,6 +892,12 @@ internal sealed class Binder
             typeof(object));
     }
 
+    private BoundIndexFromEndExpr BindIndexFromEnd(IndexFromEndExpr expr, BindingContext context)
+    {
+        var operand = Bind(expr.Operand, context);
+        return new BoundIndexFromEndExpr(operand, typeof(Index));
+    }
+
     private BoundRangeExpr BindRange(RangeExpr rangeExpr, BindingContext context)
     {
         var start = Bind(rangeExpr.Start, context);
@@ -1013,8 +1075,7 @@ internal sealed class Binder
             .ToImmutableArray();
         var typeArguments = call.TypeArguments?.ToImmutableArray() ?? ImmutableArray<string>.Empty;
 
-        if (callee is BoundMemberAccessExpr memberAccess &&
-            memberAccess.Plan?.IsMethodGroup == true &&
+        if (callee is BoundMemberAccessExpr { Plan.IsMethodGroup: true } memberAccess &&
             arguments.All(static argument =>
                 argument is not BoundLambdaExpr &&
                 argument is not BoundNamedArgumentExpr &&

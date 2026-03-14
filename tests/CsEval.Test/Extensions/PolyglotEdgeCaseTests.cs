@@ -559,9 +559,11 @@ public class PolyglotEdgeCaseTests(CompilationMode mode)
     }
 
     [Test]
-    public void StandardMode_Range_Throws()
-        => Assert.That(() => CreateStandardEngine().Evaluate("(1..10).Count()"),
-            Throws.InstanceOf<CsEvalException>());
+    public void StandardMode_Range_ProducesSystemRange()
+    {
+        var result = CreateStandardEngine().Evaluate("1..10");
+        Assert.That(result, Is.TypeOf<Range>());
+    }
 
     [Test]
     public void StandardMode_Pipeline_Throws()

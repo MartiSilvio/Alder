@@ -57,7 +57,7 @@ internal static class ExprTokenLocator
             case TypeofExpr e:
                 token = e.TypeToken;
                 return true;
-            case DefaultExpr e when e.TypeToken.HasValue:
+            case DefaultExpr { TypeToken: not null } e:
                 token = e.TypeToken.Value;
                 return true;
             default:

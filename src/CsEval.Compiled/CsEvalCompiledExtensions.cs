@@ -1,5 +1,3 @@
-using CsEval;
-
 namespace CsEval.Compiled;
 
 public static class CsEvalCompiledExtensions

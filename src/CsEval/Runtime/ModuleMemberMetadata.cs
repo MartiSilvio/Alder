@@ -1,6 +1,5 @@
 using System.Collections.Frozen;
 using System.Diagnostics.CodeAnalysis;
-using System.Reflection;
 using CsEval.Attributes;
 
 namespace CsEval.Runtime;

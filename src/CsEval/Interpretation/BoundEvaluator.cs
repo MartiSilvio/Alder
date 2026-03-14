@@ -5,12 +5,9 @@ using CsEval.Parsing;
 using CsEval.Runtime;
 using CsEval.Runtime.Extensions;
 using CsEval.Tracing;
-using System.Collections;
 using System.Collections.Immutable;
 using System.Dynamic;
-using System.Reflection;
 using System.Runtime.ExceptionServices;
-using System.Text;
 
 namespace CsEval.Interpretation;
 
@@ -56,6 +53,7 @@ internal sealed class BoundEvaluator
             BoundTypedArrayCreationExpr typedArrayCreation => EvaluateTypedArrayCreation(typedArrayCreation),
             BoundTypedArrayLiteralExpr typedArrayLiteral => EvaluateTypedArrayLiteral(typedArrayLiteral),
             BoundMultiDimTypedArrayCreationExpr multiDimTypedArrayCreation => EvaluateMultiDimTypedArrayCreation(multiDimTypedArrayCreation),
+            BoundMultiDimArrayInitExpr multiDimArrayInit => EvaluateMultiDimArrayInit(multiDimArrayInit),
             BoundTupleExpr tuple => EvaluateTuple(tuple),
             BoundDeconstructionExpr deconstruction => EvaluateDeconstruction(deconstruction),
             BoundInterpolatedStringExpr interpolatedString => EvaluateInterpolatedString(interpolatedString),
@@ -78,6 +76,10 @@ internal sealed class BoundEvaluator
             BoundChainedComparisonExpr chainedComparison => EvaluateChainedComparison(chainedComparison),
             BoundBreakExpr => EvaluateBreak(),
             BoundContinueExpr => EvaluateContinue(),
+            BoundGotoExpr gotoExpr => ControlFlowSignal.GotoSignal(gotoExpr.Label),
+            BoundGotoCaseExpr gotoCaseExpr => ControlFlowSignal.GotoCaseSignal(Evaluate(gotoCaseExpr.Value)),
+            BoundGotoDefaultExpr => ControlFlowSignal.GotoDefaultSignal,
+            BoundLabelExpr => null,
             BoundVariableDeclExpr variableDecl => EvaluateVariableDecl(variableDecl),
             BoundAssignExpr assign => EvaluateAssign(assign),
             BoundNullCoalesceAssignExpr nullCoalesceAssign => EvaluateNullCoalesceAssign(nullCoalesceAssign),
@@ -106,6 +108,7 @@ internal sealed class BoundEvaluator
             BoundLambdaExpr lambda => EvaluateLambda(lambda),
             BoundPipelineExpr pipeline => EvaluatePipeline(pipeline),
             BoundRangeExpr range => EvaluateRange(range),
+            BoundIndexFromEndExpr indexFromEnd => new Index(Convert.ToInt32(Evaluate(indexFromEnd.Operand)), fromEnd: true),
             _ => throw new BindingNotSupportedException(
                 $"Bound execution for node '{expr.GetType().Name}' is not implemented")
         };
@@ -210,6 +213,11 @@ internal sealed class BoundEvaluator
             {
                 MemberAccess.SetMember(result!, entry.PropertyName, value, _options, _context);
             }
+            else if (entry.IndexerKey != null)
+            {
+                var key = Evaluate(entry.IndexerKey);
+                MemberAccess.SetIndex(result!, key!, value, _options, _context);
+            }
             else
             {
                 var addMethod = _context.TypeMetadata
@@ -251,7 +259,21 @@ internal sealed class BoundEvaluator
         var values = new object?[tuple.Elements.Length];
         for (var i = 0; i < tuple.Elements.Length; i++)
             values[i] = Evaluate(tuple.Elements[i]);
-        return ConstructionRuntime.CreateTuple(values);
+        var result = ConstructionRuntime.CreateTuple(values);
+
+        var hasNames = tuple.ElementNames.Any(static n => n != null);
+        if (hasNames)
+        {
+            var nameMap = new Dictionary<string, int>();
+            for (var i = 0; i < tuple.ElementNames.Length; i++)
+            {
+                if (tuple.ElementNames[i] is { } name)
+                    nameMap[name] = i;
+            }
+            return new NamedTupleValue(result, nameMap);
+        }
+
+        return result;
     }
 
     private object? EvaluateMultiDimTypedArrayCreation(BoundMultiDimTypedArrayCreationExpr multiDimTypedArrayCreation)
@@ -261,6 +283,40 @@ internal sealed class BoundEvaluator
             sizes[i] = Convert.ToInt32(Evaluate(multiDimTypedArrayCreation.Sizes[i]));
         var elementType = _context.TypeResolver.ResolveType(multiDimTypedArrayCreation.ElementTypeName);
         return RuntimeArrayFactory.Create(elementType, sizes);
+    }
+
+    private object? EvaluateMultiDimArrayInit(BoundMultiDimArrayInitExpr init)
+    {
+        var dimensions = init.InferredDimensions;
+        if (init.ExplicitSizes != null)
+        {
+            for (var i = 0; i < init.ExplicitSizes.Value.Length; i++)
+                dimensions[i] = Convert.ToInt32(Evaluate(init.ExplicitSizes.Value[i]));
+        }
+
+        var elementType = _context.TypeResolver.ResolveType(init.ElementTypeName);
+        var array = RuntimeArrayFactory.Create(elementType, dimensions);
+
+        // Fill the array from the flat value list using row-major order
+        var indices = new int[init.Rank];
+        for (var i = 0; i < init.FlatValues.Length; i++)
+        {
+            var value = Evaluate(init.FlatValues[i]);
+            if (value != null)
+                value = Convert.ChangeType(value, elementType);
+            array.SetValue(value, indices);
+
+            // Increment indices (rightmost first)
+            for (var d = init.Rank - 1; d >= 0; d--)
+            {
+                indices[d]++;
+                if (indices[d] < dimensions[d])
+                    break;
+                indices[d] = 0;
+            }
+        }
+
+        return array;
     }
 
     private object? EvaluateDeconstruction(BoundDeconstructionExpr deconstruction)
@@ -370,7 +426,8 @@ internal sealed class BoundEvaluator
 
         return binary.Operator switch
         {
-            TokenType.Plus => Operators.Add(left, right, _options, _context, _isChecked),
+            TokenType.Plus => Operators.Add(left, right, _options, _context, _isChecked,
+                isStringContext: binary.Left.StaticType == typeof(string) || binary.Right.StaticType == typeof(string)),
             TokenType.Minus => Operators.Subtract(left, right, _isChecked),
             TokenType.Star => Operators.Multiply(left, right, _options, _isChecked),
             TokenType.Slash => Operators.Divide(left, right),
@@ -404,6 +461,13 @@ internal sealed class BoundEvaluator
     {
         var left = Evaluate(logical.Left);
         var opLexeme = TokenLexemes.GetCanonical(logical.Operator);
+
+        // §12.14.2 + §12.13.5: nullable bool conditional operators
+        if (logical.Left.StaticType == typeof(bool?) || logical.Right.StaticType == typeof(bool?))
+        {
+            return EvaluateNullableBoolLogical(left as bool?, logical);
+        }
+
         if (left is not bool leftBool)
         {
             throw new CsEvalException(
@@ -440,6 +504,29 @@ internal sealed class BoundEvaluator
         }
 
         return (bool)right;
+    }
+
+    // §12.13.5 + §12.14.2: Three-value logic for bool? && and bool? ||
+    private object? EvaluateNullableBoolLogical(bool? left, BoundLogicalExpr logical)
+    {
+        if (logical.Operator == TokenType.AmpAmp)
+        {
+            if (left == false) return false;
+            var right = Evaluate(logical.Right) as bool?;
+            if (left == true) return right;
+            return right == false ? false : null; // null && true = null, null && null = null
+        }
+
+        if (logical.Operator == TokenType.PipePipe)
+        {
+            if (left == true) return true;
+            var right = Evaluate(logical.Right) as bool?;
+            if (left == false) return right;
+            return right == true ? true : null; // null || false = null, null || null = null
+        }
+
+        throw new BindingNotSupportedException(
+            $"Bound logical operator '{logical.Operator}' is not implemented");
     }
 
     private object? EvaluateNullCoalesce(BoundNullCoalesceExpr nullCoalesce)
@@ -480,14 +567,26 @@ internal sealed class BoundEvaluator
 
         try
         {
-            foreach (var statement in block.Statements)
+            var startIndex = 0;
+            ExecuteBlock:
+            for (var i = startIndex; i < block.Statements.Length; i++)
             {
                 ExecutionRuntime.CheckExecutionConstraints(constraintState, constraints, _cancellationToken);
-                var result = Evaluate(statement);
+                var result = Evaluate(block.Statements[i]);
                 if (result is ControlFlowSignal signal)
                 {
                     if (signal.SignalKind == ControlFlowSignal.Kind.Return)
                         return signal.Value;
+                    if (signal.SignalKind == ControlFlowSignal.Kind.Goto)
+                    {
+                        var labelName = (string)signal.Value!;
+                        var labelIndex = FindLabelIndex(block.Statements, labelName);
+                        if (labelIndex >= 0)
+                        {
+                            startIndex = labelIndex + 1;
+                            goto ExecuteBlock;
+                        }
+                    }
                     return result;
                 }
             }
@@ -980,6 +1079,8 @@ internal sealed class BoundEvaluator
         var constraints = _options.Constraints;
         var collection = Evaluate(forEachExpr.Collection);
 
+        collection = RangeHelpers.EnsureEnumerable(collection!);
+
         if (collection is not IEnumerable enumerable)
         {
             throw new CsEvalException(DiagnosticDescriptors.ForeachRequiresIEnumerable, TypeNameFormatter.Of(collection));
@@ -999,7 +1100,7 @@ internal sealed class BoundEvaluator
                 ControlFlowSignal? signal;
                 try
                 {
-                    _context.DefineNew(forEachExpr.VariableName, item, typeof(object));
+                    _context.DefineNew(forEachExpr.VariableName, item, forEachExpr.ElementType);
                     signal = ExecuteStatementBlock(forEachExpr.Body);
                 }
                 finally
@@ -1088,7 +1189,7 @@ internal sealed class BoundEvaluator
                     }
 
                     matched = true;
-                    var signal = ExecuteSwitchCaseStatements(switchStatement.Cases, i);
+                    var signal = ExecuteSwitchCaseWithGoto(switchStatement, i);
                     if (signal != null)
                         return signal.SignalKind == ControlFlowSignal.Kind.Break ? null : signal;
                 }
@@ -1100,7 +1201,7 @@ internal sealed class BoundEvaluator
 
             if (!matched && defaultCaseIndex >= 0)
             {
-                var signal = ExecuteSwitchCaseStatements(switchStatement.Cases, defaultCaseIndex);
+                var signal = ExecuteSwitchCaseWithGoto(switchStatement, defaultCaseIndex);
                 if (signal != null && signal.SignalKind != ControlFlowSignal.Kind.Break)
                     return signal;
             }
@@ -1111,6 +1212,58 @@ internal sealed class BoundEvaluator
         {
             _breakContextDepth--;
         }
+    }
+
+    private ControlFlowSignal? ExecuteSwitchCaseWithGoto(BoundSwitchStatementExpr switchStatement, int startIndex)
+    {
+        var signal = ExecuteSwitchCaseStatements(switchStatement.Cases, startIndex);
+        while (signal != null && (signal.SignalKind == ControlFlowSignal.Kind.GotoCase || signal.SignalKind == ControlFlowSignal.Kind.GotoDefault))
+        {
+            int targetIndex;
+            if (signal.SignalKind == ControlFlowSignal.Kind.GotoDefault)
+            {
+                targetIndex = FindDefaultCaseIndex(switchStatement.Cases);
+            }
+            else
+            {
+                targetIndex = FindCaseIndex(switchStatement, signal.Value);
+            }
+            if (targetIndex < 0)
+                throw new CsEvalException("goto case/default target not found");
+            signal = ExecuteSwitchCaseStatements(switchStatement.Cases, targetIndex);
+        }
+        return signal;
+    }
+
+    private static int FindLabelIndex(ImmutableArray<BoundExpr> statements, string label)
+    {
+        for (var i = 0; i < statements.Length; i++)
+            if (statements[i] is BoundLabelExpr l && l.Name == label)
+                return i;
+        return -1;
+    }
+
+    private static int FindDefaultCaseIndex(IReadOnlyList<BoundSwitchCase> cases)
+    {
+        for (var i = 0; i < cases.Count; i++)
+            if (cases[i].CasePattern == null)
+                return i;
+        return -1;
+    }
+
+    private int FindCaseIndex(BoundSwitchStatementExpr switchStatement, object? targetValue)
+    {
+        for (var i = 0; i < switchStatement.Cases.Length; i++)
+        {
+            var casePattern = switchStatement.Cases[i].CasePattern;
+            if (casePattern is ConstantPattern cp)
+            {
+                var caseValue = MatchPattern(targetValue, cp);
+                if (TypeHelpers.RequireBoolean(caseValue))
+                    return i;
+            }
+        }
+        return -1;
     }
 
     private object? EvaluateSwitchExpression(BoundSwitchExpressionExpr switchExpression)
@@ -1248,13 +1401,19 @@ internal sealed class BoundEvaluator
         if (target is Array array)
             return array.GetValue(indices);
 
-        if (target != null && multiDimIndexAccess.Indices.Length > 1)
+        if (target != null)
         {
-            var hasMatchingIndexer = _context.TypeMetadata
+            var indexer = _context.TypeMetadata
                 .GetProperties(target.GetType(), BindingFlags.Public | BindingFlags.Instance)
-                .Any(property => property.Name == "Item" && property.GetIndexParameters().Length == multiDimIndexAccess.Indices.Length);
-            if (hasMatchingIndexer)
-                throw new CsEvalException(DiagnosticDescriptors.MultiParameterIndexerNotSupported, target.GetType().Name);
+                .FirstOrDefault(p => p.GetIndexParameters().Length == multiDimIndexAccess.Indices.Length);
+            if (indexer != null)
+            {
+                var indexParams = indexer.GetIndexParameters();
+                var convertedIndices = new object[indices.Length];
+                for (var i = 0; i < indices.Length; i++)
+                    convertedIndices[i] = Convert.ChangeType(indices[i], indexParams[i].ParameterType);
+                return indexer.GetValue(target, convertedIndices);
+            }
         }
 
         throw new CsEvalException(
@@ -1276,13 +1435,20 @@ internal sealed class BoundEvaluator
             return value;
         }
 
-        if (target != null && multiDimIndexAssign.Indices.Length > 1)
+        if (target != null)
         {
-            var hasMatchingIndexer = _context.TypeMetadata
+            var indexer = _context.TypeMetadata
                 .GetProperties(target.GetType(), BindingFlags.Public | BindingFlags.Instance)
-                .Any(property => property.Name == "Item" && property.GetIndexParameters().Length == multiDimIndexAssign.Indices.Length);
-            if (hasMatchingIndexer)
-                throw new CsEvalException(DiagnosticDescriptors.MultiParameterIndexerNotSupported, target.GetType().Name);
+                .FirstOrDefault(p => p.GetIndexParameters().Length == multiDimIndexAssign.Indices.Length && p.CanWrite);
+            if (indexer != null)
+            {
+                var indexParams = indexer.GetIndexParameters();
+                var convertedIndices = new object[indices.Length];
+                for (var i = 0; i < indices.Length; i++)
+                    convertedIndices[i] = Convert.ChangeType(indices[i], indexParams[i].ParameterType);
+                indexer.SetValue(target, value, convertedIndices);
+                return value;
+            }
         }
 
         throw new CsEvalException(
@@ -1302,7 +1468,7 @@ internal sealed class BoundEvaluator
 
     private object? EvaluateCall(BoundCallExpr call)
     {
-        if (call.Callee is BoundMemberAccessExpr memberAccess && memberAccess.Plan != null)
+        if (call.Callee is BoundMemberAccessExpr { Plan: not null } memberAccess)
         {
             var target = memberAccess.Plan.IsStatic ? null : Evaluate(memberAccess.Target);
             if (memberAccess.NullSafe && target == null)
@@ -1345,6 +1511,7 @@ internal sealed class BoundEvaluator
 
     private object? EvaluateInvoke(BoundInvokeExpr invoke)
     {
+
         var (args, outBindings) = EvaluateArgumentsWithOutBindings(invoke.Arguments);
 
         IReadOnlyList<string>? typeArguments = invoke.TypeArguments.IsDefaultOrEmpty
@@ -1456,9 +1623,8 @@ internal sealed class BoundEvaluator
     {
         var startValue = Evaluate(range.Start);
         var endValue = Evaluate(range.End);
-        var start = Convert.ToInt32(startValue);
-        var end = Convert.ToInt32(endValue);
-        return RangeHelpers.GenerateRange(start, end, range.ExclusiveEnd);
+        var sysRange = ConstructionRuntime.CreateSystemRange(startValue, endValue, inclusiveEnd: !range.ExclusiveEnd);
+        return range.ExclusiveEnd ? sysRange : new InclusiveRange(sysRange);
     }
 
     private object? EvaluateChecked(BoundCheckedExpr checkedExpr)
@@ -1499,4 +1665,5 @@ internal sealed class BoundEvaluator
 
     private object? MatchPattern(object? value, Pattern pattern)
         => PatternRuntime.MatchPattern(value, pattern, _context, _options, _cancellationToken);
+
 }

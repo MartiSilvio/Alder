@@ -404,6 +404,8 @@ internal sealed class Lexer
                 }
                 else if (Match('"'))
                     ScanVerbatimString();
+                else if (char.IsLetter(Peek()) || Peek() == '_')
+                    ScanIdentifier(); // §6.4.3: verbatim identifier @keyword
                 else
                     throw LexError($"Unexpected character '@' at {_line}:{_column}. Did you mean '@\"...'?");
                 break;

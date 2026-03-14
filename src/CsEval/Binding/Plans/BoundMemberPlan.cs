@@ -1,5 +1,3 @@
-using System.Reflection;
-
 namespace CsEval.Binding.Plans;
 
 internal sealed record BoundMemberPlan(

@@ -1,5 +1,3 @@
-using System.Reflection;
-
 namespace CsEval.Runtime;
 
 internal static class LambdaDelegateFactory
@@ -125,14 +123,29 @@ internal static class LambdaDelegateFactory
         if ((uint)arity >= (uint)factories.Length)
             throw new InvalidOperationException($"Unsupported delegate arity: {arity}");
 
-        var factory = RuntimeGenericFactory.CloseGenericMethod(factories[arity], genericArgs);
+        var factory = factories[arity];
+        if (genericArgs.Length > 0)
+            factory = RuntimeGenericFactory.CloseGenericMethod(factory, genericArgs);
         return (Delegate)factory.Invoke(null, [lambda])!;
     }
 
     private static MethodInfo GetFactory(string name) =>
         typeof(LambdaDelegateFactory).GetMethod(name, BindingFlags.NonPublic | BindingFlags.Static)!;
 
-    private static TResult CastResult<TResult>(object? value) => (TResult)value!;
+    private static TResult CastResult<TResult>(object? value)
+    {
+        if (value is TResult typed)
+            return typed;
+
+        if (value is LambdaValue or CompiledLambdaValue)
+        {
+            var converted = LambdaDelegateConverter.TryConvert(value, typeof(TResult));
+            if (converted != null)
+                return (TResult)(object)converted;
+        }
+
+        return (TResult)value!;
+    }
 
     private static Delegate CreateCompiledAction0(CompiledLambdaValue lambda) =>
         new Action(() => _ = MethodInvoker.InvokeCompiledLambda0(lambda));

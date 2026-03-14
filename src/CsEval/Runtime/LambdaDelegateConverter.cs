@@ -35,6 +35,9 @@ internal static class LambdaDelegateConverter
     /// </summary>
     internal static bool IsSupportedDelegateType(Type type)
     {
+        if (type == typeof(Action))
+            return true;
+
         if (!type.IsGenericType || type.ContainsGenericParameters)
             return false;
 
@@ -114,6 +117,9 @@ internal static class LambdaDelegateConverter
     private static bool TryGetDelegateKind(Type delegateType, out bool isFunc)
     {
         isFunc = false;
+
+        if (delegateType == typeof(Action))
+            return true;
 
         if (!delegateType.IsGenericType || delegateType.ContainsGenericParameters)
             return false;

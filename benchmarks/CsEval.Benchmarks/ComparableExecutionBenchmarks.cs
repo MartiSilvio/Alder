@@ -2,7 +2,6 @@ using DynamicExpresso;
 using Flee.PublicTypes;
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Configs;
-using BenchmarkDotNet.Order;
 using Microsoft.CodeAnalysis.Scripting;
 using NCalc;
 

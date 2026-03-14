@@ -1,7 +1,4 @@
 using System.Collections.Immutable;
-using System.Collections;
-using System.Linq.Expressions;
-using System.Reflection;
 using CsEval.Binding;
 using CsEval.Binding.BoundNodes;
 using CsEval.Binding.Plans;

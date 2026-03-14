@@ -89,8 +89,14 @@ internal static class MethodInvoker
         CancellationToken ct,
         IReadOnlyList<string>? typeArgs)
     {
+        var target = methodRef.Target;
+
+        // System.Range / InclusiveRange → IEnumerable<int> for LINQ method calls
+        if (target is Range or InclusiveRange)
+            target = Extensions.RangeHelpers.EnsureEnumerable(target);
+
         var result = TryInvokeInstanceMethod(
-            methodRef.Target, methodRef.MethodName, args,
+            target, methodRef.MethodName, args,
             context, options, ct, typeArgs);
         if (result.Success)
             return result.Value;
@@ -1323,10 +1329,12 @@ internal static class MethodInvoker
             if (leftType == rightType)
                 continue;
 
-            if (leftType.IsAssignableFrom(rightType) && !rightType.IsAssignableFrom(leftType))
-                rightBetter = true;
-            else if (rightType.IsAssignableFrom(leftType) && !leftType.IsAssignableFrom(rightType))
+            // ECMA-334 §12.6.4.7: better conversion target
+            var cmp = TypeHelpers.CompareBetterConversionTarget(leftType, rightType);
+            if (cmp > 0)
                 leftBetter = true;
+            else if (cmp < 0)
+                rightBetter = true;
         }
 
         return (leftBetter, rightBetter) switch

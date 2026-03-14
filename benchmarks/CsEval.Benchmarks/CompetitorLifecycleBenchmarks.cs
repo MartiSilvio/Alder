@@ -1,8 +1,6 @@
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Configs;
-using BenchmarkDotNet.Order;
 using DynamicExpresso;
-using Flee.PublicTypes;
 using NCalc;
 using FleeExpressionContext = Flee.PublicTypes.ExpressionContext;
 

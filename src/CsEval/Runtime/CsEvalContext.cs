@@ -142,9 +142,16 @@ internal sealed class CsEvalContext
         var numericTarget = Nullable.GetUnderlyingType(targetType) ?? targetType;
         if (TypeHelpers.IsArithmetic(numericTarget))
         {
-            value = TypeHelpers.CoerceNumeric(value, targetType);
-            if (value is T coercedValue)
-                return coercedValue;
+            try
+            {
+                value = TypeHelpers.CoerceNumeric(value, targetType);
+                if (value is T coercedValue)
+                    return coercedValue;
+            }
+            catch (CsEvalException)
+            {
+                // Fall through to direct cast below
+            }
         }
 
         return (T)value!;

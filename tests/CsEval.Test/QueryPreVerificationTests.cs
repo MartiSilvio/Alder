@@ -1,5 +1,3 @@
-using System.Dynamic;
-
 namespace CsEval.Test;
 
 /// <summary>

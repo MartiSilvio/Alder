@@ -72,6 +72,10 @@ internal interface IExprVisitor<out T>
     T VisitContinue(ContinueExpr expr);
     T VisitReturn(ReturnExpr expr);
     T VisitSwitch(SwitchStatementExpr expr);
+    T VisitGoto(GotoExpr expr);
+    T VisitGotoCase(GotoCaseExpr expr);
+    T VisitGotoDefault(GotoDefaultExpr expr);
+    T VisitLabel(LabelExpr expr);
 
     // Declarations
     T VisitVariableDecl(VariableDeclExpr expr);
@@ -119,10 +123,14 @@ internal interface IExprVisitor<out T>
     // Multi-dimensional array operations
     T VisitMultiDimIndexAccess(MultiDimIndexAccessExpr expr);
     T VisitMultiDimTypedArrayCreation(MultiDimTypedArrayCreationExpr expr);
+    T VisitMultiDimArrayInit(MultiDimArrayInitExpr expr);
     T VisitMultiDimIndexAssign(MultiDimIndexAssignExpr expr);
 
     // Checked/Unchecked
     T VisitChecked(CheckedExpr expr);
+
+    // Index/Range
+    T VisitIndexFromEnd(IndexFromEndExpr expr);
 
     // Polyglot Extended Features
     T VisitRange(RangeExpr expr);
@@ -451,6 +459,30 @@ internal sealed record SwitchStatementExpr(Expr Expression, List<SwitchCaseExpr>
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitSwitch(this);
 }
 
+// ECMA-334 §13.10.4: goto label;
+internal sealed record GotoExpr(string Label) : Expr
+{
+    public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitGoto(this);
+}
+
+// ECMA-334 §13.10.4: goto case expr; (in switch)
+internal sealed record GotoCaseExpr(Expr Value) : Expr
+{
+    public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitGotoCase(this);
+}
+
+// ECMA-334 §13.10.4: goto default; (in switch)
+internal sealed record GotoDefaultExpr : Expr
+{
+    public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitGotoDefault(this);
+}
+
+// Label statement: label: (parsed as part of the containing block)
+internal sealed record LabelExpr(string Name) : Expr
+{
+    public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitLabel(this);
+}
+
 // ECMA-334 section 13.14 - using statement
 internal sealed record UsingStatementExpr(Expr ResourceDeclaration, Expr Body) : Expr
 {
@@ -510,9 +542,12 @@ internal sealed record SizeofExpr(string TypeName) : Expr
 
 #region Object Creation Expression
 
-// Initializer entry: either a property assignment or a collection element
+// Initializer entry: property assignment, indexer assignment, or collection element
 // ECMA-334 §12.8.16.3 - Object initializers / §12.8.16.6 - Collection initializers
-internal sealed record InitializerEntry(string? PropertyName, Expr Value);
+// PropertyName != null → property initializer: Name = value
+// IndexerKey != null → indexer initializer: [key] = value
+// Both null → collection initializer element: value
+internal sealed record InitializerEntry(string? PropertyName, Expr Value, Expr? IndexerKey = null);
 
 // Object/collection initializer block: { entries... }
 internal sealed record ObjectInitializer(List<InitializerEntry> Entries);
@@ -557,6 +592,12 @@ internal sealed record MultiDimIndexAccessExpr(Expr Object, List<Expr> Indices, 
 internal sealed record MultiDimTypedArrayCreationExpr(string ElementTypeName, List<Expr> Sizes) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitMultiDimTypedArrayCreation(this);
+}
+
+// Multi-dimensional array creation with initializer: new int[,] { {1,2}, {3,4} } or new int[2,3] { ... }
+internal sealed record MultiDimArrayInitExpr(string ElementTypeName, int Rank, List<Expr>? ExplicitSizes, List<Expr> FlatValues, int[] InferredDimensions) : Expr
+{
+    public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitMultiDimArrayInit(this);
 }
 
 // Multi-dimensional index assignment: arr[i, j] = value
@@ -660,6 +701,13 @@ internal sealed record RangeExpr(Expr Start, Expr End, bool ExclusiveEnd) : Expr
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitRange(this);
 }
 
+// Index from end expression: ^expr — creates System.Index(expr, fromEnd: true)
+// ECMA-334 §12.8.11 — Used inside indexer arguments
+internal sealed record IndexFromEndExpr(Expr Operand) : Expr
+{
+    public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitIndexFromEnd(this);
+}
+
 // Pipeline expression: expr |> func
 internal sealed record PipelineExpr(Expr Left, Expr Right) : Expr
 {
@@ -705,6 +753,9 @@ internal sealed record DiscardPattern : Pattern;
 
 // Parenthesized pattern: (pattern) for grouping
 internal sealed record ParenthesizedPattern(Pattern Inner) : Pattern;
+
+// Positional (tuple) pattern: (pattern1, pattern2, ...) matches ITuple elements
+internal sealed record PositionalPattern(List<Pattern> Subpatterns) : Pattern;
 
 // Switch arm: pattern [when guard] => value
 internal sealed record SwitchArm(Pattern Pattern, Expr? WhenGuard, Expr Value);

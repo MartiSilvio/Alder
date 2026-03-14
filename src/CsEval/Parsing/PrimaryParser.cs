@@ -391,31 +391,65 @@ internal sealed class PrimaryParser : ParserBase
     /// </summary>
     private Expr ParseArrayCreationBody(string typeName)
     {
+        // Unsized multidimensional array: new int[,] { ... }, new int[,,] { ... }
+        if (Check(TokenType.Comma))
+        {
+            var rank = 1;
+            while (Match(TokenType.Comma))
+                rank++;
+            Consume(TokenType.RightBracket, "Expected ']' after array rank specifier");
+            if (!Check(TokenType.LeftBrace))
+                throw new CsEvalParserException($"Expected '{{' after 'new {typeName}[{new string(',', rank - 1)}]' at {Peek().Line}:{Peek().Column}");
+            Advance(); // consume '{'
+            var initExpr = ParseMultiDimArrayInitializer(typeName, rank);
+            return initExpr;
+        }
+
         // Check for array initializer: new int[] { ... }
         if (Check(TokenType.RightBracket))
         {
             Advance(); // consume ']'
 
-            // Array initializer must follow: new int[] { ... }
+            // Jagged array initializer: new int[][] { ... }, new double[][][] { ... }
+            var elementTypeName = typeName;
+            while (Check(TokenType.LeftBracket) && CheckNext(TokenType.RightBracket))
+            {
+                Advance(); // consume '['
+                Advance(); // consume ']'
+                elementTypeName += "[]";
+            }
+
             if (Check(TokenType.LeftBrace))
             {
                 Advance(); // consume '{'
                 var arrayLiteral = (ArrayLiteralExpr)ParseArrayLiteralBody();
-                return new TypedArrayLiteralExpr(typeName, arrayLiteral);
+                return new TypedArrayLiteralExpr(elementTypeName, arrayLiteral);
             }
 
-            throw new CsEvalParserException($"Expected '{{' after 'new {typeName}[]' at {Peek().Line}:{Peek().Column}");
+            throw new CsEvalParserException($"Expected '{{' after 'new {elementTypeName}[]' at {Peek().Line}:{Peek().Column}");
         }
 
         // Array with size: new int[10] or multi-dim: new int[3, 3]
         var firstSize = _expression.ParseExpression();
         if (Check(TokenType.Comma))
         {
-            // Multi-dimensional: new int[3, 3]
+            // Multi-dimensional: new int[3, 3] or new int[2, 3] { ... }
             var sizes = new List<Expr> { firstSize };
             while (Match(TokenType.Comma))
                 sizes.Add(_expression.ParseExpression());
             Consume(TokenType.RightBracket, "Expected ']' after array sizes");
+
+            // Check for optional initializer
+            if (Check(TokenType.LeftBrace))
+            {
+                Advance(); // consume '{'
+                var rank = sizes.Count;
+                var flatValues = new List<Expr>();
+                var dimensions = new int[rank];
+                ParseNestedArrayInitializer(flatValues, dimensions, 0, rank);
+                return new MultiDimArrayInitExpr(typeName, rank, sizes, flatValues, dimensions);
+            }
+
             return new MultiDimTypedArrayCreationExpr(typeName, sizes);
         }
         Consume(TokenType.RightBracket, "Expected ']' after array size");
@@ -429,7 +463,51 @@ internal sealed class PrimaryParser : ParserBase
             jaggedTypeName += "[]";
         }
 
+        // §12.8.16.5: sized jagged array with initializer — new int[3][] { ... }
+        if (Check(TokenType.LeftBrace))
+        {
+            Advance(); // consume '{'
+            var arrayLiteral = (ArrayLiteralExpr)ParseArrayLiteralBody();
+            return new TypedArrayLiteralExpr(jaggedTypeName, arrayLiteral);
+        }
+
         return new TypedArrayCreationExpr(jaggedTypeName, firstSize);
+    }
+
+    /// <summary>
+    /// Parses a multidimensional array initializer: new int[,] { {1,2}, {3,4} }
+    /// '{' has already been consumed. Flattens nested braces into a flat value list.
+    /// </summary>
+    private Expr ParseMultiDimArrayInitializer(string typeName, int rank)
+    {
+        var flatValues = new List<Expr>();
+        var dimensions = new int[rank];
+        ParseNestedArrayInitializer(flatValues, dimensions, 0, rank);
+        return new MultiDimArrayInitExpr(typeName, rank, null, flatValues, dimensions);
+    }
+
+    private void ParseNestedArrayInitializer(List<Expr> flatValues, int[] dimensions, int depth, int rank)
+    {
+        var count = 0;
+        while (!Check(TokenType.RightBrace) && !IsAtEnd())
+        {
+            if (count > 0) Consume(TokenType.Comma, "Expected ',' between array elements");
+
+            if (depth < rank - 1)
+            {
+                Consume(TokenType.LeftBrace, "Expected '{' in nested array initializer");
+                ParseNestedArrayInitializer(flatValues, dimensions, depth + 1, rank);
+            }
+            else
+            {
+                flatValues.Add(_expression.ParseExpression());
+            }
+            count++;
+        }
+        Consume(TokenType.RightBrace, "Expected '}' after array initializer");
+
+        if (dimensions[depth] == 0)
+            dimensions[depth] = count;
     }
 
     /// <summary>
@@ -450,6 +528,16 @@ internal sealed class PrimaryParser : ParserBase
                 Advance(); // consume =
                 var value = _expression.ParseExpression();
                 entries.Add(new InitializerEntry(propName, value));
+            }
+            else if (Check(TokenType.LeftBracket))
+            {
+                // Indexer initializer: [key] = value (§12.8.16.3)
+                Advance(); // consume [
+                var key = _expression.ParseExpression();
+                Consume(TokenType.RightBracket, "Expected ']' after indexer key in initializer");
+                Consume(TokenType.Equal, "Expected '=' after indexer key in initializer");
+                var value = _expression.ParseExpression();
+                entries.Add(new InitializerEntry(null, value, key));
             }
             else
             {

@@ -1,5 +1,4 @@
 using CsEval.Binding;
-using CsEval.Diagnostics;
 using CsEval.Interpretation;
 using CsEval.Parsing;
 
@@ -61,6 +60,20 @@ internal static class PatternRuntime
 
             case ParenthesizedPattern parenthesizedPattern:
                 return MatchPatternCore(value, parenthesizedPattern.Inner, runtime);
+
+            case PositionalPattern positionalPattern:
+            {
+                if (value is not System.Runtime.CompilerServices.ITuple tuple)
+                    return false;
+                if (tuple.Length != positionalPattern.Subpatterns.Count)
+                    return false;
+                for (var i = 0; i < positionalPattern.Subpatterns.Count; i++)
+                {
+                    if (!MatchPatternCore(tuple[i], positionalPattern.Subpatterns[i], runtime))
+                        return false;
+                }
+                return true;
+            }
 
             case RelationalPattern relationalPattern:
             {

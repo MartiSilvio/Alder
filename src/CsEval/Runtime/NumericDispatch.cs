@@ -1,6 +1,5 @@
 using CsEval.Diagnostics;
 using CsEval.Parsing;
-using System.Reflection;
 using System.Runtime.ExceptionServices;
 
 namespace CsEval.Runtime;
@@ -146,6 +145,8 @@ internal static class NumericDispatch
         [typeof(sbyte)] = v => -(int)(sbyte)v,
         [typeof(byte)] = v => -(int)(byte)v,
         [typeof(ushort)] = v => -(int)(ushort)v,
+        // ECMA-334 §12.9.3: uint is converted to long, result type is long
+        [typeof(uint)] = v => -(long)(uint)v,
     };
 
     private static readonly Dictionary<Type, UnaryOp> CheckedNegateOps = new()
@@ -159,6 +160,8 @@ internal static class NumericDispatch
         [typeof(sbyte)] = v => checked(-(int)(sbyte)v),
         [typeof(byte)] = v => -(int)(byte)v,
         [typeof(ushort)] = v => -(int)(ushort)v,
+        // ECMA-334 §12.9.3: uint is converted to long, result type is long
+        [typeof(uint)] = v => checked(-(long)(uint)v),
     };
 
     private static readonly Dictionary<Type, UnaryOp> BitwiseNotOps = new()
@@ -509,9 +512,14 @@ internal static class NumericDispatch
         if (leftType == typeof(float) || rightType == typeof(float))
             return typeof(float);
 
-        // Rule 4: ulong (char is unsigned, so char -> ulong is valid)
+        // Rule 4: ulong (error if other operand is a signed integer type)
+        // Note: char is NOT signed, so char -> ulong is valid per §10.2.3
         if (leftType == typeof(ulong) || rightType == typeof(ulong))
+        {
+            if (IsSignedInteger(leftType) || IsSignedInteger(rightType))
+                throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, "+", leftType.Name, rightType.Name);
             return typeof(ulong);
+        }
 
         // Rule 5: long
         if (leftType == typeof(long) || rightType == typeof(long))

@@ -1,7 +1,4 @@
 using System.Collections.Concurrent;
-using System.Collections;
-using System.Reflection;
-using System.Text;
 using CsEval.Parsing;
 using CsEval.Runtime;
 
@@ -25,6 +22,7 @@ internal static readonly MethodInfo InvokeConstructorMethod = typeof(Constructio
 internal static readonly MethodInfo CreateTypedArrayFromTypeNameMethod = typeof(ConstructionRuntime).GetMethod(nameof(ConstructionRuntime.CreateTypedArray))!;
 internal static readonly MethodInfo ConvertArrayToTypedMethod = typeof(ConstructionRuntime).GetMethod(nameof(ConstructionRuntime.ConvertArrayToTyped))!;
 internal static readonly MethodInfo CreateTupleMethod = typeof(ConstructionRuntime).GetMethod(nameof(ConstructionRuntime.CreateTuple))!;
+internal static readonly MethodInfo CreateNamedTupleMethod = typeof(ConstructionRuntime).GetMethod(nameof(ConstructionRuntime.CreateNamedTuple))!;
 internal static readonly MethodInfo DeconstructTupleMethod = typeof(ConstructionRuntime).GetMethod(nameof(ConstructionRuntime.DeconstructTuple))!;
 internal static readonly MethodInfo GetDefaultValueMethod = typeof(TypeHelpers).GetMethod(nameof(TypeHelpers.GetDefaultValue), [typeof(Type)])!;
 internal static readonly MethodInfo IsNullableTypeMethod = typeof(TypeHelpers).GetMethod(nameof(TypeHelpers.IsNullableType))!;
@@ -53,6 +51,7 @@ internal static readonly MethodInfo CreateTypedArrayMethod = typeof(SpreadHelper
 internal static readonly MethodInfo ThrowIfCancellationRequestedMethod = typeof(CancellationToken).GetMethod(nameof(CancellationToken.ThrowIfCancellationRequested))!;
 internal static readonly MethodInfo ApplyPropertyInitializerMethod = typeof(ConstructionRuntime).GetMethod(nameof(ConstructionRuntime.ApplyPropertyInitializer))!;
 internal static readonly MethodInfo ApplyCollectionInitializerMethod = typeof(ConstructionRuntime).GetMethod(nameof(ConstructionRuntime.ApplyCollectionInitializer))!;
+internal static readonly MethodInfo ApplyIndexerInitializerMethod = typeof(ConstructionRuntime).GetMethod(nameof(ConstructionRuntime.ApplyIndexerInitializer))!;
 internal static readonly MethodInfo CreateMultiDimArrayMethod = typeof(ConstructionRuntime).GetMethod(nameof(ConstructionRuntime.CreateMultiDimArray))!;
 internal static readonly MethodInfo MultiDimArrayGetMethod = typeof(ConstructionRuntime).GetMethod(nameof(ConstructionRuntime.MultiDimArrayGet))!;
 internal static readonly MethodInfo MultiDimArraySetMethod = typeof(ConstructionRuntime).GetMethod(nameof(ConstructionRuntime.MultiDimArraySet))!;

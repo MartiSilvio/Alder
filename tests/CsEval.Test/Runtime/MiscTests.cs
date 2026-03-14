@@ -407,13 +407,14 @@ public class MiscTests(CompilationMode mode)
     }
 
     [Test]
-    public void ExtensionMethod_AmbiguousOverloads_Throws()
+    public void ExtensionMethod_SignedPreferredOverUnsigned()
     {
+        // ECMA-334 §12.6.4.7 rule 4: signed integral preferred over unsigned
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         engine.RegisterExtensionMethods(typeof(CaseSensitiveExtensionProbe));
 
-        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("1.ExtAmb((byte)1)"));
-        Assert.That(ex!.Message, Does.Contain("Ambiguous"));
+        var result = engine.Evaluate("1.ExtAmb((byte)1)");
+        Assert.That(result, Is.EqualTo("short"));
     }
 
     private sealed class TwoKeyIndex

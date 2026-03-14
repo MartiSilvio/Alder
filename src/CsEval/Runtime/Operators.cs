@@ -70,7 +70,8 @@ internal static class Operators
     public static object? Add(object? left, object? right, CsEvalOptions options) =>
         Add(left, right, options, null);
 
-    public static object? Add(object? left, object? right, CsEvalOptions options, CsEvalContext? context, bool isChecked = false)
+    public static object? Add(object? left, object? right, CsEvalOptions options, CsEvalContext? context, bool isChecked = false,
+        bool isStringContext = false)
     {
         if (left is DateTime leftDate && right is TimeSpan rightSpan)
             return leftDate + rightSpan;
@@ -88,9 +89,18 @@ internal static class Operators
         {
             if (TypeHelpers.IsArithmetic(left) || TypeHelpers.IsArithmetic(right))
                 return null; // Nullable arithmetic: num + null = null
+            // §12.10.5: null + null in string context → empty string
             if (left == null && right == null)
-                return null;
+                return isStringContext ? "" : null;
         }
+
+        // §12.10.5: delegate combination — D + D → Delegate.Combine
+        if (left is Delegate leftDel && right is Delegate rightDel)
+            return Delegate.Combine(leftDel, rightDel);
+
+        // ECMA-334 §12.10.5: E + int → E, int + E → E
+        if (left != null && right != null && (left.GetType().IsEnum || right.GetType().IsEnum))
+            return EnumArithmetic.Add(left, right);
 
         if (TypeHelpers.IsArithmetic(left) && TypeHelpers.IsArithmetic(right))
             return NumericDispatch.Add(left, right, isChecked);
@@ -115,6 +125,14 @@ internal static class Operators
 
         if (left is TimeSpan leftSpan && right is TimeSpan rightSpan)
             return leftSpan - rightSpan;
+
+        // §12.10.6: delegate removal — D - D → Delegate.Remove
+        if (left is Delegate leftDel && right is Delegate rightDel)
+            return Delegate.Remove(leftDel, rightDel);
+
+        // ECMA-334 §12.10.6: E - int → E, E - E → underlying
+        if (left != null && right != null && (left.GetType().IsEnum || right.GetType().IsEnum))
+            return EnumArithmetic.Subtract(left, right);
 
         return ApplyBinaryArithmetic(
             left,
@@ -328,6 +346,10 @@ internal static class Operators
         }
 
         // ECMA-334 §12.13: Bitwise operators apply to integer types and char
+        // ECMA-334 §12.13.3: E & E → E
+        if (left != null && right != null && left.GetType().IsEnum && right.GetType().IsEnum)
+            return EnumArithmetic.BitwiseOp(left, right, NumericDispatch.BitwiseAnd);
+
         if (IsIntegerOrChar(left) && IsIntegerOrChar(right))
             return NumericDispatch.BitwiseAnd(left!, right!);
 
@@ -359,6 +381,10 @@ internal static class Operators
                 return null;
         }
 
+        // ECMA-334 §12.13.3: E | E → E
+        if (left != null && right != null && left.GetType().IsEnum && right.GetType().IsEnum)
+            return EnumArithmetic.BitwiseOp(left, right, NumericDispatch.BitwiseOr);
+
         if (IsIntegerOrChar(left) && IsIntegerOrChar(right))
             return NumericDispatch.BitwiseOr(left!, right!);
 
@@ -386,6 +412,10 @@ internal static class Operators
                 return null;
         }
 
+        // ECMA-334 §12.13.3: E ^ E → E
+        if (left != null && right != null && left.GetType().IsEnum && right.GetType().IsEnum)
+            return EnumArithmetic.BitwiseOp(left, right, NumericDispatch.BitwiseXor);
+
         if (IsIntegerOrChar(left) && IsIntegerOrChar(right))
             return NumericDispatch.BitwiseXor(left!, right!);
 
@@ -404,8 +434,10 @@ internal static class Operators
 
         if (value is bool b)
             return !b;
+        // ECMA-334 §12.13.3: ~E → E
+        if (value.GetType().IsEnum)
+            return EnumArithmetic.BitwiseNot(value);
         // ECMA-334 §12.9.5: ~ is defined for integer types and char
-        // (char undergoes unary numeric promotion to int per §12.4.7.2)
         if (TypeHelpers.IsInteger(value) || value is char)
             return NumericDispatch.BitwiseNot(value!);
         throw new CsEvalException(
@@ -537,8 +569,7 @@ internal static class Operators
         if (firstPercent == 0 && pattern.LastIndexOf('%') == 0)
             return LikePatternMode.Suffix;
 
-        if (pattern.Length >= 2 &&
-            pattern[0] == '%' &&
+        if (pattern is ['%', _, ..] &&
             pattern[^1] == '%' &&
             pattern.IndexOf('%', 1) == pattern.Length - 1)
         {

@@ -1,4 +1,3 @@
-using System.Collections;
 using CsEval.Diagnostics;
 
 namespace CsEval.Runtime.Extensions;

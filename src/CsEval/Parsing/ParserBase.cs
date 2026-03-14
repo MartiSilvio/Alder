@@ -317,6 +317,18 @@ internal abstract class ParserBase
             name += "?";
         }
 
+        // Handle nullable array: type?[] — lexer tokenizes ?[ as QuestionLeftBracket
+        if (Check(TokenType.QuestionLeftBracket))
+        {
+            Advance(); // consume ?[
+            name += "?";
+            var rank = 1;
+            while (Check(TokenType.Comma)) { Advance(); rank++; }
+            if (!Match(TokenType.RightBracket))
+                return null;
+            name += "[" + new string(',', rank - 1) + "]";
+        }
+
         // Handle array suffixes, including multi-dimensional arrays.
         while (Check(TokenType.LeftBracket))
         {

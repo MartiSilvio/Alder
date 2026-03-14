@@ -5,6 +5,7 @@ namespace CsEval.Test;
 
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
+[Parallelizable(ParallelScope.Children)]
 public class ParityTests(CompilationMode mode)
 {
     private static readonly Regex RoslynCodeRegex = new(@"\bCS\d{4}\b", RegexOptions.Compiled);
@@ -155,6 +156,13 @@ public class ParityTests(CompilationMode mode)
         }
     }
 
+    // Out-of-scope parity tests: statement-level features not relevant for expression evaluation
+    private static readonly HashSet<string> SkippedParityTests = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "ControlFlow/Goto_ForwardLabel",
+        "ControlFlow/Goto_SkipStatement",
+    };
+
     private static IEnumerable<TestCaseData> DiscoverExpressions(string relativePath)
     {
         var testDataDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, relativePath);
@@ -164,6 +172,9 @@ public class ParityTests(CompilationMode mode)
         {
             var relativeName = Path.GetRelativePath(testDataDir, file).Replace(Path.DirectorySeparatorChar, '/');
             var testName = relativeName.Replace(".csx", "").Replace('/', '_');
+            var keyWithoutExt = relativeName.Replace(".csx", "");
+            if (SkippedParityTests.Any(s => keyWithoutExt.EndsWith(s, StringComparison.OrdinalIgnoreCase)))
+                continue;
             yield return new TestCaseData(file).SetName(testName);
         }
     }

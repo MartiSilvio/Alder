@@ -97,6 +97,7 @@ internal static class AssignmentRuntime
         var newValue = isIncrement
             ? Operators.Add(currentValue, one, options, context, isChecked)
             : Operators.Subtract(currentValue, one, isChecked);
+        newValue = NarrowIncrementResult(name, newValue, context);
         context.Set(name, newValue);
         return isPrefix ? newValue : currentValue;
     }
@@ -205,6 +206,7 @@ internal static class AssignmentRuntime
         var newValue = isIncrement
             ? Operators.Add(currentValue, one, options, context, isChecked)
             : Operators.Subtract(currentValue, one, isChecked);
+        newValue = NarrowToOriginalType(currentValue, newValue);
         MemberAccess.SetMember(target, memberName, newValue, options, context);
         return isPrefix ? newValue : currentValue;
     }
@@ -224,9 +226,49 @@ internal static class AssignmentRuntime
         var newValue = isIncrement
             ? Operators.Add(currentValue, one, options, context, isChecked)
             : Operators.Subtract(currentValue, one, isChecked);
+        newValue = NarrowToOriginalType(currentValue, newValue);
         CheckAllowIndexSet(options, index);
         MemberAccess.SetIndex(target, index, newValue, options, context);
         return isPrefix ? newValue : currentValue;
+    }
+
+    private static object? NarrowIncrementResult(string name, object? newValue, CsEvalContext context)
+    {
+        if (newValue == null || !context.TryGetVariableType(name, out var varType) || varType == null)
+            return newValue;
+
+        return NarrowToType(newValue, varType);
+    }
+
+    private static object? NarrowToOriginalType(object? originalValue, object? newValue)
+    {
+        if (originalValue == null || newValue == null)
+            return newValue;
+
+        var originalType = originalValue.GetType();
+        if (newValue.GetType() == originalType)
+            return newValue;
+
+        return NarrowToType(newValue, originalType);
+    }
+
+    private static object? NarrowToType(object newValue, Type targetType)
+    {
+        if (newValue.GetType() == targetType)
+            return newValue;
+
+        var underlying = Nullable.GetUnderlyingType(targetType) ?? targetType;
+        if (!TypeHelpers.IsArithmetic(underlying))
+            return newValue;
+
+        try
+        {
+            return Convert.ChangeType(newValue, underlying);
+        }
+        catch (Exception ex) when (ex is InvalidCastException or OverflowException)
+        {
+            throw new CsEvalException(DiagnosticDescriptors.NoImplicitConversion, newValue.GetType().Name, targetType.Name);
+        }
     }
 
     private static TokenType ResolveCompoundBaseOperator(TokenType compoundOperator)

@@ -4,7 +4,8 @@ namespace CsEval.Binding.BoundNodes;
 
 internal sealed record BoundInitializerEntry(
     string? PropertyName,
-    BoundExpr Value);
+    BoundExpr Value,
+    BoundExpr? IndexerKey = null);
 
 internal sealed record BoundObjectCreationExpr(
     string TypeName,

@@ -48,6 +48,25 @@ internal static class TypeHelpers
             otherOperandTypeName);
     }
 
+    // §12.13.5 + §12.14.2: Three-value logic for bool? && and bool? ||
+    public static object? NullableBoolAnd(object? left, object? right)
+    {
+        var l = left as bool?;
+        var r = right as bool?;
+        if (l == false || r == false) return false;
+        if (l == true && r == true) return true;
+        return null;
+    }
+
+    public static object? NullableBoolOr(object? left, object? right)
+    {
+        var l = left as bool?;
+        var r = right as bool?;
+        if (l == true || r == true) return true;
+        if (l == false && r == false) return false;
+        return null;
+    }
+
     internal static bool IsInteger([NotNullWhen(true)] object? value) =>
         value is sbyte or byte or short or ushort or int or uint or long or ulong;
 
@@ -287,6 +306,11 @@ internal static class TypeHelpers
         return true;
     }
 
+    /// <summary>
+    /// ECMA-334 §10.5.3–§10.5.5: Find the most specific user-defined conversion operator.
+    /// Searches source/target type hierarchies, filters by standard conversion applicability,
+    /// then selects the most specific source type (Sx) and target type (Tx).
+    /// </summary>
     private static bool TryResolveUserDefinedConversion(
         Type sourceType,
         Type targetType,
@@ -295,9 +319,12 @@ internal static class TypeHelpers
         const BindingFlags flags = BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy;
         conversionMethod = null;
 
+        // §10.5.3: Search source type + base classes, and target type + base classes
         var searchTypes = sourceType == targetType
             ? new[] { sourceType }
             : new[] { sourceType, targetType };
+
+        var candidates = new List<MethodInfo>();
 
         foreach (var declaringType in searchTypes)
         {
@@ -306,23 +333,104 @@ internal static class TypeHelpers
                 if (method.Name is not ("op_Explicit" or "op_Implicit"))
                     continue;
 
-                if (method.ReturnType != targetType)
-                    continue;
-
                 var parameters = method.GetParameters();
                 if (parameters.Length != 1)
                     continue;
 
-                var parameterType = parameters[0].ParameterType;
-                if (parameterType != sourceType && !parameterType.IsAssignableFrom(sourceType))
-                    continue;
+                var paramType = parameters[0].ParameterType;
+                var returnType = method.ReturnType;
 
-                conversionMethod = method;
-                return true;
+                // §10.5.5 (explicit): operator applicable if standard conversion exists
+                // from sourceType → paramType OR paramType → sourceType (encompassing or encompassed)
+                var sourceApplicable = paramType == sourceType
+                    || CanImplicitlyConvert(sourceType, paramType)
+                    || CanImplicitlyConvert(paramType, sourceType)
+                    || (!paramType.IsValueType && paramType.IsAssignableFrom(sourceType))
+                    || (!sourceType.IsValueType && sourceType.IsAssignableFrom(paramType));
+
+                // §10.5.5: standard conversion from returnType → targetType or targetType → returnType
+                var targetApplicable = returnType == targetType
+                    || CanImplicitlyConvert(returnType, targetType)
+                    || CanImplicitlyConvert(targetType, returnType)
+                    || (!targetType.IsValueType && targetType.IsAssignableFrom(returnType))
+                    || (!returnType.IsValueType && returnType.IsAssignableFrom(targetType));
+
+                if (sourceApplicable && targetApplicable)
+                    candidates.Add(method);
             }
         }
 
-        return false;
+        if (candidates.Count == 0)
+            return false;
+
+        if (candidates.Count == 1)
+        {
+            conversionMethod = candidates[0];
+            return true;
+        }
+
+        // §10.5.4/§10.5.5: Find most specific source type Sx
+        // Prefer exact source match, then most-encompassed (most specific) type
+        conversionMethod = SelectMostSpecific(candidates, sourceType, targetType);
+        return conversionMethod != null;
+    }
+
+    private static MethodInfo? SelectMostSpecific(List<MethodInfo> candidates, Type sourceType, Type targetType)
+    {
+        // Prefer exact source type match
+        var exactSource = candidates.Where(m => m.GetParameters()[0].ParameterType == sourceType).ToList();
+        if (exactSource.Count > 0)
+            candidates = exactSource;
+
+        // Prefer exact target type match
+        var exactTarget = candidates.Where(m => m.ReturnType == targetType).ToList();
+        if (exactTarget.Count > 0)
+            candidates = exactTarget;
+
+        if (candidates.Count == 1)
+            return candidates[0];
+
+        // §10.5.4: Most-encompassed source type (most specific — the one
+        // that all other candidate source types can convert TO)
+        MethodInfo? best = null;
+        foreach (var candidate in candidates)
+        {
+            var cParamType = candidate.GetParameters()[0].ParameterType;
+            var cReturnType = candidate.ReturnType;
+            var isMostSpecific = true;
+
+            foreach (var other in candidates)
+            {
+                if (ReferenceEquals(candidate, other))
+                    continue;
+
+                var oParamType = other.GetParameters()[0].ParameterType;
+                var oReturnType = other.ReturnType;
+
+                // Source: candidate is more specific if other's param encompasses candidate's param
+                if (cParamType != oParamType && !CanImplicitlyConvert(cParamType, oParamType))
+                {
+                    isMostSpecific = false;
+                    break;
+                }
+
+                // Target: candidate is more specific if candidate's return encompasses other's return
+                if (cReturnType != oReturnType && !CanImplicitlyConvert(oReturnType, cReturnType))
+                {
+                    isMostSpecific = false;
+                    break;
+                }
+            }
+
+            if (isMostSpecific)
+            {
+                if (best != null)
+                    return null; // Ambiguous
+                best = candidate;
+            }
+        }
+
+        return best;
     }
 
     private static bool TryGetRuntimeNumericTypeCode(Type type, out TypeCode typeCode)
@@ -641,6 +749,9 @@ internal static class TypeHelpers
             return null;
         }
 
+        if (value is NamedTupleValue && IsTupleType(underlyingType))
+            return value;
+
         var sourceType = value.GetType();
 
         if (sourceType == underlyingType || sourceType == targetType)
@@ -655,7 +766,7 @@ internal static class TypeHelpers
         // the range of the destination type."
         // Note: In CsEval, literal int values in typed declarations arrive here as int values.
         // OverflowException from Convert.ChangeType enforces the range check.
-        if (sourceType == typeof(int) && value is int intValue && IsIntegerType(underlyingType))
+        if (sourceType == typeof(int) && value is int intValue && IsIntegerType(underlyingType) && !underlyingType.IsEnum)
         {
             try { return Convert.ChangeType(intValue, underlyingType); }
             catch (OverflowException)
@@ -665,6 +776,15 @@ internal static class TypeHelpers
                     intValue,
                     underlyingType.Name);
             }
+        }
+
+        // §10.2.4: Implicit enumeration conversion — constant 0 → any enum
+        // §10.3.3: Explicit enumeration conversion — any integer ↔ enum
+        if (underlyingType.IsEnum && IsIntegerType(sourceType))
+        {
+            var enumUnderlyingType = Enum.GetUnderlyingType(underlyingType);
+            var converted = Convert.ChangeType(value, enumUnderlyingType);
+            return Enum.ToObject(underlyingType, converted);
         }
 
         if (underlyingType == typeof(char) && value is string { Length: 1 } s)
@@ -746,6 +866,38 @@ internal static class TypeHelpers
 
         return false;
     }
+
+    /// <summary>
+    /// ECMA-334 §12.6.4.7: T1 is a better conversion target than T2 if an implicit conversion
+    /// from T1 to T2 exists and no implicit conversion from T2 to T1 exists, or if T1 is a
+    /// signed integral type and T2 is an unsigned integral type per the spec's preference table.
+    /// Returns positive if T1 is better, negative if T2 is better, zero if neither.
+    /// </summary>
+    public static int CompareBetterConversionTarget(Type t1, Type t2)
+    {
+        if (t1 == t2)
+            return 0;
+
+        var t1ToT2 = CanImplicitlyConvert(t1, t2) || (!t2.IsValueType && t2.IsAssignableFrom(t1));
+        var t2ToT1 = CanImplicitlyConvert(t2, t1) || (!t1.IsValueType && t1.IsAssignableFrom(t2));
+
+        if (t1ToT2 && !t2ToT1) return 1;
+        if (t2ToT1 && !t1ToT2) return -1;
+
+        // §12.6.4.7 rule 4: signed integral preferred over unsigned
+        var s1 = Nullable.GetUnderlyingType(t1) ?? t1;
+        var s2 = Nullable.GetUnderlyingType(t2) ?? t2;
+        if (IsSignedPreferredOver(s1, s2)) return 1;
+        if (IsSignedPreferredOver(s2, s1)) return -1;
+
+        return 0;
+    }
+
+    private static bool IsSignedPreferredOver(Type signed, Type unsigned) =>
+        (signed == typeof(sbyte) && unsigned is { } u && (u == typeof(byte) || u == typeof(ushort) || u == typeof(uint) || u == typeof(ulong))) ||
+        (signed == typeof(short) && unsigned is { } u2 && (u2 == typeof(ushort) || u2 == typeof(uint) || u2 == typeof(ulong))) ||
+        (signed == typeof(int) && unsigned is { } u3 && (u3 == typeof(uint) || u3 == typeof(ulong))) ||
+        (signed == typeof(long) && unsigned == typeof(ulong));
 
     /// <summary>
     /// Checks whether a source type can be assigned or implicitly converted to a target type.
@@ -980,17 +1132,23 @@ internal static class TypeHelpers
 
         if (arg is IConvertible)
         {
+            var underlying = Nullable.GetUnderlyingType(targetType) ?? targetType;
             try
             {
-                var underlying = Nullable.GetUnderlyingType(targetType) ?? targetType;
                 return Convert.ChangeType(arg, underlying);
             }
             catch (Exception ex) when (ex is InvalidCastException or OverflowException or FormatException)
             {
-                return arg;
+                throw new CsEvalException(
+                    DiagnosticDescriptors.NoImplicitConversion,
+                    arg.GetType().Name,
+                    targetType.Name);
             }
         }
 
-        return arg;
+        throw new CsEvalException(
+            DiagnosticDescriptors.NoImplicitConversion,
+            arg.GetType().Name,
+            targetType.Name);
     }
 }

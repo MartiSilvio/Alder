@@ -1,8 +1,5 @@
-using System.Linq;
 using System.Runtime.CompilerServices;
-using CsEval.Binding;
 using CsEval.Diagnostics;
-using CsEval.Interpretation;
 using CsEval.Parsing;
 using CsEval.Runtime.Extensions;
 
@@ -227,7 +224,14 @@ internal static class IdentifierRuntime
         if (!TypeHelpers.IsArithmetic(numericTarget))
             return value;
 
-        return TypeHelpers.CoerceNumeric(value, targetType);
+        try
+        {
+            return TypeHelpers.CoerceNumeric(value, targetType);
+        }
+        catch (CsEvalException)
+        {
+            return value;
+        }
     }
 
     private static T CastIdentifierValue<T>(object? value) => (T)value!;

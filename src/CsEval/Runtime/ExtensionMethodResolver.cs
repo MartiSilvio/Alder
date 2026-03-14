@@ -1,7 +1,6 @@
 using System.Collections.Immutable;
 using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
-using CsEval.Interpretation;
 
 namespace CsEval.Runtime;
 
@@ -435,7 +434,16 @@ internal static class ExtensionMethodResolver
 
             var testResult = TryInvokeLambdaForTypeInference(arg, testArgs);
             if (testResult is null or MethodRef)
+            {
+                // Execution failed — infer return type statically from the lambda body AST
+                var staticType = TryInferLambdaReturnTypeStatically(arg, substitutedInputTypes);
+                if (staticType != null && staticType != typeof(object))
+                {
+                    inferred = staticType;
+                    return true;
+                }
                 continue;
+            }
 
             var resultType = testResult.GetType();
 
@@ -519,7 +527,7 @@ internal static class ExtensionMethodResolver
         }
         if (type == typeof(string))
             return "";
-        if (!type.IsAbstract && !type.IsInterface)
+        if (type is { IsAbstract: false, IsInterface: false })
         {
             try
             {
@@ -571,6 +579,76 @@ internal static class ExtensionMethodResolver
         }
 
         return null;
+    }
+
+    private static Type? TryInferLambdaReturnTypeStatically(object? arg, Type[] inputTypes)
+    {
+        if (arg is not LambdaValue lambda)
+            return null;
+
+        var paramTypes = new Dictionary<string, Type>();
+        for (var i = 0; i < lambda.Parameters.Count && i < inputTypes.Length; i++)
+            paramTypes[lambda.Parameters[i]] = inputTypes[i];
+
+        return InferExprType(lambda.Body, paramTypes);
+    }
+
+    private static Type? InferExprType(Parsing.Expr expr, Dictionary<string, Type> paramTypes)
+    {
+        switch (expr)
+        {
+            case Parsing.LiteralExpr literal:
+                return literal.Value?.GetType() ?? typeof(object);
+
+            case Parsing.IdentifierExpr id:
+                return paramTypes.TryGetValue(id.Name.Lexeme, out var t) ? t : null;
+
+            case Parsing.CallExpr { Callee: Parsing.MemberAccessExpr memberAccess } call:
+            {
+                var targetType = InferExprType(memberAccess.Object, paramTypes);
+                if (targetType == null)
+                    return null;
+
+                var methodName = memberAccess.Name.Lexeme;
+                var methods = ReflectionRuntime.GetMethods(targetType, BindingFlags.Public | BindingFlags.Instance)
+                    .Where(m => m.Name == methodName && m.GetParameters().Length == call.Arguments.Count)
+                    .ToArray();
+
+                return methods.Length > 0 ? methods[0].ReturnType : null;
+            }
+
+            case Parsing.MemberAccessExpr memberAccess:
+            {
+                var targetType = InferExprType(memberAccess.Object, paramTypes);
+                if (targetType == null)
+                    return null;
+
+                var prop = targetType.GetProperty(memberAccess.Name.Lexeme, BindingFlags.Public | BindingFlags.Instance);
+                if (prop != null) return prop.PropertyType;
+
+                var field = targetType.GetField(memberAccess.Name.Lexeme, BindingFlags.Public | BindingFlags.Instance);
+                return field?.FieldType;
+            }
+
+            case Parsing.BinaryExpr binary:
+            {
+                var leftType = InferExprType(binary.Left, paramTypes);
+                var rightType = InferExprType(binary.Right, paramTypes);
+                if (leftType == typeof(string) || rightType == typeof(string))
+                    return typeof(string);
+                return leftType ?? rightType;
+            }
+
+            case Parsing.CastExpr:
+                return null;
+
+            case Parsing.ConditionalExpr cond:
+                return InferExprType(cond.ThenBranch, paramTypes)
+                    ?? InferExprType(cond.ElseBranch, paramTypes);
+
+            default:
+                return null;
+        }
     }
 
     private static object? TryInvokeLambdaForTypeInference(object? arg, object?[] testArgs)
@@ -659,10 +737,20 @@ internal static class ExtensionMethodResolver
         return false;
     }
 
-    private static bool IsFuncType(Type genericDef) =>
-        genericDef == typeof(Func<>) ||
-        genericDef == typeof(Func<,>) ||
-        genericDef == typeof(Func<,,>) ||
-        genericDef == typeof(Func<,,,>) ||
-        genericDef == typeof(Func<,,,,>);
+    private static readonly HashSet<Type> FuncTypeDefinitions = CreateFuncTypeSet();
+
+    private static HashSet<Type> CreateFuncTypeSet()
+    {
+        var set = new HashSet<Type>();
+        for (var arity = 1; arity <= 17; arity++)
+        {
+            var name = "System.Func`" + arity;
+            var type = Type.GetType(name);
+            if (type != null)
+                set.Add(type);
+        }
+        return set;
+    }
+
+    private static bool IsFuncType(Type genericDef) => FuncTypeDefinitions.Contains(genericDef);
 }

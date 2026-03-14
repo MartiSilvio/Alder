@@ -1,5 +1,4 @@
 using System.Collections.Immutable;
-using System.Reflection;
 using CsEval.Binding.Plans;
 using CsEval.Diagnostics;
 using CsEval.Runtime;
@@ -454,10 +453,12 @@ internal sealed class CallBinderService
             if (leftType == rightType)
                 continue;
 
-            if (leftType.IsAssignableFrom(rightType) && !rightType.IsAssignableFrom(leftType))
-                rightBetter = true;
-            else if (rightType.IsAssignableFrom(leftType) && !leftType.IsAssignableFrom(rightType))
+            // ECMA-334 §12.6.4.7: better conversion target
+            var cmp = TypeHelpers.CompareBetterConversionTarget(leftType, rightType);
+            if (cmp > 0)
                 leftBetter = true;
+            else if (cmp < 0)
+                rightBetter = true;
         }
 
         return (leftBetter, rightBetter) switch

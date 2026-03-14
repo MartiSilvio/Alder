@@ -1,5 +1,3 @@
-using System.Reflection;
-using System.Linq;
 using CsEval.Diagnostics;
 
 namespace CsEval.Runtime;
@@ -156,6 +154,31 @@ internal static class ConstructionRuntime
         else
             throw new CsEvalException($"Type '{obj.GetType().Name}' does not have an 'Add' method for collection initializer");
         return obj;
+    }
+
+    public static object? ApplyIndexerInitializer(object obj, object key, object? value, CsEvalOptions options, CsEvalContext context)
+    {
+        MemberAccess.SetIndex(obj, key, value, options, context);
+        return obj;
+    }
+
+    public static object CreateNamedTuple(object?[] elements, string?[] names)
+    {
+        var tuple = CreateTuple(elements);
+        var nameMap = new Dictionary<string, int>();
+        for (var i = 0; i < names.Length; i++)
+        {
+            if (names[i] is { } name)
+                nameMap[name] = i;
+        }
+        return new NamedTupleValue(tuple, nameMap);
+    }
+
+    public static Range CreateSystemRange(object? start, object? end, bool inclusiveEnd)
+    {
+        var startIndex = start is Index si ? si : new Index(Convert.ToInt32(start));
+        var endIndex = end is Index ei ? ei : new Index(Convert.ToInt32(end));
+        return new Range(startIndex, endIndex);
     }
 
     public static object CreateMultiDimArray(Type elementType, object[] sizes)

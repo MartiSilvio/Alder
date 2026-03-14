@@ -1,4 +1,3 @@
-using CsEval.Benchmarks;
 using NUnit.Framework;
 
 namespace CsEval.Benchmarks.Tests;

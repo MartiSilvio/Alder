@@ -2,7 +2,6 @@ using CsEval.Compilation;
 using CsEval.Compiled.Compilation;
 using CsEval.Binding;
 using CsEval.Parsing;
-using CsEval.Runtime;
 
 namespace CsEval.Compiled;
 
