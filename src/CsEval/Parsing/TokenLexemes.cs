@@ -84,7 +84,6 @@ internal static class TokenLexemes
         TokenType.Between => "between",
         TokenType.Let => "let",
         TokenType.Const => "const",
-        TokenType.Undefined => "undefined",
         TokenType.Unless => "unless",
         TokenType.Until => "until",
 

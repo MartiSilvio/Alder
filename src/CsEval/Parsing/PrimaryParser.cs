@@ -36,13 +36,6 @@ internal sealed class PrimaryParser : ParserBase
         if (Match(TokenType.Null))
             return new LiteralExpr(null, IsConstant: true);
 
-        if (Match(TokenType.Undefined))
-        {
-            if (State.LanguageMode == LanguageMode.Standard)
-                throw new CsEvalLanguageModeException(TokenLexemes.GetCanonical(TokenType.Undefined));
-            return new LiteralExpr(null, IsConstant: true);
-        }
-
         if (Match(TokenType.InterpolatedString))
             return ParseInterpolatedString(Previous());
 

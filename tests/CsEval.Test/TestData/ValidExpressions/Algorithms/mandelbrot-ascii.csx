@@ -29,7 +29,7 @@ foreach (var py in 0..<height)
         while (iter < maxIter && zr ** 2 + zi ** 2 <= 4.0)
         {
             var newZr = zr ** 2 - zi ** 2 + cr;
-            zi = 2(zr * zi) + ci;
+            zi = 2 * (zr * zi) + ci;
             zr = newZr;
             iter++;
         }
@@ -73,7 +73,7 @@ foreach (var px in 0..<width)
         while (iter2 < maxIter && zr2 ** 2 + zi2 ** 2 <= 4.0)
         {
             var newZr2 = zr2 ** 2 - zi2 ** 2 + cr2;
-            zi2 = 2(zr2 * zi2) + ci2;
+            zi2 = 2 * (zr2 * zi2) + ci2;
             zr2 = newZr2;
             iter2++;
         }

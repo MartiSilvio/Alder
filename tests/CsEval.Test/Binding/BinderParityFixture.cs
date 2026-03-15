@@ -73,10 +73,6 @@ internal static class BinderParityFixture
             "let x = 5 in x * x");
 
         yield return CreateScenario(
-            "Extended/ScopeFunctionLet",
-            "7.let(x => x * x)");
-
-        yield return CreateScenario(
             "Extended/IfExpression",
             "if (value > 0) value else -value",
             ("value", -7));

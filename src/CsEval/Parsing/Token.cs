@@ -10,7 +10,6 @@ internal enum TokenType
     True,
     False,
     Null,
-    Undefined,  // JavaScript undefined
 
     // Identifiers
     Identifier,

@@ -5,7 +5,7 @@ var signal = new double[N];
 foreach (var i in 0..<N)
 {
     var t = (double)i / N;
-    signal[i] = 3 * sin(2pi * t) + 1.5 * cos(6pi * t) + 0.5 * sin(10pi * t);
+    signal[i] = 3 * sin(2 * pi * t) + 1.5 * cos(6 * pi * t) + 0.5 * sin(10 * pi * t);
 }
 
 // DFT: X[k] = sum x[n] * e^{-j2πkn/N}
@@ -40,7 +40,7 @@ foreach (var n in 0..<N)
     var sumR = 0.0;
     foreach (var k in 0..<N)
     {
-        var angle = 2pi * k * n / N;
+        var angle = 2 * pi * k * n / N;
         sumR += realPart[k] * cos(angle) - imagPart[k] * sin(angle);
     }
     reconstructed[n] = sumR / N;

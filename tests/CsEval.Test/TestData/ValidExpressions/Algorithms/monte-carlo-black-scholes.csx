@@ -1,5 +1,5 @@
 // Monte Carlo Black-Scholes option pricing with Box-Muller transform
-// Exercises: **, implicit mult, pi, sqrt, abs, log, exp, ranges, between
+// Exercises: **, pi, sqrt, abs, log, exp, ranges, between
 
 // Black-Scholes parameters
 var S0 = 100.0;     // Initial stock price

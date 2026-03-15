@@ -53,26 +53,6 @@ public class PolyglotEdgeCaseTests(CompilationMode mode)
     }
 
     [Test]
-    public void ScopeFunctions_LetAlsoRunWith_Work()
-    {
-        var engine = CreateEngine();
-
-        Assert.That(engine.Evaluate("7.let(x => x * x)"), Is.EqualTo(49));
-        Assert.That(engine.Evaluate("7.also(x => x + 1)"), Is.EqualTo(7));
-        Assert.That(engine.Evaluate("7.run(x => x + 1)"), Is.EqualTo(8));
-        Assert.That(engine.Evaluate("7.with(x => x * x)"), Is.EqualTo(49));
-    }
-
-    [Test]
-    public void ScopeFunctions_ApplyDoesNotExist()
-    {
-        var engine = CreateEngine();
-
-        // apply is removed — it was identical to also, which is misleading vs Kotlin semantics
-        Assert.Throws<CsEvalException>(() => engine.Evaluate("7.apply(x => x + 1)"));
-    }
-
-    [Test]
     public void IdentifierCall_FunctionShadowsVariable()
     {
         var engine = CreateEngine();
@@ -107,33 +87,6 @@ public class PolyglotEdgeCaseTests(CompilationMode mode)
         var engine = CreateEngine();
         var result = engine.Evaluate("{ var a = new[] {1, 2}; var b = new[] {3, 4}; return [..a, ..b]; }");
         Assert.That(result, Is.EqualTo(new[] { 1, 2, 3, 4 }));
-    }
-
-    #endregion
-
-    #region Implicit multiply: edge cases
-
-    [Test]
-    public void ImplicitMultiply_WholeIdentifier_2xy()
-    {
-        var engine = CreateEngine();
-        engine.SetVariable("xy", 5);
-        Assert.That(engine.Evaluate("2xy"), Is.EqualTo(10));
-    }
-
-    [Test]
-    public void ImplicitMultiply_ScientificNotation_NotTriggered()
-    {
-        var engine = CreateEngine();
-        Assert.That(engine.Evaluate("2e10"), Is.EqualTo(2e10));
-    }
-
-    [Test]
-    public void ImplicitMultiply_LambdaCall_NotTriggered()
-    {
-        var engine = CreateEngine();
-        engine.SetVariable("f", (Func<int, int>)(x => x * 2));
-        Assert.That(engine.Evaluate("f(5)"), Is.EqualTo(10));
     }
 
     #endregion

@@ -77,8 +77,6 @@ public sealed class CsEvalEngine : IDisposable
         _functions = new Dictionary<string, Func<object?[], object?>>(options.StringComparer);
         _pendingVariables = new Dictionary<string, PendingVariable>(options.StringComparer);
         _extensionTypes.Add(typeof(Enumerable));
-        if (options.LanguageMode == LanguageMode.Extended)
-            _extensionTypes.Add(typeof(Runtime.Extensions.ScopeFunctionExtensions));
         RegisterBuiltInModules();
     }
 

@@ -65,10 +65,6 @@ public static partial class BenchmarkScenarioCatalog
             "if (x > y) x else y",
             "x > y ? x : y"),
         new(
-            "ExtendedParity/ScopeFunctionLet",
-            "x.let(v => v * v + 1)",
-            "((Func<int, int>)(v => v * v + 1))(x)"),
-        new(
             "ExtendedParity/AggregateBuiltins",
             "sum(numbers.Where(it > x))",
             "numbers.Where(n => n > x).Sum()"),

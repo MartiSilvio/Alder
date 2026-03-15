@@ -19,7 +19,6 @@ internal sealed class Lexer
         ["true"] = TokenType.True,
         ["false"] = TokenType.False,
         ["null"] = TokenType.Null,
-        ["undefined"] = TokenType.Undefined,  // JavaScript undefined
 
         // Standard C# 9+ pattern combinators
         ["and"] = TokenType.AmpAmp,

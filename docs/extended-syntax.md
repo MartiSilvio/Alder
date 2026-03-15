@@ -19,7 +19,7 @@ Every Extended feature is gated — Standard mode rejects them with a clear `CsE
 
 ## Write Math Like Math
 
-No more `Math.` prefix. Functions and constants are available bare, and numeric literals can multiply directly into variables.
+No more `Math.` prefix. Functions and constants are available bare.
 
 ```csharp
 // Standard C#
@@ -27,13 +27,6 @@ Math.Sqrt(Math.Pow(Math.Sin(x), 2) + Math.Pow(Math.Cos(x), 2))
 
 // Extended
 sqrt(sin(x) ** 2 + cos(x) ** 2)
-```
-
-```csharp
-// Implicit multiplication — write formulas naturally
-2x + 3y                    // same as 2 * x + 3 * y
-2(x + 1)                   // same as 2 * (x + 1)
-2pi                         // same as 2 * Math.PI
 ```
 
 ### Constants
@@ -276,24 +269,6 @@ inc(5)                                  5 |> inc
 
 Arithmetic binds tighter: `2 + 3 |> (x => x * 2)` is `(2 + 3) |> ...` = `10`.
 
-### Scope Functions
-
-Kotlin-inspired higher-order methods on any value.
-
-```csharp
-7.let(x => x * x)       // 49 — transform and return result
-7.also(x => log(x))     // 7  — side effect, return original
-7.run(x => x + 1)       // 8  — alias for let
-7.with(x => x * x)      // 49 — alias for let
-```
-
-| Function | Returns |
-|----------|---------|
-| `.let` | Result of the lambda |
-| `.also` | The original receiver |
-| `.run` | Result of the lambda |
-| `.with` | Result of the lambda |
-
 ### Let-In Expressions
 
 Scoped variable bindings for single expressions, with destructuring support.
@@ -366,10 +341,3 @@ const int x = 7;
 x = 8;                  // error CS0131
 ```
 
-### `undefined`
-
-Evaluates to `null`.
-
-```csharp
-undefined                // null
-```

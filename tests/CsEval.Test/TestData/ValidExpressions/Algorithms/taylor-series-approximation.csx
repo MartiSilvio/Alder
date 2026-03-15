@@ -12,7 +12,7 @@ var taylorSin = (double x) => {
     var result = 0.0;
     foreach (var k in 0..<terms)
     {
-        var exp = 2k + 1;
+        var exp = 2 * k + 1;
         var sign = k % 2 == 0 ? 1.0 : -1.0;
         result += sign * (x ** exp) / factorial(exp);
     }
@@ -24,7 +24,7 @@ var taylorCos = (double x) => {
     var result = 0.0;
     foreach (var k in 0..<terms)
     {
-        var exp = 2k;
+        var exp = 2 * k;
         var sign = k % 2 == 0 ? 1.0 : -1.0;
         result += sign * (x ** exp) / factorial(exp);
     }

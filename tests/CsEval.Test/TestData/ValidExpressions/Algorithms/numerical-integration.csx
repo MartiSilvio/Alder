@@ -51,7 +51,7 @@ var exact4 = pi / 4;
 var simp4 = simpsonIntegrate(arctanDeriv, 0.0, 1.0, 200);
 var simpErr4 = abs(simp4 - exact4);
 
-var piApprox = 4simp4;
+var piApprox = 4 * simp4;
 var piErr = abs(piApprox - pi);
 
 var simpBetter1 = simpErr1 < trapErr1;

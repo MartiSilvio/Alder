@@ -24,25 +24,7 @@ public class StandardModeNegativeTests(CompilationMode mode)
 
     #region Parser-Level Syntax Gates (CsEvalLanguageModeException)
 
-    // 1. undefined keyword
-
-    [Test]
-    public void StandardMode_RejectsUndefined()
-    {
-        var engine = new CsEvalEngine(StandardOptions);
-        var ex = Assert.Throws<CsEvalLanguageModeException>(
-            () => engine.Evaluate("undefined"));
-        Assert.That(ex!.FeatureName, Is.EqualTo("undefined"));
-    }
-
-    [Test]
-    public void ExtendedMode_AcceptsUndefined()
-    {
-        var engine = new CsEvalEngine(ExtendedOptions);
-        Assert.That(engine.Evaluate("undefined"), Is.Null);
-    }
-
-    // 2. [...] collection expressions
+    // 1. [...] collection expressions
 
     [Test]
     public void StandardMode_RejectsCollectionExpression()
@@ -435,20 +417,6 @@ public class StandardModeNegativeTests(CompilationMode mode)
         Assert.That(result, Is.Not.Null);
         Assert.That(result!["A"], Is.EqualTo(1));
         Assert.That(result["B"], Is.EqualTo(2));
-    }
-
-    [Test]
-    public void StandardMode_RejectsScopeFunctions()
-    {
-        var engine = new CsEvalEngine(StandardOptions);
-        Assert.Catch<CsEvalException>(() => engine.Evaluate("7.let(x => x)"));
-    }
-
-    [Test]
-    public void ExtendedMode_AcceptsScopeFunctions()
-    {
-        var engine = new CsEvalEngine(ExtendedOptions);
-        Assert.That(engine.Evaluate("7.let(x => x * x)"), Is.EqualTo(49));
     }
 
     [Test]

@@ -26,9 +26,9 @@ var rk4Step = (double x, double y, double z, double h) => {
     var k4z = lorenzZ(x + h * k3x, y + h * k3y, z + h * k3z);
 
     return new double[] {
-        x + h * (k1x + 2k2x + 2k3x + k4x) / 6,
-        y + h * (k1y + 2k2y + 2k3y + k4y) / 6,
-        z + h * (k1z + 2k2z + 2k3z + k4z) / 6
+        x + h * (k1x + 2 * k2x + 2 * k3x + k4x) / 6,
+        y + h * (k1y + 2 * k2y + 2 * k3y + k4y) / 6,
+        z + h * (k1z + 2 * k2z + 2 * k3z + k4z) / 6
     };
 };
 
