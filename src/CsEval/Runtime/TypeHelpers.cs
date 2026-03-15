@@ -218,12 +218,22 @@ internal static class TypeHelpers
     }
 
     private static readonly ConcurrentDictionary<(Type SourceType, Type TargetType, bool IsChecked), Func<object, object>> CastCache = new();
+    private static readonly ConcurrentQueue<(Type, Type, bool)> _castInsertionOrder = new();
+    private const int MaxCastCacheSize = 2048;
 
     internal static object RuntimeCast(object value, Type sourceType, Type targetType, bool isChecked = false)
     {
-        var converter = CastCache.GetOrAdd(
-            (sourceType, targetType, isChecked),
-            static key => CreateCastConverter(key.SourceType, key.TargetType, key.IsChecked));
+        var key = (sourceType, targetType, isChecked);
+        if (CastCache.TryGetValue(key, out var existing))
+            return existing(value);
+
+        var converter = CreateCastConverter(sourceType, targetType, isChecked);
+        if (CastCache.TryAdd(key, converter))
+        {
+            _castInsertionOrder.Enqueue(key);
+            while (CastCache.Count > MaxCastCacheSize && _castInsertionOrder.TryDequeue(out var oldest))
+                CastCache.TryRemove(oldest, out _);
+        }
         return converter(value);
     }
 

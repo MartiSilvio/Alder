@@ -30,10 +30,24 @@ internal static class ExtensionMethodResolver
 
     private static readonly ConcurrentDictionary<(Type ExtensionType, string MethodNameKey, bool IsCaseSensitive), MethodInfo[]> ExtensionMethodsByNameCache = new();
     private static readonly ConcurrentDictionary<(Type ExtensionType, string MethodNameKey, bool IsCaseSensitive, int InvocationArgCount), MethodInfo[]> ExtensionMethodsByArityCache = new();
-    private static readonly ConcurrentDictionary<MethodInfo, ParameterInfo[]> MethodParametersCache = new();
     private static readonly ConcurrentDictionary<InvocationCacheKey, ExtensionCallSitePlan?> ResolvedPlanByInvocationCache = new();
+    private static readonly ConcurrentQueue<InvocationCacheKey> _resolvedPlanInsertionOrder = new();
+    private const int MaxResolvedPlanCacheSize = 4096;
 
     private sealed record ExtensionCallSitePlan(MethodInfo Method);
+
+    private static void CacheResolvedPlan(InvocationCacheKey key, ExtensionCallSitePlan? plan)
+    {
+        if (ResolvedPlanByInvocationCache.TryAdd(key, plan))
+        {
+            _resolvedPlanInsertionOrder.Enqueue(key);
+            while (ResolvedPlanByInvocationCache.Count > MaxResolvedPlanCacheSize &&
+                   _resolvedPlanInsertionOrder.TryDequeue(out var oldest))
+            {
+                ResolvedPlanByInvocationCache.TryRemove(oldest, out _);
+            }
+        }
+    }
 
     private static string NormalizeMethodName(string methodName, bool isCaseSensitive) =>
         isCaseSensitive ? methodName : methodName.ToUpperInvariant();
@@ -113,12 +127,12 @@ internal static class ExtensionMethodResolver
         if (best == null)
         {
             if (invocationCacheKey is { } missingCacheKey)
-                ResolvedPlanByInvocationCache.TryAdd(missingCacheKey, null);
+                CacheResolvedPlan(missingCacheKey, null);
             return (false, null);
         }
 
         if (invocationCacheKey is { } resolvedCacheKey)
-            ResolvedPlanByInvocationCache.TryAdd(resolvedCacheKey, new ExtensionCallSitePlan(best));
+            CacheResolvedPlan(resolvedCacheKey, new ExtensionCallSitePlan(best));
 
         var invokeResult = MethodInvoker.InvokeMethodWithArgs(best, null, invocationArgs, ct);
         if (invokeResult.Success)
@@ -159,16 +173,13 @@ internal static class ExtensionMethodResolver
                 var filtered = new List<MethodInfo>(methods.Length);
                 foreach (var method in methods)
                 {
-                    var parameters = GetParameters(method);
+                    var parameters = MethodDispatchCache.GetParameters(method);
                     if (CanParameterCountMatch(parameters, key.InvocationArgCount))
                         filtered.Add(method);
                 }
                 return filtered.ToArray();
             });
     }
-
-    private static ParameterInfo[] GetParameters(MethodInfo method) =>
-        MethodParametersCache.GetOrAdd(method, static m => m.GetParameters());
 
     private static bool CanParameterCountMatch(ParameterInfo[] parameters, int invocationArgCount)
     {
@@ -268,7 +279,7 @@ internal static class ExtensionMethodResolver
         var candidates = new List<MethodInfo>(methods.Count);
         foreach (var method in methods)
         {
-            var parameters = GetParameters(method);
+            var parameters = MethodDispatchCache.GetParameters(method);
             if (parameters.Length == 0)
                 continue;
 
@@ -276,7 +287,7 @@ internal static class ExtensionMethodResolver
             if (concreteMethod == null)
                 continue;
 
-            var concreteParams = GetParameters(concreteMethod);
+            var concreteParams = MethodDispatchCache.GetParameters(concreteMethod);
             if (!IsCompatible(targetType, concreteParams[0].ParameterType))
                 continue;
 

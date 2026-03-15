@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Runtime.CompilerServices;
 using CsEval.Diagnostics;
 
 namespace CsEval.Runtime;
@@ -11,8 +12,7 @@ internal static class LambdaDelegateConverter
     private static readonly HashSet<Type> SupportedFuncDefinitions = CreateOpenGenericDelegateSet("Func", 1, 17);
     private static readonly HashSet<Type> SupportedActionDefinitions = CreateOpenGenericDelegateSet("Action", 1, 16);
 
-    // Cache generated delegate wrappers by (lambda identity, delegate type signature).
-    private static readonly ConcurrentDictionary<(int LambdaId, Type DelegateType), Delegate> DelegateCache = new();
+    private static readonly ConditionalWeakTable<object, ConcurrentDictionary<Type, Delegate>> DelegateCache = new();
 
     /// <summary>
     /// Attempts to convert a lambda value to a specific delegate type.
@@ -56,9 +56,8 @@ internal static class LambdaDelegateConverter
         var (paramTypes, returnType) = GetDelegateSignature(delegateType);
         ValidateSignature(lambda.Parameters.Count, paramTypes.Length, delegateType);
 
-        var cacheKey = (System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(lambda), delegateType);
-        return DelegateCache.GetOrAdd(
-            cacheKey,
+        var typeCache = DelegateCache.GetOrCreateValue(lambda);
+        return typeCache.GetOrAdd(delegateType,
             _ => LambdaDelegateFactory.CreateCompiledDelegate(lambda, delegateType, paramTypes, returnType));
     }
 
@@ -71,9 +70,8 @@ internal static class LambdaDelegateConverter
         var (paramTypes, returnType) = GetDelegateSignature(delegateType);
         ValidateSignature(lambda.Parameters.Count, paramTypes.Length, delegateType);
 
-        var cacheKey = (System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(lambda), delegateType);
-        return DelegateCache.GetOrAdd(
-            cacheKey,
+        var typeCache = DelegateCache.GetOrCreateValue(lambda);
+        return typeCache.GetOrAdd(delegateType,
             _ => LambdaDelegateFactory.CreateInterpretedDelegate(lambda, delegateType, paramTypes, returnType));
     }
 
