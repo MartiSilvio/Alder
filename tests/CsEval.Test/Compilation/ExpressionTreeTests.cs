@@ -651,7 +651,7 @@ public class ExpressionTreeTests
             () => _engine.ParseAsExpression<Func<int, int>>("x => { return x + 1; }"));
 
         Assert.That(ex, Is.Not.Null);
-        Assert.That(ex!.ErrorCode, Is.EqualTo(CsEval.Diagnostics.DiagnosticCode.CSEV0004));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(CsEval.Diagnostics.DiagnosticCode.CSEV0101));
         Assert.That(ex.Message, Does.Contain("block"));
     }
 
@@ -701,7 +701,7 @@ public class ExpressionTreeTests
         Assert.That(success, Is.False);
         Assert.That(result, Is.Null);
         Assert.That(diagnostics, Has.Count.GreaterThan(0));
-        Assert.That(diagnostics[0].Code, Is.EqualTo(CsEval.Diagnostics.DiagnosticCode.CSEV0005));
+        Assert.That(diagnostics[0].Code, Is.EqualTo(CsEval.Diagnostics.DiagnosticCode.CSEV0102));
         Assert.That(diagnostics[0].Message, Does.Contain("named argument").IgnoreCase);
     }
 

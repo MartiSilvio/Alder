@@ -8,7 +8,7 @@ internal static class AssignmentRuntime
     public static void CheckAllowIndexSet(CsEvalOptions options, object? index)
     {
         if (!options.Sandbox.AllowIndexSet)
-            throw new CsEvalException($"Index assignment blocked by sandbox: [{index}] = ...");
+            throw new CsEvalException(DiagnosticDescriptors.SandboxIndexAssignmentBlocked, index);
     }
 
     public static object? ValidateVariableAssignment(string name, object? value, CsEvalContext context)
@@ -276,7 +276,7 @@ internal static class AssignmentRuntime
         if (OperatorRegistry.CompoundToBaseOperator.TryGetValue(compoundOperator, out var baseOperator))
             return baseOperator;
 
-        throw new CsEvalException($"Unknown compound assignment operator '{TokenLexemes.GetCanonical(compoundOperator)}'");
+        throw new CsEvalException(DiagnosticDescriptors.UnknownCompoundAssignmentOperator, TokenLexemes.GetCanonical(compoundOperator));
     }
 
     private static object? ApplyBinaryOperator(
@@ -309,7 +309,7 @@ internal static class AssignmentRuntime
             TokenType.GreaterGreater => Operators.RightShift(left, right),
             TokenType.GreaterGreaterGreater => Operators.UnsignedRightShift(left, right),
             TokenType.StarStar => Operators.Power(left, right),
-            _ => throw new CsEvalException($"Unsupported compound assignment base operator '{operatorType}'")
+            _ => throw new CsEvalException(DiagnosticDescriptors.UnsupportedCompoundBaseOperator, operatorType)
         };
     }
 

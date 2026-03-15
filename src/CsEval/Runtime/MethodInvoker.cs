@@ -26,7 +26,7 @@ internal static class MethodInvoker
             return null;
 
         if (target == null)
-            throw new CsEvalException($"Cannot call method '{methodName}' on null");
+            throw new CsEvalException(DiagnosticDescriptors.NullMethodCall, methodName);
 
         var result = TryInvokeInstanceMethod(target, methodName, args, context, options, ct, typeArgs);
         if (result.Success)
@@ -70,14 +70,14 @@ internal static class MethodInvoker
             StaticMethodRef staticRef =>
                 options.Sandbox.AllowMethodCalls
                     ? InvokeStaticMethod(staticRef.Type, staticRef.MethodName, args, context, options, ct, typeArgs)
-                    : throw new CsEvalException($"Static method calls blocked by sandbox: {staticRef.Type.Name}.{staticRef.MethodName}"),
+                    : throw new CsEvalException(DiagnosticDescriptors.SandboxMethodCallBlocked, $"{staticRef.Type.Name}.{staticRef.MethodName}"),
 
             MethodRef methodRef =>
                 InvokeMethodRef(methodRef, args, context, options, ct, typeArgs),
 
             // ── Unrecognized ────────────────────────────────────────────────
-            null => throw new CsEvalException("Cannot call null as a function"),
-            _ => throw new CsEvalException($"Cannot call '{callee.GetType().Name}' as a function")
+            null => throw new CsEvalException(DiagnosticDescriptors.NullInvocation),
+            _ => throw new CsEvalException(DiagnosticDescriptors.NonCallableType, callee.GetType().Name)
         };
     }
 
@@ -100,7 +100,7 @@ internal static class MethodInvoker
             context, options, ct, typeArgs);
         if (result.Success)
             return result.Value;
-        throw new CsEvalException($"Method '{methodRef.MethodName}' invocation failed");
+        throw new CsEvalException(DiagnosticDescriptors.MethodInvocationFailed, methodRef.MethodName);
     }
 
     public static (bool Success, object? Value) TryInvokeInstanceMethod(
@@ -175,7 +175,7 @@ internal static class MethodInvoker
 
             var bestMethod = FindBestMethod(candidateMethods, args, ct, out var ambiguous);
             if (ambiguous)
-                throw new CsEvalException($"Ambiguous method invocation: '{methodName}'");
+                throw new CsEvalException(DiagnosticDescriptors.AmbiguousMethodInvocation, methodName);
 
             if (bestMethod != null)
             {
@@ -194,7 +194,7 @@ internal static class MethodInvoker
 
         // If sandbox blocks method calls and no extension method matched, report the block
         if (!options.Sandbox.AllowMethodCalls)
-            throw new CsEvalException($"Method calls blocked by sandbox: {methodName}");
+            throw new CsEvalException(DiagnosticDescriptors.SandboxMethodCallBlocked, methodName);
 
         return (false, null);
     }
@@ -249,7 +249,7 @@ internal static class MethodInvoker
         var nonGenericMethods = methods.Where(m => !m.ContainsGenericParameters);
         var bestMethod = FindBestMethod(nonGenericMethods, args, ct, out var ambiguous);
         if (ambiguous)
-            throw new CsEvalException($"Ambiguous method invocation: '{methodName}'");
+            throw new CsEvalException(DiagnosticDescriptors.AmbiguousMethodInvocation, methodName);
 
         if (bestMethod != null)
         {
@@ -325,7 +325,7 @@ internal static class MethodInvoker
         var nonGenericMethods = methods.Where(m => !m.ContainsGenericParameters);
         var bestMethod = FindBestMethod(nonGenericMethods, args, ct, out var ambiguous);
         if (ambiguous)
-            throw new CsEvalException($"Ambiguous method invocation: '{type.Name}.{methodName}'");
+            throw new CsEvalException(DiagnosticDescriptors.AmbiguousMethodInvocation, $"{type.Name}.{methodName}");
 
         if (bestMethod != null)
         {

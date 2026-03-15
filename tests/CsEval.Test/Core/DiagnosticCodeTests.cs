@@ -430,17 +430,16 @@ public class DiagnosticCodeTests
     }
 
     [Test]
-    public void BackwardCompat_CsEvalSpecificError_HasNullErrorCode()
+    public void BackwardCompat_CsEvalSpecificError_HasDiagnosticCode()
     {
-        // CsEval-specific errors (sandbox, iteration limits) have null ErrorCode
         var engine = new CsEvalEngine(CsEvalOptions.Default with
         {
             Sandbox = SandboxOptions.Strict() with { AllowAssignment = false }
         });
         engine.SetVariable("x", 10);
         var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("x = 5"));
-        Assert.That(ex!.ErrorCode, Is.Null);
-        Assert.That(ex.FormattedCode, Is.Null);
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0302));
+        Assert.That(ex.FormattedCode, Is.EqualTo("CSEV0302"));
     }
 
     [Test]

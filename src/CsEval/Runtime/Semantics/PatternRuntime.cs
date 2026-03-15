@@ -1,4 +1,5 @@
 using CsEval.Binding;
+using CsEval.Diagnostics;
 using CsEval.Interpretation;
 using CsEval.Parsing;
 
@@ -118,7 +119,7 @@ internal static class PatternRuntime
             }
 
             default:
-                throw new CsEvalException($"Pattern type '{pattern.GetType().Name}' not yet implemented");
+                throw new CsEvalException(DiagnosticDescriptors.PatternNotImplemented, pattern.GetType().Name);
         }
     }
 

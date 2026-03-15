@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using CsEval.Diagnostics;
 
@@ -11,6 +12,19 @@ internal static class ConstructionRuntime
             !config.RegisteredTypes.Contains(type))
         {
             throw new CsEvalException(DiagnosticDescriptors.AotTypeNotRegistered, type.FullName ?? type.Name);
+        }
+
+        if (config.AotMetadata is { } aotCtorMeta && aotCtorMeta.TryGetValue(type, out var ctorMetadata))
+        {
+            try
+            {
+                if (ctorMetadata.TryCreateInstance(args, out var aotInstance))
+                    return aotInstance;
+            }
+            catch (InvalidCastException)
+            {
+                // Generated dispatch selected wrong overload — fall through to reflection
+            }
         }
 
         try
@@ -33,7 +47,7 @@ internal static class ConstructionRuntime
     public static object CreateTuple(object?[] elements)
     {
         if (elements.Length == 0)
-            throw new CsEvalException("Tuples must have at least 2 elements");
+            throw new CsEvalException(DiagnosticDescriptors.TupleTooFewElements);
 
         if (elements.Length <= 7)
         {
@@ -50,7 +64,7 @@ internal static class ConstructionRuntime
                 5 => typeof(ValueTuple<,,,,>),
                 6 => typeof(ValueTuple<,,,,,>),
                 7 => typeof(ValueTuple<,,,,,,>),
-                _ => throw new CsEvalException("Tuples must have at least 2 elements")
+                _ => throw new CsEvalException(DiagnosticDescriptors.TupleTooFewElements)
             };
 
             var tupleType = RuntimeGenericFactory.CloseGenericType(openGenericType, types);
@@ -80,7 +94,7 @@ internal static class ConstructionRuntime
         if (tupleValue is System.Runtime.CompilerServices.ITuple tuple)
         {
             if (tuple.Length != variableNames.Length)
-                throw new CsEvalException($"Deconstruction requires {variableNames.Length} values but tuple has {tuple.Length} elements");
+                throw new CsEvalException(DiagnosticDescriptors.DeconstructionCountMismatch, variableNames.Length, tuple.Length);
             for (var i = 0; i < variableNames.Length; i++)
             {
                 var elementValue = tuple[i];
@@ -107,7 +121,7 @@ internal static class ConstructionRuntime
             }
         }
 
-        throw new CsEvalException($"Cannot deconstruct value of type '{TypeNameFormatter.Of(tupleValue)}': no ITuple implementation or Deconstruct() method found");
+        throw new CsEvalException(DiagnosticDescriptors.DeconstructionFailed, TypeNameFormatter.Of(tupleValue));
     }
 
     public static object?[]? TryDeconstruct(object value, int parameterCount)
@@ -159,7 +173,7 @@ internal static class ConstructionRuntime
         if (addMethod != null)
             addMethod.Invoke(obj, new[] { value });
         else
-            throw new CsEvalException($"Type '{obj.GetType().Name}' does not have an 'Add' method for collection initializer");
+            throw new CsEvalException(DiagnosticDescriptors.CollectionInitializerNoAdd, obj.GetType().Name);
         return obj;
     }
 

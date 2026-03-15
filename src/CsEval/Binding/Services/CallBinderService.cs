@@ -85,7 +85,7 @@ internal sealed class CallBinderService
         // exist, bind-time resolution can select the wrong method (typically object overloads),
         // so defer to runtime dispatch instead of committing a potentially incorrect plan.
         if (methods.Length > 1 && sourceTypes.Any(static sourceType => sourceType == typeof(object)))
-            throw new CsEvalException($"Call '{methodName}' requires runtime overload resolution");
+            throw new CsEvalException(DiagnosticDescriptors.RuntimeOverloadResolutionRequired, methodName);
 
         BoundCallPlan? bestPlan = null;
         var bestScore = int.MinValue;
@@ -120,10 +120,10 @@ internal sealed class CallBinderService
         }
 
         if (ambiguous)
-            throw new CsEvalException($"Ambiguous method invocation: '{methodName}'");
+            throw new CsEvalException(DiagnosticDescriptors.AmbiguousMethodInvocation, methodName);
 
         if (bestPlan == null)
-            throw new CsEvalException($"No applicable overload found for method '{methodName}'");
+            throw new CsEvalException(DiagnosticDescriptors.NoApplicableOverload, methodName);
 
         return bestPlan;
     }

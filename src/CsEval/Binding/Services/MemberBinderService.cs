@@ -1,4 +1,5 @@
 using CsEval.Binding.Plans;
+using CsEval.Diagnostics;
 using CsEval.Runtime;
 
 namespace CsEval.Binding.Services;
@@ -30,7 +31,7 @@ internal sealed class MemberBinderService
         if (hasMethods)
             return new BoundMemberPlan(targetType, memberName, Member: null, IsMethodGroup: true, isStatic);
 
-        throw new CsEvalException($"Member '{memberName}' was not found on type '{targetType.Name}'");
+        throw new CsEvalException(DiagnosticDescriptors.MemberNotFound, targetType.Name, memberName);
     }
 
     public BoundIndexPlan BindIndexRead(Type targetType, Type indexType)
@@ -66,7 +67,7 @@ internal sealed class MemberBinderService
             }
         }
 
-        throw new CsEvalException($"No indexer found on type '{targetType.Name}'");
+        throw new CsEvalException(DiagnosticDescriptors.NoIndexerOnType, targetType.Name);
     }
 
     private bool TryResolveListElementType(Type targetType, out Type elementType)

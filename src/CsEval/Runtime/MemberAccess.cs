@@ -16,7 +16,7 @@ internal static class MemberAccess
             return null;
 
         if (obj == null)
-            throw new CsEvalException($"Cannot access property '{name}' on null");
+            throw new CsEvalException(DiagnosticDescriptors.NullMemberAccess, "property", name);
 
         if (options.LanguageMode == LanguageMode.Extended &&
             DateArithmeticSugar.TryResolveTimeSpanUnit(obj, name, options.IsCaseSensitive, out var timeSpan))
@@ -46,6 +46,23 @@ internal static class MemberAccess
         // Handle static member access on Type objects (e.g., double.NaN)
         if (obj is Type staticType)
         {
+            if (context.Config.AotMetadata is { } aotStaticMeta && aotStaticMeta.TryGetValue(staticType, out var staticMetadata))
+            {
+                if (staticMetadata.TryGetStaticProperty(name, out var aotStaticValue))
+                {
+                    if (!options.Sandbox.AllowStaticPropertyRead)
+                        throw new CsEvalException(DiagnosticDescriptors.SandboxAccessBlocked, "Static property", staticType.Name, name);
+                    return TypeHelpers.GuardReflectionLeak(aotStaticValue, $"static property {name}");
+                }
+
+                if (staticMetadata.TryGetStaticField(name, out aotStaticValue))
+                {
+                    if (!options.Sandbox.AllowStaticFieldRead)
+                        throw new CsEvalException(DiagnosticDescriptors.SandboxAccessBlocked, "Static field", staticType.Name, name);
+                    return TypeHelpers.GuardReflectionLeak(aotStaticValue, $"static field {name}");
+                }
+            }
+
             var staticTypeCache = context.TypeMetadata;
             var staticBindingFlags = BindingFlags.Public | BindingFlags.Static;
             if (!options.IsCaseSensitive)
@@ -55,7 +72,7 @@ internal static class MemberAccess
             if (staticProp != null)
             {
                 if (!options.Sandbox.AllowStaticPropertyRead)
-                    throw new CsEvalException($"Static property access blocked by sandbox: {staticType.Name}.{name}");
+                    throw new CsEvalException(DiagnosticDescriptors.SandboxAccessBlocked, "Static property", staticType.Name, name);
                 return TypeHelpers.GuardReflectionLeak(staticProp.GetValue(null), $"static property {name}");
             }
 
@@ -63,7 +80,7 @@ internal static class MemberAccess
             if (staticField != null)
             {
                 if (!options.Sandbox.AllowStaticFieldRead)
-                    throw new CsEvalException($"Static field access blocked by sandbox: {staticType.Name}.{name}");
+                    throw new CsEvalException(DiagnosticDescriptors.SandboxAccessBlocked, "Static field", staticType.Name, name);
                 return TypeHelpers.GuardReflectionLeak(staticField.GetValue(null), $"static field {name}");
             }
 
@@ -100,7 +117,7 @@ internal static class MemberAccess
                 {
                     PropertyInfo p => context.TypeMetadata.GetPropertyValue(p, instance!),
                     FieldInfo f => f.GetValue(instance),
-                    _ => throw new CsEvalException($"Unsupported member type '{memberInfo.GetType().Name}'")
+                    _ => throw new CsEvalException(DiagnosticDescriptors.UnsupportedMemberType, memberInfo.GetType().Name)
                 };
                 return TypeHelpers.GuardReflectionLeak(value, $"module member {name}");
             }
@@ -111,7 +128,7 @@ internal static class MemberAccess
         // This check is intentionally placed AFTER module/namespace/type handling so that
         // modules, namespaces, and static type members are always accessible.
         if (!options.Sandbox.AllowPropertyRead)
-            throw new CsEvalException($"Property access blocked by sandbox: {name}");
+            throw new CsEvalException(DiagnosticDescriptors.SandboxAccessBlocked, "Property", "instance", name);
 
         switch (obj)
         {
@@ -143,10 +160,18 @@ internal static class MemberAccess
         var type = obj.GetType();
 
         if (!RuntimeFeature.IsDynamicCodeSupported &&
-            !IsAotSafeType(type) &&
             !context.Config.RegisteredTypes.Contains(type))
         {
             throw new CsEvalException(DiagnosticDescriptors.AotTypeNotRegistered, type.FullName ?? type.Name);
+        }
+
+        if (context.Config.AotMetadata is { } aotMeta && aotMeta.TryGetValue(type, out var metadata))
+        {
+            if (metadata.TryGetProperty(name, obj, out var aotValue))
+                return TypeHelpers.GuardReflectionLeak(aotValue, $"property {name}");
+
+            if (metadata.TryGetField(name, obj, out aotValue))
+                return TypeHelpers.GuardReflectionLeak(aotValue, $"field {name}");
         }
 
         var bindingFlags = BindingFlags.Public | BindingFlags.Instance;
@@ -226,6 +251,13 @@ internal static class MemberAccess
         }
 
         var type = obj.GetType();
+
+        if (context.Config.AotMetadata is { } aotIdxMeta && aotIdxMeta.TryGetValue(type, out var idxMetadata))
+        {
+            if (idxMetadata.TryGetIndex(obj, index!, out var aotIndexValue))
+                return TypeHelpers.GuardReflectionLeak(aotIndexValue, "indexer");
+        }
+
         var indexer = context.TypeMetadata.GetIndexer(type);
 
         if (indexer != null && indexer.GetIndexParameters().Length == 1)
@@ -241,7 +273,7 @@ internal static class MemberAccess
             catch (CsEvalException) { throw; }
             catch (Exception ex)
             {
-                throw new CsEvalException($"Indexer access failed: {ex.Message}");
+                throw new CsEvalException(DiagnosticDescriptors.IndexerAccessFailed, ex.Message);
             }
         }
 
@@ -251,10 +283,10 @@ internal static class MemberAccess
     public static void SetMember(object? obj, string name, object? value, CsEvalOptions options, CsEvalContext context)
     {
         if (obj == null)
-            throw new CsEvalException($"Cannot assign to property '{name}' on null");
+            throw new CsEvalException(DiagnosticDescriptors.NullPropertyAssignment, name);
 
         if (!options.Sandbox.AllowPropertySet)
-            throw new CsEvalException($"Property assignment blocked by sandbox: {name} = ...");
+            throw new CsEvalException(DiagnosticDescriptors.SandboxPropertyAssignmentBlocked, name);
 
         var caseInsensitive = !options.IsCaseSensitive;
 
@@ -278,10 +310,18 @@ internal static class MemberAccess
         var type = obj.GetType();
 
         if (!RuntimeFeature.IsDynamicCodeSupported &&
-            !IsAotSafeType(type) &&
             !context.Config.RegisteredTypes.Contains(type))
         {
             throw new CsEvalException(DiagnosticDescriptors.AotTypeNotRegistered, type.FullName ?? type.Name);
+        }
+
+        if (context.Config.AotMetadata is { } aotSetMeta && aotSetMeta.TryGetValue(type, out var setMetadata))
+        {
+            if (setMetadata.TrySetProperty(name, obj, value))
+                return;
+
+            if (setMetadata.TrySetField(name, obj, value))
+                return;
         }
 
         var bindingFlags = BindingFlags.Public | BindingFlags.Instance;
@@ -335,6 +375,13 @@ internal static class MemberAccess
         }
 
         var type = obj.GetType();
+
+        if (context.Config.AotMetadata is { } aotSetIdxMeta && aotSetIdxMeta.TryGetValue(type, out var setIdxMetadata))
+        {
+            if (setIdxMetadata.TrySetIndex(obj, index!, value))
+                return;
+        }
+
         var indexer = context.TypeMetadata.GetIndexer(type);
 
         if (indexer != null && indexer.GetIndexParameters().Length == 1 && indexer.CanWrite)
@@ -387,18 +434,18 @@ internal static class MemberAccess
     public static object? GetSlice(object? obj, object? start, object? end, object? step, CsEvalOptions options)
     {
         if (obj == null)
-            throw new CsEvalException("Cannot slice null");
+            throw new CsEvalException(DiagnosticDescriptors.SliceNull);
 
         int? stepVal = step != null ? Convert.ToInt32(step) : null;
         if (stepVal == 0)
-            throw new CsEvalException("Slice step cannot be zero");
+            throw new CsEvalException(DiagnosticDescriptors.SliceStepZero);
 
         int length = obj switch
         {
             string s => s.Length,
             Array arr => arr.Length,
             IList list => list.Count,
-            _ => throw new CsEvalException($"Cannot slice type '{obj.GetType().Name}' -- slicing requires an array, List<T>, or string")
+            _ => throw new CsEvalException(DiagnosticDescriptors.SliceUnsupportedType, obj.GetType().Name)
         };
 
         if (stepVal is null or 1)
@@ -423,7 +470,7 @@ internal static class MemberAccess
                 string => (object)"",
                 Array arr => RuntimeArrayFactory.Create(arr.GetType().GetElementType()!, 0),
                 IList list => CreateEmptyResult(list),
-                _ => throw new CsEvalException($"Cannot slice type '{obj.GetType().Name}'")
+                _ => throw new CsEvalException(DiagnosticDescriptors.SliceUnsupportedType, obj.GetType().Name)
             };
         }
 
@@ -442,7 +489,7 @@ internal static class MemberAccess
             case IList list:
                 return CollectFromList(list, Enumerable.Range(startIdx, count));
             default:
-                throw new CsEvalException($"Cannot slice type '{obj.GetType().Name}'");
+                throw new CsEvalException(DiagnosticDescriptors.SliceUnsupportedType, obj.GetType().Name);
         }
     }
 
@@ -499,7 +546,7 @@ internal static class MemberAccess
             case IList list:
                 return CollectFromList(list, indices);
             default:
-                throw new CsEvalException($"Cannot slice type '{obj.GetType().Name}'");
+                throw new CsEvalException(DiagnosticDescriptors.SliceUnsupportedType, obj.GetType().Name);
         }
     }
 
@@ -574,15 +621,4 @@ internal static class MemberAccess
         return Convert.ChangeType(value, targetType);
     }
 
-    private static readonly Assembly CoreLibAssembly = typeof(object).Assembly;
-    private static readonly Assembly LinqAssembly = typeof(Enumerable).Assembly;
-
-    private static bool IsAotSafeType(Type type)
-    {
-        if (type.IsArray)
-            return IsAotSafeType(type.GetElementType()!);
-
-        var assembly = type.Assembly;
-        return assembly == CoreLibAssembly || assembly == LinqAssembly;
-    }
 }

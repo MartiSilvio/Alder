@@ -8,10 +8,30 @@
     <NoWarn>$(NoWarn);CA1822</NoWarn>
     <PackageId>CsEval</PackageId>
     <IsAotCompatible>true</IsAotCompatible>
+    <Description>C# expression evaluation engine with AOT-safe interpreted execution and source-generated dispatch.</Description>
   </PropertyGroup>
 
   <ItemGroup>
     <TrimmerRootDescriptor Include="Runtime/roots.xml" />
+    <EmbeddedResource Include="Runtime/roots.xml">
+      <LogicalName>ILLink.Descriptors.xml</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+
+  <!-- Bundle the source generator as an analyzer inside this package -->
+  <ItemGroup>
+    <ProjectReference Include="..\CsEval.Generators\CsEval.Generators.csproj"
+                      PrivateAssets="all"
+                      ReferenceOutputAssembly="false"
+                      OutputItemType="Analyzer" />
+  </ItemGroup>
+
+  <!-- Include the generator DLL in the NuGet package's analyzers folder -->
+  <ItemGroup>
+    <None Include="..\CsEval.Generators\bin\$(Configuration)\netstandard2.0\CsEval.Generators.dll"
+          Pack="true"
+          PackagePath="analyzers/dotnet/cs"
+          Visible="false" />
   </ItemGroup>
 
 </Project>

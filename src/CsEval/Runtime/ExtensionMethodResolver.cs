@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
+using CsEval.Diagnostics;
 
 namespace CsEval.Runtime;
 
@@ -104,7 +105,7 @@ internal static class ExtensionMethodResolver
         (bool Success, object? Value) lambdaFallbackResult = (false, null);
         var best = MethodInvoker.FindBestMethod(candidates, invocationArgs, ct, out var ambiguous);
         if (ambiguous && !TryResolveLambdaSelectorAmbiguity(candidates, invocationArgs, ct, out lambdaFallbackResult))
-            throw new CsEvalException($"Ambiguous method invocation: '{methodName}'");
+            throw new CsEvalException(DiagnosticDescriptors.AmbiguousMethodInvocation, methodName);
 
         if (lambdaFallbackResult.Success)
             return lambdaFallbackResult;

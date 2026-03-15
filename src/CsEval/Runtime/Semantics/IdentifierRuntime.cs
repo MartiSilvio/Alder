@@ -155,7 +155,7 @@ internal static class IdentifierRuntime
         {
             var binding = bindings[i];
             if ((uint)binding.ArgumentIndex >= (uint)invocationArgs.Length)
-                throw new CsEvalException($"Invalid out argument index '{binding.ArgumentIndex}'.");
+                throw new CsEvalException(DiagnosticDescriptors.InvalidOutArgumentIndex, binding.ArgumentIndex);
 
             var outValue = invocationArgs[binding.ArgumentIndex];
             var variableType = binding.TypeName != null

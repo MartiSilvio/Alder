@@ -18,6 +18,7 @@ internal sealed class CsEvalConfig
     internal TypeResolver TypeResolver { get; }
     public StringComparer Comparer { get; }
     internal FrozenSet<Type> RegisteredTypes { get; }
+    internal FrozenDictionary<Type, IAotTypeMetadata>? AotMetadata { get; }
 
     private CsEvalConfig(
         FrozenDictionary<string, Func<object?[], object?>> functions,
@@ -26,7 +27,8 @@ internal sealed class CsEvalConfig
         TypeMetadataProvider typeMetadata,
         TypeResolver typeResolver,
         StringComparer comparer,
-        FrozenSet<Type> registeredTypes)
+        FrozenSet<Type> registeredTypes,
+        FrozenDictionary<Type, IAotTypeMetadata>? aotMetadata)
     {
         Functions = functions;
         Modules = modules;
@@ -35,6 +37,7 @@ internal sealed class CsEvalConfig
         TypeResolver = typeResolver;
         Comparer = comparer;
         RegisteredTypes = registeredTypes;
+        AotMetadata = aotMetadata;
     }
 
     internal static CsEvalConfig Create(
@@ -44,7 +47,8 @@ internal sealed class CsEvalConfig
         TypeMetadataProvider typeMetadata,
         TypeResolver typeResolver,
         StringComparer comparer,
-        HashSet<Type> registeredTypes)
+        HashSet<Type> registeredTypes,
+        Dictionary<Type, IAotTypeMetadata>? aotMetadata = null)
     {
         return new CsEvalConfig(
             functions.ToFrozenDictionary(comparer),
@@ -53,7 +57,8 @@ internal sealed class CsEvalConfig
             typeMetadata,
             typeResolver,
             comparer,
-            registeredTypes.ToFrozenSet());
+            registeredTypes.ToFrozenSet(),
+            aotMetadata?.ToFrozenDictionary());
     }
 
     internal static readonly CsEvalConfig Empty = new(
@@ -63,7 +68,8 @@ internal sealed class CsEvalConfig
         new TypeMetadataProvider(),
         TypeResolver.Create([], [], true, StringComparer.Ordinal),
         StringComparer.Ordinal,
-        FrozenSet<Type>.Empty);
+        FrozenSet<Type>.Empty,
+        null);
 }
 
 internal sealed class ModuleInfo

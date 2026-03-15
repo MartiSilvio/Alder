@@ -11,7 +11,7 @@ internal static class ExecutionRuntime
     public static void CheckAllowAssignment(CsEvalOptions options, string context)
     {
         if (!options.Sandbox.AllowAssignment)
-            throw new CsEvalException($"Assignment blocked by sandbox: {context}");
+            throw new CsEvalException(DiagnosticDescriptors.SandboxAssignmentBlocked, context);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -28,9 +28,9 @@ internal static class ExecutionRuntime
             return;
 
         if (staticDeclaringType != null)
-            throw new CsEvalException($"Static method calls blocked by sandbox: {staticDeclaringType.Name}.{methodName}");
+            throw new CsEvalException(DiagnosticDescriptors.SandboxMethodCallBlocked, $"{staticDeclaringType.Name}.{methodName}");
 
-        throw new CsEvalException($"Method calls blocked by sandbox: {methodName}");
+        throw new CsEvalException(DiagnosticDescriptors.SandboxMethodCallBlocked, methodName);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -44,26 +44,26 @@ internal static class ExecutionRuntime
         if (!isStatic)
         {
             if (!options.Sandbox.AllowPropertyRead)
-                throw new CsEvalException($"Property access blocked by sandbox: {memberName}");
+                throw new CsEvalException(DiagnosticDescriptors.SandboxPropertyAccessBlocked, memberName);
             return;
         }
 
         if (isField)
         {
             if (!options.Sandbox.AllowStaticFieldRead)
-                throw new CsEvalException($"Static field access blocked by sandbox: {staticDeclaringType?.Name ?? "type"}.{memberName}");
+                throw new CsEvalException(DiagnosticDescriptors.SandboxStaticFieldAccessBlocked, staticDeclaringType?.Name ?? "type", memberName);
             return;
         }
 
         if (!options.Sandbox.AllowStaticPropertyRead)
-            throw new CsEvalException($"Static property access blocked by sandbox: {staticDeclaringType?.Name ?? "type"}.{memberName}");
+            throw new CsEvalException(DiagnosticDescriptors.SandboxStaticPropertyAccessBlocked, staticDeclaringType?.Name ?? "type", memberName);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static object EnsureMemberTargetNotNull(object? target, string memberName)
     {
         if (target == null)
-            throw new CsEvalException($"Cannot access property '{memberName}' on null");
+            throw new CsEvalException(DiagnosticDescriptors.NullMemberAccess, "property", memberName);
         return target;
     }
 
@@ -71,7 +71,7 @@ internal static class ExecutionRuntime
     public static object EnsureCallTargetNotNull(object? target, string methodName)
     {
         if (target == null)
-            throw new CsEvalException($"Cannot call method '{methodName}' on null");
+            throw new CsEvalException(DiagnosticDescriptors.NullMethodCall, methodName);
         return target;
     }
 
@@ -104,7 +104,7 @@ internal static class ExecutionRuntime
     public static object ValidateLockObject(object? lockObj)
     {
         if (lockObj == null)
-            throw new CsEvalException("lock statement requires a non-null reference");
+            throw new CsEvalException(DiagnosticDescriptors.LockRequiresNonNull);
 
         return lockObj;
     }

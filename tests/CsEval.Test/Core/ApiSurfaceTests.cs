@@ -45,6 +45,7 @@ public class ApiSurfaceTests
             "TryEvaluate",
             "TryParse",
             "TryValidate",
+            "UseGeneratedContext",
         }.OrderBy(n => n).ToList();
 
         Assert.That(methods, Is.EqualTo(expected));
@@ -387,9 +388,12 @@ public class ApiSurfaceTests
 
         var expected = new[]
         {
+            "CsEval.CsEvalBuiltInContext",
             "CsEval.CsEvalEngine",
             "CsEval.CsEvalEngine+RegisteredModule",
             "CsEval.CsEvalException",
+            "CsEval.CsEvalRegisteredAttribute",
+            "CsEval.CsEvalTypeContext",
             "CsEval.CsEvalDepthException",
             "CsEval.CsEvalDiagnostic",
             "CsEval.CsEvalExecutionLimitException",
@@ -402,6 +406,7 @@ public class ApiSurfaceTests
             "CsEval.DiagnosticSeverity",
             "CsEval.ExecutionConstraints",
             "CsEval.ExecutionLimitType",
+            "CsEval.IAotTypeMetadata",
             "CsEval.IExpressionCompiler",
             "CsEval.LanguageMode",
             "CsEval.SandboxOptions",

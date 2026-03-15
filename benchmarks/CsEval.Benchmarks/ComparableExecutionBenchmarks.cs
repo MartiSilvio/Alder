@@ -14,6 +14,8 @@ public class ComparableExecutionBenchmarks : BenchmarkBase
 {
     private readonly BenchmarkGlobalData _globals = BenchmarkGlobalData.CreateDefault();
     private ScriptRunner<object> _roslynRunner = null!;
+    private CsEvalEngine _interpretedReflectionEngine = null!;
+    private CsEvalExpression _interpretedReflectionExpression = null!;
     private CsEvalExpression _interpretedExpression = null!;
     private CsEvalExpression _compiledExpression = null!;
     private Expression _ncalcExpression = null!;
@@ -32,6 +34,14 @@ public class ComparableExecutionBenchmarks : BenchmarkBase
         SetupEngines(_globals);
         _interpretedExpression = InterpretedEngine.Parse(Scenario.CsEvalExpression);
         _compiledExpression = CompiledEngine.Parse(Scenario.CsEvalExpression);
+
+        _interpretedReflectionEngine = new CsEvalEngine(CsEvalOptions.Default with
+        {
+            CompilationMode = CompilationMode.Interpreted
+        });
+        _interpretedReflectionEngine.ClearGeneratedContexts();
+        ApplyGlobals(_interpretedReflectionEngine, _globals);
+        _interpretedReflectionExpression = _interpretedReflectionEngine.Parse(Scenario.CsEvalExpression);
 
         var script = CreateRoslynScript(Scenario.RoslynExpression);
         script.Compile();
@@ -57,7 +67,11 @@ public class ComparableExecutionBenchmarks : BenchmarkBase
 
     [Benchmark]
     [BenchmarkCategory("WarmExecution")]
-    public object CsEval_Interpreted() => InterpretedEngine.Evaluate(_interpretedExpression)!;
+    public object CsEval_Interpreted_Reflection() => _interpretedReflectionEngine.Evaluate(_interpretedReflectionExpression)!;
+
+    [Benchmark]
+    [BenchmarkCategory("WarmExecution")]
+    public object CsEval_Interpreted_Generated() => InterpretedEngine.Evaluate(_interpretedExpression)!;
 
     [Benchmark]
     [BenchmarkCategory("WarmExecution")]

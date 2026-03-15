@@ -1,10 +1,44 @@
 <linker>
-  <assembly fullname="System.Runtime">
+  <assembly fullname="System.Private.CoreLib">
     <type fullname="System.Math" preserve="all"/>
     <type fullname="System.Convert" preserve="all"/>
+    <type fullname="System.String" preserve="all"/>
+    <type fullname="System.Int32" preserve="all"/>
+    <type fullname="System.Int64" preserve="all"/>
+    <type fullname="System.Double" preserve="all"/>
+    <type fullname="System.Single" preserve="all"/>
+    <type fullname="System.Decimal" preserve="all"/>
+    <type fullname="System.Boolean" preserve="all"/>
+    <type fullname="System.Char" preserve="all"/>
+    <type fullname="System.Byte" preserve="all"/>
+    <type fullname="System.DateTime" preserve="all"/>
+    <type fullname="System.TimeSpan" preserve="all"/>
+    <type fullname="System.Guid" preserve="all"/>
+    <type fullname="System.Exception" preserve="all"/>
+    <type fullname="System.ArgumentException" preserve="all"/>
+    <type fullname="System.ArgumentNullException" preserve="all"/>
+    <type fullname="System.InvalidOperationException" preserve="all"/>
+    <type fullname="System.Array" preserve="all"/>
+    <type fullname="System.Enum" preserve="all"/>
+    <type fullname="System.Environment" preserve="all"/>
+    <type fullname="System.Nullable`1" preserve="all"/>
+    <type fullname="System.ValueTuple`2" preserve="all"/>
+    <type fullname="System.ValueTuple`3" preserve="all"/>
+    <type fullname="System.ValueTuple`4" preserve="all"/>
+    <type fullname="System.ValueTuple`5" preserve="all"/>
+    <type fullname="System.ValueTuple`6" preserve="all"/>
+    <type fullname="System.ValueTuple`7" preserve="all"/>
+    <type fullname="System.Collections.Generic.List`1" preserve="all"/>
+    <type fullname="System.Collections.Generic.Dictionary`2" preserve="all"/>
+    <type fullname="System.Collections.Generic.HashSet`1" preserve="all"/>
+    <type fullname="System.Collections.Generic.Queue`1" preserve="all"/>
+    <type fullname="System.Collections.Generic.Stack`1" preserve="all"/>
   </assembly>
   <assembly fullname="System.Linq">
     <type fullname="System.Linq.Enumerable" preserve="all"/>
+  </assembly>
+  <assembly fullname="System.Text.RegularExpressions">
+    <type fullname="System.Text.RegularExpressions.Regex" preserve="all"/>
   </assembly>
   <assembly fullname="CsEval">
     <type fullname="CsEval.Runtime.MethodDispatchCache" preserve="nonpublic"/>

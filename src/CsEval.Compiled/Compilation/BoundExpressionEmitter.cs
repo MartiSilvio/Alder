@@ -2554,7 +2554,7 @@ internal sealed partial class BoundExpressionEmitter
 
     private static LinqExpression EmitInvalidSpread()
     {
-        throw new CsEvalException("Spread operator can only be used in array or object literals");
+        throw new CsEvalException(DiagnosticDescriptors.SpreadOutsideLiteral);
     }
 
     private LinqExpression EmitInvokeCore(

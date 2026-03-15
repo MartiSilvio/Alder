@@ -167,7 +167,7 @@ internal sealed class BoundEvaluator
 
     private static object? EvaluateSpread(BoundSpreadExpr _)
     {
-        throw new CsEvalException("Spread operator can only be used in array or object literals");
+        throw new CsEvalException(DiagnosticDescriptors.SpreadOutsideLiteral);
     }
 
     private object? EvaluateObjectLiteral(BoundObjectLiteralExpr objectLiteral)
@@ -357,7 +357,7 @@ internal sealed class BoundEvaluator
             }
         }
 
-        throw new CsEvalException($"Cannot deconstruct type '{value?.GetType().Name ?? "null"}'");
+        throw new CsEvalException(DiagnosticDescriptors.DeconstructionFailed, value?.GetType().Name ?? "null");
     }
 
     private object? EvaluateInterpolatedString(BoundInterpolatedStringExpr interpolatedString)
@@ -1145,7 +1145,7 @@ internal sealed class BoundEvaluator
     {
         var lockObject = Evaluate(lockStatement.LockObject);
         if (lockObject == null)
-            throw new CsEvalException("lock statement requires a non-null reference");
+            throw new CsEvalException(DiagnosticDescriptors.LockRequiresNonNull);
 
         lock (lockObject)
         {
@@ -1229,7 +1229,7 @@ internal sealed class BoundEvaluator
                 targetIndex = FindCaseIndex(switchStatement, signal.Value);
             }
             if (targetIndex < 0)
-                throw new CsEvalException("goto case/default target not found");
+                throw new CsEvalException(DiagnosticDescriptors.GotoCaseTargetNotFound);
             signal = ExecuteSwitchCaseStatements(switchStatement.Cases, targetIndex);
         }
         return signal;

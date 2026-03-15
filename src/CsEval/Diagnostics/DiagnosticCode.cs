@@ -106,43 +106,170 @@ public enum DiagnosticCode
     /// <summary>There is no argument given that corresponds to the required parameter '{0}' of '{1}'</summary>
     CS7036 = 7036,
 
-    // CsEval-local diagnostics (no direct Roslyn equivalent)
+    // CSEV01xx — Compilation and expression tree
 
     /// <summary>Strict compilation mode could not compile the expression to IL.</summary>
-    CSEV0001 = 1_000_001,
-
-    /// <summary>Feature requires LanguageMode.Extended.</summary>
-    CSEV0002 = 1_000_002,
-
-    /// <summary>Indexer overloads with more than one parameter are not supported yet.</summary>
-    CSEV0003 = 1_000_003,
+    CSEV0100 = 1_000_100,
 
     /// <summary>Expression tree output does not support the requested node or construct.</summary>
-    CSEV0004 = 1_000_004,
+    CSEV0101 = 1_000_101,
 
     /// <summary>Expression tree output does not support the requested call shape.</summary>
-    CSEV0005 = 1_000_005,
+    CSEV0102 = 1_000_102,
 
     /// <summary>ParseAsExpression requires a generic Func-style delegate type.</summary>
-    CSEV0006 = 1_000_006,
+    CSEV0103 = 1_000_103,
 
     /// <summary>ParseAsExpression requires lambda input.</summary>
-    CSEV0007 = 1_000_007,
+    CSEV0104 = 1_000_104,
 
     /// <summary>ParseAsExpression lambda parameter count mismatch.</summary>
-    CSEV0008 = 1_000_008,
+    CSEV0105 = 1_000_105,
 
     /// <summary>ParseAsExpression could not convert body to requested return type.</summary>
-    CSEV0009 = 1_000_009,
+    CSEV0106 = 1_000_106,
 
-    /// <summary>Semantic validation failed.</summary>
-    CSEV0010 = 1_000_010,
+    // CSEV02xx — Language mode and parsing
 
-    /// <summary>Expression nesting depth exceeded available stack space.</summary>
-    CSEV0011 = 1_000_011,
+    /// <summary>Feature requires LanguageMode.Extended.</summary>
+    CSEV0200 = 1_000_200,
+
+    // CSEV03xx — Sandbox and security
+
+    /// <summary>Sandbox blocked member access.</summary>
+    CSEV0300 = 1_000_300,
+
+    /// <summary>Method calls blocked by sandbox.</summary>
+    CSEV0301 = 1_000_301,
+
+    /// <summary>Sandbox blocked assignment.</summary>
+    CSEV0302 = 1_000_302,
+
+    /// <summary>Sandbox blocked index assignment.</summary>
+    CSEV0303 = 1_000_303,
+
+    /// <summary>Property access blocked by sandbox.</summary>
+    CSEV0304 = 1_000_304,
+
+    /// <summary>Static field access blocked by sandbox.</summary>
+    CSEV0305 = 1_000_305,
+
+    /// <summary>Static property access blocked by sandbox.</summary>
+    CSEV0306 = 1_000_306,
+
+    /// <summary>Property assignment blocked by sandbox.</summary>
+    CSEV0307 = 1_000_307,
+
+    // CSEV04xx — AOT and trimming
 
     /// <summary>Type must be registered for NativeAOT compatibility.</summary>
-    CSEV0012 = 1_000_012,
+    CSEV0400 = 1_000_400,
+
+    // CSEV05xx — Null access and null safety
+
+    /// <summary>Cannot access member on null.</summary>
+    CSEV0500 = 1_000_500,
+
+    /// <summary>Cannot call method on null.</summary>
+    CSEV0501 = 1_000_501,
+
+    /// <summary>Cannot call null as a function.</summary>
+    CSEV0502 = 1_000_502,
+
+    /// <summary>Cannot assign to property on null.</summary>
+    CSEV0503 = 1_000_503,
+
+    // CSEV06xx — Method resolution and invocation
+
+    /// <summary>Cannot call non-callable type as a function.</summary>
+    CSEV0600 = 1_000_600,
+
+    /// <summary>Method invocation failed.</summary>
+    CSEV0601 = 1_000_601,
+
+    /// <summary>Ambiguous method invocation.</summary>
+    CSEV0602 = 1_000_602,
+
+    /// <summary>Call requires runtime overload resolution.</summary>
+    CSEV0603 = 1_000_603,
+
+    /// <summary>No applicable overload found for method.</summary>
+    CSEV0604 = 1_000_604,
+
+    // CSEV07xx — Member access and property resolution
+
+    /// <summary>Indexer overloads with more than one parameter are not supported yet.</summary>
+    CSEV0700 = 1_000_700,
+
+    /// <summary>Unsupported member type encountered.</summary>
+    CSEV0701 = 1_000_701,
+
+    /// <summary>Indexer access failed at runtime.</summary>
+    CSEV0702 = 1_000_702,
+
+    /// <summary>No indexer found on type.</summary>
+    CSEV0703 = 1_000_703,
+
+    // CSEV08xx — Type system and conversion
+
+    /// <summary>Cannot take sizeof of non-primitive type.</summary>
+    CSEV0800 = 1_000_800,
+
+    /// <summary>Reflection type access blocked.</summary>
+    CSEV0801 = 1_000_801,
+
+    /// <summary>Cannot deconstruct value.</summary>
+    CSEV0802 = 1_000_802,
+
+    /// <summary>Tuples must have at least 2 elements.</summary>
+    CSEV0803 = 1_000_803,
+
+    /// <summary>Deconstruction element count mismatch.</summary>
+    CSEV0804 = 1_000_804,
+
+    /// <summary>Collection initializer requires Add method.</summary>
+    CSEV0805 = 1_000_805,
+
+    // CSEV09xx — Control flow and semantics
+
+    /// <summary>Semantic validation failed.</summary>
+    CSEV0900 = 1_000_900,
+
+    /// <summary>Expression nesting depth exceeded available stack space.</summary>
+    CSEV0901 = 1_000_901,
+
+    /// <summary>Cannot slice null.</summary>
+    CSEV0902 = 1_000_902,
+
+    /// <summary>Slice step cannot be zero.</summary>
+    CSEV0903 = 1_000_903,
+
+    /// <summary>Cannot slice non-sliceable type.</summary>
+    CSEV0904 = 1_000_904,
+
+    /// <summary>Unknown compound assignment operator.</summary>
+    CSEV0905 = 1_000_905,
+
+    /// <summary>Unsupported compound assignment base operator.</summary>
+    CSEV0906 = 1_000_906,
+
+    /// <summary>Unsupported chained comparison operator.</summary>
+    CSEV0907 = 1_000_907,
+
+    /// <summary>Spread operator used outside array or object literal.</summary>
+    CSEV0908 = 1_000_908,
+
+    /// <summary>lock statement requires a non-null reference.</summary>
+    CSEV0909 = 1_000_909,
+
+    /// <summary>goto case/default target not found.</summary>
+    CSEV0910 = 1_000_910,
+
+    /// <summary>Pattern type not yet implemented.</summary>
+    CSEV0911 = 1_000_911,
+
+    /// <summary>Invalid out argument index.</summary>
+    CSEV0912 = 1_000_912,
 }
 
 internal static class DiagnosticCodeExtensions

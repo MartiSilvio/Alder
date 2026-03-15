@@ -142,3 +142,4 @@ CLAUDE.md
 
 # Git worktrees (local)
 .worktrees/
+artifacts/

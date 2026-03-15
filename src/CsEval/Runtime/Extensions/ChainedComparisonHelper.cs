@@ -1,3 +1,4 @@
+using CsEval.Diagnostics;
 using CsEval.Parsing;
 
 namespace CsEval.Runtime.Extensions;
@@ -23,7 +24,7 @@ internal static class ChainedComparisonHelper
             TokenType.GreaterEqual => Operators.GreaterThanOrEqual(left, right, options),
             TokenType.EqualEqual => Operators.Equals(left, right),
             TokenType.BangEqual => Operators.NotEquals(left, right),
-            _ => throw new CsEvalException($"Unsupported chained comparison operator: {opType}")
+            _ => throw new CsEvalException(DiagnosticDescriptors.UnsupportedChainedComparisonOperator, opType)
         };
 
         return (bool)result;

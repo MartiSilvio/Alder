@@ -25,7 +25,7 @@ internal static class TypeHelpers
         "ulong" or "UInt64" or "System.UInt64" => 8,
         "double" or "Double" or "System.Double" => 8,
         "decimal" or "Decimal" or "System.Decimal" => 16,
-        _ => throw new CsEvalException($"Cannot take the sizeof of type '{typeName}'")
+        _ => throw new CsEvalException(DiagnosticDescriptors.SizeofUnsupportedType, typeName)
     };
 
     public static bool RequireBoolean(object? value)
@@ -1074,7 +1074,7 @@ internal static class TypeHelpers
 
         var type = value.GetType();
         if (IsForbiddenReflectionType(type))
-            throw new CsEvalException($"Access to reflection types is not allowed: {type.Name} ({context})");
+            throw new CsEvalException(DiagnosticDescriptors.ReflectionTypeAccessBlocked, type.Name, context);
 
         return value;
     }
@@ -1086,7 +1086,7 @@ internal static class TypeHelpers
         {
             var type = value.GetType();
             if (IsForbiddenReflectionType(type))
-                throw new CsEvalException($"Access to reflection types is not allowed: {type.Name} ({context})");
+                throw new CsEvalException(DiagnosticDescriptors.ReflectionTypeAccessBlocked, type.Name, context);
         }
 
         return value;

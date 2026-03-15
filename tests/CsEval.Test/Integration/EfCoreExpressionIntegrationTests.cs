@@ -76,7 +76,7 @@ public sealed class EfCoreExpressionIntegrationTests(CompilationMode mode)
             () => _engine.ParseAsExpression<Func<EfOrder, bool>>("o => { var x = o.Total; return x > 10; }"));
 
         Assert.That(ex, Is.Not.Null);
-        Assert.That(ex!.ErrorCode, Is.EqualTo(CsEval.Diagnostics.DiagnosticCode.CSEV0004));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(CsEval.Diagnostics.DiagnosticCode.CSEV0101));
         Assert.That(ex.Message, Does.Contain("Expression tree output does not support"));
     }
 

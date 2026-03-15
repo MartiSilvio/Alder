@@ -46,6 +46,8 @@ public sealed class CsEvalEngine : IDisposable
         CompiledExpressionFastDelegate Delegate,
         CsEvalContext Context);
 
+    private CsEvalTypeContext? _generatedContext;
+    private readonly List<CsEvalTypeContext> _additionalContexts = [];
     private CsEvalConfig? _frozenConfig;
     private CsEvalContext? _context;
     private volatile CompiledNoCancellationFastPath? _compiledNoCancellationFastPath;
@@ -77,6 +79,7 @@ public sealed class CsEvalEngine : IDisposable
         _functions = new Dictionary<string, Func<object?[], object?>>(options.StringComparer);
         _pendingVariables = new Dictionary<string, PendingVariable>(options.StringComparer);
         _extensionTypes.Add(typeof(Enumerable));
+        _generatedContext = CsEvalBuiltInContext.Default;
         RegisterBuiltInModules();
     }
 
@@ -128,7 +131,28 @@ public sealed class CsEvalEngine : IDisposable
         foreach (var extType in _extensionTypes)
             registeredTypeSet.Add(extType);
 
-        var newConfig = CsEvalConfig.Create(_functions, modules, _extensionTypes, _typeMetadata, typeResolver, _options.StringComparer, registeredTypeSet);
+        Dictionary<Type, IAotTypeMetadata>? aotMetadata = null;
+        if (_generatedContext != null)
+        {
+            aotMetadata = new Dictionary<Type, IAotTypeMetadata>();
+            foreach (var metadata in _generatedContext.GetTypeMetadata())
+            {
+                aotMetadata[metadata.Type] = metadata;
+                registeredTypeSet.Add(metadata.Type);
+            }
+        }
+
+        foreach (var ctx in _additionalContexts)
+        {
+            aotMetadata ??= new Dictionary<Type, IAotTypeMetadata>();
+            foreach (var metadata in ctx.GetTypeMetadata())
+            {
+                aotMetadata[metadata.Type] = metadata;
+                registeredTypeSet.Add(metadata.Type);
+            }
+        }
+
+        var newConfig = CsEvalConfig.Create(_functions, modules, _extensionTypes, _typeMetadata, typeResolver, _options.StringComparer, registeredTypeSet, aotMetadata);
         Interlocked.CompareExchange(ref _frozenConfig, newConfig, null);
         return _frozenConfig!;
     }
@@ -855,6 +879,21 @@ public sealed class CsEvalEngine : IDisposable
     }
 
     public CsEvalEngine RegisterExtensionMethods<T>() => RegisterExtensionMethods(typeof(T));
+
+    public CsEvalEngine UseGeneratedContext(CsEvalTypeContext context)
+    {
+        EnsureNotFrozen();
+        _additionalContexts.Add(context);
+        return this;
+    }
+
+    public CsEvalEngine ClearGeneratedContexts()
+    {
+        EnsureNotFrozen();
+        _generatedContext = null;
+        _additionalContexts.Clear();
+        return this;
+    }
 
     public IReadOnlyDictionary<string, RegisteredModule> GetRegisteredModules()
     {
