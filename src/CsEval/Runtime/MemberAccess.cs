@@ -252,6 +252,12 @@ internal static class MemberAccess
 
         var type = obj.GetType();
 
+        if (!RuntimeFeature.IsDynamicCodeSupported &&
+            !context.Config.RegisteredTypes.Contains(type))
+        {
+            throw new CsEvalException(DiagnosticDescriptors.AotTypeNotRegistered, type.FullName ?? type.Name);
+        }
+
         if (context.Config.AotMetadata is { } aotIdxMeta && aotIdxMeta.TryGetValue(type, out var idxMetadata))
         {
             if (idxMetadata.TryGetIndex(obj, index!, out var aotIndexValue))

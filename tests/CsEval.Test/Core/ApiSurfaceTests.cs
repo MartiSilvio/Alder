@@ -42,6 +42,7 @@ public class ApiSurfaceTests
             "RegisterNamespace",
             "SetVariable",
             "SetVariables",
+            "ClearGeneratedContexts",
             "TryEvaluate",
             "TryParse",
             "TryValidate",
