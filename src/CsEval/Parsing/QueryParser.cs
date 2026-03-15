@@ -796,7 +796,7 @@ internal sealed class QueryParser : ParserBase
                 // ThroughChain(path) -> prepend oldParam to the chain
                 var newPath = access switch
                 {
-                    VariableAccess.Direct => new List<string> { oldParam },
+                    VariableAccess.Direct => [oldParam],
                     VariableAccess.ThroughChain tc => new List<string> { oldParam }.Concat(tc.MemberPath).ToList(),
                     _ => throw new InvalidOperationException()
                 };

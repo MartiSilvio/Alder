@@ -120,8 +120,8 @@ public sealed class CsEvalEngine : IDisposable
         }
 
         var typeResolver = TypeResolver.Create(
-            _assemblies.ToImmutableArray(),
-            _usingNamespaces.ToImmutableArray(),
+            [.._assemblies],
+            [.._usingNamespaces],
             true,
             _options.StringComparer);
 

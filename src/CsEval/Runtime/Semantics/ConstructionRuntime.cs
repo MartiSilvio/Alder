@@ -17,7 +17,7 @@ internal static class ConstructionRuntime
             }
             catch (InvalidCastException)
             {
-                // Generated dispatch selected wrong overload — fall through to reflection
+                // Generated dispatch matches on param count only; reflection resolves by type
             }
         }
 
@@ -121,18 +121,28 @@ internal static class ConstructionRuntime
     public static object?[]? TryDeconstruct(object value, int parameterCount)
     {
         var type = value.GetType();
-        var methods = ReflectionRuntime.GetMethods(type, BindingFlags.Public | BindingFlags.Instance)
-            .Where(m => m.Name == "Deconstruct"
-                        && m.GetParameters().Length == parameterCount
-                        && m.GetParameters().All(p => p.IsOut))
-            .ToArray();
+        MethodInfo? match = null;
 
-        if (methods.Length == 0)
+        foreach (var m in ReflectionRuntime.GetMethods(type, BindingFlags.Public | BindingFlags.Instance))
+        {
+            if (m.Name != "Deconstruct")
+                continue;
+            var parameters = m.GetParameters();
+            if (parameters.Length != parameterCount)
+                continue;
+            var allOut = true;
+            foreach (var p in parameters)
+            {
+                if (!p.IsOut) { allOut = false; break; }
+            }
+            if (allOut) { match = m; break; }
+        }
+
+        if (match == null)
             return null;
 
-        var method = methods[0];
         var args = new object?[parameterCount];
-        method.Invoke(value, args);
+        match.Invoke(value, args);
         return args;
     }
 
@@ -165,7 +175,7 @@ internal static class ConstructionRuntime
                 string.Equals(method.Name, "Add", StringComparison.Ordinal) &&
                 method.GetParameters().Length == 1);
         if (addMethod != null)
-            addMethod.Invoke(obj, new[] { value });
+            addMethod.Invoke(obj, [value]);
         else
             throw new CsEvalException(DiagnosticDescriptors.CollectionInitializerNoAdd, obj.GetType().Name);
         return obj;
@@ -226,7 +236,7 @@ internal static class ConstructionRuntime
         {
             throw;
         }
-        catch
+        catch (Exception ex) when (ex is IndexOutOfRangeException or InvalidCastException or ArgumentException or RankException)
         {
             throw new CsEvalException(DiagnosticDescriptors.BadIndexerAccess, arr.GetType().Name);
         }
@@ -255,7 +265,7 @@ internal static class ConstructionRuntime
         {
             throw;
         }
-        catch
+        catch (Exception ex) when (ex is IndexOutOfRangeException or InvalidCastException or ArgumentException or RankException)
         {
             throw new CsEvalException(DiagnosticDescriptors.BadIndexerAccess, arr.GetType().Name);
         }

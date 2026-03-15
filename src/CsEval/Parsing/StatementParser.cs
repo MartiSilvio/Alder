@@ -10,7 +10,7 @@ internal sealed class StatementParser : ParserBase
 {
     private ExpressionParser _expression = null!;
     private PatternParser _pattern = null!;
-    private readonly List<Expr> _pendingDecls = new();
+    private readonly List<Expr> _pendingDecls = [];
 
     internal StatementParser(ParserState state) : base(state)
     {
@@ -360,6 +360,7 @@ internal sealed class StatementParser : ParserBase
         }
         catch
         {
+            // Speculative parse: backtrack on any failure
             State.Current = saved;
             return null;
         }
@@ -400,6 +401,7 @@ internal sealed class StatementParser : ParserBase
         }
         catch
         {
+            // Speculative parse: backtrack on any failure
             State.Current = saved;
             return null;
         }

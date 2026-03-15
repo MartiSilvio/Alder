@@ -16,12 +16,12 @@ internal static class ModuleMemberMetadata
         Build(typeof(Convert), explicitOnly: false, StringComparer.OrdinalIgnoreCase);
 
     internal static FrozenDictionary<string, MemberInfo> GetBuiltInMathMembers(StringComparer comparer) =>
-        comparer == StringComparer.Ordinal
+        ReferenceEquals(comparer, StringComparer.Ordinal)
             ? BuiltInMathMembersOrdinal
             : BuiltInMathMembersOrdinalIgnoreCase;
 
     internal static FrozenDictionary<string, MemberInfo> GetBuiltInConvertMembers(StringComparer comparer) =>
-        comparer == StringComparer.Ordinal
+        ReferenceEquals(comparer, StringComparer.Ordinal)
             ? BuiltInConvertMembersOrdinal
             : BuiltInConvertMembersOrdinalIgnoreCase;
 

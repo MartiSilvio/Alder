@@ -10,7 +10,7 @@ internal sealed partial class ExpressionParser
     /// </summary>
     private bool TryParseTypeArguments(out List<string> typeArgs)
     {
-        typeArgs = new List<string>();
+        typeArgs = [];
 
         var startPos = State.Current;
         if (!Check(TokenType.Less))

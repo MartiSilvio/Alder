@@ -1,3 +1,5 @@
+using System.Collections.Frozen;
+
 namespace CsEval.Runtime.Extensions;
 
 /// <summary>
@@ -7,14 +9,14 @@ namespace CsEval.Runtime.Extensions;
 /// </summary>
 internal static class BareMathNames
 {
-    private static readonly Dictionary<string, object> Constants = new(StringComparer.Ordinal)
+    private static readonly FrozenDictionary<string, object> Constants = new Dictionary<string, object>(StringComparer.Ordinal)
     {
         ["pi"] = Math.PI,
         ["e"] = Math.E,
         ["tau"] = Math.Tau,
         ["infinity"] = double.PositiveInfinity,
         ["nan"] = double.NaN
-    };
+    }.ToFrozenDictionary(StringComparer.Ordinal);
 
     /// <summary>
     /// Tries to resolve a bare name as a math constant.
@@ -73,7 +75,7 @@ internal static class BareMathNames
 
     private static double ToDouble(object? arg) => Convert.ToDouble(arg);
 
-    private static readonly Dictionary<string, Func<object?[], object?>> SingleArgFunctions = new(StringComparer.Ordinal)
+    private static readonly FrozenDictionary<string, Func<object?[], object?>> SingleArgFunctions = new Dictionary<string, Func<object?[], object?>>(StringComparer.Ordinal)
     {
         // Trigonometric
         ["sin"] = args => Math.Sin(ToDouble(args[0])),
@@ -112,9 +114,9 @@ internal static class BareMathNames
 
         // Sign
         ["sign"] = args => Math.Sign(ToDouble(args[0]))
-    };
+    }.ToFrozenDictionary(StringComparer.Ordinal);
 
-    private static readonly Dictionary<string, Func<object?[], object?>> TwoArgFunctions = new(StringComparer.Ordinal)
+    private static readonly FrozenDictionary<string, Func<object?[], object?>> TwoArgFunctions = new Dictionary<string, Func<object?[], object?>>(StringComparer.Ordinal)
     {
         ["round"] = args => Math.Round(ToDouble(args[0]), Convert.ToInt32(args[1])),
         ["log"] = args => Math.Log(ToDouble(args[0]), ToDouble(args[1])),
@@ -122,12 +124,12 @@ internal static class BareMathNames
         ["min"] = args => Min(args[0], args[1]),
         ["max"] = args => Max(args[0], args[1]),
         ["pow"] = args => Math.Pow(ToDouble(args[0]), ToDouble(args[1]))
-    };
+    }.ToFrozenDictionary(StringComparer.Ordinal);
 
-    private static readonly Dictionary<string, Func<object?[], object?>> ThreeArgFunctions = new(StringComparer.Ordinal)
+    private static readonly FrozenDictionary<string, Func<object?[], object?>> ThreeArgFunctions = new Dictionary<string, Func<object?[], object?>>(StringComparer.Ordinal)
     {
         ["clamp"] = args => Clamp(args[0], args[1], args[2])
-    };
+    }.ToFrozenDictionary(StringComparer.Ordinal);
 
     /// <summary>
     /// Abs with type dispatch -- preserves int/long/float/double/decimal types.

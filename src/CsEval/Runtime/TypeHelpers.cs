@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Collections.Frozen;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using CsEval.Diagnostics;
@@ -100,7 +101,7 @@ internal static class TypeHelpers
     /// "There are no predefined implicit conversions to the char type, so values of the
     /// other integral types do not automatically convert to the char type." (§10.2.3)
     /// </summary>
-    private static readonly Dictionary<Type, HashSet<Type>> ImplicitConversions = new()
+    private static readonly FrozenDictionary<Type, FrozenSet<Type>> ImplicitConversions = new Dictionary<Type, HashSet<Type>>
     {
         [typeof(sbyte)] = [typeof(short), typeof(int), typeof(long), typeof(float), typeof(double), typeof(decimal)],
         [typeof(byte)] = [typeof(short), typeof(ushort), typeof(int), typeof(uint), typeof(long), typeof(ulong), typeof(float), typeof(double), typeof(decimal)],
@@ -112,7 +113,7 @@ internal static class TypeHelpers
         [typeof(ulong)] = [typeof(float), typeof(double), typeof(decimal)],
         [typeof(float)] = [typeof(double)],
         [typeof(char)] = [typeof(ushort), typeof(int), typeof(uint), typeof(long), typeof(ulong), typeof(float), typeof(double), typeof(decimal)],
-    };
+    }.ToFrozenDictionary(kvp => kvp.Key, kvp => kvp.Value.ToFrozenSet());
 
     /// <summary>
     /// Returns the default value for a type (ECMA-334 §12.8.20).

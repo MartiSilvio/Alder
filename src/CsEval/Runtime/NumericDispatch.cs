@@ -1,3 +1,4 @@
+using System.Collections.Frozen;
 using CsEval.Diagnostics;
 using CsEval.Parsing;
 using System.Runtime.ExceptionServices;
@@ -18,7 +19,7 @@ internal static class NumericDispatch
 
     #region Binary Operator Delegates
 
-    private static readonly Dictionary<(Type, Type), BinaryOp> AddOps = BuildBinaryOps(
+    private static readonly FrozenDictionary<(Type, Type), BinaryOp> AddOps = BuildBinaryOps(
         (int l, int r) => l + r,
         (long l, long r) => l + r,
         (float l, float r) => l + r,
@@ -28,7 +29,7 @@ internal static class NumericDispatch
         (ulong l, ulong r) => l + r
     );
 
-    private static readonly Dictionary<(Type, Type), BinaryOp> SubtractOps = BuildBinaryOps(
+    private static readonly FrozenDictionary<(Type, Type), BinaryOp> SubtractOps = BuildBinaryOps(
         (int l, int r) => l - r,
         (long l, long r) => l - r,
         (float l, float r) => l - r,
@@ -38,7 +39,7 @@ internal static class NumericDispatch
         (ulong l, ulong r) => l - r
     );
 
-    private static readonly Dictionary<(Type, Type), BinaryOp> MultiplyOps = BuildBinaryOps(
+    private static readonly FrozenDictionary<(Type, Type), BinaryOp> MultiplyOps = BuildBinaryOps(
         (int l, int r) => l * r,
         (long l, long r) => l * r,
         (float l, float r) => l * r,
@@ -48,7 +49,7 @@ internal static class NumericDispatch
         (ulong l, ulong r) => l * r
     );
 
-    private static readonly Dictionary<(Type, Type), BinaryOp> DivideOps = BuildBinaryOps(
+    private static readonly FrozenDictionary<(Type, Type), BinaryOp> DivideOps = BuildBinaryOps(
         (int l, int r) => l / r,
         (long l, long r) => l / r,
         (float l, float r) => l / r,
@@ -58,7 +59,7 @@ internal static class NumericDispatch
         (ulong l, ulong r) => l / r
     );
 
-    private static readonly Dictionary<(Type, Type), BinaryOp> ModuloOps = BuildBinaryOps(
+    private static readonly FrozenDictionary<(Type, Type), BinaryOp> ModuloOps = BuildBinaryOps(
         (int l, int r) => l % r,
         (long l, long r) => l % r,
         (float l, float r) => l % r,
@@ -68,21 +69,21 @@ internal static class NumericDispatch
         (ulong l, ulong r) => l % r
     );
 
-    private static readonly Dictionary<(Type, Type), BinaryOp> BitwiseAndOps = BuildIntegerBinaryOps(
+    private static readonly FrozenDictionary<(Type, Type), BinaryOp> BitwiseAndOps = BuildIntegerBinaryOps(
         (int l, int r) => l & r,
         (long l, long r) => l & r,
         (uint l, uint r) => l & r,
         (ulong l, ulong r) => l & r
     );
 
-    private static readonly Dictionary<(Type, Type), BinaryOp> BitwiseOrOps = BuildIntegerBinaryOps(
+    private static readonly FrozenDictionary<(Type, Type), BinaryOp> BitwiseOrOps = BuildIntegerBinaryOps(
         (int l, int r) => l | r,
         (long l, long r) => l | r,
         (uint l, uint r) => l | r,
         (ulong l, ulong r) => l | r
     );
 
-    private static readonly Dictionary<(Type, Type), BinaryOp> BitwiseXorOps = BuildIntegerBinaryOps(
+    private static readonly FrozenDictionary<(Type, Type), BinaryOp> BitwiseXorOps = BuildIntegerBinaryOps(
         (int l, int r) => l ^ r,
         (long l, long r) => l ^ r,
         (uint l, uint r) => l ^ r,
@@ -93,7 +94,7 @@ internal static class NumericDispatch
 
     #region Checked Binary Operator Delegates
 
-    private static readonly Dictionary<(Type, Type), BinaryOp> CheckedAddOps = BuildBinaryOps(
+    private static readonly FrozenDictionary<(Type, Type), BinaryOp> CheckedAddOps = BuildBinaryOps(
         (int l, int r) => checked(l + r),
         (long l, long r) => checked(l + r),
         (float l, float r) => l + r,
@@ -103,7 +104,7 @@ internal static class NumericDispatch
         (ulong l, ulong r) => checked(l + r)
     );
 
-    private static readonly Dictionary<(Type, Type), BinaryOp> CheckedSubtractOps = BuildBinaryOps(
+    private static readonly FrozenDictionary<(Type, Type), BinaryOp> CheckedSubtractOps = BuildBinaryOps(
         (int l, int r) => checked(l - r),
         (long l, long r) => checked(l - r),
         (float l, float r) => l - r,
@@ -113,7 +114,7 @@ internal static class NumericDispatch
         (ulong l, ulong r) => checked(l - r)
     );
 
-    private static readonly Dictionary<(Type, Type), BinaryOp> CheckedMultiplyOps = BuildBinaryOps(
+    private static readonly FrozenDictionary<(Type, Type), BinaryOp> CheckedMultiplyOps = BuildBinaryOps(
         (int l, int r) => checked(l * r),
         (long l, long r) => checked(l * r),
         (float l, float r) => l * r,
@@ -127,13 +128,13 @@ internal static class NumericDispatch
 
     #region Comparison Delegates
 
-    private static readonly Dictionary<(Type, Type), CompareOp> CompareOps = BuildCompareOps();
+    private static readonly FrozenDictionary<(Type, Type), CompareOp> CompareOps = BuildCompareOps();
 
     #endregion
 
     #region Unary Operator Delegates
 
-    private static readonly Dictionary<Type, UnaryOp> NegateOps = new()
+    private static readonly FrozenDictionary<Type, UnaryOp> NegateOps = new Dictionary<Type, UnaryOp>
     {
         [typeof(int)] = v => -(int)v,
         [typeof(long)] = v => -(long)v,
@@ -147,9 +148,9 @@ internal static class NumericDispatch
         [typeof(ushort)] = v => -(int)(ushort)v,
         // ECMA-334 §12.9.3: uint is converted to long, result type is long
         [typeof(uint)] = v => -(long)(uint)v,
-    };
+    }.ToFrozenDictionary();
 
-    private static readonly Dictionary<Type, UnaryOp> CheckedNegateOps = new()
+    private static readonly FrozenDictionary<Type, UnaryOp> CheckedNegateOps = new Dictionary<Type, UnaryOp>
     {
         [typeof(int)] = v => checked(-(int)v),
         [typeof(long)] = v => checked(-(long)v),
@@ -162,9 +163,9 @@ internal static class NumericDispatch
         [typeof(ushort)] = v => -(int)(ushort)v,
         // ECMA-334 §12.9.3: uint is converted to long, result type is long
         [typeof(uint)] = v => checked(-(long)(uint)v),
-    };
+    }.ToFrozenDictionary();
 
-    private static readonly Dictionary<Type, UnaryOp> BitwiseNotOps = new()
+    private static readonly FrozenDictionary<Type, UnaryOp> BitwiseNotOps = new Dictionary<Type, UnaryOp>
     {
         [typeof(int)] = v => ~(int)v,
         [typeof(long)] = v => ~(long)v,
@@ -175,7 +176,7 @@ internal static class NumericDispatch
         [typeof(ushort)] = v => ~(int)(ushort)v,
         [typeof(byte)] = v => ~(int)(byte)v,
         [typeof(sbyte)] = v => ~(int)(sbyte)v,
-    };
+    }.ToFrozenDictionary();
 
     #endregion
 
@@ -309,16 +310,11 @@ internal static class NumericDispatch
         };
     }
 
-    /// <summary>
-    /// Bitwise NOT with ECMA-334 §12.4.7.2 unary numeric promotion.
-    /// Operands of type sbyte, byte, short, ushort, or char are converted to int.
-    /// </summary>
     public static object? BitwiseNot(object value)
     {
         var type = value.GetType();
 
         // ECMA-334 §12.4.7.2: Unary numeric promotion for ~
-        // Operands of type sbyte, byte, short, ushort, or char are converted to int.
         if (type == typeof(char))
         {
             value = (int)(char)value;
@@ -346,10 +342,6 @@ internal static class NumericDispatch
             right.GetType().Name);
     }
 
-    /// <summary>
-    /// Left shift with ECMA-334 §12.11 unary numeric promotion on left operand.
-    /// Per §12.4.7.2, sbyte, byte, short, ushort, and char are promoted to int.
-    /// </summary>
     public static object? LeftShift(object left, object right)
     {
         var shiftAmount = Convert.ToInt32(right);
@@ -363,7 +355,6 @@ internal static class NumericDispatch
             long l => l << shiftAmount,
             uint u => u << shiftAmount,
             ulong ul => ul << shiftAmount,
-            // Small types: C# promotes these to int at compile time.
             short s => s << shiftAmount,
             ushort us => us << shiftAmount,
             byte b => b << shiftAmount,
@@ -372,10 +363,6 @@ internal static class NumericDispatch
         };
     }
 
-    /// <summary>
-    /// Right shift with ECMA-334 §12.11 unary numeric promotion on left operand.
-    /// Per §12.4.7.2, sbyte, byte, short, ushort, and char are promoted to int.
-    /// </summary>
     public static object? RightShift(object left, object right)
     {
         var shiftAmount = Convert.ToInt32(right);
@@ -661,7 +648,7 @@ internal static class NumericDispatch
 
     private static object ExecuteBinaryOp(
         object left, object right,
-        Dictionary<(Type, Type), BinaryOp> ops,
+        FrozenDictionary<(Type, Type), BinaryOp> ops,
         string opName)
     {
         var (promotedLeft, promotedRight, resultType) = PromoteOperands(left, right);
@@ -673,13 +660,9 @@ internal static class NumericDispatch
         throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, opName, left.GetType().Name, right.GetType().Name);
     }
 
-    /// <summary>
-    /// Executes integer binary operations using PromoteOperands for consistent
-    /// ECMA-334 §12.4.7.3 binary numeric promotion.
-    /// </summary>
     private static object ExecuteIntegerBinaryOp(
         object left, object right,
-        Dictionary<(Type, Type), BinaryOp> ops,
+        FrozenDictionary<(Type, Type), BinaryOp> ops,
         string opName)
     {
         var (promotedLeft, promotedRight, resultType) = PromoteOperands(left, right);
@@ -691,7 +674,7 @@ internal static class NumericDispatch
         throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, opName, left.GetType().Name, right.GetType().Name);
     }
 
-    private static Dictionary<(Type, Type), BinaryOp> BuildBinaryOps(
+    private static FrozenDictionary<(Type, Type), BinaryOp> BuildBinaryOps(
         Func<int, int, int> intOp,
         Func<long, long, long> longOp,
         Func<float, float, float> floatOp,
@@ -709,10 +692,10 @@ internal static class NumericDispatch
             [(typeof(decimal), typeof(decimal))] = (l, r) => decimalOp((decimal)l, (decimal)r),
             [(typeof(uint), typeof(uint))] = (l, r) => uintOp((uint)l, (uint)r),
             [(typeof(ulong), typeof(ulong))] = (l, r) => ulongOp((ulong)l, (ulong)r),
-        };
+        }.ToFrozenDictionary();
     }
 
-    private static Dictionary<(Type, Type), BinaryOp> BuildIntegerBinaryOps(
+    private static FrozenDictionary<(Type, Type), BinaryOp> BuildIntegerBinaryOps(
         Func<int, int, int> intOp,
         Func<long, long, long> longOp,
         Func<uint, uint, uint> uintOp,
@@ -724,10 +707,10 @@ internal static class NumericDispatch
             [(typeof(long), typeof(long))] = (l, r) => longOp((long)l, (long)r),
             [(typeof(uint), typeof(uint))] = (l, r) => uintOp((uint)l, (uint)r),
             [(typeof(ulong), typeof(ulong))] = (l, r) => ulongOp((ulong)l, (ulong)r),
-        };
+        }.ToFrozenDictionary();
     }
 
-    private static Dictionary<(Type, Type), CompareOp> BuildCompareOps()
+    private static FrozenDictionary<(Type, Type), CompareOp> BuildCompareOps()
     {
         return new Dictionary<(Type, Type), CompareOp>
         {
@@ -738,7 +721,7 @@ internal static class NumericDispatch
             [(typeof(decimal), typeof(decimal))] = (l, r) => ((decimal)l).CompareTo((decimal)r),
             [(typeof(uint), typeof(uint))] = (l, r) => ((uint)l).CompareTo((uint)r),
             [(typeof(ulong), typeof(ulong))] = (l, r) => ((ulong)l).CompareTo((ulong)r),
-        };
+        }.ToFrozenDictionary();
     }
 
     #endregion

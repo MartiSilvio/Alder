@@ -2,10 +2,6 @@ using System.Diagnostics;
 
 namespace CsEval.Runtime;
 
-/// <summary>
-/// Mutable state tracking execution constraints during a single Evaluate() call.
-/// Created/reset at evaluation start, shared across nested evaluations via CsEvalContext.
-/// </summary>
 internal sealed class ExecutionConstraintState
 {
     public long StatementCount;

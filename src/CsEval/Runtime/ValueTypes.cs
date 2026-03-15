@@ -31,17 +31,17 @@ internal sealed record StaticMethodRef(Type Type, string MethodName);
 internal sealed record ModuleMethodRef(ModuleInfo Module, IServiceProvider? ServiceProvider, MethodInfo Method);
 
 /// <summary>
-/// Sentinel for partially-resolved namespace paths during FQN type access.
-/// Flows through MemberAccess chains until TypeResolver resolves a full type name.
-/// Example: IdentifierExpr("System") -> NamespaceRef("System") -> member "Linq" -> NamespaceRef("System.Linq") -> member "Enumerable" -> Type
-/// </summary>
-/// <summary>
 /// Wraps a System.Range to indicate inclusive-end semantics for iteration.
 /// When used as an array index, unwraps to the raw Range (exclusive-end).
 /// When iterated, includes the end value.
 /// </summary>
 internal sealed record InclusiveRange(Range Value);
 
+/// <summary>
+/// Sentinel for partially-resolved namespace paths during FQN type access.
+/// Flows through MemberAccess chains until TypeResolver resolves a full type name.
+/// Example: IdentifierExpr("System") -> NamespaceRef("System") -> member "Linq" -> NamespaceRef("System.Linq") -> member "Enumerable" -> Type
+/// </summary>
 internal sealed record NamespaceRef(string Path);
 
 /// <summary>

@@ -19,7 +19,6 @@ internal sealed class TypeResolver
     private readonly ImmutableArray<string> _importedNamespaces;
     private readonly ImmutableArray<Assembly> _registeredAssemblies;
     private readonly StringComparer _comparer;
-    private readonly bool _ignoreCase;
     private readonly bool _implicitBclImports;
     private readonly Lazy<FrozenDictionary<string, FrozenDictionary<string, Type>>> _namespaceIndex;
     private readonly Lazy<FrozenDictionary<string, Type>> _fullNameIndex;
@@ -39,7 +38,6 @@ internal sealed class TypeResolver
         _registeredAssemblies = registeredAssemblies;
         _implicitBclImports = implicitBclImports;
         _comparer = comparer;
-        _ignoreCase = comparer.Equals("A", "a");
         _namespaceIndex = new Lazy<FrozenDictionary<string, FrozenDictionary<string, Type>>>(
             () => BuildNamespaceIndex(_registeredAssemblies, _comparer),
             LazyThreadSafetyMode.ExecutionAndPublication);
@@ -90,10 +88,7 @@ internal sealed class TypeResolver
         if (typeName.Contains('<'))
         {
             try { return ResolveGenericType(typeName); }
-            catch (CsEvalException) { return null; }
-            catch (ArgumentException) { return null; }
-            catch (TypeLoadException) { return null; }
-            catch (InvalidOperationException) { return null; }
+            catch (Exception ex) when (ex is CsEvalException or ArgumentException or TypeLoadException or InvalidOperationException) { return null; }
         }
 
         return _cache.GetOrAdd(typeName, ResolveTypeCore);
@@ -111,20 +106,18 @@ internal sealed class TypeResolver
         if (openIndex < 0 || openIndex > typeName.Length - 2)
             return false;
 
-        var rankPart = typeName[(openIndex + 1)..^1];
-        if (!rankPart.All(c => c == ','))
-            return false;
+        var rankPart = typeName.AsSpan((openIndex + 1), typeName.Length - openIndex - 2);
+        foreach (var c in rankPart)
+        {
+            if (c != ',')
+                return false;
+        }
 
         elementTypeName = typeName[..openIndex];
         rank = rankPart.Length + 1;
         return true;
     }
 
-    /// <summary>
-    /// Checks if the given name is a known namespace or a prefix of a known namespace.
-    /// Used by the resolution pipeline to determine if an unresolved identifier could be
-    /// the start of a fully-qualified type name (e.g., "System" is a prefix of "System.Linq").
-    /// </summary>
     internal bool IsNamespaceOrPrefix(string name) => _namespacePrefixes.Value.Contains(name);
 
     private Type? ResolveTypeCore(string typeName)
@@ -329,15 +322,9 @@ internal sealed class TypeResolver
         return result;
     }
 
-    /// <summary>
-    /// Static bridge for IL compiler emission. Resolves type name via resolver instance.
-    /// </summary>
     internal static Type ResolveTypeStatic(TypeResolver resolver, string typeName)
         => resolver.ResolveType(typeName);
 
-    /// <summary>
-    /// Static bridge for IL compiler emission. Non-throwing variant.
-    /// </summary>
     internal static Type? TryResolveTypeStatic(TypeResolver resolver, string typeName)
         => resolver.TryResolveType(typeName);
 
@@ -357,7 +344,7 @@ internal sealed class TypeResolver
     /// <summary>
     /// Built-in C# type keyword map per ECMA-334 §8.3.5.
     /// </summary>
-    private static readonly Dictionary<string, Type> BuiltInTypeKeywords = new()
+    private static readonly FrozenDictionary<string, Type> BuiltInTypeKeywords = new Dictionary<string, Type>
     {
         ["sbyte"] = typeof(sbyte),
         ["byte"] = typeof(byte),
@@ -390,13 +377,13 @@ internal sealed class TypeResolver
         ["string?"] = typeof(string),
         ["object?"] = typeof(object),
         ["void"] = typeof(void),
-    };
+    }.ToFrozenDictionary();
 
     private static readonly FrozenDictionary<string, Type> BuiltInTypeKeywordsOrdinal =
-        BuiltInTypeKeywords.ToFrozenDictionary(StringComparer.Ordinal);
+        BuiltInTypeKeywords.ToFrozenDictionary(kvp => kvp.Key, kvp => kvp.Value, StringComparer.Ordinal);
 
     private static readonly FrozenDictionary<string, Type> BuiltInTypeKeywordsOrdinalIgnoreCase =
-        BuiltInTypeKeywords.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
+        BuiltInTypeKeywords.ToFrozenDictionary(kvp => kvp.Key, kvp => kvp.Value, StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// Creates a TypeResolver from the given configuration.

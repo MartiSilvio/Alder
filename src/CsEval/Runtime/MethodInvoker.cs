@@ -138,7 +138,7 @@ internal static class MethodInvoker
                 }
                 catch (InvalidCastException)
                 {
-                    // Wrong overload selected by generated code — fall through to reflection
+                    // Generated dispatch matches on param count only; reflection resolves by type
                 }
             }
 
@@ -314,7 +314,7 @@ internal static class MethodInvoker
             }
             catch (InvalidCastException)
             {
-                // Wrong overload selected — fall through to reflection
+                // Generated dispatch matches on param count only; reflection resolves by type
             }
         }
 
@@ -459,7 +459,7 @@ internal static class MethodInvoker
         object?[] sourceArgs,
         out object?[] preparedArgs)
     {
-        preparedArgs = Array.Empty<object?>();
+        preparedArgs = [];
 
         if (parameters.Length != sourceArgs.Length ||
             plan.ParameterBindings.Length != sourceArgs.Length ||

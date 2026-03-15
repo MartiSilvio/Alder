@@ -8,8 +8,8 @@ namespace CsEval.Parsing;
 /// </summary>
 internal sealed class VariableCollector : AstWalker<byte>
 {
-    private readonly HashSet<string> _identifiers = new();
-    private readonly HashSet<string> _declared = new();
+    private readonly HashSet<string> _identifiers = [];
+    private readonly HashSet<string> _declared = [];
 
     protected override byte DefaultValue => 0;
 

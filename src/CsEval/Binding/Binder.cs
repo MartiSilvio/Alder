@@ -238,12 +238,13 @@ internal sealed class Binder
             .Select(argument => Bind(argument, context))
             .ToImmutableArray();
         var initializerEntries = objectCreation.Initializer != null
-            ? objectCreation.Initializer.Entries
-                .Select(entry => new BoundInitializerEntry(
-                    entry.PropertyName,
-                    Bind(entry.Value, context),
-                    entry.IndexerKey != null ? Bind(entry.IndexerKey, context) : null))
-                .ToImmutableArray()
+            ? [
+                ..objectCreation.Initializer.Entries
+                    .Select(entry => new BoundInitializerEntry(
+                        entry.PropertyName,
+                        Bind(entry.Value, context),
+                        entry.IndexerKey != null ? Bind(entry.IndexerKey, context) : null))
+            ]
             : ImmutableArray<BoundInitializerEntry>.Empty;
         var resolvedType = context.RuntimeContext.TypeResolver.TryResolveType(objectCreation.TypeName) ?? typeof(object);
         return new BoundObjectCreationExpr(objectCreation.TypeName, arguments, initializerEntries, resolvedType);
@@ -527,9 +528,10 @@ internal sealed class Binder
         if (ifStatement.ElseStatements is { Count: > 0 } elseSource)
         {
             var elseScope = context.CreateChildScope();
-            elseStatements = elseSource
-                .Select(statement => Bind(statement, elseScope))
-                .ToImmutableArray();
+            elseStatements = [
+                ..elseSource
+                    .Select(statement => Bind(statement, elseScope))
+            ];
         }
 
         return new BoundIfStatementExpr(condition, thenStatements, elseStatements, typeof(object));
@@ -673,9 +675,10 @@ internal sealed class Binder
         if (tryCatchFinally.FinallyBody != null)
         {
             var finallyScope = context.CreateChildScope();
-            finallyBody = tryCatchFinally.FinallyBody
-                .Select(statement => Bind(statement, finallyScope))
-                .ToImmutableArray();
+            finallyBody = [
+                ..tryCatchFinally.FinallyBody
+                    .Select(statement => Bind(statement, finallyScope))
+            ];
         }
 
         return new BoundTryCatchFinallyExpr(tryBody, catches, finallyBody, typeof(object));
@@ -865,7 +868,7 @@ internal sealed class Binder
     private static BoundLambdaExpr BindLambda(LambdaExpr lambda)
     {
         return new BoundLambdaExpr(
-            lambda.Parameters.Select(static parameter => parameter.Name.Lexeme).ToImmutableArray(),
+            [..lambda.Parameters.Select(static parameter => parameter.Name.Lexeme)],
             lambda.Body,
             typeof(LambdaValue));
     }

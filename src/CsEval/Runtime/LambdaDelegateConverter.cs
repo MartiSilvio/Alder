@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Collections.Frozen;
 using System.Runtime.CompilerServices;
 using CsEval.Diagnostics;
 
@@ -9,15 +10,11 @@ namespace CsEval.Runtime;
 /// </summary>
 internal static class LambdaDelegateConverter
 {
-    private static readonly HashSet<Type> SupportedFuncDefinitions = CreateOpenGenericDelegateSet("Func", 1, 17);
-    private static readonly HashSet<Type> SupportedActionDefinitions = CreateOpenGenericDelegateSet("Action", 1, 16);
+    private static readonly FrozenSet<Type> SupportedFuncDefinitions = CreateOpenGenericDelegateSet("Func", 1, 17);
+    private static readonly FrozenSet<Type> SupportedActionDefinitions = CreateOpenGenericDelegateSet("Action", 1, 16);
 
     private static readonly ConditionalWeakTable<object, ConcurrentDictionary<Type, Delegate>> DelegateCache = new();
 
-    /// <summary>
-    /// Attempts to convert a lambda value to a specific delegate type.
-    /// Returns the delegate if conversion succeeds, null otherwise.
-    /// </summary>
     public static Delegate? TryConvert(object value, Type delegateType)
     {
         if (!IsSupportedDelegateType(delegateType))
@@ -31,9 +28,6 @@ internal static class LambdaDelegateConverter
         };
     }
 
-    /// <summary>
-    /// Checks if a type is a supported delegate type (Func or Action).
-    /// </summary>
     internal static bool IsSupportedDelegateType(Type type)
     {
         if (type == typeof(Action))
@@ -47,10 +41,6 @@ internal static class LambdaDelegateConverter
                SupportedActionDefinitions.Contains(delegateDefinition);
     }
 
-    /// <summary>
-    /// Converts a CompiledLambdaValue to a typed delegate.
-    /// Uses caching to avoid rebuilding wrapper delegates.
-    /// </summary>
     private static Delegate ConvertCompiledLambda(CompiledLambdaValue lambda, Type delegateType)
     {
         var (paramTypes, returnType) = GetDelegateSignature(delegateType);
@@ -61,10 +51,6 @@ internal static class LambdaDelegateConverter
             _ => LambdaDelegateFactory.CreateCompiledDelegate(lambda, delegateType, paramTypes, returnType));
     }
 
-    /// <summary>
-    /// Converts a LambdaValue (interpreted) to a typed delegate.
-    /// Uses caching to avoid rebuilding wrapper delegates.
-    /// </summary>
     private static Delegate ConvertInterpretedLambda(LambdaValue lambda, Type delegateType)
     {
         var (paramTypes, returnType) = GetDelegateSignature(delegateType);
@@ -75,9 +61,6 @@ internal static class LambdaDelegateConverter
             _ => LambdaDelegateFactory.CreateInterpretedDelegate(lambda, delegateType, paramTypes, returnType));
     }
 
-    /// <summary>
-    /// Extracts parameter types and return type from a Func/Action delegate type.
-    /// </summary>
     private static (Type[] ParamTypes, Type ReturnType) GetDelegateSignature(Type delegateType)
     {
         if (!TryGetDelegateKind(delegateType, out var isFunc))
@@ -90,8 +73,7 @@ internal static class LambdaDelegateConverter
 
         if (isFunc)
         {
-            // Func<T1, T2, ..., TResult>: last arg is return type
-            var paramTypes = genericArgs.Take(genericArgs.Length - 1).ToArray();
+            var paramTypes = genericArgs[..^1];
             var returnType = genericArgs[^1];
             return (paramTypes, returnType);
         }
@@ -100,9 +82,6 @@ internal static class LambdaDelegateConverter
         return (genericArgs, typeof(void));
     }
 
-    /// <summary>
-    /// Validates that lambda parameter count matches delegate signature.
-    /// </summary>
     private static void ValidateSignature(int lambdaParamCount, int delegateParamCount, Type delegateType)
     {
         if (lambdaParamCount != delegateParamCount)
@@ -136,7 +115,7 @@ internal static class LambdaDelegateConverter
         return false;
     }
 
-    private static HashSet<Type> CreateOpenGenericDelegateSet(string delegateName, int minArity, int maxArity)
+    private static FrozenSet<Type> CreateOpenGenericDelegateSet(string delegateName, int minArity, int maxArity)
     {
         var definitions = new HashSet<Type>();
         for (var arity = minArity; arity <= maxArity; arity++)
@@ -156,7 +135,7 @@ internal static class LambdaDelegateConverter
             definitions.Add(openGeneric);
         }
 
-        return definitions;
+        return definitions.ToFrozenSet();
     }
 
     private static Type? GetOpenFuncType(int arity) => arity switch

@@ -48,10 +48,6 @@ internal static class Operators
             value.GetType().Name);
     }
 
-    /// <summary>
-    /// Logical NOT operator with ECMA-334 §12.4.8 lifted semantics.
-    /// For bool?: !(bool?)null returns null. For bool: !true returns false.
-    /// </summary>
     public static object? LogicalNot(object? value)
     {
         // ECMA-334 §12.4.8: Lifted unary operators return null when operand is null
@@ -165,10 +161,6 @@ internal static class Operators
     public static object? Modulo(object? left, object? right) =>
         ApplyBinaryArithmetic(left, right, TokenLexemes.GetCanonical(TokenType.Percent), NumericDispatch.Modulo);
 
-    /// <summary>
-    /// Power operator: left ** right. Returns double via Math.Pow.
-    /// Supports nullable arithmetic: null ** x = null, x ** null = null.
-    /// </summary>
     public static object? Power(object? left, object? right)
     {
         if (left == null || right == null)
@@ -494,10 +486,6 @@ internal static class Operators
         return NumericDispatch.UnsignedRightShift(left!, right!);
     }
 
-    /// <summary>
-    /// Checks if a value is an integer type or char.
-    /// Char participates in integer operations via numeric promotion per ECMA-334 §12.4.7.
-    /// </summary>
     private static bool IsIntegerOrChar(object? value) =>
         TypeHelpers.IsInteger(value) || value is char;
 
@@ -540,10 +528,6 @@ internal static class Operators
             collection.GetType().Name);
     }
 
-    /// <summary>
-    /// Wraps Contains with (value, collection) parameter order for use by the IL compiler,
-    /// which passes BinaryExpr operands as (left=value, right=collection).
-    /// </summary>
     public static bool InOperator(object? value, object? collection)
     {
         return Contains(collection, value);
@@ -579,10 +563,6 @@ internal static class Operators
         return LikePatternMode.General;
     }
 
-    /// <summary>
-    /// String repetition: "abc" * 3 or 3 * "abc" returns "abcabcabc".
-    /// Extended mode only. Inspired by both Python and Ruby string repeat syntax.
-    /// </summary>
     public static object? StringMultiply(object? left, object? right)
     {
         string? str;
@@ -630,10 +610,6 @@ internal static class Operators
         return string.Concat(Enumerable.Repeat(str, count));
     }
 
-    /// <summary>
-    /// SQL LIKE pattern matching: str like pattern.
-    /// Pattern uses % for any characters, _ for single character.
-    /// </summary>
     public static bool Like(object? left, object? right)
     {
         if (left is not string str || right is not string pattern)
@@ -700,25 +676,16 @@ internal static class Operators
         return patternIndex == pattern.Length;
     }
 
-    /// <summary>
-    /// Regex match: left =~ right. Left is converted to string, right must be a regex pattern string.
-    /// </summary>
     public static object RegexMatch(object? left, object? right)
     {
         return Extensions.RegexMatchOperator.IsMatch(left, right);
     }
 
-    /// <summary>
-    /// Negated regex match: left !~ right.
-    /// </summary>
     public static object RegexNotMatch(object? left, object? right)
     {
         return Extensions.RegexMatchOperator.IsNotMatch(left, right);
     }
 
-    /// <summary>
-    /// Three-way comparison: left &lt;=&gt; right returns -1, 0, or 1.
-    /// </summary>
     public static object Spaceship(object? left, object? right)
     {
         return Extensions.SpaceshipOperator.Compare(left, right);

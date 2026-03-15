@@ -1,8 +1,10 @@
+using System.Collections.Frozen;
+
 namespace CsEval.Runtime.Extensions;
 
 internal static class DateArithmeticSugar
 {
-    private static readonly Dictionary<string, Func<double, TimeSpan>> TimeSpanUnits = new(StringComparer.Ordinal)
+    private static Dictionary<string, Func<double, TimeSpan>> BuildTimeSpanUnits() => new()
     {
         [ExtendedBuiltInNames.Day] = TimeSpan.FromDays,
         [ExtendedBuiltInNames.Days] = TimeSpan.FromDays,
@@ -18,8 +20,11 @@ internal static class DateArithmeticSugar
         [ExtendedBuiltInNames.Weeks] = amount => TimeSpan.FromDays(amount * 7d),
     };
 
-    private static readonly Dictionary<string, Func<double, TimeSpan>> TimeSpanUnitsOrdinalIgnoreCase =
-        new(TimeSpanUnits, StringComparer.OrdinalIgnoreCase);
+    private static readonly FrozenDictionary<string, Func<double, TimeSpan>> TimeSpanUnits =
+        BuildTimeSpanUnits().ToFrozenDictionary(StringComparer.Ordinal);
+
+    private static readonly FrozenDictionary<string, Func<double, TimeSpan>> TimeSpanUnitsOrdinalIgnoreCase =
+        BuildTimeSpanUnits().ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
 
     internal static bool TryResolveTimeSpanUnit(
         object target,
@@ -39,14 +44,17 @@ internal static class DateArithmeticSugar
         return true;
     }
 
-    private static readonly Dictionary<string, Func<object>> ClockFunctions = new(StringComparer.Ordinal)
+    private static Dictionary<string, Func<object>> BuildClockFunctions() => new()
     {
         [ExtendedBuiltInNames.Now] = () => DateTime.Now,
         [ExtendedBuiltInNames.Today] = () => DateTime.Today,
     };
 
-    private static readonly Dictionary<string, Func<object>> ClockFunctionsOrdinalIgnoreCase =
-        new(ClockFunctions, StringComparer.OrdinalIgnoreCase);
+    private static readonly FrozenDictionary<string, Func<object>> ClockFunctions =
+        BuildClockFunctions().ToFrozenDictionary(StringComparer.Ordinal);
+
+    private static readonly FrozenDictionary<string, Func<object>> ClockFunctionsOrdinalIgnoreCase =
+        BuildClockFunctions().ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
 
     internal static bool TryInvokeClockFunction(
         string name,

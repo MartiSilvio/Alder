@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using System.Collections.Concurrent;
+using System.Collections.Frozen;
 using System.Runtime.CompilerServices;
 using CsEval.Diagnostics;
 
@@ -144,6 +145,11 @@ internal static class ExtensionMethodResolver
     private static MethodInfo[] GetExtensionMethods(Type extensionType, string methodName, bool isCaseSensitive)
     {
         var methodNameKey = NormalizeMethodName(methodName, isCaseSensitive);
+        return GetExtensionMethodsByNormalizedName(extensionType, methodNameKey, isCaseSensitive);
+    }
+
+    private static MethodInfo[] GetExtensionMethodsByNormalizedName(Type extensionType, string methodNameKey, bool isCaseSensitive)
+    {
         return ExtensionMethodsByNameCache.GetOrAdd(
             (extensionType, methodNameKey, isCaseSensitive),
             static key =>
@@ -169,7 +175,7 @@ internal static class ExtensionMethodResolver
             (extensionType, methodNameKey, isCaseSensitive, invocationArgCount),
             static key =>
             {
-                var methods = GetExtensionMethods(key.ExtensionType, key.MethodNameKey, key.IsCaseSensitive);
+                var methods = GetExtensionMethodsByNormalizedName(key.ExtensionType, key.MethodNameKey, key.IsCaseSensitive);
                 var filtered = new List<MethodInfo>(methods.Length);
                 foreach (var method in methods)
                 {
@@ -342,7 +348,12 @@ internal static class ExtensionMethodResolver
 
     private static bool HasLambdaArgument(object?[] invocationArgs)
     {
-        return invocationArgs.Skip(1).Any(a => a is LambdaValue or CompiledLambdaValue);
+        for (var i = 1; i < invocationArgs.Length; i++)
+        {
+            if (invocationArgs[i] is LambdaValue or CompiledLambdaValue)
+                return true;
+        }
+        return false;
     }
 
     private static MethodInfo? TryMakeConcreteMethod(MethodInfo genericMethod, Type targetType, object?[] args)
@@ -440,7 +451,7 @@ internal static class ExtensionMethodResolver
             }
 
             // Create proper test args based on the Func's input types
-            var inputTypes = paramGenericArgs.Take(paramGenericArgs.Length - 1).ToArray();
+            var inputTypes = paramGenericArgs[..^1];
             var substitutedInputTypes = SubstituteTypeArgs(inputTypes, genericParams, typeArgs);
             var testArgs = CreateTypedDefaultArgs(substitutedInputTypes);
 
@@ -496,7 +507,10 @@ internal static class ExtensionMethodResolver
 
     private static Type[] SubstituteTypeArgs(Type[] types, Type[] genericParams, Type[] typeArgs)
     {
-        return types.Select(t => SubstituteTypeArg(t, genericParams, typeArgs)).ToArray();
+        var result = new Type[types.Length];
+        for (var i = 0; i < types.Length; i++)
+            result[i] = SubstituteTypeArg(types[i], genericParams, typeArgs);
+        return result;
     }
 
     private static Type SubstituteTypeArg(Type type, Type[] genericParams, Type[] typeArgs)
@@ -545,7 +559,7 @@ internal static class ExtensionMethodResolver
             {
                 return RuntimeHelpers.GetUninitializedObject(type);
             }
-            catch
+            catch (MemberAccessException)
             {
             }
         }
@@ -749,8 +763,8 @@ internal static class ExtensionMethodResolver
         return false;
     }
 
-    private static readonly HashSet<Type> FuncTypeDefinitions =
-    [
+    private static readonly FrozenSet<Type> FuncTypeDefinitions = new HashSet<Type>
+    {
         typeof(Func<>),
         typeof(Func<,>),
         typeof(Func<,,>),
@@ -768,7 +782,7 @@ internal static class ExtensionMethodResolver
         typeof(Func<,,,,,,,,,,,,,,>),
         typeof(Func<,,,,,,,,,,,,,,,>),
         typeof(Func<,,,,,,,,,,,,,,,,>),
-    ];
+    }.ToFrozenSet();
 
     private static bool IsFuncType(Type genericDef) => FuncTypeDefinitions.Contains(genericDef);
 }

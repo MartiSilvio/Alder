@@ -137,6 +137,7 @@ internal static class ExecutionRuntime
         }
         catch
         {
+            // ECMA-334 §13.11: when-guard that throws means the catch clause doesn't match
             return false;
         }
     }

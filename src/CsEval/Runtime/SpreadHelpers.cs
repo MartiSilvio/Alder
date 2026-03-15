@@ -2,9 +2,6 @@ using CsEval.Diagnostics;
 
 namespace CsEval.Runtime;
 
-/// <summary>
-/// Runtime helpers for spread operator and collection literal creation.
-/// </summary>
 internal static class SpreadHelpers
 {
     public static void SpreadIntoDict(IDictionary<string, object?> target, object? source, CsEvalContext context)

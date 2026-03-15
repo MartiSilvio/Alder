@@ -260,7 +260,7 @@ internal static class MemberAccess
             {
                 var paramType = indexer.GetIndexParameters()[0].ParameterType;
                 var safeIndex = ConvertChangeType(index, paramType);
-                var val = indexer.GetValue(obj, new[] { safeIndex });
+                var val = indexer.GetValue(obj, [safeIndex]);
                 TypeHelpers.GuardReflectionLeak(val, "indexer access");
                 return val;
             }
@@ -378,10 +378,11 @@ internal static class MemberAccess
             {
                 var paramType = indexer.GetIndexParameters()[0].ParameterType;
                 var safeIndex = ConvertChangeType(index, paramType);
-                indexer.SetValue(obj, value, new[] { safeIndex });
+                indexer.SetValue(obj, value, [safeIndex]);
                 return;
             }
-            catch
+            catch (CsEvalException) { throw; }
+            catch (Exception ex) when (ex is TargetInvocationException or InvalidCastException or ArgumentException)
             {
                 throw new CsEvalException(DiagnosticDescriptors.BadIndexerAccess, type.Name);
             }
@@ -586,11 +587,6 @@ internal static class MemberAccess
         return result.ToArray();
     }
 
-    /// <summary>
-    /// Clamps slice indices to valid range (Python behavior).
-    /// Negative indices are converted: -1 -> length-1, etc.
-    /// Out-of-range indices are clamped to [0, length].
-    /// </summary>
     private static void ClampSliceIndices(ref int start, ref int end, int length)
     {
         // Handle negative indices (Python semantics)

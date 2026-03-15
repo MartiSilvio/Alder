@@ -808,6 +808,7 @@ internal sealed class PrimaryParser : ParserBase
         }
         catch
         {
+            // Speculative parse: backtrack on any failure
             State.Current = saved;
             return null;
         }

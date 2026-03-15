@@ -23,7 +23,7 @@ internal sealed class BindingContext
     }
 
     internal CsEvalContext RuntimeContext => _context;
-    internal bool IsCaseSensitive => _context.Comparer == StringComparer.Ordinal;
+    internal bool IsCaseSensitive => ReferenceEquals(_context.Comparer, StringComparer.Ordinal);
     internal BindingContext CreateChildScope() => new(_context, this);
 
     internal void DeclareLocal(string name, Type type, bool isReadOnly = false)
