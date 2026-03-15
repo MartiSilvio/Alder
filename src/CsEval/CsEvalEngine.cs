@@ -312,7 +312,7 @@ public sealed class CsEvalEngine : IDisposable
                     expression.RecordBoundFallback(ex.Message);
                     if (IsDepthFailure(ex.Message))
                         throw new CsEvalDepthException("binding", _options.MaxExpressionDepth);
-                    throw new CsEvalException(ex.Message);
+                    throw new CsEvalException(DiagnosticDescriptors.BindingFailed, ex.Message);
                 }
             }
         }
@@ -320,7 +320,7 @@ public sealed class CsEvalEngine : IDisposable
         expression.RecordBoundFallback(boundFailureReason);
         if (IsDepthFailure(boundFailureReason))
             throw new CsEvalDepthException("binding", _options.MaxExpressionDepth);
-        throw new CsEvalException(boundFailureReason ?? "Binding failed for expression.");
+        throw new CsEvalException(DiagnosticDescriptors.BindingFailed, boundFailureReason ?? "Binding failed for expression.");
     }
 
     public EvaluationTraceResult EvaluateWithTrace(
@@ -367,7 +367,7 @@ public sealed class CsEvalEngine : IDisposable
             expression.RecordBoundFallback(failureReason);
             if (IsDepthFailure(failureReason))
                 throw new CsEvalDepthException("binding", _options.MaxExpressionDepth);
-            throw new CsEvalException(failureReason ?? "Binding failed for expression.");
+            throw new CsEvalException(DiagnosticDescriptors.BindingFailed, failureReason ?? "Binding failed for expression.");
         }
 
         var steps = new List<EvaluationTraceStep>();
@@ -651,7 +651,7 @@ public sealed class CsEvalEngine : IDisposable
             _ when LambdaDelegateConverter.IsSupportedDelegateType(typeof(T)) =>
                 (T)(object)(LambdaDelegateConverter.TryConvert(result, typeof(T))
                     ?? throw new CsEvalException(
-                        $"Cannot convert {result.GetType().Name} to delegate type '{typeof(T).Name}'")),
+                        DiagnosticDescriptors.DelegateConversionFailed, result.GetType().Name, typeof(T).Name)),
             _ => (T)Convert.ChangeType(result, typeof(T))
         };
     }

@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using CsEval.Diagnostics;
 
 namespace CsEval.Runtime;
 
@@ -84,7 +85,7 @@ internal static class LambdaDelegateConverter
         if (!TryGetDelegateKind(delegateType, out var isFunc))
         {
             throw new CsEvalException(
-                $"Unsupported delegate type '{delegateType}'. Only System.Func and System.Action are supported.");
+                DiagnosticDescriptors.DelegateConversionFailed, delegateType.Name, "Func<> or Action<>");
         }
 
         var genericArgs = delegateType.GetGenericArguments();
@@ -109,8 +110,8 @@ internal static class LambdaDelegateConverter
         if (lambdaParamCount != delegateParamCount)
         {
             throw new CsEvalException(
-                $"Cannot convert lambda with {lambdaParamCount} parameter(s) to delegate type '{delegateType.Name}' " +
-                $"which expects {delegateParamCount} parameter(s)");
+                DiagnosticDescriptors.DelegateConversionFailed,
+                $"lambda({lambdaParamCount} params)", $"{delegateType.Name}({delegateParamCount} params)");
         }
     }
 

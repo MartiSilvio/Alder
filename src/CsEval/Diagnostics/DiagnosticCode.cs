@@ -129,6 +129,12 @@ public enum DiagnosticCode
     /// <summary>ParseAsExpression could not convert body to requested return type.</summary>
     CSEV0106 = 1_000_106,
 
+    /// <summary>Expression binding failed.</summary>
+    CSEV0107 = 1_000_107,
+
+    /// <summary>Delegate type conversion failed.</summary>
+    CSEV0108 = 1_000_108,
+
     // CSEV02xx — Language mode and parsing
 
     /// <summary>Feature requires LanguageMode.Extended.</summary>
@@ -270,6 +276,9 @@ public enum DiagnosticCode
 
     /// <summary>Invalid out argument index.</summary>
     CSEV0912 = 1_000_912,
+
+    /// <summary>Unknown relational pattern operator.</summary>
+    CSEV0913 = 1_000_913,
 }
 
 internal static class DiagnosticCodeExtensions

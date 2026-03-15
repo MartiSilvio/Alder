@@ -86,7 +86,7 @@ internal static class PatternRuntime
                     TokenType.Greater => TypeHelpers.RequireBoolean(Operators.GreaterThan(value, operand, runtime.Options)),
                     TokenType.GreaterEqual => TypeHelpers.RequireBoolean(Operators.GreaterThanOrEqual(value, operand, runtime.Options)),
                     _ => throw new CsEvalException(
-                        $"Unknown relational pattern operator '{relationalPattern.Operator.Lexeme}'")
+                        DiagnosticDescriptors.UnknownRelationalPatternOperator, relationalPattern.Operator.Lexeme)
                 };
             }
 

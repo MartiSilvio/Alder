@@ -225,7 +225,7 @@ internal sealed class BoundEvaluator
                     .FirstOrDefault(static method => method.GetParameters().Length == 1);
                 if (addMethod == null)
                     throw new CsEvalException(
-                        $"Type '{result.GetType().Name}' does not have an 'Add' method for collection initializer");
+                        DiagnosticDescriptors.CollectionInitializerNoAdd, result.GetType().Name);
                 addMethod.Invoke(result, [value]);
             }
         }
@@ -328,7 +328,7 @@ internal sealed class BoundEvaluator
             if (tuple.Length != deconstruction.VariableNames.Length)
             {
                 throw new CsEvalException(
-                    $"Deconstruction requires {deconstruction.VariableNames.Length} values but tuple has {tuple.Length} elements");
+                    DiagnosticDescriptors.DeconstructionCountMismatch, deconstruction.VariableNames.Length, tuple.Length);
             }
 
             for (var i = 0; i < deconstruction.VariableNames.Length; i++)

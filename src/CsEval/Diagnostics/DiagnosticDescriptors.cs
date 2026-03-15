@@ -162,6 +162,14 @@ public static class DiagnosticDescriptors
     public static readonly DiagnosticDescriptor ParseAsExpressionReturnTypeMismatch =
         new(DiagnosticCode.CSEV0106, "Cannot convert expression body type '{0}' to return type '{1}'.");
 
+    /// <summary>CSEV0107: Expression binding failed: {0}</summary>
+    public static readonly DiagnosticDescriptor BindingFailed =
+        new(DiagnosticCode.CSEV0107, "{0}");
+
+    /// <summary>CSEV0108: Cannot convert '{0}' to delegate type '{1}'.</summary>
+    public static readonly DiagnosticDescriptor DelegateConversionFailed =
+        new(DiagnosticCode.CSEV0108, "Cannot convert '{0}' to delegate type '{1}'.");
+
     // CSEV02xx — Language mode and parsing
 
     /// <summary>CSEV0200: Feature '{0}' is not available in Standard mode. Use LanguageMode.Extended to enable non-standard syntax extensions.</summary>
@@ -345,4 +353,8 @@ public static class DiagnosticDescriptors
     /// <summary>CSEV0912: Invalid out argument index '{0}'.</summary>
     public static readonly DiagnosticDescriptor InvalidOutArgumentIndex =
         new(DiagnosticCode.CSEV0912, "Invalid out argument index '{0}'.");
+
+    /// <summary>CSEV0913: Unknown relational pattern operator '{0}'</summary>
+    public static readonly DiagnosticDescriptor UnknownRelationalPatternOperator =
+        new(DiagnosticCode.CSEV0913, "Unknown relational pattern operator '{0}'");
 }

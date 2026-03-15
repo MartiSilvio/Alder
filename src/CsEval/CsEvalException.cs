@@ -26,11 +26,7 @@ public class CsEvalException : Exception
     /// <summary>Source span length where available.</summary>
     public int? SpanLength { get; }
 
-    /// <summary>
-    /// Backward-compatible constructor. Existing throw sites and subclasses continue to work.
-    /// ErrorCode is null for exceptions created through this path.
-    /// </summary>
-    public CsEvalException(
+    protected CsEvalException(
         string message,
         int? line = null,
         int? column = null,
