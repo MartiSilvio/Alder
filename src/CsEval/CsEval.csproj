@@ -7,7 +7,11 @@
     <LangVersion>latest</LangVersion>
     <NoWarn>$(NoWarn);CA1822</NoWarn>
     <PackageId>CsEval</PackageId>
-    <Description>CsEval expression engine with AOT-safe interpreted execution.</Description>
+    <IsAotCompatible>true</IsAotCompatible>
   </PropertyGroup>
+
+  <ItemGroup>
+    <TrimmerRootDescriptor Include="Runtime/roots.xml" />
+  </ItemGroup>
 
 </Project>

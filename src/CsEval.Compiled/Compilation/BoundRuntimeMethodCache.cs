@@ -28,6 +28,9 @@ internal static class BoundRuntimeMethodCache
     internal static readonly MethodInfo GetTypeResolverProperty =
         typeof(CsEvalContext).GetProperty(nameof(CsEvalContext.TypeResolver), BindingFlags.NonPublic | BindingFlags.Instance)!.GetGetMethod(true)!;
 
+    internal static readonly MethodInfo GetConfigProperty =
+        typeof(CsEvalContext).GetProperty(nameof(CsEvalContext.Config))!.GetGetMethod()!;
+
     internal static readonly MethodInfo GetConstraintStateProperty =
         typeof(CsEvalContext).GetProperty(nameof(CsEvalContext.ConstraintState), BindingFlags.NonPublic | BindingFlags.Instance)!.GetGetMethod(true)!;
 
@@ -160,7 +163,7 @@ internal static class BoundRuntimeMethodCache
         typeof(IdentifierRuntime).GetMethod(nameof(IdentifierRuntime.CreateLambdaValue))!;
 
     internal static readonly MethodInfo InvokeConstructorMethod =
-        typeof(ConstructionRuntime).GetMethod(nameof(ConstructionRuntime.InvokeConstructor))!;
+        typeof(ConstructionRuntime).GetMethod(nameof(ConstructionRuntime.InvokeConstructor), [typeof(Type), typeof(object?[]), typeof(CsEvalConfig)])!;
 
     internal static readonly MethodInfo CreateTypedArrayFromTypeNameMethod =
         typeof(ConstructionRuntime).GetMethod(nameof(ConstructionRuntime.CreateTypedArray))!;

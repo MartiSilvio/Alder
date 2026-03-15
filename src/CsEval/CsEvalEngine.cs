@@ -121,7 +121,14 @@ public sealed class CsEvalEngine : IDisposable
             _usingNamespaces.ToImmutableArray(),
             true,
             _options.StringComparer);
-        var newConfig = CsEvalConfig.Create(_functions, modules, _extensionTypes, _typeMetadata, typeResolver, _options.StringComparer);
+
+        var registeredTypeSet = new HashSet<Type>();
+        foreach (var reg in _registeredTypes)
+            registeredTypeSet.Add(reg.Type);
+        foreach (var extType in _extensionTypes)
+            registeredTypeSet.Add(extType);
+
+        var newConfig = CsEvalConfig.Create(_functions, modules, _extensionTypes, _typeMetadata, typeResolver, _options.StringComparer, registeredTypeSet);
         Interlocked.CompareExchange(ref _frozenConfig, newConfig, null);
         return _frozenConfig!;
     }

@@ -36,15 +36,80 @@ echo "[aot-smoke] RID: $RID"
 dotnet new console --output "$APP_DIR" --framework net8.0 --no-restore >/dev/null
 
 cat > "$APP_DIR/Program.cs" <<'CS'
+using System.Diagnostics.CodeAnalysis;
 using CsEval;
 
-var engine = new CsEvalEngine(CsEvalOptions.Default with
+int failures = 0;
+
+void Check(string scenario, object? actual, object? expected)
 {
-    CompilationMode = CompilationMode.Interpreted
+    if (Equals(actual, expected))
+        Console.WriteLine($"PASS: {scenario}");
+    else
+    {
+        Console.Error.WriteLine($"FAIL: {scenario}: expected '{expected}', got '{actual}'");
+        failures++;
+    }
+}
+
+void Run(string name, Action action)
+{
+    try { action(); }
+    catch (Exception ex)
+    {
+        Console.Error.WriteLine($"CRASH: {name}: {ex.GetType().Name}: {ex.Message}");
+        failures++;
+    }
+}
+
+Run("Arithmetic", () =>
+{
+    var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = CompilationMode.Interpreted });
+    var result = engine.Evaluate("1 + 2 * 3");
+    Check("Arithmetic (1 + 2 * 3 = 7)", result, 7);
 });
 
-var result = engine.Evaluate("1 + 2 * 3");
-Console.WriteLine(result);
+Run("Math.Abs", () =>
+{
+    var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = CompilationMode.Interpreted });
+    var result = engine.Evaluate("Math.Abs(-42)");
+    Check("Math.Abs(-42) = 42", result, 42);
+});
+
+Run("RegisteredMemberAccess", () =>
+{
+    var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = CompilationMode.Interpreted });
+    engine.RegisterFromType<TestDto>();
+    var dto = new TestDto(42, "hello");
+    engine.SetVariable("dto", dto);
+    var result = engine.Evaluate("dto.Value");
+    Check("Registered type member access (dto.Value = 42)", result, 42);
+});
+
+Run("StringConcat", () =>
+{
+    var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = CompilationMode.Interpreted });
+    Check("String concat", engine.Evaluate("\"hello\" + \" world\""), "hello world");
+});
+
+Run("Comparison", () =>
+{
+    var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = CompilationMode.Interpreted });
+    Check("Comparison (3 > 1)", engine.Evaluate("3 > 1"), true);
+});
+
+Run("Variable", () =>
+{
+    var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = CompilationMode.Interpreted });
+    engine.SetVariable("x", 10);
+    Check("Variable (x * 2 = 20)", engine.Evaluate("x * 2"), 20);
+});
+
+Console.WriteLine(failures == 0 ? "\nALL PASS" : $"\n{failures} FAILED");
+return failures == 0 ? 0 : 1;
+
+[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)]
+public record TestDto(int Value, string Name);
 CS
 
 dotnet add "$APP_DIR/Smoke.csproj" reference "$ROOT_DIR/src/CsEval/CsEval.csproj" >/dev/null
@@ -62,12 +127,13 @@ if [[ ! -x "$BIN_PATH" ]]; then
   exit 3
 fi
 
-output="$($BIN_PATH)"
-echo "[aot-smoke] Output: $output"
+output="$("$BIN_PATH" 2>&1)"
+EXIT_CODE=$?
+echo "$output"
 
-if [[ "$output" != "7" ]]; then
-  echo "AOT smoke failed: expected '7', got '$output'" >&2
-  exit 4
+if [[ $EXIT_CODE -eq 0 ]]; then
+  echo "[aot-smoke] PASS"
+else
+  echo "[aot-smoke] FAILED (exit code $EXIT_CODE)" >&2
+  exit $EXIT_CODE
 fi
-
-echo "[aot-smoke] PASS"

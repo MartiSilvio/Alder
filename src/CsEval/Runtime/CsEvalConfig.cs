@@ -17,6 +17,7 @@ internal sealed class CsEvalConfig
     internal TypeMetadataProvider TypeMetadata { get; }
     internal TypeResolver TypeResolver { get; }
     public StringComparer Comparer { get; }
+    internal FrozenSet<Type> RegisteredTypes { get; }
 
     private CsEvalConfig(
         FrozenDictionary<string, Func<object?[], object?>> functions,
@@ -24,7 +25,8 @@ internal sealed class CsEvalConfig
         ImmutableArray<Type> extensionTypes,
         TypeMetadataProvider typeMetadata,
         TypeResolver typeResolver,
-        StringComparer comparer)
+        StringComparer comparer,
+        FrozenSet<Type> registeredTypes)
     {
         Functions = functions;
         Modules = modules;
@@ -32,6 +34,7 @@ internal sealed class CsEvalConfig
         TypeMetadata = typeMetadata;
         TypeResolver = typeResolver;
         Comparer = comparer;
+        RegisteredTypes = registeredTypes;
     }
 
     internal static CsEvalConfig Create(
@@ -40,7 +43,8 @@ internal sealed class CsEvalConfig
         List<Type> extensionTypes,
         TypeMetadataProvider typeMetadata,
         TypeResolver typeResolver,
-        StringComparer comparer)
+        StringComparer comparer,
+        HashSet<Type> registeredTypes)
     {
         return new CsEvalConfig(
             functions.ToFrozenDictionary(comparer),
@@ -48,7 +52,8 @@ internal sealed class CsEvalConfig
             [..extensionTypes],
             typeMetadata,
             typeResolver,
-            comparer);
+            comparer,
+            registeredTypes.ToFrozenSet());
     }
 
     internal static readonly CsEvalConfig Empty = new(
@@ -57,7 +62,8 @@ internal sealed class CsEvalConfig
         [],
         new TypeMetadataProvider(),
         TypeResolver.Create([], [], true, StringComparer.Ordinal),
-        StringComparer.Ordinal);
+        StringComparer.Ordinal,
+        FrozenSet<Type>.Empty);
 }
 
 internal sealed class ModuleInfo

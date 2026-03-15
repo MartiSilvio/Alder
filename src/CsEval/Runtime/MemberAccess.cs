@@ -1,3 +1,5 @@
+using System.Reflection;
+using System.Runtime.CompilerServices;
 using CsEval.Diagnostics;
 using CsEval.Runtime.Extensions;
 
@@ -139,6 +141,14 @@ internal static class MemberAccess
         }
 
         var type = obj.GetType();
+
+        if (!RuntimeFeature.IsDynamicCodeSupported &&
+            !IsAotSafeType(type) &&
+            !context.Config.RegisteredTypes.Contains(type))
+        {
+            throw new CsEvalException(DiagnosticDescriptors.AotTypeNotRegistered, type.FullName ?? type.Name);
+        }
+
         var bindingFlags = BindingFlags.Public | BindingFlags.Instance;
         if (!options.IsCaseSensitive)
             bindingFlags |= BindingFlags.IgnoreCase;
@@ -266,6 +276,14 @@ internal static class MemberAccess
         }
 
         var type = obj.GetType();
+
+        if (!RuntimeFeature.IsDynamicCodeSupported &&
+            !IsAotSafeType(type) &&
+            !context.Config.RegisteredTypes.Contains(type))
+        {
+            throw new CsEvalException(DiagnosticDescriptors.AotTypeNotRegistered, type.FullName ?? type.Name);
+        }
+
         var bindingFlags = BindingFlags.Public | BindingFlags.Instance;
         if (caseInsensitive)
             bindingFlags |= BindingFlags.IgnoreCase;
@@ -554,5 +572,17 @@ internal static class MemberAccess
         if (value == null) return null;
         if (targetType.IsInstanceOfType(value)) return value;
         return Convert.ChangeType(value, targetType);
+    }
+
+    private static readonly Assembly CoreLibAssembly = typeof(object).Assembly;
+    private static readonly Assembly LinqAssembly = typeof(Enumerable).Assembly;
+
+    private static bool IsAotSafeType(Type type)
+    {
+        if (type.IsArray)
+            return IsAotSafeType(type.GetElementType()!);
+
+        var assembly = type.Assembly;
+        return assembly == CoreLibAssembly || assembly == LinqAssembly;
     }
 }

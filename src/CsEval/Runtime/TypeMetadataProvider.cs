@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Diagnostics.CodeAnalysis;
 
 namespace CsEval.Runtime;
 
@@ -17,20 +18,24 @@ internal sealed class TypeMetadataProvider
     private readonly ConcurrentDictionary<PropertyInfo, Func<object, object?>> _compiledGetters = new();
 
     private readonly record struct PropertyLookupKey(
+        [property: DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)]
         Type Type,
         string Name,
         BindingFlags Flags);
 
     private readonly record struct FieldLookupKey(
+        [property: DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)]
         Type Type,
         string Name,
         BindingFlags Flags);
 
     private readonly record struct PropertiesLookupKey(
+        [property: DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)]
         Type Type,
         BindingFlags Flags);
 
     private readonly record struct MethodLookupKey(
+        [property: DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)]
         Type Type,
         string Name,
         BindingFlags Flags);
@@ -39,25 +44,33 @@ internal sealed class TypeMetadataProvider
     {
     }
 
-    public PropertyInfo? GetProperty(Type type, string name, BindingFlags flags)
+    public PropertyInfo? GetProperty(
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)]
+        Type type, string name, BindingFlags flags)
     {
         var key = new PropertyLookupKey(type, name, flags);
         return _propertyCache.GetOrAdd(key, static k => ReflectionRuntime.FindProperty(k.Type, k.Name, k.Flags));
     }
 
-    public FieldInfo? GetField(Type type, string name, BindingFlags flags)
+    public FieldInfo? GetField(
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)]
+        Type type, string name, BindingFlags flags)
     {
         var key = new FieldLookupKey(type, name, flags);
         return _fieldCache.GetOrAdd(key, static k => ReflectionRuntime.FindField(k.Type, k.Name, k.Flags));
     }
 
-    public PropertyInfo[] GetProperties(Type type, BindingFlags flags)
+    public PropertyInfo[] GetProperties(
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)]
+        Type type, BindingFlags flags)
     {
         var key = new PropertiesLookupKey(type, flags);
         return _propertiesCache.GetOrAdd(key, static k => ReflectionRuntime.GetProperties(k.Type, k.Flags));
     }
 
-    public MethodInfo[] GetMethods(Type type, string name, BindingFlags flags)
+    public MethodInfo[] GetMethods(
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)]
+        Type type, string name, BindingFlags flags)
     {
         var key = new MethodLookupKey(type, name, flags);
         return _methodsCache.GetOrAdd(key, static k =>
@@ -71,7 +84,9 @@ internal sealed class TypeMetadataProvider
         });
     }
 
-    public PropertyInfo? GetIndexer(Type type)
+    public PropertyInfo? GetIndexer(
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)]
+        Type type)
     {
         return _indexerCache.GetOrAdd(type, ReflectionRuntime.FindIndexer);
     }

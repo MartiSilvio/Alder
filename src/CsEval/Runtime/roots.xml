@@ -1,0 +1,12 @@
+<linker>
+  <assembly fullname="System.Runtime">
+    <type fullname="System.Math" preserve="all"/>
+    <type fullname="System.Convert" preserve="all"/>
+  </assembly>
+  <assembly fullname="System.Linq">
+    <type fullname="System.Linq.Enumerable" preserve="all"/>
+  </assembly>
+  <assembly fullname="CsEval">
+    <type fullname="CsEval.Runtime.MethodDispatchCache" preserve="nonpublic"/>
+  </assembly>
+</linker>

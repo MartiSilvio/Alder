@@ -737,20 +737,26 @@ internal static class ExtensionMethodResolver
         return false;
     }
 
-    private static readonly HashSet<Type> FuncTypeDefinitions = CreateFuncTypeSet();
-
-    private static HashSet<Type> CreateFuncTypeSet()
-    {
-        var set = new HashSet<Type>();
-        for (var arity = 1; arity <= 17; arity++)
-        {
-            var name = "System.Func`" + arity;
-            var type = Type.GetType(name);
-            if (type != null)
-                set.Add(type);
-        }
-        return set;
-    }
+    private static readonly HashSet<Type> FuncTypeDefinitions =
+    [
+        typeof(Func<>),
+        typeof(Func<,>),
+        typeof(Func<,,>),
+        typeof(Func<,,,>),
+        typeof(Func<,,,,>),
+        typeof(Func<,,,,,>),
+        typeof(Func<,,,,,,>),
+        typeof(Func<,,,,,,,>),
+        typeof(Func<,,,,,,,,>),
+        typeof(Func<,,,,,,,,,>),
+        typeof(Func<,,,,,,,,,,>),
+        typeof(Func<,,,,,,,,,,,>),
+        typeof(Func<,,,,,,,,,,,,>),
+        typeof(Func<,,,,,,,,,,,,,>),
+        typeof(Func<,,,,,,,,,,,,,,>),
+        typeof(Func<,,,,,,,,,,,,,,,>),
+        typeof(Func<,,,,,,,,,,,,,,,,>),
+    ];
 
     private static bool IsFuncType(Type genericDef) => FuncTypeDefinitions.Contains(genericDef);
 }

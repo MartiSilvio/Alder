@@ -204,7 +204,7 @@ internal sealed class BoundEvaluator
             args[i] = Evaluate(objectCreation.Arguments[i]);
 
         var type = _context.TypeResolver.ResolveType(objectCreation.TypeName);
-        var result = ConstructionRuntime.InvokeConstructor(type, args);
+        var result = ConstructionRuntime.InvokeConstructor(type, args, _context.Config);
 
         foreach (var entry in objectCreation.InitializerEntries)
         {

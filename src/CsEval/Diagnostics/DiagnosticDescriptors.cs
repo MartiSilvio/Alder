@@ -175,4 +175,8 @@ public static class DiagnosticDescriptors
     /// <summary>CSEV0011: Expression nesting depth exceeded available stack space.</summary>
     public static readonly DiagnosticDescriptor ExpressionNestingDepthExceeded =
         new(DiagnosticCode.CSEV0011, "Expression nesting depth exceeded available stack space.");
+
+    /// <summary>CSEV0012: Type '{0}' must be registered via RegisterFromType&lt;T&gt;() for NativeAOT compatibility. Under NativeAOT, the trimmer may remove members of unregistered types.</summary>
+    public static readonly DiagnosticDescriptor AotTypeNotRegistered =
+        new(DiagnosticCode.CSEV0012, "Type '{0}' must be registered via RegisterFromType<T>() for NativeAOT compatibility. Under NativeAOT, the trimmer may remove members of unregistered types.");
 }

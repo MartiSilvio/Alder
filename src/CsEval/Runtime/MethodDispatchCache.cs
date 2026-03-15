@@ -1,4 +1,6 @@
 using System.Collections.Concurrent;
+using System.Runtime.CompilerServices;
+using System.Diagnostics.CodeAnalysis;
 
 namespace CsEval.Runtime;
 
@@ -40,6 +42,12 @@ internal static class MethodDispatchCache
 
     internal static bool TryInvokeFast(MethodInfo method, object? target, object?[] args, out object? result)
     {
+        if (!RuntimeFeature.IsDynamicCodeSupported)
+        {
+            result = null;
+            return false;
+        }
+
         var invoker = FastInvokerCache.GetOrAdd(method, static m => CreateFastInvoker(m));
         if (invoker == null)
         {

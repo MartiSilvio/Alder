@@ -1,11 +1,18 @@
+using System.Runtime.CompilerServices;
 using CsEval.Diagnostics;
 
 namespace CsEval.Runtime;
 
 internal static class ConstructionRuntime
 {
-    public static object? InvokeConstructor(Type type, object?[] args)
+    public static object? InvokeConstructor(Type type, object?[] args, CsEvalConfig config)
     {
+        if (!RuntimeFeature.IsDynamicCodeSupported &&
+            !config.RegisteredTypes.Contains(type))
+        {
+            throw new CsEvalException(DiagnosticDescriptors.AotTypeNotRegistered, type.FullName ?? type.Name);
+        }
+
         try
         {
             if (args.Length == 0)

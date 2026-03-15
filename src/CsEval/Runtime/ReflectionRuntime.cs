@@ -1,8 +1,12 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace CsEval.Runtime;
 
 internal static class ReflectionRuntime
 {
-    public static PropertyInfo? FindProperty(Type type, string name, BindingFlags flags)
+    public static PropertyInfo? FindProperty(
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)]
+        Type type, string name, BindingFlags flags)
     {
         var comparison = flags.HasFlag(BindingFlags.IgnoreCase)
             ? StringComparison.OrdinalIgnoreCase
@@ -32,7 +36,9 @@ internal static class ReflectionRuntime
         return best;
     }
 
-    public static FieldInfo? FindField(Type type, string name, BindingFlags flags)
+    public static FieldInfo? FindField(
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)]
+        Type type, string name, BindingFlags flags)
     {
         var comparison = flags.HasFlag(BindingFlags.IgnoreCase)
             ? StringComparison.OrdinalIgnoreCase
@@ -62,7 +68,9 @@ internal static class ReflectionRuntime
         return best;
     }
 
-    public static PropertyInfo[] GetProperties(Type type, BindingFlags flags)
+    public static PropertyInfo[] GetProperties(
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)]
+        Type type, BindingFlags flags)
     {
         var results = new List<PropertyInfo>();
         foreach (var property in EnumeratePropertyCandidates(type, flags))
@@ -74,7 +82,9 @@ internal static class ReflectionRuntime
         return results.ToArray();
     }
 
-    public static MethodInfo[] GetMethods(Type type, BindingFlags flags)
+    public static MethodInfo[] GetMethods(
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)]
+        Type type, BindingFlags flags)
     {
         var results = new List<MethodInfo>();
         var seenSignatures = new HashSet<string>(StringComparer.Ordinal);
@@ -91,7 +101,9 @@ internal static class ReflectionRuntime
         return results.ToArray();
     }
 
-    public static PropertyInfo? FindIndexer(Type type)
+    public static PropertyInfo? FindIndexer(
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)]
+        Type type)
     {
         foreach (var property in GetProperties(type, BindingFlags.Public | BindingFlags.Instance))
         {
@@ -102,52 +114,25 @@ internal static class ReflectionRuntime
         return null;
     }
 
-    public static IEnumerable<Type> GetInterfaces(Type type) =>
+    public static IEnumerable<Type> GetInterfaces(
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.Interfaces)]
+        Type type) =>
         type.GetTypeInfo().ImplementedInterfaces;
 
-    private static IEnumerable<PropertyInfo> EnumeratePropertyCandidates(Type type, BindingFlags flags)
-    {
-        foreach (var candidateType in EnumerateTypeCandidates(type, flags))
-        {
-            foreach (var property in candidateType.GetTypeInfo().DeclaredProperties)
-                yield return property;
-        }
-    }
+    private static PropertyInfo[] EnumeratePropertyCandidates(
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)]
+        Type type, BindingFlags flags) =>
+        type.GetProperties(flags & ~BindingFlags.IgnoreCase);
 
-    private static IEnumerable<FieldInfo> EnumerateFieldCandidates(Type type, BindingFlags flags)
-    {
-        foreach (var candidateType in EnumerateTypeCandidates(type, flags))
-        {
-            foreach (var field in candidateType.GetTypeInfo().DeclaredFields)
-                yield return field;
-        }
-    }
+    private static FieldInfo[] EnumerateFieldCandidates(
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)]
+        Type type, BindingFlags flags) =>
+        type.GetFields(flags & ~BindingFlags.IgnoreCase);
 
-    private static IEnumerable<MethodInfo> EnumerateMethodCandidates(Type type, BindingFlags flags)
-    {
-        foreach (var candidateType in EnumerateTypeCandidates(type, flags))
-        {
-            foreach (var method in candidateType.GetTypeInfo().DeclaredMethods)
-                yield return method;
-        }
-    }
-
-    private static IEnumerable<Type> EnumerateTypeCandidates(Type type, BindingFlags flags)
-    {
-        yield return type;
-
-        if ((flags & BindingFlags.DeclaredOnly) != 0)
-            yield break;
-
-        for (var current = type.BaseType; current != null; current = current.BaseType)
-            yield return current;
-
-        if (!type.IsInterface)
-            yield break;
-
-        foreach (var interfaceType in GetInterfaces(type))
-            yield return interfaceType;
-    }
+    private static MethodInfo[] EnumerateMethodCandidates(
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)]
+        Type type, BindingFlags flags) =>
+        type.GetMethods(flags & ~BindingFlags.IgnoreCase);
 
     private static bool MatchesProperty(Type sourceType, PropertyInfo property, BindingFlags flags)
     {

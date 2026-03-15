@@ -140,6 +140,9 @@ public enum DiagnosticCode
 
     /// <summary>Expression nesting depth exceeded available stack space.</summary>
     CSEV0011 = 1_000_011,
+
+    /// <summary>Type must be registered for NativeAOT compatibility.</summary>
+    CSEV0012 = 1_000_012,
 }
 
 internal static class DiagnosticCodeExtensions
