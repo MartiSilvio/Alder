@@ -125,34 +125,22 @@ public sealed class CsEvalEngine : IDisposable
             true,
             _options.StringComparer);
 
-        var registeredTypeSet = new HashSet<Type>();
-        foreach (var reg in _registeredTypes)
-            registeredTypeSet.Add(reg.Type);
-        foreach (var extType in _extensionTypes)
-            registeredTypeSet.Add(extType);
-
         Dictionary<Type, IAotTypeMetadata>? aotMetadata = null;
         if (_generatedContext != null)
         {
             aotMetadata = new Dictionary<Type, IAotTypeMetadata>();
             foreach (var metadata in _generatedContext.GetTypeMetadata())
-            {
                 aotMetadata[metadata.Type] = metadata;
-                registeredTypeSet.Add(metadata.Type);
-            }
         }
 
         foreach (var ctx in _additionalContexts)
         {
             aotMetadata ??= new Dictionary<Type, IAotTypeMetadata>();
             foreach (var metadata in ctx.GetTypeMetadata())
-            {
                 aotMetadata[metadata.Type] = metadata;
-                registeredTypeSet.Add(metadata.Type);
-            }
         }
 
-        var newConfig = CsEvalConfig.Create(_functions, modules, _extensionTypes, _typeMetadata, typeResolver, _options.StringComparer, registeredTypeSet, aotMetadata);
+        var newConfig = CsEvalConfig.Create(_functions, modules, _extensionTypes, _typeMetadata, typeResolver, _options.StringComparer, aotMetadata);
         Interlocked.CompareExchange(ref _frozenConfig, newConfig, null);
         return _frozenConfig!;
     }

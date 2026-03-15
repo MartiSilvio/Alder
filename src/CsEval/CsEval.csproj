@@ -8,7 +8,7 @@
     <NoWarn>$(NoWarn);CA1822</NoWarn>
     <PackageId>CsEval</PackageId>
     <IsAotCompatible>true</IsAotCompatible>
-    <Description>C# expression evaluation engine with AOT-safe interpreted execution and source-generated dispatch.</Description>
+    <Description>Lightweight C# expression evaluation engine with interpreted and compiled execution modes, optional source-generated dispatch for NativeAOT scenarios, and comprehensive sandboxing.</Description>
   </PropertyGroup>
 
   <!-- Bundle the source generator as an analyzer inside this package -->

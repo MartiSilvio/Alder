@@ -17,7 +17,6 @@ internal sealed class CsEvalConfig
     internal TypeMetadataProvider TypeMetadata { get; }
     internal TypeResolver TypeResolver { get; }
     public StringComparer Comparer { get; }
-    internal FrozenSet<Type> RegisteredTypes { get; }
     internal FrozenDictionary<Type, IAotTypeMetadata>? AotMetadata { get; }
 
     private CsEvalConfig(
@@ -27,7 +26,6 @@ internal sealed class CsEvalConfig
         TypeMetadataProvider typeMetadata,
         TypeResolver typeResolver,
         StringComparer comparer,
-        FrozenSet<Type> registeredTypes,
         FrozenDictionary<Type, IAotTypeMetadata>? aotMetadata)
     {
         Functions = functions;
@@ -36,7 +34,6 @@ internal sealed class CsEvalConfig
         TypeMetadata = typeMetadata;
         TypeResolver = typeResolver;
         Comparer = comparer;
-        RegisteredTypes = registeredTypes;
         AotMetadata = aotMetadata;
     }
 
@@ -47,7 +44,6 @@ internal sealed class CsEvalConfig
         TypeMetadataProvider typeMetadata,
         TypeResolver typeResolver,
         StringComparer comparer,
-        HashSet<Type> registeredTypes,
         Dictionary<Type, IAotTypeMetadata>? aotMetadata = null)
     {
         return new CsEvalConfig(
@@ -57,7 +53,6 @@ internal sealed class CsEvalConfig
             typeMetadata,
             typeResolver,
             comparer,
-            registeredTypes.ToFrozenSet(),
             aotMetadata?.ToFrozenDictionary());
     }
 
@@ -68,7 +63,6 @@ internal sealed class CsEvalConfig
         new TypeMetadataProvider(),
         TypeResolver.Create([], [], true, StringComparer.Ordinal),
         StringComparer.Ordinal,
-        FrozenSet<Type>.Empty,
         null);
 }
 
