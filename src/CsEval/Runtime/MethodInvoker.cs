@@ -4,6 +4,7 @@ using CsEval.Binding.Plans;
 using CsEval.Interpretation;
 using CsEval.Parsing;
 using System.Collections.Immutable;
+using System.Runtime.CompilerServices;
 
 namespace CsEval.Runtime;
 
@@ -127,6 +128,20 @@ internal static class MethodInvoker
         if (options.Sandbox.AllowMethodCalls)
         {
             var type = target.GetType();
+
+            if (context.Config.AotMetadata is { } aotMeta && aotMeta.TryGetValue(type, out var metadata))
+            {
+                try
+                {
+                    if (metadata.TryInvokeMethod(methodName, target, args, out var aotResult))
+                        return (true, aotResult);
+                }
+                catch (InvalidCastException)
+                {
+                    // Wrong overload selected by generated code — fall through to reflection
+                }
+            }
+
             var flags = BindingFlags.Public | BindingFlags.Instance;
             if (!options.IsCaseSensitive)
                 flags |= BindingFlags.IgnoreCase;
@@ -290,6 +305,19 @@ internal static class MethodInvoker
         CancellationToken ct,
         IReadOnlyList<string>? typeArgs)
     {
+        if (context.Config.AotMetadata is { } aotMeta && aotMeta.TryGetValue(type, out var metadata))
+        {
+            try
+            {
+                if (metadata.TryInvokeStaticMethod(methodName, args, out var aotResult))
+                    return aotResult;
+            }
+            catch (InvalidCastException)
+            {
+                // Wrong overload selected — fall through to reflection
+            }
+        }
+
         var bindingFlags = BindingFlags.Public | BindingFlags.Static;
         if (!options.IsCaseSensitive)
             bindingFlags |= BindingFlags.IgnoreCase;

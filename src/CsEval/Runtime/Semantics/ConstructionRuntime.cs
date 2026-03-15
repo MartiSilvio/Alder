@@ -8,12 +8,6 @@ internal static class ConstructionRuntime
 {
     public static object? InvokeConstructor(Type type, object?[] args, CsEvalConfig config)
     {
-        if (!RuntimeFeature.IsDynamicCodeSupported &&
-            !config.RegisteredTypes.Contains(type))
-        {
-            throw new CsEvalException(DiagnosticDescriptors.AotTypeNotRegistered, type.FullName ?? type.Name);
-        }
-
         if (config.AotMetadata is { } aotCtorMeta && aotCtorMeta.TryGetValue(type, out var ctorMetadata))
         {
             try

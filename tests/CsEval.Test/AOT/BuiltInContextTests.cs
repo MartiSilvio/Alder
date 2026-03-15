@@ -116,4 +116,6 @@ internal sealed class StringOverrideMetadata : IAotTypeMetadata
     public bool TryGetStaticProperty(string name, out object? value) { value = default; return false; }
     public bool TryGetStaticField(string name, out object? value) { value = default; return false; }
     public bool TryCreateInstance(object?[] args, out object? instance) { instance = default; return false; }
+    public bool TryInvokeMethod(string name, object instance, object?[] args, out object? result) { result = default; return false; }
+    public bool TryInvokeStaticMethod(string name, object?[] args, out object? result) { result = default; return false; }
 }

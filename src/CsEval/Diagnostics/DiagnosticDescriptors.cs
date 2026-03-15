@@ -216,6 +216,10 @@ public static class DiagnosticDescriptors
     public static readonly DiagnosticDescriptor AotTypeNotRegistered =
         new(DiagnosticCode.CSEV0400, "Type '{0}' must be registered via RegisterFromType<T>() for NativeAOT compatibility. Under NativeAOT, the trimmer may remove members of unregistered types.");
 
+    /// <summary>CSEV0401: Method '{1}' on type '{0}' must be registered via [CsEvalRegistered] for NativeAOT compatibility.</summary>
+    public static readonly DiagnosticDescriptor AotMethodNotRegistered =
+        new(DiagnosticCode.CSEV0401, "Method '{1}' on type '{0}' must be registered via [CsEvalRegistered] for NativeAOT compatibility.");
+
     // CSEV05xx — Null access and null safety
 
     /// <summary>CSEV0500: Cannot access {0} '{1}' on null</summary>

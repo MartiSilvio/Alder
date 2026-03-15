@@ -82,6 +82,7 @@ public sealed class CsEvalSourceGenerator : IIncrementalGenerator
         var fields = ImmutableArray.CreateBuilder<FieldModel>();
         var constructors = ImmutableArray.CreateBuilder<ConstructorModel>();
         var indexers = ImmutableArray.CreateBuilder<IndexerModel>();
+        var methods = ImmutableArray.CreateBuilder<MethodModel>();
 
         foreach (var member in type.GetMembers())
         {
@@ -128,14 +129,41 @@ public sealed class CsEvalSourceGenerator : IIncrementalGenerator
                         p.Type.TypeKind == TypeKind.FunctionPointer ||
                         p.Type.IsRefLikeType))
                         break;
-                    var parameters = ImmutableArray.CreateBuilder<ParameterModel>();
+                    var ctorParams = ImmutableArray.CreateBuilder<ParameterModel>();
                     foreach (var param in method.Parameters)
                     {
-                        parameters.Add(new ParameterModel(
+                        ctorParams.Add(new ParameterModel(
                             param.Name,
                             GetFullyQualifiedTypeName(param.Type)));
                     }
-                    constructors.Add(new ConstructorModel(parameters.ToImmutable()));
+                    constructors.Add(new ConstructorModel(ctorParams.ToImmutable()));
+                    break;
+
+                case IMethodSymbol method when method.MethodKind == MethodKind.Ordinary:
+                    if (method.IsGenericMethod)
+                        break;
+                    if (method.ReturnsByRef || method.ReturnsByRefReadonly)
+                        break;
+                    if (method.Parameters.Any(p =>
+                        p.RefKind != RefKind.None ||
+                        p.IsParams ||
+                        p.Type.TypeKind == TypeKind.Pointer ||
+                        p.Type.TypeKind == TypeKind.FunctionPointer ||
+                        p.Type.IsRefLikeType))
+                        break;
+                    var methodParams = ImmutableArray.CreateBuilder<ParameterModel>();
+                    foreach (var param in method.Parameters)
+                    {
+                        methodParams.Add(new ParameterModel(
+                            param.Name,
+                            GetFullyQualifiedTypeName(param.Type)));
+                    }
+                    methods.Add(new MethodModel(
+                        method.Name,
+                        GetFullyQualifiedTypeName(method.ReturnType),
+                        methodParams.ToImmutable(),
+                        method.IsStatic,
+                        method.ReturnsVoid));
                     break;
             }
         }
@@ -148,7 +176,8 @@ public sealed class CsEvalSourceGenerator : IIncrementalGenerator
             properties.ToImmutable(),
             fields.ToImmutable(),
             constructors.ToImmutable(),
-            indexers.ToImmutable());
+            indexers.ToImmutable(),
+            methods.ToImmutable());
     }
 
     private static void Emit(SourceProductionContext spc,

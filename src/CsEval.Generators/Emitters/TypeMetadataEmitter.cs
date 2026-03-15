@@ -27,6 +27,8 @@ internal static class TypeMetadataEmitter
         EmitTryGetStaticProperty(sb, reg);
         EmitTryGetStaticField(sb, reg);
         EmitTryCreateInstance(sb, reg);
+        EmitTryInvokeMethod(sb, reg);
+        EmitTryInvokeStaticMethod(sb, reg);
 
         sb.AppendLine("}");
         return sb.ToString();
@@ -302,6 +304,113 @@ internal static class TypeMetadataEmitter
         else
         {
             sb.AppendLine("        instance = default;");
+            sb.AppendLine("        return false;");
+        }
+
+        sb.AppendLine("    }");
+    }
+
+    private static void EmitTryInvokeMethod(StringBuilder sb, TypeRegistrationModel reg)
+    {
+        var instanceMethods = reg.Methods.Where(m => !m.IsStatic).ToArray();
+
+        sb.AppendLine();
+        sb.AppendLine("    public bool TryInvokeMethod(string name, object instance, object?[] args, out object? result)");
+        sb.AppendLine("    {");
+
+        if (instanceMethods.Length > 0)
+        {
+            sb.AppendLine($"        var typed = ({reg.TypeFullName})instance;");
+            sb.AppendLine("        switch (name)");
+            sb.AppendLine("        {");
+
+            foreach (var group in instanceMethods.GroupBy(m => m.Name))
+            {
+                sb.AppendLine($"            case \"{group.Key}\":");
+                sb.AppendLine("                switch (args.Length)");
+                sb.AppendLine("                {");
+
+                var seenCounts = new HashSet<int>();
+                foreach (var method in group)
+                {
+                    if (!seenCounts.Add(method.Parameters.Length))
+                        continue;
+                    var castArgs = string.Join(", ", method.Parameters.Select((p, i) => $"({p.TypeFullName})args[{i}]!"));
+                    if (method.ReturnsVoid)
+                    {
+                        sb.AppendLine($"                    case {method.Parameters.Length}: typed.{method.Name}({castArgs}); result = null; return true;");
+                    }
+                    else
+                    {
+                        sb.AppendLine($"                    case {method.Parameters.Length}: result = typed.{method.Name}({castArgs}); return true;");
+                    }
+                }
+
+                sb.AppendLine("                    default: break;");
+                sb.AppendLine("                }");
+                sb.AppendLine("                break;");
+            }
+
+            sb.AppendLine("        }");
+            sb.AppendLine("        result = default;");
+            sb.AppendLine("        return false;");
+        }
+        else
+        {
+            sb.AppendLine("        result = default;");
+            sb.AppendLine("        return false;");
+        }
+
+        sb.AppendLine("    }");
+    }
+
+    private static void EmitTryInvokeStaticMethod(StringBuilder sb, TypeRegistrationModel reg)
+    {
+        var staticMethods = reg.Methods.Where(m => m.IsStatic).ToArray();
+
+        sb.AppendLine();
+        sb.AppendLine("    public bool TryInvokeStaticMethod(string name, object?[] args, out object? result)");
+        sb.AppendLine("    {");
+
+        if (staticMethods.Length > 0)
+        {
+            sb.AppendLine("        switch (name)");
+            sb.AppendLine("        {");
+
+            foreach (var group in staticMethods.GroupBy(m => m.Name))
+            {
+                sb.AppendLine($"            case \"{group.Key}\":");
+                sb.AppendLine("                switch (args.Length)");
+                sb.AppendLine("                {");
+
+                var seenCounts = new HashSet<int>();
+                foreach (var method in group)
+                {
+                    if (!seenCounts.Add(method.Parameters.Length))
+                        continue;
+                    var castArgs = string.Join(", ", method.Parameters.Select((p, i) => $"({p.TypeFullName})args[{i}]!"));
+                    if (method.ReturnsVoid)
+                    {
+                        sb.AppendLine($"                    case {method.Parameters.Length}: {reg.TypeFullName}.{method.Name}({castArgs}); result = null; return true;");
+                    }
+                    else
+                    {
+                        sb.AppendLine($"                    case {method.Parameters.Length}: result = {reg.TypeFullName}.{method.Name}({castArgs}); return true;");
+                    }
+                }
+
+                sb.AppendLine("                    default: break;");
+                sb.AppendLine("                }");
+                sb.AppendLine("                break;");
+            }
+
+            sb.AppendLine("        }");
+            sb.AppendLine("        result = default;");
+            sb.AppendLine("        return false;");
+        }
+        else
+        {
+            sb.AppendLine("        result = default;");
             sb.AppendLine("        return false;");
         }
 

@@ -15,6 +15,11 @@ public class TestModel
         Name = name;
         Value = value;
     }
+
+    public int Add(int a, int b) => a + b;
+    public string Greet() => $"Hello, {Name}";
+    public void IncrementValue() { Value++; }
+    public static int Parse(string s) => int.Parse(s);
 }
 
 public class TestIndexedModel
@@ -114,6 +119,49 @@ internal sealed class TestModelMetadata : IAotTypeMetadata
     }
 
     public bool TrySetIndex(object instance, object key, object? value) => false;
+
+    public bool TryInvokeMethod(string name, object instance, object?[] args, out object? result)
+    {
+        var typed = (TestModel)instance;
+        switch (name)
+        {
+            case "Add":
+                switch (args.Length)
+                {
+                    case 2: result = typed.Add((int)args[0]!, (int)args[1]!); return true;
+                }
+                break;
+            case "Greet":
+                switch (args.Length)
+                {
+                    case 0: result = typed.Greet(); return true;
+                }
+                break;
+            case "IncrementValue":
+                switch (args.Length)
+                {
+                    case 0: typed.IncrementValue(); result = null; return true;
+                }
+                break;
+        }
+        result = default;
+        return false;
+    }
+
+    public bool TryInvokeStaticMethod(string name, object?[] args, out object? result)
+    {
+        switch (name)
+        {
+            case "Parse":
+                switch (args.Length)
+                {
+                    case 1: result = TestModel.Parse((string)args[0]!); return true;
+                }
+                break;
+        }
+        result = default;
+        return false;
+    }
 }
 
 internal sealed class TestIndexedModelMetadata : IAotTypeMetadata
@@ -174,6 +222,18 @@ internal sealed class TestIndexedModelMetadata : IAotTypeMetadata
             typed[strKey] = (int)value!;
             return true;
         }
+        return false;
+    }
+
+    public bool TryInvokeMethod(string name, object instance, object?[] args, out object? result)
+    {
+        result = default;
+        return false;
+    }
+
+    public bool TryInvokeStaticMethod(string name, object?[] args, out object? result)
+    {
+        result = default;
         return false;
     }
 }

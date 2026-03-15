@@ -10,4 +10,5 @@ internal readonly record struct TypeRegistrationModel(
     ImmutableArray<PropertyModel> Properties,
     ImmutableArray<FieldModel> Fields,
     ImmutableArray<ConstructorModel> Constructors,
-    ImmutableArray<IndexerModel> Indexers);
+    ImmutableArray<IndexerModel> Indexers,
+    ImmutableArray<MethodModel> Methods);

@@ -12,4 +12,6 @@ public interface IAotTypeMetadata
     bool TryGetStaticProperty(string name, out object? value);
     bool TryGetStaticField(string name, out object? value);
     bool TryCreateInstance(object?[] args, out object? instance);
+    bool TryInvokeMethod(string name, object instance, object?[] args, out object? result);
+    bool TryInvokeStaticMethod(string name, object?[] args, out object? result);
 }

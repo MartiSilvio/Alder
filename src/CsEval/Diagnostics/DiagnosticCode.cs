@@ -171,6 +171,9 @@ public enum DiagnosticCode
     /// <summary>Type must be registered for NativeAOT compatibility.</summary>
     CSEV0400 = 1_000_400,
 
+    /// <summary>Method call on unregistered type requires NativeAOT registration.</summary>
+    CSEV0401 = 1_000_401,
+
     // CSEV05xx — Null access and null safety
 
     /// <summary>Cannot access member on null.</summary>

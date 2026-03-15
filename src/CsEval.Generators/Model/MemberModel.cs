@@ -27,3 +27,10 @@ internal readonly record struct IndexerModel(
     string ValueTypeFullName,
     bool CanRead,
     bool CanWrite);
+
+internal readonly record struct MethodModel(
+    string Name,
+    string ReturnTypeFullName,
+    ImmutableArray<ParameterModel> Parameters,
+    bool IsStatic,
+    bool ReturnsVoid);

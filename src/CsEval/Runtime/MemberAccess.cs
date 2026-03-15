@@ -159,12 +159,6 @@ internal static class MemberAccess
 
         var type = obj.GetType();
 
-        if (!RuntimeFeature.IsDynamicCodeSupported &&
-            !context.Config.RegisteredTypes.Contains(type))
-        {
-            throw new CsEvalException(DiagnosticDescriptors.AotTypeNotRegistered, type.FullName ?? type.Name);
-        }
-
         if (context.Config.AotMetadata is { } aotMeta && aotMeta.TryGetValue(type, out var metadata))
         {
             if (metadata.TryGetProperty(name, obj, out var aotValue))
@@ -252,12 +246,6 @@ internal static class MemberAccess
 
         var type = obj.GetType();
 
-        if (!RuntimeFeature.IsDynamicCodeSupported &&
-            !context.Config.RegisteredTypes.Contains(type))
-        {
-            throw new CsEvalException(DiagnosticDescriptors.AotTypeNotRegistered, type.FullName ?? type.Name);
-        }
-
         if (context.Config.AotMetadata is { } aotIdxMeta && aotIdxMeta.TryGetValue(type, out var idxMetadata))
         {
             if (idxMetadata.TryGetIndex(obj, index!, out var aotIndexValue))
@@ -314,12 +302,6 @@ internal static class MemberAccess
         }
 
         var type = obj.GetType();
-
-        if (!RuntimeFeature.IsDynamicCodeSupported &&
-            !context.Config.RegisteredTypes.Contains(type))
-        {
-            throw new CsEvalException(DiagnosticDescriptors.AotTypeNotRegistered, type.FullName ?? type.Name);
-        }
 
         if (context.Config.AotMetadata is { } aotSetMeta && aotSetMeta.TryGetValue(type, out var setMetadata))
         {

@@ -127,6 +127,50 @@ public class GeneratedContextIntegrationTests(CompilationMode mode)
     }
 
     [Test]
+    public void InvokeMethod_InstanceWithArgs_UsesGeneratedDispatch()
+    {
+        var engine = CreateEngine();
+        engine.SetVariable("obj", new TestModel("World", 0));
+
+        var result = engine.Evaluate("obj.Add(3, 4)");
+
+        Assert.That(result, Is.EqualTo(7));
+    }
+
+    [Test]
+    public void InvokeMethod_InstanceNoArgs_UsesGeneratedDispatch()
+    {
+        var engine = CreateEngine();
+        engine.SetVariable("obj", new TestModel { Name = "World" });
+
+        var result = engine.Evaluate("obj.Greet()");
+
+        Assert.That(result, Is.EqualTo("Hello, World"));
+    }
+
+    [Test]
+    public void InvokeMethod_VoidMethod_UsesGeneratedDispatch()
+    {
+        var engine = CreateEngine();
+        var model = new TestModel { Value = 5 };
+        engine.SetVariable("obj", model);
+
+        engine.Evaluate("obj.IncrementValue()");
+
+        Assert.That(model.Value, Is.EqualTo(6));
+    }
+
+    [Test]
+    public void InvokeStaticMethod_UsesGeneratedDispatch()
+    {
+        var engine = CreateEngineWithTypeResolution();
+
+        var result = engine.Evaluate("TestModel.Parse(\"42\")");
+
+        Assert.That(result, Is.EqualTo(42));
+    }
+
+    [Test]
     public void NoGeneratedContext_ReflectionFallback()
     {
         var engine = CreateEngine(useGeneratedContext: false);
