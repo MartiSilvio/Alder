@@ -1,4 +1,4 @@
-using System.Collections.Frozen;
+using CsEval.Runtime.Collections;
 
 namespace CsEval.Runtime.Extensions;
 
@@ -20,11 +20,11 @@ internal static class DateArithmeticSugar
         [ExtendedBuiltInNames.Weeks] = amount => TimeSpan.FromDays(amount * 7d),
     };
 
-    private static readonly FrozenDictionary<string, Func<double, TimeSpan>> TimeSpanUnits =
-        BuildTimeSpanUnits().ToFrozenDictionary(StringComparer.Ordinal);
+    private static readonly FixedDictionary<string, Func<double, TimeSpan>> TimeSpanUnits =
+        FixedDictionary<string, Func<double, TimeSpan>>.Create(BuildTimeSpanUnits(), StringComparer.Ordinal);
 
-    private static readonly FrozenDictionary<string, Func<double, TimeSpan>> TimeSpanUnitsOrdinalIgnoreCase =
-        BuildTimeSpanUnits().ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
+    private static readonly FixedDictionary<string, Func<double, TimeSpan>> TimeSpanUnitsOrdinalIgnoreCase =
+        FixedDictionary<string, Func<double, TimeSpan>>.Create(BuildTimeSpanUnits(), StringComparer.OrdinalIgnoreCase);
 
     internal static bool TryResolveTimeSpanUnit(
         object target,
@@ -50,11 +50,11 @@ internal static class DateArithmeticSugar
         [ExtendedBuiltInNames.Today] = () => DateTime.Today,
     };
 
-    private static readonly FrozenDictionary<string, Func<object>> ClockFunctions =
-        BuildClockFunctions().ToFrozenDictionary(StringComparer.Ordinal);
+    private static readonly FixedDictionary<string, Func<object>> ClockFunctions =
+        FixedDictionary<string, Func<object>>.Create(BuildClockFunctions(), StringComparer.Ordinal);
 
-    private static readonly FrozenDictionary<string, Func<object>> ClockFunctionsOrdinalIgnoreCase =
-        BuildClockFunctions().ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
+    private static readonly FixedDictionary<string, Func<object>> ClockFunctionsOrdinalIgnoreCase =
+        FixedDictionary<string, Func<object>>.Create(BuildClockFunctions(), StringComparer.OrdinalIgnoreCase);
 
     internal static bool TryInvokeClockFunction(
         string name,

@@ -1,5 +1,5 @@
 using System.Collections.Concurrent;
-using System.Collections.Frozen;
+using CsEval.Runtime.Collections;
 using System.Collections.Immutable;
 using System.Dynamic;
 using System.Runtime.CompilerServices;
@@ -56,8 +56,8 @@ internal sealed class CsEvalContext
     public IServiceProvider? ServiceProvider { get; }
     internal TypeMetadataProvider TypeMetadata => _config.TypeMetadata;
     internal TypeResolver TypeResolver => _config.TypeResolver;
-    internal FrozenDictionary<string, Func<object?[], object?>> Functions => _config.Functions;
-    internal FrozenDictionary<string, ModuleInfo> Modules => _config.Modules;
+    internal FixedDictionary<string, Func<object?[], object?>> Functions => _config.Functions;
+    internal FixedDictionary<string, ModuleInfo> Modules => _config.Modules;
     internal ImmutableArray<Type> ExtensionTypes => _config.ExtensionTypes;
     internal ExecutionConstraintState? ConstraintState { get; set; }
 
@@ -217,7 +217,7 @@ internal sealed class CsEvalContext
     {
         var version = _variableTypeVersion;
         if (_parent != null)
-            version = HashCode.Combine(version, _parent.GetTypeInferenceVersion());
+            version = unchecked((version * 397) ^ _parent.GetTypeInferenceVersion());
         return version;
     }
 

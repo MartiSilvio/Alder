@@ -448,7 +448,7 @@ internal sealed class BoundEvaluator
             TokenType.GreaterGreaterGreater => Operators.UnsignedRightShift(left, right),
             TokenType.StarStar => Operators.Power(left, right),
             TokenType.In => Operators.InOperator(left, right),
-            TokenType.Like => Operators.Like(left, right),
+            TokenType.Like => Operators.Like(left, right, _options),
             TokenType.EqualTilde => Operators.RegexMatch(left, right),
             TokenType.BangTilde => Operators.RegexNotMatch(left, right),
             TokenType.LessEqualGreater => Operators.Spaceship(left, right),

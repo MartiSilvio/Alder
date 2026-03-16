@@ -1,5 +1,5 @@
 using System.Collections.Concurrent;
-using System.Collections.Frozen;
+using CsEval.Runtime.Collections;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using CsEval.Diagnostics;
@@ -101,19 +101,22 @@ internal static class TypeHelpers
     /// "There are no predefined implicit conversions to the char type, so values of the
     /// other integral types do not automatically convert to the char type." (§10.2.3)
     /// </summary>
-    private static readonly FrozenDictionary<Type, FrozenSet<Type>> ImplicitConversions = new Dictionary<Type, HashSet<Type>>
-    {
-        [typeof(sbyte)] = [typeof(short), typeof(int), typeof(long), typeof(float), typeof(double), typeof(decimal)],
-        [typeof(byte)] = [typeof(short), typeof(ushort), typeof(int), typeof(uint), typeof(long), typeof(ulong), typeof(float), typeof(double), typeof(decimal)],
-        [typeof(short)] = [typeof(int), typeof(long), typeof(float), typeof(double), typeof(decimal)],
-        [typeof(ushort)] = [typeof(int), typeof(uint), typeof(long), typeof(ulong), typeof(float), typeof(double), typeof(decimal)],
-        [typeof(int)] = [typeof(long), typeof(float), typeof(double), typeof(decimal)],
-        [typeof(uint)] = [typeof(long), typeof(ulong), typeof(float), typeof(double), typeof(decimal)],
-        [typeof(long)] = [typeof(float), typeof(double), typeof(decimal)],
-        [typeof(ulong)] = [typeof(float), typeof(double), typeof(decimal)],
-        [typeof(float)] = [typeof(double)],
-        [typeof(char)] = [typeof(ushort), typeof(int), typeof(uint), typeof(long), typeof(ulong), typeof(float), typeof(double), typeof(decimal)],
-    }.ToFrozenDictionary(kvp => kvp.Key, kvp => kvp.Value.ToFrozenSet());
+    private static readonly FixedDictionary<Type, FixedSet<Type>> ImplicitConversions = FixedDictionary<Type, FixedSet<Type>>.Create(
+        new Dictionary<Type, HashSet<Type>>
+        {
+            [typeof(sbyte)] = [typeof(short), typeof(int), typeof(long), typeof(float), typeof(double), typeof(decimal)],
+            [typeof(byte)] = [typeof(short), typeof(ushort), typeof(int), typeof(uint), typeof(long), typeof(ulong), typeof(float), typeof(double), typeof(decimal)],
+            [typeof(short)] = [typeof(int), typeof(long), typeof(float), typeof(double), typeof(decimal)],
+            [typeof(ushort)] = [typeof(int), typeof(uint), typeof(long), typeof(ulong), typeof(float), typeof(double), typeof(decimal)],
+            [typeof(int)] = [typeof(long), typeof(float), typeof(double), typeof(decimal)],
+            [typeof(uint)] = [typeof(long), typeof(ulong), typeof(float), typeof(double), typeof(decimal)],
+            [typeof(long)] = [typeof(float), typeof(double), typeof(decimal)],
+            [typeof(ulong)] = [typeof(float), typeof(double), typeof(decimal)],
+            [typeof(float)] = [typeof(double)],
+            [typeof(char)] = [typeof(ushort), typeof(int), typeof(uint), typeof(long), typeof(ulong), typeof(float), typeof(double), typeof(decimal)],
+        },
+        kvp => kvp.Key,
+        kvp => FixedSet<Type>.Create(kvp.Value));
 
     /// <summary>
     /// Returns the default value for a type (ECMA-334 §12.8.20).
@@ -147,7 +150,11 @@ internal static class TypeHelpers
             TypeCode.Double => 0d,
             TypeCode.Decimal => 0m,
             TypeCode.DateTime => default(DateTime),
-            _ => RuntimeHelpers.GetUninitializedObject(type)
+#if NET5_0_OR_GREATER
+            _ => System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(type)
+#else
+            _ => System.Runtime.Serialization.FormatterServices.GetUninitializedObject(type)
+#endif
         };
     }
 
@@ -817,6 +824,21 @@ internal static class TypeHelpers
 
     /// <summary>
     /// Checks if a value can be implicitly assigned to a target type per C# rules.
+    internal static bool HasUserDefinedImplicitConversion(Type sourceType, Type targetType)
+    {
+        return TryResolveUserDefinedConversion(sourceType, targetType, out _);
+    }
+
+    internal static bool TryApplyUserDefinedImplicitConversion(object value, Type targetType, out object? converted)
+    {
+        converted = null;
+        var sourceType = value.GetType();
+        if (!TryResolveUserDefinedConversion(sourceType, targetType, out var method))
+            return false;
+        converted = method.Invoke(null, [value])!;
+        return true;
+    }
+
     /// Handles ECMA-334 §10.2.3 implicit numeric conversions,
     /// ECMA-334 §10.6.1 implicit nullable conversions (T -> T?, S -> T? where S -> T is implicit),
     /// and ECMA-334 §10.2.13 implicit tuple conversions (element-wise implicit convertibility).

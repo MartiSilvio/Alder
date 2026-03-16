@@ -64,7 +64,7 @@ public sealed class CsEvalEngine : IDisposable
 
     private void ThrowIfDisposed()
     {
-        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (_disposed) throw new ObjectDisposedException(GetType().FullName);
     }
 
     public CsEvalEngine() : this(CsEvalOptions.Default)
@@ -94,7 +94,8 @@ public sealed class CsEvalEngine : IDisposable
         _options = options;
         _typeMetadata = frozenConfig.TypeMetadata;
         _expressionCache = expressionCache;
-        _functions = new Dictionary<string, Func<object?[], object?>>(frozenConfig.Functions, options.StringComparer);
+        _functions = new Dictionary<string, Func<object?[], object?>>(options.StringComparer);
+        foreach (var kvp in frozenConfig.Functions) _functions[kvp.Key] = kvp.Value;
         _pendingVariables = new Dictionary<string, PendingVariable>(options.StringComparer);
         _extensionTypes = [..frozenConfig.ExtensionTypes];
         _registeredTypes = [];
@@ -655,7 +656,7 @@ public sealed class CsEvalEngine : IDisposable
     private static bool IsDepthFailure(string? message)
     {
         return !string.IsNullOrEmpty(message) &&
-               message.Contains("nesting depth exceeded", StringComparison.OrdinalIgnoreCase);
+               message.IndexOf("nesting depth exceeded", StringComparison.OrdinalIgnoreCase) >= 0;
     }
 
     private Dictionary<string, object?> CollectEngineVariables()

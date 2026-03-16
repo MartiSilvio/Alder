@@ -1,5 +1,5 @@
 using System.Collections.Concurrent;
-using System.Collections.Frozen;
+using CsEval.Runtime.Collections;
 using System.Collections.Immutable;
 using CsEval.Diagnostics;
 
@@ -15,19 +15,19 @@ namespace CsEval.Runtime;
 /// </summary>
 internal sealed class TypeResolver
 {
-    private readonly FrozenDictionary<string, Type> _builtInTypes;
+    private readonly FixedDictionary<string, Type> _builtInTypes;
     private readonly ImmutableArray<string> _importedNamespaces;
     private readonly ImmutableArray<Assembly> _registeredAssemblies;
     private readonly StringComparer _comparer;
     private readonly bool _implicitBclImports;
-    private readonly Lazy<FrozenDictionary<string, FrozenDictionary<string, Type>>> _namespaceIndex;
-    private readonly Lazy<FrozenDictionary<string, Type>> _fullNameIndex;
-    private readonly Lazy<FrozenSet<string>> _namespacePrefixes;
-    private readonly Lazy<FrozenDictionary<string, Type>?> _implicitImports;
+    private readonly Lazy<FixedDictionary<string, FixedDictionary<string, Type>>> _namespaceIndex;
+    private readonly Lazy<FixedDictionary<string, Type>> _fullNameIndex;
+    private readonly Lazy<FixedSet<string>> _namespacePrefixes;
+    private readonly Lazy<FixedDictionary<string, Type>?> _implicitImports;
     private readonly ConcurrentDictionary<string, Type?> _cache = new();
 
     private TypeResolver(
-        FrozenDictionary<string, Type> builtInTypes,
+        FixedDictionary<string, Type> builtInTypes,
         ImmutableArray<string> importedNamespaces,
         ImmutableArray<Assembly> registeredAssemblies,
         bool implicitBclImports,
@@ -38,16 +38,16 @@ internal sealed class TypeResolver
         _registeredAssemblies = registeredAssemblies;
         _implicitBclImports = implicitBclImports;
         _comparer = comparer;
-        _namespaceIndex = new Lazy<FrozenDictionary<string, FrozenDictionary<string, Type>>>(
+        _namespaceIndex = new Lazy<FixedDictionary<string, FixedDictionary<string, Type>>>(
             () => BuildNamespaceIndex(_registeredAssemblies, _comparer),
             LazyThreadSafetyMode.ExecutionAndPublication);
-        _fullNameIndex = new Lazy<FrozenDictionary<string, Type>>(
+        _fullNameIndex = new Lazy<FixedDictionary<string, Type>>(
             () => BuildFullNameIndex(_registeredAssemblies, _comparer),
             LazyThreadSafetyMode.ExecutionAndPublication);
-        _namespacePrefixes = new Lazy<FrozenSet<string>>(
+        _namespacePrefixes = new Lazy<FixedSet<string>>(
             () => BuildNamespacePrefixes(_namespaceIndex.Value),
             LazyThreadSafetyMode.ExecutionAndPublication);
-        _implicitImports = new Lazy<FrozenDictionary<string, Type>?>(
+        _implicitImports = new Lazy<FixedDictionary<string, Type>?>(
             () => _implicitBclImports ? BuildImplicitImports(_namespaceIndex.Value, _comparer) : null,
             LazyThreadSafetyMode.ExecutionAndPublication);
     }
@@ -99,7 +99,7 @@ internal sealed class TypeResolver
         elementTypeName = string.Empty;
         rank = 0;
 
-        if (!typeName.EndsWith(']'))
+        if (typeName.Length == 0 || typeName[typeName.Length - 1] != ']')
             return false;
 
         var openIndex = typeName.LastIndexOf('[');
@@ -344,7 +344,7 @@ internal sealed class TypeResolver
     /// <summary>
     /// Built-in C# type keyword map per ECMA-334 §8.3.5.
     /// </summary>
-    private static readonly FrozenDictionary<string, Type> BuiltInTypeKeywords = new Dictionary<string, Type>
+    private static readonly FixedDictionary<string, Type> BuiltInTypeKeywords = FixedDictionary<string, Type>.Create(new Dictionary<string, Type>
     {
         ["sbyte"] = typeof(sbyte),
         ["byte"] = typeof(byte),
@@ -377,13 +377,13 @@ internal sealed class TypeResolver
         ["string?"] = typeof(string),
         ["object?"] = typeof(object),
         ["void"] = typeof(void),
-    }.ToFrozenDictionary();
+    });
 
-    private static readonly FrozenDictionary<string, Type> BuiltInTypeKeywordsOrdinal =
-        BuiltInTypeKeywords.ToFrozenDictionary(kvp => kvp.Key, kvp => kvp.Value, StringComparer.Ordinal);
+    private static readonly FixedDictionary<string, Type> BuiltInTypeKeywordsOrdinal =
+        FixedDictionary<string, Type>.Create(BuiltInTypeKeywords, kvp => kvp.Key, kvp => kvp.Value, StringComparer.Ordinal);
 
-    private static readonly FrozenDictionary<string, Type> BuiltInTypeKeywordsOrdinalIgnoreCase =
-        BuiltInTypeKeywords.ToFrozenDictionary(kvp => kvp.Key, kvp => kvp.Value, StringComparer.OrdinalIgnoreCase);
+    private static readonly FixedDictionary<string, Type> BuiltInTypeKeywordsOrdinalIgnoreCase =
+        FixedDictionary<string, Type>.Create(BuiltInTypeKeywords, kvp => kvp.Key, kvp => kvp.Value, StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// Creates a TypeResolver from the given configuration.
@@ -411,7 +411,7 @@ internal sealed class TypeResolver
         return new TypeResolver(builtInTypes, importedNamespaces, allAssemblies, implicitBclImports, comparer);
     }
 
-    private static FrozenDictionary<string, Type> GetBuiltInTypeMap(StringComparer comparer)
+    private static FixedDictionary<string, Type> GetBuiltInTypeMap(StringComparer comparer)
     {
         if (ReferenceEquals(comparer, StringComparer.Ordinal))
             return BuiltInTypeKeywordsOrdinal;
@@ -419,13 +419,13 @@ internal sealed class TypeResolver
         if (ReferenceEquals(comparer, StringComparer.OrdinalIgnoreCase))
             return BuiltInTypeKeywordsOrdinalIgnoreCase;
 
-        return BuiltInTypeKeywords.ToFrozenDictionary(comparer);
+        return FixedDictionary<string, Type>.Create(BuiltInTypeKeywords, comparer);
     }
 
     /// <summary>
     /// Builds a namespace -> (short name -> Type) index from all registered assemblies.
     /// </summary>
-    private static FrozenDictionary<string, FrozenDictionary<string, Type>> BuildNamespaceIndex(
+    private static FixedDictionary<string, FixedDictionary<string, Type>> BuildNamespaceIndex(
         ImmutableArray<Assembly> assemblies,
         StringComparer comparer)
     {
@@ -451,13 +451,14 @@ internal sealed class TypeResolver
             }
         }
 
-        return index.ToFrozenDictionary(
+        return FixedDictionary<string, FixedDictionary<string, Type>>.Create(
+            index,
             kvp => kvp.Key,
-            kvp => kvp.Value.ToFrozenDictionary(comparer),
+            kvp => FixedDictionary<string, Type>.Create(kvp.Value, comparer),
             comparer);
     }
 
-    private static FrozenDictionary<string, Type> BuildFullNameIndex(
+    private static FixedDictionary<string, Type> BuildFullNameIndex(
         ImmutableArray<Assembly> assemblies,
         StringComparer comparer)
     {
@@ -471,7 +472,7 @@ internal sealed class TypeResolver
             }
         }
 
-        return index.ToFrozenDictionary(comparer);
+        return FixedDictionary<string, Type>.Create(index, comparer);
     }
 
     private static IEnumerable<Type> EnumerateAssemblyTypes(Assembly assembly)
@@ -494,8 +495,8 @@ internal sealed class TypeResolver
     /// For generic types, stores the open generic type under the name without backtick
     /// (e.g., "List" -> typeof(List&lt;&gt;)).
     /// </summary>
-    private static FrozenDictionary<string, Type> BuildImplicitImports(
-        FrozenDictionary<string, FrozenDictionary<string, Type>> namespaceIndex,
+    private static FixedDictionary<string, Type> BuildImplicitImports(
+        FixedDictionary<string, FixedDictionary<string, Type>> namespaceIndex,
         StringComparer comparer)
     {
         var imports = new Dictionary<string, Type>(comparer);
@@ -524,7 +525,7 @@ internal sealed class TypeResolver
             }
         }
 
-        return imports.ToFrozenDictionary(comparer);
+        return FixedDictionary<string, Type>.Create(imports, comparer);
     }
 
     /// <summary>
@@ -532,8 +533,8 @@ internal sealed class TypeResolver
     /// For "System.Collections.Generic", adds: "System", "System.Collections", "System.Collections.Generic".
     /// Enables O(1) lookup for IsNamespaceOrPrefix.
     /// </summary>
-    private static FrozenSet<string> BuildNamespacePrefixes(
-        FrozenDictionary<string, FrozenDictionary<string, Type>> namespaceIndex)
+    private static FixedSet<string> BuildNamespacePrefixes(
+        FixedDictionary<string, FixedDictionary<string, Type>> namespaceIndex)
     {
         var prefixes = new HashSet<string>(StringComparer.Ordinal);
         foreach (var ns in namespaceIndex.Keys)
@@ -547,6 +548,6 @@ internal sealed class TypeResolver
                 dotIndex = ns.IndexOf('.', dotIndex + 1);
             }
         }
-        return prefixes.ToFrozenSet(StringComparer.Ordinal);
+        return FixedSet<string>.Create(prefixes, StringComparer.Ordinal);
     }
 }

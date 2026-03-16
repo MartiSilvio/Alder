@@ -1,5 +1,5 @@
 using System.Collections.Concurrent;
-using System.Collections.Frozen;
+using CsEval.Runtime.Collections;
 using System.Runtime.CompilerServices;
 using CsEval.Diagnostics;
 
@@ -10,8 +10,8 @@ namespace CsEval.Runtime;
 /// </summary>
 internal static class LambdaDelegateConverter
 {
-    private static readonly FrozenSet<Type> SupportedFuncDefinitions = CreateOpenGenericDelegateSet("Func", 1, 17);
-    private static readonly FrozenSet<Type> SupportedActionDefinitions = CreateOpenGenericDelegateSet("Action", 1, 16);
+    private static readonly FixedSet<Type> SupportedFuncDefinitions = CreateOpenGenericDelegateSet("Func", 1, 17);
+    private static readonly FixedSet<Type> SupportedActionDefinitions = CreateOpenGenericDelegateSet("Action", 1, 16);
 
     private static readonly ConditionalWeakTable<object, ConcurrentDictionary<Type, Delegate>> DelegateCache = new();
 
@@ -73,8 +73,9 @@ internal static class LambdaDelegateConverter
 
         if (isFunc)
         {
-            var paramTypes = genericArgs[..^1];
-            var returnType = genericArgs[^1];
+            var paramTypes = new Type[genericArgs.Length - 1];
+            Array.Copy(genericArgs, paramTypes, paramTypes.Length);
+            var returnType = genericArgs[genericArgs.Length - 1];
             return (paramTypes, returnType);
         }
 
@@ -115,7 +116,7 @@ internal static class LambdaDelegateConverter
         return false;
     }
 
-    private static FrozenSet<Type> CreateOpenGenericDelegateSet(string delegateName, int minArity, int maxArity)
+    private static FixedSet<Type> CreateOpenGenericDelegateSet(string delegateName, int minArity, int maxArity)
     {
         var definitions = new HashSet<Type>();
         for (var arity = minArity; arity <= maxArity; arity++)
@@ -135,7 +136,7 @@ internal static class LambdaDelegateConverter
             definitions.Add(openGeneric);
         }
 
-        return definitions.ToFrozenSet();
+        return FixedSet<Type>.Create(definitions);
     }
 
     private static Type? GetOpenFuncType(int arity) => arity switch

@@ -423,6 +423,9 @@ internal sealed class CallBinderService
         if (TypeHelpers.CanImplicitlyConvert(sourceType, targetType))
             return ImplicitConversionScore;
 
+        if (TypeHelpers.HasUserDefinedImplicitConversion(sourceType, targetType))
+            return ImplicitConversionScore;
+
         return -1;
     }
 

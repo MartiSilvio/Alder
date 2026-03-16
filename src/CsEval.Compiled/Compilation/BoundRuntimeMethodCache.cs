@@ -360,7 +360,7 @@ internal static class BoundRuntimeMethodCache
         typeof(Operators).GetMethod(nameof(Operators.InOperator), [typeof(object), typeof(object)])!;
 
     internal static readonly MethodInfo LikeMethod =
-        typeof(Operators).GetMethod(nameof(Operators.Like), [typeof(object), typeof(object)])!;
+        typeof(Operators).GetMethod(nameof(Operators.Like), [typeof(object), typeof(object), typeof(CsEvalOptions)])!;
 
     internal static readonly MethodInfo RegexMatchMethod =
         typeof(Operators).GetMethod(nameof(Operators.RegexMatch), [typeof(object), typeof(object)])!;

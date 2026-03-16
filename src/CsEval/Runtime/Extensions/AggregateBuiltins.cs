@@ -1,4 +1,4 @@
-using System.Collections.Frozen;
+using CsEval.Runtime.Collections;
 using CsEval.Diagnostics;
 
 namespace CsEval.Runtime.Extensions;
@@ -14,11 +14,11 @@ internal static class AggregateBuiltins
         [ExtendedBuiltInNames.Max] = Max,
     };
 
-    private static readonly FrozenDictionary<string, Func<object?, object?>> Aggregates =
-        BuildAggregates().ToFrozenDictionary(StringComparer.Ordinal);
+    private static readonly FixedDictionary<string, Func<object?, object?>> Aggregates =
+        FixedDictionary<string, Func<object?, object?>>.Create(BuildAggregates(), StringComparer.Ordinal);
 
-    private static readonly FrozenDictionary<string, Func<object?, object?>> AggregatesOrdinalIgnoreCase =
-        BuildAggregates().ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
+    private static readonly FixedDictionary<string, Func<object?, object?>> AggregatesOrdinalIgnoreCase =
+        FixedDictionary<string, Func<object?, object?>>.Create(BuildAggregates(), StringComparer.OrdinalIgnoreCase);
 
     internal static bool TryInvoke(string name, object?[] args, bool isCaseSensitive, out object? result)
     {

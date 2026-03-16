@@ -1,4 +1,4 @@
-using System.Collections.Frozen;
+using CsEval.Runtime.Collections;
 
 namespace CsEval.Runtime.Extensions;
 
@@ -9,14 +9,14 @@ namespace CsEval.Runtime.Extensions;
 /// </summary>
 internal static class BareMathNames
 {
-    private static readonly FrozenDictionary<string, object> Constants = new Dictionary<string, object>(StringComparer.Ordinal)
+    private static readonly FixedDictionary<string, object> Constants = FixedDictionary<string, object>.Create(new Dictionary<string, object>(StringComparer.Ordinal)
     {
         ["pi"] = Math.PI,
         ["e"] = Math.E,
-        ["tau"] = Math.Tau,
+        ["tau"] = Math.PI * 2.0,
         ["infinity"] = double.PositiveInfinity,
         ["nan"] = double.NaN
-    }.ToFrozenDictionary(StringComparer.Ordinal);
+    }, StringComparer.Ordinal);
 
     /// <summary>
     /// Tries to resolve a bare name as a math constant.
@@ -75,7 +75,7 @@ internal static class BareMathNames
 
     private static double ToDouble(object? arg) => Convert.ToDouble(arg);
 
-    private static readonly FrozenDictionary<string, Func<object?[], object?>> SingleArgFunctions = new Dictionary<string, Func<object?[], object?>>(StringComparer.Ordinal)
+    private static readonly FixedDictionary<string, Func<object?[], object?>> SingleArgFunctions = FixedDictionary<string, Func<object?[], object?>>.Create(new Dictionary<string, Func<object?[], object?>>(StringComparer.Ordinal)
     {
         // Trigonometric
         ["sin"] = args => Math.Sin(ToDouble(args[0])),
@@ -95,11 +95,11 @@ internal static class BareMathNames
 
         // Roots
         ["sqrt"] = args => Math.Sqrt(ToDouble(args[0])),
-        ["cbrt"] = args => Math.Cbrt(ToDouble(args[0])),
+        ["cbrt"] = args => Math.Pow(ToDouble(args[0]), 1.0 / 3.0),
 
         // Logarithms
         ["log"] = args => Math.Log(ToDouble(args[0])),
-        ["log2"] = args => Math.Log2(ToDouble(args[0])),
+        ["log2"] = args => Math.Log(ToDouble(args[0]), 2.0),
         ["log10"] = args => Math.Log10(ToDouble(args[0])),
         ["ln"] = args => Math.Log(ToDouble(args[0])),
 
@@ -114,9 +114,9 @@ internal static class BareMathNames
 
         // Sign
         ["sign"] = args => Math.Sign(ToDouble(args[0]))
-    }.ToFrozenDictionary(StringComparer.Ordinal);
+    }, StringComparer.Ordinal);
 
-    private static readonly FrozenDictionary<string, Func<object?[], object?>> TwoArgFunctions = new Dictionary<string, Func<object?[], object?>>(StringComparer.Ordinal)
+    private static readonly FixedDictionary<string, Func<object?[], object?>> TwoArgFunctions = FixedDictionary<string, Func<object?[], object?>>.Create(new Dictionary<string, Func<object?[], object?>>(StringComparer.Ordinal)
     {
         ["round"] = args => Math.Round(ToDouble(args[0]), Convert.ToInt32(args[1])),
         ["log"] = args => Math.Log(ToDouble(args[0]), ToDouble(args[1])),
@@ -124,12 +124,12 @@ internal static class BareMathNames
         ["min"] = args => Min(args[0], args[1]),
         ["max"] = args => Max(args[0], args[1]),
         ["pow"] = args => Math.Pow(ToDouble(args[0]), ToDouble(args[1]))
-    }.ToFrozenDictionary(StringComparer.Ordinal);
+    }, StringComparer.Ordinal);
 
-    private static readonly FrozenDictionary<string, Func<object?[], object?>> ThreeArgFunctions = new Dictionary<string, Func<object?[], object?>>(StringComparer.Ordinal)
+    private static readonly FixedDictionary<string, Func<object?[], object?>> ThreeArgFunctions = FixedDictionary<string, Func<object?[], object?>>.Create(new Dictionary<string, Func<object?[], object?>>(StringComparer.Ordinal)
     {
         ["clamp"] = args => Clamp(args[0], args[1], args[2])
-    }.ToFrozenDictionary(StringComparer.Ordinal);
+    }, StringComparer.Ordinal);
 
     /// <summary>
     /// Abs with type dispatch -- preserves int/long/float/double/decimal types.
@@ -186,12 +186,12 @@ internal static class BareMathNames
     {
         return (value, min, max) switch
         {
-            (int vi, int mi, int xi) => Math.Clamp(vi, mi, xi),
-            (long vl, long ml, long xl) => Math.Clamp(vl, ml, xl),
-            (float vf, float mf, float xf) => Math.Clamp(vf, mf, xf),
-            (double vd, double md, double xd) => Math.Clamp(vd, md, xd),
-            (decimal vm, decimal mm, decimal xm) => Math.Clamp(vm, mm, xm),
-            _ => Math.Clamp(ToDouble(value), ToDouble(min), ToDouble(max))
+            (int vi, int mi, int xi) => Math.Min(Math.Max(vi, mi), xi),
+            (long vl, long ml, long xl) => Math.Min(Math.Max(vl, ml), xl),
+            (float vf, float mf, float xf) => Math.Min(Math.Max(vf, mf), xf),
+            (double vd, double md, double xd) => Math.Min(Math.Max(vd, md), xd),
+            (decimal vm, decimal mm, decimal xm) => Math.Min(Math.Max(vm, mm), xm),
+            _ => Math.Min(Math.Max(ToDouble(value), ToDouble(min)), ToDouble(max))
         };
     }
 }

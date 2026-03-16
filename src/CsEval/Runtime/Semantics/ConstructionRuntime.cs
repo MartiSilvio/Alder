@@ -65,7 +65,8 @@ internal static class ConstructionRuntime
             return Activator.CreateInstance(tupleType, elements)!;
         }
 
-        var restElements = elements[7..];
+        var restElements = new object?[elements.Length - 7];
+        Array.Copy(elements, 7, restElements, 0, restElements.Length);
         var restTuple = CreateTuple(restElements);
         var genericArgs = new Type[8];
         var ctorArgs = new object?[8];

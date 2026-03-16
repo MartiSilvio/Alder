@@ -1,4 +1,4 @@
-using System.Collections.Frozen;
+using CsEval.Runtime.Collections;
 using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
 
@@ -7,26 +7,26 @@ namespace CsEval.Runtime;
 /// <summary>
 /// Immutable configuration for CsEval evaluation contexts.
 /// Once created, this configuration is thread-safe and can be shared across multiple threads.
-/// Uses FrozenDictionary for optimal read performance on immutable data.
+/// Uses FixedDictionary for optimal read performance on immutable data.
 /// </summary>
 internal sealed class CsEvalConfig
 {
-    public FrozenDictionary<string, Func<object?[], object?>> Functions { get; }
-    internal FrozenDictionary<string, ModuleInfo> Modules { get; }
+    public FixedDictionary<string, Func<object?[], object?>> Functions { get; }
+    internal FixedDictionary<string, ModuleInfo> Modules { get; }
     internal ImmutableArray<Type> ExtensionTypes { get; }
     internal TypeMetadataProvider TypeMetadata { get; }
     internal TypeResolver TypeResolver { get; }
     public StringComparer Comparer { get; }
-    internal FrozenDictionary<Type, IAotTypeMetadata>? AotMetadata { get; }
+    internal FixedDictionary<Type, IAotTypeMetadata>? AotMetadata { get; }
 
     private CsEvalConfig(
-        FrozenDictionary<string, Func<object?[], object?>> functions,
-        FrozenDictionary<string, ModuleInfo> modules,
+        FixedDictionary<string, Func<object?[], object?>> functions,
+        FixedDictionary<string, ModuleInfo> modules,
         ImmutableArray<Type> extensionTypes,
         TypeMetadataProvider typeMetadata,
         TypeResolver typeResolver,
         StringComparer comparer,
-        FrozenDictionary<Type, IAotTypeMetadata>? aotMetadata)
+        FixedDictionary<Type, IAotTypeMetadata>? aotMetadata)
     {
         Functions = functions;
         Modules = modules;
@@ -47,18 +47,18 @@ internal sealed class CsEvalConfig
         Dictionary<Type, IAotTypeMetadata>? aotMetadata = null)
     {
         return new CsEvalConfig(
-            functions.ToFrozenDictionary(comparer),
-            modules.ToFrozenDictionary(comparer),
+            FixedDictionary<string, Func<object?[], object?>>.Create(functions, comparer),
+            FixedDictionary<string, ModuleInfo>.Create(modules, comparer),
             [..extensionTypes],
             typeMetadata,
             typeResolver,
             comparer,
-            aotMetadata?.ToFrozenDictionary());
+            aotMetadata != null ? FixedDictionary<Type, IAotTypeMetadata>.Create(aotMetadata) : null);
     }
 
     internal static readonly CsEvalConfig Empty = new(
-        FrozenDictionary<string, Func<object?[], object?>>.Empty,
-        FrozenDictionary<string, ModuleInfo>.Empty,
+        FixedDictionary<string, Func<object?[], object?>>.Empty,
+        FixedDictionary<string, ModuleInfo>.Empty,
         [],
         new TypeMetadataProvider(),
         TypeResolver.Create([], [], true, StringComparer.Ordinal),

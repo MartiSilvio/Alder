@@ -1,11 +1,11 @@
-using System.Collections.Frozen;
+using CsEval.Runtime.Collections;
 using CsEval.Parsing;
 
 namespace CsEval.Runtime;
 
 internal static class OperatorRegistry
 {
-    internal static readonly FrozenDictionary<TokenType, TokenType> CompoundToBaseOperator = new Dictionary<TokenType, TokenType>
+    internal static readonly FixedDictionary<TokenType, TokenType> CompoundToBaseOperator = FixedDictionary<TokenType, TokenType>.Create(new Dictionary<TokenType, TokenType>
     {
         [TokenType.PlusEqual] = TokenType.Plus,
         [TokenType.MinusEqual] = TokenType.Minus,
@@ -19,5 +19,5 @@ internal static class OperatorRegistry
         [TokenType.GreaterGreaterEqual] = TokenType.GreaterGreater,
         [TokenType.GreaterGreaterGreaterEqual] = TokenType.GreaterGreaterGreater,
         [TokenType.StarStarEqual] = TokenType.StarStar,
-    }.ToFrozenDictionary();
+    });
 }

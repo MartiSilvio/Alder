@@ -16,8 +16,8 @@ internal sealed class Binder
 
     public BoundExpr Bind(Expr expr, BindingContext context)
     {
-        ArgumentNullException.ThrowIfNull(expr);
-        ArgumentNullException.ThrowIfNull(context);
+        if (expr is null) throw new ArgumentNullException(nameof(expr));
+        if (context is null) throw new ArgumentNullException(nameof(context));
         return expr switch
         {
                 LiteralExpr literal => BoundLiteralExpr.FromValue(literal.Value),
@@ -101,8 +101,8 @@ internal sealed class Binder
 
     public IReadOnlyList<CsEvalDiagnostic> CollectDiagnostics(Expr expr, BindingContext context)
     {
-        ArgumentNullException.ThrowIfNull(expr);
-        ArgumentNullException.ThrowIfNull(context);
+        if (expr is null) throw new ArgumentNullException(nameof(expr));
+        if (context is null) throw new ArgumentNullException(nameof(context));
 
         var diagnostics = new List<CsEvalDiagnostic>();
         if (expr is BlockExpr block)

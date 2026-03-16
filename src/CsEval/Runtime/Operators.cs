@@ -610,7 +610,7 @@ internal static class Operators
         return string.Concat(Enumerable.Repeat(str, count));
     }
 
-    public static bool Like(object? left, object? right)
+    public static bool Like(object? left, object? right, CsEvalOptions? options = null)
     {
         if (left is not string str || right is not string pattern)
             throw new CsEvalException(
@@ -622,22 +622,25 @@ internal static class Operators
         if (pattern.Length == 0)
             return str.Length == 0;
 
+        var comparison = options?.StringComparison ?? StringComparison.Ordinal;
+
         return ClassifyLikePattern(pattern) switch
         {
             LikePatternMode.Exact =>
-                string.Equals(str, pattern, StringComparison.Ordinal),
+                string.Equals(str, pattern, comparison),
             LikePatternMode.Prefix =>
-                str.AsSpan().StartsWith(pattern.AsSpan(0, pattern.Length - 1), StringComparison.Ordinal),
+                str.StartsWith(pattern.Substring(0, pattern.Length - 1), comparison),
             LikePatternMode.Suffix =>
-                str.AsSpan().EndsWith(pattern.AsSpan(1), StringComparison.Ordinal),
+                str.EndsWith(pattern.Substring(1), comparison),
             LikePatternMode.Contains =>
-                str.AsSpan().Contains(pattern.AsSpan(1, pattern.Length - 2), StringComparison.Ordinal),
-            _ => LikeMatchesPattern(str.AsSpan(), pattern.AsSpan())
+                str.IndexOf(pattern.Substring(1, pattern.Length - 2), comparison) >= 0,
+            _ => LikeMatchesPattern(str.AsSpan(), pattern.AsSpan(), comparison)
         };
     }
 
-    private static bool LikeMatchesPattern(ReadOnlySpan<char> value, ReadOnlySpan<char> pattern)
+    private static bool LikeMatchesPattern(ReadOnlySpan<char> value, ReadOnlySpan<char> pattern, StringComparison comparison)
     {
+        var ignoreCase = comparison == StringComparison.OrdinalIgnoreCase;
         var valueIndex = 0;
         var patternIndex = 0;
         var lastPercentIndex = -1;
@@ -646,7 +649,7 @@ internal static class Operators
         while (valueIndex < value.Length)
         {
             if (patternIndex < pattern.Length &&
-                (pattern[patternIndex] == '_' || pattern[patternIndex] == value[valueIndex]))
+                (pattern[patternIndex] == '_' || CharEquals(pattern[patternIndex], value[valueIndex], ignoreCase)))
             {
                 patternIndex++;
                 valueIndex++;
@@ -675,6 +678,9 @@ internal static class Operators
 
         return patternIndex == pattern.Length;
     }
+
+    private static bool CharEquals(char a, char b, bool ignoreCase)
+        => ignoreCase ? char.ToUpperInvariant(a) == char.ToUpperInvariant(b) : a == b;
 
     public static object RegexMatch(object? left, object? right)
     {

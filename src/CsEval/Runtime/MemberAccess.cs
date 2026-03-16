@@ -490,17 +490,17 @@ internal static class MemberAccess
         {
             startIdx = start != null ? ResolveNegativeIndex(Convert.ToInt32(start), length) : 0;
             endIdx = end != null ? ResolveNegativeIndex(Convert.ToInt32(end), length) : length;
-            startIdx = Math.Clamp(startIdx, 0, length);
-            endIdx = Math.Clamp(endIdx, 0, length);
+            startIdx = Math.Min(Math.Max(startIdx, 0), length);
+            endIdx = Math.Min(Math.Max(endIdx, 0), length);
         }
         else
         {
             // Negative step: default start is last index, default end is "before beginning"
             startIdx = start != null ? ResolveNegativeIndex(Convert.ToInt32(start), length) : length - 1;
             endIdx = end != null ? ResolveNegativeIndex(Convert.ToInt32(end), length) : -1;
-            startIdx = Math.Clamp(startIdx, -1, length - 1);
+            startIdx = Math.Min(Math.Max(startIdx, -1), length - 1);
             // endIdx can be -1 (meaning include index 0)
-            endIdx = Math.Clamp(endIdx, -1, length);
+            endIdx = Math.Min(Math.Max(endIdx, -1), length);
         }
 
         var indices = new List<int>();
@@ -594,8 +594,8 @@ internal static class MemberAccess
         if (end < 0) end = Math.Max(0, length + end);
 
         // Clamp to valid range
-        start = Math.Clamp(start, 0, length);
-        end = Math.Clamp(end, 0, length);
+        start = Math.Min(Math.Max(start, 0), length);
+        end = Math.Min(Math.Max(end, 0), length);
     }
 
     internal static object? ConvertChangeType(object? value, Type targetType)

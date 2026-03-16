@@ -20,7 +20,7 @@ internal static class CompiledProviderRegistry
 
     internal static void Register(ICompiledProvider provider)
     {
-        ArgumentNullException.ThrowIfNull(provider);
+        if (provider is null) throw new ArgumentNullException(nameof(provider));
         lock (Sync)
             _provider = provider;
     }

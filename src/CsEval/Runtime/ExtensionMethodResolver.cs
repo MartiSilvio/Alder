@@ -1,6 +1,6 @@
 using System.Collections.Immutable;
 using System.Collections.Concurrent;
-using System.Collections.Frozen;
+using CsEval.Runtime.Collections;
 using System.Runtime.CompilerServices;
 using CsEval.Diagnostics;
 
@@ -451,7 +451,8 @@ internal static class ExtensionMethodResolver
             }
 
             // Create proper test args based on the Func's input types
-            var inputTypes = paramGenericArgs[..^1];
+            var inputTypes = new Type[paramGenericArgs.Length - 1];
+            Array.Copy(paramGenericArgs, inputTypes, inputTypes.Length);
             var substitutedInputTypes = SubstituteTypeArgs(inputTypes, genericParams, typeArgs);
             var testArgs = CreateTypedDefaultArgs(substitutedInputTypes);
 
@@ -557,7 +558,11 @@ internal static class ExtensionMethodResolver
         {
             try
             {
-                return RuntimeHelpers.GetUninitializedObject(type);
+#if NET5_0_OR_GREATER
+                return System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(type);
+#else
+                return System.Runtime.Serialization.FormatterServices.GetUninitializedObject(type);
+#endif
             }
             catch (MemberAccessException)
             {
@@ -763,7 +768,7 @@ internal static class ExtensionMethodResolver
         return false;
     }
 
-    private static readonly FrozenSet<Type> FuncTypeDefinitions = new HashSet<Type>
+    private static readonly FixedSet<Type> FuncTypeDefinitions = FixedSet<Type>.Create(new HashSet<Type>
     {
         typeof(Func<>),
         typeof(Func<,>),
@@ -782,7 +787,7 @@ internal static class ExtensionMethodResolver
         typeof(Func<,,,,,,,,,,,,,,>),
         typeof(Func<,,,,,,,,,,,,,,,>),
         typeof(Func<,,,,,,,,,,,,,,,,>),
-    }.ToFrozenSet();
+    });
 
     private static bool IsFuncType(Type genericDef) => FuncTypeDefinitions.Contains(genericDef);
 }

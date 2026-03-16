@@ -1,4 +1,4 @@
-using System.Collections.Frozen;
+using CsEval.Runtime.Collections;
 using System.Diagnostics.CodeAnalysis;
 using CsEval.Attributes;
 
@@ -6,26 +6,26 @@ namespace CsEval.Runtime;
 
 internal static class ModuleMemberMetadata
 {
-    private static readonly FrozenDictionary<string, MemberInfo> BuiltInMathMembersOrdinal =
+    private static readonly FixedDictionary<string, MemberInfo> BuiltInMathMembersOrdinal =
         Build(typeof(Math), explicitOnly: false, StringComparer.Ordinal);
-    private static readonly FrozenDictionary<string, MemberInfo> BuiltInMathMembersOrdinalIgnoreCase =
+    private static readonly FixedDictionary<string, MemberInfo> BuiltInMathMembersOrdinalIgnoreCase =
         Build(typeof(Math), explicitOnly: false, StringComparer.OrdinalIgnoreCase);
-    private static readonly FrozenDictionary<string, MemberInfo> BuiltInConvertMembersOrdinal =
+    private static readonly FixedDictionary<string, MemberInfo> BuiltInConvertMembersOrdinal =
         Build(typeof(Convert), explicitOnly: false, StringComparer.Ordinal);
-    private static readonly FrozenDictionary<string, MemberInfo> BuiltInConvertMembersOrdinalIgnoreCase =
+    private static readonly FixedDictionary<string, MemberInfo> BuiltInConvertMembersOrdinalIgnoreCase =
         Build(typeof(Convert), explicitOnly: false, StringComparer.OrdinalIgnoreCase);
 
-    internal static FrozenDictionary<string, MemberInfo> GetBuiltInMathMembers(StringComparer comparer) =>
+    internal static FixedDictionary<string, MemberInfo> GetBuiltInMathMembers(StringComparer comparer) =>
         ReferenceEquals(comparer, StringComparer.Ordinal)
             ? BuiltInMathMembersOrdinal
             : BuiltInMathMembersOrdinalIgnoreCase;
 
-    internal static FrozenDictionary<string, MemberInfo> GetBuiltInConvertMembers(StringComparer comparer) =>
+    internal static FixedDictionary<string, MemberInfo> GetBuiltInConvertMembers(StringComparer comparer) =>
         ReferenceEquals(comparer, StringComparer.Ordinal)
             ? BuiltInConvertMembersOrdinal
             : BuiltInConvertMembersOrdinalIgnoreCase;
 
-    internal static FrozenDictionary<string, MemberInfo> Build(
+    internal static FixedDictionary<string, MemberInfo> Build(
         [DynamicallyAccessedMembers(
             DynamicallyAccessedMemberTypes.PublicMethods |
             DynamicallyAccessedMemberTypes.PublicProperties |
@@ -57,7 +57,7 @@ internal static class ModuleMemberMetadata
                 members[field.Name] = field;
         }
 
-        return members.ToFrozenDictionary(comparer);
+        return FixedDictionary<string, MemberInfo>.Create(members, comparer);
     }
 
     private static bool IsAsyncMethod(MethodInfo method)

@@ -694,67 +694,95 @@ internal static class MethodInvoker
     {
         var genericArgs = genericMethod.GetGenericArguments();
 
-        if (genericArgs.Length != 1 || args.Length == 0)
+        if (args.Length == 0)
             return null;
 
-        var firstArg = args[0];
-        if (firstArg == null)
-            return null;
-
-        var firstArgType = firstArg.GetType();
-
-        // Try proper generic type inference from the first parameter's type structure
-        // e.g., IEnumerable<TSource> + List<int> -> TSource = int
         var parameters = MethodDispatchCache.GetParameters(genericMethod);
-        if (parameters.Length > 0)
-        {
-            var inferred = TryInferGenericArg(parameters[0].ParameterType, firstArgType, genericArgs[0]);
-            if (inferred != null)
-            {
-                if (RuntimeGenericFactory.TryCloseGenericMethod(genericMethod, [inferred], out var inferredMethod))
-                    return inferredMethod;
-            }
-        }
-
-        // Fallback: use the argument type directly
-        return RuntimeGenericFactory.TryCloseGenericMethod(genericMethod, [firstArgType], out var fallbackMethod)
-            ? fallbackMethod
-            : null;
-    }
-
-    /// <summary>
-    /// Infers a generic type argument by matching a parameter's generic type structure
-    /// against the actual argument type. For example, IEnumerable&lt;TSource&gt; matched
-    /// against List&lt;int&gt; infers TSource = int.
-    /// </summary>
-    private static Type? TryInferGenericArg(Type parameterType, Type argumentType, Type genericArg)
-    {
-        if (parameterType == genericArg)
-            return argumentType;
-
-        if (!parameterType.IsGenericType)
+        if (parameters.Length == 0)
             return null;
 
-        var genericDef = parameterType.GetGenericTypeDefinition();
-
-        // Check if argumentType itself or its interfaces match the generic definition
-        foreach (var candidate in ReflectionRuntime.GetInterfaces(argumentType).Prepend(argumentType))
+        try
         {
-            if (!candidate.IsGenericType || candidate.GetGenericTypeDefinition() != genericDef)
-                continue;
+            var typeArgs = new Type[genericArgs.Length];
+            var resolved = 0;
 
-            var candidateArgs = candidate.GetGenericArguments();
-            var paramArgs = parameterType.GetGenericArguments();
-
-            for (var i = 0; i < paramArgs.Length; i++)
+            for (var i = 0; i < parameters.Length && resolved < genericArgs.Length; i++)
             {
-                if (paramArgs[i] == genericArg)
-                    return candidateArgs[i];
+                var argType = i < args.Length ? args[i]?.GetType() : null;
+                if (argType == null)
+                    continue;
+
+                resolved += TryInferTypeArgs(parameters[i].ParameterType, argType, genericArgs, typeArgs);
+            }
+
+            // Fill unresolved type args with object as fallback
+            for (var i = 0; i < typeArgs.Length; i++)
+            {
+                if (typeArgs[i] == null)
+                    typeArgs[i] = typeof(object);
+            }
+
+            return RuntimeGenericFactory.TryCloseGenericMethod(genericMethod, typeArgs, out var closedMethod)
+                ? closedMethod
+                : null;
+        }
+        catch (Exception ex) when (ex is ArgumentException or TypeLoadException or InvalidOperationException)
+        {
+            return null;
+        }
+    }
+
+    private static int TryInferTypeArgs(Type paramType, Type argType, Type[] genericParams, Type[] typeArgs)
+    {
+        var resolved = 0;
+
+        if (paramType.IsGenericParameter)
+        {
+            var index = Array.IndexOf(genericParams, paramType);
+            if (index >= 0 && typeArgs[index] == null)
+            {
+                typeArgs[index] = argType;
+                resolved++;
+            }
+            return resolved;
+        }
+
+        if (paramType.IsGenericType)
+        {
+            var paramGenericDef = paramType.GetGenericTypeDefinition();
+            var paramGenericArgs = paramType.GetGenericArguments();
+
+            Type? matchingType = null;
+
+            if (argType.IsGenericType && argType.GetGenericTypeDefinition() == paramGenericDef)
+            {
+                matchingType = argType;
+            }
+            else
+            {
+                foreach (var iface in ReflectionRuntime.GetInterfaces(argType))
+                {
+                    if (iface.IsGenericType && iface.GetGenericTypeDefinition() == paramGenericDef)
+                    {
+                        matchingType = iface;
+                        break;
+                    }
+                }
+            }
+
+            if (matchingType != null)
+            {
+                var argGenericArgs = matchingType.GetGenericArguments();
+                for (var i = 0; i < paramGenericArgs.Length && i < argGenericArgs.Length; i++)
+                {
+                    resolved += TryInferTypeArgs(paramGenericArgs[i], argGenericArgs[i], genericParams, typeArgs);
+                }
             }
         }
 
-        return null;
+        return resolved;
     }
+
 
     private static object?[] TryAppendCancellationToken(ParameterInfo[] parameters, object?[] args, CancellationToken ct)
     {
@@ -1024,6 +1052,13 @@ internal static class MethodInvoker
             return true;
         }
 
+        // User-defined implicit conversion (§10.5.3)
+        if (TypeHelpers.TryApplyUserDefinedImplicitConversion(arg, targetType, out var userConverted))
+        {
+            converted = userConverted;
+            return true;
+        }
+
         // Lambda to delegate conversion (e.g., LambdaValue -> Func<int>)
         if (arg is LambdaValue or CompiledLambdaValue)
         {
@@ -1263,6 +1298,9 @@ internal static class MethodInvoker
 
         if (TypeHelpers.CanImplicitlyConvert(argType, paramType))
             return 1; // Implicit conversion - lowest priority
+
+        if (TypeHelpers.HasUserDefinedImplicitConversion(argType, paramType))
+            return 1;
 
         // Lambda to delegate (e.g., LambdaValue -> Func<int, bool>)
         if (arg is LambdaValue or CompiledLambdaValue && LambdaDelegateConverter.IsSupportedDelegateType(paramType))

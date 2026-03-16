@@ -4,8 +4,8 @@ internal static class RuntimeArrayFactory
 {
     public static Type GetArrayType(Type elementType, int rank = 1)
     {
-        ArgumentNullException.ThrowIfNull(elementType);
-        ArgumentOutOfRangeException.ThrowIfLessThan(rank, 1);
+        if (elementType is null) throw new ArgumentNullException(nameof(elementType));
+        if (rank < 1) throw new ArgumentOutOfRangeException(nameof(rank));
 
         if (rank == 1)
             return Create(elementType, 0).GetType();
@@ -16,7 +16,7 @@ internal static class RuntimeArrayFactory
 
     public static Array Create(Type elementType, int length)
     {
-        ArgumentOutOfRangeException.ThrowIfNegative(length);
+        if (length < 0) throw new ArgumentOutOfRangeException(nameof(length));
 
         if (elementType == typeof(bool))
             return new bool[length];
@@ -54,7 +54,7 @@ internal static class RuntimeArrayFactory
 
     public static Array Create(Type elementType, int[] lengths)
     {
-        ArgumentNullException.ThrowIfNull(lengths);
+        if (lengths is null) throw new ArgumentNullException(nameof(lengths));
 
         return lengths.Length == 1
             ? Create(elementType, lengths[0])

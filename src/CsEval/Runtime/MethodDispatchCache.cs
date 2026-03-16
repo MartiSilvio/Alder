@@ -42,7 +42,11 @@ internal static class MethodDispatchCache
 
     internal static bool TryInvokeFast(MethodInfo method, object? target, object?[] args, out object? result)
     {
+#if NET7_0_OR_GREATER
         if (!RuntimeFeature.IsDynamicCodeSupported)
+#else
+        if (false) // dynamic code always supported on non-AOT runtimes
+#endif
         {
             result = null;
             return false;

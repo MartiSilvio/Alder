@@ -372,7 +372,7 @@ internal sealed partial class BoundExpressionEmitter
             TokenType.GreaterGreaterGreater => LinqExpression.Call(UnsignedRightShiftMethod, left, right),
             TokenType.StarStar => LinqExpression.Call(PowerMethod, left, right),
             TokenType.In => LinqExpression.Call(InOperatorMethod, left, right),
-            TokenType.Like => LinqExpression.Call(LikeMethod, left, right),
+            TokenType.Like => LinqExpression.Call(LikeMethod, left, right, _optionsParam),
             TokenType.EqualTilde => LinqExpression.Call(RegexMatchMethod, left, right),
             TokenType.BangTilde => LinqExpression.Call(RegexNotMatchMethod, left, right),
             TokenType.LessEqualGreater => LinqExpression.Call(SpaceshipMethod, left, right),

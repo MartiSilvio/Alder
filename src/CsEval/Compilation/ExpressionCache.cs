@@ -13,7 +13,7 @@ internal sealed class ExpressionCache
 
     public ExpressionCache(int capacity = 10_000)
     {
-        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(capacity);
+        if (capacity <= 0) throw new ArgumentOutOfRangeException(nameof(capacity));
         _capacity = capacity;
     }
 

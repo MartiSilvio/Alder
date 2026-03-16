@@ -182,14 +182,72 @@ public class MiscTests(CompilationMode mode)
     // Dynamic Expresso issue (closed) #285:
     // https://github.com/dynamicexpresso/DynamicExpresso/issues/285
     [Test]
-    public void Issue285_UserDefinedImplicitConversion_InMethodBinding_NotApplied()
+    public void Issue285_UserDefinedImplicitConversion_InMethodBinding_Works()
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
         var consumer = new ImplicitConsumer();
         engine.SetVariable("consumer", consumer);
         engine.SetVariable("from", new ImplicitFrom(7));
 
-        Assert.Throws<CsEvalException>(() => engine.Evaluate("consumer.Accept(from)"));
+        var result = engine.Evaluate("consumer.Accept(from)");
+        Assert.That(result, Is.EqualTo(7));
+    }
+
+    [Test]
+    public void UserDefinedImplicitConversion_MultipleArgs_Works()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var consumer = new ImplicitConsumer();
+        engine.SetVariable("consumer", consumer);
+        engine.SetVariable("a", new ImplicitFrom(3));
+        engine.SetVariable("b", new ImplicitFrom(5));
+
+        var result = engine.Evaluate("consumer.AcceptSum(a, b)");
+        Assert.That(result, Is.EqualTo(8));
+    }
+
+    [Test]
+    public void UserDefinedImplicitConversion_PreferExactMatchOverConversion()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var consumer = new ImplicitConsumer();
+        engine.SetVariable("consumer", consumer);
+        engine.SetVariable("to", new ImplicitTo(99));
+
+        var result = engine.Evaluate("consumer.Accept(to)");
+        Assert.That(result, Is.EqualTo(99));
+    }
+
+    [Test]
+    public void MultiTypeParamGenericInference_Zip_Works()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        engine.RegisterAssembly(typeof(Enumerable).Assembly);
+        engine.RegisterNamespace("System.Linq");
+        var a = new[] { 1, 2, 3 };
+        var b = new[] { "a", "b", "c" };
+        engine.SetVariable("a", a);
+        engine.SetVariable("b", b);
+
+        var result = engine.Evaluate("a.Zip(b, (x, y) => x + y)");
+        Assert.That(result, Is.InstanceOf<IEnumerable<string>>());
+        Assert.That(((IEnumerable<string>)result!).ToArray(), Is.EqualTo(new[] { "1a", "2b", "3c" }));
+    }
+
+    [Test]
+    public void MultiTypeParamGenericInference_ToDictionary_Works()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        engine.RegisterAssembly(typeof(Enumerable).Assembly);
+        engine.RegisterNamespace("System.Linq");
+        var items = new[] { "apple", "banana", "cherry" };
+        engine.SetVariable("items", items);
+
+        var result = engine.Evaluate("items.ToDictionary(x => x, x => x.Length)");
+        Assert.That(result, Is.InstanceOf<Dictionary<string, int>>());
+        var dict = (Dictionary<string, int>)result!;
+        Assert.That(dict["apple"], Is.EqualTo(5));
+        Assert.That(dict["banana"], Is.EqualTo(6));
     }
 
     // NCalc issue #538:
@@ -459,6 +517,7 @@ public class MiscTests(CompilationMode mode)
     public sealed class ImplicitConsumer
     {
         public int Accept(ImplicitTo value) => value.Value;
+        public int AcceptSum(ImplicitTo a, ImplicitTo b) => a.Value + b.Value;
     }
 }
 

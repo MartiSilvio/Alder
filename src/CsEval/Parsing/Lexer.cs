@@ -1,4 +1,4 @@
-using System.Collections.Frozen;
+using CsEval.Runtime.Collections;
 using CsEval.Diagnostics;
 
 namespace CsEval.Parsing;
@@ -14,7 +14,7 @@ internal sealed class Lexer
 
     // All C# keywords - reserved to match C# spec
     // https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/keywords/
-    private static readonly FrozenDictionary<string, TokenType> Keywords = new Dictionary<string, TokenType>
+    private static readonly FixedDictionary<string, TokenType> Keywords = FixedDictionary<string, TokenType>.Create(new Dictionary<string, TokenType>
     {
         // Literals
         ["true"] = TokenType.True,
@@ -169,7 +169,7 @@ internal sealed class Lexer
         ["where"] = TokenType.Where,
         ["with"] = TokenType.With,
         ["yield"] = TokenType.Yield,
-    }.ToFrozenDictionary();
+    });
 
     public Lexer(string source)
     {
