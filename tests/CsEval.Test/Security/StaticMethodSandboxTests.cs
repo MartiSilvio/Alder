@@ -13,7 +13,7 @@ public class StaticMethodSandboxTests(CompilationMode mode)
             Sandbox = SandboxOptions.Safe()
         });
 
-        var ex = Assert.Throws<CsEvalException>(() =>
+        var ex = Assert.Throws<CsEvalSandboxException>(() =>
             engine.Evaluate("System.IO.File.Exists(\"/tmp\")"));
         Assert.That(ex!.Message, Does.Contain("sandbox"));
     }
@@ -27,7 +27,7 @@ public class StaticMethodSandboxTests(CompilationMode mode)
             Sandbox = SandboxOptions.Strict()
         });
 
-        var ex = Assert.Throws<CsEvalException>(() =>
+        var ex = Assert.Throws<CsEvalSandboxException>(() =>
             engine.Evaluate("System.IO.File.Exists(\"/tmp\")"));
         Assert.That(ex!.Message, Does.Contain("sandbox"));
     }
@@ -83,7 +83,7 @@ public class StaticMethodSandboxTests(CompilationMode mode)
             Sandbox = SandboxOptions.Safe()
         });
 
-        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("int.MaxValue"));
+        var ex = Assert.Throws<CsEvalSandboxException>(() => engine.Evaluate("int.MaxValue"));
         Assert.That(ex!.Message, Does.Contain("sandbox"));
     }
 
@@ -96,7 +96,7 @@ public class StaticMethodSandboxTests(CompilationMode mode)
             Sandbox = SandboxOptions.Safe()
         });
 
-        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("double.NaN"));
+        var ex = Assert.Throws<CsEvalSandboxException>(() => engine.Evaluate("double.NaN"));
         Assert.That(ex!.Message, Does.Contain("sandbox"));
     }
 

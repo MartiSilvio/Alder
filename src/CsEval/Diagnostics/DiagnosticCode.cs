@@ -166,6 +166,12 @@ public enum DiagnosticCode
     /// <summary>Property assignment blocked by sandbox.</summary>
     CSEV0307 = 1_000_307,
 
+    /// <summary>Object construction blocked by sandbox.</summary>
+    CSEV0308 = 1_000_308,
+
+    /// <summary>Type not in sandbox allowlist.</summary>
+    CSEV0309 = 1_000_309,
+
     // CSEV05xx — Null access and null safety
 
     /// <summary>Cannot access member on null.</summary>

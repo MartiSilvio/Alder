@@ -250,6 +250,63 @@ public class MiscTests(CompilationMode mode)
         Assert.That(dict["banana"], Is.EqualTo(6));
     }
 
+    [Test]
+    public void Sandbox_AllowConstruction_Blocks_New()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with
+        {
+            CompilationMode = mode,
+            Sandbox = SandboxOptions.Safe()
+        });
+
+        Assert.Throws<CsEvalSandboxException>(() => engine.Evaluate("new object()"));
+    }
+
+    [Test]
+    public void Sandbox_AllowConstruction_Permits_When_Enabled()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with
+        {
+            CompilationMode = mode,
+            Sandbox = SandboxOptions.Safe() with { AllowConstruction = true }
+        });
+
+        var result = engine.Evaluate("new object()");
+        Assert.That(result, Is.Not.Null);
+    }
+
+    [Test]
+    public void Sandbox_AllowedTypes_Blocks_Unlisted_Type()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with
+        {
+            CompilationMode = mode,
+            Sandbox = SandboxOptions.Trusted() with
+            {
+                AllowedTypes = new HashSet<Type> { typeof(Math) }
+            }
+        });
+        engine.SetVariable("x", 5);
+
+        var result = engine.Evaluate("Math.Abs(x)");
+        Assert.That(result, Is.EqualTo(5));
+    }
+
+    [Test]
+    public void Sandbox_AllowedTypes_Blocks_Construction_Of_Unlisted_Type()
+    {
+        var engine = new CsEvalEngine(CsEvalOptions.Default with
+        {
+            CompilationMode = mode,
+            Sandbox = SandboxOptions.Trusted() with
+            {
+                AllowedTypes = new HashSet<Type> { typeof(Math) }
+            }
+        });
+
+        Assert.Throws<CsEvalSandboxException>(() => engine.Evaluate("new object()"));
+    }
+
     // NCalc issue #538:
     // https://github.com/ncalc/ncalc/issues/538
     [Test]

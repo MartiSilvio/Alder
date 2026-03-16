@@ -1107,7 +1107,7 @@ internal static class TypeHelpers
 
         var type = value.GetType();
         if (IsForbiddenReflectionType(type))
-            throw new CsEvalException(DiagnosticDescriptors.ReflectionTypeAccessBlocked, type.Name, context);
+            throw new CsEvalSandboxException(DiagnosticDescriptors.ReflectionTypeAccessBlocked, type.Name, context);
 
         return value;
     }
@@ -1119,7 +1119,7 @@ internal static class TypeHelpers
         {
             var type = value.GetType();
             if (IsForbiddenReflectionType(type))
-                throw new CsEvalException(DiagnosticDescriptors.ReflectionTypeAccessBlocked, type.Name, context);
+                throw new CsEvalSandboxException(DiagnosticDescriptors.ReflectionTypeAccessBlocked, type.Name, context);
         }
 
         return value;

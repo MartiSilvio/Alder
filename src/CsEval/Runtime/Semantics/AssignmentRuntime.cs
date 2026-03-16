@@ -8,7 +8,7 @@ internal static class AssignmentRuntime
     public static void CheckAllowIndexSet(CsEvalOptions options, object? index)
     {
         if (!options.Sandbox.AllowIndexSet)
-            throw new CsEvalException(DiagnosticDescriptors.SandboxIndexAssignmentBlocked, index);
+            throw new CsEvalSandboxException(DiagnosticDescriptors.SandboxIndexAssignmentBlocked, index);
     }
 
     public static object? ValidateVariableAssignment(string name, object? value, CsEvalContext context)

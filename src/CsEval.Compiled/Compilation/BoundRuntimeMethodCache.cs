@@ -163,7 +163,7 @@ internal static class BoundRuntimeMethodCache
         typeof(IdentifierRuntime).GetMethod(nameof(IdentifierRuntime.CreateLambdaValue))!;
 
     internal static readonly MethodInfo InvokeConstructorMethod =
-        typeof(ConstructionRuntime).GetMethod(nameof(ConstructionRuntime.InvokeConstructor), [typeof(Type), typeof(object?[]), typeof(CsEvalConfig)])!;
+        typeof(ConstructionRuntime).GetMethod(nameof(ConstructionRuntime.InvokeConstructor), [typeof(Type), typeof(object?[]), typeof(CsEvalConfig), typeof(CsEvalOptions)])!;
 
     internal static readonly MethodInfo CreateTypedArrayFromTypeNameMethod =
         typeof(ConstructionRuntime).GetMethod(nameof(ConstructionRuntime.CreateTypedArray))!;

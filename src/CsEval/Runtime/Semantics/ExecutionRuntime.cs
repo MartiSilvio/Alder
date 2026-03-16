@@ -11,7 +11,7 @@ internal static class ExecutionRuntime
     public static void CheckAllowAssignment(CsEvalOptions options, string context)
     {
         if (!options.Sandbox.AllowAssignment)
-            throw new CsEvalException(DiagnosticDescriptors.SandboxAssignmentBlocked, context);
+            throw new CsEvalSandboxException(DiagnosticDescriptors.SandboxAssignmentBlocked, context);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -28,9 +28,9 @@ internal static class ExecutionRuntime
             return;
 
         if (staticDeclaringType != null)
-            throw new CsEvalException(DiagnosticDescriptors.SandboxMethodCallBlocked, $"{staticDeclaringType.Name}.{methodName}");
+            throw new CsEvalSandboxException(DiagnosticDescriptors.SandboxMethodCallBlocked, $"{staticDeclaringType.Name}.{methodName}");
 
-        throw new CsEvalException(DiagnosticDescriptors.SandboxMethodCallBlocked, methodName);
+        throw new CsEvalSandboxException(DiagnosticDescriptors.SandboxMethodCallBlocked, methodName);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -44,19 +44,19 @@ internal static class ExecutionRuntime
         if (!isStatic)
         {
             if (!options.Sandbox.AllowPropertyRead)
-                throw new CsEvalException(DiagnosticDescriptors.SandboxPropertyAccessBlocked, memberName);
+                throw new CsEvalSandboxException(DiagnosticDescriptors.SandboxPropertyAccessBlocked, memberName);
             return;
         }
 
         if (isField)
         {
             if (!options.Sandbox.AllowStaticFieldRead)
-                throw new CsEvalException(DiagnosticDescriptors.SandboxStaticFieldAccessBlocked, staticDeclaringType?.Name ?? "type", memberName);
+                throw new CsEvalSandboxException(DiagnosticDescriptors.SandboxStaticFieldAccessBlocked, staticDeclaringType?.Name ?? "type", memberName);
             return;
         }
 
         if (!options.Sandbox.AllowStaticPropertyRead)
-            throw new CsEvalException(DiagnosticDescriptors.SandboxStaticPropertyAccessBlocked, staticDeclaringType?.Name ?? "type", memberName);
+            throw new CsEvalSandboxException(DiagnosticDescriptors.SandboxStaticPropertyAccessBlocked, staticDeclaringType?.Name ?? "type", memberName);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

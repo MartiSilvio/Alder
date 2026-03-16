@@ -393,6 +393,7 @@ public class ApiSurfaceTests
             "CsEval.CsEvalEngine",
             "CsEval.CsEvalEngine+RegisteredModule",
             "CsEval.CsEvalException",
+            "CsEval.CsEvalSandboxException",
             "CsEval.CsEvalRegisteredAttribute",
             "CsEval.CsEvalTypeContext",
             "CsEval.CsEvalDepthException",

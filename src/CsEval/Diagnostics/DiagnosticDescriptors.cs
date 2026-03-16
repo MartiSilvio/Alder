@@ -210,6 +210,14 @@ public static class DiagnosticDescriptors
     public static readonly DiagnosticDescriptor SandboxPropertyAssignmentBlocked =
         new(DiagnosticCode.CSEV0307, "Property assignment blocked by sandbox: {0}");
 
+    /// <summary>CSEV0308: Object construction blocked by sandbox: new {0}()</summary>
+    public static readonly DiagnosticDescriptor SandboxConstructionBlocked =
+        new(DiagnosticCode.CSEV0308, "Object construction blocked by sandbox: new {0}()");
+
+    /// <summary>CSEV0309: Type '{0}' is not in the sandbox allowlist</summary>
+    public static readonly DiagnosticDescriptor SandboxTypeBlocked =
+        new(DiagnosticCode.CSEV0309, "Type '{0}' is not in the sandbox allowlist");
+
     // CSEV05xx — Null access and null safety
 
     /// <summary>CSEV0500: Cannot access {0} '{1}' on null</summary>

@@ -69,9 +69,11 @@ internal static class MethodInvoker
             // Instance and static method calls on user-provided or resolved types.
             // Gated by AllowMethodCalls.
             StaticMethodRef staticRef =>
-                options.Sandbox.AllowMethodCalls
-                    ? InvokeStaticMethod(staticRef.Type, staticRef.MethodName, args, context, options, ct, typeArgs)
-                    : throw new CsEvalException(DiagnosticDescriptors.SandboxMethodCallBlocked, $"{staticRef.Type.Name}.{staticRef.MethodName}"),
+                !options.Sandbox.AllowMethodCalls
+                    ? throw new CsEvalSandboxException(DiagnosticDescriptors.SandboxMethodCallBlocked, $"{staticRef.Type.Name}.{staticRef.MethodName}")
+                : !options.Sandbox.IsTypeAllowed(staticRef.Type)
+                    ? throw new CsEvalSandboxException(DiagnosticDescriptors.SandboxTypeBlocked, staticRef.Type.Name)
+                : InvokeStaticMethod(staticRef.Type, staticRef.MethodName, args, context, options, ct, typeArgs),
 
             MethodRef methodRef =>
                 InvokeMethodRef(methodRef, args, context, options, ct, typeArgs),
@@ -209,7 +211,7 @@ internal static class MethodInvoker
 
         // If sandbox blocks method calls and no extension method matched, report the block
         if (!options.Sandbox.AllowMethodCalls)
-            throw new CsEvalException(DiagnosticDescriptors.SandboxMethodCallBlocked, methodName);
+            throw new CsEvalSandboxException(DiagnosticDescriptors.SandboxMethodCallBlocked, methodName);
 
         return (false, null);
     }

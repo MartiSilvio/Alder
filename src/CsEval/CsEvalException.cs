@@ -166,6 +166,17 @@ public class CsEvalExecutionLimitException : CsEvalException
 }
 
 /// <summary>
+/// Thrown when an expression is blocked by the sandbox.
+/// Covers all CSEV03xx diagnostics: method call, property access, assignment,
+/// construction, and type allowlist violations.
+/// </summary>
+public class CsEvalSandboxException : CsEvalException
+{
+    public CsEvalSandboxException(DiagnosticDescriptor descriptor, params object?[] args)
+        : base(descriptor, args) { }
+}
+
+/// <summary>
 /// Sentinel value for control flow signals (return, break, continue).
 /// Not an Exception -- avoids expensive stack trace capture and SEH unwinding,
 /// and prevents user catch blocks from intercepting internal control flow.

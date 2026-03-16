@@ -1724,7 +1724,8 @@ internal sealed partial class BoundExpressionEmitter
             InvokeConstructorMethod,
             ResolveTypeByName(objectCreation.TypeName),
             argsArray,
-            LinqExpression.Call(_contextParam, GetConfigProperty));
+            LinqExpression.Call(_contextParam, GetConfigProperty),
+            _optionsParam);
 
         if (objectCreation.InitializerEntries.IsDefaultOrEmpty)
             return result;

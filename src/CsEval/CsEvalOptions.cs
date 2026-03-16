@@ -137,6 +137,19 @@ public sealed record SandboxOptions
     public bool AllowIndexSet { get; init; }
 
     /// <summary>
+    /// Allow object construction via new expressions (e.g., new List&lt;int&gt;()).
+    /// Default: false. When false, all new expressions are blocked.
+    /// </summary>
+    public bool AllowConstruction { get; init; }
+
+    /// <summary>
+    /// When set, only types in this set may be resolved, constructed, or accessed.
+    /// Null means no restriction (all types in registered assemblies are available).
+    /// Use with Safe() or Strict() to create a tight allowlist.
+    /// </summary>
+    public HashSet<Type>? AllowedTypes { get; init; }
+
+    /// <summary>
     /// Full access mode. All operations are allowed.
     /// Use for trusted internal expressions.
     /// </summary>
@@ -148,11 +161,12 @@ public sealed record SandboxOptions
         AllowStaticFieldRead = true,
         AllowAssignment = true,
         AllowPropertySet = true,
-        AllowIndexSet = true
+        AllowIndexSet = true,
+        AllowConstruction = true
     };
 
     /// <summary>
-    /// Safe mode. Blocks method calls on variable objects.
+    /// Safe mode. Blocks method calls and object construction on variable objects.
     /// Property reads, assignments, LINQ, and modules still allowed.
     /// </summary>
     public static SandboxOptions Safe() => new()
@@ -164,11 +178,13 @@ public sealed record SandboxOptions
     };
 
     /// <summary>
-    /// Strict read-only mode. No method calls, no mutations.
+    /// Strict read-only mode. No method calls, no mutations, no construction.
     /// Only variable declarations, reads, property reads, and pure expressions allowed.
     /// </summary>
     public static SandboxOptions Strict() => new()
     {
         AllowPropertyRead = true
     };
+
+    internal bool IsTypeAllowed(Type type) => AllowedTypes == null || AllowedTypes.Contains(type);
 }

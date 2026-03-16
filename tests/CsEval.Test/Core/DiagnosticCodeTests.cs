@@ -437,7 +437,7 @@ public class DiagnosticCodeTests
             Sandbox = SandboxOptions.Strict() with { AllowAssignment = false }
         });
         engine.SetVariable("x", 10);
-        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("x = 5"));
+        var ex = Assert.Throws<CsEvalSandboxException>(() => engine.Evaluate("x = 5"));
         Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0302));
         Assert.That(ex.FormattedCode, Is.EqualTo("CSEV0302"));
     }

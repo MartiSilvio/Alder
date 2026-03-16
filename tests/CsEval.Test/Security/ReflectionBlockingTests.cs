@@ -19,7 +19,7 @@ public class ReflectionBlockingTests(CompilationMode mode)
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = Mode });
         engine.SetVariable("text", "hello");
 
-        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("text.GetType()"));
+        var ex = Assert.Throws<CsEvalSandboxException>(() => engine.Evaluate("text.GetType()"));
         Assert.That(ex!.Message, Does.Contain("reflection"));
         Assert.That(ex.Message, Does.Contain("RuntimeType"));
     }
@@ -30,7 +30,7 @@ public class ReflectionBlockingTests(CompilationMode mode)
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = Mode });
         engine.SetVariable("num", 42);
 
-        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("num.GetType()"));
+        var ex = Assert.Throws<CsEvalSandboxException>(() => engine.Evaluate("num.GetType()"));
         Assert.That(ex!.Message, Does.Contain("reflection"));
     }
 
@@ -40,7 +40,7 @@ public class ReflectionBlockingTests(CompilationMode mode)
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = Mode });
         engine.SetVariable("items", new List<int> { 1, 2, 3 });
 
-        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("items.GetType()"));
+        var ex = Assert.Throws<CsEvalSandboxException>(() => engine.Evaluate("items.GetType()"));
         Assert.That(ex!.Message, Does.Contain("reflection"));
     }
 
@@ -50,7 +50,7 @@ public class ReflectionBlockingTests(CompilationMode mode)
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = Mode });
         engine.SetVariable("obj", new { Name = "Test", Value = 42 });
 
-        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("obj.GetType()"));
+        var ex = Assert.Throws<CsEvalSandboxException>(() => engine.Evaluate("obj.GetType()"));
         Assert.That(ex!.Message, Does.Contain("reflection"));
     }
 
@@ -65,7 +65,7 @@ public class ReflectionBlockingTests(CompilationMode mode)
         var holder = new TypeHolder { TypeValue = typeof(string) };
         engine.SetVariable("holder", holder);
 
-        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("holder.TypeValue"));
+        var ex = Assert.Throws<CsEvalSandboxException>(() => engine.Evaluate("holder.TypeValue"));
         Assert.That(ex!.Message, Does.Contain("reflection"));
     }
 
@@ -75,7 +75,7 @@ public class ReflectionBlockingTests(CompilationMode mode)
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = Mode });
         engine.SetVariable("dict", new Dictionary<string, object?> { ["type"] = typeof(int) });
 
-        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("dict[\"type\"]"));
+        var ex = Assert.Throws<CsEvalSandboxException>(() => engine.Evaluate("dict[\"type\"]"));
         Assert.That(ex!.Message, Does.Contain("reflection"));
     }
 
@@ -85,7 +85,7 @@ public class ReflectionBlockingTests(CompilationMode mode)
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = Mode });
         engine.SetVariable("arr", new object[] { typeof(string), typeof(int) });
 
-        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("arr[0]"));
+        var ex = Assert.Throws<CsEvalSandboxException>(() => engine.Evaluate("arr[0]"));
         Assert.That(ex!.Message, Does.Contain("reflection"));
     }
 
@@ -99,7 +99,7 @@ public class ReflectionBlockingTests(CompilationMode mode)
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = Mode });
         engine.RegisterModule<ReflectionTestModule>("Test");
 
-        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("Test.GetMethodInfo()"));
+        var ex = Assert.Throws<CsEvalSandboxException>(() => engine.Evaluate("Test.GetMethodInfo()"));
         Assert.That(ex!.Message, Does.Contain("reflection"));
     }
 
@@ -109,7 +109,7 @@ public class ReflectionBlockingTests(CompilationMode mode)
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = Mode });
         engine.RegisterModule<ReflectionTestModule>("Test");
 
-        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("Test.GetPropertyInfo()"));
+        var ex = Assert.Throws<CsEvalSandboxException>(() => engine.Evaluate("Test.GetPropertyInfo()"));
         Assert.That(ex!.Message, Does.Contain("reflection"));
     }
 
@@ -119,7 +119,7 @@ public class ReflectionBlockingTests(CompilationMode mode)
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = Mode });
         engine.RegisterModule<ReflectionTestModule>("Test");
 
-        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("Test.GetFieldInfo()"));
+        var ex = Assert.Throws<CsEvalSandboxException>(() => engine.Evaluate("Test.GetFieldInfo()"));
         Assert.That(ex!.Message, Does.Contain("reflection"));
     }
 
@@ -133,7 +133,7 @@ public class ReflectionBlockingTests(CompilationMode mode)
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = Mode });
         engine.RegisterModule<ReflectionTestModule>("Test");
 
-        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("Test.GetAssembly()"));
+        var ex = Assert.Throws<CsEvalSandboxException>(() => engine.Evaluate("Test.GetAssembly()"));
         Assert.That(ex!.Message, Does.Contain("reflection"));
     }
 
@@ -143,7 +143,7 @@ public class ReflectionBlockingTests(CompilationMode mode)
         var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = Mode });
         engine.RegisterModule<ReflectionTestModule>("Test");
 
-        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("Test.GetModule()"));
+        var ex = Assert.Throws<CsEvalSandboxException>(() => engine.Evaluate("Test.GetModule()"));
         Assert.That(ex!.Message, Does.Contain("reflection"));
     }
 
@@ -158,7 +158,7 @@ public class ReflectionBlockingTests(CompilationMode mode)
         engine.SetVariable("items", new List<object> { "hello", 42, 3.14 });
 
         // Even through LINQ, reflection types are blocked
-        var ex = Assert.Throws<CsEvalException>(() =>
+        var ex = Assert.Throws<CsEvalSandboxException>(() =>
             engine.Evaluate("items.Select(x => x.GetType()).ToList()"));
         Assert.That(ex!.Message, Does.Contain("reflection"));
     }

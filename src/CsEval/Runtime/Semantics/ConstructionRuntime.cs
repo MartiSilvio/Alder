@@ -6,8 +6,17 @@ namespace CsEval.Runtime;
 
 internal static class ConstructionRuntime
 {
-    public static object? InvokeConstructor(Type type, object?[] args, CsEvalConfig config)
+    public static object? InvokeConstructor(Type type, object?[] args, CsEvalConfig config, CsEvalOptions? options = null)
     {
+        if (options != null)
+        {
+            if (!options.Sandbox.AllowConstruction)
+                throw new CsEvalSandboxException(DiagnosticDescriptors.SandboxConstructionBlocked, type.Name);
+
+            if (!options.Sandbox.IsTypeAllowed(type))
+                throw new CsEvalSandboxException(DiagnosticDescriptors.SandboxTypeBlocked, type.Name);
+        }
+
         if (config.AotMetadata is { } aotCtorMeta && aotCtorMeta.TryGetValue(type, out var ctorMetadata))
         {
             try
