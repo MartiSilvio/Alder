@@ -1,6 +1,6 @@
 ---
 title: "CsEvalOptions"
-description: "Configure engine behavior: case sensitivity, execution constraints, sandbox, compilation mode, expression depth, and language mode."
+description: "Configure engine behavior: case sensitivity, execution constraints, sandbox, expression depth, and language mode."
 sidebar:
   order: 1
 ---
@@ -16,8 +16,7 @@ var engine = new CsEvalEngine();
 // Custom options
 var engine = new CsEvalEngine(new CsEvalOptions
 {
-    IsCaseSensitive = false,
-    CompilationMode = CompilationMode.Interpreted
+    IsCaseSensitive = false
 });
 ```
 
@@ -134,26 +133,6 @@ engine.Evaluate("name.ToUpper()");
 Sandbox configuration is covered in depth in the Security section. Modules, registered functions, lambdas, and LINQ extension methods are always allowed regardless of `AllowMethodCalls`.
 :::
 
-### CompilationMode
-
-| Type | Default |
-|------|---------|
-| `CompilationMode` (enum) | `Compiled` |
-
-Controls how expressions are executed.
-
-| Value | Behavior |
-|-------|----------|
-| `Interpreted` | Always use tree-walking interpretation |
-| `Compiled` | Compile to IL on first evaluation; throw `CsEvalException` (StrictCompilationFailed) if compilation fails |
-
-```csharp
-var engine = new CsEvalEngine(new CsEvalOptions
-{
-    CompilationMode = CompilationMode.Interpreted
-});
-```
-
 ### LanguageMode
 
 | Type | Default |
@@ -178,13 +157,29 @@ var engine = new CsEvalEngine(new CsEvalOptions
 Extended mode is documented separately. All examples in this documentation use Standard mode.
 :::
 
+### UseCompiler()
+
+The `UseCompiler()` extension method from the **CsEval.Compiled** package enables compiled execution (IL emission via LINQ expression trees). Without it, the engine uses tree-walking interpretation.
+
+```csharp
+using CsEval.Compiled;
+
+// Compiled — emits IL, throws if compilation fails
+var engine = new CsEvalEngine(CsEvalOptions.Default.UseCompiler());
+
+// Interpreted (default) — always tree-walks
+var engine = new CsEvalEngine();
+```
+
+See [Compilation Modes](../engine/compilation-modes/) for full details.
+
 ### ExpressionCompiler
 
 | Type | Default |
 |------|---------|
 | `IExpressionCompiler` | `DefaultExpressionCompiler.Instance` |
 
-Strategy used to compile LINQ expression trees to delegates. The default uses `System.Linq.Expressions`. Supply an alternative implementation (e.g., FastExpressionCompiler) to override.
+Strategy used to compile LINQ expression trees to delegates when the compiled backend is active. The default uses `System.Linq.Expressions`. Supply an alternative implementation (e.g., FastExpressionCompiler) to override.
 
 ## Engine Lifecycle
 

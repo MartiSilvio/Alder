@@ -171,10 +171,7 @@ bool valid2 = engine.TryValidate("unknownVar + 1", out var diagnostics2);
 Returns an `EvaluationTraceResult` with a step-by-step execution trace alongside the result. Useful for debugging and understanding how an expression is evaluated.
 
 ```csharp
-var engine = new CsEvalEngine(new CsEvalOptions
-{
-    CompilationMode = CompilationMode.Interpreted
-});
+var engine = new CsEvalEngine();
 
 var trace = engine.EvaluateWithTrace("1 + 2");
 // trace.Result: 3
@@ -182,7 +179,7 @@ var trace = engine.EvaluateWithTrace("1 + 2");
 ```
 
 :::note
-`EvaluateWithTrace` always uses the interpreted pipeline internally for tracing, regardless of `CompilationMode`.
+`EvaluateWithTrace` always uses the interpreted pipeline internally for tracing, regardless of whether the compiled backend is active.
 :::
 
 `EvaluationTraceResult` contains:
@@ -229,19 +226,21 @@ Returns the reason compilation failed, or `null` if it succeeded or hasn't been 
 
 ### TryCompile() / Compile()
 
-`TryCompile()` attempts compilation and returns `bool`. `Compile()` throws if compilation fails.
+Compilation is owned by the engine. The `TryCompile` and `Compile` methods from the **CsEval.Compiled** package attempt to compile a parsed expression to IL.
 
 ```csharp
-var engine = new CsEvalEngine();
+using CsEval.Compiled;
+
+var engine = new CsEvalEngine(CsEvalOptions.Default.UseCompiler());
 var expr = engine.Parse("1 + 2");
 
-if (expr.TryCompile())
+if (engine.TryCompile(expr))
 {
     // expr.IsCompiled is now true
 }
 
 // Or throw on failure:
-expr.Compile();
+engine.Compile(expr);
 ```
 
 ### GetVariables()

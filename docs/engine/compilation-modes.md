@@ -12,25 +12,21 @@ CsEval has two execution backends:
 | Backend | How it works | Package needed |
 |---------|-------------|----------------|
 | **Interpreted** | Tree-walks the bound AST at runtime | CsEval (core) |
-| **Compiled** | Builds LINQ expression trees, emits IL, executes native delegates | CsEval (core) |
+| **Compiled** | Builds LINQ expression trees, emits IL, executes native delegates | CsEval.Compiled |
 
-The `CompilationMode` option on `CsEvalOptions` controls which backend the engine uses.
+The `UseCompiler()` extension method from the **CsEval.Compiled** package switches the engine to the compiled backend. Without it, the engine uses interpretation.
 
 ```csharp
-// Interpreted — always tree-walks
-var engine = new CsEvalEngine(new CsEvalOptions
-{
-    CompilationMode = CompilationMode.Interpreted
-});
+using CsEval.Compiled;
 
-// Compiled (default) — emits IL, throws if compilation fails
-var engine = new CsEvalEngine(new CsEvalOptions
-{
-    CompilationMode = CompilationMode.Compiled
-});
+// Interpreted (default) — always tree-walks
+var engine = new CsEvalEngine();
+
+// Compiled — emits IL, throws if compilation fails
+var engine = new CsEvalEngine(CsEvalOptions.Default.UseCompiler());
 ```
 
-## CompilationMode.Interpreted
+## Interpreted (Default)
 
 Always evaluates via the tree-walking interpreter. No IL emission, no expression tree construction.
 
@@ -38,7 +34,7 @@ Always evaluates via the tree-walking interpreter. No IL emission, no expression
 - Required for `EvaluateWithTrace()` (tracing always uses the interpreted pipeline)
 - Works in all environments including those that restrict dynamic code generation
 
-## CompilationMode.Compiled
+## Compiled
 
 Compiles expressions to IL via LINQ expression trees on first evaluation. If compilation fails, the engine throws `CsEvalException` rather than falling back to interpretation.
 
@@ -46,7 +42,7 @@ Compiles expressions to IL via LINQ expression trees on first evaluation. If com
 - First evaluation incurs a one-time compilation cost
 - Subsequent evaluations of the same expression skip compilation entirely (cached)
 
-This is the **default** mode.
+Requires the **CsEval.Compiled** package and `UseCompiler()` on the options.
 
 ## CsEval.Compiled Package
 
@@ -124,7 +120,7 @@ if (engine.TryParseAsExpression<Func<int, bool>>("x => x > 5", out var expr, out
 
 ### CompileExpression&lt;TDelegate&gt;
 
-Parses a lambda string into an expression tree and compiles it to a native delegate. Equivalent to `ParseAsExpression<TDelegate>(expression).Compile()`.
+Parses a lambda string into an expression tree and compiles it to a native delegate.
 
 ```csharp
 Func<int, bool> isPositive = engine.CompileExpression<Func<int, bool>>("x => x > 0");
@@ -171,11 +167,13 @@ After parsing, a `CsEvalExpression` exposes compilation state:
 
 ### TryCompile / Compile
 
+Compilation is owned by the engine, not the expression. Use the engine's `TryCompile` and `Compile` methods from the **CsEval.Compiled** package:
+
 ```csharp
 var expr = engine.Parse("1 + 2");
-bool compiled = expr.TryCompile(); // true if compilation succeeded
+bool compiled = engine.TryCompile(expr); // true if compilation succeeded
 // or:
-expr.Compile(); // throws CsEvalException if compilation fails
+engine.Compile(expr); // throws CsEvalException if compilation fails
 ```
 
 ### GetVariables
@@ -210,7 +208,7 @@ The engine maintains a FIFO-bounded expression cache (default capacity: 10,000 e
 - **Thread-safe** (backed by `ConcurrentDictionary`)
 - **Bounded** with FIFO eviction when capacity is exceeded
 
-When `CompilationMode.Compiled` is active, the first evaluation of an expression compiles it and stores the delegate in the cache. Subsequent evaluations of the same expression text reuse the cached delegate.
+When the compiled backend is active (via `UseCompiler()`), the first evaluation of an expression compiles it and stores the delegate in the cache. Subsequent evaluations of the same expression text reuse the cached delegate.
 
 ## Custom Compiler Backend
 
@@ -230,21 +228,21 @@ Configure via `CsEvalOptions.ExpressionCompiler`:
 var engine = new CsEvalEngine(new CsEvalOptions
 {
     ExpressionCompiler = new FastExpressionCompilerAdapter()
-});
+}.UseCompiler());
 ```
 
 The default implementation delegates to `System.Linq.Expressions.LambdaExpression.Compile()`.
 
 ## When to Use Which Mode
 
-| Scenario | Recommended Mode |
-|----------|-----------------|
-| One-shot evaluation | `Interpreted` — avoids compilation overhead |
-| Repeated evaluation of same expression | `Compiled` — native delegate is faster |
+| Scenario | Recommended Approach |
+|----------|---------------------|
+| One-shot evaluation | Default (interpreted) — avoids compilation overhead |
+| Repeated evaluation of same expression | `UseCompiler()` — native delegate is faster |
 | Hot path (millions of invocations) | `CompileToFunc<T>()` — minimal dispatch overhead |
-| Debugging / tracing | `Interpreted` — `EvaluateWithTrace()` always uses interpreter |
+| Debugging / tracing | Default (interpreted) — `EvaluateWithTrace()` always uses interpreter |
 | Entity Framework / IQueryable | `ParseAsExpression<T>()` — produces LINQ expression trees |
-| Environments restricting dynamic code | `Interpreted` — no IL emission |
+| Environments restricting dynamic code | Default (interpreted) — no IL emission |
 
 ## See Also
 

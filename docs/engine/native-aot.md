@@ -9,7 +9,7 @@ sidebar:
 
 CsEval supports Native AOT deployment via source generators that pre-compute type metadata at compile time, eliminating the need for runtime reflection.
 
-**Honest assessment:** CsEval's interpreted mode works well under AOT. The compiled mode (IL emission via `System.Linq.Expressions`) may encounter limitations depending on your trimming configuration, since `Expression.Compile()` relies on reflection emit. If you target AOT, test your specific expressions under your trimming settings.
+**Honest assessment:** CsEval's interpreted mode (the default) works well under AOT. The compiled backend from the **CsEval.Compiled** package (IL emission via `System.Linq.Expressions`) may encounter limitations depending on your trimming configuration, since expression tree compilation relies on reflection emit. If you target AOT, test your specific expressions under your trimming settings.
 
 ## The Problem
 
@@ -116,9 +116,9 @@ engine.Evaluate("x + y", new Dictionary<string, object?> { ["x"] = 1, ["y"] = 2 
 
 ### Compiled Mode Under Trimming
 
-`CompilationMode.Compiled` uses `System.Linq.Expressions.Expression.Compile()` which relies on reflection emit. Under aggressive trimming, some expression patterns may fail to compile. If you encounter issues:
+The compiled backend (enabled via `UseCompiler()`) uses `System.Linq.Expressions` which relies on reflection emit. Under aggressive trimming, some expression patterns may fail to compile. If you encounter issues:
 
-1. Switch to `CompilationMode.Interpreted`
+1. Use the default interpreted mode (do not call `UseCompiler()`)
 2. Or adjust your trimming configuration to preserve `System.Linq.Expressions`
 
 The interpreted mode has no dependency on reflection emit and works reliably under AOT.
