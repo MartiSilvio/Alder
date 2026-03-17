@@ -73,10 +73,10 @@ internal static class MethodInvoker
                     ? throw new CsEvalSandboxException(DiagnosticDescriptors.SandboxMethodCallBlocked, $"{staticRef.Type.Name}.{staticRef.MethodName}")
                 : !options.Sandbox.IsTypeAllowed(staticRef.Type)
                     ? throw new CsEvalSandboxException(DiagnosticDescriptors.SandboxTypeBlocked, staticRef.Type.Name)
-                : InvokeStaticMethod(staticRef.Type, staticRef.MethodName, args, context, options, ct, typeArgs),
+                : InvokeStaticMethod(staticRef.Type, staticRef.MethodName, args, context, options, typeArgs, ct),
 
             MethodRef methodRef =>
-                InvokeMethodRef(methodRef, args, context, options, ct, typeArgs),
+                InvokeMethodRef(methodRef, args, context, options, typeArgs, ct),
 
             // ── Unrecognized ────────────────────────────────────────────────
             null => throw new CsEvalException(DiagnosticDescriptors.NullInvocation),
@@ -89,8 +89,8 @@ internal static class MethodInvoker
         object?[] args,
         CsEvalContext context,
         CsEvalOptions options,
-        CancellationToken ct,
-        IReadOnlyList<string>? typeArgs)
+        IReadOnlyList<string>? typeArgs,
+        CancellationToken ct)
     {
         var target = methodRef.Target;
 
@@ -304,8 +304,8 @@ internal static class MethodInvoker
         object?[] args,
         CsEvalContext context,
         CsEvalOptions options,
-        CancellationToken ct,
-        IReadOnlyList<string>? typeArgs)
+        IReadOnlyList<string>? typeArgs,
+        CancellationToken ct)
     {
         if (context.Config.AotMetadata is { } aotMeta && aotMeta.TryGetValue(type, out var metadata))
         {
