@@ -51,7 +51,16 @@ public class MicroBenchmarks : BenchmarkBase
             "x + y * z"),
         new("TernaryOnly",
             "x > 0 ? x : -x",
-            "x > 0 ? x : -x")
+            "x > 0 ? x : -x"),
+        new("PropertyChain",
+            "text.Length > 3 && text.Contains(\"l\")",
+            "text.Length > 3 && text.Contains(\"l\")"),
+        new("CastExpression",
+            "(double)x / y",
+            "(double)x / y"),
+        new("StringInterpolation",
+            "$\"{text} is {x + y}\"",
+            "$\"{text} is {x + y}\"")
     ];
 
     [GlobalSetup]

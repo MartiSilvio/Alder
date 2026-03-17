@@ -114,6 +114,22 @@ public static partial class BenchmarkScenarioCatalog
             "(1 + x == 5 + y) == (42 == value)",
             "(1 + x == 5 + y) == (42 == value)",
             "(1 + x = 5 + y) = (42 = value)",
-            g => (1 + g.X == 5 + g.Y) == (42 == g.Value))
+            g => (1 + g.X == 5 + g.Y) == (42 == g.Value)),
+        new(
+            "String/Concatenation",
+            "\"hello\" + \" \" + text",
+            "\"hello\" + \" \" + Text",
+            "\"hello\" + \" \" + text",
+            "\"hello\" + \" \" + text",
+            "\"hello\" + \" \" + text",
+            g => "hello" + " " + g.Text),
+        new(
+            "String/CompareAndConcat",
+            "text == \"alpha\" ? \"yes-\" + text : \"no\"",
+            "Text == \"alpha\" ? \"yes-\" + Text : \"no\"",
+            "if(text == \"alpha\", \"yes-\" + text, \"no\")",
+            "text == \"alpha\" ? \"yes-\" + text : \"no\"",
+            "if(text = \"alpha\", \"yes-\" + text, \"no\")",
+            g => g.Text == "alpha" ? "yes-" + g.Text : "no")
     ];
 }
