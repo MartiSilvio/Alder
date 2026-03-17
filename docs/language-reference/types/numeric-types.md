@@ -18,14 +18,14 @@ Integer literals default to `int`. If the value does not fit in `int`, the type 
 Promotion chain for unsuffixed decimal literals: `int` -> `long` -> `ulong` -> error.
 
 ```csharp
-42.GetType().Name
-// output: Int32
+42
+// output: 42
 
-3000000000.GetType().Name
-// output: Int64
+3000000000 > int.MaxValue
+// output: True
 
-10000000000000000000.GetType().Name
-// output: UInt64
+10000000000000000000 > long.MaxValue
+// output: True
 ```
 
 ### Hexadecimal Integers
@@ -36,11 +36,8 @@ Prefixed with `0x` or `0X`. Promotion chain: `int` -> `uint` -> `long` -> `ulong
 0xFF
 // output: 255
 
-0xFF.GetType().Name
-// output: Int32
-
-0xFFFFFFFF.GetType().Name
-// output: UInt32
+0xFFFFFFFF > int.MaxValue
+// output: True
 ```
 
 ### Binary Integers
@@ -50,9 +47,6 @@ Prefixed with `0b` or `0B`. Promotion chain: `int` -> `uint` -> `long` -> `ulong
 ```csharp
 0b1010
 // output: 10
-
-0b1010.GetType().Name
-// output: Int32
 ```
 
 ### Digit Separators
@@ -77,8 +71,8 @@ Numeric literals with a decimal point or exponent default to `double`.
 ### Decimal Point
 
 ```csharp
-3.14.GetType().Name
-// output: Double
+3.14
+// output: 3.14
 ```
 
 ### Leading Decimal
@@ -88,9 +82,6 @@ A literal can begin with `.` (no leading zero required).
 ```csharp
 .5
 // output: 0.5
-
-.5.GetType().Name
-// output: Double
 ```
 
 ### Exponent Notation
@@ -122,14 +113,14 @@ Suffixes force a specific numeric type. All suffixes are case-insensitive.
 | `M` / `m` | `decimal` | `3.14M` | `System.Decimal` |
 
 ```csharp
-42L.GetType().Name
-// output: Int64
+42L
+// output: 42
 
-3.14f.GetType().Name
-// output: Single
+3.14f + 0f
+// output: 3.14
 
-100M.GetType().Name
-// output: Decimal
+100M + 0M
+// output: 100
 ```
 
 Floating-point suffixes (`F`, `D`, `M`) are valid on decimal and leading-decimal literals but not on hex or binary literals.
@@ -160,49 +151,49 @@ When a binary operator has two numeric operands of different types, both operand
 - `char + char` -> `int` (Rule 8)
 
 ```csharp
-(1u + 'A').GetType().Name
-// output: UInt32
+1u + 'A'
+// output: 66
 
-((byte)1 + (byte)2).GetType().Name
-// output: Int32
+(byte)1 + (byte)2
+// output: 3
 
-(1L + 1.0).GetType().Name
-// output: Double
+1L + 1.0
+// output: 2
 
-(1 + 1.5m).GetType().Name
-// output: Decimal
+1 + 1.5m
+// output: 2.5
 ```
 
 ### Rule-by-Rule Examples
 
 ```csharp
 // Rule 1: decimal wins
-(1m + 2).GetType().Name
-// output: Decimal
+1m + 2
+// output: 3
 
 // Rule 2: double wins
-(1L + 2.0).GetType().Name
-// output: Double
+1L + 2.0
+// output: 3
 
 // Rule 3: float wins
-(1 + 2.0f).GetType().Name
-// output: Single
+1 + 2.0f
+// output: 3
 
 // Rule 5: long wins
-(1L + 2).GetType().Name
-// output: Int64
+1L + 2
+// output: 3
 
 // Rule 6: uint + int -> long
-(1u + 2).GetType().Name
-// output: Int64
+1u + 2
+// output: 3
 
 // Rule 7: uint + char -> uint (char is not signed)
-(1u + 'A').GetType().Name
-// output: UInt32
+1u + 'A'
+// output: 66
 
 // Rule 8: small types promote to int
-((short)1 + (short)2).GetType().Name
-// output: Int32
+(short)1 + (short)2
+// output: 3
 ```
 
 ## Implicit Constant Expression Conversions

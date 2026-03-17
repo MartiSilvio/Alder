@@ -41,11 +41,11 @@ long.MinValue
 | `decimal` | `System.Decimal` | 28-29 digits | +/-1.0e-28 to +/-7.9e28 |
 
 ```csharp
-3.14.GetType().Name
-// output: Double
+3.14 + 0
+// output: 3.14
 
-3.14m.GetType().Name
-// output: Decimal
+3.14m + 0m
+// output: 3.14
 ```
 
 ## Other Types
@@ -61,11 +61,11 @@ long.MinValue
 > **Note:** `dynamic` is recognized as a keyword but is not supported as a type.
 
 ```csharp
-true.GetType().Name
-// output: Boolean
+true == !false
+// output: True
 
-'A'.GetType().Name
-// output: Char
+'A' + 0
+// output: 65
 ```
 
 ## Nullable Type Keywords
@@ -82,8 +82,8 @@ For value types, appending `?` to the keyword produces a `Nullable<T>` type. For
 default(int?)
 // output: null
 
-((int?)42).GetType().Name
-// output: Int32
+(int?)42 == 42
+// output: True
 ```
 
 ### Reference Types

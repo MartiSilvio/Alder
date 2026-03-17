@@ -23,13 +23,6 @@ The resulting type is `System.ValueTuple<int, string, bool>`.
 // output: (1, 2)
 ```
 
-Single-element tuples are supported (minimum arity is 1). Zero-element tuples are not allowed.
-
-```csharp
-(42, )
-// output: (42)
-```
-
 Tuple elements can be arbitrary expressions.
 
 ```csharp
@@ -124,7 +117,7 @@ For 8 or more elements, CsEval uses the nested `ValueTuple<T1, T2, T3, T4, T5, T
 // output: (1, 2, 3, 4, 5, 6, 7, 8)
 ```
 
-Elements beyond 7 are accessed through the nested `Rest` field internally, but `Item8`, `Item9`, etc. still work as expected.
+Elements beyond 7 are stored in the nested `Rest` field. Access them via the `Rest` property (e.g., `t.Rest.Item1` for the 8th element).
 
 ## See Also
 

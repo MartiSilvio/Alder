@@ -90,37 +90,28 @@ list.Count
 Create dictionaries using `new Dictionary<TKey, TValue>` with a collection initializer.
 
 ```csharp
-new Dictionary<string, int> { { "a", 1 }, { "b", 2 } }
+new Dictionary<string, int> { ["a"] = 1, ["b"] = 2 }
 // output: System.Collections.Generic.Dictionary`2[System.String,System.Int32] { ["a"] = 1, ["b"] = 2 }
 ```
 
 Access values by key and check for key existence.
 
 ```csharp
-var dict = new Dictionary<string, int> { { "x", 10 }, { "y", 20 } };
+var dict = new Dictionary<string, int> { ["x"] = 10, ["y"] = 20 };
 dict["x"]
 // output: 10
 ```
 
 ```csharp
-var dict = new Dictionary<string, int> { { "x", 10 }, { "y", 20 } };
+var dict = new Dictionary<string, int> { ["x"] = 10, ["y"] = 20 };
 dict.ContainsKey("y")
 // output: true
 ```
 
 ```csharp
-var dict = new Dictionary<string, int> { { "x", 10 } };
+var dict = new Dictionary<string, int> { ["x"] = 10 };
 dict.Count
 // output: 1
-```
-
-## Indexer Syntax for Dictionary Initializers
-
-Dictionaries also support the indexer initializer syntax.
-
-```csharp
-new Dictionary<string, int> { ["a"] = 1, ["b"] = 2 }
-// output: System.Collections.Generic.Dictionary`2[System.String,System.Int32] { ["a"] = 1, ["b"] = 2 }
 ```
 
 :::note[Collection Expressions Are Extended Mode Only]

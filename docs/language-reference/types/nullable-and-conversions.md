@@ -327,11 +327,11 @@ Upcasting (derived to base) is implicit. Downcasting (base to derived) requires 
 
 ### Casting Null to Value Types
 
-Casting `null` to a non-nullable value type throws `NullReferenceException`.
+Casting `null` to a non-nullable value type throws a `CsEvalException` with diagnostic code CS0037 ("Cannot convert null to 'Int32' because it is a non-nullable value type").
 
 ```csharp
 (int)(object)null
-// output: NullReferenceException
+// output: CsEvalException (CS0037)
 ```
 
 Casting `null` to a nullable value type succeeds.

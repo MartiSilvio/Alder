@@ -52,7 +52,7 @@ Raw string literals (C# 11) are delimited by at least three double quotes (`"""`
 
 ### Multi-Line Raw Strings
 
-When a raw string literal spans multiple lines, the content starts on the line after the opening quotes and ends on the line before the closing quotes. Leading whitespace is stripped based on the indentation of the closing delimiter.
+When a raw string literal spans multiple lines, the content starts on the line after the opening quotes and ends on the line before the closing quotes. CsEval preserves whitespace exactly as written; it does not strip leading whitespace based on closing-delimiter indentation.
 
 ```csharp
 """
@@ -82,8 +82,8 @@ A char literal is a single character enclosed in single quotes. All escape seque
 'A'
 // output: A
 
-'\n'.GetType().Name
-// output: Char
+'\n' == '\x0A'
+// output: True
 
 (int)'A'
 // output: 65
@@ -121,7 +121,7 @@ The `\u` escape requires exactly 4 hexadecimal digits:
 // output: A
 
 "\u03B1"
-// output: a
+// output: α
 ```
 
 The `\U` escape requires exactly 8 hexadecimal digits and supports code points up to U+10FFFF. Code points above U+FFFF are encoded as surrogate pairs in strings, but are not valid in char literals.

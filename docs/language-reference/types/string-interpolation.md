@@ -64,7 +64,7 @@ Common format specifiers:
 |-----------|-------------|---------|
 | `N` / `Nn` | Number with digit grouping | `{1234.5:N2}` -> `1,234.50` |
 | `D` / `Dn` | Decimal (integers), zero-padded | `{42:D6}` -> `000042` |
-| `C` / `Cn` | Currency | `{9.99:C}` -> `$9.99` |
+| `C` / `Cn` | Currency (culture-dependent) | `{9.99:C}` -> `$9.99` |
 | `P` / `Pn` | Percentage | `{0.75:P0}` -> `75%` |
 | `X` / `Xn` | Hexadecimal | `{255:X4}` -> `00FF` |
 | `F` / `Fn` | Fixed-point | `{3.14159:F2}` -> `3.14` |
