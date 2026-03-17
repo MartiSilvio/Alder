@@ -30,10 +30,8 @@ public class SafetyTests(CompilationMode mode)
     [TestCaseSource(nameof(LimitViolationCases))]
     public void StatementLimit_ThrowsCsEvalExecutionLimitException(string expr, int limit)
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with
-        {
-            CompilationMode = mode,
-            Constraints = new ExecutionConstraints { MaxStatements = limit }
+        var engine = TestEngineFactory.Create(mode, CsEvalOptions.Default with {
+                        Constraints = new ExecutionConstraints { MaxStatements = limit }
         });
         var ex = Assert.Throws<CsEvalExecutionLimitException>(() => engine.Evaluate(expr));
         Assert.That(ex!.LimitType, Is.EqualTo(ExecutionLimitType.Statements));
@@ -43,10 +41,8 @@ public class SafetyTests(CompilationMode mode)
     [TestCaseSource(nameof(WithinLimitCases))]
     public void StatementLimit_WithinLimit_Succeeds(string expr, int limit, object expected)
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with
-        {
-            CompilationMode = mode,
-            Constraints = new ExecutionConstraints { MaxStatements = limit }
+        var engine = TestEngineFactory.Create(mode, CsEvalOptions.Default with {
+                        Constraints = new ExecutionConstraints { MaxStatements = limit }
         });
         var result = engine.Evaluate(expr);
         Assert.That(result, Is.EqualTo(expected));
@@ -55,7 +51,7 @@ public class SafetyTests(CompilationMode mode)
     [Test]
     public void CancellationToken_CanBeCancelled()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         // Use a very large array to ensure it takes some time
         var items = Enumerable.Range(1, 10_000_000).ToArray();
         engine.SetVariable("items", items);

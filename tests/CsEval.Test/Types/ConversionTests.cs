@@ -131,7 +131,7 @@ public class ConversionTests(CompilationMode mode)
     public async Task ConditionalOperator_StringAndNull_TypeIsString()
     {
         // Engine-only: Type object comparison (verifies result type is typeof(string))
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var result = engine.Evaluate("true ? \"hello\" : null");
         var csharpResult = await TestHelpers.EvaluateCSharpAsync("true ? \"hello\" : null");
 
@@ -149,7 +149,7 @@ public class ConversionTests(CompilationMode mode)
     public async Task S10_2_FloatToDecimal_Fails()
     {
         // Engine-only: error assertion (both CsEval and Roslyn must throw)
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         Assert.Catch<Exception>(() => engine.Evaluate("{ float f = 5.0f; decimal d = f; return d; }"),
             "Implicit float -> decimal should be rejected");
 

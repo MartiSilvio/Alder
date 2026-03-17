@@ -19,14 +19,12 @@ public sealed class CsEvalExpression
     /// </summary>
     public string Source { get; }
 
-    // Compilation state (volatile for thread-safe reads)
-    private volatile CompiledExpressionInfo? _compiledInfo;
     private volatile bool _bindingUnavailable;
     private volatile string? _bindingUnavailableReason;
     private int _boundExecutionCount;
     private int _boundFallbackCount;
     private volatile string? _lastBoundFallbackReason;
-    private readonly ExpressionCache? _expressionCache;
+    internal readonly ExpressionCache? _expressionCache;
     private readonly ConditionalWeakTable<CsEvalContext, CachedBoundExpression> _boundExpressionCacheByContext = new();
 
     internal CsEvalExpression(string expression, Expr ast) : this(expression, ast, null)
@@ -43,78 +41,20 @@ public sealed class CsEvalExpression
     /// <summary>
     /// Returns true if this expression has been successfully compiled.
     /// </summary>
-    public bool IsCompiled => _compiledInfo?.Delegate != null;
+    public bool IsCompiled => CompiledInfo?.Delegate != null;
 
     /// <summary>
     /// Returns true if this expression can be compiled.
     /// Returns null if compilation has not been attempted.
     /// </summary>
-    public bool? IsCompilable => _compiledInfo?.IsCompilable;
+    public bool? IsCompilable => CompiledInfo?.IsCompilable;
 
     /// <summary>
     /// Returns the reason why compilation failed, or null if compilation succeeded or hasn't been attempted.
     /// </summary>
-    public string? CompilationFailureReason => _compiledInfo?.FailureReason;
+    public string? CompilationFailureReason => CompiledInfo?.FailureReason;
 
-    /// <summary>
-    /// Attempts to compile this expression. Returns true if successful.
-    /// </summary>
-    public bool TryCompile()
-    {
-        return TryCompileCore(static (self, _, _) => self._expressionCache != null
-            ? CompiledProviderRegistry.GetOrCompile(self.Source, self.Ast, self._expressionCache)
-            : CompiledProviderRegistry.TryCompile(self.Ast));
-    }
-
-    internal bool TryCompile(CsEvalOptions options)
-    {
-        return TryCompileCore(static (self, opts, _) => self._expressionCache != null
-            ? CompiledProviderRegistry.GetOrCompile(self.Source, self.Ast, self._expressionCache, opts)
-            : CompiledProviderRegistry.TryCompile(self.Ast, opts), options);
-    }
-
-    internal bool TryCompile(CsEvalOptions options, CsEvalContext context)
-    {
-        if (_compiledInfo != null)
-            return _compiledInfo.Delegate != null;
-
-        if (!TryGetOrCreateBoundExpression(context, options.MaxExpressionDepth, out var bound, out var failureReason) ||
-            bound == null)
-        {
-            _compiledInfo = new CompiledExpressionInfo(null, false, failureReason ?? "Binding failed for expression.");
-            return false;
-        }
-
-        _compiledInfo = CompiledProviderRegistry.TryCompile(bound, options);
-        return _compiledInfo.Delegate != null;
-    }
-
-    private bool TryCompileCore(
-        Func<CsEvalExpression, CsEvalOptions?, CsEvalContext?, CompiledExpressionInfo> compile,
-        CsEvalOptions? options = null,
-        CsEvalContext? context = null)
-    {
-        if (_compiledInfo != null)
-            return _compiledInfo.Delegate != null;
-
-        var info = compile(this, options, context);
-        _compiledInfo = info;
-        return info.Delegate != null;
-    }
-
-    /// <summary>
-    /// Compiles this expression. Throws if compilation fails.
-    /// </summary>
-    /// <exception cref="InvalidOperationException">Thrown when compilation fails.</exception>
-    public void Compile()
-    {
-        if (!TryCompile())
-        {
-            throw new CsEvalException(
-                Diagnostics.DiagnosticDescriptors.StrictCompilationFailed,
-                $"Cannot compile expression '{Source}': {_compiledInfo?.FailureReason ?? "Unknown reason"}");
-        }
-    }
+    internal volatile CompiledExpressionInfo? CompiledInfo;
 
     /// <summary>
     /// Returns the distinct names of unbound identifiers found in the expression AST.
@@ -127,7 +67,7 @@ public sealed class CsEvalExpression
         return collector.Variables;
     }
 
-    internal CompiledExpressionInfo? GetCompiledInfo() => _compiledInfo;
+    internal CompiledExpressionInfo? GetCompiledInfo() => CompiledInfo;
 
     internal BoundExpr GetOrCreateBoundExpression(CsEvalContext context, int maxDepth)
     {

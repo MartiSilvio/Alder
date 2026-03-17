@@ -9,7 +9,7 @@ public class BclStaticMethodTests(CompilationMode mode)
     [SetUp]
     public void Setup()
     {
-        _engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        _engine = TestEngineFactory.Create(mode);
     }
 
     #region Math

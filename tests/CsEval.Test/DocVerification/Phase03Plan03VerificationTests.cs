@@ -5,12 +5,11 @@ namespace CsEval.Test.DocVerification;
 public class Phase03Plan03VerificationTests(CompilationMode mode)
 {
     private CsEvalEngine Engine()
-        => new(CsEvalOptions.Default with { CompilationMode = mode });
+        => TestEngineFactory.Create(mode);
 
     private CsEvalEngine TrustedEngine()
-        => new(CsEvalOptions.Default with
+        => TestEngineFactory.Create(mode, CsEvalOptions.Default with
         {
-            CompilationMode = mode,
             Sandbox = SandboxOptions.Trusted()
         });
 

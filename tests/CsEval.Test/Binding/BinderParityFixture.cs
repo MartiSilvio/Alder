@@ -92,10 +92,8 @@ internal static class BinderParityFixture
         LanguageMode languageMode,
         ExecutionParityScenario scenario)
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with
-        {
-            CompilationMode = mode,
-            LanguageMode = languageMode
+        var engine = TestEngineFactory.Create(mode, CsEvalOptions.Default with {
+                        LanguageMode = languageMode
         });
 
         engine.RegisterFunction("inc", args => Convert.ToInt32(args[0]) + 1);

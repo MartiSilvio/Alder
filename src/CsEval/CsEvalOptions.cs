@@ -1,17 +1,6 @@
+using CsEval.Compilation;
+
 namespace CsEval;
-
-public enum CompilationMode
-{
-    /// <summary>
-    /// Always use tree-walking interpretation. Best for debugging or AST-only features.
-    /// </summary>
-    Interpreted,
-
-    /// <summary>
-    /// Compile to IL and execute only compiled delegates. Throws if compilation fails.
-    /// </summary>
-    Compiled
-}
 
 /// <summary>
 /// Controls which syntax features are available during evaluation.
@@ -59,14 +48,10 @@ public sealed record CsEvalOptions
     public SandboxOptions Sandbox { get; init; } = SandboxOptions.Trusted();
 
     /// <summary>
-    /// Controls when expressions are compiled to IL.
-    /// Default: Compiled (compile automatically on first evaluation, throw if compilation fails).
+    /// The compiled provider used for IL compilation. Null means interpretation only.
+    /// Set via UseCompiler() extension from CsEval.Compiled package.
     /// </summary>
-    /// <remarks>
-    /// <see cref="CompilationMode.Interpreted"/>: Always use tree-walking. Good for debugging or AST-only features.
-    /// <see cref="CompilationMode.Compiled"/>: Automatically compile on first evaluation and throw if compilation fails.
-    /// </remarks>
-    public CompilationMode CompilationMode { get; init; } = CompilationMode.Compiled;
+    internal ICompiledProvider? Compiler { get; init; }
 
     /// <summary>
     /// Controls which syntax features are available.

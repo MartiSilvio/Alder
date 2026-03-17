@@ -5,7 +5,7 @@ namespace CsEval.Test.DocVerification;
 public class Phase03Plan01VerificationTests(CompilationMode mode)
 {
     private CsEvalEngine Engine()
-        => new(CsEvalOptions.Default with { CompilationMode = mode });
+        => TestEngineFactory.Create(mode);
 
     private object? Eval(string expr) => Engine().Evaluate(expr);
 
@@ -508,10 +508,8 @@ public class Phase03Plan01VerificationTests(CompilationMode mode)
     [Test]
     public void MaxStatements_Terminates()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with
-        {
-            CompilationMode = mode,
-            Constraints = new ExecutionConstraints { MaxStatements = 10 }
+        var engine = TestEngineFactory.Create(mode, CsEvalOptions.Default with {
+                        Constraints = new ExecutionConstraints { MaxStatements = 10 }
         });
         Assert.That(() => engine.Evaluate("{ var i = 0; while (true) { i++; } return i; }"),
             Throws.InstanceOf<CsEvalExecutionLimitException>());

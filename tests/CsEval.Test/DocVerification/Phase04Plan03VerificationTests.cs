@@ -8,7 +8,7 @@ namespace CsEval.Test.DocVerification;
 public class Phase04Plan03VerificationTests(CompilationMode mode)
 {
     private CsEvalEngine Engine()
-        => new(new CsEvalOptions { CompilationMode = mode });
+        => TestEngineFactory.Create(mode);
 
     // ═══════════════════════════════════════════════════════════════
     // ENG-06: Compilation Modes — Interpreted
@@ -19,7 +19,6 @@ public class Phase04Plan03VerificationTests(CompilationMode mode)
     {
         var engine = new CsEvalEngine(new CsEvalOptions
         {
-            CompilationMode = CompilationMode.Interpreted
         });
         Assert.That(engine.Evaluate<int>("1 + 2"), Is.EqualTo(3));
     }
@@ -27,10 +26,7 @@ public class Phase04Plan03VerificationTests(CompilationMode mode)
     [Test]
     public void Compiled_Evaluate_ReturnsResult()
     {
-        var engine = new CsEvalEngine(new CsEvalOptions
-        {
-            CompilationMode = CompilationMode.Compiled
-        });
+        var engine = new CsEvalEngine(CsEvalOptions.Default.UseCompiler());
         Assert.That(engine.Evaluate<int>("1 + 2"), Is.EqualTo(3));
     }
 
@@ -41,7 +37,7 @@ public class Phase04Plan03VerificationTests(CompilationMode mode)
     [Test]
     public void Compile_T_InvokeReturnsResult()
     {
-        var engine = Engine();
+        var engine = new CsEvalEngine(CsEvalOptions.Default.UseCompiler());
         var compiled = engine.Compile<int>("1 + 2");
         Assert.That(compiled.Invoke(), Is.EqualTo(3));
     }
@@ -49,7 +45,7 @@ public class Phase04Plan03VerificationTests(CompilationMode mode)
     [Test]
     public void CompileToFunc_ReturnsFunc()
     {
-        var engine = Engine();
+        var engine = new CsEvalEngine(CsEvalOptions.Default.UseCompiler());
         var add = engine.CompileToFunc<int>("1 + 2");
         Assert.That(add(), Is.EqualTo(3));
     }
@@ -57,7 +53,7 @@ public class Phase04Plan03VerificationTests(CompilationMode mode)
     [Test]
     public void ParseAndCompile_ReturnsExpression()
     {
-        var engine = Engine();
+        var engine = new CsEvalEngine(CsEvalOptions.Default.UseCompiler());
         var expr = engine.ParseAndCompile("1 + 2");
         Assert.That(expr, Is.Not.Null);
         Assert.That(engine.Evaluate<int>(expr), Is.EqualTo(3));
@@ -69,9 +65,11 @@ public class Phase04Plan03VerificationTests(CompilationMode mode)
         var engine = Engine();
         var expr = engine.Parse("1 + 2");
         Assert.That(expr.IsCompiled, Is.False);
-        expr.TryCompile();
-        // After TryCompile, IsCompiled reflects compilation outcome
-        Assert.That(expr.IsCompilable, Is.Not.Null);
+        var compiled = engine.TryCompile(expr);
+        if (mode == CompilationMode.Compiled)
+            Assert.That(expr.IsCompilable, Is.Not.Null);
+        else
+            Assert.That(compiled, Is.False);
     }
 
     [Test]
@@ -89,11 +87,16 @@ public class Phase04Plan03VerificationTests(CompilationMode mode)
     {
         var engine = Engine();
         var expr = engine.Parse("1 + 2");
-        var result = expr.TryCompile();
-        if (result)
+        var result = engine.TryCompile(expr);
+        if (mode == CompilationMode.Compiled)
+        {
+            Assert.That(result, Is.True);
             Assert.That(expr.IsCompiled, Is.True);
+        }
         else
-            Assert.That(expr.CompilationFailureReason, Is.Not.Null);
+        {
+            Assert.That(result, Is.False);
+        }
     }
 
     [Test]
@@ -112,7 +115,7 @@ public class Phase04Plan03VerificationTests(CompilationMode mode)
     [Test]
     public void CompileExpression_Lambda_ReturnsDelegate()
     {
-        var engine = Engine();
+        var engine = new CsEvalEngine(CsEvalOptions.Default.UseCompiler());
         Func<int, bool> isPositive = engine.CompileExpression<Func<int, bool>>("x => x > 0");
         Assert.That(isPositive(42), Is.True);
         Assert.That(isPositive(-1), Is.False);
@@ -121,7 +124,7 @@ public class Phase04Plan03VerificationTests(CompilationMode mode)
     [Test]
     public void ParseAsExpression_ReturnsExpressionTree()
     {
-        var engine = Engine();
+        var engine = new CsEvalEngine(CsEvalOptions.Default.UseCompiler());
         var expr = engine.ParseAsExpression<Func<int, bool>>("x => x > 5");
         Assert.That(expr, Is.Not.Null);
         var compiled = expr.Compile();
@@ -132,7 +135,7 @@ public class Phase04Plan03VerificationTests(CompilationMode mode)
     [Test]
     public void TryParseAsExpression_Success()
     {
-        var engine = Engine();
+        var engine = new CsEvalEngine(CsEvalOptions.Default.UseCompiler());
         var success = engine.TryParseAsExpression<Func<int, bool>>(
             "x => x > 5", out var expr, out var diagnostics);
         Assert.That(success, Is.True);
@@ -143,7 +146,7 @@ public class Phase04Plan03VerificationTests(CompilationMode mode)
     [Test]
     public void Compile_T_Invoke_WithVariables()
     {
-        var engine = Engine();
+        var engine = new CsEvalEngine(CsEvalOptions.Default.UseCompiler());
         var compiled = engine.Compile<int>("x + y");
         var result = compiled.Invoke(new Dictionary<string, object?> { ["x"] = 3, ["y"] = 7 });
         Assert.That(result, Is.EqualTo(10));
@@ -152,7 +155,7 @@ public class Phase04Plan03VerificationTests(CompilationMode mode)
     [Test]
     public void Compile_T_VariableChangesVisibleAfterCompilation()
     {
-        var engine = Engine();
+        var engine = new CsEvalEngine(CsEvalOptions.Default.UseCompiler());
         engine.SetVariable("x", 10);
         var compiled = engine.Compile<int>("x * 2");
         Assert.That(compiled.Invoke(), Is.EqualTo(20));

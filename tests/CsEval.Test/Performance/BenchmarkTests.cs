@@ -53,7 +53,7 @@ public class BenchmarkTests
     public void Benchmark_Evaluate_Arithmetic()
     {
         const string expression = "1 + 2 * 3 - 4 / 2";
-        var engine = new CsEvalEngine();
+        var engine = new CsEvalEngine(CsEvalOptions.Default.UseCompiler());
 
         Warmup(() => engine.Evaluate(expression));
 
@@ -71,7 +71,7 @@ public class BenchmarkTests
     public void Benchmark_Evaluate_WithVariables()
     {
         const string expression = "x + y * z";
-        var engine = new CsEvalEngine()
+        var engine = new CsEvalEngine(CsEvalOptions.Default.UseCompiler())
             .SetVariable("x", 10L)
             .SetVariable("y", 20L)
             .SetVariable("z", 30L);
@@ -92,7 +92,7 @@ public class BenchmarkTests
     public void Benchmark_Evaluate_MemberAccess()
     {
         const string expression = "user.Name";
-        var engine = new CsEvalEngine()
+        var engine = new CsEvalEngine(CsEvalOptions.Default.UseCompiler())
             .SetVariable("user", new Dictionary<string, object?> { ["Name"] = "John", ["Age"] = 30 });
 
         Warmup(() => engine.Evaluate(expression));
@@ -111,7 +111,7 @@ public class BenchmarkTests
     public void Benchmark_Evaluate_MethodCall()
     {
         const string expression = "Math.Sqrt(16)";
-        var engine = new CsEvalEngine();
+        var engine = new CsEvalEngine(CsEvalOptions.Default.UseCompiler());
 
         Warmup(() => engine.Evaluate(expression));
 
@@ -129,7 +129,7 @@ public class BenchmarkTests
     public void Benchmark_Evaluate_Lambda()
     {
         const string expression = "numbers.Where((x) => x > 2)";
-        var engine = new CsEvalEngine()
+        var engine = new CsEvalEngine(CsEvalOptions.Default.UseCompiler())
             .SetVariable("numbers", new List<int> { 1, 2, 3, 4, 5 });
 
         Warmup(() => engine.Evaluate(expression));
@@ -148,7 +148,7 @@ public class BenchmarkTests
     public void Benchmark_Evaluate_ChainedLambda()
     {
         const string expression = "numbers.Where((x) => x > 2).Select((x) => x * 2)";
-        var engine = new CsEvalEngine()
+        var engine = new CsEvalEngine(CsEvalOptions.Default.UseCompiler())
             .SetVariable("numbers", new List<int> { 1, 2, 3, 4, 5 });
 
         Warmup(() => engine.Evaluate(expression));
@@ -167,7 +167,7 @@ public class BenchmarkTests
     public void Benchmark_Evaluate_Interpolation()
     {
         const string expression = "$\"Hello {name}, you are {age} years old\"";
-        var engine = new CsEvalEngine()
+        var engine = new CsEvalEngine(CsEvalOptions.Default.UseCompiler())
             .SetVariable("name", "John")
             .SetVariable("age", 30);
 
@@ -205,7 +205,7 @@ public class BenchmarkTests
     public void Benchmark_Evaluate_AnonymousObject()
     {
         const string expression = "new { Name = \"John\", Age = 30 }";
-        var engine = new CsEvalEngine();
+        var engine = new CsEvalEngine(CsEvalOptions.Default.UseCompiler());
 
         Warmup(() => engine.Evaluate(expression));
 
@@ -223,7 +223,7 @@ public class BenchmarkTests
     public void Benchmark_PreParsed_VsOnTheFly()
     {
         const string expression = "items.Where((x) => x.Price > 10).Select((x) => x.Name)";
-        var engine = new CsEvalEngine()
+        var engine = new CsEvalEngine(CsEvalOptions.Default.UseCompiler())
             .SetVariable("items", CreateItems());
 
         var preParsed = engine.Parse(expression);
@@ -255,7 +255,7 @@ public class BenchmarkTests
     public void Benchmark_ChildEngine_VsNewEngine()
     {
         const string expression = "x + y";
-        var parentEngine = new CsEvalEngine()
+        var parentEngine = new CsEvalEngine(CsEvalOptions.Default.UseCompiler())
             .SetVariable("x", 10L)
             .SetVariable("y", 20L);
 
@@ -272,7 +272,7 @@ public class BenchmarkTests
         var swNew = Stopwatch.StartNew();
         for (var i = 0; i < BenchmarkIterations; i++)
         {
-            var engine = new CsEvalEngine()
+            var engine = new CsEvalEngine(CsEvalOptions.Default.UseCompiler())
                 .SetVariable("x", 10L)
                 .SetVariable("y", 20L);
             engine.Evaluate(expression);
@@ -288,7 +288,7 @@ public class BenchmarkTests
     {
         const string expression = "MyModule.Add(x, y)";
 
-        var engine = new CsEvalEngine()
+        var engine = new CsEvalEngine(CsEvalOptions.Default.UseCompiler())
             .RegisterModule<TestModule>("MyModule")
             .SetVariable("x", 10L)
             .SetVariable("y", 20L);
@@ -337,7 +337,7 @@ public class BenchmarkTests
     {
         // This test stresses the TypeMetadataProvider by accessing properties on typed objects
         const string expression = "person.FirstName + \" \" + person.LastName + \" (\" + person.Age + \")\"";
-        var engine = new CsEvalEngine()
+        var engine = new CsEvalEngine(CsEvalOptions.Default.UseCompiler())
             .SetVariable("person", new Person { FirstName = "John", LastName = "Doe", Age = 30 });
 
         Warmup(() => engine.Evaluate(expression));
@@ -356,7 +356,7 @@ public class BenchmarkTests
     public void Benchmark_ReflectionCache_ManyTypedObjects()
     {
         // Access properties across MANY different types to stress the cache
-        var engine = new CsEvalEngine()
+        var engine = new CsEvalEngine(CsEvalOptions.Default.UseCompiler())
             .SetVariable("person", new Person { FirstName = "John", LastName = "Doe", Age = 30 })
             .SetVariable("order", new Order { Id = 1, Total = 99.99m, Status = "Pending" })
             .SetVariable("product", new Product { Name = "Widget", Price = 19.99, InStock = true });
@@ -420,7 +420,7 @@ public class BenchmarkTests
     {
         // Calling methods on typed objects uses GetMethods
         const string expression = "text.ToUpper()";
-        var engine = new CsEvalEngine()
+        var engine = new CsEvalEngine(CsEvalOptions.Default.UseCompiler())
             .SetVariable("text", "hello world");
 
         Warmup(() => engine.Evaluate(expression));
@@ -471,7 +471,7 @@ public class BenchmarkTests
     {
         const string expression = "1 + 2 * 3";
 
-        var engine = new CsEvalEngine();
+        var engine = new CsEvalEngine(CsEvalOptions.Default.UseCompiler());
         var expr = engine.ParseAndCompile(expression);
 
         // Verify it's compiled
@@ -494,7 +494,7 @@ public class BenchmarkTests
     {
         const string expression = "x + y * z";
 
-        var engine = new CsEvalEngine()
+        var engine = new CsEvalEngine(CsEvalOptions.Default.UseCompiler())
             .SetVariable("x", 10L)
             .SetVariable("y", 20L)
             .SetVariable("z", 30L);
@@ -519,7 +519,7 @@ public class BenchmarkTests
     {
         const string expression = "x > 5 ? x * 2 : x + 10";
 
-        var engine = new CsEvalEngine()
+        var engine = new CsEvalEngine(CsEvalOptions.Default.UseCompiler())
             .SetVariable("x", 10L);
         var expr = engine.ParseAndCompile(expression);
 
@@ -542,7 +542,7 @@ public class BenchmarkTests
     {
         const string expression = "person.Name";
 
-        var engine = new CsEvalEngine()
+        var engine = new CsEvalEngine(CsEvalOptions.Default.UseCompiler())
             .SetVariable("person", new Person { FirstName = "John", LastName = "Doe", Age = 30 });
         var expr = engine.ParseAndCompile(expression);
 

@@ -10,13 +10,11 @@ public sealed class ExecutionModeParityTests
     {
         var interpreted = new CsEvalEngine(CsEvalOptions.Default with
         {
-            CompilationMode = CompilationMode.Interpreted,
             LanguageMode = LanguageMode.Extended
         });
 
-        var compiled = new CsEvalEngine(CsEvalOptions.Default with
+        var compiled = new CsEvalEngine(CsEvalOptions.Default.UseCompiler() with
         {
-            CompilationMode = CompilationMode.Compiled,
             LanguageMode = LanguageMode.Extended
         });
 

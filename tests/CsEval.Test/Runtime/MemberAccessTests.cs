@@ -16,7 +16,7 @@ public class MemberAccessTests(CompilationMode mode)
     [Test]
     public void Eval_Variable_FromContext()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("x", 10L);
 
         Assert.That(engine.Evaluate("x"), Is.EqualTo(10));
@@ -31,7 +31,7 @@ public class MemberAccessTests(CompilationMode mode)
     [Test]
     public void Eval_MemberAccess_OnExpandoObject()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         IDictionary<string, object?> obj = new ExpandoObject();
         obj["Name"] = "John";
         obj["Age"] = 30;
@@ -45,7 +45,7 @@ public class MemberAccessTests(CompilationMode mode)
     [Test]
     public void Eval_ChainedMemberAccess()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         IDictionary<string, object?> user = new ExpandoObject();
         IDictionary<string, object?> address = new ExpandoObject();
         address["City"] = "New York";
@@ -59,7 +59,7 @@ public class MemberAccessTests(CompilationMode mode)
     [Test]
     public void Eval_CaseSensitive_MemberAccess()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         IDictionary<string, object?> obj = new ExpandoObject();
         obj["Name"] = "John";
         engine.SetVariable("user", obj);
@@ -76,7 +76,7 @@ public class MemberAccessTests(CompilationMode mode)
     [Test]
     public void Eval_IndexAccess_OnList()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("arr", new List<int> { 1, 2, 3 });
 
         Assert.That(engine.Evaluate("arr[0]"), Is.EqualTo(1));
@@ -87,7 +87,7 @@ public class MemberAccessTests(CompilationMode mode)
     [Test]
     public void Eval_IndexAccess_OnDictionary()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         IDictionary<string, object?> dict = new ExpandoObject();
         dict["key"] = "value";
         engine.SetVariable("dict", dict);

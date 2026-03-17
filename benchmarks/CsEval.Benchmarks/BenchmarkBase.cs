@@ -7,13 +7,10 @@ using CsEval.Compiled;
 
 namespace CsEval.Benchmarks;
 
+public enum CompilationMode { Interpreted, Compiled }
+
 public abstract class BenchmarkBase
 {
-    static BenchmarkBase()
-    {
-        CsEvalCompiledExtensions.RegisterCompiledProvider();
-    }
-
     protected static readonly ScriptOptions RoslynOptions = ScriptOptions.Default
         .AddReferences(typeof(object).Assembly, typeof(Enumerable).Assembly)
         .AddImports("System", "System.Collections.Generic", "System.Linq")
@@ -27,11 +24,10 @@ public abstract class BenchmarkBase
         BenchmarkGlobalData globals,
         LanguageMode languageMode = LanguageMode.Standard)
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with
-        {
-            CompilationMode = mode,
-            LanguageMode = languageMode
-        });
+        var opts = CsEvalOptions.Default with { LanguageMode = languageMode };
+        if (mode == CompilationMode.Compiled)
+            opts = opts.UseCompiler();
+        var engine = new CsEvalEngine(opts);
         ApplyGlobals(engine, globals);
         return engine;
     }

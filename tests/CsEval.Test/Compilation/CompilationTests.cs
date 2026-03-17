@@ -10,10 +10,10 @@ public class CompilationTests
     [Test]
     public void Compile_SimpleLiteral_Integer()
     {
-        var engine = new CsEvalEngine();
+        var engine = new CsEvalEngine(CsEvalOptions.Default.UseCompiler());
         var expr = engine.Parse("42");
 
-        Assert.That(expr.TryCompile(), Is.True);
+        Assert.That(engine.TryCompile(expr), Is.True);
         Assert.That(expr.IsCompiled, Is.True);
         Assert.That(expr.IsCompilable, Is.True);
 
@@ -24,10 +24,10 @@ public class CompilationTests
     [Test]
     public void Compile_SimpleLiteral_String()
     {
-        var engine = new CsEvalEngine();
+        var engine = new CsEvalEngine(CsEvalOptions.Default.UseCompiler());
         var expr = engine.Parse("\"hello\"");
 
-        Assert.That(expr.TryCompile(), Is.True);
+        Assert.That(engine.TryCompile(expr), Is.True);
 
         var result = engine.Evaluate(expr);
         Assert.That(result, Is.EqualTo("hello"));
@@ -36,12 +36,12 @@ public class CompilationTests
     [Test]
     public void Compile_SimpleLiteral_Boolean()
     {
-        var engine = new CsEvalEngine();
+        var engine = new CsEvalEngine(CsEvalOptions.Default.UseCompiler());
         var exprTrue = engine.Parse("true");
         var exprFalse = engine.Parse("false");
 
-        Assert.That(exprTrue.TryCompile(), Is.True);
-        Assert.That(exprFalse.TryCompile(), Is.True);
+        Assert.That(engine.TryCompile(exprTrue), Is.True);
+        Assert.That(engine.TryCompile(exprFalse), Is.True);
 
         Assert.That(engine.Evaluate(exprTrue), Is.EqualTo(true));
         Assert.That(engine.Evaluate(exprFalse), Is.EqualTo(false));
@@ -50,10 +50,10 @@ public class CompilationTests
     [Test]
     public void Compile_SimpleLiteral_Null()
     {
-        var engine = new CsEvalEngine();
+        var engine = new CsEvalEngine(CsEvalOptions.Default.UseCompiler());
         var expr = engine.Parse("null");
 
-        Assert.That(expr.TryCompile(), Is.True);
+        Assert.That(engine.TryCompile(expr), Is.True);
 
         var result = engine.Evaluate(expr);
         Assert.That(result, Is.Null);
@@ -66,10 +66,10 @@ public class CompilationTests
     [Test]
     public void Compile_SimpleArithmetic_Addition()
     {
-        var engine = new CsEvalEngine();
+        var engine = new CsEvalEngine(CsEvalOptions.Default.UseCompiler());
         var expr = engine.Parse("1 + 2");
 
-        Assert.That(expr.TryCompile(), Is.True);
+        Assert.That(engine.TryCompile(expr), Is.True);
 
         var result = engine.Evaluate(expr);
         Assert.That(result, Is.EqualTo(3));
@@ -78,10 +78,10 @@ public class CompilationTests
     [Test]
     public void Compile_SimpleArithmetic_Multiplication()
     {
-        var engine = new CsEvalEngine();
+        var engine = new CsEvalEngine(CsEvalOptions.Default.UseCompiler());
         var expr = engine.Parse("3 * 4");
 
-        Assert.That(expr.TryCompile(), Is.True);
+        Assert.That(engine.TryCompile(expr), Is.True);
 
         var result = engine.Evaluate(expr);
         Assert.That(result, Is.EqualTo(12));
@@ -90,10 +90,10 @@ public class CompilationTests
     [Test]
     public void Compile_SimpleArithmetic_Complex()
     {
-        var engine = new CsEvalEngine();
+        var engine = new CsEvalEngine(CsEvalOptions.Default.UseCompiler());
         var expr = engine.Parse("1 + 2 * 3");
 
-        Assert.That(expr.TryCompile(), Is.True);
+        Assert.That(engine.TryCompile(expr), Is.True);
 
         var result = engine.Evaluate(expr);
         Assert.That(result, Is.EqualTo(7));
@@ -102,10 +102,10 @@ public class CompilationTests
     [Test]
     public void Compile_SimpleArithmetic_Division()
     {
-        var engine = new CsEvalEngine();
+        var engine = new CsEvalEngine(CsEvalOptions.Default.UseCompiler());
         var expr = engine.Parse("10 / 2");
 
-        Assert.That(expr.TryCompile(), Is.True);
+        Assert.That(engine.TryCompile(expr), Is.True);
 
         var result = engine.Evaluate(expr);
         Assert.That(result, Is.EqualTo(5.0));
@@ -114,10 +114,10 @@ public class CompilationTests
     [Test]
     public void Compile_SimpleArithmetic_Modulo()
     {
-        var engine = new CsEvalEngine();
+        var engine = new CsEvalEngine(CsEvalOptions.Default.UseCompiler());
         var expr = engine.Parse("7 % 3");
 
-        Assert.That(expr.TryCompile(), Is.True);
+        Assert.That(engine.TryCompile(expr), Is.True);
 
         var result = engine.Evaluate(expr);
         Assert.That(result, Is.EqualTo(1));
@@ -126,10 +126,10 @@ public class CompilationTests
     [Test]
     public void Compile_Negation()
     {
-        var engine = new CsEvalEngine();
+        var engine = new CsEvalEngine(CsEvalOptions.Default.UseCompiler());
         var expr = engine.Parse("-5");
 
-        Assert.That(expr.TryCompile(), Is.True);
+        Assert.That(engine.TryCompile(expr), Is.True);
 
         var result = engine.Evaluate(expr);
         Assert.That(result, Is.EqualTo(-5));
@@ -138,10 +138,10 @@ public class CompilationTests
     [Test]
     public void Compile_StringConcatenation()
     {
-        var engine = new CsEvalEngine();
+        var engine = new CsEvalEngine(CsEvalOptions.Default.UseCompiler());
         var expr = engine.Parse("\"hello\" + \" \" + \"world\"");
 
-        Assert.That(expr.TryCompile(), Is.True);
+        Assert.That(engine.TryCompile(expr), Is.True);
 
         var result = engine.Evaluate(expr);
         Assert.That(result, Is.EqualTo("hello world"));
@@ -154,11 +154,11 @@ public class CompilationTests
     [Test]
     public void Compile_VariableAccess()
     {
-        var engine = new CsEvalEngine()
+        var engine = new CsEvalEngine(CsEvalOptions.Default.UseCompiler())
             .SetVariable("x", 10);
         var expr = engine.Parse("x");
 
-        Assert.That(expr.TryCompile(), Is.True);
+        Assert.That(engine.TryCompile(expr), Is.True);
 
         var result = engine.Evaluate(expr);
         Assert.That(result, Is.EqualTo(10));
@@ -167,12 +167,12 @@ public class CompilationTests
     [Test]
     public void Compile_VariableWithArithmetic()
     {
-        var engine = new CsEvalEngine()
+        var engine = new CsEvalEngine(CsEvalOptions.Default.UseCompiler())
             .SetVariable("x", 10)
             .SetVariable("y", 20);
         var expr = engine.Parse("x + y");
 
-        Assert.That(expr.TryCompile(), Is.True);
+        Assert.That(engine.TryCompile(expr), Is.True);
 
         var result = engine.Evaluate(expr);
         Assert.That(result, Is.EqualTo(30));
@@ -181,11 +181,11 @@ public class CompilationTests
     [Test]
     public void Compile_VariableChangesAfterCompilation()
     {
-        var engine = new CsEvalEngine()
+        var engine = new CsEvalEngine(CsEvalOptions.Default.UseCompiler())
             .SetVariable("x", 10);
         var expr = engine.Parse("x * 2");
 
-        Assert.That(expr.TryCompile(), Is.True);
+        Assert.That(engine.TryCompile(expr), Is.True);
 
         Assert.That(engine.Evaluate(expr), Is.EqualTo(20));
 
@@ -203,10 +203,10 @@ public class CompilationTests
     [Test]
     public void Compile_Comparison_Equals()
     {
-        var engine = new CsEvalEngine();
+        var engine = new CsEvalEngine(CsEvalOptions.Default.UseCompiler());
         var expr = engine.Parse("5 == 5");
 
-        Assert.That(expr.TryCompile(), Is.True);
+        Assert.That(engine.TryCompile(expr), Is.True);
 
         var result = engine.Evaluate(expr);
         Assert.That(result, Is.EqualTo(true));
@@ -215,10 +215,10 @@ public class CompilationTests
     [Test]
     public void Compile_Comparison_NotEquals()
     {
-        var engine = new CsEvalEngine();
+        var engine = new CsEvalEngine(CsEvalOptions.Default.UseCompiler());
         var expr = engine.Parse("5 != 3");
 
-        Assert.That(expr.TryCompile(), Is.True);
+        Assert.That(engine.TryCompile(expr), Is.True);
 
         var result = engine.Evaluate(expr);
         Assert.That(result, Is.EqualTo(true));
@@ -227,10 +227,10 @@ public class CompilationTests
     [Test]
     public void Compile_Comparison_LessThan()
     {
-        var engine = new CsEvalEngine();
+        var engine = new CsEvalEngine(CsEvalOptions.Default.UseCompiler());
         var expr = engine.Parse("3 < 5");
 
-        Assert.That(expr.TryCompile(), Is.True);
+        Assert.That(engine.TryCompile(expr), Is.True);
 
         var result = engine.Evaluate(expr);
         Assert.That(result, Is.EqualTo(true));
@@ -239,10 +239,10 @@ public class CompilationTests
     [Test]
     public void Compile_Comparison_GreaterThan()
     {
-        var engine = new CsEvalEngine();
+        var engine = new CsEvalEngine(CsEvalOptions.Default.UseCompiler());
         var expr = engine.Parse("5 > 3");
 
-        Assert.That(expr.TryCompile(), Is.True);
+        Assert.That(engine.TryCompile(expr), Is.True);
 
         var result = engine.Evaluate(expr);
         Assert.That(result, Is.EqualTo(true));
@@ -255,10 +255,10 @@ public class CompilationTests
     [Test]
     public void Compile_LogicalAnd()
     {
-        var engine = new CsEvalEngine();
+        var engine = new CsEvalEngine(CsEvalOptions.Default.UseCompiler());
         var expr = engine.Parse("true && true");
 
-        Assert.That(expr.TryCompile(), Is.True);
+        Assert.That(engine.TryCompile(expr), Is.True);
 
         var result = engine.Evaluate(expr);
         Assert.That(result, Is.EqualTo(true));
@@ -267,10 +267,10 @@ public class CompilationTests
     [Test]
     public void Compile_LogicalOr()
     {
-        var engine = new CsEvalEngine();
+        var engine = new CsEvalEngine(CsEvalOptions.Default.UseCompiler());
         var expr = engine.Parse("false || true");
 
-        Assert.That(expr.TryCompile(), Is.True);
+        Assert.That(engine.TryCompile(expr), Is.True);
 
         var result = engine.Evaluate(expr);
         Assert.That(result, Is.EqualTo(true));
@@ -279,10 +279,10 @@ public class CompilationTests
     [Test]
     public void Compile_LogicalNot()
     {
-        var engine = new CsEvalEngine();
+        var engine = new CsEvalEngine(CsEvalOptions.Default.UseCompiler());
         var expr = engine.Parse("!false");
 
-        Assert.That(expr.TryCompile(), Is.True);
+        Assert.That(engine.TryCompile(expr), Is.True);
 
         var result = engine.Evaluate(expr);
         Assert.That(result, Is.EqualTo(true));
@@ -291,12 +291,12 @@ public class CompilationTests
     [Test]
     public void Compile_LogicalShortCircuit_And()
     {
-        var engine = new CsEvalEngine()
+        var engine = new CsEvalEngine(CsEvalOptions.Default.UseCompiler())
             .SetVariable("x", 0);
         // If short-circuit works, right side should not be evaluated when left is false
         var expr = engine.Parse("false && x");
 
-        Assert.That(expr.TryCompile(), Is.True);
+        Assert.That(engine.TryCompile(expr), Is.True);
 
         var result = engine.Evaluate(expr);
         Assert.That(result, Is.EqualTo(false));
@@ -305,12 +305,12 @@ public class CompilationTests
     [Test]
     public void Compile_LogicalShortCircuit_Or()
     {
-        var engine = new CsEvalEngine()
+        var engine = new CsEvalEngine(CsEvalOptions.Default.UseCompiler())
             .SetVariable("x", 0);
         // If short-circuit works, right side should not be evaluated when left is true
         var expr = engine.Parse("true || x");
 
-        Assert.That(expr.TryCompile(), Is.True);
+        Assert.That(engine.TryCompile(expr), Is.True);
 
         var result = engine.Evaluate(expr);
         Assert.That(result, Is.EqualTo(true));
@@ -323,11 +323,11 @@ public class CompilationTests
     [Test]
     public void Compile_Ternary_TrueBranch()
     {
-        var engine = new CsEvalEngine()
+        var engine = new CsEvalEngine(CsEvalOptions.Default.UseCompiler())
             .SetVariable("x", 10);
         var expr = engine.Parse("x > 5 ? \"big\" : \"small\"");
 
-        Assert.That(expr.TryCompile(), Is.True);
+        Assert.That(engine.TryCompile(expr), Is.True);
 
         var result = engine.Evaluate(expr);
         Assert.That(result, Is.EqualTo("big"));
@@ -336,11 +336,11 @@ public class CompilationTests
     [Test]
     public void Compile_Ternary_FalseBranch()
     {
-        var engine = new CsEvalEngine()
+        var engine = new CsEvalEngine(CsEvalOptions.Default.UseCompiler())
             .SetVariable("x", 3);
         var expr = engine.Parse("x > 5 ? \"big\" : \"small\"");
 
-        Assert.That(expr.TryCompile(), Is.True);
+        Assert.That(engine.TryCompile(expr), Is.True);
 
         var result = engine.Evaluate(expr);
         Assert.That(result, Is.EqualTo("small"));
@@ -349,11 +349,11 @@ public class CompilationTests
     [Test]
     public void Compile_NullCoalesce_LeftNotNull()
     {
-        var engine = new CsEvalEngine()
+        var engine = new CsEvalEngine(CsEvalOptions.Default.UseCompiler())
             .SetVariable("x", "value");
         var expr = engine.Parse("x ?? \"default\"");
 
-        Assert.That(expr.TryCompile(), Is.True);
+        Assert.That(engine.TryCompile(expr), Is.True);
 
         var result = engine.Evaluate(expr);
         Assert.That(result, Is.EqualTo("value"));
@@ -362,11 +362,11 @@ public class CompilationTests
     [Test]
     public void Compile_NullCoalesce_LeftNull()
     {
-        var engine = new CsEvalEngine()
+        var engine = new CsEvalEngine(CsEvalOptions.Default.UseCompiler())
             .SetVariable("x", null);
         var expr = engine.Parse("x ?? \"default\"");
 
-        Assert.That(expr.TryCompile(), Is.True);
+        Assert.That(engine.TryCompile(expr), Is.True);
 
         var result = engine.Evaluate(expr);
         Assert.That(result, Is.EqualTo("default"));
@@ -379,11 +379,11 @@ public class CompilationTests
     [Test]
     public void Compile_PropertyAccess_Dictionary()
     {
-        var engine = new CsEvalEngine()
+        var engine = new CsEvalEngine(CsEvalOptions.Default.UseCompiler())
             .SetVariable("person", new Dictionary<string, object?> { ["Name"] = "John", ["Age"] = 30 });
         var expr = engine.Parse("person.Name");
 
-        Assert.That(expr.TryCompile(), Is.True);
+        Assert.That(engine.TryCompile(expr), Is.True);
 
         var result = engine.Evaluate(expr);
         Assert.That(result, Is.EqualTo("John"));
@@ -392,11 +392,11 @@ public class CompilationTests
     [Test]
     public void Compile_PropertyAccess_TypedObject()
     {
-        var engine = new CsEvalEngine()
+        var engine = new CsEvalEngine(CsEvalOptions.Default.UseCompiler())
             .SetVariable("person", new TestPerson { Name = "John", Age = 30 });
         var expr = engine.Parse("person.Name");
 
-        Assert.That(expr.TryCompile(), Is.True);
+        Assert.That(engine.TryCompile(expr), Is.True);
 
         var result = engine.Evaluate(expr);
         Assert.That(result, Is.EqualTo("John"));
@@ -405,11 +405,11 @@ public class CompilationTests
     [Test]
     public void Compile_PropertyAccess_NullSafe()
     {
-        var engine = new CsEvalEngine()
+        var engine = new CsEvalEngine(CsEvalOptions.Default.UseCompiler())
             .SetVariable("person", null);
         var expr = engine.Parse("person?.Name");
 
-        Assert.That(expr.TryCompile(), Is.True);
+        Assert.That(engine.TryCompile(expr), Is.True);
 
         var result = engine.Evaluate(expr);
         Assert.That(result, Is.Null);
@@ -422,10 +422,10 @@ public class CompilationTests
     [Test]
     public void Compile_Blocks()
     {
-        var engine = new CsEvalEngine();
+        var engine = new CsEvalEngine(CsEvalOptions.Default.UseCompiler());
         var expr = engine.Parse("{ var x = 1; return x; }");
 
-        Assert.That(expr.TryCompile(), Is.True);
+        Assert.That(engine.TryCompile(expr), Is.True);
         Assert.That(expr.IsCompiled, Is.True);
 
         var result = engine.Evaluate(expr);
@@ -435,11 +435,11 @@ public class CompilationTests
     [Test]
     public void Compile_ReturnsIsCompilableTrue_ForLinq()
     {
-        var engine = new CsEvalEngine()
+        var engine = new CsEvalEngine(CsEvalOptions.Default.UseCompiler())
             .SetVariable("items", new List<int> { 1, 2, 3 });
         var expr = engine.Parse("items.Where((x) => x > 1).ToList()");
 
-        Assert.That(expr.TryCompile(), Is.True);
+        Assert.That(engine.TryCompile(expr), Is.True);
 
         var result = engine.Evaluate(expr);
         Assert.That(result, Is.InstanceOf<IList>());
@@ -449,21 +449,21 @@ public class CompilationTests
     [Test]
     public void Compile_ReturnsIsCompilableTrue_ForLambda()
     {
-        var engine = new CsEvalEngine();
+        var engine = new CsEvalEngine(CsEvalOptions.Default.UseCompiler());
         var expr = engine.Parse("(x) => x * 2");
 
         // Lambdas are now IL-compilable
-        Assert.That(expr.TryCompile(), Is.True);
+        Assert.That(engine.TryCompile(expr), Is.True);
     }
 
     [Test]
     public void Compile_NamedArguments()
     {
-        var engine = new CsEvalEngine();
+        var engine = new CsEvalEngine(CsEvalOptions.Default.UseCompiler());
         engine.SetVariable("str", "hello");
         var expr = engine.Parse("str.Substring(startIndex: 0, length: 3)");
 
-        Assert.That(expr.TryCompile(), Is.True);
+        Assert.That(engine.TryCompile(expr), Is.True);
         var result = engine.Evaluate(expr);
         Assert.That(result, Is.EqualTo("hel"));
     }
@@ -471,11 +471,11 @@ public class CompilationTests
     [Test]
     public void Compile_Assignment()
     {
-        var engine = new CsEvalEngine()
+        var engine = new CsEvalEngine(CsEvalOptions.Default.UseCompiler())
             .SetVariable("x", 10);
         var expr = engine.Parse("x = 20");
 
-        Assert.That(expr.TryCompile(), Is.True);
+        Assert.That(engine.TryCompile(expr), Is.True);
 
         var result = engine.Evaluate(expr);
         Assert.That(result, Is.EqualTo(20));
@@ -487,10 +487,10 @@ public class CompilationTests
     [Test]
     public void Compile_Loops()
     {
-        var engine = new CsEvalEngine();
+        var engine = new CsEvalEngine(CsEvalOptions.Default.UseCompiler());
         var expr = engine.Parse("{ var i = 0; while (i < 3) { i = i + 1; } return i; }");
 
-        Assert.That(expr.TryCompile(), Is.True);
+        Assert.That(engine.TryCompile(expr), Is.True);
 
         var result = engine.Evaluate(expr);
         Assert.That(result, Is.EqualTo(3));
@@ -503,7 +503,7 @@ public class CompilationTests
     [Test]
     public void Parse_DoesNotCompileAutomatically()
     {
-        var engine = new CsEvalEngine()
+        var engine = new CsEvalEngine(CsEvalOptions.Default.UseCompiler())
             .SetVariable("x", 10);
 
         var expr = engine.Parse("x * 2");
@@ -522,7 +522,7 @@ public class CompilationTests
     [Test]
     public void Parse_NonCompilableExpressions_FallBackToTreeWalking()
     {
-        var engine = new CsEvalEngine();
+        var engine = new CsEvalEngine(CsEvalOptions.Default.UseCompiler());
 
         // Object literals are not yet compilable
         var expr = engine.Parse("new { a = 1, b = 2 }");
@@ -540,7 +540,7 @@ public class CompilationTests
     [Test]
     public void CompilationMode_Interpreted_DoesNotCompileOnEvaluate()
     {
-        var options = new CsEvalOptions { CompilationMode = CompilationMode.Interpreted };
+        var options = CsEvalOptions.Default;
         var engine = new CsEvalEngine(options)
             .SetVariable("x", 10);
 
@@ -555,7 +555,7 @@ public class CompilationTests
     [Test]
     public void CompilationMode_Compiled_CompilesOnFirstEvaluate()
     {
-        var options = new CsEvalOptions { CompilationMode = CompilationMode.Compiled };
+        var options = CsEvalOptions.Default.UseCompiler();
         var engine = new CsEvalEngine(options)
             .SetVariable("x", 10);
 
@@ -572,16 +572,15 @@ public class CompilationTests
     }
 
     [Test]
-    public void CompilationMode_Interpreted_ExplicitCompileStillWorks()
+    public void ExplicitCompile_OnCompiledEngine_Works()
     {
-        var options = new CsEvalOptions { CompilationMode = CompilationMode.Interpreted };
+        var options = CsEvalOptions.Default.UseCompiler();
         var engine = new CsEvalEngine(options)
             .SetVariable("x", 10);
 
         var expr = engine.Parse("x * 2");
 
-        // User explicitly compiles regardless of option
-        expr.TryCompile();
+        engine.TryCompile(expr);
 
         Assert.That(expr.IsCompiled, Is.True);
 
@@ -592,7 +591,7 @@ public class CompilationTests
     [Test]
     public void CompilationMode_Compiled_CompilesNamedArguments()
     {
-        var options = new CsEvalOptions { CompilationMode = CompilationMode.Compiled };
+        var options = CsEvalOptions.Default.UseCompiler();
         var engine = new CsEvalEngine(options);
         engine.SetVariable("str", "hello");
 
@@ -607,7 +606,7 @@ public class CompilationTests
     [Test]
     public void CompilationMode_Compiled_DoesNotFallBackToInterpreted_WhenNotCompilable()
     {
-        var options = new CsEvalOptions { CompilationMode = CompilationMode.Compiled };
+        var options = CsEvalOptions.Default.UseCompiler();
         var engine = new CsEvalEngine(options);
 
         // Known non-compilable pattern: switch with fall-through from a non-empty case.
@@ -629,11 +628,7 @@ public class CompilationTests
     [Test]
     public void CompilationMode_Compiled_DoesNotFallBack_WhenIlEmitterDoesNotSupportNode()
     {
-        var options = new CsEvalOptions
-        {
-            CompilationMode = CompilationMode.Compiled,
-            ExpressionCompiler = new ThrowingExpressionCompiler()
-        };
+        var options = CsEvalOptions.Default.UseCompiler(new ThrowingExpressionCompiler());
         var engine = new CsEvalEngine(options);
         var expr = engine.Parse("1 + 2");
 
@@ -656,7 +651,7 @@ public class CompilationTests
     [Test]
     public void ParseAndCompile_ReturnsCompiledExpression()
     {
-        var engine = new CsEvalEngine();
+        var engine = new CsEvalEngine(CsEvalOptions.Default.UseCompiler());
         var expr = engine.ParseAndCompile("1 + 2");
 
         Assert.That(expr.IsCompiled, Is.True);
@@ -665,7 +660,7 @@ public class CompilationTests
     [Test]
     public void ParseAndCompile_BlockExpression_NowCompiled()
     {
-        var engine = new CsEvalEngine();
+        var engine = new CsEvalEngine(CsEvalOptions.Default.UseCompiler());
         var expr = engine.ParseAndCompile("{ var x = 1; return x; }");
 
         // Blocks are now IL-compilable
@@ -678,7 +673,7 @@ public class CompilationTests
     [Test]
     public void ParseAndCompile_NamedArgumentsNowCompilable()
     {
-        var engine = new CsEvalEngine();
+        var engine = new CsEvalEngine(CsEvalOptions.Default.UseCompiler());
         engine.SetVariable("str", "hello");
         var expr = engine.ParseAndCompile("str.Substring(startIndex: 0, length: 3)");
 
@@ -696,14 +691,14 @@ public class CompilationTests
     [Test]
     public void Compile_ThreadSafe_ParallelCompilations()
     {
-        var engine = new CsEvalEngine()
+        var engine = new CsEvalEngine(CsEvalOptions.Default.UseCompiler())
             .SetVariable("x", 10);
         var expr = engine.Parse("x * 2");
 
         // Multiple threads trying to compile simultaneously
         Parallel.For(0, 100, _ =>
         {
-            expr.TryCompile();
+            engine.TryCompile(expr);
         });
 
         Assert.That(expr.IsCompiled, Is.True);
@@ -713,7 +708,7 @@ public class CompilationTests
     [Test]
     public void Compile_ThreadSafe_ParallelEvaluations()
     {
-        var engine = new CsEvalEngine()
+        var engine = new CsEvalEngine(CsEvalOptions.Default.UseCompiler())
             .SetVariable("x", 5);
         var expr = engine.Parse("x + x");
 
@@ -721,7 +716,7 @@ public class CompilationTests
         Assert.That(expr.IsCompiled, Is.False);
 
         // Explicitly compile before parallel evaluations
-        expr.TryCompile();
+        engine.TryCompile(expr);
         Assert.That(expr.IsCompiled, Is.True);
 
         var results = new System.Collections.Concurrent.ConcurrentBag<object?>();

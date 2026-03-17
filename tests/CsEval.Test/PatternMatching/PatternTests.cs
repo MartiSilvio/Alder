@@ -21,7 +21,7 @@ public class PatternTests(CompilationMode mode)
     [Test]
     public void PropertyPattern_NullFalse()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var result = engine.Evaluate("{ object x = null; return x is { Length: > 0 }; }");
         Assert.That(result, Is.EqualTo(false));
     }

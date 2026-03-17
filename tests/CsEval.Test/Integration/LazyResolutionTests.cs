@@ -17,7 +17,7 @@ public class LazyResolutionTests(CompilationMode mode)
     [Test]
     public void RegisterModule_DoesNotInstantiateType()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.RegisterModule("Tracking", typeof(TrackingModule));
 
         Assert.That(TrackingModule.InstanceCount, Is.EqualTo(0));
@@ -26,7 +26,7 @@ public class LazyResolutionTests(CompilationMode mode)
     [Test]
     public void RegisterModule_InstantiatesOnlyWhenAccessed()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.RegisterModule("Tracking", typeof(TrackingModule));
 
         Assert.That(TrackingModule.InstanceCount, Is.EqualTo(0));
@@ -39,7 +39,7 @@ public class LazyResolutionTests(CompilationMode mode)
     [Test]
     public void RegisterModule_UsesServiceProviderWhenAvailable()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.RegisterModule("Tracking", typeof(TrackingModule));
 
         var providedInstance = new TrackingModule();
@@ -57,7 +57,7 @@ public class LazyResolutionTests(CompilationMode mode)
     [Test]
     public void RegisterModule_ResolvesOnEachCall()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.RegisterModule("Tracking", typeof(TrackingModule));
 
         engine.Evaluate("Tracking.DoSomething()");
@@ -70,7 +70,7 @@ public class LazyResolutionTests(CompilationMode mode)
     [Test]
     public void RegisterModule_WithInstance_DoesNotCreateNew()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var instance = new TrackingModule();
         engine.RegisterModule("Tracking", instance: instance);
 
@@ -91,7 +91,7 @@ public class MemberFilteringTests(CompilationMode mode)
     [Test]
     public void RegisterModule_WithExplicitMembers_OnlyExposesSpecifiedMethods()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var members = new Dictionary<string, MemberInfo>(StringComparer.OrdinalIgnoreCase)
         {
             ["Sum"] = typeof(CalculatorModule).GetMethod(nameof(CalculatorModule.Sum))!
@@ -107,7 +107,7 @@ public class MemberFilteringTests(CompilationMode mode)
     [Test]
     public void RegisterModule_WithExplicitMembers_SupportsAliases()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var members = new Dictionary<string, MemberInfo>(StringComparer.OrdinalIgnoreCase)
         {
             ["plus"] = typeof(CalculatorModule).GetMethod(nameof(CalculatorModule.Sum))!,
@@ -125,7 +125,7 @@ public class MemberFilteringTests(CompilationMode mode)
     [Test]
     public void RegisterModule_WithoutExplicitMembers_ExposesAllPublicMembers()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.RegisterModule("Calc", typeof(CalculatorModule));
 
         Assert.That(engine.Evaluate("Calc.Sum(2, 3)"), Is.EqualTo(5));
@@ -136,7 +136,7 @@ public class MemberFilteringTests(CompilationMode mode)
     [Test]
     public void RegisterModule_WithExplicitMembers_CanExposeProperties()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var members = new Dictionary<string, MemberInfo>(StringComparer.OrdinalIgnoreCase)
         {
             ["Pi"] = typeof(ConstantsModule).GetProperty(nameof(ConstantsModule.Pi))!
@@ -152,7 +152,7 @@ public class MemberFilteringTests(CompilationMode mode)
     [Test]
     public void RegisterModule_CaseInsensitive_WorksWithExplicitMembers()
     {
-        var engine = new CsEvalEngine(new CsEvalOptions { CompilationMode = mode, IsCaseSensitive = false });
+        var engine = TestEngineFactory.Create(mode, new CsEvalOptions { IsCaseSensitive = false });
         var members = new Dictionary<string, MemberInfo>(StringComparer.OrdinalIgnoreCase)
         {
             ["sum"] = typeof(CalculatorModule).GetMethod(nameof(CalculatorModule.Sum))!

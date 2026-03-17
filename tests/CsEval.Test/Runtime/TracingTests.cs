@@ -7,10 +7,8 @@ public class TracingTests(CompilationMode mode)
     [Test]
     public void EvaluateWithTrace_ReturnsResultAndSteps()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with
-        {
-            CompilationMode = mode,
-            LanguageMode = LanguageMode.Extended
+        var engine = TestEngineFactory.Create(mode, CsEvalOptions.Default with {
+                        LanguageMode = LanguageMode.Extended
         });
 
         var trace = engine.EvaluateWithTrace("4 * 5 + 2");

@@ -61,10 +61,7 @@ public sealed class InvocationPipelineTests(CompilationMode mode)
 
     private CsEvalEngine CreateEngine()
     {
-        return new CsEvalEngine(CsEvalOptions.Default with
-        {
-            CompilationMode = mode
-        });
+        return TestEngineFactory.Create(mode);
     }
 
     private sealed class InvocationTarget

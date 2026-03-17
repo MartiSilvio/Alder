@@ -7,7 +7,7 @@ public class GeneratedContextIntegrationTests(CompilationMode mode)
 {
     private CsEvalEngine CreateEngine(bool useGeneratedContext = true)
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         if (useGeneratedContext)
             engine.UseGeneratedContext(TestGeneratedContext.Default);
         return engine;

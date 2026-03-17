@@ -17,7 +17,7 @@ public class NullHandlingTests(CompilationMode mode)
     [Test]
     public void Eval_NullCoalesceAssign_ThrowsOnNonNullableType()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("""
                                                                       {
                                                                           var x = 10;
@@ -37,7 +37,7 @@ public class NullHandlingTests(CompilationMode mode)
     [Test]
     public void Eval_NullCoalesce()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("x", null);
         engine.SetVariable("y", "default");
 
@@ -49,7 +49,7 @@ public class NullHandlingTests(CompilationMode mode)
     [Test]
     public void Eval_NullSafeAccess()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("obj", null);
 
         Assert.That(engine.Evaluate("obj?.Name"), Is.Null);
@@ -63,7 +63,7 @@ public class NullHandlingTests(CompilationMode mode)
     [Test]
     public void NullConditionalIndex_NullArray_ReturnsNull()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("arr", null);
         Assert.That(engine.Evaluate("arr?[0]"), Is.Null);
     }
@@ -72,7 +72,7 @@ public class NullHandlingTests(CompilationMode mode)
     [Test]
     public void NullConditionalIndex_NonNullArray_ReturnsElement()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("arr", new[] { 1, 2, 3 });
         Assert.That(engine.Evaluate("arr?[1]"), Is.EqualTo(2));
     }
@@ -81,7 +81,7 @@ public class NullHandlingTests(CompilationMode mode)
     [Test]
     public void NullConditionalIndex_WithNullCoalescing()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("arr", null);
         Assert.That(engine.Evaluate("arr?[0] ?? 42"), Is.EqualTo(42));
     }
@@ -90,7 +90,7 @@ public class NullHandlingTests(CompilationMode mode)
     [Test]
     public void NullConditionalIndex_Dictionary()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("dict", new Dictionary<string, int> { ["key"] = 100 });
         Assert.That(engine.Evaluate("dict?[\"key\"]"), Is.EqualTo(100));
         engine.SetVariable("dict", null);
@@ -101,7 +101,7 @@ public class NullHandlingTests(CompilationMode mode)
     [Test]
     public void NullConditional_MethodCall()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("s", "hello");
         Assert.That(engine.Evaluate("s?.ToUpper()"), Is.EqualTo("HELLO"));
         engine.SetVariable("s", null);

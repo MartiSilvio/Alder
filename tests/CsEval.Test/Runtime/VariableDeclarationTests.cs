@@ -18,7 +18,7 @@ public class VariableDeclarationTests(CompilationMode mode)
     [Test]
     public void Var_NullAssignment_ThrowsCsEvalParserException()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var ex = Assert.Throws<CsEvalParserException>(() => engine.Evaluate("{ var x = null; return x; }"));
         Assert.That(ex!.Message, Does.Contain("Cannot assign null to an implicitly-typed variable"));
     }
@@ -27,7 +27,7 @@ public class VariableDeclarationTests(CompilationMode mode)
     [Test]
     public void Var_NullAssignment_InForLoop_ThrowsCsEvalParserException()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var ex = Assert.Throws<CsEvalParserException>(() => engine.Evaluate("{ for (var x = null; x != null; x = null) { } return 0; }"));
         Assert.That(ex!.Message, Does.Contain("Cannot assign null to an implicitly-typed variable"));
     }
@@ -40,7 +40,7 @@ public class VariableDeclarationTests(CompilationMode mode)
     [Test]
     public void TypedDeclaration_Int_CoercesFromSmaller()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("b", (byte)100);
         var result = engine.Evaluate("{ int x = b; return x; }");
         Assert.That(result, Is.TypeOf<int>());
@@ -54,7 +54,7 @@ public class VariableDeclarationTests(CompilationMode mode)
     [Test]
     public void ConstDeclaration_TypedLocal_Works()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var result = engine.Evaluate("{ const int x = 42; return x; }");
         Assert.That(result, Is.EqualTo(42));
     }
@@ -62,7 +62,7 @@ public class VariableDeclarationTests(CompilationMode mode)
     [Test]
     public void ConstDeclaration_Assignment_ThrowsCs0131()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("{ const int x = 1; x = 2; return x; }"));
         Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0131));
         Assert.That(ex.FormattedCode, Is.EqualTo("CS0131"));
@@ -71,7 +71,7 @@ public class VariableDeclarationTests(CompilationMode mode)
     [Test]
     public void ConstDeclaration_CompoundAssignment_ThrowsCs0131()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("{ const int x = 1; x += 2; return x; }"));
         Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0131));
         Assert.That(ex.FormattedCode, Is.EqualTo("CS0131"));
@@ -80,7 +80,7 @@ public class VariableDeclarationTests(CompilationMode mode)
     [Test]
     public void ConstDeclaration_Increment_ThrowsCs0131()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("{ const int x = 1; x++; return x; }"));
         Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0131));
         Assert.That(ex.FormattedCode, Is.EqualTo("CS0131"));
@@ -94,7 +94,7 @@ public class VariableDeclarationTests(CompilationMode mode)
     [Test]
     public void TypedDeclaration_Int_ThrowsOnStringAssignment()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         Assert.Throws<CsEvalException>(() => engine.Evaluate("{ int x = \"hello\"; return x; }"));
     }
 
@@ -102,7 +102,7 @@ public class VariableDeclarationTests(CompilationMode mode)
     [Test]
     public void TypedDeclaration_Int_ThrowsOnNullAssignment()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         Assert.Throws<CsEvalException>(() => engine.Evaluate("{ int x = null; return x; }"));
     }
 
@@ -110,7 +110,7 @@ public class VariableDeclarationTests(CompilationMode mode)
     [Test]
     public void TypedDeclaration_String_ThrowsOnIntAssignment()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         Assert.Throws<CsEvalException>(() => engine.Evaluate("{ string x = 42; return x; }"));
     }
 
@@ -118,7 +118,7 @@ public class VariableDeclarationTests(CompilationMode mode)
     [Test]
     public void TypedDeclaration_Bool_ThrowsOnIntAssignment()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         Assert.Throws<CsEvalException>(() => engine.Evaluate("{ bool x = 1; return x; }"));
     }
 
@@ -126,7 +126,7 @@ public class VariableDeclarationTests(CompilationMode mode)
     [Test]
     public void NullableInt_ThrowsOnStringAssignment()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         Assert.Throws<CsEvalException>(() => engine.Evaluate("{ int? x = \"hello\"; return x; }"));
     }
 

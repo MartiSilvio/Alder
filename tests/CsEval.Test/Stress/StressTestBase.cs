@@ -17,7 +17,7 @@ public class StressTestBase
     [SetUp]
     public void Setup()
     {
-        Engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = Mode });
+        Engine = TestEngineFactory.Create(Mode);
     }
 
     protected string GenerateDeeplyNestedExpression(int depth, string inner = "1")

@@ -14,7 +14,7 @@ public class DeconstructionTests(CompilationMode mode)
     [Test]
     public void Deconstruct_NonTuple_Throws()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("val", 42);
         var ex = Assert.Throws<CsEvalException>(() =>
             engine.Evaluate("{ var (x, y) = val; return x; }"));
@@ -25,7 +25,7 @@ public class DeconstructionTests(CompilationMode mode)
     [Test]
     public void Deconstruct_ArityMismatch_TooMany_Throws()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var ex = Assert.Throws<CsEvalException>(() =>
             engine.Evaluate("{ var (x, y, z) = (1, 2); return x; }"));
         Assert.That(ex!.Message, Does.Contain("Deconstruction requires 3 values but tuple has 2"));
@@ -35,7 +35,7 @@ public class DeconstructionTests(CompilationMode mode)
     [Test]
     public void Deconstruct_ArityMismatch_TooFew_Throws()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var ex = Assert.Throws<CsEvalException>(() =>
             engine.Evaluate("{ var (x, y) = (1, 2, 3); return x; }"));
         Assert.That(ex!.Message, Does.Contain("Deconstruction requires 2 values but tuple has 3"));

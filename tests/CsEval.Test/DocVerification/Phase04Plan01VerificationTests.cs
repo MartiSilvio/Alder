@@ -7,10 +7,10 @@ namespace CsEval.Test.DocVerification;
 public class Phase04Plan01VerificationTests(CompilationMode mode)
 {
     private CsEvalEngine Engine()
-        => new(new CsEvalOptions { CompilationMode = mode });
+        => TestEngineFactory.Create(mode);
 
     private CsEvalEngine Engine(CsEvalOptions options)
-        => new(options with { CompilationMode = mode });
+        => TestEngineFactory.Create(mode, options);
 
     // ═══════════════════════════════════════════════════════════════
     // ENG-01: CsEvalOptions — Defaults
@@ -21,8 +21,8 @@ public class Phase04Plan01VerificationTests(CompilationMode mode)
         => Assert.That(CsEvalOptions.Default.IsCaseSensitive, Is.True);
 
     [Test]
-    public void Options_Default_CompilationMode_Compiled()
-        => Assert.That(CsEvalOptions.Default.CompilationMode, Is.EqualTo(CompilationMode.Compiled));
+    public void Options_Default_NoCompiler()
+        => Assert.That(CsEvalOptions.Default.UseCompiler().ExpressionCompiler, Is.Not.Null);
 
     [Test]
     public void Options_Default_MaxExpressionDepth_512()
@@ -250,7 +250,6 @@ public class Phase04Plan01VerificationTests(CompilationMode mode)
     {
         var engine = Engine(new CsEvalOptions
         {
-            CompilationMode = CompilationMode.Interpreted
         });
         var trace = engine.EvaluateWithTrace("1 + 2");
         Assert.That(trace.Result, Is.EqualTo(3));

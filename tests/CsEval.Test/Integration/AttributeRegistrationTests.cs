@@ -9,7 +9,7 @@ public class AttributeRegistrationTests(CompilationMode mode)
     [Test]
     public void GlobalFunction()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.RegisterFromType<GlobalFunctions>();
 
         var result = engine.Evaluate("triple(4)");
@@ -19,7 +19,7 @@ public class AttributeRegistrationTests(CompilationMode mode)
     [Test]
     public void GlobalFunction_WithInstance()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var instance = new StatefulFunctions { Multiplier = 5 };
         engine.RegisterFromType(instance);
 
@@ -30,7 +30,7 @@ public class AttributeRegistrationTests(CompilationMode mode)
     [Test]
     public void Module()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.RegisterFromType<CustomMathModule>();
 
         Assert.That(engine.Evaluate("CustomMath.Square(4)"), Is.EqualTo(16));
@@ -40,7 +40,7 @@ public class AttributeRegistrationTests(CompilationMode mode)
     [Test]
     public void Module_WithInstance()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var instance = new GreeterModule("Hi");
         engine.RegisterFromType(instance);
 
@@ -51,7 +51,7 @@ public class AttributeRegistrationTests(CompilationMode mode)
     [Test]
     public void StaticMethods()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.RegisterFromType<StaticHelpers>();
 
         Assert.That(engine.Evaluate("isEven(4)"), Is.EqualTo(true));
@@ -61,7 +61,7 @@ public class AttributeRegistrationTests(CompilationMode mode)
     [Test]
     public void FromAssembly()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.RegisterFromAssembly(typeof(AssemblyTestModule).Assembly);
 
         Assert.That(engine.Evaluate("AssemblyTest.Double(5)"), Is.EqualTo(10));
@@ -70,7 +70,7 @@ public class AttributeRegistrationTests(CompilationMode mode)
     [Test]
     public void WithServiceProvider()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.RegisterFromType<GreeterModule>();
 
         var serviceProvider = new SimpleServiceProvider();

@@ -9,7 +9,7 @@ namespace CsEval.Test;
 public class ConformanceAuditTests(CompilationMode mode)
 {
     private CsEvalEngine Engine(LanguageMode lang = LanguageMode.Standard)
-        => new(CsEvalOptions.Default with { CompilationMode = mode, LanguageMode = lang });
+        => TestEngineFactory.Create(mode, CsEvalOptions.Default with { LanguageMode = lang });
 
     private object? Eval(string expr, LanguageMode lang = LanguageMode.Standard)
         => Engine(lang).Evaluate(expr);

@@ -7,7 +7,7 @@ namespace CsEval.Test.Core;
 public class ApiFeatureTests(CompilationMode mode)
 {
     private CsEvalEngine CreateEngine() =>
-        new(CsEvalOptions.Default with { CompilationMode = mode });
+        TestEngineFactory.Create(mode);
 
     #region TryEvaluate
 

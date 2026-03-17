@@ -79,7 +79,7 @@ public class DiagnosticCodeTests
         const string expr = "{ var x = 42; return x[0,0]; }";
         foreach (var mode in new[] { CompilationMode.Interpreted, CompilationMode.Compiled })
         {
-            var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+            var engine = TestEngineFactory.Create(mode);
             var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate(expr));
             Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0021), $"Mode: {mode}");
             Assert.That(ex.FormattedCode, Is.EqualTo("CS0021"), $"Mode: {mode}");
@@ -218,7 +218,7 @@ public class DiagnosticCodeTests
     {
         foreach (var mode in new[] { CompilationMode.Interpreted, CompilationMode.Compiled })
         {
-            var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+            var engine = TestEngineFactory.Create(mode);
             var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("{ break; }"));
             Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0139), $"Mode: {mode}");
             Assert.That(ex.FormattedCode, Is.EqualTo("CS0139"), $"Mode: {mode}");
@@ -241,7 +241,7 @@ public class DiagnosticCodeTests
     {
         foreach (var mode in new[] { CompilationMode.Interpreted, CompilationMode.Compiled })
         {
-            var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+            var engine = TestEngineFactory.Create(mode);
             var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("throw 42"));
             Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0155), $"Mode: {mode}");
             Assert.That(ex.FormattedCode, Is.EqualTo("CS0155"), $"Mode: {mode}");
@@ -384,7 +384,7 @@ public class DiagnosticCodeTests
     {
         // CS1061 fires in the Evaluator's GetMember for IDictionary member access.
         // Use Interpreted mode to ensure the Evaluator path is exercised.
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = CompilationMode.Interpreted });
+        var engine = TestEngineFactory.Create(CompilationMode.Interpreted);
         var ex = Assert.Throws<CsEvalException>(() =>
             engine.Evaluate("{ var obj = new { Name = \"test\" }; return obj.NonExistent; }"));
         Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS1061));

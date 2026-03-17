@@ -7,7 +7,7 @@ public class OneShotEvaluationTests(CompilationMode mode)
     [Test]
     public void Evaluate_WithVariables_CanAccessVariables()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var variables = new Dictionary<string, object?>
         {
             { "x", 10 },
@@ -22,7 +22,7 @@ public class OneShotEvaluationTests(CompilationMode mode)
     [Test]
     public void Evaluate_WithVariables_DoesNotLeakToEngine()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var variables = new Dictionary<string, object?>
         {
             { "x", 10 }
@@ -37,7 +37,7 @@ public class OneShotEvaluationTests(CompilationMode mode)
     [Test]
     public void Evaluate_WithVariables_ShadowsEngineVariables()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("x", 100);
 
         var variables = new Dictionary<string, object?>

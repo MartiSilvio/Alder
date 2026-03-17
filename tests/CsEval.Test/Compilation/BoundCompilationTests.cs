@@ -6,10 +6,7 @@ public sealed class BoundCompilationTests
     [Test]
     public void Compiled_ShouldEvaluateBoundCapableExpression()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with
-        {
-            CompilationMode = CompilationMode.Compiled
-        });
+        var engine = TestEngineFactory.Create(CompilationMode.Compiled);
         engine.SetVariable("x", -4);
         engine.SetVariable("y", 2);
         engine.SetVariable("z", 3);
@@ -26,10 +23,7 @@ public sealed class BoundCompilationTests
     [Test]
     public void Compiled_ShouldUseBoundPipeline_ForSwitchStatements()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with
-        {
-            CompilationMode = CompilationMode.Compiled
-        });
+        var engine = TestEngineFactory.Create(CompilationMode.Compiled);
         var expression = engine.Parse(
             "{ var x = 7; switch (x) { case > 0: return 1; default: return 0; } }");
         var result = engine.Evaluate(expression);
@@ -43,10 +37,7 @@ public sealed class BoundCompilationTests
     [Test]
     public void Compiled_ShouldUseBoundPipeline_ForNamedArguments()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with
-        {
-            CompilationMode = CompilationMode.Compiled
-        });
+        var engine = TestEngineFactory.Create(CompilationMode.Compiled);
 
         var namedArgExpr = engine.Parse("Math.Round(value: 3.14159, digits: 2)");
         var namedArgResult = engine.Evaluate(namedArgExpr);
@@ -57,10 +48,7 @@ public sealed class BoundCompilationTests
     [Test]
     public void Compiled_ShouldEvaluateTypeArgumentInvocation()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with
-        {
-            CompilationMode = CompilationMode.Compiled
-        });
+        var engine = TestEngineFactory.Create(CompilationMode.Compiled);
 
         var typeArgExpr = engine.Parse("Array.Empty<int>().Length");
         var typeArgResult = engine.Evaluate(typeArgExpr);
@@ -70,9 +58,8 @@ public sealed class BoundCompilationTests
     [Test]
     public void Compiled_ShouldUseBoundPipeline_ForExtendedSyntaxExpressions()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with
-        {
-            CompilationMode = CompilationMode.Compiled,
+        var engine = TestEngineFactory.Create(CompilationMode.Compiled, CsEvalOptions.Default with
+            {
             LanguageMode = LanguageMode.Extended
         });
 
@@ -90,9 +77,8 @@ public sealed class BoundCompilationTests
     [Test]
     public void Compiled_ShouldUseBoundPipeline_ForMutationExpressions()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with
-        {
-            CompilationMode = CompilationMode.Compiled,
+        var engine = TestEngineFactory.Create(CompilationMode.Compiled, CsEvalOptions.Default with
+            {
             LanguageMode = LanguageMode.Extended
         });
 
@@ -125,10 +111,7 @@ public sealed class BoundCompilationTests
     [Test]
     public void Compiled_ShouldUseBoundPipeline_ForIsPatternExpressions()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with
-        {
-            CompilationMode = CompilationMode.Compiled
-        });
+        var engine = TestEngineFactory.Create(CompilationMode.Compiled);
 
         engine.SetVariable("x", 42);
         var expression = engine.Parse("x is > 10 and < 100");
@@ -141,10 +124,7 @@ public sealed class BoundCompilationTests
     [Test]
     public void Compiled_ShouldUseBoundPipeline_ForBlockIfReturn()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with
-        {
-            CompilationMode = CompilationMode.Compiled
-        });
+        var engine = TestEngineFactory.Create(CompilationMode.Compiled);
 
         var expression = engine.Parse("{ var x = 10; if (x > 5) { return \"big\"; } return \"small\"; }");
         var result = engine.Evaluate(expression);
@@ -156,10 +136,7 @@ public sealed class BoundCompilationTests
     [Test]
     public void Compiled_ShouldUseBoundPipeline_ForLoopConstructs()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with
-        {
-            CompilationMode = CompilationMode.Compiled
-        });
+        var engine = TestEngineFactory.Create(CompilationMode.Compiled);
 
         var whileExpr = engine.Parse("{ var i = 0; var sum = 0; while (i < 5) { i++; if (i == 3) continue; sum += i; } return sum; }");
         Assert.That(engine.Evaluate(whileExpr), Is.EqualTo(12));
@@ -178,10 +155,7 @@ public sealed class BoundCompilationTests
     [Test]
     public void Compiled_ShouldUseBoundPipeline_ForUsingAndLockStatements()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with
-        {
-            CompilationMode = CompilationMode.Compiled
-        });
+        var engine = TestEngineFactory.Create(CompilationMode.Compiled);
 
         engine.SetVariable("res", new System.IO.MemoryStream());
         var usingExpr = engine.Parse("{ var x = 0; using (res) { x = 42; } return x; }");

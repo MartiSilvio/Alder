@@ -35,10 +35,7 @@ public class ComparableExecutionBenchmarks : BenchmarkBase
         _interpretedExpression = InterpretedEngine.Parse(Scenario.CsEvalExpression);
         _compiledExpression = CompiledEngine.Parse(Scenario.CsEvalExpression);
 
-        _interpretedReflectionEngine = new CsEvalEngine(CsEvalOptions.Default with
-        {
-            CompilationMode = CompilationMode.Interpreted
-        });
+        _interpretedReflectionEngine = new CsEvalEngine();
         _interpretedReflectionEngine.ClearGeneratedContexts();
         ApplyGlobals(_interpretedReflectionEngine, _globals);
         _interpretedReflectionExpression = _interpretedReflectionEngine.Parse(Scenario.CsEvalExpression);

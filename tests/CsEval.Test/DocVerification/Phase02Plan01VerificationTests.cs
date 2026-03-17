@@ -5,7 +5,7 @@ namespace CsEval.Test.DocVerification;
 public class Phase02Plan01VerificationTests(CompilationMode mode)
 {
     private CsEvalEngine Engine()
-        => new(CsEvalOptions.Default with { CompilationMode = mode });
+        => TestEngineFactory.Create(mode);
 
     private object? Eval(string expr) => Engine().Evaluate(expr);
 

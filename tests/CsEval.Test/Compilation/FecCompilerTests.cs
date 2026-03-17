@@ -12,9 +12,8 @@ namespace CsEval.Test.Compilation;
 public class FecCompilerTests
 {
     private static CsEvalEngine Engine(CompilationMode mode = CompilationMode.Compiled) =>
-        new(new CsEvalOptions
+        TestEngineFactory.Create(mode, new CsEvalOptions
         {
-            CompilationMode = mode,
             ExpressionCompiler = new FastExpressionCompilerAdapter()
         });
 

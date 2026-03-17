@@ -16,7 +16,7 @@ public class NameofTests(CompilationMode mode)
     [TestCase("nameof(foo)", "foo", TestName = "Nameof_Variable")]
     public void Nameof_Basic(string expr, string expected)
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("x", 42);
         engine.SetVariable("foo", "bar");
         Assert.That(engine.Evaluate(expr), Is.EqualTo(expected));
@@ -25,7 +25,7 @@ public class NameofTests(CompilationMode mode)
     [Test]
     public void Nameof_MemberAccess()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         // nameof(obj.Property) should return "Property"
         Assert.That(engine.Evaluate("nameof(obj.Property)"), Is.EqualTo("Property"));
         Assert.That(engine.Evaluate("nameof(a.b.c)"), Is.EqualTo("c"));

@@ -7,7 +7,7 @@ public class ConsoleOutputTests(CompilationMode mode)
     [Test]
     public void Console_WriteLine_CapturesOutput()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.RegisterAssembly(typeof(Console).Assembly);
         engine.RegisterNamespace("System");
 
@@ -27,7 +27,7 @@ public class ConsoleOutputTests(CompilationMode mode)
     [Test]
     public void Console_WriteLine_WithInterpolation()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.RegisterAssembly(typeof(Console).Assembly);
         engine.RegisterNamespace("System");
 

@@ -14,7 +14,7 @@ public class DoWhileLoopTests(CompilationMode mode)
     [Test]
     public void DoWhileLoop_WithExternalVariable_ModifiesCorrectly()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("limit", 10);
 
         var result = engine.Evaluate(@"
@@ -35,7 +35,7 @@ public class DoWhileLoopTests(CompilationMode mode)
     [Test]
     public void DoWhileLoop_WithTernaryCondition_WorksCorrectly()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("useShort", true);
 
         var result = engine.Evaluate(@"
@@ -56,7 +56,7 @@ public class DoWhileLoopTests(CompilationMode mode)
     [Test]
     public void DoWhileLoop_WithConditionalReturn_ReturnsCorrectValue()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("target", 7L);
 
         var result = engine.Evaluate(@"
@@ -82,7 +82,7 @@ public class DoWhileLoopTests(CompilationMode mode)
     [Test]
     public void DoWhileLoop_WithListCount_WorksCorrectly()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("items", new List<int> { 10, 20, 30, 40 });
 
         var result = engine.Evaluate(@"
@@ -107,7 +107,7 @@ public class DoWhileLoopTests(CompilationMode mode)
     [Test]
     public void DoWhileLoop_BuildingObjects_WorksCorrectly()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var result = engine.Evaluate(@"
         {
             var i = 0;
@@ -132,10 +132,8 @@ public class DoWhileLoopTests(CompilationMode mode)
     [Test]
     public void DoWhileLoop_ExceedsMaxStatements_ThrowsException()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with
-        {
-            CompilationMode = mode,
-            Constraints = new ExecutionConstraints { MaxStatements = 1000 }
+        var engine = TestEngineFactory.Create(mode, CsEvalOptions.Default with {
+                        Constraints = new ExecutionConstraints { MaxStatements = 1000 }
         });
 
         var ex = Assert.Throws<CsEvalExecutionLimitException>(() =>
@@ -155,10 +153,8 @@ public class DoWhileLoopTests(CompilationMode mode)
     [Test]
     public void DoWhileLoop_WithCustomMaxStatements_UsesConfiguredLimit()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with
-        {
-            CompilationMode = mode,
-            Constraints = new ExecutionConstraints { MaxStatements = 10 }
+        var engine = TestEngineFactory.Create(mode, CsEvalOptions.Default with {
+                        Constraints = new ExecutionConstraints { MaxStatements = 10 }
         });
 
         var ex = Assert.Throws<CsEvalExecutionLimitException>(() =>
@@ -178,7 +174,7 @@ public class DoWhileLoopTests(CompilationMode mode)
     [Test]
     public void DoWhileLoop_WithNoConstraints_AllowsManyIterations()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
 
         var result = engine.Evaluate(@"
         {
@@ -198,7 +194,7 @@ public class DoWhileLoopTests(CompilationMode mode)
     [Test]
     public void DoWhileLoop_WithCancellationToken_CanBeCancelled()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         using var cts = new CancellationTokenSource();
 
         var task = Task.Run(() =>
@@ -227,7 +223,7 @@ public class DoWhileLoopTests(CompilationMode mode)
     [Test]
     public void DoWhileLoop_TryParse_ValidExpression_Succeeds()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var success = engine.TryParse("{ var i = 0; do { i = i + 1; } while (i < 5); return i; }", out var expr, out var error);
 
         Assert.That(success, Is.True);
@@ -239,7 +235,7 @@ public class DoWhileLoopTests(CompilationMode mode)
     [Test]
     public void DoWhileLoop_TryParse_WithoutSemicolon_StillWorks()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var success = engine.TryParse("{ var i = 0; do { i = i + 1; } while (i < 5) return i; }", out var expr, out var error);
 
         Assert.That(success, Is.True);
@@ -250,7 +246,7 @@ public class DoWhileLoopTests(CompilationMode mode)
     [Test]
     public void DoWhileLoop_PreParsed_CanBeEvaluatedMultipleTimes()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var expr = engine.Parse(@"
         {
             var sum = 0;

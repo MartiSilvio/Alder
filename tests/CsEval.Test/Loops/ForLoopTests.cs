@@ -14,10 +14,8 @@ public class ForLoopTests(CompilationMode mode)
     [Test]
     public void ForLoop_ExceedsMaxStatements_ThrowsException()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with
-        {
-            CompilationMode = mode,
-            Constraints = new ExecutionConstraints { MaxStatements = 1000 }
+        var engine = TestEngineFactory.Create(mode, CsEvalOptions.Default with {
+                        Constraints = new ExecutionConstraints { MaxStatements = 1000 }
         });
 
         var ex = Assert.Throws<CsEvalExecutionLimitException>(() =>
@@ -33,10 +31,8 @@ public class ForLoopTests(CompilationMode mode)
     [Test]
     public void ForLoop_WithCustomMaxStatements_UsesConfiguredLimit()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with
-        {
-            CompilationMode = mode,
-            Constraints = new ExecutionConstraints { MaxStatements = 10 }
+        var engine = TestEngineFactory.Create(mode, CsEvalOptions.Default with {
+                        Constraints = new ExecutionConstraints { MaxStatements = 10 }
         });
 
         var ex = Assert.Throws<CsEvalExecutionLimitException>(() =>
@@ -51,7 +47,7 @@ public class ForLoopTests(CompilationMode mode)
     [Test]
     public void ForLoop_WithNoConstraints_AllowsManyIterations()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
 
         var result = engine.Evaluate("""
             var count = 0;
@@ -67,7 +63,7 @@ public class ForLoopTests(CompilationMode mode)
     [Test]
     public void ForLoop_WithCancellationToken_CanBeCancelled()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         using var cts = new CancellationTokenSource();
 
         var task = Task.Run(() =>
@@ -91,7 +87,7 @@ public class ForLoopTests(CompilationMode mode)
     [Test]
     public void ForLoop_TryParse_ValidExpression_Succeeds()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var success = engine.TryParse("for (var i = 0; i < 5; i++) { } return 0;", out var expr, out var error);
 
         Assert.That(success, Is.True);
@@ -102,7 +98,7 @@ public class ForLoopTests(CompilationMode mode)
     [Test]
     public void ForLoop_TryParse_MissingParenthesis_Fails()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var success = engine.TryParse("for var i = 0; i < 5; i++ { }", out var expr, out var error);
 
         Assert.That(success, Is.False);
@@ -113,7 +109,7 @@ public class ForLoopTests(CompilationMode mode)
     [Test]
     public void ForLoop_PreParsed_CanBeEvaluatedMultipleTimes()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var expr = engine.Parse("""
             var sum = 0;
             for (var i = 0; i < limit; i++) {

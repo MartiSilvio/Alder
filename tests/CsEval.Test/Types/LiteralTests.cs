@@ -19,7 +19,7 @@ public class LiteralTests(CompilationMode mode)
     public void Eval_Literal_ShouldThrowLexerException(string expr)
     {
         // Engine-only: lexer error test
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         Assert.Throws<CsEval.Parsing.CsEvalLexerException>(() => engine.Evaluate(expr));
     }
 
@@ -29,14 +29,14 @@ public class LiteralTests(CompilationMode mode)
     {
         // Engine-only: parser error test
         // 0b123 lexes as 0b1 (valid binary) + 23 (unexpected token)
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         Assert.Throws<CsEval.Parsing.CsEvalParserException>(() => engine.Evaluate(expr));
     }
 
     [Test]
     public void Eval_DecimalIntegerBeyondLongMax_ParsesAsULong()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var result = engine.Evaluate("9223372036854775808");
         Assert.That(result, Is.EqualTo(9223372036854775808UL));
         Assert.That(result, Is.TypeOf<ulong>());

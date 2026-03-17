@@ -19,7 +19,7 @@ public class ThrowExpressionTests(CompilationMode mode)
     [Test]
     public void NullCoalesce_NonNullInt_ReturnsValue()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var result = engine.Evaluate("42 ?? throw new Exception(\"fail\")");
         Assert.That(result, Is.EqualTo(42));
     }
@@ -28,7 +28,7 @@ public class ThrowExpressionTests(CompilationMode mode)
     [Test]
     public void NullCoalesce_Null_ThrowsException()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var variables = new Dictionary<string, object?> { { "x", null } };
         foreach (var (name, value) in variables)
             engine.SetVariable(name, value);
@@ -42,7 +42,7 @@ public class ThrowExpressionTests(CompilationMode mode)
     [Test]
     public void NullCoalesce_Null_ThrowsArgumentException()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var variables = new Dictionary<string, object?> { { "x", null } };
         foreach (var (name, value) in variables)
             engine.SetVariable(name, value);
@@ -60,7 +60,7 @@ public class ThrowExpressionTests(CompilationMode mode)
     [Test]
     public void Conditional_FalseCondition_ElseThrows()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var ex = Assert.Catch<InvalidOperationException>(() =>
             engine.Evaluate("false ? 42 : throw new InvalidOperationException(\"not allowed\")"));
         Assert.That(ex, Is.Not.Null);
@@ -71,7 +71,7 @@ public class ThrowExpressionTests(CompilationMode mode)
     [Test]
     public void Conditional_TrueCondition_ThenThrows()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var ex = Assert.Catch<InvalidOperationException>(() =>
             engine.Evaluate("true ? throw new InvalidOperationException(\"not allowed\") : 42"));
         Assert.That(ex, Is.Not.Null);
@@ -86,7 +86,7 @@ public class ThrowExpressionTests(CompilationMode mode)
     [Test]
     public void Standalone_ThrowExpression_Throws()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var ex = Assert.Catch<Exception>(() =>
             engine.Evaluate("throw new Exception(\"standalone throw\")"));
         Assert.That(ex, Is.Not.Null);
@@ -101,7 +101,7 @@ public class ThrowExpressionTests(CompilationMode mode)
     [Test]
     public void Throw_NonExceptionType_ProducesError()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         // new Object() is not an Exception, should error
         Assert.Catch(() => engine.Evaluate("throw new Object()"));
     }
@@ -109,7 +109,7 @@ public class ThrowExpressionTests(CompilationMode mode)
     [Test]
     public void ThrowStatementOutsideCatch_UsesCS0156Diagnostic()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("{ throw; }"));
         Assert.That(ex!.ErrorCode, Is.EqualTo(CsEval.Diagnostics.DiagnosticCode.CS0156));
     }

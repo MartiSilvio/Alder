@@ -33,7 +33,7 @@ public static class TestHelpers
     /// </summary>
     public static async Task RunCSharpParityTestAsync(string expr, Dictionary<string, object?>? variables, object? expected, CompilationMode mode)
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode, LanguageMode = LanguageMode.Extended });
+        var engine = TestEngineFactory.Create(mode, CsEvalOptions.Default with { LanguageMode = LanguageMode.Extended });
         if (variables != null)
             foreach (var (name, value) in variables)
                 engine.SetVariable(name, value);
@@ -50,7 +50,7 @@ public static class TestHelpers
     /// Runs a C# parity test without expected value.
     /// </summary>
     public static Task RunCSharpParityTestAsync(string expr, CompilationMode mode)
-        => RunCSharpParityTestAsync(expr, CsEvalOptions.Default with { CompilationMode = mode });
+        => RunCSharpParityTestAsync(expr, mode == CompilationMode.Compiled ? CsEvalOptions.Default.UseCompiler() : CsEvalOptions.Default);
 
     /// <summary>
     /// Runs a C# parity test with custom options.

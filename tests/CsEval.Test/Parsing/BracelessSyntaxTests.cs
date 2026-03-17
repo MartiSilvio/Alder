@@ -9,7 +9,7 @@ public class BracelessSyntaxTests(CompilationMode mode)
     [Test]
     public async Task Program_SingleExpression()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
 
         const string expr = "1 + 2";
 
@@ -22,7 +22,7 @@ public class BracelessSyntaxTests(CompilationMode mode)
     [Test]
     public async Task Program_VariableAndExpression()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
 
         const string expr = "var x = 5; x * 2";
 
@@ -35,7 +35,7 @@ public class BracelessSyntaxTests(CompilationMode mode)
     [Test]
     public async Task Program_MultipleStatements()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
 
         const string expr = "var x = 1; var y = 2; x + y";
 
@@ -48,7 +48,7 @@ public class BracelessSyntaxTests(CompilationMode mode)
     [Test]
     public async Task Program_ForLoop()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
 
         const string expr = @"
             var sum = 0;
@@ -66,7 +66,7 @@ public class BracelessSyntaxTests(CompilationMode mode)
     [Test]
     public async Task Program_WhileLoop()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
 
         const string expr = @"
             var i = 0;
@@ -86,7 +86,7 @@ public class BracelessSyntaxTests(CompilationMode mode)
     [Test]
     public async Task Program_IfStatement()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
 
         const string expr = @"
             var x = 10;
@@ -104,7 +104,7 @@ public class BracelessSyntaxTests(CompilationMode mode)
     [Test]
     public async Task Program_IfElseStatement()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
 
         const string expr = @"
             var x = 3;
@@ -129,7 +129,7 @@ public class BracelessSyntaxTests(CompilationMode mode)
     [Test]
     public async Task If_SingleLine_NoBraces()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
 
         const string expr = "var x = 5; if (x > 3) x = 10; x";
 
@@ -142,7 +142,7 @@ public class BracelessSyntaxTests(CompilationMode mode)
     [Test]
     public async Task If_SingleLine_ConditionFalse()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
 
         const string expr = "var x = 5; if (x > 10) x = 100; x";
 
@@ -155,7 +155,7 @@ public class BracelessSyntaxTests(CompilationMode mode)
     [Test]
     public async Task IfElse_SingleLine_NoBraces()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
 
         const string expr = "var x = 3; if (x > 5) x = 10; else x = 20; x";
 
@@ -168,7 +168,7 @@ public class BracelessSyntaxTests(CompilationMode mode)
     [Test]
     public async Task If_Nested_SingleLine()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
 
         const string expr = "var x = 0; if (true) if (true) x = 42; x";
 
@@ -181,7 +181,7 @@ public class BracelessSyntaxTests(CompilationMode mode)
     [Test]
     public async Task IfElseIf_Chain_SingleLine()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
 
         const string expr = "var x = 5; var r = 0; if (x > 10) r = 1; else if (x > 3) r = 2; else r = 3; r";
 
@@ -198,7 +198,7 @@ public class BracelessSyntaxTests(CompilationMode mode)
     [Test]
     public async Task For_SingleLine_NoBraces()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
 
         const string expr = "var sum = 0; for (var i = 0; i < 5; i++) sum += i; sum";
 
@@ -211,7 +211,7 @@ public class BracelessSyntaxTests(CompilationMode mode)
     [Test]
     public async Task For_SingleLine_Multiplication()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
 
         const string expr = "var product = 1; for (var i = 1; i <= 5; i++) product *= i; product";
 
@@ -228,7 +228,7 @@ public class BracelessSyntaxTests(CompilationMode mode)
     [Test]
     public async Task While_SingleLine_NoBraces()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
 
         const string expr = "var i = 0; while (i < 5) i++; i";
 
@@ -241,7 +241,7 @@ public class BracelessSyntaxTests(CompilationMode mode)
     [Test]
     public async Task While_SingleLine_WithAccumulator()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
 
         const string expr = "var i = 0; var sum = 0; while (i < 5) sum += i++; sum";
 
@@ -258,7 +258,7 @@ public class BracelessSyntaxTests(CompilationMode mode)
     [Test]
     public async Task DoWhile_SingleLine_NoBraces()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
 
         const string expr = "var i = 0; do i++; while (i < 5); i";
 
@@ -271,7 +271,7 @@ public class BracelessSyntaxTests(CompilationMode mode)
     [Test]
     public async Task DoWhile_ExecutesAtLeastOnce()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
 
         const string expr = "var i = 10; do i++; while (i < 5); i";
 
@@ -288,7 +288,7 @@ public class BracelessSyntaxTests(CompilationMode mode)
     [Test]
     public async Task For_WithBracelessIf()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
 
         const string expr = @"
             var sum = 0;
@@ -305,7 +305,7 @@ public class BracelessSyntaxTests(CompilationMode mode)
     [Test]
     public async Task While_WithBracelessIf()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
 
         const string expr = @"
             var i = 0;
@@ -323,7 +323,7 @@ public class BracelessSyntaxTests(CompilationMode mode)
     [Test]
     public async Task If_WithBracelessFor()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
 
         const string expr = @"
             var sum = 0;

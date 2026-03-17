@@ -16,7 +16,7 @@ public class NamedParameterTests(CompilationMode mode)
     [Test]
     public void Eval_NamedParameter_SkipOptionalWithNamed()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
 
         engine.RegisterModule("Test", instance: new TestModule());
 
@@ -32,7 +32,7 @@ public class NamedParameterTests(CompilationMode mode)
     [Test]
     public void Eval_NamedParameter_CaseMismatch_Fails()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("str", "Hello World");
 
         Assert.Throws<CsEvalException>(() =>
@@ -47,7 +47,7 @@ public class NamedParameterTests(CompilationMode mode)
     [Test]
     public void Eval_NamedParameter_InvalidName_Fails()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("str", "Hello World");
 
         Assert.Throws<CsEvalException>(() =>
@@ -62,7 +62,7 @@ public class NamedParameterTests(CompilationMode mode)
     [Test]
     public void Eval_NamedParameter_InLambdaCall()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var items = new List<string> { "Apple", "Banana", "Cherry" };
         engine.SetVariable("items", items);
 

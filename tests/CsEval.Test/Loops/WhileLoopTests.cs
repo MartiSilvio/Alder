@@ -12,10 +12,8 @@ public class WhileLoopTests(CompilationMode mode)
     [Test]
     public void WhileLoop_ExceedsMaxStatements_ThrowsException()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with
-        {
-            CompilationMode = mode,
-            Constraints = new ExecutionConstraints { MaxStatements = 1000 }
+        var engine = TestEngineFactory.Create(mode, CsEvalOptions.Default with {
+                        Constraints = new ExecutionConstraints { MaxStatements = 1000 }
         });
 
         var ex = Assert.Throws<CsEvalExecutionLimitException>(() =>
@@ -33,10 +31,8 @@ public class WhileLoopTests(CompilationMode mode)
     [Test]
     public void WhileLoop_WithCustomMaxStatements_UsesConfiguredLimit()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with
-        {
-            CompilationMode = mode,
-            Constraints = new ExecutionConstraints { MaxStatements = 10 }
+        var engine = TestEngineFactory.Create(mode, CsEvalOptions.Default with {
+                        Constraints = new ExecutionConstraints { MaxStatements = 10 }
         });
 
         var ex = Assert.Throws<CsEvalExecutionLimitException>(() =>
@@ -54,7 +50,7 @@ public class WhileLoopTests(CompilationMode mode)
     [Test]
     public void WhileLoop_WithNoConstraints_AllowsManyIterations()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
 
         var result = engine.Evaluate("""
             {
@@ -74,7 +70,7 @@ public class WhileLoopTests(CompilationMode mode)
     [Test]
     public void WhileLoop_WithCancellationToken_CanBeCancelled()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         using var cts = new CancellationTokenSource();
 
         var task = Task.Run(() =>
@@ -101,7 +97,7 @@ public class WhileLoopTests(CompilationMode mode)
     [Test]
     public void WhileLoop_TryParse_ValidExpression_Succeeds()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var success = engine.TryParse("{ var i = 0; while (i < 5) { i = i + 1; } return i; }", out var expr, out var error);
 
         Assert.That(success, Is.True);
@@ -112,7 +108,7 @@ public class WhileLoopTests(CompilationMode mode)
     [Test]
     public void WhileLoop_TryParse_MissingParenthesis_Fails()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var success = engine.TryParse("{ while i < 5 { } }", out var expr, out var error);
 
         Assert.That(success, Is.False);
@@ -123,7 +119,7 @@ public class WhileLoopTests(CompilationMode mode)
     [Test]
     public void WhileLoop_PreParsed_CanBeEvaluatedMultipleTimes()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var expr = engine.Parse("""
             {
                 var sum = 0;
@@ -148,7 +144,7 @@ public class WhileLoopTests(CompilationMode mode)
     [Test]
     public void WhileLoop_Break_TryParse_Succeeds()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var success = engine.TryParse("{ var i = 0; while (true) { break; } return i; }", out var expr, out var error);
 
         Assert.That(success, Is.True);
@@ -159,7 +155,7 @@ public class WhileLoopTests(CompilationMode mode)
     [Test]
     public void WhileLoop_Continue_TryParse_Succeeds()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var success = engine.TryParse("{ var i = 0; while (i < 5) { i = i + 1; continue; } return i; }", out var expr, out var error);
 
         Assert.That(success, Is.True);
@@ -170,7 +166,7 @@ public class WhileLoopTests(CompilationMode mode)
     [Test]
     public void WhileLoop_BreakWithSemicolon_ParsesCorrectly()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var result = engine.Evaluate("""
             {
                 var i = 0;

@@ -20,7 +20,7 @@ public static class CsEvalCompiledEngineExtensions
         var access = engine.GetCompiledFeatureAccess();
         access.ThrowIfDisposed();
         var expr = engine.Parse(expression);
-        expr.TryCompile(access.Options, access.GetOrCreateContext());
+        engine.TryCompile(expr);
         return expr;
     }
 
@@ -38,7 +38,7 @@ public static class CsEvalCompiledEngineExtensions
         var access = engine.GetCompiledFeatureAccess();
         access.ThrowIfDisposed();
         var parsed = engine.Parse(expression);
-        if (!parsed.TryCompile(access.Options, access.GetOrCreateContext()))
+        if (!engine.TryCompile(parsed))
         {
             var reason = parsed.CompilationFailureReason ?? "Unknown compilation failure";
             throw new CsEvalException(

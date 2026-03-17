@@ -10,7 +10,6 @@ public sealed class BoundExecutionTests
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with
         {
-            CompilationMode = CompilationMode.Interpreted
         });
         engine.SetVariable("x", -4);
         engine.SetVariable("y", 2);
@@ -29,7 +28,6 @@ public sealed class BoundExecutionTests
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with
         {
-            CompilationMode = CompilationMode.Interpreted,
             LanguageMode = LanguageMode.Extended
         });
         engine.SetVariable("x", 42);
@@ -48,7 +46,6 @@ public sealed class BoundExecutionTests
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with
         {
-            CompilationMode = CompilationMode.Interpreted,
             LanguageMode = LanguageMode.Extended
         });
         engine.RegisterFunction("inc", args => Convert.ToInt32(args[0]) + 1);
@@ -67,7 +64,6 @@ public sealed class BoundExecutionTests
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with
         {
-            CompilationMode = CompilationMode.Interpreted
         });
         engine.SetVariable("numbers", new List<int> { 1, 3, 5, 9, 10 });
         engine.SetVariable("threshold", 4);
@@ -85,7 +81,6 @@ public sealed class BoundExecutionTests
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with
         {
-            CompilationMode = CompilationMode.Interpreted
         });
 
         var expression = engine.Parse("(int)5.9");
@@ -101,7 +96,6 @@ public sealed class BoundExecutionTests
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with
         {
-            CompilationMode = CompilationMode.Interpreted
         });
         engine.SetVariable("x", "abc");
 
@@ -118,7 +112,6 @@ public sealed class BoundExecutionTests
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with
         {
-            CompilationMode = CompilationMode.Interpreted
         });
         engine.SetVariable<string?>("x", null);
 
@@ -135,7 +128,6 @@ public sealed class BoundExecutionTests
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with
         {
-            CompilationMode = CompilationMode.Interpreted
         });
 
         var expression = engine.Parse("true ? 1 : 2L");
@@ -152,7 +144,6 @@ public sealed class BoundExecutionTests
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with
         {
-            CompilationMode = CompilationMode.Interpreted
         });
 
         var expression = engine.Parse("{ var x = 1; x = x + 1; return x; }");
@@ -168,7 +159,6 @@ public sealed class BoundExecutionTests
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with
         {
-            CompilationMode = CompilationMode.Interpreted
         });
 
         var expression = engine.Parse("""
@@ -197,7 +187,6 @@ public sealed class BoundExecutionTests
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with
         {
-            CompilationMode = CompilationMode.Interpreted
         });
 
         var expression = engine.Parse("""
@@ -224,7 +213,6 @@ public sealed class BoundExecutionTests
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with
         {
-            CompilationMode = CompilationMode.Interpreted
         });
 
         var expression = engine.Parse("""
@@ -253,7 +241,6 @@ public sealed class BoundExecutionTests
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with
         {
-            CompilationMode = CompilationMode.Interpreted
         });
 
         var expression = engine.Parse("""
@@ -282,7 +269,6 @@ public sealed class BoundExecutionTests
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with
         {
-            CompilationMode = CompilationMode.Interpreted
         });
 
         var expression = engine.Parse("""
@@ -312,7 +298,6 @@ public sealed class BoundExecutionTests
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with
         {
-            CompilationMode = CompilationMode.Interpreted
         });
         engine.SetVariable("items", new List<int> { 1, 2, 3, 5, 8 });
 
@@ -342,7 +327,6 @@ public sealed class BoundExecutionTests
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with
         {
-            CompilationMode = CompilationMode.Interpreted
         });
 
         var expression = engine.Parse("""
@@ -367,7 +351,6 @@ public sealed class BoundExecutionTests
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with
         {
-            CompilationMode = CompilationMode.Interpreted
         });
 
         var expression = engine.Parse("""
@@ -390,7 +373,6 @@ public sealed class BoundExecutionTests
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with
         {
-            CompilationMode = CompilationMode.Interpreted
         });
 
         var expression = engine.Parse("""
@@ -412,7 +394,6 @@ public sealed class BoundExecutionTests
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with
         {
-            CompilationMode = CompilationMode.Interpreted
         });
         engine.SetVariable("box", new MutableBox());
 
@@ -437,7 +418,6 @@ public sealed class BoundExecutionTests
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with
         {
-            CompilationMode = CompilationMode.Interpreted
         });
         engine.SetVariable("items", new List<int> { 1, 2, 3 });
 
@@ -461,7 +441,6 @@ public sealed class BoundExecutionTests
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with
         {
-            CompilationMode = CompilationMode.Interpreted
         });
         engine.SetVariable("box", new MutableBox());
         engine.SetVariable("dict", new Dictionary<string, string?> { ["name"] = null });
@@ -485,7 +464,6 @@ public sealed class BoundExecutionTests
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with
         {
-            CompilationMode = CompilationMode.Interpreted
         });
         var probe = new DisposableProbe();
         engine.SetVariable("res", probe);
@@ -513,7 +491,6 @@ public sealed class BoundExecutionTests
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with
         {
-            CompilationMode = CompilationMode.Interpreted
         });
         engine.SetVariable("lockObj", new object());
 
@@ -539,7 +516,6 @@ public sealed class BoundExecutionTests
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with
         {
-            CompilationMode = CompilationMode.Interpreted
         });
 
         var expression = engine.Parse("""
@@ -563,7 +539,6 @@ public sealed class BoundExecutionTests
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with
         {
-            CompilationMode = CompilationMode.Interpreted
         });
 
         var expression = engine.Parse("""
@@ -584,7 +559,6 @@ public sealed class BoundExecutionTests
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with
         {
-            CompilationMode = CompilationMode.Interpreted
         });
 
         var expression = engine.Parse("""
@@ -613,7 +587,6 @@ public sealed class BoundExecutionTests
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with
         {
-            CompilationMode = CompilationMode.Interpreted
         });
         engine.SetVariable("missingEx", new Exception("missing"));
 
@@ -648,7 +621,6 @@ public sealed class BoundExecutionTests
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with
         {
-            CompilationMode = CompilationMode.Interpreted
         });
         engine.SetVariable("boomEx", new Exception("boom"));
 
@@ -683,7 +655,6 @@ public sealed class BoundExecutionTests
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with
         {
-            CompilationMode = CompilationMode.Interpreted
         });
 
         var expression = engine.Parse("""
@@ -704,7 +675,6 @@ public sealed class BoundExecutionTests
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with
         {
-            CompilationMode = CompilationMode.Interpreted
         });
 
         var expression = engine.Parse("""
@@ -728,7 +698,6 @@ public sealed class BoundExecutionTests
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with
         {
-            CompilationMode = CompilationMode.Interpreted
         });
         engine.SetVariable("name", "alpha");
         engine.SetVariable("n", 7);
@@ -746,7 +715,6 @@ public sealed class BoundExecutionTests
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with
         {
-            CompilationMode = CompilationMode.Interpreted
         });
 
         var expression = engine.Parse("checked(10 + 20)");
@@ -762,7 +730,6 @@ public sealed class BoundExecutionTests
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with
         {
-            CompilationMode = CompilationMode.Interpreted,
             LanguageMode = LanguageMode.Extended
         });
 
@@ -779,7 +746,6 @@ public sealed class BoundExecutionTests
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with
         {
-            CompilationMode = CompilationMode.Interpreted,
             LanguageMode = LanguageMode.Extended
         });
 
@@ -796,7 +762,6 @@ public sealed class BoundExecutionTests
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with
         {
-            CompilationMode = CompilationMode.Interpreted
         });
 
         var expression = engine.Parse("5 switch { < 0 => \"neg\", > 0 => \"pos\", _ => \"zero\" }");
@@ -812,7 +777,6 @@ public sealed class BoundExecutionTests
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with
         {
-            CompilationMode = CompilationMode.Interpreted,
             LanguageMode = LanguageMode.Extended
         });
 
@@ -834,7 +798,6 @@ public sealed class BoundExecutionTests
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with
         {
-            CompilationMode = CompilationMode.Interpreted,
             LanguageMode = LanguageMode.Extended
         });
         engine.SetVariable("obj", new Dictionary<string, object?> { ["A"] = 1 });
@@ -855,7 +818,6 @@ public sealed class BoundExecutionTests
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with
         {
-            CompilationMode = CompilationMode.Interpreted
         });
 
         var expression = engine.Parse("(1, 2).Item2");
@@ -871,7 +833,6 @@ public sealed class BoundExecutionTests
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with
         {
-            CompilationMode = CompilationMode.Interpreted,
             LanguageMode = LanguageMode.Extended
         });
 
@@ -888,7 +849,6 @@ public sealed class BoundExecutionTests
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with
         {
-            CompilationMode = CompilationMode.Interpreted
         });
 
         var expression = engine.Parse("\"hello\".Substring(startIndex: 1, length: 2)");
@@ -904,7 +864,6 @@ public sealed class BoundExecutionTests
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with
         {
-            CompilationMode = CompilationMode.Interpreted
         });
 
         var expression = engine.Parse("""
@@ -925,7 +884,6 @@ public sealed class BoundExecutionTests
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with
         {
-            CompilationMode = CompilationMode.Interpreted
         });
 
         var expression = engine.Parse("""
@@ -947,7 +905,6 @@ public sealed class BoundExecutionTests
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with
         {
-            CompilationMode = CompilationMode.Interpreted
         });
 
         var expression = engine.Parse("""
@@ -968,7 +925,6 @@ public sealed class BoundExecutionTests
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with
         {
-            CompilationMode = CompilationMode.Interpreted
         });
 
         var expression = new CsEvalExpression("unsupported", new UnsupportedExpr());

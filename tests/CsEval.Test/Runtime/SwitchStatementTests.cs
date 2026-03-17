@@ -12,7 +12,7 @@ public class SwitchStatementTests(CompilationMode mode)
     public void NonEmptyCase_WithoutBreak_ThrowsError()
     {
         // C# requires explicit break/return/throw for non-empty cases (CS0163)
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         Assert.That(() => engine.Evaluate("""
             {
                 var x = 1;
@@ -42,7 +42,7 @@ public class SwitchStatementTests(CompilationMode mode)
     [Test]
     public void Switch_PropertyAccessInSwitch()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("obj", new { Status = "active" });
         var result = engine.Evaluate(@"
         {
@@ -72,7 +72,7 @@ public class SwitchStatementTests(CompilationMode mode)
     [Test]
     public void Switch_TryParse_ValidExpression_Succeeds()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var success = engine.TryParse(@"
         {
             var x = 1;
@@ -92,7 +92,7 @@ public class SwitchStatementTests(CompilationMode mode)
     [Test]
     public void Switch_TryParse_MissingParenthesis_Fails()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var success = engine.TryParse("{ switch x { case 1: break; } }", out var expr, out var error);
 
         Assert.That(success, Is.False);
@@ -103,7 +103,7 @@ public class SwitchStatementTests(CompilationMode mode)
     [Test]
     public void Switch_TryParse_MissingBrace_Fails()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var success = engine.TryParse("{ switch (x) case 1: break; }", out var expr, out var error);
 
         Assert.That(success, Is.False);
@@ -114,7 +114,7 @@ public class SwitchStatementTests(CompilationMode mode)
     [Test]
     public void Switch_TryParse_MissingColon_Fails()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var success = engine.TryParse("{ switch (x) { case 1 break; } }", out var expr, out var error);
 
         Assert.That(success, Is.False);
@@ -126,7 +126,7 @@ public class SwitchStatementTests(CompilationMode mode)
     [Test]
     public void Switch_PreParsed_CanBeReused()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var expr = engine.Parse(@"
         {
             var result = """";

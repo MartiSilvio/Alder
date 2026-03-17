@@ -10,10 +10,8 @@ public class ResourceConstraintTests(CompilationMode mode)
     private static CsEvalEngine CreateEngine(long? maxStatements = null, TimeSpan? maxTimeout = null,
         CompilationMode mode = CompilationMode.Compiled)
     {
-        return new CsEvalEngine(CsEvalOptions.Default with
-        {
-            CompilationMode = mode,
-            Constraints = (maxStatements != null || maxTimeout != null)
+        return TestEngineFactory.Create(mode, CsEvalOptions.Default with {
+                        Constraints = (maxStatements != null || maxTimeout != null)
                 ? new ExecutionConstraints { MaxStatements = maxStatements, MaxTimeout = maxTimeout }
                 : null
         });
@@ -191,10 +189,8 @@ public class ResourceConstraintTests(CompilationMode mode)
     public void Constraints_ChangeableBetweenEvaluations()
     {
         var constraints = new ExecutionConstraints { MaxStatements = 3 };
-        var engine = new CsEvalEngine(CsEvalOptions.Default with
-        {
-            CompilationMode = mode,
-            Constraints = constraints
+        var engine = TestEngineFactory.Create(mode, CsEvalOptions.Default with {
+                        Constraints = constraints
         });
 
         // Should throw with limit 3
@@ -214,10 +210,8 @@ public class ResourceConstraintTests(CompilationMode mode)
     [Test]
     public async Task ConcurrentEvaluations_WithStatementConstraints_DoNotInterfere()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with
-        {
-            CompilationMode = mode,
-            Constraints = new ExecutionConstraints { MaxStatements = 4 }
+        var engine = TestEngineFactory.Create(mode, CsEvalOptions.Default with {
+                        Constraints = new ExecutionConstraints { MaxStatements = 4 }
         });
 
         const string expr = "{ var a = 1; var b = 2; var c = 3; return a + b + c; }";
@@ -290,7 +284,7 @@ public class ResourceConstraintTests(CompilationMode mode)
     [Test]
     public void DefaultOptions_NullConstraints_WorksNormally()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var result = engine.Evaluate("{ var x = 0; for (var i = 0; i < 100; i++) { x = x + 1; } return x; }");
         Assert.That(result, Is.EqualTo(100));
     }
@@ -298,10 +292,8 @@ public class ResourceConstraintTests(CompilationMode mode)
     [Test]
     public void ExplicitNullConstraints_WorksNormally()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with
-        {
-            CompilationMode = mode,
-            Constraints = null
+        var engine = TestEngineFactory.Create(mode, CsEvalOptions.Default with {
+                        Constraints = null
         });
         var result = engine.Evaluate("1 + 2 + 3");
         Assert.That(result, Is.EqualTo(6));
@@ -314,7 +306,7 @@ public class ResourceConstraintTests(CompilationMode mode)
     [Test]
     public void CancellationToken_CheckedAtSameStatementBoundaries()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         using var cts = new CancellationTokenSource();
         cts.Cancel();
 

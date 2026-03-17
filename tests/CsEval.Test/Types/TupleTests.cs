@@ -15,7 +15,7 @@ public class TupleTests(CompilationMode mode)
     public void Tuple_TwoInts_CreatesValueTuple()
     {
         // Engine-only: asserts type name, not value
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var result = engine.Evaluate("(1, 2)");
         Assert.That(result, Is.Not.Null);
         Assert.That(result!.GetType().Name, Does.Contain("ValueTuple"));
@@ -25,7 +25,7 @@ public class TupleTests(CompilationMode mode)
     public void Tuple_MixedTypes_CreatesValueTuple()
     {
         // Engine-only: asserts type name, not value
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var result = engine.Evaluate("(1, \"hello\")");
         Assert.That(result, Is.Not.Null);
         Assert.That(result!.GetType().Name, Does.Contain("ValueTuple"));
@@ -35,7 +35,7 @@ public class TupleTests(CompilationMode mode)
     public void Tuple_ThreeElements_CreatesValueTuple()
     {
         // Engine-only: asserts type name, not value
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var result = engine.Evaluate("(true, 3.14, \"test\")");
         Assert.That(result, Is.Not.Null);
         Assert.That(result!.GetType().Name, Does.Contain("ValueTuple"));
@@ -45,7 +45,7 @@ public class TupleTests(CompilationMode mode)
     public void Tuple_SevenElements_CreatesValueTuple()
     {
         // Engine-only: asserts type name, not value
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var result = engine.Evaluate("(1, 2, 3, 4, 5, 6, 7)");
         Assert.That(result, Is.Not.Null);
         Assert.That(result!.GetType().Name, Does.Contain("ValueTuple"));
@@ -54,7 +54,7 @@ public class TupleTests(CompilationMode mode)
     [Test]
     public void Tuple_EightElements_CreatesValueTuple()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var result = engine.Evaluate("(1, 2, 3, 4, 5, 6, 7, 8)");
         Assert.That(result, Is.Not.Null);
         Assert.That(result!.GetType().Name, Does.Contain("ValueTuple"));
@@ -69,7 +69,7 @@ public class TupleTests(CompilationMode mode)
     public void Tuple_Nested_Item1_ReturnsInnerTuple()
     {
         // Engine-only: asserts inner tuple is ValueTuple type, not value comparison
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var result = engine.Evaluate("((1, 2), 3).Item1");
         Assert.That(result, Is.Not.Null);
         Assert.That(result!.GetType().Name, Does.Contain("ValueTuple"));
@@ -83,7 +83,7 @@ public class TupleTests(CompilationMode mode)
     public void Tuple_NullElement_CreatesValueTuple()
     {
         // Engine-only: SetVariable with null object (non-serializable for Roslyn)
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("x", (object?)null);
         var result = engine.Evaluate("(x, 42)");
         Assert.That(result, Is.Not.Null);
@@ -98,7 +98,7 @@ public class TupleTests(CompilationMode mode)
     public void Parser_LambdaSingleParam_StillWorks()
     {
         // Engine-only: SetVariable with List<int> (non-serializable for Roslyn)
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("nums", new List<int> { 1, 2, 3, 4, 5 });
         var result = engine.Evaluate("nums.Where((x) => x > 3).Count()");
         Assert.That(result, Is.EqualTo(2));
@@ -108,7 +108,7 @@ public class TupleTests(CompilationMode mode)
     public void Parser_LambdaMultiParam_StillWorks()
     {
         // Engine-only: SetVariable with List<int> (non-serializable for Roslyn)
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("nums", new List<int> { 10, 20, 30 });
         var result = engine.Evaluate("nums.Select((x, i) => x + i).First()");
         Assert.That(result, Is.EqualTo(10));
@@ -181,7 +181,7 @@ public class TupleTests(CompilationMode mode)
     public void Tuple_RuntimeType_IsValueTuple()
     {
         // Engine-only: tests TypeHelpers.IsTupleType API directly
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var result = engine.Evaluate("(1, 2)");
         Assert.That(result, Is.Not.Null);
         Assert.That(CsEval.Runtime.TypeHelpers.IsTupleType(result!.GetType()), Is.True);

@@ -1,14 +1,14 @@
+using CsEval.Compiled;
+
 namespace CsEval.Test;
 
-[SetUpFixture]
-#pragma warning disable CA1050
-// ReSharper disable once CheckNamespace
-public sealed class CompiledProviderBootstrap
-#pragma warning restore CA1050
+public enum CompilationMode { Interpreted, Compiled }
+
+internal static class TestEngineFactory
 {
-    [OneTimeSetUp]
-    public void RegisterCompiledProvider()
+    internal static CsEvalEngine Create(CompilationMode mode, CsEvalOptions? options = null)
     {
-        CsEvalCompiledExtensions.RegisterCompiledProvider();
+        var opts = options ?? CsEvalOptions.Default;
+        return new CsEvalEngine(mode == CompilationMode.Compiled ? opts.UseCompiler() : opts);
     }
 }

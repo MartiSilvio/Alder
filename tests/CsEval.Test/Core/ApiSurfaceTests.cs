@@ -27,6 +27,7 @@ public class ApiSurfaceTests
 
         var expected = new[]
         {
+            "Compile",
             "CreateChild",
             "Dispose",
             "Evaluate",
@@ -43,6 +44,7 @@ public class ApiSurfaceTests
             "SetVariable",
             "SetVariables",
             "ClearGeneratedContexts",
+            "TryCompile",
             "TryEvaluate",
             "TryParse",
             "TryValidate",
@@ -131,21 +133,21 @@ public class ApiSurfaceTests
     }
 
     [Test]
-    public void CsEvalExpression_TryCompile_IsPublic()
+    public void CsEvalEngine_TryCompile_IsPublic()
     {
-        var method = typeof(CsEvalExpression)
+        var method = typeof(CsEvalEngine)
             .GetMethods(BindingFlags.Public | BindingFlags.Instance)
-            .Where(m => m.Name == "TryCompile" && m.GetParameters().Length == 0)
+            .Where(m => m.Name == "TryCompile" && m.GetParameters().Length == 1)
             .SingleOrDefault();
         Assert.That(method, Is.Not.Null);
     }
 
     [Test]
-    public void CsEvalExpression_Compile_IsPublic()
+    public void CsEvalEngine_Compile_IsPublic()
     {
-        var method = typeof(CsEvalExpression)
+        var method = typeof(CsEvalEngine)
             .GetMethods(BindingFlags.Public | BindingFlags.Instance)
-            .Where(m => m.Name == "Compile" && m.GetParameters().Length == 0)
+            .Where(m => m.Name == "Compile" && m.GetParameters().Length == 1)
             .SingleOrDefault();
         Assert.That(method, Is.Not.Null);
     }
@@ -227,14 +229,21 @@ public class ApiSurfaceTests
     // ----------------------------------------------------------------
 
     [Test]
-    public void Compile_Methods_DoNotExistOnCoreEngine()
+    public void Compile_Methods_ExistOnCoreEngine()
     {
-        var methods = typeof(CsEvalEngine)
+        var compileMethods = typeof(CsEvalEngine)
             .GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
             .Where(m => m.Name == "Compile")
             .ToList();
 
-        Assert.That(methods, Is.Empty);
+        Assert.That(compileMethods, Has.Count.EqualTo(1));
+
+        var tryCompileMethods = typeof(CsEvalEngine)
+            .GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
+            .Where(m => m.Name == "TryCompile")
+            .ToList();
+
+        Assert.That(tryCompileMethods, Has.Count.EqualTo(1));
     }
 
     [Test]
@@ -395,7 +404,6 @@ public class ApiSurfaceTests
             "CsEval.Aot.IAotTypeMetadata",
             "CsEval.Attributes.CsEvalFunctionAttribute",
             "CsEval.Attributes.CsEvalModuleAttribute",
-            "CsEval.CompilationMode",
             "CsEval.CsEvalCompiledExpression`1",
             "CsEval.CsEvalDepthException",
             "CsEval.CsEvalDiagnostic",

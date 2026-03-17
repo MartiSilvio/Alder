@@ -11,7 +11,6 @@ public class SemanticLeniencyTests(CompilationMode mode)
 {
     private CsEvalOptions Options => CsEvalOptions.Default with
     {
-        CompilationMode = mode,
         LanguageMode = LanguageMode.Standard
     };
 
@@ -21,7 +20,7 @@ public class SemanticLeniencyTests(CompilationMode mode)
     {
         var roslynResult = await TestHelpers.EvaluateCSharpAsync(expr);
 
-        var engine = new CsEvalEngine(Options);
+        var engine = TestEngineFactory.Create(mode, Options);
         var csEvalResult = engine.Evaluate(expr);
 
         Assert.That(csEvalResult, Is.EqualTo(roslynResult),
@@ -39,7 +38,7 @@ public class SemanticLeniencyTests(CompilationMode mode)
         Assert.That(roslynEx, Is.Not.Null,
             $"Expected Roslyn to reject: {expr}");
 
-        var engine = new CsEvalEngine(Options);
+        var engine = TestEngineFactory.Create(mode, Options);
         Assert.Catch<Exception>(() => engine.Evaluate(expr),
             $"CsEval accepted but Roslyn rejected: {expr}");
     }

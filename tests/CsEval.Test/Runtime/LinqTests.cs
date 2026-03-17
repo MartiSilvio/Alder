@@ -10,10 +10,8 @@ public class LinqTests(CompilationMode mode)
     [Test]
     public void Where_ImplicitItPredicate_Works()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with
-        {
-            CompilationMode = mode,
-            LanguageMode = LanguageMode.Extended
+        var engine = TestEngineFactory.Create(mode, CsEvalOptions.Default with {
+                        LanguageMode = LanguageMode.Extended
         });
         engine.SetVariable("numbers", new List<int> { 1, 2, 3, 4 });
 
@@ -25,10 +23,8 @@ public class LinqTests(CompilationMode mode)
     [Test]
     public void Select_DiscardIdentifier_IsNotImplicitPlaceholder()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with
-        {
-            CompilationMode = mode,
-            LanguageMode = LanguageMode.Extended
+        var engine = TestEngineFactory.Create(mode, CsEvalOptions.Default with {
+                        LanguageMode = LanguageMode.Extended
         });
         engine.SetVariable("numbers", new List<int> { 1, 2, 3, 4 });
 
@@ -39,10 +35,8 @@ public class LinqTests(CompilationMode mode)
     [Test]
     public void Where_ExplicitItLambda_Works()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with
-        {
-            CompilationMode = mode,
-            LanguageMode = LanguageMode.Extended
+        var engine = TestEngineFactory.Create(mode, CsEvalOptions.Default with {
+                        LanguageMode = LanguageMode.Extended
         });
         engine.SetVariable("numbers", new List<int> { 1, 2, 3, 4 });
 
@@ -54,10 +48,8 @@ public class LinqTests(CompilationMode mode)
     [Test]
     public void Select_ExplicitDiscardLambda_Works()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with
-        {
-            CompilationMode = mode,
-            LanguageMode = LanguageMode.Extended
+        var engine = TestEngineFactory.Create(mode, CsEvalOptions.Default with {
+                        LanguageMode = LanguageMode.Extended
         });
         engine.SetVariable("numbers", new List<int> { 1, 2, 3, 4 });
 
@@ -69,10 +61,8 @@ public class LinqTests(CompilationMode mode)
     [Test]
     public void AggregateBuiltins_SumCountAvgMinMax_Work()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with
-        {
-            CompilationMode = mode,
-            LanguageMode = LanguageMode.Extended
+        var engine = TestEngineFactory.Create(mode, CsEvalOptions.Default with {
+                        LanguageMode = LanguageMode.Extended
         });
         engine.SetVariable("numbers", new List<int> { 1, 2, 3, 4 });
 
@@ -751,7 +741,7 @@ public class LinqTests(CompilationMode mode)
     [Test]
     public void Reverse_OnArray_UsesEnumerableReverse()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var numbers = new[] { 1, 2, 3 };
         engine.SetVariable("numbers", numbers);
 
@@ -767,7 +757,7 @@ public class LinqTests(CompilationMode mode)
     [Test]
     public void First_EmptyCollection_Throws()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("numbers", new List<int>());
 
         Assert.Throws<InvalidOperationException>(() => engine.Evaluate("numbers.First()"));
@@ -776,7 +766,7 @@ public class LinqTests(CompilationMode mode)
     [Test]
     public void FirstOrDefault_EmptyCollection_ReturnsDefault()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("numbers", new List<int>());
 
         var result = engine.Evaluate("numbers.FirstOrDefault()");
@@ -786,7 +776,7 @@ public class LinqTests(CompilationMode mode)
     [Test]
     public void FirstOrDefault_WithPredicate_NoMatch_ReturnsDefault()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("numbers", new List<int> { 1, 2, 3 });
 
         var result = engine.Evaluate("numbers.FirstOrDefault(x => x > 10)");
@@ -796,7 +786,7 @@ public class LinqTests(CompilationMode mode)
     [Test]
     public void LastOrDefault_EmptyCollection_ReturnsDefault()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("numbers", new List<int>());
 
         var result = engine.Evaluate("numbers.LastOrDefault()");
@@ -806,7 +796,7 @@ public class LinqTests(CompilationMode mode)
     [Test]
     public void Single_MultipleElements_Throws()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("numbers", new List<int> { 1, 2, 3 });
 
         Assert.Throws<InvalidOperationException>(() => engine.Evaluate("numbers.Single()"));
@@ -815,7 +805,7 @@ public class LinqTests(CompilationMode mode)
     [Test]
     public void SingleOrDefault_EmptyCollection_ReturnsDefault()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("numbers", new List<int>());
 
         var result = engine.Evaluate("numbers.SingleOrDefault()");
@@ -825,7 +815,7 @@ public class LinqTests(CompilationMode mode)
     [Test]
     public void Sum_WithStrings_ThrowsException()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("strings", new List<string> { "a", "b", "c" });
 
         Assert.Throws<CsEvalException>(() => engine.Evaluate("strings.Sum()"));
@@ -834,7 +824,7 @@ public class LinqTests(CompilationMode mode)
     [Test]
     public void Sum_WithMixedNonNumeric_ThrowsException()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("items", new List<object> { "hello", "world" });
 
         Assert.Throws<CsEvalException>(() => engine.Evaluate("items.Sum()"));
@@ -843,7 +833,7 @@ public class LinqTests(CompilationMode mode)
     [Test]
     public void MinBy_EmptyCollection_Throws()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("items", new List<int>());
 
         Assert.Throws<InvalidOperationException>(() => engine.Evaluate("items.MinBy(x => x)"));
@@ -852,7 +842,7 @@ public class LinqTests(CompilationMode mode)
     [Test]
     public void MaxBy_EmptyCollection_Throws()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("items", new List<int>());
 
         Assert.Throws<InvalidOperationException>(() => engine.Evaluate("items.MaxBy(x => x)"));
@@ -865,7 +855,7 @@ public class LinqTests(CompilationMode mode)
     [Test]
     public void Select_WithMemberAccess_ProjectsProperty()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("items", new List<object> {
             new { Name = "Alice" },
             new { Name = "Bob" }
@@ -878,7 +868,7 @@ public class LinqTests(CompilationMode mode)
     [Test]
     public void SelectMany_WithProjection_FlattensAndProjects()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("items", new List<Dictionary<string, object?>> {
             new() { ["Tags"] = new List<string> { "a", "b" } },
             new() { ["Tags"] = new List<string> { "c" } }
@@ -891,7 +881,7 @@ public class LinqTests(CompilationMode mode)
     [Test]
     public void Sum_WithSelector_ReturnsSumOfSelected()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("items", new List<Dictionary<string, object?>> {
             new() { ["Value"] = 10 },
             new() { ["Value"] = 20 },
@@ -905,7 +895,7 @@ public class LinqTests(CompilationMode mode)
     [Test]
     public void Average_WithSelector_ReturnsAverageOfSelected()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("items", new List<Dictionary<string, object?>> {
             new() { ["Value"] = 10 },
             new() { ["Value"] = 20 }
@@ -918,7 +908,7 @@ public class LinqTests(CompilationMode mode)
     [Test]
     public void Min_WithSelector_ReturnsMinimumOfSelected()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("items", new List<Dictionary<string, object?>> {
             new() { ["Value"] = 30 },
             new() { ["Value"] = 10 },
@@ -932,7 +922,7 @@ public class LinqTests(CompilationMode mode)
     [Test]
     public void Max_WithSelector_ReturnsMaximumOfSelected()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("items", new List<Dictionary<string, object?>> {
             new() { ["Value"] = 30 },
             new() { ["Value"] = 10 },
@@ -946,7 +936,7 @@ public class LinqTests(CompilationMode mode)
     [Test]
     public void MinBy_ReturnsElementWithMinimumKey()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("items", new List<Dictionary<string, object?>> {
             new() { ["Name"] = "Bob", ["Age"] = 30 },
             new() { ["Name"] = "Alice", ["Age"] = 25 },
@@ -961,7 +951,7 @@ public class LinqTests(CompilationMode mode)
     [Test]
     public void MinBy_WithStrings_ReturnsElementWithMinimumKey()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("items", new List<Dictionary<string, object?>> {
             new() { ["Name"] = "Charlie", ["Value"] = 3 },
             new() { ["Name"] = "Alice", ["Value"] = 1 },
@@ -975,7 +965,7 @@ public class LinqTests(CompilationMode mode)
     [Test]
     public void MaxBy_ReturnsElementWithMaximumKey()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("items", new List<Dictionary<string, object?>> {
             new() { ["Name"] = "Bob", ["Age"] = 30 },
             new() { ["Name"] = "Alice", ["Age"] = 25 },
@@ -990,7 +980,7 @@ public class LinqTests(CompilationMode mode)
     [Test]
     public void MaxBy_WithStrings_ReturnsElementWithMaximumKey()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("items", new List<Dictionary<string, object?>> {
             new() { ["Name"] = "Alice", ["Value"] = 1 },
             new() { ["Name"] = "Charlie", ["Value"] = 3 },
@@ -1004,7 +994,7 @@ public class LinqTests(CompilationMode mode)
     [Test]
     public void OrderBy_WithPropertySelector_SortsByProperty()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("items", new List<Dictionary<string, object?>> {
             new() { ["Name"] = "Charlie" },
             new() { ["Name"] = "Alice" },
@@ -1018,7 +1008,7 @@ public class LinqTests(CompilationMode mode)
     [Test]
     public void GroupBy_GroupsByKey()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("items", new List<Dictionary<string, object?>> {
             new() { ["Category"] = "A", ["Value"] = 1 },
             new() { ["Category"] = "B", ["Value"] = 2 },
@@ -1037,7 +1027,7 @@ public class LinqTests(CompilationMode mode)
     [Test]
     public void GroupBy_ReturnsIGrouping()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("numbers", new List<int> { 1, 2, 3, 4, 5, 6 });
 
         var result = engine.Evaluate("numbers.GroupBy(x => x > 3).ToList()");
@@ -1056,7 +1046,7 @@ public class LinqTests(CompilationMode mode)
     [Test]
     public void GroupBy_CanPassToFunctionAcceptingIGrouping()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("nums", new[] { 1, 2, 3, 4, 5 });
 
         // Register a function that accepts IGrouping<bool, int>
@@ -1075,7 +1065,7 @@ public class LinqTests(CompilationMode mode)
     [Test]
     public void Zip_WithSelector_CombinesElements()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("nums1", new List<int> { 1, 2, 3 });
         engine.SetVariable("nums2", new List<int> { 10, 20, 30 });
 
@@ -1086,7 +1076,7 @@ public class LinqTests(CompilationMode mode)
     [Test]
     public void Zip_WithoutSelector_ReturnsTuples()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("names", new List<string> { "Alice", "Bob" });
         engine.SetVariable("ages", new List<int> { 30, 25 });
 
@@ -1102,7 +1092,7 @@ public class LinqTests(CompilationMode mode)
     [Test]
     public void Zip_DifferentLengths_StopsAtShorter()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("shortList", new List<int> { 1, 2 });
         engine.SetVariable("longList", new List<int> { 10, 20, 30, 40 });
 
@@ -1113,7 +1103,7 @@ public class LinqTests(CompilationMode mode)
     [Test]
     public void Chained_WhereSelectOrderBy()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("items", new List<object>
         {
             TestHelpers.CreateItem("Apple", 1.5),
@@ -1133,7 +1123,7 @@ public class LinqTests(CompilationMode mode)
     [Test]
     public void ThenBy_SecondarySort()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("items", new List<Dictionary<string, object?>>
         {
             new() { ["Category"] = "A", ["Name"] = "Zebra" },
@@ -1149,7 +1139,7 @@ public class LinqTests(CompilationMode mode)
     [Test]
     public void ThenByDescending_SecondarySort()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("items", new List<Dictionary<string, object?>>
         {
             new() { ["Category"] = "A", ["Name"] = "Apple" },
@@ -1168,7 +1158,7 @@ public class LinqTests(CompilationMode mode)
     [Test]
     public void TakeWhile_TakesWhileConditionTrue()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("numbers", new List<int> { 1, 2, 3, 4, 5, 1, 2 });
 
         var result = engine.Evaluate("numbers.TakeWhile(x => x < 4).ToList()");
@@ -1178,7 +1168,7 @@ public class LinqTests(CompilationMode mode)
     [Test]
     public void TakeWhile_AllMatch_ReturnsAll()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("numbers", new List<int> { 1, 2, 3 });
 
         var result = engine.Evaluate("numbers.TakeWhile(x => x < 10).ToList()");
@@ -1188,7 +1178,7 @@ public class LinqTests(CompilationMode mode)
     [Test]
     public void TakeWhile_NoneMatch_ReturnsEmpty()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("numbers", new List<int> { 5, 6, 7 });
 
         var result = engine.Evaluate("numbers.TakeWhile(x => x < 5).ToList()");
@@ -1198,7 +1188,7 @@ public class LinqTests(CompilationMode mode)
     [Test]
     public void SkipWhile_SkipsWhileConditionTrue()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("numbers", new List<int> { 1, 2, 3, 4, 5, 1, 2 });
 
         var result = engine.Evaluate("numbers.SkipWhile(x => x < 4).ToList()");
@@ -1208,7 +1198,7 @@ public class LinqTests(CompilationMode mode)
     [Test]
     public void SkipWhile_AllMatch_ReturnsEmpty()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("numbers", new List<int> { 1, 2, 3 });
 
         var result = engine.Evaluate("numbers.SkipWhile(x => x < 10).ToList()");
@@ -1218,7 +1208,7 @@ public class LinqTests(CompilationMode mode)
     [Test]
     public void SkipWhile_NoneMatch_ReturnsAll()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("numbers", new List<int> { 5, 6, 7 });
 
         var result = engine.Evaluate("numbers.SkipWhile(x => x < 5).ToList()");
@@ -1232,7 +1222,7 @@ public class LinqTests(CompilationMode mode)
     [Test]
     public void ElementAt_ReturnsElementAtIndex()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("numbers", new List<int> { 10, 20, 30, 40 });
 
         var result = engine.Evaluate("numbers.ElementAt(2)");
@@ -1242,7 +1232,7 @@ public class LinqTests(CompilationMode mode)
     [Test]
     public void ElementAt_OutOfRange_Throws()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("numbers", new List<int> { 1, 2, 3 });
 
         Assert.Throws<ArgumentOutOfRangeException>(() => engine.Evaluate("numbers.ElementAt(10)"));
@@ -1251,7 +1241,7 @@ public class LinqTests(CompilationMode mode)
     [Test]
     public void ElementAtOrDefault_ReturnsElementAtIndex()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("numbers", new List<int> { 10, 20, 30, 40 });
 
         var result = engine.Evaluate("numbers.ElementAtOrDefault(2)");
@@ -1261,7 +1251,7 @@ public class LinqTests(CompilationMode mode)
     [Test]
     public void ElementAtOrDefault_OutOfRange_ReturnsDefault()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("numbers", new List<int> { 1, 2, 3 });
 
         var result = engine.Evaluate("numbers.ElementAtOrDefault(10)");
@@ -1275,7 +1265,7 @@ public class LinqTests(CompilationMode mode)
     [Test]
     public void DefaultIfEmpty_NonEmpty_ReturnsOriginal()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("numbers", new List<int> { 1, 2, 3 });
 
         var result = engine.Evaluate("numbers.DefaultIfEmpty().ToList()");
@@ -1285,7 +1275,7 @@ public class LinqTests(CompilationMode mode)
     [Test]
     public void DefaultIfEmpty_Empty_ReturnsDefault()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("numbers", new List<int>());
 
         var result = engine.Evaluate("numbers.DefaultIfEmpty().ToList()");
@@ -1295,7 +1285,7 @@ public class LinqTests(CompilationMode mode)
     [Test]
     public void DefaultIfEmpty_WithValue_Empty_ReturnsSpecifiedDefault()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("numbers", new List<int>());
 
         var result = engine.Evaluate("numbers.DefaultIfEmpty(42).ToList()");
@@ -1309,7 +1299,7 @@ public class LinqTests(CompilationMode mode)
     [Test]
     public void Append_AddsToEnd()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("numbers", new List<int> { 1, 2, 3 });
 
         var result = engine.Evaluate("numbers.Append(4).ToList()");
@@ -1319,7 +1309,7 @@ public class LinqTests(CompilationMode mode)
     [Test]
     public void Prepend_AddsToStart()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("numbers", new List<int> { 2, 3, 4 });
 
         var result = engine.Evaluate("numbers.Prepend(1).ToList()");
@@ -1333,7 +1323,7 @@ public class LinqTests(CompilationMode mode)
     [Test]
     public void SequenceEqual_SameElements_ReturnsTrue()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("a", new List<int> { 1, 2, 3 });
         engine.SetVariable("b", new List<int> { 1, 2, 3 });
 
@@ -1344,7 +1334,7 @@ public class LinqTests(CompilationMode mode)
     [Test]
     public void SequenceEqual_DifferentElements_ReturnsFalse()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("a", new List<int> { 1, 2, 3 });
         engine.SetVariable("b", new List<int> { 1, 2, 4 });
 
@@ -1355,7 +1345,7 @@ public class LinqTests(CompilationMode mode)
     [Test]
     public void SequenceEqual_DifferentLength_ReturnsFalse()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("a", new List<int> { 1, 2, 3 });
         engine.SetVariable("b", new List<int> { 1, 2 });
 
@@ -1370,7 +1360,7 @@ public class LinqTests(CompilationMode mode)
     [Test]
     public void LongCount_ReturnsLongCount()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("numbers", new List<int> { 1, 2, 3, 4, 5 });
 
         var result = engine.Evaluate("numbers.LongCount()");
@@ -1381,7 +1371,7 @@ public class LinqTests(CompilationMode mode)
     [Test]
     public void LongCount_WithPredicate_ReturnsMatchingCount()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("numbers", new List<int> { 1, 2, 3, 4, 5 });
 
         var result = engine.Evaluate("numbers.LongCount(x => x > 2)");
@@ -1395,7 +1385,7 @@ public class LinqTests(CompilationMode mode)
     [Test]
     public void Cast_WithGenericSyntax()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("objects", new object[] { 1, 2, 3 });
 
         var result = engine.Evaluate("objects.Cast<int>().ToList()");
@@ -1405,7 +1395,7 @@ public class LinqTests(CompilationMode mode)
     [Test]
     public void Cast_WithKeywordType()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("objects", new object[] { 1L, 2L, 3L });
 
         var result = engine.Evaluate("objects.Cast<long>().ToList()");
@@ -1415,7 +1405,7 @@ public class LinqTests(CompilationMode mode)
     [Test]
     public void OfType_FiltersIntegers()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("mixed", new object[] { 1, "hello", 2, "world", 3 });
 
         var result = engine.Evaluate("mixed.OfType<int>().ToList()");
@@ -1425,7 +1415,7 @@ public class LinqTests(CompilationMode mode)
     [Test]
     public void OfType_FiltersStrings()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("mixed", new object[] { 1, "hello", 2, "world", 3 });
 
         var result = engine.Evaluate("mixed.OfType<string>().ToList()");
@@ -1439,7 +1429,7 @@ public class LinqTests(CompilationMode mode)
     [Test]
     public void ToDictionary_WithKeySelector()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("items", new List<Dictionary<string, object?>>
         {
             new() { ["Id"] = 1, ["Name"] = "Alice" },
@@ -1456,7 +1446,7 @@ public class LinqTests(CompilationMode mode)
     [Test]
     public void ToDictionary_WithKeyAndValueSelector()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("items", new List<Dictionary<string, object?>>
         {
             new() { ["Id"] = 1, ["Name"] = "Alice" },
@@ -1476,7 +1466,7 @@ public class LinqTests(CompilationMode mode)
     [Test]
     public void ToHashSet_RemovesDuplicates()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("numbers", new List<int> { 1, 2, 2, 3, 3, 3 });
 
         var result = engine.Evaluate("numbers.ToHashSet()");
@@ -1495,7 +1485,7 @@ public class LinqTests(CompilationMode mode)
     [Test]
     public void Join_InnerJoin()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("people", new List<Dictionary<string, object?>>
         {
             new() { ["Id"] = 1, ["Name"] = "Alice" },
@@ -1520,7 +1510,7 @@ public class LinqTests(CompilationMode mode)
     [Test]
     public void GroupJoin_GroupsMatchingElements()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("categories", new List<Dictionary<string, object?>>
         {
             new() { ["Id"] = 1, ["Name"] = "Fruit" },
@@ -1545,7 +1535,7 @@ public class LinqTests(CompilationMode mode)
     [Test]
     public void Chunk_SplitsIntoChunks()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("numbers", new List<int> { 1, 2, 3, 4, 5, 6, 7 });
 
         var result = engine.Evaluate("numbers.Chunk(3).ToList()") as IList;
@@ -1563,7 +1553,7 @@ public class LinqTests(CompilationMode mode)
     [Test]
     public void DistinctBy_RemovesDuplicatesByKey()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("items", new List<Dictionary<string, object?>>
         {
             new() { ["Category"] = "A", ["Name"] = "First" },
@@ -1582,7 +1572,7 @@ public class LinqTests(CompilationMode mode)
     [Test]
     public void ExceptBy_ExcludesByKey()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("items", new List<Dictionary<string, object?>>
         {
             new() { ["Id"] = 1, ["Name"] = "Alice" },
@@ -1598,7 +1588,7 @@ public class LinqTests(CompilationMode mode)
     [Test]
     public void IntersectBy_IntersectsByKey()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("items", new List<Dictionary<string, object?>>
         {
             new() { ["Id"] = 1, ["Name"] = "Alice" },
@@ -1614,7 +1604,7 @@ public class LinqTests(CompilationMode mode)
     [Test]
     public void UnionBy_UnionsByKey()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("first", new List<Dictionary<string, object?>>
         {
             new() { ["Id"] = 1, ["Name"] = "Alice" },
@@ -1637,7 +1627,7 @@ public class LinqTests(CompilationMode mode)
     [Test]
     public void MinBy_MultipleWithSameKey_ReturnsFirst()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("items", new List<Dictionary<string, object?>>
         {
             new() { ["Name"] = "Alice", ["Age"] = 25 },
@@ -1656,7 +1646,7 @@ public class LinqTests(CompilationMode mode)
     [Test]
     public void TakeLast_TakesLastN()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("numbers", new List<int> { 1, 2, 3, 4, 5 });
 
         var result = engine.Evaluate("numbers.TakeLast(3).ToList()");
@@ -1666,7 +1656,7 @@ public class LinqTests(CompilationMode mode)
     [Test]
     public void TakeLast_MoreThanCount_ReturnsAll()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("numbers", new List<int> { 1, 2 });
 
         var result = engine.Evaluate("numbers.TakeLast(10).ToList()");
@@ -1676,7 +1666,7 @@ public class LinqTests(CompilationMode mode)
     [Test]
     public void SkipLast_SkipsLastN()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("numbers", new List<int> { 1, 2, 3, 4, 5 });
 
         var result = engine.Evaluate("numbers.SkipLast(2).ToList()");
@@ -1686,7 +1676,7 @@ public class LinqTests(CompilationMode mode)
     [Test]
     public void SkipLast_MoreThanCount_ReturnsEmpty()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("numbers", new List<int> { 1, 2 });
 
         var result = engine.Evaluate("numbers.SkipLast(10).ToList()");
@@ -1700,7 +1690,7 @@ public class LinqTests(CompilationMode mode)
     [Test]
     public void Enumerable_Range()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.RegisterModule("Enumerable", typeof(Enumerable));
 
         var result = engine.Evaluate("Enumerable.Range(1, 5).ToList()");
@@ -1710,7 +1700,7 @@ public class LinqTests(CompilationMode mode)
     [Test]
     public void Enumerable_Repeat()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.RegisterModule("Enumerable", typeof(Enumerable));
 
         var result = engine.Evaluate("Enumerable.Repeat(42, 3).ToList()");
@@ -1726,7 +1716,7 @@ public class LinqTests(CompilationMode mode)
     [Test]
     public void Sum_WithIntSelector()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("numbers", new List<int> { 1, 2, 3, 4, 5 });
 
         var result = engine.Evaluate("numbers.Sum(x => x * 2)");
@@ -1736,7 +1726,7 @@ public class LinqTests(CompilationMode mode)
     [Test]
     public void Average_WithIntSelector()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("numbers", new List<int> { 1, 2, 3, 4, 5 });
 
         var result = engine.Evaluate("numbers.Average(x => x * 2)");
@@ -1750,7 +1740,7 @@ public class LinqTests(CompilationMode mode)
     [Test]
     public void Min_WithStringSelector()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("names", new List<string> { "Charlie", "Alice", "Bob" });
 
         var result = engine.Evaluate("names.Min(x => x.Length)");
@@ -1760,7 +1750,7 @@ public class LinqTests(CompilationMode mode)
     [Test]
     public void Max_WithStringSelector()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("names", new List<string> { "Charlie", "Alice", "Bob" });
 
         var result = engine.Evaluate("names.Max(x => x.Length)");

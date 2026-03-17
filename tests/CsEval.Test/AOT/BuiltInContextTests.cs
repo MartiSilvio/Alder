@@ -8,7 +8,7 @@ namespace CsEval.Test.AOT;
 public class BuiltInContextTests(CompilationMode mode)
 {
     private CsEvalEngine CreateEngine() =>
-        new(CsEvalOptions.Default with { CompilationMode = mode });
+        TestEngineFactory.Create(mode);
 
     [Test]
     public void BuiltInContext_Default_ReturnsMetadata()

@@ -18,7 +18,7 @@ public class StringTests(CompilationMode mode)
     public void Eval_UnicodeEscape_InvalidHex_Throws()
     {
         // Engine-only: tests CsEvalLexerException error behavior
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         Assert.Throws<CsEvalLexerException>(() => engine.Evaluate("\"\\u00GG\""));
     }
 
@@ -26,7 +26,7 @@ public class StringTests(CompilationMode mode)
     public void Eval_UnicodeEscape_TooFewDigits_Throws()
     {
         // Engine-only: tests CsEvalLexerException error behavior
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         Assert.Throws<CsEvalLexerException>(() => engine.Evaluate("\"\\u00\""));
     }
 
@@ -34,7 +34,7 @@ public class StringTests(CompilationMode mode)
     public void Eval_UnicodeEscape8_TooFewDigits_Throws()
     {
         // Engine-only: tests CsEvalLexerException error behavior
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         Assert.Throws<CsEvalLexerException>(() => engine.Evaluate("\"\\U0000\""));
     }
 
@@ -42,7 +42,7 @@ public class StringTests(CompilationMode mode)
     public void Eval_HexEscape_NoDigits_Throws()
     {
         // Engine-only: tests CsEvalLexerException error behavior
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         Assert.Throws<CsEvalLexerException>(() => engine.Evaluate("\"\\xG\""));
     }
 
@@ -54,7 +54,7 @@ public class StringTests(CompilationMode mode)
     public void StringEquality_WithNull()
     {
         // Engine-only: SetVariable with null (null is not a serializable type for Roslyn)
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("s", null);
 
         Assert.That(engine.Evaluate("s == null"), Is.True);

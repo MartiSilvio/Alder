@@ -12,7 +12,7 @@ public class MiscTests(CompilationMode mode)
     [Test]
     public void Issue327_GenericInstanceMethodCall_ToObjectDateTime_Works()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var test = JObject.Parse("""
                                  {
                                    "date": "2024-01-02T03:04:05"
@@ -31,7 +31,7 @@ public class MiscTests(CompilationMode mode)
     [Test]
     public void Issue366_NullConditionalWithLogicalAnd_Works()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var dto = new { Object1 = (object?)null };
         engine.SetVariable("dto", dto);
 
@@ -44,7 +44,7 @@ public class MiscTests(CompilationMode mode)
     [Test]
     public void Issue367_NullGuardWithLogicalAnd_Works()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("myobj", null);
 
         var result = engine.Evaluate("myobj != null && myobj.Text == \"test\"");
@@ -56,7 +56,7 @@ public class MiscTests(CompilationMode mode)
     [Test]
     public void Issue363_DefaultLiteral_Works()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var result = engine.Evaluate("default");
         Assert.That(result, Is.Null);
     }
@@ -66,7 +66,7 @@ public class MiscTests(CompilationMode mode)
     [Test]
     public void Issue337_LambdaWithStringIndexerLiteral_Works()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var source = new[]
         {
             new Dictionary<string, string> { ["id"] = "A" },
@@ -87,7 +87,7 @@ public class MiscTests(CompilationMode mode)
     [Test]
     public void Issue95_ExpandoCollectionProperty_WithLinq_Works()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         dynamic root = new ExpandoObject();
         root.Items = new List<int> { 1, 2, 3, 4 };
         engine.SetVariable("root", root);
@@ -101,7 +101,7 @@ public class MiscTests(CompilationMode mode)
     [Test]
     public void Issue328_DynamicBoolPropertyAccess_Works()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         dynamic obj = new ExpandoObject();
         obj.IsEnabled = true;
         engine.SetVariable("obj", obj);
@@ -115,7 +115,7 @@ public class MiscTests(CompilationMode mode)
     [Test]
     public void Issue90_RuntimeConstructedGenericCollection_WithLambdaWhere_Works()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
 
         var elementType = typeof(Dictionary<string, object?>);
         var dynamicListType = typeof(List<>).MakeGenericType(elementType);
@@ -135,7 +135,7 @@ public class MiscTests(CompilationMode mode)
     [Test]
     public void Issue335_MultiParameterIndexerOnCustomType_NotSupportedYet()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("context", new TwoKeyIndex());
         engine.SetVariable("source", new Dictionary<string, string> { ["Key"] = "A", ["i"] = "B" });
 
@@ -153,7 +153,7 @@ public class MiscTests(CompilationMode mode)
     [Test]
     public void Issue351_TryValidate_PropertyAccessOnRegisteredVariable_HasNoUnknownIdentifierDiagnostics()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("test", new { Name = "abc", Age = 1 });
 
         var success = engine.TryValidate("test.Name", out var diagnostics);
@@ -167,7 +167,7 @@ public class MiscTests(CompilationMode mode)
     [Test]
     public void Issue295_ExpandoStringMember_CanBePassedToStringFunctionWithoutExplicitCast()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.RegisterFunction("PathCombine", args => System.IO.Path.Combine((string)args[0]!, (string)args[1]!));
 
         dynamic globalSettings = new ExpandoObject();
@@ -184,7 +184,7 @@ public class MiscTests(CompilationMode mode)
     [Test]
     public void Issue285_UserDefinedImplicitConversion_InMethodBinding_Works()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var consumer = new ImplicitConsumer();
         engine.SetVariable("consumer", consumer);
         engine.SetVariable("from", new ImplicitFrom(7));
@@ -196,7 +196,7 @@ public class MiscTests(CompilationMode mode)
     [Test]
     public void UserDefinedImplicitConversion_MultipleArgs_Works()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var consumer = new ImplicitConsumer();
         engine.SetVariable("consumer", consumer);
         engine.SetVariable("a", new ImplicitFrom(3));
@@ -209,7 +209,7 @@ public class MiscTests(CompilationMode mode)
     [Test]
     public void UserDefinedImplicitConversion_PreferExactMatchOverConversion()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var consumer = new ImplicitConsumer();
         engine.SetVariable("consumer", consumer);
         engine.SetVariable("to", new ImplicitTo(99));
@@ -221,7 +221,7 @@ public class MiscTests(CompilationMode mode)
     [Test]
     public void MultiTypeParamGenericInference_Zip_Works()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.RegisterAssembly(typeof(Enumerable).Assembly);
         engine.RegisterNamespace("System.Linq");
         var a = new[] { 1, 2, 3 };
@@ -237,7 +237,7 @@ public class MiscTests(CompilationMode mode)
     [Test]
     public void MultiTypeParamGenericInference_ToDictionary_Works()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.RegisterAssembly(typeof(Enumerable).Assembly);
         engine.RegisterNamespace("System.Linq");
         var items = new[] { "apple", "banana", "cherry" };
@@ -253,10 +253,8 @@ public class MiscTests(CompilationMode mode)
     [Test]
     public void Sandbox_AllowConstruction_Blocks_New()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with
-        {
-            CompilationMode = mode,
-            Sandbox = SandboxOptions.Safe()
+        var engine = TestEngineFactory.Create(mode, CsEvalOptions.Default with {
+                        Sandbox = SandboxOptions.Safe()
         });
 
         Assert.Throws<CsEvalSandboxException>(() => engine.Evaluate("new object()"));
@@ -265,10 +263,8 @@ public class MiscTests(CompilationMode mode)
     [Test]
     public void Sandbox_AllowConstruction_Permits_When_Enabled()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with
-        {
-            CompilationMode = mode,
-            Sandbox = SandboxOptions.Safe() with { AllowConstruction = true }
+        var engine = TestEngineFactory.Create(mode, CsEvalOptions.Default with {
+                        Sandbox = SandboxOptions.Safe() with { AllowConstruction = true }
         });
 
         var result = engine.Evaluate("new object()");
@@ -278,10 +274,8 @@ public class MiscTests(CompilationMode mode)
     [Test]
     public void Sandbox_AllowedTypes_Blocks_Unlisted_Type()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with
-        {
-            CompilationMode = mode,
-            Sandbox = SandboxOptions.Trusted() with
+        var engine = TestEngineFactory.Create(mode, CsEvalOptions.Default with {
+                        Sandbox = SandboxOptions.Trusted() with
             {
                 AllowedTypes = new HashSet<Type> { typeof(Math) }
             }
@@ -295,10 +289,8 @@ public class MiscTests(CompilationMode mode)
     [Test]
     public void Sandbox_AllowedTypes_Blocks_Construction_Of_Unlisted_Type()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with
-        {
-            CompilationMode = mode,
-            Sandbox = SandboxOptions.Trusted() with
+        var engine = TestEngineFactory.Create(mode, CsEvalOptions.Default with {
+                        Sandbox = SandboxOptions.Trusted() with
             {
                 AllowedTypes = new HashSet<Type> { typeof(Math) }
             }
@@ -312,7 +304,7 @@ public class MiscTests(CompilationMode mode)
     [Test]
     public void NCalcIssue538_XorSupport_Works()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var result = engine.Evaluate("true ^ false");
         Assert.That(result, Is.EqualTo(true));
     }
@@ -322,7 +314,7 @@ public class MiscTests(CompilationMode mode)
     [Test]
     public void NCalcIssue458_BackslashesInString_Works()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var result = engine.Evaluate("\"C:\\\\temp\\\\file.txt\"");
         Assert.That(result, Is.EqualTo("C:\\temp\\file.txt"));
     }
@@ -332,7 +324,7 @@ public class MiscTests(CompilationMode mode)
     [Test]
     public void NCalcIssue439_NaNCondition_Works()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var result = engine.Evaluate("double.NaN == double.NaN ? 1 : 2");
         Assert.That(result, Is.EqualTo(2));
     }
@@ -342,7 +334,7 @@ public class MiscTests(CompilationMode mode)
     [Test]
     public void NCalcIssue433_123DotE2_IsInvalidCSharp_HandledAsMemberAccessCurrently()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var result = engine.Evaluate("123.E2");
         Assert.That(result, Is.Not.Null);
         Assert.That(result!.GetType().Name, Is.EqualTo("MethodRef"));
@@ -353,7 +345,7 @@ public class MiscTests(CompilationMode mode)
     [Test]
     public void NCalcIssue494_InvalidDateTimeAddition_DoesNotCrashRuntime()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode, LanguageMode = LanguageMode.Extended });
+        var engine = TestEngineFactory.Create(mode, CsEvalOptions.Default with { LanguageMode = LanguageMode.Extended });
         engine.SetVariable("a", new DateTime(2024, 1, 1));
         engine.SetVariable("b", new DateTime(2024, 1, 2));
         var result = engine.Evaluate("a + b");
@@ -363,7 +355,7 @@ public class MiscTests(CompilationMode mode)
     [Test]
     public void DateArithmeticSugar_NumericUnitsAndDateOps_Work()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode, LanguageMode = LanguageMode.Extended });
+        var engine = TestEngineFactory.Create(mode, CsEvalOptions.Default with { LanguageMode = LanguageMode.Extended });
         engine.SetVariable("date1", new DateTime(2026, 1, 31));
         engine.SetVariable("date2", new DateTime(2026, 1, 1));
 
@@ -380,7 +372,7 @@ public class MiscTests(CompilationMode mode)
     [Test]
     public void JaceIssue92_InvalidScientificNotation_ThrowsParseStyleError()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         Assert.Catch(() => engine.Evaluate("1e+"));
     }
 
@@ -389,7 +381,7 @@ public class MiscTests(CompilationMode mode)
     [Test]
     public void JaceIssue93_EInScientificNotation_ParsesCorrectly()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var result = engine.Evaluate("1e-2");
         Assert.That(result, Is.EqualTo(0.01).Within(1e-12));
     }
@@ -397,7 +389,7 @@ public class MiscTests(CompilationMode mode)
     [Test]
     public void LockOnNull_ThrowsCsEvalExceptionWithConsistentMessage()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("{ object o = null; lock (o) { } }"));
         Assert.That(ex!.Message, Does.Contain("lock statement requires a non-null reference"));
     }
@@ -406,7 +398,7 @@ public class MiscTests(CompilationMode mode)
     public void UsingStatement_DisposesIAsyncDisposableInAllModes()
     {
         var probe = new AsyncDisposeProbe();
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("probe", probe);
 
         engine.Evaluate("{ using (probe) { } }");
@@ -417,7 +409,7 @@ public class MiscTests(CompilationMode mode)
     [Test]
     public void CatchVariable_WithWhenFalse_IsOutOfScopeAfterTryCatch()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("""
         {
             try { throw new Exception("boom"); }
@@ -432,7 +424,7 @@ public class MiscTests(CompilationMode mode)
     [Test]
     public void CatchFilter_WhenGuardThrows_IsTreatedAsFalse()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var result = engine.Evaluate("""
         {
             var r = "";
@@ -448,7 +440,7 @@ public class MiscTests(CompilationMode mode)
     [Test]
     public void CatchFilter_WhenGuardThrows_CatchVariableRemainsOutOfScope()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("""
         {
             try { throw new Exception("boom"); }
@@ -464,7 +456,7 @@ public class MiscTests(CompilationMode mode)
     public void LogicalError_DoesNotEvaluateRightOperandForTypeDiagnostics()
     {
         var counter = new CounterProbe();
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("counter", counter);
 
         Assert.Throws<CsEvalException>(() => engine.Evaluate("1 && counter.Bump()"));
@@ -474,7 +466,7 @@ public class MiscTests(CompilationMode mode)
     [Test]
     public void SwitchExpression_WhenGuardThrows_DoesNotLeakPatternVariable()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("""
         {
             try
@@ -491,7 +483,7 @@ public class MiscTests(CompilationMode mode)
     [Test]
     public void TopLevelComparison_IdentifierLessIdentifier_ParsesAsExpression()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("a", 1);
         engine.SetVariable("b", 2);
         Assert.That(engine.Evaluate("a < b"), Is.EqualTo(true));
@@ -500,10 +492,8 @@ public class MiscTests(CompilationMode mode)
     [Test]
     public void ExtensionMethodLookup_RespectsCaseSensitivityOption()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with
-        {
-            CompilationMode = mode,
-            IsCaseSensitive = true
+        var engine = TestEngineFactory.Create(mode, CsEvalOptions.Default with {
+                        IsCaseSensitive = true
         });
         engine.RegisterExtensionMethods(typeof(CaseSensitiveExtensionProbe));
 
@@ -514,7 +504,7 @@ public class MiscTests(CompilationMode mode)
     [Test]
     public void ExtensionMethod_SupportsNamedArguments()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.RegisterExtensionMethods(typeof(CaseSensitiveExtensionProbe));
 
         var result = engine.Evaluate("1.ExtAdd(y: 2, z: 3)");
@@ -525,7 +515,7 @@ public class MiscTests(CompilationMode mode)
     public void ExtensionMethod_SignedPreferredOverUnsigned()
     {
         // ECMA-334 §12.6.4.7 rule 4: signed integral preferred over unsigned
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.RegisterExtensionMethods(typeof(CaseSensitiveExtensionProbe));
 
         var result = engine.Evaluate("1.ExtAmb((byte)1)");

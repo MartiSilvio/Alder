@@ -7,10 +7,8 @@ public class StaticMethodSandboxTests(CompilationMode mode)
     [Test]
     public void Safe_BlocksStaticMethodCalls()
     {
-        var engine = new CsEvalEngine(new CsEvalOptions
-        {
-            CompilationMode = mode,
-            Sandbox = SandboxOptions.Safe()
+        var engine = TestEngineFactory.Create(mode, new CsEvalOptions {
+                        Sandbox = SandboxOptions.Safe()
         });
 
         var ex = Assert.Throws<CsEvalSandboxException>(() =>
@@ -21,10 +19,8 @@ public class StaticMethodSandboxTests(CompilationMode mode)
     [Test]
     public void Strict_BlocksStaticMethodCalls()
     {
-        var engine = new CsEvalEngine(new CsEvalOptions
-        {
-            CompilationMode = mode,
-            Sandbox = SandboxOptions.Strict()
+        var engine = TestEngineFactory.Create(mode, new CsEvalOptions {
+                        Sandbox = SandboxOptions.Strict()
         });
 
         var ex = Assert.Throws<CsEvalSandboxException>(() =>
@@ -35,10 +31,8 @@ public class StaticMethodSandboxTests(CompilationMode mode)
     [Test]
     public void Trusted_AllowsStaticMethodCalls()
     {
-        var engine = new CsEvalEngine(new CsEvalOptions
-        {
-            CompilationMode = mode,
-            Sandbox = SandboxOptions.Trusted()
+        var engine = TestEngineFactory.Create(mode, new CsEvalOptions {
+                        Sandbox = SandboxOptions.Trusted()
         });
 
         var result = engine.Evaluate("System.IO.Path.GetExtension(\"file.txt\")");
@@ -49,10 +43,8 @@ public class StaticMethodSandboxTests(CompilationMode mode)
     [Test]
     public void Safe_ModuleMethodsUnaffected()
     {
-        var engine = new CsEvalEngine(new CsEvalOptions
-        {
-            CompilationMode = mode,
-            Sandbox = SandboxOptions.Safe()
+        var engine = TestEngineFactory.Create(mode, new CsEvalOptions {
+                        Sandbox = SandboxOptions.Safe()
         });
 
         var result = engine.Evaluate("Math.Abs(-42)");
@@ -63,10 +55,8 @@ public class StaticMethodSandboxTests(CompilationMode mode)
     [Test]
     public void Safe_LambdasUnaffected()
     {
-        var engine = new CsEvalEngine(new CsEvalOptions
-        {
-            CompilationMode = mode,
-            Sandbox = SandboxOptions.Safe()
+        var engine = TestEngineFactory.Create(mode, new CsEvalOptions {
+                        Sandbox = SandboxOptions.Safe()
         });
 
         var result = engine.Evaluate("{ var fn = (x) => x * 2; return fn(5); }");
@@ -77,10 +67,8 @@ public class StaticMethodSandboxTests(CompilationMode mode)
     [Test]
     public void Safe_StaticPropertyAccessBlocked()
     {
-        var engine = new CsEvalEngine(new CsEvalOptions
-        {
-            CompilationMode = mode,
-            Sandbox = SandboxOptions.Safe()
+        var engine = TestEngineFactory.Create(mode, new CsEvalOptions {
+                        Sandbox = SandboxOptions.Safe()
         });
 
         var ex = Assert.Throws<CsEvalSandboxException>(() => engine.Evaluate("int.MaxValue"));
@@ -90,10 +78,8 @@ public class StaticMethodSandboxTests(CompilationMode mode)
     [Test]
     public void Safe_StaticFieldAccessBlocked()
     {
-        var engine = new CsEvalEngine(new CsEvalOptions
-        {
-            CompilationMode = mode,
-            Sandbox = SandboxOptions.Safe()
+        var engine = TestEngineFactory.Create(mode, new CsEvalOptions {
+                        Sandbox = SandboxOptions.Safe()
         });
 
         var ex = Assert.Throws<CsEvalSandboxException>(() => engine.Evaluate("double.NaN"));
@@ -103,10 +89,8 @@ public class StaticMethodSandboxTests(CompilationMode mode)
     [Test]
     public void Trusted_StaticPropertyAndFieldAccessAllowed()
     {
-        var engine = new CsEvalEngine(new CsEvalOptions
-        {
-            CompilationMode = mode,
-            Sandbox = SandboxOptions.Trusted()
+        var engine = TestEngineFactory.Create(mode, new CsEvalOptions {
+                        Sandbox = SandboxOptions.Trusted()
         });
 
         Assert.That(engine.Evaluate("int.MaxValue"), Is.EqualTo(int.MaxValue));

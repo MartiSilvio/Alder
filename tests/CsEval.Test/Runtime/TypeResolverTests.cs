@@ -17,7 +17,7 @@ namespace CsEval.Test.Runtime;
 public class TypeResolverTests(CompilationMode mode)
 {
     private CsEvalEngine CreateEngine()
-        => new(CsEvalOptions.Default with { CompilationMode = mode });
+        => TestEngineFactory.Create(mode);
 
     #region Built-in Keyword Resolution (15 keywords)
 

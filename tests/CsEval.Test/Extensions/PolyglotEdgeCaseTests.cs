@@ -10,10 +10,10 @@ namespace CsEval.Test.Extensions;
 public class PolyglotEdgeCaseTests(CompilationMode mode)
 {
     private CsEvalEngine CreateEngine() =>
-        new(CsEvalOptions.Default with { CompilationMode = mode, LanguageMode = LanguageMode.Extended });
+        TestEngineFactory.Create(mode, CsEvalOptions.Default with { LanguageMode = LanguageMode.Extended });
 
     private CsEvalEngine CreateStandardEngine() =>
-        new(CsEvalOptions.Default with { CompilationMode = mode, LanguageMode = LanguageMode.Standard });
+        TestEngineFactory.Create(mode, CsEvalOptions.Default with { LanguageMode = LanguageMode.Standard });
 
     #region Bare math: shadowing
 

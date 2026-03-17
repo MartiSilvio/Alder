@@ -9,7 +9,6 @@ public class CSharp12FeatureInventoryTests
 {
     private static CsEvalOptions Options => CsEvalOptions.Default with
     {
-        CompilationMode = CompilationMode.Interpreted,
         LanguageMode = LanguageMode.Standard
     };
 
@@ -41,7 +40,6 @@ public class CSharp12FeatureInventoryTests
     {
         var extended = new CsEvalEngine(CsEvalOptions.Default with
         {
-            CompilationMode = CompilationMode.Interpreted,
             LanguageMode = LanguageMode.Extended
         });
         var result = extended.Evaluate("[1, 2, 3]");

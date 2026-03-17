@@ -19,7 +19,7 @@ public class OverloadResolutionTests(CompilationMode mode)
     [Test]
     public void InstanceMethod_PreferredOverExtension_StringContains()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("text", "hello world");
 
         var result = engine.Evaluate("text.Contains(\"hello\")");
@@ -30,7 +30,7 @@ public class OverloadResolutionTests(CompilationMode mode)
     [Test]
     public void ExtensionMethod_WorksWhenNoInstanceMethod()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("numbers", new List<int> { 1, 2, 3 });
 
         var result = engine.Evaluate("numbers.Where(x => x > 1).Count()");
@@ -41,7 +41,7 @@ public class OverloadResolutionTests(CompilationMode mode)
     [Test]
     public void LinqExtensions_StillWork_Select()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("numbers", new List<int> { 1, 2, 3 });
 
         var result = engine.Evaluate("numbers.Select(x => x * 2).ToList()");
@@ -52,7 +52,7 @@ public class OverloadResolutionTests(CompilationMode mode)
     [Test]
     public void LinqExtensions_StillWork_Where()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("numbers", new List<int> { 1, 2, 3, 4, 5 });
 
         var result = engine.Evaluate("numbers.Where(x => x > 3).ToList()");
@@ -63,7 +63,7 @@ public class OverloadResolutionTests(CompilationMode mode)
     [Test]
     public void LinqExtensions_StillWork_OrderBy()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("numbers", new List<int> { 3, 1, 2 });
 
         var result = engine.Evaluate("numbers.OrderBy(x => x).ToList()");
@@ -74,7 +74,7 @@ public class OverloadResolutionTests(CompilationMode mode)
     [Test]
     public void LinqExtensions_StillWork_Aggregate()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("numbers", new List<int> { 1, 2, 3, 4 });
 
         var result = engine.Evaluate("numbers.Aggregate(0, (acc, x) => acc + x)");
@@ -85,7 +85,7 @@ public class OverloadResolutionTests(CompilationMode mode)
     [Test]
     public void LinqExtensions_StillWork_First()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("numbers", new List<int> { 5, 10, 15 });
 
         var result = engine.Evaluate("numbers.First()");
@@ -95,7 +95,7 @@ public class OverloadResolutionTests(CompilationMode mode)
     [Test]
     public void AmbiguousOverloads_Throws()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("ambig", new AmbiguousOverloads());
         var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("ambig.M(1, 1)"));
         Assert.That(ex!.Message, Does.Contain("Ambiguous"));
@@ -104,7 +104,7 @@ public class OverloadResolutionTests(CompilationMode mode)
     [Test]
     public void NamedArgument_CaseSensitive_MismatchThrows()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("named", new NamedCaseTarget());
         Assert.Throws<CsEvalException>(() => engine.Evaluate("named.M(VALUE: 1)"));
     }

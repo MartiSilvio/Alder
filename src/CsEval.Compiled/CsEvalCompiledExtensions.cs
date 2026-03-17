@@ -2,15 +2,16 @@ namespace CsEval.Compiled;
 
 public static class CsEvalCompiledExtensions
 {
-    public static CsEvalOptions UseCompiled(this CsEvalOptions options)
+    public static CsEvalOptions UseCompiler(this CsEvalOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
-        RegisterCompiledProvider();
-        return options;
+        return options with { Compiler = CompiledProvider.Instance };
     }
 
-    public static void RegisterCompiledProvider()
+    public static CsEvalOptions UseCompiler(this CsEvalOptions options, IExpressionCompiler expressionCompiler)
     {
-        CompiledProviderRegistration.Register();
+        ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(expressionCompiler);
+        return options with { Compiler = CompiledProvider.Instance, ExpressionCompiler = expressionCompiler };
     }
 }

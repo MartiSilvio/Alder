@@ -15,7 +15,7 @@ public sealed class EfCoreExpressionIntegrationTests(CompilationMode mode)
     [SetUp]
     public void SetUp()
     {
-        _engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        _engine = TestEngineFactory.Create(mode);
 
         _connection = new SqliteConnection("Data Source=:memory:");
         _connection.Open();

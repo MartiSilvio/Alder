@@ -9,10 +9,9 @@ public class EvaluationChaosTests(CompilationMode mode) : StressTestBase(mode)
     {
         var options = CsEvalOptions.Default with
         {
-            CompilationMode = Mode,
             Constraints = new ExecutionConstraints { MaxStatements = 1000 }
         };
-        var engine = new CsEvalEngine(options);
+        var engine = TestEngineFactory.Create(Mode, options);
 
         var expr = "{ var i = 0; while(true) { i++; } }";
 
@@ -24,10 +23,9 @@ public class EvaluationChaosTests(CompilationMode mode) : StressTestBase(mode)
     {
         var options = CsEvalOptions.Default with
         {
-            CompilationMode = Mode,
             Constraints = new ExecutionConstraints { MaxStatements = 5000 }
         };
-        var engine = new CsEvalEngine(options);
+        var engine = TestEngineFactory.Create(Mode, options);
 
         // O(N^3)
         const string expr = @"{
@@ -211,9 +209,8 @@ public class EvaluationChaosTests(CompilationMode mode) : StressTestBase(mode)
     public void SandboxBypass_Reflection_ShouldBeBlockedInSafeMode()
     {
         // Try to access System.Type or GetType()
-        var safeEngine = new CsEvalEngine(new CsEvalOptions
+        var safeEngine = TestEngineFactory.Create(Mode, new CsEvalOptions
         {
-            CompilationMode = Mode,
             Sandbox = SandboxOptions.Safe()  // Safe mode blocks method calls on variables?
         });
 

@@ -85,7 +85,7 @@ public class AotSafetyTests
     [Test]
     public void RegisteredType_MemberAccess_ReturnsExpectedValue()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = CompilationMode.Interpreted });
+        var engine = TestEngineFactory.Create(CompilationMode.Interpreted);
         engine.RegisterFromType<AotTestDto>();
         engine.SetVariable("dto", new AotTestDto(42, "hello"));
 
@@ -99,7 +99,7 @@ public class AotSafetyTests
     [Test]
     public void UnregisteredType_MemberAccess_SucceedsUnderJit()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = CompilationMode.Interpreted });
+        var engine = TestEngineFactory.Create(CompilationMode.Interpreted);
         engine.SetVariable("dto", new AotTestDto(7, "world"));
 
         var result = engine.Evaluate("dto.Value");

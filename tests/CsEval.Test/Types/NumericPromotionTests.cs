@@ -28,7 +28,7 @@ public class NumericPromotionTests(CompilationMode mode)
     {
         // Engine-only: Type object comparison (verifies result type is typeof(int))
         // ECMA-334 §12.4.7.2: ~(byte)5 promotes byte to int, then applies ~
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var result = engine.Evaluate("~(byte)5");
         var csharpResult = await TestHelpers.EvaluateCSharpAsync("~(byte)5");
 
@@ -42,7 +42,7 @@ public class NumericPromotionTests(CompilationMode mode)
     {
         // Engine-only: Type object comparison (verifies result type is typeof(int))
         // ECMA-334 §12.4.7.2: ~(char)'A' promotes char to int, then applies ~
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var result = engine.Evaluate("~(char)'A'");
         var csharpResult = await TestHelpers.EvaluateCSharpAsync("~(char)'A'");
 
@@ -56,7 +56,7 @@ public class NumericPromotionTests(CompilationMode mode)
     {
         // Engine-only: Type object comparison (verifies result type is typeof(int))
         // ECMA-334 §12.4.7.3 Rule 8: char + char -> int
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var result = engine.Evaluate("(char)'A' + (char)'B'");
         var csharpResult = await TestHelpers.EvaluateCSharpAsync("(char)'A' + (char)'B'");
 
@@ -70,7 +70,7 @@ public class NumericPromotionTests(CompilationMode mode)
     {
         // Engine-only: Type object comparison (verifies result type is typeof(long))
         // ECMA-334 §12.4.7.3 Rule 6: uint + short -> both promoted to long
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var result = engine.Evaluate("5U + (short)3");
         var csharpResult = await TestHelpers.EvaluateCSharpAsync("5U + (short)3");
 
@@ -84,7 +84,7 @@ public class NumericPromotionTests(CompilationMode mode)
     {
         // Engine-only: Type object comparison (verifies result type is typeof(int))
         // ECMA-334 §12.11: byte is promoted to int for shift operators
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var result = engine.Evaluate("(byte)5 << 2");
         var csharpResult = await TestHelpers.EvaluateCSharpAsync("(byte)5 << 2");
 

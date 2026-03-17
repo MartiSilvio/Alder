@@ -212,6 +212,75 @@ public sealed class CsEvalEngine : IDisposable
         return TryParse(expression, out result, out _);
     }
 
+    /// <summary>
+    /// Attempts to compile the expression to IL. Returns true if successful.
+    /// Requires a compiler to be configured via UseCompiler() on options.
+    /// </summary>
+    public bool TryCompile(CsEvalExpression expression)
+    {
+        ThrowIfDisposed();
+        if (_options.Compiler == null)
+            return false;
+
+        if (expression.CompiledInfo != null)
+            return expression.CompiledInfo.Delegate != null;
+
+        var context = GetOrCreateContext(null);
+        return TryCompileInternal(expression, context);
+    }
+
+    /// <summary>
+    /// Compiles the expression to IL. Throws if compilation fails or no compiler is configured.
+    /// </summary>
+    public void Compile(CsEvalExpression expression)
+    {
+        ThrowIfDisposed();
+        if (!TryCompile(expression))
+        {
+            var reason = expression.CompiledInfo?.FailureReason ?? "No compiler configured. Add CsEval.Compiled and call UseCompiler() on options.";
+            throw new CsEvalException(
+                DiagnosticDescriptors.StrictCompilationFailed,
+                $"Cannot compile expression '{expression.Source}': {reason}");
+        }
+    }
+
+    private bool TryCompileInternal(CsEvalExpression expression, CsEvalContext context)
+    {
+        var compiler = _options.Compiler!;
+
+        if (expression.CompiledInfo != null)
+            return expression.CompiledInfo.Delegate != null;
+
+        if (!expression.TryGetOrCreateBoundExpression(context, _options.MaxExpressionDepth, out var bound, out var failureReason) ||
+            bound == null)
+        {
+            expression.CompiledInfo = new CompiledExpressionInfo(null, false, failureReason ?? "Binding failed for expression.");
+            return false;
+        }
+
+        expression.CompiledInfo = compiler.TryCompile(bound, _options);
+        return expression.CompiledInfo.Delegate != null;
+    }
+
+    /// <summary>
+    /// Attempts to compile the expression using the AST path (no binding context needed).
+    /// Used when no context is available.
+    /// </summary>
+    internal bool TryCompileFromAst(CsEvalExpression expression)
+    {
+        var compiler = _options.Compiler;
+        if (compiler == null)
+            return false;
+
+        if (expression.CompiledInfo != null)
+            return expression.CompiledInfo.Delegate != null;
+
+        expression.CompiledInfo = expression._expressionCache != null
+            ? compiler.GetOrCompile(expression.Source, expression.Ast, expression._expressionCache, _options)
+            : compiler.TryCompile(expression.Ast, _options);
+        return expression.CompiledInfo.Delegate != null;
+    }
+
     public object? Evaluate(
         string expression,
         IDictionary<string, object?>? variables = null,
@@ -230,7 +299,7 @@ public sealed class CsEvalEngine : IDisposable
         CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();
-        if (_options.CompilationMode == CompilationMode.Compiled &&
+        if (_options.Compiler != null &&
             variables == null &&
             serviceProvider == null &&
             _options.Constraints == null &&
@@ -275,7 +344,7 @@ public sealed class CsEvalEngine : IDisposable
             executionContext.ConstraintState = state;
         }
 
-        if (_options.CompilationMode == CompilationMode.Compiled)
+        if (_options.Compiler != null)
         {
             var allowNoCancellationFastPath = constraints == null && !cancellationToken.CanBeCanceled;
             return ExecuteCompiledExpression(
@@ -389,7 +458,7 @@ public sealed class CsEvalEngine : IDisposable
         var compiled = expression.GetCompiledInfo();
         if (compiled == null)
         {
-            expression.TryCompile(_options, context);
+            TryCompileInternal(expression, context);
             compiled = expression.GetCompiledInfo();
         }
 
@@ -423,7 +492,7 @@ public sealed class CsEvalEngine : IDisposable
         var compiled = expression.GetCompiledInfo();
         if (compiled == null)
         {
-            expression.TryCompile(_options, compileContext);
+            TryCompileInternal(expression, compileContext);
             compiled = expression.GetCompiledInfo();
         }
 

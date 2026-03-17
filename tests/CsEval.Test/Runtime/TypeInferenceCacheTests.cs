@@ -6,7 +6,7 @@ public class TypeInferenceCacheTests
     [Test]
     public void Interpreted_TypeInferenceCache_Invalidates_WhenVariableStaticTypeChanges()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = CompilationMode.Interpreted });
+        var engine = TestEngineFactory.Create(CompilationMode.Interpreted);
         var expression = engine.Parse("(long)x");
 
         engine.SetVariable<int>("x", 42);

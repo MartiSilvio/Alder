@@ -8,7 +8,7 @@ public class ExecutionModeTests
     [Test]
     public void InterpretedMode_DoesNotExecute_PrecompiledDelegate()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = CompilationMode.Interpreted });
+        var engine = TestEngineFactory.Create(CompilationMode.Interpreted);
         var expression = engine.Parse("1 + 1");
 
         var fakeCompiled = new CompiledExpressionInfo(
@@ -16,7 +16,7 @@ public class ExecutionModeTests
             IsCompilable: true,
             FailureReason: null);
 
-        var field = typeof(CsEvalExpression).GetField("_compiledInfo", BindingFlags.Instance | BindingFlags.NonPublic);
+        var field = typeof(CsEvalExpression).GetField("CompiledInfo", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
         Assert.That(field, Is.Not.Null);
         field!.SetValue(expression, fakeCompiled);
 

@@ -14,7 +14,7 @@ public class CollectionTests(CompilationMode mode)
     [Test]
     public void Eval_ArrayLiteral_CRLF()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode, LanguageMode = LanguageMode.Extended });
+        var engine = TestEngineFactory.Create(mode, CsEvalOptions.Default with { LanguageMode = LanguageMode.Extended });
         var result = engine.Evaluate("[\r\n    \"one\"\r\n]");
         Assert.That(result, Is.TypeOf<string[]>());
         var list = (IList)result!;
@@ -30,7 +30,7 @@ public class CollectionTests(CompilationMode mode)
     [Test]
     public void Eval_AnonymousObject()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode, LanguageMode = LanguageMode.Extended });
+        var engine = TestEngineFactory.Create(mode, CsEvalOptions.Default with { LanguageMode = LanguageMode.Extended });
         var result = engine.Evaluate("new { Name = \"John\", Age = 30 }") as IDictionary<string, object?>;
         Assert.That(result, Is.Not.Null);
         Assert.That(result!["Name"], Is.EqualTo("John"));
@@ -40,10 +40,8 @@ public class CollectionTests(CompilationMode mode)
     [Test]
     public void Eval_Comprehension_WithFilter_Works()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with
-        {
-            CompilationMode = mode,
-            LanguageMode = LanguageMode.Extended
+        var engine = TestEngineFactory.Create(mode, CsEvalOptions.Default with {
+                        LanguageMode = LanguageMode.Extended
         });
 
         var result = engine.Evaluate("[x * x for x in 1..=10 if x % 2 == 0]");

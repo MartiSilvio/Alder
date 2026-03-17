@@ -8,7 +8,6 @@ public class EcmaSectionParitySmokeTests(CompilationMode mode)
 {
     private CsEvalOptions Options => CsEvalOptions.Default with
     {
-        CompilationMode = mode,
         LanguageMode = LanguageMode.Standard
     };
 
@@ -83,7 +82,7 @@ public class EcmaSectionParitySmokeTests(CompilationMode mode)
 
     private async Task AssertParityAsync(string expression)
     {
-        var engine = new CsEvalEngine(Options);
+        var engine = TestEngineFactory.Create(mode, Options);
         var csEvalResult = engine.Evaluate(expression);
         var roslynResult = await TestHelpers.EvaluateCSharpAsync(expression);
 

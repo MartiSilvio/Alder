@@ -15,7 +15,7 @@ public class ControlFlowTests(CompilationMode mode)
     [Test]
     public void Eval_Ternary_WithExpression()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("x", 10L);
         Assert.That(engine.Evaluate("x > 5 ? \"big\" : \"small\""), Is.EqualTo("big"));
     }
@@ -24,7 +24,7 @@ public class ControlFlowTests(CompilationMode mode)
     [Test]
     public void Eval_IfStatement_NullCheck_Pattern()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode, LanguageMode = LanguageMode.Extended });
+        var engine = TestEngineFactory.Create(mode, CsEvalOptions.Default with { LanguageMode = LanguageMode.Extended });
         engine.SetVariable("person", new TestPerson { Name = "John", Age = 30 });
 
         var result = engine.Evaluate(@"{
@@ -41,7 +41,7 @@ public class ControlFlowTests(CompilationMode mode)
     [Test]
     public void Eval_IfExpression_ReturnsBranchValue()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode, LanguageMode = LanguageMode.Extended });
+        var engine = TestEngineFactory.Create(mode, CsEvalOptions.Default with { LanguageMode = LanguageMode.Extended });
         engine.SetVariable("x", -5);
 
         var result = engine.Evaluate("if (x > 0) x else -x");

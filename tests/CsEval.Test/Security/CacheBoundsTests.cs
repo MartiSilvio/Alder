@@ -95,10 +95,7 @@ public class CacheBoundsTests
     public void ExpressionCache_IntegrationWithEngine()
     {
         // Verify the cache works through the full engine pipeline
-        var engine = new CsEvalEngine(CsEvalOptions.Default with
-        {
-            CompilationMode = CompilationMode.Compiled
-        });
+        var engine = new CsEvalEngine(CsEvalOptions.Default.UseCompiler());
 
         // Evaluate same expression twice -- second should use cache
         var result1 = engine.Evaluate("1 + 2");

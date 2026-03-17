@@ -29,7 +29,6 @@ foreach (var file in files)
     {
         var engine = new CsEvalEngine(CsEvalOptions.Default with
         {
-            CompilationMode = CompilationMode.Interpreted,
             LanguageMode = LanguageMode.Extended,
             Constraints = new ExecutionConstraints { MaxStatements = 100_000 }
         });

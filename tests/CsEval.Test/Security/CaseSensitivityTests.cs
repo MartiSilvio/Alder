@@ -7,10 +7,8 @@ public class CaseSensitivityTests(CompilationMode mode)
     [Test]
     public void CaseSensitive_CorrectCase_MethodCallSucceeds()
     {
-        var engine = new CsEvalEngine(new CsEvalOptions
-        {
-            CompilationMode = mode,
-            IsCaseSensitive = true,
+        var engine = TestEngineFactory.Create(mode, new CsEvalOptions {
+                        IsCaseSensitive = true,
             Sandbox = SandboxOptions.Trusted()
         });
         engine.SetVariable("text", "hello");
@@ -23,10 +21,8 @@ public class CaseSensitivityTests(CompilationMode mode)
     [Test]
     public void CaseSensitive_WrongCase_MethodCallFails()
     {
-        var engine = new CsEvalEngine(new CsEvalOptions
-        {
-            CompilationMode = mode,
-            IsCaseSensitive = true,
+        var engine = TestEngineFactory.Create(mode, new CsEvalOptions {
+                        IsCaseSensitive = true,
             Sandbox = SandboxOptions.Trusted()
         });
         engine.SetVariable("text", "hello");
@@ -39,10 +35,8 @@ public class CaseSensitivityTests(CompilationMode mode)
     [Test]
     public void CaseInsensitive_WrongCase_MethodCallSucceeds()
     {
-        var engine = new CsEvalEngine(new CsEvalOptions
-        {
-            CompilationMode = mode,
-            IsCaseSensitive = false,
+        var engine = TestEngineFactory.Create(mode, new CsEvalOptions {
+                        IsCaseSensitive = false,
             Sandbox = SandboxOptions.Trusted()
         });
         engine.SetVariable("text", "hello");
@@ -55,10 +49,8 @@ public class CaseSensitivityTests(CompilationMode mode)
     [Test]
     public void CaseSensitive_CorrectCase_PropertyReadSucceeds()
     {
-        var engine = new CsEvalEngine(new CsEvalOptions
-        {
-            CompilationMode = mode,
-            IsCaseSensitive = true,
+        var engine = TestEngineFactory.Create(mode, new CsEvalOptions {
+                        IsCaseSensitive = true,
             Sandbox = SandboxOptions.Trusted()
         });
         engine.SetVariable("text", "hello");
@@ -71,10 +63,8 @@ public class CaseSensitivityTests(CompilationMode mode)
     [Test]
     public void CaseSensitive_WrongCase_PropertyReadDoesNotResolve()
     {
-        var engine = new CsEvalEngine(new CsEvalOptions
-        {
-            CompilationMode = mode,
-            IsCaseSensitive = true,
+        var engine = TestEngineFactory.Create(mode, new CsEvalOptions {
+                        IsCaseSensitive = true,
             Sandbox = SandboxOptions.Trusted()
         });
         engine.SetVariable("text", "hello");
@@ -90,10 +80,8 @@ public class CaseSensitivityTests(CompilationMode mode)
     [Test]
     public void CaseInsensitive_WrongCase_PropertyReadSucceeds()
     {
-        var engine = new CsEvalEngine(new CsEvalOptions
-        {
-            CompilationMode = mode,
-            IsCaseSensitive = false,
+        var engine = TestEngineFactory.Create(mode, new CsEvalOptions {
+                        IsCaseSensitive = false,
             Sandbox = SandboxOptions.Trusted()
         });
         engine.SetVariable("text", "hello");
@@ -106,10 +94,8 @@ public class CaseSensitivityTests(CompilationMode mode)
     [Test]
     public void CaseSensitive_StaticMethod_CorrectCase()
     {
-        var engine = new CsEvalEngine(new CsEvalOptions
-        {
-            CompilationMode = mode,
-            IsCaseSensitive = true,
+        var engine = TestEngineFactory.Create(mode, new CsEvalOptions {
+                        IsCaseSensitive = true,
             Sandbox = SandboxOptions.Trusted()
         });
 

@@ -54,7 +54,7 @@ public class CompiledHotPathRegressionTests(CompilationMode mode)
     [Test]
     public void TypeNameIdentifier_ResolvesInCompiledPath()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var result = engine.Evaluate("Math.Abs(-5)");
         Assert.That(result, Is.EqualTo(5));
     }
@@ -62,7 +62,7 @@ public class CompiledHotPathRegressionTests(CompilationMode mode)
     [Test]
     public void LogicalOperator_WithNonBooleanOperand_ThrowsCs0019()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("1 && 1"));
         Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0019));
     }
@@ -70,7 +70,7 @@ public class CompiledHotPathRegressionTests(CompilationMode mode)
     [Test]
     public void LocalVariableTypeFlow_AssignmentThenArithmetic_RemainsValid()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var result = engine.Evaluate("{ var x = 1; x = 2L; return x + 1; }");
         Assert.That(Convert.ToInt64(result), Is.EqualTo(3));
     }
@@ -78,7 +78,7 @@ public class CompiledHotPathRegressionTests(CompilationMode mode)
     [Test]
     public void TypedIdentifierFastPath_DoesNotBypassFunctionShadowing()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable<int>("x", 5);
         engine.RegisterFunction("x", _ => 123);
 
@@ -89,7 +89,7 @@ public class CompiledHotPathRegressionTests(CompilationMode mode)
     [Test]
     public void TypedIdentifierFastPath_DoesNotBypassModuleShadowing()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable<int>("Math", 5);
 
         var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("Math + 1"));
@@ -99,7 +99,7 @@ public class CompiledHotPathRegressionTests(CompilationMode mode)
     [Test]
     public void StaticModuleCallFastPath_DoesNotBypassFunctionShadowing()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.RegisterFunction("Math", _ => 123);
 
         Assert.Throws<CsEvalException>(() => engine.Evaluate("Math.Abs(-5)"));
@@ -108,10 +108,8 @@ public class CompiledHotPathRegressionTests(CompilationMode mode)
     [Test]
     public void TypedIdentifierFastPath_RespectsCaseInsensitiveLookup()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with
-        {
-            CompilationMode = mode,
-            IsCaseSensitive = false
+        var engine = TestEngineFactory.Create(mode, CsEvalOptions.Default with {
+                        IsCaseSensitive = false
         });
         engine.SetVariable<int>("Value", 41);
 
@@ -122,7 +120,7 @@ public class CompiledHotPathRegressionTests(CompilationMode mode)
     [Test]
     public void CompiledHotPath_NoCancellationInvoker_SeesUpdatedVariables()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable<int>("x", 1);
         var expression = engine.Parse("x + 1");
 
@@ -135,7 +133,7 @@ public class CompiledHotPathRegressionTests(CompilationMode mode)
     [Test]
     public void CompiledHotPath_NoCancellationInvoker_SwitchesAcrossExpressionsSafely()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable<int>("x", 2);
         engine.SetVariable<int>("y", 3);
 
@@ -156,7 +154,7 @@ public class CompiledHotPathRegressionTests(CompilationMode mode)
     [Test]
     public void MathMix_CompiledPath_AvoidsRuntimeCallDispatchAllocations()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable<int>("x", 11);
         engine.SetVariable<int>("y", 7);
         engine.SetVariable<int>("z", 9);
@@ -184,10 +182,8 @@ public class CompiledHotPathRegressionTests(CompilationMode mode)
     public void MathMix_CompiledPath_DoesNotUseRuntimeMethodDispatch()
     {
         var capturingCompiler = new CapturingExpressionCompiler();
-        var engine = new CsEvalEngine(CsEvalOptions.Default with
-        {
-            CompilationMode = mode,
-            ExpressionCompiler = capturingCompiler
+        var engine = TestEngineFactory.Create(mode, CsEvalOptions.Default with {
+                        ExpressionCompiler = capturingCompiler
         });
 
         engine.SetVariable<int>("x", 11);
@@ -216,10 +212,8 @@ public class CompiledHotPathRegressionTests(CompilationMode mode)
     public void SmallBranching_CompiledPath_DoesNotUseRuntimeNumericOperators()
     {
         var capturingCompiler = new CapturingExpressionCompiler();
-        var engine = new CsEvalEngine(CsEvalOptions.Default with
-        {
-            CompilationMode = mode,
-            ExpressionCompiler = capturingCompiler
+        var engine = TestEngineFactory.Create(mode, CsEvalOptions.Default with {
+                        ExpressionCompiler = capturingCompiler
         });
 
         engine.SetVariable<int>("x", 11);
@@ -268,10 +262,8 @@ public class CompiledHotPathRegressionTests(CompilationMode mode)
     public void PureReadOnlyExpression_UsesLazyTypedIdentifierCacheSlots()
     {
         var capturingCompiler = new CapturingExpressionCompiler();
-        var engine = new CsEvalEngine(CsEvalOptions.Default with
-        {
-            CompilationMode = mode,
-            ExpressionCompiler = capturingCompiler
+        var engine = TestEngineFactory.Create(mode, CsEvalOptions.Default with {
+                        ExpressionCompiler = capturingCompiler
         });
 
         engine.SetVariable<int>("x", 10);
@@ -293,7 +285,7 @@ public class CompiledHotPathRegressionTests(CompilationMode mode)
     [Test]
     public void LazyTypedIdentifierCache_PreservesLogicalShortCircuit()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var result = engine.Evaluate("true || (missingVariable > 0)");
         Assert.That(result, Is.EqualTo(true));
     }
@@ -301,7 +293,7 @@ public class CompiledHotPathRegressionTests(CompilationMode mode)
     [Test]
     public void LazyTypedIdentifierCache_DoesNotCrossSideEffectingCalls()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable<int>("x", 1);
         engine.RegisterFunction("bump", _ =>
         {
@@ -318,10 +310,8 @@ public class CompiledHotPathRegressionTests(CompilationMode mode)
     public void ObjectGraphChain_CompiledPath_DoesNotUseRuntimeMemberDispatch()
     {
         var capturingCompiler = new CapturingExpressionCompiler();
-        var engine = new CsEvalEngine(CsEvalOptions.Default with
-        {
-            CompilationMode = mode,
-            ExpressionCompiler = capturingCompiler
+        var engine = TestEngineFactory.Create(mode, CsEvalOptions.Default with {
+                        ExpressionCompiler = capturingCompiler
         });
 
         engine.SetVariable<List<OrderRow>>("orders", new List<OrderRow>
@@ -353,10 +343,8 @@ public class CompiledHotPathRegressionTests(CompilationMode mode)
     public void ObjectGraphChain_CompiledPath_ElidesReflectionGuard_ForSealedSafeTypes()
     {
         var capturingCompiler = new CapturingExpressionCompiler();
-        var engine = new CsEvalEngine(CsEvalOptions.Default with
-        {
-            CompilationMode = mode,
-            ExpressionCompiler = capturingCompiler
+        var engine = TestEngineFactory.Create(mode, CsEvalOptions.Default with {
+                        ExpressionCompiler = capturingCompiler
         });
 
         engine.SetVariable<List<OrderRow>>("orders", new List<OrderRow>
@@ -387,10 +375,8 @@ public class CompiledHotPathRegressionTests(CompilationMode mode)
     public void ObjectGraphChain_CompiledPath_UsesLiteralIndexFastPath_InStandardMode()
     {
         var capturingCompiler = new CapturingExpressionCompiler();
-        var engine = new CsEvalEngine(CsEvalOptions.Default with
-        {
-            CompilationMode = mode,
-            ExpressionCompiler = capturingCompiler
+        var engine = TestEngineFactory.Create(mode, CsEvalOptions.Default with {
+                        ExpressionCompiler = capturingCompiler
         });
 
         engine.SetVariable<List<OrderRow>>("orders", new List<OrderRow>
@@ -419,10 +405,8 @@ public class CompiledHotPathRegressionTests(CompilationMode mode)
     public void StringChain_CompiledPath_DoesNotUseRuntimeMethodDispatch()
     {
         var capturingCompiler = new CapturingExpressionCompiler();
-        var engine = new CsEvalEngine(CsEvalOptions.Default with
-        {
-            CompilationMode = mode,
-            ExpressionCompiler = capturingCompiler
+        var engine = TestEngineFactory.Create(mode, CsEvalOptions.Default with {
+                        ExpressionCompiler = capturingCompiler
         });
 
         engine.SetVariable<string>("text", "alpha");
@@ -449,10 +433,8 @@ public class CompiledHotPathRegressionTests(CompilationMode mode)
     public void StringChain_CompiledPath_ElidesReflectionGuard_ForStringSegments()
     {
         var capturingCompiler = new CapturingExpressionCompiler();
-        var engine = new CsEvalEngine(CsEvalOptions.Default with
-        {
-            CompilationMode = mode,
-            ExpressionCompiler = capturingCompiler
+        var engine = TestEngineFactory.Create(mode, CsEvalOptions.Default with {
+                        ExpressionCompiler = capturingCompiler
         });
 
         engine.SetVariable<string>("text", "alpha");
@@ -477,7 +459,7 @@ public class CompiledHotPathRegressionTests(CompilationMode mode)
     [Test]
     public void ObjectGraphAccess_CompiledPath_AvoidsRuntimeDispatchAllocations()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable<List<OrderRow>>("orders", new List<OrderRow>
         {
             new(5),
@@ -505,7 +487,7 @@ public class CompiledHotPathRegressionTests(CompilationMode mode)
     [Test]
     public void StringChain_CompiledPath_AvoidsRuntimeDispatchAllocations()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable<string>("text", "alpha");
         var expression = engine.Parse("text.Trim().ToUpper().Length");
 

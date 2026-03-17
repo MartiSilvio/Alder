@@ -17,7 +17,7 @@ public class NumericTests(CompilationMode mode)
     public void IntPlusFloat_ReturnsFloat()
     {
         // Engine-only: uses .Within() float tolerance assertion
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("x", 10);
         engine.SetVariable("y", 5.5f);
         var result = engine.Evaluate("x + y");
@@ -29,7 +29,7 @@ public class NumericTests(CompilationMode mode)
     public void FloatPlusDouble_ReturnsDouble()
     {
         // Engine-only: uses .Within() float tolerance assertion
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("x", 10.5f);
         engine.SetVariable("y", 5.25d);
         var result = engine.Evaluate("x + y");
@@ -41,7 +41,7 @@ public class NumericTests(CompilationMode mode)
     public void Double_DivisionMultiplication_OneThird()
     {
         // Engine-only: uses .Within() float tolerance assertion
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("x", 1.0 / 3.0);
         var result = engine.Evaluate("x * 3");
         Assert.That((double)result!, Is.EqualTo(1.0).Within(1e-15));
@@ -51,7 +51,7 @@ public class NumericTests(CompilationMode mode)
     public void Decimal_DivisionMultiplication_OneThird()
     {
         // Engine-only: uses .Within() decimal tolerance assertion
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("third", 1.0m / 3.0m);
         var result = engine.Evaluate("third * 3");
         Assert.That(result, Is.TypeOf<decimal>());
@@ -62,7 +62,7 @@ public class NumericTests(CompilationMode mode)
     public void Double_FinancialCalculation_MayHaveError()
     {
         // Engine-only: uses .Within() float tolerance assertion
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("principal", 10000.00d);
         engine.SetVariable("rate", 0.0525d);
         var result = engine.Evaluate("principal * rate");
@@ -74,7 +74,7 @@ public class NumericTests(CompilationMode mode)
     public void Double_LosesPrecisionAt17Digits()
     {
         // Engine-only: tests precision behavior, no exact expected value
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("x", 12345678901234567.0);
         engine.SetVariable("y", 1.0);
         var result = engine.Evaluate("x + y");
@@ -85,7 +85,7 @@ public class NumericTests(CompilationMode mode)
     public void DecimalPrecision_PreservedHighPrecisionValue()
     {
         // Engine-only: uses SetVariable with high-precision decimal
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("x", 1.1234567890123456789m);
         engine.SetVariable("y", 1.0m);
         var result = engine.Evaluate("x + y");
@@ -97,7 +97,7 @@ public class NumericTests(CompilationMode mode)
     public void DecimalPrecision_NotLostToDouble()
     {
         // Engine-only: uses SetVariable with high-precision decimal
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var preciseValue = 12345678901234567890.12345678m;
         engine.SetVariable("x", preciseValue);
         engine.SetVariable("y", 0m);
@@ -114,7 +114,7 @@ public class NumericTests(CompilationMode mode)
     public void FloatPlusDecimal_Throws()
     {
         // Engine-only: tests exception throwing behavior
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("x", 10.5f);
         engine.SetVariable("y", 5.25m);
         Assert.That(() => engine.Evaluate("x + y"), Throws.TypeOf<CsEvalException>());
@@ -124,7 +124,7 @@ public class NumericTests(CompilationMode mode)
     public void DoublePlusDecimal_Throws()
     {
         // Engine-only: tests exception throwing behavior
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("x", 10.5d);
         engine.SetVariable("y", 5.25m);
         Assert.That(() => engine.Evaluate("x + y"), Throws.TypeOf<CsEvalException>());
@@ -138,7 +138,7 @@ public class NumericTests(CompilationMode mode)
     public void Double_CompoundingError_RepeatedAddition()
     {
         // Engine-only: multi-step iterative engine state (repeated SetVariable in loop)
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("sum", 0.0);
         for (int i = 0; i < 10; i++)
         {
@@ -154,7 +154,7 @@ public class NumericTests(CompilationMode mode)
     public void Decimal_NoCompoundingError_RepeatedAddition()
     {
         // Engine-only: multi-step iterative engine state (repeated SetVariable in loop)
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("sum", 0.0m);
         for (int i = 0; i < 10; i++)
         {
@@ -174,7 +174,7 @@ public class NumericTests(CompilationMode mode)
     public void Contains_IntListWithLongLiteral_Works()
     {
         // Engine-only: SetVariable with List<object?> (non-serializable for Roslyn)
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("numbers", new List<object?> { 1, 2, 3 });
         var result = engine.Evaluate("numbers.Contains(2)");
         Assert.That(result, Is.True);
@@ -184,7 +184,7 @@ public class NumericTests(CompilationMode mode)
     public void Contains_LongListWithIntVariable_MatchesCSharpSemantics()
     {
         // Engine-only: SetVariable with List<object?> (non-serializable for Roslyn)
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("numbers", new List<object?> { 1L, 2L, 3L });
         engine.SetVariable("search", 2);
         var result = engine.Evaluate("numbers.Contains(search)");
@@ -195,7 +195,7 @@ public class NumericTests(CompilationMode mode)
     public void Contains_DoubleListWithDoubleLiteral_Works()
     {
         // Engine-only: SetVariable with List<object?> (non-serializable for Roslyn)
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("numbers", new List<object?> { 1.5, 2.5, 3.5 });
         var result = engine.Evaluate("numbers.Contains(2.5)");
         Assert.That(result, Is.True);
@@ -205,7 +205,7 @@ public class NumericTests(CompilationMode mode)
     public void Contains_DecimalListWithDoubleLiteral_MatchesCSharpSemantics()
     {
         // Engine-only: SetVariable with List<object?> (non-serializable for Roslyn)
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("numbers", new List<object?> { 1.5m, 2.5m, 3.5m });
         var result = engine.Evaluate("numbers.Contains(2.5)");
         Assert.That(result, Is.False);
@@ -215,7 +215,7 @@ public class NumericTests(CompilationMode mode)
     public void Contains_MixedNumericTypes_MatchesCSharpSemantics()
     {
         // Engine-only: SetVariable with List<object?> (non-serializable for Roslyn)
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("numbers", new List<object?> { 1, 2L, 3.0, 4.0f });
         Assert.That(engine.Evaluate("numbers.Contains(1)"), Is.True);
         Assert.That(engine.Evaluate("numbers.Contains(2)"), Is.False);
@@ -235,7 +235,7 @@ public class NumericTests(CompilationMode mode)
     public void VariableShadowing_InNestedBlock_ShouldThrow()
     {
         // Engine-only: tests CsEvalException error behavior
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         Assert.Throws<CsEvalException>(() => engine.Evaluate(@"
         {
             var x = 1;
@@ -250,7 +250,7 @@ public class NumericTests(CompilationMode mode)
     public void VariableScope_InNestedBlock_ShouldBeIsolated()
     {
         // Engine-only: tests CsEvalException error behavior
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         Assert.Throws<CsEvalException>(() => engine.Evaluate(@"
         {
             {
@@ -275,7 +275,7 @@ public class NumericTests(CompilationMode mode)
     public async Task NumericPromotion_ResultType(string expr, Type expectedType)
     {
         // Engine-only: TestCase attribute cannot carry System.Type in TestCaseData
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var result = engine.Evaluate(expr);
         var csharpResult = await TestHelpers.EvaluateCSharpAsync(expr);
 

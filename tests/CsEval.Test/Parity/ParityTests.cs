@@ -10,12 +10,11 @@ public class ParityTests(CompilationMode mode)
 {
     private static readonly Regex RoslynCodeRegex = new(@"\bCS\d{4}\b", RegexOptions.Compiled);
 
-    private CsEvalOptions Options => CsEvalOptions.Default with
+    private CsEvalEngine CreateEngine() => TestEngineFactory.Create(mode, CsEvalOptions.Default with
     {
-        CompilationMode = mode,
         Constraints = new ExecutionConstraints { MaxStatements = 1_000_000 },
         LanguageMode = LanguageMode.Extended
-    };
+    });
 
     [TestCaseSource(nameof(DiscoverExpressions), ["TestData/ValidExpressions"])]
     public async Task ValidExpressionsShouldPass(string csxPath)
@@ -52,7 +51,7 @@ public class ParityTests(CompilationMode mode)
         try
         {
             var csharpResult = await TestHelpers.EvaluateCSharpAsync(roslynExpr);
-            var engine = new CsEvalEngine(Options);
+            var engine = CreateEngine();
             var expression = engine.Parse(csEvalExpr);
             var result = engine.Evaluate(expression);
             AssertNoFallbackInCompiledMode(expression, csEvalExpr);
@@ -97,7 +96,7 @@ public class ParityTests(CompilationMode mode)
         }
 
         // Capture CsEval error
-        var engine = new CsEvalEngine(Options);
+        var engine = CreateEngine();
         var csEvalEx = Assert.Catch<Exception>(() => engine.Evaluate(expr));
         Assert.That(csEvalEx, Is.Not.Null, "CsEval should throw for invalid expression parity.");
 

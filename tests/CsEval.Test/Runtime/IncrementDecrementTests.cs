@@ -13,7 +13,7 @@ public class IncrementDecrementTests(CompilationMode mode)
     [Test]
     public void IncrementDecrement_PreParsed_CanBeReused()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var expr = engine.Parse(@"
         {
             var x = startVal;

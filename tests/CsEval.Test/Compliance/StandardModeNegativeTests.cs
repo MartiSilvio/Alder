@@ -12,13 +12,11 @@ public class StandardModeNegativeTests(CompilationMode mode)
 {
     private CsEvalOptions StandardOptions => CsEvalOptions.Default with
     {
-        CompilationMode = mode,
         LanguageMode = LanguageMode.Standard
     };
 
     private CsEvalOptions ExtendedOptions => CsEvalOptions.Default with
     {
-        CompilationMode = mode,
         LanguageMode = LanguageMode.Extended
     };
 
@@ -29,7 +27,7 @@ public class StandardModeNegativeTests(CompilationMode mode)
     [Test]
     public void StandardMode_RejectsCollectionExpression()
     {
-        var engine = new CsEvalEngine(StandardOptions);
+        var engine = TestEngineFactory.Create(mode, StandardOptions);
         var ex = Assert.Throws<CsEvalLanguageModeException>(
             () => engine.Evaluate("[1, 2, 3]"));
         Assert.That(ex!.FeatureName, Is.EqualTo("[...]"));
@@ -38,7 +36,7 @@ public class StandardModeNegativeTests(CompilationMode mode)
     [Test]
     public void ExtendedMode_AcceptsCollectionExpression()
     {
-        var engine = new CsEvalEngine(ExtendedOptions);
+        var engine = TestEngineFactory.Create(mode, ExtendedOptions);
         var result = engine.Evaluate("[1, 2, 3]");
         Assert.That(result, Is.TypeOf<int[]>());
     }
@@ -50,7 +48,7 @@ public class StandardModeNegativeTests(CompilationMode mode)
     {
         // The [...] gate fires first, so spread-in-array is covered by collection expression rejection.
         // Verify the gate fires for a spread expression too.
-        var engine = new CsEvalEngine(StandardOptions);
+        var engine = TestEngineFactory.Create(mode, StandardOptions);
         var ex = Assert.Throws<CsEvalLanguageModeException>(
             () => engine.Evaluate("[..new int[] { 1, 2 }]"));
         Assert.That(ex!.FeatureName, Is.EqualTo("[...]"));
@@ -59,7 +57,7 @@ public class StandardModeNegativeTests(CompilationMode mode)
     [Test]
     public void ExtendedMode_AcceptsSpreadInArray()
     {
-        var engine = new CsEvalEngine(ExtendedOptions);
+        var engine = TestEngineFactory.Create(mode, ExtendedOptions);
         engine.SetVariable("arr", new List<int> { 1, 2, 3 });
         var result = engine.Evaluate("[..arr]");
         Assert.That(result, Is.TypeOf<int[]>());
@@ -71,7 +69,7 @@ public class StandardModeNegativeTests(CompilationMode mode)
     [Test]
     public void StandardMode_RejectsSpreadInObject()
     {
-        var engine = new CsEvalEngine(StandardOptions);
+        var engine = TestEngineFactory.Create(mode, StandardOptions);
         IDictionary<string, object?> obj = new ExpandoObject();
         obj["A"] = 1;
         engine.SetVariable("obj", obj);
@@ -83,7 +81,7 @@ public class StandardModeNegativeTests(CompilationMode mode)
     [Test]
     public void ExtendedMode_AcceptsSpreadInObject()
     {
-        var engine = new CsEvalEngine(ExtendedOptions);
+        var engine = TestEngineFactory.Create(mode, ExtendedOptions);
         IDictionary<string, object?> obj = new ExpandoObject();
         obj["A"] = 1;
         engine.SetVariable("obj", obj);
@@ -97,7 +95,7 @@ public class StandardModeNegativeTests(CompilationMode mode)
     [Test]
     public void StandardMode_RejectsStrictEquality()
     {
-        var engine = new CsEvalEngine(StandardOptions);
+        var engine = TestEngineFactory.Create(mode, StandardOptions);
         var ex = Assert.Throws<CsEvalLanguageModeException>(
             () => engine.Evaluate("1 === 1"));
         Assert.That(ex!.FeatureName, Is.EqualTo("==="));
@@ -106,7 +104,7 @@ public class StandardModeNegativeTests(CompilationMode mode)
     [Test]
     public void ExtendedMode_AcceptsStrictEquality()
     {
-        var engine = new CsEvalEngine(ExtendedOptions);
+        var engine = TestEngineFactory.Create(mode, ExtendedOptions);
         Assert.That(engine.Evaluate("1 === 1"), Is.True);
     }
 
@@ -115,7 +113,7 @@ public class StandardModeNegativeTests(CompilationMode mode)
     [Test]
     public void StandardMode_RejectsStrictInequality()
     {
-        var engine = new CsEvalEngine(StandardOptions);
+        var engine = TestEngineFactory.Create(mode, StandardOptions);
         var ex = Assert.Throws<CsEvalLanguageModeException>(
             () => engine.Evaluate("1 !== 2"));
         Assert.That(ex!.FeatureName, Is.EqualTo("!=="));
@@ -124,7 +122,7 @@ public class StandardModeNegativeTests(CompilationMode mode)
     [Test]
     public void ExtendedMode_AcceptsStrictInequality()
     {
-        var engine = new CsEvalEngine(ExtendedOptions);
+        var engine = TestEngineFactory.Create(mode, ExtendedOptions);
         Assert.That(engine.Evaluate("1 !== 2"), Is.True);
     }
 
@@ -133,7 +131,7 @@ public class StandardModeNegativeTests(CompilationMode mode)
     [Test]
     public void StandardMode_RejectsPowerOperator()
     {
-        var engine = new CsEvalEngine(StandardOptions);
+        var engine = TestEngineFactory.Create(mode, StandardOptions);
         var ex = Assert.Throws<CsEvalLanguageModeException>(
             () => engine.Evaluate("2 ** 3"));
         Assert.That(ex!.FeatureName, Is.EqualTo("**"));
@@ -142,7 +140,7 @@ public class StandardModeNegativeTests(CompilationMode mode)
     [Test]
     public void ExtendedMode_AcceptsPowerOperator()
     {
-        var engine = new CsEvalEngine(ExtendedOptions);
+        var engine = TestEngineFactory.Create(mode, ExtendedOptions);
         Assert.That(engine.Evaluate("2 ** 3"), Is.EqualTo(8.0));
     }
 
@@ -151,7 +149,7 @@ public class StandardModeNegativeTests(CompilationMode mode)
     [Test]
     public void StandardMode_RejectsCompoundPower()
     {
-        var engine = new CsEvalEngine(StandardOptions);
+        var engine = TestEngineFactory.Create(mode, StandardOptions);
         var ex = Assert.Throws<CsEvalLanguageModeException>(
             () => engine.Evaluate("{ var x = 2; x **= 3; return x; }"));
         Assert.That(ex!.FeatureName, Is.EqualTo("**="));
@@ -160,7 +158,7 @@ public class StandardModeNegativeTests(CompilationMode mode)
     [Test]
     public void ExtendedMode_AcceptsCompoundPower()
     {
-        var engine = new CsEvalEngine(ExtendedOptions);
+        var engine = TestEngineFactory.Create(mode, ExtendedOptions);
         Assert.That(engine.Evaluate("{ var x = 2.0; x **= 3; return x; }"), Is.EqualTo(8.0));
     }
 
@@ -169,7 +167,7 @@ public class StandardModeNegativeTests(CompilationMode mode)
     [Test]
     public void StandardMode_RejectsBetweenOperator()
     {
-        var engine = new CsEvalEngine(StandardOptions);
+        var engine = TestEngineFactory.Create(mode, StandardOptions);
         var ex = Assert.Throws<CsEvalLanguageModeException>(
             () => engine.Evaluate("5 between 1 and 10"));
         Assert.That(ex!.FeatureName, Is.EqualTo("between"));
@@ -178,7 +176,7 @@ public class StandardModeNegativeTests(CompilationMode mode)
     [Test]
     public void ExtendedMode_AcceptsBetweenOperator()
     {
-        var engine = new CsEvalEngine(ExtendedOptions);
+        var engine = TestEngineFactory.Create(mode, ExtendedOptions);
         Assert.That(engine.Evaluate("5 between 1 and 10"), Is.True);
     }
 
@@ -187,7 +185,7 @@ public class StandardModeNegativeTests(CompilationMode mode)
     [Test]
     public void StandardMode_RejectsInOperator()
     {
-        var engine = new CsEvalEngine(StandardOptions);
+        var engine = TestEngineFactory.Create(mode, StandardOptions);
         engine.SetVariable("arr", new int[] { 1, 2, 3, 4, 5 });
         var ex = Assert.Throws<CsEvalLanguageModeException>(
             () => engine.Evaluate("3 in arr"));
@@ -197,7 +195,7 @@ public class StandardModeNegativeTests(CompilationMode mode)
     [Test]
     public void ExtendedMode_AcceptsInOperator()
     {
-        var engine = new CsEvalEngine(ExtendedOptions);
+        var engine = TestEngineFactory.Create(mode, ExtendedOptions);
         engine.SetVariable("arr", new int[] { 1, 2, 3, 4, 5 });
         Assert.That(engine.Evaluate("3 in arr"), Is.True);
     }
@@ -207,7 +205,7 @@ public class StandardModeNegativeTests(CompilationMode mode)
     [Test]
     public void StandardMode_RejectsLikeOperator()
     {
-        var engine = new CsEvalEngine(StandardOptions);
+        var engine = TestEngineFactory.Create(mode, StandardOptions);
         var ex = Assert.Throws<CsEvalLanguageModeException>(
             () => engine.Evaluate("\"hello\" like \"hel%\""));
         Assert.That(ex!.FeatureName, Is.EqualTo("like"));
@@ -216,7 +214,7 @@ public class StandardModeNegativeTests(CompilationMode mode)
     [Test]
     public void ExtendedMode_AcceptsLikeOperator()
     {
-        var engine = new CsEvalEngine(ExtendedOptions);
+        var engine = TestEngineFactory.Create(mode, ExtendedOptions);
         Assert.That(engine.Evaluate("\"hello\" like \"hel%\""), Is.True);
     }
 
@@ -229,14 +227,14 @@ public class StandardModeNegativeTests(CompilationMode mode)
     [Test]
     public void StandardMode_RejectsSliceNotation()
     {
-        var engine = new CsEvalEngine(StandardOptions);
+        var engine = TestEngineFactory.Create(mode, StandardOptions);
         Assert.Catch<CsEvalException>(() => engine.Evaluate("\"hello\"[1:3]"));
     }
 
     [Test]
     public void ExtendedMode_AcceptsSliceNotation()
     {
-        var engine = new CsEvalEngine(ExtendedOptions);
+        var engine = TestEngineFactory.Create(mode, ExtendedOptions);
         Assert.That(engine.Evaluate("\"hello\"[1:3]"), Is.EqualTo("el"));
     }
 
@@ -245,35 +243,35 @@ public class StandardModeNegativeTests(CompilationMode mode)
     [Test]
     public void StandardMode_RejectsLetKeyword()
     {
-        var engine = new CsEvalEngine(StandardOptions);
+        var engine = TestEngineFactory.Create(mode, StandardOptions);
         Assert.Catch<CsEvalException>(() => engine.Evaluate("{ let x = 5; return x; }"));
     }
 
     [Test]
     public void ExtendedMode_AcceptsLetKeyword()
     {
-        var engine = new CsEvalEngine(ExtendedOptions);
+        var engine = TestEngineFactory.Create(mode, ExtendedOptions);
         Assert.That(engine.Evaluate("{ let x = 5; return x; }"), Is.EqualTo(5));
     }
 
     [Test]
     public void StandardMode_AcceptsConstDeclaration()
     {
-        var engine = new CsEvalEngine(StandardOptions);
+        var engine = TestEngineFactory.Create(mode, StandardOptions);
         Assert.That(engine.Evaluate("{ const int x = 5; return x * x; }"), Is.EqualTo(25));
     }
 
     [Test]
     public void ExtendedMode_AcceptsConstDeclaration()
     {
-        var engine = new CsEvalEngine(ExtendedOptions);
+        var engine = TestEngineFactory.Create(mode, ExtendedOptions);
         Assert.That(engine.Evaluate("{ const int x = 5; return x * x; }"), Is.EqualTo(25));
     }
 
     [Test]
     public void StandardMode_RejectsConstReassignment()
     {
-        var engine = new CsEvalEngine(StandardOptions);
+        var engine = TestEngineFactory.Create(mode, StandardOptions);
         var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("{ const int x = 5; x = 6; return x; }"));
         Assert.That(ex!.ErrorCode, Is.EqualTo(CsEval.Diagnostics.DiagnosticCode.CS0131));
     }
@@ -281,7 +279,7 @@ public class StandardModeNegativeTests(CompilationMode mode)
     [Test]
     public void ExtendedMode_RejectsConstReassignment()
     {
-        var engine = new CsEvalEngine(ExtendedOptions);
+        var engine = TestEngineFactory.Create(mode, ExtendedOptions);
         var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("{ const int x = 5; x = 6; return x; }"));
         Assert.That(ex!.ErrorCode, Is.EqualTo(CsEval.Diagnostics.DiagnosticCode.CS0131));
     }
@@ -289,7 +287,7 @@ public class StandardModeNegativeTests(CompilationMode mode)
     [Test]
     public void StandardMode_RejectsLetInExpression()
     {
-        var engine = new CsEvalEngine(StandardOptions);
+        var engine = TestEngineFactory.Create(mode, StandardOptions);
         var ex = Assert.Throws<CsEvalLanguageModeException>(
             () => engine.Evaluate("let x = 5 in x"));
         Assert.That(ex!.FeatureName, Is.EqualTo("let-in"));
@@ -298,14 +296,14 @@ public class StandardModeNegativeTests(CompilationMode mode)
     [Test]
     public void ExtendedMode_AcceptsLetInExpression()
     {
-        var engine = new CsEvalEngine(ExtendedOptions);
+        var engine = TestEngineFactory.Create(mode, ExtendedOptions);
         Assert.That(engine.Evaluate("let x = 5 in x * x"), Is.EqualTo(25));
     }
 
     [Test]
     public void StandardMode_RejectsIfExpression()
     {
-        var engine = new CsEvalEngine(StandardOptions);
+        var engine = TestEngineFactory.Create(mode, StandardOptions);
         var ex = Assert.Throws<CsEvalLanguageModeException>(
             () => engine.Evaluate("if (x > 0) x else -x"));
         Assert.That(ex!.FeatureName, Is.EqualTo("if-expression"));
@@ -314,7 +312,7 @@ public class StandardModeNegativeTests(CompilationMode mode)
     [Test]
     public void ExtendedMode_AcceptsIfExpression()
     {
-        var engine = new CsEvalEngine(ExtendedOptions);
+        var engine = TestEngineFactory.Create(mode, ExtendedOptions);
         engine.SetVariable("x", -5);
         Assert.That(engine.Evaluate("if (x > 0) x else -x"), Is.EqualTo(5));
     }
@@ -322,7 +320,7 @@ public class StandardModeNegativeTests(CompilationMode mode)
     [Test]
     public void StandardMode_RejectsComprehensionExpression()
     {
-        var engine = new CsEvalEngine(StandardOptions);
+        var engine = TestEngineFactory.Create(mode, StandardOptions);
         var ex = Assert.Throws<CsEvalLanguageModeException>(
             () => engine.Evaluate("[x for x in 1..3]"));
         Assert.That(ex!.FeatureName, Is.EqualTo("comprehension"));
@@ -331,7 +329,7 @@ public class StandardModeNegativeTests(CompilationMode mode)
     [Test]
     public void ExtendedMode_AcceptsComprehensionExpression()
     {
-        var engine = new CsEvalEngine(ExtendedOptions);
+        var engine = TestEngineFactory.Create(mode, ExtendedOptions);
         var result = engine.Evaluate("[x for x in 1..=3]");
         Assert.That(result, Is.EqualTo(new[] { 1, 2, 3 }));
     }
@@ -345,21 +343,21 @@ public class StandardModeNegativeTests(CompilationMode mode)
     [Test]
     public void StandardMode_NegativeStringIndex_Throws()
     {
-        var engine = new CsEvalEngine(StandardOptions);
+        var engine = TestEngineFactory.Create(mode, StandardOptions);
         Assert.Catch<Exception>(() => engine.Evaluate("\"hello\"[-1]"));
     }
 
     [Test]
     public void ExtendedMode_NegativeStringIndex_Wraps()
     {
-        var engine = new CsEvalEngine(ExtendedOptions);
+        var engine = TestEngineFactory.Create(mode, ExtendedOptions);
         Assert.That(engine.Evaluate("\"hello\"[-1]"), Is.EqualTo('o'));
     }
 
     [Test]
     public void StandardMode_NegativeListIndex_Throws()
     {
-        var engine = new CsEvalEngine(StandardOptions);
+        var engine = TestEngineFactory.Create(mode, StandardOptions);
         engine.SetVariable("list", new List<int> { 10, 20, 30 });
         Assert.Catch<Exception>(() => engine.Evaluate("list[-1]"));
     }
@@ -367,7 +365,7 @@ public class StandardModeNegativeTests(CompilationMode mode)
     [Test]
     public void ExtendedMode_NegativeListIndex_Wraps()
     {
-        var engine = new CsEvalEngine(ExtendedOptions);
+        var engine = TestEngineFactory.Create(mode, ExtendedOptions);
         engine.SetVariable("list", new List<int> { 10, 20, 30 });
         Assert.That(engine.Evaluate("list[-1]"), Is.EqualTo(30));
     }
@@ -377,14 +375,14 @@ public class StandardModeNegativeTests(CompilationMode mode)
     [Test]
     public void StandardMode_RejectsStringMultiply()
     {
-        var engine = new CsEvalEngine(StandardOptions);
+        var engine = TestEngineFactory.Create(mode, StandardOptions);
         Assert.Catch<CsEvalException>(() => engine.Evaluate("\"abc\" * 3"));
     }
 
     [Test]
     public void ExtendedMode_AcceptsStringMultiply()
     {
-        var engine = new CsEvalEngine(ExtendedOptions);
+        var engine = TestEngineFactory.Create(mode, ExtendedOptions);
         Assert.That(engine.Evaluate("\"abc\" * 3"), Is.EqualTo("abcabcabc"));
     }
 
@@ -393,7 +391,7 @@ public class StandardModeNegativeTests(CompilationMode mode)
     [Test]
     public void StandardMode_RejectsObjectMerge()
     {
-        var engine = new CsEvalEngine(StandardOptions);
+        var engine = TestEngineFactory.Create(mode, StandardOptions);
         IDictionary<string, object?> left = new ExpandoObject();
         left["A"] = 1;
         IDictionary<string, object?> right = new ExpandoObject();
@@ -406,7 +404,7 @@ public class StandardModeNegativeTests(CompilationMode mode)
     [Test]
     public void ExtendedMode_AcceptsObjectMerge()
     {
-        var engine = new CsEvalEngine(ExtendedOptions);
+        var engine = TestEngineFactory.Create(mode, ExtendedOptions);
         IDictionary<string, object?> left = new ExpandoObject();
         left["A"] = 1;
         IDictionary<string, object?> right = new ExpandoObject();
@@ -422,28 +420,28 @@ public class StandardModeNegativeTests(CompilationMode mode)
     [Test]
     public void StandardMode_RejectsAggregateBuiltins()
     {
-        var engine = new CsEvalEngine(StandardOptions);
+        var engine = TestEngineFactory.Create(mode, StandardOptions);
         Assert.Catch<CsEvalException>(() => engine.Evaluate("sum(new[] { 1, 2, 3 })"));
     }
 
     [Test]
     public void ExtendedMode_AcceptsAggregateBuiltins()
     {
-        var engine = new CsEvalEngine(ExtendedOptions);
+        var engine = TestEngineFactory.Create(mode, ExtendedOptions);
         Assert.That(engine.Evaluate("sum(new[] { 1, 2, 3 })"), Is.EqualTo(6));
     }
 
     [Test]
     public void StandardMode_RejectsDateUnitSugar()
     {
-        var engine = new CsEvalEngine(StandardOptions);
+        var engine = TestEngineFactory.Create(mode, StandardOptions);
         Assert.Catch<CsEvalException>(() => engine.Evaluate("new DateTime(2026, 1, 1) + 30.days"));
     }
 
     [Test]
     public void ExtendedMode_AcceptsDateUnitSugar()
     {
-        var engine = new CsEvalEngine(ExtendedOptions);
+        var engine = TestEngineFactory.Create(mode, ExtendedOptions);
         Assert.That(engine.Evaluate("30.days"), Is.EqualTo(TimeSpan.FromDays(30)));
     }
 

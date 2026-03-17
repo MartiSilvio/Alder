@@ -13,7 +13,7 @@ public static class Phase04Plan02Extensions
 public class Phase04Plan02VerificationTests(CompilationMode mode)
 {
     private CsEvalEngine Engine()
-        => new(CsEvalOptions.Default with { CompilationMode = mode });
+        => TestEngineFactory.Create(mode);
 
     // ═══════════════════════════════════════════════════════════════
     // Helper types for registration tests
@@ -279,10 +279,8 @@ public class Phase04Plan02VerificationTests(CompilationMode mode)
     [Test]
     public void AllowedTypes_AllowedTypeWorks()
     {
-        var engine = new CsEvalEngine(new CsEvalOptions
-        {
-            CompilationMode = mode,
-            Sandbox = SandboxOptions.Trusted() with
+        var engine = TestEngineFactory.Create(mode, new CsEvalOptions {
+                        Sandbox = SandboxOptions.Trusted() with
             {
                 AllowedTypes = new HashSet<Type> { typeof(List<int>), typeof(int) }
             }
@@ -295,10 +293,8 @@ public class Phase04Plan02VerificationTests(CompilationMode mode)
     [Test]
     public void AllowedTypes_NonAllowedTypeThrows()
     {
-        var engine = new CsEvalEngine(new CsEvalOptions
-        {
-            CompilationMode = mode,
-            Sandbox = SandboxOptions.Trusted() with
+        var engine = TestEngineFactory.Create(mode, new CsEvalOptions {
+                        Sandbox = SandboxOptions.Trusted() with
             {
                 AllowedTypes = new HashSet<Type> { typeof(int) }
             }

@@ -22,7 +22,7 @@ public class FloatingPointDivisionTests(CompilationMode mode)
     public async Task NaN_MatchesCSharp(string expr)
     {
         // Engine-only: NaN special case -- requires double.IsNaN check instead of Is.EqualTo
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var result = engine.Evaluate(expr);
         var csharpResult = await TestHelpers.EvaluateCSharpAsync(expr);
 
@@ -39,7 +39,7 @@ public class FloatingPointDivisionTests(CompilationMode mode)
     public void Division_IntByZero_Throws()
     {
         // Engine-only: DivideByZeroException test
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         Assert.Throws<DivideByZeroException>(() => engine.Evaluate("10 / 0"));
     }
 
@@ -47,7 +47,7 @@ public class FloatingPointDivisionTests(CompilationMode mode)
     public void Division_LongByZero_Throws()
     {
         // Engine-only: DivideByZeroException test
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         Assert.Throws<DivideByZeroException>(() => engine.Evaluate("10L / 0L"));
     }
 
@@ -55,7 +55,7 @@ public class FloatingPointDivisionTests(CompilationMode mode)
     public void Modulo_IntByZero_Throws()
     {
         // Engine-only: DivideByZeroException test
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         Assert.Throws<DivideByZeroException>(() => engine.Evaluate("10 % 0"));
     }
 
@@ -68,7 +68,7 @@ public class FloatingPointDivisionTests(CompilationMode mode)
     public void Decimal_DivisionByZero_Throws()
     {
         // Engine-only: DivideByZeroException test
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         Assert.Throws<DivideByZeroException>(() => engine.Evaluate("1m / 0m"));
     }
 
@@ -76,7 +76,7 @@ public class FloatingPointDivisionTests(CompilationMode mode)
     public void Decimal_ModuloByZero_Throws()
     {
         // Engine-only: DivideByZeroException test
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         Assert.Throws<DivideByZeroException>(() => engine.Evaluate("1m % 0m"));
     }
 
@@ -89,7 +89,7 @@ public class FloatingPointDivisionTests(CompilationMode mode)
     public async Task Infinity_MinusInfinity_IsNaN()
     {
         // Engine-only: NaN special case
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var result = engine.Evaluate("double.PositiveInfinity - double.PositiveInfinity");
         var csharpResult = await TestHelpers.EvaluateCSharpAsync("double.PositiveInfinity - double.PositiveInfinity");
 
@@ -101,7 +101,7 @@ public class FloatingPointDivisionTests(CompilationMode mode)
     public async Task Infinity_TimesZero_IsNaN()
     {
         // Engine-only: NaN special case
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var result = engine.Evaluate("double.PositiveInfinity * 0");
         var csharpResult = await TestHelpers.EvaluateCSharpAsync("double.PositiveInfinity * 0");
 
@@ -118,7 +118,7 @@ public class FloatingPointDivisionTests(CompilationMode mode)
     {
         // Engine-only: NaN special case -- float.IsNaN check required
         const string expr = "0.0f / 0.0f";
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var result = engine.Evaluate(expr);
         var csharpResult = await TestHelpers.EvaluateCSharpAsync(expr);
 
@@ -134,7 +134,7 @@ public class FloatingPointDivisionTests(CompilationMode mode)
     public async Task IEEE754_NaN_ZeroDivZero_Variable()
     {
         // Engine-only: NaN special case
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var result = engine.Evaluate("0.0 / 0.0");
         var csharpResult = await TestHelpers.EvaluateCSharpAsync("0.0 / 0.0");
 
@@ -146,7 +146,7 @@ public class FloatingPointDivisionTests(CompilationMode mode)
     public async Task IEEE754_NaN_Equality_Variable()
     {
         // Engine-only: SetVariable + NaN equality semantics
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("nan", double.NaN);
 
         Assert.That(engine.Evaluate("nan == nan"), Is.False);

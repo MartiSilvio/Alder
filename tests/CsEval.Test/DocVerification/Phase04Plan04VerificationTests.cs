@@ -16,7 +16,7 @@ public class Plan04InitTarget
 public class Phase04Plan04VerificationTests(CompilationMode mode)
 {
     private CsEvalEngine Engine()
-        => new(CsEvalOptions.Default with { CompilationMode = mode });
+        => TestEngineFactory.Create(mode);
 
     // ═══════════════════════════════════════════════════════════════
     // ENG-09: Basic construction
@@ -133,10 +133,8 @@ public class Phase04Plan04VerificationTests(CompilationMode mode)
     [Test]
     public void NewOperator_SafeSandbox_BlocksConstruction()
     {
-        var engine = new CsEvalEngine(new CsEvalOptions
-        {
-            CompilationMode = mode,
-            Sandbox = SandboxOptions.Safe()
+        var engine = TestEngineFactory.Create(mode, new CsEvalOptions {
+                        Sandbox = SandboxOptions.Safe()
         });
 
         Assert.That(() => engine.Evaluate("new List<int>()"),
@@ -150,10 +148,8 @@ public class Phase04Plan04VerificationTests(CompilationMode mode)
     [Test]
     public void NewOperator_AllowedTypes_AllowedTypeWorks()
     {
-        var engine = new CsEvalEngine(new CsEvalOptions
-        {
-            CompilationMode = mode,
-            Sandbox = SandboxOptions.Trusted() with
+        var engine = TestEngineFactory.Create(mode, new CsEvalOptions {
+                        Sandbox = SandboxOptions.Trusted() with
             {
                 AllowedTypes = new HashSet<Type> { typeof(List<int>), typeof(int) }
             }
@@ -166,10 +162,8 @@ public class Phase04Plan04VerificationTests(CompilationMode mode)
     [Test]
     public void NewOperator_AllowedTypes_NonAllowedTypeBlocked()
     {
-        var engine = new CsEvalEngine(new CsEvalOptions
-        {
-            CompilationMode = mode,
-            Sandbox = SandboxOptions.Trusted() with
+        var engine = TestEngineFactory.Create(mode, new CsEvalOptions {
+                        Sandbox = SandboxOptions.Trusted() with
             {
                 AllowedTypes = new HashSet<Type> { typeof(List<int>), typeof(int) }
             }
@@ -279,10 +273,8 @@ public class Phase04Plan04VerificationTests(CompilationMode mode)
     [Test]
     public void MethodInvocation_SafeSandbox_BlocksMethodCalls()
     {
-        var engine = new CsEvalEngine(new CsEvalOptions
-        {
-            CompilationMode = mode,
-            Sandbox = SandboxOptions.Safe()
+        var engine = TestEngineFactory.Create(mode, new CsEvalOptions {
+                        Sandbox = SandboxOptions.Safe()
         });
         engine.SetVariable("name", "hello");
 

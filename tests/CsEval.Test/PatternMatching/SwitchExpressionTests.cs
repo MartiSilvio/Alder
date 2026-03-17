@@ -18,7 +18,7 @@ public class SwitchExpressionTests(CompilationMode mode)
     [Test]
     public void SwitchExpression_NoMatch_ThrowsSwitchExpressionException()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("x", (object)99);
         Assert.Throws<System.Runtime.CompilerServices.SwitchExpressionException>(
             () => engine.Evaluate("x switch { 1 => \"one\" }"));
@@ -27,7 +27,7 @@ public class SwitchExpressionTests(CompilationMode mode)
     [Test]
     public void SwitchExpression_NoMatch_NullValue_ThrowsSwitchExpressionException()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("x", (object?)null);
         Assert.Throws<System.Runtime.CompilerServices.SwitchExpressionException>(
             () => engine.Evaluate("x switch { 1 => \"one\", \"hello\" => \"two\" }"));
@@ -42,7 +42,7 @@ public class SwitchExpressionTests(CompilationMode mode)
     [Test]
     public void SwitchExpression_FirstMatch_ObjectBeforeString()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("x", (object)"hello");
         var result = engine.Evaluate("x switch { object => \"object\", string => \"string\", _ => \"other\" }");
         Assert.That(result, Is.EqualTo("object"));
@@ -56,7 +56,7 @@ public class SwitchExpressionTests(CompilationMode mode)
     [Test]
     public void SwitchExpression_PatternVariableNotLeaking()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("x", (object)"hello");
         // The variable 's' from the first arm should not be accessible outside
         var result = engine.Evaluate("x switch { string s => s.Length, _ => -1 }");

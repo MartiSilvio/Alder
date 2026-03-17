@@ -15,7 +15,7 @@ public class ConstructorTests(CompilationMode mode)
     [Test]
     public void Constructor_Parameterless()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var result = engine.Evaluate("new Object()");
         Assert.That(result, Is.Not.Null);
         Assert.That(result!.GetType(), Is.EqualTo(typeof(object)));
@@ -25,7 +25,7 @@ public class ConstructorTests(CompilationMode mode)
     [Test]
     public void Constructor_ThenMethodCall()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var result = engine.Evaluate("new Random(42).Next(1, 100)");
         Assert.That(result, Is.Not.Null);
         Assert.That(result, Is.TypeOf<int>());
@@ -37,7 +37,7 @@ public class ConstructorTests(CompilationMode mode)
     [Test]
     public void Constructor_Exception_Parameterless()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var result = engine.Evaluate("new Exception()");
         Assert.That(result, Is.Not.Null);
         Assert.That(result, Is.InstanceOf<Exception>());
@@ -51,7 +51,7 @@ public class ConstructorTests(CompilationMode mode)
     [Test]
     public void Constructor_NonExistentType_Throws()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         Assert.Catch<CsEvalException>(() => engine.Evaluate("new NonExistentType123()"));
     }
 
@@ -59,7 +59,7 @@ public class ConstructorTests(CompilationMode mode)
     [Test]
     public void Constructor_BuiltInType_Int()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var result = engine.Evaluate("new int()");
         Assert.That(result, Is.EqualTo(0));
     }

@@ -14,7 +14,7 @@ public class AssignmentTests(CompilationMode mode)
     [Test]
     public void Assignment_AnonymousObject_WorksCorrectly()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var result = engine.Evaluate(@"
         {
             var obj = new { Name = ""John"" };
@@ -35,7 +35,7 @@ public class AssignmentTests(CompilationMode mode)
     [Test]
     public void Assignment_ToExternalVariable_UpdatesValue()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("x", 10L);
 
         var result = engine.Evaluate(@"
@@ -51,7 +51,7 @@ public class AssignmentTests(CompilationMode mode)
     [Test]
     public void Assignment_WithLinqResult_WorksCorrectly()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("numbers", new List<int> { 1, 2, 3, 4, 5 });
 
         var result = engine.Evaluate(@"
@@ -72,7 +72,7 @@ public class AssignmentTests(CompilationMode mode)
     [Test]
     public void Assignment_ToUndefinedVariable_ThrowsException()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
 
         Assert.Throws<CsEvalException>(() =>
             engine.Evaluate(@"
@@ -90,7 +90,7 @@ public class AssignmentTests(CompilationMode mode)
     [Test]
     public void Assignment_PreParsed_CanBeReused()
     {
-        var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = mode });
+        var engine = TestEngineFactory.Create(mode);
         var expr = engine.Parse(@"
         {
             var x = startVal;
