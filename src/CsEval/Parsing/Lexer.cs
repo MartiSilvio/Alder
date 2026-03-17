@@ -223,6 +223,7 @@ internal sealed class Lexer
                 if (Match('.'))
                 {
                     if (Match('<')) AddToken(TokenType.DotDotLess);
+                    else if (Match('=')) AddToken(TokenType.DotDotEquals);
                     else AddToken(TokenType.DotDot); // spread operator (..)
                 }
                 else if (char.IsDigit(Peek()))

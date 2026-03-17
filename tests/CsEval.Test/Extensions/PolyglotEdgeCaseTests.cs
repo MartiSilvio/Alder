@@ -78,7 +78,7 @@ public class PolyglotEdgeCaseTests(CompilationMode mode)
     public void Range_ReversedRange_ReturnsEmpty()
     {
         var engine = CreateEngine();
-        Assert.That(engine.Evaluate("(10..1).Count()"), Is.EqualTo(0));
+        Assert.That(engine.Evaluate("(10..=1).Count()"), Is.EqualTo(0));
     }
 
     [Test]

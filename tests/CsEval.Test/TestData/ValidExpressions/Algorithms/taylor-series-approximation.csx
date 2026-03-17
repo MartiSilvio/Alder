@@ -3,7 +3,7 @@ var terms = 15;
 // Factorial computed iteratively
 var factorial = (int n) => {
     var f = 1.0;
-    foreach (var i in 2..n) f *= i;
+    foreach (var i in 2..=n) f *= i;
     return f;
 };
 

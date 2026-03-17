@@ -1,4 +1,4 @@
-var data = (1..20).ToList();
+var data = (1..=20).ToList();
 
 Func<List<int>, List<int>> filterOdd = xs => {
     var r = new List<int>();

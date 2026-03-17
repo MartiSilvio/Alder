@@ -6,9 +6,9 @@ var cols = capacity + 1;
 
 var dp = new int[(n + 1) * cols];
 
-foreach (var i in 1..n)
+foreach (var i in 1..=n)
 {
-    foreach (var w in 0..capacity)
+    foreach (var w in 0..=capacity)
     {
         var prev = dp[(i - 1) * cols + w];
         dp[i * cols + w] = prev;

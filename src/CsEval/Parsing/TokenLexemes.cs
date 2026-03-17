@@ -92,6 +92,7 @@ internal static class TokenLexemes
         TokenType.BangTilde => "!~",
         TokenType.LessEqualGreater => "<=>",
         TokenType.DotDotLess => "..<",
+        TokenType.DotDotEquals => "..=",
         TokenType.NotIn => "not in",
         TokenType.NotLike => "not like",
         TokenType.Eof => string.Empty,

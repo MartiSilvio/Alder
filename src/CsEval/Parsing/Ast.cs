@@ -695,7 +695,7 @@ internal sealed record CheckedExpr(Expr Expression, bool IsChecked) : Expr
 
 #region Polyglot Extended Features
 
-// Range expression: start..end (inclusive) or start..<end (exclusive)
+// Range expression: start..end (exclusive, C# spec), start..=end (inclusive), start..<end (exclusive)
 internal sealed record RangeExpr(Expr Start, Expr End, bool ExclusiveEnd) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitRange(this);

@@ -1666,7 +1666,7 @@ internal sealed partial class BoundExpressionEmitter
     {
         var startExpr = BoundEmitterSupport.AsObject(Emit(range.Start));
         var endExpr = BoundEmitterSupport.AsObject(Emit(range.End));
-        var rangeExpr = LinqExpression.Call(CreateSystemRangeMethod, startExpr, endExpr, LinqExpression.Constant(false));
+        var rangeExpr = LinqExpression.Call(CreateSystemRangeMethod, startExpr, endExpr);
 
         if (!range.ExclusiveEnd)
         {

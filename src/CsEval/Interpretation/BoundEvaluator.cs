@@ -1623,7 +1623,7 @@ internal sealed class BoundEvaluator
     {
         var startValue = Evaluate(range.Start);
         var endValue = Evaluate(range.End);
-        var sysRange = ConstructionRuntime.CreateSystemRange(startValue, endValue, inclusiveEnd: !range.ExclusiveEnd);
+        var sysRange = ConstructionRuntime.CreateSystemRange(startValue, endValue);
         return range.ExclusiveEnd ? sysRange : new InclusiveRange(sysRange);
     }
 

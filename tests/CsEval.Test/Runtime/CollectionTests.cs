@@ -46,7 +46,7 @@ public class CollectionTests(CompilationMode mode)
             LanguageMode = LanguageMode.Extended
         });
 
-        var result = engine.Evaluate("[x * x for x in 1..10 if x % 2 == 0]");
+        var result = engine.Evaluate("[x * x for x in 1..=10 if x % 2 == 0]");
 
         Assert.That(result, Is.EqualTo(new[] { 4, 16, 36, 64, 100 }));
     }

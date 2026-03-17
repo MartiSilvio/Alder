@@ -58,7 +58,7 @@ internal enum TokenType
     // Assignment & Access
     Equal,
     Dot,
-    DotDot,                // spread operator (..)
+    DotDot,                // range / spread operator (..)
 
     // Compound Assignment
     PlusEqual,             // +=
@@ -257,6 +257,7 @@ internal enum TokenType
     BangTilde,             // !~ (negated regex match, Extended mode)
     LessEqualGreater,      // <=> (spaceship operator, Extended mode)
     DotDotLess,            // ..< (exclusive range, Extended mode)
+    DotDotEquals,          // ..= (inclusive range, Extended mode)
 
     // Synthetic tokens (created by parser, not lexer)
     NotIn,             // not in (Extended mode compound keyword operator)

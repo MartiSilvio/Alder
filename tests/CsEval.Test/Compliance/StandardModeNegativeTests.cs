@@ -332,7 +332,7 @@ public class StandardModeNegativeTests(CompilationMode mode)
     public void ExtendedMode_AcceptsComprehensionExpression()
     {
         var engine = new CsEvalEngine(ExtendedOptions);
-        var result = engine.Evaluate("[x for x in 1..3]");
+        var result = engine.Evaluate("[x for x in 1..=3]");
         Assert.That(result, Is.EqualTo(new[] { 1, 2, 3 }));
     }
 

@@ -1,6 +1,6 @@
 var limit = 50;
 var sieve = new bool[51];
-foreach (var i in 0..50) sieve[i] = true;
+foreach (var i in 0..=50) sieve[i] = true;
 
 sieve[0] = false;
 sieve[1] = false;
@@ -18,7 +18,7 @@ for (var i = 2; i * i <= limit; i++)
 
 var primes = "";
 var primeCount = 0;
-foreach (var i in 2..limit)
+foreach (var i in 2..=limit)
 {
     if (sieve[i])
     {
@@ -33,7 +33,7 @@ var check17 = sieve[17];
 var check49 = sieve[49];
 
 var sum = 0;
-foreach (var i in 2..limit)
+foreach (var i in 2..=limit)
 {
     if (sieve[i]) sum += i;
 }

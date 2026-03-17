@@ -79,7 +79,7 @@ internal static class BinderParityFixture
 
         yield return CreateScenario(
             "Extended/Comprehension",
-            "[x * x for x in 1..10 if x % 2 == 0]");
+            "[x * x for x in 1..=10 if x % 2 == 0]");
 
         yield return CreateScenario(
             "Extended/LetInDestructuring",

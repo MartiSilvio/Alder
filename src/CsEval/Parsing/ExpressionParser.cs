@@ -585,7 +585,7 @@ internal sealed partial class ExpressionParser : ParserBase
     }
 
     /// <summary>
-    /// Parses range literals: start..end (inclusive) or start..&lt;end (exclusive).
+    /// Parses range literals: start..end (exclusive, C# spec), start..=end (inclusive), start..&lt;end (exclusive).
     /// Precedence: below null-coalesce, above logical OR.
     /// Range .. is INFIX (between two expressions). Spread .. is PREFIX (inside collection literals).
     /// Since we reach here only after parsing a left-hand expression, this is always range context.
@@ -596,14 +596,14 @@ internal sealed partial class ExpressionParser : ParserBase
 
         if (Match(TokenType.DotDot))
         {
-            if (State.LanguageMode == LanguageMode.Extended)
-            {
-                var end = ParseOr();
-                return new RangeExpr(expr, end, ExclusiveEnd: false);
-            }
-            // Standard mode: expr..expr → System.Range (exclusive-end per C# spec)
-            var rangeEnd = ParseOr();
-            return new RangeExpr(expr, rangeEnd, ExclusiveEnd: true);
+            var end = ParseOr();
+            return new RangeExpr(expr, end, ExclusiveEnd: true);
+        }
+
+        if (State.LanguageMode == LanguageMode.Extended && Match(TokenType.DotDotEquals))
+        {
+            var end = ParseOr();
+            return new RangeExpr(expr, end, ExclusiveEnd: false);
         }
 
         if (State.LanguageMode == LanguageMode.Extended && Match(TokenType.DotDotLess))

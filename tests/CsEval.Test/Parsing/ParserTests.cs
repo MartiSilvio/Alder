@@ -512,7 +512,7 @@ public class ParserTests
     [Test]
     public void Parse_Comprehension_LowersToMethodChain()
     {
-        var expr = Parse("[x * x for x in 1..10 if x % 2 == 0]");
+        var expr = Parse("[x * x for x in 1..=10 if x % 2 == 0]");
         Assert.That(expr, Is.InstanceOf<CallExpr>());
 
         var toArrayCall = (CallExpr)expr;

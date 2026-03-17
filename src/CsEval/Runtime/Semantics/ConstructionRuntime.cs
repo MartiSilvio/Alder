@@ -209,7 +209,7 @@ internal static class ConstructionRuntime
         return new NamedTupleValue(tuple, nameMap);
     }
 
-    public static Range CreateSystemRange(object? start, object? end, bool inclusiveEnd)
+    public static Range CreateSystemRange(object? start, object? end)
     {
         var startIndex = start is Index si ? si : new Index(Convert.ToInt32(start));
         var endIndex = end is Index ei ? ei : new Index(Convert.ToInt32(end));

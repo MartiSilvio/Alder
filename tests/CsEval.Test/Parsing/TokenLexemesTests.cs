@@ -17,6 +17,7 @@ public class TokenLexemesTests
     [TestCase(nameof(TokenType.LessEqualGreater), "<=>")]
     [TestCase(nameof(TokenType.DotDot), "..")]
     [TestCase(nameof(TokenType.DotDotLess), "..<")]
+    [TestCase(nameof(TokenType.DotDotEquals), "..=")]
     [TestCase(nameof(TokenType.QuestionQuestionEqual), "??=")]
     public void GetCanonical_ReturnsExpectedLexeme(string tokenTypeName, string expected)
     {

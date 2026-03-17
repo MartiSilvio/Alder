@@ -783,7 +783,7 @@ public sealed class BoundExecutionTests
             LanguageMode = LanguageMode.Extended
         });
 
-        var expression = engine.Parse("1..3");
+        var expression = engine.Parse("1..=3");
         var result = engine.Evaluate(expression);
 
         Assert.That(result, Is.TypeOf<CsEval.Runtime.InclusiveRange>());

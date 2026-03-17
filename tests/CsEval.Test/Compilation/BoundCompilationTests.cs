@@ -81,7 +81,7 @@ public sealed class BoundCompilationTests
         Assert.That(chainedResult, Is.EqualTo(true));
         Assert.That(chainedExpr.GetCompiledInfo()!.Pipeline, Is.EqualTo(CompiledPipeline.Bound));
 
-        var rangeExpr = engine.Parse("(1..5).Count()");
+        var rangeExpr = engine.Parse("(1..=5).Count()");
         var rangeResult = engine.Evaluate(rangeExpr);
         Assert.That(rangeResult, Is.EqualTo(5));
         Assert.That(rangeExpr.GetCompiledInfo()!.Pipeline, Is.EqualTo(CompiledPipeline.Bound));
