@@ -127,11 +127,8 @@ CsEval evaluates standalone expressions with no enclosing type instance. The `th
 | UTF-8 string literals | `"hello"u8` | Parser error |
 | with expressions | `person with { Name = "Bob" }` | Parser error |
 | Raw string interpolation | `$"""text {expr} text"""` | Parser error |
-| checked/unchecked blocks | `checked { int x = int.MaxValue + 1; }` | Parser error |
 
 **Note:** The parenthesized `using` statement IS supported: `using (var x = new MemoryStream()) { }`. Only the C# 8 declaration form without parentheses is unsupported.
-
-**Note:** `checked(expr)` and `unchecked(expr)` expression forms ARE supported. Only the block statement form is unsupported.
 
 ## Preprocessor Directives and Attributes
 

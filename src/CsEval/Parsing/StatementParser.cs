@@ -265,6 +265,16 @@ internal sealed class StatementParser : ParserBase
             return new BlockExpr(statements, null);
         }
 
+        // checked/unchecked block statements — no semicolon needed after block form
+        if (Check(TokenType.Checked) || Check(TokenType.Unchecked))
+        {
+            var checkedExpr = _expression.ParseExpression();
+            if (checkedExpr is CheckedExpr { Expression: BlockExpr })
+                return checkedExpr;
+            Consume(TokenType.Semicolon, "Expected ';' after statement");
+            return checkedExpr;
+        }
+
         var expr = _expression.ParseExpression();
         Consume(TokenType.Semicolon, "Expected ';' after statement");
         return expr;

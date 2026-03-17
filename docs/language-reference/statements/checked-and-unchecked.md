@@ -1,17 +1,13 @@
 ---
 title: "Checked and Unchecked"
-description: "Checked and unchecked overflow control using expression-only syntax in CsEval."
+description: "Checked and unchecked overflow control using expression and block syntax in CsEval."
 sidebar:
   order: 6
 ---
 
 ## Overview
 
-CsEval supports `checked()` and `unchecked()` as **expression-only** constructs. They control whether integer arithmetic overflow throws an `OverflowException` or wraps silently.
-
-:::note
-CsEval does **not** support the block forms `checked { }` or `unchecked { }`. Only the expression forms `checked(expr)` and `unchecked(expr)` are available.
-:::
+CsEval supports both the expression forms `checked(expr)` / `unchecked(expr)` and the block forms `checked { }` / `unchecked { }`. They control whether integer arithmetic overflow throws an `OverflowException` or wraps silently.
 
 ## Default Behavior
 
@@ -102,6 +98,29 @@ unchecked(checked(100 + 200))
 ```
 
 The inner `checked` applies to `100 + 200`, which does not overflow, so the result is simply `300`.
+
+## Block Forms
+
+The block forms apply the checked/unchecked context to all statements within the block.
+
+```csharp
+{
+    var threw = false;
+    try { checked { var x = int.MaxValue + 1; } }
+    catch (System.OverflowException) { threw = true; }
+    return threw;
+}
+// output: True
+```
+
+```csharp
+{
+    var result = 0;
+    unchecked { result = int.MaxValue + 1; }
+    return result;
+}
+// output: -2147483648
+```
 
 ## Affected Operations
 

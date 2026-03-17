@@ -553,7 +553,13 @@ internal sealed class PrimaryParser : ParserBase
 
     private Expr ParseCheckedUnchecked(string keyword)
     {
-        Consume(TokenType.LeftParen, $"Expected '(' after '{keyword}'");
+        if (Match(TokenType.LeftBrace))
+        {
+            var block = _statement.ParseBlock();
+            return new CheckedExpr(block, keyword == "checked");
+        }
+
+        Consume(TokenType.LeftParen, $"Expected '(' or '{{' after '{keyword}'");
         var expr = _expression.ParseExpression();
         Consume(TokenType.RightParen, $"Expected ')' after {keyword} expression");
         return new CheckedExpr(expr, keyword == "checked");

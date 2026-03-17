@@ -139,6 +139,10 @@ internal sealed partial class ExpressionParser : ParserBase
             (Check(TokenType.Unless) || Check(TokenType.Until)))
             return true;
 
+        // checked/unchecked are statement keywords when followed by '{' (block form)
+        if ((Check(TokenType.Checked) || Check(TokenType.Unchecked)) && PeekNext().Type == TokenType.LeftBrace)
+            return true;
+
         // Type keywords are statement keywords ONLY if NOT followed by '.' (for static member access like double.NaN)
         if (IsTypeKeyword(Peek().Type) && PeekNext().Type != TokenType.Dot)
             return true;
