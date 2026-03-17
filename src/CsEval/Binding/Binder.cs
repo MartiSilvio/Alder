@@ -367,7 +367,7 @@ internal sealed class Binder
                 5 => typeof(ValueTuple<,,,,>),
                 6 => typeof(ValueTuple<,,,,,>),
                 7 => typeof(ValueTuple<,,,,,,>),
-                _ => throw new InvalidOperationException("Unsupported tuple arity.")
+                _ => throw new CsEvalException(Diagnostics.DiagnosticDescriptors.UnsupportedTupleArity, elementTypes.Length)
             };
             return RuntimeGenericFactory.CloseGenericType(openType, elementTypes);
         }

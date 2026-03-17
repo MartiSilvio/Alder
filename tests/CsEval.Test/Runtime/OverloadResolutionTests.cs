@@ -98,7 +98,7 @@ public class OverloadResolutionTests(CompilationMode mode)
         var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("ambig", new AmbiguousOverloads());
         var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("ambig.M(1, 1)"));
-        Assert.That(ex!.Message, Does.Contain("Ambiguous"));
+        Assert.That(ex!.Message, Does.Contain("ambiguous"));
     }
 
     [Test]

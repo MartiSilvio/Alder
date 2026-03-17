@@ -129,8 +129,8 @@ internal static class LambdaDelegateConverter
             };
             if (openGeneric == null)
             {
-                throw new InvalidOperationException(
-                    $"Could not resolve delegate type definition for System.{delegateName}`{arity}.");
+                throw new CsEvalException(Diagnostics.DiagnosticDescriptors.DelegateTypeDefinitionNotFound,
+                    $"System.{delegateName}`{arity}");
             }
 
             definitions.Add(openGeneric);

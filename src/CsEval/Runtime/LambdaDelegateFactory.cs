@@ -121,7 +121,7 @@ internal static class LambdaDelegateFactory
     private static Delegate InvokeFactory(MethodInfo[] factories, int arity, Type[] genericArgs, object lambda)
     {
         if ((uint)arity >= (uint)factories.Length)
-            throw new InvalidOperationException($"Unsupported delegate arity: {arity}");
+            throw new CsEvalException(Diagnostics.DiagnosticDescriptors.UnsupportedDelegateArity, arity);
 
         var factory = factories[arity];
         if (genericArgs.Length > 0)

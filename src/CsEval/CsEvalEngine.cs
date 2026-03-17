@@ -248,18 +248,26 @@ public sealed class CsEvalEngine : IDisposable
     {
         var compiler = _options.Compiler!;
 
-        if (expression.CompiledInfo != null)
-            return expression.CompiledInfo.Delegate != null;
+        var existing = expression.CompiledInfo;
+        if (existing != null)
+            return existing.Delegate != null;
 
-        if (!expression.TryGetOrCreateBoundExpression(context, _options.MaxExpressionDepth, out var bound, out var failureReason) ||
-            bound == null)
+        lock (expression)
         {
-            expression.CompiledInfo = new CompiledExpressionInfo(null, false, failureReason ?? "Binding failed for expression.");
-            return false;
-        }
+            existing = expression.CompiledInfo;
+            if (existing != null)
+                return existing.Delegate != null;
 
-        expression.CompiledInfo = compiler.TryCompile(bound, _options);
-        return expression.CompiledInfo.Delegate != null;
+            if (!expression.TryGetOrCreateBoundExpression(context, _options.MaxExpressionDepth, out var bound, out var failureReason) ||
+                bound == null)
+            {
+                expression.CompiledInfo = new CompiledExpressionInfo(null, false, failureReason ?? "Binding failed for expression.");
+                return false;
+            }
+
+            expression.CompiledInfo = compiler.TryCompile(bound, _options);
+            return expression.CompiledInfo.Delegate != null;
+        }
     }
 
     /// <summary>

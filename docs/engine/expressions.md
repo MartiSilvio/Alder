@@ -226,7 +226,7 @@ Returns the reason compilation failed, or `null` if it succeeded or hasn't been 
 
 ### TryCompile() / Compile()
 
-Compilation is owned by the engine. The `TryCompile` and `Compile` methods from the **CsEval.Compiled** package attempt to compile a parsed expression to IL.
+Compilation is owned by the engine. The `TryCompile` and `Compile` methods attempt to compile a parsed expression to IL. Requires `UseCompiler()` on the engine's options.
 
 ```csharp
 using CsEval.Compiled;

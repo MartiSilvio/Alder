@@ -61,7 +61,7 @@ using CsEval.Compiled;
 Parses, compiles to IL, and returns a `CsEvalCompiledExpression<T>` for repeated invocation without engine dispatch overhead.
 
 ```csharp
-var engine = new CsEvalEngine();
+var engine = new CsEvalEngine(CsEvalOptions.Default.UseCompiler());
 CsEvalCompiledExpression<int> compiled = engine.Compile<int>("1 + 2");
 int result = compiled.Invoke(); // 3
 ```
@@ -73,6 +73,7 @@ Throws `CsEvalException` if the expression cannot be compiled.
 Same as `Compile<T>` but returns `CsEvalCompiledExpression<object?>`.
 
 ```csharp
+var engine = new CsEvalEngine(CsEvalOptions.Default.UseCompiler());
 var compiled = engine.Compile("1 + 2");
 object? result = compiled.Invoke();
 ```
@@ -82,6 +83,7 @@ object? result = compiled.Invoke();
 Compiles and returns a `Func<T?>` delegate for zero-overhead hot-path invocation.
 
 ```csharp
+var engine = new CsEvalEngine(CsEvalOptions.Default.UseCompiler());
 var add = engine.CompileToFunc<int>("1 + 2");
 int? result = add(); // 3
 ```
@@ -167,7 +169,7 @@ After parsing, a `CsEvalExpression` exposes compilation state:
 
 ### TryCompile / Compile
 
-Compilation is owned by the engine, not the expression. Use the engine's `TryCompile` and `Compile` methods from the **CsEval.Compiled** package:
+Compilation is owned by the engine, not the expression. Use the engine's `TryCompile` and `Compile` methods:
 
 ```csharp
 var expr = engine.Parse("1 + 2");

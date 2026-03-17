@@ -134,229 +134,249 @@ public static class DiagnosticDescriptors
 
     // CSEV01xx — Compilation and expression tree
 
-    /// <summary>CSEV0100: Strict compilation mode could not compile the expression to IL: {0}</summary>
+    /// <summary>CSEV0001: Strict compilation mode could not compile the expression to IL: {0}</summary>
     public static readonly DiagnosticDescriptor StrictCompilationFailed =
-        new(DiagnosticCode.CSEV0100, "Strict compilation mode could not compile the expression to IL: {0}");
+        new(DiagnosticCode.CSEV0001, "Strict compilation mode could not compile the expression to IL: {0}");
 
-    /// <summary>CSEV0101: Expression tree output does not support '{0}'.</summary>
+    /// <summary>CSEV0002: Expression tree output does not support '{0}'.</summary>
     public static readonly DiagnosticDescriptor ExpressionTreeUnsupportedNode =
-        new(DiagnosticCode.CSEV0101, "Expression tree output does not support '{0}'.");
+        new(DiagnosticCode.CSEV0002, "Expression tree output does not support '{0}'.");
 
-    /// <summary>CSEV0102: Expression tree output does not support call shape '{0}'.</summary>
+    /// <summary>CSEV0003: Expression tree output does not support call shape '{0}'.</summary>
     public static readonly DiagnosticDescriptor ExpressionTreeUnsupportedCallShape =
-        new(DiagnosticCode.CSEV0102, "Expression tree output does not support call shape '{0}'.");
+        new(DiagnosticCode.CSEV0003, "Expression tree output does not support call shape '{0}'.");
 
-    /// <summary>CSEV0103: ParseAsExpression requires a generic Func-style delegate type; got '{0}'.</summary>
+    /// <summary>CSEV0004: ParseAsExpression requires a generic Func-style delegate type; got '{0}'.</summary>
     public static readonly DiagnosticDescriptor ParseAsExpressionRequiresGenericDelegate =
-        new(DiagnosticCode.CSEV0103, "ParseAsExpression requires a generic Func-style delegate type; got '{0}'.");
+        new(DiagnosticCode.CSEV0004, "ParseAsExpression requires a generic Func-style delegate type; got '{0}'.");
 
-    /// <summary>CSEV0104: ParseAsExpression requires a lambda expression input.</summary>
+    /// <summary>CSEV0005: ParseAsExpression requires a lambda expression input.</summary>
     public static readonly DiagnosticDescriptor ParseAsExpressionRequiresLambda =
-        new(DiagnosticCode.CSEV0104, "Expression must be a lambda (e.g., '{0}').");
+        new(DiagnosticCode.CSEV0005, "Expression must be a lambda (e.g., '{0}').");
 
-    /// <summary>CSEV0105: ParseAsExpression lambda parameter count mismatch.</summary>
+    /// <summary>CSEV0006: ParseAsExpression lambda parameter count mismatch.</summary>
     public static readonly DiagnosticDescriptor ParseAsExpressionParameterCountMismatch =
-        new(DiagnosticCode.CSEV0105, "Expression has {0} parameter(s) but {1} expects {2}.");
+        new(DiagnosticCode.CSEV0006, "Expression has {0} parameter(s) but {1} expects {2}.");
 
-    /// <summary>CSEV0106: ParseAsExpression return type conversion failed.</summary>
+    /// <summary>CSEV0007: ParseAsExpression return type conversion failed.</summary>
     public static readonly DiagnosticDescriptor ParseAsExpressionReturnTypeMismatch =
-        new(DiagnosticCode.CSEV0106, "Cannot convert expression body type '{0}' to return type '{1}'.");
+        new(DiagnosticCode.CSEV0007, "Cannot convert expression body type '{0}' to return type '{1}'.");
 
-    /// <summary>CSEV0107: Expression binding failed: {0}</summary>
+    /// <summary>CSEV0008: Expression binding failed: {0}</summary>
     public static readonly DiagnosticDescriptor BindingFailed =
-        new(DiagnosticCode.CSEV0107, "{0}");
+        new(DiagnosticCode.CSEV0008, "{0}");
 
-    /// <summary>CSEV0108: Cannot convert '{0}' to delegate type '{1}'.</summary>
+    /// <summary>CS0123: Cannot convert '{0}' to delegate type '{1}'.</summary>
     public static readonly DiagnosticDescriptor DelegateConversionFailed =
-        new(DiagnosticCode.CSEV0108, "Cannot convert '{0}' to delegate type '{1}'.");
+        new(DiagnosticCode.CS0123, "Cannot convert '{0}' to delegate type '{1}'.");
 
     // CSEV02xx — Language mode and parsing
 
-    /// <summary>CSEV0200: Feature '{0}' is not available in Standard mode. Use LanguageMode.Extended to enable non-standard syntax extensions.</summary>
+    /// <summary>CSEV0009: Feature '{0}' is not available in Standard mode. Use LanguageMode.Extended to enable non-standard syntax extensions.</summary>
     public static readonly DiagnosticDescriptor ExtendedModeRequired =
-        new(DiagnosticCode.CSEV0200, "Feature '{0}' is not available in Standard mode. Use LanguageMode.Extended to enable non-standard syntax extensions.");
+        new(DiagnosticCode.CSEV0009, "Feature '{0}' is not available in Standard mode. Use LanguageMode.Extended to enable non-standard syntax extensions.");
 
     // CSEV03xx — Sandbox and security
 
-    /// <summary>CSEV0300: {0} access blocked by sandbox: {1}.{2}</summary>
+    /// <summary>CSEV0010: {0} access blocked by sandbox: {1}.{2}</summary>
     public static readonly DiagnosticDescriptor SandboxAccessBlocked =
-        new(DiagnosticCode.CSEV0300, "{0} access blocked by sandbox: {1}.{2}");
+        new(DiagnosticCode.CSEV0010, "{0} access blocked by sandbox: {1}.{2}");
 
-    /// <summary>CSEV0301: Method calls blocked by sandbox: {0}</summary>
+    /// <summary>CSEV0011: Method calls blocked by sandbox: {0}</summary>
     public static readonly DiagnosticDescriptor SandboxMethodCallBlocked =
-        new(DiagnosticCode.CSEV0301, "Method calls blocked by sandbox: {0}");
+        new(DiagnosticCode.CSEV0011, "Method calls blocked by sandbox: {0}");
 
-    /// <summary>CSEV0302: Assignment blocked by sandbox: {0}</summary>
+    /// <summary>CSEV0012: Assignment blocked by sandbox: {0}</summary>
     public static readonly DiagnosticDescriptor SandboxAssignmentBlocked =
-        new(DiagnosticCode.CSEV0302, "Assignment blocked by sandbox: {0}");
+        new(DiagnosticCode.CSEV0012, "Assignment blocked by sandbox: {0}");
 
-    /// <summary>CSEV0303: Index assignment blocked by sandbox: [{0}] = ...</summary>
+    /// <summary>CSEV0013: Index assignment blocked by sandbox: [{0}] = ...</summary>
     public static readonly DiagnosticDescriptor SandboxIndexAssignmentBlocked =
-        new(DiagnosticCode.CSEV0303, "Index assignment blocked by sandbox: [{0}] = ...");
+        new(DiagnosticCode.CSEV0013, "Index assignment blocked by sandbox: [{0}] = ...");
 
-    /// <summary>CSEV0304: Property access blocked by sandbox: {0}</summary>
+    /// <summary>CSEV0014: Property access blocked by sandbox: {0}</summary>
     public static readonly DiagnosticDescriptor SandboxPropertyAccessBlocked =
-        new(DiagnosticCode.CSEV0304, "Property access blocked by sandbox: {0}");
+        new(DiagnosticCode.CSEV0014, "Property access blocked by sandbox: {0}");
 
-    /// <summary>CSEV0305: Static field access blocked by sandbox: {0}.{1}</summary>
+    /// <summary>CSEV0015: Static field access blocked by sandbox: {0}.{1}</summary>
     public static readonly DiagnosticDescriptor SandboxStaticFieldAccessBlocked =
-        new(DiagnosticCode.CSEV0305, "Static field access blocked by sandbox: {0}.{1}");
+        new(DiagnosticCode.CSEV0015, "Static field access blocked by sandbox: {0}.{1}");
 
-    /// <summary>CSEV0306: Static property access blocked by sandbox: {0}.{1}</summary>
+    /// <summary>CSEV0016: Static property access blocked by sandbox: {0}.{1}</summary>
     public static readonly DiagnosticDescriptor SandboxStaticPropertyAccessBlocked =
-        new(DiagnosticCode.CSEV0306, "Static property access blocked by sandbox: {0}.{1}");
+        new(DiagnosticCode.CSEV0016, "Static property access blocked by sandbox: {0}.{1}");
 
-    /// <summary>CSEV0307: Property assignment blocked by sandbox: {0}</summary>
+    /// <summary>CSEV0017: Property assignment blocked by sandbox: {0}</summary>
     public static readonly DiagnosticDescriptor SandboxPropertyAssignmentBlocked =
-        new(DiagnosticCode.CSEV0307, "Property assignment blocked by sandbox: {0}");
+        new(DiagnosticCode.CSEV0017, "Property assignment blocked by sandbox: {0}");
 
-    /// <summary>CSEV0308: Object construction blocked by sandbox: new {0}()</summary>
+    /// <summary>CSEV0018: Object construction blocked by sandbox: new {0}()</summary>
     public static readonly DiagnosticDescriptor SandboxConstructionBlocked =
-        new(DiagnosticCode.CSEV0308, "Object construction blocked by sandbox: new {0}()");
+        new(DiagnosticCode.CSEV0018, "Object construction blocked by sandbox: new {0}()");
 
-    /// <summary>CSEV0309: Type '{0}' is not in the sandbox allowlist</summary>
+    /// <summary>CSEV0019: Type '{0}' is not in the sandbox allowlist</summary>
     public static readonly DiagnosticDescriptor SandboxTypeBlocked =
-        new(DiagnosticCode.CSEV0309, "Type '{0}' is not in the sandbox allowlist");
+        new(DiagnosticCode.CSEV0019, "Type '{0}' is not in the sandbox allowlist");
 
     // CSEV05xx — Null access and null safety
 
-    /// <summary>CSEV0500: Cannot access {0} '{1}' on null</summary>
+    /// <summary>CSEV0020: Cannot access {0} '{1}' on null</summary>
     public static readonly DiagnosticDescriptor NullMemberAccess =
-        new(DiagnosticCode.CSEV0500, "Cannot access {0} '{1}' on null");
+        new(DiagnosticCode.CSEV0020, "Cannot access {0} '{1}' on null");
 
-    /// <summary>CSEV0501: Cannot call method '{0}' on null</summary>
+    /// <summary>CSEV0021: Cannot call method '{0}' on null</summary>
     public static readonly DiagnosticDescriptor NullMethodCall =
-        new(DiagnosticCode.CSEV0501, "Cannot call method '{0}' on null");
+        new(DiagnosticCode.CSEV0021, "Cannot call method '{0}' on null");
 
-    /// <summary>CSEV0502: Cannot call null as a function</summary>
+    /// <summary>CSEV0022: Cannot call null as a function</summary>
     public static readonly DiagnosticDescriptor NullInvocation =
-        new(DiagnosticCode.CSEV0502, "Cannot call null as a function");
+        new(DiagnosticCode.CSEV0022, "Cannot call null as a function");
 
-    /// <summary>CSEV0503: Cannot assign to property '{0}' on null</summary>
+    /// <summary>CSEV0023: Cannot assign to property '{0}' on null</summary>
     public static readonly DiagnosticDescriptor NullPropertyAssignment =
-        new(DiagnosticCode.CSEV0503, "Cannot assign to property '{0}' on null");
+        new(DiagnosticCode.CSEV0023, "Cannot assign to property '{0}' on null");
 
     // CSEV06xx — Method resolution and invocation
 
-    /// <summary>CSEV0600: Cannot call '{0}' as a function</summary>
+    /// <summary>CS1955: Non-invocable member '{0}' cannot be used like a method</summary>
     public static readonly DiagnosticDescriptor NonCallableType =
-        new(DiagnosticCode.CSEV0600, "Cannot call '{0}' as a function");
+        new(DiagnosticCode.CS1955, "Non-invocable member '{0}' cannot be used like a method");
 
-    /// <summary>CSEV0601: Method '{0}' invocation failed</summary>
+    /// <summary>CSEV0024: Method '{0}' invocation failed</summary>
     public static readonly DiagnosticDescriptor MethodInvocationFailed =
-        new(DiagnosticCode.CSEV0601, "Method '{0}' invocation failed");
+        new(DiagnosticCode.CSEV0024, "Method '{0}' invocation failed");
 
-    /// <summary>CSEV0602: Ambiguous method invocation: '{0}'</summary>
+    /// <summary>CS0121: The call is ambiguous between the following methods or properties: '{0}'</summary>
     public static readonly DiagnosticDescriptor AmbiguousMethodInvocation =
-        new(DiagnosticCode.CSEV0602, "Ambiguous method invocation: '{0}'");
+        new(DiagnosticCode.CS0121, "The call is ambiguous between the following methods or properties: '{0}'");
 
-    /// <summary>CSEV0603: Call '{0}' requires runtime overload resolution</summary>
+    /// <summary>CSEV0025: Call '{0}' requires runtime overload resolution</summary>
     public static readonly DiagnosticDescriptor RuntimeOverloadResolutionRequired =
-        new(DiagnosticCode.CSEV0603, "Call '{0}' requires runtime overload resolution");
+        new(DiagnosticCode.CSEV0025, "Call '{0}' requires runtime overload resolution");
 
-    /// <summary>CSEV0604: No applicable overload found for method '{0}'</summary>
+    /// <summary>CS1501: No overload for method '{0}' takes the given number of arguments</summary>
     public static readonly DiagnosticDescriptor NoApplicableOverload =
-        new(DiagnosticCode.CSEV0604, "No applicable overload found for method '{0}'");
+        new(DiagnosticCode.CS1501, "No overload for method '{0}' takes the given number of arguments");
 
     // CSEV07xx — Member access and property resolution
 
-    /// <summary>CSEV0700: Indexer overloads with multiple parameters are not supported yet on type '{0}'.</summary>
+    /// <summary>CSEV0026: Indexer overloads with multiple parameters are not supported yet on type '{0}'.</summary>
     public static readonly DiagnosticDescriptor MultiParameterIndexerNotSupported =
-        new(DiagnosticCode.CSEV0700, "Indexer overloads with multiple parameters are not supported yet on type '{0}'.");
+        new(DiagnosticCode.CSEV0026, "Indexer overloads with multiple parameters are not supported yet on type '{0}'.");
 
-    /// <summary>CSEV0701: Unsupported member type '{0}'</summary>
+    /// <summary>CSEV0027: Unsupported member type '{0}'</summary>
     public static readonly DiagnosticDescriptor UnsupportedMemberType =
-        new(DiagnosticCode.CSEV0701, "Unsupported member type '{0}'");
+        new(DiagnosticCode.CSEV0027, "Unsupported member type '{0}'");
 
-    /// <summary>CSEV0702: Indexer access failed: {0}</summary>
+    /// <summary>CSEV0028: Indexer access failed: {0}</summary>
     public static readonly DiagnosticDescriptor IndexerAccessFailed =
-        new(DiagnosticCode.CSEV0702, "Indexer access failed: {0}");
+        new(DiagnosticCode.CSEV0028, "Indexer access failed: {0}");
 
-    /// <summary>CSEV0703: No indexer found on type '{0}'</summary>
+    /// <summary>CSEV0029: No indexer found on type '{0}'</summary>
     public static readonly DiagnosticDescriptor NoIndexerOnType =
-        new(DiagnosticCode.CSEV0703, "No indexer found on type '{0}'");
+        new(DiagnosticCode.CSEV0029, "No indexer found on type '{0}'");
 
     // CSEV08xx — Type system and conversion
 
-    /// <summary>CSEV0800: Cannot take the sizeof of type '{0}'</summary>
+    /// <summary>CS0233: '{0}' does not have a predefined size, therefore sizeof can only be used in an unsafe context</summary>
     public static readonly DiagnosticDescriptor SizeofUnsupportedType =
-        new(DiagnosticCode.CSEV0800, "Cannot take the sizeof of type '{0}'");
+        new(DiagnosticCode.CS0233, "'{0}' does not have a predefined size, therefore sizeof can only be used in an unsafe context");
 
-    /// <summary>CSEV0801: Access to reflection types is not allowed: {0} ({1})</summary>
+    /// <summary>CSEV0030: Access to reflection types is not allowed: {0} ({1})</summary>
     public static readonly DiagnosticDescriptor ReflectionTypeAccessBlocked =
-        new(DiagnosticCode.CSEV0801, "Access to reflection types is not allowed: {0} ({1})");
+        new(DiagnosticCode.CSEV0030, "Access to reflection types is not allowed: {0} ({1})");
 
-    /// <summary>CSEV0802: Cannot deconstruct type '{0}'</summary>
+    /// <summary>CS8129: No suitable 'Deconstruct' instance or extension method was found for type '{0}'</summary>
     public static readonly DiagnosticDescriptor DeconstructionFailed =
-        new(DiagnosticCode.CSEV0802, "Cannot deconstruct type '{0}'");
+        new(DiagnosticCode.CS8129, "No suitable 'Deconstruct' instance or extension method was found for type '{0}'");
 
-    /// <summary>CSEV0803: Tuples must have at least 2 elements</summary>
+    /// <summary>CS8124: Tuple must contain at least two elements</summary>
     public static readonly DiagnosticDescriptor TupleTooFewElements =
-        new(DiagnosticCode.CSEV0803, "Tuples must have at least 2 elements");
+        new(DiagnosticCode.CS8124, "Tuple must contain at least two elements");
 
-    /// <summary>CSEV0804: Deconstruction requires {0} values but tuple has {1} elements</summary>
+    /// <summary>CS8132: Cannot deconstruct a tuple of '{0}' elements into '{1}' variables</summary>
     public static readonly DiagnosticDescriptor DeconstructionCountMismatch =
-        new(DiagnosticCode.CSEV0804, "Deconstruction requires {0} values but tuple has {1} elements");
+        new(DiagnosticCode.CS8132, "Cannot deconstruct a tuple of '{1}' elements into '{0}' variables");
 
-    /// <summary>CSEV0805: Type '{0}' does not have an 'Add' method for collection initializer</summary>
+    /// <summary>CSEV0031: Type '{0}' does not have an 'Add' method for collection initializer</summary>
     public static readonly DiagnosticDescriptor CollectionInitializerNoAdd =
-        new(DiagnosticCode.CSEV0805, "Type '{0}' does not have an 'Add' method for collection initializer");
+        new(DiagnosticCode.CSEV0031, "Type '{0}' does not have an 'Add' method for collection initializer");
 
     // CSEV09xx — Control flow and semantics
 
-    /// <summary>CSEV0900: Semantic validation failed: {0}</summary>
+    /// <summary>CSEV0032: Semantic validation failed: {0}</summary>
     public static readonly DiagnosticDescriptor SemanticValidationFailed =
-        new(DiagnosticCode.CSEV0900, "Semantic validation failed: {0}");
+        new(DiagnosticCode.CSEV0032, "Semantic validation failed: {0}");
 
-    /// <summary>CSEV0901: Expression nesting depth exceeded available stack space.</summary>
+    /// <summary>CSEV0033: Expression nesting depth exceeded available stack space.</summary>
     public static readonly DiagnosticDescriptor ExpressionNestingDepthExceeded =
-        new(DiagnosticCode.CSEV0901, "Expression nesting depth exceeded available stack space.");
+        new(DiagnosticCode.CSEV0033, "Expression nesting depth exceeded available stack space.");
 
-    /// <summary>CSEV0902: Cannot slice null</summary>
+    /// <summary>CSEV0034: Cannot slice null</summary>
     public static readonly DiagnosticDescriptor SliceNull =
-        new(DiagnosticCode.CSEV0902, "Cannot slice null");
+        new(DiagnosticCode.CSEV0034, "Cannot slice null");
 
-    /// <summary>CSEV0903: Slice step cannot be zero</summary>
+    /// <summary>CSEV0035: Slice step cannot be zero</summary>
     public static readonly DiagnosticDescriptor SliceStepZero =
-        new(DiagnosticCode.CSEV0903, "Slice step cannot be zero");
+        new(DiagnosticCode.CSEV0035, "Slice step cannot be zero");
 
-    /// <summary>CSEV0904: Cannot slice type '{0}'</summary>
+    /// <summary>CSEV0036: Cannot slice type '{0}'</summary>
     public static readonly DiagnosticDescriptor SliceUnsupportedType =
-        new(DiagnosticCode.CSEV0904, "Cannot slice type '{0}'");
+        new(DiagnosticCode.CSEV0036, "Cannot slice type '{0}'");
 
-    /// <summary>CSEV0905: Unknown compound assignment operator '{0}'</summary>
+    /// <summary>CSEV0037: Unknown compound assignment operator '{0}'</summary>
     public static readonly DiagnosticDescriptor UnknownCompoundAssignmentOperator =
-        new(DiagnosticCode.CSEV0905, "Unknown compound assignment operator '{0}'");
+        new(DiagnosticCode.CSEV0037, "Unknown compound assignment operator '{0}'");
 
-    /// <summary>CSEV0906: Unsupported compound assignment base operator '{0}'</summary>
+    /// <summary>CSEV0038: Unsupported compound assignment base operator '{0}'</summary>
     public static readonly DiagnosticDescriptor UnsupportedCompoundBaseOperator =
-        new(DiagnosticCode.CSEV0906, "Unsupported compound assignment base operator '{0}'");
+        new(DiagnosticCode.CSEV0038, "Unsupported compound assignment base operator '{0}'");
 
-    /// <summary>CSEV0907: Unsupported chained comparison operator: {0}</summary>
+    /// <summary>CSEV0039: Unsupported chained comparison operator: {0}</summary>
     public static readonly DiagnosticDescriptor UnsupportedChainedComparisonOperator =
-        new(DiagnosticCode.CSEV0907, "Unsupported chained comparison operator: {0}");
+        new(DiagnosticCode.CSEV0039, "Unsupported chained comparison operator: {0}");
 
-    /// <summary>CSEV0908: Spread operator can only be used in array or object literals</summary>
+    /// <summary>CSEV0040: Spread operator can only be used in array or object literals</summary>
     public static readonly DiagnosticDescriptor SpreadOutsideLiteral =
-        new(DiagnosticCode.CSEV0908, "Spread operator can only be used in array or object literals");
+        new(DiagnosticCode.CSEV0040, "Spread operator can only be used in array or object literals");
 
-    /// <summary>CSEV0909: lock statement requires a non-null reference</summary>
+    /// <summary>CS0185: A lock expression must be a reference type</summary>
     public static readonly DiagnosticDescriptor LockRequiresNonNull =
-        new(DiagnosticCode.CSEV0909, "lock statement requires a non-null reference");
+        new(DiagnosticCode.CS0185, "A lock expression must be a reference type");
 
-    /// <summary>CSEV0910: goto case/default target not found</summary>
+    /// <summary>CSEV0041: goto case/default target not found</summary>
     public static readonly DiagnosticDescriptor GotoCaseTargetNotFound =
-        new(DiagnosticCode.CSEV0910, "goto case/default target not found");
+        new(DiagnosticCode.CSEV0041, "goto case/default target not found");
 
-    /// <summary>CSEV0911: Pattern type '{0}' not yet implemented</summary>
+    /// <summary>CSEV0042: Pattern type '{0}' not yet implemented</summary>
     public static readonly DiagnosticDescriptor PatternNotImplemented =
-        new(DiagnosticCode.CSEV0911, "Pattern type '{0}' not yet implemented");
+        new(DiagnosticCode.CSEV0042, "Pattern type '{0}' not yet implemented");
 
-    /// <summary>CSEV0912: Invalid out argument index '{0}'.</summary>
+    /// <summary>CSEV0043: Invalid out argument index '{0}'.</summary>
     public static readonly DiagnosticDescriptor InvalidOutArgumentIndex =
-        new(DiagnosticCode.CSEV0912, "Invalid out argument index '{0}'.");
+        new(DiagnosticCode.CSEV0043, "Invalid out argument index '{0}'.");
 
-    /// <summary>CSEV0913: Unknown relational pattern operator '{0}'</summary>
+    /// <summary>CSEV0044: Unknown relational pattern operator '{0}'</summary>
     public static readonly DiagnosticDescriptor UnknownRelationalPatternOperator =
-        new(DiagnosticCode.CSEV0913, "Unknown relational pattern operator '{0}'");
+        new(DiagnosticCode.CSEV0044, "Unknown relational pattern operator '{0}'");
+
+    /// <summary>CSEV0045: Unsupported tuple arity: {0}</summary>
+    public static readonly DiagnosticDescriptor UnsupportedTupleArity =
+        new(DiagnosticCode.CSEV0045, "Unsupported tuple arity: {0}");
+
+    /// <summary>CSEV0046: Sequence contains no elements</summary>
+    public static readonly DiagnosticDescriptor SequenceContainsNoElements =
+        new(DiagnosticCode.CSEV0046, "Sequence contains no elements");
+
+    /// <summary>CSEV0047: Unsupported delegate arity: {0}</summary>
+    public static readonly DiagnosticDescriptor UnsupportedDelegateArity =
+        new(DiagnosticCode.CSEV0047, "Unsupported delegate arity: {0}");
+
+    /// <summary>CSEV0048: Could not resolve delegate type definition for '{0}'</summary>
+    public static readonly DiagnosticDescriptor DelegateTypeDefinitionNotFound =
+        new(DiagnosticCode.CSEV0048, "Could not resolve delegate type definition for '{0}'");
+
+    /// <summary>CSEV0049: Cannot resolve instance of '{0}'. Either register it in IServiceProvider or ensure it has a parameterless constructor.</summary>
+    public static readonly DiagnosticDescriptor CannotResolveModuleInstance =
+        new(DiagnosticCode.CSEV0049, "Cannot resolve instance of '{0}'. Either register it in IServiceProvider or ensure it has a parameterless constructor.");
 }

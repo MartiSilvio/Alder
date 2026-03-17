@@ -2,6 +2,7 @@ namespace CsEval.Test.Integration;
 
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
+[NonParallelizable]
 public class ConsoleOutputTests(CompilationMode mode)
 {
     [Test]

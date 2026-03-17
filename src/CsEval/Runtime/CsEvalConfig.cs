@@ -108,11 +108,9 @@ internal sealed class ModuleInfo
         if (Type.GetConstructor(Type.EmptyTypes) != null)
         {
             return Activator.CreateInstance(Type)
-                   ?? throw new InvalidOperationException($"Cannot create instance of '{Type.FullName}'");
+                   ?? throw new CsEvalException(Diagnostics.DiagnosticDescriptors.CannotResolveModuleInstance, Type.FullName ?? Type.Name);
         }
 
-        throw new InvalidOperationException(
-            $"Cannot resolve instance of '{Type.FullName}'. " +
-            $"Either register it in IServiceProvider or ensure it has a parameterless constructor.");
+        throw new CsEvalException(Diagnostics.DiagnosticDescriptors.CannotResolveModuleInstance, Type.FullName ?? Type.Name);
     }
 }

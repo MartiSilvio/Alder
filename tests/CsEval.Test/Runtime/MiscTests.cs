@@ -391,7 +391,7 @@ public class MiscTests(CompilationMode mode)
     {
         var engine = TestEngineFactory.Create(mode);
         var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("{ object o = null; lock (o) { } }"));
-        Assert.That(ex!.Message, Does.Contain("lock statement requires a non-null reference"));
+        Assert.That(ex!.Message, Does.Contain("CS0185"));
     }
 
     [Test]

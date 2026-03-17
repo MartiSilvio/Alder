@@ -18,7 +18,7 @@ public class DeconstructionTests(CompilationMode mode)
         engine.SetVariable("val", 42);
         var ex = Assert.Throws<CsEvalException>(() =>
             engine.Evaluate("{ var (x, y) = val; return x; }"));
-        Assert.That(ex!.Message, Does.Contain("Cannot deconstruct"));
+        Assert.That(ex!.Message, Does.Contain("CS8129"));
     }
 
     // Engine-only: error test (arity mismatch assertion)
@@ -28,7 +28,7 @@ public class DeconstructionTests(CompilationMode mode)
         var engine = TestEngineFactory.Create(mode);
         var ex = Assert.Throws<CsEvalException>(() =>
             engine.Evaluate("{ var (x, y, z) = (1, 2); return x; }"));
-        Assert.That(ex!.Message, Does.Contain("Deconstruction requires 3 values but tuple has 2"));
+        Assert.That(ex!.Message, Does.Contain("Cannot deconstruct"));
     }
 
     // Engine-only: error test (arity mismatch assertion)
@@ -38,7 +38,7 @@ public class DeconstructionTests(CompilationMode mode)
         var engine = TestEngineFactory.Create(mode);
         var ex = Assert.Throws<CsEvalException>(() =>
             engine.Evaluate("{ var (x, y) = (1, 2, 3); return x; }"));
-        Assert.That(ex!.Message, Does.Contain("Deconstruction requires 2 values but tuple has 3"));
+        Assert.That(ex!.Message, Does.Contain("Cannot deconstruct"));
     }
 
     #endregion

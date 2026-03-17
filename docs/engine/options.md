@@ -164,11 +164,19 @@ The `UseCompiler()` extension method from the **CsEval.Compiled** package enable
 ```csharp
 using CsEval.Compiled;
 
-// Compiled — emits IL, throws if compilation fails
-var engine = new CsEvalEngine(CsEvalOptions.Default.UseCompiler());
-
 // Interpreted (default) — always tree-walks
 var engine = new CsEvalEngine();
+
+// Compiled — emits IL
+var engine = new CsEvalEngine(CsEvalOptions.Default.UseCompiler());
+
+// Compiled with custom options — chains on any options value
+var options = new CsEvalOptions
+{
+    LanguageMode = LanguageMode.Extended,
+    Sandbox = SandboxOptions.Safe()
+}.UseCompiler();
+var engine = new CsEvalEngine(options);
 ```
 
 See [Compilation Modes](../engine/compilation-modes/) for full details.

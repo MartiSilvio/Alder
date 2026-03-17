@@ -204,7 +204,7 @@ internal static class AggregateBuiltins
         }
 
         if (count == 0)
-            throw new InvalidOperationException("Sequence contains no elements");
+            throw new CsEvalException(Diagnostics.DiagnosticDescriptors.SequenceContainsNoElements);
 
         return total / count;
     }
@@ -247,7 +247,7 @@ internal static class AggregateBuiltins
         }
 
         if (!hasValue)
-            throw new InvalidOperationException("Sequence contains no elements");
+            throw new CsEvalException(Diagnostics.DiagnosticDescriptors.SequenceContainsNoElements);
 
         return best;
     }

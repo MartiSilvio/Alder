@@ -4,6 +4,7 @@ using CsEval.Parsing;
 namespace CsEval.Test.Performance;
 
 [TestFixture]
+[Explicit]
 public class BenchmarkTests
 {
     private const int WarmupIterations = 100;

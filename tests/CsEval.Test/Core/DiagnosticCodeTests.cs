@@ -438,8 +438,8 @@ public class DiagnosticCodeTests
         });
         engine.SetVariable("x", 10);
         var ex = Assert.Throws<CsEvalSandboxException>(() => engine.Evaluate("x = 5"));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0302));
-        Assert.That(ex.FormattedCode, Is.EqualTo("CSEV0302"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0012));
+        Assert.That(ex.FormattedCode, Is.EqualTo("CSEV0012"));
     }
 
     [Test]
