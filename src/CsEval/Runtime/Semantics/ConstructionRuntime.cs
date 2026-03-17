@@ -1,8 +1,6 @@
-using System.Reflection;
-using System.Runtime.CompilerServices;
 using CsEval.Diagnostics;
 
-namespace CsEval.Runtime;
+namespace CsEval.Runtime.Semantics;
 
 internal static class ConstructionRuntime
 {

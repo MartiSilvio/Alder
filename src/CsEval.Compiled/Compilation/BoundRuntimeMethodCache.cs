@@ -2,6 +2,7 @@ using System.Dynamic;
 using System.Collections.Concurrent;
 using CsEval.Runtime;
 using CsEval.Runtime.Extensions;
+using CsEval.Runtime.Semantics;
 
 namespace CsEval.Compiled.Compilation;
 

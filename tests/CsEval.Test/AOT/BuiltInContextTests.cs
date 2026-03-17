@@ -1,4 +1,6 @@
-namespace CsEval.Test.Aot;
+using CsEval.Aot;
+
+namespace CsEval.Test.AOT;
 
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]

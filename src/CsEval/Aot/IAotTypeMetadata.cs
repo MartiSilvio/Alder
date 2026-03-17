@@ -1,4 +1,4 @@
-namespace CsEval;
+namespace CsEval.Aot;
 
 public interface IAotTypeMetadata
 {

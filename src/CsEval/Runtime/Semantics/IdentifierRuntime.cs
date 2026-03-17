@@ -3,7 +3,7 @@ using CsEval.Diagnostics;
 using CsEval.Parsing;
 using CsEval.Runtime.Extensions;
 
-namespace CsEval.Runtime;
+namespace CsEval.Runtime.Semantics;
 
 internal static class IdentifierRuntime
 {

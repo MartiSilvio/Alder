@@ -21,7 +21,7 @@ public class EdgeCaseGenerationTests
     public void TypeWithNoPublicMembers_GeneratesEmptyMetadata()
     {
         var source = """
-            using CsEval;
+            using CsEval.Aot;
 
             namespace TestTypes
             {
@@ -49,7 +49,7 @@ public class EdgeCaseGenerationTests
     public void NestedType_GeneratesCorrectTypeof()
     {
         var source = """
-            using CsEval;
+            using CsEval.Aot;
 
             namespace TestTypes
             {
@@ -78,7 +78,7 @@ public class EdgeCaseGenerationTests
     public void ClosedGenericType_EmitsPreservationReference()
     {
         var source = """
-            using CsEval;
+            using CsEval.Aot;
             using System.Collections.Generic;
 
             namespace TestTypes
@@ -101,7 +101,7 @@ public class EdgeCaseGenerationTests
     public void NonGenericType_NoGenericInstantiationsEmitted()
     {
         var source = """
-            using CsEval;
+            using CsEval.Aot;
 
             namespace TestTypes
             {
@@ -127,7 +127,7 @@ public class EdgeCaseGenerationTests
     public void TypeWithInheritedMembers_OnlyGeneratesDeclaredMembers()
     {
         var source = """
-            using CsEval;
+            using CsEval.Aot;
 
             namespace TestTypes
             {
@@ -159,7 +159,7 @@ public class EdgeCaseGenerationTests
     public void MultipleContextClasses_GeneratesForBoth()
     {
         var source = """
-            using CsEval;
+            using CsEval.Aot;
 
             namespace TestTypes
             {
@@ -192,7 +192,7 @@ public class EdgeCaseGenerationTests
     public void ContextWithoutCsEvalRegistered_NoOutput()
     {
         var source = """
-            using CsEval;
+            using CsEval.Aot;
 
             namespace TestTypes
             {
@@ -209,7 +209,7 @@ public class EdgeCaseGenerationTests
     public void PropertyWithInitOnlySetter_OmittedFromTrySetProperty()
     {
         var source = """
-            using CsEval;
+            using CsEval.Aot;
 
             namespace TestTypes
             {

@@ -1,4 +1,4 @@
-namespace CsEval;
+namespace CsEval.Aot;
 
 [CsEvalRegistered(typeof(int))]
 [CsEvalRegistered(typeof(long))]

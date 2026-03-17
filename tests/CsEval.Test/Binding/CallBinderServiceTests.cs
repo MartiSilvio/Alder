@@ -1,8 +1,8 @@
-using CsEval.Binding.Services;
 using CsEval.Binding.Plans;
+using CsEval.Binding.Services;
 using CsEval.Runtime;
 
-namespace CsEval.Test;
+namespace CsEval.Test.Binding;
 
 [TestFixture]
 public sealed class CallBinderServiceTests

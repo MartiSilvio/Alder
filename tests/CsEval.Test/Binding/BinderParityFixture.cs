@@ -1,4 +1,4 @@
-namespace CsEval.Test;
+namespace CsEval.Test.Binding;
 
 public sealed record ExecutionParityScenario(
     string Name,

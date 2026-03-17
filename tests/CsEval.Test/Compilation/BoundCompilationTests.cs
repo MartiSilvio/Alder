@@ -1,4 +1,4 @@
-namespace CsEval.Test;
+namespace CsEval.Test.Compilation;
 
 [TestFixture]
 public sealed class BoundCompilationTests

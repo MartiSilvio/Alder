@@ -1,6 +1,6 @@
 using CsEval.Parsing;
 
-namespace CsEval.Test;
+namespace CsEval.Test.Runtime;
 
 [TestFixture]
 public sealed class BoundExecutionTests

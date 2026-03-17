@@ -1,4 +1,4 @@
-namespace CsEval.Runtime;
+namespace CsEval.Runtime.Semantics;
 
 internal static class NumericPromotionRuntime
 {

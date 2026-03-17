@@ -8,6 +8,7 @@ using CsEval.Tracing;
 using System.Collections.Immutable;
 using System.Dynamic;
 using System.Runtime.ExceptionServices;
+using CsEval.Runtime.Semantics;
 
 namespace CsEval.Interpretation;
 

@@ -134,6 +134,9 @@ $RECYCLE.BIN/
 _NCrunch*
 
 
+# GSD planning docs (local only)
+.planning/
+
 # Claude Code
 .claude/
 CLAUDE.md

@@ -21,7 +21,7 @@ public class MethodDispatchGenerationTests
     public void InstanceMethod_GeneratesTryInvokeMethod()
     {
         var source = """
-            using CsEval;
+            using CsEval.Aot;
 
             namespace TestTypes
             {
@@ -50,7 +50,7 @@ public class MethodDispatchGenerationTests
     public void StaticMethod_GeneratesTryInvokeStaticMethod()
     {
         var source = """
-            using CsEval;
+            using CsEval.Aot;
 
             namespace TestTypes
             {
@@ -79,7 +79,7 @@ public class MethodDispatchGenerationTests
     public void VoidMethod_EmitsNullResultPattern()
     {
         var source = """
-            using CsEval;
+            using CsEval.Aot;
 
             namespace TestTypes
             {
@@ -109,7 +109,7 @@ public class MethodDispatchGenerationTests
     public void OverloadedMethods_GeneratesArgLengthSwitch()
     {
         var source = """
-            using CsEval;
+            using CsEval.Aot;
 
             namespace TestTypes
             {
@@ -140,7 +140,7 @@ public class MethodDispatchGenerationTests
     public void GenericMethod_Skipped()
     {
         var source = """
-            using CsEval;
+            using CsEval.Aot;
 
             namespace TestTypes
             {
@@ -168,7 +168,7 @@ public class MethodDispatchGenerationTests
     public void RefOutParameter_Skipped()
     {
         var source = """
-            using CsEval;
+            using CsEval.Aot;
 
             namespace TestTypes
             {
@@ -196,7 +196,7 @@ public class MethodDispatchGenerationTests
     public void ParamsMethod_Skipped()
     {
         var source = """
-            using CsEval;
+            using CsEval.Aot;
             using System.Linq;
 
             namespace TestTypes
@@ -225,7 +225,7 @@ public class MethodDispatchGenerationTests
     public void AllTestCases_NoCompilationErrors()
     {
         var source = """
-            using CsEval;
+            using CsEval.Aot;
             using System.Linq;
 
             namespace TestTypes

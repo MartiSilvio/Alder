@@ -2,7 +2,7 @@ using CsEval.Binding;
 using CsEval.Binding.BoundNodes;
 using CsEval.Parsing;
 
-namespace CsEval.Test;
+namespace CsEval.Test.Binding;
 
 [TestFixture]
 public sealed class BinderTests

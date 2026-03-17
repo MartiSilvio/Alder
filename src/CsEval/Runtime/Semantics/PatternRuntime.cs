@@ -3,7 +3,7 @@ using CsEval.Diagnostics;
 using CsEval.Interpretation;
 using CsEval.Parsing;
 
-namespace CsEval.Runtime;
+namespace CsEval.Runtime.Semantics;
 
 internal static class PatternRuntime
 {

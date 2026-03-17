@@ -1,4 +1,6 @@
-namespace CsEval.Test;
+using CsEval.Test.Binding;
+
+namespace CsEval.Test.Parity;
 
 [TestFixture]
 public sealed class ExecutionModeParityTests

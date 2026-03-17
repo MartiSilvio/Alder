@@ -18,7 +18,7 @@ public sealed class CsEvalSourceGenerator : IIncrementalGenerator
     {
         var registrations = context.SyntaxProvider
             .ForAttributeWithMetadataName(
-                "CsEval.CsEvalRegisteredAttribute",
+                "CsEval.Aot.CsEvalRegisteredAttribute",
                 predicate: static (node, _) => node is ClassDeclarationSyntax,
                 transform: static (ctx, ct) => ExtractRegistrations(ctx))
             .Where(static r => r.HasValue)
@@ -37,7 +37,7 @@ public sealed class CsEvalSourceGenerator : IIncrementalGenerator
         if (ctx.TargetSymbol is not INamedTypeSymbol contextClass)
             return null;
 
-        if (!DerivesFrom(contextClass, "CsEval.CsEvalTypeContext"))
+        if (!DerivesFrom(contextClass, "CsEval.Aot.CsEvalTypeContext"))
             return null;
 
         var contextNamespace = contextClass.ContainingNamespace.IsGlobalNamespace

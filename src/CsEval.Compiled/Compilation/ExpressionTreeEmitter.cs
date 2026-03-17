@@ -2,6 +2,7 @@ using System.Linq.Expressions;
 using CsEval.Binding;
 using CsEval.Binding.BoundNodes;
 using CsEval.Binding.Plans;
+using CsEval.Compiled.Compilation.BoundEmission;
 using CsEval.Diagnostics;
 using CsEval.Parsing;
 using CsEval.Runtime;

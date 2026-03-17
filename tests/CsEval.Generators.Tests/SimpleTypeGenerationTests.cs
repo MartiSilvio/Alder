@@ -21,7 +21,7 @@ public class SimpleTypeGenerationTests
     public void SimpleType_GeneratesPropertyAccessors()
     {
         var source = """
-            using CsEval;
+            using CsEval.Aot;
 
             namespace TestTypes
             {
@@ -51,7 +51,7 @@ public class SimpleTypeGenerationTests
     public void MultipleTypes_GeneratesMetadataForEach()
     {
         var source = """
-            using CsEval;
+            using CsEval.Aot;
 
             namespace TestTypes
             {
@@ -85,7 +85,7 @@ public class SimpleTypeGenerationTests
     public void Context_GeneratesDefaultSingleton()
     {
         var source = """
-            using CsEval;
+            using CsEval.Aot;
 
             namespace TestTypes
             {
@@ -111,7 +111,7 @@ public class SimpleTypeGenerationTests
     public void Context_OverridesGetTypeMetadata()
     {
         var source = """
-            using CsEval;
+            using CsEval.Aot;
 
             namespace TestTypes
             {
@@ -138,7 +138,7 @@ public class SimpleTypeGenerationTests
     public void MultipleConstructors_GeneratesSwitchOnArgLength()
     {
         var source = """
-            using CsEval;
+            using CsEval.Aot;
 
             namespace TestTypes
             {

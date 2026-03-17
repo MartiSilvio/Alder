@@ -1,6 +1,7 @@
 using CsEval.Runtime.Collections;
 using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
+using CsEval.Aot;
 
 namespace CsEval.Runtime;
 

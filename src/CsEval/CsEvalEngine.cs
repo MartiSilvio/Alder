@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
+using CsEval.Aot;
 using CsEval.Attributes;
 using CsEval.Binding;
 using CsEval.Compilation;
@@ -79,7 +80,7 @@ public sealed class CsEvalEngine : IDisposable
         _functions = new Dictionary<string, Func<object?[], object?>>(options.StringComparer);
         _pendingVariables = new Dictionary<string, PendingVariable>(options.StringComparer);
         _extensionTypes.Add(typeof(Enumerable));
-        _generatedContext = CsEvalBuiltInContext.Default;
+        _generatedContext = Aot.CsEvalBuiltInContext.Default;
         RegisterBuiltInModules();
     }
 

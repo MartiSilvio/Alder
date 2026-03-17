@@ -1,4 +1,5 @@
 using CsEval.Binding.BoundNodes;
+using CsEval.Compiled.Compilation.BoundEmission;
 using CsEval.Parsing;
 using static CsEval.Compiled.Compilation.BoundRuntimeMethodCache;
 

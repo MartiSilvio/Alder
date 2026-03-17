@@ -1,4 +1,4 @@
-namespace CsEval.Test.Aot;
+namespace CsEval.Test.AOT;
 
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
@@ -17,7 +17,7 @@ public class GeneratedContextIntegrationTests(CompilationMode mode)
     {
         var engine = CreateEngine(useGeneratedContext);
         engine.RegisterAssembly(typeof(TestModel).Assembly);
-        engine.RegisterNamespace("CsEval.Test.Aot");
+        engine.RegisterNamespace("CsEval.Test.AOT");
         return engine;
     }
 

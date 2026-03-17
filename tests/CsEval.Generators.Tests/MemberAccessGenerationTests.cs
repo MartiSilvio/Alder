@@ -21,7 +21,7 @@ public class MemberAccessGenerationTests
     public void ReadOnlyProperty_OmittedFromTrySetProperty()
     {
         var source = """
-            using CsEval;
+            using CsEval.Aot;
 
             namespace TestTypes
             {
@@ -54,7 +54,7 @@ public class MemberAccessGenerationTests
     public void ReadOnlyField_OmittedFromTrySetField()
     {
         var source = """
-            using CsEval;
+            using CsEval.Aot;
 
             namespace TestTypes
             {
@@ -87,7 +87,7 @@ public class MemberAccessGenerationTests
     public void StaticMembers_InTryGetStaticPropertyAndField()
     {
         var source = """
-            using CsEval;
+            using CsEval.Aot;
 
             namespace TestTypes
             {
@@ -119,7 +119,7 @@ public class MemberAccessGenerationTests
     public void Indexer_GeneratesTryGetIndexAndTrySetIndex()
     {
         var source = """
-            using CsEval;
+            using CsEval.Aot;
             using System.Collections.Generic;
 
             namespace TestTypes
@@ -156,7 +156,7 @@ public class MemberAccessGenerationTests
     public void ReadOnlyIndexer_OnlyGeneratesTryGetIndex()
     {
         var source = """
-            using CsEval;
+            using CsEval.Aot;
 
             namespace TestTypes
             {

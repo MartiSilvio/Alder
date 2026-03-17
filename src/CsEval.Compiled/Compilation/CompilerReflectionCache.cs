@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using CsEval.Parsing;
 using CsEval.Runtime;
+using CsEval.Runtime.Semantics;
 
 namespace CsEval.Compiled.Compilation;
 

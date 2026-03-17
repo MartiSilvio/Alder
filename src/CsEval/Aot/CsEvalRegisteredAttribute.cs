@@ -1,4 +1,4 @@
-namespace CsEval;
+namespace CsEval.Aot;
 
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = true)]
 public sealed class CsEvalRegisteredAttribute : Attribute

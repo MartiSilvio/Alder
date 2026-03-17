@@ -1,4 +1,5 @@
 using CsEval;
+using CsEval.AotMatrix;
 
 var testDataDir = args.Length > 0
     ? args[0]
@@ -92,4 +93,7 @@ Console.WriteLine($"\n  Full report: {reportPath}");
 
 return fail > 0 ? 1 : 0;
 
-record FailureRecord(string File, string ErrorType, string Message);
+namespace CsEval.AotMatrix
+{
+    record FailureRecord(string File, string ErrorType, string Message);
+}

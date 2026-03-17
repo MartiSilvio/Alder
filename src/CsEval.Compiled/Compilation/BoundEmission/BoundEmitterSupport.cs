@@ -4,7 +4,7 @@ using CsEval.Binding.BoundNodes;
 using CsEval.Binding.Plans;
 using CsEval.Runtime;
 
-namespace CsEval.Compiled.Compilation;
+namespace CsEval.Compiled.Compilation.BoundEmission;
 
 internal static class BoundEmitterSupport
 {
