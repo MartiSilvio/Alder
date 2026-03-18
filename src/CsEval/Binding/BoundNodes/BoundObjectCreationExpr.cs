@@ -11,4 +11,15 @@ internal sealed record BoundObjectCreationExpr(
     string TypeName,
     ImmutableArray<BoundExpr> Arguments,
     ImmutableArray<BoundInitializerEntry> InitializerEntries,
-    Type StaticType) : BoundExpr(StaticType);
+    Type StaticType) : BoundExpr(StaticType)
+{
+    internal override void EnumerateChildren(Action<BoundExpr> visit)
+    {
+        foreach (var a in Arguments) visit(a);
+        foreach (var e in InitializerEntries)
+        {
+            visit(e.Value);
+            if (e.IndexerKey != null) visit(e.IndexerKey);
+        }
+    }
+}

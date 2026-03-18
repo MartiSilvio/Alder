@@ -11,4 +11,15 @@ internal sealed record BoundSwitchExpressionArm(
 internal sealed record BoundSwitchExpressionExpr(
     BoundExpr Expression,
     ImmutableArray<BoundSwitchExpressionArm> Arms,
-    Type StaticType) : BoundExpr(StaticType);
+    Type StaticType) : BoundExpr(StaticType)
+{
+    internal override void EnumerateChildren(Action<BoundExpr> visit)
+    {
+        visit(Expression);
+        foreach (var a in Arms)
+        {
+            if (a.WhenGuard != null) visit(a.WhenGuard);
+            visit(a.Value);
+        }
+    }
+}

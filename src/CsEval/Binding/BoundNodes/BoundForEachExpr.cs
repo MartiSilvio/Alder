@@ -8,4 +8,11 @@ internal sealed record BoundForEachExpr(
     ImmutableArray<BoundExpr> Body,
     Type ElementType,
     Type StaticType,
-    int? LocalId = null) : BoundExpr(StaticType);
+    int? LocalId = null) : BoundExpr(StaticType)
+{
+    internal override void EnumerateChildren(Action<BoundExpr> visit)
+    {
+        visit(Collection);
+        foreach (var s in Body) visit(s);
+    }
+}

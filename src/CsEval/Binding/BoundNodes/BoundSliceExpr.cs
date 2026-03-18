@@ -5,4 +5,13 @@ internal sealed record BoundSliceExpr(
     BoundExpr? Start,
     BoundExpr? End,
     BoundExpr? Step,
-    Type StaticType) : BoundExpr(StaticType);
+    Type StaticType) : BoundExpr(StaticType)
+{
+    internal override void EnumerateChildren(Action<BoundExpr> visit)
+    {
+        visit(Target);
+        if (Start != null) visit(Start);
+        if (End != null) visit(End);
+        if (Step != null) visit(Step);
+    }
+}

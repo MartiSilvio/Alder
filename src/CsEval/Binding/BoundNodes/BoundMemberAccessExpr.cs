@@ -7,4 +7,7 @@ internal sealed record BoundMemberAccessExpr(
     string MemberName,
     bool NullSafe,
     BoundMemberPlan? Plan,
-    Type StaticType) : BoundExpr(StaticType);
+    Type StaticType) : BoundExpr(StaticType)
+{
+    internal override void EnumerateChildren(Action<BoundExpr> visit) { visit(Target); }
+}

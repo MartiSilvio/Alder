@@ -6,4 +6,7 @@ namespace CsEval.Binding.BoundNodes;
 internal sealed record BoundLambdaExpr(
     ImmutableArray<string> Parameters,
     Expr Body,
-    Type StaticType) : BoundExpr(StaticType);
+    Type StaticType) : BoundExpr(StaticType)
+{
+    internal override void EnumerateChildren(Action<BoundExpr> visit) { }
+}

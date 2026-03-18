@@ -13,4 +13,12 @@ internal sealed record BoundInterpolatedExpressionPart(
 
 internal sealed record BoundInterpolatedStringExpr(
     ImmutableArray<BoundInterpolatedPart> Parts,
-    Type StaticType) : BoundExpr(StaticType);
+    Type StaticType) : BoundExpr(StaticType)
+{
+    internal override void EnumerateChildren(Action<BoundExpr> visit)
+    {
+        foreach (var p in Parts)
+            if (p is BoundInterpolatedExpressionPart ep)
+                visit(ep.Expression);
+    }
+}

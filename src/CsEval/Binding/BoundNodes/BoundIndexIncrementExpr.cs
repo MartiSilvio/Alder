@@ -5,4 +5,7 @@ internal sealed record BoundIndexIncrementExpr(
     BoundExpr Index,
     bool IsPrefix,
     bool IsIncrement,
-    Type StaticType) : BoundExpr(StaticType);
+    Type StaticType) : BoundExpr(StaticType)
+{
+    internal override void EnumerateChildren(Action<BoundExpr> visit) { visit(Target); visit(Index); }
+}

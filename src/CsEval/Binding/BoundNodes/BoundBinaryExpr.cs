@@ -6,4 +6,7 @@ internal sealed record BoundBinaryExpr(
     TokenType Operator,
     BoundExpr Left,
     BoundExpr Right,
-    Type StaticType) : BoundExpr(StaticType);
+    Type StaticType) : BoundExpr(StaticType)
+{
+    internal override void EnumerateChildren(Action<BoundExpr> visit) { visit(Left); visit(Right); }
+}

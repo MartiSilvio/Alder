@@ -7,4 +7,7 @@ internal sealed record BoundIncrementDecrementExpr(
     TokenType Operator,
     bool IsPrefix,
     Type StaticType,
-    int? LocalId = null) : BoundExpr(StaticType);
+    int? LocalId = null) : BoundExpr(StaticType)
+{
+    internal override void EnumerateChildren(Action<BoundExpr> visit) { }
+}

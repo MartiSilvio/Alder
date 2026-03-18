@@ -9,4 +9,7 @@ internal sealed record BoundObjectLiteralProperty(
 
 internal sealed record BoundObjectLiteralExpr(
     ImmutableArray<BoundObjectLiteralProperty> Properties,
-    Type StaticType) : BoundExpr(StaticType);
+    Type StaticType) : BoundExpr(StaticType)
+{
+    internal override void EnumerateChildren(Action<BoundExpr> visit) { foreach (var p in Properties) visit(p.Value); }
+}

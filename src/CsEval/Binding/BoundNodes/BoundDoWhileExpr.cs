@@ -5,4 +5,11 @@ namespace CsEval.Binding.BoundNodes;
 internal sealed record BoundDoWhileExpr(
     ImmutableArray<BoundExpr> Body,
     BoundExpr Condition,
-    Type StaticType) : BoundExpr(StaticType);
+    Type StaticType) : BoundExpr(StaticType)
+{
+    internal override void EnumerateChildren(Action<BoundExpr> visit)
+    {
+        foreach (var s in Body) visit(s);
+        visit(Condition);
+    }
+}

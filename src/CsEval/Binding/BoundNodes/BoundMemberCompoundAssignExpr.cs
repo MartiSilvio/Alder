@@ -7,4 +7,7 @@ internal sealed record BoundMemberCompoundAssignExpr(
     string MemberName,
     TokenType Operator,
     BoundExpr Value,
-    Type StaticType) : BoundExpr(StaticType);
+    Type StaticType) : BoundExpr(StaticType)
+{
+    internal override void EnumerateChildren(Action<BoundExpr> visit) { visit(Target); visit(Value); }
+}

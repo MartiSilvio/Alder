@@ -6,4 +6,7 @@ internal sealed record BoundVariableDeclExpr(
     Type? DeclaredType,
     Type StaticType,
     bool IsConst = false,
-    int? LocalId = null) : BoundExpr(StaticType);
+    int? LocalId = null) : BoundExpr(StaticType)
+{
+    internal override void EnumerateChildren(Action<BoundExpr> visit) { visit(Initializer); }
+}
