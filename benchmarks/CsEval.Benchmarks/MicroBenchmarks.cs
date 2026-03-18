@@ -7,7 +7,7 @@ namespace CsEval.Benchmarks;
 public sealed record MicroScenario(
     string Name,
     string CsEvalExpression,
-    string DynamicExpressoExpression)
+    string? DynamicExpressoExpression)
 {
     public override string ToString() => Name;
 }
@@ -45,7 +45,7 @@ public class MicroBenchmarks : BenchmarkBase
             "text.Length"),
         new("LinqWhereCount",
             "numbers.Where((n) => n > value).Count()",
-            "numbers.Where(n => n > value).Count()"),
+            null),
         new("ArithmeticOnly",
             "x + y * z",
             "x + y * z"),
@@ -60,7 +60,7 @@ public class MicroBenchmarks : BenchmarkBase
             "(double)x / y"),
         new("StringInterpolation",
             "$\"{text} is {x + y}\"",
-            "$\"{text} is {x + y}\"")
+            null)
     ];
 
     [GlobalSetup]
@@ -75,8 +75,11 @@ public class MicroBenchmarks : BenchmarkBase
         ApplyGlobals(_interpretedReflectionEngine, _globals);
         _interpretedReflectionExpression = _interpretedReflectionEngine.Parse(Scenario.CsEvalExpression);
 
-        var interpreter = CreateDynamicExpressoInterpreter(_globals);
-        _dynamicExpressoExpression = interpreter.Parse(Scenario.DynamicExpressoExpression);
+        if (Scenario.DynamicExpressoExpression is not null)
+        {
+            var interpreter = CreateDynamicExpressoInterpreter(_globals);
+            _dynamicExpressoExpression = interpreter.Parse(Scenario.DynamicExpressoExpression);
+        }
     }
 
     [Benchmark]
@@ -93,5 +96,5 @@ public class MicroBenchmarks : BenchmarkBase
 
     [Benchmark(Baseline = true)]
     [BenchmarkCategory("WarmExecution")]
-    public object DynamicExpresso() => _dynamicExpressoExpression.Invoke()!;
+    public object? DynamicExpresso() => _dynamicExpressoExpression?.Invoke();
 }

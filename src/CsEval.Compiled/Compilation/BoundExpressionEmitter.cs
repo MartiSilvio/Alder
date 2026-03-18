@@ -304,6 +304,9 @@ internal sealed partial class BoundExpressionEmitter
         if (TryEmitPrimitiveBinaryFastPath(binary, out var direct))
             return direct;
 
+        if (TryEmitStringConcatFastPath(binary, out var stringDirect))
+            return stringDirect;
+
         if (ShouldApplyConstantPromotion(binary))
             return EmitBinaryWithConstantPromotion(binary);
 
@@ -311,6 +314,35 @@ internal sealed partial class BoundExpressionEmitter
             (binary.Left.StaticType == typeof(string) || binary.Right.StaticType == typeof(string));
 
         return EmitBinaryCore(binary.Operator, BoundEmitterSupport.AsObject(Emit(binary.Left)), BoundEmitterSupport.AsObject(Emit(binary.Right)), isStringContext);
+    }
+
+    private bool TryEmitStringConcatFastPath(BoundBinaryExpr binary, out LinqExpression result)
+    {
+        result = null!;
+        if (binary.Operator != TokenType.Plus)
+            return false;
+
+        var leftIsString = binary.Left.StaticType == typeof(string);
+        var rightIsString = binary.Right.StaticType == typeof(string);
+        if (!leftIsString && !rightIsString)
+            return false;
+
+        var left = Emit(binary.Left);
+        var right = Emit(binary.Right);
+
+        // Convert non-string side to string via ToString()
+        if (!leftIsString)
+            left = BoundEmitterSupport.ToStringExpression(left);
+        else
+            left = BoundEmitterSupport.EnsureTypedExpression(left, typeof(string));
+
+        if (!rightIsString)
+            right = BoundEmitterSupport.ToStringExpression(right);
+        else
+            right = BoundEmitterSupport.EnsureTypedExpression(right, typeof(string));
+
+        result = LinqExpression.Call(StringConcatTwoStringsMethod, left, right);
+        return true;
     }
 
     private LinqExpression EmitBinaryWithConstantPromotion(BoundBinaryExpr binary)

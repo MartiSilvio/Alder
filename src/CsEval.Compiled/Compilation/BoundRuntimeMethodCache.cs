@@ -408,6 +408,12 @@ internal static class BoundRuntimeMethodCache
     internal static readonly MethodInfo ObjectToStringMethod =
         typeof(object).GetMethod(nameof(ToString))!;
 
+    internal static readonly MethodInfo StringConcatTwoStringsMethod =
+        typeof(string).GetMethod(nameof(string.Concat), [typeof(string), typeof(string)])!;
+
+    internal static readonly MethodInfo StringConcatObjectMethod =
+        typeof(string).GetMethod(nameof(string.Concat), [typeof(object)])!;
+
     private static readonly ConcurrentDictionary<Type, MethodInfo> GetVariableTypedMethodCache = new();
 
     internal static MethodInfo GetVariableTypedMethodFor(Type valueType) =>

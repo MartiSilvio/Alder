@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using CsEval.Binding;
 using CsEval.Binding.BoundNodes;
 using CsEval.Binding.Plans;
+using CsEval.Compiled.Compilation;
 using CsEval.Runtime;
 
 namespace CsEval.Compiled.Compilation.BoundEmission;
@@ -20,6 +21,15 @@ internal static class BoundEmitterSupport
         return expression.Type == targetType
             ? expression
             : LinqExpression.Convert(expression, targetType);
+    }
+
+    // Converts any expression to string using string.Concat(object), which handles null (returns "")
+    // and matches C# string concatenation coercion semantics.
+    internal static LinqExpression ToStringExpression(LinqExpression expression)
+    {
+        if (expression.Type == typeof(string))
+            return expression;
+        return LinqExpression.Call(BoundRuntimeMethodCache.StringConcatObjectMethod, AsObject(expression));
     }
 
     internal static bool CanEmitDirectMethodCall(BoundCallPlan plan, int sourceArgumentCount)

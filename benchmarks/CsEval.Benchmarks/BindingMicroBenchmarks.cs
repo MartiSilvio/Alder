@@ -13,6 +13,7 @@ public class BindingMicroBenchmarks : BenchmarkBase
     private CsEvalExpression _warmCompiledExpression = null!;
     private CsEvalExpression _extendedWarmExpression = null!;
     private CsEvalExpression _loopMutationWarmExpression = null!;
+    private CsEvalExpression _loopMutationCompiledExpression = null!;
     private CsEvalEngine _extendedInterpretedEngine = null!;
 
     private const string MethodHeavyExpression = "Math.Abs(x - y) + Math.Max(y, z)";
@@ -26,6 +27,7 @@ public class BindingMicroBenchmarks : BenchmarkBase
         _warmInterpretedExpression = InterpretedEngine.Parse(MethodHeavyExpression);
         _warmCompiledExpression = CompiledEngine.Parse(MethodHeavyExpression);
         _loopMutationWarmExpression = InterpretedEngine.Parse(LoopMutationExpression);
+        _loopMutationCompiledExpression = CompiledEngine.Parse(LoopMutationExpression);
 
         _extendedInterpretedEngine = CreateEngine(CompilationMode.Interpreted, _globals, LanguageMode.Extended);
         _extendedWarmExpression = _extendedInterpretedEngine.Parse(ExtendedAliasExpression);
@@ -77,4 +79,9 @@ public class BindingMicroBenchmarks : BenchmarkBase
     [BenchmarkCategory("BindingWarm")]
     public object EvaluateWarm_LoopMutation_Interpreted() =>
         InterpretedEngine.Evaluate(_loopMutationWarmExpression)!;
+
+    [Benchmark]
+    [BenchmarkCategory("BindingWarm")]
+    public object EvaluateWarm_LoopMutation_Compiled() =>
+        CompiledEngine.Evaluate(_loopMutationCompiledExpression)!;
 }
