@@ -408,6 +408,21 @@ internal static class BoundRuntimeMethodCache
     internal static readonly MethodInfo ObjectToStringMethod =
         typeof(object).GetMethod(nameof(ToString))!;
 
+    internal static readonly MethodInfo ApplyCompoundAssignLocalMethod =
+        typeof(AssignmentRuntime).GetMethod(nameof(AssignmentRuntime.ApplyCompoundAssignLocal))!;
+
+    internal static readonly MethodInfo ApplyIncrementDecrementLocalMethod =
+        typeof(AssignmentRuntime).GetMethod(nameof(AssignmentRuntime.ApplyIncrementDecrementLocal))!;
+
+    internal static readonly MethodInfo ValidateVariableAssignmentLocalMethod =
+        typeof(AssignmentRuntime).GetMethod(nameof(AssignmentRuntime.ValidateVariableAssignmentLocal))!;
+
+    internal static readonly MethodInfo ValidateAndCoerceTypeMethod =
+        typeof(TypeHelpers).GetMethod(nameof(TypeHelpers.ValidateAndCoerceType))!;
+
+    internal static readonly MethodInfo CheckNullCoalesceAssignLocalMethod =
+        typeof(ExecutionRuntime).GetMethod(nameof(ExecutionRuntime.CheckNullCoalesceAssignAllowed))!;
+
     internal static readonly MethodInfo StringConcatTwoStringsMethod =
         typeof(string).GetMethod(nameof(string.Concat), [typeof(string), typeof(string)])!;
 

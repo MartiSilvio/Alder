@@ -71,7 +71,7 @@ public static class TestHelpers
     public static string NormalizeExceptionKey(Exception ex) =>
         ex switch
         {
-            CsEvalException cs when cs.ErrorCode is not null => $"{cs.FormattedCode}:{ex.GetType().Name}",
+            CsEvalException { ErrorCode: not null } cs => $"{cs.FormattedCode}:{ex.GetType().Name}",
             _ => TryGetRoslynErrorCode(ex.Message) is { } code ? $"{code}:{ex.GetType().Name}" : ex.GetType().Name
         };
 

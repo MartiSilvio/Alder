@@ -422,7 +422,7 @@ internal sealed partial class ExpressionParser : ParserBase
                     return true;
                 }
 
-                if (tokenType == TokenType.Semicolon || tokenType == TokenType.Eof)
+                if (tokenType is TokenType.Semicolon or TokenType.Eof)
                     break;
             }
         }
@@ -559,7 +559,7 @@ internal sealed partial class ExpressionParser : ParserBase
                 if (tokenType == TokenType.Else)
                     return true;
 
-                if (tokenType == TokenType.Semicolon || tokenType == TokenType.Eof)
+                if (tokenType is TokenType.Semicolon or TokenType.Eof)
                     return false;
             }
         }

@@ -431,7 +431,10 @@ internal sealed class Binder
 
         context.TryGetVariableType(name, out var staticType);
         if (staticType != typeof(object))
-            return new BoundIdentifierExpr(name, staticType);
+        {
+            var isLocal = context.TryGetLocal(name, out _, out var localId);
+            return new BoundIdentifierExpr(name, staticType, isLocal ? localId : null);
+        }
 
         var resolvedType = context.RuntimeContext.TypeResolver.TryResolveType(name);
         if (resolvedType != null)
@@ -544,13 +547,14 @@ internal sealed class Binder
             ? context.RuntimeContext.TypeResolver.ResolveType(variableDecl.DeclaredType.Value.Lexeme)
             : null;
         var staticType = declaredType ?? initializer.StaticType;
-        context.DeclareLocal(variableDecl.Name.Lexeme, staticType, variableDecl.IsConst);
+        var localId = context.DeclareLocal(variableDecl.Name.Lexeme, staticType, variableDecl.IsConst);
         return new BoundVariableDeclExpr(
             variableDecl.Name.Lexeme,
             initializer,
             declaredType,
             staticType,
-            IsConst: variableDecl.IsConst);
+            IsConst: variableDecl.IsConst,
+            LocalId: localId);
     }
 
     private BoundWhileExpr BindWhile(WhileStatementExpr whileStatement, BindingContext context)
@@ -598,11 +602,11 @@ internal sealed class Binder
         var collection = Bind(forEachStatement.Collection, context);
         var elementType = InferElementType(collection.StaticType);
         var bodyScope = context.CreateChildScope();
-        bodyScope.DeclareLocal(forEachStatement.VariableName.Lexeme, elementType);
+        var foreachLocalId = bodyScope.DeclareLocal(forEachStatement.VariableName.Lexeme, elementType);
         var body = forEachStatement.Body
             .Select(statement => Bind(statement, bodyScope))
             .ToImmutableArray();
-        return new BoundForEachExpr(forEachStatement.VariableName.Lexeme, collection, body, elementType, typeof(object));
+        return new BoundForEachExpr(forEachStatement.VariableName.Lexeme, collection, body, elementType, typeof(object), foreachLocalId);
     }
 
     private static Type InferElementType(Type collectionType)
@@ -647,12 +651,13 @@ internal sealed class Binder
             .Select(catchClause =>
             {
                 var catchScope = context.CreateChildScope();
+                int? catchLocalId = null;
                 if (catchClause.VariableName != null)
                 {
                     var exceptionType = catchClause.ExceptionTypeName != null
                         ? context.RuntimeContext.TypeResolver.TryResolveType(catchClause.ExceptionTypeName) ?? typeof(Exception)
                         : typeof(Exception);
-                    catchScope.DeclareLocal(catchClause.VariableName.Value.Lexeme, exceptionType);
+                    catchLocalId = catchScope.DeclareLocal(catchClause.VariableName.Value.Lexeme, exceptionType);
                 }
 
                 var whenGuard = catchClause.WhenGuard != null
@@ -667,7 +672,8 @@ internal sealed class Binder
                     catchClause.ExceptionTypeName,
                     catchClause.VariableName?.Lexeme,
                     whenGuard,
-                    body);
+                    body,
+                    catchLocalId);
             })
             .ToImmutableArray();
 
@@ -740,7 +746,8 @@ internal sealed class Binder
         var staticType = context.TryGetVariableType(assign.Name.Lexeme, out var variableType)
             ? variableType
             : value.StaticType;
-        return new BoundAssignExpr(assign.Name.Lexeme, value, staticType);
+        var isAssignLocal = context.TryGetLocal(assign.Name.Lexeme, out _, out var assignLocalId);
+        return new BoundAssignExpr(assign.Name.Lexeme, value, staticType, isAssignLocal ? assignLocalId : null);
     }
 
     private BoundNullCoalesceAssignExpr BindNullCoalesceAssign(NullCoalesceAssignExpr nullCoalesceAssign, BindingContext context)
@@ -750,7 +757,8 @@ internal sealed class Binder
         var staticType = context.TryGetVariableType(nullCoalesceAssign.Name.Lexeme, out var variableType)
             ? variableType
             : value.StaticType;
-        return new BoundNullCoalesceAssignExpr(nullCoalesceAssign.Name.Lexeme, value, staticType);
+        var isNcaLocal = context.TryGetLocal(nullCoalesceAssign.Name.Lexeme, out _, out var ncaLocalId);
+        return new BoundNullCoalesceAssignExpr(nullCoalesceAssign.Name.Lexeme, value, staticType, isNcaLocal ? ncaLocalId : null);
     }
 
     private BoundCompoundAssignExpr BindCompoundAssign(CompoundAssignExpr compoundAssign, BindingContext context)
@@ -760,7 +768,8 @@ internal sealed class Binder
         var staticType = context.TryGetVariableType(compoundAssign.Name.Lexeme, out var variableType)
             ? variableType
             : value.StaticType;
-        return new BoundCompoundAssignExpr(compoundAssign.Name.Lexeme, compoundAssign.Op.Type, value, staticType);
+        var isCaLocal = context.TryGetLocal(compoundAssign.Name.Lexeme, out _, out var caLocalId);
+        return new BoundCompoundAssignExpr(compoundAssign.Name.Lexeme, compoundAssign.Op.Type, value, staticType, isCaLocal ? caLocalId : null);
     }
 
     private BoundIncrementDecrementExpr BindIncrementDecrement(IncrementDecrementExpr incrementDecrement, BindingContext context)
@@ -769,11 +778,13 @@ internal sealed class Binder
         var staticType = context.TryGetVariableType(incrementDecrement.Name.Lexeme, out var variableType)
             ? variableType
             : typeof(object);
+        var isIdLocal = context.TryGetLocal(incrementDecrement.Name.Lexeme, out _, out var idLocalId);
         return new BoundIncrementDecrementExpr(
             incrementDecrement.Name.Lexeme,
             incrementDecrement.Op.Type,
             incrementDecrement.IsPrefix,
-            staticType);
+            staticType,
+            isIdLocal ? idLocalId : null);
     }
 
     private static void EnsureVariableIsAssignable(string variableName, BindingContext context)

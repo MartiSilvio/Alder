@@ -332,8 +332,7 @@ public class CompiledHotPathRegressionTests(CompilationMode mode)
         var runtimeDispatchCalls = collector.Methods
             .Where(m =>
                 m.DeclaringType == typeof(MemberAccess) &&
-                (m.Name == nameof(MemberAccess.GetMember) ||
-                 m.Name == nameof(MemberAccess.GetIndex)))
+                m.Name is nameof(MemberAccess.GetMember) or nameof(MemberAccess.GetIndex))
             .ToList();
 
         Assert.That(runtimeDispatchCalls, Is.Empty);

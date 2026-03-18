@@ -6,4 +6,5 @@ internal sealed record BoundCompoundAssignExpr(
     string Name,
     TokenType Operator,
     BoundExpr Value,
-    Type StaticType) : BoundExpr(StaticType);
+    Type StaticType,
+    int? LocalId = null) : BoundExpr(StaticType);

@@ -76,7 +76,7 @@ public sealed class CsEvalSourceGenerator : IIncrementalGenerator
         var minimalName = type.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
         var metadataClassName = SanitizeIdentifier(typeFullName) + "Metadata";
 
-        var isClosedGeneric = type.IsGenericType && !type.IsUnboundGenericType;
+        var isClosedGeneric = type is { IsGenericType: true, IsUnboundGenericType: false };
 
         var properties = ImmutableArray.CreateBuilder<PropertyModel>();
         var fields = ImmutableArray.CreateBuilder<FieldModel>();
@@ -91,22 +91,20 @@ public sealed class CsEvalSourceGenerator : IIncrementalGenerator
 
             switch (member)
             {
-                case IPropertySymbol prop when prop.IsIndexer:
+                case IPropertySymbol { IsIndexer: true } prop:
                     if (prop.Parameters.Length == 1)
                     {
                         indexers.Add(new IndexerModel(
                             GetFullyQualifiedTypeName(prop.Parameters[0].Type),
                             GetFullyQualifiedTypeName(prop.Type),
                             prop.GetMethod != null,
-                            prop.SetMethod != null && prop.SetMethod.DeclaredAccessibility == Accessibility.Public));
+                            prop.SetMethod is { DeclaredAccessibility: Accessibility.Public }));
                     }
                     break;
 
                 case IPropertySymbol prop:
-                    var canRead = prop.GetMethod != null && prop.GetMethod.DeclaredAccessibility == Accessibility.Public;
-                    var canWrite = prop.SetMethod != null
-                                   && prop.SetMethod.DeclaredAccessibility == Accessibility.Public
-                                   && !prop.SetMethod.IsInitOnly;
+                    var canRead = prop.GetMethod is { DeclaredAccessibility: Accessibility.Public };
+                    var canWrite = prop.SetMethod is { DeclaredAccessibility: Accessibility.Public, IsInitOnly: false };
                     properties.Add(new PropertyModel(
                         prop.Name,
                         GetFullyQualifiedTypeName(prop.Type),
@@ -115,7 +113,7 @@ public sealed class CsEvalSourceGenerator : IIncrementalGenerator
                         prop.IsStatic));
                     break;
 
-                case IFieldSymbol field when !field.IsImplicitlyDeclared:
+                case IFieldSymbol { IsImplicitlyDeclared: false } field:
                     fields.Add(new FieldModel(
                         field.Name,
                         GetFullyQualifiedTypeName(field.Type),
@@ -123,7 +121,7 @@ public sealed class CsEvalSourceGenerator : IIncrementalGenerator
                         field.IsStatic));
                     break;
 
-                case IMethodSymbol method when method.MethodKind == MethodKind.Constructor:
+                case IMethodSymbol { MethodKind: MethodKind.Constructor } method:
                     if (method.Parameters.Any(p =>
                         p.Type.TypeKind == TypeKind.Pointer ||
                         p.Type.TypeKind == TypeKind.FunctionPointer ||
@@ -139,7 +137,7 @@ public sealed class CsEvalSourceGenerator : IIncrementalGenerator
                     constructors.Add(new ConstructorModel(ctorParams.ToImmutable()));
                     break;
 
-                case IMethodSymbol method when method.MethodKind == MethodKind.Ordinary:
+                case IMethodSymbol { MethodKind: MethodKind.Ordinary } method:
                     if (method.IsGenericMethod)
                         break;
                     if (method.ReturnsByRef || method.ReturnsByRefReadonly)
@@ -245,7 +243,7 @@ public sealed class CsEvalSourceGenerator : IIncrementalGenerator
     /// </summary>
     private static string GetFullyQualifiedName(INamedTypeSymbol type)
     {
-        if (type.IsTupleType && type.TupleUnderlyingType is { } underlying)
+        if (type is { IsTupleType: true, TupleUnderlyingType: { } underlying })
             type = underlying;
 
         if (type.IsGenericType && type.OriginalDefinition.ContainingNamespace?.ToDisplayString() == "System"

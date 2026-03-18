@@ -6,4 +6,5 @@ internal sealed record BoundIncrementDecrementExpr(
     string Name,
     TokenType Operator,
     bool IsPrefix,
-    Type StaticType) : BoundExpr(StaticType);
+    Type StaticType,
+    int? LocalId = null) : BoundExpr(StaticType);

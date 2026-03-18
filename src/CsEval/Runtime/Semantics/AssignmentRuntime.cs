@@ -232,6 +232,92 @@ internal static class AssignmentRuntime
         return isPrefix ? newValue : currentValue;
     }
 
+    public static object? ApplyCompoundAssignLocal(
+        string name,
+        object? currentValue,
+        TokenType compoundOperator,
+        object? rightValue,
+        Type variableType,
+        CsEvalOptions options,
+        CsEvalContext context,
+        bool isChecked)
+    {
+        ExecutionRuntime.CheckAllowAssignment(options, $"{name} {TokenLexemes.GetCanonical(compoundOperator)} ...");
+        var result = ApplyBinaryOperator(ResolveCompoundBaseOperator(compoundOperator), currentValue, rightValue, options, context, isChecked);
+        return ValidateCompoundAssignmentLocal(result, rightValue, variableType);
+    }
+
+    public static object? ApplyIncrementDecrementLocal(
+        string name,
+        object? currentValue,
+        bool isIncrement,
+        Type variableType,
+        CsEvalOptions options,
+        CsEvalContext context,
+        bool isChecked)
+    {
+        var incrementLexeme = TokenLexemes.GetCanonical(isIncrement ? TokenType.PlusPlus : TokenType.MinusMinus);
+        ExecutionRuntime.CheckAllowAssignment(options, incrementLexeme + name);
+        var one = GetNumericOne(currentValue);
+        var newValue = isIncrement
+            ? Operators.Add(currentValue, one, options, context, isChecked)
+            : Operators.Subtract(currentValue, one, isChecked);
+        return NarrowToType(newValue!, variableType);
+    }
+
+    public static object? ValidateVariableAssignmentLocal(string name, object? value, Type variableType)
+    {
+        if (value != null)
+        {
+            try
+            {
+                return TypeHelpers.ValidateAssignment(variableType, value, name);
+            }
+            catch (CsEvalException ex) when (ex.ErrorCode == DiagnosticCode.CS0266)
+            {
+                var sourceType = value.GetType();
+                var targetType = Nullable.GetUnderlyingType(variableType) ?? variableType;
+                var sourceNumeric = TypeHelpers.IsArithmetic(sourceType) || sourceType == typeof(char);
+                var targetNumeric = TypeHelpers.IsArithmetic(targetType) || targetType == typeof(char);
+                if (!sourceNumeric || !targetNumeric)
+                    throw;
+
+                return TypeHelpers.RuntimeCast(value, sourceType, targetType);
+            }
+        }
+
+        return value;
+    }
+
+    private static object? ValidateCompoundAssignmentLocal(object? result, object? rightValue, Type variableType)
+    {
+        if (result == null)
+            return result;
+
+        var resultType = result.GetType();
+        if (resultType == variableType)
+            return result;
+
+        var underlyingVarType = Nullable.GetUnderlyingType(variableType) ?? variableType;
+        var rightType = rightValue?.GetType();
+        var rhsConvertible = rightType == null || rightType == variableType ||
+                             TypeHelpers.CanImplicitlyConvert(rightType, underlyingVarType) ||
+                             IsConstantExpressionConvertible(rightValue, rightType, underlyingVarType);
+        var resultConvertible = TypeHelpers.CanImplicitlyConvert(resultType, underlyingVarType);
+
+        if (!resultConvertible && !rhsConvertible)
+            throw new CsEvalException(DiagnosticDescriptors.NoImplicitConversion, resultType.Name, variableType.Name);
+
+        try
+        {
+            return TypeHelpers.RuntimeCast(result, resultType, Nullable.GetUnderlyingType(variableType) ?? variableType);
+        }
+        catch (Exception ex) when (ex is InvalidCastException or OverflowException)
+        {
+            throw new CsEvalException(DiagnosticDescriptors.NoImplicitConversion, resultType.Name, variableType.Name);
+        }
+    }
+
     private static object? NarrowIncrementResult(string name, object? newValue, CsEvalContext context)
     {
         if (newValue == null || !context.TryGetVariableType(name, out var varType) || varType == null)

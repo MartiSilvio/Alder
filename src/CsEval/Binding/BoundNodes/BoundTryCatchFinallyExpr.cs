@@ -6,7 +6,8 @@ internal sealed record BoundCatchClause(
     string? ExceptionTypeName,
     string? VariableName,
     BoundExpr? WhenGuard,
-    ImmutableArray<BoundExpr> Body);
+    ImmutableArray<BoundExpr> Body,
+    int? LocalId = null);
 
 internal sealed record BoundTryCatchFinallyExpr(
     ImmutableArray<BoundExpr> TryBody,

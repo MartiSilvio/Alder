@@ -1218,7 +1218,7 @@ internal sealed class BoundEvaluator
     private ControlFlowSignal? ExecuteSwitchCaseWithGoto(BoundSwitchStatementExpr switchStatement, int startIndex)
     {
         var signal = ExecuteSwitchCaseStatements(switchStatement.Cases, startIndex);
-        while (signal != null && (signal.SignalKind == ControlFlowSignal.Kind.GotoCase || signal.SignalKind == ControlFlowSignal.Kind.GotoDefault))
+        while (signal != null && signal.SignalKind is ControlFlowSignal.Kind.GotoCase or ControlFlowSignal.Kind.GotoDefault)
         {
             int targetIndex;
             if (signal.SignalKind == ControlFlowSignal.Kind.GotoDefault)

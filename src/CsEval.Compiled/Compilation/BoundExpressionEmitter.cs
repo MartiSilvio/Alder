@@ -38,33 +38,57 @@ internal sealed partial class BoundExpressionEmitter
 
     public LinqExpression EmitRoot(BoundExpr expr)
     {
+        var promotions = BuildLocalPromotionPlan(expr);
         var hoists = BuildIdentifierHoistPlan(expr);
-        if (hoists.Count == 0)
-            return Emit(expr);
 
-        _hoistedIdentifiers = hoists;
+        if (promotions.Count > 0)
+        {
+            _promotedLocals = promotions;
+            foreach (var promoted in promotions.Values)
+                hoists.Remove(promoted.Name);
+        }
+
+        if (hoists.Count > 0)
+            _hoistedIdentifiers = hoists;
+
         try
         {
-            var variables = hoists.Values.Select(h => h.Variable).ToArray();
             var body = Emit(expr);
-            var statements = new List<LinqExpression>(hoists.Count + 1);
-            foreach (var (name, hoisted) in hoists)
+
+            if (_hoistedIdentifiers == null && _promotedLocals == null)
+                return body;
+
+            var allVariables = new List<ParameterExpression>();
+            var prologueStatements = new List<LinqExpression>();
+
+            if (_hoistedIdentifiers != null)
             {
-                statements.Add(
-                    LinqExpression.Assign(
-                        hoisted.Variable,
-                        LinqExpression.Call(
-                            _contextParam,
-                            GetVariableTypedMethodFor(hoisted.Type),
-                            LinqExpression.Constant(name))));
+                foreach (var (name, hoisted) in _hoistedIdentifiers)
+                {
+                    allVariables.Add(hoisted.Variable);
+                    prologueStatements.Add(
+                        LinqExpression.Assign(
+                            hoisted.Variable,
+                            LinqExpression.Call(
+                                _contextParam,
+                                GetVariableTypedMethodFor(hoisted.Type),
+                                LinqExpression.Constant(name))));
+                }
             }
 
-            statements.Add(body);
-            return LinqExpression.Block(body.Type, variables, statements);
+            if (_promotedLocals != null)
+            {
+                foreach (var promoted in _promotedLocals.Values)
+                    allVariables.Add(promoted.Variable);
+            }
+
+            prologueStatements.Add(body);
+            return LinqExpression.Block(body.Type, allVariables, prologueStatements);
         }
         finally
         {
             _hoistedIdentifiers = null;
+            _promotedLocals = null;
         }
     }
 
@@ -168,61 +192,63 @@ internal sealed partial class BoundExpressionEmitter
 
     private static bool CanHoistIdentifiers(BoundExpr expr, Dictionary<string, (Type Type, int Count)> usage)
     {
-        switch (expr)
+        while (true)
         {
-            case BoundLiteralExpr:
-                return true;
+            switch (expr)
+            {
+                case BoundLiteralExpr:
+                    return true;
 
-            case BoundIdentifierExpr identifier:
-                if (identifier.StaticType == typeof(object))
+                case BoundIdentifierExpr identifier:
+                    if (identifier.StaticType == typeof(object)) return false;
+
+                    if (usage.TryGetValue(identifier.Name, out var entry))
+                        usage[identifier.Name] = (entry.Type, entry.Count + 1);
+                    else
+                        usage[identifier.Name] = (identifier.StaticType, 1);
+                    return true;
+
+                case BoundBinaryExpr binary:
+                    return CanHoistIdentifiers(binary.Left, usage) && CanHoistIdentifiers(binary.Right, usage);
+
+                case BoundLogicalExpr logical:
+                    return CanHoistIdentifiers(logical.Left, usage) && CanHoistIdentifiers(logical.Right, usage);
+
+                case BoundUnaryExpr unary:
+                    expr = unary.Operand;
+                    continue;
+
+                case BoundCastExpr cast:
+                    expr = cast.Expression;
+                    continue;
+
+                case BoundAsExpr asExpr:
+                    expr = asExpr.Expression;
+                    continue;
+
+                case BoundIsPatternExpr isPattern:
+                    expr = isPattern.Expression;
+                    continue;
+
+                case BoundCheckedExpr checkedExpr:
+                    expr = checkedExpr.Expression;
+                    continue;
+
+                case BoundNullCoalesceExpr nullCoalesce:
+                    return CanHoistIdentifiers(nullCoalesce.Left, usage) && CanHoistIdentifiers(nullCoalesce.Right, usage);
+
+                case BoundConditionalExpr conditional:
+                    return CanHoistIdentifiers(conditional.Condition, usage) && CanHoistIdentifiers(conditional.ThenBranch, usage) && CanHoistIdentifiers(conditional.ElseBranch, usage);
+
+                default:
                     return false;
-
-                if (usage.TryGetValue(identifier.Name, out var entry))
-                    usage[identifier.Name] = (entry.Type, entry.Count + 1);
-                else
-                    usage[identifier.Name] = (identifier.StaticType, 1);
-                return true;
-
-            case BoundBinaryExpr binary:
-                return CanHoistIdentifiers(binary.Left, usage) &&
-                       CanHoistIdentifiers(binary.Right, usage);
-
-            case BoundLogicalExpr logical:
-                return CanHoistIdentifiers(logical.Left, usage) &&
-                       CanHoistIdentifiers(logical.Right, usage);
-
-            case BoundUnaryExpr unary:
-                return CanHoistIdentifiers(unary.Operand, usage);
-
-            case BoundCastExpr cast:
-                return CanHoistIdentifiers(cast.Expression, usage);
-
-            case BoundAsExpr asExpr:
-                return CanHoistIdentifiers(asExpr.Expression, usage);
-
-            case BoundIsPatternExpr isPattern:
-                return CanHoistIdentifiers(isPattern.Expression, usage);
-
-            case BoundCheckedExpr checkedExpr:
-                return CanHoistIdentifiers(checkedExpr.Expression, usage);
-
-            case BoundNullCoalesceExpr nullCoalesce:
-                return CanHoistIdentifiers(nullCoalesce.Left, usage) &&
-                       CanHoistIdentifiers(nullCoalesce.Right, usage);
-
-            case BoundConditionalExpr conditional:
-                return CanHoistIdentifiers(conditional.Condition, usage) &&
-                       CanHoistIdentifiers(conditional.ThenBranch, usage) &&
-                       CanHoistIdentifiers(conditional.ElseBranch, usage);
-
-            default:
-                return false;
+            }
         }
     }
 
     private sealed record HoistedIdentifier(Type Type, ParameterExpression Variable);
 
-    private static LinqExpression EmitLiteral(BoundLiteralExpr literal)
+    private static ConstantExpression EmitLiteral(BoundLiteralExpr literal)
     {
         if (literal.Value == null)
             return LinqExpression.Constant(null, typeof(object));
@@ -232,6 +258,13 @@ internal sealed partial class BoundExpressionEmitter
 
     private LinqExpression EmitIdentifier(BoundIdentifierExpr identifier)
     {
+        if (identifier.LocalId is { } localId &&
+            _promotedLocals != null &&
+            _promotedLocals.TryGetValue(localId, out var promoted))
+        {
+            return promoted.Variable;
+        }
+
         if (_hoistedIdentifiers != null &&
             _hoistedIdentifiers.TryGetValue(identifier.Name, out var hoisted))
         {
@@ -253,7 +286,7 @@ internal sealed partial class BoundExpressionEmitter
             _optionsParam);
     }
 
-    private LinqExpression EmitCast(BoundCastExpr cast)
+    private MethodCallExpression EmitCast(BoundCastExpr cast)
     {
         return LinqExpression.Call(
             ExplicitCastMethod,
@@ -265,7 +298,7 @@ internal sealed partial class BoundExpressionEmitter
             LinqExpression.Constant(_isChecked));
     }
 
-    private LinqExpression EmitAs(BoundAsExpr asExpr)
+    private MethodCallExpression EmitAs(BoundAsExpr asExpr)
     {
         return LinqExpression.Call(
             TryAsMethod,
@@ -273,7 +306,7 @@ internal sealed partial class BoundExpressionEmitter
             LinqExpression.Constant(asExpr.TargetType, typeof(Type)));
     }
 
-    private LinqExpression EmitIsPattern(BoundIsPatternExpr isPattern)
+    private UnaryExpression EmitIsPattern(BoundIsPatternExpr isPattern)
     {
         return LinqExpression.Convert(
             LinqExpression.Call(
@@ -286,7 +319,7 @@ internal sealed partial class BoundExpressionEmitter
             typeof(object));
     }
 
-    private LinqExpression EmitUnary(BoundUnaryExpr unary)
+    private MethodCallExpression EmitUnary(BoundUnaryExpr unary)
     {
         var operand = BoundEmitterSupport.AsObject(Emit(unary.Operand));
         return unary.Operator switch
@@ -345,7 +378,7 @@ internal sealed partial class BoundExpressionEmitter
         return true;
     }
 
-    private LinqExpression EmitBinaryWithConstantPromotion(BoundBinaryExpr binary)
+    private BlockExpression EmitBinaryWithConstantPromotion(BoundBinaryExpr binary)
     {
         var leftVar = LinqExpression.Variable(typeof(object), "binaryLeft");
         var rightVar = LinqExpression.Variable(typeof(object), "binaryRight");
@@ -377,7 +410,7 @@ internal sealed partial class BoundExpressionEmitter
         return binary.Left is BoundLiteralExpr || binary.Right is BoundLiteralExpr;
     }
 
-    private LinqExpression EmitBinaryCore(TokenType op, LinqExpression left, LinqExpression right, bool isStringContext = false)
+    private MethodCallExpression EmitBinaryCore(TokenType op, LinqExpression left, LinqExpression right, bool isStringContext = false)
     {
         left = BoundEmitterSupport.AsObject(left);
         right = BoundEmitterSupport.AsObject(right);
@@ -486,40 +519,42 @@ internal sealed partial class BoundExpressionEmitter
         var leftLiteral = binary.Left as BoundLiteralExpr;
         var rightLiteral = binary.Right as BoundLiteralExpr;
 
-        if (leftType == typeof(uint) && rightLiteral?.Value is int rightInt && rightInt >= 0)
+        if (TryPromoteUnsignedPair(leftType, rightLiteral, rightType, leftLiteral, out promotedType))
+            return true;
+
+        return false;
+    }
+
+    private static bool TryPromoteUnsignedPair(
+        Type oneType, BoundLiteralExpr? otherLiteral,
+        Type otherType, BoundLiteralExpr? oneLiteral,
+        out Type promotedType)
+    {
+        if (TryPromoteUnsignedSide(oneType, otherLiteral, out promotedType))
+            return true;
+        if (TryPromoteUnsignedSide(otherType, oneLiteral, out promotedType))
+            return true;
+        return false;
+    }
+
+    private static bool TryPromoteUnsignedSide(Type unsignedType, BoundLiteralExpr? literalSide, out Type promotedType)
+    {
+        promotedType = null!;
+        if (literalSide == null) return false;
+
+        if (unsignedType == typeof(uint) && literalSide.Value is >= 0)
         {
             promotedType = typeof(uint);
             return true;
         }
 
-        if (rightType == typeof(uint) && leftLiteral?.Value is int leftInt && leftInt >= 0)
+        if (unsignedType == typeof(ulong))
         {
-            promotedType = typeof(uint);
-            return true;
-        }
-
-        if (leftType == typeof(ulong) && rightLiteral?.Value is int rightIntForUlong && rightIntForUlong >= 0)
-        {
-            promotedType = typeof(ulong);
-            return true;
-        }
-
-        if (rightType == typeof(ulong) && leftLiteral?.Value is int leftIntForUlong && leftIntForUlong >= 0)
-        {
-            promotedType = typeof(ulong);
-            return true;
-        }
-
-        if (leftType == typeof(ulong) && rightLiteral?.Value is long rightLongForUlong && rightLongForUlong >= 0)
-        {
-            promotedType = typeof(ulong);
-            return true;
-        }
-
-        if (rightType == typeof(ulong) && leftLiteral?.Value is long leftLongForUlong && leftLongForUlong >= 0)
-        {
-            promotedType = typeof(ulong);
-            return true;
+            if (literalSide.Value is >= 0 or long and >= 0)
+            {
+                promotedType = typeof(ulong);
+                return true;
+            }
         }
 
         return false;
@@ -1986,7 +2021,7 @@ internal sealed partial class BoundExpressionEmitter
 
     private LinqExpression EmitCall(BoundCallExpr call)
     {
-        if (call.Callee is BoundMemberAccessExpr memberAccess && memberAccess.Plan != null)
+        if (call.Callee is BoundMemberAccessExpr { Plan: not null } memberAccess)
             return EmitDirectPlannedCall(call, memberAccess);
 
         return EmitInvokeCore(call.Callee, call.Arguments, ImmutableArray<string>.Empty);
@@ -2194,7 +2229,7 @@ internal sealed partial class BoundExpressionEmitter
 
     private LinqExpression BuildNormalizedIntIndex(BoundIndexAccessExpr indexAccess, LinqExpression lengthExpression)
     {
-        if (indexAccess.Index is BoundLiteralExpr { Value: int literalIndex } && literalIndex >= 0)
+        if (indexAccess.Index is BoundLiteralExpr { Value: int literalIndex and >= 0 })
             return LinqExpression.Constant(literalIndex, typeof(int));
 
         var rawIndex = LinqExpression.Call(ConvertToInt32ObjectMethod, BoundEmitterSupport.AsObject(Emit(indexAccess.Index)));
@@ -2298,7 +2333,7 @@ internal sealed partial class BoundExpressionEmitter
 
     private static bool IsValueTupleType(Type type)
     {
-        return type.IsValueType && type.IsGenericType &&
+        return type is { IsValueType: true, IsGenericType: true } &&
                type.FullName?.StartsWith("System.ValueTuple`", StringComparison.Ordinal) == true;
     }
 

@@ -68,7 +68,7 @@ internal static class TypeMetadataEmitter
 
     private static void EmitTryGetProperty(StringBuilder sb, TypeRegistrationModel reg)
     {
-        var instanceProps = reg.Properties.Where(p => !p.IsStatic && p.CanRead).ToArray();
+        var instanceProps = reg.Properties.Where(p => p is { IsStatic: false, CanRead: true }).ToArray();
 
         sb.AppendLine("    public bool TryGetProperty(string name, object instance, out object? value)");
         sb.AppendLine("    {");
@@ -95,7 +95,7 @@ internal static class TypeMetadataEmitter
 
     private static void EmitTrySetProperty(StringBuilder sb, TypeRegistrationModel reg)
     {
-        var writableProps = reg.Properties.Where(p => !p.IsStatic && p.CanWrite).ToArray();
+        var writableProps = reg.Properties.Where(p => p is { IsStatic: false, CanWrite: true }).ToArray();
 
         sb.AppendLine("    public bool TrySetProperty(string name, object instance, object? value)");
         sb.AppendLine("    {");
@@ -148,7 +148,7 @@ internal static class TypeMetadataEmitter
 
     private static void EmitTrySetField(StringBuilder sb, TypeRegistrationModel reg)
     {
-        var writableFields = reg.Fields.Where(f => !f.IsStatic && !f.IsReadOnly).ToArray();
+        var writableFields = reg.Fields.Where(f => f is { IsStatic: false, IsReadOnly: false }).ToArray();
 
         sb.AppendLine("    public bool TrySetField(string name, object instance, object? value)");
         sb.AppendLine("    {");
@@ -219,7 +219,7 @@ internal static class TypeMetadataEmitter
 
     private static void EmitTryGetStaticProperty(StringBuilder sb, TypeRegistrationModel reg)
     {
-        var staticProps = reg.Properties.Where(p => p.IsStatic && p.CanRead).ToArray();
+        var staticProps = reg.Properties.Where(p => p is { IsStatic: true, CanRead: true }).ToArray();
 
         sb.AppendLine("    public bool TryGetStaticProperty(string name, out object? value)");
         sb.AppendLine("    {");

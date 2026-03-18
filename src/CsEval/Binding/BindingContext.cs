@@ -6,8 +6,10 @@ internal sealed class BindingContext
 {
     private readonly CsEvalContext _context;
     private readonly BindingContext? _parent;
-    private readonly Dictionary<string, Type> _locals;
+    private readonly Dictionary<string, (Type Type, int LocalId)> _locals;
     private readonly HashSet<string> _readOnlyLocals;
+    private readonly BindingContext _root;
+    private int _nextLocalId;
 
     public BindingContext(CsEvalContext context)
         : this(context, parent: null)
@@ -18,21 +20,24 @@ internal sealed class BindingContext
     {
         _context = context;
         _parent = parent;
-        _locals = new Dictionary<string, Type>(context.Comparer);
+        _locals = new Dictionary<string, (Type, int)>(context.Comparer);
         _readOnlyLocals = new HashSet<string>(context.Comparer);
+        _root = parent?._root ?? this;
     }
 
     internal CsEvalContext RuntimeContext => _context;
     internal bool IsCaseSensitive => ReferenceEquals(_context.Comparer, StringComparer.Ordinal);
     internal BindingContext CreateChildScope() => new(_context, this);
 
-    internal void DeclareLocal(string name, Type type, bool isReadOnly = false)
+    internal int DeclareLocal(string name, Type type, bool isReadOnly = false)
     {
-        _locals[name] = type;
+        var id = _root._nextLocalId++;
+        _locals[name] = (type, id);
         if (isReadOnly)
             _readOnlyLocals.Add(name);
         else
             _readOnlyLocals.Remove(name);
+        return id;
     }
 
     internal bool IsReadOnlyLocal(string name)
@@ -43,21 +48,26 @@ internal sealed class BindingContext
         return _parent?.IsReadOnlyLocal(name) ?? false;
     }
 
-    private bool TryGetLocalType(string name, out Type type)
+    internal bool TryGetLocal(string name, out Type type, out int localId)
     {
-        if (_locals.TryGetValue(name, out type!))
+        if (_locals.TryGetValue(name, out var entry))
+        {
+            type = entry.Type;
+            localId = entry.LocalId;
             return true;
+        }
 
         if (_parent != null)
-            return _parent.TryGetLocalType(name, out type);
+            return _parent.TryGetLocal(name, out type, out localId);
 
         type = typeof(object);
+        localId = -1;
         return false;
     }
 
     public bool TryGetVariableType(string name, out Type type)
     {
-        if (TryGetLocalType(name, out type))
+        if (TryGetLocal(name, out type, out _))
             return true;
 
         if (_context.TryGetVariableType(name, out var declaredType) && declaredType != null)

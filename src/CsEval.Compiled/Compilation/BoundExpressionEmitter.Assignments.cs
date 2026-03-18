@@ -1,6 +1,8 @@
 using CsEval.Binding.BoundNodes;
 using CsEval.Compiled.Compilation.BoundEmission;
+using CsEval.Diagnostics;
 using CsEval.Parsing;
+using CsEval.Runtime;
 using static CsEval.Compiled.Compilation.BoundRuntimeMethodCache;
 
 namespace CsEval.Compiled.Compilation;
@@ -9,6 +11,20 @@ internal sealed partial class BoundExpressionEmitter
 {
     private LinqExpression EmitVariableDecl(BoundVariableDeclExpr variableDecl)
     {
+        if (TryGetPromoted(variableDecl.LocalId, out var promoted))
+        {
+            var value = BoundEmitterSupport.AsObject(Emit(variableDecl.Initializer));
+            if (variableDecl.DeclaredType != null)
+            {
+                value = LinqExpression.Call(
+                    ValidateAndCoerceTypeMethod,
+                    LinqExpression.Constant(variableDecl.DeclaredType, typeof(Type)),
+                    value,
+                    LinqExpression.Constant(variableDecl.Name));
+            }
+            return LinqExpression.Assign(promoted.Variable, value);
+        }
+
         return LinqExpression.Call(
             DefineVariableMethod,
             LinqExpression.Constant(variableDecl.Name),
@@ -22,33 +38,89 @@ internal sealed partial class BoundExpressionEmitter
 
     private LinqExpression EmitAssign(BoundAssignExpr assign)
     {
-        var valueVar = LinqExpression.Variable(typeof(object), "assignValue");
+        if (TryGetPromoted(assign.LocalId, out var promoted))
+        {
+            var valueVar = LinqExpression.Variable(typeof(object), "assignValue");
+            return LinqExpression.Block(
+                typeof(object),
+                [valueVar],
+                LinqExpression.Call(
+                    CheckAllowAssignmentMethod,
+                    _optionsParam,
+                    LinqExpression.Constant(BuildAssignmentOperationDescription(assign.Name, TokenType.Equal))),
+                LinqExpression.Assign(valueVar, BoundEmitterSupport.AsObject(Emit(assign.Value))),
+                LinqExpression.Assign(
+                    valueVar,
+                    LinqExpression.Call(
+                        ValidateVariableAssignmentLocalMethod,
+                        LinqExpression.Constant(assign.Name),
+                        valueVar,
+                        LinqExpression.Constant(promoted.VariableType, typeof(Type)))),
+                LinqExpression.Assign(promoted.Variable, valueVar),
+                valueVar);
+        }
+
+        var nonPromotedValue = LinqExpression.Variable(typeof(object), "assignValue");
         return LinqExpression.Block(
             typeof(object),
-            [valueVar],
+            [nonPromotedValue],
             LinqExpression.Call(
                 CheckAllowAssignmentMethod,
                 _optionsParam,
                 LinqExpression.Constant(BuildAssignmentOperationDescription(assign.Name, TokenType.Equal))),
-            LinqExpression.Assign(valueVar, BoundEmitterSupport.AsObject(Emit(assign.Value))),
+            LinqExpression.Assign(nonPromotedValue, BoundEmitterSupport.AsObject(Emit(assign.Value))),
             LinqExpression.Assign(
-                valueVar,
+                nonPromotedValue,
                 LinqExpression.Call(
                     ValidateVariableAssignmentMethod,
                     LinqExpression.Constant(assign.Name),
-                    valueVar,
+                    nonPromotedValue,
                     _contextParam)),
-            LinqExpression.Call(_contextParam, ContextSetMethod, LinqExpression.Constant(assign.Name), valueVar),
-            valueVar);
+            LinqExpression.Call(_contextParam, ContextSetMethod, LinqExpression.Constant(assign.Name), nonPromotedValue),
+            nonPromotedValue);
     }
 
     private LinqExpression EmitNullCoalesceAssign(BoundNullCoalesceAssignExpr nullCoalesceAssign)
     {
+        if (TryGetPromoted(nullCoalesceAssign.LocalId, out var promoted))
+        {
+            if (!TypeHelpers.IsNullableType(promoted.VariableType))
+            {
+                return LinqExpression.Block(
+                    typeof(object),
+                    LinqExpression.Throw(
+                        LinqExpression.Constant(
+                            new CsEvalException(
+                                DiagnosticDescriptors.BadBinaryOps,
+                                TokenLexemes.GetCanonical(TokenType.QuestionQuestionEqual),
+                                promoted.VariableType.Name,
+                                promoted.VariableType.Name))),
+                    LinqExpression.Constant(null, typeof(object)));
+            }
+
+            var assignedVar = LinqExpression.Variable(typeof(object), "coalesceAssigned");
+            return LinqExpression.Block(
+                typeof(object),
+                [assignedVar],
+                LinqExpression.Condition(
+                    LinqExpression.NotEqual(promoted.Variable, LinqExpression.Constant(null, typeof(object))),
+                    promoted.Variable,
+                    LinqExpression.Block(
+                        LinqExpression.Call(
+                            CheckAllowAssignmentMethod,
+                            _optionsParam,
+                            LinqExpression.Constant(
+                                BuildAssignmentOperationDescription(nullCoalesceAssign.Name, TokenType.QuestionQuestionEqual))),
+                        LinqExpression.Assign(assignedVar, BoundEmitterSupport.AsObject(Emit(nullCoalesceAssign.Value))),
+                        LinqExpression.Assign(promoted.Variable, assignedVar),
+                        assignedVar)));
+        }
+
         var currentVar = LinqExpression.Variable(typeof(object), "coalesceCurrent");
-        var assignedVar = LinqExpression.Variable(typeof(object), "coalesceAssigned");
+        var nonPromotedAssigned = LinqExpression.Variable(typeof(object), "coalesceAssigned");
         return LinqExpression.Block(
             typeof(object),
-            [currentVar, assignedVar],
+            [currentVar, nonPromotedAssigned],
             LinqExpression.Call(
                 CheckNullCoalesceAssignAllowedMethod,
                 LinqExpression.Constant(nullCoalesceAssign.Name),
@@ -65,17 +137,39 @@ internal sealed partial class BoundExpressionEmitter
                         _optionsParam,
                         LinqExpression.Constant(
                             BuildAssignmentOperationDescription(nullCoalesceAssign.Name, TokenType.QuestionQuestionEqual))),
-                    LinqExpression.Assign(assignedVar, BoundEmitterSupport.AsObject(Emit(nullCoalesceAssign.Value))),
+                    LinqExpression.Assign(nonPromotedAssigned, BoundEmitterSupport.AsObject(Emit(nullCoalesceAssign.Value))),
                     LinqExpression.Call(
                         _contextParam,
                         ContextSetMethod,
                         LinqExpression.Constant(nullCoalesceAssign.Name),
-                        assignedVar),
-                    assignedVar)));
+                        nonPromotedAssigned),
+                    nonPromotedAssigned)));
     }
 
     private LinqExpression EmitCompoundAssign(BoundCompoundAssignExpr compoundAssign)
     {
+        if (TryGetPromoted(compoundAssign.LocalId, out var promoted))
+        {
+            var resultVar = LinqExpression.Variable(typeof(object), "compoundResult");
+            return LinqExpression.Block(
+                typeof(object),
+                [resultVar],
+                LinqExpression.Assign(
+                    resultVar,
+                    LinqExpression.Call(
+                        ApplyCompoundAssignLocalMethod,
+                        LinqExpression.Constant(compoundAssign.Name),
+                        promoted.Variable,
+                        LinqExpression.Constant(compoundAssign.Operator),
+                        BoundEmitterSupport.AsObject(Emit(compoundAssign.Value)),
+                        LinqExpression.Constant(promoted.VariableType, typeof(Type)),
+                        _optionsParam,
+                        _contextParam,
+                        LinqExpression.Constant(_isChecked))),
+                LinqExpression.Assign(promoted.Variable, resultVar),
+                resultVar);
+        }
+
         return LinqExpression.Call(
             ApplyCompoundAssignMethod,
             LinqExpression.Constant(compoundAssign.Name),
@@ -88,6 +182,30 @@ internal sealed partial class BoundExpressionEmitter
 
     private LinqExpression EmitIncrementDecrement(BoundIncrementDecrementExpr incrementDecrement)
     {
+        if (TryGetPromoted(incrementDecrement.LocalId, out var promoted))
+        {
+            var isIncrement = incrementDecrement.Operator == TokenType.PlusPlus;
+            var oldVar = LinqExpression.Variable(typeof(object), "incrOld");
+            var newVar = LinqExpression.Variable(typeof(object), "incrNew");
+            return LinqExpression.Block(
+                typeof(object),
+                [oldVar, newVar],
+                LinqExpression.Assign(oldVar, promoted.Variable),
+                LinqExpression.Assign(
+                    newVar,
+                    LinqExpression.Call(
+                        ApplyIncrementDecrementLocalMethod,
+                        LinqExpression.Constant(incrementDecrement.Name),
+                        promoted.Variable,
+                        LinqExpression.Constant(isIncrement),
+                        LinqExpression.Constant(promoted.VariableType, typeof(Type)),
+                        _optionsParam,
+                        _contextParam,
+                        LinqExpression.Constant(_isChecked))),
+                LinqExpression.Assign(promoted.Variable, newVar),
+                incrementDecrement.IsPrefix ? newVar : oldVar);
+        }
+
         return LinqExpression.Call(
             ApplyIncrementDecrementMethod,
             LinqExpression.Constant(incrementDecrement.Name),

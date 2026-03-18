@@ -7,4 +7,5 @@ internal sealed record BoundForEachExpr(
     BoundExpr Collection,
     ImmutableArray<BoundExpr> Body,
     Type ElementType,
-    Type StaticType) : BoundExpr(StaticType);
+    Type StaticType,
+    int? LocalId = null) : BoundExpr(StaticType);
