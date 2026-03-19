@@ -36,156 +36,24 @@ internal static class AggregateBuiltins
 
     internal static object? Sum(object? source)
     {
-        var values = Enumerate(source);
-        var hasValue = false;
-        var usesDecimal = false;
-        var usesDouble = false;
-        var usesLong = false;
+        if (source is null)
+            throw new CsEvalException(DiagnosticDescriptors.NameNotInContext, "aggregate source");
 
-        decimal decimalTotal = 0m;
-        double doubleTotal = 0d;
-        long longTotal = 0L;
-        int intTotal = 0;
-
-        foreach (var value in values)
+        return source switch
         {
-            if (value == null)
-                continue;
-
-            hasValue = true;
-            switch (value)
-            {
-                case int i:
-                    if (usesDecimal) decimalTotal += i;
-                    else if (usesDouble) doubleTotal += i;
-                    else if (usesLong) longTotal += i;
-                    else intTotal += i;
-                    break;
-                case long l:
-                    if (usesDecimal) decimalTotal += l;
-                    else if (usesDouble) doubleTotal += l;
-                    else
-                    {
-                        if (!usesLong)
-                        {
-                            usesLong = true;
-                            longTotal = intTotal;
-                        }
-
-                        longTotal += l;
-                    }
-
-                    break;
-                case decimal m:
-                    if (!usesDecimal)
-                    {
-                        usesDecimal = true;
-                        decimalTotal = usesDouble
-                            ? Convert.ToDecimal(doubleTotal)
-                            : usesLong
-                                ? longTotal
-                                : intTotal;
-                    }
-
-                    decimalTotal += m;
-                    break;
-                case float f:
-                    if (!usesDouble)
-                    {
-                        usesDouble = true;
-                        doubleTotal = usesDecimal
-                            ? Convert.ToDouble(decimalTotal)
-                            : usesLong
-                                ? longTotal
-                                : intTotal;
-                    }
-
-                    doubleTotal += f;
-                    break;
-                case double d:
-                    if (!usesDouble)
-                    {
-                        usesDouble = true;
-                        doubleTotal = usesDecimal
-                            ? Convert.ToDouble(decimalTotal)
-                            : usesLong
-                                ? longTotal
-                                : intTotal;
-                    }
-
-                    doubleTotal += d;
-                    break;
-                case byte b:
-                    if (usesDecimal) decimalTotal += b;
-                    else if (usesDouble) doubleTotal += b;
-                    else if (usesLong) longTotal += b;
-                    else intTotal += b;
-                    break;
-                case sbyte sb:
-                    if (usesDecimal) decimalTotal += sb;
-                    else if (usesDouble) doubleTotal += sb;
-                    else if (usesLong) longTotal += sb;
-                    else intTotal += sb;
-                    break;
-                case short s:
-                    if (usesDecimal) decimalTotal += s;
-                    else if (usesDouble) doubleTotal += s;
-                    else if (usesLong) longTotal += s;
-                    else intTotal += s;
-                    break;
-                case ushort us:
-                    if (usesDecimal) decimalTotal += us;
-                    else if (usesDouble) doubleTotal += us;
-                    else if (usesLong) longTotal += us;
-                    else intTotal += us;
-                    break;
-                case uint ui:
-                    if (usesDecimal) decimalTotal += ui;
-                    else if (usesDouble) doubleTotal += ui;
-                    else
-                    {
-                        if (!usesLong)
-                        {
-                            usesLong = true;
-                            longTotal = intTotal;
-                        }
-
-                        longTotal += ui;
-                    }
-
-                    break;
-                case ulong ul:
-                    if (!usesDecimal)
-                    {
-                        usesDecimal = true;
-                        decimalTotal = usesDouble
-                            ? Convert.ToDecimal(doubleTotal)
-                            : usesLong
-                                ? longTotal
-                                : intTotal;
-                    }
-
-                    decimalTotal += ul;
-                    break;
-                default:
-                    throw new CsEvalException(
-                        DiagnosticDescriptors.BadBinaryOps,
-                        ExtendedBuiltInNames.Sum,
-                        value.GetType().Name,
-                        "numeric");
-            }
-        }
-
-        if (!hasValue)
-            return 0;
-
-        if (usesDecimal)
-            return decimalTotal;
-        if (usesDouble)
-            return doubleTotal;
-        if (usesLong)
-            return longTotal;
-        return intTotal;
+            IEnumerable<int> ints => ints.Sum(),
+            IEnumerable<long> longs => longs.Sum(),
+            IEnumerable<float> floats => floats.Sum(),
+            IEnumerable<double> doubles => doubles.Sum(),
+            IEnumerable<decimal> decimals => decimals.Sum(),
+            IEnumerable<int?> nullInts => nullInts.Sum(),
+            IEnumerable<long?> nullLongs => nullLongs.Sum(),
+            IEnumerable<float?> nullFloats => nullFloats.Sum(),
+            IEnumerable<double?> nullDoubles => nullDoubles.Sum(),
+            IEnumerable<decimal?> nullDecimals => nullDecimals.Sum(),
+            _ => throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, ExtendedBuiltInNames.Sum,
+                source.GetType().Name, "numeric collection")
+        };
     }
 
     internal static double Average(object? source)

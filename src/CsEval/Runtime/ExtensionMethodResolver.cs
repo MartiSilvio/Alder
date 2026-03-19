@@ -316,7 +316,7 @@ internal static class ExtensionMethodResolver
         if (typeArgs is { Count: > 0 })
             return MethodInvoker.TryMakeConcreteMethodWithTypeArgs(method, typeArgs, resolver);
 
-        return TryMakeConcreteMethod(method, targetType, args);
+        return TryMakeConcreteMethod(method, targetType, args, resolver);
     }
 
     private static bool TryResolveLambdaSelectorAmbiguity(
@@ -356,7 +356,7 @@ internal static class ExtensionMethodResolver
         return false;
     }
 
-    private static MethodInfo? TryMakeConcreteMethod(MethodInfo genericMethod, Type targetType, object?[] args)
+    private static MethodInfo? TryMakeConcreteMethod(MethodInfo genericMethod, Type targetType, object?[] args, TypeResolver? resolver = null)
     {
         var genericParams = genericMethod.GetGenericArguments();
         var methodParams = genericMethod.GetParameters();
@@ -385,7 +385,7 @@ internal static class ExtensionMethodResolver
                 if (typeArgs[i] != null)
                     continue;
 
-                if (TryInferFromLambdaResult(methodParams, args, genericParams, typeArgs, i, out var inferred))
+                if (TryInferFromLambdaResult(methodParams, args, genericParams, typeArgs, i, resolver, out var inferred))
                 {
                     typeArgs[i] = inferred;
                     resolved++;
@@ -410,6 +410,7 @@ internal static class ExtensionMethodResolver
         Type[] genericParams,
         Type[] typeArgs,
         int targetIndex,
+        TypeResolver? resolver,
         out Type inferred)
     {
         inferred = typeof(object);
@@ -460,7 +461,7 @@ internal static class ExtensionMethodResolver
             if (testResult is null or MethodRef)
             {
                 // Execution failed — infer return type statically from the lambda body AST
-                var staticType = TryInferLambdaReturnTypeStatically(arg, substitutedInputTypes);
+                var staticType = TryInferLambdaReturnTypeStatically(arg, substitutedInputTypes, resolver);
                 if (staticType != null && staticType != typeof(object))
                 {
                     inferred = staticType;
@@ -612,7 +613,7 @@ internal static class ExtensionMethodResolver
         return null;
     }
 
-    private static Type? TryInferLambdaReturnTypeStatically(object? arg, Type[] inputTypes)
+    private static Type? TryInferLambdaReturnTypeStatically(object? arg, Type[] inputTypes, TypeResolver? resolver)
     {
         if (arg is not LambdaValue lambda)
             return null;
@@ -621,10 +622,10 @@ internal static class ExtensionMethodResolver
         for (var i = 0; i < lambda.Parameters.Count && i < inputTypes.Length; i++)
             paramTypes[lambda.Parameters[i]] = inputTypes[i];
 
-        return InferExprType(lambda.Body, paramTypes);
+        return InferExprType(lambda.Body, paramTypes, resolver);
     }
 
-    private static Type? InferExprType(Parsing.Expr expr, Dictionary<string, Type> paramTypes)
+    private static Type? InferExprType(Parsing.Expr expr, Dictionary<string, Type> paramTypes, TypeResolver? resolver)
     {
         switch (expr)
         {
@@ -636,21 +637,36 @@ internal static class ExtensionMethodResolver
 
             case Parsing.CallExpr { Callee: Parsing.MemberAccessExpr memberAccess } call:
             {
-                var targetType = InferExprType(memberAccess.Object, paramTypes);
-                if (targetType == null)
-                    return null;
+                var targetType = InferExprType(memberAccess.Object, paramTypes, resolver);
+                if (targetType != null)
+                {
+                    var methodName = memberAccess.Name.Lexeme;
+                    var methods = ReflectionRuntime.GetMethods(targetType, BindingFlags.Public | BindingFlags.Instance)
+                        .Where(m => m.Name == methodName && m.GetParameters().Length == call.Arguments.Count)
+                        .ToArray();
+                    if (methods.Length > 0) return methods[0].ReturnType;
+                }
 
-                var methodName = memberAccess.Name.Lexeme;
-                var methods = ReflectionRuntime.GetMethods(targetType, BindingFlags.Public | BindingFlags.Instance)
-                    .Where(m => m.Name == methodName && m.GetParameters().Length == call.Arguments.Count)
-                    .ToArray();
+                // Static method call: Convert.ToDouble(x), Math.Abs(x), etc.
+                if (memberAccess.Object is Parsing.IdentifierExpr typeId && resolver != null)
+                {
+                    var staticType = resolver.TryResolveType(typeId.Name.Lexeme);
+                    if (staticType != null)
+                    {
+                        var methodName = memberAccess.Name.Lexeme;
+                        var methods = ReflectionRuntime.GetMethods(staticType, BindingFlags.Public | BindingFlags.Static)
+                            .Where(m => m.Name == methodName && m.GetParameters().Length == call.Arguments.Count)
+                            .ToArray();
+                        if (methods.Length > 0) return methods[0].ReturnType;
+                    }
+                }
 
-                return methods.Length > 0 ? methods[0].ReturnType : null;
+                return null;
             }
 
             case Parsing.MemberAccessExpr memberAccess:
             {
-                var targetType = InferExprType(memberAccess.Object, paramTypes);
+                var targetType = InferExprType(memberAccess.Object, paramTypes, resolver);
                 if (targetType == null)
                     return null;
 
@@ -663,8 +679,8 @@ internal static class ExtensionMethodResolver
 
             case Parsing.BinaryExpr binary:
             {
-                var leftType = InferExprType(binary.Left, paramTypes);
-                var rightType = InferExprType(binary.Right, paramTypes);
+                var leftType = InferExprType(binary.Left, paramTypes, resolver);
+                var rightType = InferExprType(binary.Right, paramTypes, resolver);
                 if (leftType == typeof(string) || rightType == typeof(string))
                     return typeof(string);
                 return leftType ?? rightType;
@@ -674,8 +690,8 @@ internal static class ExtensionMethodResolver
                 return null;
 
             case Parsing.ConditionalExpr cond:
-                return InferExprType(cond.ThenBranch, paramTypes)
-                    ?? InferExprType(cond.ElseBranch, paramTypes);
+                return InferExprType(cond.ThenBranch, paramTypes, resolver)
+                    ?? InferExprType(cond.ElseBranch, paramTypes, resolver);
 
             default:
                 return null;

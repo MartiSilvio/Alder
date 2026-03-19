@@ -459,10 +459,11 @@ Check `parameters.Any(p => p.ParameterType.IsByRef)` rejects methods with `in` p
 
 ## Operator & Extension Bugs
 
-### 82. `AggregateBuiltins.Sum` returns stale `decimalTotal` when float/double follows decimal
-**File:** `Runtime/Extensions/AggregateBuiltins.cs:92-103, 182-188`
+### ~~82. `AggregateBuiltins.Sum` returns stale `decimalTotal` when float/double follows decimal~~ FIXED
 
-Sequence `[1m, 2, 3.0f]`: decimal accumulator reaches 3, float triggers promotion to double (doubleTotal=6.0), but `usesDecimal` stays true. Return logic checks `usesDecimal` first, returns stale `decimalTotal = 3m` instead of correct `6.0`.
+~~**File:** `Runtime/Extensions/AggregateBuiltins.cs:92-103, 182-188`~~
+
+~~Sequence `[1m, 2, 3.0f]`: decimal accumulator reaches 3, float triggers promotion to double (doubleTotal=6.0), but `usesDecimal` stays true. Return logic checks `usesDecimal` first, returns stale `decimalTotal = 3m` instead of correct `6.0`.~~
 
 ### 83. `AggregateBuiltins.Compare` crashes on Infinity/NaN
 **File:** `Runtime/Extensions/AggregateBuiltins.cs:258`
@@ -532,3 +533,4 @@ Always forces the bound evaluator path. When the compiler can handle an expressi
 **File:** `CsEvalEngine.cs:256`
 
 `lock (expression)` where `expression` is a public `CsEvalExpression`. External code locking on the same object causes deadlocks. Should lock on a private object.
+
