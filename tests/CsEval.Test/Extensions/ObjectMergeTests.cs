@@ -75,7 +75,7 @@ public class ObjectMergeTests(CompilationMode mode)
         var engine = TestEngineFactory.Create(mode, CsEvalOptions.Default with { LanguageMode = LanguageMode.Extended });
         engine.SetVariable("person", new TestPerson { Name = "John", Age = 30 });
 
-        var result = engine.Evaluate("person + new { City = \"NYC\" }") as IDictionary<string, object?>;
+        var result = engine.Evaluate("""person + new { City = "NYC" } """) as IDictionary<string, object?>;
         Assert.That(result, Is.Not.Null);
         Assert.That(result!["Name"], Is.EqualTo("John"));
         Assert.That(result["Age"], Is.EqualTo(30));
@@ -100,10 +100,10 @@ public class ObjectMergeTests(CompilationMode mode)
         var engine = TestEngineFactory.Create(mode, CsEvalOptions.Default with { LanguageMode = LanguageMode.Extended });
         engine.SetVariable("person", new TestPerson { Name = "John", Age = 30 });
 
-        var result = engine.Evaluate(@"{
+        var result = engine.Evaluate(@"
             var p = person;
             return p + new { City = ""NYC"", Country = ""USA"" };
-        }") as IDictionary<string, object?>;
+        ") as IDictionary<string, object?>;
         Assert.That(result, Is.Not.Null);
         Assert.That(result!["Name"], Is.EqualTo("John"));
         Assert.That(result["Age"], Is.EqualTo(30));
@@ -121,7 +121,7 @@ public class ObjectMergeTests(CompilationMode mode)
             new TestPerson { Name = "Jane", Age = 25 }
         });
 
-        var result = engine.Evaluate("people.Select(p => p + new { Status = \"Active\" }).ToList()");
+        var result = engine.Evaluate("""people.Select(p => p + new { Status = "Active" }).ToList() """);
         Assert.That(result, Is.InstanceOf<IList>());
         Assert.That(result, Has.Count.EqualTo(2));
         var list = (IList)result!;
@@ -143,7 +143,7 @@ public class ObjectMergeTests(CompilationMode mode)
         var engine = TestEngineFactory.Create(mode, CsEvalOptions.Default with { LanguageMode = LanguageMode.Extended });
         engine.SetVariable("person", new TestPerson { Name = "John", Age = 30 });
 
-        var result = engine.Evaluate("person + new { City = \"NYC\" } + new { Country = \"USA\" }") as IDictionary<string, object?>;
+        var result = engine.Evaluate("""person + new { City = "NYC" } + new { Country = "USA" } """) as IDictionary<string, object?>;
         Assert.That(result, Is.Not.Null);
         Assert.That(result!["Name"], Is.EqualTo("John"));
         Assert.That(result["Age"], Is.EqualTo(30));

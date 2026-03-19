@@ -127,8 +127,7 @@ public class ApiFeatureTests(CompilationMode mode)
 
         Assert.That(success, Is.False);
         Assert.That(diagnostics, Has.Count.GreaterThan(0));
-        Assert.That(diagnostics[0].Line, Is.Not.Null);
-        Assert.That(diagnostics[0].Column, Is.Not.Null);
+        Assert.That(diagnostics[0].Span, Is.Not.EqualTo(default(CsEval.Text.TextSpan)));
     }
 
     [Test]
@@ -140,7 +139,7 @@ public class ApiFeatureTests(CompilationMode mode)
         Assert.That(success, Is.False);
         Assert.That(diagnostics, Has.Count.EqualTo(3));
         Assert.That(diagnostics.All(d => d.Code == CsEval.Diagnostics.DiagnosticCode.CS0103), Is.True);
-        Assert.That(diagnostics.All(d => d is { Line: not null, Column: not null }), Is.True);
+        Assert.That(diagnostics.All(d => !d.Span.IsEmpty), Is.True);
         Assert.That(diagnostics.Select(d => d.Message), Has.Some.Contains("foo"));
         Assert.That(diagnostics.Select(d => d.Message), Has.Some.Contains("bar"));
         Assert.That(diagnostics.Select(d => d.Message), Has.Some.Contains("baz"));

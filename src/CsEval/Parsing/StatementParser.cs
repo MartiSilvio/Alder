@@ -23,16 +23,17 @@ internal sealed class StatementParser : ParserBase
 
     internal Expr ParseBlock()
     {
+        var mark = Mark();
         if (Check(TokenType.RightBrace))
         {
             Advance();
-            return new BlockExpr([], null);
+            return new BlockExpr([], null) { Span = SpanFrom(mark) };
         }
 
         var statements = ParseStatementList();
 
         Consume(TokenType.RightBrace, "Expected '}' after block");
-        return new BlockExpr(statements, null);
+        return new BlockExpr(statements, null) { Span = SpanFrom(mark) };
     }
 
     internal List<Expr> ParseStatementList()
@@ -65,25 +66,27 @@ internal sealed class StatementParser : ParserBase
         if (Match(TokenType.Semicolon))
             return null;
 
+        var mark = Mark();
+
         if (Match(TokenType.Return))
         {
             Expr? value = null;
             if (!Check(TokenType.Semicolon))
                 value = _expression.ParseExpression();
             Match(TokenType.Semicolon);
-            return new ReturnExpr(value);
+            return new ReturnExpr(value) { Span = SpanFrom(mark) };
         }
 
         if (Match(TokenType.Break))
         {
             Match(TokenType.Semicolon);
-            return new BreakExpr();
+            return new BreakExpr() { Span = SpanFrom(mark) };
         }
 
         if (Match(TokenType.Continue))
         {
             Match(TokenType.Semicolon);
-            return new ContinueExpr();
+            return new ContinueExpr() { Span = SpanFrom(mark) };
         }
 
         // ECMA-334 §13.10.4: goto label; / goto case expr; / goto default;
@@ -93,16 +96,16 @@ internal sealed class StatementParser : ParserBase
             {
                 var value = _expression.ParseExpression();
                 Consume(TokenType.Semicolon, "Expected ';' after goto case");
-                return new GotoCaseExpr(value);
+                return new GotoCaseExpr(value) { Span = SpanFrom(mark) };
             }
             if (Match(TokenType.Default))
             {
                 Consume(TokenType.Semicolon, "Expected ';' after goto default");
-                return new GotoDefaultExpr();
+                return new GotoDefaultExpr() { Span = SpanFrom(mark) };
             }
             var label = Consume(TokenType.Identifier, "Expected label name after goto").Lexeme;
             Consume(TokenType.Semicolon, "Expected ';' after goto");
-            return new GotoExpr(label);
+            return new GotoExpr(label) { Span = SpanFrom(mark) };
         }
 
         // Label: identifier followed by ':' (not part of ternary or case)
@@ -111,54 +114,54 @@ internal sealed class StatementParser : ParserBase
             // Disambiguate from ternary (x ? y : z) - labels only appear at statement level
             var label = Advance(); // consume identifier
             Advance(); // consume ':'
-            return new LabelExpr(label.Lexeme);
+            return new LabelExpr(label.Lexeme) { Span = SpanFrom(mark) };
         }
 
         if (Match(TokenType.If))
-            return ParseIfStatement();
+            return ParseIfStatement(mark);
 
         // unless (cond) { body } desugars to if (!cond) { body } (Extended mode, Ruby/Perl)
         if (LanguageMode == LanguageMode.Extended && Match(TokenType.Unless))
-            return ParseUnlessStatement();
+            return ParseUnlessStatement(mark);
 
         if (Match(TokenType.While))
-            return ParseWhileStatement();
+            return ParseWhileStatement(mark);
 
         // until (cond) { body } desugars to while (!cond) { body } (Extended mode, Ruby/Perl)
         if (LanguageMode == LanguageMode.Extended && Match(TokenType.Until))
-            return ParseUntilStatement();
+            return ParseUntilStatement(mark);
 
         if (Match(TokenType.For))
-            return ParseForStatement();
+            return ParseForStatement(mark);
 
         if (Match(TokenType.Do))
-            return ParseDoWhileStatement();
+            return ParseDoWhileStatement(mark);
 
         if (Match(TokenType.Foreach))
-            return ParseForEachStatement();
+            return ParseForEachStatement(mark);
 
         if (Match(TokenType.Switch))
-            return ParseSwitchStatement();
+            return ParseSwitchStatement(mark);
 
         if (Match(TokenType.Using))
-            return ParseUsingStatement();
+            return ParseUsingStatement(mark);
 
         if (Match(TokenType.Lock))
-            return ParseLockStatement();
+            return ParseLockStatement(mark);
 
         if (Match(TokenType.Try))
-            return ParseTryCatchFinally();
+            return ParseTryCatchFinally(mark);
 
         // Parameterless throw; (rethrow) -- must check before expression fallback
         if (Check(TokenType.Throw) && PeekNext().Type == TokenType.Semicolon)
         {
             Advance(); // consume 'throw'
             Advance(); // consume ';'
-            return new ThrowStatementExpr();
+            return new ThrowStatementExpr() { Span = SpanFrom(mark) };
         }
 
         if (Match(TokenType.Const))
-            return ParseConstDeclaration();
+            return ParseConstDeclaration(mark);
 
         if (MatchVar())
         {
@@ -177,16 +180,16 @@ internal sealed class StatementParser : ParserBase
                 Consume(TokenType.Equal, "Expected '=' after deconstruction");
                 var valueExpr = _expression.ParseExpression();
                 Consume(TokenType.Semicolon, "Expected ';' after deconstruction");
-                return new DeconstructionExpr(variableNames, valueExpr);
+                return new DeconstructionExpr(variableNames, valueExpr) { Span = SpanFrom(mark) };
             }
 
             var name = ConsumeIdentifierOrContextualKeyword("Expected variable name");
             Consume(TokenType.Equal, "Expected '=' after variable name");
             var initializer = _expression.ParseExpression();
             if (initializer is LiteralExpr { Value: null })
-                throw new CsEvalParserException(DiagnosticDescriptors.NullToImplicitlyTyped, name.Line, name.Column);
+                throw new CsEvalException(DiagnosticDescriptors.NullToImplicitlyTyped) { Line = name.Line, Column = name.Column };
             Consume(TokenType.Semicolon, "Expected ';' after variable declaration");
-            return new VariableDeclExpr(null, name, initializer);
+            return new VariableDeclExpr(null, name, initializer) { Span = SpanFrom(mark) };
         }
 
         // Generic type variable declaration: Func<int, int> f = ..., Action<string> a = ...
@@ -194,7 +197,7 @@ internal sealed class StatementParser : ParserBase
         // MUST come before type keyword check to handle generic types properly
         if (Check(TokenType.Identifier) && PeekNext().Type == TokenType.Less)
         {
-            var genericResult = TryParseGenericTypeDeclaration();
+            var genericResult = TryParseGenericTypeDeclaration(mark);
             if (genericResult != null)
                 return genericResult;
         }
@@ -210,11 +213,11 @@ internal sealed class StatementParser : ParserBase
                 var typeName = Advance(); // consume type name
                 var name = ConsumeIdentifierOrContextualKeyword("Expected variable name");
                 if (Check(TokenType.LeftParen))
-                    return ParseLocalFunctionDeclaration(typeName, name);
+                    return ParseLocalFunctionDeclaration(typeName, name, mark);
                 Consume(TokenType.Equal, "Expected '=' after variable name");
                 var initializer = _expression.ParseExpression();
                 Consume(TokenType.Semicolon, "Expected ';' after variable declaration");
-                return new VariableDeclExpr(typeName, name, initializer);
+                return new VariableDeclExpr(typeName, name, initializer) { Span = SpanFrom(mark) };
             }
         }
 
@@ -222,7 +225,7 @@ internal sealed class StatementParser : ParserBase
         // Pattern: Identifier.Identifier[.Identifier...] Identifier = expr;
         if (Check(TokenType.Identifier) && PeekNext().Type == TokenType.Dot)
         {
-            var fqnResult = TryParseFqnTypeDeclaration();
+            var fqnResult = TryParseFqnTypeDeclaration(mark);
             if (fqnResult != null)
                 return fqnResult;
         }
@@ -233,7 +236,7 @@ internal sealed class StatementParser : ParserBase
         {
             var name = ConsumeIdentifierOrContextualKeyword("Expected variable name");
             if (Check(TokenType.LeftParen))
-                return ParseLocalFunctionDeclaration(typeToken, name);
+                return ParseLocalFunctionDeclaration(typeToken, name, mark);
 
             Consume(TokenType.Equal, "Expected '=' after variable name");
             var initializer = _expression.ParseExpression();
@@ -244,17 +247,18 @@ internal sealed class StatementParser : ParserBase
             {
                 while (Match(TokenType.Comma))
                 {
+                    var markPending = Mark();
                     var nextName = ConsumeIdentifierOrContextualKeyword("Expected variable name");
                     Consume(TokenType.Equal, "Expected '=' after variable name");
                     var nextInit = _expression.ParseExpression();
-                    _pendingDecls.Add(new VariableDeclExpr(typeToken, nextName, nextInit));
+                    _pendingDecls.Add(new VariableDeclExpr(typeToken, nextName, nextInit) { Span = SpanFrom(markPending) });
                 }
                 Consume(TokenType.Semicolon, "Expected ';' after variable declaration");
-                return new VariableDeclExpr(typeToken, name, initializer);
+                return new VariableDeclExpr(typeToken, name, initializer) { Span = SpanFrom(mark) };
             }
 
             Consume(TokenType.Semicolon, "Expected ';' after variable declaration");
-            return new VariableDeclExpr(typeToken, name, initializer);
+            return new VariableDeclExpr(typeToken, name, initializer) { Span = SpanFrom(mark) };
         }
 
         // Standalone block statement { ... }
@@ -262,7 +266,7 @@ internal sealed class StatementParser : ParserBase
         {
             var statements = ParseStatementList();
             Consume(TokenType.RightBrace, "Expected '}' after block");
-            return new BlockExpr(statements, null);
+            return new BlockExpr(statements, null) { Span = SpanFrom(mark) };
         }
 
         // checked/unchecked block statements — no semicolon needed after block form
@@ -280,7 +284,7 @@ internal sealed class StatementParser : ParserBase
         return expr;
     }
 
-    private Expr ParseLocalFunctionDeclaration(Token _returnType, Token functionName)
+    private Expr ParseLocalFunctionDeclaration(Token _returnType, Token functionName, int mark)
     {
         Consume(TokenType.LeftParen, "Expected '(' after local function name");
         var parameters = new List<LambdaParameter>();
@@ -304,20 +308,17 @@ internal sealed class StatementParser : ParserBase
         Consume(TokenType.RightParen, "Expected ')' after parameter list");
         Consume(TokenType.LeftBrace, "Expected '{' before local function body");
         var body = ParseBlock();
-        var lambda = new LambdaExpr(parameters, body);
-        return new VariableDeclExpr(null, functionName, lambda);
+        var lambda = new LambdaExpr(parameters, body) { Span = SpanFrom(mark) };
+        return new VariableDeclExpr(null, functionName, lambda) { Span = SpanFrom(mark) };
     }
 
-    private Expr ParseConstDeclaration()
+    private Expr ParseConstDeclaration(int mark)
     {
         var constToken = Previous();
         var typeName = TryParseTypeName();
         if (typeName == null)
         {
-            throw new CsEvalParserException(
-                $"Expected type after '{TokenLexemes.GetCanonical(TokenType.Const)}' at {constToken.Line}:{constToken.Column}",
-                constToken.Line,
-                constToken.Column);
+            throw SyntaxError(DiagnosticDescriptors.SyntaxExpected, $"type after '{TokenLexemes.GetCanonical(TokenType.Const)}'");
         }
 
         var name = ConsumeIdentifierOrContextualKeyword("Expected variable name");
@@ -326,7 +327,7 @@ internal sealed class StatementParser : ParserBase
         Consume(TokenType.Semicolon, "Expected ';' after variable declaration");
 
         var declaredType = new Token(TokenType.Identifier, typeName, null, constToken.Line, constToken.Column);
-        return new VariableDeclExpr(declaredType, name, initializer, IsConst: true);
+        return new VariableDeclExpr(declaredType, name, initializer, IsConst: true) { Span = SpanFrom(mark) };
     }
 
     /// <summary>
@@ -334,7 +335,7 @@ internal sealed class StatementParser : ParserBase
     /// Returns null and restores position if the pattern doesn't match.
     /// ECMA-334 §13.6.2 - Local variable declarations with constructed types.
     /// </summary>
-    private Expr? TryParseGenericTypeDeclaration()
+    private Expr? TryParseGenericTypeDeclaration(int mark)
     {
         var saved = State.Current;
 
@@ -366,7 +367,7 @@ internal sealed class StatementParser : ParserBase
 
             // Create a synthetic type token with the full generic type name
             var syntheticTypeToken = new Token(TokenType.Identifier, typeName, null, name.Line, name.Column);
-            return new VariableDeclExpr(syntheticTypeToken, name, initializer);
+            return new VariableDeclExpr(syntheticTypeToken, name, initializer) { Span = SpanFrom(mark) };
         }
         catch
         {
@@ -376,7 +377,7 @@ internal sealed class StatementParser : ParserBase
         }
     }
 
-    private Expr? TryParseFqnTypeDeclaration()
+    private Expr? TryParseFqnTypeDeclaration(int mark)
     {
         var saved = State.Current;
 
@@ -407,7 +408,7 @@ internal sealed class StatementParser : ParserBase
             Consume(TokenType.Semicolon, "Expected ';' after variable declaration");
 
             var syntheticTypeToken = new Token(TokenType.Identifier, typeName, null, name.Line, name.Column);
-            return new VariableDeclExpr(syntheticTypeToken, name, initializer);
+            return new VariableDeclExpr(syntheticTypeToken, name, initializer) { Span = SpanFrom(mark) };
         }
         catch
         {
@@ -421,7 +422,7 @@ internal sealed class StatementParser : ParserBase
 
     #region Conditional Statements
 
-    private Expr ParseIfStatement()
+    private Expr ParseIfStatement(int mark)
     {
         Consume(TokenType.LeftParen, "Expected '(' after 'if'");
         var condition = _expression.ParseExpression();
@@ -459,14 +460,14 @@ internal sealed class StatementParser : ParserBase
             }
         }
 
-        return new IfStatementExpr(condition, thenStatements, elseStatements);
+        return new IfStatementExpr(condition, thenStatements, elseStatements) { Span = SpanFrom(mark) };
     }
 
     /// <summary>
     /// Parses unless (cond) { body } [else { body }] and desugars to if (!cond) { body } [else { body }].
     /// No new AST nodes needed -- unless is purely a parse-time transformation.
     /// </summary>
-    private Expr ParseUnlessStatement()
+    private Expr ParseUnlessStatement(int mark)
     {
         var unlessToken = Previous();
         Consume(TokenType.LeftParen, "Expected '(' after 'unless'");
@@ -506,15 +507,15 @@ internal sealed class StatementParser : ParserBase
         // Desugar: unless (cond) -> if (!cond)
         var negatedCondition = new UnaryExpr(
             TokenLexemes.CreateSynthetic(TokenType.Bang, unlessToken),
-            condition);
-        return new IfStatementExpr(negatedCondition, thenStatements, elseStatements);
+            condition) { Span = SpanFrom(mark) };
+        return new IfStatementExpr(negatedCondition, thenStatements, elseStatements) { Span = SpanFrom(mark) };
     }
 
     /// <summary>
     /// Parses until (cond) { body } and desugars to while (!cond) { body }.
     /// No new AST nodes needed -- until is purely a parse-time transformation.
     /// </summary>
-    private Expr ParseUntilStatement()
+    private Expr ParseUntilStatement(int mark)
     {
         var untilToken = Previous();
         Consume(TokenType.LeftParen, "Expected '(' after 'until'");
@@ -537,11 +538,11 @@ internal sealed class StatementParser : ParserBase
         // Desugar: until (cond) -> while (!cond)
         var negatedCondition = new UnaryExpr(
             TokenLexemes.CreateSynthetic(TokenType.Bang, untilToken),
-            condition);
-        return new WhileStatementExpr(negatedCondition, body);
+            condition) { Span = SpanFrom(mark) };
+        return new WhileStatementExpr(negatedCondition, body) { Span = SpanFrom(mark) };
     }
 
-    private Expr ParseSwitchStatement()
+    private Expr ParseSwitchStatement(int mark)
     {
         Consume(TokenType.LeftParen, "Expected '(' after 'switch'");
         var expression = _expression.ParseExpression();
@@ -578,13 +579,12 @@ internal sealed class StatementParser : ParserBase
             }
             else
             {
-                throw new CsEvalParserException(
-                    $"Expected 'case' or 'default' in switch at {Peek().Line}:{Peek().Column}");
+                throw SyntaxError(DiagnosticDescriptors.SyntaxExpected, "'case' or 'default' in switch");
             }
         }
 
         Consume(TokenType.RightBrace, "Expected '}' after switch cases");
-        return new SwitchStatementExpr(expression, cases);
+        return new SwitchStatementExpr(expression, cases) { Span = SpanFrom(mark) };
     }
 
     private List<Expr> ParseCaseStatements()
@@ -606,7 +606,7 @@ internal sealed class StatementParser : ParserBase
 
     #region Loop Statements
 
-    private Expr ParseWhileStatement()
+    private Expr ParseWhileStatement(int mark)
     {
         Consume(TokenType.LeftParen, "Expected '(' after 'while'");
         var condition = _expression.ParseExpression();
@@ -627,10 +627,10 @@ internal sealed class StatementParser : ParserBase
                 body.Add(stmt);
         }
 
-        return new WhileStatementExpr(condition, body);
+        return new WhileStatementExpr(condition, body) { Span = SpanFrom(mark) };
     }
 
-    private Expr ParseForStatement()
+    private Expr ParseForStatement(int mark)
     {
         Consume(TokenType.LeftParen, "Expected '(' after 'for'");
 
@@ -640,36 +640,38 @@ internal sealed class StatementParser : ParserBase
         {
             if (MatchVar())
             {
+                var markInit = Mark();
                 var name = ConsumeIdentifierOrContextualKeyword("Expected variable name");
                 Consume(TokenType.Equal, "Expected '=' after variable name");
                 var init = _expression.ParseExpression();
                 if (init is LiteralExpr { Value: null })
-                    throw new CsEvalParserException(DiagnosticDescriptors.NullToImplicitlyTyped, name.Line,
-                        name.Column);
-                initializers.Add(new VariableDeclExpr(null, name, init));
+                    throw new CsEvalException(DiagnosticDescriptors.NullToImplicitlyTyped) { Line = name.Line, Column = name.Column };
+                initializers.Add(new VariableDeclExpr(null, name, init) { Span = SpanFrom(markInit) });
                 while (Match(TokenType.Comma))
                 {
+                    var markInit2 = Mark();
                     var name2 = ConsumeIdentifierOrContextualKeyword("Expected variable name");
                     Consume(TokenType.Equal, "Expected '=' after variable name");
                     var init2 = _expression.ParseExpression();
                     if (init2 is LiteralExpr { Value: null })
-                        throw new CsEvalParserException(DiagnosticDescriptors.NullToImplicitlyTyped, name2.Line,
-                            name2.Column);
-                    initializers.Add(new VariableDeclExpr(null, name2, init2));
+                        throw new CsEvalException(DiagnosticDescriptors.NullToImplicitlyTyped) { Line = name2.Line, Column = name2.Column };
+                    initializers.Add(new VariableDeclExpr(null, name2, init2) { Span = SpanFrom(markInit2) });
                 }
             }
             else if (MatchTypeKeyword(out var typeToken))
             {
+                var markInit = Mark();
                 var name = ConsumeIdentifierOrContextualKeyword("Expected variable name");
                 Consume(TokenType.Equal, "Expected '=' after variable name");
                 var init = _expression.ParseExpression();
-                initializers.Add(new VariableDeclExpr(typeToken, name, init));
+                initializers.Add(new VariableDeclExpr(typeToken, name, init) { Span = SpanFrom(markInit) });
                 while (Match(TokenType.Comma))
                 {
+                    var markInit2 = Mark();
                     var name2 = ConsumeIdentifierOrContextualKeyword("Expected variable name");
                     Consume(TokenType.Equal, "Expected '=' after variable name");
                     var init2 = _expression.ParseExpression();
-                    initializers.Add(new VariableDeclExpr(typeToken, name2, init2));
+                    initializers.Add(new VariableDeclExpr(typeToken, name2, init2) { Span = SpanFrom(markInit2) });
                 }
             }
             else
@@ -716,10 +718,10 @@ internal sealed class StatementParser : ParserBase
                 body.Add(stmt);
         }
 
-        return new ForStatementExpr(initializers, condition, increments, body);
+        return new ForStatementExpr(initializers, condition, increments, body) { Span = SpanFrom(mark) };
     }
 
-    private Expr ParseDoWhileStatement()
+    private Expr ParseDoWhileStatement(int mark)
     {
         // Parse body
         var body = new List<Expr>();
@@ -741,18 +743,17 @@ internal sealed class StatementParser : ParserBase
         Consume(TokenType.RightParen, "Expected ')' after while condition");
         Match(TokenType.Semicolon); // Optional semicolon
 
-        return new DoWhileStatementExpr(body, condition);
+        return new DoWhileStatementExpr(body, condition) { Span = SpanFrom(mark) };
     }
 
-    private Expr ParseForEachStatement()
+    private Expr ParseForEachStatement(int mark)
     {
         Consume(TokenType.LeftParen, "Expected '(' after 'foreach'");
 
         // Parse variable declaration (var varName or type varName)
         if (!MatchVar() && !MatchTypeKeyword(out _))
         {
-            throw new CsEvalParserException(
-                $"Expected 'var' or type keyword in foreach at {Peek().Line}:{Peek().Column}");
+            throw SyntaxError(DiagnosticDescriptors.SyntaxExpected, "'var' or type keyword in foreach");
         }
 
         var variableName = ConsumeIdentifierOrContextualKeyword("Expected variable name in foreach");
@@ -760,8 +761,7 @@ internal sealed class StatementParser : ParserBase
         // Consume 'in' keyword - it's reserved as a contextual keyword
         if (!Match(TokenType.In))
         {
-            throw new CsEvalParserException(
-                $"Expected 'in' after variable name in foreach at {Peek().Line}:{Peek().Column}");
+            throw SyntaxError(DiagnosticDescriptors.SyntaxExpected, "'in' after variable name in foreach");
         }
 
         var collection = _expression.ParseExpression();
@@ -781,14 +781,14 @@ internal sealed class StatementParser : ParserBase
                 body.Add(stmt);
         }
 
-        return new ForEachStatementExpr(variableName, collection, body);
+        return new ForEachStatementExpr(variableName, collection, body) { Span = SpanFrom(mark) };
     }
 
     #endregion
 
     #region Resource Management & Synchronization
 
-    private Expr ParseUsingStatement()
+    private Expr ParseUsingStatement(int mark)
     {
         Consume(TokenType.LeftParen, "Expected '(' after 'using'");
 
@@ -796,17 +796,19 @@ internal sealed class StatementParser : ParserBase
         Expr resource;
         if (MatchVar())
         {
+            var markRes = Mark();
             var name = ConsumeIdentifierOrContextualKeyword("Expected variable name");
             Consume(TokenType.Equal, "Expected '=' in using declaration");
             var init = _expression.ParseExpression();
-            resource = new VariableDeclExpr(null, name, init);
+            resource = new VariableDeclExpr(null, name, init) { Span = SpanFrom(markRes) };
         }
         else if (IsTypeKeyword(Peek().Type) && PeekNext().Type != TokenType.Dot && MatchTypeKeyword(out var typeToken))
         {
+            var markRes = Mark();
             var name = ConsumeIdentifierOrContextualKeyword("Expected variable name");
             Consume(TokenType.Equal, "Expected '=' in using declaration");
             var init = _expression.ParseExpression();
-            resource = new VariableDeclExpr(typeToken, name, init);
+            resource = new VariableDeclExpr(typeToken, name, init) { Span = SpanFrom(markRes) };
         }
         else
         {
@@ -819,19 +821,20 @@ internal sealed class StatementParser : ParserBase
         Expr body;
         if (Match(TokenType.LeftBrace))
         {
+            var markBody = Mark();
             var statements = ParseStatementList();
             Consume(TokenType.RightBrace, "Expected '}' after using body");
-            body = new BlockExpr(statements, null);
+            body = new BlockExpr(statements, null) { Span = SpanFrom(markBody) };
         }
         else
         {
             body = ParseStatement()!;
         }
 
-        return new UsingStatementExpr(resource, body);
+        return new UsingStatementExpr(resource, body) { Span = SpanFrom(mark) };
     }
 
-    private Expr ParseLockStatement()
+    private Expr ParseLockStatement(int mark)
     {
         Consume(TokenType.LeftParen, "Expected '(' after 'lock'");
         var lockObj = _expression.ParseExpression();
@@ -841,23 +844,24 @@ internal sealed class StatementParser : ParserBase
         Expr body;
         if (Match(TokenType.LeftBrace))
         {
+            var markBody = Mark();
             var statements = ParseStatementList();
             Consume(TokenType.RightBrace, "Expected '}' after lock body");
-            body = new BlockExpr(statements, null);
+            body = new BlockExpr(statements, null) { Span = SpanFrom(markBody) };
         }
         else
         {
             body = ParseStatement()!;
         }
 
-        return new LockStatementExpr(lockObj, body);
+        return new LockStatementExpr(lockObj, body) { Span = SpanFrom(mark) };
     }
 
     #endregion
 
     #region Exception Handling
 
-    private Expr ParseTryCatchFinally()
+    private Expr ParseTryCatchFinally(int mark)
     {
         // Parse try body
         Consume(TokenType.LeftBrace, "Expected '{' after 'try'");
@@ -929,20 +933,20 @@ internal sealed class StatementParser : ParserBase
 
         // Validate: must have at least one catch or a finally
         if (catchClauses.Count == 0 && finallyBody == null)
-            throw new CsEvalParserException(
-                $"Expected 'catch' or 'finally' after try block at {Peek().Line}:{Peek().Column}");
+            throw SyntaxError(DiagnosticDescriptors.SyntaxExpected, "'catch' or 'finally' after try block");
 
         // Validate: bare catch (no type) must be last
         for (var i = 0; i < catchClauses.Count - 1; i++)
         {
             if (catchClauses[i].ExceptionTypeName == null)
-                throw new CsEvalParserException(
-                    DiagnosticDescriptors.GeneralCatchMustBeLast,
-                    Peek().Line,
-                    Peek().Column);
+                throw new CsEvalException(DiagnosticDescriptors.GeneralCatchMustBeLast)
+                {
+                    Line = Peek().Line,
+                    Column = Peek().Column
+                };
         }
 
-        return new TryCatchFinallyExpr(tryBody, catchClauses, finallyBody);
+        return new TryCatchFinallyExpr(tryBody, catchClauses, finallyBody) { Span = SpanFrom(mark) };
     }
 
     #endregion

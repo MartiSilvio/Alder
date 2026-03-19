@@ -11,10 +11,10 @@ namespace CsEval.Test.Extensions;
 public class PolyglotSyntaxTests(CompilationMode mode)
 {
     [TestCase("{ var super = 1; return super; }", TestName = "Super_IsReservedKeyword")]
-    public void ReservedKeyword_ThrowsCsEvalParserException(string expr)
+    public void ReservedKeyword_ThrowsCsEvalException(string expr)
     {
         var engine = TestEngineFactory.Create(mode, CsEvalOptions.Default with { LanguageMode = LanguageMode.Extended });
-        Assert.Throws<CsEvalParserException>(() => engine.Evaluate(expr));
+        Assert.Throws<CsEvalException>(() => engine.Evaluate(expr));
     }
 
     [Test]
@@ -38,8 +38,8 @@ public class PolyglotSyntaxTests(CompilationMode mode)
     {
         var engine = TestEngineFactory.Create(mode, CsEvalOptions.Default with { LanguageMode = LanguageMode.Extended });
         engine.SetVariable("x", 5);
-        Assert.That(engine.Evaluate("x === 5 ? \"yes\" : \"no\""), Is.EqualTo("yes"));
-        Assert.That(engine.Evaluate("x !== 5 ? \"yes\" : \"no\""), Is.EqualTo("no"));
+        Assert.That(engine.Evaluate("""x === 5 ? "yes" : "no" """), Is.EqualTo("yes"));
+        Assert.That(engine.Evaluate("""x !== 5 ? "yes" : "no" """), Is.EqualTo("no"));
     }
 
     // Anonymous object tests (require dictionary casting)
@@ -47,7 +47,7 @@ public class PolyglotSyntaxTests(CompilationMode mode)
     public void AnonymousObject_SingleProperty()
     {
         var engine = TestEngineFactory.Create(mode, CsEvalOptions.Default with { LanguageMode = LanguageMode.Extended });
-        var result = engine.Evaluate<IDictionary<string, object?>>("new { Name = \"John\" }");
+        var result = engine.Evaluate<IDictionary<string, object?>>("""new { Name = "John" } """);
         Assert.That(result, Is.Not.Null);
         Assert.That(result!["Name"], Is.EqualTo("John"));
     }
@@ -56,7 +56,7 @@ public class PolyglotSyntaxTests(CompilationMode mode)
     public void AnonymousObject_MultipleProperties()
     {
         var engine = TestEngineFactory.Create(mode, CsEvalOptions.Default with { LanguageMode = LanguageMode.Extended });
-        var result = engine.Evaluate<IDictionary<string, object?>>("new { Name = \"John\", Age = 30 }");
+        var result = engine.Evaluate<IDictionary<string, object?>>("""new { Name = "John", Age = 30 } """);
         Assert.That(result, Is.Not.Null);
         Assert.That(result!["Name"], Is.EqualTo("John"));
         Assert.That(result!["Age"], Is.EqualTo(30));
@@ -66,7 +66,7 @@ public class PolyglotSyntaxTests(CompilationMode mode)
     public void AnonymousObject_GenericExpandoObject_Works()
     {
         var engine = TestEngineFactory.Create(mode, CsEvalOptions.Default with { LanguageMode = LanguageMode.Extended });
-        var result = engine.Evaluate<ExpandoObject>("new { Name = \"John\", Age = 30 }");
+        var result = engine.Evaluate<ExpandoObject>("""new { Name = "John", Age = 30 } """);
 
         Assert.That(result, Is.Not.Null);
         var dict = (IDictionary<string, object?>)result!;

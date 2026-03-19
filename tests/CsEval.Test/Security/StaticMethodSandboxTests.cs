@@ -11,8 +11,8 @@ public class StaticMethodSandboxTests(CompilationMode mode)
                         Sandbox = SandboxOptions.Safe()
         });
 
-        var ex = Assert.Throws<CsEvalSandboxException>(() =>
-            engine.Evaluate("System.IO.File.Exists(\"/tmp\")"));
+        var ex = Assert.Throws<CsEvalException>(() =>
+            engine.Evaluate("""System.IO.File.Exists("/tmp") """));
         Assert.That(ex!.Message, Does.Contain("sandbox"));
     }
 
@@ -23,8 +23,8 @@ public class StaticMethodSandboxTests(CompilationMode mode)
                         Sandbox = SandboxOptions.Strict()
         });
 
-        var ex = Assert.Throws<CsEvalSandboxException>(() =>
-            engine.Evaluate("System.IO.File.Exists(\"/tmp\")"));
+        var ex = Assert.Throws<CsEvalException>(() =>
+            engine.Evaluate("""System.IO.File.Exists("/tmp") """));
         Assert.That(ex!.Message, Does.Contain("sandbox"));
     }
 
@@ -35,7 +35,7 @@ public class StaticMethodSandboxTests(CompilationMode mode)
                         Sandbox = SandboxOptions.Trusted()
         });
 
-        var result = engine.Evaluate("System.IO.Path.GetExtension(\"file.txt\")");
+        var result = engine.Evaluate("""System.IO.Path.GetExtension("file.txt") """);
 
         Assert.That(result, Is.EqualTo(".txt"));
     }
@@ -71,7 +71,7 @@ public class StaticMethodSandboxTests(CompilationMode mode)
                         Sandbox = SandboxOptions.Safe()
         });
 
-        var ex = Assert.Throws<CsEvalSandboxException>(() => engine.Evaluate("int.MaxValue"));
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("int.MaxValue"));
         Assert.That(ex!.Message, Does.Contain("sandbox"));
     }
 
@@ -82,7 +82,7 @@ public class StaticMethodSandboxTests(CompilationMode mode)
                         Sandbox = SandboxOptions.Safe()
         });
 
-        var ex = Assert.Throws<CsEvalSandboxException>(() => engine.Evaluate("double.NaN"));
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("double.NaN"));
         Assert.That(ex!.Message, Does.Contain("sandbox"));
     }
 

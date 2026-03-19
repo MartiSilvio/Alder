@@ -44,7 +44,7 @@ public class AttributeRegistrationTests(CompilationMode mode)
         var instance = new GreeterModule("Hi");
         engine.RegisterFromType(instance);
 
-        var result = engine.Evaluate("Greeter.SayHello(\"World\")");
+        var result = engine.Evaluate("""Greeter.SayHello("World") """);
         Assert.That(result, Is.EqualTo("Hi, World!"));
     }
 
@@ -76,7 +76,7 @@ public class AttributeRegistrationTests(CompilationMode mode)
         var serviceProvider = new SimpleServiceProvider();
         serviceProvider.Register(new GreeterModule("Hola"));
 
-        var result = engine.Evaluate("Greeter.SayHello(\"World\")", serviceProvider: serviceProvider);
+        var result = engine.Evaluate("""Greeter.SayHello("World") """, serviceProvider: serviceProvider);
         Assert.That(result, Is.EqualTo("Hola, World!"));
     }
 }

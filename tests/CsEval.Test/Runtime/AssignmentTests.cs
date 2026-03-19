@@ -16,11 +16,10 @@ public class AssignmentTests(CompilationMode mode)
     {
         var engine = TestEngineFactory.Create(mode);
         var result = engine.Evaluate(@"
-        {
             var obj = new { Name = ""John"" };
             obj = new { Name = ""Jane"", Age = 30 };
             return obj;
-        }") as IDictionary<string, object?>;
+        ") as IDictionary<string, object?>;
 
         Assert.That(result, Is.Not.Null);
         Assert.That(result!["Name"], Is.EqualTo("Jane"));
@@ -39,10 +38,9 @@ public class AssignmentTests(CompilationMode mode)
         engine.SetVariable("x", 10L);
 
         var result = engine.Evaluate(@"
-        {
             x = 50;
             return x;
-        }");
+        ");
 
         Assert.That(result, Is.EqualTo(50));
     }
@@ -55,10 +53,9 @@ public class AssignmentTests(CompilationMode mode)
         engine.SetVariable("numbers", new List<int> { 1, 2, 3, 4, 5 });
 
         var result = engine.Evaluate(@"
-        {
             var filtered = numbers.Where(x => x > 2).ToList();
             return filtered;
-        }");
+        ");
 
         Assert.That(result, Is.InstanceOf<IList>());
         Assert.That(result, Is.EqualTo(new List<int> { 3, 4, 5 }));
@@ -76,10 +73,9 @@ public class AssignmentTests(CompilationMode mode)
 
         Assert.Throws<CsEvalException>(() =>
             engine.Evaluate(@"
-            {
                 undefinedVar = 10;
                 return undefinedVar;
-            }"));
+            "));
     }
 
     #endregion
@@ -92,11 +88,10 @@ public class AssignmentTests(CompilationMode mode)
     {
         var engine = TestEngineFactory.Create(mode);
         var expr = engine.Parse(@"
-        {
             var x = startVal;
             x = x * 2;
             return x;
-        }");
+        ");
 
         engine.SetVariable("startVal", 5L);
         var result1 = engine.Evaluate(expr);

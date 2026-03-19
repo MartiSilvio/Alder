@@ -50,7 +50,7 @@ public class GeneratedContextIntegrationTests(CompilationMode mode)
         var model = new TestModel();
         engine.SetVariable("m", model);
 
-        engine.Evaluate("m.Name = \"updated\"");
+        engine.Evaluate("""m.Name = "updated" """);
 
         Assert.That(model.Name, Is.EqualTo("updated"));
     }
@@ -82,7 +82,7 @@ public class GeneratedContextIntegrationTests(CompilationMode mode)
     {
         var engine = CreateEngineWithTypeResolution();
 
-        var result = engine.Evaluate("new TestModel(\"x\", 42)");
+        var result = engine.Evaluate("""new TestModel("x", 42) """);
 
         Assert.That(result, Is.TypeOf<TestModel>());
         var model = (TestModel)result!;
@@ -109,7 +109,7 @@ public class GeneratedContextIntegrationTests(CompilationMode mode)
         indexed["key"] = 99;
         engine.SetVariable("d", indexed);
 
-        var result = engine.Evaluate("d[\"key\"]");
+        var result = engine.Evaluate("""d["key"] """);
 
         Assert.That(result, Is.EqualTo(99));
     }
@@ -121,7 +121,7 @@ public class GeneratedContextIntegrationTests(CompilationMode mode)
         var indexed = new TestIndexedModel();
         engine.SetVariable("d", indexed);
 
-        engine.Evaluate("d[\"key\"] = 42");
+        engine.Evaluate("""d["key"] = 42 """);
 
         Assert.That(indexed["key"], Is.EqualTo(42));
     }
@@ -165,7 +165,7 @@ public class GeneratedContextIntegrationTests(CompilationMode mode)
     {
         var engine = CreateEngineWithTypeResolution();
 
-        var result = engine.Evaluate("TestModel.Parse(\"42\")");
+        var result = engine.Evaluate("""TestModel.Parse("42") """);
 
         Assert.That(result, Is.EqualTo(42));
     }

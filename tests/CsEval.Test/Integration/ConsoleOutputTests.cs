@@ -17,7 +17,7 @@ public class ConsoleOutputTests(CompilationMode mode)
         {
             Console.SetOut(TestContext.Out);
 
-            engine.Evaluate("Console.WriteLine(\"hello from CsEval\")");
+            engine.Evaluate("""Console.WriteLine("hello from CsEval") """);
         }
         finally
         {
@@ -37,7 +37,7 @@ public class ConsoleOutputTests(CompilationMode mode)
         {
             Console.SetOut(TestContext.Out);
 
-            engine.Evaluate("Console.WriteLine($\"2 + 2 = {2 + 2}\")");
+            engine.Evaluate("""Console.WriteLine($"2 + 2 = {2 + 2}") """);
         }
         finally
         {

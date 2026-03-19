@@ -80,7 +80,7 @@ public class BasicEvaluationTests
         var engine = new CsEvalEngine();
         engine.SetVariable("name", "CsEval");
 
-        var result = engine.Evaluate("$\"Hello, {name}!\"");
+        var result = engine.Evaluate("""$"Hello, {name}!" """);
         Assert.That(result, Is.EqualTo("Hello, CsEval!"));
     }
 
@@ -88,7 +88,7 @@ public class BasicEvaluationTests
     public void AnonymousObject()
     {
         var engine = new CsEvalEngine();
-        var result = engine.Evaluate("new { Name = \"Test\", Value = 42 }") as IDictionary<string, object?>;
+        var result = engine.Evaluate("""new { Name = "Test", Value = 42 } """) as IDictionary<string, object?>;
 
         Assert.That(result, Is.Not.Null);
         Assert.That(result!["Name"], Is.EqualTo("Test"));
@@ -151,7 +151,7 @@ public class CustomRegistrationTests
         var engine = new CsEvalEngine();
         engine.RegisterModule("Custom", instance: new GreetingProxy());
 
-        var result = engine.Evaluate("Custom.Greet(\"World\")");
+        var result = engine.Evaluate("""Custom.Greet("World") """);
         Assert.That(result, Is.EqualTo("Hello, World!"));
     }
 

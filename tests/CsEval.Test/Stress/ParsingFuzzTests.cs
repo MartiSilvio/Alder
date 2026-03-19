@@ -47,7 +47,6 @@ public class ParsingFuzzTests(CompilationMode mode) : StressTestBase(mode)
         {
             Engine.Parse(fuzz);
         }
-        catch (CsEvalParserException) { }
         catch (CsEvalException) { }
         catch (Exception ex)
         {

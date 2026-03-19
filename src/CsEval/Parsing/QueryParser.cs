@@ -1,3 +1,5 @@
+using CsEval.Diagnostics;
+
 namespace CsEval.Parsing;
 
 /// <summary>
@@ -65,6 +67,8 @@ internal sealed class QueryParser : ParserBase
     /// </summary>
     internal Expr ParseQueryExpression()
     {
+        var mark = Mark();
+
         // Parse initial: from rangeVar in sourceExpr
         Consume(TokenType.From, "Expected 'from' at start of query expression");
 
@@ -85,7 +89,7 @@ internal sealed class QueryParser : ParserBase
         var scope = new QueryScope(rangeVarName);
 
         // Parse body clauses and terminal clause
-        return ParseQueryBody(source, scope);
+        return ParseQueryBody(source, scope) with { Span = SpanFrom(mark) };
     }
 
     /// <summary>
@@ -133,9 +137,7 @@ internal sealed class QueryParser : ParserBase
             }
             else
             {
-                throw new CsEvalParserException(
-                    "Query expression must end with a select clause or group clause" +
-                    $" at {Peek().Line}:{Peek().Column}");
+                throw SyntaxError(DiagnosticDescriptors.QueryBodyMustEndWithSelectOrGroup);
             }
         }
     }
@@ -148,6 +150,7 @@ internal sealed class QueryParser : ParserBase
     /// </summary>
     private Expr ParseWhereClause(Expr source, QueryScope scope)
     {
+        var mark = Mark();
         Advance(); // consume 'where'
 
         var predicate = ParseQueryBodyExpression();
@@ -158,7 +161,7 @@ internal sealed class QueryParser : ParserBase
         var lambdaParam = scope.CurrentParameterName;
         var lambda = MakeLambda(lambdaParam, predicate);
 
-        return MakeMethodCall(source, "Where", lambda);
+        return MakeMethodCall(source, "Where", lambda) with { Span = SpanFrom(mark) };
     }
 
     /// <summary>
@@ -168,6 +171,7 @@ internal sealed class QueryParser : ParserBase
     /// </summary>
     private Expr ParseSecondFromClause(Expr source, QueryScope scope)
     {
+        var mark = Mark();
         Advance(); // consume 'from'
 
         // Skip explicit type annotation
@@ -205,7 +209,7 @@ internal sealed class QueryParser : ParserBase
             var collectionLambda = MakeLambda(outerParam, source2Expr);
             var resultLambda = MakeLambda2(outerParam, rangeVar2Name, projection);
 
-            return MakeMethodCall(source, "SelectMany", collectionLambda, resultLambda);
+            return MakeMethodCall(source, "SelectMany", collectionLambda, resultLambda) with { Span = SpanFrom(mark) };
         }
 
         // General case: create transparent identifier
@@ -236,6 +240,7 @@ internal sealed class QueryParser : ParserBase
     /// </summary>
     private Expr ParseLetClause(Expr source, QueryScope scope)
     {
+        var mark = Mark();
         Advance(); // consume 'let'
 
         var varNameToken = ConsumeIdentifierOrContextualKeyword("Expected variable name after 'let'");
@@ -258,7 +263,7 @@ internal sealed class QueryParser : ParserBase
 
         var lambda = MakeLambda(currentParam, anonymousObj);
 
-        var result = MakeMethodCall(source, "Select", lambda);
+        var result = MakeMethodCall(source, "Select", lambda) with { Span = SpanFrom(mark) };
 
         // Update scope: introduce new transparent identifier
         var transparentId = GenerateTransparentId();
@@ -274,6 +279,7 @@ internal sealed class QueryParser : ParserBase
     /// </summary>
     private Expr ParseOrderByClause(Expr source, QueryScope scope)
     {
+        var mark = Mark();
         Advance(); // consume 'orderby'
 
         var lambdaParam = scope.CurrentParameterName;
@@ -322,7 +328,7 @@ internal sealed class QueryParser : ParserBase
         }
 
         // Orderby does not change scope -- no new range variables introduced
-        return source;
+        return source with { Span = SpanFrom(mark) };
     }
 
     /// <summary>
@@ -333,6 +339,7 @@ internal sealed class QueryParser : ParserBase
     /// </summary>
     private Expr ParseJoinClause(Expr source, QueryScope scope)
     {
+        var mark = Mark();
         Advance(); // consume 'join'
 
         var innerVarToken = ConsumeIdentifierOrContextualKeyword("Expected range variable name after 'join'");
@@ -345,7 +352,8 @@ internal sealed class QueryParser : ParserBase
         var outerKey = ParseQueryBodyExpression();
         outerKey = RewriteIdentifiers(outerKey, scope);
 
-        Consume(TokenType.Equals, "Expected 'equals' in join clause (use 'equals' instead of '==')"); // ECMA-334 §12.20.3.7
+        if (!Match(TokenType.Equals))
+            throw SyntaxError(DiagnosticDescriptors.ExpectedContextualKeyword, "equals");
 
         // Inner key: references only the inner range variable, NOT the transparent identifier scope.
         // We temporarily create a simple scope for the inner variable.
@@ -368,7 +376,7 @@ internal sealed class QueryParser : ParserBase
             var resultBody = MakeTransparentObject(scope, groupVarName, outerParam, groupVarName);
             var resultLambda = MakeLambda2(outerParam, groupVarName, resultBody);
 
-            var result = MakeMethodCall(source, "GroupJoin", innerSource, outerKeyLambda, innerKeyLambda, resultLambda);
+            var result = MakeMethodCall(source, "GroupJoin", innerSource, outerKeyLambda, innerKeyLambda, resultLambda) with { Span = SpanFrom(mark) };
 
             // Update scope: add groupVar (NOT innerVar)
             var transparentId = GenerateTransparentId();
@@ -381,7 +389,7 @@ internal sealed class QueryParser : ParserBase
         var joinResultBody = MakeTransparentObject(scope, innerVarName, outerParam, innerVarName);
         var joinResultLambda = MakeLambda2(outerParam, innerVarName, joinResultBody);
 
-        var joinResult = MakeMethodCall(source, "Join", innerSource, outerKeyLambda, innerKeyLambda, joinResultLambda);
+        var joinResult = MakeMethodCall(source, "Join", innerSource, outerKeyLambda, innerKeyLambda, joinResultLambda) with { Span = SpanFrom(mark) };
 
         // Update scope: add innerVar
         var joinTransparentId = GenerateTransparentId();
@@ -400,6 +408,7 @@ internal sealed class QueryParser : ParserBase
     /// </summary>
     private Expr ParseSelectClause(Expr source, QueryScope scope)
     {
+        var mark = Mark();
         Advance(); // consume 'select'
 
         var projection = ParseQueryBodyExpression();
@@ -410,7 +419,7 @@ internal sealed class QueryParser : ParserBase
         var lambdaParam = scope.CurrentParameterName;
         var lambda = MakeLambda(lambdaParam, projection);
 
-        return MakeMethodCall(source, "Select", lambda);
+        return MakeMethodCall(source, "Select", lambda) with { Span = SpanFrom(mark) };
     }
 
     /// <summary>
@@ -421,6 +430,7 @@ internal sealed class QueryParser : ParserBase
     /// </summary>
     private Expr ParseGroupByClause(Expr source, QueryScope scope)
     {
+        var mark = Mark();
         Advance(); // consume 'group'
 
         var elementExpr = ParseQueryBodyExpression();
@@ -437,11 +447,11 @@ internal sealed class QueryParser : ParserBase
         // Check if element expression is identity (just the range variable)
         if (IsIdentityProjection(elementExpr, scope))
         {
-            return MakeMethodCall(source, "GroupBy", keyLambda);
+            return MakeMethodCall(source, "GroupBy", keyLambda) with { Span = SpanFrom(mark) };
         }
 
         var elementLambda = MakeLambda(lambdaParam, elementExpr);
-        return MakeMethodCall(source, "GroupBy", keyLambda, elementLambda);
+        return MakeMethodCall(source, "GroupBy", keyLambda, elementLambda) with { Span = SpanFrom(mark) };
     }
 
     /// <summary>

@@ -162,8 +162,7 @@ public class ApiSurfaceTests
         var type = typeof(CsEvalDiagnostic);
         Assert.That(type, Is.Not.Null);
 
-        Assert.That(type.GetProperty("Line", BindingFlags.Public | BindingFlags.Instance), Is.Not.Null);
-        Assert.That(type.GetProperty("Column", BindingFlags.Public | BindingFlags.Instance), Is.Not.Null);
+        Assert.That(type.GetProperty("Span", BindingFlags.Public | BindingFlags.Instance), Is.Not.Null);
         Assert.That(type.GetProperty("Severity", BindingFlags.Public | BindingFlags.Instance), Is.Not.Null);
         Assert.That(type.GetProperty("Message", BindingFlags.Public | BindingFlags.Instance), Is.Not.Null);
         Assert.That(type.GetProperty("Code", BindingFlags.Public | BindingFlags.Instance), Is.Not.Null);
@@ -412,9 +411,7 @@ public class ApiSurfaceTests
             "CsEval.CsEvalException",
             "CsEval.CsEvalExecutionLimitException",
             "CsEval.CsEvalExpression",
-            "CsEval.CsEvalLanguageModeException",
             "CsEval.CsEvalOptions",
-            "CsEval.CsEvalSandboxException",
             "CsEval.DefaultExpressionCompiler",
             "CsEval.DiagnosticSeverity",
             "CsEval.ExecutionConstraints",
@@ -425,8 +422,9 @@ public class ApiSurfaceTests
             "CsEval.Diagnostics.DiagnosticCode",
             "CsEval.Diagnostics.DiagnosticDescriptor",
             "CsEval.Diagnostics.DiagnosticDescriptors",
-            "CsEval.Parsing.CsEvalLexerException",
-            "CsEval.Parsing.CsEvalParserException",
+            "CsEval.Text.LinePosition",
+            "CsEval.Text.SourceText",
+            "CsEval.Text.TextSpan",
             "CsEval.Tracing.EvaluationTraceResult",
             "CsEval.Tracing.EvaluationTraceStep",
         }.OrderBy(n => n).ToList();
@@ -442,7 +440,6 @@ public class ApiSurfaceTests
         var assembly = typeof(CsEvalEngine).Assembly;
         var parserTypes = assembly.GetTypes()
             .Where(t => t is { Namespace: "CsEval.Parsing", IsPublic: true })
-            .Where(t => t.Name != "CsEvalLexerException" && t.Name != "CsEvalParserException")
             .Select(t => t.Name)
             .ToList();
 

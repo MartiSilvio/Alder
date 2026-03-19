@@ -1,3 +1,5 @@
+using CsEval.Diagnostics;
+
 namespace CsEval.Parsing;
 
 /// <summary>
@@ -113,19 +115,25 @@ internal sealed class PatternParser : ParserBase
         }
 
         // Null pattern
-        if (Match(TokenType.Null))
+        if (Check(TokenType.Null))
         {
-            return new ConstantPattern(new LiteralExpr(null, IsConstant: true));
+            var nullMark = Mark();
+            Advance();
+            return new ConstantPattern(new LiteralExpr(null, IsConstant: true) { Span = SpanFrom(nullMark) });
         }
 
         // Boolean constants
-        if (Match(TokenType.True))
+        if (Check(TokenType.True))
         {
-            return new ConstantPattern(new LiteralExpr(true, IsConstant: true));
+            var trueMark = Mark();
+            Advance();
+            return new ConstantPattern(new LiteralExpr(true, IsConstant: true) { Span = SpanFrom(trueMark) });
         }
-        if (Match(TokenType.False))
+        if (Check(TokenType.False))
         {
-            return new ConstantPattern(new LiteralExpr(false, IsConstant: true));
+            var falseMark = Mark();
+            Advance();
+            return new ConstantPattern(new LiteralExpr(false, IsConstant: true) { Span = SpanFrom(falseMark) });
         }
 
         // Type keyword: int, string, object, etc.
@@ -268,7 +276,7 @@ internal sealed class PatternParser : ParserBase
 
             var firstArg = TryParseTypeName();
             if (firstArg == null)
-                throw new CsEvalParserException($"Expected type argument after '<' at {Peek().Line}:{Peek().Column}");
+                throw SyntaxError(DiagnosticDescriptors.SyntaxExpected, "type argument after '<'");
             name += firstArg;
 
             while (Match(TokenType.Comma))
@@ -276,12 +284,12 @@ internal sealed class PatternParser : ParserBase
                 name += ", ";
                 var nextArg = TryParseTypeName();
                 if (nextArg == null)
-                    throw new CsEvalParserException($"Expected type argument after ',' at {Peek().Line}:{Peek().Column}");
+                    throw SyntaxError(DiagnosticDescriptors.SyntaxExpected, "type argument after ','");
                 name += nextArg;
             }
 
             if (!MatchClosingAngleBracket())
-                throw new CsEvalParserException($"Expected '>' after generic type arguments at {Peek().Line}:{Peek().Column}");
+                throw SyntaxError(DiagnosticDescriptors.SyntaxExpected, "'>' after generic type arguments");
             name += ">";
         }
 

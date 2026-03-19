@@ -77,8 +77,20 @@ public enum DiagnosticCode
     /// <summary>Cannot implicitly convert type '{0}' to '{1}'. An explicit conversion exists (are you missing a cast?)</summary>
     CS0266 = 266,
 
+    /// <summary>A query body must end with a select clause or a group clause</summary>
+    CS0742 = 742,
+
+    /// <summary>Expected contextual keyword '{0}'</summary>
+    CS0744 = 744,
+
     /// <summary>Cannot assign null to an implicitly-typed variable</summary>
     CS0815 = 815,
+
+    /// <summary>; expected</summary>
+    CS1002 = 1002,
+
+    /// <summary>Syntax error, '{0}' expected</summary>
+    CS1003 = 1003,
 
     /// <summary>Try statement already has an empty catch block</summary>
     CS1017 = 1017,
@@ -92,11 +104,17 @@ public enum DiagnosticCode
     /// <summary>No overload for method '{0}' takes {1} arguments</summary>
     CS1501 = 1501,
 
+    /// <summary>Invalid expression term '{0}'</summary>
+    CS1525 = 1525,
+
     /// <summary>foreach requires GetEnumerator</summary>
     CS1579 = 1579,
 
     /// <summary>'{0}' does not contain a constructor that takes {1} arguments</summary>
     CS1729 = 1729,
+
+    /// <summary>Expression expected</summary>
+    CS1733 = 1733,
 
     /// <summary>Non-invocable member '{0}' cannot be used like a method</summary>
     CS1955 = 1955,
@@ -112,6 +130,9 @@ public enum DiagnosticCode
 
     /// <summary>Deconstruction must contain at least two variables</summary>
     CS8132 = 8132,
+
+    /// <summary>The pattern is unreachable. It has already been handled by a previous arm of the switch expression or it is impossible to match.</summary>
+    CS8510 = 8510,
 
     // ── CSEV codes (CsEval-specific) ─────────────────────────────────
 

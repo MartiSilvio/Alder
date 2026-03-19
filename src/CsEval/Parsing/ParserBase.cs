@@ -1,4 +1,5 @@
 using CsEval.Diagnostics;
+using CsEval.Text;
 
 namespace CsEval.Parsing;
 
@@ -74,6 +75,26 @@ internal abstract class ParserBase
         State = state;
     }
 
+    #region Span Tracking
+
+    /// <summary>
+    /// Records the start offset of the current token for span computation.
+    /// Call at the beginning of a parse method, then pass to <see cref="SpanFrom"/> when done.
+    /// </summary>
+    internal int Mark() => Peek().Start;
+
+    /// <summary>
+    /// Computes a <see cref="TextSpan"/> from a previously recorded start offset
+    /// to the end of the most recently consumed token.
+    /// </summary>
+    internal TextSpan SpanFrom(int start)
+    {
+        var prev = Previous();
+        return new TextSpan(start, prev.Start + prev.Length - start);
+    }
+
+    #endregion
+
     #region Token Utilities
 
     /// <summary>
@@ -116,7 +137,7 @@ internal abstract class ParserBase
         if (Check(TokenType.StarStarEqual))
         {
             if (State.LanguageMode == LanguageMode.Standard)
-                throw new CsEvalLanguageModeException(TokenLexemes.GetCanonical(TokenType.StarStarEqual));
+                throw new CsEvalException(DiagnosticDescriptors.ExtendedModeRequired, TokenLexemes.GetCanonical(TokenType.StarStarEqual));
             Advance();
             op = Previous();
             return true;
@@ -181,8 +202,7 @@ internal abstract class ParserBase
     internal Token Consume(TokenType type, string message)
     {
         if (Check(type)) return Advance();
-        var token = Peek();
-        throw new CsEvalParserException($"{message} at {token.Line}:{token.Column}", token.Line, token.Column);
+        throw SyntaxError(DiagnosticDescriptors.SyntaxExpected, message);
     }
 
     /// <summary>
@@ -194,8 +214,21 @@ internal abstract class ParserBase
     {
         if (Check(TokenType.Identifier) || IsContextualKeyword(Peek().Type))
             return Advance();
+        throw SyntaxError(DiagnosticDescriptors.SyntaxExpected, message);
+    }
+
+    /// <summary>
+    /// Creates a parser exception with span and line/column from the current token.
+    /// </summary>
+    internal CsEvalException SyntaxError(DiagnosticDescriptor descriptor, params object?[] args)
+    {
         var token = Peek();
-        throw new CsEvalParserException($"{message} at {token.Line}:{token.Column}", token.Line, token.Column);
+        return new CsEvalException(descriptor, args)
+        {
+            Line = token.Line,
+            Column = token.Column,
+            Span = token.Span
+        };
     }
 
     /// <summary>
@@ -351,18 +384,4 @@ internal abstract class ParserBase
     }
 
     #endregion
-}
-
-public class CsEvalParserException : CsEvalException
-{
-    public CsEvalParserException(string message) : base(message) { }
-
-    public CsEvalParserException(string message, int line, int column)
-        : base(message, line, column) { }
-
-    public CsEvalParserException(DiagnosticDescriptor descriptor, params object?[] args)
-        : base(descriptor, args) { }
-
-    public CsEvalParserException(DiagnosticDescriptor descriptor, int line, int column, params object?[] args)
-        : base(descriptor, line, column, null, null, args) { }
 }

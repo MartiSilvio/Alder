@@ -132,8 +132,8 @@ public class ConversionTests(CompilationMode mode)
     {
         // Engine-only: Type object comparison (verifies result type is typeof(string))
         var engine = TestEngineFactory.Create(mode);
-        var result = engine.Evaluate("true ? \"hello\" : null");
-        var csharpResult = await TestHelpers.EvaluateCSharpAsync("true ? \"hello\" : null");
+        var result = engine.Evaluate("""true ? "hello" : null """);
+        var csharpResult = await TestHelpers.EvaluateCSharpAsync("""true ? "hello" : null """);
 
         Assert.That(result, Is.EqualTo("hello"), "Value should be 'hello'");
         Assert.That(result?.GetType(), Is.EqualTo(typeof(string)), "Type should be string");

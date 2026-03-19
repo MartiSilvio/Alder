@@ -20,7 +20,7 @@ public class NamedParameterTests(CompilationMode mode)
 
         engine.RegisterModule("Test", instance: new TestModule());
 
-        var result = engine.Evaluate("Test.Greet(name: \"World\")");
+        var result = engine.Evaluate("""Test.Greet(name: "World") """);
         Assert.That(result, Is.EqualTo("Hello, World!"));
     }
 
@@ -66,7 +66,7 @@ public class NamedParameterTests(CompilationMode mode)
         var items = new List<string> { "Apple", "Banana", "Cherry" };
         engine.SetVariable("items", items);
 
-        var result = engine.Evaluate("items.Where(x => x.StartsWith(value: \"B\")).ToList()");
+        var result = engine.Evaluate("""items.Where(x => x.StartsWith(value: "B")).ToList() """);
         Assert.That(result, Is.InstanceOf<IList>());
         var list = (IList)result!;
         Assert.That(list, Has.Count.EqualTo(1));

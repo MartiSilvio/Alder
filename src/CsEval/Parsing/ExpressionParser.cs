@@ -1,3 +1,4 @@
+using CsEval.Diagnostics;
 using SysRuntimeHelpers = System.Runtime.CompilerServices.RuntimeHelpers;
 
 namespace CsEval.Parsing;
@@ -62,7 +63,7 @@ internal sealed partial class ExpressionParser : ParserBase
             return expr;
 
         if (!Check(TokenType.Semicolon))
-            throw new CsEvalParserException($"Unexpected token '{Peek().Lexeme}' at {Peek().Line}:{Peek().Column}");
+            throw SyntaxError(DiagnosticDescriptors.InvalidExpressionTerm, Peek().Lexeme);
 
         State.Current = 0;
         return ParseProgram();
@@ -70,6 +71,7 @@ internal sealed partial class ExpressionParser : ParserBase
 
     private Expr ParseProgram()
     {
+        var mark = Mark();
         var statements = new List<Expr>();
 
         while (!IsAtEnd())
@@ -89,20 +91,19 @@ internal sealed partial class ExpressionParser : ParserBase
                 }
                 else if (IsAtEnd())
                 {
-                    return new BlockExpr(statements, expr);
+                    return new BlockExpr(statements, expr) { Span = SpanFrom(mark) };
                 }
                 else
                 {
-                    throw new CsEvalParserException(
-                        $"Unexpected token '{Peek().Lexeme}' at {Peek().Line}:{Peek().Column}");
+                    throw SyntaxError(DiagnosticDescriptors.InvalidExpressionTerm, Peek().Lexeme);
                 }
             }
         }
 
         if (statements.Count > 0)
-            return new BlockExpr(statements, null);
+            return new BlockExpr(statements, null) { Span = SpanFrom(mark) };
 
-        throw new CsEvalParserException("Empty expression", Peek().Line, Peek().Column);
+        throw SyntaxError(DiagnosticDescriptors.ExpressionExpected);
     }
 
     private bool IsStatementKeyword()
@@ -174,10 +175,12 @@ internal sealed partial class ExpressionParser : ParserBase
 
     private Expr ParseAssignment()
     {
+        var mark = Mark();
+
         if (Check(TokenType.Let))
         {
             if (State.LanguageMode == LanguageMode.Standard)
-                throw new CsEvalLanguageModeException("let-in");
+                throw new CsEvalException(DiagnosticDescriptors.ExtendedModeRequired,"let-in");
 
             Advance();
             return ParseLetInExpression(Previous());
@@ -187,7 +190,7 @@ internal sealed partial class ExpressionParser : ParserBase
         if (Match(TokenType.Throw))
         {
             var throwExpr = ParseAssignment();
-            return new ThrowExpr(throwExpr);
+            return new ThrowExpr(throwExpr) { Span = SpanFrom(mark) };
         }
 
         var expr = ParsePipeline();
@@ -198,21 +201,21 @@ internal sealed partial class ExpressionParser : ParserBase
             if (Match(TokenType.QuestionQuestionEqual))
             {
                 var value = ParseAssignment();
-                return new NullCoalesceAssignExpr(identifier.Name, value);
+                return new NullCoalesceAssignExpr(identifier.Name, value) { Span = SpanFrom(mark) };
             }
 
             // Handle = assignment
             if (Match(TokenType.Equal))
             {
                 var value = ParseAssignment();
-                return new AssignExpr(identifier.Name, value);
+                return new AssignExpr(identifier.Name, value) { Span = SpanFrom(mark) };
             }
 
             // Handle compound assignment operators: +=, -=, *=, /=, %=, &=, |=, ^=, <<=, >>=
             if (MatchCompoundAssignment(out var op))
             {
                 var value = ParseAssignment();
-                return new CompoundAssignExpr(identifier.Name, op, value);
+                return new CompoundAssignExpr(identifier.Name, op, value) { Span = SpanFrom(mark) };
             }
         }
         else if (expr is MemberAccessExpr memberAccess)
@@ -221,14 +224,14 @@ internal sealed partial class ExpressionParser : ParserBase
             if (Match(TokenType.QuestionQuestionEqual))
             {
                 var value = ParseAssignment();
-                return new MemberNullCoalesceAssignExpr(memberAccess.Object, memberAccess.Name.Lexeme, value);
+                return new MemberNullCoalesceAssignExpr(memberAccess.Object, memberAccess.Name.Lexeme, value) { Span = SpanFrom(mark) };
             }
 
             // Handle obj.Property = value
             if (Match(TokenType.Equal))
             {
                 var value = ParseAssignment();
-                return new MemberAssignExpr(memberAccess.Object, memberAccess.Name, value);
+                return new MemberAssignExpr(memberAccess.Object, memberAccess.Name, value) { Span = SpanFrom(mark) };
             }
 
             // Handle obj.Property += value (compound assignment on member access)
@@ -236,7 +239,7 @@ internal sealed partial class ExpressionParser : ParserBase
             {
                 var value = ParseAssignment();
                 return new MemberCompoundAssignExpr(memberAccess.Object, memberAccess.Name.Lexeme, memberOp.Type,
-                    value);
+                    value) { Span = SpanFrom(mark) };
             }
         }
         else if (expr is IndexAccessExpr indexAccess)
@@ -245,21 +248,21 @@ internal sealed partial class ExpressionParser : ParserBase
             if (Match(TokenType.QuestionQuestionEqual))
             {
                 var value = ParseAssignment();
-                return new IndexNullCoalesceAssignExpr(indexAccess.Object, indexAccess.Index, value);
+                return new IndexNullCoalesceAssignExpr(indexAccess.Object, indexAccess.Index, value) { Span = SpanFrom(mark) };
             }
 
             // Handle arr[0] = value
             if (Match(TokenType.Equal))
             {
                 var value = ParseAssignment();
-                return new IndexAssignExpr(indexAccess.Object, indexAccess.Index, value);
+                return new IndexAssignExpr(indexAccess.Object, indexAccess.Index, value) { Span = SpanFrom(mark) };
             }
 
             // Handle arr[0] += value (compound assignment on index access)
             if (MatchCompoundAssignment(out var indexOp))
             {
                 var value = ParseAssignment();
-                return new IndexCompoundAssignExpr(indexAccess.Object, indexAccess.Index, indexOp.Type, value);
+                return new IndexCompoundAssignExpr(indexAccess.Object, indexAccess.Index, indexOp.Type, value) { Span = SpanFrom(mark) };
             }
         }
         else if (expr is MultiDimIndexAccessExpr multiIndex)
@@ -268,7 +271,7 @@ internal sealed partial class ExpressionParser : ParserBase
             if (Match(TokenType.Equal))
             {
                 var value = ParseAssignment();
-                return new MultiDimIndexAssignExpr(multiIndex.Object, multiIndex.Indices, value);
+                return new MultiDimIndexAssignExpr(multiIndex.Object, multiIndex.Indices, value) { Span = SpanFrom(mark) };
             }
         }
 
@@ -277,6 +280,7 @@ internal sealed partial class ExpressionParser : ParserBase
 
     private Expr ParseLetInExpression(Token letToken)
     {
+        var mark = Mark();
         var statements = new List<Expr>();
 
         if (Match(TokenType.LeftBrace))
@@ -295,13 +299,13 @@ internal sealed partial class ExpressionParser : ParserBase
 
             var tempName = $"<let>__{letToken.Line}_{letToken.Column}_{State.Current}";
             var tempToken = new Token(TokenType.Identifier, tempName, null, letToken.Line, letToken.Column);
-            statements.Add(new VariableDeclExpr(null, tempToken, initializer));
+            statements.Add(new VariableDeclExpr(null, tempToken, initializer) { Span = SpanFrom(mark) });
 
             foreach (var name in names)
             {
                 var memberToken = new Token(TokenType.Identifier, name.Lexeme, null, name.Line, name.Column);
-                var memberAccess = new MemberAccessExpr(new IdentifierExpr(tempToken), memberToken, false);
-                statements.Add(new VariableDeclExpr(null, name, memberAccess));
+                var memberAccess = new MemberAccessExpr(new IdentifierExpr(tempToken) { Span = SpanFrom(mark) }, memberToken, false) { Span = SpanFrom(mark) };
+                statements.Add(new VariableDeclExpr(null, name, memberAccess) { Span = SpanFrom(mark) });
             }
         }
         else
@@ -309,17 +313,17 @@ internal sealed partial class ExpressionParser : ParserBase
             var name = ConsumeIdentifierOrContextualKeyword("Expected variable name after 'let'");
             Consume(TokenType.Equal, "Expected '=' after variable name");
             var initializer = ParseLetInInitializer();
-            statements.Add(new VariableDeclExpr(null, name, initializer));
+            statements.Add(new VariableDeclExpr(null, name, initializer) { Span = SpanFrom(mark) });
         }
 
         var body = ParseExpression();
-        return new BlockExpr(statements, body);
+        return new BlockExpr(statements, body) { Span = SpanFrom(mark) };
     }
 
     private Expr ParseLetInInitializer()
     {
         if (!TryFindTopLevelDelimiter(TokenType.In, State.Current, out var delimiterIndex))
-            throw new CsEvalParserException($"Expected 'in' in let-in expression at {Peek().Line}:{Peek().Column}");
+            throw SyntaxError(DiagnosticDescriptors.SyntaxExpected, "'in' in let-in expression");
 
         var initializer = ParseExpressionSlice(State.Current, delimiterIndex);
         State.Current = delimiterIndex + 1; // consume 'in'
@@ -329,7 +333,7 @@ internal sealed partial class ExpressionParser : ParserBase
     private Expr ParseExpressionSlice(int startInclusive, int endExclusive)
     {
         if (endExclusive <= startInclusive)
-            throw new CsEvalParserException("Expected expression in let-in initializer", Peek().Line, Peek().Column);
+            throw SyntaxError(DiagnosticDescriptors.ExpressionExpected);
 
         var tokens = new List<Token>(endExclusive - startInclusive + 1);
         for (var i = startInclusive; i < endExclusive; i++)
@@ -439,6 +443,7 @@ internal sealed partial class ExpressionParser : ParserBase
     /// </summary>
     private Expr ParsePipeline()
     {
+        var mark = Mark();
         var expr = ParseConditional();
 
         if (State.LanguageMode == LanguageMode.Extended)
@@ -446,12 +451,12 @@ internal sealed partial class ExpressionParser : ParserBase
             while (Match(TokenType.PipeGreater))
             {
                 var right = ParseConditional();
-                expr = new PipelineExpr(expr, right);
+                expr = new PipelineExpr(expr, right) { Span = SpanFrom(mark) };
             }
         }
         else if (Check(TokenType.PipeGreater))
         {
-            throw new CsEvalLanguageModeException(TokenLexemes.GetCanonical(TokenType.PipeGreater));
+            throw new CsEvalException(DiagnosticDescriptors.ExtendedModeRequired,TokenLexemes.GetCanonical(TokenType.PipeGreater));
         }
 
         return expr;
@@ -459,10 +464,12 @@ internal sealed partial class ExpressionParser : ParserBase
 
     private Expr ParseConditional()
     {
+        var mark = Mark();
+
         if (Check(TokenType.If))
         {
             if (State.LanguageMode == LanguageMode.Standard)
-                throw new CsEvalLanguageModeException("if-expression");
+                throw new CsEvalException(DiagnosticDescriptors.ExtendedModeRequired,"if-expression");
 
             if (IsIfExpressionStart())
                 return ParseIfExpression();
@@ -475,7 +482,7 @@ internal sealed partial class ExpressionParser : ParserBase
             var thenBranch = ParseExpression();
             Consume(TokenType.Colon, "Expected ':' in ternary expression");
             var elseBranch = ParseExpression();
-            return new ConditionalExpr(expr, thenBranch, elseBranch);
+            return new ConditionalExpr(expr, thenBranch, elseBranch) { Span = SpanFrom(mark) };
         }
 
         return expr;
@@ -483,18 +490,19 @@ internal sealed partial class ExpressionParser : ParserBase
 
     private Expr ParseIfExpression()
     {
+        var mark = Mark();
         Consume(TokenType.If, "Expected 'if' at start of if-expression");
         Consume(TokenType.LeftParen, "Expected '(' after 'if'");
         var condition = ParseExpression();
         Consume(TokenType.RightParen, "Expected ')' after if condition");
 
         if (Check(TokenType.LeftBrace))
-            throw new CsEvalParserException($"If-expression branches must be expressions at {Peek().Line}:{Peek().Column}");
+            throw SyntaxError(DiagnosticDescriptors.ExpressionExpected);
 
         var thenBranch = ParseExpression();
         Consume(TokenType.Else, "Expected 'else' in if-expression");
         var elseBranch = ParseExpression();
-        return new ConditionalExpr(condition, thenBranch, elseBranch);
+        return new ConditionalExpr(condition, thenBranch, elseBranch) { Span = SpanFrom(mark) };
     }
 
     private bool IsIfExpressionStart()
@@ -569,6 +577,7 @@ internal sealed partial class ExpressionParser : ParserBase
 
     private Expr ParseNullCoalesce()
     {
+        var mark = Mark();
         var expr = ParseRange();
 
         if (Match(TokenType.QuestionQuestion))
@@ -578,11 +587,11 @@ internal sealed partial class ExpressionParser : ParserBase
             {
                 Advance();
                 var throwOperand = ParseAssignment();
-                return new NullCoalesceExpr(expr, new ThrowExpr(throwOperand));
+                return new NullCoalesceExpr(expr, new ThrowExpr(throwOperand) { Span = SpanFrom(mark) }) { Span = SpanFrom(mark) };
             }
 
             var right = ParseNullCoalesce();
-            return new NullCoalesceExpr(expr, right);
+            return new NullCoalesceExpr(expr, right) { Span = SpanFrom(mark) };
         }
 
         return expr;
@@ -596,24 +605,25 @@ internal sealed partial class ExpressionParser : ParserBase
     /// </summary>
     private Expr ParseRange()
     {
+        var mark = Mark();
         var expr = ParseOr();
 
         if (Match(TokenType.DotDot))
         {
             var end = ParseOr();
-            return new RangeExpr(expr, end, ExclusiveEnd: true);
+            return new RangeExpr(expr, end, ExclusiveEnd: true) { Span = SpanFrom(mark) };
         }
 
         if (State.LanguageMode == LanguageMode.Extended && Match(TokenType.DotDotEquals))
         {
             var end = ParseOr();
-            return new RangeExpr(expr, end, ExclusiveEnd: false);
+            return new RangeExpr(expr, end, ExclusiveEnd: false) { Span = SpanFrom(mark) };
         }
 
         if (State.LanguageMode == LanguageMode.Extended && Match(TokenType.DotDotLess))
         {
             var end = ParseOr();
-            return new RangeExpr(expr, end, ExclusiveEnd: true);
+            return new RangeExpr(expr, end, ExclusiveEnd: true) { Span = SpanFrom(mark) };
         }
 
         return expr;
@@ -625,6 +635,7 @@ internal sealed partial class ExpressionParser : ParserBase
 
     private Expr ParseOr()
     {
+        var mark = Mark();
         var expr = ParseAnd();
 
         while (Match(TokenType.PipePipe))
@@ -632,7 +643,7 @@ internal sealed partial class ExpressionParser : ParserBase
             var op = Previous();
             RejectWordOperatorInStandardMode(op, "or");
             var right = ParseAnd();
-            expr = new LogicalExpr(expr, op, right);
+            expr = new LogicalExpr(expr, op, right) { Span = SpanFrom(mark) };
         }
 
         return expr;
@@ -640,6 +651,7 @@ internal sealed partial class ExpressionParser : ParserBase
 
     private Expr ParseAnd()
     {
+        var mark = Mark();
         var expr = ParseBitwiseOr();
 
         while (Match(TokenType.AmpAmp))
@@ -647,7 +659,7 @@ internal sealed partial class ExpressionParser : ParserBase
             var op = Previous();
             RejectWordOperatorInStandardMode(op, "and");
             var right = ParseBitwiseOr();
-            expr = new LogicalExpr(expr, op, right);
+            expr = new LogicalExpr(expr, op, right) { Span = SpanFrom(mark) };
         }
 
         return expr;
@@ -659,13 +671,14 @@ internal sealed partial class ExpressionParser : ParserBase
 
     internal Expr ParseBitwiseOr()
     {
+        var mark = Mark();
         var expr = ParseBitwiseXor();
 
         while (Match(TokenType.Pipe))
         {
             var op = Previous();
             var right = ParseBitwiseXor();
-            expr = new BinaryExpr(expr, op, right);
+            expr = new BinaryExpr(expr, op, right) { Span = SpanFrom(mark) };
         }
 
         return expr;
@@ -673,13 +686,14 @@ internal sealed partial class ExpressionParser : ParserBase
 
     private Expr ParseBitwiseXor()
     {
+        var mark = Mark();
         var expr = ParseBitwiseAnd();
 
         while (Match(TokenType.Caret))
         {
             var op = Previous();
             var right = ParseBitwiseAnd();
-            expr = new BinaryExpr(expr, op, right);
+            expr = new BinaryExpr(expr, op, right) { Span = SpanFrom(mark) };
         }
 
         return expr;
@@ -687,13 +701,14 @@ internal sealed partial class ExpressionParser : ParserBase
 
     private Expr ParseBitwiseAnd()
     {
+        var mark = Mark();
         var expr = ParseEquality();
 
         while (Match(TokenType.Amp))
         {
             var op = Previous();
             var right = ParseEquality();
-            expr = new BinaryExpr(expr, op, right);
+            expr = new BinaryExpr(expr, op, right) { Span = SpanFrom(mark) };
         }
 
         return expr;
@@ -705,6 +720,7 @@ internal sealed partial class ExpressionParser : ParserBase
 
     private Expr ParseEquality()
     {
+        var mark = Mark();
         var expr = ParseComparison();
 
         while (Match(TokenType.EqualEqual, TokenType.BangEqual,
@@ -713,7 +729,7 @@ internal sealed partial class ExpressionParser : ParserBase
             var op = Previous();
             if (op.Type is TokenType.EqualEqualEqual or TokenType.BangEqualEqual && State.LanguageMode == LanguageMode.Standard)
             {
-                throw new CsEvalLanguageModeException(TokenLexemes.GetCanonical(op.Type));
+                throw new CsEvalException(DiagnosticDescriptors.ExtendedModeRequired,TokenLexemes.GetCanonical(op.Type));
             }
             var right = ParseComparison();
 
@@ -731,10 +747,10 @@ internal sealed partial class ExpressionParser : ParserBase
                     operands.Add(nextOperand);
                 }
 
-                return new ChainedComparisonExpr(operands, operators);
+                return new ChainedComparisonExpr(operands, operators) { Span = SpanFrom(mark) };
             }
 
-            expr = new BinaryExpr(expr, op, right);
+            expr = new BinaryExpr(expr, op, right) { Span = SpanFrom(mark) };
         }
 
         return expr;
@@ -742,6 +758,7 @@ internal sealed partial class ExpressionParser : ParserBase
 
     private Expr ParseComparison()
     {
+        var mark = Mark();
         var expr = ParseShift();
 
         while (true)
@@ -765,28 +782,28 @@ internal sealed partial class ExpressionParser : ParserBase
                         operands.Add(nextOperand);
                     }
 
-                    return new ChainedComparisonExpr(operands, operators);
+                    return new ChainedComparisonExpr(operands, operators) { Span = SpanFrom(mark) };
                 }
 
-                expr = new BinaryExpr(expr, op, right);
+                expr = new BinaryExpr(expr, op, right) { Span = SpanFrom(mark) };
             }
             else if (Match(TokenType.Is))
             {
-                expr = ParseIsExpression(expr);
+                expr = ParseIsExpression(expr, mark);
             }
             else if (Match(TokenType.As))
             {
-                expr = ParseAsExpression(expr);
+                expr = ParseAsExpression(expr, mark);
             }
             else if (Match(TokenType.Switch))
             {
-                expr = ParseSwitchExpression(expr);
+                expr = ParseSwitchExpression(expr, mark);
             }
             else if (State.LanguageMode == LanguageMode.Extended && Match(TokenType.In))
             {
                 var op = Previous();
                 var right = ParseShift();
-                expr = new BinaryExpr(expr, op, right);
+                expr = new BinaryExpr(expr, op, right) { Span = SpanFrom(mark) };
             }
             else if (State.LanguageMode == LanguageMode.Extended && Match(TokenType.NotIn))
             {
@@ -794,13 +811,13 @@ internal sealed partial class ExpressionParser : ParserBase
                 var unaryNot = TokenLexemes.CreateSynthetic(TokenType.Bang, aliasToken);
                 var op = TokenLexemes.CreateSynthetic(TokenType.In, aliasToken);
                 var right = ParseShift();
-                expr = new UnaryExpr(unaryNot, new BinaryExpr(expr, op, right));
+                expr = new UnaryExpr(unaryNot, new BinaryExpr(expr, op, right) { Span = SpanFrom(mark) }) { Span = SpanFrom(mark) };
             }
             else if (State.LanguageMode == LanguageMode.Extended && Match(TokenType.Like))
             {
                 var op = Previous();
                 var right = ParseShift();
-                expr = new BinaryExpr(expr, op, right);
+                expr = new BinaryExpr(expr, op, right) { Span = SpanFrom(mark) };
             }
             else if (State.LanguageMode == LanguageMode.Extended && Match(TokenType.NotLike))
             {
@@ -808,7 +825,7 @@ internal sealed partial class ExpressionParser : ParserBase
                 var unaryNot = TokenLexemes.CreateSynthetic(TokenType.Bang, aliasToken);
                 var op = TokenLexemes.CreateSynthetic(TokenType.Like, aliasToken);
                 var right = ParseShift();
-                expr = new UnaryExpr(unaryNot, new BinaryExpr(expr, op, right));
+                expr = new UnaryExpr(unaryNot, new BinaryExpr(expr, op, right) { Span = SpanFrom(mark) }) { Span = SpanFrom(mark) };
             }
             else if (State.LanguageMode == LanguageMode.Extended && Match(TokenType.Between))
             {
@@ -818,16 +835,16 @@ internal sealed partial class ExpressionParser : ParserBase
                 var low = ParseShift();
                 Consume(TokenType.AmpAmp, "Expected 'and' after 'between' lower bound");
                 var high = ParseShift();
-                var geExpr = new BinaryExpr(expr, TokenLexemes.CreateSynthetic(TokenType.GreaterEqual, betweenToken), low);
-                var leExpr = new BinaryExpr(expr, TokenLexemes.CreateSynthetic(TokenType.LessEqual, betweenToken), high);
-                expr = new LogicalExpr(geExpr, TokenLexemes.CreateSynthetic(TokenType.AmpAmp, betweenToken), leExpr);
+                var geExpr = new BinaryExpr(expr, TokenLexemes.CreateSynthetic(TokenType.GreaterEqual, betweenToken), low) { Span = SpanFrom(mark) };
+                var leExpr = new BinaryExpr(expr, TokenLexemes.CreateSynthetic(TokenType.LessEqual, betweenToken), high) { Span = SpanFrom(mark) };
+                expr = new LogicalExpr(geExpr, TokenLexemes.CreateSynthetic(TokenType.AmpAmp, betweenToken), leExpr) { Span = SpanFrom(mark) };
             }
             else if (State.LanguageMode == LanguageMode.Extended
                      && Match(TokenType.EqualTilde, TokenType.BangTilde, TokenType.LessEqualGreater))
             {
                 var op = Previous();
                 var right = ParseShift();
-                expr = new BinaryExpr(expr, op, right);
+                expr = new BinaryExpr(expr, op, right) { Span = SpanFrom(mark) };
             }
             // Active rejection in Standard mode for Extended-only operators at operator position.
             // These tokens are contextual keywords that can be used as identifiers in primary
@@ -835,30 +852,30 @@ internal sealed partial class ExpressionParser : ParserBase
             // be operator usage.
             else if (State.LanguageMode == LanguageMode.Standard && Check(TokenType.In))
             {
-                throw new CsEvalLanguageModeException(TokenLexemes.GetCanonical(TokenType.In));
+                throw new CsEvalException(DiagnosticDescriptors.ExtendedModeRequired,TokenLexemes.GetCanonical(TokenType.In));
             }
             else if (State.LanguageMode == LanguageMode.Standard && Check(TokenType.Like))
             {
-                throw new CsEvalLanguageModeException(TokenLexemes.GetCanonical(TokenType.Like));
+                throw new CsEvalException(DiagnosticDescriptors.ExtendedModeRequired,TokenLexemes.GetCanonical(TokenType.Like));
             }
             else if (State.LanguageMode == LanguageMode.Standard && Check(TokenType.Between))
             {
-                throw new CsEvalLanguageModeException(TokenLexemes.GetCanonical(TokenType.Between));
+                throw new CsEvalException(DiagnosticDescriptors.ExtendedModeRequired,TokenLexemes.GetCanonical(TokenType.Between));
             }
             else if (State.LanguageMode == LanguageMode.Standard
                      && Check(TokenType.EqualTilde))
             {
-                throw new CsEvalLanguageModeException(TokenLexemes.GetCanonical(TokenType.EqualTilde));
+                throw new CsEvalException(DiagnosticDescriptors.ExtendedModeRequired,TokenLexemes.GetCanonical(TokenType.EqualTilde));
             }
             else if (State.LanguageMode == LanguageMode.Standard
                      && Check(TokenType.BangTilde))
             {
-                throw new CsEvalLanguageModeException(TokenLexemes.GetCanonical(TokenType.BangTilde));
+                throw new CsEvalException(DiagnosticDescriptors.ExtendedModeRequired,TokenLexemes.GetCanonical(TokenType.BangTilde));
             }
             else if (State.LanguageMode == LanguageMode.Standard
                      && Check(TokenType.LessEqualGreater))
             {
-                throw new CsEvalLanguageModeException(TokenLexemes.GetCanonical(TokenType.LessEqualGreater));
+                throw new CsEvalException(DiagnosticDescriptors.ExtendedModeRequired,TokenLexemes.GetCanonical(TokenType.LessEqualGreater));
             }
             else
             {
@@ -873,22 +890,22 @@ internal sealed partial class ExpressionParser : ParserBase
         type is TokenType.Less or TokenType.LessEqual or TokenType.Greater or TokenType.GreaterEqual
             or TokenType.EqualEqual or TokenType.BangEqual;
 
-    private IsPatternExpr ParseIsExpression(Expr left)
+    private IsPatternExpr ParseIsExpression(Expr left, int mark)
     {
         var pattern = _pattern.ParsePattern();
-        return new IsPatternExpr(left, pattern);
+        return new IsPatternExpr(left, pattern) { Span = SpanFrom(mark) };
     }
 
-    private Expr ParseAsExpression(Expr left)
+    private Expr ParseAsExpression(Expr left, int mark)
     {
         // Use TryParseTypeName to handle all type forms including generics:
         // x as string, x as List<int>, x as Dictionary<string, int>?, x as System.Exception
         var typeName = TryParseTypeName();
         if (typeName == null)
-            throw new CsEvalParserException($"Expected type after 'as' at {Peek().Line}:{Peek().Column}");
+            throw SyntaxError(DiagnosticDescriptors.SyntaxExpected, "type after 'as'");
 
         var typeToken = new Token(TokenType.Identifier, typeName, null, Previous().Line, Previous().Column);
-        return new AsExpr(left, typeToken);
+        return new AsExpr(left, typeToken) { Span = SpanFrom(mark) };
     }
 
     /// <summary>
@@ -920,7 +937,7 @@ internal sealed partial class ExpressionParser : ParserBase
 
     #region Switch Expression
 
-    private Expr ParseSwitchExpression(Expr subject)
+    private Expr ParseSwitchExpression(Expr subject, int mark)
     {
         Consume(TokenType.LeftBrace, "Expected '{' after 'switch'");
         var arms = new List<SwitchArm>();
@@ -946,7 +963,7 @@ internal sealed partial class ExpressionParser : ParserBase
         }
 
         Consume(TokenType.RightBrace, "Expected '}' after switch expression arms");
-        return new SwitchExpressionExpr(subject, arms);
+        return new SwitchExpressionExpr(subject, arms) { Span = SpanFrom(mark) };
     }
 
     #endregion
@@ -965,13 +982,14 @@ internal sealed partial class ExpressionParser : ParserBase
 
     private Expr ParseShift()
     {
+        var mark = Mark();
         var expr = ParseTerm();
 
         while (Match(TokenType.LessLess, TokenType.GreaterGreater, TokenType.GreaterGreaterGreater))
         {
             var op = Previous();
             var right = ParseTerm();
-            expr = new BinaryExpr(expr, op, right);
+            expr = new BinaryExpr(expr, op, right) { Span = SpanFrom(mark) };
         }
 
         return expr;
@@ -983,13 +1001,14 @@ internal sealed partial class ExpressionParser : ParserBase
 
     private Expr ParseTerm()
     {
+        var mark = Mark();
         var expr = ParseFactor();
 
         while (Match(TokenType.Plus, TokenType.Minus))
         {
             var op = Previous();
             var right = ParseFactor();
-            expr = new BinaryExpr(expr, op, right);
+            expr = new BinaryExpr(expr, op, right) { Span = SpanFrom(mark) };
         }
 
         return expr;
@@ -997,13 +1016,14 @@ internal sealed partial class ExpressionParser : ParserBase
 
     private Expr ParseFactor()
     {
+        var mark = Mark();
         var expr = ParseUnary();
 
         while (Match(TokenType.Star, TokenType.Slash, TokenType.Percent))
         {
             var op = Previous();
             var right = ParseUnary();
-            expr = new BinaryExpr(expr, op, right);
+            expr = new BinaryExpr(expr, op, right) { Span = SpanFrom(mark) };
         }
 
         return expr;
@@ -1021,6 +1041,8 @@ internal sealed partial class ExpressionParser : ParserBase
     /// </summary>
     internal Expr ParseUnary()
     {
+        var mark = Mark();
+
         // Cast expression: (int)x, (double)y, (int?)z, (Exception)x, (int[])x, (List<int>)x
         if (Check(TokenType.LeftParen) && IsCastExpression())
         {
@@ -1028,12 +1050,12 @@ internal sealed partial class ExpressionParser : ParserBase
             var startToken = Peek();
             var typeName = TryParseTypeName();
             if (typeName == null)
-                throw new CsEvalParserException($"Expected type in cast at {startToken.Line}:{startToken.Column}");
+                throw SyntaxError(DiagnosticDescriptors.SyntaxExpected, "type in cast");
 
             var typeToken = new Token(TokenType.Identifier, typeName, null, startToken.Line, startToken.Column);
             Consume(TokenType.RightParen, "Expected ')' after cast type");
             var operand = ParseUnary();
-            return new CastExpr(typeToken, operand);
+            return new CastExpr(typeToken, operand) { Span = SpanFrom(mark) };
         }
 
         if (Match(TokenType.Bang, TokenType.Minus, TokenType.Plus, TokenType.Tilde))
@@ -1042,14 +1064,14 @@ internal sealed partial class ExpressionParser : ParserBase
             if (op.Type == TokenType.Bang)
                 RejectWordOperatorInStandardMode(op, "not");
             var right = ParseUnary();
-            return new UnaryExpr(op, right);
+            return new UnaryExpr(op, right) { Span = SpanFrom(mark) };
         }
 
         // §12.8.11: Index from end — ^expr → System.Index(expr, fromEnd: true)
         if (Match(TokenType.Caret))
         {
             var operand = ParseUnary();
-            return new IndexFromEndExpr(operand);
+            return new IndexFromEndExpr(operand) { Span = SpanFrom(mark) };
         }
 
         // Prefix increment/decrement: ++x, --x, ++obj.Prop, ++arr[i]
@@ -1061,10 +1083,10 @@ internal sealed partial class ExpressionParser : ParserBase
             var operand = ParsePostfix();
             return operand switch
             {
-                MemberAccessExpr m => new MemberIncrementExpr(m.Object, m.Name.Lexeme, true, isIncrement),
-                IndexAccessExpr idx => new IndexIncrementExpr(idx.Object, idx.Index, true, isIncrement),
-                IdentifierExpr id => new IncrementDecrementExpr(id.Name, op, true),
-                _ => throw new CsEvalParserException($"Invalid prefix {op.Lexeme} target at {op.Line}:{op.Column}")
+                MemberAccessExpr m => new MemberIncrementExpr(m.Object, m.Name.Lexeme, true, isIncrement) { Span = SpanFrom(mark) },
+                IndexAccessExpr idx => new IndexIncrementExpr(idx.Object, idx.Index, true, isIncrement) { Span = SpanFrom(mark) },
+                IdentifierExpr id => new IncrementDecrementExpr(id.Name, op, true) { Span = SpanFrom(mark) },
+                _ => throw SyntaxError(DiagnosticDescriptors.InvalidExpressionTerm, op.Lexeme)
             };
         }
 
@@ -1081,17 +1103,18 @@ internal sealed partial class ExpressionParser : ParserBase
     /// </summary>
     private Expr ParsePower()
     {
+        var mark = Mark();
         var expr = ParsePostfix();
 
         if (State.LanguageMode == LanguageMode.Extended && Match(TokenType.StarStar))
         {
             var op = Previous();
             var right = ParseUnary(); // Right via ParseUnary for right-associativity + unary support
-            expr = new BinaryExpr(expr, op, right);
+            expr = new BinaryExpr(expr, op, right) { Span = SpanFrom(mark) };
         }
         else if (State.LanguageMode == LanguageMode.Standard && Check(TokenType.StarStar))
         {
-            throw new CsEvalLanguageModeException(TokenLexemes.GetCanonical(TokenType.StarStar));
+            throw new CsEvalException(DiagnosticDescriptors.ExtendedModeRequired,TokenLexemes.GetCanonical(TokenType.StarStar));
         }
 
         return expr;
@@ -1102,7 +1125,7 @@ internal sealed partial class ExpressionParser : ParserBase
         if (State.LanguageMode == LanguageMode.Standard &&
             string.Equals(op.Lexeme, keyword, StringComparison.Ordinal))
         {
-            throw new CsEvalLanguageModeException(keyword);
+            throw new CsEvalException(DiagnosticDescriptors.ExtendedModeRequired,keyword);
         }
     }
 
@@ -1273,6 +1296,7 @@ internal sealed partial class ExpressionParser : ParserBase
 
     private Expr ParsePostfix()
     {
+        var mark = Mark();
         var expr = _primary.ParsePrimary();
 
         while (true)
@@ -1280,12 +1304,12 @@ internal sealed partial class ExpressionParser : ParserBase
             if (Match(TokenType.Dot))
             {
                 var name = ConsumeIdentifierOrContextualKeyword("Expected property name after '.'");
-                expr = new MemberAccessExpr(expr, name, false);
+                expr = new MemberAccessExpr(expr, name, false) { Span = SpanFrom(mark) };
             }
             else if (Match(TokenType.QuestionDot))
             {
                 var name = ConsumeIdentifierOrContextualKeyword("Expected property name after '?.'");
-                expr = new MemberAccessExpr(expr, name, true);
+                expr = new MemberAccessExpr(expr, name, true) { Span = SpanFrom(mark) };
             }
             else if (Match(TokenType.LeftBracket))
             {
@@ -1302,7 +1326,7 @@ internal sealed partial class ExpressionParser : ParserBase
                             step = ParseExpression();
                     }
                     Consume(TokenType.RightBracket, "Expected ']' after slice");
-                    expr = new SliceExpr(expr, null, end, step);
+                    expr = new SliceExpr(expr, null, end, step) { Span = SpanFrom(mark) };
                 }
                 else
                 {
@@ -1321,7 +1345,7 @@ internal sealed partial class ExpressionParser : ParserBase
                                 step = ParseExpression();
                         }
                         Consume(TokenType.RightBracket, "Expected ']' after slice");
-                        expr = new SliceExpr(expr, firstIndex, end, step);
+                        expr = new SliceExpr(expr, firstIndex, end, step) { Span = SpanFrom(mark) };
                     }
                     else if (Check(TokenType.Comma))
                     {
@@ -1330,12 +1354,12 @@ internal sealed partial class ExpressionParser : ParserBase
                         while (Match(TokenType.Comma))
                             indices.Add(ParseExpression());
                         Consume(TokenType.RightBracket, "Expected ']' after indices");
-                        expr = new MultiDimIndexAccessExpr(expr, indices, false);
+                        expr = new MultiDimIndexAccessExpr(expr, indices, false) { Span = SpanFrom(mark) };
                     }
                     else
                     {
                         Consume(TokenType.RightBracket, "Expected ']' after index");
-                        expr = new IndexAccessExpr(expr, firstIndex, false);
+                        expr = new IndexAccessExpr(expr, firstIndex, false) { Span = SpanFrom(mark) };
                     }
                 }
             }
@@ -1349,23 +1373,23 @@ internal sealed partial class ExpressionParser : ParserBase
                     while (Match(TokenType.Comma))
                         indices.Add(ParseExpression());
                     Consume(TokenType.RightBracket, "Expected ']' after null-conditional indices");
-                    expr = new MultiDimIndexAccessExpr(expr, indices, true);
+                    expr = new MultiDimIndexAccessExpr(expr, indices, true) { Span = SpanFrom(mark) };
                 }
                 else
                 {
                     Consume(TokenType.RightBracket, "Expected ']' after null-conditional index");
-                    expr = new IndexAccessExpr(expr, firstIndex, true);
+                    expr = new IndexAccessExpr(expr, firstIndex, true) { Span = SpanFrom(mark) };
                 }
             }
             else if (Check(TokenType.Less) && TryParseTypeArguments(out var typeArgs))
             {
                 // Generic method call: Method<T>() or Method<T1, T2>()
                 Consume(TokenType.LeftParen, "Expected '(' after generic type arguments");
-                expr = FinishCall(expr, typeArgs);
+                expr = FinishCall(expr, typeArgs, mark);
             }
             else if (Match(TokenType.LeftParen))
             {
-                expr = FinishCall(expr, null);
+                expr = FinishCall(expr, null, mark);
             }
             else if (Check(TokenType.PlusPlus) || Check(TokenType.MinusMinus))
             {
@@ -1374,19 +1398,19 @@ internal sealed partial class ExpressionParser : ParserBase
                 {
                     Advance();
                     var op = Previous();
-                    expr = new IncrementDecrementExpr(identifier.Name, op, false);
+                    expr = new IncrementDecrementExpr(identifier.Name, op, false) { Span = SpanFrom(mark) };
                 }
                 else if (expr is MemberAccessExpr memberExpr)
                 {
                     Advance();
                     var isIncrement = Previous().Type == TokenType.PlusPlus;
-                    expr = new MemberIncrementExpr(memberExpr.Object, memberExpr.Name.Lexeme, false, isIncrement);
+                    expr = new MemberIncrementExpr(memberExpr.Object, memberExpr.Name.Lexeme, false, isIncrement) { Span = SpanFrom(mark) };
                 }
                 else if (expr is IndexAccessExpr indexExpr)
                 {
                     Advance();
                     var isIncrement = Previous().Type == TokenType.PlusPlus;
-                    expr = new IndexIncrementExpr(indexExpr.Object, indexExpr.Index, false, isIncrement);
+                    expr = new IndexIncrementExpr(indexExpr.Object, indexExpr.Index, false, isIncrement) { Span = SpanFrom(mark) };
                 }
                 else
                 {

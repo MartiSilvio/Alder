@@ -135,10 +135,11 @@ public class TypeHelperTests
     }
 
     [Test]
-    public void RuntimeCast_BoolToInt_ThrowsInvalidCast()
+    public void RuntimeCast_BoolToInt_ThrowsCsEvalException()
     {
-        Assert.Throws<InvalidCastException>(
+        var ex = Assert.Throws<CsEvalException>(
             () => CsEval.Runtime.TypeHelpers.RuntimeCast(true, typeof(bool), typeof(int)));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(CsEval.Diagnostics.DiagnosticCode.CS0030));
     }
 
     private enum CastProbe

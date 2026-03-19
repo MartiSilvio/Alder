@@ -26,7 +26,7 @@ public class TupleTests(CompilationMode mode)
     {
         // Engine-only: asserts type name, not value
         var engine = TestEngineFactory.Create(mode);
-        var result = engine.Evaluate("(1, \"hello\")");
+        var result = engine.Evaluate("""(1, "hello") """);
         Assert.That(result, Is.Not.Null);
         Assert.That(result!.GetType().Name, Does.Contain("ValueTuple"));
     }
@@ -36,7 +36,7 @@ public class TupleTests(CompilationMode mode)
     {
         // Engine-only: asserts type name, not value
         var engine = TestEngineFactory.Create(mode);
-        var result = engine.Evaluate("(true, 3.14, \"test\")");
+        var result = engine.Evaluate("""(true, 3.14, "test") """);
         Assert.That(result, Is.Not.Null);
         Assert.That(result!.GetType().Name, Does.Contain("ValueTuple"));
     }

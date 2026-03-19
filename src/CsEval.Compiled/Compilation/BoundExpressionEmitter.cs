@@ -3,7 +3,6 @@ using System.Linq.Expressions;
 using CsEval.Binding;
 using CsEval.Binding.BoundNodes;
 using CsEval.Binding.Plans;
-using CsEval.Compiled.Compilation.BoundEmission;
 using CsEval.Diagnostics;
 using CsEval.Parsing;
 using CsEval.Runtime;
@@ -290,7 +289,7 @@ internal sealed partial class BoundExpressionEmitter
     {
         return LinqExpression.Call(
             ExplicitCastMethod,
-            BoundEmitterSupport.AsObject(Emit(cast.Expression)),
+            EmitHelpers.AsObject(Emit(cast.Expression)),
             LinqExpression.Constant(cast.TargetType, typeof(Type)),
             cast.SourceStaticType == null
                 ? LinqExpression.Constant(null, typeof(Type))
@@ -302,7 +301,7 @@ internal sealed partial class BoundExpressionEmitter
     {
         return LinqExpression.Call(
             TryAsMethod,
-            BoundEmitterSupport.AsObject(Emit(asExpr.Expression)),
+            EmitHelpers.AsObject(Emit(asExpr.Expression)),
             LinqExpression.Constant(asExpr.TargetType, typeof(Type)));
     }
 
@@ -311,7 +310,7 @@ internal sealed partial class BoundExpressionEmitter
         return LinqExpression.Convert(
             LinqExpression.Call(
                 MatchPatternMethod,
-                BoundEmitterSupport.AsObject(Emit(isPattern.Expression)),
+                EmitHelpers.AsObject(Emit(isPattern.Expression)),
                 LinqExpression.Constant(isPattern.Pattern, typeof(Pattern)),
                 _contextParam,
                 _optionsParam,
@@ -321,7 +320,7 @@ internal sealed partial class BoundExpressionEmitter
 
     private MethodCallExpression EmitUnary(BoundUnaryExpr unary)
     {
-        var operand = BoundEmitterSupport.AsObject(Emit(unary.Operand));
+        var operand = EmitHelpers.AsObject(Emit(unary.Operand));
         return unary.Operator switch
         {
             TokenType.Minus => LinqExpression.Call(NegateMethod, operand, LinqExpression.Constant(_isChecked)),
@@ -346,7 +345,7 @@ internal sealed partial class BoundExpressionEmitter
         var isStringContext = binary.Operator == TokenType.Plus &&
             (binary.Left.StaticType == typeof(string) || binary.Right.StaticType == typeof(string));
 
-        return EmitBinaryCore(binary.Operator, BoundEmitterSupport.AsObject(Emit(binary.Left)), BoundEmitterSupport.AsObject(Emit(binary.Right)), isStringContext);
+        return EmitBinaryCore(binary.Operator, EmitHelpers.AsObject(Emit(binary.Left)), EmitHelpers.AsObject(Emit(binary.Right)), isStringContext);
     }
 
     private bool TryEmitStringConcatFastPath(BoundBinaryExpr binary, out LinqExpression result)
@@ -365,14 +364,14 @@ internal sealed partial class BoundExpressionEmitter
 
         // Convert non-string side to string via ToString()
         if (!leftIsString)
-            left = BoundEmitterSupport.ToStringExpression(left);
+            left = EmitHelpers.ToStringExpression(left);
         else
-            left = BoundEmitterSupport.EnsureTypedExpression(left, typeof(string));
+            left = EmitHelpers.EnsureTypedExpression(left, typeof(string));
 
         if (!rightIsString)
-            right = BoundEmitterSupport.ToStringExpression(right);
+            right = EmitHelpers.ToStringExpression(right);
         else
-            right = BoundEmitterSupport.EnsureTypedExpression(right, typeof(string));
+            right = EmitHelpers.EnsureTypedExpression(right, typeof(string));
 
         result = LinqExpression.Call(StringConcatTwoStringsMethod, left, right);
         return true;
@@ -387,8 +386,8 @@ internal sealed partial class BoundExpressionEmitter
         return LinqExpression.Block(
             typeof(object),
             [leftVar, rightVar, promotedVar],
-            LinqExpression.Assign(leftVar, BoundEmitterSupport.AsObject(Emit(binary.Left))),
-            LinqExpression.Assign(rightVar, BoundEmitterSupport.AsObject(Emit(binary.Right))),
+            LinqExpression.Assign(leftVar, EmitHelpers.AsObject(Emit(binary.Left))),
+            LinqExpression.Assign(rightVar, EmitHelpers.AsObject(Emit(binary.Right))),
             LinqExpression.Assign(
                 promotedVar,
                 LinqExpression.Call(
@@ -412,8 +411,8 @@ internal sealed partial class BoundExpressionEmitter
 
     private MethodCallExpression EmitBinaryCore(TokenType op, LinqExpression left, LinqExpression right, bool isStringContext = false)
     {
-        left = BoundEmitterSupport.AsObject(left);
-        right = BoundEmitterSupport.AsObject(right);
+        left = EmitHelpers.AsObject(left);
+        right = EmitHelpers.AsObject(right);
 
         return op switch
         {
@@ -452,8 +451,8 @@ internal sealed partial class BoundExpressionEmitter
         if (!TryGetNumericFastPathType(binary, out var promotedType))
             return false;
 
-        var left = BoundEmitterSupport.EnsureTypedExpression(Emit(binary.Left), binary.Left.StaticType);
-        var right = BoundEmitterSupport.EnsureTypedExpression(Emit(binary.Right), binary.Right.StaticType);
+        var left = EmitHelpers.EnsureTypedExpression(Emit(binary.Left), binary.Left.StaticType);
+        var right = EmitHelpers.EnsureTypedExpression(Emit(binary.Right), binary.Right.StaticType);
         if (left.Type != promotedType)
             left = LinqExpression.Convert(left, promotedType);
         if (right.Type != promotedType)
@@ -594,21 +593,21 @@ internal sealed partial class BoundExpressionEmitter
         if (logical.Left.StaticType == typeof(bool?) || logical.Right.StaticType == typeof(bool?))
         {
             var method = logical.Operator == TokenType.AmpAmp ? NullableBoolAndMethod : NullableBoolOrMethod;
-            return LinqExpression.Call(method, BoundEmitterSupport.AsObject(leftCandidate), BoundEmitterSupport.AsObject(rightCandidate));
+            return LinqExpression.Call(method, EmitHelpers.AsObject(leftCandidate), EmitHelpers.AsObject(rightCandidate));
         }
 
         var opLexeme = TokenLexemes.GetCanonical(logical.Operator);
         var leftBool = LinqExpression.Call(
             RequireBooleanForLogicalOperatorMethod,
-            BoundEmitterSupport.AsObject(leftCandidate),
+            EmitHelpers.AsObject(leftCandidate),
             LinqExpression.Constant(opLexeme),
-            LinqExpression.Constant(BoundEmitterSupport.GetBoundTypeName(logical.Right)));
+            LinqExpression.Constant(EmitHelpers.GetBoundTypeName(logical.Right)));
         var rightBoolAsObject = LinqExpression.Convert(
             LinqExpression.Call(
                 RequireBooleanForLogicalOperatorMethod,
-                BoundEmitterSupport.AsObject(rightCandidate),
+                EmitHelpers.AsObject(rightCandidate),
                 LinqExpression.Constant(opLexeme),
-                LinqExpression.Constant(BoundEmitterSupport.GetBoundTypeName(logical.Left))),
+                LinqExpression.Constant(EmitHelpers.GetBoundTypeName(logical.Left))),
             typeof(object));
 
         return logical.Operator switch
@@ -631,10 +630,10 @@ internal sealed partial class BoundExpressionEmitter
         return LinqExpression.Block(
             typeof(object),
             [leftVar],
-            LinqExpression.Assign(leftVar, BoundEmitterSupport.AsObject(Emit(nullCoalesce.Left))),
+            LinqExpression.Assign(leftVar, EmitHelpers.AsObject(Emit(nullCoalesce.Left))),
             LinqExpression.Condition(
                 LinqExpression.Equal(leftVar, LinqExpression.Constant(null, typeof(object))),
-                BoundEmitterSupport.AsObject(Emit(nullCoalesce.Right)),
+                EmitHelpers.AsObject(Emit(nullCoalesce.Right)),
                 leftVar));
     }
 
@@ -643,7 +642,7 @@ internal sealed partial class BoundExpressionEmitter
         var conditionCandidate = Emit(conditional.Condition);
         var condition = conditionCandidate.Type == typeof(bool)
             ? conditionCandidate
-            : LinqExpression.Call(RequireBooleanMethod, BoundEmitterSupport.AsObject(conditionCandidate));
+            : LinqExpression.Call(RequireBooleanMethod, EmitHelpers.AsObject(conditionCandidate));
 
         var thenCandidate = Emit(conditional.ThenBranch);
         var elseCandidate = Emit(conditional.ElseBranch);
@@ -653,8 +652,8 @@ internal sealed partial class BoundExpressionEmitter
 
         return LinqExpression.Condition(
             condition,
-            BoundEmitterSupport.AsObject(thenCandidate),
-            BoundEmitterSupport.AsObject(elseCandidate));
+            EmitHelpers.AsObject(thenCandidate),
+            EmitHelpers.AsObject(elseCandidate));
     }
 
     private static bool TryEmitTypedArithmeticConditional(
@@ -686,8 +685,8 @@ internal sealed partial class BoundExpressionEmitter
 
         try
         {
-            var thenTyped = BoundEmitterSupport.EnsureTypedExpression(thenCandidate, thenType);
-            var elseTyped = BoundEmitterSupport.EnsureTypedExpression(elseCandidate, elseType);
+            var thenTyped = EmitHelpers.EnsureTypedExpression(thenCandidate, thenType);
+            var elseTyped = EmitHelpers.EnsureTypedExpression(elseCandidate, elseType);
 
             if (thenTyped.Type != resultType)
                 thenTyped = LinqExpression.Convert(thenTyped, resultType);
@@ -723,7 +722,7 @@ internal sealed partial class BoundExpressionEmitter
 
         EmitStatementListBody(body, statements, resultVar, signalVar, doneLabel, unwrapReturnSignal: true);
         if (block.ReturnExpr != null)
-            body.Add(LinqExpression.Assign(resultVar, BoundEmitterSupport.AsObject(Emit(block.ReturnExpr))));
+            body.Add(LinqExpression.Assign(resultVar, EmitHelpers.AsObject(Emit(block.ReturnExpr))));
         body.Add(LinqExpression.Label(doneLabel));
 
         return LinqExpression.Block(
@@ -764,7 +763,7 @@ internal sealed partial class BoundExpressionEmitter
                     LinqExpression.Call(_contextParam, GetConstraintStateProperty),
                     LinqExpression.Property(_optionsParam, nameof(CsEvalOptions.Constraints)),
                     _ctParam),
-                LinqExpression.Assign(resultVar, BoundEmitterSupport.AsObject(Emit(statements[i]))),
+                LinqExpression.Assign(resultVar, EmitHelpers.AsObject(Emit(statements[i]))),
                 LinqExpression.IfThen(
                     LinqExpression.TypeIs(resultVar, typeof(ControlFlowSignal)),
                     LinqExpression.Block(
@@ -799,7 +798,7 @@ internal sealed partial class BoundExpressionEmitter
             loopContinue));
 
         if (block.ReturnExpr != null)
-            outerBody.Add(LinqExpression.Assign(resultVar, BoundEmitterSupport.AsObject(Emit(block.ReturnExpr))));
+            outerBody.Add(LinqExpression.Assign(resultVar, EmitHelpers.AsObject(Emit(block.ReturnExpr))));
         outerBody.Add(LinqExpression.Label(doneLabel));
 
         return LinqExpression.Block(
@@ -845,7 +844,7 @@ internal sealed partial class BoundExpressionEmitter
     private LinqExpression EmitIfStatement(BoundIfStatementExpr ifStatement)
     {
         var resultVar = LinqExpression.Variable(typeof(object), "ifResult");
-        var condition = LinqExpression.Call(RequireBooleanMethod, BoundEmitterSupport.AsObject(Emit(ifStatement.Condition)));
+        var condition = LinqExpression.Call(RequireBooleanMethod, EmitHelpers.AsObject(Emit(ifStatement.Condition)));
         var thenBody = EmitScopedStatements(ifStatement.ThenStatements);
         var elseBody = ifStatement.ElseStatements.IsDefaultOrEmpty
             ? LinqExpression.Constant(null, typeof(object))
@@ -856,7 +855,7 @@ internal sealed partial class BoundExpressionEmitter
             [resultVar],
             LinqExpression.Assign(
                 resultVar,
-                LinqExpression.Condition(condition, BoundEmitterSupport.AsObject(thenBody), BoundEmitterSupport.AsObject(elseBody))),
+                LinqExpression.Condition(condition, EmitHelpers.AsObject(thenBody), EmitHelpers.AsObject(elseBody))),
             resultVar);
     }
 
@@ -870,7 +869,7 @@ internal sealed partial class BoundExpressionEmitter
         {
             LinqExpression.Assign(resultVar, LinqExpression.Constant(null, typeof(object))),
             LinqExpression.IfThen(
-                LinqExpression.Not(LinqExpression.Call(RequireBooleanMethod, BoundEmitterSupport.AsObject(Emit(whileExpr.Condition)))),
+                LinqExpression.Not(LinqExpression.Call(RequireBooleanMethod, EmitHelpers.AsObject(Emit(whileExpr.Condition)))),
                 LinqExpression.Break(loopBreakLabel, resultVar))
         };
 
@@ -913,20 +912,20 @@ internal sealed partial class BoundExpressionEmitter
         try
         {
             for (var i = 0; i < forExpr.Initializers.Length; i++)
-                prologue.Add(BoundEmitterSupport.AsObject(Emit(forExpr.Initializers[i])));
+                prologue.Add(EmitHelpers.AsObject(Emit(forExpr.Initializers[i])));
 
             var body = new List<LinqExpression>();
             if (forExpr.Condition != null)
             {
                 body.Add(LinqExpression.IfThen(
-                    LinqExpression.Not(LinqExpression.Call(RequireBooleanMethod, BoundEmitterSupport.AsObject(Emit(forExpr.Condition)))),
+                    LinqExpression.Not(LinqExpression.Call(RequireBooleanMethod, EmitHelpers.AsObject(Emit(forExpr.Condition)))),
                     LinqExpression.Break(loopBreakLabel, resultVar)));
             }
 
             EmitLoopIterationBody(body, forExpr.Body, resultVar, signalVar, loopBreakLabel, loopContinueLabel, hasConditionCheck: false);
             body.Add(LinqExpression.Label(loopContinueLabel));
             for (var i = 0; i < forExpr.Increments.Length; i++)
-                body.Add(BoundEmitterSupport.AsObject(Emit(forExpr.Increments[i])));
+                body.Add(EmitHelpers.AsObject(Emit(forExpr.Increments[i])));
 
             return LinqExpression.Block(
                 typeof(object),
@@ -962,7 +961,7 @@ internal sealed partial class BoundExpressionEmitter
             EmitLoopIterationBody(body, doWhileExpr.Body, resultVar, signalVar, loopBreakLabel, loopContinueLabel, hasConditionCheck: false);
             body.Add(LinqExpression.Label(loopContinueLabel));
             body.Add(LinqExpression.IfThen(
-                LinqExpression.Not(LinqExpression.Call(RequireBooleanMethod, BoundEmitterSupport.AsObject(Emit(doWhileExpr.Condition)))),
+                LinqExpression.Not(LinqExpression.Call(RequireBooleanMethod, EmitHelpers.AsObject(Emit(doWhileExpr.Condition)))),
                 LinqExpression.Break(loopBreakLabel, resultVar)));
 
             return LinqExpression.Block(
@@ -1025,7 +1024,7 @@ internal sealed partial class BoundExpressionEmitter
             typeof(object),
             [enumerableVar, enumeratorVar, resultVar, signalVar, currentVar, disposableVar],
             LinqExpression.Assign(resultVar, LinqExpression.Constant(null, typeof(object))),
-            LinqExpression.Assign(enumerableVar, LinqExpression.Call(EnsureEnumerableMethod, BoundEmitterSupport.AsObject(Emit(forEachExpr.Collection)))),
+            LinqExpression.Assign(enumerableVar, LinqExpression.Call(EnsureEnumerableMethod, EmitHelpers.AsObject(Emit(forEachExpr.Collection)))),
             LinqExpression.Assign(enumeratorVar, LinqExpression.Call(GetEnumeratorMethod, enumerableVar)),
             LinqExpression.TryFinally(
                 LinqExpression.Loop(LinqExpression.Block(loopBody), loopBreakLabel),
@@ -1041,9 +1040,9 @@ internal sealed partial class BoundExpressionEmitter
         return LinqExpression.Block(
             typeof(object),
             [resourceVar, resultVar],
-            LinqExpression.Assign(resourceVar, BoundEmitterSupport.AsObject(Emit(usingStatement.Resource))),
+            LinqExpression.Assign(resourceVar, EmitHelpers.AsObject(Emit(usingStatement.Resource))),
             LinqExpression.TryFinally(
-                LinqExpression.Assign(resultVar, BoundEmitterSupport.AsObject(Emit(usingStatement.Body))),
+                LinqExpression.Assign(resultVar, EmitHelpers.AsObject(Emit(usingStatement.Body))),
                 LinqExpression.Call(DisposeResourceMethod, resourceVar)),
             resultVar);
     }
@@ -1058,10 +1057,10 @@ internal sealed partial class BoundExpressionEmitter
             [lockObjVar, resultVar],
             LinqExpression.Assign(
                 lockObjVar,
-                LinqExpression.Call(ValidateLockObjectMethod, BoundEmitterSupport.AsObject(Emit(lockStatement.LockObject)))),
+                LinqExpression.Call(ValidateLockObjectMethod, EmitHelpers.AsObject(Emit(lockStatement.LockObject)))),
             LinqExpression.Call(MonitorEnterMethod, lockObjVar),
             LinqExpression.TryFinally(
-                LinqExpression.Assign(resultVar, BoundEmitterSupport.AsObject(Emit(lockStatement.Body))),
+                LinqExpression.Assign(resultVar, EmitHelpers.AsObject(Emit(lockStatement.Body))),
                 LinqExpression.Call(MonitorExitMethod, lockObjVar)),
             resultVar);
     }
@@ -1096,7 +1095,7 @@ internal sealed partial class BoundExpressionEmitter
     private LinqExpression EmitGotoCase(BoundGotoCaseExpr gotoCaseExpr)
     {
         return LinqExpression.Convert(
-            LinqExpression.Call(ControlFlowGotoCaseMethod, BoundEmitterSupport.AsObject(Emit(gotoCaseExpr.Value))),
+            LinqExpression.Call(ControlFlowGotoCaseMethod, EmitHelpers.AsObject(Emit(gotoCaseExpr.Value))),
             typeof(object));
     }
 
@@ -1114,7 +1113,7 @@ internal sealed partial class BoundExpressionEmitter
                 ControlFlowReturnMethod,
                 returnExpr.Value == null
                     ? LinqExpression.Constant(null, typeof(object))
-                    : BoundEmitterSupport.AsObject(Emit(returnExpr.Value))),
+                    : EmitHelpers.AsObject(Emit(returnExpr.Value))),
             typeof(object));
     }
 
@@ -1149,7 +1148,7 @@ internal sealed partial class BoundExpressionEmitter
         {
             var statements = new List<LinqExpression>(tryCatchFinally.FinallyBody.Length);
             for (var i = 0; i < tryCatchFinally.FinallyBody.Length; i++)
-                statements.Add(BoundEmitterSupport.AsObject(Emit(tryCatchFinally.FinallyBody[i])));
+                statements.Add(EmitHelpers.AsObject(Emit(tryCatchFinally.FinallyBody[i])));
             finallyBody = LinqExpression.Block(statements);
         }
 
@@ -1259,7 +1258,7 @@ internal sealed partial class BoundExpressionEmitter
         var doneLabel = LinqExpression.Label("switchExprDone");
         var statements = new List<LinqExpression>
         {
-            LinqExpression.Assign(valueVar, BoundEmitterSupport.AsObject(Emit(switchExpression.Expression)))
+            LinqExpression.Assign(valueVar, EmitHelpers.AsObject(Emit(switchExpression.Expression)))
         };
 
         for (var i = 0; i < switchExpression.Arms.Length; i++)
@@ -1278,7 +1277,7 @@ internal sealed partial class BoundExpressionEmitter
             {
                 armCondition = LinqExpression.AndAlso(
                     armCondition,
-                    LinqExpression.Call(RequireBooleanMethod, BoundEmitterSupport.AsObject(Emit(arm.WhenGuard))));
+                    LinqExpression.Call(RequireBooleanMethod, EmitHelpers.AsObject(Emit(arm.WhenGuard))));
             }
 
             statements.Add(
@@ -1291,14 +1290,18 @@ internal sealed partial class BoundExpressionEmitter
                         LinqExpression.IfThen(
                             armCondition,
                             LinqExpression.Block(
-                                LinqExpression.Assign(resultVar, BoundEmitterSupport.AsObject(Emit(arm.Value))),
+                                LinqExpression.Assign(resultVar, EmitHelpers.AsObject(Emit(arm.Value))),
                                 LinqExpression.Goto(doneLabel))),
                         LinqExpression.Assign(_contextParam, previousContextVar))));
         }
 
         statements.Add(
             LinqExpression.Throw(
-                LinqExpression.New(SwitchExpressionExceptionCtor, valueVar),
+                LinqExpression.New(
+                    CsEvalExceptionCtor,
+                    LinqExpression.Field(null, SwitchExpressionNonExhaustiveDescriptor),
+                    LinqExpression.NewArrayInit(typeof(object),
+                        LinqExpression.Coalesce(valueVar, LinqExpression.Constant("null", typeof(object))))),
                 typeof(void)));
         statements.Add(LinqExpression.Label(doneLabel));
         statements.Add(resultVar);
@@ -1320,7 +1323,7 @@ internal sealed partial class BoundExpressionEmitter
 
         var outerStatements = new List<LinqExpression>
         {
-            LinqExpression.Assign(valueVar, BoundEmitterSupport.AsObject(Emit(switchStatement.Expression))),
+            LinqExpression.Assign(valueVar, EmitHelpers.AsObject(Emit(switchStatement.Expression))),
             LinqExpression.Assign(resultVar, LinqExpression.Constant(null, typeof(object)))
         };
 
@@ -1430,7 +1433,7 @@ internal sealed partial class BoundExpressionEmitter
 
         return LinqExpression.AndAlso(
             patternMatch,
-            LinqExpression.Call(RequireBooleanMethod, BoundEmitterSupport.AsObject(Emit(switchCase.WhenGuard))));
+            LinqExpression.Call(RequireBooleanMethod, EmitHelpers.AsObject(Emit(switchCase.WhenGuard))));
     }
 
     private LinqExpression EmitSwitchCaseExecution(
@@ -1542,7 +1545,7 @@ internal sealed partial class BoundExpressionEmitter
             LinqExpression.Call(_contextParam, GetConstraintStateProperty),
             LinqExpression.Property(_optionsParam, nameof(CsEvalOptions.Constraints)),
             _ctParam));
-        body.Add(LinqExpression.Assign(resultVar, BoundEmitterSupport.AsObject(EmitScopedStatements(statements, includeConstraintChecks: false))));
+        body.Add(LinqExpression.Assign(resultVar, EmitHelpers.AsObject(EmitScopedStatements(statements, includeConstraintChecks: false))));
         body.Add(BuildLoopSignalDispatch(resultVar, signalVar, breakLabel, continueLabel));
         if (!hasConditionCheck)
             body.Add(LinqExpression.Assign(resultVar, LinqExpression.Constant(null, typeof(object))));
@@ -1636,13 +1639,13 @@ internal sealed partial class BoundExpressionEmitter
 
         var firstValue = LinqExpression.Variable(typeof(object), "v0");
         variables.Add(firstValue);
-        body.Add(LinqExpression.Assign(firstValue, BoundEmitterSupport.AsObject(Emit(chainedComparison.Operands[0]))));
+        body.Add(LinqExpression.Assign(firstValue, EmitHelpers.AsObject(Emit(chainedComparison.Operands[0]))));
 
         for (var i = 0; i < chainedComparison.Operators.Length; i++)
         {
             var nextValue = LinqExpression.Variable(typeof(object), $"v{i + 1}");
             variables.Add(nextValue);
-            body.Add(LinqExpression.Assign(nextValue, BoundEmitterSupport.AsObject(Emit(chainedComparison.Operands[i + 1]))));
+            body.Add(LinqExpression.Assign(nextValue, EmitHelpers.AsObject(Emit(chainedComparison.Operands[i + 1]))));
 
             var comparison = LinqExpression.Call(
                 PerformComparisonMethod,
@@ -1711,7 +1714,7 @@ internal sealed partial class BoundExpressionEmitter
                     LinqExpression.Property(_optionsParam, nameof(CsEvalOptions.Constraints)),
                     _ctParam));
             }
-            body.Add(LinqExpression.Assign(resultVar, BoundEmitterSupport.AsObject(Emit(statements[i]))));
+            body.Add(LinqExpression.Assign(resultVar, EmitHelpers.AsObject(Emit(statements[i]))));
             body.Add(
                 LinqExpression.IfThen(
                     LinqExpression.TypeIs(resultVar, typeof(ControlFlowSignal)),
@@ -1732,8 +1735,8 @@ internal sealed partial class BoundExpressionEmitter
 
     private LinqExpression EmitRange(BoundRangeExpr range)
     {
-        var startExpr = BoundEmitterSupport.AsObject(Emit(range.Start));
-        var endExpr = BoundEmitterSupport.AsObject(Emit(range.End));
+        var startExpr = EmitHelpers.AsObject(Emit(range.Start));
+        var endExpr = EmitHelpers.AsObject(Emit(range.End));
         var rangeExpr = LinqExpression.Call(CreateSystemRangeMethod, startExpr, endExpr);
 
         if (!range.ExclusiveEnd)
@@ -1760,9 +1763,9 @@ internal sealed partial class BoundExpressionEmitter
 
     private LinqExpression EmitSlice(BoundSliceExpr slice)
     {
-        var target = BoundEmitterSupport.AsObject(Emit(slice.Target));
-        var start = slice.Start != null ? BoundEmitterSupport.AsObject(Emit(slice.Start)) : LinqExpression.Constant(null, typeof(object));
-        var end = slice.End != null ? BoundEmitterSupport.AsObject(Emit(slice.End)) : LinqExpression.Constant(null, typeof(object));
+        var target = EmitHelpers.AsObject(Emit(slice.Target));
+        var start = slice.Start != null ? EmitHelpers.AsObject(Emit(slice.Start)) : LinqExpression.Constant(null, typeof(object));
+        var end = slice.End != null ? EmitHelpers.AsObject(Emit(slice.End)) : LinqExpression.Constant(null, typeof(object));
 
         if (slice.Step != null)
         {
@@ -1771,7 +1774,7 @@ internal sealed partial class BoundExpressionEmitter
                 target,
                 start,
                 end,
-                BoundEmitterSupport.AsObject(Emit(slice.Step)),
+                EmitHelpers.AsObject(Emit(slice.Step)),
                 _optionsParam);
         }
 
@@ -1787,7 +1790,7 @@ internal sealed partial class BoundExpressionEmitter
     {
         var argsArray = LinqExpression.NewArrayInit(
             typeof(object),
-            objectCreation.Arguments.Select(arg => BoundEmitterSupport.AsObject(Emit(arg))));
+            objectCreation.Arguments.Select(arg => EmitHelpers.AsObject(Emit(arg))));
         var result = LinqExpression.Call(
             InvokeConstructorMethod,
             ResolveTypeByName(objectCreation.TypeName),
@@ -1807,7 +1810,7 @@ internal sealed partial class BoundExpressionEmitter
         for (var i = 0; i < objectCreation.InitializerEntries.Length; i++)
         {
             var entry = objectCreation.InitializerEntries[i];
-            var value = BoundEmitterSupport.AsObject(Emit(entry.Value));
+            var value = EmitHelpers.AsObject(Emit(entry.Value));
             if (entry.PropertyName != null)
             {
                 statements.Add(LinqExpression.Call(
@@ -1820,7 +1823,7 @@ internal sealed partial class BoundExpressionEmitter
             }
             else if (entry.IndexerKey != null)
             {
-                var key = BoundEmitterSupport.AsObject(Emit(entry.IndexerKey));
+                var key = EmitHelpers.AsObject(Emit(entry.IndexerKey));
                 statements.Add(LinqExpression.Call(
                     ApplyIndexerInitializerMethod,
                     objVar,
@@ -1847,14 +1850,14 @@ internal sealed partial class BoundExpressionEmitter
         return LinqExpression.Call(
             CreateTypedArrayFromTypeNameMethod,
             ResolveTypeByName(typedArrayCreation.ElementTypeName),
-            BoundEmitterSupport.AsObject(Emit(typedArrayCreation.Size)));
+            EmitHelpers.AsObject(Emit(typedArrayCreation.Size)));
     }
 
     private LinqExpression EmitTypedArrayLiteral(BoundTypedArrayLiteralExpr typedArrayLiteral)
     {
         var sourceArray = LinqExpression.NewArrayInit(
             typeof(object),
-            typedArrayLiteral.Elements.Select(element => BoundEmitterSupport.AsObject(Emit(element))));
+            typedArrayLiteral.Elements.Select(element => EmitHelpers.AsObject(Emit(element))));
         return LinqExpression.Call(
             ConvertArrayToTypedMethod,
             sourceArray,
@@ -1865,7 +1868,7 @@ internal sealed partial class BoundExpressionEmitter
     {
         var elements = LinqExpression.NewArrayInit(
             typeof(object),
-            tuple.Elements.Select(element => BoundEmitterSupport.AsObject(Emit(element))));
+            tuple.Elements.Select(element => EmitHelpers.AsObject(Emit(element))));
 
         var hasNames = tuple.ElementNames.Any(static n => n != null);
         if (hasNames)
@@ -1889,7 +1892,7 @@ internal sealed partial class BoundExpressionEmitter
             deconstruction.VariableNames.Select(static name => LinqExpression.Constant(name)));
         return LinqExpression.Call(
             DeconstructTupleMethod,
-            BoundEmitterSupport.AsObject(Emit(deconstruction.ValueExpression)),
+            EmitHelpers.AsObject(Emit(deconstruction.ValueExpression)),
             variableNames,
             _contextParam);
     }
@@ -1898,7 +1901,7 @@ internal sealed partial class BoundExpressionEmitter
     {
         var sizes = LinqExpression.NewArrayInit(
             typeof(object),
-            multiDimTypedArrayCreation.Sizes.Select(size => BoundEmitterSupport.AsObject(Emit(size))));
+            multiDimTypedArrayCreation.Sizes.Select(size => EmitHelpers.AsObject(Emit(size))));
         return LinqExpression.Call(
             CreateMultiDimArrayMethod,
             ResolveTypeByName(multiDimTypedArrayCreation.ElementTypeName),
@@ -1913,9 +1916,9 @@ internal sealed partial class BoundExpressionEmitter
             init.InferredDimensions.Select(d => LinqExpression.Constant(d)));
         var flatValues = LinqExpression.NewArrayInit(
             typeof(object),
-            init.FlatValues.Select(v => BoundEmitterSupport.AsObject(Emit(v))));
+            init.FlatValues.Select(v => EmitHelpers.AsObject(Emit(v))));
 
-        return BoundEmitterSupport.AsObject(LinqExpression.Call(
+        return EmitHelpers.AsObject(LinqExpression.Call(
             typeof(RuntimeArrayFactory).GetMethod(nameof(RuntimeArrayFactory.CreateAndFill))!,
             elementType,
             dimensions,
@@ -1924,10 +1927,10 @@ internal sealed partial class BoundExpressionEmitter
 
     private LinqExpression EmitMultiDimIndexAccess(BoundMultiDimIndexAccessExpr multiDimIndexAccess)
     {
-        var target = BoundEmitterSupport.AsObject(Emit(multiDimIndexAccess.Target));
+        var target = EmitHelpers.AsObject(Emit(multiDimIndexAccess.Target));
         var indices = LinqExpression.NewArrayInit(
             typeof(object),
-            multiDimIndexAccess.Indices.Select(index => BoundEmitterSupport.AsObject(Emit(index))));
+            multiDimIndexAccess.Indices.Select(index => EmitHelpers.AsObject(Emit(index))));
 
         if (!multiDimIndexAccess.NullSafe)
             return LinqExpression.Call(MultiDimArrayGetMethod, target, indices);
@@ -1947,17 +1950,17 @@ internal sealed partial class BoundExpressionEmitter
     {
         var indices = LinqExpression.NewArrayInit(
             typeof(object),
-            multiDimIndexAssign.Indices.Select(index => BoundEmitterSupport.AsObject(Emit(index))));
+            multiDimIndexAssign.Indices.Select(index => EmitHelpers.AsObject(Emit(index))));
         return LinqExpression.Call(
             MultiDimArraySetMethod,
-            BoundEmitterSupport.AsObject(Emit(multiDimIndexAssign.Target)),
+            EmitHelpers.AsObject(Emit(multiDimIndexAssign.Target)),
             indices,
-            BoundEmitterSupport.AsObject(Emit(multiDimIndexAssign.Value)));
+            EmitHelpers.AsObject(Emit(multiDimIndexAssign.Value)));
     }
 
     private LinqExpression EmitThrow(BoundThrowExpr throwExpr)
     {
-        var exception = LinqExpression.Call(ValidateThrowOperandMethod, BoundEmitterSupport.AsObject(Emit(throwExpr.Expression)));
+        var exception = LinqExpression.Call(ValidateThrowOperandMethod, EmitHelpers.AsObject(Emit(throwExpr.Expression)));
         return LinqExpression.Block(
             typeof(object),
             LinqExpression.Throw(exception),
@@ -1980,7 +1983,7 @@ internal sealed partial class BoundExpressionEmitter
                 return EmitDirectFieldAccess(memberAccess, field);
         }
 
-        var target = BoundEmitterSupport.AsObject(Emit(memberAccess.Target));
+        var target = EmitHelpers.AsObject(Emit(memberAccess.Target));
         return LinqExpression.Call(
             GetMemberMethod,
             target,
@@ -1995,8 +1998,8 @@ internal sealed partial class BoundExpressionEmitter
         if (indexAccess.Plan?.IsDirectCollectionAccess == true)
             return EmitDirectCollectionIndexAccess(indexAccess);
 
-        var targetExpr = BoundEmitterSupport.AsObject(Emit(indexAccess.Target));
-        var indexExpr = BoundEmitterSupport.AsObject(Emit(indexAccess.Index));
+        var targetExpr = EmitHelpers.AsObject(Emit(indexAccess.Target));
+        var indexExpr = EmitHelpers.AsObject(Emit(indexAccess.Index));
 
         if (!indexAccess.NullSafe)
         {
@@ -2035,7 +2038,7 @@ internal sealed partial class BoundExpressionEmitter
         if (plan.IsStatic)
         {
             var access = LinqExpression.Property(null, property);
-            var guarded = BoundEmitterSupport.WrapGuardedValue(access, property.PropertyType, BoundEmitterSupport.CreateMemberGuardContext(memberAccess.MemberName));
+            var guarded = EmitHelpers.WrapGuardedValue(access, property.PropertyType, EmitHelpers.CreateMemberGuardContext(memberAccess.MemberName));
             return LinqExpression.Block(
                 typeof(object),
                 guardCheck,
@@ -2048,10 +2051,10 @@ internal sealed partial class BoundExpressionEmitter
             EnsureMemberTargetNotNullMethod,
             targetObjVar,
             LinqExpression.Constant(memberAccess.MemberName));
-        var typedTarget = BoundEmitterSupport.EnsureTypedExpression(checkedTarget, targetType);
+        var typedTarget = EmitHelpers.EnsureTypedExpression(checkedTarget, targetType);
         var accessExpr = LinqExpression.Property(typedTarget, property);
         var guardedExpr = LinqExpression.Convert(
-            BoundEmitterSupport.WrapGuardedValue(accessExpr, property.PropertyType, BoundEmitterSupport.CreateMemberGuardContext(memberAccess.MemberName)),
+            EmitHelpers.WrapGuardedValue(accessExpr, property.PropertyType, EmitHelpers.CreateMemberGuardContext(memberAccess.MemberName)),
             typeof(object));
 
         if (memberAccess.NullSafe)
@@ -2060,7 +2063,7 @@ internal sealed partial class BoundExpressionEmitter
                 typeof(object),
                 [targetObjVar],
                 guardCheck,
-                LinqExpression.Assign(targetObjVar, BoundEmitterSupport.AsObject(Emit(memberAccess.Target))),
+                LinqExpression.Assign(targetObjVar, EmitHelpers.AsObject(Emit(memberAccess.Target))),
                 LinqExpression.Condition(
                     LinqExpression.Equal(targetObjVar, LinqExpression.Constant(null, typeof(object))),
                     LinqExpression.Constant(null, typeof(object)),
@@ -2071,7 +2074,7 @@ internal sealed partial class BoundExpressionEmitter
             typeof(object),
             [targetObjVar],
             guardCheck,
-            LinqExpression.Assign(targetObjVar, BoundEmitterSupport.AsObject(Emit(memberAccess.Target))),
+            LinqExpression.Assign(targetObjVar, EmitHelpers.AsObject(Emit(memberAccess.Target))),
             guardedExpr);
     }
 
@@ -2083,7 +2086,7 @@ internal sealed partial class BoundExpressionEmitter
         if (plan.IsStatic)
         {
             var access = LinqExpression.Field(null, field);
-            var guarded = BoundEmitterSupport.WrapGuardedValue(access, field.FieldType, BoundEmitterSupport.CreateMemberGuardContext(memberAccess.MemberName));
+            var guarded = EmitHelpers.WrapGuardedValue(access, field.FieldType, EmitHelpers.CreateMemberGuardContext(memberAccess.MemberName));
             return LinqExpression.Block(
                 typeof(object),
                 guardCheck,
@@ -2096,10 +2099,10 @@ internal sealed partial class BoundExpressionEmitter
             EnsureMemberTargetNotNullMethod,
             targetObjVar,
             LinqExpression.Constant(memberAccess.MemberName));
-        var typedTarget = BoundEmitterSupport.EnsureTypedExpression(checkedTarget, targetType);
+        var typedTarget = EmitHelpers.EnsureTypedExpression(checkedTarget, targetType);
         var accessExpr = LinqExpression.Field(typedTarget, field);
         var guardedExpr = LinqExpression.Convert(
-            BoundEmitterSupport.WrapGuardedValue(accessExpr, field.FieldType, BoundEmitterSupport.CreateMemberGuardContext(memberAccess.MemberName)),
+            EmitHelpers.WrapGuardedValue(accessExpr, field.FieldType, EmitHelpers.CreateMemberGuardContext(memberAccess.MemberName)),
             typeof(object));
 
         if (memberAccess.NullSafe)
@@ -2108,7 +2111,7 @@ internal sealed partial class BoundExpressionEmitter
                 typeof(object),
                 [targetObjVar],
                 guardCheck,
-                LinqExpression.Assign(targetObjVar, BoundEmitterSupport.AsObject(Emit(memberAccess.Target))),
+                LinqExpression.Assign(targetObjVar, EmitHelpers.AsObject(Emit(memberAccess.Target))),
                 LinqExpression.Condition(
                     LinqExpression.Equal(targetObjVar, LinqExpression.Constant(null, typeof(object))),
                     LinqExpression.Constant(null, typeof(object)),
@@ -2119,7 +2122,7 @@ internal sealed partial class BoundExpressionEmitter
             typeof(object),
             [targetObjVar],
             guardCheck,
-            LinqExpression.Assign(targetObjVar, BoundEmitterSupport.AsObject(Emit(memberAccess.Target))),
+            LinqExpression.Assign(targetObjVar, EmitHelpers.AsObject(Emit(memberAccess.Target))),
             guardedExpr);
     }
 
@@ -2137,8 +2140,8 @@ internal sealed partial class BoundExpressionEmitter
 
         return LinqExpression.Call(
             GetIndexMethod,
-            BoundEmitterSupport.AsObject(Emit(indexAccess.Target)),
-            BoundEmitterSupport.AsObject(Emit(indexAccess.Index)),
+            EmitHelpers.AsObject(Emit(indexAccess.Target)),
+            EmitHelpers.AsObject(Emit(indexAccess.Index)),
             _optionsParam,
             _contextParam);
     }
@@ -2146,7 +2149,7 @@ internal sealed partial class BoundExpressionEmitter
     private LinqExpression EmitDirectStringIndexAccess(BoundIndexAccessExpr indexAccess)
     {
         var targetObjVar = LinqExpression.Variable(typeof(object), "indexTarget");
-        var typedTarget = BoundEmitterSupport.EnsureTypedExpression(
+        var typedTarget = EmitHelpers.EnsureTypedExpression(
             LinqExpression.Call(EnsureIndexTargetNotNullMethod, targetObjVar),
             typeof(string));
         var indexExpr = BuildNormalizedIntIndex(indexAccess, LinqExpression.Property(typedTarget, StringLengthProperty));
@@ -2158,7 +2161,7 @@ internal sealed partial class BoundExpressionEmitter
             return LinqExpression.Block(
                 typeof(object),
                 [targetObjVar],
-                LinqExpression.Assign(targetObjVar, BoundEmitterSupport.AsObject(Emit(indexAccess.Target))),
+                LinqExpression.Assign(targetObjVar, EmitHelpers.AsObject(Emit(indexAccess.Target))),
                 LinqExpression.Condition(
                     LinqExpression.Equal(targetObjVar, LinqExpression.Constant(null, typeof(object))),
                     LinqExpression.Constant(null, typeof(object)),
@@ -2168,7 +2171,7 @@ internal sealed partial class BoundExpressionEmitter
         return LinqExpression.Block(
             typeof(object),
             [targetObjVar],
-            LinqExpression.Assign(targetObjVar, BoundEmitterSupport.AsObject(Emit(indexAccess.Target))),
+            LinqExpression.Assign(targetObjVar, EmitHelpers.AsObject(Emit(indexAccess.Target))),
             valueExpr);
     }
 
@@ -2184,10 +2187,10 @@ internal sealed partial class BoundExpressionEmitter
         LinqExpression valueExpr;
         Type valueType;
 
-        if (BoundEmitterSupport.TryGetIntIndexer(plan.TargetType, out var indexer) &&
-            BoundEmitterSupport.TryGetCountProperty(plan.TargetType, out var countProperty))
+        if (EmitHelpers.TryGetIntIndexer(plan.TargetType, out var indexer) &&
+            EmitHelpers.TryGetCountProperty(plan.TargetType, out var countProperty))
         {
-            typedTarget = BoundEmitterSupport.EnsureTypedExpression(checkedTarget, plan.TargetType);
+            typedTarget = EmitHelpers.EnsureTypedExpression(checkedTarget, plan.TargetType);
             countExpr = LinqExpression.Property(typedTarget, countProperty);
             var indexExpr = BuildNormalizedIntIndex(indexAccess, countExpr);
             valueExpr = LinqExpression.Property(typedTarget, indexer, indexExpr);
@@ -2195,9 +2198,9 @@ internal sealed partial class BoundExpressionEmitter
         }
         else
         {
-            typedTarget = BoundEmitterSupport.EnsureTypedExpression(checkedTarget, typeof(IList));
+            typedTarget = EmitHelpers.EnsureTypedExpression(checkedTarget, typeof(IList));
             countExpr = LinqExpression.Property(
-                BoundEmitterSupport.EnsureTypedExpression(typedTarget, typeof(ICollection)),
+                EmitHelpers.EnsureTypedExpression(typedTarget, typeof(ICollection)),
                 ICollectionCountProperty);
             var indexExpr = BuildNormalizedIntIndex(indexAccess, countExpr);
             valueExpr = LinqExpression.Property(typedTarget, IListIndexerProperty, indexExpr);
@@ -2205,7 +2208,7 @@ internal sealed partial class BoundExpressionEmitter
         }
 
         var guardedValueExpr = LinqExpression.Convert(
-            BoundEmitterSupport.WrapGuardedValue(valueExpr, valueType, "index access"),
+            EmitHelpers.WrapGuardedValue(valueExpr, valueType, "index access"),
             typeof(object));
 
         if (indexAccess.NullSafe)
@@ -2213,7 +2216,7 @@ internal sealed partial class BoundExpressionEmitter
             return LinqExpression.Block(
                 typeof(object),
                 [targetObjVar],
-                LinqExpression.Assign(targetObjVar, BoundEmitterSupport.AsObject(Emit(indexAccess.Target))),
+                LinqExpression.Assign(targetObjVar, EmitHelpers.AsObject(Emit(indexAccess.Target))),
                 LinqExpression.Condition(
                     LinqExpression.Equal(targetObjVar, LinqExpression.Constant(null, typeof(object))),
                     LinqExpression.Constant(null, typeof(object)),
@@ -2223,7 +2226,7 @@ internal sealed partial class BoundExpressionEmitter
         return LinqExpression.Block(
             typeof(object),
             [targetObjVar],
-            LinqExpression.Assign(targetObjVar, BoundEmitterSupport.AsObject(Emit(indexAccess.Target))),
+            LinqExpression.Assign(targetObjVar, EmitHelpers.AsObject(Emit(indexAccess.Target))),
             guardedValueExpr);
     }
 
@@ -2232,14 +2235,14 @@ internal sealed partial class BoundExpressionEmitter
         if (indexAccess.Index is BoundLiteralExpr { Value: int literalIndex and >= 0 })
             return LinqExpression.Constant(literalIndex, typeof(int));
 
-        var rawIndex = LinqExpression.Call(ConvertToInt32ObjectMethod, BoundEmitterSupport.AsObject(Emit(indexAccess.Index)));
+        var rawIndex = LinqExpression.Call(ConvertToInt32ObjectMethod, EmitHelpers.AsObject(Emit(indexAccess.Index)));
         var languageMode = LinqExpression.Property(_optionsParam, nameof(CsEvalOptions.LanguageMode));
         return LinqExpression.Call(NormalizeIndexMethod, rawIndex, lengthExpression, languageMode);
     }
 
     private LinqExpression EmitDirectPlannedCall(BoundCallExpr call, BoundMemberAccessExpr memberAccess)
     {
-        if (!BoundEmitterSupport.CanEmitDirectMethodCall(call.Plan, call.Arguments.Length))
+        if (!EmitHelpers.CanEmitDirectMethodCall(call.Plan, call.Arguments.Length))
             return EmitInvokeCore(call.Callee, call.Arguments, ImmutableArray<string>.Empty);
 
         var method = call.Plan.SelectedMethod;
@@ -2256,7 +2259,7 @@ internal sealed partial class BoundExpressionEmitter
             return LinqExpression.Block(
                 method.ReturnType,
                 guardCheck,
-                BoundEmitterSupport.WrapGuardedValue(staticCall, method.ReturnType, BoundEmitterSupport.CreateMethodGuardContext(method.Name)));
+                EmitHelpers.WrapGuardedValue(staticCall, method.ReturnType, EmitHelpers.CreateMethodGuardContext(method.Name)));
         }
 
         var targetType = method.DeclaringType ?? memberAccess.Plan!.DeclaringType;
@@ -2265,7 +2268,7 @@ internal sealed partial class BoundExpressionEmitter
             EnsureCallTargetNotNullMethod,
             targetObjVar,
             LinqExpression.Constant(method.Name));
-        var typedTarget = BoundEmitterSupport.EnsureTypedExpression(checkedTarget, targetType);
+        var typedTarget = EmitHelpers.EnsureTypedExpression(checkedTarget, targetType);
         var instanceCall = LinqExpression.Call(typedTarget, method, args);
 
         if (memberAccess.NullSafe)
@@ -2280,13 +2283,13 @@ internal sealed partial class BoundExpressionEmitter
                     LinqExpression.Block(
                         method.ReturnType,
                         guardCheck,
-                        BoundEmitterSupport.WrapGuardedValue(instanceCall, method.ReturnType, BoundEmitterSupport.CreateMethodGuardContext(method.Name))),
+                        EmitHelpers.WrapGuardedValue(instanceCall, method.ReturnType, EmitHelpers.CreateMethodGuardContext(method.Name))),
                     typeof(object));
 
             return LinqExpression.Block(
                 typeof(object),
                 [targetObjVar],
-                LinqExpression.Assign(targetObjVar, BoundEmitterSupport.AsObject(Emit(memberAccess.Target))),
+                LinqExpression.Assign(targetObjVar, EmitHelpers.AsObject(Emit(memberAccess.Target))),
                 LinqExpression.Condition(
                     LinqExpression.Equal(targetObjVar, LinqExpression.Constant(null, typeof(object))),
                     LinqExpression.Constant(null, typeof(object)),
@@ -2296,12 +2299,12 @@ internal sealed partial class BoundExpressionEmitter
         var targetVar = LinqExpression.Variable(targetType, "callTargetTyped");
         var assignTarget = LinqExpression.Assign(
             targetVar,
-            BoundEmitterSupport.EnsureTypedExpression(Emit(memberAccess.Target), targetType));
+            EmitHelpers.EnsureTypedExpression(Emit(memberAccess.Target), targetType));
         var ensureNonNullTarget = IsNonNullableValueType(targetType)
             ? (LinqExpression)LinqExpression.Empty()
             : LinqExpression.Call(
                 EnsureCallTargetNotNullMethod,
-                BoundEmitterSupport.AsObject(targetVar),
+                EmitHelpers.AsObject(targetVar),
                 LinqExpression.Constant(method.Name));
         var directInstanceCall = LinqExpression.Call(targetVar, method, args);
 
@@ -2323,7 +2326,7 @@ internal sealed partial class BoundExpressionEmitter
             guardCheck,
             assignTarget,
             ensureNonNullTarget,
-            BoundEmitterSupport.WrapGuardedValue(directInstanceCall, method.ReturnType, BoundEmitterSupport.CreateMethodGuardContext(method.Name)));
+            EmitHelpers.WrapGuardedValue(directInstanceCall, method.ReturnType, EmitHelpers.CreateMethodGuardContext(method.Name)));
     }
 
     private static bool IsNonNullableValueType(Type type)
@@ -2372,7 +2375,7 @@ internal sealed partial class BoundExpressionEmitter
                         var sourceIndex = binding.SourceArgumentIndex + i;
                         var conversion = conversions[sourceIndex];
                         var convertedArg = EmitCallArgument(call.Arguments[sourceIndex], conversion.TargetType);
-                        args[i] = BoundEmitterSupport.EnsureTypedExpression(convertedArg, elementType);
+                        args[i] = EmitHelpers.EnsureTypedExpression(convertedArg, elementType);
                     }
 
                     emitted[binding.ParameterIndex] = LinqExpression.NewArrayInit(elementType, args);
@@ -2409,7 +2412,7 @@ internal sealed partial class BoundExpressionEmitter
     {
         var emittedArgument = Emit(argument);
         if (targetType == typeof(object))
-            return BoundEmitterSupport.AsObject(emittedArgument);
+            return EmitHelpers.AsObject(emittedArgument);
 
         if (emittedArgument.Type == targetType)
             return emittedArgument;
@@ -2475,7 +2478,7 @@ internal sealed partial class BoundExpressionEmitter
         {
             return LinqExpression.Call(
                 InvokePipelineIdentifierMethod,
-                BoundEmitterSupport.AsObject(Emit(pipeline.Left)),
+                EmitHelpers.AsObject(Emit(pipeline.Left)),
                 LinqExpression.Constant(rightIdentifier.Name),
                 _contextParam,
                 _optionsParam,
@@ -2484,8 +2487,8 @@ internal sealed partial class BoundExpressionEmitter
 
         return LinqExpression.Call(
             InvokePipelineMethod,
-            BoundEmitterSupport.AsObject(Emit(pipeline.Left)),
-            BoundEmitterSupport.AsObject(Emit(pipeline.Right)),
+            EmitHelpers.AsObject(Emit(pipeline.Left)),
+            EmitHelpers.AsObject(Emit(pipeline.Right)),
             _contextParam,
             _optionsParam,
             _ctParam);
@@ -2507,11 +2510,11 @@ internal sealed partial class BoundExpressionEmitter
                 statements.Add(LinqExpression.Call(
                     SpreadIntoListMethod,
                     listVar,
-                    BoundEmitterSupport.AsObject(Emit(spread.Expression))));
+                    EmitHelpers.AsObject(Emit(spread.Expression))));
                 continue;
             }
 
-            statements.Add(LinqExpression.Call(listVar, ListAddMethod, BoundEmitterSupport.AsObject(Emit(element))));
+            statements.Add(LinqExpression.Call(listVar, ListAddMethod, EmitHelpers.AsObject(Emit(element))));
         }
 
         statements.Add(LinqExpression.Call(CreateTypedArrayMethod, listVar));
@@ -2536,14 +2539,14 @@ internal sealed partial class BoundExpressionEmitter
                 statements.Add(LinqExpression.Call(
                     SpreadIntoDictMethod,
                     dictVar,
-                    BoundEmitterSupport.AsObject(Emit(property.Value)),
+                    EmitHelpers.AsObject(Emit(property.Value)),
                     _contextParam));
                 continue;
             }
 
             statements.Add(LinqExpression.Assign(
                 LinqExpression.Property(dictVar, itemProperty, LinqExpression.Constant(property.PropertyName!)),
-                BoundEmitterSupport.AsObject(Emit(property.Value))));
+                EmitHelpers.AsObject(Emit(property.Value))));
         }
 
         statements.Add(LinqExpression.Convert(dictVar, typeof(object)));
@@ -2577,7 +2580,7 @@ internal sealed partial class BoundExpressionEmitter
                         (expressionPart.FormatSpecifier != null ? ":" + expressionPart.FormatSpecifier : string.Empty) +
                         "}";
 
-                    statements.Add(LinqExpression.Assign(valueVar, BoundEmitterSupport.AsObject(Emit(expressionPart.Expression))));
+                    statements.Add(LinqExpression.Assign(valueVar, EmitHelpers.AsObject(Emit(expressionPart.Expression))));
                     statements.Add(LinqExpression.Call(
                         sbVar,
                         StringBuilderAppendMethod,
@@ -2606,7 +2609,7 @@ internal sealed partial class BoundExpressionEmitter
             LinqExpression.New(
                 NamedArgCtor,
                 LinqExpression.Constant(namedArgument.Name),
-                BoundEmitterSupport.AsObject(Emit(namedArgument.Value))),
+                EmitHelpers.AsObject(Emit(namedArgument.Value))),
             typeof(object));
     }
 
@@ -2634,9 +2637,9 @@ internal sealed partial class BoundExpressionEmitter
         var argsVar = LinqExpression.Variable(typeof(object?[]), "args");
         var argsInit = LinqExpression.NewArrayInit(
             typeof(object),
-            arguments.Select(argument => BoundEmitterSupport.AsObject(Emit(argument))));
+            arguments.Select(argument => EmitHelpers.AsObject(Emit(argument))));
         var emittedTypeArguments = EmitTypeArguments(typeArguments);
-        var outBindings = BoundEmitterSupport.CollectOutBindings(arguments);
+        var outBindings = EmitHelpers.CollectOutBindings(arguments);
 
         LinqExpression invokeExpr;
         if (callee is BoundIdentifierExpr identifier)
@@ -2654,7 +2657,7 @@ internal sealed partial class BoundExpressionEmitter
         {
             invokeExpr = LinqExpression.Call(
                 InvokeMemberCallMethod,
-                BoundEmitterSupport.AsObject(Emit(memberAccess.Target)),
+                EmitHelpers.AsObject(Emit(memberAccess.Target)),
                 LinqExpression.Constant(memberAccess.MemberName),
                 argsVar,
                 LinqExpression.Constant(memberAccess.NullSafe),
@@ -2667,7 +2670,7 @@ internal sealed partial class BoundExpressionEmitter
         {
             invokeExpr = LinqExpression.Call(
                 InvokeCallMethod,
-                BoundEmitterSupport.AsObject(Emit(callee)),
+                EmitHelpers.AsObject(Emit(callee)),
                 argsVar,
                 _contextParam,
                 _optionsParam,

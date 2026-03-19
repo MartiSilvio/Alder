@@ -696,4 +696,5 @@ internal static class Operators
     {
         return Extensions.SpaceshipOperator.Compare(left, right);
     }
+
 }

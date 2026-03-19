@@ -31,7 +31,7 @@ public class CollectionTests(CompilationMode mode)
     public void Eval_AnonymousObject()
     {
         var engine = TestEngineFactory.Create(mode, CsEvalOptions.Default with { LanguageMode = LanguageMode.Extended });
-        var result = engine.Evaluate("new { Name = \"John\", Age = 30 }") as IDictionary<string, object?>;
+        var result = engine.Evaluate("""new { Name = "John", Age = 30 } """) as IDictionary<string, object?>;
         Assert.That(result, Is.Not.Null);
         Assert.That(result!["Name"], Is.EqualTo("John"));
         Assert.That(result["Age"], Is.EqualTo(30));

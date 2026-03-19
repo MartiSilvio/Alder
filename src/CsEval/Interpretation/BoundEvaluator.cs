@@ -4,6 +4,7 @@ using CsEval.Diagnostics;
 using CsEval.Parsing;
 using CsEval.Runtime;
 using CsEval.Runtime.Extensions;
+using CsEval.Text;
 using CsEval.Tracing;
 using System.Collections.Immutable;
 using System.Dynamic;
@@ -19,6 +20,7 @@ internal sealed class BoundEvaluator
     private readonly CancellationToken _cancellationToken;
     private readonly List<EvaluationTraceStep>? _traceSteps;
     private readonly Stack<Exception> _caughtExceptions = new();
+    private readonly SourceText? _sourceText;
     private int _breakContextDepth;
     private int _loopDepth;
     private bool _isChecked;
@@ -27,19 +29,47 @@ internal sealed class BoundEvaluator
         CsEvalContext context,
         CsEvalOptions options,
         CancellationToken cancellationToken = default,
-        List<EvaluationTraceStep>? traceSteps = null)
+        List<EvaluationTraceStep>? traceSteps = null,
+        SourceText? sourceText = null)
     {
         _context = context;
         _options = options;
         _cancellationToken = cancellationToken;
         _traceSteps = traceSteps;
+        _sourceText = sourceText;
     }
 
     public object? Evaluate(BoundExpr expr)
     {
         _cancellationToken.ThrowIfCancellationRequested();
 
-        var result = expr switch
+        object? result;
+        try
+        {
+            result = EvaluateCore(expr);
+        }
+        catch (CsEvalException ex) when (ex.Span.IsEmpty && !expr.Span.IsEmpty)
+        {
+            EnrichWithSpan(ex, expr.Span);
+            throw;
+        }
+
+        RecordTrace(expr, result);
+        return result;
+    }
+
+    private void EnrichWithSpan(CsEvalException ex, TextSpan span)
+    {
+        ex.Span = span;
+        if (_sourceText != null)
+        {
+            var pos = _sourceText.GetLinePosition(span.Start);
+            ex.Line = pos.Line + 1;
+            ex.Column = pos.Character + 1;
+        }
+    }
+
+    private object? EvaluateCore(BoundExpr expr) => expr switch
         {
             BoundLiteralExpr literal => literal.Value,
             BoundIdentifierExpr identifier => IdentifierRuntime.ResolveIdentifier(identifier.Name, _context, _options),
@@ -112,11 +142,7 @@ internal sealed class BoundEvaluator
             BoundIndexFromEndExpr indexFromEnd => new Index(Convert.ToInt32(Evaluate(indexFromEnd.Operand)), fromEnd: true),
             _ => throw new BindingNotSupportedException(
                 $"Bound execution for node '{expr.GetType().Name}' is not implemented")
-        };
-
-        RecordTrace(expr, result);
-        return result;
-    }
+    };
 
     private void RecordTrace(BoundExpr expr, object? value)
     {
@@ -1296,7 +1322,7 @@ internal sealed class BoundEvaluator
             }
         }
 
-        throw new System.Runtime.CompilerServices.SwitchExpressionException(value);
+        throw new CsEvalException(DiagnosticDescriptors.SwitchExpressionNonExhaustive, value ?? "null");
     }
 
     private object? EvaluateBreak()

@@ -189,7 +189,7 @@ public class ThreadSafetyTests(CompilationMode mode)
         {
             var child = engine.CreateChild();
             child.SetVariable("index", (long)item);
-            var result = child.Evaluate("$\"{prefix}-{index}\"");
+            var result = child.Evaluate("""$"{prefix}-{index}" """);
             results.Add((item, (string)result!));
         });
 

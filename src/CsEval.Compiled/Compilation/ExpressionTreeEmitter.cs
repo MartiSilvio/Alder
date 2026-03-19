@@ -2,7 +2,6 @@ using System.Linq.Expressions;
 using CsEval.Binding;
 using CsEval.Binding.BoundNodes;
 using CsEval.Binding.Plans;
-using CsEval.Compiled.Compilation.BoundEmission;
 using CsEval.Diagnostics;
 using CsEval.Parsing;
 using CsEval.Runtime;
@@ -234,7 +233,7 @@ internal sealed class ExpressionTreeEmitter
         }
 
         var method = expr.Plan.SelectedMethod;
-        if (!BoundEmitterSupport.CanEmitDirectMethodCall(expr.Plan, expr.Arguments.Length))
+        if (!EmitHelpers.CanEmitDirectMethodCall(expr.Plan, expr.Arguments.Length))
             throw UnsupportedCallShape("dynamic or unresolved call target");
 
         var parameters = MethodDispatchCache.GetParameters(method);

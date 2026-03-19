@@ -100,17 +100,37 @@ public class ParityTests(CompilationMode mode)
         var csEvalEx = Assert.Catch<Exception>(() => engine.Evaluate(expr));
         Assert.That(csEvalEx, Is.Not.Null, "CsEval should throw for invalid expression parity.");
 
-        var csEvalKey = TestHelpers.NormalizeExceptionKey(csEvalEx!);
+        // CLR runtime exceptions (OverflowException, DivideByZeroException) are valid —
+        // real C# throws these too. Only CsEval's own errors must be CsEvalException.
+        if (csEvalEx is not CsEvalException csEx)
+        {
+            Assert.That(csEvalEx, Is.InstanceOf<OverflowException>()
+                .Or.InstanceOf<DivideByZeroException>(),
+                $"Non-CsEvalException thrown for '{expr}': {csEvalEx!.GetType().Name}: {csEvalEx.Message}");
+            return;
+        }
+
+        // Every CsEvalException must carry position information
+        Assert.That(csEx.Span.IsEmpty && csEx.Line is null, Is.False,
+            $"Error for '{expr}' has no position info (Span={csEx.Span}, Line={csEx.Line})");
+
+        var csEvalKey = TestHelpers.NormalizeExceptionKey(csEx);
         var roslynKey = roslynEx != null ? TestHelpers.NormalizeExceptionKey(roslynEx) : "unknown";
 
         // Validate error codes match when both have them
-        if (csEvalEx is CsEvalException { ErrorCode: not null } csEx)
+        if (csEx.ErrorCode is not null)
         {
-            var csEvalCode = csEx.FormattedCode; // e.g., "CS0029"
+            var csEvalCode = csEx.FormattedCode;
             var roslynCode = ExtractRoslynErrorCode(roslynEx?.Message);
 
             // If Roslyn threw a runtime exception (no compiler code), only require both sides to throw.
             if (roslynCode == null)
+                return;
+
+            // Skip code parity for parser-level mismatches where Roslyn can't parse Extended syntax.
+            // Roslyn gives generic errors (CS1002 etc.) for syntax it doesn't understand;
+            // CsEval gives meaningful errors (CS1003 etc.) for its own grammar.
+            if (roslynCode == "CS1002" && csEx.ErrorCode is CsEval.Diagnostics.DiagnosticCode.CS1003 or CsEval.Diagnostics.DiagnosticCode.CS1525 or CsEval.Diagnostics.DiagnosticCode.CS1733)
                 return;
 
             // Check exact code parity for compiler diagnostics.

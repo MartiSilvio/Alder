@@ -1,3 +1,5 @@
+using CsEval.Diagnostics;
+
 namespace CsEval.Parsing;
 
 internal sealed partial class ExpressionParser
@@ -79,7 +81,7 @@ internal sealed partial class ExpressionParser
         };
     }
 
-    private Expr FinishCall(Expr callee, List<string>? typeArgs)
+    private Expr FinishCall(Expr callee, List<string>? typeArgs, int mark)
     {
         var arguments = new List<Expr>();
         if (!Check(TokenType.RightParen))
@@ -91,14 +93,16 @@ internal sealed partial class ExpressionParser
         }
 
         Consume(TokenType.RightParen, "Expected ')' after arguments");
-        return new CallExpr(callee, arguments, typeArgs);
+        return new CallExpr(callee, arguments, typeArgs) { Span = SpanFrom(mark) };
     }
 
     private Expr ParseArgument()
     {
+        var mark = Mark();
+
         // ECMA-334 §12.6.2 - Output parameters.
         if (Match(TokenType.Out))
-            return ParseOutArgument();
+            return ParseOutArgument(mark);
 
         // Named argument: identifier/contextual keyword followed by ':'.
         if (IsParameterName(Peek().Type) && PeekNext().Type == TokenType.Colon)
@@ -106,7 +110,7 @@ internal sealed partial class ExpressionParser
             var name = Advance();
             Advance(); // colon
             var value = ParseExpression();
-            return new NamedArgumentExpr(name, value);
+            return new NamedArgumentExpr(name, value) { Span = SpanFrom(mark) };
         }
 
         var argument = ParseExpression();
@@ -142,7 +146,7 @@ internal sealed partial class ExpressionParser
         if (!foundPlaceholder)
             return false;
 
-        lowered = new LambdaExpr([new LambdaParameter(null, placeholderToken)], argument);
+        lowered = new LambdaExpr([new LambdaParameter(null, placeholderToken)], argument) { Span = argument.Span };
         return true;
     }
 
@@ -150,31 +154,31 @@ internal sealed partial class ExpressionParser
     /// Parses an out argument after the 'out' keyword has been consumed.
     /// Handles: out _, out var x, out int x, out SomeType x.
     /// </summary>
-    private Expr ParseOutArgument()
+    private Expr ParseOutArgument(int mark)
     {
         if (Check(TokenType.Identifier) && string.Equals(Peek().Lexeme, TokenLexemes.DiscardIdentifier, StringComparison.Ordinal))
         {
             Advance();
-            return new OutArgExpr(TokenLexemes.DiscardIdentifier, null, true);
+            return new OutArgExpr(TokenLexemes.DiscardIdentifier, null, true) { Span = SpanFrom(mark) };
         }
 
         if (MatchVar())
         {
             var varName = ConsumeIdentifierOrContextualKeyword("Expected variable name after 'out var'");
-            return new OutArgExpr(varName.Lexeme, null, false);
+            return new OutArgExpr(varName.Lexeme, null, false) { Span = SpanFrom(mark) };
         }
 
         string? typeName = TryParseTypeName();
         if (typeName != null && Check(TokenType.Identifier))
         {
             var varName = Advance();
-            return new OutArgExpr(varName.Lexeme, typeName, false);
+            return new OutArgExpr(varName.Lexeme, typeName, false) { Span = SpanFrom(mark) };
         }
 
         if (typeName != null)
-            return new OutArgExpr(typeName, null, false);
+            return new OutArgExpr(typeName, null, false) { Span = SpanFrom(mark) };
 
-        throw new CsEvalParserException($"Expected variable declaration or discard after 'out' at {Peek().Line}:{Peek().Column}");
+        throw SyntaxError(DiagnosticDescriptors.SyntaxExpected, "variable declaration or discard after 'out'");
     }
 
     /// <summary>

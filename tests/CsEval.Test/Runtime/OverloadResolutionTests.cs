@@ -22,7 +22,7 @@ public class OverloadResolutionTests(CompilationMode mode)
         var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("text", "hello world");
 
-        var result = engine.Evaluate("text.Contains(\"hello\")");
+        var result = engine.Evaluate("""text.Contains("hello") """);
         Assert.That(result, Is.EqualTo(true));
     }
 
@@ -120,5 +120,37 @@ public class OverloadResolutionTests(CompilationMode mode)
     private sealed class NamedCaseTarget
     {
         public int M(int value) => value;
+    }
+
+    [Test]
+    public void MultiTypeParamGenericInference_Zip_Works()
+    {
+        var engine = TestEngineFactory.Create(mode);
+        engine.RegisterAssembly(typeof(Enumerable).Assembly);
+        engine.RegisterNamespace("System.Linq");
+        var a = new[] { 1, 2, 3 };
+        var b = new[] { "a", "b", "c" };
+        engine.SetVariable("a", a);
+        engine.SetVariable("b", b);
+
+        var result = engine.Evaluate("a.Zip(b, (x, y) => x + y)");
+        Assert.That(result, Is.InstanceOf<IEnumerable<string>>());
+        Assert.That(((IEnumerable<string>)result!).ToArray(), Is.EqualTo(new[] { "1a", "2b", "3c" }));
+    }
+
+    [Test]
+    public void MultiTypeParamGenericInference_ToDictionary_Works()
+    {
+        var engine = TestEngineFactory.Create(mode);
+        engine.RegisterAssembly(typeof(Enumerable).Assembly);
+        engine.RegisterNamespace("System.Linq");
+        var items = new[] { "apple", "banana", "cherry" };
+        engine.SetVariable("items", items);
+
+        var result = engine.Evaluate("items.ToDictionary(x => x, x => x.Length)");
+        Assert.That(result, Is.InstanceOf<Dictionary<string, int>>());
+        var dict = (Dictionary<string, int>)result!;
+        Assert.That(dict["apple"], Is.EqualTo(5));
+        Assert.That(dict["banana"], Is.EqualTo(6));
     }
 }

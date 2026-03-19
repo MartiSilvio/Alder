@@ -137,7 +137,7 @@ public class SpreadOperatorTests(CompilationMode mode)
         var engine = TestEngineFactory.Create(mode, CsEvalOptions.Default with { LanguageMode = LanguageMode.Extended });
         engine.SetVariable("person", new TestPerson { Name = "John", Age = 30 });
 
-        var result = engine.Evaluate("new { ..person, City = \"NYC\" }") as IDictionary<string, object?>;
+        var result = engine.Evaluate("""new { ..person, City = "NYC" } """) as IDictionary<string, object?>;
         Assert.That(result, Is.Not.Null);
         Assert.That(result!["Name"], Is.EqualTo("John"));
         Assert.That(result["Age"], Is.EqualTo(30));

@@ -1,7 +1,10 @@
+using CsEval.Text;
+
 namespace CsEval.Parsing;
 
 internal abstract record Expr
 {
+    public TextSpan Span { get; init; }
     public abstract T Accept<T>(IExprVisitor<T> visitor);
 }
 

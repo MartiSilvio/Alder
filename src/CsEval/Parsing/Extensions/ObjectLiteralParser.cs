@@ -1,3 +1,5 @@
+using CsEval.Diagnostics;
+
 namespace CsEval.Parsing.Extensions;
 
 /// <summary>
@@ -9,6 +11,7 @@ internal static class ObjectLiteralParser
 {
     internal static Expr ParseAnonymousObject(ParserBase parser, Func<Expr> parseExpression)
     {
+        var mark = parser.Mark();
         var properties = new List<(Token, Expr)>();
 
         if (!parser.Check(TokenType.RightBrace))
@@ -18,12 +21,13 @@ internal static class ObjectLiteralParser
                 if (parser.Match(TokenType.DotDot))
                 {
                     if (parser.LanguageMode == LanguageMode.Standard)
-                        throw new CsEvalLanguageModeException(TokenLexemes.GetCanonical(TokenType.DotDot));
+                        throw new CsEvalException(DiagnosticDescriptors.ExtendedModeRequired,TokenLexemes.GetCanonical(TokenType.DotDot));
                     // Spread property: ..expr
+                    var spreadMark = parser.Mark();
                     var spreadExpr = parseExpression();
                     // Use a special marker token for spread entries
                     var spreadMarker = TokenLexemes.CreateSynthetic(TokenType.DotDot, parser.Previous());
-                    properties.Add((spreadMarker, new SpreadExpr(spreadExpr)));
+                    properties.Add((spreadMarker, new SpreadExpr(spreadExpr) { Span = parser.SpanFrom(spreadMark) }));
                 }
                 else
                 {
@@ -36,6 +40,6 @@ internal static class ObjectLiteralParser
         }
 
         parser.Consume(TokenType.RightBrace, "Expected '}' after anonymous object");
-        return new ObjectLiteralExpr(properties);
+        return new ObjectLiteralExpr(properties) { Span = parser.SpanFrom(mark) };
     }
 }

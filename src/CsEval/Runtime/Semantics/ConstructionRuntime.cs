@@ -9,10 +9,10 @@ internal static class ConstructionRuntime
         if (options != null)
         {
             if (!options.Sandbox.AllowConstruction)
-                throw new CsEvalSandboxException(DiagnosticDescriptors.SandboxConstructionBlocked, type.Name);
+                throw new CsEvalException(DiagnosticDescriptors.SandboxConstructionBlocked, type.Name);
 
             if (!options.Sandbox.IsTypeAllowed(type))
-                throw new CsEvalSandboxException(DiagnosticDescriptors.SandboxTypeBlocked, type.Name);
+                throw new CsEvalException(DiagnosticDescriptors.SandboxTypeBlocked, type.Name);
         }
 
         if (config.AotMetadata is { } aotCtorMeta && aotCtorMeta.TryGetValue(type, out var ctorMetadata))

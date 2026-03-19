@@ -43,7 +43,7 @@ public class BuiltInContextTests(CompilationMode mode)
     {
         var engine = CreateEngine();
 
-        var result = engine.Evaluate("\"hello\".Length");
+        var result = engine.Evaluate(""" "hello".Length """);
 
         Assert.That(result, Is.EqualTo(5));
     }
@@ -79,7 +79,7 @@ public class BuiltInContextTests(CompilationMode mode)
         engine.UseGeneratedContext(TestGeneratedContext.Default);
         engine.SetVariable("m", new TestModel { Name = "test" });
 
-        var builtIn = engine.Evaluate("\"hello\".Length");
+        var builtIn = engine.Evaluate(""" "hello".Length """);
         var user = engine.Evaluate("m.Name");
 
         Assert.That(builtIn, Is.EqualTo(5));

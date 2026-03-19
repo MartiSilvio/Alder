@@ -14,21 +14,21 @@ public class VariableDeclarationTests(CompilationMode mode)
 {
     #region Engine-only: error tests
 
-    // Engine-only: error test (CsEvalParserException assertion)
+    // Engine-only: error test (parser exception assertion)
     [Test]
-    public void Var_NullAssignment_ThrowsCsEvalParserException()
+    public void Var_NullAssignment_ThrowsCsEvalException()
     {
         var engine = TestEngineFactory.Create(mode);
-        var ex = Assert.Throws<CsEvalParserException>(() => engine.Evaluate("{ var x = null; return x; }"));
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("{ var x = null; return x; }"));
         Assert.That(ex!.Message, Does.Contain("Cannot assign null to an implicitly-typed variable"));
     }
 
-    // Engine-only: error test (CsEvalParserException assertion)
+    // Engine-only: error test (parser exception assertion)
     [Test]
-    public void Var_NullAssignment_InForLoop_ThrowsCsEvalParserException()
+    public void Var_NullAssignment_InForLoop_ThrowsCsEvalException()
     {
         var engine = TestEngineFactory.Create(mode);
-        var ex = Assert.Throws<CsEvalParserException>(() => engine.Evaluate("{ for (var x = null; x != null; x = null) { } return 0; }"));
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("{ for (var x = null; x != null; x = null) { } return 0; }"));
         Assert.That(ex!.Message, Does.Contain("Cannot assign null to an implicitly-typed variable"));
     }
 
@@ -95,7 +95,7 @@ public class VariableDeclarationTests(CompilationMode mode)
     public void TypedDeclaration_Int_ThrowsOnStringAssignment()
     {
         var engine = TestEngineFactory.Create(mode);
-        Assert.Throws<CsEvalException>(() => engine.Evaluate("{ int x = \"hello\"; return x; }"));
+        Assert.Throws<CsEvalException>(() => engine.Evaluate("""{ int x = "hello"; return x; } """));
     }
 
     // Engine-only: error test (CsEvalException assertion)
@@ -127,7 +127,7 @@ public class VariableDeclarationTests(CompilationMode mode)
     public void NullableInt_ThrowsOnStringAssignment()
     {
         var engine = TestEngineFactory.Create(mode);
-        Assert.Throws<CsEvalException>(() => engine.Evaluate("{ int? x = \"hello\"; return x; }"));
+        Assert.Throws<CsEvalException>(() => engine.Evaluate("""{ int? x = "hello"; return x; } """));
     }
 
     #endregion

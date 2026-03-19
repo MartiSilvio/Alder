@@ -1,5 +1,4 @@
 using CsEval.Binding.BoundNodes;
-using CsEval.Compiled.Compilation.BoundEmission;
 using CsEval.Diagnostics;
 using CsEval.Parsing;
 using CsEval.Runtime;
@@ -13,7 +12,7 @@ internal sealed partial class BoundExpressionEmitter
     {
         if (TryGetPromoted(variableDecl.LocalId, out var promoted))
         {
-            var value = BoundEmitterSupport.AsObject(Emit(variableDecl.Initializer));
+            var value = EmitHelpers.AsObject(Emit(variableDecl.Initializer));
             if (variableDecl.DeclaredType != null)
             {
                 value = LinqExpression.Call(
@@ -28,7 +27,7 @@ internal sealed partial class BoundExpressionEmitter
         return LinqExpression.Call(
             DefineVariableMethod,
             LinqExpression.Constant(variableDecl.Name),
-            BoundEmitterSupport.AsObject(Emit(variableDecl.Initializer)),
+            EmitHelpers.AsObject(Emit(variableDecl.Initializer)),
             variableDecl.DeclaredType != null
                 ? LinqExpression.Constant(variableDecl.DeclaredType, typeof(Type))
                 : LinqExpression.Constant(null, typeof(Type)),
@@ -48,7 +47,7 @@ internal sealed partial class BoundExpressionEmitter
                     CheckAllowAssignmentMethod,
                     _optionsParam,
                     LinqExpression.Constant(BuildAssignmentOperationDescription(assign.Name, TokenType.Equal))),
-                LinqExpression.Assign(valueVar, BoundEmitterSupport.AsObject(Emit(assign.Value))),
+                LinqExpression.Assign(valueVar, EmitHelpers.AsObject(Emit(assign.Value))),
                 LinqExpression.Assign(
                     valueVar,
                     LinqExpression.Call(
@@ -68,7 +67,7 @@ internal sealed partial class BoundExpressionEmitter
                 CheckAllowAssignmentMethod,
                 _optionsParam,
                 LinqExpression.Constant(BuildAssignmentOperationDescription(assign.Name, TokenType.Equal))),
-            LinqExpression.Assign(nonPromotedValue, BoundEmitterSupport.AsObject(Emit(assign.Value))),
+            LinqExpression.Assign(nonPromotedValue, EmitHelpers.AsObject(Emit(assign.Value))),
             LinqExpression.Assign(
                 nonPromotedValue,
                 LinqExpression.Call(
@@ -111,7 +110,7 @@ internal sealed partial class BoundExpressionEmitter
                             _optionsParam,
                             LinqExpression.Constant(
                                 BuildAssignmentOperationDescription(nullCoalesceAssign.Name, TokenType.QuestionQuestionEqual))),
-                        LinqExpression.Assign(assignedVar, BoundEmitterSupport.AsObject(Emit(nullCoalesceAssign.Value))),
+                        LinqExpression.Assign(assignedVar, EmitHelpers.AsObject(Emit(nullCoalesceAssign.Value))),
                         LinqExpression.Assign(promoted.Variable, assignedVar),
                         assignedVar)));
         }
@@ -137,7 +136,7 @@ internal sealed partial class BoundExpressionEmitter
                         _optionsParam,
                         LinqExpression.Constant(
                             BuildAssignmentOperationDescription(nullCoalesceAssign.Name, TokenType.QuestionQuestionEqual))),
-                    LinqExpression.Assign(nonPromotedAssigned, BoundEmitterSupport.AsObject(Emit(nullCoalesceAssign.Value))),
+                    LinqExpression.Assign(nonPromotedAssigned, EmitHelpers.AsObject(Emit(nullCoalesceAssign.Value))),
                     LinqExpression.Call(
                         _contextParam,
                         ContextSetMethod,
@@ -161,7 +160,7 @@ internal sealed partial class BoundExpressionEmitter
                         LinqExpression.Constant(compoundAssign.Name),
                         promoted.Variable,
                         LinqExpression.Constant(compoundAssign.Operator),
-                        BoundEmitterSupport.AsObject(Emit(compoundAssign.Value)),
+                        EmitHelpers.AsObject(Emit(compoundAssign.Value)),
                         LinqExpression.Constant(promoted.VariableType, typeof(Type)),
                         _optionsParam,
                         _contextParam,
@@ -174,7 +173,7 @@ internal sealed partial class BoundExpressionEmitter
             ApplyCompoundAssignMethod,
             LinqExpression.Constant(compoundAssign.Name),
             LinqExpression.Constant(compoundAssign.Operator),
-            BoundEmitterSupport.AsObject(Emit(compoundAssign.Value)),
+            EmitHelpers.AsObject(Emit(compoundAssign.Value)),
             _contextParam,
             _optionsParam,
             LinqExpression.Constant(_isChecked));
@@ -220,9 +219,9 @@ internal sealed partial class BoundExpressionEmitter
     {
         return LinqExpression.Call(
             ApplyMemberAssignMethod,
-            BoundEmitterSupport.AsObject(Emit(memberAssign.Target)),
+            EmitHelpers.AsObject(Emit(memberAssign.Target)),
             LinqExpression.Constant(memberAssign.MemberName),
-            BoundEmitterSupport.AsObject(Emit(memberAssign.Value)),
+            EmitHelpers.AsObject(Emit(memberAssign.Value)),
             _optionsParam,
             _contextParam);
     }
@@ -231,9 +230,9 @@ internal sealed partial class BoundExpressionEmitter
     {
         return LinqExpression.Call(
             ApplyIndexAssignMethod,
-            BoundEmitterSupport.AsObject(Emit(indexAssign.Target)),
-            BoundEmitterSupport.AsObject(Emit(indexAssign.Index)),
-            BoundEmitterSupport.AsObject(Emit(indexAssign.Value)),
+            EmitHelpers.AsObject(Emit(indexAssign.Target)),
+            EmitHelpers.AsObject(Emit(indexAssign.Index)),
+            EmitHelpers.AsObject(Emit(indexAssign.Value)),
             _optionsParam,
             _contextParam);
     }
@@ -242,10 +241,10 @@ internal sealed partial class BoundExpressionEmitter
     {
         return LinqExpression.Call(
             ApplyMemberCompoundAssignMethod,
-            BoundEmitterSupport.AsObject(Emit(memberCompoundAssign.Target)),
+            EmitHelpers.AsObject(Emit(memberCompoundAssign.Target)),
             LinqExpression.Constant(memberCompoundAssign.MemberName),
             LinqExpression.Constant(memberCompoundAssign.Operator),
-            BoundEmitterSupport.AsObject(Emit(memberCompoundAssign.Value)),
+            EmitHelpers.AsObject(Emit(memberCompoundAssign.Value)),
             _optionsParam,
             _contextParam,
             LinqExpression.Constant(_isChecked));
@@ -255,10 +254,10 @@ internal sealed partial class BoundExpressionEmitter
     {
         return LinqExpression.Call(
             ApplyIndexCompoundAssignMethod,
-            BoundEmitterSupport.AsObject(Emit(indexCompoundAssign.Target)),
-            BoundEmitterSupport.AsObject(Emit(indexCompoundAssign.Index)),
+            EmitHelpers.AsObject(Emit(indexCompoundAssign.Target)),
+            EmitHelpers.AsObject(Emit(indexCompoundAssign.Index)),
             LinqExpression.Constant(indexCompoundAssign.Operator),
-            BoundEmitterSupport.AsObject(Emit(indexCompoundAssign.Value)),
+            EmitHelpers.AsObject(Emit(indexCompoundAssign.Value)),
             _optionsParam,
             _contextParam,
             LinqExpression.Constant(_isChecked));
@@ -268,9 +267,9 @@ internal sealed partial class BoundExpressionEmitter
     {
         return LinqExpression.Call(
             ApplyMemberNullCoalesceAssignMethod,
-            BoundEmitterSupport.AsObject(Emit(memberNullCoalesceAssign.Target)),
+            EmitHelpers.AsObject(Emit(memberNullCoalesceAssign.Target)),
             LinqExpression.Constant(memberNullCoalesceAssign.MemberName),
-            BoundEmitterSupport.AsObject(Emit(memberNullCoalesceAssign.Value)),
+            EmitHelpers.AsObject(Emit(memberNullCoalesceAssign.Value)),
             _optionsParam,
             _contextParam);
     }
@@ -279,9 +278,9 @@ internal sealed partial class BoundExpressionEmitter
     {
         return LinqExpression.Call(
             ApplyIndexNullCoalesceAssignMethod,
-            BoundEmitterSupport.AsObject(Emit(indexNullCoalesceAssign.Target)),
-            BoundEmitterSupport.AsObject(Emit(indexNullCoalesceAssign.Index)),
-            BoundEmitterSupport.AsObject(Emit(indexNullCoalesceAssign.Value)),
+            EmitHelpers.AsObject(Emit(indexNullCoalesceAssign.Target)),
+            EmitHelpers.AsObject(Emit(indexNullCoalesceAssign.Index)),
+            EmitHelpers.AsObject(Emit(indexNullCoalesceAssign.Value)),
             _optionsParam,
             _contextParam);
     }
@@ -290,7 +289,7 @@ internal sealed partial class BoundExpressionEmitter
     {
         return LinqExpression.Call(
             ApplyMemberIncrementMethod,
-            BoundEmitterSupport.AsObject(Emit(memberIncrement.Target)),
+            EmitHelpers.AsObject(Emit(memberIncrement.Target)),
             LinqExpression.Constant(memberIncrement.MemberName),
             LinqExpression.Constant(memberIncrement.IsIncrement),
             LinqExpression.Constant(memberIncrement.IsPrefix),
@@ -303,8 +302,8 @@ internal sealed partial class BoundExpressionEmitter
     {
         return LinqExpression.Call(
             ApplyIndexIncrementMethod,
-            BoundEmitterSupport.AsObject(Emit(indexIncrement.Target)),
-            BoundEmitterSupport.AsObject(Emit(indexIncrement.Index)),
+            EmitHelpers.AsObject(Emit(indexIncrement.Target)),
+            EmitHelpers.AsObject(Emit(indexIncrement.Index)),
             LinqExpression.Constant(indexIncrement.IsIncrement),
             LinqExpression.Constant(indexIncrement.IsPrefix),
             _optionsParam,

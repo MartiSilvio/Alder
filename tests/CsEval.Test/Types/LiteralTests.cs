@@ -3,8 +3,7 @@ namespace CsEval.Test.Types;
 /// <summary>
 /// ECMA-334 §6.4.5 -- Literals (integer, real, boolean, character, string, null).
 ///
-/// Engine-only tests retained here cover lexer/parser error cases that verify
-/// specific exception types (CsEvalLexerException, CsEvalParserException).
+/// Engine-only tests retained here cover lexer/parser error cases.
 /// Standard literal expressions are in TestData/Literals/*/*.csx.
 /// </summary>
 [TestFixture(CompilationMode.Interpreted)]
@@ -13,24 +12,20 @@ public class LiteralTests(CompilationMode mode)
 {
     #region ECMA-334 §6.4.5 -- Invalid Literal Error Cases
 
-    // Engine-only: lexer error tests -- verify specific CsEvalLexerException
     [TestCase("0xGG", TestName = "InvalidHex")]
     [TestCase("1000_", TestName = "TrailingUnderscore")]
-    public void Eval_Literal_ShouldThrowLexerException(string expr)
+    public void Eval_Literal_ShouldThrowOnInvalidLexerInput(string expr)
     {
-        // Engine-only: lexer error test
         var engine = TestEngineFactory.Create(mode);
-        Assert.Throws<CsEval.Parsing.CsEvalLexerException>(() => engine.Evaluate(expr));
+        Assert.Throws<CsEvalException>(() => engine.Evaluate(expr));
     }
 
-    // Engine-only: parser error test -- verify specific CsEvalParserException
     [TestCase("0b123", TestName = "InvalidBinary_MixedDigits")]
-    public void Eval_Literal_ShouldThrowParserException(string expr)
+    public void Eval_Literal_ShouldThrowOnInvalidParserInput(string expr)
     {
-        // Engine-only: parser error test
-        // 0b123 lexes as 0b1 (valid binary) + 23 (unexpected token)
         var engine = TestEngineFactory.Create(mode);
-        Assert.Throws<CsEval.Parsing.CsEvalParserException>(() => engine.Evaluate(expr));
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate(expr));
+        Assert.That(ex!.ErrorCode, Is.Not.Null);
     }
 
     [Test]

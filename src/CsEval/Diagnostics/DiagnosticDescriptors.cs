@@ -100,6 +100,26 @@ public static class DiagnosticDescriptors
     public static readonly DiagnosticDescriptor NullToImplicitlyTyped =
         new(DiagnosticCode.CS0815, "Cannot assign null to an implicitly-typed variable");
 
+    // ECMA-334 LINQ query expressions
+
+    /// <summary>CS0742: A query body must end with a select clause or a group clause</summary>
+    public static readonly DiagnosticDescriptor QueryBodyMustEndWithSelectOrGroup =
+        new(DiagnosticCode.CS0742, "A query body must end with a select clause or a group clause");
+
+    /// <summary>CS0744: Expected contextual keyword '{0}'</summary>
+    public static readonly DiagnosticDescriptor ExpectedContextualKeyword =
+        new(DiagnosticCode.CS0744, "Expected contextual keyword '{0}'");
+
+    // ECMA-334 syntax and parsing
+
+    /// <summary>CS1002: ; expected</summary>
+    public static readonly DiagnosticDescriptor SemicolonExpected =
+        new(DiagnosticCode.CS1002, "; expected");
+
+    /// <summary>CS1003: Syntax error, '{0}' expected</summary>
+    public static readonly DiagnosticDescriptor SyntaxExpected =
+        new(DiagnosticCode.CS1003, "Syntax error, '{0}' expected");
+
     // ECMA-334 exception handling
 
     /// <summary>CS1017: Try statement already has an empty catch block</summary>
@@ -116,6 +136,10 @@ public static class DiagnosticDescriptors
     public static readonly DiagnosticDescriptor MemberNotFound =
         new(DiagnosticCode.CS1061, "'{0}' does not contain a definition for '{1}'");
 
+    /// <summary>CS1525: Invalid expression term '{0}'</summary>
+    public static readonly DiagnosticDescriptor InvalidExpressionTerm =
+        new(DiagnosticCode.CS1525, "Invalid expression term '{0}'");
+
     // ECMA-334 iteration
 
     /// <summary>CS1579: foreach statement cannot operate on variables of type '{0}' because '{0}' does not contain a public instance or extension definition for 'GetEnumerator'</summary>
@@ -128,9 +152,17 @@ public static class DiagnosticDescriptors
     public static readonly DiagnosticDescriptor NoMatchingConstructor =
         new(DiagnosticCode.CS1729, "'{0}' does not contain a constructor that takes {1} arguments");
 
+    /// <summary>CS1733: Expression expected</summary>
+    public static readonly DiagnosticDescriptor ExpressionExpected =
+        new(DiagnosticCode.CS1733, "Expression expected");
+
     /// <summary>CS7036: There is no argument given that corresponds to the required parameter '{0}' of '{1}'</summary>
     public static readonly DiagnosticDescriptor MissingRequiredArgument =
         new(DiagnosticCode.CS7036, "There is no argument given that corresponds to the required parameter '{0}' of '{1}'");
+
+    /// <summary>CS8510: Switch expression does not handle all possible values of its input type. It is not exhaustive. Value '{0}' is not handled.</summary>
+    public static readonly DiagnosticDescriptor SwitchExpressionNonExhaustive =
+        new(DiagnosticCode.CS8510, "Switch expression does not handle all possible values of its input type. Value '{0}' is not handled.");
 
     // CSEV01xx — Compilation and expression tree
 

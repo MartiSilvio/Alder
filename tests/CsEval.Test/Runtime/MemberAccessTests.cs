@@ -92,8 +92,45 @@ public class MemberAccessTests(CompilationMode mode)
         dict["key"] = "value";
         engine.SetVariable("dict", dict);
 
-        Assert.That(engine.Evaluate("dict[\"key\"]"), Is.EqualTo("value"));
+        Assert.That(engine.Evaluate("""dict["key"] """), Is.EqualTo("value"));
     }
 
     #endregion
+
+    [Test]
+    public void TopLevelComparison_IdentifierLessIdentifier_ParsesAsExpression()
+    {
+        var engine = TestEngineFactory.Create(mode);
+        engine.SetVariable("a", 1);
+        engine.SetVariable("b", 2);
+        Assert.That(engine.Evaluate("a < b"), Is.EqualTo(true));
+    }
+
+    [Test]
+    public void ExtensionMethodLookup_RespectsCaseSensitivityOption()
+    {
+        var engine = TestEngineFactory.Create(mode, CsEvalOptions.Default with {
+                        IsCaseSensitive = true
+        });
+        engine.RegisterExtensionMethods(typeof(MemberAccessExtensionProbe));
+
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate(""" "abc".flipcasex() """));
+        Assert.That(ex!.Message, Does.Contain("Method"));
+    }
+
+    [Test]
+    public void ExtensionMethod_SupportsNamedArguments()
+    {
+        var engine = TestEngineFactory.Create(mode);
+        engine.RegisterExtensionMethods(typeof(MemberAccessExtensionProbe));
+
+        var result = engine.Evaluate("1.ExtAdd(y: 2, z: 3)");
+        Assert.That(result, Is.EqualTo(6));
+    }
+}
+
+internal static class MemberAccessExtensionProbe
+{
+    public static string FlipCaseX(this string value) => value.ToUpperInvariant();
+    public static int ExtAdd(this int value, int y, int z = 0) => value + y + z;
 }

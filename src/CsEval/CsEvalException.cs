@@ -1,4 +1,5 @@
 using CsEval.Diagnostics;
+using CsEval.Text;
 
 namespace CsEval;
 
@@ -14,30 +15,19 @@ public class CsEvalException : Exception
     /// </summary>
     public string? FormattedCode => ErrorCode?.ToDiagnosticId();
 
-    /// <summary>1-based line number where available.</summary>
-    public int? Line { get; }
+    /// <summary>
+    /// Source span where the error occurred. Use <see cref="SourceText.GetLinePosition"/>
+    /// to convert to line/column when needed.
+    /// </summary>
+    public TextSpan Span { get; internal set; }
 
-    /// <summary>1-based column number where available.</summary>
-    public int? Column { get; }
+    /// <summary>1-based line number, set when source text is available during enrichment.</summary>
+    public int? Line { get; internal set; }
 
-    /// <summary>0-based source span start index where available.</summary>
-    public int? SpanStart { get; }
+    /// <summary>1-based column number, set when source text is available during enrichment.</summary>
+    public int? Column { get; internal set; }
 
-    /// <summary>Source span length where available.</summary>
-    public int? SpanLength { get; }
-
-    protected CsEvalException(
-        string message,
-        int? line = null,
-        int? column = null,
-        int? spanStart = null,
-        int? spanLength = null) : base(message)
-    {
-        Line = line;
-        Column = column;
-        SpanStart = spanStart;
-        SpanLength = spanLength;
-    }
+    internal CsEvalException(string message) : base(message) { }
 
     /// <summary>
     /// Diagnostic-aware constructor. Formats message as "CS####: {message}" and sets ErrorCode.
@@ -46,22 +36,6 @@ public class CsEvalException : Exception
         : base(FormatMessage(descriptor, args))
     {
         ErrorCode = descriptor.Code;
-    }
-
-    public CsEvalException(
-        DiagnosticDescriptor descriptor,
-        int? line,
-        int? column,
-        int? spanStart,
-        int? spanLength,
-        params object?[] args)
-        : base(FormatMessage(descriptor, args))
-    {
-        ErrorCode = descriptor.Code;
-        Line = line;
-        Column = column;
-        SpanStart = spanStart;
-        SpanLength = spanLength;
     }
 
     private static string FormatMessage(DiagnosticDescriptor descriptor, object?[] args)
@@ -83,31 +57,6 @@ public class CsEvalDepthException : CsEvalException
         : base($"Expression {subsystem} depth exceeded maximum of {maxDepth}. Configure CsEvalOptions.MaxExpressionDepth to adjust this limit.")
     {
         MaxDepth = maxDepth;
-    }
-}
-
-/// <summary>
-/// Thrown when an Extended mode syntax feature is used with <see cref="LanguageMode.Standard"/>.
-/// Extends <see cref="CsEvalParserException"/> so existing catch blocks still work.
-/// Use this type specifically when you want to detect and handle language mode mismatches.
-/// </summary>
-/// <summary>
-/// Thrown when an Extended mode syntax feature is used with <see cref="LanguageMode.Standard"/>.
-/// Catchable independently of general <see cref="CsEvalException"/> or parser errors.
-/// Use this type specifically when you want to detect and handle language mode mismatches,
-/// e.g. to suggest enabling Extended mode to the user.
-/// </summary>
-public class CsEvalLanguageModeException : CsEvalException
-{
-    /// <summary>
-    /// The name of the feature that requires Extended mode (e.g., "**", "in", "[:]", "..").
-    /// </summary>
-    public string FeatureName { get; }
-
-    public CsEvalLanguageModeException(string featureName, string? message = null)
-        : base(DiagnosticDescriptors.ExtendedModeRequired, featureName)
-    {
-        FeatureName = featureName;
     }
 }
 
@@ -163,17 +112,6 @@ public class CsEvalExecutionLimitException : CsEvalException
             ExecutionLimitType.Timeout => $"Execution exceeded maximum timeout ({limit}ms). {actual}ms elapsed.",
             _ => $"Execution limit exceeded: {type}"
         };
-}
-
-/// <summary>
-/// Thrown when an expression is blocked by the sandbox.
-/// Covers all CSEV03xx diagnostics: method call, property access, assignment,
-/// construction, and type allowlist violations.
-/// </summary>
-public class CsEvalSandboxException : CsEvalException
-{
-    public CsEvalSandboxException(DiagnosticDescriptor descriptor, params object?[] args)
-        : base(descriptor, args) { }
 }
 
 /// <summary>

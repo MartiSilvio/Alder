@@ -17,7 +17,7 @@ public class ControlFlowTests(CompilationMode mode)
     {
         var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("x", 10L);
-        Assert.That(engine.Evaluate("x > 5 ? \"big\" : \"small\""), Is.EqualTo("big"));
+        Assert.That(engine.Evaluate("""x > 5 ? "big" : "small" """), Is.EqualTo("big"));
     }
 
     // Engine-only: SetVariable with TestPerson (non-serializable) + anonymous object merge

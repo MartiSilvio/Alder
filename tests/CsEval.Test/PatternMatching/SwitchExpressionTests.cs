@@ -13,24 +13,26 @@ namespace CsEval.Test.PatternMatching;
 [TestFixture(CompilationMode.Compiled)]
 public class SwitchExpressionTests(CompilationMode mode)
 {
-    #region ECMA-334 §12.8.21 -- SwitchExpressionException for Non-Exhaustive Match
+    #region ECMA-334 §12.8.21 -- CsEvalException for Non-Exhaustive Match
 
     [Test]
-    public void SwitchExpression_NoMatch_ThrowsSwitchExpressionException()
+    public void SwitchExpression_NoMatch_ThrowsCsEvalException()
     {
         var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("x", (object)99);
-        Assert.Throws<System.Runtime.CompilerServices.SwitchExpressionException>(
-            () => engine.Evaluate("x switch { 1 => \"one\" }"));
+        var ex = Assert.Throws<CsEvalException>(
+            () => engine.Evaluate("""x switch { 1 => "one" } """));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(CsEval.Diagnostics.DiagnosticCode.CS8510));
     }
 
     [Test]
-    public void SwitchExpression_NoMatch_NullValue_ThrowsSwitchExpressionException()
+    public void SwitchExpression_NoMatch_NullValue_ThrowsCsEvalException()
     {
         var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("x", (object?)null);
-        Assert.Throws<System.Runtime.CompilerServices.SwitchExpressionException>(
-            () => engine.Evaluate("x switch { 1 => \"one\", \"hello\" => \"two\" }"));
+        var ex = Assert.Throws<CsEvalException>(
+            () => engine.Evaluate("""x switch { 1 => "one", "hello" => "two" } """));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(CsEval.Diagnostics.DiagnosticCode.CS8510));
     }
 
     #endregion
@@ -44,7 +46,7 @@ public class SwitchExpressionTests(CompilationMode mode)
     {
         var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("x", (object)"hello");
-        var result = engine.Evaluate("x switch { object => \"object\", string => \"string\", _ => \"other\" }");
+        var result = engine.Evaluate("""x switch { object => "object", string => "string", _ => "other" } """);
         Assert.That(result, Is.EqualTo("object"));
     }
 

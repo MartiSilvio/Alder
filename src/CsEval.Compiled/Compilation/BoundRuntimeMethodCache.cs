@@ -264,8 +264,11 @@ internal static class BoundRuntimeMethodCache
     internal static readonly MethodInfo ApplyConstantNumericPromotionMethod =
         typeof(NumericPromotionRuntime).GetMethod(nameof(NumericPromotionRuntime.ApplyConstantNumericPromotion))!;
 
-    internal static readonly ConstructorInfo SwitchExpressionExceptionCtor =
-        typeof(System.Runtime.CompilerServices.SwitchExpressionException).GetConstructor([typeof(object)])!;
+    internal static readonly ConstructorInfo CsEvalExceptionCtor =
+        typeof(CsEvalException).GetConstructor([typeof(Diagnostics.DiagnosticDescriptor), typeof(object[])])!;
+
+    internal static readonly System.Reflection.FieldInfo SwitchExpressionNonExhaustiveDescriptor =
+        typeof(Diagnostics.DiagnosticDescriptors).GetField(nameof(Diagnostics.DiagnosticDescriptors.SwitchExpressionNonExhaustive))!;
 
     internal static readonly MethodInfo GetSliceMethod =
         typeof(MemberAccess).GetMethod(nameof(MemberAccess.GetSlice), [typeof(object), typeof(object), typeof(object), typeof(CsEvalOptions)])!;

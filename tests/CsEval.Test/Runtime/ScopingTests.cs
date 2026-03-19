@@ -31,7 +31,7 @@ public class ScopingTests(CompilationMode mode)
             ["Age"] = 20
         });
 
-        var result = engine.Evaluate("let { Name, Age } = person in Name + \":\" + Age");
+        var result = engine.Evaluate("""let { Name, Age } = person in Name + ":" + Age """);
 
         Assert.That(result, Is.EqualTo("Ada:20"));
     }
@@ -52,7 +52,7 @@ public class ScopingTests(CompilationMode mode)
         // Set a variable with the old-style temp name to prove it doesn't interfere
         engine.SetVariable("__let_tmp_1_1_0", "SHADOW");
 
-        var result = engine.Evaluate("let { Name, Age } = person in Name + \":\" + Age");
+        var result = engine.Evaluate("""let { Name, Age } = person in Name + ":" + Age """);
 
         Assert.That(result, Is.EqualTo("Ada:20"));
     }

@@ -148,7 +148,7 @@ public class TypeResolverTests(CompilationMode mode)
     public void ResolveType_ImplicitBcl_DictionaryWithItems()
     {
         var engine = CreateEngine();
-        var result = engine.Evaluate("{ var d = new Dictionary<string, int>(); d.Add(\"a\", 1); return d.Count; }");
+        var result = engine.Evaluate("""{ var d = new Dictionary<string, int>(); d.Add("a", 1); return d.Count; }""");
         Assert.That(result, Is.EqualTo(1));
     }
 
@@ -203,7 +203,7 @@ public class TypeResolverTests(CompilationMode mode)
     {
         var engine = CreateEngine();
         engine.RegisterNamespace("System.Text");
-        var result = engine.Evaluate("new StringBuilder(\"hello\").ToString()");
+        var result = engine.Evaluate("""new StringBuilder("hello").ToString()""");
         Assert.That(result, Is.EqualTo("hello"));
     }
 
@@ -213,7 +213,7 @@ public class TypeResolverTests(CompilationMode mode)
         var engine = CreateEngine();
         engine.RegisterNamespace("System.Text");
 
-        var sb = engine.Evaluate("new StringBuilder(\"hello\")");
+        var sb = engine.Evaluate("""new StringBuilder("hello")""");
         Assert.That(sb, Is.TypeOf<System.Text.StringBuilder>());
     }
 
@@ -410,7 +410,7 @@ public class TypeResolverTests(CompilationMode mode)
     {
         // FQN should always work even without RegisterNamespace
         var engine = CreateEngine();
-        var result = engine.Evaluate("new System.Text.StringBuilder(\"test\").ToString()");
+        var result = engine.Evaluate("""new System.Text.StringBuilder("test").ToString()""");
         Assert.That(result, Is.EqualTo("test"));
     }
 
@@ -501,7 +501,7 @@ public class TypeResolverTests(CompilationMode mode)
     {
         var engine = CreateEngine();
         engine.RegisterNamespace("System.Text");
-        var result = engine.Evaluate("new StringBuilder(\"abc\").Length");
+        var result = engine.Evaluate("""new StringBuilder("abc").Length""");
         Assert.That(result, Is.EqualTo(3));
     }
 
@@ -521,7 +521,7 @@ public class TypeResolverTests(CompilationMode mode)
     public void VariableDeclaration_BuiltInType_String()
     {
         var engine = CreateEngine();
-        var result = engine.Evaluate("{ string s = \"hello\"; return s; }");
+        var result = engine.Evaluate("""{ string s = "hello"; return s; }""");
         Assert.That(result, Is.EqualTo("hello"));
     }
 
@@ -555,7 +555,7 @@ public class TypeResolverTests(CompilationMode mode)
         // Variable declarations with non-keyword types use var + new
         var engine = CreateEngine();
         engine.RegisterNamespace("System.Text");
-        var result = engine.Evaluate("{ var sb = new StringBuilder(\"hi\"); return sb.Length; }");
+        var result = engine.Evaluate("""{ var sb = new StringBuilder("hi"); return sb.Length; }""");
         Assert.That(result, Is.EqualTo(2));
     }
 

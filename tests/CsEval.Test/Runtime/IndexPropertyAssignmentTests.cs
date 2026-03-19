@@ -43,11 +43,10 @@ public class IndexPropertyAssignmentTests(CompilationMode mode)
 
         Assert.Throws<ArgumentOutOfRangeException>(() =>
             engine.Evaluate(@"
-            {
                 var arr = [1, 2, 3];
                 arr[10] = 5;
                 return arr;
-            }"));
+            "));
     }
 
     [Test]
@@ -56,11 +55,10 @@ public class IndexPropertyAssignmentTests(CompilationMode mode)
         var engine = TestEngineFactory.Create(mode, CsEvalOptions.Default with { LanguageMode = LanguageMode.Extended });
 
         var result = engine.Evaluate(@"
-            {
                 var arr = [1, 2, 3];
                 arr[-1] = 5;
                 return arr;
-            }") as int[];
+            ") as int[];
         Assert.That(result, Is.Not.Null);
         Assert.That(result!, Is.EqualTo(new[] { 1, 2, 5 }));
     }
@@ -72,11 +70,10 @@ public class IndexPropertyAssignmentTests(CompilationMode mode)
 
         Assert.Throws<ArgumentOutOfRangeException>(() =>
             engine.Evaluate(@"
-            {
                 var arr = new int[] {1, 2, 3};
                 arr[-1] = 5;
                 return arr;
-            }"));
+            "));
     }
 
     [Test]
@@ -99,11 +96,10 @@ public class IndexPropertyAssignmentTests(CompilationMode mode)
     {
         var engine = TestEngineFactory.Create(mode, CsEvalOptions.Default with { LanguageMode = LanguageMode.Extended });
         var result = engine.Evaluate(@"
-        {
             var dict = new { name = ""John"" };
             dict[""name""] = ""Jane"";
             return dict[""name""];
-        }");
+        ");
 
         Assert.That(result, Is.EqualTo("Jane"));
     }
@@ -113,11 +109,10 @@ public class IndexPropertyAssignmentTests(CompilationMode mode)
     {
         var engine = TestEngineFactory.Create(mode, CsEvalOptions.Default with { LanguageMode = LanguageMode.Extended });
         var result = engine.Evaluate(@"
-        {
             var dict = new { name = ""John"" };
             dict[""age""] = 30;
             return dict[""age""];
-        }");
+        ");
 
         Assert.That(result, Is.EqualTo(30));
     }
@@ -139,11 +134,10 @@ public class IndexPropertyAssignmentTests(CompilationMode mode)
     {
         var engine = TestEngineFactory.Create(mode, CsEvalOptions.Default with { LanguageMode = LanguageMode.Extended });
         var result = engine.Evaluate(@"
-        {
             var dict = new { a = 1 };
             var x = dict[""a""] = 100;
             return x;
-        }");
+        ");
 
         Assert.That(result, Is.EqualTo(100));
     }
@@ -157,11 +151,10 @@ public class IndexPropertyAssignmentTests(CompilationMode mode)
     {
         var engine = TestEngineFactory.Create(mode, CsEvalOptions.Default with { LanguageMode = LanguageMode.Extended });
         var result = engine.Evaluate(@"
-        {
             var obj = new { Name = ""John"" };
             obj.Name = ""Jane"";
             return obj.Name;
-        }");
+        ");
 
         Assert.That(result, Is.EqualTo("Jane"));
     }
@@ -171,11 +164,10 @@ public class IndexPropertyAssignmentTests(CompilationMode mode)
     {
         var engine = TestEngineFactory.Create(mode, CsEvalOptions.Default with { LanguageMode = LanguageMode.Extended });
         var result = engine.Evaluate(@"
-        {
             var obj = new { Name = ""John"" };
             obj.Age = 30;
             return obj.Age;
-        }");
+        ");
 
         Assert.That(result, Is.EqualTo(30));
     }
@@ -185,11 +177,10 @@ public class IndexPropertyAssignmentTests(CompilationMode mode)
     {
         var engine = TestEngineFactory.Create(mode, CsEvalOptions.Default with { LanguageMode = LanguageMode.Extended });
         var result = engine.Evaluate(@"
-        {
             var obj = new { Value = 0 };
             var x = obj.Value = 42;
             return x;
-        }");
+        ");
 
         Assert.That(result, Is.EqualTo(42));
     }
@@ -199,11 +190,10 @@ public class IndexPropertyAssignmentTests(CompilationMode mode)
     {
         var engine = TestEngineFactory.Create(mode, CsEvalOptions.Default with { LanguageMode = LanguageMode.Extended });
         var result = engine.Evaluate(@"
-        {
             var obj = new { Inner = new { Value = 10 } };
             obj.Inner.Value = 99;
             return obj.Inner.Value;
-        }");
+        ");
 
         Assert.That(result, Is.EqualTo(99));
     }
@@ -215,7 +205,7 @@ public class IndexPropertyAssignmentTests(CompilationMode mode)
         engine.SetVariable("obj", null);
 
         Assert.Throws<CsEvalException>(() =>
-            engine.Evaluate("obj.Name = \"test\""));
+            engine.Evaluate("""obj.Name = "test" """));
     }
 
     #endregion
@@ -291,11 +281,10 @@ public class IndexPropertyAssignmentTests(CompilationMode mode)
     {
         var engine = TestEngineFactory.Create(mode, CsEvalOptions.Default with { LanguageMode = LanguageMode.Extended });
         var result = engine.Evaluate(@"
-        {
             var items = [new { Value = 1 }, new { Value = 2 }];
             items[0].Value = 100;
             return items[0].Value;
-        }");
+        ");
 
         Assert.That(result, Is.EqualTo(100));
     }
@@ -305,11 +294,10 @@ public class IndexPropertyAssignmentTests(CompilationMode mode)
     {
         var engine = TestEngineFactory.Create(mode, CsEvalOptions.Default with { LanguageMode = LanguageMode.Extended });
         var result = engine.Evaluate(@"
-        {
             var obj = new { Items = [1, 2, 3] };
             obj.Items[1] = 99;
             return obj.Items[1];
-        }");
+        ");
 
         Assert.That(result, Is.EqualTo(99));
     }

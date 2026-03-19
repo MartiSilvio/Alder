@@ -80,7 +80,7 @@ public sealed class CsEvalExpression
         }
 
         AstDepthValidator.EnsureWithinLimit(Ast, maxDepth);
-        var binder = new CsEval.Binding.Binder();
+        var binder = new CsEval.Binding.Binder(new Text.SourceText(Source));
         var bound = binder.Bind(Ast, new BindingContext(context));
         _boundExpressionCacheByContext.Remove(context);
         _boundExpressionCacheByContext.Add(context, new CachedBoundExpression(currentVersion, bound));

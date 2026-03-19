@@ -262,8 +262,8 @@ internal static class TypeHelpers
         if (TryResolveUserDefinedConversion(sourceType, targetType, out var userDefinedMethod))
             return value => userDefinedMethod.Invoke(null, [value])!;
 
-        return _ => throw new InvalidCastException(
-            $"No explicit conversion exists from '{sourceType.Name}' to '{targetType.Name}'.");
+        return _ => throw new CsEvalException(
+            DiagnosticDescriptors.NoExplicitConversion, sourceType.Name, targetType.Name);
     }
 
     private static bool TryCreateEnumCastConverter(
@@ -479,7 +479,7 @@ internal static class TypeHelpers
         TypeCode.UInt32 => Convert.ToUInt32(value),
         TypeCode.Int64 => Convert.ToInt64(value),
         TypeCode.UInt64 => Convert.ToUInt64(value),
-        _ => throw new InvalidCastException($"Unsupported enum underlying type '{underlyingCode}'.")
+        _ => throw new CsEvalException(DiagnosticDescriptors.NoExplicitConversion, underlyingCode, "enum")
     };
 
     private static object ConvertPrimitive(object value, TypeCode sourceCode, TypeCode targetCode, bool isChecked) => sourceCode switch
@@ -496,7 +496,7 @@ internal static class TypeHelpers
         TypeCode.Single => ConvertFromSingle((float)value, targetCode, isChecked),
         TypeCode.Double => ConvertFromDouble((double)value, targetCode, isChecked),
         TypeCode.Decimal => ConvertFromDecimal((decimal)value, targetCode, isChecked),
-        _ => throw new InvalidCastException($"No explicit conversion exists from '{sourceCode}' to '{targetCode}'.")
+        _ => throw new CsEvalException(DiagnosticDescriptors.NoExplicitConversion, sourceCode, targetCode)
     };
 
     private static object ConvertFromSByte(sbyte value, TypeCode targetCode, bool isChecked) => targetCode switch
@@ -513,7 +513,7 @@ internal static class TypeHelpers
         TypeCode.Single => (float)value,
         TypeCode.Double => (double)value,
         TypeCode.Decimal => (decimal)value,
-        _ => throw new InvalidCastException($"No explicit conversion exists from '{TypeCode.SByte}' to '{targetCode}'.")
+        _ => throw new CsEvalException(DiagnosticDescriptors.NoExplicitConversion, TypeCode.SByte, targetCode)
     };
 
     private static object ConvertFromByte(byte value, TypeCode targetCode, bool isChecked) => targetCode switch
@@ -530,7 +530,7 @@ internal static class TypeHelpers
         TypeCode.Single => (float)value,
         TypeCode.Double => (double)value,
         TypeCode.Decimal => (decimal)value,
-        _ => throw new InvalidCastException($"No explicit conversion exists from '{TypeCode.Byte}' to '{targetCode}'.")
+        _ => throw new CsEvalException(DiagnosticDescriptors.NoExplicitConversion, TypeCode.Byte, targetCode)
     };
 
     private static object ConvertFromInt16(short value, TypeCode targetCode, bool isChecked) => targetCode switch
@@ -547,7 +547,7 @@ internal static class TypeHelpers
         TypeCode.Single => (float)value,
         TypeCode.Double => (double)value,
         TypeCode.Decimal => (decimal)value,
-        _ => throw new InvalidCastException($"No explicit conversion exists from '{TypeCode.Int16}' to '{targetCode}'.")
+        _ => throw new CsEvalException(DiagnosticDescriptors.NoExplicitConversion, TypeCode.Int16, targetCode)
     };
 
     private static object ConvertFromUInt16(ushort value, TypeCode targetCode, bool isChecked) => targetCode switch
@@ -564,7 +564,7 @@ internal static class TypeHelpers
         TypeCode.Single => (float)value,
         TypeCode.Double => (double)value,
         TypeCode.Decimal => (decimal)value,
-        _ => throw new InvalidCastException($"No explicit conversion exists from '{TypeCode.UInt16}' to '{targetCode}'.")
+        _ => throw new CsEvalException(DiagnosticDescriptors.NoExplicitConversion, TypeCode.UInt16, targetCode)
     };
 
     private static object ConvertFromInt32(int value, TypeCode targetCode, bool isChecked) => targetCode switch
@@ -581,7 +581,7 @@ internal static class TypeHelpers
         TypeCode.Single => (float)value,
         TypeCode.Double => (double)value,
         TypeCode.Decimal => (decimal)value,
-        _ => throw new InvalidCastException($"No explicit conversion exists from '{TypeCode.Int32}' to '{targetCode}'.")
+        _ => throw new CsEvalException(DiagnosticDescriptors.NoExplicitConversion, TypeCode.Int32, targetCode)
     };
 
     private static object ConvertFromUInt32(uint value, TypeCode targetCode, bool isChecked) => targetCode switch
@@ -598,7 +598,7 @@ internal static class TypeHelpers
         TypeCode.Single => (float)value,
         TypeCode.Double => (double)value,
         TypeCode.Decimal => (decimal)value,
-        _ => throw new InvalidCastException($"No explicit conversion exists from '{TypeCode.UInt32}' to '{targetCode}'.")
+        _ => throw new CsEvalException(DiagnosticDescriptors.NoExplicitConversion, TypeCode.UInt32, targetCode)
     };
 
     private static object ConvertFromInt64(long value, TypeCode targetCode, bool isChecked) => targetCode switch
@@ -615,7 +615,7 @@ internal static class TypeHelpers
         TypeCode.Single => (float)value,
         TypeCode.Double => (double)value,
         TypeCode.Decimal => (decimal)value,
-        _ => throw new InvalidCastException($"No explicit conversion exists from '{TypeCode.Int64}' to '{targetCode}'.")
+        _ => throw new CsEvalException(DiagnosticDescriptors.NoExplicitConversion, TypeCode.Int64, targetCode)
     };
 
     private static object ConvertFromUInt64(ulong value, TypeCode targetCode, bool isChecked) => targetCode switch
@@ -632,7 +632,7 @@ internal static class TypeHelpers
         TypeCode.Single => (float)value,
         TypeCode.Double => (double)value,
         TypeCode.Decimal => (decimal)value,
-        _ => throw new InvalidCastException($"No explicit conversion exists from '{TypeCode.UInt64}' to '{targetCode}'.")
+        _ => throw new CsEvalException(DiagnosticDescriptors.NoExplicitConversion, TypeCode.UInt64, targetCode)
     };
 
     private static object ConvertFromChar(char value, TypeCode targetCode, bool isChecked) => targetCode switch
@@ -649,7 +649,7 @@ internal static class TypeHelpers
         TypeCode.Single => (float)value,
         TypeCode.Double => (double)value,
         TypeCode.Decimal => (decimal)value,
-        _ => throw new InvalidCastException($"No explicit conversion exists from '{TypeCode.Char}' to '{targetCode}'.")
+        _ => throw new CsEvalException(DiagnosticDescriptors.NoExplicitConversion, TypeCode.Char, targetCode)
     };
 
     private static object ConvertFromSingle(float value, TypeCode targetCode, bool isChecked) => targetCode switch
@@ -666,7 +666,7 @@ internal static class TypeHelpers
         TypeCode.Single => value,
         TypeCode.Double => (double)value,
         TypeCode.Decimal => isChecked ? checked((decimal)value) : (decimal)value,
-        _ => throw new InvalidCastException($"No explicit conversion exists from '{TypeCode.Single}' to '{targetCode}'.")
+        _ => throw new CsEvalException(DiagnosticDescriptors.NoExplicitConversion, TypeCode.Single, targetCode)
     };
 
     private static object ConvertFromDouble(double value, TypeCode targetCode, bool isChecked) => targetCode switch
@@ -683,7 +683,7 @@ internal static class TypeHelpers
         TypeCode.Single => (float)value,
         TypeCode.Double => (double)value,
         TypeCode.Decimal => isChecked ? checked((decimal)value) : (decimal)value,
-        _ => throw new InvalidCastException($"No explicit conversion exists from '{TypeCode.Double}' to '{targetCode}'.")
+        _ => throw new CsEvalException(DiagnosticDescriptors.NoExplicitConversion, TypeCode.Double, targetCode)
     };
 
     private static object ConvertFromDecimal(decimal value, TypeCode targetCode, bool isChecked) => targetCode switch
@@ -700,7 +700,7 @@ internal static class TypeHelpers
         TypeCode.Single => (float)value,
         TypeCode.Double => (double)value,
         TypeCode.Decimal => value,
-        _ => throw new InvalidCastException($"No explicit conversion exists from '{TypeCode.Decimal}' to '{targetCode}'.")
+        _ => throw new CsEvalException(DiagnosticDescriptors.NoExplicitConversion, TypeCode.Decimal, targetCode)
     };
 
     /// <summary>
@@ -1107,7 +1107,7 @@ internal static class TypeHelpers
 
         var type = value.GetType();
         if (IsForbiddenReflectionType(type))
-            throw new CsEvalSandboxException(DiagnosticDescriptors.ReflectionTypeAccessBlocked, type.Name, context);
+            throw new CsEvalException(DiagnosticDescriptors.ReflectionTypeAccessBlocked, type.Name, context);
 
         return value;
     }
@@ -1119,7 +1119,7 @@ internal static class TypeHelpers
         {
             var type = value.GetType();
             if (IsForbiddenReflectionType(type))
-                throw new CsEvalSandboxException(DiagnosticDescriptors.ReflectionTypeAccessBlocked, type.Name, context);
+                throw new CsEvalException(DiagnosticDescriptors.ReflectionTypeAccessBlocked, type.Name, context);
         }
 
         return value;

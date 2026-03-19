@@ -1,4 +1,5 @@
 using CsEval.Diagnostics;
+using CsEval.Text;
 
 namespace CsEval;
 
@@ -9,15 +10,10 @@ public sealed record CsEvalDiagnostic(
     DiagnosticSeverity Severity,
     string Message,
     DiagnosticCode? Code = null,
-    int? Line = null,
-    int? Column = null,
-    int? SpanStart = null,
-    int? SpanLength = null)
+    TextSpan Span = default)
 {
-    internal static CsEvalDiagnostic FromException(CsEvalException ex) => ex switch
-    {
-        _ => new(DiagnosticSeverity.Error, ex.Message, ex.ErrorCode, ex.Line, ex.Column, ex.SpanStart, ex.SpanLength)
-    };
+    internal static CsEvalDiagnostic FromException(CsEvalException ex) =>
+        new(DiagnosticSeverity.Error, ex.Message, ex.ErrorCode, ex.Span);
 
     internal static CsEvalDiagnostic FromException(Exception ex) => ex switch
     {

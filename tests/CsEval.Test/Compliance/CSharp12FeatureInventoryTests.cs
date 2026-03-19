@@ -46,7 +46,7 @@ public class CSharp12FeatureInventoryTests
         Assert.That(result, Is.TypeOf<int[]>());
 
         var standard = new CsEvalEngine(Options);
-        Assert.Throws<CsEvalLanguageModeException>(() => standard.Evaluate("[1, 2, 3]"));
+        Assert.Throws<CsEvalException>(() => standard.Evaluate("[1, 2, 3]"));
     }
 
     // 2. Primary Constructors: class Point(int x, int y) { ... }

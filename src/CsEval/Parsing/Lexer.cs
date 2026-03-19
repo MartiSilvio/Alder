@@ -184,7 +184,7 @@ internal sealed class Lexer
             ScanToken();
         }
 
-        _tokens.Add(new Token(TokenType.Eof, "", null, _line, _column));
+        _tokens.Add(new Token(TokenType.Eof, "", null, _line, _column, _current));
         return _tokens;
     }
 
@@ -764,10 +764,11 @@ internal sealed class Lexer
         }
         catch (OverflowException)
         {
-            throw new CsEvalLexerException(
-                DiagnosticDescriptors.IntegralConstantTooLarge,
-                _line,
-                _column);
+            throw new CsEvalException(DiagnosticDescriptors.IntegralConstantTooLarge)
+            {
+                Line = _line,
+                Column = _column
+            };
         }
 
         AddToken(TokenType.Number, value);
@@ -864,10 +865,11 @@ internal sealed class Lexer
         }
         catch (OverflowException)
         {
-            throw new CsEvalLexerException(
-                DiagnosticDescriptors.IntegralConstantTooLarge,
-                _line,
-                _column);
+            throw new CsEvalException(DiagnosticDescriptors.IntegralConstantTooLarge)
+            {
+                Line = _line,
+                Column = _column
+            };
         }
 
         AddToken(TokenType.Number, value);
@@ -898,10 +900,11 @@ internal sealed class Lexer
         }
         catch (OverflowException)
         {
-            throw new CsEvalLexerException(
-                DiagnosticDescriptors.IntegralConstantTooLarge,
-                _line,
-                _column);
+            throw new CsEvalException(DiagnosticDescriptors.IntegralConstantTooLarge)
+            {
+                Line = _line,
+                Column = _column
+            };
         }
 
         AddToken(TokenType.Number, value);
@@ -1018,10 +1021,11 @@ internal sealed class Lexer
         // Handle 9223372036854775808L (|long.MinValue|) - store as ulong for negation
         if (ulong.TryParse(text, out var ulongValue) && ulongValue == (ulong)long.MaxValue + 1)
             return ulongValue;
-        throw new CsEvalLexerException(
-            DiagnosticDescriptors.IntegralConstantTooLarge,
-            _line,
-            _column);
+        throw new CsEvalException(DiagnosticDescriptors.IntegralConstantTooLarge)
+        {
+            Line = _line,
+            Column = _column
+        };
     }
 
     /// <summary>
@@ -1039,10 +1043,11 @@ internal sealed class Lexer
             return longValue;
         if (ulong.TryParse(text, out var ulongValue))
             return ulongValue;
-        throw new CsEvalLexerException(
-            DiagnosticDescriptors.IntegralConstantTooLarge,
-            _line,
-            _column);
+        throw new CsEvalException(DiagnosticDescriptors.IntegralConstantTooLarge)
+        {
+            Line = _line,
+            Column = _column
+        };
     }
 
     private enum NumericSuffix { None, Long, ULong, UInt, Float, Double, Decimal }
@@ -1110,25 +1115,9 @@ internal sealed class Lexer
     private void AddToken(TokenType type, object? literal = null)
     {
         var text = _source[_start.._current];
-        _tokens.Add(new Token(type, text, literal, _line, _column - text.Length));
+        _tokens.Add(new Token(type, text, literal, _line, _column - text.Length, _start));
     }
 
-    private CsEvalLexerException LexError(
-        string message,
-        int? line = null,
-        int? column = null,
-        int? spanStart = null,
-        int? spanLength = null)
-        => new(message, line ?? _line, column ?? _column, spanStart, spanLength);
-}
-
-public class CsEvalLexerException : CsEvalException
-{
-    public CsEvalLexerException(string message) : base(message) { }
-
-    public CsEvalLexerException(string message, int line, int column, int? spanStart = null, int? spanLength = null)
-        : base(message, line, column, spanStart, spanLength) { }
-
-    public CsEvalLexerException(DiagnosticDescriptor descriptor, int line, int column, params object?[] args)
-        : base(descriptor, line, column, null, null, args) { }
+    private CsEvalException LexError(string message, int? line = null, int? column = null)
+        => new(message) { Line = line ?? _line, Column = column ?? _column };
 }

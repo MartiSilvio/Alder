@@ -267,7 +267,9 @@ internal enum TokenType
     Eof
 }
 
-internal readonly record struct Token(TokenType Type, string Lexeme, object? Literal, int Line, int Column)
+internal readonly record struct Token(TokenType Type, string Lexeme, object? Literal, int Line, int Column, int Start = 0)
 {
+    public int Length => Lexeme.Length;
+    public Text.TextSpan Span => new(Start, Length);
     public override string ToString() => $"{Type} '{Lexeme}' at {Line}:{Column}";
 }

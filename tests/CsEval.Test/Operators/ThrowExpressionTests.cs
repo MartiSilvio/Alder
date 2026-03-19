@@ -20,7 +20,7 @@ public class ThrowExpressionTests(CompilationMode mode)
     public void NullCoalesce_NonNullInt_ReturnsValue()
     {
         var engine = TestEngineFactory.Create(mode);
-        var result = engine.Evaluate("42 ?? throw new Exception(\"fail\")");
+        var result = engine.Evaluate("""42 ?? throw new Exception("fail")""");
         Assert.That(result, Is.EqualTo(42));
     }
 
@@ -33,7 +33,7 @@ public class ThrowExpressionTests(CompilationMode mode)
         foreach (var (name, value) in variables)
             engine.SetVariable(name, value);
 
-        var ex = Assert.Catch<Exception>(() => engine.Evaluate("x ?? throw new Exception(\"value was null\")"));
+        var ex = Assert.Catch<Exception>(() => engine.Evaluate("""x ?? throw new Exception("value was null")"""));
         Assert.That(ex, Is.Not.Null);
         Assert.That(ex!.Message, Is.EqualTo("value was null"));
     }
@@ -47,7 +47,7 @@ public class ThrowExpressionTests(CompilationMode mode)
         foreach (var (name, value) in variables)
             engine.SetVariable(name, value);
 
-        var ex = Assert.Catch<ArgumentException>(() => engine.Evaluate("x ?? throw new ArgumentException(\"bad arg\", \"param\")"));
+        var ex = Assert.Catch<ArgumentException>(() => engine.Evaluate("""x ?? throw new ArgumentException("bad arg", "param")"""));
         Assert.That(ex, Is.Not.Null);
         Assert.That(ex!.ParamName, Is.EqualTo("param"));
     }
@@ -62,7 +62,7 @@ public class ThrowExpressionTests(CompilationMode mode)
     {
         var engine = TestEngineFactory.Create(mode);
         var ex = Assert.Catch<InvalidOperationException>(() =>
-            engine.Evaluate("false ? 42 : throw new InvalidOperationException(\"not allowed\")"));
+            engine.Evaluate("""false ? 42 : throw new InvalidOperationException("not allowed")"""));
         Assert.That(ex, Is.Not.Null);
         Assert.That(ex!.Message, Is.EqualTo("not allowed"));
     }
@@ -73,7 +73,7 @@ public class ThrowExpressionTests(CompilationMode mode)
     {
         var engine = TestEngineFactory.Create(mode);
         var ex = Assert.Catch<InvalidOperationException>(() =>
-            engine.Evaluate("true ? throw new InvalidOperationException(\"not allowed\") : 42"));
+            engine.Evaluate("""true ? throw new InvalidOperationException("not allowed") : 42"""));
         Assert.That(ex, Is.Not.Null);
         Assert.That(ex!.Message, Is.EqualTo("not allowed"));
     }
@@ -88,7 +88,7 @@ public class ThrowExpressionTests(CompilationMode mode)
     {
         var engine = TestEngineFactory.Create(mode);
         var ex = Assert.Catch<Exception>(() =>
-            engine.Evaluate("throw new Exception(\"standalone throw\")"));
+            engine.Evaluate("""throw new Exception("standalone throw")"""));
         Assert.That(ex, Is.Not.Null);
         Assert.That(ex!.Message, Is.EqualTo("standalone throw"));
     }

@@ -15,12 +15,11 @@ public class IncrementDecrementTests(CompilationMode mode)
     {
         var engine = TestEngineFactory.Create(mode);
         var expr = engine.Parse(@"
-        {
             var x = startVal;
             x++;
             ++x;
             return x;
-        }");
+        ");
 
         engine.SetVariable("startVal", 0L);
         var result1 = engine.Evaluate(expr);

@@ -19,11 +19,9 @@ public class NullHandlingTests(CompilationMode mode)
     {
         var engine = TestEngineFactory.Create(mode);
         var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("""
-                                                                      {
                                                                           var x = 10;
                                                                           x ??= 42;
                                                                           return x;
-                                                                      }
                                                                       """));
         Assert.That(ex!.ErrorCode, Is.EqualTo(CsEval.Diagnostics.DiagnosticCode.CS0019));
         Assert.That(ex!.Message, Does.Contain("??=").And.Contain("Int32"));
@@ -42,7 +40,7 @@ public class NullHandlingTests(CompilationMode mode)
         engine.SetVariable("y", "default");
 
         Assert.That(engine.Evaluate("x ?? y"), Is.EqualTo("default"));
-        Assert.That(engine.Evaluate("y ?? \"other\""), Is.EqualTo("default"));
+        Assert.That(engine.Evaluate("""y ?? "other" """), Is.EqualTo("default"));
     }
 
     // Engine-only: SetVariable with null + dynamic property access
@@ -92,9 +90,9 @@ public class NullHandlingTests(CompilationMode mode)
     {
         var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("dict", new Dictionary<string, int> { ["key"] = 100 });
-        Assert.That(engine.Evaluate("dict?[\"key\"]"), Is.EqualTo(100));
+        Assert.That(engine.Evaluate("""dict?["key"] """), Is.EqualTo(100));
         engine.SetVariable("dict", null);
-        Assert.That(engine.Evaluate("dict?[\"key\"]"), Is.Null);
+        Assert.That(engine.Evaluate("""dict?["key"] """), Is.Null);
     }
 
     // Engine-only: SetVariable with string + null reassignment for ?. method call

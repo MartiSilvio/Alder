@@ -320,7 +320,15 @@ public sealed class CsEvalEngine : IDisposable
             if (TryGetCompiledNoCancellationFastDelegate(expression, fastContext, out var cachedDelegate))
             {
                 CacheCompiledNoCancellationFastPath(expression, cachedDelegate, fastContext);
-                return cachedDelegate(fastContext);
+                try
+                {
+                    return cachedDelegate(fastContext);
+                }
+                catch (CsEvalException ex) when (ex.Span.IsEmpty && !expression.Ast.Span.IsEmpty)
+                {
+                    EnrichExceptionSpan(ex, expression);
+                    throw;
+                }
             }
 
             return ExecuteCompiledExpression(
@@ -369,7 +377,7 @@ public sealed class CsEvalEngine : IDisposable
             {
                 try
                 {
-                    var boundEvaluator = new BoundEvaluator(executionContext, _options, cancellationToken);
+                    var boundEvaluator = new BoundEvaluator(executionContext, _options, cancellationToken, sourceText: new Text.SourceText(expression.Source));
                     var boundResult = boundEvaluator.Evaluate(boundExpression);
                     expression.RecordBoundExecution();
                     return boundResult;
@@ -438,7 +446,7 @@ public sealed class CsEvalEngine : IDisposable
         }
 
         var steps = new List<EvaluationTraceStep>();
-        var evaluator = new BoundEvaluator(executionContext, _options, cancellationToken, steps);
+        var evaluator = new BoundEvaluator(executionContext, _options, cancellationToken, steps, new Text.SourceText(expression.Source));
         var result = evaluator.Evaluate(boundExpression);
         expression.RecordBoundExecution();
         return new EvaluationTraceResult(result, steps);
@@ -450,8 +458,16 @@ public sealed class CsEvalEngine : IDisposable
         var cached = _compiledNoCancellationFastPath;
         if (cached != null && ReferenceEquals(cached.Expression, expression))
         {
-            result = cached.Delegate(cached.Context);
-            return true;
+            try
+            {
+                result = cached.Delegate(cached.Context);
+                return true;
+            }
+            catch (CsEvalException ex) when (ex.Span.IsEmpty && !expression.Ast.Span.IsEmpty)
+            {
+                EnrichExceptionSpan(ex, expression);
+                throw;
+            }
         }
 
         result = null;
@@ -506,18 +522,26 @@ public sealed class CsEvalEngine : IDisposable
 
         if (compiled?.Delegate != null)
         {
-            if (allowNoCancellationFastPath)
+            try
             {
-                if (compiled.FastDelegate is { } fastDelegate &&
-                    ReferenceEquals(compiled.FastDelegateOptions, _options))
+                if (allowNoCancellationFastPath)
                 {
-                    return fastDelegate(executionContext);
+                    if (compiled.FastDelegate is { } fastDelegate &&
+                        ReferenceEquals(compiled.FastDelegateOptions, _options))
+                    {
+                        return fastDelegate(executionContext);
+                    }
+
+                    return compiled.Delegate(executionContext, _options, default);
                 }
 
-                return compiled.Delegate(executionContext, _options, default);
+                return compiled.Delegate(executionContext, _options, cancellationToken);
             }
-
-            return compiled.Delegate(executionContext, _options, cancellationToken);
+            catch (CsEvalException ex) when (ex.Span.IsEmpty && !expression.Ast.Span.IsEmpty)
+            {
+                EnrichExceptionSpan(ex, expression);
+                throw;
+            }
         }
 
         if (compiled?.FailureException is CsEvalException csEvalFailure)
@@ -649,7 +673,7 @@ public sealed class CsEvalEngine : IDisposable
         {
             var context = GetOrCreateContext(null);
             AstDepthValidator.EnsureWithinLimit(ast, _options.MaxExpressionDepth);
-            var binder = new CsEval.Binding.Binder();
+            var binder = new CsEval.Binding.Binder(new Text.SourceText(expression));
             var bindingContext = new BindingContext(context);
             var validationDiagnostics = new List<CsEvalDiagnostic>(binder.CollectDiagnostics(ast, bindingContext));
 
@@ -664,13 +688,12 @@ public sealed class CsEvalEngine : IDisposable
                 if (context.TypeResolver.IsNamespaceOrPrefix(name)) continue;
                 if (context.TypeResolver.TryResolveType(name) != null) continue;
 
-                var ex = new CsEvalException(
-                    DiagnosticDescriptors.NameNotInContext,
-                    identifier.Line,
-                    identifier.Column,
-                    null,
-                    null,
-                    name);
+                var ex = new CsEvalException(DiagnosticDescriptors.NameNotInContext, name)
+                {
+                    Span = identifier.Span,
+                    Line = identifier.Line,
+                    Column = identifier.Column
+                };
                 validationDiagnostics.Add(CsEvalDiagnostic.FromException(ex));
             }
 
@@ -700,7 +723,7 @@ public sealed class CsEvalEngine : IDisposable
         var result = new List<CsEvalDiagnostic>(diagnostics.Count);
         foreach (var diagnostic in diagnostics)
         {
-            var key = $"{diagnostic.Code}|{diagnostic.Line}|{diagnostic.Column}|{diagnostic.Message}";
+            var key = $"{diagnostic.Code}|{diagnostic.Span}|{diagnostic.Message}";
             if (!seen.Add(key))
                 continue;
             result.Add(diagnostic);
@@ -1028,6 +1051,15 @@ public sealed class CsEvalEngine : IDisposable
         return result;
     }
 
+
+    private static void EnrichExceptionSpan(CsEvalException ex, CsEvalExpression expression)
+    {
+        ex.Span = expression.Ast.Span;
+        var sourceText = new Text.SourceText(expression.Source);
+        var pos = sourceText.GetLinePosition(ex.Span.Start);
+        ex.Line = pos.Line + 1;
+        ex.Column = pos.Character + 1;
+    }
 
     private void EnsureNotFrozen([CallerMemberName] string? caller = null)
     {

@@ -1,3 +1,4 @@
+using CsEval.Diagnostics;
 using CsEval.Parsing.Extensions;
 
 namespace CsEval.Parsing;
@@ -24,36 +25,38 @@ internal sealed class PrimaryParser : ParserBase
 
     internal Expr ParsePrimary()
     {
+        var mark = Mark();
+
         if (Match(TokenType.Number, TokenType.String, TokenType.Character))
-            return new LiteralExpr(Previous().Literal, IsConstant: true);
+            return new LiteralExpr(Previous().Literal, IsConstant: true) { Span = SpanFrom(mark) };
 
         if (Match(TokenType.True))
-            return new LiteralExpr(true, IsConstant: true);
+            return new LiteralExpr(true, IsConstant: true) { Span = SpanFrom(mark) };
 
         if (Match(TokenType.False))
-            return new LiteralExpr(false, IsConstant: true);
+            return new LiteralExpr(false, IsConstant: true) { Span = SpanFrom(mark) };
 
         if (Match(TokenType.Null))
-            return new LiteralExpr(null, IsConstant: true);
+            return new LiteralExpr(null, IsConstant: true) { Span = SpanFrom(mark) };
 
         if (Match(TokenType.InterpolatedString))
-            return ParseInterpolatedString(Previous());
+            return ParseInterpolatedString(Previous(), mark);
 
         if (Match(TokenType.New))
-            return ParseNewExpression();
+            return ParseNewExpression(mark);
 
         if (Match(TokenType.LeftParen))
-            return ParseParenthesized();
+            return ParseParenthesized(mark);
 
         if (Match(TokenType.LeftBracket))
         {
             if (State.LanguageMode == LanguageMode.Standard)
             {
                 if (IsComprehensionAhead())
-                    throw new CsEvalLanguageModeException("comprehension");
-                throw new CsEvalLanguageModeException(TokenLexemes.CollectionExpressionLiteral);
+                    throw new CsEvalException(DiagnosticDescriptors.ExtendedModeRequired,"comprehension");
+                throw new CsEvalException(DiagnosticDescriptors.ExtendedModeRequired,TokenLexemes.CollectionExpressionLiteral);
             }
-            return ParseArrayLiteral();
+            return ParseArrayLiteral(mark);
         }
 
         if (Match(TokenType.LeftBrace))
@@ -62,29 +65,29 @@ internal sealed class PrimaryParser : ParserBase
         if (IsTypeKeyword(Peek().Type) && PeekNext().Type == TokenType.Dot)
         {
             var typeToken = Advance();
-            return new TypeReferenceExpr(typeToken);
+            return new TypeReferenceExpr(typeToken) { Span = SpanFrom(mark) };
         }
 
         if (Match(TokenType.Unchecked))
-            return ParseCheckedUnchecked("unchecked");
+            return ParseCheckedUnchecked("unchecked", mark);
 
         if (Match(TokenType.Checked))
-            return ParseCheckedUnchecked("checked");
+            return ParseCheckedUnchecked("checked", mark);
 
         if (Match(TokenType.Typeof))
-            return ParseTypeofExpression();
+            return ParseTypeofExpression(mark);
 
         if (Match(TokenType.Default))
-            return ParseDefaultExpression();
+            return ParseDefaultExpression(mark);
 
         if (Match(TokenType.Nameof))
-            return ParseNameofExpression();
+            return ParseNameofExpression(mark);
 
         if (Match(TokenType.Sizeof))
-            return ParseSizeofExpression();
+            return ParseSizeofExpression(mark);
 
         if (Match(TokenType.Identifier))
-            return ParseIdentifier();
+            return ParseIdentifier(mark);
 
         // Query expression: from x in source where ... select ...
         // ECMA-334 §12.20 - Must check before contextual keyword fallback
@@ -96,22 +99,22 @@ internal sealed class PrimaryParser : ParserBase
         if (IsContextualKeyword(Peek().Type))
         {
             Advance();
-            return ParseIdentifier();
+            return ParseIdentifier(mark);
         }
 
-        throw new CsEvalParserException($"Unexpected token '{Peek().Lexeme}' at {Peek().Line}:{Peek().Column}");
+        throw SyntaxError(DiagnosticDescriptors.InvalidExpressionTerm, Peek().Lexeme);
     }
 
     #endregion
 
     #region Array Literals
 
-    private Expr ParseArrayLiteral()
+    private Expr ParseArrayLiteral(int mark)
     {
         if (Check(TokenType.RightBracket))
         {
             Consume(TokenType.RightBracket, "Expected ']' after array elements");
-            return new ArrayLiteralExpr([]);
+            return new ArrayLiteralExpr([]) { Span = SpanFrom(mark) };
         }
 
         var elements = new List<Expr>();
@@ -119,8 +122,9 @@ internal sealed class PrimaryParser : ParserBase
         if (Match(TokenType.DotDot))
         {
             if (State.LanguageMode == LanguageMode.Standard)
-                throw new CsEvalLanguageModeException(TokenLexemes.GetCanonical(TokenType.DotDot));
-            firstElement = new SpreadExpr(_expression.ParseExpression());
+                throw new CsEvalException(DiagnosticDescriptors.ExtendedModeRequired,TokenLexemes.GetCanonical(TokenType.DotDot));
+            var spreadMark = Mark();
+            firstElement = new SpreadExpr(_expression.ParseExpression()) { Span = SpanFrom(spreadMark) };
         }
         else
         {
@@ -128,7 +132,7 @@ internal sealed class PrimaryParser : ParserBase
         }
 
         if (firstElement is not SpreadExpr && Match(TokenType.For))
-            return ParseComprehension(firstElement);
+            return ParseComprehension(firstElement, mark);
 
         elements.Add(firstElement);
         while (Match(TokenType.Comma))
@@ -136,9 +140,10 @@ internal sealed class PrimaryParser : ParserBase
             if (Match(TokenType.DotDot))
             {
                 if (State.LanguageMode == LanguageMode.Standard)
-                    throw new CsEvalLanguageModeException(TokenLexemes.GetCanonical(TokenType.DotDot));
+                    throw new CsEvalException(DiagnosticDescriptors.ExtendedModeRequired,TokenLexemes.GetCanonical(TokenType.DotDot));
+                var spreadMark = Mark();
                 var spreadExpr = _expression.ParseExpression();
-                elements.Add(new SpreadExpr(spreadExpr));
+                elements.Add(new SpreadExpr(spreadExpr) { Span = SpanFrom(spreadMark) });
             }
             else
             {
@@ -147,10 +152,10 @@ internal sealed class PrimaryParser : ParserBase
         }
 
         Consume(TokenType.RightBracket, "Expected ']' after array elements");
-        return new ArrayLiteralExpr(elements);
+        return new ArrayLiteralExpr(elements) { Span = SpanFrom(mark) };
     }
 
-    private Expr ParseComprehension(Expr projection)
+    private Expr ParseComprehension(Expr projection, int mark)
     {
         var rangeVariable = ConsumeIdentifierOrContextualKeyword("Expected identifier after 'for' in comprehension");
         Consume(TokenType.In, "Expected 'in' in comprehension");
@@ -168,18 +173,18 @@ internal sealed class PrimaryParser : ParserBase
         if (filter != null)
         {
             var whereToken = new Token(TokenType.Identifier, "Where", null, rangeVariable.Line, rangeVariable.Column);
-            var whereLambda = new LambdaExpr([lambdaParameter], filter);
-            query = new CallExpr(new MemberAccessExpr(query, whereToken, false), [whereLambda]);
+            var whereLambda = new LambdaExpr([lambdaParameter], filter) { Span = SpanFrom(mark) };
+            query = new CallExpr(new MemberAccessExpr(query, whereToken, false) { Span = SpanFrom(mark) }, [whereLambda]) { Span = SpanFrom(mark) };
         }
 
         var selectToken = new Token(TokenType.Identifier, "Select", null, rangeVariable.Line, rangeVariable.Column);
-        var selectLambda = new LambdaExpr([lambdaParameter], projection);
-        var selectCall = new CallExpr(new MemberAccessExpr(query, selectToken, false), [selectLambda]);
+        var selectLambda = new LambdaExpr([lambdaParameter], projection) { Span = SpanFrom(mark) };
+        var selectCall = new CallExpr(new MemberAccessExpr(query, selectToken, false) { Span = SpanFrom(mark) }, [selectLambda]) { Span = SpanFrom(mark) };
         var toArrayToken = new Token(TokenType.Identifier, "ToArray", null, rangeVariable.Line, rangeVariable.Column);
-        return new CallExpr(new MemberAccessExpr(selectCall, toArrayToken, false), []);
+        return new CallExpr(new MemberAccessExpr(selectCall, toArrayToken, false) { Span = SpanFrom(mark) }, []) { Span = SpanFrom(mark) };
     }
 
-    private Expr ParseArrayLiteralBody()
+    private Expr ParseArrayLiteralBody(int mark)
     {
         var elements = new List<Expr>();
 
@@ -190,9 +195,10 @@ internal sealed class PrimaryParser : ParserBase
                 if (Match(TokenType.DotDot))
                 {
                     if (State.LanguageMode == LanguageMode.Standard)
-                        throw new CsEvalLanguageModeException(TokenLexemes.GetCanonical(TokenType.DotDot));
+                        throw new CsEvalException(DiagnosticDescriptors.ExtendedModeRequired,TokenLexemes.GetCanonical(TokenType.DotDot));
+                    var spreadMark = Mark();
                     var spreadExpr = _expression.ParseExpression();
-                    elements.Add(new SpreadExpr(spreadExpr));
+                    elements.Add(new SpreadExpr(spreadExpr) { Span = SpanFrom(spreadMark) });
                 }
                 else
                 {
@@ -202,7 +208,7 @@ internal sealed class PrimaryParser : ParserBase
         }
 
         Consume(TokenType.RightBrace, "Expected '}' after array elements");
-        return new ArrayLiteralExpr(elements);
+        return new ArrayLiteralExpr(elements) { Span = SpanFrom(mark) };
     }
 
     private bool IsComprehensionAhead()
@@ -252,37 +258,37 @@ internal sealed class PrimaryParser : ParserBase
 
     #region New Expression
 
-    private Expr ParseNewExpression()
+    private Expr ParseNewExpression(int mark)
     {
         // new[] { ... } - implicitly typed array
         if (Match(TokenType.LeftBracket))
         {
             Consume(TokenType.RightBracket, "Expected ']' after 'new['");
             Consume(TokenType.LeftBrace, "Expected '{' after 'new[]'");
-            return ParseArrayLiteralBody();
+            return ParseArrayLiteralBody(mark);
         }
 
         // new { ... } - anonymous object
         if (Check(TokenType.LeftBrace))
         {
             Advance(); // consume '{'
-            return new NewExpr(ObjectLiteralParser.ParseAnonymousObject(this, () => _expression.ParseExpression()));
+            return new NewExpr(ObjectLiteralParser.ParseAnonymousObject(this, () => _expression.ParseExpression())) { Span = SpanFrom(mark) };
         }
 
         // new ClassName(args) - constructor invocation (ECMA-334 §12.8.16.2)
         if (Check(TokenType.Identifier) || IsTypeKeyword(Peek().Type))
         {
-            return ParseObjectCreation();
+            return ParseObjectCreation(mark);
         }
 
-        throw new CsEvalParserException($"Expected '{{', '[', or type name after 'new' at {Peek().Line}:{Peek().Column}");
+        throw SyntaxError(DiagnosticDescriptors.SyntaxExpected, "'{', '[', or type name after 'new'");
     }
 
     /// <summary>
     /// Parses new ClassName(args) constructor invocation.
     /// Called after 'new' has been consumed and next token is an identifier or type keyword.
     /// </summary>
-    private Expr ParseObjectCreation()
+    private Expr ParseObjectCreation(int mark)
     {
         // Parse type name (could be simple like Exception or dotted like System.ArgumentException)
         string typeName;
@@ -309,7 +315,7 @@ internal sealed class PrimaryParser : ParserBase
 
             var firstArg = TryParseTypeName();
             if (firstArg == null)
-                throw new CsEvalParserException($"Expected type argument after '<' at {Peek().Line}:{Peek().Column}");
+                throw SyntaxError(DiagnosticDescriptors.SyntaxExpected, "type argument after '<'");
             typeName += firstArg;
 
             while (Match(TokenType.Comma))
@@ -317,12 +323,12 @@ internal sealed class PrimaryParser : ParserBase
                 typeName += ", ";
                 var nextArg = TryParseTypeName();
                 if (nextArg == null)
-                    throw new CsEvalParserException($"Expected type argument after ',' at {Peek().Line}:{Peek().Column}");
+                    throw SyntaxError(DiagnosticDescriptors.SyntaxExpected, "type argument after ','");
                 typeName += nextArg;
             }
 
             if (!MatchClosingAngleBracket())
-                throw new CsEvalParserException($"Expected '>' after generic type arguments at {Peek().Line}:{Peek().Column}");
+                throw SyntaxError(DiagnosticDescriptors.SyntaxExpected, "'>' after generic type arguments");
             typeName += ">";
         }
 
@@ -341,7 +347,7 @@ internal sealed class PrimaryParser : ParserBase
         if (Match(TokenType.QuestionLeftBracket))
         {
             typeName += "?";
-            return ParseArrayCreationBody(typeName);
+            return ParseArrayCreationBody(typeName, mark);
         }
 
         // Check for array creation syntax: new TypeName[size] or new TypeName[] { ... }
@@ -349,7 +355,7 @@ internal sealed class PrimaryParser : ParserBase
         if (Check(TokenType.LeftBracket))
         {
             Advance(); // consume '['
-            return ParseArrayCreationBody(typeName);
+            return ParseArrayCreationBody(typeName, mark);
         }
 
         // Parse optional argument list - parentheses may be omitted with initializer: new X { Prop = val }
@@ -374,7 +380,7 @@ internal sealed class PrimaryParser : ParserBase
             initializer = ParseObjectInitializer();
         }
 
-        return new ObjectCreationExpr(typeName, arguments, initializer);
+        return new ObjectCreationExpr(typeName, arguments, initializer) { Span = SpanFrom(mark) };
     }
 
     /// <summary>
@@ -382,7 +388,7 @@ internal sealed class PrimaryParser : ParserBase
     /// Handles: new int[] { ... }, new int[10], new int[3, 3]
     /// Called from ParseObjectCreation for both regular (LeftBracket) and nullable (QuestionLeftBracket) paths.
     /// </summary>
-    private Expr ParseArrayCreationBody(string typeName)
+    private Expr ParseArrayCreationBody(string typeName, int mark)
     {
         // Unsized multidimensional array: new int[,] { ... }, new int[,,] { ... }
         if (Check(TokenType.Comma))
@@ -392,9 +398,9 @@ internal sealed class PrimaryParser : ParserBase
                 rank++;
             Consume(TokenType.RightBracket, "Expected ']' after array rank specifier");
             if (!Check(TokenType.LeftBrace))
-                throw new CsEvalParserException($"Expected '{{' after 'new {typeName}[{new string(',', rank - 1)}]' at {Peek().Line}:{Peek().Column}");
+                throw SyntaxError(DiagnosticDescriptors.SyntaxExpected, $"'{{' after 'new {typeName}[{new string(',', rank - 1)}]'");
             Advance(); // consume '{'
-            var initExpr = ParseMultiDimArrayInitializer(typeName, rank);
+            var initExpr = ParseMultiDimArrayInitializer(typeName, rank, mark);
             return initExpr;
         }
 
@@ -415,11 +421,11 @@ internal sealed class PrimaryParser : ParserBase
             if (Check(TokenType.LeftBrace))
             {
                 Advance(); // consume '{'
-                var arrayLiteral = (ArrayLiteralExpr)ParseArrayLiteralBody();
-                return new TypedArrayLiteralExpr(elementTypeName, arrayLiteral);
+                var arrayLiteral = (ArrayLiteralExpr)ParseArrayLiteralBody(mark);
+                return new TypedArrayLiteralExpr(elementTypeName, arrayLiteral) { Span = SpanFrom(mark) };
             }
 
-            throw new CsEvalParserException($"Expected '{{' after 'new {elementTypeName}[]' at {Peek().Line}:{Peek().Column}");
+            throw SyntaxError(DiagnosticDescriptors.SyntaxExpected, $"'{{' after 'new {elementTypeName}[]'");
         }
 
         // Array with size: new int[10] or multi-dim: new int[3, 3]
@@ -440,10 +446,10 @@ internal sealed class PrimaryParser : ParserBase
                 var flatValues = new List<Expr>();
                 var dimensions = new int[rank];
                 ParseNestedArrayInitializer(flatValues, dimensions, 0, rank);
-                return new MultiDimArrayInitExpr(typeName, rank, sizes, flatValues, dimensions);
+                return new MultiDimArrayInitExpr(typeName, rank, sizes, flatValues, dimensions) { Span = SpanFrom(mark) };
             }
 
-            return new MultiDimTypedArrayCreationExpr(typeName, sizes);
+            return new MultiDimTypedArrayCreationExpr(typeName, sizes) { Span = SpanFrom(mark) };
         }
         Consume(TokenType.RightBracket, "Expected ']' after array size");
 
@@ -460,23 +466,23 @@ internal sealed class PrimaryParser : ParserBase
         if (Check(TokenType.LeftBrace))
         {
             Advance(); // consume '{'
-            var arrayLiteral = (ArrayLiteralExpr)ParseArrayLiteralBody();
-            return new TypedArrayLiteralExpr(jaggedTypeName, arrayLiteral);
+            var arrayLiteral = (ArrayLiteralExpr)ParseArrayLiteralBody(mark);
+            return new TypedArrayLiteralExpr(jaggedTypeName, arrayLiteral) { Span = SpanFrom(mark) };
         }
 
-        return new TypedArrayCreationExpr(jaggedTypeName, firstSize);
+        return new TypedArrayCreationExpr(jaggedTypeName, firstSize) { Span = SpanFrom(mark) };
     }
 
     /// <summary>
     /// Parses a multidimensional array initializer: new int[,] { {1,2}, {3,4} }
     /// '{' has already been consumed. Flattens nested braces into a flat value list.
     /// </summary>
-    private Expr ParseMultiDimArrayInitializer(string typeName, int rank)
+    private Expr ParseMultiDimArrayInitializer(string typeName, int rank, int mark)
     {
         var flatValues = new List<Expr>();
         var dimensions = new int[rank];
         ParseNestedArrayInitializer(flatValues, dimensions, 0, rank);
-        return new MultiDimArrayInitExpr(typeName, rank, null, flatValues, dimensions);
+        return new MultiDimArrayInitExpr(typeName, rank, null, flatValues, dimensions) { Span = SpanFrom(mark) };
     }
 
     private void ParseNestedArrayInitializer(List<Expr> flatValues, int[] dimensions, int depth, int rank)
@@ -551,25 +557,25 @@ internal sealed class PrimaryParser : ParserBase
 
     #region Checked / Unchecked
 
-    private Expr ParseCheckedUnchecked(string keyword)
+    private Expr ParseCheckedUnchecked(string keyword, int mark)
     {
         if (Match(TokenType.LeftBrace))
         {
             var block = _statement.ParseBlock();
-            return new CheckedExpr(block, keyword == "checked");
+            return new CheckedExpr(block, keyword == "checked") { Span = SpanFrom(mark) };
         }
 
         Consume(TokenType.LeftParen, $"Expected '(' or '{{' after '{keyword}'");
         var expr = _expression.ParseExpression();
         Consume(TokenType.RightParen, $"Expected ')' after {keyword} expression");
-        return new CheckedExpr(expr, keyword == "checked");
+        return new CheckedExpr(expr, keyword == "checked") { Span = SpanFrom(mark) };
     }
 
     #endregion
 
     #region Typeof Expression
 
-    private Expr ParseTypeofExpression()
+    private Expr ParseTypeofExpression(int mark)
     {
         Consume(TokenType.LeftParen, "Expected '(' after 'typeof'");
         // Accept type keywords, void, or identifiers (for non-built-in types)
@@ -583,37 +589,37 @@ internal sealed class PrimaryParser : ParserBase
         {
             var typeName = TryParseTypeName();
             if (typeName == null)
-                throw new CsEvalParserException($"Expected type name after 'typeof(' at {Peek().Line}:{Peek().Column}");
+                throw SyntaxError(DiagnosticDescriptors.SyntaxExpected, "type name after 'typeof('");
             typeToken = new Token(TokenType.Identifier, typeName, null, Peek().Line, Peek().Column);
         }
         Consume(TokenType.RightParen, "Expected ')' after typeof type");
-        return new TypeofExpr(typeToken);
+        return new TypeofExpr(typeToken) { Span = SpanFrom(mark) };
     }
 
     #endregion
 
     #region Default Expression
 
-    private Expr ParseDefaultExpression()
+    private Expr ParseDefaultExpression(int mark)
     {
         if (Match(TokenType.LeftParen))
         {
             var typeName = TryParseTypeName();
             if (typeName == null)
-                throw new CsEvalParserException($"Expected type after 'default(' at {Peek().Line}:{Peek().Column}");
+                throw SyntaxError(DiagnosticDescriptors.SyntaxExpected, "type after 'default('");
             var typeToken = new Token(TokenType.Identifier, typeName, null, Previous().Line, Previous().Column);
             Consume(TokenType.RightParen, "Expected ')' after default type");
-            return new DefaultExpr(typeToken);
+            return new DefaultExpr(typeToken) { Span = SpanFrom(mark) };
         }
         // bare default literal (C# 7.1+)
-        return new DefaultExpr(null);
+        return new DefaultExpr(null) { Span = SpanFrom(mark) };
     }
 
     #endregion
 
     #region Nameof Expression
 
-    private Expr ParseNameofExpression()
+    private Expr ParseNameofExpression(int mark)
     {
         Consume(TokenType.LeftParen, "Expected '(' after 'nameof'");
         // Parse the name chain (x, x.y, x.y.z, etc.)
@@ -623,14 +629,14 @@ internal sealed class PrimaryParser : ParserBase
             name = Consume(TokenType.Identifier, "Expected identifier after '.'").Lexeme;
         }
         Consume(TokenType.RightParen, "Expected ')' after nameof expression");
-        return new NameofExpr(name);
+        return new NameofExpr(name) { Span = SpanFrom(mark) };
     }
 
     #endregion
 
     #region Sizeof Expression
 
-    private Expr ParseSizeofExpression()
+    private Expr ParseSizeofExpression(int mark)
     {
         Consume(TokenType.LeftParen, "Expected '(' after 'sizeof'");
         string typeName;
@@ -644,14 +650,14 @@ internal sealed class PrimaryParser : ParserBase
             typeName = Consume(TokenType.Identifier, "Expected type name in sizeof").Lexeme;
         }
         Consume(TokenType.RightParen, "Expected ')' after sizeof type");
-        return new SizeofExpr(typeName);
+        return new SizeofExpr(typeName) { Span = SpanFrom(mark) };
     }
 
     #endregion
 
     #region Identifier and Lambda
 
-    private Expr ParseIdentifier()
+    private Expr ParseIdentifier(int mark)
     {
         var identifier = Previous();
 
@@ -659,17 +665,17 @@ internal sealed class PrimaryParser : ParserBase
         if (Match(TokenType.Arrow))
         {
             var body = _expression.ParseExpression();
-            return new LambdaExpr([new LambdaParameter(null, identifier)], body);
+            return new LambdaExpr([new LambdaParameter(null, identifier)], body) { Span = SpanFrom(mark) };
         }
 
-        return new IdentifierExpr(identifier);
+        return new IdentifierExpr(identifier) { Span = SpanFrom(mark) };
     }
 
     #endregion
 
     #region Parenthesized, Lambda, and Tuple
 
-    private Expr ParseParenthesized()
+    private Expr ParseParenthesized(int mark)
     {
         // Could be: grouping (expr), lambda (x) => ..., typed lambda (int x) => ...,
         // parameter list (a, b) => ..., or tuple (expr1, expr2, ...)
@@ -679,11 +685,11 @@ internal sealed class PrimaryParser : ParserBase
         {
             Consume(TokenType.Arrow, "Expected '=>' after '()'");
             var body = _expression.ParseExpression();
-            return new LambdaExpr([], body);
+            return new LambdaExpr([], body) { Span = SpanFrom(mark) };
         }
 
         // Try typed lambda first: (type name, type name, ...) => body
-        var typedLambdaResult = TryParseTypedLambda();
+        var typedLambdaResult = TryParseTypedLambda(mark);
         if (typedLambdaResult != null)
             return typedLambdaResult;
 
@@ -712,7 +718,7 @@ internal sealed class PrimaryParser : ParserBase
         if (isLambda)
         {
             var body = _expression.ParseExpression();
-            return new LambdaExpr(parameters, body);
+            return new LambdaExpr(parameters, body) { Span = SpanFrom(mark) };
         }
 
         // Not a lambda - backtrack and parse as expression (grouping or tuple)
@@ -730,7 +736,7 @@ internal sealed class PrimaryParser : ParserBase
                 elements.Add(ParseTupleElement());
             }
             Consume(TokenType.RightParen, "Expected ')' after tuple elements");
-            return new TupleExpr(elements);
+            return new TupleExpr(elements) { Span = SpanFrom(mark) };
         }
 
         // No comma - this is grouping: (expr) returns inner expression directly
@@ -761,7 +767,7 @@ internal sealed class PrimaryParser : ParserBase
     /// Returns null if the pattern doesn't match (restores position on failure).
     /// ECMA-334 §12.19 - Anonymous function expressions with explicitly typed parameters.
     /// </summary>
-    private Expr? TryParseTypedLambda()
+    private Expr? TryParseTypedLambda(int mark)
     {
         var saved = State.Current;
 
@@ -810,7 +816,7 @@ internal sealed class PrimaryParser : ParserBase
             {
                 body = _expression.ParseExpression();
             }
-            return new LambdaExpr(parameters, body);
+            return new LambdaExpr(parameters, body) { Span = SpanFrom(mark) };
         }
         catch
         {
@@ -824,7 +830,7 @@ internal sealed class PrimaryParser : ParserBase
 
     #region Interpolated Strings
 
-    private InterpolatedStringExpr ParseInterpolatedString(Token token)
+    private InterpolatedStringExpr ParseInterpolatedString(Token token, int mark)
     {
         var content = (string)token.Literal!;
         var parts = new List<InterpolatedPart>();
@@ -951,7 +957,7 @@ internal sealed class PrimaryParser : ParserBase
         if (sb.Length > 0)
             parts.Add(new TextPart(sb.ToString()));
 
-        return new InterpolatedStringExpr(parts);
+        return new InterpolatedStringExpr(parts) { Span = SpanFrom(mark) };
     }
 
     #endregion

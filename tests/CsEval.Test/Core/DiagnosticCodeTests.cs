@@ -12,10 +12,8 @@ namespace CsEval.Test.Core;
 ///   2. FormattedCode matches the "CS####" string format
 ///   3. Message contains formatted arguments (no raw {0} placeholders)
 ///
-/// Throw site audit (Phase 10 final):
-///   Total throw sites: 178 (134 CsEvalException + 18 CsEvalParserException + 26 CsEvalLexerException)
-///   CS-coded:          68  (65 CsEvalException + 3 CsEvalParserException) using 21 distinct CS codes
-///   CsEval-specific:  110  (69 CsEvalException + 15 CsEvalParserException + 26 CsEvalLexerException)
+/// All errors are CsEvalException with DiagnosticCode. Exception subtypes removed —
+/// error identity is the diagnostic code, not the exception type.
 ///
 ///   CsEval-specific breakdown (no C# compiler equivalent):
 ///     Sandbox/security:    12 (assignment/method/property/index blocked)
@@ -45,7 +43,7 @@ public class DiagnosticCodeTests
     [Test]
     public void CS0019_BadBinaryOps_StringMinusInt()
     {
-        var ex = Assert.Throws<CsEvalException>(() => _engine.Evaluate("\"hello\" - 5"));
+        var ex = Assert.Throws<CsEvalException>(() => _engine.Evaluate(""" "hello" - 5 """));
         Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0019));
         Assert.That(ex.FormattedCode, Is.EqualTo("CS0019"));
         Assert.That(ex.Message, Does.Contain("-"));
@@ -91,7 +89,7 @@ public class DiagnosticCodeTests
     [Test]
     public void CS0023_BadUnaryOp_NegateString()
     {
-        var ex = Assert.Throws<CsEvalException>(() => _engine.Evaluate("-\"hello\""));
+        var ex = Assert.Throws<CsEvalException>(() => _engine.Evaluate("""-"hello" """));
         Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0023));
         Assert.That(ex.FormattedCode, Is.EqualTo("CS0023"));
         Assert.That(ex.Message, Does.Contain("-"));
@@ -354,7 +352,7 @@ public class DiagnosticCodeTests
     [Test]
     public void CS0815_NullToImplicitlyTyped()
     {
-        var ex = Assert.Throws<CsEvalParserException>(() => _engine.Evaluate("{ var x = null; }"));
+        var ex = Assert.Throws<CsEvalException>(() => _engine.Evaluate("{ var x = null; }"));
         Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0815));
         Assert.That(ex.FormattedCode, Is.EqualTo("CS0815"));
         Assert.That(ex.Message, Does.Not.Contain("{0}"));
@@ -371,7 +369,7 @@ public class DiagnosticCodeTests
             catch { }
             catch { }
         }";
-        var ex = Assert.Throws<CsEvalParserException>(() => _engine.Evaluate(expr));
+        var ex = Assert.Throws<CsEvalException>(() => _engine.Evaluate(expr));
         Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS1017));
         Assert.That(ex.FormattedCode, Is.EqualTo("CS1017"));
         Assert.That(ex.Message, Does.Not.Contain("{0}"));
@@ -386,7 +384,7 @@ public class DiagnosticCodeTests
         // Use Interpreted mode to ensure the Evaluator path is exercised.
         var engine = TestEngineFactory.Create(CompilationMode.Interpreted);
         var ex = Assert.Throws<CsEvalException>(() =>
-            engine.Evaluate("{ var obj = new { Name = \"test\" }; return obj.NonExistent; }"));
+            engine.Evaluate("""{ var obj = new { Name = "test" }; return obj.NonExistent; } """));
         Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS1061));
         Assert.That(ex.FormattedCode, Is.EqualTo("CS1061"));
         Assert.That(ex.Message, Does.Contain("NonExistent"));
@@ -437,18 +435,15 @@ public class DiagnosticCodeTests
             Sandbox = SandboxOptions.Strict() with { AllowAssignment = false }
         });
         engine.SetVariable("x", 10);
-        var ex = Assert.Throws<CsEvalSandboxException>(() => engine.Evaluate("x = 5"));
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("x = 5"));
         Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0012));
         Assert.That(ex.FormattedCode, Is.EqualTo("CSEV0012"));
     }
 
     [Test]
-    public void BackwardCompat_ParserExceptionInheritsFromCsEvalException()
+    public void ParserError_IsCsEvalException_WithCorrectCode()
     {
-        // CsEvalParserException is a subclass of CsEvalException.
-        // Assert.Catch allows derived types (Assert.Throws requires exact match).
-        var ex = Assert.Catch<CsEvalException>(() => _engine.Evaluate("{ var x = null; }"));
-        Assert.That(ex, Is.InstanceOf<CsEvalParserException>());
+        var ex = Assert.Throws<CsEvalException>(() => _engine.Evaluate("{ var x = null; }"));
         Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0815));
     }
 

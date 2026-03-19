@@ -1,5 +1,3 @@
-using CsEval.Parsing;
-
 namespace CsEval.Test.Types;
 
 /// <summary>
@@ -12,38 +10,34 @@ namespace CsEval.Test.Types;
 [TestFixture(CompilationMode.Compiled)]
 public class StringTests(CompilationMode mode)
 {
-    #region Engine-only: Unicode/hex escape error tests (CsEvalLexerException assertions)
+    #region Engine-only: Unicode/hex escape error tests
 
     [Test]
     public void Eval_UnicodeEscape_InvalidHex_Throws()
     {
-        // Engine-only: tests CsEvalLexerException error behavior
         var engine = TestEngineFactory.Create(mode);
-        Assert.Throws<CsEvalLexerException>(() => engine.Evaluate("\"\\u00GG\""));
+        Assert.Throws<CsEvalException>(() => engine.Evaluate(@"""\u00GG"""));
     }
 
     [Test]
     public void Eval_UnicodeEscape_TooFewDigits_Throws()
     {
-        // Engine-only: tests CsEvalLexerException error behavior
         var engine = TestEngineFactory.Create(mode);
-        Assert.Throws<CsEvalLexerException>(() => engine.Evaluate("\"\\u00\""));
+        Assert.Throws<CsEvalException>(() => engine.Evaluate(""" "\u00" """));
     }
 
     [Test]
     public void Eval_UnicodeEscape8_TooFewDigits_Throws()
     {
-        // Engine-only: tests CsEvalLexerException error behavior
         var engine = TestEngineFactory.Create(mode);
-        Assert.Throws<CsEvalLexerException>(() => engine.Evaluate("\"\\U0000\""));
+        Assert.Throws<CsEvalException>(() => engine.Evaluate(""" "\U0000" """));
     }
 
     [Test]
     public void Eval_HexEscape_NoDigits_Throws()
     {
-        // Engine-only: tests CsEvalLexerException error behavior
         var engine = TestEngineFactory.Create(mode);
-        Assert.Throws<CsEvalLexerException>(() => engine.Evaluate("\"\\xG\""));
+        Assert.Throws<CsEvalException>(() => engine.Evaluate(""" "\xG" """));
     }
 
     #endregion
@@ -53,13 +47,12 @@ public class StringTests(CompilationMode mode)
     [Test]
     public void StringEquality_WithNull()
     {
-        // Engine-only: SetVariable with null (null is not a serializable type for Roslyn)
         var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("s", null);
 
         Assert.That(engine.Evaluate("s == null"), Is.True);
         Assert.That(engine.Evaluate("s != null"), Is.False);
-        Assert.That(engine.Evaluate("\"hello\" == null"), Is.False);
+        Assert.That(engine.Evaluate(""" "hello" == null """), Is.False);
     }
 
     #endregion

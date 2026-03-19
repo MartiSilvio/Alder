@@ -146,7 +146,11 @@ public sealed class BoundExecutionTests
         {
         });
 
-        var expression = engine.Parse("{ var x = 1; x = x + 1; return x; }");
+        var expression = engine.Parse(@"
+            var x = 1;
+            x = x + 1;
+            return x;
+        ");
         var result = engine.Evaluate(expression);
 
         Assert.That(result, Is.EqualTo(2));
@@ -354,12 +358,10 @@ public sealed class BoundExecutionTests
         });
 
         var expression = engine.Parse("""
-                                      {
                                           var i = 1;
                                           var a = i++;
                                           var b = ++i;
                                           return a * 10 + b;
-                                      }
                                       """);
         var result = engine.Evaluate(expression);
 
@@ -376,11 +378,9 @@ public sealed class BoundExecutionTests
         });
 
         var expression = engine.Parse("""
-                                      {
                                           string s = null;
                                           s ??= "fallback";
                                           return s;
-                                      }
                                       """);
         var result = engine.Evaluate(expression);
 
@@ -398,13 +398,11 @@ public sealed class BoundExecutionTests
         engine.SetVariable("box", new MutableBox());
 
         var expression = engine.Parse("""
-                                      {
                                           box.Value = 2;
                                           box.Value += 3;
                                           box.Value++;
                                           ++box.Value;
                                           return box.Value;
-                                      }
                                       """);
         var result = engine.Evaluate(expression);
 
@@ -422,12 +420,10 @@ public sealed class BoundExecutionTests
         engine.SetVariable("items", new List<int> { 1, 2, 3 });
 
         var expression = engine.Parse("""
-                                      {
                                           items[1] = 10;
                                           items[1] += 5;
                                           items[1]++;
                                           return items[1];
-                                      }
                                       """);
         var result = engine.Evaluate(expression);
 
@@ -446,11 +442,9 @@ public sealed class BoundExecutionTests
         engine.SetVariable("dict", new Dictionary<string, string?> { ["name"] = null });
 
         var expression = engine.Parse("""
-                                      {
                                           box.Text ??= "member";
                                           dict["name"] ??= "index";
                                           return box.Text + ":" + dict["name"];
-                                      }
                                       """);
         var result = engine.Evaluate(expression);
 
@@ -519,13 +513,11 @@ public sealed class BoundExecutionTests
         });
 
         var expression = engine.Parse("""
-                                      {
                                           var a = nameof(System.String);
                                           var b = typeof(int);
                                           var c = default(int);
                                           var d = sizeof(int);
                                           return a + ":" + b.Name + ":" + c + ":" + d;
-                                      }
                                       """);
         var result = engine.Evaluate(expression);
 
@@ -542,10 +534,8 @@ public sealed class BoundExecutionTests
         });
 
         var expression = engine.Parse("""
-                                      {
                                           object x = 7;
                                           return x is int n && n > 5;
-                                      }
                                       """);
         var result = engine.Evaluate(expression);
 
@@ -658,10 +648,8 @@ public sealed class BoundExecutionTests
         });
 
         var expression = engine.Parse("""
-                                      {
                                           var ex = new System.InvalidOperationException("bad");
                                           return ex.Message;
-                                      }
                                       """);
         var result = engine.Evaluate(expression);
 
@@ -678,13 +666,11 @@ public sealed class BoundExecutionTests
         });
 
         var expression = engine.Parse("""
-                                      {
                                           var arr = new int[3];
                                           arr[0] = 1;
                                           arr[1] = 2;
                                           arr[2] = 3;
                                           return arr[1];
-                                      }
                                       """);
         var result = engine.Evaluate(expression);
 
@@ -781,10 +767,8 @@ public sealed class BoundExecutionTests
         });
 
         var expression = engine.Parse("""
-                                      {
                                           var arr = [1, ..[2, 3], 4];
                                           return arr[2];
-                                      }
                                       """);
         var result = engine.Evaluate(expression);
 
@@ -867,10 +851,8 @@ public sealed class BoundExecutionTests
         });
 
         var expression = engine.Parse("""
-                                      {
                                           int.TryParse("42", out var n);
                                           return n;
-                                      }
                                       """);
         var result = engine.Evaluate(expression);
 
@@ -887,11 +869,9 @@ public sealed class BoundExecutionTests
         });
 
         var expression = engine.Parse("""
-                                      {
                                           var matrix = new int[2, 2];
                                           matrix[1, 0] = 42;
                                           return matrix[1, 0];
-                                      }
                                       """);
         var result = engine.Evaluate(expression);
 
@@ -908,10 +888,8 @@ public sealed class BoundExecutionTests
         });
 
         var expression = engine.Parse("""
-                                      {
                                           var (a, b) = (1, 2);
                                           return a + b;
-                                      }
                                       """);
         var result = engine.Evaluate(expression);
 

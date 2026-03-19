@@ -141,7 +141,7 @@ public class BclStaticMethodTests(CompilationMode mode)
     [Test]
     public void DateTime_Parse()
     {
-        var result = (DateTime)_engine.Evaluate("DateTime.Parse(\"2024-01-15\")")!;
+        var result = (DateTime)_engine.Evaluate(@"DateTime.Parse(""2024-01-15"")")!;
         Assert.That(result.Year, Is.EqualTo(2024));
         Assert.That(result.Month, Is.EqualTo(1));
         Assert.That(result.Day, Is.EqualTo(15));
@@ -163,7 +163,7 @@ public class BclStaticMethodTests(CompilationMode mode)
     [Test]
     public void DateTime_TryParse()
     {
-        var result = (DateTime)_engine.Evaluate("{ DateTime.TryParse(\"2024-06-15\", out var dt); return dt; }")!;
+        var result = (DateTime)_engine.Evaluate(@"{ DateTime.TryParse(""2024-06-15"", out var dt); return dt; }")!;
         Assert.That(result.Year, Is.EqualTo(2024));
         Assert.That(result.Month, Is.EqualTo(6));
         Assert.That(result.Day, Is.EqualTo(15));
@@ -172,7 +172,7 @@ public class BclStaticMethodTests(CompilationMode mode)
     [Test]
     public void DateTime_TryParse_Invalid()
     {
-        var success = (bool)_engine.Evaluate("DateTime.TryParse(\"not-a-date\", out var dt)")!;
+        var success = (bool)_engine.Evaluate(@"DateTime.TryParse(""not-a-date"", out var dt)")!;
         Assert.That(success, Is.False);
     }
 
@@ -220,7 +220,7 @@ public class BclStaticMethodTests(CompilationMode mode)
     [Test]
     public void Guid_TryParse_Invalid()
     {
-        var success = (bool)_engine.Evaluate("Guid.TryParse(\"not-a-guid\", out var g)")!;
+        var success = (bool)_engine.Evaluate(@"Guid.TryParse(""not-a-guid"", out var g)")!;
         Assert.That(success, Is.False);
     }
 
@@ -231,7 +231,7 @@ public class BclStaticMethodTests(CompilationMode mode)
     [Test]
     public void Convert_ToInt32()
     {
-        Assert.That(_engine.Evaluate("Convert.ToInt32(\"42\")"), Is.EqualTo(42));
+        Assert.That(_engine.Evaluate(@"Convert.ToInt32(""42"")"), Is.EqualTo(42));
         Assert.That(_engine.Evaluate("Convert.ToInt32(3.7)"), Is.EqualTo(4));
         Assert.That(_engine.Evaluate("Convert.ToInt32(true)"), Is.EqualTo(1));
     }
@@ -239,14 +239,14 @@ public class BclStaticMethodTests(CompilationMode mode)
     [Test]
     public void Convert_ToInt64()
     {
-        Assert.That(_engine.Evaluate("Convert.ToInt64(\"9999999999\")"), Is.EqualTo(9999999999L));
+        Assert.That(_engine.Evaluate("""Convert.ToInt64("9999999999")"""), Is.EqualTo(9999999999L));
         Assert.That(_engine.Evaluate("Convert.ToInt64(42)"), Is.EqualTo(42L));
     }
 
     [Test]
     public void Convert_ToDouble()
     {
-        Assert.That(_engine.Evaluate("Convert.ToDouble(\"3.14\")"), Is.EqualTo(3.14));
+        Assert.That(_engine.Evaluate("""Convert.ToDouble("3.14")"""), Is.EqualTo(3.14));
         Assert.That(_engine.Evaluate("Convert.ToDouble(42)"), Is.EqualTo(42.0));
     }
 
@@ -255,8 +255,8 @@ public class BclStaticMethodTests(CompilationMode mode)
     {
         Assert.That(_engine.Evaluate("Convert.ToBoolean(1)"), Is.True);
         Assert.That(_engine.Evaluate("Convert.ToBoolean(0)"), Is.False);
-        Assert.That(_engine.Evaluate("Convert.ToBoolean(\"true\")"), Is.True);
-        Assert.That(_engine.Evaluate("Convert.ToBoolean(\"false\")"), Is.False);
+        Assert.That(_engine.Evaluate("""Convert.ToBoolean("true")"""), Is.True);
+        Assert.That(_engine.Evaluate("""Convert.ToBoolean("false")"""), Is.False);
     }
 
     [Test]
@@ -270,7 +270,7 @@ public class BclStaticMethodTests(CompilationMode mode)
     [Test]
     public void Convert_ToDecimal()
     {
-        Assert.That(_engine.Evaluate("Convert.ToDecimal(\"123.45\")"), Is.EqualTo(123.45m));
+        Assert.That(_engine.Evaluate("""Convert.ToDecimal("123.45")"""), Is.EqualTo(123.45m));
         Assert.That(_engine.Evaluate("Convert.ToDecimal(42)"), Is.EqualTo(42m));
     }
 
@@ -287,40 +287,40 @@ public class BclStaticMethodTests(CompilationMode mode)
     [Test]
     public void String_IsNullOrEmpty()
     {
-        Assert.That(_engine.Evaluate("String.IsNullOrEmpty(\"\")"), Is.True);
+        Assert.That(_engine.Evaluate("""String.IsNullOrEmpty("")"""), Is.True);
         Assert.That(_engine.Evaluate("String.IsNullOrEmpty(null)"), Is.True);
-        Assert.That(_engine.Evaluate("String.IsNullOrEmpty(\"hello\")"), Is.False);
+        Assert.That(_engine.Evaluate("""String.IsNullOrEmpty("hello")"""), Is.False);
     }
 
     [Test]
     public void String_IsNullOrWhiteSpace()
     {
-        Assert.That(_engine.Evaluate("String.IsNullOrWhiteSpace(\"\")"), Is.True);
-        Assert.That(_engine.Evaluate("String.IsNullOrWhiteSpace(\"   \")"), Is.True);
+        Assert.That(_engine.Evaluate("""String.IsNullOrWhiteSpace("")"""), Is.True);
+        Assert.That(_engine.Evaluate("""String.IsNullOrWhiteSpace("   ")"""), Is.True);
         Assert.That(_engine.Evaluate("String.IsNullOrWhiteSpace(null)"), Is.True);
-        Assert.That(_engine.Evaluate("String.IsNullOrWhiteSpace(\"hello\")"), Is.False);
+        Assert.That(_engine.Evaluate("""String.IsNullOrWhiteSpace("hello")"""), Is.False);
     }
 
     [Test]
     public void String_Join()
     {
         _engine.SetVariable("items", new List<string> { "a", "b", "c" });
-        Assert.That(_engine.Evaluate("String.Join(\", \", items)"), Is.EqualTo("a, b, c"));
-        Assert.That(_engine.Evaluate("String.Join(\"-\", items)"), Is.EqualTo("a-b-c"));
+        Assert.That(_engine.Evaluate("""String.Join(", ", items)"""), Is.EqualTo("a, b, c"));
+        Assert.That(_engine.Evaluate("""String.Join("-", items)"""), Is.EqualTo("a-b-c"));
     }
 
     [Test]
     public void String_Concat()
     {
-        Assert.That(_engine.Evaluate("String.Concat(\"hello\", \" \", \"world\")"), Is.EqualTo("hello world"));
+        Assert.That(_engine.Evaluate("""String.Concat("hello", " ", "world")"""), Is.EqualTo("hello world"));
         Assert.That(_engine.Evaluate("String.Concat(1, 2, 3)"), Is.EqualTo("123"));
     }
 
     [Test]
     public void String_Format()
     {
-        Assert.That(_engine.Evaluate("String.Format(\"Hello, {0}!\", \"World\")"), Is.EqualTo("Hello, World!"));
-        Assert.That(_engine.Evaluate("String.Format(\"{0} + {1} = {2}\", 1, 2, 3)"), Is.EqualTo("1 + 2 = 3"));
+        Assert.That(_engine.Evaluate("""String.Format("Hello, {0}!", "World")"""), Is.EqualTo("Hello, World!"));
+        Assert.That(_engine.Evaluate("""String.Format("{0} + {1} = {2}", 1, 2, 3)"""), Is.EqualTo("1 + 2 = 3"));
     }
 
     #endregion
@@ -345,7 +345,7 @@ public class BclStaticMethodTests(CompilationMode mode)
     [Test]
     public void Enumerable_Repeat()
     {
-        var result = _engine.Evaluate("Enumerable.Repeat(\"x\", 3).ToList()");
+        var result = _engine.Evaluate("""Enumerable.Repeat("x", 3).ToList()""");
         Assert.That(result, Is.TypeOf<List<string>>());
         Assert.That(result, Is.EqualTo(new[] { "x", "x", "x" }));
     }
@@ -387,7 +387,7 @@ public class BclStaticMethodTests(CompilationMode mode)
     {
         _engine.SetVariable("words", new List<string> { "hello", "world", "test" });
         Assert.That(
-            _engine.Evaluate("String.Join(\", \", words.Where(w => w.Length > 4))"),
+            _engine.Evaluate("""String.Join(", ", words.Where(w => w.Length > 4))"""),
             Is.EqualTo("hello, world"));
     }
 

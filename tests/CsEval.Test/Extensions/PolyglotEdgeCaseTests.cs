@@ -168,23 +168,23 @@ public class PolyglotEdgeCaseTests(CompilationMode mode)
     public void LikeOperator_UnderscoreMatchesSingleCharacter()
     {
         var engine = CreateEngine();
-        Assert.That(engine.Evaluate("\"abc\" like \"a_c\""), Is.EqualTo(true));
-        Assert.That(engine.Evaluate("\"ac\" like \"a_c\""), Is.EqualTo(false));
+        Assert.That(engine.Evaluate(""" "abc" like "a_c" """), Is.EqualTo(true));
+        Assert.That(engine.Evaluate(""" "ac" like "a_c" """), Is.EqualTo(false));
     }
 
     [Test]
     public void LikeOperator_MultiPercentPattern_Matches()
     {
         var engine = CreateEngine();
-        Assert.That(engine.Evaluate("\"abXXcdYYef\" like \"ab%cd%ef\""), Is.EqualTo(true));
+        Assert.That(engine.Evaluate(""" "abXXcdYYef" like "ab%cd%ef" """), Is.EqualTo(true));
     }
 
     [Test]
     public void LikeOperator_RegexMetacharactersStayLiteral()
     {
         var engine = CreateEngine();
-        Assert.That(engine.Evaluate("\"a.c\" like \"a.c\""), Is.EqualTo(true));
-        Assert.That(engine.Evaluate("\"abc\" like \"a.c\""), Is.EqualTo(false));
+        Assert.That(engine.Evaluate(""" "a.c" like "a.c" """), Is.EqualTo(true));
+        Assert.That(engine.Evaluate(""" "abc" like "a.c" """), Is.EqualTo(false));
     }
 
     [Test]
@@ -193,7 +193,7 @@ public class PolyglotEdgeCaseTests(CompilationMode mode)
         var engine = CreateEngine();
         engine.SetVariable<string>("text", null!);
 
-        Assert.That(() => engine.Evaluate("text like \"a%\""),
+        Assert.That(() => engine.Evaluate("""text like "a%" """),
             Throws.InstanceOf<CsEvalException>().With.Message.Contains("like"));
     }
 
@@ -229,7 +229,7 @@ public class PolyglotEdgeCaseTests(CompilationMode mode)
     public void Regex_LeftNull_Throws()
     {
         var engine = CreateEngine();
-        Assert.That(() => engine.Evaluate("null =~ \"pattern\""),
+        Assert.That(() => engine.Evaluate("""null =~ "pattern" """),
             Throws.InstanceOf<CsEvalException>());
     }
 
@@ -237,7 +237,7 @@ public class PolyglotEdgeCaseTests(CompilationMode mode)
     public void Regex_RightNull_Throws()
     {
         var engine = CreateEngine();
-        Assert.That(() => engine.Evaluate("\"text\" =~ null"),
+        Assert.That(() => engine.Evaluate(""" "text" =~ null"""),
             Throws.InstanceOf<CsEvalException>());
     }
 
@@ -355,17 +355,17 @@ public class PolyglotEdgeCaseTests(CompilationMode mode)
     [Test]
     public void StandardMode_And_InExpression_Throws()
         => Assert.That(() => CreateStandardEngine().Evaluate("true and false"),
-            Throws.InstanceOf<CsEvalLanguageModeException>());
+            Throws.InstanceOf<CsEvalException>());
 
     [Test]
     public void StandardMode_Or_InExpression_Throws()
         => Assert.That(() => CreateStandardEngine().Evaluate("false or true"),
-            Throws.InstanceOf<CsEvalLanguageModeException>());
+            Throws.InstanceOf<CsEvalException>());
 
     [Test]
     public void StandardMode_Not_InExpression_Throws()
         => Assert.That(() => CreateStandardEngine().Evaluate("not true"),
-            Throws.InstanceOf<CsEvalLanguageModeException>());
+            Throws.InstanceOf<CsEvalException>());
 
     [Test]
     public void StandardMode_And_InPattern_StillWorks()
@@ -426,7 +426,7 @@ public class PolyglotEdgeCaseTests(CompilationMode mode)
     public void StrictEquality_Strings_ReturnsTrue()
     {
         var engine = CreateEngine();
-        Assert.That(engine.Evaluate("\"abc\" === \"abc\""), Is.True);
+        Assert.That(engine.Evaluate(""" "abc" === "abc" """), Is.True);
     }
 
     [Test]
@@ -530,12 +530,12 @@ public class PolyglotEdgeCaseTests(CompilationMode mode)
 
     [Test]
     public void StandardMode_RegexMatch_Throws()
-        => Assert.That(() => CreateStandardEngine().Evaluate("\"hi\" =~ \"h\""),
+        => Assert.That(() => CreateStandardEngine().Evaluate(""" "hi" =~ "h" """),
             Throws.InstanceOf<CsEvalException>());
 
     [Test]
     public void StandardMode_RegexNotMatch_Throws()
-        => Assert.That(() => CreateStandardEngine().Evaluate("\"hi\" !~ \"h\""),
+        => Assert.That(() => CreateStandardEngine().Evaluate(""" "hi" !~ "h" """),
             Throws.InstanceOf<CsEvalException>());
 
     [Test]
