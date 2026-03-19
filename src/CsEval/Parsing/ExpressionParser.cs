@@ -80,6 +80,13 @@ internal sealed partial class ExpressionParser : ParserBase
             {
                 _statement.ParseStatementInto(statements);
             }
+            else if (Check(TokenType.Identifier) && PeekNext().Type == TokenType.Colon)
+            {
+                var labelMark = Mark();
+                var label = Advance();
+                Advance(); // consume ':'
+                statements.Add(new LabelExpr(label.Lexeme) { Span = SpanFrom(labelMark) });
+            }
             else
             {
                 var expr = ParseExpression();
@@ -117,6 +124,7 @@ internal sealed partial class ExpressionParser : ParserBase
 
         // Control flow keywords are always statement keywords
         if (Check(TokenType.Return) || Check(TokenType.Break) || Check(TokenType.Continue) ||
+            Check(TokenType.Goto) ||
             Check(TokenType.While) || Check(TokenType.For) ||
             Check(TokenType.Do) || Check(TokenType.Foreach) || Check(TokenType.Switch) ||
             Check(TokenType.Try) || Check(TokenType.Const) ||

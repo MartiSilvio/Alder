@@ -175,11 +175,8 @@ public class ParityTests(CompilationMode mode)
         }
     }
 
-    // Out-of-scope parity tests: statement-level features not relevant for expression evaluation
     private static readonly HashSet<string> SkippedParityTests = new(StringComparer.OrdinalIgnoreCase)
     {
-        "ControlFlow/Goto_ForwardLabel",
-        "ControlFlow/Goto_SkipStatement",
     };
 
     private static IEnumerable<TestCaseData> DiscoverExpressions(string relativePath)

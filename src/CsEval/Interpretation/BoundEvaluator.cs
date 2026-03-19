@@ -1068,7 +1068,7 @@ internal sealed class BoundEvaluator
                 if (signal != null)
                 {
                     if (signal.SignalKind == ControlFlowSignal.Kind.Break) break;
-                    if (signal.SignalKind == ControlFlowSignal.Kind.Return) return signal;
+                    if (signal.SignalKind != ControlFlowSignal.Kind.Continue) return signal;
                 }
 
                 foreach (var increment in forExpr.Increments)

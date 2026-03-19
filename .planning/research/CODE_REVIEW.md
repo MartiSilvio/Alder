@@ -270,12 +270,13 @@ Uses `CS0103` (name not found) for null arguments and `CS0021` (bad indexer) for
 
 ## Semantic / Evaluator Bugs
 
-### 51. `for` loop silently swallows `Goto` signals
-**File:** `Interpretation/BoundEvaluator.cs:1062-1066`
+### ~~51. `for` loop silently swallows `Goto` signals~~ FIXED
 
-The `for` loop handles `Break` and `Return` but has no catch-all propagation. If a `goto label` signal is produced inside a `for` body, it's not `Break` or `Return`, so it falls through — increments execute, loop continues, and the `Goto` signal is lost. `while` and `do-while` correctly propagate unhandled signals via `return signal`.
+~~**File:** `Interpretation/BoundEvaluator.cs:1062-1066`~~
 
-**Reproducer:** `{ for (var i = 0; i < 10; i++) { goto done; } done: return 42; }` — the `goto` is swallowed.
+~~The `for` loop handles `Break` and `Return` but has no catch-all propagation. If a `goto label` signal is produced inside a `for` body, it's not `Break` or `Return`, so it falls through — increments execute, loop continues, and the `Goto` signal is lost. `while` and `do-while` correctly propagate unhandled signals via `return signal`.~~
+
+~~**Reproducer:** `{ for (var i = 0; i < 10; i++) { goto done; } done: return 42; }` — the `goto` is swallowed.~~
 
 ### ~~52. Member `??=` and index `??=` eagerly evaluate RHS (violates C# short-circuit)~~ FIXED
 
