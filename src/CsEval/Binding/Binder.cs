@@ -33,13 +33,15 @@ internal sealed partial class Binder
         if (!_recovering)
         {
             var bound = BindCore(expr, context);
-            return bound with { Span = expr.Span };
+            if (bound.Span.IsEmpty) bound.Span = expr.Span;
+            return bound;
         }
 
         try
         {
             var bound = BindCore(expr, context);
-            return bound with { Span = expr.Span };
+            if (bound.Span.IsEmpty) bound.Span = expr.Span;
+            return bound;
         }
         catch (CsEvalException ex)
         {

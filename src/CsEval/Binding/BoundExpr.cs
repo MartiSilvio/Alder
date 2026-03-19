@@ -5,7 +5,7 @@ namespace CsEval.Binding;
 internal abstract record BoundExpr(Type StaticType)
 {
     internal abstract BoundNodeKind Kind { get; }
-    internal TextSpan Span { get; init; }
+    internal TextSpan Span { get; set; }
     internal bool HasErrors { get; init; }
     internal CsEvalDiagnostic? Diagnostic { get; init; }
     internal abstract void EnumerateChildren(Action<BoundExpr> visit);
