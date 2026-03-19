@@ -60,7 +60,9 @@ internal sealed partial class Binder
         var operand = Bind(unary.Right, context);
         if (operand.HasErrors)
             return new BoundUnaryExpr(unary.Op.Type, operand, typeof(object)) { HasErrors = true };
-        var resultType = unary.Op.Type == TokenType.Bang ? typeof(bool) : operand.StaticType;
+        var resultType = unary.Op.Type == TokenType.Bang
+            ? typeof(bool)
+            : InferUnaryResultType(operand.StaticType, unary.Op.Type);
         return new BoundUnaryExpr(unary.Op.Type, operand, resultType);
     }
 
@@ -212,9 +214,21 @@ internal sealed partial class Binder
         return typeof(int);
     }
 
+    /// <summary>
+    /// ECMA-334 §12.4.7.2: sbyte/byte/short/ushort/char → int, unary - on uint → long.
+    /// </summary>
+    private static Type InferUnaryResultType(Type operandType, TokenType op)
+    {
+        var promoted = NormalizeArithmeticType(operandType);
+        if (op == TokenType.Minus && promoted == typeof(uint))
+            return typeof(long);
+        return promoted;
+    }
+
     private static Type NormalizeArithmeticType(Type type)
     {
-        if (type == typeof(char))
+        if (type == typeof(char) || type == typeof(byte) || type == typeof(sbyte) ||
+            type == typeof(short) || type == typeof(ushort))
             return typeof(int);
         return type;
     }

@@ -438,15 +438,17 @@ Always uses `init.InferredDimensions` as compile-time constants. The interpreter
 
 ## Binder Semantic Bugs
 
-### 78. `NormalizeArithmeticType` only promotes `char`, missing `byte`/`sbyte`/`short`/`ushort`
-**File:** `Binding/Binder.Operators.cs:215-220`
+### ~~78. `NormalizeArithmeticType` only promotes `char`, missing `byte`/`sbyte`/`short`/`ushort`~~ FIXED
 
-Per ECMA-334 §12.4.7, `byte + byte` results in `int`. The binder returns `typeof(byte)`, causing downstream `CallBinderService` to look for `byte`-accepting overloads instead of `int`-accepting ones.
+~~**File:** `Binding/Binder.Operators.cs:215-220`~~
 
-### 79. Unary operator result type ignores numeric promotion for sub-int types
-**File:** `Binding/Binder.Operators.cs:63`
+~~Per ECMA-334 §12.4.7, `byte + byte` results in `int`. The binder returns `typeof(byte)`, causing downstream `CallBinderService` to look for `byte`-accepting overloads instead of `int`-accepting ones.~~
 
-For unary `-`, `+`, `~` on `byte`/`sbyte`/`short`/`ushort`, the binder sets `resultType = operand.StaticType` instead of `int`. Same downstream overload resolution impact as #78.
+### ~~79. Unary operator result type ignores numeric promotion for sub-int types~~ FIXED
+
+~~**File:** `Binding/Binder.Operators.cs:63`~~
+
+~~For unary `-`, `+`, `~` on `byte`/`sbyte`/`short`/`ushort`, the binder sets `resultType = operand.StaticType` instead of `int`. Same downstream overload resolution impact as #78.~~
 
 ### 80. `BindIdentifier` drops `LocalId` for locals typed as `object`
 **File:** `Binding/Binder.Expressions.cs:45-55`
