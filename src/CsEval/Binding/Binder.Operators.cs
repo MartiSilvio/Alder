@@ -43,6 +43,11 @@ internal sealed partial class Binder
         {
             var link = chain[i];
             var right = Bind(link.Right, context);
+            if (result.HasErrors || right.HasErrors)
+            {
+                result = new BoundBinaryExpr(link.Op.Type, result, right, typeof(object)) { Span = link.Span, HasErrors = true };
+                continue;
+            }
             var resultType = InferBinaryResultType(link.Op.Type, result.StaticType, right.StaticType);
             result = new BoundBinaryExpr(link.Op.Type, result, right, resultType) { Span = link.Span };
         }
@@ -50,9 +55,11 @@ internal sealed partial class Binder
         return result;
     }
 
-    private BoundUnaryExpr BindUnary(UnaryExpr unary, BindingContext context)
+    private BoundExpr BindUnary(UnaryExpr unary, BindingContext context)
     {
         var operand = Bind(unary.Right, context);
+        if (operand.HasErrors)
+            return new BoundUnaryExpr(unary.Op.Type, operand, typeof(object)) { HasErrors = true };
         var resultType = unary.Op.Type == TokenType.Bang ? typeof(bool) : operand.StaticType;
         return new BoundUnaryExpr(unary.Op.Type, operand, resultType);
     }
@@ -72,6 +79,11 @@ internal sealed partial class Binder
         {
             var link = chain[i];
             var right = Bind(link.Right, context);
+            if (result.HasErrors || right.HasErrors)
+            {
+                result = new BoundLogicalExpr(link.Op.Type, result, right, typeof(bool)) { Span = link.Span, HasErrors = true };
+                continue;
+            }
             result = new BoundLogicalExpr(link.Op.Type, result, right, typeof(bool)) { Span = link.Span };
         }
 
@@ -93,17 +105,24 @@ internal sealed partial class Binder
         {
             var link = chain[i];
             var right = Bind(link.Right, context);
+            if (result.HasErrors || right.HasErrors)
+            {
+                result = new BoundNullCoalesceExpr(result, right, typeof(object)) { Span = link.Span, HasErrors = true };
+                continue;
+            }
             result = new BoundNullCoalesceExpr(result, right, GetCommonType(result.StaticType, right.StaticType)) { Span = link.Span };
         }
 
         return result;
     }
 
-    private BoundConditionalExpr BindConditional(ConditionalExpr conditional, BindingContext context)
+    private BoundExpr BindConditional(ConditionalExpr conditional, BindingContext context)
     {
         var condition = Bind(conditional.Condition, context);
         var thenBranch = Bind(conditional.ThenBranch, context);
         var elseBranch = Bind(conditional.ElseBranch, context);
+        if (condition.HasErrors || thenBranch.HasErrors || elseBranch.HasErrors)
+            return new BoundConditionalExpr(condition, thenBranch, elseBranch, typeof(object)) { HasErrors = true };
         return new BoundConditionalExpr(
             condition,
             thenBranch,

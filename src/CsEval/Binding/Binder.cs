@@ -9,35 +9,49 @@ namespace CsEval.Binding;
 internal sealed partial class Binder
 {
     private readonly SourceText? _sourceText;
+    private readonly bool _recovering;
+    private List<CsEvalDiagnostic>? _diagnostics;
 
     public Binder()
     {
     }
 
-    public Binder(SourceText sourceText)
+    public Binder(SourceText sourceText, bool recovering = false)
     {
         _sourceText = sourceText;
+        _recovering = recovering;
     }
+
+    internal IReadOnlyList<CsEvalDiagnostic> GetAccumulatedDiagnostics()
+        => _diagnostics ?? (IReadOnlyList<CsEvalDiagnostic>)Array.Empty<CsEvalDiagnostic>();
 
     public BoundExpr Bind(Expr expr, BindingContext context)
     {
         if (expr is null) throw new ArgumentNullException(nameof(expr));
         if (context is null) throw new ArgumentNullException(nameof(context));
+
+        if (!_recovering)
+        {
+            var bound = BindCore(expr, context);
+            return bound with { Span = expr.Span };
+        }
+
         try
         {
             var bound = BindCore(expr, context);
             return bound with { Span = expr.Span };
         }
-        catch (CsEvalException ex) when (ex.Span.IsEmpty && !expr.Span.IsEmpty)
+        catch (CsEvalException ex)
         {
-            ex.Span = expr.Span;
-            if (_sourceText != null)
+            var diagnostic = NormalizeDiagnostic(ex, expr);
+            _diagnostics ??= new List<CsEvalDiagnostic>();
+            _diagnostics.Add(diagnostic);
+            return new BoundLiteralExpr(null, typeof(object))
             {
-                var pos = _sourceText.GetLinePosition(expr.Span.Start);
-                ex.Line = pos.Line + 1;
-                ex.Column = pos.Character + 1;
-            }
-            throw;
+                HasErrors = true,
+                Diagnostic = diagnostic,
+                Span = expr.Span
+            };
         }
     }
 
@@ -125,53 +139,46 @@ internal sealed partial class Binder
     {
         if (expr is null) throw new ArgumentNullException(nameof(expr));
         if (context is null) throw new ArgumentNullException(nameof(context));
+        if (!_recovering) throw new InvalidOperationException("CollectDiagnostics requires a binder created with recovering: true");
 
-        var diagnostics = new List<CsEvalDiagnostic>();
-        if (expr is BlockExpr block)
-        {
-            var blockScope = context.CreateChildScope();
-            foreach (var statement in block.Statements)
-                TryBindForDiagnostics(statement, blockScope, diagnostics);
-            if (block.ReturnExpr != null)
-                TryBindForDiagnostics(block.ReturnExpr, blockScope, diagnostics);
-        }
-        else
-        {
-            TryBindForDiagnostics(expr, context, diagnostics);
-        }
-
-        return diagnostics;
-    }
-
-    private void TryBindForDiagnostics(
-        Expr expr,
-        BindingContext context,
-        List<CsEvalDiagnostic> diagnostics)
-    {
         try
         {
-            _ = Bind(expr, context);
+            Bind(expr, context);
         }
         catch (Exception ex)
         {
-            diagnostics.Add(NormalizeDiagnostic(ex, expr));
+            _diagnostics ??= new List<CsEvalDiagnostic>();
+            _diagnostics.Add(NormalizeDiagnostic(ex, expr));
         }
+
+        return GetAccumulatedDiagnostics();
     }
 
-    private static CsEvalDiagnostic NormalizeDiagnostic(Exception ex, Expr expr)
+    private CsEvalDiagnostic NormalizeDiagnostic(Exception ex, Expr expr)
     {
         var diagnostic = CsEvalDiagnostic.FromException(ex);
 
         if (diagnostic.Span.IsEmpty && !expr.Span.IsEmpty)
-            diagnostic = diagnostic with { Span = expr.Span };
+        {
+            int? line = null, column = null;
+            if (_sourceText != null)
+            {
+                var pos = _sourceText.GetLinePosition(expr.Span.Start);
+                line = pos.Line + 1;
+                column = pos.Character + 1;
+            }
+            diagnostic = diagnostic with { Span = expr.Span, Line = line, Column = column };
+        }
 
         if (diagnostic.Code != null)
             return diagnostic;
 
-        var wrapped = new CsEvalException(DiagnosticDescriptors.SemanticValidationFailed, ex.Message)
-        {
-            Span = diagnostic.Span
-        };
-        return CsEvalDiagnostic.FromException(wrapped);
+        return new CsEvalDiagnostic(
+            DiagnosticSeverity.Error,
+            $"{DiagnosticDescriptors.SemanticValidationFailed.Code.ToDiagnosticId()}: {DiagnosticDescriptors.SemanticValidationFailed.FormatMessage(ex.Message)}",
+            DiagnosticDescriptors.SemanticValidationFailed.Code,
+            diagnostic.Span,
+            diagnostic.Line,
+            diagnostic.Column);
     }
 }

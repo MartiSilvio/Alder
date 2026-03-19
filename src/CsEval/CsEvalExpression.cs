@@ -80,8 +80,19 @@ public sealed class CsEvalExpression
         }
 
         AstDepthValidator.EnsureWithinLimit(Ast, maxDepth);
-        var binder = new CsEval.Binding.Binder(new Text.SourceText(Source));
+        var binder = new CsEval.Binding.Binder(new Text.SourceText(Source), recovering: true);
         var bound = binder.Bind(Ast, new BindingContext(context));
+
+        var diagnostics = binder.GetAccumulatedDiagnostics();
+        if (bound.HasErrors || diagnostics.Count > 0)
+        {
+            var allDiagnostics = diagnostics.Count > 0 ? diagnostics : CollectTreeDiagnostics(bound);
+            var first = allDiagnostics.Count > 0 ? allDiagnostics[0] : null;
+            var ex = new CsEvalException(first?.Message ?? "Expression has binding errors");
+            ex.SetDiagnostics(allDiagnostics);
+            throw ex;
+        }
+
         _boundExpressionCacheByContext.Remove(context);
         _boundExpressionCacheByContext.Add(context, new CachedBoundExpression(currentVersion, bound));
         return bound;
@@ -121,6 +132,13 @@ public sealed class CsEvalExpression
         Interlocked.Increment(ref _boundFallbackCount);
         if (!string.IsNullOrWhiteSpace(reason))
             _lastBoundFallbackReason = reason;
+    }
+
+    private static IReadOnlyList<CsEvalDiagnostic> CollectTreeDiagnostics(BoundExpr root)
+    {
+        var collector = new DiagnosticCollector();
+        collector.Visit(root);
+        return collector.Diagnostics;
     }
 
     private sealed record CachedBoundExpression(int Version, BoundExpr Bound);

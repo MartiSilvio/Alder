@@ -5,38 +5,45 @@ namespace CsEval;
 
 public class CsEvalException : Exception
 {
-    /// <summary>
-    /// The C# compiler error code associated with this exception, or null for CsEval-specific errors.
-    /// </summary>
-    public DiagnosticCode? ErrorCode { get; }
+    public IReadOnlyList<CsEvalDiagnostic> Diagnostics { get; private set; }
 
-    /// <summary>
-    /// The error code formatted as a CS#### string (e.g., "CS0103"), or null if no error code.
-    /// </summary>
+    public DiagnosticCode? ErrorCode => Diagnostics.Count > 0 ? Diagnostics[0].Code : null;
     public string? FormattedCode => ErrorCode?.ToDiagnosticId();
+    public TextSpan Span => Diagnostics.Count > 0 ? Diagnostics[0].Span : default;
+    public int? Line => Diagnostics.Count > 0 ? Diagnostics[0].Line : null;
+    public int? Column => Diagnostics.Count > 0 ? Diagnostics[0].Column : null;
 
-    /// <summary>
-    /// Source span where the error occurred. Use <see cref="SourceText.GetLinePosition"/>
-    /// to convert to line/column when needed.
-    /// </summary>
-    public TextSpan Span { get; internal set; }
+    internal CsEvalException(string message) : base(message)
+    {
+        Diagnostics = [];
+    }
 
-    /// <summary>1-based line number, set when source text is available during enrichment.</summary>
-    public int? Line { get; internal set; }
-
-    /// <summary>1-based column number, set when source text is available during enrichment.</summary>
-    public int? Column { get; internal set; }
-
-    internal CsEvalException(string message) : base(message) { }
-
-    /// <summary>
-    /// Diagnostic-aware constructor. Formats message as "CS####: {message}" and sets ErrorCode.
-    /// </summary>
     public CsEvalException(DiagnosticDescriptor descriptor, params object?[] args)
         : base(FormatMessage(descriptor, args))
     {
-        ErrorCode = descriptor.Code;
+        Diagnostics = [new CsEvalDiagnostic(DiagnosticSeverity.Error, FormatMessage(descriptor, args), descriptor.Code)];
     }
+
+    internal CsEvalException(DiagnosticDescriptor descriptor, TextSpan span, int? line, int? column, params object?[] args)
+        : base(FormatMessage(descriptor, args))
+    {
+        Diagnostics = [new CsEvalDiagnostic(DiagnosticSeverity.Error, FormatMessage(descriptor, args), descriptor.Code, span, line, column)];
+    }
+
+    internal void EnrichDiagnosticsWithPosition(TextSpan span, int? line, int? column)
+    {
+        if (Diagnostics.Count > 0)
+        {
+            var enriched = Diagnostics[0] with { Span = span, Line = line, Column = column };
+            Diagnostics = [enriched, ..Diagnostics.Skip(1)];
+        }
+        else
+        {
+            Diagnostics = [new CsEvalDiagnostic(DiagnosticSeverity.Error, Message, ErrorCode, span, line, column)];
+        }
+    }
+
+    internal void SetDiagnostics(IReadOnlyList<CsEvalDiagnostic> diagnostics) => Diagnostics = diagnostics;
 
     private static string FormatMessage(DiagnosticDescriptor descriptor, object?[] args)
     {
@@ -45,10 +52,6 @@ public class CsEvalException : Exception
     }
 }
 
-/// <summary>
-/// Thrown when expression nesting exceeds <see cref="CsEvalOptions.MaxExpressionDepth"/>.
-/// Caught by the host process — unlike StackOverflowException, this is catchable.
-/// </summary>
 public class CsEvalDepthException : CsEvalException
 {
     public int MaxDepth { get; }
@@ -60,37 +63,18 @@ public class CsEvalDepthException : CsEvalException
     }
 }
 
-/// <summary>
-/// The type of execution limit that was exceeded.
-/// </summary>
 public enum ExecutionLimitType
 {
-    /// <summary>Maximum statement count exceeded.</summary>
     Statements,
-    /// <summary>Maximum wall-clock timeout exceeded.</summary>
     Timeout
 }
 
-/// <summary>
-/// Thrown when an execution resource limit is exceeded during evaluation.
-/// Catchable independently of other CsEval exceptions.
-/// The engine remains healthy after this exception -- subsequent evaluations work normally.
-/// </summary>
 public class CsEvalExecutionLimitException : CsEvalException
 {
-    /// <summary>Which limit was exceeded.</summary>
     public ExecutionLimitType LimitType { get; }
-
-    /// <summary>The configured limit value (statement count or timeout milliseconds).</summary>
     public long LimitValue { get; }
-
-    /// <summary>The actual value when the limit was hit.</summary>
     public long ActualValue { get; }
-
-    /// <summary>Total statements executed when the exception was thrown.</summary>
     public long StatementsExecuted { get; }
-
-    /// <summary>Wall-clock time elapsed when the exception was thrown. Zero if no timer was running.</summary>
     public TimeSpan ElapsedTime { get; }
 
     public CsEvalExecutionLimitException(
@@ -114,11 +98,6 @@ public class CsEvalExecutionLimitException : CsEvalException
         };
 }
 
-/// <summary>
-/// Sentinel value for control flow signals (return, break, continue).
-/// Not an Exception -- avoids expensive stack trace capture and SEH unwinding,
-/// and prevents user catch blocks from intercepting internal control flow.
-/// </summary>
 internal sealed class ControlFlowSignal
 {
     public enum Kind { Return, Break, Continue, GotoCase, GotoDefault, Goto }

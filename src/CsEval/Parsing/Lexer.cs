@@ -764,11 +764,7 @@ internal sealed class Lexer
         }
         catch (OverflowException)
         {
-            throw new CsEvalException(DiagnosticDescriptors.IntegralConstantTooLarge)
-            {
-                Line = _line,
-                Column = _column
-            };
+            throw new CsEvalException(DiagnosticDescriptors.IntegralConstantTooLarge, default, _line, _column);
         }
 
         AddToken(TokenType.Number, value);
@@ -865,11 +861,7 @@ internal sealed class Lexer
         }
         catch (OverflowException)
         {
-            throw new CsEvalException(DiagnosticDescriptors.IntegralConstantTooLarge)
-            {
-                Line = _line,
-                Column = _column
-            };
+            throw new CsEvalException(DiagnosticDescriptors.IntegralConstantTooLarge, default, _line, _column);
         }
 
         AddToken(TokenType.Number, value);
@@ -900,11 +892,7 @@ internal sealed class Lexer
         }
         catch (OverflowException)
         {
-            throw new CsEvalException(DiagnosticDescriptors.IntegralConstantTooLarge)
-            {
-                Line = _line,
-                Column = _column
-            };
+            throw new CsEvalException(DiagnosticDescriptors.IntegralConstantTooLarge, default, _line, _column);
         }
 
         AddToken(TokenType.Number, value);
@@ -1021,11 +1009,7 @@ internal sealed class Lexer
         // Handle 9223372036854775808L (|long.MinValue|) - store as ulong for negation
         if (ulong.TryParse(text, out var ulongValue) && ulongValue == (ulong)long.MaxValue + 1)
             return ulongValue;
-        throw new CsEvalException(DiagnosticDescriptors.IntegralConstantTooLarge)
-        {
-            Line = _line,
-            Column = _column
-        };
+        throw new CsEvalException(DiagnosticDescriptors.IntegralConstantTooLarge, default, _line, _column);
     }
 
     /// <summary>
@@ -1043,11 +1027,7 @@ internal sealed class Lexer
             return longValue;
         if (ulong.TryParse(text, out var ulongValue))
             return ulongValue;
-        throw new CsEvalException(DiagnosticDescriptors.IntegralConstantTooLarge)
-        {
-            Line = _line,
-            Column = _column
-        };
+        throw new CsEvalException(DiagnosticDescriptors.IntegralConstantTooLarge, default, _line, _column);
     }
 
     private enum NumericSuffix { None, Long, ULong, UInt, Float, Double, Decimal }
@@ -1122,5 +1102,5 @@ internal sealed class Lexer
         => LexError(DiagnosticDescriptors.InvalidExpressionTerm, message, line, column);
 
     private CsEvalException LexError(DiagnosticDescriptor descriptor, string message, int? line = null, int? column = null)
-        => new(descriptor, message) { Line = line ?? _line, Column = column ?? _column };
+        => new(descriptor, default, line ?? _line, column ?? _column, message);
 }

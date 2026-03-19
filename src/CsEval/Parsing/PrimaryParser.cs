@@ -818,9 +818,8 @@ internal sealed class PrimaryParser : ParserBase
             }
             return new LambdaExpr(parameters, body) { Span = SpanFrom(mark) };
         }
-        catch
+        catch (CsEvalException)
         {
-            // Speculative parse: backtrack on any failure
             State.Current = saved;
             return null;
         }

@@ -693,6 +693,7 @@ internal static class ExtensionMethodResolver
                 _ => null
             };
         }
+        catch (OperationCanceledException) { throw; }
         catch (Exception)
         {
             return null;

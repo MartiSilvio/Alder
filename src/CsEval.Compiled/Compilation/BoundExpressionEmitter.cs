@@ -93,6 +93,10 @@ internal sealed partial class BoundExpressionEmitter
 
     private LinqExpression Emit(BoundExpr expr)
     {
+        if (expr.HasErrors)
+            throw new BindingNotSupportedException(
+                expr.Diagnostic?.Message ?? "Cannot emit expression with binding errors");
+
         return expr.Kind switch
         {
             BoundNodeKind.Literal => EmitLiteral((BoundLiteralExpr)expr),

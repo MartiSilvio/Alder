@@ -209,3 +209,15 @@ internal abstract class BoundExprWalker : BoundExprVisitor<object?>
         return null;
     }
 }
+
+internal sealed class DiagnosticCollector : BoundExprWalker
+{
+    internal readonly List<CsEvalDiagnostic> Diagnostics = new();
+
+    protected override object? DefaultVisit(BoundExpr node)
+    {
+        if (node.Diagnostic != null)
+            Diagnostics.Add(node.Diagnostic);
+        return base.DefaultVisit(node);
+    }
+}

@@ -223,12 +223,7 @@ internal abstract class ParserBase
     internal CsEvalException SyntaxError(DiagnosticDescriptor descriptor, params object?[] args)
     {
         var token = Peek();
-        return new CsEvalException(descriptor, args)
-        {
-            Line = token.Line,
-            Column = token.Column,
-            Span = token.Span
-        };
+        return new CsEvalException(descriptor, token.Span, token.Line, token.Column, args);
     }
 
     /// <summary>

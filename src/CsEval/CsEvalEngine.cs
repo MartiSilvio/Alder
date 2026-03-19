@@ -326,7 +326,7 @@ public sealed class CsEvalEngine : IDisposable
                 }
                 catch (CsEvalException ex) when (ex.Span.IsEmpty && !expression.Ast.Span.IsEmpty)
                 {
-                    EnrichExceptionSpan(ex, expression);
+                    EnrichCompiledExceptionDiagnostics(ex, expression);
                     throw;
                 }
             }
@@ -465,7 +465,7 @@ public sealed class CsEvalEngine : IDisposable
             }
             catch (CsEvalException ex) when (ex.Span.IsEmpty && !expression.Ast.Span.IsEmpty)
             {
-                EnrichExceptionSpan(ex, expression);
+                EnrichCompiledExceptionDiagnostics(ex, expression);
                 throw;
             }
         }
@@ -539,7 +539,7 @@ public sealed class CsEvalEngine : IDisposable
             }
             catch (CsEvalException ex) when (ex.Span.IsEmpty && !expression.Ast.Span.IsEmpty)
             {
-                EnrichExceptionSpan(ex, expression);
+                EnrichCompiledExceptionDiagnostics(ex, expression);
                 throw;
             }
         }
@@ -673,7 +673,7 @@ public sealed class CsEvalEngine : IDisposable
         {
             var context = GetOrCreateContext(null);
             AstDepthValidator.EnsureWithinLimit(ast, _options.MaxExpressionDepth);
-            var binder = new CsEval.Binding.Binder(new Text.SourceText(expression));
+            var binder = new CsEval.Binding.Binder(new Text.SourceText(expression), recovering: true);
             var bindingContext = new BindingContext(context);
             var validationDiagnostics = new List<CsEvalDiagnostic>(binder.CollectDiagnostics(ast, bindingContext));
 
@@ -688,13 +688,10 @@ public sealed class CsEvalEngine : IDisposable
                 if (context.TypeResolver.IsNamespaceOrPrefix(name)) continue;
                 if (context.TypeResolver.TryResolveType(name) != null) continue;
 
-                var ex = new CsEvalException(DiagnosticDescriptors.NameNotInContext, name)
-                {
-                    Span = identifier.Span,
-                    Line = identifier.Line,
-                    Column = identifier.Column
-                };
-                validationDiagnostics.Add(CsEvalDiagnostic.FromException(ex));
+                var message = $"{DiagnosticDescriptors.NameNotInContext.Code.ToDiagnosticId()}: {DiagnosticDescriptors.NameNotInContext.FormatMessage(name)}";
+                validationDiagnostics.Add(new CsEvalDiagnostic(
+                    DiagnosticSeverity.Error, message, DiagnosticDescriptors.NameNotInContext.Code,
+                    identifier.Span, identifier.Line, identifier.Column));
             }
 
             var deduplicated = DeduplicateDiagnostics(validationDiagnostics);
@@ -1052,13 +1049,12 @@ public sealed class CsEvalEngine : IDisposable
     }
 
 
-    private static void EnrichExceptionSpan(CsEvalException ex, CsEvalExpression expression)
+
+    private static void EnrichCompiledExceptionDiagnostics(CsEvalException ex, CsEvalExpression expression)
     {
-        ex.Span = expression.Ast.Span;
         var sourceText = new Text.SourceText(expression.Source);
-        var pos = sourceText.GetLinePosition(ex.Span.Start);
-        ex.Line = pos.Line + 1;
-        ex.Column = pos.Character + 1;
+        var pos = sourceText.GetLinePosition(expression.Ast.Span.Start);
+        ex.EnrichDiagnosticsWithPosition(expression.Ast.Span, pos.Line + 1, pos.Character + 1);
     }
 
     private void EnsureNotFrozen([CallerMemberName] string? caller = null)

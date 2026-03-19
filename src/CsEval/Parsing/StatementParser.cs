@@ -187,7 +187,7 @@ internal sealed class StatementParser : ParserBase
             Consume(TokenType.Equal, "Expected '=' after variable name");
             var initializer = _expression.ParseExpression();
             if (initializer is LiteralExpr { Value: null })
-                throw new CsEvalException(DiagnosticDescriptors.NullToImplicitlyTyped) { Line = name.Line, Column = name.Column };
+                throw new CsEvalException(DiagnosticDescriptors.NullToImplicitlyTyped, name.Span, name.Line, name.Column);
             Consume(TokenType.Semicolon, "Expected ';' after variable declaration");
             return new VariableDeclExpr(null, name, initializer) { Span = SpanFrom(mark) };
         }
@@ -369,9 +369,8 @@ internal sealed class StatementParser : ParserBase
             var syntheticTypeToken = new Token(TokenType.Identifier, typeName, null, name.Line, name.Column);
             return new VariableDeclExpr(syntheticTypeToken, name, initializer) { Span = SpanFrom(mark) };
         }
-        catch
+        catch (CsEvalException)
         {
-            // Speculative parse: backtrack on any failure
             State.Current = saved;
             return null;
         }
@@ -410,9 +409,8 @@ internal sealed class StatementParser : ParserBase
             var syntheticTypeToken = new Token(TokenType.Identifier, typeName, null, name.Line, name.Column);
             return new VariableDeclExpr(syntheticTypeToken, name, initializer) { Span = SpanFrom(mark) };
         }
-        catch
+        catch (CsEvalException)
         {
-            // Speculative parse: backtrack on any failure
             State.Current = saved;
             return null;
         }
@@ -645,7 +643,7 @@ internal sealed class StatementParser : ParserBase
                 Consume(TokenType.Equal, "Expected '=' after variable name");
                 var init = _expression.ParseExpression();
                 if (init is LiteralExpr { Value: null })
-                    throw new CsEvalException(DiagnosticDescriptors.NullToImplicitlyTyped) { Line = name.Line, Column = name.Column };
+                    throw new CsEvalException(DiagnosticDescriptors.NullToImplicitlyTyped, name.Span, name.Line, name.Column);
                 initializers.Add(new VariableDeclExpr(null, name, init) { Span = SpanFrom(markInit) });
                 while (Match(TokenType.Comma))
                 {
@@ -654,7 +652,7 @@ internal sealed class StatementParser : ParserBase
                     Consume(TokenType.Equal, "Expected '=' after variable name");
                     var init2 = _expression.ParseExpression();
                     if (init2 is LiteralExpr { Value: null })
-                        throw new CsEvalException(DiagnosticDescriptors.NullToImplicitlyTyped) { Line = name2.Line, Column = name2.Column };
+                        throw new CsEvalException(DiagnosticDescriptors.NullToImplicitlyTyped, name2.Span, name2.Line, name2.Column);
                     initializers.Add(new VariableDeclExpr(null, name2, init2) { Span = SpanFrom(markInit2) });
                 }
             }
@@ -939,11 +937,7 @@ internal sealed class StatementParser : ParserBase
         for (var i = 0; i < catchClauses.Count - 1; i++)
         {
             if (catchClauses[i].ExceptionTypeName == null)
-                throw new CsEvalException(DiagnosticDescriptors.GeneralCatchMustBeLast)
-                {
-                    Line = Peek().Line,
-                    Column = Peek().Column
-                };
+                throw new CsEvalException(DiagnosticDescriptors.GeneralCatchMustBeLast, Peek().Span, Peek().Line, Peek().Column);
         }
 
         return new TryCatchFinallyExpr(tryBody, catchClauses, finallyBody) { Span = SpanFrom(mark) };

@@ -50,7 +50,14 @@ internal sealed class BoundEvaluator
         }
         catch (CsEvalException ex) when (ex.Span.IsEmpty && !expr.Span.IsEmpty)
         {
-            EnrichWithSpan(ex, expr.Span);
+            int? line = null, column = null;
+            if (_sourceText != null)
+            {
+                var pos = _sourceText.GetLinePosition(expr.Span.Start);
+                line = pos.Line + 1;
+                column = pos.Character + 1;
+            }
+            ex.EnrichDiagnosticsWithPosition(expr.Span, line, column);
             throw;
         }
 
@@ -58,18 +65,21 @@ internal sealed class BoundEvaluator
         return result;
     }
 
-    private void EnrichWithSpan(CsEvalException ex, TextSpan span)
+    private object? EvaluateCore(BoundExpr expr)
     {
-        ex.Span = span;
-        if (_sourceText != null)
+        if (expr.HasErrors)
         {
-            var pos = _sourceText.GetLinePosition(span.Start);
-            ex.Line = pos.Line + 1;
-            ex.Column = pos.Character + 1;
+            var diag = expr.Diagnostic;
+            if (diag != null)
+            {
+                var ex = new CsEvalException(diag.Message);
+                ex.SetDiagnostics([diag]);
+                throw ex;
+            }
+            throw new CsEvalException(DiagnosticDescriptors.BindingFailed, "Expression has errors");
         }
-    }
 
-    private object? EvaluateCore(BoundExpr expr) => expr.Kind switch
+        return expr.Kind switch
         {
             BoundNodeKind.Literal => ((BoundLiteralExpr)expr).Value,
             BoundNodeKind.Identifier => IdentifierRuntime.ResolveIdentifier(((BoundIdentifierExpr)expr).Name, _context, _options),
@@ -142,7 +152,8 @@ internal sealed class BoundEvaluator
             BoundNodeKind.FromEndIndexExpression => new Index(Convert.ToInt32(Evaluate(((BoundIndexFromEndExpr)expr).Operand)), fromEnd: true),
             _ => throw new BindingNotSupportedException(
                 $"Bound execution for node '{expr.GetType().Name}' is not implemented")
-    };
+        };
+    }
 
     private void RecordTrace(BoundExpr expr, object? value)
     {

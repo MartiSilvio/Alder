@@ -10,10 +10,16 @@ public sealed record CsEvalDiagnostic(
     DiagnosticSeverity Severity,
     string Message,
     DiagnosticCode? Code = null,
-    TextSpan Span = default)
+    TextSpan Span = default,
+    int? Line = null,
+    int? Column = null)
 {
+    public string? FormattedCode => Code?.ToDiagnosticId();
+
     internal static CsEvalDiagnostic FromException(CsEvalException ex) =>
-        new(DiagnosticSeverity.Error, ex.Message, ex.ErrorCode, ex.Span);
+        ex.Diagnostics.Count > 0
+            ? ex.Diagnostics[0]
+            : new(DiagnosticSeverity.Error, ex.Message, ex.ErrorCode, ex.Span);
 
     internal static CsEvalDiagnostic FromException(Exception ex) => ex switch
     {
