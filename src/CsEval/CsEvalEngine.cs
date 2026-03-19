@@ -52,7 +52,7 @@ public sealed class CsEvalEngine : IDisposable
     private CsEvalConfig? _frozenConfig;
     private CsEvalContext? _context;
     private volatile CompiledNoCancellationFastPath? _compiledNoCancellationFastPath;
-    private bool _disposed;
+    private volatile bool _disposed;
 
     public void Dispose()
     {
@@ -104,8 +104,9 @@ public sealed class CsEvalEngine : IDisposable
 
     private CsEvalConfig GetOrCreateConfig()
     {
-        if (_frozenConfig != null)
-            return _frozenConfig;
+        var config = _frozenConfig;
+        if (config != null)
+            return config;
 
         var modules = new Dictionary<string, ModuleInfo>(_options.StringComparer);
         foreach (var reg in _registeredTypes)
@@ -143,14 +144,14 @@ public sealed class CsEvalEngine : IDisposable
         }
 
         var newConfig = CsEvalConfig.Create(_functions, modules, _extensionTypes, _typeMetadata, typeResolver, _options.StringComparer, aotMetadata);
-        Interlocked.CompareExchange(ref _frozenConfig, newConfig, null);
-        return _frozenConfig!;
+        return Interlocked.CompareExchange(ref _frozenConfig, newConfig, null) ?? newConfig;
     }
 
     private CsEvalContext GetOrCreateContext(IServiceProvider? serviceProvider)
     {
-        if (_context != null)
-            return _context;
+        var ctx = _context;
+        if (ctx != null)
+            return ctx;
 
         lock (_contextInitLock)
         {
