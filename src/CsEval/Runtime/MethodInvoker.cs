@@ -1559,7 +1559,8 @@ internal static class MethodInvoker
         var binder = new Binding.Binder();
         var bound = binder.Bind(lambda.Body, new BindingContext(childContext));
         var evaluator = new BoundEvaluator(childContext, lambda.Options!);
-        return evaluator.Evaluate(bound);
+        var result = evaluator.Evaluate(bound);
+        return result is ControlFlowSignal signal ? signal.Value : result;
     }
 
     internal static object? InvokeCompiledLambda(CompiledLambdaValue lambda, object?[] args)

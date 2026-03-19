@@ -381,7 +381,7 @@ public sealed class CsEvalEngine : IDisposable
                     var boundEvaluator = new BoundEvaluator(executionContext, _options, cancellationToken, sourceText: new Text.SourceText(expression.Source));
                     var boundResult = boundEvaluator.Evaluate(boundExpression);
                     expression.RecordBoundExecution();
-                    return boundResult;
+                    return UnwrapControlFlowSignal(boundResult);
                 }
                 catch (BindingNotSupportedException ex)
                 {
@@ -450,7 +450,7 @@ public sealed class CsEvalEngine : IDisposable
         var evaluator = new BoundEvaluator(executionContext, _options, cancellationToken, steps, new Text.SourceText(expression.Source));
         var result = evaluator.Evaluate(boundExpression);
         expression.RecordBoundExecution();
-        return new EvaluationTraceResult(result, steps);
+        return new EvaluationTraceResult(UnwrapControlFlowSignal(result), steps);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -751,6 +751,9 @@ public sealed class CsEvalEngine : IDisposable
             dict[prop.Name] = prop.GetValue(obj);
         return dict;
     }
+
+    private static object? UnwrapControlFlowSignal(object? result) =>
+        result is ControlFlowSignal signal ? signal.Value : result;
 
     private static bool IsDepthFailure(string? message)
     {

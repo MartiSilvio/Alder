@@ -52,7 +52,7 @@ internal sealed partial class BoundExpressionEmitter
 
         try
         {
-            var body = Emit(expr);
+            var body = EmitUnwrapSignal(Emit(expr));
 
             if (_hoistedIdentifiers == null && _promotedLocals == null)
                 return body;
@@ -89,6 +89,22 @@ internal sealed partial class BoundExpressionEmitter
             _hoistedIdentifiers = null;
             _promotedLocals = null;
         }
+    }
+
+    private static LinqExpression EmitUnwrapSignal(LinqExpression body)
+    {
+        var resultVar = LinqExpression.Variable(typeof(object), "rootResult");
+        var signalVar = LinqExpression.Variable(typeof(ControlFlowSignal), "rootSignal");
+        return LinqExpression.Block(
+            typeof(object),
+            [resultVar, signalVar],
+            LinqExpression.Assign(resultVar, EmitHelpers.AsObject(body)),
+            LinqExpression.IfThen(
+                LinqExpression.TypeIs(resultVar, typeof(ControlFlowSignal)),
+                LinqExpression.Block(
+                    LinqExpression.Assign(signalVar, LinqExpression.TypeAs(resultVar, typeof(ControlFlowSignal))),
+                    LinqExpression.Assign(resultVar, LinqExpression.Property(signalVar, ControlFlowValueProperty)))),
+            resultVar);
     }
 
     private LinqExpression Emit(BoundExpr expr)
@@ -841,7 +857,7 @@ internal sealed partial class BoundExpressionEmitter
             LinqExpression.Assign(resultVar, LinqExpression.Constant(null, typeof(object)))
         };
 
-        EmitStatementListBody(body, statements, resultVar, signalVar, doneLabel, unwrapReturnSignal: true);
+        EmitStatementListBody(body, statements, resultVar, signalVar, doneLabel, unwrapReturnSignal: false);
         if (block.ReturnExpr != null)
             body.Add(LinqExpression.Assign(resultVar, EmitHelpers.AsObject(Emit(block.ReturnExpr))));
         body.Add(LinqExpression.Label(doneLabel));
@@ -890,13 +906,6 @@ internal sealed partial class BoundExpressionEmitter
                     LinqExpression.Block(
                         LinqExpression.Assign(signalVar, LinqExpression.TypeAs(resultVar, typeof(ControlFlowSignal))),
                         BuildBlockGotoCheck(signalVar, resultVar, startIndexVar, loopContinue, labelIndices),
-                        LinqExpression.IfThen(
-                            LinqExpression.Equal(
-                                LinqExpression.Property(signalVar, ControlFlowSignalKindProperty),
-                                LinqExpression.Constant(ControlFlowSignal.Kind.Return)),
-                            LinqExpression.Assign(
-                                resultVar,
-                                LinqExpression.Property(signalVar, ControlFlowValueProperty))),
                         LinqExpression.Goto(doneLabel)))
             };
 

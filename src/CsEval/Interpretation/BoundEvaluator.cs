@@ -629,7 +629,7 @@ internal sealed class BoundEvaluator
                 if (result is ControlFlowSignal signal)
                 {
                     if (signal.SignalKind == ControlFlowSignal.Kind.Return)
-                        return signal.Value;
+                        return signal;
                     if (signal.SignalKind == ControlFlowSignal.Kind.Goto)
                     {
                         var labelName = (string)signal.Value!;
@@ -797,21 +797,27 @@ internal sealed class BoundEvaluator
     private object? EvaluateMemberNullCoalesceAssign(BoundMemberNullCoalesceAssignExpr memberNullCoalesceAssign)
     {
         var target = Evaluate(memberNullCoalesceAssign.Target);
+        target = ExecutionRuntime.EnsureMemberTargetNotNull(target, memberNullCoalesceAssign.MemberName);
+        var currentValue = MemberAccess.GetMember(target, memberNullCoalesceAssign.MemberName, _options, nullSafe: false, _context);
+        if (currentValue != null)
+            return currentValue;
         var newValue = Evaluate(memberNullCoalesceAssign.Value);
-        return AssignmentRuntime.ApplyMemberNullCoalesceAssign(
-            target,
-            memberNullCoalesceAssign.MemberName,
-            newValue,
-            _options,
-            _context);
+        MemberAccess.SetMember(target, memberNullCoalesceAssign.MemberName, newValue, _options, _context);
+        return newValue;
     }
 
     private object? EvaluateIndexNullCoalesceAssign(BoundIndexNullCoalesceAssignExpr indexNullCoalesceAssign)
     {
         var target = Evaluate(indexNullCoalesceAssign.Target);
+        target = ExecutionRuntime.EnsureIndexTargetNotNull(target);
         var index = Evaluate(indexNullCoalesceAssign.Index);
+        var currentValue = MemberAccess.GetIndex(target, index, _options, _context);
+        if (currentValue != null)
+            return currentValue;
         var newValue = Evaluate(indexNullCoalesceAssign.Value);
-        return AssignmentRuntime.ApplyIndexNullCoalesceAssign(target, index, newValue, _options, _context);
+        AssignmentRuntime.CheckAllowIndexSet(_options, index);
+        MemberAccess.SetIndex(target, index, newValue, _options, _context);
+        return newValue;
     }
 
     private object? EvaluateMemberIncrement(BoundMemberIncrementExpr memberIncrement)
