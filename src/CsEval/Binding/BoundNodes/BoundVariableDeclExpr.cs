@@ -8,5 +8,6 @@ internal sealed record BoundVariableDeclExpr(
     bool IsConst = false,
     int? LocalId = null) : BoundExpr(StaticType)
 {
+    internal override BoundNodeKind Kind => BoundNodeKind.VariableDeclaration;
     internal override void EnumerateChildren(Action<BoundExpr> visit) { visit(Initializer); }
 }

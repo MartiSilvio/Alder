@@ -6,5 +6,6 @@ internal sealed record BoundRangeExpr(
     bool ExclusiveEnd,
     Type StaticType) : BoundExpr(StaticType)
 {
+    internal override BoundNodeKind Kind => BoundNodeKind.RangeExpression;
     internal override void EnumerateChildren(Action<BoundExpr> visit) { visit(Start); visit(End); }
 }

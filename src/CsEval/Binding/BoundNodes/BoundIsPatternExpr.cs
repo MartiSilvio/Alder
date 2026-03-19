@@ -7,5 +7,6 @@ internal sealed record BoundIsPatternExpr(
     Pattern Pattern,
     Type StaticType) : BoundExpr(StaticType)
 {
+    internal override BoundNodeKind Kind => BoundNodeKind.IsPatternExpression;
     internal override void EnumerateChildren(Action<BoundExpr> visit) { visit(Expression); }
 }

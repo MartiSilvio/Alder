@@ -13,6 +13,7 @@ internal sealed record BoundObjectCreationExpr(
     ImmutableArray<BoundInitializerEntry> InitializerEntries,
     Type StaticType) : BoundExpr(StaticType)
 {
+    internal override BoundNodeKind Kind => BoundNodeKind.ObjectCreationExpression;
     internal override void EnumerateChildren(Action<BoundExpr> visit)
     {
         foreach (var a in Arguments) visit(a);

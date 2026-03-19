@@ -9,5 +9,6 @@ internal sealed record BoundCompoundAssignExpr(
     Type StaticType,
     int? LocalId = null) : BoundExpr(StaticType)
 {
+    internal override BoundNodeKind Kind => BoundNodeKind.CompoundAssignmentOperator;
     internal override void EnumerateChildren(Action<BoundExpr> visit) { visit(Value); }
 }

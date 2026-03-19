@@ -7,5 +7,6 @@ internal sealed record BoundMemberIncrementExpr(
     bool IsIncrement,
     Type StaticType) : BoundExpr(StaticType)
 {
+    internal override BoundNodeKind Kind => BoundNodeKind.MemberIncrement;
     internal override void EnumerateChildren(Action<BoundExpr> visit) { visit(Target); }
 }

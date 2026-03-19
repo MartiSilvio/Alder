@@ -7,5 +7,6 @@ internal sealed record BoundTupleExpr(
     ImmutableArray<string?> ElementNames,
     Type StaticType) : BoundExpr(StaticType)
 {
+    internal override BoundNodeKind Kind => BoundNodeKind.TupleLiteral;
     internal override void EnumerateChildren(Action<BoundExpr> visit) { foreach (var e in Elements) visit(e); }
 }

@@ -10,6 +10,7 @@ internal sealed record BoundForEachExpr(
     Type StaticType,
     int? LocalId = null) : BoundExpr(StaticType)
 {
+    internal override BoundNodeKind Kind => BoundNodeKind.ForEachStatement;
     internal override void EnumerateChildren(Action<BoundExpr> visit)
     {
         visit(Collection);

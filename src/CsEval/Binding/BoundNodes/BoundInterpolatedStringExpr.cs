@@ -15,6 +15,7 @@ internal sealed record BoundInterpolatedStringExpr(
     ImmutableArray<BoundInterpolatedPart> Parts,
     Type StaticType) : BoundExpr(StaticType)
 {
+    internal override BoundNodeKind Kind => BoundNodeKind.InterpolatedString;
     internal override void EnumerateChildren(Action<BoundExpr> visit)
     {
         foreach (var p in Parts)

@@ -9,5 +9,6 @@ internal sealed record BoundIncrementDecrementExpr(
     Type StaticType,
     int? LocalId = null) : BoundExpr(StaticType)
 {
+    internal override BoundNodeKind Kind => BoundNodeKind.IncrementOperator;
     internal override void EnumerateChildren(Action<BoundExpr> visit) { }
 }

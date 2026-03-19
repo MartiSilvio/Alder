@@ -9,6 +9,7 @@ internal sealed record BoundCallExpr(
     BoundCallPlan Plan,
     Type StaticType) : BoundExpr(StaticType)
 {
+    internal override BoundNodeKind Kind => BoundNodeKind.Call;
     internal override void EnumerateChildren(Action<BoundExpr> visit)
     {
         visit(Callee);

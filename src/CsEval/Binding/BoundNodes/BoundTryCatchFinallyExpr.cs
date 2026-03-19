@@ -15,6 +15,7 @@ internal sealed record BoundTryCatchFinallyExpr(
     ImmutableArray<BoundExpr> FinallyBody,
     Type StaticType) : BoundExpr(StaticType)
 {
+    internal override BoundNodeKind Kind => BoundNodeKind.TryStatement;
     internal override void EnumerateChildren(Action<BoundExpr> visit)
     {
         foreach (var s in TryBody) visit(s);

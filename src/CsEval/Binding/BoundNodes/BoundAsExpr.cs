@@ -5,5 +5,6 @@ internal sealed record BoundAsExpr(
     Type TargetType,
     Type StaticType) : BoundExpr(StaticType)
 {
+    internal override BoundNodeKind Kind => BoundNodeKind.AsOperator;
     internal override void EnumerateChildren(Action<BoundExpr> visit) { visit(Expression); }
 }

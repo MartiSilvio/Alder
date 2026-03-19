@@ -9,5 +9,6 @@ internal sealed record BoundMemberAccessExpr(
     BoundMemberPlan? Plan,
     Type StaticType) : BoundExpr(StaticType)
 {
+    internal override BoundNodeKind Kind => BoundNodeKind.MemberAccess;
     internal override void EnumerateChildren(Action<BoundExpr> visit) { visit(Target); }
 }

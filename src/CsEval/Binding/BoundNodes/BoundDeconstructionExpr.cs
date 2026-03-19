@@ -7,5 +7,6 @@ internal sealed record BoundDeconstructionExpr(
     BoundExpr ValueExpression,
     Type StaticType) : BoundExpr(StaticType)
 {
+    internal override BoundNodeKind Kind => BoundNodeKind.DeconstructionAssignment;
     internal override void EnumerateChildren(Action<BoundExpr> visit) { visit(ValueExpression); }
 }

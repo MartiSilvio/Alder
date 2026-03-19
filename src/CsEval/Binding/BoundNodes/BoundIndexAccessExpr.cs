@@ -9,5 +9,6 @@ internal sealed record BoundIndexAccessExpr(
     bool NullSafe,
     Type StaticType) : BoundExpr(StaticType)
 {
+    internal override BoundNodeKind Kind => BoundNodeKind.IndexerAccess;
     internal override void EnumerateChildren(Action<BoundExpr> visit) { visit(Target); visit(Index); }
 }

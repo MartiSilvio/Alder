@@ -7,6 +7,7 @@ internal sealed record BoundWhileExpr(
     ImmutableArray<BoundExpr> Body,
     Type StaticType) : BoundExpr(StaticType)
 {
+    internal override BoundNodeKind Kind => BoundNodeKind.WhileStatement;
     internal override void EnumerateChildren(Action<BoundExpr> visit)
     {
         visit(Condition);

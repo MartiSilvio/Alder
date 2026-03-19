@@ -7,6 +7,7 @@ internal sealed record BoundDoWhileExpr(
     BoundExpr Condition,
     Type StaticType) : BoundExpr(StaticType)
 {
+    internal override BoundNodeKind Kind => BoundNodeKind.DoStatement;
     internal override void EnumerateChildren(Action<BoundExpr> visit)
     {
         foreach (var s in Body) visit(s);

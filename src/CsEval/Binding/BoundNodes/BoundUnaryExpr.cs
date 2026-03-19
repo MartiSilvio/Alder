@@ -7,5 +7,6 @@ internal sealed record BoundUnaryExpr(
     BoundExpr Operand,
     Type StaticType) : BoundExpr(StaticType)
 {
+    internal override BoundNodeKind Kind => BoundNodeKind.UnaryOperator;
     internal override void EnumerateChildren(Action<BoundExpr> visit) { visit(Operand); }
 }

@@ -91,79 +91,79 @@ internal sealed partial class BoundExpressionEmitter
         }
     }
 
-    public LinqExpression Emit(BoundExpr expr)
+    private LinqExpression Emit(BoundExpr expr)
     {
-        return expr switch
+        return expr.Kind switch
         {
-            BoundLiteralExpr literal => EmitLiteral(literal),
-            BoundIdentifierExpr identifier => EmitIdentifier(identifier),
-            BoundCastExpr cast => EmitCast(cast),
-            BoundAsExpr asExpr => EmitAs(asExpr),
-            BoundIsPatternExpr isPattern => EmitIsPattern(isPattern),
-            BoundUnaryExpr unary => EmitUnary(unary),
-            BoundBinaryExpr binary => EmitBinary(binary),
-            BoundLogicalExpr logical => EmitLogical(logical),
-            BoundNullCoalesceExpr nullCoalesce => EmitNullCoalesce(nullCoalesce),
-            BoundConditionalExpr conditional => EmitConditional(conditional),
-            BoundBlockExpr block => EmitBlock(block),
-            BoundIfStatementExpr ifStatement => EmitIfStatement(ifStatement),
-            BoundWhileExpr whileExpr => EmitWhile(whileExpr),
-            BoundForExpr forExpr => EmitFor(forExpr),
-            BoundDoWhileExpr doWhileExpr => EmitDoWhile(doWhileExpr),
-            BoundForEachExpr forEachExpr => EmitForEach(forEachExpr),
-            BoundUsingStatementExpr usingStatement => EmitUsingStatement(usingStatement),
-            BoundLockStatementExpr lockStatement => EmitLockStatement(lockStatement),
-            BoundTryCatchFinallyExpr tryCatchFinally => EmitTryCatchFinally(tryCatchFinally),
-            BoundBreakExpr breakExpr => EmitBreak(breakExpr),
-            BoundContinueExpr continueExpr => EmitContinue(continueExpr),
-            BoundGotoExpr gotoExpr => EmitGoto(gotoExpr),
-            BoundGotoCaseExpr gotoCaseExpr => EmitGotoCase(gotoCaseExpr),
-            BoundGotoDefaultExpr => EmitGotoDefault(),
-            BoundLabelExpr => LinqExpression.Constant(null, typeof(object)),
-            BoundThrowStatementExpr throwStatementExpr => EmitThrowStatement(throwStatementExpr),
-            BoundReturnExpr returnExpr => EmitReturn(returnExpr),
-            BoundSwitchStatementExpr switchStatement => EmitSwitchStatement(switchStatement),
-            BoundSwitchExpressionExpr switchExpression => EmitSwitchExpression(switchExpression),
-            BoundCheckedExpr checkedExpr => EmitChecked(checkedExpr),
-            BoundChainedComparisonExpr chainedComparison => EmitChainedComparison(chainedComparison),
-            BoundRangeExpr range => EmitRange(range),
-            BoundVariableDeclExpr variableDecl => EmitVariableDecl(variableDecl),
-            BoundAssignExpr assign => EmitAssign(assign),
-            BoundNullCoalesceAssignExpr nullCoalesceAssign => EmitNullCoalesceAssign(nullCoalesceAssign),
-            BoundCompoundAssignExpr compoundAssign => EmitCompoundAssign(compoundAssign),
-            BoundIncrementDecrementExpr incrementDecrement => EmitIncrementDecrement(incrementDecrement),
-            BoundMemberAssignExpr memberAssign => EmitMemberAssign(memberAssign),
-            BoundIndexAssignExpr indexAssign => EmitIndexAssign(indexAssign),
-            BoundMemberCompoundAssignExpr memberCompoundAssign => EmitMemberCompoundAssign(memberCompoundAssign),
-            BoundIndexCompoundAssignExpr indexCompoundAssign => EmitIndexCompoundAssign(indexCompoundAssign),
-            BoundMemberNullCoalesceAssignExpr memberNullCoalesceAssign => EmitMemberNullCoalesceAssign(memberNullCoalesceAssign),
-            BoundIndexNullCoalesceAssignExpr indexNullCoalesceAssign => EmitIndexNullCoalesceAssign(indexNullCoalesceAssign),
-            BoundMemberIncrementExpr memberIncrement => EmitMemberIncrement(memberIncrement),
-            BoundIndexIncrementExpr indexIncrement => EmitIndexIncrement(indexIncrement),
-            BoundMemberAccessExpr memberAccess => EmitMemberAccess(memberAccess),
-            BoundIndexAccessExpr indexAccess => EmitIndexAccess(indexAccess),
-            BoundObjectCreationExpr objectCreation => EmitObjectCreation(objectCreation),
-            BoundTypedArrayCreationExpr typedArrayCreation => EmitTypedArrayCreation(typedArrayCreation),
-            BoundTypedArrayLiteralExpr typedArrayLiteral => EmitTypedArrayLiteral(typedArrayLiteral),
-            BoundTupleExpr tuple => EmitTuple(tuple),
-            BoundDeconstructionExpr deconstruction => EmitDeconstruction(deconstruction),
-            BoundMultiDimTypedArrayCreationExpr multiDimTypedArrayCreation => EmitMultiDimTypedArrayCreation(multiDimTypedArrayCreation),
-            BoundMultiDimArrayInitExpr multiDimArrayInit => EmitMultiDimArrayInit(multiDimArrayInit),
-            BoundMultiDimIndexAccessExpr multiDimIndexAccess => EmitMultiDimIndexAccess(multiDimIndexAccess),
-            BoundMultiDimIndexAssignExpr multiDimIndexAssign => EmitMultiDimIndexAssign(multiDimIndexAssign),
-            BoundThrowExpr throwExpr => EmitThrow(throwExpr),
-            BoundIndexFromEndExpr indexFromEnd => EmitIndexFromEnd(indexFromEnd),
-            BoundSliceExpr slice => EmitSlice(slice),
-            BoundCallExpr call => EmitCall(call),
-            BoundInvokeExpr invoke => EmitInvoke(invoke),
-            BoundLambdaExpr lambda => EmitLambda(lambda),
-            BoundPipelineExpr pipeline => EmitPipeline(pipeline),
-            BoundArrayLiteralExpr arrayLiteral => EmitArrayLiteral(arrayLiteral),
-            BoundObjectLiteralExpr objectLiteral => EmitObjectLiteral(objectLiteral),
-            BoundInterpolatedStringExpr interpolatedString => EmitInterpolatedString(interpolatedString),
-            BoundNamedArgumentExpr namedArgument => EmitNamedArgument(namedArgument),
-            BoundOutArgExpr outArg => EmitOutArg(outArg),
-            BoundSpreadExpr => EmitInvalidSpread(),
+            BoundNodeKind.Literal => EmitLiteral((BoundLiteralExpr)expr),
+            BoundNodeKind.Identifier => EmitIdentifier((BoundIdentifierExpr)expr),
+            BoundNodeKind.Conversion => EmitCast((BoundCastExpr)expr),
+            BoundNodeKind.AsOperator => EmitAs((BoundAsExpr)expr),
+            BoundNodeKind.IsPatternExpression => EmitIsPattern((BoundIsPatternExpr)expr),
+            BoundNodeKind.UnaryOperator => EmitUnary((BoundUnaryExpr)expr),
+            BoundNodeKind.BinaryOperator => EmitBinary((BoundBinaryExpr)expr),
+            BoundNodeKind.LogicalOperator => EmitLogical((BoundLogicalExpr)expr),
+            BoundNodeKind.NullCoalescingOperator => EmitNullCoalesce((BoundNullCoalesceExpr)expr),
+            BoundNodeKind.ConditionalOperator => EmitConditional((BoundConditionalExpr)expr),
+            BoundNodeKind.Block => EmitBlock((BoundBlockExpr)expr),
+            BoundNodeKind.IfStatement => EmitIfStatement((BoundIfStatementExpr)expr),
+            BoundNodeKind.WhileStatement => EmitWhile((BoundWhileExpr)expr),
+            BoundNodeKind.ForStatement => EmitFor((BoundForExpr)expr),
+            BoundNodeKind.DoStatement => EmitDoWhile((BoundDoWhileExpr)expr),
+            BoundNodeKind.ForEachStatement => EmitForEach((BoundForEachExpr)expr),
+            BoundNodeKind.UsingStatement => EmitUsingStatement((BoundUsingStatementExpr)expr),
+            BoundNodeKind.LockStatement => EmitLockStatement((BoundLockStatementExpr)expr),
+            BoundNodeKind.TryStatement => EmitTryCatchFinally((BoundTryCatchFinallyExpr)expr),
+            BoundNodeKind.BreakStatement => EmitBreak((BoundBreakExpr)expr),
+            BoundNodeKind.ContinueStatement => EmitContinue((BoundContinueExpr)expr),
+            BoundNodeKind.GotoStatement => EmitGoto((BoundGotoExpr)expr),
+            BoundNodeKind.GotoCaseStatement => EmitGotoCase((BoundGotoCaseExpr)expr),
+            BoundNodeKind.GotoDefaultStatement => EmitGotoDefault(),
+            BoundNodeKind.Label => LinqExpression.Constant(null, typeof(object)),
+            BoundNodeKind.ThrowStatement => EmitThrowStatement((BoundThrowStatementExpr)expr),
+            BoundNodeKind.ReturnStatement => EmitReturn((BoundReturnExpr)expr),
+            BoundNodeKind.SwitchStatement => EmitSwitchStatement((BoundSwitchStatementExpr)expr),
+            BoundNodeKind.SwitchExpression => EmitSwitchExpression((BoundSwitchExpressionExpr)expr),
+            BoundNodeKind.CheckedExpression => EmitChecked((BoundCheckedExpr)expr),
+            BoundNodeKind.ChainedComparisonOperator => EmitChainedComparison((BoundChainedComparisonExpr)expr),
+            BoundNodeKind.RangeExpression => EmitRange((BoundRangeExpr)expr),
+            BoundNodeKind.VariableDeclaration => EmitVariableDecl((BoundVariableDeclExpr)expr),
+            BoundNodeKind.AssignmentOperator => EmitAssign((BoundAssignExpr)expr),
+            BoundNodeKind.NullCoalescingAssignmentOperator => EmitNullCoalesceAssign((BoundNullCoalesceAssignExpr)expr),
+            BoundNodeKind.CompoundAssignmentOperator => EmitCompoundAssign((BoundCompoundAssignExpr)expr),
+            BoundNodeKind.IncrementOperator => EmitIncrementDecrement((BoundIncrementDecrementExpr)expr),
+            BoundNodeKind.MemberAssignment => EmitMemberAssign((BoundMemberAssignExpr)expr),
+            BoundNodeKind.IndexAssignment => EmitIndexAssign((BoundIndexAssignExpr)expr),
+            BoundNodeKind.MemberCompoundAssignment => EmitMemberCompoundAssign((BoundMemberCompoundAssignExpr)expr),
+            BoundNodeKind.IndexCompoundAssignment => EmitIndexCompoundAssign((BoundIndexCompoundAssignExpr)expr),
+            BoundNodeKind.MemberNullCoalesceAssignment => EmitMemberNullCoalesceAssign((BoundMemberNullCoalesceAssignExpr)expr),
+            BoundNodeKind.IndexNullCoalesceAssignment => EmitIndexNullCoalesceAssign((BoundIndexNullCoalesceAssignExpr)expr),
+            BoundNodeKind.MemberIncrement => EmitMemberIncrement((BoundMemberIncrementExpr)expr),
+            BoundNodeKind.IndexIncrement => EmitIndexIncrement((BoundIndexIncrementExpr)expr),
+            BoundNodeKind.MemberAccess => EmitMemberAccess((BoundMemberAccessExpr)expr),
+            BoundNodeKind.IndexerAccess => EmitIndexAccess((BoundIndexAccessExpr)expr),
+            BoundNodeKind.ObjectCreationExpression => EmitObjectCreation((BoundObjectCreationExpr)expr),
+            BoundNodeKind.TypedArrayCreation => EmitTypedArrayCreation((BoundTypedArrayCreationExpr)expr),
+            BoundNodeKind.TypedArrayLiteral => EmitTypedArrayLiteral((BoundTypedArrayLiteralExpr)expr),
+            BoundNodeKind.TupleLiteral => EmitTuple((BoundTupleExpr)expr),
+            BoundNodeKind.DeconstructionAssignment => EmitDeconstruction((BoundDeconstructionExpr)expr),
+            BoundNodeKind.MultiDimTypedArrayCreation => EmitMultiDimTypedArrayCreation((BoundMultiDimTypedArrayCreationExpr)expr),
+            BoundNodeKind.MultiDimArrayInit => EmitMultiDimArrayInit((BoundMultiDimArrayInitExpr)expr),
+            BoundNodeKind.MultiDimIndexAccess => EmitMultiDimIndexAccess((BoundMultiDimIndexAccessExpr)expr),
+            BoundNodeKind.MultiDimIndexAssignment => EmitMultiDimIndexAssign((BoundMultiDimIndexAssignExpr)expr),
+            BoundNodeKind.ThrowExpression => EmitThrow((BoundThrowExpr)expr),
+            BoundNodeKind.FromEndIndexExpression => EmitIndexFromEnd((BoundIndexFromEndExpr)expr),
+            BoundNodeKind.SliceExpression => EmitSlice((BoundSliceExpr)expr),
+            BoundNodeKind.Call => EmitCall((BoundCallExpr)expr),
+            BoundNodeKind.Invoke => EmitInvoke((BoundInvokeExpr)expr),
+            BoundNodeKind.Lambda => EmitLambda((BoundLambdaExpr)expr),
+            BoundNodeKind.PipelineExpression => EmitPipeline((BoundPipelineExpr)expr),
+            BoundNodeKind.ArrayLiteral => EmitArrayLiteral((BoundArrayLiteralExpr)expr),
+            BoundNodeKind.ObjectLiteral => EmitObjectLiteral((BoundObjectLiteralExpr)expr),
+            BoundNodeKind.InterpolatedString => EmitInterpolatedString((BoundInterpolatedStringExpr)expr),
+            BoundNodeKind.NamedArgument => EmitNamedArgument((BoundNamedArgumentExpr)expr),
+            BoundNodeKind.OutArgument => EmitOutArg((BoundOutArgExpr)expr),
+            BoundNodeKind.SpreadElement => EmitInvalidSpread(),
             _ => throw new BindingNotSupportedException(
                 $"Bound compiled emission not implemented for '{expr.GetType().Name}'")
         };
@@ -193,12 +193,13 @@ internal sealed partial class BoundExpressionEmitter
     {
         while (true)
         {
-            switch (expr)
+            switch (expr.Kind)
             {
-                case BoundLiteralExpr:
+                case BoundNodeKind.Literal:
                     return true;
 
-                case BoundIdentifierExpr identifier:
+                case BoundNodeKind.Identifier:
+                    var identifier = (BoundIdentifierExpr)expr;
                     if (identifier.StaticType == typeof(object)) return false;
 
                     if (usage.TryGetValue(identifier.Name, out var entry))
@@ -207,36 +208,40 @@ internal sealed partial class BoundExpressionEmitter
                         usage[identifier.Name] = (identifier.StaticType, 1);
                     return true;
 
-                case BoundBinaryExpr binary:
+                case BoundNodeKind.BinaryOperator:
+                    var binary = (BoundBinaryExpr)expr;
                     return CanHoistIdentifiers(binary.Left, usage) && CanHoistIdentifiers(binary.Right, usage);
 
-                case BoundLogicalExpr logical:
+                case BoundNodeKind.LogicalOperator:
+                    var logical = (BoundLogicalExpr)expr;
                     return CanHoistIdentifiers(logical.Left, usage) && CanHoistIdentifiers(logical.Right, usage);
 
-                case BoundUnaryExpr unary:
-                    expr = unary.Operand;
+                case BoundNodeKind.UnaryOperator:
+                    expr = ((BoundUnaryExpr)expr).Operand;
                     continue;
 
-                case BoundCastExpr cast:
-                    expr = cast.Expression;
+                case BoundNodeKind.Conversion:
+                    expr = ((BoundCastExpr)expr).Expression;
                     continue;
 
-                case BoundAsExpr asExpr:
-                    expr = asExpr.Expression;
+                case BoundNodeKind.AsOperator:
+                    expr = ((BoundAsExpr)expr).Expression;
                     continue;
 
-                case BoundIsPatternExpr isPattern:
-                    expr = isPattern.Expression;
+                case BoundNodeKind.IsPatternExpression:
+                    expr = ((BoundIsPatternExpr)expr).Expression;
                     continue;
 
-                case BoundCheckedExpr checkedExpr:
-                    expr = checkedExpr.Expression;
+                case BoundNodeKind.CheckedExpression:
+                    expr = ((BoundCheckedExpr)expr).Expression;
                     continue;
 
-                case BoundNullCoalesceExpr nullCoalesce:
+                case BoundNodeKind.NullCoalescingOperator:
+                    var nullCoalesce = (BoundNullCoalesceExpr)expr;
                     return CanHoistIdentifiers(nullCoalesce.Left, usage) && CanHoistIdentifiers(nullCoalesce.Right, usage);
 
-                case BoundConditionalExpr conditional:
+                case BoundNodeKind.ConditionalOperator:
+                    var conditional = (BoundConditionalExpr)expr;
                     return CanHoistIdentifiers(conditional.Condition, usage) && CanHoistIdentifiers(conditional.ThenBranch, usage) && CanHoistIdentifiers(conditional.ElseBranch, usage);
 
                 default:
@@ -1493,17 +1498,18 @@ internal sealed partial class BoundExpressionEmitter
 
     private static bool TerminatesControlFlow(BoundExpr expr)
     {
-        return expr switch
+        return expr.Kind switch
         {
-            BoundBreakExpr => true,
-            BoundReturnExpr => true,
-            BoundContinueExpr => true,
-            BoundGotoExpr => true,
-            BoundGotoCaseExpr => true,
-            BoundGotoDefaultExpr => true,
-            BoundThrowExpr => true,
-            BoundThrowStatementExpr => true,
-            BoundBlockExpr { Statements.Length: > 0 } block => TerminatesControlFlow(block.Statements[^1]),
+            BoundNodeKind.BreakStatement => true,
+            BoundNodeKind.ReturnStatement => true,
+            BoundNodeKind.ContinueStatement => true,
+            BoundNodeKind.GotoStatement => true,
+            BoundNodeKind.GotoCaseStatement => true,
+            BoundNodeKind.GotoDefaultStatement => true,
+            BoundNodeKind.ThrowExpression => true,
+            BoundNodeKind.ThrowStatement => true,
+            BoundNodeKind.Block when ((BoundBlockExpr)expr).Statements.Length > 0 =>
+                TerminatesControlFlow(((BoundBlockExpr)expr).Statements[^1]),
             _ => false
         };
     }

@@ -6,5 +6,6 @@ internal sealed record BoundNullCoalesceAssignExpr(
     Type StaticType,
     int? LocalId = null) : BoundExpr(StaticType)
 {
+    internal override BoundNodeKind Kind => BoundNodeKind.NullCoalescingAssignmentOperator;
     internal override void EnumerateChildren(Action<BoundExpr> visit) { visit(Value); }
 }

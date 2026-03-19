@@ -8,6 +8,7 @@ internal sealed record BoundInvokeExpr(
     ImmutableArray<string> TypeArguments,
     Type StaticType) : BoundExpr(StaticType)
 {
+    internal override BoundNodeKind Kind => BoundNodeKind.Invoke;
     internal override void EnumerateChildren(Action<BoundExpr> visit)
     {
         visit(Callee);

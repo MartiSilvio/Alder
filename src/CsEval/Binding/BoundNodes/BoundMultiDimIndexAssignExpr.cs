@@ -8,6 +8,7 @@ internal sealed record BoundMultiDimIndexAssignExpr(
     BoundExpr Value,
     Type StaticType) : BoundExpr(StaticType)
 {
+    internal override BoundNodeKind Kind => BoundNodeKind.MultiDimIndexAssignment;
     internal override void EnumerateChildren(Action<BoundExpr> visit)
     {
         visit(Target);

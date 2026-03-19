@@ -10,6 +10,7 @@ internal sealed record BoundMultiDimArrayInitExpr(
     int[] InferredDimensions,
     Type StaticType) : BoundExpr(StaticType)
 {
+    internal override BoundNodeKind Kind => BoundNodeKind.MultiDimArrayInit;
     internal override void EnumerateChildren(Action<BoundExpr> visit)
     {
         if (ExplicitSizes != null)

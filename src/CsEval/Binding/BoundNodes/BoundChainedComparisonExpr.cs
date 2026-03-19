@@ -8,5 +8,6 @@ internal sealed record BoundChainedComparisonExpr(
     ImmutableArray<TokenType> Operators,
     Type StaticType) : BoundExpr(StaticType)
 {
+    internal override BoundNodeKind Kind => BoundNodeKind.ChainedComparisonOperator;
     internal override void EnumerateChildren(Action<BoundExpr> visit) { foreach (var o in Operands) visit(o); }
 }

@@ -13,6 +13,7 @@ internal sealed record BoundSwitchExpressionExpr(
     ImmutableArray<BoundSwitchExpressionArm> Arms,
     Type StaticType) : BoundExpr(StaticType)
 {
+    internal override BoundNodeKind Kind => BoundNodeKind.SwitchExpression;
     internal override void EnumerateChildren(Action<BoundExpr> visit)
     {
         visit(Expression);

@@ -7,6 +7,7 @@ internal sealed record BoundBlockExpr(
     BoundExpr? ReturnExpr,
     Type StaticType) : BoundExpr(StaticType)
 {
+    internal override BoundNodeKind Kind => BoundNodeKind.Block;
     internal override void EnumerateChildren(Action<BoundExpr> visit)
     {
         foreach (var s in Statements) visit(s);

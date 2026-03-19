@@ -9,6 +9,7 @@ internal sealed record BoundForExpr(
     ImmutableArray<BoundExpr> Body,
     Type StaticType) : BoundExpr(StaticType)
 {
+    internal override BoundNodeKind Kind => BoundNodeKind.ForStatement;
     internal override void EnumerateChildren(Action<BoundExpr> visit)
     {
         foreach (var i in Initializers) visit(i);

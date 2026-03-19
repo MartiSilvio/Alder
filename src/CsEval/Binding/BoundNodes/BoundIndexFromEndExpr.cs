@@ -5,5 +5,6 @@ internal sealed record BoundIndexFromEndExpr(
     BoundExpr Operand,
     Type StaticType) : BoundExpr(StaticType)
 {
+    internal override BoundNodeKind Kind => BoundNodeKind.FromEndIndexExpression;
     internal override void EnumerateChildren(Action<BoundExpr> visit) { visit(Operand); }
 }
