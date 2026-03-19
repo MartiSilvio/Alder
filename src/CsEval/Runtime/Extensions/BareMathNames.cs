@@ -95,7 +95,11 @@ internal static class BareMathNames
 
         // Roots
         ["sqrt"] = args => Math.Sqrt(ToDouble(args[0])),
-        ["cbrt"] = args => Math.Pow(ToDouble(args[0]), 1.0 / 3.0),
+#if NET5_0_OR_GREATER
+        ["cbrt"] = args => Math.Cbrt(ToDouble(args[0])),
+#else
+        ["cbrt"] = args => { var x = ToDouble(args[0]); return x < 0 ? -Math.Pow(-x, 1.0 / 3.0) : Math.Pow(x, 1.0 / 3.0); },
+#endif
 
         // Logarithms
         ["log"] = args => Math.Log(ToDouble(args[0])),
@@ -106,19 +110,19 @@ internal static class BareMathNames
         // Exponential
         ["exp"] = args => Math.Exp(ToDouble(args[0])),
 
-        // Rounding
-        ["floor"] = args => Math.Floor(ToDouble(args[0])),
-        ["ceil"] = args => Math.Ceiling(ToDouble(args[0])),
-        ["round"] = args => Math.Round(ToDouble(args[0])),
-        ["truncate"] = args => Math.Truncate(ToDouble(args[0])),
+        // Rounding — preserve decimal type per Math.Floor(decimal)/Math.Ceiling(decimal) overloads
+        ["floor"] = args => args[0] is decimal m ? Math.Floor(m) : Math.Floor(ToDouble(args[0])),
+        ["ceil"] = args => args[0] is decimal m ? Math.Ceiling(m) : Math.Ceiling(ToDouble(args[0])),
+        ["round"] = args => args[0] is decimal m ? Math.Round(m) : Math.Round(ToDouble(args[0])),
+        ["truncate"] = args => args[0] is decimal m ? Math.Truncate(m) : Math.Truncate(ToDouble(args[0])),
 
-        // Sign
+        // Sign — all overloads return int
         ["sign"] = args => Math.Sign(ToDouble(args[0]))
     }, StringComparer.Ordinal);
 
     private static readonly FixedDictionary<string, Func<object?[], object?>> TwoArgFunctions = FixedDictionary<string, Func<object?[], object?>>.Create(new Dictionary<string, Func<object?[], object?>>(StringComparer.Ordinal)
     {
-        ["round"] = args => Math.Round(ToDouble(args[0]), Convert.ToInt32(args[1])),
+        ["round"] = args => args[0] is decimal m ? Math.Round(m, Convert.ToInt32(args[1])) : Math.Round(ToDouble(args[0]), Convert.ToInt32(args[1])),
         ["log"] = args => Math.Log(ToDouble(args[0]), ToDouble(args[1])),
         ["atan2"] = args => Math.Atan2(ToDouble(args[0]), ToDouble(args[1])),
         ["min"] = args => Min(args[0], args[1]),

@@ -478,10 +478,11 @@ Check `parameters.Any(p => p.ParameterType.IsByRef)` rejects methods with `in` p
 
 `end + 1` overflows to `int.MinValue` when `end = int.MaxValue` and `exclusiveEnd = false`. Loop exits immediately, producing empty sequence.
 
-### 85. `BareMathNames.cbrt` returns NaN for negative numbers
-**File:** `Runtime/Extensions/BareMathNames.cs:98`
+### ~~85. `BareMathNames.cbrt` returns NaN for negative numbers~~ FIXED
 
-Uses `Math.Pow(x, 1.0/3.0)` which returns `NaN` for negative bases. Should use `Math.Cbrt` which handles negative inputs correctly.
+~~**File:** `Runtime/Extensions/BareMathNames.cs:98`~~
+
+~~Uses `Math.Pow(x, 1.0/3.0)` which returns `NaN` for negative bases. Should use `Math.Cbrt` which handles negative inputs correctly.~~
 
 ### 86. RegexMatchOperator has no timeout — ReDoS vulnerability
 **File:** `Runtime/Extensions/RegexMatchOperator.cs:31`
