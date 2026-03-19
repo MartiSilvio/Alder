@@ -53,14 +53,38 @@ internal sealed partial class Binder
 
     private BoundMemberAccessExpr BindMemberAccess(MemberAccessExpr memberAccess, BindingContext context)
     {
-        var target = Bind(memberAccess.Object, context);
+        // Iterativize left-recursive member access chains to avoid stack overflow.
+        // "a.b.c.d" parses as MemberAccess(MemberAccess(MemberAccess(a, b), c), d).
+        // Collect the chain, bind the root, then fold bottom-up.
+        var chain = new List<MemberAccessExpr>();
+        Expr root = memberAccess;
+        while (root is MemberAccessExpr ma)
+        {
+            chain.Add(ma);
+            root = ma.Object;
+        }
+
+        var target = Bind(root, context);
+
+        for (var i = chain.Count - 1; i >= 0; i--)
+        {
+            var link = chain[i];
+            target = BindSingleMemberAccess(target, link.Name.Lexeme, link.NullSafe, context);
+            target = target with { Span = link.Span };
+        }
+
+        return (BoundMemberAccessExpr)target;
+    }
+
+    private BoundMemberAccessExpr BindSingleMemberAccess(BoundExpr target, string name, bool nullSafe, BindingContext context)
+    {
         var (targetType, isStatic) = ResolveMemberTarget(target);
 
         var memberBinder = new MemberBinderService(context.RuntimeContext.TypeMetadata);
         BoundMemberPlan? plan;
         try
         {
-            plan = memberBinder.BindMemberRead(targetType, memberAccess.Name.Lexeme, isStatic, context.IsCaseSensitive);
+            plan = memberBinder.BindMemberRead(targetType, name, isStatic, context.IsCaseSensitive);
         }
         catch (CsEvalException)
         {
@@ -74,7 +98,7 @@ internal sealed partial class Binder
             _ => typeof(object)
         };
 
-        return new BoundMemberAccessExpr(target, memberAccess.Name.Lexeme, memberAccess.NullSafe, plan, staticType);
+        return new BoundMemberAccessExpr(target, name, nullSafe, plan, staticType);
     }
 
     private BoundIndexAccessExpr BindIndexAccess(IndexAccessExpr indexAccess, BindingContext context)
