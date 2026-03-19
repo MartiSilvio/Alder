@@ -21,7 +21,7 @@ internal sealed partial class BoundExpressionEmitter
     private static Dictionary<int, PromotedLocal> BuildLocalPromotionPlan(BoundExpr root)
     {
         var walker = new PromotionWalker();
-        walker.Walk(root);
+        walker.Visit(root);
 
         if (walker.HasLambda)
             return new Dictionary<int, PromotedLocal>();
@@ -50,33 +50,35 @@ internal sealed partial class BoundExpressionEmitter
         return result;
     }
 
-    private sealed class PromotionWalker
+    private sealed class PromotionWalker : BoundExprWalker
     {
         internal readonly Dictionary<int, PromotedLocal> Result = new();
         internal bool HasLambda;
 
-        internal void Walk(BoundExpr expr)
+        protected override object? VisitLambda(BoundLambdaExpr node)
         {
-            if (HasLambda) return;
+            HasLambda = true;
+            return null;
+        }
 
-            if (expr is BoundLambdaExpr)
+        protected override object? VisitVariableDecl(BoundVariableDeclExpr node)
+        {
+            if (!node.IsConst && node.StaticType != typeof(object) && node.LocalId is { } id)
             {
-                HasLambda = true;
-                return;
-            }
-
-            if (expr is BoundVariableDeclExpr { IsConst: false } decl
-                && decl.StaticType != typeof(object)
-                && decl.LocalId is { } declLocalId)
-            {
-                var variableType = decl.DeclaredType ?? decl.StaticType;
-                Result[declLocalId] = new PromotedLocal(
-                    decl.Name,
-                    LinqExpression.Variable(typeof(object), $"local_{decl.Name}"),
+                var variableType = node.DeclaredType ?? node.StaticType;
+                Result[id] = new PromotedLocal(
+                    node.Name,
+                    LinqExpression.Variable(typeof(object), $"local_{node.Name}"),
                     variableType);
             }
 
-            expr.EnumerateChildren(Walk);
+            return base.VisitVariableDecl(node);
+        }
+
+        protected override object? DefaultVisit(BoundExpr node)
+        {
+            if (HasLambda) return null;
+            return base.DefaultVisit(node);
         }
     }
 }
