@@ -1,3 +1,5 @@
+using CsEval.Diagnostics;
+
 namespace CsEval.Test.Runtime;
 
 /// <summary>
@@ -99,6 +101,7 @@ public class OverloadResolutionTests(CompilationMode mode)
         engine.SetVariable("ambig", new AmbiguousOverloads());
         var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("ambig.M(1, 1)"));
         Assert.That(ex!.Message, Does.Contain("ambiguous"));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CS0121));
     }
 
     [Test]
@@ -106,7 +109,8 @@ public class OverloadResolutionTests(CompilationMode mode)
     {
         var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("named", new NamedCaseTarget());
-        Assert.Throws<CsEvalException>(() => engine.Evaluate("named.M(VALUE: 1)"));
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("named.M(VALUE: 1)"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0024));
     }
 
     #endregion

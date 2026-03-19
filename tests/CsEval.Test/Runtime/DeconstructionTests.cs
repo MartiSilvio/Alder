@@ -1,3 +1,5 @@
+using CsEval.Diagnostics;
+
 namespace CsEval.Test.Runtime;
 
 /// <summary>
@@ -19,6 +21,7 @@ public class DeconstructionTests(CompilationMode mode)
         var ex = Assert.Throws<CsEvalException>(() =>
             engine.Evaluate("{ var (x, y) = val; return x; }"));
         Assert.That(ex!.Message, Does.Contain("CS8129"));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CS8129));
     }
 
     // Engine-only: error test (arity mismatch assertion)
@@ -29,6 +32,7 @@ public class DeconstructionTests(CompilationMode mode)
         var ex = Assert.Throws<CsEvalException>(() =>
             engine.Evaluate("{ var (x, y, z) = (1, 2); return x; }"));
         Assert.That(ex!.Message, Does.Contain("Cannot deconstruct"));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CS8132));
     }
 
     // Engine-only: error test (arity mismatch assertion)
@@ -39,6 +43,7 @@ public class DeconstructionTests(CompilationMode mode)
         var ex = Assert.Throws<CsEvalException>(() =>
             engine.Evaluate("{ var (x, y) = (1, 2, 3); return x; }"));
         Assert.That(ex!.Message, Does.Contain("Cannot deconstruct"));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CS8132));
     }
 
     #endregion

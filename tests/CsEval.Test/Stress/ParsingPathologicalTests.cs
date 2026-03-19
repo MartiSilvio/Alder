@@ -15,7 +15,8 @@ public class ParsingPathologicalTests(CompilationMode mode) : StressTestBase(mod
         var depth = 2000;
         var expression = GenerateDeeplyNestedExpression(depth, "1 + 1");
 
-        Assert.Throws<CsEvalException>(() => Engine.Parse(expression));
+        var ex = Assert.Throws<CsEvalException>(() => Engine.Parse(expression));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(CsEval.Diagnostics.DiagnosticCode.CSEV0033));
     }
 
     [Test]

@@ -21,6 +21,7 @@ public class VariableDeclarationTests(CompilationMode mode)
         var engine = TestEngineFactory.Create(mode);
         var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("{ var x = null; return x; }"));
         Assert.That(ex!.Message, Does.Contain("Cannot assign null to an implicitly-typed variable"));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CS0815));
     }
 
     // Engine-only: error test (parser exception assertion)
@@ -30,6 +31,7 @@ public class VariableDeclarationTests(CompilationMode mode)
         var engine = TestEngineFactory.Create(mode);
         var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("{ for (var x = null; x != null; x = null) { } return 0; }"));
         Assert.That(ex!.Message, Does.Contain("Cannot assign null to an implicitly-typed variable"));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CS0815));
     }
 
     #endregion
@@ -95,7 +97,8 @@ public class VariableDeclarationTests(CompilationMode mode)
     public void TypedDeclaration_Int_ThrowsOnStringAssignment()
     {
         var engine = TestEngineFactory.Create(mode);
-        Assert.Throws<CsEvalException>(() => engine.Evaluate("""{ int x = "hello"; return x; } """));
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("""{ int x = "hello"; return x; } """));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0029));
     }
 
     // Engine-only: error test (CsEvalException assertion)
@@ -103,7 +106,8 @@ public class VariableDeclarationTests(CompilationMode mode)
     public void TypedDeclaration_Int_ThrowsOnNullAssignment()
     {
         var engine = TestEngineFactory.Create(mode);
-        Assert.Throws<CsEvalException>(() => engine.Evaluate("{ int x = null; return x; }"));
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("{ int x = null; return x; }"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0037));
     }
 
     // Engine-only: error test (CsEvalException assertion)
@@ -111,7 +115,8 @@ public class VariableDeclarationTests(CompilationMode mode)
     public void TypedDeclaration_String_ThrowsOnIntAssignment()
     {
         var engine = TestEngineFactory.Create(mode);
-        Assert.Throws<CsEvalException>(() => engine.Evaluate("{ string x = 42; return x; }"));
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("{ string x = 42; return x; }"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0029));
     }
 
     // Engine-only: error test (CsEvalException assertion)
@@ -119,7 +124,8 @@ public class VariableDeclarationTests(CompilationMode mode)
     public void TypedDeclaration_Bool_ThrowsOnIntAssignment()
     {
         var engine = TestEngineFactory.Create(mode);
-        Assert.Throws<CsEvalException>(() => engine.Evaluate("{ bool x = 1; return x; }"));
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("{ bool x = 1; return x; }"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0029));
     }
 
     // Engine-only: error test (CsEvalException assertion)
@@ -127,7 +133,8 @@ public class VariableDeclarationTests(CompilationMode mode)
     public void NullableInt_ThrowsOnStringAssignment()
     {
         var engine = TestEngineFactory.Create(mode);
-        Assert.Throws<CsEvalException>(() => engine.Evaluate("""{ int? x = "hello"; return x; } """));
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("""{ int? x = "hello"; return x; } """));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0029));
     }
 
     #endregion

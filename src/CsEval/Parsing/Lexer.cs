@@ -731,7 +731,7 @@ internal sealed class Lexer
                 if (Peek() == '+' || Peek() == '-')
                     Advance(); // consume sign
                 if (!char.IsDigit(Peek()))
-                    throw LexError($"Invalid exponent: expected digit after sign at {_line}:{_column}");
+                    throw LexError(DiagnosticDescriptors.InvalidNumber, $"Invalid exponent: expected digit after sign at {_line}:{_column}");
                 ScanDigitsWithSeparators(char.IsDigit);
             }
         }
@@ -759,7 +759,7 @@ internal sealed class Lexer
                 NumericSuffix.None => isFloatingPoint
                     ? double.Parse(numberText, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture)
                     : ParseIntegerWithPromotion(numberText),
-                _ => throw LexError($"Unknown numeric suffix at {_line}:{_column}")
+                _ => throw LexError(DiagnosticDescriptors.InvalidNumber, $"Unknown numeric suffix at {_line}:{_column}")
             };
         }
         catch (OverflowException)
@@ -793,7 +793,7 @@ internal sealed class Lexer
                 if (Peek() == '+' || Peek() == '-')
                     Advance(); // consume sign
                 if (!char.IsDigit(Peek()))
-                    throw LexError($"Invalid exponent: expected digit after sign at {_line}:{_column}");
+                    throw LexError(DiagnosticDescriptors.InvalidNumber, $"Invalid exponent: expected digit after sign at {_line}:{_column}");
                 ScanDigitsWithSeparators(char.IsDigit);
             }
         }
@@ -807,7 +807,7 @@ internal sealed class Lexer
             NumericSuffix.Double => double.Parse(numberText, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture),
             NumericSuffix.Decimal => decimal.Parse(numberText, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture),
             NumericSuffix.None => double.Parse(numberText, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture),
-            _ => throw LexError($"Invalid suffix for decimal literal at {_line}:{_column}")
+            _ => throw LexError(DiagnosticDescriptors.InvalidNumber, $"Invalid suffix for decimal literal at {_line}:{_column}")
         };
 
         AddToken(TokenType.Number, value);
@@ -821,10 +821,10 @@ internal sealed class Lexer
             {
                 var prev = _current > 0 ? _source[_current - 1] : '\0';
                 if (!isValidDigit(prev) && prev != '_')
-                    throw LexError($"Digit separator '_' cannot appear at start of number at {_line}:{_column}");
+                    throw LexError(DiagnosticDescriptors.InvalidNumber, $"Digit separator '_' cannot appear at start of number at {_line}:{_column}");
                 Advance();
                 if (!isValidDigit(Peek()) && Peek() != '_')
-                    throw LexError($"Digit separator '_' must be followed by a digit or another separator at {_line}:{_column}");
+                    throw LexError(DiagnosticDescriptors.InvalidNumber, $"Digit separator '_' must be followed by a digit or another separator at {_line}:{_column}");
             }
             else
             {
@@ -835,7 +835,7 @@ internal sealed class Lexer
         // Check for trailing underscore
         var lastChar = _current > 0 ? _source[_current - 1] : '\0';
         if (lastChar == '_')
-            throw LexError($"Digit separator '_' cannot appear at end of number at {_line}:{_column}");
+            throw LexError(DiagnosticDescriptors.InvalidNumber, $"Digit separator '_' cannot appear at end of number at {_line}:{_column}");
     }
 
     private static string StripDigitSeparators(string text) => text.Replace("_", "");
@@ -846,7 +846,7 @@ internal sealed class Lexer
         ScanDigitsWithSeparators(IsHexDigit);
 
         if (_current == hexStart)
-            throw LexError($"Invalid hex literal at {_line}:{_column}");
+            throw LexError(DiagnosticDescriptors.InvalidNumber, $"Invalid hex literal at {_line}:{_column}");
 
         var hexText = StripDigitSeparators(_source[hexStart.._current]);
         var suffix = ParseNumericSuffix();
@@ -860,7 +860,7 @@ internal sealed class Lexer
                 NumericSuffix.ULong => Convert.ToUInt64(hexText, 16),
                 NumericSuffix.UInt => Convert.ToUInt32(hexText, 16),
                 NumericSuffix.None => ParseHexWithPromotion(hexText),
-                _ => throw LexError($"Invalid suffix for hex literal at {_line}:{_column}")
+                _ => throw LexError(DiagnosticDescriptors.InvalidNumber, $"Invalid suffix for hex literal at {_line}:{_column}")
             };
         }
         catch (OverflowException)
@@ -881,7 +881,7 @@ internal sealed class Lexer
         ScanDigitsWithSeparators(c => c is '0' or '1');
 
         if (_current == binStart)
-            throw LexError($"Invalid binary literal at {_line}:{_column}");
+            throw LexError(DiagnosticDescriptors.InvalidNumber, $"Invalid binary literal at {_line}:{_column}");
 
         var binText = StripDigitSeparators(_source[binStart.._current]);
         var suffix = ParseNumericSuffix();
@@ -895,7 +895,7 @@ internal sealed class Lexer
                 NumericSuffix.ULong => Convert.ToUInt64(binText, 2),
                 NumericSuffix.UInt => Convert.ToUInt32(binText, 2),
                 NumericSuffix.None => ParseBinaryWithPromotion(binText),
-                _ => throw LexError($"Invalid suffix for binary literal at {_line}:{_column}")
+                _ => throw LexError(DiagnosticDescriptors.InvalidNumber, $"Invalid suffix for binary literal at {_line}:{_column}")
             };
         }
         catch (OverflowException)
@@ -1119,5 +1119,8 @@ internal sealed class Lexer
     }
 
     private CsEvalException LexError(string message, int? line = null, int? column = null)
-        => new(message) { Line = line ?? _line, Column = column ?? _column };
+        => LexError(DiagnosticDescriptors.InvalidExpressionTerm, message, line, column);
+
+    private CsEvalException LexError(DiagnosticDescriptor descriptor, string message, int? line = null, int? column = null)
+        => new(descriptor, message) { Line = line ?? _line, Column = column ?? _column };
 }

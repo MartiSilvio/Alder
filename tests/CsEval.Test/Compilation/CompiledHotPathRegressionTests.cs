@@ -102,7 +102,8 @@ public class CompiledHotPathRegressionTests(CompilationMode mode)
         var engine = TestEngineFactory.Create(mode);
         engine.RegisterFunction("Math", _ => 123);
 
-        Assert.Throws<CsEvalException>(() => engine.Evaluate("Math.Abs(-5)"));
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("Math.Abs(-5)"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0024));
     }
 
     [Test]

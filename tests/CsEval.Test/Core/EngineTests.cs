@@ -1,4 +1,5 @@
 using CsEval.Attributes;
+using CsEval.Diagnostics;
 
 namespace CsEval.Test.Core;
 
@@ -177,6 +178,7 @@ public class ExplicitModuleTests
         // Non-attributed method should throw
         var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("Mod.NotAllowed()"));
         Assert.That(ex!.Message, Does.Contain("NotAllowed"));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CS0117));
     }
 
     [Test]
@@ -213,6 +215,7 @@ public class ExplicitModuleTests
         // Non-attributed method should throw (ExplicitOnly=true on class)
         var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("Mod.Hidden()"));
         Assert.That(ex!.Message, Does.Contain("Hidden"));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CS0117));
     }
 
     [Test]
@@ -235,6 +238,7 @@ public class ExplicitModuleTests
         // Properties are not exposed in explicit mode
         var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("Mod.Value"));
         Assert.That(ex!.Message, Does.Contain("Value"));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CS0117));
     }
 
     [Test]
@@ -286,7 +290,8 @@ public class CaseSensitivityTests
         engine.SetVariable("MyVar", 42);
 
         Assert.That(engine.Evaluate("MyVar"), Is.EqualTo(42));
-        Assert.Throws<CsEvalException>(() => engine.Evaluate("myvar"));
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("myvar"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0103));
     }
 
     [Test]

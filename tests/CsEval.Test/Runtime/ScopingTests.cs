@@ -1,6 +1,8 @@
 // Engine-only: All tests verify variable scoping via error assertions (CsEvalException for leaked variables)
 // or use CsEval-specific [1,2,3] collection expression and [..spread] syntax
 
+using CsEval.Diagnostics;
+
 namespace CsEval.Test.Runtime;
 
 [TestFixture(CompilationMode.Interpreted)]
@@ -75,6 +77,7 @@ public class ScopingTests(CompilationMode mode)
             }"));
 
         Assert.That(ex!.Message, Does.Contain("x").Or.Contain("Undefined"));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CS0103));
     }
 
     [Test]
@@ -91,6 +94,7 @@ public class ScopingTests(CompilationMode mode)
             }"));
 
         Assert.That(ex!.Message, Does.Contain("x").Or.Contain("Undefined"));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CS0103));
     }
 
     [Test]
@@ -107,6 +111,7 @@ public class ScopingTests(CompilationMode mode)
             }"));
 
         Assert.That(ex!.Message, Does.Contain("item").Or.Contain("Undefined"));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CS0103));
     }
 
     [Test]
@@ -127,6 +132,7 @@ public class ScopingTests(CompilationMode mode)
             }"));
 
         Assert.That(ex!.Message, Does.Contain("inner").Or.Contain("Undefined"));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CS0103));
     }
 
     #endregion
@@ -148,6 +154,7 @@ public class ScopingTests(CompilationMode mode)
             }"));
 
         Assert.That(ex!.Message, Does.Contain("i").Or.Contain("Undefined"));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CS0103));
     }
 
     [Test]
@@ -165,6 +172,7 @@ public class ScopingTests(CompilationMode mode)
             }"));
 
         Assert.That(ex!.Message, Does.Contain("x").Or.Contain("Undefined"));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CS0103));
     }
 
     [Test]
@@ -181,6 +189,7 @@ public class ScopingTests(CompilationMode mode)
             }"));
 
         Assert.That(ex!.Message, Does.Contain("x").Or.Contain("Undefined"));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CS0103));
     }
 
     #endregion
@@ -205,6 +214,7 @@ public class ScopingTests(CompilationMode mode)
             }"));
 
         Assert.That(ex!.Message, Does.Contain("x").Or.Contain("Undefined"));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CS0103));
     }
 
     [Test]
@@ -224,6 +234,7 @@ public class ScopingTests(CompilationMode mode)
             }"));
 
         Assert.That(ex!.Message, Does.Contain("temp").Or.Contain("Undefined"));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CS0103));
     }
 
     #endregion
@@ -248,6 +259,7 @@ public class ScopingTests(CompilationMode mode)
             }"));
 
         Assert.That(ex!.Message, Does.Contain("x").Or.Contain("Undefined"));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CS0103));
     }
 
     #endregion
@@ -270,6 +282,7 @@ public class ScopingTests(CompilationMode mode)
             }"));
 
         Assert.That(ex!.Message, Does.Contain("x").Or.Contain("Undefined"));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CS0103));
     }
 
     [Test]
@@ -286,6 +299,7 @@ public class ScopingTests(CompilationMode mode)
             }"));
 
         Assert.That(ex!.Message, Does.Contain("x").Or.Contain("Undefined"));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CS0103));
     }
 
     [Test]
@@ -305,6 +319,7 @@ public class ScopingTests(CompilationMode mode)
             }"));
 
         Assert.That(ex!.Message, Does.Contain("x").Or.Contain("Undefined"));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CS0103));
     }
 
     [Test]
@@ -323,6 +338,7 @@ public class ScopingTests(CompilationMode mode)
             }"));
 
         Assert.That(ex!.Message, Does.Contain("x").Or.Contain("Undefined"));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CS0103));
     }
 
     [Test]
@@ -343,6 +359,7 @@ public class ScopingTests(CompilationMode mode)
             }"));
 
         Assert.That(ex!.Message, Does.Contain("inner").Or.Contain("Undefined"));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CS0103));
     }
 
     [Test]
@@ -365,6 +382,7 @@ public class ScopingTests(CompilationMode mode)
             }"));
 
         Assert.That(ex!.Message, Does.Contain("x").Or.Contain("Undefined"));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CS0103));
     }
 
     #endregion
@@ -389,6 +407,7 @@ public class ScopingTests(CompilationMode mode)
             }"));
 
         Assert.That(ex!.Message, Does.Contain("even").Or.Contain("Undefined"));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CS0103));
     }
 
     [Test]
@@ -408,6 +427,7 @@ public class ScopingTests(CompilationMode mode)
             }"));
 
         Assert.That(ex!.Message, Does.Contain("i").Or.Contain("Undefined"));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CS0103));
     }
 
     [Test]
@@ -429,6 +449,7 @@ public class ScopingTests(CompilationMode mode)
             }"));
 
         Assert.That(ex!.Message, Does.Contain("inner").Or.Contain("Undefined"));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CS0103));
     }
 
     #endregion
@@ -451,6 +472,7 @@ public class ScopingTests(CompilationMode mode)
             }"));
 
         Assert.That(ex!.Message, Does.Contain("x").Or.Contain("Undefined"));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CS0103));
     }
 
     #endregion

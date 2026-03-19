@@ -282,7 +282,8 @@ public class AggregateTests(CompilationMode mode)
         var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("strings", new List<string> { "a", "b", "c" });
 
-        Assert.Throws<CsEvalException>(() => engine.Evaluate("strings.Sum()"));
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("strings.Sum()"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(CsEval.Diagnostics.DiagnosticCode.CSEV0024));
     }
 
     [Test]
@@ -291,7 +292,8 @@ public class AggregateTests(CompilationMode mode)
         var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("items", new List<object> { "hello", "world" });
 
-        Assert.Throws<CsEvalException>(() => engine.Evaluate("items.Sum()"));
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("items.Sum()"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(CsEval.Diagnostics.DiagnosticCode.CSEV0024));
     }
 
     [Test]

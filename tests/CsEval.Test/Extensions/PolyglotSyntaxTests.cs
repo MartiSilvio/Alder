@@ -14,7 +14,8 @@ public class PolyglotSyntaxTests(CompilationMode mode)
     public void ReservedKeyword_ThrowsCsEvalException(string expr)
     {
         var engine = TestEngineFactory.Create(mode, CsEvalOptions.Default with { LanguageMode = LanguageMode.Extended });
-        Assert.Throws<CsEvalException>(() => engine.Evaluate(expr));
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate(expr));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(CsEval.Diagnostics.DiagnosticCode.CS1003));
     }
 
     [Test]

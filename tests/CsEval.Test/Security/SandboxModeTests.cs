@@ -1,3 +1,5 @@
+using CsEval.Diagnostics;
+
 namespace CsEval.Test.Security;
 
 [TestFixture(CompilationMode.Interpreted)]
@@ -37,6 +39,7 @@ public class SandboxModeTests(CompilationMode mode)
 
         var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("text.GetType()"));
         Assert.That(ex!.Message, Does.Contain("reflection"));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0030));
     }
 
     #endregion
@@ -53,6 +56,7 @@ public class SandboxModeTests(CompilationMode mode)
 
         var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("text.ToUpper()"));
         Assert.That(ex!.Message, Does.Contain("sandbox"));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0011));
     }
 
     [Test]
@@ -65,6 +69,7 @@ public class SandboxModeTests(CompilationMode mode)
 
         var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("obj.GetType()"));
         Assert.That(ex!.Message, Does.Contain("sandbox"));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0011));
     }
 
     [Test]
@@ -77,6 +82,7 @@ public class SandboxModeTests(CompilationMode mode)
 
         var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("num.ToString()"));
         Assert.That(ex!.Message, Does.Contain("sandbox"));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0011));
     }
 
     [Test]
@@ -89,6 +95,7 @@ public class SandboxModeTests(CompilationMode mode)
 
         var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("items.Add(4)"));
         Assert.That(ex!.Message, Does.Contain("sandbox"));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0011));
     }
 
     #endregion
@@ -131,6 +138,7 @@ public class SandboxModeTests(CompilationMode mode)
 
         var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("text.Length"));
         Assert.That(ex!.Message, Does.Contain("sandbox"));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0014));
     }
 
     #endregion
@@ -293,6 +301,7 @@ public class SandboxModeTests(CompilationMode mode)
         // Safe mode blocks method calls before reflection guard is reached
         var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("obj.GetType()"));
         Assert.That(ex!.Message, Does.Contain("sandbox"));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0011));
     }
 
     [Test]
@@ -307,6 +316,7 @@ public class SandboxModeTests(CompilationMode mode)
         // Should block mutating methods
         var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("items.Clear()"));
         Assert.That(ex!.Message, Does.Contain("sandbox"));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0011));
         Assert.That(list, Has.Count.EqualTo(3)); // List unchanged
     }
 
@@ -343,6 +353,7 @@ public class SandboxModeTests(CompilationMode mode)
             return x;
         "));
         Assert.That(ex!.Message, Does.Contain("sandbox"));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0012));
     }
 
     [Test]
@@ -358,6 +369,7 @@ public class SandboxModeTests(CompilationMode mode)
             return x;
         "));
         Assert.That(ex!.Message, Does.Contain("sandbox"));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0012));
     }
 
     [Test]
@@ -373,6 +385,7 @@ public class SandboxModeTests(CompilationMode mode)
             return x;
         "));
         Assert.That(ex!.Message, Does.Contain("sandbox"));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0012));
     }
 
     [Test]
@@ -388,6 +401,7 @@ public class SandboxModeTests(CompilationMode mode)
             return x;
         "));
         Assert.That(ex!.Message, Does.Contain("sandbox"));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0012));
     }
 
     [Test]
@@ -403,6 +417,7 @@ public class SandboxModeTests(CompilationMode mode)
             return x;
         "));
         Assert.That(ex!.Message, Does.Contain("sandbox"));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0012));
     }
 
     [Test]
@@ -471,6 +486,7 @@ public class SandboxModeTests(CompilationMode mode)
             return obj.Value;
         "));
         Assert.That(ex!.Message, Does.Contain("sandbox"));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0017));
     }
 
     [Test]
@@ -501,6 +517,7 @@ public class SandboxModeTests(CompilationMode mode)
             return obj.Inner.Value;
         "));
         Assert.That(ex!.Message, Does.Contain("sandbox"));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0017));
     }
 
     #endregion
@@ -538,6 +555,7 @@ public class SandboxModeTests(CompilationMode mode)
             return arr[1];
         "));
         Assert.That(ex!.Message, Does.Contain("sandbox"));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0013));
     }
 
     [Test]
@@ -569,6 +587,7 @@ public class SandboxModeTests(CompilationMode mode)
             return dict[""key""];
         "));
         Assert.That(ex!.Message, Does.Contain("sandbox"));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0013));
     }
 
     [Test]
@@ -619,6 +638,7 @@ public class SandboxModeTests(CompilationMode mode)
             return x;
         "));
         Assert.That(ex!.Message, Does.Contain("sandbox"));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0012));
     }
 
     [Test]
@@ -631,6 +651,7 @@ public class SandboxModeTests(CompilationMode mode)
 
         var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("text.ToUpper()"));
         Assert.That(ex!.Message, Does.Contain("sandbox"));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0011));
     }
 
     [Test]
@@ -659,6 +680,7 @@ public class SandboxModeTests(CompilationMode mode)
             return obj.Value;
         "));
         Assert.That(ex!.Message, Does.Contain("sandbox"));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0017));
     }
 
     [Test]
@@ -675,6 +697,7 @@ public class SandboxModeTests(CompilationMode mode)
             return arr[1];
         "));
         Assert.That(ex!.Message, Does.Contain("sandbox"));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0013));
     }
 
     [Test]
@@ -766,6 +789,7 @@ public class SandboxModeTests(CompilationMode mode)
 
         var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("text.ToUpper()"));
         Assert.That(ex!.Message, Does.Contain("sandbox"));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0011));
     }
 
     [Test]
@@ -778,6 +802,7 @@ public class SandboxModeTests(CompilationMode mode)
 
         var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("text.Length"));
         Assert.That(ex!.Message, Does.Contain("sandbox"));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0014));
     }
 
     [Test]
@@ -793,6 +818,7 @@ public class SandboxModeTests(CompilationMode mode)
             return x;
         "));
         Assert.That(ex!.Message, Does.Contain("sandbox"));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0012));
     }
 
     [Test]
@@ -808,6 +834,7 @@ public class SandboxModeTests(CompilationMode mode)
             return obj.Value;
         "));
         Assert.That(ex!.Message, Does.Contain("sandbox"));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0017));
     }
 
     [Test]
@@ -824,6 +851,7 @@ public class SandboxModeTests(CompilationMode mode)
             return arr[1];
         "));
         Assert.That(ex!.Message, Does.Contain("sandbox"));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0013));
     }
 
     [Test]
@@ -992,7 +1020,8 @@ public class SandboxModeTests(CompilationMode mode)
                         Sandbox = SandboxOptions.Safe()
         });
 
-        Assert.Throws<CsEvalException>(() => engine.Evaluate("new object()"));
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("new object()"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0018));
     }
 
     [Test]
@@ -1031,7 +1060,8 @@ public class SandboxModeTests(CompilationMode mode)
             }
         });
 
-        Assert.Throws<CsEvalException>(() => engine.Evaluate("new object()"));
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("new object()"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0019));
     }
 
     #region Helper Classes

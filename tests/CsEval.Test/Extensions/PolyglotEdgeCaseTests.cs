@@ -67,7 +67,8 @@ public class PolyglotEdgeCaseTests(CompilationMode mode)
         var engine = CreateEngine();
         engine.SetVariable("Math", (Func<int, int>)(x => x + 1));
         var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("Math(5)"));
-        Assert.That(ex!.Message, Does.Contain("ModuleInfo"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(CsEval.Diagnostics.DiagnosticCode.CS1955));
+        Assert.That(ex.Message, Does.Contain("ModuleInfo"));
     }
 
     #endregion
@@ -508,7 +509,8 @@ public class PolyglotEdgeCaseTests(CompilationMode mode)
         var engine = CreateStandardEngine();
         engine.SetVariable("Math", (Func<int, int>)(x => x + 1));
         var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("Math(5)"));
-        Assert.That(ex!.Message, Does.Contain("ModuleInfo"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(CsEval.Diagnostics.DiagnosticCode.CS1955));
+        Assert.That(ex.Message, Does.Contain("ModuleInfo"));
     }
 
     [Test]

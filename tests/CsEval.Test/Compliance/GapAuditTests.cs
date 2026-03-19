@@ -1,3 +1,5 @@
+using CsEval.Diagnostics;
+
 namespace CsEval.Test.Compliance;
 
 /// <summary>
@@ -1262,7 +1264,7 @@ public class GapAuditTests(CompilationMode mode)
     {
         // §13.8.3: end point of switch section must be unreachable
         // This should produce an error, not silently fall through
-        Assert.Throws<CsEvalException>(() => Eval(@"{
+        var ex = Assert.Throws<CsEvalException>(() => Eval(@"{
             var x = 1;
             switch (x)
             {
@@ -1273,6 +1275,7 @@ public class GapAuditTests(CompilationMode mode)
             }
             return 0;
         }"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0163));
     }
 
     #endregion

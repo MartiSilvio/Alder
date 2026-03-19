@@ -1,3 +1,5 @@
+using CsEval.Diagnostics;
+
 namespace CsEval.Test.Compliance;
 
 [TestFixture(CompilationMode.Interpreted)]
@@ -29,10 +31,11 @@ public class BoxingConformanceTests(CompilationMode mode)
     {
         // §10.3.7: unboxing to wrong type should fail
         // CsEval wraps this as CsEvalException, which is acceptable
-        Assert.Throws<CsEvalException>(() => Eval(@"
+        var ex = Assert.Throws<CsEvalException>(() => Eval(@"
             object o = 42;
             return (long)o;
         "));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0030));
     }
 
     [Test]

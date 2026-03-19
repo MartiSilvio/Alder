@@ -38,7 +38,8 @@ public class CastTests(CompilationMode mode)
     {
         var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("obj", (object)"hello");
-        Assert.Throws<CsEvalException>(() => engine.Evaluate("(Exception)obj"));
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("(Exception)obj"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(CsEval.Diagnostics.DiagnosticCode.CS0030));
     }
 
     [Test]
@@ -61,7 +62,8 @@ public class CastTests(CompilationMode mode)
         engine.SetVariable("boxed", (object)42);
 
         Assert.That(engine.Evaluate("(int)boxed"), Is.EqualTo(42));
-        Assert.Catch<CsEvalException>(() => engine.Evaluate("(long)boxed"));
+        var ex2 = Assert.Catch<CsEvalException>(() => engine.Evaluate("(long)boxed"));
+        Assert.That(ex2!.ErrorCode, Is.EqualTo(CsEval.Diagnostics.DiagnosticCode.CS0030));
 
         var csharpResult = await TestHelpers.EvaluateCSharpAsync("(int)(object)42");
         Assert.That(csharpResult, Is.EqualTo(42));

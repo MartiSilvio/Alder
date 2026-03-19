@@ -1,3 +1,5 @@
+using CsEval.Diagnostics;
+
 namespace CsEval.Test.Runtime;
 
 /// <summary>
@@ -82,8 +84,9 @@ public class IndexPropertyAssignmentTests(CompilationMode mode)
         var engine = TestEngineFactory.Create(mode, CsEvalOptions.Default with { LanguageMode = LanguageMode.Extended });
         engine.SetVariable("arr", null);
 
-        Assert.Throws<CsEvalException>(() =>
+        var ex = Assert.Throws<CsEvalException>(() =>
             engine.Evaluate("arr[0] = 5"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0021));
     }
 
     #endregion
@@ -204,8 +207,9 @@ public class IndexPropertyAssignmentTests(CompilationMode mode)
         var engine = TestEngineFactory.Create(mode, CsEvalOptions.Default with { LanguageMode = LanguageMode.Extended });
         engine.SetVariable("obj", null);
 
-        Assert.Throws<CsEvalException>(() =>
+        var ex = Assert.Throws<CsEvalException>(() =>
             engine.Evaluate("""obj.Name = "test" """));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0020));
     }
 
     #endregion
@@ -242,8 +246,9 @@ public class IndexPropertyAssignmentTests(CompilationMode mode)
         var engine = TestEngineFactory.Create(mode, CsEvalOptions.Default with { LanguageMode = LanguageMode.Extended });
         engine.SetVariable("text", "hello");
 
-        Assert.Throws<CsEvalException>(() =>
+        var ex = Assert.Throws<CsEvalException>(() =>
             engine.Evaluate("text.Length = 10"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0191));
     }
 
     public class TestPerson

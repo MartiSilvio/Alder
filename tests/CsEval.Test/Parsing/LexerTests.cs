@@ -1,3 +1,4 @@
+using CsEval.Diagnostics;
 using CsEval.Parsing;
 
 namespace CsEval.Test.Parsing;
@@ -224,7 +225,8 @@ public class LexerTests
     public void Tokenize_RegularStringContainingRawNewline_Throws()
     {
         var lexer = new Lexer("\"line1\nline2\"");
-        Assert.Throws<CsEvalException>(() => lexer.Tokenize());
+        var ex = Assert.Throws<CsEvalException>(() => lexer.Tokenize());
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS1525));
     }
 
     [TestCase(@"""\{""")]
@@ -232,7 +234,8 @@ public class LexerTests
     public void Tokenize_InvalidEscapeSequence_Throws(string input)
     {
         var lexer = new Lexer(input);
-        Assert.Throws<CsEvalException>(() => lexer.Tokenize());
+        var ex = Assert.Throws<CsEvalException>(() => lexer.Tokenize());
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS1525));
     }
 
     [Test]
@@ -248,7 +251,8 @@ public class LexerTests
     public void Tokenize_UnterminatedRawString_Throws()
     {
         var lexer = new Lexer("\"\"\"abc");
-        Assert.Throws<CsEvalException>(() => lexer.Tokenize());
+        var ex = Assert.Throws<CsEvalException>(() => lexer.Tokenize());
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS1525));
     }
 
     [TestCase(@"$""Hello\tWorld""", "Hello\tWorld", TestName = "InterpolatedTabEscape")]
@@ -304,14 +308,16 @@ public class LexerTests
     public void Tokenize_EmptyCharLiteral_Throws()
     {
         var lexer = new Lexer("''");
-        Assert.Throws<CsEvalException>(() => lexer.Tokenize());
+        var ex = Assert.Throws<CsEvalException>(() => lexer.Tokenize());
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS1525));
     }
 
     [Test]
     public void Tokenize_MultiCharLiteral_Throws()
     {
         var lexer = new Lexer("'ab'");
-        Assert.Throws<CsEvalException>(() => lexer.Tokenize());
+        var ex = Assert.Throws<CsEvalException>(() => lexer.Tokenize());
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS1525));
     }
 
     #endregion
@@ -325,7 +331,8 @@ public class LexerTests
     public void Tokenize_InvalidExponent_Throws(string input)
     {
         var lexer = new Lexer(input);
-        Assert.Throws<CsEvalException>(() => lexer.Tokenize());
+        var ex = Assert.Throws<CsEvalException>(() => lexer.Tokenize());
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS1013));
     }
 
     [TestCase("1e10", 1e10, TestName = "ExponentNoSign")]

@@ -64,7 +64,8 @@ public class SwitchExpressionTests(CompilationMode mode)
         var result = engine.Evaluate("x switch { string s => s.Length, _ => -1 }");
         Assert.That(result, Is.EqualTo(5));
         // 's' should not be accessible in the engine context after switch
-        Assert.Throws<CsEvalException>(() => engine.Evaluate("s"));
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("s"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(CsEval.Diagnostics.DiagnosticCode.CS0103));
     }
 
     #endregion

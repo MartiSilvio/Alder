@@ -1,3 +1,5 @@
+using CsEval.Diagnostics;
+
 namespace CsEval.Test.Types;
 
 /// <summary>
@@ -16,28 +18,32 @@ public class StringTests(CompilationMode mode)
     public void Eval_UnicodeEscape_InvalidHex_Throws()
     {
         var engine = TestEngineFactory.Create(mode);
-        Assert.Throws<CsEvalException>(() => engine.Evaluate(@"""\u00GG"""));
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate(@"""\u00GG"""));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS1525));
     }
 
     [Test]
     public void Eval_UnicodeEscape_TooFewDigits_Throws()
     {
         var engine = TestEngineFactory.Create(mode);
-        Assert.Throws<CsEvalException>(() => engine.Evaluate(""" "\u00" """));
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate(""" "\u00" """));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS1525));
     }
 
     [Test]
     public void Eval_UnicodeEscape8_TooFewDigits_Throws()
     {
         var engine = TestEngineFactory.Create(mode);
-        Assert.Throws<CsEvalException>(() => engine.Evaluate(""" "\U0000" """));
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate(""" "\U0000" """));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS1525));
     }
 
     [Test]
     public void Eval_HexEscape_NoDigits_Throws()
     {
         var engine = TestEngineFactory.Create(mode);
-        Assert.Throws<CsEvalException>(() => engine.Evaluate(""" "\xG" """));
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate(""" "\xG" """));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS1525));
     }
 
     #endregion

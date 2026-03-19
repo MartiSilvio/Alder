@@ -158,7 +158,8 @@ public class CompiledDelegateTests
         compiled.Invoke(new Dictionary<string, object?> { ["y"] = 10 });
 
         // y should not exist in engine context -- using it without per-invocation vars should throw
-        Assert.Throws<CsEvalException>(() => engine.Evaluate("y"));
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("y"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(CsEval.Diagnostics.DiagnosticCode.CS0103));
     }
 
     [Test]

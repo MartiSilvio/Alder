@@ -1,3 +1,5 @@
+using CsEval.Diagnostics;
+
 namespace CsEval.Test.Types;
 
 /// <summary>
@@ -117,7 +119,8 @@ public class NumericTests(CompilationMode mode)
         var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("x", 10.5f);
         engine.SetVariable("y", 5.25m);
-        Assert.That(() => engine.Evaluate("x + y"), Throws.TypeOf<CsEvalException>());
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("x + y"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0019));
     }
 
     [Test]
@@ -127,7 +130,8 @@ public class NumericTests(CompilationMode mode)
         var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("x", 10.5d);
         engine.SetVariable("y", 5.25m);
-        Assert.That(() => engine.Evaluate("x + y"), Throws.TypeOf<CsEvalException>());
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("x + y"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0019));
     }
 
     #endregion
@@ -236,7 +240,7 @@ public class NumericTests(CompilationMode mode)
     {
         // Engine-only: tests CsEvalException error behavior
         var engine = TestEngineFactory.Create(mode);
-        Assert.Throws<CsEvalException>(() => engine.Evaluate(@"
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate(@"
         {
             var x = 1;
             {
@@ -244,6 +248,7 @@ public class NumericTests(CompilationMode mode)
             }
             return x;
         }"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0128));
     }
 
     [Test]
@@ -251,13 +256,14 @@ public class NumericTests(CompilationMode mode)
     {
         // Engine-only: tests CsEvalException error behavior
         var engine = TestEngineFactory.Create(mode);
-        Assert.Throws<CsEvalException>(() => engine.Evaluate(@"
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate(@"
         {
             {
                 var y = 5;
             }
             return y;
         }"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0103));
     }
 
     #endregion

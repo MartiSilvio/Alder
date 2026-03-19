@@ -1,3 +1,5 @@
+using CsEval.Diagnostics;
+
 namespace CsEval.Test.Compliance;
 
 [TestFixture(CompilationMode.Interpreted)]
@@ -102,7 +104,8 @@ public class NumericPromotionConformanceTests(CompilationMode mode)
         var engine = Engine();
         engine.SetVariable("a", (ulong)10);
         engine.SetVariable("b", (long)5);
-        Assert.Throws<CsEvalException>(() => engine.Evaluate("return a + b;"));
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("return a + b;"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0019));
     }
 
     [Test]
@@ -112,7 +115,8 @@ public class NumericPromotionConformanceTests(CompilationMode mode)
         var engine = Engine();
         engine.SetVariable("a", 10m);
         engine.SetVariable("b", 5.0);
-        Assert.Throws<CsEvalException>(() => engine.Evaluate("return a + b;"));
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("return a + b;"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0019));
     }
 
     [Test]
@@ -122,7 +126,8 @@ public class NumericPromotionConformanceTests(CompilationMode mode)
         var engine = Engine();
         engine.SetVariable("a", 10m);
         engine.SetVariable("b", 5.0f);
-        Assert.Throws<CsEvalException>(() => engine.Evaluate("return a + b;"));
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("return a + b;"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0019));
     }
 
     // ═══════════════════════════════════════════════════════════════════

@@ -92,6 +92,9 @@ public enum DiagnosticCode
     /// <summary>Syntax error, '{0}' expected</summary>
     CS1003 = 1003,
 
+    /// <summary>Invalid number</summary>
+    CS1013 = 1013,
+
     /// <summary>Try statement already has an empty catch block</summary>
     CS1017 = 1017,
 
@@ -159,8 +162,6 @@ public enum DiagnosticCode
     CSEV0009 = 1_000_009,
 
     // Sandbox and security
-    /// <summary>Sandbox blocked member access.</summary>
-    CSEV0010 = 1_000_010,
     /// <summary>Method calls blocked by sandbox.</summary>
     CSEV0011 = 1_000_011,
     /// <summary>Sandbox blocked assignment.</summary>

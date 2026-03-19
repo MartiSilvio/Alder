@@ -1,6 +1,8 @@
 // All tests engine-only: exercise internal TypeResolver API through CsEvalEngine.Evaluate
 // with typeof/cast/is patterns, RegisterNamespace/RegisterAssembly config, and error assertions.
 
+using CsEval.Diagnostics;
+
 namespace CsEval.Test.Runtime;
 
 /// <summary>
@@ -222,7 +224,8 @@ public class TypeResolverTests(CompilationMode mode)
     {
         // StringBuilder requires System.Text using
         var engine = CreateEngine();
-        Assert.Throws<CsEvalException>(() => engine.Evaluate("new StringBuilder()"));
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("new StringBuilder()"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0246));
     }
 
     [Test]
@@ -307,8 +310,9 @@ public class TypeResolverTests(CompilationMode mode)
     public void ResolveType_FullyQualified_NotFound_ThrowsCsEvalException()
     {
         var engine = CreateEngine();
-        Assert.Throws<CsEvalException>(() =>
+        var ex = Assert.Throws<CsEvalException>(() =>
             engine.Evaluate("typeof(System.Fake.NotARealType)"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0246));
     }
 
     #endregion
@@ -570,6 +574,7 @@ public class TypeResolverTests(CompilationMode mode)
         var ex = Assert.Throws<CsEvalException>(() =>
             engine.Evaluate("typeof(TotallyFakeType)"));
         Assert.That(ex!.Message, Does.Contain("TotallyFakeType"));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CS0246));
     }
 
     [Test]
@@ -579,6 +584,7 @@ public class TypeResolverTests(CompilationMode mode)
         var ex = Assert.Throws<CsEvalException>(() =>
             engine.Evaluate("typeof(Some.Fake.Namespace.Type)"));
         Assert.That(ex!.Message, Does.Contain("Some.Fake.Namespace.Type"));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CS0246));
     }
 
     [Test]
@@ -588,14 +594,16 @@ public class TypeResolverTests(CompilationMode mode)
         var ex = Assert.Throws<CsEvalException>(() =>
             engine.Evaluate("new StringBuilder()"));
         Assert.That(ex!.Message, Does.Contain("using directive").Or.Contain("assembly reference"));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CS0246));
     }
 
     [Test]
     public void ResolveType_NewWithUnknownType_Throws()
     {
         var engine = CreateEngine();
-        Assert.Throws<CsEvalException>(() =>
+        var ex = Assert.Throws<CsEvalException>(() =>
             engine.Evaluate("new CompletelyMadeUpType()"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0246));
     }
 
     #endregion

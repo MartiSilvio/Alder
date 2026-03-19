@@ -996,8 +996,9 @@ public class ExpressionTreeTests
     [Test]
     public void Evaluate_Func_ParameterMismatch_Throws()
     {
-        Assert.Throws<CsEvalException>(() =>
+        var ex = Assert.Throws<CsEvalException>(() =>
             _engine.Evaluate<Func<int, int, int>>("x => x * 2"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(CsEval.Diagnostics.DiagnosticCode.CS0123));
     }
 
     #endregion

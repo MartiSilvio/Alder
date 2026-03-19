@@ -57,7 +57,8 @@ public class CatchFilterTests(CompilationMode mode)
         var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("counter", counter);
 
-        Assert.Throws<CsEvalException>(() => engine.Evaluate("1 && counter.Bump()"));
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("1 && counter.Bump()"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(CsEval.Diagnostics.DiagnosticCode.CS0019));
         Assert.That(counter.Count, Is.EqualTo(0));
     }
 

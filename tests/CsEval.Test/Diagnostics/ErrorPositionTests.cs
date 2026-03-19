@@ -1,3 +1,5 @@
+using CsEval.Diagnostics;
+
 namespace CsEval.Test.Diagnostics;
 
 /// <summary>
@@ -20,6 +22,7 @@ public class ErrorPositionTests
         Assert.That(ex.Column, Is.EqualTo(5));
         Assert.That(ex.Span.Start, Is.EqualTo(4));
         Assert.That(ex.Span.Length, Is.EqualTo(3));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CS0103));
     }
 
     [Test]
@@ -29,6 +32,7 @@ public class ErrorPositionTests
         Assert.That(ex!.Line, Is.EqualTo(1));
         Assert.That(ex.Column, Is.EqualTo(1));
         Assert.That(ex.Span.Start, Is.EqualTo(0));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CS0103));
     }
 
     [Test]
@@ -39,6 +43,7 @@ public class ErrorPositionTests
         Assert.That(ex.Column, Is.EqualTo(1));
         Assert.That(ex.Span.Start, Is.EqualTo(0));
         Assert.That(ex.Span.Length, Is.EqualTo(8));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CS0019));
     }
 
     [Test]
@@ -47,6 +52,7 @@ public class ErrorPositionTests
         var ex = Assert.Catch<CsEvalException>(() => Interpreted().Evaluate("xyz = 5"));
         Assert.That(ex!.Line, Is.EqualTo(1));
         Assert.That(ex.Column, Is.EqualTo(1));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CS0103));
     }
 
     [Test]
@@ -55,6 +61,7 @@ public class ErrorPositionTests
         var expr = "{ var x = 1;\n var y = unknownVar; }";
         var ex = Assert.Catch<CsEvalException>(() => Interpreted().Evaluate(expr));
         Assert.That(ex!.Line, Is.EqualTo(2));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CS0103));
     }
 
     [Test]
@@ -63,6 +70,7 @@ public class ErrorPositionTests
         var ex = Assert.Catch<CsEvalException>(() => Interpreted().Evaluate("1 + (2 * xyz)"));
         Assert.That(ex!.Line, Is.EqualTo(1));
         Assert.That(ex.Column, Is.EqualTo(10));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CS0103));
     }
 
     [Test]
@@ -71,6 +79,7 @@ public class ErrorPositionTests
         var ex = Assert.Catch<CsEvalException>(() => Interpreted().Evaluate("xyz.Length"));
         Assert.That(ex!.Line, Is.EqualTo(1));
         Assert.That(ex.Column, Is.EqualTo(1));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CS0103));
     }
 
     [Test]
@@ -79,6 +88,7 @@ public class ErrorPositionTests
         var ex = Assert.Catch<CsEvalException>(() => Interpreted().Evaluate("(NonExistentType)42"));
         Assert.That(ex!.Line, Is.EqualTo(1));
         Assert.That(ex.Column, Is.Not.Null);
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CS0246));
     }
 
     [Test]
@@ -88,5 +98,6 @@ public class ErrorPositionTests
         var ex = Assert.Catch<CsEvalException>(() => engine.Evaluate("(NonExistentType)42"));
         Assert.That(ex!.Line, Is.EqualTo(1));
         Assert.That(ex.Column, Is.Not.Null);
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CS0246));
     }
 }

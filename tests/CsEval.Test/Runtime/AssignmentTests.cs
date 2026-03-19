@@ -71,11 +71,12 @@ public class AssignmentTests(CompilationMode mode)
     {
         var engine = TestEngineFactory.Create(mode);
 
-        Assert.Throws<CsEvalException>(() =>
+        var ex = Assert.Throws<CsEvalException>(() =>
             engine.Evaluate(@"
                 undefinedVar = 10;
                 return undefinedVar;
             "));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(CsEval.Diagnostics.DiagnosticCode.CS0103));
     }
 
     #endregion

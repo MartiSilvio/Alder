@@ -26,7 +26,8 @@ public class ImplicitIteratorTests(CompilationMode mode)
         engine.SetVariable("numbers", new List<int> { 1, 2, 3, 4 });
 
         // _ is C#'s discard, not a placeholder — should fail as unresolved identifier
-        Assert.Throws<CsEvalException>(() => engine.Evaluate("numbers.Select(_ * 10).ToArray()"));
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("numbers.Select(_ * 10).ToArray()"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(CsEval.Diagnostics.DiagnosticCode.CS0103));
     }
 
     [Test]

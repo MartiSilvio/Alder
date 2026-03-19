@@ -621,7 +621,8 @@ public class CompilationTests
         }");
 
         var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate(expr));
-        Assert.That(ex!.Message, Does.Contain("CS0163"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(CsEval.Diagnostics.DiagnosticCode.CS0163));
+        Assert.That(ex.Message, Does.Contain("CS0163"));
         Assert.That(expr.IsCompiled, Is.False);
     }
 
@@ -633,7 +634,8 @@ public class CompilationTests
         var expr = engine.Parse("1 + 2");
 
         var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate(expr));
-        Assert.That(ex!.Message, Does.Contain("Forced compile failure"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(CsEval.Diagnostics.DiagnosticCode.CSEV0001));
+        Assert.That(ex.Message, Does.Contain("Forced compile failure"));
         Assert.That(expr.IsCompiled, Is.False);
     }
 

@@ -126,6 +126,10 @@ public static class DiagnosticDescriptors
     public static readonly DiagnosticDescriptor GeneralCatchMustBeLast =
         new(DiagnosticCode.CS1017, "Try statement already has an empty catch block");
 
+    /// <summary>CS1013: Invalid number</summary>
+    public static readonly DiagnosticDescriptor InvalidNumber =
+        new(DiagnosticCode.CS1013, "Invalid number");
+
     /// <summary>CS1021: Integral constant is too large</summary>
     public static readonly DiagnosticDescriptor IntegralConstantTooLarge =
         new(DiagnosticCode.CS1021, "Integral constant is too large");
@@ -209,10 +213,6 @@ public static class DiagnosticDescriptors
         new(DiagnosticCode.CSEV0009, "Feature '{0}' is not available in Standard mode. Use LanguageMode.Extended to enable non-standard syntax extensions.");
 
     // CSEV03xx — Sandbox and security
-
-    /// <summary>CSEV0010: {0} access blocked by sandbox: {1}.{2}</summary>
-    public static readonly DiagnosticDescriptor SandboxAccessBlocked =
-        new(DiagnosticCode.CSEV0010, "{0} access blocked by sandbox: {1}.{2}");
 
     /// <summary>CSEV0011: Method calls blocked by sandbox: {0}</summary>
     public static readonly DiagnosticDescriptor SandboxMethodCallBlocked =

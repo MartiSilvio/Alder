@@ -1,4 +1,5 @@
 using System.Dynamic;
+using CsEval.Diagnostics;
 
 namespace CsEval.Test.Runtime;
 
@@ -65,7 +66,8 @@ public class MemberAccessTests(CompilationMode mode)
         engine.SetVariable("user", obj);
 
         Assert.That(engine.Evaluate("user.Name"), Is.EqualTo("John"));
-        Assert.Throws<CsEvalException>(() => engine.Evaluate("user.name"));
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("user.name"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS1061));
     }
 
     #endregion
@@ -116,6 +118,7 @@ public class MemberAccessTests(CompilationMode mode)
 
         var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate(""" "abc".flipcasex() """));
         Assert.That(ex!.Message, Does.Contain("Method"));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0024));
     }
 
     [Test]

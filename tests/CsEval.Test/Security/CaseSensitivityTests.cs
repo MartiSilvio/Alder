@@ -29,7 +29,7 @@ public class CaseSensitivityTests(CompilationMode mode)
 
         // "toupper" is wrong case -- should fail in case-sensitive mode
         var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("text.toupper()"));
-        Assert.That(ex, Is.Not.Null);
+        Assert.That(ex!.ErrorCode, Is.EqualTo(CsEval.Diagnostics.DiagnosticCode.CSEV0024));
     }
 
     [Test]

@@ -1,3 +1,5 @@
+using CsEval.Diagnostics;
+
 namespace CsEval.Test.Security;
 
 [TestFixture(CompilationMode.Interpreted)]
@@ -14,6 +16,7 @@ public class StaticMethodSandboxTests(CompilationMode mode)
         var ex = Assert.Throws<CsEvalException>(() =>
             engine.Evaluate("""System.IO.File.Exists("/tmp") """));
         Assert.That(ex!.Message, Does.Contain("sandbox"));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0011));
     }
 
     [Test]
@@ -26,6 +29,7 @@ public class StaticMethodSandboxTests(CompilationMode mode)
         var ex = Assert.Throws<CsEvalException>(() =>
             engine.Evaluate("""System.IO.File.Exists("/tmp") """));
         Assert.That(ex!.Message, Does.Contain("sandbox"));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0011));
     }
 
     [Test]
@@ -73,6 +77,7 @@ public class StaticMethodSandboxTests(CompilationMode mode)
 
         var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("int.MaxValue"));
         Assert.That(ex!.Message, Does.Contain("sandbox"));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0015));
     }
 
     [Test]
@@ -84,6 +89,7 @@ public class StaticMethodSandboxTests(CompilationMode mode)
 
         var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("double.NaN"));
         Assert.That(ex!.Message, Does.Contain("sandbox"));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0015));
     }
 
     [Test]

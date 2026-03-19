@@ -103,7 +103,8 @@ public class ThrowExpressionTests(CompilationMode mode)
     {
         var engine = TestEngineFactory.Create(mode);
         // new Object() is not an Exception, should error
-        Assert.Catch(() => engine.Evaluate("throw new Object()"));
+        var ex = Assert.Catch<CsEvalException>(() => engine.Evaluate("throw new Object()"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(CsEval.Diagnostics.DiagnosticCode.CS0155));
     }
 
     [Test]

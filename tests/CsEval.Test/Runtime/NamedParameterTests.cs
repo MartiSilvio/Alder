@@ -1,3 +1,5 @@
+using CsEval.Diagnostics;
+
 namespace CsEval.Test.Runtime;
 
 /// <summary>
@@ -35,8 +37,9 @@ public class NamedParameterTests(CompilationMode mode)
         var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("str", "Hello World");
 
-        Assert.Throws<CsEvalException>(() =>
+        var ex = Assert.Throws<CsEvalException>(() =>
             engine.Evaluate("str.Substring(STARTINDEX: 0, LENGTH: 5)"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0024));
     }
 
     #endregion
@@ -50,8 +53,9 @@ public class NamedParameterTests(CompilationMode mode)
         var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("str", "Hello World");
 
-        Assert.Throws<CsEvalException>(() =>
+        var ex = Assert.Throws<CsEvalException>(() =>
             engine.Evaluate("str.Substring(invalidParam: 0, length: 5)"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0024));
     }
 
     #endregion

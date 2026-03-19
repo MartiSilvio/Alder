@@ -15,6 +15,7 @@ public class TypeInferenceCacheTests
 
         // Static type becomes object, so explicit cast must follow object unboxing rules.
         engine.SetVariable<object>("x", 42);
-        Assert.Throws<CsEvalException>(() => engine.Evaluate(expression));
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate(expression));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(CsEval.Diagnostics.DiagnosticCode.CS0030));
     }
 }

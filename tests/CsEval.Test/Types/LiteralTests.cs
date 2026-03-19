@@ -1,3 +1,5 @@
+using CsEval.Diagnostics;
+
 namespace CsEval.Test.Types;
 
 /// <summary>
@@ -17,7 +19,8 @@ public class LiteralTests(CompilationMode mode)
     public void Eval_Literal_ShouldThrowOnInvalidLexerInput(string expr)
     {
         var engine = TestEngineFactory.Create(mode);
-        Assert.Throws<CsEvalException>(() => engine.Evaluate(expr));
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate(expr));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS1013));
     }
 
     [TestCase("0b123", TestName = "InvalidBinary_MixedDigits")]

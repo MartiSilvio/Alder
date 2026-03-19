@@ -52,7 +52,8 @@ public class ConstructorTests(CompilationMode mode)
     public void Constructor_NonExistentType_Throws()
     {
         var engine = TestEngineFactory.Create(mode);
-        Assert.Catch<CsEvalException>(() => engine.Evaluate("new NonExistentType123()"));
+        var ex = Assert.Catch<CsEvalException>(() => engine.Evaluate("new NonExistentType123()"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(CsEval.Diagnostics.DiagnosticCode.CS0246));
     }
 
     // Engine-only: new int() returns default(int) = 0, verifies Activator.CreateInstance

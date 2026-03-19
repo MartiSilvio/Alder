@@ -72,7 +72,8 @@ public class ThreadSafetyTests(CompilationMode mode)
         Assert.That(parentResult, Is.EqualTo(10));
 
         // y should not be defined in parent
-        Assert.Throws<CsEvalException>(() => engine.Evaluate("y"));
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("y"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(CsEval.Diagnostics.DiagnosticCode.CS0103));
     }
 
     [Test]
