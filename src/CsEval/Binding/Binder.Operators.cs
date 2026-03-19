@@ -28,13 +28,26 @@ internal sealed partial class Binder
         return new BoundAsExpr(expression, targetType, targetType);
     }
 
-    private BoundBinaryExpr BindBinary(BinaryExpr binary, BindingContext context)
+    private BoundExpr BindBinary(BinaryExpr binary, BindingContext context)
     {
-        var left = Bind(binary.Left, context);
-        var right = Bind(binary.Right, context);
-        var resultType = InferBinaryResultType(binary.Op.Type, left.StaticType, right.StaticType);
+        var chain = new List<BinaryExpr>();
+        Expr leftmost = binary;
+        while (leftmost is BinaryExpr b)
+        {
+            chain.Add(b);
+            leftmost = b.Left;
+        }
 
-        return new BoundBinaryExpr(binary.Op.Type, left, right, resultType);
+        var result = Bind(leftmost, context);
+        for (var i = chain.Count - 1; i >= 0; i--)
+        {
+            var link = chain[i];
+            var right = Bind(link.Right, context);
+            var resultType = InferBinaryResultType(link.Op.Type, result.StaticType, right.StaticType);
+            result = new BoundBinaryExpr(link.Op.Type, result, right, resultType) { Span = link.Span };
+        }
+
+        return result;
     }
 
     private BoundUnaryExpr BindUnary(UnaryExpr unary, BindingContext context)
@@ -44,21 +57,46 @@ internal sealed partial class Binder
         return new BoundUnaryExpr(unary.Op.Type, operand, resultType);
     }
 
-    private BoundLogicalExpr BindLogical(LogicalExpr logical, BindingContext context)
+    private BoundExpr BindLogical(LogicalExpr logical, BindingContext context)
     {
-        var left = Bind(logical.Left, context);
-        var right = Bind(logical.Right, context);
-        return new BoundLogicalExpr(logical.Op.Type, left, right, typeof(bool));
+        var chain = new List<LogicalExpr>();
+        Expr leftmost = logical;
+        while (leftmost is LogicalExpr l)
+        {
+            chain.Add(l);
+            leftmost = l.Left;
+        }
+
+        var result = Bind(leftmost, context);
+        for (var i = chain.Count - 1; i >= 0; i--)
+        {
+            var link = chain[i];
+            var right = Bind(link.Right, context);
+            result = new BoundLogicalExpr(link.Op.Type, result, right, typeof(bool)) { Span = link.Span };
+        }
+
+        return result;
     }
 
-    private BoundNullCoalesceExpr BindNullCoalesce(NullCoalesceExpr nullCoalesce, BindingContext context)
+    private BoundExpr BindNullCoalesce(NullCoalesceExpr nullCoalesce, BindingContext context)
     {
-        var left = Bind(nullCoalesce.Left, context);
-        var right = Bind(nullCoalesce.Right, context);
-        return new BoundNullCoalesceExpr(
-            left,
-            right,
-            GetCommonType(left.StaticType, right.StaticType));
+        var chain = new List<NullCoalesceExpr>();
+        Expr leftmost = nullCoalesce;
+        while (leftmost is NullCoalesceExpr nc)
+        {
+            chain.Add(nc);
+            leftmost = nc.Left;
+        }
+
+        var result = Bind(leftmost, context);
+        for (var i = chain.Count - 1; i >= 0; i--)
+        {
+            var link = chain[i];
+            var right = Bind(link.Right, context);
+            result = new BoundNullCoalesceExpr(result, right, GetCommonType(result.StaticType, right.StaticType)) { Span = link.Span };
+        }
+
+        return result;
     }
 
     private BoundConditionalExpr BindConditional(ConditionalExpr conditional, BindingContext context)

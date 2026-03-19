@@ -442,14 +442,29 @@ internal sealed class BoundEvaluator
 
     private object? EvaluateBinary(BoundBinaryExpr binary)
     {
-        var left = Evaluate(binary.Left);
+        var chain = new List<BoundBinaryExpr>();
+        BoundExpr leftmost = binary;
+        while (leftmost is BoundBinaryExpr b)
+        {
+            chain.Add(b);
+            leftmost = b.Left;
+        }
+
+        var result = Evaluate(leftmost);
+        for (var i = chain.Count - 1; i >= 0; i--)
+            result = EvaluateBinarySingle(chain[i], result);
+        return result;
+    }
+
+    private object? EvaluateBinarySingle(BoundBinaryExpr binary, object? left)
+    {
         var right = Evaluate(binary.Right);
 
         (left, right) = NumericPromotionRuntime.ApplyConstantNumericPromotion(
             left,
-            binary.Left is BoundLiteralExpr,
+            binary.Left.Kind == BoundNodeKind.Literal,
             right,
-            binary.Right is BoundLiteralExpr);
+            binary.Right.Kind == BoundNodeKind.Literal);
 
         return binary.Operator switch
         {

@@ -209,12 +209,26 @@ internal sealed partial class BoundExpressionEmitter
                     return true;
 
                 case BoundNodeKind.BinaryOperator:
-                    var binary = (BoundBinaryExpr)expr;
-                    return CanHoistIdentifiers(binary.Left, usage) && CanHoistIdentifiers(binary.Right, usage);
+                {
+                    var current = (BoundBinaryExpr)expr;
+                    while (current.Left is BoundBinaryExpr left)
+                    {
+                        if (!CanHoistIdentifiers(current.Right, usage)) return false;
+                        current = left;
+                    }
+                    return CanHoistIdentifiers(current.Left, usage) && CanHoistIdentifiers(current.Right, usage);
+                }
 
                 case BoundNodeKind.LogicalOperator:
-                    var logical = (BoundLogicalExpr)expr;
-                    return CanHoistIdentifiers(logical.Left, usage) && CanHoistIdentifiers(logical.Right, usage);
+                {
+                    var current = (BoundLogicalExpr)expr;
+                    while (current.Left is BoundLogicalExpr left)
+                    {
+                        if (!CanHoistIdentifiers(current.Right, usage)) return false;
+                        current = left;
+                    }
+                    return CanHoistIdentifiers(current.Left, usage) && CanHoistIdentifiers(current.Right, usage);
+                }
 
                 case BoundNodeKind.UnaryOperator:
                     expr = ((BoundUnaryExpr)expr).Operand;
@@ -237,8 +251,15 @@ internal sealed partial class BoundExpressionEmitter
                     continue;
 
                 case BoundNodeKind.NullCoalescingOperator:
-                    var nullCoalesce = (BoundNullCoalesceExpr)expr;
-                    return CanHoistIdentifiers(nullCoalesce.Left, usage) && CanHoistIdentifiers(nullCoalesce.Right, usage);
+                {
+                    var current = (BoundNullCoalesceExpr)expr;
+                    while (current.Left is BoundNullCoalesceExpr left)
+                    {
+                        if (!CanHoistIdentifiers(current.Right, usage)) return false;
+                        current = left;
+                    }
+                    return CanHoistIdentifiers(current.Left, usage) && CanHoistIdentifiers(current.Right, usage);
+                }
 
                 case BoundNodeKind.ConditionalOperator:
                     var conditional = (BoundConditionalExpr)expr;
@@ -338,19 +359,35 @@ internal sealed partial class BoundExpressionEmitter
 
     private LinqExpression EmitBinary(BoundBinaryExpr binary)
     {
-        if (TryEmitPrimitiveBinaryFastPath(binary, out var direct))
+        var chain = new List<BoundBinaryExpr>();
+        BoundExpr leftmost = binary;
+        while (leftmost is BoundBinaryExpr b)
+        {
+            chain.Add(b);
+            leftmost = b.Left;
+        }
+
+        var result = Emit(leftmost);
+        for (var i = chain.Count - 1; i >= 0; i--)
+            result = EmitBinaryFold(chain[i], result);
+        return result;
+    }
+
+    private LinqExpression EmitBinaryFold(BoundBinaryExpr binary, LinqExpression left)
+    {
+        if (TryEmitPrimitiveBinaryFastPathWithLeft(binary, left, out var direct))
             return direct;
 
-        if (TryEmitStringConcatFastPath(binary, out var stringDirect))
+        if (TryEmitStringConcatFastPathWithLeft(binary, left, out var stringDirect))
             return stringDirect;
 
         if (ShouldApplyConstantPromotion(binary))
-            return EmitBinaryWithConstantPromotion(binary);
+            return EmitBinaryWithConstantPromotionWithLeft(binary, left);
 
         var isStringContext = binary.Operator == TokenType.Plus &&
             (binary.Left.StaticType == typeof(string) || binary.Right.StaticType == typeof(string));
 
-        return EmitBinaryCore(binary.Operator, EmitHelpers.AsObject(Emit(binary.Left)), EmitHelpers.AsObject(Emit(binary.Right)), isStringContext);
+        return EmitBinaryCore(binary.Operator, EmitHelpers.AsObject(left), EmitHelpers.AsObject(Emit(binary.Right)), isStringContext);
     }
 
     private bool TryEmitStringConcatFastPath(BoundBinaryExpr binary, out LinqExpression result)
@@ -367,7 +404,34 @@ internal sealed partial class BoundExpressionEmitter
         var left = Emit(binary.Left);
         var right = Emit(binary.Right);
 
-        // Convert non-string side to string via ToString()
+        if (!leftIsString)
+            left = EmitHelpers.ToStringExpression(left);
+        else
+            left = EmitHelpers.EnsureTypedExpression(left, typeof(string));
+
+        if (!rightIsString)
+            right = EmitHelpers.ToStringExpression(right);
+        else
+            right = EmitHelpers.EnsureTypedExpression(right, typeof(string));
+
+        result = LinqExpression.Call(StringConcatTwoStringsMethod, left, right);
+        return true;
+    }
+
+    private bool TryEmitStringConcatFastPathWithLeft(BoundBinaryExpr binary, LinqExpression preEmittedLeft, out LinqExpression result)
+    {
+        result = null!;
+        if (binary.Operator != TokenType.Plus)
+            return false;
+
+        var leftIsString = binary.Left.StaticType == typeof(string);
+        var rightIsString = binary.Right.StaticType == typeof(string);
+        if (!leftIsString && !rightIsString)
+            return false;
+
+        var left = preEmittedLeft;
+        var right = Emit(binary.Right);
+
         if (!leftIsString)
             left = EmitHelpers.ToStringExpression(left);
         else
@@ -392,6 +456,30 @@ internal sealed partial class BoundExpressionEmitter
             typeof(object),
             [leftVar, rightVar, promotedVar],
             LinqExpression.Assign(leftVar, EmitHelpers.AsObject(Emit(binary.Left))),
+            LinqExpression.Assign(rightVar, EmitHelpers.AsObject(Emit(binary.Right))),
+            LinqExpression.Assign(
+                promotedVar,
+                LinqExpression.Call(
+                    ApplyConstantNumericPromotionMethod,
+                    leftVar,
+                    LinqExpression.Constant(binary.Left is BoundLiteralExpr),
+                    rightVar,
+                    LinqExpression.Constant(binary.Right is BoundLiteralExpr))),
+            LinqExpression.Assign(leftVar, LinqExpression.Field(promotedVar, "Item1")),
+            LinqExpression.Assign(rightVar, LinqExpression.Field(promotedVar, "Item2")),
+            EmitBinaryCore(binary.Operator, leftVar, rightVar));
+    }
+
+    private BlockExpression EmitBinaryWithConstantPromotionWithLeft(BoundBinaryExpr binary, LinqExpression preEmittedLeft)
+    {
+        var leftVar = LinqExpression.Variable(typeof(object), "binaryLeft");
+        var rightVar = LinqExpression.Variable(typeof(object), "binaryRight");
+        var promotedVar = LinqExpression.Variable(typeof(ValueTuple<object?, object?>), "binaryPromoted");
+
+        return LinqExpression.Block(
+            typeof(object),
+            [leftVar, rightVar, promotedVar],
+            LinqExpression.Assign(leftVar, EmitHelpers.AsObject(preEmittedLeft)),
             LinqExpression.Assign(rightVar, EmitHelpers.AsObject(Emit(binary.Right))),
             LinqExpression.Assign(
                 promotedVar,
@@ -463,7 +551,28 @@ internal sealed partial class BoundExpressionEmitter
         if (right.Type != promotedType)
             right = LinqExpression.Convert(right, promotedType);
 
-        LinqExpression? typed = binary.Operator switch
+        return TryEmitPrimitiveBinaryOp(binary.Operator, left, right, out direct);
+    }
+
+    private bool TryEmitPrimitiveBinaryFastPathWithLeft(BoundBinaryExpr binary, LinqExpression preEmittedLeft, out LinqExpression direct)
+    {
+        direct = null!;
+        if (!TryGetNumericFastPathType(binary, out var promotedType))
+            return false;
+
+        var left = EmitHelpers.EnsureTypedExpression(preEmittedLeft, binary.Left.StaticType);
+        var right = EmitHelpers.EnsureTypedExpression(Emit(binary.Right), binary.Right.StaticType);
+        if (left.Type != promotedType)
+            left = LinqExpression.Convert(left, promotedType);
+        if (right.Type != promotedType)
+            right = LinqExpression.Convert(right, promotedType);
+
+        return TryEmitPrimitiveBinaryOp(binary.Operator, left, right, out direct);
+    }
+
+    private bool TryEmitPrimitiveBinaryOp(TokenType op, LinqExpression left, LinqExpression right, out LinqExpression direct)
+    {
+        LinqExpression? typed = op switch
         {
             TokenType.Plus => _isChecked ? LinqExpression.AddChecked(left, right) : LinqExpression.Add(left, right),
             TokenType.Minus => _isChecked ? LinqExpression.SubtractChecked(left, right) : LinqExpression.Subtract(left, right),
@@ -480,7 +589,10 @@ internal sealed partial class BoundExpressionEmitter
         };
 
         if (typed == null)
+        {
+            direct = null!;
             return false;
+        }
 
         direct = typed;
         return true;

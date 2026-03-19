@@ -58,7 +58,10 @@ internal abstract class AstWalker<T> : IExprVisitor<T>
     public virtual T VisitMemberAccess(MemberAccessExpr expr)
     {
         OnEnter(expr);
-        Visit(expr.Object);
+        var current = expr;
+        while (current.Object is MemberAccessExpr parent)
+            current = parent;
+        Visit(current.Object);
         return OnLeave(expr);
     }
 
@@ -97,16 +100,34 @@ internal abstract class AstWalker<T> : IExprVisitor<T>
     public virtual T VisitBinary(BinaryExpr expr)
     {
         OnEnter(expr);
-        Visit(expr.Left);
-        Visit(expr.Right);
+        var rights = new List<Expr>();
+        var current = expr;
+        while (current.Left is BinaryExpr left)
+        {
+            rights.Add(current.Right);
+            current = left;
+        }
+        Visit(current.Left);
+        Visit(current.Right);
+        for (var i = rights.Count - 1; i >= 0; i--)
+            Visit(rights[i]);
         return OnLeave(expr);
     }
 
     public virtual T VisitLogical(LogicalExpr expr)
     {
         OnEnter(expr);
-        Visit(expr.Left);
-        Visit(expr.Right);
+        var rights = new List<Expr>();
+        var current = expr;
+        while (current.Left is LogicalExpr left)
+        {
+            rights.Add(current.Right);
+            current = left;
+        }
+        Visit(current.Left);
+        Visit(current.Right);
+        for (var i = rights.Count - 1; i >= 0; i--)
+            Visit(rights[i]);
         return OnLeave(expr);
     }
 
@@ -279,8 +300,17 @@ internal abstract class AstWalker<T> : IExprVisitor<T>
     public virtual T VisitNullCoalesce(NullCoalesceExpr expr)
     {
         OnEnter(expr);
-        Visit(expr.Left);
-        Visit(expr.Right);
+        var rights = new List<Expr>();
+        var current = expr;
+        while (current.Left is NullCoalesceExpr left)
+        {
+            rights.Add(current.Right);
+            current = left;
+        }
+        Visit(current.Left);
+        Visit(current.Right);
+        for (var i = rights.Count - 1; i >= 0; i--)
+            Visit(rights[i]);
         return OnLeave(expr);
     }
 
@@ -690,8 +720,17 @@ internal abstract class AstWalker<T> : IExprVisitor<T>
     public virtual T VisitPipeline(PipelineExpr expr)
     {
         OnEnter(expr);
-        Visit(expr.Left);
-        Visit(expr.Right);
+        var rights = new List<Expr>();
+        var current = expr;
+        while (current.Left is PipelineExpr left)
+        {
+            rights.Add(current.Right);
+            current = left;
+        }
+        Visit(current.Left);
+        Visit(current.Right);
+        for (var i = rights.Count - 1; i >= 0; i--)
+            Visit(rights[i]);
         return OnLeave(expr);
     }
 

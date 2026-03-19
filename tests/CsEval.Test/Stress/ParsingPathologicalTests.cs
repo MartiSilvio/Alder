@@ -20,19 +20,15 @@ public class ParsingPathologicalTests(CompilationMode mode) : StressTestBase(mod
     }
 
     [Test]
-    public void ExtremelyLongExpression_ShouldThrowCatchableException()
+    public void ExtremelyLongExpression_EvaluatesWithIterativeLeftSpine()
     {
-        // 10,000 binary operations produce a deep left-leaning AST.
-        // Parsing uses iterative while-loops so it succeeds (parser depth stays at 1).
-        // Evaluation recurses left-deep ~10,000 levels; the evaluator cap (MaxExpressionDepth=512)
-        // triggers a catchable CsEvalDepthException before the .NET stack can overflow.
         var expression = GenerateLongExpression(10_000);
 
         var expr = Engine.Parse(expression);
         Assert.That(expr, Is.Not.Null);
 
-        var ex = Assert.Throws<CsEvalDepthException>(() => Engine.Evaluate(expr));
-        Assert.That(ex!.MaxDepth, Is.EqualTo(512));
+        var result = Engine.Evaluate(expr);
+        Assert.That(result, Is.Not.Null);
     }
 
     [Test]

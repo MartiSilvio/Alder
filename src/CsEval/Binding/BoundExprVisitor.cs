@@ -1,5 +1,7 @@
 using CsEval.Binding.BoundNodes;
 
+// ReSharper disable VirtualMemberNeverOverridden.Global
+
 namespace CsEval.Binding;
 
 internal abstract class BoundExprVisitor<T>
@@ -156,6 +158,54 @@ internal abstract class BoundExprWalker : BoundExprVisitor<object?>
     protected override object? DefaultVisit(BoundExpr node)
     {
         node.EnumerateChildren(child => Visit(child));
+        return null;
+    }
+
+    protected override object? VisitBinary(BoundBinaryExpr node)
+    {
+        var current = node;
+        while (current.Left is BoundBinaryExpr left)
+        {
+            Visit(current.Right);
+            current = left;
+        }
+        Visit(current.Left);
+        Visit(current.Right);
+        return null;
+    }
+
+    protected override object? VisitLogical(BoundLogicalExpr node)
+    {
+        var current = node;
+        while (current.Left is BoundLogicalExpr left)
+        {
+            Visit(current.Right);
+            current = left;
+        }
+        Visit(current.Left);
+        Visit(current.Right);
+        return null;
+    }
+
+    protected override object? VisitNullCoalesce(BoundNullCoalesceExpr node)
+    {
+        var current = node;
+        while (current.Left is BoundNullCoalesceExpr left)
+        {
+            Visit(current.Right);
+            current = left;
+        }
+        Visit(current.Left);
+        Visit(current.Right);
+        return null;
+    }
+
+    protected override object? VisitMemberAccess(BoundMemberAccessExpr node)
+    {
+        var current = node;
+        while (current.Target is BoundMemberAccessExpr parent)
+            current = parent;
+        Visit(current.Target);
         return null;
     }
 }
