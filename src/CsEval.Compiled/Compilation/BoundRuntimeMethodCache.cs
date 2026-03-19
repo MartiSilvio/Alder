@@ -46,6 +46,17 @@ internal static class BoundRuntimeMethodCache
             nameof(MemberAccess.GetIndex),
             [typeof(object), typeof(object), typeof(CsEvalOptions), typeof(CsEvalContext)])!;
 
+    internal static readonly MethodInfo SetMemberMethod =
+        typeof(MemberAccess).GetMethod(nameof(MemberAccess.SetMember))!;
+
+    internal static readonly MethodInfo SetIndexMethod =
+        typeof(MemberAccess).GetMethod(
+            nameof(MemberAccess.SetIndex),
+            [typeof(object), typeof(object), typeof(object), typeof(CsEvalOptions), typeof(CsEvalContext)])!;
+
+    internal static readonly MethodInfo CheckAllowIndexSetMethod =
+        typeof(AssignmentRuntime).GetMethod(nameof(AssignmentRuntime.CheckAllowIndexSet))!;
+
     internal static readonly MethodInfo NormalizeIndexMethod =
         typeof(MemberAccess).GetMethod(nameof(MemberAccess.NormalizeIndex), [typeof(int), typeof(int), typeof(LanguageMode)])!;
 

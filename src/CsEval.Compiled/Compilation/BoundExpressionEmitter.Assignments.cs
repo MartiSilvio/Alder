@@ -265,24 +265,54 @@ internal sealed partial class BoundExpressionEmitter
 
     private LinqExpression EmitMemberNullCoalesceAssign(BoundMemberNullCoalesceAssignExpr memberNullCoalesceAssign)
     {
-        return LinqExpression.Call(
-            ApplyMemberNullCoalesceAssignMethod,
-            EmitHelpers.AsObject(Emit(memberNullCoalesceAssign.Target)),
-            LinqExpression.Constant(memberNullCoalesceAssign.MemberName),
-            EmitHelpers.AsObject(Emit(memberNullCoalesceAssign.Value)),
-            _optionsParam,
-            _contextParam);
+        var targetVar = LinqExpression.Variable(typeof(object), "nca_target");
+        var currentVar = LinqExpression.Variable(typeof(object), "nca_current");
+        var resultVar = LinqExpression.Variable(typeof(object), "nca_result");
+        var memberName = LinqExpression.Constant(memberNullCoalesceAssign.MemberName);
+
+        return LinqExpression.Block(
+            typeof(object),
+            [targetVar, currentVar, resultVar],
+            LinqExpression.Assign(targetVar, LinqExpression.Call(
+                EnsureMemberTargetNotNullMethod,
+                EmitHelpers.AsObject(Emit(memberNullCoalesceAssign.Target)),
+                memberName)),
+            LinqExpression.Assign(currentVar, LinqExpression.Call(
+                GetMemberMethod, targetVar, memberName, _optionsParam,
+                LinqExpression.Constant(false), _contextParam)),
+            LinqExpression.IfThenElse(
+                LinqExpression.NotEqual(currentVar, LinqExpression.Constant(null, typeof(object))),
+                LinqExpression.Assign(resultVar, currentVar),
+                LinqExpression.Block(
+                    LinqExpression.Assign(resultVar, EmitHelpers.AsObject(Emit(memberNullCoalesceAssign.Value))),
+                    LinqExpression.Call(SetMemberMethod, targetVar, memberName, resultVar, _optionsParam, _contextParam))),
+            resultVar);
     }
 
     private LinqExpression EmitIndexNullCoalesceAssign(BoundIndexNullCoalesceAssignExpr indexNullCoalesceAssign)
     {
-        return LinqExpression.Call(
-            ApplyIndexNullCoalesceAssignMethod,
-            EmitHelpers.AsObject(Emit(indexNullCoalesceAssign.Target)),
-            EmitHelpers.AsObject(Emit(indexNullCoalesceAssign.Index)),
-            EmitHelpers.AsObject(Emit(indexNullCoalesceAssign.Value)),
-            _optionsParam,
-            _contextParam);
+        var targetVar = LinqExpression.Variable(typeof(object), "nca_target");
+        var indexVar = LinqExpression.Variable(typeof(object), "nca_index");
+        var currentVar = LinqExpression.Variable(typeof(object), "nca_current");
+        var resultVar = LinqExpression.Variable(typeof(object), "nca_result");
+
+        return LinqExpression.Block(
+            typeof(object),
+            [targetVar, indexVar, currentVar, resultVar],
+            LinqExpression.Assign(targetVar, LinqExpression.Call(
+                EnsureIndexTargetNotNullMethod,
+                EmitHelpers.AsObject(Emit(indexNullCoalesceAssign.Target)))),
+            LinqExpression.Assign(indexVar, EmitHelpers.AsObject(Emit(indexNullCoalesceAssign.Index))),
+            LinqExpression.Assign(currentVar, LinqExpression.Call(
+                GetIndexMethod, targetVar, indexVar, _optionsParam, _contextParam)),
+            LinqExpression.IfThenElse(
+                LinqExpression.NotEqual(currentVar, LinqExpression.Constant(null, typeof(object))),
+                LinqExpression.Assign(resultVar, currentVar),
+                LinqExpression.Block(
+                    LinqExpression.Assign(resultVar, EmitHelpers.AsObject(Emit(indexNullCoalesceAssign.Value))),
+                    LinqExpression.Call(CheckAllowIndexSetMethod, _optionsParam, indexVar),
+                    LinqExpression.Call(SetIndexMethod, targetVar, indexVar, resultVar, _optionsParam, _contextParam))),
+            resultVar);
     }
 
     private LinqExpression EmitMemberIncrement(BoundMemberIncrementExpr memberIncrement)
