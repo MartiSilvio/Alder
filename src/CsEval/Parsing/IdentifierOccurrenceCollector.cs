@@ -99,4 +99,25 @@ internal sealed class IdentifierOccurrenceCollector : AstWalker<byte>
             _declared.Add(expr.VariableName);
         return 0;
     }
+
+    public override byte VisitIsPattern(IsPatternExpr expr)
+    {
+        VariableCollector.CollectPatternDeclarations(expr.Pattern, _declared);
+        return base.VisitIsPattern(expr);
+    }
+
+    public override byte VisitSwitchExpression(SwitchExpressionExpr expr)
+    {
+        foreach (var arm in expr.Arms)
+            VariableCollector.CollectPatternDeclarations(arm.Pattern, _declared);
+        return base.VisitSwitchExpression(expr);
+    }
+
+    public override byte VisitSwitch(SwitchStatementExpr expr)
+    {
+        foreach (var caseExpr in expr.Cases)
+            if (caseExpr.CasePattern != null)
+                VariableCollector.CollectPatternDeclarations(caseExpr.CasePattern, _declared);
+        return base.VisitSwitch(expr);
+    }
 }

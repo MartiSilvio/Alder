@@ -1,6 +1,5 @@
 // Polyfills for netstandard2.0 compatibility.
 // These types are provided by the runtime on .NET 5+ but must be defined manually for older targets.
-// This is the standard pattern used by ASP.NET Core, Roslyn, and the .NET runtime libraries.
 
 #if NETSTANDARD2_0
 

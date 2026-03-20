@@ -89,51 +89,50 @@ internal static class AggregateBuiltins
         return count;
     }
 
-    internal static object? Min(object? source) => Extreme(source, pickMax: false);
-
-    internal static object? Max(object? source) => Extreme(source, pickMax: true);
-
-    private static object? Extreme(object? source, bool pickMax)
+    internal static object? Min(object? source)
     {
-        var hasValue = false;
-        object? best = null;
+        if (source is null)
+            throw new CsEvalException(DiagnosticDescriptors.NameNotInContext, "aggregate source");
 
-        foreach (var value in Enumerate(source))
+        return source switch
         {
-            if (value == null)
-                continue;
-
-            if (!hasValue)
-            {
-                hasValue = true;
-                best = value;
-                continue;
-            }
-
-            var comparison = Compare(value, best!);
-            if ((pickMax && comparison > 0) || (!pickMax && comparison < 0))
-                best = value;
-        }
-
-        if (!hasValue)
-            throw new CsEvalException(Diagnostics.DiagnosticDescriptors.SequenceContainsNoElements);
-
-        return best;
+            IEnumerable<int> ints => ints.Min(),
+            IEnumerable<long> longs => longs.Min(),
+            IEnumerable<float> floats => floats.Min(),
+            IEnumerable<double> doubles => doubles.Min(),
+            IEnumerable<decimal> decimals => decimals.Min(),
+            IEnumerable<int?> nullInts => nullInts.Min(),
+            IEnumerable<long?> nullLongs => nullLongs.Min(),
+            IEnumerable<float?> nullFloats => nullFloats.Min(),
+            IEnumerable<double?> nullDoubles => nullDoubles.Min(),
+            IEnumerable<decimal?> nullDecimals => nullDecimals.Min(),
+            IEnumerable<string> strings => strings.Min(),
+            _ => throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, ExtendedBuiltInNames.Min,
+                source.GetType().Name, "comparable collection")
+        };
     }
 
-    private static int Compare(object left, object right)
+    internal static object? Max(object? source)
     {
-        if (TypeHelpers.IsArithmetic(left) && TypeHelpers.IsArithmetic(right))
-            return Convert.ToDecimal(left).CompareTo(Convert.ToDecimal(right));
+        if (source is null)
+            throw new CsEvalException(DiagnosticDescriptors.NameNotInContext, "aggregate source");
 
-        if (left is IComparable comparable && left.GetType() == right.GetType())
-            return comparable.CompareTo(right);
-
-        throw new CsEvalException(
-            DiagnosticDescriptors.BadBinaryOps,
-            "compare",
-            left.GetType().Name,
-            right.GetType().Name);
+        return source switch
+        {
+            IEnumerable<int> ints => ints.Max(),
+            IEnumerable<long> longs => longs.Max(),
+            IEnumerable<double> doubles => doubles.Max(),
+            IEnumerable<float> floats => floats.Max(),
+            IEnumerable<decimal> decimals => decimals.Max(),
+            IEnumerable<int?> nullInts => nullInts.Max(),
+            IEnumerable<long?> nullLongs => nullLongs.Max(),
+            IEnumerable<float?> nullFloats => nullFloats.Max(),
+            IEnumerable<double?> nullDoubles => nullDoubles.Max(),
+            IEnumerable<decimal?> nullDecimals => nullDecimals.Max(),
+            IEnumerable<string> strings => strings.Max(),
+            _ => throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, ExtendedBuiltInNames.Max,
+                source.GetType().Name, "comparable collection")
+        };
     }
 
     private static IEnumerable<object?> Enumerate(object? source)

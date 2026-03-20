@@ -586,7 +586,7 @@ internal sealed partial class ExpressionParser : ParserBase
     private Expr ParseNullCoalesce()
     {
         var mark = Mark();
-        var expr = ParseRange();
+        var expr = ParseOr();
 
         if (Match(TokenType.QuestionQuestion))
         {
@@ -607,7 +607,7 @@ internal sealed partial class ExpressionParser : ParserBase
 
     /// <summary>
     /// Parses range literals: start..end, ..end, start.., .. (C# spec), start..=end (inclusive), start..&lt;end (exclusive).
-    /// Precedence: below null-coalesce, above logical OR.
+    /// Precedence: between multiplicative and unary, matching Roslyn.
     /// Supports open-ended ranges per C# spec: ..end (prefix), start.. (no end), .. (both omitted).
     /// </summary>
     private Expr ParseRange()
@@ -618,27 +618,27 @@ internal sealed partial class ExpressionParser : ParserBase
         if (Check(TokenType.DotDot))
         {
             Advance();
-            Expr? end = IsRangeEndFollowing() ? ParseOr() : null;
+            Expr? end = IsRangeEndFollowing() ? ParseUnary() : null;
             return new RangeExpr(null, end, ExclusiveEnd: true) { Span = SpanFrom(mark) };
         }
 
-        var expr = ParseOr();
+        var expr = ParseUnary();
 
         if (Match(TokenType.DotDot))
         {
-            Expr? end = IsRangeEndFollowing() ? ParseOr() : null;
+            Expr? end = IsRangeEndFollowing() ? ParseUnary() : null;
             return new RangeExpr(expr, end, ExclusiveEnd: true) { Span = SpanFrom(mark) };
         }
 
         if (State.LanguageMode == LanguageMode.Extended && Match(TokenType.DotDotEquals))
         {
-            var end = ParseOr();
+            var end = ParseUnary();
             return new RangeExpr(expr, end, ExclusiveEnd: false) { Span = SpanFrom(mark) };
         }
 
         if (State.LanguageMode == LanguageMode.Extended && Match(TokenType.DotDotLess))
         {
-            var end = ParseOr();
+            var end = ParseUnary();
             return new RangeExpr(expr, end, ExclusiveEnd: true) { Span = SpanFrom(mark) };
         }
 
@@ -1043,12 +1043,12 @@ internal sealed partial class ExpressionParser : ParserBase
     private Expr ParseFactor()
     {
         var mark = Mark();
-        var expr = ParseUnary();
+        var expr = ParseRange();
 
         while (Match(TokenType.Star, TokenType.Slash, TokenType.Percent))
         {
             var op = Previous();
-            var right = ParseUnary();
+            var right = ParseRange();
             expr = new BinaryExpr(expr, op, right) { Span = SpanFrom(mark) };
         }
 
@@ -1080,7 +1080,7 @@ internal sealed partial class ExpressionParser : ParserBase
 
             var typeToken = new Token(TokenType.Identifier, typeName, null, startToken.Line, startToken.Column);
             Consume(TokenType.RightParen, "Expected ')' after cast type");
-            var operand = ParseUnary();
+            var operand = ParseRange();
             return new CastExpr(typeToken, operand) { Span = SpanFrom(mark) };
         }
 
@@ -1317,7 +1317,8 @@ internal sealed partial class ExpressionParser : ParserBase
             or TokenType.PlusPlus or TokenType.MinusMinus
             or TokenType.Minus or TokenType.Plus
             or TokenType.Typeof or TokenType.Nameof or TokenType.Default
-            or TokenType.Throw;
+            or TokenType.Sizeof or TokenType.Checked or TokenType.Unchecked
+            or TokenType.Throw or TokenType.DotDot or TokenType.Caret;
     }
 
     private Expr ParsePostfix()
