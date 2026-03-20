@@ -56,25 +56,26 @@ internal static class AggregateBuiltins
         };
     }
 
-    internal static double Average(object? source)
+    internal static object? Average(object? source)
     {
-        var values = Enumerate(source);
-        var count = 0;
-        double total = 0d;
+        if (source is null)
+            throw new CsEvalException(DiagnosticDescriptors.NameNotInContext, "aggregate source");
 
-        foreach (var value in values)
+        return source switch
         {
-            if (value == null)
-                continue;
-
-            total += Convert.ToDouble(value);
-            count++;
-        }
-
-        if (count == 0)
-            throw new CsEvalException(Diagnostics.DiagnosticDescriptors.SequenceContainsNoElements);
-
-        return total / count;
+            IEnumerable<int> ints => ints.Average(),
+            IEnumerable<long> longs => longs.Average(),
+            IEnumerable<float> floats => floats.Average(),
+            IEnumerable<double> doubles => doubles.Average(),
+            IEnumerable<decimal> decimals => decimals.Average(),
+            IEnumerable<int?> nullInts => nullInts.Average(),
+            IEnumerable<long?> nullLongs => nullLongs.Average(),
+            IEnumerable<float?> nullFloats => nullFloats.Average(),
+            IEnumerable<double?> nullDoubles => nullDoubles.Average(),
+            IEnumerable<decimal?> nullDecimals => nullDecimals.Average(),
+            _ => throw new CsEvalException(DiagnosticDescriptors.BadBinaryOps, ExtendedBuiltInNames.Avg,
+                source.GetType().Name, "numeric collection")
+        };
     }
 
     internal static int Count(object? source)

@@ -7,48 +7,14 @@ internal static class RuntimeArrayFactory
         if (elementType is null) throw new ArgumentNullException(nameof(elementType));
         if (rank < 1) throw new ArgumentOutOfRangeException(nameof(rank));
 
-        if (rank == 1)
-            return Create(elementType, 0).GetType();
-
-        var lengths = new int[rank];
-        return Create(elementType, lengths).GetType();
+        return rank == 1
+            ? elementType.MakeArrayType()
+            : elementType.MakeArrayType(rank);
     }
 
     public static Array Create(Type elementType, int length)
     {
         if (length < 0) throw new ArgumentOutOfRangeException(nameof(length));
-
-        if (elementType == typeof(bool))
-            return new bool[length];
-        if (elementType == typeof(char))
-            return new char[length];
-        if (elementType == typeof(sbyte))
-            return new sbyte[length];
-        if (elementType == typeof(byte))
-            return new byte[length];
-        if (elementType == typeof(short))
-            return new short[length];
-        if (elementType == typeof(ushort))
-            return new ushort[length];
-        if (elementType == typeof(int))
-            return new int[length];
-        if (elementType == typeof(uint))
-            return new uint[length];
-        if (elementType == typeof(long))
-            return new long[length];
-        if (elementType == typeof(ulong))
-            return new ulong[length];
-        if (elementType == typeof(float))
-            return new float[length];
-        if (elementType == typeof(double))
-            return new double[length];
-        if (elementType == typeof(decimal))
-            return new decimal[length];
-        if (elementType == typeof(string))
-            return new string[length];
-        if (elementType == typeof(object))
-            return new object[length];
-
         return Array.CreateInstance(elementType, length);
     }
 
