@@ -8,6 +8,7 @@ internal sealed record BoundBinaryExpr(
     BoundExpr Right,
     Type StaticType) : BoundExpr(StaticType)
 {
+    internal Type? PromotedType { get; init; }
     internal override BoundNodeKind Kind => BoundNodeKind.BinaryOperator;
     internal override void EnumerateChildren(Action<BoundExpr> visit) { visit(Left); visit(Right); }
 }

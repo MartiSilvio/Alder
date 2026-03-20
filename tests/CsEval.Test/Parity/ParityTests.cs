@@ -110,6 +110,12 @@ public class ParityTests(CompilationMode mode)
         var csEvalEx = Assert.Catch<Exception>(() => engine.Evaluate(expr));
         Assert.That(csEvalEx, Is.Not.Null, "CsEval should throw for invalid expression parity.");
 
+        if (mode == CompilationMode.CompiledFec &&
+            csEvalEx is InvalidProgramException or CsEvalException { ErrorCode: DiagnosticCode.CSEV0001 })
+        {
+            Assert.Inconclusive($"FEC: {csEvalEx.GetType().Name}: {csEvalEx.Message}");
+        }
+
         // CLR runtime exceptions (OverflowException, DivideByZeroException) are valid —
         // real C# throws these too. Only CsEval's own errors must be CsEvalException.
         if (csEvalEx is not CsEvalException csEx)

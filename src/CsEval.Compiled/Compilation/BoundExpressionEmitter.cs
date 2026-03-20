@@ -338,8 +338,8 @@ internal sealed partial class BoundExpressionEmitter
 
         if (sourceType != typeof(object) && !sourceType.IsEnum && !targetType.IsEnum)
         {
-            if ((IsPrimitiveBinaryFastPathType(sourceType) || sourceType == typeof(bool)) &&
-                (IsPrimitiveBinaryFastPathType(targetType) || targetType == typeof(bool)))
+            if ((TypeHelpers.IsArithmetic(sourceType) || sourceType == typeof(bool)) &&
+                (TypeHelpers.IsArithmetic(targetType) || targetType == typeof(bool)))
             {
                 var operand = Emit(cast.Expression);
                 operand = EmitHelpers.EnsureTypedExpression(operand, sourceType);
@@ -426,41 +426,20 @@ internal sealed partial class BoundExpressionEmitter
 
     private LinqExpression EmitUnary(BoundUnaryExpr unary)
     {
-        var operandType = unary.Operand.StaticType;
-        if (operandType != typeof(object) && !operandType.IsEnum && !_isChecked)
+        if (unary.PromotedType is { } promoted && !_isChecked)
         {
-            if (unary.Operator == TokenType.Bang && operandType == typeof(bool))
-            {
-                var operand = EmitHelpers.EnsureTypedExpression(Emit(unary.Operand), operandType);
-                return LinqExpression.Not(operand);
-            }
+            var operand = EmitHelpers.EnsureTypedExpression(Emit(unary.Operand), unary.Operand.StaticType);
+            if (operand.Type != promoted)
+                operand = LinqExpression.Convert(operand, promoted);
 
-            if (unary.Operator == TokenType.Tilde && IsIntegralFastPathType(operandType))
+            return unary.Operator switch
             {
-                var promoted = GetUnaryPromotedType(operandType);
-                var operand = EmitHelpers.EnsureTypedExpression(Emit(unary.Operand), operandType);
-                if (operand.Type != promoted)
-                    operand = LinqExpression.Convert(operand, promoted);
-                return LinqExpression.Not(operand);
-            }
-
-            if (unary.Operator == TokenType.Minus && TypeHelpers.IsArithmetic(operandType))
-            {
-                var promoted = operandType == typeof(uint) ? typeof(long) : GetUnaryPromotedType(operandType);
-                var operand = EmitHelpers.EnsureTypedExpression(Emit(unary.Operand), operandType);
-                if (operand.Type != promoted)
-                    operand = LinqExpression.Convert(operand, promoted);
-                return LinqExpression.Negate(operand);
-            }
-
-            if (unary.Operator == TokenType.Plus && TypeHelpers.IsArithmetic(operandType))
-            {
-                var promoted = GetUnaryPromotedType(operandType);
-                var operand = EmitHelpers.EnsureTypedExpression(Emit(unary.Operand), operandType);
-                if (operand.Type != promoted)
-                    operand = LinqExpression.Convert(operand, promoted);
-                return operand;
-            }
+                TokenType.Bang => LinqExpression.Not(operand),
+                TokenType.Tilde => LinqExpression.Not(operand),
+                TokenType.Minus => LinqExpression.Negate(operand),
+                TokenType.Plus => operand,
+                _ => throw new BindingNotSupportedException($"Unsupported bound unary operator '{unary.Operator}'")
+            };
         }
 
         var boxed = EmitHelpers.AsObject(Emit(unary.Operand));
@@ -472,13 +451,6 @@ internal sealed partial class BoundExpressionEmitter
             TokenType.Tilde => LinqExpression.Call(BitwiseNotMethod, boxed),
             _ => throw new BindingNotSupportedException($"Unsupported bound unary operator '{unary.Operator}'")
         };
-    }
-
-    private static Type GetUnaryPromotedType(Type type)
-    {
-        if (type == typeof(sbyte) || type == typeof(byte) || type == typeof(short) || type == typeof(ushort) || type == typeof(char))
-            return typeof(int);
-        return type;
     }
 
     private LinqExpression EmitBinary(BoundBinaryExpr binary)
@@ -665,7 +637,7 @@ internal sealed partial class BoundExpressionEmitter
     private bool TryEmitPrimitiveBinaryFastPath(BoundBinaryExpr binary, out LinqExpression direct)
     {
         direct = null!;
-        if (!TryGetNumericFastPathType(binary, out var promotedType))
+        if (binary.PromotedType is not { } promotedType)
             return false;
 
         var isShift = binary.Operator is TokenType.LessLess or TokenType.GreaterGreater;
@@ -683,7 +655,7 @@ internal sealed partial class BoundExpressionEmitter
     private bool TryEmitPrimitiveBinaryFastPathWithLeft(BoundBinaryExpr binary, LinqExpression preEmittedLeft, out LinqExpression direct)
     {
         direct = null!;
-        if (!TryGetNumericFastPathType(binary, out var promotedType))
+        if (binary.PromotedType is not { } promotedType)
             return false;
 
         var isShift = binary.Operator is TokenType.LessLess or TokenType.GreaterGreater;
@@ -731,142 +703,7 @@ internal sealed partial class BoundExpressionEmitter
         return true;
     }
 
-    private static bool TryGetNumericFastPathType(BoundBinaryExpr binary, out Type promotedType)
-    {
-        promotedType = null!;
-        if (!IsFastPathNumericOperator(binary.Operator))
-            return false;
 
-        var leftType = binary.Left.StaticType;
-        var rightType = binary.Right.StaticType;
-        if (!IsPrimitiveBinaryFastPathType(leftType) || !IsPrimitiveBinaryFastPathType(rightType))
-            return false;
-
-        if (binary.Operator is TokenType.LessLess or TokenType.GreaterGreater)
-        {
-            if (!IsIntegralFastPathType(rightType))
-                return false;
-            promotedType = GetShiftPromotedType(leftType);
-            return promotedType != null!;
-        }
-
-        if (binary.Operator is TokenType.Amp or TokenType.Pipe or TokenType.Caret)
-        {
-            if (!IsIntegralFastPathType(leftType) || !IsIntegralFastPathType(rightType))
-                return false;
-        }
-
-        if ((leftType == typeof(decimal) && (rightType == typeof(float) || rightType == typeof(double))) ||
-            (rightType == typeof(decimal) && (leftType == typeof(float) || leftType == typeof(double))))
-        {
-            return false;
-        }
-
-        if (TryGetConstantPromotionType(binary, leftType, rightType, out promotedType))
-            return true;
-
-        promotedType = NumericDispatch.GetResultType(leftType, rightType);
-        return IsPrimitiveBinaryFastPathType(promotedType);
-    }
-
-    private static Type GetShiftPromotedType(Type leftType)
-    {
-        if (leftType == typeof(int) || leftType == typeof(sbyte) || leftType == typeof(short) ||
-            leftType == typeof(byte) || leftType == typeof(ushort) || leftType == typeof(char))
-            return typeof(int);
-        if (leftType == typeof(uint))
-            return typeof(uint);
-        if (leftType == typeof(long))
-            return typeof(long);
-        if (leftType == typeof(ulong))
-            return typeof(ulong);
-        return null!;
-    }
-
-    private static bool IsFastPathNumericOperator(TokenType op)
-    {
-        return op is TokenType.Plus or TokenType.Minus or TokenType.Star or TokenType.Slash or TokenType.Percent or
-            TokenType.EqualEqual or TokenType.BangEqual or
-            TokenType.Less or TokenType.LessEqual or TokenType.Greater or TokenType.GreaterEqual or
-            TokenType.Amp or TokenType.Pipe or TokenType.Caret or
-            TokenType.LessLess or TokenType.GreaterGreater;
-    }
-
-    private static bool TryGetConstantPromotionType(BoundBinaryExpr binary, Type leftType, Type rightType, out Type promotedType)
-    {
-        promotedType = null!;
-        var leftLiteral = binary.Left as BoundLiteralExpr;
-        var rightLiteral = binary.Right as BoundLiteralExpr;
-
-        if (TryPromoteUnsignedPair(leftType, rightLiteral, rightType, leftLiteral, out promotedType))
-            return true;
-
-        return false;
-    }
-
-    private static bool TryPromoteUnsignedPair(
-        Type oneType, BoundLiteralExpr? otherLiteral,
-        Type otherType, BoundLiteralExpr? oneLiteral,
-        out Type promotedType)
-    {
-        if (TryPromoteUnsignedSide(oneType, otherLiteral, out promotedType))
-            return true;
-        if (TryPromoteUnsignedSide(otherType, oneLiteral, out promotedType))
-            return true;
-        return false;
-    }
-
-    private static bool TryPromoteUnsignedSide(Type unsignedType, BoundLiteralExpr? literalSide, out Type promotedType)
-    {
-        promotedType = null!;
-        if (literalSide == null) return false;
-
-        if (unsignedType == typeof(uint) && literalSide.Value is >= 0)
-        {
-            promotedType = typeof(uint);
-            return true;
-        }
-
-        if (unsignedType == typeof(ulong))
-        {
-            if (literalSide.Value is >= 0 or long and >= 0)
-            {
-                promotedType = typeof(ulong);
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private static bool IsPrimitiveBinaryFastPathType(Type type)
-    {
-        return type == typeof(sbyte) ||
-               type == typeof(byte) ||
-               type == typeof(short) ||
-               type == typeof(ushort) ||
-               type == typeof(char) ||
-               type == typeof(int) ||
-               type == typeof(long) ||
-               type == typeof(uint) ||
-               type == typeof(ulong) ||
-               type == typeof(float) ||
-               type == typeof(double) ||
-               type == typeof(decimal);
-    }
-
-    private static bool IsIntegralFastPathType(Type type)
-    {
-        return type == typeof(sbyte) ||
-               type == typeof(byte) ||
-               type == typeof(short) ||
-               type == typeof(ushort) ||
-               type == typeof(char) ||
-               type == typeof(int) ||
-               type == typeof(long) ||
-               type == typeof(uint) ||
-               type == typeof(ulong);
-    }
 
     private LinqExpression EmitLogical(BoundLogicalExpr logical)
     {

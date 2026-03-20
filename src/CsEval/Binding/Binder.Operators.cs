@@ -49,7 +49,11 @@ internal sealed partial class Binder
                 continue;
             }
             var resultType = InferBinaryResultType(link.Op.Type, result.StaticType, right.StaticType);
-            result = new BoundBinaryExpr(link.Op.Type, result, right, resultType) { Span = link.Span };
+            result = new BoundBinaryExpr(link.Op.Type, result, right, resultType)
+            {
+                Span = link.Span,
+                PromotedType = ComputeBinaryPromotedType(link.Op.Type, result, right)
+            };
         }
 
         return result;
@@ -73,8 +77,30 @@ internal sealed partial class Binder
         var resultType = unary.Op.Type == TokenType.Bang
             ? typeof(bool)
             : InferUnaryResultType(operand.StaticType, unary.Op.Type);
-        return new BoundUnaryExpr(unary.Op.Type, operand, resultType);
+        return new BoundUnaryExpr(unary.Op.Type, operand, resultType)
+        {
+            PromotedType = ComputeUnaryPromotedType(unary.Op.Type, operand.StaticType)
+        };
     }
+
+    private static Type? ComputeUnaryPromotedType(TokenType op, Type operandType)
+    {
+        if (operandType == typeof(object) || operandType.IsEnum)
+            return null;
+
+        return op switch
+        {
+            TokenType.Bang when operandType == typeof(bool) => typeof(bool),
+            TokenType.Tilde when IsIntegralOrChar(operandType) => NormalizeArithmeticType(operandType),
+            TokenType.Minus when TypeHelpers.IsArithmetic(operandType) =>
+                operandType == typeof(uint) ? typeof(long) : NormalizeArithmeticType(operandType),
+            TokenType.Plus when TypeHelpers.IsArithmetic(operandType) => NormalizeArithmeticType(operandType),
+            _ => null
+        };
+    }
+
+    private static bool IsIntegralOrChar(Type type) =>
+        Type.GetTypeCode(type) is >= TypeCode.SByte and <= TypeCode.UInt64 or TypeCode.Char;
 
     private BoundExpr BindLogical(LogicalExpr logical, BindingContext context)
     {
@@ -273,4 +299,77 @@ internal sealed partial class Binder
 
         return typeof(object);
     }
+
+    private static Type? ComputeBinaryPromotedType(TokenType op, BoundExpr left, BoundExpr right)
+    {
+        if (!IsFastPathOperator(op))
+            return null;
+
+        var leftType = left.StaticType;
+        var rightType = right.StaticType;
+        if (!TypeHelpers.IsArithmetic(leftType) || !TypeHelpers.IsArithmetic(rightType))
+            return null;
+        if (leftType.IsEnum || rightType.IsEnum)
+            return null;
+
+        if (op is TokenType.LessLess or TokenType.GreaterGreater)
+        {
+            if (!IsIntegralOrChar(leftType) || !IsIntegralOrChar(rightType))
+                return null;
+            return NormalizeArithmeticType(leftType);
+        }
+
+        if (op is TokenType.Amp or TokenType.Pipe or TokenType.Caret)
+        {
+            if (!IsIntegralOrChar(leftType) || !IsIntegralOrChar(rightType))
+                return null;
+        }
+
+        if ((leftType == typeof(decimal) && (rightType == typeof(float) || rightType == typeof(double))) ||
+            (rightType == typeof(decimal) && (leftType == typeof(float) || leftType == typeof(double))))
+            return null;
+
+        if (TryConstantPromotion(leftType, rightType, left as BoundLiteralExpr, right as BoundLiteralExpr, out var promoted))
+            return promoted;
+
+        var result = NumericDispatch.GetResultType(leftType, rightType);
+        return TypeHelpers.IsArithmetic(result) ? result : null;
+    }
+
+    // ECMA-334 §10.2.11: int constant → uint/ulong if in range; long constant → ulong if non-negative.
+    private static bool TryConstantPromotion(
+        Type leftType, Type rightType,
+        BoundLiteralExpr? leftLiteral, BoundLiteralExpr? rightLiteral,
+        out Type promoted)
+    {
+        promoted = null!;
+        if (leftType == typeof(uint) && IsNonNegativeIntConstant(rightLiteral) ||
+            rightType == typeof(uint) && IsNonNegativeIntConstant(leftLiteral))
+        {
+            promoted = typeof(uint);
+            return true;
+        }
+
+        if (leftType == typeof(ulong) && IsNonNegativeIntOrLongConstant(rightLiteral) ||
+            rightType == typeof(ulong) && IsNonNegativeIntOrLongConstant(leftLiteral))
+        {
+            promoted = typeof(ulong);
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool IsNonNegativeIntConstant(BoundLiteralExpr? literal) =>
+        literal?.Value is int and >= 0;
+
+    private static bool IsNonNegativeIntOrLongConstant(BoundLiteralExpr? literal) =>
+        literal?.Value is int and >= 0 or long and >= 0;
+
+    private static bool IsFastPathOperator(TokenType op) =>
+        op is TokenType.Plus or TokenType.Minus or TokenType.Star or TokenType.Slash or TokenType.Percent or
+            TokenType.EqualEqual or TokenType.BangEqual or
+            TokenType.Less or TokenType.LessEqual or TokenType.Greater or TokenType.GreaterEqual or
+            TokenType.Amp or TokenType.Pipe or TokenType.Caret or
+            TokenType.LessLess or TokenType.GreaterGreater;
 }
