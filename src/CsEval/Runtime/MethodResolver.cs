@@ -16,8 +16,6 @@ internal static class MethodResolver
             var parameters = method.GetParameters();
             var score = ScoreMethodByTypes(parameters, argTypes);
 
-
-
             if (score > bestScore)
             {
                 bestScore = score;
