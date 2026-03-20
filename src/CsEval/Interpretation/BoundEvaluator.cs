@@ -72,7 +72,7 @@ internal sealed class BoundEvaluator
             var diag = expr.Diagnostic;
             if (diag != null)
             {
-                var ex = new CsEvalException(diag.Message);
+                var ex = new CsEvalException(DiagnosticDescriptors.BindingFailed, diag.Message);
                 ex.SetDiagnostics([diag]);
                 throw ex;
             }
@@ -979,13 +979,13 @@ internal sealed class BoundEvaluator
         return null;
     }
 
-    private object? EvaluateReturn(BoundReturnExpr returnExpr)
+    private ControlFlowSignal? EvaluateReturn(BoundReturnExpr returnExpr)
     {
         var value = returnExpr.Value != null ? Evaluate(returnExpr.Value) : null;
         return ControlFlowSignal.Return(value);
     }
 
-    private object? EvaluateWhile(BoundWhileExpr whileExpr)
+    private ControlFlowSignal? EvaluateWhile(BoundWhileExpr whileExpr)
     {
         var constraintState = _context.ConstraintState;
         var constraints = _options.Constraints;

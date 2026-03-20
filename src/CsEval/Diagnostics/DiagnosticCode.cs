@@ -86,9 +86,6 @@ public enum DiagnosticCode
     /// <summary>Cannot assign null to an implicitly-typed variable</summary>
     CS0815 = 815,
 
-    /// <summary>; expected</summary>
-    CS1002 = 1002,
-
     /// <summary>Syntax error, '{0}' expected</summary>
     CS1003 = 1003,
 

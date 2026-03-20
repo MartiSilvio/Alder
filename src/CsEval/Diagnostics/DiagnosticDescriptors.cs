@@ -112,10 +112,6 @@ public static class DiagnosticDescriptors
 
     // ECMA-334 syntax and parsing
 
-    /// <summary>CS1002: ; expected</summary>
-    public static readonly DiagnosticDescriptor SemicolonExpected =
-        new(DiagnosticCode.CS1002, "; expected");
-
     /// <summary>CS1003: Syntax error, '{0}' expected</summary>
     public static readonly DiagnosticDescriptor SyntaxExpected =
         new(DiagnosticCode.CS1003, "Syntax error, '{0}' expected");

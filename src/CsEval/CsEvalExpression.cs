@@ -1,5 +1,6 @@
 using CsEval.Compilation;
 using CsEval.Binding;
+using CsEval.Diagnostics;
 using CsEval.Parsing;
 using CsEval.Runtime;
 using System.Runtime.CompilerServices;
@@ -87,9 +88,11 @@ public sealed class CsEvalExpression
         if (bound.HasErrors || diagnostics.Count > 0)
         {
             var allDiagnostics = diagnostics.Count > 0 ? diagnostics : CollectTreeDiagnostics(bound);
-            var first = allDiagnostics.Count > 0 ? allDiagnostics[0] : null;
-            var ex = new CsEvalException(first?.Message ?? "Expression has binding errors");
-            ex.SetDiagnostics(allDiagnostics);
+            var ex = new CsEvalException(
+                DiagnosticDescriptors.BindingFailed,
+                allDiagnostics.Count > 0 ? allDiagnostics[0].Message : "Expression has binding errors");
+            if (allDiagnostics.Count > 0)
+                ex.SetDiagnostics(allDiagnostics);
             throw ex;
         }
 
