@@ -22,6 +22,17 @@ internal static class EmitHelpers
             : LinqExpression.Convert(expression, targetType);
     }
 
+    internal static LinqExpression UnboxOrCoerce(LinqExpression expression, Type targetType)
+    {
+        if (expression.Type == targetType)
+            return expression;
+        if (expression.Type != typeof(object))
+            expression = LinqExpression.Convert(expression, typeof(object));
+        return targetType.IsValueType
+            ? LinqExpression.Unbox(expression, targetType)
+            : LinqExpression.Convert(expression, targetType);
+    }
+
     // Converts any expression to string using string.Concat(object), which handles null (returns "")
     // and matches C# string concatenation coercion semantics.
     internal static LinqExpression ToStringExpression(LinqExpression expression)

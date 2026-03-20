@@ -759,36 +759,30 @@ internal sealed partial class BoundExpressionEmitter
         var leftType = nullCoalesce.Left.StaticType;
         var rightType = nullCoalesce.Right.StaticType;
 
-        if (leftType != typeof(object) && rightType != typeof(object) && !leftType.IsValueType)
+        if (leftType != typeof(object) && rightType != typeof(object)
+            && (leftType.IsClass || leftType.IsInterface || Nullable.GetUnderlyingType(leftType) != null))
         {
-            try
-            {
-                var left = Emit(nullCoalesce.Left);
-                left = EmitHelpers.EnsureTypedExpression(left, leftType);
-                var right = Emit(nullCoalesce.Right);
-                right = EmitHelpers.EnsureTypedExpression(right, rightType);
+            var left = Emit(nullCoalesce.Left);
+            left = EmitHelpers.EnsureTypedExpression(left, leftType);
+            var right = Emit(nullCoalesce.Right);
+            right = EmitHelpers.EnsureTypedExpression(right, rightType);
 
-                if (left.Type != right.Type)
+            if (left.Type != right.Type)
+            {
+                var commonType = nullCoalesce.StaticType;
+                if (commonType != typeof(object))
                 {
-                    var commonType = nullCoalesce.StaticType;
-                    if (commonType != typeof(object))
-                    {
-                        if (right.Type != commonType)
-                            right = LinqExpression.Convert(right, commonType);
-                    }
-                    else
-                    {
-                        left = EmitHelpers.AsObject(left);
-                        right = EmitHelpers.AsObject(right);
-                    }
+                    if (right.Type != commonType)
+                        right = LinqExpression.Convert(right, commonType);
                 }
+                else
+                {
+                    left = EmitHelpers.AsObject(left);
+                    right = EmitHelpers.AsObject(right);
+                }
+            }
 
-                return LinqExpression.Coalesce(left, right);
-            }
-            catch (InvalidOperationException)
-            {
-                // Fall through to runtime path
-            }
+            return LinqExpression.Coalesce(left, right);
         }
 
         var leftVar = LinqExpression.Variable(typeof(object), "coalesceLeft");
@@ -815,6 +809,12 @@ internal sealed partial class BoundExpressionEmitter
         if (TryEmitTypedConditional(conditional, condition, thenCandidate, elseCandidate, out var typed))
             return typed;
 
+        if (thenCandidate.Type == elseCandidate.Type && thenCandidate.Type != typeof(object))
+        {
+            return EmitHelpers.AsObject(
+                LinqExpression.Condition(condition, thenCandidate, elseCandidate));
+        }
+
         return LinqExpression.Condition(
             condition,
             EmitHelpers.AsObject(thenCandidate),
@@ -836,23 +836,19 @@ internal sealed partial class BoundExpressionEmitter
         if (thenType == typeof(object) || elseType == typeof(object) || resultType == typeof(object))
             return false;
 
-        try
-        {
-            var thenTyped = EmitHelpers.EnsureTypedExpression(thenCandidate, thenType);
-            var elseTyped = EmitHelpers.EnsureTypedExpression(elseCandidate, elseType);
-
-            if (thenTyped.Type != resultType)
-                thenTyped = LinqExpression.Convert(thenTyped, resultType);
-            if (elseTyped.Type != resultType)
-                elseTyped = LinqExpression.Convert(elseTyped, resultType);
-
-            typed = LinqExpression.Condition(condition, thenTyped, elseTyped);
-            return true;
-        }
-        catch (InvalidOperationException)
-        {
+        if (!IsConvertSafe(thenType, resultType) || !IsConvertSafe(elseType, resultType))
             return false;
-        }
+
+        var thenTyped = EmitHelpers.EnsureTypedExpression(thenCandidate, thenType);
+        var elseTyped = EmitHelpers.EnsureTypedExpression(elseCandidate, elseType);
+
+        if (thenTyped.Type != resultType)
+            thenTyped = LinqExpression.Convert(thenTyped, resultType);
+        if (elseTyped.Type != resultType)
+            elseTyped = LinqExpression.Convert(elseTyped, resultType);
+
+        typed = LinqExpression.Condition(condition, thenTyped, elseTyped);
+        return true;
     }
 
     private LinqExpression EmitBlock(BoundBlockExpr block)
@@ -1942,11 +1938,8 @@ internal sealed partial class BoundExpressionEmitter
         if (objectCreation.StaticType != typeof(object) && !objectCreation.StaticType.IsAbstract &&
             !objectCreation.StaticType.IsInterface && objectCreation.InitializerEntries.IsDefaultOrEmpty)
         {
-            try
-            {
-                return EmitPureObjectCreation(objectCreation);
-            }
-            catch (InvalidOperationException) { }
+            var pure = TryEmitPureObjectCreation(objectCreation);
+            if (pure != null) return pure;
         }
 
         var argsArray = LinqExpression.NewArrayInit(
@@ -2006,7 +1999,7 @@ internal sealed partial class BoundExpressionEmitter
         return LinqExpression.Block(typeof(object), [objVar], statements);
     }
 
-    private LinqExpression EmitPureObjectCreation(BoundObjectCreationExpr objectCreation)
+    private LinqExpression? TryEmitPureObjectCreation(BoundObjectCreationExpr objectCreation)
     {
         var type = objectCreation.StaticType;
 
@@ -2024,13 +2017,13 @@ internal sealed partial class BoundExpressionEmitter
         {
             var argType = objectCreation.Arguments[i].StaticType;
             if (argType == typeof(object))
-                throw new InvalidOperationException();
+                return null;
             argTypes[i] = argType;
         }
 
         var ctor = type.GetConstructor(argTypes);
         if (ctor == null)
-            throw new InvalidOperationException();
+            return null;
 
         var ctorParams = ctor.GetParameters();
         var args = new LinqExpression[objectCreation.Arguments.Length];
@@ -2079,11 +2072,8 @@ internal sealed partial class BoundExpressionEmitter
         var hasNames = tuple.ElementNames.Any(static n => n != null);
         if (!hasNames && IsValueTupleType(tuple.StaticType) && tuple.Elements.Length <= 7)
         {
-            try
-            {
-                return EmitPureTuple(tuple);
-            }
-            catch (InvalidOperationException) { }
+            var pure = TryEmitPureTuple(tuple);
+            if (pure != null) return pure;
         }
 
         var elements = LinqExpression.NewArrayInit(
@@ -2104,13 +2094,13 @@ internal sealed partial class BoundExpressionEmitter
         return LinqExpression.Call(CreateTupleMethod, elements);
     }
 
-    private LinqExpression EmitPureTuple(BoundTupleExpr tuple)
+    private LinqExpression? TryEmitPureTuple(BoundTupleExpr tuple)
     {
         var tupleType = tuple.StaticType;
         var elementTypes = tupleType.GetGenericArguments();
         var ctor = tupleType.GetConstructor(elementTypes);
         if (ctor == null)
-            throw new InvalidOperationException();
+            return null;
 
         var args = new LinqExpression[tuple.Elements.Length];
         for (var i = 0; i < args.Length; i++)
@@ -2999,4 +2989,9 @@ internal sealed partial class BoundExpressionEmitter
             ResolveTypeMethod,
             LinqExpression.Constant(typeName));
     }
+
+    private static bool IsConvertSafe(Type sourceType, Type targetType) =>
+        sourceType == targetType
+        || targetType.IsAssignableFrom(sourceType)
+        || (IsArithmeticFastPathType(sourceType) && IsArithmeticFastPathType(targetType));
 }

@@ -400,11 +400,8 @@ internal sealed partial class BoundExpressionEmitter
                 var binaryFactory = GetCompoundBinaryFactory(memberCompoundAssign.Operator, property.PropertyType, rhsType);
                 if (binaryFactory != null)
                 {
-                    try
-                    {
-                        return EmitDirectMemberCompoundAssign(memberCompoundAssign, property, binaryFactory, rhsType);
-                    }
-                    catch (InvalidOperationException) { }
+                    var direct = TryEmitDirectMemberCompoundAssign(memberCompoundAssign, property, binaryFactory, rhsType);
+                    if (direct != null) return direct;
                 }
             }
         }
@@ -420,7 +417,7 @@ internal sealed partial class BoundExpressionEmitter
             LinqExpression.Constant(_isChecked));
     }
 
-    private LinqExpression EmitDirectMemberCompoundAssign(
+    private LinqExpression? TryEmitDirectMemberCompoundAssign(
         BoundMemberCompoundAssignExpr memberCompoundAssign,
         PropertyInfo property,
         Func<LinqExpression, LinqExpression, LinqExpression> binaryFactory,
@@ -435,9 +432,21 @@ internal sealed partial class BoundExpressionEmitter
         var typedCurrent = LinqExpression.Variable(property.PropertyType, "mcaCurrent");
         var typedRhs = LinqExpression.Variable(rhsType, "mcaRhs");
 
-        LinqExpression binaryExpr = binaryFactory(typedCurrent, typedRhs);
+        LinqExpression rhsOperand = typedRhs;
+        if (rhsType != property.PropertyType)
+        {
+            if (!IsConvertSafe(rhsType, property.PropertyType))
+                return null;
+            rhsOperand = LinqExpression.Convert(typedRhs, property.PropertyType);
+        }
+
+        LinqExpression binaryExpr = binaryFactory(typedCurrent, rhsOperand);
         if (binaryExpr.Type != property.PropertyType)
+        {
+            if (!IsConvertSafe(binaryExpr.Type, property.PropertyType))
+                return null;
             binaryExpr = LinqExpression.Convert(binaryExpr, property.PropertyType);
+        }
 
         var propAccess = LinqExpression.Property(typedTarget, property);
 
@@ -447,7 +456,7 @@ internal sealed partial class BoundExpressionEmitter
             LinqExpression.Call(CheckAllowPropertySetMethod, _optionsParam, LinqExpression.Constant(memberCompoundAssign.MemberName)),
             LinqExpression.Assign(targetObjVar, EmitHelpers.AsObject(Emit(memberCompoundAssign.Target))),
             LinqExpression.Assign(typedCurrent, propAccess),
-            LinqExpression.Assign(typedRhs, LinqExpression.Unbox(EmitHelpers.AsObject(Emit(memberCompoundAssign.Value)), rhsType)),
+            LinqExpression.Assign(typedRhs, EmitHelpers.UnboxOrCoerce(Emit(memberCompoundAssign.Value), rhsType)),
             LinqExpression.Assign(propAccess, binaryExpr),
             LinqExpression.Convert(propAccess, typeof(object)));
     }
@@ -466,11 +475,8 @@ internal sealed partial class BoundExpressionEmitter
                 var binaryFactory = GetCompoundBinaryFactory(indexCompoundAssign.Operator, plan.ResultType, rhsType);
                 if (binaryFactory != null)
                 {
-                    try
-                    {
-                        return EmitDirectIndexCompoundAssign(indexCompoundAssign, plan, binaryFactory, rhsType);
-                    }
-                    catch (InvalidOperationException) { }
+                    var direct = TryEmitDirectIndexCompoundAssign(indexCompoundAssign, plan, binaryFactory, rhsType);
+                    if (direct != null) return direct;
                 }
             }
         }
@@ -486,7 +492,7 @@ internal sealed partial class BoundExpressionEmitter
             LinqExpression.Constant(_isChecked));
     }
 
-    private LinqExpression EmitDirectIndexCompoundAssign(
+    private LinqExpression? TryEmitDirectIndexCompoundAssign(
         BoundIndexCompoundAssignExpr indexCompoundAssign,
         Binding.Plans.BoundIndexPlan plan,
         Func<LinqExpression, LinqExpression, LinqExpression> binaryFactory,
@@ -500,9 +506,21 @@ internal sealed partial class BoundExpressionEmitter
         var typedCurrent = LinqExpression.Variable(plan.ResultType, "icaCurrent");
         var typedRhs = LinqExpression.Variable(rhsType, "icaRhs");
 
-        LinqExpression binaryExpr = binaryFactory(typedCurrent, typedRhs);
+        LinqExpression rhsOperand = typedRhs;
+        if (rhsType != plan.ResultType)
+        {
+            if (!IsConvertSafe(rhsType, plan.ResultType))
+                return null;
+            rhsOperand = LinqExpression.Convert(typedRhs, plan.ResultType);
+        }
+
+        LinqExpression binaryExpr = binaryFactory(typedCurrent, rhsOperand);
         if (binaryExpr.Type != plan.ResultType)
+        {
+            if (!IsConvertSafe(binaryExpr.Type, plan.ResultType))
+                return null;
             binaryExpr = LinqExpression.Convert(binaryExpr, plan.ResultType);
+        }
 
         LinqExpression readExpr;
         LinqExpression writeExpr;
@@ -553,7 +571,7 @@ internal sealed partial class BoundExpressionEmitter
             LinqExpression.Call(CheckAllowIndexSetMethod, _optionsParam, indexObjVar),
             LinqExpression.Assign(normalizedIdx, normalizeExpr),
             LinqExpression.Assign(typedCurrent, readExpr),
-            LinqExpression.Assign(typedRhs, LinqExpression.Unbox(EmitHelpers.AsObject(Emit(indexCompoundAssign.Value)), rhsType)),
+            LinqExpression.Assign(typedRhs, EmitHelpers.UnboxOrCoerce(Emit(indexCompoundAssign.Value), rhsType)),
             writeExpr,
             LinqExpression.Convert(binaryExpr, typeof(object)));
     }
@@ -618,11 +636,7 @@ internal sealed partial class BoundExpressionEmitter
             && !memberIncrement.Target.StaticType.IsValueType
             && IsAddSubtractSafeType(property.PropertyType))
         {
-            try
-            {
-                return EmitDirectMemberIncrement(memberIncrement, property);
-            }
-            catch (InvalidOperationException) { }
+            return EmitDirectMemberIncrement(memberIncrement, property);
         }
 
         return LinqExpression.Call(
@@ -670,11 +684,7 @@ internal sealed partial class BoundExpressionEmitter
             && typeof(IList).IsAssignableFrom(plan.TargetType)
             && IsAddSubtractSafeType(plan.ResultType))
         {
-            try
-            {
-                return EmitDirectIndexIncrement(indexIncrement, plan);
-            }
-            catch (InvalidOperationException) { }
+            return EmitDirectIndexIncrement(indexIncrement, plan);
         }
 
         return LinqExpression.Call(
@@ -773,33 +783,38 @@ internal sealed partial class BoundExpressionEmitter
         if (binaryFactory == null)
             return false;
 
-        try
+        var typedLocal = LinqExpression.Variable(promoted.VariableType, "cmpTyped");
+        var typedRhs = LinqExpression.Variable(rhsType, "cmpRhs");
+
+        LinqExpression rhsOperand = typedRhs;
+        if (rhsType != promoted.VariableType)
         {
-            var typedLocal = LinqExpression.Variable(promoted.VariableType, "cmpTyped");
-            var typedRhs = LinqExpression.Variable(rhsType, "cmpRhs");
-
-            LinqExpression binaryExpr = binaryFactory(typedLocal, typedRhs);
-
-            if (binaryExpr.Type != promoted.VariableType)
-                binaryExpr = LinqExpression.Convert(binaryExpr, promoted.VariableType);
-
-            result = LinqExpression.Block(
-                typeof(object),
-                [typedLocal, typedRhs],
-                LinqExpression.Call(
-                    CheckAllowAssignmentMethod,
-                    _optionsParam,
-                    LinqExpression.Constant(BuildAssignmentOperationDescription(compoundAssign.Name, compoundAssign.Operator))),
-                LinqExpression.Assign(typedLocal, LinqExpression.Unbox(promoted.Variable, promoted.VariableType)),
-                LinqExpression.Assign(typedRhs, LinqExpression.Unbox(EmitHelpers.AsObject(Emit(compoundAssign.Value)), rhsType)),
-                LinqExpression.Assign(promoted.Variable, LinqExpression.Convert(binaryExpr, typeof(object))),
-                promoted.Variable);
-            return true;
+            if (!IsConvertSafe(rhsType, promoted.VariableType))
+                return false;
+            rhsOperand = LinqExpression.Convert(typedRhs, promoted.VariableType);
         }
-        catch (InvalidOperationException)
+
+        LinqExpression binaryExpr = binaryFactory(typedLocal, rhsOperand);
+
+        if (binaryExpr.Type != promoted.VariableType)
         {
-            return false;
+            if (!IsConvertSafe(binaryExpr.Type, promoted.VariableType))
+                return false;
+            binaryExpr = LinqExpression.Convert(binaryExpr, promoted.VariableType);
         }
+
+        result = LinqExpression.Block(
+            typeof(object),
+            [typedLocal, typedRhs],
+            LinqExpression.Call(
+                CheckAllowAssignmentMethod,
+                _optionsParam,
+                LinqExpression.Constant(BuildAssignmentOperationDescription(compoundAssign.Name, compoundAssign.Operator))),
+            LinqExpression.Assign(typedLocal, LinqExpression.Unbox(promoted.Variable, promoted.VariableType)),
+            LinqExpression.Assign(typedRhs, EmitHelpers.UnboxOrCoerce(Emit(compoundAssign.Value), rhsType)),
+            LinqExpression.Assign(promoted.Variable, LinqExpression.Convert(binaryExpr, typeof(object))),
+            promoted.Variable);
+        return true;
     }
 
     private bool TryEmitPureIncrementDecrement(
@@ -814,34 +829,42 @@ internal sealed partial class BoundExpressionEmitter
         if (!IsAddSubtractSafeType(promoted.VariableType))
             return false;
 
-        try
-        {
-            var isIncrement = incrementDecrement.Operator == TokenType.PlusPlus;
-            var typedLocal = LinqExpression.Variable(promoted.VariableType, "incrTyped");
-            var one = LinqExpression.Constant(Convert.ChangeType(1, promoted.VariableType), promoted.VariableType);
-            var newValue = isIncrement
-                ? LinqExpression.Add(typedLocal, one)
-                : LinqExpression.Subtract(typedLocal, one);
+        var isIncrement = incrementDecrement.Operator == TokenType.PlusPlus;
+        var typedLocal = LinqExpression.Variable(promoted.VariableType, "incrTyped");
+        var one = LinqExpression.Constant(Convert.ChangeType(1, promoted.VariableType), promoted.VariableType);
+        var newValue = isIncrement
+            ? LinqExpression.Add(typedLocal, one)
+            : LinqExpression.Subtract(typedLocal, one);
 
+        var checkAssign = LinqExpression.Call(
+            CheckAllowAssignmentMethod,
+            _optionsParam,
+            LinqExpression.Constant(
+                (isIncrement ? "++" : "--") + incrementDecrement.Name));
+
+        if (incrementDecrement.IsPrefix)
+        {
+            result = LinqExpression.Block(
+                typeof(object),
+                [typedLocal],
+                checkAssign,
+                LinqExpression.Assign(typedLocal, LinqExpression.Unbox(promoted.Variable, promoted.VariableType)),
+                LinqExpression.Assign(promoted.Variable, LinqExpression.Convert(newValue, typeof(object))),
+                promoted.Variable);
+        }
+        else
+        {
             var oldVar = LinqExpression.Variable(typeof(object), "incrOld");
             result = LinqExpression.Block(
                 typeof(object),
                 [typedLocal, oldVar],
-                LinqExpression.Call(
-                    CheckAllowAssignmentMethod,
-                    _optionsParam,
-                    LinqExpression.Constant(
-                        (isIncrement ? "++" : "--") + incrementDecrement.Name)),
+                checkAssign,
                 LinqExpression.Assign(typedLocal, LinqExpression.Unbox(promoted.Variable, promoted.VariableType)),
                 LinqExpression.Assign(oldVar, promoted.Variable),
                 LinqExpression.Assign(promoted.Variable, LinqExpression.Convert(newValue, typeof(object))),
-                incrementDecrement.IsPrefix ? promoted.Variable : oldVar);
-            return true;
+                oldVar);
         }
-        catch (InvalidOperationException)
-        {
-            return false;
-        }
+        return true;
     }
 
     private static Func<LinqExpression, LinqExpression, LinqExpression>? GetCompoundBinaryFactory(
