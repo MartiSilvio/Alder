@@ -1,5 +1,7 @@
 namespace CsEval.Test.Compliance;
 
+public enum LongEnum : long { A = 1, B = 2, C = 3 }
+
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
 public class OperatorConformanceTests(CompilationMode mode)
@@ -362,6 +364,32 @@ public class OperatorConformanceTests(CompilationMode mode)
         // §12.11: >> on int uses arithmetic shift (sign-extending)
         var result = Eval("-8 >> 2");
         Assert.That(result, Is.EqualTo(-2));
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // §12.10.6 Enumeration subtraction: E - E → U
+    // ═══════════════════════════════════════════════════════════════════
+
+    [Test]
+    public void EnumSubtraction_IntUnderlying_ReturnsInt()
+    {
+        // §12.10.6: E - E → U where U is the underlying type
+        // DayOfWeek has int underlying
+        var result = Eval("System.DayOfWeek.Friday - System.DayOfWeek.Monday");
+        Assert.That(result, Is.EqualTo(4));
+        Assert.That(result, Is.TypeOf<int>());
+    }
+
+    [Test]
+    public void EnumSubtraction_LongUnderlying_ReturnsLong()
+    {
+        // §12.10.6: E - E → U where U is the underlying type
+        var engine = Engine();
+        engine.SetVariable("a", LongEnum.A);
+        engine.SetVariable("b", LongEnum.B);
+        var result = engine.Evaluate("b - a");
+        Assert.That(result, Is.EqualTo(1L));
+        Assert.That(result, Is.TypeOf<long>());
     }
 
     // ═══════════════════════════════════════════════════════════════════

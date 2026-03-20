@@ -60,6 +60,16 @@ internal sealed partial class Binder
         var operand = Bind(unary.Right, context);
         if (operand.HasErrors)
             return new BoundUnaryExpr(unary.Op.Type, operand, typeof(object)) { HasErrors = true };
+
+        // ECMA-334 §6.4.5.3: -2147483648 (literal) is int; -9223372036854775808L is long
+        if (unary.Op.Type == TokenType.Minus && operand is BoundLiteralExpr literal)
+        {
+            if (literal.Value is uint u && u == (uint)int.MaxValue + 1)
+                return BoundLiteralExpr.FromValue(int.MinValue);
+            if (literal.Value is ulong ul && ul == (ulong)long.MaxValue + 1)
+                return BoundLiteralExpr.FromValue(long.MinValue);
+        }
+
         var resultType = unary.Op.Type == TokenType.Bang
             ? typeof(bool)
             : InferUnaryResultType(operand.StaticType, unary.Op.Type);

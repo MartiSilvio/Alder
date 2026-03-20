@@ -37,8 +37,11 @@ internal static class EnumArithmetic
 
         if (leftIsEnum && rightIsEnum)
         {
-            // E - E → underlying type (int)
-            return Convert.ToInt32(left) - Convert.ToInt32(right);
+            // E - E → U (underlying type of E), per ECMA-334 §12.10.6
+            var underlyingType = Enum.GetUnderlyingType(left.GetType());
+            var l = Convert.ChangeType(left, underlyingType);
+            var r = Convert.ChangeType(right, underlyingType);
+            return NumericDispatch.Subtract(l, r)!;
         }
 
         if (leftIsEnum)

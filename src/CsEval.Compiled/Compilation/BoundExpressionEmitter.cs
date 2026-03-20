@@ -1866,8 +1866,12 @@ internal sealed partial class BoundExpressionEmitter
 
     private LinqExpression EmitRange(BoundRangeExpr range)
     {
-        var startExpr = EmitHelpers.AsObject(Emit(range.Start));
-        var endExpr = EmitHelpers.AsObject(Emit(range.End));
+        var startExpr = range.Start != null
+            ? EmitHelpers.AsObject(Emit(range.Start))
+            : LinqExpression.Constant(null, typeof(object));
+        var endExpr = range.End != null
+            ? EmitHelpers.AsObject(Emit(range.End))
+            : LinqExpression.Constant(null, typeof(object));
         var rangeExpr = LinqExpression.Call(CreateSystemRangeMethod, startExpr, endExpr);
 
         if (!range.ExclusiveEnd)

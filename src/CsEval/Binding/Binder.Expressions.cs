@@ -277,8 +277,10 @@ internal sealed partial class Binder
 
     private BoundRangeExpr BindRange(RangeExpr rangeExpr, BindingContext context)
     {
-        var start = Bind(rangeExpr.Start, context);
-        var end = Bind(rangeExpr.End, context);
-        return new BoundRangeExpr(start, end, rangeExpr.ExclusiveEnd, typeof(IEnumerable<int>));
+        var start = rangeExpr.Start != null ? Bind(rangeExpr.Start, context) : null;
+        var end = rangeExpr.End != null ? Bind(rangeExpr.End, context) : null;
+        // Open-ended ranges produce System.Range, not IEnumerable<int>
+        var resultType = start == null || end == null ? typeof(Range) : typeof(IEnumerable<int>);
+        return new BoundRangeExpr(start, end, rangeExpr.ExclusiveEnd, resultType);
     }
 }

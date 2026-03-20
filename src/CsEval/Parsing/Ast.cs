@@ -698,8 +698,8 @@ internal sealed record CheckedExpr(Expr Expression, bool IsChecked) : Expr
 
 #region Polyglot Extended Features
 
-// Range expression: start..end (exclusive, C# spec), start..=end (inclusive), start..<end (exclusive)
-internal sealed record RangeExpr(Expr Start, Expr End, bool ExclusiveEnd) : Expr
+// Range expression: start..end, ..end, start.., .. (C# spec), start..=end (inclusive), start..<end (exclusive)
+internal sealed record RangeExpr(Expr? Start, Expr? End, bool ExclusiveEnd) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitRange(this);
 }
@@ -759,6 +759,12 @@ internal sealed record ParenthesizedPattern(Pattern Inner) : Pattern;
 
 // Positional (tuple) pattern: (pattern1, pattern2, ...) matches ITuple elements
 internal sealed record PositionalPattern(List<Pattern> Subpatterns) : Pattern;
+
+// C# 11 list pattern: [pattern, pattern, ..] matches countable/indexable collections
+internal sealed record ListPattern(List<Pattern> Patterns) : Pattern;
+
+// C# 11 slice pattern: .. or ..var rest (used inside list patterns)
+internal sealed record SlicePattern(Pattern? Subpattern) : Pattern;
 
 // Switch arm: pattern [when guard] => value
 internal sealed record SwitchArm(Pattern Pattern, Expr? WhenGuard, Expr Value);

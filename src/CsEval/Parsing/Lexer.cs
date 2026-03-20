@@ -520,7 +520,7 @@ internal sealed class Lexer
                     sb.Append(Advance());
                 }
             }
-            else if (Peek() == '\\')
+            else if (Peek() == '\\' && braceDepth == 0)
             {
                 Advance();
                 sb.Append(ParseEscapeSequence());
@@ -750,9 +750,9 @@ internal sealed class Lexer
         {
             value = suffix switch
             {
-                NumericSuffix.Long => ParseLongLiteral(numberText),
+                NumericSuffix.Long => ParseLongWithPromotion(numberText),
                 NumericSuffix.ULong => ulong.Parse(numberText),
-                NumericSuffix.UInt => uint.Parse(numberText),
+                NumericSuffix.UInt => ParseUIntWithPromotion(numberText),
                 NumericSuffix.Float => float.Parse(numberText, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture),
                 NumericSuffix.Double => double.Parse(numberText, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture),
                 NumericSuffix.Decimal => decimal.Parse(numberText, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture),
@@ -815,12 +815,9 @@ internal sealed class Lexer
         {
             if (Peek() == '_')
             {
-                var prev = _current > 0 ? _source[_current - 1] : '\0';
-                if (!isValidDigit(prev) && prev != '_')
-                    throw LexError(DiagnosticDescriptors.InvalidNumber, $"Digit separator '_' cannot appear at start of number at {_line}:{_column}");
                 Advance();
                 if (!isValidDigit(Peek()) && Peek() != '_')
-                    throw LexError(DiagnosticDescriptors.InvalidNumber, $"Digit separator '_' must be followed by a digit or another separator at {_line}:{_column}");
+                    throw LexError(DiagnosticDescriptors.InvalidNumber, $"Digit separator '_' must be followed by a digit at {_line}:{_column}");
             }
             else
             {
@@ -828,9 +825,7 @@ internal sealed class Lexer
             }
         }
 
-        // Check for trailing underscore
-        var lastChar = _current > 0 ? _source[_current - 1] : '\0';
-        if (lastChar == '_')
+        if (_current > 0 && _source[_current - 1] == '_')
             throw LexError(DiagnosticDescriptors.InvalidNumber, $"Digit separator '_' cannot appear at end of number at {_line}:{_column}");
     }
 
@@ -852,9 +847,9 @@ internal sealed class Lexer
         {
             value = suffix switch
             {
-                NumericSuffix.Long => Convert.ToInt64(hexText, 16),
+                NumericSuffix.Long => ParseHexLongWithPromotion(hexText),
                 NumericSuffix.ULong => Convert.ToUInt64(hexText, 16),
-                NumericSuffix.UInt => Convert.ToUInt32(hexText, 16),
+                NumericSuffix.UInt => ParseHexUIntWithPromotion(hexText),
                 NumericSuffix.None => ParseHexWithPromotion(hexText),
                 _ => throw LexError(DiagnosticDescriptors.InvalidNumber, $"Invalid suffix for hex literal at {_line}:{_column}")
             };
@@ -883,9 +878,9 @@ internal sealed class Lexer
         {
             value = suffix switch
             {
-                NumericSuffix.Long => Convert.ToInt64(binText, 2),
+                NumericSuffix.Long => ParseBinaryLongWithPromotion(binText),
                 NumericSuffix.ULong => Convert.ToUInt64(binText, 2),
-                NumericSuffix.UInt => Convert.ToUInt32(binText, 2),
+                NumericSuffix.UInt => ParseBinaryUIntWithPromotion(binText),
                 NumericSuffix.None => ParseBinaryWithPromotion(binText),
                 _ => throw LexError(DiagnosticDescriptors.InvalidNumber, $"Invalid suffix for binary literal at {_line}:{_column}")
             };
@@ -975,6 +970,26 @@ internal sealed class Lexer
     }
 
     /// <summary>
+    /// Per ECMA-334 §6.4.5.3, hex L-suffixed literals promote: long → ulong.
+    /// </summary>
+    private static object ParseHexLongWithPromotion(string hexText)
+    {
+        var value = Convert.ToUInt64(hexText, 16);
+        if (value <= long.MaxValue) return (long)value;
+        return value;
+    }
+
+    /// <summary>
+    /// Per ECMA-334 §6.4.5.3, hex U-suffixed literals promote: uint → ulong.
+    /// </summary>
+    private static object ParseHexUIntWithPromotion(string hexText)
+    {
+        var value = Convert.ToUInt64(hexText, 16);
+        if (value <= uint.MaxValue) return (uint)value;
+        return value;
+    }
+
+    /// <summary>
     /// Per ECMA-334 §6.4.5.3, hex literals without suffix use: int → uint → long → ulong
     /// </summary>
     private static object ParseHexWithPromotion(string hexText)
@@ -983,6 +998,26 @@ internal sealed class Lexer
         if (value <= int.MaxValue) return (int)value;
         if (value <= uint.MaxValue) return (uint)value;
         if (value <= long.MaxValue) return (long)value;
+        return value;
+    }
+
+    /// <summary>
+    /// Per ECMA-334 §6.4.5.3, binary L-suffixed literals promote: long → ulong.
+    /// </summary>
+    private static object ParseBinaryLongWithPromotion(string binText)
+    {
+        var value = Convert.ToUInt64(binText, 2);
+        if (value <= long.MaxValue) return (long)value;
+        return value;
+    }
+
+    /// <summary>
+    /// Per ECMA-334 §6.4.5.3, binary U-suffixed literals promote: uint → ulong.
+    /// </summary>
+    private static object ParseBinaryUIntWithPromotion(string binText)
+    {
+        var value = Convert.ToUInt64(binText, 2);
+        if (value <= uint.MaxValue) return (uint)value;
         return value;
     }
 
@@ -999,30 +1034,39 @@ internal sealed class Lexer
     }
 
     /// <summary>
-    /// Parse L-suffixed literal, handling the special case of 9223372036854775808L
-    /// which is exactly |long.MinValue| and needs to be stored as ulong for negation.
+    /// Per ECMA-334 §6.4.5.3, L-suffixed literals promote: long → ulong.
+    /// Special case: 9223372036854775808L (|long.MinValue|) stored as ulong for negation.
     /// </summary>
-    private object ParseLongLiteral(string text)
+    private object ParseLongWithPromotion(string text)
     {
         if (long.TryParse(text, out var longValue))
             return longValue;
-        // Handle 9223372036854775808L (|long.MinValue|) - store as ulong for negation
-        if (ulong.TryParse(text, out var ulongValue) && ulongValue == (ulong)long.MaxValue + 1)
+        if (ulong.TryParse(text, out var ulongValue))
             return ulongValue;
         throw new CsEvalException(DiagnosticDescriptors.IntegralConstantTooLarge, default, _line, _column);
     }
 
     /// <summary>
-    /// Parse integer literal with automatic type promotion (C# behavior):
-    /// - If fits in int → int
-    /// - If fits in long → long
-    /// - If fits in ulong → ulong
-    /// - Otherwise → error
+    /// Per ECMA-334 §6.4.5.3, U-suffixed literals promote: uint → ulong.
+    /// </summary>
+    private object ParseUIntWithPromotion(string text)
+    {
+        if (uint.TryParse(text, out var uintValue))
+            return uintValue;
+        if (ulong.TryParse(text, out var ulongValue))
+            return ulongValue;
+        throw new CsEvalException(DiagnosticDescriptors.IntegralConstantTooLarge, default, _line, _column);
+    }
+
+    /// <summary>
+    /// Per ECMA-334 §6.4.5.3, unsuffixed decimal integer literals promote: int → uint → long → ulong.
     /// </summary>
     private object ParseIntegerWithPromotion(string text)
     {
         if (int.TryParse(text, out var intValue))
             return intValue;
+        if (uint.TryParse(text, out var uintValue))
+            return uintValue;
         if (long.TryParse(text, out var longValue))
             return longValue;
         if (ulong.TryParse(text, out var ulongValue))

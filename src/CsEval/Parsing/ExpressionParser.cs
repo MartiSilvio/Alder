@@ -606,19 +606,27 @@ internal sealed partial class ExpressionParser : ParserBase
     }
 
     /// <summary>
-    /// Parses range literals: start..end (exclusive, C# spec), start..=end (inclusive), start..&lt;end (exclusive).
+    /// Parses range literals: start..end, ..end, start.., .. (C# spec), start..=end (inclusive), start..&lt;end (exclusive).
     /// Precedence: below null-coalesce, above logical OR.
-    /// Range .. is INFIX (between two expressions). Spread .. is PREFIX (inside collection literals).
-    /// Since we reach here only after parsing a left-hand expression, this is always range context.
+    /// Supports open-ended ranges per C# spec: ..end (prefix), start.. (no end), .. (both omitted).
     /// </summary>
     private Expr ParseRange()
     {
         var mark = Mark();
+
+        // Prefix range: ..end or .. (both start omitted)
+        if (Check(TokenType.DotDot))
+        {
+            Advance();
+            Expr? end = IsRangeEndFollowing() ? ParseOr() : null;
+            return new RangeExpr(null, end, ExclusiveEnd: true) { Span = SpanFrom(mark) };
+        }
+
         var expr = ParseOr();
 
         if (Match(TokenType.DotDot))
         {
-            var end = ParseOr();
+            Expr? end = IsRangeEndFollowing() ? ParseOr() : null;
             return new RangeExpr(expr, end, ExclusiveEnd: true) { Span = SpanFrom(mark) };
         }
 
@@ -635,6 +643,16 @@ internal sealed partial class ExpressionParser : ParserBase
         }
 
         return expr;
+    }
+
+    private bool IsRangeEndFollowing()
+    {
+        if (IsAtEnd()) return false;
+        var t = Peek().Type;
+        // These tokens mean the range has no end operand
+        return t != TokenType.RightBracket && t != TokenType.RightParen
+            && t != TokenType.Comma && t != TokenType.Semicolon
+            && t != TokenType.Colon && t != TokenType.Eof;
     }
 
     #endregion

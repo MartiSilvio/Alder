@@ -209,8 +209,18 @@ internal static class ConstructionRuntime
 
     public static Range CreateSystemRange(object? start, object? end)
     {
-        var startIndex = start is Index si ? si : new Index(Convert.ToInt32(start));
-        var endIndex = end is Index ei ? ei : new Index(Convert.ToInt32(end));
+        var startIndex = start switch
+        {
+            null => new Index(0, fromEnd: false),
+            Index si => si,
+            _ => new Index(Convert.ToInt32(start))
+        };
+        var endIndex = end switch
+        {
+            null => new Index(0, fromEnd: true),
+            Index ei => ei,
+            _ => new Index(Convert.ToInt32(end))
+        };
         return new Range(startIndex, endIndex);
     }
 

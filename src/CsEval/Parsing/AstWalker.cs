@@ -191,6 +191,18 @@ internal abstract class AstWalker<T> : IExprVisitor<T>
                 foreach (var (_, subPattern) in prop.Properties)
                     WalkPattern(subPattern);
                 break;
+            case PositionalPattern pos:
+                foreach (var subPattern in pos.Subpatterns)
+                    WalkPattern(subPattern);
+                break;
+            case ListPattern lp:
+                foreach (var subPattern in lp.Patterns)
+                    WalkPattern(subPattern);
+                break;
+            case SlicePattern sp:
+                if (sp.Subpattern != null)
+                    WalkPattern(sp.Subpattern);
+                break;
             // TypePattern, VarPattern, DiscardPattern have no Expr children
         }
     }
@@ -511,6 +523,8 @@ internal abstract class AstWalker<T> : IExprVisitor<T>
         Visit(expr.Expression);
         foreach (var caseExpr in expr.Cases)
         {
+            if (caseExpr.CasePattern != null)
+                WalkPattern(caseExpr.CasePattern);
             if (caseExpr.WhenGuard != null)
                 Visit(caseExpr.WhenGuard);
             foreach (var stmt in caseExpr.Statements)
@@ -572,7 +586,11 @@ internal abstract class AstWalker<T> : IExprVisitor<T>
         if (expr.Initializer != null)
         {
             foreach (var entry in expr.Initializer.Entries)
+            {
+                if (entry.IndexerKey != null)
+                    Visit(entry.IndexerKey);
                 Visit(entry.Value);
+            }
         }
         return OnLeave(expr);
     }
@@ -712,8 +730,8 @@ internal abstract class AstWalker<T> : IExprVisitor<T>
     public virtual T VisitRange(RangeExpr expr)
     {
         OnEnter(expr);
-        Visit(expr.Start);
-        Visit(expr.End);
+        if (expr.Start != null) Visit(expr.Start);
+        if (expr.End != null) Visit(expr.End);
         return OnLeave(expr);
     }
 

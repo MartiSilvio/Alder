@@ -92,4 +92,11 @@ internal sealed class IdentifierOccurrenceCollector : AstWalker<byte>
         Visit(expr.ValueExpression);
         return 0;
     }
+
+    public override byte VisitOutArg(OutArgExpr expr)
+    {
+        if (!expr.IsDiscard)
+            _declared.Add(expr.VariableName);
+        return 0;
+    }
 }

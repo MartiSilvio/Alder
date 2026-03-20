@@ -217,23 +217,6 @@ internal static class NumericDispatch
             type = typeof(int);
         }
 
-        // Handle int.MinValue edge case: -2147483648 should be int, not long
-        // The lexer parses 2147483648 as long, but negated it becomes int.MinValue
-        if (type == typeof(long))
-        {
-            var longVal = (long)value;
-            if (longVal == (long)int.MaxValue + 1)
-                return int.MinValue;
-        }
-
-        // Handle ulong -> long edge case for long.MinValue
-        if (type == typeof(ulong))
-        {
-            var ulongVal = (ulong)value;
-            if (ulongVal == (ulong)long.MaxValue + 1)
-                return long.MinValue;
-        }
-
         var ops = isChecked ? CheckedNegateOps : NegateOps;
         if (ops.TryGetValue(type, out var op))
             return op(value);

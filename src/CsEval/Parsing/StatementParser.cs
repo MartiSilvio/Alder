@@ -592,9 +592,7 @@ internal sealed class StatementParser : ParserBase
         // Parse statements until we hit case, default, or closing brace
         while (!Check(TokenType.Case) && !Check(TokenType.Default) && !Check(TokenType.RightBrace) && !IsAtEnd())
         {
-            var stmt = ParseStatement();
-            if (stmt != null)
-                statements.Add(stmt);
+            ParseStatementInto(statements);
         }
 
         return statements;

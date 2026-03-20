@@ -86,6 +86,9 @@ internal static class PatternRuntime
                     };
                 }
 
+                case ListPattern listPattern:
+                    return MatchListPattern(value, listPattern, runtime);
+
                 case PropertyPattern propertyPattern:
                 {
                     if (propertyPattern.TypeToken != null)
@@ -117,6 +120,87 @@ internal static class PatternRuntime
 
             break;
         }
+    }
+
+    private static bool MatchListPattern(object? value, ListPattern listPattern, PatternRuntimeContext runtime)
+    {
+        if (value == null) return false;
+
+        var length = GetCountableLength(value);
+        if (length < 0) return false;
+
+        var patterns = listPattern.Patterns;
+        var sliceIndex = -1;
+        for (var i = 0; i < patterns.Count; i++)
+        {
+            if (patterns[i] is SlicePattern)
+            {
+                sliceIndex = i;
+                break;
+            }
+        }
+
+        if (sliceIndex < 0)
+        {
+            // No slice — exact length match required
+            if (length != patterns.Count) return false;
+            for (var i = 0; i < patterns.Count; i++)
+            {
+                if (!MatchPatternCore(GetIndexedElement(value, i), patterns[i], runtime))
+                    return false;
+            }
+            return true;
+        }
+
+        // Has slice: prefix patterns before slice, suffix patterns after
+        var prefixCount = sliceIndex;
+        var suffixCount = patterns.Count - sliceIndex - 1;
+        if (length < prefixCount + suffixCount) return false;
+
+        // Match prefix
+        for (var i = 0; i < prefixCount; i++)
+        {
+            if (!MatchPatternCore(GetIndexedElement(value, i), patterns[i], runtime))
+                return false;
+        }
+
+        // Match suffix (from end)
+        for (var i = 0; i < suffixCount; i++)
+        {
+            if (!MatchPatternCore(GetIndexedElement(value, length - suffixCount + i), patterns[sliceIndex + 1 + i], runtime))
+                return false;
+        }
+
+        // Handle slice subpattern if present
+        var slice = (SlicePattern)patterns[sliceIndex];
+        if (slice.Subpattern != null)
+        {
+            var sliceLength = length - prefixCount - suffixCount;
+            var sliceArray = new object?[sliceLength];
+            for (var i = 0; i < sliceLength; i++)
+                sliceArray[i] = GetIndexedElement(value, prefixCount + i);
+            if (!MatchPatternCore(sliceArray, slice.Subpattern, runtime))
+                return false;
+        }
+
+        return true;
+    }
+
+    private static int GetCountableLength(object value)
+    {
+        // C# list patterns require Length or Count property and int indexer.
+        // IList covers arrays, List<T>, and most collections.
+        if (value is System.Collections.IList list) return list.Count;
+        // String has Length and indexer
+        if (value is string s) return s.Length;
+        return -1;
+    }
+
+    private static object? GetIndexedElement(object value, int index)
+    {
+        if (value is System.Collections.IList list) return list[index];
+        if (value is string s) return s[index];
+        throw new InvalidOperationException($"Cannot index into {value.GetType().Name}");
     }
 
     private sealed class PatternRuntimeContext(

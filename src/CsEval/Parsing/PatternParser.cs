@@ -76,6 +76,12 @@ internal sealed class PatternParser : ParserBase
 
     private Pattern ParsePrimaryPattern()
     {
+        // List pattern: [pattern, pattern, ..]
+        if (Check(TokenType.LeftBracket))
+        {
+            return ParseListPattern();
+        }
+
         // Discard pattern: _
         if (Check(TokenType.Identifier) &&
             string.Equals(Peek().Lexeme, TokenLexemes.DiscardIdentifier, StringComparison.Ordinal))
@@ -371,4 +377,34 @@ internal sealed class PatternParser : ParserBase
             { Type: TokenType.Bang } => string.Equals(token.Lexeme, TokenLexemes.GetCanonical(TokenType.Not), StringComparison.Ordinal),
             _ => false
         };
+
+    private ListPattern ParseListPattern()
+    {
+        Consume(TokenType.LeftBracket, "Expected '[' for list pattern");
+        var patterns = new List<Pattern>();
+
+        if (!Check(TokenType.RightBracket))
+        {
+            patterns.Add(ParseListElement());
+            while (Match(TokenType.Comma))
+                patterns.Add(ParseListElement());
+        }
+
+        Consume(TokenType.RightBracket, "Expected ']' after list pattern");
+        return new ListPattern(patterns);
+    }
+
+    private Pattern ParseListElement()
+    {
+        if (Check(TokenType.DotDot))
+        {
+            Advance();
+            // Slice with optional subpattern: ..var rest, .._, ..pattern
+            if (!Check(TokenType.Comma) && !Check(TokenType.RightBracket))
+                return new SlicePattern(ParsePattern());
+            return new SlicePattern(null);
+        }
+
+        return ParsePattern();
+    }
 }

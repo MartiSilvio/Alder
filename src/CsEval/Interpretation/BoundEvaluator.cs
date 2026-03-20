@@ -1680,8 +1680,8 @@ internal sealed class BoundEvaluator
 
     private object? EvaluateRange(BoundRangeExpr range)
     {
-        var startValue = Evaluate(range.Start);
-        var endValue = Evaluate(range.End);
+        var startValue = range.Start != null ? Evaluate(range.Start) : null;
+        var endValue = range.End != null ? Evaluate(range.End) : null;
         var sysRange = ConstructionRuntime.CreateSystemRange(startValue, endValue);
         return range.ExclusiveEnd ? sysRange : new InclusiveRange(sysRange);
     }
