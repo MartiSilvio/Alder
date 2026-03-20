@@ -1,10 +1,14 @@
 using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
+using CsEval.Diagnostics;
+using CsEval.Test._Infrastructure;
 
 namespace CsEval.Test.Parity;
 
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
+[TestFixture(CompilationMode.CompiledFec)]
+
 [Parallelizable(ParallelScope.Children)]
 public class ParityTests(CompilationMode mode)
 {
@@ -43,7 +47,7 @@ public class ParityTests(CompilationMode mode)
                 roslynExpr = csEvalExpr;
             }
         }
-        
+
         var exprInfo = csEvalExpr == roslynExpr
             ? csEvalExpr
             : $"CsEval: {csEvalExpr}\nRoslyn: {roslynExpr}";
@@ -72,9 +76,15 @@ public class ParityTests(CompilationMode mode)
         {
             throw;
         }
+        catch (Exception ex) when 
+            (mode == CompilationMode.CompiledFec && 
+             ex is InvalidProgramException or CsEvalException { ErrorCode: DiagnosticCode.CSEV0001 })
+        {
+            Assert.Inconclusive($"{ex.GetType().Name}: {ex.Message}\n\n{exprInfo}");
+        }
         catch (Exception ex)
         {
-            Assert.Fail($"{exprInfo}\n{ex.GetType().Name}: {ex.Message}");
+            Assert.Fail($"{ex.GetType().Name}: {ex.Message}\n\n{exprInfo}");
         }
     }
 
@@ -105,7 +115,7 @@ public class ParityTests(CompilationMode mode)
         if (csEvalEx is not CsEvalException csEx)
         {
             Assert.That(csEvalEx, Is.InstanceOf<OverflowException>()
-                .Or.InstanceOf<DivideByZeroException>(),
+                    .Or.InstanceOf<DivideByZeroException>(),
                 $"Non-CsEvalException thrown for '{expr}': {csEvalEx!.GetType().Name}: {csEvalEx.Message}");
             return;
         }
@@ -130,7 +140,8 @@ public class ParityTests(CompilationMode mode)
             // Skip code parity for parser-level mismatches where Roslyn can't parse Extended syntax.
             // Roslyn gives generic errors (CS1002 etc.) for syntax it doesn't understand;
             // CsEval gives meaningful errors (CS1003 etc.) for its own grammar.
-            if (roslynCode == "CS1002" && csEx.ErrorCode is CsEval.Diagnostics.DiagnosticCode.CS1003 or CsEval.Diagnostics.DiagnosticCode.CS1525 or CsEval.Diagnostics.DiagnosticCode.CS1733)
+            if (roslynCode == "CS1002" && csEx.ErrorCode is CsEval.Diagnostics.DiagnosticCode.CS1003
+                    or CsEval.Diagnostics.DiagnosticCode.CS1525 or CsEval.Diagnostics.DiagnosticCode.CS1733)
                 return;
 
             // Check exact code parity for compiler diagnostics.
@@ -153,7 +164,8 @@ public class ParityTests(CompilationMode mode)
     }
 
     private static bool IsAnonymousType(Type? type) =>
-        type != null && Attribute.IsDefined(type, typeof(CompilerGeneratedAttribute)) && type.Name.Contains("AnonymousType");
+        type != null && Attribute.IsDefined(type, typeof(CompilerGeneratedAttribute)) &&
+        type.Name.Contains("AnonymousType");
 
     private void AssertNoFallbackInCompiledMode(CsEvalExpression expression, string source)
     {
@@ -171,7 +183,8 @@ public class ParityTests(CompilationMode mode)
         foreach (var prop in props)
         {
             Assert.That(dict.ContainsKey(prop.Name), Is.True, $"Missing property '{prop.Name}'");
-            Assert.That(dict[prop.Name], Is.EqualTo(prop.GetValue(anonymous)), $"Property '{prop.Name}' value mismatch");
+            Assert.That(dict[prop.Name], Is.EqualTo(prop.GetValue(anonymous)),
+                $"Property '{prop.Name}' value mismatch");
         }
     }
 

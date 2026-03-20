@@ -1,3 +1,5 @@
+using CsEval.Test._Infrastructure;
+
 namespace CsEval.Test.Operators;
 
 // Engine-only: CsEval resolves nameof() syntactically, Roslyn requires member to exist.

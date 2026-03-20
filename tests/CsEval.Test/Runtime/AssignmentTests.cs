@@ -2,6 +2,8 @@
 // SetVariable API, RegisterExtensionMethods, pre-parsed engine reuse, error assertions.
 // Migratable parity tests extracted to TestData/Runtime/Assignment/*.csx.
 
+using CsEval.Test._Infrastructure;
+
 namespace CsEval.Test.Runtime;
 
 [TestFixture(CompilationMode.Interpreted)]

@@ -2,6 +2,7 @@ using CsEval.Diagnostics;
 using System.Linq.Expressions;
 using System.Reflection;
 using CsEval.Runtime;
+using CsEval.Test._Infrastructure;
 
 namespace CsEval.Test.Compilation;
 

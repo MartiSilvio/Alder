@@ -1,3 +1,5 @@
+using CsEval.Test._Infrastructure;
+
 namespace CsEval.Test.Operators;
 
 // Engine-only: All remaining tests verify exception throwing behavior (Assert.Catch),

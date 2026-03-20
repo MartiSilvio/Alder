@@ -1,3 +1,5 @@
+using CsEval.Test._Infrastructure;
+
 namespace CsEval.Test.Security;
 
 [TestFixture(CompilationMode.Interpreted)]

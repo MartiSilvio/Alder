@@ -1,6 +1,8 @@
 // All tests engine-only: Constraints config, CancellationToken, CsEvalExecutionLimitException assertions
 // -- CsEval-specific safety features with no Roslyn equivalent.
 
+using CsEval.Test._Infrastructure;
+
 namespace CsEval.Test.Security;
 
 [TestFixture(CompilationMode.Interpreted)]

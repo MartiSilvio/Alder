@@ -1,4 +1,5 @@
 using CsEval.Diagnostics;
+using CsEval.Test._Infrastructure;
 
 namespace CsEval.Test.Runtime;
 

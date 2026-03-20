@@ -1,3 +1,5 @@
+using CsEval.Test._Infrastructure;
+
 namespace CsEval.Test.PatternMatching;
 
 // Engine-only: PropertyPattern_NullFalse uses object-typed variable with member access

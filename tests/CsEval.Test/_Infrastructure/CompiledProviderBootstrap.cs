@@ -1,14 +1,17 @@
-using CsEval.Compiled;
+namespace CsEval.Test._Infrastructure;
 
-namespace CsEval.Test;
-
-public enum CompilationMode { Interpreted, Compiled }
+public enum CompilationMode { Interpreted, Compiled, CompiledFec }
 
 internal static class TestEngineFactory
 {
     internal static CsEvalEngine Create(CompilationMode mode, CsEvalOptions? options = null)
     {
         var opts = options ?? CsEvalOptions.Default;
-        return new CsEvalEngine(mode == CompilationMode.Compiled ? opts.UseCompiler() : opts);
+        return mode switch
+        {
+            CompilationMode.Compiled => new CsEvalEngine(opts.UseCompiler()),
+            CompilationMode.CompiledFec => new CsEvalEngine(opts.UseCompiler(new FastExpressionCompilerAdapter())),
+            _ => new CsEvalEngine(opts)
+        };
     }
 }

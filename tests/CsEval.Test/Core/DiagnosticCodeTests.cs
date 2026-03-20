@@ -1,5 +1,6 @@
 using CsEval.Diagnostics;
 using CsEval.Parsing;
+using CsEval.Test._Infrastructure;
 
 namespace CsEval.Test.Core;
 

@@ -1,3 +1,5 @@
+using CsEval.Test._Infrastructure;
+
 namespace CsEval.Test.Binding;
 
 public sealed record ExecutionParityScenario(

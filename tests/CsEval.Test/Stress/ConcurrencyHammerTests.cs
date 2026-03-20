@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using CsEval.Test._Infrastructure;
 
 namespace CsEval.Test.Stress;
 

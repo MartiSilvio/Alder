@@ -1,4 +1,5 @@
 using CsEval.Aot;
+using CsEval.Test._Infrastructure;
 
 namespace CsEval.Test.AOT;
 

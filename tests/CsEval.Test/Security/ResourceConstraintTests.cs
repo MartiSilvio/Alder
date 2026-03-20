@@ -1,6 +1,8 @@
 // All tests engine-only: Constraints config, CsEvalExecutionLimitException assertions
 // -- CsEval-specific resource constraint API with no Roslyn equivalent.
 
+using CsEval.Test._Infrastructure;
+
 namespace CsEval.Test.Security;
 
 [TestFixture(CompilationMode.Interpreted)]

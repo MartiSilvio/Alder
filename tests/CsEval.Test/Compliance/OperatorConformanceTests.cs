@@ -1,3 +1,5 @@
+using CsEval.Test._Infrastructure;
+
 namespace CsEval.Test.Compliance;
 
 public enum LongEnum : long { A = 1, B = 2, C = 3 }

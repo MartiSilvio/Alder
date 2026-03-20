@@ -1,6 +1,8 @@
 // Engine-only: pre-parsed engine reuse pattern.
 // Migratable parity tests extracted to TestData/Runtime/IncrementDecrement/*.csx.
 
+using CsEval.Test._Infrastructure;
+
 namespace CsEval.Test.Runtime;
 
 [TestFixture(CompilationMode.Interpreted)]

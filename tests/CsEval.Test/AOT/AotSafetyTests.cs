@@ -1,6 +1,7 @@
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using CsEval.Runtime;
+using CsEval.Test._Infrastructure;
 
 namespace CsEval.Test.AOT;
 

@@ -28,10 +28,11 @@ internal static class ILExpressionCompiler
     /// </summary>
     public static CompiledExpressionInfo TryCompile(Expr ast, CsEvalOptions? options = null)
     {
+        var opts = options ?? CsEvalOptions.Default;
+        var compilerName = opts.ExpressionCompiler.GetType().Name;
         try
         {
             var context = new CsEvalContext(CsEvalConfig.Empty);
-            var opts = options ?? CsEvalOptions.Default;
             AstDepthValidator.EnsureWithinLimit(ast, opts.MaxExpressionDepth);
             var binder = new CsEval.Binding.Binder();
             var bound = binder.Bind(ast, new BindingContext(context));
@@ -48,7 +49,7 @@ internal static class ILExpressionCompiler
                     FastDelegateOptions: compiledDelegates.Value.Fast != null ? opts : null);
             }
 
-            return new CompiledExpressionInfo(null, false, "Bound compilation returned null");
+            return new CompiledExpressionInfo(null, false, $"{compilerName}: Bound compilation returned null");
         }
         catch (CsEvalDepthException)
         {
@@ -56,7 +57,7 @@ internal static class ILExpressionCompiler
         }
         catch (Exception ex)
         {
-            return new CompiledExpressionInfo(null, false, ex.Message, ex);
+            return new CompiledExpressionInfo(null, false, $"{compilerName}: {ex.Message}", ex);
         }
     }
 
@@ -65,9 +66,10 @@ internal static class ILExpressionCompiler
     /// </summary>
     public static CompiledExpressionInfo TryCompile(BoundExpr bound, CsEvalOptions? options = null)
     {
+        var opts = options ?? CsEvalOptions.Default;
+        var compilerName = opts.ExpressionCompiler.GetType().Name;
         try
         {
-            var opts = options ?? CsEvalOptions.Default;
             var compiledDelegates = TryCompileBound(bound, opts);
             if (compiledDelegates != null)
             {
@@ -80,7 +82,7 @@ internal static class ILExpressionCompiler
                     FastDelegateOptions: compiledDelegates.Value.Fast != null ? opts : null);
             }
 
-            return new CompiledExpressionInfo(null, false, "Bound compilation returned null");
+            return new CompiledExpressionInfo(null, false, $"{compilerName}: Bound compilation returned null");
         }
         catch (CsEvalDepthException)
         {
@@ -88,7 +90,7 @@ internal static class ILExpressionCompiler
         }
         catch (Exception ex)
         {
-            return new CompiledExpressionInfo(null, false, ex.Message, ex);
+            return new CompiledExpressionInfo(null, false, $"{compilerName}: {ex.Message}", ex);
         }
     }
 

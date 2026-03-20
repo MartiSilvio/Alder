@@ -1,5 +1,6 @@
 using System.Dynamic;
 using CsEval.Parsing;
+using CsEval.Test._Infrastructure;
 
 namespace CsEval.Test.Extensions;
 

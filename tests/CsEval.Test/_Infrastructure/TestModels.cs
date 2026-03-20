@@ -1,4 +1,4 @@
-namespace CsEval.Test;
+namespace CsEval.Test._Infrastructure;
 
 /// <summary>
 /// Shared test model types.

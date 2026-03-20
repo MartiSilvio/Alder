@@ -1,3 +1,5 @@
+using CsEval.Test._Infrastructure;
+
 namespace CsEval.Test.Loops;
 
 // Engine-only: All tests use CsEval-specific configuration (Constraints, CancellationToken)

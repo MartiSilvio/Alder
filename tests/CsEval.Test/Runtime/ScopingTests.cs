@@ -2,6 +2,7 @@
 // or use CsEval-specific [1,2,3] collection expression and [..spread] syntax
 
 using CsEval.Diagnostics;
+using CsEval.Test._Infrastructure;
 
 namespace CsEval.Test.Runtime;
 

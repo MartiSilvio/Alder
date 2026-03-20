@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Scripting;
 using Microsoft.CodeAnalysis.Scripting;
 
-namespace CsEval.Test;
+namespace CsEval.Test._Infrastructure;
 
 /// <summary>
 /// Static test utilities.
@@ -50,7 +50,12 @@ public static class TestHelpers
     /// Runs a C# parity test without expected value.
     /// </summary>
     public static Task RunCSharpParityTestAsync(string expr, CompilationMode mode)
-        => RunCSharpParityTestAsync(expr, mode == CompilationMode.Compiled ? CsEvalOptions.Default.UseCompiler() : CsEvalOptions.Default);
+        => RunCSharpParityTestAsync(expr, mode switch
+        {
+            CompilationMode.Compiled => CsEvalOptions.Default.UseCompiler(),
+            CompilationMode.CompiledFec => CsEvalOptions.Default.UseCompiler(new FastExpressionCompilerAdapter()),
+            _ => CsEvalOptions.Default
+        });
 
     /// <summary>
     /// Runs a C# parity test with custom options.

@@ -1,3 +1,5 @@
+using CsEval.Test._Infrastructure;
+
 namespace CsEval.Test.Operators;
 
 // Engine-only: All tests use SetVariable with Exception objects (reference types not value-comparable)

@@ -1,3 +1,5 @@
+using CsEval.Test._Infrastructure;
+
 namespace CsEval.Test.PatternMatching;
 
 // Engine-only: All tests use SetVariable, verify SwitchExpressionException (error tests),
