@@ -21,6 +21,17 @@ internal sealed class CallBinderService
         _context = context;
     }
 
+    public bool TryBindStaticCall(Type declaringType, string methodName, IReadOnlyList<object?> args, bool isCaseSensitive, out BoundCallPlan? plan)
+    {
+        var flags = BindingFlags.Public | BindingFlags.Static;
+        if (!isCaseSensitive)
+            flags |= BindingFlags.IgnoreCase;
+
+        var methods = _context.TypeMetadata.GetMethods(declaringType, methodName, flags);
+        var sourceTypes = args.Select(static arg => arg?.GetType() ?? typeof(object)).ToArray();
+        return TryBindFromTypes(methods, sourceTypes, isStaticCall: true, out plan, out _);
+    }
+
     public BoundCallPlan BindStaticCall(Type declaringType, string methodName, IReadOnlyList<object?> args, bool isCaseSensitive)
     {
         var flags = BindingFlags.Public | BindingFlags.Static;
@@ -32,6 +43,17 @@ internal sealed class CallBinderService
         return BindFromTypes(methods, sourceTypes, methodName, isStaticCall: true);
     }
 
+    public bool TryBindInstanceCall(Type targetType, string methodName, IReadOnlyList<object?> args, bool isCaseSensitive, out BoundCallPlan? plan)
+    {
+        var flags = BindingFlags.Public | BindingFlags.Instance;
+        if (!isCaseSensitive)
+            flags |= BindingFlags.IgnoreCase;
+
+        var methods = _context.TypeMetadata.GetMethods(targetType, methodName, flags);
+        var sourceTypes = args.Select(static arg => arg?.GetType() ?? typeof(object)).ToArray();
+        return TryBindFromTypes(methods, sourceTypes, isStaticCall: false, out plan, out _);
+    }
+
     public BoundCallPlan BindInstanceCall(Type targetType, string methodName, IReadOnlyList<object?> args, bool isCaseSensitive)
     {
         var flags = BindingFlags.Public | BindingFlags.Instance;
@@ -41,6 +63,21 @@ internal sealed class CallBinderService
         var methods = _context.TypeMetadata.GetMethods(targetType, methodName, flags);
         var sourceTypes = args.Select(static arg => arg?.GetType() ?? typeof(object)).ToArray();
         return BindFromTypes(methods, sourceTypes, methodName, isStaticCall: false);
+    }
+
+    public bool TryBindStaticCall(
+        Type declaringType,
+        string methodName,
+        IReadOnlyList<Type> argumentTypes,
+        bool isCaseSensitive,
+        out BoundCallPlan? plan)
+    {
+        var flags = BindingFlags.Public | BindingFlags.Static;
+        if (!isCaseSensitive)
+            flags |= BindingFlags.IgnoreCase;
+
+        var methods = _context.TypeMetadata.GetMethods(declaringType, methodName, flags);
+        return TryBindFromTypes(methods, argumentTypes, isStaticCall: true, out plan, out _);
     }
 
     public BoundCallPlan BindStaticCall(
@@ -57,6 +94,21 @@ internal sealed class CallBinderService
         return BindFromTypes(methods, argumentTypes, methodName, isStaticCall: true);
     }
 
+    public bool TryBindInstanceCall(
+        Type targetType,
+        string methodName,
+        IReadOnlyList<Type> argumentTypes,
+        bool isCaseSensitive,
+        out BoundCallPlan? plan)
+    {
+        var flags = BindingFlags.Public | BindingFlags.Instance;
+        if (!isCaseSensitive)
+            flags |= BindingFlags.IgnoreCase;
+
+        var methods = _context.TypeMetadata.GetMethods(targetType, methodName, flags);
+        return TryBindFromTypes(methods, argumentTypes, isStaticCall: false, out plan, out _);
+    }
+
     public BoundCallPlan BindInstanceCall(
         Type targetType,
         string methodName,
@@ -71,25 +123,24 @@ internal sealed class CallBinderService
         return BindFromTypes(methods, argumentTypes, methodName, isStaticCall: false);
     }
 
-    private static BoundCallPlan BindFromTypes(
+    private static bool TryBindFromTypes(
         MethodInfo[] methods,
         IReadOnlyList<Type> sourceTypes,
-        string methodName,
-        bool isStaticCall)
+        bool isStaticCall,
+        out BoundCallPlan? plan,
+        out bool isAmbiguous)
     {
-        if (methods.Length == 0)
-            throw new CsEvalException(DiagnosticDescriptors.MemberNotFound, "type", methodName);
+        plan = null;
+        isAmbiguous = false;
 
-        // Unknown static argument types (object) are common when an upstream call stays
-        // runtime-bound (e.g., extension-method/lambda-heavy chains). If multiple overloads
-        // exist, bind-time resolution can select the wrong method (typically object overloads),
-        // so defer to runtime dispatch instead of committing a potentially incorrect plan.
+        if (methods.Length == 0)
+            return false;
+
         if (methods.Length > 1 && sourceTypes.Any(static sourceType => sourceType == typeof(object)))
-            throw new CsEvalException(DiagnosticDescriptors.RuntimeOverloadResolutionRequired, methodName);
+            return false;
 
         BoundCallPlan? bestPlan = null;
         var bestScore = int.MinValue;
-        var ambiguous = false;
 
         foreach (var method in methods)
         {
@@ -100,7 +151,7 @@ internal sealed class CallBinderService
             {
                 bestPlan = candidatePlan;
                 bestScore = score;
-                ambiguous = false;
+                isAmbiguous = false;
                 continue;
             }
 
@@ -111,21 +162,40 @@ internal sealed class CallBinderService
             if (tieBreak < 0)
             {
                 bestPlan = candidatePlan;
-                ambiguous = false;
+                isAmbiguous = false;
             }
             else if (tieBreak == 0)
             {
-                ambiguous = true;
+                isAmbiguous = true;
             }
         }
 
-        if (ambiguous)
+        if (isAmbiguous || bestPlan == null)
+            return false;
+
+        plan = bestPlan;
+        return true;
+    }
+
+    private static BoundCallPlan BindFromTypes(
+        MethodInfo[] methods,
+        IReadOnlyList<Type> sourceTypes,
+        string methodName,
+        bool isStaticCall)
+    {
+        if (methods.Length == 0)
+            throw new CsEvalException(DiagnosticDescriptors.MemberNotFound, "type", methodName);
+
+        if (methods.Length > 1 && sourceTypes.Any(static sourceType => sourceType == typeof(object)))
+            throw new CsEvalException(DiagnosticDescriptors.RuntimeOverloadResolutionRequired, methodName);
+
+        if (TryBindFromTypes(methods, sourceTypes, isStaticCall, out var plan, out var isAmbiguous))
+            return plan!;
+
+        if (isAmbiguous)
             throw new CsEvalException(DiagnosticDescriptors.AmbiguousMethodInvocation, methodName);
 
-        if (bestPlan == null)
-            throw new CsEvalException(DiagnosticDescriptors.NoApplicableOverload, methodName);
-
-        return bestPlan;
+        throw new CsEvalException(DiagnosticDescriptors.NoApplicableOverload, methodName);
     }
 
     private static bool TryCreatePlan(

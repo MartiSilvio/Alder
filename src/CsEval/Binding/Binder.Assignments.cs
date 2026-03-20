@@ -168,14 +168,9 @@ internal sealed partial class Binder
             return null;
 
         var memberBinder = new MemberBinderService(context.RuntimeContext.TypeMetadata);
-        try
-        {
-            return memberBinder.BindMemberRead(targetType, memberName, false, context.IsCaseSensitive);
-        }
-        catch (CsEvalException)
-        {
-            return null;
-        }
+        return memberBinder.TryBindMemberRead(targetType, memberName, false, context.IsCaseSensitive, out var plan)
+            ? plan
+            : null;
     }
 
     private static Type ExtractMemberType(BoundMemberPlan? plan) => plan?.Member switch
@@ -190,15 +185,10 @@ internal sealed partial class Binder
         if (targetType == typeof(object))
             return null;
 
-        try
-        {
-            var memberBinder = new MemberBinderService(context.RuntimeContext.TypeMetadata);
-            return memberBinder.BindIndexRead(targetType, indexType);
-        }
-        catch (CsEvalException)
-        {
-            return null;
-        }
+        var memberBinder = new MemberBinderService(context.RuntimeContext.TypeMetadata);
+        return memberBinder.TryBindIndexRead(targetType, indexType, out var plan)
+            ? plan
+            : null;
     }
 
     private static Type ResolveIndexElementTypeFallback(Type targetType) =>

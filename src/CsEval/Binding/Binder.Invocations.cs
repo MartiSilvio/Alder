@@ -81,15 +81,7 @@ internal sealed partial class Binder
         var (targetType, isStatic) = ResolveMemberTarget(target);
 
         var memberBinder = new MemberBinderService(context.RuntimeContext.TypeMetadata);
-        BoundMemberPlan? plan;
-        try
-        {
-            plan = memberBinder.BindMemberRead(targetType, name, isStatic, context.IsCaseSensitive);
-        }
-        catch (CsEvalException)
-        {
-            plan = null;
-        }
+        memberBinder.TryBindMemberRead(targetType, name, isStatic, context.IsCaseSensitive, out var plan);
 
         var staticType = plan?.Member switch
         {
@@ -109,16 +101,11 @@ internal sealed partial class Binder
         BoundIndexPlan? plan = null;
         var staticType = typeof(object);
 
-        try
+        var memberBinder = new MemberBinderService(context.RuntimeContext.TypeMetadata);
+        if (memberBinder.TryBindIndexRead(target.StaticType, index.StaticType, out var indexPlan))
         {
-            var memberBinder = new MemberBinderService(context.RuntimeContext.TypeMetadata);
-            plan = memberBinder.BindIndexRead(target.StaticType, index.StaticType);
-            staticType = plan.ResultType;
-        }
-        catch (CsEvalException)
-        {
-            // Keep index access in the bound pipeline with dynamic runtime dispatch when
-            // static index planning is not possible (e.g., object-typed targets).
+            plan = indexPlan;
+            staticType = indexPlan!.ResultType;
         }
 
         return new BoundIndexAccessExpr(target, index, plan, indexAccess.NullSafe, staticType);
@@ -144,18 +131,14 @@ internal sealed partial class Binder
             var argumentTypes = arguments.Select(static argument => argument.StaticType).ToArray();
             var callBinder = new CallBinderService(context.RuntimeContext);
 
-            try
-            {
-                var plan = memberAccess.Plan.IsStatic && memberAccess.Target is BoundLiteralExpr { Value: Type staticDeclaringType }
-                    ? callBinder.BindStaticCall(staticDeclaringType, memberAccess.MemberName, argumentTypes, context.IsCaseSensitive)
-                    : callBinder.BindInstanceCall(memberAccess.Plan.DeclaringType, memberAccess.MemberName, argumentTypes, context.IsCaseSensitive);
+            var bound = memberAccess.Plan.IsStatic && memberAccess.Target is BoundLiteralExpr { Value: Type staticDeclaringType }
+                ? callBinder.TryBindStaticCall(staticDeclaringType, memberAccess.MemberName, argumentTypes, context.IsCaseSensitive, out var callPlan)
+                : callBinder.TryBindInstanceCall(memberAccess.Plan.DeclaringType, memberAccess.MemberName, argumentTypes, context.IsCaseSensitive, out callPlan);
 
-                return new BoundCallExpr(callee, arguments, plan, plan.SelectedMethod.ReturnType);
-            }
-            catch (CsEvalException)
-            {
-                return new BoundInvokeExpr(callee, arguments, typeArguments, typeof(object));
-            }
+            if (bound)
+                return new BoundCallExpr(callee, arguments, callPlan!, callPlan!.SelectedMethod.ReturnType);
+
+            return new BoundInvokeExpr(callee, arguments, typeArguments, typeof(object));
         }
 
         return new BoundInvokeExpr(callee, arguments, typeArguments, typeof(object));
@@ -194,19 +177,17 @@ internal sealed partial class Binder
         var argumentTypes = arguments.Select(static argument => argument.StaticType).ToArray();
         var callBinder = new CallBinderService(context.RuntimeContext);
 
-        BoundCallPlan callPlan;
-        try
-        {
-            callPlan = callBinder.BindStaticCall(
+        if (!callBinder.TryBindStaticCall(
                 moduleInfo.Type,
                 memberAccess.Name.Lexeme,
                 argumentTypes,
-                context.IsCaseSensitive) with { IsModuleCall = true };
-        }
-        catch (CsEvalException)
+                context.IsCaseSensitive,
+                out var moduleCallPlan))
         {
             return false;
         }
+
+        var callPlan = moduleCallPlan! with { IsModuleCall = true };
 
         var callee = new BoundMemberAccessExpr(
             new BoundLiteralExpr(moduleInfo.Type, typeof(Type)),

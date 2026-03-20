@@ -13,7 +13,7 @@ internal sealed class MemberBinderService
         _typeMetadata = typeMetadata;
     }
 
-    public BoundMemberPlan BindMemberRead(Type targetType, string memberName, bool isStatic, bool isCaseSensitive)
+    public bool TryBindMemberRead(Type targetType, string memberName, bool isStatic, bool isCaseSensitive, out BoundMemberPlan? plan)
     {
         var flags = BindingFlags.Public | (isStatic ? BindingFlags.Static : BindingFlags.Instance);
         if (!isCaseSensitive)
@@ -21,36 +21,59 @@ internal sealed class MemberBinderService
 
         var property = _typeMetadata.GetProperty(targetType, memberName, flags);
         if (property != null)
-            return new BoundMemberPlan(targetType, memberName, property, IsMethodGroup: false, isStatic);
+        {
+            plan = new BoundMemberPlan(targetType, memberName, property, IsMethodGroup: false, isStatic);
+            return true;
+        }
 
         var field = _typeMetadata.GetField(targetType, memberName, flags);
         if (field != null)
-            return new BoundMemberPlan(targetType, memberName, field, IsMethodGroup: false, isStatic);
+        {
+            plan = new BoundMemberPlan(targetType, memberName, field, IsMethodGroup: false, isStatic);
+            return true;
+        }
 
         var hasMethods = _typeMetadata.GetMethods(targetType, memberName, flags).Length > 0;
         if (hasMethods)
-            return new BoundMemberPlan(targetType, memberName, Member: null, IsMethodGroup: true, isStatic);
+        {
+            plan = new BoundMemberPlan(targetType, memberName, Member: null, IsMethodGroup: true, isStatic);
+            return true;
+        }
+
+        plan = null;
+        return false;
+    }
+
+    public BoundMemberPlan BindMemberRead(Type targetType, string memberName, bool isStatic, bool isCaseSensitive)
+    {
+        if (TryBindMemberRead(targetType, memberName, isStatic, isCaseSensitive, out var plan))
+            return plan!;
 
         throw new CsEvalException(DiagnosticDescriptors.MemberNotFound, targetType.Name, memberName);
     }
 
-    public BoundIndexPlan BindIndexRead(Type targetType, Type indexType)
+    public bool TryBindIndexRead(Type targetType, Type indexType, out BoundIndexPlan? plan)
     {
         if (targetType == typeof(string) && indexType == typeof(int))
-            return new BoundIndexPlan(targetType, indexType, typeof(char), true);
+        {
+            plan = new BoundIndexPlan(targetType, indexType, typeof(char), true);
+            return true;
+        }
 
         if (typeof(IList).IsAssignableFrom(targetType) && indexType == typeof(int))
         {
             var resultType = TryResolveListElementType(targetType, out var elementType)
                 ? elementType
                 : typeof(object);
-            return new BoundIndexPlan(targetType, indexType, resultType, true);
+            plan = new BoundIndexPlan(targetType, indexType, resultType, true);
+            return true;
         }
 
         if (indexType == typeof(string) &&
             TryResolveStringDictionaryValueType(targetType, out var dictionaryValueType))
         {
-            return new BoundIndexPlan(targetType, indexType, dictionaryValueType, true);
+            plan = new BoundIndexPlan(targetType, indexType, dictionaryValueType, true);
+            return true;
         }
 
         var indexer = _typeMetadata.GetIndexer(targetType);
@@ -59,13 +82,23 @@ internal sealed class MemberBinderService
             var parameters = indexer.GetIndexParameters();
             if (parameters.Length == 1)
             {
-                return new BoundIndexPlan(
+                plan = new BoundIndexPlan(
                     targetType,
                     parameters[0].ParameterType,
                     indexer.PropertyType,
                     IsDirectCollectionAccess: false);
+                return true;
             }
         }
+
+        plan = null;
+        return false;
+    }
+
+    public BoundIndexPlan BindIndexRead(Type targetType, Type indexType)
+    {
+        if (TryBindIndexRead(targetType, indexType, out var plan))
+            return plan!;
 
         throw new CsEvalException(DiagnosticDescriptors.NoIndexerOnType, targetType.Name);
     }
