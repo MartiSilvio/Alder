@@ -331,8 +331,31 @@ internal sealed partial class BoundExpressionEmitter
             _optionsParam);
     }
 
-    private MethodCallExpression EmitCast(BoundCastExpr cast)
+    private LinqExpression EmitCast(BoundCastExpr cast)
     {
+        var sourceType = cast.Expression.StaticType;
+        var targetType = cast.TargetType;
+
+        if (sourceType != typeof(object) && !sourceType.IsEnum && !targetType.IsEnum)
+        {
+            if ((IsPrimitiveBinaryFastPathType(sourceType) || sourceType == typeof(bool)) &&
+                (IsPrimitiveBinaryFastPathType(targetType) || targetType == typeof(bool)))
+            {
+                var operand = Emit(cast.Expression);
+                operand = EmitHelpers.EnsureTypedExpression(operand, sourceType);
+                return _isChecked
+                    ? LinqExpression.ConvertChecked(operand, targetType)
+                    : LinqExpression.Convert(operand, targetType);
+            }
+
+            if (!targetType.IsValueType)
+            {
+                var operand = Emit(cast.Expression);
+                operand = EmitHelpers.EnsureTypedExpression(operand, sourceType);
+                return LinqExpression.Convert(operand, targetType);
+            }
+        }
+
         return LinqExpression.Call(
             ExplicitCastMethod,
             EmitHelpers.AsObject(Emit(cast.Expression)),
@@ -343,16 +366,33 @@ internal sealed partial class BoundExpressionEmitter
             LinqExpression.Constant(_isChecked));
     }
 
-    private MethodCallExpression EmitAs(BoundAsExpr asExpr)
+    private LinqExpression EmitAs(BoundAsExpr asExpr)
     {
+        if (!asExpr.TargetType.IsValueType)
+        {
+            var operand = Emit(asExpr.Expression);
+            operand = EmitHelpers.AsObject(operand);
+            return LinqExpression.TypeAs(operand, asExpr.TargetType);
+        }
+
         return LinqExpression.Call(
             TryAsMethod,
             EmitHelpers.AsObject(Emit(asExpr.Expression)),
             LinqExpression.Constant(asExpr.TargetType, typeof(Type)));
     }
 
-    private UnaryExpression EmitIsPattern(BoundIsPatternExpr isPattern)
+    private LinqExpression EmitIsPattern(BoundIsPatternExpr isPattern)
     {
+        if (isPattern.Pattern is TypePattern { VariableName: null } typePattern
+            && BuiltInTypeNames.TryGetValue(typePattern.TypeToken.Lexeme, out var resolvedType))
+        {
+            return LinqExpression.Convert(
+                LinqExpression.TypeIs(
+                    EmitHelpers.AsObject(Emit(isPattern.Expression)),
+                    resolvedType),
+                typeof(object));
+        }
+
         return LinqExpression.Convert(
             LinqExpression.Call(
                 MatchPatternMethod,
@@ -364,17 +404,81 @@ internal sealed partial class BoundExpressionEmitter
             typeof(object));
     }
 
-    private MethodCallExpression EmitUnary(BoundUnaryExpr unary)
+    private static readonly Dictionary<string, Type> BuiltInTypeNames = new(StringComparer.Ordinal)
     {
-        var operand = EmitHelpers.AsObject(Emit(unary.Operand));
+        ["sbyte"] = typeof(sbyte), ["byte"] = typeof(byte),
+        ["short"] = typeof(short), ["ushort"] = typeof(ushort),
+        ["int"] = typeof(int), ["uint"] = typeof(uint),
+        ["long"] = typeof(long), ["ulong"] = typeof(ulong),
+        ["float"] = typeof(float), ["double"] = typeof(double),
+        ["decimal"] = typeof(decimal), ["bool"] = typeof(bool),
+        ["char"] = typeof(char), ["string"] = typeof(string),
+        ["object"] = typeof(object),
+    };
+
+    private LinqExpression EmitBoolCondition(BoundExpr condition)
+    {
+        var emitted = Emit(condition);
+        if (condition.StaticType == typeof(bool) && emitted.Type == typeof(bool))
+            return emitted;
+        return LinqExpression.Call(RequireBooleanMethod, EmitHelpers.AsObject(emitted));
+    }
+
+    private LinqExpression EmitUnary(BoundUnaryExpr unary)
+    {
+        var operandType = unary.Operand.StaticType;
+        if (operandType != typeof(object) && !operandType.IsEnum && !_isChecked)
+        {
+            if (unary.Operator == TokenType.Bang && operandType == typeof(bool))
+            {
+                var operand = EmitHelpers.EnsureTypedExpression(Emit(unary.Operand), operandType);
+                return LinqExpression.Not(operand);
+            }
+
+            if (unary.Operator == TokenType.Tilde && IsIntegralFastPathType(operandType))
+            {
+                var promoted = GetUnaryPromotedType(operandType);
+                var operand = EmitHelpers.EnsureTypedExpression(Emit(unary.Operand), operandType);
+                if (operand.Type != promoted)
+                    operand = LinqExpression.Convert(operand, promoted);
+                return LinqExpression.Not(operand);
+            }
+
+            if (unary.Operator == TokenType.Minus && TypeHelpers.IsArithmetic(operandType))
+            {
+                var promoted = operandType == typeof(uint) ? typeof(long) : GetUnaryPromotedType(operandType);
+                var operand = EmitHelpers.EnsureTypedExpression(Emit(unary.Operand), operandType);
+                if (operand.Type != promoted)
+                    operand = LinqExpression.Convert(operand, promoted);
+                return LinqExpression.Negate(operand);
+            }
+
+            if (unary.Operator == TokenType.Plus && TypeHelpers.IsArithmetic(operandType))
+            {
+                var promoted = GetUnaryPromotedType(operandType);
+                var operand = EmitHelpers.EnsureTypedExpression(Emit(unary.Operand), operandType);
+                if (operand.Type != promoted)
+                    operand = LinqExpression.Convert(operand, promoted);
+                return operand;
+            }
+        }
+
+        var boxed = EmitHelpers.AsObject(Emit(unary.Operand));
         return unary.Operator switch
         {
-            TokenType.Minus => LinqExpression.Call(NegateMethod, operand, LinqExpression.Constant(_isChecked)),
-            TokenType.Plus => LinqExpression.Call(UnaryPlusMethod, operand),
-            TokenType.Bang => LinqExpression.Call(LogicalNotMethod, operand),
-            TokenType.Tilde => LinqExpression.Call(BitwiseNotMethod, operand),
+            TokenType.Minus => LinqExpression.Call(NegateMethod, boxed, LinqExpression.Constant(_isChecked)),
+            TokenType.Plus => LinqExpression.Call(UnaryPlusMethod, boxed),
+            TokenType.Bang => LinqExpression.Call(LogicalNotMethod, boxed),
+            TokenType.Tilde => LinqExpression.Call(BitwiseNotMethod, boxed),
             _ => throw new BindingNotSupportedException($"Unsupported bound unary operator '{unary.Operator}'")
         };
+    }
+
+    private static Type GetUnaryPromotedType(Type type)
+    {
+        if (type == typeof(sbyte) || type == typeof(byte) || type == typeof(short) || type == typeof(ushort) || type == typeof(char))
+            return typeof(int);
+        return type;
     }
 
     private LinqExpression EmitBinary(BoundBinaryExpr binary)
@@ -564,12 +668,14 @@ internal sealed partial class BoundExpressionEmitter
         if (!TryGetNumericFastPathType(binary, out var promotedType))
             return false;
 
+        var isShift = binary.Operator is TokenType.LessLess or TokenType.GreaterGreater;
         var left = EmitHelpers.EnsureTypedExpression(Emit(binary.Left), binary.Left.StaticType);
         var right = EmitHelpers.EnsureTypedExpression(Emit(binary.Right), binary.Right.StaticType);
         if (left.Type != promotedType)
             left = LinqExpression.Convert(left, promotedType);
-        if (right.Type != promotedType)
-            right = LinqExpression.Convert(right, promotedType);
+        var rightTarget = isShift ? typeof(int) : promotedType;
+        if (right.Type != rightTarget)
+            right = LinqExpression.Convert(right, rightTarget);
 
         return TryEmitPrimitiveBinaryOp(binary.Operator, left, right, out direct);
     }
@@ -580,12 +686,14 @@ internal sealed partial class BoundExpressionEmitter
         if (!TryGetNumericFastPathType(binary, out var promotedType))
             return false;
 
+        var isShift = binary.Operator is TokenType.LessLess or TokenType.GreaterGreater;
         var left = EmitHelpers.EnsureTypedExpression(preEmittedLeft, binary.Left.StaticType);
         var right = EmitHelpers.EnsureTypedExpression(Emit(binary.Right), binary.Right.StaticType);
         if (left.Type != promotedType)
             left = LinqExpression.Convert(left, promotedType);
-        if (right.Type != promotedType)
-            right = LinqExpression.Convert(right, promotedType);
+        var rightTarget = isShift ? typeof(int) : promotedType;
+        if (right.Type != rightTarget)
+            right = LinqExpression.Convert(right, rightTarget);
 
         return TryEmitPrimitiveBinaryOp(binary.Operator, left, right, out direct);
     }
@@ -605,6 +713,11 @@ internal sealed partial class BoundExpressionEmitter
             TokenType.LessEqual => LinqExpression.LessThanOrEqual(left, right),
             TokenType.Greater => LinqExpression.GreaterThan(left, right),
             TokenType.GreaterEqual => LinqExpression.GreaterThanOrEqual(left, right),
+            TokenType.Amp => LinqExpression.And(left, right),
+            TokenType.Pipe => LinqExpression.Or(left, right),
+            TokenType.Caret => LinqExpression.ExclusiveOr(left, right),
+            TokenType.LessLess => LinqExpression.LeftShift(left, right),
+            TokenType.GreaterGreater => LinqExpression.RightShift(left, right),
             _ => null
         };
 
@@ -629,6 +742,20 @@ internal sealed partial class BoundExpressionEmitter
         if (!IsPrimitiveBinaryFastPathType(leftType) || !IsPrimitiveBinaryFastPathType(rightType))
             return false;
 
+        if (binary.Operator is TokenType.LessLess or TokenType.GreaterGreater)
+        {
+            if (!IsIntegralFastPathType(rightType))
+                return false;
+            promotedType = GetShiftPromotedType(leftType);
+            return promotedType != null!;
+        }
+
+        if (binary.Operator is TokenType.Amp or TokenType.Pipe or TokenType.Caret)
+        {
+            if (!IsIntegralFastPathType(leftType) || !IsIntegralFastPathType(rightType))
+                return false;
+        }
+
         if ((leftType == typeof(decimal) && (rightType == typeof(float) || rightType == typeof(double))) ||
             (rightType == typeof(decimal) && (leftType == typeof(float) || leftType == typeof(double))))
         {
@@ -642,11 +769,27 @@ internal sealed partial class BoundExpressionEmitter
         return IsPrimitiveBinaryFastPathType(promotedType);
     }
 
+    private static Type GetShiftPromotedType(Type leftType)
+    {
+        if (leftType == typeof(int) || leftType == typeof(sbyte) || leftType == typeof(short) ||
+            leftType == typeof(byte) || leftType == typeof(ushort) || leftType == typeof(char))
+            return typeof(int);
+        if (leftType == typeof(uint))
+            return typeof(uint);
+        if (leftType == typeof(long))
+            return typeof(long);
+        if (leftType == typeof(ulong))
+            return typeof(ulong);
+        return null!;
+    }
+
     private static bool IsFastPathNumericOperator(TokenType op)
     {
         return op is TokenType.Plus or TokenType.Minus or TokenType.Star or TokenType.Slash or TokenType.Percent or
             TokenType.EqualEqual or TokenType.BangEqual or
-            TokenType.Less or TokenType.LessEqual or TokenType.Greater or TokenType.GreaterEqual;
+            TokenType.Less or TokenType.LessEqual or TokenType.Greater or TokenType.GreaterEqual or
+            TokenType.Amp or TokenType.Pipe or TokenType.Caret or
+            TokenType.LessLess or TokenType.GreaterGreater;
     }
 
     private static bool TryGetConstantPromotionType(BoundBinaryExpr binary, Type leftType, Type rightType, out Type promotedType)
@@ -712,6 +855,19 @@ internal sealed partial class BoundExpressionEmitter
                type == typeof(decimal);
     }
 
+    private static bool IsIntegralFastPathType(Type type)
+    {
+        return type == typeof(sbyte) ||
+               type == typeof(byte) ||
+               type == typeof(short) ||
+               type == typeof(ushort) ||
+               type == typeof(char) ||
+               type == typeof(int) ||
+               type == typeof(long) ||
+               type == typeof(uint) ||
+               type == typeof(ulong);
+    }
+
     private LinqExpression EmitLogical(BoundLogicalExpr logical)
     {
         var leftCandidate = Emit(logical.Left);
@@ -763,6 +919,41 @@ internal sealed partial class BoundExpressionEmitter
 
     private LinqExpression EmitNullCoalesce(BoundNullCoalesceExpr nullCoalesce)
     {
+        var leftType = nullCoalesce.Left.StaticType;
+        var rightType = nullCoalesce.Right.StaticType;
+
+        if (leftType != typeof(object) && rightType != typeof(object) && !leftType.IsValueType)
+        {
+            try
+            {
+                var left = Emit(nullCoalesce.Left);
+                left = EmitHelpers.EnsureTypedExpression(left, leftType);
+                var right = Emit(nullCoalesce.Right);
+                right = EmitHelpers.EnsureTypedExpression(right, rightType);
+
+                if (left.Type != right.Type)
+                {
+                    var commonType = nullCoalesce.StaticType;
+                    if (commonType != typeof(object))
+                    {
+                        if (right.Type != commonType)
+                            right = LinqExpression.Convert(right, commonType);
+                    }
+                    else
+                    {
+                        left = EmitHelpers.AsObject(left);
+                        right = EmitHelpers.AsObject(right);
+                    }
+                }
+
+                return LinqExpression.Coalesce(left, right);
+            }
+            catch (InvalidOperationException)
+            {
+                // Fall through to runtime path
+            }
+        }
+
         var leftVar = LinqExpression.Variable(typeof(object), "coalesceLeft");
         return LinqExpression.Block(
             typeof(object),
@@ -784,7 +975,7 @@ internal sealed partial class BoundExpressionEmitter
         var thenCandidate = Emit(conditional.ThenBranch);
         var elseCandidate = Emit(conditional.ElseBranch);
 
-        if (TryEmitTypedArithmeticConditional(conditional, condition, thenCandidate, elseCandidate, out var typed))
+        if (TryEmitTypedConditional(conditional, condition, thenCandidate, elseCandidate, out var typed))
             return typed;
 
         return LinqExpression.Condition(
@@ -793,7 +984,7 @@ internal sealed partial class BoundExpressionEmitter
             EmitHelpers.AsObject(elseCandidate));
     }
 
-    private static bool TryEmitTypedArithmeticConditional(
+    private static bool TryEmitTypedConditional(
         BoundConditionalExpr conditional,
         LinqExpression condition,
         LinqExpression thenCandidate,
@@ -805,20 +996,8 @@ internal sealed partial class BoundExpressionEmitter
         var elseType = conditional.ElseBranch.StaticType;
         var resultType = conditional.StaticType;
 
-        if (!TypeHelpers.IsArithmetic(thenType) ||
-            !TypeHelpers.IsArithmetic(elseType) ||
-            !TypeHelpers.IsArithmetic(resultType) ||
-            !IsPrimitiveBinaryFastPathType(resultType))
-        {
+        if (thenType == typeof(object) || elseType == typeof(object) || resultType == typeof(object))
             return false;
-        }
-
-        if ((resultType == typeof(decimal) &&
-             (thenType == typeof(float) || thenType == typeof(double) ||
-              elseType == typeof(float) || elseType == typeof(double))))
-        {
-            return false;
-        }
 
         try
         {
@@ -999,7 +1178,7 @@ internal sealed partial class BoundExpressionEmitter
         {
             LinqExpression.Assign(resultVar, LinqExpression.Constant(null, typeof(object))),
             LinqExpression.IfThen(
-                LinqExpression.Not(LinqExpression.Call(RequireBooleanMethod, EmitHelpers.AsObject(Emit(whileExpr.Condition)))),
+                LinqExpression.Not(EmitBoolCondition(whileExpr.Condition)),
                 LinqExpression.Break(loopBreakLabel, resultVar))
         };
 
@@ -1048,7 +1227,7 @@ internal sealed partial class BoundExpressionEmitter
             if (forExpr.Condition != null)
             {
                 body.Add(LinqExpression.IfThen(
-                    LinqExpression.Not(LinqExpression.Call(RequireBooleanMethod, EmitHelpers.AsObject(Emit(forExpr.Condition)))),
+                    LinqExpression.Not(EmitBoolCondition(forExpr.Condition)),
                     LinqExpression.Break(loopBreakLabel, resultVar)));
             }
 
@@ -1091,7 +1270,7 @@ internal sealed partial class BoundExpressionEmitter
             EmitLoopIterationBody(body, doWhileExpr.Body, resultVar, signalVar, loopBreakLabel, loopContinueLabel, hasConditionCheck: false);
             body.Add(LinqExpression.Label(loopContinueLabel));
             body.Add(LinqExpression.IfThen(
-                LinqExpression.Not(LinqExpression.Call(RequireBooleanMethod, EmitHelpers.AsObject(Emit(doWhileExpr.Condition)))),
+                LinqExpression.Not(EmitBoolCondition(doWhileExpr.Condition)),
                 LinqExpression.Break(loopBreakLabel, resultVar)));
 
             return LinqExpression.Block(
@@ -1923,6 +2102,16 @@ internal sealed partial class BoundExpressionEmitter
 
     private LinqExpression EmitObjectCreation(BoundObjectCreationExpr objectCreation)
     {
+        if (objectCreation.StaticType != typeof(object) && !objectCreation.StaticType.IsAbstract &&
+            !objectCreation.StaticType.IsInterface && objectCreation.InitializerEntries.IsDefaultOrEmpty)
+        {
+            try
+            {
+                return EmitPureObjectCreation(objectCreation);
+            }
+            catch (InvalidOperationException) { }
+        }
+
         var argsArray = LinqExpression.NewArrayInit(
             typeof(object),
             objectCreation.Arguments.Select(arg => EmitHelpers.AsObject(Emit(arg))));
@@ -1980,8 +2169,49 @@ internal sealed partial class BoundExpressionEmitter
         return LinqExpression.Block(typeof(object), [objVar], statements);
     }
 
+    private LinqExpression EmitPureObjectCreation(BoundObjectCreationExpr objectCreation)
+    {
+        var type = objectCreation.StaticType;
+
+        if (objectCreation.Arguments.Length == 0)
+        {
+            var defaultCtor = type.GetConstructor(Type.EmptyTypes);
+            if (defaultCtor != null)
+                return LinqExpression.Convert(LinqExpression.New(defaultCtor), typeof(object));
+            if (type.IsValueType)
+                return LinqExpression.Convert(LinqExpression.New(type), typeof(object));
+        }
+
+        var argTypes = new Type[objectCreation.Arguments.Length];
+        for (var i = 0; i < objectCreation.Arguments.Length; i++)
+        {
+            var argType = objectCreation.Arguments[i].StaticType;
+            if (argType == typeof(object))
+                throw new InvalidOperationException();
+            argTypes[i] = argType;
+        }
+
+        var ctor = type.GetConstructor(argTypes);
+        if (ctor == null)
+            throw new InvalidOperationException();
+
+        var ctorParams = ctor.GetParameters();
+        var args = new LinqExpression[objectCreation.Arguments.Length];
+        for (var i = 0; i < args.Length; i++)
+            args[i] = EmitHelpers.EnsureTypedExpression(Emit(objectCreation.Arguments[i]), ctorParams[i].ParameterType);
+
+        return LinqExpression.Convert(LinqExpression.New(ctor, args), typeof(object));
+    }
+
     private LinqExpression EmitTypedArrayCreation(BoundTypedArrayCreationExpr typedArrayCreation)
     {
+        if (typedArrayCreation.StaticType.IsArray)
+        {
+            var elementType = typedArrayCreation.StaticType.GetElementType()!;
+            var sizeExpr = EmitHelpers.EnsureTypedExpression(Emit(typedArrayCreation.Size), typeof(int));
+            return EmitHelpers.AsObject(LinqExpression.NewArrayBounds(elementType, sizeExpr));
+        }
+
         return LinqExpression.Call(
             CreateTypedArrayFromTypeNameMethod,
             ResolveTypeByName(typedArrayCreation.ElementTypeName),
@@ -1990,6 +2220,14 @@ internal sealed partial class BoundExpressionEmitter
 
     private LinqExpression EmitTypedArrayLiteral(BoundTypedArrayLiteralExpr typedArrayLiteral)
     {
+        if (typedArrayLiteral.StaticType.IsArray)
+        {
+            var elementType = typedArrayLiteral.StaticType.GetElementType()!;
+            var elements = typedArrayLiteral.Elements.Select(
+                element => EmitHelpers.EnsureTypedExpression(Emit(element), elementType));
+            return EmitHelpers.AsObject(LinqExpression.NewArrayInit(elementType, elements));
+        }
+
         var sourceArray = LinqExpression.NewArrayInit(
             typeof(object),
             typedArrayLiteral.Elements.Select(element => EmitHelpers.AsObject(Emit(element))));
@@ -2001,11 +2239,20 @@ internal sealed partial class BoundExpressionEmitter
 
     private LinqExpression EmitTuple(BoundTupleExpr tuple)
     {
+        var hasNames = tuple.ElementNames.Any(static n => n != null);
+        if (!hasNames && IsValueTupleType(tuple.StaticType) && tuple.Elements.Length <= 7)
+        {
+            try
+            {
+                return EmitPureTuple(tuple);
+            }
+            catch (InvalidOperationException) { }
+        }
+
         var elements = LinqExpression.NewArrayInit(
             typeof(object),
             tuple.Elements.Select(element => EmitHelpers.AsObject(Emit(element))));
 
-        var hasNames = tuple.ElementNames.Any(static n => n != null);
         if (hasNames)
         {
             var names = LinqExpression.NewArrayInit(
@@ -2018,6 +2265,21 @@ internal sealed partial class BoundExpressionEmitter
         }
 
         return LinqExpression.Call(CreateTupleMethod, elements);
+    }
+
+    private LinqExpression EmitPureTuple(BoundTupleExpr tuple)
+    {
+        var tupleType = tuple.StaticType;
+        var elementTypes = tupleType.GetGenericArguments();
+        var ctor = tupleType.GetConstructor(elementTypes);
+        if (ctor == null)
+            throw new InvalidOperationException();
+
+        var args = new LinqExpression[tuple.Elements.Length];
+        for (var i = 0; i < args.Length; i++)
+            args[i] = EmitHelpers.EnsureTypedExpression(Emit(tuple.Elements[i]), elementTypes[i]);
+
+        return LinqExpression.Convert(LinqExpression.New(ctor, args), typeof(object));
     }
 
     private LinqExpression EmitDeconstruction(BoundDeconstructionExpr deconstruction)
@@ -2034,6 +2296,14 @@ internal sealed partial class BoundExpressionEmitter
 
     private LinqExpression EmitMultiDimTypedArrayCreation(BoundMultiDimTypedArrayCreationExpr multiDimTypedArrayCreation)
     {
+        if (multiDimTypedArrayCreation.StaticType.IsArray)
+        {
+            var elementType = multiDimTypedArrayCreation.StaticType.GetElementType()!;
+            var sizeExprs = multiDimTypedArrayCreation.Sizes.Select(
+                size => EmitHelpers.EnsureTypedExpression(Emit(size), typeof(int)));
+            return EmitHelpers.AsObject(LinqExpression.NewArrayBounds(elementType, sizeExprs));
+        }
+
         var sizes = LinqExpression.NewArrayInit(
             typeof(object),
             multiDimTypedArrayCreation.Sizes.Select(size => EmitHelpers.AsObject(Emit(size))));
@@ -2062,6 +2332,38 @@ internal sealed partial class BoundExpressionEmitter
 
     private LinqExpression EmitMultiDimIndexAccess(BoundMultiDimIndexAccessExpr multiDimIndexAccess)
     {
+        var targetType = multiDimIndexAccess.Target.StaticType;
+        if (targetType.IsArray && targetType.GetArrayRank() > 1)
+        {
+            var getMethod = targetType.GetMethod("Get");
+            if (getMethod != null)
+            {
+                var intIndices = multiDimIndexAccess.Indices.Select(
+                    index => EmitHelpers.EnsureTypedExpression(Emit(index), typeof(int))).ToArray();
+
+                if (!multiDimIndexAccess.NullSafe)
+                {
+                    var typedTarget = EmitHelpers.EnsureTypedExpression(
+                        Emit(multiDimIndexAccess.Target), targetType);
+                    return EmitHelpers.AsObject(LinqExpression.Call(typedTarget, getMethod, intIndices));
+                }
+
+                var targetVar = LinqExpression.Variable(typeof(object), "mdTarget");
+                return LinqExpression.Block(
+                    typeof(object),
+                    [targetVar],
+                    LinqExpression.Assign(targetVar, EmitHelpers.AsObject(Emit(multiDimIndexAccess.Target))),
+                    LinqExpression.Condition(
+                        LinqExpression.Equal(targetVar, LinqExpression.Constant(null, typeof(object))),
+                        LinqExpression.Constant(null, typeof(object)),
+                        EmitHelpers.AsObject(
+                            LinqExpression.Call(
+                                EmitHelpers.EnsureTypedExpression(targetVar, targetType),
+                                getMethod,
+                                intIndices))));
+            }
+        }
+
         var target = EmitHelpers.AsObject(Emit(multiDimIndexAccess.Target));
         var indices = LinqExpression.NewArrayInit(
             typeof(object),
@@ -2070,15 +2372,15 @@ internal sealed partial class BoundExpressionEmitter
         if (!multiDimIndexAccess.NullSafe)
             return LinqExpression.Call(MultiDimArrayGetMethod, target, indices);
 
-        var targetVar = LinqExpression.Variable(typeof(object), "mdTarget");
+        var mdTargetVar = LinqExpression.Variable(typeof(object), "mdTarget");
         return LinqExpression.Block(
             typeof(object),
-            [targetVar],
-            LinqExpression.Assign(targetVar, target),
+            [mdTargetVar],
+            LinqExpression.Assign(mdTargetVar, target),
             LinqExpression.Condition(
-                LinqExpression.Equal(targetVar, LinqExpression.Constant(null, typeof(object))),
+                LinqExpression.Equal(mdTargetVar, LinqExpression.Constant(null, typeof(object))),
                 LinqExpression.Constant(null, typeof(object)),
-                LinqExpression.Call(MultiDimArrayGetMethod, targetVar, indices)));
+                LinqExpression.Call(MultiDimArrayGetMethod, mdTargetVar, indices)));
     }
 
     private LinqExpression EmitMultiDimIndexAssign(BoundMultiDimIndexAssignExpr multiDimIndexAssign)
@@ -2095,11 +2397,13 @@ internal sealed partial class BoundExpressionEmitter
 
     private LinqExpression EmitThrow(BoundThrowExpr throwExpr)
     {
-        var exception = LinqExpression.Call(ValidateThrowOperandMethod, EmitHelpers.AsObject(Emit(throwExpr.Expression)));
+        var exceptionExpr = Emit(throwExpr.Expression);
+        var validated = LinqExpression.Call(ValidateThrowOperandMethod, EmitHelpers.AsObject(exceptionExpr));
+        var resultType = throwExpr.StaticType != typeof(object) ? throwExpr.StaticType : typeof(object);
         return LinqExpression.Block(
-            typeof(object),
-            LinqExpression.Throw(exception),
-            LinqExpression.Default(typeof(object)));
+            resultType,
+            LinqExpression.Throw(validated, resultType),
+            LinqExpression.Default(resultType));
     }
 
     private LinqExpression EmitMemberAccess(BoundMemberAccessExpr memberAccess)
@@ -2631,6 +2935,15 @@ internal sealed partial class BoundExpressionEmitter
 
     private LinqExpression EmitArrayLiteral(BoundArrayLiteralExpr arrayLiteral)
     {
+        var elementType = arrayLiteral.StaticType.IsArray ? arrayLiteral.StaticType.GetElementType() : null;
+        if (elementType != null && elementType != typeof(object) &&
+            !arrayLiteral.Elements.Any(static e => e is BoundSpreadExpr))
+        {
+            var elements = arrayLiteral.Elements.Select(
+                element => EmitHelpers.EnsureTypedExpression(Emit(element), elementType));
+            return EmitHelpers.AsObject(LinqExpression.NewArrayInit(elementType, elements));
+        }
+
         var listVar = LinqExpression.Variable(typeof(List<object?>), "arr");
         var statements = new List<LinqExpression>
         {

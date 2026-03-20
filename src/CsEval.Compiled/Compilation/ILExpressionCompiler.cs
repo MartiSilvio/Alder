@@ -1,5 +1,6 @@
 using CsEval.Compilation;
 using CsEval.Binding;
+using CsEval.Binding.Optimization;
 using CsEval.Parsing;
 using CsEval.Runtime;
 using System.Linq.Expressions;
@@ -102,8 +103,10 @@ internal static class ILExpressionCompiler
             var optionsParam = LinqExpression.Parameter(typeof(CsEvalOptions), "options");
             var ctParam = LinqExpression.Parameter(typeof(CancellationToken), "ct");
 
+            var optimized = BoundTreeOptimizer.Optimize(bound);
+
             var emitter = new BoundExpressionEmitter(contextParam, optionsParam, ctParam);
-            var body = emitter.EmitRoot(bound);
+            var body = emitter.EmitRoot(optimized);
             if (body.Type != typeof(object))
                 body = LinqExpression.Convert(body, typeof(object));
 

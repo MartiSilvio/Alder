@@ -80,7 +80,7 @@ public class ParityTests(CompilationMode mode)
             (mode == CompilationMode.CompiledFec && 
              ex is InvalidProgramException or CsEvalException { ErrorCode: DiagnosticCode.CSEV0001 })
         {
-            Assert.Inconclusive($"{ex.GetType().Name}: {ex.Message}\n\n{exprInfo}");
+            Assert.Inconclusive($"FEC: {ex.GetType().Name}: {ex.Message}\n\n{exprInfo}");
         }
         catch (Exception ex)
         {

@@ -39,24 +39,40 @@ internal sealed partial class BoundExpressionEmitter
     {
         if (TryGetPromoted(assign.LocalId, out var promoted))
         {
-            var valueVar = LinqExpression.Variable(typeof(object), "assignValue");
+            var valueType = assign.Value.StaticType;
+            if (valueType != typeof(object) && promoted.VariableType.IsAssignableFrom(valueType))
+            {
+                var valueVar = LinqExpression.Variable(typeof(object), "assignValue");
+                return LinqExpression.Block(
+                    typeof(object),
+                    [valueVar],
+                    LinqExpression.Call(
+                        CheckAllowAssignmentMethod,
+                        _optionsParam,
+                        LinqExpression.Constant(BuildAssignmentOperationDescription(assign.Name, TokenType.Equal))),
+                    LinqExpression.Assign(valueVar, EmitHelpers.AsObject(Emit(assign.Value))),
+                    LinqExpression.Assign(promoted.Variable, valueVar),
+                    valueVar);
+            }
+
+            var validatedVar = LinqExpression.Variable(typeof(object), "assignValue");
             return LinqExpression.Block(
                 typeof(object),
-                [valueVar],
+                [validatedVar],
                 LinqExpression.Call(
                     CheckAllowAssignmentMethod,
                     _optionsParam,
                     LinqExpression.Constant(BuildAssignmentOperationDescription(assign.Name, TokenType.Equal))),
-                LinqExpression.Assign(valueVar, EmitHelpers.AsObject(Emit(assign.Value))),
+                LinqExpression.Assign(validatedVar, EmitHelpers.AsObject(Emit(assign.Value))),
                 LinqExpression.Assign(
-                    valueVar,
+                    validatedVar,
                     LinqExpression.Call(
                         ValidateVariableAssignmentLocalMethod,
                         LinqExpression.Constant(assign.Name),
-                        valueVar,
+                        validatedVar,
                         LinqExpression.Constant(promoted.VariableType, typeof(Type)))),
-                LinqExpression.Assign(promoted.Variable, valueVar),
-                valueVar);
+                LinqExpression.Assign(promoted.Variable, validatedVar),
+                validatedVar);
         }
 
         var nonPromotedValue = LinqExpression.Variable(typeof(object), "assignValue");
@@ -149,6 +165,9 @@ internal sealed partial class BoundExpressionEmitter
     {
         if (TryGetPromoted(compoundAssign.LocalId, out var promoted))
         {
+            if (TryEmitPureCompoundAssign(compoundAssign, promoted, out var pureResult))
+                return pureResult;
+
             var resultVar = LinqExpression.Variable(typeof(object), "compoundResult");
             return LinqExpression.Block(
                 typeof(object),
@@ -183,6 +202,9 @@ internal sealed partial class BoundExpressionEmitter
     {
         if (TryGetPromoted(incrementDecrement.LocalId, out var promoted))
         {
+            if (TryEmitPureIncrementDecrement(incrementDecrement, promoted, out var pureResult))
+                return pureResult;
+
             var isIncrement = incrementDecrement.Operator == TokenType.PlusPlus;
             var oldVar = LinqExpression.Variable(typeof(object), "incrOld");
             var newVar = LinqExpression.Variable(typeof(object), "incrNew");
@@ -340,6 +362,137 @@ internal sealed partial class BoundExpressionEmitter
             _contextParam,
             LinqExpression.Constant(_isChecked));
     }
+
+    private bool TryEmitPureCompoundAssign(
+        BoundCompoundAssignExpr compoundAssign,
+        PromotedLocal promoted,
+        out LinqExpression result)
+    {
+        result = null!;
+        if (_isChecked || promoted.VariableType == typeof(object) || promoted.VariableType.IsEnum)
+            return false;
+
+        var rhsType = compoundAssign.Value.StaticType;
+        if (rhsType == typeof(object))
+            return false;
+
+        var binaryFactory = GetCompoundBinaryFactory(compoundAssign.Operator, promoted.VariableType, rhsType);
+        if (binaryFactory == null)
+            return false;
+
+        try
+        {
+            var typedLocal = LinqExpression.Variable(promoted.VariableType, "cmpTyped");
+            var typedRhs = LinqExpression.Variable(rhsType, "cmpRhs");
+            var typedResult = LinqExpression.Variable(promoted.VariableType, "cmpResult");
+
+            LinqExpression binaryExpr = binaryFactory(typedLocal, typedRhs);
+
+            if (binaryExpr.Type != promoted.VariableType)
+                binaryExpr = LinqExpression.Convert(binaryExpr, promoted.VariableType);
+
+            result = LinqExpression.Block(
+                typeof(object),
+                [typedLocal, typedRhs, typedResult],
+                LinqExpression.Call(
+                    CheckAllowAssignmentMethod,
+                    _optionsParam,
+                    LinqExpression.Constant(BuildAssignmentOperationDescription(compoundAssign.Name, compoundAssign.Operator))),
+                LinqExpression.Assign(typedLocal, LinqExpression.Unbox(promoted.Variable, promoted.VariableType)),
+                LinqExpression.Assign(typedRhs, LinqExpression.Unbox(EmitHelpers.AsObject(Emit(compoundAssign.Value)), rhsType)),
+                LinqExpression.Assign(typedResult, binaryExpr),
+                LinqExpression.Assign(promoted.Variable, LinqExpression.Convert(typedResult, typeof(object))),
+                promoted.Variable);
+            return true;
+        }
+        catch (InvalidOperationException)
+        {
+            return false;
+        }
+    }
+
+    private bool TryEmitPureIncrementDecrement(
+        BoundIncrementDecrementExpr incrementDecrement,
+        PromotedLocal promoted,
+        out LinqExpression result)
+    {
+        result = null!;
+        if (_isChecked || promoted.VariableType == typeof(object) || promoted.VariableType.IsEnum)
+            return false;
+
+        if (!IsAddSubtractSafeType(promoted.VariableType))
+            return false;
+
+        try
+        {
+            var isIncrement = incrementDecrement.Operator == TokenType.PlusPlus;
+            var typedLocal = LinqExpression.Variable(promoted.VariableType, "incrTyped");
+            var one = LinqExpression.Constant(Convert.ChangeType(1, promoted.VariableType), promoted.VariableType);
+            var newValue = isIncrement
+                ? LinqExpression.Add(typedLocal, one)
+                : LinqExpression.Subtract(typedLocal, one);
+
+            var oldVar = LinqExpression.Variable(typeof(object), "incrOld");
+            result = LinqExpression.Block(
+                typeof(object),
+                [typedLocal, oldVar],
+                LinqExpression.Call(
+                    CheckAllowAssignmentMethod,
+                    _optionsParam,
+                    LinqExpression.Constant(
+                        (isIncrement ? "++" : "--") + incrementDecrement.Name)),
+                LinqExpression.Assign(typedLocal, LinqExpression.Unbox(promoted.Variable, promoted.VariableType)),
+                LinqExpression.Assign(oldVar, promoted.Variable),
+                LinqExpression.Assign(promoted.Variable, LinqExpression.Convert(newValue, typeof(object))),
+                incrementDecrement.IsPrefix ? promoted.Variable : oldVar);
+            return true;
+        }
+        catch (InvalidOperationException)
+        {
+            return false;
+        }
+    }
+
+    private static Func<LinqExpression, LinqExpression, LinqExpression>? GetCompoundBinaryFactory(
+        TokenType compoundOp, Type leftType, Type rightType)
+    {
+        return compoundOp switch
+        {
+            TokenType.PlusEqual when IsAddSubtractSafeType(leftType) && IsAddSubtractSafeType(rightType)
+                => LinqExpression.Add,
+            TokenType.MinusEqual when IsAddSubtractSafeType(leftType) && IsAddSubtractSafeType(rightType)
+                => LinqExpression.Subtract,
+            TokenType.StarEqual when IsAddSubtractSafeType(leftType) && IsAddSubtractSafeType(rightType)
+                => LinqExpression.Multiply,
+            TokenType.SlashEqual when IsAddSubtractSafeType(leftType) && IsAddSubtractSafeType(rightType)
+                => LinqExpression.Divide,
+            TokenType.PercentEqual when IsAddSubtractSafeType(leftType) && IsAddSubtractSafeType(rightType)
+                => LinqExpression.Modulo,
+            TokenType.AmpEqual when IsIntegralSafeType(leftType) && IsIntegralSafeType(rightType)
+                => LinqExpression.And,
+            TokenType.PipeEqual when IsIntegralSafeType(leftType) && IsIntegralSafeType(rightType)
+                => LinqExpression.Or,
+            TokenType.CaretEqual when IsIntegralSafeType(leftType) && IsIntegralSafeType(rightType)
+                => LinqExpression.ExclusiveOr,
+            TokenType.LessLessEqual when IsIntegralSafeType(leftType) && rightType == typeof(int)
+                => LinqExpression.LeftShift,
+            TokenType.GreaterGreaterEqual when IsIntegralSafeType(leftType) && rightType == typeof(int)
+                => LinqExpression.RightShift,
+            _ => null
+        };
+    }
+
+    private static bool IsIntegralSafeType(Type t) =>
+        t == typeof(int) || t == typeof(long) || t == typeof(uint) || t == typeof(ulong);
+
+    private static bool IsArithmeticFastPathType(Type t) =>
+        t == typeof(int) || t == typeof(long) || t == typeof(double) || t == typeof(float)
+        || t == typeof(decimal) || t == typeof(uint) || t == typeof(ulong)
+        || t == typeof(short) || t == typeof(ushort) || t == typeof(byte) || t == typeof(sbyte);
+
+    private static bool IsAddSubtractSafeType(Type t) =>
+        t == typeof(int) || t == typeof(long) || t == typeof(double) || t == typeof(float)
+        || t == typeof(decimal) || t == typeof(uint) || t == typeof(ulong);
 
     private static string BuildAssignmentOperationDescription(string targetName, TokenType operatorToken) =>
         string.Concat(targetName, " ", TokenLexemes.GetCanonical(operatorToken), " ...");

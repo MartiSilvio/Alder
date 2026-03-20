@@ -961,7 +961,20 @@ internal static class TypeHelpers
         if (!IsArithmetic(leftType) || !IsArithmetic(rightType))
             return null;
 
-        return NumericDispatch.GetResultType(leftType, rightType);
+        // ECMA-334: decimal cannot be combined with float or double (CS0019)
+        if (leftType == typeof(decimal) && (rightType == typeof(float) || rightType == typeof(double)))
+            return null;
+        if (rightType == typeof(decimal) && (leftType == typeof(float) || leftType == typeof(double)))
+            return null;
+
+        try
+        {
+            return NumericDispatch.GetResultType(leftType, rightType);
+        }
+        catch (CsEvalException)
+        {
+            return null;
+        }
     }
 
     /// <summary>
