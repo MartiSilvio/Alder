@@ -174,6 +174,10 @@ internal sealed partial class Binder
         if (op == TokenType.Plus && (leftType == typeof(string) || rightType == typeof(string)))
             return typeof(string);
 
+        // Extended-mode ** delegates to Math.Pow which always returns double
+        if (op == TokenType.StarStar)
+            return typeof(double);
+
         if (TypeHelpers.IsArithmetic(leftType) && TypeHelpers.IsArithmetic(rightType))
             return InferArithmeticResultType(leftType, rightType, op);
 

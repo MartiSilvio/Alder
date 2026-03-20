@@ -60,13 +60,15 @@ internal sealed partial class Binder
         var elements = arrayLiteral.Elements
             .Select(element => Bind(element, context))
             .ToImmutableArray();
-        return new BoundArrayLiteralExpr(elements, typeof(object));
+        var arrayType = InferArrayLiteralType(elements);
+        return new BoundArrayLiteralExpr(elements, arrayType);
     }
 
     private BoundSpreadExpr BindSpread(SpreadExpr spread, BindingContext context)
     {
         var expression = Bind(spread.Expression, context);
-        return new BoundSpreadExpr(expression, typeof(object));
+        var elementType = InferElementType(expression.StaticType);
+        return new BoundSpreadExpr(expression, elementType);
     }
 
     private BoundObjectLiteralExpr BindObjectLiteral(ObjectLiteralExpr objectLiteral, BindingContext context)
@@ -90,7 +92,7 @@ internal sealed partial class Binder
             })
             .ToImmutableArray();
 
-        return new BoundObjectLiteralExpr(properties, typeof(object));
+        return new BoundObjectLiteralExpr(properties, typeof(System.Dynamic.ExpandoObject));
     }
 
     private BoundSliceExpr BindSlice(SliceExpr slice, BindingContext context)
@@ -99,7 +101,8 @@ internal sealed partial class Binder
         var start = slice.Start != null ? Bind(slice.Start, context) : null;
         var end = slice.End != null ? Bind(slice.End, context) : null;
         var step = slice.Step != null ? Bind(slice.Step, context) : null;
-        return new BoundSliceExpr(target, start, end, step, typeof(object));
+        var sliceType = InferSliceType(target.StaticType);
+        return new BoundSliceExpr(target, start, end, step, sliceType);
     }
 
     private BoundObjectCreationExpr BindObjectCreation(ObjectCreationExpr objectCreation, BindingContext context)
@@ -199,7 +202,10 @@ internal sealed partial class Binder
         var indices = multiDimIndexAccess.Indices
             .Select(index => Bind(index, context))
             .ToImmutableArray();
-        return new BoundMultiDimIndexAccessExpr(target, indices, multiDimIndexAccess.NullSafe, typeof(object));
+        var elementType = target.StaticType.IsArray
+            ? target.StaticType.GetElementType() ?? typeof(object)
+            : typeof(object);
+        return new BoundMultiDimIndexAccessExpr(target, indices, multiDimIndexAccess.NullSafe, elementType);
     }
 
     private BoundMultiDimIndexAssignExpr BindMultiDimIndexAssign(
@@ -282,5 +288,34 @@ internal sealed partial class Binder
         // Open-ended ranges produce System.Range, not IEnumerable<int>
         var resultType = start == null || end == null ? typeof(Range) : typeof(IEnumerable<int>);
         return new BoundRangeExpr(start, end, rangeExpr.ExclusiveEnd, resultType);
+    }
+
+    private static Type InferArrayLiteralType(ImmutableArray<BoundExpr> elements)
+    {
+        if (elements.Length == 0)
+            return typeof(object[]);
+
+        var firstType = elements[0].StaticType;
+        if (firstType == typeof(object))
+            return typeof(object[]);
+
+        for (var i = 1; i < elements.Length; i++)
+        {
+            if (elements[i].StaticType != firstType)
+                return typeof(object[]);
+        }
+
+        return RuntimeArrayFactory.GetArrayType(firstType);
+    }
+
+    private static Type InferSliceType(Type targetType)
+    {
+        if (targetType == typeof(string))
+            return typeof(string);
+
+        if (targetType.IsArray)
+            return targetType;
+
+        return typeof(object);
     }
 }
