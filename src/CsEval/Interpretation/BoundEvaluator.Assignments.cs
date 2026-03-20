@@ -1,3 +1,4 @@
+using System.Reflection;
 using CsEval.Binding.BoundNodes;
 using CsEval.Diagnostics;
 using CsEval.Parsing;
@@ -60,6 +61,23 @@ internal sealed partial class BoundEvaluator
     {
         var target = Evaluate(memberAssign.Target);
         var value = Evaluate(memberAssign.Value);
+
+        if (memberAssign.Plan?.Member is PropertyInfo property && property.CanWrite
+            && target != null && !target.GetType().IsValueType)
+        {
+            AssignmentRuntime.CheckAllowPropertySet(_options, memberAssign.MemberName);
+            property.SetValue(target, value);
+            return value;
+        }
+
+        if (memberAssign.Plan?.Member is FieldInfo field && !field.IsInitOnly
+            && target != null && !target.GetType().IsValueType)
+        {
+            AssignmentRuntime.CheckAllowPropertySet(_options, memberAssign.MemberName);
+            field.SetValue(target, value);
+            return value;
+        }
+
         return AssignmentRuntime.ApplyMemberAssign(target, memberAssign.MemberName, value, _options, _context);
     }
 

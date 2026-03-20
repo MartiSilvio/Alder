@@ -1,7 +1,10 @@
+using System.Collections;
+using System.Reflection;
 using CsEval.Binding.BoundNodes;
 using CsEval.Diagnostics;
 using CsEval.Parsing;
 using CsEval.Runtime;
+using CsEval.Runtime.Semantics;
 using static CsEval.Compiled.Compilation.BoundRuntimeMethodCache;
 
 namespace CsEval.Compiled.Compilation;
@@ -42,17 +45,14 @@ internal sealed partial class BoundExpressionEmitter
             var valueType = assign.Value.StaticType;
             if (valueType != typeof(object) && promoted.VariableType.IsAssignableFrom(valueType))
             {
-                var valueVar = LinqExpression.Variable(typeof(object), "assignValue");
                 return LinqExpression.Block(
                     typeof(object),
-                    [valueVar],
                     LinqExpression.Call(
                         CheckAllowAssignmentMethod,
                         _optionsParam,
                         LinqExpression.Constant(BuildAssignmentOperationDescription(assign.Name, TokenType.Equal))),
-                    LinqExpression.Assign(valueVar, EmitHelpers.AsObject(Emit(assign.Value))),
-                    LinqExpression.Assign(promoted.Variable, valueVar),
-                    valueVar);
+                    LinqExpression.Assign(promoted.Variable, EmitHelpers.AsObject(Emit(assign.Value))),
+                    promoted.Variable);
             }
 
             var validatedVar = LinqExpression.Variable(typeof(object), "assignValue");
@@ -239,6 +239,18 @@ internal sealed partial class BoundExpressionEmitter
 
     private LinqExpression EmitMemberAssign(BoundMemberAssignExpr memberAssign)
     {
+        if (memberAssign.Plan?.Member is PropertyInfo property && property.CanWrite
+            && !memberAssign.Target.StaticType.IsValueType)
+        {
+            return EmitDirectMemberAssignProperty(memberAssign, property);
+        }
+
+        if (memberAssign.Plan?.Member is FieldInfo field && !field.IsInitOnly
+            && !memberAssign.Target.StaticType.IsValueType)
+        {
+            return EmitDirectMemberAssignField(memberAssign, field);
+        }
+
         return LinqExpression.Call(
             ApplyMemberAssignMethod,
             EmitHelpers.AsObject(Emit(memberAssign.Target)),
@@ -248,8 +260,55 @@ internal sealed partial class BoundExpressionEmitter
             _contextParam);
     }
 
+    private LinqExpression EmitDirectMemberAssignProperty(BoundMemberAssignExpr memberAssign, PropertyInfo property)
+    {
+        var targetObjVar = LinqExpression.Variable(typeof(object), "maTarget");
+        var valueVar = LinqExpression.Variable(typeof(object), "maValue");
+        var targetType = property.DeclaringType ?? memberAssign.Plan!.DeclaringType;
+        var checkedTarget = LinqExpression.Call(
+            EnsureMemberTargetNotNullMethod, targetObjVar, LinqExpression.Constant(memberAssign.MemberName));
+        var typedTarget = EmitHelpers.EnsureTypedExpression(checkedTarget, targetType);
+        var typedValue = LinqExpression.Convert(valueVar, property.PropertyType);
+
+        return LinqExpression.Block(
+            typeof(object),
+            [targetObjVar, valueVar],
+            LinqExpression.Call(CheckAllowPropertySetMethod, _optionsParam, LinqExpression.Constant(memberAssign.MemberName)),
+            LinqExpression.Assign(targetObjVar, EmitHelpers.AsObject(Emit(memberAssign.Target))),
+            LinqExpression.Assign(valueVar, EmitHelpers.AsObject(Emit(memberAssign.Value))),
+            LinqExpression.Assign(LinqExpression.Property(typedTarget, property), typedValue),
+            valueVar);
+    }
+
+    private LinqExpression EmitDirectMemberAssignField(BoundMemberAssignExpr memberAssign, FieldInfo field)
+    {
+        var targetObjVar = LinqExpression.Variable(typeof(object), "maTarget");
+        var valueVar = LinqExpression.Variable(typeof(object), "maValue");
+        var targetType = field.DeclaringType ?? memberAssign.Plan!.DeclaringType;
+        var checkedTarget = LinqExpression.Call(
+            EnsureMemberTargetNotNullMethod, targetObjVar, LinqExpression.Constant(memberAssign.MemberName));
+        var typedTarget = EmitHelpers.EnsureTypedExpression(checkedTarget, targetType);
+        var typedValue = LinqExpression.Convert(valueVar, field.FieldType);
+
+        return LinqExpression.Block(
+            typeof(object),
+            [targetObjVar, valueVar],
+            LinqExpression.Call(CheckAllowPropertySetMethod, _optionsParam, LinqExpression.Constant(memberAssign.MemberName)),
+            LinqExpression.Assign(targetObjVar, EmitHelpers.AsObject(Emit(memberAssign.Target))),
+            LinqExpression.Assign(valueVar, EmitHelpers.AsObject(Emit(memberAssign.Value))),
+            LinqExpression.Assign(LinqExpression.Field(typedTarget, field), typedValue),
+            valueVar);
+    }
+
     private LinqExpression EmitIndexAssign(BoundIndexAssignExpr indexAssign)
     {
+        if (indexAssign.Plan is { IsDirectCollectionAccess: true } plan
+            && typeof(IList).IsAssignableFrom(plan.TargetType)
+            && TryEmitDirectIndexAssign(indexAssign, plan, out var result))
+        {
+            return result;
+        }
+
         return LinqExpression.Call(
             ApplyIndexAssignMethod,
             EmitHelpers.AsObject(Emit(indexAssign.Target)),
@@ -259,8 +318,97 @@ internal sealed partial class BoundExpressionEmitter
             _contextParam);
     }
 
+    private bool TryEmitDirectIndexAssign(BoundIndexAssignExpr indexAssign, Binding.Plans.BoundIndexPlan plan, out LinqExpression result)
+    {
+        result = null!;
+        var valueStaticType = indexAssign.Value.StaticType;
+
+        var targetObjVar = LinqExpression.Variable(typeof(object), "iaTarget");
+        var indexObjVar = LinqExpression.Variable(typeof(object), "iaIndex");
+        var valueVar = LinqExpression.Variable(typeof(object), "iaValue");
+        var checkedTarget = LinqExpression.Call(EnsureIndexTargetNotNullMethod, targetObjVar);
+
+        LinqExpression assignExpr;
+        LinqExpression normalizedIndex;
+
+        if (plan.TargetType.IsArray)
+        {
+            var elementType = plan.TargetType.GetElementType()!;
+            // Only use pure path when value type exactly matches element type (avoids unbox cast issues)
+            if (valueStaticType != elementType && valueStaticType != typeof(object))
+                return false;
+
+            var typedTarget = EmitHelpers.EnsureTypedExpression(checkedTarget, plan.TargetType);
+            var rawIndex = LinqExpression.Call(ConvertToInt32ObjectMethod, indexObjVar);
+            normalizedIndex = LinqExpression.Call(NormalizeIndexMethod, rawIndex,
+                LinqExpression.ArrayLength(typedTarget),
+                LinqExpression.Property(_optionsParam, nameof(CsEvalOptions.LanguageMode)));
+            var accessExpr = LinqExpression.ArrayAccess(typedTarget, normalizedIndex);
+
+            assignExpr = LinqExpression.Assign(accessExpr, LinqExpression.Convert(valueVar, elementType));
+        }
+        else if (EmitHelpers.TryGetIntIndexer(plan.TargetType, out var indexer) && indexer.CanWrite
+                 && EmitHelpers.TryGetCountProperty(plan.TargetType, out var countProp))
+        {
+            var typedTarget = EmitHelpers.EnsureTypedExpression(checkedTarget, plan.TargetType);
+            var rawIndex = LinqExpression.Call(ConvertToInt32ObjectMethod, indexObjVar);
+            normalizedIndex = LinqExpression.Call(NormalizeIndexMethod, rawIndex,
+                LinqExpression.Property(typedTarget, countProp),
+                LinqExpression.Property(_optionsParam, nameof(CsEvalOptions.LanguageMode)));
+            assignExpr = LinqExpression.Assign(
+                LinqExpression.Property(typedTarget, indexer, normalizedIndex),
+                LinqExpression.Convert(valueVar, indexer.PropertyType));
+        }
+        else
+        {
+            var typedTarget = EmitHelpers.EnsureTypedExpression(checkedTarget, typeof(IList));
+            var countExpr = LinqExpression.Property(
+                EmitHelpers.EnsureTypedExpression(checkedTarget, typeof(ICollection)),
+                ICollectionCountProperty);
+            var rawIndex = LinqExpression.Call(ConvertToInt32ObjectMethod, indexObjVar);
+            normalizedIndex = LinqExpression.Call(NormalizeIndexMethod, rawIndex, countExpr,
+                LinqExpression.Property(_optionsParam, nameof(CsEvalOptions.LanguageMode)));
+            assignExpr = LinqExpression.Assign(
+                LinqExpression.Property(typedTarget, IListIndexerProperty, normalizedIndex),
+                valueVar);
+        }
+
+        result = LinqExpression.Block(
+            typeof(object),
+            [targetObjVar, indexObjVar, valueVar],
+            LinqExpression.Assign(targetObjVar, EmitHelpers.AsObject(Emit(indexAssign.Target))),
+            LinqExpression.Assign(indexObjVar, EmitHelpers.AsObject(Emit(indexAssign.Index))),
+            LinqExpression.Call(CheckAllowIndexSetMethod, _optionsParam, indexObjVar),
+            LinqExpression.Assign(valueVar, EmitHelpers.AsObject(Emit(indexAssign.Value))),
+            assignExpr,
+            valueVar);
+        return true;
+    }
+
     private LinqExpression EmitMemberCompoundAssign(BoundMemberCompoundAssignExpr memberCompoundAssign)
     {
+        if (!_isChecked
+            && memberCompoundAssign.Plan?.Member is PropertyInfo property
+            && property.CanWrite && property.CanRead
+            && !memberCompoundAssign.Target.StaticType.IsValueType
+            && !property.PropertyType.IsEnum
+            && property.PropertyType != typeof(object))
+        {
+            var rhsType = memberCompoundAssign.Value.StaticType;
+            if (rhsType != typeof(object))
+            {
+                var binaryFactory = GetCompoundBinaryFactory(memberCompoundAssign.Operator, property.PropertyType, rhsType);
+                if (binaryFactory != null)
+                {
+                    try
+                    {
+                        return EmitDirectMemberCompoundAssign(memberCompoundAssign, property, binaryFactory, rhsType);
+                    }
+                    catch (InvalidOperationException) { }
+                }
+            }
+        }
+
         return LinqExpression.Call(
             ApplyMemberCompoundAssignMethod,
             EmitHelpers.AsObject(Emit(memberCompoundAssign.Target)),
@@ -272,8 +420,61 @@ internal sealed partial class BoundExpressionEmitter
             LinqExpression.Constant(_isChecked));
     }
 
+    private LinqExpression EmitDirectMemberCompoundAssign(
+        BoundMemberCompoundAssignExpr memberCompoundAssign,
+        PropertyInfo property,
+        Func<LinqExpression, LinqExpression, LinqExpression> binaryFactory,
+        Type rhsType)
+    {
+        var targetObjVar = LinqExpression.Variable(typeof(object), "mcaTarget");
+        var targetType = property.DeclaringType ?? memberCompoundAssign.Plan!.DeclaringType;
+        var checkedTarget = LinqExpression.Call(
+            EnsureMemberTargetNotNullMethod, targetObjVar, LinqExpression.Constant(memberCompoundAssign.MemberName));
+        var typedTarget = EmitHelpers.EnsureTypedExpression(checkedTarget, targetType);
+
+        var typedCurrent = LinqExpression.Variable(property.PropertyType, "mcaCurrent");
+        var typedRhs = LinqExpression.Variable(rhsType, "mcaRhs");
+
+        LinqExpression binaryExpr = binaryFactory(typedCurrent, typedRhs);
+        if (binaryExpr.Type != property.PropertyType)
+            binaryExpr = LinqExpression.Convert(binaryExpr, property.PropertyType);
+
+        var propAccess = LinqExpression.Property(typedTarget, property);
+
+        return LinqExpression.Block(
+            typeof(object),
+            [targetObjVar, typedCurrent, typedRhs],
+            LinqExpression.Call(CheckAllowPropertySetMethod, _optionsParam, LinqExpression.Constant(memberCompoundAssign.MemberName)),
+            LinqExpression.Assign(targetObjVar, EmitHelpers.AsObject(Emit(memberCompoundAssign.Target))),
+            LinqExpression.Assign(typedCurrent, propAccess),
+            LinqExpression.Assign(typedRhs, LinqExpression.Unbox(EmitHelpers.AsObject(Emit(memberCompoundAssign.Value)), rhsType)),
+            LinqExpression.Assign(propAccess, binaryExpr),
+            LinqExpression.Convert(propAccess, typeof(object)));
+    }
+
     private LinqExpression EmitIndexCompoundAssign(BoundIndexCompoundAssignExpr indexCompoundAssign)
     {
+        if (!_isChecked
+            && indexCompoundAssign.Plan is { IsDirectCollectionAccess: true } plan
+            && typeof(IList).IsAssignableFrom(plan.TargetType)
+            && plan.ResultType != typeof(object)
+            && !plan.ResultType.IsEnum)
+        {
+            var rhsType = indexCompoundAssign.Value.StaticType;
+            if (rhsType != typeof(object))
+            {
+                var binaryFactory = GetCompoundBinaryFactory(indexCompoundAssign.Operator, plan.ResultType, rhsType);
+                if (binaryFactory != null)
+                {
+                    try
+                    {
+                        return EmitDirectIndexCompoundAssign(indexCompoundAssign, plan, binaryFactory, rhsType);
+                    }
+                    catch (InvalidOperationException) { }
+                }
+            }
+        }
+
         return LinqExpression.Call(
             ApplyIndexCompoundAssignMethod,
             EmitHelpers.AsObject(Emit(indexCompoundAssign.Target)),
@@ -283,6 +484,78 @@ internal sealed partial class BoundExpressionEmitter
             _optionsParam,
             _contextParam,
             LinqExpression.Constant(_isChecked));
+    }
+
+    private LinqExpression EmitDirectIndexCompoundAssign(
+        BoundIndexCompoundAssignExpr indexCompoundAssign,
+        Binding.Plans.BoundIndexPlan plan,
+        Func<LinqExpression, LinqExpression, LinqExpression> binaryFactory,
+        Type rhsType)
+    {
+        var targetObjVar = LinqExpression.Variable(typeof(object), "icaTarget");
+        var indexObjVar = LinqExpression.Variable(typeof(object), "icaIndex");
+        var normalizedIdx = LinqExpression.Variable(typeof(int), "icaNormIdx");
+        var checkedTarget = LinqExpression.Call(EnsureIndexTargetNotNullMethod, targetObjVar);
+
+        var typedCurrent = LinqExpression.Variable(plan.ResultType, "icaCurrent");
+        var typedRhs = LinqExpression.Variable(rhsType, "icaRhs");
+
+        LinqExpression binaryExpr = binaryFactory(typedCurrent, typedRhs);
+        if (binaryExpr.Type != plan.ResultType)
+            binaryExpr = LinqExpression.Convert(binaryExpr, plan.ResultType);
+
+        LinqExpression readExpr;
+        LinqExpression writeExpr;
+        LinqExpression normalizeExpr;
+
+        if (plan.TargetType.IsArray)
+        {
+            var typedTarget = EmitHelpers.EnsureTypedExpression(checkedTarget, plan.TargetType);
+            normalizeExpr = LinqExpression.Call(NormalizeIndexMethod,
+                LinqExpression.Call(ConvertToInt32ObjectMethod, indexObjVar),
+                LinqExpression.ArrayLength(typedTarget),
+                LinqExpression.Property(_optionsParam, nameof(CsEvalOptions.LanguageMode)));
+            var accessExpr = LinqExpression.ArrayAccess(typedTarget, normalizedIdx);
+            readExpr = accessExpr;
+            writeExpr = LinqExpression.Assign(accessExpr, binaryExpr);
+        }
+        else if (EmitHelpers.TryGetIntIndexer(plan.TargetType, out var indexer) && indexer.CanWrite
+                 && EmitHelpers.TryGetCountProperty(plan.TargetType, out var countProp))
+        {
+            var typedTarget = EmitHelpers.EnsureTypedExpression(checkedTarget, plan.TargetType);
+            normalizeExpr = LinqExpression.Call(NormalizeIndexMethod,
+                LinqExpression.Call(ConvertToInt32ObjectMethod, indexObjVar),
+                LinqExpression.Property(typedTarget, countProp),
+                LinqExpression.Property(_optionsParam, nameof(CsEvalOptions.LanguageMode)));
+            var propAccess = LinqExpression.Property(typedTarget, indexer, normalizedIdx);
+            readExpr = LinqExpression.Convert(propAccess, plan.ResultType);
+            writeExpr = LinqExpression.Assign(propAccess, LinqExpression.Convert(binaryExpr, indexer.PropertyType));
+        }
+        else
+        {
+            var typedTarget = EmitHelpers.EnsureTypedExpression(checkedTarget, typeof(IList));
+            var countExpr = LinqExpression.Property(
+                EmitHelpers.EnsureTypedExpression(checkedTarget, typeof(ICollection)),
+                ICollectionCountProperty);
+            normalizeExpr = LinqExpression.Call(NormalizeIndexMethod,
+                LinqExpression.Call(ConvertToInt32ObjectMethod, indexObjVar), countExpr,
+                LinqExpression.Property(_optionsParam, nameof(CsEvalOptions.LanguageMode)));
+            var propAccess = LinqExpression.Property(typedTarget, IListIndexerProperty, normalizedIdx);
+            readExpr = LinqExpression.Unbox(propAccess, plan.ResultType);
+            writeExpr = LinqExpression.Assign(propAccess, LinqExpression.Convert(binaryExpr, typeof(object)));
+        }
+
+        return LinqExpression.Block(
+            typeof(object),
+            [targetObjVar, indexObjVar, normalizedIdx, typedCurrent, typedRhs],
+            LinqExpression.Assign(targetObjVar, EmitHelpers.AsObject(Emit(indexCompoundAssign.Target))),
+            LinqExpression.Assign(indexObjVar, EmitHelpers.AsObject(Emit(indexCompoundAssign.Index))),
+            LinqExpression.Call(CheckAllowIndexSetMethod, _optionsParam, indexObjVar),
+            LinqExpression.Assign(normalizedIdx, normalizeExpr),
+            LinqExpression.Assign(typedCurrent, readExpr),
+            LinqExpression.Assign(typedRhs, LinqExpression.Unbox(EmitHelpers.AsObject(Emit(indexCompoundAssign.Value)), rhsType)),
+            writeExpr,
+            LinqExpression.Convert(binaryExpr, typeof(object)));
     }
 
     private LinqExpression EmitMemberNullCoalesceAssign(BoundMemberNullCoalesceAssignExpr memberNullCoalesceAssign)
@@ -339,6 +612,19 @@ internal sealed partial class BoundExpressionEmitter
 
     private LinqExpression EmitMemberIncrement(BoundMemberIncrementExpr memberIncrement)
     {
+        if (!_isChecked
+            && memberIncrement.Plan?.Member is PropertyInfo property
+            && property.CanWrite && property.CanRead
+            && !memberIncrement.Target.StaticType.IsValueType
+            && IsAddSubtractSafeType(property.PropertyType))
+        {
+            try
+            {
+                return EmitDirectMemberIncrement(memberIncrement, property);
+            }
+            catch (InvalidOperationException) { }
+        }
+
         return LinqExpression.Call(
             ApplyMemberIncrementMethod,
             EmitHelpers.AsObject(Emit(memberIncrement.Target)),
@@ -350,8 +636,47 @@ internal sealed partial class BoundExpressionEmitter
             LinqExpression.Constant(_isChecked));
     }
 
+    private LinqExpression EmitDirectMemberIncrement(BoundMemberIncrementExpr memberIncrement, PropertyInfo property)
+    {
+        var targetObjVar = LinqExpression.Variable(typeof(object), "miTarget");
+        var targetType = property.DeclaringType ?? memberIncrement.Plan!.DeclaringType;
+        var checkedTarget = LinqExpression.Call(
+            EnsureMemberTargetNotNullMethod, targetObjVar, LinqExpression.Constant(memberIncrement.MemberName));
+        var typedTarget = EmitHelpers.EnsureTypedExpression(checkedTarget, targetType);
+        var propAccess = LinqExpression.Property(typedTarget, property);
+
+        var oldTyped = LinqExpression.Variable(property.PropertyType, "miOld");
+        var one = LinqExpression.Constant(Convert.ChangeType(1, property.PropertyType), property.PropertyType);
+        var newValue = memberIncrement.IsIncrement
+            ? LinqExpression.Add(oldTyped, one)
+            : LinqExpression.Subtract(oldTyped, one);
+
+        return LinqExpression.Block(
+            typeof(object),
+            [targetObjVar, oldTyped],
+            LinqExpression.Call(CheckAllowPropertySetMethod, _optionsParam, LinqExpression.Constant(memberIncrement.MemberName)),
+            LinqExpression.Assign(targetObjVar, EmitHelpers.AsObject(Emit(memberIncrement.Target))),
+            LinqExpression.Assign(oldTyped, propAccess),
+            LinqExpression.Assign(propAccess, newValue),
+            memberIncrement.IsPrefix
+                ? LinqExpression.Convert(propAccess, typeof(object))
+                : LinqExpression.Convert(oldTyped, typeof(object)));
+    }
+
     private LinqExpression EmitIndexIncrement(BoundIndexIncrementExpr indexIncrement)
     {
+        if (!_isChecked
+            && indexIncrement.Plan is { IsDirectCollectionAccess: true } plan
+            && typeof(IList).IsAssignableFrom(plan.TargetType)
+            && IsAddSubtractSafeType(plan.ResultType))
+        {
+            try
+            {
+                return EmitDirectIndexIncrement(indexIncrement, plan);
+            }
+            catch (InvalidOperationException) { }
+        }
+
         return LinqExpression.Call(
             ApplyIndexIncrementMethod,
             EmitHelpers.AsObject(Emit(indexIncrement.Target)),
@@ -361,6 +686,74 @@ internal sealed partial class BoundExpressionEmitter
             _optionsParam,
             _contextParam,
             LinqExpression.Constant(_isChecked));
+    }
+
+    private LinqExpression EmitDirectIndexIncrement(BoundIndexIncrementExpr indexIncrement, Binding.Plans.BoundIndexPlan plan)
+    {
+        var targetObjVar = LinqExpression.Variable(typeof(object), "iiTarget");
+        var indexObjVar = LinqExpression.Variable(typeof(object), "iiIndex");
+        var normalizedIdx = LinqExpression.Variable(typeof(int), "iiNormIdx");
+        var checkedTarget = LinqExpression.Call(EnsureIndexTargetNotNullMethod, targetObjVar);
+
+        var oldTyped = LinqExpression.Variable(plan.ResultType, "iiOld");
+        var one = LinqExpression.Constant(Convert.ChangeType(1, plan.ResultType), plan.ResultType);
+        var newValue = indexIncrement.IsIncrement
+            ? LinqExpression.Add(oldTyped, one)
+            : LinqExpression.Subtract(oldTyped, one);
+
+        LinqExpression readExpr;
+        LinqExpression writeExpr;
+        LinqExpression normalizeExpr;
+
+        if (plan.TargetType.IsArray)
+        {
+            var typedTarget = EmitHelpers.EnsureTypedExpression(checkedTarget, plan.TargetType);
+            normalizeExpr = LinqExpression.Call(NormalizeIndexMethod,
+                LinqExpression.Call(ConvertToInt32ObjectMethod, indexObjVar),
+                LinqExpression.ArrayLength(typedTarget),
+                LinqExpression.Property(_optionsParam, nameof(CsEvalOptions.LanguageMode)));
+            var accessExpr = LinqExpression.ArrayAccess(typedTarget, normalizedIdx);
+            readExpr = accessExpr;
+            writeExpr = LinqExpression.Assign(accessExpr, newValue);
+        }
+        else if (EmitHelpers.TryGetIntIndexer(plan.TargetType, out var indexer) && indexer.CanWrite
+                 && EmitHelpers.TryGetCountProperty(plan.TargetType, out var countProp))
+        {
+            var typedTarget = EmitHelpers.EnsureTypedExpression(checkedTarget, plan.TargetType);
+            normalizeExpr = LinqExpression.Call(NormalizeIndexMethod,
+                LinqExpression.Call(ConvertToInt32ObjectMethod, indexObjVar),
+                LinqExpression.Property(typedTarget, countProp),
+                LinqExpression.Property(_optionsParam, nameof(CsEvalOptions.LanguageMode)));
+            var propAccess = LinqExpression.Property(typedTarget, indexer, normalizedIdx);
+            readExpr = LinqExpression.Convert(propAccess, plan.ResultType);
+            writeExpr = LinqExpression.Assign(propAccess, LinqExpression.Convert(newValue, indexer.PropertyType));
+        }
+        else
+        {
+            var typedTarget = EmitHelpers.EnsureTypedExpression(checkedTarget, typeof(IList));
+            var countExpr = LinqExpression.Property(
+                EmitHelpers.EnsureTypedExpression(checkedTarget, typeof(ICollection)),
+                ICollectionCountProperty);
+            normalizeExpr = LinqExpression.Call(NormalizeIndexMethod,
+                LinqExpression.Call(ConvertToInt32ObjectMethod, indexObjVar), countExpr,
+                LinqExpression.Property(_optionsParam, nameof(CsEvalOptions.LanguageMode)));
+            var propAccess = LinqExpression.Property(typedTarget, IListIndexerProperty, normalizedIdx);
+            readExpr = LinqExpression.Unbox(propAccess, plan.ResultType);
+            writeExpr = LinqExpression.Assign(propAccess, LinqExpression.Convert(newValue, typeof(object)));
+        }
+
+        return LinqExpression.Block(
+            typeof(object),
+            [targetObjVar, indexObjVar, normalizedIdx, oldTyped],
+            LinqExpression.Assign(targetObjVar, EmitHelpers.AsObject(Emit(indexIncrement.Target))),
+            LinqExpression.Assign(indexObjVar, EmitHelpers.AsObject(Emit(indexIncrement.Index))),
+            LinqExpression.Call(CheckAllowIndexSetMethod, _optionsParam, indexObjVar),
+            LinqExpression.Assign(normalizedIdx, normalizeExpr),
+            LinqExpression.Assign(oldTyped, readExpr),
+            writeExpr,
+            indexIncrement.IsPrefix
+                ? LinqExpression.Convert(newValue, typeof(object))
+                : LinqExpression.Convert(oldTyped, typeof(object)));
     }
 
     private bool TryEmitPureCompoundAssign(
@@ -384,7 +777,6 @@ internal sealed partial class BoundExpressionEmitter
         {
             var typedLocal = LinqExpression.Variable(promoted.VariableType, "cmpTyped");
             var typedRhs = LinqExpression.Variable(rhsType, "cmpRhs");
-            var typedResult = LinqExpression.Variable(promoted.VariableType, "cmpResult");
 
             LinqExpression binaryExpr = binaryFactory(typedLocal, typedRhs);
 
@@ -393,15 +785,14 @@ internal sealed partial class BoundExpressionEmitter
 
             result = LinqExpression.Block(
                 typeof(object),
-                [typedLocal, typedRhs, typedResult],
+                [typedLocal, typedRhs],
                 LinqExpression.Call(
                     CheckAllowAssignmentMethod,
                     _optionsParam,
                     LinqExpression.Constant(BuildAssignmentOperationDescription(compoundAssign.Name, compoundAssign.Operator))),
                 LinqExpression.Assign(typedLocal, LinqExpression.Unbox(promoted.Variable, promoted.VariableType)),
                 LinqExpression.Assign(typedRhs, LinqExpression.Unbox(EmitHelpers.AsObject(Emit(compoundAssign.Value)), rhsType)),
-                LinqExpression.Assign(typedResult, binaryExpr),
-                LinqExpression.Assign(promoted.Variable, LinqExpression.Convert(typedResult, typeof(object))),
+                LinqExpression.Assign(promoted.Variable, LinqExpression.Convert(binaryExpr, typeof(object))),
                 promoted.Variable);
             return true;
         }

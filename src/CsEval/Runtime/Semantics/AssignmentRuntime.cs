@@ -5,6 +5,12 @@ namespace CsEval.Runtime.Semantics;
 
 internal static class AssignmentRuntime
 {
+    public static void CheckAllowPropertySet(CsEvalOptions options, string memberName)
+    {
+        if (!options.Sandbox.AllowPropertySet)
+            throw new CsEvalException(DiagnosticDescriptors.SandboxPropertyAssignmentBlocked, memberName);
+    }
+
     public static void CheckAllowIndexSet(CsEvalOptions options, object? index)
     {
         if (!options.Sandbox.AllowIndexSet)

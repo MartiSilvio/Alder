@@ -54,6 +54,9 @@ internal static class BoundRuntimeMethodCache
             nameof(MemberAccess.SetIndex),
             [typeof(object), typeof(object), typeof(object), typeof(CsEvalOptions), typeof(CsEvalContext)])!;
 
+    internal static readonly MethodInfo CheckAllowPropertySetMethod =
+        typeof(AssignmentRuntime).GetMethod(nameof(AssignmentRuntime.CheckAllowPropertySet))!;
+
     internal static readonly MethodInfo CheckAllowIndexSetMethod =
         typeof(AssignmentRuntime).GetMethod(nameof(AssignmentRuntime.CheckAllowIndexSet))!;
 
@@ -117,10 +120,6 @@ internal static class BoundRuntimeMethodCache
     internal static readonly MethodInfo InvokePipelineMethod =
         typeof(PipelineOperator).GetMethod(nameof(PipelineOperator.InvokePipeline))!;
 
-    // Candidate for removal -- no emitter path references this; range generation uses runtime evaluation
-    internal static readonly MethodInfo GenerateRangeMethod =
-        typeof(RangeHelpers).GetMethod(nameof(RangeHelpers.GenerateRange))!;
-
     internal static readonly MethodInfo PerformComparisonMethod =
         typeof(ChainedComparisonHelper).GetMethod(nameof(ChainedComparisonHelper.PerformComparison))!;
 
@@ -159,14 +158,6 @@ internal static class BoundRuntimeMethodCache
 
     internal static readonly MethodInfo ApplyIndexCompoundAssignMethod =
         typeof(AssignmentRuntime).GetMethod(nameof(AssignmentRuntime.ApplyIndexCompoundAssign))!;
-
-    // Candidate for removal -- null-coalesce member assign emitted via different path
-    internal static readonly MethodInfo ApplyMemberNullCoalesceAssignMethod =
-        typeof(AssignmentRuntime).GetMethod(nameof(AssignmentRuntime.ApplyMemberNullCoalesceAssign))!;
-
-    // Candidate for removal -- null-coalesce index assign emitted via different path
-    internal static readonly MethodInfo ApplyIndexNullCoalesceAssignMethod =
-        typeof(AssignmentRuntime).GetMethod(nameof(AssignmentRuntime.ApplyIndexNullCoalesceAssign))!;
 
     internal static readonly MethodInfo ApplyMemberIncrementMethod =
         typeof(AssignmentRuntime).GetMethod(nameof(AssignmentRuntime.ApplyMemberIncrement))!;
@@ -436,10 +427,6 @@ internal static class BoundRuntimeMethodCache
 
     internal static readonly MethodInfo ValidateAndCoerceTypeMethod =
         typeof(TypeHelpers).GetMethod(nameof(TypeHelpers.ValidateAndCoerceType))!;
-
-    // Candidate for removal -- null-coalesce local assign uses CheckNullCoalesceAssignAllowedMethod instead
-    internal static readonly MethodInfo CheckNullCoalesceAssignLocalMethod =
-        typeof(ExecutionRuntime).GetMethod(nameof(ExecutionRuntime.CheckNullCoalesceAssignAllowed))!;
 
     internal static readonly MethodInfo StringConcatTwoStringsMethod =
         typeof(string).GetMethod(nameof(string.Concat), [typeof(string), typeof(string)])!;

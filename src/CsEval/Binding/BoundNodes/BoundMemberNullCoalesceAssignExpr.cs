@@ -1,8 +1,11 @@
+using CsEval.Binding.Plans;
+
 namespace CsEval.Binding.BoundNodes;
 
 internal sealed record BoundMemberNullCoalesceAssignExpr(
     BoundExpr Target,
     string MemberName,
+    BoundMemberPlan? Plan,
     BoundExpr Value,
     Type StaticType) : BoundExpr(StaticType)
 {

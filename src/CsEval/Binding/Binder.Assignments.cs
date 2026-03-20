@@ -1,4 +1,5 @@
 using CsEval.Binding.BoundNodes;
+using CsEval.Binding.Plans;
 using CsEval.Binding.Services;
 using CsEval.Diagnostics;
 using CsEval.Parsing;
@@ -65,7 +66,8 @@ internal sealed partial class Binder
     {
         var target = Bind(memberAssign.Object, context);
         var value = Bind(memberAssign.Value, context);
-        return new BoundMemberAssignExpr(target, memberAssign.Name.Lexeme, value, value.StaticType);
+        var plan = ResolveMemberPlan(target.StaticType, memberAssign.Name.Lexeme, context);
+        return new BoundMemberAssignExpr(target, memberAssign.Name.Lexeme, plan, value, value.StaticType);
     }
 
     private BoundIndexAssignExpr BindIndexAssign(IndexAssignExpr indexAssign, BindingContext context)
@@ -73,20 +75,23 @@ internal sealed partial class Binder
         var target = Bind(indexAssign.Object, context);
         var index = Bind(indexAssign.Index, context);
         var value = Bind(indexAssign.Value, context);
-        return new BoundIndexAssignExpr(target, index, value, value.StaticType);
+        var plan = ResolveIndexPlan(target.StaticType, index.StaticType, context);
+        return new BoundIndexAssignExpr(target, index, plan, value, value.StaticType);
     }
 
     private BoundMemberCompoundAssignExpr BindMemberCompoundAssign(MemberCompoundAssignExpr memberCompoundAssign, BindingContext context)
     {
         var target = Bind(memberCompoundAssign.Object, context);
         var value = Bind(memberCompoundAssign.Value, context);
-        var memberType = ResolveMemberType(target.StaticType, memberCompoundAssign.MemberName);
+        var plan = ResolveMemberPlan(target.StaticType, memberCompoundAssign.MemberName, context);
+        var memberType = ExtractMemberType(plan);
         var staticType = memberType != typeof(object)
             ? InferBinaryResultType(memberCompoundAssign.Operator, memberType, value.StaticType)
             : typeof(object);
         return new BoundMemberCompoundAssignExpr(
             target,
             memberCompoundAssign.MemberName,
+            plan,
             memberCompoundAssign.Operator,
             value,
             staticType);
@@ -97,11 +102,12 @@ internal sealed partial class Binder
         var target = Bind(indexCompoundAssign.Object, context);
         var index = Bind(indexCompoundAssign.Index, context);
         var value = Bind(indexCompoundAssign.Value, context);
-        var elementType = ResolveIndexElementType(target.StaticType, index.StaticType, context);
+        var plan = ResolveIndexPlan(target.StaticType, index.StaticType, context);
+        var elementType = plan?.ResultType ?? ResolveIndexElementTypeFallback(target.StaticType);
         var staticType = elementType != typeof(object)
             ? InferBinaryResultType(indexCompoundAssign.Operator, elementType, value.StaticType)
             : typeof(object);
-        return new BoundIndexCompoundAssignExpr(target, index, indexCompoundAssign.Operator, value, staticType);
+        return new BoundIndexCompoundAssignExpr(target, index, plan, indexCompoundAssign.Operator, value, staticType);
     }
 
     private BoundMemberNullCoalesceAssignExpr BindMemberNullCoalesceAssign(
@@ -110,8 +116,9 @@ internal sealed partial class Binder
     {
         var target = Bind(memberNullCoalesceAssign.Object, context);
         var value = Bind(memberNullCoalesceAssign.Value, context);
-        var memberType = ResolveMemberType(target.StaticType, memberNullCoalesceAssign.MemberName);
-        return new BoundMemberNullCoalesceAssignExpr(target, memberNullCoalesceAssign.MemberName, value, memberType);
+        var plan = ResolveMemberPlan(target.StaticType, memberNullCoalesceAssign.MemberName, context);
+        var memberType = ExtractMemberType(plan);
+        return new BoundMemberNullCoalesceAssignExpr(target, memberNullCoalesceAssign.MemberName, plan, value, memberType);
     }
 
     private BoundIndexNullCoalesceAssignExpr BindIndexNullCoalesceAssign(
@@ -121,17 +128,20 @@ internal sealed partial class Binder
         var target = Bind(indexNullCoalesceAssign.Object, context);
         var index = Bind(indexNullCoalesceAssign.Index, context);
         var value = Bind(indexNullCoalesceAssign.Value, context);
-        var elementType = ResolveIndexElementType(target.StaticType, index.StaticType, context);
-        return new BoundIndexNullCoalesceAssignExpr(target, index, value, elementType);
+        var plan = ResolveIndexPlan(target.StaticType, index.StaticType, context);
+        var elementType = plan?.ResultType ?? ResolveIndexElementTypeFallback(target.StaticType);
+        return new BoundIndexNullCoalesceAssignExpr(target, index, plan, value, elementType);
     }
 
     private BoundMemberIncrementExpr BindMemberIncrement(MemberIncrementExpr memberIncrement, BindingContext context)
     {
         var target = Bind(memberIncrement.Object, context);
-        var memberType = ResolveMemberType(target.StaticType, memberIncrement.MemberName);
+        var plan = ResolveMemberPlan(target.StaticType, memberIncrement.MemberName, context);
+        var memberType = ExtractMemberType(plan);
         return new BoundMemberIncrementExpr(
             target,
             memberIncrement.MemberName,
+            plan,
             memberIncrement.IsPrefix,
             memberIncrement.IsIncrement,
             memberType);
@@ -141,45 +151,56 @@ internal sealed partial class Binder
     {
         var target = Bind(indexIncrement.Object, context);
         var index = Bind(indexIncrement.Index, context);
-        var elementType = ResolveIndexElementType(target.StaticType, index.StaticType, context);
+        var plan = ResolveIndexPlan(target.StaticType, index.StaticType, context);
+        var elementType = plan?.ResultType ?? ResolveIndexElementTypeFallback(target.StaticType);
         return new BoundIndexIncrementExpr(
             target,
             index,
+            plan,
             indexIncrement.IsPrefix,
             indexIncrement.IsIncrement,
             elementType);
     }
 
-    private static Type ResolveMemberType(Type targetType, string memberName)
+    private BoundMemberPlan? ResolveMemberPlan(Type targetType, string memberName, BindingContext context)
     {
         if (targetType == typeof(object))
-            return typeof(object);
+            return null;
 
-        var property = targetType.GetProperty(memberName, BindingFlags.Public | BindingFlags.Instance);
-        if (property != null)
-            return property.PropertyType;
-
-        var field = targetType.GetField(memberName, BindingFlags.Public | BindingFlags.Instance);
-        if (field != null)
-            return field.FieldType;
-
-        return typeof(object);
+        var memberBinder = new MemberBinderService(context.RuntimeContext.TypeMetadata);
+        try
+        {
+            return memberBinder.BindMemberRead(targetType, memberName, false, context.IsCaseSensitive);
+        }
+        catch (CsEvalException)
+        {
+            return null;
+        }
     }
 
-    private Type ResolveIndexElementType(Type targetType, Type indexType, BindingContext context)
+    private static Type ExtractMemberType(BoundMemberPlan? plan) => plan?.Member switch
+    {
+        PropertyInfo property => property.PropertyType,
+        FieldInfo field => field.FieldType,
+        _ => typeof(object)
+    };
+
+    private BoundIndexPlan? ResolveIndexPlan(Type targetType, Type indexType, BindingContext context)
     {
         if (targetType == typeof(object))
-            return typeof(object);
+            return null;
 
         try
         {
             var memberBinder = new MemberBinderService(context.RuntimeContext.TypeMetadata);
-            var plan = memberBinder.BindIndexRead(targetType, indexType);
-            return plan.ResultType;
+            return memberBinder.BindIndexRead(targetType, indexType);
         }
         catch (CsEvalException)
         {
-            return InferElementType(targetType);
+            return null;
         }
     }
+
+    private static Type ResolveIndexElementTypeFallback(Type targetType) =>
+        targetType == typeof(object) ? typeof(object) : InferElementType(targetType);
 }
