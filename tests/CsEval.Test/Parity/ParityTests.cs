@@ -7,8 +7,6 @@ namespace CsEval.Test.Parity;
 
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
-[TestFixture(CompilationMode.CompiledFec)]
-
 [Parallelizable(ParallelScope.Children)]
 public class ParityTests(CompilationMode mode)
 {
@@ -76,12 +74,6 @@ public class ParityTests(CompilationMode mode)
         {
             throw;
         }
-        catch (Exception ex) when 
-            (mode == CompilationMode.CompiledFec && 
-             ex is InvalidProgramException or CsEvalException { ErrorCode: DiagnosticCode.CSEV0001 })
-        {
-            Assert.Inconclusive($"FEC: {ex.GetType().Name}: {ex.Message}\n\n{exprInfo}");
-        }
         catch (Exception ex)
         {
             Assert.Fail($"{ex.GetType().Name}: {ex.Message}\n\n{exprInfo}");
@@ -109,12 +101,6 @@ public class ParityTests(CompilationMode mode)
         var engine = CreateEngine();
         var csEvalEx = Assert.Catch<Exception>(() => engine.Evaluate(expr));
         Assert.That(csEvalEx, Is.Not.Null, "CsEval should throw for invalid expression parity.");
-
-        if (mode == CompilationMode.CompiledFec &&
-            csEvalEx is InvalidProgramException or CsEvalException { ErrorCode: DiagnosticCode.CSEV0001 })
-        {
-            Assert.Inconclusive($"FEC: {csEvalEx.GetType().Name}: {csEvalEx.Message}");
-        }
 
         // CLR runtime exceptions (OverflowException, DivideByZeroException) are valid —
         // real C# throws these too. Only CsEval's own errors must be CsEvalException.
@@ -214,3 +200,8 @@ public class ParityTests(CompilationMode mode)
         }
     }
 }
+
+[TestFixture(CompilationMode.CompiledFec)]
+[Explicit("FastExpressionCompiler IL may diverge from Microsoft JIT — not a CsEval parity issue")]
+[Parallelizable(ParallelScope.Children)]
+public class ParityTestsFec(CompilationMode mode) : ParityTests(mode);

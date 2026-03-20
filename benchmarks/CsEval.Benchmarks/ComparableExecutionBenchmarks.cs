@@ -18,6 +18,7 @@ public class ComparableExecutionBenchmarks : BenchmarkBase
     private CsEvalExpression _interpretedReflectionExpression = null!;
     private CsEvalExpression _interpretedExpression = null!;
     private CsEvalExpression _compiledExpression = null!;
+    private CsEvalExpression _compiledFecExpression = null!;
     private Expression _ncalcExpression = null!;
     private Lambda _dynamicExpressoExpression = null!;
     private IDynamicExpression _fleeExpression = null!;
@@ -34,6 +35,7 @@ public class ComparableExecutionBenchmarks : BenchmarkBase
         SetupEngines(_globals);
         _interpretedExpression = InterpretedEngine.Parse(Scenario.CsEvalExpression);
         _compiledExpression = CompiledEngine.Parse(Scenario.CsEvalExpression);
+        _compiledFecExpression = CompiledFecEngine.Parse(Scenario.CsEvalExpression);
 
         _interpretedReflectionEngine = new CsEvalEngine();
         _interpretedReflectionEngine.ClearGeneratedContexts();
@@ -73,6 +75,10 @@ public class ComparableExecutionBenchmarks : BenchmarkBase
     [Benchmark]
     [BenchmarkCategory("WarmExecution")]
     public object CsEval_Compiled() => CompiledEngine.Evaluate(_compiledExpression)!;
+
+    [Benchmark]
+    [BenchmarkCategory("WarmExecution")]
+    public object CsEval_CompiledFec() => CompiledFecEngine.Evaluate(_compiledFecExpression)!;
 
     [Benchmark]
     [BenchmarkCategory("WarmExecution")]

@@ -7,7 +7,7 @@ using CsEval.Compiled;
 
 namespace CsEval.Benchmarks;
 
-public enum CompilationMode { Interpreted, Compiled }
+public enum CompilationMode { Interpreted, Compiled, CompiledFec }
 
 public abstract class BenchmarkBase
 {
@@ -18,6 +18,7 @@ public abstract class BenchmarkBase
 
     protected CsEvalEngine InterpretedEngine = null!;
     protected CsEvalEngine CompiledEngine = null!;
+    protected CsEvalEngine CompiledFecEngine = null!;
 
     public static CsEvalEngine CreateEngine(
         CompilationMode mode,
@@ -25,8 +26,12 @@ public abstract class BenchmarkBase
         LanguageMode languageMode = LanguageMode.Standard)
     {
         var opts = CsEvalOptions.Default with { LanguageMode = languageMode };
-        if (mode == CompilationMode.Compiled)
-            opts = opts.UseCompiler();
+        opts = mode switch
+        {
+            CompilationMode.Compiled => opts.UseCompiler(),
+            CompilationMode.CompiledFec => opts.UseCompiler(new FastExpressionCompilerAdapter()),
+            _ => opts
+        };
         var engine = new CsEvalEngine(opts);
         ApplyGlobals(engine, globals);
         return engine;
@@ -36,6 +41,7 @@ public abstract class BenchmarkBase
     {
         InterpretedEngine = CreateEngine(CompilationMode.Interpreted, globals);
         CompiledEngine = CreateEngine(CompilationMode.Compiled, globals);
+        CompiledFecEngine = CreateEngine(CompilationMode.CompiledFec, globals);
     }
 
     protected static void ApplyGlobals(CsEvalEngine engine, BenchmarkGlobalData globals)

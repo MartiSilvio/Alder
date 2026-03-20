@@ -45,6 +45,14 @@ public class ColdStartComparableBenchmarks : BenchmarkBase
 
     [Benchmark]
     [BenchmarkCategory("ColdStart")]
+    public object CsEval_CompiledFec_Cold()
+    {
+        using var engine = CreateEngine(CompilationMode.CompiledFec, _globals);
+        return engine.Evaluate(Scenario.CsEvalExpression)!;
+    }
+
+    [Benchmark]
+    [BenchmarkCategory("ColdStart")]
     public object Roslyn_Scripting_EvaluateAsync_Cold()
     {
         return EvaluateRoslynAsync(Scenario.RoslynExpression, _globals).GetAwaiter().GetResult()!;

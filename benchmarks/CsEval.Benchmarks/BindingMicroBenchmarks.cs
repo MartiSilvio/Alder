@@ -11,9 +11,11 @@ public class BindingMicroBenchmarks : BenchmarkBase
     private readonly BenchmarkGlobalData _globals = BenchmarkGlobalData.CreateDefault();
     private CsEvalExpression _warmInterpretedExpression = null!;
     private CsEvalExpression _warmCompiledExpression = null!;
+    private CsEvalExpression _warmCompiledFecExpression = null!;
     private CsEvalExpression _extendedWarmExpression = null!;
     private CsEvalExpression _loopMutationWarmExpression = null!;
     private CsEvalExpression _loopMutationCompiledExpression = null!;
+    private CsEvalExpression _loopMutationCompiledFecExpression = null!;
     private CsEvalEngine _extendedInterpretedEngine = null!;
 
     private const string MethodHeavyExpression = "Math.Abs(x - y) + Math.Max(y, z)";
@@ -26,8 +28,10 @@ public class BindingMicroBenchmarks : BenchmarkBase
         SetupEngines(_globals);
         _warmInterpretedExpression = InterpretedEngine.Parse(MethodHeavyExpression);
         _warmCompiledExpression = CompiledEngine.Parse(MethodHeavyExpression);
+        _warmCompiledFecExpression = CompiledFecEngine.Parse(MethodHeavyExpression);
         _loopMutationWarmExpression = InterpretedEngine.Parse(LoopMutationExpression);
         _loopMutationCompiledExpression = CompiledEngine.Parse(LoopMutationExpression);
+        _loopMutationCompiledFecExpression = CompiledFecEngine.Parse(LoopMutationExpression);
 
         _extendedInterpretedEngine = CreateEngine(CompilationMode.Interpreted, _globals, LanguageMode.Extended);
         _extendedWarmExpression = _extendedInterpretedEngine.Parse(ExtendedAliasExpression);
@@ -38,6 +42,7 @@ public class BindingMicroBenchmarks : BenchmarkBase
     {
         InterpretedEngine.Dispose();
         CompiledEngine.Dispose();
+        CompiledFecEngine.Dispose();
         _extendedInterpretedEngine.Dispose();
     }
 
@@ -72,6 +77,11 @@ public class BindingMicroBenchmarks : BenchmarkBase
 
     [Benchmark]
     [BenchmarkCategory("BindingWarm")]
+    public object EvaluateWarm_MethodHeavy_CompiledFec() =>
+        CompiledFecEngine.Evaluate(_warmCompiledFecExpression)!;
+
+    [Benchmark]
+    [BenchmarkCategory("BindingWarm")]
     public object EvaluateWarm_ExtendedAlias_Interpreted() =>
         _extendedInterpretedEngine.Evaluate(_extendedWarmExpression)!;
 
@@ -84,4 +94,9 @@ public class BindingMicroBenchmarks : BenchmarkBase
     [BenchmarkCategory("BindingWarm")]
     public object EvaluateWarm_LoopMutation_Compiled() =>
         CompiledEngine.Evaluate(_loopMutationCompiledExpression)!;
+
+    [Benchmark]
+    [BenchmarkCategory("BindingWarm")]
+    public object EvaluateWarm_LoopMutation_CompiledFec() =>
+        CompiledFecEngine.Evaluate(_loopMutationCompiledFecExpression)!;
 }

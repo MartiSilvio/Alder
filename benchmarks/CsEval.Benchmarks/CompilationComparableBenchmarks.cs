@@ -45,6 +45,10 @@ public class CompilationComparableBenchmarks : BenchmarkBase
 
     [Benchmark]
     [BenchmarkCategory("Compilation")]
+    public CsEvalExpression CsEval_CompiledFec_Parse() => CompiledFecEngine.Parse(Scenario.CsEvalExpression);
+
+    [Benchmark]
+    [BenchmarkCategory("Compilation")]
     public Script<object> Roslyn_Script_Compile()
     {
         var script = CreateRoslynScript(Scenario.RoslynExpression);

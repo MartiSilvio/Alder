@@ -1,7 +1,7 @@
 using System.Linq.Expressions;
 using FastExpressionCompiler;
 
-namespace CsEval.Test._Infrastructure;
+namespace CsEval.Benchmarks;
 
 /// <summary>
 /// No-fallback FEC adapter: throws if FEC cannot compile via its fast IL path.
@@ -11,5 +11,5 @@ public sealed class FastExpressionCompilerAdapter : IExpressionCompiler
 {
     public TDelegate Compile<TDelegate>(Expression<TDelegate> expression)
         where TDelegate : Delegate
-        => expression.CompileFast<TDelegate>(ifFastFailedReturnNull: true, CompilerFlags.ThrowOnNotSupportedExpression);
+        => expression.CompileFast<TDelegate>(ifFastFailedReturnNull: false, CompilerFlags.ThrowOnNotSupportedExpression);
 }

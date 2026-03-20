@@ -21,6 +21,7 @@ public class InvocationMicroBenchmarks : BenchmarkBase
     private readonly InvocationTarget _target = new();
     private CsEvalExpression _interpretedExpression = null!;
     private CsEvalExpression _compiledExpression = null!;
+    private CsEvalExpression _compiledFecExpression = null!;
     private Lambda _dynamicExpressoExpression = null!;
 
     [ParamsSource(nameof(ScenarioSource))]
@@ -70,9 +71,11 @@ public class InvocationMicroBenchmarks : BenchmarkBase
         SetupEngines(_globals);
         InterpretedEngine.SetVariable("target", _target);
         CompiledEngine.SetVariable("target", _target);
+        CompiledFecEngine.SetVariable("target", _target);
 
         _interpretedExpression = InterpretedEngine.Parse(Scenario.CsEvalExpression);
         _compiledExpression = CompiledEngine.Parse(Scenario.CsEvalExpression);
+        _compiledFecExpression = CompiledFecEngine.Parse(Scenario.CsEvalExpression);
 
         var interpreter = CreateDynamicExpressoInterpreter(_globals);
         interpreter.SetVariable("target", _target);
@@ -84,6 +87,7 @@ public class InvocationMicroBenchmarks : BenchmarkBase
     {
         InterpretedEngine.Dispose();
         CompiledEngine.Dispose();
+        CompiledFecEngine.Dispose();
     }
 
     [Benchmark]
@@ -93,6 +97,10 @@ public class InvocationMicroBenchmarks : BenchmarkBase
     [Benchmark]
     [BenchmarkCategory("Invocation/Warm")]
     public object CsEval_Compiled() => CompiledEngine.Evaluate(_compiledExpression)!;
+
+    [Benchmark]
+    [BenchmarkCategory("Invocation/Warm")]
+    public object CsEval_CompiledFec() => CompiledFecEngine.Evaluate(_compiledFecExpression)!;
 
     [Benchmark(Baseline = true)]
     [BenchmarkCategory("Invocation/Warm")]

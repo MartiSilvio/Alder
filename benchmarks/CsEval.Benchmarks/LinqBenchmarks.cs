@@ -13,6 +13,7 @@ public class LinqBenchmarks : BenchmarkBase
     private ScriptRunner<object> _roslynRunner = null!;
     private CsEvalExpression _interpretedExpression = null!;
     private CsEvalExpression _compiledExpression = null!;
+    private CsEvalExpression _compiledFecExpression = null!;
 
     [ParamsSource(nameof(ScenarioSource))]
     public LinqScenario Scenario { get; set; } = null!;
@@ -26,6 +27,7 @@ public class LinqBenchmarks : BenchmarkBase
         SetupEngines(_globals);
         _interpretedExpression = InterpretedEngine.Parse(Scenario.CsEvalExpression);
         _compiledExpression = CompiledEngine.Parse(Scenario.CsEvalExpression);
+        _compiledFecExpression = CompiledFecEngine.Parse(Scenario.CsEvalExpression);
 
         var script = CreateRoslynScript(Scenario.RoslynExpression);
         script.Compile();
@@ -51,4 +53,8 @@ public class LinqBenchmarks : BenchmarkBase
     [Benchmark]
     [BenchmarkCategory("LinqExecution")]
     public object CsEval_Compiled() => CompiledEngine.Evaluate(_compiledExpression)!;
+
+    [Benchmark]
+    [BenchmarkCategory("LinqExecution")]
+    public object CsEval_CompiledFec() => CompiledFecEngine.Evaluate(_compiledFecExpression)!;
 }

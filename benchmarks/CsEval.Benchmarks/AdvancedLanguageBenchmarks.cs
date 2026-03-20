@@ -15,6 +15,7 @@ public class AdvancedLanguageBenchmarks : BenchmarkBase
     private ScriptRunner<object> _roslynRunner = null!;
     private CsEvalExpression _interpretedExpression = null!;
     private CsEvalExpression _compiledExpression = null!;
+    private CsEvalExpression _compiledFecExpression = null!;
     private Lambda _dynamicExpressoExpression = null!;
     private IDynamicExpression _fleeExpression = null!;
 
@@ -30,6 +31,7 @@ public class AdvancedLanguageBenchmarks : BenchmarkBase
         SetupEngines(_globals);
         _interpretedExpression = InterpretedEngine.Parse(Scenario.CsEvalExpression);
         _compiledExpression = CompiledEngine.Parse(Scenario.CsEvalExpression);
+        _compiledFecExpression = CompiledFecEngine.Parse(Scenario.CsEvalExpression);
 
         var script = CreateRoslynScript(Scenario.RoslynExpression);
         script.Compile();
@@ -57,6 +59,10 @@ public class AdvancedLanguageBenchmarks : BenchmarkBase
     [Benchmark]
     [BenchmarkCategory("AdvancedLanguage")]
     public object CsEval_Compiled() => CompiledEngine.Evaluate(_compiledExpression)!;
+
+    [Benchmark]
+    [BenchmarkCategory("AdvancedLanguage")]
+    public object CsEval_CompiledFec() => CompiledFecEngine.Evaluate(_compiledFecExpression)!;
 
     [Benchmark]
     [BenchmarkCategory("AdvancedLanguage")]
