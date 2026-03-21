@@ -32,6 +32,6 @@ public class ParserStateNormalizationTests
         var state = new ParserState(tokens, LanguageMode.Standard);
 
         Assert.That(state.Tokens.Select(t => t.Type),
-            Is.EqualTo(new[] { TokenType.Identifier, TokenType.Bang, TokenType.In, TokenType.Identifier, TokenType.Eof }));
+            Is.EqualTo(new[] { TokenType.Identifier, TokenType.Identifier, TokenType.In, TokenType.Identifier, TokenType.Eof }));
     }
 }

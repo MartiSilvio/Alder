@@ -33,7 +33,7 @@ internal sealed class ParserState
         {
             var current = tokens[i];
 
-            if (current.Type == TokenType.Bang &&
+            if (current.Type == TokenType.Identifier &&
                 string.Equals(current.Lexeme, TokenLexemes.GetCanonical(TokenType.Not), StringComparison.Ordinal) &&
                 i + 1 < tokens.Count)
             {

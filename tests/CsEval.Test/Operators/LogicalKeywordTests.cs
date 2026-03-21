@@ -28,4 +28,12 @@ public class LogicalKeywordTests(CompilationMode mode)
         Assert.That(engine.Evaluate("true or (1/x > 0)"), Is.True);
     }
 
+    [TestCase("{ var and = 1; return and; }", 1, TestName = "And_AsIdentifier")]
+    [TestCase("{ var or = 2; return or; }", 2, TestName = "Or_AsIdentifier")]
+    [TestCase("{ var not = 3; return not; }", 3, TestName = "Not_AsIdentifier")]
+    public void ContextualKeyword_UsableAsIdentifierInStandardMode(string expr, int expected)
+    {
+        var engine = TestEngineFactory.Create(mode);
+        Assert.That(engine.Evaluate(expr), Is.EqualTo(expected));
+    }
 }

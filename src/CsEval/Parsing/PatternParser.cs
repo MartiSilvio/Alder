@@ -341,14 +341,14 @@ internal sealed class PatternParser : ParserBase
             return false;
 
         var token = Peek();
+        if (token.Type != TokenType.Identifier)
+            return false;
+
         return keywordType switch
         {
-            TokenType.And => token.Type == TokenType.AmpAmp &&
-                             string.Equals(token.Lexeme, TokenLexemes.GetCanonical(TokenType.And), StringComparison.Ordinal),
-            TokenType.Or => token.Type == TokenType.PipePipe &&
-                            string.Equals(token.Lexeme, TokenLexemes.GetCanonical(TokenType.Or), StringComparison.Ordinal),
-            TokenType.Not => token.Type == TokenType.Bang &&
-                             string.Equals(token.Lexeme, TokenLexemes.GetCanonical(TokenType.Not), StringComparison.Ordinal),
+            TokenType.And => string.Equals(token.Lexeme, TokenLexemes.GetCanonical(TokenType.And), StringComparison.Ordinal),
+            TokenType.Or => string.Equals(token.Lexeme, TokenLexemes.GetCanonical(TokenType.Or), StringComparison.Ordinal),
+            TokenType.Not => string.Equals(token.Lexeme, TokenLexemes.GetCanonical(TokenType.Not), StringComparison.Ordinal),
             _ => false
         };
     }
@@ -370,13 +370,11 @@ internal sealed class PatternParser : ParserBase
     }
 
     private static bool IsPatternKeywordToken(Token token) =>
-        token switch
-        {
-            { Type: TokenType.AmpAmp } => string.Equals(token.Lexeme, TokenLexemes.GetCanonical(TokenType.And), StringComparison.Ordinal),
-            { Type: TokenType.PipePipe } => string.Equals(token.Lexeme, TokenLexemes.GetCanonical(TokenType.Or), StringComparison.Ordinal),
-            { Type: TokenType.Bang } => string.Equals(token.Lexeme, TokenLexemes.GetCanonical(TokenType.Not), StringComparison.Ordinal),
-            _ => false
-        };
+        token.Type == TokenType.Identifier &&
+        token.Lexeme is var lexeme &&
+        (lexeme == TokenLexemes.GetCanonical(TokenType.And) ||
+         lexeme == TokenLexemes.GetCanonical(TokenType.Or) ||
+         lexeme == TokenLexemes.GetCanonical(TokenType.Not));
 
     private ListPattern ParseListPattern()
     {

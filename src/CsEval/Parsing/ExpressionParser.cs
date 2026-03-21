@@ -664,10 +664,15 @@ internal sealed partial class ExpressionParser : ParserBase
         var mark = Mark();
         var expr = ParseAnd();
 
-        while (Match(TokenType.PipePipe))
+        while (true)
         {
-            var op = Previous();
-            RejectWordOperatorInStandardMode(op, "or");
+            Token op;
+            if (Match(TokenType.PipePipe))
+                op = Previous();
+            else if (MatchExtendedWordOperator(TokenLexemes.GetCanonical(TokenType.Or), TokenType.PipePipe) is { } wordOp)
+                op = wordOp;
+            else
+                break;
             var right = ParseAnd();
             expr = new LogicalExpr(expr, op, right) { Span = SpanFrom(mark) };
         }
@@ -680,10 +685,15 @@ internal sealed partial class ExpressionParser : ParserBase
         var mark = Mark();
         var expr = ParseBitwiseOr();
 
-        while (Match(TokenType.AmpAmp))
+        while (true)
         {
-            var op = Previous();
-            RejectWordOperatorInStandardMode(op, "and");
+            Token op;
+            if (Match(TokenType.AmpAmp))
+                op = Previous();
+            else if (MatchExtendedWordOperator(TokenLexemes.GetCanonical(TokenType.And), TokenType.AmpAmp) is { } wordOp)
+                op = wordOp;
+            else
+                break;
             var right = ParseBitwiseOr();
             expr = new LogicalExpr(expr, op, right) { Span = SpanFrom(mark) };
         }
@@ -859,7 +869,8 @@ internal sealed partial class ExpressionParser : ParserBase
                 // Desugar to (expr >= low && expr <= high) at parse time
                 var betweenToken = Previous();
                 var low = ParseShift();
-                Consume(TokenType.AmpAmp, "Expected 'and' after 'between' lower bound");
+                if (!Match(TokenType.AmpAmp) && MatchExtendedWordOperator(TokenLexemes.GetCanonical(TokenType.And), TokenType.AmpAmp) == null)
+                    throw SyntaxError(DiagnosticDescriptors.SyntaxExpected, "'and' after 'between' lower bound");
                 var high = ParseShift();
                 var geExpr = new BinaryExpr(expr, TokenLexemes.CreateSynthetic(TokenType.GreaterEqual, betweenToken), low) { Span = SpanFrom(mark) };
                 var leExpr = new BinaryExpr(expr, TokenLexemes.CreateSynthetic(TokenType.LessEqual, betweenToken), high) { Span = SpanFrom(mark) };
@@ -1087,10 +1098,14 @@ internal sealed partial class ExpressionParser : ParserBase
         if (Match(TokenType.Bang, TokenType.Minus, TokenType.Plus, TokenType.Tilde))
         {
             var op = Previous();
-            if (op.Type == TokenType.Bang)
-                RejectWordOperatorInStandardMode(op, "not");
             var right = ParseUnary();
             return new UnaryExpr(op, right) { Span = SpanFrom(mark) };
+        }
+
+        if (MatchExtendedWordOperator(TokenLexemes.GetCanonical(TokenType.Not), TokenType.Bang) is { } notOp)
+        {
+            var right = ParseUnary();
+            return new UnaryExpr(notOp, right) { Span = SpanFrom(mark) };
         }
 
         // §12.8.11: Index from end — ^expr → System.Index(expr, fromEnd: true)
@@ -1146,13 +1161,17 @@ internal sealed partial class ExpressionParser : ParserBase
         return expr;
     }
 
-    private void RejectWordOperatorInStandardMode(Token op, string keyword)
+    private Token? MatchExtendedWordOperator(string keyword, TokenType operatorType)
     {
-        if (State.LanguageMode == LanguageMode.Standard &&
-            string.Equals(op.Lexeme, keyword, StringComparison.Ordinal))
-        {
-            throw new CsEvalException(DiagnosticDescriptors.ExtendedModeRequired,keyword);
-        }
+        if (State.LanguageMode != LanguageMode.Extended)
+            return null;
+        if (IsAtEnd() || Peek().Type != TokenType.Identifier)
+            return null;
+        if (!string.Equals(Peek().Lexeme, keyword, StringComparison.Ordinal))
+            return null;
+        var token = Peek();
+        Advance();
+        return new Token(operatorType, token.Lexeme, token.Literal, token.Line, token.Column, token.Start);
     }
 
     internal bool IsCastExpression()

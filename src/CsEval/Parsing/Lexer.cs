@@ -21,11 +21,6 @@ internal sealed class Lexer
         ["false"] = TokenType.False,
         ["null"] = TokenType.Null,
 
-        // Standard C# 9+ pattern combinators
-        ["and"] = TokenType.AmpAmp,
-        ["or"] = TokenType.PipePipe,
-        ["not"] = TokenType.Bang,
-
         // Keywords - Implemented
         ["new"] = TokenType.New,
         ["if"] = TokenType.If,
