@@ -61,13 +61,13 @@ internal static class ExtensionMethodResolver
         CancellationToken ct,
         bool isCaseSensitive,
         IReadOnlyList<string>? typeArgs = null,
-        TypeResolver? resolver = null)
+        CsEvalContext? runtimeContext = null)
     {
         var targetType = target.GetType();
 
         foreach (var extType in extensionTypes)
         {
-            var result = TryInvokeFromType(target, targetType, methodName, args, extType, ct, isCaseSensitive, typeArgs, resolver);
+            var result = TryInvokeFromType(target, targetType, methodName, args, extType, ct, isCaseSensitive, typeArgs, runtimeContext);
             if (result.Success)
                 return result;
         }
@@ -84,7 +84,7 @@ internal static class ExtensionMethodResolver
         CancellationToken ct,
         bool isCaseSensitive,
         IReadOnlyList<string>? typeArgs = null,
-        TypeResolver? resolver = null)
+        CsEvalContext? runtimeContext = null)
     {
         var invocationArgs = new object?[args.Length + 1];
         invocationArgs[0] = target;
@@ -112,7 +112,7 @@ internal static class ExtensionMethodResolver
         }
 
         var methods = GetExtensionMethodsForArity(extensionType, methodName, isCaseSensitive, invocationArgs.Length);
-        var candidates = BuildCandidates(methods, targetType, args, typeArgs, resolver);
+        var candidates = BuildCandidates(methods, targetType, args, typeArgs, runtimeContext);
 
         if (candidates.Count == 0)
             return (false, null);
@@ -280,7 +280,7 @@ internal static class ExtensionMethodResolver
         Type targetType,
         object?[] args,
         IReadOnlyList<string>? typeArgs,
-        TypeResolver? resolver)
+        CsEvalContext? runtimeContext)
     {
         var candidates = new List<MethodInfo>(methods.Count);
         foreach (var method in methods)
@@ -289,7 +289,7 @@ internal static class ExtensionMethodResolver
             if (parameters.Length == 0)
                 continue;
 
-            var concreteMethod = TryBindConcreteMethod(method, targetType, args, typeArgs, resolver);
+            var concreteMethod = TryBindConcreteMethod(method, targetType, args, typeArgs, runtimeContext);
             if (concreteMethod == null)
                 continue;
 
@@ -308,15 +308,15 @@ internal static class ExtensionMethodResolver
         Type targetType,
         object?[] args,
         IReadOnlyList<string>? typeArgs,
-        TypeResolver? resolver)
+        CsEvalContext? runtimeContext)
     {
         if (!method.ContainsGenericParameters)
             return method;
 
         if (typeArgs is { Count: > 0 })
-            return MethodInvoker.TryMakeConcreteMethodWithTypeArgs(method, typeArgs, resolver);
+            return MethodInvoker.TryMakeConcreteMethodWithTypeArgs(method, typeArgs, runtimeContext?.TypeResolver);
 
-        return TryMakeConcreteMethod(method, targetType, args, resolver);
+        return TryMakeConcreteMethod(method, targetType, args, runtimeContext);
     }
 
     private static bool TryResolveLambdaSelectorAmbiguity(
@@ -356,7 +356,7 @@ internal static class ExtensionMethodResolver
         return false;
     }
 
-    private static MethodInfo? TryMakeConcreteMethod(MethodInfo genericMethod, Type targetType, object?[] args, TypeResolver? resolver = null)
+    private static MethodInfo? TryMakeConcreteMethod(MethodInfo genericMethod, Type targetType, object?[] args, CsEvalContext? runtimeContext = null)
     {
         var genericParams = genericMethod.GetGenericArguments();
         var methodParams = genericMethod.GetParameters();
@@ -385,7 +385,7 @@ internal static class ExtensionMethodResolver
                 if (typeArgs[i] != null)
                     continue;
 
-                if (TryInferFromLambdaResult(methodParams, args, genericParams, typeArgs, i, resolver, out var inferred))
+                if (TryInferFromLambdaResult(methodParams, args, genericParams, typeArgs, i, runtimeContext, out var inferred))
                 {
                     typeArgs[i] = inferred;
                     resolved++;
@@ -410,7 +410,7 @@ internal static class ExtensionMethodResolver
         Type[] genericParams,
         Type[] typeArgs,
         int targetIndex,
-        TypeResolver? resolver,
+        CsEvalContext? runtimeContext,
         out Type inferred)
     {
         inferred = typeof(object);
@@ -451,30 +451,16 @@ internal static class ExtensionMethodResolver
                 continue;
             }
 
-            // Create proper test args based on the Func's input types
             var inputTypes = new Type[paramGenericArgs.Length - 1];
             Array.Copy(paramGenericArgs, inputTypes, inputTypes.Length);
             var substitutedInputTypes = SubstituteTypeArgs(inputTypes, genericParams, typeArgs);
-            var testArgs = CreateTypedDefaultArgs(substitutedInputTypes);
 
-            var testResult = TryInvokeLambdaForTypeInference(arg, testArgs);
-            if (testResult is null or MethodRef)
-            {
-                // Execution failed — infer return type statically from the lambda body AST
-                var staticType = TryInferLambdaReturnTypeStatically(arg, substitutedInputTypes, resolver);
-                if (staticType != null && staticType != typeof(object))
-                {
-                    inferred = staticType;
-                    return true;
-                }
+            var resultType = TryInferLambdaReturnTypeStatically(arg, substitutedInputTypes, runtimeContext);
+            if (resultType == null || resultType == typeof(object))
                 continue;
-            }
-
-            var resultType = testResult.GetType();
 
             if (wrapperGenericDef != null)
             {
-                // Extract the inner type from the wrapper (e.g., IEnumerable<int> -> int)
                 var extracted = ExtractTypeArgFromWrapper(resultType, wrapperGenericDef, expectedResultType, genericParam);
                 if (extracted != null)
                 {
@@ -534,44 +520,6 @@ internal static class ExtensionMethodResolver
         return type;
     }
 
-    private static object?[] CreateTypedDefaultArgs(Type[] types)
-    {
-        var args = new object?[types.Length];
-        for (var i = 0; i < types.Length; i++)
-            args[i] = CreateDefaultValue(types[i]);
-        return args;
-    }
-
-    private static object? CreateDefaultValue(Type type)
-    {
-        if (type.IsValueType)
-            return TypeHelpers.GetDefaultValue(type);
-        if (type.IsArray)
-        {
-            var elementType = type.GetElementType()!;
-            var arr = RuntimeArrayFactory.Create(elementType, 1);
-            arr.SetValue(CreateDefaultValue(elementType), 0);
-            return arr;
-        }
-        if (type == typeof(string))
-            return "";
-        if (type is { IsAbstract: false, IsInterface: false })
-        {
-            try
-            {
-#if NET5_0_OR_GREATER
-                return System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(type);
-#else
-                return System.Runtime.Serialization.FormatterServices.GetUninitializedObject(type);
-#endif
-            }
-            catch (MemberAccessException)
-            {
-            }
-        }
-        return null;
-    }
-
     private static Type? ExtractTypeArgFromWrapper(Type actualType, Type wrapperGenericDef, Type expectedType, Type genericParam)
     {
         // actualType might be SelectArrayIterator<int, int> which implements IEnumerable<int>
@@ -613,104 +561,57 @@ internal static class ExtensionMethodResolver
         return null;
     }
 
-    private static Type? TryInferLambdaReturnTypeStatically(object? arg, Type[] inputTypes, TypeResolver? resolver)
+    private static Type? TryInferLambdaReturnTypeStatically(object? arg, Type[] inputTypes, CsEvalContext? runtimeContext)
     {
-        if (arg is not LambdaValue lambda)
+        if (runtimeContext == null)
             return null;
 
-        var paramTypes = new Dictionary<string, Type>();
-        for (var i = 0; i < lambda.Parameters.Count && i < inputTypes.Length; i++)
-            paramTypes[lambda.Parameters[i]] = inputTypes[i];
+        IReadOnlyList<string>? parameters;
+        Parsing.Expr? body;
 
-        return InferExprType(lambda.Body, paramTypes, resolver);
-    }
-
-    private static Type? InferExprType(Parsing.Expr expr, Dictionary<string, Type> paramTypes, TypeResolver? resolver)
-    {
-        switch (expr)
+        switch (arg)
         {
-            case Parsing.LiteralExpr literal:
-                return literal.Value?.GetType() ?? typeof(object);
-
-            case Parsing.IdentifierExpr id:
-                return paramTypes.TryGetValue(id.Name.Lexeme, out var t) ? t : null;
-
-            case Parsing.CallExpr { Callee: Parsing.MemberAccessExpr memberAccess } call:
-            {
-                var targetType = InferExprType(memberAccess.Object, paramTypes, resolver);
-                if (targetType != null)
-                {
-                    var methodName = memberAccess.Name.Lexeme;
-                    var methods = ReflectionRuntime.GetMethods(targetType, BindingFlags.Public | BindingFlags.Instance)
-                        .Where(m => m.Name == methodName && m.GetParameters().Length == call.Arguments.Count)
-                        .ToArray();
-                    if (methods.Length > 0) return methods[0].ReturnType;
-                }
-
-                // Static method call: Convert.ToDouble(x), Math.Abs(x), etc.
-                if (memberAccess.Object is Parsing.IdentifierExpr typeId && resolver != null)
-                {
-                    var staticType = resolver.TryResolveType(typeId.Name.Lexeme);
-                    if (staticType != null)
-                    {
-                        var methodName = memberAccess.Name.Lexeme;
-                        var methods = ReflectionRuntime.GetMethods(staticType, BindingFlags.Public | BindingFlags.Static)
-                            .Where(m => m.Name == methodName && m.GetParameters().Length == call.Arguments.Count)
-                            .ToArray();
-                        if (methods.Length > 0) return methods[0].ReturnType;
-                    }
-                }
-
-                return null;
-            }
-
-            case Parsing.MemberAccessExpr memberAccess:
-            {
-                var targetType = InferExprType(memberAccess.Object, paramTypes, resolver);
-                if (targetType == null)
-                    return null;
-
-                var prop = targetType.GetProperty(memberAccess.Name.Lexeme, BindingFlags.Public | BindingFlags.Instance);
-                if (prop != null) return prop.PropertyType;
-
-                var field = targetType.GetField(memberAccess.Name.Lexeme, BindingFlags.Public | BindingFlags.Instance);
-                return field?.FieldType;
-            }
-
-            case Parsing.BinaryExpr binary:
-            {
-                var leftType = InferExprType(binary.Left, paramTypes, resolver);
-                var rightType = InferExprType(binary.Right, paramTypes, resolver);
-                if (leftType == typeof(string) || rightType == typeof(string))
-                    return typeof(string);
-                return leftType ?? rightType;
-            }
-
-            case Parsing.CastExpr:
-                return null;
-
-            case Parsing.ConditionalExpr cond:
-                return InferExprType(cond.ThenBranch, paramTypes, resolver)
-                    ?? InferExprType(cond.ElseBranch, paramTypes, resolver);
-
+            case LambdaValue lambda:
+                parameters = lambda.Parameters;
+                body = lambda.Body;
+                break;
+            case CompiledLambdaValue { Source: not null } compiled:
+                parameters = compiled.Source.Parameters.Select(static p => p.Name.Lexeme).ToList();
+                body = compiled.Source.Body;
+                break;
             default:
                 return null;
         }
-    }
 
-    private static object? TryInvokeLambdaForTypeInference(object? arg, object?[] testArgs)
-    {
         try
         {
-            return arg switch
+            var bindingContext = new Binding.BindingContext(runtimeContext).CreateChildScope();
+            for (var i = 0; i < parameters.Count && i < inputTypes.Length; i++)
+                bindingContext.DeclareLocal(parameters[i], inputTypes[i]);
+
+            var binder = new Binding.Binder();
+            var bound = binder.Bind(body, bindingContext);
+
+            if (bound.HasErrors)
+                return null;
+
+            if (bound.StaticType != typeof(object))
+                return bound.StaticType;
+
+            // Block bodies typed as object may contain return statements with concrete types
+            if (bound is Binding.BoundNodes.BoundBlockExpr block)
             {
-                LambdaValue lambda => MethodInvoker.InvokeLambda(lambda, testArgs, lambda.Closure),
-                CompiledLambdaValue compiled => MethodInvoker.InvokeCompiledLambda(compiled, testArgs),
-                _ => null
-            };
+                foreach (var stmt in block.Statements)
+                {
+                    if (stmt is Binding.BoundNodes.BoundReturnExpr { Value: { StaticType: var retType } }
+                        && retType != typeof(object))
+                        return retType;
+                }
+            }
+
+            return null;
         }
-        catch (OperationCanceledException) { throw; }
-        catch (Exception)
+        catch
         {
             return null;
         }

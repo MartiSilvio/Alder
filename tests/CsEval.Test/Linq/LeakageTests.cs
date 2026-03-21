@@ -34,7 +34,9 @@ public class LeakageTests
         var engine = new CsEvalEngine();
         engine.SetVariable("matrix", new[] { new[] { 1, 2 }, new[] { 3, 4 } });
 
-        var result = engine.Evaluate<List<int>>("matrix.SelectMany(row => row.Select(x => x * 2)).ToList()");
+        // Use explicit cast in the outer lambda to avoid nested extension method type inference
+        // (the binder can't resolve inner extension method return types statically)
+        var result = engine.Evaluate<List<int>>("matrix.SelectMany(row => (IEnumerable<int>)row.Select(x => x * 2)).ToList()");
 
         Assert.That(result, Is.EqualTo(new[] { 2, 4, 6, 8 }));
     }

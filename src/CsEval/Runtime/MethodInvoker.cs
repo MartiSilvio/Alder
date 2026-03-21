@@ -205,7 +205,7 @@ internal static class MethodInvoker
         // No applicable instance method found (or instance methods blocked).
         // Try extension methods per ECMA-334 §12.8.9.2.
         var extensionResult = ExtensionMethodResolver.TryInvokeExtensionMethod(
-            target, methodName, args, context.ExtensionTypes, ct, options.IsCaseSensitive, typeArgs, context.TypeResolver);
+            target, methodName, args, context.ExtensionTypes, ct, options.IsCaseSensitive, typeArgs, context);
         if (extensionResult.Success)
             return extensionResult;
 
