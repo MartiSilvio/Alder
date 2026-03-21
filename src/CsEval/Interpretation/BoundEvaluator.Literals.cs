@@ -4,7 +4,6 @@ using CsEval.Runtime;
 using CsEval.Runtime.Extensions;
 using CsEval.Runtime.Semantics;
 using System.Dynamic;
-using System.Reflection;
 
 namespace CsEval.Interpretation;
 
@@ -70,6 +69,7 @@ internal sealed partial class BoundEvaluator
         var type = _context.TypeResolver.ResolveType(objectCreation.TypeName);
         var result = ConstructionRuntime.InvokeConstructor(type, args, _context.Config, _options);
 
+        Action<object, object?>? cachedAddInvoker = null;
         foreach (var entry in objectCreation.InitializerEntries)
         {
             var value = Evaluate(entry.Value);
@@ -84,13 +84,8 @@ internal sealed partial class BoundEvaluator
             }
             else
             {
-                var addMethod = _context.TypeMetadata
-                    .GetMethods(result!.GetType(), "Add", BindingFlags.Public | BindingFlags.Instance)
-                    .FirstOrDefault(static method => method.GetParameters().Length == 1);
-                if (addMethod == null)
-                    throw new CsEvalException(
-                        DiagnosticDescriptors.CollectionInitializerNoAdd, result.GetType().Name);
-                addMethod.Invoke(result, [value]);
+                cachedAddInvoker ??= ConstructionRuntime.ResolveCollectionAddInvoker(result!.GetType());
+                cachedAddInvoker(result, value);
             }
         }
 

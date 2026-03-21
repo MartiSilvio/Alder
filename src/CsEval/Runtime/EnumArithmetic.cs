@@ -19,14 +19,20 @@ internal static class EnumArithmetic
         if (leftIsEnum)
         {
             var enumType = left.GetType();
-            var underlying = Convert.ToInt64(left) + Convert.ToInt64(right);
-            return Enum.ToObject(enumType, underlying);
+            var underlyingType = Enum.GetUnderlyingType(enumType);
+            var l = Convert.ChangeType(left, underlyingType);
+            var r = Convert.ChangeType(right, underlyingType);
+            var result = NumericDispatch.Add(l, r)!;
+            return Enum.ToObject(enumType, result);
         }
         else
         {
             var enumType = right.GetType();
-            var underlying = Convert.ToInt64(left) + Convert.ToInt64(right);
-            return Enum.ToObject(enumType, underlying);
+            var underlyingType = Enum.GetUnderlyingType(enumType);
+            var l = Convert.ChangeType(left, underlyingType);
+            var r = Convert.ChangeType(right, underlyingType);
+            var result = NumericDispatch.Add(l, r)!;
+            return Enum.ToObject(enumType, result);
         }
     }
 
@@ -48,8 +54,11 @@ internal static class EnumArithmetic
         {
             // E - int → E
             var enumType = left.GetType();
-            var underlying = Convert.ToInt64(left) - Convert.ToInt64(right);
-            return Enum.ToObject(enumType, underlying);
+            var underlyingType = Enum.GetUnderlyingType(enumType);
+            var l = Convert.ChangeType(left, underlyingType);
+            var r = Convert.ChangeType(right, underlyingType);
+            var result = NumericDispatch.Subtract(l, r)!;
+            return Enum.ToObject(enumType, result);
         }
 
         // int - E is not a predefined operator

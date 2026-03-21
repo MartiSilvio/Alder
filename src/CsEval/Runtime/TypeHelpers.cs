@@ -255,7 +255,7 @@ internal static class TypeHelpers
             return CompileConversionExpression(sourceType, targetType, isChecked);
 
         if (TryResolveUserDefinedConversion(sourceType, targetType, out var userDefinedMethod))
-            return value => userDefinedMethod.Invoke(null, [value])!;
+            return CompileUserDefinedConversion(userDefinedMethod, sourceType);
 
         return _ => throw new CsEvalException(
             DiagnosticDescriptors.NoExplicitConversion, sourceType.Name, targetType.Name);
@@ -288,6 +288,15 @@ internal static class TypeHelpers
             value = Expression.Convert(value, targetType);
 
         var boxed = Expression.Convert(value, typeof(object));
+        return Expression.Lambda<Func<object, object>>(boxed, param).Compile();
+    }
+
+    private static Func<object, object> CompileUserDefinedConversion(MethodInfo conversionMethod, Type sourceType)
+    {
+        var param = Expression.Parameter(typeof(object), "value");
+        var unboxed = Expression.Convert(param, sourceType);
+        var call = Expression.Call(conversionMethod, unboxed);
+        var boxed = Expression.Convert(call, typeof(object));
         return Expression.Lambda<Func<object, object>>(boxed, param).Compile();
     }
 
@@ -551,7 +560,8 @@ internal static class TypeHelpers
         var sourceType = value.GetType();
         if (!TryResolveUserDefinedConversion(sourceType, targetType, out var method))
             return false;
-        converted = method.Invoke(null, [value])!;
+        var compiledConversion = CompileUserDefinedConversion(method, sourceType);
+        converted = compiledConversion(value);
         return true;
     }
 

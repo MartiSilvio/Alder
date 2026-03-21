@@ -285,10 +285,9 @@ internal static class NumericDispatch
         if (type == typeof(char))
             return (int)(char)value;
 
-        // For all numeric types, unary + returns the value (with promotion to int for small types)
-        return type.Name switch
+        return Type.GetTypeCode(type) switch
         {
-            "SByte" or "Byte" or "Int16" or "UInt16" => Convert.ToInt32(value),
+            TypeCode.SByte or TypeCode.Byte or TypeCode.Int16 or TypeCode.UInt16 => Convert.ToInt32(value),
             _ => value
         };
     }
@@ -612,15 +611,15 @@ internal static class NumericDispatch
         var sourceType = value.GetType();
         if (sourceType == targetType) return value;
 
-        return targetType.Name switch
+        return Type.GetTypeCode(targetType) switch
         {
-            "Int64" => Convert.ToInt64(value),
-            "Double" => Convert.ToDouble(value),
-            "Single" => Convert.ToSingle(value),
-            "Decimal" => Convert.ToDecimal(value),
-            "UInt64" => Convert.ToUInt64(value),
-            "UInt32" => Convert.ToUInt32(value),
-            "Int32" => Convert.ToInt32(value),
+            TypeCode.Int64 => Convert.ToInt64(value),
+            TypeCode.Double => Convert.ToDouble(value),
+            TypeCode.Single => Convert.ToSingle(value),
+            TypeCode.Decimal => Convert.ToDecimal(value),
+            TypeCode.UInt64 => Convert.ToUInt64(value),
+            TypeCode.UInt32 => Convert.ToUInt32(value),
+            TypeCode.Int32 => Convert.ToInt32(value),
             _ => value
         };
     }

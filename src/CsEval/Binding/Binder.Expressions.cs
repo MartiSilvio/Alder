@@ -1,6 +1,7 @@
 using CsEval.Binding.BoundNodes;
 using CsEval.Parsing;
 using CsEval.Runtime;
+using CsEval.Runtime.Semantics;
 using System.Collections.Immutable;
 
 namespace CsEval.Binding;
@@ -233,20 +234,7 @@ internal sealed partial class Binder
             return typeof(ValueTuple);
 
         if (elementTypes.Length <= 7)
-        {
-            var openType = elementTypes.Length switch
-            {
-                1 => typeof(ValueTuple<>),
-                2 => typeof(ValueTuple<,>),
-                3 => typeof(ValueTuple<,,>),
-                4 => typeof(ValueTuple<,,,>),
-                5 => typeof(ValueTuple<,,,,>),
-                6 => typeof(ValueTuple<,,,,,>),
-                7 => typeof(ValueTuple<,,,,,,>),
-                _ => throw new CsEvalException(Diagnostics.DiagnosticDescriptors.UnsupportedTupleArity, elementTypes.Length)
-            };
-            return RuntimeGenericFactory.CloseGenericType(openType, elementTypes);
-        }
+            return RuntimeGenericFactory.CloseGenericType(ConstructionRuntime.GetOpenValueTupleType(elementTypes.Length), elementTypes);
 
         var headTypes = new Type[8];
         Array.Copy(elementTypes, 0, headTypes, 0, 7);
@@ -254,7 +242,7 @@ internal sealed partial class Binder
         Array.Copy(elementTypes, 7, restTypes, 0, restTypes.Length);
         headTypes[7] = CreateTupleStaticType(restTypes);
 
-        return RuntimeGenericFactory.CloseGenericType(typeof(ValueTuple<,,,,,,,>), headTypes);
+        return RuntimeGenericFactory.CloseGenericType(ConstructionRuntime.GetOpenValueTupleType(8), headTypes);
     }
 
     private BoundInterpolatedStringExpr BindInterpolatedString(InterpolatedStringExpr interpolatedString, BindingContext context)

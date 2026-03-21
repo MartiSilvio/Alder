@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq.Expressions;
 
 namespace CsEval.Runtime;
 
@@ -115,10 +116,22 @@ internal sealed class TypeMetadataProvider
         if (getter == null)
             return obj => property.GetValue(obj);
 
-        if (getter.IsStatic)
-            return _ => getter.Invoke(null, null);
+        var param = Expression.Parameter(typeof(object), "instance");
 
-        return instance => getter.Invoke(instance, null);
+        if (getter.IsStatic)
+        {
+            var call = Expression.Call(getter);
+            var boxed = Expression.Convert(call, typeof(object));
+            return Expression.Lambda<Func<object, object?>>(boxed, param).Compile();
+        }
+
+        var declaringType = getter.DeclaringType!;
+        System.Linq.Expressions.Expression typedInstance = declaringType.IsValueType
+            ? Expression.Unbox(param, declaringType)
+            : Expression.Convert(param, declaringType);
+        var propertyAccess = Expression.Property(typedInstance, property);
+        var boxedResult = Expression.Convert(propertyAccess, typeof(object));
+        return Expression.Lambda<Func<object, object?>>(boxedResult, param).Compile();
     }
 
     /// <summary>

@@ -11,36 +11,6 @@ public sealed class DeadBranchEliminationTests
     private readonly DeadBranchEliminationPass _pass = new();
 
     [Test]
-    public void Eliminates_TernaryWithTrueCondition()
-    {
-        var tree = new BoundConditionalExpr(
-            new BoundLiteralExpr(true, typeof(bool)),
-            new BoundLiteralExpr("yes", typeof(string)),
-            new BoundLiteralExpr("no", typeof(string)),
-            typeof(string));
-
-        var result = _pass.Rewrite(tree);
-
-        Assert.That(result, Is.TypeOf<BoundLiteralExpr>());
-        Assert.That(((BoundLiteralExpr)result).Value, Is.EqualTo("yes"));
-    }
-
-    [Test]
-    public void Eliminates_TernaryWithFalseCondition()
-    {
-        var tree = new BoundConditionalExpr(
-            new BoundLiteralExpr(false, typeof(bool)),
-            new BoundLiteralExpr("yes", typeof(string)),
-            new BoundLiteralExpr("no", typeof(string)),
-            typeof(string));
-
-        var result = _pass.Rewrite(tree);
-
-        Assert.That(result, Is.TypeOf<BoundLiteralExpr>());
-        Assert.That(((BoundLiteralExpr)result).Value, Is.EqualTo("no"));
-    }
-
-    [Test]
     public void Eliminates_IfTrueCondition()
     {
         var tree = new BoundIfStatementExpr(

@@ -1,9 +1,13 @@
+using System.Collections.Concurrent;
+using System.Linq.Expressions;
 using CsEval.Diagnostics;
 
 namespace CsEval.Runtime.Semantics;
 
 internal static class ConstructionRuntime
 {
+    private static readonly ConcurrentDictionary<Type, Action<object, object?>> _addInvokerCache = new();
+
     public static object? InvokeConstructor(Type type, object?[] args, CsEvalConfig config, CsEvalOptions? options = null)
     {
         if (options != null)
@@ -45,6 +49,20 @@ internal static class ConstructionRuntime
         }
     }
 
+    public static Type GetOpenValueTupleType(int arity) => arity switch
+    {
+        0 => typeof(ValueTuple),
+        1 => typeof(ValueTuple<>),
+        2 => typeof(ValueTuple<,>),
+        3 => typeof(ValueTuple<,,>),
+        4 => typeof(ValueTuple<,,,>),
+        5 => typeof(ValueTuple<,,,,>),
+        6 => typeof(ValueTuple<,,,,,>),
+        7 => typeof(ValueTuple<,,,,,,>),
+        8 => typeof(ValueTuple<,,,,,,,>),
+        _ => throw new CsEvalException(DiagnosticDescriptors.UnsupportedTupleArity, arity)
+    };
+
     public static object CreateTuple(object?[] elements)
     {
         if (elements.Length == 0)
@@ -56,19 +74,7 @@ internal static class ConstructionRuntime
             for (var i = 0; i < elements.Length; i++)
                 types[i] = elements[i]?.GetType() ?? typeof(object);
 
-            var openGenericType = elements.Length switch
-            {
-                1 => typeof(ValueTuple<>),
-                2 => typeof(ValueTuple<,>),
-                3 => typeof(ValueTuple<,,>),
-                4 => typeof(ValueTuple<,,,>),
-                5 => typeof(ValueTuple<,,,,>),
-                6 => typeof(ValueTuple<,,,,,>),
-                7 => typeof(ValueTuple<,,,,,,>),
-                _ => throw new CsEvalException(DiagnosticDescriptors.TupleTooFewElements)
-            };
-
-            var tupleType = RuntimeGenericFactory.CloseGenericType(openGenericType, types);
+            var tupleType = RuntimeGenericFactory.CloseGenericType(GetOpenValueTupleType(elements.Length), types);
             return Activator.CreateInstance(tupleType, elements)!;
         }
 
@@ -175,17 +181,38 @@ internal static class ConstructionRuntime
         return obj;
     }
 
+    public static Action<object, object?> ResolveCollectionAddInvoker(Type collectionType)
+    {
+        return _addInvokerCache.GetOrAdd(collectionType, static type =>
+        {
+            var method = ReflectionRuntime
+                .GetMethods(type, BindingFlags.Public | BindingFlags.Instance)
+                .FirstOrDefault(static m =>
+                    string.Equals(m.Name, "Add", StringComparison.Ordinal) &&
+                    m.GetParameters().Length == 1);
+
+            if (method is null)
+                throw new CsEvalException(DiagnosticDescriptors.CollectionInitializerNoAdd, type.Name);
+
+            var instanceParam = Expression.Parameter(typeof(object), "instance");
+            var valueParam = Expression.Parameter(typeof(object), "value");
+            var paramType = method.GetParameters()[0].ParameterType;
+
+            var call = Expression.Call(
+                Expression.Convert(instanceParam, type),
+                method,
+                paramType == typeof(object)
+                    ? valueParam
+                    : Expression.Convert(valueParam, paramType));
+
+            return Expression.Lambda<Action<object, object?>>(call, instanceParam, valueParam).Compile();
+        });
+    }
+
     public static object? ApplyCollectionInitializer(object obj, object? value)
     {
-        var addMethod = ReflectionRuntime
-            .GetMethods(obj.GetType(), BindingFlags.Public | BindingFlags.Instance)
-            .FirstOrDefault(static method =>
-                string.Equals(method.Name, "Add", StringComparison.Ordinal) &&
-                method.GetParameters().Length == 1);
-        if (addMethod != null)
-            addMethod.Invoke(obj, [value]);
-        else
-            throw new CsEvalException(DiagnosticDescriptors.CollectionInitializerNoAdd, obj.GetType().Name);
+        var addInvoker = ResolveCollectionAddInvoker(obj.GetType());
+        addInvoker(obj, value);
         return obj;
     }
 
