@@ -1,6 +1,6 @@
 ---
 title: "Conditional Operator"
-description: "The ternary conditional operator (?:) in CsEval."
+description: "The ternary conditional operator (?:) in Alder."
 sidebar:
   order: 12
 ---

@@ -1,13 +1,13 @@
 ---
 title: "Exception Handling"
-description: "try/catch/finally, typed catches, when guards, throw, rethrow, and using statements in CsEval."
+description: "try/catch/finally, typed catches, when guards, throw, rethrow, and using statements in Alder."
 sidebar:
   order: 5
 ---
 
 ## Overview
 
-CsEval supports the full C# exception handling model: `try`/`catch`/`finally`, typed catch clauses with fully qualified type names, `when` guards, `throw`, and rethrow (`throw;`). The `using` statement is also covered here as it desugars to `try`/`finally` resource management.
+Alder supports the full C# exception handling model: `try`/`catch`/`finally`, typed catch clauses with fully qualified type names, `when` guards, `throw`, and rethrow (`throw;`). The `using` statement is also covered here as it desugars to `try`/`finally` resource management.
 
 :::note
 Creating exception objects with `new` requires the `AllowConstruction` sandbox flag. With the default `Trusted()` sandbox preset, this is already enabled.
@@ -205,7 +205,7 @@ Using `throw;` outside a `catch` block is an error.
 The `using` statement ensures that an `IDisposable` resource is disposed when the block exits. It desugars to `try`/`finally` with a `Dispose()` call in the `finally` block.
 
 :::note
-CsEval supports only the parenthesized form `using (var x = ...) { }`. The C# 8 declaration form `using var x = ...;` without parentheses is not supported.
+Alder supports only the parenthesized form `using (var x = ...) { }`. The C# 8 declaration form `using var x = ...;` without parentheses is not supported.
 :::
 
 ```csharp

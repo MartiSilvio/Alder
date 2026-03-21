@@ -1,13 +1,13 @@
 ---
 title: "Type Testing and Cast Operators"
-description: "Type testing, safe cast, explicit cast, typeof, default, nameof, and sizeof operators in CsEval."
+description: "Type testing, safe cast, explicit cast, typeof, default, nameof, and sizeof operators in Alder."
 sidebar:
   order: 10
 ---
 
 ## Overview
 
-CsEval supports type testing and cast operators for checking types at runtime, performing conversions, and querying type metadata.
+Alder supports type testing and cast operators for checking types at runtime, performing conversions, and querying type metadata.
 
 ## Type Test (`is`)
 

@@ -1,16 +1,16 @@
 ---
 title: "Assignment Operators"
-description: "Simple and compound assignment operators in CsEval, including sandbox requirements."
+description: "Simple and compound assignment operators in Alder, including sandbox requirements."
 sidebar:
   order: 7
 ---
 
 ## Overview
 
-CsEval supports simple assignment and all standard C# compound assignment operators.
+Alder supports simple assignment and all standard C# compound assignment operators.
 
 :::caution
-**All assignment operators require the `AllowAssignment` sandbox flag.** With the default `SandboxOptions.Trusted()` preset, this is already enabled. Variable *declarations* (`var x = 5`) are always allowed regardless of sandbox settings -- only reassignment is gated.
+**All assignment operators require the `AllowAssignment` sandbox flag.** With the default `SandboxOptions.Trusted()` preset, this is already enabled. Variable _declarations_ (`var x = 5`) are always allowed regardless of sandbox settings -- only reassignment is gated.
 :::
 
 ## Simple Assignment (`=`)
@@ -26,19 +26,19 @@ Assigns the right operand's value to the left operand.
 
 Compound assignment operators combine an operation with assignment. The expression `x op= y` is equivalent to `x = x op y`, except that `x` is evaluated only once.
 
-| Operator | Equivalent | Base Operator |
-|:---:|:---:|:---:|
-| `+=` | `x = x + y` | `+` |
-| `-=` | `x = x - y` | `-` |
-| `*=` | `x = x * y` | `*` |
-| `/=` | `x = x / y` | `/` |
-| `%=` | `x = x % y` | `%` |
-| `&=` | `x = x & y` | `&` |
-| `\|=` | `x = x \| y` | `\|` |
-| `^=` | `x = x ^ y` | `^` |
-| `<<=` | `x = x << y` | `<<` |
-| `>>=` | `x = x >> y` | `>>` |
-| `>>>=` | `x = x >>> y` | `>>>` |
+| Operator |  Equivalent   | Base Operator |
+| :------: | :-----------: | :-----------: |
+|   `+=`   |  `x = x + y`  |      `+`      |
+|   `-=`   |  `x = x - y`  |      `-`      |
+|   `*=`   |  `x = x * y`  |      `*`      |
+|   `/=`   |  `x = x / y`  |      `/`      |
+|   `%=`   |  `x = x % y`  |      `%`      |
+|   `&=`   |  `x = x & y`  |      `&`      |
+|  `\|=`   | `x = x \| y`  |     `\|`      |
+|   `^=`   |  `x = x ^ y`  |      `^`      |
+|  `<<=`   | `x = x << y`  |     `<<`      |
+|  `>>=`   | `x = x >> y`  |     `>>`      |
+|  `>>>=`  | `x = x >>> y` |     `>>>`     |
 
 ### Arithmetic Compound Assignment
 

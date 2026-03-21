@@ -1,13 +1,13 @@
 ---
 title: "Selection Statements"
-description: "if/else, switch statement with pattern matching and when guards, and switch expression syntax in CsEval."
+description: "if/else, switch statement with pattern matching and when guards, and switch expression syntax in Alder."
 sidebar:
   order: 2
 ---
 
 ## Overview
 
-CsEval supports `if`/`else` chains, `switch` statements with full pattern matching support (constant, type, relational, logical patterns, and `when` guards), and `switch` expressions. The selection statements themselves require no sandbox flags, but operations inside them (method calls, property access, construction) may require the corresponding sandbox options.
+Alder supports `if`/`else` chains, `switch` statements with full pattern matching support (constant, type, relational, logical patterns, and `when` guards), and `switch` expressions. The selection statements themselves require no sandbox flags, but operations inside them (method calls, property access, construction) may require the corresponding sandbox options.
 
 ## if/else
 
@@ -127,7 +127,7 @@ Use `goto case` or `goto default` for explicit control flow between cases:
 
 ### Fall-Through Behavior
 
-CsEval enforces the C# rule that non-empty case blocks cannot fall through implicitly. Each non-empty case must end with `break`, `return`, `goto case`, or `goto default`.
+Alder enforces the C# rule that non-empty case blocks cannot fall through implicitly. Each non-empty case must end with `break`, `return`, `goto case`, or `goto default`.
 
 ```csharp
 // This produces an error: CS0163
@@ -141,7 +141,7 @@ CsEval enforces the C# rule that non-empty case blocks cannot fall through impli
     }
     return result;
 }
-// output: CsEvalException: CS0163: Control cannot fall through from one case label to another
+// output: AlderException: CS0163: Control cannot fall through from one case label to another
 ```
 
 Empty cases are allowed to fall through to the next case:

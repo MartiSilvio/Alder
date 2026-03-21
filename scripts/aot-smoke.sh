@@ -37,7 +37,7 @@ dotnet new console --output "$APP_DIR" --framework net8.0 --no-restore >/dev/nul
 
 cat > "$APP_DIR/Program.cs" <<'CS'
 using System.Diagnostics.CodeAnalysis;
-using CsEval;
+using Alder;
 
 int failures = 0;
 
@@ -64,21 +64,21 @@ void Run(string name, Action action)
 
 Run("Arithmetic", () =>
 {
-    var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = CompilationMode.Interpreted });
+    var engine = new AlderEngine(AlderOptions.Default with { CompilationMode = CompilationMode.Interpreted });
     var result = engine.Evaluate("1 + 2 * 3");
     Check("Arithmetic (1 + 2 * 3 = 7)", result, 7);
 });
 
 Run("Math.Abs", () =>
 {
-    var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = CompilationMode.Interpreted });
+    var engine = new AlderEngine(AlderOptions.Default with { CompilationMode = CompilationMode.Interpreted });
     var result = engine.Evaluate("Math.Abs(-42)");
     Check("Math.Abs(-42) = 42", result, 42);
 });
 
 Run("RegisteredMemberAccess", () =>
 {
-    var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = CompilationMode.Interpreted });
+    var engine = new AlderEngine(AlderOptions.Default with { CompilationMode = CompilationMode.Interpreted });
     engine.RegisterFromType<TestDto>();
     var dto = new TestDto(42, "hello");
     engine.SetVariable("dto", dto);
@@ -88,19 +88,19 @@ Run("RegisteredMemberAccess", () =>
 
 Run("StringConcat", () =>
 {
-    var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = CompilationMode.Interpreted });
+    var engine = new AlderEngine(AlderOptions.Default with { CompilationMode = CompilationMode.Interpreted });
     Check("String concat", engine.Evaluate("\"hello\" + \" world\""), "hello world");
 });
 
 Run("Comparison", () =>
 {
-    var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = CompilationMode.Interpreted });
+    var engine = new AlderEngine(AlderOptions.Default with { CompilationMode = CompilationMode.Interpreted });
     Check("Comparison (3 > 1)", engine.Evaluate("3 > 1"), true);
 });
 
 Run("Variable", () =>
 {
-    var engine = new CsEvalEngine(CsEvalOptions.Default with { CompilationMode = CompilationMode.Interpreted });
+    var engine = new AlderEngine(AlderOptions.Default with { CompilationMode = CompilationMode.Interpreted });
     engine.SetVariable("x", 10);
     Check("Variable (x * 2 = 20)", engine.Evaluate("x * 2"), 20);
 });
@@ -112,7 +112,7 @@ return failures == 0 ? 0 : 1;
 public record TestDto(int Value, string Name);
 CS
 
-dotnet add "$APP_DIR/Smoke.csproj" reference "$ROOT_DIR/src/CsEval/CsEval.csproj" >/dev/null
+dotnet add "$APP_DIR/Smoke.csproj" reference "$ROOT_DIR/src/Alder/Alder.csproj" >/dev/null
 
 dotnet publish "$APP_DIR/Smoke.csproj" \
   -c Release \

@@ -1,20 +1,20 @@
 ---
 title: "Common Mistakes"
-description: "Security anti-patterns with wrong/right code pairs -- avoid these pitfalls when configuring the CsEval sandbox."
+description: "Security anti-patterns with wrong/right code pairs -- avoid these pitfalls when configuring the Alder sandbox."
 sidebar:
   order: 3
 ---
 
 ## 1. Engine-per-Request Anti-Pattern
 
-Creating a new `CsEvalEngine` for every evaluation wastes resources. The engine caches parsed expressions and compilation artifacts. Creating a new instance discards all caches and forces re-initialization.
+Creating a new `AlderEngine` for every evaluation wastes resources. The engine caches parsed expressions and compilation artifacts. Creating a new instance discards all caches and forces re-initialization.
 
 **Wrong** -- new engine per evaluation:
 
 ```csharp
 foreach (var expr in expressions)
 {
-    var engine = new CsEvalEngine(new CsEvalOptions
+    var engine = new AlderEngine(new AlderOptions
     {
         Sandbox = SandboxOptions.Safe()
     });
@@ -26,7 +26,7 @@ foreach (var expr in expressions)
 **Right** -- create once, reuse:
 
 ```csharp
-var engine = new CsEvalEngine(new CsEvalOptions
+var engine = new AlderEngine(new AlderOptions
 {
     Sandbox = SandboxOptions.Safe()
 });
@@ -47,7 +47,7 @@ foreach (var expr in expressions)
 **Wrong** -- assuming Safe() prevents all mutation:
 
 ```csharp
-var engine = new CsEvalEngine(new CsEvalOptions
+var engine = new AlderEngine(new AlderOptions
 {
     Sandbox = SandboxOptions.Safe()
 });
@@ -61,7 +61,7 @@ engine.SetVariable("x", 0);
 **Right** -- use Strict() for read-only access:
 
 ```csharp
-var engine = new CsEvalEngine(new CsEvalOptions
+var engine = new AlderEngine(new AlderOptions
 {
     Sandbox = SandboxOptions.Strict()
 });
@@ -69,7 +69,7 @@ engine.SetVariable("x", 0);
 
 // Strict blocks assignment
 { x = 999; return x; }
-// throws CsEvalSandboxException
+// throws AlderSandboxException
 
 // Property reads still work
 x
@@ -85,7 +85,7 @@ x
 **Wrong** -- open generic does not match constructed types:
 
 ```csharp
-var engine = new CsEvalEngine(new CsEvalOptions
+var engine = new AlderEngine(new AlderOptions
 {
     Sandbox = SandboxOptions.Trusted() with
     {
@@ -95,13 +95,13 @@ var engine = new CsEvalEngine(new CsEvalOptions
 
 // Fails -- List<int> is not List<>
 new List<int> { 1, 2, 3 }
-// throws CsEvalSandboxException
+// throws AlderSandboxException
 ```
 
 **Right** -- register the exact constructed type:
 
 ```csharp
-var engine = new CsEvalEngine(new CsEvalOptions
+var engine = new AlderEngine(new AlderOptions
 {
     Sandbox = SandboxOptions.Trusted() with
     {
@@ -120,7 +120,7 @@ The engine freezes its configuration on the first `Evaluate()` call. After that,
 **Wrong** -- registering after evaluation:
 
 ```csharp
-var engine = new CsEvalEngine();
+var engine = new AlderEngine();
 engine.Evaluate("1 + 1");
 
 // Throws -- engine is frozen
@@ -131,7 +131,7 @@ engine.RegisterFunction("double", args => (int)args[0]! * 2);
 **Right** -- register everything before the first evaluation:
 
 ```csharp
-var engine = new CsEvalEngine();
+var engine = new AlderEngine();
 engine.RegisterFunction("double", args => (int)args[0]! * 2);
 
 engine.Evaluate("double(5)");
@@ -141,7 +141,7 @@ engine.Evaluate("double(5)");
 `SetVariable` is the exception -- it works both before and after freeze:
 
 ```csharp
-var engine = new CsEvalEngine();
+var engine = new AlderEngine();
 engine.Evaluate("1 + 1");
 
 // SetVariable works after freeze
@@ -157,7 +157,7 @@ The reflection leak guard is **always active**, regardless of sandbox mode. Even
 **Wrong** -- expecting `.GetType()` to work in Trusted mode:
 
 ```csharp
-var engine = new CsEvalEngine(new CsEvalOptions
+var engine = new AlderEngine(new AlderOptions
 {
     Sandbox = SandboxOptions.Trusted()
 });
@@ -165,13 +165,13 @@ engine.SetVariable("text", "hello");
 
 // Throws even in Trusted mode -- reflection guard is always on
 text.GetType()
-// throws CsEvalSandboxException
+// throws AlderSandboxException
 ```
 
 **Right** -- use `typeof()` for type information:
 
 ```csharp
-var engine = new CsEvalEngine(new CsEvalOptions
+var engine = new AlderEngine(new AlderOptions
 {
     Sandbox = SandboxOptions.Trusted()
 });

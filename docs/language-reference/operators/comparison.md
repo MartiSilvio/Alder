@@ -1,6 +1,6 @@
 ---
 title: "Comparison Operators"
-description: "Less than, greater than, and their or-equal variants with nullable and NaN semantics in CsEval."
+description: "Less than, greater than, and their or-equal variants with nullable and NaN semantics in Alder."
 sidebar:
   order: 3
 ---

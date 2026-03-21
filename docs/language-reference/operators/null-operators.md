@@ -1,13 +1,13 @@
 ---
 title: "Null Operators"
-description: "Null-coalescing, null-coalescing assignment, and null-conditional operators in CsEval."
+description: "Null-coalescing, null-coalescing assignment, and null-conditional operators in Alder."
 sidebar:
   order: 8
 ---
 
 ## Overview
 
-CsEval supports the standard C# null operators for safely working with nullable values: null-coalescing (`??`), null-coalescing assignment (`??=`), null-conditional member access (`?.`), and null-conditional element access (`?[]`).
+Alder supports the standard C# null operators for safely working with nullable values: null-coalescing (`??`), null-coalescing assignment (`??=`), null-conditional member access (`?.`), and null-conditional element access (`?[]`).
 
 ## Null-Coalescing (`??`)
 

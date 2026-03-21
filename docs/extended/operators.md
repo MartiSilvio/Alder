@@ -5,10 +5,10 @@ sidebar:
   order: 2
 ---
 
-All operators on this page require `LanguageMode.Extended` and throw `CsEvalLanguageModeException` in Standard mode.
+All operators on this page require `LanguageMode.Extended` and throw `AlderLanguageModeException` in Standard mode.
 
 ```csharp
-var engine = new CsEvalEngine(new CsEvalOptions { LanguageMode = LanguageMode.Extended });
+var engine = new AlderEngine(new AlderOptions { LanguageMode = LanguageMode.Extended });
 ```
 
 ## Power Operator
@@ -42,13 +42,13 @@ engine.Evaluate("{ var x = 3.0; x **= 2; return x; }"); // output: 9.0
 
 ## Range Operators
 
-CsEval has three range forms. The standard `..` operator is available in both modes; `..=` and `..<` are Extended-only.
+Alder has three range forms. The standard `..` operator is available in both modes; `..=` and `..<` are Extended-only.
 
-| Operator | End behavior | Example | Covers |
-|---|---|---|---|
-| `..` | Exclusive (C# spec) | `1..5` | 1, 2, 3, 4 |
-| `..=` | **Inclusive** (Rust-style) | `1..=5` | 1, 2, 3, 4, 5 |
-| `..<` | Explicit exclusive | `1..<5` | 1, 2, 3, 4 |
+| Operator | End behavior               | Example | Covers        |
+| -------- | -------------------------- | ------- | ------------- |
+| `..`     | Exclusive (C# spec)        | `1..5`  | 1, 2, 3, 4    |
+| `..=`    | **Inclusive** (Rust-style) | `1..=5` | 1, 2, 3, 4, 5 |
+| `..<`    | Explicit exclusive         | `1..<5` | 1, 2, 3, 4    |
 
 `..` is **always** exclusive-end in both Standard and Extended mode, per the C# specification. `..=` is the inclusive form. `..<` is semantically identical to `..` but makes the exclusive intent explicit.
 
@@ -212,7 +212,7 @@ engine.Evaluate("\"hello\" like \"x%\"");    // output: False
 engine.Evaluate("\"hello\" not like \"x%\""); // output: True
 ```
 
-`like` respects `CsEvalOptions.StringComparison`. By default (`Ordinal`), matching is case-sensitive.
+`like` respects `AlderOptions.StringComparison`. By default (`Ordinal`), matching is case-sensitive.
 
 ### `between ... and`
 
@@ -243,7 +243,7 @@ engine.Evaluate("false and (1 / 0 > 0)"); // output: False (right side not evalu
 engine.Evaluate("true or (1 / 0 > 0)");   // output: True  (right side not evaluated)
 ```
 
-In Standard mode, `and`, `or`, and `not` are only valid in pattern-matching contexts (e.g., `x is > 0 and < 100`). Using them as logical operators in Standard mode throws `CsEvalLanguageModeException`.
+In Standard mode, `and`, `or`, and `not` are only valid in pattern-matching contexts (e.g., `x is > 0 and < 100`). Using them as logical operators in Standard mode throws `AlderLanguageModeException`.
 
 ## See Also
 

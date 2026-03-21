@@ -1,13 +1,13 @@
 ---
 title: "Declaration Statements"
-description: "Variable declarations, const, multi-var, deconstruction, local functions, using, lock, and block scoping in CsEval."
+description: "Variable declarations, const, multi-var, deconstruction, local functions, using, lock, and block scoping in Alder."
 sidebar:
   order: 1
 ---
 
 ## Overview
 
-CsEval supports variable declarations with `var`, typed declarations, `const`, multi-variable declarations, deconstruction, and local functions. Variables declared inside blocks, loops, or `if` bodies are scoped to that block via child `CsEvalContext` scopes.
+Alder supports variable declarations with `var`, typed declarations, `const`, multi-variable declarations, deconstruction, and local functions. Variables declared inside blocks, loops, or `if` bodies are scoped to that block via child `AlderContext` scopes.
 
 ## var Declarations
 
@@ -28,7 +28,7 @@ Assigning `null` to a `var` variable is a parser error because the type cannot b
 
 ```csharp
 { var x = null; return x; }
-// output: CsEvalParserException: CS0815: Cannot assign null to an implicitly-typed variable
+// output: AlderParserException: CS0815: Cannot assign null to an implicitly-typed variable
 ```
 
 ## Typed Declarations
@@ -174,7 +174,7 @@ The `lock` statement acquires a mutual-exclusion lock on an object for the durat
 
 ## Scoping Rules
 
-Variables are scoped to the block in which they are declared. Each block, loop body, and `if`/`else` body creates a child `CsEvalContext` scope. Variables declared in a child scope are accessible within that scope and any nested scopes, but not in the parent scope.
+Variables are scoped to the block in which they are declared. Each block, loop body, and `if`/`else` body creates a child `AlderContext` scope. Variables declared in a child scope are accessible within that scope and any nested scopes, but not in the parent scope.
 
 ```csharp
 {

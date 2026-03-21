@@ -31,7 +31,7 @@ Negative indexing works on any type with an integer indexer:
 ## Examples
 
 ```csharp
-var engine = new CsEvalEngine(new CsEvalOptions { LanguageMode = LanguageMode.Extended });
+var engine = new AlderEngine(new AlderOptions { LanguageMode = LanguageMode.Extended });
 
 engine.Evaluate("new[] {10, 20, 30}[-1]");
 // output: 30
@@ -71,7 +71,7 @@ engine.Evaluate("new[] {10, 20, 30}[-4]");
 In Standard mode, negative indices are not normalized. They fail the bounds check in `NormalizeIndex` and throw `ArgumentOutOfRangeException`:
 
 ```csharp
-var standard = new CsEvalEngine(); // Standard mode (default)
+var standard = new AlderEngine(); // Standard mode (default)
 standard.Evaluate("new[] {10, 20, 30}[-1]");
 // throws ArgumentOutOfRangeException
 ```

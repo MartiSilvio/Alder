@@ -1,13 +1,13 @@
 ---
 title: "Arithmetic Operators"
-description: "Addition, subtraction, multiplication, division, remainder, and increment/decrement operators in CsEval."
+description: "Addition, subtraction, multiplication, division, remainder, and increment/decrement operators in Alder."
 sidebar:
   order: 2
 ---
 
 ## Overview
 
-CsEval supports the standard C# arithmetic operators with full numeric promotion rules per ECMA-334 section 12.4.7.3. Arithmetic on smaller types (`byte`, `short`, `char`) is automatically promoted to `int`.
+Alder supports the standard C# arithmetic operators with full numeric promotion rules per ECMA-334 section 12.4.7.3. Arithmetic on smaller types (`byte`, `short`, `char`) is automatically promoted to `int`.
 
 ## Addition (`+`)
 
@@ -136,7 +136,7 @@ Integer remainder by zero throws `DivideByZeroException`.
 The `++` and `--` operators increment or decrement a variable by one. They come in prefix and postfix forms.
 
 :::note
-Increment and decrement modify a variable, which requires the `AllowAssignment` sandbox flag. With the default `SandboxOptions.Trusted()` preset, this is already enabled. If using a restricted sandbox, these operators will throw `CsEvalSandboxException`.
+Increment and decrement modify a variable, which requires the `AllowAssignment` sandbox flag. With the default `SandboxOptions.Trusted()` preset, this is already enabled. If using a restricted sandbox, these operators will throw `AlderSandboxException`.
 :::
 
 ### Prefix
@@ -168,6 +168,7 @@ Postfix increment/decrement modifies the variable and returns the **original** v
 Arithmetic operators follow binary numeric promotion rules. When operands have different types, both are promoted to a common type. See [Numeric types](../types/numeric-types) for the full promotion table.
 
 Key rules:
+
 - `byte`, `sbyte`, `short`, `ushort`, and `char` promote to `int`
 - Mixed `int`/`long` promotes to `long`
 - Mixed integer/floating-point promotes to the floating-point type

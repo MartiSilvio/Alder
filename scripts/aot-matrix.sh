@@ -22,20 +22,20 @@ esac
 
 echo "[aot-matrix] Publishing NativeAOT binary (RID: $RID)..."
 
-dotnet publish "$ROOT_DIR/tests/CsEval.AotMatrix/CsEval.AotMatrix.csproj" \
+dotnet publish "$ROOT_DIR/tests/Alder.AotMatrix/Alder.AotMatrix.csproj" \
   -c Release \
   -r "$RID" \
   -p:SelfContained=true \
   --nologo \
   -v quiet > /dev/null 2>&1
 
-BIN_PATH="$ROOT_DIR/tests/CsEval.AotMatrix/bin/Release/net8.0/$RID/publish/CsEval.AotMatrix"
+BIN_PATH="$ROOT_DIR/tests/Alder.AotMatrix/bin/Release/net8.0/$RID/publish/Alder.AotMatrix"
 if [[ ! -x "$BIN_PATH" ]]; then
   echo "AOT binary not found at $BIN_PATH" >&2
   exit 3
 fi
 
-TEST_DATA="$ROOT_DIR/tests/CsEval.Test/TestData/ValidExpressions"
+TEST_DATA="$ROOT_DIR/tests/Alder.Test/TestData/ValidExpressions"
 
 echo "[aot-matrix] Running against $(find "$TEST_DATA" -name '*.csx' ! -name '*.roslyn.csx' | wc -l | tr -d ' ') expressions..."
 echo

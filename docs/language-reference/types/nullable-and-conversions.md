@@ -1,11 +1,11 @@
 ---
 title: "Nullable Types and Conversions"
-description: "Nullable value types, implicit and explicit conversions, lifted operators, and user-defined conversions in CsEval."
+description: "Nullable value types, implicit and explicit conversions, lifted operators, and user-defined conversions in Alder."
 sidebar:
   order: 7
 ---
 
-CsEval implements the complete C# nullable value type system and type conversion rules per ECMA-334. This page covers nullable semantics, the implicit and explicit conversion tables, and user-defined conversion support.
+Alder implements the complete C# nullable value type system and type conversion rules per ECMA-334. This page covers nullable semantics, the implicit and explicit conversion tables, and user-defined conversion support.
 
 ## Nullable Value Types
 
@@ -33,7 +33,7 @@ All 13 value type keywords support nullable variants: `sbyte?`, `byte?`, `short?
 
 ### Nullable Reference Types
 
-`string?` and `object?` are accepted syntactically but map to `string` and `object` at runtime. CsEval does not enforce nullable reference type annotations (no NRT analysis).
+`string?` and `object?` are accepted syntactically but map to `string` and `object` at runtime. Alder does not enforce nullable reference type annotations (no NRT analysis).
 
 ## Lifted Operators
 
@@ -104,17 +104,17 @@ For `==` and `!=`, two null values are considered equal.
 
 ### `&&` Truth Table
 
-| Left | Right | Result |
-|------|-------|--------|
-| `true` | `true` | `true` |
-| `true` | `false` | `false` |
-| `true` | `null` | `null` |
-| `false` | `true` | `false` |
+| Left    | Right   | Result  |
+| ------- | ------- | ------- |
+| `true`  | `true`  | `true`  |
+| `true`  | `false` | `false` |
+| `true`  | `null`  | `null`  |
+| `false` | `true`  | `false` |
 | `false` | `false` | `false` |
-| `false` | `null` | `false` |
-| `null` | `true` | `null` |
-| `null` | `false` | `false` |
-| `null` | `null` | `null` |
+| `false` | `null`  | `false` |
+| `null`  | `true`  | `null`  |
+| `null`  | `false` | `false` |
+| `null`  | `null`  | `null`  |
 
 ```csharp
 (bool?)true && (bool?)null
@@ -128,17 +128,17 @@ For `==` and `!=`, two null values are considered equal.
 
 ### `||` Truth Table
 
-| Left | Right | Result |
-|------|-------|--------|
-| `true` | `true` | `true` |
-| `true` | `false` | `true` |
-| `true` | `null` | `true` |
-| `false` | `true` | `true` |
+| Left    | Right   | Result  |
+| ------- | ------- | ------- |
+| `true`  | `true`  | `true`  |
+| `true`  | `false` | `true`  |
+| `true`  | `null`  | `true`  |
+| `false` | `true`  | `true`  |
 | `false` | `false` | `false` |
-| `false` | `null` | `null` |
-| `null` | `true` | `true` |
-| `null` | `false` | `null` |
-| `null` | `null` | `null` |
+| `false` | `null`  | `null`  |
+| `null`  | `true`  | `true`  |
+| `null`  | `false` | `null`  |
+| `null`  | `null`  | `null`  |
 
 ```csharp
 (bool?)true || (bool?)null
@@ -168,17 +168,17 @@ The `??` operator returns the left operand if it has a value, otherwise the righ
 
 The `default` expression returns the zero/null value for a type.
 
-| Type | `default` Value |
-|------|----------------|
-| `int` | `0` |
-| `long` | `0` |
-| `double` | `0.0` |
-| `decimal` | `0` |
-| `bool` | `false` |
-| `char` | `'\0'` |
-| `int?` | `null` |
-| `string` | `null` |
-| `object` | `null` |
+| Type      | `default` Value |
+| --------- | --------------- |
+| `int`     | `0`             |
+| `long`    | `0`             |
+| `double`  | `0.0`           |
+| `decimal` | `0`             |
+| `bool`    | `false`         |
+| `char`    | `'\0'`          |
+| `int?`    | `null`          |
+| `string`  | `null`          |
+| `object`  | `null`          |
 
 ```csharp
 default(int)
@@ -197,20 +197,20 @@ default(int?)
 
 ## Implicit Numeric Conversions
 
-CsEval implements the implicit numeric conversion table from ECMA-334 section 10.2.3. A conversion listed below happens automatically without a cast.
+Alder implements the implicit numeric conversion table from ECMA-334 section 10.2.3. A conversion listed below happens automatically without a cast.
 
-| From | Converts To |
-|------|------------|
-| `sbyte` | `short`, `int`, `long`, `float`, `double`, `decimal` |
-| `byte` | `short`, `ushort`, `int`, `uint`, `long`, `ulong`, `float`, `double`, `decimal` |
-| `short` | `int`, `long`, `float`, `double`, `decimal` |
-| `ushort` | `int`, `uint`, `long`, `ulong`, `float`, `double`, `decimal` |
-| `int` | `long`, `float`, `double`, `decimal` |
-| `uint` | `long`, `ulong`, `float`, `double`, `decimal` |
-| `long` | `float`, `double`, `decimal` |
-| `ulong` | `float`, `double`, `decimal` |
-| `float` | `double` |
-| `char` | `ushort`, `int`, `uint`, `long`, `ulong`, `float`, `double`, `decimal` |
+| From     | Converts To                                                                     |
+| -------- | ------------------------------------------------------------------------------- |
+| `sbyte`  | `short`, `int`, `long`, `float`, `double`, `decimal`                            |
+| `byte`   | `short`, `ushort`, `int`, `uint`, `long`, `ulong`, `float`, `double`, `decimal` |
+| `short`  | `int`, `long`, `float`, `double`, `decimal`                                     |
+| `ushort` | `int`, `uint`, `long`, `ulong`, `float`, `double`, `decimal`                    |
+| `int`    | `long`, `float`, `double`, `decimal`                                            |
+| `uint`   | `long`, `ulong`, `float`, `double`, `decimal`                                   |
+| `long`   | `float`, `double`, `decimal`                                                    |
+| `ulong`  | `float`, `double`, `decimal`                                                    |
+| `float`  | `double`                                                                        |
+| `char`   | `ushort`, `int`, `uint`, `long`, `ulong`, `float`, `double`, `decimal`          |
 
 There are no predefined implicit conversions **to** `char`. Values of other integral types do not automatically convert to `char` (ECMA-334 section 10.2.3).
 
@@ -327,11 +327,11 @@ Upcasting (derived to base) is implicit. Downcasting (base to derived) requires 
 
 ### Casting Null to Value Types
 
-Casting `null` to a non-nullable value type throws a `CsEvalException` with diagnostic code CS0037 ("Cannot convert null to 'Int32' because it is a non-nullable value type").
+Casting `null` to a non-nullable value type throws a `AlderException` with diagnostic code CS0037 ("Cannot convert null to 'Int32' because it is a non-nullable value type").
 
 ```csharp
 (int)(object)null
-// output: CsEvalException (CS0037)
+// output: AlderException (CS0037)
 ```
 
 Casting `null` to a nullable value type succeeds.
@@ -343,7 +343,7 @@ Casting `null` to a nullable value type succeeds.
 
 ## User-Defined Conversions
 
-CsEval resolves `op_Implicit` and `op_Explicit` operators on registered types per ECMA-334 sections 10.5.3 through 10.5.5. When a type registered through the Engine API defines implicit or explicit conversion operators, CsEval applies them during overload resolution and cast evaluation.
+Alder resolves `op_Implicit` and `op_Explicit` operators on registered types per ECMA-334 sections 10.5.3 through 10.5.5. When a type registered through the Engine API defines implicit or explicit conversion operators, Alder applies them during overload resolution and cast evaluation.
 
 ## See Also
 

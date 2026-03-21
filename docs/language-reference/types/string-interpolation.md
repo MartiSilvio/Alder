@@ -1,13 +1,13 @@
 ---
 title: "String Interpolation"
-description: "Interpolated string syntax, alignment and format specifiers, and verbatim interpolation in CsEval."
+description: "Interpolated string syntax, alignment and format specifiers, and verbatim interpolation in Alder."
 sidebar:
   order: 4
 ---
 
 ## Overview
 
-CsEval supports C# interpolated strings, which embed expressions directly in string literals. Interpolation holes are evaluated at runtime and their results are converted to strings using `ToString()` or format specifiers.
+Alder supports C# interpolated strings, which embed expressions directly in string literals. Interpolation holes are evaluated at runtime and their results are converted to strings using `ToString()` or format specifiers.
 
 ## Basic Syntax
 
@@ -21,7 +21,7 @@ $"Hello, {"world".ToUpper()}"
 // output: Hello, WORLD
 ```
 
-Any valid CsEval expression can appear inside an interpolation hole, including method calls, property access, and arithmetic.
+Any valid Alder expression can appear inside an interpolation hole, including method calls, property access, and arithmetic.
 
 ## Alignment Specifiers
 
@@ -60,15 +60,15 @@ $"{255:X4}"
 
 Common format specifiers:
 
-| Specifier | Description | Example |
-|-----------|-------------|---------|
-| `N` / `Nn` | Number with digit grouping | `{1234.5:N2}` -> `1,234.50` |
-| `D` / `Dn` | Decimal (integers), zero-padded | `{42:D6}` -> `000042` |
-| `C` / `Cn` | Currency (culture-dependent) | `{9.99:C}` -> `$9.99` |
-| `P` / `Pn` | Percentage | `{0.75:P0}` -> `75%` |
-| `X` / `Xn` | Hexadecimal | `{255:X4}` -> `00FF` |
-| `F` / `Fn` | Fixed-point | `{3.14159:F2}` -> `3.14` |
-| `E` / `En` | Scientific notation | `{1234:E2}` -> `1.23E+003` |
+| Specifier  | Description                     | Example                     |
+| ---------- | ------------------------------- | --------------------------- |
+| `N` / `Nn` | Number with digit grouping      | `{1234.5:N2}` -> `1,234.50` |
+| `D` / `Dn` | Decimal (integers), zero-padded | `{42:D6}` -> `000042`       |
+| `C` / `Cn` | Currency (culture-dependent)    | `{9.99:C}` -> `$9.99`       |
+| `P` / `Pn` | Percentage                      | `{0.75:P0}` -> `75%`        |
+| `X` / `Xn` | Hexadecimal                     | `{255:X4}` -> `00FF`        |
+| `F` / `Fn` | Fixed-point                     | `{3.14159:F2}` -> `3.14`    |
+| `E` / `En` | Scientific notation             | `{1234:E2}` -> `1.23E+003`  |
 
 ## Combined Alignment and Format
 
@@ -125,6 +125,7 @@ $@"Path: C:\Users\{System.Environment.MachineName}"
 ```
 
 In verbatim interpolated strings:
+
 - Backslashes are literal (no `\n`, `\t`, etc.)
 - `""` produces a literal double quote
 - `{{` and `}}` produce literal braces

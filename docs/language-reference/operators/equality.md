@@ -1,6 +1,6 @@
 ---
 title: "Equality Operators"
-description: "Equality and inequality operators with value semantics, reference semantics, NaN, nullable, and tuple equality in CsEval."
+description: "Equality and inequality operators with value semantics, reference semantics, NaN, nullable, and tuple equality in Alder."
 sidebar:
   order: 4
 ---

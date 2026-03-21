@@ -1,13 +1,13 @@
 ---
 title: "Iteration Statements"
-description: "for, foreach, while, and do-while loops with execution limit behavior in CsEval."
+description: "for, foreach, while, and do-while loops with execution limit behavior in Alder."
 sidebar:
   order: 3
 ---
 
 ## Overview
 
-CsEval supports `for`, `foreach`, `while`, and `do-while` loops. All loops are subject to the `MaxStatements` execution limit, which protects against infinite loops. The loop statements themselves require no sandbox flags, but operations inside them may require flags like `AllowMethodCalls` or `AllowConstruction`.
+Alder supports `for`, `foreach`, `while`, and `do-while` loops. All loops are subject to the `MaxStatements` execution limit, which protects against infinite loops. The loop statements themselves require no sandbox flags, but operations inside them may require flags like `AllowMethodCalls` or `AllowConstruction`.
 
 ## for Loop
 
@@ -147,18 +147,18 @@ Loops can be nested to any depth. Each loop body creates its own child scope.
 
 ## Execution Limits
 
-All loops are subject to the `MaxStatements` execution limit configured via `ExecutionConstraints`. When the statement count exceeds the limit, CsEval throws `CsEvalExecutionLimitException`. This protects against accidental infinite loops.
+All loops are subject to the `MaxStatements` execution limit configured via `ExecutionConstraints`. When the statement count exceeds the limit, Alder throws `AlderExecutionLimitException`. This protects against accidental infinite loops.
 
 ```csharp
 // With MaxStatements = 10, an infinite loop is terminated:
 { var i = 0; while (true) { i++; } return i; }
-// output: CsEvalExecutionLimitException: Execution exceeded maximum statement count
+// output: AlderExecutionLimitException: Execution exceeded maximum statement count
 ```
 
-The default `CsEvalOptions.Default` has no statement limit. Set `Constraints` to enable it:
+The default `AlderOptions.Default` has no statement limit. Set `Constraints` to enable it:
 
 ```csharp
-var options = CsEvalOptions.Default with
+var options = AlderOptions.Default with
 {
     Constraints = new ExecutionConstraints { MaxStatements = 1000 }
 };

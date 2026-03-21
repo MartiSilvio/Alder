@@ -1,13 +1,13 @@
 ---
 title: "Member Access Operators"
-description: "Member access, element access, and invocation operators in CsEval with sandbox requirements."
+description: "Member access, element access, and invocation operators in Alder with sandbox requirements."
 sidebar:
   order: 9
 ---
 
 ## Overview
 
-Member access operators are the most sandbox-sensitive operators in CsEval. Almost every form of member access requires a specific sandbox flag to be enabled. The examples on this page use `SandboxOptions.Trusted()`, which enables all sandbox flags.
+Member access operators are the most sandbox-sensitive operators in Alder. Almost every form of member access requires a specific sandbox flag to be enabled. The examples on this page use `SandboxOptions.Trusted()`, which enables all sandbox flags.
 
 ## Member Access (`.`)
 
@@ -106,15 +106,15 @@ Object creation with `new` requires the `AllowConstruction` sandbox flag. See th
 
 ## Sandbox Requirements Summary
 
-| Operation | Example | Required Sandbox Flag |
-|---|---|---|
-| Instance property read | `"hello".Length` | `AllowPropertyRead` |
-| Static property read | `int.MaxValue` | `AllowStaticPropertyRead` |
-| Static field read | `double.NaN` | `AllowStaticFieldRead` |
-| Method call | `"hello".ToUpper()` | `AllowMethodCalls` |
-| Property write | `obj.Prop = value` | `AllowPropertySet` |
-| Index write | `arr[i] = value` | `AllowIndexSet` |
-| Construction | `new List<int>()` | `AllowConstruction` |
+| Operation              | Example             | Required Sandbox Flag     |
+| ---------------------- | ------------------- | ------------------------- |
+| Instance property read | `"hello".Length`    | `AllowPropertyRead`       |
+| Static property read   | `int.MaxValue`      | `AllowStaticPropertyRead` |
+| Static field read      | `double.NaN`        | `AllowStaticFieldRead`    |
+| Method call            | `"hello".ToUpper()` | `AllowMethodCalls`        |
+| Property write         | `obj.Prop = value`  | `AllowPropertySet`        |
+| Index write            | `arr[i] = value`    | `AllowIndexSet`           |
+| Construction           | `new List<int>()`   | `AllowConstruction`       |
 
 :::note
 The `SandboxOptions.Trusted()` preset enables all of these flags. For restricted sandboxes, each flag must be enabled individually.

@@ -1,39 +1,39 @@
 ---
 title: "Operators"
-description: "Complete operator precedence table and overview of all operators supported in CsEval Standard mode."
+description: "Complete operator precedence table and overview of all operators supported in Alder Standard mode."
 sidebar:
   order: 1
 ---
 
 ## Overview
 
-CsEval implements a precedence-climbing expression parser with 18 precedence levels. This page lists every operator available in Standard mode, ordered from lowest to highest precedence.
+Alder implements a precedence-climbing expression parser with 18 precedence levels. This page lists every operator available in Standard mode, ordered from lowest to highest precedence.
 
-Operator overloading is not supported in CsEval -- user-defined operators cannot be defined. However, built-in operator overloads for types like `string +` and `Delegate +/-` work as expected.
+Operator overloading is not supported in Alder -- user-defined operators cannot be defined. However, built-in operator overloads for types like `string +` and `Delegate +/-` work as expected.
 
 ## Precedence Table
 
 Higher precedence means tighter binding. When two operators compete for the same operand, the higher-precedence operator wins.
 
-| Precedence | Category | Operators | Associativity |
-|:---:|---|---|---|
-| 1 | [Assignment](./assignment) | `=` `+=` `-=` `*=` `/=` `%=` `&=` `\|=` `^=` `<<=` `>>=` `>>>=` `??=` | Right |
-| 2 | [Conditional](./conditional) | `? :` | Right |
-| 3 | [Null-coalescing](./null-operators) | `??` | Right |
-| 4 | [Range](./range-and-index) | `..` | N/A |
-| 5 | [Logical OR](./boolean-logical) | `\|\|` | Left |
-| 6 | [Logical AND](./boolean-logical) | `&&` | Left |
-| 7 | [Bitwise OR](./bitwise-and-shift) | `\|` | Left |
-| 8 | [Bitwise XOR](./bitwise-and-shift) | `^` | Left |
-| 9 | [Bitwise AND](./bitwise-and-shift) | `&` | Left |
-| 10 | [Equality](./equality) | `==` `!=` | Left |
-| 11 | [Relational / Type testing](./comparison) | `<` `>` `<=` `>=` `is` `as` `switch` | Left |
-| 12 | [Shift](./bitwise-and-shift) | `<<` `>>` `>>>` | Left |
-| 13 | [Additive](./arithmetic) | `+` `-` | Left |
-| 14 | [Multiplicative](./arithmetic) | `*` `/` `%` | Left |
-| 15 | Unary | `-` `+` `!` `~` `^` (index-from-end) `(cast)` `++x` `--x` | Right |
-| 16 | Postfix / [Member access](./member-access) | `.` `?.` `[]` `?[]` `()` `x++` `x--` | Left |
-| 17 | Primary | literals, identifiers, `typeof` `default` `nameof` `sizeof` lambdas tuples `new` | N/A |
+| Precedence | Category                                   | Operators                                                                        | Associativity |
+| :--------: | ------------------------------------------ | -------------------------------------------------------------------------------- | ------------- |
+|     1      | [Assignment](./assignment)                 | `=` `+=` `-=` `*=` `/=` `%=` `&=` `\|=` `^=` `<<=` `>>=` `>>>=` `??=`            | Right         |
+|     2      | [Conditional](./conditional)               | `? :`                                                                            | Right         |
+|     3      | [Null-coalescing](./null-operators)        | `??`                                                                             | Right         |
+|     4      | [Range](./range-and-index)                 | `..`                                                                             | N/A           |
+|     5      | [Logical OR](./boolean-logical)            | `\|\|`                                                                           | Left          |
+|     6      | [Logical AND](./boolean-logical)           | `&&`                                                                             | Left          |
+|     7      | [Bitwise OR](./bitwise-and-shift)          | `\|`                                                                             | Left          |
+|     8      | [Bitwise XOR](./bitwise-and-shift)         | `^`                                                                              | Left          |
+|     9      | [Bitwise AND](./bitwise-and-shift)         | `&`                                                                              | Left          |
+|     10     | [Equality](./equality)                     | `==` `!=`                                                                        | Left          |
+|     11     | [Relational / Type testing](./comparison)  | `<` `>` `<=` `>=` `is` `as` `switch`                                             | Left          |
+|     12     | [Shift](./bitwise-and-shift)               | `<<` `>>` `>>>`                                                                  | Left          |
+|     13     | [Additive](./arithmetic)                   | `+` `-`                                                                          | Left          |
+|     14     | [Multiplicative](./arithmetic)             | `*` `/` `%`                                                                      | Left          |
+|     15     | Unary                                      | `-` `+` `!` `~` `^` (index-from-end) `(cast)` `++x` `--x`                        | Right         |
+|     16     | Postfix / [Member access](./member-access) | `.` `?.` `[]` `?[]` `()` `x++` `x--`                                             | Left          |
+|     17     | Primary                                    | literals, identifiers, `typeof` `default` `nameof` `sizeof` lambdas tuples `new` | N/A           |
 
 ## Category Descriptions
 

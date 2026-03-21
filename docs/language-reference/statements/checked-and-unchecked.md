@@ -1,13 +1,13 @@
 ---
 title: "Checked and Unchecked"
-description: "Checked and unchecked overflow control using expression and block syntax in CsEval."
+description: "Checked and unchecked overflow control using expression and block syntax in Alder."
 sidebar:
   order: 6
 ---
 
 ## Overview
 
-CsEval supports both the expression forms `checked(expr)` / `unchecked(expr)` and the block forms `checked { }` / `unchecked { }`. They control whether integer arithmetic overflow throws an `OverflowException` or wraps silently.
+Alder supports both the expression forms `checked(expr)` / `unchecked(expr)` and the block forms `checked { }` / `unchecked { }`. They control whether integer arithmetic overflow throws an `OverflowException` or wraps silently.
 
 ## Default Behavior
 

@@ -1,19 +1,19 @@
 ---
 title: "Native AOT"
-description: "Source generator approach for AOT-compatible type metadata, CsEvalTypeContext, CsEvalBuiltInContext, and trimming limitations."
+description: "Source generator approach for AOT-compatible type metadata, AlderTypeContext, AlderBuiltInContext, and trimming limitations."
 sidebar:
   order: 8
 ---
 
 ## Overview
 
-CsEval supports Native AOT deployment via source generators that pre-compute type metadata at compile time, eliminating the need for runtime reflection.
+Alder supports Native AOT deployment via source generators that pre-compute type metadata at compile time, eliminating the need for runtime reflection.
 
-**Honest assessment:** CsEval's interpreted mode (the default) works well under AOT. The compiled backend from the **CsEval.Compiled** package (IL emission via `System.Linq.Expressions`) may encounter limitations depending on your trimming configuration, since expression tree compilation relies on reflection emit. If you target AOT, test your specific expressions under your trimming settings.
+**Honest assessment:** Alder's interpreted mode (the default) works well under AOT. The compiled backend from the **Alder.Compiled** package (IL emission via `System.Linq.Expressions`) may encounter limitations depending on your trimming configuration, since expression tree compilation relies on reflection emit. If you target AOT, test your specific expressions under your trimming settings.
 
 ## The Problem
 
-In a standard .NET deployment, CsEval uses reflection to discover type members (properties, methods, fields, constructors) at runtime. Native AOT trims unused code paths, which can remove type metadata that CsEval needs to resolve member access in expressions.
+In a standard .NET deployment, Alder uses reflection to discover type members (properties, methods, fields, constructors) at runtime. Native AOT trims unused code paths, which can remove type metadata that Alder needs to resolve member access in expressions.
 
 Methods that scan assemblies via reflection are marked `[RequiresUnreferencedCode]` and are unavailable in AOT-safe code:
 
@@ -24,14 +24,14 @@ engine.RegisterFromAssembly(typeof(MyType).Assembly);
 
 ## Source Generator Approach
 
-CsEval provides a source generator that pre-computes type metadata at compile time. You annotate a partial class extending `CsEvalTypeContext` with `[CsEvalRegistered]` attributes:
+Alder provides a source generator that pre-computes type metadata at compile time. You annotate a partial class extending `AlderTypeContext` with `[AlderRegistered]` attributes:
 
 ```csharp
-using CsEval.Aot;
+using Alder.Aot;
 
-[CsEvalRegistered(typeof(MyType))]
-[CsEvalRegistered(typeof(AnotherType))]
-public partial class MyAppContext : CsEvalTypeContext;
+[AlderRegistered(typeof(MyType))]
+[AlderRegistered(typeof(AnotherType))]
+public partial class MyAppContext : AlderTypeContext;
 ```
 
 The source generator produces an implementation of `GetTypeMetadata()` that returns pre-computed `IAotTypeMetadata` instances for each registered type.
@@ -41,15 +41,15 @@ The source generator produces an implementation of `GetTypeMetadata()` that retu
 Use `UseGeneratedContext()` to register your context with the engine:
 
 ```csharp
-var engine = new CsEvalEngine();
+var engine = new AlderEngine();
 engine.UseGeneratedContext(new MyAppContext());
 ```
 
 Multiple contexts can be registered. Metadata from later contexts overwrites earlier entries for the same type.
 
-## CsEvalBuiltInContext
+## AlderBuiltInContext
 
-CsEval ships with a built-in context that covers common BCL types. It is registered by default on every engine -- you do not need to add it manually.
+Alder ships with a built-in context that covers common BCL types. It is registered by default on every engine -- you do not need to add it manually.
 
 The built-in context covers:
 
@@ -60,14 +60,14 @@ The built-in context covers:
 - Tuples: `(int, int)`, `(string, int)`, `(string, string)`, `(object, object)`
 - Nullable: `int?`, `double?`, `bool?`, `long?`
 
-For types not in the built-in context, create your own context with `[CsEvalRegistered]` attributes.
+For types not in the built-in context, create your own context with `[AlderRegistered]` attributes.
 
 ## ClearGeneratedContexts
 
 Removes all registered contexts (including the built-in context). Must be called before freeze.
 
 ```csharp
-var engine = new CsEvalEngine();
+var engine = new AlderEngine();
 engine.ClearGeneratedContexts(); // removes built-in context
 engine.UseGeneratedContext(new MyCustomContext()); // add only your types
 ```
@@ -100,7 +100,7 @@ Each `Try*` method returns `true` if the operation was handled by the pre-comput
 
 ### RegisterFromAssembly
 
-`RegisterFromAssembly` is marked `[RequiresUnreferencedCode]` and cannot be used in AOT-safe code. Use `[CsEvalRegistered]` source generation instead.
+`RegisterFromAssembly` is marked `[RequiresUnreferencedCode]` and cannot be used in AOT-safe code. Use `[AlderRegistered]` source generation instead.
 
 ### Anonymous Object Variables
 

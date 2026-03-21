@@ -7,33 +7,33 @@ sidebar:
 
 ## Overview
 
-CsEval uses structured exceptions with Roslyn-style diagnostic codes. Every exception carries an optional `ErrorCode` and location information, making it straightforward to programmatically identify error types and display precise source locations.
+Alder uses structured exceptions with Roslyn-style diagnostic codes. Every exception carries an optional `ErrorCode` and location information, making it straightforward to programmatically identify error types and display precise source locations.
 
-All CsEval exceptions inherit from `CsEvalException`. Non-throwing alternatives (`TryEvaluate`, `TryParse`, `TryValidate`) are available for scenarios where exceptions are undesirable.
+All Alder exceptions inherit from `AlderException`. Non-throwing alternatives (`TryEvaluate`, `TryParse`, `TryValidate`) are available for scenarios where exceptions are undesirable.
 
-## Base Class: CsEvalException
+## Base Class: AlderException
 
-`CsEvalException` extends `System.Exception` and adds diagnostic metadata.
+`AlderException` extends `System.Exception` and adds diagnostic metadata.
 
 **Properties:**
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `ErrorCode` | `DiagnosticCode?` | The diagnostic code enum value, or `null` for unstructured errors |
-| `FormattedCode` | `string?` | Human-readable code string (e.g., `"CS0103"`, `"CSEV0010"`), or `null` |
-| `Line` | `int?` | 1-based line number where the error occurred |
-| `Column` | `int?` | 1-based column number |
-| `SpanStart` | `int?` | 0-based source span start index |
-| `SpanLength` | `int?` | Source span length |
+| Property        | Type              | Description                                                            |
+| --------------- | ----------------- | ---------------------------------------------------------------------- |
+| `ErrorCode`     | `DiagnosticCode?` | The diagnostic code enum value, or `null` for unstructured errors      |
+| `FormattedCode` | `string?`         | Human-readable code string (e.g., `"CS0103"`, `"CSEV0010"`), or `null` |
+| `Line`          | `int?`            | 1-based line number where the error occurred                           |
+| `Column`        | `int?`            | 1-based column number                                                  |
+| `SpanStart`     | `int?`            | 0-based source span start index                                        |
+| `SpanLength`    | `int?`            | Source span length                                                     |
 
 ```csharp
-var engine = new CsEvalEngine();
+var engine = new AlderEngine();
 
 try
 {
     engine.Evaluate("undeclaredVar");
 }
-catch (CsEvalException ex)
+catch (AlderException ex)
 {
     // ex.FormattedCode  --> "CS0103"
     // ex.ErrorCode      --> DiagnosticCode.CS0103
@@ -43,105 +43,105 @@ catch (CsEvalException ex)
 
 ## Exception Subclasses
 
-### CsEvalParserException
+### AlderParserException
 
-Thrown when the parser encounters a syntax error. Inherits location properties from `CsEvalException`.
+Thrown when the parser encounters a syntax error. Inherits location properties from `AlderException`.
 
 ```csharp
-var engine = new CsEvalEngine();
+var engine = new AlderEngine();
 
 try
 {
     engine.Evaluate("x +");
 }
-catch (CsEvalParserException ex)
+catch (AlderParserException ex)
 {
     // ex.Message contains syntax error details
     // ex.Line, ex.Column point to the error location
 }
 ```
 
-### CsEvalLexerException
+### AlderLexerException
 
 Thrown when the lexer encounters a tokenization error (e.g., unterminated strings, invalid escape sequences, invalid numeric literals).
 
 ```csharp
-var engine = new CsEvalEngine();
+var engine = new AlderEngine();
 
 try
 {
     engine.Evaluate("\"unterminated");
 }
-catch (CsEvalLexerException ex)
+catch (AlderLexerException ex)
 {
     // ex.Message --> "Unterminated string at 1:14"
     // ex.Line, ex.Column point to the error location
 }
 ```
 
-### CsEvalDepthException
+### AlderDepthException
 
-Thrown when expression nesting exceeds `CsEvalOptions.MaxExpressionDepth` (default: 512). Unlike `StackOverflowException`, this is catchable.
+Thrown when expression nesting exceeds `AlderOptions.MaxExpressionDepth` (default: 512). Unlike `StackOverflowException`, this is catchable.
 
 **Additional properties:**
 
-| Property | Type | Description |
-|----------|------|-------------|
+| Property   | Type  | Description                                    |
+| ---------- | ----- | ---------------------------------------------- |
 | `MaxDepth` | `int` | The configured maximum depth that was exceeded |
 
 ```csharp
-var engine = new CsEvalEngine(new CsEvalOptions { MaxExpressionDepth = 3 });
+var engine = new AlderEngine(new AlderOptions { MaxExpressionDepth = 3 });
 
 try
 {
     engine.Evaluate("true ? (true ? (true ? (true ? 1 : 2) : 2) : 2) : 2");
 }
-catch (CsEvalDepthException ex)
+catch (AlderDepthException ex)
 {
     // ex.MaxDepth --> 3
 }
 ```
 
-### CsEvalLanguageModeException
+### AlderLanguageModeException
 
 Thrown when an Extended-mode syntax feature is used with `LanguageMode.Standard` (the default).
 
 **Additional properties:**
 
-| Property | Type | Description |
-|----------|------|-------------|
+| Property      | Type     | Description                                                             |
+| ------------- | -------- | ----------------------------------------------------------------------- |
 | `FeatureName` | `string` | The feature that requires Extended mode (e.g., `"**"`, `"in"`, `"[:]"`) |
 
 ```csharp
-var engine = new CsEvalEngine(); // Standard mode
+var engine = new AlderEngine(); // Standard mode
 
 try
 {
     engine.Evaluate("2 ** 3");
 }
-catch (CsEvalLanguageModeException ex)
+catch (AlderLanguageModeException ex)
 {
     // ex.FeatureName   --> "**"
     // ex.FormattedCode --> "CSEV0009"
 }
 ```
 
-### CsEvalExecutionLimitException
+### AlderExecutionLimitException
 
 Thrown when `MaxStatements` or `MaxTimeout` is exceeded. The engine remains healthy after this exception -- subsequent evaluations work normally.
 
 **Additional properties:**
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `LimitType` | `ExecutionLimitType` | `Statements` or `Timeout` |
-| `LimitValue` | `long` | The configured limit (statement count or timeout ms) |
-| `ActualValue` | `long` | The actual value when the limit was hit |
-| `StatementsExecuted` | `long` | Total statements executed when thrown |
-| `ElapsedTime` | `TimeSpan` | Wall-clock time elapsed when thrown |
+| Property             | Type                 | Description                                          |
+| -------------------- | -------------------- | ---------------------------------------------------- |
+| `LimitType`          | `ExecutionLimitType` | `Statements` or `Timeout`                            |
+| `LimitValue`         | `long`               | The configured limit (statement count or timeout ms) |
+| `ActualValue`        | `long`               | The actual value when the limit was hit              |
+| `StatementsExecuted` | `long`               | Total statements executed when thrown                |
+| `ElapsedTime`        | `TimeSpan`           | Wall-clock time elapsed when thrown                  |
 
 ```csharp
-var engine = new CsEvalEngine(new CsEvalOptions
+var engine = new AlderEngine(new AlderOptions
 {
     Constraints = new ExecutionConstraints { MaxStatements = 10 }
 });
@@ -150,7 +150,7 @@ try
 {
     engine.Evaluate("{ while (true) {} }");
 }
-catch (CsEvalExecutionLimitException ex)
+catch (AlderExecutionLimitException ex)
 {
     // ex.LimitType          --> ExecutionLimitType.Statements
     // ex.LimitValue         --> 10
@@ -158,12 +158,12 @@ catch (CsEvalExecutionLimitException ex)
 }
 ```
 
-### CsEvalSandboxException
+### AlderSandboxException
 
 Thrown when an expression is blocked by the sandbox. Covers all CSEV03xx diagnostics: method call, property access, assignment, construction, and type allowlist violations.
 
 ```csharp
-var engine = new CsEvalEngine(new CsEvalOptions
+var engine = new AlderEngine(new AlderOptions
 {
     Sandbox = SandboxOptions.Strict()
 });
@@ -173,7 +173,7 @@ try
 {
     engine.Evaluate("s.ToUpper()");
 }
-catch (CsEvalSandboxException ex)
+catch (AlderSandboxException ex)
 {
     // ex.FormattedCode --> "CSEV0011"
     // ex.Message       --> "CSEV0011: Method calls blocked by sandbox: ToUpper"
@@ -189,33 +189,33 @@ try
 {
     engine.Evaluate(userExpression);
 }
-catch (CsEvalSandboxException ex)
+catch (AlderSandboxException ex)
 {
     // Sandbox violation -- user tried a blocked operation
 }
-catch (CsEvalExecutionLimitException ex)
+catch (AlderExecutionLimitException ex)
 {
     // Resource limit exceeded (infinite loop, timeout)
 }
-catch (CsEvalLanguageModeException ex)
+catch (AlderLanguageModeException ex)
 {
     // Extended-mode feature in Standard mode
 }
-catch (CsEvalDepthException ex)
+catch (AlderDepthException ex)
 {
     // Expression too deeply nested
 }
-catch (CsEvalLexerException ex)
+catch (AlderLexerException ex)
 {
     // Tokenization error (bad string literals, etc.)
 }
-catch (CsEvalParserException ex)
+catch (AlderParserException ex)
 {
     // Syntax error
 }
-catch (CsEvalException ex)
+catch (AlderException ex)
 {
-    // Any other CsEval error (type errors, null access, etc.)
+    // Any other Alder error (type errors, null access, etc.)
 }
 ```
 
@@ -226,7 +226,7 @@ catch (CsEvalException ex)
 Returns `true` if evaluation succeeds. The result is returned via an `out` parameter. No exception is thrown on failure.
 
 ```csharp
-var engine = new CsEvalEngine();
+var engine = new AlderEngine();
 
 if (engine.TryEvaluate("1 + 2", out object? result))
 {
@@ -243,11 +243,11 @@ else
 Returns `true` if parsing succeeds. The parsed expression is returned via an `out` parameter.
 
 ```csharp
-var engine = new CsEvalEngine();
+var engine = new AlderEngine();
 
 if (engine.TryParse("1 + 2", out var expression))
 {
-    // expression is a valid CsEvalExpression
+    // expression is a valid AlderExpression
 }
 else
 {
@@ -260,7 +260,7 @@ else
 Returns `true` if the expression is valid. When `false`, the diagnostics list contains structured error information including severity, code, message, and location.
 
 ```csharp
-var engine = new CsEvalEngine();
+var engine = new AlderEngine();
 
 if (!engine.TryValidate("undeclaredVar", out var diagnostics))
 {
@@ -277,19 +277,19 @@ if (!engine.TryValidate("undeclaredVar", out var diagnostics))
 }
 ```
 
-### CsEvalDiagnostic
+### AlderDiagnostic
 
-The `CsEvalDiagnostic` record carries structured error information:
+The `AlderDiagnostic` record carries structured error information:
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `Severity` | `DiagnosticSeverity` | `Error`, `Warning`, or `Info` |
-| `Message` | `string` | The formatted error message |
-| `Code` | `DiagnosticCode?` | The diagnostic code, or `null` |
-| `Line` | `int?` | 1-based line number |
-| `Column` | `int?` | 1-based column number |
-| `SpanStart` | `int?` | 0-based span start |
-| `SpanLength` | `int?` | Span length |
+| Property     | Type                 | Description                    |
+| ------------ | -------------------- | ------------------------------ |
+| `Severity`   | `DiagnosticSeverity` | `Error`, `Warning`, or `Info`  |
+| `Message`    | `string`             | The formatted error message    |
+| `Code`       | `DiagnosticCode?`    | The diagnostic code, or `null` |
+| `Line`       | `int?`               | 1-based line number            |
+| `Column`     | `int?`               | 1-based column number          |
+| `SpanStart`  | `int?`               | 0-based span start             |
+| `SpanLength` | `int?`               | Span length                    |
 
 ## ControlFlowSignal (Not an Exception)
 

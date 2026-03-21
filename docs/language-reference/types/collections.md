@@ -1,11 +1,11 @@
 ---
 title: "Collections"
-description: "Arrays, List<T>, Dictionary<TKey, TValue>, and collection creation patterns in CsEval Standard mode."
+description: "Arrays, List<T>, Dictionary<TKey, TValue>, and collection creation patterns in Alder Standard mode."
 sidebar:
   order: 5
 ---
 
-CsEval Standard mode supports arrays, generic lists, and dictionaries using `new` keyword patterns. All collection types from `System.Collections.Generic` are implicitly available without a `using` directive.
+Alder Standard mode supports arrays, generic lists, and dictionaries using `new` keyword patterns. All collection types from `System.Collections.Generic` are implicitly available without a `using` directive.
 
 ## Array Creation
 
@@ -37,7 +37,7 @@ new string[] { "hello", "world" }
 
 ### Multidimensional Arrays
 
-CsEval supports multidimensional array creation with comma-separated dimensions.
+Alder supports multidimensional array creation with comma-separated dimensions.
 
 ```csharp
 new int[3, 4]

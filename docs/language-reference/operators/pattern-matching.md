@@ -1,13 +1,13 @@
 ---
 title: "Pattern Matching"
-description: "Pattern matching with is expressions and switch expressions in CsEval."
+description: "Pattern matching with is expressions and switch expressions in Alder."
 sidebar:
   order: 14
 ---
 
 ## Overview
 
-CsEval supports the full range of C# pattern matching: `is` expressions for inline pattern tests and `switch` expressions for multi-arm matching. Pattern matching works without sandbox restrictions, except for property patterns which require `AllowPropertyRead`.
+Alder supports the full range of C# pattern matching: `is` expressions for inline pattern tests and `switch` expressions for multi-arm matching. Pattern matching works without sandbox restrictions, except for property patterns which require `AllowPropertyRead`.
 
 ## Constant Patterns
 
@@ -137,12 +137,12 @@ Logical patterns combine other patterns using `and`, `or`, and `not`.
 
 Logical patterns follow this precedence (lowest to highest):
 
-| Precedence | Operator |
-|:---:|---|
-| 1 (lowest) | `or` |
-| 2 | `and` |
-| 3 | `not` |
-| 4 | relational (`<`, `>`, `<=`, `>=`) |
+| Precedence  | Operator                                            |
+| :---------: | --------------------------------------------------- |
+| 1 (lowest)  | `or`                                                |
+|      2      | `and`                                               |
+|      3      | `not`                                               |
+|      4      | relational (`<`, `>`, `<=`, `>=`)                   |
 | 5 (highest) | primary (constant, type, var, property, positional) |
 
 This means `x is A or B and C` is parsed as `x is A or (B and C)`.
@@ -239,11 +239,11 @@ Patterns can be freely combined for expressive matching.
 
 ## Sandbox Interaction
 
-| Pattern | Sandbox Flag |
-|---|---|
-| Constant, type, var, discard, relational, logical | None required |
-| Property pattern (`{ Prop: value }`) | `AllowPropertyRead` |
-| Switch expression | None (same as constituent patterns) |
+| Pattern                                           | Sandbox Flag                        |
+| ------------------------------------------------- | ----------------------------------- |
+| Constant, type, var, discard, relational, logical | None required                       |
+| Property pattern (`{ Prop: value }`)              | `AllowPropertyRead`                 |
+| Switch expression                                 | None (same as constituent patterns) |
 
 ## See Also
 

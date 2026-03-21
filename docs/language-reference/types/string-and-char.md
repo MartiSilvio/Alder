@@ -1,13 +1,13 @@
 ---
 title: "String and Char"
-description: "String literals, verbatim strings, raw strings, char literals, and escape sequences in CsEval."
+description: "String literals, verbatim strings, raw strings, char literals, and escape sequences in Alder."
 sidebar:
   order: 3
 ---
 
 ## Overview
 
-CsEval supports all standard C# string and character literal types: regular strings, verbatim strings, raw string literals (C# 11), char literals, and their interpolated variants. Escape sequence processing follows the ECMA-334 specification exactly.
+Alder supports all standard C# string and character literal types: regular strings, verbatim strings, raw string literals (C# 11), char literals, and their interpolated variants. Escape sequence processing follows the ECMA-334 specification exactly.
 
 ## Regular String Literals
 
@@ -52,7 +52,7 @@ Raw string literals (C# 11) are delimited by at least three double quotes (`"""`
 
 ### Multi-Line Raw Strings
 
-When a raw string literal spans multiple lines, the content starts on the line after the opening quotes and ends on the line before the closing quotes. CsEval preserves whitespace exactly as written; it does not strip leading whitespace based on closing-delimiter indentation.
+When a raw string literal spans multiple lines, the content starts on the line after the opening quotes and ends on the line before the closing quotes. Alder preserves whitespace exactly as written; it does not strip leading whitespace based on closing-delimiter indentation.
 
 ```csharp
 """
@@ -95,22 +95,22 @@ A char literal must contain exactly one character (or one escape sequence that r
 
 Escape sequences are processed in regular string literals and char literals. They are **not** processed in verbatim strings (except `""` for embedded quotes) or raw string literals.
 
-| Sequence | Character | Unicode Value |
-|----------|-----------|---------------|
-| `\n` | Newline (LF) | U+000A |
-| `\r` | Carriage return (CR) | U+000D |
-| `\t` | Horizontal tab | U+0009 |
-| `\0` | Null | U+0000 |
-| `\a` | Alert (bell) | U+0007 |
-| `\b` | Backspace | U+0008 |
-| `\f` | Form feed | U+000C |
-| `\v` | Vertical tab | U+000B |
-| `\\` | Backslash | U+005C |
-| `\"` | Double quote | U+0022 |
-| `\'` | Single quote | U+0027 |
-| `\uHHHH` | Unicode (4 hex digits) | U+0000 to U+FFFF |
-| `\UHHHHHHHH` | Unicode (8 hex digits) | U+00000000 to U+0010FFFF |
-| `\xH` to `\xHHHH` | Hex escape (1-4 digits) | U+0000 to U+FFFF |
+| Sequence          | Character               | Unicode Value            |
+| ----------------- | ----------------------- | ------------------------ |
+| `\n`              | Newline (LF)            | U+000A                   |
+| `\r`              | Carriage return (CR)    | U+000D                   |
+| `\t`              | Horizontal tab          | U+0009                   |
+| `\0`              | Null                    | U+0000                   |
+| `\a`              | Alert (bell)            | U+0007                   |
+| `\b`              | Backspace               | U+0008                   |
+| `\f`              | Form feed               | U+000C                   |
+| `\v`              | Vertical tab            | U+000B                   |
+| `\\`              | Backslash               | U+005C                   |
+| `\"`              | Double quote            | U+0022                   |
+| `\'`              | Single quote            | U+0027                   |
+| `\uHHHH`          | Unicode (4 hex digits)  | U+0000 to U+FFFF         |
+| `\UHHHHHHHH`      | Unicode (8 hex digits)  | U+00000000 to U+0010FFFF |
+| `\xH` to `\xHHHH` | Hex escape (1-4 digits) | U+0000 to U+FFFF         |
 
 ### Unicode Escapes
 
@@ -145,13 +145,13 @@ The `\x` escape consumes 1 to 4 hexadecimal digits greedily:
 
 ### Escape Sequence Applicability
 
-| Literal Type | Escape Processing |
-|-------------|-------------------|
-| Regular string (`"..."`) | All backslash escapes |
-| Char literal (`'...'`) | All backslash escapes |
-| Verbatim string (`@"..."`) | `""` for embedded quote only; backslashes are literal |
-| Raw string (`"""..."""`) | None; all characters are literal |
-| Interpolated string (`$"..."`) | All backslash escapes + `{{`/`}}` for literal braces |
+| Literal Type                      | Escape Processing                                      |
+| --------------------------------- | ------------------------------------------------------ |
+| Regular string (`"..."`)          | All backslash escapes                                  |
+| Char literal (`'...'`)            | All backslash escapes                                  |
+| Verbatim string (`@"..."`)        | `""` for embedded quote only; backslashes are literal  |
+| Raw string (`"""..."""`)          | None; all characters are literal                       |
+| Interpolated string (`$"..."`)    | All backslash escapes + `{{`/`}}` for literal braces   |
 | Verbatim interpolated (`$@"..."`) | `""` for embedded quote + `{{`/`}}` for literal braces |
 
 ## See Also

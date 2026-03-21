@@ -1,13 +1,13 @@
 ---
 title: "Boolean Logical Operators"
-description: "Logical negation, AND, OR, XOR, and short-circuit conditional operators in CsEval."
+description: "Logical negation, AND, OR, XOR, and short-circuit conditional operators in Alder."
 sidebar:
   order: 5
 ---
 
 ## Overview
 
-CsEval supports the standard C# boolean logical operators. The `&`, `|`, and `^` operators are **dual-purpose** -- they perform boolean logic when operands are `bool` and bitwise operations when operands are integers. This page documents the boolean behavior; see [Bitwise and shift operators](./bitwise-and-shift) for integer behavior.
+Alder supports the standard C# boolean logical operators. The `&`, `|`, and `^` operators are **dual-purpose** -- they perform boolean logic when operands are `bool` and bitwise operations when operands are integers. This page documents the boolean behavior; see [Bitwise and shift operators](./bitwise-and-shift) for integer behavior.
 
 ## Logical Negation (`!`)
 
@@ -117,17 +117,17 @@ When operands are nullable booleans (`bool?`), the logical operators follow ECMA
 
 ### `&&` with `bool?`
 
-| Left | Right | Result |
-|:---:|:---:|:---:|
-| `true` | `true` | `true` |
-| `true` | `false` | `false` |
-| `true` | `null` | `null` |
-| `false` | `true` | `false` |
+|  Left   |  Right  | Result  |
+| :-----: | :-----: | :-----: |
+| `true`  | `true`  | `true`  |
+| `true`  | `false` | `false` |
+| `true`  | `null`  | `null`  |
+| `false` | `true`  | `false` |
 | `false` | `false` | `false` |
-| `false` | `null` | `false` |
-| `null` | `true` | `null` |
-| `null` | `false` | `false` |
-| `null` | `null` | `null` |
+| `false` | `null`  | `false` |
+| `null`  | `true`  | `null`  |
+| `null`  | `false` | `false` |
+| `null`  | `null`  | `null`  |
 
 ```csharp
 (bool?)false && (bool?)null
@@ -146,17 +146,17 @@ When operands are nullable booleans (`bool?`), the logical operators follow ECMA
 
 ### `||` with `bool?`
 
-| Left | Right | Result |
-|:---:|:---:|:---:|
-| `true` | `true` | `true` |
-| `true` | `false` | `true` |
-| `true` | `null` | `true` |
-| `false` | `true` | `true` |
+|  Left   |  Right  | Result  |
+| :-----: | :-----: | :-----: |
+| `true`  | `true`  | `true`  |
+| `true`  | `false` | `true`  |
+| `true`  | `null`  | `true`  |
+| `false` | `true`  | `true`  |
 | `false` | `false` | `false` |
-| `false` | `null` | `null` |
-| `null` | `true` | `true` |
-| `null` | `false` | `null` |
-| `null` | `null` | `null` |
+| `false` | `null`  | `null`  |
+| `null`  | `true`  | `true`  |
+| `null`  | `false` | `null`  |
+| `null`  | `null`  | `null`  |
 
 ```csharp
 (bool?)true || (bool?)null

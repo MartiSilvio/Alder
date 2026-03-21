@@ -1,15 +1,15 @@
 ---
 title: "Jump Statements"
-description: "break, continue, return, goto, goto case, and goto default statements in CsEval."
+description: "break, continue, return, goto, goto case, and goto default statements in Alder."
 sidebar:
   order: 4
 ---
 
 ## Overview
 
-Jump statements transfer control to a different point in the program. CsEval supports `return`, `break`, `continue`, `goto` (with labels), `goto case`, and `goto default`.
+Jump statements transfer control to a different point in the program. Alder supports `return`, `break`, `continue`, `goto` (with labels), `goto case`, and `goto default`.
 
-CsEval propagates jump semantics using `ControlFlowSignal` value objects rather than exceptions. This means user `catch` blocks cannot accidentally intercept control flow -- a `break` inside a `try` block will not be caught by a `catch` clause.
+Alder propagates jump semantics using `ControlFlowSignal` value objects rather than exceptions. This means user `catch` blocks cannot accidentally intercept control flow -- a `break` inside a `try` block will not be caught by a `catch` clause.
 
 ## return
 
@@ -146,7 +146,7 @@ The `goto` statement transfers control to a labeled statement within the same bl
 
 ### Backward Jump
 
-CsEval supports backward `goto` jumps. The label scanner searches the entire block, not just forward.
+Alder supports backward `goto` jumps. The label scanner searches the entire block, not just forward.
 
 ```csharp
 {
@@ -232,7 +232,7 @@ Empty cases (with no statements) fall through to the next case naturally:
 
 ## ControlFlowSignal Mechanism
 
-CsEval does not use .NET exceptions for control flow. Instead, `return`, `break`, `continue`, and `goto` produce `ControlFlowSignal` value objects that propagate up the call stack. This design:
+Alder does not use .NET exceptions for control flow. Instead, `return`, `break`, `continue`, and `goto` produce `ControlFlowSignal` value objects that propagate up the call stack. This design:
 
 - Avoids the performance overhead of SEH (structured exception handling)
 - Prevents user `catch` blocks from intercepting control flow signals

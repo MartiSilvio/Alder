@@ -1,13 +1,13 @@
 ---
 title: "Bitwise and Shift Operators"
-description: "Bitwise AND, OR, XOR, complement, left shift, right shift, and unsigned right shift operators in CsEval."
+description: "Bitwise AND, OR, XOR, complement, left shift, right shift, and unsigned right shift operators in Alder."
 sidebar:
   order: 6
 ---
 
 ## Overview
 
-CsEval supports all standard C# bitwise and shift operators on integer types. The `&`, `|`, and `^` operators are **dual-purpose** -- they perform bitwise operations when operands are integers and boolean logic when operands are `bool`. This page documents the integer/bitwise behavior; see [Boolean logical operators](./boolean-logical) for `bool` behavior.
+Alder supports all standard C# bitwise and shift operators on integer types. The `&`, `|`, and `^` operators are **dual-purpose** -- they perform bitwise operations when operands are integers and boolean logic when operands are `bool`. This page documents the integer/bitwise behavior; see [Boolean logical operators](./boolean-logical) for `bool` behavior.
 
 ## Bitwise AND (`&`)
 
@@ -86,7 +86,7 @@ Shifts bits right by the specified count. For signed types, the sign bit is prop
 
 ## Unsigned Right Shift (`>>>`)
 
-Shifts bits right by the specified count, always filling vacated high-order bits with zero regardless of the sign of the left operand. This is a C# 11 feature supported in CsEval.
+Shifts bits right by the specified count, always filling vacated high-order bits with zero regardless of the sign of the left operand. This is a C# 11 feature supported in Alder.
 
 ```csharp
 -1 >>> 31

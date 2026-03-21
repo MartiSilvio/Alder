@@ -7,9 +7,9 @@ sidebar:
 
 ## Threat Model
 
-CsEval evaluates user-supplied C# expressions **in-process**. The sandbox controls which operations those expressions can perform within the .NET runtime.
+Alder evaluates user-supplied C# expressions **in-process**. The sandbox controls which operations those expressions can perform within the .NET runtime.
 
-**What CsEval protects against:**
+**What Alder protects against:**
 
 - Untrusted expressions calling arbitrary methods on host objects
 - Untrusted expressions mutating host state (property sets, index writes, variable reassignment)
@@ -17,11 +17,11 @@ CsEval evaluates user-supplied C# expressions **in-process**. The sandbox contro
 - Untrusted expressions accessing reflection metadata (Type, Assembly, MemberInfo)
 - Runaway expressions (infinite loops, deep nesting, long computations)
 
-**What CsEval does NOT protect against:**
+**What Alder does NOT protect against:**
 
-- **Process-level isolation** -- CsEval runs in your process. It is not an OS sandbox, container, or AppDomain boundary.
+- **Process-level isolation** -- Alder runs in your process. It is not an OS sandbox, container, or AppDomain boundary.
 - **Network isolation** -- If a host-injected object has network access, sandbox flags do not prevent it from being read.
-- **File system isolation** -- CsEval does not intercept I/O calls at the OS level.
+- **File system isolation** -- Alder does not intercept I/O calls at the OS level.
 - **Memory isolation** -- Expressions share the host process memory space.
 - **Side effects through registered functions** -- If you register a function that deletes files, the sandbox cannot prevent it from being called (registered functions are always allowed).
 
@@ -29,7 +29,7 @@ The sandbox is a **language-level capability filter**, not an OS-level security 
 
 ## Defense Layers
 
-CsEval provides four independent defense layers:
+Alder provides four independent defense layers:
 
 1. **Sandbox permission flags** -- Eight boolean flags on `SandboxOptions` that control method calls, property access, assignment, construction, and more. See [Permission Flags](#permission-flags) below.
 2. **Reflection leak guard** -- Always-on guard that blocks expressions from obtaining reflection metadata (Type, MemberInfo, Assembly). Independent of sandbox flags. See [Reflection Leak Guard](#reflection-leak-guard).
@@ -40,16 +40,16 @@ CsEval provides four independent defense layers:
 
 `SandboxOptions` is a sealed C# record with eight boolean flags. All flags default to `false` (deny-all).
 
-| Flag | Controls | Example blocked | Example allowed |
-|------|----------|----------------|-----------------|
-| `AllowMethodCalls` | Method calls on objects | `str.ToUpper()`, `list.Add(x)` | Modules, registered functions, lambdas, LINQ |
-| `AllowPropertyRead` | Property/field reads on objects | `str.Length`, `obj.Name` | |
-| `AllowStaticPropertyRead` | Static property reads from types | `DateTime.Now` | |
-| `AllowStaticFieldRead` | Static field reads from types | `string.Empty` | |
-| `AllowAssignment` | Variable reassignment | `x = 5`, `x++`, `x += 1` | `var x = 5` (declarations always allowed) |
-| `AllowPropertySet` | Property/field writes on objects | `obj.Name = "new"` | |
-| `AllowIndexSet` | Index writes | `arr[0] = 5`, `dict["key"] = value` | |
-| `AllowConstruction` | `new` expressions | `new List<int>()`, `new { }` | |
+| Flag                      | Controls                         | Example blocked                     | Example allowed                              |
+| ------------------------- | -------------------------------- | ----------------------------------- | -------------------------------------------- |
+| `AllowMethodCalls`        | Method calls on objects          | `str.ToUpper()`, `list.Add(x)`      | Modules, registered functions, lambdas, LINQ |
+| `AllowPropertyRead`       | Property/field reads on objects  | `str.Length`, `obj.Name`            |                                              |
+| `AllowStaticPropertyRead` | Static property reads from types | `DateTime.Now`                      |                                              |
+| `AllowStaticFieldRead`    | Static field reads from types    | `string.Empty`                      |                                              |
+| `AllowAssignment`         | Variable reassignment            | `x = 5`, `x++`, `x += 1`            | `var x = 5` (declarations always allowed)    |
+| `AllowPropertySet`        | Property/field writes on objects | `obj.Name = "new"`                  |                                              |
+| `AllowIndexSet`           | Index writes                     | `arr[0] = 5`, `dict["key"] = value` |                                              |
+| `AllowConstruction`       | `new` expressions                | `new List<int>()`, `new { }`        |                                              |
 
 **AllowMethodCalls details:**
 
@@ -61,14 +61,14 @@ When `AllowMethodCalls` is `false`, instance and static method calls on variable
 - LINQ extension methods (`items.Where(x => x > 2).Sum()`)
 
 ```csharp
-var engine = new CsEvalEngine(new CsEvalOptions
+var engine = new AlderEngine(new AlderOptions
 {
     Sandbox = SandboxOptions.Safe()
 });
 engine.SetVariable("name", "alice");
 
 name.ToUpper()
-// throws CsEvalSandboxException
+// throws AlderSandboxException
 
 name.Length
 // output: 5
@@ -79,7 +79,7 @@ name.Length
 When `AllowAssignment` is `false`, variable reassignment (`x = 5`), compound assignment (`x += 1`), and increment/decrement (`x++`, `--x`) are blocked. Variable declarations (`var x = 5`) are **always allowed** regardless of this flag.
 
 ```csharp
-var engine = new CsEvalEngine(new CsEvalOptions
+var engine = new AlderEngine(new AlderOptions
 {
     Sandbox = SandboxOptions.Strict()
 });
@@ -88,7 +88,7 @@ var engine = new CsEvalEngine(new CsEvalOptions
 // output: 5
 
 { var x = 1; x = 5; return x; }
-// throws CsEvalSandboxException
+// throws AlderSandboxException
 ```
 
 **AllowConstruction details:**
@@ -117,21 +117,21 @@ Regardless of sandbox flags, expressions can always:
 
 Three factory methods provide common sandbox configurations:
 
-| Flag | Trusted | Safe | Strict |
-|------|---------|------|--------|
-| `AllowMethodCalls` | true | false | false |
-| `AllowPropertyRead` | true | true | true |
-| `AllowStaticPropertyRead` | true | false | false |
-| `AllowStaticFieldRead` | true | false | false |
-| `AllowAssignment` | true | true | false |
-| `AllowPropertySet` | true | true | false |
-| `AllowIndexSet` | true | true | false |
-| `AllowConstruction` | true | false | false |
+| Flag                      | Trusted | Safe  | Strict |
+| ------------------------- | ------- | ----- | ------ |
+| `AllowMethodCalls`        | true    | false | false  |
+| `AllowPropertyRead`       | true    | true  | true   |
+| `AllowStaticPropertyRead` | true    | false | false  |
+| `AllowStaticFieldRead`    | true    | false | false  |
+| `AllowAssignment`         | true    | true  | false  |
+| `AllowPropertySet`        | true    | true  | false  |
+| `AllowIndexSet`           | true    | true  | false  |
+| `AllowConstruction`       | true    | false | false  |
 
 **Trusted** -- full access. Use for internal, developer-authored expressions.
 
 ```csharp
-var engine = new CsEvalEngine(new CsEvalOptions
+var engine = new AlderEngine(new AlderOptions
 {
     Sandbox = SandboxOptions.Trusted()
 });
@@ -144,7 +144,7 @@ name.ToUpper()
 **Safe** -- blocks method calls and construction, but allows property access, assignment, and index operations. Use for user expressions that need to read and modify data but should not call arbitrary methods.
 
 ```csharp
-var engine = new CsEvalEngine(new CsEvalOptions
+var engine = new AlderEngine(new AlderOptions
 {
     Sandbox = SandboxOptions.Safe()
 });
@@ -154,13 +154,13 @@ name.Length
 // output: 5
 
 name.ToUpper()
-// throws CsEvalSandboxException
+// throws AlderSandboxException
 ```
 
 **Strict** -- read-only. Only property reads and pure expressions. No method calls, no mutations, no construction.
 
 ```csharp
-var engine = new CsEvalEngine(new CsEvalOptions
+var engine = new AlderEngine(new AlderOptions
 {
     Sandbox = SandboxOptions.Strict()
 });
@@ -170,14 +170,14 @@ name.Length
 // output: 5
 
 { var x = 1; x = 5; return x; }
-// throws CsEvalSandboxException
+// throws AlderSandboxException
 ```
 
 **Custom presets** -- use `with` syntax to adjust any preset:
 
 ```csharp
 // Strict + method calls (read-only data access with method calls)
-var engine = new CsEvalEngine(new CsEvalOptions
+var engine = new AlderEngine(new AlderOptions
 {
     Sandbox = SandboxOptions.Strict() with { AllowMethodCalls = true }
 });
@@ -187,7 +187,7 @@ name.ToUpper()
 // output: "ALICE"
 
 { var x = 1; x = 5; return x; }
-// throws CsEvalSandboxException (assignment still blocked)
+// throws AlderSandboxException (assignment still blocked)
 ```
 
 ## AllowedTypes Allowlist
@@ -197,7 +197,7 @@ name.ToUpper()
 The allowlist checks the **exact constructed type**. Use `typeof(List<int>)`, not `typeof(List<>)`.
 
 ```csharp
-var engine = new CsEvalEngine(new CsEvalOptions
+var engine = new AlderEngine(new AlderOptions
 {
     Sandbox = SandboxOptions.Trusted() with
     {
@@ -209,7 +209,7 @@ new List<int> { 1, 2, 3 }
 // succeeds -- List<int> is in the allowlist
 
 new List<string> { "a", "b" }
-// throws CsEvalSandboxException -- List<string> is not in the allowlist
+// throws AlderSandboxException -- List<string> is not in the allowlist
 ```
 
 ## Reflection Leak Guard
@@ -230,7 +230,7 @@ The reflection leak guard is a **separate defense layer** that is **always activ
 
 **How it works:**
 
-The guard inspects the runtime return type of every member access and method call. If the returned value is a forbidden reflection type, a `CsEvalSandboxException` is thrown.
+The guard inspects the runtime return type of every member access and method call. If the returned value is a forbidden reflection type, a `AlderSandboxException` is thrown.
 
 `typeof(int)` is **not** blocked because it is a type literal resolved at parse time -- it never flows through the member access guard. But any expression that would return a `Type` through member access is blocked:
 
@@ -239,20 +239,20 @@ typeof(int)
 // output: System.Int32 (type literal -- always allowed)
 
 text.GetType()
-// throws CsEvalSandboxException (returns RuntimeType -- always blocked)
+// throws AlderSandboxException (returns RuntimeType -- always blocked)
 ```
 
 This means even in `Trusted()` mode with all flags enabled, `.GetType()` is blocked:
 
 ```csharp
-var engine = new CsEvalEngine(new CsEvalOptions
+var engine = new AlderEngine(new AlderOptions
 {
     Sandbox = SandboxOptions.Trusted()
 });
 engine.SetVariable("text", "hello");
 
 text.GetType()
-// throws CsEvalSandboxException -- reflection guard is independent of sandbox flags
+// throws AlderSandboxException -- reflection guard is independent of sandbox flags
 ```
 
 ## See Also

@@ -1,13 +1,13 @@
 ---
 title: "Numeric Types"
-description: "Integral and floating-point types, numeric promotions, literal formats, and arithmetic behavior in CsEval."
+description: "Integral and floating-point types, numeric promotions, literal formats, and arithmetic behavior in Alder."
 sidebar:
   order: 2
 ---
 
 ## Overview
 
-CsEval supports all standard C# numeric literal formats, suffixes, and promotion rules. Numeric behavior follows the ECMA-334 specification, including binary numeric promotion (section 12.4.7.3) and implicit constant expression conversions (section 10.2.11).
+Alder supports all standard C# numeric literal formats, suffixes, and promotion rules. Numeric behavior follows the ECMA-334 specification, including binary numeric promotion (section 12.4.7.3) and implicit constant expression conversions (section 10.2.11).
 
 ## Integer Literals
 
@@ -103,14 +103,14 @@ Use `e` or `E` followed by an optional sign and exponent digits.
 
 Suffixes force a specific numeric type. All suffixes are case-insensitive.
 
-| Suffix | Type | Example | Result |
-|--------|------|---------|--------|
-| `L` / `l` | `long` | `42L` | `System.Int64` |
-| `U` / `u` | `uint` | `42U` | `System.UInt32` |
-| `UL` / `ul` / `LU` / `lu` | `ulong` | `42UL` | `System.UInt64` |
-| `F` / `f` | `float` | `3.14F` | `System.Single` |
-| `D` / `d` | `double` | `42D` | `System.Double` |
-| `M` / `m` | `decimal` | `3.14M` | `System.Decimal` |
+| Suffix                    | Type      | Example | Result           |
+| ------------------------- | --------- | ------- | ---------------- |
+| `L` / `l`                 | `long`    | `42L`   | `System.Int64`   |
+| `U` / `u`                 | `uint`    | `42U`   | `System.UInt32`  |
+| `UL` / `ul` / `LU` / `lu` | `ulong`   | `42UL`  | `System.UInt64`  |
+| `F` / `f`                 | `float`   | `3.14F` | `System.Single`  |
+| `D` / `d`                 | `double`  | `42D`   | `System.Double`  |
+| `M` / `m`                 | `decimal` | `3.14M` | `System.Decimal` |
 
 ```csharp
 42L
@@ -131,16 +131,16 @@ Integer suffixes (`L`, `U`, `UL`) are valid on decimal, hex, and binary integers
 
 When a binary operator has two numeric operands of different types, both operands are promoted to a common type according to these rules from ECMA-334 section 12.4.7.3. The rules are evaluated in order; the first matching rule determines the result type.
 
-| Rule | Condition | Result Type | Notes |
-|------|-----------|-------------|-------|
-| 1 | Either operand is `decimal` | `decimal` | Error if other is `float` or `double` |
-| 2 | Either operand is `double` | `double` | |
-| 3 | Either operand is `float` | `float` | |
-| 4 | Either operand is `ulong` | `ulong` | Error if other is a signed integer type |
-| 5 | Either operand is `long` | `long` | |
-| 6 | One operand is `uint`, other is `sbyte`, `short`, or `int` | `long` | |
-| 7 | Either operand is `uint` | `uint` | |
-| 8 | Otherwise | `int` | Includes `byte`, `sbyte`, `short`, `ushort`, `char` |
+| Rule | Condition                                                  | Result Type | Notes                                               |
+| ---- | ---------------------------------------------------------- | ----------- | --------------------------------------------------- |
+| 1    | Either operand is `decimal`                                | `decimal`   | Error if other is `float` or `double`               |
+| 2    | Either operand is `double`                                 | `double`    |                                                     |
+| 3    | Either operand is `float`                                  | `float`     |                                                     |
+| 4    | Either operand is `ulong`                                  | `ulong`     | Error if other is a signed integer type             |
+| 5    | Either operand is `long`                                   | `long`      |                                                     |
+| 6    | One operand is `uint`, other is `sbyte`, `short`, or `int` | `long`      |                                                     |
+| 7    | Either operand is `uint`                                   | `uint`      |                                                     |
+| 8    | Otherwise                                                  | `int`       | Includes `byte`, `sbyte`, `short`, `ushort`, `char` |
 
 ### The `char` Exception
 
@@ -198,7 +198,7 @@ When a binary operator has two numeric operands of different types, both operand
 
 ## Implicit Constant Expression Conversions
 
-When a compile-time constant expression of type `int` appears in a context requiring a narrower type, CsEval permits implicit conversion if the value fits in the target type. This follows ECMA-334 section 10.2.11.
+When a compile-time constant expression of type `int` appears in a context requiring a narrower type, Alder permits implicit conversion if the value fits in the target type. This follows ECMA-334 section 10.2.11.
 
 ```csharp
 byte b = 42

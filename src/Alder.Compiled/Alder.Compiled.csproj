@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <PackageId>Alder.Compiled</PackageId>
+    <Description>Optional compiled backend package for Alder.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Alder\Alder.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Update="Compilation\BoundExpressionEmitter.Assignments.cs">
+      <DependentUpon>BoundExpressionEmitter.cs</DependentUpon>
+    </Compile>
+    <Compile Update="Compilation\BoundExpressionEmitter.ControlFlow.cs">
+      <DependentUpon>BoundExpressionEmitter.cs</DependentUpon>
+    </Compile>
+    <Compile Update="Compilation\BoundExpressionEmitter.Expressions.cs">
+      <DependentUpon>BoundExpressionEmitter.cs</DependentUpon>
+    </Compile>
+    <Compile Update="Compilation\BoundExpressionEmitter.Invocations.cs">
+      <DependentUpon>BoundExpressionEmitter.cs</DependentUpon>
+    </Compile>
+    <Compile Update="Compilation\BoundExpressionEmitter.Literals.cs">
+      <DependentUpon>BoundExpressionEmitter.cs</DependentUpon>
+    </Compile>
+    <Compile Update="Compilation\BoundExpressionEmitter.LocalPromotion.cs">
+      <DependentUpon>BoundExpressionEmitter.cs</DependentUpon>
+    </Compile>
+  </ItemGroup>
+
+</Project>

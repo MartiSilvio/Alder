@@ -1,13 +1,13 @@
 ---
 title: "Range and Index Operators"
-description: "Range (..) and index-from-end (^) operators in CsEval."
+description: "Range (..) and index-from-end (^) operators in Alder."
 sidebar:
   order: 11
 ---
 
 ## Overview
 
-CsEval supports the C# range and index-from-end operators for creating `System.Range` and `System.Index` values. These operators work without sandbox restrictions to create the values themselves, though using them to index into collections requires the appropriate member access sandbox flags.
+Alder supports the C# range and index-from-end operators for creating `System.Range` and `System.Index` values. These operators work without sandbox restrictions to create the values themselves, though using them to index into collections requires the appropriate member access sandbox flags.
 
 ## Index From End (`^`)
 

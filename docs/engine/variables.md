@@ -7,10 +7,10 @@ sidebar:
 
 ## Overview
 
-Variables are the primary way to pass host data into CsEval expressions. Values set on the engine are available to all subsequent evaluations.
+Variables are the primary way to pass host data into Alder expressions. Values set on the engine are available to all subsequent evaluations.
 
 ```csharp
-var engine = new CsEvalEngine();
+var engine = new AlderEngine();
 engine.SetVariable("name", "Alice");
 engine.SetVariable("age", 30);
 
@@ -23,7 +23,7 @@ var greeting = engine.Evaluate<string>(@"""Hello, "" + name");
 Sets a variable with the compile-time type stored as `object`. Returns the engine for fluent chaining.
 
 ```csharp
-var engine = new CsEvalEngine();
+var engine = new AlderEngine();
 engine.SetVariable("x", 42);
 
 var result = engine.Evaluate<int>("x + 8");
@@ -35,7 +35,7 @@ var result = engine.Evaluate<int>("x + 8");
 Sets a variable with precise generic type information. This enables the compiler to generate optimized IL because the exact type is known at definition time, rather than boxing through `object`.
 
 ```csharp
-var engine = new CsEvalEngine();
+var engine = new AlderEngine();
 engine.SetVariable<int>("x", 42);
 
 var result = engine.Evaluate<int>("x + 8");
@@ -43,6 +43,7 @@ var result = engine.Evaluate<int>("x + 8");
 ```
 
 **When to use which:**
+
 - `SetVariable("x", 42)` — stores as `object`, value is boxed. Works for all scenarios.
 - `SetVariable<int>("x", 42)` — stores with `int` type metadata. Enables optimized compilation paths.
 
@@ -53,7 +54,7 @@ Use `SetVariable<T>` when performance matters and the type is known at call time
 Bulk-sets multiple variables from a dictionary. All values are stored with `object` type semantics.
 
 ```csharp
-var engine = new CsEvalEngine();
+var engine = new AlderEngine();
 engine.SetVariables(new Dictionary<string, object?>
 {
     ["x"] = 10,
@@ -70,7 +71,7 @@ var result = engine.Evaluate<int>("x + y");
 The `Evaluate` overloads accept an anonymous object whose properties become per-invocation variables. This uses reflection internally and is not AOT-compatible.
 
 ```csharp
-var engine = new CsEvalEngine();
+var engine = new AlderEngine();
 var result = engine.Evaluate<int>("x + y", new { x = 1, y = 2 });
 // result: 3
 ```
@@ -82,7 +83,7 @@ Each public property on the anonymous object is extracted via reflection and inj
 Pass an `IDictionary<string, object?>` to any `Evaluate` overload. These variables are scoped to that single call — they do not persist on the engine.
 
 ```csharp
-var engine = new CsEvalEngine();
+var engine = new AlderEngine();
 
 var vars = new Dictionary<string, object?> { ["x"] = 100 };
 var result = engine.Evaluate<int>("x * 2", vars);
@@ -100,7 +101,7 @@ Internally, per-invocation variables create a temporary child engine with its ow
 Variables set via `SetVariable` persist across evaluations — they are part of the engine's state.
 
 ```csharp
-var engine = new CsEvalEngine();
+var engine = new AlderEngine();
 engine.SetVariable("counter", 0);
 
 engine.Evaluate<int>("counter");
@@ -118,7 +119,7 @@ Per-invocation variables (dictionary or anonymous object) are scoped to that cal
 All `SetVariable` methods return the engine, enabling fluent configuration:
 
 ```csharp
-var engine = new CsEvalEngine();
+var engine = new AlderEngine();
 var result = engine
     .SetVariable("a", 1)
     .SetVariable("b", 2)
@@ -135,7 +136,7 @@ var result = engine
 - **After first evaluation:** Variables are defined directly in the evaluation context via `context.Define()`. This is thread-safe.
 
 ```csharp
-var engine = new CsEvalEngine();
+var engine = new AlderEngine();
 
 // Before freeze
 engine.SetVariable("x", 1);
@@ -150,5 +151,5 @@ engine.Evaluate<int>("x");
 
 ## See Also
 
-- [CsEvalOptions](../engine/options/) — Configure engine behavior
+- [AlderOptions](../engine/options/) — Configure engine behavior
 - [Expressions](../engine/expressions/) — Parse, evaluate, and reuse expressions

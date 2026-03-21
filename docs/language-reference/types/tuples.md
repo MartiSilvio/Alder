@@ -1,11 +1,11 @@
 ---
 title: "Tuples"
-description: "ValueTuple creation, named elements, deconstruction, and arity support in CsEval."
+description: "ValueTuple creation, named elements, deconstruction, and arity support in Alder."
 sidebar:
   order: 6
 ---
 
-CsEval supports C# value tuples backed by the `System.ValueTuple<>` family of types. Tuples provide a lightweight way to group multiple values without defining a class or struct.
+Alder supports C# value tuples backed by the `System.ValueTuple<>` family of types. Tuples provide a lightweight way to group multiple values without defining a class or struct.
 
 ## Tuple Creation
 
@@ -108,9 +108,9 @@ u.Item1
 
 ## Arity Support
 
-CsEval supports tuples with 1 through 7 elements directly using `ValueTuple<T1>` through `ValueTuple<T1, T2, T3, T4, T5, T6, T7>`.
+Alder supports tuples with 1 through 7 elements directly using `ValueTuple<T1>` through `ValueTuple<T1, T2, T3, T4, T5, T6, T7>`.
 
-For 8 or more elements, CsEval uses the nested `ValueTuple<T1, T2, T3, T4, T5, T6, T7, TRest>` form, where the eighth type parameter holds the remaining elements as another `ValueTuple`.
+For 8 or more elements, Alder uses the nested `ValueTuple<T1, T2, T3, T4, T5, T6, T7, TRest>` form, where the eighth type parameter holds the remaining elements as another `ValueTuple`.
 
 ```csharp
 (1, 2, 3, 4, 5, 6, 7, 8)

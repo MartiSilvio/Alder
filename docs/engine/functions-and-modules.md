@@ -1,20 +1,20 @@
 ---
 title: "Functions and Modules"
-description: "Register custom functions, organized modules, and assembly-scanned types with the CsEval engine."
+description: "Register custom functions, organized modules, and assembly-scanned types with the Alder engine."
 sidebar:
   order: 4
 ---
 
 ## Overview
 
-CsEval ships with built-in `Math` and `Convert` modules, but most applications need custom logic. The engine provides four registration paths:
+Alder ships with built-in `Math` and `Convert` modules, but most applications need custom logic. The engine provides four registration paths:
 
-| Method | What it does |
-|--------|-------------|
-| `RegisterFunction` | Adds a single callable function by name |
-| `RegisterModule` | Groups a class's methods under a namespace prefix |
-| `RegisterFromType` | Exposes a class's methods as top-level functions (no prefix) |
-| `RegisterFromAssembly` | Scans an assembly for `[CsEvalModule]`-decorated classes |
+| Method                 | What it does                                                 |
+| ---------------------- | ------------------------------------------------------------ |
+| `RegisterFunction`     | Adds a single callable function by name                      |
+| `RegisterModule`       | Groups a class's methods under a namespace prefix            |
+| `RegisterFromType`     | Exposes a class's methods as top-level functions (no prefix) |
+| `RegisterFromAssembly` | Scans an assembly for `[AlderModule]`-decorated classes      |
 
 All registration methods return `this` for fluent chaining and must be called **before the first `Evaluate()`**. After evaluation begins, the engine configuration freezes and registration throws `InvalidOperationException`.
 
@@ -23,13 +23,13 @@ All registration methods return `this` for fluent chaining and must be called **
 Registers a standalone function callable by name in expressions.
 
 ```csharp
-public CsEvalEngine RegisterFunction(string name, Func<object?[], object?> function)
+public AlderEngine RegisterFunction(string name, Func<object?[], object?> function)
 ```
 
 The delegate receives all arguments as an `object?[]` and returns `object?`.
 
 ```csharp
-var engine = new CsEvalEngine()
+var engine = new AlderEngine()
     .RegisterFunction("add", args => (int)args[0]! + (int)args[1]!);
 
 var result = engine.Evaluate<int>("add(3, 4)");
@@ -45,7 +45,7 @@ Groups a class's public methods under a named prefix. Expressions call them as `
 ### Generic overload
 
 ```csharp
-public CsEvalEngine RegisterModule<T>(
+public AlderEngine RegisterModule<T>(
     string moduleName,
     bool explicitOnly = false,
     T? instance = default) where T : class
@@ -58,7 +58,7 @@ public class StringUtils
     public string Upper(string s) => s.ToUpper();
 }
 
-var engine = new CsEvalEngine()
+var engine = new AlderEngine()
     .RegisterModule<StringUtils>("Str");
 
 var result = engine.Evaluate<string>(@"Str.Upper(""hello"")");
@@ -70,7 +70,7 @@ When `instance` is `null` (the default), the engine creates an instance via the 
 ### Non-generic overload
 
 ```csharp
-public CsEvalEngine RegisterModule(
+public AlderEngine RegisterModule(
     string moduleName,
     Type type,
     bool explicitOnly = false,
@@ -82,7 +82,7 @@ Same behavior as the generic overload, accepting a `Type` directly.
 ### Explicit member map overload
 
 ```csharp
-public CsEvalEngine RegisterModule(
+public AlderEngine RegisterModule(
     string moduleName,
     Type type,
     IReadOnlyDictionary<string, MemberInfo> members)
@@ -92,18 +92,18 @@ Registers a module with an explicit dictionary of exposed members. Useful when y
 
 ### The `explicitOnly` parameter
 
-When `explicitOnly` is `true`, only methods decorated with `[CsEvalFunction]` are exposed to expressions. All other public methods are hidden.
+When `explicitOnly` is `true`, only methods decorated with `[AlderFunction]` are exposed to expressions. All other public methods are hidden.
 
 ```csharp
 public class Selective
 {
-    [CsEvalFunction]
+    [AlderFunction]
     public int Allowed() => 1;
 
     public int Hidden() => 2;
 }
 
-var engine = new CsEvalEngine()
+var engine = new AlderEngine()
     .RegisterModule<Selective>("sel", explicitOnly: true);
 
 var result = engine.Evaluate<int>("sel.Allowed()");
@@ -112,50 +112,50 @@ var result = engine.Evaluate<int>("sel.Allowed()");
 // sel.Hidden() would throw -- not exposed
 ```
 
-The `ExplicitOnly` property can also be set on the `[CsEvalModule]` attribute itself, and `RegisterModule` respects it when `explicitOnly` is not explicitly passed as `true`.
+The `ExplicitOnly` property can also be set on the `[AlderModule]` attribute itself, and `RegisterModule` respects it when `explicitOnly` is not explicitly passed as `true`.
 
 ## RegisterFromType
 
-Registers methods decorated with `[CsEvalFunction]` from a type as top-level functions, callable without any module prefix.
+Registers methods decorated with `[AlderFunction]` from a type as top-level functions, callable without any module prefix.
 
 ```csharp
-public CsEvalEngine RegisterFromType<T>(T? instance = default) where T : class
-public CsEvalEngine RegisterFromType(Type type, object? instance = null)
+public AlderEngine RegisterFromType<T>(T? instance = default) where T : class
+public AlderEngine RegisterFromType(Type type, object? instance = null)
 ```
 
 ```csharp
 public class Helpers
 {
-    [CsEvalFunction]
+    [AlderFunction]
     public int Double(int n) => n * 2;
 
-    [CsEvalFunction]
+    [AlderFunction]
     public int Triple(int n) => n * 3;
 }
 
-var engine = new CsEvalEngine()
+var engine = new AlderEngine()
     .RegisterFromType<Helpers>();
 
 var result = engine.Evaluate<int>("Double(5)");
 // result: 10
 ```
 
-Only methods with the `[CsEvalFunction]` attribute are registered as global functions. Methods without the attribute are ignored. If the type has a `[CsEvalModule]` attribute with a name, it is registered as a named module instead (exposing all public methods or only attributed ones based on `ExplicitOnly`).
+Only methods with the `[AlderFunction]` attribute are registered as global functions. Methods without the attribute are ignored. If the type has a `[AlderModule]` attribute with a name, it is registered as a named module instead (exposing all public methods or only attributed ones based on `ExplicitOnly`).
 
 ## RegisterFromAssembly
 
-Scans an assembly for classes decorated with `[CsEvalModule]` or containing methods with `[CsEvalFunction]`, and registers them automatically.
+Scans an assembly for classes decorated with `[AlderModule]` or containing methods with `[AlderFunction]`, and registers them automatically.
 
 ```csharp
 [RequiresUnreferencedCode("Registering from assembly scans all types and members via reflection.")]
-public CsEvalEngine RegisterFromAssembly(Assembly assembly)
+public AlderEngine RegisterFromAssembly(Assembly assembly)
 ```
 
 ```csharp
 engine.RegisterFromAssembly(typeof(MyModule).Assembly);
 ```
 
-Classes with `[CsEvalModule]` are registered as named modules. Classes without the attribute but containing `[CsEvalFunction]` methods have those methods registered as global functions. Classes must have a parameterless constructor (unless all attributed methods are static).
+Classes with `[AlderModule]` are registered as named modules. Classes without the attribute but containing `[AlderFunction]` methods have those methods registered as global functions. Classes must have a parameterless constructor (unless all attributed methods are static).
 
 :::note
 This method carries `[RequiresUnreferencedCode]` because it uses reflection to scan assembly types. It is not compatible with Native AOT trimming. For AOT scenarios, use explicit registration or `UseGeneratedContext()`.
@@ -163,12 +163,12 @@ This method carries `[RequiresUnreferencedCode]` because it uses reflection to s
 
 ## Attributes
 
-### [CsEvalModule]
+### [AlderModule]
 
 Marks a class as a module discoverable by `RegisterFromAssembly`.
 
 ```csharp
-[CsEvalModule("fmt")]
+[AlderModule("fmt")]
 public class Formatter
 {
     public string Currency(double amount) => amount.ToString("C");
@@ -177,31 +177,31 @@ public class Formatter
 
 Properties:
 
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| `Name` | `string?` | `null` | Module name in expressions. When `null`, the name comes from the `RegisterModule` call. |
-| `ExplicitOnly` | `bool` | `false` | When `true`, only `[CsEvalFunction]`-decorated methods are exposed. |
+| Property       | Type      | Default | Description                                                                             |
+| -------------- | --------- | ------- | --------------------------------------------------------------------------------------- |
+| `Name`         | `string?` | `null`  | Module name in expressions. When `null`, the name comes from the `RegisterModule` call. |
+| `ExplicitOnly` | `bool`    | `false` | When `true`, only `[AlderFunction]`-decorated methods are exposed.                      |
 
-### [CsEvalFunction]
+### [AlderFunction]
 
 Marks a method for exposure. Used with `explicitOnly` modules or for global function registration via `RegisterFromAssembly`.
 
 ```csharp
-[CsEvalFunction]           // uses method name
-[CsEvalFunction("greet")]  // custom name in expressions
+[AlderFunction]           // uses method name
+[AlderFunction("greet")]  // custom name in expressions
 ```
 
 ```csharp
-[CsEvalModule("tools", ExplicitOnly = true)]
+[AlderModule("tools", ExplicitOnly = true)]
 public class Tools
 {
-    [CsEvalFunction("hi")]
+    [AlderFunction("hi")]
     public string Greet(string name) => $"Hello, {name}!";
 
     public string Secret() => "not visible";
 }
 
-var engine = new CsEvalEngine()
+var engine = new AlderEngine()
     .RegisterFromAssembly(typeof(Tools).Assembly);
 
 var result = engine.Evaluate<string>(@"tools.hi(""World"")");
@@ -212,13 +212,13 @@ var result = engine.Evaluate<string>(@"tools.hi(""World"")");
 
 Two modules are always registered and available without any setup:
 
-| Module | Backing type | Examples |
-|--------|-------------|----------|
-| `Math` | `System.Math` | `Math.Abs(-5)`, `Math.Max(1, 2)`, `Math.Round(3.7)` |
+| Module    | Backing type     | Examples                                            |
+| --------- | ---------------- | --------------------------------------------------- |
+| `Math`    | `System.Math`    | `Math.Abs(-5)`, `Math.Max(1, 2)`, `Math.Round(3.7)` |
 | `Convert` | `System.Convert` | `Convert.ToInt32("42")`, `Convert.ToDouble("3.14")` |
 
 ```csharp
-var engine = new CsEvalEngine();
+var engine = new AlderEngine();
 
 var abs = engine.Evaluate<int>("Math.Abs(-5)");
 // abs: 5
@@ -236,7 +236,7 @@ var services = new ServiceCollection()
     .AddSingleton<MyService>()
     .BuildServiceProvider();
 
-var engine = new CsEvalEngine()
+var engine = new AlderEngine()
     .RegisterModule<MyService>("svc");
 
 var result = engine.Evaluate<string>(
@@ -253,7 +253,7 @@ public IReadOnlyDictionary<string, RegisteredModule> GetRegisteredModules()
 ```
 
 ```csharp
-var engine = new CsEvalEngine()
+var engine = new AlderEngine()
     .RegisterModule<StringUtils>("Str");
 
 var modules = engine.GetRegisteredModules();
@@ -267,7 +267,7 @@ Calling `GetRegisteredModules()` triggers the configuration freeze, just like `E
 All registration methods return `this`, enabling concise setup:
 
 ```csharp
-var engine = new CsEvalEngine()
+var engine = new AlderEngine()
     .RegisterFunction("add", args => (int)args[0]! + (int)args[1]!)
     .RegisterModule<StringUtils>("Str")
     .RegisterFromType<MathHelpers>()
@@ -279,7 +279,7 @@ var engine = new CsEvalEngine()
 Registration methods must be called before the first `Evaluate()`. After evaluation, the engine freezes its configuration:
 
 ```csharp
-var engine = new CsEvalEngine();
+var engine = new AlderEngine();
 engine.Evaluate("1 + 1"); // freezes the engine
 
 // This throws InvalidOperationException:

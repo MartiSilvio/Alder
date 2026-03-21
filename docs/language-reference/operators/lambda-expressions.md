@@ -1,13 +1,13 @@
 ---
 title: "Lambda Expressions"
-description: "Lambda expression syntax, closures, and invocation in CsEval."
+description: "Lambda expression syntax, closures, and invocation in Alder."
 sidebar:
   order: 13
 ---
 
 ## Overview
 
-Lambda expressions create anonymous functions using the `=>` operator. CsEval supports all standard C# lambda syntax variants including expression bodies, block bodies, typed and untyped parameters, and closures.
+Lambda expressions create anonymous functions using the `=>` operator. Alder supports all standard C# lambda syntax variants including expression bodies, block bodies, typed and untyped parameters, and closures.
 
 Lambda **creation** does not require any sandbox flags. Lambda **invocation** (calling the lambda) requires `AllowMethodCalls`.
 
@@ -128,10 +128,10 @@ Passing lambdas to methods requires `AllowMethodCalls`. The default `Trusted()` 
 
 ## Sandbox Interaction
 
-| Operation | Sandbox Flag |
-|---|---|
-| Creating a lambda (`x => x + 1`) | None required |
-| Invoking a lambda (`f(5)`) | `AllowMethodCalls` |
+| Operation                                        | Sandbox Flag                                                                |
+| ------------------------------------------------ | --------------------------------------------------------------------------- |
+| Creating a lambda (`x => x + 1`)                 | None required                                                               |
+| Invoking a lambda (`f(5)`)                       | `AllowMethodCalls`                                                          |
 | Assigning a lambda to a variable (`var f = ...`) | `AllowAssignment` (for reassignment; `var` declarations are always allowed) |
 
 ## See Also

@@ -5,14 +5,14 @@ sidebar:
   order: 3
 ---
 
-Extended mode adds syntax sugar inspired by Python, Ruby, and Rust. All features on this page require `LanguageMode.Extended` and throw `CsEvalLanguageModeException` in Standard mode.
+Extended mode adds syntax sugar inspired by Python, Ruby, and Rust. All features on this page require `LanguageMode.Extended` and throw `AlderLanguageModeException` in Standard mode.
 
 ## unless Statement
 
 `unless` inverts a condition check. It desugars to `if (!cond) { body }`.
 
 ```csharp
-var engine = new CsEvalEngine(new CsEvalOptions { LanguageMode = LanguageMode.Extended });
+var engine = new AlderEngine(new AlderOptions { LanguageMode = LanguageMode.Extended });
 
 engine.Evaluate("var x = 0; unless (false) { x = 1; } x");
 // output: 1
@@ -80,7 +80,7 @@ Comprehensions call `.ToArray()` and return a materialized array, not a lazy `IE
 
 ## Array Literals
 
-`[1, 2, 3]` creates an array. When all elements share the same type, the result is a typed array (e.g., `int[]`); mixed-type literals produce `object[]`. Standard mode rejects this syntax with `CsEvalLanguageModeException`.
+`[1, 2, 3]` creates an array. When all elements share the same type, the result is a typed array (e.g., `int[]`); mixed-type literals produce `object[]`. Standard mode rejects this syntax with `AlderLanguageModeException`.
 
 ```csharp
 engine.Evaluate("[1, 2, 3]");
