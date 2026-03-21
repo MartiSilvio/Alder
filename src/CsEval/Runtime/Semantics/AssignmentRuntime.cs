@@ -20,23 +20,7 @@ internal static class AssignmentRuntime
     public static object? ValidateVariableAssignment(string name, object? value, CsEvalContext context)
     {
         if (context.TryGetVariableType(name, out var variableType) && variableType != null && value != null)
-        {
-            try
-            {
-                return TypeHelpers.ValidateAssignment(variableType, value, name);
-            }
-            catch (CsEvalException ex) when (ex.ErrorCode == DiagnosticCode.CS0266)
-            {
-                var sourceType = value.GetType();
-                var targetType = Nullable.GetUnderlyingType(variableType) ?? variableType;
-                var sourceNumeric = TypeHelpers.IsArithmetic(sourceType) || sourceType == typeof(char);
-                var targetNumeric = TypeHelpers.IsArithmetic(targetType) || targetType == typeof(char);
-                if (!sourceNumeric || !targetNumeric)
-                    throw;
-
-                return TypeHelpers.RuntimeCast(value, sourceType, targetType);
-            }
-        }
+            return TypeHelpers.ValidateAssignment(variableType, value, name, isConstantExpression: false);
 
         return value;
     }
@@ -46,10 +30,11 @@ internal static class AssignmentRuntime
         object? value,
         Type? declaredType,
         CsEvalContext context,
-        bool isReadOnly = false)
+        bool isReadOnly = false,
+        bool isConstantExpression = false)
     {
         if (declaredType != null)
-            value = TypeHelpers.ValidateAndCoerceType(declaredType, value, name);
+            value = TypeHelpers.ValidateAndCoerceType(declaredType, value, name, isConstantExpression);
 
         var variableType = declaredType ?? value?.GetType() ?? typeof(object);
         context.DefineNew(name, value, variableType, isReadOnly);
@@ -274,23 +259,7 @@ internal static class AssignmentRuntime
     public static object? ValidateVariableAssignmentLocal(string name, object? value, Type variableType)
     {
         if (value != null)
-        {
-            try
-            {
-                return TypeHelpers.ValidateAssignment(variableType, value, name);
-            }
-            catch (CsEvalException ex) when (ex.ErrorCode == DiagnosticCode.CS0266)
-            {
-                var sourceType = value.GetType();
-                var targetType = Nullable.GetUnderlyingType(variableType) ?? variableType;
-                var sourceNumeric = TypeHelpers.IsArithmetic(sourceType) || sourceType == typeof(char);
-                var targetNumeric = TypeHelpers.IsArithmetic(targetType) || targetType == typeof(char);
-                if (!sourceNumeric || !targetNumeric)
-                    throw;
-
-                return TypeHelpers.RuntimeCast(value, sourceType, targetType);
-            }
-        }
+            return TypeHelpers.ValidateAssignment(variableType, value, name, isConstantExpression: false);
 
         return value;
     }

@@ -623,14 +623,18 @@ internal sealed class PrimaryParser : ParserBase
     {
         Consume(TokenType.LeftParen, "Expected '(' after 'nameof'");
         // Parse the name chain (x, x.y, x.y.z, etc.)
-        var name = Consume(TokenType.Identifier, "Expected identifier after 'nameof('").Lexeme;
+        // Strip verbatim @ prefix — C# spec: @ is not part of the identifier name.
+        var name = StripVerbatimPrefix(Consume(TokenType.Identifier, "Expected identifier after 'nameof('").Lexeme);
         while (Match(TokenType.Dot))
         {
-            name = Consume(TokenType.Identifier, "Expected identifier after '.'").Lexeme;
+            name = StripVerbatimPrefix(Consume(TokenType.Identifier, "Expected identifier after '.'").Lexeme);
         }
         Consume(TokenType.RightParen, "Expected ')' after nameof expression");
         return new NameofExpr(name) { Span = SpanFrom(mark) };
     }
+
+    private static string StripVerbatimPrefix(string lexeme) =>
+        lexeme.Length > 1 && lexeme[0] == '@' ? lexeme[1..] : lexeme;
 
     #endregion
 

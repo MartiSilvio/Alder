@@ -9,6 +9,48 @@ internal abstract record BoundExpr(Type StaticType)
     internal bool HasErrors { get; init; }
     internal CsEvalDiagnostic? Diagnostic { get; init; }
     internal abstract void EnumerateChildren(Action<BoundExpr> visit);
+
+    /// <summary>
+    /// ECMA-334 §12.23: A constant expression is a literal, a unary +/- on a constant,
+    /// a cast of a constant, or a binary operation on two constants.
+    /// Used to gate §10.2.11 implicit constant expression conversions.
+    /// Iterative to handle left-deep binary chains without stack overflow.
+    /// </summary>
+    internal static bool IsConstantExpression(BoundExpr expr)
+    {
+        while (true)
+        {
+            switch (expr.Kind)
+            {
+                case BoundNodeKind.Literal:
+                    return true;
+
+                case BoundNodeKind.UnaryOperator:
+                    if (expr is not BoundNodes.BoundUnaryExpr unary) return false;
+                    expr = unary.Operand;
+                    continue;
+
+                case BoundNodeKind.Conversion:
+                    if (expr is not BoundNodes.BoundCastExpr cast) return false;
+                    expr = cast.Expression;
+                    continue;
+
+                case BoundNodeKind.CheckedExpression:
+                    if (expr is not BoundNodes.BoundCheckedExpr check) return false;
+                    expr = check.Expression;
+                    continue;
+
+                case BoundNodeKind.BinaryOperator:
+                    if (expr is not BoundNodes.BoundBinaryExpr binary) return false;
+                    if (!IsConstantExpression(binary.Right)) return false;
+                    expr = binary.Left;
+                    continue;
+
+                default:
+                    return false;
+            }
+        }
+    }
 }
 
 internal enum BoundNodeKind

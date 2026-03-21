@@ -468,7 +468,7 @@ internal static class TypeHelpers
         return Nullable.GetUnderlyingType(type) != null;
     }
 
-    public static object? ValidateAndCoerceType(Type targetType, object? value, string varName)
+    public static object? ValidateAndCoerceType(Type targetType, object? value, string varName, bool isConstantExpression = true)
     {
         if (targetType == typeof(object))
             return value;
@@ -500,7 +500,7 @@ internal static class TypeHelpers
         // the range of the destination type."
         // Note: In CsEval, literal int values in typed declarations arrive here as int values.
         // OverflowException from Convert.ChangeType enforces the range check.
-        if (sourceType == typeof(int) && value is int intValue && IsIntegerType(underlyingType) && !underlyingType.IsEnum)
+        if (isConstantExpression && sourceType == typeof(int) && value is int intValue && IsIntegerType(underlyingType) && !underlyingType.IsEnum)
         {
             try { return Convert.ChangeType(intValue, underlyingType); }
             catch (OverflowException)
@@ -697,7 +697,7 @@ internal static class TypeHelpers
     /// Validates assignment and returns the coerced value, or throws if not implicitly convertible.
     /// Assignment requires implicit convertibility.
     /// </summary>
-    public static object? ValidateAssignment(Type targetType, object? value, string varName)
+    public static object? ValidateAssignment(Type targetType, object? value, string varName, bool isConstantExpression = true)
     {
         if (value == null)
         {
@@ -735,7 +735,7 @@ internal static class TypeHelpers
             return ConvertNumeric(value, sourceType, targetType);
 
         // ECMA-334 §10.2.11: implicit constant expression conversion for int literals.
-        if (sourceType == typeof(int) && value is int intValue && IsConstantIntConversionTarget(targetType))
+        if (isConstantExpression && sourceType == typeof(int) && value is int intValue && IsConstantIntConversionTarget(targetType))
         {
             try { return Convert.ChangeType(intValue, targetType); }
             catch (OverflowException)

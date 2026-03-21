@@ -129,6 +129,14 @@ public class VariableDeclarationTests(CompilationMode mode)
         Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0029));
     }
 
+    [Test]
+    public void TypedDeclaration_Byte_ThrowsOnIntVariableInitializer()
+    {
+        var engine = TestEngineFactory.Create(mode);
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("{ int x = 1; byte b = x; return b; }"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0266));
+    }
+
     // Engine-only: error test (CsEvalException assertion)
     [Test]
     public void NullableInt_ThrowsOnStringAssignment()

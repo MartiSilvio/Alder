@@ -81,6 +81,23 @@ public class AssignmentTests(CompilationMode mode)
         Assert.That(ex!.ErrorCode, Is.EqualTo(CsEval.Diagnostics.DiagnosticCode.CS0103));
     }
 
+    [Test]
+    public void Assignment_NumericNarrowingFromVariable_ThrowsImplicitConversionError()
+    {
+        var engine = TestEngineFactory.Create(mode);
+
+        var ex = Assert.Throws<CsEvalException>(() => engine.Evaluate("""
+            {
+                byte b = 0;
+                long x = 1;
+                b = x;
+                return b;
+            }
+            """));
+
+        Assert.That(ex!.ErrorCode, Is.EqualTo(CsEval.Diagnostics.DiagnosticCode.CS0266));
+    }
+
     #endregion
 
     #region Pre-Parsed Assignment (Engine-Only)

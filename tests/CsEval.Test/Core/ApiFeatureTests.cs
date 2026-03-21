@@ -236,6 +236,17 @@ public class ApiFeatureTests(CompilationMode mode)
         Assert.That(variables, Does.Not.Contain("x"));
     }
 
+    [Test]
+    public void GetVariables_LocalDeclaredInsideLambda_DoesNotHideOuterIdentifier()
+    {
+        var engine = CreateEngine();
+        var expression = engine.Parse("items.Select(x => { var y = x; return y; }).Count() + y");
+        var variables = expression.GetVariables();
+
+        Assert.That(variables, Does.Contain("items"));
+        Assert.That(variables, Does.Contain("y"));
+    }
+
     #endregion
 
     #region IDisposable

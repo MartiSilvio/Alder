@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Reflection;
+using CsEval.Binding;
 using CsEval.Binding.BoundNodes;
 using CsEval.Diagnostics;
 using CsEval.Parsing;
@@ -22,7 +23,8 @@ internal sealed partial class BoundExpressionEmitter
                     ValidateAndCoerceTypeMethod,
                     LinqExpression.Constant(variableDecl.DeclaredType, typeof(Type)),
                     value,
-                    LinqExpression.Constant(variableDecl.Name));
+                    LinqExpression.Constant(variableDecl.Name),
+                    LinqExpression.Constant(BoundExpr.IsConstantExpression(variableDecl.Initializer)));
             }
             return LinqExpression.Assign(promoted.Variable, value);
         }
@@ -35,7 +37,8 @@ internal sealed partial class BoundExpressionEmitter
                 ? LinqExpression.Constant(variableDecl.DeclaredType, typeof(Type))
                 : LinqExpression.Constant(null, typeof(Type)),
             _contextParam,
-            LinqExpression.Constant(variableDecl.IsConst));
+            LinqExpression.Constant(variableDecl.IsConst),
+            LinqExpression.Constant(BoundExpr.IsConstantExpression(variableDecl.Initializer)));
     }
 
     private LinqExpression EmitAssign(BoundAssignExpr assign)

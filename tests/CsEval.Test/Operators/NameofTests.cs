@@ -33,5 +33,13 @@ public class NameofTests(CompilationMode mode)
         Assert.That(engine.Evaluate("nameof(a.b.c)"), Is.EqualTo("c"));
     }
 
+    [Test]
+    public void Nameof_VerbatimIdentifier_StripsAtPrefix()
+    {
+        var engine = TestEngineFactory.Create(mode);
+        var result = engine.Evaluate("""{ int @if = 1; return nameof(@if); }""");
+        Assert.That(result, Is.EqualTo("if"));
+    }
+
     #endregion
 }

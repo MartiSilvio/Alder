@@ -60,7 +60,8 @@ internal sealed partial class BoundEvaluator
             value,
             variableDecl.DeclaredType,
             _context,
-            variableDecl.IsConst);
+            variableDecl.IsConst,
+            isConstantExpression: BoundExpr.IsConstantExpression(variableDecl.Initializer));
     }
 
     private object? EvaluateIfStatement(BoundIfStatementExpr ifStatement)

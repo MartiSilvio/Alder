@@ -72,7 +72,7 @@ public class CompiledHotPathRegressionTests(CompilationMode mode)
     public void LocalVariableTypeFlow_AssignmentThenArithmetic_RemainsValid()
     {
         var engine = TestEngineFactory.Create(mode);
-        var result = engine.Evaluate("{ var x = 1; x = 2L; return x + 1; }");
+        var result = engine.Evaluate("{ var x = 1L; x = 2L; return x + 1; }");
         Assert.That(Convert.ToInt64(result), Is.EqualTo(3));
     }
 
