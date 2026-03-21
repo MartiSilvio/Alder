@@ -4,6 +4,7 @@ using System.Linq.Expressions;
 using CsEval.Binding;
 using CsEval.Binding.BoundNodes;
 using CsEval.Diagnostics;
+using CsEval.Interpretation;
 using CsEval.Parsing;
 using CsEval.Runtime;
 using static CsEval.Compiled.Compilation.BoundRuntimeMethodCache;
