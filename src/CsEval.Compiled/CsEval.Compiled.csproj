@@ -13,4 +13,25 @@
     <ProjectReference Include="..\CsEval\CsEval.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Compile Update="Compilation\BoundExpressionEmitter.Assignments.cs">
+      <DependentUpon>BoundExpressionEmitter.cs</DependentUpon>
+    </Compile>
+    <Compile Update="Compilation\BoundExpressionEmitter.ControlFlow.cs">
+      <DependentUpon>BoundExpressionEmitter.cs</DependentUpon>
+    </Compile>
+    <Compile Update="Compilation\BoundExpressionEmitter.Expressions.cs">
+      <DependentUpon>BoundExpressionEmitter.cs</DependentUpon>
+    </Compile>
+    <Compile Update="Compilation\BoundExpressionEmitter.Invocations.cs">
+      <DependentUpon>BoundExpressionEmitter.cs</DependentUpon>
+    </Compile>
+    <Compile Update="Compilation\BoundExpressionEmitter.Literals.cs">
+      <DependentUpon>BoundExpressionEmitter.cs</DependentUpon>
+    </Compile>
+    <Compile Update="Compilation\BoundExpressionEmitter.LocalPromotion.cs">
+      <DependentUpon>BoundExpressionEmitter.cs</DependentUpon>
+    </Compile>
+  </ItemGroup>
+
 </Project>

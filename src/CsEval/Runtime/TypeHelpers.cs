@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Linq.Expressions;
 using CsEval.Runtime.Collections;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
@@ -250,14 +251,8 @@ internal static class TypeHelpers
         if (sourceType == targetType)
             return static value => value;
 
-        if (TryCreateEnumCastConverter(sourceType, targetType, isChecked, out var enumConverter))
-            return enumConverter;
-
-        if (TryGetRuntimeNumericTypeCode(sourceType, out var sourceCode) &&
-            TryGetRuntimeNumericTypeCode(targetType, out var targetCode))
-        {
-            return value => ConvertPrimitive(value, sourceCode, targetCode, isChecked);
-        }
+        if (CanCompileConversion(sourceType, targetType))
+            return CompileConversionExpression(sourceType, targetType, isChecked);
 
         if (TryResolveUserDefinedConversion(sourceType, targetType, out var userDefinedMethod))
             return value => userDefinedMethod.Invoke(null, [value])!;
@@ -266,62 +261,34 @@ internal static class TypeHelpers
             DiagnosticDescriptors.NoExplicitConversion, sourceType.Name, targetType.Name);
     }
 
-    private static bool TryCreateEnumCastConverter(
-        Type sourceType,
-        Type targetType,
-        bool isChecked,
-        [NotNullWhen(true)] out Func<object, object>? converter)
+    private static bool CanCompileConversion(Type sourceType, Type targetType)
     {
-        converter = null;
+        var source = sourceType.IsEnum ? Enum.GetUnderlyingType(sourceType) : sourceType;
+        var target = targetType.IsEnum ? Enum.GetUnderlyingType(targetType) : targetType;
+        return IsNumericOrCharType(source) && IsNumericOrCharType(target);
+    }
 
-        if (!sourceType.IsEnum && !targetType.IsEnum)
-            return false;
+    private static Func<object, object> CompileConversionExpression(Type sourceType, Type targetType, bool isChecked)
+    {
+        var param = Expression.Parameter(typeof(object));
+        System.Linq.Expressions.Expression value = Expression.Unbox(param, sourceType);
 
         if (sourceType.IsEnum)
+            value = Expression.Convert(value, Enum.GetUnderlyingType(sourceType));
+
+        var targetUnderlying = targetType.IsEnum ? Enum.GetUnderlyingType(targetType) : targetType;
+        if (value.Type != targetUnderlying)
         {
-            var sourceUnderlying = Enum.GetUnderlyingType(sourceType);
-            if (!TryGetRuntimeNumericTypeCode(sourceUnderlying, out var sourceCode))
-                return false;
-
-            if (targetType.IsEnum)
-            {
-                var targetUnderlying = Enum.GetUnderlyingType(targetType);
-                if (!TryGetRuntimeNumericTypeCode(targetUnderlying, out var targetCode))
-                    return false;
-
-                converter = value =>
-                {
-                    var underlyingValue = GetEnumUnderlyingValue(value, sourceCode);
-                    var converted = ConvertPrimitive(underlyingValue, sourceCode, targetCode, isChecked);
-                    return Enum.ToObject(targetType, converted);
-                };
-                return true;
-            }
-
-            if (!TryGetRuntimeNumericTypeCode(targetType, out var numericTargetCode))
-                return false;
-
-            converter = value =>
-            {
-                var underlyingValue = GetEnumUnderlyingValue(value, sourceCode);
-                return ConvertPrimitive(underlyingValue, sourceCode, numericTargetCode, isChecked);
-            };
-            return true;
+            value = isChecked
+                ? Expression.ConvertChecked(value, targetUnderlying)
+                : Expression.Convert(value, targetUnderlying);
         }
 
-        if (!TryGetRuntimeNumericTypeCode(sourceType, out var numericSourceCode))
-            return false;
+        if (targetType.IsEnum)
+            value = Expression.Convert(value, targetType);
 
-        var enumUnderlyingType = Enum.GetUnderlyingType(targetType);
-        if (!TryGetRuntimeNumericTypeCode(enumUnderlyingType, out var enumTargetCode))
-            return false;
-
-        converter = value =>
-        {
-            var converted = ConvertPrimitive(value, numericSourceCode, enumTargetCode, isChecked);
-            return Enum.ToObject(targetType, converted);
-        };
-        return true;
+        var boxed = Expression.Convert(value, typeof(object));
+        return Expression.Lambda<Func<object, object>>(boxed, param).Compile();
     }
 
     /// <summary>
@@ -451,257 +418,6 @@ internal static class TypeHelpers
         return best;
     }
 
-    private static bool TryGetRuntimeNumericTypeCode(Type type, out TypeCode typeCode)
-    {
-        typeCode = Type.GetTypeCode(type);
-        return typeCode is
-            TypeCode.SByte or
-            TypeCode.Byte or
-            TypeCode.Int16 or
-            TypeCode.UInt16 or
-            TypeCode.Int32 or
-            TypeCode.UInt32 or
-            TypeCode.Int64 or
-            TypeCode.UInt64 or
-            TypeCode.Char or
-            TypeCode.Single or
-            TypeCode.Double or
-            TypeCode.Decimal;
-    }
-
-    private static object GetEnumUnderlyingValue(object value, TypeCode underlyingCode) => underlyingCode switch
-    {
-        TypeCode.SByte => Convert.ToSByte(value),
-        TypeCode.Byte => Convert.ToByte(value),
-        TypeCode.Int16 => Convert.ToInt16(value),
-        TypeCode.UInt16 => Convert.ToUInt16(value),
-        TypeCode.Int32 => Convert.ToInt32(value),
-        TypeCode.UInt32 => Convert.ToUInt32(value),
-        TypeCode.Int64 => Convert.ToInt64(value),
-        TypeCode.UInt64 => Convert.ToUInt64(value),
-        _ => throw new CsEvalException(DiagnosticDescriptors.NoExplicitConversion, underlyingCode, "enum")
-    };
-
-    private static object ConvertPrimitive(object value, TypeCode sourceCode, TypeCode targetCode, bool isChecked) => sourceCode switch
-    {
-        TypeCode.SByte => ConvertFromSByte((sbyte)value, targetCode, isChecked),
-        TypeCode.Byte => ConvertFromByte((byte)value, targetCode, isChecked),
-        TypeCode.Int16 => ConvertFromInt16((short)value, targetCode, isChecked),
-        TypeCode.UInt16 => ConvertFromUInt16((ushort)value, targetCode, isChecked),
-        TypeCode.Int32 => ConvertFromInt32((int)value, targetCode, isChecked),
-        TypeCode.UInt32 => ConvertFromUInt32((uint)value, targetCode, isChecked),
-        TypeCode.Int64 => ConvertFromInt64((long)value, targetCode, isChecked),
-        TypeCode.UInt64 => ConvertFromUInt64((ulong)value, targetCode, isChecked),
-        TypeCode.Char => ConvertFromChar((char)value, targetCode, isChecked),
-        TypeCode.Single => ConvertFromSingle((float)value, targetCode, isChecked),
-        TypeCode.Double => ConvertFromDouble((double)value, targetCode, isChecked),
-        TypeCode.Decimal => ConvertFromDecimal((decimal)value, targetCode, isChecked),
-        _ => throw new CsEvalException(DiagnosticDescriptors.NoExplicitConversion, sourceCode, targetCode)
-    };
-
-    private static object ConvertFromSByte(sbyte value, TypeCode targetCode, bool isChecked) => targetCode switch
-    {
-        TypeCode.SByte => value,
-        TypeCode.Byte => isChecked ? checked((byte)value) : unchecked((byte)value),
-        TypeCode.Int16 => (short)value,
-        TypeCode.UInt16 => isChecked ? checked((ushort)value) : unchecked((ushort)value),
-        TypeCode.Int32 => (int)value,
-        TypeCode.UInt32 => isChecked ? checked((uint)value) : unchecked((uint)value),
-        TypeCode.Int64 => (long)value,
-        TypeCode.UInt64 => isChecked ? checked((ulong)value) : unchecked((ulong)value),
-        TypeCode.Char => isChecked ? checked((char)value) : unchecked((char)value),
-        TypeCode.Single => (float)value,
-        TypeCode.Double => (double)value,
-        TypeCode.Decimal => (decimal)value,
-        _ => throw new CsEvalException(DiagnosticDescriptors.NoExplicitConversion, TypeCode.SByte, targetCode)
-    };
-
-    private static object ConvertFromByte(byte value, TypeCode targetCode, bool isChecked) => targetCode switch
-    {
-        TypeCode.SByte => isChecked ? checked((sbyte)value) : unchecked((sbyte)value),
-        TypeCode.Byte => value,
-        TypeCode.Int16 => (short)value,
-        TypeCode.UInt16 => (ushort)value,
-        TypeCode.Int32 => (int)value,
-        TypeCode.UInt32 => (uint)value,
-        TypeCode.Int64 => (long)value,
-        TypeCode.UInt64 => (ulong)value,
-        TypeCode.Char => (char)value,
-        TypeCode.Single => (float)value,
-        TypeCode.Double => (double)value,
-        TypeCode.Decimal => (decimal)value,
-        _ => throw new CsEvalException(DiagnosticDescriptors.NoExplicitConversion, TypeCode.Byte, targetCode)
-    };
-
-    private static object ConvertFromInt16(short value, TypeCode targetCode, bool isChecked) => targetCode switch
-    {
-        TypeCode.SByte => isChecked ? checked((sbyte)value) : unchecked((sbyte)value),
-        TypeCode.Byte => isChecked ? checked((byte)value) : unchecked((byte)value),
-        TypeCode.Int16 => value,
-        TypeCode.UInt16 => isChecked ? checked((ushort)value) : unchecked((ushort)value),
-        TypeCode.Int32 => (int)value,
-        TypeCode.UInt32 => isChecked ? checked((uint)value) : unchecked((uint)value),
-        TypeCode.Int64 => (long)value,
-        TypeCode.UInt64 => isChecked ? checked((ulong)value) : unchecked((ulong)value),
-        TypeCode.Char => isChecked ? checked((char)value) : unchecked((char)value),
-        TypeCode.Single => (float)value,
-        TypeCode.Double => (double)value,
-        TypeCode.Decimal => (decimal)value,
-        _ => throw new CsEvalException(DiagnosticDescriptors.NoExplicitConversion, TypeCode.Int16, targetCode)
-    };
-
-    private static object ConvertFromUInt16(ushort value, TypeCode targetCode, bool isChecked) => targetCode switch
-    {
-        TypeCode.SByte => isChecked ? checked((sbyte)value) : unchecked((sbyte)value),
-        TypeCode.Byte => isChecked ? checked((byte)value) : unchecked((byte)value),
-        TypeCode.Int16 => isChecked ? checked((short)value) : unchecked((short)value),
-        TypeCode.UInt16 => value,
-        TypeCode.Int32 => (int)value,
-        TypeCode.UInt32 => (uint)value,
-        TypeCode.Int64 => (long)value,
-        TypeCode.UInt64 => (ulong)value,
-        TypeCode.Char => (char)value,
-        TypeCode.Single => (float)value,
-        TypeCode.Double => (double)value,
-        TypeCode.Decimal => (decimal)value,
-        _ => throw new CsEvalException(DiagnosticDescriptors.NoExplicitConversion, TypeCode.UInt16, targetCode)
-    };
-
-    private static object ConvertFromInt32(int value, TypeCode targetCode, bool isChecked) => targetCode switch
-    {
-        TypeCode.SByte => isChecked ? checked((sbyte)value) : unchecked((sbyte)value),
-        TypeCode.Byte => isChecked ? checked((byte)value) : unchecked((byte)value),
-        TypeCode.Int16 => isChecked ? checked((short)value) : unchecked((short)value),
-        TypeCode.UInt16 => isChecked ? checked((ushort)value) : unchecked((ushort)value),
-        TypeCode.Int32 => value,
-        TypeCode.UInt32 => isChecked ? checked((uint)value) : unchecked((uint)value),
-        TypeCode.Int64 => (long)value,
-        TypeCode.UInt64 => isChecked ? checked((ulong)value) : unchecked((ulong)value),
-        TypeCode.Char => isChecked ? checked((char)value) : unchecked((char)value),
-        TypeCode.Single => (float)value,
-        TypeCode.Double => (double)value,
-        TypeCode.Decimal => (decimal)value,
-        _ => throw new CsEvalException(DiagnosticDescriptors.NoExplicitConversion, TypeCode.Int32, targetCode)
-    };
-
-    private static object ConvertFromUInt32(uint value, TypeCode targetCode, bool isChecked) => targetCode switch
-    {
-        TypeCode.SByte => isChecked ? checked((sbyte)value) : unchecked((sbyte)value),
-        TypeCode.Byte => isChecked ? checked((byte)value) : unchecked((byte)value),
-        TypeCode.Int16 => isChecked ? checked((short)value) : unchecked((short)value),
-        TypeCode.UInt16 => isChecked ? checked((ushort)value) : unchecked((ushort)value),
-        TypeCode.Int32 => isChecked ? checked((int)value) : unchecked((int)value),
-        TypeCode.UInt32 => value,
-        TypeCode.Int64 => (long)value,
-        TypeCode.UInt64 => (ulong)value,
-        TypeCode.Char => isChecked ? checked((char)value) : unchecked((char)value),
-        TypeCode.Single => (float)value,
-        TypeCode.Double => (double)value,
-        TypeCode.Decimal => (decimal)value,
-        _ => throw new CsEvalException(DiagnosticDescriptors.NoExplicitConversion, TypeCode.UInt32, targetCode)
-    };
-
-    private static object ConvertFromInt64(long value, TypeCode targetCode, bool isChecked) => targetCode switch
-    {
-        TypeCode.SByte => isChecked ? checked((sbyte)value) : unchecked((sbyte)value),
-        TypeCode.Byte => isChecked ? checked((byte)value) : unchecked((byte)value),
-        TypeCode.Int16 => isChecked ? checked((short)value) : unchecked((short)value),
-        TypeCode.UInt16 => isChecked ? checked((ushort)value) : unchecked((ushort)value),
-        TypeCode.Int32 => isChecked ? checked((int)value) : unchecked((int)value),
-        TypeCode.UInt32 => isChecked ? checked((uint)value) : unchecked((uint)value),
-        TypeCode.Int64 => value,
-        TypeCode.UInt64 => isChecked ? checked((ulong)value) : unchecked((ulong)value),
-        TypeCode.Char => isChecked ? checked((char)value) : unchecked((char)value),
-        TypeCode.Single => (float)value,
-        TypeCode.Double => (double)value,
-        TypeCode.Decimal => (decimal)value,
-        _ => throw new CsEvalException(DiagnosticDescriptors.NoExplicitConversion, TypeCode.Int64, targetCode)
-    };
-
-    private static object ConvertFromUInt64(ulong value, TypeCode targetCode, bool isChecked) => targetCode switch
-    {
-        TypeCode.SByte => isChecked ? checked((sbyte)value) : unchecked((sbyte)value),
-        TypeCode.Byte => isChecked ? checked((byte)value) : unchecked((byte)value),
-        TypeCode.Int16 => isChecked ? checked((short)value) : unchecked((short)value),
-        TypeCode.UInt16 => isChecked ? checked((ushort)value) : unchecked((ushort)value),
-        TypeCode.Int32 => isChecked ? checked((int)value) : unchecked((int)value),
-        TypeCode.UInt32 => isChecked ? checked((uint)value) : unchecked((uint)value),
-        TypeCode.Int64 => isChecked ? checked((long)value) : unchecked((long)value),
-        TypeCode.UInt64 => value,
-        TypeCode.Char => isChecked ? checked((char)value) : unchecked((char)value),
-        TypeCode.Single => (float)value,
-        TypeCode.Double => (double)value,
-        TypeCode.Decimal => (decimal)value,
-        _ => throw new CsEvalException(DiagnosticDescriptors.NoExplicitConversion, TypeCode.UInt64, targetCode)
-    };
-
-    private static object ConvertFromChar(char value, TypeCode targetCode, bool isChecked) => targetCode switch
-    {
-        TypeCode.SByte => isChecked ? checked((sbyte)value) : unchecked((sbyte)value),
-        TypeCode.Byte => isChecked ? checked((byte)value) : unchecked((byte)value),
-        TypeCode.Int16 => isChecked ? checked((short)value) : unchecked((short)value),
-        TypeCode.UInt16 => (ushort)value,
-        TypeCode.Int32 => (int)value,
-        TypeCode.UInt32 => (uint)value,
-        TypeCode.Int64 => (long)value,
-        TypeCode.UInt64 => (ulong)value,
-        TypeCode.Char => value,
-        TypeCode.Single => (float)value,
-        TypeCode.Double => (double)value,
-        TypeCode.Decimal => (decimal)value,
-        _ => throw new CsEvalException(DiagnosticDescriptors.NoExplicitConversion, TypeCode.Char, targetCode)
-    };
-
-    private static object ConvertFromSingle(float value, TypeCode targetCode, bool isChecked) => targetCode switch
-    {
-        TypeCode.SByte => isChecked ? checked((sbyte)value) : (sbyte)value,
-        TypeCode.Byte => isChecked ? checked((byte)value) : (byte)value,
-        TypeCode.Int16 => isChecked ? checked((short)value) : (short)value,
-        TypeCode.UInt16 => isChecked ? checked((ushort)value) : (ushort)value,
-        TypeCode.Int32 => isChecked ? checked((int)value) : (int)value,
-        TypeCode.UInt32 => isChecked ? checked((uint)value) : (uint)value,
-        TypeCode.Int64 => isChecked ? checked((long)value) : (long)value,
-        TypeCode.UInt64 => isChecked ? checked((ulong)value) : (ulong)value,
-        TypeCode.Char => isChecked ? checked((char)value) : (char)value,
-        TypeCode.Single => value,
-        TypeCode.Double => (double)value,
-        TypeCode.Decimal => isChecked ? checked((decimal)value) : (decimal)value,
-        _ => throw new CsEvalException(DiagnosticDescriptors.NoExplicitConversion, TypeCode.Single, targetCode)
-    };
-
-    private static object ConvertFromDouble(double value, TypeCode targetCode, bool isChecked) => targetCode switch
-    {
-        TypeCode.SByte => isChecked ? checked((sbyte)value) : (sbyte)value,
-        TypeCode.Byte => isChecked ? checked((byte)value) : (byte)value,
-        TypeCode.Int16 => isChecked ? checked((short)value) : (short)value,
-        TypeCode.UInt16 => isChecked ? checked((ushort)value) : (ushort)value,
-        TypeCode.Int32 => isChecked ? checked((int)value) : (int)value,
-        TypeCode.UInt32 => isChecked ? checked((uint)value) : (uint)value,
-        TypeCode.Int64 => isChecked ? checked((long)value) : (long)value,
-        TypeCode.UInt64 => isChecked ? checked((ulong)value) : (ulong)value,
-        TypeCode.Char => isChecked ? checked((char)value) : (char)value,
-        TypeCode.Single => (float)value,
-        TypeCode.Double => (double)value,
-        TypeCode.Decimal => isChecked ? checked((decimal)value) : (decimal)value,
-        _ => throw new CsEvalException(DiagnosticDescriptors.NoExplicitConversion, TypeCode.Double, targetCode)
-    };
-
-    private static object ConvertFromDecimal(decimal value, TypeCode targetCode, bool isChecked) => targetCode switch
-    {
-        TypeCode.SByte => isChecked ? checked((sbyte)value) : (sbyte)value,
-        TypeCode.Byte => isChecked ? checked((byte)value) : (byte)value,
-        TypeCode.Int16 => isChecked ? checked((short)value) : (short)value,
-        TypeCode.UInt16 => isChecked ? checked((ushort)value) : (ushort)value,
-        TypeCode.Int32 => isChecked ? checked((int)value) : (int)value,
-        TypeCode.UInt32 => isChecked ? checked((uint)value) : (uint)value,
-        TypeCode.Int64 => isChecked ? checked((long)value) : (long)value,
-        TypeCode.UInt64 => isChecked ? checked((ulong)value) : (ulong)value,
-        TypeCode.Char => isChecked ? checked((char)value) : (char)value,
-        TypeCode.Single => (float)value,
-        TypeCode.Double => (double)value,
-        TypeCode.Decimal => value,
-        _ => throw new CsEvalException(DiagnosticDescriptors.NoExplicitConversion, TypeCode.Decimal, targetCode)
-    };
 
     /// <summary>
     /// Converts a numeric value to a target type, handling char specially.

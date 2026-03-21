@@ -31,5 +31,46 @@
           PackagePath="analyzers/dotnet/cs"
           Visible="false" />
   </ItemGroup>
+  <ItemGroup>
+    <Compile Update="Binding\Binder.Assignments.cs">
+      <DependentUpon>Binder.cs</DependentUpon>
+    </Compile>
+    <Compile Update="Binding\Binder.Expressions.cs">
+      <DependentUpon>Binder.cs</DependentUpon>
+    </Compile>
+    <Compile Update="Binding\Binder.Invocations.cs">
+      <DependentUpon>Binder.cs</DependentUpon>
+    </Compile>
+    <Compile Update="Binding\Binder.Operators.cs">
+      <DependentUpon>Binder.cs</DependentUpon>
+    </Compile>
+    <Compile Update="Binding\Binder.Statements.cs">
+      <DependentUpon>Binder.cs</DependentUpon>
+    </Compile>
+    <Compile Update="Interpretation\BoundEvaluator.Assignments.cs">
+      <DependentUpon>BoundEvaluator.cs</DependentUpon>
+    </Compile>
+    <Compile Update="Interpretation\BoundEvaluator.Expressions.cs">
+      <DependentUpon>BoundEvaluator.cs</DependentUpon>
+    </Compile>
+    <Compile Update="Interpretation\BoundEvaluator.Literals.cs">
+      <DependentUpon>BoundEvaluator.cs</DependentUpon>
+    </Compile>
+    <Compile Update="Interpretation\BoundEvaluator.Loops.cs">
+      <DependentUpon>BoundEvaluator.cs</DependentUpon>
+    </Compile>
+    <Compile Update="Interpretation\BoundEvaluator.MemberAccess.cs">
+      <DependentUpon>BoundEvaluator.cs</DependentUpon>
+    </Compile>
+    <Compile Update="Interpretation\BoundEvaluator.Statements.cs">
+      <DependentUpon>BoundEvaluator.cs</DependentUpon>
+    </Compile>
+    <Compile Update="CsEvalEngine.Compilation.cs">
+      <DependentUpon>CsEvalEngine.cs</DependentUpon>
+    </Compile>
+    <Compile Update="CsEvalEngine.Registration.cs">
+      <DependentUpon>CsEvalEngine.cs</DependentUpon>
+    </Compile>
+  </ItemGroup>
 
 </Project>

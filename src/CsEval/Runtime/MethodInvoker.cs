@@ -1167,9 +1167,7 @@ internal static class MethodInvoker
                 defaultsUsed++;
         }
 
-        const int applicableBaseScore = 1000;
-        const int defaultArgumentPenalty = 10;
-        return applicableBaseScore + score - (defaultsUsed * defaultArgumentPenalty);
+        return OverloadScoring.NormalFormBase + score - (defaultsUsed * OverloadScoring.DefaultArgPenalty);
     }
 
     /// <summary>
@@ -1268,10 +1266,7 @@ internal static class MethodInvoker
                 defaultsUsed++;
         }
 
-        // ECMA-334 §12.6.4.3: Normal form is always preferred over expanded form.
-        const int expandedBaseScore = 500;
-        const int defaultArgumentPenalty = 10;
-        return expandedBaseScore + score - (defaultsUsed * defaultArgumentPenalty);
+        return OverloadScoring.ExpandedFormBase + score - (defaultsUsed * OverloadScoring.DefaultArgPenalty);
     }
 
     /// <summary>
@@ -1286,23 +1281,22 @@ internal static class MethodInvoker
             return 1; // Null to nullable is valid but not exact
         }
 
-        // OutArgMarker matches ByRef parameters (out/ref) as exact match
         if (arg is OutArgMarker && paramType.IsByRef)
-            return 100;
+            return OverloadScoring.ExactMatch;
 
         var argType = arg.GetType();
 
         if (argType == paramType)
-            return 100; // Exact match - highest priority
+            return OverloadScoring.ExactMatch;
 
         if (paramType.IsAssignableFrom(argType))
-            return 10; // Assignable (base class, interface)
+            return OverloadScoring.AssignableMatch;
 
         if (TypeHelpers.CanImplicitlyConvert(argType, paramType))
-            return 1; // Implicit conversion - lowest priority
+            return OverloadScoring.ImplicitConversion;
 
         if (TypeHelpers.HasUserDefinedImplicitConversion(argType, paramType))
-            return 1;
+            return OverloadScoring.ImplicitConversion;
 
         // Lambda to delegate (e.g., LambdaValue -> Func<int, bool>)
         if (arg is LambdaValue or CompiledLambdaValue && LambdaDelegateConverter.IsSupportedDelegateType(paramType))

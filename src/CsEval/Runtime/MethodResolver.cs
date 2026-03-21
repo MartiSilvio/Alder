@@ -54,7 +54,7 @@ internal static class MethodResolver
 
         var score = ScoreNormalForm(parameters, argTypes);
         if (score >= 0)
-            return 1000 + score;
+            return OverloadScoring.NormalFormBase + score;
 
         if (parameters.Length > 0 && parameters[^1].IsDefined(typeof(ParamArrayAttribute), false))
         {
@@ -75,11 +75,11 @@ internal static class MethodResolver
             var argType = argTypes[i];
 
             if (argType == paramType)
-                score += 100;
+                score += OverloadScoring.ExactMatch;
             else if (paramType.IsAssignableFrom(argType))
-                score += 10;
+                score += OverloadScoring.AssignableMatch;
             else if (TypeHelpers.CanImplicitlyConvert(argType, paramType))
-                score += 1;
+                score += OverloadScoring.ImplicitConversion;
             else
                 return -1;
         }
@@ -103,11 +103,11 @@ internal static class MethodResolver
             var argType = argTypes[i];
 
             if (argType == paramType)
-                score += 100;
+                score += OverloadScoring.ExactMatch;
             else if (paramType.IsAssignableFrom(argType))
-                score += 10;
+                score += OverloadScoring.AssignableMatch;
             else if (TypeHelpers.CanImplicitlyConvert(argType, paramType))
-                score += 1;
+                score += OverloadScoring.ImplicitConversion;
             else
                 return -1;
         }
@@ -115,15 +115,15 @@ internal static class MethodResolver
         for (var i = lastParamIndex; i < argTypes.Length; i++)
         {
             if (argTypes[i] == elementType)
-                score += 100;
+                score += OverloadScoring.ExactMatch;
             else if (elementType.IsAssignableFrom(argTypes[i]))
-                score += 10;
+                score += OverloadScoring.AssignableMatch;
             else if (TypeHelpers.CanImplicitlyConvert(argTypes[i], elementType))
-                score += 1;
+                score += OverloadScoring.ImplicitConversion;
             else
                 return -1;
         }
 
-        return 500 + score;
+        return OverloadScoring.ExpandedFormBase + score;
     }
 }

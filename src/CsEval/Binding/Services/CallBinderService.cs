@@ -7,12 +7,6 @@ namespace CsEval.Binding.Services;
 
 internal sealed class CallBinderService
 {
-    private const int ApplicableBaseScore = 1000;
-    private const int ExpandedBaseScore = 500;
-    private const int ExactMatchScore = 100;
-    private const int AssignableMatchScore = 10;
-    private const int ImplicitConversionScore = 1;
-    private const int DefaultArgumentPenalty = 10;
 
     private readonly CsEvalContext _context;
 
@@ -290,7 +284,7 @@ internal sealed class CallBinderService
 
         var conversionBuilder = ImmutableArray.CreateBuilder<BoundConversionPlan>(sourceCount);
         var bindingBuilder = ImmutableArray.CreateBuilder<BoundParameterBinding>(parameterCount);
-        var runningScore = ApplicableBaseScore;
+        var runningScore = OverloadScoring.NormalFormBase;
         var defaultsUsed = 0;
 
         for (var i = 0; i < sourceCount; i++)
@@ -364,7 +358,7 @@ internal sealed class CallBinderService
 
         conversions = conversionBuilder.ToImmutable();
         bindings = bindingBuilder.ToImmutable();
-        score = runningScore - (defaultsUsed * DefaultArgumentPenalty);
+        score = runningScore - (defaultsUsed * OverloadScoring.DefaultArgPenalty);
         return true;
     }
 
@@ -398,7 +392,7 @@ internal sealed class CallBinderService
 
         var conversionBuilder = ImmutableArray.CreateBuilder<BoundConversionPlan>(sourceTypes.Count);
         var bindingBuilder = ImmutableArray.CreateBuilder<BoundParameterBinding>(parameters.Length);
-        var runningScore = ExpandedBaseScore;
+        var runningScore = OverloadScoring.ExpandedFormBase;
         var defaultsUsed = 0;
 
         for (var i = 0; i < lastParameterIndex; i++)
@@ -455,7 +449,7 @@ internal sealed class CallBinderService
 
         conversions = conversionBuilder.ToImmutable();
         bindings = bindingBuilder.ToImmutable();
-        score = runningScore - (defaultsUsed * DefaultArgumentPenalty);
+        score = runningScore - (defaultsUsed * OverloadScoring.DefaultArgPenalty);
         return true;
     }
 
@@ -485,16 +479,16 @@ internal sealed class CallBinderService
     private static int ScoreArgumentType(Type sourceType, Type targetType)
     {
         if (sourceType == targetType)
-            return ExactMatchScore;
+            return OverloadScoring.ExactMatch;
 
         if (targetType.IsAssignableFrom(sourceType))
-            return AssignableMatchScore;
+            return OverloadScoring.AssignableMatch;
 
         if (TypeHelpers.CanImplicitlyConvert(sourceType, targetType))
-            return ImplicitConversionScore;
+            return OverloadScoring.ImplicitConversion;
 
         if (TypeHelpers.HasUserDefinedImplicitConversion(sourceType, targetType))
-            return ImplicitConversionScore;
+            return OverloadScoring.ImplicitConversion;
 
         return -1;
     }
