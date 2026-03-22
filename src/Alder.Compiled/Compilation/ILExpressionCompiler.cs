@@ -103,10 +103,8 @@ internal static class ILExpressionCompiler
             var optionsParam = LinqExpression.Parameter(typeof(AlderOptions), "options");
             var ctParam = LinqExpression.Parameter(typeof(CancellationToken), "ct");
 
-            var optimized = BoundTreeOptimizer.Optimize(bound);
-
             var emitter = new BoundExpressionEmitter(contextParam, optionsParam, ctParam);
-            var body = emitter.EmitRoot(optimized);
+            var body = emitter.EmitRoot(bound);
             if (body.Type != typeof(object))
                 body = LinqExpression.Convert(body, typeof(object));
 

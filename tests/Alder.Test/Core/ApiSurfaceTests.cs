@@ -419,6 +419,8 @@ public class ApiSurfaceTests
             "Alder.IExpressionCompiler",
             "Alder.LanguageMode",
             "Alder.SandboxOptions",
+            "Alder.Security.SecurityPolicy",
+            "Alder.Security.SecurityPolicy+Builder",
             "Alder.Diagnostics.DiagnosticCode",
             "Alder.Diagnostics.DiagnosticDescriptor",
             "Alder.Diagnostics.DiagnosticDescriptors",

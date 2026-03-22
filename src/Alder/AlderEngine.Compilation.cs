@@ -71,6 +71,7 @@ public sealed partial class AlderEngine
                 return false;
             }
 
+            bound = RunCompilationPipeline(bound);
             expression.CompiledInfo = compiler.TryCompile(bound, _options);
             return expression.CompiledInfo.Delegate != null;
         }
@@ -142,6 +143,7 @@ public sealed partial class AlderEngine
             throw new AlderException(DiagnosticDescriptors.BindingFailed, failureReason ?? "Binding failed for expression.");
         }
 
+        boundExpression = RunPipeline(boundExpression, cancellationToken);
         var steps = new List<EvaluationTraceStep>();
         var evaluator = new BoundEvaluator(executionContext, _options, cancellationToken, steps, new Text.SourceText(expression.Source));
         var result = evaluator.Evaluate(boundExpression);

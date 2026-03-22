@@ -1,11 +1,14 @@
 using System.Collections.Immutable;
 using Alder.Binding.BoundNodes;
+using Alder.Pipeline;
 
 namespace Alder.Binding;
 
-internal abstract class BoundExprRewriter : BoundExprVisitor<BoundExpr>
+internal abstract class BoundExprRewriter : BoundExprVisitor<BoundExpr>, IBoundTreePass
 {
     public BoundExpr Rewrite(BoundExpr tree) => Visit(tree);
+
+    BoundExpr IBoundTreePass.Execute(BoundExpr tree, PipelineContext context) => Rewrite(tree);
 
     protected override BoundExpr DefaultVisit(BoundExpr node) => node;
 

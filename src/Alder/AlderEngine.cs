@@ -105,6 +105,31 @@ public sealed partial class AlderEngine : IDisposable
         _registeredTypes = [];
     }
 
+    private static readonly Pipeline.BoundTreePipeline SecurityOnlyPipeline =
+        Pipeline.BoundTreePipeline.Create(Security.SecurityValidationPass.Instance);
+
+    private Pipeline.BoundTreePipeline? _compilationPipeline;
+    private Pipeline.BoundTreePipeline GetOrCreateCompilationPipeline()
+    {
+        return _compilationPipeline ??= Pipeline.BoundTreePipeline.Create(
+            Security.SecurityValidationPass.Instance,
+            new Binding.Optimization.ConstantFoldingPass(),
+            new Binding.Optimization.DeadBranchEliminationPass(),
+            new Binding.Optimization.ConversionInsertionPass());
+    }
+
+    private Binding.BoundExpr RunPipeline(Binding.BoundExpr tree, CancellationToken ct = default)
+    {
+        var context = new Pipeline.PipelineContext(_options.Security, _options, ct);
+        return SecurityOnlyPipeline.Execute(tree, context);
+    }
+
+    private Binding.BoundExpr RunCompilationPipeline(Binding.BoundExpr tree, CancellationToken ct = default)
+    {
+        var context = new Pipeline.PipelineContext(_options.Security, _options, ct);
+        return GetOrCreateCompilationPipeline().Execute(tree, context);
+    }
+
     private AlderConfig GetOrCreateConfig()
     {
         var config = _frozenConfig;
@@ -304,6 +329,7 @@ public sealed partial class AlderEngine : IDisposable
             {
                 try
                 {
+                    boundExpression = RunPipeline(boundExpression, cancellationToken);
                     var boundEvaluator = new BoundEvaluator(executionContext, _options, cancellationToken, sourceText: new Text.SourceText(expression.Source));
                     var boundResult = boundEvaluator.Evaluate(boundExpression);
                     expression.RecordBoundExecution();

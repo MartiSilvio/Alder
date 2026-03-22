@@ -1,4 +1,5 @@
 using Alder.Compilation;
+using Alder.Security;
 
 namespace Alder;
 
@@ -17,6 +18,8 @@ public sealed record AlderOptions
     public ExecutionConstraints? Constraints { get; init; }
 
     public SandboxOptions Sandbox { get; init; } = SandboxOptions.Trusted();
+
+    public SecurityPolicy Security { get; init; } = SecurityPolicy.Trusted;
 
     internal ICompiledProvider? Compiler { get; init; }
 

@@ -13,7 +13,8 @@ public class TracingTests(CompilationMode mode)
                         LanguageMode = LanguageMode.Extended
         });
 
-        var trace = engine.EvaluateWithTrace("4 * 5 + 2");
+        engine.SetVariable("x", 5);
+        var trace = engine.EvaluateWithTrace("x * 4 + 2");
 
         Assert.That(trace.Result, Is.EqualTo(22));
         Assert.That(trace.Steps, Is.Not.Empty);

@@ -233,6 +233,9 @@ public static class DiagnosticDescriptors
     public static readonly DiagnosticDescriptor TimeoutExceeded =
         new(DiagnosticCode.ALDR0202, "Execution exceeded maximum timeout ({0}ms). {1}ms elapsed.");
 
+    public static readonly DiagnosticDescriptor ArrayLengthExceeded =
+        new(DiagnosticCode.ALDR0203, "Array length {0} exceeds maximum allowed ({1})");
+
     // ── Runtime (Alder) ─────────────────────────────────────────────
 
     public static readonly DiagnosticDescriptor NullMemberAccess =

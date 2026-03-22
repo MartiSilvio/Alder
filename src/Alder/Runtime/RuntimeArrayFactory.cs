@@ -12,9 +12,14 @@ internal static class RuntimeArrayFactory
             : elementType.MakeArrayType(rank);
     }
 
+    internal const int MaxArrayLength = 10_000_000;
+
     public static Array Create(Type elementType, int length)
     {
         if (length < 0) throw new ArgumentOutOfRangeException(nameof(length));
+        if (length > MaxArrayLength)
+            throw new AlderException(Diagnostics.DiagnosticDescriptors.ArrayLengthExceeded,
+                length.ToString(), MaxArrayLength.ToString());
         return Array.CreateInstance(elementType, length);
     }
 

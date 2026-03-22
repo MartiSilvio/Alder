@@ -28,7 +28,7 @@ internal static class RegexMatchOperator
                 TokenLexemes.GetCanonical(TokenType.EqualTilde),
                 left.GetType().Name,
                 TypeNameFormatter.Of(right));
-        return Regex.IsMatch(left.ToString()!, pattern);
+        return Regex.IsMatch(left.ToString()!, pattern, RegexOptions.None, TimeSpan.FromSeconds(1));
     }
 
     /// <summary>
