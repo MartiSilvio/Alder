@@ -1,3 +1,4 @@
+using System.Runtime.ExceptionServices;
 using Alder.Diagnostics;
 using Alder.Parsing;
 
@@ -101,6 +102,11 @@ internal static class Operators
         if (TypeHelpers.IsArithmetic(left) && TypeHelpers.IsArithmetic(right))
             return NumericDispatch.Add(left, right, isChecked);
 
+        // ECMA-334 §12.4.5: user-defined binary operators
+        if (left != null && right != null &&
+            TryInvokeUserDefinedBinaryOperator(left, right, "op_Addition", out var userResult))
+            return userResult;
+
         // Object merge via + operator (Extended mode only)
         if (options.LanguageMode == LanguageMode.Standard)
             throw new AlderException(
@@ -134,7 +140,8 @@ internal static class Operators
             left,
             right,
             TokenLexemes.GetCanonical(TokenType.Minus),
-            (l, r) => NumericDispatch.Subtract(l, r, isChecked));
+            (l, r) => NumericDispatch.Subtract(l, r, isChecked),
+            "op_Subtraction");
     }
 
     public static object? Multiply(object? left, object? right) =>
@@ -146,20 +153,20 @@ internal static class Operators
         {
             if (options?.LanguageMode == LanguageMode.Extended)
                 return StringMultiply(left, right);
-            // In Standard mode, string * anything falls through to arithmetic and throws
         }
         return ApplyBinaryArithmetic(
             left,
             right,
             TokenLexemes.GetCanonical(TokenType.Star),
-            (l, r) => NumericDispatch.Multiply(l, r, isChecked));
+            (l, r) => NumericDispatch.Multiply(l, r, isChecked),
+            "op_Multiply");
     }
 
     public static object? Divide(object? left, object? right) =>
-        ApplyBinaryArithmetic(left, right, TokenLexemes.GetCanonical(TokenType.Slash), NumericDispatch.Divide);
+        ApplyBinaryArithmetic(left, right, TokenLexemes.GetCanonical(TokenType.Slash), NumericDispatch.Divide, "op_Division");
 
     public static object? Modulo(object? left, object? right) =>
-        ApplyBinaryArithmetic(left, right, TokenLexemes.GetCanonical(TokenType.Percent), NumericDispatch.Modulo);
+        ApplyBinaryArithmetic(left, right, TokenLexemes.GetCanonical(TokenType.Percent), NumericDispatch.Modulo, "op_Modulus");
 
     public static object? Power(object? left, object? right)
     {
@@ -188,7 +195,9 @@ internal static class Operators
         return Math.Pow(l, r);
     }
 
-    private static object? ApplyBinaryArithmetic(object? left, object? right, string op, Func<object, object, object?> dispatch)
+    private static object? ApplyBinaryArithmetic(
+        object? left, object? right, string op, Func<object, object, object?> dispatch,
+        string? userDefinedOperatorName = null)
     {
         if (left == null && right == null) return null;
         if (left == null || right == null)
@@ -196,9 +205,18 @@ internal static class Operators
             if (TypeHelpers.IsArithmetic(left) || TypeHelpers.IsArithmetic(right))
                 return null;
         }
-        if ((left != null && !TypeHelpers.IsArithmetic(left)) || (right != null && !TypeHelpers.IsArithmetic(right)))
-            throw new AlderException(DiagnosticDescriptors.BadBinaryOps, op, TypeNameFormatter.Of(left), TypeNameFormatter.Of(right));
-        return dispatch(left!, right!);
+
+        if (left != null && right != null && TypeHelpers.IsArithmetic(left) && TypeHelpers.IsArithmetic(right))
+            return dispatch(left, right);
+
+        // ECMA-334 §12.4.5: user-defined binary operators
+        if (left != null && right != null && userDefinedOperatorName != null)
+        {
+            if (TryInvokeUserDefinedBinaryOperator(left, right, userDefinedOperatorName, out var result))
+                return result;
+        }
+
+        throw new AlderException(DiagnosticDescriptors.BadBinaryOps, op, TypeNameFormatter.Of(left), TypeNameFormatter.Of(right));
     }
 
     public new static object Equals(object? left, object? right)
@@ -561,6 +579,51 @@ internal static class Operators
         }
 
         return LikePatternMode.General;
+    }
+
+    /// <summary>
+    /// ECMA-334 §12.4.5: searches both operand types for a matching binary operator method.
+    /// </summary>
+    private static bool TryInvokeUserDefinedBinaryOperator(
+        object left, object right, string operatorName, out object? result)
+    {
+        result = null;
+        var leftType = left.GetType();
+        var rightType = right.GetType();
+        const BindingFlags flags = BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy;
+
+        // Search both operand types per §12.4.5
+        var searchTypes = leftType == rightType ? new[] { leftType } : new[] { leftType, rightType };
+
+        foreach (var type in searchTypes)
+        {
+            foreach (var method in ReflectionRuntime.GetMethods(type, flags))
+            {
+                if (!string.Equals(method.Name, operatorName, StringComparison.Ordinal))
+                    continue;
+
+                var parameters = method.GetParameters();
+                if (parameters.Length != 2)
+                    continue;
+
+                if (!parameters[0].ParameterType.IsInstanceOfType(left) ||
+                    !parameters[1].ParameterType.IsInstanceOfType(right))
+                    continue;
+
+                try
+                {
+                    result = method.Invoke(null, [left, right]);
+                    return true;
+                }
+                catch (TargetInvocationException tie) when (tie.InnerException != null)
+                {
+                    ExceptionDispatchInfo.Capture(tie.InnerException).Throw();
+                    throw;
+                }
+            }
+        }
+
+        return false;
     }
 
     public static object? StringMultiply(object? left, object? right)

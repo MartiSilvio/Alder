@@ -334,20 +334,14 @@ internal static class TypeHelpers
                 var paramType = parameters[0].ParameterType;
                 var returnType = method.ReturnType;
 
-                // §10.5.5 (explicit): operator applicable if standard conversion exists
+                // §10.5.5: operator applicable if standard conversion (§10.4.2) exists
                 // from sourceType → paramType OR paramType → sourceType (encompassing or encompassed)
-                var sourceApplicable = paramType == sourceType
-                    || CanImplicitlyConvert(sourceType, paramType)
-                    || CanImplicitlyConvert(paramType, sourceType)
-                    || (!paramType.IsValueType && paramType.IsAssignableFrom(sourceType))
-                    || (!sourceType.IsValueType && sourceType.IsAssignableFrom(paramType));
+                var sourceApplicable = IsStandardImplicitConversion(sourceType, paramType)
+                    || IsStandardImplicitConversion(paramType, sourceType);
 
                 // §10.5.5: standard conversion from returnType → targetType or targetType → returnType
-                var targetApplicable = returnType == targetType
-                    || CanImplicitlyConvert(returnType, targetType)
-                    || CanImplicitlyConvert(targetType, returnType)
-                    || (!targetType.IsValueType && targetType.IsAssignableFrom(returnType))
-                    || (!returnType.IsValueType && returnType.IsAssignableFrom(targetType));
+                var targetApplicable = IsStandardImplicitConversion(returnType, targetType)
+                    || IsStandardImplicitConversion(targetType, returnType);
 
                 if (sourceApplicable && targetApplicable)
                     candidates.Add(method);
@@ -572,39 +566,53 @@ internal static class TypeHelpers
     /// </summary>
     public static bool CanImplicitlyConvert(Type sourceType, Type targetType)
     {
-        if (sourceType == targetType)
+        // §10.4.2: Standard implicit conversions (identity, numeric, nullable, reference, boxing)
+        if (IsStandardImplicitConversion(sourceType, targetType))
             return true;
 
-        // ECMA-334 §10.2.13: Implicit tuple conversions
-        // A tuple type can be implicitly converted to another tuple type with the same arity
-        // if each element can be implicitly converted.
+        // §10.2.13: Implicit tuple conversions (element-wise)
         if (IsTupleType(sourceType) && IsTupleType(targetType))
         {
             var sourceArgs = sourceType.GetGenericArguments();
             var targetArgs = targetType.GetGenericArguments();
-
             if (sourceArgs.Length != targetArgs.Length)
                 return false;
-
-            return !sourceArgs
-                .Where((t, i) => !CanImplicitlyConvert(t, targetArgs[i]))
-                .Any();
+            for (var i = 0; i < sourceArgs.Length; i++)
+            {
+                if (!CanImplicitlyConvert(sourceArgs[i], targetArgs[i]))
+                    return false;
+            }
+            return true;
         }
 
-        // ECMA-334 §10.6.1: Implicit nullable conversions
-        // T -> T? (identity lift) and S -> T? (where S -> T is an implicit conversion)
+        // §10.5.4: User-defined implicit conversions
+        if (HasUserDefinedImplicitConversion(sourceType, targetType))
+            return true;
+
+        return false;
+    }
+
+    /// <summary>
+    /// ECMA-334 §10.4.2: Standard implicit conversions — the pre-defined conversions that can
+    /// occur as part of a user-defined conversion. Does NOT include user-defined conversions,
+    /// preventing recursion when called from TryResolveUserDefinedConversion.
+    /// </summary>
+    internal static bool IsStandardImplicitConversion(Type sourceType, Type targetType)
+    {
+        // §10.2.2: Identity
+        if (sourceType == targetType)
+            return true;
+
+        // §10.2.6: Implicit nullable conversions
         var underlyingTarget = Nullable.GetUnderlyingType(targetType);
         if (underlyingTarget != null)
         {
-            // T -> T?
             if (sourceType == underlyingTarget)
                 return true;
 
-            // S -> T? where S -> T is an implicit numeric conversion
             if (ImplicitConversions.TryGetValue(sourceType, out var nullableTargets) && nullableTargets.Contains(underlyingTarget))
                 return true;
 
-            // S? -> T? where S -> T is an implicit numeric conversion
             var underlyingSource = Nullable.GetUnderlyingType(sourceType);
             if (underlyingSource != null)
             {
@@ -615,11 +623,11 @@ internal static class TypeHelpers
             }
         }
 
-        // Reference type assignability
-        if (!targetType.IsValueType && targetType.IsAssignableFrom(sourceType))
+        // §10.2.8: Implicit reference conversions and §10.2.9: Boxing conversions
+        if (targetType.IsAssignableFrom(sourceType))
             return true;
 
-        // ECMA-334 §10.2.3: Implicit numeric conversions
+        // §10.2.3: Implicit numeric conversions
         if (ImplicitConversions.TryGetValue(sourceType, out var allowedTargets) && allowedTargets.Contains(targetType))
             return true;
 
@@ -637,8 +645,8 @@ internal static class TypeHelpers
         if (t1 == t2)
             return 0;
 
-        var t1ToT2 = CanImplicitlyConvert(t1, t2) || (!t2.IsValueType && t2.IsAssignableFrom(t1));
-        var t2ToT1 = CanImplicitlyConvert(t2, t1) || (!t1.IsValueType && t1.IsAssignableFrom(t2));
+        var t1ToT2 = CanImplicitlyConvert(t1, t2);
+        var t2ToT1 = CanImplicitlyConvert(t2, t1);
 
         if (t1ToT2 && !t2ToT1) return 1;
         if (t2ToT1 && !t1ToT2) return -1;

@@ -308,7 +308,7 @@ internal sealed class CallBinderService
                 return false;
             }
 
-            if (!IsTypeApplicable(sourceTypes[i], targetType))
+            if (!TypeHelpers.CanImplicitlyConvert(sourceTypes[i], targetType))
             {
                 conversions = default;
                 bindings = default;
@@ -399,7 +399,7 @@ internal sealed class CallBinderService
             if (i < sourceTypes.Count)
             {
                 var targetType = GetParameterTargetType(parameters[i]);
-                if (!IsTypeApplicable(sourceTypes[i], targetType))
+                if (!TypeHelpers.CanImplicitlyConvert(sourceTypes[i], targetType))
                     return false;
 
                 conversionBuilder.Add(new BoundConversionPlan(
@@ -426,7 +426,7 @@ internal sealed class CallBinderService
 
         for (var i = lastParameterIndex; i < sourceTypes.Count; i++)
         {
-            if (!IsTypeApplicable(sourceTypes[i], elementType))
+            if (!TypeHelpers.CanImplicitlyConvert(sourceTypes[i], elementType))
                 return false;
 
             conversionBuilder.Add(new BoundConversionPlan(
@@ -469,16 +469,4 @@ internal sealed class CallBinderService
             : parameterType;
     }
 
-    private static bool IsTypeApplicable(Type sourceType, Type targetType)
-    {
-        if (sourceType == targetType)
-            return true;
-        if (targetType.IsAssignableFrom(sourceType))
-            return true;
-        if (TypeHelpers.CanImplicitlyConvert(sourceType, targetType))
-            return true;
-        if (TypeHelpers.HasUserDefinedImplicitConversion(sourceType, targetType))
-            return true;
-        return false;
-    }
 }

@@ -926,14 +926,14 @@ internal static class MethodInvoker
             return true;
         }
 
-        // Only allow implicit numeric conversions (no narrowing)
-        if (TypeHelpers.CanImplicitlyConvert(argType, targetType))
+        // Implicit numeric conversions (§10.2.3)
+        if (TypeHelpers.IsStandardImplicitConversion(argType, targetType))
         {
             converted = TypeHelpers.CoerceNumeric(arg, targetType);
             return true;
         }
 
-        // User-defined implicit conversion (§10.5.3)
+        // User-defined implicit conversion (§10.5.4)
         if (TypeHelpers.TryApplyUserDefinedImplicitConversion(arg, targetType, out var userConverted))
         {
             converted = userConverted;

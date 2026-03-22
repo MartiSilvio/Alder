@@ -205,7 +205,7 @@ internal static class OverloadResolution
         for (var i = 0; i < argTypes.Length; i++)
         {
             var paramType = parameters[i].ParameterType;
-            if (!IsTypeConvertible(argTypes[i], paramType))
+            if (!TypeHelpers.CanImplicitlyConvert(argTypes[i], paramType))
                 return false;
         }
 
@@ -233,7 +233,7 @@ internal static class OverloadResolution
         {
             if (i < argTypes.Length)
             {
-                if (!IsTypeConvertible(argTypes[i], parameters[i].ParameterType))
+                if (!TypeHelpers.CanImplicitlyConvert(argTypes[i], parameters[i].ParameterType))
                     return false;
             }
             else if (!parameters[i].HasDefaultValue)
@@ -244,7 +244,7 @@ internal static class OverloadResolution
 
         for (var i = lastParamIndex; i < argTypes.Length; i++)
         {
-            if (!IsTypeConvertible(argTypes[i], elementType))
+            if (!TypeHelpers.CanImplicitlyConvert(argTypes[i], elementType))
                 return false;
         }
 
@@ -397,19 +397,6 @@ internal static class OverloadResolution
         return -1;
     }
 
-    private static bool IsTypeConvertible(Type argType, Type paramType)
-    {
-        if (argType == paramType)
-            return true;
-        if (paramType.IsAssignableFrom(argType))
-            return true;
-        if (TypeHelpers.CanImplicitlyConvert(argType, paramType))
-            return true;
-        if (TypeHelpers.HasUserDefinedImplicitConversion(argType, paramType))
-            return true;
-        return false;
-    }
-
     private static bool IsArgConvertible(object? arg, Type paramType)
     {
         if (arg is OutArgMarker)
@@ -419,7 +406,7 @@ internal static class OverloadResolution
             return !paramType.IsValueType || Nullable.GetUnderlyingType(paramType) != null;
 
         var argType = arg.GetType();
-        if (IsTypeConvertible(argType, paramType))
+        if (TypeHelpers.CanImplicitlyConvert(argType, paramType))
             return true;
 
         if (arg is LambdaValue or CompiledLambdaValue && LambdaDelegateConverter.IsSupportedDelegateType(paramType))
