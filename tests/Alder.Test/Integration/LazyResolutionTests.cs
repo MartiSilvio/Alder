@@ -38,15 +38,19 @@ public class LazyResolutionTests(CompilationMode mode)
     [Test]
     public void RegisterModule_UsesServiceProviderWhenAvailable()
     {
-        var engine = TestEngineFactory.Create(mode, o => o.Modules.Register("Tracking", typeof(TrackingModule)));
-
         var providedInstance = new TrackingModule();
         var sp = new SimpleServiceProvider();
         sp.Register(providedInstance);
 
+        var engine = TestEngineFactory.Create(mode, o =>
+        {
+            o.ServiceProvider = sp;
+            o.Modules.Register("Tracking", typeof(TrackingModule));
+        });
+
         Assert.That(TrackingModule.InstanceCount, Is.EqualTo(1));
 
-        engine.Evaluate("Tracking.DoSomething()", serviceProvider: sp);
+        engine.Evaluate("Tracking.DoSomething()");
 
         Assert.That(TrackingModule.InstanceCount, Is.EqualTo(1));
         Assert.That(TrackingModule.MethodCallCount, Is.EqualTo(1));

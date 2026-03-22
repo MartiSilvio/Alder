@@ -1,1 +1,4 @@
-{ Func<string, string> upper = s => s.ToUpper(); return "hello" |> upper; }
+{
+    Func<string, string> upper = s => s.ToUpper();
+    return "hello" |> upper;
+}

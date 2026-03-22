@@ -13,9 +13,6 @@ public class RedTeamAttackTests(CompilationMode mode)
     private AlderEngine Strict() => TestEngineFactory.Create(mode, o => o.Sandbox = SandboxOptions.Strict());
 
     private AlderEngine Trusted() => TestEngineFactory.Create(mode);
-
-    // ── CVE-2023-32571 pattern: FQN type traversal ──────────────────
-
     [Test]
     public void Attack_FQN_Environment_MachineName_Safe()
     {
@@ -63,9 +60,6 @@ public class RedTeamAttackTests(CompilationMode mode)
     {
         Assert.Throws<AlderException>(() => Safe().Evaluate("Environment.MachineName"));
     }
-
-    // ── Process/IO/Network namespace attacks ─────────────────────────
-
     [Test]
     public void Attack_FQN_ProcessStart_Safe()
     {
@@ -114,9 +108,6 @@ public class RedTeamAttackTests(CompilationMode mode)
         Assert.Throws<AlderException>(() =>
             Safe().Evaluate("System.Reflection.Assembly.GetCallingAssembly()"));
     }
-
-    // ── Reflection chain attacks (Python __class__ equivalent) ──────
-
     [Test]
     public void Attack_GetType_ReflectionChain_Trusted()
     {
@@ -146,9 +137,6 @@ public class RedTeamAttackTests(CompilationMode mode)
         Assert.Catch(() =>
             Trusted().Evaluate("""typeof(string).GetMethod("ToUpper")"""));
     }
-
-    // ── Delegate bypass attacks ──────────────────────────────────────
-
     [Test]
     public void Attack_DelegateReturnsType_Trusted()
     {
@@ -174,9 +162,6 @@ public class RedTeamAttackTests(CompilationMode mode)
         engine.SetVariable("fn", new Func<int, int>(x => x + 1));
         Assert.That(engine.Evaluate("fn(5)"), Is.EqualTo(6));
     }
-
-    // ── Construction bypass attacks ──────────────────────────────────
-
     [Test]
     public void Attack_NewProcess_Safe()
     {
@@ -197,9 +182,6 @@ public class RedTeamAttackTests(CompilationMode mode)
         Assert.Throws<AlderException>(() =>
             Safe().Evaluate("new System.Collections.Generic.List<int>()"));
     }
-
-    // ── Resource exhaustion attacks ──────────────────────────────────
-
     [Test]
     public void Attack_HugeArrayAllocation()
     {
@@ -223,9 +205,6 @@ public class RedTeamAttackTests(CompilationMode mode)
         Assert.Throws<AlderException>(() =>
             TestEngineFactory.Create(mode).Evaluate(expr));
     }
-
-    // ── DoS attacks ─────────────────────────────────────────────────
-
     [Test]
     public void Attack_GC_Collect_Safe()
     {
@@ -246,9 +225,6 @@ public class RedTeamAttackTests(CompilationMode mode)
         Assert.Throws<AlderException>(() =>
             Safe().Evaluate("System.Console.ReadLine()"));
     }
-
-    // ── Assignment/mutation attacks in strict mode ───────────────────
-
     [Test]
     public void Attack_Assignment_Strict()
     {
@@ -279,18 +255,12 @@ public class RedTeamAttackTests(CompilationMode mode)
         var engine = Strict();
         Assert.Throws<AlderException>(() => engine.Evaluate("var x = 1"));
     }
-
-    // ── Dead branch attacks ─────────────────────────────────────────
-
     [Test]
     public void Attack_ConditionalDeadBranch_DangerousBranch_NeverExecuted()
     {
         var result = Safe().Evaluate("""false ? "danger" : "safe" """);
         Assert.That(result, Is.EqualTo("safe"));
     }
-
-    // ── Disposal attacks ────────────────────────────────────────────
-
     [Test]
     public void Attack_UseAfterDispose()
     {
@@ -307,9 +277,6 @@ public class RedTeamAttackTests(CompilationMode mode)
         engine.Dispose();
         Assert.Throws<ObjectDisposedException>(() => child.Evaluate("1 + 1"));
     }
-
-    // ── Information disclosure via exception ─────────────────────────
-
     [Test]
     public void Attack_ExceptionGetType_Safe()
     {
@@ -330,9 +297,6 @@ public class RedTeamAttackTests(CompilationMode mode)
         """);
         Assert.That(result, Is.Not.Null);
     }
-
-    // ── typeof() info disclosure (LOW — by design) ──────────────────
-
     [Test]
     public void Info_Typeof_FullName_Safe()
     {
@@ -344,9 +308,6 @@ public class RedTeamAttackTests(CompilationMode mode)
     {
         Assert.That(Safe().Evaluate("typeof(string).IsPublic"), Is.EqualTo(true));
     }
-
-    // ── Compiled/interpreted parity ─────────────────────────────────
-
     [Test]
     public void Parity_Construction_SameErrorCode()
     {
@@ -358,9 +319,6 @@ public class RedTeamAttackTests(CompilationMode mode)
                 .Evaluate("new object()"));
         Assert.That(intEx!.ErrorCode, Is.EqualTo(compEx!.ErrorCode));
     }
-
-    // ── Safe positive tests ─────────────────────────────────────────
-
     [Test]
     public void Safe_Arithmetic() => Assert.That(Safe().Evaluate("2 + 3 * 4"), Is.EqualTo(14));
 
@@ -402,5 +360,88 @@ public class RedTeamAttackTests(CompilationMode mode)
         var engine = Safe();
         engine.SetVariable("x", 42);
         Assert.That(engine.Evaluate("nameof(x)"), Is.EqualTo("x"));
+    }
+
+    [Test]
+    public void Attack_ConstructAlderEngine_Safe()
+    {
+        Assert.Throws<AlderException>(() =>
+            Safe().Evaluate("""new Alder.AlderEngine().Evaluate("1 + 1")"""));
+    }
+
+    [Test]
+    public void Attack_ConstructAlderEngine_Strict()
+    {
+        Assert.Throws<AlderException>(() =>
+            Strict().Evaluate("""new Alder.AlderEngine().Evaluate("1 + 1")"""));
+    }
+
+    [Test]
+    public void Attack_ConstructAlderEngine_WithRegisteredAssembly_Trusted()
+    {
+        var engine = TestEngineFactory.Create(mode, o => {
+            o.Types.AddAssembly(typeof(AlderEngine).Assembly);
+            o.Types.AddNamespace("Alder");
+        });
+        Assert.Throws<AlderException>(() =>
+            engine.Evaluate("""new AlderEngine().Evaluate("System.Environment.MachineName")"""));
+    }
+
+    [Test]
+    public void Attack_ConstructAlderEngine_FQN_Trusted()
+    {
+        var engine = Trusted();
+        Assert.Throws<AlderException>(() =>
+            engine.Evaluate("""new Alder.AlderEngine().Evaluate("System.Environment.MachineName")"""));
+    }
+
+    [Test]
+    public void Attack_AccessAlderOptions_FQN_Trusted()
+    {
+        Assert.Throws<AlderException>(() =>
+            Trusted().Evaluate("new Alder.AlderOptions()"));
+    }
+
+    [Test]
+    public void Attack_ConstructAlderEngine_ViaShortName_Trusted()
+    {
+        var engine = TestEngineFactory.Create(mode, o => {
+            o.Types.AddAssembly(typeof(AlderEngine).Assembly);
+            o.Types.AddNamespace("Alder");
+        });
+        Assert.Throws<AlderException>(() =>
+            engine.Evaluate("""new AlderEngine()"""));
+    }
+
+    [Test]
+    public void Attack_AlderNamespace_StaticAccess_Trusted()
+    {
+        Assert.Throws<AlderException>(() =>
+            Trusted().Evaluate("Alder.LanguageMode.Extended"));
+    }
+
+    [Test]
+    public void Attack_SandboxOptions_Construction_Trusted()
+    {
+        Assert.Throws<AlderException>(() =>
+            Trusted().Evaluate("new Alder.SandboxOptions()"));
+    }
+
+    [Test]
+    public void Attack_AlderEngine_ViaVariable_MethodCall()
+    {
+        var engine = Safe();
+        engine.SetVariable("eng", new AlderEngine());
+        Assert.Throws<AlderException>(() =>
+            engine.Evaluate("""eng.Evaluate("1 + 1")"""));
+    }
+
+    [Test]
+    public void Attack_AlderEngine_ViaVariable_Trusted()
+    {
+        var engine = Trusted();
+        engine.SetVariable("eng", new AlderEngine());
+        Assert.Throws<AlderException>(() =>
+            engine.Evaluate("""eng.Evaluate("System.Environment.MachineName")"""));
     }
 }

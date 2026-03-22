@@ -1,1 +1,2 @@
-{ byte x = 0; return x; }
+byte x = 0;
+return x;

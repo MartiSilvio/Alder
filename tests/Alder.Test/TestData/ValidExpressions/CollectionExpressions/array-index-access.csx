@@ -1,1 +1,2 @@
-{ var arr = [10, 20, 30]; return arr[1]; }
+var arr = [10, 20, 30];
+return arr[1];

@@ -62,7 +62,7 @@ internal static class TypeMetadataEmitter
         return w.ToString();
     }
 
-    // ── Property/Field accessors ─────────────────────────────────────────
+    #region Property/Field accessors
 
     private static void EmitTryGetProperty(SourceWriter w, TypeRegistrationModel reg)
     {
@@ -124,7 +124,9 @@ internal static class TypeMetadataEmitter
             "value = default;", "return false;");
     }
 
-    // ── Indexers ─────────────────────────────────────────────────────────
+    #endregion
+
+    #region Indexers
 
     private static void EmitTryGetIndex(SourceWriter w, TypeRegistrationModel reg)
     {
@@ -167,7 +169,9 @@ internal static class TypeMetadataEmitter
         w.AppendLine();
     }
 
-    // ── Constructors ─────────────────────────────────────────────────────
+    #endregion
+
+    #region Constructors
 
     private static void EmitTryCreateInstance(SourceWriter w, TypeRegistrationModel reg)
     {
@@ -217,7 +221,9 @@ internal static class TypeMetadataEmitter
         }
     }
 
-    // ── Method invocation ────────────────────────────────────────────────
+    #endregion
+
+    #region Method invocation
 
     private static void EmitTryInvokeMethod(SourceWriter w, TypeRegistrationModel reg)
     {
@@ -237,7 +243,9 @@ internal static class TypeMetadataEmitter
             reg.TypeFullName, methods, isStatic: true);
     }
 
-    // ── Shared helpers ───────────────────────────────────────────────────
+    #endregion
+
+    #region Shared helpers
 
     /// <summary>
     /// Emits the repeated pattern: method signature → if members: typed cast + switch(name) { cases }; else: default return.
@@ -389,4 +397,6 @@ internal static class TypeMetadataEmitter
             result = result.Substring("global__".Length);
         return result;
     }
+
+    #endregion
 }

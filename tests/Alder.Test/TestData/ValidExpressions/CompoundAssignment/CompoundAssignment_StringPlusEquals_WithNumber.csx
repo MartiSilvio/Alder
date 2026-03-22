@@ -1,1 +1,3 @@
-{ var s = "Count: "; s += 42; return s; }
+var s = "Count: ";
+s += 42;
+return s;

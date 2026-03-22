@@ -1,1 +1,3 @@
-{ short? a = null; short? b = null; return a * b; }
+short? a = null;
+short? b = null;
+return a * b;

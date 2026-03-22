@@ -928,11 +928,11 @@ public class SandboxModeTests(CompilationMode mode)
     }
 
     [Test]
-    public void Sandbox_AllowedTypes_Blocks_Unlisted_Type()
+    public void Sandbox_TrustedTypes_Blocks_Unlisted_Type()
     {
         var engine = TestEngineFactory.Create(mode, o => o.Sandbox = SandboxOptions.Trusted() with
         {
-            AllowedTypes = new HashSet<Type> { typeof(Math) }
+            TrustedTypes = [typeof(Math)]
         });
         engine.SetVariable("x", 5);
 
@@ -941,15 +941,14 @@ public class SandboxModeTests(CompilationMode mode)
     }
 
     [Test]
-    public void Sandbox_AllowedTypes_Blocks_Construction_Of_Unlisted_Type()
+    public void Sandbox_TrustedTypes_OverridesDenyList_ForConstruction()
     {
         var engine = TestEngineFactory.Create(mode, o => o.Sandbox = SandboxOptions.Trusted() with
         {
-            AllowedTypes = new HashSet<Type> { typeof(Math) }
+            TrustedTypes = [typeof(MemoryStream)]
         });
 
-        var ex = Assert.Throws<AlderException>(() => engine.Evaluate("new object()"));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0107));
+        Assert.DoesNotThrow(() => engine.Evaluate("new System.IO.MemoryStream()"));
     }
 
     #region Helper Classes

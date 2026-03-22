@@ -1,1 +1,3 @@
-{ char x = 'A'; int y = x; return y; }
+char x = 'A';
+int y = x;
+return y;

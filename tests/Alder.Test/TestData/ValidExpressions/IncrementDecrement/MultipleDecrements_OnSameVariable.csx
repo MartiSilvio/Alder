@@ -1,1 +1,5 @@
-{ var x = 10; x--; x--; x--; return x; }
+var x = 10;
+x--;
+x--;
+x--;
+return x;

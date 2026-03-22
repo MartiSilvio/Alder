@@ -1,1 +1,2 @@
-{ object x = null; return x is { }; }
+object x = null;
+return x is { };

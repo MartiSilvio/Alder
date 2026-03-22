@@ -1,1 +1,3 @@
-{ long x = 65; char c = x; return c; }
+long x = 65;
+char c = x;
+return c;

@@ -128,7 +128,7 @@ public class ApiFeatureTests(CompilationMode mode)
 
         Assert.That(success, Is.False);
         Assert.That(diagnostics, Has.Count.GreaterThan(0));
-        Assert.That(diagnostics[0].Span, Is.Not.EqualTo(default(Alder.Text.TextSpan)));
+        Assert.That(diagnostics[0].Span, Is.Not.EqualTo(default(Text.TextSpan)));
     }
 
     [Test]

@@ -1,1 +1,2 @@
-{ object x = 3.14; return (double)x; }
+object x = 3.14;
+return (double)x;

@@ -1,1 +1,2 @@
-{ object x = 42L; return (long)x; }
+object x = 42L;
+return (long)x;

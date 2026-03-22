@@ -1,1 +1,3 @@
-{ byte x = 65; char c = x; return c; }
+byte x = 65;
+char c = x;
+return c;

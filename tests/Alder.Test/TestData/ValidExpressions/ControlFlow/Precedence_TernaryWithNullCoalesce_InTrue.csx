@@ -1,1 +1,2 @@
-{ string? n = null; return true ? n ?? "fallback" : "else"; }
+string? n = null;
+return true ? n ?? "fallback" : "else";

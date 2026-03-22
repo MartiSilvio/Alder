@@ -1,1 +1,3 @@
-{ var x = 17; x %= 5; return x; }
+var x = 17;
+x %= 5;
+return x;

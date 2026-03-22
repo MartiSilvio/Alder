@@ -1,1 +1,2 @@
-{ var s = "hello"; return s[-1]; }
+var s = "hello";
+return s[-1];

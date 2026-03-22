@@ -1,1 +1,2 @@
-{ object x = null; return (int)x; }
+object x = null;
+return (int)x;

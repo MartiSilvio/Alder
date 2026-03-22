@@ -1,1 +1,2 @@
-{ int? a = 8; return a >> 2; }
+int? a = 8;
+return a >> 2;

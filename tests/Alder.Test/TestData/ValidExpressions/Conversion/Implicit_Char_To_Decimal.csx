@@ -1,1 +1,3 @@
-{ char x = 'A'; decimal y = x; return y; }
+char x = 'A';
+decimal y = x;
+return y;

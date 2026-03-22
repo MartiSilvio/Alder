@@ -1,1 +1,3 @@
-{ int? a = null; int? b = null; return a ^ b; }
+int? a = null;
+int? b = null;
+return a ^ b;

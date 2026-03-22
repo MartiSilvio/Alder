@@ -12,9 +12,7 @@ public class InterpolationConformanceTests(CompilationMode mode)
     private object? Eval(string expr, LanguageMode lang = LanguageMode.Standard)
         => Engine(lang).Evaluate(expr);
 
-    // ═══════════════════════════════════════════════════════════════════
-    // §12.8.3 Interpolated string — complex expressions
-    // ═══════════════════════════════════════════════════════════════════
+    #region §12.8.3 Interpolated string — complex expressions
 
     [Test]
     public void InterpolatedString_NestedBraces()
@@ -44,4 +42,6 @@ public class InterpolationConformanceTests(CompilationMode mode)
         ");
         Assert.That(result, Is.EqualTo("HELLO"));
     }
+
+    #endregion
 }

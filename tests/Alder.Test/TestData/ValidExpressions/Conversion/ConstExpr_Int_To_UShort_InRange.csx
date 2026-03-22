@@ -1,1 +1,2 @@
-{ ushort x = 50000; return x; }
+ushort x = 50000;
+return x;

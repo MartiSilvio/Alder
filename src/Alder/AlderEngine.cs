@@ -76,6 +76,8 @@ public sealed partial class AlderEngine : IDisposable
         _config = BuildConfig(options);
     }
 
+    internal bool HasCompiler => _options.Compiler != null;
+
     private AlderEngine(
         AlderConfig config,
         AlderContext parentContext,
@@ -226,7 +228,7 @@ public sealed partial class AlderEngine : IDisposable
         return GetOrCreateCompilationPipeline().Execute(tree, context);
     }
 
-    private AlderContext GetOrCreateContext(IServiceProvider? serviceProvider)
+    private AlderContext GetOrCreateContext()
     {
         var ctx = _context;
         if (ctx != null)
@@ -237,7 +239,7 @@ public sealed partial class AlderEngine : IDisposable
             if (_context != null)
                 return _context;
 
-            var newContext = new AlderContext(_config, serviceProvider);
+            var newContext = new AlderContext(_config, _options.ServiceProvider);
 
             foreach (var (name, pending) in _pendingVariables)
             {
@@ -294,31 +296,30 @@ public sealed partial class AlderEngine : IDisposable
     public object? Evaluate(
         string expression,
         IDictionary<string, object?>? variables = null,
-        IServiceProvider? serviceProvider = null,
+
         CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();
         var parsed = Parse(expression);
-        return Evaluate(parsed, variables, serviceProvider, cancellationToken);
+        return Evaluate(parsed, variables, cancellationToken);
     }
 
     public object? Evaluate(
         AlderExpression expression,
         IDictionary<string, object?>? variables = null,
-        IServiceProvider? serviceProvider = null,
+
         CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();
         if (_options.Compiler != null &&
             variables == null &&
-            serviceProvider == null &&
             _options.Constraints == null &&
             !cancellationToken.CanBeCanceled)
         {
             if (TryEvaluateCompiledNoCancellationCached(expression, out var cachedResult))
                 return cachedResult;
 
-            var fastContext = GetOrCreateContext(null);
+            var fastContext = GetOrCreateContext();
             if (TryGetCompiledNoCancellationFastDelegate(expression, fastContext, out var cachedDelegate))
             {
                 CacheCompiledNoCancellationFastPath(expression, cachedDelegate, fastContext);
@@ -348,7 +349,7 @@ public sealed partial class AlderEngine : IDisposable
             target.SetVariables(variables);
         }
 
-        var context = target.GetOrCreateContext(serviceProvider);
+        var context = target.GetOrCreateContext();
         var executionContext = context;
 
         var constraints = _options.Constraints;
@@ -402,62 +403,62 @@ public sealed partial class AlderEngine : IDisposable
     public object? Evaluate(
         string expression,
         object variables,
-        IServiceProvider? serviceProvider = null,
+
         CancellationToken cancellationToken = default)
-        => Evaluate(expression, ToVariableDictionary(variables), serviceProvider, cancellationToken);
+        => Evaluate(expression, ToVariableDictionary(variables), cancellationToken);
 
     public object? Evaluate(
         AlderExpression expression,
         object variables,
-        IServiceProvider? serviceProvider = null,
+
         CancellationToken cancellationToken = default)
-        => Evaluate(expression, ToVariableDictionary(variables), serviceProvider, cancellationToken);
+        => Evaluate(expression, ToVariableDictionary(variables), cancellationToken);
 
     public T? Evaluate<T>(
         string expression,
         IDictionary<string, object?>? variables = null,
-        IServiceProvider? serviceProvider = null,
+
         CancellationToken cancellationToken = default)
     {
-        var result = Evaluate(expression, variables, serviceProvider, cancellationToken);
+        var result = Evaluate(expression, variables, cancellationToken);
         return ConvertResult<T>(result);
     }
 
     public T? Evaluate<T>(
         AlderExpression expression,
         IDictionary<string, object?>? variables = null,
-        IServiceProvider? serviceProvider = null,
+
         CancellationToken cancellationToken = default)
     {
-        var result = Evaluate(expression, variables, serviceProvider, cancellationToken);
+        var result = Evaluate(expression, variables, cancellationToken);
         return ConvertResult<T>(result);
     }
 
     public T? Evaluate<T>(
         string expression,
         object variables,
-        IServiceProvider? serviceProvider = null,
+
         CancellationToken cancellationToken = default)
-        => ConvertResult<T>(Evaluate(expression, ToVariableDictionary(variables), serviceProvider, cancellationToken));
+        => ConvertResult<T>(Evaluate(expression, ToVariableDictionary(variables), cancellationToken));
 
     public T? Evaluate<T>(
         AlderExpression expression,
         object variables,
-        IServiceProvider? serviceProvider = null,
+
         CancellationToken cancellationToken = default)
-        => ConvertResult<T>(Evaluate(expression, ToVariableDictionary(variables), serviceProvider, cancellationToken));
+        => ConvertResult<T>(Evaluate(expression, ToVariableDictionary(variables), cancellationToken));
 
     public bool TryEvaluate(
         string expression,
         out object? result,
         IDictionary<string, object?>? variables = null,
-        IServiceProvider? serviceProvider = null,
+
         CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();
         try
         {
-            result = Evaluate(expression, variables, serviceProvider, cancellationToken);
+            result = Evaluate(expression, variables, cancellationToken);
             return true;
         }
         catch
@@ -471,13 +472,13 @@ public sealed partial class AlderEngine : IDisposable
         string expression,
         out T? result,
         IDictionary<string, object?>? variables = null,
-        IServiceProvider? serviceProvider = null,
+
         CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();
         try
         {
-            result = Evaluate<T>(expression, variables, serviceProvider, cancellationToken);
+            result = Evaluate<T>(expression, variables, cancellationToken);
             return true;
         }
         catch
@@ -506,7 +507,7 @@ public sealed partial class AlderEngine : IDisposable
 
         try
         {
-            var context = GetOrCreateContext(null);
+            var context = GetOrCreateContext();
             AstDepthValidator.EnsureWithinLimit(ast, _options.MaxExpressionDepth);
             var binder = new Binder(new Text.SourceText(expression), recovering: true);
             var bindingContext = new BindingContext(context);
@@ -621,7 +622,7 @@ public sealed partial class AlderEngine : IDisposable
     public AlderEngine CreateChild()
     {
         ThrowIfDisposed();
-        var parentContext = GetOrCreateContext(null);
+        var parentContext = GetOrCreateContext();
         return new AlderEngine(_config, parentContext, _options, _expressionCache, _disposalToken);
     }
 }

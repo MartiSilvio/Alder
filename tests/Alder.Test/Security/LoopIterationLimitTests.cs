@@ -11,9 +11,6 @@ public class LoopIterationLimitTests(CompilationMode mode)
         return TestEngineFactory.Create(mode, o =>
             o.Constraints = new ExecutionConstraints { MaxLoopIterations = maxLoopIterations });
     }
-
-    // ── for loop ─────────────────────────────────────────────────────
-
     [Test]
     public void For_ExceedsLimit_Throws()
     {
@@ -22,7 +19,7 @@ public class LoopIterationLimitTests(CompilationMode mode)
             engine.Evaluate("{ var c = 0; for (var i = 0; i < 10; i++) { c = c + 1; } return c; }"));
         Assert.That(ex!.LimitType, Is.EqualTo(ExecutionLimitType.LoopIterations));
         Assert.That(ex.LimitValue, Is.EqualTo(5));
-        Assert.That(ex.ErrorCode, Is.EqualTo(Alder.Diagnostics.DiagnosticCode.ALDR0204));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0204));
     }
 
     [Test]
@@ -40,9 +37,6 @@ public class LoopIterationLimitTests(CompilationMode mode)
         var result = engine.Evaluate("{ var c = 0; for (var i = 0; i < 10; i++) { c = c + 1; } return c; }");
         Assert.That(result, Is.EqualTo(10));
     }
-
-    // ── while loop ───────────────────────────────────────────────────
-
     [Test]
     public void While_ExceedsLimit_Throws()
     {
@@ -69,9 +63,6 @@ public class LoopIterationLimitTests(CompilationMode mode)
         Assert.That(ex!.LimitType, Is.EqualTo(ExecutionLimitType.LoopIterations));
         Assert.That(ex.LimitValue, Is.EqualTo(10));
     }
-
-    // ── do-while loop ────────────────────────────────────────────────
-
     [Test]
     public void DoWhile_ExceedsLimit_Throws()
     {
@@ -96,9 +87,6 @@ public class LoopIterationLimitTests(CompilationMode mode)
         var result = engine.Evaluate("{ var i = 99; do { i = i + 1; } while (false); return i; }");
         Assert.That(result, Is.EqualTo(100));
     }
-
-    // ── foreach loop ─────────────────────────────────────────────────
-
     [Test]
     public void ForEach_ExceedsLimit_Throws()
     {
@@ -117,9 +105,6 @@ public class LoopIterationLimitTests(CompilationMode mode)
         var result = engine.Evaluate("{ var sum = 0; foreach (var x in items) { sum = sum + x; } return sum; }");
         Assert.That(result, Is.EqualTo(150));
     }
-
-    // ── nested loops (iterations accumulate globally) ────────────────
-
     [Test]
     public void NestedFor_IterationsAccumulateAcrossLoops()
     {
@@ -232,9 +217,6 @@ public class LoopIterationLimitTests(CompilationMode mode)
                 """));
         Assert.That(ex!.LimitType, Is.EqualTo(ExecutionLimitType.LoopIterations));
     }
-
-    // ── break exits early, iterations still counted ──────────────────
-
     [Test]
     public void BreakExitsEarly_IterationsStillCounted()
     {
@@ -270,9 +252,6 @@ public class LoopIterationLimitTests(CompilationMode mode)
             """);
         Assert.That(result, Is.EqualTo(5));
     }
-
-    // ── extended mode: until loop ────────────────────────────────────
-
     [Test]
     public void Until_ExceedsLimit_Throws()
     {
@@ -299,9 +278,6 @@ public class LoopIterationLimitTests(CompilationMode mode)
         var result = engine.Evaluate("{ var i = 0; until (i >= 5) { i = i + 1; } return i; }");
         Assert.That(result, Is.EqualTo(5));
     }
-
-    // ── no constraints ───────────────────────────────────────────────
-
     [Test]
     public void NoConstraints_LoopsRunFreely()
     {
@@ -318,9 +294,6 @@ public class LoopIterationLimitTests(CompilationMode mode)
         var result = engine.Evaluate("{ var c = 0; for (var i = 0; i < 100; i++) { c = c + 1; } return c; }");
         Assert.That(result, Is.EqualTo(100));
     }
-
-    // ── exception properties ─────────────────────────────────────────
-
     [Test]
     public void Exception_HasCorrectProperties()
     {
@@ -332,11 +305,8 @@ public class LoopIterationLimitTests(CompilationMode mode)
         Assert.That(ex.LimitValue, Is.EqualTo(5));
         Assert.That(ex.ActualValue, Is.EqualTo(6));
         Assert.That(ex.StatementsExecuted, Is.GreaterThan(0));
-        Assert.That(ex.ErrorCode, Is.EqualTo(Alder.Diagnostics.DiagnosticCode.ALDR0204));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0204));
     }
-
-    // ── default limit applied when using ExecutionConstraints ────────
-
     [Test]
     public void DefaultLimit_IsApplied()
     {
@@ -345,9 +315,6 @@ public class LoopIterationLimitTests(CompilationMode mode)
         var constraints = new ExecutionConstraints();
         Assert.That(constraints.MaxLoopIterations, Is.EqualTo(1_000_000));
     }
-
-    // ── interaction with MaxStatements ────────────────────────────────
-
     [Test]
     public void LoopLimit_IndependentOfStatementLimit()
     {
@@ -379,9 +346,6 @@ public class LoopIterationLimitTests(CompilationMode mode)
             engine.Evaluate("{ var i = 0; for (var j = 0; j < 20; j++) { i = i + 1; } return i; }"));
         Assert.That(ex!.LimitType, Is.EqualTo(ExecutionLimitType.Statements));
     }
-
-    // ── foreach with LINQ-generated collections ──────────────────────
-
     [Test]
     public void ForEach_LinqRange_ExceedsLimit()
     {
@@ -391,9 +355,6 @@ public class LoopIterationLimitTests(CompilationMode mode)
             engine.Evaluate("{ var sum = 0; foreach (var x in items) { sum = sum + x; } return sum; }"));
         Assert.That(ex!.LimitType, Is.EqualTo(ExecutionLimitType.LoopIterations));
     }
-
-    // ── for(;;) infinite loop ────────────────────────────────────────
-
     [Test]
     public void ForNoCondition_InfiniteLoop_Stopped()
     {

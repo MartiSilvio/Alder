@@ -6,16 +6,18 @@ namespace Alder.Test.Compliance;
 [TestFixture(CompilationMode.Compiled)]
 public class CrossFeatureInteractionTests(CompilationMode mode)
 {
-    private AlderEngine Engine(LanguageMode lang = LanguageMode.Standard)
-        => TestEngineFactory.Create(mode, o => o.LanguageMode = lang);
+    private AlderEngine CreateEngine(LanguageMode lang = LanguageMode.Standard, HashSet<Type>? allowedTypes = null)
+        => TestEngineFactory.Create(mode, o =>
+        {
+            o.LanguageMode = lang;
+            if (allowedTypes != null)
+                o.Sandbox = SandboxOptions.Trusted() with { TrustedTypes = allowedTypes };
+        });
 
     private object? Eval(string expr, LanguageMode lang = LanguageMode.Standard)
-        => Engine(lang).Evaluate(expr);
+        => CreateEngine(lang).Evaluate(expr);
 
-    // ═══════════════════════════════════════════════════════════════════
-    // Interaction tests — multiple feature combinations
-    // ═══════════════════════════════════════════════════════════════════
-
+    #region Interaction tests — multiple feature combinations
     [Test]
     public void Interaction_NullableArithmeticWithConversion()
     {
@@ -110,10 +112,9 @@ public class CrossFeatureInteractionTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(-1));
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // Expression torture tests — complex nesting
-    // ═══════════════════════════════════════════════════════════════════
+    #endregion
 
+    #region Expression torture tests — complex nesting
     [Test]
     public void DeepNesting_Ternary()
     {
@@ -145,10 +146,9 @@ public class CrossFeatureInteractionTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(13));
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // Scope rules — variable shadowing in nested blocks
-    // ═══════════════════════════════════════════════════════════════════
+    #endregion
 
+    #region Scope rules — variable shadowing in nested blocks
     [Test]
     public void VariableShadowing_InnerBlockCanShadow()
     {
@@ -165,10 +165,9 @@ public class CrossFeatureInteractionTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(2));
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // §12.8.16.2 Object creation — with initializers
-    // ═══════════════════════════════════════════════════════════════════
+    #endregion
 
+    #region §12.8.16.2 Object creation — with initializers
     [Test]
     public void ObjectInit_ListWithInitializer()
     {
@@ -191,10 +190,9 @@ public class CrossFeatureInteractionTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(3));
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // Complex real-world patterns
-    // ═══════════════════════════════════════════════════════════════════
+    #endregion
 
+    #region Complex real-world patterns
     [Test]
     public void RealWorld_FibonacciLoop()
     {
@@ -260,10 +258,9 @@ public class CrossFeatureInteractionTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo("a-b-c"));
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // §12.9.7 Cast expressions — edge cases
-    // ═══════════════════════════════════════════════════════════════════
+    #endregion
 
+    #region §12.9.7 Cast expressions — edge cases
     [Test]
     public void Cast_DoubleToInt_Truncates()
     {
@@ -309,10 +306,9 @@ public class CrossFeatureInteractionTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(int.MinValue));
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // Interaction: nullable + pattern matching
-    // ═══════════════════════════════════════════════════════════════════
+    #endregion
 
+    #region Interaction: nullable + pattern matching
     [Test]
     public void NullablePatternMatch_HasValue()
     {
@@ -337,14 +333,13 @@ public class CrossFeatureInteractionTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(-1));
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // Interaction: exception + using statement
-    // ═══════════════════════════════════════════════════════════════════
+    #endregion
 
+    #region Interaction: exception + using statement
     [Test]
     public void UsingStatement_DisposesOnException()
     {
-        var result = Eval(@"{
+        var result = CreateEngine(allowedTypes: [typeof(MemoryStream), typeof(InvalidOperationException)]).Evaluate(@"{
             var disposed = false;
             try
             {
@@ -362,10 +357,9 @@ public class CrossFeatureInteractionTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(true));
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // Interaction: ternary + nullable
-    // ═══════════════════════════════════════════════════════════════════
+    #endregion
 
+    #region Interaction: ternary + nullable
     [Test]
     public void Ternary_NullableResult()
     {
@@ -388,10 +382,9 @@ public class CrossFeatureInteractionTests(CompilationMode mode)
         Assert.That(result, Is.Null);
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // String operations
-    // ═══════════════════════════════════════════════════════════════════
+    #endregion
 
+    #region String operations
     [Test]
     public void String_IndexAccess()
     {
@@ -420,10 +413,9 @@ public class CrossFeatureInteractionTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo("world"));
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // Numeric literal edge cases
-    // ═══════════════════════════════════════════════════════════════════
+    #endregion
 
+    #region Numeric literal edge cases
     [Test]
     public void IntLiteral_MaxValue()
     {
@@ -461,10 +453,9 @@ public class CrossFeatureInteractionTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(0.015));
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // §12.8.11.2 Array access — multi-dimensional
-    // ═══════════════════════════════════════════════════════════════════
+    #endregion
 
+    #region §12.8.11.2 Array access — multi-dimensional
     [Test]
     public void MultiDimArray_Access_SetAndGet()
     {
@@ -486,10 +477,9 @@ public class CrossFeatureInteractionTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(60));
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // §12.8.6 Tuple expressions
-    // ═══════════════════════════════════════════════════════════════════
+    #endregion
 
+    #region §12.8.6 Tuple expressions
     [Test]
     public void Tuple_Creation_ThreeElements()
     {
@@ -523,4 +513,5 @@ public class CrossFeatureInteractionTests(CompilationMode mode)
         var result = Eval("(1, 2, 3) != (1, 2, 4)");
         Assert.That(result, Is.EqualTo(true));
     }
+    #endregion
 }

@@ -1,1 +1,2 @@
-{ int x = 42; return x == 42; }
+int x = 42;
+return x == 42;

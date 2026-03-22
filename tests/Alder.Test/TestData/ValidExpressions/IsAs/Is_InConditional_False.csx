@@ -1,1 +1,2 @@
-{ object x = "hello"; return x is int ? "yes" : "no"; }
+object x = "hello";
+return x is int ? "yes" : "no";

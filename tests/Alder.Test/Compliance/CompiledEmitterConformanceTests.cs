@@ -16,9 +16,7 @@ public class CompiledEmitterConformanceTests(CompilationMode mode)
     private object? Eval(string expr, LanguageMode lang = LanguageMode.Standard)
         => Engine(lang).Evaluate(expr);
 
-    // ═══════════════════════════════════════════════════════════════════
-    // §13.9.4 For statement — continue MUST execute incrementors
-    // ═══════════════════════════════════════════════════════════════════
+    #region §13.9.4 For statement — continue MUST execute incrementors
 
     [Test]
     public void ForLoop_ContinueExecutesIncrement()
@@ -76,9 +74,9 @@ public class CompiledEmitterConformanceTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(32));
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // Compiled vs Interpreted parity — numeric promotion
-    // ═══════════════════════════════════════════════════════════════════
+    #endregion
+
+    #region Compiled vs Interpreted parity — numeric promotion
 
     [Test]
     public void CompiledParity_IntDivision_TruncatesToInt()
@@ -102,9 +100,9 @@ public class CompiledEmitterConformanceTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(1));
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // ExpressionTreeEmitter coverage — ensure BoundExpressionEmitter used
-    // ═══════════════════════════════════════════════════════════════════
+    #endregion
+
+    #region ExpressionTreeEmitter coverage — ensure BoundExpressionEmitter used
 
     [Test]
     public void CompiledParity_NullConditional_MethodCall()
@@ -187,9 +185,9 @@ public class CompiledEmitterConformanceTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(int.MinValue));
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // §12.12.9 Delegate equality operators — absent coverage
-    // ═══════════════════════════════════════════════════════════════════
+    #endregion
+
+    #region §12.12.9 Delegate equality operators — absent coverage
 
     [Test]
     public void DelegateEquality_SameReference()
@@ -202,9 +200,9 @@ public class CompiledEmitterConformanceTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(true));
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // §10.2.4 Implicit enum conversion — explicit cast is fine
-    // ═══════════════════════════════════════════════════════════════════
+    #endregion
+
+    #region §10.2.4 Implicit enum conversion — explicit cast is fine
 
     [Test]
     public void ExplicitEnumCast_NonZero_Works()
@@ -213,4 +211,6 @@ public class CompiledEmitterConformanceTests(CompilationMode mode)
         var result = Eval("(System.DayOfWeek)1");
         Assert.That(result, Is.EqualTo(DayOfWeek.Monday));
     }
+
+    #endregion
 }

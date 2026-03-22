@@ -8,16 +8,18 @@ public enum LongEnum : long { A = 1, B = 2, C = 3 }
 [TestFixture(CompilationMode.Compiled)]
 public class OperatorConformanceTests(CompilationMode mode)
 {
-    private AlderEngine Engine(LanguageMode lang = LanguageMode.Standard)
-        => TestEngineFactory.Create(mode, o => o.LanguageMode = lang);
+    private AlderEngine CreateEngine(LanguageMode lang = LanguageMode.Standard, HashSet<Type>? allowedTypes = null)
+        => TestEngineFactory.Create(mode, o =>
+        {
+            o.LanguageMode = lang;
+            if (allowedTypes != null)
+                o.Sandbox = SandboxOptions.Trusted() with { TrustedTypes = allowedTypes };
+        });
 
     private object? Eval(string expr, LanguageMode lang = LanguageMode.Standard)
-        => Engine(lang).Evaluate(expr);
+        => CreateEngine(lang).Evaluate(expr);
 
-    // ═══════════════════════════════════════════════════════════════════
-    // §10.2.4 Implicit enumeration conversion
-    // ═══════════════════════════════════════════════════════════════════
-
+    #region §10.2.4 Implicit enumeration conversion
     [Test]
     public void ImplicitEnumConversion_ZeroToEnum()
     {
@@ -41,10 +43,9 @@ public class OperatorConformanceTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(DayOfWeek.Sunday));
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // §12.4.8 Lifted operators — nullable semantics
-    // ═══════════════════════════════════════════════════════════════════
+    #endregion
 
+    #region §12.4.8 Lifted operators — nullable semantics
     [Test]
     public void LiftedOperator_NullableEquals_BothNull_True()
     {
@@ -146,10 +147,9 @@ public class OperatorConformanceTests(CompilationMode mode)
         Assert.That(result, Is.Null);
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // §12.13.5 Nullable Boolean & and | operators
-    // ═══════════════════════════════════════════════════════════════════
+    #endregion
 
+    #region §12.13.5 Nullable Boolean & and | operators
     [Test]
     public void NullableBoolAnd_TrueAndNull_IsNull()
     {
@@ -220,10 +220,9 @@ public class OperatorConformanceTests(CompilationMode mode)
         Assert.That(result, Is.Null);
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // §12.10.5 String concatenation — null handling
-    // ═══════════════════════════════════════════════════════════════════
+    #endregion
 
+    #region §12.10.5 String concatenation — null handling
     [Test]
     public void StringConcat_NullPlusNull_EmptyString()
     {
@@ -245,10 +244,9 @@ public class OperatorConformanceTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo("42 items"));
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // §12.18 Conditional operator — type rules
-    // ═══════════════════════════════════════════════════════════════════
+    #endregion
 
+    #region §12.18 Conditional operator — type rules
     [Test]
     public void ConditionalOperator_IntAndLong_ProducesLong()
     {
@@ -280,10 +278,9 @@ public class OperatorConformanceTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo("hello"));
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // §12.9.3 Unary minus — edge cases
-    // ═══════════════════════════════════════════════════════════════════
+    #endregion
 
+    #region §12.9.3 Unary minus — edge cases
     [Test]
     public void UnaryMinus_IntMinValue_CheckedThrows()
     {
@@ -306,10 +303,9 @@ public class OperatorConformanceTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(long.MinValue));
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // §12.10.3 Division operator — edge cases
-    // ═══════════════════════════════════════════════════════════════════
+    #endregion
 
+    #region §12.10.3 Division operator — edge cases
     [Test]
     public void IntegerDivision_ByZero_Throws()
     {
@@ -339,10 +335,9 @@ public class OperatorConformanceTests(CompilationMode mode)
         "));
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // §12.11 Shift operators
-    // ═══════════════════════════════════════════════════════════════════
+    #endregion
 
+    #region §12.11 Shift operators
     [Test]
     public void LeftShift_IntBy32_EffectivelyZeroShift()
     {
@@ -368,10 +363,9 @@ public class OperatorConformanceTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(-2));
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // §12.10.6 Enumeration subtraction: E - E → U
-    // ═══════════════════════════════════════════════════════════════════
+    #endregion
 
+    #region §12.10.6 Enumeration subtraction: E - E → U
     [Test]
     public void EnumSubtraction_IntUnderlying_ReturnsInt()
     {
@@ -386,7 +380,7 @@ public class OperatorConformanceTests(CompilationMode mode)
     public void EnumSubtraction_LongUnderlying_ReturnsLong()
     {
         // §12.10.6: E - E → U where U is the underlying type
-        var engine = Engine();
+        var engine = CreateEngine();
         engine.SetVariable("a", LongEnum.A);
         engine.SetVariable("b", LongEnum.B);
         var result = engine.Evaluate("b - a");
@@ -394,10 +388,9 @@ public class OperatorConformanceTests(CompilationMode mode)
         Assert.That(result, Is.TypeOf<long>());
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // §12.12.7 Reference equality operators
-    // ═══════════════════════════════════════════════════════════════════
+    #endregion
 
+    #region §12.12.7 Reference equality operators
     [Test]
     public void StringEquality_SameContent_IsTrue()
     {
@@ -406,10 +399,9 @@ public class OperatorConformanceTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(true));
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // §12.8.15 / §12.9.6 Increment/decrement semantics
-    // ═══════════════════════════════════════════════════════════════════
+    #endregion
 
+    #region §12.8.15 / §12.9.6 Increment/decrement semantics
     [Test]
     public void PostfixIncrement_ReturnsOriginalValue()
     {
@@ -454,10 +446,9 @@ public class OperatorConformanceTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(4));
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // §12.21.4 Compound assignment — type narrowing
-    // ═══════════════════════════════════════════════════════════════════
+    #endregion
 
+    #region §12.21.4 Compound assignment — type narrowing
     [Test]
     public void CompoundAssign_BytePlusEquals_ByteValue()
     {
@@ -483,10 +474,9 @@ public class OperatorConformanceTests(CompilationMode mode)
         Assert.That(result, Is.TypeOf<short>());
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // §12.15 Null-coalescing operator — type inference
-    // ═══════════════════════════════════════════════════════════════════
+    #endregion
 
+    #region §12.15 Null-coalescing operator — type inference
     [Test]
     public void NullCoalescing_IntNullable_IntFallback()
     {
@@ -510,10 +500,9 @@ public class OperatorConformanceTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo("found"));
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // §12.10.4 Remainder operator
-    // ═══════════════════════════════════════════════════════════════════
+    #endregion
 
+    #region §12.10.4 Remainder operator
     [Test]
     public void Remainder_FloatingPoint_DoesNotThrow()
     {
@@ -536,10 +525,9 @@ public class OperatorConformanceTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(1));
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // §12.2 Expression classifications — evaluation order
-    // ═══════════════════════════════════════════════════════════════════
+    #endregion
 
+    #region §12.2 Expression classifications — evaluation order
     [Test]
     public void EvaluationOrder_LeftToRight_Addition()
     {
@@ -577,10 +565,9 @@ public class OperatorConformanceTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(0));
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // §12.12.6 Enumeration comparison operators
-    // ═══════════════════════════════════════════════════════════════════
+    #endregion
 
+    #region §12.12.6 Enumeration comparison operators
     [Test]
     public void EnumComparison_LessThan()
     {
@@ -595,10 +582,9 @@ public class OperatorConformanceTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(true));
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // Operator precedence
-    // ═══════════════════════════════════════════════════════════════════
+    #endregion
 
+    #region Operator precedence
     [Test]
     public void OperatorPrecedence_ShiftVsAddition()
     {
@@ -620,10 +606,9 @@ public class OperatorConformanceTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(true));
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // §12.12.12 is operator — various patterns
-    // ═══════════════════════════════════════════════════════════════════
+    #endregion
 
+    #region §12.12.12 is operator — various patterns
     [Test]
     public void IsPattern_ConstantPattern()
     {
@@ -706,10 +691,9 @@ public class OperatorConformanceTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(true));
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // §12.8.20 Default value expressions
-    // ═══════════════════════════════════════════════════════════════════
+    #endregion
 
+    #region §12.8.20 Default value expressions
     [Test]
     public void Default_Char()
     {
@@ -731,10 +715,9 @@ public class OperatorConformanceTests(CompilationMode mode)
         Assert.That(result, Is.Null);
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // §12.13.2 Integer logical operators
-    // ═══════════════════════════════════════════════════════════════════
+    #endregion
 
+    #region §12.13.2 Integer logical operators
     [Test]
     public void BitwiseXor_IntValues()
     {
@@ -756,10 +739,9 @@ public class OperatorConformanceTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(0x0F));
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // §12.8.22 Nameof
-    // ═══════════════════════════════════════════════════════════════════
+    #endregion
 
+    #region §12.8.22 Nameof
     [Test]
     public void Nameof_Type()
     {
@@ -774,10 +756,9 @@ public class OperatorConformanceTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo("WriteLine"));
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // §12.10.5 Addition — checked overflow
-    // ═══════════════════════════════════════════════════════════════════
+    #endregion
 
+    #region §12.10.5 Addition — checked overflow
     [Test]
     public void CheckedAdd_IntOverflow_Throws()
     {
@@ -797,45 +778,46 @@ public class OperatorConformanceTests(CompilationMode mode)
         Assert.Throws<OverflowException>(() => Eval("checked(int.MaxValue * 2)"));
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // §12.10.5/6 Enum arithmetic — more edge cases
-    // ═══════════════════════════════════════════════════════════════════
+    #endregion
 
+    #region §12.10.5/6 Enum arithmetic — more edge cases
     [Test]
     public void EnumArithmetic_BitwiseXor()
     {
-        var result = Eval(@"
+        var engine = CreateEngine(allowedTypes: [typeof(FileAccess)]);
+        var result = engine.Evaluate(@"
             var a = System.IO.FileAccess.ReadWrite;
             var b = System.IO.FileAccess.Write;
             return a ^ b;
         ");
-        Assert.That(result, Is.EqualTo(System.IO.FileAccess.Read));
+        Assert.That(result, Is.EqualTo(FileAccess.Read));
     }
 
     [Test]
     public void EnumArithmetic_BitwiseNot()
     {
-        var result = Eval(@"
+        var engine = CreateEngine(allowedTypes: [typeof(FileAccess)]);
+        var result = engine.Evaluate(@"
             var a = System.IO.FileAccess.Read;
             return ~a;
         ");
-        Assert.That(result, Is.EqualTo(~System.IO.FileAccess.Read));
+        Assert.That(result, Is.EqualTo(~FileAccess.Read));
     }
 
     [Test]
     public void EnumArithmetic_HasFlag_Pattern()
     {
-        var result = Eval(@"
+        var engine = CreateEngine(allowedTypes: [typeof(FileAccess)]);
+        var result = engine.Evaluate(@"
             var flags = System.IO.FileAccess.Read | System.IO.FileAccess.Write;
             return (flags & System.IO.FileAccess.Read) != 0;
         ");
         Assert.That(result, Is.EqualTo(true));
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // §12.10.2 Multiplication — floating point edge cases
-    // ═══════════════════════════════════════════════════════════════════
+    #endregion
 
+    #region §12.10.2 Multiplication — floating point edge cases
     [Test]
     public void FloatMultiply_Infinity()
     {
@@ -871,10 +853,9 @@ public class OperatorConformanceTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(double.NegativeInfinity));
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // §12.12.13 The as operator — edge cases
-    // ═══════════════════════════════════════════════════════════════════
+    #endregion
 
+    #region §12.12.13 The as operator — edge cases
     [Test]
     public void AsOperator_ValueType_NotAllowed()
     {
@@ -897,10 +878,9 @@ public class OperatorConformanceTests(CompilationMode mode)
         Assert.That(result, Is.Null);
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // §12.12.10 Equality between nullable and null literal
-    // ═══════════════════════════════════════════════════════════════════
+    #endregion
 
+    #region §12.12.10 Equality between nullable and null literal
     [Test]
     public void NullableEquality_WithNullLiteral()
     {
@@ -931,10 +911,9 @@ public class OperatorConformanceTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(true));
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // §12.8.17 typeof operator
-    // ═══════════════════════════════════════════════════════════════════
+    #endregion
 
+    #region §12.8.17 typeof operator
     [Test]
     public void Typeof_GenericList()
     {
@@ -955,4 +934,5 @@ public class OperatorConformanceTests(CompilationMode mode)
         var result = Eval("typeof(int?).Name");
         Assert.That(result, Does.Contain("Nullable"));
     }
+    #endregion
 }

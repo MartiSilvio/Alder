@@ -1,1 +1,3 @@
-{ char x = 'A'; ushort y = x; return y; }
+char x = 'A';
+ushort y = x;
+return y;

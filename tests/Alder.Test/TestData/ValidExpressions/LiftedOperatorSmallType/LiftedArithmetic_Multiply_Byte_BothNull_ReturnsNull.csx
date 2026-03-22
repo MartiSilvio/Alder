@@ -1,1 +1,3 @@
-{ byte? a = null; byte? b = null; return a * b; }
+byte? a = null;
+byte? b = null;
+return a * b;

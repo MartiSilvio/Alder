@@ -2,8 +2,6 @@ namespace Alder.Diagnostics;
 
 public static class DiagnosticDescriptors
 {
-    // ── Operators ────────────────────────────────────────────────────
-
     public static readonly DiagnosticDescriptor BadBinaryOps =
         new(DiagnosticCode.CS0019, "Operator '{0}' cannot be applied to operands of type '{1}' and '{2}'");
 
@@ -12,8 +10,6 @@ public static class DiagnosticDescriptors
 
     public static readonly DiagnosticDescriptor BadUnaryOp =
         new(DiagnosticCode.CS0023, "Operator '{0}' cannot be applied to operand of type '{1}'");
-
-    // ── Type conversion ─────────────────────────────────────────────
 
     public static readonly DiagnosticDescriptor NoImplicitConversion =
         new(DiagnosticCode.CS0029, "Cannot implicitly convert type '{0}' to '{1}'");
@@ -30,8 +26,6 @@ public static class DiagnosticDescriptors
     public static readonly DiagnosticDescriptor ExplicitConversionExists =
         new(DiagnosticCode.CS0266, "Cannot implicitly convert type '{0}' to '{1}'. An explicit conversion exists (are you missing a cast?)");
 
-    // ── Name resolution ─────────────────────────────────────────────
-
     public static readonly DiagnosticDescriptor NameNotInContext =
         new(DiagnosticCode.CS0103, "The name '{0}' does not exist in the current context");
 
@@ -43,8 +37,6 @@ public static class DiagnosticDescriptors
 
     public static readonly DiagnosticDescriptor TypeNotFound =
         new(DiagnosticCode.CS0246, "The type or namespace name '{0}' could not be found (are you missing a using directive or an assembly reference?)");
-
-    // ── Method resolution ───────────────────────────────────────────
 
     public static readonly DiagnosticDescriptor AmbiguousMethodInvocation =
         new(DiagnosticCode.CS0121, "The call is ambiguous between the following methods or properties: '{0}'");
@@ -67,8 +59,6 @@ public static class DiagnosticDescriptors
     public static readonly DiagnosticDescriptor CantConvAnonMethReturnType =
         new(DiagnosticCode.CS8934, "Cannot convert lambda expression to type '{0}' because the return type does not match the delegate return type");
 
-    // ── Variables and assignment ─────────────────────────────────────
-
     public static readonly DiagnosticDescriptor DuplicateLocalVariable =
         new(DiagnosticCode.CS0128, "A local variable or function named '{0}' is already defined in this scope");
 
@@ -80,8 +70,6 @@ public static class DiagnosticDescriptors
 
     public static readonly DiagnosticDescriptor NullToImplicitlyTyped =
         new(DiagnosticCode.CS0815, "Cannot assign null to an implicitly-typed variable");
-
-    // ── Control flow ────────────────────────────────────────────────
 
     public static readonly DiagnosticDescriptor BreakOrContinueOutsideLoop =
         new(DiagnosticCode.CS0139, "No enclosing loop out of which to break or continue");
@@ -101,8 +89,6 @@ public static class DiagnosticDescriptors
     public static readonly DiagnosticDescriptor LockRequiresNonNull =
         new(DiagnosticCode.CS0185, "A lock expression must be a reference type");
 
-    // ── Constructors and member access ──────────────────────────────
-
     public static readonly DiagnosticDescriptor MemberNotFound =
         new(DiagnosticCode.CS1061, "'{0}' does not contain a definition for '{1}'");
 
@@ -111,8 +97,6 @@ public static class DiagnosticDescriptors
 
     public static readonly DiagnosticDescriptor NoMatchingConstructor =
         new(DiagnosticCode.CS1729, "'{0}' does not contain a constructor that takes {1} arguments");
-
-    // ── Syntax and parsing ──────────────────────────────────────────
 
     public static readonly DiagnosticDescriptor SyntaxExpected =
         new(DiagnosticCode.CS1003, "Syntax error, '{0}' expected");
@@ -132,25 +116,17 @@ public static class DiagnosticDescriptors
     public static readonly DiagnosticDescriptor ExpressionExpected =
         new(DiagnosticCode.CS1733, "Expression expected");
 
-    // ── LINQ and queries ────────────────────────────────────────────
-
     public static readonly DiagnosticDescriptor QueryBodyMustEndWithSelectOrGroup =
         new(DiagnosticCode.CS0742, "A query body must end with a select clause or a group clause");
 
     public static readonly DiagnosticDescriptor ExpectedContextualKeyword =
         new(DiagnosticCode.CS0744, "Expected contextual keyword '{0}'");
 
-    // ── Sizeof ──────────────────────────────────────────────────────
-
     public static readonly DiagnosticDescriptor SizeofUnsupportedType =
         new(DiagnosticCode.CS0233, "'{0}' does not have a predefined size, therefore sizeof can only be used in an unsafe context");
 
-    // ── Expression trees ────────────────────────────────────────────
-
     public static readonly DiagnosticDescriptor FeatureNotValidInExpressionTree =
         new(DiagnosticCode.CS7053, "An expression tree may not contain '{0}'");
-
-    // ── Tuples and deconstruction ───────────────────────────────────
 
     public static readonly DiagnosticDescriptor ExpressionNestingDepthExceeded =
         new(DiagnosticCode.CS8078, "An expression is too long or complex to compile");
@@ -164,12 +140,8 @@ public static class DiagnosticDescriptors
     public static readonly DiagnosticDescriptor DeconstructionCountMismatch =
         new(DiagnosticCode.CS8132, "Cannot deconstruct a tuple of '{1}' elements into '{0}' variables");
 
-    // ── Pattern matching ────────────────────────────────────────────
-
     public static readonly DiagnosticDescriptor SwitchExpressionNonExhaustive =
         new(DiagnosticCode.CS8510, "Switch expression does not handle all possible values of its input type. Value '{0}' is not handled.");
-
-    // ── Compilation (Alder) ─────────────────────────────────────────
 
     public static readonly DiagnosticDescriptor StrictCompilationFailed =
         new(DiagnosticCode.ALDR0001, "Strict compilation mode could not compile the expression to IL: {0}");
@@ -180,20 +152,14 @@ public static class DiagnosticDescriptors
     public static readonly DiagnosticDescriptor RuntimeOverloadResolutionRequired =
         new(DiagnosticCode.ALDR0003, "Call '{0}' requires runtime overload resolution");
 
-    // ── ParseAsExpression API (Alder) ───────────────────────────────
-
     public static readonly DiagnosticDescriptor ParseAsExpressionRequiresGenericDelegate =
         new(DiagnosticCode.ALDR0010, "ParseAsExpression requires a generic Func-style delegate type; got '{0}'.");
 
     public static readonly DiagnosticDescriptor ParseAsExpressionRequiresLambda =
         new(DiagnosticCode.ALDR0011, "Expression must be a lambda (e.g., '{0}').");
 
-    // ── Language mode (Alder) ───────────────────────────────────────
-
     public static readonly DiagnosticDescriptor ExtendedModeRequired =
         new(DiagnosticCode.ALDR0020, "Feature '{0}' is not available in Standard mode. Use LanguageMode.Extended to enable non-standard syntax extensions.");
-
-    // ── Sandbox (Alder) ─────────────────────────────────────────────
 
     public static readonly DiagnosticDescriptor SandboxMethodCallBlocked =
         new(DiagnosticCode.ALDR0100, "Method calls blocked by sandbox: {0}");
@@ -217,12 +183,10 @@ public static class DiagnosticDescriptors
         new(DiagnosticCode.ALDR0106, "Object construction blocked by sandbox: new {0}()");
 
     public static readonly DiagnosticDescriptor SandboxTypeBlocked =
-        new(DiagnosticCode.ALDR0107, "Type '{0}' is not in the sandbox allowlist");
+        new(DiagnosticCode.ALDR0107, "Type '{0}' is blocked by the sandbox");
 
     public static readonly DiagnosticDescriptor ReflectionTypeAccessBlocked =
         new(DiagnosticCode.ALDR0108, "Access to reflection types is not allowed: {0} ({1})");
-
-    // ── Execution constraints (Alder) ────────────────────────────────
 
     public static readonly DiagnosticDescriptor ExpressionDepthExceeded =
         new(DiagnosticCode.ALDR0200, "Expression {0} depth exceeded maximum of {1}. Configure AlderOptions.Constraints.MaxExpressionDepth to adjust this limit.");
@@ -239,7 +203,7 @@ public static class DiagnosticDescriptors
     public static readonly DiagnosticDescriptor LoopIterationLimitExceeded =
         new(DiagnosticCode.ALDR0204, "Execution exceeded maximum loop iteration count ({0}). {1} iterations executed.");
 
-    // ── Runtime (Alder) ─────────────────────────────────────────────
+    #region Runtime (Alder)
 
     public static readonly DiagnosticDescriptor NullMemberAccess =
         new(DiagnosticCode.ALDR0300, "Cannot access {0} '{1}' on null");
@@ -289,7 +253,9 @@ public static class DiagnosticDescriptors
     public static readonly DiagnosticDescriptor CannotResolveModuleInstance =
         new(DiagnosticCode.ALDR0315, "Cannot resolve instance of '{0}'. Either register it in IServiceProvider or ensure it has a parameterless constructor.");
 
-    // ── Extended mode (Alder) ────────────────────────────────────────
+    #endregion
+
+    #region Extended mode (Alder)
 
     public static readonly DiagnosticDescriptor SliceNull =
         new(DiagnosticCode.ALDR0400, "Cannot slice null");
@@ -308,4 +274,6 @@ public static class DiagnosticDescriptors
 
     public static readonly DiagnosticDescriptor SpreadOutsideLiteral =
         new(DiagnosticCode.ALDR0405, "Spread operator can only be used in array or object literals");
+
+    #endregion
 }

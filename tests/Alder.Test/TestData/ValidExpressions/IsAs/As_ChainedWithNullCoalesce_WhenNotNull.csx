@@ -1,1 +1,2 @@
-{ object x = "hello"; return (x as string) ?? "default"; }
+object x = "hello";
+return (x as string) ?? "default";

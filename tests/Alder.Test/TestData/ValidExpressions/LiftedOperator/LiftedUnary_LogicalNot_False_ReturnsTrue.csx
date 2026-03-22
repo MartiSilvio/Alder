@@ -1,1 +1,2 @@
-{ bool? a = false; return !a; }
+bool? a = false;
+return !a;

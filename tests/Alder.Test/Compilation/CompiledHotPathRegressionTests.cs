@@ -304,11 +304,10 @@ public class CompiledHotPathRegressionTests(CompilationMode mode)
         var capturingCompiler = new CapturingExpressionCompiler();
         var engine = TestEngineFactory.Create(mode, o => o.ExpressionCompiler = capturingCompiler);
 
-        engine.SetVariable<List<OrderRow>>("orders", new List<OrderRow>
-        {
+        engine.SetVariable<List<OrderRow>>("orders", [
             new(5),
             new(9)
-        });
+        ]);
 
         var result = engine.Evaluate("orders[0].Quantity + orders[1].Quantity + orders.Count");
         Assert.That(result, Is.EqualTo(16));
@@ -334,11 +333,10 @@ public class CompiledHotPathRegressionTests(CompilationMode mode)
         var capturingCompiler = new CapturingExpressionCompiler();
         var engine = TestEngineFactory.Create(mode, o => o.ExpressionCompiler = capturingCompiler);
 
-        engine.SetVariable<List<OrderRow>>("orders", new List<OrderRow>
-        {
+        engine.SetVariable<List<OrderRow>>("orders", [
             new(5),
             new(9)
-        });
+        ]);
 
         var result = engine.Evaluate("orders[0].Quantity + orders[1].Quantity + orders.Count");
         Assert.That(result, Is.EqualTo(16));
@@ -364,11 +362,10 @@ public class CompiledHotPathRegressionTests(CompilationMode mode)
         var capturingCompiler = new CapturingExpressionCompiler();
         var engine = TestEngineFactory.Create(mode, o => o.ExpressionCompiler = capturingCompiler);
 
-        engine.SetVariable<List<OrderRow>>("orders", new List<OrderRow>
-        {
+        engine.SetVariable<List<OrderRow>>("orders", [
             new(5),
             new(9)
-        });
+        ]);
 
         var result = engine.Evaluate("orders[0].Quantity + orders[1].Quantity + orders.Count");
         Assert.That(result, Is.EqualTo(16));
@@ -441,12 +438,11 @@ public class CompiledHotPathRegressionTests(CompilationMode mode)
     public void ObjectGraphAccess_CompiledPath_AvoidsRuntimeDispatchAllocations()
     {
         var engine = TestEngineFactory.Create(mode);
-        engine.SetVariable<List<OrderRow>>("orders", new List<OrderRow>
-        {
+        engine.SetVariable<List<OrderRow>>("orders", [
             new(5),
             new(9),
             new(13)
-        });
+        ]);
 
         var expression = engine.Parse("orders[0].Quantity + orders[1].Quantity + orders.Count");
 

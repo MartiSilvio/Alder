@@ -1,1 +1,2 @@
-{ char c = 'A'; return c + 1; }
+char c = 'A';
+return c + 1;

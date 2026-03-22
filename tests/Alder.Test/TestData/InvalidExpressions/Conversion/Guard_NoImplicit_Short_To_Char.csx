@@ -1,1 +1,3 @@
-{ short x = 65; char c = x; return c; }
+short x = 65;
+char c = x;
+return c;

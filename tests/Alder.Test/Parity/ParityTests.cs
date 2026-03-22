@@ -16,6 +16,14 @@ public class ParityTests(CompilationMode mode)
     {
         o.Constraints = new ExecutionConstraints { MaxStatements = 1_000_000 };
         o.LanguageMode = LanguageMode.Extended;
+        o.Sandbox = SandboxOptions.Trusted() with
+        {
+            TrustedTypes =
+            [
+                typeof(FileAttributes),
+                typeof(MemoryStream)
+            ]
+        };
     });
 
     [TestCaseSource(nameof(DiscoverExpressions), ["TestData/ValidExpressions"])]
@@ -125,16 +133,17 @@ public class ParityTests(CompilationMode mode)
             var alderCode = csEx.FormattedCode;
             var roslynCode = ExtractRoslynErrorCode(roslynEx?.Message);
 
-            // If Roslyn threw a runtime exception (no compiler code), only require both sides to throw.
-            if (roslynCode == null)
-                return;
-
-            // Skip code parity for parser-level mismatches where Roslyn can't parse Extended syntax.
-            // Roslyn gives generic errors (CS1002 etc.) for syntax it doesn't understand;
-            // Alder gives meaningful errors (CS1003 etc.) for its own grammar.
-            if (roslynCode == "CS1002" && csEx.ErrorCode is Alder.Diagnostics.DiagnosticCode.CS1003
-                    or Alder.Diagnostics.DiagnosticCode.CS1525 or Alder.Diagnostics.DiagnosticCode.CS1733)
-                return;
+            switch (roslynCode)
+            {
+                // If Roslyn threw a runtime exception (no compiler code), only require both sides to throw.
+                case null:
+                // Skip code parity for parser-level mismatches where Roslyn can't parse Extended syntax.
+                // Roslyn gives generic errors (CS1002 etc.) for syntax it doesn't understand;
+                // Alder gives meaningful errors (CS1003 etc.) for its own grammar.
+                case "CS1002" when csEx.ErrorCode is
+                    DiagnosticCode.CS1003 or DiagnosticCode.CS1525 or DiagnosticCode.CS1733:
+                    return;
+            }
 
             // Check exact code parity for compiler diagnostics.
             if (!string.Equals(alderCode, roslynCode, StringComparison.Ordinal))

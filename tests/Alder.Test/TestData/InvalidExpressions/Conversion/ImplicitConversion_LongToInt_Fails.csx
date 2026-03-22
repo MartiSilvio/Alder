@@ -1,1 +1,3 @@
-{ long l = 5L; int i = l; return i; }
+long l = 5L;
+int i = l;
+return i;

@@ -1,1 +1,2 @@
-{ int x = int.MinValue; return -x; }
+int x = int.MinValue;
+return -x;

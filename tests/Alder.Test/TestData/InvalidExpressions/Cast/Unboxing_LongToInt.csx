@@ -1,1 +1,2 @@
-{ object x = 42L; return (int)x; }
+object x = 42L;
+return (int)x;

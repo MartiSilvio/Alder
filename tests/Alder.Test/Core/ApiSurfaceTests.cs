@@ -10,10 +10,6 @@ namespace Alder.Test.Core;
 [TestFixture]
 public class ApiSurfaceTests
 {
-    // ----------------------------------------------------------------
-    // Method inventory
-    // ----------------------------------------------------------------
-
     [Test]
     public void AlderEngine_PublicMethodNames_MatchExpectedInventory()
     {
@@ -44,10 +40,6 @@ public class ApiSurfaceTests
 
         Assert.That(methods, Is.EqualTo(expected));
     }
-
-    // ----------------------------------------------------------------
-    // Overload counts
-    // ----------------------------------------------------------------
 
     [Test]
     public void Evaluate_Has4Overloads()
@@ -89,10 +81,6 @@ public class ApiSurfaceTests
         Assert.That(builderTypes, Is.EqualTo(expected));
     }
 
-    // ----------------------------------------------------------------
-    // No EvaluateAsync (deferred to Phase 19.3)
-    // ----------------------------------------------------------------
-
     [Test]
     public void EvaluateAsync_DoesNotExist()
     {
@@ -103,10 +91,6 @@ public class ApiSurfaceTests
 
         Assert.That(asyncMethods, Is.Empty);
     }
-
-    // ----------------------------------------------------------------
-    // AlderExpression surface
-    // ----------------------------------------------------------------
 
     [Test]
     public void AlderExpression_Ast_IsInternal()
@@ -146,10 +130,6 @@ public class ApiSurfaceTests
         Assert.That(method, Is.Not.Null);
     }
 
-    // ----------------------------------------------------------------
-    // AlderDiagnostic
-    // ----------------------------------------------------------------
-
     [Test]
     public void AlderDiagnostic_TypeExists_WithExpectedProperties()
     {
@@ -161,10 +141,6 @@ public class ApiSurfaceTests
         Assert.That(type.GetProperty("Message", BindingFlags.Public | BindingFlags.Instance), Is.Not.Null);
         Assert.That(type.GetProperty("Code", BindingFlags.Public | BindingFlags.Instance), Is.Not.Null);
     }
-
-    // ----------------------------------------------------------------
-    // AlderCompiledExpression<T> and CompiledExpressionDelegate
-    // ----------------------------------------------------------------
 
     [Test]
     public void AlderCompiledExpression_GenericType_Exists_WithInvokeMethods()
@@ -191,10 +167,6 @@ public class ApiSurfaceTests
         Assert.That(type.IsPublic, Is.False, "CompiledExpressionDelegate should be internal");
     }
 
-    // ----------------------------------------------------------------
-    // TryEvaluate and TryValidate presence
-    // ----------------------------------------------------------------
-
     [Test]
     public void TryEvaluate_Has2Overloads()
     {
@@ -216,10 +188,6 @@ public class ApiSurfaceTests
 
         Assert.That(method, Is.Not.Null);
     }
-
-    // ----------------------------------------------------------------
-    // Compile API split (core instance API vs compiled extension API)
-    // ----------------------------------------------------------------
 
     [Test]
     public void Compile_Methods_ExistOnCoreEngine()
@@ -274,10 +242,6 @@ public class ApiSurfaceTests
         Assert.That(extensionMethods, Is.EqualTo(expected));
     }
 
-    // ----------------------------------------------------------------
-    // Parameter order consistency
-    // ----------------------------------------------------------------
-
     [Test]
     public void Evaluate_Overloads_HaveConsistentParameterOrder()
     {
@@ -305,21 +269,13 @@ public class ApiSurfaceTests
             Assert.That(lastParam.ParameterType, Is.EqualTo(typeof(CancellationToken)),
                 $"Last parameter of {method} must be CancellationToken");
 
-            // variables comes before serviceProvider
             var variablesIdx = Array.FindIndex(parameters, p => p.Name == "variables");
-            var serviceProviderIdx = Array.FindIndex(parameters, p => p.Name == "serviceProvider");
             var cancellationIdx = Array.FindIndex(parameters, p => p.Name == "cancellationToken");
 
-            if (variablesIdx >= 0 && serviceProviderIdx >= 0)
+            if (variablesIdx >= 0 && cancellationIdx >= 0)
             {
-                Assert.That(variablesIdx, Is.LessThan(serviceProviderIdx),
-                    $"variables must come before serviceProvider in {method}");
-            }
-
-            if (serviceProviderIdx >= 0 && cancellationIdx >= 0)
-            {
-                Assert.That(serviceProviderIdx, Is.LessThan(cancellationIdx),
-                    $"serviceProvider must come before cancellationToken in {method}");
+                Assert.That(variablesIdx, Is.LessThan(cancellationIdx),
+                    $"variables must come before cancellationToken in {method}");
             }
         }
     }
@@ -351,20 +307,15 @@ public class ApiSurfaceTests
             Assert.That(lastParam.ParameterType, Is.EqualTo(typeof(CancellationToken)),
                 $"Last parameter of TryEvaluate must be CancellationToken");
 
-            // variables before serviceProvider
             var variablesIdx = Array.FindIndex(parameters, p => p.Name == "variables");
-            var serviceProviderIdx = Array.FindIndex(parameters, p => p.Name == "serviceProvider");
-            if (variablesIdx >= 0 && serviceProviderIdx >= 0)
+            var cancellationIdx = Array.FindIndex(parameters, p => p.Name == "cancellationToken");
+            if (variablesIdx >= 0 && cancellationIdx >= 0)
             {
-                Assert.That(variablesIdx, Is.LessThan(serviceProviderIdx),
-                    $"variables must come before serviceProvider in {method}");
+                Assert.That(variablesIdx, Is.LessThan(cancellationIdx),
+                    $"variables must come before cancellationToken in {method}");
             }
         }
     }
-
-    // ----------------------------------------------------------------
-    // DiagnosticSeverity enum
-    // ----------------------------------------------------------------
 
     [Test]
     public void DiagnosticSeverity_IsPublicEnum()
@@ -375,10 +326,6 @@ public class ApiSurfaceTests
         Assert.That(Enum.GetNames(type), Does.Contain("Error"));
         Assert.That(Enum.GetNames(type), Does.Contain("Warning"));
     }
-
-    // ----------------------------------------------------------------
-    // Public API surface inventory
-    // ----------------------------------------------------------------
 
     [Test]
     public void PublicApiSurface_ContainsOnlyExpectedTypes()
@@ -401,11 +348,13 @@ public class ApiSurfaceTests
             "Alder.AlderDepthException",
             "Alder.AlderDiagnostic",
             "Alder.AlderEngine",
+            "Alder.AlderEval",
             "Alder.AlderEngine+RegisteredModule",
             "Alder.AlderException",
             "Alder.AlderExecutionLimitException",
             "Alder.AlderExpression",
             "Alder.AlderOptions",
+            "Alder.AlderStringExtensions",
             "Alder.AlderOptions+AotBuilder",
             "Alder.AlderOptions+FunctionBuilder",
             "Alder.AlderOptions+ModuleBuilder",
@@ -458,6 +407,95 @@ public class ApiSurfaceTests
 
         Assert.That(runtimeTypes, Is.Empty,
             $"Runtime types should be internal: {string.Join(", ", runtimeTypes)}");
+    }
+
+    [Test]
+    public void StringExtensions_CoverAllStringBasedEngineEvaluateOverloads()
+    {
+        // Get all Evaluate/TryEvaluate methods on AlderEngine whose first param is string
+        var engineMethods = typeof(AlderEngine)
+            .GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
+            .Where(m => m.Name is "Evaluate" or "TryEvaluate")
+            .Where(m => m.GetParameters().Length > 0 && m.GetParameters()[0].ParameterType == typeof(string))
+            .ToList();
+
+        // Get all extension methods on AlderStringExtensions
+        var extensionMethods = typeof(AlderStringExtensions)
+            .GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.DeclaredOnly)
+            .Where(m => m.IsDefined(typeof(System.Runtime.CompilerServices.ExtensionAttribute), inherit: false))
+            .ToList();
+
+        var missing = new List<string>();
+
+        foreach (var engineMethod in engineMethods)
+        {
+            var engineParams = engineMethod.GetParameters();
+
+            // Build expected extension param types: skip IServiceProvider (engine-level concern),
+            // keep everything else. First param (string) becomes "this string".
+            var expectedParamTypes = engineParams
+                .Where(p => p.ParameterType != typeof(IServiceProvider))
+                .Select(p => p.ParameterType)
+                .ToList();
+
+            // Find matching extension method: same name, same generic arity, same param types
+            var match = extensionMethods.FirstOrDefault(ext =>
+            {
+                if (ext.Name != engineMethod.Name) return false;
+                if (ext.IsGenericMethod != engineMethod.IsGenericMethod) return false;
+                if (ext.IsGenericMethod && ext.GetGenericArguments().Length != engineMethod.GetGenericArguments().Length)
+                    return false;
+
+                var extParams = ext.GetParameters();
+                if (extParams.Length != expectedParamTypes.Count) return false;
+
+                for (var i = 0; i < extParams.Length; i++)
+                {
+                    if (!TypesMatch(extParams[i].ParameterType, expectedParamTypes[i]))
+                        return false;
+                }
+
+                return true;
+            });
+
+            if (match == null)
+            {
+                var signature = FormatMethodSignature(engineMethod, skipServiceProvider: true);
+                missing.Add(signature);
+            }
+        }
+
+        Assert.That(missing, Is.Empty,
+            $"AlderStringExtensions is missing overloads for these AlderEngine methods:\n  " +
+            string.Join("\n  ", missing));
+    }
+
+    private static bool TypesMatch(Type a, Type b)
+    {
+        // Unwrap by-ref (out/ref params) before comparing
+        if (a.IsByRef) a = a.GetElementType()!;
+        if (b.IsByRef) b = b.GetElementType()!;
+
+        if (a == b) return true;
+
+        // Generic type parameters: compare by position
+        if (a.IsGenericParameter && b.IsGenericParameter)
+            return a.GenericParameterPosition == b.GenericParameterPosition;
+
+        // Generic types like Nullable<T>, IDictionary<K,V>: compare definitions
+        if (a.IsGenericType && b.IsGenericType)
+            return a.GetGenericTypeDefinition() == b.GetGenericTypeDefinition();
+
+        return false;
+    }
+
+    private static string FormatMethodSignature(MethodInfo method, bool skipServiceProvider)
+    {
+        var generic = method.IsGenericMethod ? $"<{string.Join(", ", method.GetGenericArguments().Select(a => a.Name))}>" : "";
+        var parameters = method.GetParameters()
+            .Where(p => !skipServiceProvider || p.ParameterType != typeof(IServiceProvider))
+            .Select(p => $"{p.ParameterType.Name} {p.Name}");
+        return $"{method.Name}{generic}({string.Join(", ", parameters)})";
     }
 
     [Test]

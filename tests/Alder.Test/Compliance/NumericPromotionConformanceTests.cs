@@ -13,9 +13,7 @@ public class NumericPromotionConformanceTests(CompilationMode mode)
     private object? Eval(string expr, LanguageMode lang = LanguageMode.Standard)
         => Engine(lang).Evaluate(expr);
 
-    // ═══════════════════════════════════════════════════════════════════
-    // §10.2.3 Implicit numeric conversions — binary numeric promotion
-    // ═══════════════════════════════════════════════════════════════════
+    #region §10.2.3 Implicit numeric conversions — binary numeric promotion
 
     [Test]
     public void BinaryPromotion_UintPlusSbyte_ProducesLong()
@@ -131,9 +129,9 @@ public class NumericPromotionConformanceTests(CompilationMode mode)
         Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0019));
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // §12.4.7.2 Unary numeric promotions
-    // ═══════════════════════════════════════════════════════════════════
+    #endregion
+
+    #region §12.4.7.2 Unary numeric promotions
 
     [Test]
     public void UnaryPromotion_BitwiseComplementByte_ProducesInt()
@@ -177,4 +175,6 @@ public class NumericPromotionConformanceTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(-65));
         Assert.That(result, Is.TypeOf<int>());
     }
+
+    #endregion
 }

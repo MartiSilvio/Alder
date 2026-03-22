@@ -1,1 +1,2 @@
-{ let x = 42; return x; }
+let x = 42;
+return x;

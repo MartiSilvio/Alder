@@ -1,1 +1,3 @@
-{ bool? a = false; bool? b = null; return a | b; }
+bool? a = false;
+bool? b = null;
+return a | b;

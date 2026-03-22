@@ -1,1 +1,2 @@
-{ object x = true; return x is true; }
+object x = true;
+return x is true;

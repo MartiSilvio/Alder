@@ -1,1 +1,2 @@
-{ var x = -5; return --x; }
+var x = -5;
+return --x;

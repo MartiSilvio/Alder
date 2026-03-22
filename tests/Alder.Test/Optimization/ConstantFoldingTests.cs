@@ -269,7 +269,7 @@ public sealed class ConstantFoldingTests
             new BoundLiteralExpr(1, typeof(int)),
             new BoundLiteralExpr(2, typeof(int)),
             typeof(int));
-        tree.Span = new Alder.Text.TextSpan(5, 10);
+        tree.Span = new Text.TextSpan(5, 10);
 
         var result = _pass.Rewrite(tree);
 

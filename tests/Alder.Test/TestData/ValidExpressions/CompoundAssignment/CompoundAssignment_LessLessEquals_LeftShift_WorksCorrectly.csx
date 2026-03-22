@@ -1,1 +1,3 @@
-{ var x = 1; x <<= 4; return x; }
+var x = 1;
+x <<= 4;
+return x;

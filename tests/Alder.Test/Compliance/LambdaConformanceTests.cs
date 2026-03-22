@@ -12,9 +12,7 @@ public class LambdaConformanceTests(CompilationMode mode)
     private object? Eval(string expr, LanguageMode lang = LanguageMode.Standard)
         => Engine(lang).Evaluate(expr);
 
-    // ═══════════════════════════════════════════════════════════════════
-    // §12.19 Lambda expressions — various forms
-    // ═══════════════════════════════════════════════════════════════════
+    #region §12.19 Lambda expressions — various forms
 
     [Test]
     public void Lambda_ExpressionBody()
@@ -81,9 +79,9 @@ public class LambdaConformanceTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(42));
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // Interaction: nested lambdas
-    // ═══════════════════════════════════════════════════════════════════
+    #endregion
+
+    #region Interaction: nested lambdas
 
     [Test]
     public void NestedLambda_ReturnFunction()
@@ -105,4 +103,6 @@ public class LambdaConformanceTests(CompilationMode mode)
         ");
         Assert.That(result, Is.EqualTo(12));
     }
+
+    #endregion
 }

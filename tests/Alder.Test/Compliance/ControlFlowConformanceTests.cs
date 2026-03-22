@@ -12,9 +12,7 @@ public class ControlFlowConformanceTests(CompilationMode mode)
     private object? Eval(string expr, LanguageMode lang = LanguageMode.Standard)
         => Engine(lang).Evaluate(expr);
 
-    // ═══════════════════════════════════════════════════════════════════
-    // §13.9.5 Foreach — variable per-iteration
-    // ═══════════════════════════════════════════════════════════════════
+    #region §13.9.5 Foreach — variable per-iteration
 
     [Test]
     public void Foreach_VariableIsPerIteration_LambdaCapture()
@@ -31,9 +29,9 @@ public class ControlFlowConformanceTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(6)); // 1+2+3, not 3+3+3
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // §13.8.3 Switch — pattern matching completeness
-    // ═══════════════════════════════════════════════════════════════════
+    #endregion
+
+    #region §13.8.3 Switch — pattern matching completeness
 
     [Test]
     public void SwitchExpression_WithWhenClause()
@@ -65,9 +63,9 @@ public class ControlFlowConformanceTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo("str:hello"));
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // §13.11 Try/catch/finally — ordering guarantees
-    // ═══════════════════════════════════════════════════════════════════
+    #endregion
+
+    #region §13.11 Try/catch/finally — ordering guarantees
 
     [Test]
     public void TryCatchFinally_FinallyAlwaysRuns()
@@ -153,9 +151,9 @@ public class ControlFlowConformanceTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo("rethrown"));
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // Control flow torture tests
-    // ═══════════════════════════════════════════════════════════════════
+    #endregion
+
+    #region Control flow torture tests
 
     [Test]
     public void NestedSwitch_BreakExitsInnerOnly()
@@ -219,9 +217,9 @@ public class ControlFlowConformanceTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(0));
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // §13.11 Try statement — nested exception handling
-    // ═══════════════════════════════════════════════════════════════════
+    #endregion
+
+    #region §13.11 Try statement — nested exception handling
 
     [Test]
     public void NestedTryCatch_InnerExceptionPropagates()
@@ -299,9 +297,9 @@ public class ControlFlowConformanceTests(CompilationMode mode)
         Assert.That(result!.ToString(), Does.Contain("return"));
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // §13.8.3 Switch — complex patterns
-    // ═══════════════════════════════════════════════════════════════════
+    #endregion
+
+    #region §13.8.3 Switch — complex patterns
 
     [Test]
     public void SwitchStatement_MultipleLabels_SameBody()
@@ -382,9 +380,9 @@ public class ControlFlowConformanceTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo("right"));
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // §13.9.5 Foreach — various collection types
-    // ═══════════════════════════════════════════════════════════════════
+    #endregion
+
+    #region §13.9.5 Foreach — various collection types
 
     [Test]
     public void Foreach_String_CharIteration()
@@ -417,9 +415,9 @@ public class ControlFlowConformanceTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(3));
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // Interaction: for loop variable scope
-    // ═══════════════════════════════════════════════════════════════════
+    #endregion
+
+    #region Interaction: for loop variable scope
 
     [Test]
     public void ForLoop_VariableNotVisibleAfterLoop()
@@ -450,9 +448,9 @@ public class ControlFlowConformanceTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(50)); // (0+10)+(1+9)+(2+8)+(3+7)+(4+6) = 50
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // §13.6.3 Local constant declarations
-    // ═══════════════════════════════════════════════════════════════════
+    #endregion
+
+    #region §13.6.3 Local constant declarations
 
     [Test]
     public void LocalConst_String()
@@ -479,9 +477,9 @@ public class ControlFlowConformanceTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo("found"));
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // §12.17 Declaration expressions — out var
-    // ═══════════════════════════════════════════════════════════════════
+    #endregion
+
+    #region §12.17 Declaration expressions — out var
 
     [Test]
     public void OutVar_IntTryParse()
@@ -504,4 +502,6 @@ public class ControlFlowConformanceTests(CompilationMode mode)
         }");
         Assert.That(result, Is.EqualTo(-1));
     }
+
+    #endregion
 }

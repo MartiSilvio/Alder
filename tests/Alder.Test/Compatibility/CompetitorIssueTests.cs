@@ -169,7 +169,7 @@ public class CompetitorIssueTests(CompilationMode mode)
     public void Issue295_ExpandoStringMember_CanBePassedToStringFunctionWithoutExplicitCast()
     {
         var engine = TestEngineFactory.Create(mode, o =>
-            o.Functions.Register("PathCombine", args => System.IO.Path.Combine((string)args[0]!, (string)args[1]!)));
+            o.Functions.Register("PathCombine", args => Path.Combine((string)args[0]!, (string)args[1]!)));
 
         dynamic globalSettings = new ExpandoObject();
         globalSettings.MyTestPath = "C:\\delme\\";
@@ -177,7 +177,7 @@ public class CompetitorIssueTests(CompilationMode mode)
 
         var result = engine.Evaluate("""PathCombine(GlobalSettings.MyTestPath, "test.txt")""");
 
-        Assert.That(result, Is.EqualTo(System.IO.Path.Combine("C:\\delme\\", "test.txt")));
+        Assert.That(result, Is.EqualTo(Path.Combine("C:\\delme\\", "test.txt")));
     }
 
     // NCalc issue #538:

@@ -1,1 +1,3 @@
-{ long? a = null; long? b = 5L; return a != b; }
+long? a = null;
+long? b = 5L;
+return a != b;

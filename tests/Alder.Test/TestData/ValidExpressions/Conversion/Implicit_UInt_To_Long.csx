@@ -1,1 +1,3 @@
-{ uint x = 5; long y = x; return y; }
+uint x = 5;
+long y = x;
+return y;

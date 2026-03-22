@@ -1,1 +1,2 @@
-{ object x = 5; return x is < 10; }
+object x = 5;
+return x is < 10;

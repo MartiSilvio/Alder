@@ -1,1 +1,2 @@
-{ object x = "hello"; return x is string { Length: > 3 }; }
+object x = "hello";
+return x is string { Length: > 3 };

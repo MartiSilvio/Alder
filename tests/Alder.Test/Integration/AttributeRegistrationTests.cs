@@ -65,12 +65,16 @@ public class AttributeRegistrationTests(CompilationMode mode)
     [Test]
     public void WithServiceProvider()
     {
-        var engine = TestEngineFactory.Create(mode, o => o.Modules.RegisterFromType<GreeterModule>());
+        var sp = new SimpleServiceProvider();
+        sp.Register(new GreeterModule("Hola"));
 
-        var serviceProvider = new SimpleServiceProvider();
-        serviceProvider.Register(new GreeterModule("Hola"));
+        var engine = TestEngineFactory.Create(mode, o =>
+        {
+            o.ServiceProvider = sp;
+            o.Modules.RegisterFromType<GreeterModule>();
+        });
 
-        var result = engine.Evaluate("""Greeter.SayHello("World") """, serviceProvider: serviceProvider);
+        var result = engine.Evaluate("""Greeter.SayHello("World") """);
         Assert.That(result, Is.EqualTo("Hola, World!"));
     }
 }

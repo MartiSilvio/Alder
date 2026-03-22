@@ -1,1 +1,2 @@
-{ decimal x = 10.5m; return 5 + x; }
+decimal x = 10.5m;
+return 5 + x;

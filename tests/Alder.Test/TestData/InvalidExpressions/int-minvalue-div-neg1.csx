@@ -1,1 +1,2 @@
-{ int x = int.MinValue; return x / -1; }
+int x = int.MinValue;
+return x / -1;

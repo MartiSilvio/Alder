@@ -12,9 +12,7 @@ public class LiteralConformanceTests(CompilationMode mode)
     private object? Eval(string expr, LanguageMode lang = LanguageMode.Standard)
         => Engine(lang).Evaluate(expr);
 
-    // ═══════════════════════════════════════════════════════════════════
-    // §6.4.5.3 Integer literals — hex, binary, digit separators
-    // ═══════════════════════════════════════════════════════════════════
+    #region §6.4.5.3 Integer literals — hex, binary, digit separators
 
     [Test]
     public void IntegerLiteral_Hex()
@@ -86,9 +84,9 @@ public class LiteralConformanceTests(CompilationMode mode)
         Assert.That(result, Is.TypeOf<decimal>());
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // §6.4.5.5 Character literals — escape sequences
-    // ═══════════════════════════════════════════════════════════════════
+    #endregion
+
+    #region §6.4.5.5 Character literals — escape sequences
 
     [Test]
     public void CharLiteral_UnicodeEscape()
@@ -125,9 +123,9 @@ public class LiteralConformanceTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo('\t'));
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // §6.4.5.6 String literals — escape sequences
-    // ═══════════════════════════════════════════════════════════════════
+    #endregion
+
+    #region §6.4.5.6 String literals — escape sequences
 
     [Test]
     public void StringLiteral_UnicodeEscape()
@@ -150,4 +148,6 @@ public class LiteralConformanceTests(CompilationMode mode)
         Assert.That(result!.ToString(), Does.Contain("line1"));
         Assert.That(result!.ToString(), Does.Contain("line2"));
     }
+
+    #endregion
 }

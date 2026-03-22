@@ -1,1 +1,2 @@
-{ object x = 'A'; return (char)x; }
+object x = 'A';
+return (char)x;

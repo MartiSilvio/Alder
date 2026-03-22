@@ -14,6 +14,10 @@ public class ConsoleOutputTests(CompilationMode mode)
         {
             o.Types.AddAssembly(typeof(Console).Assembly);
             o.Types.AddNamespace("System");
+            o.Sandbox = SandboxOptions.Trusted() with
+            {
+                TrustedTypes = [typeof(Console)]
+            };
         });
 
         var originalOut = Console.Out;
@@ -36,6 +40,10 @@ public class ConsoleOutputTests(CompilationMode mode)
         {
             o.Types.AddAssembly(typeof(Console).Assembly);
             o.Types.AddNamespace("System");
+            o.Sandbox = SandboxOptions.Trusted() with
+            {
+                TrustedTypes = [typeof(Console)]
+            };
         });
 
         var originalOut = Console.Out;

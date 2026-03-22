@@ -1,1 +1,2 @@
-{ object x = null; return x as string; }
+object x = null;
+return x as string;

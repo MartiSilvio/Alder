@@ -2,8 +2,6 @@ namespace Alder.Diagnostics;
 
 public enum DiagnosticCode
 {
-    // ── CS codes (Roslyn parity) ─────────────────────────────────────
-
     // Operators
     CS0019 = 19,       // Operator '{0}' cannot be applied to operands of type '{1}' and '{2}'
     CS0021 = 21,       // Cannot apply indexing with [] to an expression of type '{0}'
@@ -77,8 +75,6 @@ public enum DiagnosticCode
     // Pattern matching
     CS8510 = 8510,     // The pattern is unreachable
 
-    // ── ALDR codes (Alder-specific) ──────────────────────────────────
-
     // Compilation
     ALDR0001 = 1_000_001, // Strict compilation mode could not compile the expression to IL
     ALDR0002 = 1_000_002, // Expression binding failed
@@ -99,7 +95,7 @@ public enum DiagnosticCode
     ALDR0104 = 1_000_104, // Static member access blocked by sandbox
     ALDR0105 = 1_000_105, // Property assignment blocked by sandbox
     ALDR0106 = 1_000_106, // Object construction blocked by sandbox
-    ALDR0107 = 1_000_107, // Type not in sandbox allowlist
+    ALDR0107 = 1_000_107, // Type blocked by sandbox
     ALDR0108 = 1_000_108, // Reflection type access blocked
 
     // Execution constraints

@@ -1,1 +1,3 @@
-{ char x = 'A'; char? y = x; return y; }
+char x = 'A';
+char? y = x;
+return y;

@@ -1,1 +1,4 @@
-{ Func<int, int> f = x => x * 2; return 5 |> f; }
+{
+    Func<int, int> f = x => x * 2;
+    return 5 |> f;
+}

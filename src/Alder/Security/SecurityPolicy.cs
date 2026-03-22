@@ -17,7 +17,8 @@ public sealed class SecurityPolicy
 
     internal bool IsTrusted { get; }
 
-    private readonly FixedSet<Type>? _allowedTypes;
+    private readonly FixedSet<Type> _trustedTypes;
+    private readonly FixedSet<string> _trustedNamespaces;
     private readonly FixedSet<Type> _deniedTypes;
     private readonly FixedSet<string> _deniedNamespaces;
 
@@ -34,33 +35,52 @@ public sealed class SecurityPolicy
         MaxArrayLength = b.MaxArrayLength;
         RegexTimeout = b.RegexTimeout;
 
-        _allowedTypes = b.AllowedTypes?.Count > 0 ? FixedSet<Type>.Create(b.AllowedTypes) : null;
+        _trustedTypes = b.TrustedTypes != null ? FixedSet<Type>.Create(b.TrustedTypes) : FixedSet<Type>.Empty;
+        _trustedNamespaces = b.TrustedNamespaces != null ? FixedSet<string>.Create(b.TrustedNamespaces) : FixedSet<string>.Empty;
         _deniedTypes = FixedSet<Type>.Create(b.DeniedTypes ?? DefaultDeniedTypes);
         _deniedNamespaces = FixedSet<string>.Create(b.DeniedNamespaces ?? DefaultDeniedNamespaces);
 
         IsTrusted = AllowMethodCalls && AllowPropertyRead && AllowStaticPropertyRead &&
                     AllowStaticFieldRead && AllowAssignment && AllowPropertySet &&
-                    AllowIndexSet && AllowConstruction && _allowedTypes == null;
+                    AllowIndexSet && AllowConstruction &&
+                    _trustedTypes.Count == 0 && _trustedNamespaces.Count == 0 &&
+                    _deniedTypes.Count == 0 && _deniedNamespaces.Count == 0;
     }
 
     public bool IsTypeAllowed(Type type)
     {
-        if (_deniedTypes.Contains(type))
+        if (HardDenied.Contains(type))
             return false;
 
-        var ns = type.Namespace;
-        if (ns != null)
-        {
-            foreach (var denied in _deniedNamespaces)
-            {
-                if (ns.Equals(denied, StringComparison.Ordinal) ||
-                    ns.StartsWith(denied + ".", StringComparison.Ordinal))
-                    return false;
-            }
-        }
+        if (_trustedTypes.Contains(type) || InNamespace(type, _trustedNamespaces))
+            return true;
 
-        return _allowedTypes == null || _allowedTypes.Contains(type);
+        if (_deniedTypes.Contains(type) || InNamespace(type, _deniedNamespaces))
+            return false;
+
+        return true;
     }
+
+    private static bool InNamespace(Type type, FixedSet<string> set)
+    {
+        if (set.Count == 0) return false;
+        var ns = type.Namespace;
+        if (ns == null) return false;
+
+        foreach (var entry in set)
+        {
+            if (ns.Equals(entry, StringComparison.Ordinal) ||
+                ns.StartsWith(entry + ".", StringComparison.Ordinal))
+                return true;
+        }
+        return false;
+    }
+
+    #region Presets
+
+    public static SecurityPolicy Trusted => _trusted.Value;
+    public static SecurityPolicy Safe => _safe.Value;
+    public static SecurityPolicy Strict => _strict.Value;
 
     private static readonly Lazy<SecurityPolicy> _trusted = new(() => new Builder
     {
@@ -72,10 +92,7 @@ public sealed class SecurityPolicy
         AllowPropertySet = true,
         AllowIndexSet = true,
         AllowConstruction = true,
-        DeniedTypes = new HashSet<Type>(),
-        DeniedNamespaces = new HashSet<string>()
     }.Build());
-    public static SecurityPolicy Trusted => _trusted.Value;
 
     private static readonly Lazy<SecurityPolicy> _safe = new(() => new Builder
     {
@@ -84,17 +101,26 @@ public sealed class SecurityPolicy
         AllowStaticFieldRead = true,
         AllowAssignment = true,
         AllowPropertySet = true,
-        AllowIndexSet = true
+        AllowIndexSet = true,
     }.Build());
-    public static SecurityPolicy Safe => _safe.Value;
 
     private static readonly Lazy<SecurityPolicy> _strict = new(() => new Builder
     {
         AllowPropertyRead = true,
         AllowStaticPropertyRead = true,
-        AllowStaticFieldRead = true
+        AllowStaticFieldRead = true,
     }.Build());
-    public static SecurityPolicy Strict => _strict.Value;
+
+    #endregion
+
+    #region Default deny lists
+
+    private static readonly HashSet<Type> HardDenied = new()
+    {
+        typeof(AlderEngine),
+        typeof(AlderOptions),
+        typeof(AlderExpression),
+    };
 
     private static readonly HashSet<Type> DefaultDeniedTypes = BuildDefaultDeniedTypes();
 
@@ -102,20 +128,25 @@ public sealed class SecurityPolicy
     {
         var types = new HashSet<Type>
         {
+            typeof(Activator),
             typeof(AppDomain),
+            typeof(Console),
+            typeof(Delegate),
             typeof(Environment),
             typeof(GC),
-            typeof(Console),
+            typeof(MulticastDelegate),
+            typeof(WeakReference),
+            typeof(WeakReference<>),
         };
-        TryAddType(types, "System.Threading.Thread, System.Threading.Thread");
-        TryAddType(types, "System.Threading.ThreadPool, System.Threading.ThreadPool");
-        TryAddType(types, "System.Diagnostics.Process, System.Diagnostics.Process");
-        TryAddType(types, "System.Diagnostics.ProcessStartInfo, System.Diagnostics.Process");
-        TryAddType(types, "System.Runtime.InteropServices.Marshal, System.Runtime.InteropServices");
+        AddIfAvailable(types, "System.Threading.Thread, System.Threading.Thread");
+        AddIfAvailable(types, "System.Threading.ThreadPool, System.Threading.ThreadPool");
+        AddIfAvailable(types, "System.Diagnostics.Process, System.Diagnostics.Process");
+        AddIfAvailable(types, "System.Diagnostics.ProcessStartInfo, System.Diagnostics.Process");
+        AddIfAvailable(types, "System.Runtime.InteropServices.Marshal, System.Runtime.InteropServices");
         return types;
     }
 
-    private static void TryAddType(HashSet<Type> set, string assemblyQualifiedName)
+    private static void AddIfAvailable(HashSet<Type> set, string assemblyQualifiedName)
     {
         var type = Type.GetType(assemblyQualifiedName);
         if (type != null) set.Add(type);
@@ -123,18 +154,51 @@ public sealed class SecurityPolicy
 
     private static readonly HashSet<string> DefaultDeniedNamespaces = new()
     {
+        // Code generation & dynamic compilation
+        "System.CodeDom",
+        "System.Linq.Expressions",
         "System.Reflection",
         "System.Reflection.Emit",
-        "System.Runtime.InteropServices",
+        "System.Runtime.CompilerServices",
+        "System.Runtime.Loader",
+        "System.Runtime.Serialization",
+        "Microsoft.CSharp",
+
+        // OS & process access
+        "System.Diagnostics",
         "System.IO",
+        "System.ServiceProcess",
+        "System.Management",
+        "Microsoft.Win32",
+
+        // Network
         "System.Net",
         "System.Net.Http",
+        "System.Net.Mail",
+        "System.Net.NetworkInformation",
         "System.Net.Sockets",
+
+        // Threading
+        "System.Threading",
+
+        // Security & interop
+        "System.Runtime.InteropServices",
         "System.Security",
-        "System.Diagnostics",
-        "System.CodeDom",
-        "System.Runtime.Loader"
+
+        // Data access
+        "System.Data",
+        "Microsoft.Data",
+
+        // Configuration & composition
+        "System.Configuration",
+        "System.ComponentModel",
+        "System.ComponentModel.Composition",
+        "System.Composition",
+        "System.DirectoryServices",
+        "System.Resources",
     };
+
+    #endregion
 
     public sealed class Builder
     {
@@ -148,7 +212,9 @@ public sealed class SecurityPolicy
         public bool AllowConstruction { get; set; }
         public int MaxArrayLength { get; set; } = 10_000_000;
         public TimeSpan RegexTimeout { get; set; } = TimeSpan.FromSeconds(1);
-        public HashSet<Type>? AllowedTypes { get; set; }
+
+        public HashSet<Type>? TrustedTypes { get; set; }
+        public HashSet<string>? TrustedNamespaces { get; set; }
         public HashSet<Type>? DeniedTypes { get; set; }
         public HashSet<string>? DeniedNamespaces { get; set; }
 

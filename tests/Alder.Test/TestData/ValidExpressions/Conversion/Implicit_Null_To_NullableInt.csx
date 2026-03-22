@@ -1,1 +1,2 @@
-{ int? x = null; return x; }
+int? x = null;
+return x;

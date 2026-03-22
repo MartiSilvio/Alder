@@ -1,1 +1,2 @@
-{ double? a = null; return -a; }
+double? a = null;
+return -a;

@@ -32,7 +32,10 @@ public class StaticMethodSandboxTests(CompilationMode mode)
     [Test]
     public void Trusted_AllowsStaticMethodCalls()
     {
-        var engine = TestEngineFactory.Create(mode, o => o.Sandbox = SandboxOptions.Trusted());
+        var engine = TestEngineFactory.Create(mode, o => o.Sandbox = SandboxOptions.Trusted() with
+        {
+            TrustedTypes = [typeof(Path)]
+        });
 
         var result = engine.Evaluate("""System.IO.Path.GetExtension("file.txt") """);
 

@@ -1,1 +1,2 @@
-{ uint x = 42; return x; }
+uint x = 42;
+return x;

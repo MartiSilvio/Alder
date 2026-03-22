@@ -39,8 +39,6 @@ public class DiagnosticCodeTests
         _engine = new AlderEngine();
     }
 
-    // --- CS0019: Operator cannot be applied to operands ---
-
     [Test]
     public void CS0019_BadBinaryOps_StringMinusInt()
     {
@@ -59,8 +57,6 @@ public class DiagnosticCodeTests
         Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0019));
         Assert.That(ex.FormattedCode, Is.EqualTo("CS0019"));
     }
-
-    // --- CS0021: Cannot apply indexing ---
 
     [Test]
     public void CS0021_BadIndexerAccess_IntIndexed()
@@ -85,8 +81,6 @@ public class DiagnosticCodeTests
         }
     }
 
-    // --- CS0023: Operator cannot be applied to operand ---
-
     [Test]
     public void CS0023_BadUnaryOp_NegateString()
     {
@@ -98,8 +92,6 @@ public class DiagnosticCodeTests
         Assert.That(ex.Message, Does.Not.Contain("{0}"));
     }
 
-    // --- CS0029: Cannot implicitly convert type ---
-
     [Test]
     public void CS0029_NoImplicitConversion_IntToString()
     {
@@ -108,8 +100,6 @@ public class DiagnosticCodeTests
         Assert.That(ex.FormattedCode, Is.EqualTo("CS0029"));
         Assert.That(ex.Message, Does.Not.Contain("{0}"));
     }
-
-    // --- CS0030: Cannot convert type ---
 
     [Test]
     public void CS0030_NoExplicitConversion_IntToString()

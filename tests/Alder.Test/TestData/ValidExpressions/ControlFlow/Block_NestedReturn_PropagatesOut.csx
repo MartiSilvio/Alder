@@ -1,1 +1,6 @@
-{ { return 42; } return 99; }
+{
+    {
+        return 42;
+    }
+    return 99;
+}

@@ -1,1 +1,2 @@
-{ object x = "hello"; return x is string || x is int; }
+object x = "hello";
+return x is string || x is int;

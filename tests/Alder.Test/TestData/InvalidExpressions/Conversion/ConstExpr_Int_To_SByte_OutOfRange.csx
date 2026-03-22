@@ -1,1 +1,2 @@
-{ sbyte x = 128; return x; }
+sbyte x = 128;
+return x;

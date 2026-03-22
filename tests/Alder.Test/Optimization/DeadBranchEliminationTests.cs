@@ -15,7 +15,7 @@ public sealed class DeadBranchEliminationTests
     {
         var tree = new BoundIfStatementExpr(
             new BoundLiteralExpr(true, typeof(bool)),
-            ImmutableArray.Create<BoundExpr>(new BoundLiteralExpr(42, typeof(int))),
+            [new BoundLiteralExpr(42, typeof(int))],
             ImmutableArray<BoundExpr>.Empty,
             typeof(object));
 
@@ -32,8 +32,8 @@ public sealed class DeadBranchEliminationTests
     {
         var tree = new BoundIfStatementExpr(
             new BoundLiteralExpr(false, typeof(bool)),
-            ImmutableArray.Create<BoundExpr>(new BoundLiteralExpr(1, typeof(int))),
-            ImmutableArray.Create<BoundExpr>(new BoundLiteralExpr(2, typeof(int))),
+            [new BoundLiteralExpr(1, typeof(int))],
+            [new BoundLiteralExpr(2, typeof(int))],
             typeof(object));
 
         var result = _pass.Rewrite(tree);
@@ -49,7 +49,7 @@ public sealed class DeadBranchEliminationTests
     {
         var tree = new BoundIfStatementExpr(
             new BoundLiteralExpr(false, typeof(bool)),
-            ImmutableArray.Create<BoundExpr>(new BoundLiteralExpr(1, typeof(int))),
+            [new BoundLiteralExpr(1, typeof(int))],
             ImmutableArray<BoundExpr>.Empty,
             typeof(object));
 
@@ -78,7 +78,7 @@ public sealed class DeadBranchEliminationTests
     {
         var tree = new BoundIfStatementExpr(
             new BoundIdentifierExpr("flag", typeof(bool)),
-            ImmutableArray.Create<BoundExpr>(new BoundLiteralExpr(1, typeof(int))),
+            [new BoundLiteralExpr(1, typeof(int))],
             ImmutableArray<BoundExpr>.Empty,
             typeof(object));
 

@@ -1,1 +1,2 @@
-{ string? s = "hello"; return s?.Length ?? 0; }
+string? s = "hello";
+return s?.Length ?? 0;

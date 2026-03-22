@@ -1,1 +1,3 @@
-{ var x = 5; var y = x++; return y; }
+var x = 5;
+var y = x++;
+return y;

@@ -153,7 +153,7 @@ public sealed class BoundCompilationTests
     {
         var engine = TestEngineFactory.Create(CompilationMode.Compiled);
 
-        engine.SetVariable("res", new System.IO.MemoryStream());
+        engine.SetVariable("res", new MemoryStream());
         var usingExpr = engine.Parse("{ var x = 0; using (res) { x = 42; } return x; }");
         Assert.That(engine.Evaluate(usingExpr), Is.EqualTo(42));
         Assert.That(usingExpr.GetCompiledInfo()!.Pipeline, Is.EqualTo(CompiledPipeline.Bound));

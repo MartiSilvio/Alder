@@ -1,1 +1,4 @@
-{ while (3.14) { break; } return 0; }
+{
+    while (3.14) { break; }
+    return 0;
+}

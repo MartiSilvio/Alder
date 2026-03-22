@@ -1,1 +1,4 @@
-{ while ("true") { break; } return 0; }
+{
+    while ("true") { break; }
+    return 0;
+}

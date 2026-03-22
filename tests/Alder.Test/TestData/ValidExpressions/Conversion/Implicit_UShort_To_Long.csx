@@ -1,1 +1,3 @@
-{ ushort x = 5; long y = x; return y; }
+ushort x = 5;
+long y = x;
+return y;

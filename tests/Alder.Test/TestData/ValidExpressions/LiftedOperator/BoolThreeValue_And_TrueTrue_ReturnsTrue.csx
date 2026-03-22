@@ -1,1 +1,3 @@
-{ bool? a = true; bool? b = true; return a & b; }
+bool? a = true;
+bool? b = true;
+return a & b;

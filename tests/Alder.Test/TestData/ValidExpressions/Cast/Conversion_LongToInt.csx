@@ -1,1 +1,2 @@
-{ long x = 42L; return (int)x; }
+long x = 42L;
+return (int)x;

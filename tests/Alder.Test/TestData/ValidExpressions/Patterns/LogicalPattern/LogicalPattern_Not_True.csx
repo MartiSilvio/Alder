@@ -1,1 +1,2 @@
-{ object x = "hello"; return x is not int; }
+object x = "hello";
+return x is not int;

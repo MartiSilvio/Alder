@@ -1,1 +1,3 @@
-{ sbyte x = 5; double y = x; return y; }
+sbyte x = 5;
+double y = x;
+return y;

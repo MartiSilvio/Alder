@@ -1,1 +1,2 @@
-{ string x = "hello"; return x is { Length: > 0 }; }
+string x = "hello";
+return x is { Length: > 0 };

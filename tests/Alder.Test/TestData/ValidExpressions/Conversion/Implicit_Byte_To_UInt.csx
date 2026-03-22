@@ -1,1 +1,3 @@
-{ byte x = 5; uint y = x; return y; }
+byte x = 5;
+uint y = x;
+return y;

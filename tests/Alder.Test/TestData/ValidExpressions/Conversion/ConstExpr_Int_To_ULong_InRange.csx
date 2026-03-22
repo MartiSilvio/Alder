@@ -1,1 +1,2 @@
-{ ulong x = 42; return x; }
+ulong x = 42;
+return x;

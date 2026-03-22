@@ -431,7 +431,7 @@ public class ExpressionTreeTests
         var expr = _engine.ParseAsExpression<Func<int[], int>>("x => x[0]");
         var compiled = expr.Compile();
 
-        Assert.That(compiled(new[] { 10, 20, 30 }), Is.EqualTo(10));
+        Assert.That(compiled([10, 20, 30]), Is.EqualTo(10));
     }
 
     [Test]
@@ -440,7 +440,7 @@ public class ExpressionTreeTests
         var expr = _engine.ParseAsExpression<Func<int[], int>>("x => x[1]");
         var compiled = expr.Compile();
 
-        Assert.That(compiled(new[] { 10, 20, 30 }), Is.EqualTo(20));
+        Assert.That(compiled([10, 20, 30]), Is.EqualTo(20));
     }
 
     [Test]
@@ -449,7 +449,7 @@ public class ExpressionTreeTests
         var expr = _engine.ParseAsExpression<Func<List<string>, string>>("x => x[0]");
         var compiled = expr.Compile();
 
-        Assert.That(compiled(new List<string> { "first", "second" }), Is.EqualTo("first"));
+        Assert.That(compiled(["first", "second"]), Is.EqualTo("first"));
     }
 
     #endregion

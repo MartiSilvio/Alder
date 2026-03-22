@@ -1,1 +1,2 @@
-{ long? a = null; return +a; }
+long? a = null;
+return +a;

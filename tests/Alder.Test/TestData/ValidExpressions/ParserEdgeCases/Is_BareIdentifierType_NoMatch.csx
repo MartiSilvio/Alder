@@ -1,1 +1,2 @@
-{ object x = "hello"; return x is Exception; }
+object x = "hello";
+return x is Exception;

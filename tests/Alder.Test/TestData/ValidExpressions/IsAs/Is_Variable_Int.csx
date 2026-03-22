@@ -1,1 +1,2 @@
-{ object x = 42; return x is int; }
+object x = 42;
+return x is int;

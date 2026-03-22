@@ -1,1 +1,3 @@
-{ short x = 5; int y = x; return y; }
+short x = 5;
+int y = x;
+return y;

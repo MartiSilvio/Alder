@@ -25,6 +25,8 @@ public sealed class AlderOptions
 
     internal ICompiledProvider? Compiler { get; set; }
 
+    public IServiceProvider? ServiceProvider { get; set; }
+
     public LanguageMode LanguageMode { get; set; } = LanguageMode.Standard;
 
     public IExpressionCompiler ExpressionCompiler { get; set; } = DefaultExpressionCompiler.Instance;
@@ -252,7 +254,13 @@ public sealed record SandboxOptions
 
     public bool AllowConstruction { get; init; }
 
-    public HashSet<Type>? AllowedTypes { get; init; }
+    public HashSet<Type>? TrustedTypes { get; init; }
+
+    public HashSet<string>? TrustedNamespaces { get; init; }
+
+    public HashSet<Type>? DeniedTypes { get; init; }
+
+    public HashSet<string>? DeniedNamespaces { get; init; }
 
     public static SandboxOptions Trusted() => new()
     {
@@ -279,8 +287,6 @@ public sealed record SandboxOptions
         AllowPropertyRead = true
     };
 
-    internal bool IsTypeAllowed(Type type) => AllowedTypes == null || AllowedTypes.Contains(type);
-
     internal SecurityPolicy ToSecurityPolicy() => new SecurityPolicy.Builder
     {
         AllowMethodCalls = AllowMethodCalls,
@@ -291,7 +297,10 @@ public sealed record SandboxOptions
         AllowPropertySet = AllowPropertySet,
         AllowIndexSet = AllowIndexSet,
         AllowConstruction = AllowConstruction,
-        AllowedTypes = AllowedTypes
+        TrustedTypes = TrustedTypes,
+        TrustedNamespaces = TrustedNamespaces,
+        DeniedTypes = DeniedTypes,
+        DeniedNamespaces = DeniedNamespaces,
     }.Build();
 }
 

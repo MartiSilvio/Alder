@@ -1,1 +1,2 @@
-{ object x = true; return (bool)x; }
+object x = true;
+return (bool)x;

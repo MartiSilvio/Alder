@@ -1,1 +1,2 @@
-{ short x = 1000; return x; }
+short x = 1000;
+return x;

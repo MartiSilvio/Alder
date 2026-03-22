@@ -31,7 +31,7 @@ public sealed partial class AlderEngine
         if (expression.CompiledInfo != null)
             return expression.CompiledInfo.Delegate != null;
 
-        var context = GetOrCreateContext(null);
+        var context = GetOrCreateContext();
         return TryCompileInternal(expression, context);
     }
 
@@ -99,18 +99,18 @@ public sealed partial class AlderEngine
     public EvaluationTraceResult EvaluateWithTrace(
         string expression,
         IDictionary<string, object?>? variables = null,
-        IServiceProvider? serviceProvider = null,
+
         CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();
         var parsed = Parse(expression);
-        return EvaluateWithTrace(parsed, variables, serviceProvider, cancellationToken);
+        return EvaluateWithTrace(parsed, variables, cancellationToken);
     }
 
     public EvaluationTraceResult EvaluateWithTrace(
         AlderExpression expression,
         IDictionary<string, object?>? variables = null,
-        IServiceProvider? serviceProvider = null,
+
         CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();
@@ -122,7 +122,7 @@ public sealed partial class AlderEngine
             target.SetVariables(variables);
         }
 
-        var context = target.GetOrCreateContext(serviceProvider);
+        var context = target.GetOrCreateContext();
         var executionContext = context;
 
         var constraints = _options.Constraints;
@@ -270,7 +270,7 @@ public sealed partial class AlderEngine
 
         internal AlderOptions Options => _engine._options;
         internal AlderConfig Config => _engine._config;
-        internal AlderContext GetOrCreateContext() => _engine.GetOrCreateContext(null);
+        internal AlderContext GetOrCreateContext() => _engine.GetOrCreateContext();
         internal Dictionary<string, object?> CollectEngineVariables() => _engine.CollectEngineVariables();
         internal void ThrowIfDisposed() => _engine.ThrowIfDisposed();
     }
@@ -279,5 +279,5 @@ public sealed partial class AlderEngine
     /// Exposes the engine's evaluation context for use by <see cref="AlderCompiledExpression{T}"/>.
     /// The context is captured by reference so that variable changes after compilation are visible.
     /// </summary>
-    internal AlderContext GetContextForCompiled() => GetOrCreateContext(null);
+    internal AlderContext GetContextForCompiled() => GetOrCreateContext();
 }

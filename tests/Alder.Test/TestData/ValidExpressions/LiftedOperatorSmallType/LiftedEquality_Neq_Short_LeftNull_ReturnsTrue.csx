@@ -1,1 +1,3 @@
-{ short? a = null; short? b = (short?)5; return a != b; }
+short? a = null;
+short? b = (short?)5;
+return a != b;

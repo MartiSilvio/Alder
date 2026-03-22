@@ -12,9 +12,7 @@ public class ExplicitConversionConformanceTests(CompilationMode mode)
     private object? Eval(string expr, LanguageMode lang = LanguageMode.Standard)
         => Engine(lang).Evaluate(expr);
 
-    // ═══════════════════════════════════════════════════════════════════
-    // §10.3.2 Explicit numeric conversions — truncation rules
-    // ═══════════════════════════════════════════════════════════════════
+    #region §10.3.2 Explicit numeric conversions — truncation rules
 
     [Test]
     public void ExplicitConversion_DoubleToFloat_LosesPrecision()
@@ -69,9 +67,9 @@ public class ExplicitConversionConformanceTests(CompilationMode mode)
         Assert.Throws<OverflowException>(() => Eval("checked((int)double.PositiveInfinity)"));
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // §12.10 Arithmetic — overflow semantics
-    // ═══════════════════════════════════════════════════════════════════
+    #endregion
+
+    #region §12.10 Arithmetic — overflow semantics
 
     [Test]
     public void IntMultiply_Overflow_Unchecked_Wraps()
@@ -92,9 +90,9 @@ public class ExplicitConversionConformanceTests(CompilationMode mode)
         Assert.Throws<OverflowException>(() => Eval("decimal.MaxValue + 1m"));
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // Type coercion in assignment
-    // ═══════════════════════════════════════════════════════════════════
+    #endregion
+
+    #region Type coercion in assignment
 
     [Test]
     public void Assignment_ImplicitIntToDouble()
@@ -139,4 +137,6 @@ public class ExplicitConversionConformanceTests(CompilationMode mode)
         ");
         Assert.That(result, Is.EqualTo(65));
     }
+
+    #endregion
 }

@@ -1,1 +1,3 @@
-{ long? a = null; long? b = null; return a == b; }
+long? a = null;
+long? b = null;
+return a == b;

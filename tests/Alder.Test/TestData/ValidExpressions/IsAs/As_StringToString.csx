@@ -1,1 +1,2 @@
-{ object x = "hello"; return x as string; }
+object x = "hello";
+return x as string;

@@ -1,1 +1,2 @@
-{ object x = 0; return x is > 0 and <= 100; }
+object x = 0;
+return x is > 0 and <= 100;

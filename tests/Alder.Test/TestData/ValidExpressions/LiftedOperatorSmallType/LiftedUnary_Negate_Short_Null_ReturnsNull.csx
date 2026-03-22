@@ -1,1 +1,2 @@
-{ short? a = null; return -a; }
+short? a = null;
+return -a;

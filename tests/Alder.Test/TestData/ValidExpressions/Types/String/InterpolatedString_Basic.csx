@@ -1,1 +1,2 @@
-{ string name = "World"; return $"Hello {name}!"; }
+string name = "World";
+return $"Hello {name}!";

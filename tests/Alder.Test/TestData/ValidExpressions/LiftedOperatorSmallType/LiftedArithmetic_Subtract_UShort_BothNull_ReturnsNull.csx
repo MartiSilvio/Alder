@@ -1,1 +1,3 @@
-{ ushort? a = null; ushort? b = null; return a - b; }
+ushort? a = null;
+ushort? b = null;
+return a - b;

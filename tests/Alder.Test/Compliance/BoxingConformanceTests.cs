@@ -13,9 +13,7 @@ public class BoxingConformanceTests(CompilationMode mode)
     private object? Eval(string expr, LanguageMode lang = LanguageMode.Standard)
         => Engine(lang).Evaluate(expr);
 
-    // ═══════════════════════════════════════════════════════════════════
-    // §8.3.13 Boxing/unboxing
-    // ═══════════════════════════════════════════════════════════════════
+    #region §8.3.13 Boxing/unboxing
 
     [Test]
     public void Boxing_IntToObject_UnboxToInt()
@@ -63,9 +61,9 @@ public class BoxingConformanceTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(true));
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // §10.2.11 Implicit constant expression conversions
-    // ═══════════════════════════════════════════════════════════════════
+    #endregion
+
+    #region §10.2.11 Implicit constant expression conversions
 
     [Test]
     public void ImplicitConstExprConversion_IntToByteInRange()
@@ -97,4 +95,6 @@ public class BoxingConformanceTests(CompilationMode mode)
         ");
         Assert.That(result, Is.EqualTo((ushort)60000));
     }
+
+    #endregion
 }

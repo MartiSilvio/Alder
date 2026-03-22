@@ -1,1 +1,3 @@
-{ var s = "Hello"; s += " World"; return s; }
+var s = "Hello";
+s += " World";
+return s;

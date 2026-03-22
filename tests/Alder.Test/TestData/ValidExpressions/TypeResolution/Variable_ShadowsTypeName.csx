@@ -1,1 +1,3 @@
-{ var x = "hello"; var len = x.Length; return len; }
+var x = "hello";
+var len = x.Length;
+return len;

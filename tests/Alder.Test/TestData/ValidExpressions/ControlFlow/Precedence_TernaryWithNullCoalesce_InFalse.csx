@@ -1,1 +1,2 @@
-{ string? n = null; return false ? "then" : n ?? "fallback"; }
+string? n = null;
+return false ? "then" : n ?? "fallback";

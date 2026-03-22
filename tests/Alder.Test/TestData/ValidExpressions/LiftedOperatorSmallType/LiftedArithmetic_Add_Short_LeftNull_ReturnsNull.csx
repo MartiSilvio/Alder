@@ -1,1 +1,3 @@
-{ short? a = null; short? b = (short?)3; return a + b; }
+short? a = null;
+short? b = (short?)3;
+return a + b;

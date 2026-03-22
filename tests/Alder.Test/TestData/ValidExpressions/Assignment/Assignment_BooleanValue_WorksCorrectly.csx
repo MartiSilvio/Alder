@@ -1,1 +1,3 @@
-{ var flag = true; flag = false; return flag; }
+var flag = true;
+flag = false;
+return flag;

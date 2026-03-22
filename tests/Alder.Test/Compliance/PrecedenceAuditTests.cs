@@ -23,9 +23,7 @@ public class PrecedenceAuditTests(CompilationMode mode)
         Assert.That(alderResult?.GetType(), Is.EqualTo(roslynResult?.GetType()), $"Type mismatch for: {expression}");
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // §12.4.2 Multiplicative > Additive
-    // ═══════════════════════════════════════════════════════════════════
+    #region §12.4.2 Multiplicative > Additive
 
     [Test]
     public async Task Precedence_MultiplicativeOverAdditive()
@@ -39,9 +37,9 @@ public class PrecedenceAuditTests(CompilationMode mode)
         await AssertParityAsync("10 + 7 % 3");
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // §12.4.2 Additive > Shift
-    // ═══════════════════════════════════════════════════════════════════
+    #endregion
+
+    #region §12.4.2 Additive > Shift
 
     [Test]
     public async Task Precedence_AdditiveOverShift()
@@ -49,9 +47,9 @@ public class PrecedenceAuditTests(CompilationMode mode)
         await AssertParityAsync("1 + 2 << 3");
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // §12.4.2 Shift > Relational
-    // ═══════════════════════════════════════════════════════════════════
+    #endregion
+
+    #region §12.4.2 Shift > Relational
 
     [Test]
     public async Task Precedence_ShiftOverRelational()
@@ -59,9 +57,9 @@ public class PrecedenceAuditTests(CompilationMode mode)
         await AssertParityAsync("1 << 2 < 8");
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // §12.4.2 Relational > Equality
-    // ═══════════════════════════════════════════════════════════════════
+    #endregion
+
+    #region §12.4.2 Relational > Equality
 
     [Test]
     public async Task Precedence_RelationalOverEquality()
@@ -69,9 +67,9 @@ public class PrecedenceAuditTests(CompilationMode mode)
         await AssertParityAsync("true == 3 > 2");
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // §12.4.2 Equality > Bitwise AND > Bitwise XOR > Bitwise OR
-    // ═══════════════════════════════════════════════════════════════════
+    #endregion
+
+    #region §12.4.2 Equality > Bitwise AND > Bitwise XOR > Bitwise OR
 
     [Test]
     public async Task Precedence_EqualityOverBitwiseAnd()
@@ -91,9 +89,9 @@ public class PrecedenceAuditTests(CompilationMode mode)
         await AssertParityAsync("0x0F ^ 0xFF | 0x00");
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // §12.4.2 Bitwise OR > Conditional AND > Conditional OR
-    // ═══════════════════════════════════════════════════════════════════
+    #endregion
+
+    #region §12.4.2 Bitwise OR > Conditional AND > Conditional OR
 
     [Test]
     public async Task Precedence_ConditionalAndOverConditionalOr()
@@ -101,9 +99,9 @@ public class PrecedenceAuditTests(CompilationMode mode)
         await AssertParityAsync("true || false && false");
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // §12.4.2 Conditional OR > Null-coalescing > Conditional
-    // ═══════════════════════════════════════════════════════════════════
+    #endregion
+
+    #region §12.4.2 Conditional OR > Null-coalescing > Conditional
 
     [Test]
     public async Task Precedence_NullCoalesceOverConditional()
@@ -119,9 +117,9 @@ public class PrecedenceAuditTests(CompilationMode mode)
         """);
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // Associativity: right-to-left for ??
-    // ═══════════════════════════════════════════════════════════════════
+    #endregion
+
+    #region Associativity: right-to-left for ??
 
     [Test]
     public async Task Associativity_NullCoalesce_RightToLeft()
@@ -136,9 +134,9 @@ public class PrecedenceAuditTests(CompilationMode mode)
         """);
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // Associativity: right-to-left for = assignment chains
-    // ═══════════════════════════════════════════════════════════════════
+    #endregion
+
+    #region Associativity: right-to-left for = assignment chains
 
     [Test]
     public async Task Associativity_Assignment_RightToLeft()
@@ -153,9 +151,9 @@ public class PrecedenceAuditTests(CompilationMode mode)
         """);
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // Associativity: right-to-left for ternary (?:)
-    // ═══════════════════════════════════════════════════════════════════
+    #endregion
+
+    #region Associativity: right-to-left for ternary (?:)
 
     [Test]
     public async Task Associativity_Ternary_NestedRightToLeft()
@@ -169,9 +167,9 @@ public class PrecedenceAuditTests(CompilationMode mode)
         await AssertParityAsync("false ? 1 : false ? 2 : 3");
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // Unary > Multiplicative
-    // ═══════════════════════════════════════════════════════════════════
+    #endregion
+
+    #region Unary > Multiplicative
 
     [Test]
     public async Task Precedence_UnaryNegationOverMultiplicative()
@@ -185,9 +183,9 @@ public class PrecedenceAuditTests(CompilationMode mode)
         await AssertParityAsync("~0 << 1");
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // Cast at unary level
-    // ═══════════════════════════════════════════════════════════════════
+    #endregion
+
+    #region Cast at unary level
 
     [Test]
     public async Task Precedence_CastOverAdditive()
@@ -195,9 +193,9 @@ public class PrecedenceAuditTests(CompilationMode mode)
         await AssertParityAsync("(double)3 + 0.14");
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // Throw expression in null-coalescing (§12.16)
-    // ═══════════════════════════════════════════════════════════════════
+    #endregion
+
+    #region Throw expression in null-coalescing (§12.16)
 
     [Test]
     public void ThrowExpression_InNullCoalesce()
@@ -206,9 +204,9 @@ public class PrecedenceAuditTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo("ok"));
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // §12.8 Primary: postfix binds tighter than unary
-    // ═══════════════════════════════════════════════════════════════════
+    #endregion
+
+    #region §12.8 Primary: postfix binds tighter than unary
 
     [Test]
     public async Task Precedence_PostfixOverUnary()
@@ -233,9 +231,9 @@ public class PrecedenceAuditTests(CompilationMode mode)
         """);
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // §12.4.2 is/as at relational level
-    // ═══════════════════════════════════════════════════════════════════
+    #endregion
+
+    #region §12.4.2 is/as at relational level
 
     [Test]
     public async Task Precedence_IsAtRelationalLevel()
@@ -253,4 +251,6 @@ public class PrecedenceAuditTests(CompilationMode mode)
             }
         """);
     }
+
+    #endregion
 }

@@ -21,9 +21,6 @@ public class SandboxAttackTests(CompilationMode mode)
         engine.SetVariable("items", new List<int> { 1, 2, 3 });
         return engine;
     }
-
-    // ── Process/IO escape attempts ──────────────────────────────────
-
     [Test]
     public void Attack_ConstructProcess_Blocked()
     {
@@ -63,9 +60,6 @@ public class SandboxAttackTests(CompilationMode mode)
         Assert.Throws<AlderException>(() =>
             engine.Evaluate("""System.Environment.GetEnvironmentVariable("PATH")"""));
     }
-
-    // ── Reflection escape attempts ──────────────────────────────────
-
     [Test]
     public void Attack_TypeofGetMethods_Blocked()
     {
@@ -97,9 +91,6 @@ public class SandboxAttackTests(CompilationMode mode)
         Assert.Throws<AlderException>(() =>
             engine.Evaluate("""typeof(string).Assembly"""));
     }
-
-    // ── Method call bypass attempts ─────────────────────────────────
-
     [Test]
     public void Attack_MethodCallInSafeMode_Blocked()
     {
@@ -123,9 +114,6 @@ public class SandboxAttackTests(CompilationMode mode)
         Assert.Throws<AlderException>(() =>
             engine.Evaluate("int.Parse(\"42\")"));
     }
-
-    // ── Construction bypass attempts ────────────────────────────────
-
     [Test]
     public void Attack_NewObject_Blocked()
     {
@@ -149,9 +137,6 @@ public class SandboxAttackTests(CompilationMode mode)
         Assert.Throws<AlderException>(() =>
             engine.Evaluate("new System.Text.StringBuilder()"));
     }
-
-    // ── Assignment bypass attempts ──────────────────────────────────
-
     [Test]
     public void Attack_AssignmentInStrictMode_Blocked()
     {
@@ -195,9 +180,6 @@ public class SandboxAttackTests(CompilationMode mode)
         Assert.Throws<AlderException>(() =>
             engine.Evaluate("var x = 1"));
     }
-
-    // ── Property write bypass attempts ──────────────────────────────
-
     [Test]
     public void Attack_PropertySetInStrictMode_Blocked()
     {
@@ -216,9 +198,6 @@ public class SandboxAttackTests(CompilationMode mode)
         Assert.Throws<AlderException>(() =>
             engine.Evaluate("items[0] = 99"));
     }
-
-    // ── Delegate bypass attempts ────────────────────────────────────
-
     [Test]
     public void Attack_DelegateInvoke_InSafeMode_Allowed()
     {
@@ -235,29 +214,24 @@ public class SandboxAttackTests(CompilationMode mode)
         var result = engine.Evaluate("fn(5)");
         Assert.That(result, Is.EqualTo(6));
     }
-
-    // ── Type allowlist enforcement ──────────────────────────────────
-
     [Test]
-    public void Attack_AllowedTypes_BlocksUnlisted()
+    public void Attack_TrustedTypes_OverridesDenyList()
     {
-        var engine = TestEngineFactory.Create(mode, o => o.Sandbox = new SandboxOptions
+        var engine = TestEngineFactory.Create(mode, o =>
         {
-            AllowMethodCalls = true,
-            AllowPropertyRead = true,
-            AllowStaticPropertyRead = true,
-            AllowStaticFieldRead = true,
-            AllowConstruction = true,
-            AllowedTypes = new HashSet<Type> { typeof(string), typeof(int) }
+            o.Types.AddAssembly(typeof(Console).Assembly);
+            o.Types.AddNamespace("System");
+            o.Sandbox = SandboxOptions.Trusted() with
+            {
+                TrustedTypes = [typeof(Console)]
+            };
         });
-        engine.SetVariable("items", new List<int> { 1, 2, 3 });
 
-        Assert.Throws<AlderException>(() =>
-            engine.Evaluate("items.Count"));
+        Assert.DoesNotThrow(() => engine.Evaluate("Console.Out"));
     }
 
     [Test]
-    public void Attack_AllowedTypes_PermitsListed()
+    public void Attack_TrustedTypes_PermitsListed()
     {
         var engine = TestEngineFactory.Create(mode, o => o.Sandbox = new SandboxOptions
         {
@@ -265,16 +239,13 @@ public class SandboxAttackTests(CompilationMode mode)
             AllowPropertyRead = true,
             AllowStaticPropertyRead = true,
             AllowStaticFieldRead = true,
-            AllowedTypes = new HashSet<Type> { typeof(string) }
+            TrustedTypes = [typeof(string)]
         });
         engine.SetVariable("text", "hello");
 
         var result = engine.Evaluate("text.Length");
         Assert.That(result, Is.EqualTo(5));
     }
-
-    // ── Resource exhaustion attacks ──────────────────────────────────
-
     [Test]
     public void Attack_HugeArrayAllocation_Blocked()
     {
@@ -314,9 +285,6 @@ public class SandboxAttackTests(CompilationMode mode)
         var engine = TestEngineFactory.Create(mode);
         Assert.Throws<AlderException>(() => engine.Evaluate(expr));
     }
-
-    // ── Disposed engine attacks ─────────────────────────────────────
-
     [Test]
     public void Attack_UseAfterDispose_Throws()
     {
@@ -337,9 +305,6 @@ public class SandboxAttackTests(CompilationMode mode)
         Assert.Throws<ObjectDisposedException>(() =>
             child.Evaluate("1 + 1"));
     }
-
-    // ── Namespace blocking ──────────────────────────────────────────
-
     [Test]
     public void Attack_SystemIO_NamespaceBlocked()
     {
@@ -363,9 +328,6 @@ public class SandboxAttackTests(CompilationMode mode)
         Assert.Throws<AlderException>(() =>
             engine.Evaluate("""System.Reflection.Assembly.GetCallingAssembly()"""));
     }
-
-    // ── Compiled mode parity ────────────────────────────────────────
-
     [Test]
     public void CompiledAndInterpreted_SameSecurityBehavior_Construction()
     {
@@ -392,9 +354,6 @@ public class SandboxAttackTests(CompilationMode mode)
 
         Assert.That(intEx!.ErrorCode, Is.EqualTo(compEx!.ErrorCode));
     }
-
-    // ── Safe mode positive tests ────────────────────────────────────
-
     [Test]
     public void Safe_AllowsArithmetic()
     {

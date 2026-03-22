@@ -1,1 +1,2 @@
-{ float? a = 2.5f; return -a; }
+float? a = 2.5f;
+return -a;

@@ -122,7 +122,7 @@ public sealed class ConversionInsertionTests
     public void PreservesSpan_OnInsertedCast()
     {
         var left = new BoundLiteralExpr(1, typeof(int));
-        left.Span = new Alder.Text.TextSpan(0, 1);
+        left.Span = new Text.TextSpan(0, 1);
         var tree = new BoundBinaryExpr(
             TokenType.Plus,
             left,
