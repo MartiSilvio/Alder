@@ -20,12 +20,16 @@ public sealed class ExecutionModeParityTests
         var compiledTrace = compiled.EvaluateWithTrace("4 * 5 + 2");
 
         Assert.That(compiledTrace.Result, Is.EqualTo(interpretedTrace.Result));
-        Assert.That(
-            compiledTrace.Steps.Select(step => step.NodeKind),
-            Is.EqualTo(interpretedTrace.Steps.Select(step => step.NodeKind)));
-        Assert.That(
-            compiledTrace.Steps.Select(step => step.Value?.ToString()),
-            Is.EqualTo(interpretedTrace.Steps.Select(step => step.Value?.ToString())));
+        AssertTreesMatch(interpretedTrace.Tree, compiledTrace.Tree);
+    }
+
+    private static void AssertTreesMatch(Tracing.TraceNode expected, Tracing.TraceNode actual)
+    {
+        Assert.That(actual.NodeKind, Is.EqualTo(expected.NodeKind));
+        Assert.That(actual.Value?.ToString(), Is.EqualTo(expected.Value?.ToString()));
+        Assert.That(actual.Children.Count, Is.EqualTo(expected.Children.Count));
+        for (var i = 0; i < expected.Children.Count; i++)
+            AssertTreesMatch(expected.Children[i], actual.Children[i]);
     }
 
     [TestCaseSource(typeof(BinderParityFixture), nameof(BinderParityFixture.StandardScenarios))]

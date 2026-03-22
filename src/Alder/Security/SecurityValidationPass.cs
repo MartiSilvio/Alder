@@ -19,10 +19,17 @@ internal sealed class SecurityValidationPass : IBoundTreePass
         return tree;
     }
 
-    private static void Walk(BoundExpr expr, SecurityPolicy policy)
+    private static void Walk(BoundExpr root, SecurityPolicy policy)
     {
-        Validate(expr, policy);
-        expr.EnumerateChildren(child => Walk(child, policy));
+        var stack = new Stack<BoundExpr>();
+        stack.Push(root);
+
+        while (stack.Count > 0)
+        {
+            var expr = stack.Pop();
+            Validate(expr, policy);
+            expr.EnumerateChildren(child => stack.Push(child));
+        }
     }
 
     private static bool IsExtensionMethod(MethodInfo method) =>

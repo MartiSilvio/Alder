@@ -153,60 +153,22 @@ internal abstract class BoundExprVisitor<T>
     protected virtual T VisitTryCatchFinally(BoundTryCatchFinallyExpr node) => DefaultVisit(node);
 }
 
-internal abstract class BoundExprWalker : BoundExprVisitor<object?>
+internal abstract class BoundExprWalker
 {
-    protected override object? DefaultVisit(BoundExpr node)
-    {
-        node.EnumerateChildren(child => Visit(child));
-        return null;
-    }
+    protected virtual bool OnVisit(BoundExpr node) => true;
 
-    protected override object? VisitBinary(BoundBinaryExpr node)
+    public void Walk(BoundExpr root)
     {
-        var current = node;
-        while (current.Left is BoundBinaryExpr left)
+        var stack = new Stack<BoundExpr>();
+        stack.Push(root);
+
+        while (stack.Count > 0)
         {
-            Visit(current.Right);
-            current = left;
+            var node = stack.Pop();
+            if (!OnVisit(node))
+                return;
+            node.EnumerateChildren(child => stack.Push(child));
         }
-        Visit(current.Left);
-        Visit(current.Right);
-        return null;
-    }
-
-    protected override object? VisitLogical(BoundLogicalExpr node)
-    {
-        var current = node;
-        while (current.Left is BoundLogicalExpr left)
-        {
-            Visit(current.Right);
-            current = left;
-        }
-        Visit(current.Left);
-        Visit(current.Right);
-        return null;
-    }
-
-    protected override object? VisitNullCoalesce(BoundNullCoalesceExpr node)
-    {
-        var current = node;
-        while (current.Left is BoundNullCoalesceExpr left)
-        {
-            Visit(current.Right);
-            current = left;
-        }
-        Visit(current.Left);
-        Visit(current.Right);
-        return null;
-    }
-
-    protected override object? VisitMemberAccess(BoundMemberAccessExpr node)
-    {
-        var current = node;
-        while (current.Target is BoundMemberAccessExpr parent)
-            current = parent;
-        Visit(current.Target);
-        return null;
     }
 }
 
@@ -214,10 +176,10 @@ internal sealed class DiagnosticCollector : BoundExprWalker
 {
     internal readonly List<AlderDiagnostic> Diagnostics = new();
 
-    protected override object? DefaultVisit(BoundExpr node)
+    protected override bool OnVisit(BoundExpr node)
     {
         if (node.Diagnostic != null)
             Diagnostics.Add(node.Diagnostic);
-        return base.DefaultVisit(node);
+        return true;
     }
 }

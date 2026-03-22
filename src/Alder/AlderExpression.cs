@@ -141,7 +141,7 @@ public sealed class AlderExpression
     private static IReadOnlyList<AlderDiagnostic> CollectTreeDiagnostics(BoundExpr root)
     {
         var collector = new DiagnosticCollector();
-        collector.Visit(root);
+        collector.Walk(root);
         return collector.Diagnostics;
     }
 

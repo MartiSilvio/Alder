@@ -375,7 +375,7 @@ public class ApiSurfaceTests
             "Alder.Text.SourceText",
             "Alder.Text.TextSpan",
             "Alder.Tracing.EvaluationTraceResult",
-            "Alder.Tracing.EvaluationTraceStep",
+            "Alder.Tracing.TraceNode",
         }.OrderBy(n => n).ToList();
 
         Assert.That(publicTypes, Is.EqualTo(expected),

@@ -21,7 +21,7 @@ internal sealed partial class BoundExpressionEmitter
     private static Dictionary<int, PromotedLocal> BuildLocalPromotionPlan(BoundExpr root)
     {
         var walker = new PromotionWalker();
-        walker.Visit(root);
+        walker.Walk(root);
 
         if (walker.HasLambda)
             return new Dictionary<int, PromotedLocal>();
@@ -55,30 +55,27 @@ internal sealed partial class BoundExpressionEmitter
         internal readonly Dictionary<int, PromotedLocal> Result = new();
         internal bool HasLambda;
 
-        protected override object? VisitLambda(BoundLambdaExpr node)
+        protected override bool OnVisit(BoundExpr node)
         {
-            HasLambda = true;
-            return null;
-        }
+            if (HasLambda) return false;
 
-        protected override object? VisitVariableDecl(BoundVariableDeclExpr node)
-        {
-            if (!node.IsConst && node.StaticType != typeof(object) && node.LocalId is { } id)
+            if (node is BoundLambdaExpr)
             {
-                var variableType = node.DeclaredType ?? node.StaticType;
+                HasLambda = true;
+                return false;
+            }
+
+            if (node is BoundVariableDeclExpr decl
+                && !decl.IsConst && decl.StaticType != typeof(object) && decl.LocalId is { } id)
+            {
+                var variableType = decl.DeclaredType ?? decl.StaticType;
                 Result[id] = new PromotedLocal(
-                    node.Name,
-                    LinqExpression.Variable(typeof(object), $"local_{node.Name}"),
+                    decl.Name,
+                    LinqExpression.Variable(typeof(object), $"local_{decl.Name}"),
                     variableType);
             }
 
-            return base.VisitVariableDecl(node);
-        }
-
-        protected override object? DefaultVisit(BoundExpr node)
-        {
-            if (HasLambda) return null;
-            return base.DefaultVisit(node);
+            return true;
         }
     }
 }

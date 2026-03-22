@@ -14,7 +14,7 @@ internal sealed partial class BoundEvaluator
     private AlderContext _context;
     private readonly AlderOptions _options;
     private readonly CancellationToken _cancellationToken;
-    private readonly List<EvaluationTraceStep>? _traceSteps;
+    private readonly EvaluationTracer? _tracer;
     private readonly Stack<Exception> _caughtExceptions = new();
     private readonly SourceText? _sourceText;
     private int _breakContextDepth;
@@ -25,13 +25,13 @@ internal sealed partial class BoundEvaluator
         AlderContext context,
         AlderOptions options,
         CancellationToken cancellationToken = default,
-        List<EvaluationTraceStep>? traceSteps = null,
+        EvaluationTracer? tracer = null,
         SourceText? sourceText = null)
     {
         _context = context;
         _options = options;
         _cancellationToken = cancellationToken;
-        _traceSteps = traceSteps;
+        _tracer = tracer;
         _sourceText = sourceText;
     }
 
@@ -39,6 +39,7 @@ internal sealed partial class BoundEvaluator
     {
         _cancellationToken.ThrowIfCancellationRequested();
 
+        _tracer?.Push(expr);
         object? result;
         try
         {
@@ -54,10 +55,16 @@ internal sealed partial class BoundEvaluator
                 column = pos.Character + 1;
             }
             ex.EnrichDiagnosticsWithPosition(expr.Span, line, column);
+            _tracer?.PopError(ex);
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _tracer?.PopError(ex);
             throw;
         }
 
-        RecordTrace(expr, result);
+        _tracer?.Pop(result);
         return result;
     }
 
@@ -149,17 +156,6 @@ internal sealed partial class BoundEvaluator
             _ => throw new BindingNotSupportedException(
                 $"Bound execution for node '{expr.GetType().Name}' is not implemented")
         };
-    }
-
-    private void RecordTrace(BoundExpr expr, object? value)
-    {
-        if (_traceSteps == null)
-            return;
-
-        _traceSteps.Add(new EvaluationTraceStep(
-            expr.GetType().Name,
-            value,
-            value?.ToString()));
     }
 
     private object? MatchPattern(object? value, Pattern pattern)

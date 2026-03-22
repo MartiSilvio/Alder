@@ -736,7 +736,15 @@ public class SandboxModeTests(CompilationMode mode)
     [Test]
     public void DenyAll_DefaultSandbox_BlocksPropertySet()
     {
-        var engine = TestEngineFactory.Create(mode, o => o.Sandbox = new SandboxOptions());
+        var engine = TestEngineFactory.Create(mode, o =>
+        {
+            o.Sandbox = new SandboxOptions
+            {
+                AllowConstruction = true,
+                AllowAssignment = true,
+                AllowPropertyRead = true
+            };
+        });
 
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate(@"
             var obj = new { Value = 1 };

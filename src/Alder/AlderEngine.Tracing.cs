@@ -53,10 +53,19 @@ public sealed partial class AlderEngine
         }
 
         boundExpression = RunPipeline(boundExpression, cancellationToken);
-        var steps = new List<EvaluationTraceStep>();
-        var evaluator = new BoundEvaluator(executionContext, _options, cancellationToken, steps, new Text.SourceText(expression.Source));
-        var result = evaluator.Evaluate(boundExpression);
-        expression.RecordBoundExecution();
-        return new EvaluationTraceResult(UnwrapControlFlowSignal(result), steps);
+        var sourceText = new Text.SourceText(expression.Source);
+        var tracer = new EvaluationTracer(sourceText);
+        var evaluator = new BoundEvaluator(executionContext, _options, cancellationToken, tracer, sourceText);
+
+        try
+        {
+            var result = evaluator.Evaluate(boundExpression);
+            expression.RecordBoundExecution();
+            return new EvaluationTraceResult(UnwrapControlFlowSignal(result), tracer.Root!, null);
+        }
+        catch (Exception ex)
+        {
+            return new EvaluationTraceResult(null, tracer.Root!, ex);
+        }
     }
 }
