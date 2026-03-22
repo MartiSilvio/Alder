@@ -284,7 +284,7 @@ internal static class Operators
         if (IsNaN(left) || IsNaN(right)) return false;
         if (TryCompare(left, right, options, out var cmp)) return cmp < 0;
         if (TryInvokeUserDefinedBinaryOperator(left, right, "op_LessThan", out var r)) return r ?? false;
-        throw new AlderException(DiagnosticDescriptors.BadBinaryOps, "<", TypeNameFormatter.Of(left), TypeNameFormatter.Of(right));
+        throw new AlderException(DiagnosticDescriptors.BadBinaryOps, TokenLexemes.GetCanonical(TokenType.Less), TypeNameFormatter.Of(left), TypeNameFormatter.Of(right));
     }
 
     public static object LessThanOrEqual(object? left, object? right, AlderOptions options)
@@ -293,7 +293,7 @@ internal static class Operators
         if (IsNaN(left) || IsNaN(right)) return false;
         if (TryCompare(left, right, options, out var cmp)) return cmp <= 0;
         if (TryInvokeUserDefinedBinaryOperator(left, right, "op_LessThanOrEqual", out var r)) return r ?? false;
-        throw new AlderException(DiagnosticDescriptors.BadBinaryOps, "<=", TypeNameFormatter.Of(left), TypeNameFormatter.Of(right));
+        throw new AlderException(DiagnosticDescriptors.BadBinaryOps, TokenLexemes.GetCanonical(TokenType.LessEqual), TypeNameFormatter.Of(left), TypeNameFormatter.Of(right));
     }
 
     public static object GreaterThan(object? left, object? right, AlderOptions options)
@@ -302,7 +302,7 @@ internal static class Operators
         if (IsNaN(left) || IsNaN(right)) return false;
         if (TryCompare(left, right, options, out var cmp)) return cmp > 0;
         if (TryInvokeUserDefinedBinaryOperator(left, right, "op_GreaterThan", out var r)) return r ?? false;
-        throw new AlderException(DiagnosticDescriptors.BadBinaryOps, ">", TypeNameFormatter.Of(left), TypeNameFormatter.Of(right));
+        throw new AlderException(DiagnosticDescriptors.BadBinaryOps, TokenLexemes.GetCanonical(TokenType.Greater), TypeNameFormatter.Of(left), TypeNameFormatter.Of(right));
     }
 
     public static object GreaterThanOrEqual(object? left, object? right, AlderOptions options)
@@ -311,7 +311,7 @@ internal static class Operators
         if (IsNaN(left) || IsNaN(right)) return false;
         if (TryCompare(left, right, options, out var cmp)) return cmp >= 0;
         if (TryInvokeUserDefinedBinaryOperator(left, right, "op_GreaterThanOrEqual", out var r)) return r ?? false;
-        throw new AlderException(DiagnosticDescriptors.BadBinaryOps, ">=", TypeNameFormatter.Of(left), TypeNameFormatter.Of(right));
+        throw new AlderException(DiagnosticDescriptors.BadBinaryOps, TokenLexemes.GetCanonical(TokenType.GreaterEqual), TypeNameFormatter.Of(left), TypeNameFormatter.Of(right));
     }
 
     private static bool IsNaN(object? value) => value switch
@@ -349,7 +349,7 @@ internal static class Operators
     {
         if (TryCompare(left, right, options, out var result))
             return result;
-        throw new AlderException(DiagnosticDescriptors.BadBinaryOps, "<>", TypeNameFormatter.Of(left), TypeNameFormatter.Of(right));
+        throw new AlderException(DiagnosticDescriptors.BadBinaryOps, TokenLexemes.GetCanonical(TokenType.LessEqualGreater), TypeNameFormatter.Of(left), TypeNameFormatter.Of(right));
     }
 
     public static object? BitwiseAnd(object? left, object? right)

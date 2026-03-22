@@ -20,6 +20,7 @@ Alder targets Roslyn-grade engineering. Every subsystem should be designed as if
 
 - Do NOT write self-explanatory comments. Only add comments where the logic is genuinely non-obvious.
 - Never throw `AlderException` with just a raw message string. Always use a `DiagnosticDescriptor` from `DiagnosticDescriptors` so that errors have proper codes and structured formatting.
+- No magic strings for operator symbols. Use `TokenLexemes.GetCanonical(TokenType.X)` instead of hardcoding `"+"`, `"<="`, etc. Operator representations have a single source of truth in the lexer.
 - Do NOT create helper methods, wrappers, or static utilities to work around design constraints. If the design doesn't support what you need, fix the design. No hacks, no patches, no workarounds — always the proper solution.
 - Do NOT create private wrapper methods that just delegate to a single public method on another class (e.g., `private static bool IsTypeApplicable(Type s, Type t) => TypeHelpers.CanImplicitlyConvert(s, t);`). Call the canonical method directly at the call site. Wrappers that add no logic create false indirection and hide the true dependency.
 - Prefer existing Roslyn CS error codes over custom ALDR codes. Only create an ALDR code when there is genuinely no Roslyn equivalent. The goal is seamless transition for developers already familiar with C# diagnostics — don't create more edge cases to check.
