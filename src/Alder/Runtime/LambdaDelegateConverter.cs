@@ -41,20 +41,22 @@ internal static class LambdaDelegateConverter
                SupportedActionDefinitions.Contains(delegateDefinition);
     }
 
-    private static Delegate ConvertCompiledLambda(CompiledLambdaValue lambda, Type delegateType)
+    private static Delegate? ConvertCompiledLambda(CompiledLambdaValue lambda, Type delegateType)
     {
         var (paramTypes, returnType) = GetDelegateSignature(delegateType);
-        ValidateSignature(lambda.Parameters.Count, paramTypes.Length, delegateType);
+        if (lambda.Parameters.Count != paramTypes.Length)
+            return null;
 
         var typeCache = DelegateCache.GetOrCreateValue(lambda);
         return typeCache.GetOrAdd(delegateType,
             _ => LambdaDelegateFactory.CreateCompiledDelegate(lambda, delegateType, paramTypes, returnType));
     }
 
-    private static Delegate ConvertInterpretedLambda(LambdaValue lambda, Type delegateType)
+    private static Delegate? ConvertInterpretedLambda(LambdaValue lambda, Type delegateType)
     {
         var (paramTypes, returnType) = GetDelegateSignature(delegateType);
-        ValidateSignature(lambda.Parameters.Count, paramTypes.Length, delegateType);
+        if (lambda.Parameters.Count != paramTypes.Length)
+            return null;
 
         var typeCache = DelegateCache.GetOrCreateValue(lambda);
         return typeCache.GetOrAdd(delegateType,
@@ -81,16 +83,6 @@ internal static class LambdaDelegateConverter
 
         // Action<T1, T2, ...>: all args are parameters, void return
         return (genericArgs, typeof(void));
-    }
-
-    private static void ValidateSignature(int lambdaParamCount, int delegateParamCount, Type delegateType)
-    {
-        if (lambdaParamCount != delegateParamCount)
-        {
-            throw new AlderException(
-                DiagnosticDescriptors.DelegateConversionFailed,
-                $"lambda({lambdaParamCount} params)", $"{delegateType.Name}({delegateParamCount} params)");
-        }
     }
 
     private static bool TryGetDelegateKind(Type delegateType, out bool isFunc)

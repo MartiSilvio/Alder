@@ -137,6 +137,38 @@ public class MethodDispatchGenerationTests
     }
 
     [Test]
+    public void SameArityOverloads_GeneratesTypeCheckedDispatch()
+    {
+        var source = """
+            using Alder.Aot;
+
+            namespace TestTypes
+            {
+                public class MyModel
+                {
+                    public string Describe(int value) => value.ToString();
+                    public string Describe(string value) => value;
+                }
+
+                [AlderRegistered(typeof(MyModel))]
+                public partial class TestContext : AlderTypeContext { }
+            }
+            """;
+
+        var (diagnostics, outputCompilation, generatedTrees) = GeneratorTestHelper.RunGenerator(source);
+        var errors = GetCompilationErrors(outputCompilation);
+        var generated = GetAllGeneratedSource(generatedTrees);
+
+        Assert.That(errors, Is.Empty, $"Generated code has compilation errors:\n{string.Join("\n", errors)}");
+
+        var tryInvoke = ExtractMethod(generated, "TryInvokeMethod");
+        Assert.That(tryInvoke, Does.Contain("case \"Describe\":"));
+        Assert.That(tryInvoke, Does.Contain("case 1:"));
+        Assert.That(tryInvoke, Does.Contain("args[0] is int"));
+        Assert.That(tryInvoke, Does.Contain("args[0] is string"));
+    }
+
+    [Test]
     public void GenericMethod_Skipped()
     {
         var source = """

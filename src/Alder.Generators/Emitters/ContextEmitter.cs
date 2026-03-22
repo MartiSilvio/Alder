@@ -1,4 +1,3 @@
-using System.Text;
 using Alder.Generators.Model;
 
 namespace Alder.Generators.Emitters;
@@ -7,34 +6,31 @@ internal static class ContextEmitter
 {
     public static string Emit(ContextModel context)
     {
-        var sb = new StringBuilder();
+        var w = new SourceWriter();
 
+        SourceWriter.BlockScope? nsBlock = null;
         if (!string.IsNullOrEmpty(context.Namespace))
+            nsBlock = w.Block($"namespace {context.Namespace}");
+
+        using (w.Block($"partial class {context.ClassName}"))
         {
-            sb.AppendLine($"namespace {context.Namespace}");
-            sb.AppendLine("{");
+            w.AppendLine($"public static {context.ClassName} Default {{ get; }} = new();");
+            w.AppendLine();
+            w.AppendLine("private static readonly global::Alder.Aot.IAotTypeMetadata[] s_metadata =");
+            w.AppendLine("[");
+            w.Indent();
+
+            foreach (var reg in context.Registrations)
+                w.AppendLine($"new {reg.MetadataClassName}(),");
+
+            w.Outdent();
+            w.AppendLine("];");
+            w.AppendLine();
+            w.AppendLine("public override global::System.Collections.Generic.IReadOnlyList<global::Alder.Aot.IAotTypeMetadata> GetTypeMetadata() => s_metadata;");
         }
 
-        var indent = string.IsNullOrEmpty(context.Namespace) ? "" : "    ";
+        nsBlock?.Dispose();
 
-        sb.AppendLine($"{indent}partial class {context.ClassName}");
-        sb.AppendLine($"{indent}{{");
-        sb.AppendLine($"{indent}    public static {context.ClassName} Default {{ get; }} = new();");
-        sb.AppendLine();
-        sb.AppendLine($"{indent}    private static readonly global::Alder.Aot.IAotTypeMetadata[] s_metadata =");
-        sb.AppendLine($"{indent}    [");
-
-        foreach (var reg in context.Registrations)
-            sb.AppendLine($"{indent}        new {reg.MetadataClassName}(),");
-
-        sb.AppendLine($"{indent}    ];");
-        sb.AppendLine();
-        sb.AppendLine($"{indent}    public override global::System.Collections.Generic.IReadOnlyList<global::Alder.Aot.IAotTypeMetadata> GetTypeMetadata() => s_metadata;");
-        sb.AppendLine($"{indent}}}");
-
-        if (!string.IsNullOrEmpty(context.Namespace))
-            sb.AppendLine("}");
-
-        return sb.ToString();
+        return w.ToString();
     }
 }

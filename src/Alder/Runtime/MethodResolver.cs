@@ -4,31 +4,64 @@ internal static class MethodResolver
 {
     public static MethodInfo? TryResolveMethod(MethodInfo[] methods, Type[] argTypes)
     {
-        MethodInfo? best = null;
-        var bestScore = -1;
-        var ambiguous = false;
-
+        // Phase 1: filter to applicable candidates
+        var applicable = new List<(MethodInfo Method, ParameterInfo[] Params, ApplicableForm Form)>();
         foreach (var method in methods)
         {
             if (method.ContainsGenericParameters)
                 continue;
 
             var parameters = method.GetParameters();
-            var score = ScoreMethodByTypes(parameters, argTypes);
+            if (OverloadResolution.IsApplicable(parameters, argTypes, out var form))
+                applicable.Add((method, parameters, form));
+        }
 
-            if (score > bestScore)
+        if (applicable.Count == 0)
+            return null;
+        if (applicable.Count == 1)
+            return applicable[0].Method;
+
+        // Phase 2: pairwise elimination
+        var best = applicable[0];
+        var bestIsUnique = true;
+
+        for (var i = 1; i < applicable.Count; i++)
+        {
+            var challenger = applicable[i];
+            var cmp = OverloadResolution.BetterFunctionMember(
+                best.Method, best.Params, best.Form,
+                challenger.Method, challenger.Params, challenger.Form,
+                argTypes);
+
+            switch (cmp)
             {
-                bestScore = score;
-                best = method;
-                ambiguous = false;
-            }
-            else if (score >= 0 && score == bestScore)
-            {
-                ambiguous = true;
+                case BetterResult.Right:
+                    best = challenger;
+                    bestIsUnique = true;
+                    break;
+                case BetterResult.Neither:
+                    bestIsUnique = false;
+                    break;
             }
         }
 
-        return ambiguous ? null : best;
+        // Phase 3: verify winner beats all
+        if (!bestIsUnique)
+        {
+            foreach (var candidate in applicable)
+            {
+                if (candidate.Method == best.Method)
+                    continue;
+                var cmp = OverloadResolution.BetterFunctionMember(
+                    best.Method, best.Params, best.Form,
+                    candidate.Method, candidate.Params, candidate.Form,
+                    argTypes);
+                if (cmp != BetterResult.Left)
+                    return null;
+            }
+        }
+
+        return best.Method;
     }
 
     public static MethodInfo? TryResolveMethod(Type targetType, string methodName, Type[] argTypes, BindingFlags flags)
@@ -41,89 +74,5 @@ internal static class MethodResolver
             .Where(m => string.Equals(m.Name, methodName, comparison) && !m.ContainsGenericParameters)
             .ToArray();
         return TryResolveMethod(methods, argTypes);
-    }
-
-    private static int ScoreMethodByTypes(ParameterInfo[] parameters, Type[] argTypes)
-    {
-        if (parameters.Length != argTypes.Length)
-        {
-            if (parameters.Length == 0 || !parameters[^1].IsDefined(typeof(ParamArrayAttribute), false))
-                return -1;
-            return ScoreExpandedForm(parameters, argTypes);
-        }
-
-        var score = ScoreNormalForm(parameters, argTypes);
-        if (score >= 0)
-            return OverloadScoring.NormalFormBase + score;
-
-        if (parameters.Length > 0 && parameters[^1].IsDefined(typeof(ParamArrayAttribute), false))
-        {
-            var expandedScore = ScoreExpandedForm(parameters, argTypes);
-            if (expandedScore >= 0)
-                return expandedScore;
-        }
-
-        return -1;
-    }
-
-    private static int ScoreNormalForm(ParameterInfo[] parameters, Type[] argTypes)
-    {
-        var score = 0;
-        for (var i = 0; i < argTypes.Length; i++)
-        {
-            var paramType = parameters[i].ParameterType;
-            var argType = argTypes[i];
-
-            if (argType == paramType)
-                score += OverloadScoring.ExactMatch;
-            else if (paramType.IsAssignableFrom(argType))
-                score += OverloadScoring.AssignableMatch;
-            else if (TypeHelpers.CanImplicitlyConvert(argType, paramType))
-                score += OverloadScoring.ImplicitConversion;
-            else
-                return -1;
-        }
-        return score;
-    }
-
-    private static int ScoreExpandedForm(ParameterInfo[] parameters, Type[] argTypes)
-    {
-        var lastParamIndex = parameters.Length - 1;
-        if (argTypes.Length < lastParamIndex)
-            return -1;
-
-        var elementType = parameters[lastParamIndex].ParameterType.GetElementType();
-        if (elementType == null)
-            return -1;
-
-        var score = 0;
-        for (var i = 0; i < lastParamIndex; i++)
-        {
-            var paramType = parameters[i].ParameterType;
-            var argType = argTypes[i];
-
-            if (argType == paramType)
-                score += OverloadScoring.ExactMatch;
-            else if (paramType.IsAssignableFrom(argType))
-                score += OverloadScoring.AssignableMatch;
-            else if (TypeHelpers.CanImplicitlyConvert(argType, paramType))
-                score += OverloadScoring.ImplicitConversion;
-            else
-                return -1;
-        }
-
-        for (var i = lastParamIndex; i < argTypes.Length; i++)
-        {
-            if (argTypes[i] == elementType)
-                score += OverloadScoring.ExactMatch;
-            else if (elementType.IsAssignableFrom(argTypes[i]))
-                score += OverloadScoring.AssignableMatch;
-            else if (TypeHelpers.CanImplicitlyConvert(argTypes[i], elementType))
-                score += OverloadScoring.ImplicitConversion;
-            else
-                return -1;
-        }
-
-        return OverloadScoring.ExpandedFormBase + score;
     }
 }

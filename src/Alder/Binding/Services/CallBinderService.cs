@@ -133,41 +133,73 @@ internal sealed class CallBinderService
         if (methods.Length > 1 && sourceTypes.Any(static sourceType => sourceType == typeof(object)))
             return false;
 
-        BoundCallPlan? bestPlan = null;
-        var bestScore = int.MinValue;
+        // Phase 1: collect applicable candidates with their plans
+        var applicable = new List<(BoundCallPlan Plan, MethodInfo Method, ParameterInfo[] Params, ApplicableForm Form)>();
+        var argTypes = sourceTypes is Type[] arr ? arr : sourceTypes.ToArray();
 
         foreach (var method in methods)
         {
-            if (!TryCreatePlan(method, sourceTypes, isStaticCall, out var candidatePlan, out var score))
+            if (!TryCreatePlan(method, sourceTypes, isStaticCall, out var candidatePlan))
                 continue;
 
-            if (score > bestScore)
-            {
-                bestPlan = candidatePlan;
-                bestScore = score;
-                isAmbiguous = false;
-                continue;
-            }
+            var parameters = MethodDispatchCache.GetParameters(method);
+            if (OverloadResolution.IsApplicable(parameters, argTypes, out var form))
+                applicable.Add((candidatePlan, method, parameters, form));
+        }
 
-            if (score != bestScore || bestPlan == null)
-                continue;
+        if (applicable.Count == 0)
+            return false;
 
-            var tieBreak = CompareMethodSpecificity(bestPlan.SelectedMethod, method);
-            if (tieBreak < 0)
+        if (applicable.Count == 1)
+        {
+            plan = applicable[0].Plan;
+            return true;
+        }
+
+        // Phase 2: pairwise elimination
+        var best = applicable[0];
+        var bestIsUnique = true;
+
+        for (var i = 1; i < applicable.Count; i++)
+        {
+            var challenger = applicable[i];
+            var cmp = OverloadResolution.BetterFunctionMember(
+                best.Method, best.Params, best.Form,
+                challenger.Method, challenger.Params, challenger.Form,
+                argTypes);
+
+            switch (cmp)
             {
-                bestPlan = candidatePlan;
-                isAmbiguous = false;
-            }
-            else if (tieBreak == 0)
-            {
-                isAmbiguous = true;
+                case BetterResult.Right:
+                    best = challenger;
+                    bestIsUnique = true;
+                    break;
+                case BetterResult.Neither:
+                    bestIsUnique = false;
+                    break;
             }
         }
 
-        if (isAmbiguous || bestPlan == null)
-            return false;
+        // Phase 3: verify winner beats all
+        if (!bestIsUnique)
+        {
+            foreach (var candidate in applicable)
+            {
+                if (candidate.Method == best.Method)
+                    continue;
+                var cmp = OverloadResolution.BetterFunctionMember(
+                    best.Method, best.Params, best.Form,
+                    candidate.Method, candidate.Params, candidate.Form,
+                    argTypes);
+                if (cmp != BetterResult.Left)
+                {
+                    isAmbiguous = true;
+                    return false;
+                }
+            }
+        }
 
-        plan = bestPlan;
+        plan = best.Plan;
         return true;
     }
 
@@ -196,11 +228,9 @@ internal sealed class CallBinderService
         MethodInfo selectedMethod,
         IReadOnlyList<Type> sourceTypes,
         bool isStaticCall,
-        out BoundCallPlan plan,
-        out int score)
+        out BoundCallPlan plan)
     {
         plan = null!;
-        score = int.MinValue;
 
         if (selectedMethod.ContainsGenericParameters)
             return false;
@@ -209,46 +239,30 @@ internal sealed class CallBinderService
         if (parameters.Any(static parameter => parameter.ParameterType.IsByRef))
             return false;
 
-        var normalDirectMapping = false;
-        if (!TryBuildNormalPlan(
-                parameters,
-                sourceTypes,
-                out var normalConversions,
-                out var normalBindings,
-                out var normalScore,
-                out normalDirectMapping))
-        {
-            normalScore = int.MinValue;
-        }
+        var normalOk = TryBuildNormalPlan(
+            parameters, sourceTypes,
+            out var normalConversions, out var normalBindings, out var normalDirectMapping);
 
-        var expandedScore = int.MinValue;
+        var expandedOk = false;
         var expandedDirectMapping = false;
         ImmutableArray<BoundConversionPlan> expandedConversions = default;
         ImmutableArray<BoundParameterBinding> expandedBindings = default;
 
-        if (TryBuildExpandedParamsPlan(
-                parameters,
-                sourceTypes,
-                out var conversions,
-                out var bindings,
-                out var scoreCandidate,
-                out expandedDirectMapping))
+        if (!normalOk)
         {
-            expandedScore = scoreCandidate;
-            expandedConversions = conversions;
-            expandedBindings = bindings;
+            expandedOk = TryBuildExpandedParamsPlan(
+                parameters, sourceTypes,
+                out expandedConversions, out expandedBindings, out expandedDirectMapping);
         }
 
-        if (normalScore == int.MinValue && expandedScore == int.MinValue)
+        if (!normalOk && !expandedOk)
             return false;
 
-        var useExpanded = expandedScore > normalScore;
+        // Normal form is preferred over expanded form per ECMA-334 §12.6.4.3
+        var useExpanded = !normalOk;
         var selectedConversions = useExpanded ? expandedConversions : normalConversions;
         var selectedBindings = useExpanded ? expandedBindings : normalBindings;
-        score = useExpanded ? expandedScore : normalScore;
-        var isDirectArgumentMapping = useExpanded
-            ? expandedDirectMapping
-            : normalDirectMapping;
+        var isDirectArgumentMapping = useExpanded ? expandedDirectMapping : normalDirectMapping;
 
         plan = new BoundCallPlan(
             selectedMethod,
@@ -264,7 +278,6 @@ internal sealed class CallBinderService
         IReadOnlyList<Type> sourceTypes,
         out ImmutableArray<BoundConversionPlan> conversions,
         out ImmutableArray<BoundParameterBinding> bindings,
-        out int score,
         out bool isDirectArgumentMapping)
     {
         var sourceCount = sourceTypes.Count;
@@ -277,15 +290,12 @@ internal sealed class CallBinderService
         {
             conversions = default;
             bindings = default;
-            score = int.MinValue;
             isDirectArgumentMapping = false;
             return false;
         }
 
         var conversionBuilder = ImmutableArray.CreateBuilder<BoundConversionPlan>(sourceCount);
         var bindingBuilder = ImmutableArray.CreateBuilder<BoundParameterBinding>(parameterCount);
-        var runningScore = OverloadScoring.NormalFormBase;
-        var defaultsUsed = 0;
 
         for (var i = 0; i < sourceCount; i++)
         {
@@ -294,17 +304,14 @@ internal sealed class CallBinderService
             {
                 conversions = default;
                 bindings = default;
-                score = int.MinValue;
                 isDirectArgumentMapping = false;
                 return false;
             }
 
-            var argScore = ScoreArgumentType(sourceTypes[i], targetType);
-            if (argScore < 0)
+            if (!IsTypeApplicable(sourceTypes[i], targetType))
             {
                 conversions = default;
                 bindings = default;
-                score = int.MinValue;
                 isDirectArgumentMapping = false;
                 return false;
             }
@@ -312,7 +319,6 @@ internal sealed class CallBinderService
             if (sourceTypes[i] != targetType)
                 isDirectArgumentMapping = false;
 
-            runningScore += argScore;
             conversionBuilder.Add(new BoundConversionPlan(
                 sourceTypes[i],
                 targetType,
@@ -342,12 +348,10 @@ internal sealed class CallBinderService
             {
                 conversions = default;
                 bindings = default;
-                score = int.MinValue;
                 isDirectArgumentMapping = false;
                 return false;
             }
 
-            defaultsUsed++;
             isDirectArgumentMapping = false;
             bindingBuilder.Add(new BoundParameterBinding(
                 BoundParameterBindingKind.DefaultValue,
@@ -358,7 +362,6 @@ internal sealed class CallBinderService
 
         conversions = conversionBuilder.ToImmutable();
         bindings = bindingBuilder.ToImmutable();
-        score = runningScore - (defaultsUsed * OverloadScoring.DefaultArgPenalty);
         return true;
     }
 
@@ -367,12 +370,10 @@ internal sealed class CallBinderService
         IReadOnlyList<Type> sourceTypes,
         out ImmutableArray<BoundConversionPlan> conversions,
         out ImmutableArray<BoundParameterBinding> bindings,
-        out int score,
         out bool isDirectArgumentMapping)
     {
         conversions = default;
         bindings = default;
-        score = int.MinValue;
         isDirectArgumentMapping = false;
 
         if (parameters.Length == 0)
@@ -392,19 +393,15 @@ internal sealed class CallBinderService
 
         var conversionBuilder = ImmutableArray.CreateBuilder<BoundConversionPlan>(sourceTypes.Count);
         var bindingBuilder = ImmutableArray.CreateBuilder<BoundParameterBinding>(parameters.Length);
-        var runningScore = OverloadScoring.ExpandedFormBase;
-        var defaultsUsed = 0;
 
         for (var i = 0; i < lastParameterIndex; i++)
         {
             if (i < sourceTypes.Count)
             {
                 var targetType = GetParameterTargetType(parameters[i]);
-                var argScore = ScoreArgumentType(sourceTypes[i], targetType);
-                if (argScore < 0)
+                if (!IsTypeApplicable(sourceTypes[i], targetType))
                     return false;
 
-                runningScore += argScore;
                 conversionBuilder.Add(new BoundConversionPlan(
                     sourceTypes[i],
                     targetType,
@@ -420,7 +417,6 @@ internal sealed class CallBinderService
             if (!parameters[i].HasDefaultValue)
                 return false;
 
-            defaultsUsed++;
             bindingBuilder.Add(new BoundParameterBinding(
                 BoundParameterBindingKind.DefaultValue,
                 i,
@@ -430,11 +426,9 @@ internal sealed class CallBinderService
 
         for (var i = lastParameterIndex; i < sourceTypes.Count; i++)
         {
-            var argScore = ScoreArgumentType(sourceTypes[i], elementType);
-            if (argScore < 0)
+            if (!IsTypeApplicable(sourceTypes[i], elementType))
                 return false;
 
-            runningScore += argScore;
             conversionBuilder.Add(new BoundConversionPlan(
                 sourceTypes[i],
                 elementType,
@@ -449,7 +443,6 @@ internal sealed class CallBinderService
 
         conversions = conversionBuilder.ToImmutable();
         bindings = bindingBuilder.ToImmutable();
-        score = runningScore - (defaultsUsed * OverloadScoring.DefaultArgPenalty);
         return true;
     }
 
@@ -476,76 +469,16 @@ internal sealed class CallBinderService
             : parameterType;
     }
 
-    private static int ScoreArgumentType(Type sourceType, Type targetType)
+    private static bool IsTypeApplicable(Type sourceType, Type targetType)
     {
         if (sourceType == targetType)
-            return OverloadScoring.ExactMatch;
-
+            return true;
         if (targetType.IsAssignableFrom(sourceType))
-            return OverloadScoring.AssignableMatch;
-
+            return true;
         if (TypeHelpers.CanImplicitlyConvert(sourceType, targetType))
-            return OverloadScoring.ImplicitConversion;
-
+            return true;
         if (TypeHelpers.HasUserDefinedImplicitConversion(sourceType, targetType))
-            return OverloadScoring.ImplicitConversion;
-
-        return -1;
-    }
-
-    private static int CompareMethodSpecificity(MethodInfo left, MethodInfo right)
-    {
-        var leftParameters = MethodDispatchCache.GetParameters(left);
-        var rightParameters = MethodDispatchCache.GetParameters(right);
-
-        var leftIsParams = IsParamsMethod(leftParameters);
-        var rightIsParams = IsParamsMethod(rightParameters);
-        if (leftIsParams != rightIsParams)
-            return leftIsParams ? -1 : 1;
-
-        if (left.IsGenericMethod != right.IsGenericMethod)
-            return left.IsGenericMethod ? -1 : 1;
-
-        if (leftParameters.Length != rightParameters.Length)
-            return leftParameters.Length < rightParameters.Length ? 1 : -1;
-
-        var leftBetter = false;
-        var rightBetter = false;
-        var length = Math.Min(leftParameters.Length, rightParameters.Length);
-
-        for (var i = 0; i < length; i++)
-        {
-            var leftType = GetSpecificityParameterType(leftParameters, i);
-            var rightType = GetSpecificityParameterType(rightParameters, i);
-            if (leftType == rightType)
-                continue;
-
-            // ECMA-334 §12.6.4.7: better conversion target
-            var cmp = TypeHelpers.CompareBetterConversionTarget(leftType, rightType);
-            if (cmp > 0)
-                leftBetter = true;
-            else if (cmp < 0)
-                rightBetter = true;
-        }
-
-        return (leftBetter, rightBetter) switch
-        {
-            (true, false) => 1,
-            (false, true) => -1,
-            _ => 0
-        };
-    }
-
-    private static Type GetSpecificityParameterType(ParameterInfo[] parameters, int index)
-    {
-        var parameterType = parameters[index].ParameterType;
-        if (index == parameters.Length - 1 && parameters[index].IsDefined(typeof(ParamArrayAttribute), false))
-            return parameterType.GetElementType() ?? parameterType;
-        return parameterType;
-    }
-
-    private static bool IsParamsMethod(ParameterInfo[] parameters)
-    {
-        return parameters.Length > 0 && parameters[^1].IsDefined(typeof(ParamArrayAttribute), false);
+            return true;
+        return false;
     }
 }

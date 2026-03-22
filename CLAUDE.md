@@ -1,5 +1,15 @@
 # Alder Project Instructions
 
+## Quality Standard
+
+Alder targets Roslyn-grade engineering. Every subsystem should be designed as if it belongs in a production compiler toolchain. This means:
+
+- **Algorithms must match the spec.** Don't approximate with heuristics what the C# specification defines precisely. Overload resolution uses ECMA-334 §12.6.4 pairwise elimination — not numeric scoring. Type inference follows the spec's constraint-solving rules — not "fill unknowns with `object`." If the spec has an algorithm, implement that algorithm.
+- **`Try` methods don't throw.** If a method is named `Try*`, it returns `false`/`null` on failure. Never use exceptions for control flow. If you find a `Try` method that throws on an expected failure path, that's a bug — fix the method, don't catch the exception.
+- **No exception-driven control flow.** `catch` blocks that silently swallow exceptions to mean "this path didn't work, try the next one" are hacks. Design the check so it returns a result instead of throwing.
+- **Source generators use structural indentation.** Use `SourceWriter` with `Block()` scopes — never count spaces manually or pass `int indent` parameters. The generated code's structure should be visible in the emitter's structure.
+- **AOT dispatch must be type-safe.** Generated dispatch code uses `is` type checks for same-arity overloads — never blind casts that rely on exception fallback. If the AOT path can't handle an argument shape (named args, nulls, out markers), it must return `false` and let the reflection path handle it.
+
 ## Git Commit Rules
 
 - One commit per phase (not per plan or task) — accumulate all changes, commit once at the very end

@@ -122,26 +122,15 @@ internal static class MethodInvoker
             return (false, null);
 
         // ECMA-334 §12.8.9.2: Instance methods take precedence over extension methods.
-        // "An extension method is eligible if [...] normal processing of the invocation
-        // found no applicable instance methods."
-        // Try instance methods first, then fall back to extension methods.
-
-        // Instance methods are blocked in sandbox mode
         if (options.Sandbox.AllowMethodCalls)
         {
             var type = target.GetType();
 
-            if (context.Config.AotMetadata is { } aotMeta && aotMeta.TryGetValue(type, out var metadata))
+            if (!HasSpecialArgs(args) &&
+                context.Config.AotMetadata is { } aotMeta && aotMeta.TryGetValue(type, out var metadata))
             {
-                try
-                {
-                    if (metadata.TryInvokeMethod(methodName, target, args, out var aotResult))
-                        return (true, aotResult);
-                }
-                catch (InvalidCastException)
-                {
-                    // Generated dispatch matches on param count only; reflection resolves by type
-                }
+                if (metadata.TryInvokeMethod(methodName, target, args, out var aotResult))
+                    return (true, aotResult);
             }
 
             var flags = BindingFlags.Public | BindingFlags.Instance;
@@ -149,54 +138,13 @@ internal static class MethodInvoker
                 flags |= BindingFlags.IgnoreCase;
             var methods = context.TypeMetadata.GetMethods(type, methodName, flags);
 
-            if (typeArgs == null || typeArgs.Count == 0)
-            {
-                var canFastPath = true;
-                var argTypes = new Type[args.Length];
-                for (var i = 0; i < args.Length; i++)
-                {
-                    if (args[i] == null || args[i] is NamedArg || args[i] is OutArgMarker)
-                    {
-                        canFastPath = false;
-                        break;
-                    }
-                    argTypes[i] = args[i]!.GetType();
-                }
-
-                if (canFastPath)
-                {
-                    var fastMethod = MethodResolver.TryResolveMethod(methods, argTypes);
-                    if (fastMethod != null)
-                    {
-                        var invokeResult = InvokeMethodWithArgs(fastMethod, target, args, ct);
-                        if (invokeResult.Success)
-                            return invokeResult;
-                    }
-                }
-            }
-
-            var candidateMethods = new List<MethodInfo>();
-            foreach (var method in methods)
-            {
-                var concreteMethod = method;
-
-                // Handle explicit type arguments for generic methods
-                if (method.ContainsGenericParameters && typeArgs is { Count: > 0 })
-                {
-                    concreteMethod = TryMakeConcreteMethodWithTypeArgs(method, typeArgs, context.TypeResolver);
-                    if (concreteMethod == null)
-                        continue;
-                }
-                candidateMethods.Add(concreteMethod);
-            }
-
-            var bestMethod = FindBestMethod(candidateMethods, args, ct, out var ambiguous);
+            var resolved = ResolveMethod(methods, args, ct, typeArgs, context.TypeResolver, out var ambiguous);
             if (ambiguous)
                 throw new AlderException(DiagnosticDescriptors.AmbiguousMethodInvocation, methodName);
 
-            if (bestMethod != null)
+            if (resolved != null)
             {
-                var invokeResult = InvokeMethodWithArgs(bestMethod, target, args, ct);
+                var invokeResult = InvokeMethodWithArgs(resolved, target, args, ct);
                 if (invokeResult.Success)
                     return invokeResult;
             }
@@ -209,7 +157,6 @@ internal static class MethodInvoker
         if (extensionResult.Success)
             return extensionResult;
 
-        // If sandbox blocks method calls and no extension method matched, report the block
         if (!options.Sandbox.AllowMethodCalls)
             throw new AlderException(DiagnosticDescriptors.SandboxMethodCallBlocked, methodName);
 
@@ -218,7 +165,6 @@ internal static class MethodInvoker
 
     /// <summary>
     /// Makes a generic method concrete using explicit type arguments.
-    /// Uses TypeResolver when available, falls back to Type.GetType for IL-compiled code paths.
     /// </summary>
     internal static MethodInfo? TryMakeConcreteMethodWithTypeArgs(MethodInfo genericMethod, IReadOnlyList<string> typeArgs, TypeResolver? resolver = null)
     {
@@ -263,39 +209,17 @@ internal static class MethodInvoker
         var methods = context.TypeMetadata.GetMethods(module.Type, methodName,
             BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static);
 
-        var nonGenericMethods = methods.Where(m => !m.ContainsGenericParameters);
-        var bestMethod = FindBestMethod(nonGenericMethods, args, ct, out var ambiguous);
+        var resolved = ResolveMethod(methods, args, ct, typeArgs: null, typeResolver: null, out var ambiguous);
         if (ambiguous)
             throw new AlderException(DiagnosticDescriptors.AmbiguousMethodInvocation, methodName);
 
-        if (bestMethod != null)
-        {
-            var invokeResult = InvokeMethodWithArgs(bestMethod, target, args, ct);
-            if (invokeResult.Success)
-                return invokeResult.Value;
-        }
+        resolved ??= methodRef.Method;
 
-        // Try generic methods
-        foreach (var method in methods.Where(m => m.ContainsGenericParameters))
-        {
-            var concreteMethod = TryMakeConcreteMethod(method, args);
-            if (concreteMethod != null)
-            {
-                var result = InvokeMethodWithArgs(concreteMethod, target, args, ct);
-                if (result.Success)
-                    return result.Value;
-            }
-        }
+        var invokeResult = InvokeMethodWithArgs(resolved, target, args, ct);
+        if (invokeResult.Success)
+            return invokeResult.Value;
 
-        // Fallback to the registered method
-        var fallbackMethod = methodRef.Method;
-        var fallbackParams = MethodDispatchCache.GetParameters(fallbackMethod);
-        var finalArgs = TryAppendCancellationToken(fallbackParams, args, ct);
-
-        finalArgs = PadWithDefaults(fallbackParams, finalArgs, fallbackMethod.Name);
-
-        var fallbackResult = fallbackMethod.Invoke(target, finalArgs);
-        return TypeHelpers.GuardReflectionLeak(fallbackResult, $"method {methodName}");
+        throw new AlderException(DiagnosticDescriptors.MethodInvocationFailed, methodName);
     }
 
     private static object? InvokeStaticMethod(
@@ -307,17 +231,11 @@ internal static class MethodInvoker
         IReadOnlyList<string>? typeArgs,
         CancellationToken ct)
     {
-        if (context.Config.AotMetadata is { } aotMeta && aotMeta.TryGetValue(type, out var metadata))
+        if (!HasSpecialArgs(args) &&
+            context.Config.AotMetadata is { } aotMeta && aotMeta.TryGetValue(type, out var metadata))
         {
-            try
-            {
-                if (metadata.TryInvokeStaticMethod(methodName, args, out var aotResult))
-                    return aotResult;
-            }
-            catch (InvalidCastException)
-            {
-                // Generated dispatch matches on param count only; reflection resolves by type
-            }
+            if (metadata.TryInvokeStaticMethod(methodName, args, out var aotResult))
+                return aotResult;
         }
 
         var bindingFlags = BindingFlags.Public | BindingFlags.Static;
@@ -326,64 +244,15 @@ internal static class MethodInvoker
 
         var methods = context.TypeMetadata.GetMethods(type, methodName, bindingFlags);
 
-        if (typeArgs == null || typeArgs.Count == 0)
-        {
-            var canFastPath = true;
-            var argTypes = new Type[args.Length];
-            for (var i = 0; i < args.Length; i++)
-            {
-                if (args[i] == null || args[i] is NamedArg || args[i] is OutArgMarker)
-                {
-                    canFastPath = false;
-                    break;
-                }
-                argTypes[i] = args[i]!.GetType();
-            }
-
-            if (canFastPath)
-            {
-                var fastMethod = MethodResolver.TryResolveMethod(methods, argTypes);
-                if (fastMethod != null)
-                {
-                    var invokeResult = InvokeMethodWithArgs(fastMethod, null, args, ct);
-                    if (invokeResult.Success)
-                        return invokeResult.Value;
-                }
-            }
-        }
-
-        var nonGenericMethods = methods.Where(m => !m.ContainsGenericParameters);
-        var bestMethod = FindBestMethod(nonGenericMethods, args, ct, out var ambiguous);
+        var resolved = ResolveMethod(methods, args, ct, typeArgs, context.TypeResolver, out var ambiguous);
         if (ambiguous)
             throw new AlderException(DiagnosticDescriptors.AmbiguousMethodInvocation, $"{type.Name}.{methodName}");
 
-        if (bestMethod != null)
+        if (resolved != null)
         {
-            var invokeResult = InvokeMethodWithArgs(bestMethod, null, args, ct);
+            var invokeResult = InvokeMethodWithArgs(resolved, null, args, ct);
             if (invokeResult.Success)
                 return invokeResult.Value;
-        }
-
-        // Try generic methods with explicit type arguments first, then inference
-        foreach (var method in methods.Where(m => m.ContainsGenericParameters))
-        {
-            MethodInfo? concreteMethod = null;
-
-            // Try explicit type arguments first (e.g., Array.Empty<int>())
-            if (typeArgs is { Count: > 0 })
-            {
-                concreteMethod = TryMakeConcreteMethodWithTypeArgs(method, typeArgs, context.TypeResolver);
-            }
-
-            // Fall back to inference from arguments
-            concreteMethod ??= TryMakeConcreteMethod(method, args);
-
-            if (concreteMethod != null)
-            {
-                var result = InvokeMethodWithArgs(concreteMethod, null, args, ct);
-                if (result.Success)
-                    return result.Value;
-            }
         }
 
         throw new AlderException(DiagnosticDescriptors.MemberNotFound, type.Name, methodName);
@@ -717,11 +586,11 @@ internal static class MethodInvoker
                 resolved += TryInferTypeArgs(parameters[i].ParameterType, argType, genericArgs, typeArgs);
             }
 
-            // Fill unresolved type args with object as fallback
+            // All type args must be resolved — don't guess with typeof(object)
             for (var i = 0; i < typeArgs.Length; i++)
             {
                 if (typeArgs[i] == null)
-                    typeArgs[i] = typeof(object);
+                    return null;
             }
 
             return RuntimeGenericFactory.TryCloseGenericMethod(genericMethod, typeArgs, out var closedMethod)
@@ -785,6 +654,16 @@ internal static class MethodInvoker
         return resolved;
     }
 
+
+    private static bool HasSpecialArgs(object?[] args)
+    {
+        foreach (var arg in args)
+        {
+            if (arg is NamedArg or OutArgMarker || arg == null)
+                return true;
+        }
+        return false;
+    }
 
     private static object?[] TryAppendCancellationToken(ParameterInfo[] parameters, object?[] args, CancellationToken ct)
     {
@@ -1076,394 +955,131 @@ internal static class MethodInvoker
     }
 
     /// <summary>
-    /// Scores how well arguments match a method's parameters per ECMA-334 §12.6.4.
-    /// Tries normal form first, then expanded params form per §12.6.4.2.
-    /// Higher score = better match. -1 = no match.
-    /// </summary>
-    private static int ScoreMethodMatch(ParameterInfo[] parameters, object?[] args)
-    {
-        var normalScore = ScoreMethodMatchNormalForm(parameters, args);
-        if (normalScore >= 0)
-            return normalScore;
-
-        // ECMA-334 §12.6.4.2: If normal form fails, try expanded form for params methods.
-        return ScoreMethodMatchExpandedForm(parameters, args);
-    }
-
-    /// <summary>
-    /// Scores normal form: each arg maps 1:1 to a parameter. No params expansion.
-    /// </summary>
-    private static int ScoreMethodMatchNormalForm(ParameterInfo[] parameters, object?[] args)
-    {
-        var positionalArgs = new List<object?>();
-        var namedArgs = new Dictionary<string, object?>(StringComparer.Ordinal);
-
-        foreach (var arg in args)
-        {
-            if (arg is NamedArg named)
-                namedArgs[named.Name] = named.Value;
-            else
-                positionalArgs.Add(arg);
-        }
-
-        var maxPositional = parameters.Length - namedArgs.Count;
-        if (positionalArgs.Count > maxPositional)
-            return -1;
-
-        var score = 0;
-        var defaultsUsed = 0;
-        var filledParams = new bool[parameters.Length];
-        var positionalIndex = 0;
-
-        for (var i = 0; i < parameters.Length && positionalIndex < positionalArgs.Count; i++)
-        {
-            if (namedArgs.ContainsKey(parameters[i].Name!))
-                continue;
-
-            var arg = positionalArgs[positionalIndex++];
-            var paramScore = ScoreArgument(arg, parameters[i].ParameterType);
-            if (paramScore < 0)
-                return -1;
-
-            score += paramScore;
-            filledParams[i] = true;
-        }
-
-        if (positionalIndex < positionalArgs.Count)
-            return -1;
-
-        foreach (var (name, value) in namedArgs)
-        {
-            var paramIndex = -1;
-            for (var i = 0; i < parameters.Length; i++)
-            {
-                if (string.Equals(parameters[i].Name, name, StringComparison.Ordinal))
-                {
-                    paramIndex = i;
-                    break;
-                }
-            }
-
-            if (paramIndex == -1)
-                return -1;
-
-            if (filledParams[paramIndex])
-                return -1;
-
-            var paramScore = ScoreArgument(value, parameters[paramIndex].ParameterType);
-            if (paramScore < 0)
-                return -1;
-
-            score += paramScore;
-            filledParams[paramIndex] = true;
-        }
-
-        for (var i = 0; i < parameters.Length; i++)
-        {
-            if (!filledParams[i] && !parameters[i].HasDefaultValue)
-                return -1;
-
-            if (!filledParams[i] && parameters[i].HasDefaultValue)
-                defaultsUsed++;
-        }
-
-        return OverloadScoring.NormalFormBase + score - (defaultsUsed * OverloadScoring.DefaultArgPenalty);
-    }
-
-    /// <summary>
-    /// Scores expanded params form per ECMA-334 §12.6.4.2:
-    /// surplus positional args are packed into the params array.
-    /// Returns a lower score than normal form to ensure normal form is preferred.
-    /// </summary>
-    private static int ScoreMethodMatchExpandedForm(ParameterInfo[] parameters, object?[] args)
-    {
-        if (parameters.Length == 0)
-            return -1;
-
-        var lastParam = parameters[^1];
-        if (!lastParam.IsDefined(typeof(ParamArrayAttribute), false))
-            return -1;
-
-        var elementType = lastParam.ParameterType.GetElementType()!;
-        var lastParamIndex = parameters.Length - 1;
-
-        var positionalArgs = new List<object?>();
-        var namedArgs = new Dictionary<string, object?>(StringComparer.Ordinal);
-
-        foreach (var arg in args)
-        {
-            if (arg is NamedArg named)
-                namedArgs[named.Name] = named.Value;
-            else
-                positionalArgs.Add(arg);
-        }
-
-        var score = 0;
-        var defaultsUsed = 0;
-        var filledParams = new bool[parameters.Length];
-        var positionalIndex = 0;
-
-        // Score non-params parameters normally
-        for (var i = 0; i < lastParamIndex && positionalIndex < positionalArgs.Count; i++)
-        {
-            if (namedArgs.ContainsKey(parameters[i].Name!))
-                continue;
-
-            var arg = positionalArgs[positionalIndex++];
-            var paramScore = ScoreArgument(arg, parameters[i].ParameterType);
-            if (paramScore < 0)
-                return -1;
-
-            score += paramScore;
-            filledParams[i] = true;
-        }
-
-        // Score remaining positional args against the params element type
-        while (positionalIndex < positionalArgs.Count)
-        {
-            var arg = positionalArgs[positionalIndex++];
-            var paramScore = ScoreArgument(arg, elementType);
-            if (paramScore < 0)
-                return -1;
-            score += paramScore;
-        }
-        filledParams[lastParamIndex] = true;
-
-        // Match named arguments (non-params parameters only)
-        foreach (var (name, value) in namedArgs)
-        {
-            var paramIndex = -1;
-            for (var i = 0; i < lastParamIndex; i++)
-            {
-                if (string.Equals(parameters[i].Name, name, StringComparison.Ordinal))
-                {
-                    paramIndex = i;
-                    break;
-                }
-            }
-
-            if (paramIndex == -1)
-                return -1;
-
-            if (filledParams[paramIndex])
-                return -1;
-
-            var paramScore = ScoreArgument(value, parameters[paramIndex].ParameterType);
-            if (paramScore < 0)
-                return -1;
-
-            score += paramScore;
-            filledParams[paramIndex] = true;
-        }
-
-        // Check unfilled non-params parameters have defaults
-        for (var i = 0; i < lastParamIndex; i++)
-        {
-            if (!filledParams[i] && !parameters[i].HasDefaultValue)
-                return -1;
-
-            if (!filledParams[i] && parameters[i].HasDefaultValue)
-                defaultsUsed++;
-        }
-
-        return OverloadScoring.ExpandedFormBase + score - (defaultsUsed * OverloadScoring.DefaultArgPenalty);
-    }
-
-    /// <summary>
-    /// Scores how well a single argument matches a parameter type.
-    /// </summary>
-    private static int ScoreArgument(object? arg, Type paramType)
-    {
-        if (arg == null)
-        {
-            if (paramType.IsValueType && Nullable.GetUnderlyingType(paramType) == null)
-                return -1;
-            return 1; // Null to nullable is valid but not exact
-        }
-
-        if (arg is OutArgMarker && paramType.IsByRef)
-            return OverloadScoring.ExactMatch;
-
-        var argType = arg.GetType();
-
-        if (argType == paramType)
-            return OverloadScoring.ExactMatch;
-
-        if (paramType.IsAssignableFrom(argType))
-            return OverloadScoring.AssignableMatch;
-
-        if (TypeHelpers.CanImplicitlyConvert(argType, paramType))
-            return OverloadScoring.ImplicitConversion;
-
-        if (TypeHelpers.HasUserDefinedImplicitConversion(argType, paramType))
-            return OverloadScoring.ImplicitConversion;
-
-        // Lambda to delegate (e.g., LambdaValue -> Func<int, bool>)
-        if (arg is LambdaValue or CompiledLambdaValue && LambdaDelegateConverter.IsSupportedDelegateType(paramType))
-        {
-            try
-            {
-                return LambdaDelegateConverter.TryConvert(arg, paramType) != null ? 5 : -1;
-            }
-            catch (AlderException)
-            {
-                return -1;
-            }
-        }
-
-        return -1; // No valid conversion
-    }
-
-    /// <summary>
-    /// Finds the best matching method from candidates using overload resolution scoring.
+    /// Finds the best matching method from candidates using ECMA-334 §12.6.4 pairwise elimination.
+    /// Phase 1: filter to applicable candidates. Phase 2: pairwise comparison to find unique best.
     /// </summary>
     internal static MethodInfo? FindBestMethod(IEnumerable<MethodInfo> methods, object?[] args, CancellationToken ct, out bool ambiguous)
     {
         ambiguous = false;
-        MethodInfo? bestMethod = null;
-        var bestScore = -1;
 
+        // Phase 1: collect applicable candidates
+        var applicable = new List<(MethodInfo Method, ParameterInfo[] Params, ApplicableForm Form, object?[] ArgsWithCt)>();
         foreach (var method in methods)
         {
             var parameters = MethodDispatchCache.GetParameters(method);
-            var argsWithCancellation = TryAppendCancellationToken(parameters, args, ct);
-            var score = ScoreMethodMatch(parameters, argsWithCancellation);
+            var argsWithCt = TryAppendCancellationToken(parameters, args, ct);
 
-            if (score > bestScore)
+            if (OverloadResolution.IsApplicableForArgs(parameters, argsWithCt, out var form))
+                applicable.Add((method, parameters, form, argsWithCt));
+        }
+
+        if (applicable.Count == 0)
+            return null;
+        if (applicable.Count == 1)
+            return applicable[0].Method;
+
+        // Phase 2: pairwise elimination
+        var best = applicable[0];
+        var bestIsUnique = true;
+
+        for (var i = 1; i < applicable.Count; i++)
+        {
+            var challenger = applicable[i];
+            var cmp = OverloadResolution.BetterFunctionMemberForArgs(
+                best.Method, best.Params, best.Form,
+                challenger.Method, challenger.Params, challenger.Form,
+                best.ArgsWithCt);
+
+            switch (cmp)
             {
-                bestScore = score;
-                bestMethod = method;
-                ambiguous = false;
+                case BetterResult.Right:
+                    best = challenger;
+                    bestIsUnique = true;
+                    break;
+                case BetterResult.Neither:
+                    bestIsUnique = false;
+                    break;
             }
-            else if (score >= 0 && score == bestScore && bestMethod != null)
+        }
+
+        // Phase 3: verify winner beats all other candidates
+        if (!bestIsUnique)
+        {
+            foreach (var candidate in applicable)
             {
-                var tieBreak = CompareMethodSpecificity(bestMethod, method, args, ct);
-                if (tieBreak < 0)
-                {
-                    bestMethod = method;
-                    ambiguous = false;
-                }
-                else if (tieBreak == 0)
+                if (candidate.Method == best.Method)
+                    continue;
+                var cmp = OverloadResolution.BetterFunctionMemberForArgs(
+                    best.Method, best.Params, best.Form,
+                    candidate.Method, candidate.Params, candidate.Form,
+                    best.ArgsWithCt);
+                if (cmp != BetterResult.Left)
                 {
                     ambiguous = true;
+                    return null;
                 }
             }
         }
 
-        if (ambiguous)
-            return null;
-
-        return bestMethod;
+        return best.Method;
     }
 
-    private static int CompareMethodSpecificity(MethodInfo left, MethodInfo right, object?[] args, CancellationToken ct)
+    /// <summary>
+    /// Shared resolution pipeline: fast path → build candidate list → pairwise elimination.
+    /// Used by both instance and static method dispatch.
+    /// </summary>
+    private static MethodInfo? ResolveMethod(
+        MethodInfo[] methods,
+        object?[] args,
+        CancellationToken ct,
+        IReadOnlyList<string>? typeArgs,
+        TypeResolver? typeResolver,
+        out bool ambiguous)
     {
-        var leftParams = MethodDispatchCache.GetParameters(left);
-        var rightParams = MethodDispatchCache.GetParameters(right);
+        ambiguous = false;
 
-        var leftIsParams = IsParamsMethod(leftParams);
-        var rightIsParams = IsParamsMethod(rightParams);
-
-        if (leftIsParams != rightIsParams)
-            return leftIsParams ? -1 : 1;
-
-        // Prefer non-generic methods over generic methods when other factors tie.
-        if (left.IsGenericMethod != right.IsGenericMethod)
-            return left.IsGenericMethod ? -1 : 1;
-
-        var leftImplicitArgs = CountImplicitlySuppliedArgs(leftParams, args, ct);
-        var rightImplicitArgs = CountImplicitlySuppliedArgs(rightParams, args, ct);
-        if (leftImplicitArgs != rightImplicitArgs)
-            return leftImplicitArgs < rightImplicitArgs ? 1 : -1;
-
-        if (leftParams.Length != rightParams.Length)
-            return leftParams.Length < rightParams.Length ? 1 : -1;
-
-        var leftBetter = false;
-        var rightBetter = false;
-        var length = Math.Min(leftParams.Length, rightParams.Length);
-
-        for (var i = 0; i < length; i++)
+        // Fast path: exact types, no named args, no nulls, no generic type args
+        if (typeArgs == null || typeArgs.Count == 0)
         {
-            var leftType = GetSpecificityParameterType(leftParams, i);
-            var rightType = GetSpecificityParameterType(rightParams, i);
-
-            if (leftType == rightType)
-                continue;
-
-            // ECMA-334 §12.6.4.7: better conversion target
-            var cmp = TypeHelpers.CompareBetterConversionTarget(leftType, rightType);
-            if (cmp > 0)
-                leftBetter = true;
-            else if (cmp < 0)
-                rightBetter = true;
-        }
-
-        return (leftBetter, rightBetter) switch
-        {
-            (true, false) => 1,
-            (false, true) => -1,
-            _ => 0
-        };
-    }
-
-    private static Type GetSpecificityParameterType(ParameterInfo[] parameters, int index)
-    {
-        var parameterType = parameters[index].ParameterType;
-        if (index == parameters.Length - 1 && parameters[index].IsDefined(typeof(ParamArrayAttribute), false))
-            return parameterType.GetElementType() ?? parameterType;
-        return parameterType;
-    }
-
-    private static bool IsParamsMethod(ParameterInfo[] parameters)
-    {
-        return parameters.Length > 0 && parameters[^1].IsDefined(typeof(ParamArrayAttribute), false);
-    }
-
-    private static int CountImplicitlySuppliedArgs(ParameterInfo[] parameters, object?[] args, CancellationToken ct)
-    {
-        var argsWithCancellation = TryAppendCancellationToken(parameters, args, ct);
-        var positionalArgs = new List<object?>();
-        var namedArgs = new HashSet<string>(StringComparer.Ordinal);
-
-        foreach (var arg in argsWithCancellation)
-        {
-            if (arg is NamedArg named)
-                namedArgs.Add(named.Name);
-            else
-                positionalArgs.Add(arg);
-        }
-
-        var implicitCount = 0;
-        var positionalIndex = 0;
-        var lastParamIndex = parameters.Length - 1;
-        var isParams = IsParamsMethod(parameters);
-
-        for (var i = 0; i < parameters.Length; i++)
-        {
-            if (namedArgs.Contains(parameters[i].Name!))
-                continue;
-
-            if (positionalIndex < positionalArgs.Count)
+            var canFastPath = true;
+            var argTypes = new Type[args.Length];
+            for (var i = 0; i < args.Length; i++)
             {
-                positionalIndex++;
-                continue;
+                if (args[i] == null || args[i] is NamedArg || args[i] is OutArgMarker)
+                {
+                    canFastPath = false;
+                    break;
+                }
+                argTypes[i] = args[i]!.GetType();
             }
 
-            if (parameters[i].HasDefaultValue)
+            if (canFastPath)
             {
-                implicitCount++;
-                continue;
-            }
-
-            if (isParams && i == lastParamIndex)
-            {
-                implicitCount++;
-                continue;
+                var fastMethod = MethodResolver.TryResolveMethod(methods, argTypes);
+                if (fastMethod != null)
+                    return fastMethod;
             }
         }
 
-        return implicitCount;
+        // Build candidate list, closing generic methods where possible
+        var candidates = new List<MethodInfo>();
+        foreach (var method in methods)
+        {
+            if (!method.ContainsGenericParameters)
+            {
+                candidates.Add(method);
+                continue;
+            }
+
+            MethodInfo? concrete = null;
+            if (typeArgs is { Count: > 0 })
+                concrete = TryMakeConcreteMethodWithTypeArgs(method, typeArgs, typeResolver);
+            concrete ??= TryMakeConcreteMethod(method, args);
+            if (concrete != null)
+                candidates.Add(concrete);
+        }
+
+        return FindBestMethod(candidates, args, ct, out ambiguous);
     }
 
     private static object?[] PadWithDefaults(ParameterInfo[] parameters, object?[] args, string callableName)
