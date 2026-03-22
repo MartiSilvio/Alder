@@ -152,12 +152,10 @@ public sealed class AlderOptions
 
     public sealed class FunctionBuilder
     {
-        private readonly AlderOptions _options;
         internal readonly Dictionary<string, Func<object?[], object?>> RegisteredFunctions;
 
         internal FunctionBuilder(AlderOptions options)
         {
-            _options = options;
             RegisteredFunctions = new Dictionary<string, Func<object?[], object?>>(options.StringComparer);
         }
 

@@ -189,10 +189,6 @@ public class ParityTests(CompilationMode mode)
         }
     }
 
-    private static readonly HashSet<string> SkippedParityTests = new(StringComparer.OrdinalIgnoreCase)
-    {
-    };
-
     private static IEnumerable<TestCaseData> DiscoverExpressions(string relativePath)
     {
         var testDataDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, relativePath);
@@ -202,9 +198,6 @@ public class ParityTests(CompilationMode mode)
         {
             var relativeName = Path.GetRelativePath(testDataDir, file).Replace(Path.DirectorySeparatorChar, '/');
             var testName = relativeName.Replace(".csx", "").Replace('/', '_');
-            var keyWithoutExt = relativeName.Replace(".csx", "");
-            if (SkippedParityTests.Any(s => keyWithoutExt.EndsWith(s, StringComparison.OrdinalIgnoreCase)))
-                continue;
             yield return new TestCaseData(file).SetName(testName);
         }
     }

@@ -94,7 +94,11 @@ internal sealed partial class BoundEvaluator
 
         var result = Evaluate(leftmost);
         for (var i = chain.Count - 1; i >= 0; i--)
+        {
             result = EvaluateBinarySingle(chain[i], result);
+            if (i > 0)
+                RecordTrace(chain[i], result);
+        }
         return result;
     }
 

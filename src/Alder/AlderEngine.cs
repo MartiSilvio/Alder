@@ -9,7 +9,6 @@ using Alder.Diagnostics;
 using Alder.Interpretation;
 using Alder.Parsing;
 using Alder.Runtime;
-using Alder.Tracing;
 using Binder = Alder.Binding.Binder;
 
 namespace Alder;

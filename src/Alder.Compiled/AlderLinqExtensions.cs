@@ -67,6 +67,32 @@ public static class AlderLinqExtensions
     public static T? SingleOrDefaultDynamic<T>(this IEnumerable<T> source, string predicate)
         => source.SingleOrDefault(CompilePredicate<T>(predicate));
 
+    public static IOrderedEnumerable<T> ThenByDynamic<T, TKey>(this IOrderedEnumerable<T> source, string keySelector)
+        => source.ThenBy(CompileSelector<T, TKey>(keySelector));
+
+    public static IOrderedEnumerable<T> ThenByDescendingDynamic<T, TKey>(this IOrderedEnumerable<T> source, string keySelector)
+        => source.ThenByDescending(CompileSelector<T, TKey>(keySelector));
+
+    public static IEnumerable<IGrouping<TKey, T>> GroupByDynamic<T, TKey>(this IEnumerable<T> source, string keySelector)
+        => source.GroupBy(CompileSelector<T, TKey>(keySelector));
+
+    public static IEnumerable<T> DistinctByDynamic<T, TKey>(this IEnumerable<T> source, string keySelector)
+        => source.DistinctBy(CompileSelector<T, TKey>(keySelector));
+
+    public static decimal SumDynamic<T>(this IEnumerable<T> source, string selector)
+        => source.Sum(CompileSelector<T, decimal>(selector));
+
+    public static double AverageDynamic<T>(this IEnumerable<T> source, string selector)
+        => source.Average(CompileSelector<T, double>(selector));
+
+    public static TResult MinDynamic<T, TResult>(this IEnumerable<T> source, string selector)
+        => source.Min(CompileSelector<T, TResult>(selector))!;
+
+    public static TResult MaxDynamic<T, TResult>(this IEnumerable<T> source, string selector)
+        => source.Max(CompileSelector<T, TResult>(selector))!;
+
+    // --- IQueryable overloads ---
+
     public static IQueryable<T> WhereDynamic<T>(this IQueryable<T> source, string predicate)
         => source.Where(ParsePredicate<T>(predicate));
 
@@ -93,4 +119,25 @@ public static class AlderLinqExtensions
 
     public static T? FirstOrDefaultDynamic<T>(this IQueryable<T> source, string predicate)
         => source.FirstOrDefault(ParsePredicate<T>(predicate));
+
+    public static IOrderedQueryable<T> ThenByDynamic<T, TKey>(this IOrderedQueryable<T> source, string keySelector)
+        => source.ThenBy(ParseSelector<T, TKey>(keySelector));
+
+    public static IOrderedQueryable<T> ThenByDescendingDynamic<T, TKey>(this IOrderedQueryable<T> source, string keySelector)
+        => source.ThenByDescending(ParseSelector<T, TKey>(keySelector));
+
+    public static IQueryable<IGrouping<TKey, T>> GroupByDynamic<T, TKey>(this IQueryable<T> source, string keySelector)
+        => source.GroupBy(ParseSelector<T, TKey>(keySelector));
+
+    public static decimal SumDynamic<T>(this IQueryable<T> source, string selector)
+        => source.Sum(ParseSelector<T, decimal>(selector));
+
+    public static double AverageDynamic<T>(this IQueryable<T> source, string selector)
+        => source.Average(ParseSelector<T, double>(selector));
+
+    public static TResult MinDynamic<T, TResult>(this IQueryable<T> source, string selector)
+        => source.Min(ParseSelector<T, TResult>(selector))!;
+
+    public static TResult MaxDynamic<T, TResult>(this IQueryable<T> source, string selector)
+        => source.Max(ParseSelector<T, TResult>(selector))!;
 }

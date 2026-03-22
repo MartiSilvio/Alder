@@ -14,6 +14,10 @@ public class TracingTests(CompilationMode mode)
         engine.SetVariable("x", 5);
         var trace = engine.EvaluateWithTrace("x * 4 + 2");
 
+        TestContext.WriteLine($"--- {mode} ---");
+        foreach (var step in trace.Steps)
+            TestContext.WriteLine($"  {step.NodeKind}: {step.Display}");
+
         Assert.That(trace.Result, Is.EqualTo(22));
         Assert.That(trace.Steps, Is.Not.Empty);
         Assert.That(trace.Steps[^1].Value, Is.EqualTo(22));

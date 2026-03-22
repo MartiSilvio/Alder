@@ -93,10 +93,7 @@ internal enum TokenType
     // Lambda
     Arrow,  // =>
 
-    // ============================================================
-    // C# RESERVED KEYWORDS (all reserved, matching C# spec)
-    // https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/keywords/
-    // ============================================================
+    #region C# reserved keywords
 
     // Keywords - Implemented
     New,
@@ -184,9 +181,8 @@ internal enum TokenType
     Operator,
     Event,
 
-    // ============================================================
-    // C# TYPE KEYWORDS (reserved, some implemented for declarations)
-    // ============================================================
+    #endregion
+
     Int,
     Long,
     Double,
@@ -207,9 +203,6 @@ internal enum TokenType
     Nuint,
     Dynamic,
 
-    // ============================================================
-    // C# CONTEXTUAL KEYWORDS (reserved for forward compatibility)
-    // ============================================================
     Add,
     Alias,
     And,

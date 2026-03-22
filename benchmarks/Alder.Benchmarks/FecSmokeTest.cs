@@ -22,7 +22,6 @@ public static class FecSmokeTest
 
         var expressions = new (string name, string expr, AlderEngine engine)[]
         {
-            // === Comparable Execution Scenarios (Standard mode) ===
             ("Comparable/Arithmetic/Precedence", "1 + 2 * 3 - 4 / 2", standardFec),
             ("Comparable/Arithmetic/WithVariables", "(x + y) * z - x / 2", standardFec),
             ("Comparable/Boolean/Composite", "x > y && y < z || x == 10", standardFec),
@@ -42,7 +41,6 @@ public static class FecSmokeTest
             ("Comparable/String/Concatenation", "\"hello\" + \" \" + text", standardFec),
             ("Comparable/String/CompareAndConcat", "text == \"alpha\" ? \"yes-\" + text : \"no\"", standardFec),
 
-            // === Advanced Language Scenarios (Standard mode) ===
             ("Advanced/NestedMath", "Math.Abs((x - y) * (z + 2)) + Math.Max(x, z)", standardFec),
             ("Advanced/NestedConditional", "x > y ? (y > z ? y : z) : x", standardFec),
             ("Advanced/StringPredicate", "text.StartsWith(\"a\") && text.Length > 3", standardFec),
@@ -52,17 +50,14 @@ public static class FecSmokeTest
             ("Advanced/StringContains", "text.Contains(\"lph\") && text.StartsWith(\"a\")", standardFec),
             ("Advanced/NestedFunctionCalls", "Math.Max(Math.Abs(x - y), Math.Min(y, z))", standardFec),
 
-            // === LINQ Scenarios (Standard mode) ===
             ("LINQ/WhereCount", "numbers.Where(x => x > 500).Count()", standardFec),
             ("LINQ/SelectSum", "numbers.Select(x => x * 2).Sum()", standardFec),
             ("LINQ/WhereSelectSum", "numbers.Where(x => x > 100).Select(x => x * x).Sum()", standardFec),
             ("LINQ/AnyPredicate", "numbers.Any(x => x > 999)", standardFec),
             ("LINQ/OrderByFirst", "numbers.OrderByDescending(x => x).First()", standardFec),
 
-            // === Compilation Scenarios (Standard mode, parse only — but we evaluate too) ===
             ("Compilation/Flee/SmallArithmetic", "((4 * 3.4 * 18) - x) * (14.0 / 3.0) + y", standardFec),
 
-            // === Micro Scenarios (Standard mode) ===
             ("Micro/StaticMethodCall", "Math.Abs(-5)", standardFec),
             ("Micro/ChainedStaticCalls", "Math.Abs(x - y) + Math.Max(y, z)", standardFec),
             ("Micro/InstanceMethodCall", "text.Contains(\"a\")", standardFec),
@@ -74,7 +69,6 @@ public static class FecSmokeTest
             ("Micro/CastExpression", "(double)x / y", standardFec),
             ("Micro/StringInterpolation", "$\"{text} is {x + y}\"", standardFec),
 
-            // === Invocation Scenarios (Standard mode, needs InvocationTarget) ===
             ("Invocation/StaticMathMix", "Math.Abs(x - y) + Math.Max(y, z)", invocationFec),
             ("Invocation/InstanceStringContains", "text.Contains(\"a\")", invocationFec),
             ("Invocation/OverloadResolution_Int", "target.Overload(x)", invocationFec),
@@ -84,14 +78,11 @@ public static class FecSmokeTest
             ("Invocation/OptionalArgument", "target.WithOptional(x)", invocationFec),
             ("Invocation/ChainedInstanceCalls", "target.Normalize(text).Contains(\"AL\")", invocationFec),
 
-            // === Binding Scenarios (Standard mode) ===
             ("Binding/MethodHeavy", "Math.Abs(x - y) + Math.Max(y, z)", standardFec),
             ("Binding/LoopMutation", "{ var sum = 0; for (var i = 0; i < 128; i++) { sum += i; } return sum; }", standardFec),
 
-            // === ArithmeticPrecedenceParity (Standard mode) ===
             ("ArithmeticPrecedence", "1 + 2 * 3 - 4 / 2", standardFec),
 
-            // === Extended Parity Scenarios (Extended mode) ===
             ("Extended/BareMath", "sin(x)", extendedFec),
             ("Extended/PipelineFunction", "x |> inc", extendedFec),
             ("Extended/ChainedComparison", "0 < x < y", extendedFec),
@@ -110,7 +101,6 @@ public static class FecSmokeTest
             ("Extended/AggregateBuiltins", "sum(numbers.Where(it > x))", extendedFec),
             ("Extended/DateArithmeticSugar", "new DateTime(2026, 1, 1) + 30.days", extendedFec),
 
-            // === Extended Standard equivalents (Standard mode) ===
             ("ExtendedStd/BareMath", "Math.Sin(x)", standardFec),
             ("ExtendedStd/PipelineFunction_inc", "inc(x)", extendedFec),
             ("ExtendedStd/ChainedComparison", "0 < x && x < y", standardFec),

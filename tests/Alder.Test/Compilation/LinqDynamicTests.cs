@@ -223,6 +223,103 @@ public class LinqDynamicTests
     }
 
     [Test]
+    public void ThenByDynamic_SecondarySort()
+    {
+        var result = Products
+            .OrderByDynamic<Product, string>("p => p.Category")
+            .ThenByDynamic<Product, decimal>("p => p.Price")
+            .ToList();
+
+        Assert.That(result[0].Name, Is.EqualTo("Gadget"));
+        Assert.That(result[1].Name, Is.EqualTo("Doohickey"));
+    }
+
+    [Test]
+    public void ThenByDescendingDynamic_SecondarySort()
+    {
+        var result = Products
+            .OrderByDynamic<Product, string>("p => p.Category")
+            .ThenByDescendingDynamic<Product, decimal>("p => p.Price")
+            .ToList();
+
+        Assert.That(result[0].Name, Is.EqualTo("Doohickey"));
+        Assert.That(result[1].Name, Is.EqualTo("Gadget"));
+    }
+
+    [Test]
+    public void GroupByDynamic_GroupsByKey()
+    {
+        var result = Products
+            .GroupByDynamic<Product, string>("p => p.Category")
+            .ToList();
+
+        Assert.That(result, Has.Count.EqualTo(3));
+        Assert.That(result.Select(g => g.Key), Is.EquivalentTo(new[] { "Tools", "Electronics", "Premium" }));
+    }
+
+    [Test]
+    public void GroupByDynamic_GroupCountsCorrect()
+    {
+        var result = Products
+            .GroupByDynamic<Product, string>("p => p.Category")
+            .ToDictionary(g => g.Key, g => g.Count());
+
+        Assert.That(result["Tools"], Is.EqualTo(2));
+        Assert.That(result["Electronics"], Is.EqualTo(2));
+        Assert.That(result["Premium"], Is.EqualTo(1));
+    }
+
+    [Test]
+    public void DistinctByDynamic_RemovesDuplicateKeys()
+    {
+        var result = Products
+            .DistinctByDynamic<Product, string>("p => p.Category")
+            .ToList();
+
+        Assert.That(result, Has.Count.EqualTo(3));
+    }
+
+    [Test]
+    public void SumDynamic_SumsValues()
+    {
+        var result = Products.SumDynamic("p => p.Price");
+        Assert.That(result, Is.EqualTo(514.95m));
+    }
+
+    [Test]
+    public void AverageDynamic_AveragesValues()
+    {
+        var result = Products.AverageDynamic("p => (double)p.Price");
+        Assert.That(result, Is.EqualTo(102.99).Within(0.01));
+    }
+
+    [Test]
+    public void MinDynamic_FindsMinimum()
+    {
+        var result = Products.MinDynamic<Product, decimal>("p => p.Price");
+        Assert.That(result, Is.EqualTo(4.99m));
+    }
+
+    [Test]
+    public void MaxDynamic_FindsMaximum()
+    {
+        var result = Products.MaxDynamic<Product, decimal>("p => p.Price");
+        Assert.That(result, Is.EqualTo(299.99m));
+    }
+
+    [Test]
+    public void GroupByDynamic_WithAggregation()
+    {
+        var result = Products
+            .GroupByDynamic<Product, string>("p => p.Category")
+            .ToDictionary(g => g.Key, g => g.Sum(p => p.Price));
+
+        Assert.That(result["Tools"], Is.EqualTo(14.98m));
+        Assert.That(result["Electronics"], Is.EqualTo(199.98m));
+        Assert.That(result["Premium"], Is.EqualTo(299.99m));
+    }
+
+    [Test]
     public void ChainedDynamic_WhereAndOrderBy()
     {
         var result = Products
