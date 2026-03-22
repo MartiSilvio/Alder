@@ -236,6 +236,9 @@ public static class DiagnosticDescriptors
     public static readonly DiagnosticDescriptor ArrayLengthExceeded =
         new(DiagnosticCode.ALDR0203, "Array length {0} exceeds maximum allowed ({1})");
 
+    public static readonly DiagnosticDescriptor LoopIterationLimitExceeded =
+        new(DiagnosticCode.ALDR0204, "Execution exceeded maximum loop iteration count ({0}). {1} iterations executed.");
+
     // ── Runtime (Alder) ─────────────────────────────────────────────
 
     public static readonly DiagnosticDescriptor NullMemberAccess =

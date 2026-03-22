@@ -107,6 +107,7 @@ public enum DiagnosticCode
     ALDR0201 = 1_000_201, // Statement limit exceeded
     ALDR0202 = 1_000_202, // Timeout exceeded
     ALDR0203 = 1_000_203, // Array length exceeded
+    ALDR0204 = 1_000_204, // Loop iteration limit exceeded
 
     // Runtime
     ALDR0300 = 1_000_300, // Cannot access member on null

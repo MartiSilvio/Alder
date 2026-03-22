@@ -61,7 +61,8 @@ public class AlderDepthException : AlderException
 public enum ExecutionLimitType
 {
     Statements,
-    Timeout
+    Timeout,
+    LoopIterations
 }
 
 public class AlderExecutionLimitException : AlderException
@@ -89,6 +90,7 @@ public class AlderExecutionLimitException : AlderException
         {
             ExecutionLimitType.Statements => DiagnosticDescriptors.StatementLimitExceeded,
             ExecutionLimitType.Timeout => DiagnosticDescriptors.TimeoutExceeded,
+            ExecutionLimitType.LoopIterations => DiagnosticDescriptors.LoopIterationLimitExceeded,
             _ => DiagnosticDescriptors.StatementLimitExceeded
         };
 }

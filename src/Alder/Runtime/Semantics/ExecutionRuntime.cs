@@ -128,6 +128,31 @@ internal static class ExecutionRuntime
         }
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static void CheckLoopIterationConstraint(
+        ExecutionConstraintState? state,
+        ExecutionConstraints? constraints)
+    {
+        if (state == null || constraints == null)
+            return;
+
+        var maxIterations = constraints.MaxLoopIterations;
+        if (maxIterations <= 0)
+            return;
+
+        state.LoopIterationCount++;
+
+        if (state.LoopIterationCount > maxIterations)
+        {
+            throw new AlderExecutionLimitException(
+                ExecutionLimitType.LoopIterations,
+                maxIterations,
+                state.LoopIterationCount,
+                state.StatementCount,
+                state.Timer?.Elapsed ?? TimeSpan.Zero);
+        }
+    }
+
     public static IEnumerator GetEnumerator(object? collection)
     {
         if (collection is not IEnumerable enumerable)

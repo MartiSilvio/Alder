@@ -22,6 +22,7 @@ internal sealed partial class BoundEvaluator
             while (TypeHelpers.RequireBoolean(Evaluate(whileExpr.Condition)))
             {
                 ExecutionRuntime.CheckExecutionConstraints(constraintState, constraints, _cancellationToken);
+                ExecutionRuntime.CheckLoopIterationConstraint(constraintState, constraints);
                 iterationContext.ClearScope();
 
                 var previousContext = _context;
@@ -74,6 +75,7 @@ internal sealed partial class BoundEvaluator
             while (forExpr.Condition == null || TypeHelpers.RequireBoolean(Evaluate(forExpr.Condition)))
             {
                 ExecutionRuntime.CheckExecutionConstraints(constraintState, constraints, _cancellationToken);
+                ExecutionRuntime.CheckLoopIterationConstraint(constraintState, constraints);
                 bodyContext.ClearScope();
 
                 var previousContext = _context;
@@ -124,6 +126,7 @@ internal sealed partial class BoundEvaluator
             do
             {
                 ExecutionRuntime.CheckExecutionConstraints(constraintState, constraints, _cancellationToken);
+                ExecutionRuntime.CheckLoopIterationConstraint(constraintState, constraints);
                 iterationContext.ClearScope();
 
                 var previousContext = _context;
@@ -176,6 +179,7 @@ internal sealed partial class BoundEvaluator
             foreach (var item in enumerable)
             {
                 ExecutionRuntime.CheckExecutionConstraints(constraintState, constraints, _cancellationToken);
+                ExecutionRuntime.CheckLoopIterationConstraint(constraintState, constraints);
 
                 var previousContext = _context;
                 _context = _context.CreateChild();

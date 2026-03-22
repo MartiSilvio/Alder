@@ -298,8 +298,11 @@ public sealed record SandboxOptions
 public sealed class ExecutionConstraints
 {
     internal const int DefaultMaxExpressionDepth = 512;
+    public const long DefaultMaxLoopIterations = 1_000_000;
 
     public long? MaxStatements { get; set; }
+
+    public long MaxLoopIterations { get; set; } = DefaultMaxLoopIterations;
 
     public TimeSpan? MaxTimeout { get; set; }
 
