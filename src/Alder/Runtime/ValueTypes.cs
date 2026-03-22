@@ -11,11 +11,22 @@ internal sealed record FunctionRef(string Name, Func<object?[], object?> Functio
     public object? Invoke(object?[] args) => Function(args);
 }
 
-internal sealed record LambdaValue(List<string> Parameters, Expr Body, AlderContext Closure, AlderOptions? Options = null)
+internal sealed class LambdaValue
 {
-    // Cached bound tree keyed by argument type signature.
-    // Safe because the same argument types produce the same bound tree structure.
+    public List<string> Parameters { get; }
+    public Expr Body { get; }
+    public AlderContext Closure { get; }
+    public AlderOptions? Options { get; }
+
     private (Type[] ArgTypes, BoundExpr BoundBody)? _bindingCache;
+
+    public LambdaValue(List<string> Parameters, Expr Body, AlderContext Closure, AlderOptions? Options = null)
+    {
+        this.Parameters = Parameters;
+        this.Body = Body;
+        this.Closure = Closure;
+        this.Options = Options;
+    }
 
     internal BoundExpr GetOrBindBody(AlderContext childContext)
     {

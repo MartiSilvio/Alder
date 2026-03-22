@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Runtime.ExceptionServices;
 using Alder.Diagnostics;
 using Alder.Parsing;
@@ -102,9 +103,8 @@ internal static class Operators
         if (TypeHelpers.IsArithmetic(left) && TypeHelpers.IsArithmetic(right))
             return NumericDispatch.Add(left, right, isChecked);
 
-        // ECMA-334 §12.4.5: user-defined binary operators
         if (left != null && right != null &&
-            TryInvokeUserDefinedBinaryOperator(left, right, "op_Addition", out var userResult))
+            TryInvokeUserDefinedBinaryOperator(left, right, "op_Addition", out var userResult, isChecked))
             return userResult;
 
         // Object merge via + operator (Extended mode only)
@@ -141,7 +141,7 @@ internal static class Operators
             right,
             TokenLexemes.GetCanonical(TokenType.Minus),
             (l, r) => NumericDispatch.Subtract(l, r, isChecked),
-            "op_Subtraction");
+            "op_Subtraction", isChecked);
     }
 
     public static object? Multiply(object? left, object? right) =>
@@ -159,7 +159,7 @@ internal static class Operators
             right,
             TokenLexemes.GetCanonical(TokenType.Star),
             (l, r) => NumericDispatch.Multiply(l, r, isChecked),
-            "op_Multiply");
+            "op_Multiply", isChecked);
     }
 
     public static object? Divide(object? left, object? right) =>
@@ -197,7 +197,7 @@ internal static class Operators
 
     private static object? ApplyBinaryArithmetic(
         object? left, object? right, string op, Func<object, object, object?> dispatch,
-        string? userDefinedOperatorName = null)
+        string? userDefinedOperatorName = null, bool isChecked = false)
     {
         if (left == null && right == null) return null;
         if (left == null || right == null)
@@ -209,12 +209,9 @@ internal static class Operators
         if (left != null && right != null && TypeHelpers.IsArithmetic(left) && TypeHelpers.IsArithmetic(right))
             return dispatch(left, right);
 
-        // ECMA-334 §12.4.5: user-defined binary operators
-        if (left != null && right != null && userDefinedOperatorName != null)
-        {
-            if (TryInvokeUserDefinedBinaryOperator(left, right, userDefinedOperatorName, out var result))
-                return result;
-        }
+        if (left != null && right != null && userDefinedOperatorName != null &&
+            TryInvokeUserDefinedBinaryOperator(left, right, userDefinedOperatorName, out var result, isChecked))
+            return result;
 
         throw new AlderException(DiagnosticDescriptors.BadBinaryOps, op, TypeNameFormatter.Of(left), TypeNameFormatter.Of(right));
     }
@@ -250,6 +247,9 @@ internal static class Operators
         if (TypeHelpers.IsArithmetic(left) && TypeHelpers.IsArithmetic(right))
             return NumericDispatch.Compare(left, right) == 0;
 
+        if (TryInvokeUserDefinedBinaryOperator(left, right, "op_Equality", out var userResult))
+            return userResult ?? false;
+
         return false;
     }
 
@@ -280,38 +280,38 @@ internal static class Operators
 
     public static object LessThan(object? left, object? right, AlderOptions options)
     {
-        if (left == null || right == null)
-            return false;
-        // IEEE 754: NaN comparisons always return false
+        if (left == null || right == null) return false;
         if (IsNaN(left) || IsNaN(right)) return false;
-        return Compare(left, right, options) < 0;
+        if (TryCompare(left, right, options, out var cmp)) return cmp < 0;
+        if (TryInvokeUserDefinedBinaryOperator(left, right, "op_LessThan", out var r)) return r ?? false;
+        throw new AlderException(DiagnosticDescriptors.BadBinaryOps, "<", TypeNameFormatter.Of(left), TypeNameFormatter.Of(right));
     }
 
     public static object LessThanOrEqual(object? left, object? right, AlderOptions options)
     {
-        if (left == null || right == null)
-            return false;
-        // IEEE 754: NaN comparisons always return false
+        if (left == null || right == null) return false;
         if (IsNaN(left) || IsNaN(right)) return false;
-        return Compare(left, right, options) <= 0;
+        if (TryCompare(left, right, options, out var cmp)) return cmp <= 0;
+        if (TryInvokeUserDefinedBinaryOperator(left, right, "op_LessThanOrEqual", out var r)) return r ?? false;
+        throw new AlderException(DiagnosticDescriptors.BadBinaryOps, "<=", TypeNameFormatter.Of(left), TypeNameFormatter.Of(right));
     }
 
     public static object GreaterThan(object? left, object? right, AlderOptions options)
     {
-        if (left == null || right == null)
-            return false;
-        // IEEE 754: NaN comparisons always return false
+        if (left == null || right == null) return false;
         if (IsNaN(left) || IsNaN(right)) return false;
-        return Compare(left, right, options) > 0;
+        if (TryCompare(left, right, options, out var cmp)) return cmp > 0;
+        if (TryInvokeUserDefinedBinaryOperator(left, right, "op_GreaterThan", out var r)) return r ?? false;
+        throw new AlderException(DiagnosticDescriptors.BadBinaryOps, ">", TypeNameFormatter.Of(left), TypeNameFormatter.Of(right));
     }
 
     public static object GreaterThanOrEqual(object? left, object? right, AlderOptions options)
     {
-        if (left == null || right == null)
-            return false;
-        // IEEE 754: NaN comparisons always return false
+        if (left == null || right == null) return false;
         if (IsNaN(left) || IsNaN(right)) return false;
-        return Compare(left, right, options) >= 0;
+        if (TryCompare(left, right, options, out var cmp)) return cmp >= 0;
+        if (TryInvokeUserDefinedBinaryOperator(left, right, "op_GreaterThanOrEqual", out var r)) return r ?? false;
+        throw new AlderException(DiagnosticDescriptors.BadBinaryOps, ">=", TypeNameFormatter.Of(left), TypeNameFormatter.Of(right));
     }
 
     private static bool IsNaN(object? value) => value switch
@@ -321,17 +321,35 @@ internal static class Operators
         _ => false
     };
 
+    private static bool TryCompare(object? left, object? right, AlderOptions options, out int result)
+    {
+        result = 0;
+        if (TypeHelpers.IsArithmetic(left) && TypeHelpers.IsArithmetic(right))
+        {
+            result = NumericDispatch.Compare(left!, right!);
+            return true;
+        }
+
+        if (left is string ls && right is string rs)
+        {
+            result = string.Compare(ls, rs, options.StringComparison);
+            return true;
+        }
+
+        if (left is IComparable comparable)
+        {
+            result = comparable.CompareTo(right);
+            return true;
+        }
+
+        return false;
+    }
+
     internal static int Compare(object? left, object? right, AlderOptions options)
     {
-        if (TypeHelpers.IsArithmetic(left) && TypeHelpers.IsArithmetic(right))
-            return NumericDispatch.Compare(left!, right!);
-
-        return left switch
-        {
-            string ls when right is string rs => string.Compare(ls, rs, options.StringComparison),
-            IComparable comparable => comparable.CompareTo(right),
-            _ => throw new AlderException(DiagnosticDescriptors.BadBinaryOps, "<>", TypeNameFormatter.Of(left), TypeNameFormatter.Of(right))
-        };
+        if (TryCompare(left, right, options, out var result))
+            return result;
+        throw new AlderException(DiagnosticDescriptors.BadBinaryOps, "<>", TypeNameFormatter.Of(left), TypeNameFormatter.Of(right));
     }
 
     public static object? BitwiseAnd(object? left, object? right)
@@ -362,6 +380,10 @@ internal static class Operators
 
         if (IsIntegerOrChar(left) && IsIntegerOrChar(right))
             return NumericDispatch.BitwiseAnd(left!, right!);
+
+        if (left != null && right != null &&
+            TryInvokeUserDefinedBinaryOperator(left, right, "op_BitwiseAnd", out var userResult))
+            return userResult;
 
         throw new AlderException(
             DiagnosticDescriptors.BadBinaryOps,
@@ -398,6 +420,10 @@ internal static class Operators
         if (IsIntegerOrChar(left) && IsIntegerOrChar(right))
             return NumericDispatch.BitwiseOr(left!, right!);
 
+        if (left != null && right != null &&
+            TryInvokeUserDefinedBinaryOperator(left, right, "op_BitwiseOr", out var userResult))
+            return userResult;
+
         throw new AlderException(
             DiagnosticDescriptors.BadBinaryOps,
             TokenLexemes.GetCanonical(TokenType.Pipe),
@@ -428,6 +454,10 @@ internal static class Operators
 
         if (IsIntegerOrChar(left) && IsIntegerOrChar(right))
             return NumericDispatch.BitwiseXor(left!, right!);
+
+        if (left != null && right != null &&
+            TryInvokeUserDefinedBinaryOperator(left, right, "op_ExclusiveOr", out var userResult))
+            return userResult;
 
         throw new AlderException(
             DiagnosticDescriptors.BadBinaryOps,
@@ -581,18 +611,41 @@ internal static class Operators
         return LikePatternMode.General;
     }
 
+    private static readonly ConcurrentDictionary<(Type Left, Type Right, string Op), MethodInfo?> UserDefinedBinaryOperatorCache = new();
+
     /// <summary>
     /// ECMA-334 §12.4.5: searches both operand types for a matching binary operator method.
+    /// Checks checked variant first when isChecked is true (e.g., op_CheckedAddition before op_Addition).
     /// </summary>
     private static bool TryInvokeUserDefinedBinaryOperator(
-        object left, object right, string operatorName, out object? result)
+        object left, object right, string operatorName, out object? result, bool isChecked = false)
     {
         result = null;
         var leftType = left.GetType();
         var rightType = right.GetType();
-        const BindingFlags flags = BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy;
 
-        // Search both operand types per §12.4.5
+        if (isChecked)
+        {
+            var checkedName = operatorName.Replace("op_", "op_Checked");
+            var checkedMethod = ResolveUserDefinedBinaryOperator(leftType, rightType, checkedName);
+            if (checkedMethod != null)
+                return InvokeOperator(checkedMethod, left, right, out result);
+        }
+
+        var method = ResolveUserDefinedBinaryOperator(leftType, rightType, operatorName);
+        if (method != null)
+            return InvokeOperator(method, left, right, out result);
+
+        return false;
+    }
+
+    private static MethodInfo? ResolveUserDefinedBinaryOperator(Type leftType, Type rightType, string operatorName)
+    {
+        var key = (leftType, rightType, operatorName);
+        if (UserDefinedBinaryOperatorCache.TryGetValue(key, out var cached))
+            return cached;
+
+        const BindingFlags flags = BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy;
         var searchTypes = leftType == rightType ? new[] { leftType } : new[] { leftType, rightType };
 
         foreach (var type in searchTypes)
@@ -606,24 +659,31 @@ internal static class Operators
                 if (parameters.Length != 2)
                     continue;
 
-                if (!parameters[0].ParameterType.IsInstanceOfType(left) ||
-                    !parameters[1].ParameterType.IsInstanceOfType(right))
-                    continue;
-
-                try
+                if (parameters[0].ParameterType.IsAssignableFrom(leftType) &&
+                    parameters[1].ParameterType.IsAssignableFrom(rightType))
                 {
-                    result = method.Invoke(null, [left, right]);
-                    return true;
-                }
-                catch (TargetInvocationException tie) when (tie.InnerException != null)
-                {
-                    ExceptionDispatchInfo.Capture(tie.InnerException).Throw();
-                    throw;
+                    UserDefinedBinaryOperatorCache.TryAdd(key, method);
+                    return method;
                 }
             }
         }
 
-        return false;
+        UserDefinedBinaryOperatorCache.TryAdd(key, null);
+        return null;
+    }
+
+    private static bool InvokeOperator(MethodInfo method, object left, object right, out object? result)
+    {
+        try
+        {
+            result = method.Invoke(null, [left, right]);
+            return true;
+        }
+        catch (TargetInvocationException tie) when (tie.InnerException != null)
+        {
+            ExceptionDispatchInfo.Capture(tie.InnerException).Throw();
+            throw;
+        }
     }
 
     public static object? StringMultiply(object? left, object? right)
