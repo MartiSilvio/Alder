@@ -47,9 +47,6 @@ internal static class MethodInvoker
     {
         return callee switch
         {
-            // ── Tier 1: Always allowed ──────────────────────────────────────
-            // Host-registered or expression-authored callees. The host explicitly
-            // made these available, so sandbox restrictions do not apply.
             ModuleMethodRef moduleRef =>
                 InvokeModuleMethod(moduleRef, args, context, ct),
 
@@ -65,20 +62,12 @@ internal static class MethodInvoker
             Delegate del =>
                 del.DynamicInvoke(args),
 
-            // ── Tier 2: Requires AllowMethodCalls ───────────────────────────
-            // Instance and static method calls on user-provided or resolved types.
-            // Gated by AllowMethodCalls.
             StaticMethodRef staticRef =>
-                !options.Sandbox.AllowMethodCalls
-                    ? throw new AlderException(DiagnosticDescriptors.SandboxMethodCallBlocked, $"{staticRef.Type.Name}.{staticRef.MethodName}")
-                : !options.Sandbox.IsTypeAllowed(staticRef.Type)
-                    ? throw new AlderException(DiagnosticDescriptors.SandboxTypeBlocked, staticRef.Type.Name)
-                : InvokeStaticMethod(staticRef.Type, staticRef.MethodName, args, context, options, typeArgs, ct),
+                InvokeStaticMethod(staticRef.Type, staticRef.MethodName, args, context, options, typeArgs, ct),
 
             MethodRef methodRef =>
                 InvokeMethodRef(methodRef, args, context, options, typeArgs, ct),
 
-            // ── Unrecognized ────────────────────────────────────────────────
             null => throw new AlderException(DiagnosticDescriptors.NullInvocation),
             _ => throw new AlderException(DiagnosticDescriptors.NonCallableType, callee.GetType().Name)
         };
@@ -122,43 +111,35 @@ internal static class MethodInvoker
             return (false, null);
 
         // ECMA-334 §12.8.9.2: Instance methods take precedence over extension methods.
-        if (options.Sandbox.AllowMethodCalls)
+        var type = target.GetType();
+
+        if (!HasSpecialArgs(args) &&
+            context.Config.AotMetadata is { } aotMeta && aotMeta.TryGetValue(type, out var metadata))
         {
-            var type = target.GetType();
-
-            if (!HasSpecialArgs(args) &&
-                context.Config.AotMetadata is { } aotMeta && aotMeta.TryGetValue(type, out var metadata))
-            {
-                if (metadata.TryInvokeMethod(methodName, target, args, out var aotResult))
-                    return (true, aotResult);
-            }
-
-            var flags = BindingFlags.Public | BindingFlags.Instance;
-            if (!options.IsCaseSensitive)
-                flags |= BindingFlags.IgnoreCase;
-            var methods = context.TypeMetadata.GetMethods(type, methodName, flags);
-
-            var resolved = ResolveMethod(methods, args, typeArgs, context.TypeResolver, out var ambiguous, ct);
-            if (ambiguous)
-                throw new AlderException(DiagnosticDescriptors.AmbiguousMethodInvocation, methodName);
-
-            if (resolved != null)
-            {
-                var invokeResult = InvokeMethodWithArgs(resolved, target, args, ct);
-                if (invokeResult.Success)
-                    return invokeResult;
-            }
+            if (metadata.TryInvokeMethod(methodName, target, args, out var aotResult))
+                return (true, aotResult);
         }
 
-        // No applicable instance method found (or instance methods blocked).
-        // Try extension methods per ECMA-334 §12.8.9.2.
+        var flags = BindingFlags.Public | BindingFlags.Instance;
+        if (!options.IsCaseSensitive)
+            flags |= BindingFlags.IgnoreCase;
+        var methods = context.TypeMetadata.GetMethods(type, methodName, flags);
+
+        var resolved = ResolveMethod(methods, args, typeArgs, context.TypeResolver, out var ambiguous, ct);
+        if (ambiguous)
+            throw new AlderException(DiagnosticDescriptors.AmbiguousMethodInvocation, methodName);
+
+        if (resolved != null)
+        {
+            var invokeResult = InvokeMethodWithArgs(resolved, target, args, ct);
+            if (invokeResult.Success)
+                return invokeResult;
+        }
+
         var extensionResult = ExtensionMethodResolver.TryInvokeExtensionMethod(
             target, methodName, args, context.ExtensionTypes, options.IsCaseSensitive, typeArgs, context, ct);
         if (extensionResult.Success)
             return extensionResult;
-
-        if (!options.Sandbox.AllowMethodCalls)
-            throw new AlderException(DiagnosticDescriptors.SandboxMethodCallBlocked, methodName);
 
         return (false, null);
     }

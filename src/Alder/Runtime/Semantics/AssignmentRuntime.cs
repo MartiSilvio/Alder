@@ -5,18 +5,6 @@ namespace Alder.Runtime.Semantics;
 
 internal static class AssignmentRuntime
 {
-    public static void CheckAllowPropertySet(AlderOptions options, string memberName)
-    {
-        if (!options.Sandbox.AllowPropertySet)
-            throw new AlderException(DiagnosticDescriptors.SandboxPropertyAssignmentBlocked, memberName);
-    }
-
-    public static void CheckAllowIndexSet(AlderOptions options, object? index)
-    {
-        if (!options.Sandbox.AllowIndexSet)
-            throw new AlderException(DiagnosticDescriptors.SandboxIndexAssignmentBlocked, index);
-    }
-
     public static object? ValidateVariableAssignment(string name, object? value, AlderContext context)
     {
         if (context.TryGetVariableType(name, out var variableType) && variableType != null && value != null)
@@ -65,7 +53,6 @@ internal static class AssignmentRuntime
         AlderOptions options,
         bool isChecked)
     {
-        ExecutionRuntime.CheckAllowAssignment(options, $"{name} {TokenLexemes.GetCanonical(compoundOperator)} ...");
         var currentValue = context.Get(name);
         var result = ApplyBinaryOperator(ResolveCompoundBaseOperator(compoundOperator), currentValue, rightValue, options, context, isChecked);
         result = ValidateCompoundAssignment(name, result, rightValue, context);
@@ -81,8 +68,6 @@ internal static class AssignmentRuntime
         AlderOptions options,
         bool isChecked)
     {
-        var incrementLexeme = TokenLexemes.GetCanonical(isIncrement ? TokenType.PlusPlus : TokenType.MinusMinus);
-        ExecutionRuntime.CheckAllowAssignment(options, incrementLexeme + name);
         var currentValue = context.Get(name);
         var one = GetNumericOne(currentValue);
         var newValue = isIncrement
@@ -113,7 +98,6 @@ internal static class AssignmentRuntime
         AlderContext context)
     {
         target = ExecutionRuntime.EnsureIndexTargetNotNull(target);
-        CheckAllowIndexSet(options, index);
         MemberAccess.SetIndex(target, index, value, options, context);
         return value;
     }
@@ -146,7 +130,6 @@ internal static class AssignmentRuntime
         target = ExecutionRuntime.EnsureIndexTargetNotNull(target);
         var currentValue = MemberAccess.GetIndex(target, index, options, context);
         var result = ApplyBinaryOperator(ResolveCompoundBaseOperator(compoundOperator), currentValue, rightValue, options, context, isChecked);
-        CheckAllowIndexSet(options, index);
         MemberAccess.SetIndex(target, index, result, options, context);
         return result;
     }
@@ -177,7 +160,6 @@ internal static class AssignmentRuntime
         var currentValue = MemberAccess.GetIndex(target, index, options, context);
         if (currentValue != null)
             return currentValue;
-        CheckAllowIndexSet(options, index);
         MemberAccess.SetIndex(target, index, value, options, context);
         return value;
     }
@@ -218,7 +200,6 @@ internal static class AssignmentRuntime
             ? Operators.Add(currentValue, one, options, context, isChecked)
             : Operators.Subtract(currentValue, one, isChecked);
         newValue = NarrowToOriginalType(currentValue, newValue);
-        CheckAllowIndexSet(options, index);
         MemberAccess.SetIndex(target, index, newValue, options, context);
         return isPrefix ? newValue : currentValue;
     }
@@ -233,7 +214,6 @@ internal static class AssignmentRuntime
         AlderContext context,
         bool isChecked)
     {
-        ExecutionRuntime.CheckAllowAssignment(options, $"{name} {TokenLexemes.GetCanonical(compoundOperator)} ...");
         var result = ApplyBinaryOperator(ResolveCompoundBaseOperator(compoundOperator), currentValue, rightValue, options, context, isChecked);
         return ValidateCompoundAssignmentLocal(result, rightValue, variableType);
     }
@@ -247,8 +227,6 @@ internal static class AssignmentRuntime
         AlderContext context,
         bool isChecked)
     {
-        var incrementLexeme = TokenLexemes.GetCanonical(isIncrement ? TokenType.PlusPlus : TokenType.MinusMinus);
-        ExecutionRuntime.CheckAllowAssignment(options, incrementLexeme + name);
         var one = GetNumericOne(currentValue);
         var newValue = isIncrement
             ? Operators.Add(currentValue, one, options, context, isChecked)

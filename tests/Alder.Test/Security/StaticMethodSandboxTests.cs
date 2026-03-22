@@ -15,7 +15,7 @@ public class StaticMethodSandboxTests(CompilationMode mode)
         });
 
         var ex = Assert.Throws<AlderException>(() =>
-            engine.Evaluate("""System.IO.File.Exists("/tmp") """));
+            engine.Evaluate("""int.Parse("42") """));
         Assert.That(ex!.Message, Does.Contain("sandbox"));
         Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0100));
     }
@@ -28,7 +28,7 @@ public class StaticMethodSandboxTests(CompilationMode mode)
         });
 
         var ex = Assert.Throws<AlderException>(() =>
-            engine.Evaluate("""System.IO.File.Exists("/tmp") """));
+            engine.Evaluate("""int.Parse("42") """));
         Assert.That(ex!.Message, Does.Contain("sandbox"));
         Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0100));
     }

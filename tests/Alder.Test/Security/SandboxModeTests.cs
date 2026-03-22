@@ -437,21 +437,18 @@ public class SandboxModeTests(CompilationMode mode)
     }
 
     [Test]
-    public void Safe_AllowAssignmentFalse_NullCoalesceSkipsWhenNotNull()
+    public void Safe_AllowAssignmentFalse_BlocksNullCoalesceEvenWhenNotNull()
     {
         var engine = TestEngineFactory.Create(mode, new AlderOptions {
                         Sandbox = SandboxOptions.Safe() with { AllowAssignment = false }
         });
 
-        // When value is not null, ??= doesn't assign, so it should succeed
-        // Using string (reference type) since ??= only works on nullable types
-        var result = engine.Evaluate(@"
+        var ex = Assert.Throws<AlderException>(() => engine.Evaluate(@"
             var x = ""hello"";
             x ??= ""world"";
             return x;
-        ");
-
-        Assert.That(result, Is.EqualTo("hello"));
+        "));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0101));
     }
 
     #endregion

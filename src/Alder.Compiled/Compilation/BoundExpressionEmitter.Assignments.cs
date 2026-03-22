@@ -50,10 +50,6 @@ internal sealed partial class BoundExpressionEmitter
             {
                 return LinqExpression.Block(
                     typeof(object),
-                    LinqExpression.Call(
-                        CheckAllowAssignmentMethod,
-                        _optionsParam,
-                        LinqExpression.Constant(BuildAssignmentOperationDescription(assign.Name, TokenType.Equal))),
                     LinqExpression.Assign(promoted.Variable, EmitHelpers.AsObject(Emit(assign.Value))),
                     promoted.Variable);
             }
@@ -62,10 +58,6 @@ internal sealed partial class BoundExpressionEmitter
             return LinqExpression.Block(
                 typeof(object),
                 [validatedVar],
-                LinqExpression.Call(
-                    CheckAllowAssignmentMethod,
-                    _optionsParam,
-                    LinqExpression.Constant(BuildAssignmentOperationDescription(assign.Name, TokenType.Equal))),
                 LinqExpression.Assign(validatedVar, EmitHelpers.AsObject(Emit(assign.Value))),
                 LinqExpression.Assign(
                     validatedVar,
@@ -82,10 +74,6 @@ internal sealed partial class BoundExpressionEmitter
         return LinqExpression.Block(
             typeof(object),
             [nonPromotedValue],
-            LinqExpression.Call(
-                CheckAllowAssignmentMethod,
-                _optionsParam,
-                LinqExpression.Constant(BuildAssignmentOperationDescription(assign.Name, TokenType.Equal))),
             LinqExpression.Assign(nonPromotedValue, EmitHelpers.AsObject(Emit(assign.Value))),
             LinqExpression.Assign(
                 nonPromotedValue,
@@ -124,11 +112,6 @@ internal sealed partial class BoundExpressionEmitter
                     LinqExpression.NotEqual(promoted.Variable, LinqExpression.Constant(null, typeof(object))),
                     promoted.Variable,
                     LinqExpression.Block(
-                        LinqExpression.Call(
-                            CheckAllowAssignmentMethod,
-                            _optionsParam,
-                            LinqExpression.Constant(
-                                BuildAssignmentOperationDescription(nullCoalesceAssign.Name, TokenType.QuestionQuestionEqual))),
                         LinqExpression.Assign(assignedVar, EmitHelpers.AsObject(Emit(nullCoalesceAssign.Value))),
                         LinqExpression.Assign(promoted.Variable, assignedVar),
                         assignedVar)));
@@ -150,11 +133,6 @@ internal sealed partial class BoundExpressionEmitter
                 LinqExpression.NotEqual(currentVar, LinqExpression.Constant(null, typeof(object))),
                 currentVar,
                 LinqExpression.Block(
-                    LinqExpression.Call(
-                        CheckAllowAssignmentMethod,
-                        _optionsParam,
-                        LinqExpression.Constant(
-                            BuildAssignmentOperationDescription(nullCoalesceAssign.Name, TokenType.QuestionQuestionEqual))),
                     LinqExpression.Assign(nonPromotedAssigned, EmitHelpers.AsObject(Emit(nullCoalesceAssign.Value))),
                     LinqExpression.Call(
                         _contextParam,
@@ -276,7 +254,6 @@ internal sealed partial class BoundExpressionEmitter
         return LinqExpression.Block(
             typeof(object),
             [targetObjVar, valueVar],
-            LinqExpression.Call(CheckAllowPropertySetMethod, _optionsParam, LinqExpression.Constant(memberAssign.MemberName)),
             LinqExpression.Assign(targetObjVar, EmitHelpers.AsObject(Emit(memberAssign.Target))),
             LinqExpression.Assign(valueVar, EmitHelpers.AsObject(Emit(memberAssign.Value))),
             LinqExpression.Assign(LinqExpression.Property(typedTarget, property), typedValue),
@@ -296,7 +273,6 @@ internal sealed partial class BoundExpressionEmitter
         return LinqExpression.Block(
             typeof(object),
             [targetObjVar, valueVar],
-            LinqExpression.Call(CheckAllowPropertySetMethod, _optionsParam, LinqExpression.Constant(memberAssign.MemberName)),
             LinqExpression.Assign(targetObjVar, EmitHelpers.AsObject(Emit(memberAssign.Target))),
             LinqExpression.Assign(valueVar, EmitHelpers.AsObject(Emit(memberAssign.Value))),
             LinqExpression.Assign(LinqExpression.Field(typedTarget, field), typedValue),
@@ -381,7 +357,6 @@ internal sealed partial class BoundExpressionEmitter
             [targetObjVar, indexObjVar, valueVar],
             LinqExpression.Assign(targetObjVar, EmitHelpers.AsObject(Emit(indexAssign.Target))),
             LinqExpression.Assign(indexObjVar, EmitHelpers.AsObject(Emit(indexAssign.Index))),
-            LinqExpression.Call(CheckAllowIndexSetMethod, _optionsParam, indexObjVar),
             LinqExpression.Assign(valueVar, EmitHelpers.AsObject(Emit(indexAssign.Value))),
             assignExpr,
             valueVar);
@@ -456,7 +431,6 @@ internal sealed partial class BoundExpressionEmitter
         return LinqExpression.Block(
             typeof(object),
             [targetObjVar, typedCurrent, typedRhs],
-            LinqExpression.Call(CheckAllowPropertySetMethod, _optionsParam, LinqExpression.Constant(memberCompoundAssign.MemberName)),
             LinqExpression.Assign(targetObjVar, EmitHelpers.AsObject(Emit(memberCompoundAssign.Target))),
             LinqExpression.Assign(typedCurrent, propAccess),
             LinqExpression.Assign(typedRhs, EmitHelpers.UnboxOrCoerce(Emit(memberCompoundAssign.Value), rhsType)),
@@ -571,7 +545,6 @@ internal sealed partial class BoundExpressionEmitter
             [targetObjVar, indexObjVar, normalizedIdx, typedCurrent, typedRhs],
             LinqExpression.Assign(targetObjVar, EmitHelpers.AsObject(Emit(indexCompoundAssign.Target))),
             LinqExpression.Assign(indexObjVar, EmitHelpers.AsObject(Emit(indexCompoundAssign.Index))),
-            LinqExpression.Call(CheckAllowIndexSetMethod, _optionsParam, indexObjVar),
             LinqExpression.Assign(normalizedIdx, normalizeExpr),
             LinqExpression.Assign(typedCurrent, readExpr),
             LinqExpression.Assign(typedRhs, EmitHelpers.UnboxOrCoerce(Emit(indexCompoundAssign.Value), rhsType)),
@@ -626,7 +599,6 @@ internal sealed partial class BoundExpressionEmitter
                 LinqExpression.Assign(resultVar, currentVar),
                 LinqExpression.Block(
                     LinqExpression.Assign(resultVar, EmitHelpers.AsObject(Emit(indexNullCoalesceAssign.Value))),
-                    LinqExpression.Call(CheckAllowIndexSetMethod, _optionsParam, indexVar),
                     LinqExpression.Call(SetIndexMethod, targetVar, indexVar, resultVar, _optionsParam, _contextParam))),
             resultVar);
     }
@@ -671,7 +643,6 @@ internal sealed partial class BoundExpressionEmitter
         return LinqExpression.Block(
             typeof(object),
             [targetObjVar, oldTyped],
-            LinqExpression.Call(CheckAllowPropertySetMethod, _optionsParam, LinqExpression.Constant(memberIncrement.MemberName)),
             LinqExpression.Assign(targetObjVar, EmitHelpers.AsObject(Emit(memberIncrement.Target))),
             LinqExpression.Assign(oldTyped, propAccess),
             LinqExpression.Assign(propAccess, newValue),
@@ -760,7 +731,6 @@ internal sealed partial class BoundExpressionEmitter
             [targetObjVar, indexObjVar, normalizedIdx, oldTyped],
             LinqExpression.Assign(targetObjVar, EmitHelpers.AsObject(Emit(indexIncrement.Target))),
             LinqExpression.Assign(indexObjVar, EmitHelpers.AsObject(Emit(indexIncrement.Index))),
-            LinqExpression.Call(CheckAllowIndexSetMethod, _optionsParam, indexObjVar),
             LinqExpression.Assign(normalizedIdx, normalizeExpr),
             LinqExpression.Assign(oldTyped, readExpr),
             writeExpr,
@@ -809,10 +779,6 @@ internal sealed partial class BoundExpressionEmitter
         result = LinqExpression.Block(
             typeof(object),
             [typedLocal, typedRhs],
-            LinqExpression.Call(
-                CheckAllowAssignmentMethod,
-                _optionsParam,
-                LinqExpression.Constant(BuildAssignmentOperationDescription(compoundAssign.Name, compoundAssign.Operator))),
             LinqExpression.Assign(typedLocal, LinqExpression.Unbox(promoted.Variable, promoted.VariableType)),
             LinqExpression.Assign(typedRhs, EmitHelpers.UnboxOrCoerce(Emit(compoundAssign.Value), rhsType)),
             LinqExpression.Assign(promoted.Variable, LinqExpression.Convert(binaryExpr, typeof(object))),
@@ -839,18 +805,11 @@ internal sealed partial class BoundExpressionEmitter
             ? LinqExpression.Add(typedLocal, one)
             : LinqExpression.Subtract(typedLocal, one);
 
-        var checkAssign = LinqExpression.Call(
-            CheckAllowAssignmentMethod,
-            _optionsParam,
-            LinqExpression.Constant(
-                (isIncrement ? "++" : "--") + incrementDecrement.Name));
-
         if (incrementDecrement.IsPrefix)
         {
             result = LinqExpression.Block(
                 typeof(object),
                 [typedLocal],
-                checkAssign,
                 LinqExpression.Assign(typedLocal, LinqExpression.Unbox(promoted.Variable, promoted.VariableType)),
                 LinqExpression.Assign(promoted.Variable, LinqExpression.Convert(newValue, typeof(object))),
                 promoted.Variable);
@@ -861,7 +820,6 @@ internal sealed partial class BoundExpressionEmitter
             result = LinqExpression.Block(
                 typeof(object),
                 [typedLocal, oldVar],
-                checkAssign,
                 LinqExpression.Assign(typedLocal, LinqExpression.Unbox(promoted.Variable, promoted.VariableType)),
                 LinqExpression.Assign(oldVar, promoted.Variable),
                 LinqExpression.Assign(promoted.Variable, LinqExpression.Convert(newValue, typeof(object))),
@@ -911,6 +869,4 @@ internal sealed partial class BoundExpressionEmitter
         t == typeof(int) || t == typeof(long) || t == typeof(double) || t == typeof(float)
         || t == typeof(decimal) || t == typeof(uint) || t == typeof(ulong);
 
-    private static string BuildAssignmentOperationDescription(string targetName, TokenType operatorToken) =>
-        string.Concat(targetName, " ", TokenLexemes.GetCanonical(operatorToken), " ...");
 }

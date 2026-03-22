@@ -8,57 +8,6 @@ namespace Alder.Runtime.Semantics;
 
 internal static class ExecutionRuntime
 {
-    public static void CheckAllowAssignment(AlderOptions options, string context)
-    {
-        if (!options.Sandbox.AllowAssignment)
-            throw new AlderException(DiagnosticDescriptors.SandboxAssignmentBlocked, context);
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void EnsureMethodCallsAllowed(
-        AlderOptions options,
-        string methodName,
-        Type? staticDeclaringType = null,
-        bool isModuleCall = false)
-    {
-        if (isModuleCall)
-            return;
-
-        if (options.Sandbox.AllowMethodCalls)
-            return;
-
-        if (staticDeclaringType != null)
-            throw new AlderException(DiagnosticDescriptors.SandboxMethodCallBlocked, $"{staticDeclaringType.Name}.{methodName}");
-
-        throw new AlderException(DiagnosticDescriptors.SandboxMethodCallBlocked, methodName);
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void EnsureMemberReadAllowed(
-        AlderOptions options,
-        string memberName,
-        bool isStatic,
-        bool isField,
-        Type? staticDeclaringType = null)
-    {
-        if (!isStatic)
-        {
-            if (!options.Sandbox.AllowPropertyRead)
-                throw new AlderException(DiagnosticDescriptors.SandboxPropertyAccessBlocked, memberName);
-            return;
-        }
-
-        if (isField)
-        {
-            if (!options.Sandbox.AllowStaticFieldRead)
-                throw new AlderException(DiagnosticDescriptors.SandboxStaticMemberAccessBlocked, staticDeclaringType?.Name ?? "type", memberName);
-            return;
-        }
-
-        if (!options.Sandbox.AllowStaticPropertyRead)
-            throw new AlderException(DiagnosticDescriptors.SandboxStaticMemberAccessBlocked, staticDeclaringType?.Name ?? "type", memberName);
-    }
-
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static object EnsureMemberTargetNotNull(object? target, string memberName)
     {

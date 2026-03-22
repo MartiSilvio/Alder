@@ -124,14 +124,6 @@ internal sealed partial class BoundEvaluator
             if (memberAccess.NullSafe && target == null)
                 return null;
 
-            if (!call.Plan.IsModuleCall)
-            {
-                ExecutionRuntime.EnsureMethodCallsAllowed(
-                    _options,
-                    call.Plan.SelectedMethod.Name,
-                    call.Plan.IsStaticCall ? call.Plan.SelectedMethod.DeclaringType : null);
-            }
-
             var plannedArgs = EvaluateArguments(call.Arguments);
 
             var plannedResult = MethodInvoker.InvokePlannedMethod(

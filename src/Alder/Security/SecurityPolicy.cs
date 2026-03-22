@@ -15,6 +15,8 @@ public sealed class SecurityPolicy
     public int MaxArrayLength { get; }
     public TimeSpan RegexTimeout { get; }
 
+    internal bool IsTrusted { get; }
+
     private readonly FixedSet<Type>? _allowedTypes;
     private readonly FixedSet<Type> _deniedTypes;
     private readonly FixedSet<string> _deniedNamespaces;
@@ -35,6 +37,10 @@ public sealed class SecurityPolicy
         _allowedTypes = b.AllowedTypes?.Count > 0 ? FixedSet<Type>.Create(b.AllowedTypes) : null;
         _deniedTypes = FixedSet<Type>.Create(b.DeniedTypes ?? DefaultDeniedTypes);
         _deniedNamespaces = FixedSet<string>.Create(b.DeniedNamespaces ?? DefaultDeniedNamespaces);
+
+        IsTrusted = AllowMethodCalls && AllowPropertyRead && AllowStaticPropertyRead &&
+                    AllowStaticFieldRead && AllowAssignment && AllowPropertySet &&
+                    AllowIndexSet && AllowConstruction && _allowedTypes == null;
     }
 
     public bool IsTypeAllowed(Type type)

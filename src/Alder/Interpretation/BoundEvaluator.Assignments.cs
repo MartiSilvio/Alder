@@ -12,7 +12,6 @@ internal sealed partial class BoundEvaluator
     private object? EvaluateAssign(BoundAssignExpr assign)
     {
         var value = Evaluate(assign.Value);
-        ExecutionRuntime.CheckAllowAssignment(_options, $"{assign.Name} = ...");
         value = AssignmentRuntime.ValidateVariableAssignment(assign.Name, value, _context);
         _context.Set(assign.Name, value);
         return value;
@@ -26,8 +25,6 @@ internal sealed partial class BoundEvaluator
         var currentValue = _context.Get(name);
         if (currentValue != null)
             return currentValue;
-
-        ExecutionRuntime.CheckAllowAssignment(_options, $"{name} ??= ...");
 
         var newValue = Evaluate(nullCoalesceAssign.Value);
         _context.Set(name, newValue);
@@ -65,7 +62,6 @@ internal sealed partial class BoundEvaluator
         if (memberAssign.Plan?.Member is PropertyInfo property && property.CanWrite
             && target != null && !target.GetType().IsValueType)
         {
-            AssignmentRuntime.CheckAllowPropertySet(_options, memberAssign.MemberName);
             property.SetValue(target, value);
             return value;
         }
@@ -73,7 +69,6 @@ internal sealed partial class BoundEvaluator
         if (memberAssign.Plan?.Member is FieldInfo field && !field.IsInitOnly
             && target != null && !target.GetType().IsValueType)
         {
-            AssignmentRuntime.CheckAllowPropertySet(_options, memberAssign.MemberName);
             field.SetValue(target, value);
             return value;
         }
@@ -139,7 +134,6 @@ internal sealed partial class BoundEvaluator
         if (currentValue != null)
             return currentValue;
         var newValue = Evaluate(indexNullCoalesceAssign.Value);
-        AssignmentRuntime.CheckAllowIndexSet(_options, index);
         MemberAccess.SetIndex(target, index, newValue, _options, _context);
         return newValue;
     }

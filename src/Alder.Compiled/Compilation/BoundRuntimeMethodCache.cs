@@ -55,12 +55,6 @@ internal static class BoundRuntimeMethodCache
             nameof(MemberAccess.SetIndex),
             [typeof(object), typeof(object), typeof(object), typeof(AlderOptions), typeof(AlderContext)])!;
 
-    internal static readonly MethodInfo CheckAllowPropertySetMethod =
-        typeof(AssignmentRuntime).GetMethod(nameof(AssignmentRuntime.CheckAllowPropertySet))!;
-
-    internal static readonly MethodInfo CheckAllowIndexSetMethod =
-        typeof(AssignmentRuntime).GetMethod(nameof(AssignmentRuntime.CheckAllowIndexSet))!;
-
     internal static readonly MethodInfo NormalizeIndexMethod =
         typeof(MemberAccess).GetMethod(nameof(MemberAccess.NormalizeIndex), [typeof(int), typeof(int), typeof(LanguageMode)])!;
 
@@ -129,9 +123,6 @@ internal static class BoundRuntimeMethodCache
 
     internal static readonly MethodInfo DefineOutVariablesMethod =
         typeof(IdentifierRuntime).GetMethod(nameof(IdentifierRuntime.DefineOutVariables))!;
-
-    internal static readonly MethodInfo CheckAllowAssignmentMethod =
-        typeof(ExecutionRuntime).GetMethod(nameof(ExecutionRuntime.CheckAllowAssignment))!;
 
     internal static readonly MethodInfo ValidateVariableAssignmentMethod =
         typeof(AssignmentRuntime).GetMethod(nameof(AssignmentRuntime.ValidateVariableAssignment))!;
@@ -234,12 +225,6 @@ internal static class BoundRuntimeMethodCache
 
     internal static readonly MethodInfo ApplyIndexerInitializerMethod =
         typeof(ConstructionRuntime).GetMethod(nameof(ConstructionRuntime.ApplyIndexerInitializer))!;
-
-    internal static readonly MethodInfo EnsureMethodCallsAllowedMethod =
-        typeof(ExecutionRuntime).GetMethod(nameof(ExecutionRuntime.EnsureMethodCallsAllowed))!;
-
-    internal static readonly MethodInfo EnsureMemberReadAllowedMethod =
-        typeof(ExecutionRuntime).GetMethod(nameof(ExecutionRuntime.EnsureMemberReadAllowed))!;
 
     internal static readonly MethodInfo EnsureMemberTargetNotNullMethod =
         typeof(ExecutionRuntime).GetMethod(nameof(ExecutionRuntime.EnsureMemberTargetNotNull))!;

@@ -19,7 +19,7 @@ public sealed record AlderOptions
 
     public SandboxOptions Sandbox { get; init; } = SandboxOptions.Trusted();
 
-    public SecurityPolicy Security { get; init; } = SecurityPolicy.Trusted;
+    internal SecurityPolicy Security => Sandbox.ToSecurityPolicy();
 
     internal ICompiledProvider? Compiler { get; init; }
 
@@ -78,6 +78,19 @@ public sealed record SandboxOptions
     };
 
     internal bool IsTypeAllowed(Type type) => AllowedTypes == null || AllowedTypes.Contains(type);
+
+    internal SecurityPolicy ToSecurityPolicy() => new SecurityPolicy.Builder
+    {
+        AllowMethodCalls = AllowMethodCalls,
+        AllowPropertyRead = AllowPropertyRead,
+        AllowStaticPropertyRead = AllowStaticPropertyRead,
+        AllowStaticFieldRead = AllowStaticFieldRead,
+        AllowAssignment = AllowAssignment,
+        AllowPropertySet = AllowPropertySet,
+        AllowIndexSet = AllowIndexSet,
+        AllowConstruction = AllowConstruction,
+        AllowedTypes = AllowedTypes
+    }.Build();
 }
 
 public sealed class ExecutionConstraints

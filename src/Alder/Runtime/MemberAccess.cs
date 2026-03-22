@@ -49,18 +49,10 @@ internal static class MemberAccess
             if (context.Config.AotMetadata is { } aotStaticMeta && aotStaticMeta.TryGetValue(staticType, out var staticMetadata))
             {
                 if (staticMetadata.TryGetStaticProperty(name, out var aotStaticValue))
-                {
-                    if (!options.Sandbox.AllowStaticPropertyRead)
-                        throw new AlderException(DiagnosticDescriptors.SandboxStaticMemberAccessBlocked, staticType.Name, name);
                     return TypeHelpers.GuardReflectionLeak(aotStaticValue, $"static property {name}");
-                }
 
                 if (staticMetadata.TryGetStaticField(name, out aotStaticValue))
-                {
-                    if (!options.Sandbox.AllowStaticFieldRead)
-                        throw new AlderException(DiagnosticDescriptors.SandboxStaticMemberAccessBlocked, staticType.Name, name);
                     return TypeHelpers.GuardReflectionLeak(aotStaticValue, $"static field {name}");
-                }
             }
 
             var staticTypeCache = context.TypeMetadata;
@@ -70,19 +62,11 @@ internal static class MemberAccess
 
             var staticProp = staticTypeCache.GetProperty(staticType, name, staticBindingFlags);
             if (staticProp != null)
-            {
-                if (!options.Sandbox.AllowStaticPropertyRead)
-                    throw new AlderException(DiagnosticDescriptors.SandboxStaticMemberAccessBlocked, staticType.Name, name);
                 return TypeHelpers.GuardReflectionLeak(staticProp.GetValue(null), $"static property {name}");
-            }
 
             var staticField = staticTypeCache.GetField(staticType, name, staticBindingFlags);
             if (staticField != null)
-            {
-                if (!options.Sandbox.AllowStaticFieldRead)
-                    throw new AlderException(DiagnosticDescriptors.SandboxStaticMemberAccessBlocked, staticType.Name, name);
                 return TypeHelpers.GuardReflectionLeak(staticField.GetValue(null), $"static field {name}");
-            }
 
             // Check if this is a static method before falling through to instance members
             var staticMethods = staticTypeCache.GetMethods(staticType, name, staticBindingFlags);
@@ -123,12 +107,6 @@ internal static class MemberAccess
             }
             throw new AlderException(DiagnosticDescriptors.NoMemberOnType, module.Type.Name, name);
         }
-
-        // Sandbox guard: block property/field reads on variable objects when not allowed.
-        // This check is intentionally placed AFTER module/namespace/type handling so that
-        // modules, namespaces, and static type members are always accessible.
-        if (!options.Sandbox.AllowPropertyRead)
-            throw new AlderException(DiagnosticDescriptors.SandboxPropertyAccessBlocked, name);
 
         switch (obj)
         {
@@ -278,9 +256,6 @@ internal static class MemberAccess
     {
         if (obj == null)
             throw new AlderException(DiagnosticDescriptors.NullPropertyAssignment, name);
-
-        if (!options.Sandbox.AllowPropertySet)
-            throw new AlderException(DiagnosticDescriptors.SandboxPropertyAssignmentBlocked, name);
 
         var caseInsensitive = !options.IsCaseSensitive;
 

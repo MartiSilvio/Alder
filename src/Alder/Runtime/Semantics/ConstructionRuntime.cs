@@ -10,15 +10,6 @@ internal static class ConstructionRuntime
 
     public static object? InvokeConstructor(Type type, object?[] args, AlderConfig config, AlderOptions? options = null)
     {
-        if (options != null)
-        {
-            if (!options.Sandbox.AllowConstruction)
-                throw new AlderException(DiagnosticDescriptors.SandboxConstructionBlocked, type.Name);
-
-            if (!options.Sandbox.IsTypeAllowed(type))
-                throw new AlderException(DiagnosticDescriptors.SandboxTypeBlocked, type.Name);
-        }
-
         if (config.AotMetadata is { } aotCtorMeta && aotCtorMeta.TryGetValue(type, out var ctorMetadata))
         {
             try

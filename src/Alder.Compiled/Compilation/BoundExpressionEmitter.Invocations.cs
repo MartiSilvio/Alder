@@ -81,7 +81,7 @@ internal sealed partial class BoundExpressionEmitter
     private LinqExpression EmitDirectPropertyAccess(BoundMemberAccessExpr memberAccess, PropertyInfo property)
     {
         var plan = memberAccess.Plan!;
-        var guardCheck = EmitMemberReadGuard(memberAccess, isField: false);
+        var guardCheck = LinqExpression.Empty();
 
         if (plan.IsStatic)
         {
@@ -129,7 +129,7 @@ internal sealed partial class BoundExpressionEmitter
     private LinqExpression EmitDirectFieldAccess(BoundMemberAccessExpr memberAccess, FieldInfo field)
     {
         var plan = memberAccess.Plan!;
-        var guardCheck = EmitMemberReadGuard(memberAccess, isField: true);
+        var guardCheck = LinqExpression.Empty();
 
         if (plan.IsStatic)
         {
@@ -295,7 +295,7 @@ internal sealed partial class BoundExpressionEmitter
 
         var method = call.Plan.SelectedMethod;
         var parameters = MethodDispatchCache.GetParameters(method);
-        var guardCheck = EmitMethodCallGuard(method, call.Plan.IsStaticCall, call.Plan.IsModuleCall);
+        var guardCheck = LinqExpression.Empty();
         var args = EmitPlannedCallArguments(call, parameters);
 
         if (call.Plan.IsStaticCall)
@@ -477,29 +477,6 @@ internal sealed partial class BoundExpressionEmitter
         return LinqExpression.Convert(emittedArgument, targetType);
     }
 
-    private LinqExpression EmitMethodCallGuard(MethodInfo method, bool isStaticCall, bool isModuleCall)
-    {
-        return LinqExpression.Call(
-            EnsureMethodCallsAllowedMethod,
-            _optionsParam,
-            LinqExpression.Constant(method.Name),
-            isStaticCall
-                ? LinqExpression.Constant(method.DeclaringType, typeof(Type))
-                : LinqExpression.Constant(null, typeof(Type)),
-            LinqExpression.Constant(isModuleCall));
-    }
-
-    private LinqExpression EmitMemberReadGuard(BoundMemberAccessExpr memberAccess, bool isField)
-    {
-        var plan = memberAccess.Plan!;
-        return LinqExpression.Call(
-            EnsureMemberReadAllowedMethod,
-            _optionsParam,
-            LinqExpression.Constant(memberAccess.MemberName),
-            LinqExpression.Constant(plan.IsStatic),
-            LinqExpression.Constant(isField),
-            LinqExpression.Constant(plan.DeclaringType, typeof(Type)));
-    }
 
     private LinqExpression EmitInvoke(BoundInvokeExpr invoke)
     {
