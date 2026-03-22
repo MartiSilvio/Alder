@@ -1549,7 +1549,7 @@ internal static class MethodInvoker
             childContext.Define(lambda.Parameters[i], args[i]);
         }
 
-        AstDepthValidator.EnsureWithinLimit(lambda.Body, lambda.Options?.MaxExpressionDepth ?? AlderOptions.Default.MaxExpressionDepth);
+        AstDepthValidator.EnsureWithinLimit(lambda.Body, lambda.Options?.MaxExpressionDepth ?? ExecutionConstraints.DefaultMaxExpressionDepth);
         var binder = new Binding.Binder();
         var bound = binder.Bind(lambda.Body, new BindingContext(childContext));
         var evaluator = new BoundEvaluator(childContext, lambda.Options!);

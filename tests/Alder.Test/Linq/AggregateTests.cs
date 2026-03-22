@@ -285,7 +285,7 @@ public class AggregateTests(CompilationMode mode)
         engine.SetVariable("strings", new List<string> { "a", "b", "c" });
 
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate("strings.Sum()"));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(Alder.Diagnostics.DiagnosticCode.CSEV0024));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(Alder.Diagnostics.DiagnosticCode.ALDR0304));
     }
 
     [Test]
@@ -295,7 +295,7 @@ public class AggregateTests(CompilationMode mode)
         engine.SetVariable("items", new List<object> { "hello", "world" });
 
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate("items.Sum()"));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(Alder.Diagnostics.DiagnosticCode.CSEV0024));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(Alder.Diagnostics.DiagnosticCode.ALDR0304));
     }
 
     [Test]

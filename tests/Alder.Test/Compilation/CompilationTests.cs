@@ -634,7 +634,7 @@ public class CompilationTests
         var expr = engine.Parse("1 + 2");
 
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate(expr));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(Alder.Diagnostics.DiagnosticCode.CSEV0001));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(Alder.Diagnostics.DiagnosticCode.ALDR0001));
         Assert.That(ex.Message, Does.Contain("Forced compile failure"));
         Assert.That(expr.IsCompiled, Is.False);
     }

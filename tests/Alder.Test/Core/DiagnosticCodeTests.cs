@@ -437,8 +437,8 @@ public class DiagnosticCodeTests
         });
         engine.SetVariable("x", 10);
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate("x = 5"));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0012));
-        Assert.That(ex.FormattedCode, Is.EqualTo("CSEV0012"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0101));
+        Assert.That(ex.FormattedCode, Is.EqualTo("ALDR0101"));
     }
 
     [Test]

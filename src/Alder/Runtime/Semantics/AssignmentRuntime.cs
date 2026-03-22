@@ -370,7 +370,7 @@ internal static class AssignmentRuntime
             TokenType.GreaterGreater => Operators.RightShift(left, right),
             TokenType.GreaterGreaterGreater => Operators.UnsignedRightShift(left, right),
             TokenType.StarStar => Operators.Power(left, right),
-            _ => throw new AlderException(DiagnosticDescriptors.UnsupportedCompoundBaseOperator, operatorType)
+            _ => throw new AlderException(DiagnosticDescriptors.UnknownCompoundAssignmentOperator, operatorType)
         };
     }
 

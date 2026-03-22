@@ -566,10 +566,10 @@ internal sealed class ExpressionTreeEmitter
     }
 
     private static AlderException UnsupportedNode(string feature) =>
-        new(DiagnosticDescriptors.ExpressionTreeUnsupportedNode, feature);
+        new(DiagnosticDescriptors.FeatureNotValidInExpressionTree, feature);
 
     private static AlderException UnsupportedCallShape(string shape) =>
-        new(DiagnosticDescriptors.ExpressionTreeUnsupportedCallShape, shape);
+        new(DiagnosticDescriptors.FeatureNotValidInExpressionTree, shape);
 
     private static string DescribeInvokeShape(BoundInvokeExpr invoke)
     {

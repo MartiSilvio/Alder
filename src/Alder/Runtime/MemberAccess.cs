@@ -51,14 +51,14 @@ internal static class MemberAccess
                 if (staticMetadata.TryGetStaticProperty(name, out var aotStaticValue))
                 {
                     if (!options.Sandbox.AllowStaticPropertyRead)
-                        throw new AlderException(DiagnosticDescriptors.SandboxStaticPropertyAccessBlocked, staticType.Name, name);
+                        throw new AlderException(DiagnosticDescriptors.SandboxStaticMemberAccessBlocked, staticType.Name, name);
                     return TypeHelpers.GuardReflectionLeak(aotStaticValue, $"static property {name}");
                 }
 
                 if (staticMetadata.TryGetStaticField(name, out aotStaticValue))
                 {
                     if (!options.Sandbox.AllowStaticFieldRead)
-                        throw new AlderException(DiagnosticDescriptors.SandboxStaticFieldAccessBlocked, staticType.Name, name);
+                        throw new AlderException(DiagnosticDescriptors.SandboxStaticMemberAccessBlocked, staticType.Name, name);
                     return TypeHelpers.GuardReflectionLeak(aotStaticValue, $"static field {name}");
                 }
             }
@@ -72,7 +72,7 @@ internal static class MemberAccess
             if (staticProp != null)
             {
                 if (!options.Sandbox.AllowStaticPropertyRead)
-                    throw new AlderException(DiagnosticDescriptors.SandboxStaticPropertyAccessBlocked, staticType.Name, name);
+                    throw new AlderException(DiagnosticDescriptors.SandboxStaticMemberAccessBlocked, staticType.Name, name);
                 return TypeHelpers.GuardReflectionLeak(staticProp.GetValue(null), $"static property {name}");
             }
 
@@ -80,7 +80,7 @@ internal static class MemberAccess
             if (staticField != null)
             {
                 if (!options.Sandbox.AllowStaticFieldRead)
-                    throw new AlderException(DiagnosticDescriptors.SandboxStaticFieldAccessBlocked, staticType.Name, name);
+                    throw new AlderException(DiagnosticDescriptors.SandboxStaticMemberAccessBlocked, staticType.Name, name);
                 return TypeHelpers.GuardReflectionLeak(staticField.GetValue(null), $"static field {name}");
             }
 

@@ -96,7 +96,7 @@ public sealed class CallBinderServiceTests
                 [typeof(object)],
                 isCaseSensitive: true));
 
-        Assert.That(ex!.ErrorCode, Is.EqualTo(Alder.Diagnostics.DiagnosticCode.CSEV0025));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(Alder.Diagnostics.DiagnosticCode.ALDR0003));
         Assert.That(ex.Message, Does.Contain("runtime overload resolution"));
     }
 

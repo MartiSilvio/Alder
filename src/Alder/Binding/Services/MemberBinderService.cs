@@ -100,7 +100,7 @@ internal sealed class MemberBinderService
         if (TryBindIndexRead(targetType, indexType, out var plan))
             return plan!;
 
-        throw new AlderException(DiagnosticDescriptors.NoIndexerOnType, targetType.Name);
+        throw new AlderException(DiagnosticDescriptors.BadIndexerAccess, targetType.Name);
     }
 
     private bool TryResolveListElementType(Type targetType, out Type elementType)

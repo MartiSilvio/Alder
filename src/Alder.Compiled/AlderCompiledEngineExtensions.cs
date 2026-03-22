@@ -119,10 +119,8 @@ public static class AlderCompiledEngineExtensions
 
             if (lambdaExpr.Parameters.Count != paramTypes.Length)
                 throw new AlderException(
-                    DiagnosticDescriptors.ParseAsExpressionParameterCountMismatch,
-                    lambdaExpr.Parameters.Count,
-                    delegateType.Name,
-                    paramTypes.Length);
+                    DiagnosticDescriptors.CantConvAnonMethParams,
+                    delegateType.Name);
 
             var parameterScope = new Dictionary<string, ParameterExpression>();
             var parameterExpressions = new ParameterExpression[paramTypes.Length];
@@ -164,9 +162,8 @@ public static class AlderCompiledEngineExtensions
                 catch (InvalidOperationException)
                 {
                     throw new AlderException(
-                        DiagnosticDescriptors.ParseAsExpressionReturnTypeMismatch,
-                        body.Type.Name,
-                        returnType.Name);
+                        DiagnosticDescriptors.CantConvAnonMethReturnType,
+                        delegateType.Name);
                 }
             }
 

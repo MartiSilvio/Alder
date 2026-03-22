@@ -51,12 +51,12 @@ internal static class ExecutionRuntime
         if (isField)
         {
             if (!options.Sandbox.AllowStaticFieldRead)
-                throw new AlderException(DiagnosticDescriptors.SandboxStaticFieldAccessBlocked, staticDeclaringType?.Name ?? "type", memberName);
+                throw new AlderException(DiagnosticDescriptors.SandboxStaticMemberAccessBlocked, staticDeclaringType?.Name ?? "type", memberName);
             return;
         }
 
         if (!options.Sandbox.AllowStaticPropertyRead)
-            throw new AlderException(DiagnosticDescriptors.SandboxStaticPropertyAccessBlocked, staticDeclaringType?.Name ?? "type", memberName);
+            throw new AlderException(DiagnosticDescriptors.SandboxStaticMemberAccessBlocked, staticDeclaringType?.Name ?? "type", memberName);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

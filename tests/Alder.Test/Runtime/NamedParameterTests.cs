@@ -40,7 +40,7 @@ public class NamedParameterTests(CompilationMode mode)
 
         var ex = Assert.Throws<AlderException>(() =>
             engine.Evaluate("str.Substring(STARTINDEX: 0, LENGTH: 5)"));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0024));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0304));
     }
 
     #endregion
@@ -56,7 +56,7 @@ public class NamedParameterTests(CompilationMode mode)
 
         var ex = Assert.Throws<AlderException>(() =>
             engine.Evaluate("str.Substring(invalidParam: 0, length: 5)"));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0024));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0304));
     }
 
     #endregion

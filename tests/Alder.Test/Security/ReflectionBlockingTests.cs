@@ -23,7 +23,7 @@ public class ReflectionBlockingTests(CompilationMode mode)
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate("text.GetType()"));
         Assert.That(ex!.Message, Does.Contain("reflection"));
         Assert.That(ex.Message, Does.Contain("RuntimeType"));
-        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0030));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0108));
     }
 
     [Test]
@@ -34,7 +34,7 @@ public class ReflectionBlockingTests(CompilationMode mode)
 
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate("num.GetType()"));
         Assert.That(ex!.Message, Does.Contain("reflection"));
-        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0030));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0108));
     }
 
     [Test]
@@ -45,7 +45,7 @@ public class ReflectionBlockingTests(CompilationMode mode)
 
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate("items.GetType()"));
         Assert.That(ex!.Message, Does.Contain("reflection"));
-        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0030));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0108));
     }
 
     [Test]
@@ -56,7 +56,7 @@ public class ReflectionBlockingTests(CompilationMode mode)
 
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate("obj.GetType()"));
         Assert.That(ex!.Message, Does.Contain("reflection"));
-        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0030));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0108));
     }
 
     #endregion
@@ -72,7 +72,7 @@ public class ReflectionBlockingTests(CompilationMode mode)
 
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate("holder.TypeValue"));
         Assert.That(ex!.Message, Does.Contain("reflection"));
-        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0030));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0108));
     }
 
     [Test]
@@ -83,7 +83,7 @@ public class ReflectionBlockingTests(CompilationMode mode)
 
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate("""dict["type"] """));
         Assert.That(ex!.Message, Does.Contain("reflection"));
-        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0030));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0108));
     }
 
     [Test]
@@ -94,7 +94,7 @@ public class ReflectionBlockingTests(CompilationMode mode)
 
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate("arr[0]"));
         Assert.That(ex!.Message, Does.Contain("reflection"));
-        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0030));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0108));
     }
 
     #endregion
@@ -109,7 +109,7 @@ public class ReflectionBlockingTests(CompilationMode mode)
 
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate("Test.GetMethodInfo()"));
         Assert.That(ex!.Message, Does.Contain("reflection"));
-        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0030));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0108));
     }
 
     [Test]
@@ -120,7 +120,7 @@ public class ReflectionBlockingTests(CompilationMode mode)
 
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate("Test.GetPropertyInfo()"));
         Assert.That(ex!.Message, Does.Contain("reflection"));
-        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0030));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0108));
     }
 
     [Test]
@@ -131,7 +131,7 @@ public class ReflectionBlockingTests(CompilationMode mode)
 
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate("Test.GetFieldInfo()"));
         Assert.That(ex!.Message, Does.Contain("reflection"));
-        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0030));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0108));
     }
 
     #endregion
@@ -146,7 +146,7 @@ public class ReflectionBlockingTests(CompilationMode mode)
 
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate("Test.GetAssembly()"));
         Assert.That(ex!.Message, Does.Contain("reflection"));
-        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0030));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0108));
     }
 
     [Test]
@@ -157,7 +157,7 @@ public class ReflectionBlockingTests(CompilationMode mode)
 
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate("Test.GetModule()"));
         Assert.That(ex!.Message, Does.Contain("reflection"));
-        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0030));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0108));
     }
 
     #endregion
@@ -174,7 +174,7 @@ public class ReflectionBlockingTests(CompilationMode mode)
         var ex = Assert.Throws<AlderException>(() =>
             engine.Evaluate("items.Select(x => x.GetType()).ToList()"));
         Assert.That(ex!.Message, Does.Contain("reflection"));
-        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0030));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0108));
     }
 
     #endregion

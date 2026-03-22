@@ -40,7 +40,7 @@ public class SandboxModeTests(CompilationMode mode)
 
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate("text.GetType()"));
         Assert.That(ex!.Message, Does.Contain("reflection"));
-        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0030));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0108));
     }
 
     #endregion
@@ -57,7 +57,7 @@ public class SandboxModeTests(CompilationMode mode)
 
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate("text.ToUpper()"));
         Assert.That(ex!.Message, Does.Contain("sandbox"));
-        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0011));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0100));
     }
 
     [Test]
@@ -70,7 +70,7 @@ public class SandboxModeTests(CompilationMode mode)
 
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate("obj.GetType()"));
         Assert.That(ex!.Message, Does.Contain("sandbox"));
-        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0011));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0100));
     }
 
     [Test]
@@ -83,7 +83,7 @@ public class SandboxModeTests(CompilationMode mode)
 
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate("num.ToString()"));
         Assert.That(ex!.Message, Does.Contain("sandbox"));
-        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0011));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0100));
     }
 
     [Test]
@@ -96,7 +96,7 @@ public class SandboxModeTests(CompilationMode mode)
 
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate("items.Add(4)"));
         Assert.That(ex!.Message, Does.Contain("sandbox"));
-        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0011));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0100));
     }
 
     #endregion
@@ -139,7 +139,7 @@ public class SandboxModeTests(CompilationMode mode)
 
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate("text.Length"));
         Assert.That(ex!.Message, Does.Contain("sandbox"));
-        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0014));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0103));
     }
 
     #endregion
@@ -302,7 +302,7 @@ public class SandboxModeTests(CompilationMode mode)
         // Safe mode blocks method calls before reflection guard is reached
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate("obj.GetType()"));
         Assert.That(ex!.Message, Does.Contain("sandbox"));
-        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0011));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0100));
     }
 
     [Test]
@@ -317,7 +317,7 @@ public class SandboxModeTests(CompilationMode mode)
         // Should block mutating methods
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate("items.Clear()"));
         Assert.That(ex!.Message, Does.Contain("sandbox"));
-        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0011));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0100));
         Assert.That(list, Has.Count.EqualTo(3)); // List unchanged
     }
 
@@ -354,7 +354,7 @@ public class SandboxModeTests(CompilationMode mode)
             return x;
         "));
         Assert.That(ex!.Message, Does.Contain("sandbox"));
-        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0012));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0101));
     }
 
     [Test]
@@ -370,7 +370,7 @@ public class SandboxModeTests(CompilationMode mode)
             return x;
         "));
         Assert.That(ex!.Message, Does.Contain("sandbox"));
-        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0012));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0101));
     }
 
     [Test]
@@ -386,7 +386,7 @@ public class SandboxModeTests(CompilationMode mode)
             return x;
         "));
         Assert.That(ex!.Message, Does.Contain("sandbox"));
-        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0012));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0101));
     }
 
     [Test]
@@ -402,7 +402,7 @@ public class SandboxModeTests(CompilationMode mode)
             return x;
         "));
         Assert.That(ex!.Message, Does.Contain("sandbox"));
-        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0012));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0101));
     }
 
     [Test]
@@ -418,7 +418,7 @@ public class SandboxModeTests(CompilationMode mode)
             return x;
         "));
         Assert.That(ex!.Message, Does.Contain("sandbox"));
-        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0012));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0101));
     }
 
     [Test]
@@ -487,7 +487,7 @@ public class SandboxModeTests(CompilationMode mode)
             return obj.Value;
         "));
         Assert.That(ex!.Message, Does.Contain("sandbox"));
-        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0017));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0105));
     }
 
     [Test]
@@ -518,7 +518,7 @@ public class SandboxModeTests(CompilationMode mode)
             return obj.Inner.Value;
         "));
         Assert.That(ex!.Message, Does.Contain("sandbox"));
-        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0017));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0105));
     }
 
     #endregion
@@ -556,7 +556,7 @@ public class SandboxModeTests(CompilationMode mode)
             return arr[1];
         "));
         Assert.That(ex!.Message, Does.Contain("sandbox"));
-        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0013));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0102));
     }
 
     [Test]
@@ -588,7 +588,7 @@ public class SandboxModeTests(CompilationMode mode)
             return dict[""key""];
         "));
         Assert.That(ex!.Message, Does.Contain("sandbox"));
-        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0013));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0102));
     }
 
     [Test]
@@ -639,7 +639,7 @@ public class SandboxModeTests(CompilationMode mode)
             return x;
         "));
         Assert.That(ex!.Message, Does.Contain("sandbox"));
-        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0012));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0101));
     }
 
     [Test]
@@ -652,7 +652,7 @@ public class SandboxModeTests(CompilationMode mode)
 
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate("text.ToUpper()"));
         Assert.That(ex!.Message, Does.Contain("sandbox"));
-        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0011));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0100));
     }
 
     [Test]
@@ -681,7 +681,7 @@ public class SandboxModeTests(CompilationMode mode)
             return obj.Value;
         "));
         Assert.That(ex!.Message, Does.Contain("sandbox"));
-        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0017));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0105));
     }
 
     [Test]
@@ -698,7 +698,7 @@ public class SandboxModeTests(CompilationMode mode)
             return arr[1];
         "));
         Assert.That(ex!.Message, Does.Contain("sandbox"));
-        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0013));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0102));
     }
 
     [Test]
@@ -790,7 +790,7 @@ public class SandboxModeTests(CompilationMode mode)
 
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate("text.ToUpper()"));
         Assert.That(ex!.Message, Does.Contain("sandbox"));
-        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0011));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0100));
     }
 
     [Test]
@@ -803,7 +803,7 @@ public class SandboxModeTests(CompilationMode mode)
 
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate("text.Length"));
         Assert.That(ex!.Message, Does.Contain("sandbox"));
-        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0014));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0103));
     }
 
     [Test]
@@ -819,7 +819,7 @@ public class SandboxModeTests(CompilationMode mode)
             return x;
         "));
         Assert.That(ex!.Message, Does.Contain("sandbox"));
-        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0012));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0101));
     }
 
     [Test]
@@ -835,7 +835,7 @@ public class SandboxModeTests(CompilationMode mode)
             return obj.Value;
         "));
         Assert.That(ex!.Message, Does.Contain("sandbox"));
-        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0017));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0105));
     }
 
     [Test]
@@ -852,7 +852,7 @@ public class SandboxModeTests(CompilationMode mode)
             return arr[1];
         "));
         Assert.That(ex!.Message, Does.Contain("sandbox"));
-        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0013));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0102));
     }
 
     [Test]
@@ -1022,7 +1022,7 @@ public class SandboxModeTests(CompilationMode mode)
         });
 
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate("new object()"));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0018));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0106));
     }
 
     [Test]
@@ -1062,7 +1062,7 @@ public class SandboxModeTests(CompilationMode mode)
         });
 
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate("new object()"));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0019));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0107));
     }
 
     #region Helper Classes

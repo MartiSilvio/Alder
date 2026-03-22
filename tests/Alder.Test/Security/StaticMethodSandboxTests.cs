@@ -17,7 +17,7 @@ public class StaticMethodSandboxTests(CompilationMode mode)
         var ex = Assert.Throws<AlderException>(() =>
             engine.Evaluate("""System.IO.File.Exists("/tmp") """));
         Assert.That(ex!.Message, Does.Contain("sandbox"));
-        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0011));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0100));
     }
 
     [Test]
@@ -30,7 +30,7 @@ public class StaticMethodSandboxTests(CompilationMode mode)
         var ex = Assert.Throws<AlderException>(() =>
             engine.Evaluate("""System.IO.File.Exists("/tmp") """));
         Assert.That(ex!.Message, Does.Contain("sandbox"));
-        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0011));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0100));
     }
 
     [Test]
@@ -78,7 +78,7 @@ public class StaticMethodSandboxTests(CompilationMode mode)
 
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate("int.MaxValue"));
         Assert.That(ex!.Message, Does.Contain("sandbox"));
-        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0015));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0104));
     }
 
     [Test]
@@ -90,7 +90,7 @@ public class StaticMethodSandboxTests(CompilationMode mode)
 
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate("double.NaN"));
         Assert.That(ex!.Message, Does.Contain("sandbox"));
-        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0015));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0104));
     }
 
     [Test]

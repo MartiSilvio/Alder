@@ -13,11 +13,6 @@ public class AlderException : Exception
     public int? Line => Diagnostics.Count > 0 ? Diagnostics[0].Line : null;
     public int? Column => Diagnostics.Count > 0 ? Diagnostics[0].Column : null;
 
-    internal AlderException(string message) : base(message)
-    {
-        Diagnostics = [];
-    }
-
     public AlderException(DiagnosticDescriptor descriptor, params object?[] args)
         : base(FormatMessage(descriptor, args))
     {
@@ -57,7 +52,7 @@ public class AlderDepthException : AlderException
     public int MaxDepth { get; }
 
     public AlderDepthException(string subsystem, int maxDepth)
-        : base($"Expression {subsystem} depth exceeded maximum of {maxDepth}. Configure AlderOptions.MaxExpressionDepth to adjust this limit.")
+        : base(DiagnosticDescriptors.ExpressionDepthExceeded, subsystem, maxDepth)
     {
         MaxDepth = maxDepth;
     }
@@ -80,7 +75,7 @@ public class AlderExecutionLimitException : AlderException
     public AlderExecutionLimitException(
         ExecutionLimitType limitType, long limitValue, long actualValue,
         long statementsExecuted, TimeSpan elapsedTime)
-        : base(FormatLimitMessage(limitType, limitValue, actualValue))
+        : base(GetDescriptor(limitType), limitValue, actualValue)
     {
         LimitType = limitType;
         LimitValue = limitValue;
@@ -89,11 +84,11 @@ public class AlderExecutionLimitException : AlderException
         ElapsedTime = elapsedTime;
     }
 
-    private static string FormatLimitMessage(ExecutionLimitType type, long limit, long actual) =>
+    private static DiagnosticDescriptor GetDescriptor(ExecutionLimitType type) =>
         type switch
         {
-            ExecutionLimitType.Statements => $"Execution exceeded maximum statement count ({limit}). {actual} statements executed.",
-            ExecutionLimitType.Timeout => $"Execution exceeded maximum timeout ({limit}ms). {actual}ms elapsed.",
-            _ => $"Execution limit exceeded: {type}"
+            ExecutionLimitType.Statements => DiagnosticDescriptors.StatementLimitExceeded,
+            ExecutionLimitType.Timeout => DiagnosticDescriptors.TimeoutExceeded,
+            _ => DiagnosticDescriptors.StatementLimitExceeded
         };
 }

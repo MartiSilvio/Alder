@@ -210,7 +210,7 @@ public class IndexPropertyAssignmentTests(CompilationMode mode)
 
         var ex = Assert.Throws<AlderException>(() =>
             engine.Evaluate("""obj.Name = "test" """));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CSEV0020));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0300));
     }
 
     #endregion

@@ -220,6 +220,6 @@ public class EvaluationChaosTests(CompilationMode mode) : StressTestBase(mode)
         var expr = "\"hello\".GetType()";
 
         var ex = Assert.Throws<AlderException>(() => safeEngine.Evaluate(expr));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(Alder.Diagnostics.DiagnosticCode.CSEV0011));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(Alder.Diagnostics.DiagnosticCode.ALDR0100));
     }
 }

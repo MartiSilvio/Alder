@@ -192,7 +192,7 @@ internal static class ConstructionRuntime
                     m.GetParameters().Length == 1);
 
             if (method is null)
-                throw new AlderException(DiagnosticDescriptors.CollectionInitializerNoAdd, type.Name);
+                throw new AlderException(DiagnosticDescriptors.MemberNotFound, type.Name, "Add");
 
             var instanceParam = Expression.Parameter(typeof(object), "instance");
             var valueParam = Expression.Parameter(typeof(object), "value");

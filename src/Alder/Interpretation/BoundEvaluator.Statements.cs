@@ -179,7 +179,7 @@ internal sealed partial class BoundEvaluator
                 targetIndex = FindCaseIndex(switchStatement, signal.Value);
             }
             if (targetIndex < 0)
-                throw new AlderException(DiagnosticDescriptors.GotoCaseTargetNotFound);
+                throw new AlderException(DiagnosticDescriptors.LabelNotFound, signal.Value?.ToString() ?? "default");
             signal = ExecuteSwitchCaseStatements(switchStatement.Cases, targetIndex);
         }
         return signal;
