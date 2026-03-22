@@ -1,3 +1,4 @@
+using Alder.Binding;
 using Alder.Parsing;
 
 namespace Alder.Runtime;
@@ -10,7 +11,42 @@ internal sealed record FunctionRef(string Name, Func<object?[], object?> Functio
     public object? Invoke(object?[] args) => Function(args);
 }
 
-internal sealed record LambdaValue(List<string> Parameters, Expr Body, AlderContext Closure, AlderOptions? Options = null);
+internal sealed record LambdaValue(List<string> Parameters, Expr Body, AlderContext Closure, AlderOptions? Options = null)
+{
+    // Cached bound tree keyed by argument type signature.
+    // Safe because the same argument types produce the same bound tree structure.
+    private (Type[] ArgTypes, BoundExpr BoundBody)? _bindingCache;
+
+    internal BoundExpr GetOrBindBody(AlderContext childContext)
+    {
+        var argTypes = new Type[Parameters.Count];
+        for (var i = 0; i < Parameters.Count; i++)
+        {
+            if (childContext.TryGet(Parameters[i], out var value) && value != null)
+                argTypes[i] = value.GetType();
+            else
+                argTypes[i] = typeof(object);
+        }
+
+        if (_bindingCache is var (cachedTypes, cachedBody) && TypesMatch(cachedTypes, argTypes))
+            return cachedBody;
+
+        var binder = new Binding.Binder();
+        var bound = binder.Bind(Body, new Binding.BindingContext(childContext));
+        _bindingCache = (argTypes, bound);
+        return bound;
+    }
+
+    private static bool TypesMatch(Type[] a, Type[] b)
+    {
+        if (a.Length != b.Length) return false;
+        for (var i = 0; i < a.Length; i++)
+        {
+            if (a[i] != b[i]) return false;
+        }
+        return true;
+    }
+}
 
 /// <summary>
 /// Compiled lambda with IL-compiled body delegate.

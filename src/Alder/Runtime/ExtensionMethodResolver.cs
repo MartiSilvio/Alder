@@ -117,13 +117,24 @@ internal static class ExtensionMethodResolver
         if (candidates.Count == 0)
             return (false, null);
 
-        (bool Success, object? Value) lambdaFallbackResult = (false, null);
         var best = MethodInvoker.FindBestMethod(candidates, invocationArgs, ct, out var ambiguous);
-        if (ambiguous && !TryResolveLambdaSelectorAmbiguity(candidates, invocationArgs, ct, out lambdaFallbackResult))
-            throw new AlderException(DiagnosticDescriptors.AmbiguousMethodInvocation, methodName);
 
-        if (lambdaFallbackResult.Success)
-            return lambdaFallbackResult;
+        // When overload resolution is ambiguous and lambda arguments are involved,
+        // the ambiguity is often between overloads differing only in delegate return type
+        // (e.g., Sum(Func<T,int>) vs Sum(Func<T,double>)). The lambda's return type
+        // isn't known until invocation, so we try each applicable candidate.
+        if (ambiguous && HasLambdaArgument(invocationArgs))
+        {
+            foreach (var candidate in candidates)
+            {
+                var candidateResult = MethodInvoker.InvokeMethodWithArgs(candidate, null, invocationArgs, ct);
+                if (candidateResult.Success)
+                    return candidateResult;
+            }
+        }
+
+        if (ambiguous)
+            throw new AlderException(DiagnosticDescriptors.AmbiguousMethodInvocation, methodName);
 
         if (best == null)
         {
@@ -317,33 +328,6 @@ internal static class ExtensionMethodResolver
             return MethodInvoker.TryMakeConcreteMethodWithTypeArgs(method, typeArgs, runtimeContext?.TypeResolver);
 
         return TryMakeConcreteMethod(method, targetType, args, runtimeContext);
-    }
-
-    private static bool TryResolveLambdaSelectorAmbiguity(
-        List<MethodInfo> candidates,
-        object?[] invocationArgs,
-        CancellationToken ct,
-        out (bool Success, object? Value) result)
-    {
-        result = (false, null);
-
-        if (!HasLambdaArgument(invocationArgs))
-            return false;
-
-        // Deterministic fallback for selector-family overloads where reflection overload sets are broad.
-        foreach (var candidate in candidates
-                     .OrderBy(m => m.MetadataToken)
-                     .ThenBy(m => m.GetParameters().Length))
-        {
-            var candidateResult = MethodInvoker.InvokeMethodWithArgs(candidate, null, invocationArgs, ct);
-            if (candidateResult.Success)
-            {
-                result = candidateResult;
-                return true;
-            }
-        }
-
-        return true;
     }
 
     private static bool HasLambdaArgument(object?[] invocationArgs)

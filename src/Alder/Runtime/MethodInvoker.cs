@@ -1166,8 +1166,7 @@ internal static class MethodInvoker
         }
 
         AstDepthValidator.EnsureWithinLimit(lambda.Body, lambda.Options?.MaxExpressionDepth ?? ExecutionConstraints.DefaultMaxExpressionDepth);
-        var binder = new Binding.Binder();
-        var bound = binder.Bind(lambda.Body, new BindingContext(childContext));
+        var bound = lambda.GetOrBindBody(childContext);
         var evaluator = new BoundEvaluator(childContext, lambda.Options!);
         var result = evaluator.Evaluate(bound);
         return result is ControlFlowSignal signal ? signal.Value : result;
