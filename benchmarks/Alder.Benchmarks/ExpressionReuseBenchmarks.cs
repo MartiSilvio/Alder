@@ -26,7 +26,7 @@ public class ExpressionReuseBenchmarks
         _interpreted.SetVariable<int>("z", 7);
         _interpretedExpr = _interpreted.Parse(Expression);
 
-        _compiled = new AlderEngine(AlderOptions.Default.UseCompiler());
+        _compiled = new AlderEngine(new AlderOptions().UseCompiler());
         _compiled.SetVariable<int>("x", 10);
         _compiled.SetVariable<int>("y", 3);
         _compiled.SetVariable<int>("z", 7);

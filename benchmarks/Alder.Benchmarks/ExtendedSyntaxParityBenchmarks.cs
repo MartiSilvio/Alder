@@ -29,15 +29,10 @@ public class ExtendedSyntaxParityBenchmarks : BenchmarkBase
     [GlobalSetup]
     public void Setup()
     {
-        _extendedInterpreted = CreateEngine(CompilationMode.Interpreted, _globals, LanguageMode.Extended);
-        _extendedCompiled = CreateEngine(CompilationMode.Compiled, _globals, LanguageMode.Extended);
-        _standardInterpreted = CreateEngine(CompilationMode.Interpreted, _globals, LanguageMode.Standard);
-        _standardCompiled = CreateEngine(CompilationMode.Compiled, _globals, LanguageMode.Standard);
-
-        ConfigureShared(_extendedInterpreted);
-        ConfigureShared(_extendedCompiled);
-        ConfigureShared(_standardInterpreted);
-        ConfigureShared(_standardCompiled);
+        _extendedInterpreted = CreateEngine(CompilationMode.Interpreted, _globals, LanguageMode.Extended, ConfigureShared);
+        _extendedCompiled = CreateEngine(CompilationMode.Compiled, _globals, LanguageMode.Extended, ConfigureShared);
+        _standardInterpreted = CreateEngine(CompilationMode.Interpreted, _globals, LanguageMode.Standard, ConfigureShared);
+        _standardCompiled = CreateEngine(CompilationMode.Compiled, _globals, LanguageMode.Standard, ConfigureShared);
 
         _extendedInterpretedExpression = _extendedInterpreted.Parse(Scenario.ExtendedExpression);
         _extendedCompiledExpression = _extendedCompiled.Parse(Scenario.ExtendedExpression);
@@ -74,8 +69,8 @@ public class ExtendedSyntaxParityBenchmarks : BenchmarkBase
     [BenchmarkCategory("ExtendedParityCompiled")]
     public object Extended_Compiled() => _extendedCompiled.Evaluate(_extendedCompiledExpression)!;
 
-    private static void ConfigureShared(AlderEngine engine)
+    private static void ConfigureShared(AlderOptions opts)
     {
-        engine.RegisterFunction("inc", args => Convert.ToInt32(args[0]) + 1);
+        opts.Functions.Register("inc", args => Convert.ToInt32(args[0]) + 1);
     }
 }

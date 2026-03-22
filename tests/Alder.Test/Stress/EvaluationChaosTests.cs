@@ -9,11 +9,7 @@ public class EvaluationChaosTests(CompilationMode mode) : StressTestBase(mode)
     [Test]
     public void InfiniteLoop_ShouldTerminate_WithMaxStatements()
     {
-        var options = AlderOptions.Default with
-        {
-            Constraints = new ExecutionConstraints { MaxStatements = 1000 }
-        };
-        var engine = TestEngineFactory.Create(Mode, options);
+        var engine = TestEngineFactory.Create(Mode, o => o.Constraints = new ExecutionConstraints { MaxStatements = 1000 });
 
         var expr = "{ var i = 0; while(true) { i++; } }";
 
@@ -23,11 +19,7 @@ public class EvaluationChaosTests(CompilationMode mode) : StressTestBase(mode)
     [Test]
     public void NestedLoops_ExponentialComplexity_ShouldRespectMaxStatements()
     {
-        var options = AlderOptions.Default with
-        {
-            Constraints = new ExecutionConstraints { MaxStatements = 5000 }
-        };
-        var engine = TestEngineFactory.Create(Mode, options);
+        var engine = TestEngineFactory.Create(Mode, o => o.Constraints = new ExecutionConstraints { MaxStatements = 5000 });
 
         // O(N^3)
         const string expr = @"{
@@ -112,21 +104,13 @@ public class EvaluationChaosTests(CompilationMode mode) : StressTestBase(mode)
         // Or pure script recursion if supported.
         // Let's assume we can't define functions in script easily (unless it supports lambdas assigned to vars).
 
-        Engine.RegisterFunction("recurse", args =>
+        var engine = TestEngineFactory.Create(Mode, o => o.Functions.Register("recurse", args =>
         {
             var n = (int)args[0]!;
             if (n <= 0) return 0;
-            // Call invalid? No we can't call back into script easily from here unless we pass Delegate.
             return n;
-        });
+        }));
 
-        // Let's rely on expression recursion if possible? 
-        // "Func<int, int> f = null; f = n => n <= 0 ? 0 : f(n-1); f(10000)"
-        // If lambdas are supported.
-
-        // "Func<int, int> f = null; f = n => n <= 0 ? 0 : f(n-1); f(10000)"
-
-        // Usually self-reference is hard in init. "var f = null; f = ...";
         var setup = @"{
             Func<int, int> f = null;
             f = (n) => {
@@ -138,7 +122,7 @@ public class EvaluationChaosTests(CompilationMode mode) : StressTestBase(mode)
 
         try
         {
-            Engine.Evaluate(setup);
+            engine.Evaluate(setup);
         }
         catch (Exception ex)
         {
@@ -211,10 +195,7 @@ public class EvaluationChaosTests(CompilationMode mode) : StressTestBase(mode)
     public void SandboxBypass_Reflection_ShouldBeBlockedInSafeMode()
     {
         // Try to access System.Type or GetType()
-        var safeEngine = TestEngineFactory.Create(Mode, new AlderOptions
-        {
-            Sandbox = SandboxOptions.Safe()  // Safe mode blocks method calls on variables?
-        });
+        var safeEngine = TestEngineFactory.Create(Mode, o => o.Sandbox = SandboxOptions.Safe());
 
         // "string".GetType() is a method call. Should be blocked.
         var expr = "\"hello\".GetType()";

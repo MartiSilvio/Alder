@@ -33,7 +33,7 @@ public static class TestHelpers
     /// </summary>
     public static async Task RunCSharpParityTestAsync(string expr, Dictionary<string, object?>? variables, object? expected, CompilationMode mode)
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with { LanguageMode = LanguageMode.Extended });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
         if (variables != null)
             foreach (var (name, value) in variables)
                 engine.SetVariable(name, value);
@@ -50,21 +50,16 @@ public static class TestHelpers
     /// Runs a C# parity test without expected value.
     /// </summary>
     public static Task RunCSharpParityTestAsync(string expr, CompilationMode mode)
-        => RunCSharpParityTestAsync(expr, mode switch
-        {
-            CompilationMode.Compiled => AlderOptions.Default.UseCompiler(),
-            CompilationMode.CompiledFec => AlderOptions.Default.UseCompiler(new FastExpressionCompilerAdapter()),
-            _ => AlderOptions.Default
-        });
+        => RunCSharpParityTestAsync(expr, (Action<AlderOptions>?)null, mode);
 
     /// <summary>
     /// Runs a C# parity test with custom options.
     /// </summary>
-    public static async Task RunCSharpParityTestAsync(string expr, AlderOptions options)
+    public static async Task RunCSharpParityTestAsync(string expr, Action<AlderOptions>? configure, CompilationMode mode)
     {
         var csharpResult = await EvaluateCSharpAsync(expr);
 
-        var engine = new AlderEngine(options);
+        var engine = TestEngineFactory.Create(mode, configure);
         var result = engine.Evaluate(expr);
 
         Assert.That(result, Is.EqualTo(csharpResult), $"Value mismatch for: {expr}");

@@ -9,7 +9,7 @@ public class MultiErrorTests
     [Test]
     public void TryValidate_TwoUnknownIdentifiers_ReturnsBothErrors()
     {
-        var engine = new AlderEngine(AlderOptions.Default);
+        var engine = new AlderEngine(new AlderOptions());
 
         var success = engine.TryValidate("unknownA + unknownB", out var diagnostics);
 
@@ -22,7 +22,7 @@ public class MultiErrorTests
     [Test]
     public void TryValidate_ThreeErrors_ReportsAll()
     {
-        var engine = new AlderEngine(AlderOptions.Default);
+        var engine = new AlderEngine(new AlderOptions());
 
         var success = engine.TryValidate("a + b + c", out var diagnostics);
 
@@ -33,7 +33,7 @@ public class MultiErrorTests
     [Test]
     public void TryValidate_MixedValidAndInvalid_ReportsOnlyErrors()
     {
-        var engine = new AlderEngine(AlderOptions.Default);
+        var engine = new AlderEngine(new AlderOptions());
         engine.SetVariable("x", 1);
 
         var success = engine.TryValidate("x + unknownVar", out var diagnostics);
@@ -46,7 +46,7 @@ public class MultiErrorTests
     [Test]
     public void TryValidate_ValidExpression_ReturnsNoDiagnostics()
     {
-        var engine = new AlderEngine(AlderOptions.Default);
+        var engine = new AlderEngine(new AlderOptions());
         engine.SetVariable("x", 1);
         engine.SetVariable("y", 2);
 
@@ -59,7 +59,7 @@ public class MultiErrorTests
     [Test]
     public void TryValidate_ErrorsHaveDiagnosticCodes()
     {
-        var engine = new AlderEngine(AlderOptions.Default);
+        var engine = new AlderEngine(new AlderOptions());
 
         var success = engine.TryValidate("unknownA + unknownB", out var diagnostics);
 
@@ -71,7 +71,7 @@ public class MultiErrorTests
     [Test]
     public void Evaluate_StillThrowsFirstError()
     {
-        var engine = new AlderEngine(AlderOptions.Default);
+        var engine = new AlderEngine(new AlderOptions());
 
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate("unknownA + unknownB"));
         Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0103));

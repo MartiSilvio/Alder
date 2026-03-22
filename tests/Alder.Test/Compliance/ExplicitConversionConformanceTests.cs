@@ -7,7 +7,7 @@ namespace Alder.Test.Compliance;
 public class ExplicitConversionConformanceTests(CompilationMode mode)
 {
     private AlderEngine Engine(LanguageMode lang = LanguageMode.Standard)
-        => TestEngineFactory.Create(mode, AlderOptions.Default with { LanguageMode = lang });
+        => TestEngineFactory.Create(mode, o => o.LanguageMode = lang);
 
     private object? Eval(string expr, LanguageMode lang = LanguageMode.Standard)
         => Engine(lang).Evaluate(expr);

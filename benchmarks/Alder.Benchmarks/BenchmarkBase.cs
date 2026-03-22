@@ -23,15 +23,17 @@ public abstract class BenchmarkBase
     public static AlderEngine CreateEngine(
         CompilationMode mode,
         BenchmarkGlobalData globals,
-        LanguageMode languageMode = LanguageMode.Standard)
+        LanguageMode languageMode = LanguageMode.Standard,
+        Action<AlderOptions>? configure = null)
     {
-        var opts = AlderOptions.Default with { LanguageMode = languageMode };
+        var opts = new AlderOptions { LanguageMode = languageMode };
         opts = mode switch
         {
             CompilationMode.Compiled => opts.UseCompiler(),
             CompilationMode.CompiledFec => opts.UseCompiler(new FastExpressionCompilerAdapter()),
             _ => opts
         };
+        configure?.Invoke(opts);
         var engine = new AlderEngine(opts);
         ApplyGlobals(engine, globals);
         return engine;

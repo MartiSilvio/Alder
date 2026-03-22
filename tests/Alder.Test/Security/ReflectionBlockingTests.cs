@@ -104,8 +104,7 @@ public class ReflectionBlockingTests(CompilationMode mode)
     [Test]
     public void BlocksMethodInfo_FromModule()
     {
-        var engine = TestEngineFactory.Create(mode);
-        engine.RegisterModule<ReflectionTestModule>("Test");
+        var engine = TestEngineFactory.Create(mode, o => o.Modules.Register<ReflectionTestModule>("Test"));
 
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate("Test.GetMethodInfo()"));
         Assert.That(ex!.Message, Does.Contain("reflection"));
@@ -115,8 +114,7 @@ public class ReflectionBlockingTests(CompilationMode mode)
     [Test]
     public void BlocksPropertyInfo()
     {
-        var engine = TestEngineFactory.Create(mode);
-        engine.RegisterModule<ReflectionTestModule>("Test");
+        var engine = TestEngineFactory.Create(mode, o => o.Modules.Register<ReflectionTestModule>("Test"));
 
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate("Test.GetPropertyInfo()"));
         Assert.That(ex!.Message, Does.Contain("reflection"));
@@ -126,8 +124,7 @@ public class ReflectionBlockingTests(CompilationMode mode)
     [Test]
     public void BlocksFieldInfo()
     {
-        var engine = TestEngineFactory.Create(mode);
-        engine.RegisterModule<ReflectionTestModule>("Test");
+        var engine = TestEngineFactory.Create(mode, o => o.Modules.Register<ReflectionTestModule>("Test"));
 
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate("Test.GetFieldInfo()"));
         Assert.That(ex!.Message, Does.Contain("reflection"));
@@ -141,8 +138,7 @@ public class ReflectionBlockingTests(CompilationMode mode)
     [Test]
     public void BlocksAssembly()
     {
-        var engine = TestEngineFactory.Create(mode);
-        engine.RegisterModule<ReflectionTestModule>("Test");
+        var engine = TestEngineFactory.Create(mode, o => o.Modules.Register<ReflectionTestModule>("Test"));
 
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate("Test.GetAssembly()"));
         Assert.That(ex!.Message, Does.Contain("reflection"));
@@ -152,8 +148,7 @@ public class ReflectionBlockingTests(CompilationMode mode)
     [Test]
     public void BlocksModule()
     {
-        var engine = TestEngineFactory.Create(mode);
-        engine.RegisterModule<ReflectionTestModule>("Test");
+        var engine = TestEngineFactory.Create(mode, o => o.Modules.Register<ReflectionTestModule>("Test"));
 
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate("Test.GetModule()"));
         Assert.That(ex!.Message, Does.Contain("reflection"));

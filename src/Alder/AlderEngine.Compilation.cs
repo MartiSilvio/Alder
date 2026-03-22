@@ -269,7 +269,7 @@ public sealed partial class AlderEngine
         }
 
         internal AlderOptions Options => _engine._options;
-        internal AlderConfig GetOrCreateConfig() => _engine.GetOrCreateConfig();
+        internal AlderConfig Config => _engine._config;
         internal AlderContext GetOrCreateContext() => _engine.GetOrCreateContext(null);
         internal Dictionary<string, object?> CollectEngineVariables() => _engine.CollectEngineVariables();
         internal void ThrowIfDisposed() => _engine.ThrowIfDisposed();

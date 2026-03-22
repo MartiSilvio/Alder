@@ -19,9 +19,11 @@ public class NamedParameterTests(CompilationMode mode)
     [Test]
     public void Eval_NamedParameter_SkipOptionalWithNamed()
     {
-        var engine = TestEngineFactory.Create(mode);
-
-        engine.RegisterModule("Test", instance: new TestModule());
+        var engine = new AlderEngine(o =>
+        {
+            if (mode == CompilationMode.Compiled) o.UseCompiler();
+            o.Modules.Register<TestModule>("Test", instance: new TestModule());
+        });
 
         var result = engine.Evaluate("""Test.Greet(name: "World") """);
         Assert.That(result, Is.EqualTo("Hello, World!"));

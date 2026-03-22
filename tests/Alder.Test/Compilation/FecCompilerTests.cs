@@ -14,10 +14,7 @@ namespace Alder.Test.Compilation;
 public class FecCompilerTests
 {
     private static AlderEngine Engine(CompilationMode mode = CompilationMode.Compiled) =>
-        TestEngineFactory.Create(mode, new AlderOptions
-        {
-            ExpressionCompiler = new FastExpressionCompilerAdapter()
-        });
+        TestEngineFactory.Create(mode, o => o.ExpressionCompiler = new FastExpressionCompilerAdapter());
 
     [TestCase("1 + 2", ExpectedResult = 3)]
     [TestCase("10 * 3 - 5", ExpectedResult = 25)]

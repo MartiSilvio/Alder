@@ -60,10 +60,7 @@ public sealed class BoundCompilationTests
     [Test]
     public void Compiled_ShouldUseBoundPipeline_ForExtendedSyntaxExpressions()
     {
-        var engine = TestEngineFactory.Create(CompilationMode.Compiled, AlderOptions.Default with
-            {
-            LanguageMode = LanguageMode.Extended
-        });
+        var engine = TestEngineFactory.Create(CompilationMode.Compiled, o => o.LanguageMode = LanguageMode.Extended);
 
         var chainedExpr = engine.Parse("1 < 2 < 3");
         var chainedResult = engine.Evaluate(chainedExpr);
@@ -79,10 +76,7 @@ public sealed class BoundCompilationTests
     [Test]
     public void Compiled_ShouldUseBoundPipeline_ForMutationExpressions()
     {
-        var engine = TestEngineFactory.Create(CompilationMode.Compiled, AlderOptions.Default with
-            {
-            LanguageMode = LanguageMode.Extended
-        });
+        var engine = TestEngineFactory.Create(CompilationMode.Compiled, o => o.LanguageMode = LanguageMode.Extended);
 
         engine.SetVariable<int>("x", 10);
         engine.SetVariable<int?>("nullable", null);

@@ -8,15 +8,9 @@ namespace Alder.Test.Security;
 [Parallelizable(ParallelScope.Children)]
 public class RedTeamAttackTests(CompilationMode mode)
 {
-    private AlderEngine Safe() => TestEngineFactory.Create(mode, new AlderOptions
-    {
-        Sandbox = SandboxOptions.Safe()
-    });
+    private AlderEngine Safe() => TestEngineFactory.Create(mode, o => o.Sandbox = SandboxOptions.Safe());
 
-    private AlderEngine Strict() => TestEngineFactory.Create(mode, new AlderOptions
-    {
-        Sandbox = SandboxOptions.Strict()
-    });
+    private AlderEngine Strict() => TestEngineFactory.Create(mode, o => o.Sandbox = SandboxOptions.Strict());
 
     private AlderEngine Trusted() => TestEngineFactory.Create(mode);
 
@@ -216,10 +210,7 @@ public class RedTeamAttackTests(CompilationMode mode)
     [Test]
     public void Attack_InfiniteLoop_StatementLimited()
     {
-        var engine = TestEngineFactory.Create(mode, new AlderOptions
-        {
-            Constraints = new ExecutionConstraints { MaxStatements = 1000 }
-        });
+        var engine = TestEngineFactory.Create(mode, o => o.Constraints = new ExecutionConstraints { MaxStatements = 1000 });
         Assert.Throws<AlderExecutionLimitException>(() =>
             engine.Evaluate("{ while (true) { } }"));
     }
@@ -360,10 +351,10 @@ public class RedTeamAttackTests(CompilationMode mode)
     public void Parity_Construction_SameErrorCode()
     {
         var intEx = Assert.Throws<AlderException>(() =>
-            TestEngineFactory.Create(CompilationMode.Interpreted, new AlderOptions { Sandbox = SandboxOptions.Safe() })
+            TestEngineFactory.Create(CompilationMode.Interpreted, o => o.Sandbox = SandboxOptions.Safe())
                 .Evaluate("new object()"));
         var compEx = Assert.Throws<AlderException>(() =>
-            TestEngineFactory.Create(CompilationMode.Compiled, new AlderOptions { Sandbox = SandboxOptions.Safe() })
+            TestEngineFactory.Create(CompilationMode.Compiled, o => o.Sandbox = SandboxOptions.Safe())
                 .Evaluate("new object()"));
         Assert.That(intEx!.ErrorCode, Is.EqualTo(compEx!.ErrorCode));
     }

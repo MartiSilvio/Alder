@@ -14,7 +14,7 @@ public class PolyglotSyntaxTests(CompilationMode mode)
     [TestCase("{ var super = 1; return super; }", TestName = "Super_IsReservedKeyword")]
     public void ReservedKeyword_ThrowsAlderException(string expr)
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with { LanguageMode = LanguageMode.Extended });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate(expr));
         Assert.That(ex!.ErrorCode, Is.EqualTo(Alder.Diagnostics.DiagnosticCode.CS1003));
     }
@@ -22,14 +22,14 @@ public class PolyglotSyntaxTests(CompilationMode mode)
     [Test]
     public void ConstDeclaration_DefinesImmutableLocal()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with { LanguageMode = LanguageMode.Extended });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
         Assert.That(engine.Evaluate("{ const int x = 7; return x * x; }"), Is.EqualTo(49));
     }
 
     [Test]
     public void ConstDeclaration_Assignment_Throws()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with { LanguageMode = LanguageMode.Extended });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate("{ const int x = 7; x = 8; return x; }"));
         Assert.That(ex!.ErrorCode, Is.EqualTo(Alder.Diagnostics.DiagnosticCode.CS0131));
     }
@@ -38,7 +38,7 @@ public class PolyglotSyntaxTests(CompilationMode mode)
     [Test]
     public void StrictEquality_InExpression_WithVariable()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with { LanguageMode = LanguageMode.Extended });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
         engine.SetVariable("x", 5);
         Assert.That(engine.Evaluate("""x === 5 ? "yes" : "no" """), Is.EqualTo("yes"));
         Assert.That(engine.Evaluate("""x !== 5 ? "yes" : "no" """), Is.EqualTo("no"));
@@ -48,7 +48,7 @@ public class PolyglotSyntaxTests(CompilationMode mode)
     [Test]
     public void AnonymousObject_SingleProperty()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with { LanguageMode = LanguageMode.Extended });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
         var result = engine.Evaluate<IDictionary<string, object?>>("""new { Name = "John" } """);
         Assert.That(result, Is.Not.Null);
         Assert.That(result!["Name"], Is.EqualTo("John"));
@@ -57,7 +57,7 @@ public class PolyglotSyntaxTests(CompilationMode mode)
     [Test]
     public void AnonymousObject_MultipleProperties()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with { LanguageMode = LanguageMode.Extended });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
         var result = engine.Evaluate<IDictionary<string, object?>>("""new { Name = "John", Age = 30 } """);
         Assert.That(result, Is.Not.Null);
         Assert.That(result!["Name"], Is.EqualTo("John"));
@@ -67,7 +67,7 @@ public class PolyglotSyntaxTests(CompilationMode mode)
     [Test]
     public void AnonymousObject_GenericExpandoObject_Works()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with { LanguageMode = LanguageMode.Extended });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
         var result = engine.Evaluate<ExpandoObject>("""new { Name = "John", Age = 30 } """);
 
         Assert.That(result, Is.Not.Null);

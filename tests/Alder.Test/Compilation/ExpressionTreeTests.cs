@@ -600,7 +600,7 @@ public class ExpressionTreeTests
     [Test]
     public void StandardModeEnforcement_ExtendedEngineStillUsesStandard()
     {
-        var extendedEngine = new AlderEngine(AlderOptions.Default with
+        var extendedEngine = new AlderEngine(new AlderOptions
         {
             LanguageMode = LanguageMode.Extended
         });
@@ -617,7 +617,7 @@ public class ExpressionTreeTests
     [Test]
     public void StandardModeEnforcement_ExtendedOperatorRejected()
     {
-        var extendedEngine = new AlderEngine(AlderOptions.Default with
+        var extendedEngine = new AlderEngine(new AlderOptions
         {
             LanguageMode = LanguageMode.Extended
         });

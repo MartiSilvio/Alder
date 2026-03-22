@@ -69,8 +69,11 @@ public class GenerationTests(CompilationMode mode)
     [Test]
     public void Enumerable_Range()
     {
-        var engine = TestEngineFactory.Create(mode);
-        engine.RegisterModule("Enumerable", typeof(Enumerable));
+        var engine = new AlderEngine(o =>
+        {
+            if (mode == CompilationMode.Compiled) o.UseCompiler();
+            o.Modules.Register("Enumerable", typeof(Enumerable));
+        });
 
         var result = engine.Evaluate("Enumerable.Range(1, 5).ToList()");
         Assert.That(result, Is.EqualTo(new[] { 1, 2, 3, 4, 5 }));
@@ -79,8 +82,11 @@ public class GenerationTests(CompilationMode mode)
     [Test]
     public void Enumerable_Repeat()
     {
-        var engine = TestEngineFactory.Create(mode);
-        engine.RegisterModule("Enumerable", typeof(Enumerable));
+        var engine = new AlderEngine(o =>
+        {
+            if (mode == CompilationMode.Compiled) o.UseCompiler();
+            o.Modules.Register("Enumerable", typeof(Enumerable));
+        });
 
         var result = engine.Evaluate("Enumerable.Repeat(42, 3).ToList()");
         Assert.That(result, Is.EqualTo(new[] { 42, 42, 42 }));

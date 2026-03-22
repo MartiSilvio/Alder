@@ -10,8 +10,7 @@ public class ExtensionMethodTests
     [Test]
     public void CustomExtension_OnString_Works()
     {
-        var engine = new AlderEngine();
-        engine.RegisterExtensionMethods(typeof(TestExtensions));
+        var engine = new AlderEngine(o => o.Types.AddExtensionMethods(typeof(TestExtensions)));
         engine.SetVariable("text", "hello");
 
         var result = engine.Evaluate<string>("text.Reverse()");
@@ -22,8 +21,7 @@ public class ExtensionMethodTests
     [Test]
     public void CustomExtension_OnInt_Works()
     {
-        var engine = new AlderEngine();
-        engine.RegisterExtensionMethods(typeof(TestExtensions));
+        var engine = new AlderEngine(o => o.Types.AddExtensionMethods(typeof(TestExtensions)));
         engine.SetVariable("num", 5);
 
         var result = engine.Evaluate<int>("num.Square()");
@@ -34,8 +32,7 @@ public class ExtensionMethodTests
     [Test]
     public void CustomExtension_WithParameter_Works()
     {
-        var engine = new AlderEngine();
-        engine.RegisterExtensionMethods(typeof(TestExtensions));
+        var engine = new AlderEngine(o => o.Types.AddExtensionMethods(typeof(TestExtensions)));
         engine.SetVariable("text", "hello");
 
         var result = engine.Evaluate<string>("text.Repeat(3)");
@@ -46,8 +43,7 @@ public class ExtensionMethodTests
     [Test]
     public void CustomExtension_Generic_Works()
     {
-        var engine = new AlderEngine();
-        engine.RegisterExtensionMethods(typeof(TestExtensions));
+        var engine = new AlderEngine(o => o.Types.AddExtensionMethods(typeof(TestExtensions)));
         engine.SetVariable("items", new[] { 1, 2, 3, 4, 5 });
 
         var result = engine.Evaluate<int>("items.Second()");
@@ -58,8 +54,7 @@ public class ExtensionMethodTests
     [Test]
     public void CustomExtension_OnList_Works()
     {
-        var engine = new AlderEngine();
-        engine.RegisterExtensionMethods(typeof(TestExtensions));
+        var engine = new AlderEngine(o => o.Types.AddExtensionMethods(typeof(TestExtensions)));
         engine.SetVariable("items", new List<int> { 1, 2, 3 });
 
         var result = engine.Evaluate<int>("items.Product()");
@@ -70,8 +65,7 @@ public class ExtensionMethodTests
     [Test]
     public void CustomExtension_ChainedWithLinq_Works()
     {
-        var engine = new AlderEngine();
-        engine.RegisterExtensionMethods(typeof(TestExtensions));
+        var engine = new AlderEngine(o => o.Types.AddExtensionMethods(typeof(TestExtensions)));
         engine.SetVariable("items", new[] { 1, 2, 3, 4, 5 });
 
         var result = engine.Evaluate<int>("items.Where(x => x > 2).Product()");
@@ -82,9 +76,11 @@ public class ExtensionMethodTests
     [Test]
     public void CustomExtension_MultipleTypes_Works()
     {
-        var engine = new AlderEngine();
-        engine.RegisterExtensionMethods(typeof(TestExtensions));
-        engine.RegisterExtensionMethods(typeof(MoreExtensions));
+        var engine = new AlderEngine(o =>
+        {
+            o.Types.AddExtensionMethods(typeof(TestExtensions));
+            o.Types.AddExtensionMethods(typeof(MoreExtensions));
+        });
         engine.SetVariable("text", "hello");
 
         var reversed = engine.Evaluate<string>("text.Reverse()");
@@ -108,8 +104,7 @@ public class ExtensionMethodTests
     [Test]
     public void CustomExtension_WithDefaultParameter_Works()
     {
-        var engine = new AlderEngine();
-        engine.RegisterExtensionMethods(typeof(TestExtensions));
+        var engine = new AlderEngine(o => o.Types.AddExtensionMethods(typeof(TestExtensions)));
         engine.SetVariable("num", 10);
 
         var result = engine.Evaluate<int>("num.AddWithDefault()");
@@ -120,8 +115,7 @@ public class ExtensionMethodTests
     [Test]
     public void CustomExtension_OverridesDefaultParameter_Works()
     {
-        var engine = new AlderEngine();
-        engine.RegisterExtensionMethods(typeof(TestExtensions));
+        var engine = new AlderEngine(o => o.Types.AddExtensionMethods(typeof(TestExtensions)));
         engine.SetVariable("num", 10);
 
         var result = engine.Evaluate<int>("num.AddWithDefault(5)");

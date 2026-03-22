@@ -6,7 +6,7 @@ public class CompiledDelegateTests
     [Test]
     public void CompileToFunc_SimpleExpression_ReturnsCorrectResult()
     {
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler());
+        var engine = new AlderEngine(new AlderOptions().UseCompiler());
         var func = engine.CompileToFunc<int>("1 + 2");
 
         Assert.That(func(), Is.EqualTo(3));
@@ -15,7 +15,7 @@ public class CompiledDelegateTests
     [Test]
     public void CompileToFunc_WithVariable_CapturesContext()
     {
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler());
+        var engine = new AlderEngine(new AlderOptions().UseCompiler());
         engine.SetVariable("x", 10);
         var func = engine.CompileToFunc<int>("x * 3");
 
@@ -25,7 +25,7 @@ public class CompiledDelegateTests
     [Test]
     public void CompileToFunc_VariableChangeAfterCompile_ReflectedOnInvoke()
     {
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler());
+        var engine = new AlderEngine(new AlderOptions().UseCompiler());
         engine.SetVariable("x", 5);
         var func = engine.CompileToFunc<int>("x + 1");
 
@@ -38,7 +38,7 @@ public class CompiledDelegateTests
     [Test]
     public void CompileToFunc_RepeatedInvocation_AllReturnSameResult()
     {
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler());
+        var engine = new AlderEngine(new AlderOptions().UseCompiler());
         var func = engine.CompileToFunc<int>("42");
 
         for (var i = 0; i < 1_000; i++)
@@ -50,7 +50,7 @@ public class CompiledDelegateTests
     [Test]
     public void Compile_Generic_ReturnsCompiledExpressionWithCorrectResult()
     {
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler());
+        var engine = new AlderEngine(new AlderOptions().UseCompiler());
         engine.SetVariable("x", 7);
         var compiled = engine.Compile<int>("x * 2");
 
@@ -60,7 +60,7 @@ public class CompiledDelegateTests
     [Test]
     public void Compile_Generic_WithPerInvocationVariables()
     {
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler());
+        var engine = new AlderEngine(new AlderOptions().UseCompiler());
         var compiled = engine.Compile<int>("x + y");
 
         var vars1 = new Dictionary<string, object?> { ["x"] = 3, ["y"] = 4 };
@@ -73,7 +73,7 @@ public class CompiledDelegateTests
     [Test]
     public void Compile_NonGeneric_ReturnsObjectResult()
     {
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler());
+        var engine = new AlderEngine(new AlderOptions().UseCompiler());
         var compiled = engine.Compile("1 + 2");
 
         var result = compiled.Invoke();
@@ -83,7 +83,7 @@ public class CompiledDelegateTests
     [Test]
     public void CompileToFunc_HotPath_NoExceptions()
     {
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler());
+        var engine = new AlderEngine(new AlderOptions().UseCompiler());
         engine.SetVariable("x", 1);
         var func = engine.CompileToFunc<int>("x + 1");
 
@@ -97,7 +97,7 @@ public class CompiledDelegateTests
     [Test]
     public void Compile_InvokeWithVariables_IsolatedBetweenCalls()
     {
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler());
+        var engine = new AlderEngine(new AlderOptions().UseCompiler());
         engine.SetVariable("base_val", 100);
         var compiled = engine.Compile<int>("base_val + offset");
 
@@ -111,7 +111,7 @@ public class CompiledDelegateTests
     [Test]
     public void Compile_StringExpression_ReturnsCorrectType()
     {
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler());
+        var engine = new AlderEngine(new AlderOptions().UseCompiler());
         engine.SetVariable("name", "World");
         var compiled = engine.Compile<string>("\"Hello, \" + name");
 
@@ -121,7 +121,7 @@ public class CompiledDelegateTests
     [Test]
     public void Compile_BooleanExpression_ReturnsCorrectType()
     {
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler());
+        var engine = new AlderEngine(new AlderOptions().UseCompiler());
         engine.SetVariable("x", 10);
         var compiled = engine.Compile<bool>("x > 5");
 
@@ -131,7 +131,7 @@ public class CompiledDelegateTests
     [Test]
     public void Compile_NonCompilableExpression_ThrowsInvalidOperationException()
     {
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler());
+        var engine = new AlderEngine(new AlderOptions().UseCompiler());
 
         // Verify that standard expressions compile via the Compile extension.
         var compiled = engine.Compile<int>("1 + 2");
@@ -141,7 +141,7 @@ public class CompiledDelegateTests
     [Test]
     public void CompileToFunc_DoubleResult_ReturnsCorrectType()
     {
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler());
+        var engine = new AlderEngine(new AlderOptions().UseCompiler());
         var func = engine.CompileToFunc<double>("3.14 * 2");
 
         Assert.That(func(), Is.EqualTo(6.28).Within(0.001));
@@ -150,7 +150,7 @@ public class CompiledDelegateTests
     [Test]
     public void Compile_PerInvocationVariables_DoNotPollutEngineContext()
     {
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler());
+        var engine = new AlderEngine(new AlderOptions().UseCompiler());
         engine.SetVariable("x", 1);
         var compiled = engine.Compile<int>("x + y");
 
@@ -165,10 +165,7 @@ public class CompiledDelegateTests
     [Test]
     public void Compile_Invoke_EnforcesExecutionConstraints()
     {
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler() with
-        {
-            Constraints = new ExecutionConstraints { MaxStatements = 3 }
-        });
+        var engine = new AlderEngine(new AlderOptions { Constraints = new ExecutionConstraints { MaxStatements = 3 } }.UseCompiler());
 
         var compiled = engine.Compile<object?>("{ var a = 1; var b = 2; var c = 3; return a + b + c; }");
         Assert.Throws<AlderExecutionLimitException>(() => compiled.Invoke());
@@ -177,10 +174,7 @@ public class CompiledDelegateTests
     [Test]
     public void CompileToFunc_Invoke_EnforcesExecutionConstraints()
     {
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler() with
-        {
-            Constraints = new ExecutionConstraints { MaxStatements = 3 }
-        });
+        var engine = new AlderEngine(new AlderOptions { Constraints = new ExecutionConstraints { MaxStatements = 3 } }.UseCompiler());
 
         var func = engine.CompileToFunc<object?>("{ var a = 1; var b = 2; var c = 3; return a + b + c; }");
         Assert.Throws<AlderExecutionLimitException>(() => func());

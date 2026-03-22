@@ -9,15 +9,9 @@ namespace Alder.Test.Security;
 [Parallelizable(ParallelScope.Children)]
 public class SandboxAttackTests(CompilationMode mode)
 {
-    private AlderEngine Strict() => TestEngineFactory.Create(mode, new AlderOptions
-    {
-        Sandbox = SandboxOptions.Strict()
-    });
+    private AlderEngine Strict() => TestEngineFactory.Create(mode, o => o.Sandbox = SandboxOptions.Strict());
 
-    private AlderEngine Safe() => TestEngineFactory.Create(mode, new AlderOptions
-    {
-        Sandbox = SandboxOptions.Safe()
-    });
+    private AlderEngine Safe() => TestEngineFactory.Create(mode, o => o.Sandbox = SandboxOptions.Safe());
 
     private AlderEngine SafeWithVariables()
     {
@@ -247,17 +241,14 @@ public class SandboxAttackTests(CompilationMode mode)
     [Test]
     public void Attack_AllowedTypes_BlocksUnlisted()
     {
-        var engine = TestEngineFactory.Create(mode, new AlderOptions
+        var engine = TestEngineFactory.Create(mode, o => o.Sandbox = new SandboxOptions
         {
-            Sandbox = new SandboxOptions
-            {
-                AllowMethodCalls = true,
-                AllowPropertyRead = true,
-                AllowStaticPropertyRead = true,
-                AllowStaticFieldRead = true,
-                AllowConstruction = true,
-                AllowedTypes = new HashSet<Type> { typeof(string), typeof(int) }
-            }
+            AllowMethodCalls = true,
+            AllowPropertyRead = true,
+            AllowStaticPropertyRead = true,
+            AllowStaticFieldRead = true,
+            AllowConstruction = true,
+            AllowedTypes = new HashSet<Type> { typeof(string), typeof(int) }
         });
         engine.SetVariable("items", new List<int> { 1, 2, 3 });
 
@@ -268,16 +259,13 @@ public class SandboxAttackTests(CompilationMode mode)
     [Test]
     public void Attack_AllowedTypes_PermitsListed()
     {
-        var engine = TestEngineFactory.Create(mode, new AlderOptions
+        var engine = TestEngineFactory.Create(mode, o => o.Sandbox = new SandboxOptions
         {
-            Sandbox = new SandboxOptions
-            {
-                AllowMethodCalls = true,
-                AllowPropertyRead = true,
-                AllowStaticPropertyRead = true,
-                AllowStaticFieldRead = true,
-                AllowedTypes = new HashSet<Type> { typeof(string) }
-            }
+            AllowMethodCalls = true,
+            AllowPropertyRead = true,
+            AllowStaticPropertyRead = true,
+            AllowStaticFieldRead = true,
+            AllowedTypes = new HashSet<Type> { typeof(string) }
         });
         engine.SetVariable("text", "hello");
 
@@ -298,10 +286,7 @@ public class SandboxAttackTests(CompilationMode mode)
     [Test]
     public void Attack_ReDoS_TimesOut()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with
-        {
-            LanguageMode = LanguageMode.Extended
-        });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
 
         Assert.Throws<RegexMatchTimeoutException>(() =>
             engine.Evaluate("""
@@ -312,10 +297,7 @@ public class SandboxAttackTests(CompilationMode mode)
     [Test]
     public void Attack_InfiniteLoop_StatementLimited()
     {
-        var engine = TestEngineFactory.Create(mode, new AlderOptions
-        {
-            Constraints = new ExecutionConstraints { MaxStatements = 1000 }
-        });
+        var engine = TestEngineFactory.Create(mode, o => o.Constraints = new ExecutionConstraints { MaxStatements = 1000 });
 
         Assert.Throws<AlderExecutionLimitException>(() =>
             engine.Evaluate("{ while (true) { } }"));
@@ -387,14 +369,8 @@ public class SandboxAttackTests(CompilationMode mode)
     [Test]
     public void CompiledAndInterpreted_SameSecurityBehavior_Construction()
     {
-        var interpreted = TestEngineFactory.Create(CompilationMode.Interpreted, new AlderOptions
-        {
-            Sandbox = SandboxOptions.Safe()
-        });
-        var compiled = TestEngineFactory.Create(CompilationMode.Compiled, new AlderOptions
-        {
-            Sandbox = SandboxOptions.Safe()
-        });
+        var interpreted = TestEngineFactory.Create(CompilationMode.Interpreted, o => o.Sandbox = SandboxOptions.Safe());
+        var compiled = TestEngineFactory.Create(CompilationMode.Compiled, o => o.Sandbox = SandboxOptions.Safe());
 
         var intEx = Assert.Throws<AlderException>(() => interpreted.Evaluate("new object()"));
         var compEx = Assert.Throws<AlderException>(() => compiled.Evaluate("new object()"));
@@ -405,14 +381,8 @@ public class SandboxAttackTests(CompilationMode mode)
     [Test]
     public void CompiledAndInterpreted_SameSecurityBehavior_MethodCall()
     {
-        var interpreted = TestEngineFactory.Create(CompilationMode.Interpreted, new AlderOptions
-        {
-            Sandbox = SandboxOptions.Safe()
-        });
-        var compiled = TestEngineFactory.Create(CompilationMode.Compiled, new AlderOptions
-        {
-            Sandbox = SandboxOptions.Safe()
-        });
+        var interpreted = TestEngineFactory.Create(CompilationMode.Interpreted, o => o.Sandbox = SandboxOptions.Safe());
+        var compiled = TestEngineFactory.Create(CompilationMode.Compiled, o => o.Sandbox = SandboxOptions.Safe());
 
         interpreted.SetVariable("text", "hello");
         compiled.SetVariable("text", "hello");

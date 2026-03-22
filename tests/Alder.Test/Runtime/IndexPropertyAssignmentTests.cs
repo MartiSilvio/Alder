@@ -18,7 +18,7 @@ public class IndexPropertyAssignmentTests(CompilationMode mode)
     [Test]
     public void IndexAssignment_ExternalList_ModifiesOriginal()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with { LanguageMode = LanguageMode.Extended });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
         var list = new List<int> { 1, 2, 3 };
         engine.SetVariable("arr", list);
 
@@ -30,7 +30,7 @@ public class IndexPropertyAssignmentTests(CompilationMode mode)
     [Test]
     public void IndexAssignment_ExternalArray_ModifiesOriginal()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with { LanguageMode = LanguageMode.Extended });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
         var arr = new object?[] { 1, 2, 3 };
         engine.SetVariable("arr", arr);
 
@@ -42,7 +42,7 @@ public class IndexPropertyAssignmentTests(CompilationMode mode)
     [Test]
     public void IndexAssignment_OutOfRange_ThrowsException()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with { LanguageMode = LanguageMode.Extended });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
 
         Assert.Throws<ArgumentOutOfRangeException>(() =>
             engine.Evaluate(@"
@@ -55,7 +55,7 @@ public class IndexPropertyAssignmentTests(CompilationMode mode)
     [Test]
     public void IndexAssignment_NegativeIndex_SetsLastElement_InExtendedMode()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with { LanguageMode = LanguageMode.Extended });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
 
         var result = engine.Evaluate(@"
                 var arr = [1, 2, 3];
@@ -69,7 +69,7 @@ public class IndexPropertyAssignmentTests(CompilationMode mode)
     [Test]
     public void IndexAssignment_NegativeIndex_ThrowsException_InStandardMode()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with { LanguageMode = LanguageMode.Standard });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Standard);
 
         Assert.Throws<ArgumentOutOfRangeException>(() =>
             engine.Evaluate(@"
@@ -82,7 +82,7 @@ public class IndexPropertyAssignmentTests(CompilationMode mode)
     [Test]
     public void IndexAssignment_OnNull_ThrowsException()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with { LanguageMode = LanguageMode.Extended });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
         engine.SetVariable("arr", null);
 
         var ex = Assert.Throws<AlderException>(() =>
@@ -98,7 +98,7 @@ public class IndexPropertyAssignmentTests(CompilationMode mode)
     [Test]
     public void IndexAssignment_Dictionary_SetsValue()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with { LanguageMode = LanguageMode.Extended });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
         var result = engine.Evaluate(@"
             var dict = new { name = ""John"" };
             dict[""name""] = ""Jane"";
@@ -111,7 +111,7 @@ public class IndexPropertyAssignmentTests(CompilationMode mode)
     [Test]
     public void IndexAssignment_Dictionary_AddsNewKey()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with { LanguageMode = LanguageMode.Extended });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
         var result = engine.Evaluate(@"
             var dict = new { name = ""John"" };
             dict[""age""] = 30;
@@ -124,7 +124,7 @@ public class IndexPropertyAssignmentTests(CompilationMode mode)
     [Test]
     public void IndexAssignment_ExternalDictionary_ModifiesOriginal()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with { LanguageMode = LanguageMode.Extended });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
         var dict = new Dictionary<string, object?> { ["key"] = "old" };
         engine.SetVariable("dict", dict);
 
@@ -136,7 +136,7 @@ public class IndexPropertyAssignmentTests(CompilationMode mode)
     [Test]
     public void IndexAssignment_Dictionary_ReturnsAssignedValue()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with { LanguageMode = LanguageMode.Extended });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
         var result = engine.Evaluate(@"
             var dict = new { a = 1 };
             var x = dict[""a""] = 100;
@@ -153,7 +153,7 @@ public class IndexPropertyAssignmentTests(CompilationMode mode)
     [Test]
     public void PropertyAssignment_AnonymousObject_SetsValue()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with { LanguageMode = LanguageMode.Extended });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
         var result = engine.Evaluate(@"
             var obj = new { Name = ""John"" };
             obj.Name = ""Jane"";
@@ -166,7 +166,7 @@ public class IndexPropertyAssignmentTests(CompilationMode mode)
     [Test]
     public void PropertyAssignment_AnonymousObject_AddsNewProperty()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with { LanguageMode = LanguageMode.Extended });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
         var result = engine.Evaluate(@"
             var obj = new { Name = ""John"" };
             obj.Age = 30;
@@ -179,7 +179,7 @@ public class IndexPropertyAssignmentTests(CompilationMode mode)
     [Test]
     public void PropertyAssignment_ReturnsAssignedValue()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with { LanguageMode = LanguageMode.Extended });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
         var result = engine.Evaluate(@"
             var obj = new { Value = 0 };
             var x = obj.Value = 42;
@@ -192,7 +192,7 @@ public class IndexPropertyAssignmentTests(CompilationMode mode)
     [Test]
     public void PropertyAssignment_NestedObject()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with { LanguageMode = LanguageMode.Extended });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
         var result = engine.Evaluate(@"
             var obj = new { Inner = new { Value = 10 } };
             obj.Inner.Value = 99;
@@ -205,7 +205,7 @@ public class IndexPropertyAssignmentTests(CompilationMode mode)
     [Test]
     public void PropertyAssignment_OnNull_ThrowsException()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with { LanguageMode = LanguageMode.Extended });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
         engine.SetVariable("obj", null);
 
         var ex = Assert.Throws<AlderException>(() =>
@@ -220,7 +220,7 @@ public class IndexPropertyAssignmentTests(CompilationMode mode)
     [Test]
     public void PropertyAssignment_TypedObject_SetsProperty()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with { LanguageMode = LanguageMode.Extended });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
         var person = new TestPerson { Name = "John", Age = 25 };
         engine.SetVariable("person", person);
 
@@ -232,7 +232,7 @@ public class IndexPropertyAssignmentTests(CompilationMode mode)
     [Test]
     public void PropertyAssignment_TypedObject_SetsIntProperty()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with { LanguageMode = LanguageMode.Extended });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
         var person = new TestPerson { Name = "John", Age = 25 };
         engine.SetVariable("person", person);
 
@@ -244,7 +244,7 @@ public class IndexPropertyAssignmentTests(CompilationMode mode)
     [Test]
     public void PropertyAssignment_ReadOnlyProperty_ThrowsException()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with { LanguageMode = LanguageMode.Extended });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
         engine.SetVariable("text", "hello");
 
         var ex = Assert.Throws<AlderException>(() =>
@@ -265,7 +265,7 @@ public class IndexPropertyAssignmentTests(CompilationMode mode)
     [Test]
     public void PropertyAssignment_InForLoop_Works()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with { LanguageMode = LanguageMode.Extended });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
         var result = engine.Evaluate(@"
         {
             var obj = new { Counter = 0 };
@@ -285,7 +285,7 @@ public class IndexPropertyAssignmentTests(CompilationMode mode)
     [Test]
     public void MixedAssignment_ArrayOfObjects()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with { LanguageMode = LanguageMode.Extended });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
         var result = engine.Evaluate(@"
             var items = [new { Value = 1 }, new { Value = 2 }];
             items[0].Value = 100;
@@ -298,7 +298,7 @@ public class IndexPropertyAssignmentTests(CompilationMode mode)
     [Test]
     public void MixedAssignment_ObjectWithArray()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with { LanguageMode = LanguageMode.Extended });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
         var result = engine.Evaluate(@"
             var obj = new { Items = [1, 2, 3] };
             obj.Items[1] = 99;

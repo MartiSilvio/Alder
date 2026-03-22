@@ -12,7 +12,7 @@ namespace Alder.Test.Diagnostics;
 [Parallelizable(ParallelScope.Children)]
 public class ErrorPositionTests
 {
-    private static AlderEngine Interpreted() => new(AlderOptions.Default);
+    private static AlderEngine Interpreted() => new(new AlderOptions());
 
     [Test]
     public void UndefinedVariable_ReportsCorrectPosition()
@@ -94,7 +94,7 @@ public class ErrorPositionTests
     [Test]
     public void BindingError_TypeResolution_ReportsPosition_Compiled()
     {
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler());
+        var engine = new AlderEngine(new AlderOptions().UseCompiler());
         var ex = Assert.Catch<AlderException>(() => engine.Evaluate("(NonExistentType)42"));
         Assert.That(ex!.Line, Is.EqualTo(1));
         Assert.That(ex.Column, Is.Not.Null);

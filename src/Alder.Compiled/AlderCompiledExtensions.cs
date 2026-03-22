@@ -5,13 +5,16 @@ public static class AlderCompiledExtensions
     public static AlderOptions UseCompiler(this AlderOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
-        return options with { Compiler = CompiledProvider.Instance };
+        options.Compiler = CompiledProvider.Instance;
+        return options;
     }
 
     public static AlderOptions UseCompiler(this AlderOptions options, IExpressionCompiler expressionCompiler)
     {
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(expressionCompiler);
-        return options with { Compiler = CompiledProvider.Instance, ExpressionCompiler = expressionCompiler };
+        options.Compiler = CompiledProvider.Instance;
+        options.ExpressionCompiler = expressionCompiler;
+        return options;
     }
 }

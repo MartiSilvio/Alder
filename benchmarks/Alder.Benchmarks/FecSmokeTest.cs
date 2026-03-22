@@ -12,8 +12,8 @@ public static class FecSmokeTest
         var standardFec = BenchmarkBase.CreateEngine(CompilationMode.CompiledFec, globals);
 
         // Extended mode FEC engine
-        var extendedFec = BenchmarkBase.CreateEngine(CompilationMode.CompiledFec, globals, LanguageMode.Extended);
-        extendedFec.RegisterFunction("inc", args => Convert.ToInt32(args[0]) + 1);
+        var extendedFec = BenchmarkBase.CreateEngine(CompilationMode.CompiledFec, globals, LanguageMode.Extended,
+            o => o.Functions.Register("inc", args => Convert.ToInt32(args[0]) + 1));
 
         // Standard FEC engine with InvocationTarget
         var invocationFec = BenchmarkBase.CreateEngine(CompilationMode.CompiledFec, globals);

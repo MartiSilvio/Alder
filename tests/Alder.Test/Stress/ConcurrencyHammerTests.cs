@@ -72,7 +72,7 @@ public class ConcurrencyHammerTests(CompilationMode mode)
             var i = 0;
             while (running)
             {
-                engine.RegisterFunction($"func{i}", args => i);
+                engine.SetVariable($"func{i}", (Func<object?[], object?>)(args => i));
                 i++;
                 if (i % 100 == 0) Thread.Sleep(1);
             }

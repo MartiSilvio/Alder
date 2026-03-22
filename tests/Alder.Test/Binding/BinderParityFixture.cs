@@ -94,11 +94,12 @@ internal static class BinderParityFixture
         LanguageMode languageMode,
         ExecutionParityScenario scenario)
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with {
-                        LanguageMode = languageMode
+        var engine = TestEngineFactory.Create(mode, o =>
+        {
+            o.LanguageMode = languageMode;
+            o.Functions.Register("inc", args => Convert.ToInt32(args[0]) + 1);
         });
 
-        engine.RegisterFunction("inc", args => Convert.ToInt32(args[0]) + 1);
         foreach (var pair in scenario.Variables)
             engine.SetVariable(pair.Key, pair.Value);
 

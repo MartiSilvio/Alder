@@ -4,14 +4,20 @@ public enum CompilationMode { Interpreted, Compiled, CompiledFec }
 
 internal static class TestEngineFactory
 {
-    internal static AlderEngine Create(CompilationMode mode, AlderOptions? options = null)
+    internal static AlderEngine Create(CompilationMode mode, Action<AlderOptions>? configure = null)
     {
-        var opts = options ?? AlderOptions.Default;
-        return mode switch
+        return new AlderEngine(o =>
         {
-            CompilationMode.Compiled => new AlderEngine(opts.UseCompiler()),
-            CompilationMode.CompiledFec => new AlderEngine(opts.UseCompiler(new FastExpressionCompilerAdapter())),
-            _ => new AlderEngine(opts)
-        };
+            configure?.Invoke(o);
+            switch (mode)
+            {
+                case CompilationMode.Compiled:
+                    o.UseCompiler();
+                    break;
+                case CompilationMode.CompiledFec:
+                    o.UseCompiler(new FastExpressionCompilerAdapter());
+                    break;
+            }
+        });
     }
 }

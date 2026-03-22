@@ -24,7 +24,7 @@ public class VariableScalingBenchmarks
     public void Setup()
     {
         _interpreted = new AlderEngine();
-        _compiled = new AlderEngine(AlderOptions.Default.UseCompiler());
+        _compiled = new AlderEngine(new AlderOptions().UseCompiler());
 
         for (var i = 0; i < VariableCount; i++)
         {

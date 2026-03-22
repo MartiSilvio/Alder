@@ -13,7 +13,7 @@ public class ILCompilationTests
     [Test]
     public void ILCompile_ForLoop_Simple()
     {
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler());
+        var engine = new AlderEngine(new AlderOptions().UseCompiler());
         var expr = engine.Parse("{ var sum = 0; for (var i = 0; i < 5; i++) { sum = sum + i; } return sum; }");
 
         Assert.That(engine.TryCompile(expr), Is.True, "For loops should be IL-compilable");
@@ -25,7 +25,7 @@ public class ILCompilationTests
     [Test]
     public void ILCompile_ForLoop_WithBreak()
     {
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler());
+        var engine = new AlderEngine(new AlderOptions().UseCompiler());
         var expr = engine.Parse("{ var sum = 0; for (var i = 0; i < 100; i++) { if (i >= 5) break; sum = sum + i; } return sum; }");
 
         Assert.That(engine.TryCompile(expr), Is.True);
@@ -37,7 +37,7 @@ public class ILCompilationTests
     [Test]
     public void ILCompile_ForLoop_WithContinue()
     {
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler());
+        var engine = new AlderEngine(new AlderOptions().UseCompiler());
         var expr = engine.Parse("{ var sum = 0; for (var i = 0; i < 5; i++) { if (i == 2) continue; sum = sum + i; } return sum; }");
 
         Assert.That(engine.TryCompile(expr), Is.True);
@@ -51,7 +51,7 @@ public class ILCompilationTests
     [Test]
     public void ILCompile_WhileLoop_Simple()
     {
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler());
+        var engine = new AlderEngine(new AlderOptions().UseCompiler());
         var expr = engine.Parse("{ var i = 0; while (i < 5) { i = i + 1; } return i; }");
 
         Assert.That(engine.TryCompile(expr), Is.True, "While loops should be IL-compilable");
@@ -63,7 +63,7 @@ public class ILCompilationTests
     [Test]
     public void ILCompile_WhileLoop_WithBreak()
     {
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler());
+        var engine = new AlderEngine(new AlderOptions().UseCompiler());
         var expr = engine.Parse("{ var i = 0; while (true) { i = i + 1; if (i >= 5) break; } return i; }");
 
         Assert.That(engine.TryCompile(expr), Is.True);
@@ -75,7 +75,7 @@ public class ILCompilationTests
     [Test]
     public void ILCompile_WhileLoop_WithContinue()
     {
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler());
+        var engine = new AlderEngine(new AlderOptions().UseCompiler());
         var expr = engine.Parse(@"{
             var sum = 0;
             var i = 0;
@@ -98,7 +98,7 @@ public class ILCompilationTests
     [Test]
     public void ILCompile_DoWhileLoop_Simple()
     {
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler());
+        var engine = new AlderEngine(new AlderOptions().UseCompiler());
         var expr = engine.Parse("{ var i = 0; do { i = i + 1; } while (i < 5); return i; }");
 
         Assert.That(engine.TryCompile(expr), Is.True, "Do-while loops should be IL-compilable");
@@ -110,7 +110,7 @@ public class ILCompilationTests
     [Test]
     public void ILCompile_DoWhileLoop_ExecutesAtLeastOnce()
     {
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler());
+        var engine = new AlderEngine(new AlderOptions().UseCompiler());
         var expr = engine.Parse("{ var i = 10; do { i = i + 1; } while (i < 5); return i; }");
 
         Assert.That(engine.TryCompile(expr), Is.True);
@@ -124,7 +124,7 @@ public class ILCompilationTests
     [Test]
     public void ILCompile_ForEachLoop_Simple()
     {
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler())
+        var engine = new AlderEngine(new AlderOptions().UseCompiler())
             .SetVariable("items", new List<int> { 1, 2, 3, 4, 5 });
         var expr = engine.Parse("{ var sum = 0; foreach (var item in items) { sum = sum + item; } return sum; }");
 
@@ -137,7 +137,7 @@ public class ILCompilationTests
     [Test]
     public void ILCompile_ForEachLoop_WithBreak()
     {
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler())
+        var engine = new AlderEngine(new AlderOptions().UseCompiler())
             .SetVariable("items", new List<int> { 1, 2, 3, 4, 5 });
         var expr = engine.Parse("{ var sum = 0; foreach (var item in items) { if (item > 3) break; sum = sum + item; } return sum; }");
 
@@ -152,7 +152,7 @@ public class ILCompilationTests
     [Test]
     public void ILCompile_NestedLoops_Simple()
     {
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler());
+        var engine = new AlderEngine(new AlderOptions().UseCompiler());
         var expr = engine.Parse(@"{
             var sum = 0;
             for (var i = 0; i < 3; i++) {
@@ -172,7 +172,7 @@ public class ILCompilationTests
     [Test]
     public void ILCompile_NestedLoops_InnerBreak()
     {
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler());
+        var engine = new AlderEngine(new AlderOptions().UseCompiler());
         var expr = engine.Parse(@"{
             var count = 0;
             for (var i = 0; i < 3; i++) {
@@ -195,7 +195,7 @@ public class ILCompilationTests
     [Test]
     public void ILCompile_IfElse_TrueBranch()
     {
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler());
+        var engine = new AlderEngine(new AlderOptions().UseCompiler());
         var expr = engine.Parse("{ var x = 10; if (x > 5) { return \"big\"; } else { return \"small\"; } }");
 
         Assert.That(engine.TryCompile(expr), Is.True);
@@ -207,7 +207,7 @@ public class ILCompilationTests
     [Test]
     public void ILCompile_IfElse_FalseBranch()
     {
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler());
+        var engine = new AlderEngine(new AlderOptions().UseCompiler());
         var expr = engine.Parse("{ var x = 3; if (x > 5) { return \"big\"; } else { return \"small\"; } }");
 
         Assert.That(engine.TryCompile(expr), Is.True);
@@ -219,7 +219,7 @@ public class ILCompilationTests
     [Test]
     public void ILCompile_IfWithoutElse()
     {
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler());
+        var engine = new AlderEngine(new AlderOptions().UseCompiler());
         var expr = engine.Parse("{ var x = 0; if (true) { x = 10; } return x; }");
 
         Assert.That(engine.TryCompile(expr), Is.True);
@@ -233,7 +233,7 @@ public class ILCompilationTests
     [Test]
     public void ILCompile_Return_FromBlock()
     {
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler());
+        var engine = new AlderEngine(new AlderOptions().UseCompiler());
         var expr = engine.Parse("{ return 42; }");
 
         Assert.That(engine.TryCompile(expr), Is.True);
@@ -245,7 +245,7 @@ public class ILCompilationTests
     [Test]
     public void ILCompile_Return_FromLoop()
     {
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler());
+        var engine = new AlderEngine(new AlderOptions().UseCompiler());
         var expr = engine.Parse(@"{
             for (var i = 0; i < 100; i++) {
                 if (i == 7) return i;
@@ -264,7 +264,7 @@ public class ILCompilationTests
     [Test]
     public void ILCompile_VariableDeclaration()
     {
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler());
+        var engine = new AlderEngine(new AlderOptions().UseCompiler());
         var expr = engine.Parse("{ var x = 42; return x; }");
 
         Assert.That(engine.TryCompile(expr), Is.True);
@@ -276,7 +276,7 @@ public class ILCompilationTests
     [Test]
     public void ILCompile_CompoundAssignment()
     {
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler());
+        var engine = new AlderEngine(new AlderOptions().UseCompiler());
         var expr = engine.Parse("{ var x = 10; x += 5; return x; }");
 
         Assert.That(engine.TryCompile(expr), Is.True);
@@ -288,7 +288,7 @@ public class ILCompilationTests
     [Test]
     public void ILCompile_IncrementDecrement_Prefix()
     {
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler());
+        var engine = new AlderEngine(new AlderOptions().UseCompiler());
         var expr = engine.Parse("{ var x = 5; var y = ++x; return y; }");
 
         Assert.That(engine.TryCompile(expr), Is.True);
@@ -300,7 +300,7 @@ public class ILCompilationTests
     [Test]
     public void ILCompile_IncrementDecrement_Postfix()
     {
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler());
+        var engine = new AlderEngine(new AlderOptions().UseCompiler());
         var expr = engine.Parse("{ var x = 5; var y = x++; return y; }");
 
         Assert.That(engine.TryCompile(expr), Is.True);
@@ -316,7 +316,7 @@ public class ILCompilationTests
     {
         // This test verifies that compilation works for a loop that would
         // be significantly slower with tree-walking + exception-based break/continue
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler());
+        var engine = new AlderEngine(new AlderOptions().UseCompiler());
         var expr = engine.Parse(@"{
             var sum = 0;
             for (var i = 0; i < 1000; i++) {
@@ -351,7 +351,7 @@ public class ILCompilationTests
     [Test]
     public void ILCompile_SupportsCancellation()
     {
-        var options = AlderOptions.Default.UseCompiler();
+        var options = new AlderOptions().UseCompiler();
         var engine = new AlderEngine(options);
         var expr = engine.Parse("{ var i = 0; while (i < 100000000) { i = i + 1; } return i; }");
 
@@ -369,7 +369,7 @@ public class ILCompilationTests
     [Test]
     public void ILCompile_Switch_Simple()
     {
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler());
+        var engine = new AlderEngine(new AlderOptions().UseCompiler());
         var expr = engine.Parse(@"{
             var x = 2;
             var result = """";
@@ -388,7 +388,7 @@ public class ILCompilationTests
     [Test]
     public void ILCompile_Switch_FallThrough_EmptyCases()
     {
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler());
+        var engine = new AlderEngine(new AlderOptions().UseCompiler());
         // C# semantics: only empty cases fall through
         var expr = engine.Parse(@"{
             var x = 1;
@@ -409,7 +409,7 @@ public class ILCompilationTests
     public void ILCompile_Switch_NoFallThrough_NonEmptyCases_ThrowsError()
     {
         // C# requires explicit break/return/throw for non-empty cases (CS0163)
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler());
+        var engine = new AlderEngine(new AlderOptions().UseCompiler());
         var expr = engine.Parse(@"{
             var x = 1;
             var sum = 0;
@@ -426,7 +426,7 @@ public class ILCompilationTests
     [Test]
     public void ILCompile_Switch_Default()
     {
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler());
+        var engine = new AlderEngine(new AlderOptions().UseCompiler());
         var expr = engine.Parse(@"{
             var x = 99;
             var res = 0;
@@ -445,7 +445,7 @@ public class ILCompilationTests
     public void ILCompile_Switch_InsideLoop_WithBreak()
     {
         // break inside switch should break switch, not loop
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler());
+        var engine = new AlderEngine(new AlderOptions().UseCompiler());
         var expr = engine.Parse(@"{
             var sum = 0;
             for (var i = 0; i < 3; i++) {
@@ -466,7 +466,7 @@ public class ILCompilationTests
     public void ILCompile_Switch_InsideLoop_WithContinue()
     {
         // continue inside switch should continue loop
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler());
+        var engine = new AlderEngine(new AlderOptions().UseCompiler());
         var expr = engine.Parse(@"{
             var sum = 0;
             for (var i = 0; i < 5; i++) {
@@ -485,7 +485,7 @@ public class ILCompilationTests
     [Test]
     public void ILCompile_Switch_Expressions()
     {
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler());
+        var engine = new AlderEngine(new AlderOptions().UseCompiler());
         var expr = engine.Parse(@"{
             var x = 10;
             switch(x * 2) {

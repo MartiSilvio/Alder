@@ -7,7 +7,7 @@ namespace Alder.Test.Compliance;
 public class QueryExpressionConformanceTests(CompilationMode mode)
 {
     private AlderEngine Engine(LanguageMode lang = LanguageMode.Standard)
-        => TestEngineFactory.Create(mode, AlderOptions.Default with { LanguageMode = lang });
+        => TestEngineFactory.Create(mode, o => o.LanguageMode = lang);
 
     private object? Eval(string expr, LanguageMode lang = LanguageMode.Standard)
         => Engine(lang).Evaluate(expr);
@@ -60,7 +60,7 @@ public class QueryExpressionConformanceTests(CompilationMode mode)
     [Test]
     public void WhereSelectChain()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with { LanguageMode = LanguageMode.Standard });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Standard);
         var result = engine.Evaluate("new[] { 1, 2, 3, 4, 5 }.Where(x => x > 3).Select(x => x * 2).ToList()");
         Assert.That(result, Is.EqualTo(new List<int> { 8, 10 }));
     }
@@ -68,7 +68,7 @@ public class QueryExpressionConformanceTests(CompilationMode mode)
     [Test]
     public void SelectManySingleArg()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with { LanguageMode = LanguageMode.Standard });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Standard);
         var result = engine.Evaluate("new[] { 1, 2, 3 }.SelectMany(x => new[] { x, x * 10 }).ToList()");
         Assert.That(result, Is.EqualTo(new List<int> { 1, 10, 2, 20, 3, 30 }));
     }
@@ -76,7 +76,7 @@ public class QueryExpressionConformanceTests(CompilationMode mode)
     [Test]
     public void SelectManyWithResultSelector()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with { LanguageMode = LanguageMode.Standard });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Standard);
         var result = engine.Evaluate(
             "new[] { 1, 2 }.SelectMany(x => new[] { \"a\", \"b\" }, (x, y) => x + y).ToList()");
         Assert.That(result, Is.EqualTo(new List<string> { "1a", "1b", "2a", "2b" }));
@@ -85,7 +85,7 @@ public class QueryExpressionConformanceTests(CompilationMode mode)
     [Test]
     public void AnonymousObjectMemberAccess()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with { LanguageMode = LanguageMode.Standard });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Standard);
         var result = engine.Evaluate("new { x = 1, y = 2 }.x");
         Assert.That(result, Is.EqualTo(1));
     }
@@ -93,7 +93,7 @@ public class QueryExpressionConformanceTests(CompilationMode mode)
     [Test]
     public void NestedAnonymousObjects()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with { LanguageMode = LanguageMode.Standard });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Standard);
         var result = engine.Evaluate("new { inner = new { val = 42 } }.inner.val");
         Assert.That(result, Is.EqualTo(42));
     }

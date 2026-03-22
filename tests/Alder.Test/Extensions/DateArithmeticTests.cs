@@ -11,7 +11,7 @@ public class DateArithmeticTests(CompilationMode mode)
     [Test]
     public void NCalcIssue494_InvalidDateTimeAddition_DoesNotCrashRuntime()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with { LanguageMode = LanguageMode.Extended });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
         engine.SetVariable("a", new DateTime(2024, 1, 1));
         engine.SetVariable("b", new DateTime(2024, 1, 2));
         var result = engine.Evaluate("a + b");
@@ -21,7 +21,7 @@ public class DateArithmeticTests(CompilationMode mode)
     [Test]
     public void DateArithmeticSugar_NumericUnitsAndDateOps_Work()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with { LanguageMode = LanguageMode.Extended });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
         engine.SetVariable("date1", new DateTime(2026, 1, 31));
         engine.SetVariable("date2", new DateTime(2026, 1, 1));
 

@@ -26,7 +26,7 @@ public class ControlFlowTests(CompilationMode mode)
     [Test]
     public void Eval_IfStatement_NullCheck_Pattern()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with { LanguageMode = LanguageMode.Extended });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
         engine.SetVariable("person", new TestPerson { Name = "John", Age = 30 });
 
         var result = engine.Evaluate(@"{
@@ -43,7 +43,7 @@ public class ControlFlowTests(CompilationMode mode)
     [Test]
     public void Eval_IfExpression_ReturnsBranchValue()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with { LanguageMode = LanguageMode.Extended });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
         engine.SetVariable("x", -5);
 
         var result = engine.Evaluate("if (x > 0) x else -x");

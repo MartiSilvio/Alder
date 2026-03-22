@@ -12,10 +12,10 @@ public class ParityTests(CompilationMode mode)
 {
     private static readonly Regex RoslynCodeRegex = new(@"\bCS\d{4}\b", RegexOptions.Compiled);
 
-    private AlderEngine CreateEngine() => TestEngineFactory.Create(mode, AlderOptions.Default with
+    private AlderEngine CreateEngine() => TestEngineFactory.Create(mode, o =>
     {
-        Constraints = new ExecutionConstraints { MaxStatements = 1_000_000 },
-        LanguageMode = LanguageMode.Extended
+        o.Constraints = new ExecutionConstraints { MaxStatements = 1_000_000 };
+        o.LanguageMode = LanguageMode.Extended;
     });
 
     [TestCaseSource(nameof(DiscoverExpressions), ["TestData/ValidExpressions"])]

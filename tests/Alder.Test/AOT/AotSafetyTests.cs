@@ -86,8 +86,7 @@ public class AotSafetyTests
     [Test]
     public void RegisteredType_MemberAccess_ReturnsExpectedValue()
     {
-        var engine = TestEngineFactory.Create(CompilationMode.Interpreted);
-        engine.RegisterFromType<AotTestDto>();
+        var engine = TestEngineFactory.Create(CompilationMode.Interpreted, o => o.Modules.RegisterFromType<AotTestDto>());
         engine.SetVariable("dto", new AotTestDto(42, "hello"));
 
         var result = engine.Evaluate("dto.Value");

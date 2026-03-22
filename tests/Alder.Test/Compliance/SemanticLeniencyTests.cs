@@ -11,10 +11,7 @@ namespace Alder.Test.Compliance;
 [TestFixture(CompilationMode.Compiled)]
 public class SemanticLeniencyTests(CompilationMode mode)
 {
-    private AlderOptions Options => AlderOptions.Default with
-    {
-        LanguageMode = LanguageMode.Standard
-    };
+    private Action<AlderOptions> Options => o => o.LanguageMode = LanguageMode.Standard;
 
     #region Helpers
 

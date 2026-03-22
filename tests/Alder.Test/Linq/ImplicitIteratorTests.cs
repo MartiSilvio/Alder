@@ -9,9 +9,7 @@ public class ImplicitIteratorTests(CompilationMode mode)
     [Test]
     public void Where_ImplicitItPredicate_Works()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with {
-                        LanguageMode = LanguageMode.Extended
-        });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
         engine.SetVariable("numbers", new List<int> { 1, 2, 3, 4 });
 
         var result = engine.Evaluate("numbers.Where(it > 2).ToArray()");
@@ -22,9 +20,7 @@ public class ImplicitIteratorTests(CompilationMode mode)
     [Test]
     public void Select_DiscardIdentifier_IsNotImplicitPlaceholder()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with {
-                        LanguageMode = LanguageMode.Extended
-        });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
         engine.SetVariable("numbers", new List<int> { 1, 2, 3, 4 });
 
         // _ is C#'s discard, not a placeholder — should fail as unresolved identifier
@@ -35,9 +31,7 @@ public class ImplicitIteratorTests(CompilationMode mode)
     [Test]
     public void Where_ExplicitItLambda_Works()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with {
-                        LanguageMode = LanguageMode.Extended
-        });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
         engine.SetVariable("numbers", new List<int> { 1, 2, 3, 4 });
 
         var result = engine.Evaluate("numbers.Where(it => it > 2).ToArray()");
@@ -48,9 +42,7 @@ public class ImplicitIteratorTests(CompilationMode mode)
     [Test]
     public void Select_ExplicitDiscardLambda_Works()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with {
-                        LanguageMode = LanguageMode.Extended
-        });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
         engine.SetVariable("numbers", new List<int> { 1, 2, 3, 4 });
 
         var result = engine.Evaluate("numbers.Select(_ => _ * 10).ToArray()");
@@ -61,9 +53,7 @@ public class ImplicitIteratorTests(CompilationMode mode)
     [Test]
     public void AggregateBuiltins_SumCountAvgMinMax_Work()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with {
-                        LanguageMode = LanguageMode.Extended
-        });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
         engine.SetVariable("numbers", new List<int> { 1, 2, 3, 4 });
 
         Assert.That(engine.Evaluate("sum(numbers)"), Is.EqualTo(10));

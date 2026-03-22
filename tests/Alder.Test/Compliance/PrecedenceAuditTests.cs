@@ -11,11 +11,11 @@ namespace Alder.Test.Compliance;
 public class PrecedenceAuditTests(CompilationMode mode)
 {
     private object? Eval(string expr)
-        => TestEngineFactory.Create(mode, AlderOptions.Default).Evaluate(expr);
+        => TestEngineFactory.Create(mode).Evaluate(expr);
 
     private async Task AssertParityAsync(string expression)
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default);
+        var engine = TestEngineFactory.Create(mode);
         var alderResult = engine.Evaluate(expression);
         var roslynResult = await TestHelpers.EvaluateCSharpAsync(expression);
 

@@ -40,12 +40,12 @@ public class ArithmeticPrecedenceParityBenchmarks : BenchmarkBase
         _compiledFastDelegate = compiledInfo.FastDelegate!;
         _compiledStandardDelegate = compiledInfo.Delegate!;
         _compiledContext = CompiledEngine.GetContextForCompiled();
-        _compiledOptions = compiledInfo.FastDelegateOptions ?? AlderOptions.Default;
+        _compiledOptions = compiledInfo.FastDelegateOptions ?? new AlderOptions();
         var compiledFecInfo = _compiledFecExpression.GetCompiledInfo()!;
         _compiledFecFastDelegate = compiledFecInfo.FastDelegate!;
         _compiledFecStandardDelegate = compiledFecInfo.Delegate!;
         _compiledFecContext = CompiledFecEngine.GetContextForCompiled();
-        _compiledFecOptions = compiledFecInfo.FastDelegateOptions ?? AlderOptions.Default;
+        _compiledFecOptions = compiledFecInfo.FastDelegateOptions ?? new AlderOptions();
 
         var fleeContext = CreateFleeContext(_globals);
         _fleeExpression = fleeContext.CompileDynamic(ExpressionText);

@@ -12,7 +12,7 @@ public class ObjectMergeTests(CompilationMode mode)
     [Test]
     public void Eval_DictionaryMerge_WithPlusOperator()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with { LanguageMode = LanguageMode.Extended });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
         var result = engine.Evaluate("new { A = 1 } + new { B = 2 }") as IDictionary<string, object?>;
         Assert.That(result, Is.Not.Null);
         Assert.That(result!["A"], Is.EqualTo(1));
@@ -22,7 +22,7 @@ public class ObjectMergeTests(CompilationMode mode)
     [Test]
     public void Eval_DictionaryMerge_RightOverwritesLeft()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with { LanguageMode = LanguageMode.Extended });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
         var result = engine.Evaluate("new { A = 1, B = 2 } + new { B = 3 }") as IDictionary<string, object?>;
         Assert.That(result, Is.Not.Null);
         Assert.That(result!["A"], Is.EqualTo(1));
@@ -32,7 +32,7 @@ public class ObjectMergeTests(CompilationMode mode)
     [Test]
     public void Eval_DictionaryMerge_WithVariables()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with { LanguageMode = LanguageMode.Extended });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
         IDictionary<string, object?> left = new ExpandoObject();
         left["Name"] = "John";
         IDictionary<string, object?> right = new ExpandoObject();
@@ -49,7 +49,7 @@ public class ObjectMergeTests(CompilationMode mode)
     [Test]
     public void Eval_DictionaryMerge_ChainedOperations()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with { LanguageMode = LanguageMode.Extended });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
         var result = engine.Evaluate("new { A = 1 } + new { B = 2 } + new { C = 3 }") as IDictionary<string, object?>;
         Assert.That(result, Is.Not.Null);
         Assert.That(result!["A"], Is.EqualTo(1));
@@ -60,7 +60,7 @@ public class ObjectMergeTests(CompilationMode mode)
     [Test]
     public void Eval_DictionaryMerge_CaseSensitive_KeepsBothKeys()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with { LanguageMode = LanguageMode.Extended });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
         var result = engine.Evaluate("new { a = 1 } + new { A = 2 }") as IDictionary<string, object?>;
         Assert.That(result, Is.Not.Null);
         Assert.That(result!.Count, Is.EqualTo(2));
@@ -73,7 +73,7 @@ public class ObjectMergeTests(CompilationMode mode)
     [Test]
     public void Eval_TypedObjectMerge_WithPlusOperator()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with { LanguageMode = LanguageMode.Extended });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
         engine.SetVariable("person", new TestPerson { Name = "John", Age = 30 });
 
         var result = engine.Evaluate("""person + new { City = "NYC" } """) as IDictionary<string, object?>;
@@ -86,7 +86,7 @@ public class ObjectMergeTests(CompilationMode mode)
     [Test]
     public void Eval_TypedObjectMerge_RightOverwritesLeft()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with { LanguageMode = LanguageMode.Extended });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
         engine.SetVariable("person", new TestPerson { Name = "John", Age = 30 });
 
         var result = engine.Evaluate("person + new { Age = 40 }") as IDictionary<string, object?>;
@@ -98,7 +98,7 @@ public class ObjectMergeTests(CompilationMode mode)
     [Test]
     public void Eval_TypedObjectMerge_WithBlock()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with { LanguageMode = LanguageMode.Extended });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
         engine.SetVariable("person", new TestPerson { Name = "John", Age = 30 });
 
         var result = engine.Evaluate(@"
@@ -115,7 +115,7 @@ public class ObjectMergeTests(CompilationMode mode)
     [Test]
     public void Eval_TypedObjectMerge_InSelect()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with { LanguageMode = LanguageMode.Extended });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
         engine.SetVariable("people", new List<TestPerson>
         {
             new TestPerson { Name = "John", Age = 30 },
@@ -141,7 +141,7 @@ public class ObjectMergeTests(CompilationMode mode)
     [Test]
     public void Eval_TypedObjectMerge_ChainedWithDictionary()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with { LanguageMode = LanguageMode.Extended });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
         engine.SetVariable("person", new TestPerson { Name = "John", Age = 30 });
 
         var result = engine.Evaluate("""person + new { City = "NYC" } + new { Country = "USA" } """) as IDictionary<string, object?>;
@@ -155,7 +155,7 @@ public class ObjectMergeTests(CompilationMode mode)
     [Test]
     public void Eval_TypedObjectMerge_WithNestedObject()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with { LanguageMode = LanguageMode.Extended });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
         engine.SetVariable("person", new TestPerson { Name = "John", Age = 30 });
         engine.SetVariable("address", new TestAddress { City = "NYC", Country = "USA" });
 
@@ -170,7 +170,7 @@ public class ObjectMergeTests(CompilationMode mode)
     [Test]
     public void Eval_DictionaryPlusTypedObject()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with { LanguageMode = LanguageMode.Extended });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
         IDictionary<string, object?> dict = new ExpandoObject();
         dict["Extra"] = "Value";
         engine.SetVariable("dict", dict);
@@ -186,7 +186,7 @@ public class ObjectMergeTests(CompilationMode mode)
     [Test]
     public void Eval_TwoTypedObjects()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with { LanguageMode = LanguageMode.Extended });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
         engine.SetVariable("person", new TestPerson { Name = "John", Age = 30 });
         engine.SetVariable("address", new TestAddress { City = "NYC", Country = "USA" });
 

@@ -11,7 +11,7 @@ public class SpreadOperatorTests(CompilationMode mode)
     [Test]
     public void Eval_ArraySpread_SingleArray()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with { LanguageMode = LanguageMode.Extended });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
         engine.SetVariable("arr", new List<int> { 1, 2, 3 });
 
         var result = engine.Evaluate("[..arr]");
@@ -26,7 +26,7 @@ public class SpreadOperatorTests(CompilationMode mode)
     [Test]
     public void Eval_ArraySpread_WithOtherElements()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with { LanguageMode = LanguageMode.Extended });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
         engine.SetVariable("arr", new List<int> { 2, 3 });
 
         var result = engine.Evaluate("[1, ..arr, 4]");
@@ -42,7 +42,7 @@ public class SpreadOperatorTests(CompilationMode mode)
     [Test]
     public void Eval_ArraySpread_MultipleArrays()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with { LanguageMode = LanguageMode.Extended });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
         engine.SetVariable("arr1", new List<int> { 1, 2 });
         engine.SetVariable("arr2", new List<int> { 3, 4 });
 
@@ -59,7 +59,7 @@ public class SpreadOperatorTests(CompilationMode mode)
     [Test]
     public void Eval_ArraySpread_WithNativeArray()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with { LanguageMode = LanguageMode.Extended });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
         engine.SetVariable("arr", new[] { "a", "b", "c" });
 
         var result = engine.Evaluate("[..arr]");
@@ -74,7 +74,7 @@ public class SpreadOperatorTests(CompilationMode mode)
     [Test]
     public void Eval_ObjectSpread_SingleObject()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with { LanguageMode = LanguageMode.Extended });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
         IDictionary<string, object?> obj = new ExpandoObject();
         obj["A"] = 1L;
         obj["B"] = 2L;
@@ -89,7 +89,7 @@ public class SpreadOperatorTests(CompilationMode mode)
     [Test]
     public void Eval_ObjectSpread_WithOtherProperties()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with { LanguageMode = LanguageMode.Extended });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
         IDictionary<string, object?> obj = new ExpandoObject();
         obj["A"] = 1L;
         engine.SetVariable("obj", obj);
@@ -103,7 +103,7 @@ public class SpreadOperatorTests(CompilationMode mode)
     [Test]
     public void Eval_ObjectSpread_OverridesEarlierProperties()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with { LanguageMode = LanguageMode.Extended });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
         IDictionary<string, object?> obj = new ExpandoObject();
         obj["A"] = 1L;
         obj["B"] = 2L;
@@ -118,7 +118,7 @@ public class SpreadOperatorTests(CompilationMode mode)
     [Test]
     public void Eval_ObjectSpread_MultipleObjects()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with { LanguageMode = LanguageMode.Extended });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
         IDictionary<string, object?> obj1 = new ExpandoObject();
         obj1["A"] = 1L;
         IDictionary<string, object?> obj2 = new ExpandoObject();
@@ -135,7 +135,7 @@ public class SpreadOperatorTests(CompilationMode mode)
     [Test]
     public void Eval_ObjectSpread_FromTypedObject()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with { LanguageMode = LanguageMode.Extended });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
         engine.SetVariable("person", new TestPerson { Name = "John", Age = 30 });
 
         var result = engine.Evaluate("""new { ..person, City = "NYC" } """) as IDictionary<string, object?>;
@@ -148,7 +148,7 @@ public class SpreadOperatorTests(CompilationMode mode)
     [Test]
     public void Eval_ObjectSpread_LaterSpreadOverridesEarlier()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with { LanguageMode = LanguageMode.Extended });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
         IDictionary<string, object?> obj1 = new ExpandoObject();
         obj1["A"] = 1L;
         obj1["B"] = 2L;

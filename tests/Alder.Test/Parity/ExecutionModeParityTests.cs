@@ -9,15 +9,12 @@ public sealed class ExecutionModeParityTests
     [Test]
     public void Trace_InterpretedAndCompiled_ShouldMatch()
     {
-        var interpreted = new AlderEngine(AlderOptions.Default with
+        var interpreted = new AlderEngine(new AlderOptions
         {
             LanguageMode = LanguageMode.Extended
         });
 
-        var compiled = new AlderEngine(AlderOptions.Default.UseCompiler() with
-        {
-            LanguageMode = LanguageMode.Extended
-        });
+        var compiled = new AlderEngine(new AlderOptions { LanguageMode = LanguageMode.Extended }.UseCompiler());
 
         var interpretedTrace = interpreted.EvaluateWithTrace("4 * 5 + 2");
         var compiledTrace = compiled.EvaluateWithTrace("4 * 5 + 2");

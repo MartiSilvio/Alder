@@ -19,8 +19,17 @@ namespace Alder.Test.Runtime;
 [TestFixture(CompilationMode.Compiled)]
 public class TypeResolverTests(CompilationMode mode)
 {
-    private AlderEngine CreateEngine()
-        => TestEngineFactory.Create(mode);
+    private AlderEngine CreateEngine(Action<AlderOptions>? configure = null)
+    {
+        if (configure == null)
+            return TestEngineFactory.Create(mode);
+
+        return new AlderEngine(o =>
+        {
+            if (mode == CompilationMode.Compiled) o.UseCompiler();
+            configure(o);
+        });
+    }
 
     #region Built-in Keyword Resolution (15 keywords)
 
@@ -195,8 +204,7 @@ public class TypeResolverTests(CompilationMode mode)
     [Test]
     public void ResolveType_RegisterNamespace_TextNamespace_StringBuilder()
     {
-        var engine = CreateEngine();
-        engine.RegisterNamespace("System.Text");
+        var engine = CreateEngine(o => o.Types.AddNamespace("System.Text"));
         var result = engine.Evaluate("new StringBuilder()");
         Assert.That(result, Is.TypeOf<System.Text.StringBuilder>());
     }
@@ -204,8 +212,7 @@ public class TypeResolverTests(CompilationMode mode)
     [Test]
     public void ResolveType_RegisterNamespace_TextNamespace_StringBuilderWithArg()
     {
-        var engine = CreateEngine();
-        engine.RegisterNamespace("System.Text");
+        var engine = CreateEngine(o => o.Types.AddNamespace("System.Text"));
         var result = engine.Evaluate("""new StringBuilder("hello").ToString()""");
         Assert.That(result, Is.EqualTo("hello"));
     }
@@ -213,8 +220,7 @@ public class TypeResolverTests(CompilationMode mode)
     [Test]
     public void ResolveType_RegisterNamespace_MultipleNamespaces()
     {
-        var engine = CreateEngine();
-        engine.RegisterNamespace("System.Text");
+        var engine = CreateEngine(o => o.Types.AddNamespace("System.Text"));
 
         var sb = engine.Evaluate("""new StringBuilder("hello")""");
         Assert.That(sb, Is.TypeOf<System.Text.StringBuilder>());
@@ -375,8 +381,7 @@ public class TypeResolverTests(CompilationMode mode)
     {
         // "string" is a C# keyword (System.String); even with System imported,
         // the keyword should resolve first and give the same result
-        var engine = CreateEngine();
-        engine.RegisterNamespace("System");
+        var engine = CreateEngine(o => o.Types.AddNamespace("System"));
         var result = (Type)engine.Evaluate("typeof(string)")!;
         Assert.That(result, Is.EqualTo(typeof(string)));
     }
@@ -393,9 +398,8 @@ public class TypeResolverTests(CompilationMode mode)
     [Test]
     public void ResolutionPrecedence_ImplicitBclBeforeExplicitUsing()
     {
-        // List<> resolves from implicit BCL import; explicit RegisterNamespace should not break it
-        var engine = CreateEngine();
-        engine.RegisterNamespace("System.Collections.Generic");
+        // List<> resolves from implicit BCL import; explicit AddNamespace should not break it
+        var engine = CreateEngine(o => o.Types.AddNamespace("System.Collections.Generic"));
         var result = engine.Evaluate("new List<int>()");
         Assert.That(result, Is.TypeOf<List<int>>());
     }
@@ -403,9 +407,8 @@ public class TypeResolverTests(CompilationMode mode)
     [Test]
     public void ResolutionPrecedence_ExplicitUsingBeforeFullyQualified()
     {
-        // After RegisterNamespace("System.Text"), StringBuilder resolves from namespace import
-        var engine = CreateEngine();
-        engine.RegisterNamespace("System.Text");
+        // After AddNamespace("System.Text"), StringBuilder resolves from namespace import
+        var engine = CreateEngine(o => o.Types.AddNamespace("System.Text"));
         var result = engine.Evaluate("new StringBuilder()");
         Assert.That(result, Is.TypeOf<System.Text.StringBuilder>());
     }
@@ -481,31 +484,12 @@ public class TypeResolverTests(CompilationMode mode)
 
     #endregion
 
-    #region RegisterAssembly / RegisterNamespace Configuration
+    #region Type Registration Configuration
 
     [Test]
-    public void RegisterAssembly_AfterEvaluate_ThrowsInvalidOperationException()
+    public void AddNamespace_StringBuilder()
     {
-        var engine = CreateEngine();
-        engine.Evaluate("1 + 1"); // freeze config
-        Assert.Throws<InvalidOperationException>(() =>
-            engine.RegisterAssembly(typeof(object).Assembly));
-    }
-
-    [Test]
-    public void RegisterNamespace_AfterEvaluate_ThrowsInvalidOperationException()
-    {
-        var engine = CreateEngine();
-        engine.Evaluate("1 + 1"); // freeze config
-        Assert.Throws<InvalidOperationException>(() =>
-            engine.RegisterNamespace("System.Text"));
-    }
-
-    [Test]
-    public void RegisterNamespace_FluentChaining()
-    {
-        var engine = CreateEngine();
-        engine.RegisterNamespace("System.Text");
+        var engine = CreateEngine(o => o.Types.AddNamespace("System.Text"));
         var result = engine.Evaluate("""new StringBuilder("abc").Length""");
         Assert.That(result, Is.EqualTo(3));
     }
@@ -558,8 +542,7 @@ public class TypeResolverTests(CompilationMode mode)
     public void VariableDeclaration_FQN_StringBuilder()
     {
         // Variable declarations with non-keyword types use var + new
-        var engine = CreateEngine();
-        engine.RegisterNamespace("System.Text");
+        var engine = CreateEngine(o => o.Types.AddNamespace("System.Text"));
         var result = engine.Evaluate("""{ var sb = new StringBuilder("hi"); return sb.Length; }""");
         Assert.That(result, Is.EqualTo(2));
     }

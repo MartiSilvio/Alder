@@ -394,7 +394,7 @@ public class RuntimeSemanticsParityTests(CompilationMode mode)
 
     private async Task AssertParityAsync(string expression)
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default);
+        var engine = TestEngineFactory.Create(mode);
         var alderResult = engine.Evaluate(expression);
         var roslynResult = await TestHelpers.EvaluateCSharpAsync(expression);
 

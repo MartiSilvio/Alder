@@ -10,7 +10,7 @@ public class CompilationTests
     [Test]
     public void Compile_SimpleLiteral_Integer()
     {
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler());
+        var engine = new AlderEngine(new AlderOptions().UseCompiler());
         var expr = engine.Parse("42");
 
         Assert.That(engine.TryCompile(expr), Is.True);
@@ -24,7 +24,7 @@ public class CompilationTests
     [Test]
     public void Compile_SimpleLiteral_String()
     {
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler());
+        var engine = new AlderEngine(new AlderOptions().UseCompiler());
         var expr = engine.Parse("\"hello\"");
 
         Assert.That(engine.TryCompile(expr), Is.True);
@@ -36,7 +36,7 @@ public class CompilationTests
     [Test]
     public void Compile_SimpleLiteral_Boolean()
     {
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler());
+        var engine = new AlderEngine(new AlderOptions().UseCompiler());
         var exprTrue = engine.Parse("true");
         var exprFalse = engine.Parse("false");
 
@@ -50,7 +50,7 @@ public class CompilationTests
     [Test]
     public void Compile_SimpleLiteral_Null()
     {
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler());
+        var engine = new AlderEngine(new AlderOptions().UseCompiler());
         var expr = engine.Parse("null");
 
         Assert.That(engine.TryCompile(expr), Is.True);
@@ -66,7 +66,7 @@ public class CompilationTests
     [Test]
     public void Compile_SimpleArithmetic_Addition()
     {
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler());
+        var engine = new AlderEngine(new AlderOptions().UseCompiler());
         var expr = engine.Parse("1 + 2");
 
         Assert.That(engine.TryCompile(expr), Is.True);
@@ -78,7 +78,7 @@ public class CompilationTests
     [Test]
     public void Compile_SimpleArithmetic_Multiplication()
     {
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler());
+        var engine = new AlderEngine(new AlderOptions().UseCompiler());
         var expr = engine.Parse("3 * 4");
 
         Assert.That(engine.TryCompile(expr), Is.True);
@@ -90,7 +90,7 @@ public class CompilationTests
     [Test]
     public void Compile_SimpleArithmetic_Complex()
     {
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler());
+        var engine = new AlderEngine(new AlderOptions().UseCompiler());
         var expr = engine.Parse("1 + 2 * 3");
 
         Assert.That(engine.TryCompile(expr), Is.True);
@@ -102,7 +102,7 @@ public class CompilationTests
     [Test]
     public void Compile_SimpleArithmetic_Division()
     {
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler());
+        var engine = new AlderEngine(new AlderOptions().UseCompiler());
         var expr = engine.Parse("10 / 2");
 
         Assert.That(engine.TryCompile(expr), Is.True);
@@ -114,7 +114,7 @@ public class CompilationTests
     [Test]
     public void Compile_SimpleArithmetic_Modulo()
     {
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler());
+        var engine = new AlderEngine(new AlderOptions().UseCompiler());
         var expr = engine.Parse("7 % 3");
 
         Assert.That(engine.TryCompile(expr), Is.True);
@@ -126,7 +126,7 @@ public class CompilationTests
     [Test]
     public void Compile_Negation()
     {
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler());
+        var engine = new AlderEngine(new AlderOptions().UseCompiler());
         var expr = engine.Parse("-5");
 
         Assert.That(engine.TryCompile(expr), Is.True);
@@ -138,7 +138,7 @@ public class CompilationTests
     [Test]
     public void Compile_StringConcatenation()
     {
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler());
+        var engine = new AlderEngine(new AlderOptions().UseCompiler());
         var expr = engine.Parse("\"hello\" + \" \" + \"world\"");
 
         Assert.That(engine.TryCompile(expr), Is.True);
@@ -154,7 +154,7 @@ public class CompilationTests
     [Test]
     public void Compile_VariableAccess()
     {
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler())
+        var engine = new AlderEngine(new AlderOptions().UseCompiler())
             .SetVariable("x", 10);
         var expr = engine.Parse("x");
 
@@ -167,7 +167,7 @@ public class CompilationTests
     [Test]
     public void Compile_VariableWithArithmetic()
     {
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler())
+        var engine = new AlderEngine(new AlderOptions().UseCompiler())
             .SetVariable("x", 10)
             .SetVariable("y", 20);
         var expr = engine.Parse("x + y");
@@ -181,7 +181,7 @@ public class CompilationTests
     [Test]
     public void Compile_VariableChangesAfterCompilation()
     {
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler())
+        var engine = new AlderEngine(new AlderOptions().UseCompiler())
             .SetVariable("x", 10);
         var expr = engine.Parse("x * 2");
 
@@ -203,7 +203,7 @@ public class CompilationTests
     [Test]
     public void Compile_Comparison_Equals()
     {
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler());
+        var engine = new AlderEngine(new AlderOptions().UseCompiler());
         var expr = engine.Parse("5 == 5");
 
         Assert.That(engine.TryCompile(expr), Is.True);
@@ -215,7 +215,7 @@ public class CompilationTests
     [Test]
     public void Compile_Comparison_NotEquals()
     {
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler());
+        var engine = new AlderEngine(new AlderOptions().UseCompiler());
         var expr = engine.Parse("5 != 3");
 
         Assert.That(engine.TryCompile(expr), Is.True);
@@ -227,7 +227,7 @@ public class CompilationTests
     [Test]
     public void Compile_Comparison_LessThan()
     {
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler());
+        var engine = new AlderEngine(new AlderOptions().UseCompiler());
         var expr = engine.Parse("3 < 5");
 
         Assert.That(engine.TryCompile(expr), Is.True);
@@ -239,7 +239,7 @@ public class CompilationTests
     [Test]
     public void Compile_Comparison_GreaterThan()
     {
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler());
+        var engine = new AlderEngine(new AlderOptions().UseCompiler());
         var expr = engine.Parse("5 > 3");
 
         Assert.That(engine.TryCompile(expr), Is.True);
@@ -255,7 +255,7 @@ public class CompilationTests
     [Test]
     public void Compile_LogicalAnd()
     {
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler());
+        var engine = new AlderEngine(new AlderOptions().UseCompiler());
         var expr = engine.Parse("true && true");
 
         Assert.That(engine.TryCompile(expr), Is.True);
@@ -267,7 +267,7 @@ public class CompilationTests
     [Test]
     public void Compile_LogicalOr()
     {
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler());
+        var engine = new AlderEngine(new AlderOptions().UseCompiler());
         var expr = engine.Parse("false || true");
 
         Assert.That(engine.TryCompile(expr), Is.True);
@@ -279,7 +279,7 @@ public class CompilationTests
     [Test]
     public void Compile_LogicalNot()
     {
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler());
+        var engine = new AlderEngine(new AlderOptions().UseCompiler());
         var expr = engine.Parse("!false");
 
         Assert.That(engine.TryCompile(expr), Is.True);
@@ -291,7 +291,7 @@ public class CompilationTests
     [Test]
     public void Compile_LogicalShortCircuit_And()
     {
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler())
+        var engine = new AlderEngine(new AlderOptions().UseCompiler())
             .SetVariable("x", 0);
         // If short-circuit works, right side should not be evaluated when left is false
         var expr = engine.Parse("false && x");
@@ -305,7 +305,7 @@ public class CompilationTests
     [Test]
     public void Compile_LogicalShortCircuit_Or()
     {
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler())
+        var engine = new AlderEngine(new AlderOptions().UseCompiler())
             .SetVariable("x", 0);
         // If short-circuit works, right side should not be evaluated when left is true
         var expr = engine.Parse("true || x");
@@ -323,7 +323,7 @@ public class CompilationTests
     [Test]
     public void Compile_Ternary_TrueBranch()
     {
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler())
+        var engine = new AlderEngine(new AlderOptions().UseCompiler())
             .SetVariable("x", 10);
         var expr = engine.Parse("x > 5 ? \"big\" : \"small\"");
 
@@ -336,7 +336,7 @@ public class CompilationTests
     [Test]
     public void Compile_Ternary_FalseBranch()
     {
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler())
+        var engine = new AlderEngine(new AlderOptions().UseCompiler())
             .SetVariable("x", 3);
         var expr = engine.Parse("x > 5 ? \"big\" : \"small\"");
 
@@ -349,7 +349,7 @@ public class CompilationTests
     [Test]
     public void Compile_NullCoalesce_LeftNotNull()
     {
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler())
+        var engine = new AlderEngine(new AlderOptions().UseCompiler())
             .SetVariable("x", "value");
         var expr = engine.Parse("x ?? \"default\"");
 
@@ -362,7 +362,7 @@ public class CompilationTests
     [Test]
     public void Compile_NullCoalesce_LeftNull()
     {
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler())
+        var engine = new AlderEngine(new AlderOptions().UseCompiler())
             .SetVariable("x", null);
         var expr = engine.Parse("x ?? \"default\"");
 
@@ -379,7 +379,7 @@ public class CompilationTests
     [Test]
     public void Compile_PropertyAccess_Dictionary()
     {
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler())
+        var engine = new AlderEngine(new AlderOptions().UseCompiler())
             .SetVariable("person", new Dictionary<string, object?> { ["Name"] = "John", ["Age"] = 30 });
         var expr = engine.Parse("person.Name");
 
@@ -392,7 +392,7 @@ public class CompilationTests
     [Test]
     public void Compile_PropertyAccess_TypedObject()
     {
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler())
+        var engine = new AlderEngine(new AlderOptions().UseCompiler())
             .SetVariable("person", new TestPerson { Name = "John", Age = 30 });
         var expr = engine.Parse("person.Name");
 
@@ -405,7 +405,7 @@ public class CompilationTests
     [Test]
     public void Compile_PropertyAccess_NullSafe()
     {
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler())
+        var engine = new AlderEngine(new AlderOptions().UseCompiler())
             .SetVariable("person", null);
         var expr = engine.Parse("person?.Name");
 
@@ -422,7 +422,7 @@ public class CompilationTests
     [Test]
     public void Compile_Blocks()
     {
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler());
+        var engine = new AlderEngine(new AlderOptions().UseCompiler());
         var expr = engine.Parse("{ var x = 1; return x; }");
 
         Assert.That(engine.TryCompile(expr), Is.True);
@@ -435,7 +435,7 @@ public class CompilationTests
     [Test]
     public void Compile_ReturnsIsCompilableTrue_ForLinq()
     {
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler())
+        var engine = new AlderEngine(new AlderOptions().UseCompiler())
             .SetVariable("items", new List<int> { 1, 2, 3 });
         var expr = engine.Parse("items.Where((x) => x > 1).ToList()");
 
@@ -449,7 +449,7 @@ public class CompilationTests
     [Test]
     public void Compile_ReturnsIsCompilableTrue_ForLambda()
     {
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler());
+        var engine = new AlderEngine(new AlderOptions().UseCompiler());
         var expr = engine.Parse("(x) => x * 2");
 
         // Lambdas are now IL-compilable
@@ -459,7 +459,7 @@ public class CompilationTests
     [Test]
     public void Compile_NamedArguments()
     {
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler());
+        var engine = new AlderEngine(new AlderOptions().UseCompiler());
         engine.SetVariable("str", "hello");
         var expr = engine.Parse("str.Substring(startIndex: 0, length: 3)");
 
@@ -471,7 +471,7 @@ public class CompilationTests
     [Test]
     public void Compile_Assignment()
     {
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler())
+        var engine = new AlderEngine(new AlderOptions().UseCompiler())
             .SetVariable("x", 10);
         var expr = engine.Parse("x = 20");
 
@@ -487,7 +487,7 @@ public class CompilationTests
     [Test]
     public void Compile_Loops()
     {
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler());
+        var engine = new AlderEngine(new AlderOptions().UseCompiler());
         var expr = engine.Parse("{ var i = 0; while (i < 3) { i = i + 1; } return i; }");
 
         Assert.That(engine.TryCompile(expr), Is.True);
@@ -503,7 +503,7 @@ public class CompilationTests
     [Test]
     public void Parse_DoesNotCompileAutomatically()
     {
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler())
+        var engine = new AlderEngine(new AlderOptions().UseCompiler())
             .SetVariable("x", 10);
 
         var expr = engine.Parse("x * 2");
@@ -522,7 +522,7 @@ public class CompilationTests
     [Test]
     public void Parse_NonCompilableExpressions_FallBackToTreeWalking()
     {
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler());
+        var engine = new AlderEngine(new AlderOptions().UseCompiler());
 
         // Object literals are not yet compilable
         var expr = engine.Parse("new { a = 1, b = 2 }");
@@ -540,7 +540,7 @@ public class CompilationTests
     [Test]
     public void CompilationMode_Interpreted_DoesNotCompileOnEvaluate()
     {
-        var options = AlderOptions.Default;
+        var options = new AlderOptions();
         var engine = new AlderEngine(options)
             .SetVariable("x", 10);
 
@@ -555,7 +555,7 @@ public class CompilationTests
     [Test]
     public void CompilationMode_Compiled_CompilesOnFirstEvaluate()
     {
-        var options = AlderOptions.Default.UseCompiler();
+        var options = new AlderOptions().UseCompiler();
         var engine = new AlderEngine(options)
             .SetVariable("x", 10);
 
@@ -574,7 +574,7 @@ public class CompilationTests
     [Test]
     public void ExplicitCompile_OnCompiledEngine_Works()
     {
-        var options = AlderOptions.Default.UseCompiler();
+        var options = new AlderOptions().UseCompiler();
         var engine = new AlderEngine(options)
             .SetVariable("x", 10);
 
@@ -591,7 +591,7 @@ public class CompilationTests
     [Test]
     public void CompilationMode_Compiled_CompilesNamedArguments()
     {
-        var options = AlderOptions.Default.UseCompiler();
+        var options = new AlderOptions().UseCompiler();
         var engine = new AlderEngine(options);
         engine.SetVariable("str", "hello");
 
@@ -606,7 +606,7 @@ public class CompilationTests
     [Test]
     public void CompilationMode_Compiled_DoesNotFallBackToInterpreted_WhenNotCompilable()
     {
-        var options = AlderOptions.Default.UseCompiler();
+        var options = new AlderOptions().UseCompiler();
         var engine = new AlderEngine(options);
 
         // Known non-compilable pattern: switch with fall-through from a non-empty case.
@@ -629,7 +629,7 @@ public class CompilationTests
     [Test]
     public void CompilationMode_Compiled_DoesNotFallBack_WhenIlEmitterDoesNotSupportNode()
     {
-        var options = AlderOptions.Default.UseCompiler(new ThrowingExpressionCompiler());
+        var options = new AlderOptions().UseCompiler(new ThrowingExpressionCompiler());
         var engine = new AlderEngine(options);
         var expr = engine.Parse("1 + 2");
 
@@ -653,7 +653,7 @@ public class CompilationTests
     [Test]
     public void ParseAndCompile_ReturnsCompiledExpression()
     {
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler());
+        var engine = new AlderEngine(new AlderOptions().UseCompiler());
         var expr = engine.ParseAndCompile("1 + 2");
 
         Assert.That(expr.IsCompiled, Is.True);
@@ -662,7 +662,7 @@ public class CompilationTests
     [Test]
     public void ParseAndCompile_BlockExpression_NowCompiled()
     {
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler());
+        var engine = new AlderEngine(new AlderOptions().UseCompiler());
         var expr = engine.ParseAndCompile("{ var x = 1; return x; }");
 
         // Blocks are now IL-compilable
@@ -675,7 +675,7 @@ public class CompilationTests
     [Test]
     public void ParseAndCompile_NamedArgumentsNowCompilable()
     {
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler());
+        var engine = new AlderEngine(new AlderOptions().UseCompiler());
         engine.SetVariable("str", "hello");
         var expr = engine.ParseAndCompile("str.Substring(startIndex: 0, length: 3)");
 
@@ -693,7 +693,7 @@ public class CompilationTests
     [Test]
     public void Compile_ThreadSafe_ParallelCompilations()
     {
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler())
+        var engine = new AlderEngine(new AlderOptions().UseCompiler())
             .SetVariable("x", 10);
         var expr = engine.Parse("x * 2");
 
@@ -710,7 +710,7 @@ public class CompilationTests
     [Test]
     public void Compile_ThreadSafe_ParallelEvaluations()
     {
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler())
+        var engine = new AlderEngine(new AlderOptions().UseCompiler())
             .SetVariable("x", 5);
         var expr = engine.Parse("x + x");
 

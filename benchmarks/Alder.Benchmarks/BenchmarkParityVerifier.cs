@@ -74,24 +74,23 @@ public static class BenchmarkParityVerifier
             using var extInterpreted = BenchmarkBase.CreateEngine(
                 CompilationMode.Interpreted,
                 globals,
-                LanguageMode.Extended);
+                LanguageMode.Extended,
+                ConfigureExtendedParityEngine);
             using var extCompiled = BenchmarkBase.CreateEngine(
                 CompilationMode.Compiled,
                 globals,
-                LanguageMode.Extended);
+                LanguageMode.Extended,
+                ConfigureExtendedParityEngine);
             using var stdInterpreted = BenchmarkBase.CreateEngine(
                 CompilationMode.Interpreted,
                 globals,
-                LanguageMode.Standard);
+                LanguageMode.Standard,
+                ConfigureExtendedParityEngine);
             using var stdCompiled = BenchmarkBase.CreateEngine(
                 CompilationMode.Compiled,
                 globals,
-                LanguageMode.Standard);
-
-            ConfigureExtendedParityEngine(extInterpreted);
-            ConfigureExtendedParityEngine(extCompiled);
-            ConfigureExtendedParityEngine(stdInterpreted);
-            ConfigureExtendedParityEngine(stdCompiled);
+                LanguageMode.Standard,
+                ConfigureExtendedParityEngine);
 
             var extI = extInterpreted.Evaluate(scenario.ExtendedExpression);
             var extC = extCompiled.Evaluate(scenario.ExtendedExpression);
@@ -178,9 +177,9 @@ public static class BenchmarkParityVerifier
         => new(false, $"{scenario.Name}: {engineName} mismatch. expected={Format(expected)}, actual={Format(actual)}");
 
 
-    private static void ConfigureExtendedParityEngine(AlderEngine engine)
+    private static void ConfigureExtendedParityEngine(AlderOptions opts)
     {
-        engine.RegisterFunction("inc", args => Convert.ToInt32(args[0]) + 1);
+        opts.Functions.Register("inc", args => Convert.ToInt32(args[0]) + 1);
     }
 
     private static object? EvaluateAlder(BenchmarkGlobalData globals, string expression, CompilationMode mode)

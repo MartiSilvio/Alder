@@ -37,8 +37,7 @@ public class ComparableExecutionBenchmarks : BenchmarkBase
         _compiledExpression = CompiledEngine.Parse(Scenario.AlderExpression);
         _compiledFecExpression = CompiledFecEngine.Parse(Scenario.AlderExpression);
 
-        _interpretedReflectionEngine = new AlderEngine();
-        _interpretedReflectionEngine.ClearGeneratedContexts();
+        _interpretedReflectionEngine = new AlderEngine(o => o.Aot.ClearBuiltInContext());
         ApplyGlobals(_interpretedReflectionEngine, _globals);
         _interpretedReflectionExpression = _interpretedReflectionEngine.Parse(Scenario.AlderExpression);
 

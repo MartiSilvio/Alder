@@ -130,9 +130,12 @@ public class OverloadResolutionTests(CompilationMode mode)
     [Test]
     public void MultiTypeParamGenericInference_Zip_Works()
     {
-        var engine = TestEngineFactory.Create(mode);
-        engine.RegisterAssembly(typeof(Enumerable).Assembly);
-        engine.RegisterNamespace("System.Linq");
+        var engine = new AlderEngine(o =>
+        {
+            if (mode == CompilationMode.Compiled) o.UseCompiler();
+            o.Types.AddAssembly(typeof(Enumerable).Assembly);
+            o.Types.AddNamespace("System.Linq");
+        });
         var a = new[] { 1, 2, 3 };
         var b = new[] { "a", "b", "c" };
         engine.SetVariable("a", a);
@@ -146,9 +149,12 @@ public class OverloadResolutionTests(CompilationMode mode)
     [Test]
     public void MultiTypeParamGenericInference_ToDictionary_Works()
     {
-        var engine = TestEngineFactory.Create(mode);
-        engine.RegisterAssembly(typeof(Enumerable).Assembly);
-        engine.RegisterNamespace("System.Linq");
+        var engine = new AlderEngine(o =>
+        {
+            if (mode == CompilationMode.Compiled) o.UseCompiler();
+            o.Types.AddAssembly(typeof(Enumerable).Assembly);
+            o.Types.AddNamespace("System.Linq");
+        });
         var items = new[] { "apple", "banana", "cherry" };
         engine.SetVariable("items", items);
 

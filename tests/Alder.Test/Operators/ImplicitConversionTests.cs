@@ -46,8 +46,11 @@ public class ImplicitConversionTests(CompilationMode mode)
     [Test]
     public void ExtensionMethod_SignedPreferredOverUnsigned()
     {
-        var engine = TestEngineFactory.Create(mode);
-        engine.RegisterExtensionMethods(typeof(ImplicitConversionExtensionProbe));
+        var engine = new AlderEngine(o =>
+        {
+            if (mode == CompilationMode.Compiled) o.UseCompiler();
+            o.Types.AddExtensionMethods(typeof(ImplicitConversionExtensionProbe));
+        });
 
         var result = engine.Evaluate("1.ExtAmb((byte)1)");
         Assert.That(result, Is.EqualTo("short"));

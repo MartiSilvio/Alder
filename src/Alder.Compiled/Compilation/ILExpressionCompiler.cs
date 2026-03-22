@@ -29,7 +29,7 @@ internal static class ILExpressionCompiler
     /// </summary>
     public static CompiledExpressionInfo TryCompile(Expr ast, AlderOptions? options = null)
     {
-        var opts = options ?? AlderOptions.Default;
+        var opts = options ?? new AlderOptions();
         var compilerName = opts.ExpressionCompiler.GetType().Name;
         try
         {
@@ -67,7 +67,7 @@ internal static class ILExpressionCompiler
     /// </summary>
     public static CompiledExpressionInfo TryCompile(BoundExpr bound, AlderOptions? options = null)
     {
-        var opts = options ?? AlderOptions.Default;
+        var opts = options ?? new AlderOptions();
         var compilerName = opts.ExpressionCompiler.GetType().Name;
         try
         {

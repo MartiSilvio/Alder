@@ -32,9 +32,7 @@ public class ExecutionLimitTests(CompilationMode mode)
     [TestCaseSource(nameof(LimitViolationCases))]
     public void StatementLimit_ThrowsAlderExecutionLimitException(string expr, int limit)
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with {
-                        Constraints = new ExecutionConstraints { MaxStatements = limit }
-        });
+        var engine = TestEngineFactory.Create(mode, o => o.Constraints = new ExecutionConstraints { MaxStatements = limit });
         var ex = Assert.Throws<AlderExecutionLimitException>(() => engine.Evaluate(expr));
         Assert.That(ex!.LimitType, Is.EqualTo(ExecutionLimitType.Statements));
         Assert.That(ex.LimitValue, Is.EqualTo(limit));
@@ -43,9 +41,7 @@ public class ExecutionLimitTests(CompilationMode mode)
     [TestCaseSource(nameof(WithinLimitCases))]
     public void StatementLimit_WithinLimit_Succeeds(string expr, int limit, object expected)
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with {
-                        Constraints = new ExecutionConstraints { MaxStatements = limit }
-        });
+        var engine = TestEngineFactory.Create(mode, o => o.Constraints = new ExecutionConstraints { MaxStatements = limit });
         var result = engine.Evaluate(expr);
         Assert.That(result, Is.EqualTo(expected));
     }

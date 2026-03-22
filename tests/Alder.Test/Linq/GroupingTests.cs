@@ -47,15 +47,16 @@ public class GroupingTests(CompilationMode mode)
     [Test]
     public void GroupBy_CanPassToFunctionAcceptingIGrouping()
     {
-        var engine = TestEngineFactory.Create(mode);
-        engine.SetVariable("nums", new[] { 1, 2, 3, 4, 5 });
-
-        // Register a function that accepts IGrouping<bool, int>
-        engine.RegisterFunction("SumGroup", args =>
+        var engine = new AlderEngine(o =>
         {
-            var group = (IGrouping<bool, int>)args[0]!;
-            return group.Sum();
+            if (mode == CompilationMode.Compiled) o.UseCompiler();
+            o.Functions.Register("SumGroup", args =>
+            {
+                var group = (IGrouping<bool, int>)args[0]!;
+                return group.Sum();
+            });
         });
+        engine.SetVariable("nums", new[] { 1, 2, 3, 4, 5 });
 
         var result = engine.Evaluate("nums.GroupBy(x => x > 2).Select(g => SumGroup(g)).ToList()");
         var sums = ((IList)result!).Cast<object>().Select(x => (int)x).OrderBy(x => x).ToList();

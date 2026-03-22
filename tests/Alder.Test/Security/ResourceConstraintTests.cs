@@ -12,11 +12,9 @@ public class ResourceConstraintTests(CompilationMode mode)
     private static AlderEngine CreateEngine(long? maxStatements = null, TimeSpan? maxTimeout = null,
         CompilationMode mode = CompilationMode.Compiled)
     {
-        return TestEngineFactory.Create(mode, AlderOptions.Default with {
-                        Constraints = (maxStatements != null || maxTimeout != null)
+        return TestEngineFactory.Create(mode, o => o.Constraints = (maxStatements != null || maxTimeout != null)
                 ? new ExecutionConstraints { MaxStatements = maxStatements, MaxTimeout = maxTimeout }
-                : null
-        });
+                : null);
     }
 
     #region MaxStatements Tests
@@ -191,9 +189,7 @@ public class ResourceConstraintTests(CompilationMode mode)
     public void Constraints_ChangeableBetweenEvaluations()
     {
         var constraints = new ExecutionConstraints { MaxStatements = 3 };
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with {
-                        Constraints = constraints
-        });
+        var engine = TestEngineFactory.Create(mode, o => o.Constraints = constraints);
 
         // Should throw with limit 3
         Assert.Throws<AlderExecutionLimitException>(
@@ -212,9 +208,7 @@ public class ResourceConstraintTests(CompilationMode mode)
     [Test]
     public async Task ConcurrentEvaluations_WithStatementConstraints_DoNotInterfere()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with {
-                        Constraints = new ExecutionConstraints { MaxStatements = 4 }
-        });
+        var engine = TestEngineFactory.Create(mode, o => o.Constraints = new ExecutionConstraints { MaxStatements = 4 });
 
         const string expr = "{ var a = 1; var b = 2; var c = 3; return a + b + c; }";
         var failures = 0;
@@ -294,9 +288,7 @@ public class ResourceConstraintTests(CompilationMode mode)
     [Test]
     public void ExplicitNullConstraints_WorksNormally()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with {
-                        Constraints = null
-        });
+        var engine = TestEngineFactory.Create(mode, o => o.Constraints = null);
         var result = engine.Evaluate("1 + 2 + 3");
         Assert.That(result, Is.EqualTo(6));
     }

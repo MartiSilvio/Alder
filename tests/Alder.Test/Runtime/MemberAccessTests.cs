@@ -112,10 +112,12 @@ public class MemberAccessTests(CompilationMode mode)
     [Test]
     public void ExtensionMethodLookup_RespectsCaseSensitivityOption()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with {
-                        IsCaseSensitive = true
+        var engine = new AlderEngine(o =>
+        {
+            if (mode == CompilationMode.Compiled) o.UseCompiler();
+            o.IsCaseSensitive = true;
+            o.Types.AddExtensionMethods(typeof(MemberAccessExtensionProbe));
         });
-        engine.RegisterExtensionMethods(typeof(MemberAccessExtensionProbe));
 
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate(""" "abc".flipcasex() """));
         Assert.That(ex!.Message, Does.Contain("Method"));
@@ -125,8 +127,11 @@ public class MemberAccessTests(CompilationMode mode)
     [Test]
     public void ExtensionMethod_SupportsNamedArguments()
     {
-        var engine = TestEngineFactory.Create(mode);
-        engine.RegisterExtensionMethods(typeof(MemberAccessExtensionProbe));
+        var engine = new AlderEngine(o =>
+        {
+            if (mode == CompilationMode.Compiled) o.UseCompiler();
+            o.Types.AddExtensionMethods(typeof(MemberAccessExtensionProbe));
+        });
 
         var result = engine.Evaluate("1.ExtAdd(y: 2, z: 3)");
         Assert.That(result, Is.EqualTo(6));

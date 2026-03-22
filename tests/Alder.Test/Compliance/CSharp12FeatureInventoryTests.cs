@@ -9,10 +9,7 @@ namespace Alder.Test.Compliance;
 [TestFixture]
 public class CSharp12FeatureInventoryTests
 {
-    private static AlderOptions Options => AlderOptions.Default with
-    {
-        LanguageMode = LanguageMode.Standard
-    };
+    private static Action<AlderOptions> Options => o => o.LanguageMode = LanguageMode.Standard;
 
     // 1. Collection Expressions: int[] arr = [1, 2, 3]
     // Roslyn Scripting with C# 12 does support collection expressions with target typing.
@@ -40,10 +37,7 @@ public class CSharp12FeatureInventoryTests
     [Test]
     public void CollectionExpressions_Alder_ExtendedOnly()
     {
-        var extended = new AlderEngine(AlderOptions.Default with
-        {
-            LanguageMode = LanguageMode.Extended
-        });
+        var extended = new AlderEngine(o => o.LanguageMode = LanguageMode.Extended);
         var result = extended.Evaluate("[1, 2, 3]");
         Assert.That(result, Is.TypeOf<int[]>());
 

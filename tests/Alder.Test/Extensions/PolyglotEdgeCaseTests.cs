@@ -12,10 +12,10 @@ namespace Alder.Test.Extensions;
 public class PolyglotEdgeCaseTests(CompilationMode mode)
 {
     private AlderEngine CreateEngine() =>
-        TestEngineFactory.Create(mode, AlderOptions.Default with { LanguageMode = LanguageMode.Extended });
+        TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
 
     private AlderEngine CreateStandardEngine() =>
-        TestEngineFactory.Create(mode, AlderOptions.Default with { LanguageMode = LanguageMode.Standard });
+        TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Standard);
 
     #region Bare math: shadowing
 
@@ -30,16 +30,20 @@ public class PolyglotEdgeCaseTests(CompilationMode mode)
     [Test]
     public void BareMath_UserFunctionShadowsBuiltIn()
     {
-        var engine = CreateEngine();
-        engine.RegisterFunction("sin", args => 42);
+        var engine = TestEngineFactory.Create(mode, o => {
+            o.LanguageMode = LanguageMode.Extended;
+            o.Functions.Register("sin", args => 42);
+        });
         Assert.That(engine.Evaluate("sin(5.0)"), Is.EqualTo(42));
     }
 
     [Test]
     public void BareMath_ModuleNameDoesNotShadowBuiltInFunction()
     {
-        var engine = CreateEngine();
-        engine.RegisterModule("sin", typeof(Math));
+        var engine = TestEngineFactory.Create(mode, o => {
+            o.LanguageMode = LanguageMode.Extended;
+            o.Modules.Register("sin", typeof(Math));
+        });
         Assert.That(engine.Evaluate("sin(0.0)"), Is.EqualTo(0.0).Within(1e-12));
     }
 
@@ -57,9 +61,11 @@ public class PolyglotEdgeCaseTests(CompilationMode mode)
     [Test]
     public void IdentifierCall_FunctionShadowsVariable()
     {
-        var engine = CreateEngine();
+        var engine = TestEngineFactory.Create(mode, o => {
+            o.LanguageMode = LanguageMode.Extended;
+            o.Functions.Register("inc", args => Convert.ToInt32(args[0]) + 1);
+        });
         engine.SetVariable("inc", (Func<int, int>)(x => x + 100));
-        engine.RegisterFunction("inc", args => Convert.ToInt32(args[0]) + 1);
         Assert.That(engine.Evaluate("inc(5)"), Is.EqualTo(6));
     }
 
@@ -131,8 +137,10 @@ public class PolyglotEdgeCaseTests(CompilationMode mode)
     [Test]
     public void Pipeline_IdentifierCall_MatchesDirectCall()
     {
-        var engine = CreateEngine();
-        engine.RegisterFunction("inc", args => Convert.ToInt32(args[0]) + 1);
+        var engine = TestEngineFactory.Create(mode, o => {
+            o.LanguageMode = LanguageMode.Extended;
+            o.Functions.Register("inc", args => Convert.ToInt32(args[0]) + 1);
+        });
         Assert.That(engine.Evaluate("5 |> inc"), Is.EqualTo(engine.Evaluate("inc(5)")));
     }
 
@@ -499,9 +507,11 @@ public class PolyglotEdgeCaseTests(CompilationMode mode)
     [Test]
     public void StandardMode_IdentifierCall_FunctionShadowsVariable()
     {
-        var engine = CreateStandardEngine();
+        var engine = TestEngineFactory.Create(mode, o => {
+            o.LanguageMode = LanguageMode.Standard;
+            o.Functions.Register("inc", args => Convert.ToInt32(args[0]) + 1);
+        });
         engine.SetVariable("inc", (Func<int, int>)(x => x + 100));
-        engine.RegisterFunction("inc", args => Convert.ToInt32(args[0]) + 1);
         Assert.That(engine.Evaluate("inc(5)"), Is.EqualTo(6));
     }
 
@@ -514,6 +524,7 @@ public class PolyglotEdgeCaseTests(CompilationMode mode)
         Assert.That(ex!.ErrorCode, Is.EqualTo(Alder.Diagnostics.DiagnosticCode.CS1955));
         Assert.That(ex.Message, Does.Contain("ModuleInfo"));
     }
+
 
     [Test]
     public void StandardMode_Range_ProducesSystemRange()

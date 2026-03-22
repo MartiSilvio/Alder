@@ -15,7 +15,7 @@ public class LogicalKeywordTests(CompilationMode mode)
     [Test]
     public void And_ShortCircuits()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with { LanguageMode = LanguageMode.Extended });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
         engine.SetVariable("x", 0);
         Assert.That(engine.Evaluate("false and (1/x > 0)"), Is.False);
     }
@@ -23,7 +23,7 @@ public class LogicalKeywordTests(CompilationMode mode)
     [Test]
     public void Or_ShortCircuits()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with { LanguageMode = LanguageMode.Extended });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
         engine.SetVariable("x", 0);
         Assert.That(engine.Evaluate("true or (1/x > 0)"), Is.True);
     }

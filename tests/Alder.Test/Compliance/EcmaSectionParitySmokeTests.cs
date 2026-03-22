@@ -7,10 +7,7 @@ namespace Alder.Test.Compliance;
 [TestFixture(CompilationMode.Compiled)]
 public class EcmaSectionParitySmokeTests(CompilationMode mode)
 {
-    private AlderOptions Options => AlderOptions.Default with
-    {
-        LanguageMode = LanguageMode.Standard
-    };
+    private Action<AlderOptions> Options => o => o.LanguageMode = LanguageMode.Standard;
 
     [Test]
     public void S6_4_1_Tokens_General_MixedTokenStream()

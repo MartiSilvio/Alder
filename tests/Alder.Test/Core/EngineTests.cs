@@ -139,8 +139,7 @@ public class CustomRegistrationTests
     [Test]
     public void CustomFunction()
     {
-        var engine = new AlderEngine();
-        engine.RegisterFunction("twice", args => Convert.ToInt64(args[0]) * 2);
+        var engine = new AlderEngine(o => o.Functions.Register("twice", args => Convert.ToInt64(args[0]) * 2));
 
         var result = engine.Evaluate("twice(5)");
         Assert.That(result, Is.EqualTo(10));
@@ -149,8 +148,7 @@ public class CustomRegistrationTests
     [Test]
     public void CustomProxy()
     {
-        var engine = new AlderEngine();
-        engine.RegisterModule("Custom", instance: new GreetingProxy());
+        var engine = new AlderEngine(o => o.Modules.Register<GreetingProxy>("Custom", instance: new GreetingProxy()));
 
         var result = engine.Evaluate("""Custom.Greet("World") """);
         Assert.That(result, Is.EqualTo("Hello, World!"));
@@ -168,8 +166,7 @@ public class ExplicitModuleTests
     [Test]
     public void ExplicitOnly_OnlyExposesAttributedMethods()
     {
-        var engine = new AlderEngine();
-        engine.RegisterModule<ExplicitModule>("Mod", explicitOnly: true);
+        var engine = new AlderEngine(o => o.Modules.Register<ExplicitModule>("Mod", explicitOnly: true));
 
         // Attributed method should work
         var result = engine.Evaluate("Mod.Allowed()");
@@ -184,8 +181,7 @@ public class ExplicitModuleTests
     [Test]
     public void ExplicitOnly_UsesCustomName()
     {
-        var engine = new AlderEngine();
-        engine.RegisterModule<ExplicitModule>("Mod", explicitOnly: true);
+        var engine = new AlderEngine(o => o.Modules.Register<ExplicitModule>("Mod", explicitOnly: true));
 
         // Should be accessible by custom name
         var result = engine.Evaluate("Mod.CustomName()");
@@ -195,8 +191,7 @@ public class ExplicitModuleTests
     [Test]
     public void ExplicitOnly_FalseExposesAllMethods()
     {
-        var engine = new AlderEngine();
-        engine.RegisterModule<ExplicitModule>("Mod", explicitOnly: false);
+        var engine = new AlderEngine(o => o.Modules.Register<ExplicitModule>("Mod", explicitOnly: false));
 
         Assert.That(engine.Evaluate("Mod.Allowed()"), Is.EqualTo("allowed"));
         Assert.That(engine.Evaluate("Mod.NotAllowed()"), Is.EqualTo("not allowed"));
@@ -205,8 +200,7 @@ public class ExplicitModuleTests
     [Test]
     public void ModuleAttribute_ExplicitOnlyProperty()
     {
-        var engine = new AlderEngine();
-        engine.RegisterModule<AttributedExplicitModule>("Mod");
+        var engine = new AlderEngine(o => o.Modules.Register<AttributedExplicitModule>("Mod"));
 
         // Attributed method should work
         var result = engine.Evaluate("Mod.Exposed()");
@@ -221,8 +215,7 @@ public class ExplicitModuleTests
     [Test]
     public void AttributeWithoutName_UsesMethodName()
     {
-        var engine = new AlderEngine();
-        engine.RegisterModule<ExplicitModule>("Mod", explicitOnly: true);
+        var engine = new AlderEngine(o => o.Modules.Register<ExplicitModule>("Mod", explicitOnly: true));
 
         // Method marked with [AlderFunction] (no name) uses method name
         var result = engine.Evaluate("Mod.Allowed()");
@@ -232,8 +225,7 @@ public class ExplicitModuleTests
     [Test]
     public void ExplicitOnly_PropertiesNotExposed()
     {
-        var engine = new AlderEngine();
-        engine.RegisterModule<ModuleWithProperty>("Mod", explicitOnly: true);
+        var engine = new AlderEngine(o => o.Modules.Register<ModuleWithProperty>("Mod", explicitOnly: true));
 
         // Properties are not exposed in explicit mode
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate("Mod.Value"));
@@ -244,8 +236,7 @@ public class ExplicitModuleTests
     [Test]
     public void NonExplicit_PropertiesExposed()
     {
-        var engine = new AlderEngine();
-        engine.RegisterModule<ModuleWithProperty>("Mod", explicitOnly: false);
+        var engine = new AlderEngine(o => o.Modules.Register<ModuleWithProperty>("Mod", explicitOnly: false));
 
         var result = engine.Evaluate("Mod.Value");
         Assert.That(result, Is.EqualTo(42));

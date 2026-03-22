@@ -170,8 +170,8 @@ public class DiagnosticCodeTests
     {
         // CS0117 fires for module member access and dict property access.
         // RegisterModule creates a module; accessing a non-existent member throws CS0117.
-        _engine.RegisterModule("MyMod", instance: new TestModule());
-        var ex = Assert.Throws<AlderException>(() => _engine.Evaluate("MyMod.NonExistentProp"));
+        var engine = new AlderEngine(o => o.Modules.Register<TestModule>("MyMod", instance: new TestModule()));
+        var ex = Assert.Throws<AlderException>(() => engine.Evaluate("MyMod.NonExistentProp"));
         Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0117));
         Assert.That(ex.FormattedCode, Is.EqualTo("CS0117"));
         Assert.That(ex.Message, Does.Contain("TestModule"));
@@ -431,7 +431,7 @@ public class DiagnosticCodeTests
     [Test]
     public void BackwardCompat_AlderSpecificError_HasDiagnosticCode()
     {
-        var engine = new AlderEngine(AlderOptions.Default with
+        var engine = new AlderEngine(new AlderOptions
         {
             Sandbox = SandboxOptions.Strict() with { AllowAssignment = false }
         });

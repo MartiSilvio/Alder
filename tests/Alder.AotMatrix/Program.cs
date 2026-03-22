@@ -27,7 +27,7 @@ foreach (var file in files)
 
     try
     {
-        var engine = new AlderEngine(AlderOptions.Default with
+        var engine = new AlderEngine(new AlderOptions
         {
             LanguageMode = LanguageMode.Extended,
             Constraints = new ExecutionConstraints { MaxStatements = 100_000 }

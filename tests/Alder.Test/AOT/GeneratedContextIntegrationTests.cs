@@ -9,18 +9,22 @@ public class GeneratedContextIntegrationTests(CompilationMode mode)
 {
     private AlderEngine CreateEngine(bool useGeneratedContext = true)
     {
-        var engine = TestEngineFactory.Create(mode);
-        if (useGeneratedContext)
-            engine.UseGeneratedContext(TestGeneratedContext.Default);
-        return engine;
+        return TestEngineFactory.Create(mode, o =>
+        {
+            if (useGeneratedContext)
+                o.Aot.UseGeneratedContext(TestGeneratedContext.Default);
+        });
     }
 
     private AlderEngine CreateEngineWithTypeResolution(bool useGeneratedContext = true)
     {
-        var engine = CreateEngine(useGeneratedContext);
-        engine.RegisterAssembly(typeof(TestModel).Assembly);
-        engine.RegisterNamespace("Alder.Test.AOT");
-        return engine;
+        return TestEngineFactory.Create(mode, o =>
+        {
+            if (useGeneratedContext)
+                o.Aot.UseGeneratedContext(TestGeneratedContext.Default);
+            o.Types.AddAssembly(typeof(TestModel).Assembly);
+            o.Types.AddNamespace("Alder.Test.AOT");
+        });
     }
 
     [Test]

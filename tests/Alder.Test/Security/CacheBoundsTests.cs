@@ -95,7 +95,7 @@ public class CacheBoundsTests
     public void ExpressionCache_IntegrationWithEngine()
     {
         // Verify the cache works through the full engine pipeline
-        var engine = new AlderEngine(AlderOptions.Default.UseCompiler());
+        var engine = new AlderEngine(new AlderOptions().UseCompiler());
 
         // Evaluate same expression twice -- second should use cache
         var result1 = engine.Evaluate("1 + 2");

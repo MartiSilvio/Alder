@@ -76,8 +76,7 @@ public class BuiltInContextTests(CompilationMode mode)
     [Test]
     public void UseGeneratedContext_StacksOnBuiltIn()
     {
-        var engine = CreateEngine();
-        engine.UseGeneratedContext(TestGeneratedContext.Default);
+        var engine = TestEngineFactory.Create(mode, o => o.Aot.UseGeneratedContext(TestGeneratedContext.Default));
         engine.SetVariable("m", new TestModel { Name = "test" });
 
         var builtIn = engine.Evaluate(""" "hello".Length """);

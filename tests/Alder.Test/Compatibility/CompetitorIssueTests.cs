@@ -168,8 +168,8 @@ public class CompetitorIssueTests(CompilationMode mode)
     [Test]
     public void Issue295_ExpandoStringMember_CanBePassedToStringFunctionWithoutExplicitCast()
     {
-        var engine = TestEngineFactory.Create(mode);
-        engine.RegisterFunction("PathCombine", args => System.IO.Path.Combine((string)args[0]!, (string)args[1]!));
+        var engine = TestEngineFactory.Create(mode, o =>
+            o.Functions.Register("PathCombine", args => System.IO.Path.Combine((string)args[0]!, (string)args[1]!)));
 
         dynamic globalSettings = new ExpandoObject();
         globalSettings.MyTestPath = "C:\\delme\\";

@@ -34,21 +34,12 @@ public class ApiSurfaceTests
             "EvaluateWithTrace",
             "GetRegisteredModules",
             "Parse",
-            "RegisterAssembly",
-            "RegisterExtensionMethods",
-            "RegisterFromAssembly",
-            "RegisterFromType",
-            "RegisterFunction",
-            "RegisterModule",
-            "RegisterNamespace",
             "SetVariable",
             "SetVariables",
-            "ClearGeneratedContexts",
             "TryCompile",
             "TryEvaluate",
             "TryParse",
             "TryValidate",
-            "UseGeneratedContext",
         }.OrderBy(n => n).ToList();
 
         Assert.That(methods, Is.EqualTo(expected));
@@ -85,14 +76,17 @@ public class ApiSurfaceTests
     }
 
     [Test]
-    public void RegisterModule_Has3Overloads()
+    public void AlderOptions_HasExpectedBuilders()
     {
-        var overloads = typeof(AlderEngine)
-            .GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
-            .Where(m => m.Name == "RegisterModule")
+        var builderTypes = typeof(AlderOptions).GetNestedTypes(BindingFlags.Public)
+            .Select(t => t.Name)
+            .OrderBy(n => n)
             .ToList();
 
-        Assert.That(overloads, Has.Count.EqualTo(3));
+        var expected = new[] { "AotBuilder", "FunctionBuilder", "ModuleBuilder", "TypeBuilder" }
+            .OrderBy(n => n).ToList();
+
+        Assert.That(builderTypes, Is.EqualTo(expected));
     }
 
     // ----------------------------------------------------------------
@@ -412,6 +406,10 @@ public class ApiSurfaceTests
             "Alder.AlderExecutionLimitException",
             "Alder.AlderExpression",
             "Alder.AlderOptions",
+            "Alder.AlderOptions+AotBuilder",
+            "Alder.AlderOptions+FunctionBuilder",
+            "Alder.AlderOptions+ModuleBuilder",
+            "Alder.AlderOptions+TypeBuilder",
             "Alder.DefaultExpressionCompiler",
             "Alder.DiagnosticSeverity",
             "Alder.ExecutionConstraints",

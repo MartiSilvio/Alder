@@ -9,9 +9,7 @@ public class TracingTests(CompilationMode mode)
     [Test]
     public void EvaluateWithTrace_ReturnsResultAndSteps()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with {
-                        LanguageMode = LanguageMode.Extended
-        });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
 
         engine.SetVariable("x", 5);
         var trace = engine.EvaluateWithTrace("x * 4 + 2");

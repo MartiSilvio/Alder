@@ -10,9 +10,11 @@ public class ConsoleOutputTests(CompilationMode mode)
     [Test]
     public void Console_WriteLine_CapturesOutput()
     {
-        var engine = TestEngineFactory.Create(mode);
-        engine.RegisterAssembly(typeof(Console).Assembly);
-        engine.RegisterNamespace("System");
+        var engine = TestEngineFactory.Create(mode, o =>
+        {
+            o.Types.AddAssembly(typeof(Console).Assembly);
+            o.Types.AddNamespace("System");
+        });
 
         var originalOut = Console.Out;
         try
@@ -30,9 +32,11 @@ public class ConsoleOutputTests(CompilationMode mode)
     [Test]
     public void Console_WriteLine_WithInterpolation()
     {
-        var engine = TestEngineFactory.Create(mode);
-        engine.RegisterAssembly(typeof(Console).Assembly);
-        engine.RegisterNamespace("System");
+        var engine = TestEngineFactory.Create(mode, o =>
+        {
+            o.Types.AddAssembly(typeof(Console).Assembly);
+            o.Types.AddNamespace("System");
+        });
 
         var originalOut = Console.Out;
         try

@@ -133,7 +133,7 @@ public static class AlderCompiledEngineExtensions
             }
 
             var engineVariables = access.CollectEngineVariables();
-            var config = access.GetOrCreateConfig();
+            var config = access.Config;
 
             AstDepthValidator.EnsureWithinLimit(lambdaExpr.Body, access.Options.MaxExpressionDepth);
 

@@ -19,12 +19,9 @@ namespace Alder;
 /// </summary>
 /// <remarks>
 /// <para><b>Thread Safety:</b></para>
-/// <para>Configuration methods (RegisterModule, RegisterFunction, RegisterAssembly, RegisterNamespace,
-/// SetVariable before first evaluation, etc.) are NOT thread-safe and must be called before the first
-/// Evaluate() call. After the first evaluation, the engine configuration is frozen.</para>
-/// <para>Evaluate, Parse, Compile, TryValidate, and related methods are thread-safe and can be
-/// called concurrently from multiple threads after the engine is frozen.</para>
-/// <para>SetVariable is thread-safe during the evaluation phase.</para>
+/// <para>The engine is fully configured at construction time via <see cref="AlderOptions"/>.
+/// All evaluation methods are thread-safe and can be called concurrently from multiple threads.</para>
+/// <para>SetVariable is thread-safe and can be called at any time, including between evaluations.</para>
 /// <para>Child engines created via CreateChild() can be evaluated concurrently with the parent
 /// and with each other.</para>
 /// </remarks>
@@ -32,20 +29,13 @@ public sealed partial class AlderEngine : IDisposable
 {
     private readonly record struct PendingVariable(object? Value, Type InferredType);
 
-    private readonly Dictionary<string, Func<object?[], object?>> _functions;
     private readonly AlderOptions _options;
-    private readonly List<RegisteredType> _registeredTypes = [];
-    private readonly List<Type> _extensionTypes = [];
-    private readonly List<Assembly> _assemblies = [];
-    private readonly List<string> _usingNamespaces = [];
+    private readonly AlderConfig _config;
     private readonly TypeMetadataProvider _typeMetadata;
     private readonly ExpressionCache _expressionCache;
     private readonly Dictionary<string, PendingVariable> _pendingVariables;
     private readonly object _contextInitLock = new();
 
-    private AlderTypeContext? _generatedContext;
-    private readonly List<AlderTypeContext> _additionalContexts = [];
-    private AlderConfig? _frozenConfig;
     private AlderContext? _context;
     private readonly DisposalToken _disposalToken;
 
@@ -68,7 +58,11 @@ public sealed partial class AlderEngine : IDisposable
         public volatile bool IsDisposed;
     }
 
-    public AlderEngine() : this(AlderOptions.Default)
+    public AlderEngine() : this(new AlderOptions())
+    {
+    }
+
+    public AlderEngine(Action<AlderOptions> configure) : this(Apply(configure))
     {
     }
 
@@ -78,31 +72,133 @@ public sealed partial class AlderEngine : IDisposable
         _disposalToken = new DisposalToken();
         _typeMetadata = new TypeMetadataProvider();
         _expressionCache = new ExpressionCache();
-        _functions = new Dictionary<string, Func<object?[], object?>>(options.StringComparer);
         _pendingVariables = new Dictionary<string, PendingVariable>(options.StringComparer);
-        _extensionTypes.Add(typeof(Enumerable));
-        _generatedContext = Aot.AlderBuiltInContext.Default;
-        RegisterBuiltInModules();
+        _config = BuildConfig(options);
     }
 
     private AlderEngine(
-        AlderConfig frozenConfig,
+        AlderConfig config,
         AlderContext parentContext,
         AlderOptions options,
         ExpressionCache expressionCache,
         DisposalToken disposalToken)
     {
-        _frozenConfig = frozenConfig;
+        _config = config;
         _disposalToken = disposalToken;
         _context = parentContext.CreateChild();
         _options = options;
-        _typeMetadata = frozenConfig.TypeMetadata;
+        _typeMetadata = config.TypeMetadata;
         _expressionCache = expressionCache;
-        _functions = new Dictionary<string, Func<object?[], object?>>(options.StringComparer);
-        foreach (var kvp in frozenConfig.Functions) _functions[kvp.Key] = kvp.Value;
         _pendingVariables = new Dictionary<string, PendingVariable>(options.StringComparer);
-        _extensionTypes = [..frozenConfig.ExtensionTypes];
-        _registeredTypes = [];
+    }
+
+    private static AlderOptions Apply(Action<AlderOptions> configure)
+    {
+        var options = new AlderOptions();
+        configure(options);
+        return options;
+    }
+
+    private static AlderConfig BuildConfig(AlderOptions options)
+    {
+        var functions = new Dictionary<string, Func<object?[], object?>>(options.StringComparer);
+        foreach (var kvp in options.Functions.RegisteredFunctions)
+            functions[kvp.Key] = kvp.Value;
+
+        var modules = new Dictionary<string, ModuleInfo>(options.StringComparer);
+
+        var mathMembers = ModuleMemberMetadata.GetBuiltInMathMembers(options.StringComparer);
+        var convertMembers = ModuleMemberMetadata.GetBuiltInConvertMembers(options.StringComparer);
+        modules["Math"] = new ModuleInfo(typeof(Math), null, mathMembers);
+        modules["Convert"] = new ModuleInfo(typeof(Convert), null, convertMembers);
+
+        foreach (var reg in options.Modules.RegisteredTypes)
+        {
+            var moduleName = reg.ModuleName ?? reg.Type.GetCustomAttribute<AlderModuleAttribute>()?.Name;
+            if (moduleName != null)
+            {
+                modules[moduleName] = new ModuleInfo(reg.Type, reg.Instance, reg.Members);
+            }
+            else
+            {
+                RegisterGlobalFunctions(reg, functions);
+            }
+        }
+
+        var typeResolver = TypeResolver.Create(
+            [..options.Types.Assemblies],
+            [..options.Types.Namespaces],
+            true,
+            options.StringComparer);
+
+        Dictionary<Type, IAotTypeMetadata>? aotMetadata = null;
+        if (options.Aot.BuiltInContext != null)
+        {
+            aotMetadata = new Dictionary<Type, IAotTypeMetadata>();
+            foreach (var metadata in options.Aot.BuiltInContext.GetTypeMetadata())
+                aotMetadata[metadata.Type] = metadata;
+        }
+
+        foreach (var ctx in options.Aot.AdditionalContexts)
+        {
+            aotMetadata ??= new Dictionary<Type, IAotTypeMetadata>();
+            foreach (var metadata in ctx.GetTypeMetadata())
+                aotMetadata[metadata.Type] = metadata;
+        }
+
+        var typeMetadata = new TypeMetadataProvider();
+        return AlderConfig.Create(functions, modules, options.Types.ExtensionTypes, typeMetadata, typeResolver, options.StringComparer, aotMetadata);
+    }
+
+    private static void RegisterGlobalFunctions(AlderOptions.RegisteredType reg, Dictionary<string, Func<object?[], object?>> functions)
+    {
+        var methods = reg.Type.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static);
+
+        foreach (var method in methods)
+        {
+            var attr = method.GetCustomAttribute<AlderFunctionAttribute>();
+            if (attr == null) continue;
+
+            var functionName = attr.Name ?? method.Name;
+            var moduleInfo = method.IsStatic ? null : new ModuleInfo(reg.Type, reg.Instance, reg.Members);
+            functions[functionName] = CreateFunctionDelegate(method, moduleInfo);
+        }
+    }
+
+    private static Func<object?[], object?> CreateFunctionDelegate(MethodInfo method, ModuleInfo? moduleInfo)
+    {
+        return args =>
+        {
+            var parameters = method.GetParameters();
+            var finalArgs = PadWithDefaults(parameters, args, method.Name);
+            return method.Invoke(moduleInfo?.Resolve(null), finalArgs);
+        };
+    }
+
+    private static object?[] PadWithDefaults(ParameterInfo[] parameters, object?[] args, string callableName)
+    {
+        var result = new object?[parameters.Length];
+
+        for (var i = 0; i < parameters.Length; i++)
+        {
+            if (i < args.Length)
+            {
+                result[i] = TypeHelpers.CoerceNumeric(args[i], parameters[i].ParameterType);
+            }
+            else if (parameters[i].HasDefaultValue)
+            {
+                result[i] = parameters[i].DefaultValue;
+            }
+            else
+            {
+                throw new AlderException(
+                    DiagnosticDescriptors.MissingRequiredArgument,
+                    parameters[i].Name,
+                    callableName);
+            }
+        }
+
+        return result;
     }
 
     private static readonly Pipeline.BoundTreePipeline SecurityOnlyPipeline =
@@ -130,51 +226,6 @@ public sealed partial class AlderEngine : IDisposable
         return GetOrCreateCompilationPipeline().Execute(tree, context);
     }
 
-    private AlderConfig GetOrCreateConfig()
-    {
-        var config = _frozenConfig;
-        if (config != null)
-            return config;
-
-        var modules = new Dictionary<string, ModuleInfo>(_options.StringComparer);
-        foreach (var reg in _registeredTypes)
-        {
-            var moduleName = reg.ModuleName ?? reg.Type.GetCustomAttribute<AlderModuleAttribute>()?.Name;
-            if (moduleName != null)
-            {
-                modules[moduleName] = new ModuleInfo(reg.Type, reg.Instance, reg.Members);
-            }
-            else
-            {
-                RegisterGlobalFunctions(reg);
-            }
-        }
-
-        var typeResolver = TypeResolver.Create(
-            [.._assemblies],
-            [.._usingNamespaces],
-            true,
-            _options.StringComparer);
-
-        Dictionary<Type, IAotTypeMetadata>? aotMetadata = null;
-        if (_generatedContext != null)
-        {
-            aotMetadata = new Dictionary<Type, IAotTypeMetadata>();
-            foreach (var metadata in _generatedContext.GetTypeMetadata())
-                aotMetadata[metadata.Type] = metadata;
-        }
-
-        foreach (var ctx in _additionalContexts)
-        {
-            aotMetadata ??= new Dictionary<Type, IAotTypeMetadata>();
-            foreach (var metadata in ctx.GetTypeMetadata())
-                aotMetadata[metadata.Type] = metadata;
-        }
-
-        var newConfig = AlderConfig.Create(_functions, modules, _extensionTypes, _typeMetadata, typeResolver, _options.StringComparer, aotMetadata);
-        return Interlocked.CompareExchange(ref _frozenConfig, newConfig, null) ?? newConfig;
-    }
-
     private AlderContext GetOrCreateContext(IServiceProvider? serviceProvider)
     {
         var ctx = _context;
@@ -186,8 +237,7 @@ public sealed partial class AlderEngine : IDisposable
             if (_context != null)
                 return _context;
 
-            var config = GetOrCreateConfig();
-            var newContext = new AlderContext(config, serviceProvider);
+            var newContext = new AlderContext(_config, serviceProvider);
 
             foreach (var (name, pending) in _pendingVariables)
             {
@@ -301,8 +351,6 @@ public sealed partial class AlderEngine : IDisposable
         var context = target.GetOrCreateContext(serviceProvider);
         var executionContext = context;
 
-        // Isolate execution constraints per invocation to avoid cross-request
-        // interference when the same engine is evaluated concurrently.
         var constraints = _options.Constraints;
         if (constraints != null)
         {
@@ -399,10 +447,6 @@ public sealed partial class AlderEngine : IDisposable
         CancellationToken cancellationToken = default)
         => ConvertResult<T>(Evaluate(expression, ToVariableDictionary(variables), serviceProvider, cancellationToken));
 
-    /// <summary>
-    /// Evaluates an expression without throwing exceptions.
-    /// Returns true if evaluation succeeded, false otherwise.
-    /// </summary>
     public bool TryEvaluate(
         string expression,
         out object? result,
@@ -423,10 +467,6 @@ public sealed partial class AlderEngine : IDisposable
         }
     }
 
-    /// <summary>
-    /// Evaluates an expression and converts the result to the specified type without throwing exceptions.
-    /// Returns true if evaluation and conversion succeeded, false otherwise.
-    /// </summary>
     public bool TryEvaluate<T>(
         string expression,
         out T? result,
@@ -447,11 +487,6 @@ public sealed partial class AlderEngine : IDisposable
         }
     }
 
-    /// <summary>
-    /// Validates an expression for syntax and semantic correctness without evaluating it.
-    /// Returns true if the expression is valid, false otherwise.
-    /// When false, the diagnostics list contains structured error information.
-    /// </summary>
     public bool TryValidate(string expression, out IReadOnlyList<AlderDiagnostic> diagnostics)
     {
         ThrowIfDisposed();
@@ -586,8 +621,7 @@ public sealed partial class AlderEngine : IDisposable
     public AlderEngine CreateChild()
     {
         ThrowIfDisposed();
-        var config = GetOrCreateConfig();
         var parentContext = GetOrCreateContext(null);
-        return new AlderEngine(config, parentContext, _options, _expressionCache, _disposalToken);
+        return new AlderEngine(_config, parentContext, _options, _expressionCache, _disposalToken);
     }
 }

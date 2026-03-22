@@ -18,8 +18,7 @@ public class LazyResolutionTests(CompilationMode mode)
     [Test]
     public void RegisterModule_DoesNotInstantiateType()
     {
-        var engine = TestEngineFactory.Create(mode);
-        engine.RegisterModule("Tracking", typeof(TrackingModule));
+        var engine = TestEngineFactory.Create(mode, o => o.Modules.Register("Tracking", typeof(TrackingModule)));
 
         Assert.That(TrackingModule.InstanceCount, Is.EqualTo(0));
     }
@@ -27,8 +26,7 @@ public class LazyResolutionTests(CompilationMode mode)
     [Test]
     public void RegisterModule_InstantiatesOnlyWhenAccessed()
     {
-        var engine = TestEngineFactory.Create(mode);
-        engine.RegisterModule("Tracking", typeof(TrackingModule));
+        var engine = TestEngineFactory.Create(mode, o => o.Modules.Register("Tracking", typeof(TrackingModule)));
 
         Assert.That(TrackingModule.InstanceCount, Is.EqualTo(0));
 
@@ -40,8 +38,7 @@ public class LazyResolutionTests(CompilationMode mode)
     [Test]
     public void RegisterModule_UsesServiceProviderWhenAvailable()
     {
-        var engine = TestEngineFactory.Create(mode);
-        engine.RegisterModule("Tracking", typeof(TrackingModule));
+        var engine = TestEngineFactory.Create(mode, o => o.Modules.Register("Tracking", typeof(TrackingModule)));
 
         var providedInstance = new TrackingModule();
         var sp = new SimpleServiceProvider();
@@ -58,8 +55,7 @@ public class LazyResolutionTests(CompilationMode mode)
     [Test]
     public void RegisterModule_ResolvesOnEachCall()
     {
-        var engine = TestEngineFactory.Create(mode);
-        engine.RegisterModule("Tracking", typeof(TrackingModule));
+        var engine = TestEngineFactory.Create(mode, o => o.Modules.Register("Tracking", typeof(TrackingModule)));
 
         engine.Evaluate("Tracking.DoSomething()");
         engine.Evaluate("Tracking.DoSomething()");
@@ -71,9 +67,8 @@ public class LazyResolutionTests(CompilationMode mode)
     [Test]
     public void RegisterModule_WithInstance_DoesNotCreateNew()
     {
-        var engine = TestEngineFactory.Create(mode);
         var instance = new TrackingModule();
-        engine.RegisterModule("Tracking", instance: instance);
+        var engine = TestEngineFactory.Create(mode, o => o.Modules.Register<TrackingModule>("Tracking", instance: instance));
 
         Assert.That(TrackingModule.InstanceCount, Is.EqualTo(1));
 
@@ -92,12 +87,11 @@ public class MemberFilteringTests(CompilationMode mode)
     [Test]
     public void RegisterModule_WithExplicitMembers_OnlyExposesSpecifiedMethods()
     {
-        var engine = TestEngineFactory.Create(mode);
         var members = new Dictionary<string, MemberInfo>(StringComparer.OrdinalIgnoreCase)
         {
             ["Sum"] = typeof(CalculatorModule).GetMethod(nameof(CalculatorModule.Sum))!
         };
-        engine.RegisterModule("Calc", typeof(CalculatorModule), members);
+        var engine = TestEngineFactory.Create(mode, o => o.Modules.Register("Calc", typeof(CalculatorModule), members));
 
         Assert.That(engine.Evaluate("Calc.Sum(2, 3)"), Is.EqualTo(5));
 
@@ -108,13 +102,12 @@ public class MemberFilteringTests(CompilationMode mode)
     [Test]
     public void RegisterModule_WithExplicitMembers_SupportsAliases()
     {
-        var engine = TestEngineFactory.Create(mode);
         var members = new Dictionary<string, MemberInfo>(StringComparer.OrdinalIgnoreCase)
         {
             ["plus"] = typeof(CalculatorModule).GetMethod(nameof(CalculatorModule.Sum))!,
             ["minus"] = typeof(CalculatorModule).GetMethod(nameof(CalculatorModule.Subtract))!
         };
-        engine.RegisterModule("Calc", typeof(CalculatorModule), members);
+        var engine = TestEngineFactory.Create(mode, o => o.Modules.Register("Calc", typeof(CalculatorModule), members));
 
         Assert.That(engine.Evaluate("Calc.plus(2, 3)"), Is.EqualTo(5));
         Assert.That(engine.Evaluate("Calc.minus(5, 2)"), Is.EqualTo(3));
@@ -126,8 +119,7 @@ public class MemberFilteringTests(CompilationMode mode)
     [Test]
     public void RegisterModule_WithoutExplicitMembers_ExposesAllPublicMembers()
     {
-        var engine = TestEngineFactory.Create(mode);
-        engine.RegisterModule("Calc", typeof(CalculatorModule));
+        var engine = TestEngineFactory.Create(mode, o => o.Modules.Register("Calc", typeof(CalculatorModule)));
 
         Assert.That(engine.Evaluate("Calc.Sum(2, 3)"), Is.EqualTo(5));
         Assert.That(engine.Evaluate("Calc.Subtract(5, 2)"), Is.EqualTo(3));
@@ -137,12 +129,11 @@ public class MemberFilteringTests(CompilationMode mode)
     [Test]
     public void RegisterModule_WithExplicitMembers_CanExposeProperties()
     {
-        var engine = TestEngineFactory.Create(mode);
         var members = new Dictionary<string, MemberInfo>(StringComparer.OrdinalIgnoreCase)
         {
             ["Pi"] = typeof(ConstantsModule).GetProperty(nameof(ConstantsModule.Pi))!
         };
-        engine.RegisterModule("Constants", typeof(ConstantsModule), members);
+        var engine = TestEngineFactory.Create(mode, o => o.Modules.Register("Constants", typeof(ConstantsModule), members));
 
         Assert.That(engine.Evaluate("Constants.Pi"), Is.EqualTo(3.14159));
 
@@ -153,12 +144,15 @@ public class MemberFilteringTests(CompilationMode mode)
     [Test]
     public void RegisterModule_CaseInsensitive_WorksWithExplicitMembers()
     {
-        var engine = TestEngineFactory.Create(mode, new AlderOptions { IsCaseSensitive = false });
         var members = new Dictionary<string, MemberInfo>(StringComparer.OrdinalIgnoreCase)
         {
             ["sum"] = typeof(CalculatorModule).GetMethod(nameof(CalculatorModule.Sum))!
         };
-        engine.RegisterModule("calc", typeof(CalculatorModule), members);
+        var engine = TestEngineFactory.Create(mode, o =>
+        {
+            o.IsCaseSensitive = false;
+            o.Modules.Register("calc", typeof(CalculatorModule), members);
+        });
 
         Assert.That(engine.Evaluate("CALC.SUM(2, 3)"), Is.EqualTo(5));
         Assert.That(engine.Evaluate("Calc.sum(2, 3)"), Is.EqualTo(5));

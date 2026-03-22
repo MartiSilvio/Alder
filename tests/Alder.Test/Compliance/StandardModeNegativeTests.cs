@@ -11,15 +11,9 @@ namespace Alder.Test.Compliance;
 [TestFixture(CompilationMode.Compiled)]
 public class StandardModeNegativeTests(CompilationMode mode)
 {
-    private AlderOptions StandardOptions => AlderOptions.Default with
-    {
-        LanguageMode = LanguageMode.Standard
-    };
+    private Action<AlderOptions> StandardOptions => o => o.LanguageMode = LanguageMode.Standard;
 
-    private AlderOptions ExtendedOptions => AlderOptions.Default with
-    {
-        LanguageMode = LanguageMode.Extended
-    };
+    private Action<AlderOptions> ExtendedOptions => o => o.LanguageMode = LanguageMode.Extended;
 
     #region Parser-Level Syntax Gates (language mode rejection)
 

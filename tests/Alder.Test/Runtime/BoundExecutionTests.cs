@@ -8,7 +8,7 @@ public sealed class BoundExecutionTests
     [Test]
     public void Interpreted_ShouldUseBoundEvaluator_WhenBindingIsSupported()
     {
-        var engine = new AlderEngine(AlderOptions.Default with
+        var engine = new AlderEngine(new AlderOptions
         {
         });
         engine.SetVariable("x", -4);
@@ -26,7 +26,7 @@ public sealed class BoundExecutionTests
     [Test]
     public void Interpreted_ShouldUseBoundEvaluator_ForNotInAlias()
     {
-        var engine = new AlderEngine(AlderOptions.Default with
+        var engine = new AlderEngine(new AlderOptions
         {
             LanguageMode = LanguageMode.Extended
         });
@@ -44,11 +44,11 @@ public sealed class BoundExecutionTests
     [Test]
     public void Interpreted_ShouldUseBoundEvaluator_ForPipelineFunction()
     {
-        var engine = new AlderEngine(AlderOptions.Default with
+        var engine = new AlderEngine(o =>
         {
-            LanguageMode = LanguageMode.Extended
+            o.LanguageMode = LanguageMode.Extended;
+            o.Functions.Register("inc", args => Convert.ToInt32(args[0]) + 1);
         });
-        engine.RegisterFunction("inc", args => Convert.ToInt32(args[0]) + 1);
         engine.SetVariable("x", 41);
 
         var expression = engine.Parse("x |> inc");
@@ -62,7 +62,7 @@ public sealed class BoundExecutionTests
     [Test]
     public void Interpreted_ShouldUseBoundEvaluator_ForLambdaPredicateCall()
     {
-        var engine = new AlderEngine(AlderOptions.Default with
+        var engine = new AlderEngine(new AlderOptions
         {
         });
         engine.SetVariable("numbers", new List<int> { 1, 3, 5, 9, 10 });
@@ -79,7 +79,7 @@ public sealed class BoundExecutionTests
     [Test]
     public void Interpreted_ShouldUseBoundEvaluator_ForCastExpression()
     {
-        var engine = new AlderEngine(AlderOptions.Default with
+        var engine = new AlderEngine(new AlderOptions
         {
         });
 
@@ -94,7 +94,7 @@ public sealed class BoundExecutionTests
     [Test]
     public void Interpreted_ShouldUseBoundEvaluator_ForAsExpression()
     {
-        var engine = new AlderEngine(AlderOptions.Default with
+        var engine = new AlderEngine(new AlderOptions
         {
         });
         engine.SetVariable("x", "abc");
@@ -110,7 +110,7 @@ public sealed class BoundExecutionTests
     [Test]
     public void Interpreted_ShouldUseBoundEvaluator_ForNullCoalesceExpression()
     {
-        var engine = new AlderEngine(AlderOptions.Default with
+        var engine = new AlderEngine(new AlderOptions
         {
         });
         engine.SetVariable<string?>("x", null);
@@ -126,7 +126,7 @@ public sealed class BoundExecutionTests
     [Test]
     public void Interpreted_ShouldUseBoundEvaluator_ForConditionalExpression()
     {
-        var engine = new AlderEngine(AlderOptions.Default with
+        var engine = new AlderEngine(new AlderOptions
         {
         });
 
@@ -142,7 +142,7 @@ public sealed class BoundExecutionTests
     [Test]
     public void Interpreted_ShouldUseBoundEvaluator_ForBlockVariableAssignReturn()
     {
-        var engine = new AlderEngine(AlderOptions.Default with
+        var engine = new AlderEngine(new AlderOptions
         {
         });
 
@@ -161,7 +161,7 @@ public sealed class BoundExecutionTests
     [Test]
     public void Interpreted_ShouldUseBoundEvaluator_ForIfElseStatement()
     {
-        var engine = new AlderEngine(AlderOptions.Default with
+        var engine = new AlderEngine(new AlderOptions
         {
         });
 
@@ -189,7 +189,7 @@ public sealed class BoundExecutionTests
     [Test]
     public void Interpreted_ShouldUseBoundEvaluator_ForWhileWithBreak()
     {
-        var engine = new AlderEngine(AlderOptions.Default with
+        var engine = new AlderEngine(new AlderOptions
         {
         });
 
@@ -215,7 +215,7 @@ public sealed class BoundExecutionTests
     [Test]
     public void Interpreted_ShouldUseBoundEvaluator_ForWhileWithContinue()
     {
-        var engine = new AlderEngine(AlderOptions.Default with
+        var engine = new AlderEngine(new AlderOptions
         {
         });
 
@@ -243,7 +243,7 @@ public sealed class BoundExecutionTests
     [Test]
     public void Interpreted_ShouldUseBoundEvaluator_ForForLoop_WithControlFlow()
     {
-        var engine = new AlderEngine(AlderOptions.Default with
+        var engine = new AlderEngine(new AlderOptions
         {
         });
 
@@ -271,7 +271,7 @@ public sealed class BoundExecutionTests
     [Test]
     public void Interpreted_ShouldUseBoundEvaluator_ForDoWhileLoop_WithContinue()
     {
-        var engine = new AlderEngine(AlderOptions.Default with
+        var engine = new AlderEngine(new AlderOptions
         {
         });
 
@@ -300,7 +300,7 @@ public sealed class BoundExecutionTests
     [Test]
     public void Interpreted_ShouldUseBoundEvaluator_ForForEachLoop_WithControlFlow()
     {
-        var engine = new AlderEngine(AlderOptions.Default with
+        var engine = new AlderEngine(new AlderOptions
         {
         });
         engine.SetVariable("items", new List<int> { 1, 2, 3, 5, 8 });
@@ -329,7 +329,7 @@ public sealed class BoundExecutionTests
     [Test]
     public void Interpreted_ShouldUseBoundEvaluator_ForForLoop_WithIncrementAndCompoundAssign()
     {
-        var engine = new AlderEngine(AlderOptions.Default with
+        var engine = new AlderEngine(new AlderOptions
         {
         });
 
@@ -353,7 +353,7 @@ public sealed class BoundExecutionTests
     [Test]
     public void Interpreted_ShouldUseBoundEvaluator_ForIncrementDecrementExpression()
     {
-        var engine = new AlderEngine(AlderOptions.Default with
+        var engine = new AlderEngine(new AlderOptions
         {
         });
 
@@ -373,7 +373,7 @@ public sealed class BoundExecutionTests
     [Test]
     public void Interpreted_ShouldUseBoundEvaluator_ForNullCoalesceAssignment()
     {
-        var engine = new AlderEngine(AlderOptions.Default with
+        var engine = new AlderEngine(new AlderOptions
         {
         });
 
@@ -392,7 +392,7 @@ public sealed class BoundExecutionTests
     [Test]
     public void Interpreted_ShouldUseBoundEvaluator_ForMemberAssignmentOperators()
     {
-        var engine = new AlderEngine(AlderOptions.Default with
+        var engine = new AlderEngine(new AlderOptions
         {
         });
         engine.SetVariable("box", new MutableBox());
@@ -414,7 +414,7 @@ public sealed class BoundExecutionTests
     [Test]
     public void Interpreted_ShouldUseBoundEvaluator_ForIndexAssignmentOperators()
     {
-        var engine = new AlderEngine(AlderOptions.Default with
+        var engine = new AlderEngine(new AlderOptions
         {
         });
         engine.SetVariable("items", new List<int> { 1, 2, 3 });
@@ -435,7 +435,7 @@ public sealed class BoundExecutionTests
     [Test]
     public void Interpreted_ShouldUseBoundEvaluator_ForMemberAndIndexNullCoalesceAssignment()
     {
-        var engine = new AlderEngine(AlderOptions.Default with
+        var engine = new AlderEngine(new AlderOptions
         {
         });
         engine.SetVariable("box", new MutableBox());
@@ -456,7 +456,7 @@ public sealed class BoundExecutionTests
     [Test]
     public void Interpreted_ShouldUseBoundEvaluator_ForUsingStatement()
     {
-        var engine = new AlderEngine(AlderOptions.Default with
+        var engine = new AlderEngine(new AlderOptions
         {
         });
         var probe = new DisposableProbe();
@@ -483,7 +483,7 @@ public sealed class BoundExecutionTests
     [Test]
     public void Interpreted_ShouldUseBoundEvaluator_ForLockStatement()
     {
-        var engine = new AlderEngine(AlderOptions.Default with
+        var engine = new AlderEngine(new AlderOptions
         {
         });
         engine.SetVariable("lockObj", new object());
@@ -508,7 +508,7 @@ public sealed class BoundExecutionTests
     [Test]
     public void Interpreted_ShouldUseBoundEvaluator_ForNameofTypeofDefaultAndSizeof()
     {
-        var engine = new AlderEngine(AlderOptions.Default with
+        var engine = new AlderEngine(new AlderOptions
         {
         });
 
@@ -529,7 +529,7 @@ public sealed class BoundExecutionTests
     [Test]
     public void Interpreted_ShouldUseBoundEvaluator_ForIsPattern()
     {
-        var engine = new AlderEngine(AlderOptions.Default with
+        var engine = new AlderEngine(new AlderOptions
         {
         });
 
@@ -547,7 +547,7 @@ public sealed class BoundExecutionTests
     [Test]
     public void Interpreted_ShouldUseBoundEvaluator_ForSwitchWithWhenGuard()
     {
-        var engine = new AlderEngine(AlderOptions.Default with
+        var engine = new AlderEngine(new AlderOptions
         {
         });
 
@@ -575,7 +575,7 @@ public sealed class BoundExecutionTests
     [Test]
     public void Interpreted_ShouldUseBoundEvaluator_ForTryCatchFinallyWithThrowExpression()
     {
-        var engine = new AlderEngine(AlderOptions.Default with
+        var engine = new AlderEngine(new AlderOptions
         {
         });
         engine.SetVariable("missingEx", new Exception("missing"));
@@ -609,7 +609,7 @@ public sealed class BoundExecutionTests
     [Test]
     public void Interpreted_ShouldUseBoundEvaluator_ForThrowStatementRethrow()
     {
-        var engine = new AlderEngine(AlderOptions.Default with
+        var engine = new AlderEngine(new AlderOptions
         {
         });
         engine.SetVariable("boomEx", new Exception("boom"));
@@ -643,7 +643,7 @@ public sealed class BoundExecutionTests
     [Test]
     public void Interpreted_ShouldUseBoundEvaluator_ForObjectCreation()
     {
-        var engine = new AlderEngine(AlderOptions.Default with
+        var engine = new AlderEngine(new AlderOptions
         {
         });
 
@@ -661,7 +661,7 @@ public sealed class BoundExecutionTests
     [Test]
     public void Interpreted_ShouldUseBoundEvaluator_ForTypedArrayCreation()
     {
-        var engine = new AlderEngine(AlderOptions.Default with
+        var engine = new AlderEngine(new AlderOptions
         {
         });
 
@@ -682,7 +682,7 @@ public sealed class BoundExecutionTests
     [Test]
     public void Interpreted_ShouldUseBoundEvaluator_ForInterpolatedString()
     {
-        var engine = new AlderEngine(AlderOptions.Default with
+        var engine = new AlderEngine(new AlderOptions
         {
         });
         engine.SetVariable("name", "alpha");
@@ -699,7 +699,7 @@ public sealed class BoundExecutionTests
     [Test]
     public void Interpreted_ShouldUseBoundEvaluator_ForCheckedExpression()
     {
-        var engine = new AlderEngine(AlderOptions.Default with
+        var engine = new AlderEngine(new AlderOptions
         {
         });
 
@@ -714,7 +714,7 @@ public sealed class BoundExecutionTests
     [Test]
     public void Interpreted_ShouldUseBoundEvaluator_ForChainedComparison()
     {
-        var engine = new AlderEngine(AlderOptions.Default with
+        var engine = new AlderEngine(new AlderOptions
         {
             LanguageMode = LanguageMode.Extended
         });
@@ -730,7 +730,7 @@ public sealed class BoundExecutionTests
     [Test]
     public void Interpreted_ShouldUseBoundEvaluator_ForRangeExpression()
     {
-        var engine = new AlderEngine(AlderOptions.Default with
+        var engine = new AlderEngine(new AlderOptions
         {
             LanguageMode = LanguageMode.Extended
         });
@@ -746,7 +746,7 @@ public sealed class BoundExecutionTests
     [Test]
     public void Interpreted_ShouldUseBoundEvaluator_ForSwitchExpression()
     {
-        var engine = new AlderEngine(AlderOptions.Default with
+        var engine = new AlderEngine(new AlderOptions
         {
         });
 
@@ -761,7 +761,7 @@ public sealed class BoundExecutionTests
     [Test]
     public void Interpreted_ShouldUseBoundEvaluator_ForArrayLiteralWithSpread()
     {
-        var engine = new AlderEngine(AlderOptions.Default with
+        var engine = new AlderEngine(new AlderOptions
         {
             LanguageMode = LanguageMode.Extended
         });
@@ -780,7 +780,7 @@ public sealed class BoundExecutionTests
     [Test]
     public void Interpreted_ShouldUseBoundEvaluator_ForObjectLiteralWithSpread()
     {
-        var engine = new AlderEngine(AlderOptions.Default with
+        var engine = new AlderEngine(new AlderOptions
         {
             LanguageMode = LanguageMode.Extended
         });
@@ -800,7 +800,7 @@ public sealed class BoundExecutionTests
     [Test]
     public void Interpreted_ShouldUseBoundEvaluator_ForTupleExpression()
     {
-        var engine = new AlderEngine(AlderOptions.Default with
+        var engine = new AlderEngine(new AlderOptions
         {
         });
 
@@ -815,7 +815,7 @@ public sealed class BoundExecutionTests
     [Test]
     public void Interpreted_ShouldUseBoundEvaluator_ForSliceExpression()
     {
-        var engine = new AlderEngine(AlderOptions.Default with
+        var engine = new AlderEngine(new AlderOptions
         {
             LanguageMode = LanguageMode.Extended
         });
@@ -831,7 +831,7 @@ public sealed class BoundExecutionTests
     [Test]
     public void Interpreted_ShouldUseBoundEvaluator_ForNamedArguments()
     {
-        var engine = new AlderEngine(AlderOptions.Default with
+        var engine = new AlderEngine(new AlderOptions
         {
         });
 
@@ -846,7 +846,7 @@ public sealed class BoundExecutionTests
     [Test]
     public void Interpreted_ShouldUseBoundEvaluator_ForOutArguments()
     {
-        var engine = new AlderEngine(AlderOptions.Default with
+        var engine = new AlderEngine(new AlderOptions
         {
         });
 
@@ -864,7 +864,7 @@ public sealed class BoundExecutionTests
     [Test]
     public void Interpreted_ShouldUseBoundEvaluator_ForMultiDimensionalArrayAccess()
     {
-        var engine = new AlderEngine(AlderOptions.Default with
+        var engine = new AlderEngine(new AlderOptions
         {
         });
 
@@ -883,7 +883,7 @@ public sealed class BoundExecutionTests
     [Test]
     public void Interpreted_ShouldUseBoundEvaluator_ForDeconstruction()
     {
-        var engine = new AlderEngine(AlderOptions.Default with
+        var engine = new AlderEngine(new AlderOptions
         {
         });
 
@@ -901,7 +901,7 @@ public sealed class BoundExecutionTests
     [Test]
     public void Interpreted_ShouldRecordBoundFallback_WhenBindingIsUnsupported()
     {
-        var engine = new AlderEngine(AlderOptions.Default with
+        var engine = new AlderEngine(new AlderOptions
         {
         });
 

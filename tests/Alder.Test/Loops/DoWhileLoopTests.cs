@@ -134,9 +134,7 @@ public class DoWhileLoopTests(CompilationMode mode)
     [Test]
     public void DoWhileLoop_ExceedsMaxStatements_ThrowsException()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with {
-                        Constraints = new ExecutionConstraints { MaxStatements = 1000 }
-        });
+        var engine = TestEngineFactory.Create(mode, o => o.Constraints = new ExecutionConstraints { MaxStatements = 1000 });
 
         var ex = Assert.Throws<AlderExecutionLimitException>(() =>
             engine.Evaluate(@"
@@ -155,9 +153,7 @@ public class DoWhileLoopTests(CompilationMode mode)
     [Test]
     public void DoWhileLoop_WithCustomMaxStatements_UsesConfiguredLimit()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with {
-                        Constraints = new ExecutionConstraints { MaxStatements = 10 }
-        });
+        var engine = TestEngineFactory.Create(mode, o => o.Constraints = new ExecutionConstraints { MaxStatements = 10 });
 
         var ex = Assert.Throws<AlderExecutionLimitException>(() =>
             engine.Evaluate(@"

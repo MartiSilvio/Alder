@@ -13,9 +13,7 @@ public class ScopingTests(CompilationMode mode)
     [Test]
     public void LetInExpression_EvaluatesWithLocalScope()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with {
-                        LanguageMode = LanguageMode.Extended
-        });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
 
         var result = engine.Evaluate("let x = 5 in x * x");
 
@@ -25,9 +23,7 @@ public class ScopingTests(CompilationMode mode)
     [Test]
     public void LetInDestructuring_EvaluatesWithScopedBindings()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with {
-                        LanguageMode = LanguageMode.Extended
-        });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
         engine.SetVariable("person", new Dictionary<string, object?>
         {
             ["Name"] = "Ada",
@@ -42,9 +38,7 @@ public class ScopingTests(CompilationMode mode)
     [Test]
     public void LetInDestructuring_TempVarDoesNotShadowUserVariable()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with {
-                        LanguageMode = LanguageMode.Extended
-        });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
         // The destructuring temp variable uses a <angle-bracket> name that
         // is illegal in user C# code, so it cannot collide with user variables.
         engine.SetVariable("person", new Dictionary<string, object?>
@@ -66,7 +60,7 @@ public class ScopingTests(CompilationMode mode)
     [Test]
     public void ForEachLoop_BodyVariable_DoesNotLeakToParentScope()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with { LanguageMode = LanguageMode.Extended });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
 
         var ex = Assert.Throws<AlderException>(() =>
             engine.Evaluate(@"
@@ -84,7 +78,7 @@ public class ScopingTests(CompilationMode mode)
     [Test]
     public void ForEachLoop_BodyVariableWithoutBraces_DoesNotLeakToParentScope()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with { LanguageMode = LanguageMode.Extended });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
 
         var ex = Assert.Throws<AlderException>(() =>
             engine.Evaluate(@"
@@ -101,7 +95,7 @@ public class ScopingTests(CompilationMode mode)
     [Test]
     public void ForEachLoop_IterationVariable_DoesNotLeakToParentScope()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with { LanguageMode = LanguageMode.Extended });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
 
         var ex = Assert.Throws<AlderException>(() =>
             engine.Evaluate(@"
@@ -118,7 +112,7 @@ public class ScopingTests(CompilationMode mode)
     [Test]
     public void ForEachLoop_NestedLoops_InnerVariableDoesNotLeakToOuter()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with { LanguageMode = LanguageMode.Extended });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
 
         var ex = Assert.Throws<AlderException>(() =>
             engine.Evaluate(@"
@@ -144,7 +138,7 @@ public class ScopingTests(CompilationMode mode)
     [Test]
     public void ForLoop_InitializerVariable_DoesNotLeakToParentScope()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with { LanguageMode = LanguageMode.Extended });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
 
         var ex = Assert.Throws<AlderException>(() =>
             engine.Evaluate(@"
@@ -161,7 +155,7 @@ public class ScopingTests(CompilationMode mode)
     [Test]
     public void ForLoop_BodyVariable_DoesNotLeakToParentScope()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with { LanguageMode = LanguageMode.Extended });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
 
         var ex = Assert.Throws<AlderException>(() =>
             engine.Evaluate(@"
@@ -179,7 +173,7 @@ public class ScopingTests(CompilationMode mode)
     [Test]
     public void ForLoop_BodyVariableWithoutBraces_DoesNotLeakToParentScope()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with { LanguageMode = LanguageMode.Extended });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
 
         var ex = Assert.Throws<AlderException>(() =>
             engine.Evaluate(@"
@@ -201,7 +195,7 @@ public class ScopingTests(CompilationMode mode)
     [Test]
     public void WhileLoop_BodyVariable_DoesNotLeakToParentScope()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with { LanguageMode = LanguageMode.Extended });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
 
         var ex = Assert.Throws<AlderException>(() =>
             engine.Evaluate(@"
@@ -221,7 +215,7 @@ public class ScopingTests(CompilationMode mode)
     [Test]
     public void WhileLoop_SingleStatementBodyVariable_DoesNotLeakToParentScope()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with { LanguageMode = LanguageMode.Extended });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
 
         var ex = Assert.Throws<AlderException>(() =>
             engine.Evaluate(@"
@@ -246,7 +240,7 @@ public class ScopingTests(CompilationMode mode)
     [Test]
     public void DoWhileLoop_BodyVariable_DoesNotLeakToParentScope()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with { LanguageMode = LanguageMode.Extended });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
 
         var ex = Assert.Throws<AlderException>(() =>
             engine.Evaluate(@"
@@ -271,7 +265,7 @@ public class ScopingTests(CompilationMode mode)
     [Test]
     public void IfStatement_ThenBranchVariable_DoesNotLeakToParentScope()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with { LanguageMode = LanguageMode.Extended });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
 
         var ex = Assert.Throws<AlderException>(() =>
             engine.Evaluate(@"
@@ -289,7 +283,7 @@ public class ScopingTests(CompilationMode mode)
     [Test]
     public void IfStatement_ThenBranchVariableWithoutBraces_DoesNotLeakToParentScope()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with { LanguageMode = LanguageMode.Extended });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
 
         var ex = Assert.Throws<AlderException>(() =>
             engine.Evaluate(@"
@@ -306,7 +300,7 @@ public class ScopingTests(CompilationMode mode)
     [Test]
     public void IfStatement_ElseBranchVariable_DoesNotLeakToParentScope()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with { LanguageMode = LanguageMode.Extended });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
 
         var ex = Assert.Throws<AlderException>(() =>
             engine.Evaluate(@"
@@ -326,7 +320,7 @@ public class ScopingTests(CompilationMode mode)
     [Test]
     public void IfStatement_ElseBranchVariableWithoutBraces_DoesNotLeakToParentScope()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with { LanguageMode = LanguageMode.Extended });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
 
         var ex = Assert.Throws<AlderException>(() =>
             engine.Evaluate(@"
@@ -345,7 +339,7 @@ public class ScopingTests(CompilationMode mode)
     [Test]
     public void IfStatement_NestedIf_VariablesProperlyScoped()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with { LanguageMode = LanguageMode.Extended });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
 
         var ex = Assert.Throws<AlderException>(() =>
             engine.Evaluate(@"
@@ -366,7 +360,7 @@ public class ScopingTests(CompilationMode mode)
     [Test]
     public void IfStatement_ElseIfChain_VariablesProperlyScoped()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with { LanguageMode = LanguageMode.Extended });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
 
         var ex = Assert.Throws<AlderException>(() =>
             engine.Evaluate(@"
@@ -394,7 +388,7 @@ public class ScopingTests(CompilationMode mode)
     [Test]
     public void MixedControlFlow_IfInsideFor_ProperScoping()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with { LanguageMode = LanguageMode.Extended });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
 
         var ex = Assert.Throws<AlderException>(() =>
             engine.Evaluate(@"
@@ -414,7 +408,7 @@ public class ScopingTests(CompilationMode mode)
     [Test]
     public void MixedControlFlow_ForInsideIf_ProperScoping()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with { LanguageMode = LanguageMode.Extended });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
 
         var ex = Assert.Throws<AlderException>(() =>
             engine.Evaluate(@"
@@ -434,7 +428,7 @@ public class ScopingTests(CompilationMode mode)
     [Test]
     public void MixedControlFlow_WhileInsideForEach_ProperScoping()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with { LanguageMode = LanguageMode.Extended });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
 
         var ex = Assert.Throws<AlderException>(() =>
             engine.Evaluate(@"
@@ -461,7 +455,7 @@ public class ScopingTests(CompilationMode mode)
     [Test]
     public void BlockInIf_VariablesScoped_AsExpected()
     {
-        var engine = TestEngineFactory.Create(mode, AlderOptions.Default with { LanguageMode = LanguageMode.Extended });
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
 
         var ex = Assert.Throws<AlderException>(() =>
             engine.Evaluate(@"
