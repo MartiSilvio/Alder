@@ -100,7 +100,15 @@ public sealed class SecurityPolicy
 
     private static HashSet<Type> BuildDefaultDeniedTypes()
     {
-        var types = new HashSet<Type> { typeof(AppDomain) };
+        var types = new HashSet<Type>
+        {
+            typeof(AppDomain),
+            typeof(Environment),
+            typeof(GC),
+            typeof(Console),
+        };
+        TryAddType(types, "System.Threading.Thread, System.Threading.Thread");
+        TryAddType(types, "System.Threading.ThreadPool, System.Threading.ThreadPool");
         TryAddType(types, "System.Diagnostics.Process, System.Diagnostics.Process");
         TryAddType(types, "System.Diagnostics.ProcessStartInfo, System.Diagnostics.Process");
         TryAddType(types, "System.Runtime.InteropServices.Marshal, System.Runtime.InteropServices");

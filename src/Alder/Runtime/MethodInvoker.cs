@@ -60,7 +60,7 @@ internal static class MethodInvoker
                 InvokeCompiledLambda(compiled, args),
 
             Delegate del =>
-                del.DynamicInvoke(args),
+                TypeHelpers.GuardReflectionLeak(del.DynamicInvoke(args), "delegate invocation"),
 
             StaticMethodRef staticRef =>
                 InvokeStaticMethod(staticRef.Type, staticRef.MethodName, args, context, options, typeArgs, ct),

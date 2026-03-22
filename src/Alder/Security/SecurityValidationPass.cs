@@ -39,8 +39,8 @@ internal sealed class SecurityValidationPass : IBoundTreePass
                     throw new AlderException(DiagnosticDescriptors.SandboxTypeBlocked, creation.StaticType.Name);
                 break;
 
-            case BoundCallExpr call when !call.Plan.IsModuleCall:
-                if (!policy.AllowMethodCalls && !IsExtensionMethod(call.Plan.SelectedMethod))
+            case BoundCallExpr call:
+                if (!call.Plan.IsModuleCall && !policy.AllowMethodCalls && !IsExtensionMethod(call.Plan.SelectedMethod))
                     throw new AlderException(DiagnosticDescriptors.SandboxMethodCallBlocked, call.Plan.SelectedMethod.Name);
                 var declaringType = call.Plan.SelectedMethod.DeclaringType;
                 if (declaringType != null && !policy.IsTypeAllowed(declaringType))

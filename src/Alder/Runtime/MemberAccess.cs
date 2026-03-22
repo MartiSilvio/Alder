@@ -33,7 +33,11 @@ internal static class MemberAccess
             // Try to resolve as a complete type name
             var resolvedType = context.TypeResolver.TryResolveType(accumulated);
             if (resolvedType != null)
+            {
+                if (!options.Security.IsTrusted && !options.Security.IsTypeAllowed(resolvedType))
+                    throw new AlderException(DiagnosticDescriptors.SandboxTypeBlocked, resolvedType.Name);
                 return resolvedType;
+            }
 
             // Check if it's still a valid namespace prefix
             if (context.TypeResolver.IsNamespaceOrPrefix(accumulated))
@@ -43,7 +47,6 @@ internal static class MemberAccess
             throw new AlderException(DiagnosticDescriptors.TypeNotFound, accumulated);
         }
 
-        // Handle static member access on Type objects (e.g., double.NaN)
         if (obj is Type staticType)
         {
             if (context.Config.AotMetadata is { } aotStaticMeta && aotStaticMeta.TryGetValue(staticType, out var staticMetadata))
