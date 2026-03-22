@@ -27,8 +27,8 @@ internal static class IdentifierRuntime
         object?[] args,
         AlderContext context,
         AlderOptions options,
-        CancellationToken ct,
-        IReadOnlyList<string>? typeArgs)
+        IReadOnlyList<string>? typeArgs,
+        CancellationToken ct = default)
     {
         if (context.Functions.TryGetValue(name, out var function))
             return function(args);
@@ -57,13 +57,13 @@ internal static class IdentifierRuntime
         }
 
         if (context.Modules.TryGetValue(name, out var module))
-            return MethodInvoker.InvokeCall(module, args, context, options, ct, typeArgs);
+            return MethodInvoker.InvokeCall(module, args, context, options, typeArgs, ct);
 
         if (hasVariable || context.TryGet(name, out variableValue))
-            return MethodInvoker.InvokeCall(variableValue, args, context, options, ct, typeArgs);
+            return MethodInvoker.InvokeCall(variableValue, args, context, options, typeArgs, ct);
 
         var callee = ResolveIdentifier(name, context, options);
-        return MethodInvoker.InvokeCall(callee, args, context, options, ct, typeArgs);
+        return MethodInvoker.InvokeCall(callee, args, context, options, typeArgs, ct);
     }
 
     public static object? InvokePipelineIdentifier(
@@ -121,7 +121,7 @@ internal static class IdentifierRuntime
                     TypeNameFormatter.Of(variableValue));
             }
 
-            return MethodInvoker.InvokeCall(variableValue, args, context, options, ct, null);
+            return MethodInvoker.InvokeCall(variableValue, args, context, options, null, ct);
         }
 
         var callee = ResolveIdentifier(rightIdentifier, context, options);
@@ -134,7 +134,7 @@ internal static class IdentifierRuntime
                 TypeNameFormatter.Of(callee));
         }
 
-        return MethodInvoker.InvokeCall(callee, args, context, options, ct, null);
+        return MethodInvoker.InvokeCall(callee, args, context, options, null, ct);
     }
 
     public static object? InvokeBareMathOrCall(
@@ -142,9 +142,9 @@ internal static class IdentifierRuntime
         object?[] args,
         AlderContext context,
         AlderOptions options,
-        CancellationToken ct,
-        IReadOnlyList<string>? typeArgs) =>
-        InvokeIdentifierCall(name, args, context, options, ct, typeArgs);
+        IReadOnlyList<string>? typeArgs,
+        CancellationToken ct = default) =>
+        InvokeIdentifierCall(name, args, context, options, typeArgs, ct);
 
     public static void DefineOutVariables(
         object?[] invocationArgs,

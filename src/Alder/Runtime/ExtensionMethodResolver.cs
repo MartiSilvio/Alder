@@ -58,16 +58,16 @@ internal static class ExtensionMethodResolver
         string methodName,
         object?[] args,
         ImmutableArray<Type> extensionTypes,
-        CancellationToken ct,
         bool isCaseSensitive,
         IReadOnlyList<string>? typeArgs = null,
-        AlderContext? runtimeContext = null)
+        AlderContext? runtimeContext = null,
+        CancellationToken ct = default)
     {
         var targetType = target.GetType();
 
         foreach (var extType in extensionTypes)
         {
-            var result = TryInvokeFromType(target, targetType, methodName, args, extType, ct, isCaseSensitive, typeArgs, runtimeContext);
+            var result = TryInvokeFromType(target, targetType, methodName, args, extType, isCaseSensitive, typeArgs, runtimeContext, ct);
             if (result.Success)
                 return result;
         }
@@ -81,10 +81,10 @@ internal static class ExtensionMethodResolver
         string methodName,
         object?[] args,
         Type extensionType,
-        CancellationToken ct,
         bool isCaseSensitive,
         IReadOnlyList<string>? typeArgs = null,
-        AlderContext? runtimeContext = null)
+        AlderContext? runtimeContext = null,
+        CancellationToken ct = default)
     {
         var invocationArgs = new object?[args.Length + 1];
         invocationArgs[0] = target;
@@ -117,7 +117,7 @@ internal static class ExtensionMethodResolver
         if (candidates.Count == 0)
             return (false, null);
 
-        var best = MethodInvoker.FindBestMethod(candidates, invocationArgs, ct, out var ambiguous);
+        var best = MethodInvoker.FindBestMethod(candidates, invocationArgs, out var ambiguous, ct);
 
         // When overload resolution is ambiguous and lambda arguments are involved,
         // the ambiguity is often between overloads differing only in delegate return type

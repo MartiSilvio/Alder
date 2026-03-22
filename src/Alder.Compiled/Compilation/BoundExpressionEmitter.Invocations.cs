@@ -707,8 +707,8 @@ internal sealed partial class BoundExpressionEmitter
                 argsVar,
                 _contextParam,
                 _optionsParam,
-                _ctParam,
-                emittedTypeArguments);
+                emittedTypeArguments,
+                _ctParam);
         }
         else if (callee is BoundMemberAccessExpr memberAccess)
         {
@@ -720,8 +720,8 @@ internal sealed partial class BoundExpressionEmitter
                 LinqExpression.Constant(memberAccess.NullSafe),
                 _contextParam,
                 _optionsParam,
-                _ctParam,
-                emittedTypeArguments);
+                emittedTypeArguments,
+                _ctParam);
         }
         else
         {
@@ -731,8 +731,8 @@ internal sealed partial class BoundExpressionEmitter
                 argsVar,
                 _contextParam,
                 _optionsParam,
-                _ctParam,
-                emittedTypeArguments);
+                emittedTypeArguments,
+                _ctParam);
         }
 
         if (outBindings.Length == 0)

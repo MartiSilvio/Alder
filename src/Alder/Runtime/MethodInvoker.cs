@@ -20,8 +20,8 @@ internal static class MethodInvoker
         bool nullSafe,
         AlderContext context,
         AlderOptions options,
-        CancellationToken ct,
-        IReadOnlyList<string>? typeArgs = null)
+        IReadOnlyList<string>? typeArgs = null,
+        CancellationToken ct = default)
     {
         if (nullSafe && target == null)
             return null;
@@ -29,12 +29,12 @@ internal static class MethodInvoker
         if (target == null)
             throw new AlderException(DiagnosticDescriptors.NullMethodCall, methodName);
 
-        var result = TryInvokeInstanceMethod(target, methodName, args, context, options, ct, typeArgs);
+        var result = TryInvokeInstanceMethod(target, methodName, args, context, options, typeArgs, ct);
         if (result.Success)
             return result.Value;
 
         var callee = MemberAccess.GetMember(target, methodName, options, nullSafe, context);
-        return InvokeCall(callee, args, context, options, ct, typeArgs);
+        return InvokeCall(callee, args, context, options, typeArgs, ct);
     }
 
     public static object? InvokeCall(
@@ -42,8 +42,8 @@ internal static class MethodInvoker
         object?[] args,
         AlderContext context,
         AlderOptions options,
-        CancellationToken ct,
-        IReadOnlyList<string>? typeArgs = null)
+        IReadOnlyList<string>? typeArgs = null,
+        CancellationToken ct = default)
     {
         return callee switch
         {
@@ -100,7 +100,7 @@ internal static class MethodInvoker
 
         var result = TryInvokeInstanceMethod(
             target, methodRef.MethodName, args,
-            context, options, ct, typeArgs);
+            context, options, typeArgs, ct);
         if (result.Success)
             return result.Value;
         throw new AlderException(DiagnosticDescriptors.MethodInvocationFailed, methodRef.MethodName);
@@ -112,8 +112,8 @@ internal static class MethodInvoker
         object?[] args,
         AlderContext context,
         AlderOptions options,
-        CancellationToken ct,
-        IReadOnlyList<string>? typeArgs = null)
+        IReadOnlyList<string>? typeArgs = null,
+        CancellationToken ct = default)
     {
         if (target == null)
             return (false, null);
@@ -138,7 +138,7 @@ internal static class MethodInvoker
                 flags |= BindingFlags.IgnoreCase;
             var methods = context.TypeMetadata.GetMethods(type, methodName, flags);
 
-            var resolved = ResolveMethod(methods, args, ct, typeArgs, context.TypeResolver, out var ambiguous);
+            var resolved = ResolveMethod(methods, args, typeArgs, context.TypeResolver, out var ambiguous, ct);
             if (ambiguous)
                 throw new AlderException(DiagnosticDescriptors.AmbiguousMethodInvocation, methodName);
 
@@ -153,7 +153,7 @@ internal static class MethodInvoker
         // No applicable instance method found (or instance methods blocked).
         // Try extension methods per ECMA-334 §12.8.9.2.
         var extensionResult = ExtensionMethodResolver.TryInvokeExtensionMethod(
-            target, methodName, args, context.ExtensionTypes, ct, options.IsCaseSensitive, typeArgs, context);
+            target, methodName, args, context.ExtensionTypes, options.IsCaseSensitive, typeArgs, context, ct);
         if (extensionResult.Success)
             return extensionResult;
 
@@ -209,7 +209,7 @@ internal static class MethodInvoker
         var methods = context.TypeMetadata.GetMethods(module.Type, methodName,
             BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static);
 
-        var resolved = ResolveMethod(methods, args, ct, typeArgs: null, typeResolver: null, out var ambiguous);
+        var resolved = ResolveMethod(methods, args, typeArgs: null, typeResolver: null, out var ambiguous, ct);
         if (ambiguous)
             throw new AlderException(DiagnosticDescriptors.AmbiguousMethodInvocation, methodName);
 
@@ -244,7 +244,7 @@ internal static class MethodInvoker
 
         var methods = context.TypeMetadata.GetMethods(type, methodName, bindingFlags);
 
-        var resolved = ResolveMethod(methods, args, ct, typeArgs, context.TypeResolver, out var ambiguous);
+        var resolved = ResolveMethod(methods, args, typeArgs, context.TypeResolver, out var ambiguous, ct);
         if (ambiguous)
             throw new AlderException(DiagnosticDescriptors.AmbiguousMethodInvocation, $"{type.Name}.{methodName}");
 
@@ -958,7 +958,7 @@ internal static class MethodInvoker
     /// Finds the best matching method from candidates using ECMA-334 §12.6.4 pairwise elimination.
     /// Phase 1: filter to applicable candidates. Phase 2: pairwise comparison to find unique best.
     /// </summary>
-    internal static MethodInfo? FindBestMethod(IEnumerable<MethodInfo> methods, object?[] args, CancellationToken ct, out bool ambiguous)
+    internal static MethodInfo? FindBestMethod(IEnumerable<MethodInfo> methods, object?[] args, out bool ambiguous, CancellationToken ct = default)
     {
         ambiguous = false;
 
@@ -1031,10 +1031,10 @@ internal static class MethodInvoker
     private static MethodInfo? ResolveMethod(
         MethodInfo[] methods,
         object?[] args,
-        CancellationToken ct,
         IReadOnlyList<string>? typeArgs,
         TypeResolver? typeResolver,
-        out bool ambiguous)
+        out bool ambiguous,
+        CancellationToken ct = default)
     {
         ambiguous = false;
 
@@ -1079,7 +1079,7 @@ internal static class MethodInvoker
                 candidates.Add(concrete);
         }
 
-        return FindBestMethod(candidates, args, ct, out ambiguous);
+        return FindBestMethod(candidates, args, out ambiguous, ct);
     }
 
     private static object?[] PadWithDefaults(ParameterInfo[] parameters, object?[] args, string callableName)

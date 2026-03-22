@@ -154,7 +154,7 @@ internal sealed partial class BoundEvaluator
         var (args, outBindings) = EvaluateArgumentsWithOutBindings(call.Arguments);
 
         var callee = Evaluate(call.Callee);
-        var invokeResult = MethodInvoker.InvokeCall(callee, args, _context, _options, _cancellationToken);
+        var invokeResult = MethodInvoker.InvokeCall(callee, args, _context, _options, ct: _cancellationToken);
         DefineOutVariablesIfAny(args, outBindings);
         return invokeResult;
     }
@@ -175,8 +175,8 @@ internal sealed partial class BoundEvaluator
                 args,
                 _context,
                 _options,
-                _cancellationToken,
-                typeArguments);
+                typeArguments,
+                _cancellationToken);
             DefineOutVariablesIfAny(args, outBindings);
             return result;
         }
@@ -191,8 +191,8 @@ internal sealed partial class BoundEvaluator
                 memberAccess.NullSafe,
                 _context,
                 _options,
-                _cancellationToken,
-                typeArguments);
+                typeArguments,
+                _cancellationToken);
             DefineOutVariablesIfAny(args, outBindings);
             return result;
         }
@@ -203,8 +203,8 @@ internal sealed partial class BoundEvaluator
             args,
             _context,
             _options,
-            _cancellationToken,
-            typeArguments);
+            typeArguments,
+            _cancellationToken);
         DefineOutVariablesIfAny(args, outBindings);
         return invokeCallResult;
     }

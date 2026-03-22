@@ -26,7 +26,7 @@ public sealed class CallBinderServiceTests
             [1, 2L],
             context,
             AlderOptions.Default,
-            CancellationToken.None);
+            ct: CancellationToken.None);
 
         Assert.That(runtimeResult, Is.EqualTo(2L));
         Assert.That(plan.SelectedMethod.ReturnType, Is.EqualTo(runtimeResult!.GetType()));

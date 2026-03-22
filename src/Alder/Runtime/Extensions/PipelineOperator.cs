@@ -39,7 +39,7 @@ internal static class PipelineOperator
                 rightCallable.GetType().Name);
 
         var args = new object?[] { leftValue };
-        return MethodInvoker.InvokeCall(rightCallable, args, context, options, ct);
+        return MethodInvoker.InvokeCall(rightCallable, args, context, options, ct: ct);
     }
 
     private static bool IsCallable(object value) => value is
