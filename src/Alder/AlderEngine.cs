@@ -47,12 +47,12 @@ public sealed partial class AlderEngine : IDisposable
     private readonly List<AlderTypeContext> _additionalContexts = [];
     private AlderConfig? _frozenConfig;
     private AlderContext? _context;
-    private volatile bool _disposed;
+    private readonly DisposalToken _disposalToken;
 
     public void Dispose()
     {
-        if (_disposed) return;
-        _disposed = true;
+        if (_disposalToken.IsDisposed) return;
+        _disposalToken.IsDisposed = true;
         _expressionCache.Clear();
         _typeMetadata.Clear();
         _compiledNoCancellationFastPath = null;
@@ -60,7 +60,12 @@ public sealed partial class AlderEngine : IDisposable
 
     private void ThrowIfDisposed()
     {
-        if (_disposed) throw new ObjectDisposedException(GetType().FullName);
+        if (_disposalToken.IsDisposed) throw new ObjectDisposedException(GetType().FullName);
+    }
+
+    private sealed class DisposalToken
+    {
+        public volatile bool IsDisposed;
     }
 
     public AlderEngine() : this(AlderOptions.Default)
@@ -70,6 +75,7 @@ public sealed partial class AlderEngine : IDisposable
     public AlderEngine(AlderOptions options)
     {
         _options = options;
+        _disposalToken = new DisposalToken();
         _typeMetadata = new TypeMetadataProvider();
         _expressionCache = new ExpressionCache();
         _functions = new Dictionary<string, Func<object?[], object?>>(options.StringComparer);
@@ -83,9 +89,11 @@ public sealed partial class AlderEngine : IDisposable
         AlderConfig frozenConfig,
         AlderContext parentContext,
         AlderOptions options,
-        ExpressionCache expressionCache)
+        ExpressionCache expressionCache,
+        DisposalToken disposalToken)
     {
         _frozenConfig = frozenConfig;
+        _disposalToken = disposalToken;
         _context = parentContext.CreateChild();
         _options = options;
         _typeMetadata = frozenConfig.TypeMetadata;
@@ -554,6 +562,6 @@ public sealed partial class AlderEngine : IDisposable
         ThrowIfDisposed();
         var config = GetOrCreateConfig();
         var parentContext = GetOrCreateContext(null);
-        return new AlderEngine(config, parentContext, _options, _expressionCache);
+        return new AlderEngine(config, parentContext, _options, _expressionCache, _disposalToken);
     }
 }
