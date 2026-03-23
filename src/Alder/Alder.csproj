@@ -7,6 +7,10 @@
     <LangVersion>latest</LangVersion>
     <NoWarn>$(NoWarn);CA1822;CA1512;CA1513</NoWarn>
     <PackageId>Alder</PackageId>
+    <Version>0.1.0-preview.1</Version>
+    <Authors>Silvio Martignetti</Authors>
+    <Description>A fully featured, zero-dependency C# evaluator built to the ECMA-334 spec.</Description>
+    <IsPackable>true</IsPackable>
     <IsAotCompatible>true</IsAotCompatible>
   </PropertyGroup>
 

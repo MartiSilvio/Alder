@@ -6,7 +6,10 @@
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
     <PackageId>Alder.Compiled</PackageId>
-    <Description>Optional compiled backend package for Alder.</Description>
+    <Version>0.1.0-preview.1</Version>
+    <Authors>Silvio Martignetti</Authors>
+    <Description>Alder's compilation engine that transforms evaluated expressions into IL for near-native execution speed.</Description>
+    <IsPackable>true</IsPackable>
   </PropertyGroup>
 
   <ItemGroup>
