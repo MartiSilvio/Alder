@@ -16,16 +16,16 @@ internal sealed class LambdaValue
     public List<string> Parameters { get; }
     public Expr Body { get; }
     public AlderContext Closure { get; }
-    public AlderOptions? Options { get; }
+    public AlderConfig Config { get; }
 
     private (Type[] ArgTypes, BoundExpr BoundBody)? _bindingCache;
 
-    public LambdaValue(List<string> Parameters, Expr Body, AlderContext Closure, AlderOptions? Options = null)
+    public LambdaValue(List<string> Parameters, Expr Body, AlderContext Closure, AlderConfig Config)
     {
         this.Parameters = Parameters;
         this.Body = Body;
         this.Closure = Closure;
-        this.Options = Options;
+        this.Config = Config;
     }
 
     internal BoundExpr GetOrBindBody(AlderContext childContext)

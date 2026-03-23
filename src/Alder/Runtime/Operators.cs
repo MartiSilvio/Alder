@@ -57,7 +57,7 @@ internal static class Operators
             return null;
 
         if (value is bool b)
-            return !b;
+            return b ? BoxedConstants.False : BoxedConstants.True;
 
         throw new AlderException(
             DiagnosticDescriptors.BadUnaryOp,
@@ -65,10 +65,10 @@ internal static class Operators
             value.GetType().Name);
     }
 
-    public static object? Add(object? left, object? right, AlderOptions options) =>
-        Add(left, right, options, null);
+    public static object? Add(object? left, object? right, AlderConfig config) =>
+        Add(left, right, config, null);
 
-    public static object? Add(object? left, object? right, AlderOptions options, AlderContext? context, bool isChecked = false,
+    public static object? Add(object? left, object? right, AlderConfig config, AlderContext? context, bool isChecked = false,
         bool isStringContext = false)
     {
         if (left is DateTime leftDate && right is TimeSpan rightSpan)
@@ -108,13 +108,13 @@ internal static class Operators
             return userResult;
 
         // Object merge via + operator (Extended mode only)
-        if (options.LanguageMode == LanguageMode.Standard)
+        if (config.LanguageMode == LanguageMode.Standard)
             throw new AlderException(
                 DiagnosticDescriptors.BadBinaryOps,
                 TokenLexemes.GetCanonical(TokenType.Plus),
                 TypeNameFormatter.Of(left), TypeNameFormatter.Of(right));
 
-        return Extensions.ObjectMergeOperator.MergeObjects(left, right, options, context);
+        return Extensions.ObjectMergeOperator.MergeObjects(left, right, config.Comparer, context);
     }
 
     public static object? Subtract(object? left, object? right, bool isChecked = false)
@@ -144,14 +144,11 @@ internal static class Operators
             "op_Subtraction", isChecked);
     }
 
-    public static object? Multiply(object? left, object? right) =>
-        Multiply(left, right, null);
-
-    public static object? Multiply(object? left, object? right, AlderOptions? options, bool isChecked = false)
+    public static object? Multiply(object? left, object? right, LanguageMode languageMode, bool isChecked = false)
     {
         if (left is string || right is string)
         {
-            if (options?.LanguageMode == LanguageMode.Extended)
+            if (languageMode == LanguageMode.Extended)
                 return StringMultiply(left, right);
         }
         return ApplyBinaryArithmetic(
@@ -218,11 +215,11 @@ internal static class Operators
 
     public new static object Equals(object? left, object? right)
     {
-        if (left == null && right == null) return true;
-        if (left == null || right == null) return false;
+        if (left == null && right == null) return BoxedConstants.True;
+        if (left == null || right == null) return BoxedConstants.False;
 
         // IEEE 754: NaN is not equal to anything, including itself
-        if (IsNaN(left) || IsNaN(right)) return false;
+        if (IsNaN(left) || IsNaN(right)) return BoxedConstants.False;
 
         // ECMA-334 §12.12.11: Tuple equality operators - element-wise comparison with type promotion.
         // Must be checked BEFORE Object.Equals because ValueTuple<int,long>.Equals(ValueTuple<long,int>)
@@ -231,86 +228,86 @@ internal static class Operators
             right is System.Runtime.CompilerServices.ITuple rightTuple)
         {
             if (leftTuple.Length != rightTuple.Length)
-                return false;
+                return BoxedConstants.False;
 
             for (var i = 0; i < leftTuple.Length; i++)
             {
                 if (!(bool)Equals(leftTuple[i], rightTuple[i]))
-                    return false;
+                    return BoxedConstants.False;
             }
 
-            return true;
+            return BoxedConstants.True;
         }
 
-        if (left.Equals(right)) return true;
+        if (left.Equals(right)) return BoxedConstants.True;
 
         if (TypeHelpers.IsArithmetic(left) && TypeHelpers.IsArithmetic(right))
-            return NumericDispatch.Compare(left, right) == 0;
+            return NumericDispatch.Compare(left, right) == 0 ? BoxedConstants.True : BoxedConstants.False;
 
         if (TryInvokeUserDefinedBinaryOperator(left, right, "op_Equality", out var userResult))
-            return userResult ?? false;
+            return userResult ?? BoxedConstants.False;
 
-        return false;
+        return BoxedConstants.False;
     }
 
     public static object NotEquals(object? left, object? right)
     {
-        if (left == null && right == null) return false;
-        if (left == null || right == null) return true;
+        if (left == null && right == null) return BoxedConstants.False;
+        if (left == null || right == null) return BoxedConstants.True;
 
         // IEEE 754: NaN != anything is always true
-        if (IsNaN(left) || IsNaN(right)) return true;
+        if (IsNaN(left) || IsNaN(right)) return BoxedConstants.True;
 
-        return !(bool)Equals(left, right);
+        return !(bool)Equals(left, right) ? BoxedConstants.True : BoxedConstants.False;
     }
 
     public static object StrictEquals(object? left, object? right)
     {
-        if (left == null && right == null) return true;
-        if (left == null || right == null) return false;
-        if (IsNaN(left) || IsNaN(right)) return false;
-        if (left.GetType() != right.GetType()) return false;
-        return left.Equals(right);
+        if (left == null && right == null) return BoxedConstants.True;
+        if (left == null || right == null) return BoxedConstants.False;
+        if (IsNaN(left) || IsNaN(right)) return BoxedConstants.False;
+        if (left.GetType() != right.GetType()) return BoxedConstants.False;
+        return left.Equals(right) ? BoxedConstants.True : BoxedConstants.False;
     }
 
     public static object StrictNotEquals(object? left, object? right)
     {
-        return !(bool)StrictEquals(left, right);
+        return !(bool)StrictEquals(left, right) ? BoxedConstants.True : BoxedConstants.False;
     }
 
-    public static object LessThan(object? left, object? right, AlderOptions options)
+    public static object LessThan(object? left, object? right, StringComparison comparison)
     {
-        if (left == null || right == null) return false;
-        if (IsNaN(left) || IsNaN(right)) return false;
-        if (TryCompare(left, right, options, out var cmp)) return cmp < 0;
-        if (TryInvokeUserDefinedBinaryOperator(left, right, "op_LessThan", out var r)) return r ?? false;
+        if (left == null || right == null) return BoxedConstants.False;
+        if (IsNaN(left) || IsNaN(right)) return BoxedConstants.False;
+        if (TryCompare(left, right, comparison, out var cmp)) return cmp < 0 ? BoxedConstants.True : BoxedConstants.False;
+        if (TryInvokeUserDefinedBinaryOperator(left, right, "op_LessThan", out var r)) return r ?? BoxedConstants.False;
         throw new AlderException(DiagnosticDescriptors.BadBinaryOps, TokenLexemes.GetCanonical(TokenType.Less), TypeNameFormatter.Of(left), TypeNameFormatter.Of(right));
     }
 
-    public static object LessThanOrEqual(object? left, object? right, AlderOptions options)
+    public static object LessThanOrEqual(object? left, object? right, StringComparison comparison)
     {
-        if (left == null || right == null) return false;
-        if (IsNaN(left) || IsNaN(right)) return false;
-        if (TryCompare(left, right, options, out var cmp)) return cmp <= 0;
-        if (TryInvokeUserDefinedBinaryOperator(left, right, "op_LessThanOrEqual", out var r)) return r ?? false;
+        if (left == null || right == null) return BoxedConstants.False;
+        if (IsNaN(left) || IsNaN(right)) return BoxedConstants.False;
+        if (TryCompare(left, right, comparison, out var cmp)) return cmp <= 0 ? BoxedConstants.True : BoxedConstants.False;
+        if (TryInvokeUserDefinedBinaryOperator(left, right, "op_LessThanOrEqual", out var r)) return r ?? BoxedConstants.False;
         throw new AlderException(DiagnosticDescriptors.BadBinaryOps, TokenLexemes.GetCanonical(TokenType.LessEqual), TypeNameFormatter.Of(left), TypeNameFormatter.Of(right));
     }
 
-    public static object GreaterThan(object? left, object? right, AlderOptions options)
+    public static object GreaterThan(object? left, object? right, StringComparison comparison)
     {
-        if (left == null || right == null) return false;
-        if (IsNaN(left) || IsNaN(right)) return false;
-        if (TryCompare(left, right, options, out var cmp)) return cmp > 0;
-        if (TryInvokeUserDefinedBinaryOperator(left, right, "op_GreaterThan", out var r)) return r ?? false;
+        if (left == null || right == null) return BoxedConstants.False;
+        if (IsNaN(left) || IsNaN(right)) return BoxedConstants.False;
+        if (TryCompare(left, right, comparison, out var cmp)) return cmp > 0 ? BoxedConstants.True : BoxedConstants.False;
+        if (TryInvokeUserDefinedBinaryOperator(left, right, "op_GreaterThan", out var r)) return r ?? BoxedConstants.False;
         throw new AlderException(DiagnosticDescriptors.BadBinaryOps, TokenLexemes.GetCanonical(TokenType.Greater), TypeNameFormatter.Of(left), TypeNameFormatter.Of(right));
     }
 
-    public static object GreaterThanOrEqual(object? left, object? right, AlderOptions options)
+    public static object GreaterThanOrEqual(object? left, object? right, StringComparison comparison)
     {
-        if (left == null || right == null) return false;
-        if (IsNaN(left) || IsNaN(right)) return false;
-        if (TryCompare(left, right, options, out var cmp)) return cmp >= 0;
-        if (TryInvokeUserDefinedBinaryOperator(left, right, "op_GreaterThanOrEqual", out var r)) return r ?? false;
+        if (left == null || right == null) return BoxedConstants.False;
+        if (IsNaN(left) || IsNaN(right)) return BoxedConstants.False;
+        if (TryCompare(left, right, comparison, out var cmp)) return cmp >= 0 ? BoxedConstants.True : BoxedConstants.False;
+        if (TryInvokeUserDefinedBinaryOperator(left, right, "op_GreaterThanOrEqual", out var r)) return r ?? BoxedConstants.False;
         throw new AlderException(DiagnosticDescriptors.BadBinaryOps, TokenLexemes.GetCanonical(TokenType.GreaterEqual), TypeNameFormatter.Of(left), TypeNameFormatter.Of(right));
     }
 
@@ -321,7 +318,7 @@ internal static class Operators
         _ => false
     };
 
-    private static bool TryCompare(object? left, object? right, AlderOptions options, out int result)
+    private static bool TryCompare(object? left, object? right, StringComparison comparison, out int result)
     {
         result = 0;
         if (TypeHelpers.IsArithmetic(left) && TypeHelpers.IsArithmetic(right))
@@ -332,7 +329,7 @@ internal static class Operators
 
         if (left is string ls && right is string rs)
         {
-            result = string.Compare(ls, rs, options.StringComparison);
+            result = string.Compare(ls, rs, comparison);
             return true;
         }
 
@@ -345,9 +342,9 @@ internal static class Operators
         return false;
     }
 
-    internal static int Compare(object? left, object? right, AlderOptions options)
+    internal static int Compare(object? left, object? right, StringComparison comparison)
     {
-        if (TryCompare(left, right, options, out var result))
+        if (TryCompare(left, right, comparison, out var result))
             return result;
         throw new AlderException(DiagnosticDescriptors.BadBinaryOps, TokenLexemes.GetCanonical(TokenType.LessEqualGreater), TypeNameFormatter.Of(left), TypeNameFormatter.Of(right));
     }
@@ -355,14 +352,14 @@ internal static class Operators
     public static object? BitwiseAnd(object? left, object? right)
     {
         if (left is bool lb && right is bool rb)
-            return lb & rb;
+            return lb & rb ? BoxedConstants.True : BoxedConstants.False;
 
         // ECMA-334 §12.13.5: Three-value bool? logic for &
         // Only applies when both operands are bool/null (i.e., bool? & bool?)
         if (left is bool or null && right is bool or null)
         {
             if (left is false || right is false)
-                return false;
+                return BoxedConstants.False;
             return null;
         }
 
@@ -395,14 +392,14 @@ internal static class Operators
     public static object? BitwiseOr(object? left, object? right)
     {
         if (left is bool lb && right is bool rb)
-            return lb | rb;
+            return lb | rb ? BoxedConstants.True : BoxedConstants.False;
 
         // ECMA-334 §12.13.5: Three-value bool? logic for |
         // Only applies when both operands are bool/null (i.e., bool? | bool?)
         if (left is bool or null && right is bool or null)
         {
             if (left is true || right is true)
-                return true;
+                return BoxedConstants.True;
             return null;
         }
 
@@ -434,7 +431,7 @@ internal static class Operators
     public static object? BitwiseXor(object? left, object? right)
     {
         if (left is bool lb && right is bool rb)
-            return lb ^ rb;
+            return lb ^ rb ? BoxedConstants.True : BoxedConstants.False;
 
         // ECMA-334 §12.13.5: Three-value bool? logic for ^
         // Only applies when both operands are bool/null (i.e., bool? ^ bool?)
@@ -733,7 +730,7 @@ internal static class Operators
         return string.Concat(Enumerable.Repeat(str, count));
     }
 
-    public static bool Like(object? left, object? right, AlderOptions? options = null)
+    public static bool Like(object? left, object? right, StringComparison comparison)
     {
         if (left is not string str || right is not string pattern)
             throw new AlderException(
@@ -744,8 +741,6 @@ internal static class Operators
 
         if (pattern.Length == 0)
             return str.Length == 0;
-
-        var comparison = options?.StringComparison ?? StringComparison.Ordinal;
 
         return ClassifyLikePattern(pattern) switch
         {
@@ -807,17 +802,22 @@ internal static class Operators
 
     public static object RegexMatch(object? left, object? right)
     {
-        return Extensions.RegexMatchOperator.IsMatch(left, right);
+        return Extensions.RegexMatchOperator.IsMatch(left, right) ? BoxedConstants.True : BoxedConstants.False;
     }
 
     public static object RegexNotMatch(object? left, object? right)
     {
-        return Extensions.RegexMatchOperator.IsNotMatch(left, right);
+        return Extensions.RegexMatchOperator.IsNotMatch(left, right) ? BoxedConstants.True : BoxedConstants.False;
     }
 
     public static object Spaceship(object? left, object? right)
     {
-        return Extensions.SpaceshipOperator.Compare(left, right);
+        return Extensions.SpaceshipOperator.Compare(left, right) switch
+        {
+            -1 => BoxedConstants.Int32MinusOne,
+            0 => BoxedConstants.Int32Zero,
+            _ => BoxedConstants.Int32One
+        };
     }
 
 }

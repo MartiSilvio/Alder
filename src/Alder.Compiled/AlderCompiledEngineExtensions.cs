@@ -47,7 +47,7 @@ public static class AlderCompiledEngineExtensions
         }
 
         var compiledDelegate = parsed.GetCompiledInfo()!.Delegate!;
-        return new AlderCompiledExpression<T>(compiledDelegate, engine, access.Options);
+        return new AlderCompiledExpression<T>(compiledDelegate, engine, access.Config);
     }
 
     /// <summary>
@@ -135,7 +135,7 @@ public static class AlderCompiledEngineExtensions
             var engineVariables = access.CollectEngineVariables();
             var config = access.Config;
 
-            AstDepthValidator.EnsureWithinLimit(lambdaExpr.Body, access.Options.MaxExpressionDepth);
+            AstDepthValidator.EnsureWithinLimit(lambdaExpr.Body, access.Config.Constraints.MaxExpressionDepth);
 
             var bindingRuntimeContext = new AlderContext(config);
             foreach (var pair in engineVariables)

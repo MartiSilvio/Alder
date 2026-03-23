@@ -16,6 +16,9 @@ public static class AlderEval
     /// Configures the global engine options. Must be called before any evaluation.
     /// Can only be called once. Thread-safe.
     /// </summary>
+    /// <param name="configure">An action that configures the global engine options.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="configure"/> is <c>null</c>.</exception>
+    /// <exception cref="InvalidOperationException">Configuration has already been set, or evaluation has already started.</exception>
     public static void Configure(Action<AlderOptions> configure)
     {
         if (configure == null) throw new ArgumentNullException(nameof(configure));
@@ -75,30 +78,68 @@ public static class AlderEval
         }
     }
 
+    /// <summary>
+    /// Evaluates a C# expression string and returns the result.
+    /// </summary>
+    /// <param name="expression">The C# expression string to evaluate.</param>
+    /// <param name="variables">Optional variables accessible within the expression.</param>
+    /// <param name="cancellationToken">Token to cancel evaluation.</param>
+    /// <returns>The result of evaluating the expression, or <c>null</c>.</returns>
     public static object? Evaluate(
         string expression,
         IDictionary<string, object?>? variables = null,
         CancellationToken cancellationToken = default)
         => GetEngine().Evaluate(expression, variables, cancellationToken: cancellationToken);
 
+    /// <summary>
+    /// Evaluates a C# expression with variables supplied as an anonymous object.
+    /// </summary>
+    /// <param name="expression">The C# expression string to evaluate.</param>
+    /// <param name="variables">An object whose public properties become expression variables.</param>
+    /// <param name="cancellationToken">Token to cancel evaluation.</param>
+    /// <returns>The result of evaluating the expression, or <c>null</c>.</returns>
     public static object? Evaluate(
         string expression,
         object variables,
         CancellationToken cancellationToken = default)
         => GetEngine().Evaluate(expression, variables, cancellationToken: cancellationToken);
 
+    /// <summary>
+    /// Evaluates a C# expression and converts the result to <typeparamref name="T"/>.
+    /// </summary>
+    /// <typeparam name="T">The expected return type.</typeparam>
+    /// <param name="expression">The C# expression string to evaluate.</param>
+    /// <param name="variables">Optional variables accessible within the expression.</param>
+    /// <param name="cancellationToken">Token to cancel evaluation.</param>
+    /// <returns>The result converted to <typeparamref name="T"/>, or <c>default</c> if the result is <c>null</c>.</returns>
     public static T? Evaluate<T>(
         string expression,
         IDictionary<string, object?>? variables = null,
         CancellationToken cancellationToken = default)
         => GetEngine().Evaluate<T>(expression, variables, cancellationToken: cancellationToken);
 
+    /// <summary>
+    /// Evaluates a C# expression with anonymous object variables and converts the result to <typeparamref name="T"/>.
+    /// </summary>
+    /// <typeparam name="T">The expected return type.</typeparam>
+    /// <param name="expression">The C# expression string to evaluate.</param>
+    /// <param name="variables">An object whose public properties become expression variables.</param>
+    /// <param name="cancellationToken">Token to cancel evaluation.</param>
+    /// <returns>The result converted to <typeparamref name="T"/>, or <c>default</c> if the result is <c>null</c>.</returns>
     public static T? Evaluate<T>(
         string expression,
         object variables,
         CancellationToken cancellationToken = default)
         => GetEngine().Evaluate<T>(expression, variables, cancellationToken: cancellationToken);
 
+    /// <summary>
+    /// Attempts to evaluate a C# expression without throwing on failure.
+    /// </summary>
+    /// <param name="expression">The C# expression string to evaluate.</param>
+    /// <param name="result">When successful, the evaluation result; otherwise, <c>null</c>.</param>
+    /// <param name="variables">Optional variables accessible within the expression.</param>
+    /// <param name="cancellationToken">Token to cancel evaluation.</param>
+    /// <returns><c>true</c> if evaluation succeeded; otherwise, <c>false</c>.</returns>
     public static bool TryEvaluate(
         string expression,
         out object? result,
@@ -106,6 +147,15 @@ public static class AlderEval
         CancellationToken cancellationToken = default)
         => GetEngine().TryEvaluate(expression, out result, variables, cancellationToken: cancellationToken);
 
+    /// <summary>
+    /// Attempts to evaluate a C# expression and convert the result to <typeparamref name="T"/> without throwing on failure.
+    /// </summary>
+    /// <typeparam name="T">The expected return type.</typeparam>
+    /// <param name="expression">The C# expression string to evaluate.</param>
+    /// <param name="result">When successful, the result converted to <typeparamref name="T"/>; otherwise, <c>default</c>.</param>
+    /// <param name="variables">Optional variables accessible within the expression.</param>
+    /// <param name="cancellationToken">Token to cancel evaluation.</param>
+    /// <returns><c>true</c> if evaluation and conversion succeeded; otherwise, <c>false</c>.</returns>
     public static bool TryEvaluate<T>(
         string expression,
         out T? result,
@@ -113,6 +163,12 @@ public static class AlderEval
         CancellationToken cancellationToken = default)
         => GetEngine().TryEvaluate(expression, out result, variables, cancellationToken: cancellationToken);
 
+    /// <summary>
+    /// Validates an expression for syntax and binding errors without evaluating it.
+    /// </summary>
+    /// <param name="expression">The C# expression string to validate.</param>
+    /// <param name="diagnostics">When validation fails, the list of diagnostics; otherwise, an empty list.</param>
+    /// <returns><c>true</c> if the expression is valid; otherwise, <c>false</c>.</returns>
     public static bool TryValidate(
         string expression,
         out IReadOnlyList<AlderDiagnostic> diagnostics)

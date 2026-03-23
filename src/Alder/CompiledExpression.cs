@@ -13,16 +13,16 @@ public sealed class AlderCompiledExpression<T>
 {
     private readonly CompiledExpressionDelegate _delegate;
     private readonly AlderEngine _engine;
-    private readonly AlderOptions _options;
+    private readonly AlderConfig _config;
 
     internal AlderCompiledExpression(
         CompiledExpressionDelegate compiledDelegate,
         AlderEngine engine,
-        AlderOptions options)
+        AlderConfig config)
     {
         _delegate = compiledDelegate;
         _engine = engine;
-        _options = options;
+        _config = config;
     }
 
     /// <summary>
@@ -35,8 +35,9 @@ public sealed class AlderCompiledExpression<T>
     public T? Invoke(CancellationToken cancellationToken = default)
     {
         var baseContext = _engine.GetContextForCompiled();
-        var executionContext = PrepareExecutionContext(baseContext);
-        var result = _delegate(executionContext, _options, cancellationToken);
+        var constraintState = new ExecutionConstraintState();
+        constraintState.Reset(_config.Constraints);
+        var result = _delegate(baseContext, _config, constraintState, cancellationToken);
         return ConvertResult(result);
     }
 
@@ -55,21 +56,10 @@ public sealed class AlderCompiledExpression<T>
         {
             childContext.Define(name, value);
         }
-        var executionContext = PrepareExecutionContext(childContext);
-        var result = _delegate(executionContext, _options, cancellationToken);
+        var constraintState = new ExecutionConstraintState();
+        constraintState.Reset(_config.Constraints);
+        var result = _delegate(childContext, _config, constraintState, cancellationToken);
         return ConvertResult(result);
-    }
-
-    private AlderContext PrepareExecutionContext(AlderContext context)
-    {
-        if (_options.Constraints == null)
-            return context;
-
-        var executionContext = context.CreateChild();
-        var state = new ExecutionConstraintState();
-        state.Reset(_options.Constraints);
-        executionContext.ConstraintState = state;
-        return executionContext;
     }
 
     private static T? ConvertResult(object? result)

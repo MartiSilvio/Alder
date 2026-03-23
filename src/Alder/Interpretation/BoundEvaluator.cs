@@ -12,24 +12,29 @@ namespace Alder.Interpretation;
 internal sealed partial class BoundEvaluator
 {
     private AlderContext _context;
-    private readonly AlderOptions _options;
+    private readonly AlderConfig _config;
+    private readonly ExecutionConstraintState? _constraintState;
     private readonly CancellationToken _cancellationToken;
+
     private readonly EvaluationTracer? _tracer;
-    private readonly Stack<Exception> _caughtExceptions = new();
     private readonly SourceText? _sourceText;
+    private readonly Stack<Exception> _caughtExceptions = new();
+
     private int _breakContextDepth;
     private int _loopDepth;
     private bool _isChecked;
 
     public BoundEvaluator(
         AlderContext context,
-        AlderOptions options,
-        CancellationToken cancellationToken = default,
+        AlderConfig config,
+        ExecutionConstraintState? constraintState = null,
         EvaluationTracer? tracer = null,
-        SourceText? sourceText = null)
+        SourceText? sourceText = null,
+        CancellationToken cancellationToken = default)
     {
         _context = context;
-        _options = options;
+        _config = config;
+        _constraintState = constraintState;
         _cancellationToken = cancellationToken;
         _tracer = tracer;
         _sourceText = sourceText;
@@ -85,7 +90,7 @@ internal sealed partial class BoundEvaluator
         return expr.Kind switch
         {
             BoundNodeKind.Literal => ((BoundLiteralExpr)expr).Value,
-            BoundNodeKind.Identifier => IdentifierRuntime.ResolveIdentifier(((BoundIdentifierExpr)expr).Name, _context, _options),
+            BoundNodeKind.Identifier => IdentifierRuntime.ResolveIdentifier(((BoundIdentifierExpr)expr).Name, _context, _config),
             BoundNodeKind.Conversion => EvaluateCast((BoundCastExpr)expr),
             BoundNodeKind.AsOperator => EvaluateAs((BoundAsExpr)expr),
             BoundNodeKind.IsPatternExpression => EvaluateIsPattern((BoundIsPatternExpr)expr),
@@ -159,5 +164,5 @@ internal sealed partial class BoundEvaluator
     }
 
     private object? MatchPattern(object? value, Pattern pattern)
-        => PatternRuntime.MatchPattern(value, pattern, _context, _options, _cancellationToken);
+        => PatternRuntime.MatchPattern(value, pattern, _context, _config, _cancellationToken);
 }

@@ -9,12 +9,15 @@ namespace Alder.Test.Security;
 [TestFixture(CompilationMode.Compiled)]
 public class ResourceConstraintTests(CompilationMode mode)
 {
-    private static AlderEngine CreateEngine(long? maxStatements = null, TimeSpan? maxTimeout = null,
-        CompilationMode mode = CompilationMode.Compiled)
+    private static AlderEngine CreateEngine(long? maxStatements = null, long? maxLoopIterations = null,
+        TimeSpan? maxTimeout = null, CompilationMode mode = CompilationMode.Compiled)
     {
-        return TestEngineFactory.Create(mode, o => o.Constraints = (maxStatements != null || maxTimeout != null)
-                ? new ExecutionConstraints { MaxStatements = maxStatements, MaxTimeout = maxTimeout }
-                : null);
+        return TestEngineFactory.Create(mode, o => o.Constraints = new ExecutionConstraints
+        {
+            MaxStatements = maxStatements,
+            MaxLoopIterations = maxLoopIterations,
+            MaxTimeout = maxTimeout
+        });
     }
 
     #region MaxStatements Tests
@@ -186,18 +189,18 @@ public class ResourceConstraintTests(CompilationMode mode)
     #region Mutable Constraints
 
     [Test]
-    public void Constraints_ChangeableBetweenEvaluations()
+    public void Constraints_DifferentLimitsProduceDifferentResults()
     {
-        var constraints = new ExecutionConstraints { MaxStatements = 3 };
-        var engine = TestEngineFactory.Create(mode, o => o.Constraints = constraints);
+        var tightEngine = TestEngineFactory.Create(mode, o =>
+            o.Constraints = new ExecutionConstraints { MaxStatements = 3 });
 
-        // Should throw with limit 3
         Assert.Throws<AlderExecutionLimitException>(
-            () => engine.Evaluate("{ var a = 1; var b = 2; var c = 3; return a + b + c; }"));
+            () => tightEngine.Evaluate("{ var a = 1; var b = 2; var c = 3; return a + b + c; }"));
 
-        // Raise the limit -- same expression should now succeed
-        constraints.MaxStatements = 100;
-        var result = engine.Evaluate("{ var a = 1; var b = 2; var c = 3; return a + b + c; }");
+        var looseEngine = TestEngineFactory.Create(mode, o =>
+            o.Constraints = new ExecutionConstraints { MaxStatements = 100 });
+
+        var result = looseEngine.Evaluate("{ var a = 1; var b = 2; var c = 3; return a + b + c; }");
         Assert.That(result, Is.EqualTo(6));
     }
 
@@ -286,9 +289,9 @@ public class ResourceConstraintTests(CompilationMode mode)
     }
 
     [Test]
-    public void ExplicitNullConstraints_WorksNormally()
+    public void DefaultConstraints_WorksNormally()
     {
-        var engine = TestEngineFactory.Create(mode, o => o.Constraints = null);
+        var engine = TestEngineFactory.Create(mode);
         var result = engine.Evaluate("1 + 2 + 3");
         Assert.That(result, Is.EqualTo(6));
     }

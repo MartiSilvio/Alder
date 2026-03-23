@@ -3,16 +3,47 @@ using Alder.Text;
 
 namespace Alder;
 
+/// <summary>
+/// The exception thrown when expression parsing, binding, or evaluation fails.
+/// Contains structured <see cref="Diagnostics"/> with error codes, source positions, and messages.
+/// </summary>
 public class AlderException : Exception
 {
+    /// <summary>
+    /// Gets the structured diagnostics associated with this error.
+    /// </summary>
     public IReadOnlyList<AlderDiagnostic> Diagnostics { get; private set; }
 
+    /// <summary>
+    /// Gets the error code of the first diagnostic, or <c>null</c> if no diagnostics are present.
+    /// </summary>
     public DiagnosticCode? ErrorCode => Diagnostics.Count > 0 ? Diagnostics[0].Code : null;
+
+    /// <summary>
+    /// Gets the formatted error code string (e.g., <c>"CS0103"</c>) of the first diagnostic, or <c>null</c>.
+    /// </summary>
     public string? FormattedCode => ErrorCode?.ToDiagnosticId();
+
+    /// <summary>
+    /// Gets the source text span where the error occurred.
+    /// </summary>
     public TextSpan Span => Diagnostics.Count > 0 ? Diagnostics[0].Span : default;
+
+    /// <summary>
+    /// Gets the one-based line number where the error occurred, or <c>null</c> if not available.
+    /// </summary>
     public int? Line => Diagnostics.Count > 0 ? Diagnostics[0].Line : null;
+
+    /// <summary>
+    /// Gets the one-based column number where the error occurred, or <c>null</c> if not available.
+    /// </summary>
     public int? Column => Diagnostics.Count > 0 ? Diagnostics[0].Column : null;
 
+    /// <summary>
+    /// Creates an exception from a diagnostic descriptor and format arguments.
+    /// </summary>
+    /// <param name="descriptor">The diagnostic descriptor providing the error code and message template.</param>
+    /// <param name="args">Format arguments for the message template.</param>
     public AlderException(DiagnosticDescriptor descriptor, params object?[] args)
         : base(FormatMessage(descriptor, args))
     {
@@ -47,10 +78,21 @@ public class AlderException : Exception
     }
 }
 
+/// <summary>
+/// Thrown when expression nesting exceeds the configured <see cref="ExecutionConstraints.MaxExpressionDepth"/>.
+/// </summary>
 public class AlderDepthException : AlderException
 {
+    /// <summary>
+    /// Gets the maximum depth that was exceeded.
+    /// </summary>
     public int MaxDepth { get; }
 
+    /// <summary>
+    /// Creates a depth exception for the specified subsystem and limit.
+    /// </summary>
+    /// <param name="subsystem">The subsystem that exceeded the depth limit (e.g., <c>"parser"</c>, <c>"binder"</c>).</param>
+    /// <param name="maxDepth">The configured maximum depth.</param>
     public AlderDepthException(string subsystem, int maxDepth)
         : base(DiagnosticDescriptors.ExpressionDepthExceeded, subsystem, maxDepth)
     {
@@ -58,21 +100,65 @@ public class AlderDepthException : AlderException
     }
 }
 
+/// <summary>
+/// Identifies which execution limit was exceeded.
+/// </summary>
 public enum ExecutionLimitType
 {
+    /// <summary>
+    /// The maximum number of statements was exceeded.
+    /// </summary>
     Statements,
+
+    /// <summary>
+    /// The maximum evaluation time was exceeded.
+    /// </summary>
     Timeout,
+
+    /// <summary>
+    /// The maximum number of loop iterations was exceeded.
+    /// </summary>
     LoopIterations
 }
 
+/// <summary>
+/// Thrown when an execution constraint configured in <see cref="ExecutionConstraints"/> is exceeded.
+/// </summary>
 public class AlderExecutionLimitException : AlderException
 {
+    /// <summary>
+    /// Gets the type of limit that was exceeded.
+    /// </summary>
     public ExecutionLimitType LimitType { get; }
+
+    /// <summary>
+    /// Gets the configured limit value.
+    /// </summary>
     public long LimitValue { get; }
+
+    /// <summary>
+    /// Gets the actual value that exceeded the limit.
+    /// </summary>
     public long ActualValue { get; }
+
+    /// <summary>
+    /// Gets the total number of statements executed before the limit was hit.
+    /// </summary>
     public long StatementsExecuted { get; }
+
+    /// <summary>
+    /// Gets the elapsed wall-clock time when the limit was hit.
+    /// </summary>
     public TimeSpan ElapsedTime { get; }
 
+    /// <summary>
+    /// Creates an execution limit exception.
+    /// </summary>
+    /// <param name="limitType">The type of limit that was exceeded.</param>
+    /// <param name="limitValue">The configured limit value.</param>
+    /// <param name="actualValue">The actual value that exceeded the limit.</param>
+    /// <param name="statementsExecuted">Total statements executed.</param>
+    /// <param name="elapsedTime">Elapsed wall-clock time.</param>
     public AlderExecutionLimitException(
         ExecutionLimitType limitType, long limitValue, long actualValue,
         long statementsExecuted, TimeSpan elapsedTime)

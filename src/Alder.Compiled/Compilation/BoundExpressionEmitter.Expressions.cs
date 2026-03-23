@@ -44,7 +44,7 @@ internal sealed partial class BoundExpressionEmitter
             ResolveIdentifierMethod,
             LinqExpression.Constant(identifier.Name),
             _contextParam,
-            _optionsParam);
+            _configParam);
     }
 
     private LinqExpression EmitCast(BoundCastExpr cast)
@@ -115,7 +115,7 @@ internal sealed partial class BoundExpressionEmitter
                 EmitHelpers.AsObject(Emit(isPattern.Expression)),
                 LinqExpression.Constant(isPattern.Pattern, typeof(Pattern)),
                 _contextParam,
-                _optionsParam,
+                _configParam,
                 _ctParam),
             typeof(object));
     }
@@ -321,19 +321,19 @@ internal sealed partial class BoundExpressionEmitter
 
         return op switch
         {
-            TokenType.Plus => LinqExpression.Call(AddMethod, left, right, _optionsParam, _contextParam, LinqExpression.Constant(_isChecked), LinqExpression.Constant(isStringContext)),
+            TokenType.Plus => LinqExpression.Call(AddMethod, left, right, _configParam, _contextParam, LinqExpression.Constant(_isChecked), LinqExpression.Constant(isStringContext)),
             TokenType.Minus => LinqExpression.Call(SubtractMethod, left, right, LinqExpression.Constant(_isChecked)),
-            TokenType.Star => LinqExpression.Call(MultiplyMethod, left, right, _optionsParam, LinqExpression.Constant(_isChecked)),
+            TokenType.Star => LinqExpression.Call(MultiplyMethod, left, right, LinqExpression.Property(_configParam, nameof(AlderConfig.LanguageMode)), LinqExpression.Constant(_isChecked)),
             TokenType.Slash => LinqExpression.Call(DivideMethod, left, right),
             TokenType.Percent => LinqExpression.Call(ModuloMethod, left, right),
             TokenType.EqualEqual => LinqExpression.Call(EqualsMethod, left, right),
             TokenType.BangEqual => LinqExpression.Call(NotEqualsMethod, left, right),
             TokenType.EqualEqualEqual => LinqExpression.Call(StrictEqualsMethod, left, right),
             TokenType.BangEqualEqual => LinqExpression.Call(StrictNotEqualsMethod, left, right),
-            TokenType.Less => LinqExpression.Call(LessThanMethod, left, right, _optionsParam),
-            TokenType.LessEqual => LinqExpression.Call(LessThanOrEqualMethod, left, right, _optionsParam),
-            TokenType.Greater => LinqExpression.Call(GreaterThanMethod, left, right, _optionsParam),
-            TokenType.GreaterEqual => LinqExpression.Call(GreaterThanOrEqualMethod, left, right, _optionsParam),
+            TokenType.Less => LinqExpression.Call(LessThanMethod, left, right, LinqExpression.Property(_configParam, nameof(AlderConfig.StringComparison))),
+            TokenType.LessEqual => LinqExpression.Call(LessThanOrEqualMethod, left, right, LinqExpression.Property(_configParam, nameof(AlderConfig.StringComparison))),
+            TokenType.Greater => LinqExpression.Call(GreaterThanMethod, left, right, LinqExpression.Property(_configParam, nameof(AlderConfig.StringComparison))),
+            TokenType.GreaterEqual => LinqExpression.Call(GreaterThanOrEqualMethod, left, right, LinqExpression.Property(_configParam, nameof(AlderConfig.StringComparison))),
             TokenType.Amp => LinqExpression.Call(BitwiseAndMethod, left, right),
             TokenType.Pipe => LinqExpression.Call(BitwiseOrMethod, left, right),
             TokenType.Caret => LinqExpression.Call(BitwiseXorMethod, left, right),
@@ -342,7 +342,7 @@ internal sealed partial class BoundExpressionEmitter
             TokenType.GreaterGreaterGreater => LinqExpression.Call(UnsignedRightShiftMethod, left, right),
             TokenType.StarStar => LinqExpression.Call(PowerMethod, left, right),
             TokenType.In => LinqExpression.Call(InOperatorMethod, left, right),
-            TokenType.Like => LinqExpression.Call(LikeMethod, left, right, _optionsParam),
+            TokenType.Like => LinqExpression.Call(LikeMethod, left, right, LinqExpression.Property(_configParam, nameof(AlderConfig.StringComparison))),
             TokenType.EqualTilde => LinqExpression.Call(RegexMatchMethod, left, right),
             TokenType.BangTilde => LinqExpression.Call(RegexNotMatchMethod, left, right),
             TokenType.LessEqualGreater => LinqExpression.Call(SpaceshipMethod, left, right),

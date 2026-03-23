@@ -19,7 +19,8 @@ namespace Alder.Compiled.Compilation;
 internal sealed partial class BoundExpressionEmitter
 {
     private readonly ParameterExpression _contextParam;
-    private readonly ParameterExpression _optionsParam;
+    private readonly ParameterExpression _configParam;
+    private readonly ParameterExpression _constraintStateParam;
     private readonly ParameterExpression _ctParam;
     private bool _isChecked;
     private int _loopDepth;
@@ -28,11 +29,13 @@ internal sealed partial class BoundExpressionEmitter
     private Dictionary<string, HoistedIdentifier>? _hoistedIdentifiers;
     public BoundExpressionEmitter(
         ParameterExpression contextParam,
-        ParameterExpression optionsParam,
+        ParameterExpression configParam,
+        ParameterExpression constraintStateParam,
         ParameterExpression ctParam)
     {
         _contextParam = contextParam;
-        _optionsParam = optionsParam;
+        _configParam = configParam;
+        _constraintStateParam = constraintStateParam;
         _ctParam = ctParam;
     }
 

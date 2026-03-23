@@ -1,5 +1,9 @@
 namespace Alder.Attributes;
 
+/// <summary>
+/// Marks a class as an Alder module, making its public methods and properties accessible in expressions
+/// via <c>ModuleName.Member</c> syntax.
+/// </summary>
 [AttributeUsage(AttributeTargets.Class | AttributeTargets.Interface)]
 public class AlderModuleAttribute : Attribute
 {
@@ -14,8 +18,15 @@ public class AlderModuleAttribute : Attribute
     /// </summary>
     public bool ExplicitOnly { get; init; } = false;
 
+    /// <summary>
+    /// Creates a module attribute with no explicit name. The module name is specified during registration.
+    /// </summary>
     public AlderModuleAttribute() { }
 
+    /// <summary>
+    /// Creates a module attribute with the specified name.
+    /// </summary>
+    /// <param name="name">The name used to access this module in expressions.</param>
     public AlderModuleAttribute(string name)
     {
         Name = name;

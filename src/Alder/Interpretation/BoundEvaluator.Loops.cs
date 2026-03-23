@@ -11,8 +11,8 @@ internal sealed partial class BoundEvaluator
 {
     private ControlFlowSignal? EvaluateWhile(BoundWhileExpr whileExpr)
     {
-        var constraintState = _context.ConstraintState;
-        var constraints = _options.Constraints;
+        var constraintState = _constraintState;
+        var constraints = _config.Constraints;
         var iterationContext = _context.CreateChild();
 
         _breakContextDepth++;
@@ -57,8 +57,8 @@ internal sealed partial class BoundEvaluator
 
     private object? EvaluateFor(BoundForExpr forExpr)
     {
-        var constraintState = _context.ConstraintState;
-        var constraints = _options.Constraints;
+        var constraintState = _constraintState;
+        var constraints = _config.Constraints;
         var loopContext = _context;
         _context = _context.CreateChild();
         var bodyContext = _context.CreateChild();
@@ -115,8 +115,8 @@ internal sealed partial class BoundEvaluator
 
     private object? EvaluateDoWhile(BoundDoWhileExpr doWhileExpr)
     {
-        var constraintState = _context.ConstraintState;
-        var constraints = _options.Constraints;
+        var constraintState = _constraintState;
+        var constraints = _config.Constraints;
         var iterationContext = _context.CreateChild();
 
         _breakContextDepth++;
@@ -161,8 +161,8 @@ internal sealed partial class BoundEvaluator
 
     private object? EvaluateForEach(BoundForEachExpr forEachExpr)
     {
-        var constraintState = _context.ConstraintState;
-        var constraints = _options.Constraints;
+        var constraintState = _constraintState;
+        var constraints = _config.Constraints;
         var collection = Evaluate(forEachExpr.Collection);
 
         collection = RangeHelpers.EnsureEnumerable(collection!);

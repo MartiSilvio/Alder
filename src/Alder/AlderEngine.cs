@@ -15,20 +15,20 @@ namespace Alder;
 
 /// <summary>
 /// The main entry point for Alder expression evaluation.
+/// Provides methods for parsing, evaluating, validating, and compiling C# expressions at runtime.
 /// </summary>
 /// <remarks>
 /// <para><b>Thread Safety:</b></para>
 /// <para>The engine is fully configured at construction time via <see cref="AlderOptions"/>.
 /// All evaluation methods are thread-safe and can be called concurrently from multiple threads.</para>
-/// <para>SetVariable is thread-safe and can be called at any time, including between evaluations.</para>
-/// <para>Child engines created via CreateChild() can be evaluated concurrently with the parent
+/// <para><see cref="SetVariable{T}"/> is thread-safe and can be called at any time, including between evaluations.</para>
+/// <para>Child engines created via <see cref="CreateChild"/> can be evaluated concurrently with the parent
 /// and with each other.</para>
 /// </remarks>
 public sealed partial class AlderEngine : IDisposable
 {
     private readonly record struct PendingVariable(object? Value, Type InferredType);
 
-    private readonly AlderOptions _options;
     private readonly AlderConfig _config;
     private readonly TypeMetadataProvider _typeMetadata;
     private readonly ExpressionCache _expressionCache;
@@ -44,7 +44,6 @@ public sealed partial class AlderEngine : IDisposable
         _disposalToken.IsDisposed = true;
         _expressionCache.Clear();
         _typeMetadata.Clear();
-        _compiledNoCancellationFastPath = null;
     }
 
     private void ThrowIfDisposed()
@@ -61,36 +60,41 @@ public sealed partial class AlderEngine : IDisposable
     {
     }
 
+    /// <summary>
+    /// Creates a new engine configured via the provided options action.
+    /// </summary>
+    /// <param name="configure">An action that configures the engine options.</param>
     public AlderEngine(Action<AlderOptions> configure) : this(Apply(configure))
     {
     }
 
+    /// <summary>
+    /// Creates a new engine with the specified options.
+    /// </summary>
+    /// <param name="options">The configuration options for this engine.</param>
     public AlderEngine(AlderOptions options)
     {
-        _options = options;
         _disposalToken = new DisposalToken();
         _typeMetadata = new TypeMetadataProvider();
         _expressionCache = new ExpressionCache();
-        _pendingVariables = new Dictionary<string, PendingVariable>(options.StringComparer);
         _config = BuildConfig(options);
+        _pendingVariables = new Dictionary<string, PendingVariable>(_config.Comparer);
     }
 
-    internal bool HasCompiler => _options.Compiler != null;
+    internal bool HasCompiler => _config.Compiler != null;
 
     private AlderEngine(
         AlderConfig config,
         AlderContext parentContext,
-        AlderOptions options,
         ExpressionCache expressionCache,
         DisposalToken disposalToken)
     {
         _config = config;
         _disposalToken = disposalToken;
         _context = parentContext.CreateChild();
-        _options = options;
         _typeMetadata = config.TypeMetadata;
         _expressionCache = expressionCache;
-        _pendingVariables = new Dictionary<string, PendingVariable>(options.StringComparer);
+        _pendingVariables = new Dictionary<string, PendingVariable>(config.Comparer);
     }
 
     private static AlderOptions Apply(Action<AlderOptions> configure)
@@ -148,7 +152,20 @@ public sealed partial class AlderEngine : IDisposable
         }
 
         var typeMetadata = new TypeMetadataProvider();
-        return AlderConfig.Create(functions, modules, options.Types.ExtensionTypes, typeMetadata, typeResolver, options.StringComparer, aotMetadata);
+        return new AlderConfig(
+            options.LanguageMode,
+            options.Sandbox.ToSecurityPolicy(),
+            options.IsCaseSensitive,
+            options.Constraints,
+            options.Compiler,
+            options.ExpressionCompiler,
+            options.ServiceProvider,
+            Runtime.Collections.FixedDictionary<string, Func<object?[], object?>>.Create(functions),
+            Runtime.Collections.FixedDictionary<string, ModuleInfo>.Create(modules),
+            [..options.Types.ExtensionTypes],
+            typeMetadata,
+            typeResolver,
+            aotMetadata != null ? Runtime.Collections.FixedDictionary<Type, IAotTypeMetadata>.Create(aotMetadata) : null);
     }
 
     private static void RegisterGlobalFunctions(AlderOptions.RegisteredType reg, Dictionary<string, Func<object?[], object?>> functions)
@@ -217,13 +234,13 @@ public sealed partial class AlderEngine : IDisposable
 
     private Binding.BoundExpr RunPipeline(Binding.BoundExpr tree, CancellationToken ct = default)
     {
-        var context = new Pipeline.PipelineContext(_options.Security, _options, ct);
+        var context = new Pipeline.PipelineContext(_config.Security, ct);
         return SecurityOnlyPipeline.Execute(tree, context);
     }
 
     private Binding.BoundExpr RunCompilationPipeline(Binding.BoundExpr tree, CancellationToken ct = default)
     {
-        var context = new Pipeline.PipelineContext(_options.Security, _options, ct);
+        var context = new Pipeline.PipelineContext(_config.Security, ct);
         return GetOrCreateCompilationPipeline().Execute(tree, context);
     }
 
@@ -238,7 +255,7 @@ public sealed partial class AlderEngine : IDisposable
             if (_context != null)
                 return _context;
 
-            var newContext = new AlderContext(_config, _options.ServiceProvider);
+            var newContext = new AlderContext(_config, _config.ServiceProvider);
 
             foreach (var (name, pending) in _pendingVariables)
             {
@@ -251,6 +268,13 @@ public sealed partial class AlderEngine : IDisposable
         }
     }
 
+    /// <summary>
+    /// Parses an expression string into a reusable <see cref="AlderExpression"/> that can be evaluated multiple times.
+    /// </summary>
+    /// <param name="expression">The C# expression string to parse.</param>
+    /// <returns>A parsed expression ready for evaluation.</returns>
+    /// <exception cref="ObjectDisposedException">The engine has been disposed.</exception>
+    /// <exception cref="AlderException">The expression contains syntax errors.</exception>
     public AlderExpression Parse(string expression)
     {
         ThrowIfDisposed();
@@ -259,7 +283,7 @@ public sealed partial class AlderEngine : IDisposable
             var lexer = new Lexer(expression);
             var tokens = lexer.Tokenize();
 
-            var parser = ExpressionParser.CreateForSubExpression(tokens, _options.LanguageMode);
+            var parser = ExpressionParser.CreateForSubExpression(tokens, _config.LanguageMode);
             var ast = parser.Parse();
 
             return new AlderExpression(expression, ast, _expressionCache);
@@ -270,6 +294,13 @@ public sealed partial class AlderEngine : IDisposable
         }
     }
 
+    /// <summary>
+    /// Attempts to parse an expression string without throwing on failure.
+    /// </summary>
+    /// <param name="expression">The C# expression string to parse.</param>
+    /// <param name="result">When successful, the parsed expression; otherwise, <c>null</c>.</param>
+    /// <param name="error">When parsing fails, the error message; otherwise, <c>null</c>.</param>
+    /// <returns><c>true</c> if parsing succeeded; otherwise, <c>false</c>.</returns>
     public bool TryParse(string expression, out AlderExpression? result, out string? error)
     {
         ThrowIfDisposed();
@@ -287,15 +318,24 @@ public sealed partial class AlderEngine : IDisposable
         }
     }
 
+    /// <inheritdoc cref="TryParse(string, out AlderExpression?, out string?)"/>
     public bool TryParse(string expression, out AlderExpression? result)
     {
         return TryParse(expression, out result, out _);
     }
 
+    /// <summary>
+    /// Evaluates a C# expression string and returns the result.
+    /// </summary>
+    /// <param name="expression">The C# expression string to evaluate.</param>
+    /// <param name="variables">Optional variables accessible within the expression.</param>
+    /// <param name="cancellationToken">Token to cancel evaluation.</param>
+    /// <returns>The result of evaluating the expression, or <c>null</c>.</returns>
+    /// <exception cref="ObjectDisposedException">The engine has been disposed.</exception>
+    /// <exception cref="AlderException">The expression contains errors or evaluation fails.</exception>
     public object? Evaluate(
         string expression,
         IDictionary<string, object?>? variables = null,
-
         CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();
@@ -303,43 +343,21 @@ public sealed partial class AlderEngine : IDisposable
         return Evaluate(parsed, variables, cancellationToken);
     }
 
+    /// <summary>
+    /// Evaluates a pre-parsed expression and returns the result.
+    /// </summary>
+    /// <param name="expression">The pre-parsed expression to evaluate.</param>
+    /// <param name="variables">Optional variables accessible within the expression.</param>
+    /// <param name="cancellationToken">Token to cancel evaluation.</param>
+    /// <returns>The result of evaluating the expression, or <c>null</c>.</returns>
+    /// <exception cref="ObjectDisposedException">The engine has been disposed.</exception>
+    /// <exception cref="AlderException">Evaluation fails due to binding or runtime errors.</exception>
     public object? Evaluate(
         AlderExpression expression,
         IDictionary<string, object?>? variables = null,
-
         CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();
-        if (_options.Compiler != null &&
-            variables == null &&
-            _options.Constraints == null &&
-            !cancellationToken.CanBeCanceled)
-        {
-            if (TryEvaluateCompiledNoCancellationCached(expression, out var cachedResult))
-                return cachedResult;
-
-            var fastContext = GetOrCreateContext();
-            if (TryGetCompiledNoCancellationFastDelegate(expression, fastContext, out var cachedDelegate))
-            {
-                CacheCompiledNoCancellationFastPath(expression, cachedDelegate, fastContext);
-                try
-                {
-                    return cachedDelegate(fastContext);
-                }
-                catch (AlderException ex) when (ex.Span.IsEmpty && !expression.Ast.Span.IsEmpty)
-                {
-                    EnrichCompiledExceptionDiagnostics(ex, expression);
-                    throw;
-                }
-            }
-
-            return ExecuteCompiledExpression(
-                expression,
-                fastContext,
-                fastContext,
-                cancellationToken,
-                allowNoCancellationFastPath: true);
-        }
 
         var target = this;
         if (variables != null)
@@ -349,36 +367,29 @@ public sealed partial class AlderEngine : IDisposable
         }
 
         var context = target.GetOrCreateContext();
-        var executionContext = context;
+        var constraintState = new ExecutionConstraintState();
+        constraintState.Reset(_config.Constraints);
 
-        var constraints = _options.Constraints;
-        if (constraints != null)
+        if (_config.Compiler != null)
         {
-            executionContext = context.CreateChild();
-            var state = new ExecutionConstraintState();
-            state.Reset(constraints);
-            executionContext.ConstraintState = state;
-        }
-
-        if (_options.Compiler != null)
-        {
-            var allowNoCancellationFastPath = constraints == null && !cancellationToken.CanBeCanceled;
             return ExecuteCompiledExpression(
                 expression,
                 context,
-                executionContext,
-                cancellationToken,
-                allowNoCancellationFastPath);
+                context,
+                constraintState,
+                cancellationToken);
         }
 
-        if (expression.TryGetOrCreateBoundExpression(executionContext, _options.MaxExpressionDepth, out var boundExpression, out var boundFailureReason))
+        var executionContext = context.CreateChild();
+
+        if (expression.TryGetOrCreateBoundExpression(executionContext, _config.Constraints.MaxExpressionDepth, out var boundExpression, out var boundFailureReason))
         {
             if (boundExpression != null)
             {
                 try
                 {
                     boundExpression = RunPipeline(boundExpression, cancellationToken);
-                    var boundEvaluator = new BoundEvaluator(executionContext, _options, cancellationToken, sourceText: new Text.SourceText(expression.Source));
+                    var boundEvaluator = new BoundEvaluator(executionContext, _config, constraintState, sourceText: new Text.SourceText(expression.Source), cancellationToken: cancellationToken);
                     var boundResult = boundEvaluator.Evaluate(boundExpression);
                     expression.RecordBoundExecution();
                     return UnwrapControlFlowSignal(boundResult);
@@ -386,72 +397,115 @@ public sealed partial class AlderEngine : IDisposable
                 catch (BindingNotSupportedException ex)
                 {
                     expression.RecordBoundFallback(ex.Message);
-                    if (IsDepthFailure(ex.Message))
-                        throw new AlderDepthException("binding", _options.MaxExpressionDepth);
                     throw new AlderException(DiagnosticDescriptors.BindingFailed, ex.Message);
                 }
             }
         }
 
         expression.RecordBoundFallback(boundFailureReason);
-        if (IsDepthFailure(boundFailureReason))
-            throw new AlderDepthException("binding", _options.MaxExpressionDepth);
         throw new AlderException(DiagnosticDescriptors.BindingFailed, boundFailureReason ?? "Binding failed for expression.");
     }
 
+    /// <summary>
+    /// Evaluates a C# expression with variables supplied as an anonymous object.
+    /// </summary>
+    /// <param name="expression">The C# expression string to evaluate.</param>
+    /// <param name="variables">An object whose public properties become expression variables.</param>
+    /// <param name="cancellationToken">Token to cancel evaluation.</param>
+    /// <returns>The result of evaluating the expression, or <c>null</c>.</returns>
     public object? Evaluate(
         string expression,
         object variables,
-
         CancellationToken cancellationToken = default)
         => Evaluate(expression, ToVariableDictionary(variables), cancellationToken);
 
+    /// <summary>
+    /// Evaluates a pre-parsed expression with variables supplied as an anonymous object.
+    /// </summary>
+    /// <param name="expression">The pre-parsed expression to evaluate.</param>
+    /// <param name="variables">An object whose public properties become expression variables.</param>
+    /// <param name="cancellationToken">Token to cancel evaluation.</param>
+    /// <returns>The result of evaluating the expression, or <c>null</c>.</returns>
     public object? Evaluate(
         AlderExpression expression,
         object variables,
-
         CancellationToken cancellationToken = default)
         => Evaluate(expression, ToVariableDictionary(variables), cancellationToken);
 
+    /// <summary>
+    /// Evaluates a C# expression and converts the result to <typeparamref name="T"/>.
+    /// </summary>
+    /// <typeparam name="T">The expected return type.</typeparam>
+    /// <param name="expression">The C# expression string to evaluate.</param>
+    /// <param name="variables">Optional variables accessible within the expression.</param>
+    /// <param name="cancellationToken">Token to cancel evaluation.</param>
+    /// <returns>The result converted to <typeparamref name="T"/>, or <c>default</c> if the result is <c>null</c>.</returns>
     public T? Evaluate<T>(
         string expression,
         IDictionary<string, object?>? variables = null,
-
         CancellationToken cancellationToken = default)
     {
         var result = Evaluate(expression, variables, cancellationToken);
         return ConvertResult<T>(result);
     }
 
+    /// <summary>
+    /// Evaluates a pre-parsed expression and converts the result to <typeparamref name="T"/>.
+    /// </summary>
+    /// <typeparam name="T">The expected return type.</typeparam>
+    /// <param name="expression">The pre-parsed expression to evaluate.</param>
+    /// <param name="variables">Optional variables accessible within the expression.</param>
+    /// <param name="cancellationToken">Token to cancel evaluation.</param>
+    /// <returns>The result converted to <typeparamref name="T"/>, or <c>default</c> if the result is <c>null</c>.</returns>
     public T? Evaluate<T>(
         AlderExpression expression,
         IDictionary<string, object?>? variables = null,
-
         CancellationToken cancellationToken = default)
     {
         var result = Evaluate(expression, variables, cancellationToken);
         return ConvertResult<T>(result);
     }
 
+    /// <summary>
+    /// Evaluates a C# expression with anonymous object variables and converts the result to <typeparamref name="T"/>.
+    /// </summary>
+    /// <typeparam name="T">The expected return type.</typeparam>
+    /// <param name="expression">The C# expression string to evaluate.</param>
+    /// <param name="variables">An object whose public properties become expression variables.</param>
+    /// <param name="cancellationToken">Token to cancel evaluation.</param>
+    /// <returns>The result converted to <typeparamref name="T"/>, or <c>default</c> if the result is <c>null</c>.</returns>
     public T? Evaluate<T>(
         string expression,
         object variables,
-
         CancellationToken cancellationToken = default)
         => ConvertResult<T>(Evaluate(expression, ToVariableDictionary(variables), cancellationToken));
 
+    /// <summary>
+    /// Evaluates a pre-parsed expression with anonymous object variables and converts the result to <typeparamref name="T"/>.
+    /// </summary>
+    /// <typeparam name="T">The expected return type.</typeparam>
+    /// <param name="expression">The pre-parsed expression to evaluate.</param>
+    /// <param name="variables">An object whose public properties become expression variables.</param>
+    /// <param name="cancellationToken">Token to cancel evaluation.</param>
+    /// <returns>The result converted to <typeparamref name="T"/>, or <c>default</c> if the result is <c>null</c>.</returns>
     public T? Evaluate<T>(
         AlderExpression expression,
         object variables,
-
         CancellationToken cancellationToken = default)
         => ConvertResult<T>(Evaluate(expression, ToVariableDictionary(variables), cancellationToken));
 
+    /// <summary>
+    /// Attempts to evaluate a C# expression without throwing on failure.
+    /// </summary>
+    /// <param name="expression">The C# expression string to evaluate.</param>
+    /// <param name="result">When successful, the evaluation result; otherwise, <c>null</c>.</param>
+    /// <param name="variables">Optional variables accessible within the expression.</param>
+    /// <param name="cancellationToken">Token to cancel evaluation.</param>
+    /// <returns><c>true</c> if evaluation succeeded; otherwise, <c>false</c>.</returns>
     public bool TryEvaluate(
         string expression,
         out object? result,
         IDictionary<string, object?>? variables = null,
-
         CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();
@@ -467,11 +521,19 @@ public sealed partial class AlderEngine : IDisposable
         }
     }
 
+    /// <summary>
+    /// Attempts to evaluate a C# expression and convert the result to <typeparamref name="T"/> without throwing on failure.
+    /// </summary>
+    /// <typeparam name="T">The expected return type.</typeparam>
+    /// <param name="expression">The C# expression string to evaluate.</param>
+    /// <param name="result">When successful, the result converted to <typeparamref name="T"/>; otherwise, <c>default</c>.</param>
+    /// <param name="variables">Optional variables accessible within the expression.</param>
+    /// <param name="cancellationToken">Token to cancel evaluation.</param>
+    /// <returns><c>true</c> if evaluation and conversion succeeded; otherwise, <c>false</c>.</returns>
     public bool TryEvaluate<T>(
         string expression,
         out T? result,
         IDictionary<string, object?>? variables = null,
-
         CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();
@@ -487,6 +549,12 @@ public sealed partial class AlderEngine : IDisposable
         }
     }
 
+    /// <summary>
+    /// Validates an expression for syntax and binding errors without evaluating it.
+    /// </summary>
+    /// <param name="expression">The C# expression string to validate.</param>
+    /// <param name="diagnostics">When validation fails, the list of diagnostics; otherwise, an empty list.</param>
+    /// <returns><c>true</c> if the expression is valid; otherwise, <c>false</c>.</returns>
     public bool TryValidate(string expression, out IReadOnlyList<AlderDiagnostic> diagnostics)
     {
         ThrowIfDisposed();
@@ -495,7 +563,7 @@ public sealed partial class AlderEngine : IDisposable
         {
             var lexer = new Lexer(expression);
             var tokens = lexer.Tokenize();
-            var parser = ExpressionParser.CreateForSubExpression(tokens, _options.LanguageMode);
+            var parser = ExpressionParser.CreateForSubExpression(tokens, _config.LanguageMode);
             ast = parser.Parse();
         }
         catch (Exception ex)
@@ -507,14 +575,14 @@ public sealed partial class AlderEngine : IDisposable
         try
         {
             var context = GetOrCreateContext();
-            AstDepthValidator.EnsureWithinLimit(ast, _options.MaxExpressionDepth);
+            AstDepthValidator.EnsureWithinLimit(ast, _config.Constraints.MaxExpressionDepth);
             var binder = new Binder(new Text.SourceText(expression), recovering: true);
             var bindingContext = new BindingContext(context);
             var validationDiagnostics = new List<AlderDiagnostic>(binder.CollectDiagnostics(ast, bindingContext));
 
             var collector = new IdentifierOccurrenceCollector();
             collector.Collect(ast);
-            foreach (var identifier in collector.GetUnboundTokens(_options.StringComparer))
+            foreach (var identifier in collector.GetUnboundTokens(_config.Comparer))
             {
                 var name = identifier.Lexeme;
                 if (context.TryGet(name, out _)) continue;
@@ -589,15 +657,9 @@ public sealed partial class AlderEngine : IDisposable
     private static object? UnwrapControlFlowSignal(object? result) =>
         result is ControlFlowSignal signal ? signal.Value : result;
 
-    private static bool IsDepthFailure(string? message)
-    {
-        return !string.IsNullOrEmpty(message) &&
-               message.IndexOf("nesting depth exceeded", StringComparison.OrdinalIgnoreCase) >= 0;
-    }
-
     private Dictionary<string, object?> CollectEngineVariables()
     {
-        var variables = new Dictionary<string, object?>(_options.StringComparer);
+        var variables = new Dictionary<string, object?>(_config.Comparer);
 
         lock (_contextInitLock)
         {
@@ -618,10 +680,16 @@ public sealed partial class AlderEngine : IDisposable
         return variables;
     }
 
+    /// <summary>
+    /// Creates a child engine that inherits this engine's configuration and variables.
+    /// The child can define additional variables without affecting the parent.
+    /// </summary>
+    /// <returns>A new child engine.</returns>
+    /// <exception cref="ObjectDisposedException">The engine has been disposed.</exception>
     public AlderEngine CreateChild()
     {
         ThrowIfDisposed();
         var parentContext = GetOrCreateContext();
-        return new AlderEngine(_config, parentContext, _options, _expressionCache, _disposalToken);
+        return new AlderEngine(_config, parentContext, _expressionCache, _disposalToken);
     }
 }

@@ -111,8 +111,10 @@ public class GeneratedContextIntegrationTests(CompilationMode mode)
     public void GetIndex_UsesGeneratedDispatch()
     {
         var engine = CreateEngine();
-        var indexed = new TestIndexedModel();
-        indexed["key"] = 99;
+        var indexed = new TestIndexedModel
+        {
+            ["key"] = 99
+        };
         engine.SetVariable("d", indexed);
 
         var result = engine.Evaluate("""d["key"] """);

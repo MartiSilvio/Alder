@@ -19,7 +19,7 @@ internal static readonly MethodInfo RequireBooleanMethod = typeof(TypeHelpers).G
 internal static readonly MethodInfo RequireBooleanForLogicalOperatorMethod = typeof(TypeHelpers).GetMethod(nameof(TypeHelpers.RequireBooleanForLogicalOperator))!;
 internal static readonly MethodInfo GetTypeResolverProperty = typeof(AlderContext).GetProperty(nameof(AlderContext.TypeResolver), BindingFlags.NonPublic | BindingFlags.Instance)!.GetGetMethod(true)!;
 internal static readonly MethodInfo ResolveTypeMethod = typeof(TypeResolver).GetMethod(nameof(TypeResolver.ResolveType))!;
-internal static readonly MethodInfo InvokeConstructorMethod = typeof(ConstructionRuntime).GetMethod(nameof(ConstructionRuntime.InvokeConstructor), [typeof(Type), typeof(object?[]), typeof(AlderConfig), typeof(AlderOptions)])!;
+internal static readonly MethodInfo InvokeConstructorMethod = typeof(ConstructionRuntime).GetMethod(nameof(ConstructionRuntime.InvokeConstructor), [typeof(Type), typeof(object?[]), typeof(AlderConfig)])!;
 internal static readonly MethodInfo CreateTypedArrayFromTypeNameMethod = typeof(ConstructionRuntime).GetMethod(nameof(ConstructionRuntime.CreateTypedArray))!;
 internal static readonly MethodInfo ConvertArrayToTypedMethod = typeof(ConstructionRuntime).GetMethod(nameof(ConstructionRuntime.ConvertArrayToTyped))!;
 internal static readonly MethodInfo CreateTupleMethod = typeof(ConstructionRuntime).GetMethod(nameof(ConstructionRuntime.CreateTuple))!;
@@ -30,12 +30,12 @@ internal static readonly MethodInfo IsNullableTypeMethod = typeof(TypeHelpers).G
 internal static readonly MethodInfo GetMemberMethod = typeof(MemberAccess).GetMethod(nameof(MemberAccess.GetMember))!;
 internal static readonly MethodInfo GetIndexMethod = typeof(MemberAccess).GetMethod(
     nameof(MemberAccess.GetIndex),
-    [typeof(object), typeof(object), typeof(AlderOptions), typeof(AlderContext)])!;
-internal static readonly MethodInfo GetSliceMethod = typeof(MemberAccess).GetMethod(nameof(MemberAccess.GetSlice), [typeof(object), typeof(object), typeof(object), typeof(AlderOptions)])!;
-internal static readonly MethodInfo GetSliceStepMethod = typeof(MemberAccess).GetMethod(nameof(MemberAccess.GetSlice), [typeof(object), typeof(object), typeof(object), typeof(object), typeof(AlderOptions)])!;
+    [typeof(object), typeof(object), typeof(AlderConfig), typeof(AlderContext)])!;
+internal static readonly MethodInfo GetSliceMethod = typeof(MemberAccess).GetMethod(nameof(MemberAccess.GetSlice), [typeof(object), typeof(object), typeof(object)])!;
+internal static readonly MethodInfo GetSliceStepMethod = typeof(MemberAccess).GetMethod(nameof(MemberAccess.GetSlice), [typeof(object), typeof(object), typeof(object), typeof(object)])!;
 internal static readonly MethodInfo SetIndexMethod = typeof(MemberAccess).GetMethod(
     nameof(MemberAccess.SetIndex),
-    [typeof(object), typeof(object), typeof(object), typeof(AlderOptions), typeof(AlderContext)])!;
+    [typeof(object), typeof(object), typeof(object), typeof(AlderConfig), typeof(AlderContext)])!;
 internal static readonly MethodInfo SetMemberMethod = typeof(MemberAccess).GetMethod(nameof(MemberAccess.SetMember))!;
 internal static readonly MethodInfo ListAddMethod = typeof(List<object?>).GetMethod(nameof(List<object?>.Add))!;
 internal static readonly MethodInfo ListAddRangeMethod = typeof(List<object?>).GetMethod(nameof(List<object?>.AddRange))!;
@@ -57,8 +57,7 @@ internal static readonly MethodInfo CreateMultiDimArrayMethod = typeof(Construct
 internal static readonly MethodInfo MultiDimArrayGetMethod = typeof(ConstructionRuntime).GetMethod(nameof(ConstructionRuntime.MultiDimArrayGet))!;
 internal static readonly MethodInfo MultiDimArraySetMethod = typeof(ConstructionRuntime).GetMethod(nameof(ConstructionRuntime.MultiDimArraySet))!;
 internal static readonly MethodInfo CheckExecutionConstraintsMethod = typeof(ExecutionRuntime).GetMethod(nameof(ExecutionRuntime.CheckExecutionConstraints))!;
-internal static readonly MethodInfo GetConstraintStateProperty = typeof(AlderContext).GetProperty(nameof(AlderContext.ConstraintState), BindingFlags.NonPublic | BindingFlags.Instance)!.GetGetMethod(true)!;
-internal static readonly MethodInfo GetConstraintsProperty = typeof(AlderOptions).GetProperty(nameof(AlderOptions.Constraints))!.GetGetMethod()!;
+internal static readonly MethodInfo GetConstraintsProperty = typeof(AlderConfig).GetProperty(nameof(AlderConfig.Constraints))!.GetGetMethod()!;
 internal static readonly MethodInfo GetEnumeratorMethod = typeof(ExecutionRuntime).GetMethod(nameof(ExecutionRuntime.GetEnumerator))!;
 internal static readonly MethodInfo MoveNextMethod = typeof(IEnumerator).GetMethod(nameof(IEnumerator.MoveNext))!;
 internal static readonly MethodInfo GetCurrentProperty = typeof(IEnumerator).GetProperty(nameof(IEnumerator.Current))!.GetGetMethod()!;

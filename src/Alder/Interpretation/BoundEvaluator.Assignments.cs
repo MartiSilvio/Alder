@@ -39,7 +39,7 @@ internal sealed partial class BoundEvaluator
             compoundAssign.Operator,
             rightValue,
             _context,
-            _options,
+            _config,
             _isChecked);
     }
 
@@ -50,7 +50,7 @@ internal sealed partial class BoundEvaluator
             incrementDecrement.Operator == TokenType.PlusPlus,
             incrementDecrement.IsPrefix,
             _context,
-            _options,
+            _config,
             _isChecked);
     }
 
@@ -73,7 +73,7 @@ internal sealed partial class BoundEvaluator
             return value;
         }
 
-        return AssignmentRuntime.ApplyMemberAssign(target, memberAssign.MemberName, value, _options, _context);
+        return AssignmentRuntime.ApplyMemberAssign(target, memberAssign.MemberName, value, _config, _context);
     }
 
     private object? EvaluateIndexAssign(BoundIndexAssignExpr indexAssign)
@@ -81,7 +81,7 @@ internal sealed partial class BoundEvaluator
         var target = Evaluate(indexAssign.Target);
         var index = Evaluate(indexAssign.Index);
         var value = Evaluate(indexAssign.Value);
-        return AssignmentRuntime.ApplyIndexAssign(target, index, value, _options, _context);
+        return AssignmentRuntime.ApplyIndexAssign(target, index, value, _config, _context);
     }
 
     private object? EvaluateMemberCompoundAssign(BoundMemberCompoundAssignExpr memberCompoundAssign)
@@ -93,7 +93,7 @@ internal sealed partial class BoundEvaluator
             memberCompoundAssign.MemberName,
             memberCompoundAssign.Operator,
             rightValue,
-            _options,
+            _config,
             _context,
             _isChecked);
     }
@@ -108,7 +108,7 @@ internal sealed partial class BoundEvaluator
             index,
             indexCompoundAssign.Operator,
             rightValue,
-            _options,
+            _config,
             _context,
             _isChecked);
     }
@@ -117,11 +117,11 @@ internal sealed partial class BoundEvaluator
     {
         var target = Evaluate(memberNullCoalesceAssign.Target);
         target = ExecutionRuntime.EnsureMemberTargetNotNull(target, memberNullCoalesceAssign.MemberName);
-        var currentValue = MemberAccess.GetMember(target, memberNullCoalesceAssign.MemberName, _options, nullSafe: false, _context);
+        var currentValue = MemberAccess.GetMember(target, memberNullCoalesceAssign.MemberName, _config, nullSafe: false, _context);
         if (currentValue != null)
             return currentValue;
         var newValue = Evaluate(memberNullCoalesceAssign.Value);
-        MemberAccess.SetMember(target, memberNullCoalesceAssign.MemberName, newValue, _options, _context);
+        MemberAccess.SetMember(target, memberNullCoalesceAssign.MemberName, newValue, _config, _context);
         return newValue;
     }
 
@@ -130,11 +130,11 @@ internal sealed partial class BoundEvaluator
         var target = Evaluate(indexNullCoalesceAssign.Target);
         target = ExecutionRuntime.EnsureIndexTargetNotNull(target);
         var index = Evaluate(indexNullCoalesceAssign.Index);
-        var currentValue = MemberAccess.GetIndex(target, index, _options, _context);
+        var currentValue = MemberAccess.GetIndex(target, index, _config, _context);
         if (currentValue != null)
             return currentValue;
         var newValue = Evaluate(indexNullCoalesceAssign.Value);
-        MemberAccess.SetIndex(target, index, newValue, _options, _context);
+        MemberAccess.SetIndex(target, index, newValue, _config, _context);
         return newValue;
     }
 
@@ -146,7 +146,7 @@ internal sealed partial class BoundEvaluator
             memberIncrement.MemberName,
             memberIncrement.IsIncrement,
             memberIncrement.IsPrefix,
-            _options,
+            _config,
             _context,
             _isChecked);
     }
@@ -160,7 +160,7 @@ internal sealed partial class BoundEvaluator
             index,
             indexIncrement.IsIncrement,
             indexIncrement.IsPrefix,
-            _options,
+            _config,
             _context,
             _isChecked);
     }

@@ -57,7 +57,7 @@ internal sealed partial class BoundEvaluator
         var start = slice.Start != null ? Evaluate(slice.Start) : null;
         var end = slice.End != null ? Evaluate(slice.End) : null;
         var step = slice.Step != null ? Evaluate(slice.Step) : null;
-        return MemberAccess.GetSlice(target, start, end, step, _options);
+        return MemberAccess.GetSlice(target, start, end, step);
     }
 
     private object? EvaluateObjectCreation(BoundObjectCreationExpr objectCreation)
@@ -67,7 +67,7 @@ internal sealed partial class BoundEvaluator
             args[i] = Evaluate(objectCreation.Arguments[i]);
 
         var type = _context.TypeResolver.ResolveType(objectCreation.TypeName);
-        var result = ConstructionRuntime.InvokeConstructor(type, args, _context.Config, _options);
+        var result = ConstructionRuntime.InvokeConstructor(type, args, _config);
 
         Action<object, object?>? cachedAddInvoker = null;
         foreach (var entry in objectCreation.InitializerEntries)
@@ -75,12 +75,12 @@ internal sealed partial class BoundEvaluator
             var value = Evaluate(entry.Value);
             if (entry.PropertyName != null)
             {
-                MemberAccess.SetMember(result!, entry.PropertyName, value, _options, _context);
+                MemberAccess.SetMember(result!, entry.PropertyName, value, _config, _context);
             }
             else if (entry.IndexerKey != null)
             {
                 var key = Evaluate(entry.IndexerKey);
-                MemberAccess.SetIndex(result!, key!, value, _options, _context);
+                MemberAccess.SetIndex(result!, key!, value, _config, _context);
             }
             else
             {

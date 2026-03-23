@@ -13,8 +13,8 @@ internal sealed partial class BoundEvaluator
 {
     private object? EvaluateBlock(BoundBlockExpr block)
     {
-        var constraintState = _context.ConstraintState;
-        var constraints = _options.Constraints;
+        var constraintState = _constraintState;
+        var constraints = _config.Constraints;
         var previousContext = _context;
         _context = _context.CreateChild();
 

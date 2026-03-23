@@ -12,10 +12,10 @@ internal static class PatternRuntime
         object? value,
         Pattern pattern,
         AlderContext context,
-        AlderOptions options,
+        AlderConfig config,
         CancellationToken cancellationToken)
     {
-        return MatchPatternCore(value, pattern, new PatternRuntimeContext(context, options, cancellationToken));
+        return MatchPatternCore(value, pattern, new PatternRuntimeContext(context, config, cancellationToken));
     }
 
     private static bool MatchPatternCore(object? value, Pattern pattern, PatternRuntimeContext runtime)
@@ -79,10 +79,10 @@ internal static class PatternRuntime
                     var operand = runtime.EvaluatePatternExpression(relationalPattern.Operand);
                     return relationalPattern.Operator.Type switch
                     {
-                        TokenType.Less => TypeHelpers.RequireBoolean(Operators.LessThan(value, operand, runtime.Options)),
-                        TokenType.LessEqual => TypeHelpers.RequireBoolean(Operators.LessThanOrEqual(value, operand, runtime.Options)),
-                        TokenType.Greater => TypeHelpers.RequireBoolean(Operators.GreaterThan(value, operand, runtime.Options)),
-                        TokenType.GreaterEqual => TypeHelpers.RequireBoolean(Operators.GreaterThanOrEqual(value, operand, runtime.Options)),
+                        TokenType.Less => TypeHelpers.RequireBoolean(Operators.LessThan(value, operand, runtime.Config.StringComparison)),
+                        TokenType.LessEqual => TypeHelpers.RequireBoolean(Operators.LessThanOrEqual(value, operand, runtime.Config.StringComparison)),
+                        TokenType.Greater => TypeHelpers.RequireBoolean(Operators.GreaterThan(value, operand, runtime.Config.StringComparison)),
+                        TokenType.GreaterEqual => TypeHelpers.RequireBoolean(Operators.GreaterThanOrEqual(value, operand, runtime.Config.StringComparison)),
                         _ => throw new AlderException(DiagnosticDescriptors.UnknownRelationalPatternOperator, relationalPattern.Operator.Lexeme)
                     };
                 }
@@ -102,7 +102,7 @@ internal static class PatternRuntime
 
                     foreach (var (name, subPattern) in propertyPattern.Properties)
                     {
-                        var propertyValue = MemberAccess.GetMember(value, name.Lexeme, runtime.Options, nullSafe: false, runtime.Context);
+                        var propertyValue = MemberAccess.GetMember(value, name.Lexeme, runtime.Config, nullSafe: false, runtime.Context);
                         if (!MatchPatternCore(propertyValue, subPattern, runtime)) return false;
                     }
 
@@ -206,21 +206,21 @@ internal static class PatternRuntime
 
     private sealed class PatternRuntimeContext(
         AlderContext context,
-        AlderOptions options,
+        AlderConfig config,
         CancellationToken cancellationToken)
     {
         private BoundEvaluator? _evaluator;
 
         public AlderContext Context { get; } = context;
-        public AlderOptions Options { get; } = options;
+        public AlderConfig Config { get; } = config;
         public CancellationToken CancellationToken { get; } = cancellationToken;
 
         public object? EvaluatePatternExpression(Expr expression)
         {
-            AstDepthValidator.EnsureWithinLimit(expression, Options.MaxExpressionDepth);
+            AstDepthValidator.EnsureWithinLimit(expression, Config.Constraints.MaxExpressionDepth);
             var binder = new Binder();
             var boundExpression = binder.Bind(expression, new BindingContext(Context));
-            _evaluator ??= new BoundEvaluator(Context, Options, CancellationToken);
+            _evaluator ??= new BoundEvaluator(Context, Config, cancellationToken: CancellationToken);
             return _evaluator.Evaluate(boundExpression);
         }
     }

@@ -40,8 +40,10 @@ internal sealed class ConversionInsertionPass : BoundExprRewriter
 
     private static BoundExpr InsertCast(BoundExpr expr, Type targetType)
     {
-        var cast = new BoundCastExpr(expr, targetType, expr.StaticType, targetType);
-        cast.Span = expr.Span;
+        var cast = new BoundCastExpr(expr, targetType, expr.StaticType, targetType)
+        {
+            Span = expr.Span
+        };
         return cast;
     }
 }

@@ -147,8 +147,11 @@ internal sealed class ConstantFoldingPass : BoundExprRewriter
             rewritten.StaticType != typeof(object) &&
             chosen.StaticType != rewritten.StaticType)
         {
-            var cast = new BoundNodes.BoundCastExpr(chosen, rewritten.StaticType, chosen.StaticType, rewritten.StaticType);
-            cast.Span = rewritten.Span;
+            var cast = new BoundCastExpr(chosen, rewritten.StaticType, chosen.StaticType,
+                rewritten.StaticType)
+            {
+                Span = rewritten.Span
+            };
             return cast;
         }
 
@@ -164,13 +167,12 @@ internal sealed class ConstantFoldingPass : BoundExprRewriter
 
     private static object? FoldComparison(object left, object right, TokenType op)
     {
-        var options = new AlderOptions();
         return op switch
         {
-            TokenType.Less => Operators.LessThan(left, right, options),
-            TokenType.Greater => Operators.GreaterThan(left, right, options),
-            TokenType.LessEqual => Operators.LessThanOrEqual(left, right, options),
-            TokenType.GreaterEqual => Operators.GreaterThanOrEqual(left, right, options),
+            TokenType.Less => Operators.LessThan(left, right, StringComparison.Ordinal),
+            TokenType.Greater => Operators.GreaterThan(left, right, StringComparison.Ordinal),
+            TokenType.LessEqual => Operators.LessThanOrEqual(left, right, StringComparison.Ordinal),
+            TokenType.GreaterEqual => Operators.GreaterThanOrEqual(left, right, StringComparison.Ordinal),
             _ => null
         };
     }

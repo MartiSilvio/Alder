@@ -24,8 +24,7 @@ internal sealed partial class BoundExpressionEmitter
             InvokeConstructorMethod,
             ResolveTypeByName(objectCreation.TypeName),
             argsArray,
-            LinqExpression.Call(_contextParam, GetConfigProperty),
-            _optionsParam);
+            _configParam);
 
         if (objectCreation.InitializerEntries.IsDefaultOrEmpty)
             return result;
@@ -47,7 +46,7 @@ internal sealed partial class BoundExpressionEmitter
                     objVar,
                     LinqExpression.Constant(entry.PropertyName),
                     value,
-                    _optionsParam,
+                    _configParam,
                     _contextParam));
             }
             else if (entry.IndexerKey != null)
@@ -58,7 +57,7 @@ internal sealed partial class BoundExpressionEmitter
                     objVar,
                     key,
                     value,
-                    _optionsParam,
+                    _configParam,
                     _contextParam));
             }
             else

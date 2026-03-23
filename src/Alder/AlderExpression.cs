@@ -152,15 +152,14 @@ public sealed class AlderExpression
 /// Delegate type for compiled expressions.
 /// </summary>
 /// <param name="context">The evaluation context containing variables.</param>
-/// <param name="options">The evaluation options.</param>
+/// <param name="config">The runtime configuration.</param>
 /// <param name="cancellationToken">Cancellation token for cooperative cancellation.</param>
 /// <returns>The evaluated result.</returns>
 internal delegate object? CompiledExpressionDelegate(
     AlderContext context,
-    AlderOptions options,
+    AlderConfig config,
+    ExecutionConstraintState constraintState,
     CancellationToken cancellationToken);
-
-internal delegate object? CompiledExpressionFastDelegate(AlderContext context);
 
 internal enum CompiledPipeline
 {
@@ -176,13 +175,9 @@ internal enum CompiledPipeline
 /// <param name="FailureReason">The reason compilation failed, or null if it succeeded.</param>
 /// <param name="FailureException">Original failure exception when available.</param>
 /// <param name="Pipeline">Which compilation pipeline produced the delegate.</param>
-/// <param name="FastDelegate">Optional specialized delegate for non-cancelable execution with fixed options.</param>
-/// <param name="FastDelegateOptions">Options instance bound into <paramref name="FastDelegate"/>.</param>
 internal record CompiledExpressionInfo(
     CompiledExpressionDelegate? Delegate,
     bool IsCompilable,
     string? FailureReason,
     Exception? FailureException = null,
-    CompiledPipeline Pipeline = CompiledPipeline.None,
-    CompiledExpressionFastDelegate? FastDelegate = null,
-    AlderOptions? FastDelegateOptions = null);
+    CompiledPipeline Pipeline = CompiledPipeline.None);

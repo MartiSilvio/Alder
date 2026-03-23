@@ -55,8 +55,8 @@ internal static class TypeHelpers
     {
         var l = left as bool?;
         var r = right as bool?;
-        if (l == false || r == false) return false;
-        if (l == true && r == true) return true;
+        if (l == false || r == false) return BoxedConstants.False;
+        if (l == true && r == true) return BoxedConstants.True;
         return null;
     }
 
@@ -64,8 +64,8 @@ internal static class TypeHelpers
     {
         var l = left as bool?;
         var r = right as bool?;
-        if (l == true || r == true) return true;
-        if (l == false && r == false) return false;
+        if (l == true || r == true) return BoxedConstants.True;
+        if (l == false && r == false) return BoxedConstants.False;
         return null;
     }
 

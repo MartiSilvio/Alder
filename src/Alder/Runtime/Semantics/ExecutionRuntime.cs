@@ -71,7 +71,7 @@ internal static class ExecutionRuntime
         string? catchVariableName,
         object? caughtException,
         AlderContext context,
-        AlderOptions options,
+        AlderConfig config,
         CancellationToken ct)
     {
         var guardContext = context.CreateChild();
@@ -80,7 +80,7 @@ internal static class ExecutionRuntime
 
         try
         {
-            var evaluator = new BoundEvaluator(guardContext, options, cancellationToken: ct);
+            var evaluator = new BoundEvaluator(guardContext, config, cancellationToken: ct);
             var guardResult = evaluator.Evaluate(guardExpression);
             return TypeHelpers.RequireBoolean(guardResult);
         }
@@ -91,7 +91,6 @@ internal static class ExecutionRuntime
         }
     }
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static void CheckExecutionConstraints(
         ExecutionConstraintState? state,
         ExecutionConstraints? constraints,
@@ -128,7 +127,6 @@ internal static class ExecutionRuntime
         }
     }
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static void CheckLoopIterationConstraint(
         ExecutionConstraintState? state,
         ExecutionConstraints? constraints)
@@ -136,8 +134,7 @@ internal static class ExecutionRuntime
         if (state == null || constraints == null)
             return;
 
-        var maxIterations = constraints.MaxLoopIterations;
-        if (maxIterations <= 0)
+        if (constraints.MaxLoopIterations is not { } maxIterations)
             return;
 
         state.LoopIterationCount++;

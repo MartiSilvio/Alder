@@ -13,7 +13,7 @@ public class ExecutionModeTests
         var expression = engine.Parse("1 + 1");
 
         var fakeCompiled = new CompiledExpressionInfo(
-            Delegate: (_, _, _) => 999,
+            Delegate: (_, _, _, _) => 999,
             IsCompilable: true,
             FailureReason: null);
 

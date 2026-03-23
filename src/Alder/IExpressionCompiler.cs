@@ -8,6 +8,12 @@ namespace Alder;
 /// </summary>
 public interface IExpressionCompiler
 {
+    /// <summary>
+    /// Compiles a LINQ expression tree into a delegate of the specified type.
+    /// </summary>
+    /// <typeparam name="TDelegate">The delegate type to compile to.</typeparam>
+    /// <param name="expression">The LINQ expression tree to compile.</param>
+    /// <returns>The compiled delegate.</returns>
     TDelegate Compile<TDelegate>(Expression<TDelegate> expression)
         where TDelegate : Delegate;
 }
@@ -17,9 +23,13 @@ public interface IExpressionCompiler
 /// </summary>
 public sealed class DefaultExpressionCompiler : IExpressionCompiler
 {
+    /// <summary>
+    /// Gets the singleton instance.
+    /// </summary>
     public static readonly DefaultExpressionCompiler Instance = new();
     private DefaultExpressionCompiler() { }
 
+    /// <inheritdoc/>
     public TDelegate Compile<TDelegate>(Expression<TDelegate> expression)
         where TDelegate : Delegate => expression.Compile();
 }

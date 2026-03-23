@@ -287,10 +287,10 @@ public class LoopIterationLimitTests(CompilationMode mode)
     }
 
     [Test]
-    public void ZeroLimit_DisablesCheck()
+    public void NullLimit_DisablesCheck()
     {
         var engine = TestEngineFactory.Create(mode, o =>
-            o.Constraints = new ExecutionConstraints { MaxLoopIterations = 0 });
+            o.Constraints = new ExecutionConstraints { MaxLoopIterations = null });
         var result = engine.Evaluate("{ var c = 0; for (var i = 0; i < 100; i++) { c = c + 1; } return c; }");
         Assert.That(result, Is.EqualTo(100));
     }
@@ -308,12 +308,10 @@ public class LoopIterationLimitTests(CompilationMode mode)
         Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0204));
     }
     [Test]
-    public void DefaultLimit_IsApplied()
+    public void DefaultLimit_IsNull()
     {
-        Assert.That(ExecutionConstraints.DefaultMaxLoopIterations, Is.EqualTo(1_000_000));
-
         var constraints = new ExecutionConstraints();
-        Assert.That(constraints.MaxLoopIterations, Is.EqualTo(1_000_000));
+        Assert.That(constraints.MaxLoopIterations, Is.Null);
     }
     [Test]
     public void LoopLimit_IndependentOfStatementLimit()

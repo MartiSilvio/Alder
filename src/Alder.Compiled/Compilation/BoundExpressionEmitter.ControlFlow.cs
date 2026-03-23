@@ -71,8 +71,8 @@ internal sealed partial class BoundExpressionEmitter
             {
                 LinqExpression.Call(
                     CheckExecutionConstraintsMethod,
-                    LinqExpression.Call(_contextParam, GetConstraintStateProperty),
-                    LinqExpression.Property(_optionsParam, nameof(AlderOptions.Constraints)),
+                    _constraintStateParam,
+                    LinqExpression.Property(_configParam, nameof(AlderConfig.Constraints)),
                     _ctParam),
                 LinqExpression.Assign(resultVar, EmitHelpers.AsObject(Emit(statements[i]))),
                 LinqExpression.IfThen(
@@ -300,9 +300,13 @@ internal sealed partial class BoundExpressionEmitter
             {
                 LinqExpression.Call(
                     CheckExecutionConstraintsMethod,
-                    LinqExpression.Call(_contextParam, GetConstraintStateProperty),
-                    LinqExpression.Property(_optionsParam, nameof(AlderOptions.Constraints)),
+                    _constraintStateParam,
+                    LinqExpression.Property(_configParam, nameof(AlderConfig.Constraints)),
                     _ctParam),
+                LinqExpression.Call(
+                    CheckLoopIterationConstraintMethod,
+                    _constraintStateParam,
+                    LinqExpression.Property(_configParam, nameof(AlderConfig.Constraints))),
                 LinqExpression.IfThen(
                     LinqExpression.Not(LinqExpression.Call(enumeratorVar, MoveNextMethod)),
                     LinqExpression.Break(loopBreakLabel, resultVar)),
@@ -544,7 +548,7 @@ internal sealed partial class BoundExpressionEmitter
                 LinqExpression.Constant(catchClause.VariableName, typeof(string)),
                 LinqExpression.Convert(exParam, typeof(object)),
                 _contextParam,
-                _optionsParam,
+                _configParam,
                 _ctParam);
         }
 
@@ -574,7 +578,7 @@ internal sealed partial class BoundExpressionEmitter
                 valueVar,
                 LinqExpression.Constant(arm.Pattern, typeof(Pattern)),
                 _contextParam,
-                _optionsParam,
+                _configParam,
                 _ctParam);
 
             if (arm.WhenGuard != null)
@@ -729,7 +733,7 @@ internal sealed partial class BoundExpressionEmitter
             valueVar,
             LinqExpression.Constant(switchCase.CasePattern!, typeof(Pattern)),
             _contextParam,
-            _optionsParam,
+            _configParam,
             _ctParam);
 
         if (switchCase.WhenGuard == null)
@@ -847,9 +851,13 @@ internal sealed partial class BoundExpressionEmitter
     {
         body.Add(LinqExpression.Call(
             CheckExecutionConstraintsMethod,
-            LinqExpression.Call(_contextParam, GetConstraintStateProperty),
-            LinqExpression.Property(_optionsParam, nameof(AlderOptions.Constraints)),
+            _constraintStateParam,
+            LinqExpression.Property(_configParam, nameof(AlderConfig.Constraints)),
             _ctParam));
+        body.Add(LinqExpression.Call(
+            CheckLoopIterationConstraintMethod,
+            _constraintStateParam,
+            LinqExpression.Property(_configParam, nameof(AlderConfig.Constraints))));
         body.Add(LinqExpression.Assign(resultVar, EmitHelpers.AsObject(EmitScopedStatements(statements, includeConstraintChecks: false))));
         body.Add(BuildLoopSignalDispatch(resultVar, signalVar, breakLabel, continueLabel));
         if (!hasConditionCheck)
@@ -957,7 +965,7 @@ internal sealed partial class BoundExpressionEmitter
                 variables[i],
                 nextValue,
                 LinqExpression.Constant(chainedComparison.Operators[i]),
-                _optionsParam);
+                LinqExpression.Property(_configParam, nameof(AlderConfig.StringComparison)));
 
             body.Add(LinqExpression.IfThen(
                 LinqExpression.Not(comparison),
@@ -1015,8 +1023,8 @@ internal sealed partial class BoundExpressionEmitter
             {
                 body.Add(LinqExpression.Call(
                     CheckExecutionConstraintsMethod,
-                    LinqExpression.Call(_contextParam, GetConstraintStateProperty),
-                    LinqExpression.Property(_optionsParam, nameof(AlderOptions.Constraints)),
+                    _constraintStateParam,
+                    LinqExpression.Property(_configParam, nameof(AlderConfig.Constraints)),
                     _ctParam));
             }
             body.Add(LinqExpression.Assign(resultVar, EmitHelpers.AsObject(Emit(statements[i]))));
@@ -1083,15 +1091,13 @@ internal sealed partial class BoundExpressionEmitter
                 target,
                 start,
                 end,
-                EmitHelpers.AsObject(Emit(slice.Step)),
-                _optionsParam);
+                EmitHelpers.AsObject(Emit(slice.Step)));
         }
 
         return LinqExpression.Call(
             GetSliceMethod,
             target,
             start,
-            end,
-            _optionsParam);
+            end);
     }
 }

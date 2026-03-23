@@ -4,7 +4,7 @@ internal static class AstDepthValidator
 {
     public static void EnsureWithinLimit(Expr root, int maxDepth)
     {
-        var validator = new Walker(maxDepth > 0 ? maxDepth : ExecutionConstraints.DefaultMaxExpressionDepth);
+        var validator = new Walker(maxDepth);
         try
         {
             validator.Validate(root);

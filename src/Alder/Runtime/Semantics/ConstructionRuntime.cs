@@ -8,7 +8,7 @@ internal static class ConstructionRuntime
 {
     private static readonly ConcurrentDictionary<Type, Action<object, object?>> _addInvokerCache = new();
 
-    public static object? InvokeConstructor(Type type, object?[] args, AlderConfig config, AlderOptions? options = null)
+    public static object? InvokeConstructor(Type type, object?[] args, AlderConfig config)
     {
         if (config.AotMetadata is { } aotCtorMeta && aotCtorMeta.TryGetValue(type, out var ctorMetadata))
         {
@@ -166,9 +166,9 @@ internal static class ConstructionRuntime
         return typedArray;
     }
 
-    public static object? ApplyPropertyInitializer(object obj, string propertyName, object? value, AlderOptions options, AlderContext context)
+    public static object? ApplyPropertyInitializer(object obj, string propertyName, object? value, AlderConfig config, AlderContext context)
     {
-        MemberAccess.SetMember(obj, propertyName, value, options, context);
+        MemberAccess.SetMember(obj, propertyName, value, config, context);
         return obj;
     }
 
@@ -207,9 +207,9 @@ internal static class ConstructionRuntime
         return obj;
     }
 
-    public static object? ApplyIndexerInitializer(object obj, object key, object? value, AlderOptions options, AlderContext context)
+    public static object? ApplyIndexerInitializer(object obj, object key, object? value, AlderConfig config, AlderContext context)
     {
-        MemberAccess.SetIndex(obj, key, value, options, context);
+        MemberAccess.SetIndex(obj, key, value, config, context);
         return obj;
     }
 

@@ -31,18 +31,18 @@ internal static class AssignmentRuntime
 
     public static object GetNumericOne(object? value) => value switch
     {
-        int => 1,
-        long => 1L,
-        double => 1.0,
-        float => 1.0f,
-        decimal => 1m,
-        short => 1,
-        byte => 1,
-        sbyte => 1,
-        ushort => 1,
-        uint => 1u,
-        ulong => 1ul,
-        _ => 1
+        int => BoxedConstants.Int32One,
+        long => BoxedConstants.Int64One,
+        double => BoxedConstants.DoubleOne,
+        float => BoxedConstants.FloatOne,
+        decimal => BoxedConstants.DecimalOne,
+        short => BoxedConstants.ShortOne,
+        byte => BoxedConstants.ByteOne,
+        sbyte => BoxedConstants.SByteOne,
+        ushort => BoxedConstants.UInt16One,
+        uint => BoxedConstants.UInt32One,
+        ulong => BoxedConstants.UInt64One,
+        _ => BoxedConstants.Int32One
     };
 
     public static object? ApplyCompoundAssign(
@@ -50,11 +50,11 @@ internal static class AssignmentRuntime
         TokenType compoundOperator,
         object? rightValue,
         AlderContext context,
-        AlderOptions options,
+        AlderConfig config,
         bool isChecked)
     {
         var currentValue = context.Get(name);
-        var result = ApplyBinaryOperator(ResolveCompoundBaseOperator(compoundOperator), currentValue, rightValue, options, context, isChecked);
+        var result = ApplyBinaryOperator(ResolveCompoundBaseOperator(compoundOperator), currentValue, rightValue, config, context, isChecked);
         result = ValidateCompoundAssignment(name, result, rightValue, context);
         context.Set(name, result);
         return result;
@@ -65,13 +65,13 @@ internal static class AssignmentRuntime
         bool isIncrement,
         bool isPrefix,
         AlderContext context,
-        AlderOptions options,
+        AlderConfig config,
         bool isChecked)
     {
         var currentValue = context.Get(name);
         var one = GetNumericOne(currentValue);
         var newValue = isIncrement
-            ? Operators.Add(currentValue, one, options, context, isChecked)
+            ? Operators.Add(currentValue, one, config, context, isChecked)
             : Operators.Subtract(currentValue, one, isChecked);
         newValue = NarrowIncrementResult(name, newValue, context);
         context.Set(name, newValue);
@@ -82,11 +82,11 @@ internal static class AssignmentRuntime
         object? target,
         string memberName,
         object? value,
-        AlderOptions options,
+        AlderConfig config,
         AlderContext context)
     {
         target = ExecutionRuntime.EnsureMemberTargetNotNull(target, memberName);
-        MemberAccess.SetMember(target, memberName, value, options, context);
+        MemberAccess.SetMember(target, memberName, value, config, context);
         return value;
     }
 
@@ -94,11 +94,11 @@ internal static class AssignmentRuntime
         object? target,
         object? index,
         object? value,
-        AlderOptions options,
+        AlderConfig config,
         AlderContext context)
     {
         target = ExecutionRuntime.EnsureIndexTargetNotNull(target);
-        MemberAccess.SetIndex(target, index, value, options, context);
+        MemberAccess.SetIndex(target, index, value, config, context);
         return value;
     }
 
@@ -107,14 +107,14 @@ internal static class AssignmentRuntime
         string memberName,
         TokenType compoundOperator,
         object? rightValue,
-        AlderOptions options,
+        AlderConfig config,
         AlderContext context,
         bool isChecked)
     {
         target = ExecutionRuntime.EnsureMemberTargetNotNull(target, memberName);
-        var currentValue = MemberAccess.GetMember(target, memberName, options, nullSafe: false, context);
-        var result = ApplyBinaryOperator(ResolveCompoundBaseOperator(compoundOperator), currentValue, rightValue, options, context, isChecked);
-        MemberAccess.SetMember(target, memberName, result, options, context);
+        var currentValue = MemberAccess.GetMember(target, memberName, config, nullSafe: false, context);
+        var result = ApplyBinaryOperator(ResolveCompoundBaseOperator(compoundOperator), currentValue, rightValue, config, context, isChecked);
+        MemberAccess.SetMember(target, memberName, result, config, context);
         return result;
     }
 
@@ -123,14 +123,14 @@ internal static class AssignmentRuntime
         object? index,
         TokenType compoundOperator,
         object? rightValue,
-        AlderOptions options,
+        AlderConfig config,
         AlderContext context,
         bool isChecked)
     {
         target = ExecutionRuntime.EnsureIndexTargetNotNull(target);
-        var currentValue = MemberAccess.GetIndex(target, index, options, context);
-        var result = ApplyBinaryOperator(ResolveCompoundBaseOperator(compoundOperator), currentValue, rightValue, options, context, isChecked);
-        MemberAccess.SetIndex(target, index, result, options, context);
+        var currentValue = MemberAccess.GetIndex(target, index, config, context);
+        var result = ApplyBinaryOperator(ResolveCompoundBaseOperator(compoundOperator), currentValue, rightValue, config, context, isChecked);
+        MemberAccess.SetIndex(target, index, result, config, context);
         return result;
     }
 
@@ -138,14 +138,14 @@ internal static class AssignmentRuntime
         object? target,
         string memberName,
         object? value,
-        AlderOptions options,
+        AlderConfig config,
         AlderContext context)
     {
         target = ExecutionRuntime.EnsureMemberTargetNotNull(target, memberName);
-        var currentValue = MemberAccess.GetMember(target, memberName, options, nullSafe: false, context);
+        var currentValue = MemberAccess.GetMember(target, memberName, config, nullSafe: false, context);
         if (currentValue != null)
             return currentValue;
-        MemberAccess.SetMember(target, memberName, value, options, context);
+        MemberAccess.SetMember(target, memberName, value, config, context);
         return value;
     }
 
@@ -153,14 +153,14 @@ internal static class AssignmentRuntime
         object? target,
         object? index,
         object? value,
-        AlderOptions options,
+        AlderConfig config,
         AlderContext context)
     {
         target = ExecutionRuntime.EnsureIndexTargetNotNull(target);
-        var currentValue = MemberAccess.GetIndex(target, index, options, context);
+        var currentValue = MemberAccess.GetIndex(target, index, config, context);
         if (currentValue != null)
             return currentValue;
-        MemberAccess.SetIndex(target, index, value, options, context);
+        MemberAccess.SetIndex(target, index, value, config, context);
         return value;
     }
 
@@ -169,18 +169,18 @@ internal static class AssignmentRuntime
         string memberName,
         bool isIncrement,
         bool isPrefix,
-        AlderOptions options,
+        AlderConfig config,
         AlderContext context,
         bool isChecked)
     {
         target = ExecutionRuntime.EnsureMemberTargetNotNull(target, memberName);
-        var currentValue = MemberAccess.GetMember(target, memberName, options, nullSafe: false, context);
+        var currentValue = MemberAccess.GetMember(target, memberName, config, nullSafe: false, context);
         var one = GetNumericOne(currentValue);
         var newValue = isIncrement
-            ? Operators.Add(currentValue, one, options, context, isChecked)
+            ? Operators.Add(currentValue, one, config, context, isChecked)
             : Operators.Subtract(currentValue, one, isChecked);
         newValue = NarrowToOriginalType(currentValue, newValue);
-        MemberAccess.SetMember(target, memberName, newValue, options, context);
+        MemberAccess.SetMember(target, memberName, newValue, config, context);
         return isPrefix ? newValue : currentValue;
     }
 
@@ -189,18 +189,18 @@ internal static class AssignmentRuntime
         object? index,
         bool isIncrement,
         bool isPrefix,
-        AlderOptions options,
+        AlderConfig config,
         AlderContext context,
         bool isChecked)
     {
         target = ExecutionRuntime.EnsureIndexTargetNotNull(target);
-        var currentValue = MemberAccess.GetIndex(target, index, options, context);
+        var currentValue = MemberAccess.GetIndex(target, index, config, context);
         var one = GetNumericOne(currentValue);
         var newValue = isIncrement
-            ? Operators.Add(currentValue, one, options, context, isChecked)
+            ? Operators.Add(currentValue, one, config, context, isChecked)
             : Operators.Subtract(currentValue, one, isChecked);
         newValue = NarrowToOriginalType(currentValue, newValue);
-        MemberAccess.SetIndex(target, index, newValue, options, context);
+        MemberAccess.SetIndex(target, index, newValue, config, context);
         return isPrefix ? newValue : currentValue;
     }
 
@@ -210,11 +210,11 @@ internal static class AssignmentRuntime
         TokenType compoundOperator,
         object? rightValue,
         Type variableType,
-        AlderOptions options,
+        AlderConfig config,
         AlderContext context,
         bool isChecked)
     {
-        var result = ApplyBinaryOperator(ResolveCompoundBaseOperator(compoundOperator), currentValue, rightValue, options, context, isChecked);
+        var result = ApplyBinaryOperator(ResolveCompoundBaseOperator(compoundOperator), currentValue, rightValue, config, context, isChecked);
         return ValidateCompoundAssignmentLocal(result, rightValue, variableType);
     }
 
@@ -223,13 +223,13 @@ internal static class AssignmentRuntime
         object? currentValue,
         bool isIncrement,
         Type variableType,
-        AlderOptions options,
+        AlderConfig config,
         AlderContext context,
         bool isChecked)
     {
         var one = GetNumericOne(currentValue);
         var newValue = isIncrement
-            ? Operators.Add(currentValue, one, options, context, isChecked)
+            ? Operators.Add(currentValue, one, config, context, isChecked)
             : Operators.Subtract(currentValue, one, isChecked);
         return NarrowToType(newValue!, variableType);
     }
@@ -322,25 +322,25 @@ internal static class AssignmentRuntime
         TokenType operatorType,
         object? left,
         object? right,
-        AlderOptions options,
+        AlderConfig config,
         AlderContext context,
         bool isChecked)
     {
         return operatorType switch
         {
-            TokenType.Plus => Operators.Add(left, right, options, context, isChecked),
+            TokenType.Plus => Operators.Add(left, right, config, context, isChecked),
             TokenType.Minus => Operators.Subtract(left, right, isChecked),
-            TokenType.Star => Operators.Multiply(left, right, options, isChecked),
+            TokenType.Star => Operators.Multiply(left, right, config.LanguageMode, isChecked),
             TokenType.Slash => Operators.Divide(left, right),
             TokenType.Percent => Operators.Modulo(left, right),
             TokenType.EqualEqual => Operators.Equals(left, right),
             TokenType.BangEqual => Operators.NotEquals(left, right),
             TokenType.EqualEqualEqual => Operators.StrictEquals(left, right),
             TokenType.BangEqualEqual => Operators.StrictNotEquals(left, right),
-            TokenType.Less => Operators.LessThan(left, right, options),
-            TokenType.LessEqual => Operators.LessThanOrEqual(left, right, options),
-            TokenType.Greater => Operators.GreaterThan(left, right, options),
-            TokenType.GreaterEqual => Operators.GreaterThanOrEqual(left, right, options),
+            TokenType.Less => Operators.LessThan(left, right, config.StringComparison),
+            TokenType.LessEqual => Operators.LessThanOrEqual(left, right, config.StringComparison),
+            TokenType.Greater => Operators.GreaterThan(left, right, config.StringComparison),
+            TokenType.GreaterEqual => Operators.GreaterThanOrEqual(left, right, config.StringComparison),
             TokenType.Amp => Operators.BitwiseAnd(left, right),
             TokenType.Pipe => Operators.BitwiseOr(left, right),
             TokenType.Caret => Operators.BitwiseXor(left, right),

@@ -33,9 +33,6 @@ internal static class BoundRuntimeMethodCache
     internal static readonly MethodInfo GetConfigProperty =
         typeof(AlderContext).GetProperty(nameof(AlderContext.Config))!.GetGetMethod()!;
 
-    internal static readonly MethodInfo GetConstraintStateProperty =
-        typeof(AlderContext).GetProperty(nameof(AlderContext.ConstraintState), BindingFlags.NonPublic | BindingFlags.Instance)!.GetGetMethod(true)!;
-
     internal static readonly MethodInfo ResolveTypeMethod =
         typeof(TypeResolver).GetMethod(nameof(TypeResolver.ResolveType))!;
 
@@ -45,7 +42,7 @@ internal static class BoundRuntimeMethodCache
     internal static readonly MethodInfo GetIndexMethod =
         typeof(MemberAccess).GetMethod(
             nameof(MemberAccess.GetIndex),
-            [typeof(object), typeof(object), typeof(AlderOptions), typeof(AlderContext)])!;
+            [typeof(object), typeof(object), typeof(AlderConfig), typeof(AlderContext)])!;
 
     internal static readonly MethodInfo SetMemberMethod =
         typeof(MemberAccess).GetMethod(nameof(MemberAccess.SetMember))!;
@@ -53,7 +50,7 @@ internal static class BoundRuntimeMethodCache
     internal static readonly MethodInfo SetIndexMethod =
         typeof(MemberAccess).GetMethod(
             nameof(MemberAccess.SetIndex),
-            [typeof(object), typeof(object), typeof(object), typeof(AlderOptions), typeof(AlderContext)])!;
+            [typeof(object), typeof(object), typeof(object), typeof(AlderConfig), typeof(AlderContext)])!;
 
     internal static readonly MethodInfo NormalizeIndexMethod =
         typeof(MemberAccess).GetMethod(nameof(MemberAccess.NormalizeIndex), [typeof(int), typeof(int), typeof(LanguageMode)])!;
@@ -121,6 +118,9 @@ internal static class BoundRuntimeMethodCache
     internal static readonly MethodInfo CheckExecutionConstraintsMethod =
         typeof(ExecutionRuntime).GetMethod(nameof(ExecutionRuntime.CheckExecutionConstraints))!;
 
+    internal static readonly MethodInfo CheckLoopIterationConstraintMethod =
+        typeof(ExecutionRuntime).GetMethod(nameof(ExecutionRuntime.CheckLoopIterationConstraint))!;
+
     internal static readonly MethodInfo DefineOutVariablesMethod =
         typeof(IdentifierRuntime).GetMethod(nameof(IdentifierRuntime.DefineOutVariables))!;
 
@@ -161,7 +161,7 @@ internal static class BoundRuntimeMethodCache
         typeof(IdentifierRuntime).GetMethod(nameof(IdentifierRuntime.CreateLambdaValue))!;
 
     internal static readonly MethodInfo InvokeConstructorMethod =
-        typeof(ConstructionRuntime).GetMethod(nameof(ConstructionRuntime.InvokeConstructor), [typeof(Type), typeof(object?[]), typeof(AlderConfig), typeof(AlderOptions)])!;
+        typeof(ConstructionRuntime).GetMethod(nameof(ConstructionRuntime.InvokeConstructor), [typeof(Type), typeof(object?[]), typeof(AlderConfig)])!;
 
     internal static readonly MethodInfo CreateTypedArrayFromTypeNameMethod =
         typeof(ConstructionRuntime).GetMethod(nameof(ConstructionRuntime.CreateTypedArray))!;
@@ -262,10 +262,10 @@ internal static class BoundRuntimeMethodCache
         typeof(Diagnostics.DiagnosticDescriptors).GetField(nameof(Diagnostics.DiagnosticDescriptors.SwitchExpressionNonExhaustive))!;
 
     internal static readonly MethodInfo GetSliceMethod =
-        typeof(MemberAccess).GetMethod(nameof(MemberAccess.GetSlice), [typeof(object), typeof(object), typeof(object), typeof(AlderOptions)])!;
+        typeof(MemberAccess).GetMethod(nameof(MemberAccess.GetSlice), [typeof(object), typeof(object), typeof(object)])!;
 
     internal static readonly MethodInfo GetSliceStepMethod =
-        typeof(MemberAccess).GetMethod(nameof(MemberAccess.GetSlice), [typeof(object), typeof(object), typeof(object), typeof(object), typeof(AlderOptions)])!;
+        typeof(MemberAccess).GetMethod(nameof(MemberAccess.GetSlice), [typeof(object), typeof(object), typeof(object), typeof(object)])!;
 
     internal static readonly PropertyInfo StringLengthProperty =
         typeof(string).GetProperty(nameof(string.Length))!;
@@ -292,13 +292,13 @@ internal static class BoundRuntimeMethodCache
         typeof(Operators).GetMethod(nameof(Operators.BitwiseNot), [typeof(object)])!;
 
     internal static readonly MethodInfo AddMethod =
-        typeof(Operators).GetMethod(nameof(Operators.Add), [typeof(object), typeof(object), typeof(AlderOptions), typeof(AlderContext), typeof(bool), typeof(bool)])!;
+        typeof(Operators).GetMethod(nameof(Operators.Add), [typeof(object), typeof(object), typeof(AlderConfig), typeof(AlderContext), typeof(bool), typeof(bool)])!;
 
     internal static readonly MethodInfo SubtractMethod =
         typeof(Operators).GetMethod(nameof(Operators.Subtract), [typeof(object), typeof(object), typeof(bool)])!;
 
     internal static readonly MethodInfo MultiplyMethod =
-        typeof(Operators).GetMethod(nameof(Operators.Multiply), [typeof(object), typeof(object), typeof(AlderOptions), typeof(bool)])!;
+        typeof(Operators).GetMethod(nameof(Operators.Multiply), [typeof(object), typeof(object), typeof(LanguageMode), typeof(bool)])!;
 
     internal static readonly MethodInfo DivideMethod =
         typeof(Operators).GetMethod(nameof(Operators.Divide), [typeof(object), typeof(object)])!;
@@ -319,16 +319,16 @@ internal static class BoundRuntimeMethodCache
         typeof(Operators).GetMethod(nameof(Operators.StrictNotEquals), [typeof(object), typeof(object)])!;
 
     internal static readonly MethodInfo LessThanMethod =
-        typeof(Operators).GetMethod(nameof(Operators.LessThan), [typeof(object), typeof(object), typeof(AlderOptions)])!;
+        typeof(Operators).GetMethod(nameof(Operators.LessThan), [typeof(object), typeof(object), typeof(StringComparison)])!;
 
     internal static readonly MethodInfo LessThanOrEqualMethod =
-        typeof(Operators).GetMethod(nameof(Operators.LessThanOrEqual), [typeof(object), typeof(object), typeof(AlderOptions)])!;
+        typeof(Operators).GetMethod(nameof(Operators.LessThanOrEqual), [typeof(object), typeof(object), typeof(StringComparison)])!;
 
     internal static readonly MethodInfo GreaterThanMethod =
-        typeof(Operators).GetMethod(nameof(Operators.GreaterThan), [typeof(object), typeof(object), typeof(AlderOptions)])!;
+        typeof(Operators).GetMethod(nameof(Operators.GreaterThan), [typeof(object), typeof(object), typeof(StringComparison)])!;
 
     internal static readonly MethodInfo GreaterThanOrEqualMethod =
-        typeof(Operators).GetMethod(nameof(Operators.GreaterThanOrEqual), [typeof(object), typeof(object), typeof(AlderOptions)])!;
+        typeof(Operators).GetMethod(nameof(Operators.GreaterThanOrEqual), [typeof(object), typeof(object), typeof(StringComparison)])!;
 
     internal static readonly MethodInfo BitwiseAndMethod =
         typeof(Operators).GetMethod(nameof(Operators.BitwiseAnd), [typeof(object), typeof(object)])!;
@@ -355,7 +355,7 @@ internal static class BoundRuntimeMethodCache
         typeof(Operators).GetMethod(nameof(Operators.InOperator), [typeof(object), typeof(object)])!;
 
     internal static readonly MethodInfo LikeMethod =
-        typeof(Operators).GetMethod(nameof(Operators.Like), [typeof(object), typeof(object), typeof(AlderOptions)])!;
+        typeof(Operators).GetMethod(nameof(Operators.Like), [typeof(object), typeof(object), typeof(StringComparison)])!;
 
     internal static readonly MethodInfo RegexMatchMethod =
         typeof(Operators).GetMethod(nameof(Operators.RegexMatch), [typeof(object), typeof(object)])!;

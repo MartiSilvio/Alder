@@ -8,9 +8,8 @@ namespace Alder.Runtime.Extensions;
 /// </summary>
 internal static class ObjectMergeOperator
 {
-    internal static object? MergeObjects(object? left, object? right, AlderOptions options, AlderContext? context)
+    internal static object? MergeObjects(object? left, object? right, StringComparer comparer, AlderContext? context)
     {
-        var comparer = options.StringComparer;
         var merged = new Dictionary<string, object?>(comparer);
 
         CopyObjectProperties(left, merged, context);

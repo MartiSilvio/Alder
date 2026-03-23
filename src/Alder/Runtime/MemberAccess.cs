@@ -10,7 +10,7 @@ namespace Alder.Runtime;
 /// </summary>
 internal static class MemberAccess
 {
-    public static object? GetMember(object? obj, string name, AlderOptions options, bool nullSafe, AlderContext context)
+    public static object? GetMember(object? obj, string name, AlderConfig config, bool nullSafe, AlderContext context)
     {
         if (nullSafe && obj == null)
             return null;
@@ -18,8 +18,8 @@ internal static class MemberAccess
         if (obj == null)
             throw new AlderException(DiagnosticDescriptors.NullMemberAccess, "property", name);
 
-        if (options.LanguageMode == LanguageMode.Extended &&
-            DateArithmeticSugar.TryResolveTimeSpanUnit(obj, name, options.IsCaseSensitive, out var timeSpan))
+        if (config.LanguageMode == LanguageMode.Extended &&
+            DateArithmeticSugar.TryResolveTimeSpanUnit(obj, name, config.IsCaseSensitive, out var timeSpan))
         {
             return timeSpan;
         }
@@ -34,7 +34,7 @@ internal static class MemberAccess
             var resolvedType = context.TypeResolver.TryResolveType(accumulated);
             if (resolvedType != null)
             {
-                if (!options.Security.IsTrusted && !options.Security.IsTypeAllowed(resolvedType))
+                if (!config.Security.IsTrusted && !config.Security.IsTypeAllowed(resolvedType))
                     throw new AlderException(DiagnosticDescriptors.SandboxTypeBlocked, resolvedType.Name);
                 return resolvedType;
             }
@@ -60,7 +60,7 @@ internal static class MemberAccess
 
             var staticTypeCache = context.TypeMetadata;
             var staticBindingFlags = BindingFlags.Public | BindingFlags.Static;
-            if (!options.IsCaseSensitive)
+            if (!config.IsCaseSensitive)
                 staticBindingFlags |= BindingFlags.IgnoreCase;
 
             var staticProp = staticTypeCache.GetProperty(staticType, name, staticBindingFlags);
@@ -117,7 +117,7 @@ internal static class MemberAccess
                 return TypeHelpers.GuardReflectionLeak(value, $"property {name}");
             case IDictionary<string, object?> dict:
             {
-                if (!options.IsCaseSensitive)
+                if (!config.IsCaseSensitive)
                 {
                     foreach (var key in dict.Keys)
                     {
@@ -150,7 +150,7 @@ internal static class MemberAccess
         }
 
         var bindingFlags = BindingFlags.Public | BindingFlags.Instance;
-        if (!options.IsCaseSensitive)
+        if (!config.IsCaseSensitive)
             bindingFlags |= BindingFlags.IgnoreCase;
 
         var typeMetadata = context.TypeMetadata;
@@ -165,7 +165,7 @@ internal static class MemberAccess
         return new MethodRef(obj, name);
     }
 
-    public static object? GetIndex(object? obj, object? index, AlderOptions options, AlderContext context)
+    public static object? GetIndex(object? obj, object? index, AlderConfig config, AlderContext context)
     {
         // Unwrap InclusiveRange to raw Range for indexing (inclusive-end only matters for iteration)
         if (index is InclusiveRange inclusive)
@@ -182,7 +182,7 @@ internal static class MemberAccess
                 _ => -1
             };
             if (length >= 0)
-                return GetIndex(obj, (object)sysIndex.GetOffset(length), options, context);
+                return GetIndex(obj, (object)sysIndex.GetOffset(length), config, context);
         }
 
         // §12.8.11: System.Range support — slice arrays/strings
@@ -215,12 +215,12 @@ internal static class MemberAccess
             }
             case string s when index != null:
             {
-                var i = NormalizeIndex(Convert.ToInt32(index), s.Length, options.LanguageMode);
+                var i = NormalizeIndex(Convert.ToInt32(index), s.Length, config.LanguageMode);
                 return (object)s[i];
             }
             case IList list when index != null:
             {
-                var idx = NormalizeIndex(Convert.ToInt32(index), list.Count, options.LanguageMode);
+                var idx = NormalizeIndex(Convert.ToInt32(index), list.Count, config.LanguageMode);
                 return TypeHelpers.GuardReflectionLeak(list[idx], $"index [{idx}]");
             }
         }
@@ -245,8 +245,7 @@ internal static class MemberAccess
                 TypeHelpers.GuardReflectionLeak(val, "indexer access");
                 return val;
             }
-            catch (AlderException) { throw; }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not AlderException)
             {
                 throw new AlderException(DiagnosticDescriptors.IndexerAccessFailed, ex.Message);
             }
@@ -255,12 +254,12 @@ internal static class MemberAccess
         throw new AlderException(DiagnosticDescriptors.BadIndexerAccess, type.Name);
     }
 
-    public static void SetMember(object? obj, string name, object? value, AlderOptions options, AlderContext context)
+    public static void SetMember(object? obj, string name, object? value, AlderConfig config, AlderContext context)
     {
         if (obj == null)
             throw new AlderException(DiagnosticDescriptors.NullPropertyAssignment, name);
 
-        var caseInsensitive = !options.IsCaseSensitive;
+        var caseInsensitive = !config.IsCaseSensitive;
 
         if (obj is IDictionary<string, object?> dict)
         {
@@ -315,7 +314,7 @@ internal static class MemberAccess
         throw new AlderException(DiagnosticDescriptors.MemberNotFound, type.Name, name);
     }
 
-    public static void SetIndex(object? obj, object? index, object? value, AlderOptions options, AlderContext context)
+    public static void SetIndex(object? obj, object? index, object? value, AlderConfig config, AlderContext context)
     {
         if (obj == null)
             throw new AlderException(DiagnosticDescriptors.BadIndexerAccess, TypeNameFormatter.Null);
@@ -328,7 +327,7 @@ internal static class MemberAccess
 
         if (obj is IList list && index != null)
         {
-            var idx = NormalizeIndex(Convert.ToInt32(index), list.Count, options.LanguageMode);
+            var idx = NormalizeIndex(Convert.ToInt32(index), list.Count, config.LanguageMode);
             // Coerce value to the array's element type to avoid ArrayTypeMismatchException
             if (obj is Array arr && value != null)
             {
@@ -359,7 +358,6 @@ internal static class MemberAccess
                 indexer.SetValue(obj, value, [safeIndex]);
                 return;
             }
-            catch (AlderException) { throw; }
             catch (Exception ex) when (ex is TargetInvocationException or InvalidCastException or ArgumentException)
             {
                 throw new AlderException(DiagnosticDescriptors.BadIndexerAccess, type.Name);
@@ -389,8 +387,8 @@ internal static class MemberAccess
     /// Out-of-bounds indices are clamped (Python behavior).
     /// Returns same type as input: T[] -> T[], List&lt;T&gt; -> List&lt;T&gt;, string -> string.
     /// </summary>
-    public static object? GetSlice(object? obj, object? start, object? end, AlderOptions options)
-        => GetSlice(obj, start, end, null, options);
+    public static object? GetSlice(object? obj, object? start, object? end)
+        => GetSlice(obj, start, end, (object?)null);
 
     /// <summary>
     /// Python-style slice with step: obj[start:end:step].
@@ -398,7 +396,7 @@ internal static class MemberAccess
     /// Positive step iterates forward, negative step iterates backward.
     /// Step of zero throws an error.
     /// </summary>
-    public static object? GetSlice(object? obj, object? start, object? end, object? step, AlderOptions options)
+    public static object? GetSlice(object? obj, object? start, object? end, object? step)
     {
         if (obj == null)
             throw new AlderException(DiagnosticDescriptors.SliceNull);

@@ -268,8 +268,10 @@ public sealed class ConstantFoldingTests
             TokenType.Plus,
             new BoundLiteralExpr(1, typeof(int)),
             new BoundLiteralExpr(2, typeof(int)),
-            typeof(int));
-        tree.Span = new Text.TextSpan(5, 10);
+            typeof(int))
+        {
+            Span = new Text.TextSpan(5, 10)
+        };
 
         var result = _pass.Rewrite(tree);
 

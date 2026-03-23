@@ -9,21 +9,18 @@ namespace Alder;
 
 public sealed partial class AlderEngine
 {
-    private sealed record CompiledNoCancellationFastPath(
-        AlderExpression Expression,
-        CompiledExpressionFastDelegate Delegate,
-        AlderContext Context);
-
-    private volatile CompiledNoCancellationFastPath? _compiledNoCancellationFastPath;
 
     /// <summary>
-    /// Attempts to compile the expression to IL. Returns true if successful.
-    /// Requires a compiler to be configured via UseCompiler() on options.
+    /// Attempts to compile the expression to IL. Returns <c>true</c> if successful.
+    /// Requires a compiler to be configured via <c>UseCompiler()</c> on options.
     /// </summary>
+    /// <param name="expression">The parsed expression to compile.</param>
+    /// <returns><c>true</c> if compilation succeeded; <c>false</c> if no compiler is configured or compilation fails.</returns>
+    /// <exception cref="ObjectDisposedException">The engine has been disposed.</exception>
     public bool TryCompile(AlderExpression expression)
     {
         ThrowIfDisposed();
-        if (_options.Compiler == null)
+        if (_config.Compiler == null)
             return false;
 
         if (expression.CompiledInfo != null)
@@ -36,6 +33,9 @@ public sealed partial class AlderEngine
     /// <summary>
     /// Compiles the expression to IL. Throws if compilation fails or no compiler is configured.
     /// </summary>
+    /// <param name="expression">The parsed expression to compile.</param>
+    /// <exception cref="ObjectDisposedException">The engine has been disposed.</exception>
+    /// <exception cref="AlderException">Compilation fails or no compiler is configured.</exception>
     public void Compile(AlderExpression expression)
     {
         ThrowIfDisposed();
@@ -50,7 +50,7 @@ public sealed partial class AlderEngine
 
     private bool TryCompileInternal(AlderExpression expression, AlderContext context)
     {
-        var compiler = _options.Compiler!;
+        var compiler = _config.Compiler!;
 
         var existing = expression.CompiledInfo;
         if (existing != null)
@@ -62,7 +62,7 @@ public sealed partial class AlderEngine
             if (existing != null)
                 return existing.Delegate != null;
 
-            if (!expression.TryGetOrCreateBoundExpression(context, _options.MaxExpressionDepth, out var bound, out var failureReason) ||
+            if (!expression.TryGetOrCreateBoundExpression(context, _config.Constraints.MaxExpressionDepth, out var bound, out var failureReason) ||
                 bound == null)
             {
                 expression.CompiledInfo = new CompiledExpressionInfo(null, false, failureReason ?? "Binding failed for expression.");
@@ -70,7 +70,7 @@ public sealed partial class AlderEngine
             }
 
             bound = RunCompilationPipeline(bound);
-            expression.CompiledInfo = compiler.TryCompile(bound, _options);
+            expression.CompiledInfo = compiler.TryCompile(bound, _config);
             return expression.CompiledInfo.Delegate != null;
         }
     }
@@ -81,7 +81,7 @@ public sealed partial class AlderEngine
     /// </summary>
     internal bool TryCompileFromAst(AlderExpression expression)
     {
-        var compiler = _options.Compiler;
+        var compiler = _config.Compiler;
         if (compiler == null)
             return false;
 
@@ -89,71 +89,17 @@ public sealed partial class AlderEngine
             return expression.CompiledInfo.Delegate != null;
 
         expression.CompiledInfo = expression._expressionCache != null
-            ? compiler.GetOrCompile(expression.Source, expression.Ast, expression._expressionCache, _options)
-            : compiler.TryCompile(expression.Ast, _options);
+            ? compiler.GetOrCompile(expression.Source, expression.Ast, expression._expressionCache, _config)
+            : compiler.TryCompile(expression.Ast, _config);
         return expression.CompiledInfo.Delegate != null;
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private bool TryEvaluateCompiledNoCancellationCached(AlderExpression expression, out object? result)
-    {
-        var cached = _compiledNoCancellationFastPath;
-        if (cached != null && ReferenceEquals(cached.Expression, expression))
-        {
-            try
-            {
-                result = cached.Delegate(cached.Context);
-                return true;
-            }
-            catch (AlderException ex) when (ex.Span.IsEmpty && !expression.Ast.Span.IsEmpty)
-            {
-                EnrichCompiledExceptionDiagnostics(ex, expression);
-                throw;
-            }
-        }
-
-        result = null;
-        return false;
-    }
-
-    private bool TryGetCompiledNoCancellationFastDelegate(
-        AlderExpression expression,
-        AlderContext context,
-        [NotNullWhen(true)] out CompiledExpressionFastDelegate? fastDelegate)
-    {
-        var compiled = expression.GetCompiledInfo();
-        if (compiled == null)
-        {
-            TryCompileInternal(expression, context);
-            compiled = expression.GetCompiledInfo();
-        }
-
-        if (compiled?.FastDelegate is { } candidate &&
-            ReferenceEquals(compiled.FastDelegateOptions, _options))
-        {
-            fastDelegate = candidate;
-            return true;
-        }
-
-        fastDelegate = null;
-        return false;
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void CacheCompiledNoCancellationFastPath(
-        AlderExpression expression,
-        CompiledExpressionFastDelegate fastDelegate,
-        AlderContext context)
-    {
-        _compiledNoCancellationFastPath = new CompiledNoCancellationFastPath(expression, fastDelegate, context);
     }
 
     private object? ExecuteCompiledExpression(
         AlderExpression expression,
         AlderContext compileContext,
         AlderContext executionContext,
-        CancellationToken cancellationToken,
-        bool allowNoCancellationFastPath)
+        ExecutionConstraintState constraintState,
+        CancellationToken cancellationToken)
     {
         var compiled = expression.GetCompiledInfo();
         if (compiled == null)
@@ -166,18 +112,7 @@ public sealed partial class AlderEngine
         {
             try
             {
-                if (allowNoCancellationFastPath)
-                {
-                    if (compiled.FastDelegate is { } fastDelegate &&
-                        ReferenceEquals(compiled.FastDelegateOptions, _options))
-                    {
-                        return fastDelegate(executionContext);
-                    }
-
-                    return compiled.Delegate(executionContext, _options, default);
-                }
-
-                return compiled.Delegate(executionContext, _options, cancellationToken);
+                return compiled.Delegate(executionContext, _config, constraintState, cancellationToken);
             }
             catch (AlderException ex) when (ex.Span.IsEmpty && !expression.Ast.Span.IsEmpty)
             {
@@ -211,7 +146,6 @@ public sealed partial class AlderEngine
             _engine = engine;
         }
 
-        internal AlderOptions Options => _engine._options;
         internal AlderConfig Config => _engine._config;
         internal AlderContext GetOrCreateContext() => _engine.GetOrCreateContext();
         internal Dictionary<string, object?> CollectEngineVariables() => _engine.CollectEngineVariables();

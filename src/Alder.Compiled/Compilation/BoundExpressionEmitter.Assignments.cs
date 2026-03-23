@@ -162,7 +162,7 @@ internal sealed partial class BoundExpressionEmitter
                         LinqExpression.Constant(compoundAssign.Operator),
                         EmitHelpers.AsObject(Emit(compoundAssign.Value)),
                         LinqExpression.Constant(promoted.VariableType, typeof(Type)),
-                        _optionsParam,
+                        _configParam,
                         _contextParam,
                         LinqExpression.Constant(_isChecked))),
                 LinqExpression.Assign(promoted.Variable, resultVar),
@@ -175,7 +175,7 @@ internal sealed partial class BoundExpressionEmitter
             LinqExpression.Constant(compoundAssign.Operator),
             EmitHelpers.AsObject(Emit(compoundAssign.Value)),
             _contextParam,
-            _optionsParam,
+            _configParam,
             LinqExpression.Constant(_isChecked));
     }
 
@@ -201,7 +201,7 @@ internal sealed partial class BoundExpressionEmitter
                         promoted.Variable,
                         LinqExpression.Constant(isIncrement),
                         LinqExpression.Constant(promoted.VariableType, typeof(Type)),
-                        _optionsParam,
+                        _configParam,
                         _contextParam,
                         LinqExpression.Constant(_isChecked))),
                 LinqExpression.Assign(promoted.Variable, newVar),
@@ -214,7 +214,7 @@ internal sealed partial class BoundExpressionEmitter
             LinqExpression.Constant(incrementDecrement.Operator == TokenType.PlusPlus),
             LinqExpression.Constant(incrementDecrement.IsPrefix),
             _contextParam,
-            _optionsParam,
+            _configParam,
             LinqExpression.Constant(_isChecked));
     }
 
@@ -237,7 +237,7 @@ internal sealed partial class BoundExpressionEmitter
             EmitHelpers.AsObject(Emit(memberAssign.Target)),
             LinqExpression.Constant(memberAssign.MemberName),
             EmitHelpers.AsObject(Emit(memberAssign.Value)),
-            _optionsParam,
+            _configParam,
             _contextParam);
     }
 
@@ -293,7 +293,7 @@ internal sealed partial class BoundExpressionEmitter
             EmitHelpers.AsObject(Emit(indexAssign.Target)),
             EmitHelpers.AsObject(Emit(indexAssign.Index)),
             EmitHelpers.AsObject(Emit(indexAssign.Value)),
-            _optionsParam,
+            _configParam,
             _contextParam);
     }
 
@@ -321,7 +321,7 @@ internal sealed partial class BoundExpressionEmitter
             var rawIndex = LinqExpression.Call(ConvertToInt32ObjectMethod, indexObjVar);
             normalizedIndex = LinqExpression.Call(NormalizeIndexMethod, rawIndex,
                 LinqExpression.ArrayLength(typedTarget),
-                LinqExpression.Property(_optionsParam, nameof(AlderOptions.LanguageMode)));
+                LinqExpression.Property(_configParam, nameof(AlderConfig.LanguageMode)));
             var accessExpr = LinqExpression.ArrayAccess(typedTarget, normalizedIndex);
 
             assignExpr = LinqExpression.Assign(accessExpr, LinqExpression.Convert(valueVar, elementType));
@@ -333,7 +333,7 @@ internal sealed partial class BoundExpressionEmitter
             var rawIndex = LinqExpression.Call(ConvertToInt32ObjectMethod, indexObjVar);
             normalizedIndex = LinqExpression.Call(NormalizeIndexMethod, rawIndex,
                 LinqExpression.Property(typedTarget, countProp),
-                LinqExpression.Property(_optionsParam, nameof(AlderOptions.LanguageMode)));
+                LinqExpression.Property(_configParam, nameof(AlderConfig.LanguageMode)));
             assignExpr = LinqExpression.Assign(
                 LinqExpression.Property(typedTarget, indexer, normalizedIndex),
                 LinqExpression.Convert(valueVar, indexer.PropertyType));
@@ -346,7 +346,7 @@ internal sealed partial class BoundExpressionEmitter
                 ICollectionCountProperty);
             var rawIndex = LinqExpression.Call(ConvertToInt32ObjectMethod, indexObjVar);
             normalizedIndex = LinqExpression.Call(NormalizeIndexMethod, rawIndex, countExpr,
-                LinqExpression.Property(_optionsParam, nameof(AlderOptions.LanguageMode)));
+                LinqExpression.Property(_configParam, nameof(AlderConfig.LanguageMode)));
             assignExpr = LinqExpression.Assign(
                 LinqExpression.Property(typedTarget, IListIndexerProperty, normalizedIndex),
                 valueVar);
@@ -390,7 +390,7 @@ internal sealed partial class BoundExpressionEmitter
             LinqExpression.Constant(memberCompoundAssign.MemberName),
             LinqExpression.Constant(memberCompoundAssign.Operator),
             EmitHelpers.AsObject(Emit(memberCompoundAssign.Value)),
-            _optionsParam,
+            _configParam,
             _contextParam,
             LinqExpression.Constant(_isChecked));
     }
@@ -464,7 +464,7 @@ internal sealed partial class BoundExpressionEmitter
             EmitHelpers.AsObject(Emit(indexCompoundAssign.Index)),
             LinqExpression.Constant(indexCompoundAssign.Operator),
             EmitHelpers.AsObject(Emit(indexCompoundAssign.Value)),
-            _optionsParam,
+            _configParam,
             _contextParam,
             LinqExpression.Constant(_isChecked));
     }
@@ -509,7 +509,7 @@ internal sealed partial class BoundExpressionEmitter
             normalizeExpr = LinqExpression.Call(NormalizeIndexMethod,
                 LinqExpression.Call(ConvertToInt32ObjectMethod, indexObjVar),
                 LinqExpression.ArrayLength(typedTarget),
-                LinqExpression.Property(_optionsParam, nameof(AlderOptions.LanguageMode)));
+                LinqExpression.Property(_configParam, nameof(AlderConfig.LanguageMode)));
             var accessExpr = LinqExpression.ArrayAccess(typedTarget, normalizedIdx);
             readExpr = accessExpr;
             writeExpr = LinqExpression.Assign(accessExpr, binaryExpr);
@@ -521,7 +521,7 @@ internal sealed partial class BoundExpressionEmitter
             normalizeExpr = LinqExpression.Call(NormalizeIndexMethod,
                 LinqExpression.Call(ConvertToInt32ObjectMethod, indexObjVar),
                 LinqExpression.Property(typedTarget, countProp),
-                LinqExpression.Property(_optionsParam, nameof(AlderOptions.LanguageMode)));
+                LinqExpression.Property(_configParam, nameof(AlderConfig.LanguageMode)));
             var propAccess = LinqExpression.Property(typedTarget, indexer, normalizedIdx);
             readExpr = LinqExpression.Convert(propAccess, plan.ResultType);
             writeExpr = LinqExpression.Assign(propAccess, LinqExpression.Convert(binaryExpr, indexer.PropertyType));
@@ -534,7 +534,7 @@ internal sealed partial class BoundExpressionEmitter
                 ICollectionCountProperty);
             normalizeExpr = LinqExpression.Call(NormalizeIndexMethod,
                 LinqExpression.Call(ConvertToInt32ObjectMethod, indexObjVar), countExpr,
-                LinqExpression.Property(_optionsParam, nameof(AlderOptions.LanguageMode)));
+                LinqExpression.Property(_configParam, nameof(AlderConfig.LanguageMode)));
             var propAccess = LinqExpression.Property(typedTarget, IListIndexerProperty, normalizedIdx);
             readExpr = LinqExpression.Unbox(propAccess, plan.ResultType);
             writeExpr = LinqExpression.Assign(propAccess, LinqExpression.Convert(binaryExpr, typeof(object)));
@@ -567,14 +567,14 @@ internal sealed partial class BoundExpressionEmitter
                 EmitHelpers.AsObject(Emit(memberNullCoalesceAssign.Target)),
                 memberName)),
             LinqExpression.Assign(currentVar, LinqExpression.Call(
-                GetMemberMethod, targetVar, memberName, _optionsParam,
+                GetMemberMethod, targetVar, memberName, _configParam,
                 LinqExpression.Constant(false), _contextParam)),
             LinqExpression.IfThenElse(
                 LinqExpression.NotEqual(currentVar, LinqExpression.Constant(null, typeof(object))),
                 LinqExpression.Assign(resultVar, currentVar),
                 LinqExpression.Block(
                     LinqExpression.Assign(resultVar, EmitHelpers.AsObject(Emit(memberNullCoalesceAssign.Value))),
-                    LinqExpression.Call(SetMemberMethod, targetVar, memberName, resultVar, _optionsParam, _contextParam))),
+                    LinqExpression.Call(SetMemberMethod, targetVar, memberName, resultVar, _configParam, _contextParam))),
             resultVar);
     }
 
@@ -593,13 +593,13 @@ internal sealed partial class BoundExpressionEmitter
                 EmitHelpers.AsObject(Emit(indexNullCoalesceAssign.Target)))),
             LinqExpression.Assign(indexVar, EmitHelpers.AsObject(Emit(indexNullCoalesceAssign.Index))),
             LinqExpression.Assign(currentVar, LinqExpression.Call(
-                GetIndexMethod, targetVar, indexVar, _optionsParam, _contextParam)),
+                GetIndexMethod, targetVar, indexVar, _configParam, _contextParam)),
             LinqExpression.IfThenElse(
                 LinqExpression.NotEqual(currentVar, LinqExpression.Constant(null, typeof(object))),
                 LinqExpression.Assign(resultVar, currentVar),
                 LinqExpression.Block(
                     LinqExpression.Assign(resultVar, EmitHelpers.AsObject(Emit(indexNullCoalesceAssign.Value))),
-                    LinqExpression.Call(SetIndexMethod, targetVar, indexVar, resultVar, _optionsParam, _contextParam))),
+                    LinqExpression.Call(SetIndexMethod, targetVar, indexVar, resultVar, _configParam, _contextParam))),
             resultVar);
     }
 
@@ -620,7 +620,7 @@ internal sealed partial class BoundExpressionEmitter
             LinqExpression.Constant(memberIncrement.MemberName),
             LinqExpression.Constant(memberIncrement.IsIncrement),
             LinqExpression.Constant(memberIncrement.IsPrefix),
-            _optionsParam,
+            _configParam,
             _contextParam,
             LinqExpression.Constant(_isChecked));
     }
@@ -667,7 +667,7 @@ internal sealed partial class BoundExpressionEmitter
             EmitHelpers.AsObject(Emit(indexIncrement.Index)),
             LinqExpression.Constant(indexIncrement.IsIncrement),
             LinqExpression.Constant(indexIncrement.IsPrefix),
-            _optionsParam,
+            _configParam,
             _contextParam,
             LinqExpression.Constant(_isChecked));
     }
@@ -695,7 +695,7 @@ internal sealed partial class BoundExpressionEmitter
             normalizeExpr = LinqExpression.Call(NormalizeIndexMethod,
                 LinqExpression.Call(ConvertToInt32ObjectMethod, indexObjVar),
                 LinqExpression.ArrayLength(typedTarget),
-                LinqExpression.Property(_optionsParam, nameof(AlderOptions.LanguageMode)));
+                LinqExpression.Property(_configParam, nameof(AlderConfig.LanguageMode)));
             var accessExpr = LinqExpression.ArrayAccess(typedTarget, normalizedIdx);
             readExpr = accessExpr;
             writeExpr = LinqExpression.Assign(accessExpr, newValue);
@@ -707,7 +707,7 @@ internal sealed partial class BoundExpressionEmitter
             normalizeExpr = LinqExpression.Call(NormalizeIndexMethod,
                 LinqExpression.Call(ConvertToInt32ObjectMethod, indexObjVar),
                 LinqExpression.Property(typedTarget, countProp),
-                LinqExpression.Property(_optionsParam, nameof(AlderOptions.LanguageMode)));
+                LinqExpression.Property(_configParam, nameof(AlderConfig.LanguageMode)));
             var propAccess = LinqExpression.Property(typedTarget, indexer, normalizedIdx);
             readExpr = LinqExpression.Convert(propAccess, plan.ResultType);
             writeExpr = LinqExpression.Assign(propAccess, LinqExpression.Convert(newValue, indexer.PropertyType));
@@ -720,7 +720,7 @@ internal sealed partial class BoundExpressionEmitter
                 ICollectionCountProperty);
             normalizeExpr = LinqExpression.Call(NormalizeIndexMethod,
                 LinqExpression.Call(ConvertToInt32ObjectMethod, indexObjVar), countExpr,
-                LinqExpression.Property(_optionsParam, nameof(AlderOptions.LanguageMode)));
+                LinqExpression.Property(_configParam, nameof(AlderConfig.LanguageMode)));
             var propAccess = LinqExpression.Property(typedTarget, IListIndexerProperty, normalizedIdx);
             readExpr = LinqExpression.Unbox(propAccess, plan.ResultType);
             writeExpr = LinqExpression.Assign(propAccess, LinqExpression.Convert(newValue, typeof(object)));

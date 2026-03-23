@@ -12,21 +12,27 @@ internal sealed class DeadBranchEliminationPass : BoundExprRewriter
 
         if (condVal)
         {
-            var block = new BoundBlockExpr(rewritten.ThenStatements, null, rewritten.StaticType);
-            block.Span = rewritten.Span;
+            var block = new BoundBlockExpr(rewritten.ThenStatements, null, rewritten.StaticType)
+            {
+                Span = rewritten.Span
+            };
             return block;
         }
 
         if (!rewritten.ElseStatements.IsEmpty)
         {
-            var block = new BoundBlockExpr(rewritten.ElseStatements, null, rewritten.StaticType);
-            block.Span = rewritten.Span;
+            var block = new BoundBlockExpr(rewritten.ElseStatements, null, rewritten.StaticType)
+            {
+                Span = rewritten.Span
+            };
             return block;
         }
 
         // false with no else → no-op literal
-        var noop = new BoundLiteralExpr(null, typeof(object));
-        noop.Span = rewritten.Span;
+        var noop = new BoundLiteralExpr(null, typeof(object))
+        {
+            Span = rewritten.Span
+        };
         return noop;
     }
 }

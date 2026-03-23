@@ -117,20 +117,20 @@ internal sealed partial class BoundEvaluator
 
         return binary.Operator switch
         {
-            TokenType.Plus => Operators.Add(left, right, _options, _context, _isChecked,
+            TokenType.Plus => Operators.Add(left, right, _config, _context, _isChecked,
                 isStringContext: binary.Left.StaticType == typeof(string) || binary.Right.StaticType == typeof(string)),
             TokenType.Minus => Operators.Subtract(left, right, _isChecked),
-            TokenType.Star => Operators.Multiply(left, right, _options, _isChecked),
+            TokenType.Star => Operators.Multiply(left, right, _config.LanguageMode, _isChecked),
             TokenType.Slash => Operators.Divide(left, right),
             TokenType.Percent => Operators.Modulo(left, right),
             TokenType.EqualEqual => Operators.Equals(left, right),
             TokenType.BangEqual => Operators.NotEquals(left, right),
             TokenType.EqualEqualEqual => Operators.StrictEquals(left, right),
             TokenType.BangEqualEqual => Operators.StrictNotEquals(left, right),
-            TokenType.Less => Operators.LessThan(left, right, _options),
-            TokenType.LessEqual => Operators.LessThanOrEqual(left, right, _options),
-            TokenType.Greater => Operators.GreaterThan(left, right, _options),
-            TokenType.GreaterEqual => Operators.GreaterThanOrEqual(left, right, _options),
+            TokenType.Less => Operators.LessThan(left, right, _config.StringComparison),
+            TokenType.LessEqual => Operators.LessThanOrEqual(left, right, _config.StringComparison),
+            TokenType.Greater => Operators.GreaterThan(left, right, _config.StringComparison),
+            TokenType.GreaterEqual => Operators.GreaterThanOrEqual(left, right, _config.StringComparison),
             TokenType.Amp => Operators.BitwiseAnd(left, right),
             TokenType.Pipe => Operators.BitwiseOr(left, right),
             TokenType.Caret => Operators.BitwiseXor(left, right),
@@ -139,7 +139,7 @@ internal sealed partial class BoundEvaluator
             TokenType.GreaterGreaterGreater => Operators.UnsignedRightShift(left, right),
             TokenType.StarStar => Operators.Power(left, right),
             TokenType.In => Operators.InOperator(left, right),
-            TokenType.Like => Operators.Like(left, right, _options),
+            TokenType.Like => Operators.Like(left, right, _config.StringComparison),
             TokenType.EqualTilde => Operators.RegexMatch(left, right),
             TokenType.BangTilde => Operators.RegexNotMatch(left, right),
             TokenType.LessEqualGreater => Operators.Spaceship(left, right),
@@ -202,18 +202,18 @@ internal sealed partial class BoundEvaluator
     {
         if (logical.Operator == TokenType.AmpAmp)
         {
-            if (left == false) return false;
+            if (left == false) return BoxedConstants.False;
             var right = Evaluate(logical.Right) as bool?;
             if (left == true) return right;
-            return right == false ? false : null; // null && true = null, null && null = null
+            return right == false ? BoxedConstants.False : null;
         }
 
         if (logical.Operator == TokenType.PipePipe)
         {
-            if (left == true) return true;
+            if (left == true) return BoxedConstants.True;
             var right = Evaluate(logical.Right) as bool?;
             if (left == false) return right;
-            return right == true ? true : null; // null || false = null, null || null = null
+            return right == true ? BoxedConstants.True : null;
         }
 
         throw new BindingNotSupportedException(
@@ -275,15 +275,15 @@ internal sealed partial class BoundEvaluator
                     previousValue,
                     nextValue,
                     chainedComparison.Operators[i],
-                    _options))
+                    _config.StringComparison))
             {
-                return false;
+                return BoxedConstants.False;
             }
 
             previousValue = nextValue;
         }
 
-        return true;
+        return BoxedConstants.True;
     }
 
     private static string GetLogicalExpressionTypeName(BoundExpr expr)

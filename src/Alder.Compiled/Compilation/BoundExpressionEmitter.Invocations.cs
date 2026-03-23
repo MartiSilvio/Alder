@@ -36,7 +36,7 @@ internal sealed partial class BoundExpressionEmitter
             GetMemberMethod,
             target,
             LinqExpression.Constant(memberAccess.MemberName),
-            _optionsParam,
+            _configParam,
             LinqExpression.Constant(memberAccess.NullSafe),
             _contextParam);
     }
@@ -55,7 +55,7 @@ internal sealed partial class BoundExpressionEmitter
                 GetIndexMethod,
                 targetExpr,
                 indexExpr,
-                _optionsParam,
+                _configParam,
                 _contextParam);
         }
 
@@ -67,7 +67,7 @@ internal sealed partial class BoundExpressionEmitter
                 LinqExpression.Condition(
                     LinqExpression.Equal(targetVar, LinqExpression.Constant(null, typeof(object))),
                     LinqExpression.Constant(null, typeof(object)),
-                    LinqExpression.Call(GetIndexMethod, targetVar, indexExpr, _optionsParam, _contextParam)));
+                    LinqExpression.Call(GetIndexMethod, targetVar, indexExpr, _configParam, _contextParam)));
     }
 
     private LinqExpression EmitCall(BoundCallExpr call)
@@ -190,7 +190,7 @@ internal sealed partial class BoundExpressionEmitter
             GetIndexMethod,
             EmitHelpers.AsObject(Emit(indexAccess.Target)),
             EmitHelpers.AsObject(Emit(indexAccess.Index)),
-            _optionsParam,
+            _configParam,
             _contextParam);
     }
 
@@ -284,7 +284,7 @@ internal sealed partial class BoundExpressionEmitter
             return LinqExpression.Constant(literalIndex, typeof(int));
 
         var rawIndex = LinqExpression.Call(ConvertToInt32ObjectMethod, EmitHelpers.AsObject(Emit(indexAccess.Index)));
-        var languageMode = LinqExpression.Property(_optionsParam, nameof(AlderOptions.LanguageMode));
+        var languageMode = LinqExpression.Property(_configParam, nameof(AlderConfig.LanguageMode));
         return LinqExpression.Call(NormalizeIndexMethod, rawIndex, lengthExpression, languageMode);
     }
 
@@ -494,7 +494,7 @@ internal sealed partial class BoundExpressionEmitter
             parameters,
             LinqExpression.Constant(lambda.Body, typeof(Expr)),
             _contextParam,
-            _optionsParam);
+            _configParam);
     }
 
     private LinqExpression EmitPipeline(BoundPipelineExpr pipeline)
@@ -506,7 +506,7 @@ internal sealed partial class BoundExpressionEmitter
                 EmitHelpers.AsObject(Emit(pipeline.Left)),
                 LinqExpression.Constant(rightIdentifier.Name),
                 _contextParam,
-                _optionsParam,
+                _configParam,
                 _ctParam);
         }
 
@@ -515,7 +515,7 @@ internal sealed partial class BoundExpressionEmitter
             EmitHelpers.AsObject(Emit(pipeline.Left)),
             EmitHelpers.AsObject(Emit(pipeline.Right)),
             _contextParam,
-            _optionsParam,
+            _configParam,
             _ctParam);
     }
 
@@ -683,7 +683,7 @@ internal sealed partial class BoundExpressionEmitter
                 LinqExpression.Constant(identifier.Name),
                 argsVar,
                 _contextParam,
-                _optionsParam,
+                _configParam,
                 emittedTypeArguments,
                 _ctParam);
         }
@@ -696,7 +696,7 @@ internal sealed partial class BoundExpressionEmitter
                 argsVar,
                 LinqExpression.Constant(memberAccess.NullSafe),
                 _contextParam,
-                _optionsParam,
+                _configParam,
                 emittedTypeArguments,
                 _ctParam);
         }
@@ -707,7 +707,7 @@ internal sealed partial class BoundExpressionEmitter
                 EmitHelpers.AsObject(Emit(callee)),
                 argsVar,
                 _contextParam,
-                _optionsParam,
+                _configParam,
                 emittedTypeArguments,
                 _ctParam);
         }

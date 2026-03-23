@@ -18,7 +18,7 @@ internal static class PipelineOperator
         object? leftValue,
         object? rightCallable,
         AlderContext context,
-        AlderOptions options,
+        AlderConfig config,
         CancellationToken ct)
     {
         if (rightCallable is null)
@@ -39,7 +39,7 @@ internal static class PipelineOperator
                 rightCallable.GetType().Name);
 
         var args = new object?[] { leftValue };
-        return MethodInvoker.InvokeCall(rightCallable, args, context, options, ct: ct);
+        return MethodInvoker.InvokeCall(rightCallable, args, context, config, ct: ct);
     }
 
     private static bool IsCallable(object value) => value is

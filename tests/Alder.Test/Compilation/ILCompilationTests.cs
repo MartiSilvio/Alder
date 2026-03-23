@@ -335,9 +335,9 @@ public class ILCompilationTests
     // Statement Limit
 
     [Test]
-    public void ILCompile_RespectsStatementLimit()
+    public void ILCompile_RespectsIterationLimit()
     {
-        var options = (new AlderOptions { Constraints = new ExecutionConstraints { MaxStatements = 100 } }).UseCompiler();
+        var options = (new AlderOptions { Constraints = new ExecutionConstraints { MaxLoopIterations = 100 } }).UseCompiler();
         var engine = new AlderEngine(options);
         var expr = engine.Parse("{ var i = 0; while (true) { i = i + 1; } return i; }");
 
@@ -358,7 +358,7 @@ public class ILCompilationTests
         Assert.That(engine.TryCompile(expr), Is.True);
 
         using var cts = new CancellationTokenSource();
-        cts.CancelAfter(50); // Cancel after 50ms
+        cts.CancelAfter(50);
 
         Assert.Throws<OperationCanceledException>(() =>
             engine.Evaluate(expr, cancellationToken: cts.Token));

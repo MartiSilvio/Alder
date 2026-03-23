@@ -17,11 +17,12 @@ internal sealed class AlderContext
     private readonly ConcurrentDictionary<string, object?>? _concurrentVariables;
     private readonly ConcurrentDictionary<string, Type>? _concurrentVariableTypes;
     private readonly ConcurrentDictionary<string, bool>? _concurrentReadOnlyVariables;
-    private readonly Dictionary<string, object?>? _localVariables;
-    private readonly Dictionary<string, Type>? _localVariableTypes;
-    private readonly Dictionary<string, bool>? _localReadOnlyVariables;
+    private Dictionary<string, object?>? _localVariables;
+    private Dictionary<string, Type>? _localVariableTypes;
+    private Dictionary<string, bool>? _localReadOnlyVariables;
     private readonly AlderContext? _parent;
     private readonly AlderConfig _config;
+    private readonly bool _usesLocalStore;
     private int _variableTypeVersion;
 
     public AlderContext(AlderConfig config) : this(config, null, null, useConcurrentStore: true)
@@ -45,9 +46,7 @@ internal sealed class AlderContext
         }
         else
         {
-            _localVariables = new Dictionary<string, object?>(_config.Comparer);
-            _localVariableTypes = new Dictionary<string, Type>(_config.Comparer);
-            _localReadOnlyVariables = new Dictionary<string, bool>(_config.Comparer);
+            _usesLocalStore = true;
         }
     }
 
@@ -59,7 +58,6 @@ internal sealed class AlderContext
     internal FixedDictionary<string, Func<object?[], object?>> Functions => _config.Functions;
     internal FixedDictionary<string, ModuleInfo> Modules => _config.Modules;
     internal ImmutableArray<Type> ExtensionTypes => _config.ExtensionTypes;
-    internal ExecutionConstraintState? ConstraintState { get; set; }
 
     public void Define(string name, object? value) => SetLocalVariable(name, value);
 
@@ -185,33 +183,32 @@ internal sealed class AlderContext
 
     public AlderContext CreateChild()
     {
-        var child = new AlderContext(_config, this, null, useConcurrentStore: false);
-        child.ConstraintState = ConstraintState;
-        return child;
+        return new AlderContext(_config, this, null, useConcurrentStore: false);
     }
 
     internal void ClearScope()
     {
-        if (_localVariables != null)
-            _localVariables.Clear();
+        if (_usesLocalStore)
+        {
+            _localVariables?.Clear();
+            _localVariableTypes?.Clear();
+            _localReadOnlyVariables?.Clear();
+        }
         else
+        {
             _concurrentVariables!.Clear();
-
-        if (_localVariableTypes != null)
-            _localVariableTypes.Clear();
-        else
             _concurrentVariableTypes!.Clear();
-
-        if (_localReadOnlyVariables != null)
-            _localReadOnlyVariables.Clear();
-        else
             _concurrentReadOnlyVariables!.Clear();
+        }
 
         Interlocked.Increment(ref _variableTypeVersion);
     }
 
+    private static readonly IReadOnlyDictionary<string, object?> EmptyVariables =
+        new Dictionary<string, object?>();
+
     public IReadOnlyDictionary<string, object?> GetAll() =>
-        _localVariables ?? (IReadOnlyDictionary<string, object?>)_concurrentVariables!;
+        _localVariables ?? (IReadOnlyDictionary<string, object?>?)_concurrentVariables ?? EmptyVariables;
 
     internal int GetTypeInferenceVersion()
     {
@@ -248,56 +245,66 @@ internal sealed class AlderContext
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private bool TryGetLocalVariable(string name, out object? value)
     {
-        if (_localVariables != null)
-            return _localVariables.TryGetValue(name, out value);
+        if (_usesLocalStore)
+        {
+            if (_localVariables != null)
+                return _localVariables.TryGetValue(name, out value);
+            value = null;
+            return false;
+        }
 
         return _concurrentVariables!.TryGetValue(name, out value);
     }
 
     private bool TryGetLocalVariableType(string name, out Type type)
     {
-        if (_localVariableTypes != null)
-            return _localVariableTypes.TryGetValue(name, out type!);
+        if (_usesLocalStore)
+        {
+            if (_localVariableTypes != null)
+                return _localVariableTypes.TryGetValue(name, out type!);
+            type = null!;
+            return false;
+        }
 
         return _concurrentVariableTypes!.TryGetValue(name, out type!);
     }
 
     private bool ContainsLocal(string name)
     {
-        if (_localVariables != null)
-            return _localVariables.ContainsKey(name);
+        if (_usesLocalStore)
+            return _localVariables != null && _localVariables.ContainsKey(name);
 
         return _concurrentVariables!.ContainsKey(name);
     }
 
     private void SetLocalVariable(string name, object? value)
     {
-        if (_localVariables != null)
-            _localVariables[name] = value;
+        if (_usesLocalStore)
+            (_localVariables ??= new Dictionary<string, object?>(_config.Comparer))[name] = value;
         else
             _concurrentVariables![name] = value;
     }
 
     private void SetLocalVariableType(string name, Type type)
     {
-        if (_localVariableTypes != null)
-            _localVariableTypes[name] = type;
+        if (_usesLocalStore)
+            (_localVariableTypes ??= new Dictionary<string, Type>(_config.Comparer))[name] = type;
         else
             _concurrentVariableTypes![name] = type;
     }
 
     private bool IsLocalReadOnly(string name)
     {
-        if (_localReadOnlyVariables != null)
-            return _localReadOnlyVariables.TryGetValue(name, out var isReadOnly) && isReadOnly;
+        if (_usesLocalStore)
+            return _localReadOnlyVariables != null && _localReadOnlyVariables.TryGetValue(name, out var isReadOnly) && isReadOnly;
 
         return _concurrentReadOnlyVariables!.TryGetValue(name, out var concurrentIsReadOnly) && concurrentIsReadOnly;
     }
 
     private void SetLocalReadOnly(string name, bool isReadOnly)
     {
-        if (_localReadOnlyVariables != null)
-            _localReadOnlyVariables[name] = isReadOnly;
+        if (_usesLocalStore)
+            (_localReadOnlyVariables ??= new Dictionary<string, bool>(_config.Comparer))[name] = isReadOnly;
         else
             _concurrentReadOnlyVariables![name] = isReadOnly;
     }

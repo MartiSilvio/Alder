@@ -19,7 +19,7 @@ internal static class MethodInvoker
         object?[] args,
         bool nullSafe,
         AlderContext context,
-        AlderOptions options,
+        AlderConfig config,
         IReadOnlyList<string>? typeArgs = null,
         CancellationToken ct = default)
     {
@@ -29,19 +29,19 @@ internal static class MethodInvoker
         if (target == null)
             throw new AlderException(DiagnosticDescriptors.NullMethodCall, methodName);
 
-        var result = TryInvokeInstanceMethod(target, methodName, args, context, options, typeArgs, ct);
+        var result = TryInvokeInstanceMethod(target, methodName, args, context, config, typeArgs, ct);
         if (result.Success)
             return result.Value;
 
-        var callee = MemberAccess.GetMember(target, methodName, options, nullSafe, context);
-        return InvokeCall(callee, args, context, options, typeArgs, ct);
+        var callee = MemberAccess.GetMember(target, methodName, config, nullSafe, context);
+        return InvokeCall(callee, args, context, config, typeArgs, ct);
     }
 
     public static object? InvokeCall(
         object? callee,
         object?[] args,
         AlderContext context,
-        AlderOptions options,
+        AlderConfig config,
         IReadOnlyList<string>? typeArgs = null,
         CancellationToken ct = default)
     {
@@ -63,10 +63,10 @@ internal static class MethodInvoker
                 TypeHelpers.GuardReflectionLeak(del.DynamicInvoke(args), "delegate invocation"),
 
             StaticMethodRef staticRef =>
-                InvokeStaticMethod(staticRef.Type, staticRef.MethodName, args, context, options, typeArgs, ct),
+                InvokeStaticMethod(staticRef.Type, staticRef.MethodName, args, context, config, typeArgs, ct),
 
             MethodRef methodRef =>
-                InvokeMethodRef(methodRef, args, context, options, typeArgs, ct),
+                InvokeMethodRef(methodRef, args, context, config, typeArgs, ct),
 
             null => throw new AlderException(DiagnosticDescriptors.NullInvocation),
             _ => throw new AlderException(DiagnosticDescriptors.NonCallableType, callee.GetType().Name)
@@ -77,7 +77,7 @@ internal static class MethodInvoker
         MethodRef methodRef,
         object?[] args,
         AlderContext context,
-        AlderOptions options,
+        AlderConfig config,
         IReadOnlyList<string>? typeArgs,
         CancellationToken ct)
     {
@@ -89,7 +89,7 @@ internal static class MethodInvoker
 
         var result = TryInvokeInstanceMethod(
             target, methodRef.MethodName, args,
-            context, options, typeArgs, ct);
+            context, config, typeArgs, ct);
         if (result.Success)
             return result.Value;
         throw new AlderException(DiagnosticDescriptors.MethodInvocationFailed, methodRef.MethodName);
@@ -100,14 +100,11 @@ internal static class MethodInvoker
         string methodName,
         object?[] args,
         AlderContext context,
-        AlderOptions options,
+        AlderConfig config,
         IReadOnlyList<string>? typeArgs = null,
         CancellationToken ct = default)
     {
-        if (target == null)
-            return (false, null);
-
-        if (target is ModuleInfo)
+        if (target is null or ModuleInfo)
             return (false, null);
 
         // ECMA-334 §12.8.9.2: Instance methods take precedence over extension methods.
@@ -121,7 +118,7 @@ internal static class MethodInvoker
         }
 
         var flags = BindingFlags.Public | BindingFlags.Instance;
-        if (!options.IsCaseSensitive)
+        if (!config.IsCaseSensitive)
             flags |= BindingFlags.IgnoreCase;
         var methods = context.TypeMetadata.GetMethods(type, methodName, flags);
 
@@ -137,7 +134,7 @@ internal static class MethodInvoker
         }
 
         var extensionResult = ExtensionMethodResolver.TryInvokeExtensionMethod(
-            target, methodName, args, context.ExtensionTypes, options.IsCaseSensitive, typeArgs, context, ct);
+            target, methodName, args, context.ExtensionTypes, config.IsCaseSensitive, typeArgs, context, ct);
         if (extensionResult.Success)
             return extensionResult;
 
@@ -208,7 +205,7 @@ internal static class MethodInvoker
         string methodName,
         object?[] args,
         AlderContext context,
-        AlderOptions options,
+        AlderConfig config,
         IReadOnlyList<string>? typeArgs,
         CancellationToken ct)
     {
@@ -220,7 +217,7 @@ internal static class MethodInvoker
         }
 
         var bindingFlags = BindingFlags.Public | BindingFlags.Static;
-        if (!options.IsCaseSensitive)
+        if (!config.IsCaseSensitive)
             bindingFlags |= BindingFlags.IgnoreCase;
 
         var methods = context.TypeMetadata.GetMethods(type, methodName, bindingFlags);
@@ -293,8 +290,7 @@ internal static class MethodInvoker
     {
         try
         {
-            object? result;
-            if (!MethodDispatchCache.TryInvokeFast(method, target, args, out result))
+            if (!MethodDispatchCache.TryInvokeFast(method, target, args, out var result))
                 result = method.Invoke(target, args);
 
             return TypeHelpers.GuardReflectionLeak(result, $"method {method.Name}");
@@ -640,7 +636,7 @@ internal static class MethodInvoker
     {
         foreach (var arg in args)
         {
-            if (arg is NamedArg or OutArgMarker || arg == null)
+            if (arg is NamedArg or OutArgMarker or null)
                 return true;
         }
         return false;
@@ -1146,9 +1142,9 @@ internal static class MethodInvoker
             childContext.Define(lambda.Parameters[i], args[i]);
         }
 
-        AstDepthValidator.EnsureWithinLimit(lambda.Body, lambda.Options?.MaxExpressionDepth ?? ExecutionConstraints.DefaultMaxExpressionDepth);
+        AstDepthValidator.EnsureWithinLimit(lambda.Body, lambda.Config.Constraints.MaxExpressionDepth);
         var bound = lambda.GetOrBindBody(childContext);
-        var evaluator = new BoundEvaluator(childContext, lambda.Options!);
+        var evaluator = new BoundEvaluator(childContext, lambda.Config);
         var result = evaluator.Evaluate(bound);
         return result is ControlFlowSignal signal ? signal.Value : result;
     }

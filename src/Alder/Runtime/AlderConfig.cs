@@ -1,7 +1,9 @@
 using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
 using Alder.Aot;
+using Alder.Compilation;
 using Alder.Runtime.Collections;
+using Alder.Security;
 
 namespace Alder.Runtime;
 
@@ -12,58 +14,66 @@ namespace Alder.Runtime;
 /// </summary>
 internal sealed class AlderConfig
 {
+    public LanguageMode LanguageMode { get; }
+    public SecurityPolicy Security { get; }
+    public bool IsCaseSensitive { get; }
+    public ExecutionConstraints Constraints { get; }
+    public ICompiledProvider? Compiler { get; }
+    public IExpressionCompiler ExpressionCompiler { get; }
+    public IServiceProvider? ServiceProvider { get; }
     public FixedDictionary<string, Func<object?[], object?>> Functions { get; }
     internal FixedDictionary<string, ModuleInfo> Modules { get; }
     internal ImmutableArray<Type> ExtensionTypes { get; }
     internal TypeMetadataProvider TypeMetadata { get; }
     internal TypeResolver TypeResolver { get; }
     public StringComparer Comparer { get; }
+    public StringComparison StringComparison => IsCaseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
     internal FixedDictionary<Type, IAotTypeMetadata>? AotMetadata { get; }
 
-    private AlderConfig(
+    internal AlderConfig(
+        LanguageMode languageMode,
+        SecurityPolicy security,
+        bool isCaseSensitive,
+        ExecutionConstraints constraints,
+        ICompiledProvider? compiler,
+        IExpressionCompiler expressionCompiler,
+        IServiceProvider? serviceProvider,
         FixedDictionary<string, Func<object?[], object?>> functions,
         FixedDictionary<string, ModuleInfo> modules,
         ImmutableArray<Type> extensionTypes,
         TypeMetadataProvider typeMetadata,
         TypeResolver typeResolver,
-        StringComparer comparer,
         FixedDictionary<Type, IAotTypeMetadata>? aotMetadata)
     {
+        LanguageMode = languageMode;
+        Security = security;
+        IsCaseSensitive = isCaseSensitive;
+        Constraints = constraints;
+        Compiler = compiler;
+        ExpressionCompiler = expressionCompiler;
+        ServiceProvider = serviceProvider;
         Functions = functions;
         Modules = modules;
         ExtensionTypes = extensionTypes;
         TypeMetadata = typeMetadata;
         TypeResolver = typeResolver;
-        Comparer = comparer;
+        Comparer = isCaseSensitive ? StringComparer.Ordinal : StringComparer.OrdinalIgnoreCase;
         AotMetadata = aotMetadata;
     }
 
-    internal static AlderConfig Create(
-        Dictionary<string, Func<object?[], object?>> functions,
-        Dictionary<string, ModuleInfo> modules,
-        List<Type> extensionTypes,
-        TypeMetadataProvider typeMetadata,
-        TypeResolver typeResolver,
-        StringComparer comparer,
-        Dictionary<Type, IAotTypeMetadata>? aotMetadata = null)
-    {
-        return new AlderConfig(
-            FixedDictionary<string, Func<object?[], object?>>.Create(functions, comparer),
-            FixedDictionary<string, ModuleInfo>.Create(modules, comparer),
-            [..extensionTypes],
-            typeMetadata,
-            typeResolver,
-            comparer,
-            aotMetadata != null ? FixedDictionary<Type, IAotTypeMetadata>.Create(aotMetadata) : null);
-    }
-
     internal static readonly AlderConfig Empty = new(
+        LanguageMode.Standard,
+        SandboxOptions.Trusted().ToSecurityPolicy(),
+        true,
+        new ExecutionConstraints(),
+        null,
+        DefaultExpressionCompiler.Instance,
+        null,
         FixedDictionary<string, Func<object?[], object?>>.Empty,
         FixedDictionary<string, ModuleInfo>.Empty,
         [],
         new TypeMetadataProvider(),
         TypeResolver.Create([], [], true, StringComparer.Ordinal),
-        StringComparer.Ordinal,
         null);
 }
 

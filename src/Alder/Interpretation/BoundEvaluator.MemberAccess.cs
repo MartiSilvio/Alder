@@ -20,7 +20,7 @@ internal sealed partial class BoundEvaluator
         return MemberAccess.GetMember(
             target,
             memberAccess.MemberName,
-            _options,
+            _config,
             nullSafe: memberAccess.NullSafe,
             _context);
     }
@@ -35,7 +35,7 @@ internal sealed partial class BoundEvaluator
             throw new AlderException(DiagnosticDescriptors.BadIndexerAccess, TypeNameFormatter.Null);
 
         var index = Evaluate(indexAccess.Index);
-        return MemberAccess.GetIndex(target, index, _options, _context);
+        return MemberAccess.GetIndex(target, index, _config, _context);
     }
 
     private object? EvaluateMultiDimIndexAccess(BoundMultiDimIndexAccessExpr multiDimIndexAccess)
@@ -146,7 +146,7 @@ internal sealed partial class BoundEvaluator
         var (args, outBindings) = EvaluateArgumentsWithOutBindings(call.Arguments);
 
         var callee = Evaluate(call.Callee);
-        var invokeResult = MethodInvoker.InvokeCall(callee, args, _context, _options, ct: _cancellationToken);
+        var invokeResult = MethodInvoker.InvokeCall(callee, args, _context, _config, ct: _cancellationToken);
         DefineOutVariablesIfAny(args, outBindings);
         return invokeResult;
     }
@@ -166,7 +166,7 @@ internal sealed partial class BoundEvaluator
                 identifier.Name,
                 args,
                 _context,
-                _options,
+                _config,
                 typeArguments,
                 _cancellationToken);
             DefineOutVariablesIfAny(args, outBindings);
@@ -182,7 +182,7 @@ internal sealed partial class BoundEvaluator
                 args,
                 memberAccess.NullSafe,
                 _context,
-                _options,
+                _config,
                 typeArguments,
                 _cancellationToken);
             DefineOutVariablesIfAny(args, outBindings);
@@ -194,7 +194,7 @@ internal sealed partial class BoundEvaluator
             callee,
             args,
             _context,
-            _options,
+            _config,
             typeArguments,
             _cancellationToken);
         DefineOutVariablesIfAny(args, outBindings);
@@ -240,7 +240,7 @@ internal sealed partial class BoundEvaluator
 
     private object? EvaluateLambda(BoundLambdaExpr lambda)
     {
-        return new LambdaValue(lambda.Parameters.ToList(), lambda.Body, _context, _options);
+        return new LambdaValue(lambda.Parameters.ToList(), lambda.Body, _context, _config);
     }
 
     private object? EvaluatePipeline(BoundPipelineExpr pipeline)
@@ -253,11 +253,11 @@ internal sealed partial class BoundEvaluator
                 left,
                 rightIdentifier.Name,
                 _context,
-                _options,
+                _config,
                 _cancellationToken);
         }
 
         var right = Evaluate(pipeline.Right);
-        return PipelineOperator.InvokePipeline(left, right, _context, _options, _cancellationToken);
+        return PipelineOperator.InvokePipeline(left, right, _context, _config, _cancellationToken);
     }
 }

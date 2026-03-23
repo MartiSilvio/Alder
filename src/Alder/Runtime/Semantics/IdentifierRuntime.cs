@@ -7,11 +7,11 @@ namespace Alder.Runtime.Semantics;
 
 internal static class IdentifierRuntime
 {
-    public static object? ResolveIdentifier(string name, AlderContext context, AlderOptions options)
-        => ResolveIdentifierCore(name, context, options);
+    public static object? ResolveIdentifier(string name, AlderContext context, AlderConfig config)
+        => ResolveIdentifierCore(name, context, config);
 
-    public static T ResolveIdentifierTyped<T>(string name, AlderContext context, AlderOptions options)
-        => CoerceIdentifierValue<T>(ResolveIdentifierCore(name, context, options));
+    public static T ResolveIdentifierTyped<T>(string name, AlderContext context, AlderConfig config)
+        => CoerceIdentifierValue<T>(ResolveIdentifierCore(name, context, config));
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static T GetVariableTyped<T>(string name, AlderContext context)
@@ -26,7 +26,7 @@ internal static class IdentifierRuntime
         string name,
         object?[] args,
         AlderContext context,
-        AlderOptions options,
+        AlderConfig config,
         IReadOnlyList<string>? typeArgs,
         CancellationToken ct = default)
     {
@@ -35,42 +35,42 @@ internal static class IdentifierRuntime
 
         var hasVariable = context.TryGet(name, out var variableValue);
 
-        if (options.LanguageMode == LanguageMode.Extended &&
+        if (config.LanguageMode == LanguageMode.Extended &&
             !hasVariable &&
             BareMathNames.TryGetFunction(name, args.Length, out var mathFunc))
         {
             return mathFunc(args);
         }
 
-        if (options.LanguageMode == LanguageMode.Extended &&
+        if (config.LanguageMode == LanguageMode.Extended &&
             !hasVariable &&
-            DateArithmeticSugar.TryInvokeClockFunction(name, args, options.IsCaseSensitive, out var clockValue))
+            DateArithmeticSugar.TryInvokeClockFunction(name, args, config.IsCaseSensitive, out var clockValue))
         {
             return clockValue;
         }
 
-        if (options.LanguageMode == LanguageMode.Extended &&
+        if (config.LanguageMode == LanguageMode.Extended &&
             !hasVariable &&
-            AggregateBuiltins.TryInvoke(name, args, options.IsCaseSensitive, out var aggregateResult))
+            AggregateBuiltins.TryInvoke(name, args, config.IsCaseSensitive, out var aggregateResult))
         {
             return aggregateResult;
         }
 
         if (context.Modules.TryGetValue(name, out var module))
-            return MethodInvoker.InvokeCall(module, args, context, options, typeArgs, ct);
+            return MethodInvoker.InvokeCall(module, args, context, config, typeArgs, ct);
 
         if (hasVariable || context.TryGet(name, out variableValue))
-            return MethodInvoker.InvokeCall(variableValue, args, context, options, typeArgs, ct);
+            return MethodInvoker.InvokeCall(variableValue, args, context, config, typeArgs, ct);
 
-        var callee = ResolveIdentifier(name, context, options);
-        return MethodInvoker.InvokeCall(callee, args, context, options, typeArgs, ct);
+        var callee = ResolveIdentifier(name, context, config);
+        return MethodInvoker.InvokeCall(callee, args, context, config, typeArgs, ct);
     }
 
     public static object? InvokePipelineIdentifier(
         object? leftValue,
         string rightIdentifier,
         AlderContext context,
-        AlderOptions options,
+        AlderConfig config,
         CancellationToken ct)
     {
         var args = new object?[] { leftValue };
@@ -80,23 +80,23 @@ internal static class IdentifierRuntime
 
         var hasVariable = context.TryGet(rightIdentifier, out var variableValue);
 
-        if (options.LanguageMode == LanguageMode.Extended &&
+        if (config.LanguageMode == LanguageMode.Extended &&
             !hasVariable &&
             BareMathNames.TryGetFunction(rightIdentifier, args.Length, out var mathFunc))
         {
             return mathFunc(args);
         }
 
-        if (options.LanguageMode == LanguageMode.Extended &&
+        if (config.LanguageMode == LanguageMode.Extended &&
             !hasVariable &&
-            DateArithmeticSugar.TryInvokeClockFunction(rightIdentifier, args, options.IsCaseSensitive, out var clockValue))
+            DateArithmeticSugar.TryInvokeClockFunction(rightIdentifier, args, config.IsCaseSensitive, out var clockValue))
         {
             return clockValue;
         }
 
-        if (options.LanguageMode == LanguageMode.Extended &&
+        if (config.LanguageMode == LanguageMode.Extended &&
             !hasVariable &&
-            AggregateBuiltins.TryInvoke(rightIdentifier, args, options.IsCaseSensitive, out var aggregateResult))
+            AggregateBuiltins.TryInvoke(rightIdentifier, args, config.IsCaseSensitive, out var aggregateResult))
         {
             return aggregateResult;
         }
@@ -121,10 +121,10 @@ internal static class IdentifierRuntime
                     TypeNameFormatter.Of(variableValue));
             }
 
-            return MethodInvoker.InvokeCall(variableValue, args, context, options, null, ct);
+            return MethodInvoker.InvokeCall(variableValue, args, context, config, null, ct);
         }
 
-        var callee = ResolveIdentifier(rightIdentifier, context, options);
+        var callee = ResolveIdentifier(rightIdentifier, context, config);
         if (!IsPipelineCallable(callee))
         {
             throw new AlderException(
@@ -134,17 +134,17 @@ internal static class IdentifierRuntime
                 TypeNameFormatter.Of(callee));
         }
 
-        return MethodInvoker.InvokeCall(callee, args, context, options, null, ct);
+        return MethodInvoker.InvokeCall(callee, args, context, config, null, ct);
     }
 
     public static object? InvokeBareMathOrCall(
         string name,
         object?[] args,
         AlderContext context,
-        AlderOptions options,
+        AlderConfig config,
         IReadOnlyList<string>? typeArgs,
         CancellationToken ct = default) =>
-        InvokeIdentifierCall(name, args, context, options, typeArgs, ct);
+        InvokeIdentifierCall(name, args, context, config, typeArgs, ct);
 
     public static void DefineOutVariables(
         object?[] invocationArgs,
@@ -170,9 +170,9 @@ internal static class IdentifierRuntime
         string[] parameterNames,
         Expr body,
         AlderContext context,
-        AlderOptions options)
+        AlderConfig config)
     {
-        return new LambdaValue(parameterNames.ToList(), body, context, options);
+        return new LambdaValue(parameterNames.ToList(), body, context, config);
     }
 
     public static object? GetLambdaArg(object?[] args, int index)
@@ -180,7 +180,7 @@ internal static class IdentifierRuntime
         return index < args.Length ? args[index] : null;
     }
 
-    private static object? ResolveIdentifierCore(string name, AlderContext context, AlderOptions options)
+    private static object? ResolveIdentifierCore(string name, AlderContext context, AlderConfig config)
     {
         if (context.Functions.TryGetValue(name, out var function))
             return new FunctionRef(name, function);
@@ -198,7 +198,7 @@ internal static class IdentifierRuntime
         if (context.TypeResolver.IsNamespaceOrPrefix(name))
             return new NamespaceRef(name);
 
-        if (options.LanguageMode == LanguageMode.Extended &&
+        if (config.LanguageMode == LanguageMode.Extended &&
             BareMathNames.TryGetConstant(name, out var constant))
             return constant;
 
