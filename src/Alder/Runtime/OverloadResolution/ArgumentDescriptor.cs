@@ -41,6 +41,9 @@ internal readonly struct ArgumentDescriptor
         return result;
     }
 
+    internal static ArgumentDescriptor ForTest(ArgumentKind kind, Type? staticType, string? name, int lambdaArity) =>
+        new(staticType, name, kind, lambdaArity, null);
+
     private static ArgumentDescriptor FromSingleArg(object? arg)
     {
         switch (arg)
