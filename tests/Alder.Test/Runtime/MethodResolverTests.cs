@@ -1,37 +1,38 @@
 using System.Reflection;
+using Alder.Runtime;
 
 namespace Alder.Test.Runtime;
 
 [TestFixture]
-public class MethodResolverTests
+public class OverloadResolverTests
 {
     [Test]
-    public void TryResolveMethod_FromCachedCandidates_FindsExactStaticOverload()
+    public void Resolve_FindsExactStaticOverload()
     {
         var methods = typeof(Math).GetMethods(BindingFlags.Public | BindingFlags.Static)
             .Where(m => m.Name == nameof(Math.Max))
             .ToArray();
 
-        var resolved = Alder.Runtime.MethodResolver.TryResolveMethod(
-            methods,
-            [typeof(int), typeof(int)]);
+        var descriptors = ArgumentDescriptor.FromTypes([typeof(int), typeof(int)]);
+        var found = OverloadResolver.TryResolve(methods, descriptors, context: null, out var resolved, out _);
 
-        Assert.That(resolved, Is.Not.Null);
-        Assert.That(resolved!.GetParameters().Select(p => p.ParameterType), Is.EqualTo(new[] { typeof(int), typeof(int) }));
+        Assert.That(found, Is.True);
+        Assert.That(resolved.Method.GetParameters().Select(p => p.ParameterType),
+            Is.EqualTo(new[] { typeof(int), typeof(int) }));
     }
 
     [Test]
-    public void TryResolveMethod_FromCachedCandidates_UsesImplicitNumericConversion()
+    public void Resolve_UsesImplicitNumericConversion()
     {
         var methods = typeof(Math).GetMethods(BindingFlags.Public | BindingFlags.Static)
             .Where(m => m.Name == nameof(Math.Max))
             .ToArray();
 
-        var resolved = Alder.Runtime.MethodResolver.TryResolveMethod(
-            methods,
-            [typeof(int), typeof(long)]);
+        var descriptors = ArgumentDescriptor.FromTypes([typeof(int), typeof(long)]);
+        var found = OverloadResolver.TryResolve(methods, descriptors, context: null, out var resolved, out _);
 
-        Assert.That(resolved, Is.Not.Null);
-        Assert.That(resolved!.GetParameters().Select(p => p.ParameterType), Is.EqualTo(new[] { typeof(long), typeof(long) }));
+        Assert.That(found, Is.True);
+        Assert.That(resolved.Method.GetParameters().Select(p => p.ParameterType),
+            Is.EqualTo(new[] { typeof(long), typeof(long) }));
     }
 }

@@ -545,16 +545,22 @@ internal static class TypeHelpers
     /// Checks if a value can be implicitly assigned to a target type per C# rules.
     internal static bool HasUserDefinedImplicitConversion(Type sourceType, Type targetType)
     {
-        return TryResolveUserDefinedImplicitConversion(sourceType, targetType);
+        return TryResolveUserDefinedImplicitConversion(sourceType, targetType, out _);
     }
 
-    private static bool TryResolveUserDefinedImplicitConversion(Type sourceType, Type targetType)
+    private static bool TryResolveUserDefinedImplicitConversion(
+        Type sourceType,
+        Type targetType,
+        [NotNullWhen(true)] out MethodInfo? conversionMethod)
     {
         const BindingFlags flags = BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy;
+        conversionMethod = null;
 
         var searchTypes = sourceType == targetType
             ? new[] { sourceType }
             : new[] { sourceType, targetType };
+
+        List<MethodInfo>? candidates = null;
 
         foreach (var declaringType in searchTypes)
         {
@@ -574,18 +580,31 @@ internal static class TypeHelpers
                 // AND from returnType to targetType (unidirectional, not bidirectional)
                 if (IsStandardImplicitConversion(sourceType, paramType) &&
                     IsStandardImplicitConversion(returnType, targetType))
-                    return true;
+                {
+                    candidates ??= new List<MethodInfo>();
+                    candidates.Add(method);
+                }
             }
         }
 
-        return false;
+        if (candidates == null)
+            return false;
+
+        if (candidates.Count == 1)
+        {
+            conversionMethod = candidates[0];
+            return true;
+        }
+
+        conversionMethod = SelectMostSpecific(candidates, sourceType, targetType);
+        return conversionMethod != null;
     }
 
     internal static bool TryApplyUserDefinedImplicitConversion(object value, Type targetType, out object? converted)
     {
         converted = null;
         var sourceType = value.GetType();
-        if (!TryResolveUserDefinedConversion(sourceType, targetType, out var method))
+        if (!TryResolveUserDefinedImplicitConversion(sourceType, targetType, out var method))
             return false;
         var compiledConversion = CompileUserDefinedConversion(method, sourceType);
         converted = compiledConversion(value);

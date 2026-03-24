@@ -46,7 +46,24 @@ internal sealed class PrimaryParser : ParserBase
             return ParseNewExpression(mark);
 
         if (Match(TokenType.LeftParen))
-            return ParseParenthesized(mark);
+        {
+            // Iteratively consume consecutive open-parens that are pure grouping,
+            // so ((((expr)))) doesn't recurse 4 levels deep through the full
+            // precedence chain. Only the innermost expression actually recurses.
+            var groupingDepth = 0;
+            while (IsGroupingParen())
+            {
+                groupingDepth++;
+                Advance(); // consume inner '('
+            }
+
+            var result = ParseParenthesized(mark);
+
+            for (var i = 0; i < groupingDepth; i++)
+                Consume(TokenType.RightParen, "Expected ')' after expression");
+
+            return result;
+        }
 
         if (Match(TokenType.LeftBracket))
         {
@@ -678,6 +695,15 @@ internal sealed class PrimaryParser : ParserBase
     #endregion
 
     #region Parenthesized, Lambda, and Tuple
+
+    /// <summary>
+    /// Checks if the current token is '(' that starts a pure grouping — another '(' follows,
+    /// meaning this is nested grouping like ((expr)) rather than a lambda, tuple, or cast.
+    /// </summary>
+    private bool IsGroupingParen()
+    {
+        return Check(TokenType.LeftParen) && PeekNext().Type == TokenType.LeftParen;
+    }
 
     private Expr ParseParenthesized(int mark)
     {

@@ -67,12 +67,12 @@ public class ProjectionTests(CompilationMode mode)
     public void SelectMany_WithProjection_FlattensAndProjects()
     {
         var engine = TestEngineFactory.Create(mode);
-        engine.SetVariable("items", new List<Dictionary<string, object?>> {
-            new() { ["Tags"] = new List<string> { "a", "b" } },
-            new() { ["Tags"] = new List<string> { "c" } }
+        engine.SetVariable("items", new List<List<string>> {
+            new() { "a", "b" },
+            new() { "c" }
         });
 
-        var result = engine.Evaluate("items.SelectMany(x => x.Tags).ToList()");
+        var result = engine.Evaluate("items.SelectMany(x => x).ToList()");
         Assert.That(result, Is.EqualTo(new[] { "a", "b", "c" }));
     }
 

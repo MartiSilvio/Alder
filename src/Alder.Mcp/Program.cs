@@ -4,6 +4,8 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Server;
 
+var config = McpServerConfig.Parse(args);
+
 var builder = Host.CreateApplicationBuilder(args);
 builder.Logging.AddConsole(options =>
 {
@@ -12,12 +14,13 @@ builder.Logging.AddConsole(options =>
 
 builder.Services.AddSingleton(_ => new AlderEngine(o =>
 {
-    o.Sandbox = SandboxOptions.Trusted();
+    o.Sandbox = config.Sandbox;
+    o.LanguageMode = config.LanguageMode;
     o.Constraints = new ExecutionConstraints
     {
-        MaxStatements = 100_000_000,
-        MaxLoopIterations = 100_000_000,
-        MaxTimeout = TimeSpan.FromSeconds(30),
+        MaxStatements = config.MaxStatements,
+        MaxLoopIterations = config.MaxLoopIterations,
+        MaxTimeout = config.MaxTimeout,
     };
 }));
 

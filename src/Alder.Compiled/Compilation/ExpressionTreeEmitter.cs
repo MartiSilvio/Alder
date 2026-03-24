@@ -253,39 +253,42 @@ internal sealed class ExpressionTreeEmitter
     private LinqExpression[] EmitPlannedCallArguments(BoundCallExpr expr, ParameterInfo[] parameters)
     {
         var emitted = new LinqExpression[parameters.Length];
-        var conversions = expr.Plan.ArgumentConversions;
+        var resolved = expr.Plan.Resolution;
+        var sources = resolved.ArgMap.Sources;
+        var conversions = resolved.Conversions;
 
-        foreach (var binding in expr.Plan.ParameterBindings)
+        for (var paramIdx = 0; paramIdx < sources.Length; paramIdx++)
         {
-            switch (binding.Kind)
+            var source = sources[paramIdx];
+            switch (source.Kind)
             {
-                case BoundParameterBindingKind.Argument:
+                case ParameterSourceKind.Argument:
                 {
-                    var sourceIndex = binding.SourceArgumentIndex;
-                    var conversion = conversions[sourceIndex];
-                    var argument = Emit(expr.Arguments[sourceIndex]);
-                    emitted[binding.ParameterIndex] = conversion.IsIdentity || argument.Type == conversion.TargetType
+                    var argIdx = source.ArgumentIndex;
+                    var conversion = conversions[argIdx];
+                    var argument = Emit(expr.Arguments[argIdx]);
+                    emitted[paramIdx] = conversion.IsIdentity || argument.Type == conversion.TargetType
                         ? argument
                         : LinqExpression.Convert(argument, conversion.TargetType);
                     break;
                 }
 
-                case BoundParameterBindingKind.DefaultValue:
-                    emitted[binding.ParameterIndex] = EmitDefaultArgument(parameters[binding.ParameterIndex]);
+                case ParameterSourceKind.Default:
+                    emitted[paramIdx] = EmitDefaultArgument(parameters[paramIdx]);
                     break;
 
-                case BoundParameterBindingKind.ParamsArray:
+                case ParameterSourceKind.ParamsRange:
                 {
-                    var parameter = parameters[binding.ParameterIndex];
+                    var parameter = parameters[paramIdx];
                     var elementType = parameter.ParameterType.GetElementType()
                                      ?? throw UnsupportedCallShape("params argument with non-array parameter");
-                    var args = new LinqExpression[binding.SourceArgumentCount];
+                    var args = new LinqExpression[source.ParamsCount];
 
-                    for (var i = 0; i < binding.SourceArgumentCount; i++)
+                    for (var i = 0; i < source.ParamsCount; i++)
                     {
-                        var sourceIndex = binding.SourceArgumentIndex + i;
-                        var conversion = conversions[sourceIndex];
-                        var argument = Emit(expr.Arguments[sourceIndex]);
+                        var argIdx = source.ParamsStartIndex + i;
+                        var conversion = conversions[argIdx];
+                        var argument = Emit(expr.Arguments[argIdx]);
                         var converted = conversion.IsIdentity || argument.Type == conversion.TargetType
                             ? argument
                             : LinqExpression.Convert(argument, conversion.TargetType);
@@ -294,12 +297,12 @@ internal sealed class ExpressionTreeEmitter
                             : LinqExpression.Convert(converted, elementType);
                     }
 
-                    emitted[binding.ParameterIndex] = LinqExpression.NewArrayInit(elementType, args);
+                    emitted[paramIdx] = LinqExpression.NewArrayInit(elementType, args);
                     break;
                 }
 
                 default:
-                    throw UnsupportedCallShape($"parameter binding kind '{binding.Kind}'");
+                    throw UnsupportedCallShape($"parameter source kind '{source.Kind}'");
             }
         }
 

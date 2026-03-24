@@ -29,7 +29,6 @@ internal static class ILExpressionCompiler
         try
         {
             var context = new AlderContext(AlderConfig.Empty);
-            AstDepthValidator.EnsureWithinLimit(ast, config.Constraints.MaxExpressionDepth);
             var binder = new Alder.Binding.Binder();
             var bound = binder.Bind(ast, new BindingContext(context));
 
@@ -45,7 +44,7 @@ internal static class ILExpressionCompiler
 
             return new CompiledExpressionInfo(null, false, $"{compilerName}: Bound compilation returned null");
         }
-        catch (Exception ex) when (ex is not AlderDepthException)
+        catch (Exception ex) when (ex is not System.InsufficientExecutionStackException)
         {
             return new CompiledExpressionInfo(null, false, $"{compilerName}: {ex.Message}", ex);
         }
@@ -72,7 +71,7 @@ internal static class ILExpressionCompiler
 
             return new CompiledExpressionInfo(null, false, $"{compilerName}: Bound compilation returned null");
         }
-        catch (Exception ex) when (ex is not AlderDepthException)
+        catch (Exception ex) when (ex is not System.InsufficientExecutionStackException)
         {
             return new CompiledExpressionInfo(null, false, $"{compilerName}: {ex.Message}", ex);
         }

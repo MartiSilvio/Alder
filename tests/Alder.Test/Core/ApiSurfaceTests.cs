@@ -345,7 +345,6 @@ public class ApiSurfaceTests
             "Alder.Attributes.AlderFunctionAttribute",
             "Alder.Attributes.AlderModuleAttribute",
             "Alder.AlderCompiledExpression`1",
-            "Alder.AlderDepthException",
             "Alder.AlderDiagnostic",
             "Alder.AlderEngine",
             "Alder.AlderEval",

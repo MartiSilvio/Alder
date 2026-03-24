@@ -57,7 +57,7 @@ public sealed partial class AlderEngine
         var state = new ExecutionConstraintState();
         state.Reset(constraints);
 
-        if (!expression.TryGetOrCreateBoundExpression(executionContext, _config.Constraints.MaxExpressionDepth, out var boundExpression, out var failureReason) ||
+        if (!expression.TryGetOrCreateBoundExpression(executionContext, out var boundExpression, out var failureReason) ||
             boundExpression == null)
         {
             expression.RecordBoundFallback(failureReason);

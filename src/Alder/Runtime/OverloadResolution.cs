@@ -13,77 +13,26 @@ internal enum BetterResult : byte
     Neither
 }
 
-/// <summary>
-/// ECMA-334 §12.6.4 overload resolution via pairwise elimination.
-/// </summary>
+/// <summary>ECMA-334 §12.6.4 better-function-member comparison.</summary>
 internal static class OverloadResolution
 {
-    /// <summary>
-    /// Tests whether a method is applicable for the given argument types.
-    /// Tries normal form first, then expanded params form per §12.6.4.2.
-    /// </summary>
-    public static bool IsApplicable(ParameterInfo[] parameters, Type[] argTypes, out ApplicableForm form)
-    {
-        form = ApplicableForm.Normal;
-
-        if (IsApplicableNormalForm(parameters, argTypes))
-            return true;
-
-        if (parameters.Length > 0 &&
-            parameters[^1].IsDefined(typeof(ParamArrayAttribute), false) &&
-            IsApplicableExpandedForm(parameters, argTypes))
-        {
-            form = ApplicableForm.Expanded;
-            return true;
-        }
-
-        return false;
-    }
-
-    /// <summary>
-    /// Tests whether a method is applicable for runtime args (object?[]) which may include
-    /// named args, null values, out markers, and lambda-to-delegate conversions.
-    /// </summary>
-    public static bool IsApplicableForArgs(ParameterInfo[] parameters, object?[] args, out ApplicableForm form)
-    {
-        form = ApplicableForm.Normal;
-
-        if (IsApplicableNormalFormForArgs(parameters, args))
-            return true;
-
-        if (parameters.Length > 0 &&
-            parameters[^1].IsDefined(typeof(ParamArrayAttribute), false) &&
-            IsApplicableExpandedFormForArgs(parameters, args))
-        {
-            form = ApplicableForm.Expanded;
-            return true;
-        }
-
-        return false;
-    }
-
-    /// <summary>
-    /// ECMA-334 §12.6.4.3: determines which of two applicable methods is better.
-    /// Compares argument-by-argument, then applies tie-breaking rules.
-    /// </summary>
     public static BetterResult BetterFunctionMember(
-        MethodInfo left, ParameterInfo[] leftParams, ApplicableForm leftForm,
-        MethodInfo right, ParameterInfo[] rightParams, ApplicableForm rightForm,
-        Type[] argTypes)
+        MethodCandidate left,
+        MethodCandidate right,
+        ReadOnlySpan<ArgumentDescriptor> args)
     {
         var leftBetter = false;
         var rightBetter = false;
 
-        var count = argTypes.Length;
-        for (var i = 0; i < count; i++)
+        for (var i = 0; i < args.Length; i++)
         {
-            var leftType = GetEffectiveParameterType(leftParams, i, leftForm);
-            var rightType = GetEffectiveParameterType(rightParams, i, rightForm);
+            var leftType = GetEffectiveParameterType(left.Parameters, i, left.Form);
+            var rightType = GetEffectiveParameterType(right.Parameters, i, right.Form);
 
             if (leftType == rightType)
                 continue;
 
-            var cmp = BetterConversionFromType(argTypes[i], leftType, rightType);
+            var cmp = BetterConversionFromExpression(args[i], i, left, right, leftType, rightType);
             if (cmp == BetterResult.Left)
                 leftBetter = true;
             else if (cmp == BetterResult.Right)
@@ -93,75 +42,40 @@ internal static class OverloadResolution
         if (leftBetter && !rightBetter) return BetterResult.Left;
         if (rightBetter && !leftBetter) return BetterResult.Right;
 
-        return TieBreak(left, leftParams, leftForm, right, rightParams, rightForm);
+        return TieBreak(left, right);
     }
 
-    /// <summary>
-    /// Overload for runtime args where argument types must be extracted from object?[] values.
-    /// </summary>
-    public static BetterResult BetterFunctionMemberForArgs(
-        MethodInfo left, ParameterInfo[] leftParams, ApplicableForm leftForm,
-        MethodInfo right, ParameterInfo[] rightParams, ApplicableForm rightForm,
-        object?[] args,
-        AlderContext? context = null)
+    private static BetterResult BetterConversionFromExpression(
+        ArgumentDescriptor arg,
+        int argIndex,
+        MethodCandidate left,
+        MethodCandidate right,
+        Type t1,
+        Type t2)
     {
-        var leftBetter = false;
-        var rightBetter = false;
+        var exactLeft = ExactlyMatches(arg, argIndex, left, t1);
+        var exactRight = ExactlyMatches(arg, argIndex, right, t2);
 
-        var count = args.Length;
-        for (var i = 0; i < count; i++)
-        {
-            var arg = args[i];
-            if (arg is NamedArg)
-                continue;
+        if (exactLeft && !exactRight) return BetterResult.Left;
+        if (exactRight && !exactLeft) return BetterResult.Right;
 
-            var leftType = GetEffectiveParameterType(leftParams, i, leftForm);
-            var rightType = GetEffectiveParameterType(rightParams, i, rightForm);
+        var targetResult = BetterConversionTarget(t1, t2);
+        if (targetResult != BetterResult.Neither)
+            return targetResult;
 
-            if (leftType == rightType)
-                continue;
+        if (arg.Kind == ArgumentKind.Lambda)
+            return BetterConversionFromLambda(argIndex, left, right, t1, t2);
 
-
-            // §12.6.4.4: Better conversion from expression — for lambda arguments,
-            // compare delegate return types using the lambda's inferred return type.
-            if (arg is LambdaValue or CompiledLambdaValue)
-            {
-                var cmp = BetterConversionFromLambda(arg, leftType, rightType, context);
-                if (cmp == BetterResult.Left) leftBetter = true;
-                else if (cmp == BetterResult.Right) rightBetter = true;
-                continue;
-            }
-
-            var argType = arg?.GetType();
-            if (argType == null)
-                continue;
-
-            var cmp2 = BetterConversionFromType(argType, leftType, rightType);
-            if (cmp2 == BetterResult.Left)
-                leftBetter = true;
-            else if (cmp2 == BetterResult.Right)
-                rightBetter = true;
-        }
-
-        if (leftBetter && !rightBetter) return BetterResult.Left;
-        if (rightBetter && !leftBetter) return BetterResult.Right;
-
-        return TieBreak(left, leftParams, leftForm, right, rightParams, rightForm);
+        return BetterResult.Neither;
     }
 
-    /// <summary>
-    /// §12.6.4.4: Better conversion from expression for lambda arguments.
-    /// When both target types are delegates with identical parameter lists,
-    /// determines the lambda's return type via static binding and picks the delegate
-    /// whose return type is a better conversion target.
-    /// </summary>
     private static BetterResult BetterConversionFromLambda(
-        object arg, Type leftDelegate, Type rightDelegate, AlderContext? context)
+        int argIndex,
+        MethodCandidate left,
+        MethodCandidate right,
+        Type leftDelegate,
+        Type rightDelegate)
     {
-        var targetCmp = TypeHelpers.CompareBetterConversionTarget(leftDelegate, rightDelegate);
-        if (targetCmp > 0) return BetterResult.Left;
-        if (targetCmp < 0) return BetterResult.Right;
-
         var leftInvoke = leftDelegate.GetMethod("Invoke");
         var rightInvoke = rightDelegate.GetMethod("Invoke");
         if (leftInvoke == null || rightInvoke == null)
@@ -176,79 +90,197 @@ internal static class OverloadResolution
         var rightInputs = rightInvoke.GetParameters();
         if (leftInputs.Length != rightInputs.Length)
             return BetterResult.Neither;
+
         for (var i = 0; i < leftInputs.Length; i++)
         {
             if (leftInputs[i].ParameterType != rightInputs[i].ParameterType)
                 return BetterResult.Neither;
         }
 
-        var inputTypes = leftInputs.Select(static p => p.ParameterType).ToArray();
+        var inferredReturn = left.LambdaReturnTypes?[argIndex]
+                          ?? right.LambdaReturnTypes?[argIndex];
 
-        var inferredReturn = ExtensionMethodResolver.InferLambdaReturnType(arg, inputTypes, context);
         if (inferredReturn != null && inferredReturn != typeof(object))
-            return BetterConversionFromType(inferredReturn, leftReturn, rightReturn);
+        {
+            var exactLeft = inferredReturn == leftReturn;
+            var exactRight = inferredReturn == rightReturn;
+            if (exactLeft && !exactRight) return BetterResult.Left;
+            if (exactRight && !exactLeft) return BetterResult.Right;
 
-        // When static inference is inconclusive, compare delegate return types directly
-        // via §12.6.4.7 better conversion target. This prefers the more specific numeric
-        // type (e.g., int over double) when the lambda's return type is unknown, allowing
-        // overload resolution to proceed rather than failing with ambiguity.
-        var returnTargetCmp = TypeHelpers.CompareBetterConversionTarget(leftReturn, rightReturn);
-        if (returnTargetCmp > 0) return BetterResult.Left;
-        if (returnTargetCmp < 0) return BetterResult.Right;
-        return BetterResult.Neither;
+            return BetterConversionTarget(leftReturn, rightReturn);
+        }
+
+        return BetterConversionTarget(leftReturn, rightReturn);
     }
 
-    /// <summary>
-    /// ECMA-334 §12.6.4.6: better conversion from type S to T1 or T2.
-    /// </summary>
-    private static BetterResult BetterConversionFromType(Type argType, Type t1, Type t2)
+    private static bool ExactlyMatches(ArgumentDescriptor arg, int argIndex, MethodCandidate candidate, Type targetType)
     {
-        if (argType == t1 && argType != t2) return BetterResult.Left;
-        if (argType == t2 && argType != t1) return BetterResult.Right;
+        if (arg.Kind == ArgumentKind.Value)
+            return arg.StaticType == targetType;
 
+        if (arg.Kind == ArgumentKind.Lambda)
+            return LambdaExactlyMatchesDelegate(argIndex, candidate, targetType);
+
+        return false;
+    }
+
+    private static bool LambdaExactlyMatchesDelegate(
+        int argIndex,
+        MethodCandidate candidate,
+        Type delegateType)
+    {
+        var invoke = delegateType.GetMethod("Invoke");
+        if (invoke == null)
+            return false;
+
+        var delegateReturnType = invoke.ReturnType;
+        if (delegateReturnType == typeof(void))
+            return false;
+
+        var inferredReturn = candidate.LambdaReturnTypes?[argIndex];
+        return inferredReturn != null && inferredReturn == delegateReturnType;
+    }
+
+    private static BetterResult BetterConversionTarget(Type t1, Type t2)
+    {
         var cmp = TypeHelpers.CompareBetterConversionTarget(t1, t2);
         if (cmp > 0) return BetterResult.Left;
         if (cmp < 0) return BetterResult.Right;
         return BetterResult.Neither;
     }
 
-    /// <summary>
-    /// Tie-breaking rules applied when argument-by-argument comparison is inconclusive.
-    /// </summary>
-    private static BetterResult TieBreak(
-        MethodInfo left, ParameterInfo[] leftParams, ApplicableForm leftForm,
-        MethodInfo right, ParameterInfo[] rightParams, ApplicableForm rightForm)
+    private static BetterResult TieBreak(MethodCandidate left, MethodCandidate right)
     {
-        // §12.6.4.3: Normal form beats expanded form
-        if (leftForm != rightForm)
-            return leftForm == ApplicableForm.Normal ? BetterResult.Left : BetterResult.Right;
+        // Rule 1: Non-generic beats generic
+        if (left.IsGeneric != right.IsGeneric)
+            return left.IsGeneric ? BetterResult.Right : BetterResult.Left;
 
-        // Non-generic beats generic
-        if (left.IsGenericMethod != right.IsGenericMethod)
-            return left.IsGenericMethod ? BetterResult.Right : BetterResult.Left;
+        // Rule 2: Normal form beats expanded form
+        if (left.Form != right.Form)
+            return left.Form == ApplicableForm.Normal ? BetterResult.Left : BetterResult.Right;
 
-        // §12.6.4.3: Fewer type parameters is more specific
-        if (left.IsGenericMethod && right.IsGenericMethod)
+        // Rule 3: Fewer elements in expanded params (both expanded)
+        if (left.Form == ApplicableForm.Expanded && right.Form == ApplicableForm.Expanded)
         {
-            var leftTypeParamCount = left.GetGenericArguments().Length;
-            var rightTypeParamCount = right.GetGenericArguments().Length;
+            var leftParamsCount = left.ArgMap.ParamsParameterIndex >= 0
+                ? left.ArgMap.Sources[left.ArgMap.ParamsParameterIndex].ParamsCount
+                : 0;
+            var rightParamsCount = right.ArgMap.ParamsParameterIndex >= 0
+                ? right.ArgMap.Sources[right.ArgMap.ParamsParameterIndex].ParamsCount
+                : 0;
+
+            if (leftParamsCount != rightParamsCount)
+                return leftParamsCount < rightParamsCount ? BetterResult.Left : BetterResult.Right;
+        }
+
+        // Rule 4: More specific parameter types (using uninstantiated types for generics)
+        var specificityResult = CompareSpecificity(left, right);
+        if (specificityResult != BetterResult.Neither)
+            return specificityResult;
+
+        // Fallback: parameter-by-parameter BetterConversionTarget for cases where
+        // specificity is insufficient (e.g., string[] vs object[] params with 0 args)
+        var paramConversionResult = CompareParameterConversionTargets(left, right);
+        if (paramConversionResult != BetterResult.Neither)
+            return paramConversionResult;
+
+        // Rule 6: All params have arguments beats some needing defaults
+        var leftDefaultCount = CountDefaults(left.ArgMap);
+        var rightDefaultCount = CountDefaults(right.ArgMap);
+        if (leftDefaultCount != rightDefaultCount)
+            return leftDefaultCount < rightDefaultCount ? BetterResult.Left : BetterResult.Right;
+
+        // Generic arity tiebreaker: fewer type parameters is more specific
+        if (left.IsGeneric && right.IsGeneric)
+        {
+            var leftTypeParamCount = left.Method.GetGenericArguments().Length;
+            var rightTypeParamCount = right.Method.GetGenericArguments().Length;
             if (leftTypeParamCount != rightTypeParamCount)
                 return leftTypeParamCount < rightTypeParamCount ? BetterResult.Left : BetterResult.Right;
         }
 
-        // Fewer parameters (fewer defaults used) is better
-        if (leftParams.Length != rightParams.Length)
-            return leftParams.Length < rightParams.Length ? BetterResult.Left : BetterResult.Right;
+        return BetterResult.Neither;
+    }
 
-        // §12.6.4.7: better conversion target parameter-by-parameter
-        var leftBetter = false;
-        var rightBetter = false;
+    private static BetterResult CompareSpecificity(MethodCandidate left, MethodCandidate right)
+    {
+        var leftParams = left.UninstantiatedParameters;
+        var rightParams = right.UninstantiatedParameters;
         var length = Math.Min(leftParams.Length, rightParams.Length);
+
+        var leftMoreSpecific = false;
+        var rightMoreSpecific = false;
 
         for (var i = 0; i < length; i++)
         {
             var leftType = GetSpecificityParameterType(leftParams, i);
             var rightType = GetSpecificityParameterType(rightParams, i);
+
+            if (leftType == rightType)
+                continue;
+
+            var cmp = CompareTypeSpecificity(leftType, rightType);
+            if (cmp > 0)
+                leftMoreSpecific = true;
+            else if (cmp < 0)
+                rightMoreSpecific = true;
+        }
+
+        if (leftMoreSpecific && !rightMoreSpecific) return BetterResult.Left;
+        if (rightMoreSpecific && !leftMoreSpecific) return BetterResult.Right;
+        return BetterResult.Neither;
+    }
+
+    private static int CompareTypeSpecificity(Type left, Type right)
+    {
+        var leftIsParam = left.IsGenericParameter;
+        var rightIsParam = right.IsGenericParameter;
+
+        if (leftIsParam && !rightIsParam) return -1;
+        if (!leftIsParam && rightIsParam) return 1;
+        if (leftIsParam && rightIsParam) return 0;
+
+        if (left.IsGenericType && right.IsGenericType &&
+            left.GetGenericTypeDefinition() == right.GetGenericTypeDefinition())
+        {
+            var leftArgs = left.GetGenericArguments();
+            var rightArgs = right.GetGenericArguments();
+
+            var leftBetter = false;
+            var rightBetter = false;
+
+            for (var i = 0; i < leftArgs.Length && i < rightArgs.Length; i++)
+            {
+                var cmp = CompareTypeSpecificity(leftArgs[i], rightArgs[i]);
+                if (cmp > 0) leftBetter = true;
+                else if (cmp < 0) rightBetter = true;
+            }
+
+            if (leftBetter && !rightBetter) return 1;
+            if (rightBetter && !leftBetter) return -1;
+        }
+
+        if (left.IsArray && right.IsArray && left.GetArrayRank() == right.GetArrayRank())
+            return CompareTypeSpecificity(left.GetElementType()!, right.GetElementType()!);
+
+        return 0;
+    }
+
+    private static BetterResult CompareParameterConversionTargets(
+        MethodCandidate left, MethodCandidate right)
+    {
+        var leftParams = left.Parameters;
+        var rightParams = right.Parameters;
+        var length = Math.Min(leftParams.Length, rightParams.Length);
+
+        var leftBetter = false;
+        var rightBetter = false;
+
+        for (var i = 0; i < length; i++)
+        {
+            var leftType = GetSpecificityParameterType(leftParams, i);
+            var rightType = GetSpecificityParameterType(rightParams, i);
+
             if (leftType == rightType)
                 continue;
 
@@ -259,235 +291,22 @@ internal static class OverloadResolution
                 rightBetter = true;
         }
 
-        return (leftBetter, rightBetter) switch
-        {
-            (true, false) => BetterResult.Left,
-            (false, true) => BetterResult.Right,
-            _ => BetterResult.Neither
-        };
+        if (leftBetter && !rightBetter) return BetterResult.Left;
+        if (rightBetter && !leftBetter) return BetterResult.Right;
+        return BetterResult.Neither;
     }
 
-    private static bool IsApplicableNormalForm(ParameterInfo[] parameters, Type[] argTypes)
+    private static int CountDefaults(ArgumentParameterMap argMap)
     {
-        if (argTypes.Length > parameters.Length)
-            return false;
-
-        for (var i = 0; i < argTypes.Length; i++)
+        var count = 0;
+        foreach (var source in argMap.Sources)
         {
-            var paramType = parameters[i].ParameterType;
-            if (!TypeHelpers.CanImplicitlyConvert(argTypes[i], paramType))
-                return false;
+            if (source.Kind == ParameterSourceKind.Default)
+                count++;
         }
-
-        for (var i = argTypes.Length; i < parameters.Length; i++)
-        {
-            if (!parameters[i].HasDefaultValue &&
-                !parameters[i].IsDefined(typeof(ParamArrayAttribute), false))
-                return false;
-        }
-
-        return true;
+        return count;
     }
 
-    private static bool IsApplicableExpandedForm(ParameterInfo[] parameters, Type[] argTypes)
-    {
-        var lastParamIndex = parameters.Length - 1;
-        if (argTypes.Length < lastParamIndex)
-            return false;
-
-        var elementType = parameters[lastParamIndex].ParameterType.GetElementType();
-        if (elementType == null)
-            return false;
-
-        for (var i = 0; i < lastParamIndex; i++)
-        {
-            if (i < argTypes.Length)
-            {
-                if (!TypeHelpers.CanImplicitlyConvert(argTypes[i], parameters[i].ParameterType))
-                    return false;
-            }
-            else if (!parameters[i].HasDefaultValue)
-            {
-                return false;
-            }
-        }
-
-        for (var i = lastParamIndex; i < argTypes.Length; i++)
-        {
-            if (!TypeHelpers.CanImplicitlyConvert(argTypes[i], elementType))
-                return false;
-        }
-
-        return true;
-    }
-
-    /// <summary>
-    /// Mirrors the exact slot-skipping logic of MethodInvoker.TryBindNormalForm:
-    /// positional args skip slots claimed by named args, named args are validated
-    /// against already-filled slots, unfilled slots must have defaults.
-    /// </summary>
-    private static bool IsApplicableNormalFormForArgs(ParameterInfo[] parameters, object?[] args)
-    {
-        SplitArgs(args, out var positionalArgs, out var namedArgs);
-
-        var filledParams = new bool[parameters.Length];
-        var positionalIndex = 0;
-
-        // Place positional args, skipping slots claimed by named args
-        for (var i = 0; i < parameters.Length && positionalIndex < positionalArgs.Count; i++)
-        {
-            if (namedArgs.ContainsKey(parameters[i].Name!))
-                continue;
-
-            if (!IsArgConvertible(positionalArgs[positionalIndex++], parameters[i].ParameterType))
-                return false;
-
-            filledParams[i] = true;
-        }
-
-        // All positional args must have been placed
-        if (positionalIndex < positionalArgs.Count)
-            return false;
-
-        // Validate named args: must map to a parameter, must not overlap with filled slots
-        foreach (var (name, value) in namedArgs)
-        {
-            var paramIndex = FindParameterIndex(parameters, name);
-            if (paramIndex < 0 || filledParams[paramIndex])
-                return false;
-
-            if (!IsArgConvertible(value, parameters[paramIndex].ParameterType))
-                return false;
-
-            filledParams[paramIndex] = true;
-        }
-
-        // Unfilled parameters must have defaults or be params
-        for (var i = 0; i < parameters.Length; i++)
-        {
-            if (filledParams[i])
-                continue;
-            if (!parameters[i].HasDefaultValue &&
-                !parameters[i].IsDefined(typeof(ParamArrayAttribute), false))
-                return false;
-        }
-
-        return true;
-    }
-
-    /// <summary>
-    /// Mirrors the exact logic of MethodInvoker.TryBindExpandedParamsForm.
-    /// </summary>
-    private static bool IsApplicableExpandedFormForArgs(ParameterInfo[] parameters, object?[] args)
-    {
-        var paramsIndex = parameters.Length - 1;
-        if (!parameters[paramsIndex].IsDefined(typeof(ParamArrayAttribute), false))
-            return false;
-
-        var elementType = parameters[paramsIndex].ParameterType.GetElementType();
-        if (elementType == null)
-            return false;
-
-        SplitArgs(args, out var positionalArgs, out var namedArgs);
-
-        var filledParams = new bool[parameters.Length];
-        var positionalIndex = 0;
-
-        // Place positional args into non-params slots, skipping named-claimed slots
-        for (var i = 0; i < paramsIndex; i++)
-        {
-            if (namedArgs.ContainsKey(parameters[i].Name!))
-                continue;
-
-            if (positionalIndex >= positionalArgs.Count)
-                break;
-
-            if (!IsArgConvertible(positionalArgs[positionalIndex++], parameters[i].ParameterType))
-                return false;
-
-            filledParams[i] = true;
-        }
-
-        // Validate named args
-        foreach (var (name, value) in namedArgs)
-        {
-            var paramIndex = FindParameterIndex(parameters, name);
-            if (paramIndex < 0)
-                return false;
-
-            if (paramIndex == paramsIndex)
-                continue; // params provided by name — handled separately
-
-            if (filledParams[paramIndex])
-                return false;
-
-            if (!IsArgConvertible(value, parameters[paramIndex].ParameterType))
-                return false;
-
-            filledParams[paramIndex] = true;
-        }
-
-        // Unfilled non-params parameters must have defaults
-        for (var i = 0; i < paramsIndex; i++)
-        {
-            if (!filledParams[i] && !parameters[i].HasDefaultValue)
-                return false;
-        }
-
-        // Remaining positional args must be convertible to the params element type
-        for (var i = positionalIndex; i < positionalArgs.Count; i++)
-        {
-            if (!IsArgConvertible(positionalArgs[i], elementType))
-                return false;
-        }
-
-        return true;
-    }
-
-    private static void SplitArgs(object?[] args, out List<object?> positional, out Dictionary<string, object?> named)
-    {
-        positional = new List<object?>(args.Length);
-        named = new Dictionary<string, object?>(StringComparer.Ordinal);
-        foreach (var arg in args)
-        {
-            if (arg is NamedArg n)
-                named[n.Name] = n.Value;
-            else
-                positional.Add(arg);
-        }
-    }
-
-    private static int FindParameterIndex(ParameterInfo[] parameters, string name)
-    {
-        for (var i = 0; i < parameters.Length; i++)
-        {
-            if (string.Equals(parameters[i].Name, name, StringComparison.Ordinal))
-                return i;
-        }
-        return -1;
-    }
-
-    private static bool IsArgConvertible(object? arg, Type paramType)
-    {
-        if (arg is OutArgMarker)
-            return paramType.IsByRef;
-
-        if (arg == null)
-            return !paramType.IsValueType || Nullable.GetUnderlyingType(paramType) != null;
-
-        var argType = arg.GetType();
-        if (TypeHelpers.CanImplicitlyConvert(argType, paramType))
-            return true;
-
-        if (arg is LambdaValue or CompiledLambdaValue && LambdaDelegateConverter.IsSupportedDelegateType(paramType))
-            return LambdaDelegateConverter.TryConvert(arg, paramType) != null;
-
-        return false;
-    }
-
-    /// <summary>
-    /// Gets the effective parameter type for argument position i, accounting for params expansion.
-    /// </summary>
     private static Type GetEffectiveParameterType(ParameterInfo[] parameters, int argIndex, ApplicableForm form)
     {
         if (form == ApplicableForm.Expanded)

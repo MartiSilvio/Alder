@@ -71,7 +71,7 @@ public sealed class AlderExpression
 
     internal CompiledExpressionInfo? GetCompiledInfo() => CompiledInfo;
 
-    internal BoundExpr GetOrCreateBoundExpression(AlderContext context, int maxDepth)
+    internal BoundExpr GetOrCreateBoundExpression(AlderContext context)
     {
         var currentVersion = context.GetTypeInferenceVersion();
         if (_boundExpressionCacheByContext.TryGetValue(context, out var cached) &&
@@ -81,7 +81,6 @@ public sealed class AlderExpression
             return cached.Bound;
         }
 
-        AstDepthValidator.EnsureWithinLimit(Ast, maxDepth);
         var binder = new Binder(new Text.SourceText(Source), recovering: true);
         var bound = binder.Bind(Ast, new BindingContext(context));
 
@@ -102,7 +101,7 @@ public sealed class AlderExpression
         return bound;
     }
 
-    internal bool TryGetOrCreateBoundExpression(AlderContext context, int maxDepth, out BoundExpr? bound, out string? failureReason)
+    internal bool TryGetOrCreateBoundExpression(AlderContext context, out BoundExpr? bound, out string? failureReason)
     {
         if (_bindingUnavailable)
         {
@@ -113,7 +112,7 @@ public sealed class AlderExpression
 
         try
         {
-            bound = GetOrCreateBoundExpression(context, maxDepth);
+            bound = GetOrCreateBoundExpression(context);
             failureReason = null;
             return true;
         }

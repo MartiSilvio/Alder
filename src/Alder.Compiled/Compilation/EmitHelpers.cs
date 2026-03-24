@@ -48,46 +48,43 @@ internal static class EmitHelpers
         if (method.ContainsGenericParameters)
             return false;
 
+        var resolved = plan.Resolution;
         var parameters = MethodDispatchCache.GetParameters(method);
-        if (parameters.Length != plan.ParameterBindings.Length)
+        var sources = resolved.ArgMap.Sources;
+
+        if (parameters.Length != sources.Length)
             return false;
 
-        if (plan.ArgumentConversions.Length != sourceArgumentCount)
+        if (resolved.Conversions.Length != sourceArgumentCount)
             return false;
 
         foreach (var parameter in parameters)
         {
             if (parameter.ParameterType.IsByRef)
-            {
                 return false;
-            }
         }
 
-        foreach (var binding in plan.ParameterBindings)
+        for (var paramIdx = 0; paramIdx < sources.Length; paramIdx++)
         {
-            if ((uint)binding.ParameterIndex >= (uint)parameters.Length)
-                return false;
-
-            switch (binding.Kind)
+            var source = sources[paramIdx];
+            switch (source.Kind)
             {
-                case BoundParameterBindingKind.Argument:
-                    if (binding.SourceArgumentCount != 1)
-                        return false;
-                    if ((uint)binding.SourceArgumentIndex >= (uint)sourceArgumentCount)
+                case ParameterSourceKind.Argument:
+                    if ((uint)source.ArgumentIndex >= (uint)sourceArgumentCount)
                         return false;
                     break;
 
-                case BoundParameterBindingKind.DefaultValue:
-                    if (!parameters[binding.ParameterIndex].HasDefaultValue)
+                case ParameterSourceKind.Default:
+                    if (!parameters[paramIdx].HasDefaultValue)
                         return false;
                     break;
 
-                case BoundParameterBindingKind.ParamsArray:
-                    if (!parameters[binding.ParameterIndex].IsDefined(typeof(ParamArrayAttribute), false))
+                case ParameterSourceKind.ParamsRange:
+                    if (!parameters[paramIdx].IsDefined(typeof(ParamArrayAttribute), false))
                         return false;
-                    if (binding.SourceArgumentIndex < 0 || binding.SourceArgumentCount < 0)
+                    if (source.ParamsStartIndex < 0 || source.ParamsCount < 0)
                         return false;
-                    if (binding.SourceArgumentIndex + binding.SourceArgumentCount > sourceArgumentCount)
+                    if (source.ParamsStartIndex + source.ParamsCount > sourceArgumentCount)
                         return false;
                     break;
 

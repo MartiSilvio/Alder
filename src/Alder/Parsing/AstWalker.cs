@@ -8,29 +8,16 @@ internal abstract class AstWalker<T> : IExprVisitor<T>
 {
     protected abstract T DefaultValue { get; }
 
-    /// <summary>
-    /// Maximum traversal depth. When exceeded, throws AlderException to prevent
-    /// uncatchable StackOverflowException on deeply nested ASTs.
-    /// Subclasses can override this for scenario-specific limits.
-    /// </summary>
-    protected int MaxVisitDepth { get; set; } = 512;
     private int _visitDepth;
 
-    /// <summary>
-    /// Called before visiting children. Override to add pre-processing.
-    /// </summary>
     protected virtual void OnEnter(Expr expr) { }
-
-    /// <summary>
-    /// Called after visiting children. Override to compute result from children.
-    /// </summary>
     protected virtual T OnLeave(Expr expr) => DefaultValue;
 
     protected T Visit(Expr expr)
     {
         _visitDepth++;
-        if (_visitDepth > MaxVisitDepth)
-            throw new AlderDepthException("traversal", MaxVisitDepth);
+        if ((_visitDepth & 0x1F) == 0)
+            System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack();
         try
         {
             return expr.Accept(this);

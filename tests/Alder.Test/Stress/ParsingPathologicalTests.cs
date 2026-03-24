@@ -78,15 +78,9 @@ public class ParsingPathologicalTests(CompilationMode mode) : StressTestBase(mod
     [TestCase(1000)]
     public void ManyChainedPropertyAccesses_ShouldNotStackOverflow(int count)
     {
-        // "start".Length.ToString().Length.ToString()...
-        // Each iteration adds ~3 AST nodes (MemberAccess, MemberAccess, Call).
-        // count=100 (~300 evaluator depth) is under the 512 evaluator cap: succeeds.
-        // count=1000 (~3000 evaluator depth) exceeds the 512 cap: throws AlderDepthException.
         var sb = new StringBuilder("\"start\"");
         for (int i = 0; i < count; i++)
-        {
             sb.Append(".Length.ToString()");
-        }
 
         var expr = sb.ToString();
 
@@ -97,8 +91,7 @@ public class ParsingPathologicalTests(CompilationMode mode) : StressTestBase(mod
         }
         else
         {
-            var ex = Assert.Throws<AlderDepthException>(() => Engine.Evaluate(expr));
-            Assert.That(ex!.MaxDepth, Is.EqualTo(512));
+            Assert.Throws<AlderException>(() => Engine.Evaluate(expr));
         }
     }
 

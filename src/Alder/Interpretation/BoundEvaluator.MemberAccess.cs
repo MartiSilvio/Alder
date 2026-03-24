@@ -126,21 +126,12 @@ internal sealed partial class BoundEvaluator
 
             var plannedArgs = EvaluateArguments(call.Arguments);
 
-            var plannedResult = MethodInvoker.InvokePlannedMethod(
-                call.Plan,
-                target,
-                plannedArgs,
-                _cancellationToken);
-            if (plannedResult.Success)
-                return plannedResult.Value;
-
-            var result = MethodInvoker.InvokeMethodWithArgs(
-                call.Plan.SelectedMethod,
-                target,
-                plannedArgs,
-                _cancellationToken);
-            if (result.Success)
-                return result.Value;
+            var resolved = call.Plan.Resolution;
+            var parameters = Runtime.MethodDispatchCache.GetParameters(resolved.Method);
+            var prepared = Runtime.ArgumentPreparer.Prepare(resolved, plannedArgs, parameters, _cancellationToken);
+            var plannedResult = MethodInvoker.InvokeMethodCore(resolved.Method, target, prepared);
+            Runtime.ArgumentPreparer.CopyBackOutArgs(plannedArgs, prepared, parameters);
+            return plannedResult;
         }
 
         var (args, outBindings) = EvaluateArgumentsWithOutBindings(call.Arguments);

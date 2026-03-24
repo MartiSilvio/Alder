@@ -7,7 +7,7 @@ namespace Alder.Test.Runtime;
 public sealed class PlannedCallInvokerTests
 {
     [Test]
-    public void InvokePlannedMethod_OptionalDefault_AppliesDefaultValue()
+    public void PreparedCall_OptionalDefault_AppliesDefaultValue()
     {
         var context = new AlderContext(AlderConfig.Empty);
         var binder = new CallBinderService(context);
@@ -17,17 +17,19 @@ public sealed class PlannedCallInvokerTests
             [typeof(int)],
             isCaseSensitive: true);
 
-        Assert.That(plan.IsDirectArgumentMapping, Is.False);
+        var resolved = plan.Resolution;
+        Assert.That(ArgumentPreparer.IsDirectMapping(resolved, [7], MethodDispatchCache.GetParameters(resolved.Method)), Is.False);
 
         var target = new PlannedInvocationTarget();
-        var result = MethodInvoker.InvokePlannedMethod(plan, target, [7], CancellationToken.None);
+        var parameters = MethodDispatchCache.GetParameters(resolved.Method);
+        var prepared = ArgumentPreparer.Prepare(resolved, [7], parameters, CancellationToken.None);
+        var result = MethodInvoker.InvokeMethodCore(resolved.Method, target, prepared);
 
-        Assert.That(result.Success, Is.True);
-        Assert.That(result.Value, Is.EqualTo(17));
+        Assert.That(result, Is.EqualTo(17));
     }
 
     [Test]
-    public void InvokePlannedMethod_ParamsExpansion_PacksTrailingArguments()
+    public void PreparedCall_ParamsExpansion_PacksTrailingArguments()
     {
         var context = new AlderContext(AlderConfig.Empty);
         var binder = new CallBinderService(context);
@@ -37,17 +39,20 @@ public sealed class PlannedCallInvokerTests
             [typeof(int), typeof(int), typeof(int), typeof(int)],
             isCaseSensitive: true);
 
-        Assert.That(plan.IsDirectArgumentMapping, Is.False);
+        var resolved = plan.Resolution;
+        object?[] args = [1, 2, 3, 4];
+        Assert.That(ArgumentPreparer.IsDirectMapping(resolved, args, MethodDispatchCache.GetParameters(resolved.Method)), Is.False);
 
         var target = new PlannedInvocationTarget();
-        var result = MethodInvoker.InvokePlannedMethod(plan, target, [1, 2, 3, 4], CancellationToken.None);
+        var parameters = MethodDispatchCache.GetParameters(resolved.Method);
+        var prepared = ArgumentPreparer.Prepare(resolved, args, parameters, CancellationToken.None);
+        var result = MethodInvoker.InvokeMethodCore(resolved.Method, target, prepared);
 
-        Assert.That(result.Success, Is.True);
-        Assert.That(result.Value, Is.EqualTo(10));
+        Assert.That(result, Is.EqualTo(10));
     }
 
     [Test]
-    public void InvokePlannedMethod_DirectIdentityMapping_UsesDirectPath()
+    public void PreparedCall_DirectIdentityMapping_UsesDirectPath()
     {
         var context = new AlderContext(AlderConfig.Empty);
         var binder = new CallBinderService(context);
@@ -57,13 +62,16 @@ public sealed class PlannedCallInvokerTests
             [typeof(int)],
             isCaseSensitive: true);
 
-        Assert.That(plan.IsDirectArgumentMapping, Is.True);
+        var resolved = plan.Resolution;
+        object?[] args = [7];
+        Assert.That(ArgumentPreparer.IsDirectMapping(resolved, args, MethodDispatchCache.GetParameters(resolved.Method)), Is.True);
 
         var target = new PlannedInvocationTarget();
-        var result = MethodInvoker.InvokePlannedMethod(plan, target, [7], CancellationToken.None);
+        var parameters = MethodDispatchCache.GetParameters(resolved.Method);
+        var prepared = ArgumentPreparer.Prepare(resolved, args, parameters, CancellationToken.None);
+        var result = MethodInvoker.InvokeMethodCore(resolved.Method, target, prepared);
 
-        Assert.That(result.Success, Is.True);
-        Assert.That(result.Value, Is.EqualTo(7));
+        Assert.That(result, Is.EqualTo(7));
     }
 
     private sealed class PlannedInvocationTarget

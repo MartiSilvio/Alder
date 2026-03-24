@@ -1,4 +1,3 @@
-using Alder.Binding.Plans;
 using Alder.Binding.Services;
 using Alder.Runtime;
 
@@ -57,10 +56,11 @@ public sealed class CallBinderServiceTests
             [typeof(int)],
             isCaseSensitive: true);
 
-        Assert.That(plan.ParameterBindings.Length, Is.EqualTo(2));
-        Assert.That(plan.ParameterBindings[0].Kind, Is.EqualTo(BoundParameterBindingKind.Argument));
-        Assert.That(plan.ParameterBindings[0].SourceArgumentIndex, Is.EqualTo(0));
-        Assert.That(plan.ParameterBindings[1].Kind, Is.EqualTo(BoundParameterBindingKind.DefaultValue));
+        var sources = plan.Resolution.ArgMap.Sources;
+        Assert.That(sources.Length, Is.EqualTo(2));
+        Assert.That(sources[0].Kind, Is.EqualTo(ParameterSourceKind.Argument));
+        Assert.That(sources[0].ArgumentIndex, Is.EqualTo(0));
+        Assert.That(sources[1].Kind, Is.EqualTo(ParameterSourceKind.Default));
     }
 
     [Test]
@@ -76,10 +76,11 @@ public sealed class CallBinderServiceTests
             [typeof(int), typeof(int), typeof(int), typeof(int)],
             isCaseSensitive: true);
 
-        Assert.That(plan.ParameterBindings.Length, Is.EqualTo(1));
-        Assert.That(plan.ParameterBindings[0].Kind, Is.EqualTo(BoundParameterBindingKind.ParamsArray));
-        Assert.That(plan.ParameterBindings[0].SourceArgumentIndex, Is.EqualTo(0));
-        Assert.That(plan.ParameterBindings[0].SourceArgumentCount, Is.EqualTo(4));
+        var sources = plan.Resolution.ArgMap.Sources;
+        Assert.That(sources.Length, Is.EqualTo(1));
+        Assert.That(sources[0].Kind, Is.EqualTo(ParameterSourceKind.ParamsRange));
+        Assert.That(sources[0].ParamsStartIndex, Is.EqualTo(0));
+        Assert.That(sources[0].ParamsCount, Is.EqualTo(4));
     }
 
     [Test]

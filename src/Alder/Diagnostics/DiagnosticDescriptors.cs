@@ -188,8 +188,6 @@ public static class DiagnosticDescriptors
     public static readonly DiagnosticDescriptor ReflectionTypeAccessBlocked =
         new(DiagnosticCode.ALDR0108, "Access to reflection types is not allowed: {0} ({1})");
 
-    public static readonly DiagnosticDescriptor ExpressionDepthExceeded =
-        new(DiagnosticCode.ALDR0200, "Expression {0} depth exceeded maximum of {1}. Configure AlderOptions.Constraints.MaxExpressionDepth to adjust this limit.");
 
     public static readonly DiagnosticDescriptor StatementLimitExceeded =
         new(DiagnosticCode.ALDR0201, "Execution exceeded maximum statement count ({0}). {1} statements executed.");

@@ -62,7 +62,7 @@ public sealed partial class AlderEngine
             if (existing != null)
                 return existing.Delegate != null;
 
-            if (!expression.TryGetOrCreateBoundExpression(context, _config.Constraints.MaxExpressionDepth, out var bound, out var failureReason) ||
+            if (!expression.TryGetOrCreateBoundExpression(context, out var bound, out var failureReason) ||
                 bound == null)
             {
                 expression.CompiledInfo = new CompiledExpressionInfo(null, false, failureReason ?? "Binding failed for expression.");

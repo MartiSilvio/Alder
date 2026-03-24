@@ -135,8 +135,6 @@ public static class AlderCompiledEngineExtensions
             var engineVariables = access.CollectEngineVariables();
             var config = access.Config;
 
-            AstDepthValidator.EnsureWithinLimit(lambdaExpr.Body, access.Config.Constraints.MaxExpressionDepth);
-
             var bindingRuntimeContext = new AlderContext(config);
             foreach (var pair in engineVariables)
                 bindingRuntimeContext.Define(pair.Key, pair.Value, pair.Value?.GetType() ?? typeof(object));

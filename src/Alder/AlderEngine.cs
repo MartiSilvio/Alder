@@ -382,7 +382,23 @@ public sealed partial class AlderEngine : IDisposable
 
         var executionContext = context.CreateChild();
 
-        if (expression.TryGetOrCreateBoundExpression(executionContext, _config.Constraints.MaxExpressionDepth, out var boundExpression, out var boundFailureReason))
+        try
+        {
+            return EvaluateCore(expression, executionContext, constraintState, cancellationToken);
+        }
+        catch (System.InsufficientExecutionStackException)
+        {
+            throw new AlderException(DiagnosticDescriptors.ExpressionNestingDepthExceeded);
+        }
+    }
+
+    private object? EvaluateCore(
+        AlderExpression expression,
+        AlderContext executionContext,
+        ExecutionConstraintState constraintState,
+        CancellationToken cancellationToken)
+    {
+        if (expression.TryGetOrCreateBoundExpression(executionContext, out var boundExpression, out var boundFailureReason))
         {
             if (boundExpression != null)
             {
@@ -575,7 +591,6 @@ public sealed partial class AlderEngine : IDisposable
         try
         {
             var context = GetOrCreateContext();
-            AstDepthValidator.EnsureWithinLimit(ast, _config.Constraints.MaxExpressionDepth);
             var binder = new Binder(new Text.SourceText(expression), recovering: true);
             var bindingContext = new BindingContext(context);
             var validationDiagnostics = new List<AlderDiagnostic>(binder.CollectDiagnostics(ast, bindingContext));

@@ -25,47 +25,53 @@ public class SandboxAttackTests(CompilationMode mode)
     public void Attack_ConstructProcess_Blocked()
     {
         var engine = Safe();
-        Assert.Throws<AlderException>(() =>
+        var ex = Assert.Throws<AlderException>(() =>
             engine.Evaluate("""new System.Diagnostics.Process()"""));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0106));
     }
 
     [Test]
     public void Attack_ProcessStart_Blocked()
     {
         var engine = Strict();
-        Assert.Throws<AlderException>(() =>
+        var ex = Assert.Throws<AlderException>(() =>
             engine.Evaluate("""System.Diagnostics.Process.Start("calc")"""));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0246));
     }
 
     [Test]
     public void Attack_FileReadAllText_Blocked()
     {
         var engine = Safe();
-        Assert.Throws<AlderException>(() =>
+        var ex = Assert.Throws<AlderException>(() =>
             engine.Evaluate("""System.IO.File.ReadAllText("/etc/passwd")"""));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0107));
     }
 
     [Test]
     public void Attack_FileWriteAllText_Blocked()
     {
         var engine = Safe();
-        Assert.Throws<AlderException>(() =>
+        var ex = Assert.Throws<AlderException>(() =>
             engine.Evaluate("""System.IO.File.WriteAllText("/tmp/pwned", "data")"""));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0107));
     }
 
     [Test]
     public void Attack_EnvironmentGetVariable_Blocked()
     {
         var engine = Safe();
-        Assert.Throws<AlderException>(() =>
+        var ex = Assert.Throws<AlderException>(() =>
             engine.Evaluate("""System.Environment.GetEnvironmentVariable("PATH")"""));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0107));
     }
     [Test]
     public void Attack_TypeofGetMethods_Blocked()
     {
         var engine = TestEngineFactory.Create(mode);
-        Assert.Throws<AlderException>(() =>
+        var ex = Assert.Throws<AlderException>(() =>
             engine.Evaluate("""typeof(string).GetMethods()"""));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0108));
     }
 
     [Test]
@@ -80,70 +86,79 @@ public class SandboxAttackTests(CompilationMode mode)
     public void Attack_GetTypeOnVariable_Blocked()
     {
         var engine = SafeWithVariables();
-        Assert.Throws<AlderException>(() =>
+        var ex = Assert.Throws<AlderException>(() =>
             engine.Evaluate("text.GetType()"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0100));
     }
 
     [Test]
     public void Attack_TypeofAssembly_Blocked()
     {
         var engine = TestEngineFactory.Create(mode);
-        Assert.Throws<AlderException>(() =>
+        var ex = Assert.Throws<AlderException>(() =>
             engine.Evaluate("""typeof(string).Assembly"""));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0108));
     }
     [Test]
     public void Attack_MethodCallInSafeMode_Blocked()
     {
         var engine = SafeWithVariables();
-        Assert.Throws<AlderException>(() =>
+        var ex = Assert.Throws<AlderException>(() =>
             engine.Evaluate("text.ToUpper()"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0100));
     }
 
     [Test]
     public void Attack_MethodCallViaToString_Blocked()
     {
         var engine = SafeWithVariables();
-        Assert.Throws<AlderException>(() =>
+        var ex = Assert.Throws<AlderException>(() =>
             engine.Evaluate("num.ToString()"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0100));
     }
 
     [Test]
     public void Attack_StaticMethodCall_Blocked()
     {
         var engine = Safe();
-        Assert.Throws<AlderException>(() =>
+        var ex = Assert.Throws<AlderException>(() =>
             engine.Evaluate("int.Parse(\"42\")"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0100));
     }
     [Test]
     public void Attack_NewObject_Blocked()
     {
         var engine = Safe();
-        Assert.Throws<AlderException>(() =>
+        var ex = Assert.Throws<AlderException>(() =>
             engine.Evaluate("new object()"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0106));
     }
 
     [Test]
     public void Attack_NewList_Blocked()
     {
         var engine = Safe();
-        Assert.Throws<AlderException>(() =>
+        var ex = Assert.Throws<AlderException>(() =>
             engine.Evaluate("new System.Collections.Generic.List<int>()"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0106));
     }
 
     [Test]
     public void Attack_NewStringBuilder_Blocked()
     {
         var engine = Safe();
-        Assert.Throws<AlderException>(() =>
+        var ex = Assert.Throws<AlderException>(() =>
             engine.Evaluate("new System.Text.StringBuilder()"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0106));
     }
     [Test]
     public void Attack_AssignmentInStrictMode_Blocked()
     {
         var engine = Strict();
         engine.SetVariable("x", 1);
-        Assert.Throws<AlderException>(() =>
+        var ex = Assert.Throws<AlderException>(() =>
             engine.Evaluate("x = 2"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0101));
     }
 
     [Test]
@@ -151,8 +166,9 @@ public class SandboxAttackTests(CompilationMode mode)
     {
         var engine = Strict();
         engine.SetVariable("x", 1);
-        Assert.Throws<AlderException>(() =>
+        var ex = Assert.Throws<AlderException>(() =>
             engine.Evaluate("x += 1"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0101));
     }
 
     [Test]
@@ -160,8 +176,9 @@ public class SandboxAttackTests(CompilationMode mode)
     {
         var engine = Strict();
         engine.SetVariable("x", 1);
-        Assert.Throws<AlderException>(() =>
+        var ex = Assert.Throws<AlderException>(() =>
             engine.Evaluate("x++"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0101));
     }
 
     [Test]
@@ -169,16 +186,18 @@ public class SandboxAttackTests(CompilationMode mode)
     {
         var engine = Strict();
         engine.SetVariable("x", (int?)null);
-        Assert.Throws<AlderException>(() =>
+        var ex = Assert.Throws<AlderException>(() =>
             engine.Evaluate("x ??= 5"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0101));
     }
 
     [Test]
     public void Attack_VarDeclarationInStrictMode_Blocked()
     {
         var engine = Strict();
-        Assert.Throws<AlderException>(() =>
+        var ex = Assert.Throws<AlderException>(() =>
             engine.Evaluate("var x = 1"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS1003));
     }
     [Test]
     public void Attack_PropertySetInStrictMode_Blocked()
@@ -186,8 +205,9 @@ public class SandboxAttackTests(CompilationMode mode)
         var engine = Strict();
         var obj = new TestMutableObject { Value = 10 };
         engine.SetVariable("obj", obj);
-        Assert.Throws<AlderException>(() =>
+        var ex = Assert.Throws<AlderException>(() =>
             engine.Evaluate("obj.Value = 99"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0105));
     }
 
     [Test]
@@ -195,8 +215,9 @@ public class SandboxAttackTests(CompilationMode mode)
     {
         var engine = Strict();
         engine.SetVariable("items", new List<int> { 1, 2, 3 });
-        Assert.Throws<AlderException>(() =>
+        var ex = Assert.Throws<AlderException>(() =>
             engine.Evaluate("items[0] = 99"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0102));
     }
     [Test]
     public void Attack_DelegateInvoke_InSafeMode_Allowed()
@@ -250,8 +271,9 @@ public class SandboxAttackTests(CompilationMode mode)
     public void Attack_HugeArrayAllocation_Blocked()
     {
         var engine = TestEngineFactory.Create(mode);
-        Assert.Throws<AlderException>(() =>
+        var ex = Assert.Throws<AlderException>(() =>
             engine.Evaluate("new int[100000000]"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0203));
     }
 
     [Test]
@@ -283,7 +305,8 @@ public class SandboxAttackTests(CompilationMode mode)
                    string.Join("", Enumerable.Repeat(")", depth));
 
         var engine = TestEngineFactory.Create(mode);
-        Assert.Throws<AlderException>(() => engine.Evaluate(expr));
+        var result = engine.Evaluate(expr);
+        Assert.That(result, Is.EqualTo(1));
     }
     [Test]
     public void Attack_UseAfterDispose_Throws()
@@ -309,24 +332,27 @@ public class SandboxAttackTests(CompilationMode mode)
     public void Attack_SystemIO_NamespaceBlocked()
     {
         var engine = Safe();
-        Assert.Throws<AlderException>(() =>
+        var ex = Assert.Throws<AlderException>(() =>
             engine.Evaluate("""System.IO.Path.GetTempPath()"""));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0107));
     }
 
     [Test]
     public void Attack_SystemNet_NamespaceBlocked()
     {
         var engine = Safe();
-        Assert.Throws<AlderException>(() =>
+        var ex = Assert.Throws<AlderException>(() =>
             engine.Evaluate("""new System.Net.WebClient()"""));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0106));
     }
 
     [Test]
     public void Attack_SystemReflection_NamespaceBlocked()
     {
         var engine = Safe();
-        Assert.Throws<AlderException>(() =>
+        var ex = Assert.Throws<AlderException>(() =>
             engine.Evaluate("""System.Reflection.Assembly.GetCallingAssembly()"""));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0107));
     }
     [Test]
     public void CompiledAndInterpreted_SameSecurityBehavior_Construction()

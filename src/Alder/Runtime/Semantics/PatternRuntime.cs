@@ -217,7 +217,6 @@ internal static class PatternRuntime
 
         public object? EvaluatePatternExpression(Expr expression)
         {
-            AstDepthValidator.EnsureWithinLimit(expression, Config.Constraints.MaxExpressionDepth);
             var binder = new Binder();
             var boundExpression = binder.Bind(expression, new BindingContext(Context));
             _evaluator ??= new BoundEvaluator(Context, Config, cancellationToken: CancellationToken);

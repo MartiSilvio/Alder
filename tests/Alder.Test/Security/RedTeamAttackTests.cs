@@ -16,119 +16,137 @@ public class RedTeamAttackTests(CompilationMode mode)
     [Test]
     public void Attack_FQN_Environment_MachineName_Safe()
     {
-        Assert.Throws<AlderException>(() => Safe().Evaluate("System.Environment.MachineName"));
+        var ex = Assert.Throws<AlderException>(() => Safe().Evaluate("System.Environment.MachineName"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0107));
     }
 
     [Test]
     public void Attack_FQN_Environment_UserName_Safe()
     {
-        Assert.Throws<AlderException>(() => Safe().Evaluate("System.Environment.UserName"));
+        var ex = Assert.Throws<AlderException>(() => Safe().Evaluate("System.Environment.UserName"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0107));
     }
 
     [Test]
     public void Attack_FQN_Environment_CurrentDirectory_Safe()
     {
-        Assert.Throws<AlderException>(() => Safe().Evaluate("System.Environment.CurrentDirectory"));
+        var ex = Assert.Throws<AlderException>(() => Safe().Evaluate("System.Environment.CurrentDirectory"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0107));
     }
 
     [Test]
     public void Attack_FQN_Environment_CommandLine_Safe()
     {
-        Assert.Throws<AlderException>(() => Safe().Evaluate("System.Environment.CommandLine"));
+        var ex = Assert.Throws<AlderException>(() => Safe().Evaluate("System.Environment.CommandLine"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0107));
     }
 
     [Test]
     public void Attack_FQN_Environment_OSVersion_Safe()
     {
-        Assert.Throws<AlderException>(() => Safe().Evaluate("System.Environment.OSVersion"));
+        var ex = Assert.Throws<AlderException>(() => Safe().Evaluate("System.Environment.OSVersion"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0107));
     }
 
     [Test]
     public void Attack_FQN_Environment_ProcessPath_Safe()
     {
-        Assert.Throws<AlderException>(() => Safe().Evaluate("System.Environment.ProcessPath"));
+        var ex = Assert.Throws<AlderException>(() => Safe().Evaluate("System.Environment.ProcessPath"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0107));
     }
 
     [Test]
     public void Attack_FQN_Environment_Strict()
     {
-        Assert.Throws<AlderException>(() => Strict().Evaluate("System.Environment.MachineName"));
+        var ex = Assert.Throws<AlderException>(() => Strict().Evaluate("System.Environment.MachineName"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0107));
     }
 
     [Test]
     public void Attack_ShortName_Environment_Safe()
     {
-        Assert.Throws<AlderException>(() => Safe().Evaluate("Environment.MachineName"));
+        var ex = Assert.Throws<AlderException>(() => Safe().Evaluate("Environment.MachineName"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0107));
     }
     [Test]
     public void Attack_FQN_ProcessStart_Safe()
     {
-        Assert.Throws<AlderException>(() =>
+        var ex = Assert.Throws<AlderException>(() =>
             Safe().Evaluate("""System.Diagnostics.Process.Start("calc")"""));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0246));
     }
 
     [Test]
     public void Attack_FQN_FileRead_Safe()
     {
-        Assert.Throws<AlderException>(() =>
+        var ex = Assert.Throws<AlderException>(() =>
             Safe().Evaluate("""System.IO.File.ReadAllText("/etc/passwd")"""));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0107));
     }
 
     [Test]
     public void Attack_FQN_FileWrite_Safe()
     {
-        Assert.Throws<AlderException>(() =>
+        var ex = Assert.Throws<AlderException>(() =>
             Safe().Evaluate("""System.IO.File.WriteAllText("/tmp/pwned", "data")"""));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0107));
     }
 
     [Test]
     public void Attack_FQN_FileDelete_Safe()
     {
-        Assert.Throws<AlderException>(() =>
+        var ex = Assert.Throws<AlderException>(() =>
             Safe().Evaluate("""System.IO.File.Delete("important.db")"""));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0107));
     }
 
     [Test]
     public void Attack_FQN_DirectoryGetFiles_Safe()
     {
-        Assert.Throws<AlderException>(() =>
+        var ex = Assert.Throws<AlderException>(() =>
             Safe().Evaluate("""System.IO.Directory.GetFiles("C:\\")"""));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0107));
     }
 
     [Test]
     public void Attack_FQN_PathGetTempPath_Safe()
     {
-        Assert.Throws<AlderException>(() =>
+        var ex = Assert.Throws<AlderException>(() =>
             Safe().Evaluate("System.IO.Path.GetTempPath()"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0107));
     }
 
     [Test]
     public void Attack_FQN_ReflectionAssembly_Safe()
     {
-        Assert.Throws<AlderException>(() =>
+        var ex = Assert.Throws<AlderException>(() =>
             Safe().Evaluate("System.Reflection.Assembly.GetCallingAssembly()"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0107));
     }
     [Test]
     public void Attack_GetType_ReflectionChain_Trusted()
     {
         var engine = Trusted();
         engine.SetVariable("text", "hello");
-        Assert.Throws<AlderException>(() =>
+        var ex = Assert.Throws<AlderException>(() =>
             engine.Evaluate("text.GetType()"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0108));
     }
 
     [Test]
     public void Attack_TypeofAssembly_Trusted()
     {
-        Assert.Throws<AlderException>(() =>
+        var ex = Assert.Throws<AlderException>(() =>
             Trusted().Evaluate("typeof(string).Assembly"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0108));
     }
 
     [Test]
     public void Attack_TypeofBaseType_Trusted()
     {
-        Assert.Throws<AlderException>(() =>
+        var ex = Assert.Throws<AlderException>(() =>
             Trusted().Evaluate("typeof(string).BaseType"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0108));
     }
 
     [Test]
@@ -142,8 +160,9 @@ public class RedTeamAttackTests(CompilationMode mode)
     {
         var engine = Trusted();
         engine.SetVariable("getType", new Func<object, Type>(o => o.GetType()));
-        Assert.Throws<AlderException>(() =>
+        var ex = Assert.Throws<AlderException>(() =>
             engine.Evaluate("""getType("hello")"""));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0108));
     }
 
     [Test]
@@ -151,8 +170,9 @@ public class RedTeamAttackTests(CompilationMode mode)
     {
         var engine = Trusted();
         engine.SetVariable("getAsm", new Func<System.Reflection.Assembly>(() => typeof(string).Assembly));
-        Assert.Throws<AlderException>(() =>
+        var ex = Assert.Throws<AlderException>(() =>
             engine.Evaluate("getAsm()"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0108));
     }
 
     [Test]
@@ -165,28 +185,32 @@ public class RedTeamAttackTests(CompilationMode mode)
     [Test]
     public void Attack_NewProcess_Safe()
     {
-        Assert.Throws<AlderException>(() =>
+        var ex = Assert.Throws<AlderException>(() =>
             Safe().Evaluate("new System.Diagnostics.Process()"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0106));
     }
 
     [Test]
     public void Attack_NewObject_Safe()
     {
-        Assert.Throws<AlderException>(() =>
+        var ex = Assert.Throws<AlderException>(() =>
             Safe().Evaluate("new object()"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0106));
     }
 
     [Test]
     public void Attack_NewList_Safe()
     {
-        Assert.Throws<AlderException>(() =>
+        var ex = Assert.Throws<AlderException>(() =>
             Safe().Evaluate("new System.Collections.Generic.List<int>()"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0106));
     }
     [Test]
     public void Attack_HugeArrayAllocation()
     {
-        Assert.Throws<AlderException>(() =>
+        var ex = Assert.Throws<AlderException>(() =>
             TestEngineFactory.Create(mode).Evaluate("new int[100000000]"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0203));
     }
 
     [Test]
@@ -202,35 +226,39 @@ public class RedTeamAttackTests(CompilationMode mode)
     {
         var depth = 600;
         var expr = new string('(', depth) + "1" + new string(')', depth);
-        Assert.Throws<AlderException>(() =>
-            TestEngineFactory.Create(mode).Evaluate(expr));
+        var result = TestEngineFactory.Create(mode).Evaluate(expr);
+        Assert.That(result, Is.EqualTo(1));
     }
     [Test]
     public void Attack_GC_Collect_Safe()
     {
-        Assert.Throws<AlderException>(() =>
+        var ex = Assert.Throws<AlderException>(() =>
             Safe().Evaluate("System.GC.Collect()"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0107));
     }
 
     [Test]
     public void Attack_ThreadSleep_Safe()
     {
-        Assert.Throws<AlderException>(() =>
+        var ex = Assert.Throws<AlderException>(() =>
             Safe().Evaluate("System.Threading.Thread.Sleep(60000)"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0107));
     }
 
     [Test]
     public void Attack_ConsoleReadLine_Safe()
     {
-        Assert.Throws<AlderException>(() =>
+        var ex = Assert.Throws<AlderException>(() =>
             Safe().Evaluate("System.Console.ReadLine()"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0246));
     }
     [Test]
     public void Attack_Assignment_Strict()
     {
         var engine = Strict();
         engine.SetVariable("x", 1);
-        Assert.Throws<AlderException>(() => engine.Evaluate("x = 2"));
+        var ex = Assert.Throws<AlderException>(() => engine.Evaluate("x = 2"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0101));
     }
 
     [Test]
@@ -238,7 +266,8 @@ public class RedTeamAttackTests(CompilationMode mode)
     {
         var engine = Strict();
         engine.SetVariable("x", 1);
-        Assert.Throws<AlderException>(() => engine.Evaluate("x += 1"));
+        var ex = Assert.Throws<AlderException>(() => engine.Evaluate("x += 1"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0101));
     }
 
     [Test]
@@ -246,14 +275,16 @@ public class RedTeamAttackTests(CompilationMode mode)
     {
         var engine = Strict();
         engine.SetVariable("x", 1);
-        Assert.Throws<AlderException>(() => engine.Evaluate("x++"));
+        var ex = Assert.Throws<AlderException>(() => engine.Evaluate("x++"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0101));
     }
 
     [Test]
     public void Attack_VarDeclaration_Strict()
     {
         var engine = Strict();
-        Assert.Throws<AlderException>(() => engine.Evaluate("var x = 1"));
+        var ex = Assert.Throws<AlderException>(() => engine.Evaluate("var x = 1"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS1003));
     }
     [Test]
     public void Attack_ConditionalDeadBranch_DangerousBranch_NeverExecuted()
@@ -282,9 +313,10 @@ public class RedTeamAttackTests(CompilationMode mode)
     {
         var engine = Safe();
         engine.SetVariable("x", 0);
-        Assert.Throws<AlderException>(() => engine.Evaluate("""
+        var ex = Assert.Throws<AlderException>(() => engine.Evaluate("""
             { try { var y = 1/x; return y; } catch (Exception e) { return e.GetType(); } }
         """));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0100));
     }
 
     [Test]
@@ -365,15 +397,17 @@ public class RedTeamAttackTests(CompilationMode mode)
     [Test]
     public void Attack_ConstructAlderEngine_Safe()
     {
-        Assert.Throws<AlderException>(() =>
+        var ex = Assert.Throws<AlderException>(() =>
             Safe().Evaluate("""new Alder.AlderEngine().Evaluate("1 + 1")"""));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0106));
     }
 
     [Test]
     public void Attack_ConstructAlderEngine_Strict()
     {
-        Assert.Throws<AlderException>(() =>
+        var ex = Assert.Throws<AlderException>(() =>
             Strict().Evaluate("""new Alder.AlderEngine().Evaluate("1 + 1")"""));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0106));
     }
 
     [Test]
@@ -383,23 +417,26 @@ public class RedTeamAttackTests(CompilationMode mode)
             o.Types.AddAssembly(typeof(AlderEngine).Assembly);
             o.Types.AddNamespace("Alder");
         });
-        Assert.Throws<AlderException>(() =>
+        var ex = Assert.Throws<AlderException>(() =>
             engine.Evaluate("""new AlderEngine().Evaluate("System.Environment.MachineName")"""));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0107));
     }
 
     [Test]
     public void Attack_ConstructAlderEngine_FQN_Trusted()
     {
         var engine = Trusted();
-        Assert.Throws<AlderException>(() =>
+        var ex = Assert.Throws<AlderException>(() =>
             engine.Evaluate("""new Alder.AlderEngine().Evaluate("System.Environment.MachineName")"""));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0246));
     }
 
     [Test]
     public void Attack_AccessAlderOptions_FQN_Trusted()
     {
-        Assert.Throws<AlderException>(() =>
+        var ex = Assert.Throws<AlderException>(() =>
             Trusted().Evaluate("new Alder.AlderOptions()"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0246));
     }
 
     [Test]
@@ -409,22 +446,25 @@ public class RedTeamAttackTests(CompilationMode mode)
             o.Types.AddAssembly(typeof(AlderEngine).Assembly);
             o.Types.AddNamespace("Alder");
         });
-        Assert.Throws<AlderException>(() =>
+        var ex = Assert.Throws<AlderException>(() =>
             engine.Evaluate("""new AlderEngine()"""));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0107));
     }
 
     [Test]
     public void Attack_AlderNamespace_StaticAccess_Trusted()
     {
-        Assert.Throws<AlderException>(() =>
+        var ex = Assert.Throws<AlderException>(() =>
             Trusted().Evaluate("Alder.LanguageMode.Extended"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0103));
     }
 
     [Test]
     public void Attack_SandboxOptions_Construction_Trusted()
     {
-        Assert.Throws<AlderException>(() =>
+        var ex = Assert.Throws<AlderException>(() =>
             Trusted().Evaluate("new Alder.SandboxOptions()"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0246));
     }
 
     [Test]
@@ -432,8 +472,9 @@ public class RedTeamAttackTests(CompilationMode mode)
     {
         var engine = Safe();
         engine.SetVariable("eng", new AlderEngine());
-        Assert.Throws<AlderException>(() =>
+        var ex = Assert.Throws<AlderException>(() =>
             engine.Evaluate("""eng.Evaluate("1 + 1")"""));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0100));
     }
 
     [Test]
@@ -441,7 +482,8 @@ public class RedTeamAttackTests(CompilationMode mode)
     {
         var engine = Trusted();
         engine.SetVariable("eng", new AlderEngine());
-        Assert.Throws<AlderException>(() =>
+        var ex = Assert.Throws<AlderException>(() =>
             engine.Evaluate("""eng.Evaluate("System.Environment.MachineName")"""));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0107));
     }
 }

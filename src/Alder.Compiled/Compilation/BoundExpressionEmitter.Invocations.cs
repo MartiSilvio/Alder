@@ -391,48 +391,51 @@ internal sealed partial class BoundExpressionEmitter
     private LinqExpression[] EmitPlannedCallArguments(BoundCallExpr call, ParameterInfo[] parameters)
     {
         var emitted = new LinqExpression[parameters.Length];
-        var conversions = call.Plan.ArgumentConversions;
+        var resolved = call.Plan.Resolution;
+        var sources = resolved.ArgMap.Sources;
+        var conversions = resolved.Conversions;
 
-        foreach (var binding in call.Plan.ParameterBindings)
+        for (var paramIdx = 0; paramIdx < sources.Length; paramIdx++)
         {
-            switch (binding.Kind)
+            var source = sources[paramIdx];
+            switch (source.Kind)
             {
-                case BoundParameterBindingKind.Argument:
+                case ParameterSourceKind.Argument:
                 {
-                    var sourceIndex = binding.SourceArgumentIndex;
-                    var conversion = conversions[sourceIndex];
-                    emitted[binding.ParameterIndex] = EmitCallArgument(call.Arguments[sourceIndex], conversion.TargetType);
+                    var argIdx = source.ArgumentIndex;
+                    var conversion = conversions[argIdx];
+                    emitted[paramIdx] = EmitCallArgument(call.Arguments[argIdx], conversion.TargetType);
                     break;
                 }
 
-                case BoundParameterBindingKind.DefaultValue:
+                case ParameterSourceKind.Default:
                 {
-                    emitted[binding.ParameterIndex] = EmitDefaultArgument(parameters[binding.ParameterIndex]);
+                    emitted[paramIdx] = EmitDefaultArgument(parameters[paramIdx]);
                     break;
                 }
 
-                case BoundParameterBindingKind.ParamsArray:
+                case ParameterSourceKind.ParamsRange:
                 {
-                    var parameter = parameters[binding.ParameterIndex];
+                    var parameter = parameters[paramIdx];
                     var elementType = parameter.ParameterType.GetElementType()
                                      ?? throw new BindingNotSupportedException("Params parameter must be an array type.");
-                    var args = new LinqExpression[binding.SourceArgumentCount];
+                    var args = new LinqExpression[source.ParamsCount];
 
-                    for (var i = 0; i < binding.SourceArgumentCount; i++)
+                    for (var i = 0; i < source.ParamsCount; i++)
                     {
-                        var sourceIndex = binding.SourceArgumentIndex + i;
-                        var conversion = conversions[sourceIndex];
-                        var convertedArg = EmitCallArgument(call.Arguments[sourceIndex], conversion.TargetType);
+                        var argIdx = source.ParamsStartIndex + i;
+                        var conversion = conversions[argIdx];
+                        var convertedArg = EmitCallArgument(call.Arguments[argIdx], conversion.TargetType);
                         args[i] = EmitHelpers.EnsureTypedExpression(convertedArg, elementType);
                     }
 
-                    emitted[binding.ParameterIndex] = LinqExpression.NewArrayInit(elementType, args);
+                    emitted[paramIdx] = LinqExpression.NewArrayInit(elementType, args);
                     break;
                 }
 
                 default:
                     throw new BindingNotSupportedException(
-                        $"Bound parameter binding kind '{binding.Kind}' is not implemented");
+                        $"Parameter source kind '{source.Kind}' is not implemented");
             }
         }
 

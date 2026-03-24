@@ -78,27 +78,6 @@ public class AlderException : Exception
     }
 }
 
-/// <summary>
-/// Thrown when expression nesting exceeds the configured <see cref="ExecutionConstraints.MaxExpressionDepth"/>.
-/// </summary>
-public class AlderDepthException : AlderException
-{
-    /// <summary>
-    /// Gets the maximum depth that was exceeded.
-    /// </summary>
-    public int MaxDepth { get; }
-
-    /// <summary>
-    /// Creates a depth exception for the specified subsystem and limit.
-    /// </summary>
-    /// <param name="subsystem">The subsystem that exceeded the depth limit (e.g., <c>"parser"</c>, <c>"binder"</c>).</param>
-    /// <param name="maxDepth">The configured maximum depth.</param>
-    public AlderDepthException(string subsystem, int maxDepth)
-        : base(DiagnosticDescriptors.ExpressionDepthExceeded, subsystem, maxDepth)
-    {
-        MaxDepth = maxDepth;
-    }
-}
 
 /// <summary>
 /// Identifies which execution limit was exceeded.

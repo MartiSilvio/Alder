@@ -9,17 +9,19 @@ internal static class ApplicabilityChecker
         ParameterInfo[] parameters,
         ReadOnlySpan<ArgumentDescriptor> args,
         out ApplicableForm form,
-        out ArgumentParameterMap argMap)
+        out ArgumentParameterMap argMap,
+        out ImmutableArray<ArgumentConversion> conversions)
     {
         form = ApplicableForm.Normal;
         argMap = ArgumentParameterMap.Empty;
+        conversions = ImmutableArray<ArgumentConversion>.Empty;
 
-        if (TryNormalForm(parameters, args, out argMap))
+        if (TryNormalForm(parameters, args, out argMap, out conversions))
             return true;
 
         if (parameters.Length > 0 &&
             parameters[^1].IsDefined(typeof(ParamArrayAttribute), false) &&
-            TryExpandedForm(parameters, args, out argMap))
+            TryExpandedForm(parameters, args, out argMap, out conversions))
         {
             form = ApplicableForm.Expanded;
             return true;
@@ -31,24 +33,20 @@ internal static class ApplicabilityChecker
     private static bool TryNormalForm(
         ParameterInfo[] parameters,
         ReadOnlySpan<ArgumentDescriptor> args,
-        out ArgumentParameterMap argMap)
+        out ArgumentParameterMap argMap,
+        out ImmutableArray<ArgumentConversion> conversions)
     {
         argMap = ArgumentParameterMap.Empty;
+        conversions = ImmutableArray<ArgumentConversion>.Empty;
 
-        var positionalCount = 0;
-        var namedCount = 0;
-        for (var i = 0; i < args.Length; i++)
-        {
-            if (args[i].Name != null)
-                namedCount++;
-            else
-                positionalCount++;
-        }
+        var positionalCount = CountPositional(args);
+        var namedCount = args.Length - positionalCount;
 
         if (positionalCount + namedCount > parameters.Length)
             return false;
 
         var sources = new ParameterSource[parameters.Length];
+        var argConversions = new ArgumentConversion[args.Length];
         var filled = new bool[parameters.Length];
         var positionalIndex = 0;
 
@@ -58,7 +56,7 @@ internal static class ApplicabilityChecker
                 continue;
 
             var argIdx = GetNthPositionalIndex(args, positionalIndex);
-            if (!IsDescriptorCompatible(args[argIdx], parameters[paramIdx].ParameterType))
+            if (!TryClassifyConversion(args[argIdx], parameters[paramIdx].ParameterType, out argConversions[argIdx]))
                 return false;
 
             sources[paramIdx] = ParameterSource.FromArgument(argIdx);
@@ -78,7 +76,7 @@ internal static class ApplicabilityChecker
             if (paramIndex < 0 || filled[paramIndex])
                 return false;
 
-            if (!IsDescriptorCompatible(args[i], parameters[paramIndex].ParameterType))
+            if (!TryClassifyConversion(args[i], parameters[paramIndex].ParameterType, out argConversions[i]))
                 return false;
 
             sources[paramIndex] = ParameterSource.FromArgument(i);
@@ -97,15 +95,18 @@ internal static class ApplicabilityChecker
         }
 
         argMap = new ArgumentParameterMap(ImmutableArray.Create(sources), -1);
+        conversions = ImmutableArray.Create(argConversions);
         return true;
     }
 
     private static bool TryExpandedForm(
         ParameterInfo[] parameters,
         ReadOnlySpan<ArgumentDescriptor> args,
-        out ArgumentParameterMap argMap)
+        out ArgumentParameterMap argMap,
+        out ImmutableArray<ArgumentConversion> conversions)
     {
         argMap = ArgumentParameterMap.Empty;
+        conversions = ImmutableArray<ArgumentConversion>.Empty;
 
         var paramsIndex = parameters.Length - 1;
         var elementType = parameters[paramsIndex].ParameterType.GetElementType();
@@ -113,6 +114,7 @@ internal static class ApplicabilityChecker
             return false;
 
         var sources = new ParameterSource[parameters.Length];
+        var argConversions = new ArgumentConversion[args.Length];
         var filled = new bool[parameters.Length];
         var positionalIndex = 0;
 
@@ -125,7 +127,7 @@ internal static class ApplicabilityChecker
                 break;
 
             var argIdx = GetNthPositionalIndex(args, positionalIndex);
-            if (!IsDescriptorCompatible(args[argIdx], parameters[paramIdx].ParameterType))
+            if (!TryClassifyConversion(args[argIdx], parameters[paramIdx].ParameterType, out argConversions[argIdx]))
                 return false;
 
             sources[paramIdx] = ParameterSource.FromArgument(argIdx);
@@ -146,7 +148,7 @@ internal static class ApplicabilityChecker
             if (filled[paramIndex])
                 return false;
 
-            if (!IsDescriptorCompatible(args[i], parameters[paramIndex].ParameterType))
+            if (!TryClassifyConversion(args[i], parameters[paramIndex].ParameterType, out argConversions[i]))
                 return false;
 
             sources[paramIndex] = ParameterSource.FromArgument(i);
@@ -161,43 +163,100 @@ internal static class ApplicabilityChecker
                 sources[i] = ParameterSource.FromDefault();
         }
 
-        var paramsStartArgIndex = positionalIndex;
         var totalPositional = CountPositional(args);
         var paramsCount = totalPositional - positionalIndex;
 
         for (var i = positionalIndex; i < totalPositional; i++)
         {
             var argIdx = GetNthPositionalIndex(args, i);
-            if (!IsDescriptorCompatible(args[argIdx], elementType))
+            if (!TryClassifyConversion(args[argIdx], elementType, out argConversions[argIdx]))
                 return false;
         }
 
-        sources[paramsIndex] = ParameterSource.FromParamsRange(paramsStartArgIndex, paramsCount);
+        sources[paramsIndex] = ParameterSource.FromParamsRange(positionalIndex, paramsCount);
         argMap = new ArgumentParameterMap(ImmutableArray.Create(sources), paramsIndex);
+        conversions = ImmutableArray.Create(argConversions);
         return true;
     }
 
-    private static bool IsDescriptorCompatible(ArgumentDescriptor arg, Type paramType)
+    private static bool TryClassifyConversion(
+        ArgumentDescriptor arg,
+        Type paramType,
+        out ArgumentConversion conversion)
     {
-        return arg.Kind switch
+        conversion = default;
+
+        switch (arg.Kind)
         {
-            ArgumentKind.Null => !paramType.IsValueType || Nullable.GetUnderlyingType(paramType) != null,
-            ArgumentKind.Out => paramType.IsByRef,
-            ArgumentKind.Lambda => LambdaDelegateConverter.IsSupportedDelegateType(paramType) &&
-                                   GetDelegateInputParameterCount(paramType) == arg.LambdaArity,
-            ArgumentKind.Value => TypeHelpers.CanImplicitlyConvert(arg.StaticType!, paramType),
-            _ => false
-        };
+            case ArgumentKind.Null:
+                if (paramType.IsValueType && Nullable.GetUnderlyingType(paramType) == null)
+                    return false;
+                conversion = ArgumentConversion.ForIdentity(paramType);
+                return true;
+
+            case ArgumentKind.Out:
+                if (!paramType.IsByRef)
+                    return false;
+                conversion = ArgumentConversion.ForIdentity(paramType);
+                return true;
+
+            case ArgumentKind.Lambda:
+                if (!LambdaDelegateConverter.IsSupportedDelegateType(paramType))
+                    return false;
+                if (GetDelegateInputParameterCount(paramType) != arg.LambdaArity)
+                    return false;
+                conversion = ArgumentConversion.ForLambdaToDelegate(paramType);
+                return true;
+
+            case ArgumentKind.Value:
+                return TryClassifyValueConversion(arg.StaticType!, paramType, out conversion);
+
+            default:
+                return false;
+        }
+    }
+
+    private static bool TryClassifyValueConversion(
+        Type sourceType,
+        Type paramType,
+        out ArgumentConversion conversion)
+    {
+        conversion = default;
+
+        if (sourceType == paramType)
+        {
+            conversion = ArgumentConversion.ForIdentity(paramType);
+            return true;
+        }
+
+        if (paramType.IsAssignableFrom(sourceType))
+        {
+            if (sourceType.IsValueType && !paramType.IsValueType)
+                conversion = ArgumentConversion.ForBoxing(paramType);
+            else
+                conversion = ArgumentConversion.ForImplicitReference(paramType);
+            return true;
+        }
+
+        if (TypeHelpers.IsStandardImplicitConversion(sourceType, paramType))
+        {
+            conversion = ArgumentConversion.ForImplicitNumeric(paramType);
+            return true;
+        }
+
+        if (TypeHelpers.HasUserDefinedImplicitConversion(sourceType, paramType))
+        {
+            conversion = ArgumentConversion.ForUserDefined(paramType);
+            return true;
+        }
+
+        return false;
     }
 
     private static int GetDelegateInputParameterCount(Type delegateType)
     {
         var invoke = delegateType.GetMethod("Invoke");
-        if (invoke == null)
-            return -1;
-
-        var invokeParams = invoke.GetParameters();
-        return invokeParams.Length;
+        return invoke?.GetParameters().Length ?? -1;
     }
 
     private static bool IsClaimedByNamedArg(string paramName, ReadOnlySpan<ArgumentDescriptor> args)

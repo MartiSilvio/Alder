@@ -18,7 +18,7 @@ public class ApplicabilityCheckerTests
             ArgumentDescriptor.FromArgs(["hello"])[0]
         };
 
-        var result = ApplicabilityChecker.IsApplicable(parameters, args, out var form, out var map);
+        var result = ApplicabilityChecker.IsApplicable(parameters, args, out var form, out var map, out _);
 
         Assert.That(result, Is.True);
         Assert.That(form, Is.EqualTo(ApplicableForm.Normal));
@@ -35,7 +35,7 @@ public class ApplicabilityCheckerTests
         var parameters = GetParams("IntString");
         var args = ArgumentDescriptor.FromArgs([42, "hello", 3.0]);
 
-        var result = ApplicabilityChecker.IsApplicable(parameters, args, out _, out _);
+        var result = ApplicabilityChecker.IsApplicable(parameters, args, out _, out _, out _);
 
         Assert.That(result, Is.False);
     }
@@ -46,7 +46,7 @@ public class ApplicabilityCheckerTests
         var parameters = GetParams("IntString");
         var args = ArgumentDescriptor.FromArgs([42]);
 
-        var result = ApplicabilityChecker.IsApplicable(parameters, args, out _, out _);
+        var result = ApplicabilityChecker.IsApplicable(parameters, args, out _, out _, out _);
 
         Assert.That(result, Is.False);
     }
@@ -57,7 +57,7 @@ public class ApplicabilityCheckerTests
         var parameters = GetParams("IntStringDefault");
         var args = ArgumentDescriptor.FromArgs([42]);
 
-        var result = ApplicabilityChecker.IsApplicable(parameters, args, out var form, out var map);
+        var result = ApplicabilityChecker.IsApplicable(parameters, args, out var form, out var map, out _);
 
         Assert.That(result, Is.True);
         Assert.That(form, Is.EqualTo(ApplicableForm.Normal));
@@ -72,7 +72,7 @@ public class ApplicabilityCheckerTests
         var parameters = GetParams("IntString");
         var args = ArgumentDescriptor.FromArgs([42, new NamedArg("b", "hello")]);
 
-        var result = ApplicabilityChecker.IsApplicable(parameters, args, out var form, out var map);
+        var result = ApplicabilityChecker.IsApplicable(parameters, args, out var form, out var map, out _);
 
         Assert.That(result, Is.True);
         Assert.That(form, Is.EqualTo(ApplicableForm.Normal));
@@ -89,7 +89,7 @@ public class ApplicabilityCheckerTests
         var parameters = GetParams("ThreeIntsWithDefault");
         var args = ArgumentDescriptor.FromArgs([1, new NamedArg("c", 3)]);
 
-        var result = ApplicabilityChecker.IsApplicable(parameters, args, out var form, out var map);
+        var result = ApplicabilityChecker.IsApplicable(parameters, args, out var form, out var map, out _);
 
         Assert.That(result, Is.True);
         Assert.That(form, Is.EqualTo(ApplicableForm.Normal));
@@ -105,7 +105,7 @@ public class ApplicabilityCheckerTests
         var parameters = GetParams("ParamsInts");
         var args = ArgumentDescriptor.FromArgs([new int[] { 1, 2, 3 }]);
 
-        var result = ApplicabilityChecker.IsApplicable(parameters, args, out var form, out _);
+        var result = ApplicabilityChecker.IsApplicable(parameters, args, out var form, out _, out _);
 
         Assert.That(result, Is.True);
         Assert.That(form, Is.EqualTo(ApplicableForm.Normal));
@@ -117,7 +117,7 @@ public class ApplicabilityCheckerTests
         var parameters = GetParams("ParamsInts");
         var args = ArgumentDescriptor.FromArgs([1, 2]);
 
-        var result = ApplicabilityChecker.IsApplicable(parameters, args, out var form, out var map);
+        var result = ApplicabilityChecker.IsApplicable(parameters, args, out var form, out var map, out _);
 
         Assert.That(result, Is.True);
         Assert.That(form, Is.EqualTo(ApplicableForm.Expanded));
@@ -133,7 +133,7 @@ public class ApplicabilityCheckerTests
         var parameters = GetParams("StringParamsInts");
         var args = ArgumentDescriptor.FromArgs(["hello", 1, 2]);
 
-        var result = ApplicabilityChecker.IsApplicable(parameters, args, out var form, out var map);
+        var result = ApplicabilityChecker.IsApplicable(parameters, args, out var form, out var map, out _);
 
         Assert.That(result, Is.True);
         Assert.That(form, Is.EqualTo(ApplicableForm.Expanded));
@@ -151,7 +151,7 @@ public class ApplicabilityCheckerTests
         var parameters = GetParams("StringParam");
         var args = ArgumentDescriptor.FromArgs([null]);
 
-        var result = ApplicabilityChecker.IsApplicable(parameters, args, out _, out _);
+        var result = ApplicabilityChecker.IsApplicable(parameters, args, out _, out _, out _);
 
         Assert.That(result, Is.True);
     }
@@ -162,7 +162,7 @@ public class ApplicabilityCheckerTests
         var parameters = GetParams("IntParam");
         var args = ArgumentDescriptor.FromArgs([null]);
 
-        var result = ApplicabilityChecker.IsApplicable(parameters, args, out _, out _);
+        var result = ApplicabilityChecker.IsApplicable(parameters, args, out _, out _, out _);
 
         Assert.That(result, Is.False);
     }
@@ -173,7 +173,7 @@ public class ApplicabilityCheckerTests
         var parameters = GetParams("NullableIntParam");
         var args = ArgumentDescriptor.FromArgs([null]);
 
-        var result = ApplicabilityChecker.IsApplicable(parameters, args, out _, out _);
+        var result = ApplicabilityChecker.IsApplicable(parameters, args, out _, out _, out _);
 
         Assert.That(result, Is.True);
     }
@@ -184,7 +184,7 @@ public class ApplicabilityCheckerTests
         var parameters = GetParams("OutIntParam");
         var args = ArgumentDescriptor.FromArgs([new OutArgMarker("x", null, false)]);
 
-        var result = ApplicabilityChecker.IsApplicable(parameters, args, out _, out _);
+        var result = ApplicabilityChecker.IsApplicable(parameters, args, out _, out _, out _);
 
         Assert.That(result, Is.True);
     }
@@ -195,7 +195,7 @@ public class ApplicabilityCheckerTests
         var parameters = GetParams("FuncIntString");
         var args = new[] { ArgumentDescriptor.ForTest(ArgumentKind.Lambda, null, null, 1) };
 
-        var result = ApplicabilityChecker.IsApplicable(parameters, args, out _, out _);
+        var result = ApplicabilityChecker.IsApplicable(parameters, args, out _, out _, out _);
 
         Assert.That(result, Is.True);
     }
@@ -206,7 +206,7 @@ public class ApplicabilityCheckerTests
         var parameters = GetParams("FuncIntString");
         var args = new[] { ArgumentDescriptor.ForTest(ArgumentKind.Lambda, null, null, 2) };
 
-        var result = ApplicabilityChecker.IsApplicable(parameters, args, out _, out _);
+        var result = ApplicabilityChecker.IsApplicable(parameters, args, out _, out _, out _);
 
         Assert.That(result, Is.False);
     }
@@ -217,7 +217,7 @@ public class ApplicabilityCheckerTests
         var parameters = GetParams("IntParam");
         var args = new[] { ArgumentDescriptor.ForTest(ArgumentKind.Lambda, null, null, 1) };
 
-        var result = ApplicabilityChecker.IsApplicable(parameters, args, out _, out _);
+        var result = ApplicabilityChecker.IsApplicable(parameters, args, out _, out _, out _);
 
         Assert.That(result, Is.False);
     }
@@ -228,7 +228,7 @@ public class ApplicabilityCheckerTests
         var parameters = GetParams("LongParam");
         var args = ArgumentDescriptor.FromArgs([42]);
 
-        var result = ApplicabilityChecker.IsApplicable(parameters, args, out _, out _);
+        var result = ApplicabilityChecker.IsApplicable(parameters, args, out _, out _, out _);
 
         Assert.That(result, Is.True);
     }
@@ -239,7 +239,7 @@ public class ApplicabilityCheckerTests
         var parameters = GetParams("IntParam");
         var args = ArgumentDescriptor.FromArgs(["hello"]);
 
-        var result = ApplicabilityChecker.IsApplicable(parameters, args, out _, out _);
+        var result = ApplicabilityChecker.IsApplicable(parameters, args, out _, out _, out _);
 
         Assert.That(result, Is.False);
     }

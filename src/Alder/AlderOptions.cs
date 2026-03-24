@@ -514,8 +514,4 @@ public sealed record ExecutionConstraints
     /// </summary>
     public TimeSpan? MaxTimeout { get; init; }
 
-    /// <summary>
-    /// Gets the maximum nesting depth for expressions. Prevents stack overflows from deeply nested syntax trees. Default is 512.
-    /// </summary>
-    public int MaxExpressionDepth { get; init; } = 512;
 }

@@ -177,9 +177,20 @@ internal sealed partial class ExpressionParser : ParserBase
 
     internal Expr ParseExpression()
     {
-        SysRuntimeHelpers.EnsureSufficientExecutionStack();
-        return ParseAssignment();
+        _recursionDepth++;
+        if (_recursionDepth > 20)
+            throw new System.InsufficientExecutionStackException();
+        try
+        {
+            return ParseAssignment();
+        }
+        finally
+        {
+            _recursionDepth--;
+        }
     }
+
+    private int _recursionDepth;
 
     private Expr ParseAssignment()
     {
