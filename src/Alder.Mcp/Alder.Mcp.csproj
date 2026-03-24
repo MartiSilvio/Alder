@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>alder-mcp</ToolCommandName>
+    <PackageId>Alder.Mcp</PackageId>
+    <Version>0.1.0-preview.1</Version>
+    <Authors>Silvio Martignetti</Authors>
+    <Description>MCP server that exposes Alder's C# expression evaluation to AI agents and LLM workflows.</Description>
+    <IsPackable>true</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ModelContextProtocol" Version="1.1.0" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Alder\Alder.csproj" />
+  </ItemGroup>
+
+</Project>

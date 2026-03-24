@@ -207,6 +207,13 @@ internal sealed partial class Binder
         if (TypeHelpers.IsArithmetic(leftType) && TypeHelpers.IsArithmetic(rightType))
             return InferArithmeticResultType(leftType, rightType, op);
 
+        // When one operand is object (dynamic dispatch), the result type is determined
+        // by the known operand — the operation can only succeed as that numeric type.
+        if (leftType == typeof(object) && TypeHelpers.IsArithmetic(rightType))
+            return InferArithmeticResultType(rightType, rightType, op);
+        if (rightType == typeof(object) && TypeHelpers.IsArithmetic(leftType))
+            return InferArithmeticResultType(leftType, leftType, op);
+
         return typeof(object);
     }
 

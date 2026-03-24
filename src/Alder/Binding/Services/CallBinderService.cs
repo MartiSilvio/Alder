@@ -139,12 +139,21 @@ internal sealed class CallBinderService
 
         foreach (var method in methods)
         {
-            if (!TryCreatePlan(method, sourceTypes, isStaticCall, out var candidatePlan))
+            var resolved = method;
+            if (method.ContainsGenericParameters)
+            {
+                var closed = Runtime.MethodInvoker.TryMakeConcreteMethod(method, argTypes!);
+                if (closed == null)
+                    continue;
+                resolved = closed;
+            }
+
+            if (!TryCreatePlan(resolved, sourceTypes, isStaticCall, out var candidatePlan))
                 continue;
 
-            var parameters = MethodDispatchCache.GetParameters(method);
+            var parameters = MethodDispatchCache.GetParameters(resolved);
             if (OverloadResolution.IsApplicable(parameters, argTypes, out var form))
-                applicable.Add((candidatePlan, method, parameters, form));
+                applicable.Add((candidatePlan, resolved, parameters, form));
         }
 
         if (applicable.Count == 0)

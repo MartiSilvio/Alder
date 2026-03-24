@@ -568,20 +568,9 @@ internal sealed class QueryParser : ParserBase
     private static Expr MakeTransparentObject(QueryScope scope, string innerVarName,
         string outerParamName, string innerParamName)
     {
-        var props = new List<(string name, Expr value)>();
-
-        // Add all current scope variables as properties
-        foreach (var varName in scope.AllVariableNames)
-        {
-            // Each existing variable needs to be accessed from the outer parameter
-            var accessExpr = scope.GetAccessExpression(varName, outerParamName);
-            props.Add((varName, accessExpr));
-        }
-
-        // Add the new inner variable
-        props.Add((innerVarName, new IdentifierExpr(SyntheticToken(innerParamName))));
-
-        return MakeAnonymousObject([..props]);
+        return MakeAnonymousObject(
+            (outerParamName, new IdentifierExpr(SyntheticToken(outerParamName))),
+            (innerVarName, new IdentifierExpr(SyntheticToken(innerParamName))));
     }
 
     /// <summary>

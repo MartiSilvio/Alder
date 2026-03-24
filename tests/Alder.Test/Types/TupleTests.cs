@@ -118,6 +118,71 @@ public class TupleTests(CompilationMode mode)
 
     #endregion
 
+    #region Tuple types in generic type arguments
+
+    [Test]
+    public void TupleType_InGenericArg_ListOfTuple()
+    {
+        var engine = TestEngineFactory.Create(mode);
+        var result = engine.Evaluate("""
+            var list = new List<(int, string)>();
+            list.Add((1, "a"));
+            list.Add((2, "b"));
+            list.Count
+            """);
+        Assert.That(result, Is.EqualTo(2));
+    }
+
+    [Test]
+    public void TupleType_InGenericArg_WithArrayElement()
+    {
+        var engine = TestEngineFactory.Create(mode);
+        var result = engine.Evaluate("""
+            var list = new List<(int, int[])>();
+            list.Add((1, new int[] { 10, 20 }));
+            list[0].Item1
+            """);
+        Assert.That(result, Is.EqualTo(1));
+    }
+
+    [Test]
+    public void TupleType_InGenericArg_NamedElements()
+    {
+        var engine = TestEngineFactory.Create(mode);
+        var result = engine.Evaluate("""
+            var list = new List<(int count, string name)>();
+            list.Add((42, "test"));
+            list[0].Item1
+            """);
+        Assert.That(result, Is.EqualTo(42));
+    }
+
+    [Test]
+    public void TupleType_InGenericArg_DictionaryValue()
+    {
+        var engine = TestEngineFactory.Create(mode);
+        var result = engine.Evaluate("""
+            var dict = new Dictionary<string, (int, bool)>();
+            dict["key"] = (99, true);
+            dict["key"].Item1
+            """);
+        Assert.That(result, Is.EqualTo(99));
+    }
+
+    [Test]
+    public void TupleType_InGenericArg_NestedTuple()
+    {
+        var engine = TestEngineFactory.Create(mode);
+        var result = engine.Evaluate("""
+            var list = new List<((int, int), string)>();
+            list.Add(((1, 2), "pair"));
+            list[0].Item2
+            """);
+        Assert.That(result, Is.EqualTo("pair"));
+    }
+
+    #endregion
+
     #region Engine-only: TypeHelpers API tests (test internal API directly)
 
     [Test]

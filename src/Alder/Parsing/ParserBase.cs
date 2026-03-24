@@ -168,10 +168,10 @@ internal abstract class ParserBase
     internal static bool IsTypeKeyword(TokenType type) =>
         type is TokenType.Int or TokenType.Long or TokenType.Double or
                 TokenType.Float or TokenType.Decimal or TokenType.StringType or
-                TokenType.Bool or TokenType.Object or TokenType.Sbyte or
-                TokenType.Byte or TokenType.Short or TokenType.Ushort or
-                TokenType.Uint or TokenType.Ulong or TokenType.Char or
-            TokenType.Void;
+                TokenType.Bool or TokenType.Object or TokenType.Dynamic or
+                TokenType.Sbyte or TokenType.Byte or TokenType.Short or
+                TokenType.Ushort or TokenType.Uint or TokenType.Ulong or
+                TokenType.Char or TokenType.Void;
 
     internal bool Check(TokenType type) => !IsAtEnd() && Peek().Type == type;
 
@@ -310,6 +310,36 @@ internal abstract class ParserBase
                     return null;
                 name += "." + Advance().Lexeme;
             }
+        }
+        else if (Check(TokenType.LeftParen))
+        {
+            // Tuple type: (int, string), (int x, string[] y)
+            // Produces ValueTuple<T1, T2, ...> type name string
+            Advance(); // consume (
+
+            var firstElementType = TryParseTypeName();
+            if (firstElementType == null) return null;
+
+            // Skip optional element name
+            if (Check(TokenType.Identifier) && !IsTypeKeyword(Peek().Type)) Advance();
+
+            if (!Check(TokenType.Comma)) return null;
+
+            var elements = new List<string> { firstElementType };
+            while (Match(TokenType.Comma))
+            {
+                var elementType = TryParseTypeName();
+                if (elementType == null) return null;
+
+                // Skip optional element name
+                if (Check(TokenType.Identifier) && !IsTypeKeyword(Peek().Type)) Advance();
+
+                elements.Add(elementType);
+            }
+
+            if (!Match(TokenType.RightParen)) return null;
+
+            name = nameof(ValueTuple) + "<" + string.Join(", ", elements) + ">";
         }
         else
         {

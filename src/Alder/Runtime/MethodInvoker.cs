@@ -540,9 +540,18 @@ internal static class MethodInvoker
 
     private static MethodInfo? TryMakeConcreteMethod(MethodInfo genericMethod, object?[] args)
     {
+        var argTypes = new Type?[args.Length];
+        for (var i = 0; i < args.Length; i++)
+            argTypes[i] = args[i]?.GetType();
+
+        return TryMakeConcreteMethod(genericMethod, argTypes);
+    }
+
+    internal static MethodInfo? TryMakeConcreteMethod(MethodInfo genericMethod, Type?[] argTypes)
+    {
         var genericArgs = genericMethod.GetGenericArguments();
 
-        if (args.Length == 0)
+        if (argTypes.Length == 0)
             return null;
 
         var parameters = MethodDispatchCache.GetParameters(genericMethod);
@@ -556,7 +565,7 @@ internal static class MethodInvoker
 
             for (var i = 0; i < parameters.Length && resolved < genericArgs.Length; i++)
             {
-                var argType = i < args.Length ? args[i]?.GetType() : null;
+                var argType = i < argTypes.Length ? argTypes[i] : null;
                 if (argType == null)
                     continue;
 
@@ -935,7 +944,7 @@ internal static class MethodInvoker
     /// Finds the best matching method from candidates using ECMA-334 §12.6.4 pairwise elimination.
     /// Phase 1: filter to applicable candidates. Phase 2: pairwise comparison to find unique best.
     /// </summary>
-    internal static MethodInfo? FindBestMethod(IEnumerable<MethodInfo> methods, object?[] args, out bool ambiguous, CancellationToken ct = default)
+    internal static MethodInfo? FindBestMethod(IEnumerable<MethodInfo> methods, object?[] args, out bool ambiguous, CancellationToken ct = default, AlderContext? context = null)
     {
         ambiguous = false;
 
@@ -965,7 +974,7 @@ internal static class MethodInvoker
             var cmp = OverloadResolution.BetterFunctionMemberForArgs(
                 best.Method, best.Params, best.Form,
                 challenger.Method, challenger.Params, challenger.Form,
-                best.ArgsWithCt);
+                best.ArgsWithCt, context);
 
             switch (cmp)
             {
@@ -989,7 +998,7 @@ internal static class MethodInvoker
                 var cmp = OverloadResolution.BetterFunctionMemberForArgs(
                     best.Method, best.Params, best.Form,
                     candidate.Method, candidate.Params, candidate.Form,
-                    best.ArgsWithCt);
+                    best.ArgsWithCt, context);
                 if (cmp != BetterResult.Left)
                 {
                     ambiguous = true;

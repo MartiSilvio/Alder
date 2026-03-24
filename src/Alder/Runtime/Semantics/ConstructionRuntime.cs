@@ -23,6 +23,14 @@ internal static class ConstructionRuntime
             }
         }
 
+        if (type.BaseType == typeof(MulticastDelegate) && args.Length == 1 &&
+            args[0] is LambdaValue or CompiledLambdaValue)
+        {
+            var converted = LambdaDelegateConverter.TryConvert(args[0], type);
+            if (converted is not null)
+                return converted;
+        }
+
         try
         {
             if (args.Length == 0)

@@ -539,7 +539,7 @@ internal static class TypeHelpers
     /// ECMA-334 §10.2.13, §10.3.6 - Tuple conversions.
     /// </summary>
     public static bool IsTupleType(Type type) =>
-        type.IsGenericType && type.FullName?.StartsWith("System.ValueTuple") == true;
+        type.IsGenericType && type.FullName?.StartsWith("System." + nameof(ValueTuple)) == true;
 
     /// <summary>
     /// Checks if a value can be implicitly assigned to a target type per C# rules.
@@ -764,6 +764,10 @@ internal static class TypeHelpers
                     targetType.Name);
             }
         }
+
+        var delegateInstance = LambdaDelegateConverter.TryConvert(value, targetType);
+        if (delegateInstance != null)
+            return delegateInstance;
 
         // Not implicitly convertible
         throw CreateImplicitConversionException(sourceType, targetType, value);

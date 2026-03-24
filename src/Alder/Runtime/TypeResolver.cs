@@ -361,6 +361,7 @@ internal sealed class TypeResolver
         ["char"] = typeof(char),
         ["string"] = typeof(string),
         ["object"] = typeof(object),
+        ["dynamic"] = typeof(object),
         ["sbyte?"] = typeof(sbyte?),
         ["byte?"] = typeof(byte?),
         ["short?"] = typeof(short?),

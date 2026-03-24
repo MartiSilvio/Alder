@@ -102,7 +102,8 @@ internal static class OverloadResolution
     public static BetterResult BetterFunctionMemberForArgs(
         MethodInfo left, ParameterInfo[] leftParams, ApplicableForm leftForm,
         MethodInfo right, ParameterInfo[] rightParams, ApplicableForm rightForm,
-        object?[] args)
+        object?[] args,
+        AlderContext? context = null)
     {
         var leftBetter = false;
         var rightBetter = false;
@@ -114,20 +115,30 @@ internal static class OverloadResolution
             if (arg is NamedArg)
                 continue;
 
-            var argType = arg?.GetType();
-            if (argType == null)
-                continue;
-
             var leftType = GetEffectiveParameterType(leftParams, i, leftForm);
             var rightType = GetEffectiveParameterType(rightParams, i, rightForm);
 
             if (leftType == rightType)
                 continue;
 
-            var cmp = BetterConversionFromType(argType, leftType, rightType);
-            if (cmp == BetterResult.Left)
+            // §12.6.4.4: Better conversion from expression — for lambda arguments,
+            // compare delegate return types using the lambda's inferred return type.
+            if (arg is LambdaValue or CompiledLambdaValue)
+            {
+                var cmp = BetterConversionFromLambda(arg, leftType, rightType, context);
+                if (cmp == BetterResult.Left) leftBetter = true;
+                else if (cmp == BetterResult.Right) rightBetter = true;
+                continue;
+            }
+
+            var argType = arg?.GetType();
+            if (argType == null)
+                continue;
+
+            var cmp2 = BetterConversionFromType(argType, leftType, rightType);
+            if (cmp2 == BetterResult.Left)
                 leftBetter = true;
-            else if (cmp == BetterResult.Right)
+            else if (cmp2 == BetterResult.Right)
                 rightBetter = true;
         }
 
@@ -136,6 +147,100 @@ internal static class OverloadResolution
 
         return TieBreak(left, leftParams, leftForm, right, rightParams, rightForm);
     }
+
+    /// <summary>
+    /// §12.6.4.4: Better conversion from expression for lambda arguments.
+    /// When both target types are delegates with identical parameter lists,
+    /// determines the lambda's return type and picks the delegate whose return type
+    /// is a better conversion target.
+    ///
+    /// Two-tier strategy:
+    /// 1. Static inference — bind the lambda body with parameter types to infer the return type.
+    /// 2. Sample evaluation — if static inference is inconclusive (returns object or null),
+    ///    evaluate the lambda once with a sample input from the collection to observe the
+    ///    actual return type. This handles ExpandoObject properties, dynamic dispatch, and
+    ///    any case where static analysis can't determine the type.
+    /// </summary>
+    private static BetterResult BetterConversionFromLambda(
+        object arg, Type leftDelegate, Type rightDelegate, AlderContext? context)
+    {
+        var targetCmp = TypeHelpers.CompareBetterConversionTarget(leftDelegate, rightDelegate);
+        if (targetCmp > 0) return BetterResult.Left;
+        if (targetCmp < 0) return BetterResult.Right;
+
+        var leftInvoke = leftDelegate.GetMethod("Invoke");
+        var rightInvoke = rightDelegate.GetMethod("Invoke");
+        if (leftInvoke == null || rightInvoke == null)
+            return BetterResult.Neither;
+
+        var leftReturn = leftInvoke.ReturnType;
+        var rightReturn = rightInvoke.ReturnType;
+        if (leftReturn == rightReturn)
+            return BetterResult.Neither;
+
+        var leftInputs = leftInvoke.GetParameters();
+        var rightInputs = rightInvoke.GetParameters();
+        if (leftInputs.Length != rightInputs.Length)
+            return BetterResult.Neither;
+        for (var i = 0; i < leftInputs.Length; i++)
+        {
+            if (leftInputs[i].ParameterType != rightInputs[i].ParameterType)
+                return BetterResult.Neither;
+        }
+
+        var inputTypes = leftInputs.Select(static p => p.ParameterType).ToArray();
+
+        // Tier 1: static inference
+        var inferredReturn = ExtensionMethodResolver.InferLambdaReturnType(arg, inputTypes, context);
+        if (inferredReturn != null && inferredReturn != typeof(object))
+            return BetterConversionFromType(inferredReturn, leftReturn, rightReturn);
+
+        // Tier 2: sample evaluation — invoke the lambda once to observe the actual return type
+        var observedReturn = TryObserveLambdaReturnType(arg, inputTypes, context);
+        if (observedReturn != null)
+            return BetterConversionFromType(observedReturn, leftReturn, rightReturn);
+
+        // If both tiers fail but we have object as inferred type, use it as a last resort
+        // (picks the narrowest compatible overload)
+        if (inferredReturn == typeof(object))
+            return BetterConversionFromType(typeof(object), leftReturn, rightReturn);
+
+        return BetterResult.Neither;
+    }
+
+    /// <summary>
+    /// Evaluates a lambda with a sample input to observe its actual return type at runtime.
+    /// Used when static type inference cannot determine the type (e.g., ExpandoObject properties).
+    /// The sample value is set thread-locally by the extension method resolver before
+    /// calling FindBestMethod, using the first element from the target collection.
+    /// </summary>
+    private static Type? TryObserveLambdaReturnType(object arg, Type[] inputTypes, AlderContext? context)
+    {
+        if (inputTypes.Length == 0)
+            return null;
+
+        var sample = CurrentSampleValue;
+        if (sample == null)
+            return null;
+
+        try
+        {
+            object? result = arg switch
+            {
+                LambdaValue lambda => MethodInvoker.InvokeLambda(lambda, [sample], lambda.Closure),
+                CompiledLambdaValue compiled => MethodInvoker.InvokeCompiledLambda(compiled, [sample]),
+                _ => null
+            };
+            return result?.GetType();
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    [ThreadStatic]
+    internal static object? CurrentSampleValue;
 
     /// <summary>
     /// ECMA-334 §12.6.4.6: better conversion from type S to T1 or T2.

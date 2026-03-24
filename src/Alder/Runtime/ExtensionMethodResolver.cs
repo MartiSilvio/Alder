@@ -117,20 +117,19 @@ internal static class ExtensionMethodResolver
         if (candidates.Count == 0)
             return (false, null);
 
-        var best = MethodInvoker.FindBestMethod(candidates, invocationArgs, out var ambiguous, ct);
-
-        // When overload resolution is ambiguous and lambda arguments are involved,
-        // the ambiguity is often between overloads differing only in delegate return type
-        // (e.g., Sum(Func<T,int>) vs Sum(Func<T,double>)). The lambda's return type
-        // isn't known until invocation, so we try each applicable candidate.
-        if (ambiguous && HasLambdaArgument(invocationArgs))
+        // Set a sample value for lambda return type observation during overload resolution.
+        // The first element from the target collection lets BetterConversionFromLambda
+        // evaluate the lambda once to discover its actual return type.
+        OverloadResolution.CurrentSampleValue = TryGetFirstElement(target);
+        MethodInfo? best;
+        bool ambiguous;
+        try
         {
-            foreach (var candidate in candidates)
-            {
-                var candidateResult = MethodInvoker.InvokeMethodWithArgs(candidate, null, invocationArgs, ct);
-                if (candidateResult.Success)
-                    return candidateResult;
-            }
+            best = MethodInvoker.FindBestMethod(candidates, invocationArgs, out ambiguous, ct, runtimeContext);
+        }
+        finally
+        {
+            OverloadResolution.CurrentSampleValue = null;
         }
 
         if (ambiguous)
@@ -330,14 +329,21 @@ internal static class ExtensionMethodResolver
         return TryMakeConcreteMethod(method, targetType, args, runtimeContext);
     }
 
-    private static bool HasLambdaArgument(object?[] invocationArgs)
+    private static object? TryGetFirstElement(object target)
     {
-        for (var i = 1; i < invocationArgs.Length; i++)
+        if (target is IEnumerable enumerable)
         {
-            if (invocationArgs[i] is LambdaValue or CompiledLambdaValue)
-                return true;
+            var enumerator = enumerable.GetEnumerator();
+            try
+            {
+                return enumerator.MoveNext() ? enumerator.Current : null;
+            }
+            finally
+            {
+                (enumerator as IDisposable)?.Dispose();
+            }
         }
-        return false;
+        return null;
     }
 
     private static MethodInfo? TryMakeConcreteMethod(MethodInfo genericMethod, Type targetType, object?[] args, AlderContext? runtimeContext = null)
@@ -545,6 +551,9 @@ internal static class ExtensionMethodResolver
         return null;
     }
 
+    internal static Type? InferLambdaReturnType(object? arg, Type[] inputTypes, AlderContext? runtimeContext)
+        => TryInferLambdaReturnTypeStatically(arg, inputTypes, runtimeContext);
+
     private static Type? TryInferLambdaReturnTypeStatically(object? arg, Type[] inputTypes, AlderContext? runtimeContext)
     {
         if (runtimeContext == null)
@@ -579,10 +588,7 @@ internal static class ExtensionMethodResolver
             if (bound.HasErrors)
                 return null;
 
-            if (bound.StaticType != typeof(object))
-                return bound.StaticType;
-
-            // Block bodies typed as object may contain return statements with concrete types
+            // For block bodies, prefer a concrete return type over the block's overall type
             if (bound is Binding.BoundNodes.BoundBlockExpr block)
             {
                 foreach (var stmt in block.Statements)
@@ -593,7 +599,7 @@ internal static class ExtensionMethodResolver
                 }
             }
 
-            return null;
+            return bound.StaticType;
         }
         catch
         {

@@ -8,7 +8,7 @@
     <PackageId>Alder.Compiled</PackageId>
     <Version>0.1.0-preview.1</Version>
     <Authors>Silvio Martignetti</Authors>
-    <Description>Alder's compilation engine that transforms evaluated expressions into IL for near-native execution speed.</Description>
+    <Description>Compilation engine that transforms Alder expressions into IL for near-native execution speed.</Description>
     <IsPackable>true</IsPackable>
   </PropertyGroup>
 
