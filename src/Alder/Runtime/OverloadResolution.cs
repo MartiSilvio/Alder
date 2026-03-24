@@ -188,9 +188,14 @@ internal static class OverloadResolution
         if (inferredReturn != null && inferredReturn != typeof(object))
             return BetterConversionFromType(inferredReturn, leftReturn, rightReturn);
 
-        // When static inference is inconclusive (null or object), compare target types directly
-        // to pick the most specific numeric overload
-        return BetterConversionFromType(typeof(object), leftReturn, rightReturn);
+        // When static inference is inconclusive, compare delegate return types directly
+        // via §12.6.4.7 better conversion target. This prefers the more specific numeric
+        // type (e.g., int over double) when the lambda's return type is unknown, allowing
+        // overload resolution to proceed rather than failing with ambiguity.
+        var returnTargetCmp = TypeHelpers.CompareBetterConversionTarget(leftReturn, rightReturn);
+        if (returnTargetCmp > 0) return BetterResult.Left;
+        if (returnTargetCmp < 0) return BetterResult.Right;
+        return BetterResult.Neither;
     }
 
     /// <summary>

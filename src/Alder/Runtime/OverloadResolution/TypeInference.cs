@@ -27,18 +27,6 @@ internal static class TypeInference
         // Phase 2: Iterative fixing (ECMA-334 section 12.6.3.3)
         IterativeFix(ctx, parameters, argTypes, lambdaArgs, runtimeContext);
 
-        // Unfixed params that depend on lambda output types fall back to typeof(object).
-        // This handles dynamic scenarios (dictionary key access, ExpandoObject) where
-        // static binding can't determine the lambda's return type.
-        for (var i = 0; i < ctx.FixedTypes.Length; i++)
-        {
-            if (ctx.FixedTypes[i] == null && lambdaArgs != null && IsLambdaOutputParam(i, ctx, parameters, lambdaArgs))
-            {
-                ctx.FixedTypes[i] = typeof(object);
-                ctx.IsFixed[i] = true;
-            }
-        }
-
         for (var i = 0; i < ctx.FixedTypes.Length; i++)
         {
             if (ctx.FixedTypes[i] == null)
@@ -153,8 +141,9 @@ internal static class TypeInference
                 continue;
 
             var substitutedInputTypes = SubstituteFixed(inputTypes, ctx);
-            var resultType = ExtensionMethodResolver.InferLambdaReturnType(lambdaArgs[i], substitutedInputTypes, runtimeContext)
-                             ?? typeof(object);
+            var resultType = ExtensionMethodResolver.InferLambdaReturnType(lambdaArgs[i], substitutedInputTypes, runtimeContext);
+            if (resultType == null)
+                continue;
 
             var outputType = paramGenericArgs[^1];
             LowerBoundInference(resultType, outputType, ctx);
