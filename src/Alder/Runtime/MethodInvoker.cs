@@ -549,95 +549,11 @@ internal static class MethodInvoker
 
     internal static MethodInfo? TryMakeConcreteMethod(MethodInfo genericMethod, Type?[] argTypes)
     {
-        var genericArgs = genericMethod.GetGenericArguments();
-
-        if (argTypes.Length == 0)
+        var typeArgs = TypeInference.Infer(genericMethod, argTypes, lambdaArgs: null, runtimeContext: null);
+        if (typeArgs == null)
             return null;
-
-        var parameters = MethodDispatchCache.GetParameters(genericMethod);
-        if (parameters.Length == 0)
-            return null;
-
-        try
-        {
-            var typeArgs = new Type[genericArgs.Length];
-            var resolved = 0;
-
-            for (var i = 0; i < parameters.Length && resolved < genericArgs.Length; i++)
-            {
-                var argType = i < argTypes.Length ? argTypes[i] : null;
-                if (argType == null)
-                    continue;
-
-                resolved += TryInferTypeArgs(parameters[i].ParameterType, argType, genericArgs, typeArgs);
-            }
-
-            // All type args must be resolved — don't guess with typeof(object)
-            for (var i = 0; i < typeArgs.Length; i++)
-            {
-                if (typeArgs[i] == null)
-                    return null;
-            }
-
-            return RuntimeGenericFactory.TryCloseGenericMethod(genericMethod, typeArgs, out var closedMethod)
-                ? closedMethod
-                : null;
-        }
-        catch (Exception ex) when (ex is ArgumentException or TypeLoadException or InvalidOperationException)
-        {
-            return null;
-        }
-    }
-
-    private static int TryInferTypeArgs(Type paramType, Type argType, Type[] genericParams, Type[] typeArgs)
-    {
-        var resolved = 0;
-
-        if (paramType.IsGenericParameter)
-        {
-            var index = Array.IndexOf(genericParams, paramType);
-            if (index >= 0 && typeArgs[index] == null)
-            {
-                typeArgs[index] = argType;
-                resolved++;
-            }
-            return resolved;
-        }
-
-        if (paramType.IsGenericType)
-        {
-            var paramGenericDef = paramType.GetGenericTypeDefinition();
-            var paramGenericArgs = paramType.GetGenericArguments();
-
-            Type? matchingType = null;
-
-            if (argType.IsGenericType && argType.GetGenericTypeDefinition() == paramGenericDef)
-            {
-                matchingType = argType;
-            }
-            else
-            {
-                foreach (var iface in ReflectionRuntime.GetInterfaces(argType))
-                {
-                    if (iface.IsGenericType && iface.GetGenericTypeDefinition() == paramGenericDef)
-                    {
-                        matchingType = iface;
-                        break;
-                    }
-                }
-            }
-
-            if (matchingType != null)
-            {
-                var argGenericArgs = matchingType.GetGenericArguments();
-                for (var i = 0; i < paramGenericArgs.Length && i < argGenericArgs.Length; i++)
-                {
-                    resolved += TryInferTypeArgs(paramGenericArgs[i], argGenericArgs[i], genericParams, typeArgs);
-                }
-            }
-        }
-
-        return resolved;
+        return RuntimeGenericFactory.TryCloseGenericMethod(genericMethod, typeArgs, out var closed)
+            ? closed : null;
     }
 
 
