@@ -545,7 +545,40 @@ internal static class TypeHelpers
     /// Checks if a value can be implicitly assigned to a target type per C# rules.
     internal static bool HasUserDefinedImplicitConversion(Type sourceType, Type targetType)
     {
-        return TryResolveUserDefinedConversion(sourceType, targetType, out _);
+        return TryResolveUserDefinedImplicitConversion(sourceType, targetType);
+    }
+
+    private static bool TryResolveUserDefinedImplicitConversion(Type sourceType, Type targetType)
+    {
+        const BindingFlags flags = BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy;
+
+        var searchTypes = sourceType == targetType
+            ? new[] { sourceType }
+            : new[] { sourceType, targetType };
+
+        foreach (var declaringType in searchTypes)
+        {
+            foreach (var method in ReflectionRuntime.GetMethods(declaringType, flags))
+            {
+                if (method.Name != "op_Implicit")
+                    continue;
+
+                var parameters = method.GetParameters();
+                if (parameters.Length != 1)
+                    continue;
+
+                var paramType = parameters[0].ParameterType;
+                var returnType = method.ReturnType;
+
+                // §10.5.4: Standard implicit conversion must exist from sourceType to paramType
+                // AND from returnType to targetType (unidirectional, not bidirectional)
+                if (IsStandardImplicitConversion(sourceType, paramType) &&
+                    IsStandardImplicitConversion(returnType, targetType))
+                    return true;
+            }
+        }
+
+        return false;
     }
 
     internal static bool TryApplyUserDefinedImplicitConversion(object value, Type targetType, out object? converted)

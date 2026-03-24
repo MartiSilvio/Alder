@@ -116,20 +116,7 @@ internal static class ExtensionMethodResolver
         if (candidates.Count == 0)
             return (false, null);
 
-        // Set a sample value for lambda return type observation during overload resolution.
-        // The first element from the target collection lets BetterConversionFromLambda
-        // evaluate the lambda once to discover its actual return type.
-        OverloadResolution.CurrentSampleValue = TryGetFirstElement(target);
-        MethodInfo? best;
-        bool ambiguous;
-        try
-        {
-            best = MethodInvoker.FindBestMethod(candidates, invocationArgs, out ambiguous, ct, runtimeContext);
-        }
-        finally
-        {
-            OverloadResolution.CurrentSampleValue = null;
-        }
+        var best = MethodInvoker.FindBestMethod(candidates, invocationArgs, out var ambiguous, ct, runtimeContext);
 
         if (ambiguous)
             throw new AlderException(DiagnosticDescriptors.AmbiguousMethodInvocation, methodName);
@@ -326,23 +313,6 @@ internal static class ExtensionMethodResolver
             return MethodInvoker.TryMakeConcreteMethodWithTypeArgs(method, typeArgs, runtimeContext?.TypeResolver);
 
         return TryMakeConcreteMethod(method, targetType, args, runtimeContext);
-    }
-
-    private static object? TryGetFirstElement(object target)
-    {
-        if (target is IEnumerable enumerable)
-        {
-            var enumerator = enumerable.GetEnumerator();
-            try
-            {
-                return enumerator.MoveNext() ? enumerator.Current : null;
-            }
-            finally
-            {
-                (enumerator as IDisposable)?.Dispose();
-            }
-        }
-        return null;
     }
 
     private static MethodInfo? TryMakeConcreteMethod(MethodInfo genericMethod, Type targetType, object?[] args, AlderContext? runtimeContext = null)

@@ -25,10 +25,20 @@ internal static class TypeInference
         }
 
         // Phase 2: Iterative fixing (ECMA-334 section 12.6.3.3)
-        if (!IterativeFix(ctx, parameters, argTypes, lambdaArgs, runtimeContext))
-            return null;
+        IterativeFix(ctx, parameters, argTypes, lambdaArgs, runtimeContext);
 
-        // All type params must be fixed
+        // Unfixed params that depend on lambda output types fall back to typeof(object).
+        // This handles dynamic scenarios (dictionary key access, ExpandoObject) where
+        // static binding can't determine the lambda's return type.
+        for (var i = 0; i < ctx.FixedTypes.Length; i++)
+        {
+            if (ctx.FixedTypes[i] == null && lambdaArgs != null && IsLambdaOutputParam(i, ctx, parameters, lambdaArgs))
+            {
+                ctx.FixedTypes[i] = typeof(object);
+                ctx.IsFixed[i] = true;
+            }
+        }
+
         for (var i = 0; i < ctx.FixedTypes.Length; i++)
         {
             if (ctx.FixedTypes[i] == null)
@@ -143,9 +153,8 @@ internal static class TypeInference
                 continue;
 
             var substitutedInputTypes = SubstituteFixed(inputTypes, ctx);
-            var resultType = ExtensionMethodResolver.InferLambdaReturnType(lambdaArgs[i], substitutedInputTypes, runtimeContext);
-            if (resultType == null || resultType == typeof(object))
-                continue;
+            var resultType = ExtensionMethodResolver.InferLambdaReturnType(lambdaArgs[i], substitutedInputTypes, runtimeContext)
+                             ?? typeof(object);
 
             var outputType = paramGenericArgs[^1];
             LowerBoundInference(resultType, outputType, ctx);
@@ -585,6 +594,44 @@ internal static class TypeInference
                 continue;
             if (!ctx.IsFixed[j] && dependsOn[j, paramIndex])
                 return true;
+        }
+        return false;
+    }
+
+    private static bool IsLambdaOutputParam(int paramIndex, InferenceContext ctx, ParameterInfo[] parameters, object?[] lambdaArgs)
+    {
+        var genericParam = ctx.GenericParams[paramIndex];
+        for (var i = 0; i < parameters.Length && i < lambdaArgs.Length; i++)
+        {
+            if (lambdaArgs[i] == null)
+                continue;
+
+            var paramType = parameters[i].ParameterType;
+            if (!paramType.IsGenericType)
+                continue;
+
+            var paramGenericDef = paramType.GetGenericTypeDefinition();
+            if (!IsFuncType(paramGenericDef))
+                continue;
+
+            var outputType = paramType.GetGenericArguments()[^1];
+            if (ContainsGenericParam(outputType, genericParam))
+                return true;
+        }
+        return false;
+    }
+
+    private static bool ContainsGenericParam(Type type, Type genericParam)
+    {
+        if (type == genericParam)
+            return true;
+        if (type.IsGenericType)
+        {
+            foreach (var arg in type.GetGenericArguments())
+            {
+                if (ContainsGenericParam(arg, genericParam))
+                    return true;
+            }
         }
         return false;
     }
