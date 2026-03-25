@@ -14,15 +14,15 @@ internal sealed partial class BoundEvaluator
 {
     private object? EvaluateMemberAccess(BoundMemberAccessExpr memberAccess)
     {
+        var chain = PostfixChain.TryCollect(memberAccess);
+        if (chain != null)
+            return EvaluatePostfixChain(chain.Value);
+
         var target = Evaluate(memberAccess.Target);
         if (memberAccess.NullSafe && target == null)
             return null;
-        return MemberAccess.GetMember(
-            target,
-            memberAccess.MemberName,
-            _config,
-            nullSafe: memberAccess.NullSafe,
-            _context);
+        return MemberAccess.GetMember(target, memberAccess.MemberName, _config,
+            nullSafe: memberAccess.NullSafe, _context);
     }
 
     private object? EvaluateIndexAccess(BoundIndexAccessExpr indexAccess)
@@ -118,9 +118,18 @@ internal sealed partial class BoundEvaluator
 
     private object? EvaluateCall(BoundCallExpr call)
     {
+        var chain = PostfixChain.TryCollect(call);
+        if (chain != null)
+            return EvaluatePostfixChain(chain.Value);
+
+        return EvaluateCallDirect(call, null);
+    }
+
+    private object? EvaluateCallDirect(BoundCallExpr call, object? evaluatedTarget)
+    {
         if (call.Callee is BoundMemberAccessExpr { Plan: not null } memberAccess)
         {
-            var target = memberAccess.Plan.IsStatic ? null : Evaluate(memberAccess.Target);
+            var target = evaluatedTarget ?? (memberAccess.Plan.IsStatic ? null : Evaluate(memberAccess.Target));
             if (memberAccess.NullSafe && target == null)
                 return null;
 
@@ -144,7 +153,15 @@ internal sealed partial class BoundEvaluator
 
     private object? EvaluateInvoke(BoundInvokeExpr invoke)
     {
+        var chain = PostfixChain.TryCollect(invoke);
+        if (chain != null)
+            return EvaluatePostfixChain(chain.Value);
 
+        return EvaluateInvokeDirect(invoke, null);
+    }
+
+    private object? EvaluateInvokeDirect(BoundInvokeExpr invoke, object? evaluatedTarget)
+    {
         var (args, outBindings) = EvaluateArgumentsWithOutBindings(invoke.Arguments);
 
         IReadOnlyList<string>? typeArguments = invoke.TypeArguments.IsDefaultOrEmpty
@@ -154,42 +171,50 @@ internal sealed partial class BoundEvaluator
         if (invoke.Callee is BoundIdentifierExpr identifier)
         {
             var result = IdentifierRuntime.InvokeIdentifierCall(
-                identifier.Name,
-                args,
-                _context,
-                _config,
-                typeArguments,
-                _cancellationToken);
+                identifier.Name, args, _context, _config, typeArguments, _cancellationToken);
             DefineOutVariablesIfAny(args, outBindings);
             return result;
         }
 
         if (invoke.Callee is BoundMemberAccessExpr memberAccess)
         {
-            var target = Evaluate(memberAccess.Target);
+            var target = evaluatedTarget ?? Evaluate(memberAccess.Target);
             var result = MethodInvoker.InvokeMemberCall(
-                target,
-                memberAccess.MemberName,
-                args,
-                memberAccess.NullSafe,
-                _context,
-                _config,
-                typeArguments,
-                _cancellationToken);
+                target, memberAccess.MemberName, args, memberAccess.NullSafe,
+                _context, _config, typeArguments, _cancellationToken);
             DefineOutVariablesIfAny(args, outBindings);
             return result;
         }
 
         var callee = Evaluate(invoke.Callee);
         var invokeCallResult = MethodInvoker.InvokeCall(
-            callee,
-            args,
-            _context,
-            _config,
-            typeArguments,
-            _cancellationToken);
+            callee, args, _context, _config, typeArguments, _cancellationToken);
         DefineOutVariablesIfAny(args, outBindings);
         return invokeCallResult;
+    }
+
+    private object? EvaluatePostfixChain(PostfixChain.Chain chain)
+    {
+        var result = Evaluate(chain.Root);
+
+        for (var i = chain.Segments.Count - 1; i >= 0; i--)
+        {
+            var seg = chain.Segments[i];
+
+            if (seg.CallOrInvoke is BoundCallExpr call)
+                result = EvaluateCallDirect(call, result);
+            else if (seg.CallOrInvoke is BoundInvokeExpr invoke)
+                result = EvaluateInvokeDirect(invoke, result);
+            else
+            {
+                var ma = seg.MemberAccess;
+                if (ma.NullSafe && result == null) return null;
+                result = MemberAccess.GetMember(result, ma.MemberName, _config,
+                    nullSafe: ma.NullSafe, _context);
+            }
+        }
+
+        return result;
     }
 
     private object?[] EvaluateArguments(ImmutableArray<BoundExpr> arguments)

@@ -199,28 +199,41 @@ internal sealed class ExpressionTreeEmitter
 
     private LinqExpression EmitMemberAccess(BoundMemberAccessExpr expr)
     {
+        var chain = PostfixChain.TryCollect(expr);
+        if (chain != null) return EmitPostfixChain(chain.Value);
+        return EmitMemberAccessCore(expr, Emit(expr.Target));
+    }
+
+    private LinqExpression EmitMemberAccessCore(BoundMemberAccessExpr expr, LinqExpression emittedTarget)
+    {
         if (expr.NullSafe)
             throw UnsupportedNode("null-conditional access");
 
-        var target = Emit(expr.Target);
         var plan = expr.Plan;
         if (plan?.Member is PropertyInfo property)
             return plan.IsStatic
                 ? LinqExpression.Property(null, property)
-                : LinqExpression.Property(target, property);
+                : LinqExpression.Property(emittedTarget, property);
 
         if (plan?.Member is FieldInfo field)
             return plan.IsStatic
                 ? LinqExpression.Field(null, field)
-                : LinqExpression.Field(target, field);
+                : LinqExpression.Field(emittedTarget, field);
 
         if (plan?.IsMethodGroup == true)
             throw UnsupportedCallShape("unresolved method group");
 
-        throw new AlderException(DiagnosticDescriptors.MemberNotFound, target.Type.Name, expr.MemberName);
+        throw new AlderException(DiagnosticDescriptors.MemberNotFound, emittedTarget.Type.Name, expr.MemberName);
     }
 
     private LinqExpression EmitCall(BoundCallExpr expr)
+    {
+        var chain = PostfixChain.TryCollect(expr);
+        if (chain != null) return EmitPostfixChain(chain.Value);
+        return EmitCallCore(expr, null);
+    }
+
+    private LinqExpression EmitCallCore(BoundCallExpr expr, LinqExpression? emittedTarget)
     {
         for (var i = 0; i < expr.Arguments.Length; i++)
         {
@@ -246,8 +259,22 @@ internal sealed class ExpressionTreeEmitter
         if (memberCallee.NullSafe)
             throw UnsupportedNode("null-conditional access");
 
-        var target = Emit(memberCallee.Target);
+        var target = emittedTarget ?? Emit(memberCallee.Target);
         return LinqExpression.Call(target, method, args);
+    }
+
+    private LinqExpression EmitPostfixChain(PostfixChain.Chain chain)
+    {
+        var result = Emit(chain.Root);
+        for (var i = chain.Segments.Count - 1; i >= 0; i--)
+        {
+            var seg = chain.Segments[i];
+            if (seg.CallOrInvoke is BoundCallExpr call)
+                result = EmitCallCore(call, result);
+            else
+                result = EmitMemberAccessCore(seg.MemberAccess, result);
+        }
+        return result;
     }
 
     private LinqExpression[] EmitPlannedCallArguments(BoundCallExpr expr, ParameterInfo[] parameters)

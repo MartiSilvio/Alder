@@ -206,35 +206,90 @@ internal abstract class BoundExprRewriter : BoundExprVisitor<BoundExpr>, IBoundT
 
     protected override BoundExpr VisitMemberAccess(BoundMemberAccessExpr node)
     {
-        // Iterative flattening for member access chains
-        var chain = new List<BoundMemberAccessExpr>();
-        BoundExpr leftmost = node;
-        while (leftmost is BoundMemberAccessExpr ma)
+        var postfix = PostfixChain.TryCollect(node);
+        if (postfix == null)
         {
-            chain.Add(ma);
-            leftmost = ma.Target;
+            var target = Visit(node.Target);
+            if (ReferenceEquals(target, node.Target)) return node;
+            return CopyMetadata(node, node with { Target = target });
         }
 
-        var newLeftmost = Visit(leftmost);
-        var anyChanged = !ReferenceEquals(newLeftmost, leftmost);
+        return RewritePostfixChain(postfix.Value, node);
+    }
 
-        var current = newLeftmost;
-        for (var i = chain.Count - 1; i >= 0; i--)
+    protected override BoundExpr VisitCall(BoundCallExpr node)
+    {
+        var postfix = PostfixChain.TryCollect(node);
+        if (postfix != null)
+            return RewritePostfixChain(postfix.Value, node);
+
+        var callee = Visit(node.Callee);
+        var args = RewriteImmutableArray(node.Arguments, out var changed);
+        if (ReferenceEquals(callee, node.Callee) && !changed) return node;
+        return CopyMetadata(node, node with { Callee = callee, Arguments = args });
+    }
+
+    protected override BoundExpr VisitInvoke(BoundInvokeExpr node)
+    {
+        var postfix = PostfixChain.TryCollect(node);
+        if (postfix != null)
+            return RewritePostfixChain(postfix.Value, node);
+
+        var callee = Visit(node.Callee);
+        var args = RewriteImmutableArray(node.Arguments, out var changed);
+        if (ReferenceEquals(callee, node.Callee) && !changed) return node;
+        return CopyMetadata(node, node with { Callee = callee, Arguments = args });
+    }
+
+    private BoundExpr RewritePostfixChain(PostfixChain.Chain chain, BoundExpr originalRoot)
+    {
+        var current = Visit(chain.Root);
+        var anyChanged = !ReferenceEquals(current, chain.Root);
+
+        for (var i = chain.Segments.Count - 1; i >= 0; i--)
         {
-            var original = chain[i];
-            if (!ReferenceEquals(current, original.Target))
+            var seg = chain.Segments[i];
+            var originalMa = seg.MemberAccess;
+
+            if (!ReferenceEquals(current, originalMa.Target))
             {
-                var rewritten = original with { Target = current };
-                current = CopyMetadata(original, rewritten);
+                current = CopyMetadata(originalMa, originalMa with { Target = current });
                 anyChanged = true;
             }
             else
             {
-                current = original;
+                current = originalMa;
+            }
+
+            if (seg.CallOrInvoke is BoundCallExpr call)
+            {
+                var args = RewriteImmutableArray(call.Arguments, out var argsChanged);
+                if (argsChanged || !ReferenceEquals(current, call.Callee))
+                {
+                    current = CopyMetadata(call, call with { Callee = current, Arguments = args });
+                    anyChanged = true;
+                }
+                else
+                {
+                    current = call;
+                }
+            }
+            else if (seg.CallOrInvoke is BoundInvokeExpr invoke)
+            {
+                var args = RewriteImmutableArray(invoke.Arguments, out var argsChanged);
+                if (argsChanged || !ReferenceEquals(current, invoke.Callee))
+                {
+                    current = CopyMetadata(invoke, invoke with { Callee = current, Arguments = args });
+                    anyChanged = true;
+                }
+                else
+                {
+                    current = invoke;
+                }
             }
         }
 
-        return anyChanged ? current : node;
+        return anyChanged ? current : originalRoot;
     }
 
     protected override BoundExpr VisitIndexAccess(BoundIndexAccessExpr node)
@@ -280,22 +335,6 @@ internal abstract class BoundExprRewriter : BoundExprVisitor<BoundExpr>, IBoundT
             ReferenceEquals(step, node.Step))
             return node;
         return CopyMetadata(node, node with { Target = target, Start = start, End = end, Step = step });
-    }
-
-    protected override BoundExpr VisitCall(BoundCallExpr node)
-    {
-        var callee = Visit(node.Callee);
-        var args = RewriteImmutableArray(node.Arguments, out var changed);
-        if (ReferenceEquals(callee, node.Callee) && !changed) return node;
-        return CopyMetadata(node, node with { Callee = callee, Arguments = args });
-    }
-
-    protected override BoundExpr VisitInvoke(BoundInvokeExpr node)
-    {
-        var callee = Visit(node.Callee);
-        var args = RewriteImmutableArray(node.Arguments, out var changed);
-        if (ReferenceEquals(callee, node.Callee) && !changed) return node;
-        return CopyMetadata(node, node with { Callee = callee, Arguments = args });
     }
 
     protected override BoundExpr VisitPipeline(BoundPipelineExpr node)

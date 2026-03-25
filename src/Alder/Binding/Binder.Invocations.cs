@@ -53,27 +53,51 @@ internal sealed partial class Binder
 
     private BoundMemberAccessExpr BindMemberAccess(MemberAccessExpr memberAccess, BindingContext context)
     {
-        // Iterativize left-recursive member access chains to avoid stack overflow.
+        // Iterativize left-recursive member/call chains to avoid stack overflow.
         // "a.b.c.d" parses as MemberAccess(MemberAccess(MemberAccess(a, b), c), d).
-        // Collect the chain, bind the root, then fold bottom-up.
-        var chain = new List<MemberAccessExpr>();
+        // "a.B().C()" interleaves MemberAccess and CallExpr nodes.
+        // Collect the full postfix spine, bind the root, then fold bottom-up.
+        //
+        // When MA("c").Object is CallExpr(callee: MA("B")), the call belongs to MA("B")
+        // (the callee), not MA("c") (the consumer of the result). We defer recording the
+        // call via pendingCall until we reach the callee member access.
+        var memberChain = new List<MemberAccessExpr>();
+        var callAfter = new List<CallExpr?>();
+        CallExpr? pendingCall = null;
         Expr root = memberAccess;
+
         while (root is MemberAccessExpr ma)
         {
-            chain.Add(ma);
-            root = ma.Object;
+            memberChain.Add(ma);
+            callAfter.Add(pendingCall);
+            pendingCall = null;
+
+            if (ma.Object is CallExpr call && call.Callee is MemberAccessExpr)
+            {
+                pendingCall = call;
+                root = call.Callee;
+            }
+            else
+            {
+                root = ma.Object;
+            }
         }
 
-        var target = Bind(root, context);
+        BoundExpr target = Bind(root, context);
 
-        for (var i = chain.Count - 1; i >= 0; i--)
+        for (var i = memberChain.Count - 1; i > 0; i--)
         {
-            var link = chain[i];
+            var link = memberChain[i];
             target = BindSingleMemberAccess(target, link.Name.Lexeme, link.NullSafe, context);
             target = target with { Span = link.Span };
+
+            if (callAfter[i] is { } callExpr)
+                target = BindCallWithBoundCallee(target, callExpr, context);
         }
 
-        return (BoundMemberAccessExpr)target;
+        var outer = memberChain[0];
+        var result = BindSingleMemberAccess(target, outer.Name.Lexeme, outer.NullSafe, context);
+        return result with { Span = outer.Span };
     }
 
     private BoundMemberAccessExpr BindSingleMemberAccess(BoundExpr target, string name, bool nullSafe, BindingContext context)
@@ -117,6 +141,11 @@ internal sealed partial class Binder
             return staticModuleCall;
 
         var callee = BindCallCallee(call.Callee, context);
+        return BindCallWithBoundCallee(callee, call, context);
+    }
+
+    private BoundExpr BindCallWithBoundCallee(BoundExpr callee, CallExpr call, BindingContext context)
+    {
         var arguments = call.Arguments
             .Select(argument => Bind(argument, context))
             .ToImmutableArray();
@@ -210,22 +239,7 @@ internal sealed partial class Binder
         if (callee is not MemberAccessExpr memberAccess)
             return Bind(callee, context);
 
-        try
-        {
-            return BindMemberAccess(memberAccess, context);
-        }
-        catch (BindingNotSupportedException)
-        {
-            // Preserve call semantics for extension/dynamic method candidates by deferring
-            // member resolution to invocation-time dispatch while staying in the bound pipeline.
-            var target = Bind(memberAccess.Object, context);
-            return new BoundMemberAccessExpr(
-                target,
-                memberAccess.Name.Lexeme,
-                memberAccess.NullSafe,
-                Plan: null,
-                StaticType: typeof(object));
-        }
+        return BindMemberAccess(memberAccess, context);
     }
 
     private static (Type TargetType, bool IsStatic) ResolveMemberTarget(BoundExpr target)

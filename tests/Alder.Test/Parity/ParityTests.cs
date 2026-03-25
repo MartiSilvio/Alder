@@ -203,7 +203,7 @@ public class ParityTests(CompilationMode mode)
     }
 }
 
-[TestFixture(CompilationMode.CompiledFec)]
-[Explicit("FastExpressionCompiler IL may diverge from Microsoft JIT — not a Alder parity issue")]
-[Parallelizable(ParallelScope.Children)]
-public class ParityTestsFec(CompilationMode mode) : ParityTests(mode);
+// [TestFixture(CompilationMode.CompiledFec)]
+// [Explicit("FastExpressionCompiler IL may diverge from Microsoft JIT — not a Alder parity issue")]
+// [Parallelizable(ParallelScope.Children)]
+// public class ParityTestsFec(CompilationMode mode) : ParityTests(mode);

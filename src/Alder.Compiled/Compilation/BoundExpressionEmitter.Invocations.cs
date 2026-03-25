@@ -17,24 +17,30 @@ internal sealed partial class BoundExpressionEmitter
 {
     private LinqExpression EmitMemberAccess(BoundMemberAccessExpr memberAccess)
     {
+        var chain = PostfixChain.TryCollect(memberAccess);
+        if (chain != null) return EmitPostfixChain(chain.Value);
+        return EmitMemberAccessWithTarget(memberAccess, Emit(memberAccess.Target));
+    }
+
+    private LinqExpression EmitMemberAccessWithTarget(BoundMemberAccessExpr memberAccess, LinqExpression emittedTarget)
+    {
         if (memberAccess.Plan?.Member is PropertyInfo property)
         {
             var declaringType = property.DeclaringType;
             if (declaringType == null || !IsValueTupleType(declaringType))
-                return EmitDirectPropertyAccess(memberAccess, property);
+                return EmitDirectPropertyAccess(memberAccess, property, emittedTarget);
         }
 
         if (memberAccess.Plan?.Member is FieldInfo field)
         {
             var declaringType = field.DeclaringType;
             if (declaringType == null || !IsValueTupleType(declaringType))
-                return EmitDirectFieldAccess(memberAccess, field);
+                return EmitDirectFieldAccess(memberAccess, field, emittedTarget);
         }
 
-        var target = EmitHelpers.AsObject(Emit(memberAccess.Target));
         return LinqExpression.Call(
             GetMemberMethod,
-            target,
+            EmitHelpers.AsObject(emittedTarget),
             LinqExpression.Constant(memberAccess.MemberName),
             _configParam,
             LinqExpression.Constant(memberAccess.NullSafe),
@@ -72,13 +78,20 @@ internal sealed partial class BoundExpressionEmitter
 
     private LinqExpression EmitCall(BoundCallExpr call)
     {
-        if (call.Callee is BoundMemberAccessExpr { Plan: not null } memberAccess)
-            return EmitDirectPlannedCall(call, memberAccess);
-
-        return EmitInvokeCore(call.Callee, call.Arguments, ImmutableArray<string>.Empty);
+        var chain = PostfixChain.TryCollect(call);
+        if (chain != null) return EmitPostfixChain(chain.Value);
+        return EmitCallWithTarget(call, null);
     }
 
-    private LinqExpression EmitDirectPropertyAccess(BoundMemberAccessExpr memberAccess, PropertyInfo property)
+    private LinqExpression EmitCallWithTarget(BoundCallExpr call, LinqExpression? emittedTarget)
+    {
+        if (call.Callee is BoundMemberAccessExpr { Plan: not null } memberAccess)
+            return EmitDirectPlannedCall(call, memberAccess, emittedTarget);
+
+        return EmitInvokeCore(call.Callee, call.Arguments, ImmutableArray<string>.Empty, emittedTarget);
+    }
+
+    private LinqExpression EmitDirectPropertyAccess(BoundMemberAccessExpr memberAccess, PropertyInfo property, LinqExpression emittedTarget)
     {
         var plan = memberAccess.Plan!;
         var guardCheck = LinqExpression.Empty();
@@ -111,7 +124,7 @@ internal sealed partial class BoundExpressionEmitter
                 typeof(object),
                 [targetObjVar],
                 guardCheck,
-                LinqExpression.Assign(targetObjVar, EmitHelpers.AsObject(Emit(memberAccess.Target))),
+                LinqExpression.Assign(targetObjVar, EmitHelpers.AsObject(emittedTarget)),
                 LinqExpression.Condition(
                     LinqExpression.Equal(targetObjVar, LinqExpression.Constant(null, typeof(object))),
                     LinqExpression.Constant(null, typeof(object)),
@@ -122,11 +135,11 @@ internal sealed partial class BoundExpressionEmitter
             typeof(object),
             [targetObjVar],
             guardCheck,
-            LinqExpression.Assign(targetObjVar, EmitHelpers.AsObject(Emit(memberAccess.Target))),
+            LinqExpression.Assign(targetObjVar, EmitHelpers.AsObject(emittedTarget)),
             guardedExpr);
     }
 
-    private LinqExpression EmitDirectFieldAccess(BoundMemberAccessExpr memberAccess, FieldInfo field)
+    private LinqExpression EmitDirectFieldAccess(BoundMemberAccessExpr memberAccess, FieldInfo field, LinqExpression emittedTarget)
     {
         var plan = memberAccess.Plan!;
         var guardCheck = LinqExpression.Empty();
@@ -159,7 +172,7 @@ internal sealed partial class BoundExpressionEmitter
                 typeof(object),
                 [targetObjVar],
                 guardCheck,
-                LinqExpression.Assign(targetObjVar, EmitHelpers.AsObject(Emit(memberAccess.Target))),
+                LinqExpression.Assign(targetObjVar, EmitHelpers.AsObject(emittedTarget)),
                 LinqExpression.Condition(
                     LinqExpression.Equal(targetObjVar, LinqExpression.Constant(null, typeof(object))),
                     LinqExpression.Constant(null, typeof(object)),
@@ -170,7 +183,7 @@ internal sealed partial class BoundExpressionEmitter
             typeof(object),
             [targetObjVar],
             guardCheck,
-            LinqExpression.Assign(targetObjVar, EmitHelpers.AsObject(Emit(memberAccess.Target))),
+            LinqExpression.Assign(targetObjVar, EmitHelpers.AsObject(emittedTarget)),
             guardedExpr);
     }
 
@@ -288,10 +301,10 @@ internal sealed partial class BoundExpressionEmitter
         return LinqExpression.Call(NormalizeIndexMethod, rawIndex, lengthExpression, languageMode);
     }
 
-    private LinqExpression EmitDirectPlannedCall(BoundCallExpr call, BoundMemberAccessExpr memberAccess)
+    private LinqExpression EmitDirectPlannedCall(BoundCallExpr call, BoundMemberAccessExpr memberAccess, LinqExpression? emittedTarget = null)
     {
         if (!EmitHelpers.CanEmitDirectMethodCall(call.Plan, call.Arguments.Length))
-            return EmitInvokeCore(call.Callee, call.Arguments, ImmutableArray<string>.Empty);
+            return EmitInvokeCore(call.Callee, call.Arguments, ImmutableArray<string>.Empty, emittedTarget);
 
         var method = call.Plan.SelectedMethod;
         var parameters = MethodDispatchCache.GetParameters(method);
@@ -337,7 +350,7 @@ internal sealed partial class BoundExpressionEmitter
             return LinqExpression.Block(
                 typeof(object),
                 [targetObjVar],
-                LinqExpression.Assign(targetObjVar, EmitHelpers.AsObject(Emit(memberAccess.Target))),
+                LinqExpression.Assign(targetObjVar, EmitHelpers.AsObject(emittedTarget ?? Emit(memberAccess.Target))),
                 LinqExpression.Condition(
                     LinqExpression.Equal(targetObjVar, LinqExpression.Constant(null, typeof(object))),
                     LinqExpression.Constant(null, typeof(object)),
@@ -347,7 +360,7 @@ internal sealed partial class BoundExpressionEmitter
         var targetVar = LinqExpression.Variable(targetType, "callTargetTyped");
         var assignTarget = LinqExpression.Assign(
             targetVar,
-            EmitHelpers.EnsureTypedExpression(Emit(memberAccess.Target), targetType));
+            EmitHelpers.EnsureTypedExpression(emittedTarget ?? Emit(memberAccess.Target), targetType));
         var ensureNonNullTarget = IsNonNullableValueType(targetType)
             ? (LinqExpression)LinqExpression.Empty()
             : LinqExpression.Call(
@@ -483,7 +496,25 @@ internal sealed partial class BoundExpressionEmitter
 
     private LinqExpression EmitInvoke(BoundInvokeExpr invoke)
     {
+        var chain = PostfixChain.TryCollect(invoke);
+        if (chain != null) return EmitPostfixChain(chain.Value);
         return EmitInvokeCore(invoke.Callee, invoke.Arguments, invoke.TypeArguments);
+    }
+
+    private LinqExpression EmitPostfixChain(PostfixChain.Chain chain)
+    {
+        var result = Emit(chain.Root);
+        for (var i = chain.Segments.Count - 1; i >= 0; i--)
+        {
+            var seg = chain.Segments[i];
+            if (seg.CallOrInvoke is BoundCallExpr call)
+                result = EmitCallWithTarget(call, result);
+            else if (seg.CallOrInvoke is BoundInvokeExpr invoke)
+                result = EmitInvokeCore(invoke.Callee, invoke.Arguments, invoke.TypeArguments, result);
+            else
+                result = EmitMemberAccessWithTarget(seg.MemberAccess, result);
+        }
+        return result;
     }
 
     private LinqExpression EmitLambda(BoundLambdaExpr lambda)
@@ -669,7 +700,8 @@ internal sealed partial class BoundExpressionEmitter
     private LinqExpression EmitInvokeCore(
         BoundExpr callee,
         ImmutableArray<BoundExpr> arguments,
-        ImmutableArray<string> typeArguments)
+        ImmutableArray<string> typeArguments,
+        LinqExpression? emittedCalleeTarget = null)
     {
         var argsVar = LinqExpression.Variable(typeof(object?[]), "args");
         var argsInit = LinqExpression.NewArrayInit(
@@ -694,7 +726,7 @@ internal sealed partial class BoundExpressionEmitter
         {
             invokeExpr = LinqExpression.Call(
                 InvokeMemberCallMethod,
-                EmitHelpers.AsObject(Emit(memberAccess.Target)),
+                EmitHelpers.AsObject(emittedCalleeTarget ?? Emit(memberAccess.Target)),
                 LinqExpression.Constant(memberAccess.MemberName),
                 argsVar,
                 LinqExpression.Constant(memberAccess.NullSafe),

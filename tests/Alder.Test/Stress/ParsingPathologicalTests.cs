@@ -10,14 +10,13 @@ public class ParsingPathologicalTests(CompilationMode mode) : StressTestBase(mod
     [Test]
     public void DeeplyNestedParentheses_ShouldNotCrashProcess()
     {
-        // 2000 nested parentheses exhaust the .NET thread stack.
-        // EnsureSufficientExecutionStack() detects near-exhaustion and throws
-        // InsufficientExecutionStackException, which AlderEngine wraps as AlderException.
+        // Consecutive grouping parens are consumed iteratively by PrimaryParser,
+        // so 2000 nested parens don't recurse — they parse and evaluate correctly.
         var depth = 2000;
         var expression = GenerateDeeplyNestedExpression(depth, "1 + 1");
 
-        var ex = Assert.Throws<AlderException>(() => Engine.Parse(expression));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(Alder.Diagnostics.DiagnosticCode.CS8078));
+        var result = Engine.Evaluate(expression);
+        Assert.That(result, Is.EqualTo(2));
     }
 
     [Test]
@@ -78,21 +77,14 @@ public class ParsingPathologicalTests(CompilationMode mode) : StressTestBase(mod
     [TestCase(1000)]
     public void ManyChainedPropertyAccesses_ShouldNotStackOverflow(int count)
     {
+        // Postfix call-member-access chains are iterativized across the binder,
+        // rewriter, interpreter, and emitter — no recursion regardless of chain length.
         var sb = new StringBuilder("\"start\"");
         for (int i = 0; i < count; i++)
             sb.Append(".Length.ToString()");
 
-        var expr = sb.ToString();
-
-        if (count <= 512)
-        {
-            var result = Engine.Evaluate(expr);
-            Assert.That(result, Is.Not.Null);
-        }
-        else
-        {
-            Assert.Throws<AlderException>(() => Engine.Evaluate(expr));
-        }
+        var result = Engine.Evaluate(sb.ToString());
+        Assert.That(result, Is.Not.Null);
     }
 
     [Test]
