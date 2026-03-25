@@ -47,15 +47,9 @@ internal sealed class PrimaryParser : ParserBase
 
         if (Match(TokenType.LeftParen))
         {
-            // Iteratively consume consecutive open-parens that are pure grouping,
-            // so ((((expr)))) doesn't recurse 4 levels deep through the full
-            // precedence chain. Only the innermost expression actually recurses.
-            var groupingDepth = 0;
-            while (IsGroupingParen())
-            {
-                groupingDepth++;
-                Advance(); // consume inner '('
-            }
+            var groupingDepth = CountPureGroupingDepth();
+            for (var i = 0; i < groupingDepth; i++)
+                Advance();
 
             var result = ParseParenthesized(mark);
 
@@ -697,12 +691,40 @@ internal sealed class PrimaryParser : ParserBase
     #region Parenthesized, Lambda, and Tuple
 
     /// <summary>
-    /// Checks if the current token is '(' that starts a pure grouping — another '(' follows,
-    /// meaning this is nested grouping like ((expr)) rather than a lambda, tuple, or cast.
+    /// Counts how many consecutive '(' tokens at the current position are pure grouping —
+    /// their matching ')' tokens are also consecutive. Scans forward to verify by finding
+    /// where the innermost '(' closes, then counting consecutive ')' after it.
+    /// Returns 0 if none are pure grouping.
     /// </summary>
-    private bool IsGroupingParen()
+    private int CountPureGroupingDepth()
     {
-        return Check(TokenType.LeftParen) && PeekNext().Type == TokenType.LeftParen;
+        var openCount = 0;
+        while (State.Current + openCount < State.Tokens.Count &&
+               State.Tokens[State.Current + openCount].Type == TokenType.LeftParen)
+            openCount++;
+
+        if (openCount == 0) return 0;
+
+        var depth = 1;
+        var scan = State.Current + openCount;
+        while (scan < State.Tokens.Count && depth > 0)
+        {
+            if (State.Tokens[scan].Type == TokenType.LeftParen) depth++;
+            else if (State.Tokens[scan].Type == TokenType.RightParen) depth--;
+            scan++;
+        }
+
+        if (depth != 0) return 0;
+
+        var pureCount = 0;
+        while (pureCount < openCount && scan < State.Tokens.Count &&
+               State.Tokens[scan].Type == TokenType.RightParen)
+        {
+            pureCount++;
+            scan++;
+        }
+
+        return pureCount;
     }
 
     private Expr ParseParenthesized(int mark)
