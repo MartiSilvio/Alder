@@ -242,7 +242,7 @@ internal sealed partial class ExpressionParser : ParserBase
 
     private Expr ParseSubExpression(Precedence minPrecedence)
     {
-        if (++_recursionDepth > 20)
+        if (++_recursionDepth > MaxUncheckedRecursionDepth)
             System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack();
         try
         {

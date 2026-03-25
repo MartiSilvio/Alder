@@ -66,6 +66,8 @@ internal sealed class ParserState
 /// </summary>
 internal abstract class ParserBase
 {
+    private protected const int MaxUncheckedRecursionDepth = 20;
+
     private protected readonly ParserState State;
 
     internal LanguageMode LanguageMode => State.LanguageMode;
