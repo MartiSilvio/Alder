@@ -128,6 +128,9 @@ internal sealed partial class BoundEvaluator
             && left.GetType() == binary.Left.StaticType.ClrType
             && right.GetType() == binary.Right.StaticType.ClrType)
         {
+            if (IsNaN(left) || IsNaN(right))
+                return binary.Operator == TokenType.BangEqual ? BoxedConstants.True : BoxedConstants.False;
+
             return binary.Operator switch
             {
                 TokenType.Plus => NumericDispatch.Add(left, right, promoted, _isChecked),
@@ -135,12 +138,18 @@ internal sealed partial class BoundEvaluator
                 TokenType.Star => NumericDispatch.Multiply(left, right, promoted, _isChecked),
                 TokenType.Slash => NumericDispatch.Divide(left, right, promoted),
                 TokenType.Percent => NumericDispatch.Modulo(left, right, promoted),
-                TokenType.EqualEqual => Operators.Equals(left, right),
-                TokenType.BangEqual => Operators.NotEquals(left, right),
-                TokenType.Less => Operators.LessThan(left, right, _config.StringComparison),
-                TokenType.LessEqual => Operators.LessThanOrEqual(left, right, _config.StringComparison),
-                TokenType.Greater => Operators.GreaterThan(left, right, _config.StringComparison),
-                TokenType.GreaterEqual => Operators.GreaterThanOrEqual(left, right, _config.StringComparison),
+                TokenType.EqualEqual => NumericDispatch.Compare(left, right, promoted) == 0
+                    ? BoxedConstants.True : BoxedConstants.False,
+                TokenType.BangEqual => NumericDispatch.Compare(left, right, promoted) != 0
+                    ? BoxedConstants.True : BoxedConstants.False,
+                TokenType.Less => NumericDispatch.Compare(left, right, promoted) < 0
+                    ? BoxedConstants.True : BoxedConstants.False,
+                TokenType.LessEqual => NumericDispatch.Compare(left, right, promoted) <= 0
+                    ? BoxedConstants.True : BoxedConstants.False,
+                TokenType.Greater => NumericDispatch.Compare(left, right, promoted) > 0
+                    ? BoxedConstants.True : BoxedConstants.False,
+                TokenType.GreaterEqual => NumericDispatch.Compare(left, right, promoted) >= 0
+                    ? BoxedConstants.True : BoxedConstants.False,
                 TokenType.Amp => NumericDispatch.BitwiseAnd(left, right, promoted),
                 TokenType.Pipe => NumericDispatch.BitwiseOr(left, right, promoted),
                 TokenType.Caret => NumericDispatch.BitwiseXor(left, right, promoted),
@@ -331,6 +340,8 @@ internal sealed partial class BoundEvaluator
 
         return BoxedConstants.True;
     }
+
+    private static bool IsNaN(object value) => value is double d && double.IsNaN(d) || value is float f && float.IsNaN(f);
 
     private static string GetLogicalExpressionTypeName(BoundExpr expr)
     {

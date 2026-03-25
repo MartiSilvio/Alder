@@ -639,6 +639,15 @@ internal static class NumericDispatch
     public static object Modulo(object left, object right, Type promotedType)
         => ExecutePromotedBinaryOp(left, right, promotedType, ModuloOps, "%");
 
+    public static int Compare(object left, object right, Type promotedType)
+    {
+        var key = (promotedType, promotedType);
+        if (CompareOps.TryGetValue(key, out var op))
+            return op(PromoteToType(left, promotedType)!, PromoteToType(right, promotedType)!);
+
+        return Compare(left, right);
+    }
+
     public static object BitwiseAnd(object left, object right, Type promotedType)
         => ExecutePromotedBinaryOp(left, right, promotedType, BitwiseAndOps, "&");
 
