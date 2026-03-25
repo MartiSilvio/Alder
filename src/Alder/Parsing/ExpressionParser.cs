@@ -242,8 +242,8 @@ internal sealed partial class ExpressionParser : ParserBase
 
     private Expr ParseSubExpression(Precedence minPrecedence)
     {
-        if (++_recursionDepth > 200)
-            throw new System.InsufficientExecutionStackException();
+        if (++_recursionDepth > 20)
+            System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack();
         try
         {
             return ParseSubExpressionCore(minPrecedence);

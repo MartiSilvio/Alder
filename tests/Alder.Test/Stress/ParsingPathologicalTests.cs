@@ -10,13 +10,14 @@ public class ParsingPathologicalTests(CompilationMode mode) : StressTestBase(mod
     [Test]
     public void DeeplyNestedParentheses_ShouldNotCrashProcess()
     {
-        // Consecutive grouping parens are consumed iteratively by PrimaryParser,
-        // so 2000 nested parens don't recurse — they parse and evaluate correctly.
+        // 2000 nested parens exceed the parser's recursion depth limit.
+        // The parser throws InsufficientExecutionStackException, which the engine
+        // converts to a managed AlderException — no native crash.
         var depth = 2000;
         var expression = GenerateDeeplyNestedExpression(depth, "1 + 1");
 
-        var result = Engine.Evaluate(expression);
-        Assert.That(result, Is.EqualTo(2));
+        var ex = Assert.Throws<AlderException>(() => Engine.Parse(expression));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(Alder.Diagnostics.DiagnosticCode.CS8078));
     }
 
     [Test]

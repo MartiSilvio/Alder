@@ -46,18 +46,7 @@ internal sealed class PrimaryParser : ParserBase
             return ParseNewExpression(mark);
 
         if (Match(TokenType.LeftParen))
-        {
-            var groupingDepth = CountPureGroupingDepth();
-            for (var i = 0; i < groupingDepth; i++)
-                Advance();
-
-            var result = ParseParenthesized(mark);
-
-            for (var i = 0; i < groupingDepth; i++)
-                Consume(TokenType.RightParen, "Expected ')' after expression");
-
-            return result;
-        }
+            return ParseParenthesized(mark);
 
         if (Match(TokenType.LeftBracket))
         {
@@ -689,43 +678,6 @@ internal sealed class PrimaryParser : ParserBase
     #endregion
 
     #region Parenthesized, Lambda, and Tuple
-
-    /// <summary>
-    /// Counts how many consecutive '(' tokens at the current position are pure grouping —
-    /// their matching ')' tokens are also consecutive. Scans forward to verify by finding
-    /// where the innermost '(' closes, then counting consecutive ')' after it.
-    /// Returns 0 if none are pure grouping.
-    /// </summary>
-    private int CountPureGroupingDepth()
-    {
-        var openCount = 0;
-        while (State.Current + openCount < State.Tokens.Count &&
-               State.Tokens[State.Current + openCount].Type == TokenType.LeftParen)
-            openCount++;
-
-        if (openCount == 0) return 0;
-
-        var depth = 1;
-        var scan = State.Current + openCount;
-        while (scan < State.Tokens.Count && depth > 0)
-        {
-            if (State.Tokens[scan].Type == TokenType.LeftParen) depth++;
-            else if (State.Tokens[scan].Type == TokenType.RightParen) depth--;
-            scan++;
-        }
-
-        if (depth != 0) return 0;
-
-        var pureCount = 0;
-        while (pureCount < openCount && scan < State.Tokens.Count &&
-               State.Tokens[scan].Type == TokenType.RightParen)
-        {
-            pureCount++;
-            scan++;
-        }
-
-        return pureCount;
-    }
 
     private Expr ParseParenthesized(int mark)
     {

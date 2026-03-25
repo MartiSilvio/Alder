@@ -294,6 +294,8 @@ internal abstract class ParserBase
     /// </summary>
     internal string? TryParseTypeName()
     {
+        System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack();
+
         string name;
         if (IsTypeKeyword(Peek().Type))
         {
