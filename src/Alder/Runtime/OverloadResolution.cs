@@ -110,7 +110,8 @@ internal static class OverloadResolution
             return BetterConversionTarget(leftReturn, rightReturn);
         }
 
-        return BetterConversionTarget(leftReturn, rightReturn);
+        // §12.6.4.4: when the lambda return type can't be inferred, neither conversion is better
+        return BetterResult.Neither;
     }
 
     private static bool ExactlyMatches(ArgumentDescriptor arg, int argIndex, MethodCandidate candidate, Type targetType)

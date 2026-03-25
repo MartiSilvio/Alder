@@ -14,10 +14,12 @@ public sealed class DeadBranchEliminationTests
     public void Eliminates_IfTrueCondition()
     {
         var tree = new BoundIfStatementExpr(
-            new BoundLiteralExpr(true, typeof(bool)),
-            [new BoundLiteralExpr(42, typeof(int))],
+            new BoundLiteralExpr(true,
+            new BoundType(typeof(bool))),
+            [new BoundLiteralExpr(42,
+            new BoundType(typeof(int)))],
             ImmutableArray<BoundExpr>.Empty,
-            typeof(object));
+            new BoundType(typeof(object)));
 
         var result = _pass.Rewrite(tree);
 
@@ -31,10 +33,13 @@ public sealed class DeadBranchEliminationTests
     public void Eliminates_IfFalseCondition_WithElse()
     {
         var tree = new BoundIfStatementExpr(
-            new BoundLiteralExpr(false, typeof(bool)),
-            [new BoundLiteralExpr(1, typeof(int))],
-            [new BoundLiteralExpr(2, typeof(int))],
-            typeof(object));
+            new BoundLiteralExpr(false,
+            new BoundType(typeof(bool))),
+            [new BoundLiteralExpr(1,
+            new BoundType(typeof(int)))],
+            [new BoundLiteralExpr(2,
+            new BoundType(typeof(int)))],
+            new BoundType(typeof(object)));
 
         var result = _pass.Rewrite(tree);
 
@@ -48,10 +53,12 @@ public sealed class DeadBranchEliminationTests
     public void Eliminates_IfFalseCondition_NoElse_ReturnsNoop()
     {
         var tree = new BoundIfStatementExpr(
-            new BoundLiteralExpr(false, typeof(bool)),
-            [new BoundLiteralExpr(1, typeof(int))],
+            new BoundLiteralExpr(false,
+            new BoundType(typeof(bool))),
+            [new BoundLiteralExpr(1,
+            new BoundType(typeof(int)))],
             ImmutableArray<BoundExpr>.Empty,
-            typeof(object));
+            new BoundType(typeof(object)));
 
         var result = _pass.Rewrite(tree);
 
@@ -63,10 +70,13 @@ public sealed class DeadBranchEliminationTests
     public void DoesNotEliminate_NonLiteralCondition()
     {
         var tree = new BoundConditionalExpr(
-            new BoundIdentifierExpr("flag", typeof(bool)),
-            new BoundLiteralExpr("yes", typeof(string)),
-            new BoundLiteralExpr("no", typeof(string)),
-            typeof(string));
+            new BoundIdentifierExpr("flag",
+            new BoundType(typeof(bool))),
+            new BoundLiteralExpr("yes",
+            new BoundType(typeof(string))),
+            new BoundLiteralExpr("no",
+            new BoundType(typeof(string))),
+            new BoundType(typeof(string)));
 
         var result = _pass.Rewrite(tree);
 
@@ -77,10 +87,12 @@ public sealed class DeadBranchEliminationTests
     public void DoesNotEliminate_IfStatement_NonLiteralCondition()
     {
         var tree = new BoundIfStatementExpr(
-            new BoundIdentifierExpr("flag", typeof(bool)),
-            [new BoundLiteralExpr(1, typeof(int))],
+            new BoundIdentifierExpr("flag",
+            new BoundType(typeof(bool))),
+            [new BoundLiteralExpr(1,
+            new BoundType(typeof(int)))],
             ImmutableArray<BoundExpr>.Empty,
-            typeof(object));
+            new BoundType(typeof(object)));
 
         var result = _pass.Rewrite(tree);
 

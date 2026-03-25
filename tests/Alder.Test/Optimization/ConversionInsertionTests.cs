@@ -15,9 +15,11 @@ public sealed class ConversionInsertionTests
     {
         var tree = new BoundBinaryExpr(
             TokenType.Plus,
-            new BoundLiteralExpr(1, typeof(int)),
-            new BoundLiteralExpr(2L, typeof(long)),
-            typeof(long));
+            new BoundLiteralExpr(1,
+            new BoundType(typeof(int))),
+            new BoundLiteralExpr(2L,
+            new BoundType(typeof(long))),
+            new BoundType(typeof(long)));
 
         var result = _pass.Rewrite(tree);
 
@@ -35,9 +37,11 @@ public sealed class ConversionInsertionTests
     {
         var tree = new BoundBinaryExpr(
             TokenType.Plus,
-            new BoundLiteralExpr(1.0f, typeof(float)),
-            new BoundLiteralExpr(2.0, typeof(double)),
-            typeof(double));
+            new BoundLiteralExpr(1.0f,
+            new BoundType(typeof(float))),
+            new BoundLiteralExpr(2.0,
+            new BoundType(typeof(double))),
+            new BoundType(typeof(double)));
 
         var result = _pass.Rewrite(tree);
 
@@ -54,9 +58,11 @@ public sealed class ConversionInsertionTests
     {
         var tree = new BoundBinaryExpr(
             TokenType.Plus,
-            new BoundLiteralExpr(1, typeof(int)),
-            new BoundLiteralExpr(2, typeof(int)),
-            typeof(int));
+            new BoundLiteralExpr(1,
+            new BoundType(typeof(int))),
+            new BoundLiteralExpr(2,
+            new BoundType(typeof(int))),
+            new BoundType(typeof(int)));
 
         var result = _pass.Rewrite(tree);
 
@@ -71,9 +77,11 @@ public sealed class ConversionInsertionTests
     {
         var tree = new BoundBinaryExpr(
             TokenType.Plus,
-            new BoundIdentifierExpr("x", typeof(object)),
-            new BoundLiteralExpr(2, typeof(int)),
-            typeof(object));
+            new BoundIdentifierExpr("x",
+            new BoundType(typeof(object))),
+            new BoundLiteralExpr(2,
+            new BoundType(typeof(int))),
+            new BoundType(typeof(object)));
 
         var result = _pass.Rewrite(tree);
 
@@ -88,9 +96,11 @@ public sealed class ConversionInsertionTests
     {
         var tree = new BoundBinaryExpr(
             TokenType.Plus,
-            new BoundLiteralExpr("hello", typeof(string)),
-            new BoundLiteralExpr(" world", typeof(string)),
-            typeof(string));
+            new BoundLiteralExpr("hello",
+            new BoundType(typeof(string))),
+            new BoundLiteralExpr(" world",
+            new BoundType(typeof(string))),
+            new BoundType(typeof(string)));
 
         var result = _pass.Rewrite(tree);
 
@@ -105,9 +115,11 @@ public sealed class ConversionInsertionTests
     {
         var tree = new BoundBinaryExpr(
             TokenType.Star,
-            new BoundLiteralExpr(5, typeof(int)),
-            new BoundLiteralExpr(2.5, typeof(double)),
-            typeof(double));
+            new BoundLiteralExpr(5,
+            new BoundType(typeof(int))),
+            new BoundLiteralExpr(2.5,
+            new BoundType(typeof(double))),
+            new BoundType(typeof(double)));
 
         var result = _pass.Rewrite(tree);
 
@@ -121,15 +133,17 @@ public sealed class ConversionInsertionTests
     [Test]
     public void PreservesSpan_OnInsertedCast()
     {
-        var left = new BoundLiteralExpr(1, typeof(int))
+        var left = new BoundLiteralExpr(1,
+            new BoundType(typeof(int)))
         {
             Span = new Text.TextSpan(0, 1)
         };
         var tree = new BoundBinaryExpr(
             TokenType.Plus,
             left,
-            new BoundLiteralExpr(2L, typeof(long)),
-            typeof(long));
+            new BoundLiteralExpr(2L,
+            new BoundType(typeof(long))),
+            new BoundType(typeof(long)));
 
         var result = _pass.Rewrite(tree);
 

@@ -7,7 +7,7 @@ internal sealed record BoundMemberNullCoalesceAssignExpr(
     string MemberName,
     BoundMemberPlan? Plan,
     BoundExpr Value,
-    Type StaticType) : BoundExpr(StaticType)
+    BoundType StaticType) : BoundExpr(StaticType)
 {
     internal override BoundNodeKind Kind => BoundNodeKind.MemberNullCoalesceAssignment;
     internal override void EnumerateChildren(Action<BoundExpr> visit) { visit(Target); visit(Value); }

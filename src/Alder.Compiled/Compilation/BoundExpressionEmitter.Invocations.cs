@@ -555,7 +555,7 @@ internal sealed partial class BoundExpressionEmitter
 
     private LinqExpression EmitArrayLiteral(BoundArrayLiteralExpr arrayLiteral)
     {
-        var elementType = arrayLiteral.StaticType.IsArray ? arrayLiteral.StaticType.GetElementType() : null;
+        var elementType = arrayLiteral.StaticType.ClrType.IsArray ? arrayLiteral.StaticType.ClrType.GetElementType() : null;
         if (elementType != null && elementType != typeof(object) &&
             !arrayLiteral.Elements.Any(static e => e is BoundSpreadExpr))
         {

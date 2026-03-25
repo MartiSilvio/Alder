@@ -7,7 +7,7 @@ internal sealed record BoundIndexAssignExpr(
     BoundExpr Index,
     BoundIndexPlan? Plan,
     BoundExpr Value,
-    Type StaticType) : BoundExpr(StaticType)
+    BoundType StaticType) : BoundExpr(StaticType)
 {
     internal override BoundNodeKind Kind => BoundNodeKind.IndexAssignment;
     internal override void EnumerateChildren(Action<BoundExpr> visit) { visit(Target); visit(Index); visit(Value); }

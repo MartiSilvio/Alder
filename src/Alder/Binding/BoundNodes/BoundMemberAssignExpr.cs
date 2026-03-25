@@ -7,7 +7,7 @@ internal sealed record BoundMemberAssignExpr(
     string MemberName,
     BoundMemberPlan? Plan,
     BoundExpr Value,
-    Type StaticType) : BoundExpr(StaticType)
+    BoundType StaticType) : BoundExpr(StaticType)
 {
     internal override BoundNodeKind Kind => BoundNodeKind.MemberAssignment;
     internal override void EnumerateChildren(Action<BoundExpr> visit) { visit(Target); visit(Value); }

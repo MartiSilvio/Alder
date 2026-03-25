@@ -6,7 +6,7 @@ internal sealed record BoundCompoundAssignExpr(
     string Name,
     TokenType Operator,
     BoundExpr Value,
-    Type StaticType,
+    BoundType StaticType,
     int? LocalId = null) : BoundExpr(StaticType)
 {
     internal override BoundNodeKind Kind => BoundNodeKind.CompoundAssignmentOperator;

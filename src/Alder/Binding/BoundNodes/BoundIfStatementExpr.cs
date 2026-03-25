@@ -6,7 +6,7 @@ internal sealed record BoundIfStatementExpr(
     BoundExpr Condition,
     ImmutableArray<BoundExpr> ThenStatements,
     ImmutableArray<BoundExpr> ElseStatements,
-    Type StaticType) : BoundExpr(StaticType)
+    BoundType StaticType) : BoundExpr(StaticType)
 {
     internal override BoundNodeKind Kind => BoundNodeKind.IfStatement;
     internal override void EnumerateChildren(Action<BoundExpr> visit)

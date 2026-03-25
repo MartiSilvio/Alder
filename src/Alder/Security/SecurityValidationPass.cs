@@ -42,8 +42,8 @@ internal sealed class SecurityValidationPass : IBoundTreePass
             case BoundObjectCreationExpr creation:
                 if (!policy.AllowConstruction)
                     throw new AlderException(DiagnosticDescriptors.SandboxConstructionBlocked, creation.TypeName);
-                if (!policy.IsTypeAllowed(creation.StaticType))
-                    throw new AlderException(DiagnosticDescriptors.SandboxTypeBlocked, creation.StaticType.Name);
+                if (!policy.IsTypeAllowed(creation.StaticType.ClrType))
+                    throw new AlderException(DiagnosticDescriptors.SandboxTypeBlocked, creation.StaticType.ClrType.Name);
                 break;
 
             case BoundCallExpr call:

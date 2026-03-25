@@ -5,7 +5,7 @@ namespace Alder.Binding.BoundNodes;
 internal sealed record BoundDeconstructionExpr(
     ImmutableArray<string> VariableNames,
     BoundExpr ValueExpression,
-    Type StaticType) : BoundExpr(StaticType)
+    BoundType StaticType) : BoundExpr(StaticType)
 {
     internal override BoundNodeKind Kind => BoundNodeKind.DeconstructionAssignment;
     internal override void EnumerateChildren(Action<BoundExpr> visit) { visit(ValueExpression); }

@@ -141,7 +141,8 @@ internal static class TypeInference
                 continue;
 
             var substitutedInputTypes = SubstituteFixed(inputTypes, ctx);
-            var resultType = ExtensionMethodResolver.InferLambdaReturnType(lambdaArgs[i], substitutedInputTypes, runtimeContext);
+            var boundInputTypes = Array.ConvertAll(substitutedInputTypes, static t => new Binding.BoundType(t));
+            var resultType = ExtensionMethodResolver.InferLambdaReturnType(lambdaArgs[i], boundInputTypes, runtimeContext);
             if (resultType == null)
                 continue;
 

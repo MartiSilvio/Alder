@@ -11,21 +11,21 @@ internal sealed partial class Binder
     {
         var expression = Bind(cast.Expression, context);
         var targetType = context.RuntimeContext.TypeResolver.ResolveType(cast.TargetType.Lexeme);
-        var sourceStaticType = cast.Expression is IdentifierExpr ? expression.StaticType : null;
-        return new BoundCastExpr(expression, targetType, sourceStaticType, targetType);
+        var sourceStaticType = cast.Expression is IdentifierExpr ? expression.StaticType.ClrType : null;
+        return new BoundCastExpr(expression, targetType, sourceStaticType, new BoundType(targetType));
     }
 
     private BoundIsPatternExpr BindIsPattern(IsPatternExpr isPattern, BindingContext context)
     {
         var expression = Bind(isPattern.Expression, context);
-        return new BoundIsPatternExpr(expression, isPattern.Pattern, typeof(bool));
+        return new BoundIsPatternExpr(expression, isPattern.Pattern, new BoundType(typeof(bool)));
     }
 
     private BoundAsExpr BindAs(AsExpr asExpr, BindingContext context)
     {
         var expression = Bind(asExpr.Expression, context);
         var targetType = context.RuntimeContext.TypeResolver.ResolveType(asExpr.TargetType.Lexeme);
-        return new BoundAsExpr(expression, targetType, targetType);
+        return new BoundAsExpr(expression, targetType, new BoundType(targetType));
     }
 
     private BoundExpr BindBinary(BinaryExpr binary, BindingContext context)
@@ -45,11 +45,11 @@ internal sealed partial class Binder
             var right = Bind(link.Right, context);
             if (result.HasErrors || right.HasErrors)
             {
-                result = new BoundBinaryExpr(link.Op.Type, result, right, typeof(object)) { Span = link.Span, HasErrors = true };
+                result = new BoundBinaryExpr(link.Op.Type, result, right, new BoundType(typeof(object))) { Span = link.Span, HasErrors = true };
                 continue;
             }
-            var resultType = InferBinaryResultType(link.Op.Type, result.StaticType, right.StaticType);
-            result = new BoundBinaryExpr(link.Op.Type, result, right, resultType)
+            var resultType = InferBinaryResultType(link.Op.Type, result.StaticType.ClrType, right.StaticType.ClrType);
+            result = new BoundBinaryExpr(link.Op.Type, result, right, new BoundType(resultType))
             {
                 Span = link.Span,
                 PromotedType = ComputeBinaryPromotedType(link.Op.Type, result, right)
@@ -63,7 +63,7 @@ internal sealed partial class Binder
     {
         var operand = Bind(unary.Right, context);
         if (operand.HasErrors)
-            return new BoundUnaryExpr(unary.Op.Type, operand, typeof(object)) { HasErrors = true };
+            return new BoundUnaryExpr(unary.Op.Type, operand, new BoundType(typeof(object))) { HasErrors = true };
 
         // ECMA-334 §6.4.5.3: -2147483648 (literal) is int; -9223372036854775808L is long
         if (unary.Op.Type == TokenType.Minus && operand is BoundLiteralExpr literal)
@@ -76,10 +76,10 @@ internal sealed partial class Binder
 
         var resultType = unary.Op.Type == TokenType.Bang
             ? typeof(bool)
-            : InferUnaryResultType(operand.StaticType, unary.Op.Type);
-        return new BoundUnaryExpr(unary.Op.Type, operand, resultType)
+            : InferUnaryResultType(operand.StaticType.ClrType, unary.Op.Type);
+        return new BoundUnaryExpr(unary.Op.Type, operand, new BoundType(resultType))
         {
-            PromotedType = ComputeUnaryPromotedType(unary.Op.Type, operand.StaticType)
+            PromotedType = ComputeUnaryPromotedType(unary.Op.Type, operand.StaticType.ClrType)
         };
     }
 
@@ -119,10 +119,10 @@ internal sealed partial class Binder
             var right = Bind(link.Right, context);
             if (result.HasErrors || right.HasErrors)
             {
-                result = new BoundLogicalExpr(link.Op.Type, result, right, typeof(bool)) { Span = link.Span, HasErrors = true };
+                result = new BoundLogicalExpr(link.Op.Type, result, right, new BoundType(typeof(bool))) { Span = link.Span, HasErrors = true };
                 continue;
             }
-            result = new BoundLogicalExpr(link.Op.Type, result, right, typeof(bool)) { Span = link.Span };
+            result = new BoundLogicalExpr(link.Op.Type, result, right, new BoundType(typeof(bool))) { Span = link.Span };
         }
 
         return result;
@@ -145,10 +145,10 @@ internal sealed partial class Binder
             var right = Bind(link.Right, context);
             if (result.HasErrors || right.HasErrors)
             {
-                result = new BoundNullCoalesceExpr(result, right, typeof(object)) { Span = link.Span, HasErrors = true };
+                result = new BoundNullCoalesceExpr(result, right, new BoundType(typeof(object))) { Span = link.Span, HasErrors = true };
                 continue;
             }
-            result = new BoundNullCoalesceExpr(result, right, GetCommonType(result.StaticType, right.StaticType)) { Span = link.Span };
+            result = new BoundNullCoalesceExpr(result, right, new BoundType(GetCommonType(result.StaticType.ClrType, right.StaticType.ClrType))) { Span = link.Span };
         }
 
         return result;
@@ -160,12 +160,12 @@ internal sealed partial class Binder
         var thenBranch = Bind(conditional.ThenBranch, context);
         var elseBranch = Bind(conditional.ElseBranch, context);
         if (condition.HasErrors || thenBranch.HasErrors || elseBranch.HasErrors)
-            return new BoundConditionalExpr(condition, thenBranch, elseBranch, typeof(object)) { HasErrors = true };
+            return new BoundConditionalExpr(condition, thenBranch, elseBranch, new BoundType(typeof(object))) { HasErrors = true };
         return new BoundConditionalExpr(
             condition,
             thenBranch,
             elseBranch,
-            GetCommonType(thenBranch.StaticType, elseBranch.StaticType));
+            new BoundType(GetCommonType(thenBranch.StaticType.ClrType, elseBranch.StaticType.ClrType)));
     }
 
     private BoundCheckedExpr BindCheckedExpr(CheckedExpr checkedExpr, BindingContext context)
@@ -182,7 +182,7 @@ internal sealed partial class Binder
         var operators = chainedComparison.Operators
             .Select(@operator => @operator.Type)
             .ToImmutableArray();
-        return new BoundChainedComparisonExpr(operands, operators, typeof(bool));
+        return new BoundChainedComparisonExpr(operands, operators, new BoundType(typeof(bool)));
     }
 
     private static Type InferBinaryResultType(TokenType op, Type leftType, Type rightType)
@@ -312,8 +312,8 @@ internal sealed partial class Binder
         if (!IsFastPathOperator(op))
             return null;
 
-        var leftType = left.StaticType;
-        var rightType = right.StaticType;
+        var leftType = left.StaticType.ClrType;
+        var rightType = right.StaticType.ClrType;
         if (!TypeHelpers.IsArithmetic(leftType) || !TypeHelpers.IsArithmetic(rightType))
             return null;
         if (leftType.IsEnum || rightType.IsEnum)

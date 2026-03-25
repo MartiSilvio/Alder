@@ -6,7 +6,7 @@ internal sealed record BoundBinaryExpr(
     TokenType Operator,
     BoundExpr Left,
     BoundExpr Right,
-    Type StaticType) : BoundExpr(StaticType)
+    BoundType StaticType) : BoundExpr(StaticType)
 {
     internal Type? PromotedType { get; init; }
     internal override BoundNodeKind Kind => BoundNodeKind.BinaryOperator;

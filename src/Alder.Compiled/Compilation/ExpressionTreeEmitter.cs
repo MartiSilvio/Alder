@@ -444,8 +444,8 @@ internal sealed class ExpressionTreeEmitter
         if (expr.InitializerEntries.Length > 0)
             throw UnsupportedNode("object initializer");
 
-        var targetType = expr.StaticType != typeof(object)
-            ? expr.StaticType
+        var targetType = expr.StaticType.ClrType != typeof(object)
+            ? expr.StaticType.ClrType
             : _typeResolver.ResolveType(expr.TypeName);
 
         var args = expr.Arguments.Select(Emit).ToArray();

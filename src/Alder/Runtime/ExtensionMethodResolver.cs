@@ -238,7 +238,7 @@ internal static class ExtensionMethodResolver
         return true;
     }
 
-    internal static Type? InferLambdaReturnType(object? arg, Type[] inputTypes, AlderContext? runtimeContext)
+    internal static Type? InferLambdaReturnType(object? arg, Binding.BoundType[] inputTypes, AlderContext? runtimeContext)
     {
         if (runtimeContext == null)
             return null;
@@ -277,12 +277,12 @@ internal static class ExtensionMethodResolver
                 foreach (var stmt in block.Statements)
                 {
                     if (stmt is Binding.BoundNodes.BoundReturnExpr { Value: { StaticType: var retType } }
-                        && retType != typeof(object))
-                        return retType;
+                        && retType.ClrType != typeof(object))
+                        return retType.ClrType;
                 }
             }
 
-            return bound.StaticType;
+            return bound.StaticType.ClrType;
         }
         catch
         {

@@ -14,8 +14,8 @@ internal sealed class ConversionInsertionPass : BoundExprRewriter
         if (binary.Operator is TokenType.EqualEqualEqual or TokenType.BangEqualEqual)
             return binary;
 
-        var leftType = binary.Left.StaticType;
-        var rightType = binary.Right.StaticType;
+        var leftType = binary.Left.StaticType.ClrType;
+        var rightType = binary.Right.StaticType.ClrType;
 
         if (leftType == typeof(object) || rightType == typeof(object))
             return binary;
@@ -40,7 +40,7 @@ internal sealed class ConversionInsertionPass : BoundExprRewriter
 
     private static BoundExpr InsertCast(BoundExpr expr, Type targetType)
     {
-        var cast = new BoundCastExpr(expr, targetType, expr.StaticType, targetType)
+        var cast = new BoundCastExpr(expr, targetType, expr.StaticType.ClrType, new BoundType(targetType))
         {
             Span = expr.Span
         };

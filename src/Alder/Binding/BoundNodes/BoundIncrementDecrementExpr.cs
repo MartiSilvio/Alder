@@ -6,7 +6,7 @@ internal sealed record BoundIncrementDecrementExpr(
     string Name,
     TokenType Operator,
     bool IsPrefix,
-    Type StaticType,
+    BoundType StaticType,
     int? LocalId = null) : BoundExpr(StaticType)
 {
     internal override BoundNodeKind Kind => BoundNodeKind.IncrementOperator;

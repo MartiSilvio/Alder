@@ -7,7 +7,7 @@ internal sealed record BoundForEachExpr(
     BoundExpr Collection,
     ImmutableArray<BoundExpr> Body,
     Type ElementType,
-    Type StaticType,
+    BoundType StaticType,
     int? LocalId = null) : BoundExpr(StaticType)
 {
     internal override BoundNodeKind Kind => BoundNodeKind.ForEachStatement;

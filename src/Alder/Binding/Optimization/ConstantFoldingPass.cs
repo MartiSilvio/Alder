@@ -144,10 +144,10 @@ internal sealed class ConstantFoldingPass : BoundExprRewriter
         // Ternary result type is the common type of both branches, not the chosen branch's type.
         // If the branches have different types, insert a cast to preserve correct semantics.
         if (rewritten.ThenBranch.StaticType != rewritten.ElseBranch.StaticType &&
-            rewritten.StaticType != typeof(object) &&
+            rewritten.StaticType.ClrType != typeof(object) &&
             chosen.StaticType != rewritten.StaticType)
         {
-            var cast = new BoundCastExpr(chosen, rewritten.StaticType, chosen.StaticType,
+            var cast = new BoundCastExpr(chosen, rewritten.StaticType.ClrType, chosen.StaticType.ClrType,
                 rewritten.StaticType)
             {
                 Span = rewritten.Span

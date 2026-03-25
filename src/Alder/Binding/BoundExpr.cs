@@ -2,7 +2,7 @@ using Alder.Text;
 
 namespace Alder.Binding;
 
-internal abstract record BoundExpr(Type StaticType)
+internal abstract record BoundExpr(BoundType StaticType)
 {
     internal abstract BoundNodeKind Kind { get; }
     internal TextSpan Span { get; set; }

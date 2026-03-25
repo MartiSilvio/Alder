@@ -15,12 +15,16 @@ public sealed class BoundTreeOptimizerTests
         var tree = new BoundConditionalExpr(
             new BoundBinaryExpr(
                 TokenType.Greater,
-                new BoundLiteralExpr(2, typeof(int)),
-                new BoundLiteralExpr(1, typeof(int)),
-                typeof(bool)),
-            new BoundLiteralExpr("yes", typeof(string)),
-            new BoundLiteralExpr("no", typeof(string)),
-            typeof(string));
+                new BoundLiteralExpr(2,
+            new BoundType(typeof(int))),
+                new BoundLiteralExpr(1,
+            new BoundType(typeof(int))),
+                new BoundType(typeof(bool))),
+            new BoundLiteralExpr("yes",
+            new BoundType(typeof(string))),
+            new BoundLiteralExpr("no",
+            new BoundType(typeof(string))),
+            new BoundType(typeof(string)));
 
         var result = BoundTreeOptimizer.Optimize(tree);
 
@@ -33,9 +37,11 @@ public sealed class BoundTreeOptimizerTests
     {
         var tree = new BoundBinaryExpr(
             TokenType.Plus,
-            new BoundIdentifierExpr("x", typeof(int)),
-            new BoundIdentifierExpr("y", typeof(long)),
-            typeof(long));
+            new BoundIdentifierExpr("x",
+            new BoundType(typeof(int))),
+            new BoundIdentifierExpr("y",
+            new BoundType(typeof(long))),
+            new BoundType(typeof(long)));
 
         var result = BoundTreeOptimizer.Optimize(tree);
 
@@ -48,9 +54,12 @@ public sealed class BoundTreeOptimizerTests
     [Test]
     public void Pipeline_DoesNotMutateOriginalTree()
     {
-        var left = new BoundLiteralExpr(2, typeof(int));
-        var right = new BoundLiteralExpr(3, typeof(int));
-        var tree = new BoundBinaryExpr(TokenType.Plus, left, right, typeof(int));
+        var left = new BoundLiteralExpr(2,
+            new BoundType(typeof(int)));
+        var right = new BoundLiteralExpr(3,
+            new BoundType(typeof(int)));
+        var tree = new BoundBinaryExpr(TokenType.Plus, left, right,
+            new BoundType(typeof(int)));
 
         var result = BoundTreeOptimizer.Optimize(tree);
 

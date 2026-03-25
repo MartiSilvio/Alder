@@ -4,7 +4,7 @@ internal sealed record BoundVariableDeclExpr(
     string Name,
     BoundExpr Initializer,
     Type? DeclaredType,
-    Type StaticType,
+    BoundType StaticType,
     bool IsConst = false,
     int? LocalId = null) : BoundExpr(StaticType)
 {

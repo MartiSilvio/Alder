@@ -118,7 +118,7 @@ internal sealed partial class BoundEvaluator
         return binary.Operator switch
         {
             TokenType.Plus => Operators.Add(left, right, _config, _context, _isChecked,
-                isStringContext: binary.Left.StaticType == typeof(string) || binary.Right.StaticType == typeof(string)),
+                isStringContext: binary.Left.StaticType.ClrType == typeof(string) || binary.Right.StaticType.ClrType == typeof(string)),
             TokenType.Minus => Operators.Subtract(left, right, _isChecked),
             TokenType.Star => Operators.Multiply(left, right, _config.LanguageMode, _isChecked),
             TokenType.Slash => Operators.Divide(left, right),
@@ -154,7 +154,7 @@ internal sealed partial class BoundEvaluator
         var opLexeme = TokenLexemes.GetCanonical(logical.Operator);
 
         // §12.14.2 + §12.13.5: nullable bool conditional operators
-        if (logical.Left.StaticType == typeof(bool?) || logical.Right.StaticType == typeof(bool?))
+        if (logical.Left.StaticType.ClrType == typeof(bool?) || logical.Right.StaticType.ClrType == typeof(bool?))
         {
             return EvaluateNullableBoolLogical(left as bool?, logical);
         }
@@ -233,8 +233,8 @@ internal sealed partial class BoundEvaluator
             ? Evaluate(conditional.ThenBranch)
             : Evaluate(conditional.ElseBranch);
 
-        var thenType = conditional.ThenBranch.StaticType;
-        var elseType = conditional.ElseBranch.StaticType;
+        var thenType = conditional.ThenBranch.StaticType.ClrType;
+        var elseType = conditional.ElseBranch.StaticType.ClrType;
 
         if (result != null &&
             thenType != typeof(object) &&
@@ -294,8 +294,8 @@ internal sealed partial class BoundEvaluator
         if (expr is BoundLiteralExpr { Value: { } value })
             return value.GetType().Name;
 
-        return expr.StaticType == typeof(object)
+        return expr.StaticType.ClrType == typeof(object)
             ? "unknown"
-            : expr.StaticType.Name;
+            : expr.StaticType.ClrType.Name;
     }
 }

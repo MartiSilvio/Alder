@@ -45,7 +45,7 @@ internal sealed partial class BoundExpressionEmitter
     {
         if (TryGetPromoted(assign.LocalId, out var promoted))
         {
-            var valueType = assign.Value.StaticType;
+            var valueType = assign.Value.StaticType.ClrType;
             if (valueType != typeof(object) && promoted.VariableType.IsAssignableFrom(valueType))
             {
                 return LinqExpression.Block(
@@ -221,13 +221,13 @@ internal sealed partial class BoundExpressionEmitter
     private LinqExpression EmitMemberAssign(BoundMemberAssignExpr memberAssign)
     {
         if (memberAssign.Plan?.Member is PropertyInfo property && property.CanWrite
-            && !memberAssign.Target.StaticType.IsValueType)
+            && !memberAssign.Target.StaticType.ClrType.IsValueType)
         {
             return EmitDirectMemberAssignProperty(memberAssign, property);
         }
 
         if (memberAssign.Plan?.Member is FieldInfo field && !field.IsInitOnly
-            && !memberAssign.Target.StaticType.IsValueType)
+            && !memberAssign.Target.StaticType.ClrType.IsValueType)
         {
             return EmitDirectMemberAssignField(memberAssign, field);
         }
@@ -300,7 +300,7 @@ internal sealed partial class BoundExpressionEmitter
     private bool TryEmitDirectIndexAssign(BoundIndexAssignExpr indexAssign, Binding.Plans.BoundIndexPlan plan, out LinqExpression result)
     {
         result = null!;
-        var valueStaticType = indexAssign.Value.StaticType;
+        var valueStaticType = indexAssign.Value.StaticType.ClrType;
 
         var targetObjVar = LinqExpression.Variable(typeof(object), "iaTarget");
         var indexObjVar = LinqExpression.Variable(typeof(object), "iaIndex");
@@ -368,11 +368,11 @@ internal sealed partial class BoundExpressionEmitter
         if (!_isChecked
             && memberCompoundAssign.Plan?.Member is PropertyInfo property
             && property.CanWrite && property.CanRead
-            && !memberCompoundAssign.Target.StaticType.IsValueType
+            && !memberCompoundAssign.Target.StaticType.ClrType.IsValueType
             && !property.PropertyType.IsEnum
             && property.PropertyType != typeof(object))
         {
-            var rhsType = memberCompoundAssign.Value.StaticType;
+            var rhsType = memberCompoundAssign.Value.StaticType.ClrType;
             if (rhsType != typeof(object))
             {
                 var binaryFactory = GetCompoundBinaryFactory(memberCompoundAssign.Operator, property.PropertyType, rhsType);
@@ -446,7 +446,7 @@ internal sealed partial class BoundExpressionEmitter
             && plan.ResultType != typeof(object)
             && !plan.ResultType.IsEnum)
         {
-            var rhsType = indexCompoundAssign.Value.StaticType;
+            var rhsType = indexCompoundAssign.Value.StaticType.ClrType;
             if (rhsType != typeof(object))
             {
                 var binaryFactory = GetCompoundBinaryFactory(indexCompoundAssign.Operator, plan.ResultType, rhsType);
@@ -608,7 +608,7 @@ internal sealed partial class BoundExpressionEmitter
         if (!_isChecked
             && memberIncrement.Plan?.Member is PropertyInfo property
             && property.CanWrite && property.CanRead
-            && !memberIncrement.Target.StaticType.IsValueType
+            && !memberIncrement.Target.StaticType.ClrType.IsValueType
             && IsAddSubtractSafeType(property.PropertyType))
         {
             return EmitDirectMemberIncrement(memberIncrement, property);
@@ -748,7 +748,7 @@ internal sealed partial class BoundExpressionEmitter
         if (_isChecked || promoted.VariableType == typeof(object) || promoted.VariableType.IsEnum)
             return false;
 
-        var rhsType = compoundAssign.Value.StaticType;
+        var rhsType = compoundAssign.Value.StaticType.ClrType;
         if (rhsType == typeof(object))
             return false;
 

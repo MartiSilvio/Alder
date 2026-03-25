@@ -15,16 +15,18 @@ public sealed class ConstantFoldingTests
     {
         var tree = new BoundBinaryExpr(
             TokenType.Plus,
-            new BoundLiteralExpr(2, typeof(int)),
-            new BoundLiteralExpr(3, typeof(int)),
-            typeof(int));
+            new BoundLiteralExpr(2,
+            new BoundType(typeof(int))),
+            new BoundLiteralExpr(3,
+            new BoundType(typeof(int))),
+            new BoundType(typeof(int)));
 
         var result = _pass.Rewrite(tree);
 
         Assert.That(result, Is.TypeOf<BoundLiteralExpr>());
         var literal = (BoundLiteralExpr)result;
         Assert.That(literal.Value, Is.EqualTo(5));
-        Assert.That(literal.StaticType, Is.EqualTo(typeof(int)));
+        Assert.That(literal.StaticType.ClrType, Is.EqualTo(typeof(int)));
     }
 
     [Test]
@@ -32,9 +34,11 @@ public sealed class ConstantFoldingTests
     {
         var tree = new BoundBinaryExpr(
             TokenType.Plus,
-            new BoundLiteralExpr("hello", typeof(string)),
-            new BoundLiteralExpr(" world", typeof(string)),
-            typeof(string));
+            new BoundLiteralExpr("hello",
+            new BoundType(typeof(string))),
+            new BoundLiteralExpr(" world",
+            new BoundType(typeof(string))),
+            new BoundType(typeof(string)));
 
         var result = _pass.Rewrite(tree);
 
@@ -48,9 +52,11 @@ public sealed class ConstantFoldingTests
     {
         var tree = new BoundLogicalExpr(
             TokenType.AmpAmp,
-            new BoundLiteralExpr(true, typeof(bool)),
-            new BoundLiteralExpr(false, typeof(bool)),
-            typeof(bool));
+            new BoundLiteralExpr(true,
+            new BoundType(typeof(bool))),
+            new BoundLiteralExpr(false,
+            new BoundType(typeof(bool))),
+            new BoundType(typeof(bool)));
 
         var result = _pass.Rewrite(tree);
 
@@ -64,9 +70,11 @@ public sealed class ConstantFoldingTests
     {
         var tree = new BoundLogicalExpr(
             TokenType.PipePipe,
-            new BoundLiteralExpr(true, typeof(bool)),
-            new BoundLiteralExpr(false, typeof(bool)),
-            typeof(bool));
+            new BoundLiteralExpr(true,
+            new BoundType(typeof(bool))),
+            new BoundLiteralExpr(false,
+            new BoundType(typeof(bool))),
+            new BoundType(typeof(bool)));
 
         var result = _pass.Rewrite(tree);
 
@@ -80,8 +88,9 @@ public sealed class ConstantFoldingTests
     {
         var tree = new BoundUnaryExpr(
             TokenType.Bang,
-            new BoundLiteralExpr(true, typeof(bool)),
-            typeof(bool));
+            new BoundLiteralExpr(true,
+            new BoundType(typeof(bool))),
+            new BoundType(typeof(bool)));
 
         var result = _pass.Rewrite(tree);
 
@@ -95,8 +104,9 @@ public sealed class ConstantFoldingTests
     {
         var tree = new BoundUnaryExpr(
             TokenType.Minus,
-            new BoundLiteralExpr(42, typeof(int)),
-            typeof(int));
+            new BoundLiteralExpr(42,
+            new BoundType(typeof(int))),
+            new BoundType(typeof(int)));
 
         var result = _pass.Rewrite(tree);
 
@@ -113,11 +123,14 @@ public sealed class ConstantFoldingTests
             TokenType.Plus,
             new BoundBinaryExpr(
                 TokenType.Plus,
-                new BoundLiteralExpr(1, typeof(int)),
-                new BoundLiteralExpr(2, typeof(int)),
-                typeof(int)),
-            new BoundLiteralExpr(3, typeof(int)),
-            typeof(int));
+                new BoundLiteralExpr(1,
+            new BoundType(typeof(int))),
+                new BoundLiteralExpr(2,
+            new BoundType(typeof(int))),
+                new BoundType(typeof(int))),
+            new BoundLiteralExpr(3,
+            new BoundType(typeof(int))),
+            new BoundType(typeof(int)));
 
         var result = _pass.Rewrite(tree);
 
@@ -131,9 +144,11 @@ public sealed class ConstantFoldingTests
     {
         var tree = new BoundBinaryExpr(
             TokenType.Plus,
-            new BoundIdentifierExpr("x", typeof(int)),
-            new BoundLiteralExpr(3, typeof(int)),
-            typeof(int));
+            new BoundIdentifierExpr("x",
+            new BoundType(typeof(int))),
+            new BoundLiteralExpr(3,
+            new BoundType(typeof(int))),
+            new BoundType(typeof(int)));
 
         var result = _pass.Rewrite(tree);
 
@@ -145,9 +160,11 @@ public sealed class ConstantFoldingTests
     {
         var tree = new BoundBinaryExpr(
             TokenType.Slash,
-            new BoundLiteralExpr(10, typeof(int)),
-            new BoundLiteralExpr(0, typeof(int)),
-            typeof(int));
+            new BoundLiteralExpr(10,
+            new BoundType(typeof(int))),
+            new BoundLiteralExpr(0,
+            new BoundType(typeof(int))),
+            new BoundType(typeof(int)));
 
         var result = _pass.Rewrite(tree);
 
@@ -164,9 +181,11 @@ public sealed class ConstantFoldingTests
         // which the pass does not enter for folding purposes.
         var tree = new BoundBinaryExpr(
             TokenType.Plus,
-            new BoundLiteralExpr(int.MaxValue, typeof(int)),
-            new BoundLiteralExpr(1, typeof(int)),
-            typeof(int));
+            new BoundLiteralExpr(int.MaxValue,
+            new BoundType(typeof(int))),
+            new BoundLiteralExpr(1,
+            new BoundType(typeof(int))),
+            new BoundType(typeof(int)));
 
         // unchecked int overflow wraps, so this CAN fold
         var result = _pass.Rewrite(tree);
@@ -177,10 +196,13 @@ public sealed class ConstantFoldingTests
     public void Folds_ConditionalWithLiteralTrue()
     {
         var tree = new BoundConditionalExpr(
-            new BoundLiteralExpr(true, typeof(bool)),
-            new BoundLiteralExpr(1, typeof(int)),
-            new BoundLiteralExpr(2, typeof(int)),
-            typeof(int));
+            new BoundLiteralExpr(true,
+            new BoundType(typeof(bool))),
+            new BoundLiteralExpr(1,
+            new BoundType(typeof(int))),
+            new BoundLiteralExpr(2,
+            new BoundType(typeof(int))),
+            new BoundType(typeof(int)));
 
         var result = _pass.Rewrite(tree);
 
@@ -192,10 +214,13 @@ public sealed class ConstantFoldingTests
     public void Folds_ConditionalWithLiteralFalse()
     {
         var tree = new BoundConditionalExpr(
-            new BoundLiteralExpr(false, typeof(bool)),
-            new BoundLiteralExpr(1, typeof(int)),
-            new BoundLiteralExpr(2, typeof(int)),
-            typeof(int));
+            new BoundLiteralExpr(false,
+            new BoundType(typeof(bool))),
+            new BoundLiteralExpr(1,
+            new BoundType(typeof(int))),
+            new BoundLiteralExpr(2,
+            new BoundType(typeof(int))),
+            new BoundType(typeof(int)));
 
         var result = _pass.Rewrite(tree);
 
@@ -207,10 +232,13 @@ public sealed class ConstantFoldingTests
     public void DoesNotFold_ConditionalWithNonLiteralCondition()
     {
         var tree = new BoundConditionalExpr(
-            new BoundIdentifierExpr("flag", typeof(bool)),
-            new BoundLiteralExpr(1, typeof(int)),
-            new BoundLiteralExpr(2, typeof(int)),
-            typeof(int));
+            new BoundIdentifierExpr("flag",
+            new BoundType(typeof(bool))),
+            new BoundLiteralExpr(1,
+            new BoundType(typeof(int))),
+            new BoundLiteralExpr(2,
+            new BoundType(typeof(int))),
+            new BoundType(typeof(int)));
 
         var result = _pass.Rewrite(tree);
 
@@ -222,9 +250,11 @@ public sealed class ConstantFoldingTests
     {
         var tree = new BoundBinaryExpr(
             TokenType.Greater,
-            new BoundLiteralExpr(5, typeof(int)),
-            new BoundLiteralExpr(3, typeof(int)),
-            typeof(bool));
+            new BoundLiteralExpr(5,
+            new BoundType(typeof(int))),
+            new BoundLiteralExpr(3,
+            new BoundType(typeof(int))),
+            new BoundType(typeof(bool)));
 
         var result = _pass.Rewrite(tree);
 
@@ -237,8 +267,9 @@ public sealed class ConstantFoldingTests
     {
         var tree = new BoundUnaryExpr(
             TokenType.Tilde,
-            new BoundLiteralExpr(0, typeof(int)),
-            typeof(int));
+            new BoundLiteralExpr(0,
+            new BoundType(typeof(int))),
+            new BoundType(typeof(int)));
 
         var result = _pass.Rewrite(tree);
 
@@ -251,9 +282,11 @@ public sealed class ConstantFoldingTests
     {
         var tree = new BoundBinaryExpr(
             TokenType.Star,
-            new BoundLiteralExpr(6, typeof(int)),
-            new BoundLiteralExpr(7, typeof(int)),
-            typeof(int));
+            new BoundLiteralExpr(6,
+            new BoundType(typeof(int))),
+            new BoundLiteralExpr(7,
+            new BoundType(typeof(int))),
+            new BoundType(typeof(int)));
 
         var result = _pass.Rewrite(tree);
 
@@ -266,9 +299,11 @@ public sealed class ConstantFoldingTests
     {
         var tree = new BoundBinaryExpr(
             TokenType.Plus,
-            new BoundLiteralExpr(1, typeof(int)),
-            new BoundLiteralExpr(2, typeof(int)),
-            typeof(int))
+            new BoundLiteralExpr(1,
+            new BoundType(typeof(int))),
+            new BoundLiteralExpr(2,
+            new BoundType(typeof(int))),
+            new BoundType(typeof(int)))
         {
             Span = new Text.TextSpan(5, 10)
         };
@@ -284,9 +319,11 @@ public sealed class ConstantFoldingTests
     {
         var tree = new BoundBinaryExpr(
             TokenType.Plus,
-            new BoundLiteralExpr(null, typeof(object)),
-            new BoundLiteralExpr(3, typeof(int)),
-            typeof(object));
+            new BoundLiteralExpr(null,
+            new BoundType(typeof(object))),
+            new BoundLiteralExpr(3,
+            new BoundType(typeof(int))),
+            new BoundType(typeof(object)));
 
         var result = _pass.Rewrite(tree);
 

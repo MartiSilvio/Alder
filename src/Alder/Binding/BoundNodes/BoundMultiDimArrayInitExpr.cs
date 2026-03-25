@@ -8,7 +8,7 @@ internal sealed record BoundMultiDimArrayInitExpr(
     ImmutableArray<BoundExpr>? ExplicitSizes,
     ImmutableArray<BoundExpr> FlatValues,
     int[] InferredDimensions,
-    Type StaticType) : BoundExpr(StaticType)
+    BoundType StaticType) : BoundExpr(StaticType)
 {
     internal override BoundNodeKind Kind => BoundNodeKind.MultiDimArrayInit;
     internal override void EnumerateChildren(Action<BoundExpr> visit)

@@ -10,8 +10,8 @@ internal sealed partial class BoundExpressionEmitter
 {
     private LinqExpression EmitObjectCreation(BoundObjectCreationExpr objectCreation)
     {
-        if (objectCreation.StaticType != typeof(object) && !objectCreation.StaticType.IsAbstract &&
-            !objectCreation.StaticType.IsInterface && objectCreation.InitializerEntries.IsDefaultOrEmpty)
+        if (objectCreation.StaticType.ClrType != typeof(object) && !objectCreation.StaticType.ClrType.IsAbstract &&
+            !objectCreation.StaticType.ClrType.IsInterface && objectCreation.InitializerEntries.IsDefaultOrEmpty)
         {
             var pure = TryEmitPureObjectCreation(objectCreation);
             if (pure != null) return pure;
@@ -75,7 +75,7 @@ internal sealed partial class BoundExpressionEmitter
 
     private LinqExpression? TryEmitPureObjectCreation(BoundObjectCreationExpr objectCreation)
     {
-        var type = objectCreation.StaticType;
+        var type = objectCreation.StaticType.ClrType;
 
         if (objectCreation.Arguments.Length == 0)
         {
@@ -89,7 +89,7 @@ internal sealed partial class BoundExpressionEmitter
         var argTypes = new Type[objectCreation.Arguments.Length];
         for (var i = 0; i < objectCreation.Arguments.Length; i++)
         {
-            var argType = objectCreation.Arguments[i].StaticType;
+            var argType = objectCreation.Arguments[i].StaticType.ClrType;
             if (argType == typeof(object))
                 return null;
             argTypes[i] = argType;
@@ -109,9 +109,9 @@ internal sealed partial class BoundExpressionEmitter
 
     private LinqExpression EmitTypedArrayCreation(BoundTypedArrayCreationExpr typedArrayCreation)
     {
-        if (typedArrayCreation.StaticType.IsArray)
+        if (typedArrayCreation.StaticType.ClrType.IsArray)
         {
-            var elementType = typedArrayCreation.StaticType.GetElementType()!;
+            var elementType = typedArrayCreation.StaticType.ClrType.GetElementType()!;
             var sizeExpr = EmitHelpers.EnsureTypedExpression(Emit(typedArrayCreation.Size), typeof(int));
             return LinqExpression.Call(
                 typeof(Alder.Runtime.RuntimeArrayFactory).GetMethod(nameof(Alder.Runtime.RuntimeArrayFactory.Create),
@@ -128,9 +128,9 @@ internal sealed partial class BoundExpressionEmitter
 
     private LinqExpression EmitTypedArrayLiteral(BoundTypedArrayLiteralExpr typedArrayLiteral)
     {
-        if (typedArrayLiteral.StaticType.IsArray)
+        if (typedArrayLiteral.StaticType.ClrType.IsArray)
         {
-            var elementType = typedArrayLiteral.StaticType.GetElementType()!;
+            var elementType = typedArrayLiteral.StaticType.ClrType.GetElementType()!;
             var elements = typedArrayLiteral.Elements.Select(
                 element => EmitHelpers.EnsureTypedExpression(Emit(element), elementType));
             return EmitHelpers.AsObject(LinqExpression.NewArrayInit(elementType, elements));
@@ -148,7 +148,7 @@ internal sealed partial class BoundExpressionEmitter
     private LinqExpression EmitTuple(BoundTupleExpr tuple)
     {
         var hasNames = tuple.ElementNames.Any(static n => n != null);
-        if (!hasNames && IsValueTupleType(tuple.StaticType) && tuple.Elements.Length <= 7)
+        if (!hasNames && IsValueTupleType(tuple.StaticType.ClrType) && tuple.Elements.Length <= 7)
         {
             var pure = TryEmitPureTuple(tuple);
             if (pure != null) return pure;
@@ -174,7 +174,7 @@ internal sealed partial class BoundExpressionEmitter
 
     private LinqExpression? TryEmitPureTuple(BoundTupleExpr tuple)
     {
-        var tupleType = tuple.StaticType;
+        var tupleType = tuple.StaticType.ClrType;
         var elementTypes = tupleType.GetGenericArguments();
         var ctor = tupleType.GetConstructor(elementTypes);
         if (ctor == null)
@@ -201,9 +201,9 @@ internal sealed partial class BoundExpressionEmitter
 
     private LinqExpression EmitMultiDimTypedArrayCreation(BoundMultiDimTypedArrayCreationExpr multiDimTypedArrayCreation)
     {
-        if (multiDimTypedArrayCreation.StaticType.IsArray)
+        if (multiDimTypedArrayCreation.StaticType.ClrType.IsArray)
         {
-            var elementType = multiDimTypedArrayCreation.StaticType.GetElementType()!;
+            var elementType = multiDimTypedArrayCreation.StaticType.ClrType.GetElementType()!;
             var sizeExprs = multiDimTypedArrayCreation.Sizes.Select(
                 size => EmitHelpers.EnsureTypedExpression(Emit(size), typeof(int)));
             return EmitHelpers.AsObject(LinqExpression.NewArrayBounds(elementType, sizeExprs));
@@ -237,7 +237,7 @@ internal sealed partial class BoundExpressionEmitter
 
     private LinqExpression EmitMultiDimIndexAccess(BoundMultiDimIndexAccessExpr multiDimIndexAccess)
     {
-        var targetType = multiDimIndexAccess.Target.StaticType;
+        var targetType = multiDimIndexAccess.Target.StaticType.ClrType;
         if (targetType.IsArray && targetType.GetArrayRank() > 1)
         {
             var getMethod = targetType.GetMethod("Get");
@@ -304,7 +304,7 @@ internal sealed partial class BoundExpressionEmitter
     {
         var exceptionExpr = Emit(throwExpr.Expression);
         var validated = LinqExpression.Call(ValidateThrowOperandMethod, EmitHelpers.AsObject(exceptionExpr));
-        var resultType = throwExpr.StaticType != typeof(object) ? throwExpr.StaticType : typeof(object);
+        var resultType = throwExpr.StaticType.ClrType != typeof(object) ? throwExpr.StaticType.ClrType : typeof(object);
         return LinqExpression.Block(
             resultType,
             LinqExpression.Throw(validated, resultType),

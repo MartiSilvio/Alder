@@ -14,7 +14,7 @@ internal sealed partial class Binder
             .Select(statement => Bind(statement, blockScope))
             .ToImmutableArray();
         var returnExpr = block.ReturnExpr != null ? Bind(block.ReturnExpr, blockScope) : null;
-        var staticType = returnExpr?.StaticType ?? typeof(object);
+        var staticType = returnExpr?.StaticType ?? new BoundType(typeof(object));
         return new BoundBlockExpr(statements, returnExpr, staticType);
     }
 
@@ -36,7 +36,7 @@ internal sealed partial class Binder
             ];
         }
 
-        return new BoundIfStatementExpr(condition, thenStatements, elseStatements, typeof(object));
+        return new BoundIfStatementExpr(condition, thenStatements, elseStatements, new BoundType(typeof(object)));
     }
 
     private BoundVariableDeclExpr BindVariableDecl(VariableDeclExpr variableDecl, BindingContext context)
@@ -45,7 +45,7 @@ internal sealed partial class Binder
         var declaredType = variableDecl.DeclaredType != null
             ? context.RuntimeContext.TypeResolver.ResolveType(variableDecl.DeclaredType.Value.Lexeme)
             : null;
-        var staticType = declaredType ?? initializer.StaticType;
+        var staticType = declaredType != null ? new BoundType(declaredType) : initializer.StaticType;
         var localId = context.DeclareLocal(variableDecl.Name.Lexeme, staticType, variableDecl.IsConst);
         return new BoundVariableDeclExpr(
             variableDecl.Name.Lexeme,
@@ -63,7 +63,7 @@ internal sealed partial class Binder
         var body = whileStatement.Body
             .Select(statement => Bind(statement, bodyScope))
             .ToImmutableArray();
-        return new BoundWhileExpr(condition, body, typeof(object));
+        return new BoundWhileExpr(condition, body, new BoundType(typeof(object)));
     }
 
     private BoundForExpr BindFor(ForStatementExpr forStatement, BindingContext context)
@@ -83,7 +83,7 @@ internal sealed partial class Binder
         var body = forStatement.Body
             .Select(statement => Bind(statement, bodyScope))
             .ToImmutableArray();
-        return new BoundForExpr(initializers, condition, increments, body, typeof(object));
+        return new BoundForExpr(initializers, condition, increments, body, new BoundType(typeof(object)));
     }
 
     private BoundDoWhileExpr BindDoWhile(DoWhileStatementExpr doWhileStatement, BindingContext context)
@@ -93,19 +93,19 @@ internal sealed partial class Binder
             .Select(statement => Bind(statement, bodyScope))
             .ToImmutableArray();
         var condition = Bind(doWhileStatement.Condition, context);
-        return new BoundDoWhileExpr(body, condition, typeof(object));
+        return new BoundDoWhileExpr(body, condition, new BoundType(typeof(object)));
     }
 
     private BoundForEachExpr BindForEach(ForEachStatementExpr forEachStatement, BindingContext context)
     {
         var collection = Bind(forEachStatement.Collection, context);
-        var elementType = InferElementType(collection.StaticType);
+        var elementType = InferElementType(collection.StaticType.ClrType);
         var bodyScope = context.CreateChildScope();
-        var foreachLocalId = bodyScope.DeclareLocal(forEachStatement.VariableName.Lexeme, elementType);
+        var foreachLocalId = bodyScope.DeclareLocal(forEachStatement.VariableName.Lexeme, new BoundType(elementType));
         var body = forEachStatement.Body
             .Select(statement => Bind(statement, bodyScope))
             .ToImmutableArray();
-        return new BoundForEachExpr(forEachStatement.VariableName.Lexeme, collection, body, elementType, typeof(object), foreachLocalId);
+        return new BoundForEachExpr(forEachStatement.VariableName.Lexeme, collection, body, elementType, new BoundType(typeof(object)), foreachLocalId);
     }
 
     private static Type InferElementType(Type collectionType)
@@ -129,14 +129,14 @@ internal sealed partial class Binder
     {
         var resource = Bind(usingStatement.ResourceDeclaration, context);
         var body = Bind(usingStatement.Body, context.CreateChildScope());
-        return new BoundUsingStatementExpr(resource, body, typeof(object));
+        return new BoundUsingStatementExpr(resource, body, new BoundType(typeof(object)));
     }
 
     private BoundLockStatementExpr BindLockStatement(LockStatementExpr lockStatement, BindingContext context)
     {
         var lockObject = Bind(lockStatement.LockObject, context);
         var body = Bind(lockStatement.Body, context.CreateChildScope());
-        return new BoundLockStatementExpr(lockObject, body, typeof(object));
+        return new BoundLockStatementExpr(lockObject, body, new BoundType(typeof(object)));
     }
 
     private BoundTryCatchFinallyExpr BindTryCatchFinally(TryCatchFinallyExpr tryCatchFinally, BindingContext context)
@@ -156,7 +156,7 @@ internal sealed partial class Binder
                     var exceptionType = catchClause.ExceptionTypeName != null
                         ? context.RuntimeContext.TypeResolver.TryResolveType(catchClause.ExceptionTypeName) ?? typeof(Exception)
                         : typeof(Exception);
-                    catchLocalId = catchScope.DeclareLocal(catchClause.VariableName.Value.Lexeme, exceptionType);
+                    catchLocalId = catchScope.DeclareLocal(catchClause.VariableName.Value.Lexeme, new BoundType(exceptionType));
                 }
 
                 var whenGuard = catchClause.WhenGuard != null
@@ -186,13 +186,13 @@ internal sealed partial class Binder
             ];
         }
 
-        return new BoundTryCatchFinallyExpr(tryBody, catches, finallyBody, typeof(object));
+        return new BoundTryCatchFinallyExpr(tryBody, catches, finallyBody, new BoundType(typeof(object)));
     }
 
     private BoundThrowExpr BindThrowExpr(ThrowExpr throwExpr, BindingContext context)
     {
         var expression = Bind(throwExpr.Expression, context);
-        return new BoundThrowExpr(expression, typeof(object));
+        return new BoundThrowExpr(expression, new BoundType(typeof(object)));
     }
 
     private BoundSwitchStatementExpr BindSwitchStatement(SwitchStatementExpr switchStatement, BindingContext context)
@@ -211,7 +211,7 @@ internal sealed partial class Binder
                 return new BoundSwitchCase(switchCase.CasePattern, guard, statements);
             })
             .ToImmutableArray();
-        return new BoundSwitchStatementExpr(expression, cases, typeof(object));
+        return new BoundSwitchStatementExpr(expression, cases, new BoundType(typeof(object)));
     }
 
     private BoundSwitchExpressionExpr BindSwitchExpression(SwitchExpressionExpr switchExpression, BindingContext context)
@@ -230,17 +230,17 @@ internal sealed partial class Binder
         var staticType = typeof(object);
         if (arms.Length > 0)
         {
-            staticType = arms[0].Value.StaticType;
+            staticType = arms[0].Value.StaticType.ClrType;
             for (var i = 1; i < arms.Length; i++)
-                staticType = GetCommonType(staticType, arms[i].Value.StaticType);
+                staticType = GetCommonType(staticType, arms[i].Value.StaticType.ClrType);
         }
 
-        return new BoundSwitchExpressionExpr(expression, arms, staticType);
+        return new BoundSwitchExpressionExpr(expression, arms, new BoundType(staticType));
     }
 
     private BoundReturnExpr BindReturn(ReturnExpr returnExpr, BindingContext context)
     {
         var value = returnExpr.Value != null ? Bind(returnExpr.Value, context) : null;
-        return new BoundReturnExpr(value, value?.StaticType ?? typeof(object));
+        return new BoundReturnExpr(value, value?.StaticType ?? new BoundType(typeof(object)));
     }
 }

@@ -15,7 +15,7 @@ internal sealed partial class Binder
         return new BoundLambdaExpr(
             [..lambda.Parameters.Select(static parameter => parameter.Name.Lexeme)],
             lambda.Body,
-            typeof(LambdaValue));
+            new BoundType(typeof(LambdaValue)));
     }
 
     private BoundExpr BindPipeline(PipelineExpr pipeline, BindingContext context)
@@ -37,18 +37,18 @@ internal sealed partial class Binder
         return new BoundPipelineExpr(
             Bind(pipeline.Left, context),
             Bind(pipeline.Right, context),
-            typeof(object));
+            new BoundType(typeof(object)));
     }
 
     private BoundNamedArgumentExpr BindNamedArgument(NamedArgumentExpr namedArgument, BindingContext context)
     {
         var value = Bind(namedArgument.Value, context);
-        return new BoundNamedArgumentExpr(namedArgument.Name.Lexeme, value, typeof(object));
+        return new BoundNamedArgumentExpr(namedArgument.Name.Lexeme, value, new BoundType(typeof(object)));
     }
 
     private static BoundOutArgExpr BindOutArg(OutArgExpr outArg)
     {
-        return new BoundOutArgExpr(outArg.VariableName, outArg.TypeName, outArg.IsDiscard, typeof(object));
+        return new BoundOutArgExpr(outArg.VariableName, outArg.TypeName, outArg.IsDiscard, new BoundType(typeof(object)));
     }
 
     private BoundMemberAccessExpr BindMemberAccess(MemberAccessExpr memberAccess, BindingContext context)
@@ -102,17 +102,14 @@ internal sealed partial class Binder
 
     private BoundMemberAccessExpr BindSingleMemberAccess(BoundExpr target, string name, bool nullSafe, BindingContext context)
     {
-        var (targetType, isStatic) = ResolveMemberTarget(target);
+        var (targetBoundType, isStatic) = ResolveMemberTarget(target);
 
         var memberBinder = new MemberBinderService(context.RuntimeContext.TypeMetadata);
-        memberBinder.TryBindMemberRead(targetType, name, isStatic, context.IsCaseSensitive, out var plan);
+        memberBinder.TryBindMemberRead(targetBoundType, name, isStatic, context.IsCaseSensitive, out var plan, out var resolvedType);
 
-        var staticType = plan?.Member switch
-        {
-            PropertyInfo property => property.PropertyType,
-            FieldInfo field => field.FieldType,
-            _ => typeof(object)
-        };
+        var staticType = resolvedType != null
+            ? new BoundType(resolvedType)
+            : new BoundType(typeof(object));
 
         return new BoundMemberAccessExpr(target, name, nullSafe, plan, staticType);
     }
@@ -126,13 +123,13 @@ internal sealed partial class Binder
         var staticType = typeof(object);
 
         var memberBinder = new MemberBinderService(context.RuntimeContext.TypeMetadata);
-        if (memberBinder.TryBindIndexRead(target.StaticType, index.StaticType, out var indexPlan))
+        if (memberBinder.TryBindIndexRead(target.StaticType.ClrType, index.StaticType.ClrType, out var indexPlan))
         {
             plan = indexPlan;
             staticType = indexPlan!.ResultType;
         }
 
-        return new BoundIndexAccessExpr(target, index, plan, indexAccess.NullSafe, staticType);
+        return new BoundIndexAccessExpr(target, index, plan, indexAccess.NullSafe, new BoundType(staticType));
     }
 
     private BoundExpr BindCall(CallExpr call, BindingContext context)
@@ -157,7 +154,7 @@ internal sealed partial class Binder
                 argument is not BoundNamedArgumentExpr &&
                 argument is not BoundOutArgExpr))
         {
-            var argumentTypes = arguments.Select(static argument => argument.StaticType).ToArray();
+            var argumentTypes = arguments.Select(static argument => argument.StaticType.ClrType).ToArray();
             var callBinder = new CallBinderService(context.RuntimeContext);
 
             var bound = memberAccess.Plan.IsStatic && memberAccess.Target is BoundLiteralExpr { Value: Type staticDeclaringType }
@@ -165,12 +162,12 @@ internal sealed partial class Binder
                 : callBinder.TryBindInstanceCall(memberAccess.Plan.DeclaringType, memberAccess.MemberName, argumentTypes, context.IsCaseSensitive, out callPlan);
 
             if (bound)
-                return new BoundCallExpr(callee, arguments, callPlan!, callPlan!.SelectedMethod.ReturnType);
+                return new BoundCallExpr(callee, arguments, callPlan!, new BoundType(callPlan!.SelectedMethod.ReturnType));
 
-            return new BoundInvokeExpr(callee, arguments, typeArguments, typeof(object));
+            return new BoundInvokeExpr(callee, arguments, typeArguments, new BoundType(typeof(object)));
         }
 
-        return new BoundInvokeExpr(callee, arguments, typeArguments, typeof(object));
+        return new BoundInvokeExpr(callee, arguments, typeArguments, new BoundType(typeof(object)));
     }
 
     private bool TryBindStaticModuleCall(CallExpr call, BindingContext context, out BoundExpr boundCall)
@@ -203,7 +200,7 @@ internal sealed partial class Binder
         if (arguments.Any(static argument => argument is BoundLambdaExpr))
             return false;
 
-        var argumentTypes = arguments.Select(static argument => argument.StaticType).ToArray();
+        var argumentTypes = arguments.Select(static argument => argument.StaticType.ClrType).ToArray();
         var callBinder = new CallBinderService(context.RuntimeContext);
 
         if (!callBinder.TryBindStaticCall(
@@ -219,7 +216,7 @@ internal sealed partial class Binder
         var callPlan = moduleCallPlan! with { IsModuleCall = true };
 
         var callee = new BoundMemberAccessExpr(
-            new BoundLiteralExpr(moduleInfo.Type, typeof(Type)),
+            new BoundLiteralExpr(moduleInfo.Type, new BoundType(typeof(Type))),
             memberAccess.Name.Lexeme,
             memberAccess.NullSafe,
             new BoundMemberPlan(
@@ -228,9 +225,9 @@ internal sealed partial class Binder
                 Member: null,
                 IsMethodGroup: true,
                 IsStatic: true),
-            typeof(object));
+            new BoundType(typeof(object)));
 
-        boundCall = new BoundCallExpr(callee, arguments, callPlan, callPlan.SelectedMethod.ReturnType);
+        boundCall = new BoundCallExpr(callee, arguments, callPlan, new BoundType(callPlan.SelectedMethod.ReturnType));
         return true;
     }
 
@@ -242,10 +239,10 @@ internal sealed partial class Binder
         return BindMemberAccess(memberAccess, context);
     }
 
-    private static (Type TargetType, bool IsStatic) ResolveMemberTarget(BoundExpr target)
+    private static (BoundType TargetType, bool IsStatic) ResolveMemberTarget(BoundExpr target)
     {
         if (target is BoundLiteralExpr { Value: Type staticTargetType })
-            return (staticTargetType, true);
+            return (new BoundType(staticTargetType), true);
 
         return (target.StaticType, false);
     }

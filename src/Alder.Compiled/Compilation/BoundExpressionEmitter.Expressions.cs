@@ -32,11 +32,11 @@ internal sealed partial class BoundExpressionEmitter
             return hoisted.Variable;
         }
 
-        if (identifier.StaticType != typeof(object) && !IsValueTupleType(identifier.StaticType))
+        if (identifier.StaticType.ClrType != typeof(object) && !IsValueTupleType(identifier.StaticType.ClrType))
         {
             return LinqExpression.Call(
                 _contextParam,
-                GetVariableTypedMethodFor(identifier.StaticType),
+                GetVariableTypedMethodFor(identifier.StaticType.ClrType),
                 LinqExpression.Constant(identifier.Name));
         }
 
@@ -49,7 +49,7 @@ internal sealed partial class BoundExpressionEmitter
 
     private LinqExpression EmitCast(BoundCastExpr cast)
     {
-        var sourceType = cast.Expression.StaticType;
+        var sourceType = cast.Expression.StaticType.ClrType;
         var targetType = cast.TargetType;
 
         if (sourceType != typeof(object) && !sourceType.IsEnum && !targetType.IsEnum)
@@ -135,7 +135,7 @@ internal sealed partial class BoundExpressionEmitter
     private LinqExpression EmitBoolCondition(BoundExpr condition)
     {
         var emitted = Emit(condition);
-        if (condition.StaticType == typeof(bool) && emitted.Type == typeof(bool))
+        if (condition.StaticType.ClrType == typeof(bool) && emitted.Type == typeof(bool))
             return emitted;
         return LinqExpression.Call(RequireBooleanMethod, EmitHelpers.AsObject(emitted));
     }
@@ -144,7 +144,7 @@ internal sealed partial class BoundExpressionEmitter
     {
         if (unary.PromotedType is { } promoted && !_isChecked)
         {
-            var operand = EmitHelpers.EnsureTypedExpression(Emit(unary.Operand), unary.Operand.StaticType);
+            var operand = EmitHelpers.EnsureTypedExpression(Emit(unary.Operand), unary.Operand.StaticType.ClrType);
             if (operand.Type != promoted)
                 operand = LinqExpression.Convert(operand, promoted);
 
@@ -197,7 +197,7 @@ internal sealed partial class BoundExpressionEmitter
             return EmitBinaryWithConstantPromotionWithLeft(binary, left);
 
         var isStringContext = binary.Operator == TokenType.Plus &&
-            (binary.Left.StaticType == typeof(string) || binary.Right.StaticType == typeof(string));
+            (binary.Left.StaticType.ClrType == typeof(string) || binary.Right.StaticType.ClrType == typeof(string));
 
         return EmitBinaryCore(binary.Operator, EmitHelpers.AsObject(left), EmitHelpers.AsObject(Emit(binary.Right)), isStringContext);
     }
@@ -208,8 +208,8 @@ internal sealed partial class BoundExpressionEmitter
         if (binary.Operator != TokenType.Plus)
             return false;
 
-        var leftIsString = binary.Left.StaticType == typeof(string);
-        var rightIsString = binary.Right.StaticType == typeof(string);
+        var leftIsString = binary.Left.StaticType.ClrType == typeof(string);
+        var rightIsString = binary.Right.StaticType.ClrType == typeof(string);
         if (!leftIsString && !rightIsString)
             return false;
 
@@ -236,8 +236,8 @@ internal sealed partial class BoundExpressionEmitter
         if (binary.Operator != TokenType.Plus)
             return false;
 
-        var leftIsString = binary.Left.StaticType == typeof(string);
-        var rightIsString = binary.Right.StaticType == typeof(string);
+        var leftIsString = binary.Left.StaticType.ClrType == typeof(string);
+        var rightIsString = binary.Right.StaticType.ClrType == typeof(string);
         if (!leftIsString && !rightIsString)
             return false;
 
@@ -357,8 +357,8 @@ internal sealed partial class BoundExpressionEmitter
             return false;
 
         var isShift = binary.Operator is TokenType.LessLess or TokenType.GreaterGreater;
-        var left = EmitHelpers.EnsureTypedExpression(Emit(binary.Left), binary.Left.StaticType);
-        var right = EmitHelpers.EnsureTypedExpression(Emit(binary.Right), binary.Right.StaticType);
+        var left = EmitHelpers.EnsureTypedExpression(Emit(binary.Left), binary.Left.StaticType.ClrType);
+        var right = EmitHelpers.EnsureTypedExpression(Emit(binary.Right), binary.Right.StaticType.ClrType);
         if (left.Type != promotedType)
             left = LinqExpression.Convert(left, promotedType);
         var rightTarget = isShift ? typeof(int) : promotedType;
@@ -375,8 +375,8 @@ internal sealed partial class BoundExpressionEmitter
             return false;
 
         var isShift = binary.Operator is TokenType.LessLess or TokenType.GreaterGreater;
-        var left = EmitHelpers.EnsureTypedExpression(preEmittedLeft, binary.Left.StaticType);
-        var right = EmitHelpers.EnsureTypedExpression(Emit(binary.Right), binary.Right.StaticType);
+        var left = EmitHelpers.EnsureTypedExpression(preEmittedLeft, binary.Left.StaticType.ClrType);
+        var right = EmitHelpers.EnsureTypedExpression(Emit(binary.Right), binary.Right.StaticType.ClrType);
         if (left.Type != promotedType)
             left = LinqExpression.Convert(left, promotedType);
         var rightTarget = isShift ? typeof(int) : promotedType;
@@ -436,7 +436,7 @@ internal sealed partial class BoundExpressionEmitter
         }
 
         // §12.14.2: nullable bool conditional operators
-        if (logical.Left.StaticType == typeof(bool?) || logical.Right.StaticType == typeof(bool?))
+        if (logical.Left.StaticType.ClrType == typeof(bool?) || logical.Right.StaticType.ClrType == typeof(bool?))
         {
             var method = logical.Operator == TokenType.AmpAmp ? NullableBoolAndMethod : NullableBoolOrMethod;
             return LinqExpression.Call(method, EmitHelpers.AsObject(leftCandidate), EmitHelpers.AsObject(rightCandidate));
@@ -472,8 +472,8 @@ internal sealed partial class BoundExpressionEmitter
 
     private LinqExpression EmitNullCoalesce(BoundNullCoalesceExpr nullCoalesce)
     {
-        var leftType = nullCoalesce.Left.StaticType;
-        var rightType = nullCoalesce.Right.StaticType;
+        var leftType = nullCoalesce.Left.StaticType.ClrType;
+        var rightType = nullCoalesce.Right.StaticType.ClrType;
 
         if (leftType != typeof(object) && rightType != typeof(object)
             && (leftType.IsClass || leftType.IsInterface || Nullable.GetUnderlyingType(leftType) != null))
@@ -485,7 +485,7 @@ internal sealed partial class BoundExpressionEmitter
 
             if (left.Type != right.Type)
             {
-                var commonType = nullCoalesce.StaticType;
+                var commonType = nullCoalesce.StaticType.ClrType;
                 if (commonType != typeof(object))
                 {
                     if (right.Type != commonType)
@@ -545,9 +545,9 @@ internal sealed partial class BoundExpressionEmitter
         out LinqExpression typed)
     {
         typed = null!;
-        var thenType = conditional.ThenBranch.StaticType;
-        var elseType = conditional.ElseBranch.StaticType;
-        var resultType = conditional.StaticType;
+        var thenType = conditional.ThenBranch.StaticType.ClrType;
+        var elseType = conditional.ElseBranch.StaticType.ClrType;
+        var resultType = conditional.StaticType.ClrType;
 
         if (thenType == typeof(object) || elseType == typeof(object) || resultType == typeof(object))
             return false;

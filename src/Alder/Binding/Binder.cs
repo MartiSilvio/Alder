@@ -48,7 +48,7 @@ internal sealed partial class Binder
             var diagnostic = NormalizeDiagnostic(ex, expr);
             _diagnostics ??= new List<AlderDiagnostic>();
             _diagnostics.Add(diagnostic);
-            return new BoundLiteralExpr(null, typeof(object))
+            return new BoundLiteralExpr(null, new BoundType(typeof(object)))
             {
                 HasErrors = true,
                 Diagnostic = diagnostic,
@@ -63,10 +63,10 @@ internal sealed partial class Binder
                 IdentifierExpr identifier => BindIdentifier(identifier, context),
                 TypeReferenceExpr typeReference => BindTypeReference(typeReference, context),
                 IsPatternExpr isPattern => BindIsPattern(isPattern, context),
-                NameofExpr nameofExpr => new BoundLiteralExpr(nameofExpr.Name, typeof(string)),
+                NameofExpr nameofExpr => new BoundLiteralExpr(nameofExpr.Name, new BoundType(typeof(string))),
                 TypeofExpr typeofExpr => BindTypeof(typeofExpr, context),
                 DefaultExpr defaultExpr => BindDefault(defaultExpr, context),
-                SizeofExpr sizeofExpr => new BoundLiteralExpr(TypeHelpers.GetSizeOf(sizeofExpr.TypeName), typeof(int)),
+                SizeofExpr sizeofExpr => new BoundLiteralExpr(TypeHelpers.GetSizeOf(sizeofExpr.TypeName), new BoundType(typeof(int))),
                 ArrayLiteralExpr arrayLiteral => BindArrayLiteral(arrayLiteral, context),
                 ObjectLiteralExpr objectLiteral => BindObjectLiteral(objectLiteral, context),
                 SpreadExpr spread => BindSpread(spread, context),
@@ -101,12 +101,12 @@ internal sealed partial class Binder
                 TryCatchFinallyExpr tryCatchFinally => BindTryCatchFinally(tryCatchFinally, context),
                 CheckedExpr checkedExpr => BindCheckedExpr(checkedExpr, context),
                 ChainedComparisonExpr chainedComparison => BindChainedComparison(chainedComparison, context),
-                BreakExpr => new BoundBreakExpr(typeof(object)),
-                ContinueExpr => new BoundContinueExpr(typeof(object)),
-                GotoExpr gotoExpr => new BoundGotoExpr(gotoExpr.Label, typeof(object)),
-                GotoCaseExpr gotoCaseExpr => new BoundGotoCaseExpr(Bind(gotoCaseExpr.Value, context), typeof(object)),
-                GotoDefaultExpr => new BoundGotoDefaultExpr(typeof(object)),
-                LabelExpr labelExpr => new BoundLabelExpr(labelExpr.Name, typeof(object)),
+                BreakExpr => new BoundBreakExpr(new BoundType(typeof(object))),
+                ContinueExpr => new BoundContinueExpr(new BoundType(typeof(object))),
+                GotoExpr gotoExpr => new BoundGotoExpr(gotoExpr.Label, new BoundType(typeof(object))),
+                GotoCaseExpr gotoCaseExpr => new BoundGotoCaseExpr(Bind(gotoCaseExpr.Value, context), new BoundType(typeof(object))),
+                GotoDefaultExpr => new BoundGotoDefaultExpr(new BoundType(typeof(object))),
+                LabelExpr labelExpr => new BoundLabelExpr(labelExpr.Name, new BoundType(typeof(object))),
                 VariableDeclExpr variableDecl => BindVariableDecl(variableDecl, context),
                 AssignExpr assign => BindAssign(assign, context),
                 NullCoalesceAssignExpr nullCoalesceAssign => BindNullCoalesceAssign(nullCoalesceAssign, context),
@@ -122,7 +122,7 @@ internal sealed partial class Binder
                 IndexIncrementExpr indexIncrement => BindIndexIncrement(indexIncrement, context),
                 NewExpr newExpr => Bind(newExpr.Initializer, context),
                 ThrowExpr throwExpr => BindThrowExpr(throwExpr, context),
-                ThrowStatementExpr => new BoundThrowStatementExpr(typeof(object)),
+                ThrowStatementExpr => new BoundThrowStatementExpr(new BoundType(typeof(object))),
                 ReturnExpr returnExpr => BindReturn(returnExpr, context),
                 MemberAccessExpr memberAccess => BindMemberAccess(memberAccess, context),
                 IndexAccessExpr indexAccess => BindIndexAccess(indexAccess, context),

@@ -157,9 +157,9 @@ internal static class EmitHelpers
         if (expr is BoundLiteralExpr { Value: { } value })
             return value.GetType().Name;
 
-        return expr.StaticType == typeof(object)
+        return expr.StaticType.ClrType == typeof(object)
             ? "unknown"
-            : expr.StaticType.Name;
+            : expr.StaticType.ClrType.Name;
     }
 
     internal static OutVariableBinding[] CollectOutBindings(ImmutableArray<BoundExpr> arguments)

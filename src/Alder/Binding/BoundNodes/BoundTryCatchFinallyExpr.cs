@@ -13,7 +13,7 @@ internal sealed record BoundTryCatchFinallyExpr(
     ImmutableArray<BoundExpr> TryBody,
     ImmutableArray<BoundCatchClause> CatchClauses,
     ImmutableArray<BoundExpr> FinallyBody,
-    Type StaticType) : BoundExpr(StaticType)
+    BoundType StaticType) : BoundExpr(StaticType)
 {
     internal override BoundNodeKind Kind => BoundNodeKind.TryStatement;
     internal override void EnumerateChildren(Action<BoundExpr> visit)

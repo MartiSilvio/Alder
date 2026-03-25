@@ -6,7 +6,7 @@ internal sealed class BindingContext
 {
     private readonly AlderContext _context;
     private readonly BindingContext? _parent;
-    private readonly Dictionary<string, (Type Type, int LocalId)> _locals;
+    private readonly Dictionary<string, (BoundType Type, int LocalId)> _locals;
     private readonly HashSet<string> _readOnlyLocals;
     private readonly BindingContext _root;
     private int _nextLocalId;
@@ -20,7 +20,7 @@ internal sealed class BindingContext
     {
         _context = context;
         _parent = parent;
-        _locals = new Dictionary<string, (Type, int)>(context.Comparer);
+        _locals = new Dictionary<string, (BoundType, int)>(context.Comparer);
         _readOnlyLocals = new HashSet<string>(context.Comparer);
         _root = parent?._root ?? this;
     }
@@ -29,7 +29,7 @@ internal sealed class BindingContext
     internal bool IsCaseSensitive => ReferenceEquals(_context.Comparer, StringComparer.Ordinal);
     internal BindingContext CreateChildScope() => new(_context, this);
 
-    internal int DeclareLocal(string name, Type type, bool isReadOnly = false)
+    internal int DeclareLocal(string name, BoundType type, bool isReadOnly = false)
     {
         var id = _root._nextLocalId++;
         _locals[name] = (type, id);
@@ -48,7 +48,7 @@ internal sealed class BindingContext
         return _parent?.IsReadOnlyLocal(name) ?? false;
     }
 
-    internal bool TryGetLocal(string name, out Type type, out int localId)
+    internal bool TryGetLocal(string name, out BoundType type, out int localId)
     {
         if (_locals.TryGetValue(name, out var entry))
         {
@@ -60,29 +60,29 @@ internal sealed class BindingContext
         if (_parent != null)
             return _parent.TryGetLocal(name, out type, out localId);
 
-        type = typeof(object);
+        type = new BoundType(typeof(object));
         localId = -1;
         return false;
     }
 
-    public bool TryGetVariableType(string name, out Type type)
+    public bool TryGetVariableType(string name, out BoundType type)
     {
         if (TryGetLocal(name, out type, out _))
             return true;
 
         if (_context.TryGetVariableType(name, out var declaredType) && declaredType != null)
         {
-            type = declaredType;
+            type = new BoundType(declaredType);
             return true;
         }
 
         if (_context.TryGet(name, out var fallbackValue) && fallbackValue != null)
         {
-            type = fallbackValue.GetType();
+            type = new BoundType(fallbackValue.GetType());
             return true;
         }
 
-        type = typeof(object);
+        type = new BoundType(typeof(object));
         return false;
     }
 }

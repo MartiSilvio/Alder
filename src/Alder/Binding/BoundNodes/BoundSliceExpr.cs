@@ -5,7 +5,7 @@ internal sealed record BoundSliceExpr(
     BoundExpr? Start,
     BoundExpr? End,
     BoundExpr? Step,
-    Type StaticType) : BoundExpr(StaticType)
+    BoundType StaticType) : BoundExpr(StaticType)
 {
     internal override BoundNodeKind Kind => BoundNodeKind.SliceExpression;
     internal override void EnumerateChildren(Action<BoundExpr> visit)

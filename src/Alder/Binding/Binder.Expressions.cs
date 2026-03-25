@@ -11,23 +11,23 @@ internal sealed partial class Binder
     private static BoundLiteralExpr BindTypeReference(TypeReferenceExpr typeReference, BindingContext context)
     {
         var resolvedType = context.RuntimeContext.TypeResolver.ResolveType(typeReference.TypeToken.Lexeme);
-        return new BoundLiteralExpr(resolvedType, typeof(Type));
+        return new BoundLiteralExpr(resolvedType, new BoundType(typeof(Type)));
     }
 
     private static BoundLiteralExpr BindTypeof(TypeofExpr typeofExpr, BindingContext context)
     {
         var resolvedType = context.RuntimeContext.TypeResolver.ResolveType(typeofExpr.TypeToken.Lexeme);
-        return new BoundLiteralExpr(resolvedType, typeof(Type));
+        return new BoundLiteralExpr(resolvedType, new BoundType(typeof(Type)));
     }
 
     private static BoundLiteralExpr BindDefault(DefaultExpr defaultExpr, BindingContext context)
     {
         if (defaultExpr.TypeToken == null)
-            return new BoundLiteralExpr(null, typeof(object));
+            return new BoundLiteralExpr(null, new BoundType(typeof(object)));
 
         var resolvedType = context.RuntimeContext.TypeResolver.ResolveType(defaultExpr.TypeToken.Value.Lexeme);
         var value = TypeHelpers.GetDefaultValue(resolvedType);
-        return new BoundLiteralExpr(value, resolvedType);
+        return new BoundLiteralExpr(value, new BoundType(resolvedType));
     }
 
     private static BoundExpr BindIdentifier(IdentifierExpr identifier, BindingContext context)
@@ -40,11 +40,11 @@ internal sealed partial class Binder
             // Runtime resolution gives functions/modules precedence over variables.
             // Keep static type as object so compiled binding does not incorrectly
             // assume variable numeric types for shadowed identifiers.
-            return new BoundIdentifierExpr(name, typeof(object));
+            return new BoundIdentifierExpr(name, new BoundType(typeof(object)));
         }
 
         context.TryGetVariableType(name, out var staticType);
-        if (staticType != typeof(object))
+        if (staticType.ClrType != typeof(object))
         {
             var isLocal = context.TryGetLocal(name, out _, out var localId);
             return new BoundIdentifierExpr(name, staticType, isLocal ? localId : null);
@@ -52,7 +52,7 @@ internal sealed partial class Binder
 
         var resolvedType = context.RuntimeContext.TypeResolver.TryResolveType(name);
         if (resolvedType != null)
-            return new BoundLiteralExpr(resolvedType, typeof(Type));
+            return new BoundLiteralExpr(resolvedType, new BoundType(typeof(Type)));
         return new BoundIdentifierExpr(name, staticType);
     }
 
@@ -61,15 +61,44 @@ internal sealed partial class Binder
         var elements = arrayLiteral.Elements
             .Select(element => Bind(element, context))
             .ToImmutableArray();
-        var arrayType = InferArrayLiteralType(elements);
-        return new BoundArrayLiteralExpr(elements, arrayType);
+        var arrayClrType = InferArrayLiteralType(elements);
+        var elementMemberTypes = InferCommonElementMemberTypes(elements);
+        var arrayBoundType = elementMemberTypes != null
+            ? new BoundType(arrayClrType, elementMemberTypes)
+            : new BoundType(arrayClrType);
+        return new BoundArrayLiteralExpr(elements, arrayBoundType);
+    }
+
+    private static ImmutableDictionary<string, Type>? InferCommonElementMemberTypes(ImmutableArray<BoundExpr> elements)
+    {
+        if (elements.Length == 0)
+            return null;
+
+        var first = elements[0].StaticType.MemberTypes;
+        if (first == null)
+            return null;
+
+        for (var i = 1; i < elements.Length; i++)
+        {
+            var other = elements[i].StaticType.MemberTypes;
+            if (other == null || other.Count != first.Count)
+                return null;
+
+            foreach (var kvp in first)
+            {
+                if (!other.TryGetValue(kvp.Key, out var otherType) || otherType != kvp.Value)
+                    return null;
+            }
+        }
+
+        return first;
     }
 
     private BoundSpreadExpr BindSpread(SpreadExpr spread, BindingContext context)
     {
         var expression = Bind(spread.Expression, context);
-        var elementType = InferElementType(expression.StaticType);
-        return new BoundSpreadExpr(expression, elementType);
+        var elementType = InferElementType(expression.StaticType.ClrType);
+        return new BoundSpreadExpr(expression, new BoundType(elementType));
     }
 
     private BoundObjectLiteralExpr BindObjectLiteral(ObjectLiteralExpr objectLiteral, BindingContext context)
@@ -93,7 +122,15 @@ internal sealed partial class Binder
             })
             .ToImmutableArray();
 
-        return new BoundObjectLiteralExpr(properties, typeof(System.Dynamic.ExpandoObject));
+        var hasSpread = properties.Any(static p => p.IsSpread);
+        var staticType = hasSpread
+            ? new BoundType(typeof(System.Dynamic.ExpandoObject))
+            : new BoundType(
+                typeof(System.Dynamic.ExpandoObject),
+                properties
+                    .Where(static p => p.PropertyName != null)
+                    .ToImmutableDictionary(static p => p.PropertyName!, static p => p.Value.StaticType.ClrType));
+        return new BoundObjectLiteralExpr(properties, staticType);
     }
 
     private BoundSliceExpr BindSlice(SliceExpr slice, BindingContext context)
@@ -102,8 +139,8 @@ internal sealed partial class Binder
         var start = slice.Start != null ? Bind(slice.Start, context) : null;
         var end = slice.End != null ? Bind(slice.End, context) : null;
         var step = slice.Step != null ? Bind(slice.Step, context) : null;
-        var sliceType = InferSliceType(target.StaticType);
-        return new BoundSliceExpr(target, start, end, step, sliceType);
+        var sliceType = InferSliceType(target.StaticType.ClrType);
+        return new BoundSliceExpr(target, start, end, step, new BoundType(sliceType));
     }
 
     private BoundObjectCreationExpr BindObjectCreation(ObjectCreationExpr objectCreation, BindingContext context)
@@ -121,7 +158,7 @@ internal sealed partial class Binder
             ]
             : ImmutableArray<BoundInitializerEntry>.Empty;
         var resolvedType = context.RuntimeContext.TypeResolver.TryResolveType(objectCreation.TypeName) ?? typeof(object);
-        return new BoundObjectCreationExpr(objectCreation.TypeName, arguments, initializerEntries, resolvedType);
+        return new BoundObjectCreationExpr(objectCreation.TypeName, arguments, initializerEntries, new BoundType(resolvedType));
     }
 
     private BoundTypedArrayCreationExpr BindTypedArrayCreation(TypedArrayCreationExpr typedArrayCreation, BindingContext context)
@@ -131,7 +168,7 @@ internal sealed partial class Binder
         var arrayType = elementType != null
             ? RuntimeArrayFactory.GetArrayType(elementType)
             : typeof(Array);
-        return new BoundTypedArrayCreationExpr(typedArrayCreation.ElementTypeName, size, arrayType);
+        return new BoundTypedArrayCreationExpr(typedArrayCreation.ElementTypeName, size, new BoundType(arrayType));
     }
 
     private BoundTypedArrayLiteralExpr BindTypedArrayLiteral(TypedArrayLiteralExpr typedArrayLiteral, BindingContext context)
@@ -143,7 +180,7 @@ internal sealed partial class Binder
         var arrayType = elementType != null
             ? RuntimeArrayFactory.GetArrayType(elementType)
             : typeof(Array);
-        return new BoundTypedArrayLiteralExpr(typedArrayLiteral.ElementTypeName, elements, arrayType);
+        return new BoundTypedArrayLiteralExpr(typedArrayLiteral.ElementTypeName, elements, new BoundType(arrayType));
     }
 
     private BoundTupleExpr BindTuple(TupleExpr tupleExpr, BindingContext context)
@@ -154,8 +191,8 @@ internal sealed partial class Binder
         var names = tupleExpr.Elements
             .Select(static element => element.Name)
             .ToImmutableArray();
-        var tupleType = CreateTupleStaticType(elements.Select(static element => element.StaticType).ToArray());
-        return new BoundTupleExpr(elements, names, tupleType);
+        var tupleType = CreateTupleStaticType(elements.Select(static element => element.StaticType.ClrType).ToArray());
+        return new BoundTupleExpr(elements, names, new BoundType(tupleType));
     }
 
     private BoundMultiDimTypedArrayCreationExpr BindMultiDimTypedArrayCreation(
@@ -169,7 +206,7 @@ internal sealed partial class Binder
         var arrayType = elementType != null
             ? RuntimeArrayFactory.GetArrayType(elementType, multiDimTypedArrayCreation.Sizes.Count)
             : typeof(Array);
-        return new BoundMultiDimTypedArrayCreationExpr(multiDimTypedArrayCreation.ElementTypeName, sizes, arrayType);
+        return new BoundMultiDimTypedArrayCreationExpr(multiDimTypedArrayCreation.ElementTypeName, sizes, new BoundType(arrayType));
     }
 
     private BoundMultiDimArrayInitExpr BindMultiDimArrayInit(
@@ -192,7 +229,7 @@ internal sealed partial class Binder
             explicitSizes,
             flatValues,
             multiDimArrayInit.InferredDimensions,
-            arrayType);
+            new BoundType(arrayType));
     }
 
     private BoundMultiDimIndexAccessExpr BindMultiDimIndexAccess(
@@ -203,10 +240,10 @@ internal sealed partial class Binder
         var indices = multiDimIndexAccess.Indices
             .Select(index => Bind(index, context))
             .ToImmutableArray();
-        var elementType = target.StaticType.IsArray
-            ? target.StaticType.GetElementType() ?? typeof(object)
+        var elementType = target.StaticType.ClrType.IsArray
+            ? target.StaticType.ClrType.GetElementType() ?? typeof(object)
             : typeof(object);
-        return new BoundMultiDimIndexAccessExpr(target, indices, multiDimIndexAccess.NullSafe, elementType);
+        return new BoundMultiDimIndexAccessExpr(target, indices, multiDimIndexAccess.NullSafe, new BoundType(elementType));
     }
 
     private BoundMultiDimIndexAssignExpr BindMultiDimIndexAssign(
@@ -260,13 +297,13 @@ internal sealed partial class Binder
             })
             .ToImmutableArray();
 
-        return new BoundInterpolatedStringExpr(parts, typeof(string));
+        return new BoundInterpolatedStringExpr(parts, new BoundType(typeof(string)));
     }
 
     private BoundIndexFromEndExpr BindIndexFromEnd(IndexFromEndExpr expr, BindingContext context)
     {
         var operand = Bind(expr.Operand, context);
-        return new BoundIndexFromEndExpr(operand, typeof(Index));
+        return new BoundIndexFromEndExpr(operand, new BoundType(typeof(Index)));
     }
 
     private BoundRangeExpr BindRange(RangeExpr rangeExpr, BindingContext context)
@@ -275,7 +312,7 @@ internal sealed partial class Binder
         var end = rangeExpr.End != null ? Bind(rangeExpr.End, context) : null;
         // Open-ended ranges produce System.Range, not IEnumerable<int>
         var resultType = start == null || end == null ? typeof(Range) : typeof(IEnumerable<int>);
-        return new BoundRangeExpr(start, end, rangeExpr.ExclusiveEnd, resultType);
+        return new BoundRangeExpr(start, end, rangeExpr.ExclusiveEnd, new BoundType(resultType));
     }
 
     private static Type InferArrayLiteralType(ImmutableArray<BoundExpr> elements)
@@ -283,13 +320,13 @@ internal sealed partial class Binder
         if (elements.Length == 0)
             return typeof(object[]);
 
-        var firstType = elements[0].StaticType;
+        var firstType = elements[0].StaticType.ClrType;
         if (firstType == typeof(object))
             return typeof(object[]);
 
         for (var i = 1; i < elements.Length; i++)
         {
-            if (elements[i].StaticType != firstType)
+            if (elements[i].StaticType.ClrType != firstType)
                 return typeof(object[]);
         }
 

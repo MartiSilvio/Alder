@@ -46,7 +46,7 @@ internal sealed partial class Binder
         EnsureVariableIsAssignable(incrementDecrement.Name.Lexeme, context);
         var staticType = context.TryGetVariableType(incrementDecrement.Name.Lexeme, out var variableType)
             ? variableType
-            : typeof(object);
+            : new BoundType(typeof(object));
         var isIdLocal = context.TryGetLocal(incrementDecrement.Name.Lexeme, out _, out var idLocalId);
         return new BoundIncrementDecrementExpr(
             incrementDecrement.Name.Lexeme,
@@ -66,7 +66,7 @@ internal sealed partial class Binder
     {
         var target = Bind(memberAssign.Object, context);
         var value = Bind(memberAssign.Value, context);
-        var plan = ResolveMemberPlan(target.StaticType, memberAssign.Name.Lexeme, context);
+        var plan = ResolveMemberPlan(target.StaticType.ClrType, memberAssign.Name.Lexeme, context);
         return new BoundMemberAssignExpr(target, memberAssign.Name.Lexeme, plan, value, value.StaticType);
     }
 
@@ -75,7 +75,7 @@ internal sealed partial class Binder
         var target = Bind(indexAssign.Object, context);
         var index = Bind(indexAssign.Index, context);
         var value = Bind(indexAssign.Value, context);
-        var plan = ResolveIndexPlan(target.StaticType, index.StaticType, context);
+        var plan = ResolveIndexPlan(target.StaticType.ClrType, index.StaticType.ClrType, context);
         return new BoundIndexAssignExpr(target, index, plan, value, value.StaticType);
     }
 
@@ -83,10 +83,10 @@ internal sealed partial class Binder
     {
         var target = Bind(memberCompoundAssign.Object, context);
         var value = Bind(memberCompoundAssign.Value, context);
-        var plan = ResolveMemberPlan(target.StaticType, memberCompoundAssign.MemberName, context);
+        var plan = ResolveMemberPlan(target.StaticType.ClrType, memberCompoundAssign.MemberName, context);
         var memberType = ExtractMemberType(plan);
         var staticType = memberType != typeof(object)
-            ? InferBinaryResultType(memberCompoundAssign.Operator, memberType, value.StaticType)
+            ? InferBinaryResultType(memberCompoundAssign.Operator, memberType, value.StaticType.ClrType)
             : typeof(object);
         return new BoundMemberCompoundAssignExpr(
             target,
@@ -94,7 +94,7 @@ internal sealed partial class Binder
             plan,
             memberCompoundAssign.Operator,
             value,
-            staticType);
+            new BoundType(staticType));
     }
 
     private BoundIndexCompoundAssignExpr BindIndexCompoundAssign(IndexCompoundAssignExpr indexCompoundAssign, BindingContext context)
@@ -102,12 +102,12 @@ internal sealed partial class Binder
         var target = Bind(indexCompoundAssign.Object, context);
         var index = Bind(indexCompoundAssign.Index, context);
         var value = Bind(indexCompoundAssign.Value, context);
-        var plan = ResolveIndexPlan(target.StaticType, index.StaticType, context);
-        var elementType = plan?.ResultType ?? ResolveIndexElementTypeFallback(target.StaticType);
+        var plan = ResolveIndexPlan(target.StaticType.ClrType, index.StaticType.ClrType, context);
+        var elementType = plan?.ResultType ?? ResolveIndexElementTypeFallback(target.StaticType.ClrType);
         var staticType = elementType != typeof(object)
-            ? InferBinaryResultType(indexCompoundAssign.Operator, elementType, value.StaticType)
+            ? InferBinaryResultType(indexCompoundAssign.Operator, elementType, value.StaticType.ClrType)
             : typeof(object);
-        return new BoundIndexCompoundAssignExpr(target, index, plan, indexCompoundAssign.Operator, value, staticType);
+        return new BoundIndexCompoundAssignExpr(target, index, plan, indexCompoundAssign.Operator, value, new BoundType(staticType));
     }
 
     private BoundMemberNullCoalesceAssignExpr BindMemberNullCoalesceAssign(
@@ -116,9 +116,9 @@ internal sealed partial class Binder
     {
         var target = Bind(memberNullCoalesceAssign.Object, context);
         var value = Bind(memberNullCoalesceAssign.Value, context);
-        var plan = ResolveMemberPlan(target.StaticType, memberNullCoalesceAssign.MemberName, context);
+        var plan = ResolveMemberPlan(target.StaticType.ClrType, memberNullCoalesceAssign.MemberName, context);
         var memberType = ExtractMemberType(plan);
-        return new BoundMemberNullCoalesceAssignExpr(target, memberNullCoalesceAssign.MemberName, plan, value, memberType);
+        return new BoundMemberNullCoalesceAssignExpr(target, memberNullCoalesceAssign.MemberName, plan, value, new BoundType(memberType));
     }
 
     private BoundIndexNullCoalesceAssignExpr BindIndexNullCoalesceAssign(
@@ -128,15 +128,15 @@ internal sealed partial class Binder
         var target = Bind(indexNullCoalesceAssign.Object, context);
         var index = Bind(indexNullCoalesceAssign.Index, context);
         var value = Bind(indexNullCoalesceAssign.Value, context);
-        var plan = ResolveIndexPlan(target.StaticType, index.StaticType, context);
-        var elementType = plan?.ResultType ?? ResolveIndexElementTypeFallback(target.StaticType);
-        return new BoundIndexNullCoalesceAssignExpr(target, index, plan, value, elementType);
+        var plan = ResolveIndexPlan(target.StaticType.ClrType, index.StaticType.ClrType, context);
+        var elementType = plan?.ResultType ?? ResolveIndexElementTypeFallback(target.StaticType.ClrType);
+        return new BoundIndexNullCoalesceAssignExpr(target, index, plan, value, new BoundType(elementType));
     }
 
     private BoundMemberIncrementExpr BindMemberIncrement(MemberIncrementExpr memberIncrement, BindingContext context)
     {
         var target = Bind(memberIncrement.Object, context);
-        var plan = ResolveMemberPlan(target.StaticType, memberIncrement.MemberName, context);
+        var plan = ResolveMemberPlan(target.StaticType.ClrType, memberIncrement.MemberName, context);
         var memberType = ExtractMemberType(plan);
         return new BoundMemberIncrementExpr(
             target,
@@ -144,22 +144,22 @@ internal sealed partial class Binder
             plan,
             memberIncrement.IsPrefix,
             memberIncrement.IsIncrement,
-            memberType);
+            new BoundType(memberType));
     }
 
     private BoundIndexIncrementExpr BindIndexIncrement(IndexIncrementExpr indexIncrement, BindingContext context)
     {
         var target = Bind(indexIncrement.Object, context);
         var index = Bind(indexIncrement.Index, context);
-        var plan = ResolveIndexPlan(target.StaticType, index.StaticType, context);
-        var elementType = plan?.ResultType ?? ResolveIndexElementTypeFallback(target.StaticType);
+        var plan = ResolveIndexPlan(target.StaticType.ClrType, index.StaticType.ClrType, context);
+        var elementType = plan?.ResultType ?? ResolveIndexElementTypeFallback(target.StaticType.ClrType);
         return new BoundIndexIncrementExpr(
             target,
             index,
             plan,
             indexIncrement.IsPrefix,
             indexIncrement.IsIncrement,
-            elementType);
+            new BoundType(elementType));
     }
 
     private BoundMemberPlan? ResolveMemberPlan(Type targetType, string memberName, BindingContext context)
@@ -168,7 +168,7 @@ internal sealed partial class Binder
             return null;
 
         var memberBinder = new MemberBinderService(context.RuntimeContext.TypeMetadata);
-        return memberBinder.TryBindMemberRead(targetType, memberName, false, context.IsCaseSensitive, out var plan)
+        return memberBinder.TryBindMemberRead(new BoundType(targetType), memberName, false, context.IsCaseSensitive, out var plan, out _)
             ? plan
             : null;
     }

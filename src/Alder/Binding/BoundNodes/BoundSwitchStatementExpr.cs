@@ -11,7 +11,7 @@ internal sealed record BoundSwitchCase(
 internal sealed record BoundSwitchStatementExpr(
     BoundExpr Expression,
     ImmutableArray<BoundSwitchCase> Cases,
-    Type StaticType) : BoundExpr(StaticType)
+    BoundType StaticType) : BoundExpr(StaticType)
 {
     internal override BoundNodeKind Kind => BoundNodeKind.SwitchStatement;
     internal override void EnumerateChildren(Action<BoundExpr> visit)

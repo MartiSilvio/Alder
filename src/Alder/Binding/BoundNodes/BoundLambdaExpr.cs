@@ -6,7 +6,7 @@ namespace Alder.Binding.BoundNodes;
 internal sealed record BoundLambdaExpr(
     ImmutableArray<string> Parameters,
     Expr Body,
-    Type StaticType) : BoundExpr(StaticType)
+    BoundType StaticType) : BoundExpr(StaticType)
 {
     internal override BoundNodeKind Kind => BoundNodeKind.Lambda;
     internal override void EnumerateChildren(Action<BoundExpr> visit) { }

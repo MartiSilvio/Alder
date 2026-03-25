@@ -158,6 +158,7 @@ internal static class OverloadResolver
 
         Type?[]? result = null;
         var sources = argMap.Sources;
+        var elementMemberTypes = TryExtractElementMemberTypes(args);
 
         for (var i = 0; i < args.Length; i++)
         {
@@ -173,9 +174,15 @@ internal static class OverloadResolver
             if (invoke == null || invoke.ReturnType == typeof(void))
                 continue;
 
-            var inputTypes = new Type[invoke.GetParameters().Length];
+            var invokeParams = invoke.GetParameters();
+            var inputTypes = new Binding.BoundType[invokeParams.Length];
             for (var j = 0; j < inputTypes.Length; j++)
-                inputTypes[j] = invoke.GetParameters()[j].ParameterType;
+            {
+                var paramType = invokeParams[j].ParameterType;
+                inputTypes[j] = elementMemberTypes != null && typeof(IDictionary<string, object?>).IsAssignableFrom(paramType)
+                    ? new Binding.BoundType(paramType, elementMemberTypes)
+                    : new Binding.BoundType(paramType);
+            }
 
             result ??= new Type?[args.Length];
             result[i] = ExtensionMethodResolver.InferLambdaReturnType(
@@ -183,6 +190,37 @@ internal static class OverloadResolver
         }
 
         return result;
+    }
+
+    private static System.Collections.Immutable.ImmutableDictionary<string, Type>? TryExtractElementMemberTypes(
+        ReadOnlySpan<ArgumentDescriptor> args)
+    {
+        for (var i = 0; i < args.Length; i++)
+        {
+            if (args[i].Kind != ArgumentKind.Value || args[i].RuntimeValue == null)
+                continue;
+
+            if (args[i].RuntimeValue is not System.Collections.IEnumerable enumerable)
+                continue;
+
+            var enumerator = enumerable.GetEnumerator();
+            try
+            {
+                if (!enumerator.MoveNext() || enumerator.Current is not IDictionary<string, object?> dict)
+                    return null;
+
+                var builder = System.Collections.Immutable.ImmutableDictionary.CreateBuilder<string, Type>();
+                foreach (var kvp in dict)
+                    builder[kvp.Key] = kvp.Value?.GetType() ?? typeof(object);
+                return builder.ToImmutable();
+            }
+            finally
+            {
+                (enumerator as IDisposable)?.Dispose();
+            }
+        }
+
+        return null;
     }
 
     private static int FindParameterForArgument(ImmutableArray<ParameterSource> sources, int argIndex)

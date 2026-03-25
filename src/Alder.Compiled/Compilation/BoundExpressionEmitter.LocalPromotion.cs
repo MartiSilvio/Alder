@@ -66,9 +66,9 @@ internal sealed partial class BoundExpressionEmitter
             }
 
             if (node is BoundVariableDeclExpr decl
-                && !decl.IsConst && decl.StaticType != typeof(object) && decl.LocalId is { } id)
+                && !decl.IsConst && decl.StaticType.ClrType != typeof(object) && decl.LocalId is { } id)
             {
-                var variableType = decl.DeclaredType ?? decl.StaticType;
+                var variableType = decl.DeclaredType ?? decl.StaticType.ClrType;
                 Result[id] = new PromotedLocal(
                     decl.Name,
                     LinqExpression.Variable(typeof(object), $"local_{decl.Name}"),

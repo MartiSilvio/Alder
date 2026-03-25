@@ -13,40 +13,66 @@ internal sealed class MemberBinderService
         _typeMetadata = typeMetadata;
     }
 
-    public bool TryBindMemberRead(Type targetType, string memberName, bool isStatic, bool isCaseSensitive, out BoundMemberPlan? plan)
+    public bool TryBindMemberRead(BoundType targetType, string memberName, bool isStatic, bool isCaseSensitive, out BoundMemberPlan? plan, out Type? resolvedType)
+    {
+        if (TryBindMemberReadFromClrType(targetType.ClrType, memberName, isStatic, isCaseSensitive, out plan, out resolvedType))
+            return true;
+
+        if (targetType.HasStructuralMembers)
+        {
+            var comparer = isCaseSensitive ? StringComparer.Ordinal : StringComparer.OrdinalIgnoreCase;
+            foreach (var kvp in targetType.MemberTypes!)
+            {
+                if (comparer.Equals(kvp.Key, memberName))
+                {
+                    resolvedType = kvp.Value;
+                    plan = new BoundMemberPlan(targetType.ClrType, memberName, Member: null, IsMethodGroup: false, isStatic);
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private bool TryBindMemberReadFromClrType(Type clrType, string memberName, bool isStatic, bool isCaseSensitive, out BoundMemberPlan? plan, out Type? resolvedType)
     {
         var flags = BindingFlags.Public | (isStatic ? BindingFlags.Static : BindingFlags.Instance);
         if (!isCaseSensitive)
             flags |= BindingFlags.IgnoreCase;
 
-        var property = _typeMetadata.GetProperty(targetType, memberName, flags);
+        var property = _typeMetadata.GetProperty(clrType, memberName, flags);
         if (property != null)
         {
-            plan = new BoundMemberPlan(targetType, memberName, property, IsMethodGroup: false, isStatic);
+            plan = new BoundMemberPlan(clrType, memberName, property, IsMethodGroup: false, isStatic);
+            resolvedType = property.PropertyType;
             return true;
         }
 
-        var field = _typeMetadata.GetField(targetType, memberName, flags);
+        var field = _typeMetadata.GetField(clrType, memberName, flags);
         if (field != null)
         {
-            plan = new BoundMemberPlan(targetType, memberName, field, IsMethodGroup: false, isStatic);
+            plan = new BoundMemberPlan(clrType, memberName, field, IsMethodGroup: false, isStatic);
+            resolvedType = field.FieldType;
             return true;
         }
 
-        var hasMethods = _typeMetadata.GetMethods(targetType, memberName, flags).Length > 0;
+        var hasMethods = _typeMetadata.GetMethods(clrType, memberName, flags).Length > 0;
         if (hasMethods)
         {
-            plan = new BoundMemberPlan(targetType, memberName, Member: null, IsMethodGroup: true, isStatic);
+            plan = new BoundMemberPlan(clrType, memberName, Member: null, IsMethodGroup: true, isStatic);
+            resolvedType = null;
             return true;
         }
 
         plan = null;
+        resolvedType = null;
         return false;
     }
 
     public BoundMemberPlan BindMemberRead(Type targetType, string memberName, bool isStatic, bool isCaseSensitive)
     {
-        if (TryBindMemberRead(targetType, memberName, isStatic, isCaseSensitive, out var plan))
+        if (TryBindMemberReadFromClrType(targetType, memberName, isStatic, isCaseSensitive, out var plan, out _))
             return plan!;
 
         throw new AlderException(DiagnosticDescriptors.MemberNotFound, targetType.Name, memberName);

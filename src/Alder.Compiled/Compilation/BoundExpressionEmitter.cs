@@ -224,12 +224,12 @@ internal sealed partial class BoundExpressionEmitter
 
                 case BoundNodeKind.Identifier:
                     var identifier = (BoundIdentifierExpr)expr;
-                    if (identifier.StaticType == typeof(object)) return false;
+                    if (identifier.StaticType.ClrType == typeof(object)) return false;
 
                     if (usage.TryGetValue(identifier.Name, out var entry))
                         usage[identifier.Name] = (entry.Type, entry.Count + 1);
                     else
-                        usage[identifier.Name] = (identifier.StaticType, 1);
+                        usage[identifier.Name] = (identifier.StaticType.ClrType, 1);
                     return true;
 
                 case BoundNodeKind.BinaryOperator:
