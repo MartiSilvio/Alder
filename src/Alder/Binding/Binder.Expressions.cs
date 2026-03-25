@@ -40,12 +40,10 @@ internal sealed partial class Binder
             return new BoundIdentifierExpr(name, BoundType.Unknown);
         }
 
+        if (context.TryGetLocal(name, out var localType, out var localId))
+            return new BoundIdentifierExpr(name, localType, localId);
+
         context.TryGetVariableType(name, out var staticType);
-        if (staticType.ClrType != typeof(object))
-        {
-            var isLocal = context.TryGetLocal(name, out _, out var localId);
-            return new BoundIdentifierExpr(name, staticType, isLocal ? localId : null);
-        }
 
         var resolvedType = context.RuntimeContext.TypeResolver.TryResolveType(name);
         if (resolvedType != null)

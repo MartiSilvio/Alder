@@ -81,8 +81,9 @@ public sealed class AlderExpression
             return cached.Bound;
         }
 
+        var bindingContext = new BindingContext(context);
         var binder = new Binder(new Text.SourceText(Source), recovering: true);
-        var bound = binder.Bind(Ast, new BindingContext(context));
+        var bound = binder.Bind(Ast, bindingContext);
 
         var diagnostics = binder.GetAccumulatedDiagnostics();
         if (bound.HasErrors || diagnostics.Count > 0)
@@ -96,9 +97,15 @@ public sealed class AlderExpression
             throw ex;
         }
 
+        var entry = new CachedBoundExpression(currentVersion, bound, bindingContext.LocalCount);
         _boundExpressionCacheByContext.Remove(context);
-        _boundExpressionCacheByContext.Add(context, new CachedBoundExpression(currentVersion, bound));
+        _boundExpressionCacheByContext.Add(context, entry);
         return bound;
+    }
+
+    internal int GetLocalCount(AlderContext context)
+    {
+        return _boundExpressionCacheByContext.TryGetValue(context, out var cached) ? cached.LocalCount : 0;
     }
 
     internal bool TryGetOrCreateBoundExpression(AlderContext context, out BoundExpr? bound, out string? failureReason)
@@ -144,7 +151,7 @@ public sealed class AlderExpression
         return collector.Diagnostics;
     }
 
-    private sealed record CachedBoundExpression(int Version, BoundExpr Bound);
+    private sealed record CachedBoundExpression(int Version, BoundExpr Bound, int LocalCount);
 }
 
 /// <summary>

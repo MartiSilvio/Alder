@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using Alder.Binding;
 using Alder.Binding.BoundNodes;
 using Alder.Diagnostics;
@@ -90,7 +91,7 @@ internal sealed partial class BoundEvaluator
         return expr.Kind switch
         {
             BoundNodeKind.Literal => ((BoundLiteralExpr)expr).Value,
-            BoundNodeKind.Identifier => IdentifierRuntime.ResolveIdentifier(((BoundIdentifierExpr)expr).Name, _context, _config),
+            BoundNodeKind.Identifier => EvaluateIdentifier((BoundIdentifierExpr)expr),
             BoundNodeKind.Conversion => EvaluateCast((BoundCastExpr)expr),
             BoundNodeKind.AsOperator => EvaluateAs((BoundAsExpr)expr),
             BoundNodeKind.IsPatternExpression => EvaluateIsPattern((BoundIsPatternExpr)expr),
@@ -161,6 +162,15 @@ internal sealed partial class BoundEvaluator
             _ => throw new BindingNotSupportedException(
                 $"Bound execution for node '{expr.GetType().Name}' is not implemented")
         };
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private object? EvaluateIdentifier(BoundIdentifierExpr identifier)
+    {
+        if (identifier.LocalId != null)
+            return _context.Get(identifier.Name);
+
+        return IdentifierRuntime.ResolveIdentifier(identifier.Name, _context, _config);
     }
 
     private object? MatchPattern(object? value, Pattern pattern)

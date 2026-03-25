@@ -28,19 +28,22 @@ internal sealed partial class BoundEvaluator
 
         var newValue = Evaluate(nullCoalesceAssign.Value);
         _context.Set(name, newValue);
+
         return newValue;
     }
 
     private object? EvaluateCompoundAssign(BoundCompoundAssignExpr compoundAssign)
     {
         var rightValue = Evaluate(compoundAssign.Value);
-        return AssignmentRuntime.ApplyCompoundAssign(
+        var result = AssignmentRuntime.ApplyCompoundAssign(
             compoundAssign.Name,
             compoundAssign.Operator,
             rightValue,
             _context,
             _config,
             _isChecked);
+
+        return result;
     }
 
     private object? EvaluateIncrementDecrement(BoundIncrementDecrementExpr incrementDecrement)
