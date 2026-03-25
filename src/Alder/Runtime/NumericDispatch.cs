@@ -624,9 +624,70 @@ internal static class NumericDispatch
         };
     }
 
+    public static object Add(object left, object right, Type promotedType, bool isChecked)
+        => ExecutePromotedBinaryOp(left, right, promotedType, isChecked ? CheckedAddOps : AddOps, "+");
+
+    public static object Subtract(object left, object right, Type promotedType, bool isChecked)
+        => ExecutePromotedBinaryOp(left, right, promotedType, isChecked ? CheckedSubtractOps : SubtractOps, "-");
+
+    public static object Multiply(object left, object right, Type promotedType, bool isChecked)
+        => ExecutePromotedBinaryOp(left, right, promotedType, isChecked ? CheckedMultiplyOps : MultiplyOps, "*");
+
+    public static object Divide(object left, object right, Type promotedType)
+        => ExecutePromotedBinaryOp(left, right, promotedType, DivideOps, "/");
+
+    public static object Modulo(object left, object right, Type promotedType)
+        => ExecutePromotedBinaryOp(left, right, promotedType, ModuloOps, "%");
+
+    public static object BitwiseAnd(object left, object right, Type promotedType)
+        => ExecutePromotedBinaryOp(left, right, promotedType, BitwiseAndOps, "&");
+
+    public static object BitwiseOr(object left, object right, Type promotedType)
+        => ExecutePromotedBinaryOp(left, right, promotedType, BitwiseOrOps, "|");
+
+    public static object BitwiseXor(object left, object right, Type promotedType)
+        => ExecutePromotedBinaryOp(left, right, promotedType, BitwiseXorOps, "^");
+
+    public static object? Negate(object value, Type promotedType, bool isChecked)
+    {
+        var promoted = PromoteToType(value, promotedType)!;
+        var ops = isChecked ? CheckedNegateOps : NegateOps;
+        if (ops.TryGetValue(promotedType, out var op))
+            return op(promoted);
+
+        return Negate(value, isChecked);
+    }
+
+    public static object? BitwiseNot(object value, Type promotedType)
+    {
+        var promoted = PromoteToType(value, promotedType)!;
+        if (BitwiseNotOps.TryGetValue(promotedType, out var op))
+            return op(promoted);
+
+        return BitwiseNot(value);
+    }
+
+    public static object? UnaryPlus(object value, Type promotedType)
+    {
+        return PromoteToType(value, promotedType);
+    }
+
     #endregion
 
     #region Builder Helpers
+
+    private static object ExecutePromotedBinaryOp(
+        object left, object right,
+        Type promotedType,
+        FixedDictionary<(Type, Type), BinaryOp> ops,
+        string opName)
+    {
+        var key = (promotedType, promotedType);
+        if (ops.TryGetValue(key, out var op))
+            return op(PromoteToType(left, promotedType)!, PromoteToType(right, promotedType)!);
+
+        throw new AlderException(DiagnosticDescriptors.BadBinaryOps, opName, left.GetType().Name, right.GetType().Name);
+    }
 
     private static object ExecuteBinaryOp(
         object left, object right,

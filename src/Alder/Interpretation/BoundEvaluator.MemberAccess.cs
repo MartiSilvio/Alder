@@ -1,7 +1,9 @@
+using System.Collections;
 using System.Collections.Immutable;
 using System.Reflection;
 using Alder.Binding;
 using Alder.Binding.BoundNodes;
+using Alder.Binding.Plans;
 using Alder.Diagnostics;
 using Alder.Runtime;
 using Alder.Runtime.Extensions;
@@ -21,8 +23,48 @@ internal sealed partial class BoundEvaluator
         var target = Evaluate(memberAccess.Target);
         if (memberAccess.NullSafe && target == null)
             return null;
-        return MemberAccess.GetMember(target, memberAccess.MemberName, _config,
-            nullSafe: memberAccess.NullSafe, _context);
+        return ResolveMemberWithPlan(target, memberAccess.Plan, memberAccess.MemberName, memberAccess.NullSafe);
+    }
+
+    private object? ResolveMemberWithPlan(object? target, BoundMemberPlan? plan, string memberName, bool nullSafe)
+    {
+        if (plan == null)
+            return MemberAccess.GetMember(target, memberName, _config, nullSafe, _context);
+
+        if (target == null)
+            throw new AlderException(DiagnosticDescriptors.NullMemberAccess, "property", memberName);
+
+        if (plan.IsMethodGroup)
+        {
+            return plan.IsStatic
+                ? new StaticMethodRef(plan.DeclaringType, memberName)
+                : new MethodRef(target, memberName);
+        }
+
+        if (plan.Member is PropertyInfo property)
+        {
+            if (plan.IsStatic)
+                return TypeHelpers.GuardReflectionLeak(property.GetValue(null), $"static property {memberName}");
+
+            if (plan.DeclaringType.IsAssignableFrom(target.GetType()))
+                return TypeHelpers.GuardReflectionLeak(
+                    _context.TypeMetadata.GetPropertyValue(property, target), $"property {memberName}");
+
+            return MemberAccess.GetMember(target, memberName, _config, nullSafe, _context);
+        }
+
+        if (plan.Member is FieldInfo field)
+        {
+            if (plan.IsStatic)
+                return TypeHelpers.GuardReflectionLeak(field.GetValue(null), $"static field {memberName}");
+
+            if (plan.DeclaringType.IsAssignableFrom(target.GetType()))
+                return TypeHelpers.GuardReflectionLeak(field.GetValue(target), $"field {memberName}");
+
+            return MemberAccess.GetMember(target, memberName, _config, nullSafe, _context);
+        }
+
+        return MemberAccess.GetMember(target, memberName, _config, nullSafe, _context);
     }
 
     private object? EvaluateIndexAccess(BoundIndexAccessExpr indexAccess)
@@ -35,6 +77,28 @@ internal sealed partial class BoundEvaluator
             throw new AlderException(DiagnosticDescriptors.BadIndexerAccess, TypeNameFormatter.Null);
 
         var index = Evaluate(indexAccess.Index);
+
+        if (indexAccess.Plan is { IsDirectCollectionAccess: true })
+        {
+            switch (target)
+            {
+                case string s when index != null:
+                {
+                    var i = MemberAccess.NormalizeIndex(Convert.ToInt32(index), s.Length, _config.LanguageMode);
+                    return (object)s[i];
+                }
+                case IList list when index != null:
+                {
+                    var i = MemberAccess.NormalizeIndex(Convert.ToInt32(index), list.Count, _config.LanguageMode);
+                    return TypeHelpers.GuardReflectionLeak(list[i], $"index [{i}]");
+                }
+                case IDictionary<string, object?> dict when index is string key:
+                    return dict.TryGetValue(key, out var value)
+                        ? TypeHelpers.GuardReflectionLeak(value, $"index [{key}]")
+                        : null;
+            }
+        }
+
         return MemberAccess.GetIndex(target, index, _config, _context);
     }
 
@@ -209,8 +273,7 @@ internal sealed partial class BoundEvaluator
             {
                 var ma = seg.MemberAccess;
                 if (ma.NullSafe && result == null) return null;
-                result = MemberAccess.GetMember(result, ma.MemberName, _config,
-                    nullSafe: ma.NullSafe, _context);
+                result = ResolveMemberWithPlan(result, ma.Plan, ma.MemberName, ma.NullSafe);
             }
         }
 

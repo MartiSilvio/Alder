@@ -48,7 +48,7 @@ internal sealed partial class Binder
             var diagnostic = NormalizeDiagnostic(ex, expr);
             _diagnostics ??= new List<AlderDiagnostic>();
             _diagnostics.Add(diagnostic);
-            return new BoundLiteralExpr(null, new BoundType(typeof(object)))
+            return new BoundLiteralExpr(null, BoundType.Unknown)
             {
                 HasErrors = true,
                 Diagnostic = diagnostic,
@@ -101,12 +101,12 @@ internal sealed partial class Binder
                 TryCatchFinallyExpr tryCatchFinally => BindTryCatchFinally(tryCatchFinally, context),
                 CheckedExpr checkedExpr => BindCheckedExpr(checkedExpr, context),
                 ChainedComparisonExpr chainedComparison => BindChainedComparison(chainedComparison, context),
-                BreakExpr => new BoundBreakExpr(new BoundType(typeof(object))),
-                ContinueExpr => new BoundContinueExpr(new BoundType(typeof(object))),
-                GotoExpr gotoExpr => new BoundGotoExpr(gotoExpr.Label, new BoundType(typeof(object))),
-                GotoCaseExpr gotoCaseExpr => new BoundGotoCaseExpr(Bind(gotoCaseExpr.Value, context), new BoundType(typeof(object))),
-                GotoDefaultExpr => new BoundGotoDefaultExpr(new BoundType(typeof(object))),
-                LabelExpr labelExpr => new BoundLabelExpr(labelExpr.Name, new BoundType(typeof(object))),
+                BreakExpr => new BoundBreakExpr(BoundType.Void),
+                ContinueExpr => new BoundContinueExpr(BoundType.Void),
+                GotoExpr gotoExpr => new BoundGotoExpr(gotoExpr.Label, BoundType.Void),
+                GotoCaseExpr gotoCaseExpr => new BoundGotoCaseExpr(Bind(gotoCaseExpr.Value, context), BoundType.Void),
+                GotoDefaultExpr => new BoundGotoDefaultExpr(BoundType.Void),
+                LabelExpr labelExpr => new BoundLabelExpr(labelExpr.Name, BoundType.Void),
                 VariableDeclExpr variableDecl => BindVariableDecl(variableDecl, context),
                 AssignExpr assign => BindAssign(assign, context),
                 NullCoalesceAssignExpr nullCoalesceAssign => BindNullCoalesceAssign(nullCoalesceAssign, context),
@@ -122,7 +122,7 @@ internal sealed partial class Binder
                 IndexIncrementExpr indexIncrement => BindIndexIncrement(indexIncrement, context),
                 NewExpr newExpr => Bind(newExpr.Initializer, context),
                 ThrowExpr throwExpr => BindThrowExpr(throwExpr, context),
-                ThrowStatementExpr => new BoundThrowStatementExpr(new BoundType(typeof(object))),
+                ThrowStatementExpr => new BoundThrowStatementExpr(BoundType.Void),
                 ReturnExpr returnExpr => BindReturn(returnExpr, context),
                 MemberAccessExpr memberAccess => BindMemberAccess(memberAccess, context),
                 IndexAccessExpr indexAccess => BindIndexAccess(indexAccess, context),

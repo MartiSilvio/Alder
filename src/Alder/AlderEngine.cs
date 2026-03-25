@@ -222,6 +222,12 @@ public sealed partial class AlderEngine : IDisposable
     private static readonly Pipeline.BoundTreePipeline SecurityOnlyPipeline =
         Pipeline.BoundTreePipeline.Create(Security.SecurityValidationPass.Instance);
 
+    private static readonly Pipeline.BoundTreePipeline InterpretationPipeline =
+        Pipeline.BoundTreePipeline.Create(
+            Security.SecurityValidationPass.Instance,
+            new Binding.Optimization.ConstantFoldingPass(),
+            new Binding.Optimization.DeadBranchEliminationPass());
+
     private Pipeline.BoundTreePipeline? _compilationPipeline;
     private Pipeline.BoundTreePipeline GetOrCreateCompilationPipeline()
     {
@@ -233,6 +239,12 @@ public sealed partial class AlderEngine : IDisposable
     }
 
     private Binding.BoundExpr RunPipeline(Binding.BoundExpr tree, CancellationToken ct = default)
+    {
+        var context = new Pipeline.PipelineContext(_config.Security, ct);
+        return InterpretationPipeline.Execute(tree, context);
+    }
+
+    private Binding.BoundExpr RunSecurityOnlyPipeline(Binding.BoundExpr tree, CancellationToken ct = default)
     {
         var context = new Pipeline.PipelineContext(_config.Security, ct);
         return SecurityOnlyPipeline.Execute(tree, context);

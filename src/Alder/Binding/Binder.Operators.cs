@@ -11,7 +11,9 @@ internal sealed partial class Binder
     {
         var expression = Bind(cast.Expression, context);
         var targetType = context.RuntimeContext.TypeResolver.ResolveType(cast.TargetType.Lexeme);
-        var sourceStaticType = cast.Expression is IdentifierExpr ? expression.StaticType.ClrType : null;
+        var sourceStaticType = cast.Expression is IdentifierExpr && expression.StaticType is not BoundUnknownType
+            ? expression.StaticType.ClrType
+            : (Type?)null;
         return new BoundCastExpr(expression, targetType, sourceStaticType, new BoundType(targetType));
     }
 
@@ -45,11 +47,12 @@ internal sealed partial class Binder
             var right = Bind(link.Right, context);
             if (result.HasErrors || right.HasErrors)
             {
-                result = new BoundBinaryExpr(link.Op.Type, result, right, new BoundType(typeof(object))) { Span = link.Span, HasErrors = true };
+                result = new BoundBinaryExpr(link.Op.Type, result, right, BoundType.Unknown) { Span = link.Span, HasErrors = true };
                 continue;
             }
-            var resultType = InferBinaryResultType(link.Op.Type, result.StaticType.ClrType, right.StaticType.ClrType);
-            result = new BoundBinaryExpr(link.Op.Type, result, right, new BoundType(resultType))
+            var resultClrType = InferBinaryResultType(link.Op.Type, result.StaticType, right.StaticType);
+            var resultType = resultClrType == typeof(object) ? BoundType.Unknown : new BoundType(resultClrType);
+            result = new BoundBinaryExpr(link.Op.Type, result, right, resultType)
             {
                 Span = link.Span,
                 PromotedType = ComputeBinaryPromotedType(link.Op.Type, result, right)
@@ -63,7 +66,7 @@ internal sealed partial class Binder
     {
         var operand = Bind(unary.Right, context);
         if (operand.HasErrors)
-            return new BoundUnaryExpr(unary.Op.Type, operand, new BoundType(typeof(object))) { HasErrors = true };
+            return new BoundUnaryExpr(unary.Op.Type, operand, BoundType.Unknown) { HasErrors = true };
 
         // ECMA-334 §6.4.5.3: -2147483648 (literal) is int; -9223372036854775808L is long
         if (unary.Op.Type == TokenType.Minus && operand is BoundLiteralExpr literal)
@@ -145,7 +148,7 @@ internal sealed partial class Binder
             var right = Bind(link.Right, context);
             if (result.HasErrors || right.HasErrors)
             {
-                result = new BoundNullCoalesceExpr(result, right, new BoundType(typeof(object))) { Span = link.Span, HasErrors = true };
+                result = new BoundNullCoalesceExpr(result, right, BoundType.Unknown) { Span = link.Span, HasErrors = true };
                 continue;
             }
             result = new BoundNullCoalesceExpr(result, right, new BoundType(GetCommonType(result.StaticType.ClrType, right.StaticType.ClrType))) { Span = link.Span };
@@ -160,7 +163,7 @@ internal sealed partial class Binder
         var thenBranch = Bind(conditional.ThenBranch, context);
         var elseBranch = Bind(conditional.ElseBranch, context);
         if (condition.HasErrors || thenBranch.HasErrors || elseBranch.HasErrors)
-            return new BoundConditionalExpr(condition, thenBranch, elseBranch, new BoundType(typeof(object))) { HasErrors = true };
+            return new BoundConditionalExpr(condition, thenBranch, elseBranch, BoundType.Unknown) { HasErrors = true };
         return new BoundConditionalExpr(
             condition,
             thenBranch,
@@ -185,8 +188,11 @@ internal sealed partial class Binder
         return new BoundChainedComparisonExpr(operands, operators, new BoundType(typeof(bool)));
     }
 
-    private static Type InferBinaryResultType(TokenType op, Type leftType, Type rightType)
+    private static Type InferBinaryResultType(TokenType op, BoundType left, BoundType right)
     {
+        var leftType = left.ClrType;
+        var rightType = right.ClrType;
+
         if (op is TokenType.EqualEqual or TokenType.BangEqual or TokenType.EqualEqualEqual or TokenType.BangEqualEqual or
             TokenType.Less or TokenType.LessEqual or TokenType.Greater or TokenType.GreaterEqual or
             TokenType.In or TokenType.Like or TokenType.EqualTilde or TokenType.BangTilde)
@@ -200,18 +206,21 @@ internal sealed partial class Binder
         if (op == TokenType.Plus && (leftType == typeof(string) || rightType == typeof(string)))
             return typeof(string);
 
-        // Extended-mode ** delegates to Math.Pow which always returns double
         if (op == TokenType.StarStar)
             return typeof(double);
 
         if (TypeHelpers.IsArithmetic(leftType) && TypeHelpers.IsArithmetic(rightType))
             return InferArithmeticResultType(leftType, rightType, op);
 
-        // When one operand is object (dynamic dispatch), the result type is determined
-        // by the known operand — the operation can only succeed as that numeric type.
-        if (leftType == typeof(object) && TypeHelpers.IsArithmetic(rightType))
+        // When one operand is genuinely typed as object (not BoundUnknownType), we can
+        // infer the result from the known arithmetic operand. This is needed for lambda
+        // return type inference during overload resolution, where parameters are typed
+        // as object but the other operand has a concrete type.
+        // When unknown, the runtime type could be anything — inferring a specific type
+        // would mislead downstream PromotedType into truncating the actual runtime value.
+        if (left is not BoundUnknownType && leftType == typeof(object) && TypeHelpers.IsArithmetic(rightType))
             return InferArithmeticResultType(rightType, rightType, op);
-        if (rightType == typeof(object) && TypeHelpers.IsArithmetic(leftType))
+        if (right is not BoundUnknownType && rightType == typeof(object) && TypeHelpers.IsArithmetic(leftType))
             return InferArithmeticResultType(leftType, leftType, op);
 
         return typeof(object);

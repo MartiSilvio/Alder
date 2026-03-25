@@ -23,7 +23,7 @@ internal sealed partial class Binder
     private static BoundLiteralExpr BindDefault(DefaultExpr defaultExpr, BindingContext context)
     {
         if (defaultExpr.TypeToken == null)
-            return new BoundLiteralExpr(null, new BoundType(typeof(object)));
+            return new BoundLiteralExpr(null, BoundType.Unknown);
 
         var resolvedType = context.RuntimeContext.TypeResolver.ResolveType(defaultExpr.TypeToken.Value.Lexeme);
         var value = TypeHelpers.GetDefaultValue(resolvedType);
@@ -37,10 +37,7 @@ internal sealed partial class Binder
         if (context.RuntimeContext.Functions.ContainsKey(name) ||
             context.RuntimeContext.Modules.ContainsKey(name))
         {
-            // Runtime resolution gives functions/modules precedence over variables.
-            // Keep static type as object so compiled binding does not incorrectly
-            // assume variable numeric types for shadowed identifiers.
-            return new BoundIdentifierExpr(name, new BoundType(typeof(object)));
+            return new BoundIdentifierExpr(name, BoundType.Unknown);
         }
 
         context.TryGetVariableType(name, out var staticType);
@@ -64,7 +61,7 @@ internal sealed partial class Binder
         var arrayClrType = InferArrayLiteralType(elements);
         var elementMemberTypes = InferCommonElementMemberTypes(elements);
         var arrayBoundType = elementMemberTypes != null
-            ? new BoundType(arrayClrType, elementMemberTypes)
+            ? new BoundStructuralType(arrayClrType, elementMemberTypes)
             : new BoundType(arrayClrType);
         return new BoundArrayLiteralExpr(elements, arrayBoundType);
     }
@@ -125,7 +122,7 @@ internal sealed partial class Binder
         var hasSpread = properties.Any(static p => p.IsSpread);
         var staticType = hasSpread
             ? new BoundType(typeof(System.Dynamic.ExpandoObject))
-            : new BoundType(
+            : new BoundStructuralType(
                 typeof(System.Dynamic.ExpandoObject),
                 properties
                     .Where(static p => p.PropertyName != null)

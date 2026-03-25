@@ -60,7 +60,7 @@ internal sealed class BindingContext
         if (_parent != null)
             return _parent.TryGetLocal(name, out type, out localId);
 
-        type = new BoundType(typeof(object));
+        type = BoundType.Unknown;
         localId = -1;
         return false;
     }
@@ -82,7 +82,7 @@ internal sealed class BindingContext
             return true;
         }
 
-        type = new BoundType(typeof(object));
+        type = BoundType.Unknown;
         return false;
     }
 }

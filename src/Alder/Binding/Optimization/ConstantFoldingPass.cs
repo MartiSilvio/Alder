@@ -46,26 +46,29 @@ internal sealed class ConstantFoldingPass : BoundExprRewriter
             binary.Right is not BoundLiteralExpr { Value: not null } right)
             return binary;
 
+        var leftIsNumeric = TypeHelpers.IsArithmetic(left.Value);
+        var rightIsNumeric = TypeHelpers.IsArithmetic(right.Value);
+
         try
         {
             var result = binary.Operator switch
             {
-                TokenType.Plus => FoldAdd(left.Value, right.Value),
-                TokenType.Minus => NumericDispatch.Subtract(left.Value, right.Value),
-                TokenType.Star => NumericDispatch.Multiply(left.Value, right.Value),
-                TokenType.Slash => NumericDispatch.Divide(left.Value, right.Value),
-                TokenType.Percent => NumericDispatch.Modulo(left.Value, right.Value),
+                TokenType.Plus => FoldAdd(left.Value, right.Value, leftIsNumeric, rightIsNumeric),
+                TokenType.Minus when leftIsNumeric && rightIsNumeric => NumericDispatch.Subtract(left.Value, right.Value),
+                TokenType.Star when leftIsNumeric && rightIsNumeric => NumericDispatch.Multiply(left.Value, right.Value),
+                TokenType.Slash when leftIsNumeric && rightIsNumeric => NumericDispatch.Divide(left.Value, right.Value),
+                TokenType.Percent when leftIsNumeric && rightIsNumeric => NumericDispatch.Modulo(left.Value, right.Value),
                 TokenType.EqualEqual => Operators.Equals(left.Value, right.Value),
                 TokenType.BangEqual => Operators.NotEquals(left.Value, right.Value),
-                TokenType.Less => FoldComparison(left.Value, right.Value, TokenType.Less),
-                TokenType.Greater => FoldComparison(left.Value, right.Value, TokenType.Greater),
-                TokenType.LessEqual => FoldComparison(left.Value, right.Value, TokenType.LessEqual),
-                TokenType.GreaterEqual => FoldComparison(left.Value, right.Value, TokenType.GreaterEqual),
-                TokenType.Amp => Operators.BitwiseAnd(left.Value, right.Value),
-                TokenType.Pipe => Operators.BitwiseOr(left.Value, right.Value),
-                TokenType.Caret => Operators.BitwiseXor(left.Value, right.Value),
-                TokenType.LessLess => Operators.LeftShift(left.Value, right.Value),
-                TokenType.GreaterGreater => Operators.RightShift(left.Value, right.Value),
+                TokenType.Less when leftIsNumeric && rightIsNumeric => FoldComparison(left.Value, right.Value, TokenType.Less),
+                TokenType.Greater when leftIsNumeric && rightIsNumeric => FoldComparison(left.Value, right.Value, TokenType.Greater),
+                TokenType.LessEqual when leftIsNumeric && rightIsNumeric => FoldComparison(left.Value, right.Value, TokenType.LessEqual),
+                TokenType.GreaterEqual when leftIsNumeric && rightIsNumeric => FoldComparison(left.Value, right.Value, TokenType.GreaterEqual),
+                TokenType.Amp when leftIsNumeric && rightIsNumeric => Operators.BitwiseAnd(left.Value, right.Value),
+                TokenType.Pipe when leftIsNumeric && rightIsNumeric => Operators.BitwiseOr(left.Value, right.Value),
+                TokenType.Caret when leftIsNumeric && rightIsNumeric => Operators.BitwiseXor(left.Value, right.Value),
+                TokenType.LessLess when leftIsNumeric && rightIsNumeric => Operators.LeftShift(left.Value, right.Value),
+                TokenType.GreaterGreater when leftIsNumeric && rightIsNumeric => Operators.RightShift(left.Value, right.Value),
                 _ => null
             };
 
@@ -158,10 +161,12 @@ internal sealed class ConstantFoldingPass : BoundExprRewriter
         return chosen;
     }
 
-    private static object? FoldAdd(object left, object right)
+    private static object? FoldAdd(object left, object right, bool leftIsNumeric, bool rightIsNumeric)
     {
         if (left is string || right is string)
             return $"{left}{right}";
+        if (!leftIsNumeric || !rightIsNumeric)
+            return null;
         return NumericDispatch.Add(left, right);
     }
 

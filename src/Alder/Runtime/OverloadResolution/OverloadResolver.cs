@@ -180,7 +180,7 @@ internal static class OverloadResolver
             {
                 var paramType = invokeParams[j].ParameterType;
                 inputTypes[j] = elementMemberTypes != null && typeof(IDictionary<string, object?>).IsAssignableFrom(paramType)
-                    ? new Binding.BoundType(paramType, elementMemberTypes)
+                    ? new Binding.BoundStructuralType(paramType, elementMemberTypes)
                     : new Binding.BoundType(paramType);
             }
 

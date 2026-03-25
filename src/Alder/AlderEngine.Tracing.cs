@@ -64,7 +64,7 @@ public sealed partial class AlderEngine
             throw new AlderException(DiagnosticDescriptors.BindingFailed, failureReason ?? "Binding failed for expression.");
         }
 
-        boundExpression = RunPipeline(boundExpression, cancellationToken);
+        boundExpression = RunSecurityOnlyPipeline(boundExpression, cancellationToken);
         var sourceText = new Text.SourceText(expression.Source);
         var tracer = new EvaluationTracer(sourceText);
         var evaluator = new BoundEvaluator(executionContext, _config, state, tracer, sourceText, cancellationToken);

@@ -71,6 +71,21 @@ internal sealed partial class BoundEvaluator
     private object? EvaluateUnary(BoundUnaryExpr unary)
     {
         var operand = Evaluate(unary.Operand);
+
+        if (unary.PromotedType is { } promoted && operand != null
+            && operand.GetType() == unary.Operand.StaticType.ClrType)
+        {
+            return unary.Operator switch
+            {
+                TokenType.Minus => NumericDispatch.Negate(operand, promoted, _isChecked),
+                TokenType.Plus => NumericDispatch.UnaryPlus(operand, promoted),
+                TokenType.Tilde => NumericDispatch.BitwiseNot(operand, promoted),
+                TokenType.Bang => Operators.LogicalNot(operand),
+                _ => throw new BindingNotSupportedException(
+                    $"Bound unary operator '{unary.Operator}' is not implemented")
+            };
+        }
+
         return unary.Operator switch
         {
             TokenType.Minus => Operators.Negate(operand, _isChecked),
@@ -109,12 +124,43 @@ internal sealed partial class BoundEvaluator
     {
         var right = Evaluate(binary.Right);
 
+        if (binary.PromotedType is { } promoted && left != null && right != null
+            && left.GetType() == binary.Left.StaticType.ClrType
+            && right.GetType() == binary.Right.StaticType.ClrType)
+        {
+            return binary.Operator switch
+            {
+                TokenType.Plus => NumericDispatch.Add(left, right, promoted, _isChecked),
+                TokenType.Minus => NumericDispatch.Subtract(left, right, promoted, _isChecked),
+                TokenType.Star => NumericDispatch.Multiply(left, right, promoted, _isChecked),
+                TokenType.Slash => NumericDispatch.Divide(left, right, promoted),
+                TokenType.Percent => NumericDispatch.Modulo(left, right, promoted),
+                TokenType.EqualEqual => Operators.Equals(left, right),
+                TokenType.BangEqual => Operators.NotEquals(left, right),
+                TokenType.Less => Operators.LessThan(left, right, _config.StringComparison),
+                TokenType.LessEqual => Operators.LessThanOrEqual(left, right, _config.StringComparison),
+                TokenType.Greater => Operators.GreaterThan(left, right, _config.StringComparison),
+                TokenType.GreaterEqual => Operators.GreaterThanOrEqual(left, right, _config.StringComparison),
+                TokenType.Amp => NumericDispatch.BitwiseAnd(left, right, promoted),
+                TokenType.Pipe => NumericDispatch.BitwiseOr(left, right, promoted),
+                TokenType.Caret => NumericDispatch.BitwiseXor(left, right, promoted),
+                TokenType.LessLess => NumericDispatch.LeftShift(left, right),
+                TokenType.GreaterGreater => NumericDispatch.RightShift(left, right),
+                _ => EvaluateBinaryFallback(binary, left, right)
+            };
+        }
+
         (left, right) = NumericPromotionRuntime.ApplyConstantNumericPromotion(
             left,
             binary.Left.Kind == BoundNodeKind.Literal,
             right,
             binary.Right.Kind == BoundNodeKind.Literal);
 
+        return EvaluateBinaryFallback(binary, left, right);
+    }
+
+    private object? EvaluateBinaryFallback(BoundBinaryExpr binary, object? left, object? right)
+    {
         return binary.Operator switch
         {
             TokenType.Plus => Operators.Add(left, right, _config, _context, _isChecked,

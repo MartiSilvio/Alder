@@ -46,7 +46,7 @@ internal sealed partial class Binder
         EnsureVariableIsAssignable(incrementDecrement.Name.Lexeme, context);
         var staticType = context.TryGetVariableType(incrementDecrement.Name.Lexeme, out var variableType)
             ? variableType
-            : new BoundType(typeof(object));
+            : BoundType.Unknown;
         var isIdLocal = context.TryGetLocal(incrementDecrement.Name.Lexeme, out _, out var idLocalId);
         return new BoundIncrementDecrementExpr(
             incrementDecrement.Name.Lexeme,
@@ -86,7 +86,7 @@ internal sealed partial class Binder
         var plan = ResolveMemberPlan(target.StaticType.ClrType, memberCompoundAssign.MemberName, context);
         var memberType = ExtractMemberType(plan);
         var staticType = memberType != typeof(object)
-            ? InferBinaryResultType(memberCompoundAssign.Operator, memberType, value.StaticType.ClrType)
+            ? InferBinaryResultType(memberCompoundAssign.Operator, new BoundType(memberType), value.StaticType)
             : typeof(object);
         return new BoundMemberCompoundAssignExpr(
             target,
@@ -105,7 +105,7 @@ internal sealed partial class Binder
         var plan = ResolveIndexPlan(target.StaticType.ClrType, index.StaticType.ClrType, context);
         var elementType = plan?.ResultType ?? ResolveIndexElementTypeFallback(target.StaticType.ClrType);
         var staticType = elementType != typeof(object)
-            ? InferBinaryResultType(indexCompoundAssign.Operator, elementType, value.StaticType.ClrType)
+            ? InferBinaryResultType(indexCompoundAssign.Operator, new BoundType(elementType), value.StaticType)
             : typeof(object);
         return new BoundIndexCompoundAssignExpr(target, index, plan, indexCompoundAssign.Operator, value, new BoundType(staticType));
     }

@@ -29,7 +29,7 @@ internal sealed class DeadBranchEliminationPass : BoundExprRewriter
         }
 
         // false with no else → no-op literal
-        var noop = new BoundLiteralExpr(null, new BoundType(typeof(object)))
+        var noop = new BoundLiteralExpr(null, BoundType.Void)
         {
             Span = rewritten.Span
         };
