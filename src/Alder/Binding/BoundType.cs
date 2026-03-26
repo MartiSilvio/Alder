@@ -22,9 +22,10 @@ internal class BoundType : IEquatable<BoundType>
     public static readonly BoundType Unknown = new BoundUnknownType();
     public static readonly BoundType Void = new BoundVoidType();
 
-    public bool Equals(BoundType? other) => other is not null && ClrType == other.ClrType;
+    public bool Equals(BoundType? other) =>
+        other is not null && GetType() == other.GetType() && ClrType == other.ClrType;
     public override bool Equals(object? obj) => obj is BoundType other && Equals(other);
-    public override int GetHashCode() => ClrType.GetHashCode();
+    public override int GetHashCode() => ClrType.GetHashCode() ^ (GetType().GetHashCode() * 397);
     public override string ToString() => ClrType.Name;
 
     public static bool operator ==(BoundType? left, BoundType? right) =>

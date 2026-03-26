@@ -1,8 +1,15 @@
-using Alder.Binding.Plans;
 using Alder.Diagnostics;
 using Alder.Runtime;
 
 namespace Alder.Binding.Services;
+
+internal sealed record CallBindResult(
+    ResolvedCall Resolution,
+    bool IsStaticCall,
+    bool IsModuleCall = false)
+{
+    public MethodInfo SelectedMethod => Resolution.Method;
+}
 
 internal sealed class CallBinderService
 {
@@ -14,7 +21,7 @@ internal sealed class CallBinderService
         _context = context;
     }
 
-    public bool TryBindStaticCall(Type declaringType, string methodName, IReadOnlyList<object?> args, bool isCaseSensitive, out BoundCallPlan? plan)
+    public bool TryBindStaticCall(Type declaringType, string methodName, IReadOnlyList<object?> args, bool isCaseSensitive, out CallBindResult? plan)
     {
         var flags = BindingFlags.Public | BindingFlags.Static;
         if (!isCaseSensitive)
@@ -25,7 +32,7 @@ internal sealed class CallBinderService
         return TryBindFromTypes(methods, sourceTypes, isStaticCall: true, out plan, out _);
     }
 
-    public BoundCallPlan BindStaticCall(Type declaringType, string methodName, IReadOnlyList<object?> args, bool isCaseSensitive)
+    public CallBindResult BindStaticCall(Type declaringType, string methodName, IReadOnlyList<object?> args, bool isCaseSensitive)
     {
         var flags = BindingFlags.Public | BindingFlags.Static;
         if (!isCaseSensitive)
@@ -36,7 +43,7 @@ internal sealed class CallBinderService
         return BindFromTypes(methods, sourceTypes, methodName, isStaticCall: true);
     }
 
-    public bool TryBindInstanceCall(Type targetType, string methodName, IReadOnlyList<object?> args, bool isCaseSensitive, out BoundCallPlan? plan)
+    public bool TryBindInstanceCall(Type targetType, string methodName, IReadOnlyList<object?> args, bool isCaseSensitive, out CallBindResult? plan)
     {
         var flags = BindingFlags.Public | BindingFlags.Instance;
         if (!isCaseSensitive)
@@ -47,7 +54,7 @@ internal sealed class CallBinderService
         return TryBindFromTypes(methods, sourceTypes, isStaticCall: false, out plan, out _);
     }
 
-    public BoundCallPlan BindInstanceCall(Type targetType, string methodName, IReadOnlyList<object?> args, bool isCaseSensitive)
+    public CallBindResult BindInstanceCall(Type targetType, string methodName, IReadOnlyList<object?> args, bool isCaseSensitive)
     {
         var flags = BindingFlags.Public | BindingFlags.Instance;
         if (!isCaseSensitive)
@@ -63,7 +70,7 @@ internal sealed class CallBinderService
         string methodName,
         IReadOnlyList<Type> argumentTypes,
         bool isCaseSensitive,
-        out BoundCallPlan? plan)
+        out CallBindResult? plan)
     {
         var flags = BindingFlags.Public | BindingFlags.Static;
         if (!isCaseSensitive)
@@ -73,7 +80,7 @@ internal sealed class CallBinderService
         return TryBindFromTypes(methods, argumentTypes, isStaticCall: true, out plan, out _);
     }
 
-    public BoundCallPlan BindStaticCall(
+    public CallBindResult BindStaticCall(
         Type declaringType,
         string methodName,
         IReadOnlyList<Type> argumentTypes,
@@ -92,7 +99,7 @@ internal sealed class CallBinderService
         string methodName,
         IReadOnlyList<Type> argumentTypes,
         bool isCaseSensitive,
-        out BoundCallPlan? plan)
+        out CallBindResult? plan)
     {
         var flags = BindingFlags.Public | BindingFlags.Instance;
         if (!isCaseSensitive)
@@ -102,7 +109,7 @@ internal sealed class CallBinderService
         return TryBindFromTypes(methods, argumentTypes, isStaticCall: false, out plan, out _);
     }
 
-    public BoundCallPlan BindInstanceCall(
+    public CallBindResult BindInstanceCall(
         Type targetType,
         string methodName,
         IReadOnlyList<Type> argumentTypes,
@@ -120,7 +127,7 @@ internal sealed class CallBinderService
         MethodInfo[] methods,
         IReadOnlyList<Type> sourceTypes,
         bool isStaticCall,
-        out BoundCallPlan? plan,
+        out CallBindResult? plan,
         out bool isAmbiguous)
     {
         plan = null;
@@ -145,11 +152,11 @@ internal sealed class CallBinderService
         if (parameters.Any(static parameter => parameter.ParameterType.IsByRef))
             return false;
 
-        plan = new BoundCallPlan(resolved, isStaticCall);
+        plan = new CallBindResult(resolved, isStaticCall);
         return true;
     }
 
-    private static BoundCallPlan BindFromTypes(
+    private static CallBindResult BindFromTypes(
         MethodInfo[] methods,
         IReadOnlyList<Type> sourceTypes,
         string methodName,

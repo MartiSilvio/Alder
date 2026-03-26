@@ -1,7 +1,6 @@
 using System.Linq.Expressions;
 using Alder.Binding;
 using Alder.Binding.BoundNodes;
-using Alder.Binding.Plans;
 using Alder.Diagnostics;
 using Alder.Parsing;
 using Alder.Runtime;
@@ -42,14 +41,18 @@ internal sealed class ExpressionTreeEmitter
             BoundNodeKind.BinaryOperator => EmitBinary((BoundBinaryExpr)expr),
             BoundNodeKind.LogicalOperator => EmitLogical((BoundLogicalExpr)expr),
             BoundNodeKind.UnaryOperator => EmitUnary((BoundUnaryExpr)expr),
-            BoundNodeKind.MemberAccess => EmitMemberAccess((BoundMemberAccessExpr)expr),
-            BoundNodeKind.Call => EmitCall((BoundCallExpr)expr),
+            BoundNodeKind.PropertyAccess => EmitMemberAccess((BoundPropertyAccessExpr)expr),
+            BoundNodeKind.FieldAccess => EmitMemberAccess((BoundFieldAccessExpr)expr),
+            BoundNodeKind.MethodGroup => EmitMemberAccess((BoundMethodGroupExpr)expr),
+            BoundNodeKind.DynamicMemberAccess => EmitMemberAccess((BoundDynamicMemberAccessExpr)expr),
+            BoundNodeKind.ResolvedCall => EmitCall((BoundResolvedCallExpr)expr),
             BoundNodeKind.ConditionalOperator => EmitConditional((BoundConditionalExpr)expr),
             BoundNodeKind.NullCoalescingOperator => EmitNullCoalesce((BoundNullCoalesceExpr)expr),
             BoundNodeKind.Conversion => EmitCast((BoundCastExpr)expr),
             BoundNodeKind.CheckedExpression => EmitChecked((BoundCheckedExpr)expr),
             BoundNodeKind.IsPatternExpression => EmitIsPattern((BoundIsPatternExpr)expr),
-            BoundNodeKind.IndexerAccess => EmitIndexAccess((BoundIndexAccessExpr)expr),
+            BoundNodeKind.ResolvedIndexAccess => EmitIndexAccess((BoundResolvedIndexAccessExpr)expr),
+            BoundNodeKind.DynamicIndexAccess => throw UnsupportedNode("dynamic index access"),
             BoundNodeKind.ObjectCreationExpression => EmitObjectCreation((BoundObjectCreationExpr)expr),
 
             BoundNodeKind.SwitchExpression => throw UnsupportedNode("a switch expression"),
@@ -95,7 +98,8 @@ internal sealed class ExpressionTreeEmitter
             BoundNodeKind.AsOperator => throw UnsupportedNode("an 'as' expression"),
             BoundNodeKind.TypedArrayCreation or
             BoundNodeKind.TypedArrayLiteral => throw UnsupportedNode("an array creation expression"),
-            BoundNodeKind.MultiDimIndexAccess => throw UnsupportedNode("multi-dimensional indexing"),
+            BoundNodeKind.ResolvedMultiDimIndexAccess or
+            BoundNodeKind.DynamicMultiDimIndexAccess => throw UnsupportedNode("multi-dimensional indexing"),
             BoundNodeKind.MultiDimTypedArrayCreation or
             BoundNodeKind.MultiDimArrayInit => throw UnsupportedNode("multi-dimensional array creation"),
             BoundNodeKind.NamedArgument => throw UnsupportedNode("a named argument"),
@@ -105,7 +109,7 @@ internal sealed class ExpressionTreeEmitter
             BoundNodeKind.RangeExpression => throw UnsupportedNode("range literals"),
             BoundNodeKind.PipelineExpression => throw UnsupportedNode("pipeline operator"),
             BoundNodeKind.ChainedComparisonOperator => throw UnsupportedNode("chained comparison"),
-            BoundNodeKind.Invoke => throw UnsupportedCallShape(DescribeInvokeShape((BoundInvokeExpr)expr)),
+            BoundNodeKind.DynamicCall => throw UnsupportedCallShape(DescribeDynamicCallShape((BoundDynamicCallExpr)expr)),
             BoundNodeKind.FromEndIndexExpression => throw UnsupportedNode("index from end"),
 
             _ => throw UnsupportedNode($"expression type '{expr.GetType().Name}'")
@@ -197,43 +201,42 @@ internal sealed class ExpressionTreeEmitter
         };
     }
 
-    private LinqExpression EmitMemberAccess(BoundMemberAccessExpr expr)
+    private LinqExpression EmitMemberAccess(BoundMemberAccessBase expr)
     {
         var chain = PostfixChain.TryCollect(expr);
         if (chain != null) return EmitPostfixChain(chain.Value);
         return EmitMemberAccessCore(expr, Emit(expr.Target));
     }
 
-    private LinqExpression EmitMemberAccessCore(BoundMemberAccessExpr expr, LinqExpression emittedTarget)
+    private LinqExpression EmitMemberAccessCore(BoundMemberAccessBase expr, LinqExpression emittedTarget)
     {
         if (expr.NullSafe)
             throw UnsupportedNode("null-conditional access");
 
-        var plan = expr.Plan;
-        if (plan?.Member is PropertyInfo property)
-            return plan.IsStatic
-                ? LinqExpression.Property(null, property)
-                : LinqExpression.Property(emittedTarget, property);
+        if (expr is BoundPropertyAccessExpr prop)
+            return prop.IsStatic
+                ? LinqExpression.Property(null, prop.Property)
+                : LinqExpression.Property(emittedTarget, prop.Property);
 
-        if (plan?.Member is FieldInfo field)
-            return plan.IsStatic
-                ? LinqExpression.Field(null, field)
-                : LinqExpression.Field(emittedTarget, field);
+        if (expr is BoundFieldAccessExpr field)
+            return field.IsStatic
+                ? LinqExpression.Field(null, field.Field)
+                : LinqExpression.Field(emittedTarget, field.Field);
 
-        if (plan?.IsMethodGroup == true)
+        if (expr is BoundMethodGroupExpr)
             throw UnsupportedCallShape("unresolved method group");
 
         throw new AlderException(DiagnosticDescriptors.MemberNotFound, emittedTarget.Type.Name, expr.MemberName);
     }
 
-    private LinqExpression EmitCall(BoundCallExpr expr)
+    private LinqExpression EmitCall(BoundResolvedCallExpr expr)
     {
         var chain = PostfixChain.TryCollect(expr);
         if (chain != null) return EmitPostfixChain(chain.Value);
         return EmitCallCore(expr, null);
     }
 
-    private LinqExpression EmitCallCore(BoundCallExpr expr, LinqExpression? emittedTarget)
+    private LinqExpression EmitCallCore(BoundResolvedCallExpr expr, LinqExpression? emittedTarget)
     {
         for (var i = 0; i < expr.Arguments.Length; i++)
         {
@@ -243,17 +246,17 @@ internal sealed class ExpressionTreeEmitter
                 throw UnsupportedCallShape("out argument");
         }
 
-        var method = expr.Plan.SelectedMethod;
-        if (!EmitHelpers.CanEmitDirectMethodCall(expr.Plan, expr.Arguments.Length))
+        var method = expr.SelectedMethod;
+        if (!EmitHelpers.CanEmitDirectMethodCall(expr, expr.Arguments.Length))
             throw UnsupportedCallShape("dynamic or unresolved call target");
 
         var parameters = MethodDispatchCache.GetParameters(method);
         var args = EmitPlannedCallArguments(expr, parameters);
 
-        if (expr.Plan.IsStaticCall)
+        if (expr.IsStaticCall)
             return LinqExpression.Call(method, args);
 
-        if (expr.Callee is not BoundMemberAccessExpr memberCallee)
+        if (expr.Callee is not BoundMemberAccessBase memberCallee)
             throw UnsupportedCallShape("non-member call target");
 
         if (memberCallee.NullSafe)
@@ -269,7 +272,7 @@ internal sealed class ExpressionTreeEmitter
         for (var i = chain.Segments.Count - 1; i >= 0; i--)
         {
             var seg = chain.Segments[i];
-            if (seg.CallOrInvoke is BoundCallExpr call)
+            if (seg.CallOrInvoke is BoundResolvedCallExpr call)
                 result = EmitCallCore(call, result);
             else
                 result = EmitMemberAccessCore(seg.MemberAccess, result);
@@ -277,10 +280,10 @@ internal sealed class ExpressionTreeEmitter
         return result;
     }
 
-    private LinqExpression[] EmitPlannedCallArguments(BoundCallExpr expr, ParameterInfo[] parameters)
+    private LinqExpression[] EmitPlannedCallArguments(BoundResolvedCallExpr expr, ParameterInfo[] parameters)
     {
         var emitted = new LinqExpression[parameters.Length];
-        var resolved = expr.Plan.Resolution;
+        var resolved = expr.Resolution;
         var sources = resolved.ArgMap.Sources;
         var conversions = resolved.Conversions;
 
@@ -415,7 +418,7 @@ internal sealed class ExpressionTreeEmitter
         throw UnsupportedNode("pattern matching");
     }
 
-    private LinqExpression EmitIndexAccess(BoundIndexAccessExpr expr)
+    private LinqExpression EmitIndexAccess(BoundResolvedIndexAccessExpr expr)
     {
         if (expr.NullSafe)
             throw UnsupportedNode("null-conditional access");
@@ -601,7 +604,7 @@ internal sealed class ExpressionTreeEmitter
     private static AlderException UnsupportedCallShape(string shape) =>
         new(DiagnosticDescriptors.FeatureNotValidInExpressionTree, shape);
 
-    private static string DescribeInvokeShape(BoundInvokeExpr invoke)
+    private static string DescribeDynamicCallShape(BoundDynamicCallExpr invoke)
     {
         for (var i = 0; i < invoke.Arguments.Length; i++)
         {

@@ -273,7 +273,7 @@ public class SandboxAttackTests(CompilationMode mode)
         var engine = TestEngineFactory.Create(mode);
         var ex = Assert.Throws<AlderException>(() =>
             engine.Evaluate("new int[100000000]"));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0203));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0202));
     }
 
     [Test]

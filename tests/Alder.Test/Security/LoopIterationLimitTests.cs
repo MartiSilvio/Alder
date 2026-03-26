@@ -19,7 +19,7 @@ public class LoopIterationLimitTests(CompilationMode mode)
             engine.Evaluate("{ var c = 0; for (var i = 0; i < 10; i++) { c = c + 1; } return c; }"));
         Assert.That(ex!.LimitType, Is.EqualTo(ExecutionLimitType.LoopIterations));
         Assert.That(ex.LimitValue, Is.EqualTo(5));
-        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0204));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0203));
     }
 
     [Test]
@@ -305,7 +305,7 @@ public class LoopIterationLimitTests(CompilationMode mode)
         Assert.That(ex.LimitValue, Is.EqualTo(5));
         Assert.That(ex.ActualValue, Is.EqualTo(6));
         Assert.That(ex.StatementsExecuted, Is.GreaterThan(0));
-        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0204));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0203));
     }
     [Test]
     public void DefaultLimit_IsNull()

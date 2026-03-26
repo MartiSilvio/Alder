@@ -5,7 +5,7 @@ namespace Alder.Binding;
 internal abstract record BoundExpr(BoundType StaticType)
 {
     internal abstract BoundNodeKind Kind { get; }
-    internal TextSpan Span { get; set; }
+    internal TextSpan Span { get; init; }
     internal bool HasErrors { get; init; }
     internal AlderDiagnostic? Diagnostic { get; init; }
     internal abstract void EnumerateChildren(Action<BoundExpr> visit);
@@ -88,43 +88,60 @@ internal enum BoundNodeKind
     GotoStatement = 124,
     Label = 125,
     SwitchExpression = 131,
-    Call = 164,
     ObjectCreationExpression = 169,
     SpreadElement = 174,
     TupleLiteral = 175,
-    IndexerAccess = 198,
     Lambda = 201,
     InterpolatedString = 207,
     IsPatternExpression = 212,
     ThrowExpression = 229,
 
-    // Alder-specific
-    Identifier = 1_000,
-    LogicalOperator = 1_001,
-    ChainedComparisonOperator = 1_002,
-    CheckedExpression = 1_003,
-    MemberAccess = 1_004,
-    MultiDimIndexAccess = 1_005,
-    SliceExpression = 1_006,
-    Invoke = 1_007,
-    PipelineExpression = 1_008,
-    NamedArgument = 1_009,
-    OutArgument = 1_010,
-    MemberAssignment = 1_011,
-    MemberCompoundAssignment = 1_012,
-    MemberNullCoalesceAssignment = 1_013,
-    MemberIncrement = 1_014,
-    IndexAssignment = 1_015,
-    IndexCompoundAssignment = 1_016,
-    IndexNullCoalesceAssignment = 1_017,
-    IndexIncrement = 1_018,
-    MultiDimIndexAssignment = 1_019,
-    ObjectLiteral = 1_020,
-    ArrayLiteral = 1_021,
-    TypedArrayCreation = 1_022,
-    TypedArrayLiteral = 1_023,
-    MultiDimArrayInit = 1_024,
-    MultiDimTypedArrayCreation = 1_025,
-    GotoCaseStatement = 1_026,
-    GotoDefaultStatement = 1_027,
+    // Alder-specific — member access
+    PropertyAccess = 1_000,
+    FieldAccess = 1_001,
+    MethodGroup = 1_002,
+    DynamicMemberAccess = 1_003,
+
+    // Alder-specific — expressions
+    Identifier = 1_010,
+    LogicalOperator = 1_011,
+    ChainedComparisonOperator = 1_012,
+    CheckedExpression = 1_013,
+    SliceExpression = 1_014,
+    PipelineExpression = 1_015,
+
+    // Alder-specific — invocations & arguments
+    ResolvedCall = 1_020,
+    DynamicCall = 1_021,
+    NamedArgument = 1_022,
+    OutArgument = 1_023,
+
+    // Alder-specific — index access
+    ResolvedIndexAccess = 1_030,
+    DynamicIndexAccess = 1_031,
+    ResolvedMultiDimIndexAccess = 1_032,
+    DynamicMultiDimIndexAccess = 1_033,
+
+    // Alder-specific — assignments
+    MemberAssignment = 1_040,
+    MemberCompoundAssignment = 1_041,
+    MemberNullCoalesceAssignment = 1_042,
+    MemberIncrement = 1_043,
+    IndexAssignment = 1_044,
+    IndexCompoundAssignment = 1_045,
+    IndexNullCoalesceAssignment = 1_046,
+    IndexIncrement = 1_047,
+    MultiDimIndexAssignment = 1_048,
+
+    // Alder-specific — literals & collections
+    ObjectLiteral = 1_060,
+    ArrayLiteral = 1_061,
+    TypedArrayCreation = 1_062,
+    TypedArrayLiteral = 1_063,
+    MultiDimArrayInit = 1_064,
+    MultiDimTypedArrayCreation = 1_065,
+
+    // Alder-specific — control flow extensions
+    GotoCaseStatement = 1_070,
+    GotoDefaultStatement = 1_071,
 }

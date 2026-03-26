@@ -11,7 +11,7 @@ namespace Alder.Binding;
 internal static class PostfixChain
 {
     internal readonly record struct Segment(
-        BoundMemberAccessExpr MemberAccess,
+        BoundMemberAccessBase MemberAccess,
         BoundExpr? CallOrInvoke);
 
     internal readonly record struct Chain(
@@ -34,17 +34,17 @@ internal static class PostfixChain
 
         while (true)
         {
-            if (current is BoundCallExpr call && call.Callee is BoundMemberAccessExpr callMa)
+            if (current is BoundResolvedCallExpr call && call.Callee is BoundMemberAccessBase callMa)
             {
                 segments.Add(new Segment(callMa, call));
                 current = callMa.Target;
             }
-            else if (current is BoundInvokeExpr invoke && invoke.Callee is BoundMemberAccessExpr invokeMa)
+            else if (current is BoundDynamicCallExpr invoke && invoke.Callee is BoundMemberAccessBase invokeMa)
             {
                 segments.Add(new Segment(invokeMa, invoke));
                 current = invokeMa.Target;
             }
-            else if (current is BoundMemberAccessExpr ma)
+            else if (current is BoundMemberAccessBase ma)
             {
                 segments.Add(new Segment(ma, null));
                 current = ma.Target;
@@ -62,12 +62,12 @@ internal static class PostfixChain
     {
         var inner = node switch
         {
-            BoundCallExpr c when c.Callee is BoundMemberAccessExpr ma => ma.Target,
-            BoundInvokeExpr i when i.Callee is BoundMemberAccessExpr ma => ma.Target,
-            BoundMemberAccessExpr ma => ma.Target,
+            BoundResolvedCallExpr c when c.Callee is BoundMemberAccessBase ma => ma.Target,
+            BoundDynamicCallExpr i when i.Callee is BoundMemberAccessBase ma => ma.Target,
+            BoundMemberAccessBase ma => ma.Target,
             _ => null
         };
 
-        return inner is BoundCallExpr or BoundInvokeExpr or BoundMemberAccessExpr;
+        return inner is BoundResolvedCallExpr or BoundDynamicCallExpr or BoundMemberAccessBase;
     }
 }

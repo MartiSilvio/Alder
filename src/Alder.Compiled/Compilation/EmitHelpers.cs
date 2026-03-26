@@ -1,7 +1,6 @@
 using System.Collections.Immutable;
 using Alder.Binding;
 using Alder.Binding.BoundNodes;
-using Alder.Binding.Plans;
 using Alder.Runtime;
 
 namespace Alder.Compiled.Compilation;
@@ -42,13 +41,13 @@ internal static class EmitHelpers
         return LinqExpression.Call(BoundRuntimeMethodCache.StringConcatObjectMethod, AsObject(expression));
     }
 
-    internal static bool CanEmitDirectMethodCall(BoundCallPlan plan, int sourceArgumentCount)
+    internal static bool CanEmitDirectMethodCall(BoundResolvedCallExpr call, int sourceArgumentCount)
     {
-        var method = plan.SelectedMethod;
+        var method = call.SelectedMethod;
         if (method.ContainsGenericParameters)
             return false;
 
-        var resolved = plan.Resolution;
+        var resolved = call.Resolution;
         var parameters = MethodDispatchCache.GetParameters(method);
         var sources = resolved.ArgMap.Sources;
 

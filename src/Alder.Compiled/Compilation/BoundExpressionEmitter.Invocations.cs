@@ -5,7 +5,6 @@ using System.Reflection;
 using System.Text;
 using Alder.Binding;
 using Alder.Binding.BoundNodes;
-using Alder.Binding.Plans;
 using Alder.Diagnostics;
 using Alder.Parsing;
 using Alder.Runtime;
@@ -15,41 +14,104 @@ namespace Alder.Compiled.Compilation;
 
 internal sealed partial class BoundExpressionEmitter
 {
-    private LinqExpression EmitMemberAccess(BoundMemberAccessExpr memberAccess)
+    private LinqExpression EmitPropertyAccess(BoundPropertyAccessExpr node)
     {
-        var chain = PostfixChain.TryCollect(memberAccess);
+        var chain = PostfixChain.TryCollect(node);
         if (chain != null) return EmitPostfixChain(chain.Value);
-        return EmitMemberAccessWithTarget(memberAccess, Emit(memberAccess.Target));
+        return EmitPropertyAccessWithTarget(node, Emit(node.Target));
     }
 
-    private LinqExpression EmitMemberAccessWithTarget(BoundMemberAccessExpr memberAccess, LinqExpression emittedTarget)
+    private LinqExpression EmitPropertyAccessWithTarget(BoundPropertyAccessExpr node, LinqExpression emittedTarget)
     {
-        if (memberAccess.Plan?.Member is PropertyInfo property)
-        {
-            var declaringType = property.DeclaringType;
-            if (declaringType == null || !TypeHelpers.IsValueTupleType(declaringType))
-                return EmitDirectPropertyAccess(memberAccess, property, emittedTarget);
-        }
+        var declaringType = node.Property.DeclaringType;
+        if (declaringType == null || !TypeHelpers.IsValueTupleType(declaringType))
+            return EmitDirectPropertyAccess(node, emittedTarget);
 
-        if (memberAccess.Plan?.Member is FieldInfo field)
-        {
-            var declaringType = field.DeclaringType;
-            if (declaringType == null || !TypeHelpers.IsValueTupleType(declaringType))
-                return EmitDirectFieldAccess(memberAccess, field, emittedTarget);
-        }
+        return EmitDynamicGetMember(node.MemberName, node.NullSafe, emittedTarget);
+    }
 
+    private LinqExpression EmitFieldAccess(BoundFieldAccessExpr node)
+    {
+        var chain = PostfixChain.TryCollect(node);
+        if (chain != null) return EmitPostfixChain(chain.Value);
+        return EmitFieldAccessWithTarget(node, Emit(node.Target));
+    }
+
+    private LinqExpression EmitFieldAccessWithTarget(BoundFieldAccessExpr node, LinqExpression emittedTarget)
+    {
+        var declaringType = node.Field.DeclaringType;
+        if (declaringType == null || !TypeHelpers.IsValueTupleType(declaringType))
+            return EmitDirectFieldAccess(node, emittedTarget);
+
+        return EmitDynamicGetMember(node.MemberName, node.NullSafe, emittedTarget);
+    }
+
+    private LinqExpression EmitMethodGroup(BoundMethodGroupExpr node)
+    {
+        var chain = PostfixChain.TryCollect(node);
+        if (chain != null) return EmitPostfixChain(chain.Value);
+        return EmitDynamicGetMember(node.MemberName, node.NullSafe, Emit(node.Target));
+    }
+
+    private LinqExpression EmitDynamicMemberAccess(BoundDynamicMemberAccessExpr node)
+    {
+        var chain = PostfixChain.TryCollect(node);
+        if (chain != null) return EmitPostfixChain(chain.Value);
+        return EmitDynamicGetMember(node.MemberName, node.NullSafe, Emit(node.Target));
+    }
+
+    private LinqExpression EmitDynamicGetMember(string memberName, bool nullSafe, LinqExpression emittedTarget)
+    {
         return LinqExpression.Call(
             GetMemberMethod,
             EmitHelpers.AsObject(emittedTarget),
-            LinqExpression.Constant(memberAccess.MemberName),
+            LinqExpression.Constant(memberName),
             _configParam,
-            LinqExpression.Constant(memberAccess.NullSafe),
+            LinqExpression.Constant(nullSafe),
             _contextParam);
     }
 
-    private LinqExpression EmitIndexAccess(BoundIndexAccessExpr indexAccess)
+    private LinqExpression EmitMemberAccessBaseWithTarget(BoundMemberAccessBase ma, LinqExpression emittedTarget)
     {
-        if (indexAccess.Plan?.IsDirectCollectionAccess == true)
+        return ma switch
+        {
+            BoundPropertyAccessExpr prop => EmitPropertyAccessWithTarget(prop, emittedTarget),
+            BoundFieldAccessExpr field => EmitFieldAccessWithTarget(field, emittedTarget),
+            BoundMethodGroupExpr => EmitDynamicGetMember(ma.MemberName, ma.NullSafe, emittedTarget),
+            BoundDynamicMemberAccessExpr => EmitDynamicGetMember(ma.MemberName, ma.NullSafe, emittedTarget),
+            _ => throw new BindingNotSupportedException($"Unexpected member access type '{ma.GetType().Name}'")
+        };
+    }
+
+    private LinqExpression EmitDynamicIndexAccess(BoundDynamicIndexAccessExpr indexAccess)
+    {
+        var targetExpr = EmitHelpers.AsObject(Emit(indexAccess.Target));
+        var indexExpr = EmitHelpers.AsObject(Emit(indexAccess.Index));
+
+        if (!indexAccess.NullSafe)
+        {
+            return LinqExpression.Call(
+                GetIndexMethod,
+                targetExpr,
+                indexExpr,
+                _configParam,
+                _contextParam);
+        }
+
+        var targetVar = LinqExpression.Variable(typeof(object), "indexTarget");
+        return LinqExpression.Block(
+            typeof(object),
+            [targetVar],
+            LinqExpression.Assign(targetVar, targetExpr),
+                LinqExpression.Condition(
+                    LinqExpression.Equal(targetVar, LinqExpression.Constant(null, typeof(object))),
+                    LinqExpression.Constant(null, typeof(object)),
+                    LinqExpression.Call(GetIndexMethod, targetVar, indexExpr, _configParam, _contextParam)));
+    }
+
+    private LinqExpression EmitIndexAccess(BoundResolvedIndexAccessExpr indexAccess)
+    {
+        if (indexAccess.IsDirectCollectionAccess)
             return EmitDirectCollectionIndexAccess(indexAccess);
 
         var targetExpr = EmitHelpers.AsObject(Emit(indexAccess.Target));
@@ -76,30 +138,30 @@ internal sealed partial class BoundExpressionEmitter
                     LinqExpression.Call(GetIndexMethod, targetVar, indexExpr, _configParam, _contextParam)));
     }
 
-    private LinqExpression EmitCall(BoundCallExpr call)
+    private LinqExpression EmitCall(BoundResolvedCallExpr call)
     {
         var chain = PostfixChain.TryCollect(call);
         if (chain != null) return EmitPostfixChain(chain.Value);
         return EmitCallWithTarget(call, null);
     }
 
-    private LinqExpression EmitCallWithTarget(BoundCallExpr call, LinqExpression? emittedTarget)
+    private LinqExpression EmitCallWithTarget(BoundResolvedCallExpr call, LinqExpression? emittedTarget)
     {
-        if (call.Callee is BoundMemberAccessExpr { Plan: not null } memberAccess)
-            return EmitDirectPlannedCall(call, memberAccess, emittedTarget);
+        if (call.Callee is BoundMethodGroupExpr)
+            return EmitDirectPlannedCall(call, emittedTarget);
 
         return EmitInvokeCore(call.Callee, call.Arguments, ImmutableArray<string>.Empty, emittedTarget);
     }
 
-    private LinqExpression EmitDirectPropertyAccess(BoundMemberAccessExpr memberAccess, PropertyInfo property, LinqExpression emittedTarget)
+    private LinqExpression EmitDirectPropertyAccess(BoundPropertyAccessExpr node, LinqExpression emittedTarget)
     {
-        var plan = memberAccess.Plan!;
+        var property = node.Property;
         var guardCheck = LinqExpression.Empty();
 
-        if (plan.IsStatic)
+        if (node.IsStatic)
         {
             var access = LinqExpression.Property(null, property);
-            var guarded = EmitHelpers.WrapGuardedValue(access, property.PropertyType, EmitHelpers.CreateMemberGuardContext(memberAccess.MemberName));
+            var guarded = EmitHelpers.WrapGuardedValue(access, property.PropertyType, EmitHelpers.CreateMemberGuardContext(node.MemberName));
             return LinqExpression.Block(
                 typeof(object),
                 guardCheck,
@@ -107,18 +169,18 @@ internal sealed partial class BoundExpressionEmitter
         }
 
         var targetObjVar = LinqExpression.Variable(typeof(object), "memberTarget");
-        var targetType = property.DeclaringType ?? plan.DeclaringType;
+        var targetType = property.DeclaringType ?? property.ReflectedType!;
         var checkedTarget = LinqExpression.Call(
             EnsureMemberTargetNotNullMethod,
             targetObjVar,
-            LinqExpression.Constant(memberAccess.MemberName));
+            LinqExpression.Constant(node.MemberName));
         var typedTarget = EmitHelpers.EnsureTypedExpression(checkedTarget, targetType);
         var accessExpr = LinqExpression.Property(typedTarget, property);
         var guardedExpr = LinqExpression.Convert(
-            EmitHelpers.WrapGuardedValue(accessExpr, property.PropertyType, EmitHelpers.CreateMemberGuardContext(memberAccess.MemberName)),
+            EmitHelpers.WrapGuardedValue(accessExpr, property.PropertyType, EmitHelpers.CreateMemberGuardContext(node.MemberName)),
             typeof(object));
 
-        if (memberAccess.NullSafe)
+        if (node.NullSafe)
         {
             return LinqExpression.Block(
                 typeof(object),
@@ -139,15 +201,15 @@ internal sealed partial class BoundExpressionEmitter
             guardedExpr);
     }
 
-    private LinqExpression EmitDirectFieldAccess(BoundMemberAccessExpr memberAccess, FieldInfo field, LinqExpression emittedTarget)
+    private LinqExpression EmitDirectFieldAccess(BoundFieldAccessExpr node, LinqExpression emittedTarget)
     {
-        var plan = memberAccess.Plan!;
+        var field = node.Field;
         var guardCheck = LinqExpression.Empty();
 
-        if (plan.IsStatic)
+        if (node.IsStatic)
         {
             var access = LinqExpression.Field(null, field);
-            var guarded = EmitHelpers.WrapGuardedValue(access, field.FieldType, EmitHelpers.CreateMemberGuardContext(memberAccess.MemberName));
+            var guarded = EmitHelpers.WrapGuardedValue(access, field.FieldType, EmitHelpers.CreateMemberGuardContext(node.MemberName));
             return LinqExpression.Block(
                 typeof(object),
                 guardCheck,
@@ -155,18 +217,18 @@ internal sealed partial class BoundExpressionEmitter
         }
 
         var targetObjVar = LinqExpression.Variable(typeof(object), "fieldTarget");
-        var targetType = field.DeclaringType ?? plan.DeclaringType;
+        var targetType = field.DeclaringType ?? field.ReflectedType!;
         var checkedTarget = LinqExpression.Call(
             EnsureMemberTargetNotNullMethod,
             targetObjVar,
-            LinqExpression.Constant(memberAccess.MemberName));
+            LinqExpression.Constant(node.MemberName));
         var typedTarget = EmitHelpers.EnsureTypedExpression(checkedTarget, targetType);
         var accessExpr = LinqExpression.Field(typedTarget, field);
         var guardedExpr = LinqExpression.Convert(
-            EmitHelpers.WrapGuardedValue(accessExpr, field.FieldType, EmitHelpers.CreateMemberGuardContext(memberAccess.MemberName)),
+            EmitHelpers.WrapGuardedValue(accessExpr, field.FieldType, EmitHelpers.CreateMemberGuardContext(node.MemberName)),
             typeof(object));
 
-        if (memberAccess.NullSafe)
+        if (node.NullSafe)
         {
             return LinqExpression.Block(
                 typeof(object),
@@ -187,16 +249,12 @@ internal sealed partial class BoundExpressionEmitter
             guardedExpr);
     }
 
-    private LinqExpression EmitDirectCollectionIndexAccess(BoundIndexAccessExpr indexAccess)
+    private LinqExpression EmitDirectCollectionIndexAccess(BoundResolvedIndexAccessExpr indexAccess)
     {
-        var plan = indexAccess.Plan;
-        if (plan == null)
-            throw new BindingNotSupportedException("Direct collection index emission requires an index plan.");
-
-        if (plan.TargetType == typeof(string))
+        if (indexAccess.TargetType == typeof(string))
             return EmitDirectStringIndexAccess(indexAccess);
 
-        if (typeof(IList).IsAssignableFrom(plan.TargetType))
+        if (typeof(IList).IsAssignableFrom(indexAccess.TargetType))
             return EmitDirectListIndexAccess(indexAccess);
 
         return LinqExpression.Call(
@@ -207,7 +265,7 @@ internal sealed partial class BoundExpressionEmitter
             _contextParam);
     }
 
-    private LinqExpression EmitDirectStringIndexAccess(BoundIndexAccessExpr indexAccess)
+    private LinqExpression EmitDirectStringIndexAccess(BoundResolvedIndexAccessExpr indexAccess)
     {
         var targetObjVar = LinqExpression.Variable(typeof(object), "indexTarget");
         var typedTarget = EmitHelpers.EnsureTypedExpression(
@@ -236,10 +294,8 @@ internal sealed partial class BoundExpressionEmitter
             valueExpr);
     }
 
-    private LinqExpression EmitDirectListIndexAccess(BoundIndexAccessExpr indexAccess)
+    private LinqExpression EmitDirectListIndexAccess(BoundResolvedIndexAccessExpr indexAccess)
     {
-        var plan = indexAccess.Plan
-                   ?? throw new BindingNotSupportedException("Direct list index emission requires an index plan.");
         var targetObjVar = LinqExpression.Variable(typeof(object), "listTarget");
         var checkedTarget = LinqExpression.Call(EnsureIndexTargetNotNullMethod, targetObjVar);
 
@@ -248,10 +304,10 @@ internal sealed partial class BoundExpressionEmitter
         LinqExpression valueExpr;
         Type valueType;
 
-        if (EmitHelpers.TryGetIntIndexer(plan.TargetType, out var indexer) &&
-            EmitHelpers.TryGetCountProperty(plan.TargetType, out var countProperty))
+        if (EmitHelpers.TryGetIntIndexer(indexAccess.TargetType, out var indexer) &&
+            EmitHelpers.TryGetCountProperty(indexAccess.TargetType, out var countProperty))
         {
-            typedTarget = EmitHelpers.EnsureTypedExpression(checkedTarget, plan.TargetType);
+            typedTarget = EmitHelpers.EnsureTypedExpression(checkedTarget, indexAccess.TargetType);
             countExpr = LinqExpression.Property(typedTarget, countProperty);
             var indexExpr = BuildNormalizedIntIndex(indexAccess, countExpr);
             valueExpr = LinqExpression.Property(typedTarget, indexer, indexExpr);
@@ -291,7 +347,7 @@ internal sealed partial class BoundExpressionEmitter
             guardedValueExpr);
     }
 
-    private LinqExpression BuildNormalizedIntIndex(BoundIndexAccessExpr indexAccess, LinqExpression lengthExpression)
+    private LinqExpression BuildNormalizedIntIndex(BoundResolvedIndexAccessExpr indexAccess, LinqExpression lengthExpression)
     {
         if (indexAccess.Index is BoundLiteralExpr { Value: int literalIndex and >= 0 })
             return LinqExpression.Constant(literalIndex, typeof(int));
@@ -301,17 +357,18 @@ internal sealed partial class BoundExpressionEmitter
         return LinqExpression.Call(NormalizeIndexMethod, rawIndex, lengthExpression, languageMode);
     }
 
-    private LinqExpression EmitDirectPlannedCall(BoundCallExpr call, BoundMemberAccessExpr memberAccess, LinqExpression? emittedTarget = null)
+    private LinqExpression EmitDirectPlannedCall(BoundResolvedCallExpr call, LinqExpression? emittedTarget = null)
     {
-        if (!EmitHelpers.CanEmitDirectMethodCall(call.Plan, call.Arguments.Length))
+        var memberAccess = (BoundMethodGroupExpr)call.Callee;
+        if (!EmitHelpers.CanEmitDirectMethodCall(call, call.Arguments.Length))
             return EmitInvokeCore(call.Callee, call.Arguments, ImmutableArray<string>.Empty, emittedTarget);
 
-        var method = call.Plan.SelectedMethod;
+        var method = call.SelectedMethod;
         var parameters = MethodDispatchCache.GetParameters(method);
         var guardCheck = LinqExpression.Empty();
         var args = EmitPlannedCallArguments(call, parameters);
 
-        if (call.Plan.IsStaticCall)
+        if (call.IsStaticCall)
         {
             var staticCall = LinqExpression.Call(method, args);
             if (method.ReturnType == typeof(void))
@@ -323,7 +380,7 @@ internal sealed partial class BoundExpressionEmitter
                 EmitHelpers.WrapGuardedValue(staticCall, method.ReturnType, EmitHelpers.CreateMethodGuardContext(method.Name)));
         }
 
-        var targetType = method.DeclaringType ?? memberAccess.Plan!.DeclaringType;
+        var targetType = method.DeclaringType ?? memberAccess.DeclaringType;
         var targetObjVar = LinqExpression.Variable(typeof(object), "callTarget");
         var checkedTarget = LinqExpression.Call(
             EnsureCallTargetNotNullMethod,
@@ -396,10 +453,10 @@ internal sealed partial class BoundExpressionEmitter
     }
 
 
-    private LinqExpression[] EmitPlannedCallArguments(BoundCallExpr call, ParameterInfo[] parameters)
+    private LinqExpression[] EmitPlannedCallArguments(BoundResolvedCallExpr call, ParameterInfo[] parameters)
     {
         var emitted = new LinqExpression[parameters.Length];
-        var resolved = call.Plan.Resolution;
+        var resolved = call.Resolution;
         var sources = resolved.ArgMap.Sources;
         var conversions = resolved.Conversions;
 
@@ -489,7 +546,7 @@ internal sealed partial class BoundExpressionEmitter
     }
 
 
-    private LinqExpression EmitInvoke(BoundInvokeExpr invoke)
+    private LinqExpression EmitInvoke(BoundDynamicCallExpr invoke)
     {
         var chain = PostfixChain.TryCollect(invoke);
         if (chain != null) return EmitPostfixChain(chain.Value);
@@ -502,12 +559,12 @@ internal sealed partial class BoundExpressionEmitter
         for (var i = chain.Segments.Count - 1; i >= 0; i--)
         {
             var seg = chain.Segments[i];
-            if (seg.CallOrInvoke is BoundCallExpr call)
+            if (seg.CallOrInvoke is BoundResolvedCallExpr call)
                 result = EmitCallWithTarget(call, result);
-            else if (seg.CallOrInvoke is BoundInvokeExpr invoke)
+            else if (seg.CallOrInvoke is BoundDynamicCallExpr invoke)
                 result = EmitInvokeCore(invoke.Callee, invoke.Arguments, invoke.TypeArguments, result);
             else
-                result = EmitMemberAccessWithTarget(seg.MemberAccess, result);
+                result = EmitMemberAccessBaseWithTarget(seg.MemberAccess, result);
         }
         return result;
     }
@@ -717,7 +774,7 @@ internal sealed partial class BoundExpressionEmitter
                 emittedTypeArguments,
                 _ctParam);
         }
-        else if (callee is BoundMemberAccessExpr memberAccess)
+        else if (callee is BoundMemberAccessBase memberAccess)
         {
             invokeExpr = LinqExpression.Call(
                 InvokeMemberCallMethod,

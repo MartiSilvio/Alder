@@ -1,7 +1,6 @@
 using System.Collections.Immutable;
 using System.Reflection;
 using Alder.Binding.BoundNodes;
-using Alder.Binding.Plans;
 using Alder.Binding.Services;
 using Alder.Parsing;
 using Alder.Runtime;
@@ -51,7 +50,7 @@ internal sealed partial class Binder
         return new BoundOutArgExpr(outArg.VariableName, outArg.TypeName, outArg.IsDiscard, BoundType.Unknown);
     }
 
-    private BoundMemberAccessExpr BindMemberAccess(MemberAccessExpr memberAccess, BindingContext context)
+    private BoundMemberAccessBase BindMemberAccess(MemberAccessExpr memberAccess, BindingContext context)
     {
         var memberChain = new List<MemberAccessExpr>();
         var callAfter = new List<CallExpr?>();
@@ -92,43 +91,53 @@ internal sealed partial class Binder
         return result with { Span = outer.Span };
     }
 
-    private BoundMemberAccessExpr BindSingleMemberAccess(BoundExpr target, string name, bool nullSafe, BindingContext context)
+    private BoundMemberAccessBase BindSingleMemberAccess(BoundExpr target, string name, bool nullSafe, BindingContext context)
     {
         var (targetBoundType, isStatic) = ResolveMemberTarget(target);
 
         var memberBinder = new MemberBinderService(context.RuntimeContext.TypeMetadata);
-        memberBinder.TryBindMemberRead(targetBoundType, name, isStatic, context.IsCaseSensitive, out var plan, out var resolvedType);
+        memberBinder.TryBindMemberRead(targetBoundType, name, isStatic, context.IsCaseSensitive,
+            out var bindResult, out var member, out var resolvedType);
 
         if (resolvedType == null &&
             target is BoundIdentifierExpr identifier &&
             context.RuntimeContext.Modules.TryGetValue(identifier.Name, out var moduleInfo))
         {
-            memberBinder.TryBindMemberRead(new BoundType(moduleInfo.Type), name, true, context.IsCaseSensitive, out _, out resolvedType);
+            memberBinder.TryBindMemberRead(new BoundType(moduleInfo.Type), name, true, context.IsCaseSensitive,
+                out _, out _, out resolvedType);
         }
 
         var staticType = resolvedType != null
             ? new BoundType(resolvedType)
             : BoundType.Unknown;
 
-        return new BoundMemberAccessExpr(target, name, nullSafe, plan, staticType);
+        return bindResult switch
+        {
+            MemberBindResult.Property => new BoundPropertyAccessExpr(
+                target, (PropertyInfo)member!, nullSafe, isStatic, staticType),
+            MemberBindResult.Field => new BoundFieldAccessExpr(
+                target, (FieldInfo)member!, nullSafe, isStatic, staticType),
+            MemberBindResult.MethodGroup => new BoundMethodGroupExpr(
+                target, targetBoundType.ClrType, name, nullSafe, isStatic, staticType),
+            _ => new BoundDynamicMemberAccessExpr(target, name, nullSafe, staticType)
+        };
     }
 
-    private BoundIndexAccessExpr BindIndexAccess(IndexAccessExpr indexAccess, BindingContext context)
+    private BoundExpr BindIndexAccess(IndexAccessExpr indexAccess, BindingContext context)
     {
         var target = Bind(indexAccess.Object, context);
         var index = Bind(indexAccess.Index, context);
 
-        BoundIndexPlan? plan = null;
-        BoundType staticType = BoundType.Unknown;
-
         var memberBinder = new MemberBinderService(context.RuntimeContext.TypeMetadata);
         if (memberBinder.TryBindIndexRead(target.StaticType.ClrType, index.StaticType.ClrType, out var indexPlan))
         {
-            plan = indexPlan;
-            staticType = new BoundType(indexPlan!.ResultType);
+            return new BoundResolvedIndexAccessExpr(
+                target, index,
+                indexPlan!.TargetType, indexPlan.ResultType, indexPlan.IsDirectCollectionAccess,
+                indexAccess.NullSafe, new BoundType(indexPlan.ResultType));
         }
 
-        return new BoundIndexAccessExpr(target, index, plan, indexAccess.NullSafe, staticType);
+        return new BoundDynamicIndexAccessExpr(target, index, indexAccess.NullSafe, BoundType.Unknown);
     }
 
     private BoundExpr BindCall(CallExpr call, BindingContext context)
@@ -147,7 +156,7 @@ internal sealed partial class Binder
             .ToImmutableArray();
         var typeArguments = call.TypeArguments?.ToImmutableArray() ?? ImmutableArray<string>.Empty;
 
-        if (callee is BoundMemberAccessExpr { Plan.IsMethodGroup: true } memberAccess &&
+        if (callee is BoundMethodGroupExpr methodGroup &&
             arguments.All(static argument =>
                 argument is not BoundLambdaExpr &&
                 argument is not BoundNamedArgumentExpr &&
@@ -156,17 +165,17 @@ internal sealed partial class Binder
             var argumentTypes = arguments.Select(static argument => argument.StaticType.ClrType).ToArray();
             var callBinder = new CallBinderService(context.RuntimeContext);
 
-            var bound = memberAccess.Plan.IsStatic && memberAccess.Target is BoundLiteralExpr { Value: Type staticDeclaringType }
-                ? callBinder.TryBindStaticCall(staticDeclaringType, memberAccess.MemberName, argumentTypes, context.IsCaseSensitive, out var callPlan)
-                : callBinder.TryBindInstanceCall(memberAccess.Plan.DeclaringType, memberAccess.MemberName, argumentTypes, context.IsCaseSensitive, out callPlan);
+            var bound = methodGroup.IsStatic && methodGroup.Target is BoundLiteralExpr { Value: Type staticDeclaringType }
+                ? callBinder.TryBindStaticCall(staticDeclaringType, methodGroup.MethodName, argumentTypes, context.IsCaseSensitive, out var callPlan)
+                : callBinder.TryBindInstanceCall(methodGroup.DeclaringType, methodGroup.MethodName, argumentTypes, context.IsCaseSensitive, out callPlan);
 
             if (bound)
-                return new BoundCallExpr(callee, arguments, callPlan!, new BoundType(callPlan!.SelectedMethod.ReturnType));
+                return new BoundResolvedCallExpr(callee, arguments, callPlan!.Resolution, callPlan.IsStaticCall, callPlan.IsModuleCall, new BoundType(callPlan.SelectedMethod.ReturnType));
 
-            return new BoundInvokeExpr(callee, arguments, typeArguments, BoundType.Unknown);
+            return new BoundDynamicCallExpr(callee, arguments, typeArguments, BoundType.Unknown);
         }
 
-        return new BoundInvokeExpr(callee, arguments, typeArguments, BoundType.Unknown);
+        return new BoundDynamicCallExpr(callee, arguments, typeArguments, BoundType.Unknown);
     }
 
     private bool TryBindStaticModuleCall(CallExpr call, BindingContext context, out BoundExpr boundCall)
@@ -212,21 +221,17 @@ internal sealed partial class Binder
             return false;
         }
 
-        var callPlan = moduleCallPlan! with { IsModuleCall = true };
+        var callResult = moduleCallPlan! with { IsModuleCall = true };
 
-        var callee = new BoundMemberAccessExpr(
+        var callee = new BoundMethodGroupExpr(
             new BoundLiteralExpr(moduleInfo.Type, new BoundType(typeof(Type))),
+            moduleInfo.Type,
             memberAccess.Name.Lexeme,
             memberAccess.NullSafe,
-            new BoundMemberPlan(
-                moduleInfo.Type,
-                memberAccess.Name.Lexeme,
-                Member: null,
-                IsMethodGroup: true,
-                IsStatic: true),
+            IsStatic: true,
             BoundType.Unknown);
 
-        boundCall = new BoundCallExpr(callee, arguments, callPlan, new BoundType(callPlan.SelectedMethod.ReturnType));
+        boundCall = new BoundResolvedCallExpr(callee, arguments, callResult.Resolution, callResult.IsStaticCall, callResult.IsModuleCall, new BoundType(callResult.SelectedMethod.ReturnType));
         return true;
     }
 

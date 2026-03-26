@@ -63,7 +63,7 @@ internal sealed class EvaluationTracer
             BoundBinaryExpr bin => TokenLexemes.GetCanonical(bin.Operator),
             BoundUnaryExpr un => TokenLexemes.GetCanonical(un.Operator),
             BoundLogicalExpr log => TokenLexemes.GetCanonical(log.Operator),
-            BoundMemberAccessExpr mem => mem.NullSafe ? $"?.{mem.MemberName}" : $".{mem.MemberName}",
+            BoundMemberAccessBase mem => mem.NullSafe ? $"?.{mem.MemberName}" : $".{mem.MemberName}",
             BoundConditionalExpr => "?:",
             BoundNullCoalesceExpr => TokenLexemes.GetCanonical(TokenType.QuestionQuestion),
             BoundCastExpr cast => $"({cast.TargetType.Name})",

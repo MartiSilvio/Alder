@@ -36,8 +36,8 @@ public sealed class CallBinderServiceTests
     {
         var memberBinder = new MemberBinderService(new TypeMetadataProvider());
 
-        var methodGroup = memberBinder.BindMemberRead(typeof(string), nameof(string.Contains), isStatic: false, isCaseSensitive: true);
-        Assert.That(methodGroup.IsMethodGroup, Is.True);
+        var methodGroupResult = memberBinder.BindMemberRead(typeof(string), nameof(string.Contains), isStatic: false, isCaseSensitive: true, out _);
+        Assert.That(methodGroupResult, Is.EqualTo(MemberBindResult.MethodGroup));
 
         var indexPlan = memberBinder.BindIndexRead(typeof(List<int>), typeof(int));
         Assert.That(indexPlan.IsDirectCollectionAccess, Is.True);

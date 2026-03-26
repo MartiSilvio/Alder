@@ -3,20 +3,19 @@ using System.Reflection;
 
 namespace Alder.Binding.BoundNodes;
 
-internal sealed record BoundMultiDimIndexAssignExpr(
+internal sealed record BoundResolvedMultiDimIndexAccessExpr(
     BoundExpr Target,
     ImmutableArray<BoundExpr> Indices,
-    BoundExpr Value,
-    Type? TargetType,
+    Type TargetType,
     bool IsArray,
     PropertyInfo? Indexer,
+    bool NullSafe,
     BoundType StaticType) : BoundExpr(StaticType)
 {
-    internal override BoundNodeKind Kind => BoundNodeKind.MultiDimIndexAssignment;
+    internal override BoundNodeKind Kind => BoundNodeKind.ResolvedMultiDimIndexAccess;
     internal override void EnumerateChildren(Action<BoundExpr> visit)
     {
         visit(Target);
         foreach (var i in Indices) visit(i);
-        visit(Value);
     }
 }

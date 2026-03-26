@@ -35,6 +35,16 @@ internal sealed class SecurityValidationPass : IBoundTreePass
     private static bool IsExtensionMethod(MethodInfo method) =>
         method.IsDefined(typeof(ExtensionAttribute), false);
 
+    private static void ValidateMemberRead(Type memberType, bool isStatic, string memberName, SecurityPolicy policy)
+    {
+        if (!policy.IsTypeAllowed(memberType))
+            throw new AlderException(DiagnosticDescriptors.SandboxTypeBlocked, memberType.Name);
+        if (isStatic && !policy.AllowStaticPropertyRead)
+            throw new AlderException(DiagnosticDescriptors.SandboxStaticMemberAccessBlocked, memberType.Name, memberName);
+        if (!policy.AllowPropertyRead)
+            throw new AlderException(DiagnosticDescriptors.SandboxPropertyAccessBlocked, memberName);
+    }
+
     private static void Validate(BoundExpr expr, SecurityPolicy policy)
     {
         switch (expr)
@@ -46,28 +56,23 @@ internal sealed class SecurityValidationPass : IBoundTreePass
                     throw new AlderException(DiagnosticDescriptors.SandboxTypeBlocked, creation.StaticType.ClrType.Name);
                 break;
 
-            case BoundCallExpr call:
-                if (!call.Plan.IsModuleCall && !policy.AllowMethodCalls && !IsExtensionMethod(call.Plan.SelectedMethod))
-                    throw new AlderException(DiagnosticDescriptors.SandboxMethodCallBlocked, call.Plan.SelectedMethod.Name);
-                var declaringType = call.Plan.SelectedMethod.DeclaringType;
+            case BoundResolvedCallExpr call:
+                if (!call.IsModuleCall && !policy.AllowMethodCalls && !IsExtensionMethod(call.SelectedMethod))
+                    throw new AlderException(DiagnosticDescriptors.SandboxMethodCallBlocked, call.SelectedMethod.Name);
+                var declaringType = call.SelectedMethod.DeclaringType;
                 if (declaringType != null && !policy.IsTypeAllowed(declaringType))
                     throw new AlderException(DiagnosticDescriptors.SandboxTypeBlocked, declaringType.Name);
                 break;
 
-            case BoundMemberAccessExpr memberAccess:
-                if (memberAccess.Plan is { IsMethodGroup: false } plan)
-                {
-                    if (!policy.IsTypeAllowed(plan.DeclaringType))
-                        throw new AlderException(DiagnosticDescriptors.SandboxTypeBlocked, plan.DeclaringType.Name);
-                    if (plan.IsStatic && !policy.AllowStaticPropertyRead)
-                        throw new AlderException(DiagnosticDescriptors.SandboxStaticMemberAccessBlocked, plan.DeclaringType.Name, memberAccess.MemberName);
-                    if (!policy.AllowPropertyRead)
-                        throw new AlderException(DiagnosticDescriptors.SandboxPropertyAccessBlocked, memberAccess.MemberName);
-                }
-                else if (memberAccess.Plan == null && !policy.AllowPropertyRead)
-                {
-                    throw new AlderException(DiagnosticDescriptors.SandboxPropertyAccessBlocked, memberAccess.MemberName);
-                }
+            case BoundPropertyAccessExpr prop:
+                ValidateMemberRead(prop.Property.ReflectedType ?? prop.Property.DeclaringType!, prop.IsStatic, prop.MemberName, policy);
+                break;
+            case BoundFieldAccessExpr field:
+                ValidateMemberRead(field.Field.ReflectedType ?? field.Field.DeclaringType!, field.IsStatic, field.MemberName, policy);
+                break;
+            case BoundDynamicMemberAccessExpr dyn:
+                if (!policy.AllowPropertyRead)
+                    throw new AlderException(DiagnosticDescriptors.SandboxPropertyAccessBlocked, dyn.MemberName);
                 break;
 
             case BoundAssignExpr or BoundCompoundAssignExpr or BoundNullCoalesceAssignExpr

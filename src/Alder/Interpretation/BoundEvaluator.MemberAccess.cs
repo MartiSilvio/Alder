@@ -3,7 +3,6 @@ using System.Collections.Immutable;
 using System.Reflection;
 using Alder.Binding;
 using Alder.Binding.BoundNodes;
-using Alder.Binding.Plans;
 using Alder.Diagnostics;
 using Alder.Runtime;
 using Alder.Runtime.Extensions;
@@ -14,54 +13,89 @@ namespace Alder.Interpretation;
 
 internal sealed partial class BoundEvaluator
 {
-    private object? EvaluateMemberAccess(BoundMemberAccessExpr memberAccess)
+    private object? EvaluatePropertyAccess(BoundPropertyAccessExpr node)
     {
-        var chain = PostfixChain.TryCollect(memberAccess);
-        if (chain != null)
-            return EvaluatePostfixChain(chain.Value);
+        var chain = PostfixChain.TryCollect(node);
+        if (chain != null) return EvaluatePostfixChain(chain.Value);
 
-        var target = Evaluate(memberAccess.Target);
-        if (memberAccess.NullSafe && target == null)
-            return null;
-        return ResolveMemberWithPlan(target, memberAccess.Plan, memberAccess.MemberName, memberAccess.NullSafe);
+        if (node.IsStatic)
+            return TypeHelpers.GuardReflectionLeak(node.Property.GetValue(null), $"static property {node.MemberName}");
+
+        var target = Evaluate(node.Target);
+        if (node.NullSafe && target == null) return null;
+        return ResolvePropertyAccess(node, target);
     }
 
-    private object? ResolveMemberWithPlan(object? target, BoundMemberPlan? plan, string memberName, bool nullSafe)
+    private object? EvaluateFieldAccess(BoundFieldAccessExpr node)
     {
-        if (plan == null)
-            return MemberAccess.GetMember(target, memberName, _config, nullSafe, _context);
+        var chain = PostfixChain.TryCollect(node);
+        if (chain != null) return EvaluatePostfixChain(chain.Value);
 
+        if (node.IsStatic)
+            return TypeHelpers.GuardReflectionLeak(node.Field.GetValue(null), $"static field {node.MemberName}");
+
+        var target = Evaluate(node.Target);
+        if (node.NullSafe && target == null) return null;
+        return ResolveFieldAccess(node, target);
+    }
+
+    private object? EvaluateMethodGroup(BoundMethodGroupExpr node)
+    {
+        var chain = PostfixChain.TryCollect(node);
+        if (chain != null) return EvaluatePostfixChain(chain.Value);
+
+        if (node.IsStatic) return new StaticMethodRef(node.DeclaringType, node.MethodName);
+        var target = Evaluate(node.Target);
+        if (node.NullSafe && target == null) return null;
         if (target == null)
-            throw new AlderException(DiagnosticDescriptors.NullMemberAccess, "property", memberName);
-
-        if (plan.IsMethodGroup)
-        {
-            return plan.IsStatic
-                ? new StaticMethodRef(plan.DeclaringType, memberName)
-                : new MethodRef(target, memberName);
-        }
-
-        if (plan.Member is PropertyInfo property && !TypeHelpers.IsValueTupleType(plan.DeclaringType))
-        {
-            if (plan.IsStatic)
-                return TypeHelpers.GuardReflectionLeak(property.GetValue(null), $"static property {memberName}");
-
-            return TypeHelpers.GuardReflectionLeak(
-                _context.TypeMetadata.GetPropertyValue(property, target), $"property {memberName}");
-        }
-
-        if (plan.Member is FieldInfo field && !TypeHelpers.IsValueTupleType(plan.DeclaringType))
-        {
-            if (plan.IsStatic)
-                return TypeHelpers.GuardReflectionLeak(field.GetValue(null), $"static field {memberName}");
-
-            return TypeHelpers.GuardReflectionLeak(field.GetValue(target), $"field {memberName}");
-        }
-
-        return MemberAccess.GetMember(target, memberName, _config, nullSafe, _context);
+            throw new AlderException(DiagnosticDescriptors.NullMemberAccess, "method", node.MethodName);
+        return new MethodRef(target, node.MethodName);
     }
 
-    private object? EvaluateIndexAccess(BoundIndexAccessExpr indexAccess)
+    private object? EvaluateDynamicMemberAccess(BoundDynamicMemberAccessExpr node)
+    {
+        var chain = PostfixChain.TryCollect(node);
+        if (chain != null) return EvaluatePostfixChain(chain.Value);
+
+        var target = Evaluate(node.Target);
+        if (node.NullSafe && target == null) return null;
+        return MemberAccess.GetMember(target, node.MemberName, _config, node.NullSafe, _context);
+    }
+
+    private object? ResolveMemberAccessWithTarget(BoundMemberAccessBase ma, object? target)
+    {
+        return ma switch
+        {
+            BoundPropertyAccessExpr prop => ResolvePropertyAccess(prop, target),
+            BoundFieldAccessExpr field => ResolveFieldAccess(field, target),
+            BoundMethodGroupExpr mg => target == null
+                ? throw new AlderException(DiagnosticDescriptors.NullMemberAccess, "method", mg.MethodName)
+                : new MethodRef(target, mg.MethodName),
+            BoundDynamicMemberAccessExpr dyn => MemberAccess.GetMember(target, dyn.MemberName, _config, dyn.NullSafe, _context),
+            _ => throw new BindingNotSupportedException($"Unexpected member access type '{ma.GetType().Name}'")
+        };
+    }
+
+    private object? ResolvePropertyAccess(BoundPropertyAccessExpr node, object? target)
+    {
+        if (target == null)
+            throw new AlderException(DiagnosticDescriptors.NullMemberAccess, "property", node.MemberName);
+        if (TypeHelpers.IsValueTupleType(node.Property.DeclaringType ?? node.Property.ReflectedType!))
+            return MemberAccess.GetMember(target, node.MemberName, _config, node.NullSafe, _context);
+        return TypeHelpers.GuardReflectionLeak(
+            _context.TypeMetadata.GetPropertyValue(node.Property, target), $"property {node.MemberName}");
+    }
+
+    private object? ResolveFieldAccess(BoundFieldAccessExpr node, object? target)
+    {
+        if (target == null)
+            throw new AlderException(DiagnosticDescriptors.NullMemberAccess, "field", node.MemberName);
+        if (TypeHelpers.IsValueTupleType(node.Field.DeclaringType ?? node.Field.ReflectedType!))
+            return MemberAccess.GetMember(target, node.MemberName, _config, node.NullSafe, _context);
+        return TypeHelpers.GuardReflectionLeak(node.Field.GetValue(target), $"field {node.MemberName}");
+    }
+
+    private object? EvaluateResolvedIndexAccess(BoundResolvedIndexAccessExpr indexAccess)
     {
         var target = Evaluate(indexAccess.Target);
         if (indexAccess.NullSafe && target == null)
@@ -72,23 +106,23 @@ internal sealed partial class BoundEvaluator
 
         var index = Evaluate(indexAccess.Index);
 
-        if (indexAccess.Plan is { IsDirectCollectionAccess: true } plan)
+        if (indexAccess.IsDirectCollectionAccess)
         {
-            if (plan.TargetType == typeof(string))
+            if (indexAccess.TargetType == typeof(string))
             {
                 var s = (string)target;
                 var i = MemberAccess.NormalizeIndex(Convert.ToInt32(index), s.Length, _config.LanguageMode);
                 return (object)s[i];
             }
 
-            if (typeof(IList).IsAssignableFrom(plan.TargetType))
+            if (typeof(IList).IsAssignableFrom(indexAccess.TargetType))
             {
                 var list = (IList)target;
                 var i = MemberAccess.NormalizeIndex(Convert.ToInt32(index), list.Count, _config.LanguageMode);
                 return TypeHelpers.GuardReflectionLeak(list[i], $"index [{i}]");
             }
 
-            if (typeof(IDictionary<string, object?>).IsAssignableFrom(plan.TargetType))
+            if (typeof(IDictionary<string, object?>).IsAssignableFrom(indexAccess.TargetType))
             {
                 var dict = (IDictionary<string, object?>)target;
                 return index is string key && dict.TryGetValue(key, out var value)
@@ -100,7 +134,20 @@ internal sealed partial class BoundEvaluator
         return MemberAccess.GetIndex(target, index, _config, _context);
     }
 
-    private object? EvaluateMultiDimIndexAccess(BoundMultiDimIndexAccessExpr multiDimIndexAccess)
+    private object? EvaluateDynamicIndexAccess(BoundDynamicIndexAccessExpr indexAccess)
+    {
+        var target = Evaluate(indexAccess.Target);
+        if (indexAccess.NullSafe && target == null)
+            return null;
+
+        if (target == null)
+            throw new AlderException(DiagnosticDescriptors.BadIndexerAccess, TypeNameFormatter.Null);
+
+        var index = Evaluate(indexAccess.Index);
+        return MemberAccess.GetIndex(target, index, _config, _context);
+    }
+
+    private object? EvaluateResolvedMultiDimIndexAccess(BoundResolvedMultiDimIndexAccessExpr multiDimIndexAccess)
     {
         var target = Evaluate(multiDimIndexAccess.Target);
         if (multiDimIndexAccess.NullSafe && target == null)
@@ -109,19 +156,31 @@ internal sealed partial class BoundEvaluator
         if (target == null)
             throw new AlderException(DiagnosticDescriptors.BadIndexerAccess, TypeNameFormatter.Null);
 
-        var plan = multiDimIndexAccess.Plan;
-
-        if (plan is { IsArray: true })
+        if (multiDimIndexAccess.IsArray)
         {
             var indices = EvaluateIntIndices(multiDimIndexAccess.Indices);
             return ((Array)target).GetValue(indices);
         }
 
-        if (plan?.Indexer is { } indexer)
+        if (multiDimIndexAccess.Indexer is { } indexer)
         {
             var convertedIndices = EvaluateConvertedIndices(multiDimIndexAccess.Indices, indexer);
             return indexer.GetValue(target, convertedIndices);
         }
+
+        throw new AlderException(
+            DiagnosticDescriptors.BadIndexerAccess,
+            TypeNameFormatter.Of(target));
+    }
+
+    private object? EvaluateDynamicMultiDimIndexAccess(BoundDynamicMultiDimIndexAccessExpr multiDimIndexAccess)
+    {
+        var target = Evaluate(multiDimIndexAccess.Target);
+        if (multiDimIndexAccess.NullSafe && target == null)
+            return null;
+
+        if (target == null)
+            throw new AlderException(DiagnosticDescriptors.BadIndexerAccess, TypeNameFormatter.Null);
 
         throw new AlderException(
             DiagnosticDescriptors.BadIndexerAccess,
@@ -136,16 +195,15 @@ internal sealed partial class BoundEvaluator
             throw new AlderException(DiagnosticDescriptors.BadIndexerAccess, TypeNameFormatter.Null);
 
         var value = Evaluate(multiDimIndexAssign.Value);
-        var plan = multiDimIndexAssign.Plan;
 
-        if (plan is { IsArray: true })
+        if (multiDimIndexAssign.IsArray)
         {
             var indices = EvaluateIntIndices(multiDimIndexAssign.Indices);
             ((Array)target).SetValue(value, indices);
             return value;
         }
 
-        if (plan?.Indexer is { CanWrite: true } indexer)
+        if (multiDimIndexAssign.Indexer is { CanWrite: true } indexer)
         {
             var convertedIndices = EvaluateConvertedIndices(multiDimIndexAssign.Indices, indexer);
             indexer.SetValue(target, value, convertedIndices);
@@ -187,26 +245,26 @@ internal sealed partial class BoundEvaluator
         return new OutArgMarker(outArg.VariableName, outArg.TypeName, outArg.IsDiscard);
     }
 
-    private object? EvaluateCall(BoundCallExpr call)
+    private object? EvaluateResolvedCall(BoundResolvedCallExpr call)
     {
         var chain = PostfixChain.TryCollect(call);
         if (chain != null)
             return EvaluatePostfixChain(chain.Value);
 
-        return EvaluateCallDirect(call, null);
+        return EvaluateResolvedCallDirect(call, null);
     }
 
-    private object? EvaluateCallDirect(BoundCallExpr call, object? evaluatedTarget)
+    private object? EvaluateResolvedCallDirect(BoundResolvedCallExpr call, object? evaluatedTarget)
     {
-        if (call.Callee is BoundMemberAccessExpr { Plan: not null } memberAccess)
+        if (call.Callee is BoundMethodGroupExpr methodGroup)
         {
-            var target = evaluatedTarget ?? (memberAccess.Plan.IsStatic ? null : Evaluate(memberAccess.Target));
-            if (memberAccess.NullSafe && target == null)
+            var target = evaluatedTarget ?? (methodGroup.IsStatic ? null : Evaluate(methodGroup.Target));
+            if (methodGroup.NullSafe && target == null)
                 return null;
 
             var plannedArgs = EvaluateArguments(call.Arguments);
 
-            var resolved = call.Plan.Resolution;
+            var resolved = call.Resolution;
             var parameters = Runtime.MethodDispatchCache.GetParameters(resolved.Method);
             var prepared = Runtime.ArgumentPreparer.Prepare(resolved, plannedArgs, parameters, _cancellationToken);
             var plannedResult = MethodInvoker.InvokeMethodCore(resolved.Method, target, prepared);
@@ -222,16 +280,16 @@ internal sealed partial class BoundEvaluator
         return invokeResult;
     }
 
-    private object? EvaluateInvoke(BoundInvokeExpr invoke)
+    private object? EvaluateDynamicCall(BoundDynamicCallExpr invoke)
     {
         var chain = PostfixChain.TryCollect(invoke);
         if (chain != null)
             return EvaluatePostfixChain(chain.Value);
 
-        return EvaluateInvokeDirect(invoke, null);
+        return EvaluateDynamicCallDirect(invoke, null);
     }
 
-    private object? EvaluateInvokeDirect(BoundInvokeExpr invoke, object? evaluatedTarget)
+    private object? EvaluateDynamicCallDirect(BoundDynamicCallExpr invoke, object? evaluatedTarget)
     {
         var (args, outBindings) = EvaluateArgumentsWithOutBindings(invoke.Arguments);
 
@@ -247,7 +305,7 @@ internal sealed partial class BoundEvaluator
             return result;
         }
 
-        if (invoke.Callee is BoundMemberAccessExpr memberAccess)
+        if (invoke.Callee is BoundMemberAccessBase memberAccess)
         {
             var target = evaluatedTarget ?? Evaluate(memberAccess.Target);
             var result = MethodInvoker.InvokeMemberCall(
@@ -272,15 +330,15 @@ internal sealed partial class BoundEvaluator
         {
             var seg = chain.Segments[i];
 
-            if (seg.CallOrInvoke is BoundCallExpr call)
-                result = EvaluateCallDirect(call, result);
-            else if (seg.CallOrInvoke is BoundInvokeExpr invoke)
-                result = EvaluateInvokeDirect(invoke, result);
+            if (seg.CallOrInvoke is BoundResolvedCallExpr call)
+                result = EvaluateResolvedCallDirect(call, result);
+            else if (seg.CallOrInvoke is BoundDynamicCallExpr invoke)
+                result = EvaluateDynamicCallDirect(invoke, result);
             else
             {
                 var ma = seg.MemberAccess;
                 if (ma.NullSafe && result == null) return null;
-                result = ResolveMemberWithPlan(result, ma.Plan, ma.MemberName, ma.NullSafe);
+                result = ResolveMemberAccessWithTarget(ma, result);
             }
         }
 

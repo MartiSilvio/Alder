@@ -1,4 +1,3 @@
-using Alder.Binding.Plans;
 using Alder.Parsing;
 
 namespace Alder.Binding.BoundNodes;
@@ -6,7 +5,6 @@ namespace Alder.Binding.BoundNodes;
 internal sealed record BoundIndexCompoundAssignExpr(
     BoundExpr Target,
     BoundExpr Index,
-    BoundIndexPlan? Plan,
     TokenType Operator,
     BoundExpr Value,
     BoundType StaticType) : BoundExpr(StaticType)

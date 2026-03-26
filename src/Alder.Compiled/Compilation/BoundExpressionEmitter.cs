@@ -2,7 +2,6 @@ using System.Collections.Immutable;
 using System.Linq.Expressions;
 using Alder.Binding;
 using Alder.Binding.BoundNodes;
-using Alder.Binding.Plans;
 using Alder.Diagnostics;
 using Alder.Interpretation;
 using Alder.Parsing;
@@ -164,8 +163,12 @@ internal sealed partial class BoundExpressionEmitter
             BoundNodeKind.IndexNullCoalesceAssignment => EmitIndexNullCoalesceAssign((BoundIndexNullCoalesceAssignExpr)expr),
             BoundNodeKind.MemberIncrement => EmitMemberIncrement((BoundMemberIncrementExpr)expr),
             BoundNodeKind.IndexIncrement => EmitIndexIncrement((BoundIndexIncrementExpr)expr),
-            BoundNodeKind.MemberAccess => EmitMemberAccess((BoundMemberAccessExpr)expr),
-            BoundNodeKind.IndexerAccess => EmitIndexAccess((BoundIndexAccessExpr)expr),
+            BoundNodeKind.PropertyAccess => EmitPropertyAccess((BoundPropertyAccessExpr)expr),
+            BoundNodeKind.FieldAccess => EmitFieldAccess((BoundFieldAccessExpr)expr),
+            BoundNodeKind.MethodGroup => EmitMethodGroup((BoundMethodGroupExpr)expr),
+            BoundNodeKind.DynamicMemberAccess => EmitDynamicMemberAccess((BoundDynamicMemberAccessExpr)expr),
+            BoundNodeKind.ResolvedIndexAccess => EmitIndexAccess((BoundResolvedIndexAccessExpr)expr),
+            BoundNodeKind.DynamicIndexAccess => EmitDynamicIndexAccess((BoundDynamicIndexAccessExpr)expr),
             BoundNodeKind.ObjectCreationExpression => EmitObjectCreation((BoundObjectCreationExpr)expr),
             BoundNodeKind.TypedArrayCreation => EmitTypedArrayCreation((BoundTypedArrayCreationExpr)expr),
             BoundNodeKind.TypedArrayLiteral => EmitTypedArrayLiteral((BoundTypedArrayLiteralExpr)expr),
@@ -173,13 +176,14 @@ internal sealed partial class BoundExpressionEmitter
             BoundNodeKind.DeconstructionAssignment => EmitDeconstruction((BoundDeconstructionExpr)expr),
             BoundNodeKind.MultiDimTypedArrayCreation => EmitMultiDimTypedArrayCreation((BoundMultiDimTypedArrayCreationExpr)expr),
             BoundNodeKind.MultiDimArrayInit => EmitMultiDimArrayInit((BoundMultiDimArrayInitExpr)expr),
-            BoundNodeKind.MultiDimIndexAccess => EmitMultiDimIndexAccess((BoundMultiDimIndexAccessExpr)expr),
+            BoundNodeKind.ResolvedMultiDimIndexAccess => EmitMultiDimIndexAccess((BoundResolvedMultiDimIndexAccessExpr)expr),
+            BoundNodeKind.DynamicMultiDimIndexAccess => EmitDynamicMultiDimIndexAccess((BoundDynamicMultiDimIndexAccessExpr)expr),
             BoundNodeKind.MultiDimIndexAssignment => EmitMultiDimIndexAssign((BoundMultiDimIndexAssignExpr)expr),
             BoundNodeKind.ThrowExpression => EmitThrow((BoundThrowExpr)expr),
             BoundNodeKind.FromEndIndexExpression => EmitIndexFromEnd((BoundIndexFromEndExpr)expr),
             BoundNodeKind.SliceExpression => EmitSlice((BoundSliceExpr)expr),
-            BoundNodeKind.Call => EmitCall((BoundCallExpr)expr),
-            BoundNodeKind.Invoke => EmitInvoke((BoundInvokeExpr)expr),
+            BoundNodeKind.ResolvedCall => EmitCall((BoundResolvedCallExpr)expr),
+            BoundNodeKind.DynamicCall => EmitInvoke((BoundDynamicCallExpr)expr),
             BoundNodeKind.Lambda => EmitLambda((BoundLambdaExpr)expr),
             BoundNodeKind.PipelineExpression => EmitPipeline((BoundPipelineExpr)expr),
             BoundNodeKind.ArrayLiteral => EmitArrayLiteral((BoundArrayLiteralExpr)expr),

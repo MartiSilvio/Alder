@@ -210,7 +210,7 @@ public class RedTeamAttackTests(CompilationMode mode)
     {
         var ex = Assert.Throws<AlderException>(() =>
             TestEngineFactory.Create(mode).Evaluate("new int[100000000]"));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0203));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0202));
     }
 
     [Test]

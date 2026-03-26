@@ -1,11 +1,10 @@
-using Alder.Binding.Plans;
-
 namespace Alder.Binding.BoundNodes;
 
 internal sealed record BoundMemberAssignExpr(
     BoundExpr Target,
     string MemberName,
-    BoundMemberPlan? Plan,
+    MemberInfo? ResolvedMember,
+    Type? DeclaringType,
     BoundExpr Value,
     BoundType StaticType) : BoundExpr(StaticType)
 {

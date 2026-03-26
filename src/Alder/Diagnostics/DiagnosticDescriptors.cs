@@ -190,16 +190,16 @@ public static class DiagnosticDescriptors
 
 
     public static readonly DiagnosticDescriptor StatementLimitExceeded =
-        new(DiagnosticCode.ALDR0201, "Execution exceeded maximum statement count ({0}). {1} statements executed.");
+        new(DiagnosticCode.ALDR0200, "Execution exceeded maximum statement count ({0}). {1} statements executed.");
 
     public static readonly DiagnosticDescriptor TimeoutExceeded =
-        new(DiagnosticCode.ALDR0202, "Execution exceeded maximum timeout ({0}ms). {1}ms elapsed.");
+        new(DiagnosticCode.ALDR0201, "Execution exceeded maximum timeout ({0}ms). {1}ms elapsed.");
 
     public static readonly DiagnosticDescriptor ArrayLengthExceeded =
-        new(DiagnosticCode.ALDR0203, "Array length {0} exceeds maximum allowed ({1})");
+        new(DiagnosticCode.ALDR0202, "Array length {0} exceeds maximum allowed ({1})");
 
     public static readonly DiagnosticDescriptor LoopIterationLimitExceeded =
-        new(DiagnosticCode.ALDR0204, "Execution exceeded maximum loop iteration count ({0}). {1} iterations executed.");
+        new(DiagnosticCode.ALDR0203, "Execution exceeded maximum loop iteration count ({0}). {1} iterations executed.");
 
     #region Runtime (Alder)
 

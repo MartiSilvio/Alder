@@ -1,11 +1,8 @@
-using Alder.Binding.Plans;
-
 namespace Alder.Binding.BoundNodes;
 
 internal sealed record BoundIndexNullCoalesceAssignExpr(
     BoundExpr Target,
     BoundExpr Index,
-    BoundIndexPlan? Plan,
     BoundExpr Value,
     BoundType StaticType) : BoundExpr(StaticType)
 {

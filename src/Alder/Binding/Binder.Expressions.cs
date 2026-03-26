@@ -1,7 +1,6 @@
 using System.Collections.Immutable;
 using System.Reflection;
 using Alder.Binding.BoundNodes;
-using Alder.Binding.Plans;
 using Alder.Parsing;
 using Alder.Runtime;
 using Alder.Runtime.Semantics;
@@ -229,7 +228,7 @@ internal sealed partial class Binder
             new BoundType(arrayType));
     }
 
-    private BoundMultiDimIndexAccessExpr BindMultiDimIndexAccess(
+    private BoundExpr BindMultiDimIndexAccess(
         MultiDimIndexAccessExpr multiDimIndexAccess,
         BindingContext context)
     {
@@ -238,8 +237,14 @@ internal sealed partial class Binder
             .Select(index => Bind(index, context))
             .ToImmutableArray();
         var targetType = target.StaticType.ClrType;
-        var (plan, elementType) = TryBindMultiDimIndex(targetType, indices.Length, context);
-        return new BoundMultiDimIndexAccessExpr(target, indices, plan, multiDimIndexAccess.NullSafe, new BoundType(elementType));
+        var (resolved, elementType) = TryBindMultiDimIndex(targetType, indices.Length, context);
+
+        if (resolved != null)
+            return new BoundResolvedMultiDimIndexAccessExpr(
+                target, indices, resolved.Value.TargetType, resolved.Value.IsArray, resolved.Value.Indexer,
+                multiDimIndexAccess.NullSafe, new BoundType(elementType));
+
+        return new BoundDynamicMultiDimIndexAccessExpr(target, indices, multiDimIndexAccess.NullSafe, new BoundType(elementType));
     }
 
     private BoundMultiDimIndexAssignExpr BindMultiDimIndexAssign(
@@ -251,17 +256,18 @@ internal sealed partial class Binder
             .Select(index => Bind(index, context))
             .ToImmutableArray();
         var value = Bind(multiDimIndexAssign.Value, context);
-        var (plan, _) = TryBindMultiDimIndex(target.StaticType.ClrType, indices.Length, context);
-        return new BoundMultiDimIndexAssignExpr(target, indices, value, plan, value.StaticType);
+        var (resolved, _) = TryBindMultiDimIndex(target.StaticType.ClrType, indices.Length, context);
+        return new BoundMultiDimIndexAssignExpr(target, indices, value,
+            resolved?.TargetType, resolved?.IsArray ?? false, resolved?.Indexer, value.StaticType);
     }
 
-    private static (BoundMultiDimIndexPlan? Plan, Type ElementType) TryBindMultiDimIndex(
+    private static ((Type TargetType, bool IsArray, PropertyInfo? Indexer)? Resolved, Type ElementType) TryBindMultiDimIndex(
         Type targetType, int arity, BindingContext context)
     {
         if (targetType.IsArray)
         {
             var elementType = targetType.GetElementType() ?? typeof(object);
-            return (new BoundMultiDimIndexPlan(targetType, IsArray: true, Indexer: null), elementType);
+            return ((targetType, true, null), elementType);
         }
 
         if (targetType == typeof(object))
@@ -272,7 +278,7 @@ internal sealed partial class Binder
             .FirstOrDefault(p => p.GetIndexParameters().Length == arity);
 
         if (indexer != null)
-            return (new BoundMultiDimIndexPlan(targetType, IsArray: false, Indexer: indexer), indexer.PropertyType);
+            return ((targetType, false, indexer), indexer.PropertyType);
 
         return (null, typeof(object));
     }

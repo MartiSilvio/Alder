@@ -143,16 +143,14 @@ public enum DiagnosticCode
     /// <summary>Reflection type access blocked</summary>
     ALDR0108 = 1_000_108,
 
-    /// <summary>Expression depth exceeded</summary>
-    ALDR0200 = 1_000_200,
     /// <summary>Statement limit exceeded</summary>
-    ALDR0201 = 1_000_201,
+    ALDR0200 = 1_000_200,
     /// <summary>Timeout exceeded</summary>
-    ALDR0202 = 1_000_202,
+    ALDR0201 = 1_000_201,
     /// <summary>Array length exceeded</summary>
-    ALDR0203 = 1_000_203,
+    ALDR0202 = 1_000_202,
     /// <summary>Loop iteration limit exceeded</summary>
-    ALDR0204 = 1_000_204,
+    ALDR0203 = 1_000_203,
 
     /// <summary>Cannot access member on null</summary>
     ALDR0300 = 1_000_300,

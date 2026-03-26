@@ -15,7 +15,7 @@ internal abstract class BoundExprRewriter : BoundExprVisitor<BoundExpr>, IBoundT
     private BoundExpr CopyMetadata(BoundExpr original, BoundExpr rewritten)
     {
         if (ReferenceEquals(original, rewritten)) return rewritten;
-        rewritten.Span = original.Span;
+        rewritten = rewritten with { Span = original.Span };
         if (original.HasErrors) rewritten = rewritten with { HasErrors = true };
         if (original.Diagnostic != null) rewritten = rewritten with { Diagnostic = original.Diagnostic };
         return rewritten;
@@ -204,20 +204,23 @@ internal abstract class BoundExprRewriter : BoundExprVisitor<BoundExpr>, IBoundT
         return CopyMetadata(node, node with { Expression = expr });
     }
 
-    protected override BoundExpr VisitMemberAccess(BoundMemberAccessExpr node)
+    protected override BoundExpr VisitPropertyAccess(BoundPropertyAccessExpr node) => VisitMemberAccess(node);
+    protected override BoundExpr VisitFieldAccess(BoundFieldAccessExpr node) => VisitMemberAccess(node);
+    protected override BoundExpr VisitMethodGroup(BoundMethodGroupExpr node) => VisitMemberAccess(node);
+    protected override BoundExpr VisitDynamicMemberAccess(BoundDynamicMemberAccessExpr node) => VisitMemberAccess(node);
+
+    private BoundExpr VisitMemberAccess(BoundMemberAccessBase node)
     {
         var postfix = PostfixChain.TryCollect(node);
-        if (postfix == null)
-        {
-            var target = Visit(node.Target);
-            if (ReferenceEquals(target, node.Target)) return node;
-            return CopyMetadata(node, node with { Target = target });
-        }
+        if (postfix != null)
+            return RewritePostfixChain(postfix.Value, node);
 
-        return RewritePostfixChain(postfix.Value, node);
+        var target = Visit(node.Target);
+        if (ReferenceEquals(target, node.Target)) return node;
+        return CopyMetadata(node, RewriteMemberAccessTarget(node, target));
     }
 
-    protected override BoundExpr VisitCall(BoundCallExpr node)
+    protected override BoundExpr VisitResolvedCall(BoundResolvedCallExpr node)
     {
         var postfix = PostfixChain.TryCollect(node);
         if (postfix != null)
@@ -229,7 +232,7 @@ internal abstract class BoundExprRewriter : BoundExprVisitor<BoundExpr>, IBoundT
         return CopyMetadata(node, node with { Callee = callee, Arguments = args });
     }
 
-    protected override BoundExpr VisitInvoke(BoundInvokeExpr node)
+    protected override BoundExpr VisitDynamicCall(BoundDynamicCallExpr node)
     {
         var postfix = PostfixChain.TryCollect(node);
         if (postfix != null)
@@ -249,11 +252,11 @@ internal abstract class BoundExprRewriter : BoundExprVisitor<BoundExpr>, IBoundT
         for (var i = chain.Segments.Count - 1; i >= 0; i--)
         {
             var seg = chain.Segments[i];
-            var originalMa = seg.MemberAccess;
+            BoundMemberAccessBase originalMa = seg.MemberAccess;
 
             if (!ReferenceEquals(current, originalMa.Target))
             {
-                current = CopyMetadata(originalMa, originalMa with { Target = current });
+                current = CopyMetadata(originalMa, RewriteMemberAccessTarget(originalMa, current));
                 anyChanged = true;
             }
             else
@@ -261,7 +264,7 @@ internal abstract class BoundExprRewriter : BoundExprVisitor<BoundExpr>, IBoundT
                 current = originalMa;
             }
 
-            if (seg.CallOrInvoke is BoundCallExpr call)
+            if (seg.CallOrInvoke is BoundResolvedCallExpr call)
             {
                 var args = RewriteImmutableArray(call.Arguments, out var argsChanged);
                 if (argsChanged || !ReferenceEquals(current, call.Callee))
@@ -274,7 +277,7 @@ internal abstract class BoundExprRewriter : BoundExprVisitor<BoundExpr>, IBoundT
                     current = call;
                 }
             }
-            else if (seg.CallOrInvoke is BoundInvokeExpr invoke)
+            else if (seg.CallOrInvoke is BoundDynamicCallExpr invoke)
             {
                 var args = RewriteImmutableArray(invoke.Arguments, out var argsChanged);
                 if (argsChanged || !ReferenceEquals(current, invoke.Callee))
@@ -292,7 +295,7 @@ internal abstract class BoundExprRewriter : BoundExprVisitor<BoundExpr>, IBoundT
         return anyChanged ? current : originalRoot;
     }
 
-    protected override BoundExpr VisitIndexAccess(BoundIndexAccessExpr node)
+    protected override BoundExpr VisitResolvedIndexAccess(BoundResolvedIndexAccessExpr node)
     {
         var target = Visit(node.Target);
         var index = Visit(node.Index);
@@ -300,7 +303,23 @@ internal abstract class BoundExprRewriter : BoundExprVisitor<BoundExpr>, IBoundT
         return CopyMetadata(node, node with { Target = target, Index = index });
     }
 
-    protected override BoundExpr VisitMultiDimIndexAccess(BoundMultiDimIndexAccessExpr node)
+    protected override BoundExpr VisitDynamicIndexAccess(BoundDynamicIndexAccessExpr node)
+    {
+        var target = Visit(node.Target);
+        var index = Visit(node.Index);
+        if (ReferenceEquals(target, node.Target) && ReferenceEquals(index, node.Index)) return node;
+        return CopyMetadata(node, node with { Target = target, Index = index });
+    }
+
+    protected override BoundExpr VisitResolvedMultiDimIndexAccess(BoundResolvedMultiDimIndexAccessExpr node)
+    {
+        var target = Visit(node.Target);
+        var indices = RewriteImmutableArray(node.Indices, out var indicesChanged);
+        if (ReferenceEquals(target, node.Target) && !indicesChanged) return node;
+        return CopyMetadata(node, node with { Target = target, Indices = indices });
+    }
+
+    protected override BoundExpr VisitDynamicMultiDimIndexAccess(BoundDynamicMultiDimIndexAccessExpr node)
     {
         var target = Visit(node.Target);
         var indices = RewriteImmutableArray(node.Indices, out var indicesChanged);
@@ -722,6 +741,15 @@ internal abstract class BoundExprRewriter : BoundExprVisitor<BoundExpr>, IBoundT
         if (!tryChanged && !catchesChanged && !finallyChanged) return node;
         return CopyMetadata(node, node with { TryBody = tryBody, CatchClauses = catches.MoveToImmutable(), FinallyBody = finallyBody });
     }
+
+    private static BoundMemberAccessBase RewriteMemberAccessTarget(BoundMemberAccessBase ma, BoundExpr newTarget) => ma switch
+    {
+        BoundPropertyAccessExpr prop => prop with { Target = newTarget },
+        BoundFieldAccessExpr field => field with { Target = newTarget },
+        BoundMethodGroupExpr mg => mg with { Target = newTarget },
+        BoundDynamicMemberAccessExpr dyn => dyn with { Target = newTarget },
+        _ => throw new InvalidOperationException($"Unexpected member access type '{ma.GetType().Name}'")
+    };
 
     private ImmutableArray<BoundExpr> RewriteImmutableArray(ImmutableArray<BoundExpr> items, out bool changed)
     {

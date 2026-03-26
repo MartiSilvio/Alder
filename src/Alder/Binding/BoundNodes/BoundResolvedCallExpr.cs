@@ -1,15 +1,18 @@
 using System.Collections.Immutable;
-using Alder.Binding.Plans;
+using Alder.Runtime;
 
 namespace Alder.Binding.BoundNodes;
 
-internal sealed record BoundCallExpr(
+internal sealed record BoundResolvedCallExpr(
     BoundExpr Callee,
     ImmutableArray<BoundExpr> Arguments,
-    BoundCallPlan Plan,
+    ResolvedCall Resolution,
+    bool IsStaticCall,
+    bool IsModuleCall,
     BoundType StaticType) : BoundExpr(StaticType)
 {
-    internal override BoundNodeKind Kind => BoundNodeKind.Call;
+    internal MethodInfo SelectedMethod => Resolution.Method;
+    internal override BoundNodeKind Kind => BoundNodeKind.ResolvedCall;
     internal override void EnumerateChildren(Action<BoundExpr> visit)
     {
         visit(Callee);

@@ -24,9 +24,7 @@ internal sealed class ConstantFoldingPass : BoundExprRewriter
             };
 
             if (result == null) return rewritten;
-            var folded = BoundLiteralExpr.FromValue(result);
-            folded.Span = rewritten.Span;
-            return folded;
+            return BoundLiteralExpr.FromValue(result) with { Span = rewritten.Span };
         }
         catch
         {
@@ -74,9 +72,7 @@ internal sealed class ConstantFoldingPass : BoundExprRewriter
 
             if (result == null) return binary;
             result = ApplyConstantPromotion(result, left.Value, right.Value);
-            var folded = BoundLiteralExpr.FromValue(result);
-            folded.Span = binary.Span;
-            return folded;
+            return BoundLiteralExpr.FromValue(result) with { Span = binary.Span };
         }
         catch
         {
@@ -131,9 +127,7 @@ internal sealed class ConstantFoldingPass : BoundExprRewriter
         };
 
         if (result == null) return logical;
-        var folded = BoundLiteralExpr.FromValue(result.Value);
-        folded.Span = logical.Span;
-        return folded;
+        return BoundLiteralExpr.FromValue(result.Value) with { Span = logical.Span };
     }
 
     protected override BoundExpr VisitConditional(BoundConditionalExpr node)

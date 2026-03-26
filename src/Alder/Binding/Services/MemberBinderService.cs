@@ -1,8 +1,14 @@
-using Alder.Binding.Plans;
 using Alder.Diagnostics;
 using Alder.Runtime;
 
 namespace Alder.Binding.Services;
+
+internal enum MemberBindResult { NotFound, Property, Field, MethodGroup, StructuralMember }
+
+internal sealed record IndexBindResult(
+    Type TargetType,
+    Type ResultType,
+    bool IsDirectCollectionAccess);
 
 internal sealed class MemberBinderService
 {
@@ -13,9 +19,11 @@ internal sealed class MemberBinderService
         _typeMetadata = typeMetadata;
     }
 
-    public bool TryBindMemberRead(BoundType targetType, string memberName, bool isStatic, bool isCaseSensitive, out BoundMemberPlan? plan, out Type? resolvedType)
+    public bool TryBindMemberRead(BoundType targetType, string memberName, bool isStatic, bool isCaseSensitive,
+        out MemberBindResult result, out MemberInfo? member, out Type? resolvedType)
     {
-        if (TryBindMemberReadFromClrType(targetType.ClrType, memberName, isStatic, isCaseSensitive, out plan, out resolvedType))
+        if (TryBindMemberReadFromClrType(targetType.ClrType, memberName, isStatic, isCaseSensitive,
+                out result, out member, out resolvedType))
             return true;
 
         if (targetType.HasStructuralMembers)
@@ -26,7 +34,8 @@ internal sealed class MemberBinderService
                 if (comparer.Equals(kvp.Key, memberName))
                 {
                     resolvedType = kvp.Value;
-                    plan = new BoundMemberPlan(targetType.ClrType, memberName, Member: null, IsMethodGroup: false, isStatic);
+                    result = MemberBindResult.StructuralMember;
+                    member = null;
                     return true;
                 }
             }
@@ -35,7 +44,8 @@ internal sealed class MemberBinderService
         return false;
     }
 
-    private bool TryBindMemberReadFromClrType(Type clrType, string memberName, bool isStatic, bool isCaseSensitive, out BoundMemberPlan? plan, out Type? resolvedType)
+    private bool TryBindMemberReadFromClrType(Type clrType, string memberName, bool isStatic, bool isCaseSensitive,
+        out MemberBindResult result, out MemberInfo? member, out Type? resolvedType)
     {
         var flags = BindingFlags.Public | (isStatic ? BindingFlags.Static : BindingFlags.Instance);
         if (!isCaseSensitive)
@@ -44,7 +54,8 @@ internal sealed class MemberBinderService
         var property = _typeMetadata.GetProperty(clrType, memberName, flags);
         if (property != null)
         {
-            plan = new BoundMemberPlan(clrType, memberName, property, IsMethodGroup: false, isStatic);
+            result = MemberBindResult.Property;
+            member = property;
             resolvedType = property.PropertyType;
             return true;
         }
@@ -52,7 +63,8 @@ internal sealed class MemberBinderService
         var field = _typeMetadata.GetField(clrType, memberName, flags);
         if (field != null)
         {
-            plan = new BoundMemberPlan(clrType, memberName, field, IsMethodGroup: false, isStatic);
+            result = MemberBindResult.Field;
+            member = field;
             resolvedType = field.FieldType;
             return true;
         }
@@ -60,29 +72,33 @@ internal sealed class MemberBinderService
         var hasMethods = _typeMetadata.GetMethods(clrType, memberName, flags).Length > 0;
         if (hasMethods)
         {
-            plan = new BoundMemberPlan(clrType, memberName, Member: null, IsMethodGroup: true, isStatic);
+            result = MemberBindResult.MethodGroup;
+            member = null;
             resolvedType = null;
             return true;
         }
 
-        plan = null;
+        result = MemberBindResult.NotFound;
+        member = null;
         resolvedType = null;
         return false;
     }
 
-    public BoundMemberPlan BindMemberRead(Type targetType, string memberName, bool isStatic, bool isCaseSensitive)
+    public MemberBindResult BindMemberRead(Type targetType, string memberName, bool isStatic, bool isCaseSensitive,
+        out MemberInfo? member)
     {
-        if (TryBindMemberReadFromClrType(targetType, memberName, isStatic, isCaseSensitive, out var plan, out _))
-            return plan!;
+        if (TryBindMemberReadFromClrType(targetType, memberName, isStatic, isCaseSensitive,
+                out var result, out member, out _))
+            return result;
 
         throw new AlderException(DiagnosticDescriptors.MemberNotFound, targetType.Name, memberName);
     }
 
-    public bool TryBindIndexRead(Type targetType, Type indexType, out BoundIndexPlan? plan)
+    public bool TryBindIndexRead(Type targetType, Type indexType, out IndexBindResult? result)
     {
         if (targetType == typeof(string) && indexType == typeof(int))
         {
-            plan = new BoundIndexPlan(targetType, indexType, typeof(char), true);
+            result = new IndexBindResult(targetType, typeof(char), true);
             return true;
         }
 
@@ -91,14 +107,14 @@ internal sealed class MemberBinderService
             var resultType = TryResolveListElementType(targetType, out var elementType)
                 ? elementType
                 : typeof(object);
-            plan = new BoundIndexPlan(targetType, indexType, resultType, true);
+            result = new IndexBindResult(targetType, resultType, true);
             return true;
         }
 
         if (indexType == typeof(string) &&
             TryResolveStringDictionaryValueType(targetType, out var dictionaryValueType))
         {
-            plan = new BoundIndexPlan(targetType, indexType, dictionaryValueType, true);
+            result = new IndexBindResult(targetType, dictionaryValueType, true);
             return true;
         }
 
@@ -108,23 +124,19 @@ internal sealed class MemberBinderService
             var parameters = indexer.GetIndexParameters();
             if (parameters.Length == 1)
             {
-                plan = new BoundIndexPlan(
-                    targetType,
-                    parameters[0].ParameterType,
-                    indexer.PropertyType,
-                    IsDirectCollectionAccess: false);
+                result = new IndexBindResult(targetType, indexer.PropertyType, false);
                 return true;
             }
         }
 
-        plan = null;
+        result = null;
         return false;
     }
 
-    public BoundIndexPlan BindIndexRead(Type targetType, Type indexType)
+    public IndexBindResult BindIndexRead(Type targetType, Type indexType)
     {
-        if (TryBindIndexRead(targetType, indexType, out var plan))
-            return plan!;
+        if (TryBindIndexRead(targetType, indexType, out var result))
+            return result!;
 
         throw new AlderException(DiagnosticDescriptors.BadIndexerAccess, targetType.Name);
     }
