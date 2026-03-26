@@ -85,6 +85,10 @@ internal static class TypeHelpers
     internal static bool IsArithmetic(Type type) =>
         Type.GetTypeCode(type) is >= TypeCode.SByte and <= TypeCode.Decimal or TypeCode.Char;
 
+    internal static bool IsValueTupleType(Type type) =>
+        type is { IsValueType: true, IsGenericType: true } &&
+        type.FullName?.StartsWith("System.ValueTuple`", StringComparison.Ordinal) == true;
+
     private static bool IsIntegerType(Type type) =>
         Type.GetTypeCode(type) is >= TypeCode.SByte and <= TypeCode.UInt64;
 

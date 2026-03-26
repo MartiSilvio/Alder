@@ -41,27 +41,21 @@ internal sealed partial class BoundEvaluator
                 : new MethodRef(target, memberName);
         }
 
-        if (plan.Member is PropertyInfo property)
+        if (plan.Member is PropertyInfo property && !TypeHelpers.IsValueTupleType(plan.DeclaringType))
         {
             if (plan.IsStatic)
                 return TypeHelpers.GuardReflectionLeak(property.GetValue(null), $"static property {memberName}");
 
-            if (plan.DeclaringType.IsAssignableFrom(target.GetType()))
-                return TypeHelpers.GuardReflectionLeak(
-                    _context.TypeMetadata.GetPropertyValue(property, target), $"property {memberName}");
-
-            return MemberAccess.GetMember(target, memberName, _config, nullSafe, _context);
+            return TypeHelpers.GuardReflectionLeak(
+                _context.TypeMetadata.GetPropertyValue(property, target), $"property {memberName}");
         }
 
-        if (plan.Member is FieldInfo field)
+        if (plan.Member is FieldInfo field && !TypeHelpers.IsValueTupleType(plan.DeclaringType))
         {
             if (plan.IsStatic)
                 return TypeHelpers.GuardReflectionLeak(field.GetValue(null), $"static field {memberName}");
 
-            if (plan.DeclaringType.IsAssignableFrom(target.GetType()))
-                return TypeHelpers.GuardReflectionLeak(field.GetValue(target), $"field {memberName}");
-
-            return MemberAccess.GetMember(target, memberName, _config, nullSafe, _context);
+            return TypeHelpers.GuardReflectionLeak(field.GetValue(target), $"field {memberName}");
         }
 
         return MemberAccess.GetMember(target, memberName, _config, nullSafe, _context);
@@ -78,24 +72,28 @@ internal sealed partial class BoundEvaluator
 
         var index = Evaluate(indexAccess.Index);
 
-        if (indexAccess.Plan is { IsDirectCollectionAccess: true })
+        if (indexAccess.Plan is { IsDirectCollectionAccess: true } plan)
         {
-            switch (target)
+            if (plan.TargetType == typeof(string))
             {
-                case string s when index != null:
-                {
-                    var i = MemberAccess.NormalizeIndex(Convert.ToInt32(index), s.Length, _config.LanguageMode);
-                    return (object)s[i];
-                }
-                case IList list when index != null:
-                {
-                    var i = MemberAccess.NormalizeIndex(Convert.ToInt32(index), list.Count, _config.LanguageMode);
-                    return TypeHelpers.GuardReflectionLeak(list[i], $"index [{i}]");
-                }
-                case IDictionary<string, object?> dict when index is string key:
-                    return dict.TryGetValue(key, out var value)
-                        ? TypeHelpers.GuardReflectionLeak(value, $"index [{key}]")
-                        : null;
+                var s = (string)target;
+                var i = MemberAccess.NormalizeIndex(Convert.ToInt32(index), s.Length, _config.LanguageMode);
+                return (object)s[i];
+            }
+
+            if (typeof(IList).IsAssignableFrom(plan.TargetType))
+            {
+                var list = (IList)target;
+                var i = MemberAccess.NormalizeIndex(Convert.ToInt32(index), list.Count, _config.LanguageMode);
+                return TypeHelpers.GuardReflectionLeak(list[i], $"index [{i}]");
+            }
+
+            if (typeof(IDictionary<string, object?>).IsAssignableFrom(plan.TargetType))
+            {
+                var dict = (IDictionary<string, object?>)target;
+                return index is string key && dict.TryGetValue(key, out var value)
+                    ? TypeHelpers.GuardReflectionLeak(value, $"index [{key}]")
+                    : null;
             }
         }
 
@@ -108,26 +106,21 @@ internal sealed partial class BoundEvaluator
         if (multiDimIndexAccess.NullSafe && target == null)
             return null;
 
-        var indices = new int[multiDimIndexAccess.Indices.Length];
-        for (var i = 0; i < multiDimIndexAccess.Indices.Length; i++)
-            indices[i] = Convert.ToInt32(Evaluate(multiDimIndexAccess.Indices[i]));
+        if (target == null)
+            throw new AlderException(DiagnosticDescriptors.BadIndexerAccess, TypeNameFormatter.Null);
 
-        if (target is Array array)
-            return array.GetValue(indices);
+        var plan = multiDimIndexAccess.Plan;
 
-        if (target != null)
+        if (plan is { IsArray: true })
         {
-            var indexer = _context.TypeMetadata
-                .GetProperties(target.GetType(), BindingFlags.Public | BindingFlags.Instance)
-                .FirstOrDefault(p => p.GetIndexParameters().Length == multiDimIndexAccess.Indices.Length);
-            if (indexer != null)
-            {
-                var indexParams = indexer.GetIndexParameters();
-                var convertedIndices = new object[indices.Length];
-                for (var i = 0; i < indices.Length; i++)
-                    convertedIndices[i] = Convert.ChangeType(indices[i], indexParams[i].ParameterType);
-                return indexer.GetValue(target, convertedIndices);
-            }
+            var indices = EvaluateIntIndices(multiDimIndexAccess.Indices);
+            return ((Array)target).GetValue(indices);
+        }
+
+        if (plan?.Indexer is { } indexer)
+        {
+            var convertedIndices = EvaluateConvertedIndices(multiDimIndexAccess.Indices, indexer);
+            return indexer.GetValue(target, convertedIndices);
         }
 
         throw new AlderException(
@@ -138,36 +131,50 @@ internal sealed partial class BoundEvaluator
     private object? EvaluateMultiDimIndexAssign(BoundMultiDimIndexAssignExpr multiDimIndexAssign)
     {
         var target = Evaluate(multiDimIndexAssign.Target);
-        var indices = new int[multiDimIndexAssign.Indices.Length];
-        for (var i = 0; i < multiDimIndexAssign.Indices.Length; i++)
-            indices[i] = Convert.ToInt32(Evaluate(multiDimIndexAssign.Indices[i]));
-        var value = Evaluate(multiDimIndexAssign.Value);
 
-        if (target is Array array)
+        if (target == null)
+            throw new AlderException(DiagnosticDescriptors.BadIndexerAccess, TypeNameFormatter.Null);
+
+        var value = Evaluate(multiDimIndexAssign.Value);
+        var plan = multiDimIndexAssign.Plan;
+
+        if (plan is { IsArray: true })
         {
-            array.SetValue(value, indices);
+            var indices = EvaluateIntIndices(multiDimIndexAssign.Indices);
+            ((Array)target).SetValue(value, indices);
             return value;
         }
 
-        if (target != null)
+        if (plan?.Indexer is { CanWrite: true } indexer)
         {
-            var indexer = _context.TypeMetadata
-                .GetProperties(target.GetType(), BindingFlags.Public | BindingFlags.Instance)
-                .FirstOrDefault(p => p.GetIndexParameters().Length == multiDimIndexAssign.Indices.Length && p.CanWrite);
-            if (indexer != null)
-            {
-                var indexParams = indexer.GetIndexParameters();
-                var convertedIndices = new object[indices.Length];
-                for (var i = 0; i < indices.Length; i++)
-                    convertedIndices[i] = Convert.ChangeType(indices[i], indexParams[i].ParameterType);
-                indexer.SetValue(target, value, convertedIndices);
-                return value;
-            }
+            var convertedIndices = EvaluateConvertedIndices(multiDimIndexAssign.Indices, indexer);
+            indexer.SetValue(target, value, convertedIndices);
+            return value;
         }
 
         throw new AlderException(
             DiagnosticDescriptors.BadIndexerAccess,
             TypeNameFormatter.Of(target));
+    }
+
+    private int[] EvaluateIntIndices(ImmutableArray<BoundExpr> indexExprs)
+    {
+        var indices = new int[indexExprs.Length];
+        for (var i = 0; i < indexExprs.Length; i++)
+            indices[i] = Convert.ToInt32(Evaluate(indexExprs[i]));
+        return indices;
+    }
+
+    private object[] EvaluateConvertedIndices(ImmutableArray<BoundExpr> indexExprs, PropertyInfo indexer)
+    {
+        var indexParams = indexer.GetIndexParameters();
+        var converted = new object[indexExprs.Length];
+        for (var i = 0; i < indexExprs.Length; i++)
+        {
+            var value = Evaluate(indexExprs[i]);
+            converted[i] = Convert.ChangeType(value, indexParams[i].ParameterType);
+        }
+        return converted;
     }
 
     private object? EvaluateNamedArgument(BoundNamedArgumentExpr namedArgument)
@@ -339,4 +346,5 @@ internal sealed partial class BoundEvaluator
         var right = Evaluate(pipeline.Right);
         return PipelineOperator.InvokePipeline(left, right, _context, _config, _cancellationToken);
     }
+
 }

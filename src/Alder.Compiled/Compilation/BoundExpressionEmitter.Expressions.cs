@@ -32,7 +32,7 @@ internal sealed partial class BoundExpressionEmitter
             return hoisted.Variable;
         }
 
-        if (identifier.StaticType.ClrType != typeof(object) && !IsValueTupleType(identifier.StaticType.ClrType))
+        if (identifier.StaticType.ClrType != typeof(object) && !TypeHelpers.IsValueTupleType(identifier.StaticType.ClrType))
         {
             return LinqExpression.Call(
                 _contextParam,

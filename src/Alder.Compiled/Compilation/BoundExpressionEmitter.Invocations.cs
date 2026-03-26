@@ -27,14 +27,14 @@ internal sealed partial class BoundExpressionEmitter
         if (memberAccess.Plan?.Member is PropertyInfo property)
         {
             var declaringType = property.DeclaringType;
-            if (declaringType == null || !IsValueTupleType(declaringType))
+            if (declaringType == null || !TypeHelpers.IsValueTupleType(declaringType))
                 return EmitDirectPropertyAccess(memberAccess, property, emittedTarget);
         }
 
         if (memberAccess.Plan?.Member is FieldInfo field)
         {
             var declaringType = field.DeclaringType;
-            if (declaringType == null || !IsValueTupleType(declaringType))
+            if (declaringType == null || !TypeHelpers.IsValueTupleType(declaringType))
                 return EmitDirectFieldAccess(memberAccess, field, emittedTarget);
         }
 
@@ -395,11 +395,6 @@ internal sealed partial class BoundExpressionEmitter
         return type.IsValueType && Nullable.GetUnderlyingType(type) == null;
     }
 
-    private static bool IsValueTupleType(Type type)
-    {
-        return type is { IsValueType: true, IsGenericType: true } &&
-               type.FullName?.StartsWith("System.ValueTuple`", StringComparison.Ordinal) == true;
-    }
 
     private LinqExpression[] EmitPlannedCallArguments(BoundCallExpr call, ParameterInfo[] parameters)
     {

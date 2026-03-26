@@ -1,10 +1,12 @@
 using System.Collections.Immutable;
+using Alder.Binding.Plans;
 
 namespace Alder.Binding.BoundNodes;
 
 internal sealed record BoundMultiDimIndexAccessExpr(
     BoundExpr Target,
     ImmutableArray<BoundExpr> Indices,
+    BoundMultiDimIndexPlan? Plan,
     bool NullSafe,
     BoundType StaticType) : BoundExpr(StaticType)
 {

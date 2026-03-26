@@ -288,17 +288,10 @@ internal sealed partial class BoundEvaluator
             ? Evaluate(conditional.ThenBranch)
             : Evaluate(conditional.ElseBranch);
 
-        var thenType = conditional.ThenBranch.StaticType.ClrType;
-        var elseType = conditional.ElseBranch.StaticType.ClrType;
-
-        if (result != null &&
-            thenType != typeof(object) &&
-            elseType != typeof(object) &&
-            TypeHelpers.IsArithmetic(thenType) &&
-            TypeHelpers.IsArithmetic(elseType) &&
-            thenType != elseType)
+        var resultType = conditional.StaticType.ClrType;
+        if (result != null && resultType != typeof(object)
+            && result.GetType() != resultType && TypeHelpers.IsArithmetic(resultType))
         {
-            var resultType = NumericDispatch.GetResultType(thenType, elseType);
             return NumericDispatch.PromoteToType(result, resultType);
         }
 

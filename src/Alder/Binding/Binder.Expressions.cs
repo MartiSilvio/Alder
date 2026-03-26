@@ -1,5 +1,7 @@
 using System.Collections.Immutable;
+using System.Reflection;
 using Alder.Binding.BoundNodes;
+using Alder.Binding.Plans;
 using Alder.Parsing;
 using Alder.Runtime;
 using Alder.Runtime.Semantics;
@@ -235,10 +237,9 @@ internal sealed partial class Binder
         var indices = multiDimIndexAccess.Indices
             .Select(index => Bind(index, context))
             .ToImmutableArray();
-        var elementType = target.StaticType.ClrType.IsArray
-            ? target.StaticType.ClrType.GetElementType() ?? typeof(object)
-            : typeof(object);
-        return new BoundMultiDimIndexAccessExpr(target, indices, multiDimIndexAccess.NullSafe, new BoundType(elementType));
+        var targetType = target.StaticType.ClrType;
+        var (plan, elementType) = TryBindMultiDimIndex(targetType, indices.Length, context);
+        return new BoundMultiDimIndexAccessExpr(target, indices, plan, multiDimIndexAccess.NullSafe, new BoundType(elementType));
     }
 
     private BoundMultiDimIndexAssignExpr BindMultiDimIndexAssign(
@@ -250,7 +251,30 @@ internal sealed partial class Binder
             .Select(index => Bind(index, context))
             .ToImmutableArray();
         var value = Bind(multiDimIndexAssign.Value, context);
-        return new BoundMultiDimIndexAssignExpr(target, indices, value, value.StaticType);
+        var (plan, _) = TryBindMultiDimIndex(target.StaticType.ClrType, indices.Length, context);
+        return new BoundMultiDimIndexAssignExpr(target, indices, value, plan, value.StaticType);
+    }
+
+    private static (BoundMultiDimIndexPlan? Plan, Type ElementType) TryBindMultiDimIndex(
+        Type targetType, int arity, BindingContext context)
+    {
+        if (targetType.IsArray)
+        {
+            var elementType = targetType.GetElementType() ?? typeof(object);
+            return (new BoundMultiDimIndexPlan(targetType, IsArray: true, Indexer: null), elementType);
+        }
+
+        if (targetType == typeof(object))
+            return (null, typeof(object));
+
+        var indexer = context.RuntimeContext.TypeMetadata
+            .GetProperties(targetType, BindingFlags.Public | BindingFlags.Instance)
+            .FirstOrDefault(p => p.GetIndexParameters().Length == arity);
+
+        if (indexer != null)
+            return (new BoundMultiDimIndexPlan(targetType, IsArray: false, Indexer: indexer), indexer.PropertyType);
+
+        return (null, typeof(object));
     }
 
     private BoundDeconstructionExpr BindDeconstruction(DeconstructionExpr deconstruction, BindingContext context)

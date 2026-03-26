@@ -134,19 +134,14 @@ public class CompetitorIssueTests(CompilationMode mode)
     // Dynamic Expresso issue #335:
     // https://github.com/dynamicexpresso/DynamicExpresso/issues/335
     [Test]
-    public void Issue335_MultiParameterIndexerOnCustomType_NotSupportedYet()
+    public void Issue335_MultiParameterIndexerOnCustomType()
     {
         var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("context", new TwoKeyIndex());
         engine.SetVariable("source", new Dictionary<string, string> { ["Key"] = "A", ["i"] = "B" });
 
-        var ex = Assert.Catch(() =>
-            engine.Evaluate("""context[source["Key"], source["i"]]"""));
-        Assert.That(
-            ex!.Message,
-            Does.Contain("not supported")
-                .Or.Contain("Unable to cast object of type")
-                .Or.Contain("not in a correct format"));
+        var result = engine.Evaluate("""context[source["Key"], source["i"]]""");
+        Assert.That(result, Is.EqualTo("A:B"));
     }
 
     // Dynamic Expresso issue (closed) #351:

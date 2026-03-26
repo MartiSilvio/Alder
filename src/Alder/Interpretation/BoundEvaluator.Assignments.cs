@@ -63,14 +63,14 @@ internal sealed partial class BoundEvaluator
         var value = Evaluate(memberAssign.Value);
 
         if (memberAssign.Plan?.Member is PropertyInfo property && property.CanWrite
-            && target != null && !target.GetType().IsValueType)
+            && target != null && !memberAssign.Plan.DeclaringType.IsValueType)
         {
             property.SetValue(target, value);
             return value;
         }
 
         if (memberAssign.Plan?.Member is FieldInfo field && !field.IsInitOnly
-            && target != null && !target.GetType().IsValueType)
+            && target != null && !memberAssign.Plan.DeclaringType.IsValueType)
         {
             field.SetValue(target, value);
             return value;

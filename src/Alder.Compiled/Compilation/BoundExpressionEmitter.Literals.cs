@@ -148,7 +148,7 @@ internal sealed partial class BoundExpressionEmitter
     private LinqExpression EmitTuple(BoundTupleExpr tuple)
     {
         var hasNames = tuple.ElementNames.Any(static n => n != null);
-        if (!hasNames && IsValueTupleType(tuple.StaticType.ClrType) && tuple.Elements.Length <= 7)
+        if (!hasNames && TypeHelpers.IsValueTupleType(tuple.StaticType.ClrType) && tuple.Elements.Length <= 7)
         {
             var pure = TryEmitPureTuple(tuple);
             if (pure != null) return pure;
@@ -237,9 +237,11 @@ internal sealed partial class BoundExpressionEmitter
 
     private LinqExpression EmitMultiDimIndexAccess(BoundMultiDimIndexAccessExpr multiDimIndexAccess)
     {
-        var targetType = multiDimIndexAccess.Target.StaticType.ClrType;
-        if (targetType.IsArray && targetType.GetArrayRank() > 1)
+        var plan = multiDimIndexAccess.Plan;
+
+        if (plan is { IsArray: true })
         {
+            var targetType = plan.TargetType;
             var getMethod = targetType.GetMethod("Get");
             if (getMethod != null)
             {
@@ -269,6 +271,20 @@ internal sealed partial class BoundExpressionEmitter
             }
         }
 
+        if (plan?.Indexer is { } indexer)
+        {
+            var indexParams = indexer.GetIndexParameters();
+            var emittedIndices = new LinqExpression[multiDimIndexAccess.Indices.Length];
+            for (var i = 0; i < multiDimIndexAccess.Indices.Length; i++)
+            {
+                var paramType = indexParams[i].ParameterType;
+                emittedIndices[i] = EmitHelpers.EnsureTypedExpression(Emit(multiDimIndexAccess.Indices[i]), paramType);
+            }
+
+            var typedTarget = EmitHelpers.EnsureTypedExpression(Emit(multiDimIndexAccess.Target), plan.TargetType);
+            return EmitHelpers.AsObject(LinqExpression.Property(typedTarget, indexer, emittedIndices));
+        }
+
         var target = EmitHelpers.AsObject(Emit(multiDimIndexAccess.Target));
         var indices = LinqExpression.NewArrayInit(
             typeof(object),
@@ -290,6 +306,49 @@ internal sealed partial class BoundExpressionEmitter
 
     private LinqExpression EmitMultiDimIndexAssign(BoundMultiDimIndexAssignExpr multiDimIndexAssign)
     {
+        var plan = multiDimIndexAssign.Plan;
+
+        if (plan is { IsArray: true })
+        {
+            var targetType = plan.TargetType;
+            var setMethod = targetType.GetMethod("Set");
+            if (setMethod != null)
+            {
+                var intIndices = multiDimIndexAssign.Indices.Select(
+                    index => EmitHelpers.EnsureTypedExpression(Emit(index), typeof(int))).ToArray();
+                var valueExpr = Emit(multiDimIndexAssign.Value);
+                var elementType = targetType.GetElementType()!;
+                var typedValue = EmitHelpers.EnsureTypedExpression(valueExpr, elementType);
+                var typedTarget = EmitHelpers.EnsureTypedExpression(Emit(multiDimIndexAssign.Target), targetType);
+                var args = intIndices.Append(typedValue).ToArray();
+                return LinqExpression.Block(
+                    typeof(object),
+                    LinqExpression.Call(typedTarget, setMethod, args),
+                    EmitHelpers.AsObject(typedValue));
+            }
+        }
+
+        if (plan?.Indexer is { CanWrite: true } indexer)
+        {
+            var indexParams = indexer.GetIndexParameters();
+            var emittedIndices = new LinqExpression[multiDimIndexAssign.Indices.Length];
+            for (var i = 0; i < multiDimIndexAssign.Indices.Length; i++)
+            {
+                var paramType = indexParams[i].ParameterType;
+                emittedIndices[i] = EmitHelpers.EnsureTypedExpression(Emit(multiDimIndexAssign.Indices[i]), paramType);
+            }
+
+            var typedTarget = EmitHelpers.EnsureTypedExpression(Emit(multiDimIndexAssign.Target), plan.TargetType);
+            var valueExpr = Emit(multiDimIndexAssign.Value);
+            var typedValue = EmitHelpers.EnsureTypedExpression(valueExpr, indexer.PropertyType);
+            return LinqExpression.Block(
+                typeof(object),
+                LinqExpression.Assign(
+                    LinqExpression.Property(typedTarget, indexer, emittedIndices),
+                    typedValue),
+                EmitHelpers.AsObject(typedValue));
+        }
+
         var indices = LinqExpression.NewArrayInit(
             typeof(object),
             multiDimIndexAssign.Indices.Select(index => EmitHelpers.AsObject(Emit(index))));
