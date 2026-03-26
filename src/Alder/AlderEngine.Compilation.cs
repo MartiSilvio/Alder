@@ -41,7 +41,7 @@ public sealed partial class AlderEngine
         ThrowIfDisposed();
         if (!TryCompile(expression))
         {
-            var reason = expression.CompiledInfo?.FailureReason ?? "No compiler configured. Add Alder.Compiled and call UseCompiler() on options.";
+            var reason = expression.CompiledInfo?.FailureReason ?? "No compiler configured. Call UseCompiler() on options.";
             throw new AlderException(
                 DiagnosticDescriptors.StrictCompilationFailed,
                 $"Cannot compile expression '{expression.Source}': {reason}");

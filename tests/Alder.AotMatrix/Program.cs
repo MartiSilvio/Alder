@@ -1,6 +1,30 @@
 using Alder;
 using Alder.AotMatrix;
 
+Console.WriteLine("AOT Matrix starting...");
+Console.Out.Flush();
+
+try
+{
+    Console.WriteLine("Creating engine...");
+    Console.Out.Flush();
+    var testEngine = new AlderEngine();
+    Console.WriteLine("Engine created OK");
+    Console.Out.Flush();
+    var testResult = testEngine.Evaluate("1 + 1");
+    Console.WriteLine($"Quick eval: {testResult}");
+    Console.Out.Flush();
+}
+catch (Exception ex)
+{
+    Console.WriteLine($"CRASH: {ex.GetType().Name}: {ex.Message}");
+    Console.WriteLine(ex.StackTrace);
+    Console.Out.Flush();
+}
+
+Console.WriteLine("Starting file scan...");
+Console.Out.Flush();
+
 var testDataDir = args.Length > 0
     ? args[0]
     : Path.Combine(AppContext.BaseDirectory, "TestData", "ValidExpressions");
@@ -24,21 +48,41 @@ foreach (var file in files)
 {
     var expr = File.ReadAllText(file).Trim();
     var relPath = Path.GetRelativePath(testDataDir, file);
+    Console.Write($"  {relPath}... ");
+    Console.Out.Flush();
 
-    try
+    Exception? threadEx = null;
+    object? threadResult = null;
+    var evalThread = new Thread(() =>
     {
-        var engine = new AlderEngine(new AlderOptions
+        try
         {
-            LanguageMode = LanguageMode.Extended,
-            Constraints = new ExecutionConstraints { MaxStatements = 100_000 }
-        });
-        engine.Evaluate(expr);
+            var engine = new AlderEngine(new AlderOptions
+            {
+                LanguageMode = LanguageMode.Extended,
+                Constraints = new ExecutionConstraints { MaxStatements = 100_000 }
+            });
+            threadResult = engine.Evaluate(expr);
+        }
+        catch (Exception ex)
+        {
+            threadEx = ex;
+        }
+    }, 16 * 1024 * 1024);
+    evalThread.Start();
+    evalThread.Join();
+
+    if (threadEx == null)
+    {
+        Console.WriteLine("OK");
         pass++;
     }
-    catch (Exception ex)
+    else
     {
+        var ex = threadEx;
         var errorType = ex.GetType().Name;
         var message = ex.Message.Length > 120 ? ex.Message[..120] + "..." : ex.Message;
+        Console.WriteLine($"FAIL: {errorType}");
         failures.Add(new FailureRecord(relPath, errorType, message));
         fail++;
     }

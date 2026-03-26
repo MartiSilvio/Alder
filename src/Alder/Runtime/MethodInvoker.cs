@@ -279,7 +279,7 @@ internal static class MethodInvoker
     {
         foreach (var arg in args)
         {
-            if (arg is NamedArg or OutArgMarker or null)
+            if (arg is NamedArg or OutArgMarker)
                 return true;
         }
         return false;
