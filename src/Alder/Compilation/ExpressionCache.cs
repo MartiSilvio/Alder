@@ -24,16 +24,8 @@ internal sealed class ExpressionCache
 
     public CompiledExpressionInfo GetOrAdd(string key, Func<string, CompiledExpressionInfo> valueFactory)
     {
-        if (_cache.TryGetValue(key, out var existing))
-            return existing;
-
         var value = _cache.GetOrAdd(key, valueFactory);
 
-        // Track insertion order for FIFO eviction.
-        // Only enqueue if this call actually added the entry (avoid duplicate keys in queue).
-        // The ConcurrentDictionary.GetOrAdd may return an existing value if another thread
-        // added it first -- in that case we still enqueue (slightly over-tracking is acceptable
-        // since eviction is approximate).
         _insertionOrder.Enqueue(key);
 
         // Evict oldest entries if over capacity.

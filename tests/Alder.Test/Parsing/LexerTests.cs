@@ -252,7 +252,7 @@ public class LexerTests
     {
         var lexer = new Lexer("\"\"\"abc");
         var ex = Assert.Throws<AlderException>(() => lexer.Tokenize());
-        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS1525));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS8997));
     }
 
     [TestCase(@"$""Hello\tWorld""", "Hello\tWorld", TestName = "InterpolatedTabEscape")]

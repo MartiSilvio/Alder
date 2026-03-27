@@ -108,6 +108,8 @@ public enum DiagnosticCode
 
     /// <summary>The pattern is unreachable</summary>
     CS8510 = 8510,
+    /// <summary>Unterminated raw string literal</summary>
+    CS8997 = 8997,
 
     /// <summary>Strict compilation mode could not compile the expression to IL</summary>
     ALDR0001 = 1_000_001,

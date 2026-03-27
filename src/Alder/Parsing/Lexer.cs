@@ -385,7 +385,12 @@ internal sealed class Lexer
                         throw LexError($"Unexpected character sequence '$@' at {_line}:{_column}. Did you mean '$@\"...'?");
                 }
                 else if (Match('"'))
-                    ScanInterpolatedString();
+                {
+                    if (Peek() == '"' && PeekNext() == '"')
+                        ScanRawInterpolatedString();
+                    else
+                        ScanInterpolatedString();
+                }
                 else
                     throw LexError($"Unexpected character '$' at {_line}:{_column}. Did you mean '$\"...'?");
                 break;
@@ -544,6 +549,14 @@ internal sealed class Lexer
             openQuotes++;
         }
 
+        var isMultiLine = Peek() == '\n';
+        if (isMultiLine)
+        {
+            _line++;
+            _column = 0;
+            Advance();
+        }
+
         var sb = new StringBuilder();
         var closed = false;
         while (!IsAtEnd())
@@ -568,16 +581,181 @@ internal sealed class Lexer
             }
             else
             {
-                if (Peek() == '\n') { _line++; _column = 0; }
+                if (Peek() == '\n')
+                {
+                    if (!isMultiLine)
+                        throw LexError(DiagnosticDescriptors.UnterminatedRawStringLiteral,
+                            $"Unterminated raw string literal at {_line}:{_column}");
+                    _line++;
+                    _column = 0;
+                }
                 sb.Append(Peek());
                 Advance();
             }
         }
 
         if (!closed)
-            throw LexError($"Unterminated raw string literal at {_line}:{_column}");
+            throw LexError(DiagnosticDescriptors.UnterminatedRawStringLiteral, $"Unterminated raw string literal at {_line}:{_column}");
 
-        AddToken(TokenType.String, sb.ToString());
+        if (isMultiLine)
+            AddToken(TokenType.String, StripRawStringIndentation(sb.ToString(), openQuotes));
+        else
+            AddToken(TokenType.String, sb.ToString());
+    }
+
+    private void ScanRawInterpolatedString()
+    {
+        // $" already consumed. Count remaining opening quotes (at least 2 more for """).
+        int openQuotes = 1;
+        while (Peek() == '"')
+        {
+            Advance();
+            openQuotes++;
+        }
+
+        var isMultiLine = Peek() == '\n';
+        if (isMultiLine)
+        {
+            _line++;
+            _column = 0;
+            Advance();
+        }
+
+        var sb = new StringBuilder();
+        var closed = false;
+        var braceDepth = 0;
+
+        while (!IsAtEnd())
+        {
+            if (Peek() == '"' && braceDepth == 0)
+            {
+                int closeQuotes = 0;
+                while (Peek() == '"')
+                {
+                    closeQuotes++;
+                    Advance();
+                }
+                if (closeQuotes >= openQuotes)
+                {
+                    closed = true;
+                    break;
+                }
+                else
+                {
+                    sb.Append(new string('"', closeQuotes));
+                }
+            }
+            else if (Peek() == '{')
+            {
+                if (braceDepth == 0 && PeekNext() == '{')
+                {
+                    sb.Append(Advance());
+                    sb.Append(Advance());
+                }
+                else
+                {
+                    braceDepth++;
+                    sb.Append(Advance());
+                }
+            }
+            else if (Peek() == '}')
+            {
+                if (braceDepth == 0 && PeekNext() == '}')
+                {
+                    sb.Append(Advance());
+                    sb.Append(Advance());
+                }
+                else
+                {
+                    braceDepth--;
+                    sb.Append(Advance());
+                }
+            }
+            else
+            {
+                if (Peek() == '\n')
+                {
+                    if (!isMultiLine)
+                        throw LexError(DiagnosticDescriptors.UnterminatedRawStringLiteral,
+                            $"Unterminated raw interpolated string at {_line}:{_column}");
+                    _line++;
+                    _column = 0;
+                }
+                sb.Append(Peek());
+                Advance();
+            }
+        }
+
+        if (!closed)
+            throw LexError(DiagnosticDescriptors.UnterminatedRawStringLiteral, $"Unterminated raw interpolated string at {_line}:{_column}");
+
+        var content = isMultiLine ? StripRawStringIndentation(sb.ToString(), openQuotes) : sb.ToString();
+        AddToken(TokenType.InterpolatedString, content);
+    }
+
+    private static string StripRawStringIndentation(string content, int quoteCount)
+    {
+        // C# 11 multi-line raw string rules:
+        // - The content between opening newline and closing """ has common indentation stripped
+        // - The indentation is determined by the whitespace before the closing """
+        // - The trailing newline before closing """ is removed
+
+        // Content includes everything after the opening newline up to (but not including) closing quotes.
+        // The last line of content is the line before the closing quotes — its trailing newline was included.
+        // Remove that trailing newline.
+        if (content.EndsWith("\r\n"))
+            content = content[..^2];
+        else if (content.EndsWith("\n"))
+            content = content[..^1];
+
+        if (content.Length == 0)
+            return string.Empty;
+
+        // Find the indentation of the last line (which was the line before closing quotes).
+        // In our case, the closing quotes consumed the last line's content, so we need to
+        // look at the whitespace prefix of the last line in the remaining content.
+        var lastNewline = content.LastIndexOf('\n');
+        var lastLine = lastNewline >= 0 ? content[(lastNewline + 1)..] : content;
+
+        var indent = 0;
+        while (indent < lastLine.Length && lastLine[indent] is ' ' or '\t')
+            indent++;
+
+        // If the last line is only whitespace, it defines the indentation to strip and is removed
+        if (indent == lastLine.Length && lastNewline >= 0)
+        {
+            content = content[..lastNewline];
+            if (indent == 0)
+                return content;
+        }
+        else
+        {
+            indent = 0;
+        }
+
+        if (indent == 0)
+            return content;
+
+        // Strip common indentation from each line
+        var indentPrefix = lastLine[..indent];
+        var lines = content.Split('\n');
+        var sb = new StringBuilder();
+        for (var i = 0; i < lines.Length; i++)
+        {
+            var line = lines[i];
+            if (line.EndsWith("\r"))
+                line = line[..^1];
+
+            if (line.StartsWith(indentPrefix))
+                sb.Append(line[indent..]);
+            else
+                sb.Append(line);
+
+            if (i < lines.Length - 1)
+                sb.Append('\n');
+        }
+
+        return sb.ToString();
     }
 
     private void ScanVerbatimString()

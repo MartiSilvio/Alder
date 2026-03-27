@@ -1,0 +1,1 @@
+"hello".Length * 2

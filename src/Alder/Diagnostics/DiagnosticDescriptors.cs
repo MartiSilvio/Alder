@@ -113,6 +113,9 @@ public static class DiagnosticDescriptors
     public static readonly DiagnosticDescriptor InvalidExpressionTerm =
         new(DiagnosticCode.CS1525, "Invalid expression term '{0}'");
 
+    public static readonly DiagnosticDescriptor UnterminatedRawStringLiteral =
+        new(DiagnosticCode.CS8997, "Unterminated raw string literal");
+
     public static readonly DiagnosticDescriptor ExpressionExpected =
         new(DiagnosticCode.CS1733, "Expression expected");
 

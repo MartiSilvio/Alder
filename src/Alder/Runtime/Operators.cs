@@ -638,35 +638,32 @@ internal static class Operators
 
     private static MethodInfo? ResolveUserDefinedBinaryOperator(Type leftType, Type rightType, string operatorName)
     {
-        var key = (leftType, rightType, operatorName);
-        if (UserDefinedBinaryOperatorCache.TryGetValue(key, out var cached))
-            return cached;
-
-        const BindingFlags flags = BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy;
-        var searchTypes = leftType == rightType ? new[] { leftType } : new[] { leftType, rightType };
-
-        foreach (var type in searchTypes)
-        {
-            foreach (var method in ReflectionRuntime.GetMethods(type, flags))
+        return UserDefinedBinaryOperatorCache.GetOrAdd(
+            (leftType, rightType, operatorName),
+            static key =>
             {
-                if (!string.Equals(method.Name, operatorName, StringComparison.Ordinal))
-                    continue;
+                const BindingFlags flags = BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy;
+                var searchTypes = key.Left == key.Right ? new[] { key.Left } : new[] { key.Left, key.Right };
 
-                var parameters = method.GetParameters();
-                if (parameters.Length != 2)
-                    continue;
-
-                if (parameters[0].ParameterType.IsAssignableFrom(leftType) &&
-                    parameters[1].ParameterType.IsAssignableFrom(rightType))
+                foreach (var type in searchTypes)
                 {
-                    UserDefinedBinaryOperatorCache.TryAdd(key, method);
-                    return method;
-                }
-            }
-        }
+                    foreach (var method in ReflectionRuntime.GetMethods(type, flags))
+                    {
+                        if (!string.Equals(method.Name, key.Op, StringComparison.Ordinal))
+                            continue;
 
-        UserDefinedBinaryOperatorCache.TryAdd(key, null);
-        return null;
+                        var parameters = method.GetParameters();
+                        if (parameters.Length != 2)
+                            continue;
+
+                        if (parameters[0].ParameterType.IsAssignableFrom(key.Left) &&
+                            parameters[1].ParameterType.IsAssignableFrom(key.Right))
+                            return method;
+                    }
+                }
+
+                return null;
+            });
     }
 
     private static bool InvokeOperator(MethodInfo method, object left, object right, out object? result)
