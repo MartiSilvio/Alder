@@ -102,7 +102,7 @@ internal static class MethodInvoker
         var type = target.GetType();
 
         if (!HasSpecialArgs(args) &&
-            context.Config.AotMetadata is { } aotMeta && aotMeta.TryGetValue(type, out var metadata))
+            context.Config.TryGetAotMetadata(type, out var metadata))
         {
             if (metadata.TryInvokeMethod(methodName, target, args, out var aotResult))
                 return (true, aotResult);
@@ -203,7 +203,7 @@ internal static class MethodInvoker
         CancellationToken ct)
     {
         if (!HasSpecialArgs(args) &&
-            context.Config.AotMetadata is { } aotMeta && aotMeta.TryGetValue(type, out var metadata))
+            context.Config.TryGetAotMetadata(type, out var metadata))
         {
             if (metadata.TryInvokeStaticMethod(methodName, args, out var aotResult))
                 return aotResult;

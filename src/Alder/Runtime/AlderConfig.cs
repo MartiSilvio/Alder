@@ -30,6 +30,24 @@ internal sealed class AlderConfig
     public StringComparison StringComparison => IsCaseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
     internal FixedDictionary<Type, IAotTypeMetadata>? AotMetadata { get; }
 
+    internal bool TryGetAotMetadata(Type type, [NotNullWhen(true)] out IAotTypeMetadata? metadata)
+    {
+        if (AotMetadata is not { } aot)
+        {
+            metadata = null;
+            return false;
+        }
+
+        for (var current = type; current != null && current != typeof(object); current = current.BaseType)
+        {
+            if (aot.TryGetValue(current, out metadata))
+                return true;
+        }
+
+        metadata = null;
+        return false;
+    }
+
     internal AlderConfig(
         LanguageMode languageMode,
         SecurityPolicy security,

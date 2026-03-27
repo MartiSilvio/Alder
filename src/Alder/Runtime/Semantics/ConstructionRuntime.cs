@@ -1,16 +1,15 @@
 using System.Collections.Concurrent;
-using System.Linq.Expressions;
 using Alder.Diagnostics;
 
 namespace Alder.Runtime.Semantics;
 
 internal static class ConstructionRuntime
 {
-    private static readonly ConcurrentDictionary<Type, Action<object, object?>> _addInvokerCache = new();
+    private static readonly ConcurrentDictionary<Type, MethodInfo> _addMethodCache = new();
 
     public static object? InvokeConstructor(Type type, object?[] args, AlderConfig config)
     {
-        if (config.AotMetadata is { } aotCtorMeta && aotCtorMeta.TryGetValue(type, out var ctorMetadata))
+        if (config.AotMetadata is { } aotMeta && aotMeta.TryGetValue(type, out var ctorMetadata))
         {
             try
             {
@@ -94,6 +93,27 @@ internal static class ConstructionRuntime
 
         var nestedTupleType = RuntimeGenericFactory.CloseGenericType(typeof(ValueTuple<,,,,,,,>), genericArgs);
         return Activator.CreateInstance(nestedTupleType, ctorArgs)!;
+    }
+
+    public static object CreateTupleFromResolvedType(Type resolvedType, object?[] elements)
+    {
+        if (elements.Length == 0)
+            throw new AlderException(DiagnosticDescriptors.TupleTooFewElements);
+
+        if (elements.Length <= 7)
+            return Activator.CreateInstance(resolvedType, elements)!;
+
+        var restElements = new object?[elements.Length - 7];
+        Array.Copy(elements, 7, restElements, 0, restElements.Length);
+        var restType = resolvedType.GetGenericArguments()[7];
+        var restTuple = CreateTupleFromResolvedType(restType, restElements);
+
+        var ctorArgs = new object?[8];
+        for (var i = 0; i < 7; i++)
+            ctorArgs[i] = elements[i];
+        ctorArgs[7] = restTuple;
+
+        return Activator.CreateInstance(resolvedType, ctorArgs)!;
     }
 
     public static object? DeconstructTuple(object? tupleValue, string[] variableNames, AlderContext context)
@@ -180,9 +200,9 @@ internal static class ConstructionRuntime
         return obj;
     }
 
-    public static Action<object, object?> ResolveCollectionAddInvoker(Type collectionType)
+    public static MethodInfo ResolveCollectionAddMethod(Type collectionType)
     {
-        return _addInvokerCache.GetOrAdd(collectionType, static type =>
+        return _addMethodCache.GetOrAdd(collectionType, static type =>
         {
             var method = ReflectionRuntime
                 .GetMethods(type, BindingFlags.Public | BindingFlags.Instance)
@@ -193,25 +213,14 @@ internal static class ConstructionRuntime
             if (method is null)
                 throw new AlderException(DiagnosticDescriptors.MemberNotFound, type.Name, "Add");
 
-            var instanceParam = Expression.Parameter(typeof(object), "instance");
-            var valueParam = Expression.Parameter(typeof(object), "value");
-            var paramType = method.GetParameters()[0].ParameterType;
-
-            var call = Expression.Call(
-                Expression.Convert(instanceParam, type),
-                method,
-                paramType == typeof(object)
-                    ? valueParam
-                    : Expression.Convert(valueParam, paramType));
-
-            return Expression.Lambda<Action<object, object?>>(call, instanceParam, valueParam).Compile();
+            return method;
         });
     }
 
     public static object? ApplyCollectionInitializer(object obj, object? value)
     {
-        var addInvoker = ResolveCollectionAddInvoker(obj.GetType());
-        addInvoker(obj, value);
+        var addMethod = ResolveCollectionAddMethod(obj.GetType());
+        addMethod.Invoke(obj, [value]);
         return obj;
     }
 

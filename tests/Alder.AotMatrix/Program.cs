@@ -1,6 +1,11 @@
 using Alder;
 using Alder.AotMatrix;
 
+if (args.Length > 0 && args[0] == "--single" && args.Length > 1)
+    return TestSingle.Run(args[1]);
+if (args.Length > 0 && args[0] == "--diag")
+    return TestSingle.Run("--diag");
+
 Console.WriteLine("AOT Matrix starting...");
 Console.Out.Flush();
 

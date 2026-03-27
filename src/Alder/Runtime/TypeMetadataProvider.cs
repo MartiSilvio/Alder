@@ -1,6 +1,5 @@
 using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
-using System.Linq.Expressions;
 
 namespace Alder.Runtime;
 
@@ -16,7 +15,6 @@ internal sealed class TypeMetadataProvider
     private readonly ConcurrentDictionary<PropertiesLookupKey, PropertyInfo[]> _propertiesCache = new();
     private readonly ConcurrentDictionary<MethodLookupKey, MethodInfo[]> _methodsCache = new();
     private readonly ConcurrentDictionary<Type, PropertyInfo?> _indexerCache = new();
-    private readonly ConcurrentDictionary<PropertyInfo, Func<object, object?>> _compiledGetters = new();
 
     private readonly record struct PropertyLookupKey(
         [property: DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)]
@@ -92,46 +90,9 @@ internal sealed class TypeMetadataProvider
         return _indexerCache.GetOrAdd(type, ReflectionRuntime.FindIndexer);
     }
 
-    /// <summary>
-    /// Gets or creates a compiled getter delegate for the property.
-    /// </summary>
-    public Func<object, object?> GetCompiledGetter(PropertyInfo property)
-    {
-        return _compiledGetters.GetOrAdd(property, p => CompileGetter(p));
-    }
-
-    /// <summary>
-    /// Gets the property value using a compiled getter for better performance.
-    /// Falls back to PropertyInfo.GetValue() only if compilation fails.
-    /// </summary>
     public object? GetPropertyValue(PropertyInfo property, object instance)
     {
-        var getter = GetCompiledGetter(property);
-        return getter(instance);
-    }
-
-    private Func<object, object?> CompileGetter(PropertyInfo property)
-    {
-        var getter = property.GetMethod;
-        if (getter == null)
-            return obj => property.GetValue(obj);
-
-        var param = Expression.Parameter(typeof(object), "instance");
-
-        if (getter.IsStatic)
-        {
-            var call = Expression.Call(getter);
-            var boxed = Expression.Convert(call, typeof(object));
-            return Expression.Lambda<Func<object, object?>>(boxed, param).Compile();
-        }
-
-        var declaringType = getter.DeclaringType!;
-        System.Linq.Expressions.Expression typedInstance = declaringType.IsValueType
-            ? Expression.Unbox(param, declaringType)
-            : Expression.Convert(param, declaringType);
-        var propertyAccess = Expression.Property(typedInstance, property);
-        var boxedResult = Expression.Convert(propertyAccess, typeof(object));
-        return Expression.Lambda<Func<object, object?>>(boxedResult, param).Compile();
+        return property.GetValue(instance);
     }
 
     /// <summary>
@@ -144,6 +105,5 @@ internal sealed class TypeMetadataProvider
         _propertiesCache.Clear();
         _methodsCache.Clear();
         _indexerCache.Clear();
-        _compiledGetters.Clear();
     }
 }

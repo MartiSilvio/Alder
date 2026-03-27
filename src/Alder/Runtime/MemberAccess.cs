@@ -49,7 +49,7 @@ internal static class MemberAccess
 
         if (obj is Type staticType)
         {
-            if (context.Config.AotMetadata is { } aotStaticMeta && aotStaticMeta.TryGetValue(staticType, out var staticMetadata))
+            if (context.Config.TryGetAotMetadata(staticType, out var staticMetadata))
             {
                 if (staticMetadata.TryGetStaticProperty(name, out var aotStaticValue))
                     return TypeHelpers.GuardReflectionLeak(aotStaticValue, $"static property {name}");
@@ -140,7 +140,7 @@ internal static class MemberAccess
 
         var type = obj.GetType();
 
-        if (context.Config.AotMetadata is { } aotMeta && aotMeta.TryGetValue(type, out var metadata))
+        if (context.Config.TryGetAotMetadata(type, out var metadata))
         {
             if (metadata.TryGetProperty(name, obj, out var aotValue))
                 return TypeHelpers.GuardReflectionLeak(aotValue, $"property {name}");
@@ -227,7 +227,7 @@ internal static class MemberAccess
 
         var type = obj.GetType();
 
-        if (context.Config.AotMetadata is { } aotIdxMeta && aotIdxMeta.TryGetValue(type, out var idxMetadata))
+        if (context.Config.TryGetAotMetadata(type, out var idxMetadata))
         {
             if (idxMetadata.TryGetIndex(obj, index!, out var aotIndexValue))
                 return TypeHelpers.GuardReflectionLeak(aotIndexValue, "indexer");
@@ -280,7 +280,7 @@ internal static class MemberAccess
 
         var type = obj.GetType();
 
-        if (context.Config.AotMetadata is { } aotSetMeta && aotSetMeta.TryGetValue(type, out var setMetadata))
+        if (context.Config.TryGetAotMetadata(type, out var setMetadata))
         {
             if (setMetadata.TrySetProperty(name, obj, value))
                 return;
@@ -341,7 +341,7 @@ internal static class MemberAccess
 
         var type = obj.GetType();
 
-        if (context.Config.AotMetadata is { } aotSetIdxMeta && aotSetIdxMeta.TryGetValue(type, out var setIdxMetadata))
+        if (context.Config.TryGetAotMetadata(type, out var setIdxMetadata))
         {
             if (setIdxMetadata.TrySetIndex(obj, index!, value))
                 return;
@@ -536,11 +536,7 @@ internal static class MemberAccess
     {
         var listType = list.GetType();
         if (listType.IsGenericType && listType.GetGenericTypeDefinition() == typeof(List<>))
-        {
-            var elementType = listType.GetGenericArguments()[0];
-            var closedListType = RuntimeGenericFactory.CloseGenericType(typeof(List<>), [elementType]);
-            return Activator.CreateInstance(closedListType)!;
-        }
+            return Activator.CreateInstance(listType)!;
         return Array.Empty<object?>();
     }
 
@@ -549,14 +545,11 @@ internal static class MemberAccess
         var listType = list.GetType();
         if (listType.IsGenericType && listType.GetGenericTypeDefinition() == typeof(List<>))
         {
-            var elementType = listType.GetGenericArguments()[0];
-            var closedListType = RuntimeGenericFactory.CloseGenericType(typeof(List<>), [elementType]);
-            var resultList = (IList)Activator.CreateInstance(closedListType)!;
+            var resultList = (IList)Activator.CreateInstance(listType)!;
             foreach (var i in indices)
                 resultList.Add(list[i]);
             return resultList;
         }
-        // Fallback: return object[]
         var result = new List<object?>();
         foreach (var i in indices)
             result.Add(list[i]);
