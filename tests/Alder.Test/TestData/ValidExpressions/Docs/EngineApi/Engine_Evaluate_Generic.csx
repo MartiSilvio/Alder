@@ -1,1 +1,1 @@
-"hello world".Split(' ').Length
+"user@example.com".Contains("@") && "user@example.com".Split("@").Length == 2

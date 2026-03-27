@@ -1,3 +1,1 @@
-var a = 5;
-var b = 10;
-a + b
+new[] { 1, 2, 3 }.Select(x => x * x).Sum()

@@ -343,14 +343,7 @@ internal static class TypeMetadataEmitter
                                 w.AppendLine($"case {arityGroup.Key}:");
                                 w.Indent();
 
-                                if (overloads.Length == 1)
-                                {
-                                    EmitMethodCall(w, overloads[0], target);
-                                }
-                                else
-                                {
-                                    EmitOverloadDispatch(w, overloads, target);
-                                }
+                                EmitOverloadDispatch(w, overloads, target);
 
                                 w.AppendLine("break;");
                                 w.Outdent();
@@ -390,14 +383,24 @@ internal static class TypeMetadataEmitter
     {
         foreach (var method in methods)
         {
-            var condition = FormatTypeChecks(method.Parameters);
             var castArgs = FormatCastArgs(method.Parameters);
             var call = $"{target}.{method.Name}({castArgs})";
 
-            if (method.ReturnsVoid)
-                w.AppendLine($"if ({condition}) {{ {call}; result = null; return true; }}");
+            if (method.Parameters.Length == 0)
+            {
+                if (method.ReturnsVoid)
+                    w.AppendLine($"{call}; result = null; return true;");
+                else
+                    w.AppendLine($"result = {call}; return true;");
+            }
             else
-                w.AppendLine($"if ({condition}) {{ result = {call}; return true; }}");
+            {
+                var condition = FormatTypeChecks(method.Parameters);
+                if (method.ReturnsVoid)
+                    w.AppendLine($"if ({condition}) {{ {call}; result = null; return true; }}");
+                else
+                    w.AppendLine($"if ({condition}) {{ result = {call}; return true; }}");
+            }
         }
     }
 

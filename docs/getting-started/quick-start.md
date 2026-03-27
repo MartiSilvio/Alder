@@ -14,20 +14,28 @@ A single package — interpreted evaluation, IL compilation, and AOT source gene
 
 ```csharp
 var engine = new AlderEngine();
-object? result = engine.Evaluate("2 + 3 * 4"); // 14
-```
-<!-- test: QuickStart_BasicEvaluation.csx -->
 
-This isn't string manipulation — Alder runs your expression through the same phases a production compiler uses: lexing, parsing, semantic binding, type resolution, and operator dispatch. The difference is it happens at runtime, not compile time.
+var result = engine.Evaluate("""
+    new[] { "Alice", "Bob", "Charlie" }
+        .Where(name => name.Length > 3)
+        .Select(name => name.ToUpper())
+        .ToList()
+    """);
+// List<string> { "ALICE", "CHARLIE" }
+```
+<!-- test: QuickStart_LinqChain.csx -->
+
+This isn't string manipulation — Alder runs your expression through the same phases a production compiler uses: lexing, parsing, semantic binding, type resolution, and operator dispatch. LINQ lambdas, generic type inference, extension method resolution — it all works because Alder implements C# semantics, not a simplified subset.
 
 When you know the expected return type, `Evaluate<T>` applies standard C# conversion rules and saves you the cast:
 
 ```csharp
-string upper = engine.Evaluate<string>("""
-    "hello".ToUpper()
-    """); // "HELLO"
+string result = engine.Evaluate<string>("""
+    $"Today is {DateTime.Now:dddd}, and 2^10 = {Math.Pow(2, 10)}"
+    """);
+// "Today is Thursday, and 2^10 = 1024"
 ```
-<!-- test: QuickStart_GenericEvaluation.csx -->
+<!-- test: QuickStart_StringInterpolation.csx -->
 
 If the expression returns `int` and you ask for `long`, the implicit conversion handles it. If the types are genuinely incompatible, you get a diagnostic naming the exact source and target types — not a silent `null` or a vague `InvalidCastException`.
 
@@ -35,11 +43,11 @@ If the expression returns `int` and you ask for `long`, the implicit conversion 
 
 Most expressions need data from the host application. Alder provides three injection patterns:
 
-| Pattern | Scope | Type info | Best for |
-|---------|-------|-----------|----------|
-| `SetVariable<T>` | Persistent on engine | Compile-time type | Server apps, reused engines |
-| Anonymous object | Single `Evaluate` call | Reflected per call | Quick one-off evaluations |
-| `IDictionary<string, object?>` | Single `Evaluate` call | Runtime (`object`) | Dynamic keys from config or user input |
+| Pattern | Best for | Trade-off |
+|---------|----------|-----------|
+| `SetVariable<T>` | Server apps, reused engines | Best performance — binder knows the type |
+| Anonymous object | Quick one-off evaluations | Reflection cost per call |
+| `IDictionary<string, object?>` | Dynamic keys from config or user input | Values typed as `object` |
 
 ### `SetVariable<T>` — typed, persistent
 
@@ -47,61 +55,73 @@ When you provide the type explicitly, Alder's binder resolves members and operat
 
 ```csharp
 var engine = new AlderEngine();
-engine.SetVariable<int>("x", 10)
-      .SetVariable<int>("y", 5);
+engine.SetVariable<List<int>>("scores", new List<int> { 88, 92, 76, 95, 61 });
 
-int sum = engine.Evaluate<int>("x + y"); // 15
+double avg = engine.Evaluate<double>("""
+    scores.Where(s => s >= 70).Average()
+    """);
+// 87.75
 ```
-<!-- test: QuickStart_VariableInjection.csx -->
+<!-- test: QuickStart_SetVariableTyped.csx -->
 
-Variables persist across evaluations and `SetVariable<T>` returns the engine for fluent chaining. This is the pattern you want for long-lived engines in server applications.
+Variables persist across evaluations and `SetVariable<T>` returns the engine for fluent chaining. Because the binder knows `scores` is `List<int>`, it resolves `.Where()`, `.Average()`, and the lambda parameter types at bind time — no runtime guessing.
 
 ### Anonymous object — inline, scoped
 
 For one-off evaluations where you don't want to touch the engine's state, pass an anonymous object. Its public properties become variables for that single call:
 
 ```csharp
-double total = engine.Evaluate<double>(
-    "price * (1 + tax)",
-    new { price = 100, tax = 0.2 });  // 120.0
+bool eligible = engine.Evaluate<bool>(
+    "age >= 18 && country != null && country.Length == 2",
+    new { age = 25, country = "US" }); // true
 ```
-<!-- test: QuickStart_AnonymousObjectVariables.csx -->
+<!-- test: QuickStart_AnonymousObject.csx -->
 
-The engine's variable store is untouched — nothing is added, nothing persists. Internally, Alder reads the object's public properties via `GetProperties` + `GetValue` on each call, so for tight loops prefer `SetVariable<T>` instead.
+The engine's variable store is untouched — nothing is added, nothing persists. Internally, Alder reads the object's public properties via reflection on each call, so for tight loops prefer `SetVariable<T>` instead.
 
 ### `IDictionary<string, object?>` — dynamic keys, scoped
 
 When variable names come from configuration, user input, or a database — anywhere the keys aren't known at compile time — pass a dictionary:
 
 ```csharp
-var vars = new Dictionary<string, object?> { ["price"] = 100, ["tax"] = 0.2 };
-double total = engine.Evaluate<double>("price * (1 + tax)", vars); // 120.0
+var vars = new Dictionary<string, object?>
+{
+    ["threshold"] = 100,
+    ["multiplier"] = 1.5
+};
+double result = engine.Evaluate<double>("threshold * multiplier", vars); // 150.0
 ```
-<!-- test: QuickStart_AnonymousObjectVariables.csx -->
+<!-- test: QuickStart_DictionaryVariables.csx -->
 
 Like anonymous objects, dictionary variables are scoped to the call and don't modify engine state. Because values are typed as `object`, member resolution happens through runtime reflection rather than at bind time.
 
 ## Parsing and Reuse
 
-Parsing and binding are the expensive phases — type resolution, overload selection, and operator dispatch all happen here. For repeated evaluation of the same expression, parse once and reuse the `AlderExpression`:
+Every `Evaluate(string)` call re-lexes and re-parses the expression from scratch. For repeated evaluation of the same expression, parse once and pass the `AlderExpression`:
 
 ```csharp
-AlderExpression expr = engine.Parse("""$"Result: {42 * 2}" """);
+AlderExpression expr = engine.Parse("""
+    items.Where(x => x.Price > minPrice).Sum(x => x.Price * x.Quantity)
+    """);
 
-string a = engine.Evaluate<string>(expr); // "Result: 84"
-string b = engine.Evaluate<string>(expr); // "Result: 84"
+// Lexing and parsing happen once. Binding is cached on the expression.
+var names = expr.GetVariables(); // ["items", "minPrice"]
 ```
 <!-- test: QuickStart_ParseAndReuse.csx -->
 
-The `AlderExpression` caches the fully bound tree. Subsequent evaluations skip parsing and binding entirely and go straight to execution. In a web server evaluating the same formula across requests, the difference is significant.
+The `AlderExpression` also caches the bound tree — the result of type resolution, overload selection, and operator dispatch. When the same expression is evaluated with the same variable types, binding is skipped entirely. In a web server evaluating the same formula across requests, the difference is significant.
 
 ## Error Handling
 
 `TryEvaluate` returns `bool` instead of throwing, covering parse errors, binding errors, and runtime failures in one call:
 
 ```csharp
-if (engine.TryEvaluate("""(string)null ?? "default" """, out object? result))
-    Console.WriteLine(result); // "default"
+if (engine.TryEvaluate("""(string)null ?? "fallback" """, out object? result))
+    Console.WriteLine(result); // "fallback"
+
+// Invalid expressions return false — no exception overhead
+if (!engine.TryEvaluate("items.Where(", out _))
+    Console.WriteLine("Expression has a syntax error");
 ```
 <!-- test: QuickStart_TryEvaluate.csx -->
 
@@ -141,21 +161,27 @@ By default, Alder interprets expressions by walking the bound tree. For expressi
 ```csharp
 var engine = new AlderEngine(o => o.UseCompiler());
 
-var expr = engine.Parse("x * x + y * y");
-engine.Compile(expr);
+// Evaluate automatically compiles on first call — no manual Compile step needed
+string result = engine.Evaluate<string>("""
+    string.Join(", ", new[] { 3, 1, 4, 1, 5 }.Distinct().OrderBy(x => x))
+    """);
+// "1, 3, 4, 5"
+```
+<!-- test: QuickStart_CompiledEvaluation.csx -->
 
-// Now runs as compiled IL, not interpretation
-int result = engine.Evaluate<int>(expr,
-    new Dictionary<string, object?> { ["x"] = 3, ["y"] = 4 }); // 25
+When `UseCompiler()` is configured, every `Evaluate` call transparently compiles the expression on first execution and caches the delegate. Subsequent evaluations of the same expression skip compilation entirely and invoke the delegate directly.
+
+For hot paths where you want to eliminate even the engine dispatch overhead, `CompileToFunc<T>` returns a bare delegate:
+
+```csharp
+Func<double?> area = engine.CompileToFunc<double>("Math.PI * r * r");
+engine.SetVariable<double>("r", 5.0);
+double? result = area(); // 78.539816...
 ```
 
-Compiled expressions run at near-native speed — typically 4–9x the cost of a raw C# delegate, compared to 300–500x for interpreted mode. The compilation cost is paid once; every subsequent evaluation reuses the compiled delegate.
-
-See [Compilation Modes](../engine-api/compilation-modes.md) for the full API including `AlderCompiledExpression<T>` and LINQ Dynamic extensions.
+See [AlderEngine](../engine-api/alder-engine.md) for the full API including `Compile<T>`, `CompileToFunc<T>`, `ParseAsExpression<TDelegate>`, and pre-compilation with `ParseAndCompile`.
 
 ## Further Reading
 
-- [AlderEngine](../engine-api/alder-engine.md) — complete API reference
-- [Variables and Context](../engine-api/variables-and-context.md) — scoping, precedence, child engines
+- [AlderEngine](../engine-api/alder-engine.md) — the full engine API
 - [AlderOptions](../engine-api/alder-options.md) — sandbox presets, type registration, execution limits
-- [Thread Safety](../engine-api/thread-safety.md) — concurrent evaluation patterns

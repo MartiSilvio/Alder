@@ -1,2 +1,2 @@
 var name = "World";
-$"Hello, {name}!"
+return $"Hello, {name}!";

@@ -1,3 +1,1 @@
-var price = 19.99;
-var quantity = 3;
-price * quantity
+string.Join(", ", new[] { "Alice", "Bob", "Charlie" }.Where(n => n.StartsWith("A")))
