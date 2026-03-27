@@ -5,6 +5,8 @@ if (args.Length > 0 && args[0] == "--single" && args.Length > 1)
     return TestSingle.Run(args[1]);
 if (args.Length > 0 && args[0] == "--diag")
     return TestSingle.Run("--diag");
+if (args.Length > 0 && args[0] == "--check-tuple")
+    return TestSingle.Run("--check-tuple");
 if (args.Length > 0 && args[0] == "--check-factories")
     return TestSingle.Run("--check-factories");
 

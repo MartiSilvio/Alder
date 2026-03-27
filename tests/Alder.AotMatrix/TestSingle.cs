@@ -50,6 +50,30 @@ public static class TestSingle
             return 0;
         }
 
+        if (filePath == "--check-tuple")
+        {
+            var tuple = (1, 2);
+            var type = tuple.GetType();
+            var registered = typeof(ValueTuple<int, int>);
+            Console.WriteLine($"Runtime type: {type}");
+            Console.WriteLine($"Registered type: {registered}");
+            Console.WriteLine($"Equal: {type == registered}");
+            Console.WriteLine($"Hash match: {type.GetHashCode() == registered.GetHashCode()}");
+
+            var engine = new AlderEngine();
+            var ctx = Alder.Aot.AlderBuiltInContext.Default;
+            var meta = ctx.GetTypeMetadata();
+            Console.WriteLine($"Metadata entries: {meta.Count}");
+            foreach (var m in meta)
+            {
+                if (m.Type.FullName?.Contains("ValueTuple") == true)
+                    Console.WriteLine($"  {m.Type} (hash={m.Type.GetHashCode()})");
+            }
+
+            Console.WriteLine($"runtime type hash: {type.GetHashCode()}");
+            return 0;
+        }
+
         if (filePath == "--check-factories")
         {
             var ctx = Alder.Aot.AlderBuiltInContext.Default;

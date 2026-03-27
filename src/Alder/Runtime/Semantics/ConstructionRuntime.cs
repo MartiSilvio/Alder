@@ -95,25 +95,25 @@ internal static class ConstructionRuntime
         return Activator.CreateInstance(nestedTupleType, ctorArgs)!;
     }
 
-    public static object CreateTupleFromResolvedType(Type resolvedType, object?[] elements)
+    public static object CreateTupleFromResolvedType(Type resolvedType, object?[] elements, AlderConfig config)
     {
         if (elements.Length == 0)
             throw new AlderException(DiagnosticDescriptors.TupleTooFewElements);
 
         if (elements.Length <= 7)
-            return Activator.CreateInstance(resolvedType, elements)!;
+            return InvokeConstructor(resolvedType, elements, config)!;
 
         var restElements = new object?[elements.Length - 7];
         Array.Copy(elements, 7, restElements, 0, restElements.Length);
         var restType = resolvedType.GetGenericArguments()[7];
-        var restTuple = CreateTupleFromResolvedType(restType, restElements);
+        var restTuple = CreateTupleFromResolvedType(restType, restElements, config);
 
         var ctorArgs = new object?[8];
         for (var i = 0; i < 7; i++)
             ctorArgs[i] = elements[i];
         ctorArgs[7] = restTuple;
 
-        return Activator.CreateInstance(resolvedType, ctorArgs)!;
+        return InvokeConstructor(resolvedType, ctorArgs, config)!;
     }
 
     public static object? DeconstructTuple(object? tupleValue, string[] variableNames, AlderContext context)

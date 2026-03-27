@@ -112,7 +112,7 @@ public sealed class AlderSourceGenerator : IIncrementalGenerator
                         prop.IsStatic));
                     break;
 
-                case IFieldSymbol { IsImplicitlyDeclared: false } field:
+                case IFieldSymbol field when !field.IsImplicitlyDeclared || type.IsTupleType:
                     fields.Add(new FieldModel(
                         field.Name,
                         GetFullyQualifiedTypeName(field.Type),

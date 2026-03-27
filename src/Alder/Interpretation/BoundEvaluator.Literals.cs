@@ -69,7 +69,6 @@ internal sealed partial class BoundEvaluator
         var type = _context.TypeResolver.ResolveType(objectCreation.TypeName);
         var result = ConstructionRuntime.InvokeConstructor(type, args, _config);
 
-        MethodInfo? cachedAddMethod = null;
         foreach (var entry in objectCreation.InitializerEntries)
         {
             var value = Evaluate(entry.Value);
@@ -84,8 +83,7 @@ internal sealed partial class BoundEvaluator
             }
             else
             {
-                cachedAddMethod ??= ConstructionRuntime.ResolveCollectionAddMethod(result!.GetType());
-                cachedAddMethod.Invoke(result, [value]);
+                Runtime.MethodInvoker.InvokeMemberCall(result!, "Add", [value], false, _context, _config, null, default);
             }
         }
 
@@ -164,7 +162,7 @@ internal sealed partial class BoundEvaluator
 
         var resolvedType = tuple.StaticType.ClrType;
         var result = resolvedType != typeof(object) && TypeHelpers.IsValueTupleType(resolvedType)
-            ? ConstructionRuntime.CreateTupleFromResolvedType(resolvedType, values)
+            ? ConstructionRuntime.CreateTupleFromResolvedType(resolvedType, values, _config)
             : ConstructionRuntime.CreateTuple(values);
 
         var hasNames = tuple.ElementNames.Any(static n => n != null);
