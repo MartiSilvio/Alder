@@ -1,11 +1,9 @@
-using System.Collections.Concurrent;
 using Alder.Diagnostics;
 
 namespace Alder.Runtime.Semantics;
 
 internal static class ConstructionRuntime
 {
-    private static readonly ConcurrentDictionary<Type, MethodInfo> _addMethodCache = new();
 
     public static object? InvokeConstructor(Type type, object?[] args, AlderConfig config)
     {
@@ -200,27 +198,9 @@ internal static class ConstructionRuntime
         return obj;
     }
 
-    public static MethodInfo ResolveCollectionAddMethod(Type collectionType)
+    public static object? ApplyCollectionInitializer(object obj, object? value, AlderConfig config, AlderContext context)
     {
-        return _addMethodCache.GetOrAdd(collectionType, static type =>
-        {
-            var method = ReflectionRuntime
-                .GetMethods(type, BindingFlags.Public | BindingFlags.Instance)
-                .FirstOrDefault(static m =>
-                    string.Equals(m.Name, "Add", StringComparison.Ordinal) &&
-                    m.GetParameters().Length == 1);
-
-            if (method is null)
-                throw new AlderException(DiagnosticDescriptors.MemberNotFound, type.Name, "Add");
-
-            return method;
-        });
-    }
-
-    public static object? ApplyCollectionInitializer(object obj, object? value)
-    {
-        var addMethod = ResolveCollectionAddMethod(obj.GetType());
-        addMethod.Invoke(obj, [value]);
+        Runtime.MethodInvoker.InvokeMemberCall(obj, "Add", [value], false, context, config, null, default);
         return obj;
     }
 

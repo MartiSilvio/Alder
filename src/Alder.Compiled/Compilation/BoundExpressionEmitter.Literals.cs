@@ -64,7 +64,9 @@ internal sealed partial class BoundExpressionEmitter
                 statements.Add(LinqExpression.Call(
                     ApplyCollectionInitializerMethod,
                     objVar,
-                    value));
+                    value,
+                    _configParam,
+                    _contextParam));
             }
         }
 
