@@ -50,6 +50,26 @@ public static class TestSingle
             return 0;
         }
 
+        if (filePath == "--check-factories")
+        {
+            var ctx = Alder.Aot.AlderBuiltInContext.Default;
+            var factories = ctx.GetDelegateFactories();
+            Console.WriteLine($"Delegate factories from context: {(factories == null ? "null" : factories.Count.ToString())}");
+
+            var engine = new AlderEngine();
+            Console.WriteLine($"Engine created. Testing delegate conversion...");
+            try
+            {
+                var result = engine.Evaluate("Func<int, bool> f = x => x > 5; f(10)");
+                Console.WriteLine($"Func<int,bool> result: {result}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Func<int,bool> FAILED: {ex.GetType().Name}: {ex.Message}");
+            }
+            return 0;
+        }
+
         var expr = File.ReadAllText(filePath).Trim();
         Console.WriteLine($"Expression file: {filePath}");
         Console.WriteLine($"Expression length: {expr.Length} chars");

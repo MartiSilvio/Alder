@@ -29,6 +29,7 @@ internal sealed class AlderConfig
     public StringComparer Comparer { get; }
     public StringComparison StringComparison => IsCaseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
     internal FixedDictionary<Type, IAotTypeMetadata>? AotMetadata { get; }
+    internal IReadOnlyDictionary<Type, Func<object, Delegate>>? DelegateFactories { get; }
 
     internal bool TryGetAotMetadata(Type type, [NotNullWhen(true)] out IAotTypeMetadata? metadata)
     {
@@ -61,7 +62,8 @@ internal sealed class AlderConfig
         ImmutableArray<Type> extensionTypes,
         TypeMetadataProvider typeMetadata,
         TypeResolver typeResolver,
-        FixedDictionary<Type, IAotTypeMetadata>? aotMetadata)
+        FixedDictionary<Type, IAotTypeMetadata>? aotMetadata,
+        IReadOnlyDictionary<Type, Func<object, Delegate>>? delegateFactories = null)
     {
         LanguageMode = languageMode;
         Security = security;
@@ -77,6 +79,7 @@ internal sealed class AlderConfig
         TypeResolver = typeResolver;
         Comparer = isCaseSensitive ? StringComparer.Ordinal : StringComparer.OrdinalIgnoreCase;
         AotMetadata = aotMetadata;
+        DelegateFactories = delegateFactories;
     }
 
     internal static readonly AlderConfig Empty = new(
@@ -103,6 +106,7 @@ internal sealed class ModuleInfo
         DynamicallyAccessedMemberTypes.PublicProperties |
         DynamicallyAccessedMemberTypes.PublicFields)]
     public Type Type { get; }
+
     public object? Instance { get; }
     public IReadOnlyDictionary<string, MemberInfo> Members { get; }
 
@@ -126,19 +130,18 @@ internal sealed class ModuleInfo
         if (Instance != null)
             return Instance;
 
-        if (serviceProvider != null)
-        {
-            var resolved = serviceProvider.GetService(Type);
-            if (resolved != null)
-                return resolved;
-        }
+        var resolved = serviceProvider?.GetService(Type);
+        if (resolved != null)
+            return resolved;
 
         if (Type.GetConstructor(Type.EmptyTypes) != null)
         {
             return Activator.CreateInstance(Type)
-                   ?? throw new AlderException(Diagnostics.DiagnosticDescriptors.CannotResolveModuleInstance, Type.FullName ?? Type.Name);
+                   ?? throw new AlderException(Diagnostics.DiagnosticDescriptors.CannotResolveModuleInstance,
+                       Type.FullName ?? Type.Name);
         }
 
-        throw new AlderException(Diagnostics.DiagnosticDescriptors.CannotResolveModuleInstance, Type.FullName ?? Type.Name);
+        throw new AlderException(Diagnostics.DiagnosticDescriptors.CannotResolveModuleInstance,
+            Type.FullName ?? Type.Name);
     }
 }

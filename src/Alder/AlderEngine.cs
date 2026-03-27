@@ -137,11 +137,21 @@ public sealed partial class AlderEngine : IDisposable
             options.StringComparer);
 
         Dictionary<Type, IAotTypeMetadata>? aotMetadata = null;
+        Dictionary<Type, Func<object, Delegate>>? delegateFactories = null;
+
         if (options.Aot.BuiltInContext != null)
         {
             aotMetadata = new Dictionary<Type, IAotTypeMetadata>();
             foreach (var metadata in options.Aot.BuiltInContext.GetTypeMetadata())
                 aotMetadata[metadata.Type] = metadata;
+
+            var factories = options.Aot.BuiltInContext.GetDelegateFactories();
+            if (factories != null)
+            {
+                delegateFactories = new Dictionary<Type, Func<object, Delegate>>();
+                foreach (var kvp in factories)
+                    delegateFactories[kvp.Key] = kvp.Value;
+            }
         }
 
         foreach (var ctx in options.Aot.AdditionalContexts)
@@ -149,7 +159,17 @@ public sealed partial class AlderEngine : IDisposable
             aotMetadata ??= new Dictionary<Type, IAotTypeMetadata>();
             foreach (var metadata in ctx.GetTypeMetadata())
                 aotMetadata[metadata.Type] = metadata;
+
+            var factories = ctx.GetDelegateFactories();
+            if (factories != null)
+            {
+                delegateFactories ??= new Dictionary<Type, Func<object, Delegate>>();
+                foreach (var kvp in factories)
+                    delegateFactories[kvp.Key] = kvp.Value;
+            }
         }
+
+        LambdaDelegateConverter.SetAotFactories(delegateFactories);
 
         var typeMetadata = new TypeMetadataProvider();
         return new AlderConfig(
@@ -165,7 +185,8 @@ public sealed partial class AlderEngine : IDisposable
             [..options.Types.ExtensionTypes],
             typeMetadata,
             typeResolver,
-            aotMetadata != null ? Runtime.Collections.FixedDictionary<Type, IAotTypeMetadata>.Create(aotMetadata) : null);
+            aotMetadata != null ? Runtime.Collections.FixedDictionary<Type, IAotTypeMetadata>.Create(aotMetadata) : null,
+            delegateFactories);
     }
 
     private static void RegisterGlobalFunctions(AlderOptions.RegisteredType reg, Dictionary<string, Func<object?[], object?>> functions)

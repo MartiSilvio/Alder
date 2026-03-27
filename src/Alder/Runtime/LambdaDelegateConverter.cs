@@ -15,6 +15,13 @@ internal static class LambdaDelegateConverter
 
     private static readonly ConditionalWeakTable<object, ConcurrentDictionary<Type, Delegate>> DelegateCache = new();
 
+    private static volatile IReadOnlyDictionary<Type, Func<object, Delegate>>? _aotFactories;
+
+    internal static void SetAotFactories(IReadOnlyDictionary<Type, Func<object, Delegate>>? factories)
+    {
+        _aotFactories = factories;
+    }
+
     public static Delegate? TryConvert(object value, Type delegateType)
     {
         if (!IsSupportedDelegateType(delegateType))
@@ -58,9 +65,17 @@ internal static class LambdaDelegateConverter
         if (lambda.Parameters.Count != paramTypes.Length)
             return null;
 
-        var typeCache = DelegateCache.GetOrCreateValue(lambda);
-        return typeCache.GetOrAdd(delegateType,
-            _ => LambdaDelegateFactory.CreateInterpretedDelegate(lambda, delegateType, paramTypes, returnType));
+        if (_aotFactories != null && _aotFactories.TryGetValue(delegateType, out var aotFactory))
+        {
+            var typeCache = DelegateCache.GetOrCreateValue(lambda);
+            return typeCache.GetOrAdd(delegateType, _ => aotFactory(lambda));
+        }
+
+        {
+            var typeCache = DelegateCache.GetOrCreateValue(lambda);
+            return typeCache.GetOrAdd(delegateType,
+                _ => LambdaDelegateFactory.CreateInterpretedDelegate(lambda, delegateType, paramTypes, returnType));
+        }
     }
 
     private static (Type[] ParamTypes, Type ReturnType) GetDelegateSignature(Type delegateType)
