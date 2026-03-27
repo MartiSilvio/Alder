@@ -274,4 +274,13 @@ public static class DiagnosticDescriptors
         new(DiagnosticCode.ALDR0405, "Spread operator can only be used in array or object literals");
 
     #endregion
+
+    #region AOT (ALDR05xx)
+
+    public static readonly DiagnosticDescriptor AotTypeNotRegistered =
+        new(DiagnosticCode.ALDR0500,
+            "Type '{0}' is not available in this environment. " +
+            "In NativeAOT, add [AlderRegistered(typeof({0}))] to your AlderTypeContext");
+
+    #endregion
 }

@@ -162,6 +162,15 @@ internal static class MemberAccess
         if (field != null)
             return TypeHelpers.GuardReflectionLeak(field.GetValue(obj), $"field {name}");
 
+#if NET7_0_OR_GREATER
+        if (!RuntimeFeature.IsDynamicCodeSupported)
+        {
+            var methods = typeMetadata.GetMethods(type, name, bindingFlags);
+            if (methods.Length == 0)
+                throw new AlderException(DiagnosticDescriptors.AotTypeNotRegistered, type.Name);
+        }
+#endif
+
         return new MethodRef(obj, name);
     }
 

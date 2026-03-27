@@ -197,6 +197,9 @@ public enum DiagnosticCode
     ALDR0404 = 1_000_404,
     /// <summary>Spread operator used outside array or object literal</summary>
     ALDR0405 = 1_000_405,
+
+    /// <summary>Type requires AOT registration for NativeAOT environments</summary>
+    ALDR0500 = 1_000_500,
 }
 
 internal static class DiagnosticCodeExtensions

@@ -104,7 +104,7 @@ internal static class DelegateFactoryEmitter
         w.AppendLine($"d[typeof({delegateType})] = l => new {delegateType}(({argType} arg0, {argType} arg1) => ((int)global::Alder.Runtime.MethodInvoker.InvokeLambda((global::Alder.Runtime.LambdaValue)l, new object?[] {{ arg0, arg1 }}, ((global::Alder.Runtime.LambdaValue)l).Closure)!));");
     }
 
-    private static List<string> CollectValueTypeNames(ImmutableArray<TypeRegistrationModel> registrations)
+    internal static List<string> CollectValueTypeNames(ImmutableArray<TypeRegistrationModel> registrations)
     {
         var valueTypeKeywords = new HashSet<string>
         {
