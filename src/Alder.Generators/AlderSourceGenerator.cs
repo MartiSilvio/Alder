@@ -12,7 +12,7 @@ namespace Alder.Generators;
 [Generator]
 public sealed class AlderSourceGenerator : IIncrementalGenerator
 {
-
+    private const string BaseContextFullName = "Alder.Aot.AlderTypeContext";
 
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
@@ -37,7 +37,7 @@ public sealed class AlderSourceGenerator : IIncrementalGenerator
         if (ctx.TargetSymbol is not INamedTypeSymbol contextClass)
             return null;
 
-        if (!DerivesFrom(contextClass, "Alder.Aot.AlderTypeContext"))
+        if (!DerivesFrom(contextClass, BaseContextFullName))
             return null;
 
         var contextNamespace = contextClass.ContainingNamespace.IsGlobalNamespace
@@ -73,7 +73,6 @@ public sealed class AlderSourceGenerator : IIncrementalGenerator
 
     private static TypeRegistrationModel ExtractTypeRegistration(INamedTypeSymbol type, string typeFullName)
     {
-        var minimalName = type.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
         var metadataClassName = SanitizeIdentifier(typeFullName) + "Metadata";
 
         var isClosedGeneric = type is { IsGenericType: true, IsUnboundGenericType: false };
@@ -168,7 +167,6 @@ public sealed class AlderSourceGenerator : IIncrementalGenerator
 
         return new TypeRegistrationModel(
             typeFullName,
-            minimalName,
             metadataClassName,
             isClosedGeneric,
             properties.ToImmutable(),
@@ -266,7 +264,7 @@ public sealed class AlderSourceGenerator : IIncrementalGenerator
         return type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
     }
 
-    private static string SanitizeIdentifier(string name)
+    internal static string SanitizeIdentifier(string name)
     {
         var sb = new StringBuilder(name.Length);
         foreach (var c in name)

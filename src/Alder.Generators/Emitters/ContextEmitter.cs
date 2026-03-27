@@ -8,10 +8,22 @@ internal static class ContextEmitter
     {
         var w = new SourceWriter();
 
-        SourceWriter.BlockScope? nsBlock = null;
         if (!string.IsNullOrEmpty(context.Namespace))
-            nsBlock = w.Block($"namespace {context.Namespace}");
+            return EmitInNamespace(w, context);
 
+        EmitClassBody(w, context);
+        return w.ToString();
+    }
+
+    private static string EmitInNamespace(SourceWriter w, ContextModel context)
+    {
+        using (w.Block($"namespace {context.Namespace}"))
+            EmitClassBody(w, context);
+        return w.ToString();
+    }
+
+    private static void EmitClassBody(SourceWriter w, ContextModel context)
+    {
         using (w.Block($"partial class {context.ClassName}"))
         {
             w.AppendLine($"public static {context.ClassName} Default {{ get; }} = new();");
@@ -28,9 +40,5 @@ internal static class ContextEmitter
             w.AppendLine();
             w.AppendLine("public override global::System.Collections.Generic.IReadOnlyList<global::Alder.Aot.IAotTypeMetadata> GetTypeMetadata() => s_metadata;");
         }
-
-        nsBlock?.Dispose();
-
-        return w.ToString();
     }
 }

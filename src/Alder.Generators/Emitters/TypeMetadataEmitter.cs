@@ -52,7 +52,7 @@ internal static class TypeMetadataEmitter
             var seenFields = new HashSet<string>();
             foreach (var reg in closedGenerics)
             {
-                var fieldName = "_" + SanitizeFieldName(reg.TypeFullName);
+                var fieldName = "_" + AlderSourceGenerator.SanitizeIdentifier(reg.TypeFullName);
                 if (!seenFields.Add(fieldName))
                     continue;
                 w.AppendLine($"static readonly global::System.Type {fieldName} = typeof({reg.TypeFullName});");
@@ -380,22 +380,6 @@ internal static class TypeMetadataEmitter
     private static string FormatTypeChecks(ImmutableArray<ParameterModel> parameters)
     {
         return string.Join(" && ", parameters.Select((p, i) => $"args[{i}] is {p.TypeFullName}"));
-    }
-
-    private static string SanitizeFieldName(string name)
-    {
-        var sb = new StringBuilder(name.Length);
-        foreach (var c in name)
-        {
-            if (char.IsLetterOrDigit(c) || c == '_')
-                sb.Append(c);
-            else
-                sb.Append('_');
-        }
-        var result = sb.ToString();
-        if (result.StartsWith("global__"))
-            result = result.Substring("global__".Length);
-        return result;
     }
 
     #endregion
