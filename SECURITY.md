@@ -2,6 +2,12 @@
 
 Alder evaluates user-supplied C# expressions safely in production environments. The security model provides three layers of control: operation permissions, type and namespace blocking, and execution limits.
 
+## Pre-Execution Validation
+
+Security enforcement is a bound tree pipeline pass that runs **before execution begins**. The binder produces the semantic tree, and the `SecurityValidationPass` walks every node, checking each member access, method call, constructor invocation, and assignment against the configured policy. If any node violates the policy, evaluation never starts and an `AlderException` with an `ALDR01xx` diagnostic is thrown.
+
+A blocked expression produces a diagnostic, not a partially-executed side effect. The expression either fails validation entirely or executes completely within the configured policy.
+
 ## Sandbox Presets
 
 | Permission | `Trusted()` | `Safe()` | `Strict()` |
@@ -27,6 +33,16 @@ var engine = new AlderEngine(o =>
 });
 ```
 
+`SandboxOptions` is a `record` with `init` properties. Customize any preset with `with`:
+
+```csharp
+o.Sandbox = SandboxOptions.Safe() with
+{
+    AllowMethodCalls = true,
+    TrustedTypes = new HashSet<Type> { typeof(System.IO.MemoryStream) }
+};
+```
+
 ## Type and Namespace Blocking
 
 A four-layer evaluation chain controls which .NET types expressions can access:
@@ -36,25 +52,26 @@ A four-layer evaluation chain controls which .NET types expressions can access:
 3. **Denied**: Types in `DeniedTypes` or `DeniedNamespaces` are blocked
 4. **Default**: Everything else is allowed
 
-Default denied namespaces include `System.IO`, `System.Net`, `System.Diagnostics`, `System.Reflection`, `System.Threading`, `System.Runtime.InteropServices`, and others covering file I/O, networking, process execution, reflection, threading, and interop.
+Default denied namespaces cover file I/O (`System.IO`), networking (`System.Net`, `System.Net.Http`, `System.Net.Sockets`), process execution (`System.Diagnostics`), reflection (`System.Reflection`, `System.Reflection.Emit`), threading (`System.Threading`), interop (`System.Runtime.InteropServices`), and data access (`System.Data`).
+
+Default denied types include `Activator`, `AppDomain`, `Console`, `Environment`, `GC`, `Process`, `Thread`, `ThreadPool`, and `Marshal`.
 
 ## Execution Limits
 
-| Constraint | Diagnostic |
-|-----------|------------|
-| `MaxStatements` | `ALDR0200` |
-| `MaxTimeout` | `ALDR0201` |
-| `MaxLoopIterations` | `ALDR0203` |
+| Constraint | Diagnostic | Exception |
+|-----------|------------|-----------|
+| `MaxStatements` | `ALDR0200` | `AlderExecutionLimitException` |
+| `MaxTimeout` | `ALDR0201` | `AlderExecutionLimitException` |
+| `MaxLoopIterations` | `ALDR0203` | `AlderExecutionLimitException` |
+| `MaxArrayLength` | `ALDR0202` | `AlderException` |
 
-## Complete Validation Before Execution
+## Reflection Blocking
 
-Alder validates the entire expression tree before any execution begins. Every member access, method call, constructor invocation, and assignment in the expression is checked against the security policy as a pre-execution pipeline pass. If any operation violates the policy, evaluation never starts.
-
-A blocked expression produces a diagnostic, not a partially-executed side effect. The expression either fails validation entirely or executes completely within the configured policy.
+Access to reflection APIs on `Type` objects is blocked even in `Trusted()` mode. Calling `.GetMethods()`, `.GetProperties()`, or similar reflection methods on a `typeof()` result throws `ALDR0108`. This prevents expressions from discovering and invoking methods outside the sandbox.
 
 ## Full Documentation
 
-For the complete security model documentation, see [docs/security/](docs/security/index.md).
+For the complete security model with detailed permission descriptions, type blocking rules, and architectural details, see [docs/security/](docs/security/index.md).
 
 ## Reporting Vulnerabilities
 
