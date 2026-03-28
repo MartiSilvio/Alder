@@ -50,7 +50,7 @@ Default denied namespaces include `System.IO`, `System.Net`, `System.Diagnostics
 
 Alder validates the entire expression tree before any execution begins. Every member access, method call, constructor invocation, and assignment in the expression is checked against the security policy as a pre-execution pipeline pass. If any operation violates the policy, evaluation never starts.
 
-This is a fundamental guarantee: a blocked expression produces a diagnostic, never a partially-executed side effect. There is no scenario where an expression writes to a file, makes a network call, or mutates state before a security violation is detected later in the same expression. The answer is either a security error or a complete, safe result.
+A blocked expression produces a diagnostic, not a partially-executed side effect. The expression either fails validation entirely or executes completely within the configured policy.
 
 ## Full Documentation
 
