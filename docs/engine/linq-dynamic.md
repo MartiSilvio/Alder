@@ -109,18 +109,29 @@ In both cases, Alder's binder has full access to `T`'s members — `x.Age`, `x.D
 
 ## Available Methods
 
-Every method has both `IEnumerable<T>` and `IQueryable<T>` overloads:
+### IEnumerable\<T\> and IQueryable\<T\>
+
+These methods have overloads for both in-memory collections and database queries:
 
 | Category | Methods |
 |----------|---------|
 | **Filtering** | `WhereDynamic` |
 | **Projection** | `SelectDynamic` |
 | **Ordering** | `OrderByDynamic`, `OrderByDescendingDynamic`, `ThenByDynamic`, `ThenByDescendingDynamic` |
-| **Grouping** | `GroupByDynamic`, `DistinctByDynamic` |
+| **Grouping** | `GroupByDynamic` |
 | **Quantifiers** | `AnyDynamic`, `AllDynamic` |
-| **Element access** | `FirstDynamic`, `FirstOrDefaultDynamic`, `LastDynamic`, `LastOrDefaultDynamic`, `SingleDynamic`, `SingleOrDefaultDynamic` |
+| **Element access** | `FirstDynamic`, `FirstOrDefaultDynamic` |
 | **Counting** | `CountDynamic` |
 | **Aggregation** | `SumDynamic`, `AverageDynamic`, `MinDynamic`, `MaxDynamic` |
+
+### IEnumerable\<T\> Only
+
+These methods are available for in-memory collections only:
+
+| Category | Methods |
+|----------|---------|
+| **Grouping** | `DistinctByDynamic` |
+| **Element access** | `LastDynamic`, `LastOrDefaultDynamic`, `SingleDynamic`, `SingleOrDefaultDynamic` |
 
 ## Lambda Syntax
 

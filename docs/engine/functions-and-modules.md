@@ -55,7 +55,7 @@ double pi = engine.Evaluate<double>("utils.Pi");                // ~3.14159
 
 <!-- test: Modules_Register -->
 
-By default, all public methods, properties, and fields (excluding special-name methods like property getters and async methods) are exposed. Properties and fields are read-only through module access.
+By default, all public methods, properties, and fields declared directly on the type are exposed. Inherited members are not included. Special-name methods (property getters/setters) and async methods are excluded.
 
 ### Built-in modules
 

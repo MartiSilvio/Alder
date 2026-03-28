@@ -162,4 +162,42 @@ public class SecurityDocTests(CompilationMode mode)
         var result = engine.Evaluate<int>("items.Where(x => x > 1).Count()");
         Assert.That(result, Is.EqualTo(2));
     }
+
+    [Test]
+    public void MaxArrayLength_Enforced()
+    {
+        var engine = TestEngineFactory.Create(mode, o =>
+        {
+            o.Sandbox = SandboxOptions.Trusted() with { MaxArrayLength = 100 };
+        });
+
+        Assert.That(engine.Evaluate<int>("new int[50].Length"), Is.EqualTo(50));
+
+        var ex = Assert.Throws<AlderException>(() => engine.Evaluate("new int[200]"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0202));
+    }
+
+    [Test]
+    public void MaxArrayLength_DefaultAllowsLargeArrays()
+    {
+        var engine = TestEngineFactory.Create(mode);
+
+        Assert.That(engine.Evaluate<int>("new int[10000].Length"), Is.EqualTo(10000));
+    }
+
+    [Test]
+    public void RegexTimeout_Configurable()
+    {
+        var engine = TestEngineFactory.Create(mode, o =>
+        {
+            o.LanguageMode = LanguageMode.Extended;
+            o.Sandbox = SandboxOptions.Trusted() with
+            {
+                RegexTimeout = TimeSpan.FromMilliseconds(100)
+            };
+        });
+
+        // Simple regex should succeed within timeout
+        Assert.That(engine.Evaluate<bool>(""" "hello" =~ "h.*o" """), Is.True);
+    }
 }

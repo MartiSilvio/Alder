@@ -12,14 +12,27 @@ internal static class RuntimeArrayFactory
             : elementType.MakeArrayType(rank);
     }
 
-    internal const int MaxArrayLength = 10_000_000;
+    internal const int DefaultMaxArrayLength = 10_000_000;
 
+    /// <summary>
+    /// Creates an array with the default maximum length limit.
+    /// Used by the compiled emitter which references this overload via reflection.
+    /// </summary>
     public static Array Create(Type elementType, int length)
     {
+        return Create(elementType, length, DefaultMaxArrayLength);
+    }
+
+    /// <summary>
+    /// Creates an array with a configurable maximum length limit from the security policy.
+    /// Used by the interpreter which has access to the engine's SecurityPolicy.
+    /// </summary>
+    public static Array Create(Type elementType, int length, int maxLength)
+    {
         if (length < 0) throw new ArgumentOutOfRangeException(nameof(length));
-        if (length > MaxArrayLength)
+        if (length > maxLength)
             throw new AlderException(Diagnostics.DiagnosticDescriptors.ArrayLengthExceeded,
-                length.ToString(), MaxArrayLength.ToString());
+                length.ToString(), maxLength.ToString());
         return Array.CreateInstance(elementType, length);
     }
 

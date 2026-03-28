@@ -191,16 +191,22 @@ var engine = new AlderEngine(o =>
 | `StatementsExecuted` | `long` | Total statements executed before the limit was hit |
 | `ElapsedTime` | `TimeSpan` | Wall-clock time when the limit was hit |
 
-### Implicit limits
+### Array and Regex Limits
 
-Two additional limits are always active regardless of `ExecutionConstraints`:
+Two additional limits are configured on `SandboxOptions`:
 
-| Limit | Default | Configurable via |
-|-------|---------|-----------------|
-| `MaxArrayLength` | 10,000,000 | `SecurityPolicy.Builder.MaxArrayLength` |
-| `RegexTimeout` | 1 second | `SecurityPolicy.Builder.RegexTimeout` |
+| Property | Default | Description |
+|----------|---------|-------------|
+| `MaxArrayLength` | 10,000,000 | Maximum array size for `new T[size]` |
+| `RegexTimeout` | 1 second | Maximum duration for regex operations (`=~`, `!~`) |
 
-Array length is checked when `new T[size]` is evaluated. Regex timeout is applied to all regex operations in Extended mode (`=~`, `!~`) and via `Regex.IsMatch` in standard expressions.
+```csharp
+o.Sandbox = SandboxOptions.Safe() with
+{
+    MaxArrayLength = 1_000,
+    RegexTimeout = TimeSpan.FromMilliseconds(100)
+};
+```
 
 ## Security Validation as Pipeline Pass
 

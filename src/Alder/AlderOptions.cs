@@ -440,6 +440,16 @@ public sealed record SandboxOptions
     public HashSet<string>? DeniedNamespaces { get; init; }
 
     /// <summary>
+    /// Gets the maximum allowed array length when creating arrays via <c>new T[size]</c>. Default is 10,000,000.
+    /// </summary>
+    public int MaxArrayLength { get; init; } = 10_000_000;
+
+    /// <summary>
+    /// Gets the maximum duration for regex operations. Default is 1 second.
+    /// </summary>
+    public TimeSpan RegexTimeout { get; init; } = TimeSpan.FromSeconds(1);
+
+    /// <summary>
     /// Creates a fully permissive sandbox that allows all operations. Suitable for trusted code.
     /// </summary>
     /// <returns>A <see cref="SandboxOptions"/> with all permissions enabled.</returns>
@@ -496,6 +506,8 @@ public sealed record SandboxOptions
         TrustedNamespaces = TrustedNamespaces,
         DeniedTypes = DeniedTypes,
         DeniedNamespaces = DeniedNamespaces,
+        MaxArrayLength = MaxArrayLength,
+        RegexTimeout = RegexTimeout,
     }.Build();
 }
 

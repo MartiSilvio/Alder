@@ -81,7 +81,7 @@ When the binder knows the target type (from `SetVariable<T>`, type inference, or
 
 This split is what makes AOT dispatch possible — resolved nodes carry enough information for the source generator to emit type-safe dispatch code.
 
-The bound tree uses 63 `BoundNodeKind` values. ECMA-334-equivalent kinds use Roslyn's `BoundKind` numbers (e.g., `BinaryOperator = 40`, `Block = 85`). Alder-specific kinds start at 1000.
+The bound tree uses every `BoundNodeKind` value. ECMA-334-equivalent kinds use Roslyn's `BoundKind` numbers (e.g., `BinaryOperator = 40`, `Block = 85`). Alder-specific kinds start at 1000.
 
 ## Stage 4: Bound Tree Pipeline
 
@@ -112,7 +112,7 @@ The pipeline is a simple sequential chain — each pass receives the tree from t
 **Output**: `object?` (the result)
 
 
-The interpreter is a tree-walking evaluator. `BoundEvaluator.Evaluate(BoundExpr)` dispatches on `BoundNodeKind` via a switch expression covering all 63 node kinds.
+The interpreter is a tree-walking evaluator. `BoundEvaluator.Evaluate(BoundExpr)` dispatches on `BoundNodeKind` via a switch expression covering every node kind.
 
 Key subsystems the interpreter delegates to:
 - `NumericDispatch` — type-safe arithmetic without `dynamic`, using pre-built delegate tables keyed by `(Type, Type)` pairs

@@ -151,7 +151,7 @@ This prevents stack overflow on deeply nested left-associative expressions (e.g.
 
 ## BoundNodeKind
 
-The bound tree uses 63 node kinds defined in `BoundNodeKind`. ECMA-334-equivalent kinds reuse Roslyn's `BoundKind` numbers for familiarity:
+The bound tree uses node kinds defined in `BoundNodeKind`. ECMA-334-equivalent kinds reuse Roslyn's `BoundKind` numbers for familiarity:
 
 | Range | Category | Examples |
 |-------|----------|---------|

@@ -9,7 +9,7 @@ The interpreter is Alder's default execution backend. It walks the bound tree no
 
 ## Dispatch
 
-The entry point `Evaluate(BoundExpr)` dispatches on `BoundNodeKind` via a switch expression covering all 63 node kinds. Each kind maps to a specific evaluation method. The dispatch is a flat switch — no virtual method calls, no visitor pattern overhead.
+The entry point `Evaluate(BoundExpr)` dispatches on `BoundNodeKind` via a switch expression covering every node kind. Each kind maps to a specific evaluation method. The dispatch is a flat switch — no virtual method calls, no visitor pattern overhead.
 
 ## Fast Path vs Fallback
 

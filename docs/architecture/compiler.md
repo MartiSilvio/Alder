@@ -17,7 +17,7 @@ graph LR
     C -->|"Expression.Compile()"| D["Native Delegate"]
 ```
 
-The emitter handles all 63 `BoundNodeKind` values. Each node kind has a corresponding `Emit*` method that produces a LINQ expression subtree.
+The emitter handles all `BoundNodeKind` values. Each node kind has a corresponding `Emit*` method that produces a LINQ expression subtree.
 
 ## Two Emitters
 

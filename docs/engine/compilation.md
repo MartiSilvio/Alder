@@ -173,7 +173,7 @@ Compiled delegates are cached at two levels:
 
 ## Compilation Boundaries
 
-The `BoundExpressionEmitter` handles all 63 `BoundNodeKind` values. However, `ExpressionTreeEmitter` (used by `ParseAsExpression`) supports a smaller subset — it cannot emit:
+The `BoundExpressionEmitter` handles all `BoundNodeKind` values. However, `ExpressionTreeEmitter` (used by `ParseAsExpression`) supports a smaller subset — it cannot emit:
 
 - Switch expressions and switch statements
 - Blocks, variable declarations

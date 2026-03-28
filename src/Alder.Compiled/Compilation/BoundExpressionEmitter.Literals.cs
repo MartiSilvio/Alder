@@ -114,11 +114,15 @@ internal sealed partial class BoundExpressionEmitter
         {
             var elementType = typedArrayCreation.StaticType.ClrType.GetElementType()!;
             var sizeExpr = EmitHelpers.EnsureTypedExpression(Emit(typedArrayCreation.Size), typeof(int));
+            var maxLengthExpr = LinqExpression.Property(
+                LinqExpression.Property(_configParam, nameof(AlderConfig.Security)),
+                nameof(Security.SecurityPolicy.MaxArrayLength));
             return LinqExpression.Call(
                 typeof(Alder.Runtime.RuntimeArrayFactory).GetMethod(nameof(Alder.Runtime.RuntimeArrayFactory.Create),
-                    new[] { typeof(Type), typeof(int) })!,
+                    new[] { typeof(Type), typeof(int), typeof(int) })!,
                 LinqExpression.Constant(elementType, typeof(Type)),
-                sizeExpr);
+                sizeExpr,
+                maxLengthExpr);
         }
 
         return LinqExpression.Call(
