@@ -63,23 +63,20 @@ public class StaticMethodSandboxTests(CompilationMode mode)
     }
 
     [Test]
-    public void Safe_StaticPropertyAccessBlocked()
+    public void Safe_StaticPropertyAccessAllowed()
     {
         var engine = TestEngineFactory.Create(mode, o => o.Sandbox = SandboxOptions.Safe());
 
-        var ex = Assert.Throws<AlderException>(() => engine.Evaluate("int.MaxValue"));
-        Assert.That(ex!.Message, Does.Contain("sandbox"));
-        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0104));
+        Assert.That(engine.Evaluate<int>("int.MaxValue"), Is.EqualTo(int.MaxValue));
     }
 
     [Test]
-    public void Safe_StaticFieldAccessBlocked()
+    public void Safe_StaticFieldAccessAllowed()
     {
         var engine = TestEngineFactory.Create(mode, o => o.Sandbox = SandboxOptions.Safe());
 
-        var ex = Assert.Throws<AlderException>(() => engine.Evaluate("double.NaN"));
-        Assert.That(ex!.Message, Does.Contain("sandbox"));
-        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0104));
+        // string.Empty is a static field read, allowed in Safe mode
+        Assert.That(engine.Evaluate<string>("string.Empty"), Is.EqualTo(string.Empty));
     }
 
     [Test]

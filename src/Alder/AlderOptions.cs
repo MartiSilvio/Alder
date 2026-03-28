@@ -189,7 +189,9 @@ public sealed class AlderOptions
                 DynamicallyAccessedMemberTypes.PublicFields)] Type type,
             object? instance = null)
         {
-            RegisteredTypes.Add(new RegisteredType(type, instance, null, ModuleMemberMetadata.Build(type, explicitOnly: false, _options.StringComparer)));
+            var moduleAttr = type.GetCustomAttribute<AlderModuleAttribute>();
+            var explicitOnly = moduleAttr?.ExplicitOnly ?? false;
+            RegisteredTypes.Add(new RegisteredType(type, instance, null, ModuleMemberMetadata.Build(type, explicitOnly, _options.StringComparer)));
             return this;
         }
 
@@ -454,24 +456,30 @@ public sealed record SandboxOptions
     };
 
     /// <summary>
-    /// Creates a sandbox that allows property access and assignment but disallows method calls, static access, and construction.
+    /// Creates a sandbox that allows property access (instance and static), assignment, and index writes,
+    /// but disallows method calls and object construction.
     /// </summary>
     /// <returns>A <see cref="SandboxOptions"/> with safe defaults.</returns>
     public static SandboxOptions Safe() => new()
     {
         AllowPropertyRead = true,
+        AllowStaticPropertyRead = true,
+        AllowStaticFieldRead = true,
         AllowAssignment = true,
         AllowPropertySet = true,
         AllowIndexSet = true
     };
 
     /// <summary>
-    /// Creates a minimal sandbox that only allows reading instance properties. No method calls, assignment, or construction.
+    /// Creates a minimal read-only sandbox that allows reading properties and static members.
+    /// No method calls, assignment, or construction.
     /// </summary>
     /// <returns>A <see cref="SandboxOptions"/> with the most restrictive settings.</returns>
     public static SandboxOptions Strict() => new()
     {
-        AllowPropertyRead = true
+        AllowPropertyRead = true,
+        AllowStaticPropertyRead = true,
+        AllowStaticFieldRead = true
     };
 
     internal SecurityPolicy ToSecurityPolicy() => new SecurityPolicy.Builder

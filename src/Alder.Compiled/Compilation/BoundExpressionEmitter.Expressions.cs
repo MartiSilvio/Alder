@@ -64,7 +64,7 @@ internal sealed partial class BoundExpressionEmitter
                     : LinqExpression.Convert(operand, targetType);
             }
 
-            if (!targetType.IsValueType)
+            if (!targetType.IsValueType && sourceType != typeof(LambdaValue))
             {
                 var operand = Emit(cast.Expression);
                 operand = EmitHelpers.EnsureTypedExpression(operand, sourceType);

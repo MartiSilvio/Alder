@@ -196,6 +196,11 @@ internal static class TypeHelpers
         if (underlyingType == typeof(object))
             return value;
 
+        // Lambda-to-delegate conversion (works for both implicit and explicit casts)
+        var delegateInstance = LambdaDelegateConverter.TryConvert(value, underlyingType);
+        if (delegateInstance != null)
+            return delegateInstance;
+
         // Reference type cast: check assignability for non-value-type targets
         if (!underlyingType.IsValueType && underlyingType != typeof(string))
         {
