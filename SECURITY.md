@@ -46,9 +46,11 @@ Default denied namespaces include `System.IO`, `System.Net`, `System.Diagnostics
 | `MaxTimeout` | `ALDR0201` |
 | `MaxLoopIterations` | `ALDR0203` |
 
-## Pipeline-Based Enforcement
+## Complete Validation Before Execution
 
-Security enforcement is a bound tree pipeline pass. The entire expression tree is validated before any execution begins. If any node violates the policy, evaluation never starts. This guarantees that a blocked expression produces a diagnostic, not a partially-executed side effect.
+Alder validates the entire expression tree before any execution begins. Every member access, method call, constructor invocation, and assignment in the expression is checked against the security policy as a pre-execution pipeline pass. If any operation violates the policy, evaluation never starts.
+
+This is a fundamental guarantee: a blocked expression produces a diagnostic, never a partially-executed side effect. There is no scenario where an expression writes to a file, makes a network call, or mutates state before a security violation is detected later in the same expression. The answer is either a security error or a complete, safe result.
 
 ## Full Documentation
 
