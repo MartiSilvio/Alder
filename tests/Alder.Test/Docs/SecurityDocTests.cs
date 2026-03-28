@@ -164,11 +164,11 @@ public class SecurityDocTests(CompilationMode mode)
     }
 
     [Test]
-    public void MaxArrayLength_Enforced()
+    public void MaxCollectionSize_Enforced()
     {
         var engine = TestEngineFactory.Create(mode, o =>
         {
-            o.Sandbox = SandboxOptions.Trusted() with { MaxArrayLength = 100 };
+            o.Sandbox = SandboxOptions.Trusted() with { MaxCollectionSize = 100 };
         });
 
         Assert.That(engine.Evaluate<int>("new int[50].Length"), Is.EqualTo(50));
@@ -178,7 +178,35 @@ public class SecurityDocTests(CompilationMode mode)
     }
 
     [Test]
-    public void MaxArrayLength_DefaultAllowsLargeArrays()
+    public void MaxCollectionSize_EnforcedOnToList()
+    {
+        var engine = TestEngineFactory.Create(mode, o =>
+        {
+            o.Sandbox = SandboxOptions.Trusted() with { MaxCollectionSize = 50 };
+        });
+
+        // ToList() produces a List<int> with Count > 50
+        var ex = Assert.Throws<AlderException>(() =>
+            engine.Evaluate("Enumerable.Range(1, 100).ToList()"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0202));
+    }
+
+    [Test]
+    public void MaxCollectionSize_EnforcedOnToArray()
+    {
+        var engine = TestEngineFactory.Create(mode, o =>
+        {
+            o.Sandbox = SandboxOptions.Trusted() with { MaxCollectionSize = 50 };
+        });
+
+        // ToArray() produces an int[] with Length > 50
+        var ex = Assert.Throws<AlderException>(() =>
+            engine.Evaluate("Enumerable.Range(1, 100).ToArray()"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0202));
+    }
+
+    [Test]
+    public void MaxCollectionSize_DefaultAllowsLargeArrays()
     {
         var engine = TestEngineFactory.Create(mode);
 

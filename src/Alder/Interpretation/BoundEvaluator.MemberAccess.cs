@@ -269,6 +269,7 @@ internal sealed partial class BoundEvaluator
             var prepared = Runtime.ArgumentPreparer.Prepare(resolved, plannedArgs, parameters, _cancellationToken);
             var plannedResult = MethodInvoker.InvokeMethodCore(resolved.Method, target, prepared);
             Runtime.ArgumentPreparer.CopyBackOutArgs(plannedArgs, prepared, parameters);
+            ExecutionRuntime.CheckCollectionSize(plannedResult, _config.Security);
             return plannedResult;
         }
 
@@ -277,6 +278,7 @@ internal sealed partial class BoundEvaluator
         var callee = Evaluate(call.Callee);
         var invokeResult = MethodInvoker.InvokeCall(callee, args, _context, _config, ct: _cancellationToken);
         DefineOutVariablesIfAny(args, outBindings);
+        ExecutionRuntime.CheckCollectionSize(invokeResult, _config.Security);
         return invokeResult;
     }
 
@@ -302,6 +304,7 @@ internal sealed partial class BoundEvaluator
             var result = IdentifierRuntime.InvokeIdentifierCall(
                 identifier.Name, args, _context, _config, typeArguments, _cancellationToken);
             DefineOutVariablesIfAny(args, outBindings);
+            ExecutionRuntime.CheckCollectionSize(result, _config.Security);
             return result;
         }
 
@@ -312,6 +315,7 @@ internal sealed partial class BoundEvaluator
                 target, memberAccess.MemberName, args, memberAccess.NullSafe,
                 _context, _config, typeArguments, _cancellationToken);
             DefineOutVariablesIfAny(args, outBindings);
+            ExecutionRuntime.CheckCollectionSize(result, _config.Security);
             return result;
         }
 
@@ -319,6 +323,7 @@ internal sealed partial class BoundEvaluator
         var invokeCallResult = MethodInvoker.InvokeCall(
             callee, args, _context, _config, typeArguments, _cancellationToken);
         DefineOutVariablesIfAny(args, outBindings);
+        ExecutionRuntime.CheckCollectionSize(invokeCallResult, _config.Security);
         return invokeCallResult;
     }
 

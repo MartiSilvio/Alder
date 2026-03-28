@@ -47,7 +47,7 @@ public class CSharp12FeatureInventoryTests
     }
 
     // 2. Primary Constructors: class Point(int x, int y) { ... }
-    // Out of scope for an expression evaluator -- class declarations are not expressions.
+    // Out of scope for an expression engine -- class declarations are not expressions.
 
     [Test]
     public async Task PrimaryConstructors_RoslynScripting()
@@ -118,7 +118,7 @@ public class CSharp12FeatureInventoryTests
     }
 
     // 5. Inline Arrays
-    // Requires struct declaration with [InlineArray] attribute -- out of scope for expression evaluator.
+    // Requires struct declaration with [InlineArray] attribute -- out of scope for expression engine.
 
     [Test]
     public void InlineArrays_Classification()
@@ -136,7 +136,7 @@ public class CSharp12FeatureInventoryTests
     }
 
     // 7. Alias Any Type: using Point = (int x, int y)
-    // Requires using directive -- out of scope for expression evaluator.
+    // Requires using directive -- out of scope for expression engine.
 
     [Test]
     public void AliasAnyType_Classification()

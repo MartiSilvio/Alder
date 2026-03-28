@@ -235,6 +235,12 @@ internal static class BoundRuntimeMethodCache
     internal static readonly MethodInfo EnsureIndexTargetNotNullMethod =
         typeof(ExecutionRuntime).GetMethod(nameof(ExecutionRuntime.EnsureIndexTargetNotNull))!;
 
+    internal static readonly MethodInfo CheckCollectionSizeMethod =
+        typeof(ExecutionRuntime).GetMethod(nameof(ExecutionRuntime.CheckCollectionSize))!;
+
+    internal static readonly PropertyInfo SecurityPolicyProperty =
+        typeof(AlderConfig).GetProperty(nameof(AlderConfig.Security))!;
+
     internal static readonly MethodInfo RequireBooleanMethod =
         typeof(TypeHelpers).GetMethod(nameof(TypeHelpers.RequireBoolean))!;
 

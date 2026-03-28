@@ -442,7 +442,7 @@ public sealed record SandboxOptions
     /// <summary>
     /// Gets the maximum allowed array length when creating arrays via <c>new T[size]</c>. Default is 10,000,000.
     /// </summary>
-    public int MaxArrayLength { get; init; } = 10_000_000;
+    public int MaxCollectionSize { get; init; } = 10_000_000;
 
     /// <summary>
     /// Gets the maximum duration for regex operations. Default is 1 second.
@@ -506,7 +506,7 @@ public sealed record SandboxOptions
         TrustedNamespaces = TrustedNamespaces,
         DeniedTypes = DeniedTypes,
         DeniedNamespaces = DeniedNamespaces,
-        MaxArrayLength = MaxArrayLength,
+        MaxCollectionSize = MaxCollectionSize,
         RegexTimeout = RegexTimeout,
     }.Build();
 }

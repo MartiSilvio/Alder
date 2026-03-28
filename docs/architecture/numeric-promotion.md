@@ -76,7 +76,7 @@ x + (-1)       // -1 is int, negative → cannot promote, falls to Rule 6: long
 
 The interpreter uses two dispatch tiers for numeric operations:
 
-**Fast path** (`NumericDispatch` with `PromotedType`): When the binder has computed a `PromotedType` at bind time and the runtime types match the static types, the evaluator routes directly to pre-built delegate tables keyed by `(Type, Type)`. No promotion at runtime — the binder already determined the promoted type. This is the path for expressions like `1 + 2` where both types are known.
+**Fast path** (`NumericDispatch` with `PromotedType`): When the binder has computed a `PromotedType` at bind time and the runtime types match the static types, the engine routes directly to pre-built delegate tables keyed by `(Type, Type)`. No promotion at runtime — the binder already determined the promoted type. This is the path for expressions like `1 + 2` where both types are known.
 
 **Fallback path** (`NumericDispatch.PromoteOperands`): When types don't match the fast path (e.g., untyped variables, mixed-type arithmetic where the binder produced `BoundType.Unknown`), the runtime applies the 8-rule promotion chain, converts both operands, and then dispatches to the delegate table with the promoted type pair.
 

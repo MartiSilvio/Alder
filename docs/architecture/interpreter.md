@@ -17,7 +17,7 @@ Binary and unary operators have a two-tier dispatch:
 
 ### Fast path (NumericDispatch)
 
-When the binder has computed a `PromotedType` AND the runtime values' types match their static types, the evaluator routes directly to `NumericDispatch` — pre-built delegate tables keyed by `(Type, Type)` pairs:
+When the binder has computed a `PromotedType` AND the runtime values' types match their static types, the engine routes directly to `NumericDispatch` — pre-built delegate tables keyed by `(Type, Type)` pairs:
 
 ```
 Add: { (int,int)→(l,r)=>l+r, (long,long)→(l,r)=>l+r, (double,double)→(l,r)=>l+r, ... }
@@ -31,7 +31,7 @@ Checked arithmetic has separate delegate tables (`CheckedAddOps`, `CheckedSubtra
 
 ### Fallback path (Operators)
 
-When types don't match the fast path (mixed types, nullables, `string + object`, `DateTime ± TimeSpan`, enum arithmetic, user-defined operators), the evaluator falls through to the general `Operators` class. This handles:
+When types don't match the fast path (mixed types, nullables, `string + object`, `DateTime ± TimeSpan`, enum arithmetic, user-defined operators), the engine falls through to the general `Operators` class. This handles:
 
 - String concatenation (any operand is `string`)
 - `DateTime` arithmetic (`DateTime + TimeSpan`, `DateTime - DateTime`)
@@ -142,7 +142,7 @@ The `_context` field on `BoundEvaluator` points to the current scope. It changes
 - Loop iteration → child context reused, cleared via `ClearScope()`
 - `for` loop → two child contexts (initializer scope + body scope)
 
-The evaluator saves and restores `_context` around scope changes using local variables, ensuring that scope exits always restore the previous context even on exceptions.
+The engine saves and restores `_context` around scope changes using local variables, ensuring that scope exits always restore the previous context even on exceptions.
 
 ## Boxed Constants
 

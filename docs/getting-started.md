@@ -29,7 +29,7 @@ var result = engine.Evaluate("""
 
 <!-- test: GettingStarted_LinqChain -->
 
-The expression passes through a full compiler pipeline. The binder resolves `Where` as `System.Linq.Enumerable.Where<string>`, infers the lambda parameter type from the generic constraint, and the evaluator invokes the real LINQ methods on the real .NET types.
+The expression passes through a full compiler pipeline. The binder resolves `Where` as `System.Linq.Enumerable.Where<string>`, infers the lambda parameter type from the generic constraint, and the engine invokes the real LINQ methods on the real .NET types.
 
 ## Inject variables
 

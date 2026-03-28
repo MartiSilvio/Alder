@@ -371,8 +371,8 @@ public class DiagnosticCodeTests
     [Test]
     public void CS1061_MemberNotFound_DictMemberAccess()
     {
-        // CS1061 fires in the Evaluator's GetMember for IDictionary member access.
-        // Use Interpreted mode to ensure the Evaluator path is exercised.
+        // CS1061 fires in the engine's GetMember for IDictionary member access.
+        // Use Interpreted mode to ensure the engine path is exercised.
         var engine = TestEngineFactory.Create(CompilationMode.Interpreted);
         var ex = Assert.Throws<AlderException>(() =>
             engine.Evaluate("""{ var obj = new { Name = "test" }; return obj.NonExistent; } """));

@@ -150,6 +150,24 @@ internal static class ExecutionRuntime
         }
     }
 
+    public static void CheckCollectionSize(object? result, Security.SecurityPolicy security)
+    {
+        if (result == null) return;
+
+        int count;
+        if (result is System.Collections.ICollection collection)
+            count = collection.Count;
+        else if (result is Array array)
+            count = array.Length;
+        else
+            return;
+
+        if (count > security.MaxCollectionSize)
+            throw new AlderException(
+                DiagnosticDescriptors.ArrayLengthExceeded,
+                count.ToString(), security.MaxCollectionSize.ToString());
+    }
+
     public static IEnumerator GetEnumerator(object? collection)
     {
         if (collection is not IEnumerable enumerable)

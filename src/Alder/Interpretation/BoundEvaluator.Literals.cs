@@ -95,13 +95,13 @@ internal sealed partial class BoundEvaluator
         var sizeValue = Evaluate(typedArrayCreation.Size);
         var size = Convert.ToInt32(sizeValue);
         var elementType = _context.TypeResolver.ResolveType(typedArrayCreation.ElementTypeName);
-        return RuntimeArrayFactory.Create(elementType, size, _config.Security.MaxArrayLength);
+        return RuntimeArrayFactory.Create(elementType, size, _config.Security.MaxCollectionSize);
     }
 
     private object? EvaluateTypedArrayLiteral(BoundTypedArrayLiteralExpr typedArrayLiteral)
     {
         var elementType = _context.TypeResolver.ResolveType(typedArrayLiteral.ElementTypeName);
-        var array = RuntimeArrayFactory.Create(elementType, typedArrayLiteral.Elements.Length, _config.Security.MaxArrayLength);
+        var array = RuntimeArrayFactory.Create(elementType, typedArrayLiteral.Elements.Length, _config.Security.MaxCollectionSize);
         for (var i = 0; i < typedArrayLiteral.Elements.Length; i++)
         {
             var value = Evaluate(typedArrayLiteral.Elements[i]);

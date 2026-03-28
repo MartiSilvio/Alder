@@ -12,7 +12,7 @@ internal static class RuntimeArrayFactory
             : elementType.MakeArrayType(rank);
     }
 
-    internal const int DefaultMaxArrayLength = 10_000_000;
+    internal const int DefaultMaxCollectionSize = 10_000_000;
 
     /// <summary>
     /// Creates an array with the default maximum length limit.
@@ -20,7 +20,7 @@ internal static class RuntimeArrayFactory
     /// </summary>
     public static Array Create(Type elementType, int length)
     {
-        return Create(elementType, length, DefaultMaxArrayLength);
+        return Create(elementType, length, DefaultMaxCollectionSize);
     }
 
     /// <summary>

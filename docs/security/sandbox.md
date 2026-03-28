@@ -7,7 +7,9 @@ sidebar:
 
 Alder evaluates user-supplied C# expressions safely in production environments — multi-tenant SaaS, rule engines processing untrusted formulas, configuration-driven business logic, interactive REPLs. The security model provides three layers of control: operation permissions, type and namespace blocking, and execution limits.
 
-Security enforcement is a bound tree pipeline pass. Before any execution begins, the entire expression tree is validated against the configured policy — every member access, method call, constructor invocation, and assignment is checked. If any node violates the policy, evaluation never starts. This guarantees that a blocked expression produces a diagnostic, not a partially-executed side effect.
+**Operation permissions and type blocking** are enforced as a bound tree pipeline pass before execution begins. The entire expression tree is validated against the configured policy — every member access, method call, constructor invocation, and assignment is checked. If any node violates the policy, evaluation never starts.
+
+**Execution limits** (statement count, loop iterations, timeout, collection size) are enforced at runtime during evaluation, since they depend on the dynamic behavior of the expression.
 
 ## Sandbox Presets
 
@@ -197,20 +199,20 @@ Two additional limits are configured on `SandboxOptions`:
 
 | Property | Default | Description |
 |----------|---------|-------------|
-| `MaxArrayLength` | 10,000,000 | Maximum array size for `new T[size]` |
+| `MaxCollectionSize` | 10,000,000 | Maximum size for arrays and collections (enforced on `new T[size]`, `.ToList()`, `.ToArray()`, and any method returning `ICollection`) |
 | `RegexTimeout` | 1 second | Maximum duration for regex operations (`=~`, `!~`) |
 
 ```csharp
 o.Sandbox = SandboxOptions.Safe() with
 {
-    MaxArrayLength = 1_000,
+    MaxCollectionSize = 1_000,
     RegexTimeout = TimeSpan.FromMilliseconds(100)
 };
 ```
 
 ## Security Validation as Pipeline Pass
 
-The security check is not scattered across the evaluator or compiler — it's a single pipeline pass (`SecurityValidationPass`) that runs before either execution backend. This design means:
+The security check is not scattered across the engine or compiler — it's a single pipeline pass (`SecurityValidationPass`) that runs before either execution backend. This design means:
 
 1. **Complete coverage**: Every bound node type is checked in one place. Adding a new node kind requires adding its security check to one method.
 2. **Fail-fast**: If the expression contains a blocked operation, you get the error immediately — not after partial execution.

@@ -125,7 +125,7 @@ internal sealed record NamedArg(string Name, object? Value);
 /// <summary>
 /// Marker for out parameter arguments. Flows through the method invocation stack
 /// so MethodInvoker can detect ByRef parameters and set up the args array correctly.
-/// After method invocation, the evaluator reads modified values from the args array
+/// After method invocation, the engine reads modified values from the args array
 /// and defines variables in the current scope.
 /// </summary>
 internal sealed record OutArgMarker(string VariableName, string? TypeName, bool IsDiscard);

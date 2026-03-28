@@ -164,7 +164,7 @@ These use the same codes as the C# compiler. Developers familiar with C# diagnos
 |------|---------|---------|
 | `ALDR0200` | Statement limit exceeded | `MaxStatements` hit |
 | `ALDR0201` | Timeout exceeded | `MaxTimeout` hit |
-| `ALDR0202` | Array length exceeded | Array creation > `MaxArrayLength` |
+| `ALDR0202` | Collection size exceeded | Array or collection exceeds `MaxCollectionSize` |
 | `ALDR0203` | Loop iteration limit exceeded | `MaxLoopIterations` hit |
 
 #### Runtime (ALDR03xx)

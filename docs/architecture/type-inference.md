@@ -77,7 +77,7 @@ After each iteration that fixes new type parameters, the engine checks if any la
 
 1. Substitutes the fixed types into the delegate's input parameter types
 2. Creates `BoundType[]` from the substituted types
-3. Calls `ExtensionMethodResolver.InferLambdaReturnType(lambda, inputTypes, context)` — which evaluates the lambda body with those input types using Alder's own evaluator
+3. Calls `ExtensionMethodResolver.InferLambdaReturnType(lambda, inputTypes, context)` — which evaluates the lambda body with those input types using Alder's own engine
 4. Adds the inferred return type as a lower bound on the delegate's return type parameter
 
 This is the mechanism that infers `TResult = string` from `items.Select(x => x.Name)` — after `T = Item` is fixed, the lambda `x => x.Name` is evaluated with `x: Item`, producing return type `string`.

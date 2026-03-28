@@ -12,7 +12,7 @@ public sealed class SecurityPolicy
     public bool AllowPropertySet { get; }
     public bool AllowIndexSet { get; }
     public bool AllowConstruction { get; }
-    public int MaxArrayLength { get; }
+    public int MaxCollectionSize { get; }
     public TimeSpan RegexTimeout { get; }
 
     internal bool IsTrusted { get; }
@@ -32,7 +32,7 @@ public sealed class SecurityPolicy
         AllowPropertySet = b.AllowPropertySet;
         AllowIndexSet = b.AllowIndexSet;
         AllowConstruction = b.AllowConstruction;
-        MaxArrayLength = b.MaxArrayLength;
+        MaxCollectionSize = b.MaxCollectionSize;
         RegexTimeout = b.RegexTimeout;
 
         _trustedTypes = b.TrustedTypes != null ? FixedSet<Type>.Create(b.TrustedTypes) : FixedSet<Type>.Empty;
@@ -210,7 +210,7 @@ public sealed class SecurityPolicy
         public bool AllowPropertySet { get; set; }
         public bool AllowIndexSet { get; set; }
         public bool AllowConstruction { get; set; }
-        public int MaxArrayLength { get; set; } = 10_000_000;
+        public int MaxCollectionSize { get; set; } = 10_000_000;
         public TimeSpan RegexTimeout { get; set; } = TimeSpan.FromSeconds(1);
 
         public HashSet<Type>? TrustedTypes { get; set; }

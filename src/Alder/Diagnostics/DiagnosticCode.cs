@@ -149,7 +149,7 @@ public enum DiagnosticCode
     ALDR0200 = 1_000_200,
     /// <summary>Timeout exceeded</summary>
     ALDR0201 = 1_000_201,
-    /// <summary>Array length exceeded</summary>
+    /// <summary>Collection size exceeded</summary>
     ALDR0202 = 1_000_202,
     /// <summary>Loop iteration limit exceeded</summary>
     ALDR0203 = 1_000_203,

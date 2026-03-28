@@ -147,10 +147,28 @@ internal sealed partial class BoundExpressionEmitter
 
     private LinqExpression EmitCallWithTarget(BoundResolvedCallExpr call, LinqExpression? emittedTarget)
     {
-        if (call.Callee is BoundMethodGroupExpr)
-            return EmitDirectPlannedCall(call, emittedTarget);
+        var callExpr = call.Callee is BoundMethodGroupExpr
+            ? EmitDirectPlannedCall(call, emittedTarget)
+            : EmitInvokeCore(call.Callee, call.Arguments, ImmutableArray<string>.Empty, emittedTarget);
 
-        return EmitInvokeCore(call.Callee, call.Arguments, ImmutableArray<string>.Empty, emittedTarget);
+        return EmitCollectionSizeCheck(callExpr);
+    }
+
+    private LinqExpression EmitCollectionSizeCheck(LinqExpression callResult)
+    {
+        var resultType = callResult.Type;
+        if (resultType != typeof(object) && (resultType.IsValueType || resultType == typeof(string)))
+            return callResult;
+
+        var resultVar = LinqExpression.Variable(typeof(object), "callResult");
+        var securityPolicyExpr = LinqExpression.Property(_configParam, SecurityPolicyProperty);
+
+        return LinqExpression.Block(
+            typeof(object),
+            [resultVar],
+            LinqExpression.Assign(resultVar, EmitHelpers.AsObject(callResult)),
+            LinqExpression.Call(CheckCollectionSizeMethod, resultVar, securityPolicyExpr),
+            resultVar);
     }
 
     private LinqExpression EmitDirectPropertyAccess(BoundPropertyAccessExpr node, LinqExpression emittedTarget)
@@ -550,7 +568,8 @@ internal sealed partial class BoundExpressionEmitter
     {
         var chain = PostfixChain.TryCollect(invoke);
         if (chain != null) return EmitPostfixChain(chain.Value);
-        return EmitInvokeCore(invoke.Callee, invoke.Arguments, invoke.TypeArguments);
+        return EmitCollectionSizeCheck(
+            EmitInvokeCore(invoke.Callee, invoke.Arguments, invoke.TypeArguments));
     }
 
     private LinqExpression EmitPostfixChain(PostfixChain.Chain chain)
@@ -562,7 +581,8 @@ internal sealed partial class BoundExpressionEmitter
             if (seg.CallOrInvoke is BoundResolvedCallExpr call)
                 result = EmitCallWithTarget(call, result);
             else if (seg.CallOrInvoke is BoundDynamicCallExpr invoke)
-                result = EmitInvokeCore(invoke.Callee, invoke.Arguments, invoke.TypeArguments, result);
+                result = EmitCollectionSizeCheck(
+                    EmitInvokeCore(invoke.Callee, invoke.Arguments, invoke.TypeArguments, result));
             else
                 result = EmitMemberAccessBaseWithTarget(seg.MemberAccess, result);
         }

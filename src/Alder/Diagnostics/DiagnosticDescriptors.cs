@@ -199,7 +199,7 @@ public static class DiagnosticDescriptors
         new(DiagnosticCode.ALDR0201, "Execution exceeded maximum timeout ({0}ms). {1}ms elapsed.");
 
     public static readonly DiagnosticDescriptor ArrayLengthExceeded =
-        new(DiagnosticCode.ALDR0202, "Array length {0} exceeds maximum allowed ({1})");
+        new(DiagnosticCode.ALDR0202, "Collection size {0} exceeds maximum allowed ({1})");
 
     public static readonly DiagnosticDescriptor LoopIterationLimitExceeded =
         new(DiagnosticCode.ALDR0203, "Execution exceeded maximum loop iteration count ({0}). {1} iterations executed.");

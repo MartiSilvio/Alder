@@ -9,7 +9,7 @@
     <PackageId>Alder</PackageId>
     <Version>0.1.0-preview.1</Version>
     <Authors>Silvio Martignetti</Authors>
-    <Description>A fully featured, zero-dependency C# evaluator built to the ECMA-334 spec.</Description>
+    <Description>A fully featured, zero-dependency C# expression engine built to the ECMA-334 spec.</Description>
     <IsPackable>true</IsPackable>
     <IsAotCompatible>true</IsAotCompatible>
   </PropertyGroup>
@@ -20,18 +20,17 @@
     <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="8.0.0" />
   </ItemGroup>
 
-  <!-- Bundle the source generator as an analyzer inside this package -->
   <ItemGroup>
     <ProjectReference Include="..\Alder.Generators\Alder.Generators.csproj" PrivateAssets="all" ReferenceOutputAssembly="false" OutputItemType="Analyzer" />
   </ItemGroup>
 
-  <!-- Include the generator DLL in the NuGet package's analyzers folder -->
   <ItemGroup>
     <None Include="..\Alder.Generators\bin\$(Configuration)\netstandard2.0\Alder.Generators.dll"
           Pack="true"
           PackagePath="analyzers/dotnet/cs"
           Visible="false" />
   </ItemGroup>
+  
   <ItemGroup>
     <Compile Update="Binding\Binder.Assignments.cs">
       <DependentUpon>Binder.cs</DependentUpon>

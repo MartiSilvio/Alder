@@ -2,11 +2,11 @@
 
 Alder evaluates user-supplied C# expressions safely in production environments. The security model provides three layers of control: operation permissions, type and namespace blocking, and execution limits.
 
-## Pre-Execution Validation
+## How Enforcement Works
 
-Security enforcement is a bound tree pipeline pass that runs **before execution begins**. The binder produces the semantic tree, and the `SecurityValidationPass` walks every node, checking each member access, method call, constructor invocation, and assignment against the configured policy. If any node violates the policy, evaluation never starts and an `AlderException` with an `ALDR01xx` diagnostic is thrown.
+**Operation permissions and type blocking** are enforced as a bound tree pipeline pass that runs **before execution begins**. The `SecurityValidationPass` walks every node, checking each member access, method call, constructor invocation, and assignment against the configured policy. If any node violates the policy, evaluation never starts and an `AlderException` with an `ALDR01xx` diagnostic is thrown. A blocked expression produces a diagnostic, not a partially-executed side effect.
 
-A blocked expression produces a diagnostic, not a partially-executed side effect. The expression either fails validation entirely or executes completely within the configured policy.
+**Execution limits** (statement count, loop iterations, timeout, collection size) are enforced at runtime during evaluation, since they depend on the dynamic behavior of the expression.
 
 ## Sandbox Presets
 
@@ -63,7 +63,7 @@ Default denied types include `Activator`, `AppDomain`, `Console`, `Environment`,
 | `MaxStatements` | `ALDR0200` | `AlderExecutionLimitException` |
 | `MaxTimeout` | `ALDR0201` | `AlderExecutionLimitException` |
 | `MaxLoopIterations` | `ALDR0203` | `AlderExecutionLimitException` |
-| `MaxArrayLength` | `ALDR0202` | `AlderException` |
+| `MaxCollectionSize` | `ALDR0202` | `AlderException` |
 
 ## Reflection Blocking
 

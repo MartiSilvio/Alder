@@ -11,9 +11,9 @@ Alder evaluates user-supplied C# expressions safely in production environments �
 
 **Type and namespace blocking** — a four-layer evaluation chain (hard-denied → trusted → denied → default) that controls which .NET types expressions can access. Default deny lists cover file I/O, networking, process execution, reflection, threading, and interop. Custom trusted/denied sets provide fine-grained overrides.
 
-**Execution limits** — caps on statement count, loop iterations, and wall-clock time that prevent denial-of-service from runaway or malicious expressions. Limits throw `AlderExecutionLimitException` with the specific limit type, configured value, and actual value.
+**Execution limits** — caps on statement count, loop iterations, wall-clock time, and collection size that prevent denial-of-service from runaway or malicious expressions.
 
-Security enforcement is a bound tree pipeline pass — the entire expression tree is validated before any execution begins. A blocked expression produces a diagnostic, never a partially-executed side effect.
+Operation permissions and type blocking are enforced as a bound tree pipeline pass before execution begins. A blocked expression produces a diagnostic, not a partially-executed side effect. Execution limits are enforced at runtime during evaluation.
 
 ## Deep-Dive
 
