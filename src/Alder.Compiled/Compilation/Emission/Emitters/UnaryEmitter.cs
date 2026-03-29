@@ -8,19 +8,19 @@ namespace Alder.Compiled.Compilation.Emission.Emitters;
 
 internal sealed class UnaryEmitter : INodeEmitter<BoundUnaryExpr>
 {
-    public Expression Emit(BoundUnaryExpr node, EmissionContext ctx)
+    public LinqExpression Emit(BoundUnaryExpr node, EmissionContext ctx)
     {
         if (node.PromotedType is { } promoted && !ctx.IsChecked)
         {
             var operand = EmitHelpers.EnsureTypedExpression(ctx.Emit(node.Operand), node.Operand.StaticType.ClrType);
             if (operand.Type != promoted)
-                operand = Expression.Convert(operand, promoted);
+                operand = LinqExpression.Convert(operand, promoted);
 
             return node.Operator switch
             {
-                TokenType.Bang => Expression.Not(operand),
-                TokenType.Tilde => Expression.Not(operand),
-                TokenType.Minus => Expression.Negate(operand),
+                TokenType.Bang => LinqExpression.Not(operand),
+                TokenType.Tilde => LinqExpression.Not(operand),
+                TokenType.Minus => LinqExpression.Negate(operand),
                 TokenType.Plus => operand,
                 _ => throw new BindingNotSupportedException($"Unsupported bound unary operator '{node.Operator}'")
             };
@@ -29,10 +29,10 @@ internal sealed class UnaryEmitter : INodeEmitter<BoundUnaryExpr>
         var boxed = EmitHelpers.AsObject(ctx.Emit(node.Operand));
         return node.Operator switch
         {
-            TokenType.Minus => Expression.Call(NegateMethod, boxed, Expression.Constant(ctx.IsChecked)),
-            TokenType.Plus => Expression.Call(UnaryPlusMethod, boxed),
-            TokenType.Bang => Expression.Call(LogicalNotMethod, boxed),
-            TokenType.Tilde => Expression.Call(BitwiseNotMethod, boxed),
+            TokenType.Minus => LinqExpression.Call(NegateMethod, boxed, LinqExpression.Constant(ctx.IsChecked)),
+            TokenType.Plus => LinqExpression.Call(UnaryPlusMethod, boxed),
+            TokenType.Bang => LinqExpression.Call(LogicalNotMethod, boxed),
+            TokenType.Tilde => LinqExpression.Call(BitwiseNotMethod, boxed),
             _ => throw new BindingNotSupportedException($"Unsupported bound unary operator '{node.Operator}'")
         };
     }

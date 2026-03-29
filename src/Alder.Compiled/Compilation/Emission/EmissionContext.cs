@@ -20,6 +20,8 @@ internal sealed class EmissionContext
     internal Dictionary<int, PromotedLocal>? PromotedLocals { get; set; }
     internal Dictionary<string, HoistedIdentifier>? HoistedIdentifiers { get; set; }
     internal bool IsChecked => _isCheckedAccessor();
+    internal Func<int> GetCatchDepth { get; set; } = () => 0;
+    internal int CatchDepth => GetCatchDepth();
 
     internal EmissionContext(
         ParameterExpression contextParam,

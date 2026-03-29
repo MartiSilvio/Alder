@@ -9,7 +9,7 @@ namespace Alder.Compiled.Compilation.Emission.Emitters;
 
 internal sealed class BinaryEmitter : INodeEmitter<BoundBinaryExpr>
 {
-    public Expression Emit(BoundBinaryExpr node, EmissionContext ctx)
+    public LinqExpression Emit(BoundBinaryExpr node, EmissionContext ctx)
     {
         var chain = new List<BoundBinaryExpr>();
         BoundExpr leftmost = node;
@@ -25,7 +25,7 @@ internal sealed class BinaryEmitter : INodeEmitter<BoundBinaryExpr>
         return result;
     }
 
-    private static Expression EmitBinaryFold(BoundBinaryExpr binary, Expression left, EmissionContext ctx)
+    private static LinqExpression EmitBinaryFold(BoundBinaryExpr binary, LinqExpression left, EmissionContext ctx)
     {
         if (TryEmitPrimitiveFastPath(binary, left, ctx, out var direct))
             return direct;
@@ -42,7 +42,7 @@ internal sealed class BinaryEmitter : INodeEmitter<BoundBinaryExpr>
         return EmitCore(binary.Operator, EmitHelpers.AsObject(left), EmitHelpers.AsObject(ctx.Emit(binary.Right)), ctx, isStringContext);
     }
 
-    private static bool TryEmitPrimitiveFastPath(BoundBinaryExpr binary, Expression preEmittedLeft, EmissionContext ctx, out Expression direct)
+    private static bool TryEmitPrimitiveFastPath(BoundBinaryExpr binary, LinqExpression preEmittedLeft, EmissionContext ctx, out LinqExpression direct)
     {
         direct = null!;
         if (binary.PromotedType is not { } promotedType)
@@ -57,7 +57,7 @@ internal sealed class BinaryEmitter : INodeEmitter<BoundBinaryExpr>
         if (right.Type != rightTarget)
             right = LinqExpression.Convert(right, rightTarget);
 
-        Expression? typed = binary.Operator switch
+        LinqExpression? typed = binary.Operator switch
         {
             TokenType.Plus => ctx.IsChecked ? LinqExpression.AddChecked(left, right) : LinqExpression.Add(left, right),
             TokenType.Minus => ctx.IsChecked ? LinqExpression.SubtractChecked(left, right) : LinqExpression.Subtract(left, right),
@@ -85,7 +85,7 @@ internal sealed class BinaryEmitter : INodeEmitter<BoundBinaryExpr>
         return true;
     }
 
-    private static bool TryEmitStringConcatFastPath(BoundBinaryExpr binary, Expression preEmittedLeft, EmissionContext ctx, out Expression result)
+    private static bool TryEmitStringConcatFastPath(BoundBinaryExpr binary, LinqExpression preEmittedLeft, EmissionContext ctx, out LinqExpression result)
     {
         result = null!;
         if (binary.Operator != TokenType.Plus)
@@ -114,7 +114,7 @@ internal sealed class BinaryEmitter : INodeEmitter<BoundBinaryExpr>
         return binary.Left is BoundLiteralExpr || binary.Right is BoundLiteralExpr;
     }
 
-    private static Expression EmitWithConstantPromotion(BoundBinaryExpr binary, Expression preEmittedLeft, EmissionContext ctx)
+    private static LinqExpression EmitWithConstantPromotion(BoundBinaryExpr binary, LinqExpression preEmittedLeft, EmissionContext ctx)
     {
         var leftVar = LinqExpression.Variable(typeof(object), "binaryLeft");
         var rightVar = LinqExpression.Variable(typeof(object), "binaryRight");
@@ -138,7 +138,7 @@ internal sealed class BinaryEmitter : INodeEmitter<BoundBinaryExpr>
             EmitCore(binary.Operator, leftVar, rightVar, ctx));
     }
 
-    private static MethodCallExpression EmitCore(TokenType op, Expression left, Expression right, EmissionContext ctx, bool isStringContext = false)
+    private static MethodCallExpression EmitCore(TokenType op, LinqExpression left, LinqExpression right, EmissionContext ctx, bool isStringContext = false)
     {
         left = EmitHelpers.AsObject(left);
         right = EmitHelpers.AsObject(right);

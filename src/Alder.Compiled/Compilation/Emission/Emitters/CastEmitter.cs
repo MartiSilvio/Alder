@@ -7,7 +7,7 @@ namespace Alder.Compiled.Compilation.Emission.Emitters;
 
 internal sealed class CastEmitter : INodeEmitter<BoundCastExpr>
 {
-    public Expression Emit(BoundCastExpr node, EmissionContext ctx)
+    public LinqExpression Emit(BoundCastExpr node, EmissionContext ctx)
     {
         var sourceType = node.Expression.StaticType.ClrType;
         var targetType = node.TargetType;
@@ -19,24 +19,24 @@ internal sealed class CastEmitter : INodeEmitter<BoundCastExpr>
             {
                 var operand = EmitHelpers.EnsureTypedExpression(ctx.Emit(node.Expression), sourceType);
                 return ctx.IsChecked
-                    ? Expression.ConvertChecked(operand, targetType)
-                    : Expression.Convert(operand, targetType);
+                    ? LinqExpression.ConvertChecked(operand, targetType)
+                    : LinqExpression.Convert(operand, targetType);
             }
 
             if (!targetType.IsValueType && sourceType != typeof(LambdaValue))
             {
                 var operand = EmitHelpers.EnsureTypedExpression(ctx.Emit(node.Expression), sourceType);
-                return Expression.Convert(operand, targetType);
+                return LinqExpression.Convert(operand, targetType);
             }
         }
 
-        return Expression.Call(
+        return LinqExpression.Call(
             ExplicitCastMethod,
             EmitHelpers.AsObject(ctx.Emit(node.Expression)),
-            Expression.Constant(node.TargetType, typeof(Type)),
+            LinqExpression.Constant(node.TargetType, typeof(Type)),
             node.SourceStaticType == null
-                ? Expression.Constant(null, typeof(Type))
-                : Expression.Constant(node.SourceStaticType, typeof(Type)),
-            Expression.Constant(ctx.IsChecked));
+                ? LinqExpression.Constant(null, typeof(Type))
+                : LinqExpression.Constant(node.SourceStaticType, typeof(Type)),
+            LinqExpression.Constant(ctx.IsChecked));
     }
 }

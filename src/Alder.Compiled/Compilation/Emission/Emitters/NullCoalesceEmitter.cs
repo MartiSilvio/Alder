@@ -5,7 +5,7 @@ namespace Alder.Compiled.Compilation.Emission.Emitters;
 
 internal sealed class NullCoalesceEmitter : INodeEmitter<BoundNullCoalesceExpr>
 {
-    public Expression Emit(BoundNullCoalesceExpr node, EmissionContext ctx)
+    public LinqExpression Emit(BoundNullCoalesceExpr node, EmissionContext ctx)
     {
         var leftType = node.Left.StaticType.ClrType;
         var rightType = node.Right.StaticType.ClrType;

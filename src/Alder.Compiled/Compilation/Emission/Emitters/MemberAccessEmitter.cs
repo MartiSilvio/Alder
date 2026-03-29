@@ -13,7 +13,7 @@ internal sealed class MemberAccessEmitter :
     INodeEmitter<BoundMethodGroupExpr>,
     INodeEmitter<BoundDynamicMemberAccessExpr>
 {
-    public Expression Emit(BoundPropertyAccessExpr node, EmissionContext ctx)
+    public LinqExpression Emit(BoundPropertyAccessExpr node, EmissionContext ctx)
     {
         if (ctx.TryEmitPostfixChain?.Invoke(node) is { } chainResult) return chainResult;
 
@@ -29,7 +29,7 @@ internal sealed class MemberAccessEmitter :
             node.Property.PropertyType, ctx);
     }
 
-    public Expression Emit(BoundFieldAccessExpr node, EmissionContext ctx)
+    public LinqExpression Emit(BoundFieldAccessExpr node, EmissionContext ctx)
     {
         if (ctx.TryEmitPostfixChain?.Invoke(node) is { } chainResult) return chainResult;
 
@@ -45,13 +45,13 @@ internal sealed class MemberAccessEmitter :
             node.Field.FieldType, ctx);
     }
 
-    public Expression Emit(BoundMethodGroupExpr node, EmissionContext ctx) =>
+    public LinqExpression Emit(BoundMethodGroupExpr node, EmissionContext ctx) =>
         ctx.TryEmitPostfixChain?.Invoke(node) ?? EmitDynamic(node.MemberName, node.NullSafe, ctx.Emit(node.Target), ctx);
 
-    public Expression Emit(BoundDynamicMemberAccessExpr node, EmissionContext ctx) =>
+    public LinqExpression Emit(BoundDynamicMemberAccessExpr node, EmissionContext ctx) =>
         ctx.TryEmitPostfixChain?.Invoke(node) ?? EmitDynamic(node.MemberName, node.NullSafe, ctx.Emit(node.Target), ctx);
 
-    internal static Expression EmitWithTarget(BoundMemberAccessBase ma, Expression emittedTarget, EmissionContext ctx)
+    internal static LinqExpression EmitWithTarget(BoundMemberAccessBase ma, LinqExpression emittedTarget, EmissionContext ctx)
     {
         return ma switch
         {
@@ -61,7 +61,7 @@ internal sealed class MemberAccessEmitter :
         };
     }
 
-    private static Expression EmitResolvedOrDynamic(BoundPropertyAccessExpr node, Expression emittedTarget, EmissionContext ctx)
+    private static LinqExpression EmitResolvedOrDynamic(BoundPropertyAccessExpr node, LinqExpression emittedTarget, EmissionContext ctx)
     {
         var declaringType = node.Property.DeclaringType;
         if (declaringType != null && TypeHelpers.IsValueTupleType(declaringType))
@@ -74,7 +74,7 @@ internal sealed class MemberAccessEmitter :
             node.Property.PropertyType, ctx);
     }
 
-    private static Expression EmitResolvedOrDynamic(BoundFieldAccessExpr node, Expression emittedTarget, EmissionContext ctx)
+    private static LinqExpression EmitResolvedOrDynamic(BoundFieldAccessExpr node, LinqExpression emittedTarget, EmissionContext ctx)
     {
         var declaringType = node.Field.DeclaringType;
         if (declaringType != null && TypeHelpers.IsValueTupleType(declaringType))
@@ -93,11 +93,12 @@ internal sealed class MemberAccessEmitter :
         Func<Expression, Expression> accessFactory,
         Type memberType, EmissionContext ctx)
     {
+        var guardContext = EmitHelpers.CreateMemberGuardContext(memberName);
+
         if (isStatic)
         {
             var access = accessFactory(null!);
-            var guarded = EmitHelpers.WrapGuardedValue(access, memberType, EmitHelpers.CreateMemberGuardContext(memberName));
-            return LinqExpression.Convert(guarded, typeof(object));
+            return EmitHelpers.WrapGuardedValue(access, memberType, guardContext);
         }
 
         var targetObjVar = LinqExpression.Variable(typeof(object), "memberTarget");
@@ -107,12 +108,11 @@ internal sealed class MemberAccessEmitter :
             LinqExpression.Constant(memberName));
         var typedTarget = EmitHelpers.EnsureTypedExpression(checkedTarget, targetType);
         var accessExpr = accessFactory(typedTarget);
-        var guardedExpr = LinqExpression.Convert(
-            EmitHelpers.WrapGuardedValue(accessExpr, memberType, EmitHelpers.CreateMemberGuardContext(memberName)),
-            typeof(object));
+        var guardedExpr = EmitHelpers.WrapGuardedValue(accessExpr, memberType, guardContext);
 
         if (nullSafe)
         {
+            var boxedGuarded = EmitHelpers.AsObject(guardedExpr);
             return LinqExpression.Block(
                 typeof(object),
                 [targetObjVar],
@@ -120,17 +120,17 @@ internal sealed class MemberAccessEmitter :
                 LinqExpression.Condition(
                     LinqExpression.Equal(targetObjVar, LinqExpression.Constant(null, typeof(object))),
                     LinqExpression.Constant(null, typeof(object)),
-                    guardedExpr));
+                    boxedGuarded));
         }
 
         return LinqExpression.Block(
-            typeof(object),
+            memberType,
             [targetObjVar],
             LinqExpression.Assign(targetObjVar, EmitHelpers.AsObject(emittedTarget)),
             guardedExpr);
     }
 
-    internal static Expression EmitDynamic(string memberName, bool nullSafe, Expression emittedTarget, EmissionContext ctx)
+    internal static LinqExpression EmitDynamic(string memberName, bool nullSafe, LinqExpression emittedTarget, EmissionContext ctx)
     {
         return LinqExpression.Call(
             GetMemberMethod,

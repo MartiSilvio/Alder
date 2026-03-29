@@ -39,7 +39,7 @@ internal sealed partial class BoundExpressionEmitter
         _configParam = configParam;
         _constraintStateParam = constraintStateParam;
         _ctParam = ctParam;
-        _emissionCtx = new EmissionContext(contextParam, configParam, constraintStateParam, ctParam, Emit, () => _isChecked);
+        _emissionCtx = new EmissionContext(contextParam, configParam, constraintStateParam, ctParam, Emit, () => _isChecked) { GetCatchDepth = () => _catchDepth };
         _emissionCtx.Register(BoundNodeKind.Literal, new LiteralEmitter());
         _emissionCtx.Register(BoundNodeKind.Identifier, new IdentifierEmitter());
         _emissionCtx.Register(BoundNodeKind.Conversion, new CastEmitter());
@@ -55,6 +55,15 @@ internal sealed partial class BoundExpressionEmitter
         _emissionCtx.Register<BoundFieldAccessExpr>(BoundNodeKind.FieldAccess, memberEmitter);
         _emissionCtx.Register<BoundMethodGroupExpr>(BoundNodeKind.MethodGroup, memberEmitter);
         _emissionCtx.Register<BoundDynamicMemberAccessExpr>(BoundNodeKind.DynamicMemberAccess, memberEmitter);
+        _emissionCtx.Register(BoundNodeKind.ObjectCreationExpression, new ObjectCreationEmitter());
+        _emissionCtx.Register(BoundNodeKind.ArrayAllocation, new ArrayAllocEmitter());
+        _emissionCtx.Register(BoundNodeKind.TupleLiteral, new TupleEmitter());
+        _emissionCtx.Register(BoundNodeKind.ThrowExpression, new ThrowEmitter());
+        var multiDimEmitter = new MultiDimEmitter();
+        _emissionCtx.Register<BoundMultiDimArrayInitExpr>(BoundNodeKind.MultiDimArrayInit, multiDimEmitter);
+        _emissionCtx.Register<BoundResolvedMultiDimIndexAccessExpr>(BoundNodeKind.ResolvedMultiDimIndexAccess, multiDimEmitter);
+        _emissionCtx.Register<BoundDynamicMultiDimIndexAccessExpr>(BoundNodeKind.DynamicMultiDimIndexAccess, multiDimEmitter);
+        _emissionCtx.Register<BoundMultiDimIndexAssignExpr>(BoundNodeKind.MultiDimIndexAssignment, multiDimEmitter);
     }
 
     public LinqExpression EmitRoot(BoundExpr expr)
@@ -184,15 +193,7 @@ internal sealed partial class BoundExpressionEmitter
             BoundNodeKind.IndexIncrement => EmitIndexIncrement((BoundIndexIncrementExpr)expr),
             BoundNodeKind.ResolvedIndexAccess => EmitIndexAccess((BoundResolvedIndexAccessExpr)expr),
             BoundNodeKind.DynamicIndexAccess => EmitDynamicIndexAccess((BoundDynamicIndexAccessExpr)expr),
-            BoundNodeKind.ObjectCreationExpression => EmitObjectCreation((BoundObjectCreationExpr)expr),
-            BoundNodeKind.ArrayAllocation => EmitArrayAllocation((BoundArrayAllocationExpr)expr),
-            BoundNodeKind.TupleLiteral => EmitTuple((BoundTupleExpr)expr),
             BoundNodeKind.DeconstructionAssignment => EmitDeconstruction((BoundDeconstructionExpr)expr),
-            BoundNodeKind.MultiDimArrayInit => EmitMultiDimArrayInit((BoundMultiDimArrayInitExpr)expr),
-            BoundNodeKind.ResolvedMultiDimIndexAccess => EmitMultiDimIndexAccess((BoundResolvedMultiDimIndexAccessExpr)expr),
-            BoundNodeKind.DynamicMultiDimIndexAccess => EmitDynamicMultiDimIndexAccess((BoundDynamicMultiDimIndexAccessExpr)expr),
-            BoundNodeKind.MultiDimIndexAssignment => EmitMultiDimIndexAssign((BoundMultiDimIndexAssignExpr)expr),
-            BoundNodeKind.ThrowExpression => EmitThrow((BoundThrowExpr)expr),
             BoundNodeKind.FromEndIndexExpression => EmitIndexFromEnd((BoundIndexFromEndExpr)expr),
             BoundNodeKind.SliceExpression => EmitSlice((BoundSliceExpr)expr),
             BoundNodeKind.ResolvedCall => EmitCall((BoundResolvedCallExpr)expr),

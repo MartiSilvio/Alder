@@ -8,7 +8,7 @@ namespace Alder.Compiled.Compilation.Emission.Emitters;
 
 internal sealed class IsPatternEmitter : INodeEmitter<BoundIsPatternExpr>
 {
-    public Expression Emit(BoundIsPatternExpr node, EmissionContext ctx)
+    public LinqExpression Emit(BoundIsPatternExpr node, EmissionContext ctx)
     {
         if (node.Pattern is TypePattern { VariableName: null } typePattern
             && TypeResolver.TryResolveKeywordType(typePattern.TypeToken.Lexeme, out var resolvedType))

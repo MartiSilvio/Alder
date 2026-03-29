@@ -7,7 +7,7 @@ namespace Alder.Compiled.Compilation.Emission.Emitters;
 
 internal sealed class IdentifierEmitter : INodeEmitter<BoundIdentifierExpr>
 {
-    public Expression Emit(BoundIdentifierExpr node, EmissionContext ctx)
+    public LinqExpression Emit(BoundIdentifierExpr node, EmissionContext ctx)
     {
         if (node.LocalId is { } localId &&
             ctx.PromotedLocals != null &&
@@ -24,15 +24,15 @@ internal sealed class IdentifierEmitter : INodeEmitter<BoundIdentifierExpr>
 
         if (node.StaticType.ClrType != typeof(object) && !TypeHelpers.IsValueTupleType(node.StaticType.ClrType))
         {
-            return Expression.Call(
+            return LinqExpression.Call(
                 ctx.ContextParam,
                 GetVariableTypedMethodFor(node.StaticType.ClrType),
-                Expression.Constant(node.Name));
+                LinqExpression.Constant(node.Name));
         }
 
-        return Expression.Call(
+        return LinqExpression.Call(
             ResolveIdentifierMethod,
-            Expression.Constant(node.Name),
+            LinqExpression.Constant(node.Name),
             ctx.ContextParam,
             ctx.ConfigParam);
     }

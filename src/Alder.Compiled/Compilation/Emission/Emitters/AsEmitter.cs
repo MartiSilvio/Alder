@@ -6,17 +6,17 @@ namespace Alder.Compiled.Compilation.Emission.Emitters;
 
 internal sealed class AsEmitter : INodeEmitter<BoundAsExpr>
 {
-    public Expression Emit(BoundAsExpr node, EmissionContext ctx)
+    public LinqExpression Emit(BoundAsExpr node, EmissionContext ctx)
     {
         if (!node.TargetType.IsValueType)
         {
             var operand = EmitHelpers.AsObject(ctx.Emit(node.Expression));
-            return Expression.TypeAs(operand, node.TargetType);
+            return LinqExpression.TypeAs(operand, node.TargetType);
         }
 
-        return Expression.Call(
+        return LinqExpression.Call(
             TryAsMethod,
             EmitHelpers.AsObject(ctx.Emit(node.Expression)),
-            Expression.Constant(node.TargetType, typeof(Type)));
+            LinqExpression.Constant(node.TargetType, typeof(Type)));
     }
 }

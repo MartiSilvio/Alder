@@ -8,7 +8,7 @@ namespace Alder.Compiled.Compilation.Emission.Emitters;
 
 internal sealed class LogicalEmitter : INodeEmitter<BoundLogicalExpr>
 {
-    public Expression Emit(BoundLogicalExpr node, EmissionContext ctx)
+    public LinqExpression Emit(BoundLogicalExpr node, EmissionContext ctx)
     {
         var leftCandidate = ctx.Emit(node.Left);
         var rightCandidate = ctx.Emit(node.Right);

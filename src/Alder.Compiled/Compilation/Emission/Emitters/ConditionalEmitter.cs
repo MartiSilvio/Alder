@@ -7,7 +7,7 @@ namespace Alder.Compiled.Compilation.Emission.Emitters;
 
 internal sealed class ConditionalEmitter : INodeEmitter<BoundConditionalExpr>
 {
-    public Expression Emit(BoundConditionalExpr node, EmissionContext ctx)
+    public LinqExpression Emit(BoundConditionalExpr node, EmissionContext ctx)
     {
         var conditionCandidate = ctx.Emit(node.Condition);
         var condition = conditionCandidate.Type == typeof(bool)
@@ -31,10 +31,10 @@ internal sealed class ConditionalEmitter : INodeEmitter<BoundConditionalExpr>
 
     private static bool TryEmitTyped(
         BoundConditionalExpr conditional,
-        Expression condition,
-        Expression thenCandidate,
-        Expression elseCandidate,
-        out Expression typed)
+        LinqExpression condition,
+        LinqExpression thenCandidate,
+        LinqExpression elseCandidate,
+        out LinqExpression typed)
     {
         typed = null!;
         var thenType = conditional.ThenBranch.StaticType.ClrType;
