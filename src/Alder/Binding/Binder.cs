@@ -1,25 +1,109 @@
+using Alder.Binding.Binders;
 using Alder.Binding.BoundNodes;
 using Alder.Diagnostics;
 using Alder.Parsing;
-using Alder.Runtime;
 using Alder.Text;
 
 namespace Alder.Binding;
 
-internal sealed partial class Binder
+internal sealed class Binder
 {
     private readonly SourceText? _sourceText;
     private readonly bool _recovering;
     private List<AlderDiagnostic>? _diagnostics;
+    private readonly BinderContext _binderCtx;
 
     public Binder()
     {
+        _binderCtx = new BinderContext(Bind);
+        RegisterBinders();
     }
 
     public Binder(SourceText sourceText, bool recovering = false)
     {
         _sourceText = sourceText;
         _recovering = recovering;
+        _binderCtx = new BinderContext(Bind);
+        RegisterBinders();
+    }
+
+    private void RegisterBinders()
+    {
+        _binderCtx.Register(new LiteralBinder());
+        _binderCtx.Register(new IdentifierBinder());
+        _binderCtx.Register(new TypeReferenceBinder());
+        _binderCtx.Register(new IsPatternBinder());
+        _binderCtx.Register(new NameofBinder());
+        _binderCtx.Register(new TypeofBinder());
+        _binderCtx.Register(new DefaultBinder());
+        _binderCtx.Register(new SizeofBinder());
+        _binderCtx.Register(new CollectionExprBinder());
+        _binderCtx.Register(new ImplicitArrayCreationBinder());
+        _binderCtx.Register(new ObjectLiteralBinder());
+        _binderCtx.Register(new SpreadBinder());
+        _binderCtx.Register(new SliceBinder());
+        _binderCtx.Register(new ObjectCreationBinder());
+        _binderCtx.Register(new TypedArrayCreationBinder());
+        _binderCtx.Register(new TypedArrayLiteralBinder());
+        _binderCtx.Register(new MultiDimTypedArrayCreationBinder());
+        _binderCtx.Register(new MultiDimArrayInitBinder());
+        _binderCtx.Register(new MultiDimIndexAccessBinder());
+        _binderCtx.Register(new MultiDimIndexAssignBinder());
+        _binderCtx.Register(new DeconstructionBinder());
+        _binderCtx.Register(new TupleBinder());
+        _binderCtx.Register(new InterpolatedStringBinder());
+        _binderCtx.Register(new IndexFromEndBinder());
+        _binderCtx.Register(new RangeBinder());
+        _binderCtx.Register(new CastBinder());
+        _binderCtx.Register(new AsBinder());
+        _binderCtx.Register(new UnaryBinder());
+        _binderCtx.Register(new BinaryBinder());
+        _binderCtx.Register(new LogicalBinder());
+        _binderCtx.Register(new NullCoalesceBinder());
+        _binderCtx.Register(new ConditionalBinder());
+        _binderCtx.Register(new CheckedBinder());
+        _binderCtx.Register(new ChainedComparisonBinder());
+        _binderCtx.Register(new BlockBinder());
+        _binderCtx.Register(new IfBinder());
+        _binderCtx.Register(new WhileBinder());
+        _binderCtx.Register(new ForBinder());
+        _binderCtx.Register(new DoWhileBinder());
+        _binderCtx.Register(new ForEachBinder());
+        _binderCtx.Register(new UsingBinder());
+        _binderCtx.Register(new LockBinder());
+        _binderCtx.Register(new TryCatchFinallyBinder());
+        _binderCtx.Register(new ThrowBinder());
+        _binderCtx.Register(new ThrowStatementBinder());
+        _binderCtx.Register(new SwitchStatementBinder());
+        _binderCtx.Register(new SwitchExpressionBinder());
+        _binderCtx.Register(new ReturnBinder());
+        _binderCtx.Register(new BreakBinder());
+        _binderCtx.Register(new ContinueBinder());
+        _binderCtx.Register(new GotoBinder());
+        _binderCtx.Register(new GotoCaseBinder());
+        _binderCtx.Register(new GotoDefaultBinder());
+        _binderCtx.Register(new LabelBinder());
+        _binderCtx.Register(new NewExprBinder());
+        _binderCtx.Register(new VariableDeclBinder());
+        _binderCtx.Register(new AssignBinder());
+        _binderCtx.Register(new NullCoalesceAssignBinder());
+        _binderCtx.Register(new CompoundAssignBinder());
+        _binderCtx.Register(new IncrementDecrementBinder());
+        _binderCtx.Register(new MemberAssignBinder());
+        _binderCtx.Register(new IndexAssignBinder());
+        _binderCtx.Register(new MemberCompoundAssignBinder());
+        _binderCtx.Register(new IndexCompoundAssignBinder());
+        _binderCtx.Register(new MemberNullCoalesceAssignBinder());
+        _binderCtx.Register(new IndexNullCoalesceAssignBinder());
+        _binderCtx.Register(new MemberIncrementBinder());
+        _binderCtx.Register(new IndexIncrementBinder());
+        _binderCtx.Register(new LambdaBinder());
+        _binderCtx.Register(new PipelineBinder());
+        _binderCtx.Register(new NamedArgumentBinder());
+        _binderCtx.Register(new OutArgBinder());
+        _binderCtx.Register(new MemberAccessBinder());
+        _binderCtx.Register(new IndexAccessBinder());
+        _binderCtx.Register(new CallBinder());
     }
 
     internal IReadOnlyList<AlderDiagnostic> GetAccumulatedDiagnostics()
@@ -55,86 +139,14 @@ internal sealed partial class Binder
         }
     }
 
-    private BoundExpr BindCore(Expr expr, BindingContext context) => expr switch
+    private BoundExpr BindCore(Expr expr, BindingContext context)
     {
-                LiteralExpr literal => BoundLiteralExpr.FromValue(literal.Value),
-                IdentifierExpr identifier => BindIdentifier(identifier, context),
-                TypeReferenceExpr typeReference => BindTypeReference(typeReference, context),
-                IsPatternExpr isPattern => BindIsPattern(isPattern, context),
-                NameofExpr nameofExpr => new BoundLiteralExpr(nameofExpr.Name, new BoundType(typeof(string))),
-                TypeofExpr typeofExpr => BindTypeof(typeofExpr, context),
-                DefaultExpr defaultExpr => BindDefault(defaultExpr, context),
-                SizeofExpr sizeofExpr => new BoundLiteralExpr(TypeHelpers.GetSizeOf(sizeofExpr.TypeName), new BoundType(typeof(int))),
-                CollectionExpr collectionExpr => BindCollectionExpr(collectionExpr, context),
-                ImplicitArrayCreationExpr implicitArray => BindImplicitArrayCreation(implicitArray, context),
-                ObjectLiteralExpr objectLiteral => BindObjectLiteral(objectLiteral, context),
-                SpreadExpr spread => BindSpread(spread, context),
-                SliceExpr slice => BindSlice(slice, context),
-                ObjectCreationExpr objectCreation => BindObjectCreation(objectCreation, context),
-                TypedArrayCreationExpr typedArrayCreation => BindTypedArrayCreation(typedArrayCreation, context),
-                TypedArrayLiteralExpr typedArrayLiteral => BindTypedArrayLiteral(typedArrayLiteral, context),
-                MultiDimTypedArrayCreationExpr multiDimTypedArrayCreation => BindMultiDimTypedArrayCreation(multiDimTypedArrayCreation, context),
-                MultiDimArrayInitExpr multiDimArrayInit => BindMultiDimArrayInit(multiDimArrayInit, context),
-                MultiDimIndexAccessExpr multiDimIndexAccess => BindMultiDimIndexAccess(multiDimIndexAccess, context),
-                MultiDimIndexAssignExpr multiDimIndexAssign => BindMultiDimIndexAssign(multiDimIndexAssign, context),
-                DeconstructionExpr deconstruction => BindDeconstruction(deconstruction, context),
-                TupleExpr tupleExpr => BindTuple(tupleExpr, context),
-                InterpolatedStringExpr interpolatedString => BindInterpolatedString(interpolatedString, context),
-                CastExpr cast => BindCast(cast, context),
-                AsExpr asExpr => BindAs(asExpr, context),
-                UnaryExpr unary => BindUnary(unary, context),
-                BinaryExpr binary => BindBinary(binary, context),
-                LogicalExpr logical => BindLogical(logical, context),
-                NullCoalesceExpr nullCoalesce => BindNullCoalesce(nullCoalesce, context),
-                ConditionalExpr conditional => BindConditional(conditional, context),
-                BlockExpr block => BindBlock(block, context),
-                IfStatementExpr ifStatement => BindIfStatement(ifStatement, context),
-                WhileStatementExpr whileStatement => BindWhile(whileStatement, context),
-                ForStatementExpr forStatement => BindFor(forStatement, context),
-                DoWhileStatementExpr doWhileStatement => BindDoWhile(doWhileStatement, context),
-                ForEachStatementExpr forEachStatement => BindForEach(forEachStatement, context),
-                UsingStatementExpr usingStatement => BindUsingStatement(usingStatement, context),
-                LockStatementExpr lockStatement => BindLockStatement(lockStatement, context),
-                SwitchStatementExpr switchStatement => BindSwitchStatement(switchStatement, context),
-                SwitchExpressionExpr switchExpression => BindSwitchExpression(switchExpression, context),
-                TryCatchFinallyExpr tryCatchFinally => BindTryCatchFinally(tryCatchFinally, context),
-                CheckedExpr checkedExpr => BindCheckedExpr(checkedExpr, context),
-                ChainedComparisonExpr chainedComparison => BindChainedComparison(chainedComparison, context),
-                BreakExpr => new BoundBreakExpr(BoundType.Void),
-                ContinueExpr => new BoundContinueExpr(BoundType.Void),
-                GotoExpr gotoExpr => new BoundGotoExpr(gotoExpr.Label, BoundType.Void),
-                GotoCaseExpr gotoCaseExpr => new BoundGotoCaseExpr(Bind(gotoCaseExpr.Value, context), BoundType.Void),
-                GotoDefaultExpr => new BoundGotoDefaultExpr(BoundType.Void),
-                LabelExpr labelExpr => new BoundLabelExpr(labelExpr.Name, BoundType.Void),
-                VariableDeclExpr variableDecl => BindVariableDecl(variableDecl, context),
-                AssignExpr assign => BindAssign(assign, context),
-                NullCoalesceAssignExpr nullCoalesceAssign => BindNullCoalesceAssign(nullCoalesceAssign, context),
-                CompoundAssignExpr compoundAssign => BindCompoundAssign(compoundAssign, context),
-                IncrementDecrementExpr incrementDecrement => BindIncrementDecrement(incrementDecrement, context),
-                MemberAssignExpr memberAssign => BindMemberAssign(memberAssign, context),
-                IndexAssignExpr indexAssign => BindIndexAssign(indexAssign, context),
-                MemberCompoundAssignExpr memberCompoundAssign => BindMemberCompoundAssign(memberCompoundAssign, context),
-                IndexCompoundAssignExpr indexCompoundAssign => BindIndexCompoundAssign(indexCompoundAssign, context),
-                MemberNullCoalesceAssignExpr memberNullCoalesceAssign => BindMemberNullCoalesceAssign(memberNullCoalesceAssign, context),
-                IndexNullCoalesceAssignExpr indexNullCoalesceAssign => BindIndexNullCoalesceAssign(indexNullCoalesceAssign, context),
-                MemberIncrementExpr memberIncrement => BindMemberIncrement(memberIncrement, context),
-                IndexIncrementExpr indexIncrement => BindIndexIncrement(indexIncrement, context),
-                NewExpr newExpr => Bind(newExpr.Initializer, context),
-                ThrowExpr throwExpr => BindThrowExpr(throwExpr, context),
-                ThrowStatementExpr => new BoundThrowExpr(null, BoundType.Void),
-                ReturnExpr returnExpr => BindReturn(returnExpr, context),
-                MemberAccessExpr memberAccess => BindMemberAccess(memberAccess, context),
-                IndexAccessExpr indexAccess => BindIndexAccess(indexAccess, context),
-                LambdaExpr lambda => BindLambda(lambda),
-                PipelineExpr pipeline => BindPipeline(pipeline, context),
-                RangeExpr rangeExpr => BindRange(rangeExpr, context),
-                IndexFromEndExpr indexFromEnd => BindIndexFromEnd(indexFromEnd, context),
-                NamedArgumentExpr namedArgument => BindNamedArgument(namedArgument, context),
-                OutArgExpr outArg => BindOutArg(outArg),
-                CallExpr call => BindCall(call, context),
-                _ => throw new BindingNotSupportedException(
-                    $"Binding for expression type '{expr.GetType().Name}' is not implemented")
-    };
+        if (_binderCtx.TryBind(expr, context, out var result))
+            return result;
+
+        throw new BindingNotSupportedException(
+            $"Binding for expression type '{expr.GetType().Name}' is not implemented");
+    }
 
     public IReadOnlyList<AlderDiagnostic> CollectDiagnostics(Expr expr, BindingContext context)
     {

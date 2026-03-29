@@ -1,0 +1,13 @@
+using Alder.Binding.BoundNodes;
+using Alder.Parsing;
+
+namespace Alder.Binding.Binders;
+
+internal sealed class TypeofBinder : INodeBinder<TypeofExpr>
+{
+    public BoundExpr Bind(TypeofExpr expr, BindingContext context, BinderContext binder)
+    {
+        var resolvedType = context.RuntimeContext.TypeResolver.ResolveType(expr.TypeToken.Lexeme);
+        return new BoundLiteralExpr(resolvedType, new BoundType(typeof(Type)));
+    }
+}
