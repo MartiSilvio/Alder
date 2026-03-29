@@ -64,6 +64,15 @@ internal sealed partial class BoundExpressionEmitter
         _emissionCtx.Register<BoundResolvedMultiDimIndexAccessExpr>(BoundNodeKind.ResolvedMultiDimIndexAccess, multiDimEmitter);
         _emissionCtx.Register<BoundDynamicMultiDimIndexAccessExpr>(BoundNodeKind.DynamicMultiDimIndexAccess, multiDimEmitter);
         _emissionCtx.Register<BoundMultiDimIndexAssignExpr>(BoundNodeKind.MultiDimIndexAssignment, multiDimEmitter);
+        _emissionCtx.Register(BoundNodeKind.CollectionCreation, new CollectionCreationEmitter());
+        _emissionCtx.Register(BoundNodeKind.ObjectLiteral, new ObjectLiteralEmitter());
+        _emissionCtx.Register(BoundNodeKind.InterpolatedString, new InterpolatedStringEmitter());
+        _emissionCtx.Register(BoundNodeKind.Lambda, new LambdaEmitter());
+        _emissionCtx.Register(BoundNodeKind.PipelineExpression, new PipelineEmitter());
+        _emissionCtx.Register(BoundNodeKind.NamedArgument, new NamedArgumentEmitter());
+        _emissionCtx.Register(BoundNodeKind.OutArgument, new OutArgEmitter());
+        _emissionCtx.Register(BoundNodeKind.DeconstructionAssignment, new DeconstructionEmitter());
+        _emissionCtx.Register(BoundNodeKind.SpreadElement, new SpreadEmitter());
     }
 
     public LinqExpression EmitRoot(BoundExpr expr)
@@ -193,19 +202,10 @@ internal sealed partial class BoundExpressionEmitter
             BoundNodeKind.IndexIncrement => EmitIndexIncrement((BoundIndexIncrementExpr)expr),
             BoundNodeKind.ResolvedIndexAccess => EmitIndexAccess((BoundResolvedIndexAccessExpr)expr),
             BoundNodeKind.DynamicIndexAccess => EmitDynamicIndexAccess((BoundDynamicIndexAccessExpr)expr),
-            BoundNodeKind.DeconstructionAssignment => EmitDeconstruction((BoundDeconstructionExpr)expr),
             BoundNodeKind.FromEndIndexExpression => EmitIndexFromEnd((BoundIndexFromEndExpr)expr),
             BoundNodeKind.SliceExpression => EmitSlice((BoundSliceExpr)expr),
             BoundNodeKind.ResolvedCall => EmitCall((BoundResolvedCallExpr)expr),
             BoundNodeKind.DynamicCall => EmitInvoke((BoundDynamicCallExpr)expr),
-            BoundNodeKind.Lambda => EmitLambda((BoundLambdaExpr)expr),
-            BoundNodeKind.PipelineExpression => EmitPipeline((BoundPipelineExpr)expr),
-            BoundNodeKind.CollectionCreation => EmitCollectionCreation((BoundCollectionCreationExpr)expr),
-            BoundNodeKind.ObjectLiteral => EmitObjectLiteral((BoundObjectLiteralExpr)expr),
-            BoundNodeKind.InterpolatedString => EmitInterpolatedString((BoundInterpolatedStringExpr)expr),
-            BoundNodeKind.NamedArgument => EmitNamedArgument((BoundNamedArgumentExpr)expr),
-            BoundNodeKind.OutArgument => EmitOutArg((BoundOutArgExpr)expr),
-            BoundNodeKind.SpreadElement => EmitInvalidSpread(),
             _ => throw new BindingNotSupportedException(
                 $"Bound compiled emission not implemented for '{expr.GetType().Name}'")
         };
