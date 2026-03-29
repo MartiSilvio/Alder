@@ -43,7 +43,7 @@ public class CSharp12FeatureInventoryTests
 
         var standard = new AlderEngine(Options);
         var ex = Assert.Throws<AlderException>(() => standard.Evaluate("[1, 2, 3]"));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(Alder.Diagnostics.DiagnosticCode.ALDR0020));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(Alder.Diagnostics.DiagnosticCode.CS9176));
     }
 
     // 2. Primary Constructors: class Point(int x, int y) { ... }

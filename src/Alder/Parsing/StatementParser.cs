@@ -234,6 +234,14 @@ internal sealed class StatementParser : ParserBase
         // Type keyword followed by dot is a static member access (e.g., "double.NaN") - let expression parsing handle it
         if (IsTypeKeyword(Peek().Type) && PeekNext().Type != TokenType.Dot && MatchTypeKeyword(out var typeToken))
         {
+            // Handle array type suffix: int[] x = ..., string[] arr = ...
+            if (Check(TokenType.LeftBracket) && CheckNext(TokenType.RightBracket))
+            {
+                Advance(); // consume '['
+                Advance(); // consume ']'
+                typeToken = typeToken with { Lexeme = typeToken.Lexeme + "[]" };
+            }
+
             var name = ConsumeIdentifierOrContextualKeyword("Expected variable name");
             if (Check(TokenType.LeftParen))
                 return ParseLocalFunctionDeclaration(typeToken, name, mark);

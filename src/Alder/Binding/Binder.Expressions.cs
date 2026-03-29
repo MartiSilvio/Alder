@@ -1,9 +1,11 @@
 using System.Collections.Immutable;
 using System.Reflection;
 using Alder.Binding.BoundNodes;
+using Alder.Diagnostics;
 using Alder.Parsing;
 using Alder.Runtime;
 using Alder.Runtime.Semantics;
+using Alder.Text;
 
 namespace Alder.Binding;
 
@@ -52,17 +54,73 @@ internal sealed partial class Binder
         return new BoundIdentifierExpr(name, staticType);
     }
 
-    private BoundArrayLiteralExpr BindArrayLiteral(ArrayLiteralExpr arrayLiteral, BindingContext context)
+    private BoundExpr BindCollectionExpr(CollectionExpr collectionExpr, BindingContext context, Type? targetType = null)
     {
-        var elements = arrayLiteral.Elements
+        var elements = collectionExpr.Elements
             .Select(element => Bind(element, context))
             .ToImmutableArray();
-        var arrayClrType = InferArrayLiteralType(elements);
+
+        if (targetType != null)
+            return CreateTargetTypedCollection(elements, targetType);
+
+        if (context.LanguageMode == LanguageMode.Standard)
+            throw new AlderException(DiagnosticDescriptors.NoTargetTypeForCollectionExpression, collectionExpr.Span, null, null);
+
+        return CreateInferredArrayCollection(elements, collectionExpr.Span);
+    }
+
+    private BoundExpr BindImplicitArrayCreation(ImplicitArrayCreationExpr implicitArray, BindingContext context)
+    {
+        var elements = implicitArray.Elements
+            .Select(element => Bind(element, context))
+            .ToImmutableArray();
+
+        var elementType = FindBestCommonType(elements)
+            ?? throw new AlderException(DiagnosticDescriptors.NoBestTypeForImplicitArray, implicitArray.Span, null, null);
+
+        var arrayType = RuntimeArrayFactory.GetArrayType(elementType);
+        return new BoundCollectionCreationExpr(elements, elementType, CollectionKind.Array, null, new BoundType(arrayType));
+    }
+
+    private static BoundCollectionCreationExpr CreateTargetTypedCollection(ImmutableArray<BoundExpr> elements, Type targetType)
+    {
+        var elementType = GetCollectionElementType(targetType)!;
+        var kind = targetType.IsArray ? CollectionKind.Array : CollectionKind.TargetTypedCollection;
+        return new BoundCollectionCreationExpr(elements, elementType, kind, targetType, new BoundType(targetType));
+    }
+
+    private BoundCollectionCreationExpr CreateInferredArrayCollection(ImmutableArray<BoundExpr> elements, TextSpan span)
+    {
+        var elementType = FindBestCommonType(elements) ?? typeof(object);
+        var arrayType = RuntimeArrayFactory.GetArrayType(elementType);
         var elementMemberTypes = InferCommonElementMemberTypes(elements);
-        var arrayBoundType = elementMemberTypes != null
-            ? new BoundStructuralType(arrayClrType, elementMemberTypes)
-            : new BoundType(arrayClrType);
-        return new BoundArrayLiteralExpr(elements, arrayBoundType);
+        var staticType = elementMemberTypes != null
+            ? (BoundType)new BoundStructuralType(arrayType, elementMemberTypes)
+            : new BoundType(arrayType);
+        return new BoundCollectionCreationExpr(elements, elementType, CollectionKind.InferredArray, null, staticType);
+    }
+
+    private static Type? GetCollectionElementType(Type type)
+    {
+        if (type.IsArray)
+            return type.GetElementType();
+
+        if (type.IsGenericType)
+        {
+            var genericDef = type.GetGenericTypeDefinition();
+            if (genericDef == typeof(List<>) ||
+                genericDef == typeof(HashSet<>) ||
+                genericDef == typeof(IList<>) ||
+                genericDef == typeof(ICollection<>) ||
+                genericDef == typeof(IEnumerable<>) ||
+                genericDef == typeof(IReadOnlyList<>) ||
+                genericDef == typeof(IReadOnlyCollection<>))
+            {
+                return type.GetGenericArguments()[0];
+            }
+        }
+
+        return null;
     }
 
     private static ImmutableDictionary<string, Type>? InferCommonElementMemberTypes(ImmutableArray<BoundExpr> elements)
@@ -153,30 +211,27 @@ internal sealed partial class Binder
                         entry.IndexerKey != null ? Bind(entry.IndexerKey, context) : null))
             ]
             : ImmutableArray<BoundInitializerEntry>.Empty;
-        var resolvedType = context.RuntimeContext.TypeResolver.TryResolveType(objectCreation.TypeName) ?? typeof(object);
-        return new BoundObjectCreationExpr(objectCreation.TypeName, arguments, initializerEntries, new BoundType(resolvedType));
+        var resolvedType = context.RuntimeContext.TypeResolver.TryResolveType(objectCreation.TypeName);
+        var staticType = resolvedType != null ? new BoundType(resolvedType) : BoundType.Unknown;
+        return new BoundObjectCreationExpr(objectCreation.TypeName, arguments, initializerEntries, staticType);
     }
 
-    private BoundTypedArrayCreationExpr BindTypedArrayCreation(TypedArrayCreationExpr typedArrayCreation, BindingContext context)
+    private BoundArrayAllocationExpr BindTypedArrayCreation(TypedArrayCreationExpr typedArrayCreation, BindingContext context)
     {
         var size = Bind(typedArrayCreation.Size, context);
-        var elementType = context.RuntimeContext.TypeResolver.TryResolveType(typedArrayCreation.ElementTypeName);
-        var arrayType = elementType != null
-            ? RuntimeArrayFactory.GetArrayType(elementType)
-            : typeof(Array);
-        return new BoundTypedArrayCreationExpr(typedArrayCreation.ElementTypeName, size, new BoundType(arrayType));
+        var elementType = context.RuntimeContext.TypeResolver.TryResolveType(typedArrayCreation.ElementTypeName) ?? typeof(object);
+        var arrayType = RuntimeArrayFactory.GetArrayType(elementType);
+        return new BoundArrayAllocationExpr(elementType, [size], new BoundType(arrayType));
     }
 
-    private BoundTypedArrayLiteralExpr BindTypedArrayLiteral(TypedArrayLiteralExpr typedArrayLiteral, BindingContext context)
+    private BoundCollectionCreationExpr BindTypedArrayLiteral(TypedArrayLiteralExpr typedArrayLiteral, BindingContext context)
     {
-        var elements = typedArrayLiteral.Elements.Elements
+        var elements = typedArrayLiteral.Elements
             .Select(element => Bind(element, context))
             .ToImmutableArray();
-        var elementType = context.RuntimeContext.TypeResolver.TryResolveType(typedArrayLiteral.ElementTypeName);
-        var arrayType = elementType != null
-            ? RuntimeArrayFactory.GetArrayType(elementType)
-            : typeof(Array);
-        return new BoundTypedArrayLiteralExpr(typedArrayLiteral.ElementTypeName, elements, new BoundType(arrayType));
+        var elementType = context.RuntimeContext.TypeResolver.TryResolveType(typedArrayLiteral.ElementTypeName) ?? typeof(object);
+        var arrayType = RuntimeArrayFactory.GetArrayType(elementType);
+        return new BoundCollectionCreationExpr(elements, elementType, CollectionKind.Array, null, new BoundType(arrayType));
     }
 
     private BoundTupleExpr BindTuple(TupleExpr tupleExpr, BindingContext context)
@@ -191,18 +246,16 @@ internal sealed partial class Binder
         return new BoundTupleExpr(elements, names, new BoundType(tupleType));
     }
 
-    private BoundMultiDimTypedArrayCreationExpr BindMultiDimTypedArrayCreation(
+    private BoundArrayAllocationExpr BindMultiDimTypedArrayCreation(
         MultiDimTypedArrayCreationExpr multiDimTypedArrayCreation,
         BindingContext context)
     {
         var sizes = multiDimTypedArrayCreation.Sizes
             .Select(size => Bind(size, context))
             .ToImmutableArray();
-        var elementType = context.RuntimeContext.TypeResolver.TryResolveType(multiDimTypedArrayCreation.ElementTypeName);
-        var arrayType = elementType != null
-            ? RuntimeArrayFactory.GetArrayType(elementType, multiDimTypedArrayCreation.Sizes.Count)
-            : typeof(Array);
-        return new BoundMultiDimTypedArrayCreationExpr(multiDimTypedArrayCreation.ElementTypeName, sizes, new BoundType(arrayType));
+        var elementType = context.RuntimeContext.TypeResolver.TryResolveType(multiDimTypedArrayCreation.ElementTypeName) ?? typeof(object);
+        var arrayType = RuntimeArrayFactory.GetArrayType(elementType, multiDimTypedArrayCreation.Sizes.Count);
+        return new BoundArrayAllocationExpr(elementType, sizes, new BoundType(arrayType));
     }
 
     private BoundMultiDimArrayInitExpr BindMultiDimArrayInit(
@@ -215,12 +268,10 @@ internal sealed partial class Binder
         var flatValues = multiDimArrayInit.FlatValues
             .Select(value => Bind(value, context))
             .ToImmutableArray();
-        var elementType = context.RuntimeContext.TypeResolver.TryResolveType(multiDimArrayInit.ElementTypeName);
-        var arrayType = elementType != null
-            ? RuntimeArrayFactory.GetArrayType(elementType, multiDimArrayInit.Rank)
-            : typeof(Array);
+        var elementType = context.RuntimeContext.TypeResolver.TryResolveType(multiDimArrayInit.ElementTypeName) ?? typeof(object);
+        var arrayType = RuntimeArrayFactory.GetArrayType(elementType, multiDimArrayInit.Rank);
         return new BoundMultiDimArrayInitExpr(
-            multiDimArrayInit.ElementTypeName,
+            elementType,
             multiDimArrayInit.Rank,
             explicitSizes,
             flatValues,
@@ -340,22 +391,70 @@ internal sealed partial class Binder
         return new BoundRangeExpr(start, end, rangeExpr.ExclusiveEnd, new BoundType(resultType));
     }
 
-    private static Type InferArrayLiteralType(ImmutableArray<BoundExpr> elements)
+    /// <summary>
+    /// ECMA-334 §12.6.3.15: Finding the best common type of a set of expressions.
+    /// Collects all element static types as lower bounds, then finds the unique candidate
+    /// to which all others implicitly convert (§12.6.3.12 fixing).
+    /// Returns null if inference fails (no unique best type).
+    /// </summary>
+    internal static Type? FindBestCommonType(ImmutableArray<BoundExpr> elements)
     {
         if (elements.Length == 0)
-            return typeof(object[]);
+            return null;
 
-        var firstType = elements[0].StaticType.ClrType;
-        if (firstType == typeof(object))
-            return typeof(object[]);
-
-        for (var i = 1; i < elements.Length; i++)
+        var types = new List<Type>(elements.Length);
+        var hasNullLiteral = false;
+        foreach (var element in elements)
         {
-            if (elements[i].StaticType.ClrType != firstType)
-                return typeof(object[]);
+            if (element is BoundLiteralExpr { Value: null })
+            {
+                hasNullLiteral = true;
+                continue;
+            }
+
+            var clrType = element.StaticType.ClrType;
+            if (!types.Contains(clrType))
+                types.Add(clrType);
         }
 
-        return RuntimeArrayFactory.GetArrayType(firstType);
+        if (types.Count == 0)
+            return hasNullLiteral ? typeof(object) : null;
+
+        if (types.Count == 1)
+            return LiftIfNeeded(types[0], hasNullLiteral);
+
+        // §12.6.3.12: For each lower bound U, eliminate candidates where no implicit conversion
+        // from U exists. The result must be a unique type to which all others implicitly convert.
+        Type? bestType = null;
+        foreach (var candidate in types)
+        {
+            var allConvert = true;
+            foreach (var other in types)
+            {
+                if (other == candidate)
+                    continue;
+                if (!TypeHelpers.CanImplicitlyConvert(other, candidate))
+                {
+                    allConvert = false;
+                    break;
+                }
+            }
+
+            if (!allConvert)
+                continue;
+
+            if (bestType != null)
+                return null; // ambiguous — two candidates both accept all
+
+            bestType = candidate;
+        }
+
+        return bestType != null ? LiftIfNeeded(bestType, hasNullLiteral) : null;
+
+        static Type LiftIfNeeded(Type type, bool hasNull) =>
+            hasNull && type.IsValueType && Nullable.GetUnderlyingType(type) == null
+                ? typeof(Nullable<>).MakeGenericType(type)
+                : type;
     }
 
     private static Type InferSliceType(Type targetType)

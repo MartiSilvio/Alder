@@ -55,11 +55,9 @@ internal abstract class BoundExprVisitor<T>
         BoundNodeKind.DeconstructionAssignment => VisitDeconstruction((BoundDeconstructionExpr)expr),
         BoundNodeKind.ObjectCreationExpression => VisitObjectCreation((BoundObjectCreationExpr)expr),
         BoundNodeKind.ObjectLiteral => VisitObjectLiteral((BoundObjectLiteralExpr)expr),
-        BoundNodeKind.ArrayLiteral => VisitArrayLiteral((BoundArrayLiteralExpr)expr),
-        BoundNodeKind.TypedArrayCreation => VisitTypedArrayCreation((BoundTypedArrayCreationExpr)expr),
-        BoundNodeKind.TypedArrayLiteral => VisitTypedArrayLiteral((BoundTypedArrayLiteralExpr)expr),
+        BoundNodeKind.CollectionCreation => VisitCollectionCreation((BoundCollectionCreationExpr)expr),
+        BoundNodeKind.ArrayAllocation => VisitArrayAllocation((BoundArrayAllocationExpr)expr),
         BoundNodeKind.MultiDimArrayInit => VisitMultiDimArrayInit((BoundMultiDimArrayInitExpr)expr),
-        BoundNodeKind.MultiDimTypedArrayCreation => VisitMultiDimTypedArrayCreation((BoundMultiDimTypedArrayCreationExpr)expr),
         BoundNodeKind.TupleLiteral => VisitTuple((BoundTupleExpr)expr),
         BoundNodeKind.SpreadElement => VisitSpread((BoundSpreadExpr)expr),
         BoundNodeKind.VariableDeclaration => VisitVariableDecl((BoundVariableDeclExpr)expr),
@@ -80,7 +78,6 @@ internal abstract class BoundExprVisitor<T>
         BoundNodeKind.GotoCaseStatement => VisitGotoCase((BoundGotoCaseExpr)expr),
         BoundNodeKind.GotoDefaultStatement => VisitGotoDefault((BoundGotoDefaultExpr)expr),
         BoundNodeKind.ThrowExpression => VisitThrow((BoundThrowExpr)expr),
-        BoundNodeKind.ThrowStatement => VisitThrowStatement((BoundThrowStatementExpr)expr),
         BoundNodeKind.TryStatement => VisitTryCatchFinally((BoundTryCatchFinallyExpr)expr),
         _ => DefaultVisit(expr)
     };
@@ -134,11 +131,9 @@ internal abstract class BoundExprVisitor<T>
     protected virtual T VisitDeconstruction(BoundDeconstructionExpr node) => DefaultVisit(node);
     protected virtual T VisitObjectCreation(BoundObjectCreationExpr node) => DefaultVisit(node);
     protected virtual T VisitObjectLiteral(BoundObjectLiteralExpr node) => DefaultVisit(node);
-    protected virtual T VisitArrayLiteral(BoundArrayLiteralExpr node) => DefaultVisit(node);
-    protected virtual T VisitTypedArrayCreation(BoundTypedArrayCreationExpr node) => DefaultVisit(node);
-    protected virtual T VisitTypedArrayLiteral(BoundTypedArrayLiteralExpr node) => DefaultVisit(node);
+    protected virtual T VisitCollectionCreation(BoundCollectionCreationExpr node) => DefaultVisit(node);
+    protected virtual T VisitArrayAllocation(BoundArrayAllocationExpr node) => DefaultVisit(node);
     protected virtual T VisitMultiDimArrayInit(BoundMultiDimArrayInitExpr node) => DefaultVisit(node);
-    protected virtual T VisitMultiDimTypedArrayCreation(BoundMultiDimTypedArrayCreationExpr node) => DefaultVisit(node);
     protected virtual T VisitTuple(BoundTupleExpr node) => DefaultVisit(node);
     protected virtual T VisitSpread(BoundSpreadExpr node) => DefaultVisit(node);
     protected virtual T VisitVariableDecl(BoundVariableDeclExpr node) => DefaultVisit(node);
@@ -159,7 +154,6 @@ internal abstract class BoundExprVisitor<T>
     protected virtual T VisitGotoCase(BoundGotoCaseExpr node) => DefaultVisit(node);
     protected virtual T VisitGotoDefault(BoundGotoDefaultExpr node) => DefaultVisit(node);
     protected virtual T VisitThrow(BoundThrowExpr node) => DefaultVisit(node);
-    protected virtual T VisitThrowStatement(BoundThrowStatementExpr node) => DefaultVisit(node);
     protected virtual T VisitTryCatchFinally(BoundTryCatchFinallyExpr node) => DefaultVisit(node);
 }
 

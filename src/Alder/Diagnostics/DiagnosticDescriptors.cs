@@ -71,6 +71,12 @@ public static class DiagnosticDescriptors
     public static readonly DiagnosticDescriptor NullToImplicitlyTyped =
         new(DiagnosticCode.CS0815, "Cannot assign null to an implicitly-typed variable");
 
+    public static readonly DiagnosticDescriptor NoBestTypeForImplicitArray =
+        new(DiagnosticCode.CS0826, "No best type found for an implicitly-typed array");
+
+    public static readonly DiagnosticDescriptor NoTargetTypeForCollectionExpression =
+        new(DiagnosticCode.CS9176, "There is no target type for the collection expression");
+
     public static readonly DiagnosticDescriptor BreakOrContinueOutsideLoop =
         new(DiagnosticCode.CS0139, "No enclosing loop out of which to break or continue");
 

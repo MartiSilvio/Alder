@@ -3,7 +3,7 @@ using System.Collections.Immutable;
 namespace Alder.Binding.BoundNodes;
 
 internal sealed record BoundMultiDimArrayInitExpr(
-    string ElementTypeName,
+    Type ElementType,
     int Rank,
     ImmutableArray<BoundExpr>? ExplicitSizes,
     ImmutableArray<BoundExpr> FlatValues,

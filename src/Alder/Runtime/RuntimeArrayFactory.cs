@@ -73,4 +73,61 @@ internal static class RuntimeArrayFactory
 
         return array;
     }
+
+    /// <summary>
+    /// Creates a typed array from a list of boxed values, converting each element to the target type.
+    /// Used when the binder has determined the element type statically.
+    /// </summary>
+    public static object CreateFromValues(Type elementType, List<object?> source)
+    {
+        var array = Create(elementType, source.Count);
+        var convertTarget = Nullable.GetUnderlyingType(elementType) ?? elementType;
+        for (var i = 0; i < source.Count; i++)
+        {
+            var value = source[i];
+            if (value != null && value.GetType() != convertTarget)
+                value = Convert.ChangeType(value, convertTarget);
+            array.SetValue(value, i);
+        }
+        return array;
+    }
+
+    /// <summary>
+    /// Creates a typed array by inferring the element type from runtime values.
+    /// Fallback for extended-mode expressions where the binder doesn't determine the type.
+    /// </summary>
+    public static object InferAndCreateArray(List<object?> source)
+    {
+        if (source.Count == 0)
+            return Array.Empty<object?>();
+
+        Type? commonType = null;
+        var hasNull = false;
+
+        foreach (var item in source)
+        {
+            if (item == null)
+            {
+                hasNull = true;
+                continue;
+            }
+
+            var itemType = item.GetType();
+            if (commonType == null)
+                commonType = itemType;
+            else if (commonType != itemType)
+                return source.ToArray();
+        }
+
+        if (commonType == null)
+            return source.ToArray();
+
+        if (hasNull && commonType.IsValueType)
+            commonType = RuntimeGenericFactory.CloseGenericType(typeof(Nullable<>), [commonType]);
+
+        var array = Create(commonType, source.Count);
+        for (var i = 0; i < source.Count; i++)
+            array.SetValue(source[i], i);
+        return array;
+    }
 }

@@ -1,5 +1,6 @@
 using Alder.Runtime.Extensions;
 using System.Dynamic;
+using Alder.Binding;
 using Alder.Binding.BoundNodes;
 using Alder.Diagnostics;
 using Alder.Runtime;
@@ -9,23 +10,30 @@ namespace Alder.Interpretation;
 
 internal sealed partial class BoundEvaluator
 {
-    private object? EvaluateArrayLiteral(BoundArrayLiteralExpr arrayLiteral)
+    private object? EvaluateCollectionCreation(BoundCollectionCreationExpr collection)
     {
-        var result = new List<object?>(arrayLiteral.Elements.Length);
-        foreach (var element in arrayLiteral.Elements)
+        var values = new List<object?>(collection.Elements.Length);
+        foreach (var element in collection.Elements)
         {
             if (element is BoundSpreadExpr spread)
             {
                 var spreadValue = Evaluate(spread.Expression);
-                SpreadHelpers.SpreadIntoList(result, spreadValue);
+                CollectionFactory.SpreadIntoList(values, spreadValue);
             }
             else
             {
-                result.Add(Evaluate(element));
+                values.Add(Evaluate(element));
             }
         }
 
-        return SpreadHelpers.CreateTypedArray(result);
+        return collection.CollectionKind switch
+        {
+            CollectionKind.Array => RuntimeArrayFactory.CreateFromValues(collection.ElementType, values),
+            CollectionKind.InferredArray => RuntimeArrayFactory.InferAndCreateArray(values),
+            CollectionKind.TargetTypedCollection => CollectionFactory.Create(
+                collection.TargetCollectionType!, collection.ElementType, values),
+            _ => throw new InvalidOperationException()
+        };
     }
 
     private static object? EvaluateSpread(BoundSpreadExpr _)
@@ -41,7 +49,7 @@ internal sealed partial class BoundEvaluator
             if (property.IsSpread)
             {
                 var spreadValue = Evaluate(property.Value);
-                SpreadHelpers.SpreadIntoDict(result, spreadValue, _context);
+                CollectionFactory.SpreadIntoDict(result, spreadValue, _context);
                 continue;
             }
 
@@ -66,7 +74,9 @@ internal sealed partial class BoundEvaluator
         for (var i = 0; i < objectCreation.Arguments.Length; i++)
             args[i] = Evaluate(objectCreation.Arguments[i]);
 
-        var type = _context.TypeResolver.ResolveType(objectCreation.TypeName);
+        var type = objectCreation.StaticType is BoundUnknownType
+            ? _context.TypeResolver.ResolveType(objectCreation.TypeName)
+            : objectCreation.StaticType.ClrType;
         var result = ConstructionRuntime.InvokeConstructor(type, args, _config);
 
         foreach (var entry in objectCreation.InitializerEntries)
@@ -90,34 +100,15 @@ internal sealed partial class BoundEvaluator
         return result;
     }
 
-    private object? EvaluateTypedArrayCreation(BoundTypedArrayCreationExpr typedArrayCreation)
+    private object? EvaluateArrayAllocation(BoundArrayAllocationExpr allocation)
     {
-        var sizeValue = Evaluate(typedArrayCreation.Size);
-        var size = Convert.ToInt32(sizeValue);
-        var elementType = _context.TypeResolver.ResolveType(typedArrayCreation.ElementTypeName);
-        return RuntimeArrayFactory.Create(elementType, size, _config.Security.MaxCollectionSize);
-    }
+        var sizes = new int[allocation.Sizes.Length];
+        for (var i = 0; i < allocation.Sizes.Length; i++)
+            sizes[i] = Convert.ToInt32(Evaluate(allocation.Sizes[i]));
 
-    private object? EvaluateTypedArrayLiteral(BoundTypedArrayLiteralExpr typedArrayLiteral)
-    {
-        var elementType = _context.TypeResolver.ResolveType(typedArrayLiteral.ElementTypeName);
-        var array = RuntimeArrayFactory.Create(elementType, typedArrayLiteral.Elements.Length, _config.Security.MaxCollectionSize);
-        for (var i = 0; i < typedArrayLiteral.Elements.Length; i++)
-        {
-            var value = Evaluate(typedArrayLiteral.Elements[i]);
-            array.SetValue(value, i);
-        }
-
-        return array;
-    }
-
-    private object? EvaluateMultiDimTypedArrayCreation(BoundMultiDimTypedArrayCreationExpr multiDimTypedArrayCreation)
-    {
-        var sizes = new int[multiDimTypedArrayCreation.Sizes.Length];
-        for (var i = 0; i < multiDimTypedArrayCreation.Sizes.Length; i++)
-            sizes[i] = Convert.ToInt32(Evaluate(multiDimTypedArrayCreation.Sizes[i]));
-        var elementType = _context.TypeResolver.ResolveType(multiDimTypedArrayCreation.ElementTypeName);
-        return RuntimeArrayFactory.Create(elementType, sizes);
+        return sizes.Length == 1
+            ? RuntimeArrayFactory.Create(allocation.ElementType, sizes[0], _config.Security.MaxCollectionSize)
+            : RuntimeArrayFactory.Create(allocation.ElementType, sizes);
     }
 
     private object? EvaluateMultiDimArrayInit(BoundMultiDimArrayInitExpr init)
@@ -129,8 +120,7 @@ internal sealed partial class BoundEvaluator
                 dimensions[i] = Convert.ToInt32(Evaluate(init.ExplicitSizes.Value[i]));
         }
 
-        var elementType = _context.TypeResolver.ResolveType(init.ElementTypeName);
-        var array = RuntimeArrayFactory.Create(elementType, dimensions);
+        var array = RuntimeArrayFactory.Create(init.ElementType, dimensions);
 
         // Fill the array from the flat value list using row-major order
         var indices = new int[init.Rank];
@@ -138,7 +128,7 @@ internal sealed partial class BoundEvaluator
         {
             var value = Evaluate(init.FlatValues[i]);
             if (value != null)
-                value = Convert.ChangeType(value, elementType);
+                value = Convert.ChangeType(value, init.ElementType);
             array.SetValue(value, indices);
 
             // Increment indices (rightmost first)

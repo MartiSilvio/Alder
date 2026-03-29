@@ -625,39 +625,54 @@ internal sealed partial class BoundExpressionEmitter
             _ctParam);
     }
 
-    private LinqExpression EmitArrayLiteral(BoundArrayLiteralExpr arrayLiteral)
+    private LinqExpression EmitCollectionCreation(BoundCollectionCreationExpr collection)
     {
-        var elementType = arrayLiteral.StaticType.ClrType.IsArray ? arrayLiteral.StaticType.ClrType.GetElementType() : null;
-        if (elementType != null && elementType != typeof(object) &&
-            !arrayLiteral.Elements.Any(static e => e is BoundSpreadExpr))
+        var hasSpread = collection.Elements.Any(static e => e is BoundSpreadExpr);
+        if (collection.CollectionKind == CollectionKind.Array && !hasSpread)
         {
-            var elements = arrayLiteral.Elements.Select(
-                element => EmitHelpers.EnsureTypedExpression(Emit(element), elementType));
-            return EmitHelpers.AsObject(LinqExpression.NewArrayInit(elementType, elements));
+            var elements = collection.Elements.Select(
+                element => EmitHelpers.EnsureTypedExpression(Emit(element), collection.ElementType));
+            return EmitHelpers.AsObject(LinqExpression.NewArrayInit(collection.ElementType, elements));
         }
 
-        var listVar = LinqExpression.Variable(typeof(List<object?>), "arr");
+        var listVar = LinqExpression.Variable(typeof(List<object?>), "items");
         var statements = new List<LinqExpression>
         {
             LinqExpression.Assign(listVar, LinqExpression.New(ListCtor))
         };
 
-        for (var i = 0; i < arrayLiteral.Elements.Length; i++)
+        foreach (var element in collection.Elements)
         {
-            var element = arrayLiteral.Elements[i];
             if (element is BoundSpreadExpr spread)
             {
                 statements.Add(LinqExpression.Call(
                     SpreadIntoListMethod,
                     listVar,
                     EmitHelpers.AsObject(Emit(spread.Expression))));
-                continue;
             }
-
-            statements.Add(LinqExpression.Call(listVar, ListAddMethod, EmitHelpers.AsObject(Emit(element))));
+            else
+            {
+                statements.Add(LinqExpression.Call(listVar, ListAddMethod, EmitHelpers.AsObject(Emit(element))));
+            }
         }
 
-        statements.Add(LinqExpression.Call(CreateTypedArrayMethod, listVar));
+        switch (collection.CollectionKind)
+        {
+            case CollectionKind.Array:
+                statements.Add(LinqExpression.Call(CreateFromValuesMethod, LinqExpression.Constant(collection.ElementType), listVar));
+                break;
+            case CollectionKind.InferredArray:
+                statements.Add(LinqExpression.Call(InferAndCreateArrayMethod, listVar));
+                break;
+            case CollectionKind.TargetTypedCollection:
+                statements.Add(LinqExpression.Call(
+                    CollectionFactoryCreateMethod,
+                    LinqExpression.Constant(collection.TargetCollectionType!),
+                    LinqExpression.Constant(collection.ElementType),
+                    listVar));
+                break;
+        }
+
         return LinqExpression.Block(typeof(object), [listVar], statements);
     }
 

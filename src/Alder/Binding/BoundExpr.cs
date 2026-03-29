@@ -72,7 +72,6 @@ internal enum BoundNodeKind
     Block = 85,
     VariableDeclaration = 88,
     ReturnStatement = 93,
-    ThrowStatement = 96,
     BreakStatement = 98,
     ContinueStatement = 99,
     SwitchStatement = 100,
@@ -135,11 +134,9 @@ internal enum BoundNodeKind
 
     // Alder-specific — literals & collections
     ObjectLiteral = 1_060,
-    ArrayLiteral = 1_061,
-    TypedArrayCreation = 1_062,
-    TypedArrayLiteral = 1_063,
+    CollectionCreation = 1_061,
+    ArrayAllocation = 1_062,
     MultiDimArrayInit = 1_064,
-    MultiDimTypedArrayCreation = 1_065,
 
     // Alder-specific — control flow extensions
     GotoCaseStatement = 1_070,

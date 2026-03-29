@@ -25,7 +25,7 @@ public class StandardModeNegativeTests(CompilationMode mode)
         var engine = TestEngineFactory.Create(mode, StandardOptions);
         var ex = Assert.Throws<AlderException>(
             () => engine.Evaluate("[1, 2, 3]"));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(Alder.Diagnostics.DiagnosticCode.ALDR0020));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(Alder.Diagnostics.DiagnosticCode.CS9176));
     }
 
     [Test]

@@ -268,15 +268,14 @@ internal sealed partial class BoundEvaluator
         return ControlFlowSignal.Continue;
     }
 
-    private object? EvaluateThrow(BoundThrowExpr throwExpr)
+    private object? EvaluateThrow(BoundThrowExpr throwExpr, BoundExpr _)
     {
-        var result = Evaluate(throwExpr.Expression);
-        var exception = ExecutionRuntime.ValidateThrowOperand(result);
-        throw exception;
-    }
+        if (throwExpr.Expression != null)
+        {
+            var result = Evaluate(throwExpr.Expression);
+            throw ExecutionRuntime.ValidateThrowOperand(result);
+        }
 
-    private object? EvaluateThrowStatement()
-    {
         if (_caughtExceptions.Count == 0)
             throw new AlderException(DiagnosticDescriptors.ThrowOutsideCatch);
 

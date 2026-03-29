@@ -425,18 +425,6 @@ internal sealed partial class BoundExpressionEmitter
             typeof(object));
     }
 
-    private LinqExpression EmitThrowStatement(BoundThrowStatementExpr _)
-    {
-        if (_catchDepth == 0)
-        {
-            return LinqExpression.Throw(
-                LinqExpression.Constant(new AlderException(DiagnosticDescriptors.ThrowOutsideCatch)),
-                typeof(object));
-        }
-
-        return LinqExpression.Rethrow(typeof(object));
-    }
-
     private LinqExpression EmitTryCatchFinally(BoundTryCatchFinallyExpr tryCatchFinally)
     {
         var tryBody = EmitStatementSequence(tryCatchFinally.TryBody);
@@ -810,7 +798,6 @@ internal sealed partial class BoundExpressionEmitter
             BoundNodeKind.GotoCaseStatement => true,
             BoundNodeKind.GotoDefaultStatement => true,
             BoundNodeKind.ThrowExpression => true,
-            BoundNodeKind.ThrowStatement => true,
             BoundNodeKind.Block when ((BoundBlockExpr)expr).Statements.Length > 0 =>
                 TerminatesControlFlow(((BoundBlockExpr)expr).Statements[^1]),
             _ => false

@@ -511,26 +511,20 @@ internal abstract class BoundExprRewriter : BoundExprVisitor<BoundExpr>, IBoundT
         return CopyMetadata(node, node with { Properties = props.MoveToImmutable() });
     }
 
-    protected override BoundExpr VisitArrayLiteral(BoundArrayLiteralExpr node)
+    protected override BoundExpr VisitCollectionCreation(BoundCollectionCreationExpr node)
     {
         var elements = RewriteImmutableArray(node.Elements, out var changed);
         if (!changed) return node;
         return CopyMetadata(node, node with { Elements = elements });
     }
 
-    protected override BoundExpr VisitTypedArrayCreation(BoundTypedArrayCreationExpr node)
+    protected override BoundExpr VisitArrayAllocation(BoundArrayAllocationExpr node)
     {
-        var size = Visit(node.Size);
-        if (ReferenceEquals(size, node.Size)) return node;
-        return CopyMetadata(node, node with { Size = size });
+        var sizes = RewriteImmutableArray(node.Sizes, out var changed);
+        if (!changed) return node;
+        return CopyMetadata(node, node with { Sizes = sizes });
     }
 
-    protected override BoundExpr VisitTypedArrayLiteral(BoundTypedArrayLiteralExpr node)
-    {
-        var elements = RewriteImmutableArray(node.Elements, out var changed);
-        if (!changed) return node;
-        return CopyMetadata(node, node with { Elements = elements });
-    }
 
     protected override BoundExpr VisitMultiDimArrayInit(BoundMultiDimArrayInitExpr node)
     {
@@ -545,12 +539,6 @@ internal abstract class BoundExprRewriter : BoundExprVisitor<BoundExpr>, IBoundT
         return CopyMetadata(node, node with { ExplicitSizes = sizes, FlatValues = flatValues });
     }
 
-    protected override BoundExpr VisitMultiDimTypedArrayCreation(BoundMultiDimTypedArrayCreationExpr node)
-    {
-        var sizes = RewriteImmutableArray(node.Sizes, out var changed);
-        if (!changed) return node;
-        return CopyMetadata(node, node with { Sizes = sizes });
-    }
 
     protected override BoundExpr VisitTuple(BoundTupleExpr node)
     {
@@ -711,12 +699,12 @@ internal abstract class BoundExprRewriter : BoundExprVisitor<BoundExpr>, IBoundT
 
     protected override BoundExpr VisitThrow(BoundThrowExpr node)
     {
+        if (node.Expression == null) return node;
         var expr = Visit(node.Expression);
         if (ReferenceEquals(expr, node.Expression)) return node;
         return CopyMetadata(node, node with { Expression = expr });
     }
 
-    protected override BoundExpr VisitThrowStatement(BoundThrowStatementExpr node) => node;
 
     protected override BoundExpr VisitTryCatchFinally(BoundTryCatchFinallyExpr node)
     {

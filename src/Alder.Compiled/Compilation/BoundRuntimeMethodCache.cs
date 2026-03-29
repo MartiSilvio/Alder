@@ -163,11 +163,6 @@ internal static class BoundRuntimeMethodCache
     internal static readonly MethodInfo InvokeConstructorMethod =
         typeof(ConstructionRuntime).GetMethod(nameof(ConstructionRuntime.InvokeConstructor), [typeof(Type), typeof(object?[]), typeof(AlderConfig)])!;
 
-    internal static readonly MethodInfo CreateTypedArrayFromTypeNameMethod =
-        typeof(ConstructionRuntime).GetMethod(nameof(ConstructionRuntime.CreateTypedArray))!;
-
-    internal static readonly MethodInfo ConvertArrayToTypedMethod =
-        typeof(ConstructionRuntime).GetMethod(nameof(ConstructionRuntime.ConvertArrayToTyped))!;
 
     internal static readonly MethodInfo CreateSystemRangeMethod =
         typeof(ConstructionRuntime).GetMethod(nameof(ConstructionRuntime.CreateSystemRange))!;
@@ -183,9 +178,6 @@ internal static class BoundRuntimeMethodCache
 
     internal static readonly MethodInfo DeconstructTupleMethod =
         typeof(ConstructionRuntime).GetMethod(nameof(ConstructionRuntime.DeconstructTuple))!;
-
-    internal static readonly MethodInfo CreateMultiDimArrayMethod =
-        typeof(ConstructionRuntime).GetMethod(nameof(ConstructionRuntime.CreateMultiDimArray))!;
 
     internal static readonly MethodInfo MultiDimArrayGetMethod =
         typeof(ConstructionRuntime).GetMethod(nameof(ConstructionRuntime.MultiDimArrayGet))!;
@@ -385,16 +377,23 @@ internal static class BoundRuntimeMethodCache
         typeof(List<object?>).GetMethod(nameof(List<object?>.Add))!;
 
     internal static readonly MethodInfo SpreadIntoListMethod =
-        typeof(SpreadHelpers).GetMethod(nameof(SpreadHelpers.SpreadIntoList))!;
+        typeof(CollectionFactory).GetMethod(nameof(CollectionFactory.SpreadIntoList))!;
 
-    internal static readonly MethodInfo CreateTypedArrayMethod =
-        typeof(SpreadHelpers).GetMethod(nameof(SpreadHelpers.CreateTypedArray))!;
+    internal static readonly MethodInfo InferAndCreateArrayMethod =
+        typeof(RuntimeArrayFactory).GetMethod(nameof(RuntimeArrayFactory.InferAndCreateArray))!;
+
+    internal static readonly MethodInfo CreateFromValuesMethod =
+        typeof(RuntimeArrayFactory).GetMethod(nameof(RuntimeArrayFactory.CreateFromValues))!;
+
+    internal static readonly MethodInfo CollectionFactoryCreateMethod =
+        typeof(CollectionFactory).GetMethod(nameof(CollectionFactory.Create),
+            BindingFlags.Static | BindingFlags.NonPublic | BindingFlags.Public)!;
 
     internal static readonly ConstructorInfo ExpandoObjectCtor =
         typeof(ExpandoObject).GetConstructor(Type.EmptyTypes)!;
 
     internal static readonly MethodInfo SpreadIntoDictMethod =
-        typeof(SpreadHelpers).GetMethod(nameof(SpreadHelpers.SpreadIntoDict))!;
+        typeof(CollectionFactory).GetMethod(nameof(CollectionFactory.SpreadIntoDict))!;
 
     internal static readonly ConstructorInfo StringBuilderCtor =
         typeof(StringBuilder).GetConstructor(Type.EmptyTypes)!;

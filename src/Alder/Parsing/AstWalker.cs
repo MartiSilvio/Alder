@@ -352,7 +352,15 @@ internal abstract class AstWalker<T> : IExprVisitor<T>
         return OnLeave(expr);
     }
 
-    public virtual T VisitArrayLiteral(ArrayLiteralExpr expr)
+    public virtual T VisitCollectionExpr(CollectionExpr expr)
+    {
+        OnEnter(expr);
+        foreach (var elem in expr.Elements)
+            Visit(elem);
+        return OnLeave(expr);
+    }
+
+    public virtual T VisitImplicitArrayCreation(ImplicitArrayCreationExpr expr)
     {
         OnEnter(expr);
         foreach (var elem in expr.Elements)
@@ -593,7 +601,8 @@ internal abstract class AstWalker<T> : IExprVisitor<T>
     public virtual T VisitTypedArrayLiteral(TypedArrayLiteralExpr expr)
     {
         OnEnter(expr);
-        Visit(expr.Elements);
+        foreach (var elem in expr.Elements)
+            Visit(elem);
         return OnLeave(expr);
     }
 

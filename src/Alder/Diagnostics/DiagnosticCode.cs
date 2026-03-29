@@ -52,6 +52,10 @@ public enum DiagnosticCode
     CS0191 = 191,
     /// <summary>Cannot assign null to an implicitly-typed variable</summary>
     CS0815 = 815,
+    /// <summary>No best type found for an implicitly-typed array</summary>
+    CS0826 = 826,
+    /// <summary>There is no target type for the collection expression</summary>
+    CS9176 = 9176,
 
     /// <summary>No enclosing loop out of which to break or continue</summary>
     CS0139 = 139,

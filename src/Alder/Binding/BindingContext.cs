@@ -26,6 +26,7 @@ internal sealed class BindingContext
     }
 
     internal AlderContext RuntimeContext => _context;
+    internal LanguageMode LanguageMode => _context.Config.LanguageMode;
     internal bool IsCaseSensitive => ReferenceEquals(_context.Comparer, StringComparer.Ordinal);
     internal int LocalCount => _root._nextLocalId;
     internal BindingContext CreateChildScope() => new(_context, this);

@@ -663,8 +663,8 @@ internal sealed class QueryParser : ParserBase
                     objLit.Properties.Select(p =>
                         (p.Key, RewriteIdentifiers(p.Value, scope))).ToList()),
 
-            ArrayLiteralExpr arr =>
-                new ArrayLiteralExpr(
+            CollectionExpr arr =>
+                new CollectionExpr(
                     arr.Elements.Select(e => RewriteIdentifiers(e, scope)).ToList()),
 
             InterpolatedStringExpr interp =>

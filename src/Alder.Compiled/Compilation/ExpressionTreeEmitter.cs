@@ -77,14 +77,13 @@ internal sealed class ExpressionTreeEmitter
             BoundNodeKind.MultiDimIndexAssignment => throw UnsupportedNode("an assignment"),
             BoundNodeKind.VariableDeclaration => throw UnsupportedNode("a variable declaration"),
             BoundNodeKind.TryStatement => throw UnsupportedNode("try/catch"),
-            BoundNodeKind.ArrayLiteral => throw UnsupportedNode("a collection expression"),
+            BoundNodeKind.CollectionCreation => throw UnsupportedNode("a collection expression"),
             BoundNodeKind.ObjectLiteral => throw UnsupportedNode("an object literal"),
             BoundNodeKind.SpreadElement => throw UnsupportedNode("spread"),
             BoundNodeKind.SliceExpression => throw UnsupportedNode("slice"),
             BoundNodeKind.Lambda => throw UnsupportedNode("a nested lambda"),
             BoundNodeKind.InterpolatedString => throw UnsupportedNode("an interpolated string"),
             BoundNodeKind.ThrowExpression => throw UnsupportedNode("a throw expression"),
-            BoundNodeKind.ThrowStatement => throw UnsupportedNode("a throw statement"),
             BoundNodeKind.TupleLiteral => throw UnsupportedNode("a tuple expression"),
             BoundNodeKind.DeconstructionAssignment => throw UnsupportedNode("deconstruction"),
             BoundNodeKind.SwitchStatement => throw UnsupportedNode("a switch statement"),
@@ -96,11 +95,9 @@ internal sealed class ExpressionTreeEmitter
             BoundNodeKind.GotoDefaultStatement => throw UnsupportedNode("a goto default statement"),
             BoundNodeKind.Label => throw UnsupportedNode("a label"),
             BoundNodeKind.AsOperator => throw UnsupportedNode("an 'as' expression"),
-            BoundNodeKind.TypedArrayCreation or
-            BoundNodeKind.TypedArrayLiteral => throw UnsupportedNode("an array creation expression"),
+            BoundNodeKind.ArrayAllocation => throw UnsupportedNode("an array creation expression"),
             BoundNodeKind.ResolvedMultiDimIndexAccess or
             BoundNodeKind.DynamicMultiDimIndexAccess => throw UnsupportedNode("multi-dimensional indexing"),
-            BoundNodeKind.MultiDimTypedArrayCreation or
             BoundNodeKind.MultiDimArrayInit => throw UnsupportedNode("multi-dimensional array creation"),
             BoundNodeKind.NamedArgument => throw UnsupportedNode("a named argument"),
             BoundNodeKind.OutArgument => throw UnsupportedNode("an out argument"),
@@ -447,9 +444,9 @@ internal sealed class ExpressionTreeEmitter
         if (expr.InitializerEntries.Length > 0)
             throw UnsupportedNode("object initializer");
 
-        var targetType = expr.StaticType.ClrType != typeof(object)
-            ? expr.StaticType.ClrType
-            : _typeResolver.ResolveType(expr.TypeName);
+        var targetType = expr.StaticType is BoundUnknownType
+            ? _typeResolver.ResolveType(expr.TypeName)
+            : expr.StaticType.ClrType;
 
         var args = expr.Arguments.Select(Emit).ToArray();
         var argTypes = args.Select(a => a.Type).ToArray();

@@ -332,12 +332,12 @@ public class ParserTests
     }
 
     [Test]
-    public void Parse_ArrayLiteral_ReturnsArrayLiteralExpr()
+    public void Parse_ArrayLiteral_ReturnsCollectionExpr()
     {
         var expr = Parse("[1, 2, 3]");
-        Assert.That(expr, Is.InstanceOf<ArrayLiteralExpr>());
+        Assert.That(expr, Is.InstanceOf<CollectionExpr>());
 
-        var array = (ArrayLiteralExpr)expr;
+        var array = (CollectionExpr)expr;
         Assert.That(array.Elements, Has.Count.EqualTo(3));
     }
 

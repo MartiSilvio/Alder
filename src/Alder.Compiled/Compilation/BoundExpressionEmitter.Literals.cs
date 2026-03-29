@@ -1,4 +1,5 @@
 using System.Linq.Expressions;
+using Alder.Binding;
 using Alder.Binding.BoundNodes;
 using Alder.Runtime;
 using static Alder.Compiled.Compilation.BoundRuntimeMethodCache;
@@ -21,7 +22,9 @@ internal sealed partial class BoundExpressionEmitter
             objectCreation.Arguments.Select(arg => EmitHelpers.AsObject(Emit(arg))));
         var result = LinqExpression.Call(
             InvokeConstructorMethod,
-            ResolveTypeByName(objectCreation.TypeName),
+            objectCreation.StaticType is BoundUnknownType
+                ? ResolveTypeByName(objectCreation.TypeName)
+                : LinqExpression.Constant(objectCreation.StaticType.ClrType, typeof(Type)),
             argsArray,
             _configParam);
 
@@ -108,46 +111,25 @@ internal sealed partial class BoundExpressionEmitter
         return LinqExpression.Convert(LinqExpression.New(ctor, args), typeof(object));
     }
 
-    private LinqExpression EmitTypedArrayCreation(BoundTypedArrayCreationExpr typedArrayCreation)
+    private LinqExpression EmitArrayAllocation(BoundArrayAllocationExpr allocation)
     {
-        if (typedArrayCreation.StaticType.ClrType.IsArray)
+        if (allocation.Sizes.Length == 1)
         {
-            var elementType = typedArrayCreation.StaticType.ClrType.GetElementType()!;
-            var sizeExpr = EmitHelpers.EnsureTypedExpression(Emit(typedArrayCreation.Size), typeof(int));
+            var sizeExpr = EmitHelpers.EnsureTypedExpression(Emit(allocation.Sizes[0]), typeof(int));
             var maxLengthExpr = LinqExpression.Property(
                 LinqExpression.Property(_configParam, nameof(AlderConfig.Security)),
                 nameof(Security.SecurityPolicy.MaxCollectionSize));
             return LinqExpression.Call(
-                typeof(Alder.Runtime.RuntimeArrayFactory).GetMethod(nameof(Alder.Runtime.RuntimeArrayFactory.Create),
-                    new[] { typeof(Type), typeof(int), typeof(int) })!,
-                LinqExpression.Constant(elementType, typeof(Type)),
+                typeof(RuntimeArrayFactory).GetMethod(nameof(RuntimeArrayFactory.Create),
+                    [typeof(Type), typeof(int), typeof(int)])!,
+                LinqExpression.Constant(allocation.ElementType, typeof(Type)),
                 sizeExpr,
                 maxLengthExpr);
         }
 
-        return LinqExpression.Call(
-            CreateTypedArrayFromTypeNameMethod,
-            ResolveTypeByName(typedArrayCreation.ElementTypeName),
-            EmitHelpers.AsObject(Emit(typedArrayCreation.Size)));
-    }
-
-    private LinqExpression EmitTypedArrayLiteral(BoundTypedArrayLiteralExpr typedArrayLiteral)
-    {
-        if (typedArrayLiteral.StaticType.ClrType.IsArray)
-        {
-            var elementType = typedArrayLiteral.StaticType.ClrType.GetElementType()!;
-            var elements = typedArrayLiteral.Elements.Select(
-                element => EmitHelpers.EnsureTypedExpression(Emit(element), elementType));
-            return EmitHelpers.AsObject(LinqExpression.NewArrayInit(elementType, elements));
-        }
-
-        var sourceArray = LinqExpression.NewArrayInit(
-            typeof(object),
-            typedArrayLiteral.Elements.Select(element => EmitHelpers.AsObject(Emit(element))));
-        return LinqExpression.Call(
-            ConvertArrayToTypedMethod,
-            sourceArray,
-            ResolveTypeByName(typedArrayLiteral.ElementTypeName));
+        var sizeExprs = allocation.Sizes.Select(
+            size => EmitHelpers.EnsureTypedExpression(Emit(size), typeof(int)));
+        return EmitHelpers.AsObject(LinqExpression.NewArrayBounds(allocation.ElementType, sizeExprs));
     }
 
     private LinqExpression EmitTuple(BoundTupleExpr tuple)
@@ -204,28 +186,8 @@ internal sealed partial class BoundExpressionEmitter
             _contextParam);
     }
 
-    private LinqExpression EmitMultiDimTypedArrayCreation(BoundMultiDimTypedArrayCreationExpr multiDimTypedArrayCreation)
-    {
-        if (multiDimTypedArrayCreation.StaticType.ClrType.IsArray)
-        {
-            var elementType = multiDimTypedArrayCreation.StaticType.ClrType.GetElementType()!;
-            var sizeExprs = multiDimTypedArrayCreation.Sizes.Select(
-                size => EmitHelpers.EnsureTypedExpression(Emit(size), typeof(int)));
-            return EmitHelpers.AsObject(LinqExpression.NewArrayBounds(elementType, sizeExprs));
-        }
-
-        var sizes = LinqExpression.NewArrayInit(
-            typeof(object),
-            multiDimTypedArrayCreation.Sizes.Select(size => EmitHelpers.AsObject(Emit(size))));
-        return LinqExpression.Call(
-            CreateMultiDimArrayMethod,
-            ResolveTypeByName(multiDimTypedArrayCreation.ElementTypeName),
-            sizes);
-    }
-
     private LinqExpression EmitMultiDimArrayInit(BoundMultiDimArrayInitExpr init)
     {
-        var elementType = ResolveTypeByName(init.ElementTypeName);
         var dimensions = LinqExpression.NewArrayInit(
             typeof(int),
             init.InferredDimensions.Select(d => LinqExpression.Constant(d)));
@@ -235,7 +197,7 @@ internal sealed partial class BoundExpressionEmitter
 
         return EmitHelpers.AsObject(LinqExpression.Call(
             typeof(RuntimeArrayFactory).GetMethod(nameof(RuntimeArrayFactory.CreateAndFill))!,
-            elementType,
+            LinqExpression.Constant(init.ElementType, typeof(Type)),
             dimensions,
             flatValues));
     }
@@ -383,12 +345,25 @@ internal sealed partial class BoundExpressionEmitter
 
     private LinqExpression EmitThrow(BoundThrowExpr throwExpr)
     {
-        var exceptionExpr = Emit(throwExpr.Expression);
-        var validated = LinqExpression.Call(ValidateThrowOperandMethod, EmitHelpers.AsObject(exceptionExpr));
         var resultType = throwExpr.StaticType.ClrType != typeof(object) ? throwExpr.StaticType.ClrType : typeof(object);
-        return LinqExpression.Block(
-            resultType,
-            LinqExpression.Throw(validated, resultType),
-            LinqExpression.Default(resultType));
+
+        if (throwExpr.Expression != null)
+        {
+            var exceptionExpr = Emit(throwExpr.Expression);
+            var validated = LinqExpression.Call(ValidateThrowOperandMethod, EmitHelpers.AsObject(exceptionExpr));
+            return LinqExpression.Block(
+                resultType,
+                LinqExpression.Throw(validated, resultType),
+                LinqExpression.Default(resultType));
+        }
+
+        if (_catchDepth == 0)
+        {
+            return LinqExpression.Throw(
+                LinqExpression.Constant(new AlderException(Alder.Diagnostics.DiagnosticDescriptors.ThrowOutsideCatch)),
+                resultType);
+        }
+
+        return LinqExpression.Rethrow(resultType);
     }
 }

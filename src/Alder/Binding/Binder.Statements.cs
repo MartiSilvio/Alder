@@ -41,10 +41,12 @@ internal sealed partial class Binder
 
     private BoundVariableDeclExpr BindVariableDecl(VariableDeclExpr variableDecl, BindingContext context)
     {
-        var initializer = Bind(variableDecl.Initializer, context);
         var declaredType = variableDecl.DeclaredType != null
             ? context.RuntimeContext.TypeResolver.ResolveType(variableDecl.DeclaredType.Value.Lexeme)
             : null;
+        var initializer = variableDecl.Initializer is CollectionExpr collectionExpr && declaredType != null
+            ? BindCollectionExpr(collectionExpr, context, declaredType)
+            : Bind(variableDecl.Initializer, context);
         var staticType = declaredType != null ? new BoundType(declaredType) : initializer.StaticType;
         var localId = context.DeclareLocal(variableDecl.Name.Lexeme, staticType, variableDecl.IsConst);
         return new BoundVariableDeclExpr(

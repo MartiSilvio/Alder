@@ -56,7 +56,8 @@ internal interface IExprVisitor<out T>
     T VisitLambda(LambdaExpr expr);
 
     // Collection Literals and Spread
-    T VisitArrayLiteral(ArrayLiteralExpr expr);
+    T VisitCollectionExpr(CollectionExpr expr);
+    T VisitImplicitArrayCreation(ImplicitArrayCreationExpr expr);
     T VisitObjectLiteral(ObjectLiteralExpr expr);
     T VisitSpread(SpreadExpr expr);
 
@@ -356,10 +357,16 @@ internal sealed record LambdaExpr(List<LambdaParameter> Parameters, Expr Body) :
 
 #region Collection Literals and Spread
 
-// Array literal: [1, 2, 3]
-internal sealed record ArrayLiteralExpr(List<Expr> Elements) : Expr
+// C# 12 collection expression: [1, 2, 3]
+internal sealed record CollectionExpr(List<Expr> Elements) : Expr
 {
-    public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitArrayLiteral(this);
+    public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitCollectionExpr(this);
+}
+
+// Implicitly-typed array creation: new[] { 1, 2, 3 } (ECMA-334 §12.8.16.5)
+internal sealed record ImplicitArrayCreationExpr(List<Expr> Elements) : Expr
+{
+    public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitImplicitArrayCreation(this);
 }
 
 // Object literal: new { Name = "John", Age = 30 } - Alder extension (ExpandoObject, not C# anonymous types)
@@ -576,7 +583,7 @@ internal sealed record TypedArrayCreationExpr(string ElementTypeName, Expr Size)
 
 // Typed array literal: new int[] {1, 2, 3}, new string[] {"a", "b"}
 // ECMA-334 §12.8.16.5 - Array initializers
-internal sealed record TypedArrayLiteralExpr(string ElementTypeName, ArrayLiteralExpr Elements) : Expr
+internal sealed record TypedArrayLiteralExpr(string ElementTypeName, List<Expr> Elements) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitTypedArrayLiteral(this);
 }

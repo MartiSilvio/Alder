@@ -690,6 +690,9 @@ internal static class TypeHelpers
         if (sourceType == underlyingType || sourceType == targetType)
             return value;
 
+        if (targetType.IsAssignableFrom(sourceType))
+            return value;
+
         if (ImplicitConversions.TryGetValue(sourceType, out var allowedTargets) && allowedTargets.Contains(underlyingType))
             return ConvertNumeric(value, sourceType, underlyingType);
 

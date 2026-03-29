@@ -50,12 +50,8 @@ internal sealed class PrimaryParser : ParserBase
 
         if (Match(TokenType.LeftBracket))
         {
-            if (State.LanguageMode == LanguageMode.Standard)
-            {
-                if (IsComprehensionAhead())
-                    throw new AlderException(DiagnosticDescriptors.ExtendedModeRequired,"comprehension");
-                throw new AlderException(DiagnosticDescriptors.ExtendedModeRequired,TokenLexemes.CollectionExpressionLiteral);
-            }
+            if (State.LanguageMode == LanguageMode.Standard && IsComprehensionAhead())
+                throw new AlderException(DiagnosticDescriptors.ExtendedModeRequired, "comprehension");
             return ParseArrayLiteral(mark);
         }
 
@@ -114,7 +110,7 @@ internal sealed class PrimaryParser : ParserBase
         if (Check(TokenType.RightBracket))
         {
             Consume(TokenType.RightBracket, "Expected ']' after array elements");
-            return new ArrayLiteralExpr([]) { Span = SpanFrom(mark) };
+            return new CollectionExpr([]) { Span = SpanFrom(mark) };
         }
 
         var elements = new List<Expr>();
@@ -152,7 +148,7 @@ internal sealed class PrimaryParser : ParserBase
         }
 
         Consume(TokenType.RightBracket, "Expected ']' after array elements");
-        return new ArrayLiteralExpr(elements) { Span = SpanFrom(mark) };
+        return new CollectionExpr(elements) { Span = SpanFrom(mark) };
     }
 
     private Expr ParseComprehension(Expr projection, int mark)
@@ -184,7 +180,7 @@ internal sealed class PrimaryParser : ParserBase
         return new CallExpr(new MemberAccessExpr(selectCall, toArrayToken, false) { Span = SpanFrom(mark) }, []) { Span = SpanFrom(mark) };
     }
 
-    private Expr ParseArrayLiteralBody(int mark)
+    private List<Expr> ParseBraceElementList()
     {
         var elements = new List<Expr>();
 
@@ -204,11 +200,11 @@ internal sealed class PrimaryParser : ParserBase
                 {
                     elements.Add(_expression.ParseExpression());
                 }
-            } while (Match(TokenType.Comma));
+            } while (Match(TokenType.Comma) && !Check(TokenType.RightBrace));
         }
 
         Consume(TokenType.RightBrace, "Expected '}' after array elements");
-        return new ArrayLiteralExpr(elements) { Span = SpanFrom(mark) };
+        return elements;
     }
 
     private bool IsComprehensionAhead()
@@ -265,7 +261,7 @@ internal sealed class PrimaryParser : ParserBase
         {
             Consume(TokenType.RightBracket, "Expected ']' after 'new['");
             Consume(TokenType.LeftBrace, "Expected '{' after 'new[]'");
-            return ParseArrayLiteralBody(mark);
+            return new ImplicitArrayCreationExpr(ParseBraceElementList()) { Span = SpanFrom(mark) };
         }
 
         // new { ... } - anonymous object
@@ -421,8 +417,7 @@ internal sealed class PrimaryParser : ParserBase
             if (Check(TokenType.LeftBrace))
             {
                 Advance(); // consume '{'
-                var arrayLiteral = (ArrayLiteralExpr)ParseArrayLiteralBody(mark);
-                return new TypedArrayLiteralExpr(elementTypeName, arrayLiteral) { Span = SpanFrom(mark) };
+                return new TypedArrayLiteralExpr(elementTypeName, ParseBraceElementList()) { Span = SpanFrom(mark) };
             }
 
             throw SyntaxError(DiagnosticDescriptors.SyntaxExpected, $"'{{' after 'new {elementTypeName}[]'");
@@ -466,8 +461,7 @@ internal sealed class PrimaryParser : ParserBase
         if (Check(TokenType.LeftBrace))
         {
             Advance(); // consume '{'
-            var arrayLiteral = (ArrayLiteralExpr)ParseArrayLiteralBody(mark);
-            return new TypedArrayLiteralExpr(jaggedTypeName, arrayLiteral) { Span = SpanFrom(mark) };
+            return new TypedArrayLiteralExpr(jaggedTypeName, ParseBraceElementList()) { Span = SpanFrom(mark) };
         }
 
         return new TypedArrayCreationExpr(jaggedTypeName, firstSize) { Span = SpanFrom(mark) };
