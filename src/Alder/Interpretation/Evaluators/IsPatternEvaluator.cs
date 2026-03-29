@@ -2,9 +2,9 @@ using Alder.Binding.BoundNodes;
 
 namespace Alder.Interpretation.Evaluators;
 
-internal sealed class IsPatternEvaluator : INodeEvaluator<BoundIsPatternExpr>
+internal static class IsPatternEvaluator
 {
-    public object? Evaluate(BoundIsPatternExpr node, EvaluationContext ctx)
+    public static object? Evaluate(BoundIsPatternExpr node, EvaluationContext ctx)
     {
         var value = ctx.Evaluate(node.Expression);
         return ctx.MatchPattern(value, node.Pattern);

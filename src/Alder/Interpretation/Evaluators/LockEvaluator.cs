@@ -3,9 +3,9 @@ using Alder.Diagnostics;
 
 namespace Alder.Interpretation.Evaluators;
 
-internal sealed class LockEvaluator : INodeEvaluator<BoundLockStatementExpr>
+internal static class LockEvaluator
 {
-    public object? Evaluate(BoundLockStatementExpr node, EvaluationContext ctx)
+    public static object? Evaluate(BoundLockStatementExpr node, EvaluationContext ctx)
     {
         var lockObject = ctx.Evaluate(node.LockObject);
         if (lockObject == null)

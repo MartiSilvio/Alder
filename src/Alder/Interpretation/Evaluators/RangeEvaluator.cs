@@ -4,9 +4,9 @@ using Alder.Runtime.Semantics;
 
 namespace Alder.Interpretation.Evaluators;
 
-internal sealed class RangeEvaluator : INodeEvaluator<BoundRangeExpr>
+internal static class RangeEvaluator
 {
-    public object? Evaluate(BoundRangeExpr node, EvaluationContext ctx)
+    public static object? Evaluate(BoundRangeExpr node, EvaluationContext ctx)
     {
         var startValue = node.Start != null ? ctx.Evaluate(node.Start) : null;
         var endValue = node.End != null ? ctx.Evaluate(node.End) : null;

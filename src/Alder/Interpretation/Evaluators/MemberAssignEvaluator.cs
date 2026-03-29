@@ -5,9 +5,9 @@ using Alder.Runtime.Semantics;
 
 namespace Alder.Interpretation.Evaluators;
 
-internal sealed class MemberAssignEvaluator : INodeEvaluator<BoundMemberAssignExpr>
+internal static class MemberAssignEvaluator
 {
-    public object? Evaluate(BoundMemberAssignExpr node, EvaluationContext ctx)
+    public static object? Evaluate(BoundMemberAssignExpr node, EvaluationContext ctx)
     {
         var target = ctx.Evaluate(node.Target);
         var value = ctx.Evaluate(node.Value);

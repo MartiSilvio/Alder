@@ -4,9 +4,9 @@ using Alder.Runtime;
 
 namespace Alder.Interpretation.Evaluators;
 
-internal sealed class ObjectLiteralEvaluator : INodeEvaluator<BoundObjectLiteralExpr>
+internal static class ObjectLiteralEvaluator
 {
-    public object? Evaluate(BoundObjectLiteralExpr node, EvaluationContext ctx)
+    public static object? Evaluate(BoundObjectLiteralExpr node, EvaluationContext ctx)
     {
         IDictionary<string, object?> result = new ExpandoObject();
         foreach (var property in node.Properties)

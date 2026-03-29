@@ -5,9 +5,9 @@ using Alder.Runtime.Semantics;
 
 namespace Alder.Interpretation.Evaluators;
 
-internal sealed class DeconstructionEvaluator : INodeEvaluator<BoundDeconstructionExpr>
+internal static class DeconstructionEvaluator
 {
-    public object? Evaluate(BoundDeconstructionExpr node, EvaluationContext ctx)
+    public static object? Evaluate(BoundDeconstructionExpr node, EvaluationContext ctx)
     {
         var value = ctx.Evaluate(node.ValueExpression);
 

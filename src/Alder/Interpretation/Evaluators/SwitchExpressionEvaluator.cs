@@ -4,9 +4,9 @@ using Alder.Runtime;
 
 namespace Alder.Interpretation.Evaluators;
 
-internal sealed class SwitchExpressionEvaluator : INodeEvaluator<BoundSwitchExpressionExpr>
+internal static class SwitchExpressionEvaluator
 {
-    public object? Evaluate(BoundSwitchExpressionExpr node, EvaluationContext ctx)
+    public static object? Evaluate(BoundSwitchExpressionExpr node, EvaluationContext ctx)
     {
         var value = ctx.Evaluate(node.Expression);
 

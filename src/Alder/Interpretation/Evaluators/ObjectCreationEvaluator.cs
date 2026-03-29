@@ -6,9 +6,9 @@ using MethodInvoker = Alder.Runtime.MethodInvoker;
 
 namespace Alder.Interpretation.Evaluators;
 
-internal sealed class ObjectCreationEvaluator : INodeEvaluator<BoundObjectCreationExpr>
+internal static class ObjectCreationEvaluator
 {
-    public object? Evaluate(BoundObjectCreationExpr node, EvaluationContext ctx)
+    public static object? Evaluate(BoundObjectCreationExpr node, EvaluationContext ctx)
     {
         var args = new object?[node.Arguments.Length];
         for (var i = 0; i < node.Arguments.Length; i++)

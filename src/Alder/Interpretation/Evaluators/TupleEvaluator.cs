@@ -4,9 +4,9 @@ using Alder.Runtime.Semantics;
 
 namespace Alder.Interpretation.Evaluators;
 
-internal sealed class TupleEvaluator : INodeEvaluator<BoundTupleExpr>
+internal static class TupleEvaluator
 {
-    public object? Evaluate(BoundTupleExpr node, EvaluationContext ctx)
+    public static object? Evaluate(BoundTupleExpr node, EvaluationContext ctx)
     {
         var values = new object?[node.Elements.Length];
         for (var i = 0; i < node.Elements.Length; i++)

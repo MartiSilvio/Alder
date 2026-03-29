@@ -2,9 +2,9 @@ using Alder.Binding.BoundNodes;
 
 namespace Alder.Interpretation.Evaluators;
 
-internal sealed class UsingEvaluator : INodeEvaluator<BoundUsingStatementExpr>
+internal static class UsingEvaluator
 {
-    public object? Evaluate(BoundUsingStatementExpr node, EvaluationContext ctx)
+    public static object? Evaluate(BoundUsingStatementExpr node, EvaluationContext ctx)
     {
         var resource = ctx.Evaluate(node.Resource);
         try

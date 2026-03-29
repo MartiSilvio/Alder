@@ -3,9 +3,9 @@ using Alder.Runtime.Semantics;
 
 namespace Alder.Interpretation.Evaluators;
 
-internal sealed class AssignEvaluator : INodeEvaluator<BoundAssignExpr>
+internal static class AssignEvaluator
 {
-    public object? Evaluate(BoundAssignExpr node, EvaluationContext ctx)
+    public static object? Evaluate(BoundAssignExpr node, EvaluationContext ctx)
     {
         var value = ctx.Evaluate(node.Value);
         value = AssignmentRuntime.ValidateVariableAssignment(node.Name, value, ctx.Context);

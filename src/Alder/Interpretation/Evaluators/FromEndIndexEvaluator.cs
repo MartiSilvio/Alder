@@ -2,9 +2,9 @@ using Alder.Binding.BoundNodes;
 
 namespace Alder.Interpretation.Evaluators;
 
-internal sealed class FromEndIndexEvaluator : INodeEvaluator<BoundIndexFromEndExpr>
+internal static class FromEndIndexEvaluator
 {
-    public object? Evaluate(BoundIndexFromEndExpr node, EvaluationContext ctx)
+    public static object? Evaluate(BoundIndexFromEndExpr node, EvaluationContext ctx)
     {
         return new Index(Convert.ToInt32(ctx.Evaluate(node.Operand)), fromEnd: true);
     }

@@ -5,9 +5,9 @@ using Alder.Runtime.Semantics;
 
 namespace Alder.Interpretation.Evaluators;
 
-internal sealed class ThrowEvaluator : INodeEvaluator<BoundThrowExpr>
+internal static class ThrowEvaluator
 {
-    public object? Evaluate(BoundThrowExpr node, EvaluationContext ctx)
+    public static object? Evaluate(BoundThrowExpr node, EvaluationContext ctx)
     {
         if (node.Expression != null)
         {

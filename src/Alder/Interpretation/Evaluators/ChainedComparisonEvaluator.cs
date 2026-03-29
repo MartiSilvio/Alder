@@ -4,9 +4,9 @@ using Alder.Runtime.Extensions;
 
 namespace Alder.Interpretation.Evaluators;
 
-internal sealed class ChainedComparisonEvaluator : INodeEvaluator<BoundChainedComparisonExpr>
+internal static class ChainedComparisonEvaluator
 {
-    public object? Evaluate(BoundChainedComparisonExpr node, EvaluationContext ctx)
+    public static object? Evaluate(BoundChainedComparisonExpr node, EvaluationContext ctx)
     {
         var previousValue = ctx.Evaluate(node.Operands[0]);
 

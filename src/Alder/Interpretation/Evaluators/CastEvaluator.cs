@@ -3,9 +3,9 @@ using Alder.Runtime;
 
 namespace Alder.Interpretation.Evaluators;
 
-internal sealed class CastEvaluator : INodeEvaluator<BoundCastExpr>
+internal static class CastEvaluator
 {
-    public object? Evaluate(BoundCastExpr node, EvaluationContext ctx)
+    public static object? Evaluate(BoundCastExpr node, EvaluationContext ctx)
     {
         var value = ctx.Evaluate(node.Expression);
         return TypeHelpers.ExplicitCast(value, node.TargetType, node.SourceStaticType, ctx.IsChecked);

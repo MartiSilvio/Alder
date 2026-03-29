@@ -2,9 +2,9 @@ using Alder.Binding.BoundNodes;
 
 namespace Alder.Interpretation.Evaluators;
 
-internal sealed class GotoCaseEvaluator : INodeEvaluator<BoundGotoCaseExpr>
+internal static class GotoCaseEvaluator
 {
-    public object? Evaluate(BoundGotoCaseExpr node, EvaluationContext ctx)
+    public static object? Evaluate(BoundGotoCaseExpr node, EvaluationContext ctx)
     {
         return ControlFlowSignal.GotoCaseSignal(ctx.Evaluate(node.Value));
     }

@@ -4,9 +4,9 @@ using Alder.Runtime.Semantics;
 
 namespace Alder.Interpretation.Evaluators;
 
-internal sealed class WhileEvaluator : INodeEvaluator<BoundWhileExpr>
+internal static class WhileEvaluator
 {
-    public object? Evaluate(BoundWhileExpr node, EvaluationContext ctx)
+    public static object? Evaluate(BoundWhileExpr node, EvaluationContext ctx)
     {
         var constraintState = ctx.ConstraintState;
         var constraints = ctx.Config.Constraints;

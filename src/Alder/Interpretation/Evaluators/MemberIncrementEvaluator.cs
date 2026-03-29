@@ -3,9 +3,9 @@ using Alder.Runtime.Semantics;
 
 namespace Alder.Interpretation.Evaluators;
 
-internal sealed class MemberIncrementEvaluator : INodeEvaluator<BoundMemberIncrementExpr>
+internal static class MemberIncrementEvaluator
 {
-    public object? Evaluate(BoundMemberIncrementExpr node, EvaluationContext ctx)
+    public static object? Evaluate(BoundMemberIncrementExpr node, EvaluationContext ctx)
     {
         var target = ctx.Evaluate(node.Target);
         return AssignmentRuntime.ApplyMemberIncrement(

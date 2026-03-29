@@ -3,9 +3,9 @@ using Alder.Runtime;
 
 namespace Alder.Interpretation.Evaluators;
 
-internal sealed class CollectionCreationEvaluator : INodeEvaluator<BoundCollectionCreationExpr>
+internal static class CollectionCreationEvaluator
 {
-    public object? Evaluate(BoundCollectionCreationExpr node, EvaluationContext ctx)
+    public static object? Evaluate(BoundCollectionCreationExpr node, EvaluationContext ctx)
     {
         var values = new List<object?>(node.Elements.Length);
         foreach (var element in node.Elements)

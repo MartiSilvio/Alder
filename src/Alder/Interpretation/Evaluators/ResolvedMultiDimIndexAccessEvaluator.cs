@@ -7,9 +7,9 @@ using Alder.Runtime;
 
 namespace Alder.Interpretation.Evaluators;
 
-internal sealed class ResolvedMultiDimIndexAccessEvaluator : INodeEvaluator<BoundResolvedMultiDimIndexAccessExpr>
+internal static class ResolvedMultiDimIndexAccessEvaluator
 {
-    public object? Evaluate(BoundResolvedMultiDimIndexAccessExpr node, EvaluationContext ctx)
+    public static object? Evaluate(BoundResolvedMultiDimIndexAccessExpr node, EvaluationContext ctx)
     {
         var target = ctx.Evaluate(node.Target);
         if (node.NullSafe && target == null)

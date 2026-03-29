@@ -5,9 +5,9 @@ using Alder.Runtime.Semantics;
 
 namespace Alder.Interpretation.Evaluators;
 
-internal sealed class PipelineEvaluator : INodeEvaluator<BoundPipelineExpr>
+internal static class PipelineEvaluator
 {
-    public object? Evaluate(BoundPipelineExpr node, EvaluationContext ctx)
+    public static object? Evaluate(BoundPipelineExpr node, EvaluationContext ctx)
     {
         var left = ctx.Evaluate(node.Left);
 

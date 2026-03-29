@@ -6,9 +6,9 @@ using MethodInvoker = Alder.Runtime.MethodInvoker;
 
 namespace Alder.Interpretation.Evaluators;
 
-internal sealed class DynamicCallEvaluator : INodeEvaluator<BoundDynamicCallExpr>
+internal static class DynamicCallEvaluator
 {
-    public object? Evaluate(BoundDynamicCallExpr node, EvaluationContext ctx)
+    public static object? Evaluate(BoundDynamicCallExpr node, EvaluationContext ctx)
     {
         var chain = PostfixChain.TryCollect(node);
         if (chain != null)

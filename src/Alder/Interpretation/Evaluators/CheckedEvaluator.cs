@@ -2,9 +2,9 @@ using Alder.Binding.BoundNodes;
 
 namespace Alder.Interpretation.Evaluators;
 
-internal sealed class CheckedEvaluator : INodeEvaluator<BoundCheckedExpr>
+internal static class CheckedEvaluator
 {
-    public object? Evaluate(BoundCheckedExpr node, EvaluationContext ctx)
+    public static object? Evaluate(BoundCheckedExpr node, EvaluationContext ctx)
     {
         var previous = ctx.IsChecked;
         ctx.IsChecked = node.IsChecked;

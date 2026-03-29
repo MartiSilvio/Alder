@@ -4,9 +4,9 @@ using Alder.Runtime;
 
 namespace Alder.Interpretation.Evaluators;
 
-internal sealed class PropertyAccessEvaluator : INodeEvaluator<BoundPropertyAccessExpr>
+internal static class PropertyAccessEvaluator
 {
-    public object? Evaluate(BoundPropertyAccessExpr node, EvaluationContext ctx)
+    public static object? Evaluate(BoundPropertyAccessExpr node, EvaluationContext ctx)
     {
         var chain = PostfixChain.TryCollect(node);
         if (chain != null) return ResolvedCallEvaluator.EvaluatePostfixChain(chain.Value, ctx);

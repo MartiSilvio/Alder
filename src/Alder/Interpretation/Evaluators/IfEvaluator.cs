@@ -4,9 +4,9 @@ using Alder.Runtime;
 
 namespace Alder.Interpretation.Evaluators;
 
-internal sealed class IfEvaluator : INodeEvaluator<BoundIfStatementExpr>
+internal static class IfEvaluator
 {
-    public object? Evaluate(BoundIfStatementExpr node, EvaluationContext ctx)
+    public static object? Evaluate(BoundIfStatementExpr node, EvaluationContext ctx)
     {
         var condition = ctx.Evaluate(node.Condition);
         if (TypeHelpers.RequireBoolean(condition))

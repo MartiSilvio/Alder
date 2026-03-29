@@ -4,9 +4,9 @@ using Alder.Runtime;
 
 namespace Alder.Interpretation.Evaluators;
 
-internal sealed class FieldAccessEvaluator : INodeEvaluator<BoundFieldAccessExpr>
+internal static class FieldAccessEvaluator
 {
-    public object? Evaluate(BoundFieldAccessExpr node, EvaluationContext ctx)
+    public static object? Evaluate(BoundFieldAccessExpr node, EvaluationContext ctx)
     {
         var chain = PostfixChain.TryCollect(node);
         if (chain != null) return ResolvedCallEvaluator.EvaluatePostfixChain(chain.Value, ctx);

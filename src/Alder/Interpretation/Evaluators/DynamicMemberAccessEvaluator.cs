@@ -4,9 +4,9 @@ using Alder.Runtime;
 
 namespace Alder.Interpretation.Evaluators;
 
-internal sealed class DynamicMemberAccessEvaluator : INodeEvaluator<BoundDynamicMemberAccessExpr>
+internal static class DynamicMemberAccessEvaluator
 {
-    public object? Evaluate(BoundDynamicMemberAccessExpr node, EvaluationContext ctx)
+    public static object? Evaluate(BoundDynamicMemberAccessExpr node, EvaluationContext ctx)
     {
         var chain = PostfixChain.TryCollect(node);
         if (chain != null) return ResolvedCallEvaluator.EvaluatePostfixChain(chain.Value, ctx);

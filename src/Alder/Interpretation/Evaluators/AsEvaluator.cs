@@ -3,9 +3,9 @@ using Alder.Runtime;
 
 namespace Alder.Interpretation.Evaluators;
 
-internal sealed class AsEvaluator : INodeEvaluator<BoundAsExpr>
+internal static class AsEvaluator
 {
-    public object? Evaluate(BoundAsExpr node, EvaluationContext ctx)
+    public static object? Evaluate(BoundAsExpr node, EvaluationContext ctx)
     {
         var value = ctx.Evaluate(node.Expression);
         return TypeHelpers.TryAs(value, node.TargetType);

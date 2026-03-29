@@ -3,9 +3,9 @@ using Alder.Runtime;
 
 namespace Alder.Interpretation.Evaluators;
 
-internal sealed class OutArgEvaluator : INodeEvaluator<BoundOutArgExpr>
+internal static class OutArgEvaluator
 {
-    public object? Evaluate(BoundOutArgExpr node, EvaluationContext ctx)
+    public static object? Evaluate(BoundOutArgExpr node, EvaluationContext ctx)
     {
         return new OutArgMarker(node.VariableName, node.TypeName, node.IsDiscard);
     }

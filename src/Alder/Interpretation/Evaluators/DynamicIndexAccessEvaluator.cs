@@ -4,9 +4,9 @@ using Alder.Runtime;
 
 namespace Alder.Interpretation.Evaluators;
 
-internal sealed class DynamicIndexAccessEvaluator : INodeEvaluator<BoundDynamicIndexAccessExpr>
+internal static class DynamicIndexAccessEvaluator
 {
-    public object? Evaluate(BoundDynamicIndexAccessExpr node, EvaluationContext ctx)
+    public static object? Evaluate(BoundDynamicIndexAccessExpr node, EvaluationContext ctx)
     {
         var target = ctx.Evaluate(node.Target);
         if (node.NullSafe && target == null)

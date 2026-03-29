@@ -2,9 +2,9 @@ using Alder.Binding.BoundNodes;
 
 namespace Alder.Interpretation.Evaluators;
 
-internal sealed class LiteralEvaluator : INodeEvaluator<BoundLiteralExpr>
+internal static class LiteralEvaluator
 {
-    public object? Evaluate(BoundLiteralExpr node, EvaluationContext ctx)
+    public static object? Evaluate(BoundLiteralExpr node, EvaluationContext ctx)
     {
         return node.Value;
     }

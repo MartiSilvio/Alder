@@ -8,9 +8,9 @@ using MethodInvoker = Alder.Runtime.MethodInvoker;
 
 namespace Alder.Interpretation.Evaluators;
 
-internal sealed class ResolvedCallEvaluator : INodeEvaluator<BoundResolvedCallExpr>
+internal static class ResolvedCallEvaluator
 {
-    public object? Evaluate(BoundResolvedCallExpr node, EvaluationContext ctx)
+    public static object? Evaluate(BoundResolvedCallExpr node, EvaluationContext ctx)
     {
         var chain = PostfixChain.TryCollect(node);
         if (chain != null)

@@ -4,9 +4,9 @@ using Alder.Runtime;
 
 namespace Alder.Interpretation.Evaluators;
 
-internal sealed class TryCatchEvaluator : INodeEvaluator<BoundTryCatchFinallyExpr>
+internal static class TryCatchEvaluator
 {
-    public object? Evaluate(BoundTryCatchFinallyExpr node, EvaluationContext ctx)
+    public static object? Evaluate(BoundTryCatchFinallyExpr node, EvaluationContext ctx)
     {
         object? result = null;
         Exception? unhandledException = null;

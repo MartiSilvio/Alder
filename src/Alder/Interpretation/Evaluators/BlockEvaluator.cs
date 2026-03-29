@@ -5,9 +5,9 @@ using Alder.Runtime.Semantics;
 
 namespace Alder.Interpretation.Evaluators;
 
-internal sealed class BlockEvaluator : INodeEvaluator<BoundBlockExpr>
+internal static class BlockEvaluator
 {
-    public object? Evaluate(BoundBlockExpr node, EvaluationContext ctx)
+    public static object? Evaluate(BoundBlockExpr node, EvaluationContext ctx)
     {
         var constraintState = ctx.ConstraintState;
         var constraints = ctx.Config.Constraints;

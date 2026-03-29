@@ -4,9 +4,9 @@ using Alder.Binding.BoundNodes;
 
 namespace Alder.Interpretation.Evaluators;
 
-internal sealed class InterpolatedStringEvaluator : INodeEvaluator<BoundInterpolatedStringExpr>
+internal static class InterpolatedStringEvaluator
 {
-    public object? Evaluate(BoundInterpolatedStringExpr node, EvaluationContext ctx)
+    public static object? Evaluate(BoundInterpolatedStringExpr node, EvaluationContext ctx)
     {
         var sb = new StringBuilder();
         foreach (var part in node.Parts)

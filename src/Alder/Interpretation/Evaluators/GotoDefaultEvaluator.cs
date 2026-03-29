@@ -2,9 +2,9 @@ using Alder.Binding.BoundNodes;
 
 namespace Alder.Interpretation.Evaluators;
 
-internal sealed class GotoDefaultEvaluator : INodeEvaluator<BoundGotoDefaultExpr>
+internal static class GotoDefaultEvaluator
 {
-    public object? Evaluate(BoundGotoDefaultExpr node, EvaluationContext ctx)
+    public static object? Evaluate(BoundGotoDefaultExpr node, EvaluationContext ctx)
     {
         return ControlFlowSignal.GotoDefaultSignal;
     }

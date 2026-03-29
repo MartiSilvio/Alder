@@ -5,9 +5,9 @@ using Alder.Runtime;
 
 namespace Alder.Interpretation.Evaluators;
 
-internal sealed class ResolvedIndexAccessEvaluator : INodeEvaluator<BoundResolvedIndexAccessExpr>
+internal static class ResolvedIndexAccessEvaluator
 {
-    public object? Evaluate(BoundResolvedIndexAccessExpr node, EvaluationContext ctx)
+    public static object? Evaluate(BoundResolvedIndexAccessExpr node, EvaluationContext ctx)
     {
         var target = ctx.Evaluate(node.Target);
         if (node.NullSafe && target == null)

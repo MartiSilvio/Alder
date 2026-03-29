@@ -3,9 +3,9 @@ using Alder.Runtime;
 
 namespace Alder.Interpretation.Evaluators;
 
-internal sealed class MultiDimArrayInitEvaluator : INodeEvaluator<BoundMultiDimArrayInitExpr>
+internal static class MultiDimArrayInitEvaluator
 {
-    public object? Evaluate(BoundMultiDimArrayInitExpr node, EvaluationContext ctx)
+    public static object? Evaluate(BoundMultiDimArrayInitExpr node, EvaluationContext ctx)
     {
         var dimensions = node.InferredDimensions;
         if (node.ExplicitSizes != null)

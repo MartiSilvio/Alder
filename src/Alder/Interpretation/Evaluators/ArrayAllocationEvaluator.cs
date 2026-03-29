@@ -3,9 +3,9 @@ using Alder.Runtime;
 
 namespace Alder.Interpretation.Evaluators;
 
-internal sealed class ArrayAllocationEvaluator : INodeEvaluator<BoundArrayAllocationExpr>
+internal static class ArrayAllocationEvaluator
 {
-    public object? Evaluate(BoundArrayAllocationExpr node, EvaluationContext ctx)
+    public static object? Evaluate(BoundArrayAllocationExpr node, EvaluationContext ctx)
     {
         var sizes = new int[node.Sizes.Length];
         for (var i = 0; i < node.Sizes.Length; i++)

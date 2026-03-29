@@ -7,9 +7,9 @@ using Alder.Runtime.Semantics;
 
 namespace Alder.Interpretation.Evaluators;
 
-internal sealed class ForEachEvaluator : INodeEvaluator<BoundForEachExpr>
+internal static class ForEachEvaluator
 {
-    public object? Evaluate(BoundForEachExpr node, EvaluationContext ctx)
+    public static object? Evaluate(BoundForEachExpr node, EvaluationContext ctx)
     {
         var constraintState = ctx.ConstraintState;
         var constraints = ctx.Config.Constraints;

@@ -3,9 +3,9 @@ using Alder.Diagnostics;
 
 namespace Alder.Interpretation.Evaluators;
 
-internal sealed class SpreadEvaluator : INodeEvaluator<BoundSpreadExpr>
+internal static class SpreadEvaluator
 {
-    public object? Evaluate(BoundSpreadExpr node, EvaluationContext ctx)
+    public static object? Evaluate(BoundSpreadExpr node, EvaluationContext ctx)
     {
         throw new AlderException(DiagnosticDescriptors.SpreadOutsideLiteral);
     }

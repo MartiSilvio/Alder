@@ -6,9 +6,9 @@ using Alder.Runtime;
 
 namespace Alder.Interpretation.Evaluators;
 
-internal sealed class SwitchStatementEvaluator : INodeEvaluator<BoundSwitchStatementExpr>
+internal static class SwitchStatementEvaluator
 {
-    public object? Evaluate(BoundSwitchStatementExpr node, EvaluationContext ctx)
+    public static object? Evaluate(BoundSwitchStatementExpr node, EvaluationContext ctx)
     {
         var switchValue = ctx.Evaluate(node.Expression);
         var matched = false;

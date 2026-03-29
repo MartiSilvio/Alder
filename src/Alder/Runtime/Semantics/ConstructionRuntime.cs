@@ -4,7 +4,6 @@ namespace Alder.Runtime.Semantics;
 
 internal static class ConstructionRuntime
 {
-
     public static object? InvokeConstructor(Type type, object?[] args, AlderConfig config)
     {
         if (config.AotMetadata is { } aotMeta && aotMeta.TryGetValue(type, out var ctorMetadata))

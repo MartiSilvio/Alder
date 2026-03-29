@@ -6,9 +6,9 @@ using Alder.Runtime;
 
 namespace Alder.Interpretation.Evaluators;
 
-internal sealed class LogicalEvaluator : INodeEvaluator<BoundLogicalExpr>
+internal static class LogicalEvaluator
 {
-    public object? Evaluate(BoundLogicalExpr node, EvaluationContext ctx)
+    public static object? Evaluate(BoundLogicalExpr node, EvaluationContext ctx)
     {
         var left = ctx.Evaluate(node.Left);
         var opLexeme = TokenLexemes.GetCanonical(node.Operator);

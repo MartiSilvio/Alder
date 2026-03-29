@@ -3,9 +3,9 @@ using Alder.Runtime;
 
 namespace Alder.Interpretation.Evaluators;
 
-internal sealed class NamedArgumentEvaluator : INodeEvaluator<BoundNamedArgumentExpr>
+internal static class NamedArgumentEvaluator
 {
-    public object? Evaluate(BoundNamedArgumentExpr node, EvaluationContext ctx)
+    public static object? Evaluate(BoundNamedArgumentExpr node, EvaluationContext ctx)
     {
         return new NamedArg(node.Name, ctx.Evaluate(node.Value));
     }

@@ -7,9 +7,9 @@ using Alder.Runtime.Semantics;
 
 namespace Alder.Interpretation.Evaluators;
 
-internal sealed class BinaryEvaluator : INodeEvaluator<BoundBinaryExpr>
+internal static class BinaryEvaluator
 {
-    public object? Evaluate(BoundBinaryExpr node, EvaluationContext ctx)
+    public static object? Evaluate(BoundBinaryExpr node, EvaluationContext ctx)
     {
         var chain = new List<BoundBinaryExpr>();
         BoundExpr leftmost = node;

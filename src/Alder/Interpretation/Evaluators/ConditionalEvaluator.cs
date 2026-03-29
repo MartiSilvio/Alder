@@ -3,9 +3,9 @@ using Alder.Runtime;
 
 namespace Alder.Interpretation.Evaluators;
 
-internal sealed class ConditionalEvaluator : INodeEvaluator<BoundConditionalExpr>
+internal static class ConditionalEvaluator
 {
-    public object? Evaluate(BoundConditionalExpr node, EvaluationContext ctx)
+    public static object? Evaluate(BoundConditionalExpr node, EvaluationContext ctx)
     {
         var condition = ctx.Evaluate(node.Condition);
         var result = TypeHelpers.RequireBoolean(condition)

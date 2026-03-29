@@ -3,9 +3,9 @@ using Alder.Runtime.Semantics;
 
 namespace Alder.Interpretation.Evaluators;
 
-internal sealed class NullCoalesceAssignEvaluator : INodeEvaluator<BoundNullCoalesceAssignExpr>
+internal static class NullCoalesceAssignEvaluator
 {
-    public object? Evaluate(BoundNullCoalesceAssignExpr node, EvaluationContext ctx)
+    public static object? Evaluate(BoundNullCoalesceAssignExpr node, EvaluationContext ctx)
     {
         var name = node.Name;
         ExecutionRuntime.CheckNullCoalesceAssignAllowed(name, ctx.Context);

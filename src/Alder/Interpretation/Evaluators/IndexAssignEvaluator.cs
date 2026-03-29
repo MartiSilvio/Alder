@@ -3,9 +3,9 @@ using Alder.Runtime.Semantics;
 
 namespace Alder.Interpretation.Evaluators;
 
-internal sealed class IndexAssignEvaluator : INodeEvaluator<BoundIndexAssignExpr>
+internal static class IndexAssignEvaluator
 {
-    public object? Evaluate(BoundIndexAssignExpr node, EvaluationContext ctx)
+    public static object? Evaluate(BoundIndexAssignExpr node, EvaluationContext ctx)
     {
         var target = ctx.Evaluate(node.Target);
         var index = ctx.Evaluate(node.Index);

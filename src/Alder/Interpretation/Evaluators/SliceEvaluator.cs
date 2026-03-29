@@ -3,9 +3,9 @@ using Alder.Runtime;
 
 namespace Alder.Interpretation.Evaluators;
 
-internal sealed class SliceEvaluator : INodeEvaluator<BoundSliceExpr>
+internal static class SliceEvaluator
 {
-    public object? Evaluate(BoundSliceExpr node, EvaluationContext ctx)
+    public static object? Evaluate(BoundSliceExpr node, EvaluationContext ctx)
     {
         var target = ctx.Evaluate(node.Target);
         var start = node.Start != null ? ctx.Evaluate(node.Start) : null;
