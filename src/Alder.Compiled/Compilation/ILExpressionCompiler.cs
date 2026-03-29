@@ -29,7 +29,7 @@ internal static class ILExpressionCompiler
         try
         {
             var context = new AlderContext(AlderConfig.Empty);
-            var binder = new Alder.Binding.Binder();
+            var binder = new Binding.Binder();
             var bound = binder.Bind(ast, new BindingContext(context));
 
             var compiled = TryCompileBound(bound, config);
@@ -44,7 +44,7 @@ internal static class ILExpressionCompiler
 
             return new CompiledExpressionInfo(null, false, $"{compilerName}: Bound compilation returned null");
         }
-        catch (Exception ex) when (ex is not System.InsufficientExecutionStackException)
+        catch (Exception ex) when (ex is not InsufficientExecutionStackException)
         {
             return new CompiledExpressionInfo(null, false, $"{compilerName}: {ex.Message}", ex);
         }
@@ -71,7 +71,7 @@ internal static class ILExpressionCompiler
 
             return new CompiledExpressionInfo(null, false, $"{compilerName}: Bound compilation returned null");
         }
-        catch (Exception ex) when (ex is not System.InsufficientExecutionStackException)
+        catch (Exception ex) when (ex is not InsufficientExecutionStackException)
         {
             return new CompiledExpressionInfo(null, false, $"{compilerName}: {ex.Message}", ex);
         }

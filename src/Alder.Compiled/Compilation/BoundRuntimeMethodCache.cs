@@ -98,10 +98,10 @@ internal static class BoundRuntimeMethodCache
         typeof(ControlFlowSignal).GetProperty(nameof(ControlFlowSignal.Value))!;
 
     internal static readonly MethodInfo InvokeCallMethod =
-        typeof(Alder.Runtime.MethodInvoker).GetMethod(nameof(Alder.Runtime.MethodInvoker.InvokeCall))!;
+        typeof(Runtime.MethodInvoker).GetMethod(nameof(Runtime.MethodInvoker.InvokeCall))!;
 
     internal static readonly MethodInfo InvokeMemberCallMethod =
-        typeof(Alder.Runtime.MethodInvoker).GetMethod(nameof(Alder.Runtime.MethodInvoker.InvokeMemberCall))!;
+        typeof(Runtime.MethodInvoker).GetMethod(nameof(Runtime.MethodInvoker.InvokeMemberCall))!;
 
     internal static readonly MethodInfo InvokeIdentifierCallMethod =
         typeof(IdentifierRuntime).GetMethod(nameof(IdentifierRuntime.InvokeIdentifierCall))!;
@@ -256,7 +256,7 @@ internal static class BoundRuntimeMethodCache
     internal static readonly ConstructorInfo AlderExceptionCtor =
         typeof(AlderException).GetConstructor([typeof(Diagnostics.DiagnosticDescriptor), typeof(object[])])!;
 
-    internal static readonly System.Reflection.FieldInfo SwitchExpressionNonExhaustiveDescriptor =
+    internal static readonly FieldInfo SwitchExpressionNonExhaustiveDescriptor =
         typeof(Diagnostics.DiagnosticDescriptors).GetField(nameof(Diagnostics.DiagnosticDescriptors.SwitchExpressionNonExhaustive))!;
 
     internal static readonly MethodInfo GetSliceMethod =

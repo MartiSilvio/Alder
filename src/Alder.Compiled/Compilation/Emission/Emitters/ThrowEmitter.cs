@@ -23,7 +23,7 @@ internal sealed class ThrowEmitter : INodeEmitter<BoundThrowExpr>
         if (ctx.CatchDepth == 0)
         {
             return LinqExpression.Throw(
-                LinqExpression.Constant(new AlderException(Alder.Diagnostics.DiagnosticDescriptors.ThrowOutsideCatch)),
+                LinqExpression.Constant(new AlderException(Diagnostics.DiagnosticDescriptors.ThrowOutsideCatch)),
                 resultType);
         }
 

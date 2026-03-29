@@ -23,7 +23,7 @@ internal sealed partial class BoundExpressionEmitter
     private readonly ParameterExpression _configParam;
     private readonly ParameterExpression _constraintStateParam;
     private readonly ParameterExpression _ctParam;
-    private readonly Emission.EmissionContext _emissionCtx;
+    private readonly EmissionContext _emissionCtx;
 
     private bool _isChecked
     {
@@ -49,7 +49,7 @@ internal sealed partial class BoundExpressionEmitter
         set => _emissionCtx.CatchDepth = value;
     }
 
-    private Dictionary<string, Emission.HoistedIdentifier>? _hoistedIdentifiers;
+    private Dictionary<string, HoistedIdentifier>? _hoistedIdentifiers;
 
     public BoundExpressionEmitter(
         ParameterExpression contextParam,
@@ -102,6 +102,11 @@ internal sealed partial class BoundExpressionEmitter
         _emissionCtx.Register(BoundNodeKind.RangeExpression, new RangeEmitter());
         _emissionCtx.Register(BoundNodeKind.FromEndIndexExpression, new IndexFromEndEmitter());
         _emissionCtx.Register(BoundNodeKind.SliceExpression, new SliceEmitter());
+        _emissionCtx.Register(BoundNodeKind.BreakStatement, new BreakEmitter());
+        _emissionCtx.Register(BoundNodeKind.ContinueStatement, new ContinueEmitter());
+        _emissionCtx.Register(BoundNodeKind.ReturnStatement, new ReturnEmitter());
+        _emissionCtx.Register(BoundNodeKind.GotoStatement, new GotoEmitter());
+        _emissionCtx.Register(BoundNodeKind.GotoCaseStatement, new GotoCaseEmitter());
     }
 
     public LinqExpression EmitRoot(BoundExpr expr)
@@ -204,13 +209,8 @@ internal sealed partial class BoundExpressionEmitter
             BoundNodeKind.UsingStatement => EmitUsingStatement((BoundUsingStatementExpr)expr),
             BoundNodeKind.LockStatement => EmitLockStatement((BoundLockStatementExpr)expr),
             BoundNodeKind.TryStatement => EmitTryCatchFinally((BoundTryCatchFinallyExpr)expr),
-            BoundNodeKind.BreakStatement => EmitBreak((BoundBreakExpr)expr),
-            BoundNodeKind.ContinueStatement => EmitContinue((BoundContinueExpr)expr),
-            BoundNodeKind.GotoStatement => EmitGoto((BoundGotoExpr)expr),
-            BoundNodeKind.GotoCaseStatement => EmitGotoCase((BoundGotoCaseExpr)expr),
-            BoundNodeKind.GotoDefaultStatement => EmitGotoDefault(),
+            BoundNodeKind.GotoDefaultStatement => LinqExpression.Convert(LinqExpression.Field(null, ControlFlowGotoDefaultField), typeof(object)),
             BoundNodeKind.Label => LinqExpression.Constant(null, typeof(object)),
-            BoundNodeKind.ReturnStatement => EmitReturn((BoundReturnExpr)expr),
             BoundNodeKind.SwitchStatement => EmitSwitchStatement((BoundSwitchStatementExpr)expr),
             BoundNodeKind.SwitchExpression => EmitSwitchExpression((BoundSwitchExpressionExpr)expr),
             BoundNodeKind.VariableDeclaration => EmitVariableDecl((BoundVariableDeclExpr)expr),
@@ -237,19 +237,19 @@ internal sealed partial class BoundExpressionEmitter
         };
     }
 
-    private static Dictionary<string, Emission.HoistedIdentifier> BuildIdentifierHoistPlan(BoundExpr root)
+    private static Dictionary<string, HoistedIdentifier> BuildIdentifierHoistPlan(BoundExpr root)
     {
         var usage = new Dictionary<string, (Type Type, int Count)>(StringComparer.Ordinal);
         if (!CanHoistIdentifiers(root, usage))
-            return new Dictionary<string, Emission.HoistedIdentifier>(StringComparer.Ordinal);
+            return new Dictionary<string, HoistedIdentifier>(StringComparer.Ordinal);
 
-        var hoists = new Dictionary<string, Emission.HoistedIdentifier>(StringComparer.Ordinal);
+        var hoists = new Dictionary<string, HoistedIdentifier>(StringComparer.Ordinal);
         foreach (var (name, entry) in usage)
         {
             if (entry.Count <= 1)
                 continue;
 
-            hoists[name] = new Emission.HoistedIdentifier(
+            hoists[name] = new HoistedIdentifier(
                 entry.Type,
                 LinqExpression.Variable(entry.Type, $"cached_{name.Replace('.', '_')}"));
         }

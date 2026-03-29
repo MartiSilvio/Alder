@@ -1,7 +1,6 @@
 using System.Linq.Expressions;
 using Alder.Binding;
 using Alder.Binding.BoundNodes;
-using Alder.Binding.BoundNodes;
 
 namespace Alder.Compiled.Compilation.Emission;
 

@@ -373,58 +373,6 @@ internal sealed partial class BoundExpressionEmitter
             resultVar);
     }
 
-    private LinqExpression EmitBreak(BoundBreakExpr _)
-    {
-        if (_loopDepth > 0 || _switchDepth > 0)
-            return LinqExpression.Convert(LinqExpression.Field(null, ControlFlowBreakField), typeof(object));
-
-        return LinqExpression.Throw(
-            LinqExpression.Constant(new AlderException(DiagnosticDescriptors.BreakOrContinueOutsideLoop)),
-            typeof(object));
-    }
-
-    private LinqExpression EmitContinue(BoundContinueExpr _)
-    {
-        if (_loopDepth > 0)
-            return LinqExpression.Convert(LinqExpression.Field(null, ControlFlowContinueField), typeof(object));
-
-        return LinqExpression.Throw(
-            LinqExpression.Constant(new AlderException(DiagnosticDescriptors.BreakOrContinueOutsideLoop)),
-            typeof(object));
-    }
-
-    private LinqExpression EmitGoto(BoundGotoExpr gotoExpr)
-    {
-        return LinqExpression.Convert(
-            LinqExpression.Call(ControlFlowGotoMethod, LinqExpression.Constant(gotoExpr.Label)),
-            typeof(object));
-    }
-
-    private LinqExpression EmitGotoCase(BoundGotoCaseExpr gotoCaseExpr)
-    {
-        return LinqExpression.Convert(
-            LinqExpression.Call(ControlFlowGotoCaseMethod, EmitHelpers.AsObject(Emit(gotoCaseExpr.Value))),
-            typeof(object));
-    }
-
-    private LinqExpression EmitGotoDefault()
-    {
-        return LinqExpression.Convert(
-            LinqExpression.Field(null, ControlFlowGotoDefaultField),
-            typeof(object));
-    }
-
-    private LinqExpression EmitReturn(BoundReturnExpr returnExpr)
-    {
-        return LinqExpression.Convert(
-            LinqExpression.Call(
-                ControlFlowReturnMethod,
-                returnExpr.Value == null
-                    ? LinqExpression.Constant(null, typeof(object))
-                    : EmitHelpers.AsObject(Emit(returnExpr.Value))),
-            typeof(object));
-    }
-
     private LinqExpression EmitTryCatchFinally(BoundTryCatchFinallyExpr tryCatchFinally)
     {
         var tryBody = EmitStatementSequence(tryCatchFinally.TryBody);

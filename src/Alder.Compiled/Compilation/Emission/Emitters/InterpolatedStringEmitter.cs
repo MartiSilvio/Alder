@@ -48,7 +48,7 @@ internal sealed class InterpolatedStringEmitter : INodeEmitter<BoundInterpolated
                 }
 
                 default:
-                    throw new Alder.Binding.BindingNotSupportedException(
+                    throw new Binding.BindingNotSupportedException(
                         $"Bound interpolated part '{node.Parts[i].GetType().Name}' is not implemented");
             }
         }
