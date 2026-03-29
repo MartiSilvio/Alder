@@ -68,4 +68,12 @@ internal sealed class EmissionContext
     }
 
     public Expression EmitBoxed(BoundExpr expr) => EmitAs(expr, typeof(object));
+
+    public Expression EmitBoolCondition(BoundExpr condition)
+    {
+        var emitted = Emit(condition);
+        if (condition.StaticType.ClrType == typeof(bool) && emitted.Type == typeof(bool))
+            return emitted;
+        return Expression.Call(BoundRuntimeMethodCache.RequireBooleanMethod, EmitHelpers.AsObject(emitted));
+    }
 }

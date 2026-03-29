@@ -386,6 +386,11 @@ internal sealed class TypeResolver
     private static readonly FixedDictionary<string, Type> BuiltInTypeKeywordsOrdinalIgnoreCase =
         FixedDictionary<string, Type>.Create(BuiltInTypeKeywords, kvp => kvp.Key, kvp => kvp.Value, StringComparer.OrdinalIgnoreCase);
 
+    internal static bool TryResolveKeywordType(string keyword, out Type type)
+    {
+        return BuiltInTypeKeywordsOrdinal.TryGetValue(keyword, out type);
+    }
+
     /// <summary>
     /// Creates a TypeResolver from the given configuration.
     /// Builds the namespace index from registered assemblies at freeze time.

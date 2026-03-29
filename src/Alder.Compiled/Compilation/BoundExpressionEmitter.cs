@@ -2,6 +2,8 @@ using System.Collections.Immutable;
 using System.Linq.Expressions;
 using Alder.Binding;
 using Alder.Binding.BoundNodes;
+using Alder.Compiled.Compilation.Emission;
+using Alder.Compiled.Compilation.Emission.Emitters;
 using Alder.Diagnostics;
 using Alder.Interpretation;
 using Alder.Parsing;
@@ -37,12 +39,17 @@ internal sealed partial class BoundExpressionEmitter
         _configParam = configParam;
         _constraintStateParam = constraintStateParam;
         _ctParam = ctParam;
-        _emissionCtx = new Emission.EmissionContext(contextParam, configParam, constraintStateParam, ctParam, Emit, () => _isChecked);
-        _emissionCtx.Register(BoundNodeKind.Literal, new Emission.Emitters.LiteralEmitter());
-        _emissionCtx.Register(BoundNodeKind.Identifier, new Emission.Emitters.IdentifierEmitter());
-        _emissionCtx.Register(BoundNodeKind.Conversion, new Emission.Emitters.CastEmitter());
-        _emissionCtx.Register(BoundNodeKind.AsOperator, new Emission.Emitters.AsEmitter());
-        _emissionCtx.Register(BoundNodeKind.UnaryOperator, new Emission.Emitters.UnaryEmitter());
+        _emissionCtx = new EmissionContext(contextParam, configParam, constraintStateParam, ctParam, Emit, () => _isChecked);
+        _emissionCtx.Register(BoundNodeKind.Literal, new LiteralEmitter());
+        _emissionCtx.Register(BoundNodeKind.Identifier, new IdentifierEmitter());
+        _emissionCtx.Register(BoundNodeKind.Conversion, new CastEmitter());
+        _emissionCtx.Register(BoundNodeKind.AsOperator, new AsEmitter());
+        _emissionCtx.Register(BoundNodeKind.UnaryOperator, new UnaryEmitter());
+        _emissionCtx.Register(BoundNodeKind.IsPatternExpression, new IsPatternEmitter());
+        _emissionCtx.Register(BoundNodeKind.BinaryOperator, new BinaryEmitter());
+        _emissionCtx.Register(BoundNodeKind.LogicalOperator, new LogicalEmitter());
+        _emissionCtx.Register(BoundNodeKind.NullCoalescingOperator, new NullCoalesceEmitter());
+        _emissionCtx.Register(BoundNodeKind.ConditionalOperator, new ConditionalEmitter());
     }
 
     public LinqExpression EmitRoot(BoundExpr expr)
@@ -131,11 +138,6 @@ internal sealed partial class BoundExpressionEmitter
 
         return expr.Kind switch
         {
-            BoundNodeKind.IsPatternExpression => EmitIsPattern((BoundIsPatternExpr)expr),
-            BoundNodeKind.BinaryOperator => EmitBinary((BoundBinaryExpr)expr),
-            BoundNodeKind.LogicalOperator => EmitLogical((BoundLogicalExpr)expr),
-            BoundNodeKind.NullCoalescingOperator => EmitNullCoalesce((BoundNullCoalesceExpr)expr),
-            BoundNodeKind.ConditionalOperator => EmitConditional((BoundConditionalExpr)expr),
             BoundNodeKind.Block => EmitBlock((BoundBlockExpr)expr),
             BoundNodeKind.IfStatement => EmitIfStatement((BoundIfStatementExpr)expr),
             BoundNodeKind.WhileStatement => EmitWhile((BoundWhileExpr)expr),
