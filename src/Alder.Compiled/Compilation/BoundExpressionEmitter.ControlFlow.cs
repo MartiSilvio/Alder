@@ -148,7 +148,7 @@ internal sealed partial class BoundExpressionEmitter
     private LinqExpression EmitIfStatement(BoundIfStatementExpr ifStatement)
     {
         var resultVar = LinqExpression.Variable(typeof(object), "ifResult");
-        var condition = LinqExpression.Call(RequireBooleanMethod, EmitHelpers.AsObject(Emit(ifStatement.Condition)));
+        var condition = EmitBoolCondition(ifStatement.Condition);
         var thenBody = EmitScopedStatements(ifStatement.ThenStatements);
         var elseBody = ifStatement.ElseStatements.IsDefaultOrEmpty
             ? LinqExpression.Constant(null, typeof(object))
@@ -917,52 +917,6 @@ internal sealed partial class BoundExpressionEmitter
             resultVar);
     }
 
-    private LinqExpression EmitChecked(BoundCheckedExpr checkedExpr)
-    {
-        var previous = _isChecked;
-        _isChecked = checkedExpr.IsChecked;
-        try
-        {
-            return Emit(checkedExpr.Expression);
-        }
-        finally
-        {
-            _isChecked = previous;
-        }
-    }
-
-    private LinqExpression EmitChainedComparison(BoundChainedComparisonExpr chainedComparison)
-    {
-        var resultLabel = LinqExpression.Label(typeof(object), "chainResult");
-        var variables = new List<ParameterExpression>();
-        var body = new List<LinqExpression>();
-
-        var firstValue = LinqExpression.Variable(typeof(object), "v0");
-        variables.Add(firstValue);
-        body.Add(LinqExpression.Assign(firstValue, EmitHelpers.AsObject(Emit(chainedComparison.Operands[0]))));
-
-        for (var i = 0; i < chainedComparison.Operators.Length; i++)
-        {
-            var nextValue = LinqExpression.Variable(typeof(object), $"v{i + 1}");
-            variables.Add(nextValue);
-            body.Add(LinqExpression.Assign(nextValue, EmitHelpers.AsObject(Emit(chainedComparison.Operands[i + 1]))));
-
-            var comparison = LinqExpression.Call(
-                PerformComparisonMethod,
-                variables[i],
-                nextValue,
-                LinqExpression.Constant(chainedComparison.Operators[i]),
-                LinqExpression.Property(_configParam, nameof(AlderConfig.StringComparison)));
-
-            body.Add(LinqExpression.IfThen(
-                LinqExpression.Not(comparison),
-                LinqExpression.Return(resultLabel, LinqExpression.Constant(false, typeof(object)))));
-        }
-
-        body.Add(LinqExpression.Label(resultLabel, LinqExpression.Constant(true, typeof(object))));
-        return LinqExpression.Block(typeof(object), variables, body);
-    }
-
     private LinqExpression EmitScopedStatements(ImmutableArray<BoundExpr> statements, bool includeConstraintChecks = true)
     {
         var previousContextVar = LinqExpression.Variable(typeof(AlderContext), "scopePrevCtx");
@@ -1033,58 +987,4 @@ internal sealed partial class BoundExpressionEmitter
         }
     }
 
-    private LinqExpression EmitRange(BoundRangeExpr range)
-    {
-        var startExpr = range.Start != null
-            ? EmitHelpers.AsObject(Emit(range.Start))
-            : LinqExpression.Constant(null, typeof(object));
-        var endExpr = range.End != null
-            ? EmitHelpers.AsObject(Emit(range.End))
-            : LinqExpression.Constant(null, typeof(object));
-        var rangeExpr = LinqExpression.Call(CreateSystemRangeMethod, startExpr, endExpr);
-
-        if (!range.ExclusiveEnd)
-        {
-            return LinqExpression.Convert(
-                LinqExpression.New(typeof(InclusiveRange).GetConstructor([typeof(Range)])!, rangeExpr),
-                typeof(object));
-        }
-
-        return LinqExpression.Convert(rangeExpr, typeof(object));
-    }
-
-    private LinqExpression EmitIndexFromEnd(BoundIndexFromEndExpr indexFromEnd)
-    {
-        var operand = Emit(indexFromEnd.Operand);
-        var intOperand = operand.Type == typeof(int) ? operand : LinqExpression.Convert(operand, typeof(int));
-        return LinqExpression.Convert(
-            LinqExpression.New(
-                typeof(Index).GetConstructor([typeof(int), typeof(bool)])!,
-                intOperand,
-                LinqExpression.Constant(true)),
-            typeof(object));
-    }
-
-    private LinqExpression EmitSlice(BoundSliceExpr slice)
-    {
-        var target = EmitHelpers.AsObject(Emit(slice.Target));
-        var start = slice.Start != null ? EmitHelpers.AsObject(Emit(slice.Start)) : LinqExpression.Constant(null, typeof(object));
-        var end = slice.End != null ? EmitHelpers.AsObject(Emit(slice.End)) : LinqExpression.Constant(null, typeof(object));
-
-        if (slice.Step != null)
-        {
-            return LinqExpression.Call(
-                GetSliceStepMethod,
-                target,
-                start,
-                end,
-                EmitHelpers.AsObject(Emit(slice.Step)));
-        }
-
-        return LinqExpression.Call(
-            GetSliceMethod,
-            target,
-            start,
-            end);
-    }
 }

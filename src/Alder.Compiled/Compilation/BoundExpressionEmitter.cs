@@ -73,6 +73,11 @@ internal sealed partial class BoundExpressionEmitter
         _emissionCtx.Register(BoundNodeKind.OutArgument, new OutArgEmitter());
         _emissionCtx.Register(BoundNodeKind.DeconstructionAssignment, new DeconstructionEmitter());
         _emissionCtx.Register(BoundNodeKind.SpreadElement, new SpreadEmitter());
+        _emissionCtx.Register(BoundNodeKind.CheckedExpression, new CheckedEmitter(() => _isChecked, v => _isChecked = v));
+        _emissionCtx.Register(BoundNodeKind.ChainedComparisonOperator, new ChainedComparisonEmitter());
+        _emissionCtx.Register(BoundNodeKind.RangeExpression, new RangeEmitter());
+        _emissionCtx.Register(BoundNodeKind.FromEndIndexExpression, new IndexFromEndEmitter());
+        _emissionCtx.Register(BoundNodeKind.SliceExpression, new SliceEmitter());
     }
 
     public LinqExpression EmitRoot(BoundExpr expr)
@@ -184,9 +189,6 @@ internal sealed partial class BoundExpressionEmitter
             BoundNodeKind.ReturnStatement => EmitReturn((BoundReturnExpr)expr),
             BoundNodeKind.SwitchStatement => EmitSwitchStatement((BoundSwitchStatementExpr)expr),
             BoundNodeKind.SwitchExpression => EmitSwitchExpression((BoundSwitchExpressionExpr)expr),
-            BoundNodeKind.CheckedExpression => EmitChecked((BoundCheckedExpr)expr),
-            BoundNodeKind.ChainedComparisonOperator => EmitChainedComparison((BoundChainedComparisonExpr)expr),
-            BoundNodeKind.RangeExpression => EmitRange((BoundRangeExpr)expr),
             BoundNodeKind.VariableDeclaration => EmitVariableDecl((BoundVariableDeclExpr)expr),
             BoundNodeKind.AssignmentOperator => EmitAssign((BoundAssignExpr)expr),
             BoundNodeKind.NullCoalescingAssignmentOperator => EmitNullCoalesceAssign((BoundNullCoalesceAssignExpr)expr),
@@ -202,8 +204,6 @@ internal sealed partial class BoundExpressionEmitter
             BoundNodeKind.IndexIncrement => EmitIndexIncrement((BoundIndexIncrementExpr)expr),
             BoundNodeKind.ResolvedIndexAccess => EmitIndexAccess((BoundResolvedIndexAccessExpr)expr),
             BoundNodeKind.DynamicIndexAccess => EmitDynamicIndexAccess((BoundDynamicIndexAccessExpr)expr),
-            BoundNodeKind.FromEndIndexExpression => EmitIndexFromEnd((BoundIndexFromEndExpr)expr),
-            BoundNodeKind.SliceExpression => EmitSlice((BoundSliceExpr)expr),
             BoundNodeKind.ResolvedCall => EmitCall((BoundResolvedCallExpr)expr),
             BoundNodeKind.DynamicCall => EmitInvoke((BoundDynamicCallExpr)expr),
             _ => throw new BindingNotSupportedException(
