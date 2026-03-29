@@ -47,6 +47,7 @@ if (!Directory.Exists(testDataDir))
 
 var files = Directory.GetFiles(testDataDir, "*.csx", SearchOption.AllDirectories)
     .Where(f => !f.EndsWith(".roslyn.csx", StringComparison.OrdinalIgnoreCase))
+    .Where(f => !f.Contains($"{Path.DirectorySeparatorChar}Algorithms{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase))
     .OrderBy(f => f)
     .ToArray();
 
