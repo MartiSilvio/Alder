@@ -50,6 +50,11 @@ internal sealed partial class BoundExpressionEmitter
         _emissionCtx.Register(BoundNodeKind.LogicalOperator, new LogicalEmitter());
         _emissionCtx.Register(BoundNodeKind.NullCoalescingOperator, new NullCoalesceEmitter());
         _emissionCtx.Register(BoundNodeKind.ConditionalOperator, new ConditionalEmitter());
+        var memberEmitter = new MemberAccessEmitter();
+        _emissionCtx.Register<BoundPropertyAccessExpr>(BoundNodeKind.PropertyAccess, memberEmitter);
+        _emissionCtx.Register<BoundFieldAccessExpr>(BoundNodeKind.FieldAccess, memberEmitter);
+        _emissionCtx.Register<BoundMethodGroupExpr>(BoundNodeKind.MethodGroup, memberEmitter);
+        _emissionCtx.Register<BoundDynamicMemberAccessExpr>(BoundNodeKind.DynamicMemberAccess, memberEmitter);
     }
 
     public LinqExpression EmitRoot(BoundExpr expr)
@@ -69,6 +74,11 @@ internal sealed partial class BoundExpressionEmitter
 
         _emissionCtx.PromotedLocals = _promotedLocals;
         _emissionCtx.HoistedIdentifiers = _hoistedIdentifiers;
+        _emissionCtx.TryEmitPostfixChain = node =>
+        {
+            var chain = PostfixChain.TryCollect(node);
+            return chain != null ? EmitPostfixChain(chain.Value) : null;
+        };
 
         try
         {
@@ -172,10 +182,6 @@ internal sealed partial class BoundExpressionEmitter
             BoundNodeKind.IndexNullCoalesceAssignment => EmitIndexNullCoalesceAssign((BoundIndexNullCoalesceAssignExpr)expr),
             BoundNodeKind.MemberIncrement => EmitMemberIncrement((BoundMemberIncrementExpr)expr),
             BoundNodeKind.IndexIncrement => EmitIndexIncrement((BoundIndexIncrementExpr)expr),
-            BoundNodeKind.PropertyAccess => EmitPropertyAccess((BoundPropertyAccessExpr)expr),
-            BoundNodeKind.FieldAccess => EmitFieldAccess((BoundFieldAccessExpr)expr),
-            BoundNodeKind.MethodGroup => EmitMethodGroup((BoundMethodGroupExpr)expr),
-            BoundNodeKind.DynamicMemberAccess => EmitDynamicMemberAccess((BoundDynamicMemberAccessExpr)expr),
             BoundNodeKind.ResolvedIndexAccess => EmitIndexAccess((BoundResolvedIndexAccessExpr)expr),
             BoundNodeKind.DynamicIndexAccess => EmitDynamicIndexAccess((BoundDynamicIndexAccessExpr)expr),
             BoundNodeKind.ObjectCreationExpression => EmitObjectCreation((BoundObjectCreationExpr)expr),

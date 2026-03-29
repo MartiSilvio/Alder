@@ -1,6 +1,7 @@
 using System.Linq.Expressions;
 using Alder.Binding;
 using Alder.Binding.BoundNodes;
+using Alder.Binding.BoundNodes;
 
 namespace Alder.Compiled.Compilation.Emission;
 
@@ -68,6 +69,8 @@ internal sealed class EmissionContext
     }
 
     public Expression EmitBoxed(BoundExpr expr) => EmitAs(expr, typeof(object));
+
+    internal Func<BoundMemberAccessBase, Expression?>? TryEmitPostfixChain { get; set; }
 
     public Expression EmitBoolCondition(BoundExpr condition)
     {
