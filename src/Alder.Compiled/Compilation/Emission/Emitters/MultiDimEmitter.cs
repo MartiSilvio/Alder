@@ -88,7 +88,7 @@ internal sealed class MultiDimEmitter :
         if (!node.NullSafe)
         {
             var typedTarget = EmitHelpers.EnsureTypedExpression(ctx.Emit(node.Target), node.TargetType);
-            return EmitHelpers.AsObject(LinqExpression.Call(typedTarget, getMethod, intIndices));
+            return LinqExpression.Call(typedTarget, getMethod, intIndices);
         }
 
         var targetVar = LinqExpression.Variable(typeof(object), "mdTarget");
@@ -114,7 +114,7 @@ internal sealed class MultiDimEmitter :
             emittedIndices[i] = EmitHelpers.EnsureTypedExpression(ctx.Emit(node.Indices[i]), indexParams[i].ParameterType);
 
         var typedTarget = EmitHelpers.EnsureTypedExpression(ctx.Emit(node.Target), node.TargetType);
-        return EmitHelpers.AsObject(LinqExpression.Property(typedTarget, indexer, emittedIndices));
+        return LinqExpression.Property(typedTarget, indexer, emittedIndices);
     }
 
     private static Expression EmitArraySet(BoundMultiDimIndexAssignExpr node, MethodInfo setMethod, EmissionContext ctx)

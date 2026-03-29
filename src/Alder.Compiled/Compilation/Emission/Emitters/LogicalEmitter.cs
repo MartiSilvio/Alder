@@ -35,24 +35,22 @@ internal sealed class LogicalEmitter : INodeEmitter<BoundLogicalExpr>
             EmitHelpers.AsObject(leftCandidate),
             LinqExpression.Constant(opLexeme),
             LinqExpression.Constant(EmitHelpers.GetBoundTypeName(node.Right)));
-        var rightBoolAsObject = LinqExpression.Convert(
-            LinqExpression.Call(
+        var rightBool = LinqExpression.Call(
                 RequireBooleanForLogicalOperatorMethod,
                 EmitHelpers.AsObject(rightCandidate),
                 LinqExpression.Constant(opLexeme),
-                LinqExpression.Constant(EmitHelpers.GetBoundTypeName(node.Left))),
-            typeof(object));
+                LinqExpression.Constant(EmitHelpers.GetBoundTypeName(node.Left)));
 
         return node.Operator switch
         {
             TokenType.PipePipe => LinqExpression.Condition(
                 leftBool,
-                LinqExpression.Constant(true, typeof(object)),
-                rightBoolAsObject),
+                LinqExpression.Constant(true),
+                rightBool),
             TokenType.AmpAmp => LinqExpression.Condition(
                 leftBool,
-                rightBoolAsObject,
-                LinqExpression.Constant(false, typeof(object))),
+                rightBool,
+                LinqExpression.Constant(false)),
             _ => throw new BindingNotSupportedException($"Unsupported bound logical operator '{node.Operator}'")
         };
     }

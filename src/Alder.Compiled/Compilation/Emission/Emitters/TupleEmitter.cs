@@ -46,6 +46,6 @@ internal sealed class TupleEmitter : INodeEmitter<BoundTupleExpr>
         for (var i = 0; i < args.Length; i++)
             args[i] = EmitHelpers.EnsureTypedExpression(ctx.Emit(node.Elements[i]), elementTypes[i]);
 
-        return LinqExpression.Convert(LinqExpression.New(ctor, args), typeof(object));
+        return LinqExpression.New(ctor, args);
     }
 }

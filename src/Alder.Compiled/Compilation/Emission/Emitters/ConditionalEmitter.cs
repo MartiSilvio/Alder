@@ -20,8 +20,8 @@ internal sealed class ConditionalEmitter : INodeEmitter<BoundConditionalExpr>
         if (TryEmitTyped(node, condition, thenCandidate, elseCandidate, out var typed))
             return typed;
 
-        if (thenCandidate.Type == elseCandidate.Type && thenCandidate.Type != typeof(object))
-            return EmitHelpers.AsObject(LinqExpression.Condition(condition, thenCandidate, elseCandidate));
+        if (thenCandidate.Type == elseCandidate.Type)
+            return LinqExpression.Condition(condition, thenCandidate, elseCandidate);
 
         return LinqExpression.Condition(
             condition,

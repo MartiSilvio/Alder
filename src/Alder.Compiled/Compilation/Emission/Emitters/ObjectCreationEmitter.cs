@@ -69,9 +69,9 @@ internal sealed class ObjectCreationEmitter : INodeEmitter<BoundObjectCreationEx
         {
             var defaultCtor = type.GetConstructor(Type.EmptyTypes);
             if (defaultCtor != null)
-                return LinqExpression.Convert(LinqExpression.New(defaultCtor), typeof(object));
+                return LinqExpression.New(defaultCtor);
             if (type.IsValueType)
-                return LinqExpression.Convert(LinqExpression.New(type), typeof(object));
+                return LinqExpression.New(type);
         }
 
         var argTypes = new Type[node.Arguments.Length];
@@ -92,6 +92,6 @@ internal sealed class ObjectCreationEmitter : INodeEmitter<BoundObjectCreationEx
         for (var i = 0; i < args.Length; i++)
             args[i] = EmitHelpers.EnsureTypedExpression(ctx.Emit(node.Arguments[i]), ctorParams[i].ParameterType);
 
-        return LinqExpression.Convert(LinqExpression.New(ctor, args), typeof(object));
+        return LinqExpression.New(ctor, args);
     }
 }

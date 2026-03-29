@@ -24,6 +24,6 @@ internal sealed class ArrayAllocEmitter : INodeEmitter<BoundArrayAllocationExpr>
 
         var sizeExprs = node.Sizes.Select(
             size => EmitHelpers.EnsureTypedExpression(ctx.Emit(size), typeof(int)));
-        return EmitHelpers.AsObject(LinqExpression.NewArrayBounds(node.ElementType, sizeExprs));
+        return LinqExpression.NewArrayBounds(node.ElementType, sizeExprs);
     }
 }

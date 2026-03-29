@@ -13,21 +13,17 @@ internal sealed class IsPatternEmitter : INodeEmitter<BoundIsPatternExpr>
         if (node.Pattern is TypePattern { VariableName: null } typePattern
             && TypeResolver.TryResolveKeywordType(typePattern.TypeToken.Lexeme, out var resolvedType))
         {
-            return LinqExpression.Convert(
-                LinqExpression.TypeIs(
-                    EmitHelpers.AsObject(ctx.Emit(node.Expression)),
-                    resolvedType),
-                typeof(object));
+            return LinqExpression.TypeIs(
+                EmitHelpers.AsObject(ctx.Emit(node.Expression)),
+                resolvedType);
         }
 
-        return LinqExpression.Convert(
-            LinqExpression.Call(
-                MatchPatternMethod,
-                EmitHelpers.AsObject(ctx.Emit(node.Expression)),
-                LinqExpression.Constant(node.Pattern, typeof(Pattern)),
-                ctx.ContextParam,
-                ctx.ConfigParam,
-                ctx.CancellationTokenParam),
-            typeof(object));
+        return LinqExpression.Call(
+            MatchPatternMethod,
+            EmitHelpers.AsObject(ctx.Emit(node.Expression)),
+            LinqExpression.Constant(node.Pattern, typeof(Pattern)),
+            ctx.ContextParam,
+            ctx.ConfigParam,
+            ctx.CancellationTokenParam);
     }
 }
