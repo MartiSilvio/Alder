@@ -24,11 +24,33 @@ internal sealed partial class BoundExpressionEmitter
     private readonly ParameterExpression _constraintStateParam;
     private readonly ParameterExpression _ctParam;
     private readonly Emission.EmissionContext _emissionCtx;
-    private bool _isChecked;
-    private int _loopDepth;
-    private int _switchDepth;
-    private int _catchDepth;
+
+    private bool _isChecked
+    {
+        get => _emissionCtx.IsChecked;
+        set => _emissionCtx.IsChecked = value;
+    }
+
+    private int _loopDepth
+    {
+        get => _emissionCtx.LoopDepth;
+        set => _emissionCtx.LoopDepth = value;
+    }
+
+    private int _switchDepth
+    {
+        get => _emissionCtx.SwitchDepth;
+        set => _emissionCtx.SwitchDepth = value;
+    }
+
+    private int _catchDepth
+    {
+        get => _emissionCtx.CatchDepth;
+        set => _emissionCtx.CatchDepth = value;
+    }
+
     private Dictionary<string, Emission.HoistedIdentifier>? _hoistedIdentifiers;
+
     public BoundExpressionEmitter(
         ParameterExpression contextParam,
         ParameterExpression configParam,
@@ -39,7 +61,7 @@ internal sealed partial class BoundExpressionEmitter
         _configParam = configParam;
         _constraintStateParam = constraintStateParam;
         _ctParam = ctParam;
-        _emissionCtx = new EmissionContext(contextParam, configParam, constraintStateParam, ctParam, Emit, () => _isChecked) { GetCatchDepth = () => _catchDepth };
+        _emissionCtx = new EmissionContext(contextParam, configParam, constraintStateParam, ctParam, Emit);
         _emissionCtx.Register(BoundNodeKind.Literal, new LiteralEmitter());
         _emissionCtx.Register(BoundNodeKind.Identifier, new IdentifierEmitter());
         _emissionCtx.Register(BoundNodeKind.Conversion, new CastEmitter());
@@ -61,8 +83,10 @@ internal sealed partial class BoundExpressionEmitter
         _emissionCtx.Register(BoundNodeKind.ThrowExpression, new ThrowEmitter());
         var multiDimEmitter = new MultiDimEmitter();
         _emissionCtx.Register<BoundMultiDimArrayInitExpr>(BoundNodeKind.MultiDimArrayInit, multiDimEmitter);
-        _emissionCtx.Register<BoundResolvedMultiDimIndexAccessExpr>(BoundNodeKind.ResolvedMultiDimIndexAccess, multiDimEmitter);
-        _emissionCtx.Register<BoundDynamicMultiDimIndexAccessExpr>(BoundNodeKind.DynamicMultiDimIndexAccess, multiDimEmitter);
+        _emissionCtx.Register<BoundResolvedMultiDimIndexAccessExpr>(BoundNodeKind.ResolvedMultiDimIndexAccess,
+            multiDimEmitter);
+        _emissionCtx.Register<BoundDynamicMultiDimIndexAccessExpr>(BoundNodeKind.DynamicMultiDimIndexAccess,
+            multiDimEmitter);
         _emissionCtx.Register<BoundMultiDimIndexAssignExpr>(BoundNodeKind.MultiDimIndexAssignment, multiDimEmitter);
         _emissionCtx.Register(BoundNodeKind.CollectionCreation, new CollectionCreationEmitter());
         _emissionCtx.Register(BoundNodeKind.ObjectLiteral, new ObjectLiteralEmitter());
@@ -73,7 +97,7 @@ internal sealed partial class BoundExpressionEmitter
         _emissionCtx.Register(BoundNodeKind.OutArgument, new OutArgEmitter());
         _emissionCtx.Register(BoundNodeKind.DeconstructionAssignment, new DeconstructionEmitter());
         _emissionCtx.Register(BoundNodeKind.SpreadElement, new SpreadEmitter());
-        _emissionCtx.Register(BoundNodeKind.CheckedExpression, new CheckedEmitter(() => _isChecked, v => _isChecked = v));
+        _emissionCtx.Register(BoundNodeKind.CheckedExpression, new CheckedEmitter());
         _emissionCtx.Register(BoundNodeKind.ChainedComparisonOperator, new ChainedComparisonEmitter());
         _emissionCtx.Register(BoundNodeKind.RangeExpression, new RangeEmitter());
         _emissionCtx.Register(BoundNodeKind.FromEndIndexExpression, new IndexFromEndEmitter());
@@ -198,8 +222,10 @@ internal sealed partial class BoundExpressionEmitter
             BoundNodeKind.IndexAssignment => EmitIndexAssign((BoundIndexAssignExpr)expr),
             BoundNodeKind.MemberCompoundAssignment => EmitMemberCompoundAssign((BoundMemberCompoundAssignExpr)expr),
             BoundNodeKind.IndexCompoundAssignment => EmitIndexCompoundAssign((BoundIndexCompoundAssignExpr)expr),
-            BoundNodeKind.MemberNullCoalesceAssignment => EmitMemberNullCoalesceAssign((BoundMemberNullCoalesceAssignExpr)expr),
-            BoundNodeKind.IndexNullCoalesceAssignment => EmitIndexNullCoalesceAssign((BoundIndexNullCoalesceAssignExpr)expr),
+            BoundNodeKind.MemberNullCoalesceAssignment => EmitMemberNullCoalesceAssign(
+                (BoundMemberNullCoalesceAssignExpr)expr),
+            BoundNodeKind.IndexNullCoalesceAssignment => EmitIndexNullCoalesceAssign(
+                (BoundIndexNullCoalesceAssignExpr)expr),
             BoundNodeKind.MemberIncrement => EmitMemberIncrement((BoundMemberIncrementExpr)expr),
             BoundNodeKind.IndexIncrement => EmitIndexIncrement((BoundIndexIncrementExpr)expr),
             BoundNodeKind.ResolvedIndexAccess => EmitIndexAccess((BoundResolvedIndexAccessExpr)expr),
@@ -258,6 +284,7 @@ internal sealed partial class BoundExpressionEmitter
                         if (!CanHoistIdentifiers(current.Right, usage)) return false;
                         current = left;
                     }
+
                     return CanHoistIdentifiers(current.Left, usage) && CanHoistIdentifiers(current.Right, usage);
                 }
 
@@ -269,6 +296,7 @@ internal sealed partial class BoundExpressionEmitter
                         if (!CanHoistIdentifiers(current.Right, usage)) return false;
                         current = left;
                     }
+
                     return CanHoistIdentifiers(current.Left, usage) && CanHoistIdentifiers(current.Right, usage);
                 }
 
@@ -300,12 +328,15 @@ internal sealed partial class BoundExpressionEmitter
                         if (!CanHoistIdentifiers(current.Right, usage)) return false;
                         current = left;
                     }
+
                     return CanHoistIdentifiers(current.Left, usage) && CanHoistIdentifiers(current.Right, usage);
                 }
 
                 case BoundNodeKind.ConditionalOperator:
                     var conditional = (BoundConditionalExpr)expr;
-                    return CanHoistIdentifiers(conditional.Condition, usage) && CanHoistIdentifiers(conditional.ThenBranch, usage) && CanHoistIdentifiers(conditional.ElseBranch, usage);
+                    return CanHoistIdentifiers(conditional.Condition, usage) &&
+                           CanHoistIdentifiers(conditional.ThenBranch, usage) &&
+                           CanHoistIdentifiers(conditional.ElseBranch, usage);
 
                 default:
                     return false;

@@ -15,28 +15,25 @@ internal sealed class EmissionContext
     private readonly Func<BoundExpr, Expression> _legacyEmit;
     private readonly Dictionary<BoundNodeKind, Func<BoundExpr, EmissionContext, Expression>> _emitters = new();
 
-    private readonly Func<bool> _isCheckedAccessor;
-
     internal Dictionary<int, PromotedLocal>? PromotedLocals { get; set; }
     internal Dictionary<string, HoistedIdentifier>? HoistedIdentifiers { get; set; }
-    internal bool IsChecked => _isCheckedAccessor();
-    internal Func<int> GetCatchDepth { get; set; } = () => 0;
-    internal int CatchDepth => GetCatchDepth();
+    internal bool IsChecked { get; set; }
+    internal int LoopDepth { get; set; }
+    internal int SwitchDepth { get; set; }
+    internal int CatchDepth { get; set; }
 
     internal EmissionContext(
         ParameterExpression contextParam,
         ParameterExpression configParam,
         ParameterExpression constraintStateParam,
         ParameterExpression cancellationTokenParam,
-        Func<BoundExpr, Expression> legacyEmit,
-        Func<bool> isCheckedAccessor)
+        Func<BoundExpr, Expression> legacyEmit)
     {
         ContextParam = contextParam;
         ConfigParam = configParam;
         ConstraintStateParam = constraintStateParam;
         CancellationTokenParam = cancellationTokenParam;
         _legacyEmit = legacyEmit;
-        _isCheckedAccessor = isCheckedAccessor;
     }
 
     internal void Register<TNode>(BoundNodeKind kind, INodeEmitter<TNode> emitter) where TNode : BoundExpr

@@ -8,26 +8,17 @@ namespace Alder.Compiled.Compilation.Emission.Emitters;
 
 internal sealed class CheckedEmitter : INodeEmitter<BoundCheckedExpr>
 {
-    private readonly Action<bool> _setChecked;
-    private readonly Func<bool> _getChecked;
-
-    internal CheckedEmitter(Func<bool> getChecked, Action<bool> setChecked)
-    {
-        _getChecked = getChecked;
-        _setChecked = setChecked;
-    }
-
     public Expression Emit(BoundCheckedExpr node, EmissionContext ctx)
     {
-        var previous = _getChecked();
-        _setChecked(node.IsChecked);
+        var previous = ctx.IsChecked;
+        ctx.IsChecked = node.IsChecked;
         try
         {
             return ctx.Emit(node.Expression);
         }
         finally
         {
-            _setChecked(previous);
+            ctx.IsChecked = previous;
         }
     }
 }
