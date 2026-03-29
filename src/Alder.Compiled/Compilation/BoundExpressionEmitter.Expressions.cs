@@ -9,94 +9,6 @@ namespace Alder.Compiled.Compilation;
 
 internal sealed partial class BoundExpressionEmitter
 {
-    private static ConstantExpression EmitLiteral(BoundLiteralExpr literal)
-    {
-        if (literal.Value == null)
-            return LinqExpression.Constant(null, typeof(object));
-
-        return LinqExpression.Constant(literal.Value, literal.Value.GetType());
-    }
-
-    private LinqExpression EmitIdentifier(BoundIdentifierExpr identifier)
-    {
-        if (identifier.LocalId is { } localId &&
-            _promotedLocals != null &&
-            _promotedLocals.TryGetValue(localId, out var promoted))
-        {
-            return promoted.Variable;
-        }
-
-        if (_hoistedIdentifiers != null &&
-            _hoistedIdentifiers.TryGetValue(identifier.Name, out var hoisted))
-        {
-            return hoisted.Variable;
-        }
-
-        if (identifier.StaticType.ClrType != typeof(object) && !TypeHelpers.IsValueTupleType(identifier.StaticType.ClrType))
-        {
-            return LinqExpression.Call(
-                _contextParam,
-                GetVariableTypedMethodFor(identifier.StaticType.ClrType),
-                LinqExpression.Constant(identifier.Name));
-        }
-
-        return LinqExpression.Call(
-            ResolveIdentifierMethod,
-            LinqExpression.Constant(identifier.Name),
-            _contextParam,
-            _configParam);
-    }
-
-    private LinqExpression EmitCast(BoundCastExpr cast)
-    {
-        var sourceType = cast.Expression.StaticType.ClrType;
-        var targetType = cast.TargetType;
-
-        if (sourceType != typeof(object) && !sourceType.IsEnum && !targetType.IsEnum)
-        {
-            if ((TypeHelpers.IsArithmetic(sourceType) || sourceType == typeof(bool)) &&
-                (TypeHelpers.IsArithmetic(targetType) || targetType == typeof(bool)))
-            {
-                var operand = Emit(cast.Expression);
-                operand = EmitHelpers.EnsureTypedExpression(operand, sourceType);
-                return _isChecked
-                    ? LinqExpression.ConvertChecked(operand, targetType)
-                    : LinqExpression.Convert(operand, targetType);
-            }
-
-            if (!targetType.IsValueType && sourceType != typeof(LambdaValue))
-            {
-                var operand = Emit(cast.Expression);
-                operand = EmitHelpers.EnsureTypedExpression(operand, sourceType);
-                return LinqExpression.Convert(operand, targetType);
-            }
-        }
-
-        return LinqExpression.Call(
-            ExplicitCastMethod,
-            EmitHelpers.AsObject(Emit(cast.Expression)),
-            LinqExpression.Constant(cast.TargetType, typeof(Type)),
-            cast.SourceStaticType == null
-                ? LinqExpression.Constant(null, typeof(Type))
-                : LinqExpression.Constant(cast.SourceStaticType, typeof(Type)),
-            LinqExpression.Constant(_isChecked));
-    }
-
-    private LinqExpression EmitAs(BoundAsExpr asExpr)
-    {
-        if (!asExpr.TargetType.IsValueType)
-        {
-            var operand = Emit(asExpr.Expression);
-            operand = EmitHelpers.AsObject(operand);
-            return LinqExpression.TypeAs(operand, asExpr.TargetType);
-        }
-
-        return LinqExpression.Call(
-            TryAsMethod,
-            EmitHelpers.AsObject(Emit(asExpr.Expression)),
-            LinqExpression.Constant(asExpr.TargetType, typeof(Type)));
-    }
-
     private LinqExpression EmitIsPattern(BoundIsPatternExpr isPattern)
     {
         if (isPattern.Pattern is TypePattern { VariableName: null } typePattern
@@ -138,35 +50,6 @@ internal sealed partial class BoundExpressionEmitter
         if (condition.StaticType.ClrType == typeof(bool) && emitted.Type == typeof(bool))
             return emitted;
         return LinqExpression.Call(RequireBooleanMethod, EmitHelpers.AsObject(emitted));
-    }
-
-    private LinqExpression EmitUnary(BoundUnaryExpr unary)
-    {
-        if (unary.PromotedType is { } promoted && !_isChecked)
-        {
-            var operand = EmitHelpers.EnsureTypedExpression(Emit(unary.Operand), unary.Operand.StaticType.ClrType);
-            if (operand.Type != promoted)
-                operand = LinqExpression.Convert(operand, promoted);
-
-            return unary.Operator switch
-            {
-                TokenType.Bang => LinqExpression.Not(operand),
-                TokenType.Tilde => LinqExpression.Not(operand),
-                TokenType.Minus => LinqExpression.Negate(operand),
-                TokenType.Plus => operand,
-                _ => throw new BindingNotSupportedException($"Unsupported bound unary operator '{unary.Operator}'")
-            };
-        }
-
-        var boxed = EmitHelpers.AsObject(Emit(unary.Operand));
-        return unary.Operator switch
-        {
-            TokenType.Minus => LinqExpression.Call(NegateMethod, boxed, LinqExpression.Constant(_isChecked)),
-            TokenType.Plus => LinqExpression.Call(UnaryPlusMethod, boxed),
-            TokenType.Bang => LinqExpression.Call(LogicalNotMethod, boxed),
-            TokenType.Tilde => LinqExpression.Call(BitwiseNotMethod, boxed),
-            _ => throw new BindingNotSupportedException($"Unsupported bound unary operator '{unary.Operator}'")
-        };
     }
 
     private LinqExpression EmitBinary(BoundBinaryExpr binary)

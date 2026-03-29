@@ -6,11 +6,9 @@ namespace Alder.Compiled.Compilation;
 
 internal sealed partial class BoundExpressionEmitter
 {
-    private Dictionary<int, PromotedLocal>? _promotedLocals;
+    private Dictionary<int, Emission.PromotedLocal>? _promotedLocals;
 
-    private sealed record PromotedLocal(string Name, ParameterExpression Variable, Type VariableType);
-
-    private bool TryGetPromoted(int? localId, out PromotedLocal promoted)
+    private bool TryGetPromoted(int? localId, out Emission.PromotedLocal promoted)
     {
         if (localId is { } id && _promotedLocals != null && _promotedLocals.TryGetValue(id, out promoted!))
             return true;
@@ -18,13 +16,13 @@ internal sealed partial class BoundExpressionEmitter
         return false;
     }
 
-    private static Dictionary<int, PromotedLocal> BuildLocalPromotionPlan(BoundExpr root)
+    private static Dictionary<int, Emission.PromotedLocal> BuildLocalPromotionPlan(BoundExpr root)
     {
         var walker = new PromotionWalker();
         walker.Walk(root);
 
         if (walker.HasLambda)
-            return new Dictionary<int, PromotedLocal>();
+            return new Dictionary<int, Emission.PromotedLocal>();
 
         // If the same variable name appears in multiple declarations (different LocalIds),
         // the runtime would reject it via DefineNew's duplicate check. We must let the
@@ -52,7 +50,7 @@ internal sealed partial class BoundExpressionEmitter
 
     private sealed class PromotionWalker : BoundExprWalker
     {
-        internal readonly Dictionary<int, PromotedLocal> Result = new();
+        internal readonly Dictionary<int, Emission.PromotedLocal> Result = new();
         internal bool HasLambda;
 
         protected override bool OnVisit(BoundExpr node)
@@ -69,7 +67,7 @@ internal sealed partial class BoundExpressionEmitter
                 && !decl.IsConst && decl.StaticType.ClrType != typeof(object) && decl.LocalId is { } id)
             {
                 var variableType = decl.DeclaredType ?? decl.StaticType.ClrType;
-                Result[id] = new PromotedLocal(
+                Result[id] = new Emission.PromotedLocal(
                     decl.Name,
                     LinqExpression.Variable(typeof(object), $"local_{decl.Name}"),
                     variableType);

@@ -395,7 +395,7 @@ internal sealed partial class BoundExpressionEmitter
 
     private bool TryEmitPureCompoundAssign(
         BoundCompoundAssignExpr compoundAssign,
-        PromotedLocal promoted,
+        Emission.PromotedLocal promoted,
         out LinqExpression result)
     {
         result = null!;
@@ -442,7 +442,7 @@ internal sealed partial class BoundExpressionEmitter
 
     private bool TryEmitPureIncrementDecrement(
         BoundIncrementDecrementExpr incrementDecrement,
-        PromotedLocal promoted,
+        Emission.PromotedLocal promoted,
         out LinqExpression result)
     {
         result = null!;

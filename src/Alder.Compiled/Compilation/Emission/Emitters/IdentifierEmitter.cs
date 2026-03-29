@@ -1,0 +1,39 @@
+using System.Linq.Expressions;
+using Alder.Binding.BoundNodes;
+using Alder.Runtime;
+using static Alder.Compiled.Compilation.BoundRuntimeMethodCache;
+
+namespace Alder.Compiled.Compilation.Emission.Emitters;
+
+internal sealed class IdentifierEmitter : INodeEmitter<BoundIdentifierExpr>
+{
+    public Expression Emit(BoundIdentifierExpr node, EmissionContext ctx)
+    {
+        if (node.LocalId is { } localId &&
+            ctx.PromotedLocals != null &&
+            ctx.PromotedLocals.TryGetValue(localId, out var promoted))
+        {
+            return promoted.Variable;
+        }
+
+        if (ctx.HoistedIdentifiers != null &&
+            ctx.HoistedIdentifiers.TryGetValue(node.Name, out var hoisted))
+        {
+            return hoisted.Variable;
+        }
+
+        if (node.StaticType.ClrType != typeof(object) && !TypeHelpers.IsValueTupleType(node.StaticType.ClrType))
+        {
+            return Expression.Call(
+                ctx.ContextParam,
+                GetVariableTypedMethodFor(node.StaticType.ClrType),
+                Expression.Constant(node.Name));
+        }
+
+        return Expression.Call(
+            ResolveIdentifierMethod,
+            Expression.Constant(node.Name),
+            ctx.ContextParam,
+            ctx.ConfigParam);
+    }
+}

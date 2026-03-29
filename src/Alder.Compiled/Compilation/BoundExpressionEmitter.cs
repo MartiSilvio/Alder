@@ -21,11 +21,12 @@ internal sealed partial class BoundExpressionEmitter
     private readonly ParameterExpression _configParam;
     private readonly ParameterExpression _constraintStateParam;
     private readonly ParameterExpression _ctParam;
+    private readonly Emission.EmissionContext _emissionCtx;
     private bool _isChecked;
     private int _loopDepth;
     private int _switchDepth;
     private int _catchDepth;
-    private Dictionary<string, HoistedIdentifier>? _hoistedIdentifiers;
+    private Dictionary<string, Emission.HoistedIdentifier>? _hoistedIdentifiers;
     public BoundExpressionEmitter(
         ParameterExpression contextParam,
         ParameterExpression configParam,
@@ -36,6 +37,12 @@ internal sealed partial class BoundExpressionEmitter
         _configParam = configParam;
         _constraintStateParam = constraintStateParam;
         _ctParam = ctParam;
+        _emissionCtx = new Emission.EmissionContext(contextParam, configParam, constraintStateParam, ctParam, Emit, () => _isChecked);
+        _emissionCtx.Register(BoundNodeKind.Literal, new Emission.Emitters.LiteralEmitter());
+        _emissionCtx.Register(BoundNodeKind.Identifier, new Emission.Emitters.IdentifierEmitter());
+        _emissionCtx.Register(BoundNodeKind.Conversion, new Emission.Emitters.CastEmitter());
+        _emissionCtx.Register(BoundNodeKind.AsOperator, new Emission.Emitters.AsEmitter());
+        _emissionCtx.Register(BoundNodeKind.UnaryOperator, new Emission.Emitters.UnaryEmitter());
     }
 
     public LinqExpression EmitRoot(BoundExpr expr)
@@ -52,6 +59,9 @@ internal sealed partial class BoundExpressionEmitter
 
         if (hoists.Count > 0)
             _hoistedIdentifiers = hoists;
+
+        _emissionCtx.PromotedLocals = _promotedLocals;
+        _emissionCtx.HoistedIdentifiers = _hoistedIdentifiers;
 
         try
         {
@@ -116,14 +126,12 @@ internal sealed partial class BoundExpressionEmitter
             throw new BindingNotSupportedException(
                 expr.Diagnostic?.Message ?? "Cannot emit expression with binding errors");
 
+        if (_emissionCtx.TryEmit(expr, out var result))
+            return result;
+
         return expr.Kind switch
         {
-            BoundNodeKind.Literal => EmitLiteral((BoundLiteralExpr)expr),
-            BoundNodeKind.Identifier => EmitIdentifier((BoundIdentifierExpr)expr),
-            BoundNodeKind.Conversion => EmitCast((BoundCastExpr)expr),
-            BoundNodeKind.AsOperator => EmitAs((BoundAsExpr)expr),
             BoundNodeKind.IsPatternExpression => EmitIsPattern((BoundIsPatternExpr)expr),
-            BoundNodeKind.UnaryOperator => EmitUnary((BoundUnaryExpr)expr),
             BoundNodeKind.BinaryOperator => EmitBinary((BoundBinaryExpr)expr),
             BoundNodeKind.LogicalOperator => EmitLogical((BoundLogicalExpr)expr),
             BoundNodeKind.NullCoalescingOperator => EmitNullCoalesce((BoundNullCoalesceExpr)expr),
@@ -194,19 +202,19 @@ internal sealed partial class BoundExpressionEmitter
         };
     }
 
-    private static Dictionary<string, HoistedIdentifier> BuildIdentifierHoistPlan(BoundExpr root)
+    private static Dictionary<string, Emission.HoistedIdentifier> BuildIdentifierHoistPlan(BoundExpr root)
     {
         var usage = new Dictionary<string, (Type Type, int Count)>(StringComparer.Ordinal);
         if (!CanHoistIdentifiers(root, usage))
-            return new Dictionary<string, HoistedIdentifier>(StringComparer.Ordinal);
+            return new Dictionary<string, Emission.HoistedIdentifier>(StringComparer.Ordinal);
 
-        var hoists = new Dictionary<string, HoistedIdentifier>(StringComparer.Ordinal);
+        var hoists = new Dictionary<string, Emission.HoistedIdentifier>(StringComparer.Ordinal);
         foreach (var (name, entry) in usage)
         {
             if (entry.Count <= 1)
                 continue;
 
-            hoists[name] = new HoistedIdentifier(
+            hoists[name] = new Emission.HoistedIdentifier(
                 entry.Type,
                 LinqExpression.Variable(entry.Type, $"cached_{name.Replace('.', '_')}"));
         }
@@ -296,7 +304,6 @@ internal sealed partial class BoundExpressionEmitter
         }
     }
 
-    private sealed record HoistedIdentifier(Type Type, ParameterExpression Variable);
 
     private LinqExpression ResolveTypeByName(string typeName)
     {
