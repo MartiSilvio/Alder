@@ -150,15 +150,12 @@ internal static class EmitHelpers
 
     internal static string GetBoundTypeName(BoundExpr expr)
     {
-        if (expr is BoundLiteralExpr { Value: null })
-            return TypeNameFormatter.Null;
-
-        if (expr is BoundLiteralExpr { Value: { } value })
-            return value.GetType().Name;
-
-        return expr.StaticType.ClrType == typeof(object)
-            ? "unknown"
-            : expr.StaticType.ClrType.Name;
+        return expr switch
+        {
+            BoundLiteralExpr { Value: null } => TypeNameFormatter.Null,
+            BoundLiteralExpr { Value: { } value } => value.GetType().Name,
+            _ => expr.StaticType.ClrType == typeof(object) ? "unknown" : expr.StaticType.ClrType.Name
+        };
     }
 
     internal static OutVariableBinding[] CollectOutBindings(ImmutableArray<BoundExpr> arguments)

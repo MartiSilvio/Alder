@@ -1,4 +1,3 @@
-using System.Linq.Expressions;
 using Alder.Binding.BoundNodes;
 using static Alder.Compiled.Compilation.BoundRuntimeMethodCache;
 
@@ -10,13 +9,13 @@ internal sealed class AsEmitter : INodeEmitter<BoundAsExpr>
     {
         if (!node.TargetType.IsValueType)
         {
-            var operand = EmitHelpers.AsObject(ctx.Emit(node.Expression));
+            var operand = ctx.EmitBoxed(node.Expression);
             return LinqExpression.TypeAs(operand, node.TargetType);
         }
 
         return LinqExpression.Call(
             TryAsMethod,
-            EmitHelpers.AsObject(ctx.Emit(node.Expression)),
+            ctx.EmitBoxed(node.Expression),
             LinqExpression.Constant(node.TargetType, typeof(Type)));
     }
 }

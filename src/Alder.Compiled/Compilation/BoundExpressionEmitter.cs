@@ -1,13 +1,9 @@
-using System.Collections.Immutable;
 using System.Linq.Expressions;
 using Alder.Binding;
 using Alder.Binding.BoundNodes;
 using Alder.Compiled.Compilation.Emission;
 using Alder.Compiled.Compilation.Emission.Emitters;
-using Alder.Diagnostics;
 using Alder.Interpretation;
-using Alder.Parsing;
-using Alder.Runtime;
 using static Alder.Compiled.Compilation.BoundRuntimeMethodCache;
 
 namespace Alder.Compiled.Compilation;
@@ -24,30 +20,6 @@ internal sealed partial class BoundExpressionEmitter
     private readonly ParameterExpression _constraintStateParam;
     private readonly ParameterExpression _ctParam;
     private readonly EmissionContext _emissionCtx;
-
-    private bool _isChecked
-    {
-        get => _emissionCtx.IsChecked;
-        set => _emissionCtx.IsChecked = value;
-    }
-
-    private int _loopDepth
-    {
-        get => _emissionCtx.LoopDepth;
-        set => _emissionCtx.LoopDepth = value;
-    }
-
-    private int _switchDepth
-    {
-        get => _emissionCtx.SwitchDepth;
-        set => _emissionCtx.SwitchDepth = value;
-    }
-
-    private int _catchDepth
-    {
-        get => _emissionCtx.CatchDepth;
-        set => _emissionCtx.CatchDepth = value;
-    }
 
     private Dictionary<string, HoistedIdentifier>? _hoistedIdentifiers;
 
@@ -108,6 +80,35 @@ internal sealed partial class BoundExpressionEmitter
         _emissionCtx.Register(BoundNodeKind.GotoStatement, new GotoEmitter());
         _emissionCtx.Register(BoundNodeKind.GotoCaseStatement, new GotoCaseEmitter());
         _emissionCtx.Register(BoundNodeKind.Block, new BlockEmitter());
+        _emissionCtx.Register(BoundNodeKind.IfStatement, new IfEmitter());
+        _emissionCtx.Register(BoundNodeKind.WhileStatement, new WhileEmitter());
+        _emissionCtx.Register(BoundNodeKind.ForStatement, new ForEmitter());
+        _emissionCtx.Register(BoundNodeKind.DoStatement, new DoWhileEmitter());
+        _emissionCtx.Register(BoundNodeKind.ForEachStatement, new ForEachEmitter());
+        _emissionCtx.Register(BoundNodeKind.UsingStatement, new UsingEmitter());
+        _emissionCtx.Register(BoundNodeKind.LockStatement, new LockEmitter());
+        _emissionCtx.Register(BoundNodeKind.TryStatement, new TryCatchEmitter());
+        _emissionCtx.Register(BoundNodeKind.GotoDefaultStatement, new GotoDefaultEmitter());
+        _emissionCtx.Register(BoundNodeKind.Label, new LabelEmitter());
+        _emissionCtx.Register(BoundNodeKind.SwitchStatement, new SwitchStatementEmitter());
+        _emissionCtx.Register(BoundNodeKind.SwitchExpression, new SwitchExpressionEmitter());
+        _emissionCtx.Register(BoundNodeKind.VariableDeclaration, new VariableDeclEmitter());
+        _emissionCtx.Register(BoundNodeKind.AssignmentOperator, new AssignEmitter());
+        _emissionCtx.Register(BoundNodeKind.NullCoalescingAssignmentOperator, new NullCoalesceAssignEmitter());
+        _emissionCtx.Register(BoundNodeKind.CompoundAssignmentOperator, new CompoundAssignEmitter());
+        _emissionCtx.Register(BoundNodeKind.IncrementOperator, new IncrementDecrementEmitter());
+        _emissionCtx.Register(BoundNodeKind.MemberAssignment, new MemberAssignEmitter());
+        _emissionCtx.Register(BoundNodeKind.IndexAssignment, new IndexAssignEmitter());
+        _emissionCtx.Register(BoundNodeKind.MemberCompoundAssignment, new MemberCompoundAssignEmitter());
+        _emissionCtx.Register(BoundNodeKind.IndexCompoundAssignment, new IndexCompoundAssignEmitter());
+        _emissionCtx.Register(BoundNodeKind.MemberNullCoalesceAssignment, new MemberNullCoalesceAssignEmitter());
+        _emissionCtx.Register(BoundNodeKind.IndexNullCoalesceAssignment, new IndexNullCoalesceAssignEmitter());
+        _emissionCtx.Register(BoundNodeKind.MemberIncrement, new MemberIncrementEmitter());
+        _emissionCtx.Register(BoundNodeKind.IndexIncrement, new IndexIncrementEmitter());
+        _emissionCtx.Register(BoundNodeKind.ResolvedIndexAccess, new ResolvedIndexAccessEmitter());
+        _emissionCtx.Register(BoundNodeKind.DynamicIndexAccess, new DynamicIndexAccessEmitter());
+        _emissionCtx.Register(BoundNodeKind.ResolvedCall, new ResolvedCallEmitter());
+        _emissionCtx.Register(BoundNodeKind.DynamicCall, new DynamicCallEmitter());
     }
 
     public LinqExpression EmitRoot(BoundExpr expr)
@@ -125,22 +126,30 @@ internal sealed partial class BoundExpressionEmitter
         if (hoists.Count > 0)
             _hoistedIdentifiers = hoists;
 
+        var signalParam = LinqExpression.Variable(typeof(ControlFlowSignal), "signal");
+        _emissionCtx.SignalParam = signalParam;
         _emissionCtx.PromotedLocals = _promotedLocals;
         _emissionCtx.HoistedIdentifiers = _hoistedIdentifiers;
         _emissionCtx.TryEmitPostfixChain = node =>
         {
             var chain = PostfixChain.TryCollect(node);
-            return chain != null ? EmitPostfixChain(chain.Value) : null;
+            return chain != null ? ResolvedCallEmitter.EmitPostfixChain(chain.Value, _emissionCtx) : null;
         };
 
         try
         {
-            var body = EmitUnwrapSignal(Emit(expr));
+            var emittedBody = Emit(expr);
+            var resultVar = LinqExpression.Variable(typeof(object), "rootResult");
+            var body = LinqExpression.Block(
+                typeof(object),
+                [resultVar],
+                LinqExpression.Assign(resultVar, EmitHelpers.AsObject(emittedBody)),
+                LinqExpression.IfThen(
+                    LinqExpression.NotEqual(signalParam, LinqExpression.Constant(null, typeof(ControlFlowSignal))),
+                    LinqExpression.Assign(resultVar, LinqExpression.Property(signalParam, ControlFlowValueProperty))),
+                resultVar);
 
-            if (_hoistedIdentifiers == null && _promotedLocals == null)
-                return body;
-
-            var allVariables = new List<ParameterExpression>();
+            var allVariables = new List<ParameterExpression> { signalParam };
             var prologueStatements = new List<LinqExpression>();
 
             if (_hoistedIdentifiers != null)
@@ -174,22 +183,6 @@ internal sealed partial class BoundExpressionEmitter
         }
     }
 
-    private static LinqExpression EmitUnwrapSignal(LinqExpression body)
-    {
-        var resultVar = LinqExpression.Variable(typeof(object), "rootResult");
-        var signalVar = LinqExpression.Variable(typeof(ControlFlowSignal), "rootSignal");
-        return LinqExpression.Block(
-            typeof(object),
-            [resultVar, signalVar],
-            LinqExpression.Assign(resultVar, EmitHelpers.AsObject(body)),
-            LinqExpression.IfThen(
-                LinqExpression.TypeIs(resultVar, typeof(ControlFlowSignal)),
-                LinqExpression.Block(
-                    LinqExpression.Assign(signalVar, LinqExpression.TypeAs(resultVar, typeof(ControlFlowSignal))),
-                    LinqExpression.Assign(resultVar, LinqExpression.Property(signalVar, ControlFlowValueProperty)))),
-            resultVar);
-    }
-
     private LinqExpression Emit(BoundExpr expr)
     {
         if (expr.HasErrors)
@@ -199,42 +192,8 @@ internal sealed partial class BoundExpressionEmitter
         if (_emissionCtx.TryEmit(expr, out var result))
             return result;
 
-        return expr.Kind switch
-        {
-            BoundNodeKind.IfStatement => EmitIfStatement((BoundIfStatementExpr)expr),
-            BoundNodeKind.WhileStatement => EmitWhile((BoundWhileExpr)expr),
-            BoundNodeKind.ForStatement => EmitFor((BoundForExpr)expr),
-            BoundNodeKind.DoStatement => EmitDoWhile((BoundDoWhileExpr)expr),
-            BoundNodeKind.ForEachStatement => EmitForEach((BoundForEachExpr)expr),
-            BoundNodeKind.UsingStatement => EmitUsingStatement((BoundUsingStatementExpr)expr),
-            BoundNodeKind.LockStatement => EmitLockStatement((BoundLockStatementExpr)expr),
-            BoundNodeKind.TryStatement => EmitTryCatchFinally((BoundTryCatchFinallyExpr)expr),
-            BoundNodeKind.GotoDefaultStatement => LinqExpression.Convert(LinqExpression.Field(null, ControlFlowGotoDefaultField), typeof(object)),
-            BoundNodeKind.Label => LinqExpression.Constant(null, typeof(object)),
-            BoundNodeKind.SwitchStatement => EmitSwitchStatement((BoundSwitchStatementExpr)expr),
-            BoundNodeKind.SwitchExpression => EmitSwitchExpression((BoundSwitchExpressionExpr)expr),
-            BoundNodeKind.VariableDeclaration => EmitVariableDecl((BoundVariableDeclExpr)expr),
-            BoundNodeKind.AssignmentOperator => EmitAssign((BoundAssignExpr)expr),
-            BoundNodeKind.NullCoalescingAssignmentOperator => EmitNullCoalesceAssign((BoundNullCoalesceAssignExpr)expr),
-            BoundNodeKind.CompoundAssignmentOperator => EmitCompoundAssign((BoundCompoundAssignExpr)expr),
-            BoundNodeKind.IncrementOperator => EmitIncrementDecrement((BoundIncrementDecrementExpr)expr),
-            BoundNodeKind.MemberAssignment => EmitMemberAssign((BoundMemberAssignExpr)expr),
-            BoundNodeKind.IndexAssignment => EmitIndexAssign((BoundIndexAssignExpr)expr),
-            BoundNodeKind.MemberCompoundAssignment => EmitMemberCompoundAssign((BoundMemberCompoundAssignExpr)expr),
-            BoundNodeKind.IndexCompoundAssignment => EmitIndexCompoundAssign((BoundIndexCompoundAssignExpr)expr),
-            BoundNodeKind.MemberNullCoalesceAssignment => EmitMemberNullCoalesceAssign(
-                (BoundMemberNullCoalesceAssignExpr)expr),
-            BoundNodeKind.IndexNullCoalesceAssignment => EmitIndexNullCoalesceAssign(
-                (BoundIndexNullCoalesceAssignExpr)expr),
-            BoundNodeKind.MemberIncrement => EmitMemberIncrement((BoundMemberIncrementExpr)expr),
-            BoundNodeKind.IndexIncrement => EmitIndexIncrement((BoundIndexIncrementExpr)expr),
-            BoundNodeKind.ResolvedIndexAccess => EmitIndexAccess((BoundResolvedIndexAccessExpr)expr),
-            BoundNodeKind.DynamicIndexAccess => EmitDynamicIndexAccess((BoundDynamicIndexAccessExpr)expr),
-            BoundNodeKind.ResolvedCall => EmitCall((BoundResolvedCallExpr)expr),
-            BoundNodeKind.DynamicCall => EmitInvoke((BoundDynamicCallExpr)expr),
-            _ => throw new BindingNotSupportedException(
-                $"Bound compiled emission not implemented for '{expr.GetType().Name}'")
-        };
+        throw new BindingNotSupportedException(
+            $"Bound compiled emission not implemented for '{expr.GetType().Name}'");
     }
 
     private static Dictionary<string, HoistedIdentifier> BuildIdentifierHoistPlan(BoundExpr root)
@@ -345,11 +304,4 @@ internal sealed partial class BoundExpressionEmitter
     }
 
 
-    private LinqExpression ResolveTypeByName(string typeName)
-    {
-        return LinqExpression.Call(
-            LinqExpression.Call(_contextParam, GetTypeResolverProperty),
-            ResolveTypeMethod,
-            LinqExpression.Constant(typeName));
-    }
 }

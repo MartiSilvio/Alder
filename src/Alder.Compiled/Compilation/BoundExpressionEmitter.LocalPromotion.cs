@@ -1,20 +1,12 @@
-using System.Linq.Expressions;
 using Alder.Binding;
 using Alder.Binding.BoundNodes;
+using Alder.Runtime;
 
 namespace Alder.Compiled.Compilation;
 
 internal sealed partial class BoundExpressionEmitter
 {
     private Dictionary<int, Emission.PromotedLocal>? _promotedLocals;
-
-    private bool TryGetPromoted(int? localId, out Emission.PromotedLocal promoted)
-    {
-        if (localId is { } id && _promotedLocals != null && _promotedLocals.TryGetValue(id, out promoted!))
-            return true;
-        promoted = null!;
-        return false;
-    }
 
     private static Dictionary<int, Emission.PromotedLocal> BuildLocalPromotionPlan(BoundExpr root)
     {
@@ -57,20 +49,23 @@ internal sealed partial class BoundExpressionEmitter
         {
             if (HasLambda) return false;
 
-            if (node is BoundLambdaExpr)
+            switch (node)
             {
-                HasLambda = true;
-                return false;
-            }
-
-            if (node is BoundVariableDeclExpr decl
-                && !decl.IsConst && decl.StaticType.ClrType != typeof(object) && decl.LocalId is { } id)
-            {
-                var variableType = decl.DeclaredType ?? decl.StaticType.ClrType;
-                Result[id] = new Emission.PromotedLocal(
-                    decl.Name,
-                    LinqExpression.Variable(typeof(object), $"local_{decl.Name}"),
-                    variableType);
+                case BoundLambdaExpr:
+                    HasLambda = true;
+                    return false;
+                case BoundVariableDeclExpr { IsConst: false } decl
+                    when decl.StaticType.ClrType != typeof(object) && decl.LocalId is { } id:
+                {
+                    var variableType = decl.DeclaredType ?? decl.StaticType.ClrType;
+                    var storageType = variableType.IsValueType && !TypeHelpers.IsValueTupleType(variableType)
+                        ? variableType : typeof(object);
+                    Result[id] = new Emission.PromotedLocal(
+                        decl.Name,
+                        LinqExpression.Variable(storageType, $"local_{decl.Name}"),
+                        variableType);
+                    break;
+                }
             }
 
             return true;

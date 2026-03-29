@@ -7,7 +7,7 @@ namespace Alder.Compiled.Compilation.Emission.Emitters;
 
 internal sealed class TupleEmitter : INodeEmitter<BoundTupleExpr>
 {
-    public Expression Emit(BoundTupleExpr node, EmissionContext ctx)
+    public LinqExpression Emit(BoundTupleExpr node, EmissionContext ctx)
     {
         var hasNames = node.ElementNames.Any(static n => n != null);
         if (!hasNames && TypeHelpers.IsValueTupleType(node.StaticType.ClrType) && node.Elements.Length <= 7)
@@ -18,7 +18,7 @@ internal sealed class TupleEmitter : INodeEmitter<BoundTupleExpr>
 
         var elements = LinqExpression.NewArrayInit(
             typeof(object),
-            node.Elements.Select(element => EmitHelpers.AsObject(ctx.Emit(element))));
+            node.Elements.Select(ctx.EmitBoxed));
 
         if (hasNames)
         {
@@ -34,7 +34,7 @@ internal sealed class TupleEmitter : INodeEmitter<BoundTupleExpr>
         return LinqExpression.Call(CreateTupleMethod, elements);
     }
 
-    private static Expression? TryEmitPure(BoundTupleExpr node, EmissionContext ctx)
+    private static NewExpression? TryEmitPure(BoundTupleExpr node, EmissionContext ctx)
     {
         var tupleType = node.StaticType.ClrType;
         var elementTypes = tupleType.GetGenericArguments();
@@ -42,7 +42,7 @@ internal sealed class TupleEmitter : INodeEmitter<BoundTupleExpr>
         if (ctor == null)
             return null;
 
-        var args = new Expression[node.Elements.Length];
+        var args = new LinqExpression[node.Elements.Length];
         for (var i = 0; i < args.Length; i++)
             args[i] = EmitHelpers.EnsureTypedExpression(ctx.Emit(node.Elements[i]), elementTypes[i]);
 

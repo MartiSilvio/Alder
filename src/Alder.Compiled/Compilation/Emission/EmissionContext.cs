@@ -1,6 +1,6 @@
 using System.Linq.Expressions;
 using Alder.Binding;
-using Alder.Binding.BoundNodes;
+using static Alder.Compiled.Compilation.BoundRuntimeMethodCache;
 
 namespace Alder.Compiled.Compilation.Emission;
 
@@ -16,6 +16,7 @@ internal sealed class EmissionContext
 
     internal Dictionary<int, PromotedLocal>? PromotedLocals { get; set; }
     internal Dictionary<string, HoistedIdentifier>? HoistedIdentifiers { get; set; }
+    internal ParameterExpression SignalParam { get; set; } = null!;
     internal bool IsChecked { get; set; }
     internal int LoopDepth { get; set; }
     internal int SwitchDepth { get; set; }
@@ -68,13 +69,29 @@ internal sealed class EmissionContext
 
     public Expression EmitBoxed(BoundExpr expr) => EmitAs(expr, typeof(object));
 
-    internal Func<BoundMemberAccessBase, Expression?>? TryEmitPostfixChain { get; set; }
+    internal Func<BoundExpr, Expression?>? TryEmitPostfixChain { get; set; }
 
     public Expression EmitBoolCondition(BoundExpr condition)
     {
         var emitted = Emit(condition);
         if (condition.StaticType.ClrType == typeof(bool) && emitted.Type == typeof(bool))
             return emitted;
-        return Expression.Call(BoundRuntimeMethodCache.RequireBooleanMethod, EmitHelpers.AsObject(emitted));
+        return Expression.Call(RequireBooleanMethod, EmitHelpers.AsObject(emitted));
+    }
+
+    internal bool TryGetPromoted(int? localId, out PromotedLocal promoted)
+    {
+        if (localId is { } id && PromotedLocals != null && PromotedLocals.TryGetValue(id, out promoted!))
+            return true;
+        promoted = null!;
+        return false;
+    }
+
+    internal Expression ResolveTypeByName(string typeName)
+    {
+        return Expression.Call(
+            Expression.Call(ContextParam, GetTypeResolverProperty),
+            ResolveTypeMethod,
+            Expression.Constant(typeName));
     }
 }

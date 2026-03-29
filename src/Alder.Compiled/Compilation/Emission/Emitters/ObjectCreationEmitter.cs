@@ -1,4 +1,3 @@
-using System.Linq.Expressions;
 using Alder.Binding;
 using Alder.Binding.BoundNodes;
 using static Alder.Compiled.Compilation.BoundRuntimeMethodCache;
@@ -7,7 +6,7 @@ namespace Alder.Compiled.Compilation.Emission.Emitters;
 
 internal sealed class ObjectCreationEmitter : INodeEmitter<BoundObjectCreationExpr>
 {
-    public Expression Emit(BoundObjectCreationExpr node, EmissionContext ctx)
+    public LinqExpression Emit(BoundObjectCreationExpr node, EmissionContext ctx)
     {
         if (node.StaticType.ClrType != typeof(object) && !node.StaticType.ClrType.IsAbstract &&
             !node.StaticType.ClrType.IsInterface && node.InitializerEntries.IsDefaultOrEmpty)
@@ -18,7 +17,7 @@ internal sealed class ObjectCreationEmitter : INodeEmitter<BoundObjectCreationEx
 
         var argsArray = LinqExpression.NewArrayInit(
             typeof(object),
-            node.Arguments.Select(arg => EmitHelpers.AsObject(ctx.Emit(arg))));
+            node.Arguments.Select(arg => ctx.EmitBoxed(arg)));
         var result = LinqExpression.Call(
             InvokeConstructorMethod,
             node.StaticType is BoundUnknownType
@@ -38,7 +37,7 @@ internal sealed class ObjectCreationEmitter : INodeEmitter<BoundObjectCreationEx
 
         foreach (var entry in node.InitializerEntries)
         {
-            var value = EmitHelpers.AsObject(ctx.Emit(entry.Value));
+            var value = ctx.EmitBoxed(entry.Value);
             if (entry.PropertyName != null)
             {
                 statements.Add(LinqExpression.Call(ApplyPropertyInitializerMethod,
@@ -46,7 +45,7 @@ internal sealed class ObjectCreationEmitter : INodeEmitter<BoundObjectCreationEx
             }
             else if (entry.IndexerKey != null)
             {
-                var key = EmitHelpers.AsObject(ctx.Emit(entry.IndexerKey));
+                var key = ctx.EmitBoxed(entry.IndexerKey);
                 statements.Add(LinqExpression.Call(ApplyIndexerInitializerMethod,
                     objVar, key, value, ctx.ConfigParam, ctx.ContextParam));
             }
@@ -61,7 +60,7 @@ internal sealed class ObjectCreationEmitter : INodeEmitter<BoundObjectCreationEx
         return LinqExpression.Block(typeof(object), [objVar], statements);
     }
 
-    private static Expression? TryEmitPure(BoundObjectCreationExpr node, EmissionContext ctx)
+    private static LinqExpression? TryEmitPure(BoundObjectCreationExpr node, EmissionContext ctx)
     {
         var type = node.StaticType.ClrType;
 
@@ -88,7 +87,7 @@ internal sealed class ObjectCreationEmitter : INodeEmitter<BoundObjectCreationEx
             return null;
 
         var ctorParams = ctor.GetParameters();
-        var args = new Expression[node.Arguments.Length];
+        var args = new LinqExpression[node.Arguments.Length];
         for (var i = 0; i < args.Length; i++)
             args[i] = EmitHelpers.EnsureTypedExpression(ctx.Emit(node.Arguments[i]), ctorParams[i].ParameterType);
 

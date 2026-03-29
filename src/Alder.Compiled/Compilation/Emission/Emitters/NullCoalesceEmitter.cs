@@ -1,4 +1,3 @@
-using System.Linq.Expressions;
 using Alder.Binding.BoundNodes;
 
 namespace Alder.Compiled.Compilation.Emission.Emitters;
@@ -38,10 +37,10 @@ internal sealed class NullCoalesceEmitter : INodeEmitter<BoundNullCoalesceExpr>
         return LinqExpression.Block(
             typeof(object),
             [leftVar],
-            LinqExpression.Assign(leftVar, EmitHelpers.AsObject(ctx.Emit(node.Left))),
+            LinqExpression.Assign(leftVar, ctx.EmitBoxed(node.Left)),
             LinqExpression.Condition(
                 LinqExpression.Equal(leftVar, LinqExpression.Constant(null, typeof(object))),
-                EmitHelpers.AsObject(ctx.Emit(node.Right)),
+                ctx.EmitBoxed(node.Right),
                 leftVar));
     }
 }

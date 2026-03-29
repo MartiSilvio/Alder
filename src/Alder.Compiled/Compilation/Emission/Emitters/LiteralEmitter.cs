@@ -1,4 +1,3 @@
-using System.Linq.Expressions;
 using Alder.Binding.BoundNodes;
 
 namespace Alder.Compiled.Compilation.Emission.Emitters;

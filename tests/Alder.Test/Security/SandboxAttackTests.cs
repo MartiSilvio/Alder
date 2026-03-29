@@ -26,7 +26,7 @@ public class SandboxAttackTests(CompilationMode mode)
     {
         var engine = Safe();
         var ex = Assert.Throws<AlderException>(() =>
-            engine.Evaluate("""new System.Diagnostics.Process()"""));
+            engine.Evaluate("new System.Diagnostics.Process()"));
         Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0106));
     }
 
@@ -70,7 +70,7 @@ public class SandboxAttackTests(CompilationMode mode)
     {
         var engine = TestEngineFactory.Create(mode);
         var ex = Assert.Throws<AlderException>(() =>
-            engine.Evaluate("""typeof(string).GetMethods()"""));
+            engine.Evaluate("typeof(string).GetMethods()"));
         Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0108));
     }
 
@@ -96,7 +96,7 @@ public class SandboxAttackTests(CompilationMode mode)
     {
         var engine = TestEngineFactory.Create(mode);
         var ex = Assert.Throws<AlderException>(() =>
-            engine.Evaluate("""typeof(string).Assembly"""));
+            engine.Evaluate("typeof(string).Assembly"));
         Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0108));
     }
     [Test]
@@ -333,7 +333,7 @@ public class SandboxAttackTests(CompilationMode mode)
     {
         var engine = Safe();
         var ex = Assert.Throws<AlderException>(() =>
-            engine.Evaluate("""System.IO.Path.GetTempPath()"""));
+            engine.Evaluate("System.IO.Path.GetTempPath()"));
         Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0107));
     }
 
@@ -342,7 +342,7 @@ public class SandboxAttackTests(CompilationMode mode)
     {
         var engine = Safe();
         var ex = Assert.Throws<AlderException>(() =>
-            engine.Evaluate("""new System.Net.WebClient()"""));
+            engine.Evaluate("new System.Net.WebClient()"));
         Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0106));
     }
 
@@ -351,7 +351,7 @@ public class SandboxAttackTests(CompilationMode mode)
     {
         var engine = Safe();
         var ex = Assert.Throws<AlderException>(() =>
-            engine.Evaluate("""System.Reflection.Assembly.GetCallingAssembly()"""));
+            engine.Evaluate("System.Reflection.Assembly.GetCallingAssembly()"));
         Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0107));
     }
     [Test]

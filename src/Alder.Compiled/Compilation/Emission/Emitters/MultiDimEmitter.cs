@@ -1,5 +1,3 @@
-using System.Linq.Expressions;
-using System.Reflection;
 using Alder.Binding.BoundNodes;
 using Alder.Runtime;
 using static Alder.Compiled.Compilation.BoundRuntimeMethodCache;
@@ -12,14 +10,14 @@ internal sealed class MultiDimEmitter :
     INodeEmitter<BoundDynamicMultiDimIndexAccessExpr>,
     INodeEmitter<BoundMultiDimIndexAssignExpr>
 {
-    public Expression Emit(BoundMultiDimArrayInitExpr node, EmissionContext ctx)
+    public LinqExpression Emit(BoundMultiDimArrayInitExpr node, EmissionContext ctx)
     {
         var dimensions = LinqExpression.NewArrayInit(
             typeof(int),
             node.InferredDimensions.Select(d => LinqExpression.Constant(d)));
         var flatValues = LinqExpression.NewArrayInit(
             typeof(object),
-            node.FlatValues.Select(v => EmitHelpers.AsObject(ctx.Emit(v))));
+            node.FlatValues.Select(v => ctx.EmitBoxed(v)));
 
         return EmitHelpers.AsObject(LinqExpression.Call(
             typeof(RuntimeArrayFactory).GetMethod(nameof(RuntimeArrayFactory.CreateAndFill))!,
@@ -28,17 +26,17 @@ internal sealed class MultiDimEmitter :
             flatValues));
     }
 
-    public Expression Emit(BoundDynamicMultiDimIndexAccessExpr node, EmissionContext ctx)
+    public LinqExpression Emit(BoundDynamicMultiDimIndexAccessExpr node, EmissionContext ctx)
     {
-        var target = EmitHelpers.AsObject(ctx.Emit(node.Target));
+        var target = ctx.EmitBoxed(node.Target);
         var indices = LinqExpression.NewArrayInit(
             typeof(object),
-            node.Indices.Select(index => EmitHelpers.AsObject(ctx.Emit(index))));
+            node.Indices.Select(index => ctx.EmitBoxed(index)));
 
         return EmitNullSafeMultiDimGet(target, indices, node.NullSafe);
     }
 
-    public Expression Emit(BoundResolvedMultiDimIndexAccessExpr node, EmissionContext ctx)
+    public LinqExpression Emit(BoundResolvedMultiDimIndexAccessExpr node, EmissionContext ctx)
     {
         if (node.IsArray)
         {
@@ -50,15 +48,15 @@ internal sealed class MultiDimEmitter :
         if (node.Indexer is { } indexer)
             return EmitIndexerGet(node, indexer, ctx);
 
-        var target = EmitHelpers.AsObject(ctx.Emit(node.Target));
+        var target = ctx.EmitBoxed(node.Target);
         var indices = LinqExpression.NewArrayInit(
             typeof(object),
-            node.Indices.Select(index => EmitHelpers.AsObject(ctx.Emit(index))));
+            node.Indices.Select(index => ctx.EmitBoxed(index)));
 
         return EmitNullSafeMultiDimGet(target, indices, node.NullSafe);
     }
 
-    public Expression Emit(BoundMultiDimIndexAssignExpr node, EmissionContext ctx)
+    public LinqExpression Emit(BoundMultiDimIndexAssignExpr node, EmissionContext ctx)
     {
         if (node.IsArray && node.TargetType != null)
         {
@@ -72,15 +70,15 @@ internal sealed class MultiDimEmitter :
 
         var indices = LinqExpression.NewArrayInit(
             typeof(object),
-            node.Indices.Select(index => EmitHelpers.AsObject(ctx.Emit(index))));
+            node.Indices.Select(index => ctx.EmitBoxed(index)));
         return LinqExpression.Call(
             MultiDimArraySetMethod,
-            EmitHelpers.AsObject(ctx.Emit(node.Target)),
+            ctx.EmitBoxed(node.Target),
             indices,
-            EmitHelpers.AsObject(ctx.Emit(node.Value)));
+            ctx.EmitBoxed(node.Value));
     }
 
-    private static Expression EmitArrayGet(BoundResolvedMultiDimIndexAccessExpr node, MethodInfo getMethod, EmissionContext ctx)
+    private static LinqExpression EmitArrayGet(BoundResolvedMultiDimIndexAccessExpr node, MethodInfo getMethod, EmissionContext ctx)
     {
         var intIndices = node.Indices.Select(
             index => EmitHelpers.EnsureTypedExpression(ctx.Emit(index), typeof(int))).ToArray();
@@ -95,7 +93,7 @@ internal sealed class MultiDimEmitter :
         return LinqExpression.Block(
             typeof(object),
             [targetVar],
-            LinqExpression.Assign(targetVar, EmitHelpers.AsObject(ctx.Emit(node.Target))),
+            LinqExpression.Assign(targetVar, ctx.EmitBoxed(node.Target)),
             LinqExpression.Condition(
                 LinqExpression.Equal(targetVar, LinqExpression.Constant(null, typeof(object))),
                 LinqExpression.Constant(null, typeof(object)),
@@ -106,10 +104,10 @@ internal sealed class MultiDimEmitter :
                         intIndices))));
     }
 
-    private static Expression EmitIndexerGet(BoundResolvedMultiDimIndexAccessExpr node, PropertyInfo indexer, EmissionContext ctx)
+    private static LinqExpression EmitIndexerGet(BoundResolvedMultiDimIndexAccessExpr node, PropertyInfo indexer, EmissionContext ctx)
     {
         var indexParams = indexer.GetIndexParameters();
-        var emittedIndices = new Expression[node.Indices.Length];
+        var emittedIndices = new LinqExpression[node.Indices.Length];
         for (var i = 0; i < node.Indices.Length; i++)
             emittedIndices[i] = EmitHelpers.EnsureTypedExpression(ctx.Emit(node.Indices[i]), indexParams[i].ParameterType);
 
@@ -117,7 +115,7 @@ internal sealed class MultiDimEmitter :
         return LinqExpression.Property(typedTarget, indexer, emittedIndices);
     }
 
-    private static Expression EmitArraySet(BoundMultiDimIndexAssignExpr node, MethodInfo setMethod, EmissionContext ctx)
+    private static LinqExpression EmitArraySet(BoundMultiDimIndexAssignExpr node, MethodInfo setMethod, EmissionContext ctx)
     {
         var intIndices = node.Indices.Select(
             index => EmitHelpers.EnsureTypedExpression(ctx.Emit(index), typeof(int))).ToArray();
@@ -131,10 +129,10 @@ internal sealed class MultiDimEmitter :
             EmitHelpers.AsObject(typedValue));
     }
 
-    private static Expression EmitIndexerSet(BoundMultiDimIndexAssignExpr node, PropertyInfo indexer, EmissionContext ctx)
+    private static LinqExpression EmitIndexerSet(BoundMultiDimIndexAssignExpr node, PropertyInfo indexer, EmissionContext ctx)
     {
         var indexParams = indexer.GetIndexParameters();
-        var emittedIndices = new Expression[node.Indices.Length];
+        var emittedIndices = new LinqExpression[node.Indices.Length];
         for (var i = 0; i < node.Indices.Length; i++)
             emittedIndices[i] = EmitHelpers.EnsureTypedExpression(ctx.Emit(node.Indices[i]), indexParams[i].ParameterType);
 
@@ -148,7 +146,7 @@ internal sealed class MultiDimEmitter :
             EmitHelpers.AsObject(typedValue));
     }
 
-    private static Expression EmitNullSafeMultiDimGet(Expression target, Expression indices, bool nullSafe)
+    private static LinqExpression EmitNullSafeMultiDimGet(LinqExpression target, LinqExpression indices, bool nullSafe)
     {
         if (!nullSafe)
             return LinqExpression.Call(MultiDimArrayGetMethod, target, indices);

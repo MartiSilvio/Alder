@@ -1,6 +1,3 @@
-using System.Linq.Expressions;
-using System.Reflection;
-using Alder.Binding;
 using Alder.Binding.BoundNodes;
 using Alder.Runtime;
 using static Alder.Compiled.Compilation.BoundRuntimeMethodCache;
@@ -87,10 +84,10 @@ internal sealed class MemberAccessEmitter :
             node.Field.FieldType, ctx);
     }
 
-    private static Expression EmitResolved(
+    private static LinqExpression EmitResolved(
         Type targetType, string memberName, bool isStatic, bool nullSafe,
-        Expression emittedTarget,
-        Func<Expression, Expression> accessFactory,
+        LinqExpression emittedTarget,
+        Func<LinqExpression, LinqExpression> accessFactory,
         Type memberType, EmissionContext ctx)
     {
         var guardContext = EmitHelpers.CreateMemberGuardContext(memberName);

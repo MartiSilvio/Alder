@@ -45,9 +45,7 @@ public class CompilationDocTests
         var engine = TestEngineFactory.Create(CompilationMode.Compiled);
         engine.SetVariable<int>("n", 100);
 
-        var compiled = engine.Compile<int>("""
-            Enumerable.Range(1, n).Where(x => x % 3 == 0 || x % 5 == 0).Sum()
-            """);
+        var compiled = engine.Compile<int>("Enumerable.Range(1, n).Where(x => x % 3 == 0 || x % 5 == 0).Sum()");
 
         Assert.That(compiled.Invoke(), Is.EqualTo(2418));
 

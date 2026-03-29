@@ -1,4 +1,3 @@
-using System.Linq.Expressions;
 using Alder.Binding.BoundNodes;
 using static Alder.Compiled.Compilation.BoundRuntimeMethodCache;
 
@@ -6,7 +5,7 @@ namespace Alder.Compiled.Compilation.Emission.Emitters;
 
 internal sealed class CollectionCreationEmitter : INodeEmitter<BoundCollectionCreationExpr>
 {
-    public Expression Emit(BoundCollectionCreationExpr node, EmissionContext ctx)
+    public LinqExpression Emit(BoundCollectionCreationExpr node, EmissionContext ctx)
     {
         var hasSpread = node.Elements.Any(static e => e is BoundSpreadExpr);
         if (node.CollectionKind == CollectionKind.Array && !hasSpread)
@@ -27,11 +26,11 @@ internal sealed class CollectionCreationEmitter : INodeEmitter<BoundCollectionCr
             if (element is BoundSpreadExpr spread)
             {
                 statements.Add(LinqExpression.Call(
-                    SpreadIntoListMethod, listVar, EmitHelpers.AsObject(ctx.Emit(spread.Expression))));
+                    SpreadIntoListMethod, listVar, ctx.EmitBoxed(spread.Expression)));
             }
             else
             {
-                statements.Add(LinqExpression.Call(listVar, ListAddMethod, EmitHelpers.AsObject(ctx.Emit(element))));
+                statements.Add(LinqExpression.Call(listVar, ListAddMethod, ctx.EmitBoxed(element)));
             }
         }
 

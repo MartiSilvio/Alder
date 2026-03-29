@@ -1,4 +1,3 @@
-using System.Linq.Expressions;
 using Alder.Binding;
 using Alder.Binding.BoundNodes;
 using Alder.Parsing;
@@ -26,7 +25,7 @@ internal sealed class UnaryEmitter : INodeEmitter<BoundUnaryExpr>
             };
         }
 
-        var boxed = EmitHelpers.AsObject(ctx.Emit(node.Operand));
+        var boxed = ctx.EmitBoxed(node.Operand);
         return node.Operator switch
         {
             TokenType.Minus => LinqExpression.Call(NegateMethod, boxed, LinqExpression.Constant(ctx.IsChecked)),

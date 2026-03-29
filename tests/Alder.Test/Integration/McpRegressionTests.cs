@@ -215,14 +215,14 @@ public class McpRegressionTests(CompilationMode mode)
     [Test]
     public void Sum_WithDoubleSelector_OnIntArray()
     {
-        var result = Eval("""new int[] { 100, 110, 90 }.Sum(x => Math.Pow(x - 100, 2) / 100.0)""");
+        var result = Eval("new int[] { 100, 110, 90 }.Sum(x => Math.Pow(x - 100, 2) / 100.0)");
         Assert.That(result, Is.TypeOf<double>());
     }
 
     [Test]
     public void Sum_WithIntSelector_OnIntArray()
     {
-        var result = Eval("""new int[] { 1, 2, 3 }.Sum(x => x * 2)""");
+        var result = Eval("new int[] { 1, 2, 3 }.Sum(x => x * 2)");
         Assert.That(result, Is.EqualTo(12));
     }
 

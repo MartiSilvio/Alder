@@ -1,9 +1,7 @@
 using Alder.Compilation;
 using Alder.Binding;
-using Alder.Binding.Optimization;
 using Alder.Parsing;
 using Alder.Runtime;
-using System.Linq.Expressions;
 
 namespace Alder.Compiled.Compilation;
 

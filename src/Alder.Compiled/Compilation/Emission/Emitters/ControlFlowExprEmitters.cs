@@ -1,5 +1,4 @@
 using System.Linq.Expressions;
-using Alder.Binding;
 using Alder.Binding.BoundNodes;
 using Alder.Runtime;
 using static Alder.Compiled.Compilation.BoundRuntimeMethodCache;
@@ -8,7 +7,7 @@ namespace Alder.Compiled.Compilation.Emission.Emitters;
 
 internal sealed class CheckedEmitter : INodeEmitter<BoundCheckedExpr>
 {
-    public Expression Emit(BoundCheckedExpr node, EmissionContext ctx)
+    public LinqExpression Emit(BoundCheckedExpr node, EmissionContext ctx)
     {
         var previous = ctx.IsChecked;
         ctx.IsChecked = node.IsChecked;
@@ -25,7 +24,7 @@ internal sealed class CheckedEmitter : INodeEmitter<BoundCheckedExpr>
 
 internal sealed class ChainedComparisonEmitter : INodeEmitter<BoundChainedComparisonExpr>
 {
-    public Expression Emit(BoundChainedComparisonExpr node, EmissionContext ctx)
+    public LinqExpression Emit(BoundChainedComparisonExpr node, EmissionContext ctx)
     {
         var resultLabel = LinqExpression.Label(typeof(bool), "chainResult");
         var variables = new List<ParameterExpression>();
@@ -33,13 +32,13 @@ internal sealed class ChainedComparisonEmitter : INodeEmitter<BoundChainedCompar
 
         var firstValue = LinqExpression.Variable(typeof(object), "v0");
         variables.Add(firstValue);
-        body.Add(LinqExpression.Assign(firstValue, EmitHelpers.AsObject(ctx.Emit(node.Operands[0]))));
+        body.Add(LinqExpression.Assign(firstValue, ctx.EmitBoxed(node.Operands[0])));
 
         for (var i = 0; i < node.Operators.Length; i++)
         {
             var nextValue = LinqExpression.Variable(typeof(object), $"v{i + 1}");
             variables.Add(nextValue);
-            body.Add(LinqExpression.Assign(nextValue, EmitHelpers.AsObject(ctx.Emit(node.Operands[i + 1]))));
+            body.Add(LinqExpression.Assign(nextValue, ctx.EmitBoxed(node.Operands[i + 1])));
 
             var comparison = LinqExpression.Call(
                 PerformComparisonMethod,
@@ -60,13 +59,13 @@ internal sealed class ChainedComparisonEmitter : INodeEmitter<BoundChainedCompar
 
 internal sealed class RangeEmitter : INodeEmitter<BoundRangeExpr>
 {
-    public Expression Emit(BoundRangeExpr node, EmissionContext ctx)
+    public LinqExpression Emit(BoundRangeExpr node, EmissionContext ctx)
     {
         var startExpr = node.Start != null
-            ? EmitHelpers.AsObject(ctx.Emit(node.Start))
+            ? ctx.EmitBoxed(node.Start)
             : LinqExpression.Constant(null, typeof(object));
         var endExpr = node.End != null
-            ? EmitHelpers.AsObject(ctx.Emit(node.End))
+            ? ctx.EmitBoxed(node.End)
             : LinqExpression.Constant(null, typeof(object));
         var rangeExpr = LinqExpression.Call(CreateSystemRangeMethod, startExpr, endExpr);
 
@@ -83,7 +82,7 @@ internal sealed class RangeEmitter : INodeEmitter<BoundRangeExpr>
 
 internal sealed class IndexFromEndEmitter : INodeEmitter<BoundIndexFromEndExpr>
 {
-    public Expression Emit(BoundIndexFromEndExpr node, EmissionContext ctx)
+    public LinqExpression Emit(BoundIndexFromEndExpr node, EmissionContext ctx)
     {
         var operand = ctx.Emit(node.Operand);
         var intOperand = operand.Type == typeof(int) ? operand : LinqExpression.Convert(operand, typeof(int));
@@ -96,18 +95,18 @@ internal sealed class IndexFromEndEmitter : INodeEmitter<BoundIndexFromEndExpr>
 
 internal sealed class SliceEmitter : INodeEmitter<BoundSliceExpr>
 {
-    public Expression Emit(BoundSliceExpr node, EmissionContext ctx)
+    public LinqExpression Emit(BoundSliceExpr node, EmissionContext ctx)
     {
-        var target = EmitHelpers.AsObject(ctx.Emit(node.Target));
-        var start = node.Start != null ? EmitHelpers.AsObject(ctx.Emit(node.Start)) : LinqExpression.Constant(null, typeof(object));
-        var end = node.End != null ? EmitHelpers.AsObject(ctx.Emit(node.End)) : LinqExpression.Constant(null, typeof(object));
+        var target = ctx.EmitBoxed(node.Target);
+        var start = node.Start != null ? ctx.EmitBoxed(node.Start) : LinqExpression.Constant(null, typeof(object));
+        var end = node.End != null ? ctx.EmitBoxed(node.End) : LinqExpression.Constant(null, typeof(object));
 
         if (node.Step != null)
         {
             return LinqExpression.Call(
                 GetSliceStepMethod,
                 target, start, end,
-                EmitHelpers.AsObject(ctx.Emit(node.Step)));
+                ctx.EmitBoxed(node.Step));
         }
 
         return LinqExpression.Call(GetSliceMethod, target, start, end);

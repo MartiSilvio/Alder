@@ -1,4 +1,3 @@
-using System.Linq.Expressions;
 using Alder.Binding.BoundNodes;
 using Alder.Parsing;
 using Alder.Runtime;
@@ -14,13 +13,13 @@ internal sealed class IsPatternEmitter : INodeEmitter<BoundIsPatternExpr>
             && TypeResolver.TryResolveKeywordType(typePattern.TypeToken.Lexeme, out var resolvedType))
         {
             return LinqExpression.TypeIs(
-                EmitHelpers.AsObject(ctx.Emit(node.Expression)),
+                ctx.EmitBoxed(node.Expression),
                 resolvedType);
         }
 
         return LinqExpression.Call(
             MatchPatternMethod,
-            EmitHelpers.AsObject(ctx.Emit(node.Expression)),
+            ctx.EmitBoxed(node.Expression),
             LinqExpression.Constant(node.Pattern, typeof(Pattern)),
             ctx.ContextParam,
             ctx.ConfigParam,

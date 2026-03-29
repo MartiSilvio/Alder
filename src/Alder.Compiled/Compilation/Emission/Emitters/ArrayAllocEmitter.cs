@@ -1,4 +1,3 @@
-using System.Linq.Expressions;
 using Alder.Binding.BoundNodes;
 using Alder.Runtime;
 
@@ -6,7 +5,7 @@ namespace Alder.Compiled.Compilation.Emission.Emitters;
 
 internal sealed class ArrayAllocEmitter : INodeEmitter<BoundArrayAllocationExpr>
 {
-    public Expression Emit(BoundArrayAllocationExpr node, EmissionContext ctx)
+    public LinqExpression Emit(BoundArrayAllocationExpr node, EmissionContext ctx)
     {
         if (node.Sizes.Length == 1)
         {

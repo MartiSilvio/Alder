@@ -160,7 +160,7 @@ public class TypeInferenceTests
         [Test]
         public void Select_WithLambda_InfersReturnType()
         {
-            var result = Engine().Evaluate("""new[] { 1, 2, 3 }.Select(x => x.ToString()).ToList()""");
+            var result = Engine().Evaluate("new[] { 1, 2, 3 }.Select(x => x.ToString()).ToList()");
             Assert.That(result, Is.TypeOf<List<string>>());
             var list = (List<string>)result!;
             Assert.That(list, Is.EqualTo(new List<string> { "1", "2", "3" }));
@@ -169,7 +169,7 @@ public class TypeInferenceTests
         [Test]
         public void Where_WithLambda_InfersSourceType()
         {
-            var result = Engine().Evaluate("""new[] { 1, 2, 3, 4 }.Where(x => x > 2).ToList()""");
+            var result = Engine().Evaluate("new[] { 1, 2, 3, 4 }.Where(x => x > 2).ToList()");
             Assert.That(result, Is.TypeOf<List<int>>());
             var list = (List<int>)result!;
             Assert.That(list, Is.EqualTo(new List<int> { 3, 4 }));

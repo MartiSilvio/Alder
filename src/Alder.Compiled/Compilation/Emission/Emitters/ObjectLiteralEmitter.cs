@@ -1,4 +1,3 @@
-using System.Linq.Expressions;
 using Alder.Binding.BoundNodes;
 using static Alder.Compiled.Compilation.BoundRuntimeMethodCache;
 
@@ -6,7 +5,7 @@ namespace Alder.Compiled.Compilation.Emission.Emitters;
 
 internal sealed class ObjectLiteralEmitter : INodeEmitter<BoundObjectLiteralExpr>
 {
-    public Expression Emit(BoundObjectLiteralExpr node, EmissionContext ctx)
+    public LinqExpression Emit(BoundObjectLiteralExpr node, EmissionContext ctx)
     {
         var dictVar = LinqExpression.Variable(typeof(IDictionary<string, object?>), "dict");
         var statements = new List<LinqExpression>
@@ -21,13 +20,13 @@ internal sealed class ObjectLiteralEmitter : INodeEmitter<BoundObjectLiteralExpr
             if (property.IsSpread)
             {
                 statements.Add(LinqExpression.Call(
-                    SpreadIntoDictMethod, dictVar, EmitHelpers.AsObject(ctx.Emit(property.Value)), ctx.ContextParam));
+                    SpreadIntoDictMethod, dictVar, ctx.EmitBoxed(property.Value), ctx.ContextParam));
                 continue;
             }
 
             statements.Add(LinqExpression.Assign(
                 LinqExpression.Property(dictVar, itemProperty, LinqExpression.Constant(property.PropertyName!)),
-                EmitHelpers.AsObject(ctx.Emit(property.Value))));
+                ctx.EmitBoxed(property.Value)));
         }
 
         statements.Add(dictVar);

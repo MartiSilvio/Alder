@@ -39,7 +39,7 @@ internal sealed class BinaryEmitter : INodeEmitter<BoundBinaryExpr>
         var isStringContext = binary.Operator == TokenType.Plus &&
             (binary.Left.StaticType.ClrType == typeof(string) || binary.Right.StaticType.ClrType == typeof(string));
 
-        return EmitCore(binary.Operator, EmitHelpers.AsObject(left), EmitHelpers.AsObject(ctx.Emit(binary.Right)), ctx, isStringContext);
+        return EmitCore(binary.Operator, left, ctx.Emit(binary.Right), ctx, isStringContext);
     }
 
     private static bool TryEmitPrimitiveFastPath(BoundBinaryExpr binary, LinqExpression preEmittedLeft, EmissionContext ctx, out LinqExpression direct)
@@ -124,7 +124,7 @@ internal sealed class BinaryEmitter : INodeEmitter<BoundBinaryExpr>
             typeof(object),
             [leftVar, rightVar, promotedVar],
             LinqExpression.Assign(leftVar, EmitHelpers.AsObject(preEmittedLeft)),
-            LinqExpression.Assign(rightVar, EmitHelpers.AsObject(ctx.Emit(binary.Right))),
+            LinqExpression.Assign(rightVar, ctx.EmitBoxed(binary.Right)),
             LinqExpression.Assign(
                 promotedVar,
                 LinqExpression.Call(

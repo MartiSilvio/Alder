@@ -1,0 +1,38 @@
+using Alder.Binding;
+using Alder.Binding.BoundNodes;
+using static Alder.Compiled.Compilation.BoundRuntimeMethodCache;
+
+namespace Alder.Compiled.Compilation.Emission.Emitters;
+
+internal sealed class VariableDeclEmitter : INodeEmitter<BoundVariableDeclExpr>
+{
+    public LinqExpression Emit(BoundVariableDeclExpr node, EmissionContext ctx)
+    {
+        if (ctx.TryGetPromoted(node.LocalId, out var promoted))
+        {
+            if (node.DeclaredType != null)
+            {
+                var validated = LinqExpression.Call(
+                    ValidateAndCoerceTypeMethod,
+                    LinqExpression.Constant(node.DeclaredType, typeof(Type)),
+                    ctx.EmitBoxed(node.Initializer),
+                    LinqExpression.Constant(node.Name),
+                    LinqExpression.Constant(BoundExpr.IsConstantExpression(node.Initializer)));
+                return LinqExpression.Assign(promoted.Variable,
+                    EmitHelpers.EnsureTypedExpression(validated, promoted.Variable.Type));
+            }
+            return LinqExpression.Assign(promoted.Variable, ctx.EmitAs(node.Initializer, promoted.Variable.Type));
+        }
+
+        return LinqExpression.Call(
+            DefineVariableMethod,
+            LinqExpression.Constant(node.Name),
+            ctx.EmitBoxed(node.Initializer),
+            node.DeclaredType != null
+                ? LinqExpression.Constant(node.DeclaredType, typeof(Type))
+                : LinqExpression.Constant(null, typeof(Type)),
+            ctx.ContextParam,
+            LinqExpression.Constant(node.IsConst),
+            LinqExpression.Constant(BoundExpr.IsConstantExpression(node.Initializer)));
+    }
+}

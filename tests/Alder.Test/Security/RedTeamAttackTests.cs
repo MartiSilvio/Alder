@@ -313,9 +313,7 @@ public class RedTeamAttackTests(CompilationMode mode)
     {
         var engine = Safe();
         engine.SetVariable("x", 0);
-        var ex = Assert.Throws<AlderException>(() => engine.Evaluate("""
-            { try { var y = 1/x; return y; } catch (Exception e) { return e.GetType(); } }
-        """));
+        var ex = Assert.Throws<AlderException>(() => engine.Evaluate("    { try { var y = 1/x; return y; } catch (Exception e) { return e.GetType(); } }"));
         Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0100));
     }
 
@@ -324,9 +322,7 @@ public class RedTeamAttackTests(CompilationMode mode)
     {
         var engine = Safe();
         engine.SetVariable("x", 0);
-        var result = engine.Evaluate("""
-            { try { var y = 1/x; return y; } catch (Exception e) { return e.Message; } }
-        """);
+        var result = engine.Evaluate("    { try { var y = 1/x; return y; } catch (Exception e) { return e.Message; } }");
         Assert.That(result, Is.Not.Null);
     }
     [Test]
@@ -447,7 +443,7 @@ public class RedTeamAttackTests(CompilationMode mode)
             o.Types.AddNamespace("Alder");
         });
         var ex = Assert.Throws<AlderException>(() =>
-            engine.Evaluate("""new AlderEngine()"""));
+            engine.Evaluate("new AlderEngine()"));
         Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0107));
     }
 

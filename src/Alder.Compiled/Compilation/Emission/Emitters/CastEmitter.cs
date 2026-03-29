@@ -1,4 +1,3 @@
-using System.Linq.Expressions;
 using Alder.Binding.BoundNodes;
 using Alder.Runtime;
 using static Alder.Compiled.Compilation.BoundRuntimeMethodCache;
@@ -32,7 +31,7 @@ internal sealed class CastEmitter : INodeEmitter<BoundCastExpr>
 
         return LinqExpression.Call(
             ExplicitCastMethod,
-            EmitHelpers.AsObject(ctx.Emit(node.Expression)),
+            ctx.EmitBoxed(node.Expression),
             LinqExpression.Constant(node.TargetType, typeof(Type)),
             node.SourceStaticType == null
                 ? LinqExpression.Constant(null, typeof(Type))
