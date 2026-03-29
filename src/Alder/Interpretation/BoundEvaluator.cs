@@ -1,8 +1,7 @@
-using System.Runtime.CompilerServices;
 using Alder.Binding;
 using Alder.Binding.BoundNodes;
 using Alder.Diagnostics;
-using Alder.Parsing;
+using Alder.Interpretation.Evaluators;
 using Alder.Runtime;
 using Alder.Runtime.Semantics;
 using Alder.Text;
@@ -10,9 +9,13 @@ using Alder.Tracing;
 
 namespace Alder.Interpretation;
 
-internal sealed partial class BoundEvaluator
+internal sealed class BoundEvaluator
 {
-    private AlderContext _context;
+    private AlderContext _context
+    {
+        get => _evalCtx.Context;
+        set => _evalCtx.Context = value;
+    }
     private readonly AlderConfig _config;
     private readonly ExecutionConstraintState? _constraintState;
     private readonly CancellationToken _cancellationToken;
@@ -21,9 +24,7 @@ internal sealed partial class BoundEvaluator
     private readonly SourceText? _sourceText;
     private readonly Stack<Exception> _caughtExceptions = new();
 
-    private int _breakContextDepth;
-    private int _loopDepth;
-    private bool _isChecked;
+    private readonly EvaluationContext _evalCtx;
 
     public BoundEvaluator(
         AlderContext context,
@@ -33,12 +34,84 @@ internal sealed partial class BoundEvaluator
         SourceText? sourceText = null,
         CancellationToken cancellationToken = default)
     {
-        _context = context;
         _config = config;
         _constraintState = constraintState;
         _cancellationToken = cancellationToken;
         _tracer = tracer;
         _sourceText = sourceText;
+        _evalCtx = new EvaluationContext(context, config, constraintState, cancellationToken, _caughtExceptions, Evaluate);
+        _evalCtx.Tracer = tracer;
+        _evalCtx.Register(BoundNodeKind.Literal, new LiteralEvaluator());
+        _evalCtx.Register(BoundNodeKind.Identifier, new IdentifierEvaluator());
+        _evalCtx.Register(BoundNodeKind.Conversion, new CastEvaluator());
+        _evalCtx.Register(BoundNodeKind.AsOperator, new AsEvaluator());
+        _evalCtx.Register(BoundNodeKind.IsPatternExpression, new IsPatternEvaluator());
+        _evalCtx.Register(BoundNodeKind.CollectionCreation, new CollectionCreationEvaluator());
+        _evalCtx.Register(BoundNodeKind.ObjectLiteral, new ObjectLiteralEvaluator());
+        _evalCtx.Register(BoundNodeKind.SpreadElement, new SpreadEvaluator());
+        _evalCtx.Register(BoundNodeKind.SliceExpression, new SliceEvaluator());
+        _evalCtx.Register(BoundNodeKind.ObjectCreationExpression, new ObjectCreationEvaluator());
+        _evalCtx.Register(BoundNodeKind.ArrayAllocation, new ArrayAllocationEvaluator());
+        _evalCtx.Register(BoundNodeKind.MultiDimArrayInit, new MultiDimArrayInitEvaluator());
+        _evalCtx.Register(BoundNodeKind.TupleLiteral, new TupleEvaluator());
+        _evalCtx.Register(BoundNodeKind.DeconstructionAssignment, new DeconstructionEvaluator());
+        _evalCtx.Register(BoundNodeKind.InterpolatedString, new InterpolatedStringEvaluator());
+        _evalCtx.Register(BoundNodeKind.UnaryOperator, new UnaryEvaluator());
+        _evalCtx.Register(BoundNodeKind.BinaryOperator, new BinaryEvaluator());
+        _evalCtx.Register(BoundNodeKind.LogicalOperator, new LogicalEvaluator());
+        _evalCtx.Register(BoundNodeKind.NullCoalescingOperator, new NullCoalesceEvaluator());
+        _evalCtx.Register(BoundNodeKind.ConditionalOperator, new ConditionalEvaluator());
+        _evalCtx.Register(BoundNodeKind.Block, new BlockEvaluator());
+        _evalCtx.Register(BoundNodeKind.IfStatement, new IfEvaluator());
+        _evalCtx.Register(BoundNodeKind.WhileStatement, new WhileEvaluator());
+        _evalCtx.Register(BoundNodeKind.ForStatement, new ForEvaluator());
+        _evalCtx.Register(BoundNodeKind.DoStatement, new DoWhileEvaluator());
+        _evalCtx.Register(BoundNodeKind.ForEachStatement, new ForEachEvaluator());
+        _evalCtx.Register(BoundNodeKind.UsingStatement, new UsingEvaluator());
+        _evalCtx.Register(BoundNodeKind.LockStatement, new LockEvaluator());
+        _evalCtx.Register(BoundNodeKind.SwitchStatement, new SwitchStatementEvaluator());
+        _evalCtx.Register(BoundNodeKind.SwitchExpression, new SwitchExpressionEvaluator());
+        _evalCtx.Register(BoundNodeKind.CheckedExpression, new CheckedEvaluator());
+        _evalCtx.Register(BoundNodeKind.ChainedComparisonOperator, new ChainedComparisonEvaluator());
+        _evalCtx.Register(BoundNodeKind.BreakStatement, new BreakEvaluator());
+        _evalCtx.Register(BoundNodeKind.ContinueStatement, new ContinueEvaluator());
+        _evalCtx.Register(BoundNodeKind.GotoStatement, new GotoEvaluator());
+        _evalCtx.Register(BoundNodeKind.GotoCaseStatement, new GotoCaseEvaluator());
+        _evalCtx.Register(BoundNodeKind.GotoDefaultStatement, new GotoDefaultEvaluator());
+        _evalCtx.Register(BoundNodeKind.Label, new LabelEvaluator());
+        _evalCtx.Register(BoundNodeKind.VariableDeclaration, new VariableDeclEvaluator());
+        _evalCtx.Register(BoundNodeKind.AssignmentOperator, new AssignEvaluator());
+        _evalCtx.Register(BoundNodeKind.NullCoalescingAssignmentOperator, new NullCoalesceAssignEvaluator());
+        _evalCtx.Register(BoundNodeKind.CompoundAssignmentOperator, new CompoundAssignEvaluator());
+        _evalCtx.Register(BoundNodeKind.IncrementOperator, new IncrementDecrementEvaluator());
+        _evalCtx.Register(BoundNodeKind.MemberAssignment, new MemberAssignEvaluator());
+        _evalCtx.Register(BoundNodeKind.IndexAssignment, new IndexAssignEvaluator());
+        _evalCtx.Register(BoundNodeKind.MemberCompoundAssignment, new MemberCompoundAssignEvaluator());
+        _evalCtx.Register(BoundNodeKind.IndexCompoundAssignment, new IndexCompoundAssignEvaluator());
+        _evalCtx.Register(BoundNodeKind.MemberNullCoalesceAssignment, new MemberNullCoalesceAssignEvaluator());
+        _evalCtx.Register(BoundNodeKind.IndexNullCoalesceAssignment, new IndexNullCoalesceAssignEvaluator());
+        _evalCtx.Register(BoundNodeKind.MemberIncrement, new MemberIncrementEvaluator());
+        _evalCtx.Register(BoundNodeKind.IndexIncrement, new IndexIncrementEvaluator());
+        _evalCtx.Register(BoundNodeKind.ThrowExpression, new ThrowEvaluator());
+        _evalCtx.Register(BoundNodeKind.TryStatement, new TryCatchEvaluator());
+        _evalCtx.Register(BoundNodeKind.ReturnStatement, new ReturnEvaluator());
+        _evalCtx.Register(BoundNodeKind.PropertyAccess, new PropertyAccessEvaluator());
+        _evalCtx.Register(BoundNodeKind.FieldAccess, new FieldAccessEvaluator());
+        _evalCtx.Register(BoundNodeKind.MethodGroup, new MethodGroupEvaluator());
+        _evalCtx.Register(BoundNodeKind.DynamicMemberAccess, new DynamicMemberAccessEvaluator());
+        _evalCtx.Register(BoundNodeKind.ResolvedIndexAccess, new ResolvedIndexAccessEvaluator());
+        _evalCtx.Register(BoundNodeKind.DynamicIndexAccess, new DynamicIndexAccessEvaluator());
+        _evalCtx.Register(BoundNodeKind.ResolvedMultiDimIndexAccess, new ResolvedMultiDimIndexAccessEvaluator());
+        _evalCtx.Register(BoundNodeKind.DynamicMultiDimIndexAccess, new DynamicMultiDimIndexAccessEvaluator());
+        _evalCtx.Register(BoundNodeKind.MultiDimIndexAssignment, new MultiDimIndexAssignEvaluator());
+        _evalCtx.Register(BoundNodeKind.NamedArgument, new NamedArgumentEvaluator());
+        _evalCtx.Register(BoundNodeKind.OutArgument, new OutArgEvaluator());
+        _evalCtx.Register(BoundNodeKind.ResolvedCall, new ResolvedCallEvaluator());
+        _evalCtx.Register(BoundNodeKind.DynamicCall, new DynamicCallEvaluator());
+        _evalCtx.Register(BoundNodeKind.Lambda, new LambdaEvaluator());
+        _evalCtx.Register(BoundNodeKind.PipelineExpression, new PipelineEvaluator());
+        _evalCtx.Register(BoundNodeKind.RangeExpression, new RangeEvaluator());
+        _evalCtx.Register(BoundNodeKind.FromEndIndexExpression, new FromEndIndexEvaluator());
     }
 
     public object? Evaluate(BoundExpr expr)
@@ -88,93 +161,10 @@ internal sealed partial class BoundEvaluator
             throw new AlderException(DiagnosticDescriptors.BindingFailed, "Expression has errors");
         }
 
-        return expr.Kind switch
-        {
-            BoundNodeKind.Literal => ((BoundLiteralExpr)expr).Value,
-            BoundNodeKind.Identifier => EvaluateIdentifier((BoundIdentifierExpr)expr),
-            BoundNodeKind.Conversion => EvaluateCast((BoundCastExpr)expr),
-            BoundNodeKind.AsOperator => EvaluateAs((BoundAsExpr)expr),
-            BoundNodeKind.IsPatternExpression => EvaluateIsPattern((BoundIsPatternExpr)expr),
-            BoundNodeKind.CollectionCreation => EvaluateCollectionCreation((BoundCollectionCreationExpr)expr),
-            BoundNodeKind.ObjectLiteral => EvaluateObjectLiteral((BoundObjectLiteralExpr)expr),
-            BoundNodeKind.SpreadElement => EvaluateSpread((BoundSpreadExpr)expr),
-            BoundNodeKind.SliceExpression => EvaluateSlice((BoundSliceExpr)expr),
-            BoundNodeKind.ObjectCreationExpression => EvaluateObjectCreation((BoundObjectCreationExpr)expr),
-            BoundNodeKind.ArrayAllocation => EvaluateArrayAllocation((BoundArrayAllocationExpr)expr),
-            BoundNodeKind.MultiDimArrayInit => EvaluateMultiDimArrayInit((BoundMultiDimArrayInitExpr)expr),
-            BoundNodeKind.TupleLiteral => EvaluateTuple((BoundTupleExpr)expr),
-            BoundNodeKind.DeconstructionAssignment => EvaluateDeconstruction((BoundDeconstructionExpr)expr),
-            BoundNodeKind.InterpolatedString => EvaluateInterpolatedString((BoundInterpolatedStringExpr)expr),
-            BoundNodeKind.UnaryOperator => EvaluateUnary((BoundUnaryExpr)expr),
-            BoundNodeKind.BinaryOperator => EvaluateBinary((BoundBinaryExpr)expr),
-            BoundNodeKind.LogicalOperator => EvaluateLogical((BoundLogicalExpr)expr),
-            BoundNodeKind.NullCoalescingOperator => EvaluateNullCoalesce((BoundNullCoalesceExpr)expr),
-            BoundNodeKind.ConditionalOperator => EvaluateConditional((BoundConditionalExpr)expr),
-            BoundNodeKind.Block => EvaluateBlock((BoundBlockExpr)expr),
-            BoundNodeKind.IfStatement => EvaluateIfStatement((BoundIfStatementExpr)expr),
-            BoundNodeKind.WhileStatement => EvaluateWhile((BoundWhileExpr)expr),
-            BoundNodeKind.ForStatement => EvaluateFor((BoundForExpr)expr),
-            BoundNodeKind.DoStatement => EvaluateDoWhile((BoundDoWhileExpr)expr),
-            BoundNodeKind.ForEachStatement => EvaluateForEach((BoundForEachExpr)expr),
-            BoundNodeKind.UsingStatement => EvaluateUsingStatement((BoundUsingStatementExpr)expr),
-            BoundNodeKind.LockStatement => EvaluateLockStatement((BoundLockStatementExpr)expr),
-            BoundNodeKind.SwitchStatement => EvaluateSwitch((BoundSwitchStatementExpr)expr),
-            BoundNodeKind.SwitchExpression => EvaluateSwitchExpression((BoundSwitchExpressionExpr)expr),
-            BoundNodeKind.CheckedExpression => EvaluateChecked((BoundCheckedExpr)expr),
-            BoundNodeKind.ChainedComparisonOperator => EvaluateChainedComparison((BoundChainedComparisonExpr)expr),
-            BoundNodeKind.BreakStatement => EvaluateBreak(),
-            BoundNodeKind.ContinueStatement => EvaluateContinue(),
-            BoundNodeKind.GotoStatement => ControlFlowSignal.GotoSignal(((BoundGotoExpr)expr).Label),
-            BoundNodeKind.GotoCaseStatement => ControlFlowSignal.GotoCaseSignal(Evaluate(((BoundGotoCaseExpr)expr).Value)),
-            BoundNodeKind.GotoDefaultStatement => ControlFlowSignal.GotoDefaultSignal,
-            BoundNodeKind.Label => null,
-            BoundNodeKind.VariableDeclaration => EvaluateVariableDecl((BoundVariableDeclExpr)expr),
-            BoundNodeKind.AssignmentOperator => EvaluateAssign((BoundAssignExpr)expr),
-            BoundNodeKind.NullCoalescingAssignmentOperator => EvaluateNullCoalesceAssign((BoundNullCoalesceAssignExpr)expr),
-            BoundNodeKind.CompoundAssignmentOperator => EvaluateCompoundAssign((BoundCompoundAssignExpr)expr),
-            BoundNodeKind.IncrementOperator => EvaluateIncrementDecrement((BoundIncrementDecrementExpr)expr),
-            BoundNodeKind.MemberAssignment => EvaluateMemberAssign((BoundMemberAssignExpr)expr),
-            BoundNodeKind.IndexAssignment => EvaluateIndexAssign((BoundIndexAssignExpr)expr),
-            BoundNodeKind.MemberCompoundAssignment => EvaluateMemberCompoundAssign((BoundMemberCompoundAssignExpr)expr),
-            BoundNodeKind.IndexCompoundAssignment => EvaluateIndexCompoundAssign((BoundIndexCompoundAssignExpr)expr),
-            BoundNodeKind.MemberNullCoalesceAssignment => EvaluateMemberNullCoalesceAssign((BoundMemberNullCoalesceAssignExpr)expr),
-            BoundNodeKind.IndexNullCoalesceAssignment => EvaluateIndexNullCoalesceAssign((BoundIndexNullCoalesceAssignExpr)expr),
-            BoundNodeKind.MemberIncrement => EvaluateMemberIncrement((BoundMemberIncrementExpr)expr),
-            BoundNodeKind.IndexIncrement => EvaluateIndexIncrement((BoundIndexIncrementExpr)expr),
-            BoundNodeKind.ThrowExpression => EvaluateThrow((BoundThrowExpr)expr, expr),
-            BoundNodeKind.TryStatement => EvaluateTryCatchFinally((BoundTryCatchFinallyExpr)expr),
-            BoundNodeKind.ReturnStatement => EvaluateReturn((BoundReturnExpr)expr),
-            BoundNodeKind.PropertyAccess => EvaluatePropertyAccess((BoundPropertyAccessExpr)expr),
-            BoundNodeKind.FieldAccess => EvaluateFieldAccess((BoundFieldAccessExpr)expr),
-            BoundNodeKind.MethodGroup => EvaluateMethodGroup((BoundMethodGroupExpr)expr),
-            BoundNodeKind.DynamicMemberAccess => EvaluateDynamicMemberAccess((BoundDynamicMemberAccessExpr)expr),
-            BoundNodeKind.ResolvedIndexAccess => EvaluateResolvedIndexAccess((BoundResolvedIndexAccessExpr)expr),
-            BoundNodeKind.DynamicIndexAccess => EvaluateDynamicIndexAccess((BoundDynamicIndexAccessExpr)expr),
-            BoundNodeKind.ResolvedMultiDimIndexAccess => EvaluateResolvedMultiDimIndexAccess((BoundResolvedMultiDimIndexAccessExpr)expr),
-            BoundNodeKind.DynamicMultiDimIndexAccess => EvaluateDynamicMultiDimIndexAccess((BoundDynamicMultiDimIndexAccessExpr)expr),
-            BoundNodeKind.MultiDimIndexAssignment => EvaluateMultiDimIndexAssign((BoundMultiDimIndexAssignExpr)expr),
-            BoundNodeKind.NamedArgument => EvaluateNamedArgument((BoundNamedArgumentExpr)expr),
-            BoundNodeKind.OutArgument => EvaluateOutArg((BoundOutArgExpr)expr),
-            BoundNodeKind.ResolvedCall => EvaluateResolvedCall((BoundResolvedCallExpr)expr),
-            BoundNodeKind.DynamicCall => EvaluateDynamicCall((BoundDynamicCallExpr)expr),
-            BoundNodeKind.Lambda => EvaluateLambda((BoundLambdaExpr)expr),
-            BoundNodeKind.PipelineExpression => EvaluatePipeline((BoundPipelineExpr)expr),
-            BoundNodeKind.RangeExpression => EvaluateRange((BoundRangeExpr)expr),
-            BoundNodeKind.FromEndIndexExpression => new Index(Convert.ToInt32(Evaluate(((BoundIndexFromEndExpr)expr).Operand)), fromEnd: true),
-            _ => throw new BindingNotSupportedException(
-                $"Bound execution for node '{expr.GetType().Name}' is not implemented")
-        };
+        if (_evalCtx.TryEvaluate(expr, out var result))
+            return result;
+
+        throw new BindingNotSupportedException(
+            $"Bound execution for node '{expr.GetType().Name}' is not implemented");
     }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private object? EvaluateIdentifier(BoundIdentifierExpr identifier)
-    {
-        if (identifier.LocalId != null)
-            return _context.Get(identifier.Name);
-
-        return IdentifierRuntime.ResolveIdentifier(identifier.Name, _context, _config);
-    }
-
-    private object? MatchPattern(object? value, Pattern pattern)
-        => PatternRuntime.MatchPattern(value, pattern, _context, _config, _cancellationToken);
 }
