@@ -107,6 +107,7 @@ internal sealed partial class BoundExpressionEmitter
         _emissionCtx.Register(BoundNodeKind.ReturnStatement, new ReturnEmitter());
         _emissionCtx.Register(BoundNodeKind.GotoStatement, new GotoEmitter());
         _emissionCtx.Register(BoundNodeKind.GotoCaseStatement, new GotoCaseEmitter());
+        _emissionCtx.Register(BoundNodeKind.Block, new BlockEmitter());
     }
 
     public LinqExpression EmitRoot(BoundExpr expr)
@@ -200,7 +201,6 @@ internal sealed partial class BoundExpressionEmitter
 
         return expr.Kind switch
         {
-            BoundNodeKind.Block => EmitBlock((BoundBlockExpr)expr),
             BoundNodeKind.IfStatement => EmitIfStatement((BoundIfStatementExpr)expr),
             BoundNodeKind.WhileStatement => EmitWhile((BoundWhileExpr)expr),
             BoundNodeKind.ForStatement => EmitFor((BoundForExpr)expr),

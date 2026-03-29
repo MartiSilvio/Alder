@@ -13,138 +13,6 @@ namespace Alder.Compiled.Compilation;
 
 internal sealed partial class BoundExpressionEmitter
 {
-    private LinqExpression EmitBlock(BoundBlockExpr block)
-    {
-        var statements = block.Statements;
-        var hasLabels = statements.Any(s => s is BoundLabelExpr);
-
-        if (hasLabels)
-            return EmitBlockWithLabels(block);
-
-        var previousContextVar = LinqExpression.Variable(typeof(AlderContext), "prevCtx");
-        var resultVar = LinqExpression.Variable(typeof(object), "blockResult");
-        var signalVar = LinqExpression.Variable(typeof(ControlFlowSignal), "blockSignal");
-        var doneLabel = LinqExpression.Label("blockDone");
-
-        var body = new List<LinqExpression>
-        {
-            LinqExpression.Assign(resultVar, LinqExpression.Constant(null, typeof(object)))
-        };
-
-        EmitStatementListBody(body, statements, resultVar, signalVar, doneLabel, unwrapReturnSignal: false);
-        if (block.ReturnExpr != null)
-            body.Add(LinqExpression.Assign(resultVar, EmitHelpers.AsObject(Emit(block.ReturnExpr))));
-        body.Add(LinqExpression.Label(doneLabel));
-
-        return LinqExpression.Block(
-            typeof(object),
-            [previousContextVar, resultVar, signalVar],
-            LinqExpression.Assign(previousContextVar, _contextParam),
-            LinqExpression.Assign(_contextParam, LinqExpression.Call(_contextParam, ContextCreateChildMethod)),
-            LinqExpression.TryFinally(
-                LinqExpression.Block(body),
-                LinqExpression.Assign(_contextParam, previousContextVar)),
-            resultVar);
-    }
-
-    private LinqExpression EmitBlockWithLabels(BoundBlockExpr block)
-    {
-        var statements = block.Statements;
-        var previousContextVar = LinqExpression.Variable(typeof(AlderContext), "prevCtx");
-        var resultVar = LinqExpression.Variable(typeof(object), "blockResult");
-        var signalVar = LinqExpression.Variable(typeof(ControlFlowSignal), "blockSignal");
-        var startIndexVar = LinqExpression.Variable(typeof(int), "gotoStartIndex");
-        var doneLabel = LinqExpression.Label("blockDone");
-        var loopBreak = LinqExpression.Label("blockLoopBreak");
-        var loopContinue = LinqExpression.Label("blockLoopContinue");
-
-        var labelIndices = new Dictionary<string, int>();
-        for (var i = 0; i < statements.Length; i++)
-            if (statements[i] is BoundLabelExpr label)
-                labelIndices[label.Name] = i;
-
-        var loopBody = new List<LinqExpression>();
-
-        for (var i = 0; i < statements.Length; i++)
-        {
-            var stmtBody = new List<LinqExpression>
-            {
-                LinqExpression.Call(
-                    CheckExecutionConstraintsMethod,
-                    _constraintStateParam,
-                    LinqExpression.Property(_configParam, nameof(AlderConfig.Constraints)),
-                    _ctParam),
-                LinqExpression.Assign(resultVar, EmitHelpers.AsObject(Emit(statements[i]))),
-                LinqExpression.IfThen(
-                    LinqExpression.TypeIs(resultVar, typeof(ControlFlowSignal)),
-                    LinqExpression.Block(
-                        LinqExpression.Assign(signalVar, LinqExpression.TypeAs(resultVar, typeof(ControlFlowSignal))),
-                        BuildBlockGotoCheck(signalVar, resultVar, startIndexVar, loopContinue, labelIndices),
-                        LinqExpression.Goto(doneLabel)))
-            };
-
-            loopBody.Add(LinqExpression.IfThen(
-                LinqExpression.LessThanOrEqual(startIndexVar, LinqExpression.Constant(i)),
-                LinqExpression.Block(typeof(void), stmtBody)));
-        }
-
-        loopBody.Add(LinqExpression.Break(loopBreak));
-
-        var outerBody = new List<LinqExpression>
-        {
-            LinqExpression.Assign(resultVar, LinqExpression.Constant(null, typeof(object))),
-            LinqExpression.Assign(startIndexVar, LinqExpression.Constant(0))
-        };
-
-        outerBody.Add(LinqExpression.Loop(
-            LinqExpression.Block(typeof(void), loopBody),
-            loopBreak,
-            loopContinue));
-
-        if (block.ReturnExpr != null)
-            outerBody.Add(LinqExpression.Assign(resultVar, EmitHelpers.AsObject(Emit(block.ReturnExpr))));
-        outerBody.Add(LinqExpression.Label(doneLabel));
-
-        return LinqExpression.Block(
-            typeof(object),
-            [previousContextVar, resultVar, signalVar, startIndexVar],
-            LinqExpression.Assign(previousContextVar, _contextParam),
-            LinqExpression.Assign(_contextParam, LinqExpression.Call(_contextParam, ContextCreateChildMethod)),
-            LinqExpression.TryFinally(
-                LinqExpression.Block(outerBody),
-                LinqExpression.Assign(_contextParam, previousContextVar)),
-            resultVar);
-    }
-
-    private static LinqExpression BuildBlockGotoCheck(
-        ParameterExpression signalVar,
-        ParameterExpression resultVar,
-        ParameterExpression startIndexVar,
-        LabelTarget loopContinue,
-        Dictionary<string, int> labelIndices)
-    {
-        LinqExpression check = LinqExpression.Empty();
-        var kindExpr = LinqExpression.Property(signalVar, ControlFlowSignalKindProperty);
-        var valueExpr = LinqExpression.Property(signalVar, ControlFlowValueProperty);
-
-        foreach (var (label, index) in labelIndices)
-        {
-            check = LinqExpression.IfThen(
-                LinqExpression.AndAlso(
-                    LinqExpression.Equal(kindExpr, LinqExpression.Constant(ControlFlowSignal.Kind.Goto)),
-                    LinqExpression.Call(
-                        typeof(string).GetMethod(nameof(string.Equals), [typeof(string), typeof(string)])!,
-                        LinqExpression.Convert(valueExpr, typeof(string)),
-                        LinqExpression.Constant(label))),
-                LinqExpression.Block(
-                    LinqExpression.Assign(startIndexVar, LinqExpression.Constant(index + 1)),
-                    LinqExpression.Assign(resultVar, LinqExpression.Constant(null, typeof(object))),
-                    LinqExpression.Continue(loopContinue)));
-        }
-
-        return check;
-    }
-
     private LinqExpression EmitIfStatement(BoundIfStatementExpr ifStatement)
     {
         var resultVar = LinqExpression.Variable(typeof(object), "ifResult");
@@ -312,7 +180,7 @@ internal sealed partial class BoundExpressionEmitter
                     LinqExpression.Break(loopBreakLabel, resultVar)),
                 LinqExpression.Assign(currentVar, LinqExpression.Convert(LinqExpression.Call(enumeratorVar, GetCurrentMethod), typeof(object))),
                 LinqExpression.Assign(resultVar, iterationBody),
-                BuildLoopSignalDispatch(resultVar, signalVar, loopBreakLabel, loopContinueLabel),
+                Emission.Emitters.BlockEmitter.BuildLoopSignalDispatch(resultVar, signalVar, loopBreakLabel, loopContinueLabel),
                 LinqExpression.Label(loopContinueLabel)
             };
         }
@@ -752,187 +620,24 @@ internal sealed partial class BoundExpressionEmitter
         };
     }
 
-    private LinqExpression EmitStatementSequence(ImmutableArray<BoundExpr> statements)
-    {
-        var resultVar = LinqExpression.Variable(typeof(object), "tryResult");
-        var signalVar = LinqExpression.Variable(typeof(ControlFlowSignal), "trySignal");
-        var doneLabel = LinqExpression.Label("tryDone");
-        var body = new List<LinqExpression>
-        {
-            LinqExpression.Assign(resultVar, LinqExpression.Constant(null, typeof(object)))
-        };
+    private LinqExpression EmitStatementSequence(ImmutableArray<BoundExpr> statements) =>
+        Emission.Emitters.BlockEmitter.EmitStatementSequence(_emissionCtx, statements);
 
-        EmitStatementListBody(
-            body,
-            statements,
-            resultVar,
-            signalVar,
-            doneLabel,
-            unwrapReturnSignal: false);
-        body.Add(LinqExpression.Label(doneLabel));
-        body.Add(resultVar);
+    private void EmitLoopIterationBody(List<LinqExpression> body, ImmutableArray<BoundExpr> statements,
+        ParameterExpression resultVar, ParameterExpression signalVar,
+        LabelTarget breakLabel, LabelTarget continueLabel, bool hasConditionCheck) =>
+        Emission.Emitters.BlockEmitter.EmitLoopIterationBody(_emissionCtx, body, statements, resultVar, signalVar, breakLabel, continueLabel, hasConditionCheck);
 
-        return LinqExpression.Block(typeof(object), [resultVar, signalVar], body);
-    }
+    private LinqExpression EmitForeachIteration(string variableName, ParameterExpression currentValue,
+        ImmutableArray<BoundExpr> statements, Type elementType) =>
+        Emission.Emitters.BlockEmitter.EmitForeachIteration(_emissionCtx, variableName, currentValue, statements, elementType);
 
-    private void EmitLoopIterationBody(
-        List<LinqExpression> body,
-        ImmutableArray<BoundExpr> statements,
-        ParameterExpression resultVar,
-        ParameterExpression signalVar,
-        LabelTarget breakLabel,
-        LabelTarget continueLabel,
-        bool hasConditionCheck)
-    {
-        body.Add(LinqExpression.Call(
-            CheckExecutionConstraintsMethod,
-            _constraintStateParam,
-            LinqExpression.Property(_configParam, nameof(AlderConfig.Constraints)),
-            _ctParam));
-        body.Add(LinqExpression.Call(
-            CheckLoopIterationConstraintMethod,
-            _constraintStateParam,
-            LinqExpression.Property(_configParam, nameof(AlderConfig.Constraints))));
-        body.Add(LinqExpression.Assign(resultVar, EmitHelpers.AsObject(EmitScopedStatements(statements, includeConstraintChecks: false))));
-        body.Add(BuildLoopSignalDispatch(resultVar, signalVar, breakLabel, continueLabel));
-        if (!hasConditionCheck)
-            body.Add(LinqExpression.Assign(resultVar, LinqExpression.Constant(null, typeof(object))));
-    }
+    private LinqExpression EmitScopedStatements(ImmutableArray<BoundExpr> statements, bool includeConstraintChecks = true) =>
+        Emission.Emitters.BlockEmitter.EmitScopedStatements(_emissionCtx, statements, includeConstraintChecks);
 
-    private static LinqExpression BuildLoopSignalDispatch(
-        ParameterExpression resultVar,
-        ParameterExpression signalVar,
-        LabelTarget breakLabel,
-        LabelTarget continueLabel)
-    {
-        var kindExpr = LinqExpression.Property(signalVar, ControlFlowSignalKindProperty);
-        return LinqExpression.IfThen(
-            LinqExpression.TypeIs(resultVar, typeof(ControlFlowSignal)),
-            LinqExpression.Block(
-                LinqExpression.Assign(signalVar, LinqExpression.TypeAs(resultVar, typeof(ControlFlowSignal))),
-                LinqExpression.IfThen(
-                    LinqExpression.Equal(kindExpr, LinqExpression.Constant(ControlFlowSignal.Kind.Break)),
-                    LinqExpression.Block(
-                        LinqExpression.Assign(resultVar, LinqExpression.Constant(null, typeof(object))),
-                        LinqExpression.Break(breakLabel, resultVar))),
-                LinqExpression.IfThen(
-                    LinqExpression.Equal(kindExpr, LinqExpression.Constant(ControlFlowSignal.Kind.Continue)),
-                    LinqExpression.Block(
-                        LinqExpression.Assign(resultVar, LinqExpression.Constant(null, typeof(object))),
-                        LinqExpression.Goto(continueLabel))),
-                LinqExpression.Break(breakLabel, resultVar)));
-    }
-
-    private LinqExpression EmitForeachIteration(
-        string variableName,
-        ParameterExpression currentValue,
-        ImmutableArray<BoundExpr> statements,
-        Type elementType)
-    {
-        var previousContextVar = LinqExpression.Variable(typeof(AlderContext), "foreachPrevCtx");
-        var resultVar = LinqExpression.Variable(typeof(object), "foreachIterResult");
-        var signalVar = LinqExpression.Variable(typeof(ControlFlowSignal), "foreachIterSignal");
-        var doneLabel = LinqExpression.Label("foreachIterDone");
-        var body = new List<LinqExpression>
-        {
-            LinqExpression.Assign(resultVar, LinqExpression.Constant(null, typeof(object))),
-            LinqExpression.Call(
-                _contextParam,
-                ContextDefineNewMethod,
-                LinqExpression.Constant(variableName),
-                currentValue,
-                LinqExpression.Constant(elementType, typeof(Type)),
-                LinqExpression.Constant(false))
-        };
-        EmitStatementListBody(
-            body,
-            statements,
-            resultVar,
-            signalVar,
-            doneLabel,
-            unwrapReturnSignal: false,
-            includeConstraintChecks: false);
-        body.Add(LinqExpression.Label(doneLabel));
-
-        return LinqExpression.Block(
-            typeof(object),
-            [previousContextVar, resultVar, signalVar],
-            LinqExpression.Assign(previousContextVar, _contextParam),
-            LinqExpression.Assign(_contextParam, LinqExpression.Call(_contextParam, ContextCreateChildMethod)),
-            LinqExpression.TryFinally(
-                LinqExpression.Block(body),
-                LinqExpression.Assign(_contextParam, previousContextVar)),
-            resultVar);
-    }
-
-    private LinqExpression EmitScopedStatements(ImmutableArray<BoundExpr> statements, bool includeConstraintChecks = true)
-    {
-        var previousContextVar = LinqExpression.Variable(typeof(AlderContext), "scopePrevCtx");
-        var resultVar = LinqExpression.Variable(typeof(object), "scopeResult");
-        var signalVar = LinqExpression.Variable(typeof(ControlFlowSignal), "scopeSignal");
-        var doneLabel = LinqExpression.Label("scopeDone");
-        var body = new List<LinqExpression>
-        {
-            LinqExpression.Assign(resultVar, LinqExpression.Constant(null, typeof(object)))
-        };
-
-        EmitStatementListBody(
-            body,
-            statements,
-            resultVar,
-            signalVar,
-            doneLabel,
-            unwrapReturnSignal: false,
-            includeConstraintChecks: includeConstraintChecks);
-        body.Add(LinqExpression.Label(doneLabel));
-
-        return LinqExpression.Block(
-            typeof(object),
-            [previousContextVar, resultVar, signalVar],
-            LinqExpression.Assign(previousContextVar, _contextParam),
-            LinqExpression.Assign(_contextParam, LinqExpression.Call(_contextParam, ContextCreateChildMethod)),
-            LinqExpression.TryFinally(
-                LinqExpression.Block(body),
-                LinqExpression.Assign(_contextParam, previousContextVar)),
-            resultVar);
-    }
-
-    private void EmitStatementListBody(
-        List<LinqExpression> body,
-        ImmutableArray<BoundExpr> statements,
-        ParameterExpression resultVar,
-        ParameterExpression signalVar,
-        LabelTarget doneLabel,
-        bool unwrapReturnSignal,
-        bool includeConstraintChecks = true)
-    {
-        for (var i = 0; i < statements.Length; i++)
-        {
-            if (includeConstraintChecks)
-            {
-                body.Add(LinqExpression.Call(
-                    CheckExecutionConstraintsMethod,
-                    _constraintStateParam,
-                    LinqExpression.Property(_configParam, nameof(AlderConfig.Constraints)),
-                    _ctParam));
-            }
-            body.Add(LinqExpression.Assign(resultVar, EmitHelpers.AsObject(Emit(statements[i]))));
-            body.Add(
-                LinqExpression.IfThen(
-                    LinqExpression.TypeIs(resultVar, typeof(ControlFlowSignal)),
-                    LinqExpression.Block(
-                        LinqExpression.Assign(signalVar, LinqExpression.TypeAs(resultVar, typeof(ControlFlowSignal))),
-                        unwrapReturnSignal
-                            ? LinqExpression.IfThen(
-                                LinqExpression.Equal(
-                                    LinqExpression.Property(signalVar, ControlFlowSignalKindProperty),
-                                    LinqExpression.Constant(ControlFlowSignal.Kind.Return)),
-                                LinqExpression.Assign(
-                                    resultVar,
-                                    LinqExpression.Property(signalVar, ControlFlowValueProperty)))
-                            : LinqExpression.Empty(),
-                        LinqExpression.Goto(doneLabel))));
-        }
-    }
+    private void EmitStatementListBody(List<LinqExpression> body, ImmutableArray<BoundExpr> statements,
+        ParameterExpression resultVar, ParameterExpression signalVar, LabelTarget doneLabel,
+        bool unwrapReturnSignal, bool includeConstraintChecks = true) =>
+        Emission.Emitters.BlockEmitter.EmitStatementListBody(_emissionCtx, body, statements, resultVar, signalVar, doneLabel, unwrapReturnSignal, includeConstraintChecks);
 
 }
