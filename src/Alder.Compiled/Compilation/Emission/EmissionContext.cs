@@ -11,7 +11,6 @@ internal sealed class EmissionContext
     public ParameterExpression ConstraintStateParam { get; }
     public ParameterExpression CancellationTokenParam { get; }
 
-    private readonly Func<BoundExpr, Expression> _legacyEmit;
     private readonly Dictionary<BoundNodeKind, Func<BoundExpr, EmissionContext, Expression>> _emitters = new();
 
     internal Dictionary<int, PromotedLocal>? PromotedLocals { get; set; }
@@ -26,14 +25,12 @@ internal sealed class EmissionContext
         ParameterExpression contextParam,
         ParameterExpression configParam,
         ParameterExpression constraintStateParam,
-        ParameterExpression cancellationTokenParam,
-        Func<BoundExpr, Expression> legacyEmit)
+        ParameterExpression cancellationTokenParam)
     {
         ContextParam = contextParam;
         ConfigParam = configParam;
         ConstraintStateParam = constraintStateParam;
         CancellationTokenParam = cancellationTokenParam;
-        _legacyEmit = legacyEmit;
     }
 
     internal void Register<TNode>(BoundNodeKind kind, INodeEmitter<TNode> emitter) where TNode : BoundExpr
@@ -45,18 +42,9 @@ internal sealed class EmissionContext
     {
         if (_emitters.TryGetValue(expr.Kind, out var emitter))
             return emitter(expr, this);
-        return _legacyEmit(expr);
-    }
 
-    internal bool TryEmit(BoundExpr expr, out Expression result)
-    {
-        if (_emitters.TryGetValue(expr.Kind, out var emitter))
-        {
-            result = emitter(expr, this);
-            return true;
-        }
-        result = default!;
-        return false;
+        throw new BindingNotSupportedException(
+            $"Bound compiled emission not implemented for '{expr.GetType().Name}'");
     }
 
     public Expression EmitAs(BoundExpr expr, Type targetType)

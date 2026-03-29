@@ -33,7 +33,7 @@ internal sealed partial class BoundExpressionEmitter
         _configParam = configParam;
         _constraintStateParam = constraintStateParam;
         _ctParam = ctParam;
-        _emissionCtx = new EmissionContext(contextParam, configParam, constraintStateParam, ctParam, Emit);
+        _emissionCtx = new EmissionContext(contextParam, configParam, constraintStateParam, ctParam);
         _emissionCtx.Register(BoundNodeKind.Literal, new LiteralEmitter());
         _emissionCtx.Register(BoundNodeKind.Identifier, new IdentifierEmitter());
         _emissionCtx.Register(BoundNodeKind.Conversion, new CastEmitter());
@@ -189,11 +189,7 @@ internal sealed partial class BoundExpressionEmitter
             throw new BindingNotSupportedException(
                 expr.Diagnostic?.Message ?? "Cannot emit expression with binding errors");
 
-        if (_emissionCtx.TryEmit(expr, out var result))
-            return result;
-
-        throw new BindingNotSupportedException(
-            $"Bound compiled emission not implemented for '{expr.GetType().Name}'");
+        return _emissionCtx.Emit(expr);
     }
 
     private static Dictionary<string, HoistedIdentifier> BuildIdentifierHoistPlan(BoundExpr root)
