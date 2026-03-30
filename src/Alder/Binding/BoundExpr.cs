@@ -5,9 +5,9 @@ namespace Alder.Binding;
 internal abstract record BoundExpr(BoundType StaticType)
 {
     internal abstract BoundNodeKind Kind { get; }
-    internal TextSpan Span { get; init; }
-    internal bool HasErrors { get; init; }
-    internal AlderDiagnostic? Diagnostic { get; init; }
+    internal TextSpan Span { get; set; }
+    internal bool HasErrors { get; set; }
+    internal AlderDiagnostic? Diagnostic { get; set; }
     internal abstract void EnumerateChildren(Action<BoundExpr> visit);
 
     /// <summary>

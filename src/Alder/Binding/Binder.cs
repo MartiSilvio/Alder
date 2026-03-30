@@ -30,7 +30,8 @@ internal sealed partial class Binder
     public BoundExpr Bind(Expr expr, BindingContext context)
     {
         var bound = Dispatch(expr, context);
-        return bound.Span.IsEmpty ? bound with { Span = expr.Span } : bound;
+        if (bound.Span.IsEmpty) bound.Span = expr.Span;
+        return bound;
     }
 
     public BoundExpr BindRecovering(Expr expr, BindingContext context)

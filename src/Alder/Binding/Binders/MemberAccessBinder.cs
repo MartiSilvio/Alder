@@ -14,7 +14,8 @@ internal static class MemberAccessBinder
         {
             var t = binder.Bind(expr.Object, context);
             var r = BindSingleMemberAccess(t, expr.Name.Lexeme, expr.NullSafe, context);
-            return r with { Span = expr.Span };
+            r.Span = expr.Span;
+            return r;
         }
 
         var memberChain = new List<MemberAccessExpr>();
@@ -45,7 +46,7 @@ internal static class MemberAccessBinder
         {
             var link = memberChain[i];
             target = BindSingleMemberAccess(target, link.Name.Lexeme, link.NullSafe, context);
-            target = target with { Span = link.Span };
+            target.Span = link.Span;
 
             if (callAfter[i] is { } callExpr)
                 target = CallBinder.BindCallWithBoundCallee(target, callExpr, context, binder);
@@ -53,7 +54,8 @@ internal static class MemberAccessBinder
 
         var outer = memberChain[0];
         var result = BindSingleMemberAccess(target, outer.Name.Lexeme, outer.NullSafe, context);
-        return result with { Span = outer.Span };
+        result.Span = outer.Span;
+        return result;
     }
 
     internal static BoundMemberAccessBase BindSingleMemberAccess(BoundExpr target, string name, bool nullSafe, BindingContext context)

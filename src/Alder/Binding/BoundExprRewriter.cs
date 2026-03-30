@@ -15,9 +15,9 @@ internal abstract class BoundExprRewriter : BoundExprVisitor<BoundExpr>, IBoundT
     private BoundExpr CopyMetadata(BoundExpr original, BoundExpr rewritten)
     {
         if (ReferenceEquals(original, rewritten)) return rewritten;
-        rewritten = rewritten with { Span = original.Span };
-        if (original.HasErrors) rewritten = rewritten with { HasErrors = true };
-        if (original.Diagnostic != null) rewritten = rewritten with { Diagnostic = original.Diagnostic };
+        rewritten.Span = original.Span;
+        if (original.HasErrors) rewritten.HasErrors = true;
+        if (original.Diagnostic != null) rewritten.Diagnostic = original.Diagnostic;
         return rewritten;
     }
 

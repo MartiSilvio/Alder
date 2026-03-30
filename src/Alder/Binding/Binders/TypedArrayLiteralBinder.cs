@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using Alder.Binding.BoundNodes;
+using Alder.Diagnostics;
 using Alder.Parsing;
 using Alder.Runtime;
 
@@ -13,7 +14,8 @@ internal static class TypedArrayLiteralBinder
         var elements = expr.Elements
             .Select(element => binder.Bind(element, context))
             .ToImmutableArray();
-        var elementType = context.RuntimeContext.TypeResolver.TryResolveType(expr.ElementTypeName) ?? typeof(object);
+        var elementType = context.RuntimeContext.TypeResolver.TryResolveType(expr.ElementTypeName)
+            ?? throw new AlderException(DiagnosticDescriptors.TypeNotFound, expr.ElementTypeName);
         var arrayType = RuntimeArrayFactory.GetArrayType(elementType);
         return new BoundCollectionCreationExpr(elements, elementType, CollectionKind.Array, null, new BoundType(arrayType));
     }

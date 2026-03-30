@@ -32,8 +32,8 @@ internal sealed class ConversionInsertionPass : BoundExprRewriter
             return binary;
 
         var rewritten = binary with { Left = newLeft, Right = newRight, Span = binary.Span };
-        if (binary.HasErrors) rewritten = rewritten with { HasErrors = true };
-        if (binary.Diagnostic != null) rewritten = rewritten with { Diagnostic = binary.Diagnostic };
+        if (binary.HasErrors) rewritten.HasErrors = true;
+        if (binary.Diagnostic != null) rewritten.Diagnostic = binary.Diagnostic;
         return rewritten;
     }
 

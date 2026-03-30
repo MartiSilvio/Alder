@@ -10,6 +10,8 @@ public static class TestSingle
             return RunCheckTuple();
         if (filePath == "--check-factories")
             return RunCheckFactories();
+        if (filePath == "--check-enum")
+            return RunCheckEnum();
 
         var expr = File.ReadAllText(filePath).Trim();
         Console.WriteLine($"Expression file: {filePath}");
@@ -106,6 +108,50 @@ public static class TestSingle
         }
 
         Console.WriteLine($"runtime type hash: {type.GetHashCode()}");
+        return 0;
+    }
+
+    private static int RunCheckEnum()
+    {
+        Console.WriteLine("=== Enum AOT Debug ===");
+        Console.Out.Flush();
+
+        // Step 1: Direct reflection — does DayOfWeek.Monday exist?
+        Console.WriteLine("Step 1: Direct reflection on DayOfWeek...");
+        Console.Out.Flush();
+        try
+        {
+            var type = typeof(DayOfWeek);
+            var fields = type.GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
+            Console.WriteLine($"  Fields ({fields.Length}): {string.Join(", ", fields.Select(f => f.Name))}");
+            var monday = type.GetField("Monday", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
+            Console.WriteLine($"  Monday field: {monday}");
+            if (monday != null)
+                Console.WriteLine($"  Monday value: {monday.GetValue(null)}");
+            Console.Out.Flush();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"  FAIL: {ex.GetType().Name}: {ex.Message}");
+            Console.Out.Flush();
+        }
+
+        // Step 2: Full eval
+        Console.WriteLine("Step 2: Evaluate 'System.DayOfWeek.Monday'...");
+        Console.Out.Flush();
+        try
+        {
+            var engine = new AlderEngine(new AlderOptions { LanguageMode = LanguageMode.Extended });
+            var result = engine.Evaluate("System.DayOfWeek.Monday");
+            Console.WriteLine($"  Result: {result}");
+            Console.Out.Flush();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"  FAIL: {ex.GetType().Name}: {ex.Message}");
+            Console.Out.Flush();
+        }
+
         return 0;
     }
 

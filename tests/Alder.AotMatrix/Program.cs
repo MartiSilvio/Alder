@@ -9,6 +9,8 @@ if (args.Length > 0 && args[0] == "--check-tuple")
     return TestSingle.Run("--check-tuple");
 if (args.Length > 0 && args[0] == "--check-factories")
     return TestSingle.Run("--check-factories");
+if (args.Length > 0 && args[0] == "--check-enum")
+    return TestSingle.Run("--check-enum");
 
 Console.WriteLine("AOT Matrix starting...");
 Console.Out.Flush();

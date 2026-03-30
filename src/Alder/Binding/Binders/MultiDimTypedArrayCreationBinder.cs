@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using Alder.Binding.BoundNodes;
+using Alder.Diagnostics;
 using Alder.Parsing;
 using Alder.Runtime;
 
@@ -13,7 +14,8 @@ internal static class MultiDimTypedArrayCreationBinder
         var sizes = expr.Sizes
             .Select(size => binder.Bind(size, context))
             .ToImmutableArray();
-        var elementType = context.RuntimeContext.TypeResolver.TryResolveType(expr.ElementTypeName) ?? typeof(object);
+        var elementType = context.RuntimeContext.TypeResolver.TryResolveType(expr.ElementTypeName)
+            ?? throw new AlderException(DiagnosticDescriptors.TypeNotFound, expr.ElementTypeName);
         var arrayType = RuntimeArrayFactory.GetArrayType(elementType, expr.Sizes.Count);
         return new BoundArrayAllocationExpr(elementType, sizes, new BoundType(arrayType));
     }
