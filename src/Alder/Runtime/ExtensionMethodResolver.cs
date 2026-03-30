@@ -287,7 +287,7 @@ internal static class ExtensionMethodResolver
 
             return bound.StaticType.ClrType;
         }
-        catch
+        catch (Exception ex) when (ex is AlderException or InvalidOperationException or ArgumentException or InsufficientExecutionStackException)
         {
             return null;
         }

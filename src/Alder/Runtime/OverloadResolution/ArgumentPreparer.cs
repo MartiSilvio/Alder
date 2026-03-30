@@ -8,55 +8,26 @@ internal static class ArgumentPreparer
         ResolvedCall resolved,
         object?[] args,
         ParameterInfo[] parameters,
-        CancellationToken ct)
-    {
-        var sources = resolved.ArgMap.Sources;
-
-        if (IsDirectMapping(resolved, args, parameters))
-            return args;
-
-        var prepared = new object?[parameters.Length];
-
-        for (var paramIdx = 0; paramIdx < sources.Length && paramIdx < parameters.Length; paramIdx++)
-        {
-            var source = sources[paramIdx];
-            switch (source.Kind)
-            {
-                case ParameterSourceKind.Argument:
-                {
-                    var argIdx = source.ArgumentIndex;
-                    if ((uint)argIdx >= (uint)args.Length)
-                        break;
-                    prepared[paramIdx] = PrepareArgument(args[argIdx], resolved.Conversions, argIdx, parameters[paramIdx]);
-                    break;
-                }
-                case ParameterSourceKind.Default:
-                    prepared[paramIdx] = MaterializeDefault(parameters[paramIdx]);
-                    break;
-                case ParameterSourceKind.ParamsRange:
-                {
-                    var elementType = parameters[paramIdx].ParameterType.GetElementType()!;
-                    prepared[paramIdx] = BuildParamsArray(
-                        args, source.ParamsStartIndex, source.ParamsCount,
-                        elementType, resolved.Conversions);
-                    break;
-                }
-            }
-        }
-
-        return prepared;
-    }
+        CancellationToken ct) =>
+        PrepareCore(resolved.ArgMap, resolved.Form, resolved.Conversions, args, parameters);
 
     public static object?[] Prepare(
         ResolvedConstructorCall resolved,
         object?[] args,
+        ParameterInfo[] parameters) =>
+        PrepareCore(resolved.ArgMap, resolved.Form, resolved.Conversions, args, parameters);
+
+    private static object?[] PrepareCore(
+        ArgumentParameterMap argMap,
+        ApplicableForm form,
+        ImmutableArray<ArgumentConversion> conversions,
+        object?[] args,
         ParameterInfo[] parameters)
     {
-        var sources = resolved.ArgMap.Sources;
-
-        if (IsDirectMapping(resolved.ArgMap, resolved.Form, resolved.Conversions, args, parameters))
+        if (IsDirectMapping(argMap, form, conversions, args, parameters))
             return args;
 
+        var sources = argMap.Sources;
         var prepared = new object?[parameters.Length];
 
         for (var paramIdx = 0; paramIdx < sources.Length && paramIdx < parameters.Length; paramIdx++)
@@ -69,7 +40,7 @@ internal static class ArgumentPreparer
                     var argIdx = source.ArgumentIndex;
                     if ((uint)argIdx >= (uint)args.Length)
                         break;
-                    prepared[paramIdx] = PrepareArgument(args[argIdx], resolved.Conversions, argIdx, parameters[paramIdx]);
+                    prepared[paramIdx] = PrepareArgument(args[argIdx], conversions, argIdx, parameters[paramIdx]);
                     break;
                 }
                 case ParameterSourceKind.Default:
@@ -80,7 +51,7 @@ internal static class ArgumentPreparer
                     var elementType = parameters[paramIdx].ParameterType.GetElementType()!;
                     prepared[paramIdx] = BuildParamsArray(
                         args, source.ParamsStartIndex, source.ParamsCount,
-                        elementType, resolved.Conversions);
+                        elementType, conversions);
                     break;
                 }
             }

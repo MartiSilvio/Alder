@@ -41,7 +41,7 @@ internal sealed class SourceWriter
     }
 
     public void Indent() => _indent++;
-    public void Outdent() => _indent--;
+    public void Outdent() => _indent = System.Math.Max(0, _indent - 1);
 
     public override string ToString() => _sb.ToString();
 

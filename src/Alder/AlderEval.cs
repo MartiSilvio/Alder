@@ -10,7 +10,9 @@ public static class AlderEval
     private static volatile AlderEngine? _engine;
     private static Action<AlderOptions>? _pendingConfigure;
     private static readonly object _lock = new();
-    private static int _state; // 0 = unconfigured, 1 = configured, 2 = engine created
+
+    private enum State { Unconfigured, Configured, EngineCreated }
+    private static State _state;
 
     /// <summary>
     /// Configures the global engine options. Must be called before any evaluation.
@@ -27,17 +29,17 @@ public static class AlderEval
         {
             switch (_state)
             {
-                case 2:
+                case State.EngineCreated:
                     throw new InvalidOperationException(
                         "Cannot configure AlderEval after evaluation has started. " +
                         "Call AlderEval.Configure() before the first AlderEval.Evaluate() call.");
-                case 1:
+                case State.Configured:
                     throw new InvalidOperationException(
                         "AlderEval.Configure() has already been called. " +
                         "Global configuration can only be set once.");
                 default:
                     _pendingConfigure = configure;
-                    _state = 1;
+                    _state = State.Configured;
                     break;
             }
         }
@@ -54,7 +56,7 @@ public static class AlderEval
             _engine?.Dispose();
             _engine = null;
             _pendingConfigure = null;
-            _state = 0;
+            _state = State.Unconfigured;
         }
     }
 
@@ -73,7 +75,7 @@ public static class AlderEval
                 ? new AlderEngine(_pendingConfigure)
                 : new AlderEngine();
 
-            _state = 2;
+            _state = State.EngineCreated;
             return _engine;
         }
     }
