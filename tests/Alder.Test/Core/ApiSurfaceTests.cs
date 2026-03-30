@@ -341,7 +341,7 @@ public class ApiSurfaceTests
             "Alder.Aot.AlderBuiltInContext",
             "Alder.Aot.AlderRegisteredAttribute",
             "Alder.Aot.AlderTypeContext",
-            "Alder.Aot.IAotTypeMetadata",
+            "Alder.Aot.ITypedDispatch",
             "Alder.Attributes.AlderFunctionAttribute",
             "Alder.Attributes.AlderModuleAttribute",
             "Alder.AlderCompiledExpression`1",

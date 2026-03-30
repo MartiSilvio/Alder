@@ -39,31 +39,32 @@ public class TestGeneratedContext : AlderTypeContext
 {
     public static TestGeneratedContext Default { get; } = new();
 
-    private static readonly IAotTypeMetadata[] s_metadata =
+    private static readonly ITypedDispatch[] s_metadata =
     [
         new TestModelMetadata(),
         new TestIndexedModelMetadata(),
     ];
 
-    public override IReadOnlyList<IAotTypeMetadata> GetTypeMetadata() => s_metadata;
+    public override IReadOnlyList<ITypedDispatch> GetTypeMetadata() => s_metadata;
 }
 
-internal sealed class TestModelMetadata : IAotTypeMetadata
+internal sealed class TestModelMetadata : ITypedDispatch
 {
     public Type Type => typeof(TestModel);
 
-    public bool TryGetProperty(string name, object instance, out object? value)
+    public bool TryGet(string name, object instance, out object? value)
     {
         var typed = (TestModel)instance;
         switch (name)
         {
             case "Name": value = typed.Name; return true;
             case "Value": value = typed.Value; return true;
+            case "Id": value = typed.Id; return true;
             default: value = default; return false;
         }
     }
 
-    public bool TrySetProperty(string name, object instance, object? value)
+    public bool TrySet(string name, object instance, object? value)
     {
         var typed = (TestModel)instance;
         switch (name)
@@ -74,37 +75,17 @@ internal sealed class TestModelMetadata : IAotTypeMetadata
         }
     }
 
-    public bool TryGetField(string name, object instance, out object? value)
-    {
-        var typed = (TestModel)instance;
-        switch (name)
-        {
-            case "Id": value = typed.Id; return true;
-            default: value = default; return false;
-        }
-    }
-
-    public bool TrySetField(string name, object instance, object? value) => false;
-
-    public bool TryGetStaticProperty(string name, out object? value)
+    public bool TryGetStatic(string name, out object? value)
     {
         switch (name)
         {
             case "Label": value = TestModel.Label; return true;
-            default: value = default; return false;
-        }
-    }
-
-    public bool TryGetStaticField(string name, out object? value)
-    {
-        switch (name)
-        {
             case "Counter": value = TestModel.Counter; return true;
             default: value = default; return false;
         }
     }
 
-    public bool TryCreateInstance(object?[] args, out object? instance)
+    public bool TryCreate(object?[] args, out object? instance)
     {
         switch (args.Length)
         {
@@ -122,7 +103,7 @@ internal sealed class TestModelMetadata : IAotTypeMetadata
 
     public bool TrySetIndex(object instance, object key, object? value) => false;
 
-    public bool TryInvokeMethod(string name, object instance, object?[] args, out object? result)
+    public bool TryInvoke(string name, object instance, object?[] args, out object? result)
     {
         var typed = (TestModel)instance;
         switch (name)
@@ -150,7 +131,7 @@ internal sealed class TestModelMetadata : IAotTypeMetadata
         return false;
     }
 
-    public bool TryInvokeStaticMethod(string name, object?[] args, out object? result)
+    public bool TryInvokeStatic(string name, object?[] args, out object? result)
     {
         switch (name)
         {
@@ -166,39 +147,25 @@ internal sealed class TestModelMetadata : IAotTypeMetadata
     }
 }
 
-internal sealed class TestIndexedModelMetadata : IAotTypeMetadata
+internal sealed class TestIndexedModelMetadata : ITypedDispatch
 {
     public Type Type => typeof(TestIndexedModel);
 
-    public bool TryGetProperty(string name, object instance, out object? value)
+    public bool TryGet(string name, object instance, out object? value)
     {
         value = default;
         return false;
     }
 
-    public bool TrySetProperty(string name, object instance, object? value) => false;
+    public bool TrySet(string name, object instance, object? value) => false;
 
-    public bool TryGetField(string name, object instance, out object? value)
+    public bool TryGetStatic(string name, out object? value)
     {
         value = default;
         return false;
     }
 
-    public bool TrySetField(string name, object instance, object? value) => false;
-
-    public bool TryGetStaticProperty(string name, out object? value)
-    {
-        value = default;
-        return false;
-    }
-
-    public bool TryGetStaticField(string name, out object? value)
-    {
-        value = default;
-        return false;
-    }
-
-    public bool TryCreateInstance(object?[] args, out object? instance)
+    public bool TryCreate(object?[] args, out object? instance)
     {
         instance = default;
         return false;
@@ -227,13 +194,13 @@ internal sealed class TestIndexedModelMetadata : IAotTypeMetadata
         return false;
     }
 
-    public bool TryInvokeMethod(string name, object instance, object?[] args, out object? result)
+    public bool TryInvoke(string name, object instance, object?[] args, out object? result)
     {
         result = default;
         return false;
     }
 
-    public bool TryInvokeStaticMethod(string name, object?[] args, out object? result)
+    public bool TryInvokeStatic(string name, object?[] args, out object? result)
     {
         result = default;
         return false;

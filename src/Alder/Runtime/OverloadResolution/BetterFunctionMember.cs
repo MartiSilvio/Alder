@@ -297,7 +297,7 @@ internal static class OverloadResolution
         return BetterResult.Neither;
     }
 
-    private static int CountDefaults(ArgumentParameterMap argMap)
+    internal static int CountDefaults(ArgumentParameterMap argMap)
     {
         var count = 0;
         foreach (var source in argMap.Sources)
@@ -308,7 +308,7 @@ internal static class OverloadResolution
         return count;
     }
 
-    private static Type GetEffectiveParameterType(ParameterInfo[] parameters, int argIndex, ApplicableForm form)
+    internal static Type GetEffectiveParameterType(ParameterInfo[] parameters, int argIndex, ApplicableForm form)
     {
         if (form == ApplicableForm.Expanded)
         {

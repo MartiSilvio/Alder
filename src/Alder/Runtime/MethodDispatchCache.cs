@@ -37,16 +37,19 @@ internal static class MethodDispatchCache
     private static readonly MethodInfo InstanceFactory3 = GetFactory(nameof(CreateInstanceInvoker3));
     private static readonly MethodInfo InstanceFactory4 = GetFactory(nameof(CreateInstanceInvoker4));
 
+    internal static readonly bool DynamicCodeSupported =
+#if NET7_0_OR_GREATER
+        RuntimeFeature.IsDynamicCodeSupported;
+#else
+        true;
+#endif
+
     internal static ParameterInfo[] GetParameters(MethodInfo method) =>
         ParameterCache.GetOrAdd(method, static m => m.GetParameters());
 
     internal static bool TryInvokeFast(MethodInfo method, object? target, object?[] args, out object? result)
     {
-#if NET7_0_OR_GREATER
-        if (!RuntimeFeature.IsDynamicCodeSupported)
-#else
-        if (false) // dynamic code always supported on non-AOT runtimes
-#endif
+        if (!DynamicCodeSupported)
         {
             result = null;
             return false;

@@ -65,6 +65,131 @@ internal static class OverloadResolver
         return SelectBest(candidates, receiverAndArgs, out result, out ambiguous);
     }
 
+    public static bool TryResolveConstructor(
+        ConstructorInfo[] constructors,
+        ReadOnlySpan<ArgumentDescriptor> args,
+        AlderContext? context,
+        out ResolvedConstructorCall result,
+        out bool ambiguous)
+    {
+        result = default;
+        ambiguous = false;
+
+        var candidates = BuildConstructorCandidates(constructors, args);
+        if (candidates.Count == 0)
+            return false;
+
+        if (candidates.Count == 1)
+        {
+            result = candidates[0].ToResolved();
+            return true;
+        }
+
+        return SelectBestConstructor(candidates, args, out result, out ambiguous);
+    }
+
+    private static List<ConstructorCandidate> BuildConstructorCandidates(
+        ConstructorInfo[] constructors,
+        ReadOnlySpan<ArgumentDescriptor> args)
+    {
+        var candidates = new List<ConstructorCandidate>(constructors.Length);
+
+        foreach (var ctor in constructors)
+        {
+            var parameters = ctor.GetParameters();
+            if (!ApplicabilityChecker.IsApplicable(
+                    parameters, args,
+                    out var form, out var argMap, out var conversions))
+                continue;
+
+            candidates.Add(new ConstructorCandidate(ctor, parameters, form, argMap, conversions));
+        }
+
+        return candidates;
+    }
+
+    private static bool SelectBestConstructor(
+        List<ConstructorCandidate> candidates,
+        ReadOnlySpan<ArgumentDescriptor> args,
+        out ResolvedConstructorCall result,
+        out bool ambiguous)
+    {
+        result = default;
+        ambiguous = false;
+
+        var best = candidates[0];
+        var bestIsUnique = true;
+
+        for (var i = 1; i < candidates.Count; i++)
+        {
+            var cmp = BetterConstructor(best, candidates[i], args);
+            switch (cmp)
+            {
+                case BetterResult.Right:
+                    best = candidates[i];
+                    bestIsUnique = true;
+                    break;
+                case BetterResult.Neither:
+                    bestIsUnique = false;
+                    break;
+            }
+        }
+
+        if (!bestIsUnique)
+        {
+            foreach (var candidate in candidates)
+            {
+                if (candidate.Constructor == best.Constructor)
+                    continue;
+                if (BetterConstructor(best, candidate, args) != BetterResult.Left)
+                {
+                    ambiguous = true;
+                    return false;
+                }
+            }
+        }
+
+        result = best.ToResolved();
+        return true;
+    }
+
+    private static BetterResult BetterConstructor(
+        ConstructorCandidate left,
+        ConstructorCandidate right,
+        ReadOnlySpan<ArgumentDescriptor> args)
+    {
+        var leftBetter = false;
+        var rightBetter = false;
+
+        for (var i = 0; i < args.Length; i++)
+        {
+            var leftType = OverloadResolution.GetEffectiveParameterType(left.Parameters, i, left.Form);
+            var rightType = OverloadResolution.GetEffectiveParameterType(right.Parameters, i, right.Form);
+
+            if (leftType == rightType)
+                continue;
+
+            var cmp = TypeHelpers.CompareBetterConversionTarget(leftType, rightType);
+            if (cmp > 0) leftBetter = true;
+            else if (cmp < 0) rightBetter = true;
+        }
+
+        if (leftBetter && !rightBetter) return BetterResult.Left;
+        if (rightBetter && !leftBetter) return BetterResult.Right;
+
+        // Tiebreak: normal form beats expanded form
+        if (left.Form != right.Form)
+            return left.Form == ApplicableForm.Normal ? BetterResult.Left : BetterResult.Right;
+
+        // Tiebreak: fewer defaults is more specific
+        var leftDefaults = OverloadResolution.CountDefaults(left.ArgMap);
+        var rightDefaults = OverloadResolution.CountDefaults(right.ArgMap);
+        if (leftDefaults != rightDefaults)
+            return leftDefaults < rightDefaults ? BetterResult.Left : BetterResult.Right;
+
+        return BetterResult.Neither;
+    }
+
     private static List<MethodCandidate> BuildCandidates(
         MethodInfo[] methods,
         ReadOnlySpan<ArgumentDescriptor> args,

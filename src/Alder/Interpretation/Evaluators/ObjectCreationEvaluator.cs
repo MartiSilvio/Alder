@@ -18,7 +18,7 @@ internal static class ObjectCreationEvaluator
         var type = node.StaticType is BoundUnknownType
             ? ctx.Context.TypeResolver.ResolveType(node.TypeName)
             : node.StaticType.ClrType;
-        var result = ConstructionRuntime.InvokeConstructor(type, args, ctx.Config);
+        var result = ConstructionRuntime.InvokeConstructor(type, args, ctx.Config, ctx.Context);
 
         foreach (var entry in node.InitializerEntries)
         {

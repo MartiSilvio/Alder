@@ -15,28 +15,25 @@ internal static class TypeMetadataEmitter
         w.AppendLine("#nullable enable");
         w.AppendLine();
 
-        using (w.Block($"file sealed class {reg.MetadataClassName} : global::Alder.Aot.IAotTypeMetadata"))
+        using (w.Block($"file sealed class {reg.MetadataClassName} : global::Alder.Aot.ITypedDispatch"))
         {
             w.AppendLine($"public global::System.Type Type => typeof({reg.TypeFullName});");
             w.AppendLine();
 
-            EmitTryGetProperty(w, reg);
-            EmitTrySetProperty(w, reg);
-            EmitTryGetField(w, reg);
-            EmitTrySetField(w, reg);
+            EmitTryGet(w, reg);
+            EmitTrySet(w, reg);
+            EmitTryGetStatic(w, reg);
             EmitTryGetIndex(w, reg);
             EmitTrySetIndex(w, reg);
-            EmitTryGetStaticProperty(w, reg);
-            EmitTryGetStaticField(w, reg);
-            EmitTryCreateInstance(w, reg);
-            EmitTryInvokeMethod(w, reg);
-            EmitTryInvokeStaticMethod(w, reg);
+            EmitTryCreate(w, reg);
+            EmitTryInvoke(w, reg);
+            EmitTryInvokeStatic(w, reg);
         }
 
         return w.ToString();
     }
 
-    public static string? EmitGenericInstantiations(ImmutableArray<TypeRegistrationModel> registrations)
+    public static string? EmitTypeRoots(ImmutableArray<TypeRegistrationModel> registrations)
     {
         var closedGenerics = registrations.Where(r => r.IsClosedGeneric).ToArray();
         var valueTypes = DelegateFactoryEmitter.CollectValueTypeNames(registrations);
@@ -50,10 +47,9 @@ internal static class TypeMetadataEmitter
         w.AppendLine("#pragma warning disable CS8600, CS8602, CS8603, CS8604");
         w.AppendLine();
 
-        using (w.Block("file static class GenericInstantiations"))
+        using (w.Block("file static class TypeRoots"))
         {
             var seenFields = new HashSet<string>();
-            var fieldIndex = 0;
 
             foreach (var reg in closedGenerics)
             {
@@ -66,18 +62,11 @@ internal static class TypeMetadataEmitter
             foreach (var vt in valueTypes)
             {
                 var id = AlderSourceGenerator.SanitizeIdentifier(vt);
-
                 EmitTypeRoot(w, seenFields, $"Nullable_{id}", $"global::System.Nullable<{vt}>");
                 EmitTypeRoot(w, seenFields, $"EqComparer_{id}", $"global::System.Collections.Generic.EqualityComparer<{vt}>");
                 EmitTypeRoot(w, seenFields, $"Comparer_{id}", $"global::System.Collections.Generic.Comparer<{vt}>");
                 EmitTypeRoot(w, seenFields, $"List_{id}", $"global::System.Collections.Generic.List<{vt}>");
                 EmitTypeRoot(w, seenFields, $"IEnumerable_{id}", $"global::System.Collections.Generic.IEnumerable<{vt}>");
-
-                // Root common LINQ method instantiations via method-group-to-delegate conversion.
-                // This forces NativeAOT to compile the closed generic method without MakeGenericMethod.
-                w.AppendLine($"static readonly global::System.Reflection.MethodInfo _linq_ToList_{id} = ((global::System.Func<global::System.Collections.Generic.IEnumerable<{vt}>, global::System.Collections.Generic.List<{vt}>>)global::System.Linq.Enumerable.ToList).Method;");
-                w.AppendLine($"static readonly global::System.Reflection.MethodInfo _linq_ToArray_{id} = ((global::System.Func<global::System.Collections.Generic.IEnumerable<{vt}>, {vt}[]>)global::System.Linq.Enumerable.ToArray).Method;");
-                w.AppendLine($"static readonly global::System.Reflection.MethodInfo _linq_Count_{id} = ((global::System.Func<global::System.Collections.Generic.IEnumerable<{vt}>, int>)global::System.Linq.Enumerable.Count).Method;");
             }
         }
 
@@ -91,65 +80,50 @@ internal static class TypeMetadataEmitter
         w.AppendLine($"static readonly global::System.Type _{fieldName} = typeof({typeFullName});");
     }
 
-    #region Property/Field accessors
+    #region Member accessors (merged property + field)
 
-    private static void EmitTryGetProperty(SourceWriter w, TypeRegistrationModel reg)
+    private static void EmitTryGet(SourceWriter w, TypeRegistrationModel reg)
     {
-        var members = reg.Properties.Where(p => p is { IsStatic: false, CanRead: true }).ToArray();
+        var properties = reg.Properties.Where(p => p is { IsStatic: false, CanRead: true })
+            .Select(p => (p.Name, $"value = typed.{p.Name}; return true;"));
+        var fields = reg.Fields.Where(f => !f.IsStatic)
+            .Select(f => (f.Name, $"value = typed.{f.Name}; return true;"));
+        var cases = properties.Concat(fields).ToArray();
+
         EmitNameSwitch(w,
-            "public bool TryGetProperty(string name, object instance, out object? value)",
+            "public bool TryGet(string name, object instance, out object? value)",
             reg.TypeFullName,
-            members.Select(p => (p.Name, $"value = typed.{p.Name}; return true;")).ToArray(),
+            cases,
             "value = default;", "return false;");
     }
 
-    private static void EmitTrySetProperty(SourceWriter w, TypeRegistrationModel reg)
+    private static void EmitTrySet(SourceWriter w, TypeRegistrationModel reg)
     {
-        var members = reg.Properties.Where(p => p is { IsStatic: false, CanWrite: true }).ToArray();
+        var properties = reg.Properties.Where(p => p is { IsStatic: false, CanWrite: true })
+            .Select(p => (p.Name, $"typed.{p.Name} = ({p.TypeFullName})value!; return true;"));
+        var fields = reg.Fields.Where(f => f is { IsStatic: false, IsReadOnly: false })
+            .Select(f => (f.Name, $"typed.{f.Name} = ({f.TypeFullName})value!; return true;"));
+        var cases = properties.Concat(fields).ToArray();
+
         EmitNameSwitch(w,
-            "public bool TrySetProperty(string name, object instance, object? value)",
+            "public bool TrySet(string name, object instance, object? value)",
             reg.TypeFullName,
-            members.Select(p => (p.Name, $"typed.{p.Name} = ({p.TypeFullName})value!; return true;")).ToArray(),
+            cases,
             "return false;");
     }
 
-    private static void EmitTryGetField(SourceWriter w, TypeRegistrationModel reg)
+    private static void EmitTryGetStatic(SourceWriter w, TypeRegistrationModel reg)
     {
-        var members = reg.Fields.Where(f => !f.IsStatic).ToArray();
-        EmitNameSwitch(w,
-            "public bool TryGetField(string name, object instance, out object? value)",
-            reg.TypeFullName,
-            members.Select(f => (f.Name, $"value = typed.{f.Name}; return true;")).ToArray(),
-            "value = default;", "return false;");
-    }
+        var properties = reg.Properties.Where(p => p is { IsStatic: true, CanRead: true })
+            .Select(p => (p.Name, $"value = {reg.TypeFullName}.{p.Name}; return true;"));
+        var fields = reg.Fields.Where(f => f.IsStatic)
+            .Select(f => (f.Name, $"value = {reg.TypeFullName}.{f.Name}; return true;"));
+        var cases = properties.Concat(fields).ToArray();
 
-    private static void EmitTrySetField(SourceWriter w, TypeRegistrationModel reg)
-    {
-        var members = reg.Fields.Where(f => f is { IsStatic: false, IsReadOnly: false }).ToArray();
         EmitNameSwitch(w,
-            "public bool TrySetField(string name, object instance, object? value)",
-            reg.TypeFullName,
-            members.Select(f => (f.Name, $"typed.{f.Name} = ({f.TypeFullName})value!; return true;")).ToArray(),
-            "return false;");
-    }
-
-    private static void EmitTryGetStaticProperty(SourceWriter w, TypeRegistrationModel reg)
-    {
-        var members = reg.Properties.Where(p => p is { IsStatic: true, CanRead: true }).ToArray();
-        EmitNameSwitch(w,
-            "public bool TryGetStaticProperty(string name, out object? value)",
+            "public bool TryGetStatic(string name, out object? value)",
             null,
-            members.Select(p => (p.Name, $"value = {reg.TypeFullName}.{p.Name}; return true;")).ToArray(),
-            "value = default;", "return false;");
-    }
-
-    private static void EmitTryGetStaticField(SourceWriter w, TypeRegistrationModel reg)
-    {
-        var members = reg.Fields.Where(f => f.IsStatic).ToArray();
-        EmitNameSwitch(w,
-            "public bool TryGetStaticField(string name, out object? value)",
-            null,
-            members.Select(f => (f.Name, $"value = {reg.TypeFullName}.{f.Name}; return true;")).ToArray(),
+            cases,
             "value = default;", "return false;");
     }
 
@@ -175,6 +149,7 @@ internal static class TypeMetadataEmitter
                 w.AppendLine("return false;");
             }
         }
+
         w.AppendLine();
     }
 
@@ -187,7 +162,8 @@ internal static class TypeMetadataEmitter
             if (writable.Length > 0)
             {
                 var idx = writable[0];
-                w.AppendLine($"(({reg.TypeFullName})instance)[({idx.KeyTypeFullName})key] = ({idx.ValueTypeFullName})value!;");
+                w.AppendLine(
+                    $"(({reg.TypeFullName})instance)[({idx.KeyTypeFullName})key] = ({idx.ValueTypeFullName})value!;");
                 w.AppendLine("return true;");
             }
             else
@@ -195,6 +171,7 @@ internal static class TypeMetadataEmitter
                 w.AppendLine("return false;");
             }
         }
+
         w.AppendLine();
     }
 
@@ -202,9 +179,9 @@ internal static class TypeMetadataEmitter
 
     #region Constructors
 
-    private static void EmitTryCreateInstance(SourceWriter w, TypeRegistrationModel reg)
+    private static void EmitTryCreate(SourceWriter w, TypeRegistrationModel reg)
     {
-        using (w.Block("public bool TryCreateInstance(object?[] args, out object? instance)"))
+        using (w.Block("public bool TryCreate(object?[] args, out object? instance)"))
         {
             if (reg.Constructors.Length > 0)
             {
@@ -220,19 +197,16 @@ internal static class TypeMetadataEmitter
                         {
                             w.AppendLine($"instance = new {reg.TypeFullName}(); return true;");
                         }
-                        else if (ctors.Length == 1)
-                        {
-                            var castArgs = FormatCastArgs(ctors[0].Parameters);
-                            w.AppendLine($"instance = new {reg.TypeFullName}({castArgs}); return true;");
-                        }
                         else
                         {
                             foreach (var ctor in ctors)
                             {
                                 var condition = FormatTypeChecks(ctor.Parameters);
                                 var castArgs = FormatCastArgs(ctor.Parameters);
-                                w.AppendLine($"if ({condition}) {{ instance = new {reg.TypeFullName}({castArgs}); return true; }}");
+                                w.AppendLine(
+                                    $"if ({condition}) {{ instance = new {reg.TypeFullName}({castArgs}); return true; }}");
                             }
+
                             w.AppendLine("instance = default; return false;");
                         }
 
@@ -254,21 +228,21 @@ internal static class TypeMetadataEmitter
 
     #region Method invocation
 
-    private static void EmitTryInvokeMethod(SourceWriter w, TypeRegistrationModel reg)
+    private static void EmitTryInvoke(SourceWriter w, TypeRegistrationModel reg)
     {
         var methods = reg.Methods.Where(m => !m.IsStatic).ToArray();
         w.AppendLine();
         EmitMethodDispatch(w,
-            "public bool TryInvokeMethod(string name, object instance, object?[] args, out object? result)",
+            "public bool TryInvoke(string name, object instance, object?[] args, out object? result)",
             reg.TypeFullName, methods, isStatic: false);
     }
 
-    private static void EmitTryInvokeStaticMethod(SourceWriter w, TypeRegistrationModel reg)
+    private static void EmitTryInvokeStatic(SourceWriter w, TypeRegistrationModel reg)
     {
         var methods = reg.Methods.Where(m => m.IsStatic).ToArray();
         w.AppendLine();
         EmitMethodDispatch(w,
-            "public bool TryInvokeStaticMethod(string name, object?[] args, out object? result)",
+            "public bool TryInvokeStatic(string name, object?[] args, out object? result)",
             reg.TypeFullName, methods, isStatic: true);
     }
 
@@ -306,6 +280,7 @@ internal static class TypeMetadataEmitter
                     w.AppendLine(stmt);
             }
         }
+
         w.AppendLine();
     }
 

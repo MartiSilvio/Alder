@@ -22,6 +22,13 @@ internal static class MethodInvoker
         if (target == null)
             throw new AlderException(DiagnosticDescriptors.NullMethodCall, methodName);
 
+        // When target is a Type (e.g., Enumerable.Range, string.Format), try typed static
+        // dispatch first. On NativeAOT, reflection-based static method discovery is trimmed,
+        // but the generated TryInvokeStatic handles these calls.
+        if (target is Type staticType && !HasSpecialArgs(args) &&
+            TypedDispatchHelper.TryInvokeStatic(config, staticType, methodName, args, out var staticResult))
+            return staticResult;
+
         var result = TryInvokeInstanceMethod(target, methodName, args, context, config, typeArgs, ct);
         if (result.Success)
             return result.Value;
@@ -100,14 +107,14 @@ internal static class MethodInvoker
             return (false, null);
 
         var type = target.GetType();
+        var hasSpecialArgs = HasSpecialArgs(args);
 
-        if (!HasSpecialArgs(args) &&
-            context.Config.TryGetAotMetadata(type, out var metadata))
-        {
-            if (metadata.TryInvokeMethod(methodName, target, args, out var aotResult))
-                return (true, aotResult);
-        }
+        // Tier 1: typed dispatch — primary path for both JIT and AOT
+        if (!hasSpecialArgs &&
+            TypedDispatchHelper.TryInvokeInstance(config, type, methodName, target, args, out var typedResult))
+            return (true, typedResult);
 
+        // Tier 2: reflection — overload resolution with caching
         var descriptors = ArgumentDescriptor.FromArgs(args);
 
         if (typeArgs is null or { Count: 0 } &&
@@ -132,12 +139,53 @@ internal static class MethodInvoker
         if (ambiguous)
             throw new AlderException(DiagnosticDescriptors.AmbiguousMethodInvocation, methodName);
 
-        var extensionResult = ExtensionMethodResolver.TryInvokeExtensionMethod(
-            target, methodName, args, context.ExtensionTypes, config.IsCaseSensitive, typeArgs, context, ct);
+        // Tier 3: extension methods — per-type interleaved dispatch (typed → reflection)
+        var extensionResult = TryInvokeExtensionMethod(
+            target, methodName, args, hasSpecialArgs, context, config, typeArgs, ct);
         if (extensionResult.Success)
             return extensionResult;
 
         return (false, null);
+    }
+
+    private static (bool Success, object? Value) TryInvokeExtensionMethod(
+        object target, string methodName, object?[] args, bool hasSpecialArgs,
+        AlderContext context, AlderConfig config,
+        IReadOnlyList<string>? typeArgs, CancellationToken ct)
+    {
+        var extensionTypes = context.ExtensionTypes;
+        if (extensionTypes.IsDefaultOrEmpty)
+            return (false, null);
+
+        object?[]? extArgs = null;
+
+        foreach (var extType in extensionTypes)
+        {
+            // Try typed dispatch first for this extension type
+            if (!hasSpecialArgs && config.TryGetDispatch(extType, out var extDispatch))
+            {
+                extArgs ??= PrependTarget(target, args);
+                if (extDispatch.TryInvokeStatic(methodName, extArgs, out var typedResult))
+                    return (true, typedResult);
+            }
+
+            // Typed dispatch didn't match — try reflection for this specific type
+            var reflResult = ExtensionMethodResolver.TryInvokeFromType(
+                target, target.GetType(), methodName, args, extType,
+                config.IsCaseSensitive, typeArgs, context, ct);
+            if (reflResult.Success)
+                return reflResult;
+        }
+
+        return (false, null);
+    }
+
+    private static object?[] PrependTarget(object target, object?[] args)
+    {
+        var extArgs = new object?[args.Length + 1];
+        extArgs[0] = target;
+        Array.Copy(args, 0, extArgs, 1, args.Length);
+        return extArgs;
     }
 
     internal static MethodInfo? TryMakeConcreteMethodWithTypeArgs(MethodInfo genericMethod, IReadOnlyList<string> typeArgs, TypeResolver? resolver = null)
@@ -203,11 +251,8 @@ internal static class MethodInvoker
         CancellationToken ct)
     {
         if (!HasSpecialArgs(args) &&
-            context.Config.TryGetAotMetadata(type, out var metadata))
-        {
-            if (metadata.TryInvokeStaticMethod(methodName, args, out var aotResult))
-                return aotResult;
-        }
+            TypedDispatchHelper.TryInvokeStatic(config, type, methodName, args, out var aotResult))
+            return aotResult;
 
         var descriptors = ArgumentDescriptor.FromArgs(args);
 

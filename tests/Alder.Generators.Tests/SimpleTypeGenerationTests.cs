@@ -41,7 +41,7 @@ public class SimpleTypeGenerationTests
         var generated = GetAllGeneratedSource(generatedTrees);
 
         Assert.That(errors, Is.Empty, $"Generated code has compilation errors:\n{string.Join("\n", errors)}");
-        Assert.That(generated, Does.Contain("TryGetProperty"));
+        Assert.That(generated, Does.Contain("TryGet"));
         Assert.That(generated, Does.Contain("typed.Name"));
         Assert.That(generated, Does.Contain("typed.Value"));
         Assert.That(generated, Does.Contain("(global::TestTypes.MyModel)instance"));

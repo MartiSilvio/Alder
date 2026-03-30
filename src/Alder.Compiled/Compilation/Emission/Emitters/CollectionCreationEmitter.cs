@@ -1,4 +1,5 @@
 using Alder.Binding.BoundNodes;
+using Alder.Runtime;
 using static Alder.Compiled.Compilation.BoundRuntimeMethodCache;
 
 namespace Alder.Compiled.Compilation.Emission.Emitters;
@@ -47,7 +48,8 @@ internal sealed class CollectionCreationEmitter : INodeEmitter<BoundCollectionCr
                     CollectionFactoryCreateMethod,
                     LinqExpression.Constant(node.TargetCollectionType!),
                     LinqExpression.Constant(node.ElementType),
-                    listVar));
+                    listVar,
+                    LinqExpression.Convert(ctx.ConfigParam, typeof(AlderConfig))));
                 break;
         }
 

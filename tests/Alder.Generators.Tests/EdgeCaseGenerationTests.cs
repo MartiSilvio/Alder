@@ -41,7 +41,7 @@ public class EdgeCaseGenerationTests
         var generated = GetAllGeneratedSource(generatedTrees);
 
         Assert.That(errors, Is.Empty, $"Generated code has compilation errors:\n{string.Join("\n", errors)}");
-        Assert.That(generated, Does.Contain("TryGetProperty"));
+        Assert.That(generated, Does.Contain("TryGet"));
         Assert.That(generated, Does.Contain("return false;"));
     }
 
@@ -93,12 +93,12 @@ public class EdgeCaseGenerationTests
         var generated = GetAllGeneratedSource(generatedTrees);
 
         Assert.That(errors, Is.Empty, $"Generated code has compilation errors:\n{string.Join("\n", errors)}");
-        Assert.That(generated, Does.Contain("GenericInstantiations"));
+        Assert.That(generated, Does.Contain("TypeRoots"));
         Assert.That(generated, Does.Contain("typeof(global::System.Collections.Generic.List<int>)"));
     }
 
     [Test]
-    public void NonGenericType_NoGenericInstantiationsEmitted()
+    public void NonGenericType_NoTypeRootsEmitted()
     {
         var source = """
             using Alder.Aot;
@@ -120,7 +120,7 @@ public class EdgeCaseGenerationTests
         var generated = GetAllGeneratedSource(generatedTrees);
 
         Assert.That(errors, Is.Empty, $"Generated code has compilation errors:\n{string.Join("\n", errors)}");
-        Assert.That(generated, Does.Not.Contain("GenericInstantiations"));
+        Assert.That(generated, Does.Not.Contain("TypeRoots"));
     }
 
     [Test]
@@ -206,7 +206,7 @@ public class EdgeCaseGenerationTests
     }
 
     [Test]
-    public void PropertyWithInitOnlySetter_OmittedFromTrySetProperty()
+    public void PropertyWithInitOnlySetter_OmittedFromTrySet()
     {
         var source = """
             using Alder.Aot;
@@ -229,8 +229,8 @@ public class EdgeCaseGenerationTests
 
         Assert.That(errors, Is.Empty, $"Generated code has compilation errors:\n{string.Join("\n", errors)}");
 
-        var tryGetSection = ExtractMethod(generated, "TryGetProperty");
-        var trySetSection = ExtractMethod(generated, "TrySetProperty");
+        var tryGetSection = ExtractMethod(generated, "TryGet");
+        var trySetSection = ExtractMethod(generated, "TrySet");
 
         Assert.That(tryGetSection, Does.Contain("\"Name\""));
         Assert.That(trySetSection, Does.Not.Contain("\"Name\""));

@@ -18,7 +18,7 @@ public class MemberAccessGenerationTests
         => string.Join("\n", trees.Select(t => t.GetText().ToString()));
 
     [Test]
-    public void ReadOnlyProperty_OmittedFromTrySetProperty()
+    public void ReadOnlyProperty_OmittedFromTrySet()
     {
         var source = """
             using Alder.Aot;
@@ -43,15 +43,15 @@ public class MemberAccessGenerationTests
 
         Assert.That(errors, Is.Empty, $"Generated code has compilation errors:\n{string.Join("\n", errors)}");
 
-        var tryGetSection = ExtractMethod(generated, "TryGetProperty");
-        var trySetSection = ExtractMethod(generated, "TrySetProperty");
+        var tryGetSection = ExtractMethod(generated, "TryGet");
+        var trySetSection = ExtractMethod(generated, "TrySet");
 
         Assert.That(tryGetSection, Does.Contain("\"Name\""));
         Assert.That(trySetSection, Does.Not.Contain("\"Name\""));
     }
 
     [Test]
-    public void ReadOnlyField_OmittedFromTrySetField()
+    public void ReadOnlyField_OmittedFromTrySet()
     {
         var source = """
             using Alder.Aot;
@@ -76,15 +76,15 @@ public class MemberAccessGenerationTests
 
         Assert.That(errors, Is.Empty, $"Generated code has compilation errors:\n{string.Join("\n", errors)}");
 
-        var tryGetSection = ExtractMethod(generated, "TryGetField");
-        var trySetSection = ExtractMethod(generated, "TrySetField");
+        var tryGetSection = ExtractMethod(generated, "TryGet");
+        var trySetSection = ExtractMethod(generated, "TrySet");
 
         Assert.That(tryGetSection, Does.Contain("\"Id\""));
         Assert.That(trySetSection, Does.Not.Contain("\"Id\""));
     }
 
     [Test]
-    public void StaticMembers_InTryGetStaticPropertyAndField()
+    public void StaticMembers_InTryGetStatic()
     {
         var source = """
             using Alder.Aot;
@@ -108,11 +108,10 @@ public class MemberAccessGenerationTests
 
         Assert.That(errors, Is.Empty, $"Generated code has compilation errors:\n{string.Join("\n", errors)}");
 
-        var tryGetStaticProp = ExtractMethod(generated, "TryGetStaticProperty");
-        var tryGetStaticField = ExtractMethod(generated, "TryGetStaticField");
+        var tryGetStatic = ExtractMethod(generated, "TryGetStatic");
 
-        Assert.That(tryGetStaticProp, Does.Contain("\"Label\""));
-        Assert.That(tryGetStaticField, Does.Contain("\"Count\""));
+        Assert.That(tryGetStatic, Does.Contain("\"Label\""));
+        Assert.That(tryGetStatic, Does.Contain("\"Count\""));
     }
 
     [Test]

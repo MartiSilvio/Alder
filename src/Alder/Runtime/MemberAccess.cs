@@ -49,14 +49,8 @@ internal static class MemberAccess
 
         if (obj is Type staticType)
         {
-            if (context.Config.TryGetAotMetadata(staticType, out var staticMetadata))
-            {
-                if (staticMetadata.TryGetStaticProperty(name, out var aotStaticValue))
-                    return TypeHelpers.GuardReflectionLeak(aotStaticValue, $"static property {name}");
-
-                if (staticMetadata.TryGetStaticField(name, out aotStaticValue))
-                    return TypeHelpers.GuardReflectionLeak(aotStaticValue, $"static field {name}");
-            }
+            if (TypedDispatchHelper.TryGetStaticMember(config, staticType, name, out var aotStaticValue))
+                return aotStaticValue;
 
             var staticTypeCache = context.TypeMetadata;
             var staticBindingFlags = BindingFlags.Public | BindingFlags.Static;
@@ -71,7 +65,6 @@ internal static class MemberAccess
             if (staticField != null)
                 return TypeHelpers.GuardReflectionLeak(staticField.GetValue(null), $"static field {name}");
 
-            // Check if this is a static method before falling through to instance members
             var staticMethods = staticTypeCache.GetMethods(staticType, name, staticBindingFlags);
             if (staticMethods.Length > 0)
                 return new StaticMethodRef(staticType, name);
@@ -140,14 +133,8 @@ internal static class MemberAccess
 
         var type = obj.GetType();
 
-        if (context.Config.TryGetAotMetadata(type, out var metadata))
-        {
-            if (metadata.TryGetProperty(name, obj, out var aotValue))
-                return TypeHelpers.GuardReflectionLeak(aotValue, $"property {name}");
-
-            if (metadata.TryGetField(name, obj, out aotValue))
-                return TypeHelpers.GuardReflectionLeak(aotValue, $"field {name}");
-        }
+        if (TypedDispatchHelper.TryGetMember(config, type, name, obj, out var typedValue))
+            return typedValue;
 
         var bindingFlags = BindingFlags.Public | BindingFlags.Instance;
         if (!config.IsCaseSensitive)
@@ -161,15 +148,6 @@ internal static class MemberAccess
         var field = typeMetadata.GetField(type, name, bindingFlags);
         if (field != null)
             return TypeHelpers.GuardReflectionLeak(field.GetValue(obj), $"field {name}");
-
-#if NET7_0_OR_GREATER
-        if (!RuntimeFeature.IsDynamicCodeSupported)
-        {
-            var methods = typeMetadata.GetMethods(type, name, bindingFlags);
-            if (methods.Length == 0)
-                throw new AlderException(DiagnosticDescriptors.AotTypeNotRegistered, type.Name);
-        }
-#endif
 
         return new MethodRef(obj, name);
     }
@@ -236,11 +214,8 @@ internal static class MemberAccess
 
         var type = obj.GetType();
 
-        if (context.Config.TryGetAotMetadata(type, out var idxMetadata))
-        {
-            if (idxMetadata.TryGetIndex(obj, index!, out var aotIndexValue))
-                return TypeHelpers.GuardReflectionLeak(aotIndexValue, "indexer");
-        }
+        if (TypedDispatchHelper.TryGetIndex(config, type, obj, index!, out var aotIndexValue))
+            return aotIndexValue;
 
         var indexer = context.TypeMetadata.GetIndexer(type);
 
@@ -289,14 +264,8 @@ internal static class MemberAccess
 
         var type = obj.GetType();
 
-        if (context.Config.TryGetAotMetadata(type, out var setMetadata))
-        {
-            if (setMetadata.TrySetProperty(name, obj, value))
-                return;
-
-            if (setMetadata.TrySetField(name, obj, value))
-                return;
-        }
+        if (TypedDispatchHelper.TrySetMember(config, type, name, obj, value))
+            return;
 
         var bindingFlags = BindingFlags.Public | BindingFlags.Instance;
         if (caseInsensitive)
@@ -350,11 +319,8 @@ internal static class MemberAccess
 
         var type = obj.GetType();
 
-        if (context.Config.TryGetAotMetadata(type, out var setIdxMetadata))
-        {
-            if (setIdxMetadata.TrySetIndex(obj, index!, value))
-                return;
-        }
+        if (TypedDispatchHelper.TrySetIndex(config, type, obj, index!, value))
+            return;
 
         var indexer = context.TypeMetadata.GetIndexer(type);
 

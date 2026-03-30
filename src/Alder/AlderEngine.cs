@@ -136,14 +136,14 @@ public sealed partial class AlderEngine : IDisposable
             true,
             options.StringComparer);
 
-        Dictionary<Type, IAotTypeMetadata>? aotMetadata = null;
+        Dictionary<Type, ITypedDispatch>? typeDispatch = null;
         Dictionary<Type, Func<object, Delegate>>? delegateFactories = null;
 
         if (options.Aot.BuiltInContext != null)
         {
-            aotMetadata = new Dictionary<Type, IAotTypeMetadata>();
+            typeDispatch = new Dictionary<Type, ITypedDispatch>();
             foreach (var metadata in options.Aot.BuiltInContext.GetTypeMetadata())
-                aotMetadata[metadata.Type] = metadata;
+                typeDispatch[metadata.Type] = metadata;
 
             var factories = options.Aot.BuiltInContext.GetDelegateFactories();
             if (factories != null)
@@ -156,9 +156,9 @@ public sealed partial class AlderEngine : IDisposable
 
         foreach (var ctx in options.Aot.AdditionalContexts)
         {
-            aotMetadata ??= new Dictionary<Type, IAotTypeMetadata>();
+            typeDispatch ??= new Dictionary<Type, ITypedDispatch>();
             foreach (var metadata in ctx.GetTypeMetadata())
-                aotMetadata[metadata.Type] = metadata;
+                typeDispatch[metadata.Type] = metadata;
 
             var factories = ctx.GetDelegateFactories();
             if (factories != null)
@@ -185,7 +185,7 @@ public sealed partial class AlderEngine : IDisposable
             [..options.Types.ExtensionTypes],
             typeMetadata,
             typeResolver,
-            aotMetadata != null ? Runtime.Collections.FixedDictionary<Type, IAotTypeMetadata>.Create(aotMetadata) : null,
+            typeDispatch != null ? Runtime.Collections.FixedDictionary<Type, ITypedDispatch>.Create(typeDispatch) : null,
             delegateFactories);
     }
 

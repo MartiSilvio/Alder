@@ -96,7 +96,7 @@ public class BuiltInContextTests(CompilationMode mode)
             "Built-in context should contain string metadata");
 
         var overrideMetadata = new StringOverrideMetadata();
-        var merged = new Dictionary<Type, IAotTypeMetadata>(builtInTypes)
+        var merged = new Dictionary<Type, ITypedDispatch>(builtInTypes)
         {
             [typeof(string)] = overrideMetadata
         };
@@ -106,18 +106,15 @@ public class BuiltInContextTests(CompilationMode mode)
     }
 }
 
-internal sealed class StringOverrideMetadata : IAotTypeMetadata
+internal sealed class StringOverrideMetadata : ITypedDispatch
 {
     public Type Type => typeof(string);
-    public bool TryGetProperty(string name, object instance, out object? value) { value = default; return false; }
-    public bool TrySetProperty(string name, object instance, object? value) => false;
-    public bool TryGetField(string name, object instance, out object? value) { value = default; return false; }
-    public bool TrySetField(string name, object instance, object? value) => false;
+    public bool TryGet(string name, object instance, out object? value) { value = default; return false; }
+    public bool TrySet(string name, object instance, object? value) => false;
+    public bool TryGetStatic(string name, out object? value) { value = default; return false; }
     public bool TryGetIndex(object instance, object key, out object? value) { value = default; return false; }
     public bool TrySetIndex(object instance, object key, object? value) => false;
-    public bool TryGetStaticProperty(string name, out object? value) { value = default; return false; }
-    public bool TryGetStaticField(string name, out object? value) { value = default; return false; }
-    public bool TryCreateInstance(object?[] args, out object? instance) { instance = default; return false; }
-    public bool TryInvokeMethod(string name, object instance, object?[] args, out object? result) { result = default; return false; }
-    public bool TryInvokeStaticMethod(string name, object?[] args, out object? result) { result = default; return false; }
+    public bool TryCreate(object?[] args, out object? instance) { instance = default; return false; }
+    public bool TryInvoke(string name, object instance, object?[] args, out object? result) { result = default; return false; }
+    public bool TryInvokeStatic(string name, object?[] args, out object? result) { result = default; return false; }
 }

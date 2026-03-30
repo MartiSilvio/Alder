@@ -1,15 +1,15 @@
 namespace Alder.Aot;
 
 /// <summary>
-/// Base class for AOT-generated type contexts. Each generated context provides <see cref="IAotTypeMetadata"/>
+/// Base class for AOT-generated type contexts. Each generated context provides <see cref="ITypedDispatch"/>
 /// for a set of registered types, enabling reflection-free member access at runtime.
 /// </summary>
 public abstract class AlderTypeContext
 {
     /// <summary>
-    /// Returns the collection of AOT type metadata entries provided by this context.
+    /// Returns the collection of typed dispatch entries provided by this context.
     /// </summary>
-    public abstract IReadOnlyList<IAotTypeMetadata> GetTypeMetadata();
+    public abstract IReadOnlyList<ITypedDispatch> GetTypeMetadata();
 
     /// <summary>
     /// Returns pre-instantiated delegate factories for AOT environments where

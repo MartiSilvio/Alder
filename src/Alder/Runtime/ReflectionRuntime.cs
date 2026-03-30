@@ -101,6 +101,11 @@ internal static class ReflectionRuntime
         return results.ToArray();
     }
 
+    public static ConstructorInfo[] GetConstructors(
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)]
+        Type type, BindingFlags flags) =>
+        type.GetConstructors(flags);
+
     public static PropertyInfo? FindIndexer(
         [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)]
         Type type)

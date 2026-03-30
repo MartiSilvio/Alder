@@ -28,12 +28,12 @@ internal sealed class AlderConfig
     internal TypeResolver TypeResolver { get; }
     public StringComparer Comparer { get; }
     public StringComparison StringComparison => IsCaseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
-    internal FixedDictionary<Type, IAotTypeMetadata>? AotMetadata { get; }
+    internal FixedDictionary<Type, ITypedDispatch>? TypeDispatch { get; }
     internal IReadOnlyDictionary<Type, Func<object, Delegate>>? DelegateFactories { get; }
 
-    internal bool TryGetAotMetadata(Type type, [NotNullWhen(true)] out IAotTypeMetadata? metadata)
+    internal bool TryGetDispatch(Type type, [NotNullWhen(true)] out ITypedDispatch? metadata)
     {
-        if (AotMetadata is not { } aot)
+        if (TypeDispatch is not { } dispatch)
         {
             metadata = null;
             return false;
@@ -41,7 +41,7 @@ internal sealed class AlderConfig
 
         for (var current = type; current != null && current != typeof(object); current = current.BaseType)
         {
-            if (aot.TryGetValue(current, out metadata))
+            if (dispatch.TryGetValue(current, out metadata))
                 return true;
         }
 
@@ -62,7 +62,7 @@ internal sealed class AlderConfig
         ImmutableArray<Type> extensionTypes,
         TypeMetadataProvider typeMetadata,
         TypeResolver typeResolver,
-        FixedDictionary<Type, IAotTypeMetadata>? aotMetadata,
+        FixedDictionary<Type, ITypedDispatch>? typeDispatch,
         IReadOnlyDictionary<Type, Func<object, Delegate>>? delegateFactories = null)
     {
         LanguageMode = languageMode;
@@ -78,7 +78,7 @@ internal sealed class AlderConfig
         TypeMetadata = typeMetadata;
         TypeResolver = typeResolver;
         Comparer = isCaseSensitive ? StringComparer.Ordinal : StringComparer.OrdinalIgnoreCase;
-        AotMetadata = aotMetadata;
+        TypeDispatch = typeDispatch;
         DelegateFactories = delegateFactories;
     }
 

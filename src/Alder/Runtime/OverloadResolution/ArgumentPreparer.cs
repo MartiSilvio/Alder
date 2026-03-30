@@ -47,17 +47,67 @@ internal static class ArgumentPreparer
         return prepared;
     }
 
+    public static object?[] Prepare(
+        ResolvedConstructorCall resolved,
+        object?[] args,
+        ParameterInfo[] parameters)
+    {
+        var sources = resolved.ArgMap.Sources;
+
+        if (IsDirectMapping(resolved.ArgMap, resolved.Form, resolved.Conversions, args, parameters))
+            return args;
+
+        var prepared = new object?[parameters.Length];
+
+        for (var paramIdx = 0; paramIdx < sources.Length && paramIdx < parameters.Length; paramIdx++)
+        {
+            var source = sources[paramIdx];
+            switch (source.Kind)
+            {
+                case ParameterSourceKind.Argument:
+                {
+                    var argIdx = source.ArgumentIndex;
+                    if ((uint)argIdx >= (uint)args.Length)
+                        break;
+                    prepared[paramIdx] = PrepareArgument(args[argIdx], resolved.Conversions, argIdx, parameters[paramIdx]);
+                    break;
+                }
+                case ParameterSourceKind.Default:
+                    prepared[paramIdx] = MaterializeDefault(parameters[paramIdx]);
+                    break;
+                case ParameterSourceKind.ParamsRange:
+                {
+                    var elementType = parameters[paramIdx].ParameterType.GetElementType()!;
+                    prepared[paramIdx] = BuildParamsArray(
+                        args, source.ParamsStartIndex, source.ParamsCount,
+                        elementType, resolved.Conversions);
+                    break;
+                }
+            }
+        }
+
+        return prepared;
+    }
+
     public static bool IsDirectMapping(
         ResolvedCall resolved,
+        object?[] args,
+        ParameterInfo[] parameters) =>
+        IsDirectMapping(resolved.ArgMap, resolved.Form, resolved.Conversions, args, parameters);
+
+    private static bool IsDirectMapping(
+        ArgumentParameterMap argMap,
+        ApplicableForm form,
+        ImmutableArray<ArgumentConversion> conversions,
         object?[] args,
         ParameterInfo[] parameters)
     {
         if (args.Length != parameters.Length)
             return false;
-        if (resolved.Form != ApplicableForm.Normal)
+        if (form != ApplicableForm.Normal)
             return false;
 
-        var sources = resolved.ArgMap.Sources;
+        var sources = argMap.Sources;
         if (sources.Length != parameters.Length)
             return false;
 
@@ -67,7 +117,6 @@ internal static class ArgumentPreparer
                 return false;
         }
 
-        var conversions = resolved.Conversions;
         for (var i = 0; i < conversions.Length; i++)
         {
             if (conversions[i].Kind != ArgumentConversionKind.Identity)

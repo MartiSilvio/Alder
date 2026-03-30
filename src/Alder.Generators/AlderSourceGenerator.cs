@@ -206,16 +206,20 @@ public sealed class AlderSourceGenerator : IIncrementalGenerator
             foreach (var registration in allRegistrations)
                 combined.AppendLine(TypeMetadataEmitter.Emit(registration));
 
-            var genericSource = TypeMetadataEmitter.EmitGenericInstantiations(allRegistrations);
-            if (genericSource != null)
-                combined.AppendLine(genericSource);
+            var typeRoots = TypeMetadataEmitter.EmitTypeRoots(allRegistrations);
+            if (typeRoots != null)
+                combined.AppendLine(typeRoots);
 
             var delegateSource = DelegateFactoryEmitter.Emit(allRegistrations);
             if (delegateSource != null)
                 combined.AppendLine(delegateSource);
 
+            var extensionSource = ExtensionMethodEmitter.Emit(allRegistrations);
+            if (extensionSource != null)
+                combined.AppendLine(extensionSource);
+
             var contextModel = new ContextModel(ns, className, allRegistrations);
-            combined.AppendLine(ContextEmitter.Emit(contextModel, delegateSource != null));
+            combined.AppendLine(ContextEmitter.Emit(contextModel, delegateSource != null, extensionSource != null));
 
             spc.AddSource(className + ".g.cs", combined.ToString());
         }

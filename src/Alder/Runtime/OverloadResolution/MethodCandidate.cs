@@ -47,3 +47,29 @@ internal readonly struct MethodCandidate
     public ResolvedCall ToResolvedCall() =>
         new(Method, ArgMap, Form, Conversions);
 }
+
+internal readonly struct ConstructorCandidate
+{
+    public ConstructorInfo Constructor { get; }
+    public ParameterInfo[] Parameters { get; }
+    public ApplicableForm Form { get; }
+    public ArgumentParameterMap ArgMap { get; }
+    public ImmutableArray<ArgumentConversion> Conversions { get; }
+
+    public ConstructorCandidate(
+        ConstructorInfo constructor,
+        ParameterInfo[] parameters,
+        ApplicableForm form,
+        ArgumentParameterMap argMap,
+        ImmutableArray<ArgumentConversion> conversions)
+    {
+        Constructor = constructor;
+        Parameters = parameters;
+        Form = form;
+        ArgMap = argMap;
+        Conversions = conversions;
+    }
+
+    public ResolvedConstructorCall ToResolved() =>
+        new(Constructor, ArgMap, Form, Conversions);
+}

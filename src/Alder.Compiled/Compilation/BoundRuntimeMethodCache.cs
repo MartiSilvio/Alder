@@ -161,8 +161,7 @@ internal static class BoundRuntimeMethodCache
         typeof(IdentifierRuntime).GetMethod(nameof(IdentifierRuntime.CreateLambdaValue))!;
 
     internal static readonly MethodInfo InvokeConstructorMethod =
-        typeof(ConstructionRuntime).GetMethod(nameof(ConstructionRuntime.InvokeConstructor), [typeof(Type), typeof(object?[]), typeof(AlderConfig)])!;
-
+        typeof(ConstructionRuntime).GetMethod(nameof(ConstructionRuntime.InvokeConstructor), [typeof(Type), typeof(object?[]), typeof(AlderConfig), typeof(AlderContext)])!;
 
     internal static readonly MethodInfo CreateSystemRangeMethod =
         typeof(ConstructionRuntime).GetMethod(nameof(ConstructionRuntime.CreateSystemRange))!;
@@ -387,7 +386,8 @@ internal static class BoundRuntimeMethodCache
 
     internal static readonly MethodInfo CollectionFactoryCreateMethod =
         typeof(CollectionFactory).GetMethod(nameof(CollectionFactory.Create),
-            BindingFlags.Static | BindingFlags.NonPublic | BindingFlags.Public)!;
+            BindingFlags.Static | BindingFlags.NonPublic | BindingFlags.Public,
+            null, [typeof(Type), typeof(Type), typeof(List<object?>), typeof(AlderConfig)], null)!;
 
     internal static readonly ConstructorInfo ExpandoObjectCtor =
         typeof(ExpandoObject).GetConstructor(Type.EmptyTypes)!;

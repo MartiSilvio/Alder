@@ -28,7 +28,7 @@ internal static class CollectionCreationEvaluator
             CollectionKind.Array => RuntimeArrayFactory.CreateFromValues(node.ElementType, values),
             CollectionKind.InferredArray => RuntimeArrayFactory.InferAndCreateArray(values),
             CollectionKind.TargetTypedCollection => CollectionFactory.Create(
-                node.TargetCollectionType!, node.ElementType, values),
+                node.TargetCollectionType!, node.ElementType, values, ctx.Config),
             _ => throw new InvalidOperationException()
         };
     }

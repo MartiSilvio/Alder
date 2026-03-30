@@ -15,6 +15,7 @@ internal sealed class TypeMetadataProvider
     private readonly ConcurrentDictionary<PropertiesLookupKey, PropertyInfo[]> _propertiesCache = new();
     private readonly ConcurrentDictionary<MethodLookupKey, MethodInfo[]> _methodsCache = new();
     private readonly ConcurrentDictionary<Type, PropertyInfo?> _indexerCache = new();
+    private readonly ConcurrentDictionary<ConstructorLookupKey, ConstructorInfo[]> _constructorCache = new();
 
     private readonly record struct PropertyLookupKey(
         [property: DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)]
@@ -37,6 +38,11 @@ internal sealed class TypeMetadataProvider
         [property: DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)]
         Type Type,
         string Name,
+        BindingFlags Flags);
+
+    private readonly record struct ConstructorLookupKey(
+        [property: DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)]
+        Type Type,
         BindingFlags Flags);
 
     internal TypeMetadataProvider()
@@ -83,6 +89,14 @@ internal sealed class TypeMetadataProvider
         });
     }
 
+    public ConstructorInfo[] GetConstructors(
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)]
+        Type type, BindingFlags flags)
+    {
+        var key = new ConstructorLookupKey(type, flags);
+        return _constructorCache.GetOrAdd(key, static k => ReflectionRuntime.GetConstructors(k.Type, k.Flags));
+    }
+
     public PropertyInfo? GetIndexer(
         [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)]
         Type type)
@@ -105,5 +119,6 @@ internal sealed class TypeMetadataProvider
         _propertiesCache.Clear();
         _methodsCache.Clear();
         _indexerCache.Clear();
+        _constructorCache.Clear();
     }
 }

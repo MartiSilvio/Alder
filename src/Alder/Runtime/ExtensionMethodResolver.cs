@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using System.Collections.Concurrent;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using Alder.Diagnostics;
 
@@ -69,7 +70,7 @@ internal static class ExtensionMethodResolver
         return (false, null);
     }
 
-    private static (bool Success, object? Value) TryInvokeFromType(
+    internal static (bool Success, object? Value) TryInvokeFromType(
         object target,
         Type targetType,
         string methodName,
@@ -131,7 +132,9 @@ internal static class ExtensionMethodResolver
         return (true, result);
     }
 
-    private static MethodInfo[] GetExtensionMethodsByNormalizedName(Type extensionType, string methodNameKey, bool isCaseSensitive)
+    private static MethodInfo[] GetExtensionMethodsByNormalizedName(
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicMethods)] Type extensionType,
+        string methodNameKey, bool isCaseSensitive)
     {
         return ExtensionMethodsByNameCache.GetOrAdd(
             (extensionType, methodNameKey, isCaseSensitive),

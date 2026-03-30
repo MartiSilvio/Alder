@@ -64,3 +64,23 @@ internal readonly struct ResolvedCall
         Conversions = conversions;
     }
 }
+
+internal readonly struct ResolvedConstructorCall
+{
+    public ConstructorInfo Constructor { get; }
+    public ArgumentParameterMap ArgMap { get; }
+    public ApplicableForm Form { get; }
+    public ImmutableArray<ArgumentConversion> Conversions { get; }
+
+    public ResolvedConstructorCall(
+        ConstructorInfo constructor,
+        ArgumentParameterMap argMap,
+        ApplicableForm form,
+        ImmutableArray<ArgumentConversion> conversions)
+    {
+        Constructor = constructor;
+        ArgMap = argMap;
+        Form = form;
+        Conversions = conversions;
+    }
+}

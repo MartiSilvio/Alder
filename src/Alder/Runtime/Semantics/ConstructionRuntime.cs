@@ -4,20 +4,10 @@ namespace Alder.Runtime.Semantics;
 
 internal static class ConstructionRuntime
 {
-    public static object? InvokeConstructor(Type type, object?[] args, AlderConfig config)
+    public static object? InvokeConstructor(Type type, object?[] args, AlderConfig config, AlderContext context)
     {
-        if (config.AotMetadata is { } aotMeta && aotMeta.TryGetValue(type, out var ctorMetadata))
-        {
-            try
-            {
-                if (ctorMetadata.TryCreateInstance(args, out var aotInstance))
-                    return aotInstance;
-            }
-            catch (InvalidCastException)
-            {
-                // Generated dispatch matches on param count only; reflection resolves by type
-            }
-        }
+        if (TypedDispatchHelper.TryCreate(config, type, args, out var aotInstance))
+            return aotInstance;
 
         if (type.BaseType == typeof(MulticastDelegate) && args.Length == 1 &&
             args[0] is LambdaValue or CompiledLambdaValue)
@@ -27,21 +17,27 @@ internal static class ConstructionRuntime
                 return converted;
         }
 
-        try
-        {
-            if (args.Length == 0)
-                return Activator.CreateInstance(type);
+        var constructors = context.TypeMetadata.GetConstructors(type, BindingFlags.Public | BindingFlags.Instance);
+        var descriptors = ArgumentDescriptor.FromArgs(args);
 
-            return Activator.CreateInstance(type, args);
-        }
-        catch (MissingMethodException)
+        if (OverloadResolver.TryResolveConstructor(constructors, descriptors, context, out var resolved, out var ambiguous))
         {
-            throw new AlderException(DiagnosticDescriptors.NoMatchingConstructor, type.Name, args.Length);
+            var parameters = resolved.Constructor.GetParameters();
+            var prepared = ArgumentPreparer.Prepare(resolved, args, parameters);
+            try
+            {
+                return resolved.Constructor.Invoke(prepared);
+            }
+            catch (TargetInvocationException ex) when (ex.InnerException != null)
+            {
+                throw ex.InnerException;
+            }
         }
-        catch (TargetInvocationException ex) when (ex.InnerException != null)
-        {
-            throw ex.InnerException;
-        }
+
+        if (ambiguous)
+            throw new AlderException(DiagnosticDescriptors.AmbiguousMethodInvocation, type.Name);
+
+        throw new AlderException(DiagnosticDescriptors.NoMatchingConstructor, type.Name, args.Length);
     }
 
     public static Type GetOpenValueTupleType(int arity) => arity switch
@@ -92,25 +88,25 @@ internal static class ConstructionRuntime
         return Activator.CreateInstance(nestedTupleType, ctorArgs)!;
     }
 
-    public static object CreateTupleFromResolvedType(Type resolvedType, object?[] elements, AlderConfig config)
+    public static object CreateTupleFromResolvedType(Type resolvedType, object?[] elements, AlderConfig config, AlderContext context)
     {
         if (elements.Length == 0)
             throw new AlderException(DiagnosticDescriptors.TupleTooFewElements);
 
         if (elements.Length <= 7)
-            return InvokeConstructor(resolvedType, elements, config)!;
+            return InvokeConstructor(resolvedType, elements, config, context)!;
 
         var restElements = new object?[elements.Length - 7];
         Array.Copy(elements, 7, restElements, 0, restElements.Length);
         var restType = resolvedType.GetGenericArguments()[7];
-        var restTuple = CreateTupleFromResolvedType(restType, restElements, config);
+        var restTuple = CreateTupleFromResolvedType(restType, restElements, config, context);
 
         var ctorArgs = new object?[8];
         for (var i = 0; i < 7; i++)
             ctorArgs[i] = elements[i];
         ctorArgs[7] = restTuple;
 
-        return InvokeConstructor(resolvedType, ctorArgs, config)!;
+        return InvokeConstructor(resolvedType, ctorArgs, config, context)!;
     }
 
     public static object? DeconstructTuple(object? tupleValue, string[] variableNames, AlderContext context)

@@ -18,7 +18,7 @@ public class MethodDispatchGenerationTests
         => string.Join("\n", trees.Select(t => t.GetText().ToString()));
 
     [Test]
-    public void InstanceMethod_GeneratesTryInvokeMethod()
+    public void InstanceMethod_GeneratesTryInvoke()
     {
         var source = """
             using Alder.Aot;
@@ -41,13 +41,13 @@ public class MethodDispatchGenerationTests
 
         Assert.That(errors, Is.Empty, $"Generated code has compilation errors:\n{string.Join("\n", errors)}");
 
-        var tryInvoke = ExtractMethod(generated, "TryInvokeMethod");
+        var tryInvoke = ExtractMethod(generated, "TryInvoke");
         Assert.That(tryInvoke, Does.Contain("case \"Add\":"));
         Assert.That(tryInvoke, Does.Contain("case 2:"));
     }
 
     [Test]
-    public void StaticMethod_GeneratesTryInvokeStaticMethod()
+    public void StaticMethod_GeneratesTryInvokeStatic()
     {
         var source = """
             using Alder.Aot;
@@ -70,7 +70,7 @@ public class MethodDispatchGenerationTests
 
         Assert.That(errors, Is.Empty, $"Generated code has compilation errors:\n{string.Join("\n", errors)}");
 
-        var tryInvokeStatic = ExtractMethod(generated, "TryInvokeStaticMethod");
+        var tryInvokeStatic = ExtractMethod(generated, "TryInvokeStatic");
         Assert.That(tryInvokeStatic, Does.Contain("case \"Multiply\":"));
         Assert.That(tryInvokeStatic, Does.Contain("case 2:"));
     }
@@ -99,7 +99,7 @@ public class MethodDispatchGenerationTests
 
         Assert.That(errors, Is.Empty, $"Generated code has compilation errors:\n{string.Join("\n", errors)}");
 
-        var tryInvoke = ExtractMethod(generated, "TryInvokeMethod");
+        var tryInvoke = ExtractMethod(generated, "TryInvoke");
         Assert.That(tryInvoke, Does.Contain("case \"Reset\":"));
         Assert.That(tryInvoke, Does.Contain("result = null;"));
         Assert.That(tryInvoke, Does.Not.Contain("result = typed.Reset()"));
@@ -130,7 +130,7 @@ public class MethodDispatchGenerationTests
 
         Assert.That(errors, Is.Empty, $"Generated code has compilation errors:\n{string.Join("\n", errors)}");
 
-        var tryInvoke = ExtractMethod(generated, "TryInvokeMethod");
+        var tryInvoke = ExtractMethod(generated, "TryInvoke");
         Assert.That(tryInvoke, Does.Contain("case \"Format\":"));
         Assert.That(tryInvoke, Does.Contain("case 0:"));
         Assert.That(tryInvoke, Does.Contain("case 1:"));
@@ -161,7 +161,7 @@ public class MethodDispatchGenerationTests
 
         Assert.That(errors, Is.Empty, $"Generated code has compilation errors:\n{string.Join("\n", errors)}");
 
-        var tryInvoke = ExtractMethod(generated, "TryInvokeMethod");
+        var tryInvoke = ExtractMethod(generated, "TryInvoke");
         Assert.That(tryInvoke, Does.Contain("case \"Describe\":"));
         Assert.That(tryInvoke, Does.Contain("case 1:"));
         Assert.That(tryInvoke, Does.Contain("args[0] is int"));
@@ -192,7 +192,7 @@ public class MethodDispatchGenerationTests
 
         Assert.That(errors, Is.Empty, $"Generated code has compilation errors:\n{string.Join("\n", errors)}");
 
-        var tryInvoke = ExtractMethod(generated, "TryInvokeMethod");
+        var tryInvoke = ExtractMethod(generated, "TryInvoke");
         Assert.That(tryInvoke, Does.Not.Contain("\"Identity\""));
     }
 
@@ -220,7 +220,7 @@ public class MethodDispatchGenerationTests
 
         Assert.That(errors, Is.Empty, $"Generated code has compilation errors:\n{string.Join("\n", errors)}");
 
-        var tryInvoke = ExtractMethod(generated, "TryInvokeMethod");
+        var tryInvoke = ExtractMethod(generated, "TryInvoke");
         Assert.That(tryInvoke, Does.Not.Contain("\"TryParse\""));
     }
 
@@ -249,7 +249,7 @@ public class MethodDispatchGenerationTests
 
         Assert.That(errors, Is.Empty, $"Generated code has compilation errors:\n{string.Join("\n", errors)}");
 
-        var tryInvoke = ExtractMethod(generated, "TryInvokeMethod");
+        var tryInvoke = ExtractMethod(generated, "TryInvoke");
         Assert.That(tryInvoke, Does.Not.Contain("\"Sum\""));
     }
 

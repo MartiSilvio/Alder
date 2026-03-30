@@ -286,7 +286,7 @@ public static class DiagnosticDescriptors
 
     #region AOT (ALDR05xx)
 
-    public static readonly DiagnosticDescriptor AotTypeNotRegistered =
+    public static readonly DiagnosticDescriptor TypeNotRegistered =
         new(DiagnosticCode.ALDR0500,
             "Type '{0}' is not available in this environment. " +
             "In NativeAOT, add [AlderRegistered(typeof({0}))] to your AlderTypeContext");

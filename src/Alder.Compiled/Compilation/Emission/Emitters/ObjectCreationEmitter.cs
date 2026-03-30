@@ -27,7 +27,8 @@ internal sealed class ObjectCreationEmitter : INodeEmitter<BoundObjectCreationEx
                     LinqExpression.Constant(node.TypeName))
                 : LinqExpression.Constant(node.StaticType.ClrType, typeof(Type)),
             argsArray,
-            ctx.ConfigParam);
+            ctx.ConfigParam,
+            ctx.ContextParam);
 
         if (node.InitializerEntries.IsDefaultOrEmpty)
             return result;
