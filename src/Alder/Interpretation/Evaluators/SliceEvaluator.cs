@@ -1,8 +1,10 @@
+using Alder.Binding;
 using Alder.Binding.BoundNodes;
 using Alder.Runtime;
 
 namespace Alder.Interpretation.Evaluators;
 
+[EvaluatesNode(BoundNodeKind.SliceExpression)]
 internal static class SliceEvaluator
 {
     public static object? Evaluate(BoundSliceExpr node, EvaluationContext ctx)

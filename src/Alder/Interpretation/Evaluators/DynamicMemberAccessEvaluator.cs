@@ -4,6 +4,7 @@ using Alder.Runtime;
 
 namespace Alder.Interpretation.Evaluators;
 
+[EvaluatesNode(BoundNodeKind.DynamicMemberAccess)]
 internal static class DynamicMemberAccessEvaluator
 {
     public static object? Evaluate(BoundDynamicMemberAccessExpr node, EvaluationContext ctx)

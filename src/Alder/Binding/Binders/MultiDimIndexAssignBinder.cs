@@ -5,9 +5,10 @@ using Alder.Parsing;
 
 namespace Alder.Binding.Binders;
 
-internal sealed class MultiDimIndexAssignBinder : INodeBinder<MultiDimIndexAssignExpr>
+[BindsNode(typeof(MultiDimIndexAssignExpr))]
+internal static class MultiDimIndexAssignBinder
 {
-    public BoundExpr Bind(MultiDimIndexAssignExpr expr, BindingContext context, BinderContext binder)
+    public static BoundExpr Bind(MultiDimIndexAssignExpr expr, BindingContext context, BinderContext binder)
     {
         var target = binder.Bind(expr.Object, context);
         var indices = expr.Indices

@@ -5,6 +5,7 @@ using Alder.Runtime;
 
 namespace Alder.Interpretation.Evaluators;
 
+[EvaluatesNode(BoundNodeKind.MethodGroup)]
 internal static class MethodGroupEvaluator
 {
     public static object? Evaluate(BoundMethodGroupExpr node, EvaluationContext ctx)

@@ -4,6 +4,7 @@ using Alder.Runtime;
 
 namespace Alder.Interpretation.Evaluators;
 
+[EvaluatesNode(BoundNodeKind.PropertyAccess)]
 internal static class PropertyAccessEvaluator
 {
     public static object? Evaluate(BoundPropertyAccessExpr node, EvaluationContext ctx)

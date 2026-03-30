@@ -47,51 +47,49 @@ if (!Directory.Exists(testDataDir))
 
 var files = Directory.GetFiles(testDataDir, "*.csx", SearchOption.AllDirectories)
     .Where(f => !f.EndsWith(".roslyn.csx", StringComparison.OrdinalIgnoreCase))
-    .Where(f => !f.Contains($"{Path.DirectorySeparatorChar}Algorithms{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase))
     .OrderBy(f => f)
     .ToArray();
 
 int pass = 0, fail = 0;
 var failures = new List<FailureRecord>();
 
+var selfPath = Environment.ProcessPath!;
+
 foreach (var file in files)
 {
-    var expr = File.ReadAllText(file).Trim();
     var relPath = Path.GetRelativePath(testDataDir, file);
     Console.Write($"  {relPath}... ");
     Console.Out.Flush();
 
-    Exception? threadEx = null;
-    object? threadResult = null;
-    var evalThread = new Thread(() =>
+    var psi = new System.Diagnostics.ProcessStartInfo(selfPath, $"--single \"{file}\"")
     {
-        try
-        {
-            var engine = new AlderEngine(new AlderOptions
-            {
-                LanguageMode = LanguageMode.Extended,
-                Constraints = new ExecutionConstraints { MaxStatements = 100_000 }
-            });
-            threadResult = engine.Evaluate(expr);
-        }
-        catch (Exception ex)
-        {
-            threadEx = ex;
-        }
-    }, 16 * 1024 * 1024);
-    evalThread.Start();
-    evalThread.Join();
+        RedirectStandardOutput = true,
+        RedirectStandardError = true,
+        UseShellExecute = false
+    };
+    using var proc = System.Diagnostics.Process.Start(psi)!;
+    proc.WaitForExit(30_000);
 
-    if (threadEx == null)
+    if (!proc.HasExited)
+    {
+        proc.Kill();
+        Console.WriteLine("FAIL: Timeout");
+        failures.Add(new FailureRecord(relPath, "Timeout", "Expression exceeded 30s"));
+        fail++;
+    }
+    else if (proc.ExitCode == 0)
     {
         Console.WriteLine("OK");
         pass++;
     }
     else
     {
-        var ex = threadEx;
-        var errorType = ex.GetType().Name;
-        var message = ex.Message.Length > 120 ? ex.Message[..120] + "..." : ex.Message;
+        var stderr = proc.StandardError.ReadToEnd().Trim();
+        var stdout = proc.StandardOutput.ReadToEnd().Trim();
+        var output = string.IsNullOrEmpty(stderr) ? stdout : stderr;
+        var errorType = proc.ExitCode == 139 ? "StackOverflow(SIGSEGV)" : "RuntimeError";
+        var messageLine = output.Split('\n').FirstOrDefault(l => l.StartsWith("Message:")) ?? output.Split('\n').LastOrDefault() ?? "";
+        var message = messageLine.Length > 120 ? messageLine[..120] + "..." : messageLine;
         Console.WriteLine($"FAIL: {errorType}");
         failures.Add(new FailureRecord(relPath, errorType, message));
         fail++;

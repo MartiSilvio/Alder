@@ -3,10 +3,20 @@ using Alder.Parsing;
 
 namespace Alder.Binding.Binders;
 
-internal sealed class NullCoalesceBinder : INodeBinder<NullCoalesceExpr>
+[BindsNode(typeof(NullCoalesceExpr))]
+internal static class NullCoalesceBinder
 {
-    public BoundExpr Bind(NullCoalesceExpr expr, BindingContext context, BinderContext binder)
+    public static BoundExpr Bind(NullCoalesceExpr expr, BindingContext context, BinderContext binder)
     {
+        if (expr.Left is not NullCoalesceExpr)
+        {
+            var left = binder.Bind(expr.Left, context);
+            var right = binder.Bind(expr.Right, context);
+            if (left.HasErrors || right.HasErrors)
+                return new BoundNullCoalesceExpr(left, right, BoundType.Unknown) { Span = expr.Span, HasErrors = true };
+            return new BoundNullCoalesceExpr(left, right, new BoundType(BinaryBinder.GetCommonType(left.StaticType.ClrType, right.StaticType.ClrType))) { Span = expr.Span };
+        }
+
         var chain = new List<NullCoalesceExpr>();
         Expr leftmost = expr;
         while (leftmost is NullCoalesceExpr nc)
@@ -19,13 +29,13 @@ internal sealed class NullCoalesceBinder : INodeBinder<NullCoalesceExpr>
         for (var i = chain.Count - 1; i >= 0; i--)
         {
             var link = chain[i];
-            var right = binder.Bind(link.Right, context);
-            if (result.HasErrors || right.HasErrors)
+            var r = binder.Bind(link.Right, context);
+            if (result.HasErrors || r.HasErrors)
             {
-                result = new BoundNullCoalesceExpr(result, right, BoundType.Unknown) { Span = link.Span, HasErrors = true };
+                result = new BoundNullCoalesceExpr(result, r, BoundType.Unknown) { Span = link.Span, HasErrors = true };
                 continue;
             }
-            result = new BoundNullCoalesceExpr(result, right, new BoundType(BinaryBinder.GetCommonType(result.StaticType.ClrType, right.StaticType.ClrType))) { Span = link.Span };
+            result = new BoundNullCoalesceExpr(result, r, new BoundType(BinaryBinder.GetCommonType(result.StaticType.ClrType, r.StaticType.ClrType))) { Span = link.Span };
         }
 
         return result;

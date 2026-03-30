@@ -3,9 +3,10 @@ using Alder.Parsing;
 
 namespace Alder.Binding.Binders;
 
-internal sealed class GotoCaseBinder : INodeBinder<GotoCaseExpr>
+[BindsNode(typeof(GotoCaseExpr))]
+internal static class GotoCaseBinder
 {
-    public BoundExpr Bind(GotoCaseExpr expr, BindingContext context, BinderContext binder)
+    public static BoundExpr Bind(GotoCaseExpr expr, BindingContext context, BinderContext binder)
     {
         return new BoundGotoCaseExpr(binder.Bind(expr.Value, context), BoundType.Void);
     }

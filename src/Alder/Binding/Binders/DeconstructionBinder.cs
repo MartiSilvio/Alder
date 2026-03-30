@@ -4,9 +4,10 @@ using Alder.Parsing;
 
 namespace Alder.Binding.Binders;
 
-internal sealed class DeconstructionBinder : INodeBinder<DeconstructionExpr>
+[BindsNode(typeof(DeconstructionExpr))]
+internal static class DeconstructionBinder
 {
-    public BoundExpr Bind(DeconstructionExpr expr, BindingContext context, BinderContext binder)
+    public static BoundExpr Bind(DeconstructionExpr expr, BindingContext context, BinderContext binder)
     {
         var valueExpression = binder.Bind(expr.ValueExpression, context);
         var variableNames = expr.VariableNames.ToImmutableArray();

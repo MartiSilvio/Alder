@@ -3,9 +3,10 @@ using Alder.Parsing;
 
 namespace Alder.Binding.Binders;
 
-internal sealed class CheckedBinder : INodeBinder<CheckedExpr>
+[BindsNode(typeof(CheckedExpr))]
+internal static class CheckedBinder
 {
-    public BoundExpr Bind(CheckedExpr expr, BindingContext context, BinderContext binder)
+    public static BoundExpr Bind(CheckedExpr expr, BindingContext context, BinderContext binder)
     {
         var expression = binder.Bind(expr.Expression, context);
         return new BoundCheckedExpr(expression, expr.IsChecked, expression.StaticType);

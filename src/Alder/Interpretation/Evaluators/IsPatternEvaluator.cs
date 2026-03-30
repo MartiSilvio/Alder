@@ -1,7 +1,9 @@
+using Alder.Binding;
 using Alder.Binding.BoundNodes;
 
 namespace Alder.Interpretation.Evaluators;
 
+[EvaluatesNode(BoundNodeKind.IsPatternExpression)]
 internal static class IsPatternEvaluator
 {
     public static object? Evaluate(BoundIsPatternExpr node, EvaluationContext ctx)

@@ -1,9 +1,11 @@
+using Alder.Binding;
 using Alder.Binding.BoundNodes;
 using Alder.Runtime;
 using Alder.Runtime.Semantics;
 
 namespace Alder.Interpretation.Evaluators;
 
+[EvaluatesNode(BoundNodeKind.TupleLiteral)]
 internal static class TupleEvaluator
 {
     public static object? Evaluate(BoundTupleExpr node, EvaluationContext ctx)

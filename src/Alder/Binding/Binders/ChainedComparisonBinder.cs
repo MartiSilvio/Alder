@@ -4,9 +4,10 @@ using Alder.Parsing;
 
 namespace Alder.Binding.Binders;
 
-internal sealed class ChainedComparisonBinder : INodeBinder<ChainedComparisonExpr>
+[BindsNode(typeof(ChainedComparisonExpr))]
+internal static class ChainedComparisonBinder
 {
-    public BoundExpr Bind(ChainedComparisonExpr expr, BindingContext context, BinderContext binder)
+    public static BoundExpr Bind(ChainedComparisonExpr expr, BindingContext context, BinderContext binder)
     {
         var operands = expr.Operands
             .Select(operand => binder.Bind(operand, context))

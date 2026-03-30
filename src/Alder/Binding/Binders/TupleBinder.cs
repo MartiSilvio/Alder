@@ -6,9 +6,10 @@ using Alder.Runtime.Semantics;
 
 namespace Alder.Binding.Binders;
 
-internal sealed class TupleBinder : INodeBinder<TupleExpr>
+[BindsNode(typeof(TupleExpr))]
+internal static class TupleBinder
 {
-    public BoundExpr Bind(TupleExpr expr, BindingContext context, BinderContext binder)
+    public static BoundExpr Bind(TupleExpr expr, BindingContext context, BinderContext binder)
     {
         var elements = expr.Elements
             .Select(element => binder.Bind(element.Expression, context))

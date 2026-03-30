@@ -4,9 +4,10 @@ using Alder.Parsing;
 
 namespace Alder.Binding.Binders;
 
-internal sealed class SwitchExpressionBinder : INodeBinder<SwitchExpressionExpr>
+[BindsNode(typeof(SwitchExpressionExpr))]
+internal static class SwitchExpressionBinder
 {
-    public BoundExpr Bind(SwitchExpressionExpr expr, BindingContext context, BinderContext binder)
+    public static BoundExpr Bind(SwitchExpressionExpr expr, BindingContext context, BinderContext binder)
     {
         var expression = binder.Bind(expr.Expression, context);
         var arms = expr.Arms

@@ -7,6 +7,7 @@ using Alder.Runtime;
 
 namespace Alder.Interpretation.Evaluators;
 
+[EvaluatesNode(BoundNodeKind.MultiDimIndexAssignment)]
 internal static class MultiDimIndexAssignEvaluator
 {
     public static object? Evaluate(BoundMultiDimIndexAssignExpr node, EvaluationContext ctx)

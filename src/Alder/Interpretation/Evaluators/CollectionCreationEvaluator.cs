@@ -1,8 +1,10 @@
+using Alder.Binding;
 using Alder.Binding.BoundNodes;
 using Alder.Runtime;
 
 namespace Alder.Interpretation.Evaluators;
 
+[EvaluatesNode(BoundNodeKind.CollectionCreation)]
 internal static class CollectionCreationEvaluator
 {
     public static object? Evaluate(BoundCollectionCreationExpr node, EvaluationContext ctx)

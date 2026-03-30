@@ -140,7 +140,7 @@ internal static class EmitHelpers
             return value;
 
         return LinqExpression.Call(
-            CompilerReflectionCache.GetGuardReflectionLeakTypedMethod(valueType),
+            BoundRuntimeMethodCache.GetGuardReflectionLeakTypedMethod(valueType),
             value,
             LinqExpression.Constant(context));
     }

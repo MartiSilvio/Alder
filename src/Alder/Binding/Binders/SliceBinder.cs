@@ -3,9 +3,10 @@ using Alder.Parsing;
 
 namespace Alder.Binding.Binders;
 
-internal sealed class SliceBinder : INodeBinder<SliceExpr>
+[BindsNode(typeof(SliceExpr))]
+internal static class SliceBinder
 {
-    public BoundExpr Bind(SliceExpr expr, BindingContext context, BinderContext binder)
+    public static BoundExpr Bind(SliceExpr expr, BindingContext context, BinderContext binder)
     {
         var target = binder.Bind(expr.Target, context);
         var start = expr.Start != null ? binder.Bind(expr.Start, context) : null;

@@ -3,9 +3,10 @@ using Alder.Parsing;
 
 namespace Alder.Binding.Binders;
 
-internal sealed class NameofBinder : INodeBinder<NameofExpr>
+[BindsNode(typeof(NameofExpr))]
+internal static class NameofBinder
 {
-    public BoundExpr Bind(NameofExpr expr, BindingContext context, BinderContext binder)
+    public static BoundExpr Bind(NameofExpr expr, BindingContext context, BinderContext binder)
     {
         return new BoundLiteralExpr(expr.Name, new BoundType(typeof(string)));
     }

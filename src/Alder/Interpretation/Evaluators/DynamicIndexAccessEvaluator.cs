@@ -1,9 +1,11 @@
+using Alder.Binding;
 using Alder.Binding.BoundNodes;
 using Alder.Diagnostics;
 using Alder.Runtime;
 
 namespace Alder.Interpretation.Evaluators;
 
+[EvaluatesNode(BoundNodeKind.DynamicIndexAccess)]
 internal static class DynamicIndexAccessEvaluator
 {
     public static object? Evaluate(BoundDynamicIndexAccessExpr node, EvaluationContext ctx)

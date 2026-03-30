@@ -1,9 +1,11 @@
+using Alder.Binding;
 using Alder.Binding.BoundNodes;
 using Alder.Runtime;
 using Alder.Runtime.Semantics;
 
 namespace Alder.Interpretation.Evaluators;
 
+[EvaluatesNode(BoundNodeKind.DoStatement)]
 internal static class DoWhileEvaluator
 {
     public static object? Evaluate(BoundDoWhileExpr node, EvaluationContext ctx)

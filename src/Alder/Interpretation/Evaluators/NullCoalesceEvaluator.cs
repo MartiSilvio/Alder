@@ -1,7 +1,9 @@
+using Alder.Binding;
 using Alder.Binding.BoundNodes;
 
 namespace Alder.Interpretation.Evaluators;
 
+[EvaluatesNode(BoundNodeKind.NullCoalescingOperator)]
 internal static class NullCoalesceEvaluator
 {
     public static object? Evaluate(BoundNullCoalesceExpr node, EvaluationContext ctx)

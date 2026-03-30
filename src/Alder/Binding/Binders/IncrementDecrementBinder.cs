@@ -3,9 +3,10 @@ using Alder.Parsing;
 
 namespace Alder.Binding.Binders;
 
-internal sealed class IncrementDecrementBinder : INodeBinder<IncrementDecrementExpr>
+[BindsNode(typeof(IncrementDecrementExpr))]
+internal static class IncrementDecrementBinder
 {
-    public BoundExpr Bind(IncrementDecrementExpr expr, BindingContext context, BinderContext binder)
+    public static BoundExpr Bind(IncrementDecrementExpr expr, BindingContext context, BinderContext binder)
     {
         AssignBinder.EnsureVariableIsAssignable(expr.Name.Lexeme, context);
         var staticType = context.TryGetVariableType(expr.Name.Lexeme, out var variableType)

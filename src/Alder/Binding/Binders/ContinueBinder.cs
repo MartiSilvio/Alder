@@ -3,9 +3,10 @@ using Alder.Parsing;
 
 namespace Alder.Binding.Binders;
 
-internal sealed class ContinueBinder : INodeBinder<ContinueExpr>
+[BindsNode(typeof(ContinueExpr))]
+internal static class ContinueBinder
 {
-    public BoundExpr Bind(ContinueExpr expr, BindingContext context, BinderContext binder)
+    public static BoundExpr Bind(ContinueExpr expr, BindingContext context, BinderContext binder)
     {
         return new BoundContinueExpr(BoundType.Void);
     }

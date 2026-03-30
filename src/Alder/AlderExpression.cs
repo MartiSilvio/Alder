@@ -81,14 +81,32 @@ public sealed class AlderExpression
             return cached.Bound;
         }
 
+        var sourceText = new Text.SourceText(Source);
         var bindingContext = new BindingContext(context);
-        var binder = new Binder(new Text.SourceText(Source), recovering: true);
-        var bound = binder.Bind(Ast, bindingContext);
+        var binder = new Binder(sourceText);
 
-        var diagnostics = binder.GetAccumulatedDiagnostics();
-        if (bound.HasErrors || diagnostics.Count > 0)
+        BoundExpr bound;
+        try
         {
-            var allDiagnostics = diagnostics.Count > 0 ? diagnostics : CollectTreeDiagnostics(bound);
+            bound = binder.Bind(Ast, bindingContext);
+        }
+        catch (AlderException)
+        {
+            var recoveringBinder = new Binder(sourceText);
+            bound = recoveringBinder.BindRecovering(Ast, bindingContext);
+            var allDiagnostics = recoveringBinder.GetAccumulatedDiagnostics();
+            if (allDiagnostics.Count > 0)
+            {
+                var ex = new AlderException(DiagnosticDescriptors.BindingFailed, allDiagnostics[0].Message);
+                ex.SetDiagnostics(allDiagnostics);
+                throw ex;
+            }
+            throw;
+        }
+
+        if (bound.HasErrors)
+        {
+            var allDiagnostics = CollectTreeDiagnostics(bound);
             var ex = new AlderException(
                 DiagnosticDescriptors.BindingFailed,
                 allDiagnostics.Count > 0 ? allDiagnostics[0].Message : "Expression has binding errors");

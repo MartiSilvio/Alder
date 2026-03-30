@@ -5,9 +5,10 @@ using Alder.Runtime;
 
 namespace Alder.Binding.Binders;
 
-internal sealed class LambdaBinder : INodeBinder<LambdaExpr>
+[BindsNode(typeof(LambdaExpr))]
+internal static class LambdaBinder
 {
-    public BoundExpr Bind(LambdaExpr expr, BindingContext context, BinderContext binder)
+    public static BoundExpr Bind(LambdaExpr expr, BindingContext context, BinderContext binder)
     {
         return new BoundLambdaExpr(
             [..expr.Parameters.Select(static parameter => parameter.Name.Lexeme)],

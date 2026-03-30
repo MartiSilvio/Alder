@@ -1,7 +1,9 @@
+using Alder.Binding;
 using Alder.Binding.BoundNodes;
 
 namespace Alder.Interpretation.Evaluators;
 
+[EvaluatesNode(BoundNodeKind.FromEndIndexExpression)]
 internal static class FromEndIndexEvaluator
 {
     public static object? Evaluate(BoundIndexFromEndExpr node, EvaluationContext ctx)

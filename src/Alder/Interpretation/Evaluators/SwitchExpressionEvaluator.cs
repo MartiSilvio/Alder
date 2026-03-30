@@ -1,9 +1,11 @@
+using Alder.Binding;
 using Alder.Binding.BoundNodes;
 using Alder.Diagnostics;
 using Alder.Runtime;
 
 namespace Alder.Interpretation.Evaluators;
 
+[EvaluatesNode(BoundNodeKind.SwitchExpression)]
 internal static class SwitchExpressionEvaluator
 {
     public static object? Evaluate(BoundSwitchExpressionExpr node, EvaluationContext ctx)

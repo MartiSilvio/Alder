@@ -4,9 +4,10 @@ using Alder.Runtime;
 
 namespace Alder.Binding.Binders;
 
-internal sealed class SizeofBinder : INodeBinder<SizeofExpr>
+[BindsNode(typeof(SizeofExpr))]
+internal static class SizeofBinder
 {
-    public BoundExpr Bind(SizeofExpr expr, BindingContext context, BinderContext binder)
+    public static BoundExpr Bind(SizeofExpr expr, BindingContext context, BinderContext binder)
     {
         return new BoundLiteralExpr(TypeHelpers.GetSizeOf(expr.TypeName), new BoundType(typeof(int)));
     }

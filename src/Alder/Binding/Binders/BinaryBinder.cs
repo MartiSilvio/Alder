@@ -4,10 +4,14 @@ using Alder.Runtime;
 
 namespace Alder.Binding.Binders;
 
-internal sealed class BinaryBinder : INodeBinder<BinaryExpr>
+[BindsNode(typeof(BinaryExpr))]
+internal static class BinaryBinder
 {
-    public BoundExpr Bind(BinaryExpr expr, BindingContext context, BinderContext binder)
+    public static BoundExpr Bind(BinaryExpr expr, BindingContext context, BinderContext binder)
     {
+        if (expr.Left is not BinaryExpr)
+            return BindSingle(expr, binder.Bind(expr.Left, context), binder.Bind(expr.Right, context));
+
         var chain = new List<BinaryExpr>();
         Expr leftmost = expr;
         while (leftmost is BinaryExpr b)
@@ -20,22 +24,24 @@ internal sealed class BinaryBinder : INodeBinder<BinaryExpr>
         for (var i = chain.Count - 1; i >= 0; i--)
         {
             var link = chain[i];
-            var right = binder.Bind(link.Right, context);
-            if (result.HasErrors || right.HasErrors)
-            {
-                result = new BoundBinaryExpr(link.Op.Type, result, right, BoundType.Unknown) { Span = link.Span, HasErrors = true };
-                continue;
-            }
-            var resultClrType = InferBinaryResultType(link.Op.Type, result.StaticType, right.StaticType);
-            var resultType = resultClrType == typeof(object) ? BoundType.Unknown : new BoundType(resultClrType);
-            result = new BoundBinaryExpr(link.Op.Type, result, right, resultType)
-            {
-                Span = link.Span,
-                PromotedType = ComputeBinaryPromotedType(link.Op.Type, result, right)
-            };
+            result = BindSingle(link, result, binder.Bind(link.Right, context));
         }
 
         return result;
+    }
+
+    private static BoundExpr BindSingle(BinaryExpr link, BoundExpr left, BoundExpr right)
+    {
+        if (left.HasErrors || right.HasErrors)
+            return new BoundBinaryExpr(link.Op.Type, left, right, BoundType.Unknown) { Span = link.Span, HasErrors = true };
+
+        var resultClrType = InferBinaryResultType(link.Op.Type, left.StaticType, right.StaticType);
+        var resultType = resultClrType == typeof(object) ? BoundType.Unknown : new BoundType(resultClrType);
+        return new BoundBinaryExpr(link.Op.Type, left, right, resultType)
+        {
+            Span = link.Span,
+            PromotedType = ComputeBinaryPromotedType(link.Op.Type, left, right)
+        };
     }
 
     internal static Type InferBinaryResultType(TokenType op, BoundType left, BoundType right)

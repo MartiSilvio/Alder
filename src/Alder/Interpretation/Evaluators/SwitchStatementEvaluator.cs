@@ -6,6 +6,7 @@ using Alder.Runtime;
 
 namespace Alder.Interpretation.Evaluators;
 
+[EvaluatesNode(BoundNodeKind.SwitchStatement)]
 internal static class SwitchStatementEvaluator
 {
     public static object? Evaluate(BoundSwitchStatementExpr node, EvaluationContext ctx)

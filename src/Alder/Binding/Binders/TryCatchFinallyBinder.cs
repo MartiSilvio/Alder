@@ -4,9 +4,10 @@ using Alder.Parsing;
 
 namespace Alder.Binding.Binders;
 
-internal sealed class TryCatchFinallyBinder : INodeBinder<TryCatchFinallyExpr>
+[BindsNode(typeof(TryCatchFinallyExpr))]
+internal static class TryCatchFinallyBinder
 {
-    public BoundExpr Bind(TryCatchFinallyExpr expr, BindingContext context, BinderContext binder)
+    public static BoundExpr Bind(TryCatchFinallyExpr expr, BindingContext context, BinderContext binder)
     {
         var tryScope = context.CreateChildScope();
         var tryBody = expr.TryBody

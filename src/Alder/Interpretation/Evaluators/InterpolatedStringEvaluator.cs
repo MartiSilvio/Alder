@@ -4,6 +4,7 @@ using Alder.Binding.BoundNodes;
 
 namespace Alder.Interpretation.Evaluators;
 
+[EvaluatesNode(BoundNodeKind.InterpolatedString)]
 internal static class InterpolatedStringEvaluator
 {
     public static object? Evaluate(BoundInterpolatedStringExpr node, EvaluationContext ctx)

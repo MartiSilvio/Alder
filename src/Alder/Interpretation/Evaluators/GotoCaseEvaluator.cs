@@ -1,7 +1,9 @@
+using Alder.Binding;
 using Alder.Binding.BoundNodes;
 
 namespace Alder.Interpretation.Evaluators;
 
+[EvaluatesNode(BoundNodeKind.GotoCaseStatement)]
 internal static class GotoCaseEvaluator
 {
     public static object? Evaluate(BoundGotoCaseExpr node, EvaluationContext ctx)

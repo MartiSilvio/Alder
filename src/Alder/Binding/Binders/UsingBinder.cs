@@ -3,9 +3,10 @@ using Alder.Parsing;
 
 namespace Alder.Binding.Binders;
 
-internal sealed class UsingBinder : INodeBinder<UsingStatementExpr>
+[BindsNode(typeof(UsingStatementExpr))]
+internal static class UsingBinder
 {
-    public BoundExpr Bind(UsingStatementExpr expr, BindingContext context, BinderContext binder)
+    public static BoundExpr Bind(UsingStatementExpr expr, BindingContext context, BinderContext binder)
     {
         var resource = binder.Bind(expr.ResourceDeclaration, context);
         var body = binder.Bind(expr.Body, context.CreateChildScope());

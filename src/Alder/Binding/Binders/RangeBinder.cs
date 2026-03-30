@@ -3,9 +3,10 @@ using Alder.Parsing;
 
 namespace Alder.Binding.Binders;
 
-internal sealed class RangeBinder : INodeBinder<RangeExpr>
+[BindsNode(typeof(RangeExpr))]
+internal static class RangeBinder
 {
-    public BoundExpr Bind(RangeExpr expr, BindingContext context, BinderContext binder)
+    public static BoundExpr Bind(RangeExpr expr, BindingContext context, BinderContext binder)
     {
         var start = expr.Start != null ? binder.Bind(expr.Start, context) : null;
         var end = expr.End != null ? binder.Bind(expr.End, context) : null;

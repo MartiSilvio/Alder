@@ -3,9 +3,10 @@ using Alder.Parsing;
 
 namespace Alder.Binding.Binders;
 
-internal sealed class BreakBinder : INodeBinder<BreakExpr>
+[BindsNode(typeof(BreakExpr))]
+internal static class BreakBinder
 {
-    public BoundExpr Bind(BreakExpr expr, BindingContext context, BinderContext binder)
+    public static BoundExpr Bind(BreakExpr expr, BindingContext context, BinderContext binder)
     {
         return new BoundBreakExpr(BoundType.Void);
     }

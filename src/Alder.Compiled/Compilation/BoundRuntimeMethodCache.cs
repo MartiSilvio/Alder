@@ -425,10 +425,22 @@ internal static class BoundRuntimeMethodCache
     internal static readonly MethodInfo StringConcatObjectMethod =
         typeof(string).GetMethod(nameof(string.Concat), [typeof(object)])!;
 
+    internal static readonly MethodInfo CoerceNumericMethod =
+        typeof(TypeHelpers).GetMethod("CoerceNumeric", BindingFlags.NonPublic | BindingFlags.Static)!;
+
+    internal static readonly MethodInfo GuardReflectionLeakTypedMethod =
+        typeof(TypeHelpers).GetMethod(nameof(TypeHelpers.GuardReflectionLeakTyped))!;
+
     private static readonly ConcurrentDictionary<Type, MethodInfo> GetVariableTypedMethodCache = new();
+    private static readonly ConcurrentDictionary<Type, MethodInfo> GuardReflectionLeakTypedMethodCache = new();
 
     internal static MethodInfo GetVariableTypedMethodFor(Type valueType) =>
         GetVariableTypedMethodCache.GetOrAdd(
             valueType,
             static t => GetVariableTypedMethod.MakeGenericMethod(t));
+
+    internal static MethodInfo GetGuardReflectionLeakTypedMethod(Type valueType) =>
+        GuardReflectionLeakTypedMethodCache.GetOrAdd(
+            valueType,
+            static t => GuardReflectionLeakTypedMethod.MakeGenericMethod(t));
 }

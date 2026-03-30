@@ -6,9 +6,10 @@ using Alder.Runtime;
 
 namespace Alder.Binding.Binders;
 
-internal sealed class ImplicitArrayCreationBinder : INodeBinder<ImplicitArrayCreationExpr>
+[BindsNode(typeof(ImplicitArrayCreationExpr))]
+internal static class ImplicitArrayCreationBinder
 {
-    public BoundExpr Bind(ImplicitArrayCreationExpr expr, BindingContext context, BinderContext binder)
+    public static BoundExpr Bind(ImplicitArrayCreationExpr expr, BindingContext context, BinderContext binder)
     {
         var elements = expr.Elements
             .Select(element => binder.Bind(element, context))

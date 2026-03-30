@@ -3,9 +3,10 @@ using Alder.Parsing;
 
 namespace Alder.Binding.Binders;
 
-internal sealed class ConditionalBinder : INodeBinder<ConditionalExpr>
+[BindsNode(typeof(ConditionalExpr))]
+internal static class ConditionalBinder
 {
-    public BoundExpr Bind(ConditionalExpr expr, BindingContext context, BinderContext binder)
+    public static BoundExpr Bind(ConditionalExpr expr, BindingContext context, BinderContext binder)
     {
         var condition = binder.Bind(expr.Condition, context);
         var thenBranch = binder.Bind(expr.ThenBranch, context);

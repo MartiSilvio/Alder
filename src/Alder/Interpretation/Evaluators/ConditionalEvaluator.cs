@@ -1,8 +1,10 @@
+using Alder.Binding;
 using Alder.Binding.BoundNodes;
 using Alder.Runtime;
 
 namespace Alder.Interpretation.Evaluators;
 
+[EvaluatesNode(BoundNodeKind.ConditionalOperator)]
 internal static class ConditionalEvaluator
 {
     public static object? Evaluate(BoundConditionalExpr node, EvaluationContext ctx)

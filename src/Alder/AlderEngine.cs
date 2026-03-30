@@ -624,7 +624,7 @@ public sealed partial class AlderEngine : IDisposable
         try
         {
             var context = GetOrCreateContext();
-            var binder = new Binder(new Text.SourceText(expression), recovering: true);
+            var binder = new Binder(new Text.SourceText(expression));
             var bindingContext = new BindingContext(context);
             var validationDiagnostics = new List<AlderDiagnostic>(binder.CollectDiagnostics(ast, bindingContext));
 

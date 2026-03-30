@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using Alder.Binding;
 using Alder.Binding.BoundNodes;
 using Alder.Parsing;
@@ -7,10 +8,14 @@ using Alder.Runtime.Semantics;
 
 namespace Alder.Interpretation.Evaluators;
 
+[EvaluatesNode(BoundNodeKind.BinaryOperator)]
 internal static class BinaryEvaluator
 {
     public static object? Evaluate(BoundBinaryExpr node, EvaluationContext ctx)
     {
+        if (node.Left is not BoundBinaryExpr)
+            return EvaluateBinarySingle(node, ctx.Evaluate(node.Left), ctx);
+
         var chain = new List<BoundBinaryExpr>();
         BoundExpr leftmost = node;
         while (leftmost is BoundBinaryExpr b)
@@ -40,6 +45,12 @@ internal static class BinaryEvaluator
             && left.GetType() == binary.Left.StaticType.ClrType
             && right.GetType() == binary.Right.StaticType.ClrType)
         {
+            if (promoted == typeof(int) && left is int li && right is int ri)
+                return EvaluateInt32Fast(binary.Operator, li, ri, ctx.IsChecked);
+
+            if (promoted == typeof(double) && left is double ld && right is double rd)
+                return EvaluateDoubleFast(binary.Operator, ld, rd);
+
             if (IsNaN(left) || IsNaN(right))
                 return binary.Operator == TokenType.BangEqual ? BoxedConstants.True : BoxedConstants.False;
 
@@ -114,6 +125,45 @@ internal static class BinaryEvaluator
                 $"Bound binary operator '{binary.Operator}' is not implemented")
         };
     }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static object? EvaluateInt32Fast(TokenType op, int left, int right, bool isChecked) => op switch
+    {
+        TokenType.Plus => isChecked ? checked(left + right) : left + right,
+        TokenType.Minus => isChecked ? checked(left - right) : left - right,
+        TokenType.Star => isChecked ? checked(left * right) : left * right,
+        TokenType.Slash => left / right,
+        TokenType.Percent => left % right,
+        TokenType.EqualEqual => left == right ? BoxedConstants.True : BoxedConstants.False,
+        TokenType.BangEqual => left != right ? BoxedConstants.True : BoxedConstants.False,
+        TokenType.Less => left < right ? BoxedConstants.True : BoxedConstants.False,
+        TokenType.LessEqual => left <= right ? BoxedConstants.True : BoxedConstants.False,
+        TokenType.Greater => left > right ? BoxedConstants.True : BoxedConstants.False,
+        TokenType.GreaterEqual => left >= right ? BoxedConstants.True : BoxedConstants.False,
+        TokenType.Amp => left & right,
+        TokenType.Pipe => left | right,
+        TokenType.Caret => left ^ right,
+        TokenType.LessLess => left << right,
+        TokenType.GreaterGreater => left >> right,
+        _ => null
+    };
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static object? EvaluateDoubleFast(TokenType op, double left, double right) => op switch
+    {
+        TokenType.Plus => left + right,
+        TokenType.Minus => left - right,
+        TokenType.Star => left * right,
+        TokenType.Slash => left / right,
+        TokenType.Percent => left % right,
+        TokenType.EqualEqual => left == right ? BoxedConstants.True : BoxedConstants.False,
+        TokenType.BangEqual => left != right ? BoxedConstants.True : BoxedConstants.False,
+        TokenType.Less => left < right ? BoxedConstants.True : BoxedConstants.False,
+        TokenType.LessEqual => left <= right ? BoxedConstants.True : BoxedConstants.False,
+        TokenType.Greater => left > right ? BoxedConstants.True : BoxedConstants.False,
+        TokenType.GreaterEqual => left >= right ? BoxedConstants.True : BoxedConstants.False,
+        _ => null
+    };
 
     private static bool IsNaN(object value) => value is double d && double.IsNaN(d) || value is float f && float.IsNaN(f);
 }

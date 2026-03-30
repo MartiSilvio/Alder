@@ -235,7 +235,7 @@ internal sealed class ResolvedCallEmitter : INodeEmitter<BoundResolvedCallExpr>
         if (emittedArgument.Type == typeof(object))
         {
             var coerced = LinqExpression.Call(
-                CompilerReflectionCache.CoerceNumericMethod,
+                CoerceNumericMethod,
                 emittedArgument,
                 LinqExpression.Constant(targetType, typeof(Type)));
             return LinqExpression.Convert(coerced, targetType);

@@ -7,9 +7,10 @@ using Alder.Text;
 
 namespace Alder.Binding.Binders;
 
-internal sealed class CollectionExprBinder : INodeBinder<CollectionExpr>
+[BindsNode(typeof(CollectionExpr))]
+internal static class CollectionExprBinder
 {
-    public BoundExpr Bind(CollectionExpr expr, BindingContext context, BinderContext binder)
+    public static BoundExpr Bind(CollectionExpr expr, BindingContext context, BinderContext binder)
     {
         return BindCollectionWithTargetType(expr, context, binder, null);
     }

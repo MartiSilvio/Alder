@@ -1,8 +1,10 @@
+using Alder.Binding;
 using Alder.Binding.BoundNodes;
 using Alder.Runtime.Semantics;
 
 namespace Alder.Interpretation.Evaluators;
 
+[EvaluatesNode(BoundNodeKind.IndexIncrement)]
 internal static class IndexIncrementEvaluator
 {
     public static object? Evaluate(BoundIndexIncrementExpr node, EvaluationContext ctx)

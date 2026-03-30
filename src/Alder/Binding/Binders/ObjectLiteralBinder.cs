@@ -4,9 +4,10 @@ using Alder.Parsing;
 
 namespace Alder.Binding.Binders;
 
-internal sealed class ObjectLiteralBinder : INodeBinder<ObjectLiteralExpr>
+[BindsNode(typeof(ObjectLiteralExpr))]
+internal static class ObjectLiteralBinder
 {
-    public BoundExpr Bind(ObjectLiteralExpr expr, BindingContext context, BinderContext binder)
+    public static BoundExpr Bind(ObjectLiteralExpr expr, BindingContext context, BinderContext binder)
     {
         var properties = expr.Properties
             .Select(property =>

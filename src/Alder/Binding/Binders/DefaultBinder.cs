@@ -4,9 +4,10 @@ using Alder.Runtime;
 
 namespace Alder.Binding.Binders;
 
-internal sealed class DefaultBinder : INodeBinder<DefaultExpr>
+[BindsNode(typeof(DefaultExpr))]
+internal static class DefaultBinder
 {
-    public BoundExpr Bind(DefaultExpr expr, BindingContext context, BinderContext binder)
+    public static BoundExpr Bind(DefaultExpr expr, BindingContext context, BinderContext binder)
     {
         if (expr.TypeToken == null)
             return new BoundLiteralExpr(null, BoundType.Unknown);

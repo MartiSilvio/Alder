@@ -1,8 +1,10 @@
+using Alder.Binding;
 using Alder.Binding.BoundNodes;
 using Alder.Runtime.Semantics;
 
 namespace Alder.Interpretation.Evaluators;
 
+[EvaluatesNode(BoundNodeKind.IndexAssignment)]
 internal static class IndexAssignEvaluator
 {
     public static object? Evaluate(BoundIndexAssignExpr node, EvaluationContext ctx)

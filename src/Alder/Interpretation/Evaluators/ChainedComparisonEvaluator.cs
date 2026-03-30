@@ -1,9 +1,11 @@
+using Alder.Binding;
 using Alder.Binding.BoundNodes;
 using Alder.Runtime;
 using Alder.Runtime.Extensions;
 
 namespace Alder.Interpretation.Evaluators;
 
+[EvaluatesNode(BoundNodeKind.ChainedComparisonOperator)]
 internal static class ChainedComparisonEvaluator
 {
     public static object? Evaluate(BoundChainedComparisonExpr node, EvaluationContext ctx)

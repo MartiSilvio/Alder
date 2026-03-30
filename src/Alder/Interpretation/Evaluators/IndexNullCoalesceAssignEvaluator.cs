@@ -1,9 +1,11 @@
+using Alder.Binding;
 using Alder.Binding.BoundNodes;
 using Alder.Runtime;
 using Alder.Runtime.Semantics;
 
 namespace Alder.Interpretation.Evaluators;
 
+[EvaluatesNode(BoundNodeKind.IndexNullCoalesceAssignment)]
 internal static class IndexNullCoalesceAssignEvaluator
 {
     public static object? Evaluate(BoundIndexNullCoalesceAssignExpr node, EvaluationContext ctx)

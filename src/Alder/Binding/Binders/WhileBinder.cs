@@ -4,9 +4,10 @@ using Alder.Parsing;
 
 namespace Alder.Binding.Binders;
 
-internal sealed class WhileBinder : INodeBinder<WhileStatementExpr>
+[BindsNode(typeof(WhileStatementExpr))]
+internal static class WhileBinder
 {
-    public BoundExpr Bind(WhileStatementExpr expr, BindingContext context, BinderContext binder)
+    public static BoundExpr Bind(WhileStatementExpr expr, BindingContext context, BinderContext binder)
     {
         var condition = binder.Bind(expr.Condition, context);
         var bodyScope = context.CreateChildScope();

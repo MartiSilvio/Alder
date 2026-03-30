@@ -1,10 +1,12 @@
 using System.Runtime.CompilerServices;
+using Alder.Binding;
 using Alder.Binding.BoundNodes;
 using Alder.Diagnostics;
 using Alder.Runtime.Semantics;
 
 namespace Alder.Interpretation.Evaluators;
 
+[EvaluatesNode(BoundNodeKind.DeconstructionAssignment)]
 internal static class DeconstructionEvaluator
 {
     public static object? Evaluate(BoundDeconstructionExpr node, EvaluationContext ctx)

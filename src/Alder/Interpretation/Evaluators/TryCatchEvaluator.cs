@@ -1,9 +1,11 @@
 using System.Runtime.ExceptionServices;
+using Alder.Binding;
 using Alder.Binding.BoundNodes;
 using Alder.Runtime;
 
 namespace Alder.Interpretation.Evaluators;
 
+[EvaluatesNode(BoundNodeKind.TryStatement)]
 internal static class TryCatchEvaluator
 {
     public static object? Evaluate(BoundTryCatchFinallyExpr node, EvaluationContext ctx)

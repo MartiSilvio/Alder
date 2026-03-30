@@ -1,7 +1,9 @@
+using Alder.Binding;
 using Alder.Binding.BoundNodes;
 
 namespace Alder.Interpretation.Evaluators;
 
+[EvaluatesNode(BoundNodeKind.UsingStatement)]
 internal static class UsingEvaluator
 {
     public static object? Evaluate(BoundUsingStatementExpr node, EvaluationContext ctx)

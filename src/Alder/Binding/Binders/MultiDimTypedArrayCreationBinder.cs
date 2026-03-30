@@ -5,9 +5,10 @@ using Alder.Runtime;
 
 namespace Alder.Binding.Binders;
 
-internal sealed class MultiDimTypedArrayCreationBinder : INodeBinder<MultiDimTypedArrayCreationExpr>
+[BindsNode(typeof(MultiDimTypedArrayCreationExpr))]
+internal static class MultiDimTypedArrayCreationBinder
 {
-    public BoundExpr Bind(MultiDimTypedArrayCreationExpr expr, BindingContext context, BinderContext binder)
+    public static BoundExpr Bind(MultiDimTypedArrayCreationExpr expr, BindingContext context, BinderContext binder)
     {
         var sizes = expr.Sizes
             .Select(size => binder.Bind(size, context))

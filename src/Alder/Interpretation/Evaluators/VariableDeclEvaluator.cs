@@ -4,6 +4,7 @@ using Alder.Runtime.Semantics;
 
 namespace Alder.Interpretation.Evaluators;
 
+[EvaluatesNode(BoundNodeKind.VariableDeclaration)]
 internal static class VariableDeclEvaluator
 {
     public static object? Evaluate(BoundVariableDeclExpr node, EvaluationContext ctx)

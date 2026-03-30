@@ -6,6 +6,7 @@ using MethodInvoker = Alder.Runtime.MethodInvoker;
 
 namespace Alder.Interpretation.Evaluators;
 
+[EvaluatesNode(BoundNodeKind.ObjectCreationExpression)]
 internal static class ObjectCreationEvaluator
 {
     public static object? Evaluate(BoundObjectCreationExpr node, EvaluationContext ctx)

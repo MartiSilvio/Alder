@@ -1,8 +1,10 @@
+using Alder.Binding;
 using Alder.Binding.BoundNodes;
 using Alder.Runtime;
 
 namespace Alder.Interpretation.Evaluators;
 
+[EvaluatesNode(BoundNodeKind.MultiDimArrayInit)]
 internal static class MultiDimArrayInitEvaluator
 {
     public static object? Evaluate(BoundMultiDimArrayInitExpr node, EvaluationContext ctx)

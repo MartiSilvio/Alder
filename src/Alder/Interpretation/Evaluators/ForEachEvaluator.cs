@@ -1,4 +1,5 @@
 using System.Collections;
+using Alder.Binding;
 using Alder.Binding.BoundNodes;
 using Alder.Diagnostics;
 using Alder.Runtime;
@@ -7,6 +8,7 @@ using Alder.Runtime.Semantics;
 
 namespace Alder.Interpretation.Evaluators;
 
+[EvaluatesNode(BoundNodeKind.ForEachStatement)]
 internal static class ForEachEvaluator
 {
     public static object? Evaluate(BoundForEachExpr node, EvaluationContext ctx)
@@ -37,7 +39,7 @@ internal static class ForEachEvaluator
                 ControlFlowSignal? signal;
                 try
                 {
-                    ctx.Context.DefineNew(node.VariableName, item, node.ElementType);
+                    ctx.Context.Define(node.VariableName, item, node.ElementType);
                     signal = BlockEvaluator.ExecuteStatementBlock(node.Body, ctx);
                 }
                 finally

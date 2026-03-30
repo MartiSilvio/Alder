@@ -3,9 +3,10 @@ using Alder.Parsing;
 
 namespace Alder.Binding.Binders;
 
-internal sealed class AsBinder : INodeBinder<AsExpr>
+[BindsNode(typeof(AsExpr))]
+internal static class AsBinder
 {
-    public BoundExpr Bind(AsExpr expr, BindingContext context, BinderContext binder)
+    public static BoundExpr Bind(AsExpr expr, BindingContext context, BinderContext binder)
     {
         var expression = binder.Bind(expr.Expression, context);
         var targetType = context.RuntimeContext.TypeResolver.ResolveType(expr.TargetType.Lexeme);

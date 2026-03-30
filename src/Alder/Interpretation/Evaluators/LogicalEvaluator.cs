@@ -6,6 +6,7 @@ using Alder.Runtime;
 
 namespace Alder.Interpretation.Evaluators;
 
+[EvaluatesNode(BoundNodeKind.LogicalOperator)]
 internal static class LogicalEvaluator
 {
     public static object? Evaluate(BoundLogicalExpr node, EvaluationContext ctx)

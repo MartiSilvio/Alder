@@ -1,10 +1,12 @@
 using System.Collections;
+using Alder.Binding;
 using Alder.Binding.BoundNodes;
 using Alder.Diagnostics;
 using Alder.Runtime;
 
 namespace Alder.Interpretation.Evaluators;
 
+[EvaluatesNode(BoundNodeKind.ResolvedIndexAccess)]
 internal static class ResolvedIndexAccessEvaluator
 {
     public static object? Evaluate(BoundResolvedIndexAccessExpr node, EvaluationContext ctx)

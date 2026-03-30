@@ -5,9 +5,10 @@ using Alder.Runtime;
 
 namespace Alder.Binding.Binders;
 
-internal sealed class TypedArrayLiteralBinder : INodeBinder<TypedArrayLiteralExpr>
+[BindsNode(typeof(TypedArrayLiteralExpr))]
+internal static class TypedArrayLiteralBinder
 {
-    public BoundExpr Bind(TypedArrayLiteralExpr expr, BindingContext context, BinderContext binder)
+    public static BoundExpr Bind(TypedArrayLiteralExpr expr, BindingContext context, BinderContext binder)
     {
         var elements = expr.Elements
             .Select(element => binder.Bind(element, context))

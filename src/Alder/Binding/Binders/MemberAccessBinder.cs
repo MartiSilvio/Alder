@@ -5,10 +5,18 @@ using Alder.Parsing;
 
 namespace Alder.Binding.Binders;
 
-internal sealed class MemberAccessBinder : INodeBinder<MemberAccessExpr>
+[BindsNode(typeof(MemberAccessExpr))]
+internal static class MemberAccessBinder
 {
-    public BoundExpr Bind(MemberAccessExpr expr, BindingContext context, BinderContext binder)
+    public static BoundExpr Bind(MemberAccessExpr expr, BindingContext context, BinderContext binder)
     {
+        if (expr.Object is not MemberAccessExpr && expr.Object is not CallExpr { Callee: MemberAccessExpr })
+        {
+            var t = binder.Bind(expr.Object, context);
+            var r = BindSingleMemberAccess(t, expr.Name.Lexeme, expr.NullSafe, context);
+            return r with { Span = expr.Span };
+        }
+
         var memberChain = new List<MemberAccessExpr>();
         var callAfter = new List<CallExpr?>();
         CallExpr? pendingCall = null;

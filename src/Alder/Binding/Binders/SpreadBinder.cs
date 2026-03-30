@@ -3,9 +3,10 @@ using Alder.Parsing;
 
 namespace Alder.Binding.Binders;
 
-internal sealed class SpreadBinder : INodeBinder<SpreadExpr>
+[BindsNode(typeof(SpreadExpr))]
+internal static class SpreadBinder
 {
-    public BoundExpr Bind(SpreadExpr expr, BindingContext context, BinderContext binder)
+    public static BoundExpr Bind(SpreadExpr expr, BindingContext context, BinderContext binder)
     {
         var expression = binder.Bind(expr.Expression, context);
         var elementType = ForEachBinder.InferElementType(expression.StaticType.ClrType);

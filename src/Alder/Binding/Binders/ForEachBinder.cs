@@ -4,9 +4,10 @@ using Alder.Parsing;
 
 namespace Alder.Binding.Binders;
 
-internal sealed class ForEachBinder : INodeBinder<ForEachStatementExpr>
+[BindsNode(typeof(ForEachStatementExpr))]
+internal static class ForEachBinder
 {
-    public BoundExpr Bind(ForEachStatementExpr expr, BindingContext context, BinderContext binder)
+    public static BoundExpr Bind(ForEachStatementExpr expr, BindingContext context, BinderContext binder)
     {
         var collection = binder.Bind(expr.Collection, context);
         var elementType = InferElementType(collection.StaticType.ClrType);

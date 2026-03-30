@@ -23,5 +23,27 @@ internal sealed class BoundEvaluator
         _evalCtx.SourceText = sourceText;
     }
 
-    public object? Evaluate(BoundExpr expr) => _evalCtx.Evaluate(expr);
+    public object? Evaluate(BoundExpr expr)
+    {
+        try
+        {
+            return _evalCtx.Evaluate(expr);
+        }
+        catch (AlderException ex) when (ex.Span.IsEmpty)
+        {
+            var faulted = _evalCtx.LastEvaluatedExpr;
+            if (faulted != null && !faulted.Span.IsEmpty)
+            {
+                int? line = null, column = null;
+                if (_evalCtx.SourceText != null)
+                {
+                    var pos = _evalCtx.SourceText.GetLinePosition(faulted.Span.Start);
+                    line = pos.Line + 1;
+                    column = pos.Character + 1;
+                }
+                ex.EnrichDiagnosticsWithPosition(faulted.Span, line, column);
+            }
+            throw;
+        }
+    }
 }

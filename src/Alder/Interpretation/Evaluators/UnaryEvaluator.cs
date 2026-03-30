@@ -5,6 +5,7 @@ using Alder.Runtime;
 
 namespace Alder.Interpretation.Evaluators;
 
+[EvaluatesNode(BoundNodeKind.UnaryOperator)]
 internal static class UnaryEvaluator
 {
     public static object? Evaluate(BoundUnaryExpr node, EvaluationContext ctx)

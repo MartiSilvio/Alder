@@ -4,6 +4,7 @@ using Alder.Runtime;
 
 namespace Alder.Interpretation.Evaluators;
 
+[EvaluatesNode(BoundNodeKind.IfStatement)]
 internal static class IfEvaluator
 {
     public static object? Evaluate(BoundIfStatementExpr node, EvaluationContext ctx)

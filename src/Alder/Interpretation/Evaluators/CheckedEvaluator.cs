@@ -1,7 +1,9 @@
+using Alder.Binding;
 using Alder.Binding.BoundNodes;
 
 namespace Alder.Interpretation.Evaluators;
 
+[EvaluatesNode(BoundNodeKind.CheckedExpression)]
 internal static class CheckedEvaluator
 {
     public static object? Evaluate(BoundCheckedExpr node, EvaluationContext ctx)

@@ -6,6 +6,7 @@ using MethodInvoker = Alder.Runtime.MethodInvoker;
 
 namespace Alder.Interpretation.Evaluators;
 
+[EvaluatesNode(BoundNodeKind.DynamicCall)]
 internal static class DynamicCallEvaluator
 {
     public static object? Evaluate(BoundDynamicCallExpr node, EvaluationContext ctx)

@@ -4,9 +4,10 @@ using Alder.Parsing;
 
 namespace Alder.Binding.Binders;
 
-internal sealed class BlockBinder : INodeBinder<BlockExpr>
+[BindsNode(typeof(BlockExpr))]
+internal static class BlockBinder
 {
-    public BoundExpr Bind(BlockExpr expr, BindingContext context, BinderContext binder)
+    public static BoundExpr Bind(BlockExpr expr, BindingContext context, BinderContext binder)
     {
         var blockScope = context.CreateChildScope();
         var statements = expr.Statements

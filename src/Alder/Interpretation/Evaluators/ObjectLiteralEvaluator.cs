@@ -1,9 +1,11 @@
 using System.Dynamic;
+using Alder.Binding;
 using Alder.Binding.BoundNodes;
 using Alder.Runtime;
 
 namespace Alder.Interpretation.Evaluators;
 
+[EvaluatesNode(BoundNodeKind.ObjectLiteral)]
 internal static class ObjectLiteralEvaluator
 {
     public static object? Evaluate(BoundObjectLiteralExpr node, EvaluationContext ctx)

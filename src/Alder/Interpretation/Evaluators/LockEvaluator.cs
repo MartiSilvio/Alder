@@ -1,8 +1,10 @@
+using Alder.Binding;
 using Alder.Binding.BoundNodes;
 using Alder.Diagnostics;
 
 namespace Alder.Interpretation.Evaluators;
 
+[EvaluatesNode(BoundNodeKind.LockStatement)]
 internal static class LockEvaluator
 {
     public static object? Evaluate(BoundLockStatementExpr node, EvaluationContext ctx)

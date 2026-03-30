@@ -1,9 +1,11 @@
+using Alder.Binding;
 using Alder.Binding.BoundNodes;
 using Alder.Runtime;
 using Alder.Runtime.Semantics;
 
 namespace Alder.Interpretation.Evaluators;
 
+[EvaluatesNode(BoundNodeKind.RangeExpression)]
 internal static class RangeEvaluator
 {
     public static object? Evaluate(BoundRangeExpr node, EvaluationContext ctx)

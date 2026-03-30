@@ -3,9 +3,10 @@ using Alder.Parsing;
 
 namespace Alder.Binding.Binders;
 
-internal sealed class PipelineBinder : INodeBinder<PipelineExpr>
+[BindsNode(typeof(PipelineExpr))]
+internal static class PipelineBinder
 {
-    public BoundExpr Bind(PipelineExpr expr, BindingContext context, BinderContext binder)
+    public static BoundExpr Bind(PipelineExpr expr, BindingContext context, BinderContext binder)
     {
         if (expr.Right is IdentifierExpr rightIdentifier)
         {

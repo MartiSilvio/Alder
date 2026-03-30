@@ -6,9 +6,10 @@ using Alder.Parsing;
 
 namespace Alder.Binding.Binders;
 
-internal sealed class CallBinder : INodeBinder<CallExpr>
+[BindsNode(typeof(CallExpr))]
+internal static class CallBinder
 {
-    public BoundExpr Bind(CallExpr expr, BindingContext context, BinderContext binder)
+    public static BoundExpr Bind(CallExpr expr, BindingContext context, BinderContext binder)
     {
         if (TryBindStaticModuleCall(expr, context, binder, out var staticModuleCall))
             return staticModuleCall;

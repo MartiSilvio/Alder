@@ -1,9 +1,11 @@
+using Alder.Binding;
 using Alder.Binding.BoundNodes;
 using Alder.Runtime;
 using Alder.Runtime.Semantics;
 
 namespace Alder.Interpretation.Evaluators;
 
+[EvaluatesNode(BoundNodeKind.ForStatement)]
 internal static class ForEvaluator
 {
     public static object? Evaluate(BoundForExpr node, EvaluationContext ctx)

@@ -4,9 +4,10 @@ using Alder.Parsing;
 
 namespace Alder.Binding.Binders;
 
-internal sealed class IndexCompoundAssignBinder : INodeBinder<IndexCompoundAssignExpr>
+[BindsNode(typeof(IndexCompoundAssignExpr))]
+internal static class IndexCompoundAssignBinder
 {
-    public BoundExpr Bind(IndexCompoundAssignExpr expr, BindingContext context, BinderContext binder)
+    public static BoundExpr Bind(IndexCompoundAssignExpr expr, BindingContext context, BinderContext binder)
     {
         var target = binder.Bind(expr.Object, context);
         var index = binder.Bind(expr.Index, context);

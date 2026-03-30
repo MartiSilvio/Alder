@@ -4,9 +4,10 @@ using Alder.Parsing;
 
 namespace Alder.Binding.Binders;
 
-internal sealed class InterpolatedStringBinder : INodeBinder<InterpolatedStringExpr>
+[BindsNode(typeof(InterpolatedStringExpr))]
+internal static class InterpolatedStringBinder
 {
-    public BoundExpr Bind(InterpolatedStringExpr expr, BindingContext context, BinderContext binder)
+    public static BoundExpr Bind(InterpolatedStringExpr expr, BindingContext context, BinderContext binder)
     {
         var parts = expr.Parts
             .Select(part => part switch

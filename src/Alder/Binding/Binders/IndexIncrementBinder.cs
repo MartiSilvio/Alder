@@ -3,9 +3,10 @@ using Alder.Parsing;
 
 namespace Alder.Binding.Binders;
 
-internal sealed class IndexIncrementBinder : INodeBinder<IndexIncrementExpr>
+[BindsNode(typeof(IndexIncrementExpr))]
+internal static class IndexIncrementBinder
 {
-    public BoundExpr Bind(IndexIncrementExpr expr, BindingContext context, BinderContext binder)
+    public static BoundExpr Bind(IndexIncrementExpr expr, BindingContext context, BinderContext binder)
     {
         var target = binder.Bind(expr.Object, context);
         var index = binder.Bind(expr.Index, context);

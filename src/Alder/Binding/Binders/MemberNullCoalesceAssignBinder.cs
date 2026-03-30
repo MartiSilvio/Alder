@@ -3,9 +3,10 @@ using Alder.Parsing;
 
 namespace Alder.Binding.Binders;
 
-internal sealed class MemberNullCoalesceAssignBinder : INodeBinder<MemberNullCoalesceAssignExpr>
+[BindsNode(typeof(MemberNullCoalesceAssignExpr))]
+internal static class MemberNullCoalesceAssignBinder
 {
-    public BoundExpr Bind(MemberNullCoalesceAssignExpr expr, BindingContext context, BinderContext binder)
+    public static BoundExpr Bind(MemberNullCoalesceAssignExpr expr, BindingContext context, BinderContext binder)
     {
         var target = binder.Bind(expr.Object, context);
         var value = binder.Bind(expr.Value, context);

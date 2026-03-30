@@ -1,8 +1,10 @@
+using Alder.Binding;
 using Alder.Binding.BoundNodes;
 using Alder.Runtime;
 
 namespace Alder.Interpretation.Evaluators;
 
+[EvaluatesNode(BoundNodeKind.ArrayAllocation)]
 internal static class ArrayAllocationEvaluator
 {
     public static object? Evaluate(BoundArrayAllocationExpr node, EvaluationContext ctx)

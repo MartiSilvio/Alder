@@ -3,9 +3,10 @@ using Alder.Parsing;
 
 namespace Alder.Binding.Binders;
 
-internal sealed class ThrowBinder : INodeBinder<ThrowExpr>
+[BindsNode(typeof(ThrowExpr))]
+internal static class ThrowBinder
 {
-    public BoundExpr Bind(ThrowExpr expr, BindingContext context, BinderContext binder)
+    public static BoundExpr Bind(ThrowExpr expr, BindingContext context, BinderContext binder)
     {
         var expression = binder.Bind(expr.Expression, context);
         return new BoundThrowExpr(expression, BoundType.Void);

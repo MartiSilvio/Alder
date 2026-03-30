@@ -3,9 +3,10 @@ using Alder.Parsing;
 
 namespace Alder.Binding.Binders;
 
-internal sealed class LockBinder : INodeBinder<LockStatementExpr>
+[BindsNode(typeof(LockStatementExpr))]
+internal static class LockBinder
 {
-    public BoundExpr Bind(LockStatementExpr expr, BindingContext context, BinderContext binder)
+    public static BoundExpr Bind(LockStatementExpr expr, BindingContext context, BinderContext binder)
     {
         var lockObject = binder.Bind(expr.LockObject, context);
         var body = binder.Bind(expr.Body, context.CreateChildScope());

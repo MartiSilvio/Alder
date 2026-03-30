@@ -5,6 +5,7 @@ using Alder.Runtime.Semantics;
 
 namespace Alder.Interpretation.Evaluators;
 
+[EvaluatesNode(BoundNodeKind.Block)]
 internal static class BlockEvaluator
 {
     public static object? Evaluate(BoundBlockExpr node, EvaluationContext ctx)

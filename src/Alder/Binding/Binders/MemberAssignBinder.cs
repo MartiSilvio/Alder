@@ -5,9 +5,10 @@ using Alder.Parsing;
 
 namespace Alder.Binding.Binders;
 
-internal sealed class MemberAssignBinder : INodeBinder<MemberAssignExpr>
+[BindsNode(typeof(MemberAssignExpr))]
+internal static class MemberAssignBinder
 {
-    public BoundExpr Bind(MemberAssignExpr expr, BindingContext context, BinderContext binder)
+    public static BoundExpr Bind(MemberAssignExpr expr, BindingContext context, BinderContext binder)
     {
         var target = binder.Bind(expr.Object, context);
         var value = binder.Bind(expr.Value, context);

@@ -8,6 +8,7 @@ using MethodInvoker = Alder.Runtime.MethodInvoker;
 
 namespace Alder.Interpretation.Evaluators;
 
+[EvaluatesNode(BoundNodeKind.ResolvedCall)]
 internal static class ResolvedCallEvaluator
 {
     public static object? Evaluate(BoundResolvedCallExpr node, EvaluationContext ctx)

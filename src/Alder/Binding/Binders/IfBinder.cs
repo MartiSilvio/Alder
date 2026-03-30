@@ -4,9 +4,10 @@ using Alder.Parsing;
 
 namespace Alder.Binding.Binders;
 
-internal sealed class IfBinder : INodeBinder<IfStatementExpr>
+[BindsNode(typeof(IfStatementExpr))]
+internal static class IfBinder
 {
-    public BoundExpr Bind(IfStatementExpr expr, BindingContext context, BinderContext binder)
+    public static BoundExpr Bind(IfStatementExpr expr, BindingContext context, BinderContext binder)
     {
         var condition = binder.Bind(expr.Condition, context);
         var thenScope = context.CreateChildScope();

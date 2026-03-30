@@ -3,9 +3,10 @@ using Alder.Parsing;
 
 namespace Alder.Binding.Binders;
 
-internal sealed class IdentifierBinder : INodeBinder<IdentifierExpr>
+[BindsNode(typeof(IdentifierExpr))]
+internal static class IdentifierBinder
 {
-    public BoundExpr Bind(IdentifierExpr expr, BindingContext context, BinderContext binder)
+    public static BoundExpr Bind(IdentifierExpr expr, BindingContext context, BinderContext binder)
     {
         var name = expr.Name.Lexeme;
 

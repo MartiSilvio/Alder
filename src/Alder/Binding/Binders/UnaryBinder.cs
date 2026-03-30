@@ -4,9 +4,10 @@ using Alder.Runtime;
 
 namespace Alder.Binding.Binders;
 
-internal sealed class UnaryBinder : INodeBinder<UnaryExpr>
+[BindsNode(typeof(UnaryExpr))]
+internal static class UnaryBinder
 {
-    public BoundExpr Bind(UnaryExpr expr, BindingContext context, BinderContext binder)
+    public static BoundExpr Bind(UnaryExpr expr, BindingContext context, BinderContext binder)
     {
         var operand = binder.Bind(expr.Right, context);
         if (operand.HasErrors)

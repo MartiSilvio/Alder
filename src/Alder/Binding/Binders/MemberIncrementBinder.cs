@@ -3,9 +3,10 @@ using Alder.Parsing;
 
 namespace Alder.Binding.Binders;
 
-internal sealed class MemberIncrementBinder : INodeBinder<MemberIncrementExpr>
+[BindsNode(typeof(MemberIncrementExpr))]
+internal static class MemberIncrementBinder
 {
-    public BoundExpr Bind(MemberIncrementExpr expr, BindingContext context, BinderContext binder)
+    public static BoundExpr Bind(MemberIncrementExpr expr, BindingContext context, BinderContext binder)
     {
         var target = binder.Bind(expr.Object, context);
         var (resolvedMember, _) = MemberAssignBinder.ResolveMemberForAssignment(target.StaticType.ClrType, expr.MemberName, context);

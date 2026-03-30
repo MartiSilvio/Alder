@@ -1,10 +1,12 @@
 using System.Runtime.ExceptionServices;
+using Alder.Binding;
 using Alder.Binding.BoundNodes;
 using Alder.Diagnostics;
 using Alder.Runtime.Semantics;
 
 namespace Alder.Interpretation.Evaluators;
 
+[EvaluatesNode(BoundNodeKind.ThrowExpression)]
 internal static class ThrowEvaluator
 {
     public static object? Evaluate(BoundThrowExpr node, EvaluationContext ctx)

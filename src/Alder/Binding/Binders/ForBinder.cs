@@ -4,9 +4,10 @@ using Alder.Parsing;
 
 namespace Alder.Binding.Binders;
 
-internal sealed class ForBinder : INodeBinder<ForStatementExpr>
+[BindsNode(typeof(ForStatementExpr))]
+internal static class ForBinder
 {
-    public BoundExpr Bind(ForStatementExpr expr, BindingContext context, BinderContext binder)
+    public static BoundExpr Bind(ForStatementExpr expr, BindingContext context, BinderContext binder)
     {
         var loopScope = context.CreateChildScope();
         var initializers = expr.Initializers
