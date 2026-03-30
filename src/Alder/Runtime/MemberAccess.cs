@@ -34,7 +34,7 @@ internal static class MemberAccess
             var resolvedType = context.TypeResolver.TryResolveType(accumulated);
             if (resolvedType != null)
             {
-                if (!config.Security.IsTrusted && !config.Security.IsTypeAllowed(resolvedType))
+                if (!config.Security.IsTypeAllowed(resolvedType))
                     throw new AlderException(DiagnosticDescriptors.SandboxTypeBlocked, resolvedType.Name);
                 return resolvedType;
             }

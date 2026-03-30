@@ -15,8 +15,6 @@ public sealed class SecurityPolicy
     public int MaxCollectionSize { get; }
     public TimeSpan RegexTimeout { get; }
 
-    internal bool IsTrusted { get; }
-
     private readonly FixedSet<Type> _trustedTypes;
     private readonly FixedSet<string> _trustedNamespaces;
     private readonly FixedSet<Type> _deniedTypes;
@@ -40,11 +38,6 @@ public sealed class SecurityPolicy
         _deniedTypes = FixedSet<Type>.Create(b.DeniedTypes ?? DefaultDeniedTypes);
         _deniedNamespaces = FixedSet<string>.Create(b.DeniedNamespaces ?? DefaultDeniedNamespaces);
 
-        IsTrusted = AllowMethodCalls && AllowPropertyRead && AllowStaticPropertyRead &&
-                    AllowStaticFieldRead && AllowAssignment && AllowPropertySet &&
-                    AllowIndexSet && AllowConstruction &&
-                    _trustedTypes.Count == 0 && _trustedNamespaces.Count == 0 &&
-                    _deniedTypes.Count == 0 && _deniedNamespaces.Count == 0;
     }
 
     public bool IsTypeAllowed(Type type)

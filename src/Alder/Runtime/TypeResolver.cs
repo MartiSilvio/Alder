@@ -401,14 +401,12 @@ internal sealed class TypeResolver
         bool implicitBclImports,
         StringComparer comparer)
     {
-        // Deduplicate assemblies
         var assemblySet = new HashSet<Assembly>(assemblies)
         {
             // Always include default assemblies
             typeof(object).Assembly, // System.Private.CoreLib
             typeof(List<>).Assembly, // System.Collections
-            typeof(Task).Assembly, // System.Threading.Tasks (may be same as CoreLib)
-            typeof(Enumerable).Assembly, // System.Linq (required for FQN and extension method resolution)
+            typeof(Enumerable).Assembly, // System.Linq
             typeof(System.Text.RegularExpressions.Regex).Assembly // System.Text.RegularExpressions
         };
 

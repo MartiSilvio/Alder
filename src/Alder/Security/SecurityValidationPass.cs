@@ -12,9 +12,6 @@ internal sealed class SecurityValidationPass : IBoundTreePass
 
     public BoundExpr Execute(BoundExpr tree, PipelineContext context)
     {
-        if (context.Policy.IsTrusted)
-            return tree;
-
         Walk(tree, context.Policy);
         return tree;
     }
