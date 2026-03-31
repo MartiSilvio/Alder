@@ -83,12 +83,7 @@ internal static class RuntimeArrayFactory
         var array = Create(elementType, source.Count);
         var convertTarget = Nullable.GetUnderlyingType(elementType) ?? elementType;
         for (var i = 0; i < source.Count; i++)
-        {
-            var value = source[i];
-            if (value != null && value.GetType() != convertTarget)
-                value = Convert.ChangeType(value, convertTarget);
-            array.SetValue(value, i);
-        }
+            array.SetValue(CollectionFactory.ConvertElement(source[i], elementType, convertTarget), i);
         return array;
     }
 

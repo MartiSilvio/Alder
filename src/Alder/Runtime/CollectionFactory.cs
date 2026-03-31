@@ -4,6 +4,10 @@ namespace Alder.Runtime;
 
 internal static class CollectionFactory
 {
+    private static readonly System.Reflection.MethodInfo CreateCoreGenericMethod =
+        typeof(CollectionFactory).GetMethod(nameof(CreateCoreTyped),
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!;
+
     internal static object Create(Type targetType, Type elementType, List<object?> values, AlderConfig? config = null)
     {
         if (targetType.IsArray)
@@ -49,47 +53,41 @@ internal static class CollectionFactory
         }
     }
 
+    private static bool IsListCompatibleInterface(Type interfaceType)
+    {
+        if (!interfaceType.IsGenericType)
+            return false;
+        var def = interfaceType.GetGenericTypeDefinition();
+        return def == typeof(IEnumerable<>) ||
+               def == typeof(IList<>) ||
+               def == typeof(ICollection<>) ||
+               def == typeof(IReadOnlyList<>) ||
+               def == typeof(IReadOnlyCollection<>);
+    }
+
     private static object CreateForInterface(Type interfaceType, Type elementType, List<object?> values, AlderConfig? config)
     {
-        // For interfaces (IList<T>, IEnumerable<T>, etc.), the concrete type is List<T>.
+        if (!IsListCompatibleInterface(interfaceType))
+            return RuntimeArrayFactory.CreateFromValues(elementType, values);
+
         // Try typed dispatch first — if List<T> is registered, create via TryCreate + TryInvoke("Add").
         if (config != null)
         {
-            var genericDef = interfaceType.IsGenericType ? interfaceType.GetGenericTypeDefinition() : null;
-            if (genericDef == typeof(IEnumerable<>) ||
-                genericDef == typeof(IList<>) ||
-                genericDef == typeof(ICollection<>) ||
-                genericDef == typeof(IReadOnlyList<>) ||
-                genericDef == typeof(IReadOnlyCollection<>))
-            {
-                // Find the registered List<T> that matches this element type
-                var listType = typeof(List<>).IsGenericTypeDefinition && MethodDispatchCache.DynamicCodeSupported
-                    ? typeof(List<>).MakeGenericType(elementType)
-                    : null;
+            var listType = MethodDispatchCache.DynamicCodeSupported
+                ? typeof(List<>).MakeGenericType(elementType)
+                : null;
 
-                // Try each registered type to find the matching List<T>
-                if (listType != null && config.TryGetDispatch(listType, out var listDispatch))
-                    return CreateViaDispatch(listDispatch, elementType, values);
+            if (listType != null && config.TryGetDispatch(listType, out var listDispatch))
+                return CreateViaDispatch(listDispatch, elementType, values);
 
-                // AOT fallback: try to find a registered collection type for this element type
-                if (!MethodDispatchCache.DynamicCodeSupported)
-                    return TryCreateViaRegisteredCollections(config, elementType, values)
-                        ?? RuntimeArrayFactory.CreateFromValues(elementType, values);
-            }
+            // AOT fallback: try to find a registered collection type for this element type
+            if (!MethodDispatchCache.DynamicCodeSupported)
+                return TryCreateViaRegisteredCollections(config, elementType, values)
+                    ?? RuntimeArrayFactory.CreateFromValues(elementType, values);
         }
 
         // JIT fallback
-        var concreteGenericDef = interfaceType.IsGenericType ? interfaceType.GetGenericTypeDefinition() : null;
-        if (concreteGenericDef == typeof(IEnumerable<>) ||
-            concreteGenericDef == typeof(IList<>) ||
-            concreteGenericDef == typeof(ICollection<>) ||
-            concreteGenericDef == typeof(IReadOnlyList<>) ||
-            concreteGenericDef == typeof(IReadOnlyCollection<>))
-        {
-            return CreateConcrete(typeof(List<>).MakeGenericType(elementType), elementType, values, config);
-        }
-
-        return RuntimeArrayFactory.CreateFromValues(elementType, values);
+        return CreateConcrete(typeof(List<>).MakeGenericType(elementType), elementType, values, config);
     }
 
     private static object CreateConcrete(Type concreteType, Type elementType, List<object?> values, AlderConfig? config)
@@ -102,6 +100,15 @@ internal static class CollectionFactory
         return CreateCoreGenericMethod.MakeGenericMethod(concreteType, elementType).Invoke(null, [values])!;
     }
 
+    internal static object? ConvertElement(object? value, Type elementType, Type convertTarget)
+    {
+        if (value == null)
+            return null;
+        if (value.GetType() == convertTarget || value.GetType() == elementType)
+            return value;
+        return Convert.ChangeType(value, convertTarget);
+    }
+
     private static object CreateViaDispatch(Aot.ITypedDispatch dispatch, Type elementType, List<object?> values)
     {
         if (!dispatch.TryCreate([], out var instance) || instance == null)
@@ -109,17 +116,7 @@ internal static class CollectionFactory
 
         var convertTarget = Nullable.GetUnderlyingType(elementType) ?? elementType;
         foreach (var value in values)
-        {
-            object? converted;
-            if (value == null)
-                converted = null;
-            else if (value.GetType() == convertTarget || value.GetType() == elementType)
-                converted = value;
-            else
-                converted = Convert.ChangeType(value, convertTarget);
-
-            dispatch.TryInvoke("Add", instance, [converted], out _);
-        }
+            dispatch.TryInvoke("Add", instance, [ConvertElement(value, elementType, convertTarget)], out _);
         return instance;
     }
 
@@ -146,24 +143,8 @@ internal static class CollectionFactory
         var collection = new TCollection();
         var convertTarget = Nullable.GetUnderlyingType(typeof(TElement)) ?? typeof(TElement);
         foreach (var value in values)
-        {
-            if (value == null)
-            {
-                collection.Add(default!);
-            }
-            else if (value.GetType() == convertTarget || value.GetType() == typeof(TElement))
-            {
-                collection.Add((TElement)value);
-            }
-            else
-            {
-                collection.Add((TElement)Convert.ChangeType(value, convertTarget));
-            }
-        }
+            collection.Add((TElement)ConvertElement(value, typeof(TElement), convertTarget)!);
         return collection;
     }
 
-    private static readonly System.Reflection.MethodInfo CreateCoreGenericMethod =
-        typeof(CollectionFactory).GetMethod(nameof(CreateCoreTyped),
-            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!;
 }

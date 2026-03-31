@@ -25,6 +25,9 @@ internal sealed class AlderContext
     private readonly bool _usesLocalStore;
     private int _variableTypeVersion;
 
+    private static readonly IReadOnlyDictionary<string, object?> EmptyVariables =
+        new Dictionary<string, object?>();
+
     public AlderContext(AlderConfig config) : this(config, null, null, useConcurrentStore: true)
     {
     }
@@ -133,26 +136,7 @@ internal sealed class AlderContext
             throw new AlderException(DiagnosticDescriptors.NameNotInContext, name);
         }
 
-        if (value is T typedValue)
-            return typedValue;
-
-        var targetType = typeof(T);
-        var numericTarget = Nullable.GetUnderlyingType(targetType) ?? targetType;
-        if (TypeHelpers.IsArithmetic(numericTarget))
-        {
-            try
-            {
-                value = TypeHelpers.CoerceNumeric(value, targetType);
-                if (value is T coercedValue)
-                    return coercedValue;
-            }
-            catch (AlderException)
-            {
-                // Fall through to direct cast below
-            }
-        }
-
-        return (T)value!;
+        return TypeHelpers.CoerceToType<T>(value);
     }
 
     public void Set(string name, object? value)
@@ -203,9 +187,6 @@ internal sealed class AlderContext
 
         Interlocked.Increment(ref _variableTypeVersion);
     }
-
-    private static readonly IReadOnlyDictionary<string, object?> EmptyVariables =
-        new Dictionary<string, object?>();
 
     public IReadOnlyDictionary<string, object?> GetAll() =>
         _localVariables ?? (IReadOnlyDictionary<string, object?>?)_concurrentVariables ?? EmptyVariables;

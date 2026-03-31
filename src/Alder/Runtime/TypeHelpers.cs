@@ -11,6 +11,30 @@ namespace Alder.Runtime;
 /// </summary>
 internal static class TypeHelpers
 {
+    /// <summary>
+    /// ECMA-334 §10.2.3: Implicit numeric conversions.
+    /// "There are no predefined implicit conversions to the char type, so values of the
+    /// other integral types do not automatically convert to the char type." (§10.2.3)
+    /// </summary>
+    private static readonly FixedDictionary<Type, FixedSet<Type>> ImplicitConversions = FixedDictionary<Type, FixedSet<Type>>.Create(
+        new Dictionary<Type, HashSet<Type>>
+        {
+            [typeof(sbyte)] = [typeof(short), typeof(int), typeof(long), typeof(float), typeof(double), typeof(decimal)],
+            [typeof(byte)] = [typeof(short), typeof(ushort), typeof(int), typeof(uint), typeof(long), typeof(ulong), typeof(float), typeof(double), typeof(decimal)],
+            [typeof(short)] = [typeof(int), typeof(long), typeof(float), typeof(double), typeof(decimal)],
+            [typeof(ushort)] = [typeof(int), typeof(uint), typeof(long), typeof(ulong), typeof(float), typeof(double), typeof(decimal)],
+            [typeof(int)] = [typeof(long), typeof(float), typeof(double), typeof(decimal)],
+            [typeof(uint)] = [typeof(long), typeof(ulong), typeof(float), typeof(double), typeof(decimal)],
+            [typeof(long)] = [typeof(float), typeof(double), typeof(decimal)],
+            [typeof(ulong)] = [typeof(float), typeof(double), typeof(decimal)],
+            [typeof(float)] = [typeof(double)],
+            [typeof(char)] = [typeof(ushort), typeof(int), typeof(uint), typeof(long), typeof(ulong), typeof(float), typeof(double), typeof(decimal)],
+        },
+        kvp => kvp.Key,
+        kvp => FixedSet<Type>.Create(kvp.Value));
+
+    private static readonly ConcurrentDictionary<Type, bool> ForbiddenTypeCache = new();
+
     internal static Type? GetEnumerableElementType(Type type)
     {
         if (type.IsArray)
@@ -116,28 +140,6 @@ internal static class TypeHelpers
         type == typeof(short) || type == typeof(ushort) ||
         type == typeof(uint) || type == typeof(ulong) ||
         type == typeof(char);
-
-    /// <summary>
-    /// ECMA-334 §10.2.3: Implicit numeric conversions.
-    /// "There are no predefined implicit conversions to the char type, so values of the
-    /// other integral types do not automatically convert to the char type." (§10.2.3)
-    /// </summary>
-    private static readonly FixedDictionary<Type, FixedSet<Type>> ImplicitConversions = FixedDictionary<Type, FixedSet<Type>>.Create(
-        new Dictionary<Type, HashSet<Type>>
-        {
-            [typeof(sbyte)] = [typeof(short), typeof(int), typeof(long), typeof(float), typeof(double), typeof(decimal)],
-            [typeof(byte)] = [typeof(short), typeof(ushort), typeof(int), typeof(uint), typeof(long), typeof(ulong), typeof(float), typeof(double), typeof(decimal)],
-            [typeof(short)] = [typeof(int), typeof(long), typeof(float), typeof(double), typeof(decimal)],
-            [typeof(ushort)] = [typeof(int), typeof(uint), typeof(long), typeof(ulong), typeof(float), typeof(double), typeof(decimal)],
-            [typeof(int)] = [typeof(long), typeof(float), typeof(double), typeof(decimal)],
-            [typeof(uint)] = [typeof(long), typeof(ulong), typeof(float), typeof(double), typeof(decimal)],
-            [typeof(long)] = [typeof(float), typeof(double), typeof(decimal)],
-            [typeof(ulong)] = [typeof(float), typeof(double), typeof(decimal)],
-            [typeof(float)] = [typeof(double)],
-            [typeof(char)] = [typeof(ushort), typeof(int), typeof(uint), typeof(long), typeof(ulong), typeof(float), typeof(double), typeof(decimal)],
-        },
-        kvp => kvp.Key,
-        kvp => FixedSet<Type>.Create(kvp.Value));
 
     /// <summary>
     /// Returns the default value for a type (ECMA-334 §12.8.20).
@@ -968,14 +970,7 @@ internal static class TypeHelpers
         if (rightType == typeof(decimal) && (leftType == typeof(float) || leftType == typeof(double)))
             return null;
 
-        try
-        {
-            return NumericDispatch.GetResultType(leftType, rightType);
-        }
-        catch (AlderException)
-        {
-            return null;
-        }
+        return NumericDispatch.TryGetResultType(leftType, rightType);
     }
 
     /// <summary>
@@ -1074,8 +1069,6 @@ internal static class TypeHelpers
             sourceType.Name,
             targetType.Name);
     }
-
-    private static readonly ConcurrentDictionary<Type, bool> ForbiddenTypeCache = new();
 
     internal static bool IsForbiddenReflectionType(Type? type)
     {
@@ -1197,30 +1190,51 @@ internal static class TypeHelpers
         return !type.IsSealed;
     }
 
-    internal static object? CoerceNumeric(object? arg, Type targetType)
+    internal static T CoerceToType<T>(object? value)
     {
-        if (arg == null) return null;
-        if (targetType.IsInstanceOfType(arg)) return arg;
+        if (value is T typed)
+            return typed;
+
+        var targetType = typeof(T);
+        var numericTarget = Nullable.GetUnderlyingType(targetType) ?? targetType;
+        if (IsArithmetic(numericTarget) && TryCoerceNumeric(value, targetType, out var coerced) && coerced is T coercedTyped)
+            return coercedTyped;
+
+        return (T)value!;
+    }
+
+    internal static bool TryCoerceNumeric(object? arg, Type targetType, out object? result)
+    {
+        if (arg == null) { result = null; return true; }
+        if (targetType.IsInstanceOfType(arg)) { result = arg; return true; }
 
         if (arg is IConvertible)
         {
             var underlying = Nullable.GetUnderlyingType(targetType) ?? targetType;
             try
             {
-                return Convert.ChangeType(arg, underlying);
+                result = Convert.ChangeType(arg, underlying);
+                return true;
             }
             catch (Exception ex) when (ex is InvalidCastException or OverflowException or FormatException)
             {
-                throw new AlderException(
-                    DiagnosticDescriptors.NoImplicitConversion,
-                    arg.GetType().Name,
-                    targetType.Name);
+                result = null;
+                return false;
             }
         }
 
+        result = null;
+        return false;
+    }
+
+    internal static object? CoerceNumeric(object? arg, Type targetType)
+    {
+        if (TryCoerceNumeric(arg, targetType, out var result))
+            return result;
+
         throw new AlderException(
             DiagnosticDescriptors.NoImplicitConversion,
-            arg.GetType().Name,
+            arg?.GetType().Name ?? "null",
             targetType.Name);
     }
 }

@@ -11,7 +11,7 @@ internal static class IdentifierRuntime
         => ResolveIdentifierCore(name, context, config);
 
     public static T ResolveIdentifierTyped<T>(string name, AlderContext context, AlderConfig config)
-        => CoerceIdentifierValue<T>(ResolveIdentifierCore(name, context, config));
+        => TypeHelpers.CoerceToType<T>(ResolveIdentifierCore(name, context, config));
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static T GetVariableTyped<T>(string name, AlderContext context)
@@ -19,7 +19,7 @@ internal static class IdentifierRuntime
         if (!context.TryGet(name, out var value))
             throw new AlderException(DiagnosticDescriptors.NameNotInContext, name);
 
-        return CoerceIdentifierValue<T>(value);
+        return TypeHelpers.CoerceToType<T>(value);
     }
 
     public static object? InvokeIdentifierCall(
@@ -137,15 +137,6 @@ internal static class IdentifierRuntime
         return MethodInvoker.InvokeCall(callee, args, context, config, null, ct);
     }
 
-    public static object? InvokeBareMathOrCall(
-        string name,
-        object?[] args,
-        AlderContext context,
-        AlderConfig config,
-        IReadOnlyList<string>? typeArgs,
-        CancellationToken ct = default) =>
-        InvokeIdentifierCall(name, args, context, config, typeArgs, ct);
-
     public static void DefineOutVariables(
         object?[] invocationArgs,
         IReadOnlyList<OutVariableBinding> bindings,
@@ -175,11 +166,6 @@ internal static class IdentifierRuntime
         return new LambdaValue(parameterNames.ToList(), body, context, config);
     }
 
-    public static object? GetLambdaArg(object?[] args, int index)
-    {
-        return index < args.Length ? args[index] : null;
-    }
-
     private static object? ResolveIdentifierCore(string name, AlderContext context, AlderConfig config)
     {
         if (context.Functions.TryGetValue(name, out var function))
@@ -204,37 +190,6 @@ internal static class IdentifierRuntime
 
         return context.Get(name);
     }
-
-    private static T CoerceIdentifierValue<T>(object? value)
-    {
-        if (value is T typedValue)
-            return typedValue;
-
-        value = CoerceNumericForTargetType<T>(value);
-        if (value is T coercedTyped)
-            return coercedTyped;
-
-        return CastIdentifierValue<T>(value);
-    }
-
-    private static object? CoerceNumericForTargetType<T>(object? value)
-    {
-        var targetType = typeof(T);
-        var numericTarget = Nullable.GetUnderlyingType(targetType) ?? targetType;
-        if (!TypeHelpers.IsArithmetic(numericTarget))
-            return value;
-
-        try
-        {
-            return TypeHelpers.CoerceNumeric(value, targetType);
-        }
-        catch (AlderException)
-        {
-            return value;
-        }
-    }
-
-    private static T CastIdentifierValue<T>(object? value) => (T)value!;
 
     private static bool IsPipelineCallable(object? value) => value is
         LambdaValue or

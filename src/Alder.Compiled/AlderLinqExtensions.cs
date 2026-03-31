@@ -91,8 +91,6 @@ public static class AlderLinqExtensions
     public static TResult MaxDynamic<T, TResult>(this IEnumerable<T> source, string selector)
         => source.Max(CompileSelector<T, TResult>(selector))!;
 
-    // --- IQueryable overloads ---
-
     public static IQueryable<T> WhereDynamic<T>(this IQueryable<T> source, string predicate)
         => source.Where(ParsePredicate<T>(predicate));
 

@@ -234,7 +234,7 @@ internal static class NumericDispatch
             }
         }
 
-        throw new AlderException(DiagnosticDescriptors.BadUnaryOp, "-", type.Name);
+        throw new AlderException(DiagnosticDescriptors.BadUnaryOp, TokenLexemes.GetCanonical(TokenType.Minus), type.Name);
     }
 
     private static bool TryFindUnaryNegationOperator(Type operandType, bool isChecked, out MethodInfo method)
@@ -306,7 +306,7 @@ internal static class NumericDispatch
         if (BitwiseNotOps.TryGetValue(type, out var op))
             return op(value);
 
-        throw new AlderException(DiagnosticDescriptors.BadUnaryOp, "~", type.Name);
+        throw new AlderException(DiagnosticDescriptors.BadUnaryOp, TokenLexemes.GetCanonical(TokenType.Tilde), type.Name);
     }
 
     public static int Compare(object left, object right)
@@ -341,7 +341,7 @@ internal static class NumericDispatch
             ushort us => us << shiftAmount,
             byte b => b << shiftAmount,
             sbyte sb => sb << shiftAmount,
-            _ => throw new AlderException(DiagnosticDescriptors.BadBinaryOps, "<<", left.GetType().Name, right.GetType().Name)
+            _ => throw new AlderException(DiagnosticDescriptors.BadBinaryOps, TokenLexemes.GetCanonical(TokenType.LessLess), left.GetType().Name, right.GetType().Name)
         };
     }
 
@@ -362,7 +362,7 @@ internal static class NumericDispatch
             ushort us => us >> shiftAmount,
             byte b => b >> shiftAmount,
             sbyte sb => sb >> shiftAmount,
-            _ => throw new AlderException(DiagnosticDescriptors.BadBinaryOps, ">>", left.GetType().Name, right.GetType().Name)
+            _ => throw new AlderException(DiagnosticDescriptors.BadBinaryOps, TokenLexemes.GetCanonical(TokenType.GreaterGreater), left.GetType().Name, right.GetType().Name)
         };
     }
 
@@ -382,7 +382,7 @@ internal static class NumericDispatch
             ushort us => us >> (shiftAmount & 0x1F),
             byte b => b >> (shiftAmount & 0x1F),
             sbyte sb => (int)((uint)(int)sb >> (shiftAmount & 0x1F)),
-            _ => throw new AlderException(DiagnosticDescriptors.BadBinaryOps, ">>>", left.GetType().Name, "int")
+            _ => throw new AlderException(DiagnosticDescriptors.BadBinaryOps, TokenLexemes.GetCanonical(TokenType.GreaterGreaterGreater), left.GetType().Name, "int")
         };
     }
 
@@ -459,53 +459,41 @@ internal static class NumericDispatch
     #region Type Promotion (ECMA-334 §12.4.7.3)
 
     /// <summary>
-    /// Gets the result type for binary numeric operations according to ECMA-334 rules.
-    /// Used for static type inference without actual values.
-    ///
-    /// IMPORTANT: char is NOT eagerly converted to int. Per §10.2.3, char has implicit
-    /// conversions to ushort, int, uint, long, ulong, float, double, decimal.
-    /// Rule 6 checks for "sbyte, short, or int" -- NOT char.
-    /// So uint + char -> uint (Rule 7), not long (Rule 6).
+    /// Non-throwing variant: returns the ECMA-334 binary numeric promotion result type,
+    /// or null when the combination is invalid (e.g. ulong + signed integer).
     /// </summary>
-    public static Type GetResultType(Type leftType, Type rightType)
+    public static Type? TryGetResultType(Type leftType, Type rightType)
     {
-        // Rule 1: decimal (no float/double mixing at compile time)
         if (leftType == typeof(decimal) || rightType == typeof(decimal))
             return typeof(decimal);
-
-        // Rule 2: double
         if (leftType == typeof(double) || rightType == typeof(double))
             return typeof(double);
-
-        // Rule 3: float
         if (leftType == typeof(float) || rightType == typeof(float))
             return typeof(float);
-
-        // Rule 4: ulong (error if other operand is a signed integer type)
-        // Note: char is NOT signed, so char -> ulong is valid per §10.2.3
         if (leftType == typeof(ulong) || rightType == typeof(ulong))
         {
             if (IsSignedInteger(leftType) || IsSignedInteger(rightType))
-                throw new AlderException(DiagnosticDescriptors.BadBinaryOps, "+", leftType.Name, rightType.Name);
+                return null;
             return typeof(ulong);
         }
-
-        // Rule 5: long
         if (leftType == typeof(long) || rightType == typeof(long))
             return typeof(long);
-
-        // Rule 6: uint + signed -> long
-        // Note: char is NOT sbyte, short, or int
         if ((leftType == typeof(uint) && IsSignedInteger(rightType)) ||
             (rightType == typeof(uint) && IsSignedInteger(leftType)))
             return typeof(long);
-
-        // Rule 7: uint (char -> uint is a valid implicit conversion per §10.2.3)
         if (leftType == typeof(uint) || rightType == typeof(uint))
             return typeof(uint);
-
-        // Rule 8: default to int (includes byte, sbyte, short, ushort, char)
         return typeof(int);
+    }
+
+    /// <summary>
+    /// Gets the result type for binary numeric operations according to ECMA-334 rules.
+    /// Throws for invalid combinations (e.g. ulong + signed integer).
+    /// </summary>
+    public static Type GetResultType(Type leftType, Type rightType)
+    {
+        return TryGetResultType(leftType, rightType)
+            ?? throw new AlderException(DiagnosticDescriptors.BadBinaryOps, TokenLexemes.GetCanonical(TokenType.Plus), leftType.Name, rightType.Name);
     }
 
     /// <summary>
@@ -528,7 +516,7 @@ internal static class NumericDispatch
             if (leftType == typeof(float) || leftType == typeof(double) ||
                 rightType == typeof(float) || rightType == typeof(double))
             {
-                throw new AlderException(DiagnosticDescriptors.BadBinaryOps, "+", leftType.Name, rightType.Name);
+                throw new AlderException(DiagnosticDescriptors.BadBinaryOps, TokenLexemes.GetCanonical(TokenType.Plus), leftType.Name, rightType.Name);
             }
             return (ConvertToDecimal(left), ConvertToDecimal(right), typeof(decimal));
         }
@@ -547,7 +535,7 @@ internal static class NumericDispatch
         {
             if (IsSignedInteger(leftType) || IsSignedInteger(rightType))
             {
-                throw new AlderException(DiagnosticDescriptors.BadBinaryOps, "+", leftType.Name, rightType.Name);
+                throw new AlderException(DiagnosticDescriptors.BadBinaryOps, TokenLexemes.GetCanonical(TokenType.Plus), leftType.Name, rightType.Name);
             }
             return (ConvertToUInt64(left), ConvertToUInt64(right), typeof(ulong));
         }

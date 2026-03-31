@@ -243,33 +243,7 @@ internal static class AssignmentRuntime
     }
 
     private static object? ValidateCompoundAssignmentLocal(object? result, object? rightValue, Type variableType)
-    {
-        if (result == null)
-            return result;
-
-        var resultType = result.GetType();
-        if (resultType == variableType)
-            return result;
-
-        var underlyingVarType = Nullable.GetUnderlyingType(variableType) ?? variableType;
-        var rightType = rightValue?.GetType();
-        var rhsConvertible = rightType == null || rightType == variableType ||
-                             TypeHelpers.CanImplicitlyConvert(rightType, underlyingVarType) ||
-                             IsConstantExpressionConvertible(rightValue, rightType, underlyingVarType);
-        var resultConvertible = TypeHelpers.CanImplicitlyConvert(resultType, underlyingVarType);
-
-        if (!resultConvertible && !rhsConvertible)
-            throw new AlderException(DiagnosticDescriptors.NoImplicitConversion, resultType.Name, variableType.Name);
-
-        try
-        {
-            return TypeHelpers.RuntimeCast(result, resultType, Nullable.GetUnderlyingType(variableType) ?? variableType);
-        }
-        catch (Exception ex) when (ex is InvalidCastException or OverflowException)
-        {
-            throw new AlderException(DiagnosticDescriptors.NoImplicitConversion, resultType.Name, variableType.Name);
-        }
-    }
+        => ValidateCompoundAssignmentCore(result, rightValue, variableType);
 
     private static object? NarrowIncrementResult(string name, object? newValue, AlderContext context)
     {
@@ -354,34 +328,38 @@ internal static class AssignmentRuntime
 
     public static object? ValidateCompoundAssignment(string name, object? result, object? rightValue, AlderContext context)
     {
-        if (!context.TryGetVariableType(name, out var varType) || varType == null || result == null)
+        if (!context.TryGetVariableType(name, out var varType) || varType == null)
+            return result;
+
+        return ValidateCompoundAssignmentCore(result, rightValue, varType);
+    }
+
+    private static object? ValidateCompoundAssignmentCore(object? result, object? rightValue, Type variableType)
+    {
+        if (result == null)
             return result;
 
         var resultType = result.GetType();
-        var rightType = rightValue?.GetType();
-
-        if (resultType == varType)
+        if (resultType == variableType)
             return result;
 
-        var underlyingVarType = Nullable.GetUnderlyingType(varType) ?? varType;
-        var rhsConvertible = rightType == null || rightType == varType ||
+        var underlyingVarType = Nullable.GetUnderlyingType(variableType) ?? variableType;
+        var rightType = rightValue?.GetType();
+        var rhsConvertible = rightType == null || rightType == variableType ||
                              TypeHelpers.CanImplicitlyConvert(rightType, underlyingVarType) ||
                              IsConstantExpressionConvertible(rightValue, rightType, underlyingVarType);
         var resultConvertible = TypeHelpers.CanImplicitlyConvert(resultType, underlyingVarType);
 
         if (!resultConvertible && !rhsConvertible)
-        {
-            throw new AlderException(DiagnosticDescriptors.NoImplicitConversion, resultType.Name, varType.Name);
-        }
+            throw new AlderException(DiagnosticDescriptors.NoImplicitConversion, resultType.Name, variableType.Name);
 
-        var targetType = Nullable.GetUnderlyingType(varType) ?? varType;
         try
         {
-            return TypeHelpers.RuntimeCast(result, resultType, targetType);
+            return TypeHelpers.RuntimeCast(result, resultType, underlyingVarType);
         }
         catch (Exception ex) when (ex is InvalidCastException or OverflowException)
         {
-            throw new AlderException(DiagnosticDescriptors.NoImplicitConversion, resultType.Name, varType.Name);
+            throw new AlderException(DiagnosticDescriptors.NoImplicitConversion, resultType.Name, variableType.Name);
         }
     }
 

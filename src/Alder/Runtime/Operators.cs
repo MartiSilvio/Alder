@@ -11,6 +11,8 @@ namespace Alder.Runtime;
 /// </summary>
 internal static class Operators
 {
+    private static readonly ConcurrentDictionary<(Type Left, Type Right, string Op), MethodInfo?> UserDefinedBinaryOperatorCache = new();
+
     internal enum LikePatternMode
     {
         Exact,
@@ -276,39 +278,29 @@ internal static class Operators
     }
 
     public static object LessThan(object? left, object? right, StringComparison comparison)
-    {
-        if (left == null || right == null) return BoxedConstants.False;
-        if (IsNaN(left) || IsNaN(right)) return BoxedConstants.False;
-        if (TryCompare(left, right, comparison, out var cmp)) return cmp < 0 ? BoxedConstants.True : BoxedConstants.False;
-        if (TryInvokeUserDefinedBinaryOperator(left, right, "op_LessThan", out var r)) return r ?? BoxedConstants.False;
-        throw new AlderException(DiagnosticDescriptors.BadBinaryOps, TokenLexemes.GetCanonical(TokenType.Less), TypeNameFormatter.Of(left), TypeNameFormatter.Of(right));
-    }
+        => CompareOp(left, right, comparison, static cmp => cmp < 0, "op_LessThan", TokenType.Less);
 
     public static object LessThanOrEqual(object? left, object? right, StringComparison comparison)
-    {
-        if (left == null || right == null) return BoxedConstants.False;
-        if (IsNaN(left) || IsNaN(right)) return BoxedConstants.False;
-        if (TryCompare(left, right, comparison, out var cmp)) return cmp <= 0 ? BoxedConstants.True : BoxedConstants.False;
-        if (TryInvokeUserDefinedBinaryOperator(left, right, "op_LessThanOrEqual", out var r)) return r ?? BoxedConstants.False;
-        throw new AlderException(DiagnosticDescriptors.BadBinaryOps, TokenLexemes.GetCanonical(TokenType.LessEqual), TypeNameFormatter.Of(left), TypeNameFormatter.Of(right));
-    }
+        => CompareOp(left, right, comparison, static cmp => cmp <= 0, "op_LessThanOrEqual", TokenType.LessEqual);
 
     public static object GreaterThan(object? left, object? right, StringComparison comparison)
-    {
-        if (left == null || right == null) return BoxedConstants.False;
-        if (IsNaN(left) || IsNaN(right)) return BoxedConstants.False;
-        if (TryCompare(left, right, comparison, out var cmp)) return cmp > 0 ? BoxedConstants.True : BoxedConstants.False;
-        if (TryInvokeUserDefinedBinaryOperator(left, right, "op_GreaterThan", out var r)) return r ?? BoxedConstants.False;
-        throw new AlderException(DiagnosticDescriptors.BadBinaryOps, TokenLexemes.GetCanonical(TokenType.Greater), TypeNameFormatter.Of(left), TypeNameFormatter.Of(right));
-    }
+        => CompareOp(left, right, comparison, static cmp => cmp > 0, "op_GreaterThan", TokenType.Greater);
 
     public static object GreaterThanOrEqual(object? left, object? right, StringComparison comparison)
+        => CompareOp(left, right, comparison, static cmp => cmp >= 0, "op_GreaterThanOrEqual", TokenType.GreaterEqual);
+
+    private static object CompareOp(
+        object? left, object? right, StringComparison comparison,
+        Func<int, bool> predicate, string opMethodName, TokenType token)
     {
         if (left == null || right == null) return BoxedConstants.False;
         if (IsNaN(left) || IsNaN(right)) return BoxedConstants.False;
-        if (TryCompare(left, right, comparison, out var cmp)) return cmp >= 0 ? BoxedConstants.True : BoxedConstants.False;
-        if (TryInvokeUserDefinedBinaryOperator(left, right, "op_GreaterThanOrEqual", out var r)) return r ?? BoxedConstants.False;
-        throw new AlderException(DiagnosticDescriptors.BadBinaryOps, TokenLexemes.GetCanonical(TokenType.GreaterEqual), TypeNameFormatter.Of(left), TypeNameFormatter.Of(right));
+        if (TryCompare(left, right, comparison, out var cmp))
+            return predicate(cmp) ? BoxedConstants.True : BoxedConstants.False;
+        if (TryInvokeUserDefinedBinaryOperator(left, right, opMethodName, out var r))
+            return r ?? BoxedConstants.False;
+        throw new AlderException(DiagnosticDescriptors.BadBinaryOps,
+            TokenLexemes.GetCanonical(token), TypeNameFormatter.Of(left), TypeNameFormatter.Of(right));
     }
 
     private static bool IsNaN(object? value) => value switch
@@ -355,7 +347,6 @@ internal static class Operators
             return lb & rb ? BoxedConstants.True : BoxedConstants.False;
 
         // ECMA-334 §12.13.5: Three-value bool? logic for &
-        // Only applies when both operands are bool/null (i.e., bool? & bool?)
         if (left is bool or null && right is bool or null)
         {
             if (left is false || right is false)
@@ -363,30 +354,7 @@ internal static class Operators
             return null;
         }
 
-        // ECMA-334 §12.4.8: Lifted integer operators return null when either operand is null
-        if (left == null || right == null)
-        {
-            if (IsIntegerOrChar(left) || IsIntegerOrChar(right))
-                return null;
-        }
-
-        // ECMA-334 §12.13: Bitwise operators apply to integer types and char
-        // ECMA-334 §12.13.3: E & E → E
-        if (left != null && right != null && left.GetType().IsEnum && right.GetType().IsEnum)
-            return EnumArithmetic.BitwiseOp(left, right, NumericDispatch.BitwiseAnd);
-
-        if (IsIntegerOrChar(left) && IsIntegerOrChar(right))
-            return NumericDispatch.BitwiseAnd(left!, right!);
-
-        if (left != null && right != null &&
-            TryInvokeUserDefinedBinaryOperator(left, right, "op_BitwiseAnd", out var userResult))
-            return userResult;
-
-        throw new AlderException(
-            DiagnosticDescriptors.BadBinaryOps,
-            TokenLexemes.GetCanonical(TokenType.Amp),
-            TypeNameFormatter.Of(left),
-            TypeNameFormatter.Of(right));
+        return BitwiseIntegerOp(left, right, NumericDispatch.BitwiseAnd, "op_BitwiseAnd", TokenType.Amp);
     }
 
     public static object? BitwiseOr(object? left, object? right)
@@ -395,7 +363,6 @@ internal static class Operators
             return lb | rb ? BoxedConstants.True : BoxedConstants.False;
 
         // ECMA-334 §12.13.5: Three-value bool? logic for |
-        // Only applies when both operands are bool/null (i.e., bool? | bool?)
         if (left is bool or null && right is bool or null)
         {
             if (left is true || right is true)
@@ -403,29 +370,7 @@ internal static class Operators
             return null;
         }
 
-        // ECMA-334 §12.4.8: Lifted integer operators return null when either operand is null
-        if (left == null || right == null)
-        {
-            if (IsIntegerOrChar(left) || IsIntegerOrChar(right))
-                return null;
-        }
-
-        // ECMA-334 §12.13.3: E | E → E
-        if (left != null && right != null && left.GetType().IsEnum && right.GetType().IsEnum)
-            return EnumArithmetic.BitwiseOp(left, right, NumericDispatch.BitwiseOr);
-
-        if (IsIntegerOrChar(left) && IsIntegerOrChar(right))
-            return NumericDispatch.BitwiseOr(left!, right!);
-
-        if (left != null && right != null &&
-            TryInvokeUserDefinedBinaryOperator(left, right, "op_BitwiseOr", out var userResult))
-            return userResult;
-
-        throw new AlderException(
-            DiagnosticDescriptors.BadBinaryOps,
-            TokenLexemes.GetCanonical(TokenType.Pipe),
-            TypeNameFormatter.Of(left),
-            TypeNameFormatter.Of(right));
+        return BitwiseIntegerOp(left, right, NumericDispatch.BitwiseOr, "op_BitwiseOr", TokenType.Pipe);
     }
 
     public static object? BitwiseXor(object? left, object? right)
@@ -434,33 +379,35 @@ internal static class Operators
             return lb ^ rb ? BoxedConstants.True : BoxedConstants.False;
 
         // ECMA-334 §12.13.5: Three-value bool? logic for ^
-        // Only applies when both operands are bool/null (i.e., bool? ^ bool?)
         if (left is bool or null && right is bool or null && (left == null || right == null))
             return null;
 
+        return BitwiseIntegerOp(left, right, NumericDispatch.BitwiseXor, "op_ExclusiveOr", TokenType.Caret);
+    }
+
+    private static object? BitwiseIntegerOp(object? left, object? right,
+        NumericDispatch.BinaryOp dispatch, string opMethodName, TokenType token)
+    {
         // ECMA-334 §12.4.8: Lifted integer operators return null when either operand is null
         if (left == null || right == null)
         {
-            if (IsIntegerOrChar(left) || IsIntegerOrChar(right) || left == null && right == null)
+            if (IsIntegerOrChar(left) || IsIntegerOrChar(right))
                 return null;
         }
 
-        // ECMA-334 §12.13.3: E ^ E → E
+        // ECMA-334 §12.13.3: E op E → E
         if (left != null && right != null && left.GetType().IsEnum && right.GetType().IsEnum)
-            return EnumArithmetic.BitwiseOp(left, right, NumericDispatch.BitwiseXor);
+            return EnumArithmetic.BitwiseOp(left, right, (a, b) => dispatch(a, b));
 
         if (IsIntegerOrChar(left) && IsIntegerOrChar(right))
-            return NumericDispatch.BitwiseXor(left!, right!);
+            return dispatch(left!, right!);
 
         if (left != null && right != null &&
-            TryInvokeUserDefinedBinaryOperator(left, right, "op_ExclusiveOr", out var userResult))
+            TryInvokeUserDefinedBinaryOperator(left, right, opMethodName, out var userResult))
             return userResult;
 
-        throw new AlderException(
-            DiagnosticDescriptors.BadBinaryOps,
-            TokenLexemes.GetCanonical(TokenType.Caret),
-            TypeNameFormatter.Of(left),
-            TypeNameFormatter.Of(right));
+        throw new AlderException(DiagnosticDescriptors.BadBinaryOps,
+            TokenLexemes.GetCanonical(token), TypeNameFormatter.Of(left), TypeNameFormatter.Of(right));
     }
 
     public static object? BitwiseNot(object? value)
@@ -484,6 +431,16 @@ internal static class Operators
     }
 
     public static object? LeftShift(object? left, object? right)
+        => ShiftOp(left, right, NumericDispatch.LeftShift, TokenType.LessLess);
+
+    public static object? RightShift(object? left, object? right)
+        => ShiftOp(left, right, NumericDispatch.RightShift, TokenType.GreaterGreater);
+
+    public static object? UnsignedRightShift(object? left, object? right)
+        => ShiftOp(left, right, NumericDispatch.UnsignedRightShift, TokenType.GreaterGreaterGreater);
+
+    private static object? ShiftOp(object? left, object? right,
+        NumericDispatch.BinaryOp dispatch, TokenType token)
     {
         // ECMA-334 §12.4.8: Lifted operators return null when either operand is null
         if (left == null || right == null)
@@ -491,44 +448,10 @@ internal static class Operators
 
         // ECMA-334 §12.11: Shift operators accept integer types and char
         if (!IsIntegerOrChar(left) || !TypeHelpers.IsInteger(right))
-            throw new AlderException(
-                DiagnosticDescriptors.BadBinaryOps,
-                TokenLexemes.GetCanonical(TokenType.LessLess),
-                TypeNameFormatter.Of(left),
-                TypeNameFormatter.Of(right));
+            throw new AlderException(DiagnosticDescriptors.BadBinaryOps,
+                TokenLexemes.GetCanonical(token), TypeNameFormatter.Of(left), TypeNameFormatter.Of(right));
 
-        return NumericDispatch.LeftShift(left!, right!);
-    }
-
-    public static object? RightShift(object? left, object? right)
-    {
-        // ECMA-334 §12.4.8: Lifted operators return null when either operand is null
-        if (left == null || right == null)
-            return null;
-
-        if (!IsIntegerOrChar(left) || !TypeHelpers.IsInteger(right))
-            throw new AlderException(
-                DiagnosticDescriptors.BadBinaryOps,
-                TokenLexemes.GetCanonical(TokenType.GreaterGreater),
-                TypeNameFormatter.Of(left),
-                TypeNameFormatter.Of(right));
-
-        return NumericDispatch.RightShift(left!, right!);
-    }
-
-    public static object? UnsignedRightShift(object? left, object? right)
-    {
-        if (left == null || right == null)
-            return null;
-
-        if (!IsIntegerOrChar(left) || !TypeHelpers.IsInteger(right))
-            throw new AlderException(
-                DiagnosticDescriptors.BadBinaryOps,
-                TokenLexemes.GetCanonical(TokenType.GreaterGreaterGreater),
-                TypeNameFormatter.Of(left),
-                TypeNameFormatter.Of(right));
-
-        return NumericDispatch.UnsignedRightShift(left!, right!);
+        return dispatch(left!, right!);
     }
 
     private static bool IsIntegerOrChar(object? value) =>
@@ -607,8 +530,6 @@ internal static class Operators
 
         return LikePatternMode.General;
     }
-
-    private static readonly ConcurrentDictionary<(Type Left, Type Right, string Op), MethodInfo?> UserDefinedBinaryOperatorCache = new();
 
     /// <summary>
     /// ECMA-334 §12.4.5: searches both operand types for a matching binary operator method.

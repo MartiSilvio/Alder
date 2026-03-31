@@ -1,4 +1,5 @@
 using Alder.Diagnostics;
+using Alder.Parsing;
 
 namespace Alder.Runtime.Extensions;
 
@@ -16,7 +17,7 @@ internal static class ObjectMergeOperator
         CopyObjectProperties(right, merged, context);
 
         if (merged.Count == 0 && (left != null || right != null))
-            throw new AlderException(DiagnosticDescriptors.BadBinaryOps, "+", TypeNameFormatter.Of(left), TypeNameFormatter.Of(right));
+            throw new AlderException(DiagnosticDescriptors.BadBinaryOps, TokenLexemes.GetCanonical(TokenType.Plus), TypeNameFormatter.Of(left), TypeNameFormatter.Of(right));
 
         return merged;
     }

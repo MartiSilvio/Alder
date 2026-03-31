@@ -1,3 +1,5 @@
+using Alder.Parsing;
+
 namespace Alder.Runtime;
 
 /// <summary>
@@ -13,8 +15,8 @@ internal static class EnumArithmetic
         var rightIsEnum = right.GetType().IsEnum;
 
         if (leftIsEnum && rightIsEnum)
-            throw new AlderException(Diagnostics.DiagnosticDescriptors.BadBinaryOps, "+",
-                left.GetType().Name, right.GetType().Name);
+            throw new AlderException(Diagnostics.DiagnosticDescriptors.BadBinaryOps,
+                TokenLexemes.GetCanonical(TokenType.Plus), left.GetType().Name, right.GetType().Name);
 
         if (leftIsEnum)
         {
@@ -62,8 +64,8 @@ internal static class EnumArithmetic
         }
 
         // int - E is not a predefined operator
-        throw new AlderException(Diagnostics.DiagnosticDescriptors.BadBinaryOps, "-",
-            left.GetType().Name, right.GetType().Name);
+        throw new AlderException(Diagnostics.DiagnosticDescriptors.BadBinaryOps,
+            TokenLexemes.GetCanonical(TokenType.Minus), left.GetType().Name, right.GetType().Name);
     }
 
     public static object BitwiseOp(object left, object right, Func<object, object, object?> op)
@@ -72,8 +74,8 @@ internal static class EnumArithmetic
         var rightType = right.GetType();
 
         if (leftType != rightType)
-            throw new AlderException(Diagnostics.DiagnosticDescriptors.BadBinaryOps, "|",
-                leftType.Name, rightType.Name);
+            throw new AlderException(Diagnostics.DiagnosticDescriptors.BadBinaryOps,
+                TokenLexemes.GetCanonical(TokenType.Pipe), leftType.Name, rightType.Name);
 
         var underlyingType = Enum.GetUnderlyingType(leftType);
         var l = Convert.ChangeType(left, underlyingType);

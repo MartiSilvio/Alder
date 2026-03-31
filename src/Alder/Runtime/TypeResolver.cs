@@ -26,6 +26,59 @@ internal sealed class TypeResolver
     private readonly Lazy<FixedDictionary<string, Type>?> _implicitImports;
     private readonly ConcurrentDictionary<string, Type?> _cache = new();
 
+    private static readonly string[] DefaultImplicitNamespaces =
+    [
+        "System",
+        "System.Collections.Generic",
+        "System.Threading.Tasks",
+        "System.Linq",
+    ];
+
+    /// <summary>
+    /// Built-in C# type keyword map per ECMA-334 §8.3.5.
+    /// </summary>
+    private static readonly FixedDictionary<string, Type> BuiltInTypeKeywords = FixedDictionary<string, Type>.Create(new Dictionary<string, Type>
+    {
+        ["sbyte"] = typeof(sbyte),
+        ["byte"] = typeof(byte),
+        ["short"] = typeof(short),
+        ["ushort"] = typeof(ushort),
+        ["int"] = typeof(int),
+        ["uint"] = typeof(uint),
+        ["long"] = typeof(long),
+        ["ulong"] = typeof(ulong),
+        ["float"] = typeof(float),
+        ["double"] = typeof(double),
+        ["decimal"] = typeof(decimal),
+        ["bool"] = typeof(bool),
+        ["char"] = typeof(char),
+        ["string"] = typeof(string),
+        ["object"] = typeof(object),
+        ["dynamic"] = typeof(object),
+        ["sbyte?"] = typeof(sbyte?),
+        ["byte?"] = typeof(byte?),
+        ["short?"] = typeof(short?),
+        ["ushort?"] = typeof(ushort?),
+        ["int?"] = typeof(int?),
+        ["uint?"] = typeof(uint?),
+        ["long?"] = typeof(long?),
+        ["ulong?"] = typeof(ulong?),
+        ["float?"] = typeof(float?),
+        ["double?"] = typeof(double?),
+        ["decimal?"] = typeof(decimal?),
+        ["bool?"] = typeof(bool?),
+        ["char?"] = typeof(char?),
+        ["string?"] = typeof(string),
+        ["object?"] = typeof(object),
+        ["void"] = typeof(void),
+    });
+
+    private static readonly FixedDictionary<string, Type> BuiltInTypeKeywordsOrdinal =
+        FixedDictionary<string, Type>.Create(BuiltInTypeKeywords, kvp => kvp.Key, kvp => kvp.Value, StringComparer.Ordinal);
+
+    private static readonly FixedDictionary<string, Type> BuiltInTypeKeywordsOrdinalIgnoreCase =
+        FixedDictionary<string, Type>.Create(BuiltInTypeKeywords, kvp => kvp.Key, kvp => kvp.Value, StringComparer.OrdinalIgnoreCase);
+
     private TypeResolver(
         FixedDictionary<string, Type> builtInTypes,
         ImmutableArray<string> importedNamespaces,
@@ -86,10 +139,7 @@ internal sealed class TypeResolver
         }
 
         if (typeName.Contains('<'))
-        {
-            try { return ResolveGenericType(typeName); }
-            catch (Exception ex) when (ex is AlderException or ArgumentException or TypeLoadException or InvalidOperationException) { return null; }
-        }
+            return TryResolveGenericType(typeName);
 
         return _cache.GetOrAdd(typeName, ResolveTypeCore);
     }
@@ -295,6 +345,31 @@ internal sealed class TypeResolver
         return RuntimeGenericFactory.CloseGenericType(openType, typeArgs);
     }
 
+    private Type? TryResolveGenericType(string typeName)
+    {
+        var ltIndex = typeName.IndexOf('<');
+        var baseName = typeName[..ltIndex];
+        var argsString = typeName[(ltIndex + 1)..^1];
+        var typeArgNames = SplitGenericArgs(argsString);
+        var arity = typeArgNames.Count;
+
+        var openGenericName = baseName + "`" + arity;
+        var openType = TryResolveType(openGenericName);
+        if (openType == null)
+            return null;
+
+        var typeArgs = new Type[arity];
+        for (var i = 0; i < arity; i++)
+        {
+            var arg = TryResolveType(typeArgNames[i].Trim());
+            if (arg == null)
+                return null;
+            typeArgs[i] = arg;
+        }
+
+        return RuntimeGenericFactory.TryCloseGenericType(openType, typeArgs, out var closed) ? closed : null;
+    }
+
     /// <summary>
     /// Splits generic type arguments at top-level commas, respecting nested angle brackets.
     /// e.g. "string, List&lt;int&gt;" -> ["string", "List&lt;int&gt;"]
@@ -327,64 +402,6 @@ internal sealed class TypeResolver
 
     internal static Type? TryResolveTypeStatic(TypeResolver resolver, string typeName)
         => resolver.TryResolveType(typeName);
-
-    /// <summary>
-    /// Implicit import namespaces for common BCL types when ImplicitBclImports is enabled.
-    /// ECMA-334 compatible: System, System.Collections.Generic, System.Threading.Tasks, System.Linq.
-    /// System.Reflection is EXCLUDED for security.
-    /// </summary>
-    private static readonly string[] DefaultImplicitNamespaces =
-    [
-        "System",
-        "System.Collections.Generic",
-        "System.Threading.Tasks",
-        "System.Linq",
-    ];
-
-    /// <summary>
-    /// Built-in C# type keyword map per ECMA-334 §8.3.5.
-    /// </summary>
-    private static readonly FixedDictionary<string, Type> BuiltInTypeKeywords = FixedDictionary<string, Type>.Create(new Dictionary<string, Type>
-    {
-        ["sbyte"] = typeof(sbyte),
-        ["byte"] = typeof(byte),
-        ["short"] = typeof(short),
-        ["ushort"] = typeof(ushort),
-        ["int"] = typeof(int),
-        ["uint"] = typeof(uint),
-        ["long"] = typeof(long),
-        ["ulong"] = typeof(ulong),
-        ["float"] = typeof(float),
-        ["double"] = typeof(double),
-        ["decimal"] = typeof(decimal),
-        ["bool"] = typeof(bool),
-        ["char"] = typeof(char),
-        ["string"] = typeof(string),
-        ["object"] = typeof(object),
-        ["dynamic"] = typeof(object),
-        ["sbyte?"] = typeof(sbyte?),
-        ["byte?"] = typeof(byte?),
-        ["short?"] = typeof(short?),
-        ["ushort?"] = typeof(ushort?),
-        ["int?"] = typeof(int?),
-        ["uint?"] = typeof(uint?),
-        ["long?"] = typeof(long?),
-        ["ulong?"] = typeof(ulong?),
-        ["float?"] = typeof(float?),
-        ["double?"] = typeof(double?),
-        ["decimal?"] = typeof(decimal?),
-        ["bool?"] = typeof(bool?),
-        ["char?"] = typeof(char?),
-        ["string?"] = typeof(string),
-        ["object?"] = typeof(object),
-        ["void"] = typeof(void),
-    });
-
-    private static readonly FixedDictionary<string, Type> BuiltInTypeKeywordsOrdinal =
-        FixedDictionary<string, Type>.Create(BuiltInTypeKeywords, kvp => kvp.Key, kvp => kvp.Value, StringComparer.Ordinal);
-
-    private static readonly FixedDictionary<string, Type> BuiltInTypeKeywordsOrdinalIgnoreCase =
-        FixedDictionary<string, Type>.Create(BuiltInTypeKeywords, kvp => kvp.Key, kvp => kvp.Value, StringComparer.OrdinalIgnoreCase);
 
     internal static bool TryResolveKeywordType(string keyword, out Type type)
     {

@@ -1,3 +1,4 @@
+using System.Runtime.ExceptionServices;
 using Alder.Diagnostics;
 
 namespace Alder.Runtime.Semantics;
@@ -30,7 +31,8 @@ internal static class ConstructionRuntime
             }
             catch (TargetInvocationException ex) when (ex.InnerException != null)
             {
-                throw ex.InnerException;
+                ExceptionDispatchInfo.Capture(ex.InnerException).Throw();
+                throw; // unreachable, satisfies compiler
             }
         }
 

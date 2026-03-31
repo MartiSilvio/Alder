@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
+using System.Runtime.ExceptionServices;
 using Alder.Diagnostics;
 using Alder.Interpretation;
 
@@ -363,7 +364,8 @@ internal static class MethodInvoker
         }
         catch (TargetInvocationException ex) when (ex.InnerException != null)
         {
-            throw ex.InnerException;
+            ExceptionDispatchInfo.Capture(ex.InnerException).Throw();
+            throw; // unreachable, satisfies compiler
         }
     }
 

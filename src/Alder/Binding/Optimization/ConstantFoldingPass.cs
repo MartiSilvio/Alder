@@ -26,7 +26,7 @@ internal sealed class ConstantFoldingPass : BoundExprRewriter
             if (result == null) return rewritten;
             return BoundLiteralExpr.FromValue(result) with { Span = rewritten.Span };
         }
-        catch
+        catch (Exception ex) when (ex is AlderException or OverflowException or InvalidCastException or InvalidOperationException or ArithmeticException)
         {
             return rewritten;
         }
@@ -74,7 +74,7 @@ internal sealed class ConstantFoldingPass : BoundExprRewriter
             result = ApplyConstantPromotion(result, left.Value, right.Value);
             return BoundLiteralExpr.FromValue(result) with { Span = binary.Span };
         }
-        catch
+        catch (Exception ex) when (ex is AlderException or OverflowException or InvalidCastException or InvalidOperationException or ArithmeticException)
         {
             return binary;
         }
