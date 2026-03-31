@@ -165,7 +165,8 @@ internal static class MethodInvoker
             if (!hasSpecialArgs && config.TryGetDispatch(extType, out var extDispatch))
             {
                 extArgs ??= PrependTarget(target, args);
-                if (extDispatch.TryInvokeStatic(methodName, extArgs, out var typedResult))
+                var resolvedArgs = TryResolveLambdaArgs(extArgs, target.GetType(), context);
+                if (extDispatch.TryInvokeStatic(methodName, resolvedArgs ?? extArgs, out var typedResult))
                     return (true, typedResult);
             }
 
@@ -178,6 +179,61 @@ internal static class MethodInvoker
         }
 
         return (false, null);
+    }
+
+    private static object?[]? TryResolveLambdaArgs(object?[] extArgs, Type targetType, AlderContext context)
+    {
+        var elementType = TypeHelpers.GetEnumerableElementType(targetType);
+        if (elementType == null)
+            return null;
+
+        var hasLambda = false;
+        for (var i = 1; i < extArgs.Length; i++)
+        {
+            if (extArgs[i] is LambdaValue or CompiledLambdaValue)
+            {
+                hasLambda = true;
+                break;
+            }
+        }
+        if (!hasLambda)
+            return null;
+
+        var resolved = new object?[extArgs.Length];
+        resolved[0] = extArgs[0];
+
+        var inputTypes = new Binding.BoundType[] { new(elementType) };
+        for (var i = 1; i < extArgs.Length; i++)
+        {
+            if (extArgs[i] is not (LambdaValue or CompiledLambdaValue))
+            {
+                resolved[i] = extArgs[i];
+                continue;
+            }
+
+            var returnType = ExtensionMethodResolver.InferLambdaReturnType(extArgs[i], inputTypes, context);
+            if (returnType == null || returnType == typeof(object))
+            {
+                resolved[i] = extArgs[i];
+                continue;
+            }
+
+            Delegate? converted = null;
+            try
+            {
+                var delegateType = typeof(Func<,>).MakeGenericType(elementType, returnType);
+                converted = LambdaDelegateConverter.TryConvert(extArgs[i]!, delegateType);
+            }
+            catch
+            {
+                // MakeGenericType or delegate conversion can fail on NativeAOT
+                // when the closed generic instantiation isn't available — leave as LambdaValue.
+                // The generated AsProjection<T> fallback in EnumerableDispatch handles this case.
+            }
+            resolved[i] = converted ?? extArgs[i];
+        }
+
+        return resolved;
     }
 
     private static object?[] PrependTarget(object target, object?[] args)

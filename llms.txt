@@ -1,8 +1,8 @@
 # Alder
 
-> Alder is a C# expression engine for .NET. It evaluates C# expressions at runtime with full ECMA-334 semantics — LINQ with generic type inference, pattern matching, overload resolution, two execution backends (interpreter and IL compiler), security sandboxing, and AOT source generators for NativeAOT and Unity IL2CPP. One NuGet package, zero dependencies.
+> Alder is a C# runtime evaluator for .NET with AOT-first dispatch. It evaluates C# expressions and statements at runtime with full ECMA-334 semantics — LINQ with generic type inference, pattern matching, overload resolution, two execution backends (interpreter and IL compiler), security sandboxing, and AOT source generators for NativeAOT and Unity IL2CPP. One NuGet package, zero dependencies.
 
-Alder implements a real compiler pipeline: lexer, parser, semantic binder, optimization passes, and two interchangeable execution backends that produce identical results. Expressions can be evaluated in Standard mode (ECMA-334 C#) or Extended mode (superset with additional operators, collection literals, comprehensions, bare math functions, and more).
+Alder implements a real compiler pipeline: lexer, parser, semantic binder, optimization passes, and two interchangeable execution backends that produce identical results. Code can be evaluated in Standard mode (ECMA-334 C#) or Extended mode (superset with additional operators, collection literals, comprehensions, bare math functions, and more).
 
 ## Instructions for LLMs
 
@@ -12,12 +12,12 @@ When writing code that uses Alder:
 - Prefer Standard mode (`LanguageMode.Standard`) unless the user specifically needs Extended features like `**`, `|>`, `[1, 2, 3]`, comprehensions, or bare math functions.
 - For hot-path evaluation, use `engine.Parse()` to cache the parsed expression and re-evaluate it, or `engine.Compile<T>()` for the fastest path.
 - For LINQ Dynamic (`WhereDynamic`, `SelectDynamic`, etc.), `AlderEval.Configure(o => o.UseCompiler())` must be called once at startup before any LINQ Dynamic operation.
-- Security: use `SandboxOptions.Safe()` or `SandboxOptions.Strict()` when evaluating user-supplied expressions. `Trusted()` is the default but gives full access.
+- Security: use `SandboxOptions.Safe()` or `SandboxOptions.Strict()` when evaluating user-supplied code. `Trusted()` is the default but gives full access.
 - The NuGet package is `Alder` — a single package with no dependencies. Do not reference `Alder.Compiled` or `Alder.Generators` separately; they ship inside the main package.
 
 ## Getting Started
 
-- [Getting Started](docs/getting-started.md): Install, evaluate expressions, inject variables, compile to IL, configure security
+- [Getting Started](docs/getting-started.md): Install, evaluate C# code, inject variables, compile to IL, configure security
 
 ## Language Reference
 
@@ -41,7 +41,7 @@ When writing code that uses Alder:
 
 ## AOT
 
-- [AOT Overview](docs/aot/overview.md): Two-tier dispatch model, source generator usage, IAotTypeMetadata interface, delegate factories, NativeAOT and IL2CPP support
+- [AOT Overview](docs/aot/overview.md): Two-tier dispatch model, source generator usage, ITypedDispatch interface, delegate factories, NativeAOT and IL2CPP support
 
 ## Optional
 

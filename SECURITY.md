@@ -1,6 +1,6 @@
 # Security
 
-Alder evaluates user-supplied C# expressions safely in production environments. The security model provides three layers of control: operation permissions, type and namespace blocking, and execution limits.
+Alder evaluates user-supplied C# code safely in production environments. The security model provides three layers of control: operation permissions, type and namespace blocking, and execution limits.
 
 ## How Enforcement Works
 
@@ -14,7 +14,8 @@ Alder evaluates user-supplied C# expressions safely in production environments. 
 |------------|:-----------:|:--------:|:----------:|
 | Method calls | yes | **no** | **no** |
 | Property read (instance) | yes | yes | yes |
-| Static property/field read | yes | yes | yes |
+| Static property read | yes | yes | yes |
+| Static field read | yes | yes | yes |
 | Variable assignment | yes | yes | **no** |
 | Property write | yes | yes | **no** |
 | Index write | yes | yes | **no** |
@@ -52,18 +53,21 @@ A four-layer evaluation chain controls which .NET types expressions can access:
 3. **Denied**: Types in `DeniedTypes` or `DeniedNamespaces` are blocked
 4. **Default**: Everything else is allowed
 
-Default denied namespaces cover file I/O (`System.IO`), networking (`System.Net`, `System.Net.Http`, `System.Net.Sockets`), process execution (`System.Diagnostics`), reflection (`System.Reflection`, `System.Reflection.Emit`), threading (`System.Threading`), interop (`System.Runtime.InteropServices`), and data access (`System.Data`).
+Namespace blocking uses a prefix-with-dot algorithm: blocking `"System.Net"` blocks both `System.Net` (exact match) and `System.Net.Http` (prefix `"System.Net."` matches), but not `System.NetCore`.
 
-Default denied types include `Activator`, `AppDomain`, `Console`, `Environment`, `GC`, `Process`, `Thread`, `ThreadPool`, and `Marshal`.
+Default denied namespaces cover code generation (`System.CodeDom`, `System.Linq.Expressions`, `System.Reflection`, `System.Reflection.Emit`, `System.Runtime.CompilerServices`, `System.Runtime.Loader`, `System.Runtime.Serialization`, `Microsoft.CSharp`), OS and process access (`System.Diagnostics`, `System.IO`, `System.ServiceProcess`, `System.Management`, `Microsoft.Win32`), networking (`System.Net`, `System.Net.Http`, `System.Net.Mail`, `System.Net.NetworkInformation`, `System.Net.Sockets`), threading (`System.Threading`), security and interop (`System.Runtime.InteropServices`, `System.Security`), data access (`System.Data`, `Microsoft.Data`), and configuration/composition (`System.Configuration`, `System.ComponentModel`, `System.ComponentModel.Composition`, `System.Composition`, `System.DirectoryServices`, `System.Resources`).
+
+Default denied types include `Activator`, `AppDomain`, `Console`, `Delegate`, `MulticastDelegate`, `Environment`, `GC`, `WeakReference`, `WeakReference<>`, `Thread`, `ThreadPool`, `Process`, `ProcessStartInfo`, and `Marshal`.
 
 ## Execution Limits
 
-| Constraint | Diagnostic | Exception |
-|-----------|------------|-----------|
-| `MaxStatements` | `ALDR0200` | `AlderExecutionLimitException` |
-| `MaxTimeout` | `ALDR0201` | `AlderExecutionLimitException` |
-| `MaxLoopIterations` | `ALDR0203` | `AlderExecutionLimitException` |
-| `MaxCollectionSize` | `ALDR0202` | `AlderException` |
+| Constraint | Location | Diagnostic | Exception |
+|-----------|----------|------------|-----------|
+| `MaxStatements` | `ExecutionConstraints` | `ALDR0200` | `AlderExecutionLimitException` |
+| `MaxTimeout` | `ExecutionConstraints` | `ALDR0201` | `AlderExecutionLimitException` |
+| `MaxLoopIterations` | `ExecutionConstraints` | `ALDR0203` | `AlderExecutionLimitException` |
+| `MaxCollectionSize` | `SandboxOptions` | `ALDR0202` | `AlderException` |
+| `RegexTimeout` | `SandboxOptions` | — | `RegexMatchTimeoutException` |
 
 ## Reflection Blocking
 

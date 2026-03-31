@@ -138,8 +138,8 @@ A `record` with `init` properties. Use factory methods or `with` expressions:
 
 ```csharp
 o.Sandbox = SandboxOptions.Trusted();  // all permissions
-o.Sandbox = SandboxOptions.Safe();     // property access + assignment, no methods/construction/statics
-o.Sandbox = SandboxOptions.Strict();   // instance property reads only
+o.Sandbox = SandboxOptions.Safe();     // property reads, static field reads, assignment, property/index writes — no methods or construction
+o.Sandbox = SandboxOptions.Strict();   // property reads (instance and static) and static field reads only
 
 // Customize from a preset
 o.Sandbox = SandboxOptions.Safe() with
@@ -148,6 +148,13 @@ o.Sandbox = SandboxOptions.Safe() with
     TrustedTypes = new HashSet<Type> { typeof(System.IO.MemoryStream) }
 };
 ```
+
+`SandboxOptions` also carries two resource limits:
+
+| Property | Default | Description |
+|----------|---------|-------------|
+| `MaxCollectionSize` | 10,000,000 | Maximum size for arrays and collections |
+| `RegexTimeout` | 1 second | Maximum duration for regex operations (`=~`, `!~`) |
 
 See [Security](../security/sandbox.md) for the full permission matrix.
 

@@ -82,6 +82,25 @@ The interpreter uses two dispatch tiers for numeric operations:
 
 The delegate tables contain 7 entries each: `(int,int)`, `(long,long)`, `(float,float)`, `(double,double)`, `(decimal,decimal)`, `(uint,uint)`, `(ulong,ulong)`. After promotion, both operands always have the same type, so the key is always `(T, T)`.
 
+Bitwise operators (`&`, `|`, `^`) have separate tables with only integer types — `float`, `double`, and `decimal` entries are excluded since bitwise operations on floating-point types are not defined in C#.
+
+## Operator Semantics Beyond Numeric
+
+The `Operators` class handles non-numeric operations that share the operator symbols:
+
+| Operation | Trigger | Behavior |
+|-----------|---------|----------|
+| String concatenation | Either operand of `+` is `string` | `$"{left}{right}"` — both sides implicitly converted |
+| DateTime arithmetic | `DateTime ± TimeSpan`, `DateTime - DateTime` | Standard .NET operations, result is `DateTime` or `TimeSpan` |
+| TimeSpan arithmetic | `TimeSpan ± TimeSpan` | Standard .NET operations |
+| Delegate combination | `Delegate + Delegate` / `Delegate - Delegate` | `Delegate.Combine` / `Delegate.Remove` |
+| Enum arithmetic | `Enum + int`, `Enum - Enum`, `~Enum`, `Enum & Enum` | Via `EnumArithmetic` with underlying integral type |
+| User-defined operators | `op_Addition`, `op_Subtraction`, etc. | Searched on both operand types, cached; `op_CheckedXxx` tried first in checked context |
+| Nullable lifted | `int? + int?` where either is null | Returns `null` (lifted operator semantics) |
+| String repetition | `"ab" * 3` (Extended mode) | Repeats string n times |
+
+For equality, NaN follows IEEE 754: `NaN != NaN` is `true`, `NaN == anything` is `false`. Tuple equality is element-wise with type promotion per element. Strict equality (`===`) requires exact runtime type match.
+
 ## Checked Arithmetic
 
 In a `checked` context, integer arithmetic operators use separate delegate tables (`CheckedAddOps`, `CheckedSubtractOps`, `CheckedMultiplyOps`) that wrap operations in `checked()`:

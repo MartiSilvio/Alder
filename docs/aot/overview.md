@@ -1,39 +1,39 @@
 ---
 title: "AOT Overview"
-description: "Two-tier dispatch model, source generator, IAotTypeMetadata, delegate factories, IL2CPP"
+description: "Two-tier dispatch model, source generator, ITypedDispatch, delegate factories, IL2CPP"
 sidebar:
   order: 2
 ---
 
 Alder runs on NativeAOT, Unity IL2CPP, and every other .NET platform — including environments where reflection is restricted and runtime code generation is unavailable. This is enabled by a two-tier dispatch model backed by an incremental source generator.
 
-The source generator runs at compile time and emits typed property access, method dispatch, constructor invocation, and pre-instantiated delegate factories for each registered type. At runtime, the interpreter checks this AOT-generated metadata before falling back to reflection. The same expression that evaluates on full .NET with JIT compilation evaluates on NativeAOT and IL2CPP through the interpreter with AOT metadata — same API, same behavior, single NuGet package, no conditional compilation in user code.
+The source generator runs at compile time and emits typed property access, method dispatch, constructor invocation, and pre-instantiated delegate factories for each registered type. At runtime, `TypedDispatchHelper` checks this AOT-generated dispatch before falling back to reflection. The same expression that evaluates on full .NET with JIT compilation evaluates on NativeAOT and IL2CPP through the interpreter with AOT dispatch — same API, same behavior, single NuGet package, no conditional compilation in user code.
 
 ## Two-Tier Model
 
 ```mermaid
 graph TD
-    A["Member access or<br/>method call"] --> B{"AOT metadata<br/>registered for type?"}
-    B -->|"Yes"| C["IAotTypeMetadata dispatch<br/>(no reflection)"]
+    A["Member access or<br/>method call"] --> B{"AOT dispatch<br/>registered for type?"}
+    B -->|"Yes"| C["ITypedDispatch<br/>(no reflection)"]
     B -->|"No"| D["Reflection fallback<br/>(PropertyInfo, MethodInfo)"]
-    C -->|"TryGetProperty/TryInvokeMethod<br/>returns true"| E["Result"]
+    C -->|"TryGet/TryInvoke<br/>returns true"| E["Result"]
     C -->|"returns false"| D
     D --> E
 ```
 
-The AOT check happens at every member access and method invocation in the interpreter. The check walks the type hierarchy — if metadata is registered for `List<int>`, accessing members inherited from `IList<int>` or `ICollection<int>` will also use the AOT path.
+The AOT check happens at every member access and method invocation via `TypedDispatchHelper` — the centralized entry point for all typed dispatch. The check walks the type hierarchy — if dispatch is registered for `List<int>`, accessing members inherited from `IList<int>` or `ICollection<int>` will also use the AOT path.
 
 ## When AOT Matters
 
 - **NativeAOT (.NET 7+)**: `MakeGenericMethod` with value-type arguments is restricted. The source generator pre-instantiates generic methods and delegate factories to avoid this.
-- **Unity IL2CPP**: Same restrictions as NativeAOT — no runtime code generation. The interpreter with AOT metadata is the only execution path.
-- **Standard .NET**: AOT metadata provides a performance benefit by skipping reflection, but reflection works fine as a fallback.
+- **Unity IL2CPP**: Same restrictions as NativeAOT — no runtime code generation. The interpreter with AOT dispatch is the only execution path.
+- **Standard .NET**: AOT dispatch provides a performance benefit by skipping reflection, but reflection works fine as a fallback.
 
-On NativeAOT, `UseCompiler()` throws `PlatformNotSupportedException` because `Expression.Compile()` requires a JIT. The interpreter with AOT metadata is the recommended path.
+On NativeAOT, `UseCompiler()` throws `PlatformNotSupportedException` because `Expression.Compile()` requires a JIT. The interpreter with AOT dispatch is the recommended path.
 
 ## Source Generator
 
-Alder ships an incremental source generator that produces `IAotTypeMetadata` implementations for registered types. To use it:
+Alder ships an incremental source generator that produces `ITypedDispatch` implementations for registered types. To use it:
 
 ### 1. Define a type context
 
@@ -59,45 +59,53 @@ var engine = new AlderEngine(o =>
 
 ### 3. The generator emits
 
-For each `[AlderRegistered]` type, the generator produces a `file sealed class` implementing `IAotTypeMetadata` with:
+For each `[AlderRegistered]` type, the generator produces a `file sealed class` implementing `ITypedDispatch` with:
 
 | Method | Generated code |
 |--------|---------------|
-| `TryGetProperty(name, instance, out value)` | `switch` on property name → typed property access |
-| `TrySetProperty(name, instance, value)` | `switch` on property name → typed property setter |
-| `TryGetField(name, instance, out value)` | `switch` on field name → typed field access |
-| `TrySetField(name, instance, value)` | `switch` on field name → typed field setter |
+| `TryGet(name, instance, out value)` | `switch` on member name → typed property or field read |
+| `TrySet(name, instance, value)` | `switch` on member name → typed property or field write |
+| `TryGetStatic(name, out value)` | `switch` on member name → static property or field read |
 | `TryGetIndex(instance, key, out value)` | Typed indexer get |
 | `TrySetIndex(instance, key, value)` | Typed indexer set |
-| `TryGetStaticProperty(name, out value)` | Static property access |
-| `TryGetStaticField(name, out value)` | Static field access |
-| `TryCreateInstance(args, out instance)` | Constructor dispatch |
-| `TryInvokeMethod(name, instance, args, out result)` | Instance method dispatch with `is` type checks per overload |
-| `TryInvokeStaticMethod(name, args, out result)` | Static method dispatch |
+| `TryCreate(args, out instance)` | Constructor dispatch |
+| `TryInvoke(name, instance, args, out result)` | Instance method dispatch with `is` type checks per overload |
+| `TryInvokeStatic(name, args, out result)` | Static method dispatch |
 
 All dispatch uses `is` type checks for same-arity overloads — never blind casts that rely on exception fallback. If the AOT path can't handle an argument shape (named args, null values, special markers), it returns `false` and the reflection path takes over.
 
-## `IAotTypeMetadata` Interface
+### Extension method dispatch
+
+The generator also emits `EnumerableDispatch` — an `ITypedDispatch` implementation for LINQ extension methods. This is driven by a data-driven `LinqMethodDescriptor` table and emitted by `ExtensionMethodEmitter`. It provides typed dispatch for common LINQ operations (`Where`, `Select`, `OrderBy`, etc.) without reflection.
+
+## `ITypedDispatch` Interface
 
 ```csharp
-public interface IAotTypeMetadata
+public interface ITypedDispatch
 {
     Type Type { get; }
-    bool TryGetProperty(string name, object instance, out object? value);
-    bool TrySetProperty(string name, object instance, object? value);
-    bool TryGetField(string name, object instance, out object? value);
-    bool TrySetField(string name, object instance, object? value);
+    bool TryGet(string name, object instance, out object? value);
+    bool TrySet(string name, object instance, object? value);
+    bool TryGetStatic(string name, out object? value);
     bool TryGetIndex(object instance, object key, out object? value);
     bool TrySetIndex(object instance, object key, object? value);
-    bool TryGetStaticProperty(string name, out object? value);
-    bool TryGetStaticField(string name, out object? value);
-    bool TryCreateInstance(object?[] args, out object? instance);
-    bool TryInvokeMethod(string name, object instance, object?[] args, out object? result);
-    bool TryInvokeStaticMethod(string name, object?[] args, out object? result);
+    bool TryCreate(object?[] args, out object? instance);
+    bool TryInvoke(string name, object instance, object?[] args, out object? result);
+    bool TryInvokeStatic(string name, object?[] args, out object? result);
 }
 ```
 
 Every method returns `bool`. `true` means the operation was handled, `false` signals fallback to reflection. No exceptions for control flow.
+
+The interface is simplified compared to the old `IAotTypeMetadata` — property and field access are unified into `TryGet`/`TrySet`/`TryGetStatic`, eliminating the need for separate property and field methods.
+
+## TypedDispatchHelper
+
+`TypedDispatchHelper` is the centralized entry point for all typed dispatch. All member access and method invocation in both the interpreter and compiler goes through it. It handles:
+
+- Looking up the `ITypedDispatch` for a type via `AlderConfig.TryGetDispatch(type, out ITypedDispatch?)`
+- Walking the type hierarchy to find dispatch for base types
+- Routing member reads, writes, method calls, and constructor invocations to the appropriate `ITypedDispatch` method
 
 ## Delegate Factories
 
@@ -132,7 +140,7 @@ This ensures that when an expression calls `items.ToList()` where `items` is `IE
 
 ## Built-In Context
 
-Alder ships with a built-in AOT context (`AlderBuiltInContext`) that provides metadata for common BCL types. This is registered by default — no user action needed for standard types like `string`, `int`, `DateTime`, `List<T>`, etc.
+Alder ships with a built-in AOT context (`AlderBuiltInContext`) that provides dispatch for common BCL types. This is registered by default — no user action needed for standard types like `string`, `int`, `DateTime`, `List<T>`, etc.
 
 To disable the built-in context (e.g., to reduce binary size in AOT scenarios where only specific types are needed):
 
@@ -140,6 +148,12 @@ To disable the built-in context (e.g., to reduce binary size in AOT scenarios wh
 o.Aot.ClearBuiltInContext();
 o.Aot.UseGeneratedContext(new MyMinimalContext());
 ```
+
+## LINQ Extension Method Dispatch
+
+The generator emits `EnumerableDispatch` — a dedicated `ITypedDispatch` implementation for LINQ operations. For each registered value type, it generates type-specialized dispatch for common LINQ methods (`Where`, `Select`, `OrderBy`, `GroupBy`, `Sum`, `Average`, `ToList`, `ToArray`, etc.). Lambda arguments are converted via generated helper methods (`AsPredicate<T>`, `AsProjection<T>`) that wrap `LambdaValue` objects in strongly-typed delegates without reflection.
+
+The LINQ dispatch is driven by a `LinqMethodDescriptor` table that categorizes methods by shape — `Filter` (predicate), `Projection` (selector), `ScalarAggregate` (numeric reduction), `IntArg` (skip/take), `ValueArg` (contains), etc. Each shape has its own emission template in `ExtensionMethodEmitter`.
 
 ## What the Generator Does NOT Handle
 

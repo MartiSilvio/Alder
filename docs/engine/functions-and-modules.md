@@ -153,6 +153,10 @@ For each type found:
 
 ### Module methods bypass sandbox
 
-Module method calls bypass the `AllowMethodCalls` permission check in `SecurityValidationPass`. This is by design — modules are registered by the host application, so they're trusted. The `BoundResolvedCallExpr.IsModuleCall` flag signals this to the security pass.
+Module method calls bypass the `AllowMethodCalls` permission check in `SecurityValidationPass`. This is by design — modules are registered by the host application, so they're trusted. The `BoundResolvedCallExpr.IsModuleCall` flag signals this to the security pass. Module member access (properties, fields) also bypasses `AllowPropertyRead` — the `MemberAccess` runtime checks modules before the property read guard. Module members are still guarded against reflection leaks (`GuardReflectionLeak` runs on every returned value).
 
-Extension methods (LINQ) also bypass the method call check for the same reason — they're registered via `Types.AddExtensionMethods`.
+Extension methods (LINQ) also bypass the method call check — the security pass checks `IsExtensionMethod` via the `[ExtensionAttribute]` on the method. This means `.Where()`, `.Select()`, and all LINQ operations work even with `AllowMethodCalls = false`.
+
+### Module method resolution
+
+Module methods are resolved per-call via overload resolution (not cached in `ResolutionCache`). The method lookup uses both instance and static binding flags simultaneously, allowing a module type to expose both instance and static methods. Instance resolution uses dependency injection: explicit instance → `ServiceProvider.GetService()` → `Activator.CreateInstance()`. Static modules (C# `static class` — abstract sealed) skip instance resolution entirely.

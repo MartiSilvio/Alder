@@ -1,6 +1,6 @@
 # Alder
 
-C# expression engine for .NET. ECMA-334 semantics, full compiler pipeline, two execution backends (interpreter + IL compiler), security sandbox, AOT source generators.
+C# runtime evaluator for .NET with AOT-first dispatch. ECMA-334 semantics, full compiler pipeline, two execution backends (interpreter + IL compiler), security sandbox, AOT source generators for NativeAOT and IL2CPP.
 
 ## Tech Stack
 
@@ -12,8 +12,8 @@ C# expression engine for .NET. ECMA-334 semantics, full compiler pipeline, two e
 
 - `src/Alder/` — Core: lexer, parser, binder, interpreter, security, runtime
 - `src/Alder.Compiled/` — IL compiler backend (LINQ expression tree emission)
-- `src/Alder.Generators/` — AOT source generator (emits `IAotTypeMetadata` implementations)
-- `tests/Alder.Test/` — 11,400+ tests
+- `src/Alder.Generators/` — AOT source generator (emits `ITypedDispatch` implementations)
+- `tests/Alder.Test/` — 11,537+ tests
 - `docs/` — Documentation (Markdown with Astro/Starlight frontmatter)
 
 ## Build & Test
@@ -72,7 +72,7 @@ var symbol = "+";
 **Always verify:**
 - Every runtime change must work with both execution backends (interpreter and compiler)
 - Every runtime change must account for the AOT source generator path (`Alder.Generators`)
-- If you change method dispatch, verify the generated `TryInvokeMethod`/`TryInvokeStaticMethod` code still integrates
+- If you change method dispatch, verify the generated `TryInvoke`/`TryInvokeStatic` code still integrates
 
 **Design rules:**
 - The ECMA-334 spec is the authority for language semantics — read the spec, don't go from memory

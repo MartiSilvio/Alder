@@ -5,7 +5,7 @@ sidebar:
   order: 2
 ---
 
-`AlderEngine` is the entry point for expression evaluation. It owns the parser, binder, interpreter, and optional compiler — configured once at construction time and immutable after that. All evaluation methods are thread-safe.
+`AlderEngine` is the entry point for evaluating C# code at runtime. It owns the parser, binder, interpreter, and optional compiler — configured once at construction time and immutable after that. All evaluation methods are thread-safe.
 
 ```csharp
 var engine = new AlderEngine(o =>
@@ -31,6 +31,12 @@ The `Action<AlderOptions>` overload is the primary construction pattern. Configu
 | `AlderEngine(AlderOptions)` | Configure via options object |
 
 ## Evaluation
+
+### Execution Paths
+
+When `UseCompiler()` is configured, `Evaluate` routes directly to the compiled delegate — there is no interpreted fallback. If the expression fails to compile, `AlderException` with `ALDR0001` is thrown. Without `UseCompiler()`, the interpreter creates a child execution context and evaluates the bound tree.
+
+Both paths share the same front-end (lexer → parser → binder → pipeline passes). The compiled path applies one additional pass (`ConversionInsertionPass`) that the interpreter does not need.
 
 ### `Evaluate` — string in, result out
 
@@ -75,7 +81,7 @@ if (!engine.TryEvaluate("invalid(", out _))
     Console.WriteLine("Failed"); // no exception thrown
 ```
 
-`TryEvaluate` catches all exceptions — parse, binding, runtime, and conversion failures. Returns `false` with `result = default`. Useful for evaluating user-supplied input where most expressions may be invalid.
+`TryEvaluate` catches all exceptions — parse, binding, runtime, and conversion failures. Returns `false` with `result = default`. Useful for evaluating user-supplied input where most inputs may be invalid.
 
 ## Parsing
 
@@ -165,6 +171,7 @@ Tracing is always interpreted — it does not use the compiled path even when `U
 | `SetVariable(string, object?)` | `AlderEngine` | Untyped persistent variable (fluent) |
 | `SetVariables(IDictionary<string, object?>)` | `AlderEngine` | Bulk load from dictionary |
 | `CreateChild()` | `AlderEngine` | Isolated child with inherited config and variables |
+| `GetRegisteredModules()` | `IReadOnlyDictionary<string, RegisteredModule>` | Snapshot of all registered modules with metadata |
 
 See [Variables](variables.md) for the full variable system documentation.
 
@@ -183,7 +190,7 @@ See [Compilation](compilation.md) for the full compilation documentation.
 
 ## Disposal
 
-`AlderEngine` implements `IDisposable`. Disposing clears the expression cache and type metadata. After disposal, all method calls throw `ObjectDisposedException`.
+`AlderEngine` implements `IDisposable`. Disposing sets a volatile flag on the shared `DisposalToken`, then clears the expression cache and type metadata provider. After disposal, all public methods throw `ObjectDisposedException` — checked via `ThrowIfDisposed()` at the top of every entry point.
 
 ```csharp
 using var engine = new AlderEngine();
@@ -191,16 +198,17 @@ var result = engine.Evaluate<int>("1 + 1"); // 2
 // engine disposed at end of scope
 ```
 
-Disposing a parent engine disposes all children (they share the same `DisposalToken`).
+Disposing a parent engine disposes all children (they share the same `DisposalToken`). The disposal is lightweight — it does not dispose `AlderContext` instances or wait for in-flight evaluations. The volatile flag ensures visibility across threads without locking.
 
 ## Thread Safety
 
 - All evaluation methods (`Evaluate`, `TryEvaluate`, `EvaluateWithTrace`, `Parse`, `TryParse`, `TryValidate`, `Compile`, `TryCompile`) can be called concurrently.
-- `SetVariable<T>` is thread-safe — the engine-level context uses `ConcurrentDictionary`.
-- Child engines created via `CreateChild()` can be evaluated concurrently with the parent and with each other.
+- `SetVariable<T>` is thread-safe — the engine-level context uses `ConcurrentDictionary`. Variables set before the first evaluation are staged in a `Dictionary` protected by a lock (`_contextInitLock`) and flushed to the `AlderContext` when evaluation begins.
+- Child engines created via `CreateChild()` can be evaluated concurrently with the parent and with each other. Child contexts use non-concurrent `Dictionary` storage for faster per-evaluation access.
 - `AlderExpression` objects are thread-safe and shareable across threads.
 - Bound tree caching on `AlderExpression` uses `ConditionalWeakTable` for thread-safe per-context caching.
-- Compiled delegate caching uses `volatile` fields with double-checked locking.
+- Compiled delegate caching uses `volatile` fields with double-checked locking. Compilation locks on the `AlderExpression` object itself, not the engine.
+- Pipeline instances (`SecurityOnlyPipeline`, `InterpretationPipeline`) are static and reused across all evaluations. The compilation pipeline is lazy-initialized per engine.
 
 ## Static API
 
@@ -214,7 +222,14 @@ AlderEval.Configure(o => o.UseCompiler());
 var result = AlderEval.Evaluate<int>("1 + 2"); // 3
 ```
 
-`AlderEval.Configure()` can only be called once and must be called before the first evaluation. Thread-safe.
+`AlderEval.Configure()` can only be called once and must be called before the first evaluation. Calling after the first evaluation throws `InvalidOperationException`. The global engine is created lazily with double-checked locking on the first evaluation or `Configure` call.
+
+Additional static methods:
+
+| Method | Description |
+|--------|-------------|
+| `AlderEval.Reset()` | Resets the global engine, allowing `Configure()` to be called again |
+| `AlderEval.TryValidate(string, out IReadOnlyList<AlderDiagnostic>)` | Full semantic analysis without execution on the global engine |
 
 ## String Extensions
 

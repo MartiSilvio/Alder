@@ -33,7 +33,7 @@ builder.Services
             Version = typeof(AlderEngine).Assembly.GetName().Version?.ToString() ?? "0.1.0",
         };
         options.ServerInstructions =
-            "Alder is a C# expression engine. Use it to compute values, transform data, and execute " +
+            "Alder is a C# runtime evaluator. Use it to compute values, transform data, and execute " +
             "C# logic at runtime without a full compilation step. " +
             "The 'evaluate' tool executes expressions and returns results. " +
             "The 'validate' tool checks syntax and semantics without execution — use it to verify expressions before running them. " +

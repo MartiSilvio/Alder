@@ -11,6 +11,23 @@ namespace Alder.Runtime;
 /// </summary>
 internal static class TypeHelpers
 {
+    internal static Type? GetEnumerableElementType(Type type)
+    {
+        if (type.IsArray)
+            return type.GetElementType();
+
+        if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(IEnumerable<>))
+            return type.GetGenericArguments()[0];
+
+        foreach (var iface in type.GetInterfaces())
+        {
+            if (iface.IsGenericType && iface.GetGenericTypeDefinition() == typeof(IEnumerable<>))
+                return iface.GetGenericArguments()[0];
+        }
+
+        return null;
+    }
+
     public static int GetSizeOf(string typeName) => typeName switch
     {
         "bool" or "Boolean" or "System.Boolean" => 1,

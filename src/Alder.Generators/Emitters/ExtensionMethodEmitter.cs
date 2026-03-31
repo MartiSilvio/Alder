@@ -76,14 +76,12 @@ internal static class ExtensionMethodEmitter
             w.AppendLine("return null;");
         }
 
+        // AsProjection wraps lambdas that weren't pre-resolved by TryResolveLambdaArgs.
+        // On NativeAOT, MakeGenericType fails for non-primitive return types (e.g., anonymous
+        // types from query let clauses). This fallback wraps them as Func<T, object?>.
         w.AppendLine("private static global::System.Func<T, object?>? AsProjection<T>(object? arg)");
         using (w.Block())
         {
-            w.AppendLine("#if NET7_0_OR_GREATER");
-            w.AppendLine("if (global::System.Runtime.CompilerServices.RuntimeFeature.IsDynamicCodeSupported) return null;");
-            w.AppendLine("#else");
-            w.AppendLine("return null;");
-            w.AppendLine("#endif");
             w.AppendLine("if (arg is global::System.Func<T, object?> f) return f;");
             w.AppendLine($"if (arg is {lv} lv && lv.Parameters.Count == 1) return (T a) => {invoke}(lv, new object?[] {{ a }}, lv.Closure);");
             w.AppendLine("return null;");
@@ -212,8 +210,16 @@ internal static class ExtensionMethodEmitter
             EmitFuncVariant(w, method, "string", "object", "str_o");
             EmitFuncVariant(w, method, "object", "object", "obj_o");
 
+            // Last resort: wrap remaining LambdaValues as Func<T, object?>.
+            // TryResolveLambdaArgs already converted lambdas with inferrable return types
+            // to typed delegates — this only fires for lambdas that couldn't be converted
+            // (e.g., anonymous types from query let clauses on NativeAOT).
             foreach (var vt in AllTypes(valueTypes))
-                EmitProjectionFallback(w, method, vt);
+            {
+                var s = Safe(vt);
+                w.AppendLine($"if (args[0] is {IE}<{vt}> {method.ToLower()}_lf_{s} && AsProjection<{vt}>(args[1]) is {{ }} {method.ToLower()}_lp_{s})");
+                w.AppendLine($"{{ result = {Linq}.{method}({method.ToLower()}_lf_{s}, {method.ToLower()}_lp_{s}); return true; }}");
+            }
         }
     }
 
@@ -335,9 +341,6 @@ internal static class ExtensionMethodEmitter
             EmitSelectManyVariant(w, "string", "string", "str_str");
             EmitSelectManyVariant(w, "string", "object", "str_o");
             EmitSelectManyVariant(w, "object", "object", "obj_o");
-
-            foreach (var vt in AllTypes(valueTypes))
-                EmitSelectManyFallback(w, vt);
         }
     }
 
@@ -366,35 +369,10 @@ internal static class ExtensionMethodEmitter
         w.AppendLine($"{{ result = {Linq}.{method}({method.ToLower()}_s_{varId}, {method.ToLower()}_f_{varId}); return true; }}");
     }
 
-    private static void EmitProjectionFallback(SourceWriter w, string method, string sourceType)
-    {
-        var s = Safe(sourceType);
-        w.AppendLine($"if (args[0] is {IE}<{sourceType}> {method.ToLower()}_lf_{s} && AsProjection<{sourceType}>(args[1]) is {{ }} {method.ToLower()}_lp_{s})");
-        w.AppendLine($"{{ result = {Linq}.{method}({method.ToLower()}_lf_{s}, {method.ToLower()}_lp_{s}); return true; }}");
-    }
-
     private static void EmitSelectManyVariant(SourceWriter w, string sourceType, string resultType, string varId)
     {
         w.AppendLine($"if (args[0] is {IE}<{sourceType}> sm_s_{varId} && AsFunc<{sourceType}, {IE}<{resultType}>>(args[1]) is {{ }} sm_f_{varId})");
         w.AppendLine($"{{ result = {Linq}.SelectMany(sm_s_{varId}, sm_f_{varId}); return true; }}");
-    }
-
-    private static void EmitSelectManyFallback(SourceWriter w, string sourceType)
-    {
-        var s = Safe(sourceType);
-        w.AppendLine($"if (args[0] is {IE}<{sourceType}> sm_lf_{s} && AsProjection<{sourceType}>(args[1]) is {{ }} sm_lp_{s})");
-        using (w.Block())
-        {
-            w.AppendLine($"result = {Linq}.SelectMany(sm_lf_{s}, x =>");
-            using (w.Block())
-            {
-                w.AppendLine($"var r = sm_lp_{s}(x);");
-                w.AppendLine($"if (r is global::System.Collections.IEnumerable ie) return {Linq}.Cast<object>(ie);");
-                w.AppendLine($"return {Linq}.Empty<object>();");
-            }
-            w.AppendLine(");");
-            w.AppendLine("return true;");
-        }
     }
 
     private static IEnumerable<string> AllTypes(List<string> valueTypes)

@@ -5,7 +5,7 @@ sidebar:
   order: 1
 ---
 
-Alder's public API is designed around a single class, `AlderEngine`, configured once at construction and thread-safe for concurrent evaluation. From that entry point, you evaluate expressions, parse and reuse them, validate syntax and semantics without execution, compile to native IL delegates, trace evaluation step-by-step, and inject variables from your application.
+Alder's public API is designed around a single class, `AlderEngine`, configured once at construction and thread-safe for concurrent evaluation. From that entry point, you evaluate C# code, parse and reuse it, validate syntax and semantics without execution, compile to native IL delegates, trace evaluation step-by-step, and inject variables from your application.
 
 The configuration surface covers language mode, security policy, execution limits, type registration, custom functions, class-backed modules, and AOT metadata — all through `AlderOptions` and its sub-builders.
 

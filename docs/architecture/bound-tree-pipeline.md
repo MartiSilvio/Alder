@@ -24,9 +24,9 @@ The tracing pipeline runs security validation only — constant folding and dead
 
 The first pass in every pipeline. Walks the entire bound tree iteratively (using a stack, not recursion) and checks every node against the configured `SecurityPolicy`.
 
-**Fast path**: When `SecurityPolicy.IsTrusted` is `true` (all permissions enabled, no type blocking), the entire pass is skipped — the tree is returned unchanged with zero overhead.
+The pass always walks the full tree — there is no fast-path skip.
 
-**Validation**: For non-trusted policies, each node is checked:
+**Validation**: Each node is checked:
 
 | Node type | Check |
 |-----------|-------|

@@ -4,8 +4,9 @@
 
 Alder targets Roslyn-grade engineering. Every subsystem should be designed as if it belongs in a production compiler toolchain. This means:
 
-- **The ECMA-334 spec is the authority.** Before making any design decision about conversions, operators, overload resolution, type inference, or language semantics, look up the relevant section in `docs/ECMA-334_7th_edition_december_2023.md` and verify the behavior matches. Don't go from memory — read the spec. If the spec says `(int)(object)1.0` must throw (§10.3.7), it throws. If the spec defines an algorithm (§12.6.4), implement that algorithm. Alder is a C# expression engine — the spec is the source of truth, not intuition.
-- **Consider AOT ramifications.** Every runtime change must account for the AOT source generator path (`Alder.Generators`). If you change how method dispatch works, verify the generated `TryInvokeMethod`/`TryInvokeStaticMethod` code still integrates correctly. If you add a new argument shape (e.g., a new marker type), ensure the AOT `HasSpecialArgs` guard catches it. The AOT path and the reflection path must produce the same results.
+- **The ECMA-334 spec is the authority.** Before making any design decision about conversions, operators, overload resolution, type inference, or language semantics, look up the relevant section in `docs/ECMA-334_7th_edition_december_2023.md` and verify the behavior matches. Don't go from memory — read the spec. If the spec says `(int)(object)1.0` must throw (§10.3.7), it throws. If the spec defines an algorithm (§12.6.4), implement that algorithm. Alder is a C# runtime evaluator — the spec is the source of truth, not intuition.
+- **Consider AOT ramifications.** Every runtime change must account for the AOT source generator path (`Alder.Generators`). If you change how method dispatch works, verify the generated `TryInvoke`/`TryInvokeStatic` code still integrates correctly. If you add a new argument shape (e.g., a new marker type), ensure the AOT `HasSpecialArgs` guard catches it. The AOT path and the reflection path must produce the same results.
+- **Keep docs in sync with code.** After any code change, check whether the affected behavior is documented in `docs/`, `llms.txt`, `llms-full.txt`, `AGENTS.md`, or `SECURITY.md` and update if needed.
 - **`Try` methods don't throw.** If a method is named `Try*`, it returns `false`/`null` on failure. Never use exceptions for control flow. If you find a `Try` method that throws on an expected failure path, that's a bug — fix the method, don't catch the exception.
 - **No exception-driven control flow.** `catch` blocks that silently swallow exceptions to mean "this path didn't work, try the next one" are hacks. Design the check so it returns a result instead of throwing.
 - **Source generators use structural indentation.** Use `SourceWriter` with `Block()` scopes — never count spaces manually or pass `int indent` parameters. The generated code's structure should be visible in the emitter's structure.
@@ -15,6 +16,7 @@ Alder targets Roslyn-grade engineering. Every subsystem should be designed as if
 
 - One commit per phase (not per plan or task) — accumulate all changes, commit once at the very end
 - Do NOT include plan numbers, phase numbers, or GSD references in commit messages
+- Keep commit messages lean — short subject line, brief body. No essays, no bullet-point inventories of every file touched
 
 ## Architectural Principles
 

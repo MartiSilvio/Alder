@@ -65,7 +65,7 @@ o.Types.AddExtensionMethods<MyLinqExtensions>();
 
 Registers a static class's extension methods so they can be called on matching types in expressions. `System.Linq.Enumerable` is registered by default — this is why `.Where()`, `.Select()`, `.Sum()` work out of the box.
 
-Extension methods are searched in registration order. If multiple extension types define a method with the same name, the first registered type wins during initial method discovery. Overload resolution then selects the best overload among all discovered candidates.
+Extension methods are searched in registration order. User-registered extension types are inserted at index 0 of the extension type list, giving them priority over the default `System.Linq.Enumerable`. If multiple extension types define a method with the same name, the first type in the list wins during initial method discovery. Overload resolution then selects the best overload among all discovered candidates.
 
 ## Generic Type Resolution
 
@@ -77,6 +77,12 @@ new Dictionary<string, List<int>>()      // construction works
 ```
 
 Generic type arguments are resolved through the same five-step chain. If any argument fails to resolve, the entire generic type resolution fails.
+
+When a short name like `List` is used without a backtick arity suffix, the implicit import resolver probes arities 1–8 automatically (e.g., `` List`1 ``, `` List`2 ``, etc.) until a match is found. This is why `List<int>` works without writing `` List`1<int> ``. The resolver uses CLR backtick notation internally (`` Dictionary`2 ``) even when the expression uses angle brackets.
+
+For nested types (e.g., `OuterClass.InnerType`), the resolver progressively splits the name right-to-left, converting dots to the CLR `+` separator (e.g., `OuterClass+InnerType`) until a match is found in the full name index.
+
+Security note: `System.Reflection` types are explicitly excluded from implicit BCL imports — types in `System.Reflection` are never resolved by short name, only by fully qualified name (where they would then be blocked by the default denied namespaces).
 
 ## Nullable Types
 

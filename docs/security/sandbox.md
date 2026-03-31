@@ -5,7 +5,7 @@ sidebar:
   order: 2
 ---
 
-Alder evaluates user-supplied C# expressions safely in production environments — multi-tenant SaaS, rule engines processing untrusted formulas, configuration-driven business logic, interactive REPLs. The security model provides three layers of control: operation permissions, type and namespace blocking, and execution limits.
+Alder evaluates user-supplied C# code safely in production environments — multi-tenant SaaS, rule engines processing untrusted formulas, configuration-driven business logic, interactive REPLs. The security model provides three layers of control: operation permissions, type and namespace blocking, and execution limits.
 
 **Operation permissions and type blocking** are enforced as a bound tree pipeline pass before execution begins. The entire expression tree is validated against the configured policy — every member access, method call, constructor invocation, and assignment is checked. If any node violates the policy, evaluation never starts.
 
@@ -33,7 +33,7 @@ var trusted = new AlderEngine();  // default
 // Safe — allows property access (instance and static), assignment; blocks method calls and construction
 var safe = new AlderEngine(o => o.Sandbox = SandboxOptions.Safe());
 
-// Strict — instance property reads only, everything else blocked
+// Strict — property reads (instance and static) and static field reads only, everything else blocked
 var strict = new AlderEngine(o => o.Sandbox = SandboxOptions.Strict());
 ```
 
@@ -146,11 +146,17 @@ var engine = new AlderEngine(o =>
 
 <!-- test: Security_TrustedTypes -->
 
-Trusted types are checked before denied types — a type in `TrustedTypes` passes even if its namespace is in `DeniedNamespaces`.
+Trusted types are checked before denied types — a type in `TrustedTypes` passes even if its namespace is in `DeniedNamespaces`. The only exception: hard-denied types (`AlderEngine`, `AlderOptions`, `AlderExpression`) cannot be overridden by `TrustedTypes`.
+
+### Namespace matching
+
+Namespace blocking uses ordinal string comparison with a **prefix-with-dot** algorithm: blocking `"System.Net"` blocks both `System.Net` (exact match) and `System.Net.Http` (prefix `"System.Net."` matches). It does not block `System.NetCore` — the dot separator prevents false positives on similar prefixes. The same algorithm applies to `TrustedNamespaces`.
 
 ### Reflection blocking
 
-Even in `Trusted()` mode, Alder blocks reflection access on `Type` objects. Calling `.GetMethods()`, `.GetProperties()`, `.GetType()` on a `typeof()` result throws `ALDR0108`. This prevents expressions from discovering and invoking methods outside the sandbox.
+Even in `Trusted()` mode, Alder blocks reflection access on `Type` objects. The `GuardReflectionLeak` check runs at every member access return site and blocks values whose runtime type is assignable to `Type`, `MemberInfo`, `Assembly`, `Module`, or `MethodBody`, as well as `RuntimeTypeHandle`, `RuntimeMethodHandle`, `RuntimeFieldHandle`, pointers, `IntPtr`, `UIntPtr`, and anything in `System.Reflection.Emit`. The check is recursive — `List<MethodInfo>` and `Type[]` are also blocked.
+
+For non-sealed reference types (e.g., `object`, interfaces), the guard runs at runtime because the actual value could be a forbidden subtype. Value types and `string` are exempt — they cannot carry reflection metadata.
 
 ```csharp
 // This is blocked even in Trusted mode:
@@ -216,10 +222,13 @@ The security check is not scattered across the engine or compiler — it's a sin
 
 1. **Complete coverage**: Every bound node type is checked in one place. Adding a new node kind requires adding its security check to one method.
 2. **Fail-fast**: If the expression contains a blocked operation, you get the error immediately — not after partial execution.
-3. **Trusted-mode fast path**: When `SecurityPolicy.IsTrusted` is `true` (all permissions enabled, no type blocking), the entire pass is skipped — zero overhead.
+3. **Always walks the tree**: The `SecurityValidationPass` always walks the bound tree regardless of sandbox configuration — there is no fast-path skip. This ensures consistent behavior and prevents bypasses.
+4. **Stack-based traversal**: The pass uses an explicit stack rather than recursion, preventing stack overflow on deeply nested expressions.
 
 ```csharp
 // The pass is the first in both pipelines:
 // Interpretation: SecurityValidationPass → ConstantFolding → DeadBranchElimination
 // Compilation:    SecurityValidationPass → ConstantFolding → DeadBranchElimination → ConversionInsertion
 ```
+
+Additionally, runtime type checks in `MemberAccess.GetMember` call `IsTypeAllowed` when resolving namespace-qualified type references (e.g., `System.IO.File`), providing a second enforcement layer for types discovered at evaluation time. Module members always bypass sandbox checks (they are host-registered and trusted), though they are still guarded against reflection leaks.

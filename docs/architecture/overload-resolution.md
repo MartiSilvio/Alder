@@ -77,6 +77,10 @@ If one candidate is better for at least one argument and not worse for any argum
 
 If all tie-breaking rules produce `Neither`, the overload is ambiguous (`CS0121`).
 
+## Constructor Resolution
+
+Constructor overload resolution uses `OverloadResolver.TryResolveConstructor`. This gathers the type's public constructors as candidates and runs the same applicability, most-derived filtering, and best-function-member pipeline described above. The resolved constructor is invoked directly — Alder does not use `Activator.CreateInstance` for constructor dispatch.
+
 ## Argument Descriptors
 
 Each argument is described by an `ArgumentDescriptor`:
@@ -142,5 +146,5 @@ This is what makes `items.Select(x => x.Name)` resolve correctly when `Select` h
 
 Resolved overloads are cached in two locations:
 
-- **`ResolutionCache`**: Caches `ResolvedCall` results keyed by `(Type declaringType, string methodName, Type[] argTypes)`. Used by the interpreter's `MethodInvoker` for repeated calls with the same argument shapes.
-- **`ExtensionMethodResolver.ResolvedCallCache`**: LRU cache (4096 entries) for extension method resolution results, keyed by `(Type extensionType, Type targetType, string methodName, argumentShapes)`.
+- **`ResolutionCache`**: Caches `ResolvedCall` results keyed by `(Type declaringType, string methodName, ArgumentDescriptor[])`. Used by the interpreter's `MethodInvoker` for repeated calls with the same argument shapes. The cache is bypassed when explicit generic type arguments are provided (different closures of the same generic method need separate resolution).
+- **`ExtensionMethodResolver`**: Three-layer cache — (1) methods by name per extension type, (2) arity-filtered methods, (3) fully resolved calls in an LRU cache (4096 entries, FIFO eviction) keyed by `InvocationCacheKey` which captures the extension type, target type, method name, case sensitivity, type argument signature, and per-argument shape (null vs runtime type). Cache entries for "not found" are stored as `null` values to prevent repeated fruitless lookups. Entries with lambda, named, or out arguments bypass the cache entirely (their shapes are too complex to key reliably).

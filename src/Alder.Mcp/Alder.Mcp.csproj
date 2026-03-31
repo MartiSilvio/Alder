@@ -10,7 +10,7 @@
     <PackageId>Alder.Mcp</PackageId>
     <Version>0.1.0-preview.1</Version>
     <Authors>Silvio Martignetti</Authors>
-    <Description>MCP server that exposes Alder's C# expression evaluation to AI agents and LLM workflows.</Description>
+    <Description>MCP server that exposes Alder's C# runtime evaluation to AI agents and LLM workflows.</Description>
     <IsPackable>true</IsPackable>
   </PropertyGroup>
 

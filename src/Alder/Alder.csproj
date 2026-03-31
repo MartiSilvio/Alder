@@ -9,7 +9,7 @@
     <PackageId>Alder</PackageId>
     <Version>0.1.0-preview.1</Version>
     <Authors>Silvio Martignetti</Authors>
-    <Description>A fully featured, zero-dependency C# expression engine built to the ECMA-334 spec.</Description>
+    <Description>A fully featured, zero-dependency C# runtime evaluator with AOT-first dispatch, built to the ECMA-334 spec.</Description>
     <IsPackable>true</IsPackable>
     <IsAotCompatible>true</IsAotCompatible>
   </PropertyGroup>

@@ -1,11 +1,11 @@
 ---
 title: "Getting Started"
-description: "Install Alder, evaluate your first expression, and explore the API"
+description: "Install Alder, evaluate your first C# code, and explore the API"
 sidebar:
   order: 1
 ---
 
-Alder evaluates C# expressions at runtime. Pass a string, get a result — with full LINQ, lambdas, pattern matching, generic type inference, and overload resolution. Expressions run through a real compilation pipeline (lexer, parser, semantic binder, optimization passes) and execute through either a tree-walking interpreter or an IL compiler that produces native delegates. Security, AOT, and NativeAOT/Unity IL2CPP are built in.
+Alder is a C# runtime evaluator with AOT-first dispatch. Pass a string, get a result — with full LINQ, lambdas, pattern matching, generic type inference, and overload resolution. Expressions and statements run through a real compilation pipeline (lexer, parser, semantic binder, optimization passes) and execute through either a tree-walking interpreter or an IL compiler that produces native delegates. Security sandboxing, source-generated typed dispatch, and NativeAOT/Unity IL2CPP compatibility are built in.
 
 ```bash
 dotnet add package Alder
@@ -120,7 +120,7 @@ var engine = new AlderEngine(o =>
 
 <!-- test: GettingStarted_SecurityAndLimits -->
 
-`SandboxOptions.Safe()` blocks method calls and object construction while allowing property reads (instance and static) and assignment. Three presets are available: `Trusted()` (no restrictions), `Safe()`, and `Strict()` (read-only). Type and namespace blocking provides finer control. See [Security](security/index.md).
+`SandboxOptions.Safe()` blocks method calls and object construction while allowing property reads (instance and static), static field reads, assignment, property writes, and index writes. `Strict()` allows only property reads (instance and static) and static field reads — everything else is blocked. `Trusted()` has no restrictions. Type and namespace blocking provides finer control. See [Security](security/index.md).
 
 ## Further reading
 
@@ -129,6 +129,6 @@ var engine = new AlderEngine(o =>
 | [Engine API](engine/index.md) | AlderEngine, AlderOptions, variables, compilation, functions, modules, diagnostics |
 | [LINQ Dynamic](engine/linq-dynamic.md) | String-based LINQ on any IEnumerable\<T\> or IQueryable\<T\> — runtime filtering, projection, aggregation |
 | [Language Reference](language/index.md) | Every C# construct Alder supports — Standard and Extended modes |
-| [Security](security/index.md) | Sandbox presets, type blocking, execution limits — evaluating untrusted expressions safely |
+| [Security](security/index.md) | Sandbox presets, type blocking, execution limits — evaluating untrusted code safely |
 | [Architecture](architecture/index.md) | Compiler pipeline internals — binder, overload resolution, type inference, interpreter, IL compiler |
 | [AOT](aot/index.md) | Source generators, two-tier dispatch, NativeAOT, Unity/IL2CPP |

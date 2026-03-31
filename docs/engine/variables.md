@@ -43,7 +43,9 @@ engine
 
 <!-- test: Variables_FluentChaining -->
 
-Variables persist across evaluations. Updating a variable's value is visible to the next `Evaluate` call on any thread — the engine uses `ConcurrentDictionary` at the engine-level context for thread safety.
+Variables persist across evaluations. Updating a variable's value is visible to the next `Evaluate` call on any thread.
+
+The engine uses a two-phase variable lifecycle: variables set before the first evaluation are stored as `PendingVariable` structs (value + inferred type) in a `Dictionary` protected by a lock (`_contextInitLock`). On the first evaluation, `GetOrCreateContext()` bulk-defines all pending variables into the `AlderContext`, then clears the pending dictionary. Variables set after context initialization bypass the pending state entirely — they're defined directly into the `AlderContext` using a double-check lock pattern (check outside lock, re-check inside lock) to avoid contention in the hot path. The `AlderContext` itself uses `ConcurrentDictionary` for thread-safe reads during evaluation.
 
 ### Anonymous object — inline, scoped
 
@@ -156,7 +158,7 @@ var vars = expr.GetVariables(); // ["orders", "minAmount"]
 
 `GetVariables()` walks the AST via `VariableCollector` and returns the distinct names of unbound identifiers — names that the expression expects the engine to provide. LINQ range variables (`o` in the example) are excluded because they're bound by the lambda.
 
-This is useful for building UIs that prompt for missing inputs, or for validating that a user-supplied expression only references permitted names.
+This is useful for building UIs that prompt for missing inputs, or for validating that user-supplied code only references permitted names.
 
 ## Case Sensitivity
 

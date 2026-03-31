@@ -1,12 +1,12 @@
 # Alder — Full Documentation
 
-> Alder is a C# expression engine for .NET. It evaluates C# expressions at runtime with full ECMA-334 semantics — LINQ with generic type inference, pattern matching, overload resolution, two execution backends (interpreter and IL compiler), security sandboxing, and AOT source generators for NativeAOT and Unity IL2CPP. One NuGet package, zero dependencies.
+> Alder is a C# runtime evaluator for .NET with AOT-first dispatch. It evaluates C# expressions and statements at runtime with full ECMA-334 semantics — LINQ with generic type inference, pattern matching, overload resolution, two execution backends (interpreter and IL compiler), security sandboxing, and AOT source generators for NativeAOT and Unity IL2CPP. One NuGet package, zero dependencies.
 
 
 # Getting Started
 
 
-Alder evaluates C# expressions at runtime. Pass a string, get a result — with full LINQ, lambdas, pattern matching, generic type inference, and overload resolution. Expressions run through a real compilation pipeline (lexer, parser, semantic binder, optimization passes) and execute through either a tree-walking interpreter or an IL compiler that produces native delegates. Security, AOT, and NativeAOT/Unity IL2CPP are built in.
+Alder evaluates C# code at runtime. Pass a string, get a result — with full LINQ, lambdas, pattern matching, control flow, exception handling, generic type inference, and overload resolution. Code runs through a real compilation pipeline (lexer, parser, semantic binder, optimization passes) and executes through either a tree-walking interpreter or an IL compiler that produces native delegates. Security, AOT, and NativeAOT/Unity IL2CPP are built in.
 
 ```bash
 dotnet add package Alder
@@ -123,7 +123,7 @@ var engine = new AlderEngine(o =>
 | [Engine API](engine/index.md) | AlderEngine, AlderOptions, variables, compilation, functions, modules, diagnostics |
 | [LINQ Dynamic](engine/linq-dynamic.md) | String-based LINQ on any IEnumerable\<T\> or IQueryable\<T\> — runtime filtering, projection, aggregation |
 | [Language Reference](language/index.md) | Every C# construct Alder supports — Standard and Extended modes |
-| [Security](security/index.md) | Sandbox presets, type blocking, execution limits — evaluating untrusted expressions safely |
+| [Security](security/index.md) | Sandbox presets, type blocking, execution limits — evaluating untrusted code safely |
 | [Architecture](architecture/index.md) | Compiler pipeline internals — binder, overload resolution, type inference, interpreter, IL compiler |
 | [AOT](aot/index.md) | Source generators, two-tier dispatch, NativeAOT, Unity/IL2CPP |
 
@@ -1154,7 +1154,7 @@ return i;    // 3
 # AlderEngine
 
 
-`AlderEngine` is the entry point for expression evaluation. It owns the parser, binder, interpreter, and optional compiler — configured once at construction time and immutable after that. All evaluation methods are thread-safe.
+`AlderEngine` is the entry point for evaluating C# code at runtime. It owns the parser, binder, interpreter, and optional compiler — configured once at construction time and immutable after that. All evaluation methods are thread-safe.
 
 ```csharp
 var engine = new AlderEngine(o =>
@@ -1224,7 +1224,7 @@ if (!engine.TryEvaluate("invalid(", out _))
     Console.WriteLine("Failed"); // no exception thrown
 ```
 
-`TryEvaluate` catches all exceptions — parse, binding, runtime, and conversion failures. Returns `false` with `result = default`. Useful for evaluating user-supplied input where most expressions may be invalid.
+`TryEvaluate` catches all exceptions — parse, binding, runtime, and conversion failures. Returns `false` with `result = default`. Useful for evaluating user-supplied input where most inputs may be invalid.
 
 ## Parsing
 
@@ -1314,6 +1314,7 @@ Tracing is always interpreted — it does not use the compiled path even when `U
 | `SetVariable(string, object?)` | `AlderEngine` | Untyped persistent variable (fluent) |
 | `SetVariables(IDictionary<string, object?>)` | `AlderEngine` | Bulk load from dictionary |
 | `CreateChild()` | `AlderEngine` | Isolated child with inherited config and variables |
+| `GetRegisteredModules()` | `IReadOnlyDictionary<string, RegisteredModule>` | Snapshot of all registered modules with metadata |
 
 See [Variables](variables.md) for the full variable system documentation.
 
@@ -1707,7 +1708,7 @@ var vars = expr.GetVariables(); // ["orders", "minAmount"]
 
 `GetVariables()` walks the AST via `VariableCollector` and returns the distinct names of unbound identifiers — names that the expression expects the engine to provide. LINQ range variables (`o` in the example) are excluded because they're bound by the lambda.
 
-This is useful for building UIs that prompt for missing inputs, or for validating that a user-supplied expression only references permitted names.
+This is useful for building UIs that prompt for missing inputs, or for validating that user-supplied code only references permitted names.
 
 ## Case Sensitivity
 
@@ -2505,7 +2506,7 @@ These use the same codes as the C# compiler. Developers familiar with C# diagnos
 # Security Model
 
 
-Alder evaluates user-supplied C# expressions safely in production environments — multi-tenant SaaS, rule engines processing untrusted formulas, configuration-driven business logic, interactive REPLs. The security model provides three layers of control: operation permissions, type and namespace blocking, and execution limits.
+Alder evaluates user-supplied C# code safely in production environments — multi-tenant SaaS, rule engines processing untrusted formulas, configuration-driven business logic, interactive REPLs. The security model provides three layers of control: operation permissions, type and namespace blocking, and execution limits.
 
 **Operation permissions and type blocking** are enforced as a bound tree pipeline pass before execution begins. The entire expression tree is validated against the configured policy — every member access, method call, constructor invocation, and assignment is checked. If any node violates the policy, evaluation never starts.
 
@@ -2643,7 +2644,7 @@ var engine = new AlderEngine(o =>
 ```
 
 
-Trusted types are checked before denied types — a type in `TrustedTypes` passes even if its namespace is in `DeniedNamespaces`.
+Trusted types are checked before denied types — a type in `TrustedTypes` passes even if its namespace is in `DeniedNamespaces`. The only exception: hard-denied types (`AlderEngine`, `AlderOptions`, `AlderExpression`) cannot be overridden by `TrustedTypes`. Namespace matching uses ordinal comparison with a prefix-with-dot algorithm: blocking `"System.Net"` blocks both `System.Net` (exact) and `System.Net.Http` (prefix `"System.Net."` matches), but not `System.NetCore`.
 
 ### Reflection blocking
 
@@ -2711,7 +2712,7 @@ The security check is not scattered across the engine or compiler — it's a sin
 
 1. **Complete coverage**: Every bound node type is checked in one place. Adding a new node kind requires adding its security check to one method.
 2. **Fail-fast**: If the expression contains a blocked operation, you get the error immediately — not after partial execution.
-3. **Trusted-mode fast path**: When `SecurityPolicy.IsTrusted` is `true` (all permissions enabled, no type blocking), the entire pass is skipped — zero overhead.
+3. **Consistent validation**: Security validation always runs regardless of policy — every bound node is checked against the configured permissions.
 
 ```csharp
 // The pass is the first in both pipelines:
@@ -2731,9 +2732,9 @@ The source generator runs at compile time and emits typed property access, metho
 ```mermaid
 graph TD
     A["Member access or<br/>method call"] --> B{"AOT metadata<br/>registered for type?"}
-    B -->|"Yes"| C["IAotTypeMetadata dispatch<br/>(no reflection)"]
+    B -->|"Yes"| C["ITypedDispatch dispatch<br/>(no reflection)"]
     B -->|"No"| D["Reflection fallback<br/>(PropertyInfo, MethodInfo)"]
-    C -->|"TryGetProperty/TryInvokeMethod<br/>returns true"| E["Result"]
+    C -->|"TryGet/TryInvoke<br/>returns true"| E["Result"]
     C -->|"returns false"| D
     D --> E
 ```
@@ -2750,7 +2751,7 @@ On NativeAOT, `UseCompiler()` throws `PlatformNotSupportedException` because `Ex
 
 ## Source Generator
 
-Alder ships an incremental source generator that produces `IAotTypeMetadata` implementations for registered types. To use it:
+Alder ships an incremental source generator that produces `ITypedDispatch` implementations for registered types. To use it:
 
 ### 1. Define a type context
 
@@ -2776,41 +2777,35 @@ var engine = new AlderEngine(o =>
 
 ### 3. The generator emits
 
-For each `[AlderRegistered]` type, the generator produces a `file sealed class` implementing `IAotTypeMetadata` with:
+For each `[AlderRegistered]` type, the generator produces a `file sealed class` implementing `ITypedDispatch` with:
 
 | Method | Generated code |
 |--------|---------------|
-| `TryGetProperty(name, instance, out value)` | `switch` on property name → typed property access |
-| `TrySetProperty(name, instance, value)` | `switch` on property name → typed property setter |
-| `TryGetField(name, instance, out value)` | `switch` on field name → typed field access |
-| `TrySetField(name, instance, value)` | `switch` on field name → typed field setter |
+| `TryGet(name, instance, out value)` | `switch` on member name → typed property/field access |
+| `TrySet(name, instance, value)` | `switch` on member name → typed property/field setter |
+| `TryGetStatic(name, out value)` | Static property/field access |
 | `TryGetIndex(instance, key, out value)` | Typed indexer get |
 | `TrySetIndex(instance, key, value)` | Typed indexer set |
-| `TryGetStaticProperty(name, out value)` | Static property access |
-| `TryGetStaticField(name, out value)` | Static field access |
-| `TryCreateInstance(args, out instance)` | Constructor dispatch |
-| `TryInvokeMethod(name, instance, args, out result)` | Instance method dispatch with `is` type checks per overload |
-| `TryInvokeStaticMethod(name, args, out result)` | Static method dispatch |
+| `TryCreate(args, out instance)` | Constructor dispatch via OverloadResolver |
+| `TryInvoke(name, instance, args, out result)` | Instance method dispatch with `is` type checks per overload |
+| `TryInvokeStatic(name, args, out result)` | Static method dispatch |
 
 All dispatch uses `is` type checks for same-arity overloads — never blind casts that rely on exception fallback. If the AOT path can't handle an argument shape (named args, null values, special markers), it returns `false` and the reflection path takes over.
 
-## `IAotTypeMetadata` Interface
+## `ITypedDispatch` Interface
 
 ```csharp
-public interface IAotTypeMetadata
+public interface ITypedDispatch
 {
     Type Type { get; }
-    bool TryGetProperty(string name, object instance, out object? value);
-    bool TrySetProperty(string name, object instance, object? value);
-    bool TryGetField(string name, object instance, out object? value);
-    bool TrySetField(string name, object instance, object? value);
+    bool TryGet(string name, object instance, out object? value);
+    bool TrySet(string name, object instance, object? value);
+    bool TryGetStatic(string name, out object? value);
     bool TryGetIndex(object instance, object key, out object? value);
     bool TrySetIndex(object instance, object key, object? value);
-    bool TryGetStaticProperty(string name, out object? value);
-    bool TryGetStaticField(string name, out object? value);
-    bool TryCreateInstance(object?[] args, out object? instance);
-    bool TryInvokeMethod(string name, object instance, object?[] args, out object? result);
-    bool TryInvokeStaticMethod(string name, object?[] args, out object? result);
+    bool TryCreate(object?[] args, out object? instance);
+    bool TryInvoke(string name, object instance, object?[] args, out object? result);
+    bool TryInvokeStatic(string name, object?[] args, out object? result);
 }
 ```
 
@@ -3030,10 +3025,10 @@ The bound tree cache is particularly important: the `AlderContext.GetTypeInferen
 
 When AOT metadata is available (via the source generator), the interpreter checks it before falling back to reflection:
 
-1. For member access: `IAotTypeMetadata.TryGetProperty` / `TryGetField` / `TryGetStaticProperty` / `TryGetStaticField`
-2. For method calls: `IAotTypeMetadata.TryInvokeMethod` / `TryInvokeStaticMethod`
-3. For construction: `IAotTypeMetadata.TryCreateInstance`
-4. For index access: `IAotTypeMetadata.TryGetIndex` / `TrySetIndex`
+1. For member access: `ITypedDispatch.TryGet` / `TryGetStatic`
+2. For method calls: `ITypedDispatch.TryInvoke` / `TryInvokeStatic`
+3. For construction: `ITypedDispatch.TryCreate`
+4. For index access: `ITypedDispatch.TryGetIndex` / `TrySetIndex`
 
 The AOT metadata lookup walks the type hierarchy via `AlderConfig.TryGetAotMetadata(type)` — if metadata exists for a base type, it's used. This is the two-tier model: AOT dispatch when available, reflection fallback when not.
 
@@ -3673,7 +3668,7 @@ When the binder produced a `BoundPropertyAccessExpr` or `BoundFieldAccessExpr`, 
 ### Dynamic member access
 
 When the binder produced `BoundDynamicMemberAccessExpr`, the interpreter uses `MemberAccess.ResolveMember` which:
-1. Checks AOT metadata (`IAotTypeMetadata.TryGetProperty/TryGetField`)
+1. Checks AOT metadata (`ITypedDispatch.TryGet`)
 2. Checks `TypeMetadataProvider` cache for property/field
 3. For `ExpandoObject`, reads from the `IDictionary<string, object?>` interface
 4. Extended mode: checks `DateArithmeticSugar.TryResolveTimeSpanUnit` for numeric.days/hours/etc.
@@ -3703,7 +3698,7 @@ Before any reflection-based member access or method invocation, the interpreter 
 
 ```
 if config.TryGetAotMetadata(type, out var metadata)
-    if metadata.TryGetProperty(name, instance, out var value)
+    if metadata.TryGet(name, instance, out var value)
         return value;
 // fallback to reflection
 ```
@@ -3851,9 +3846,7 @@ The tracing pipeline runs security validation only — constant folding and dead
 
 The first pass in every pipeline. Walks the entire bound tree iteratively (using a stack, not recursion) and checks every node against the configured `SecurityPolicy`.
 
-**Fast path**: When `SecurityPolicy.IsTrusted` is `true` (all permissions enabled, no type blocking), the entire pass is skipped — the tree is returned unchanged with zero overhead.
-
-**Validation**: For non-trusted policies, each node is checked:
+Validation always runs — every bound node is checked against the configured `SecurityPolicy`:
 
 | Node type | Check |
 |-----------|-------|

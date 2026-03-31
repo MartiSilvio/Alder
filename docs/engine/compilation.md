@@ -42,6 +42,8 @@ There is no manual compilation step for standard use. The compiled delegate is c
 
 If compilation fails for a particular expression (not all bound node kinds are emittable — see [Compilation Boundaries](#compilation-boundaries)), `Evaluate` throws `AlderException` with code `ALDR0001`. There is no silent fallback to interpretation. When you opt into compiled mode, you get compiled execution or an explicit error.
 
+Compilation locks on the `AlderExpression` object itself (not the engine), so multiple threads compiling different expressions proceed in parallel. The compiled delegate is stored in a `volatile` field on the `AlderExpression` with double-checked locking — once compiled, all subsequent evaluations across all threads execute the cached delegate immediately. Exceptions thrown from compiled code are enriched with source position information: if the exception's span is empty but the AST node has a span, the engine maps the span offset to a line and column using `SourceText`.
+
 ## Pre-compilation
 
 For latency-sensitive applications where you want compilation to happen at startup rather than on the first request:
