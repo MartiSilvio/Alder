@@ -1,6 +1,6 @@
 # Alder — Full Documentation
 
-> Alder is a C# runtime evaluator for .NET with AOT-first dispatch. It evaluates C# expressions and statements at runtime with full ECMA-334 semantics — LINQ with generic type inference, pattern matching, overload resolution, two execution backends (interpreter and IL compiler), security sandboxing, and AOT source generators for NativeAOT and Unity IL2CPP. One NuGet package, zero dependencies.
+> Alder is a C# runtime engine for .NET with AOT-first dispatch. It evaluates C# expressions and statements at runtime with full ECMA-334 semantics — LINQ with generic type inference, pattern matching, overload resolution, two execution backends (interpreter and IL compiler), security sandboxing, and AOT source generators for NativeAOT and Unity IL2CPP. One NuGet package, zero dependencies.
 
 
 # Getting Started

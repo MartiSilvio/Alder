@@ -87,7 +87,7 @@ internal static class ExtensionMethodResolver
         }
     }
 
-    private static string NormalizeMethodName(string methodName, bool isCaseSensitive) =>
+    internal static string NormalizeMethodName(string methodName, bool isCaseSensitive) =>
         isCaseSensitive ? methodName : methodName.ToUpperInvariant();
 
     private static object?[] BuildInvocationArgs(object target, object?[] args)
@@ -199,7 +199,7 @@ internal static class ExtensionMethodResolver
             });
     }
 
-    private static MethodInfo[] GetExtensionMethodsForArity(
+    internal static MethodInfo[] GetExtensionMethodsForArity(
         Type extensionType,
         string methodNameKey,
         bool isCaseSensitive,

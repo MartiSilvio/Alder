@@ -5,7 +5,7 @@ sidebar:
   order: 1
 ---
 
-Alder is a C# runtime evaluator with AOT-first dispatch. Pass a string, get a result — with full LINQ, lambdas, pattern matching, generic type inference, and overload resolution. Expressions and statements run through a real compilation pipeline (lexer, parser, semantic binder, optimization passes) and execute through either a tree-walking interpreter or an IL compiler that produces native delegates. Security sandboxing, source-generated typed dispatch, and NativeAOT/Unity IL2CPP compatibility are built in.
+Alder is a C# runtime engine with AOT-first dispatch. Pass a string, get a result — with full LINQ, lambdas, pattern matching, generic type inference, and overload resolution. Expressions and statements run through a real compilation pipeline (lexer, parser, semantic binder, optimization passes) and execute through either a tree-walking interpreter or an IL compiler that produces native delegates. Security sandboxing, source-generated typed dispatch, and NativeAOT/Unity IL2CPP compatibility are built in.
 
 ```bash
 dotnet add package Alder

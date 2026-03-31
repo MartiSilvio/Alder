@@ -9,7 +9,8 @@ internal sealed record BoundResolvedCallExpr(
     ResolvedCall Resolution,
     bool IsStaticCall,
     bool IsModuleCall,
-    BoundType StaticType) : BoundExpr(StaticType)
+    BoundType StaticType,
+    bool IsExtensionCall = false) : BoundExpr(StaticType)
 {
     internal MethodInfo SelectedMethod => Resolution.Method;
     internal override BoundNodeKind Kind => BoundNodeKind.ResolvedCall;

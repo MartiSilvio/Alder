@@ -1,6 +1,6 @@
 # Alder
 
-C# runtime evaluator for .NET with AOT-first dispatch. ECMA-334 semantics, full compiler pipeline, two execution backends (interpreter + IL compiler), security sandbox, AOT source generators for NativeAOT and IL2CPP.
+C# runtime engine for .NET with AOT-first dispatch. ECMA-334 semantics, full compiler pipeline, two execution backends (interpreter + IL compiler), security sandbox, AOT source generators for NativeAOT and IL2CPP.
 
 ## Tech Stack
 

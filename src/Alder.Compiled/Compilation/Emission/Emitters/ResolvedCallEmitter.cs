@@ -68,7 +68,8 @@ internal sealed class ResolvedCallEmitter : INodeEmitter<BoundResolvedCallExpr>
         var method = call.SelectedMethod;
         var parameters = MethodDispatchCache.GetParameters(method);
         var guardCheck = LinqExpression.Empty();
-        var args = EmitPlannedCallArguments(call, parameters, ctx);
+        var extensionReceiver = call.IsExtensionCall && emittedTarget != null ? emittedTarget : null;
+        var args = EmitPlannedCallArguments(call, parameters, ctx, extensionReceiver);
 
         if (call.IsStaticCall)
         {
@@ -152,7 +153,9 @@ internal sealed class ResolvedCallEmitter : INodeEmitter<BoundResolvedCallExpr>
     private static bool IsNonNullableValueType(Type type) =>
         type.IsValueType && Nullable.GetUnderlyingType(type) == null;
 
-    private static LinqExpression[] EmitPlannedCallArguments(BoundResolvedCallExpr call, ParameterInfo[] parameters, EmissionContext ctx)
+    private static LinqExpression[] EmitPlannedCallArguments(
+        BoundResolvedCallExpr call, ParameterInfo[] parameters, EmissionContext ctx,
+        LinqExpression? extensionReceiver = null)
     {
         var emitted = new LinqExpression[parameters.Length];
         var resolved = call.Resolution;
@@ -168,6 +171,15 @@ internal sealed class ResolvedCallEmitter : INodeEmitter<BoundResolvedCallExpr>
                 {
                     var argIdx = source.ArgumentIndex;
                     var conversion = conversions[argIdx];
+                    if (call.IsExtensionCall && argIdx == 0)
+                    {
+                        var receiverExpr = extensionReceiver != null
+                            ? EmitHelpers.AsObject(extensionReceiver)
+                            : EmitHelpers.AsObject(ctx.Emit(call.Arguments[argIdx]));
+                        var coerced = LinqExpression.Call(EnsureEnumerableMethod, receiverExpr);
+                        emitted[paramIdx] = EmitHelpers.EnsureTypedExpression(coerced, conversion.TargetType);
+                        break;
+                    }
                     emitted[paramIdx] = EmitCallArgument(call.Arguments[argIdx], conversion.TargetType, ctx);
                     break;
                 }
@@ -243,4 +255,5 @@ internal sealed class ResolvedCallEmitter : INodeEmitter<BoundResolvedCallExpr>
 
         return LinqExpression.Convert(emittedArgument, targetType);
     }
+
 }

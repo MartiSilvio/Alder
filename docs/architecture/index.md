@@ -5,7 +5,7 @@ sidebar:
   order: 1
 ---
 
-Alder is a C# runtime evaluator with AOT-first dispatch. It implements a full compiler pipeline — the same architecture that production C# compilers use. This is what enables LINQ with generic type inference, ECMA-334 overload resolution, pattern matching, precise diagnostics with source positions, and two interchangeable execution backends that produce identical results.
+Alder is a C# runtime engine with AOT-first dispatch. It implements a full compiler pipeline — the same architecture that production C# compilers use. This is what enables LINQ with generic type inference, ECMA-334 overload resolution, pattern matching, precise diagnostics with source positions, and two interchangeable execution backends that produce identical results.
 
 An expression string flows through five stages:
 

@@ -3,6 +3,7 @@ using Alder.Binding;
 using Alder.Binding.BoundNodes;
 using Alder.Diagnostics;
 using Alder.Runtime;
+using Alder.Runtime.Extensions;
 using Alder.Runtime.Semantics;
 using MethodInvoker = Alder.Runtime.MethodInvoker;
 
@@ -22,6 +23,37 @@ internal static class ResolvedCallEvaluator
 
     internal static object? EvaluateResolvedCallDirect(BoundResolvedCallExpr call, object? evaluatedTarget, EvaluationContext ctx)
     {
+        if (call.IsExtensionCall && call.Callee is BoundMethodGroupExpr extMethodGroup)
+        {
+            if (extMethodGroup.NullSafe)
+            {
+                var nullCheckTarget = evaluatedTarget ?? ctx.Evaluate(call.Arguments[0]);
+                if (nullCheckTarget == null) return null;
+            }
+
+            object?[] extensionArgs;
+            if (evaluatedTarget != null)
+            {
+                extensionArgs = new object?[call.Arguments.Length];
+                extensionArgs[0] = CoerceExtensionReceiver(evaluatedTarget);
+                for (var i = 1; i < call.Arguments.Length; i++)
+                    extensionArgs[i] = ctx.Evaluate(call.Arguments[i]);
+            }
+            else
+            {
+                extensionArgs = EvaluateArguments(call.Arguments, ctx);
+                if (extensionArgs.Length > 0 && extensionArgs[0] != null)
+                    extensionArgs[0] = CoerceExtensionReceiver(extensionArgs[0]!);
+            }
+
+            var resolved = call.Resolution;
+            var parameters = MethodDispatchCache.GetParameters(resolved.Method);
+            var prepared = ArgumentPreparer.Prepare(resolved, extensionArgs, parameters, ctx.CancellationToken);
+            var extensionResult = MethodInvoker.InvokeMethodCore(resolved.Method, null, prepared);
+            ExecutionRuntime.CheckCollectionSize(extensionResult, ctx.Config.Security);
+            return extensionResult;
+        }
+
         if (call.Callee is BoundMethodGroupExpr methodGroup)
         {
             var target = evaluatedTarget ?? (methodGroup.IsStatic ? null : ctx.Evaluate(methodGroup.Target));
@@ -141,4 +173,7 @@ internal static class ResolvedCallEvaluator
             return MemberAccess.GetMember(target, node.MemberName, ctx.Config, node.NullSafe, ctx.Context);
         return TypeHelpers.GuardReflectionLeak(node.Field.GetValue(target), "field", node.MemberName);
     }
+
+    private static object CoerceExtensionReceiver(object receiver) =>
+        receiver is Range or InclusiveRange ? RangeHelpers.EnsureEnumerable(receiver) : receiver;
 }

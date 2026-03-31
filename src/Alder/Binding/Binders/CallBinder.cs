@@ -26,10 +26,10 @@ internal static class CallBinder
             .ToImmutableArray();
         var typeArguments = call.TypeArguments?.ToImmutableArray() ?? ImmutableArray<string>.Empty;
 
-        if (callee is BoundMethodGroupExpr methodGroup &&
-            arguments.All(static argument =>
-                argument is not BoundNamedArgumentExpr &&
-                argument is not BoundOutArgExpr))
+        var hasSpecialArgs = arguments.Any(static argument =>
+            argument is BoundNamedArgumentExpr or BoundOutArgExpr);
+
+        if (callee is BoundMethodGroupExpr methodGroup && !hasSpecialArgs)
         {
             var hasLambdas = arguments.Any(static a => a is BoundLambdaExpr);
 
@@ -44,16 +44,136 @@ internal static class CallBinder
 
                 if (bound)
                     return new BoundResolvedCallExpr(callee, arguments, callPlan!.Resolution, callPlan.IsStaticCall, callPlan.IsModuleCall, new BoundType(callPlan.SelectedMethod.ReturnType));
+
+                if (!methodGroup.IsStatic && methodGroup.DeclaringType != typeof(object))
+                {
+                    var ext = TryBindExtensionCall(
+                        methodGroup.Target, methodGroup.DeclaringType, methodGroup.MethodName,
+                        methodGroup.NullSafe, arguments, argumentTypes, context);
+                    if (ext != null) return ext;
+                }
             }
             else
             {
                 var result = TryBindCallWithLambdas(callee, methodGroup, arguments, context, binder);
                 if (result != null)
                     return result;
+
+                if (!methodGroup.IsStatic && methodGroup.DeclaringType != typeof(object))
+                {
+                    var ext = TryBindExtensionCallWithLambdas(
+                        methodGroup.Target, methodGroup.DeclaringType, methodGroup.MethodName,
+                        methodGroup.NullSafe, arguments, context, binder);
+                    if (ext != null) return ext;
+                }
+            }
+        }
+
+        if (callee is BoundDynamicMemberAccessExpr dynAccess && !hasSpecialArgs &&
+            dynAccess.Target.StaticType is not BoundUnknownType)
+        {
+            var targetType = dynAccess.Target.StaticType.ClrType;
+            var hasLambdas = arguments.Any(static a => a is BoundLambdaExpr);
+
+            if (!hasLambdas)
+            {
+                var argumentTypes = arguments.Select(static a => a.StaticType.ClrType).ToArray();
+                var ext = TryBindExtensionCall(
+                    dynAccess.Target, targetType, dynAccess.MemberName,
+                    dynAccess.NullSafe, arguments, argumentTypes, context);
+                if (ext != null) return ext;
+            }
+            else
+            {
+                var ext = TryBindExtensionCallWithLambdas(
+                    dynAccess.Target, targetType, dynAccess.MemberName,
+                    dynAccess.NullSafe, arguments, context, binder);
+                if (ext != null) return ext;
             }
         }
 
         return new BoundDynamicCallExpr(callee, arguments, typeArguments, BoundType.Unknown);
+    }
+
+    private static BoundExpr? TryBindExtensionCall(
+        BoundExpr targetExpr,
+        Type targetType,
+        string methodName,
+        bool nullSafe,
+        ImmutableArray<BoundExpr> arguments,
+        Type[] argumentTypes,
+        BindingContext context)
+    {
+        var service = new CallBinderService(context.RuntimeContext);
+        if (!service.TryBindExtensionCall(targetType, methodName, argumentTypes, context.IsCaseSensitive, out var plan))
+            return null;
+
+        return BuildExtensionCallExpr(targetExpr, methodName, nullSafe, arguments, plan!, context);
+    }
+
+    private static BoundExpr? TryBindExtensionCallWithLambdas(
+        BoundExpr targetExpr,
+        Type targetType,
+        string methodName,
+        bool nullSafe,
+        ImmutableArray<BoundExpr> arguments,
+        BindingContext context,
+        BinderContext binder)
+    {
+        var userDescriptors = new ArgumentDescriptor[arguments.Length];
+        for (var i = 0; i < arguments.Length; i++)
+        {
+            userDescriptors[i] = arguments[i] is BoundLambdaExpr lambda
+                ? ArgumentDescriptor.ForLambda(lambda.Parameters.Length)
+                : ArgumentDescriptor.ForType(arguments[i].StaticType.ClrType);
+        }
+
+        var service = new CallBinderService(context.RuntimeContext);
+        if (!service.TryBindExtensionCallWithDescriptors(
+                targetType, methodName, userDescriptors, context.IsCaseSensitive, out var plan))
+            return null;
+
+        var extensionType = plan!.SelectedMethod.DeclaringType ?? targetType;
+        var callee = new BoundMethodGroupExpr(
+            targetExpr, extensionType, methodName, nullSafe, IsStatic: true, BoundType.Unknown);
+
+        var allArguments = ImmutableArray.CreateBuilder<BoundExpr>(arguments.Length + 1);
+        allArguments.Add(targetExpr);
+        allArguments.AddRange(arguments);
+        var fullArguments = allArguments.ToImmutable();
+
+        var typedArguments = TryBindLambdaArguments(fullArguments, plan.Resolution, context, binder);
+        if (typedArguments == null)
+            return null;
+
+        return new BoundResolvedCallExpr(
+            callee, typedArguments.Value, plan.Resolution,
+            plan.IsStaticCall, plan.IsModuleCall,
+            new BoundType(plan.SelectedMethod.ReturnType),
+            IsExtensionCall: true);
+    }
+
+    private static BoundResolvedCallExpr BuildExtensionCallExpr(
+        BoundExpr targetExpr,
+        string methodName,
+        bool nullSafe,
+        ImmutableArray<BoundExpr> userArguments,
+        CallBindResult plan,
+        BindingContext context)
+    {
+        var extensionType = plan.SelectedMethod.DeclaringType ?? typeof(object);
+        var callee = new BoundMethodGroupExpr(
+            targetExpr, extensionType, methodName, nullSafe, IsStatic: true, BoundType.Unknown);
+
+        var allArguments = ImmutableArray.CreateBuilder<BoundExpr>(userArguments.Length + 1);
+        allArguments.Add(targetExpr);
+        allArguments.AddRange(userArguments);
+
+        return new BoundResolvedCallExpr(
+            callee, allArguments.ToImmutable(), plan.Resolution,
+            plan.IsStaticCall, plan.IsModuleCall,
+            new BoundType(plan.SelectedMethod.ReturnType),
+            IsExtensionCall: true);
     }
 
     private static BoundExpr? TryBindCallWithLambdas(
