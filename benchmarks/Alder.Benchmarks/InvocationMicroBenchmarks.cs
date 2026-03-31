@@ -125,4 +125,6 @@ public sealed class InvocationTarget
     public int WithOptional(int value, int extra = 10) => value + extra;
 
     public string Normalize(string input) => input.Trim().ToUpperInvariant();
+
+    public int Transform(int value, Func<int, int> fn) => fn(value);
 }

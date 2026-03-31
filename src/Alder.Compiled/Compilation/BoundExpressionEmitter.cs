@@ -64,6 +64,7 @@ internal sealed partial class BoundExpressionEmitter
         _emissionCtx.Register(BoundNodeKind.ObjectLiteral, new ObjectLiteralEmitter());
         _emissionCtx.Register(BoundNodeKind.InterpolatedString, new InterpolatedStringEmitter());
         _emissionCtx.Register(BoundNodeKind.Lambda, new LambdaEmitter());
+        _emissionCtx.Register(BoundNodeKind.TypedLambda, new TypedLambdaEmitter());
         _emissionCtx.Register(BoundNodeKind.PipelineExpression, new PipelineEmitter());
         _emissionCtx.Register(BoundNodeKind.NamedArgument, new NamedArgumentEmitter());
         _emissionCtx.Register(BoundNodeKind.OutArgument, new OutArgEmitter());

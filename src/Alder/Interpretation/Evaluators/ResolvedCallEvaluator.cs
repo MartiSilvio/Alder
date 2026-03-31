@@ -130,7 +130,7 @@ internal static class ResolvedCallEvaluator
         if (TypeHelpers.IsValueTupleType(node.Property.DeclaringType ?? node.Property.ReflectedType!))
             return MemberAccess.GetMember(target, node.MemberName, ctx.Config, node.NullSafe, ctx.Context);
         return TypeHelpers.GuardReflectionLeak(
-            ctx.Context.TypeMetadata.GetPropertyValue(node.Property, target), $"property {node.MemberName}");
+            ctx.Context.TypeMetadata.GetPropertyValue(node.Property, target), "property", node.MemberName);
     }
 
     internal static object? ResolveFieldAccess(BoundFieldAccessExpr node, object? target, EvaluationContext ctx)
@@ -139,6 +139,6 @@ internal static class ResolvedCallEvaluator
             throw new AlderException(DiagnosticDescriptors.NullMemberAccess, "field", node.MemberName);
         if (TypeHelpers.IsValueTupleType(node.Field.DeclaringType ?? node.Field.ReflectedType!))
             return MemberAccess.GetMember(target, node.MemberName, ctx.Config, node.NullSafe, ctx.Context);
-        return TypeHelpers.GuardReflectionLeak(node.Field.GetValue(target), $"field {node.MemberName}");
+        return TypeHelpers.GuardReflectionLeak(node.Field.GetValue(target), "field", node.MemberName);
     }
 }

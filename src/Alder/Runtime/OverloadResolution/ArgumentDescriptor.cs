@@ -41,6 +41,12 @@ internal readonly struct ArgumentDescriptor
         return result;
     }
 
+    internal static ArgumentDescriptor ForType(Type type) =>
+        new(type, null, ArgumentKind.Value, -1, null);
+
+    internal static ArgumentDescriptor ForLambda(int arity) =>
+        new(null, null, ArgumentKind.Lambda, arity, null);
+
     internal static ArgumentDescriptor ForTest(ArgumentKind kind, Type? staticType, string? name, int lambdaArity) =>
         new(staticType, name, kind, lambdaArity, null);
 

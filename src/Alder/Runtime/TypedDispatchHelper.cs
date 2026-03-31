@@ -38,7 +38,7 @@ internal static class TypedDispatchHelper
         if (config.TryGetDispatch(type, out var dispatch) &&
             dispatch.TryGet(name, instance, out value))
         {
-            value = TypeHelpers.GuardReflectionLeak(value, $"member {name}");
+            value = TypeHelpers.GuardReflectionLeak(value, "member", name);
             return true;
         }
         value = null;
@@ -52,7 +52,7 @@ internal static class TypedDispatchHelper
         if (config.TryGetDispatch(type, out var dispatch) &&
             dispatch.TryGetStatic(name, out value))
         {
-            value = TypeHelpers.GuardReflectionLeak(value, $"static member {name}");
+            value = TypeHelpers.GuardReflectionLeak(value, "static member", name);
             return true;
         }
         value = null;

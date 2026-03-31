@@ -1075,10 +1075,17 @@ internal static class TypeHelpers
             targetType.Name);
     }
 
+    private static readonly ConcurrentDictionary<Type, bool> ForbiddenTypeCache = new();
+
     internal static bool IsForbiddenReflectionType(Type? type)
     {
         if (type == null) return false;
 
+        return ForbiddenTypeCache.GetOrAdd(type, static t => IsForbiddenReflectionTypeCore(t));
+    }
+
+    private static bool IsForbiddenReflectionTypeCore(Type type)
+    {
         if (typeof(Type).IsAssignableFrom(type))
             return true;
 
@@ -1119,20 +1126,34 @@ internal static class TypeHelpers
         return false;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static object? GuardReflectionLeak(object? value, string context)
     {
         if (value == null) return null;
-
-        var type = value.GetType();
-        if (IsForbiddenReflectionType(type))
-            throw new AlderException(DiagnosticDescriptors.ReflectionTypeAccessBlocked, type.Name, context);
-
+        if (IsForbiddenReflectionType(value.GetType()))
+            ThrowReflectionLeak(value.GetType(), context);
         return value;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static object? GuardReflectionLeak(object? value, string memberKind, string memberName)
+    {
+        if (value == null) return null;
+        if (IsForbiddenReflectionType(value.GetType()))
+            ThrowReflectionLeak(value.GetType(), memberKind, memberName);
+        return value;
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static void ThrowReflectionLeak(Type type, string context) =>
+        throw new AlderException(DiagnosticDescriptors.ReflectionTypeAccessBlocked, type.Name, context);
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static void ThrowReflectionLeak(Type type, string memberKind, string memberName) =>
+        throw new AlderException(DiagnosticDescriptors.ReflectionTypeAccessBlocked, type.Name, $"{memberKind} {memberName}");
+
     public static T GuardReflectionLeakTyped<T>(T value, string context)
     {
-        // Reflection types are reference types; value types are always safe here.
         if (!typeof(T).IsValueType && value is not null)
         {
             var type = value.GetType();

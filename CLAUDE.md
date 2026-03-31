@@ -16,7 +16,7 @@ Alder targets Roslyn-grade engineering. Every subsystem should be designed as if
 
 - One commit per phase (not per plan or task) — accumulate all changes, commit once at the very end
 - Do NOT include plan numbers, phase numbers, or GSD references in commit messages
-- Keep commit messages lean — short subject line, brief body. No essays, no bullet-point inventories of every file touched
+- Keep commit messages lean — short subject line (under 72 chars), optional 1-3 line body with the "why". No essays, no bullet lists, no inventories of what changed. The diff shows what; the message explains why.
 
 ## Architectural Principles
 
@@ -35,6 +35,9 @@ Alder targets Roslyn-grade engineering. Every subsystem should be designed as if
 - No magic strings for operator symbols. Use `TokenLexemes.GetCanonical(TokenType.X)` instead of hardcoding `"+"`, `"<="`, etc. Operator representations have a single source of truth in the lexer.
 - Do NOT create helper methods, wrappers, or static utilities to work around design constraints. If the design doesn't support what you need, fix the design. No hacks, no patches, no workarounds — always the proper solution.
 - No reflection hacks for runtime type construction. Don't use `Activator.CreateInstance`, `GetMethod` by string, or `MethodInfo.Invoke` to build typed collections or call known APIs. Instead, write a generic method (`CreateCore<T>`) with direct constructor calls and close it once via `MakeGenericMethod`. The only acceptable reflection is the single `MakeGenericMethod` call to bridge from `Type` to a generic type parameter — everything inside the generic method must be direct .NET API calls.
+- **No `System.Linq.Expressions` in the interpreted path.** `Expression.Lambda<T>.Compile()` fails under AOT. The interpreted evaluator and its supporting runtime must never use `System.Linq.Expressions` to generate code at runtime. Use the `MakeGenericMethod` + typed delegate pattern instead. `System.Linq.Expressions` is only acceptable inside `Alder.Compiled` (the IL compilation layer), which is explicitly opt-in and already requires JIT.
+- **No mid-layer data classes for caching.** Don't introduce intermediate record/class types, named tuples, or wrapper objects solely to hold cached data in static dictionaries (e.g., `ConcurrentDictionary<Type, PropertyAccessor[]>`). Use value tuples for small fixed-shape cache entries. If the cache value is a single delegate or array, store it directly — don't wrap it in a named type that exists only for that one dictionary.
+- **Cache fields go at the top of the class with other fields.** Never scatter `static readonly` cache dictionaries or instance cache fields in the middle of the class body next to the methods that use them. All fields — instance and static — belong in the field declaration block at the top of the class, grouped with the other fields.
 - Do NOT create private wrapper methods that just delegate to a single public method on another class (e.g., `private static bool IsTypeApplicable(Type s, Type t) => TypeHelpers.CanImplicitlyConvert(s, t);`). Call the canonical method directly at the call site. Wrappers that add no logic create false indirection and hide the true dependency.
 - `CancellationToken` must always be the last parameter in method signatures, per .NET conventions. No exceptions.
 - Prefer existing Roslyn CS error codes over custom ALDR codes. Only create an ALDR code when there is genuinely no Roslyn equivalent. The goal is seamless transition for developers already familiar with C# diagnostics — don't create more edge cases to check.

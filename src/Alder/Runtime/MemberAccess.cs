@@ -59,11 +59,11 @@ internal static class MemberAccess
 
             var staticProp = staticTypeCache.GetProperty(staticType, name, staticBindingFlags);
             if (staticProp != null)
-                return TypeHelpers.GuardReflectionLeak(staticProp.GetValue(null), $"static property {name}");
+                return TypeHelpers.GuardReflectionLeak(staticProp.GetValue(null), "static property", name);
 
             var staticField = staticTypeCache.GetField(staticType, name, staticBindingFlags);
             if (staticField != null)
-                return TypeHelpers.GuardReflectionLeak(staticField.GetValue(null), $"static field {name}");
+                return TypeHelpers.GuardReflectionLeak(staticField.GetValue(null), "static field", name);
 
             var staticMethods = staticTypeCache.GetMethods(staticType, name, staticBindingFlags);
             if (staticMethods.Length > 0)
@@ -99,7 +99,7 @@ internal static class MemberAccess
                     FieldInfo f => f.GetValue(instance),
                     _ => throw new AlderException(DiagnosticDescriptors.UnsupportedMemberType, memberInfo.GetType().Name)
                 };
-                return TypeHelpers.GuardReflectionLeak(value, $"module member {name}");
+                return TypeHelpers.GuardReflectionLeak(value, "module member", name);
             }
             throw new AlderException(DiagnosticDescriptors.NoMemberOnType, module.Type.Name, name);
         }
@@ -107,7 +107,7 @@ internal static class MemberAccess
         switch (obj)
         {
             case IDictionary<string, object?> dict when dict.TryGetValue(name, out var value):
-                return TypeHelpers.GuardReflectionLeak(value, $"property {name}");
+                return TypeHelpers.GuardReflectionLeak(value, "property", name);
             case IDictionary<string, object?> dict:
             {
                 if (!config.IsCaseSensitive)
@@ -115,7 +115,7 @@ internal static class MemberAccess
                     foreach (var key in dict.Keys)
                     {
                         if (string.Equals(key, name, StringComparison.OrdinalIgnoreCase))
-                            return TypeHelpers.GuardReflectionLeak(dict[key], $"property {name}");
+                            return TypeHelpers.GuardReflectionLeak(dict[key], "property", name);
                     }
                 }
 
@@ -143,11 +143,11 @@ internal static class MemberAccess
         var typeMetadata = context.TypeMetadata;
         var prop = typeMetadata.GetProperty(type, name, bindingFlags);
         if (prop != null)
-            return TypeHelpers.GuardReflectionLeak(typeMetadata.GetPropertyValue(prop, obj), $"property {name}");
+            return TypeHelpers.GuardReflectionLeak(typeMetadata.GetPropertyValue(prop, obj), "property", name);
 
         var field = typeMetadata.GetField(type, name, bindingFlags);
         if (field != null)
-            return TypeHelpers.GuardReflectionLeak(field.GetValue(obj), $"field {name}");
+            return TypeHelpers.GuardReflectionLeak(field.GetValue(obj), "field", name);
 
         return new MethodRef(obj, name);
     }
@@ -197,7 +197,7 @@ internal static class MemberAccess
             case IDictionary<string, object?> dict when index is string strKey:
             {
                 if (dict.TryGetValue(strKey, out var value))
-                    return TypeHelpers.GuardReflectionLeak(value, $"index [{strKey}]");
+                    return TypeHelpers.GuardReflectionLeak(value, "index", strKey);
                 return null;
             }
             case string s when index != null:
@@ -208,7 +208,7 @@ internal static class MemberAccess
             case IList list when index != null:
             {
                 var idx = NormalizeIndex(Convert.ToInt32(index), list.Count, config.LanguageMode);
-                return TypeHelpers.GuardReflectionLeak(list[idx], $"index [{idx}]");
+                return TypeHelpers.GuardReflectionLeak(list[idx], "index", idx.ToString());
             }
         }
 

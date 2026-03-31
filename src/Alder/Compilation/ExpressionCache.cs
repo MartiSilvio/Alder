@@ -24,6 +24,9 @@ internal sealed class ExpressionCache
 
     public CompiledExpressionInfo GetOrAdd(string key, Func<string, CompiledExpressionInfo> valueFactory)
     {
+        if (_cache.TryGetValue(key, out var existing))
+            return existing;
+
         var value = _cache.GetOrAdd(key, valueFactory);
 
         _insertionOrder.Enqueue(key);

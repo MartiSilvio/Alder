@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
@@ -37,6 +38,11 @@ public sealed partial class AlderEngine : IDisposable
 
     private AlderContext? _context;
     private readonly DisposalToken _disposalToken;
+    private readonly ConditionalWeakTable<Binding.BoundExpr, StrongBox<Binding.BoundExpr>> _pipelineCache = new();
+
+    private static readonly ConcurrentDictionary<Type, (string Name, Func<object, object?> Getter)[]> VariableAccessorCache = new();
+    private static readonly MethodInfo? WrapGetterMethod =
+        typeof(AlderEngine).GetMethod(nameof(WrapGetter), BindingFlags.NonPublic | BindingFlags.Static);
 
     public void Dispose()
     {
@@ -417,7 +423,7 @@ public sealed partial class AlderEngine : IDisposable
 
         try
         {
-            return EvaluateCore(expression, executionContext, constraintState, cancellationToken);
+            return EvaluateCore(expression, context, executionContext, constraintState, cancellationToken);
         }
         catch (System.InsufficientExecutionStackException)
         {
@@ -427,19 +433,22 @@ public sealed partial class AlderEngine : IDisposable
 
     private object? EvaluateCore(
         AlderExpression expression,
+        AlderContext bindingContext,
         AlderContext executionContext,
         ExecutionConstraintState constraintState,
         CancellationToken cancellationToken)
     {
-        if (expression.TryGetOrCreateBoundExpression(executionContext, out var boundExpression, out var boundFailureReason))
+        if (expression.TryGetOrCreateBoundExpression(bindingContext, out var boundExpression, out var boundFailureReason))
         {
             if (boundExpression != null)
             {
                 try
                 {
-                    boundExpression = RunPipeline(boundExpression, cancellationToken);
+                    var processed = _pipelineCache.GetValue(boundExpression,
+                        b => new StrongBox<Binding.BoundExpr>(RunPipeline(b, cancellationToken)));
+
                     var boundEvaluator = new BoundEvaluator(executionContext, _config, constraintState, sourceText: new Text.SourceText(expression.Source), cancellationToken: cancellationToken);
-                    var boundResult = boundEvaluator.Evaluate(boundExpression);
+                    var boundResult = boundEvaluator.Evaluate(processed.Value!);
                     expression.RecordBoundExecution();
                     return UnwrapControlFlowSignal(boundResult);
                 }
@@ -696,10 +705,39 @@ public sealed partial class AlderEngine : IDisposable
 
     private static Dictionary<string, object?> ToVariableDictionary(object obj)
     {
-        var dict = new Dictionary<string, object?>();
-        foreach (var prop in obj.GetType().GetProperties(BindingFlags.Public | BindingFlags.Instance))
-            dict[prop.Name] = prop.GetValue(obj);
+        var accessors = VariableAccessorCache.GetOrAdd(obj.GetType(), static t =>
+        {
+            var props = t.GetProperties(BindingFlags.Public | BindingFlags.Instance);
+            var result = new (string Name, Func<object, object?> Getter)[props.Length];
+            for (var i = 0; i < props.Length; i++)
+            {
+                var prop = props[i];
+                var getter = prop.GetGetMethod();
+                if (getter == null || WrapGetterMethod == null)
+                {
+                    var p = prop;
+                    result[i] = (prop.Name, o => p.GetValue(o));
+                    continue;
+                }
+
+                var boxed = (Func<object, object?>)WrapGetterMethod
+                    .MakeGenericMethod(t, prop.PropertyType)
+                    .Invoke(null, [getter])!;
+                result[i] = (prop.Name, boxed);
+            }
+            return result;
+        });
+
+        var dict = new Dictionary<string, object?>(accessors.Length);
+        foreach (var (name, getter) in accessors)
+            dict[name] = getter(obj);
         return dict;
+    }
+
+    private static Func<object, object?> WrapGetter<TOwner, TProp>(MethodInfo getMethod)
+    {
+        var typed = (Func<TOwner, TProp>)Delegate.CreateDelegate(typeof(Func<TOwner, TProp>), getMethod);
+        return obj => typed((TOwner)obj);
     }
 
     private static object? UnwrapControlFlowSignal(object? result) =>

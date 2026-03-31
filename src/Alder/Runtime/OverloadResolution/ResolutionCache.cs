@@ -16,10 +16,40 @@ internal static class ResolutionCache
         Type? RuntimeType,
         int LambdaArity);
 
-    private readonly record struct ResolutionKey(
-        Type DeclaringType,
-        string MethodName,
-        ImmutableArray<ArgumentShape> ArgShapes);
+    private readonly struct ResolutionKey : IEquatable<ResolutionKey>
+    {
+        public readonly Type DeclaringType;
+        public readonly string MethodName;
+        public readonly ImmutableArray<ArgumentShape> ArgShapes;
+
+        public ResolutionKey(Type declaringType, string methodName, ImmutableArray<ArgumentShape> argShapes)
+        {
+            DeclaringType = declaringType;
+            MethodName = methodName;
+            ArgShapes = argShapes;
+        }
+
+        public bool Equals(ResolutionKey other)
+        {
+            return DeclaringType == other.DeclaringType &&
+                   MethodName == other.MethodName &&
+                   ArgShapes.SequenceEqual(other.ArgShapes);
+        }
+
+        public override bool Equals(object? obj) => obj is ResolutionKey other && Equals(other);
+
+        public override int GetHashCode()
+        {
+            unchecked
+            {
+                var hash = (DeclaringType?.GetHashCode() ?? 0) * 397;
+                hash = (hash ^ (MethodName?.GetHashCode() ?? 0)) * 397;
+                foreach (var shape in ArgShapes)
+                    hash = (hash ^ shape.GetHashCode()) * 397;
+                return hash;
+            }
+        }
+    }
 
     private static readonly ConcurrentDictionary<ResolutionKey, ResolvedCall> Cache = new();
     private static readonly ConcurrentQueue<ResolutionKey> InsertionOrder = new();

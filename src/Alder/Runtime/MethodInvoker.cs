@@ -359,7 +359,7 @@ internal static class MethodInvoker
             if (!MethodDispatchCache.TryInvokeFast(method, target, args, out var result))
                 result = method.Invoke(target, args);
 
-            return TypeHelpers.GuardReflectionLeak(result, $"method {method.Name}");
+            return TypeHelpers.GuardReflectionLeak(result, "method", method.Name);
         }
         catch (TargetInvocationException ex) when (ex.InnerException != null)
         {

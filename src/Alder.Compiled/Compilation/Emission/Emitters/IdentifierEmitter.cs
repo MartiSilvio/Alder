@@ -8,6 +8,9 @@ internal sealed class IdentifierEmitter : INodeEmitter<BoundIdentifierExpr>
 {
     public LinqExpression Emit(BoundIdentifierExpr node, EmissionContext ctx)
     {
+        if (ctx.TryGetLambdaParameter(node.Name, out var lambdaParam))
+            return lambdaParam;
+
         if (node.LocalId is { } localId &&
             ctx.PromotedLocals != null &&
             ctx.PromotedLocals.TryGetValue(localId, out var promoted))

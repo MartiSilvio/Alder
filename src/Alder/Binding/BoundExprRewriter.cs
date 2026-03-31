@@ -375,6 +375,12 @@ internal abstract class BoundExprRewriter : BoundExprVisitor<BoundExpr>, IBoundT
 
     protected override BoundExpr VisitLambda(BoundLambdaExpr node) => node;
 
+    protected override BoundExpr VisitTypedLambda(BoundTypedLambdaExpr node)
+    {
+        var body = Visit(node.Body);
+        return ReferenceEquals(body, node.Body) ? node : node with { Body = body };
+    }
+
     protected override BoundExpr VisitAssign(BoundAssignExpr node)
     {
         var value = Visit(node.Value);

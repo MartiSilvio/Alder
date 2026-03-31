@@ -123,6 +123,31 @@ internal sealed class CallBinderService
         return BindFromTypes(methods, argumentTypes, methodName, isStaticCall: false);
     }
 
+    public bool TryBindWithDescriptors(
+        MethodInfo[] methods,
+        ArgumentDescriptor[] descriptors,
+        bool isStaticCall,
+        out CallBindResult? plan)
+    {
+        plan = null;
+
+        if (methods.Length == 0)
+            return false;
+
+        if (!OverloadResolver.TryResolve(methods, descriptors, context: _context, out var resolved, out _))
+            return false;
+
+        if (resolved.Method.ContainsGenericParameters)
+            return false;
+
+        var parameters = MethodDispatchCache.GetParameters(resolved.Method);
+        if (parameters.Any(static parameter => parameter.ParameterType.IsByRef))
+            return false;
+
+        plan = new CallBindResult(resolved, isStaticCall);
+        return true;
+    }
+
     private static bool TryBindFromTypes(
         MethodInfo[] methods,
         IReadOnlyList<Type> sourceTypes,

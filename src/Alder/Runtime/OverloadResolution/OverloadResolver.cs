@@ -281,6 +281,14 @@ internal static class OverloadResolver
         if (context == null)
             return null;
 
+        var hasLambda = false;
+        for (var i = 0; i < args.Length; i++)
+        {
+            if (args[i].Kind == ArgumentKind.Lambda) { hasLambda = true; break; }
+        }
+        if (!hasLambda)
+            return null;
+
         Type?[]? result = null;
         var sources = argMap.Sources;
         var elementMemberTypes = TryExtractElementMemberTypes(args);
@@ -407,7 +415,9 @@ internal static class OverloadResolver
         if (candidates.Count <= 1)
             return;
 
-        for (var i = candidates.Count - 1; i >= 0; i--)
+        var remove = new bool[candidates.Count];
+
+        for (var i = 0; i < candidates.Count; i++)
         {
             var declaringType = candidates[i].Method.DeclaringType;
             if (declaringType == null)
@@ -415,7 +425,7 @@ internal static class OverloadResolver
 
             for (var j = 0; j < candidates.Count; j++)
             {
-                if (i == j)
+                if (i == j || remove[j])
                     continue;
 
                 var otherDeclaringType = candidates[j].Method.DeclaringType;
@@ -425,10 +435,16 @@ internal static class OverloadResolver
                 if (declaringType != otherDeclaringType &&
                     declaringType.IsAssignableFrom(otherDeclaringType))
                 {
-                    candidates.RemoveAt(i);
+                    remove[i] = true;
                     break;
                 }
             }
+        }
+
+        for (var i = candidates.Count - 1; i >= 0; i--)
+        {
+            if (remove[i])
+                candidates.RemoveAt(i);
         }
     }
 

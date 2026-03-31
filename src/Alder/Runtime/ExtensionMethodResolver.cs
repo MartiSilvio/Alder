@@ -18,13 +18,55 @@ internal static class ExtensionMethodResolver
         InvocationArgumentKind Kind,
         Type? RuntimeType);
 
-    private readonly record struct InvocationCacheKey(
-        Type ExtensionType,
-        Type TargetType,
-        string MethodNameKey,
-        bool IsCaseSensitive,
-        string TypeArgSignature,
-        ImmutableArray<InvocationArgumentShape> ArgumentShapes);
+    private readonly struct InvocationCacheKey : IEquatable<InvocationCacheKey>
+    {
+        public readonly Type ExtensionType;
+        public readonly Type TargetType;
+        public readonly string MethodNameKey;
+        public readonly bool IsCaseSensitive;
+        public readonly string TypeArgSignature;
+        public readonly ImmutableArray<InvocationArgumentShape> ArgumentShapes;
+
+        public InvocationCacheKey(
+            Type extensionType, Type targetType, string methodNameKey,
+            bool isCaseSensitive, string typeArgSignature,
+            ImmutableArray<InvocationArgumentShape> argumentShapes)
+        {
+            ExtensionType = extensionType;
+            TargetType = targetType;
+            MethodNameKey = methodNameKey;
+            IsCaseSensitive = isCaseSensitive;
+            TypeArgSignature = typeArgSignature;
+            ArgumentShapes = argumentShapes;
+        }
+
+        public bool Equals(InvocationCacheKey other)
+        {
+            return ExtensionType == other.ExtensionType &&
+                   TargetType == other.TargetType &&
+                   MethodNameKey == other.MethodNameKey &&
+                   IsCaseSensitive == other.IsCaseSensitive &&
+                   TypeArgSignature == other.TypeArgSignature &&
+                   ArgumentShapes.SequenceEqual(other.ArgumentShapes);
+        }
+
+        public override bool Equals(object? obj) => obj is InvocationCacheKey other && Equals(other);
+
+        public override int GetHashCode()
+        {
+            unchecked
+            {
+                var hash = (ExtensionType?.GetHashCode() ?? 0) * 397;
+                hash = (hash ^ (TargetType?.GetHashCode() ?? 0)) * 397;
+                hash = (hash ^ (MethodNameKey?.GetHashCode() ?? 0)) * 397;
+                hash = (hash ^ IsCaseSensitive.GetHashCode()) * 397;
+                hash = (hash ^ (TypeArgSignature?.GetHashCode() ?? 0)) * 397;
+                foreach (var shape in ArgumentShapes)
+                    hash = (hash ^ shape.GetHashCode()) * 397;
+                return hash;
+            }
+        }
+    }
 
     private static readonly ConcurrentDictionary<(Type ExtensionType, string MethodNameKey, bool IsCaseSensitive), MethodInfo[]> ExtensionMethodsByNameCache = new();
     private static readonly ConcurrentDictionary<(Type ExtensionType, string MethodNameKey, bool IsCaseSensitive, int InvocationArgCount), MethodInfo[]> ExtensionMethodsByArityCache = new();
@@ -47,6 +89,14 @@ internal static class ExtensionMethodResolver
 
     private static string NormalizeMethodName(string methodName, bool isCaseSensitive) =>
         isCaseSensitive ? methodName : methodName.ToUpperInvariant();
+
+    private static object?[] BuildInvocationArgs(object target, object?[] args)
+    {
+        var invocationArgs = new object?[args.Length + 1];
+        invocationArgs[0] = target;
+        Array.Copy(args, 0, invocationArgs, 1, args.Length);
+        return invocationArgs;
+    }
 
     internal static (bool Success, object? Value) TryInvokeExtensionMethod(
         object target,
@@ -81,13 +131,11 @@ internal static class ExtensionMethodResolver
         AlderContext? runtimeContext = null,
         CancellationToken ct = default)
     {
-        var invocationArgs = new object?[args.Length + 1];
-        invocationArgs[0] = target;
-        Array.Copy(args, 0, invocationArgs, 1, args.Length);
+        var methodNameKey = NormalizeMethodName(methodName, isCaseSensitive);
 
         InvocationCacheKey? invocationCacheKey = null;
         if (TryCreateInvocationCacheKey(
-                extensionType, targetType, methodName, args,
+                extensionType, targetType, methodNameKey, args,
                 isCaseSensitive, typeArgs, out var cacheKey))
         {
             invocationCacheKey = cacheKey;
@@ -96,11 +144,12 @@ internal static class ExtensionMethodResolver
                 if (cached == null)
                     return (false, null);
 
-                return InvokeWithResolved(cached.Value, invocationArgs, ct);
+                return InvokeWithResolved(cached.Value, BuildInvocationArgs(target, args), ct);
             }
         }
 
-        var methods = GetExtensionMethodsForArity(extensionType, methodName, isCaseSensitive, invocationArgs.Length);
+        var invocationArgs = BuildInvocationArgs(target, args);
+        var methods = GetExtensionMethodsForArity(extensionType, methodNameKey, isCaseSensitive, invocationArgs.Length);
         var descriptors = ArgumentDescriptor.FromArgs(invocationArgs);
 
         if (!OverloadResolver.TryResolveExtension(
@@ -152,11 +201,10 @@ internal static class ExtensionMethodResolver
 
     private static MethodInfo[] GetExtensionMethodsForArity(
         Type extensionType,
-        string methodName,
+        string methodNameKey,
         bool isCaseSensitive,
         int invocationArgCount)
     {
-        var methodNameKey = NormalizeMethodName(methodName, isCaseSensitive);
         return ExtensionMethodsByArityCache.GetOrAdd(
             (extensionType, methodNameKey, isCaseSensitive, invocationArgCount),
             static key =>
@@ -199,7 +247,7 @@ internal static class ExtensionMethodResolver
     private static bool TryCreateInvocationCacheKey(
         Type extensionType,
         Type targetType,
-        string methodName,
+        string methodNameKey,
         object?[] args,
         bool isCaseSensitive,
         IReadOnlyList<string>? typeArgs,
@@ -226,7 +274,6 @@ internal static class ExtensionMethodResolver
             }
         }
 
-        var methodNameKey = NormalizeMethodName(methodName, isCaseSensitive);
         var typeArgSignature = typeArgs is { Count: > 0 }
             ? string.Join(",", typeArgs)
             : string.Empty;

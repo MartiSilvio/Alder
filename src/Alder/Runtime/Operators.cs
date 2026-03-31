@@ -81,7 +81,7 @@ internal static class Operators
             return leftTimeSpan + rightTimeSpan;
 
         if (left is string || right is string)
-            return $"{left}{right}";
+            return string.Concat(left?.ToString(), right?.ToString());
 
         if (left == null || right == null)
         {

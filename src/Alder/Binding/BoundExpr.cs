@@ -91,6 +91,7 @@ internal enum BoundNodeKind
     SpreadElement = 174,
     TupleLiteral = 175,
     Lambda = 201,
+    TypedLambda = 202,
     InterpolatedString = 207,
     IsPatternExpression = 212,
     ThrowExpression = 229,

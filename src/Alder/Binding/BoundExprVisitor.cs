@@ -40,6 +40,7 @@ internal abstract class BoundExprVisitor<T>
         BoundNodeKind.NamedArgument => VisitNamedArgument((BoundNamedArgumentExpr)expr),
         BoundNodeKind.OutArgument => VisitOutArg((BoundOutArgExpr)expr),
         BoundNodeKind.Lambda => VisitLambda((BoundLambdaExpr)expr),
+        BoundNodeKind.TypedLambda => VisitTypedLambda((BoundTypedLambdaExpr)expr),
         BoundNodeKind.AssignmentOperator => VisitAssign((BoundAssignExpr)expr),
         BoundNodeKind.CompoundAssignmentOperator => VisitCompoundAssign((BoundCompoundAssignExpr)expr),
         BoundNodeKind.NullCoalescingAssignmentOperator => VisitNullCoalesceAssign((BoundNullCoalesceAssignExpr)expr),
@@ -116,6 +117,7 @@ internal abstract class BoundExprVisitor<T>
     protected virtual T VisitNamedArgument(BoundNamedArgumentExpr node) => DefaultVisit(node);
     protected virtual T VisitOutArg(BoundOutArgExpr node) => DefaultVisit(node);
     protected virtual T VisitLambda(BoundLambdaExpr node) => DefaultVisit(node);
+    protected virtual T VisitTypedLambda(BoundTypedLambdaExpr node) => DefaultVisit(node);
     protected virtual T VisitAssign(BoundAssignExpr node) => DefaultVisit(node);
     protected virtual T VisitCompoundAssign(BoundCompoundAssignExpr node) => DefaultVisit(node);
     protected virtual T VisitNullCoalesceAssign(BoundNullCoalesceAssignExpr node) => DefaultVisit(node);

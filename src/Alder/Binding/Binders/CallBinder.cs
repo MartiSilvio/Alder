@@ -3,6 +3,7 @@ using System.Reflection;
 using Alder.Binding.BoundNodes;
 using Alder.Binding.Services;
 using Alder.Parsing;
+using Alder.Runtime;
 
 namespace Alder.Binding.Binders;
 
@@ -27,24 +28,158 @@ internal static class CallBinder
 
         if (callee is BoundMethodGroupExpr methodGroup &&
             arguments.All(static argument =>
-                argument is not BoundLambdaExpr &&
                 argument is not BoundNamedArgumentExpr &&
                 argument is not BoundOutArgExpr))
         {
-            var argumentTypes = arguments.Select(static argument => argument.StaticType.ClrType).ToArray();
-            var callBinder = new CallBinderService(context.RuntimeContext);
+            var hasLambdas = arguments.Any(static a => a is BoundLambdaExpr);
 
-            var bound = methodGroup.IsStatic && methodGroup.Target is BoundLiteralExpr { Value: Type staticDeclaringType }
-                ? callBinder.TryBindStaticCall(staticDeclaringType, methodGroup.MethodName, argumentTypes, context.IsCaseSensitive, out var callPlan)
-                : callBinder.TryBindInstanceCall(methodGroup.DeclaringType, methodGroup.MethodName, argumentTypes, context.IsCaseSensitive, out callPlan);
+            if (!hasLambdas)
+            {
+                var argumentTypes = arguments.Select(static argument => argument.StaticType.ClrType).ToArray();
+                var callBinderService = new CallBinderService(context.RuntimeContext);
 
-            if (bound)
-                return new BoundResolvedCallExpr(callee, arguments, callPlan!.Resolution, callPlan.IsStaticCall, callPlan.IsModuleCall, new BoundType(callPlan.SelectedMethod.ReturnType));
+                var bound = methodGroup.IsStatic && methodGroup.Target is BoundLiteralExpr { Value: Type staticDeclaringType }
+                    ? callBinderService.TryBindStaticCall(staticDeclaringType, methodGroup.MethodName, argumentTypes, context.IsCaseSensitive, out var callPlan)
+                    : callBinderService.TryBindInstanceCall(methodGroup.DeclaringType, methodGroup.MethodName, argumentTypes, context.IsCaseSensitive, out callPlan);
 
-            return new BoundDynamicCallExpr(callee, arguments, typeArguments, BoundType.Unknown);
+                if (bound)
+                    return new BoundResolvedCallExpr(callee, arguments, callPlan!.Resolution, callPlan.IsStaticCall, callPlan.IsModuleCall, new BoundType(callPlan.SelectedMethod.ReturnType));
+            }
+            else
+            {
+                var result = TryBindCallWithLambdas(callee, methodGroup, arguments, context, binder);
+                if (result != null)
+                    return result;
+            }
         }
 
         return new BoundDynamicCallExpr(callee, arguments, typeArguments, BoundType.Unknown);
+    }
+
+    private static BoundExpr? TryBindCallWithLambdas(
+        BoundExpr callee,
+        BoundMethodGroupExpr methodGroup,
+        ImmutableArray<BoundExpr> arguments,
+        BindingContext context,
+        BinderContext binder)
+    {
+        var descriptors = new ArgumentDescriptor[arguments.Length];
+        for (var i = 0; i < arguments.Length; i++)
+        {
+            if (arguments[i] is BoundLambdaExpr lambda)
+                descriptors[i] = ArgumentDescriptor.ForLambda(lambda.Parameters.Length);
+            else
+                descriptors[i] = ArgumentDescriptor.ForType(arguments[i].StaticType.ClrType);
+        }
+
+        var flags = BindingFlags.Public |
+                    (methodGroup.IsStatic ? BindingFlags.Static : BindingFlags.Instance);
+        if (!context.IsCaseSensitive)
+            flags |= BindingFlags.IgnoreCase;
+
+        var declaringType = methodGroup.IsStatic && methodGroup.Target is BoundLiteralExpr { Value: Type staticType }
+            ? staticType
+            : methodGroup.DeclaringType;
+
+        var methods = context.RuntimeContext.TypeMetadata.GetMethods(declaringType, methodGroup.MethodName, flags);
+        var callBinderService = new CallBinderService(context.RuntimeContext);
+
+        if (!callBinderService.TryBindWithDescriptors(methods, descriptors, methodGroup.IsStatic, out var callPlan))
+            return null;
+
+        var resolution = callPlan!.Resolution;
+        var typedArguments = TryBindLambdaArguments(arguments, resolution, context, binder);
+        if (typedArguments == null)
+            return null;
+
+        return new BoundResolvedCallExpr(
+            callee, typedArguments.Value, resolution,
+            callPlan.IsStaticCall, callPlan.IsModuleCall,
+            new BoundType(callPlan.SelectedMethod.ReturnType));
+    }
+
+    private static ImmutableArray<BoundExpr>? TryBindLambdaArguments(
+        ImmutableArray<BoundExpr> arguments,
+        ResolvedCall resolution,
+        BindingContext context,
+        BinderContext binder)
+    {
+        var conversions = resolution.Conversions;
+        var result = arguments.ToBuilder();
+
+        for (var i = 0; i < arguments.Length; i++)
+        {
+            if (arguments[i] is not BoundLambdaExpr lambda)
+                continue;
+
+            if (i >= conversions.Length || conversions[i].Kind != ArgumentConversionKind.LambdaToDelegate)
+                return null;
+
+            var delegateType = conversions[i].TargetType;
+            var invokeMethod = delegateType.GetMethod("Invoke");
+            if (invokeMethod == null)
+                return null;
+
+            var invokeParams = invokeMethod.GetParameters();
+            if (invokeParams.Length != lambda.Parameters.Length)
+                return null;
+
+            var savedLocalCount = context.LocalCount;
+            try
+            {
+                var lambdaScope = context.CreateChildScope();
+                var typedParams = ImmutableArray.CreateBuilder<BoundTypedLambdaParameter>(lambda.Parameters.Length);
+                var lambdaParamIds = new HashSet<int>();
+
+                for (var p = 0; p < lambda.Parameters.Length; p++)
+                {
+                    var paramType = invokeParams[p].ParameterType;
+                    var paramId = lambdaScope.DeclareLocal(lambda.Parameters[p], new BoundType(paramType));
+                    lambdaParamIds.Add(paramId);
+                    typedParams.Add(new BoundTypedLambdaParameter(lambda.Parameters[p], paramType));
+                }
+
+                var boundBody = binder.Bind(lambda.Body, lambdaScope);
+                if (boundBody.HasErrors)
+                {
+                    context.LocalCount = savedLocalCount;
+                    return null;
+                }
+
+                if (CapturesOuterLocals(boundBody, lambdaParamIds))
+                {
+                    context.LocalCount = savedLocalCount;
+                    return null;
+                }
+
+                result[i] = new BoundTypedLambdaExpr(
+                    typedParams.ToImmutable(),
+                    boundBody,
+                    delegateType,
+                    new BoundType(delegateType));
+            }
+            catch (Exception ex) when (ex is AlderException or BindingNotSupportedException or InvalidOperationException)
+            {
+                context.LocalCount = savedLocalCount;
+                return null;
+            }
+        }
+
+        return result.ToImmutable();
+    }
+
+    private static bool CapturesOuterLocals(BoundExpr body, HashSet<int> lambdaLocalIds)
+    {
+        if (body is BoundIdentifierExpr { LocalId: { } id } && !lambdaLocalIds.Contains(id))
+            return true;
+
+        var captures = false;
+        body.EnumerateChildren(child =>
+        {
+            if (!captures)
+                captures = CapturesOuterLocals(child, lambdaLocalIds);
+        });
+        return captures;
     }
 
     private static bool TryBindStaticModuleCall(CallExpr call, BindingContext context, BinderContext binder, out BoundExpr boundCall)

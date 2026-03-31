@@ -1,5 +1,7 @@
+using System.Collections.Immutable;
 using System.Linq.Expressions;
 using Alder.Binding;
+using Alder.Binding.BoundNodes;
 using static Alder.Compiled.Compilation.BoundRuntimeMethodCache;
 
 namespace Alder.Compiled.Compilation.Emission;
@@ -56,6 +58,31 @@ internal sealed class EmissionContext
     }
 
     public Expression EmitBoxed(BoundExpr expr) => EmitAs(expr, typeof(object));
+
+    private readonly Stack<Dictionary<string, ParameterExpression>> _lambdaScopes = new();
+
+    internal void PushLambdaScope(
+        ImmutableArray<BoundTypedLambdaParameter> parameters,
+        ParameterExpression[] expressions)
+    {
+        var scope = new Dictionary<string, ParameterExpression>();
+        for (var i = 0; i < parameters.Length; i++)
+            scope[parameters[i].Name] = expressions[i];
+        _lambdaScopes.Push(scope);
+    }
+
+    internal void PopLambdaScope() => _lambdaScopes.Pop();
+
+    internal bool TryGetLambdaParameter(string name, out ParameterExpression param)
+    {
+        foreach (var scope in _lambdaScopes)
+        {
+            if (scope.TryGetValue(name, out param!))
+                return true;
+        }
+        param = null!;
+        return false;
+    }
 
     internal Func<BoundExpr, Expression?>? TryEmitPostfixChain { get; set; }
 
