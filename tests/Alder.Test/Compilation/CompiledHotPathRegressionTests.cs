@@ -102,7 +102,7 @@ public class CompiledHotPathRegressionTests(CompilationMode mode)
         var engine = TestEngineFactory.Create(mode, o => o.Functions.Register("Math", _ => 123));
 
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate("Math.Abs(-5)"));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0304));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS1061));
     }
 
     [Test]

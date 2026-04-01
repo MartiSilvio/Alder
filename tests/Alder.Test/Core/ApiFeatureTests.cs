@@ -146,6 +146,36 @@ public class ApiFeatureTests(CompilationMode mode)
         Assert.That(diagnostics.Select(d => d.Message), Has.Some.Contains("baz"));
     }
 
+    [Test]
+    public void Evaluate_MethodNotFoundOnVariable_ThrowsCS1061()
+    {
+        var engine = CreateEngine();
+        engine.SetVariable<string>("name", "Alice");
+
+        var ex = Assert.Throws<AlderException>(() => engine.Evaluate("name.Foo()"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(Alder.Diagnostics.DiagnosticCode.CS1061));
+    }
+
+    [Test]
+    public void Evaluate_ValidMemberOnVariable_Succeeds()
+    {
+        var engine = CreateEngine();
+        engine.SetVariable<string>("name", "Alice");
+
+        var result = engine.Evaluate("name.Length");
+        Assert.That(result, Is.EqualTo(5));
+    }
+
+    [Test]
+    public void Evaluate_ValidMethodOnVariable_Succeeds()
+    {
+        var engine = CreateEngine();
+        engine.SetVariable<string>("name", "Alice");
+
+        var result = engine.Evaluate("name.ToUpper()");
+        Assert.That(result, Is.EqualTo("ALICE"));
+    }
+
     #endregion
 
     #region AST Access

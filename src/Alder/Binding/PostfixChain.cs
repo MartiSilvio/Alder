@@ -34,12 +34,12 @@ internal static class PostfixChain
 
         while (true)
         {
-            if (current is BoundResolvedCallExpr call && call.Callee is BoundMemberAccessBase callMa)
+            if (current is BoundResolvedCallExpr { Callee: BoundMemberAccessBase callMa } call)
             {
                 segments.Add(new Segment(callMa, call));
                 current = callMa.Target;
             }
-            else if (current is BoundDynamicCallExpr invoke && invoke.Callee is BoundMemberAccessBase invokeMa)
+            else if (current is BoundDynamicCallExpr { Callee: BoundMemberAccessBase invokeMa } invoke)
             {
                 segments.Add(new Segment(invokeMa, invoke));
                 current = invokeMa.Target;
@@ -62,8 +62,8 @@ internal static class PostfixChain
     {
         var inner = node switch
         {
-            BoundResolvedCallExpr c when c.Callee is BoundMemberAccessBase ma => ma.Target,
-            BoundDynamicCallExpr i when i.Callee is BoundMemberAccessBase ma => ma.Target,
+            BoundResolvedCallExpr { Callee: BoundMemberAccessBase ma } => ma.Target,
+            BoundDynamicCallExpr { Callee: BoundMemberAccessBase ma } => ma.Target,
             BoundMemberAccessBase ma => ma.Target,
             _ => null
         };

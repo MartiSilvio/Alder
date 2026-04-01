@@ -1,5 +1,3 @@
-using Alder.Compiled;
-
 namespace Alder.Benchmarks;
 
 public static class FecSmokeTest

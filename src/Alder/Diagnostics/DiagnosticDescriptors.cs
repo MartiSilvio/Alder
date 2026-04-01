@@ -161,6 +161,9 @@ public static class DiagnosticDescriptors
     public static readonly DiagnosticDescriptor RuntimeOverloadResolutionRequired =
         new(DiagnosticCode.ALDR0003, "Call '{0}' requires runtime overload resolution");
 
+    public static readonly DiagnosticDescriptor CompiledExpressionStale =
+        new(DiagnosticCode.ALDR0004, "Variable types changed since compilation. Use Evaluate(AlderExpression) for automatic recompilation, or re-compile explicitly.");
+
     public static readonly DiagnosticDescriptor ParseAsExpressionRequiresGenericDelegate =
         new(DiagnosticCode.ALDR0010, "ParseAsExpression requires a generic Func-style delegate type; got '{0}'.");
 

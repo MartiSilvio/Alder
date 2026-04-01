@@ -1,4 +1,3 @@
-using Alder.Security;
 using Alder.Test._Infrastructure;
 
 namespace Alder.Test.Docs;
@@ -9,41 +8,58 @@ namespace Alder.Test.Docs;
 public class GettingStartedDocTests(CompilationMode mode)
 {
     [Test]
-    public void LinqChain()
+    public void SimpleExpression()
     {
         var engine = TestEngineFactory.Create(mode);
 
-        var result = engine.Evaluate("""
-            new[] { "Alice", "Bob", "Charlie" }
-                .Where(name => name.Length > 3)
-                .Select(name => name.ToUpper())
-                .ToList()
-            """);
+        int result = engine.Evaluate<int>("(5 + 3) * 2");
 
-        Assert.That(result, Is.EqualTo(new List<string> { "ALICE", "CHARLIE" }));
+        Assert.That(result, Is.EqualTo(16));
     }
 
     [Test]
-    public void SetVariable_TypedWithLinq()
+    public void SetVariable()
     {
         var engine = TestEngineFactory.Create(mode);
         engine.SetVariable<List<int>>("scores", new List<int> { 88, 92, 76, 95, 61 });
 
-        var result = engine.Evaluate<double>("scores.Where(s => s >= 70).Average()");
+        double avg = engine.Evaluate<double>("scores.Where(s => s >= 70).Average()");
 
-        Assert.That(result, Is.EqualTo(87.75));
+        Assert.That(avg, Is.EqualTo(87.75));
     }
 
     [Test]
-    public void AnonymousObjectVariables()
+    public void AnonymousObject()
     {
         var engine = TestEngineFactory.Create(mode);
 
-        var result = engine.Evaluate<bool>(
+        bool eligible = engine.Evaluate<bool>(
             "age >= 18 && country != null",
             new { age = 25, country = "US" });
 
-        Assert.That(result, Is.True);
+        Assert.That(eligible, Is.True);
+    }
+
+    [Test]
+    public void ControlFlow()
+    {
+        var engine = TestEngineFactory.Create(mode);
+        engine.SetVariable<int>("score", 82);
+
+        string grade = engine.Evaluate<string>("""
+            var letter = score switch
+            {
+                >= 90 => "A",
+                >= 80 => "B",
+                >= 70 => "C",
+                >= 60 => "D",
+                _ => "F"
+            };
+            var passed = score >= 60;
+            return $"{letter} ({score}) — {(passed ? "Pass" : "Fail")}";
+            """);
+
+        Assert.That(grade, Is.EqualTo("B (82) — Pass"));
     }
 
     [Test]
@@ -51,25 +67,37 @@ public class GettingStartedDocTests(CompilationMode mode)
     {
         var engine = TestEngineFactory.Create(mode);
 
-        var expr = engine.Parse("price * (1 - discount)");
+        AlderExpression expr = engine.Parse("price * (1 - discount)");
 
         engine.SetVariable<double>("price", 100.0);
         engine.SetVariable<double>("discount", 0.1);
-        var result1 = engine.Evaluate<double>(expr);
+        double result1 = engine.Evaluate<double>(expr);
 
         engine.SetVariable<double>("price", 250.0);
-        var result2 = engine.Evaluate<double>(expr);
+        double result2 = engine.Evaluate<double>(expr);
 
         Assert.That(result1, Is.EqualTo(90.0));
         Assert.That(result2, Is.EqualTo(225.0));
     }
 
     [Test]
-    public void TryEvaluate_SyntaxError()
+    public void TryEvaluate()
     {
         var engine = TestEngineFactory.Create(mode);
 
         Assert.That(engine.TryEvaluate("items.Where(", out _), Is.False);
+    }
+
+    [Test]
+    public void TryValidate()
+    {
+        var engine = TestEngineFactory.Create(mode);
+
+        bool valid = engine.TryValidate("undefinedVar + 1", out var diagnostics);
+
+        Assert.That(valid, Is.False);
+        Assert.That(diagnostics, Has.Count.GreaterThan(0));
+        Assert.That(diagnostics[0].FormattedCode, Is.EqualTo("CS0103"));
     }
 
     [Test]
@@ -98,7 +126,35 @@ public class GettingStartedDocTests(CompilationMode mode)
             };
         });
 
-        // Safe sandbox allows property reads and arithmetic
         Assert.That(engine.Evaluate<int>("1 + 2"), Is.EqualTo(3));
+    }
+
+    [Test]
+    public void Tracing()
+    {
+        var engine = TestEngineFactory.Create(mode);
+
+        var trace = engine.EvaluateWithTrace("""
+            var items = new[] { 1, 2, 3 };
+            var squared = items.Select(x => x * x).ToList();
+            return squared.Sum();
+            """);
+
+        Assert.That(trace.Result, Is.EqualTo(14));
+        Assert.That(trace.Error, Is.Null);
+        Assert.That(trace.Tree, Is.Not.Null);
+    }
+
+    [Test]
+    public void ExtendedMode()
+    {
+        var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
+
+        Assert.That(engine.Evaluate<double>("2 ** 10"), Is.EqualTo(1024.0));
+
+        var comprehension = engine.Evaluate("[x * x for x in Enumerable.Range(1, 10) if x % 2 == 0]");
+        Assert.That(comprehension, Is.EqualTo(new[] { 4, 16, 36, 64, 100 }));
+
+        Assert.That(engine.Evaluate<int>("5 |> (x => x * 2)"), Is.EqualTo(10));
     }
 }

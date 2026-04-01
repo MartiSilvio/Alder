@@ -1,8 +1,4 @@
-using System.Diagnostics.CodeAnalysis;
-using System.Runtime.CompilerServices;
 using Alder.Diagnostics;
-using Alder.Binding;
-using Alder.Compilation;
 using Alder.Runtime;
 
 namespace Alder;
@@ -22,9 +18,6 @@ public sealed partial class AlderEngine
         ThrowIfDisposed();
         if (_config.Compiler == null)
             return false;
-
-        if (expression.CompiledInfo != null)
-            return expression.CompiledInfo.Delegate != null;
 
         var context = GetOrCreateContext();
         return TryCompileInternal(expression, context);
@@ -52,46 +45,36 @@ public sealed partial class AlderEngine
     {
         var compiler = _config.Compiler!;
 
-        var existing = expression.CompiledInfo;
-        if (existing != null)
-            return existing.Delegate != null;
+        if (IsCompiledInfoCurrent(expression.CompiledInfo, context))
+            return expression.CompiledInfo!.Delegate != null;
 
         lock (expression)
         {
-            existing = expression.CompiledInfo;
-            if (existing != null)
-                return existing.Delegate != null;
+            if (IsCompiledInfoCurrent(expression.CompiledInfo, context))
+                return expression.CompiledInfo!.Delegate != null;
+
+            var version = context.GetTypeInferenceVersion();
 
             if (!expression.TryGetOrCreateBoundExpression(context, out var bound, out var failureReason) ||
                 bound == null)
             {
-                expression.CompiledInfo = new CompiledExpressionInfo(null, false, failureReason ?? "Binding failed for expression.");
+                expression.CompiledInfo = new CompiledExpressionInfo(null, false,
+                    failureReason ?? "Binding failed for expression.", TypeVersion: version);
                 return false;
             }
 
             bound = RunCompilationPipeline(bound);
-            expression.CompiledInfo = compiler.TryCompile(bound, _config);
+            var compiled = compiler.TryCompile(bound, _config);
+            expression.CompiledInfo = compiled with { TypeVersion = version };
             return expression.CompiledInfo.Delegate != null;
         }
     }
 
-    /// <summary>
-    /// Attempts to compile the expression using the AST path (no binding context needed).
-    /// Used when no context is available.
-    /// </summary>
-    internal bool TryCompileFromAst(AlderExpression expression)
+    private static bool IsCompiledInfoCurrent(CompiledExpressionInfo? info, AlderContext context)
     {
-        var compiler = _config.Compiler;
-        if (compiler == null)
-            return false;
-
-        if (expression.CompiledInfo != null)
-            return expression.CompiledInfo.Delegate != null;
-
-        expression.CompiledInfo = expression._expressionCache != null
-            ? compiler.GetOrCompile(expression.Source, expression.Ast, expression._expressionCache, _config)
-            : compiler.TryCompile(expression.Ast, _config);
-        return expression.CompiledInfo.Delegate != null;
+        if (info == null) return false;
+        if (info.TypeVersion == null) return true;
+        return info.TypeVersion == context.GetTypeInferenceVersion();
     }
 
     private object? ExecuteCompiledExpression(
@@ -102,7 +85,7 @@ public sealed partial class AlderEngine
         CancellationToken cancellationToken)
     {
         var compiled = expression.GetCompiledInfo();
-        if (compiled == null)
+        if (!IsCompiledInfoCurrent(compiled, compileContext))
         {
             TryCompileInternal(expression, compileContext);
             compiled = expression.GetCompiledInfo();

@@ -59,6 +59,7 @@ internal interface IExprVisitor<out T>
     T VisitCollectionExpr(CollectionExpr expr);
     T VisitImplicitArrayCreation(ImplicitArrayCreationExpr expr);
     T VisitObjectLiteral(ObjectLiteralExpr expr);
+    T VisitWith(WithExpr expr);
     T VisitSpread(SpreadExpr expr);
 
     // Collections & Literals
@@ -373,6 +374,12 @@ internal sealed record ImplicitArrayCreationExpr(List<Expr> Elements) : Expr
 internal sealed record ObjectLiteralExpr(List<(Token Key, Expr Value)> Properties) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitObjectLiteral(this);
+}
+
+// With expression: obj with { Name = "Bob" } — §12.18
+internal sealed record WithExpr(Expr Object, List<(Token Key, Expr Value)> Initializers) : Expr
+{
+    public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitWith(this);
 }
 
 // Spread expression: ..expr (used in arrays and objects) - Alder extension

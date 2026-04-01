@@ -140,6 +140,7 @@ These use the same codes as the C# compiler. Developers familiar with C# diagnos
 | `ALDR0001` | Strict compilation mode could not compile to IL | Expression not compilable |
 | `ALDR0002` | Expression binding failed | Binder failure |
 | `ALDR0003` | Call requires runtime overload resolution | Binder can't statically resolve |
+| `ALDR0004` | Variable types changed since compilation | `SetVariable<T>` changed a variable's type after `Compile<T>` |
 | `ALDR0010` | ParseAsExpression requires a generic Func-style delegate type | Wrong delegate type |
 | `ALDR0011` | ParseAsExpression requires lambda input | Non-lambda passed |
 | `ALDR0020` | Feature requires LanguageMode.Extended | Extended syntax in Standard mode |

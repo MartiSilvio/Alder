@@ -671,6 +671,11 @@ internal sealed partial class ExpressionParser : ParserBase
             {
                 expr = FinishCall(expr, null, mark);
             }
+            else if (Check(TokenType.With) && PeekNext().Type == TokenType.LeftBrace)
+            {
+                Advance(); // consume 'with'
+                expr = ParseWithInitializer(expr, mark);
+            }
             else if (Check(TokenType.PlusPlus) || Check(TokenType.MinusMinus))
             {
                 if (expr is IdentifierExpr identifier)
@@ -703,6 +708,23 @@ internal sealed partial class ExpressionParser : ParserBase
         }
 
         return expr;
+    }
+
+    private WithExpr ParseWithInitializer(Expr obj, int mark)
+    {
+        Consume(TokenType.LeftBrace, "Expected '{' after 'with'");
+        var initializers = new List<(Token Key, Expr Value)>();
+        while (!Check(TokenType.RightBrace) && !IsAtEnd())
+        {
+            var key = ConsumeIdentifierOrContextualKeyword("Expected property name");
+            Consume(TokenType.Equal, "Expected '=' after property name in 'with' initializer");
+            var value = ParseExpression();
+            initializers.Add((key, value));
+            if (!Check(TokenType.RightBrace))
+                Consume(TokenType.Comma, "Expected ',' or '}' in 'with' initializer");
+        }
+        Consume(TokenType.RightBrace, "Expected '}' after 'with' initializer");
+        return new WithExpr(obj, initializers) { Span = SpanFrom(mark) };
     }
 
     #endregion

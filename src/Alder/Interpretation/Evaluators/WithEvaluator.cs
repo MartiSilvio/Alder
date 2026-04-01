@@ -1,0 +1,21 @@
+using Alder.Binding;
+using Alder.Binding.BoundNodes;
+
+namespace Alder.Interpretation.Evaluators;
+
+[EvaluatesNode(BoundNodeKind.WithExpression)]
+internal static class WithEvaluator
+{
+    public static object? Evaluate(BoundWithExpr node, EvaluationContext ctx)
+    {
+        var original = ctx.Evaluate(node.Object);
+        var names = new string[node.Initializers.Length];
+        var values = new object?[node.Initializers.Length];
+        for (var i = 0; i < node.Initializers.Length; i++)
+        {
+            names[i] = node.Initializers[i].PropertyName;
+            values[i] = ctx.Evaluate(node.Initializers[i].Value);
+        }
+        return Runtime.WithRuntime.ApplyWith(original, names, values, ctx.Config, ctx.Context);
+    }
+}

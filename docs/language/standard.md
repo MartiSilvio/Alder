@@ -285,6 +285,16 @@ new int[3][]                                      // jagged array
 
 Collection expression syntax `[1, 2, 3]` is Extended mode only. In Standard mode, use `new[] { 1, 2, 3 }`.
 
+### With Expressions
+
+Non-destructive mutation for records and structs (§12.18):
+
+```csharp
+person with { Name = "Bob" }                     // clone with modified property
+point with { X = 10 }                            // struct copy with modified field
+p with { Name = "Bob" } with { Age = 25 }        // chained
+```
+
 ### Tuples
 
 ```csharp
@@ -703,7 +713,6 @@ These constructs are outside Alder's scope — they produce parse errors. Each r
 | `yield return` / `yield break` | Not supported — use LINQ to produce sequences |
 | `ref` / `params` in declarations | Not supported — calling methods with `out` parameters works: `int.TryParse("42", out var n)` |
 | `this` / `base` | No enclosing type — pass the instance in as a variable |
-| `record with { }` | Not supported |
 | `stackalloc` / `fixed` / `unsafe` | Not supported — low-level memory operations |
 | `class Foo { public int X { get; } }` | Cannot declare types or members — can use existing ones from registered assemblies |
 | `void Foo<T>(T x) { }` | Cannot declare generic types or methods — can call them: `Enumerable.Empty<int>()` |

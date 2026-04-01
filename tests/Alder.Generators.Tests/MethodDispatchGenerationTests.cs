@@ -1,4 +1,3 @@
-using System.Linq;
 using Microsoft.CodeAnalysis;
 using NUnit.Framework;
 

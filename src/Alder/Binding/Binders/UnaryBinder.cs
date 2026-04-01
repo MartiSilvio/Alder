@@ -15,9 +15,9 @@ internal static class UnaryBinder
 
         if (expr.Op.Type == TokenType.Minus && operand is BoundLiteralExpr literal)
         {
-            if (literal.Value is uint u && u == (uint)int.MaxValue + 1)
+            if (literal.Value is uint and (uint)int.MaxValue + 1)
                 return BoundLiteralExpr.FromValue(int.MinValue);
-            if (literal.Value is ulong ul && ul == (ulong)long.MaxValue + 1)
+            if (literal.Value is ulong and (ulong)long.MaxValue + 1)
                 return BoundLiteralExpr.FromValue(long.MinValue);
         }
 

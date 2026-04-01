@@ -8,8 +8,7 @@ internal sealed class ObjectCreationEmitter : INodeEmitter<BoundObjectCreationEx
 {
     public LinqExpression Emit(BoundObjectCreationExpr node, EmissionContext ctx)
     {
-        if (node.StaticType.ClrType != typeof(object) && !node.StaticType.ClrType.IsAbstract &&
-            !node.StaticType.ClrType.IsInterface && node.InitializerEntries.IsDefaultOrEmpty)
+        if (node.StaticType.ClrType != typeof(object) && node.StaticType.ClrType is { IsAbstract: false, IsInterface: false } && node.InitializerEntries.IsDefaultOrEmpty)
         {
             var pure = TryEmitPure(node, ctx);
             if (pure != null) return pure;

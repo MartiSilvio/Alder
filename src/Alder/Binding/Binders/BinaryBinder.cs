@@ -168,6 +168,9 @@ internal static class BinaryBinder
         if (leftType.IsEnum || rightType.IsEnum)
             return null;
 
+        if (op is TokenType.StarStar)
+            return typeof(double);
+
         if (op is TokenType.LessLess or TokenType.GreaterGreater)
         {
             if (!UnaryBinder.IsIntegralOrChar(leftType) || !UnaryBinder.IsIntegralOrChar(rightType))
@@ -222,9 +225,33 @@ internal static class BinaryBinder
         literal?.Value is int and >= 0 or long and >= 0;
 
     private static bool IsFastPathOperator(TokenType op) =>
-        op is TokenType.Plus or TokenType.Minus or TokenType.Star or TokenType.Slash or TokenType.Percent or
-            TokenType.EqualEqual or TokenType.BangEqual or
-            TokenType.Less or TokenType.LessEqual or TokenType.Greater or TokenType.GreaterEqual or
-            TokenType.Amp or TokenType.Pipe or TokenType.Caret or
-            TokenType.LessLess or TokenType.GreaterGreater;
+        op is
+            // arithmetic
+            TokenType.Plus
+            or TokenType.Minus
+            or TokenType.Star
+            or TokenType.Slash
+            or TokenType.Percent
+
+            // equality
+            or TokenType.EqualEqual
+            or TokenType.BangEqual
+
+            // comparison
+            or TokenType.Less
+            or TokenType.LessEqual
+            or TokenType.Greater
+            or TokenType.GreaterEqual
+
+            // bitwise
+            or TokenType.Amp
+            or TokenType.Pipe
+            or TokenType.Caret
+
+            // shifts
+            or TokenType.LessLess
+            or TokenType.GreaterGreater
+
+            // power
+            or TokenType.StarStar;
 }

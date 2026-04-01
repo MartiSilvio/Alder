@@ -75,6 +75,7 @@ internal sealed class BinaryEmitter : INodeEmitter<BoundBinaryExpr>
             TokenType.Caret => LinqExpression.ExclusiveOr(left, right),
             TokenType.LessLess => LinqExpression.LeftShift(left, right),
             TokenType.GreaterGreater => LinqExpression.RightShift(left, right),
+            TokenType.StarStar => LinqExpression.Power(left, right),
             _ => null
         };
 

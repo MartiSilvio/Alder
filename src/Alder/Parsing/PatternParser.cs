@@ -370,8 +370,7 @@ internal sealed class PatternParser : ParserBase
     }
 
     private static bool IsPatternKeywordToken(Token token) =>
-        token.Type == TokenType.Identifier &&
-        token.Lexeme is var lexeme &&
+        token is { Type: TokenType.Identifier, Lexeme: var lexeme } &&
         (lexeme == TokenLexemes.GetCanonical(TokenType.And) ||
          lexeme == TokenLexemes.GetCanonical(TokenType.Or) ||
          lexeme == TokenLexemes.GetCanonical(TokenType.Not));

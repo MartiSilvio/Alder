@@ -23,7 +23,7 @@ internal static class ResolvedCallEvaluator
 
     internal static object? EvaluateResolvedCallDirect(BoundResolvedCallExpr call, object? evaluatedTarget, EvaluationContext ctx)
     {
-        if (call.IsExtensionCall && call.Callee is BoundMethodGroupExpr extMethodGroup)
+        if (call is { IsExtensionCall: true, Callee: BoundMethodGroupExpr extMethodGroup })
         {
             if (extMethodGroup.NullSafe)
             {

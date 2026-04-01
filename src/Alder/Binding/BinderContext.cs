@@ -1,4 +1,3 @@
-using Alder.Binding.BoundNodes;
 using Alder.Parsing;
 
 namespace Alder.Binding;

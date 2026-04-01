@@ -135,7 +135,7 @@ These methods are available for in-memory collections only:
 
 ## Lambda Syntax
 
-LINQ Dynamic lambdas use the same C# lambda syntax as `ParseAsExpression<TDelegate>`. The lambda is always parsed in Standard mode regardless of the engine's `LanguageMode` setting.
+LINQ Dynamic lambdas use the same C# lambda syntax as `ParseAsExpression<TDelegate>`. The lambda is always parsed in Standard mode regardless of the engine's `LanguageMode` setting — Extended syntax (`**`, `|>`, comprehensions) has no representation in LINQ expression trees and couldn't be translated to SQL by providers like EF Core.
 
 ```csharp
 // Single parameter — inferred from T

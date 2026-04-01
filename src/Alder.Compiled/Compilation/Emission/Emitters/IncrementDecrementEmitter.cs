@@ -10,8 +10,8 @@ internal sealed class IncrementDecrementEmitter : INodeEmitter<BoundIncrementDec
     {
         if (ctx.TryGetPromoted(node.LocalId, out var promoted))
         {
-            if (TryEmitPure(node, promoted, ctx, out var pureResult))
-                return pureResult;
+            if (TryEmitNative(node, promoted, ctx, out var nativeResult))
+                return nativeResult;
 
             var isIncrement = node.Operator == TokenType.PlusPlus;
             var oldVar = LinqExpression.Variable(promoted.Variable.Type, "incrOld");
@@ -46,7 +46,7 @@ internal sealed class IncrementDecrementEmitter : INodeEmitter<BoundIncrementDec
             LinqExpression.Constant(ctx.IsChecked));
     }
 
-    private static bool TryEmitPure(
+    private static bool TryEmitNative(
         BoundIncrementDecrementExpr node,
         PromotedLocal promoted,
         EmissionContext ctx,
@@ -60,28 +60,15 @@ internal sealed class IncrementDecrementEmitter : INodeEmitter<BoundIncrementDec
             return false;
 
         var isIncrement = node.Operator == TokenType.PlusPlus;
-        var one = LinqExpression.Constant(Convert.ChangeType(1, promoted.VariableType), promoted.VariableType);
-        var newValue = isIncrement
-            ? LinqExpression.Add(promoted.Variable, one)
-            : LinqExpression.Subtract(promoted.Variable, one);
 
-        if (node.IsPrefix)
+        result = (node.IsPrefix, isIncrement) switch
         {
-            result = LinqExpression.Block(
-                promoted.Variable.Type,
-                LinqExpression.Assign(promoted.Variable, newValue),
-                promoted.Variable);
-        }
-        else
-        {
-            var oldVar = LinqExpression.Variable(promoted.Variable.Type, "incrOld");
-            result = LinqExpression.Block(
-                promoted.Variable.Type,
-                [oldVar],
-                LinqExpression.Assign(oldVar, promoted.Variable),
-                LinqExpression.Assign(promoted.Variable, newValue),
-                oldVar);
-        }
+            (true, true) => LinqExpression.PreIncrementAssign(promoted.Variable),
+            (true, false) => LinqExpression.PreDecrementAssign(promoted.Variable),
+            (false, true) => LinqExpression.PostIncrementAssign(promoted.Variable),
+            (false, false) => LinqExpression.PostDecrementAssign(promoted.Variable),
+        };
+
         return true;
     }
 }

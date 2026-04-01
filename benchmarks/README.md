@@ -2,8 +2,6 @@
 
 Performance benchmarks for Alder using [BenchmarkDotNet](https://benchmarkdotnet.org/).
 
-For full documentation, see [docs/benchmarks.md](../docs/benchmarks.md).
-
 ## Quick Start
 
 ```bash
@@ -14,15 +12,9 @@ Always run in `Release` mode for meaningful measurements.
 
 ## Available Suites
 
-- `ComparableExecutionBenchmarks`
-  - Warm execution of pre-prepared expressions.
-  - Compared engines: Alder interpreted, Alder compiled, Roslyn script compiled runner, NCalc, and native delegate baseline.
-- `ColdStartComparableBenchmarks`
-  - End-to-end cold path (engine/script/expression creation + execute each invocation).
-  - Compared engines: Alder interpreted, Alder compiled, Roslyn scripting `EvaluateAsync`, NCalc.
-- `AdvancedLanguageBenchmarks`
-  - Realistic control flow and LINQ-heavy expressions where NCalc is not feature-compatible.
-  - Compared engines: Alder interpreted, Alder compiled, Roslyn script compiled runner.
+- **ComparableExecutionBenchmarks** — Warm execution of pre-prepared expressions across Alder interpreted, Alder compiled, Roslyn script compiled runner, NCalc, and native delegate baseline.
+- **ColdStartComparableBenchmarks** — End-to-end cold path (engine creation + evaluation per invocation) across Alder interpreted, Alder compiled, Roslyn scripting, and NCalc.
+- **AdvancedLanguageBenchmarks** — Realistic control flow and LINQ-heavy expressions. Alder interpreted vs Alder compiled vs Roslyn script compiled runner.
 
 ## Examples
 
@@ -43,6 +35,6 @@ dotnet run -c Release -- --filter * --exporters markdown,json
 ## Guardrails
 
 - Scenario parity is validated during benchmark setup.
-- Benchmarks use fixed deterministic input data (`BenchmarkGlobalData`).
+- Benchmarks use fixed deterministic input data.
 - Cross-engine comparisons are limited to capability-overlap scenarios.
-- Advanced suites are explicitly Alder-vs-Roslyn only to avoid misleading comparisons.
+- Advanced suites are Alder-vs-Roslyn only where NCalc lacks feature parity.

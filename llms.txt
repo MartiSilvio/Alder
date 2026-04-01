@@ -1,8 +1,8 @@
 # Alder
 
-> Alder is a C# runtime engine for .NET with AOT-first dispatch. It evaluates C# expressions and statements at runtime with full ECMA-334 semantics — LINQ with generic type inference, pattern matching, overload resolution, two execution backends (interpreter and IL compiler), security sandboxing, and AOT source generators for NativeAOT and Unity IL2CPP. One NuGet package, zero dependencies.
+> Alder is a C# runtime engine for .NET with AOT-first dispatch. It evaluates C# expressions, statements, and multi-statement programs at runtime with full ECMA-334 semantics — LINQ with generic type inference, pattern matching, overload resolution, control flow, exception handling, two execution backends (interpreter and IL compiler), security sandboxing, and AOT source generators for NativeAOT and Unity IL2CPP. One NuGet package, zero dependencies.
 
-Alder implements a real compiler pipeline: lexer, parser, semantic binder, optimization passes, and two interchangeable execution backends that produce identical results. Code can be evaluated in Standard mode (ECMA-334 C#) or Extended mode (superset with additional operators, collection literals, comprehensions, bare math functions, and more).
+Alder implements a full compiler pipeline: lexer, parser, semantic binder, optimization passes, and two interchangeable execution backends that produce identical results. From a simple `1 + 2` to a multi-statement program with variables, foreach loops, switch expressions, and LINQ pipelines — the same engine handles it all. Code can be evaluated in Standard mode (ECMA-334 C#) or Extended mode (superset with additional operators, collection literals, comprehensions, bare math functions, and more).
 
 ## Instructions for LLMs
 
@@ -14,6 +14,7 @@ When writing code that uses Alder:
 - For LINQ Dynamic (`WhereDynamic`, `SelectDynamic`, etc.), `AlderEval.Configure(o => o.UseCompiler())` must be called once at startup before any LINQ Dynamic operation.
 - Security: use `SandboxOptions.Safe()` or `SandboxOptions.Strict()` when evaluating user-supplied code. `Trusted()` is the default but gives full access.
 - The NuGet package is `Alder` — a single package with no dependencies. Do not reference `Alder.Compiled` or `Alder.Generators` separately; they ship inside the main package.
+- The compiler backend is swappable via `IExpressionCompiler` — users can plug in alternatives like FastExpressionCompiler.
 
 ## Getting Started
 
@@ -29,7 +30,7 @@ When writing code that uses Alder:
 - [AlderEngine](docs/engine/alder-engine.md): Full API — evaluate, parse, validate, compile, trace, dispose, thread safety
 - [AlderOptions](docs/engine/alder-options.md): Configuration — language mode, sandbox, constraints, compiler, sub-builders
 - [Variables](docs/engine/variables.md): Typed vs untyped injection, child engines, scoping, caching, concurrency patterns
-- [Compilation](docs/engine/compilation.md): IL compilation, UseCompiler, CompileToFunc, ParseAsExpression, LINQ Dynamic integration
+- [Compilation](docs/engine/compilation.md): IL compilation, UseCompiler, CompileToFunc, ParseAsExpression, swappable compiler backend
 - [LINQ Dynamic](docs/engine/linq-dynamic.md): String-based LINQ on IEnumerable<T> and IQueryable<T> — runtime filtering, projection, aggregation with EF Core support
 - [Functions and Modules](docs/engine/functions-and-modules.md): Delegate functions, class-backed modules, attributes, assembly scanning, DI integration
 - [Type Registration](docs/engine/type-registration.md): Assemblies, namespaces, extension methods, type resolution order
@@ -51,6 +52,6 @@ When writing code that uses Alder:
 - [Overload Resolution](docs/architecture/overload-resolution.md): ECMA-334 §12.6.4 implementation — candidate construction, applicability, better-function-member
 - [Type Inference](docs/architecture/type-inference.md): ECMA-334 §12.6.3 implementation — bounds collection, iterative fixing, lambda return inference
 - [Numeric Promotion](docs/architecture/numeric-promotion.md): ECMA-334 §12.4.7.3 — binary promotion rules, char edge cases, constant promotion
-- [Interpreter](docs/architecture/interpreter.md): Tree-walking evaluation, NumericDispatch, ControlFlowSignal, AOT integration
+- [Interpreter](docs/architecture/interpreter.md): Tree-walking evaluation, numeric dispatch, control flow signals, AOT integration
 - [Compiler](docs/architecture/compiler.md): LINQ expression tree emission, local promotion, identifier hoisting, delegate caching
 - [Bound Tree Pipeline](docs/architecture/bound-tree-pipeline.md): SecurityValidationPass, ConstantFoldingPass, DeadBranchEliminationPass, ConversionInsertionPass

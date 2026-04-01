@@ -1,5 +1,4 @@
 using System.Collections.Immutable;
-using System.Reflection;
 using Alder.Binding.BoundNodes;
 using Alder.Binding.Services;
 using Alder.Parsing;
@@ -38,7 +37,7 @@ internal static class CallBinder
                 var argumentTypes = arguments.Select(static argument => argument.StaticType.ClrType).ToArray();
                 var callBinderService = new CallBinderService(context.RuntimeContext);
 
-                var bound = methodGroup.IsStatic && methodGroup.Target is BoundLiteralExpr { Value: Type staticDeclaringType }
+                var bound = methodGroup is { IsStatic: true, Target: BoundLiteralExpr { Value: Type staticDeclaringType } }
                     ? callBinderService.TryBindStaticCall(staticDeclaringType, methodGroup.MethodName, argumentTypes, context.IsCaseSensitive, out var callPlan)
                     : callBinderService.TryBindInstanceCall(methodGroup.DeclaringType, methodGroup.MethodName, argumentTypes, context.IsCaseSensitive, out callPlan);
 
@@ -197,7 +196,7 @@ internal static class CallBinder
         if (!context.IsCaseSensitive)
             flags |= BindingFlags.IgnoreCase;
 
-        var declaringType = methodGroup.IsStatic && methodGroup.Target is BoundLiteralExpr { Value: Type staticType }
+        var declaringType = methodGroup is { IsStatic: true, Target: BoundLiteralExpr { Value: Type staticType } }
             ? staticType
             : methodGroup.DeclaringType;
 

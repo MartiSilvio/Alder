@@ -1,5 +1,3 @@
-using System.Reflection;
-
 namespace Alder.Binding.BoundNodes;
 
 internal sealed record BoundFieldAccessExpr(

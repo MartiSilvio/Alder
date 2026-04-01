@@ -1,6 +1,5 @@
 using Alder.Binding;
 using Alder.Runtime;
-using Alder.Runtime.Semantics;
 using Alder.Text;
 using Alder.Tracing;
 
@@ -32,7 +31,7 @@ internal sealed class BoundEvaluator
         catch (AlderException ex) when (ex.Span.IsEmpty)
         {
             var faulted = _evalCtx.LastEvaluatedExpr;
-            if (faulted != null && !faulted.Span.IsEmpty)
+            if (faulted is { Span.IsEmpty: false })
             {
                 int? line = null, column = null;
                 if (_evalCtx.SourceText != null)

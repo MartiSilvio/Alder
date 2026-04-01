@@ -1,5 +1,3 @@
-using Alder.Aot;
-
 namespace Alder.Runtime;
 
 /// <summary>

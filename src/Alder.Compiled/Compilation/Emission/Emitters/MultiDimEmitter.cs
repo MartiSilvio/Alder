@@ -58,7 +58,7 @@ internal sealed class MultiDimEmitter :
 
     public LinqExpression Emit(BoundMultiDimIndexAssignExpr node, EmissionContext ctx)
     {
-        if (node.IsArray && node.TargetType != null)
+        if (node is { IsArray: true, TargetType: not null })
         {
             var setMethod = node.TargetType.GetMethod("Set");
             if (setMethod != null)

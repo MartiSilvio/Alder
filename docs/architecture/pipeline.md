@@ -5,7 +5,7 @@ sidebar:
   order: 2
 ---
 
-Every expression Alder evaluates passes through a five-stage pipeline. The pipeline transforms a string into a result, with each stage having a well-defined input, output, and responsibility.
+Every expression Alder evaluates passes through a five-stage pipeline that transforms a string into a result. Each stage has a well-defined input, output, and responsibility.
 
 ```mermaid
 graph LR
@@ -13,9 +13,9 @@ graph LR
     L -->|"List&lt;Token>"| P["Parser"]
     P -->|"Expr (AST)"| B["Binder"]
     B -->|"BoundExpr"| PP["Pipeline Passes"]
-    PP -->|"BoundExpr (optimized)"| E{"Execution"}
-    E -->|interpreted| I["BoundEvaluator"]
-    E -->|compiled| C["BoundExpressionEmitter → IL"]
+    PP -->|"BoundExpr (optimized)"| E{"Backend"}
+    E -->|interpreted| I["Interpreter"]
+    E -->|compiled| C["IL Compiler"]
     I --> R["Result"]
     C --> R
 ```
@@ -24,28 +24,27 @@ graph LR
 
 **Input**: `string` (the expression text)
 **Output**: `List<Token>`
-The lexer scans the source character-by-character and produces a flat token list. Single-pass, no backtracking.
 
-It handles:
+The lexer scans the source character-by-character and produces a flat token list. Single-pass, no backtracking. Every token carries its position (line, column, offset) for error reporting downstream.
+
+What the lexer handles:
 - All C# numeric literal forms: decimal, hex (`0x`), binary (`0b`), digit separators (`_`), suffixes (`L`, `U`, `UL`, `F`, `D`, `M`), leading decimal (`.5`), scientific notation (`1.5e-3`)
 - Six string forms: regular, verbatim (`@""`), raw (C# 11 `"""`), interpolated (`$""`), verbatim-interpolated (`$@""` / `@$""`), raw-interpolated (`$"""`)
 - C# 11 raw string indentation stripping
-- Escape sequences: `\n`, `\r`, `\t`, `\0`, `\a`, `\b`, `\f`, `\v`, `\\`, `\"`, `\'`, `\xHH`, `\uHHHH`, `\UHHHHHHHH`
+- All escape sequences: `\n`, `\r`, `\t`, `\0`, `\a`, `\b`, `\f`, `\v`, `\\`, `\"`, `\'`, `\xHH`, `\uHHHH`, `\UHHHHHHHH`
 - Character literals with escape sequences
-- All C# operators including multi-character sequences (`??=`, `>>>=`, `<=>`, `..=`)
-- 150+ token types including reserved keywords, contextual keywords, and Extended mode operators
+- All C# operators including multi-character sequences (`??=`, `>>>=`) and Extended mode operators (`<=>`, `..=`, `**`, `|>`)
+- Reserved keywords, contextual keywords, and Extended mode keywords (`between`, `like`, `unless`, `until`)
 - Single-line (`//`) and multi-line (`/* */`) comments
-- Line and column tracking for diagnostic positions
-
-Every token carries its position (line, column, offset) for error reporting downstream.
 
 ## Stage 2: Parsing
 
 **Input**: `List<Token>` + `LanguageMode`
 **Output**: `Expr` (untyped AST)
-The parser uses precedence climbing — a single `ParseSubExpression(minPrecedence)` method with a while-loop, rather than the traditional one-method-per-level chain. This keeps recursion depth proportional to expression nesting, not the number of precedence levels (18 levels in Alder).
 
-The parser graph is five mutually-referencing parsers wired together at construction:
+The parser uses precedence climbing — a single `ParseSubExpression(minPrecedence)` method with a while-loop. This keeps recursion depth proportional to expression nesting, not the number of precedence levels.
+
+Five mutually-referencing sub-parsers are wired together at construction:
 
 | Parser | Responsibility |
 |--------|---------------|
@@ -56,121 +55,87 @@ The parser graph is five mutually-referencing parsers wired together at construc
 | `QueryParser` | LINQ query syntax: `from`, `where`, `select`, `orderby`, `let`, `join`, `group`, `into` — desugars to method calls |
 
 Key design decisions:
-- **LINQ query syntax desugars at parse time.** The AST has no query-specific node types — `from x in source where x > 0 select x` becomes a chain of `CallExpr` nodes calling `Where` and `Select` with `LambdaExpr` arguments.
-- **Extended mode features are gated at parse time.** Using `[1, 2, 3]`, `|>`, `**`, `let..in`, chained comparisons, or SQL-style operators in Standard mode throws `ALDR0020: Feature requires LanguageMode.Extended`.
-- **Disambiguation uses lookahead.** Cast vs grouping (`(int)x` vs `(x + y)`), if-statement vs if-expression, `from` identifier vs `from` query — the parser uses bounded lookahead to resolve ambiguities.
+- **LINQ query syntax desugars at parse time.** `from x in source where x > 0 select x` becomes a chain of `CallExpr` nodes calling `Where` and `Select` with `LambdaExpr` arguments. The AST has no query-specific node types.
+- **Extended mode features are gated at parse time.** Using `[1, 2, 3]`, `|>`, `**`, `let..in`, chained comparisons, or SQL-style operators in Standard mode produces `ALDR0020`.
+- **Disambiguation uses lookahead.** Cast vs grouping (`(int)x` vs `(x + y)`), if-statement vs if-expression, `from` identifier vs `from` query — the parser uses bounded lookahead to resolve ambiguities without backtracking.
 
-## Stage 3: Binding (Semantic Analysis)
+## Stage 3: Binding
 
 **Input**: `Expr` (AST) + `BindingContext` (variable types from the engine)
 **Output**: `BoundExpr` (typed bound tree)
 
-
-The binder performs semantic analysis: resolving identifiers to variables/types/modules, resolving member access to specific properties/fields/methods, inferring types for operators and calls, and producing a tree where every node carries a `BoundType`.
-
-The binder uses a per-node strategy pattern. Each AST node type is handled by a dedicated static class in `Binding/Binders/`, annotated with `[BindsNode(typeof(XxxExpr))]`. There are ~75 such binder classes. Dispatch from AST node type to the correct binder is source-generated by `BinderDispatchGenerator`.
+The binder is the most complex stage. It performs semantic analysis: resolving identifiers, members, and method calls; inferring types for operators; running ECMA-334 overload resolution and generic type inference. Every output node carries a `BoundType` — the binder's best knowledge of what type the expression will produce.
 
 The central design split is **resolved vs dynamic nodes**:
 
-| Resolved | Dynamic | When used |
-|----------|---------|-----------|
-| `BoundResolvedCallExpr` | `BoundDynamicCallExpr` | Method calls |
-| `BoundPropertyAccessExpr` | `BoundDynamicMemberAccessExpr` | Member access |
-| `BoundFieldAccessExpr` | `BoundDynamicMemberAccessExpr` | Field access |
-| `BoundResolvedIndexAccessExpr` | `BoundDynamicIndexAccessExpr` | Index access |
+```mermaid
+graph TD
+    A["Binder encounters<br/>obj.Property"] --> B{"Is obj's type known?"}
+    B -->|"Yes: List&lt;int>"| C["Resolved Node<br/>(PropertyInfo: Count)"]
+    B -->|"No: object"| D["Dynamic Node<br/>(memberName: 'Property')"]
+```
 
-When the binder knows the target type (from `SetVariable<T>`, type inference, or literal types), it produces resolved nodes with the exact `MethodInfo`, `PropertyInfo`, or `FieldInfo` already selected. When the type is `object` (untyped variables, dynamic dispatch), it produces dynamic nodes that defer member resolution to runtime.
+When the binder knows the target type (from `SetVariable<T>`, type inference, or literal types), it produces **resolved** nodes with the exact `MethodInfo`, `PropertyInfo`, or `FieldInfo` already selected. When the type is `object`, it produces **dynamic** nodes that defer member resolution to runtime.
 
-This split is what makes AOT dispatch possible — resolved nodes carry enough information for the source generator to emit type-safe dispatch code.
+This split has three consequences:
+1. **Performance** — resolved nodes skip reflection at runtime
+2. **AOT dispatch** — the source generator emits type-safe dispatch code from resolved node metadata
+3. **Diagnostics** — the binder reports `CS1061: 'String' does not contain a definition for 'Foo'` at bind time instead of failing at runtime
 
-The bound tree uses every `BoundNodeKind` value. ECMA-334-equivalent kinds use Roslyn's `BoundKind` numbers (e.g., `BinaryOperator = 40`, `Block = 85`). Alder-specific kinds start at 1000.
+See [Binder](binder.md) for the full binding process.
 
-## Stage 4: Bound Tree Pipeline
+## Stage 4: Optimization Passes
 
 **Input**: `BoundExpr` (from binder)
 **Output**: `BoundExpr` (optimized, security-validated)
 
+The bound tree passes through a configurable pipeline of transformation passes. The interpretation pipeline runs three passes; the compilation pipeline adds a fourth:
 
-The bound tree passes through a configurable pipeline of transformation passes. Two pipelines exist:
+1. **SecurityValidationPass** — walks every node against the sandbox policy. If any node violates a permission, evaluation never starts.
+2. **ConstantFoldingPass** — evaluates compile-time constant subexpressions (`1 + 2` → `3`, `"hello" + " world"` → `"hello world"`)
+3. **DeadBranchEliminationPass** — removes unreachable `if` branches when conditions have been folded to constants
+4. **ConversionInsertionPass** *(compilation only)* — inserts explicit cast nodes for numeric type promotions, because LINQ expression trees require exact type matching
 
-**Interpretation pipeline** (3 passes):
-1. `SecurityValidationPass` — walks the tree, enforces sandbox permissions and type blocking
-2. `ConstantFoldingPass` — evaluates compile-time constant subexpressions
-3. `DeadBranchEliminationPass` — removes unreachable branches from constant conditions
-
-**Compilation pipeline** (4 passes):
-1. `SecurityValidationPass`
-2. `ConstantFoldingPass`
-3. `DeadBranchEliminationPass`
-4. `ConversionInsertionPass` — inserts explicit `BoundCastExpr` for binary operand type promotions (the interpreter handles promotion at runtime via `NumericDispatch.PromoteOperands`, but LINQ expression trees require exact type matching)
-
-The pipeline is a simple sequential chain — each pass receives the tree from the previous pass and returns a (possibly modified) tree. Passes are `IBoundTreePass` implementations with an `Execute(BoundExpr, PipelineContext)` method.
+See [Bound Tree Pipeline](bound-tree-pipeline.md) for details on each pass.
 
 ## Stage 5: Execution
 
-### Interpreter Path
+### Interpreter
 
 **Input**: `BoundExpr` (optimized)
 **Output**: `object?` (the result)
 
+The interpreter walks the bound tree node by node using a per-node strategy pattern. Each bound node kind has a dedicated evaluator class, with dispatch source-generated at compile time — a flat switch expression mapping each node kind to its handler, with no virtual method overhead.
 
-The interpreter is a tree-walking evaluator using a per-node strategy pattern. Each `BoundNodeKind` is handled by a dedicated static evaluator class in `Interpretation/Evaluators/`, annotated with `[EvaluatesNode(BoundNodeKind.Xxx)]`. There are 71 such evaluator classes. Dispatch is source-generated by `EvaluatorDispatchGenerator`.
+Numeric operations use pre-built delegate tables keyed by type pairs — `1 + 2` evaluates without boxing, `dynamic`, or reflection. Control flow uses signal propagation — `break`, `continue`, and `return` produce signal values that flow through the evaluation stack, unwrapped only at function boundaries.
 
-Key subsystems the interpreter delegates to:
-- `NumericDispatch` — type-safe arithmetic without `dynamic`, using pre-built delegate tables keyed by `(Type, Type)` pairs
-- `MethodInvoker` — method invocation, lambda delegate conversion, overload resolution at runtime
-- `ExtensionMethodResolver` — extension method discovery, generic type inference, caching
-- `PatternRuntime` — pattern matching execution for all ECMA-334 §11.2 pattern types
-- `IdentifierRuntime` — variable lookup through context chain, module resolution, function resolution
-- `ConstructionRuntime` — object creation with collection/property/indexer initializers
+See [Interpreter](interpreter.md) for details.
 
-Control flow uses `ControlFlowSignal` — a tagged union that propagates through all intermediate constructs (blocks, loops, branches). Unwrapping happens only at function boundaries: the engine entry point (`AlderEngine`), lambda invocation (`MethodInvoker.InvokeLambda`), and compiled root (`EmitRoot`).
+### Compiler
 
-### Compiler Path
-
-**Input**: `BoundExpr` (optimized, with `ConversionInsertionPass` applied)
+**Input**: `BoundExpr` (optimized, with conversion insertion applied)
 **Output**: `CompiledExpressionDelegate` (native delegate)
 
+The compiler translates the bound tree into a `System.Linq.Expressions.Expression` tree, then compiles it to a native delegate. The compiled delegate captures the engine's context by reference — variables set after compilation are visible to subsequent invocations.
 
-The compiler walks the same bound tree and produces a `System.Linq.Expressions.Expression` tree (LINQ expression tree). This tree is then compiled to a native delegate via `IExpressionCompiler.Compile()`.
+Key optimizations: **local promotion** converts context-based variable lookups (dictionary access) into typed LINQ locals (register/stack variables), and **identifier hoisting** pre-loads frequently-accessed engine variables into typed locals at the start of the compiled body.
 
-The emitter handles:
-- **Local promotion**: Identifies variables read multiple times and hoists them into typed `ParameterExpression` locals, eliminating repeated context lookups
-- **Identifier hoisting**: Pre-loads engine variables into typed locals at the start of the compiled body
-- **Control flow signals**: Emits `ControlFlowSignal` handling at loop and block boundaries, with unwrapping at the root
-
-The compiled delegate signature is:
-```csharp
-delegate object? CompiledExpressionDelegate(
-    AlderContext context,
-    AlderConfig config,
-    ExecutionConstraintState constraintState,
-    CancellationToken cancellationToken);
-```
-
-This captures the engine's context and configuration by reference — variables set after compilation are visible to subsequent invocations.
+The compiler backend is swappable via `IExpressionCompiler`. See [Compiler](compiler.md) for details.
 
 ## Caching
 
-Caching happens at three levels:
+Caching happens at three levels, each avoiding redundant work:
 
-| Level | What's cached | Where | Invalidation |
-|-------|-------------|-------|-------------|
-| Parsed AST | `Expr` tree | On `AlderExpression.Ast` | Never — AST is immutable |
-| Bound tree | `BoundExpr` | `ConditionalWeakTable` on `AlderExpression`, keyed by `AlderContext` | When variable type version changes |
-| Compiled delegate | `CompiledExpressionDelegate` | `CompiledExpressionInfo` on `AlderExpression` + `ExpressionCache` on engine | FIFO eviction at 10,000 entries |
+| Level | What's cached | Invalidation |
+|-------|-------------|-------------|
+| Parsed AST | `Expr` tree on `AlderExpression` | Never — the AST is immutable |
+| Bound tree | `BoundExpr` per context on `AlderExpression` | When variable types change (tracked by a version counter) |
+| Compiled delegate | Native delegate on `AlderExpression` + per-engine cache | FIFO eviction in the engine cache |
 
-The bound tree cache is particularly important: the `AlderContext.GetTypeInferenceVersion()` method returns a hash that changes when variable types change (via `SetVariable<T>`). The `AlderExpression` compares the cached version with the current version on each evaluation. If they match, the bound tree is reused. If they differ, the expression is re-bound with the new type information.
+The bound tree cache is the most impactful: when you call `Evaluate(AlderExpression)` repeatedly with the same variable types, binding is skipped entirely — only execution runs. The engine tracks a type inference version that increments when `SetVariable<T>` changes a variable's type. If the version matches the cached version, the bound tree is reused.
 
 ## AOT Integration
 
-When AOT dispatch is available (via the source generator), `TypedDispatchHelper` checks it before falling back to reflection:
+When AOT dispatch is available (via the source generator), the engine checks it before falling back to reflection at every member access and method call. The dispatch lookup walks the type hierarchy — registering dispatch for `List<int>` covers access to members inherited from `IList<int>`, `ICollection<int>`, etc.
 
-1. For member access: `ITypedDispatch.TryGet` / `TryGetStatic`
-2. For method calls: `ITypedDispatch.TryInvoke` / `TryInvokeStatic`
-3. For construction: `ITypedDispatch.TryCreate`
-4. For index access: `ITypedDispatch.TryGetIndex` / `TrySetIndex`
-
-The dispatch lookup walks the type hierarchy via `AlderConfig.TryGetDispatch(type, out ITypedDispatch?)` — if dispatch exists for a base type, it's used. This is the two-tier model: AOT dispatch when available, reflection fallback when not.
-
-See [AOT Overview](../aot/overview.md) for the full source generator documentation.
+See [AOT Overview](../aot/overview.md) for the source generator documentation.

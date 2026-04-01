@@ -7,13 +7,13 @@ internal sealed class MemberAssignEmitter : INodeEmitter<BoundMemberAssignExpr>
 {
     public LinqExpression Emit(BoundMemberAssignExpr node, EmissionContext ctx)
     {
-        if (node.ResolvedMember is PropertyInfo property && property.CanWrite
+        if (node.ResolvedMember is PropertyInfo { CanWrite: true } property
             && !node.Target.StaticType.ClrType.IsValueType)
         {
             return EmitDirectProperty(node, property, ctx);
         }
 
-        if (node.ResolvedMember is FieldInfo field && !field.IsInitOnly
+        if (node.ResolvedMember is FieldInfo { IsInitOnly: false } field
             && !node.Target.StaticType.ClrType.IsValueType)
         {
             return EmitDirectField(node, field, ctx);

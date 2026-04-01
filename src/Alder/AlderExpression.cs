@@ -74,9 +74,7 @@ public sealed class AlderExpression
     internal BoundExpr GetOrCreateBoundExpression(AlderContext context)
     {
         var currentVersion = context.GetTypeInferenceVersion();
-        if (_boundExpressionCacheByContext.TryGetValue(context, out var cached) &&
-            cached != null &&
-            cached.Version == currentVersion)
+        if (_boundExpressionCacheByContext.TryGetValue(context, out var cached) && cached.Version == currentVersion)
         {
             return cached.Bound;
         }
@@ -199,9 +197,12 @@ internal enum CompiledPipeline
 /// <param name="FailureReason">The reason compilation failed, or null if it succeeded.</param>
 /// <param name="FailureException">Original failure exception when available.</param>
 /// <param name="Pipeline">Which compilation pipeline produced the delegate.</param>
+/// <param name="TypeVersion">The <see cref="AlderContext.GetTypeInferenceVersion"/> snapshot at compile time,
+/// or null for delegates compiled without a binding context.</param>
 internal record CompiledExpressionInfo(
     CompiledExpressionDelegate? Delegate,
     bool IsCompilable,
     string? FailureReason,
     Exception? FailureException = null,
-    CompiledPipeline Pipeline = CompiledPipeline.None);
+    CompiledPipeline Pipeline = CompiledPipeline.None,
+    int? TypeVersion = null);

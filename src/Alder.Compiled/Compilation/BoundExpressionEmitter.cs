@@ -62,6 +62,7 @@ internal sealed partial class BoundExpressionEmitter
         _emissionCtx.Register<BoundMultiDimIndexAssignExpr>(BoundNodeKind.MultiDimIndexAssignment, multiDimEmitter);
         _emissionCtx.Register(BoundNodeKind.CollectionCreation, new CollectionCreationEmitter());
         _emissionCtx.Register(BoundNodeKind.ObjectLiteral, new ObjectLiteralEmitter());
+        _emissionCtx.Register(BoundNodeKind.WithExpression, new WithEmitter());
         _emissionCtx.Register(BoundNodeKind.InterpolatedString, new InterpolatedStringEmitter());
         _emissionCtx.Register(BoundNodeKind.Lambda, new LambdaEmitter());
         _emissionCtx.Register(BoundNodeKind.TypedLambda, new TypedLambdaEmitter());

@@ -744,4 +744,66 @@ public class CompilationTests
     }
 
     #endregion
+
+    #region Type Version Invalidation
+
+    [Test]
+    public void Evaluate_CompiledExpression_InvalidatesWhenVariableTypeChanges()
+    {
+        var engine = new AlderEngine(new AlderOptions().UseCompiler());
+        var expr = engine.Parse("x + 1");
+
+        engine.SetVariable<int>("x", 5);
+        var result1 = engine.Evaluate<int>(expr);
+        Assert.That(result1, Is.EqualTo(6));
+
+        // Change x from int to double — the compiled delegate was bound with int,
+        // so it must re-compile with the new type
+        engine.SetVariable<double>("x", 2.5);
+        var result2 = engine.Evaluate<double>(expr);
+        Assert.That(result2, Is.EqualTo(3.5));
+    }
+
+    [Test]
+    public void CompiledExpression_Invoke_ThrowsWhenVariableTypeChanges()
+    {
+        var engine = new AlderEngine(new AlderOptions().UseCompiler());
+        engine.SetVariable<int>("x", 5);
+
+        var compiled = engine.Compile<int>("x + 1");
+        Assert.That(compiled.Invoke(), Is.EqualTo(6));
+
+        engine.SetVariable<string>("x", "hello");
+        Assert.Throws<AlderException>(() => compiled.Invoke());
+    }
+
+    [Test]
+    public void CompiledExpression_Invoke_ReusesDelegate_WhenValueChanges_SameType()
+    {
+        var engine = new AlderEngine(new AlderOptions().UseCompiler());
+        engine.SetVariable<int>("x", 5);
+
+        var compiled = engine.Compile<int>("x + 1");
+        Assert.That(compiled.Invoke(), Is.EqualTo(6));
+
+        // Same type (int), different value — no recompilation needed
+        engine.SetVariable<int>("x", 100);
+        Assert.That(compiled.Invoke(), Is.EqualTo(101));
+    }
+
+    [Test]
+    public void Evaluate_CompiledExpression_ReusesDelegate_WhenValueChanges_SameType()
+    {
+        var engine = new AlderEngine(new AlderOptions().UseCompiler());
+        var expr = engine.Parse("x * 2");
+
+        engine.SetVariable<int>("x", 5);
+        Assert.That(engine.Evaluate<int>(expr), Is.EqualTo(10));
+
+        // Same type (int), different value — delegate reused, no recompilation
+        engine.SetVariable<int>("x", 20);
+        Assert.That(engine.Evaluate<int>(expr), Is.EqualTo(40));
+    }
+
+    #endregion
 }

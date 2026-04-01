@@ -4,7 +4,7 @@ Alder evaluates user-supplied C# code safely in production environments. The sec
 
 ## How Enforcement Works
 
-**Operation permissions and type blocking** are enforced as a bound tree pipeline pass that runs **before execution begins**. The `SecurityValidationPass` walks every node, checking each member access, method call, constructor invocation, and assignment against the configured policy. If any node violates the policy, evaluation never starts and an `AlderException` with an `ALDR01xx` diagnostic is thrown. A blocked expression produces a diagnostic, not a partially-executed side effect.
+**Operation permissions and type blocking** are enforced as a bound tree pipeline pass that runs **before execution begins**. The entire expression tree is validated against the configured policy. If any node violates the policy, evaluation never starts — a blocked expression produces a diagnostic, not a partially-executed side effect.
 
 **Execution limits** (statement count, loop iterations, timeout, collection size) are enforced at runtime during evaluation, since they depend on the dynamic behavior of the expression.
 
@@ -34,49 +34,10 @@ var engine = new AlderEngine(o =>
 });
 ```
 
-`SandboxOptions` is a `record` with `init` properties. Customize any preset with `with`:
-
-```csharp
-o.Sandbox = SandboxOptions.Safe() with
-{
-    AllowMethodCalls = true,
-    TrustedTypes = new HashSet<Type> { typeof(System.IO.MemoryStream) }
-};
-```
-
-## Type and Namespace Blocking
-
-A four-layer evaluation chain controls which .NET types expressions can access:
-
-1. **Hard-denied**: `AlderEngine`, `AlderOptions`, `AlderExpression` are always blocked
-2. **Trusted**: Types in `TrustedTypes` or `TrustedNamespaces` are always allowed
-3. **Denied**: Types in `DeniedTypes` or `DeniedNamespaces` are blocked
-4. **Default**: Everything else is allowed
-
-Namespace blocking uses a prefix-with-dot algorithm: blocking `"System.Net"` blocks both `System.Net` (exact match) and `System.Net.Http` (prefix `"System.Net."` matches), but not `System.NetCore`.
-
-Default denied namespaces cover code generation (`System.CodeDom`, `System.Linq.Expressions`, `System.Reflection`, `System.Reflection.Emit`, `System.Runtime.CompilerServices`, `System.Runtime.Loader`, `System.Runtime.Serialization`, `Microsoft.CSharp`), OS and process access (`System.Diagnostics`, `System.IO`, `System.ServiceProcess`, `System.Management`, `Microsoft.Win32`), networking (`System.Net`, `System.Net.Http`, `System.Net.Mail`, `System.Net.NetworkInformation`, `System.Net.Sockets`), threading (`System.Threading`), security and interop (`System.Runtime.InteropServices`, `System.Security`), data access (`System.Data`, `Microsoft.Data`), and configuration/composition (`System.Configuration`, `System.ComponentModel`, `System.ComponentModel.Composition`, `System.Composition`, `System.DirectoryServices`, `System.Resources`).
-
-Default denied types include `Activator`, `AppDomain`, `Console`, `Delegate`, `MulticastDelegate`, `Environment`, `GC`, `WeakReference`, `WeakReference<>`, `Thread`, `ThreadPool`, `Process`, `ProcessStartInfo`, and `Marshal`.
-
-## Execution Limits
-
-| Constraint | Location | Diagnostic | Exception |
-|-----------|----------|------------|-----------|
-| `MaxStatements` | `ExecutionConstraints` | `ALDR0200` | `AlderExecutionLimitException` |
-| `MaxTimeout` | `ExecutionConstraints` | `ALDR0201` | `AlderExecutionLimitException` |
-| `MaxLoopIterations` | `ExecutionConstraints` | `ALDR0203` | `AlderExecutionLimitException` |
-| `MaxCollectionSize` | `SandboxOptions` | `ALDR0202` | `AlderException` |
-| `RegexTimeout` | `SandboxOptions` | — | `RegexMatchTimeoutException` |
-
-## Reflection Blocking
-
-Access to reflection APIs on `Type` objects is blocked even in `Trusted()` mode. Calling `.GetMethods()`, `.GetProperties()`, or similar reflection methods on a `typeof()` result throws `ALDR0108`. This prevents expressions from discovering and invoking methods outside the sandbox.
-
 ## Full Documentation
 
-For the complete security model with detailed permission descriptions, type blocking rules, and architectural details, see [docs/security/](docs/security/index.md).
+For the complete security model — permission details, type blocking chains, namespace blocking, reflection blocking, execution limits, and architectural details — see [docs/security/sandbox.md](docs/security/sandbox.md).
 
 ## Reporting Vulnerabilities
 
-If you discover a security vulnerability in Alder, please report it privately via [GitHub Security Advisories](../../security/advisories/new) rather than opening a public issue.
+If you discover a security vulnerability in Alder, please report it privately via GitHub Security Advisories rather than opening a public issue.

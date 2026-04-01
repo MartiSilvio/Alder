@@ -104,7 +104,7 @@ internal sealed class ConstantFoldingPass : BoundExprRewriter
 
     private static bool IsNonNegativeInt(object val)
     {
-        return val is int i && i >= 0;
+        return val is int and >= 0;
     }
 
     protected override BoundExpr RevisitLogical(BoundExpr node)

@@ -121,6 +121,8 @@ public enum DiagnosticCode
     ALDR0002 = 1_000_002,
     /// <summary>Call requires runtime overload resolution</summary>
     ALDR0003 = 1_000_003,
+    /// <summary>Compiled expression is stale because variable types have changed since compilation</summary>
+    ALDR0004 = 1_000_004,
 
     /// <summary>ParseAsExpression requires a generic Func-style delegate type</summary>
     ALDR0010 = 1_000_010,

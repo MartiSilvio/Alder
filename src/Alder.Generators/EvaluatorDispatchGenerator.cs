@@ -86,7 +86,7 @@ public sealed class EvaluatorDispatchGenerator : IIncrementalGenerator
         var value = constant.Value;
         foreach (var member in constant.Type.GetMembers())
         {
-            if (member is IFieldSymbol field && field.HasConstantValue && Equals(field.ConstantValue, value))
+            if (member is IFieldSymbol { HasConstantValue: true } field && Equals(field.ConstantValue, value))
                 return field.Name;
         }
         return null;

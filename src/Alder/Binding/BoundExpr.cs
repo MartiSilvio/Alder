@@ -135,6 +135,7 @@ internal enum BoundNodeKind
 
     // Alder-specific — literals & collections
     ObjectLiteral = 1_060,
+    WithExpression = 1_065,
     CollectionCreation = 1_061,
     ArrayAllocation = 1_062,
     MultiDimArrayInit = 1_064,

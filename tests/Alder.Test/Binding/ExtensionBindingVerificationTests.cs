@@ -1,7 +1,5 @@
-using Alder;
 using Alder.Binding;
 using Alder.Binding.BoundNodes;
-using NUnit.Framework;
 
 namespace Alder.Test.Binding;
 
@@ -35,11 +33,11 @@ public sealed class ExtensionBindingVerificationTests
         BoundResolvedCallExpr? whereCall = null;
         bound.EnumerateChildren(child =>
         {
-            if (child is BoundResolvedCallExpr rc && rc.SelectedMethod.Name == "Where")
+            if (child is BoundResolvedCallExpr { SelectedMethod.Name: "Where" } rc)
                 whereCall = rc;
             child.EnumerateChildren(grandchild =>
             {
-                if (grandchild is BoundResolvedCallExpr rc2 && rc2.SelectedMethod.Name == "Where")
+                if (grandchild is BoundResolvedCallExpr { SelectedMethod.Name: "Where" } rc2)
                     whereCall = rc2;
             });
         });

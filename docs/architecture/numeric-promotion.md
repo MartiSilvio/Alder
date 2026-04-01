@@ -2,10 +2,10 @@
 title: "Numeric Promotion"
 description: "ECMA-334 §12.4.7.3 binary numeric promotion, unary promotion, constant promotion, char edge cases"
 sidebar:
-  order: 8
+  order: 9
 ---
 
-Alder implements ECMA-334 numeric promotion rules for both binary and unary operators. These rules determine what type the operands are promoted to before an arithmetic, comparison, or bitwise operation is executed.
+Alder implements ECMA-334 numeric promotion rules for both binary and unary operators. These rules determine what type the operands are promoted to before an arithmetic, comparison, or bitwise operation executes.
 
 ## Binary Numeric Promotion (§12.4.7.3)
 
@@ -35,11 +35,11 @@ If `char` were treated as signed, `uint + char` would promote to `long` via Rule
 
 ### `decimal` isolation
 
-Rule 1 enforces that `decimal` cannot be mixed with `float` or `double`. The expression `1.0m + 1.0` throws a compile-time error — there is no implicit conversion between `decimal` and floating-point types. This prevents precision loss from the different numeric representations.
+Rule 1 enforces that `decimal` cannot be mixed with `float` or `double`. The expression `1.0m + 1.0` is a compile-time error — there is no implicit conversion between `decimal` and floating-point types. This prevents precision loss from the different numeric representations.
 
 ### `ulong` + signed error
 
-Rule 4 throws an error when `ulong` is mixed with a signed integer type (`sbyte`, `short`, `int`, `long`). The signed value could be negative, which has no representation in `ulong`. Rather than silently truncating, Alder (like the C# compiler) rejects this at compile time.
+Rule 4 throws an error when `ulong` is mixed with a signed integer type (`sbyte`, `short`, `int`, `long`). The signed value could be negative, which has no representation in `ulong`. Rather than silently truncating, this is rejected at compile time.
 
 ## Unary Numeric Promotion (§12.4.7.2)
 
@@ -58,13 +58,13 @@ ECMA-334 allows implicit conversions for constant expressions that don't apply t
 
 | Constant value | Can implicitly convert to |
 |---------------|--------------------------|
-| Non-negative `int` constant | `uint` (if value ≤ `uint.MaxValue`) |
-| Non-negative `int` constant | `ulong` (if value ≤ `ulong.MaxValue`) |
-| Non-negative `long` constant | `ulong` (if value ≤ `ulong.MaxValue`) |
+| Non-negative `int` constant | `uint` (if value fits) |
+| Non-negative `int` constant | `ulong` (if value fits) |
+| Non-negative `long` constant | `ulong` (if value fits) |
 
 This is why `uint x = 0` compiles — `0` is an `int` constant, but §10.2.11 allows the conversion because the value is non-negative and fits.
 
-In Alder, constant promotion is applied at runtime in the interpreter's binary evaluation path. When one operand is a literal and the other is `uint` or `ulong`, `TryConstantPromotion` checks the value and promotes if safe:
+In the interpreter, constant promotion is applied at runtime in the binary evaluation path. When one operand is a literal and the other is `uint` or `ulong`, the value is checked and promoted if safe:
 
 ```
 uint x = 5;
@@ -74,27 +74,25 @@ x + (-1)       // -1 is int, negative → cannot promote, falls to Rule 6: long
 
 ## Fast Path vs Fallback
 
-The interpreter uses two dispatch tiers for numeric operations:
+The interpreter uses two dispatch tiers:
 
-**Fast path** (`NumericDispatch` with `PromotedType`): When the binder has computed a `PromotedType` at bind time and the runtime types match the static types, the engine routes directly to pre-built delegate tables keyed by `(Type, Type)`. No promotion at runtime — the binder already determined the promoted type. This is the path for expressions like `1 + 2` where both types are known.
+**Fast path**: When the binder has computed a `PromotedType` at bind time and the runtime types match the static types, the engine routes directly to pre-built delegate tables keyed by type pair. No promotion at runtime — the binder already determined the promoted type. The tables contain entries for each of the seven core numeric types: `int`, `long`, `float`, `double`, `decimal`, `uint`, `ulong`. After promotion, both operands always have the same type.
 
-**Fallback path** (`NumericDispatch.PromoteOperands`): When types don't match the fast path (e.g., untyped variables, mixed-type arithmetic where the binder produced `BoundType.Unknown`), the runtime applies the 8-rule promotion chain, converts both operands, and then dispatches to the delegate table with the promoted type pair.
+**Fallback path**: When types don't match the fast path (untyped variables, mixed-type arithmetic where the binder couldn't determine the promoted type), the runtime applies the 8-rule promotion chain, converts both operands, and dispatches to the delegate table with the promoted type pair.
 
-The delegate tables contain 7 entries each: `(int,int)`, `(long,long)`, `(float,float)`, `(double,double)`, `(decimal,decimal)`, `(uint,uint)`, `(ulong,ulong)`. After promotion, both operands always have the same type, so the key is always `(T, T)`.
+Bitwise operators (`&`, `|`, `^`) have separate tables with only integer types — bitwise operations on floating-point types are not defined in C#.
 
-Bitwise operators (`&`, `|`, `^`) have separate tables with only integer types — `float`, `double`, and `decimal` entries are excluded since bitwise operations on floating-point types are not defined in C#.
+## Non-Numeric Operator Semantics
 
-## Operator Semantics Beyond Numeric
-
-The `Operators` class handles non-numeric operations that share the operator symbols:
+The operator system also handles non-numeric operations that share the operator symbols:
 
 | Operation | Trigger | Behavior |
 |-----------|---------|----------|
-| String concatenation | Either operand of `+` is `string` | `$"{left}{right}"` — both sides implicitly converted |
-| DateTime arithmetic | `DateTime ± TimeSpan`, `DateTime - DateTime` | Standard .NET operations, result is `DateTime` or `TimeSpan` |
+| String concatenation | Either operand of `+` is `string` | Both sides implicitly converted to string |
+| DateTime arithmetic | `DateTime ± TimeSpan`, `DateTime - DateTime` | Standard .NET operations |
 | TimeSpan arithmetic | `TimeSpan ± TimeSpan` | Standard .NET operations |
 | Delegate combination | `Delegate + Delegate` / `Delegate - Delegate` | `Delegate.Combine` / `Delegate.Remove` |
-| Enum arithmetic | `Enum + int`, `Enum - Enum`, `~Enum`, `Enum & Enum` | Via `EnumArithmetic` with underlying integral type |
+| Enum arithmetic | `Enum + int`, `Enum - Enum`, `~Enum`, `Enum & Enum` | Via underlying integral type |
 | User-defined operators | `op_Addition`, `op_Subtraction`, etc. | Searched on both operand types, cached; `op_CheckedXxx` tried first in checked context |
 | Nullable lifted | `int? + int?` where either is null | Returns `null` (lifted operator semantics) |
 | String repetition | `"ab" * 3` (Extended mode) | Repeats string n times |
@@ -103,7 +101,7 @@ For equality, NaN follows IEEE 754: `NaN != NaN` is `true`, `NaN == anything` is
 
 ## Checked Arithmetic
 
-In a `checked` context, integer arithmetic operators use separate delegate tables (`CheckedAddOps`, `CheckedSubtractOps`, `CheckedMultiplyOps`) that wrap operations in `checked()`:
+In a `checked` context, integer arithmetic operators use separate delegate tables that wrap operations in `checked()`:
 
 ```csharp
 checked(int.MaxValue + 1)   // throws OverflowException

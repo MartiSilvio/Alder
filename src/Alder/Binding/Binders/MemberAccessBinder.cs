@@ -1,4 +1,3 @@
-using System.Reflection;
 using Alder.Binding.BoundNodes;
 using Alder.Binding.Services;
 using Alder.Parsing;
@@ -29,7 +28,7 @@ internal static class MemberAccessBinder
             callAfter.Add(pendingCall);
             pendingCall = null;
 
-            if (ma.Object is CallExpr call && call.Callee is MemberAccessExpr)
+            if (ma.Object is CallExpr { Callee: MemberAccessExpr } call)
             {
                 pendingCall = call;
                 root = call.Callee;

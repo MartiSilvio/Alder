@@ -74,7 +74,7 @@ internal static class SwitchStatementEvaluator
         BoundSwitchStatementExpr switchStatement, int startIndex, EvaluationContext ctx)
     {
         var signal = ExecuteSwitchCaseStatements(switchStatement.Cases, startIndex, ctx);
-        while (signal != null && signal.SignalKind is ControlFlowSignal.Kind.GotoCase or ControlFlowSignal.Kind.GotoDefault)
+        while (signal is { SignalKind: ControlFlowSignal.Kind.GotoCase or ControlFlowSignal.Kind.GotoDefault })
         {
             int targetIndex;
             if (signal.SignalKind == ControlFlowSignal.Kind.GotoDefault)

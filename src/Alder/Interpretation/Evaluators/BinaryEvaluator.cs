@@ -3,7 +3,6 @@ using Alder.Binding;
 using Alder.Binding.BoundNodes;
 using Alder.Parsing;
 using Alder.Runtime;
-using Alder.Runtime.Extensions;
 using Alder.Runtime.Semantics;
 
 namespace Alder.Interpretation.Evaluators;
@@ -165,5 +164,5 @@ internal static class BinaryEvaluator
         _ => null
     };
 
-    private static bool IsNaN(object value) => value is double d && double.IsNaN(d) || value is float f && float.IsNaN(f);
+    private static bool IsNaN(object value) => value is double and Double.NaN || value is float and Single.NaN;
 }

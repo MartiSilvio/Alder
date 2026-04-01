@@ -46,8 +46,10 @@ public static class AlderCompiledEngineExtensions
                 $"Cannot compile expression '{expression}': {reason}");
         }
 
-        var compiledDelegate = parsed.GetCompiledInfo()!.Delegate!;
-        return new AlderCompiledExpression<T>(compiledDelegate, engine, access.Config);
+        var compiledInfo = parsed.GetCompiledInfo()!;
+        var typeVersion = compiledInfo.TypeVersion
+            ?? throw new InvalidOperationException("Compiled expression info has no type version — compilation did not stamp a version.");
+        return new AlderCompiledExpression<T>(compiledInfo.Delegate!, engine, access.Config, typeVersion);
     }
 
     /// <summary>

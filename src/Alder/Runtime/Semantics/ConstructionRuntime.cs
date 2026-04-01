@@ -10,8 +10,7 @@ internal static class ConstructionRuntime
         if (TypedDispatchHelper.TryCreate(config, type, args, out var aotInstance))
             return aotInstance;
 
-        if (type.BaseType == typeof(MulticastDelegate) && args.Length == 1 &&
-            args[0] is LambdaValue or CompiledLambdaValue)
+        if (type.BaseType == typeof(MulticastDelegate) && args is [LambdaValue or CompiledLambdaValue])
         {
             var converted = LambdaDelegateConverter.TryConvert(args[0], type);
             if (converted is not null)

@@ -1,4 +1,3 @@
-using System.Linq;
 using Alder.Generators.Model;
 
 namespace Alder.Generators.Emitters;

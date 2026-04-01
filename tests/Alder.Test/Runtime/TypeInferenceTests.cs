@@ -32,8 +32,7 @@ public class TypeInferenceTests
     {
         // Enumerable.Zip<TFirst, TSecond>(IEnumerable<TFirst>, IEnumerable<TSecond>)
         var method = typeof(Enumerable).GetMethods(BindingFlags.Public | BindingFlags.Static)
-            .First(m => m.Name == "Zip"
-                        && m.IsGenericMethodDefinition
+            .First(m => m is { Name: "Zip", IsGenericMethodDefinition: true }
                         && m.GetGenericArguments().Length == 2
                         && m.GetParameters().Length == 2);
 

@@ -120,8 +120,7 @@ public class MemberAccessTests(CompilationMode mode)
         });
 
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate(""" "abc".flipcasex() """));
-        Assert.That(ex!.Message, Does.Contain("Method"));
-        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0304));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS1061));
     }
 
     [Test]

@@ -29,9 +29,9 @@ public class CaseSensitivityTests(CompilationMode mode)
         });
         engine.SetVariable("text", "hello");
 
-        // "toupper" is wrong case -- should fail in case-sensitive mode
+        // "toupper" is wrong case -- case-sensitive mode sees no member with that name
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate("text.toupper()"));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(Alder.Diagnostics.DiagnosticCode.ALDR0304));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(Alder.Diagnostics.DiagnosticCode.CS1061));
     }
 
     [Test]

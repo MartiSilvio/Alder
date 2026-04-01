@@ -66,10 +66,12 @@ internal sealed class AlderContext
 
     public void Define(string name, object? value, Type inferredType, bool isReadOnly = false)
     {
+        var typeChanged = !TryGetLocalVariableType(name, out var existingType) || existingType != inferredType;
         SetLocalVariable(name, value);
         SetLocalVariableType(name, inferredType);
         SetLocalReadOnly(name, isReadOnly);
-        Interlocked.Increment(ref _variableTypeVersion);
+        if (typeChanged)
+            Interlocked.Increment(ref _variableTypeVersion);
     }
 
     /// <summary>

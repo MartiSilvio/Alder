@@ -1,4 +1,3 @@
-using System.Runtime.CompilerServices;
 using System.Runtime.ExceptionServices;
 using Alder.Diagnostics;
 using Alder.Interpretation;
@@ -92,6 +91,10 @@ internal static class MethodInvoker
             context, config, typeArgs, ct);
         if (result.Success)
             return result.Value;
+
+        if (!HasAnyMethodWithName(target!, methodRef.MethodName, context, config))
+            throw new AlderException(DiagnosticDescriptors.MemberNotFound, target!.GetType().Name, methodRef.MethodName);
+
         throw new AlderException(DiagnosticDescriptors.MethodInvocationFailed, methodRef.MethodName);
     }
 
@@ -376,6 +379,26 @@ internal static class MethodInvoker
             return null;
         return RuntimeGenericFactory.TryCloseGenericMethod(genericMethod, typeArgs, out var closed)
             ? closed : null;
+    }
+
+    private static bool HasAnyMethodWithName(object target, string name, AlderContext context, AlderConfig config)
+    {
+        var flags = BindingFlags.Public | BindingFlags.Instance;
+        if (!config.IsCaseSensitive) flags |= BindingFlags.IgnoreCase;
+
+        if (context.TypeMetadata.GetMethods(target.GetType(), name, flags).Length > 0)
+            return true;
+
+        var extFlags = BindingFlags.Public | BindingFlags.Static;
+        if (!config.IsCaseSensitive) extFlags |= BindingFlags.IgnoreCase;
+
+        foreach (var extType in context.ExtensionTypes)
+        {
+            if (context.TypeMetadata.GetMethods(extType, name, extFlags).Length > 0)
+                return true;
+        }
+
+        return false;
     }
 
     private static bool HasSpecialArgs(object?[] args)
