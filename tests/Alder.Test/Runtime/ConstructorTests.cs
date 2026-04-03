@@ -1,3 +1,4 @@
+using Alder.Diagnostics;
 using Alder.Test._Infrastructure;
 
 namespace Alder.Test.Runtime;
@@ -11,7 +12,6 @@ namespace Alder.Test.Runtime;
 [TestFixture(CompilationMode.Compiled)]
 public class ConstructorTests(CompilationMode mode)
 {
-    #region Engine-only: reference type identity (not value-comparable)
 
     // Engine-only: new Object() creates reference type, not value-comparable with Is.EqualTo
     [Test]
@@ -45,9 +45,7 @@ public class ConstructorTests(CompilationMode mode)
         Assert.That(result, Is.InstanceOf<Exception>());
     }
 
-    #endregion
 
-    #region Engine-only: error tests (AlderException assertions)
 
     // Engine-only: AlderException assertion for non-existent type
     [Test]
@@ -55,7 +53,7 @@ public class ConstructorTests(CompilationMode mode)
     {
         var engine = TestEngineFactory.Create(mode);
         var ex = Assert.Catch<AlderException>(() => engine.Evaluate("new NonExistentType123()"));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(Alder.Diagnostics.DiagnosticCode.CS0246));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0246));
     }
 
     // Engine-only: new int() returns default(int) = 0, verifies Activator.CreateInstance
@@ -67,5 +65,4 @@ public class ConstructorTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(0));
     }
 
-    #endregion
 }

@@ -11,7 +11,6 @@ public class OrderingTests(CompilationMode mode)
     public async Task OrderBy(string expr, Dictionary<string, object?> variables, object expected)
         => await TestHelpers.RunCSharpParityTestAsync(expr, variables, expected, mode);
 
-    #region OrderBy Test Cases
 
     private static IEnumerable<TestCaseData> OrderByTestCases()
     {
@@ -34,9 +33,7 @@ public class OrderingTests(CompilationMode mode)
         ).SetName("OrderByDescending_SortsDescending");
     }
 
-    #endregion
 
-    #region Non-Serializable Type Tests
 
     [Test]
     public void OrderBy_WithPropertySelector_SortsByProperty()
@@ -52,9 +49,7 @@ public class OrderingTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(new[] { "Alice", "Bob", "Charlie" }));
     }
 
-    #endregion
 
-    #region ThenBy / ThenByDescending
 
     [Test]
     public void ThenBy_SecondarySort()
@@ -87,9 +82,7 @@ public class OrderingTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(new[] { "Zebra", "Apple", "Banana" }));
     }
 
-    #endregion
 
-    #region Reverse
 
     [Test]
     public void Reverse_OnArray_UsesEnumerableReverse()
@@ -103,5 +96,4 @@ public class OrderingTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(new[] { 3, 2, 1 }));
     }
 
-    #endregion
 }

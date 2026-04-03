@@ -1,3 +1,4 @@
+using Alder.Diagnostics;
 using Alder.Test._Infrastructure;
 
 namespace Alder.Test.Runtime;
@@ -18,6 +19,6 @@ public class TypeInferenceCacheTests
         // Static type becomes object, so explicit cast must follow object unboxing rules.
         engine.SetVariable<object>("x", 42);
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate(expression));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(Alder.Diagnostics.DiagnosticCode.CS0030));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0030));
     }
 }

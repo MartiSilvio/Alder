@@ -269,6 +269,10 @@ internal static class BoundRuntimeMethodCache
     internal static readonly ConstructorInfo AlderExceptionCtor =
         typeof(AlderException).GetConstructor([typeof(Diagnostics.DiagnosticDescriptor), typeof(object[])])!;
 
+    internal static readonly MethodInfo ApplyWithMethod =
+        typeof(WithRuntime).GetMethod(nameof(WithRuntime.ApplyWith),
+            [typeof(object), typeof(string[]), typeof(object?[]), typeof(AlderContext)])!;
+
     internal static readonly FieldInfo SwitchExpressionNonExhaustiveDescriptor =
         typeof(Diagnostics.DiagnosticDescriptors).GetField(nameof(Diagnostics.DiagnosticDescriptors.SwitchExpressionNonExhaustive))!;
 

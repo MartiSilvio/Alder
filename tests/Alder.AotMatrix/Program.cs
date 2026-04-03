@@ -2,15 +2,15 @@ using Alder;
 using Alder.AotMatrix;
 
 if (args.Length > 0 && args[0] == "--single" && args.Length > 1)
-    return TestSingle.Run(args[1]);
+    return await TestSingle.Run(args[1]);
 if (args.Length > 0 && args[0] == "--diag")
-    return TestSingle.Run("--diag");
+    return await TestSingle.Run("--diag");
 if (args.Length > 0 && args[0] == "--check-tuple")
-    return TestSingle.Run("--check-tuple");
+    return await TestSingle.Run("--check-tuple");
 if (args.Length > 0 && args[0] == "--check-factories")
-    return TestSingle.Run("--check-factories");
+    return await TestSingle.Run("--check-factories");
 if (args.Length > 0 && args[0] == "--check-enum")
-    return TestSingle.Run("--check-enum");
+    return await TestSingle.Run("--check-enum");
 
 Console.WriteLine("AOT Matrix starting...");
 Console.Out.Flush();
@@ -22,8 +22,11 @@ try
     var testEngine = new AlderEngine();
     Console.WriteLine("Engine created OK");
     Console.Out.Flush();
-    var testResult = testEngine.Evaluate("1 + 1");
-    Console.WriteLine($"Quick eval: {testResult}");
+    var syncResult = testEngine.Evaluate("1 + 1");
+    Console.WriteLine($"Sync eval:  {syncResult}");
+    Console.Out.Flush();
+    var asyncResult = await testEngine.EvaluateAsync("1 + 1");
+    Console.WriteLine($"Async eval: {asyncResult}");
     Console.Out.Flush();
 }
 catch (Exception ex)
@@ -36,30 +39,40 @@ catch (Exception ex)
 Console.WriteLine("Starting file scan...");
 Console.Out.Flush();
 
-var testDataDir = args.Length > 0
+var testDataBase = args.Length > 0
     ? args[0]
-    : Path.Combine(AppContext.BaseDirectory, "TestData", "ValidExpressions");
+    : Path.Combine(AppContext.BaseDirectory, "TestData");
 
-if (!Directory.Exists(testDataDir))
+var syncDir = Path.Combine(testDataBase, "ValidExpressions");
+var asyncDir = Path.Combine(testDataBase, "ValidAsyncExpressions");
+
+if (!Directory.Exists(syncDir))
 {
-    Console.Error.WriteLine($"TestData directory not found: {testDataDir}");
-    Console.Error.WriteLine("Usage: Alder.AotMatrix [path-to-ValidExpressions]");
+    Console.Error.WriteLine($"TestData directory not found: {syncDir}");
+    Console.Error.WriteLine("Usage: Alder.AotMatrix [path-to-TestData]");
     return 1;
 }
 
-var files = Directory.GetFiles(testDataDir, "*.csx", SearchOption.AllDirectories)
+var syncFiles = Directory.Exists(syncDir)
+    ? Directory.GetFiles(syncDir, "*.csx", SearchOption.AllDirectories)
+    : Array.Empty<string>();
+var asyncFiles = Directory.Exists(asyncDir)
+    ? Directory.GetFiles(asyncDir, "*.csx", SearchOption.AllDirectories)
+    : Array.Empty<string>();
+
+var files = syncFiles.Concat(asyncFiles)
     .Where(f => !f.EndsWith(".roslyn.csx", StringComparison.OrdinalIgnoreCase))
     .OrderBy(f => f)
     .ToArray();
 
-int pass = 0, fail = 0;
+int syncPass = 0, syncFail = 0, asyncPass = 0, asyncFail = 0;
 var failures = new List<FailureRecord>();
 
 var selfPath = Environment.ProcessPath!;
 
 foreach (var file in files)
 {
-    var relPath = Path.GetRelativePath(testDataDir, file);
+    var relPath = Path.GetRelativePath(testDataBase, file);
     Console.Write($"  {relPath}... ");
     Console.Out.Flush();
 
@@ -76,25 +89,63 @@ foreach (var file in files)
     {
         proc.Kill();
         Console.WriteLine("FAIL: Timeout");
-        failures.Add(new FailureRecord(relPath, "Timeout", "Expression exceeded 30s"));
-        fail++;
+        failures.Add(new FailureRecord(relPath, "Sync", "Timeout", "Expression exceeded 30s"));
+        failures.Add(new FailureRecord(relPath, "Async", "Timeout", "Expression exceeded 30s"));
+        syncFail++;
+        asyncFail++;
+        continue;
     }
-    else if (proc.ExitCode == 0)
+
+    var stdout = proc.StandardOutput.ReadToEnd();
+    var stderr = proc.StandardError.ReadToEnd().Trim();
+    var outputLines = stdout.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+
+    var syncLine = outputLines.FirstOrDefault(l => l.StartsWith("SYNC:"));
+    var asyncLine = outputLines.FirstOrDefault(l => l.StartsWith("ASYNC:"));
+
+    if (proc.ExitCode == 139)
     {
-        Console.WriteLine("OK");
-        pass++;
+        Console.WriteLine("FAIL: SIGSEGV");
+        failures.Add(new FailureRecord(relPath, "Sync", "SIGSEGV", ""));
+        failures.Add(new FailureRecord(relPath, "Async", "SIGSEGV", ""));
+        syncFail++;
+        asyncFail++;
+        continue;
+    }
+
+    var syncSkipped = syncLine != null && syncLine.StartsWith("SYNC:SKIP:");
+    var syncOk = syncLine != null && syncLine.StartsWith("SYNC:PASS:");
+    var asyncOk = asyncLine != null && asyncLine.StartsWith("ASYNC:PASS:");
+
+    if (syncSkipped) { /* async-only expression, don't count sync */ }
+    else if (syncOk) syncPass++; else syncFail++;
+    if (asyncOk) asyncPass++; else asyncFail++;
+
+    var syncResult = syncSkipped || syncOk;
+    if (syncResult && asyncOk)
+    {
+        Console.WriteLine(syncSkipped ? "OK (async-only)" : "OK");
     }
     else
     {
-        var stderr = proc.StandardError.ReadToEnd().Trim();
-        var stdout = proc.StandardOutput.ReadToEnd().Trim();
-        var output = string.IsNullOrEmpty(stderr) ? stdout : stderr;
-        var errorType = proc.ExitCode == 139 ? "StackOverflow(SIGSEGV)" : "RuntimeError";
-        var messageLine = output.Split('\n').FirstOrDefault(l => l.StartsWith("Message:")) ?? output.Split('\n').LastOrDefault() ?? "";
-        var message = messageLine.Length > 120 ? messageLine[..120] + "..." : messageLine;
-        Console.WriteLine($"FAIL: {errorType}");
-        failures.Add(new FailureRecord(relPath, errorType, message));
-        fail++;
+        var parts = new List<string>();
+        if (!syncResult) parts.Add("sync");
+        if (!asyncOk) parts.Add("async");
+        Console.WriteLine($"FAIL: {string.Join("+", parts)}");
+    }
+
+    if (!syncResult && !syncSkipped)
+    {
+        var msg = syncLine?["SYNC:FAIL:".Length..] ?? stderr;
+        if (msg.Length > 120) msg = msg[..120] + "...";
+        failures.Add(new FailureRecord(relPath, "Sync", "RuntimeError", msg));
+    }
+
+    if (!asyncOk)
+    {
+        var msg = asyncLine?["ASYNC:FAIL:".Length..] ?? stderr;
+        if (msg.Length > 120) msg = msg[..120] + "...";
+        failures.Add(new FailureRecord(relPath, "Async", "RuntimeError", msg));
     }
 }
 
@@ -104,49 +155,57 @@ Console.WriteLine("║  Alder AOT Compatibility Matrix                          
 Console.WriteLine("╚══════════════════════════════════════════════════════════════╝");
 Console.WriteLine();
 Console.WriteLine($"  Total expressions:  {files.Length}");
-Console.WriteLine($"  Pass:               {pass}");
-Console.WriteLine($"  Fail:               {fail}");
-Console.WriteLine($"  Pass rate:          {(double)pass / files.Length:P1}");
+Console.WriteLine();
+Console.WriteLine($"  Sync  Pass:         {syncPass}");
+Console.WriteLine($"  Sync  Fail:         {syncFail}");
+Console.WriteLine($"  Sync  Pass rate:    {(double)syncPass / files.Length:P1}");
+Console.WriteLine();
+Console.WriteLine($"  Async Pass:         {asyncPass}");
+Console.WriteLine($"  Async Fail:         {asyncFail}");
+Console.WriteLine($"  Async Pass rate:    {(double)asyncPass / files.Length:P1}");
 Console.WriteLine();
 
-var grouped = failures
-    .GroupBy(f => f.ErrorType)
-    .OrderByDescending(g => g.Count())
-    .ToArray();
+foreach (var mode in new[] { "Sync", "Async" })
+{
+    var modeFailures = failures.Where(f => f.Mode == mode).ToArray();
+    if (modeFailures.Length == 0) continue;
 
-Console.WriteLine("  Failure breakdown:");
-foreach (var g in grouped)
-    Console.WriteLine($"    {g.Key,-35} {g.Count(),5}");
+    Console.WriteLine($"  {mode} failure breakdown:");
+    var grouped = modeFailures
+        .GroupBy(f => f.ErrorType)
+        .OrderByDescending(g => g.Count());
+    foreach (var g in grouped)
+        Console.WriteLine($"    {g.Key,-35} {g.Count(),5}");
+    Console.WriteLine();
 
-Console.WriteLine();
+    var byCategory = modeFailures
+        .GroupBy(f =>
+        {
+            var dir = Path.GetDirectoryName(f.File)?.Replace(Path.DirectorySeparatorChar, '/') ?? "";
+            return dir.Contains('/') ? dir[..dir.IndexOf('/')] : dir;
+        })
+        .OrderByDescending(g => g.Count())
+        .Take(15);
 
-var byCategory = failures
-    .GroupBy(f =>
-    {
-        var dir = Path.GetDirectoryName(f.File)?.Replace(Path.DirectorySeparatorChar, '/') ?? "";
-        return dir.Contains('/') ? dir[..dir.IndexOf('/')] : dir;
-    })
-    .OrderByDescending(g => g.Count())
-    .Take(15)
-    .ToArray();
-
-Console.WriteLine("  Top failing categories:");
-foreach (var g in byCategory)
-    Console.WriteLine($"    {g.Key,-35} {g.Count(),5}");
+    Console.WriteLine($"  {mode} top failing categories:");
+    foreach (var g in byCategory)
+        Console.WriteLine($"    {g.Key,-35} {g.Count(),5}");
+    Console.WriteLine();
+}
 
 var reportDir = Environment.GetEnvironmentVariable("AOT_REPORT_DIR") ?? Directory.GetCurrentDirectory();
 var artifactsDir = Path.Combine(reportDir, "artifacts", "aot-matrix");
 Directory.CreateDirectory(artifactsDir);
 var timestamp = DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss");
 var reportPath = Path.Combine(artifactsDir, $"aot-matrix_{timestamp}.tsv");
-var lines = new List<string> { "File\tErrorType\tMessage" };
-lines.AddRange(failures.Select(f => $"{f.File}\t{f.ErrorType}\t{f.Message}"));
+var lines = new List<string> { "File\tMode\tErrorType\tMessage" };
+lines.AddRange(failures.Select(f => $"{f.File}\t{f.Mode}\t{f.ErrorType}\t{f.Message}"));
 File.WriteAllLines(reportPath, lines);
-Console.WriteLine($"\n  Full report: {reportPath}");
+Console.WriteLine($"  Full report: {reportPath}");
 
-return fail > 0 ? 1 : 0;
+return (syncFail > 0 || asyncFail > 0) ? 1 : 0;
 
 namespace Alder.AotMatrix
 {
-    record FailureRecord(string File, string ErrorType, string Message);
+    record FailureRecord(string File, string Mode, string ErrorType, string Message);
 }

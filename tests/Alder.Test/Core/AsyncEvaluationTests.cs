@@ -153,7 +153,7 @@ public class AsyncEvaluationTests
     {
         var ex = Assert.ThrowsAsync<AlderException>(async () =>
             await _engine.EvaluateAsync("await 42"));
-        Assert.That(ex!.ErrorCode?.ToString(), Does.Contain("ALDR0600"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS4001));
     }
 
     [Test]
@@ -234,5 +234,21 @@ public class AsyncEvaluationTests
             lock (obj) { return 1; }
         """);
         Assert.That(result, Is.EqualTo(1));
+    }
+
+    [Test]
+    public async Task AsyncLambda_PassedToMethod()
+    {
+        _engine.SetVariable("items", new[] { 1, 2, 3, 4, 5 });
+        var result = await _engine.EvaluateAsync("""
+            Func<int, Task<bool>> isEvenAsync = async n => await Task.FromResult(n % 2 == 0);
+            var count = 0;
+            foreach (var item in items)
+            {
+                if (await isEvenAsync(item)) count++;
+            }
+            return count;
+            """);
+        Assert.That(result, Is.EqualTo(2));
     }
 }

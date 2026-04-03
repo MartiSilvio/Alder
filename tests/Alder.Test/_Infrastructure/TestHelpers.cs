@@ -8,29 +8,19 @@ using Microsoft.CodeAnalysis.Scripting;
 
 namespace Alder.Test._Infrastructure;
 
-/// <summary>
-/// Static test utilities.
-/// </summary>
 public static class TestHelpers
 {
     private static readonly Regex RoslynCodeRegex = new(@"\bCS\d{4}\b", RegexOptions.Compiled);
 
     private static readonly ScriptOptions DefaultScriptOptions = ScriptOptions.Default
         .AddReferences(typeof(object).Assembly, typeof(Enumerable).Assembly)
-        .AddImports("System", "System.Collections.Generic", "System.Linq")
+        .AddImports("System", "System.Collections.Generic", "System.Linq", "System.Threading.Tasks")
         .WithLanguageVersion(LanguageVersion.CSharp12);
 
-    #region Parity Test Helpers
 
-    /// <summary>
-    /// Runs a C# parity test: evaluates expression in both Alder and Roslyn, asserts results and types match.
-    /// </summary>
     public static Task RunCSharpParityTestAsync(string expr, object? expected, CompilationMode mode)
         => RunCSharpParityTestAsync(expr, null, expected, mode);
 
-    /// <summary>
-    /// Runs a C# parity test with variables.
-    /// </summary>
     public static async Task RunCSharpParityTestAsync(string expr, Dictionary<string, object?>? variables, object? expected, CompilationMode mode)
     {
         var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
@@ -46,15 +36,9 @@ public static class TestHelpers
         Assert.That(result?.GetType(), Is.EqualTo(csharpResult?.GetType()), $"Type mismatch for: {expr}");
     }
 
-    /// <summary>
-    /// Runs a C# parity test without expected value.
-    /// </summary>
     public static Task RunCSharpParityTestAsync(string expr, CompilationMode mode)
         => RunCSharpParityTestAsync(expr, (Action<AlderOptions>?)null, mode);
 
-    /// <summary>
-    /// Runs a C# parity test with custom options.
-    /// </summary>
     public static async Task RunCSharpParityTestAsync(string expr, Action<AlderOptions>? configure, CompilationMode mode)
     {
         var csharpResult = await EvaluateCSharpAsync(expr);
@@ -66,7 +50,6 @@ public static class TestHelpers
         Assert.That(result?.GetType(), Is.EqualTo(csharpResult?.GetType()), $"Type mismatch for: {expr}");
     }
 
-    #endregion
 
     public static string NormalizeExceptionKey(Exception ex) =>
         ex switch
@@ -75,7 +58,6 @@ public static class TestHelpers
             _ => TryGetRoslynErrorCode(ex.Message) is { } code ? $"{code}:{ex.GetType().Name}" : ex.GetType().Name
         };
 
-    #region Test Data Loading
 
     private static string? _testDataDirectory;
 
@@ -87,7 +69,6 @@ public static class TestHelpers
         return File.ReadAllText(fullPath).Trim();
     }
 
-    #endregion
 
     public static IDictionary<string, object?> CreateItem(string name, double price)
     {
@@ -97,21 +78,11 @@ public static class TestHelpers
         return item;
     }
 
-    /// <summary>
-    /// Evaluates C# code using Roslyn scripting.
-    /// </summary>
     public static async Task<object?> EvaluateCSharpAsync(string code)
     {
         return await CSharpScript.EvaluateAsync<object>(code, DefaultScriptOptions);
     }
 
-    /// <summary>
-    /// Evaluates C# code using Roslyn scripting with variables.
-    /// Variables are serialized as C# declarations prepended to the script.
-    /// </summary>
-    /// <param name="code">The expression to evaluate</param>
-    /// <param name="variables">Variables to inject into the script</param>
-    /// <returns>The evaluation result, or null if serialization fails</returns>
     public static async Task<object?> EvaluateCSharpAsync(string code, Dictionary<string, object?>? variables)
     {
         if (variables == null || variables.Count == 0)
@@ -132,10 +103,6 @@ public static class TestHelpers
         return await CSharpScript.EvaluateAsync(fullScript, DefaultScriptOptions);
     }
 
-    /// <summary>
-    /// Tries to serialize a value as a C# literal.
-    /// Returns null if the type cannot be serialized.
-    /// </summary>
     private static string? TrySerializeValue(object? value)
     {
         return value switch

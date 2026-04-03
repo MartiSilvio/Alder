@@ -1,5 +1,7 @@
 // All tests engine-only: test TypeHelpers.CanImplicitlyConvert internal API directly.
 
+using Alder.Diagnostics;
+
 namespace Alder.Test.Runtime;
 
 /// <summary>
@@ -139,7 +141,7 @@ public class TypeHelperTests
     {
         var ex = Assert.Throws<AlderException>(
             () => Alder.Runtime.TypeHelpers.RuntimeCast(true, typeof(bool), typeof(int)));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(Alder.Diagnostics.DiagnosticCode.CS0030));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0030));
     }
 
     private enum CastProbe

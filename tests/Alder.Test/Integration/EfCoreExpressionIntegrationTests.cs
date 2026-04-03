@@ -1,4 +1,5 @@
 using System.Linq.Expressions;
+using Alder.Diagnostics;
 using Alder.Test._Infrastructure;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
@@ -76,8 +77,7 @@ public sealed class EfCoreExpressionIntegrationTests(CompilationMode mode)
         var ex = Assert.Throws<AlderException>(
             () => _engine.ParseAsExpression<Func<EfOrder, bool>>("o => { var x = o.Total; return x > 10; }"));
 
-        Assert.That(ex, Is.Not.Null);
-        Assert.That(ex!.ErrorCode, Is.EqualTo(Alder.Diagnostics.DiagnosticCode.CS7053));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS7053));
         Assert.That(ex.Message, Does.Contain("expression tree may not contain"));
     }
 

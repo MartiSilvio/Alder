@@ -1,3 +1,4 @@
+using Alder.Diagnostics;
 using Alder.Test._Infrastructure;
 
 namespace Alder.Test.Stress;
@@ -201,6 +202,6 @@ public class EvaluationChaosTests(CompilationMode mode) : StressTestBase(mode)
         var expr = "\"hello\".GetType()";
 
         var ex = Assert.Throws<AlderException>(() => safeEngine.Evaluate(expr));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(Alder.Diagnostics.DiagnosticCode.ALDR0100));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0100));
     }
 }

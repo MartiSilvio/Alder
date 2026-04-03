@@ -20,7 +20,6 @@ public class ResourceConstraintTests(CompilationMode mode)
         });
     }
 
-    #region MaxStatements Tests
 
     [Test]
     public void WhileTrue_WithStatementLimit_ThrowsExecutionLimitException()
@@ -96,9 +95,7 @@ public class ResourceConstraintTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(3));
     }
 
-    #endregion
 
-    #region MaxTimeout Tests
 
     [Test]
     public void WhileTrue_WithTimeout_ThrowsExecutionLimitException()
@@ -119,9 +116,7 @@ public class ResourceConstraintTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(3));
     }
 
-    #endregion
 
-    #region Both Limits
 
     [Test]
     public void BothLimits_StatementHitsFirst()
@@ -143,9 +138,7 @@ public class ResourceConstraintTests(CompilationMode mode)
         Assert.That(ex!.LimitType, Is.EqualTo(ExecutionLimitType.Timeout));
     }
 
-    #endregion
 
-    #region Engine Recovery
 
     [Test]
     public void EngineReusable_AfterStatementLimitException()
@@ -184,9 +177,7 @@ public class ResourceConstraintTests(CompilationMode mode)
         Assert.That(result2, Is.EqualTo(60));
     }
 
-    #endregion
 
-    #region Mutable Constraints
 
     [Test]
     public void Constraints_DifferentLimitsProduceDifferentResults()
@@ -204,9 +195,7 @@ public class ResourceConstraintTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(6));
     }
 
-    #endregion
 
-    #region Concurrency Isolation
 
     [Test]
     public async Task ConcurrentEvaluations_WithStatementConstraints_DoNotInterfere()
@@ -235,9 +224,7 @@ public class ResourceConstraintTests(CompilationMode mode)
         Assert.That(failures, Is.EqualTo(0));
     }
 
-    #endregion
 
-    #region Exception Properties
 
     [Test]
     public void StatementException_HasCorrectProperties()
@@ -276,9 +263,7 @@ public class ResourceConstraintTests(CompilationMode mode)
             () => engine.Evaluate("{ var x = 0; while (true) { x = x + 1; } return x; }"));
     }
 
-    #endregion
 
-    #region No Constraints
 
     [Test]
     public void DefaultOptions_NullConstraints_WorksNormally()
@@ -296,9 +281,7 @@ public class ResourceConstraintTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(6));
     }
 
-    #endregion
 
-    #region CancellationToken at Statement Boundaries
 
     [Test]
     public void CancellationToken_CheckedAtSameStatementBoundaries()
@@ -324,9 +307,7 @@ public class ResourceConstraintTests(CompilationMode mode)
             () => engine.Evaluate("{ var x = 1; return x; }", cancellationToken: cts.Token));
     }
 
-    #endregion
 
-    #region Shared Budget (Nested Evaluations)
 
     [Test]
     public void NestedEvaluations_ShareSameBudget()
@@ -341,5 +322,4 @@ public class ResourceConstraintTests(CompilationMode mode)
         Assert.That(ex!.LimitType, Is.EqualTo(ExecutionLimitType.Statements));
     }
 
-    #endregion
 }

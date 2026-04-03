@@ -1,3 +1,5 @@
+using Alder.Diagnostics;
+
 namespace Alder.Test.Core;
 
 [TestFixture]
@@ -159,7 +161,7 @@ public class CompiledDelegateTests
 
         // y should not exist in engine context -- using it without per-invocation vars should throw
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate("y"));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(Alder.Diagnostics.DiagnosticCode.CS0103));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0103));
     }
 
     [Test]

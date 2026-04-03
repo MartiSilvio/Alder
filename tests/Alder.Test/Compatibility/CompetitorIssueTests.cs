@@ -37,7 +37,7 @@ public class CompetitorIssueTests(CompilationMode mode)
         engine.SetVariable("dto", dto);
 
         var result = engine.Evaluate("dto?.Object1 != null && dto.Object1 != null");
-        Assert.That(result, Is.EqualTo(false));
+        Assert.That(result, Is.False);
     }
 
     // Dynamic Expresso issue #367:
@@ -49,7 +49,7 @@ public class CompetitorIssueTests(CompilationMode mode)
         engine.SetVariable("myobj", null);
 
         var result = engine.Evaluate("""myobj != null && myobj.Text == "test" """);
-        Assert.That(result, Is.EqualTo(false));
+        Assert.That(result, Is.False);
     }
 
     // Dynamic Expresso issue #363:
@@ -108,7 +108,7 @@ public class CompetitorIssueTests(CompilationMode mode)
         engine.SetVariable("obj", obj);
 
         var result = engine.Evaluate("obj.IsEnabled");
-        Assert.That(result, Is.EqualTo(true));
+        Assert.That(result, Is.True);
     }
 
     // Dynamic Expresso issue #90:
@@ -182,7 +182,7 @@ public class CompetitorIssueTests(CompilationMode mode)
     {
         var engine = TestEngineFactory.Create(mode);
         var result = engine.Evaluate("true ^ false");
-        Assert.That(result, Is.EqualTo(true));
+        Assert.That(result, Is.True);
     }
 
     // NCalc issue #458:

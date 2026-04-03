@@ -466,7 +466,6 @@ public class BenchmarkTests
         ReportResult("Heavy reflection (merge + spread + props)", sw.ElapsedMilliseconds);
     }
 
-    #region IL Compilation Benchmarks
 
     [Test]
     public void Benchmark_CompiledExpression_SimpleArithmetic()
@@ -562,7 +561,6 @@ public class BenchmarkTests
         ReportResult("Property access (IL compiled)", sw.ElapsedMilliseconds);
     }
 
-    #endregion
 
     public class TestModule
     {

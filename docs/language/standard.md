@@ -7,7 +7,7 @@ sidebar:
 
 Alder implements C# expression and statement semantics per ECMA-334 (7th edition, December 2023). Every expression passes through a full compilation pipeline (lexer, parser, semantic binder, type resolution, and operator dispatch) before execution. This reference covers every construct available in `LanguageMode.Standard`, the default mode.
 
-**Scope**: expressions, statements, lambdas, LINQ (method and query syntax), full pattern matching (§11.2), control flow (`if`/`for`/`while`/`foreach`/`switch`/`try`), variable declarations, local functions, `checked`/`unchecked`, `using`/`lock`, `goto`. Type declarations (`class`, `struct`, `enum`, `record`) and compilation-unit constructs (`namespace`, `using` directives, `async`/`await`, `yield`) are outside scope — see [Scope Boundaries](#scope-boundaries).
+**Scope**: expressions, statements, lambdas (including `async` lambdas), LINQ (method and query syntax), full pattern matching (§11.2), control flow (`if`/`for`/`while`/`foreach`/`switch`/`try`), variable declarations, local functions, `async`/`await`, `checked`/`unchecked`, `using`/`lock`, `goto`. Type declarations (`class`, `struct`, `enum`, `record`) and compilation-unit constructs (`namespace`, `using` directives, `yield`) are outside scope — see [Scope Boundaries](#scope-boundaries).
 
 For Extended mode features, see [Extended Mode](extended.md).
 
@@ -242,7 +242,7 @@ x => x * 2                                 // expression body, inferred param
 
 Parameter types can be omitted when inferred from context — LINQ methods, delegate-typed parameters. The binder resolves parameter types through ECMA-334 §12.6.3 generic type inference when the lambda is passed to a generic method like `Where<T>` or `Select<T, TResult>`.
 
-Lambdas cannot be `async`. `async`/`await` is not supported.
+Lambdas can be declared `async`: `async x => await Task.FromResult(x * 2)`. See [Async/Await](../engine/async.md).
 
 ### Method Calls
 
@@ -394,7 +394,7 @@ return Add(3, 4);   // 7
 
 <!-- test: LangRef_Stmt_LocalFunc.csx -->
 
-Parsed as a variable declaration with a lambda initializer. Return type can be explicit or `var`. These are local functions only — you cannot declare methods on types, and modifiers like `static`, `public`, or `async` are not supported.
+Parsed as a variable declaration with a lambda initializer. Return type can be explicit or `var`. These are local functions only — you cannot declare methods on types, and modifiers like `static`, `public`, or `async` are not supported on local functions.
 
 ### Control Flow
 
@@ -709,7 +709,7 @@ These constructs are outside Alder's scope — they produce parse errors. Each r
 | `struct`, `interface`, `enum`, `record` | Same — use existing types from the host application |
 | `namespace` | Not needed — expressions don't define compilation units |
 | `using System.IO;` | Register namespaces via `AlderOptions`: `o.Types.AddNamespace("System.IO")` |
-| `async` / `await` | Not supported — call async methods from the host, pass results in as variables |
+| `async` local functions | Not supported — `async` lambdas and top-level `await` are fully supported via `EvaluateAsync` |
 | `yield return` / `yield break` | Not supported — use LINQ to produce sequences |
 | `ref` / `params` in declarations | Not supported — calling methods with `out` parameters works: `int.TryParse("42", out var n)` |
 | `this` / `base` | No enclosing type — pass the instance in as a variable |

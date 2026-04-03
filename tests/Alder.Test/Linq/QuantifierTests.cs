@@ -16,7 +16,6 @@ public class QuantifierTests(CompilationMode mode)
     public async Task ContainsReverse(string expr, Dictionary<string, object?> variables, object expected)
         => await TestHelpers.RunCSharpParityTestAsync(expr, variables, expected, mode);
 
-    #region Any / All Test Cases
 
     private static IEnumerable<TestCaseData> AnyAllTestCases()
     {
@@ -75,9 +74,7 @@ public class QuantifierTests(CompilationMode mode)
         ).SetName("All_SomeDontMatch_ReturnsFalse");
     }
 
-    #endregion
 
-    #region Contains Test Cases
 
     private static IEnumerable<TestCaseData> ContainsReverseTestCases()
     {
@@ -112,9 +109,7 @@ public class QuantifierTests(CompilationMode mode)
         // Alder's Reverse() uses Enumerable.Reverse while C# List<T>.Reverse() is in-place
     }
 
-    #endregion
 
-    #region SequenceEqual
 
     [Test]
     public void SequenceEqual_SameElements_ReturnsTrue()
@@ -149,5 +144,4 @@ public class QuantifierTests(CompilationMode mode)
         Assert.That(result, Is.False);
     }
 
-    #endregion
 }

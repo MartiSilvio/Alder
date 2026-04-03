@@ -9,7 +9,6 @@ public class CacheBoundsTests
     public void ExpressionCache_DefaultCapacity_Is10000()
     {
         var cache = new ExpressionCache();
-        // Add one entry and verify it's cached
         var info = cache.GetOrAdd("1 + 1", _ => new CompiledExpressionInfo(null, false, "test"));
         Assert.That(cache.Count, Is.EqualTo(1));
     }
@@ -25,7 +24,6 @@ public class CacheBoundsTests
 
         Assert.That(cache.Count, Is.EqualTo(5));
 
-        // Add one more -- should evict the oldest (expr_0)
         cache.GetOrAdd("expr_5", _ => new CompiledExpressionInfo(null, false, "val_5"));
 
         Assert.That(cache.Count, Is.LessThanOrEqualTo(5));
@@ -94,10 +92,7 @@ public class CacheBoundsTests
     [Test]
     public void ExpressionCache_IntegrationWithEngine()
     {
-        // Verify the cache works through the full engine pipeline
         var engine = new AlderEngine(new AlderOptions().UseCompiler());
-
-        // Evaluate same expression twice -- second should use cache
         var result1 = engine.Evaluate("1 + 2");
         var result2 = engine.Evaluate("1 + 2");
 

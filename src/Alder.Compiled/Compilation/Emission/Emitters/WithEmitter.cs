@@ -1,14 +1,10 @@
 using Alder.Binding.BoundNodes;
-using Alder.Runtime;
 using static Alder.Compiled.Compilation.BoundRuntimeMethodCache;
 
 namespace Alder.Compiled.Compilation.Emission.Emitters;
 
 internal sealed class WithEmitter : INodeEmitter<BoundWithExpr>
 {
-    private static readonly MethodInfo ApplyWithMethod =
-        typeof(WithRuntime).GetMethod(nameof(WithRuntime.ApplyWith), BindingFlags.Public | BindingFlags.Static)!;
-
     public LinqExpression Emit(BoundWithExpr node, EmissionContext ctx)
     {
         var original = ctx.Emit(node.Object);

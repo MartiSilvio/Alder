@@ -50,8 +50,8 @@ public class AttributeRegistrationTests(CompilationMode mode)
     {
         var engine = TestEngineFactory.Create(mode, o => o.Modules.RegisterFromType<StaticHelpers>());
 
-        Assert.That(engine.Evaluate("isEven(4)"), Is.EqualTo(true));
-        Assert.That(engine.Evaluate("isEven(5)"), Is.EqualTo(false));
+        Assert.That(engine.Evaluate("isEven(4)"), Is.True);
+        Assert.That(engine.Evaluate("isEven(5)"), Is.False);
     }
 
     [Test]

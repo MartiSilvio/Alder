@@ -539,7 +539,7 @@ public sealed class BoundExecutionTests
                                       """);
         var result = engine.Evaluate(expression);
 
-        Assert.That(result, Is.EqualTo(true));
+        Assert.That(result, Is.True);
         Assert.That(expression.BoundExecutionCount, Is.GreaterThan(0));
         Assert.That(expression.BoundFallbackCount, Is.EqualTo(0));
     }
@@ -722,7 +722,7 @@ public sealed class BoundExecutionTests
         var expression = engine.Parse("1 < 2 < 3");
         var result = engine.Evaluate(expression);
 
-        Assert.That(result, Is.EqualTo(true));
+        Assert.That(result, Is.True);
         Assert.That(expression.BoundExecutionCount, Is.GreaterThan(0));
         Assert.That(expression.BoundFallbackCount, Is.EqualTo(0));
     }

@@ -11,7 +11,6 @@ public class PartitioningTests(CompilationMode mode)
     public async Task DistinctTakeSkip(string expr, Dictionary<string, object?> variables, object expected)
         => await TestHelpers.RunCSharpParityTestAsync(expr, variables, expected, mode);
 
-    #region Distinct / Take / Skip Test Cases
 
     private static IEnumerable<TestCaseData> DistinctTakeSkipTestCases()
     {
@@ -52,9 +51,7 @@ public class PartitioningTests(CompilationMode mode)
         ).SetName("Skip_MoreThanCount_ReturnsEmpty");
     }
 
-    #endregion
 
-    #region TakeWhile / SkipWhile
 
     [Test]
     public void TakeWhile_TakesWhileConditionTrue()
@@ -116,9 +113,7 @@ public class PartitioningTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(new[] { 5, 6, 7 }));
     }
 
-    #endregion
 
-    #region TakeLast / SkipLast
 
     [Test]
     public void TakeLast_TakesLastN()
@@ -160,9 +155,7 @@ public class PartitioningTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(Array.Empty<int>()));
     }
 
-    #endregion
 
-    #region Chunk (.NET 6+)
 
     [Test]
     public void Chunk_SplitsIntoChunks()
@@ -178,5 +171,4 @@ public class PartitioningTests(CompilationMode mode)
         Assert.That(result[2], Is.EqualTo(new[] { 7 }));
     }
 
-    #endregion
 }

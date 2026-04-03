@@ -1,3 +1,4 @@
+using System.Reflection;
 using Alder.Diagnostics;
 using Alder.Test._Infrastructure;
 
@@ -241,19 +242,19 @@ public class ReflectionBlockingTests(CompilationMode mode)
 
     public class ReflectionTestModule
     {
-        public static System.Reflection.MethodInfo? GetMethodInfo()
+        public static MethodInfo? GetMethodInfo()
             => typeof(string).GetMethod("ToUpper", Type.EmptyTypes);
 
-        public static System.Reflection.PropertyInfo? GetPropertyInfo()
+        public static PropertyInfo? GetPropertyInfo()
             => typeof(string).GetProperty("Length");
 
-        public static System.Reflection.FieldInfo? GetFieldInfo()
+        public static FieldInfo? GetFieldInfo()
             => typeof(string).GetField("Empty");
 
-        public static System.Reflection.Assembly GetAssembly()
+        public static Assembly GetAssembly()
             => typeof(string).Assembly;
 
-        public static System.Reflection.Module GetModule()
+        public static Module GetModule()
             => typeof(string).Module;
     }
 

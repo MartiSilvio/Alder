@@ -1,3 +1,4 @@
+using Alder.Diagnostics;
 using Alder.Test._Infrastructure;
 
 namespace Alder.Test.PatternMatching;
@@ -15,7 +16,6 @@ namespace Alder.Test.PatternMatching;
 [TestFixture(CompilationMode.Compiled)]
 public class SwitchExpressionTests(CompilationMode mode)
 {
-    #region ECMA-334 §12.8.21 -- AlderException for Non-Exhaustive Match
 
     [Test]
     public void SwitchExpression_NoMatch_ThrowsAlderException()
@@ -24,7 +24,7 @@ public class SwitchExpressionTests(CompilationMode mode)
         engine.SetVariable("x", (object)99);
         var ex = Assert.Throws<AlderException>(
             () => engine.Evaluate("""x switch { 1 => "one" } """));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(Alder.Diagnostics.DiagnosticCode.CS8510));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS8510));
     }
 
     [Test]
@@ -34,12 +34,10 @@ public class SwitchExpressionTests(CompilationMode mode)
         engine.SetVariable("x", (object?)null);
         var ex = Assert.Throws<AlderException>(
             () => engine.Evaluate("""x switch { 1 => "one", "hello" => "two" } """));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(Alder.Diagnostics.DiagnosticCode.CS8510));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS8510));
     }
 
-    #endregion
 
-    #region ECMA-334 §12.8.21 -- First-Match Semantics
 
     // Roslyn rejects unreachable pattern arms (CS8510), so this is engine-only.
     // Verifies that when object precedes string, the object arm wins (first-match semantics).
@@ -52,9 +50,7 @@ public class SwitchExpressionTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo("object"));
     }
 
-    #endregion
 
-    #region ECMA-334 §12.8.21 -- Variable Scoping in Switch Arms
 
     // Pattern variables in one arm should not leak to other arms
     [Test]
@@ -67,8 +63,7 @@ public class SwitchExpressionTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(5));
         // 's' should not be accessible in the engine context after switch
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate("s"));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(Alder.Diagnostics.DiagnosticCode.CS0103));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0103));
     }
 
-    #endregion
 }

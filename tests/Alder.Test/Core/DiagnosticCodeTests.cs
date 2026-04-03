@@ -1,3 +1,4 @@
+using System.Reflection;
 using Alder.Diagnostics;
 using Alder.Test._Infrastructure;
 
@@ -445,7 +446,7 @@ public class DiagnosticCodeTests
         // Verify every DiagnosticCode enum value has a corresponding DiagnosticDescriptor
         var allCodes = Enum.GetValues<DiagnosticCode>();
         var descriptorFields = typeof(DiagnosticDescriptors)
-            .GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)
+            .GetFields(BindingFlags.Public | BindingFlags.Static)
             .Where(f => f.FieldType == typeof(DiagnosticDescriptor))
             .Select(f => ((DiagnosticDescriptor)f.GetValue(null)!).Code)
             .ToHashSet();
@@ -461,7 +462,7 @@ public class DiagnosticCodeTests
     public void AllDescriptors_HaveNonEmptyMessageTemplates()
     {
         var descriptorFields = typeof(DiagnosticDescriptors)
-            .GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)
+            .GetFields(BindingFlags.Public | BindingFlags.Static)
             .Where(f => f.FieldType == typeof(DiagnosticDescriptor))
             .Select(f => (DiagnosticDescriptor)f.GetValue(null)!);
 

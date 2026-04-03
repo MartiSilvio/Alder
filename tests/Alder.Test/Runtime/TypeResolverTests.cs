@@ -88,7 +88,7 @@ public class TypeResolverTests(CompilationMode mode)
         var engine = CreateEngine();
         engine.SetVariable("s", "hello");
         var result = engine.Evaluate("s is string");
-        Assert.That(result, Is.EqualTo(true));
+        Assert.That(result, Is.True);
     }
 
     [Test]
@@ -97,7 +97,7 @@ public class TypeResolverTests(CompilationMode mode)
         var engine = CreateEngine();
         engine.SetVariable("val", (object)42);
         var result = engine.Evaluate("val is int");
-        Assert.That(result, Is.EqualTo(true));
+        Assert.That(result, Is.True);
     }
 
     [Test]
@@ -333,7 +333,7 @@ public class TypeResolverTests(CompilationMode mode)
         var engine = CreateEngine();
         engine.SetVariable("obj", (object)"hello");
         var result = engine.Evaluate("obj is string");
-        Assert.That(result, Is.EqualTo(true));
+        Assert.That(result, Is.True);
     }
 
     [Test]
@@ -342,7 +342,7 @@ public class TypeResolverTests(CompilationMode mode)
         var engine = CreateEngine();
         engine.SetVariable("obj", (object)42);
         var result = engine.Evaluate("obj is string");
-        Assert.That(result, Is.EqualTo(false));
+        Assert.That(result, Is.False);
     }
 
     [Test]
@@ -351,7 +351,7 @@ public class TypeResolverTests(CompilationMode mode)
         var engine = CreateEngine();
         engine.SetVariable("val", (object)42);
         var result = engine.Evaluate("val is int");
-        Assert.That(result, Is.EqualTo(true));
+        Assert.That(result, Is.True);
     }
 
     [Test]
@@ -360,7 +360,7 @@ public class TypeResolverTests(CompilationMode mode)
         var engine = CreateEngine();
         engine.SetVariable("val", (object)true);
         var result = engine.Evaluate("val is bool");
-        Assert.That(result, Is.EqualTo(true));
+        Assert.That(result, Is.True);
     }
 
     [Test]
@@ -519,7 +519,7 @@ public class TypeResolverTests(CompilationMode mode)
     {
         var engine = CreateEngine();
         var result = engine.Evaluate("{ bool b = true; return b; }");
-        Assert.That(result, Is.EqualTo(true));
+        Assert.That(result, Is.True);
     }
 
     [Test]

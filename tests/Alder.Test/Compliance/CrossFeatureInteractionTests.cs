@@ -354,7 +354,7 @@ public class CrossFeatureInteractionTests(CompilationMode mode)
             }
             return disposed;
         }");
-        Assert.That(result, Is.EqualTo(true));
+        Assert.That(result, Is.True);
     }
 
     #endregion
@@ -403,7 +403,7 @@ public class CrossFeatureInteractionTests(CompilationMode mode)
     public void String_Contains()
     {
         var result = Eval(@"""hello world"".Contains(""world"")");
-        Assert.That(result, Is.EqualTo(true));
+        Assert.That(result, Is.True);
     }
 
     [Test]
@@ -504,14 +504,14 @@ public class CrossFeatureInteractionTests(CompilationMode mode)
     public void Tuple_Equality()
     {
         var result = Eval("(1, 2, 3) == (1, 2, 3)");
-        Assert.That(result, Is.EqualTo(true));
+        Assert.That(result, Is.True);
     }
 
     [Test]
     public void Tuple_Inequality()
     {
         var result = Eval("(1, 2, 3) != (1, 2, 4)");
-        Assert.That(result, Is.EqualTo(true));
+        Assert.That(result, Is.True);
     }
     #endregion
 }

@@ -6,7 +6,6 @@ namespace Alder.Test.Parsing;
 [TestFixture(CompilationMode.Compiled)]
 public class BracelessSyntaxTests(CompilationMode mode)
 {
-    #region Program-Level Braceless Syntax
 
     [Test]
     public async Task Program_SingleExpression()
@@ -124,9 +123,7 @@ public class BracelessSyntaxTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(csharpResult));
     }
 
-    #endregion
 
-    #region Single-Line If Statement (No Braces)
 
     [Test]
     public async Task If_SingleLine_NoBraces()
@@ -193,9 +190,7 @@ public class BracelessSyntaxTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(csharpResult));
     }
 
-    #endregion
 
-    #region Single-Line For Loop (No Braces)
 
     [Test]
     public async Task For_SingleLine_NoBraces()
@@ -223,9 +218,7 @@ public class BracelessSyntaxTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(csharpResult));
     }
 
-    #endregion
 
-    #region Single-Line While Loop (No Braces)
 
     [Test]
     public async Task While_SingleLine_NoBraces()
@@ -253,9 +246,7 @@ public class BracelessSyntaxTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(csharpResult));
     }
 
-    #endregion
 
-    #region Single-Line Do-While Loop (No Braces)
 
     [Test]
     public async Task DoWhile_SingleLine_NoBraces()
@@ -283,9 +274,7 @@ public class BracelessSyntaxTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(csharpResult));
     }
 
-    #endregion
 
-    #region Mixed Braced and Braceless
 
     [Test]
     public async Task For_WithBracelessIf()
@@ -340,5 +329,4 @@ public class BracelessSyntaxTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(csharpResult));
     }
 
-    #endregion
 }

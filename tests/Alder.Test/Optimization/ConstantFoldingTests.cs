@@ -62,7 +62,7 @@ public sealed class ConstantFoldingTests
 
         Assert.That(result, Is.TypeOf<BoundLiteralExpr>());
         var literal = (BoundLiteralExpr)result;
-        Assert.That(literal.Value, Is.EqualTo(false));
+        Assert.That(literal.Value, Is.False);
     }
 
     [Test]
@@ -80,7 +80,7 @@ public sealed class ConstantFoldingTests
 
         Assert.That(result, Is.TypeOf<BoundLiteralExpr>());
         var literal = (BoundLiteralExpr)result;
-        Assert.That(literal.Value, Is.EqualTo(true));
+        Assert.That(literal.Value, Is.True);
     }
 
     [Test]
@@ -96,7 +96,7 @@ public sealed class ConstantFoldingTests
 
         Assert.That(result, Is.TypeOf<BoundLiteralExpr>());
         var literal = (BoundLiteralExpr)result;
-        Assert.That(literal.Value, Is.EqualTo(false));
+        Assert.That(literal.Value, Is.False);
     }
 
     [Test]
@@ -259,7 +259,7 @@ public sealed class ConstantFoldingTests
         var result = _pass.Rewrite(tree);
 
         Assert.That(result, Is.TypeOf<BoundLiteralExpr>());
-        Assert.That(((BoundLiteralExpr)result).Value, Is.EqualTo(true));
+        Assert.That(((BoundLiteralExpr)result).Value, Is.True);
     }
 
     [Test]

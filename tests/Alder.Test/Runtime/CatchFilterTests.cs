@@ -1,3 +1,4 @@
+using Alder.Diagnostics;
 using Alder.Test._Infrastructure;
 
 namespace Alder.Test.Runtime;
@@ -18,7 +19,7 @@ public class CatchFilterTests(CompilationMode mode)
             return ex;
         }
         """));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(Alder.Diagnostics.DiagnosticCode.CS0103));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0103));
     }
 
     [Test]
@@ -49,7 +50,7 @@ public class CatchFilterTests(CompilationMode mode)
             return ex;
         }
         """));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(Alder.Diagnostics.DiagnosticCode.CS0103));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0103));
     }
 
     [Test]
@@ -60,7 +61,7 @@ public class CatchFilterTests(CompilationMode mode)
         engine.SetVariable("counter", counter);
 
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate("1 && counter.Bump()"));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(Alder.Diagnostics.DiagnosticCode.CS0019));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0019));
         Assert.That(counter.Count, Is.EqualTo(0));
     }
 
@@ -78,7 +79,7 @@ public class CatchFilterTests(CompilationMode mode)
             return n;
         }
         """));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(Alder.Diagnostics.DiagnosticCode.CS0103));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0103));
     }
 
     private sealed class CounterProbe

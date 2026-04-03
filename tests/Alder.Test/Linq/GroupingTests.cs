@@ -64,7 +64,6 @@ public class GroupingTests(CompilationMode mode)
         Assert.That(sums, Is.EqualTo(new[] { 3, 12 })); // 1+2=3, 3+4+5=12
     }
 
-    #region Join
 
     [Test]
     public void Join_InnerJoin()
@@ -87,9 +86,7 @@ public class GroupingTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(new[] { "Alice: Apple", "Alice: Banana", "Bob: Orange" }));
     }
 
-    #endregion
 
-    #region GroupJoin
 
     [Test]
     public void GroupJoin_GroupsMatchingElements()
@@ -112,5 +109,4 @@ public class GroupingTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(new[] { "Fruit: 2", "Vegetable: 1" }));
     }
 
-    #endregion
 }

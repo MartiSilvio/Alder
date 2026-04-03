@@ -1,3 +1,4 @@
+using Alder.Diagnostics;
 using Alder.Test._Infrastructure;
 
 namespace Alder.Test.Security;
@@ -31,7 +32,7 @@ public class CaseSensitivityTests(CompilationMode mode)
 
         // "toupper" is wrong case -- case-sensitive mode sees no member with that name
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate("text.toupper()"));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(Alder.Diagnostics.DiagnosticCode.CS1061));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS1061));
     }
 
     [Test]

@@ -228,9 +228,9 @@ object? result = await engine.EvaluateAsync("""
 // 6
 ```
 
-`EvaluateAsync` is required for expressions containing `await`. It also works for non-async expressions — making it a safe default for any evaluation path. Expressions with `await` always run on the interpreted backend; non-async expressions use whichever backend is configured (interpreted or compiled).
+`EvaluateAsync` is required for expressions containing `await`. It also works for non-async expressions — making it a safe default for any evaluation path. `await` works inside loops, try/catch, switch, pattern matching, and every other control flow construct, exactly as in compiled C#.
 
-See [Async/Await](engine/async.md) for the full guide, including limitations and the LINQ expression tree constraint.
+See [Async/Await](engine/async.md) for the full guide.
 
 ## Further reading
 

@@ -1,3 +1,4 @@
+using Alder.Diagnostics;
 using Alder.Test._Infrastructure;
 
 namespace Alder.Test.Core;
@@ -34,7 +35,7 @@ public class OneShotEvaluationTests(CompilationMode mode)
 
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate("x"));
         Assert.That(ex!.Message, Does.Contain("does not exist in the current context"));
-        Assert.That(ex.ErrorCode, Is.EqualTo(Alder.Diagnostics.DiagnosticCode.CS0103));
+        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CS0103));
     }
 
     [Test]

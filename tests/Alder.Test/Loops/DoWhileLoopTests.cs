@@ -10,7 +10,6 @@ namespace Alder.Test.Loops;
 [TestFixture(CompilationMode.Compiled)]
 public class DoWhileLoopTests(CompilationMode mode)
 {
-    #region Do-While Loop with External Variables
 
     // Engine-only: SetVariable
     [Test]
@@ -76,9 +75,7 @@ public class DoWhileLoopTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo("Found at 7"));
     }
 
-    #endregion
 
-    #region Do-While Loop with Collections
 
     // Engine-only: SetVariable with List<int>
     [Test]
@@ -101,9 +98,7 @@ public class DoWhileLoopTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(100));
     }
 
-    #endregion
 
-    #region Do-While Loop with Anonymous Objects
 
     // Engine-only: anonymous objects as IDictionary<string, object?>
     [Test]
@@ -126,9 +121,7 @@ public class DoWhileLoopTests(CompilationMode mode)
         Assert.That(result["Squared"], Is.EqualTo(4));
     }
 
-    #endregion
 
-    #region Do-While Loop Safety
 
     // Engine-only: Constraints (Alder-specific configuration)
     [Test]
@@ -213,9 +206,7 @@ public class DoWhileLoopTests(CompilationMode mode)
         Assert.ThrowsAsync<OperationCanceledException>(() => task);
     }
 
-    #endregion
 
-    #region Do-While Loop Parsing Tests
 
     // Engine-only: TryParse API (Alder-specific)
     [Test]
@@ -265,5 +256,4 @@ public class DoWhileLoopTests(CompilationMode mode)
         Assert.That(result2, Is.EqualTo(45));
     }
 
-    #endregion
 }

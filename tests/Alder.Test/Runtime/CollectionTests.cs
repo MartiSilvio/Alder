@@ -10,7 +10,6 @@ namespace Alder.Test.Runtime;
 [TestFixture(CompilationMode.Compiled)]
 public class CollectionTests(CompilationMode mode)
 {
-    #region Engine-only: Alder [] collection expression syntax (Roslyn rejects CS9176)
 
     // Engine-only: Alder [] syntax with CRLF line endings (edge case, no parity equivalent)
     [Test]
@@ -24,9 +23,7 @@ public class CollectionTests(CompilationMode mode)
         Assert.That(list[0], Is.EqualTo("one"));
     }
 
-    #endregion
 
-    #region Engine-only: anonymous objects as mutable IDictionary (not value-comparable)
 
     // Engine-only: anonymous object returns IDictionary, not compiler-generated type
     [Test]
@@ -49,5 +46,4 @@ public class CollectionTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(new[] { 4, 16, 36, 64, 100 }));
     }
 
-    #endregion
 }

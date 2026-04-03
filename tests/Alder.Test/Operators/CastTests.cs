@@ -1,3 +1,4 @@
+using Alder.Diagnostics;
 using Alder.Test._Infrastructure;
 
 namespace Alder.Test.Operators;
@@ -14,7 +15,6 @@ namespace Alder.Test.Operators;
 [TestFixture(CompilationMode.Compiled)]
 public class CastTests(CompilationMode mode)
 {
-    #region Cast with Non-Keyword Class Types
 
     [Test]
     public void Cast_ClassType_Compatible()
@@ -41,7 +41,7 @@ public class CastTests(CompilationMode mode)
         var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("obj", (object)"hello");
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate("(Exception)obj"));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(Alder.Diagnostics.DiagnosticCode.CS0030));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0030));
     }
 
     [Test]
@@ -53,9 +53,7 @@ public class CastTests(CompilationMode mode)
         Assert.That(result, Is.Null);
     }
 
-    #endregion
 
-    #region ECMA-334 §10.3.7 — Unboxing Edge Cases
 
     [Test]
     public async Task Unboxing_ExactTypeMatch_Required()
@@ -65,7 +63,7 @@ public class CastTests(CompilationMode mode)
 
         Assert.That(engine.Evaluate("(int)boxed"), Is.EqualTo(42));
         var ex2 = Assert.Catch<AlderException>(() => engine.Evaluate("(long)boxed"));
-        Assert.That(ex2!.ErrorCode, Is.EqualTo(Alder.Diagnostics.DiagnosticCode.CS0030));
+        Assert.That(ex2!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0030));
 
         var csharpResult = await TestHelpers.EvaluateCSharpAsync("(int)(object)42");
         Assert.That(csharpResult, Is.EqualTo(42));
@@ -81,5 +79,4 @@ public class CastTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(42));
     }
 
-    #endregion
 }

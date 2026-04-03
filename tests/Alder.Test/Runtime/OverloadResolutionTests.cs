@@ -26,7 +26,7 @@ public class OverloadResolutionTests(CompilationMode mode)
         engine.SetVariable("text", "hello world");
 
         var result = engine.Evaluate("""text.Contains("hello") """);
-        Assert.That(result, Is.EqualTo(true));
+        Assert.That(result, Is.True);
     }
 
     // Engine-only: uses SetVariable with List<int> (not serializable to Roslyn .csx)

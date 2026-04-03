@@ -64,7 +64,7 @@ public sealed class BoundCompilationTests
 
         var chainedExpr = engine.Parse("1 < 2 < 3");
         var chainedResult = engine.Evaluate(chainedExpr);
-        Assert.That(chainedResult, Is.EqualTo(true));
+        Assert.That(chainedResult, Is.True);
         Assert.That(chainedExpr.GetCompiledInfo()!.Pipeline, Is.EqualTo(CompiledPipeline.Bound));
 
         var rangeExpr = engine.Parse("(1..=5).Count()");
@@ -113,7 +113,7 @@ public sealed class BoundCompilationTests
         var expression = engine.Parse("x is > 10 and < 100");
 
         var result = engine.Evaluate(expression);
-        Assert.That(result, Is.EqualTo(true));
+        Assert.That(result, Is.True);
         Assert.That(expression.GetCompiledInfo()!.Pipeline, Is.EqualTo(CompiledPipeline.Bound));
     }
 

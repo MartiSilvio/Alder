@@ -58,7 +58,7 @@ public class BoxingConformanceTests(CompilationMode mode)
             object o = x;
             return o == null;
         ");
-        Assert.That(result, Is.EqualTo(true));
+        Assert.That(result, Is.True);
     }
 
     #endregion

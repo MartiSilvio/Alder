@@ -1,3 +1,4 @@
+using Alder.Diagnostics;
 using Alder.Test._Infrastructure;
 
 namespace Alder.Test.Compliance;
@@ -43,7 +44,7 @@ public class CSharp12FeatureInventoryTests
 
         var standard = new AlderEngine(Options);
         var ex = Assert.Throws<AlderException>(() => standard.Evaluate("[1, 2, 3]"));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(Alder.Diagnostics.DiagnosticCode.CS9176));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS9176));
     }
 
     // 2. Primary Constructors: class Point(int x, int y) { ... }

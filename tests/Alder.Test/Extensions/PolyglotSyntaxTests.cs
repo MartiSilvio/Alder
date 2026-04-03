@@ -1,4 +1,5 @@
 using System.Dynamic;
+using Alder.Diagnostics;
 using Alder.Test._Infrastructure;
 
 namespace Alder.Test.Extensions;
@@ -15,7 +16,7 @@ public class PolyglotSyntaxTests(CompilationMode mode)
     {
         var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate(expr));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(Alder.Diagnostics.DiagnosticCode.CS1003));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS1003));
     }
 
     [Test]
@@ -30,7 +31,7 @@ public class PolyglotSyntaxTests(CompilationMode mode)
     {
         var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate("{ const int x = 7; x = 8; return x; }"));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(Alder.Diagnostics.DiagnosticCode.CS0131));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0131));
     }
 
     // Strict equality with variables

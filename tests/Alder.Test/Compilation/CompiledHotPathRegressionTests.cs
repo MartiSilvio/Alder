@@ -277,7 +277,7 @@ public class CompiledHotPathRegressionTests(CompilationMode mode)
     {
         var engine = TestEngineFactory.Create(mode);
         var result = engine.Evaluate("true || (missingVariable > 0)");
-        Assert.That(result, Is.EqualTo(true));
+        Assert.That(result, Is.True);
     }
 
     [Test]

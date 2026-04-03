@@ -11,7 +11,6 @@ public class ForLoopTests(CompilationMode mode)
 {
 
 
-    #region Safety Tests
 
     [Test]
     public void ForLoop_ExceedsMaxStatements_ThrowsException()
@@ -78,9 +77,7 @@ public class ForLoopTests(CompilationMode mode)
         Assert.ThrowsAsync<OperationCanceledException>(() => task);
     }
 
-    #endregion
 
-    #region Parsing Tests
 
     [Test]
     public void ForLoop_TryParse_ValidExpression_Succeeds()
@@ -125,5 +122,4 @@ public class ForLoopTests(CompilationMode mode)
         Assert.That(result2, Is.EqualTo(45));
     }
 
-    #endregion
 }

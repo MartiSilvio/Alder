@@ -1,3 +1,4 @@
+using Alder.Diagnostics;
 using Alder.Test._Infrastructure;
 
 namespace Alder.Test.Operators;
@@ -106,7 +107,7 @@ public class ThrowExpressionTests(CompilationMode mode)
         var engine = TestEngineFactory.Create(mode);
         // new Object() is not an Exception, should error
         var ex = Assert.Catch<AlderException>(() => engine.Evaluate("throw new Object()"));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(Alder.Diagnostics.DiagnosticCode.CS0155));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0155));
     }
 
     [Test]
@@ -114,7 +115,7 @@ public class ThrowExpressionTests(CompilationMode mode)
     {
         var engine = TestEngineFactory.Create(mode);
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate("{ throw; }"));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(Alder.Diagnostics.DiagnosticCode.CS0156));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0156));
     }
 
     #endregion

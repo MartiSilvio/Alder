@@ -14,7 +14,6 @@ namespace Alder.Test.Types;
 [TestFixture(CompilationMode.Compiled)]
 public class NumericTests(CompilationMode mode)
 {
-    #region Engine-only: Float tolerance tests (use .Within() which parity checks don't support)
 
     [Test]
     public void IntPlusFloat_ReturnsFloat()
@@ -109,9 +108,7 @@ public class NumericTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(preciseValue));
     }
 
-    #endregion
 
-    #region Engine-only: Error cases (exception assertions)
 
     [Test]
     public void FloatPlusDecimal_Throws()
@@ -135,9 +132,7 @@ public class NumericTests(CompilationMode mode)
         Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0019));
     }
 
-    #endregion
 
-    #region Engine-only: Multi-step state / non-serializable SetVariable patterns
 
     [Test]
     public void Double_CompoundingError_RepeatedAddition()
@@ -171,9 +166,7 @@ public class NumericTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(0.1m));
     }
 
-    #endregion
 
-    #region Engine-only: Contains tests (use SetVariable with List<object?>, non-serializable types)
 
     [Test]
     public void Contains_IntListWithLongLiteral_Works()
@@ -228,13 +221,9 @@ public class NumericTests(CompilationMode mode)
         Assert.That(engine.Evaluate("numbers.Contains(4)"), Is.False);
     }
 
-    #endregion
 
-    #region Engine-only: Alder-specific syntax (array literal [...], collection expressions)
 
-    #endregion
 
-    #region Engine-only: Variable shadowing/scoping error tests
 
     [Test]
     public void VariableShadowing_InNestedBlock_IsAllowed()
@@ -266,9 +255,7 @@ public class NumericTests(CompilationMode mode)
         Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0103));
     }
 
-    #endregion
 
-    #region Engine-only: NumericPromotion_ResultType (uses Type expectedType in TestCase)
 
     [TestCase("1 + 1L", typeof(long), TestName = "NumericPromotion_IntPlusLong_IsLong")]
     [TestCase("1L + 1", typeof(long), TestName = "NumericPromotion_LongPlusInt_IsLong")]
@@ -289,5 +276,4 @@ public class NumericTests(CompilationMode mode)
         Assert.That(csharpResult?.GetType(), Is.EqualTo(expectedType), $"C# type mismatch for: {expr}");
     }
 
-    #endregion
 }

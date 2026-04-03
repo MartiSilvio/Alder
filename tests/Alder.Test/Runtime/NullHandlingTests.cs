@@ -1,3 +1,4 @@
+using Alder.Diagnostics;
 using Alder.Test._Infrastructure;
 
 namespace Alder.Test.Runtime;
@@ -13,7 +14,6 @@ namespace Alder.Test.Runtime;
 [TestFixture(CompilationMode.Compiled)]
 public class NullHandlingTests(CompilationMode mode)
 {
-    #region Engine-only: error tests (AlderException assertions)
 
     // Engine-only: AlderException assertion for ??= on non-nullable type
     [Test]
@@ -25,13 +25,11 @@ public class NullHandlingTests(CompilationMode mode)
                                                                           x ??= 42;
                                                                           return x;
                                                                       """));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(Alder.Diagnostics.DiagnosticCode.CS0019));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0019));
         Assert.That(ex!.Message, Does.Contain("??=").And.Contain("Int32"));
     }
 
-    #endregion
 
-    #region Engine-only: SetVariable with null (engine API specific)
 
     // Engine-only: SetVariable with null + ?? operator
     [Test]
@@ -55,9 +53,7 @@ public class NullHandlingTests(CompilationMode mode)
         Assert.That(engine.Evaluate("obj?.Name"), Is.Null);
     }
 
-    #endregion
 
-    #region Engine-only: SetVariable with non-serializable types (?[] element access)
 
     // Engine-only: SetVariable with null for ?[] element access
     [Test]
@@ -108,5 +104,4 @@ public class NullHandlingTests(CompilationMode mode)
         Assert.That(engine.Evaluate("s?.ToUpper()"), Is.Null);
     }
 
-    #endregion
 }

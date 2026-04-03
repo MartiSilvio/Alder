@@ -15,7 +15,6 @@ namespace Alder.Test.PatternMatching;
 [TestFixture(CompilationMode.Compiled)]
 public class PatternTests(CompilationMode mode)
 {
-    #region ECMA-334 §11.2.7 -- Property Patterns
 
     // Null test for property pattern with member access: engine-only (Roslyn cannot resolve
     // member on object-typed variable, and string? x = null doesn't support is { Length: > 0 }
@@ -25,12 +24,10 @@ public class PatternTests(CompilationMode mode)
     {
         var engine = TestEngineFactory.Create(mode);
         var result = engine.Evaluate("{ object x = null; return x is { Length: > 0 }; }");
-        Assert.That(result, Is.EqualTo(false));
+        Assert.That(result, Is.False);
     }
 
-    #endregion
 
-    #region ECMA-334 §11.2.8 -- Discard Pattern
 
     /// <summary>
     /// The discard pattern (x is _) is not valid C# syntax in an is-expression context.
@@ -46,5 +43,4 @@ public class PatternTests(CompilationMode mode)
         Assert.Pass("Discard pattern tested in switch expression context");
     }
 
-    #endregion
 }

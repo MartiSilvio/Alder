@@ -1,3 +1,4 @@
+using System.Reflection;
 using Alder.Diagnostics;
 using Alder.Test._Infrastructure;
 
@@ -169,7 +170,7 @@ public class RedTeamAttackTests(CompilationMode mode)
     public void Attack_DelegateReturnsAssembly_Trusted()
     {
         var engine = Trusted();
-        engine.SetVariable("getAsm", new Func<System.Reflection.Assembly>(() => typeof(string).Assembly));
+        engine.SetVariable("getAsm", new Func<Assembly>(() => typeof(string).Assembly));
         var ex = Assert.Throws<AlderException>(() =>
             engine.Evaluate("getAsm()"));
         Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0108));
@@ -334,7 +335,7 @@ public class RedTeamAttackTests(CompilationMode mode)
     [Test]
     public void Info_Typeof_IsPublic_Safe()
     {
-        Assert.That(Safe().Evaluate("typeof(string).IsPublic"), Is.EqualTo(true));
+        Assert.That(Safe().Evaluate("typeof(string).IsPublic"), Is.True);
     }
     [Test]
     public void Parity_Construction_SameErrorCode()

@@ -7,7 +7,6 @@ namespace Alder.Test.Security;
 [TestFixture(CompilationMode.Compiled)]
 public class SandboxModeTests(CompilationMode mode)
 {
-    #region Trusted Mode (Default)
 
     [Test]
     public void Trusted_AllowsMethodCalls()
@@ -43,9 +42,7 @@ public class SandboxModeTests(CompilationMode mode)
         Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0108));
     }
 
-    #endregion
 
-    #region Safe Mode - Method Blocking
 
     [Test]
     public void Safe_BlocksMethodCalls()
@@ -91,9 +88,7 @@ public class SandboxModeTests(CompilationMode mode)
         Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0100));
     }
 
-    #endregion
 
-    #region Safe Mode - Property Access
 
     [Test]
     public void Safe_AllowsPropertyReadByDefault()
@@ -128,9 +123,7 @@ public class SandboxModeTests(CompilationMode mode)
         Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0103));
     }
 
-    #endregion
 
-    #region Safe Mode - Modules Always Allowed
 
     [Test]
     public void Safe_AllowsModuleMethods()
@@ -166,9 +159,7 @@ public class SandboxModeTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(10));
     }
 
-    #endregion
 
-    #region Safe Mode - LINQ Always Allowed
 
     [Test]
     public void Safe_AllowsLinqWhere()
@@ -215,9 +206,7 @@ public class SandboxModeTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(120));
     }
 
-    #endregion
 
-    #region Safe Mode - Index Access
 
     [Test]
     public void Safe_AllowsArrayIndex()
@@ -241,9 +230,7 @@ public class SandboxModeTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo("value"));
     }
 
-    #endregion
 
-    #region Safe Mode - Registered Functions
 
     [Test]
     public void Safe_AllowsRegisteredFunctions()
@@ -259,9 +246,7 @@ public class SandboxModeTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(15L));
     }
 
-    #endregion
 
-    #region Safe Mode - Real Security Scenarios
 
     [Test]
     public void Safe_PreventsReflectionAttack()
@@ -289,9 +274,7 @@ public class SandboxModeTests(CompilationMode mode)
         Assert.That(list, Has.Count.EqualTo(3)); // List unchanged
     }
 
-    #endregion
 
-    #region Safe Mode - AllowAssignment
 
     [Test]
     public void Safe_AllowsAssignmentByDefault()
@@ -403,9 +386,7 @@ public class SandboxModeTests(CompilationMode mode)
         Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0101));
     }
 
-    #endregion
 
-    #region Safe Mode - AllowPropertySet
 
     [Test]
     public void Safe_AllowsPropertySetByDefault()
@@ -462,9 +443,7 @@ public class SandboxModeTests(CompilationMode mode)
         Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0105));
     }
 
-    #endregion
 
-    #region Safe Mode - AllowIndexSet
 
     [Test]
     public void Safe_AllowsIndexSetByDefault()
@@ -543,9 +522,7 @@ public class SandboxModeTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo("value"));
     }
 
-    #endregion
 
-    #region Strict Mode
 
     [Test]
     public void Strict_AllowsOnlyVariableDeclarationAndRead()
@@ -649,9 +626,7 @@ public class SandboxModeTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(12));
     }
 
-    #endregion
 
-    #region Combined Settings - Preset with Override
 
     [Test]
     public void Safe_WithPropertyAndIndexSetDisabled_AssignmentStillWorks()
@@ -693,9 +668,7 @@ public class SandboxModeTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo("HELLO"));
     }
 
-    #endregion
 
-    #region Deny-All Default
 
     [Test]
     public void DenyAll_DefaultSandbox_BlocksMethodCalls()
@@ -807,9 +780,7 @@ public class SandboxModeTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(14));
     }
 
-    #endregion
 
-    #region Tier 1 Dispatch - Always Allowed
 
     [Test]
     public void Safe_AllowsDelegateInvocation()
@@ -895,9 +866,7 @@ public class SandboxModeTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(21));
     }
 
-    #endregion
 
-    #region CompileMemberAssign Fix
 
     [Test]
     public void MemberAssign_AllowAssignmentFalse_AllowPropertySetTrue_Succeeds()
@@ -915,7 +884,6 @@ public class SandboxModeTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(42));
     }
 
-    #endregion
 
     [Test]
     public void Sandbox_AllowConstruction_Blocks_New()
@@ -959,12 +927,10 @@ public class SandboxModeTests(CompilationMode mode)
         Assert.DoesNotThrow(() => engine.Evaluate("new System.IO.MemoryStream()"));
     }
 
-    #region Helper Classes
 
     public class TestModule
     {
         public static int Double(int x) => x * 2;
     }
 
-    #endregion
 }

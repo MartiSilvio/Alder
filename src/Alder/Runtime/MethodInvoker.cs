@@ -1,4 +1,5 @@
 using System.Runtime.ExceptionServices;
+using Alder.Binding;
 using Alder.Diagnostics;
 using Alder.Interpretation;
 
@@ -429,6 +430,9 @@ internal static class MethodInvoker
 
     internal static object? InvokeLambda(LambdaValue lambda, object?[] args, AlderContext context)
     {
+        if (lambda.IsAsync)
+            return InvokeLambdaAsyncCore(lambda, args);
+
         var childContext = lambda.Closure.CreateChild();
         for (var i = 0; i < lambda.Parameters.Count && i < args.Length; i++)
             childContext.Define(lambda.Parameters[i], args[i]);
@@ -436,6 +440,24 @@ internal static class MethodInvoker
         var bound = lambda.GetOrBindBody(childContext);
         var evaluator = new BoundEvaluator(childContext);
         var result = evaluator.Evaluate(bound);
+        return result is ControlFlowSignal signal ? signal.Value : result;
+    }
+
+    // §12.19: async lambda invocation returns Task<object?> — the body is evaluated asynchronously
+    private static Task<object?> InvokeLambdaAsyncCore(LambdaValue lambda, object?[] args)
+    {
+        var childContext = lambda.Closure.CreateChild();
+        for (var i = 0; i < lambda.Parameters.Count && i < args.Length; i++)
+            childContext.Define(lambda.Parameters[i], args[i]);
+
+        var bound = lambda.GetOrBindBody(childContext);
+        var evaluator = new BoundEvaluator(childContext);
+        return EvaluateAsyncAndUnwrap(evaluator, bound);
+    }
+
+    private static async Task<object?> EvaluateAsyncAndUnwrap(BoundEvaluator evaluator, BoundExpr bound)
+    {
+        var result = await evaluator.EvaluateAsync(bound);
         return result is ControlFlowSignal signal ? signal.Value : result;
     }
 

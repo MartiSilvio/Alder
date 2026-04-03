@@ -401,14 +401,14 @@ public class LambdaOverloadResolutionTests(CompilationMode mode)
     public void Any_WithPredicate_NoAmbiguity()
     {
         var result = Eval("new[] { 1, 2, 3 }.Any(x => x > 2)");
-        Assert.That(result, Is.EqualTo(true));
+        Assert.That(result, Is.True);
     }
 
     [Test]
     public void All_WithPredicate_NoAmbiguity()
     {
         var result = Eval("new[] { 2, 4, 6 }.All(x => x % 2 == 0)");
-        Assert.That(result, Is.EqualTo(true));
+        Assert.That(result, Is.True);
     }
 
     #endregion

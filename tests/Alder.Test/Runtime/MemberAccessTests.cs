@@ -106,7 +106,7 @@ public class MemberAccessTests(CompilationMode mode)
         var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("a", 1);
         engine.SetVariable("b", 2);
-        Assert.That(engine.Evaluate("a < b"), Is.EqualTo(true));
+        Assert.That(engine.Evaluate("a < b"), Is.True);
     }
 
     [Test]

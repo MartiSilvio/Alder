@@ -1,4 +1,5 @@
 using System.Text;
+using Alder.Diagnostics;
 using Alder.Test._Infrastructure;
 
 namespace Alder.Test.Stress;
@@ -17,7 +18,7 @@ public class ParsingPathologicalTests(CompilationMode mode) : StressTestBase(mod
         var expression = GenerateDeeplyNestedExpression(depth, "1 + 1");
 
         var ex = Assert.Throws<AlderException>(() => Engine.Parse(expression));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(Alder.Diagnostics.DiagnosticCode.CS8078));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS8078));
     }
 
     [Test]

@@ -1,4 +1,5 @@
 using System.Linq.Expressions;
+using Alder.Diagnostics;
 
 namespace Alder.Test.Compilation;
 
@@ -43,8 +44,8 @@ public class CompilationTests
         Assert.That(engine.TryCompile(exprTrue), Is.True);
         Assert.That(engine.TryCompile(exprFalse), Is.True);
 
-        Assert.That(engine.Evaluate(exprTrue), Is.EqualTo(true));
-        Assert.That(engine.Evaluate(exprFalse), Is.EqualTo(false));
+        Assert.That(engine.Evaluate(exprTrue), Is.True);
+        Assert.That(engine.Evaluate(exprFalse), Is.False);
     }
 
     [Test]
@@ -209,7 +210,7 @@ public class CompilationTests
         Assert.That(engine.TryCompile(expr), Is.True);
 
         var result = engine.Evaluate(expr);
-        Assert.That(result, Is.EqualTo(true));
+        Assert.That(result, Is.True);
     }
 
     [Test]
@@ -221,7 +222,7 @@ public class CompilationTests
         Assert.That(engine.TryCompile(expr), Is.True);
 
         var result = engine.Evaluate(expr);
-        Assert.That(result, Is.EqualTo(true));
+        Assert.That(result, Is.True);
     }
 
     [Test]
@@ -233,7 +234,7 @@ public class CompilationTests
         Assert.That(engine.TryCompile(expr), Is.True);
 
         var result = engine.Evaluate(expr);
-        Assert.That(result, Is.EqualTo(true));
+        Assert.That(result, Is.True);
     }
 
     [Test]
@@ -245,7 +246,7 @@ public class CompilationTests
         Assert.That(engine.TryCompile(expr), Is.True);
 
         var result = engine.Evaluate(expr);
-        Assert.That(result, Is.EqualTo(true));
+        Assert.That(result, Is.True);
     }
 
     #endregion
@@ -261,7 +262,7 @@ public class CompilationTests
         Assert.That(engine.TryCompile(expr), Is.True);
 
         var result = engine.Evaluate(expr);
-        Assert.That(result, Is.EqualTo(true));
+        Assert.That(result, Is.True);
     }
 
     [Test]
@@ -273,7 +274,7 @@ public class CompilationTests
         Assert.That(engine.TryCompile(expr), Is.True);
 
         var result = engine.Evaluate(expr);
-        Assert.That(result, Is.EqualTo(true));
+        Assert.That(result, Is.True);
     }
 
     [Test]
@@ -285,7 +286,7 @@ public class CompilationTests
         Assert.That(engine.TryCompile(expr), Is.True);
 
         var result = engine.Evaluate(expr);
-        Assert.That(result, Is.EqualTo(true));
+        Assert.That(result, Is.True);
     }
 
     [Test]
@@ -299,7 +300,7 @@ public class CompilationTests
         Assert.That(engine.TryCompile(expr), Is.True);
 
         var result = engine.Evaluate(expr);
-        Assert.That(result, Is.EqualTo(false));
+        Assert.That(result, Is.False);
     }
 
     [Test]
@@ -313,7 +314,7 @@ public class CompilationTests
         Assert.That(engine.TryCompile(expr), Is.True);
 
         var result = engine.Evaluate(expr);
-        Assert.That(result, Is.EqualTo(true));
+        Assert.That(result, Is.True);
     }
 
     #endregion
@@ -480,7 +481,6 @@ public class CompilationTests
         var result = engine.Evaluate(expr);
         Assert.That(result, Is.EqualTo(20));
 
-        // Verify assignment took effect by reading x back
         Assert.That(engine.Evaluate("x"), Is.EqualTo(20));
     }
 
@@ -621,7 +621,7 @@ public class CompilationTests
         }");
 
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate(expr));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(Alder.Diagnostics.DiagnosticCode.CS0163));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0163));
         Assert.That(ex.Message, Does.Contain("CS0163"));
         Assert.That(expr.IsCompiled, Is.False);
     }
@@ -634,7 +634,7 @@ public class CompilationTests
         var expr = engine.Parse("1 + 2");
 
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate(expr));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(Alder.Diagnostics.DiagnosticCode.ALDR0001));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0001));
         Assert.That(ex.Message, Does.Contain("Forced compile failure"));
         Assert.That(expr.IsCompiled, Is.False);
     }

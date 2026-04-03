@@ -160,7 +160,7 @@ internal static class IdentifierRuntime
         Expr body,
         AlderContext context)
     {
-        return new LambdaValue(parameterNames.ToList(), body, context, context.Config);
+        return new LambdaValue(parameterNames.ToList(), body, context);
     }
 
     private static object? ResolveIdentifierCore(string name, AlderContext context)

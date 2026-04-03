@@ -351,8 +351,8 @@ internal sealed record OutArgExpr(string VariableName, string? TypeName, bool Is
 // ECMA-334 §12.19 - Anonymous function expressions
 internal sealed record LambdaParameter(string? TypeName, Token Name);
 
-// Lambda: (x) => x * 2, (int a, int b) => a + b
-internal sealed record LambdaExpr(List<LambdaParameter> Parameters, Expr Body) : Expr
+// Lambda: (x) => x * 2, (int a, int b) => a + b, async (x) => await f(x)
+internal sealed record LambdaExpr(List<LambdaParameter> Parameters, Expr Body, bool IsAsync = false) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitLambda(this);
 }

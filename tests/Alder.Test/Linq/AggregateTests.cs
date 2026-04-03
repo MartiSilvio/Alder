@@ -1,3 +1,4 @@
+using Alder.Diagnostics;
 using Alder.Test._Infrastructure;
 
 namespace Alder.Test.Linq;
@@ -26,7 +27,6 @@ public class AggregateTests(CompilationMode mode)
     public async Task MinMax(string expr, Dictionary<string, object?> variables, object expected)
         => await TestHelpers.RunCSharpParityTestAsync(expr, variables, expected, mode);
 
-    #region Aggregate Test Cases
 
     private static IEnumerable<TestCaseData> AggregateTestCases()
     {
@@ -58,9 +58,7 @@ public class AggregateTests(CompilationMode mode)
         ).SetName("Aggregate_StringConcat_ConcatenatesStrings");
     }
 
-    #endregion
 
-    #region Count Test Cases
 
     private static IEnumerable<TestCaseData> CountTestCases()
     {
@@ -92,9 +90,7 @@ public class AggregateTests(CompilationMode mode)
         ).SetName("Count_EmptyCollection_ReturnsZero");
     }
 
-    #endregion
 
-    #region Sum / Average Test Cases
 
     private static IEnumerable<TestCaseData> SumAverageTestCases()
     {
@@ -117,9 +113,7 @@ public class AggregateTests(CompilationMode mode)
         ).SetName("Average_ReturnsAverage");
     }
 
-    #endregion
 
-    #region Min / Max Test Cases
 
     private static IEnumerable<TestCaseData> MinMaxTestCases()
     {
@@ -142,9 +136,7 @@ public class AggregateTests(CompilationMode mode)
         ).SetName("Max_ReturnsMaximum");
     }
 
-    #endregion
 
-    #region Non-Serializable Type Tests
 
     [Test]
     public void Sum_WithSelector_ReturnsSumOfSelected()
@@ -274,9 +266,7 @@ public class AggregateTests(CompilationMode mode)
         Assert.That(result!["Name"], Is.EqualTo("Alice"));
     }
 
-    #endregion
 
-    #region Exception Tests
 
     [Test]
     public void Sum_WithStrings_ThrowsException()
@@ -285,7 +275,7 @@ public class AggregateTests(CompilationMode mode)
         engine.SetVariable("strings", new List<string> { "a", "b", "c" });
 
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate("strings.Sum()"));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(Alder.Diagnostics.DiagnosticCode.ALDR0304));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0304));
     }
 
     [Test]
@@ -295,7 +285,7 @@ public class AggregateTests(CompilationMode mode)
         engine.SetVariable("items", new List<object> { "hello", "world" });
 
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate("items.Sum()"));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(Alder.Diagnostics.DiagnosticCode.ALDR0304));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0304));
     }
 
     [Test]
@@ -316,9 +306,7 @@ public class AggregateTests(CompilationMode mode)
         Assert.Throws<InvalidOperationException>(() => engine.Evaluate("items.MaxBy(x => x)"));
     }
 
-    #endregion
 
-    #region LongCount
 
     [Test]
     public void LongCount_ReturnsLongCount()
@@ -341,9 +329,7 @@ public class AggregateTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(3L));
     }
 
-    #endregion
 
-    #region Sum / Average with selector
 
     [Test]
     public void Sum_WithIntSelector()
@@ -365,9 +351,7 @@ public class AggregateTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(6.0));
     }
 
-    #endregion
 
-    #region Min / Max with selector returning non-numeric
 
     [Test]
     public void Min_WithStringSelector()
@@ -389,5 +373,4 @@ public class AggregateTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(7)); // "Charlie" has length 7
     }
 
-    #endregion
 }

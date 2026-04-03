@@ -197,7 +197,13 @@ internal abstract class ParserBase
 
     internal Token Peek() => State.Tokens[State.Current];
 
-    internal Token PeekNext() => State.Current + 1 < State.Tokens.Count ? State.Tokens[State.Current + 1] : State.Tokens[^1];
+    internal Token PeekNext() => PeekAt(1);
+
+    internal Token PeekAt(int offset)
+    {
+        var index = State.Current + offset;
+        return index < State.Tokens.Count ? State.Tokens[index] : State.Tokens[^1];
+    }
 
     internal Token Previous() => State.Tokens[State.Current - 1];
 

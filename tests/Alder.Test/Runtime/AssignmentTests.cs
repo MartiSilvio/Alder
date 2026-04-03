@@ -2,6 +2,7 @@
 // SetVariable API, RegisterExtensionMethods, pre-parsed engine reuse, error assertions.
 // Migratable parity tests extracted to TestData/Runtime/Assignment/*.csx.
 
+using Alder.Diagnostics;
 using Alder.Test._Infrastructure;
 
 namespace Alder.Test.Runtime;
@@ -78,7 +79,7 @@ public class AssignmentTests(CompilationMode mode)
                 undefinedVar = 10;
                 return undefinedVar;
             "));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(Alder.Diagnostics.DiagnosticCode.CS0103));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0103));
     }
 
     [Test]
@@ -95,7 +96,7 @@ public class AssignmentTests(CompilationMode mode)
             }
             """));
 
-        Assert.That(ex!.ErrorCode, Is.EqualTo(Alder.Diagnostics.DiagnosticCode.CS0266));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0266));
     }
 
     #endregion

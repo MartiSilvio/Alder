@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using Alder.Diagnostics;
 using Alder.Test._Infrastructure;
 
 namespace Alder.Test.Core;
@@ -74,7 +75,7 @@ public class ThreadSafetyTests(CompilationMode mode)
 
         // y should not be defined in parent
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate("y"));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(Alder.Diagnostics.DiagnosticCode.CS0103));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0103));
     }
 
     [Test]

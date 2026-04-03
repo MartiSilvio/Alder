@@ -1,3 +1,6 @@
+using System.Collections.Concurrent;
+using System.Reflection;
+
 namespace Alder.Runtime;
 
 internal static class LambdaDelegateFactory
@@ -137,6 +140,13 @@ internal static class LambdaDelegateFactory
         if (value is TResult typed)
             return typed;
 
+        // Async lambda returns Task<object?> but the delegate expects Task<T> — map the result
+        if (value is Task<object?> objectTask && typeof(TResult).IsGenericType
+            && typeof(TResult).GetGenericTypeDefinition() == typeof(Task<>))
+        {
+            return (TResult)(object)MapTaskResult(objectTask, typeof(TResult).GetGenericArguments()[0]);
+        }
+
         if (value is LambdaValue or CompiledLambdaValue)
         {
             var converted = LambdaDelegateConverter.TryConvert(value, typeof(TResult));
@@ -145,6 +155,28 @@ internal static class LambdaDelegateFactory
         }
 
         return (TResult)value!;
+    }
+
+    private static readonly ConcurrentDictionary<Type, Func<Task<object?>, object>> TaskMapperCache = new();
+
+    private static readonly MethodInfo MapTaskCoreMethod =
+        typeof(LambdaDelegateFactory).GetMethod(nameof(MapTaskCore), BindingFlags.NonPublic | BindingFlags.Static)!;
+
+    private static object MapTaskResult(Task<object?> source, Type resultType)
+    {
+        var mapper = TaskMapperCache.GetOrAdd(resultType, static type =>
+        {
+            var closed = MapTaskCoreMethod.MakeGenericMethod(type);
+            return (Func<Task<object?>, object>)Delegate.CreateDelegate(
+                typeof(Func<Task<object?>, object>), closed);
+        });
+        return mapper(source);
+    }
+
+    private static async Task<T> MapTaskCore<T>(Task<object?> source)
+    {
+        var result = await source.ConfigureAwait(false);
+        return TypeHelpers.CoerceToType<T>(result);
     }
 
     private static Delegate CreateCompiledAction0(CompiledLambdaValue lambda) =>

@@ -1,3 +1,4 @@
+using Alder.Diagnostics;
 using Alder.Test._Infrastructure;
 
 namespace Alder.Test.Runtime;
@@ -11,7 +12,7 @@ public class LockStatementTests(CompilationMode mode)
     {
         var engine = TestEngineFactory.Create(mode);
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate("{ object o = null; lock (o) { } }"));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(Alder.Diagnostics.DiagnosticCode.CS0185));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0185));
         Assert.That(ex.Message, Does.Contain("CS0185"));
     }
 

@@ -1,4 +1,5 @@
 using System.Dynamic;
+using Alder.Diagnostics;
 using Alder.Test._Infrastructure;
 
 namespace Alder.Test.Compliance;
@@ -25,7 +26,7 @@ public class StandardModeNegativeTests(CompilationMode mode)
         var engine = TestEngineFactory.Create(mode, StandardOptions);
         var ex = Assert.Throws<AlderException>(
             () => engine.Evaluate("[1, 2, 3]"));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(Alder.Diagnostics.DiagnosticCode.CS9176));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS9176));
     }
 
     [Test]
@@ -46,7 +47,7 @@ public class StandardModeNegativeTests(CompilationMode mode)
         var engine = TestEngineFactory.Create(mode, StandardOptions);
         var ex = Assert.Throws<AlderException>(
             () => engine.Evaluate("[..new int[] { 1, 2 }]"));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(Alder.Diagnostics.DiagnosticCode.ALDR0020));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0020));
     }
 
     [Test]
@@ -70,7 +71,7 @@ public class StandardModeNegativeTests(CompilationMode mode)
         engine.SetVariable("obj", obj);
         var ex = Assert.Throws<AlderException>(
             () => engine.Evaluate("new { ..obj }"));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(Alder.Diagnostics.DiagnosticCode.ALDR0020));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0020));
     }
 
     [Test]
@@ -93,7 +94,7 @@ public class StandardModeNegativeTests(CompilationMode mode)
         var engine = TestEngineFactory.Create(mode, StandardOptions);
         var ex = Assert.Throws<AlderException>(
             () => engine.Evaluate("1 === 1"));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(Alder.Diagnostics.DiagnosticCode.ALDR0020));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0020));
     }
 
     [Test]
@@ -111,7 +112,7 @@ public class StandardModeNegativeTests(CompilationMode mode)
         var engine = TestEngineFactory.Create(mode, StandardOptions);
         var ex = Assert.Throws<AlderException>(
             () => engine.Evaluate("1 !== 2"));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(Alder.Diagnostics.DiagnosticCode.ALDR0020));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0020));
     }
 
     [Test]
@@ -129,7 +130,7 @@ public class StandardModeNegativeTests(CompilationMode mode)
         var engine = TestEngineFactory.Create(mode, StandardOptions);
         var ex = Assert.Throws<AlderException>(
             () => engine.Evaluate("2 ** 3"));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(Alder.Diagnostics.DiagnosticCode.ALDR0020));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0020));
     }
 
     [Test]
@@ -147,7 +148,7 @@ public class StandardModeNegativeTests(CompilationMode mode)
         var engine = TestEngineFactory.Create(mode, StandardOptions);
         var ex = Assert.Throws<AlderException>(
             () => engine.Evaluate("{ var x = 2; x **= 3; return x; }"));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(Alder.Diagnostics.DiagnosticCode.ALDR0020));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0020));
     }
 
     [Test]
@@ -165,7 +166,7 @@ public class StandardModeNegativeTests(CompilationMode mode)
         var engine = TestEngineFactory.Create(mode, StandardOptions);
         var ex = Assert.Throws<AlderException>(
             () => engine.Evaluate("5 between 1 and 10"));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(Alder.Diagnostics.DiagnosticCode.ALDR0020));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0020));
     }
 
     [Test]
@@ -184,7 +185,7 @@ public class StandardModeNegativeTests(CompilationMode mode)
         engine.SetVariable("arr", new int[] { 1, 2, 3, 4, 5 });
         var ex = Assert.Throws<AlderException>(
             () => engine.Evaluate("3 in arr"));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(Alder.Diagnostics.DiagnosticCode.ALDR0020));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0020));
     }
 
     [Test]
@@ -203,7 +204,7 @@ public class StandardModeNegativeTests(CompilationMode mode)
         var engine = TestEngineFactory.Create(mode, StandardOptions);
         var ex = Assert.Throws<AlderException>(
             () => engine.Evaluate(""" "hello" like "hel%" """));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(Alder.Diagnostics.DiagnosticCode.ALDR0020));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0020));
     }
 
     [Test]
@@ -268,7 +269,7 @@ public class StandardModeNegativeTests(CompilationMode mode)
     {
         var engine = TestEngineFactory.Create(mode, StandardOptions);
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate("{ const int x = 5; x = 6; return x; }"));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(Alder.Diagnostics.DiagnosticCode.CS0131));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0131));
     }
 
     [Test]
@@ -276,7 +277,7 @@ public class StandardModeNegativeTests(CompilationMode mode)
     {
         var engine = TestEngineFactory.Create(mode, ExtendedOptions);
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate("{ const int x = 5; x = 6; return x; }"));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(Alder.Diagnostics.DiagnosticCode.CS0131));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0131));
     }
 
     [Test]
@@ -285,7 +286,7 @@ public class StandardModeNegativeTests(CompilationMode mode)
         var engine = TestEngineFactory.Create(mode, StandardOptions);
         var ex = Assert.Throws<AlderException>(
             () => engine.Evaluate("let x = 5 in x"));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(Alder.Diagnostics.DiagnosticCode.ALDR0020));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0020));
     }
 
     [Test]
@@ -301,7 +302,7 @@ public class StandardModeNegativeTests(CompilationMode mode)
         var engine = TestEngineFactory.Create(mode, StandardOptions);
         var ex = Assert.Throws<AlderException>(
             () => engine.Evaluate("if (x > 0) x else -x"));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(Alder.Diagnostics.DiagnosticCode.ALDR0020));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0020));
     }
 
     [Test]
@@ -318,7 +319,7 @@ public class StandardModeNegativeTests(CompilationMode mode)
         var engine = TestEngineFactory.Create(mode, StandardOptions);
         var ex = Assert.Throws<AlderException>(
             () => engine.Evaluate("[x for x in 1..3]"));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(Alder.Diagnostics.DiagnosticCode.ALDR0020));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0020));
     }
 
     [Test]

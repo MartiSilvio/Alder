@@ -9,7 +9,6 @@ namespace Alder.Test.Loops;
 [TestFixture(CompilationMode.Compiled)]
 public class WhileLoopTests(CompilationMode mode)
 {
-    #region Safety Tests
 
     [Test]
     public void WhileLoop_ExceedsMaxStatements_ThrowsException()
@@ -88,9 +87,7 @@ public class WhileLoopTests(CompilationMode mode)
         Assert.ThrowsAsync<OperationCanceledException>(() => task);
     }
 
-    #endregion
 
-    #region Parsing Tests
 
     [Test]
     public void WhileLoop_TryParse_ValidExpression_Succeeds()
@@ -179,5 +176,4 @@ public class WhileLoopTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(1));
     }
 
-    #endregion
 }

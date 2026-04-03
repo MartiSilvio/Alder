@@ -82,6 +82,16 @@ internal sealed class PrimaryParser : ParserBase
         if (Match(TokenType.Sizeof))
             return ParseSizeofExpression(mark);
 
+        // §12.19: async anonymous function — async x => expr, async (x) => expr, async () => expr
+        if (Check(TokenType.Async) && IsAsyncLambdaAhead())
+        {
+            Advance(); // consume 'async'
+            if (Match(TokenType.LeftParen))
+                return ParseAsyncParenthesizedLambda(mark);
+            Advance(); // consume identifier
+            return ParseAsyncSingleParamLambda(mark);
+        }
+
         if (Match(TokenType.Identifier))
             return ParseIdentifier(mark);
 
@@ -713,6 +723,55 @@ internal sealed class PrimaryParser : ParserBase
 
     #region Identifier and Lambda
 
+    // §12.19: look ahead to distinguish `async x => ...` and `async (x) => ...` from `async` as identifier
+    private bool IsAsyncLambdaAhead()
+    {
+        var next = PeekNext();
+        if (next.Type == TokenType.LeftParen)
+            return true;
+        // async x => ... — identifier followed by =>
+        if (next.Type == TokenType.Identifier && PeekAt(2).Type == TokenType.Arrow)
+            return true;
+        return false;
+    }
+
+    private Expr ParseAsyncSingleParamLambda(int mark)
+    {
+        var identifier = Previous();
+        Consume(TokenType.Arrow, "Expected '=>' after async lambda parameter");
+        var body = _expression.ParseExpression();
+        return new LambdaExpr([new LambdaParameter(null, identifier)], body, IsAsync: true) { Span = SpanFrom(mark) };
+    }
+
+    private Expr ParseAsyncParenthesizedLambda(int mark)
+    {
+        // Reuse ParseParenthesized but we already consumed 'async' and '('
+        // Empty parens
+        if (Match(TokenType.RightParen))
+        {
+            Consume(TokenType.Arrow, "Expected '=>' after 'async ()'");
+            var body = _expression.ParseExpression();
+            return new LambdaExpr([], body, IsAsync: true) { Span = SpanFrom(mark) };
+        }
+
+        // Try typed lambda first: async (int x, string y) => ...
+        var typed = TryParseTypedLambda(mark, isAsync: true);
+        if (typed != null) return typed;
+
+        // Untyped: async (x, y) => ...
+        var parameters = new List<LambdaParameter>();
+        do
+        {
+            var param = Consume(TokenType.Identifier, "Expected parameter name");
+            parameters.Add(new LambdaParameter(null, param));
+        } while (Match(TokenType.Comma));
+
+        Consume(TokenType.RightParen, "Expected ')' after lambda parameters");
+        Consume(TokenType.Arrow, "Expected '=>' after async lambda parameters");
+        var lambdaBody = _expression.ParseExpression();
+        return new LambdaExpr(parameters, lambdaBody, IsAsync: true) { Span = SpanFrom(mark) };
+    }
+
     private Expr ParseIdentifier(int mark)
     {
         var identifier = Previous();
@@ -823,7 +882,7 @@ internal sealed class PrimaryParser : ParserBase
     /// Returns null if the pattern doesn't match (restores position on failure).
     /// ECMA-334 §12.19 - Anonymous function expressions with explicitly typed parameters.
     /// </summary>
-    private Expr? TryParseTypedLambda(int mark)
+    private Expr? TryParseTypedLambda(int mark, bool isAsync = false)
     {
         var saved = State.Current;
 
@@ -872,7 +931,7 @@ internal sealed class PrimaryParser : ParserBase
             {
                 body = _expression.ParseExpression();
             }
-            return new LambdaExpr(parameters, body) { Span = SpanFrom(mark) };
+            return new LambdaExpr(parameters, body, isAsync) { Span = SpanFrom(mark) };
         }
         catch (AlderException)
         {

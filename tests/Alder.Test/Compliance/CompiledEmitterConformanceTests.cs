@@ -197,7 +197,7 @@ public class CompiledEmitterConformanceTests(CompilationMode mode)
             Func<int> g = f;
             return f == g;
         ");
-        Assert.That(result, Is.EqualTo(true));
+        Assert.That(result, Is.True);
     }
 
     #endregion

@@ -89,6 +89,8 @@ public enum DiagnosticCode
     /// <summary>Cannot await in the body of a lock statement</summary>
     CS1996 = 1996,
 
+    /// <summary>Cannot await '{0}'</summary>
+    CS4001 = 4001,
     /// <summary>The 'await' operator can only be used within an async context. Use EvaluateAsync instead of Evaluate.</summary>
     CS4033 = 4033,
 
@@ -207,9 +209,6 @@ public enum DiagnosticCode
 
     /// <summary>Type requires AOT registration for NativeAOT environments</summary>
     ALDR0500 = 1_000_500,
-
-    /// <summary>Type '{0}' is not awaitable</summary>
-    ALDR0600 = 1_000_600,
 }
 
 internal static class DiagnosticCodeExtensions

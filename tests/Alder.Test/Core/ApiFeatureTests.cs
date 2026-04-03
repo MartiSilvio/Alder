@@ -1,3 +1,4 @@
+using Alder.Diagnostics;
 using Alder.Parsing;
 using Alder.Test._Infrastructure;
 
@@ -139,7 +140,7 @@ public class ApiFeatureTests(CompilationMode mode)
 
         Assert.That(success, Is.False);
         Assert.That(diagnostics, Has.Count.EqualTo(3));
-        Assert.That(diagnostics.All(d => d.Code == Alder.Diagnostics.DiagnosticCode.CS0103), Is.True);
+        Assert.That(diagnostics.All(d => d.Code == DiagnosticCode.CS0103), Is.True);
         Assert.That(diagnostics.All(d => !d.Span.IsEmpty), Is.True);
         Assert.That(diagnostics.Select(d => d.Message), Has.Some.Contains("foo"));
         Assert.That(diagnostics.Select(d => d.Message), Has.Some.Contains("bar"));
@@ -153,7 +154,7 @@ public class ApiFeatureTests(CompilationMode mode)
         engine.SetVariable<string>("name", "Alice");
 
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate("name.Foo()"));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(Alder.Diagnostics.DiagnosticCode.CS1061));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS1061));
     }
 
     [Test]

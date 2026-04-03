@@ -41,7 +41,6 @@ public sealed partial class AlderEngine : IDisposable
     private static readonly ConcurrentDictionary<Type, (string Name, Func<object, object?> Getter)[]> VariableAccessorCache = new();
     private static readonly MethodInfo? WrapGetterMethod =
         typeof(AlderEngine).GetMethod(nameof(WrapGetter), BindingFlags.NonPublic | BindingFlags.Static);
-    
 
     public void Dispose()
     {

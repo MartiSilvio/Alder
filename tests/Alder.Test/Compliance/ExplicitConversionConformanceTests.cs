@@ -22,7 +22,7 @@ public class ExplicitConversionConformanceTests(CompilationMode mode)
             float f = (float)d;
             return (double)f != d;
         ");
-        Assert.That(result, Is.EqualTo(true));
+        Assert.That(result, Is.True);
     }
 
     [Test]

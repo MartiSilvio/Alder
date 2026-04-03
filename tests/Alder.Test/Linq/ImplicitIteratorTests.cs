@@ -1,3 +1,4 @@
+using Alder.Diagnostics;
 using Alder.Test._Infrastructure;
 
 namespace Alder.Test.Linq;
@@ -14,7 +15,7 @@ public class ImplicitIteratorTests(CompilationMode mode)
 
         // 'it' is a regular identifier — bare 'it > 2' is not auto-wrapped into a lambda
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate("numbers.Where(it > 2).ToArray()"));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(Alder.Diagnostics.DiagnosticCode.CS0103));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0103));
     }
 
     [Test]
@@ -24,7 +25,7 @@ public class ImplicitIteratorTests(CompilationMode mode)
         engine.SetVariable("numbers", new List<int> { 1, 2, 3, 4 });
 
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate("numbers.Select(_ * 10).ToArray()"));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(Alder.Diagnostics.DiagnosticCode.CS0103));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0103));
     }
 
     [Test]

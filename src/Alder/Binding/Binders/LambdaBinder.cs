@@ -12,6 +12,7 @@ internal static class LambdaBinder
         return new BoundLambdaExpr(
             [..expr.Parameters.Select(static parameter => parameter.Name.Lexeme)],
             expr.Body,
+            expr.IsAsync,
             new BoundType(typeof(LambdaValue)));
     }
 }

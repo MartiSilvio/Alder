@@ -35,7 +35,7 @@ public class McpRegressionTests(CompilationMode mode)
     public void NewFunc_FromLambda_ReturningBool()
     {
         var result = Eval("new Func<int, bool>(x => x > 5).Invoke(10)");
-        Assert.That(result, Is.EqualTo(true));
+        Assert.That(result, Is.True);
     }
 
     [Test]
@@ -54,7 +54,7 @@ public class McpRegressionTests(CompilationMode mode)
             a.Invoke();
             called
         """);
-        Assert.That(result, Is.EqualTo(true));
+        Assert.That(result, Is.True);
     }
 
     #endregion

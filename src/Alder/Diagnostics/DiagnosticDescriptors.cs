@@ -125,6 +125,9 @@ public static class DiagnosticDescriptors
     public static readonly DiagnosticDescriptor AwaitInLockBody =
         new(DiagnosticCode.CS1996, "Cannot await in the body of a lock statement");
 
+    public static readonly DiagnosticDescriptor NotAwaitable =
+        new(DiagnosticCode.CS4001, "Cannot await '{0}'");
+
     public static readonly DiagnosticDescriptor AwaitRequiresAsync =
         new(DiagnosticCode.CS4033, "The 'await' operator can only be used within an async context. Use EvaluateAsync() instead of Evaluate().");
 
@@ -288,7 +291,4 @@ public static class DiagnosticDescriptors
         new(DiagnosticCode.ALDR0500,
             "Type '{0}' is not available in this environment. " +
             "In NativeAOT, add [AlderRegistered(typeof({0}))] to your AlderTypeContext");
-
-    public static readonly DiagnosticDescriptor NotAwaitable =
-        new(DiagnosticCode.ALDR0600, "Type '{0}' is not awaitable");
 }

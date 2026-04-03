@@ -37,7 +37,7 @@ internal static class ModuleMemberMetadata
 
         foreach (var method in type.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly))
         {
-            if (method.IsSpecialName || IsAsyncMethod(method))
+            if (method.IsSpecialName)
                 continue;
 
             var attr = method.GetCustomAttribute<AlderFunctionAttribute>();
@@ -58,18 +58,5 @@ internal static class ModuleMemberMetadata
         }
 
         return FixedDictionary<string, MemberInfo>.Create(members, comparer);
-    }
-
-    private static bool IsAsyncMethod(MethodInfo method)
-    {
-        var returnType = method.ReturnType;
-        if (returnType == typeof(Task) || returnType == typeof(ValueTask))
-            return true;
-
-        if (!returnType.IsGenericType)
-            return false;
-
-        var genericType = returnType.GetGenericTypeDefinition();
-        return genericType == typeof(Task<>) || genericType == typeof(ValueTask<>);
     }
 }

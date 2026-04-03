@@ -1,3 +1,4 @@
+using Alder.Diagnostics;
 using Alder.Test._Infrastructure;
 
 namespace Alder.Test.Extensions;
@@ -17,7 +18,6 @@ public class PolyglotEdgeCaseTests(CompilationMode mode)
     private AlderEngine CreateStandardEngine() =>
         TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Standard);
 
-    #region Bare math: shadowing
 
     [Test]
     public void BareMath_UserVariableShadowsConstant()
@@ -75,13 +75,11 @@ public class PolyglotEdgeCaseTests(CompilationMode mode)
         var engine = CreateEngine();
         engine.SetVariable("Math", (Func<int, int>)(x => x + 1));
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate("Math(5)"));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(Alder.Diagnostics.DiagnosticCode.CS1955));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS1955));
         Assert.That(ex.Message, Does.Contain("ModuleInfo"));
     }
 
-    #endregion
 
-    #region Range: edge cases
 
     [Test]
     public void Range_ReversedRange_ReturnsEmpty()
@@ -98,9 +96,7 @@ public class PolyglotEdgeCaseTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(new[] { 1, 2, 3, 4 }));
     }
 
-    #endregion
 
-    #region Pipeline: error handling
 
     [Test]
     public void Pipeline_NonCallableRight_Throws()
@@ -122,7 +118,7 @@ public class PolyglotEdgeCaseTests(CompilationMode mode)
     public void Pipeline_NullLeft_PassesNullToFunction()
     {
         var engine = CreateEngine();
-        Assert.That(engine.Evaluate("null |> (x => x == null)"), Is.EqualTo(true));
+        Assert.That(engine.Evaluate("null |> (x => x == null)"), Is.True);
     }
 
     [Test]
@@ -151,9 +147,7 @@ public class PolyglotEdgeCaseTests(CompilationMode mode)
         Assert.That(engine.Evaluate("2 + 3 |> (x => x * 2)"), Is.EqualTo(10));
     }
 
-    #endregion
 
-    #region Slice step: error handling
 
     [Test]
     public void SliceStep_ZeroStep_Throws()
@@ -171,31 +165,29 @@ public class PolyglotEdgeCaseTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(new[] { 20, 30, 40 }));
     }
 
-    #endregion
 
-    #region Like pattern: wildcard semantics
 
     [Test]
     public void LikeOperator_UnderscoreMatchesSingleCharacter()
     {
         var engine = CreateEngine();
-        Assert.That(engine.Evaluate(""" "abc" like "a_c" """), Is.EqualTo(true));
-        Assert.That(engine.Evaluate(""" "ac" like "a_c" """), Is.EqualTo(false));
+        Assert.That(engine.Evaluate(""" "abc" like "a_c" """), Is.True);
+        Assert.That(engine.Evaluate(""" "ac" like "a_c" """), Is.False);
     }
 
     [Test]
     public void LikeOperator_MultiPercentPattern_Matches()
     {
         var engine = CreateEngine();
-        Assert.That(engine.Evaluate(""" "abXXcdYYef" like "ab%cd%ef" """), Is.EqualTo(true));
+        Assert.That(engine.Evaluate(""" "abXXcdYYef" like "ab%cd%ef" """), Is.True);
     }
 
     [Test]
     public void LikeOperator_RegexMetacharactersStayLiteral()
     {
         var engine = CreateEngine();
-        Assert.That(engine.Evaluate(""" "a.c" like "a.c" """), Is.EqualTo(true));
-        Assert.That(engine.Evaluate(""" "abc" like "a.c" """), Is.EqualTo(false));
+        Assert.That(engine.Evaluate(""" "a.c" like "a.c" """), Is.True);
+        Assert.That(engine.Evaluate(""" "abc" like "a.c" """), Is.False);
     }
 
     [Test]
@@ -208,9 +200,7 @@ public class PolyglotEdgeCaseTests(CompilationMode mode)
             Throws.InstanceOf<AlderException>().With.Message.Contains("like"));
     }
 
-    #endregion
 
-    #region In operator: null handling
 
     [Test]
     public void InOperator_NullCollectionVariable_ThrowsConsistentException()
@@ -232,9 +222,7 @@ public class PolyglotEdgeCaseTests(CompilationMode mode)
             Throws.InstanceOf<AlderException>().With.Message.Contains("in"));
     }
 
-    #endregion
 
-    #region Regex: error handling
 
     [Test]
     public void Regex_LeftNull_Throws()
@@ -252,9 +240,7 @@ public class PolyglotEdgeCaseTests(CompilationMode mode)
             Throws.InstanceOf<AlderException>());
     }
 
-    #endregion
 
-    #region Spaceship: null handling
 
     [Test]
     public void Spaceship_BothNull_ReturnsZero()
@@ -277,9 +263,7 @@ public class PolyglotEdgeCaseTests(CompilationMode mode)
         Assert.That(engine.Evaluate("5 <=> null"), Is.EqualTo(1));
     }
 
-    #endregion
 
-    #region Chained comparison: side effects and short-circuit
 
     [Test]
     public void ChainedComparison_MiddleOperandEvaluatedOnce()
@@ -313,19 +297,17 @@ public class PolyglotEdgeCaseTests(CompilationMode mode)
         var engine = CreateEngine();
         engine.SetVariable("a", 5);
         engine.SetVariable("b", 5);
-        Assert.That(engine.Evaluate("a == b == 5"), Is.EqualTo(true));
+        Assert.That(engine.Evaluate("a == b == 5"), Is.True);
     }
 
     [Test]
     public void ChainedComparison_WithNaN_ReturnsFalse()
     {
         var engine = CreateEngine();
-        Assert.That(engine.Evaluate("0.0 < double.NaN < 10.0"), Is.EqualTo(false));
+        Assert.That(engine.Evaluate("0.0 < double.NaN < 10.0"), Is.False);
     }
 
-    #endregion
 
-    #region Deconstruction: error handling
 
     [Test]
     public void Deconstruction_NoDeconstructMethod_Throws()
@@ -335,9 +317,7 @@ public class PolyglotEdgeCaseTests(CompilationMode mode)
             Throws.InstanceOf<AlderException>());
     }
 
-    #endregion
 
-    #region and/or/not: general-purpose boolean operators
 
     [Test]
     public void ExtendedMode_And_WorksAsGeneralBooleanOperator()
@@ -413,9 +393,7 @@ public class PolyglotEdgeCaseTests(CompilationMode mode)
         Assert.That(engine.Evaluate("!false"), Is.True);
     }
 
-    #endregion
 
-    #region Strict equality: type-exact semantics
 
     [Test]
     public void StrictEquality_SameTypeSameValue_ReturnsTrue()
@@ -490,9 +468,7 @@ public class PolyglotEdgeCaseTests(CompilationMode mode)
         Assert.That(engine.Evaluate("1 == 1L"), Is.True);
     }
 
-    #endregion
 
-    #region Standard mode rejection (all features)
 
     [Test]
     public void StandardMode_BareMathSin_Throws()
@@ -521,7 +497,7 @@ public class PolyglotEdgeCaseTests(CompilationMode mode)
         var engine = CreateStandardEngine();
         engine.SetVariable("Math", (Func<int, int>)(x => x + 1));
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate("Math(5)"));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(Alder.Diagnostics.DiagnosticCode.CS1955));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS1955));
         Assert.That(ex.Message, Does.Contain("ModuleInfo"));
     }
 
@@ -568,5 +544,4 @@ public class PolyglotEdgeCaseTests(CompilationMode mode)
         => Assert.That(() => CreateStandardEngine().Evaluate("{ var x = 0; until (true) { x = 1; } return x; }"),
             Throws.InstanceOf<AlderException>());
 
-    #endregion
 }

@@ -1,4 +1,5 @@
 using System.Linq.Expressions;
+using Alder.Diagnostics;
 
 namespace Alder.Test.Compilation;
 
@@ -13,7 +14,6 @@ public class ExpressionTreeTests
         _engine = new AlderEngine();
     }
 
-    #region Arithmetic Operators
 
     [Test]
     public void Arithmetic_Addition()
@@ -76,9 +76,7 @@ public class ExpressionTreeTests
         Assert.That(compiled(0.0, 1.0), Is.EqualTo(-1.0));
     }
 
-    #endregion
 
-    #region Comparison Operators
 
     [Test]
     public void Comparison_GreaterThan()
@@ -135,9 +133,7 @@ public class ExpressionTreeTests
         Assert.That(compiled(101), Is.False);
     }
 
-    #endregion
 
-    #region Logical Operators
 
     [Test]
     public void Logical_And()
@@ -171,9 +167,7 @@ public class ExpressionTreeTests
         Assert.That(compiled(false), Is.True);
     }
 
-    #endregion
 
-    #region Unary Operators
 
     [Test]
     public void Unary_Negate()
@@ -196,9 +190,7 @@ public class ExpressionTreeTests
         Assert.That(compiled(-3), Is.EqualTo(-3));
     }
 
-    #endregion
 
-    #region Member Access
 
     [Test]
     public void MemberAccess_StringLength()
@@ -238,9 +230,7 @@ public class ExpressionTreeTests
         Assert.That(compiled(new TestPerson { Age = 25 }), Is.EqualTo(25));
     }
 
-    #endregion
 
-    #region Method Calls
 
     [Test]
     public void MethodCall_IntToString()
@@ -282,9 +272,7 @@ public class ExpressionTreeTests
         Assert.That(compiled(new TestPerson { Name = "Alice" }), Is.False);
     }
 
-    #endregion
 
-    #region Constants and Literals
 
     [Test]
     public void Literal_IntegerConstant()
@@ -314,9 +302,7 @@ public class ExpressionTreeTests
         Assert.That(compiled(0), Is.EqualTo("hello"));
     }
 
-    #endregion
 
-    #region Ternary / Conditional
 
     [Test]
     public void Conditional_AbsoluteValue()
@@ -340,9 +326,7 @@ public class ExpressionTreeTests
         Assert.That(compiled(null!), Is.EqualTo("default"));
     }
 
-    #endregion
 
-    #region Null Coalescing
 
     [Test]
     public void NullCoalesce_StringFallback()
@@ -364,9 +348,7 @@ public class ExpressionTreeTests
         Assert.That(compiled(null), Is.EqualTo(0));
     }
 
-    #endregion
 
-    #region Cast Expressions
 
     [Test]
     public void Cast_IntToDouble()
@@ -396,9 +378,7 @@ public class ExpressionTreeTests
         Assert.That(compiled(42), Is.EqualTo(42L));
     }
 
-    #endregion
 
-    #region Type Checks
 
     [Test]
     public void TypeCheck_IsString_True()
@@ -421,9 +401,7 @@ public class ExpressionTreeTests
         Assert.That(compiled(3.14), Is.False);
     }
 
-    #endregion
 
-    #region Index Access
 
     [Test]
     public void IndexAccess_Array()
@@ -452,9 +430,7 @@ public class ExpressionTreeTests
         Assert.That(compiled(["first", "second"]), Is.EqualTo("first"));
     }
 
-    #endregion
 
-    #region Object Creation
 
     [Test]
     public void ObjectCreation_DateTime()
@@ -467,9 +443,7 @@ public class ExpressionTreeTests
         Assert.That(compiled(2000), Is.EqualTo(new DateTime(2000, 1, 1)));
     }
 
-    #endregion
 
-    #region Engine Variable Capture
 
     [Test]
     public void EngineVariable_IntegerCapturedAsConstant()
@@ -511,9 +485,7 @@ public class ExpressionTreeTests
         Assert.That(compiled(101), Is.False);
     }
 
-    #endregion
 
-    #region Numeric Promotion
 
     [Test]
     public void NumericPromotion_IntPlusDouble()
@@ -543,9 +515,7 @@ public class ExpressionTreeTests
         Assert.That(compiled(10), Is.EqualTo(5.0));
     }
 
-    #endregion
 
-    #region String Concatenation
 
     [Test]
     public void StringConcat_TwoStrings()
@@ -567,9 +537,7 @@ public class ExpressionTreeTests
         Assert.That(compiled("hello", "world"), Is.EqualTo("hello world"));
     }
 
-    #endregion
 
-    #region Multi-Parameter Lambdas
 
     [Test]
     public void MultiParam_ThreeIntegers()
@@ -593,9 +561,7 @@ public class ExpressionTreeTests
         Assert.That(compiled(10, ""), Is.False);
     }
 
-    #endregion
 
-    #region Standard Mode Enforcement
 
     [Test]
     public void StandardModeEnforcement_ExtendedEngineStillUsesStandard()
@@ -628,9 +594,7 @@ public class ExpressionTreeTests
             Throws.Exception);
     }
 
-    #endregion
 
-    #region Unsupported Node Diagnostics (TryParseAsExpression)
 
     [Test]
     public void TryParse_UnsupportedBlock_ReturnsFalseWithDiagnostic()
@@ -650,8 +614,7 @@ public class ExpressionTreeTests
         var ex = Assert.Throws<AlderException>(
             () => _engine.ParseAsExpression<Func<int, int>>("x => { return x + 1; }"));
 
-        Assert.That(ex, Is.Not.Null);
-        Assert.That(ex!.ErrorCode, Is.EqualTo(Alder.Diagnostics.DiagnosticCode.CS7053));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS7053));
         Assert.That(ex.Message, Does.Contain("block"));
     }
 
@@ -701,7 +664,7 @@ public class ExpressionTreeTests
         Assert.That(success, Is.False);
         Assert.That(result, Is.Null);
         Assert.That(diagnostics, Has.Count.GreaterThan(0));
-        Assert.That(diagnostics[0].Code, Is.EqualTo(Alder.Diagnostics.DiagnosticCode.CS7053));
+        Assert.That(diagnostics[0].Code, Is.EqualTo(DiagnosticCode.CS7053));
         Assert.That(diagnostics[0].Message, Does.Contain("named argument").IgnoreCase);
     }
 
@@ -719,9 +682,7 @@ public class ExpressionTreeTests
         Assert.That(compiled(10), Is.True);
     }
 
-    #endregion
 
-    #region Parameter Count Mismatch
 
     [Test]
     public void ParameterMismatch_TooFewLambdaParams()
@@ -743,9 +704,7 @@ public class ExpressionTreeTests
                 .With.Message.Contains("parameter"));
     }
 
-    #endregion
 
-    #region Non-Lambda Input
 
     [Test]
     public void NonLambdaInput_BareExpression_Throws()
@@ -756,9 +715,7 @@ public class ExpressionTreeTests
                 .With.Message.Contains("lambda"));
     }
 
-    #endregion
 
-    #region Expression Tree Node Shape
 
     [Test]
     public void ExpressionTree_ProducesParameterExpression()
@@ -805,9 +762,7 @@ public class ExpressionTreeTests
             "Expression tree should not contain opaque runtime helper calls");
     }
 
-    #endregion
 
-    #region Compiled Correctness (round-trip validation)
 
     [Test]
     public void CompiledCorrectness_ComplexArithmeticExpression()
@@ -853,9 +808,7 @@ public class ExpressionTreeTests
         Assert.That(compiled(new TestPerson { Name = "" }), Is.EqualTo(0));
     }
 
-    #endregion
 
-    #region Bitwise Operators
 
     [Test]
     public void Bitwise_And()
@@ -885,9 +838,7 @@ public class ExpressionTreeTests
         Assert.That(compiled(0x0F), Is.EqualTo(0xF0));
     }
 
-    #endregion
 
-    #region Static Method Calls
 
     [Test]
     public void StaticMethod_MathAbs()
@@ -910,9 +861,7 @@ public class ExpressionTreeTests
         Assert.That(compiled(10, 5), Is.EqualTo(10));
     }
 
-    #endregion
 
-    #region Zero-Parameter Lambda
 
     [Test]
     public void ZeroParam_ConstantExpression()
@@ -923,9 +872,7 @@ public class ExpressionTreeTests
         Assert.That(compiled(), Is.EqualTo(42));
     }
 
-    #endregion
 
-    #region Helpers
 
     public class TestPerson
     {
@@ -956,9 +903,7 @@ public class ExpressionTreeTests
         }
     }
 
-    #endregion
 
-    #region Evaluate<Func<>> — Delegate Conversion
 
     [Test]
     public void Evaluate_Func_ReturnsUsableDelegate()
@@ -998,12 +943,10 @@ public class ExpressionTreeTests
     {
         var ex = Assert.Throws<AlderException>(() =>
             _engine.Evaluate<Func<int, int, int>>("x => x * 2"));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(Alder.Diagnostics.DiagnosticCode.CS0123));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0123));
     }
 
-    #endregion
 
-    #region CompileExpression<TDelegate>
 
     [Test]
     public void CompileExpression_ReturnsNativeDelegate()
@@ -1034,9 +977,7 @@ public class ExpressionTreeTests
         Assert.That(multiply(0.5, 2.0), Is.EqualTo(1.0));
     }
 
-    #endregion
 
-    #region IQueryable Integration
 
     [Test]
     public void ParseAsExpression_WorksWithIQueryable_Where()
@@ -1101,5 +1042,4 @@ public class ExpressionTreeTests
         Assert.That(results, Is.EqualTo(new[] { 10, 12, 14, 16, 18, 20 }));
     }
 
-    #endregion
 }

@@ -55,7 +55,7 @@ public class OperatorConformanceTests(CompilationMode mode)
             int? b = null;
             return a == b;
         ");
-        Assert.That(result, Is.EqualTo(true));
+        Assert.That(result, Is.True);
     }
 
     [Test]
@@ -66,7 +66,7 @@ public class OperatorConformanceTests(CompilationMode mode)
             int? b = null;
             return a == b;
         ");
-        Assert.That(result, Is.EqualTo(false));
+        Assert.That(result, Is.False);
     }
 
     [Test]
@@ -78,7 +78,7 @@ public class OperatorConformanceTests(CompilationMode mode)
             int? b = null;
             return a != b;
         ");
-        Assert.That(result, Is.EqualTo(false));
+        Assert.That(result, Is.False);
     }
 
     [Test]
@@ -90,7 +90,7 @@ public class OperatorConformanceTests(CompilationMode mode)
             int? b = null;
             return a < b;
         ");
-        Assert.That(result, Is.EqualTo(false));
+        Assert.That(result, Is.False);
     }
 
     [Test]
@@ -102,7 +102,7 @@ public class OperatorConformanceTests(CompilationMode mode)
             int? b = null;
             return a >= b;
         ");
-        Assert.That(result, Is.EqualTo(false));
+        Assert.That(result, Is.False);
     }
 
     [Test]
@@ -171,7 +171,7 @@ public class OperatorConformanceTests(CompilationMode mode)
             bool? y = null;
             return x & y;
         ");
-        Assert.That(result, Is.EqualTo(false));
+        Assert.That(result, Is.False);
     }
 
     [Test]
@@ -183,7 +183,7 @@ public class OperatorConformanceTests(CompilationMode mode)
             bool? y = null;
             return x | y;
         ");
-        Assert.That(result, Is.EqualTo(true));
+        Assert.That(result, Is.True);
     }
 
     [Test]
@@ -396,7 +396,7 @@ public class OperatorConformanceTests(CompilationMode mode)
     {
         // §12.12.8: string equality compares by value
         var result = Eval(@"""hello"" == ""hell"" + ""o""");
-        Assert.That(result, Is.EqualTo(true));
+        Assert.That(result, Is.True);
     }
 
     #endregion
@@ -572,14 +572,14 @@ public class OperatorConformanceTests(CompilationMode mode)
     public void EnumComparison_LessThan()
     {
         var result = Eval("System.DayOfWeek.Monday < System.DayOfWeek.Friday");
-        Assert.That(result, Is.EqualTo(true));
+        Assert.That(result, Is.True);
     }
 
     [Test]
     public void EnumComparison_GreaterThanOrEqual()
     {
         var result = Eval("System.DayOfWeek.Friday >= System.DayOfWeek.Friday");
-        Assert.That(result, Is.EqualTo(true));
+        Assert.That(result, Is.True);
     }
 
     #endregion
@@ -603,7 +603,7 @@ public class OperatorConformanceTests(CompilationMode mode)
         // But 1 == 1 is bool, 5 & bool is error
         // Let's use a valid one: (5 & 1) == 1
         var result = Eval("(5 & 1) == 1");
-        Assert.That(result, Is.EqualTo(true));
+        Assert.That(result, Is.True);
     }
 
     #endregion
@@ -616,7 +616,7 @@ public class OperatorConformanceTests(CompilationMode mode)
             object x = 42;
             return x is 42;
         ");
-        Assert.That(result, Is.EqualTo(true));
+        Assert.That(result, Is.True);
     }
 
     [Test]
@@ -626,7 +626,7 @@ public class OperatorConformanceTests(CompilationMode mode)
             string s = null;
             return s is null;
         ");
-        Assert.That(result, Is.EqualTo(true));
+        Assert.That(result, Is.True);
     }
 
     [Test]
@@ -636,7 +636,7 @@ public class OperatorConformanceTests(CompilationMode mode)
             string s = ""hello"";
             return s is not null;
         ");
-        Assert.That(result, Is.EqualTo(true));
+        Assert.That(result, Is.True);
     }
 
     [Test]
@@ -658,7 +658,7 @@ public class OperatorConformanceTests(CompilationMode mode)
             var x = 10;
             return x is > 5;
         ");
-        Assert.That(result, Is.EqualTo(true));
+        Assert.That(result, Is.True);
     }
 
     [Test]
@@ -668,7 +668,7 @@ public class OperatorConformanceTests(CompilationMode mode)
             var x = 5;
             return x is <= 5;
         ");
-        Assert.That(result, Is.EqualTo(true));
+        Assert.That(result, Is.True);
     }
 
     [Test]
@@ -678,7 +678,7 @@ public class OperatorConformanceTests(CompilationMode mode)
             var x = 5;
             return x is > 0 and < 10;
         ");
-        Assert.That(result, Is.EqualTo(true));
+        Assert.That(result, Is.True);
     }
 
     [Test]
@@ -688,7 +688,7 @@ public class OperatorConformanceTests(CompilationMode mode)
             var x = 15;
             return x is < 5 or > 10;
         ");
-        Assert.That(result, Is.EqualTo(true));
+        Assert.That(result, Is.True);
     }
 
     #endregion
@@ -812,7 +812,7 @@ public class OperatorConformanceTests(CompilationMode mode)
             var flags = System.IO.FileAccess.Read | System.IO.FileAccess.Write;
             return (flags & System.IO.FileAccess.Read) != 0;
         ");
-        Assert.That(result, Is.EqualTo(true));
+        Assert.That(result, Is.True);
     }
 
     #endregion
@@ -888,7 +888,7 @@ public class OperatorConformanceTests(CompilationMode mode)
             int? x = null;
             return x == null;
         ");
-        Assert.That(result, Is.EqualTo(true));
+        Assert.That(result, Is.True);
     }
 
     [Test]
@@ -898,7 +898,7 @@ public class OperatorConformanceTests(CompilationMode mode)
             int? x = 5;
             return x == null;
         ");
-        Assert.That(result, Is.EqualTo(false));
+        Assert.That(result, Is.False);
     }
 
     [Test]
@@ -908,7 +908,7 @@ public class OperatorConformanceTests(CompilationMode mode)
             int? x = 5;
             return x != null;
         ");
-        Assert.That(result, Is.EqualTo(true));
+        Assert.That(result, Is.True);
     }
 
     #endregion
@@ -925,7 +925,7 @@ public class OperatorConformanceTests(CompilationMode mode)
     public void Typeof_Array()
     {
         var result = Eval("typeof(int[]).IsArray");
-        Assert.That(result, Is.EqualTo(true));
+        Assert.That(result, Is.True);
     }
 
     [Test]

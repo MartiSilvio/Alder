@@ -16,7 +16,6 @@ public class ElementAccessTests(CompilationMode mode)
     public async Task Single(string expr, Dictionary<string, object?> variables, object expected)
         => await TestHelpers.RunCSharpParityTestAsync(expr, variables, expected, mode);
 
-    #region First / Last Test Cases
 
     private static IEnumerable<TestCaseData> FirstLastTestCases()
     {
@@ -66,9 +65,7 @@ public class ElementAccessTests(CompilationMode mode)
         ).SetName("Last_WithPredicate_ReturnsLastMatching");
     }
 
-    #endregion
 
-    #region Single Test Cases
 
     private static IEnumerable<TestCaseData> SingleTestCases()
     {
@@ -91,9 +88,7 @@ public class ElementAccessTests(CompilationMode mode)
         ).SetName("Single_WithPredicate_ReturnsMatching");
     }
 
-    #endregion
 
-    #region Exception Tests
 
     [Test]
     public void First_EmptyCollection_Throws()
@@ -153,9 +148,7 @@ public class ElementAccessTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(0));
     }
 
-    #endregion
 
-    #region ElementAt / ElementAtOrDefault
 
     [Test]
     public void ElementAt_ReturnsElementAtIndex()
@@ -196,5 +189,4 @@ public class ElementAccessTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(0));
     }
 
-    #endregion
 }

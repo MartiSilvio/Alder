@@ -9,6 +9,7 @@ internal static class LockBinder
     public static BoundExpr Bind(LockStatementExpr expr, BindingContext context, BinderContext binder)
     {
         var lockObject = binder.Bind(expr.LockObject, context);
+        // §12.9.8.1: an await_expression shall not occur inside the block of a lock_statement
         var bodyBinder = binder.WithAdditionalFlags(BinderFlags.InLockBody);
         var body = bodyBinder.Bind(expr.Body, context.CreateChildScope());
         return new BoundLockStatementExpr(lockObject, body, BoundType.Void);

@@ -2,7 +2,7 @@ using Alder;
 
 public static class TestSingle
 {
-    public static int Run(string filePath)
+    public static async Task<int> Run(string filePath)
     {
         if (filePath == "--diag")
             return RunDiag();
@@ -18,30 +18,45 @@ public static class TestSingle
         Console.WriteLine($"Expression length: {expr.Length} chars");
         Console.WriteLine();
 
+        var engine = new AlderEngine(new AlderOptions
+        {
+            LanguageMode = LanguageMode.Extended,
+            Constraints = new ExecutionConstraints { MaxStatements = 500_000 }
+        });
+
+        var exitCode = 0;
+        var isAsyncOnly = filePath.Contains("ValidAsyncExpressions");
+
+        if (!isAsyncOnly)
+        {
+            try
+            {
+                var result = engine.Evaluate(expr);
+                Console.WriteLine($"SYNC:PASS:{result}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"SYNC:FAIL:{ex.GetType().Name}: {ex.Message}");
+                exitCode = 1;
+            }
+        }
+        else
+        {
+            Console.WriteLine("SYNC:SKIP:async-only expression");
+        }
+
         try
         {
-            var engine = new AlderEngine(new AlderOptions
-            {
-                LanguageMode = LanguageMode.Extended,
-                Constraints = new ExecutionConstraints { MaxStatements = 500_000 }
-            });
-            var result = engine.Evaluate(expr);
-            Console.WriteLine($"Result: {result}");
-            Console.WriteLine($"Type: {result?.GetType().Name ?? "null"}");
-            return 0;
+            var result = await engine.EvaluateAsync(expr);
+            Console.WriteLine($"ASYNC:PASS:{result}");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"EXCEPTION: {ex.GetType().FullName}");
-            Console.WriteLine($"Message: {ex.Message}");
-            Console.WriteLine($"StackTrace:\n{ex.StackTrace}");
-            if (ex.InnerException != null)
-            {
-                Console.WriteLine($"\nInner: {ex.InnerException.GetType().FullName}");
-                Console.WriteLine($"Inner Message: {ex.InnerException.Message}");
-            }
-            return 1;
+            Console.WriteLine($"ASYNC:FAIL:{ex.GetType().Name}: {ex.Message}");
+            exitCode = 1;
         }
+
+        return exitCode;
     }
 
     private static int RunDiag()

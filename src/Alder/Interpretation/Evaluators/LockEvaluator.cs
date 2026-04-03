@@ -27,6 +27,7 @@ internal static class LockEvaluator
 
         lock (lockObject)
         {
+            // §12.9.8.1: an await_expression shall not occur inside the block of a lock_statement
             return ctx.Evaluate(node.Body, ct);
         }
     }

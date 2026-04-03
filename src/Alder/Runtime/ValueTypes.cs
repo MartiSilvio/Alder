@@ -1,4 +1,5 @@
 using Alder.Binding;
+using Alder.Binding.BoundNodes;
 using Alder.Parsing;
 
 namespace Alder.Runtime;
@@ -16,16 +17,24 @@ internal sealed class LambdaValue
     public List<string> Parameters { get; }
     public Expr Body { get; }
     public AlderContext Closure { get; }
-    public AlderConfig Config { get; }
+    public AlderConfig Config => Closure.Config;
+    public bool IsAsync { get; }
 
     private (Type[] ArgTypes, BoundExpr BoundBody)? _bindingCache;
 
-    public LambdaValue(List<string> Parameters, Expr Body, AlderContext Closure, AlderConfig Config)
+    public LambdaValue(BoundLambdaExpr node, AlderContext closure)
     {
-        this.Parameters = Parameters;
-        this.Body = Body;
-        this.Closure = Closure;
-        this.Config = Config;
+        Parameters = node.Parameters.ToList();
+        Body = node.Body;
+        Closure = closure;
+        IsAsync = node.IsAsync;
+    }
+
+    internal LambdaValue(List<string> parameters, Expr body, AlderContext closure)
+    {
+        Parameters = parameters;
+        Body = body;
+        Closure = closure;
     }
 
     internal BoundExpr GetOrBindBody(AlderContext childContext)
