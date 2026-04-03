@@ -6,7 +6,7 @@ namespace Alder.Interpretation.Evaluators;
 [EvaluatesNode(BoundNodeKind.InterpolatedString)]
 internal static class InterpolatedStringEvaluator
 {
-    public static object? Evaluate(BoundInterpolatedStringExpr node, EvaluationContext ctx)
+    public static object? Evaluate(BoundInterpolatedStringExpr node, EvaluationContext ctx, CancellationToken ct)
     {
         var sb = new StringBuilder();
         foreach (var part in node.Parts)
@@ -18,7 +18,7 @@ internal static class InterpolatedStringEvaluator
                     break;
                 case BoundInterpolatedExpressionPart expressionPart:
                 {
-                    var value = ctx.Evaluate(expressionPart.Expression);
+                    var value = ctx.Evaluate(expressionPart.Expression, ct);
                     if (expressionPart.AlignmentSpecifier != null || expressionPart.FormatSpecifier != null)
                     {
                         var format = "{0";

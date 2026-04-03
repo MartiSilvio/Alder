@@ -8,7 +8,7 @@ namespace Alder.Interpretation.Evaluators;
 [EvaluatesNode(BoundNodeKind.IncrementOperator)]
 internal static class IncrementDecrementEvaluator
 {
-    public static object? Evaluate(BoundIncrementDecrementExpr node, EvaluationContext ctx)
+    public static object? Evaluate(BoundIncrementDecrementExpr node, EvaluationContext ctx, CancellationToken ct)
     {
         return AssignmentRuntime.ApplyIncrementDecrement(
             node.Name, node.Operator == TokenType.PlusPlus, node.IsPrefix, ctx);

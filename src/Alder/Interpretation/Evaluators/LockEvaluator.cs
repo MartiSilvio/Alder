@@ -7,15 +7,15 @@ namespace Alder.Interpretation.Evaluators;
 [EvaluatesNode(BoundNodeKind.LockStatement)]
 internal static class LockEvaluator
 {
-    public static object? Evaluate(BoundLockStatementExpr node, EvaluationContext ctx)
+    public static object? Evaluate(BoundLockStatementExpr node, EvaluationContext ctx, CancellationToken ct)
     {
-        var lockObject = ctx.Evaluate(node.LockObject);
+        var lockObject = ctx.Evaluate(node.LockObject, ct);
         if (lockObject == null)
             throw new AlderException(DiagnosticDescriptors.LockRequiresNonNull);
 
         lock (lockObject)
         {
-            return ctx.Evaluate(node.Body);
+            return ctx.Evaluate(node.Body, ct);
         }
     }
 }

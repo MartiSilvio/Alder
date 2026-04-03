@@ -8,9 +8,9 @@ namespace Alder.Interpretation.Evaluators;
 [EvaluatesNode(BoundNodeKind.VariableDeclaration)]
 internal static class VariableDeclEvaluator
 {
-    public static object? Evaluate(BoundVariableDeclExpr node, EvaluationContext ctx)
+    public static object? Evaluate(BoundVariableDeclExpr node, EvaluationContext ctx, CancellationToken ct)
     {
-        var value = ctx.Evaluate(node.Initializer);
+        var value = ctx.Evaluate(node.Initializer, ct);
         return AssignmentRuntime.DefineVariable(
             node.Name,
             value,
@@ -20,9 +20,9 @@ internal static class VariableDeclEvaluator
             isConstantExpression: BoundExpr.IsConstantExpression(node.Initializer));
     }
 
-    public static async ValueTask<object?> EvaluateAsync(BoundVariableDeclExpr node, EvaluationContext ctx)
+    public static async ValueTask<object?> EvaluateAsync(BoundVariableDeclExpr node, EvaluationContext ctx, CancellationToken ct)
     {
-        var value = await ctx.EvaluateAsync(node.Initializer);
+        var value = await ctx.EvaluateAsync(node.Initializer, ct);
         return AssignmentRuntime.DefineVariable(
             node.Name,
             value,

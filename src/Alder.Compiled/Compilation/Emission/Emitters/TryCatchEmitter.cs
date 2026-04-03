@@ -112,7 +112,6 @@ internal sealed class TryCatchEmitter : INodeEmitter<BoundTryCatchFinallyExpr>
                 LinqExpression.Constant(catchClause.VariableName, typeof(string)),
                 LinqExpression.Convert(exParam, typeof(object)),
                 ctx.ContextParam,
-                ctx.ConfigParam,
                 ctx.CancellationTokenParam);
         }
 

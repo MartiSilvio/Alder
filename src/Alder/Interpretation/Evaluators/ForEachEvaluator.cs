@@ -11,11 +11,11 @@ namespace Alder.Interpretation.Evaluators;
 [EvaluatesNode(BoundNodeKind.ForEachStatement)]
 internal static class ForEachEvaluator
 {
-    public static object? Evaluate(BoundForEachExpr node, EvaluationContext ctx)
+    public static object? Evaluate(BoundForEachExpr node, EvaluationContext ctx, CancellationToken ct)
     {
         var constraintState = ctx.ConstraintState;
-        var constraints = ctx.Config.Constraints;
-        var collection = ctx.Evaluate(node.Collection);
+        var constraints = ctx.Context.Config.Constraints;
+        var collection = ctx.Evaluate(node.Collection, ct);
 
         collection = RangeHelpers.EnsureEnumerable(collection!);
 
@@ -30,7 +30,7 @@ internal static class ForEachEvaluator
         {
             foreach (var item in enumerable)
             {
-                ExecutionRuntime.CheckExecutionConstraints(constraintState, constraints, ctx.CancellationToken);
+                ExecutionRuntime.CheckExecutionConstraints(constraintState, constraints, ct);
                 ExecutionRuntime.CheckLoopIterationConstraint(constraintState, constraints);
 
                 var previousContext = ctx.Context;
@@ -40,7 +40,7 @@ internal static class ForEachEvaluator
                 try
                 {
                     ctx.Context.Define(node.VariableName, item, node.ElementType);
-                    signal = BlockEvaluator.ExecuteStatementBlock(node.Body, ctx);
+                    signal = BlockEvaluator.ExecuteStatementBlock(node.Body, ctx, ct);
                 }
                 finally
                 {
@@ -64,11 +64,11 @@ internal static class ForEachEvaluator
         }
     }
 
-    public static async ValueTask<object?> EvaluateAsync(BoundForEachExpr node, EvaluationContext ctx)
+    public static async ValueTask<object?> EvaluateAsync(BoundForEachExpr node, EvaluationContext ctx, CancellationToken ct)
     {
         var constraintState = ctx.ConstraintState;
-        var constraints = ctx.Config.Constraints;
-        var collection = await ctx.EvaluateAsync(node.Collection);
+        var constraints = ctx.Context.Config.Constraints;
+        var collection = await ctx.EvaluateAsync(node.Collection, ct);
 
         collection = RangeHelpers.EnsureEnumerable(collection!);
 
@@ -83,7 +83,7 @@ internal static class ForEachEvaluator
         {
             foreach (var item in enumerable)
             {
-                ExecutionRuntime.CheckExecutionConstraints(constraintState, constraints, ctx.CancellationToken);
+                ExecutionRuntime.CheckExecutionConstraints(constraintState, constraints, ct);
                 ExecutionRuntime.CheckLoopIterationConstraint(constraintState, constraints);
 
                 var previousContext = ctx.Context;
@@ -93,7 +93,7 @@ internal static class ForEachEvaluator
                 try
                 {
                     ctx.Context.Define(node.VariableName, item, node.ElementType);
-                    signal = await BlockEvaluator.ExecuteStatementBlockAsync(node.Body, ctx);
+                    signal = await BlockEvaluator.ExecuteStatementBlockAsync(node.Body, ctx, ct);
                 }
                 finally
                 {

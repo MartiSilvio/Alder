@@ -9,9 +9,9 @@ namespace Alder.Interpretation.Evaluators;
 [EvaluatesNode(BoundNodeKind.DeconstructionAssignment)]
 internal static class DeconstructionEvaluator
 {
-    public static object? Evaluate(BoundDeconstructionExpr node, EvaluationContext ctx)
+    public static object? Evaluate(BoundDeconstructionExpr node, EvaluationContext ctx, CancellationToken ct)
     {
-        var value = ctx.Evaluate(node.ValueExpression);
+        var value = ctx.Evaluate(node.ValueExpression, ct);
 
         if (value is ITuple tuple)
         {

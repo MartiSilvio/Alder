@@ -7,9 +7,9 @@ namespace Alder.Interpretation.Evaluators;
 [EvaluatesNode(BoundNodeKind.MemberIncrement)]
 internal static class MemberIncrementEvaluator
 {
-    public static object? Evaluate(BoundMemberIncrementExpr node, EvaluationContext ctx)
+    public static object? Evaluate(BoundMemberIncrementExpr node, EvaluationContext ctx, CancellationToken ct)
     {
-        var target = ctx.Evaluate(node.Target);
+        var target = ctx.Evaluate(node.Target, ct);
         return AssignmentRuntime.ApplyMemberIncrement(
             target, node.MemberName, node.IsIncrement, node.IsPrefix, ctx);
     }

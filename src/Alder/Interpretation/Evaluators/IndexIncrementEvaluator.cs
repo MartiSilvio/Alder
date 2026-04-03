@@ -7,10 +7,10 @@ namespace Alder.Interpretation.Evaluators;
 [EvaluatesNode(BoundNodeKind.IndexIncrement)]
 internal static class IndexIncrementEvaluator
 {
-    public static object? Evaluate(BoundIndexIncrementExpr node, EvaluationContext ctx)
+    public static object? Evaluate(BoundIndexIncrementExpr node, EvaluationContext ctx, CancellationToken ct)
     {
-        var target = ctx.Evaluate(node.Target);
-        var index = ctx.Evaluate(node.Index);
+        var target = ctx.Evaluate(node.Target, ct);
+        var index = ctx.Evaluate(node.Index, ct);
         return AssignmentRuntime.ApplyIndexIncrement(target, index, node.IsIncrement, node.IsPrefix, ctx);
     }
 }

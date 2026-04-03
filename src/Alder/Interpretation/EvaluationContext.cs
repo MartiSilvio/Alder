@@ -17,9 +17,7 @@ internal sealed partial class EvaluationContext
         set => _contextRef = value;
     }
 
-    public AlderConfig Config { get; }
     public ExecutionConstraintState? ConstraintState { get; }
-    public CancellationToken CancellationToken { get; }
     public Stack<Exception> CaughtExceptions { get; }
 
     public EvaluationTracer? Tracer { get; set; }
@@ -32,36 +30,32 @@ internal sealed partial class EvaluationContext
 
     internal EvaluationContext(
         AlderContext context,
-        AlderConfig config,
         ExecutionConstraintState? constraintState,
-        CancellationToken cancellationToken,
         Stack<Exception> caughtExceptions)
     {
         _contextRef = context;
-        Config = config;
         ConstraintState = constraintState;
-        CancellationToken = cancellationToken;
         CaughtExceptions = caughtExceptions;
     }
 
     internal BoundExpr? LastEvaluatedExpr;
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public object? Evaluate(BoundExpr expr)
+    public object? Evaluate(BoundExpr expr, CancellationToken ct)
     {
         if (Tracer != null)
-            return EvaluateTraced(expr);
+            return EvaluateTraced(expr, ct);
 
         var saved = LastEvaluatedExpr;
         if (!expr.Span.IsEmpty)
             LastEvaluatedExpr = expr;
 
-        var result = Dispatch(expr);
+        var result = Dispatch(expr, ct);
         LastEvaluatedExpr = saved;
         return result;
     }
 
-    private object? EvaluateTraced(BoundExpr expr)
+    private object? EvaluateTraced(BoundExpr expr, CancellationToken ct)
     {
         var saved = LastEvaluatedExpr;
         if (!expr.Span.IsEmpty)
@@ -71,7 +65,7 @@ internal sealed partial class EvaluationContext
         object? result;
         try
         {
-            result = Dispatch(expr);
+            result = Dispatch(expr, ct);
         }
         catch (Exception ex)
         {
@@ -84,21 +78,21 @@ internal sealed partial class EvaluationContext
         return result;
     }
 
-    public async ValueTask<object?> EvaluateAsync(BoundExpr expr)
+    public async ValueTask<object?> EvaluateAsync(BoundExpr expr, CancellationToken ct)
     {
         if (Tracer != null)
-            return await EvaluateTracedAsync(expr);
+            return await EvaluateTracedAsync(expr, ct);
 
         var saved = LastEvaluatedExpr;
         if (!expr.Span.IsEmpty)
             LastEvaluatedExpr = expr;
 
-        var result = await DispatchAsync(expr);
+        var result = await DispatchAsync(expr, ct);
         LastEvaluatedExpr = saved;
         return result;
     }
 
-    private async ValueTask<object?> EvaluateTracedAsync(BoundExpr expr)
+    private async ValueTask<object?> EvaluateTracedAsync(BoundExpr expr, CancellationToken ct)
     {
         var saved = LastEvaluatedExpr;
         if (!expr.Span.IsEmpty)
@@ -108,7 +102,7 @@ internal sealed partial class EvaluationContext
         object? result;
         try
         {
-            result = await DispatchAsync(expr);
+            result = await DispatchAsync(expr, ct);
         }
         catch (Exception ex)
         {
@@ -121,6 +115,6 @@ internal sealed partial class EvaluationContext
         return result;
     }
 
-    public object? MatchPattern(object? value, Pattern pattern)
-        => PatternRuntime.MatchPattern(value, pattern, Context, Config, CancellationToken);
+    public object? MatchPattern(object? value, Pattern pattern, CancellationToken ct)
+        => PatternRuntime.MatchPattern(value, pattern, Context, ct);
 }

@@ -8,16 +8,16 @@ namespace Alder.Interpretation.Evaluators;
 [EvaluatesNode(BoundNodeKind.ResolvedIndexAccess)]
 internal static class ResolvedIndexAccessEvaluator
 {
-    public static object? Evaluate(BoundResolvedIndexAccessExpr node, EvaluationContext ctx)
+    public static object? Evaluate(BoundResolvedIndexAccessExpr node, EvaluationContext ctx, CancellationToken ct)
     {
-        var target = ctx.Evaluate(node.Target);
+        var target = ctx.Evaluate(node.Target, ct);
         if (node.NullSafe && target == null)
             return null;
 
         if (target == null)
             throw new AlderException(DiagnosticDescriptors.BadIndexerAccess, TypeNameFormatter.Null);
 
-        var index = ctx.Evaluate(node.Index);
+        var index = ctx.Evaluate(node.Index, ct);
 
         if (node.IsDirectCollectionAccess)
         {

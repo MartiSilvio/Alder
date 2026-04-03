@@ -7,7 +7,7 @@ namespace Alder.Interpretation.Evaluators;
 [EvaluatesNode(BoundNodeKind.Identifier)]
 internal static class IdentifierEvaluator
 {
-    public static object? Evaluate(BoundIdentifierExpr node, EvaluationContext ctx)
+    public static object? Evaluate(BoundIdentifierExpr node, EvaluationContext ctx, CancellationToken ct)
     {
         if (node.LocalId != null)
             return ctx.Context.Get(node.Name);

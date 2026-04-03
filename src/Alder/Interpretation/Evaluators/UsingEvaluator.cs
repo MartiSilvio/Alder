@@ -6,12 +6,12 @@ namespace Alder.Interpretation.Evaluators;
 [EvaluatesNode(BoundNodeKind.UsingStatement)]
 internal static class UsingEvaluator
 {
-    public static object? Evaluate(BoundUsingStatementExpr node, EvaluationContext ctx)
+    public static object? Evaluate(BoundUsingStatementExpr node, EvaluationContext ctx, CancellationToken ct)
     {
-        var resource = ctx.Evaluate(node.Resource);
+        var resource = ctx.Evaluate(node.Resource, ct);
         try
         {
-            return ctx.Evaluate(node.Body);
+            return ctx.Evaluate(node.Body, ct);
         }
         finally
         {

@@ -12,22 +12,20 @@ internal sealed class BoundEvaluator
 
     public BoundEvaluator(
         AlderContext context,
-        AlderConfig config,
         ExecutionConstraintState? constraintState = null,
         EvaluationTracer? tracer = null,
-        SourceText? sourceText = null,
-        CancellationToken cancellationToken = default)
+        SourceText? sourceText = null)
     {
-        _evalCtx = new EvaluationContext(context, config, constraintState, cancellationToken, new Stack<Exception>());
+        _evalCtx = new EvaluationContext(context, constraintState, new Stack<Exception>());
         _evalCtx.Tracer = tracer;
         _evalCtx.SourceText = sourceText;
     }
 
-    public object? Evaluate(BoundExpr expr)
+    public object? Evaluate(BoundExpr expr, CancellationToken ct = default)
     {
         try
         {
-            return _evalCtx.Evaluate(expr);
+            return _evalCtx.Evaluate(expr, ct);
         }
         catch (AlderException ex) when (ex.Span.IsEmpty)
         {
@@ -36,11 +34,11 @@ internal sealed class BoundEvaluator
         }
     }
 
-    public async ValueTask<object?> EvaluateAsync(BoundExpr expr)
+    public async ValueTask<object?> EvaluateAsync(BoundExpr expr, CancellationToken ct = default)
     {
         try
         {
-            return await _evalCtx.EvaluateAsync(expr);
+            return await _evalCtx.EvaluateAsync(expr, ct);
         }
         catch (AlderException ex) when (ex.Span.IsEmpty)
         {

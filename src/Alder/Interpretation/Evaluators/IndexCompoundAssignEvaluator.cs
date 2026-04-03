@@ -7,11 +7,11 @@ namespace Alder.Interpretation.Evaluators;
 [EvaluatesNode(BoundNodeKind.IndexCompoundAssignment)]
 internal static class IndexCompoundAssignEvaluator
 {
-    public static object? Evaluate(BoundIndexCompoundAssignExpr node, EvaluationContext ctx)
+    public static object? Evaluate(BoundIndexCompoundAssignExpr node, EvaluationContext ctx, CancellationToken ct)
     {
-        var target = ctx.Evaluate(node.Target);
-        var index = ctx.Evaluate(node.Index);
-        var rightValue = ctx.Evaluate(node.Value);
+        var target = ctx.Evaluate(node.Target, ct);
+        var index = ctx.Evaluate(node.Index, ct);
+        var rightValue = ctx.Evaluate(node.Value, ct);
         return AssignmentRuntime.ApplyIndexCompoundAssign(target, index, node.Operator, rightValue, ctx);
     }
 }

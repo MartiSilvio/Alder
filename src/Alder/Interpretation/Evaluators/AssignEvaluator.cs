@@ -8,9 +8,9 @@ namespace Alder.Interpretation.Evaluators;
 [EvaluatesNode(BoundNodeKind.AssignmentOperator)]
 internal static class AssignEvaluator
 {
-    public static object? Evaluate(BoundAssignExpr node, EvaluationContext ctx)
+    public static object? Evaluate(BoundAssignExpr node, EvaluationContext ctx, CancellationToken ct)
     {
-        var value = ctx.Evaluate(node.Value);
+        var value = ctx.Evaluate(node.Value, ct);
 
         // ECMA-334 §9.2.9.1: discard — evaluate RHS, discard result
         if (node.Name == Parsing.TokenLexemes.DiscardIdentifier && !ctx.Context.TryGet(Parsing.TokenLexemes.DiscardIdentifier, out _))
@@ -21,9 +21,9 @@ internal static class AssignEvaluator
         return value;
     }
 
-    public static async ValueTask<object?> EvaluateAsync(BoundAssignExpr node, EvaluationContext ctx)
+    public static async ValueTask<object?> EvaluateAsync(BoundAssignExpr node, EvaluationContext ctx, CancellationToken ct)
     {
-        var value = await ctx.EvaluateAsync(node.Value);
+        var value = await ctx.EvaluateAsync(node.Value, ct);
 
         if (node.Name == Parsing.TokenLexemes.DiscardIdentifier && !ctx.Context.TryGet(Parsing.TokenLexemes.DiscardIdentifier, out _))
             return value;

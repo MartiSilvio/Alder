@@ -71,7 +71,6 @@ internal static class ExecutionRuntime
         string? catchVariableName,
         object? caughtException,
         AlderContext context,
-        AlderConfig config,
         CancellationToken ct)
     {
         var guardContext = context.CreateChild();
@@ -80,8 +79,8 @@ internal static class ExecutionRuntime
 
         try
         {
-            var evaluator = new BoundEvaluator(guardContext, config, cancellationToken: ct);
-            var guardResult = evaluator.Evaluate(guardExpression);
+            var evaluator = new BoundEvaluator(guardContext);
+            var guardResult = evaluator.Evaluate(guardExpression, ct);
             return TypeHelpers.RequireBoolean(guardResult);
         }
         catch

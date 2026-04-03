@@ -6,7 +6,7 @@ namespace Alder.Interpretation.Evaluators;
 [EvaluatesNode(BoundNodeKind.Label)]
 internal static class LabelEvaluator
 {
-    public static object? Evaluate(BoundLabelExpr node, EvaluationContext ctx)
+    public static object? Evaluate(BoundLabelExpr node, EvaluationContext ctx, CancellationToken ct)
     {
         return null;
     }

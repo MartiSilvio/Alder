@@ -66,11 +66,11 @@ public sealed partial class AlderEngine
         boundExpression = RunSecurityOnlyPipeline(boundExpression, cancellationToken);
         var sourceText = new Text.SourceText(expression.Source);
         var tracer = new EvaluationTracer(sourceText);
-        var evaluator = new BoundEvaluator(executionContext, _config, state, tracer, sourceText, cancellationToken);
+        var evaluator = new BoundEvaluator(executionContext, state, tracer, sourceText);
 
         try
         {
-            var result = evaluator.Evaluate(boundExpression);
+            var result = evaluator.Evaluate(boundExpression, cancellationToken);
             expression.RecordBoundExecution();
             return new EvaluationTraceResult(UnwrapControlFlowSignal(result), tracer.Root!, null);
         }

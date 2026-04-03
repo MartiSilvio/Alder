@@ -8,9 +8,9 @@ namespace Alder.Interpretation.Evaluators;
 [EvaluatesNode(BoundNodeKind.PipelineExpression)]
 internal static class PipelineEvaluator
 {
-    public static object? Evaluate(BoundPipelineExpr node, EvaluationContext ctx)
+    public static object? Evaluate(BoundPipelineExpr node, EvaluationContext ctx, CancellationToken ct)
     {
-        var left = ctx.Evaluate(node.Left);
+        var left = ctx.Evaluate(node.Left, ct);
 
         if (node.Right is BoundIdentifierExpr rightIdentifier)
         {
@@ -18,10 +18,10 @@ internal static class PipelineEvaluator
                 left,
                 rightIdentifier.Name,
                 ctx.Context,
-                ctx.CancellationToken);
+                ct);
         }
 
-        var right = ctx.Evaluate(node.Right);
-        return PipelineOperator.InvokePipeline(left, right, ctx.Context, ctx.CancellationToken);
+        var right = ctx.Evaluate(node.Right, ct);
+        return PipelineOperator.InvokePipeline(left, right, ctx.Context, ct);
     }
 }

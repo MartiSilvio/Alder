@@ -132,7 +132,6 @@ internal sealed class SwitchStatementEmitter : INodeEmitter<BoundSwitchStatement
             valueVar,
             LinqExpression.Constant(switchCase.CasePattern!, typeof(Pattern)),
             ctx.ContextParam,
-            ctx.ConfigParam,
             ctx.CancellationTokenParam);
 
         if (switchCase.WhenGuard == null)

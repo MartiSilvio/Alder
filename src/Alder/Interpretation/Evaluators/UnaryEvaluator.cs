@@ -9,9 +9,9 @@ namespace Alder.Interpretation.Evaluators;
 [EvaluatesNode(BoundNodeKind.UnaryOperator)]
 internal static class UnaryEvaluator
 {
-    public static object? Evaluate(BoundUnaryExpr node, EvaluationContext ctx)
+    public static object? Evaluate(BoundUnaryExpr node, EvaluationContext ctx, CancellationToken ct)
     {
-        var operand = ctx.Evaluate(node.Operand);
+        var operand = ctx.Evaluate(node.Operand, ct);
 
         if (node.PromotedType is { } promoted && operand != null
             && operand.GetType() == node.Operand.StaticType.ClrType)
@@ -38,9 +38,9 @@ internal static class UnaryEvaluator
         };
     }
 
-    public static async ValueTask<object?> EvaluateAsync(BoundUnaryExpr node, EvaluationContext ctx)
+    public static async ValueTask<object?> EvaluateAsync(BoundUnaryExpr node, EvaluationContext ctx, CancellationToken ct)
     {
-        var operand = await ctx.EvaluateAsync(node.Operand);
+        var operand = await ctx.EvaluateAsync(node.Operand, ct);
 
         if (node.PromotedType is { } promoted && operand != null
             && operand.GetType() == node.Operand.StaticType.ClrType)

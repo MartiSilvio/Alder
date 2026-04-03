@@ -7,10 +7,10 @@ namespace Alder.Interpretation.Evaluators;
 [EvaluatesNode(BoundNodeKind.MemberAssignment)]
 internal static class MemberAssignEvaluator
 {
-    public static object? Evaluate(BoundMemberAssignExpr node, EvaluationContext ctx)
+    public static object? Evaluate(BoundMemberAssignExpr node, EvaluationContext ctx, CancellationToken ct)
     {
-        var target = ctx.Evaluate(node.Target);
-        var value = ctx.Evaluate(node.Value);
+        var target = ctx.Evaluate(node.Target, ct);
+        var value = ctx.Evaluate(node.Value, ct);
 
         if (node.ResolvedMember is PropertyInfo { CanWrite: true } property
             && target != null && node.DeclaringType is { IsValueType: false })

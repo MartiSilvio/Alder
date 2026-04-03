@@ -203,7 +203,7 @@ internal static class BoundRuntimeMethodCache
         typeof(ExecutionRuntime).GetMethod(nameof(ExecutionRuntime.ValidateLockObject))!;
 
     internal static readonly MethodInfo EvaluateCatchWhenGuardMethod =
-        typeof(ExecutionRuntime).GetMethod(nameof(ExecutionRuntime.EvaluateCatchWhenGuard))!;
+        typeof(ExecutionRuntime).GetMethod(nameof(ExecutionRuntime.EvaluateCatchWhenGuard), [typeof(Binding.BoundExpr), typeof(string), typeof(object), typeof(AlderContext), typeof(CancellationToken)])!;
 
     internal static readonly MethodInfo MonitorEnterMethod =
         typeof(Monitor).GetMethod(nameof(Monitor.Enter), [typeof(object)])!;
@@ -259,7 +259,7 @@ internal static class BoundRuntimeMethodCache
         typeof(TypeHelpers).GetMethod(nameof(TypeHelpers.TryAs), [typeof(object), typeof(Type)])!;
 
     internal static readonly MethodInfo MatchPatternMethod =
-        typeof(PatternRuntime).GetMethod(nameof(PatternRuntime.MatchPattern))!;
+        typeof(PatternRuntime).GetMethod(nameof(PatternRuntime.MatchPattern), [typeof(object), typeof(Parsing.Pattern), typeof(AlderContext), typeof(CancellationToken)])!;
 
     internal static readonly MethodInfo ApplyConstantNumericPromotionMethod =
         typeof(NumericPromotionRuntime).GetMethod(nameof(NumericPromotionRuntime.ApplyConstantNumericPromotion))!;

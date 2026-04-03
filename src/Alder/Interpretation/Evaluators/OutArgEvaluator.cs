@@ -7,7 +7,7 @@ namespace Alder.Interpretation.Evaluators;
 [EvaluatesNode(BoundNodeKind.OutArgument)]
 internal static class OutArgEvaluator
 {
-    public static object? Evaluate(BoundOutArgExpr node, EvaluationContext ctx)
+    public static object? Evaluate(BoundOutArgExpr node, EvaluationContext ctx, CancellationToken ct)
     {
         return new OutArgMarker(node.VariableName, node.TypeName, node.IsDiscard);
     }

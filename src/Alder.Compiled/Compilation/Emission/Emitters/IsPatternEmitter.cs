@@ -22,7 +22,6 @@ internal sealed class IsPatternEmitter : INodeEmitter<BoundIsPatternExpr>
             ctx.EmitBoxed(node.Expression),
             LinqExpression.Constant(node.Pattern, typeof(Pattern)),
             ctx.ContextParam,
-            ctx.ConfigParam,
             ctx.CancellationTokenParam);
     }
 }

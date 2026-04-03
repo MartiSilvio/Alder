@@ -9,10 +9,10 @@ namespace Alder.Interpretation.Evaluators;
 [EvaluatesNode(BoundNodeKind.Block)]
 internal static class BlockEvaluator
 {
-    public static object? Evaluate(BoundBlockExpr node, EvaluationContext ctx)
+    public static object? Evaluate(BoundBlockExpr node, EvaluationContext ctx, CancellationToken ct)
     {
         var constraintState = ctx.ConstraintState;
-        var constraints = ctx.Config.Constraints;
+        var constraints = ctx.Context.Config.Constraints;
         var previousContext = ctx.Context;
         ctx.Context = ctx.Context.CreateChild();
 
@@ -22,8 +22,8 @@ internal static class BlockEvaluator
             ExecuteBlock:
             for (var i = startIndex; i < node.Statements.Length; i++)
             {
-                ExecutionRuntime.CheckExecutionConstraints(constraintState, constraints, ctx.CancellationToken);
-                var result = ctx.Evaluate(node.Statements[i]);
+                ExecutionRuntime.CheckExecutionConstraints(constraintState, constraints, ct);
+                var result = ctx.Evaluate(node.Statements[i], ct);
                 if (result is ControlFlowSignal signal)
                 {
                     if (signal.SignalKind == ControlFlowSignal.Kind.Return)
@@ -42,7 +42,7 @@ internal static class BlockEvaluator
                 }
             }
 
-            return node.ReturnExpr != null ? ctx.Evaluate(node.ReturnExpr) : null;
+            return node.ReturnExpr != null ? ctx.Evaluate(node.ReturnExpr, ct) : null;
         }
         finally
         {
@@ -50,12 +50,12 @@ internal static class BlockEvaluator
         }
     }
 
-    internal static ControlFlowSignal? ExecuteStatementBlock(IEnumerable<BoundExpr> statements, EvaluationContext ctx)
+    internal static ControlFlowSignal? ExecuteStatementBlock(IEnumerable<BoundExpr> statements, EvaluationContext ctx, CancellationToken ct)
     {
         foreach (var statement in statements)
         {
-            ctx.CancellationToken.ThrowIfCancellationRequested();
-            var result = ctx.Evaluate(statement);
+            ct.ThrowIfCancellationRequested();
+            var result = ctx.Evaluate(statement, ct);
             if (result is ControlFlowSignal signal)
                 return signal;
         }
@@ -63,10 +63,10 @@ internal static class BlockEvaluator
         return null;
     }
 
-    public static async ValueTask<object?> EvaluateAsync(BoundBlockExpr node, EvaluationContext ctx)
+    public static async ValueTask<object?> EvaluateAsync(BoundBlockExpr node, EvaluationContext ctx, CancellationToken ct)
     {
         var constraintState = ctx.ConstraintState;
-        var constraints = ctx.Config.Constraints;
+        var constraints = ctx.Context.Config.Constraints;
         var previousContext = ctx.Context;
         ctx.Context = ctx.Context.CreateChild();
 
@@ -78,8 +78,8 @@ internal static class BlockEvaluator
                 var restarted = false;
                 for (var i = startIndex; i < node.Statements.Length; i++)
                 {
-                    ExecutionRuntime.CheckExecutionConstraints(constraintState, constraints, ctx.CancellationToken);
-                    var result = await ctx.EvaluateAsync(node.Statements[i]);
+                    ExecutionRuntime.CheckExecutionConstraints(constraintState, constraints, ct);
+                    var result = await ctx.EvaluateAsync(node.Statements[i], ct);
                     if (result is ControlFlowSignal signal)
                     {
                         if (signal.SignalKind == ControlFlowSignal.Kind.Return)
@@ -101,7 +101,7 @@ internal static class BlockEvaluator
                 if (!restarted) break;
             }
 
-            return node.ReturnExpr != null ? await ctx.EvaluateAsync(node.ReturnExpr) : null;
+            return node.ReturnExpr != null ? await ctx.EvaluateAsync(node.ReturnExpr, ct) : null;
         }
         finally
         {
@@ -109,12 +109,12 @@ internal static class BlockEvaluator
         }
     }
 
-    internal static async ValueTask<ControlFlowSignal?> ExecuteStatementBlockAsync(IEnumerable<BoundExpr> statements, EvaluationContext ctx)
+    internal static async ValueTask<ControlFlowSignal?> ExecuteStatementBlockAsync(IEnumerable<BoundExpr> statements, EvaluationContext ctx, CancellationToken ct)
     {
         foreach (var statement in statements)
         {
-            ctx.CancellationToken.ThrowIfCancellationRequested();
-            var result = await ctx.EvaluateAsync(statement);
+            ct.ThrowIfCancellationRequested();
+            var result = await ctx.EvaluateAsync(statement, ct);
             if (result is ControlFlowSignal signal)
                 return signal;
         }

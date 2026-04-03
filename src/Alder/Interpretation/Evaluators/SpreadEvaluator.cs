@@ -7,7 +7,7 @@ namespace Alder.Interpretation.Evaluators;
 [EvaluatesNode(BoundNodeKind.SpreadElement)]
 internal static class SpreadEvaluator
 {
-    public static object? Evaluate(BoundSpreadExpr node, EvaluationContext ctx)
+    public static object? Evaluate(BoundSpreadExpr node, EvaluationContext ctx, CancellationToken ct)
     {
         throw new AlderException(DiagnosticDescriptors.SpreadOutsideLiteral);
     }

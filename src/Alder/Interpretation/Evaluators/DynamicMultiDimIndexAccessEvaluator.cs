@@ -8,9 +8,9 @@ namespace Alder.Interpretation.Evaluators;
 [EvaluatesNode(BoundNodeKind.DynamicMultiDimIndexAccess)]
 internal static class DynamicMultiDimIndexAccessEvaluator
 {
-    public static object? Evaluate(BoundDynamicMultiDimIndexAccessExpr node, EvaluationContext ctx)
+    public static object? Evaluate(BoundDynamicMultiDimIndexAccessExpr node, EvaluationContext ctx, CancellationToken ct)
     {
-        var target = ctx.Evaluate(node.Target);
+        var target = ctx.Evaluate(node.Target, ct);
         if (node.NullSafe && target == null)
             return null;
 

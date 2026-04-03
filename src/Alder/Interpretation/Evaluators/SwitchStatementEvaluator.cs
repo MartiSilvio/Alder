@@ -9,9 +9,9 @@ namespace Alder.Interpretation.Evaluators;
 [EvaluatesNode(BoundNodeKind.SwitchStatement)]
 internal static class SwitchStatementEvaluator
 {
-    public static object? Evaluate(BoundSwitchStatementExpr node, EvaluationContext ctx)
+    public static object? Evaluate(BoundSwitchStatementExpr node, EvaluationContext ctx, CancellationToken ct)
     {
-        var switchValue = ctx.Evaluate(node.Expression);
+        var switchValue = ctx.Evaluate(node.Expression, ct);
         var matched = false;
         var defaultCaseIndex = -1;
 
@@ -34,18 +34,18 @@ internal static class SwitchStatementEvaluator
                 ctx.Context = ctx.Context.CreateChild();
                 try
                 {
-                    if (!TypeHelpers.RequireBoolean(ctx.MatchPattern(switchValue, switchCase.CasePattern)))
+                    if (!TypeHelpers.RequireBoolean(ctx.MatchPattern(switchValue, switchCase.CasePattern, ct)))
                         continue;
 
                     if (switchCase.WhenGuard != null)
                     {
-                        var guardResult = ctx.Evaluate(switchCase.WhenGuard);
+                        var guardResult = ctx.Evaluate(switchCase.WhenGuard, ct);
                         if (!TypeHelpers.RequireBoolean(guardResult))
                             continue;
                     }
 
                     matched = true;
-                    var signal = ExecuteSwitchCaseWithGoto(node, i, ctx);
+                    var signal = ExecuteSwitchCaseWithGoto(node, i, ctx, ct);
                     if (signal != null)
                         return signal.SignalKind == ControlFlowSignal.Kind.Break ? null : signal;
                 }
@@ -57,7 +57,7 @@ internal static class SwitchStatementEvaluator
 
             if (!matched && defaultCaseIndex >= 0)
             {
-                var signal = ExecuteSwitchCaseWithGoto(node, defaultCaseIndex, ctx);
+                var signal = ExecuteSwitchCaseWithGoto(node, defaultCaseIndex, ctx, ct);
                 if (signal != null && signal.SignalKind != ControlFlowSignal.Kind.Break)
                     return signal;
             }
@@ -71,9 +71,9 @@ internal static class SwitchStatementEvaluator
     }
 
     private static ControlFlowSignal? ExecuteSwitchCaseWithGoto(
-        BoundSwitchStatementExpr switchStatement, int startIndex, EvaluationContext ctx)
+        BoundSwitchStatementExpr switchStatement, int startIndex, EvaluationContext ctx, CancellationToken ct)
     {
-        var signal = ExecuteSwitchCaseStatements(switchStatement.Cases, startIndex, ctx);
+        var signal = ExecuteSwitchCaseStatements(switchStatement.Cases, startIndex, ctx, ct);
         while (signal is { SignalKind: ControlFlowSignal.Kind.GotoCase or ControlFlowSignal.Kind.GotoDefault })
         {
             int targetIndex;
@@ -83,17 +83,17 @@ internal static class SwitchStatementEvaluator
             }
             else
             {
-                targetIndex = FindCaseIndex(switchStatement, signal.Value, ctx);
+                targetIndex = FindCaseIndex(switchStatement, signal.Value, ctx, ct);
             }
             if (targetIndex < 0)
                 throw new AlderException(DiagnosticDescriptors.LabelNotFound, signal.Value?.ToString() ?? "default");
-            signal = ExecuteSwitchCaseStatements(switchStatement.Cases, targetIndex, ctx);
+            signal = ExecuteSwitchCaseStatements(switchStatement.Cases, targetIndex, ctx, ct);
         }
         return signal;
     }
 
     private static ControlFlowSignal? ExecuteSwitchCaseStatements(
-        IReadOnlyList<BoundSwitchCase> cases, int startIndex, EvaluationContext ctx)
+        IReadOnlyList<BoundSwitchCase> cases, int startIndex, EvaluationContext ctx, CancellationToken ct)
     {
         for (var i = startIndex; i < cases.Count; i++)
         {
@@ -103,8 +103,8 @@ internal static class SwitchStatementEvaluator
 
             foreach (var statement in switchCase.Statements)
             {
-                ctx.CancellationToken.ThrowIfCancellationRequested();
-                var result = ctx.Evaluate(statement);
+                ct.ThrowIfCancellationRequested();
+                var result = ctx.Evaluate(statement, ct);
                 if (result is ControlFlowSignal signal)
                     return signal;
             }
@@ -123,14 +123,14 @@ internal static class SwitchStatementEvaluator
         return -1;
     }
 
-    private static int FindCaseIndex(BoundSwitchStatementExpr switchStatement, object? targetValue, EvaluationContext ctx)
+    private static int FindCaseIndex(BoundSwitchStatementExpr switchStatement, object? targetValue, EvaluationContext ctx, CancellationToken ct)
     {
         for (var i = 0; i < switchStatement.Cases.Length; i++)
         {
             var casePattern = switchStatement.Cases[i].CasePattern;
             if (casePattern is ConstantPattern cp)
             {
-                var caseValue = ctx.MatchPattern(targetValue, cp);
+                var caseValue = ctx.MatchPattern(targetValue, cp, ct);
                 if (TypeHelpers.RequireBoolean(caseValue))
                     return i;
             }

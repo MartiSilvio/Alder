@@ -9,17 +9,17 @@ namespace Alder.Interpretation.Evaluators;
 [EvaluatesNode(BoundNodeKind.WhileStatement)]
 internal static class WhileEvaluator
 {
-    public static object? Evaluate(BoundWhileExpr node, EvaluationContext ctx)
+    public static object? Evaluate(BoundWhileExpr node, EvaluationContext ctx, CancellationToken ct)
     {
         var constraintState = ctx.ConstraintState;
-        var constraints = ctx.Config.Constraints;
+        var constraints = ctx.Context.Config.Constraints;
         ctx.BreakContextDepth++;
         ctx.LoopDepth++;
         try
         {
-            while (TypeHelpers.RequireBoolean(ctx.Evaluate(node.Condition)))
+            while (TypeHelpers.RequireBoolean(ctx.Evaluate(node.Condition, ct)))
             {
-                ExecutionRuntime.CheckExecutionConstraints(constraintState, constraints, ctx.CancellationToken);
+                ExecutionRuntime.CheckExecutionConstraints(constraintState, constraints, ct);
                 ExecutionRuntime.CheckLoopIterationConstraint(constraintState, constraints);
 
                 var previousContext = ctx.Context;
@@ -28,7 +28,7 @@ internal static class WhileEvaluator
                 ControlFlowSignal? signal;
                 try
                 {
-                    signal = BlockEvaluator.ExecuteStatementBlock(node.Body, ctx);
+                    signal = BlockEvaluator.ExecuteStatementBlock(node.Body, ctx, ct);
                 }
                 finally
                 {
@@ -52,17 +52,17 @@ internal static class WhileEvaluator
         }
     }
 
-    public static async ValueTask<object?> EvaluateAsync(BoundWhileExpr node, EvaluationContext ctx)
+    public static async ValueTask<object?> EvaluateAsync(BoundWhileExpr node, EvaluationContext ctx, CancellationToken ct)
     {
         var constraintState = ctx.ConstraintState;
-        var constraints = ctx.Config.Constraints;
+        var constraints = ctx.Context.Config.Constraints;
         ctx.BreakContextDepth++;
         ctx.LoopDepth++;
         try
         {
-            while (TypeHelpers.RequireBoolean(await ctx.EvaluateAsync(node.Condition)))
+            while (TypeHelpers.RequireBoolean(await ctx.EvaluateAsync(node.Condition, ct)))
             {
-                ExecutionRuntime.CheckExecutionConstraints(constraintState, constraints, ctx.CancellationToken);
+                ExecutionRuntime.CheckExecutionConstraints(constraintState, constraints, ct);
                 ExecutionRuntime.CheckLoopIterationConstraint(constraintState, constraints);
 
                 var previousContext = ctx.Context;
@@ -71,7 +71,7 @@ internal static class WhileEvaluator
                 ControlFlowSignal? signal;
                 try
                 {
-                    signal = await BlockEvaluator.ExecuteStatementBlockAsync(node.Body, ctx);
+                    signal = await BlockEvaluator.ExecuteStatementBlockAsync(node.Body, ctx, ct);
                 }
                 finally
                 {

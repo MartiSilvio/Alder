@@ -9,9 +9,9 @@ namespace Alder.Interpretation.Evaluators;
 [EvaluatesNode(BoundNodeKind.AwaitExpression)]
 internal static class AwaitEvaluator
 {
-    public static async ValueTask<object?> EvaluateAsync(BoundAwaitExpr node, EvaluationContext ctx)
+    public static async ValueTask<object?> EvaluateAsync(BoundAwaitExpr node, EvaluationContext ctx, CancellationToken ct)
     {
-        var operand = await ctx.EvaluateAsync(node.Operand);
+        var operand = await ctx.EvaluateAsync(node.Operand, ct);
 
         if (operand == null)
             throw new AlderException(DiagnosticDescriptors.NotAwaitable, "null");

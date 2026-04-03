@@ -7,19 +7,19 @@ namespace Alder.Interpretation.Evaluators;
 [EvaluatesNode(BoundNodeKind.CollectionCreation)]
 internal static class CollectionCreationEvaluator
 {
-    public static object? Evaluate(BoundCollectionCreationExpr node, EvaluationContext ctx)
+    public static object? Evaluate(BoundCollectionCreationExpr node, EvaluationContext ctx, CancellationToken ct)
     {
         var values = new List<object?>(node.Elements.Length);
         foreach (var element in node.Elements)
         {
             if (element is BoundSpreadExpr spread)
             {
-                var spreadValue = ctx.Evaluate(spread.Expression);
+                var spreadValue = ctx.Evaluate(spread.Expression, ct);
                 CollectionFactory.SpreadIntoList(values, spreadValue);
             }
             else
             {
-                values.Add(ctx.Evaluate(element));
+                values.Add(ctx.Evaluate(element, ct));
             }
         }
 
@@ -28,7 +28,7 @@ internal static class CollectionCreationEvaluator
             CollectionKind.Array => RuntimeArrayFactory.CreateFromValues(node.ElementType, values),
             CollectionKind.InferredArray => RuntimeArrayFactory.InferAndCreateArray(values),
             CollectionKind.TargetTypedCollection => CollectionFactory.Create(
-                node.TargetCollectionType!, node.ElementType, values, ctx.Config),
+                node.TargetCollectionType!, node.ElementType, values, ctx.Context.Config),
             _ => throw new InvalidOperationException()
         };
     }

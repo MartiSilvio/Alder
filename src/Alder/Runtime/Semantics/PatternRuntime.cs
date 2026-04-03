@@ -12,10 +12,9 @@ internal static class PatternRuntime
         object? value,
         Pattern pattern,
         AlderContext context,
-        AlderConfig config,
         CancellationToken cancellationToken)
     {
-        return MatchPatternCore(value, pattern, new PatternRuntimeContext(context, config, cancellationToken));
+        return MatchPatternCore(value, pattern, new PatternRuntimeContext(context, context.Config, cancellationToken));
     }
 
     private static bool MatchPatternCore(object? value, Pattern pattern, PatternRuntimeContext runtime)
@@ -219,7 +218,7 @@ internal static class PatternRuntime
         {
             var binder = new Binder();
             var boundExpression = binder.Bind(expression, new BindingContext(Context));
-            _evaluator ??= new BoundEvaluator(Context, Config, cancellationToken: CancellationToken);
+            _evaluator ??= new BoundEvaluator(Context);
             return _evaluator.Evaluate(boundExpression);
         }
     }

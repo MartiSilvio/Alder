@@ -7,7 +7,7 @@ namespace Alder.Interpretation.Evaluators;
 [EvaluatesNode(BoundNodeKind.NullCoalescingAssignmentOperator)]
 internal static class NullCoalesceAssignEvaluator
 {
-    public static object? Evaluate(BoundNullCoalesceAssignExpr node, EvaluationContext ctx)
+    public static object? Evaluate(BoundNullCoalesceAssignExpr node, EvaluationContext ctx, CancellationToken ct)
     {
         var name = node.Name;
         ExecutionRuntime.CheckNullCoalesceAssignAllowed(name, ctx.Context);
@@ -16,7 +16,7 @@ internal static class NullCoalesceAssignEvaluator
         if (currentValue != null)
             return currentValue;
 
-        var newValue = ctx.Evaluate(node.Value);
+        var newValue = ctx.Evaluate(node.Value, ct);
         ctx.Context.Set(name, newValue);
 
         return newValue;

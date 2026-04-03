@@ -8,7 +8,7 @@ namespace Alder.Interpretation.Evaluators;
 [EvaluatesNode(BoundNodeKind.TryStatement)]
 internal static class TryCatchEvaluator
 {
-    public static object? Evaluate(BoundTryCatchFinallyExpr node, EvaluationContext ctx)
+    public static object? Evaluate(BoundTryCatchFinallyExpr node, EvaluationContext ctx, CancellationToken ct)
     {
         object? result = null;
         Exception? unhandledException = null;
@@ -18,7 +18,7 @@ internal static class TryCatchEvaluator
         {
             foreach (var statement in node.TryBody)
             {
-                result = ctx.Evaluate(statement);
+                result = ctx.Evaluate(statement, ct);
                 if (result is ControlFlowSignal signal)
                 {
                     pendingSignal = signal;
@@ -28,7 +28,7 @@ internal static class TryCatchEvaluator
         }
         catch (Exception ex)
         {
-            var (handled, catchResult, catchSignal) = TryMatchCatchClause(node.CatchClauses, ex, ctx);
+            var (handled, catchResult, catchSignal) = TryMatchCatchClause(node.CatchClauses, ex, ctx, ct);
             if (handled)
             {
                 result = catchResult;
@@ -43,7 +43,7 @@ internal static class TryCatchEvaluator
         {
             foreach (var statement in node.FinallyBody)
             {
-                ctx.Evaluate(statement);
+                ctx.Evaluate(statement, ct);
             }
         }
 
@@ -59,7 +59,8 @@ internal static class TryCatchEvaluator
     private static (bool Handled, object? Result, ControlFlowSignal? Signal) TryMatchCatchClause(
         IReadOnlyList<BoundCatchClause> catchClauses,
         Exception ex,
-        EvaluationContext ctx)
+        EvaluationContext ctx,
+        CancellationToken ct)
     {
         foreach (var catchClause in catchClauses)
         {
@@ -82,7 +83,7 @@ internal static class TryCatchEvaluator
                     bool guardMatched;
                     try
                     {
-                        var guardResult = ctx.Evaluate(catchClause.WhenGuard);
+                        var guardResult = ctx.Evaluate(catchClause.WhenGuard, ct);
                         guardMatched = TypeHelpers.RequireBoolean(guardResult);
                     }
                     catch
@@ -101,7 +102,7 @@ internal static class TryCatchEvaluator
                     ControlFlowSignal? signal = null;
                     foreach (var statement in catchClause.Body)
                     {
-                        result = ctx.Evaluate(statement);
+                        result = ctx.Evaluate(statement, ct);
                         if (result is ControlFlowSignal controlFlowSignal)
                         {
                             signal = controlFlowSignal;

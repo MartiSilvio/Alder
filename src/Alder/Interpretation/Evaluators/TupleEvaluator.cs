@@ -8,11 +8,11 @@ namespace Alder.Interpretation.Evaluators;
 [EvaluatesNode(BoundNodeKind.TupleLiteral)]
 internal static class TupleEvaluator
 {
-    public static object? Evaluate(BoundTupleExpr node, EvaluationContext ctx)
+    public static object? Evaluate(BoundTupleExpr node, EvaluationContext ctx, CancellationToken ct)
     {
         var values = new object?[node.Elements.Length];
         for (var i = 0; i < node.Elements.Length; i++)
-            values[i] = ctx.Evaluate(node.Elements[i]);
+            values[i] = ctx.Evaluate(node.Elements[i], ct);
 
         var resolvedType = node.StaticType.ClrType;
         var result = resolvedType != typeof(object) && TypeHelpers.IsValueTupleType(resolvedType)

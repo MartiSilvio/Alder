@@ -11,10 +11,10 @@ namespace Alder.Interpretation.Evaluators;
 [EvaluatesNode(BoundNodeKind.BinaryOperator)]
 internal static class BinaryEvaluator
 {
-    public static object? Evaluate(BoundBinaryExpr node, EvaluationContext ctx)
+    public static object? Evaluate(BoundBinaryExpr node, EvaluationContext ctx, CancellationToken ct)
     {
         if (node.Left is not BoundBinaryExpr)
-            return EvaluateBinarySingle(node, ctx.Evaluate(node.Left), ctx);
+            return EvaluateBinarySingle(node, ctx.Evaluate(node.Left, ct), ctx, ct);
 
         var chain = new List<BoundBinaryExpr>();
         BoundExpr leftmost = node;
@@ -27,19 +27,19 @@ internal static class BinaryEvaluator
         for (var i = chain.Count - 1; i > 0; i--)
             ctx.Tracer?.Push(chain[i]);
 
-        var result = ctx.Evaluate(leftmost);
+        var result = ctx.Evaluate(leftmost, ct);
         for (var i = chain.Count - 1; i >= 0; i--)
         {
-            result = EvaluateBinarySingle(chain[i], result, ctx);
+            result = EvaluateBinarySingle(chain[i], result, ctx, ct);
             if (i > 0)
                 ctx.Tracer?.Pop(result);
         }
         return result;
     }
 
-    private static object? EvaluateBinarySingle(BoundBinaryExpr binary, object? left, EvaluationContext ctx)
+    private static object? EvaluateBinarySingle(BoundBinaryExpr binary, object? left, EvaluationContext ctx, CancellationToken ct)
     {
-        var right = ctx.Evaluate(binary.Right);
+        var right = ctx.Evaluate(binary.Right, ct);
 
         if (binary.PromotedType is { } promoted && left != null && right != null
             && left.GetType() == binary.Left.StaticType.ClrType
@@ -78,7 +78,7 @@ internal static class BinaryEvaluator
                 TokenType.Caret => NumericDispatch.BitwiseXor(left, right, promoted),
                 TokenType.LessLess => NumericDispatch.LeftShift(left, right),
                 TokenType.GreaterGreater => NumericDispatch.RightShift(left, right),
-                _ => EvaluateBinaryFallback(binary, left, right, ctx)
+                _ => EvaluateBinaryFallback(binary, left, right, ctx, ct)
             };
         }
 
@@ -88,27 +88,27 @@ internal static class BinaryEvaluator
             right,
             binary.Right.Kind == BoundNodeKind.Literal);
 
-        return EvaluateBinaryFallback(binary, left, right, ctx);
+        return EvaluateBinaryFallback(binary, left, right, ctx, ct);
     }
 
-    private static object? EvaluateBinaryFallback(BoundBinaryExpr binary, object? left, object? right, EvaluationContext ctx)
+    private static object? EvaluateBinaryFallback(BoundBinaryExpr binary, object? left, object? right, EvaluationContext ctx, CancellationToken ct)
     {
         return binary.Operator switch
         {
-            TokenType.Plus => Operators.Add(left, right, ctx.Config, ctx.Context, ctx.IsChecked,
+            TokenType.Plus => Operators.Add(left, right, ctx.Context.Config, ctx.Context, ctx.IsChecked,
                 isStringContext: binary.Left.StaticType.ClrType == typeof(string) || binary.Right.StaticType.ClrType == typeof(string)),
             TokenType.Minus => Operators.Subtract(left, right, ctx.IsChecked),
-            TokenType.Star => Operators.Multiply(left, right, ctx.Config.LanguageMode, ctx.IsChecked),
+            TokenType.Star => Operators.Multiply(left, right, ctx.Context.Config.LanguageMode, ctx.IsChecked),
             TokenType.Slash => Operators.Divide(left, right),
             TokenType.Percent => Operators.Modulo(left, right),
             TokenType.EqualEqual => Operators.Equals(left, right),
             TokenType.BangEqual => Operators.NotEquals(left, right),
             TokenType.EqualEqualEqual => Operators.StrictEquals(left, right),
             TokenType.BangEqualEqual => Operators.StrictNotEquals(left, right),
-            TokenType.Less => Operators.LessThan(left, right, ctx.Config.StringComparison),
-            TokenType.LessEqual => Operators.LessThanOrEqual(left, right, ctx.Config.StringComparison),
-            TokenType.Greater => Operators.GreaterThan(left, right, ctx.Config.StringComparison),
-            TokenType.GreaterEqual => Operators.GreaterThanOrEqual(left, right, ctx.Config.StringComparison),
+            TokenType.Less => Operators.LessThan(left, right, ctx.Context.Config.StringComparison),
+            TokenType.LessEqual => Operators.LessThanOrEqual(left, right, ctx.Context.Config.StringComparison),
+            TokenType.Greater => Operators.GreaterThan(left, right, ctx.Context.Config.StringComparison),
+            TokenType.GreaterEqual => Operators.GreaterThanOrEqual(left, right, ctx.Context.Config.StringComparison),
             TokenType.Amp => Operators.BitwiseAnd(left, right),
             TokenType.Pipe => Operators.BitwiseOr(left, right),
             TokenType.Caret => Operators.BitwiseXor(left, right),
@@ -117,7 +117,7 @@ internal static class BinaryEvaluator
             TokenType.GreaterGreaterGreater => Operators.UnsignedRightShift(left, right),
             TokenType.StarStar => Operators.Power(left, right),
             TokenType.In => Operators.InOperator(left, right),
-            TokenType.Like => Operators.Like(left, right, ctx.Config.StringComparison),
+            TokenType.Like => Operators.Like(left, right, ctx.Context.Config.StringComparison),
             TokenType.EqualTilde => Operators.RegexMatch(left, right),
             TokenType.BangTilde => Operators.RegexNotMatch(left, right),
             TokenType.LessEqualGreater => Operators.Spaceship(left, right),
@@ -167,10 +167,10 @@ internal static class BinaryEvaluator
 
     private static bool IsNaN(object value) => value is double and Double.NaN || value is float and Single.NaN;
 
-    public static async ValueTask<object?> EvaluateAsync(BoundBinaryExpr node, EvaluationContext ctx)
+    public static async ValueTask<object?> EvaluateAsync(BoundBinaryExpr node, EvaluationContext ctx, CancellationToken ct)
     {
         if (node.Left is not BoundBinaryExpr)
-            return EvaluateBinarySingle(node, await ctx.EvaluateAsync(node.Left), ctx);
+            return EvaluateBinarySingle(node, await ctx.EvaluateAsync(node.Left, ct), ctx, ct);
 
         var chain = new List<BoundBinaryExpr>();
         BoundExpr leftmost = node;
@@ -183,19 +183,19 @@ internal static class BinaryEvaluator
         for (var i = chain.Count - 1; i > 0; i--)
             ctx.Tracer?.Push(chain[i]);
 
-        var result = await ctx.EvaluateAsync(leftmost);
+        var result = await ctx.EvaluateAsync(leftmost, ct);
         for (var i = chain.Count - 1; i >= 0; i--)
         {
-            result = await EvaluateBinarySingleAsync(chain[i], result, ctx);
+            result = await EvaluateBinarySingleAsync(chain[i], result, ctx, ct);
             if (i > 0)
                 ctx.Tracer?.Pop(result);
         }
         return result;
     }
 
-    private static async ValueTask<object?> EvaluateBinarySingleAsync(BoundBinaryExpr binary, object? left, EvaluationContext ctx)
+    private static async ValueTask<object?> EvaluateBinarySingleAsync(BoundBinaryExpr binary, object? left, EvaluationContext ctx, CancellationToken ct)
     {
-        var right = await ctx.EvaluateAsync(binary.Right);
+        var right = await ctx.EvaluateAsync(binary.Right, ct);
 
         if (binary.PromotedType is { } promoted && left != null && right != null
             && left.GetType() == binary.Left.StaticType.ClrType
@@ -234,7 +234,7 @@ internal static class BinaryEvaluator
                 TokenType.Caret => NumericDispatch.BitwiseXor(left, right, promoted),
                 TokenType.LessLess => NumericDispatch.LeftShift(left, right),
                 TokenType.GreaterGreater => NumericDispatch.RightShift(left, right),
-                _ => EvaluateBinaryFallback(binary, left, right, ctx)
+                _ => EvaluateBinaryFallback(binary, left, right, ctx, ct)
             };
         }
 
@@ -244,6 +244,6 @@ internal static class BinaryEvaluator
             right,
             binary.Right.Kind == BoundNodeKind.Literal);
 
-        return EvaluateBinaryFallback(binary, left, right, ctx);
+        return EvaluateBinaryFallback(binary, left, right, ctx, ct);
     }
 }

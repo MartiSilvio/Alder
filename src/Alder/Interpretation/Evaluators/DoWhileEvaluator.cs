@@ -9,20 +9,20 @@ namespace Alder.Interpretation.Evaluators;
 [EvaluatesNode(BoundNodeKind.DoStatement)]
 internal static class DoWhileEvaluator
 {
-    public static object? Evaluate(BoundDoWhileExpr node, EvaluationContext ctx)
+    public static object? Evaluate(BoundDoWhileExpr node, EvaluationContext ctx, CancellationToken ct)
     {
         var constraintState = ctx.ConstraintState;
-        var constraints = ctx.Config.Constraints;
+        var constraints = ctx.Context.Config.Constraints;
         ctx.BreakContextDepth++;
         ctx.LoopDepth++;
         try
         {
             do
             {
-                ExecutionRuntime.CheckExecutionConstraints(constraintState, constraints, ctx.CancellationToken);
+                ExecutionRuntime.CheckExecutionConstraints(constraintState, constraints, ct);
                 ExecutionRuntime.CheckLoopIterationConstraint(constraintState, constraints);
 
-                var signal = ExecuteBodyIteration(node, ctx);
+                var signal = ExecuteBodyIteration(node, ctx, ct);
 
                 if (signal != null)
                 {
@@ -30,7 +30,7 @@ internal static class DoWhileEvaluator
                     if (signal.SignalKind == ControlFlowSignal.Kind.Continue) continue;
                     return signal;
                 }
-            } while (TypeHelpers.RequireBoolean(ctx.Evaluate(node.Condition)));
+            } while (TypeHelpers.RequireBoolean(ctx.Evaluate(node.Condition, ct)));
 
             return null;
         }
@@ -41,20 +41,20 @@ internal static class DoWhileEvaluator
         }
     }
 
-    public static async ValueTask<object?> EvaluateAsync(BoundDoWhileExpr node, EvaluationContext ctx)
+    public static async ValueTask<object?> EvaluateAsync(BoundDoWhileExpr node, EvaluationContext ctx, CancellationToken ct)
     {
         var constraintState = ctx.ConstraintState;
-        var constraints = ctx.Config.Constraints;
+        var constraints = ctx.Context.Config.Constraints;
         ctx.BreakContextDepth++;
         ctx.LoopDepth++;
         try
         {
             do
             {
-                ExecutionRuntime.CheckExecutionConstraints(constraintState, constraints, ctx.CancellationToken);
+                ExecutionRuntime.CheckExecutionConstraints(constraintState, constraints, ct);
                 ExecutionRuntime.CheckLoopIterationConstraint(constraintState, constraints);
 
-                var signal = await ExecuteBodyIterationAsync(node, ctx);
+                var signal = await ExecuteBodyIterationAsync(node, ctx, ct);
 
                 if (signal != null)
                 {
@@ -62,7 +62,7 @@ internal static class DoWhileEvaluator
                     if (signal.SignalKind == ControlFlowSignal.Kind.Continue) continue;
                     return signal;
                 }
-            } while (TypeHelpers.RequireBoolean(await ctx.EvaluateAsync(node.Condition)));
+            } while (TypeHelpers.RequireBoolean(await ctx.EvaluateAsync(node.Condition, ct)));
 
             return null;
         }
@@ -73,13 +73,13 @@ internal static class DoWhileEvaluator
         }
     }
 
-    private static ControlFlowSignal? ExecuteBodyIteration(BoundDoWhileExpr node, EvaluationContext ctx)
+    private static ControlFlowSignal? ExecuteBodyIteration(BoundDoWhileExpr node, EvaluationContext ctx, CancellationToken ct)
     {
         var previousContext = ctx.Context;
         ctx.Context = ctx.Context.CreateChild();
         try
         {
-            return BlockEvaluator.ExecuteStatementBlock(node.Body, ctx);
+            return BlockEvaluator.ExecuteStatementBlock(node.Body, ctx, ct);
         }
         finally
         {
@@ -87,13 +87,13 @@ internal static class DoWhileEvaluator
         }
     }
 
-    private static async ValueTask<ControlFlowSignal?> ExecuteBodyIterationAsync(BoundDoWhileExpr node, EvaluationContext ctx)
+    private static async ValueTask<ControlFlowSignal?> ExecuteBodyIterationAsync(BoundDoWhileExpr node, EvaluationContext ctx, CancellationToken ct)
     {
         var previousContext = ctx.Context;
         ctx.Context = ctx.Context.CreateChild();
         try
         {
-            return await BlockEvaluator.ExecuteStatementBlockAsync(node.Body, ctx);
+            return await BlockEvaluator.ExecuteStatementBlockAsync(node.Body, ctx, ct);
         }
         finally
         {

@@ -26,7 +26,6 @@ internal sealed class SwitchExpressionEmitter : INodeEmitter<BoundSwitchExpressi
                 valueVar,
                 LinqExpression.Constant(arm.Pattern, typeof(Pattern)),
                 ctx.ContextParam,
-                ctx.ConfigParam,
                 ctx.CancellationTokenParam);
 
             if (arm.WhenGuard != null)

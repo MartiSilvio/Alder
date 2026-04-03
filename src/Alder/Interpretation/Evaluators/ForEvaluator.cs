@@ -9,10 +9,10 @@ namespace Alder.Interpretation.Evaluators;
 [EvaluatesNode(BoundNodeKind.ForStatement)]
 internal static class ForEvaluator
 {
-    public static object? Evaluate(BoundForExpr node, EvaluationContext ctx)
+    public static object? Evaluate(BoundForExpr node, EvaluationContext ctx, CancellationToken ct)
     {
         var constraintState = ctx.ConstraintState;
-        var constraints = ctx.Config.Constraints;
+        var constraints = ctx.Context.Config.Constraints;
         var loopContext = ctx.Context;
         ctx.Context = ctx.Context.CreateChild();
         ctx.BreakContextDepth++;
@@ -21,12 +21,12 @@ internal static class ForEvaluator
         {
             foreach (var initializer in node.Initializers)
             {
-                ctx.Evaluate(initializer);
+                ctx.Evaluate(initializer, ct);
             }
 
-            while (node.Condition == null || TypeHelpers.RequireBoolean(ctx.Evaluate(node.Condition)))
+            while (node.Condition == null || TypeHelpers.RequireBoolean(ctx.Evaluate(node.Condition, ct)))
             {
-                ExecutionRuntime.CheckExecutionConstraints(constraintState, constraints, ctx.CancellationToken);
+                ExecutionRuntime.CheckExecutionConstraints(constraintState, constraints, ct);
                 ExecutionRuntime.CheckLoopIterationConstraint(constraintState, constraints);
 
                 var previousContext = ctx.Context;
@@ -35,7 +35,7 @@ internal static class ForEvaluator
                 ControlFlowSignal? signal;
                 try
                 {
-                    signal = BlockEvaluator.ExecuteStatementBlock(node.Body, ctx);
+                    signal = BlockEvaluator.ExecuteStatementBlock(node.Body, ctx, ct);
                 }
                 finally
                 {
@@ -50,7 +50,7 @@ internal static class ForEvaluator
 
                 foreach (var increment in node.Increments)
                 {
-                    ctx.Evaluate(increment);
+                    ctx.Evaluate(increment, ct);
                 }
             }
         }
@@ -64,10 +64,10 @@ internal static class ForEvaluator
         return null;
     }
 
-    public static async ValueTask<object?> EvaluateAsync(BoundForExpr node, EvaluationContext ctx)
+    public static async ValueTask<object?> EvaluateAsync(BoundForExpr node, EvaluationContext ctx, CancellationToken ct)
     {
         var constraintState = ctx.ConstraintState;
-        var constraints = ctx.Config.Constraints;
+        var constraints = ctx.Context.Config.Constraints;
         var loopContext = ctx.Context;
         ctx.Context = ctx.Context.CreateChild();
         ctx.BreakContextDepth++;
@@ -76,12 +76,12 @@ internal static class ForEvaluator
         {
             foreach (var initializer in node.Initializers)
             {
-                await ctx.EvaluateAsync(initializer);
+                await ctx.EvaluateAsync(initializer, ct);
             }
 
-            while (node.Condition == null || TypeHelpers.RequireBoolean(await ctx.EvaluateAsync(node.Condition)))
+            while (node.Condition == null || TypeHelpers.RequireBoolean(await ctx.EvaluateAsync(node.Condition, ct)))
             {
-                ExecutionRuntime.CheckExecutionConstraints(constraintState, constraints, ctx.CancellationToken);
+                ExecutionRuntime.CheckExecutionConstraints(constraintState, constraints, ct);
                 ExecutionRuntime.CheckLoopIterationConstraint(constraintState, constraints);
 
                 var previousContext = ctx.Context;
@@ -90,7 +90,7 @@ internal static class ForEvaluator
                 ControlFlowSignal? signal;
                 try
                 {
-                    signal = await BlockEvaluator.ExecuteStatementBlockAsync(node.Body, ctx);
+                    signal = await BlockEvaluator.ExecuteStatementBlockAsync(node.Body, ctx, ct);
                 }
                 finally
                 {
@@ -105,7 +105,7 @@ internal static class ForEvaluator
 
                 foreach (var increment in node.Increments)
                 {
-                    await ctx.EvaluateAsync(increment);
+                    await ctx.EvaluateAsync(increment, ct);
                 }
             }
         }

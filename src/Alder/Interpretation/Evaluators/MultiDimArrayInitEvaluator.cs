@@ -7,13 +7,13 @@ namespace Alder.Interpretation.Evaluators;
 [EvaluatesNode(BoundNodeKind.MultiDimArrayInit)]
 internal static class MultiDimArrayInitEvaluator
 {
-    public static object? Evaluate(BoundMultiDimArrayInitExpr node, EvaluationContext ctx)
+    public static object? Evaluate(BoundMultiDimArrayInitExpr node, EvaluationContext ctx, CancellationToken ct)
     {
         var dimensions = node.InferredDimensions;
         if (node.ExplicitSizes != null)
         {
             for (var i = 0; i < node.ExplicitSizes.Value.Length; i++)
-                dimensions[i] = Convert.ToInt32(ctx.Evaluate(node.ExplicitSizes.Value[i]));
+                dimensions[i] = Convert.ToInt32(ctx.Evaluate(node.ExplicitSizes.Value[i], ct));
         }
 
         var array = RuntimeArrayFactory.Create(node.ElementType, dimensions);
@@ -22,7 +22,7 @@ internal static class MultiDimArrayInitEvaluator
         var indices = new int[node.Rank];
         for (var i = 0; i < node.FlatValues.Length; i++)
         {
-            var value = ctx.Evaluate(node.FlatValues[i]);
+            var value = ctx.Evaluate(node.FlatValues[i], ct);
             if (value != null)
                 value = Convert.ChangeType(value, node.ElementType);
             array.SetValue(value, indices);

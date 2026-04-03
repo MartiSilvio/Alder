@@ -434,7 +434,7 @@ internal static class MethodInvoker
             childContext.Define(lambda.Parameters[i], args[i]);
 
         var bound = lambda.GetOrBindBody(childContext);
-        var evaluator = new BoundEvaluator(childContext, lambda.Config);
+        var evaluator = new BoundEvaluator(childContext);
         var result = evaluator.Evaluate(bound);
         return result is ControlFlowSignal signal ? signal.Value : result;
     }

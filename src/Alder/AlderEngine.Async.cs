@@ -111,11 +111,10 @@ public sealed partial class AlderEngine
                         b => RunPipeline(b, cancellationToken));
 
                     var boundEvaluator = new BoundEvaluator(
-                        executionContext, _config, constraintState,
-                        sourceText: new SourceText(expression.Source),
-                        cancellationToken: cancellationToken);
+                        executionContext, constraintState,
+                        sourceText: new SourceText(expression.Source));
 
-                    var boundResult = await boundEvaluator.EvaluateAsync(processed);
+                    var boundResult = await boundEvaluator.EvaluateAsync(processed, cancellationToken);
                     expression.RecordBoundExecution();
                     return UnwrapControlFlowSignal(boundResult);
                 }

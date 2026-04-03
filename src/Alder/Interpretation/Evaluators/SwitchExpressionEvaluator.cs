@@ -8,9 +8,9 @@ namespace Alder.Interpretation.Evaluators;
 [EvaluatesNode(BoundNodeKind.SwitchExpression)]
 internal static class SwitchExpressionEvaluator
 {
-    public static object? Evaluate(BoundSwitchExpressionExpr node, EvaluationContext ctx)
+    public static object? Evaluate(BoundSwitchExpressionExpr node, EvaluationContext ctx, CancellationToken ct)
     {
-        var value = ctx.Evaluate(node.Expression);
+        var value = ctx.Evaluate(node.Expression, ct);
 
         foreach (var arm in node.Arms)
         {
@@ -19,17 +19,17 @@ internal static class SwitchExpressionEvaluator
 
             try
             {
-                if (!TypeHelpers.RequireBoolean(ctx.MatchPattern(value, arm.Pattern)))
+                if (!TypeHelpers.RequireBoolean(ctx.MatchPattern(value, arm.Pattern, ct)))
                     continue;
 
                 if (arm.WhenGuard != null)
                 {
-                    var guardResult = ctx.Evaluate(arm.WhenGuard);
+                    var guardResult = ctx.Evaluate(arm.WhenGuard, ct);
                     if (!TypeHelpers.RequireBoolean(guardResult))
                         continue;
                 }
 
-                return ctx.Evaluate(arm.Value);
+                return ctx.Evaluate(arm.Value, ct);
             }
             finally
             {

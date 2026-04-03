@@ -6,8 +6,8 @@ namespace Alder.Interpretation.Evaluators;
 [EvaluatesNode(BoundNodeKind.FromEndIndexExpression)]
 internal static class FromEndIndexEvaluator
 {
-    public static object? Evaluate(BoundIndexFromEndExpr node, EvaluationContext ctx)
+    public static object? Evaluate(BoundIndexFromEndExpr node, EvaluationContext ctx, CancellationToken ct)
     {
-        return new Index(Convert.ToInt32(ctx.Evaluate(node.Operand)), fromEnd: true);
+        return new Index(Convert.ToInt32(ctx.Evaluate(node.Operand, ct)), fromEnd: true);
     }
 }

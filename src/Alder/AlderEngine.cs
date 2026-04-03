@@ -445,8 +445,8 @@ public sealed partial class AlderEngine : IDisposable
                     var processed = _pipelineCache.GetValue(boundExpression,
                         b => RunPipeline(b, cancellationToken));
 
-                    var boundEvaluator = new BoundEvaluator(executionContext, _config, constraintState, sourceText: new Text.SourceText(expression.Source), cancellationToken: cancellationToken);
-                    var boundResult = boundEvaluator.Evaluate(processed);
+                    var boundEvaluator = new BoundEvaluator(executionContext, constraintState, sourceText: new Text.SourceText(expression.Source));
+                    var boundResult = boundEvaluator.Evaluate(processed, cancellationToken);
                     expression.RecordBoundExecution();
                     return UnwrapControlFlowSignal(boundResult);
                 }
