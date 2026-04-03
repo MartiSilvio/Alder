@@ -214,13 +214,32 @@ ext.Evaluate("""new DateTime(2026, 1, 1) + 30.days""");            // date arith
 
 Power operator, pipeline, chained comparisons, collection comprehensions, `let..in`, bare math functions (`sin`, `cos`, `sqrt`), aggregate built-ins (`sum`, `avg`), date/time sugar, SQL-style operators (`in`, `like`, `between`), and more. See [Extended Mode](language/extended.md).
 
+## Async/Await
+
+Alder supports `await` in expressions — call async .NET APIs directly from dynamically evaluated code:
+
+```csharp
+var engine = new AlderEngine();
+
+object? result = await engine.EvaluateAsync("""
+    var data = await Task.FromResult(new[] { 1, 2, 3 });
+    data.Sum()
+    """);
+// 6
+```
+
+`EvaluateAsync` is required for expressions containing `await`. It also works for non-async expressions — making it a safe default for any evaluation path. Expressions with `await` always run on the interpreted backend; non-async expressions use whichever backend is configured (interpreted or compiled).
+
+See [Async/Await](engine/async.md) for the full guide, including limitations and the LINQ expression tree constraint.
+
 ## Further reading
 
 | Topic | Description |
 |-------|-------------|
 | [Engine API](engine/index.md) | AlderEngine, AlderOptions, variables, compilation, functions, modules, diagnostics |
-| [LINQ Dynamic](engine/linq-dynamic.md) | String-based LINQ on any IEnumerable\<T\> or IQueryable\<T\> |
 | [Language Reference](language/index.md) | Every C# construct Alder supports — Standard and Extended modes |
+| [Async/Await](engine/async.md) | Await async .NET APIs from dynamic expressions |
+| [LINQ Dynamic](engine/linq-dynamic.md) | String-based LINQ on any IEnumerable\<T\> or IQueryable\<T\> |
 | [Security](security/index.md) | Sandbox presets, type blocking, execution limits |
 | [Architecture](architecture/index.md) | Compiler pipeline internals — binder, overload resolution, type inference, interpreter, IL compiler |
 | [AOT](aot/index.md) | Source generators, two-tier dispatch, NativeAOT, Unity/IL2CPP |

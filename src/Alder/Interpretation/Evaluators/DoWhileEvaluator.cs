@@ -1,3 +1,4 @@
+using System.Threading.Tasks;
 using Alder.Binding;
 using Alder.Binding.BoundNodes;
 using Alder.Runtime;
@@ -21,18 +22,7 @@ internal static class DoWhileEvaluator
                 ExecutionRuntime.CheckExecutionConstraints(constraintState, constraints, ctx.CancellationToken);
                 ExecutionRuntime.CheckLoopIterationConstraint(constraintState, constraints);
 
-                var previousContext = ctx.Context;
-                ctx.Context = ctx.Context.CreateChild();
-
-                ControlFlowSignal? signal;
-                try
-                {
-                    signal = BlockEvaluator.ExecuteStatementBlock(node.Body, ctx);
-                }
-                finally
-                {
-                    ctx.Context = previousContext;
-                }
+                var signal = ExecuteBodyIteration(node, ctx);
 
                 if (signal != null)
                 {
@@ -48,6 +38,66 @@ internal static class DoWhileEvaluator
         {
             ctx.LoopDepth--;
             ctx.BreakContextDepth--;
+        }
+    }
+
+    public static async ValueTask<object?> EvaluateAsync(BoundDoWhileExpr node, EvaluationContext ctx)
+    {
+        var constraintState = ctx.ConstraintState;
+        var constraints = ctx.Config.Constraints;
+        ctx.BreakContextDepth++;
+        ctx.LoopDepth++;
+        try
+        {
+            do
+            {
+                ExecutionRuntime.CheckExecutionConstraints(constraintState, constraints, ctx.CancellationToken);
+                ExecutionRuntime.CheckLoopIterationConstraint(constraintState, constraints);
+
+                var signal = await ExecuteBodyIterationAsync(node, ctx);
+
+                if (signal != null)
+                {
+                    if (signal.SignalKind == ControlFlowSignal.Kind.Break) break;
+                    if (signal.SignalKind == ControlFlowSignal.Kind.Continue) continue;
+                    return signal;
+                }
+            } while (TypeHelpers.RequireBoolean(await ctx.EvaluateAsync(node.Condition)));
+
+            return null;
+        }
+        finally
+        {
+            ctx.LoopDepth--;
+            ctx.BreakContextDepth--;
+        }
+    }
+
+    private static ControlFlowSignal? ExecuteBodyIteration(BoundDoWhileExpr node, EvaluationContext ctx)
+    {
+        var previousContext = ctx.Context;
+        ctx.Context = ctx.Context.CreateChild();
+        try
+        {
+            return BlockEvaluator.ExecuteStatementBlock(node.Body, ctx);
+        }
+        finally
+        {
+            ctx.Context = previousContext;
+        }
+    }
+
+    private static async ValueTask<ControlFlowSignal?> ExecuteBodyIterationAsync(BoundDoWhileExpr node, EvaluationContext ctx)
+    {
+        var previousContext = ctx.Context;
+        ctx.Context = ctx.Context.CreateChild();
+        try
+        {
+            return await BlockEvaluator.ExecuteStatementBlockAsync(node.Body, ctx);
+        }
+        finally
+        {
+            ctx.Context = previousContext;
         }
     }
 }

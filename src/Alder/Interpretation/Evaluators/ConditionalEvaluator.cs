@@ -1,3 +1,4 @@
+using System.Threading.Tasks;
 using Alder.Binding;
 using Alder.Binding.BoundNodes;
 using Alder.Runtime;
@@ -13,6 +14,23 @@ internal static class ConditionalEvaluator
         var result = TypeHelpers.RequireBoolean(condition)
             ? ctx.Evaluate(node.ThenBranch)
             : ctx.Evaluate(node.ElseBranch);
+
+        var resultType = node.StaticType.ClrType;
+        if (result != null && resultType != typeof(object)
+            && result.GetType() != resultType && TypeHelpers.IsArithmetic(resultType))
+        {
+            return NumericDispatch.PromoteToType(result, resultType);
+        }
+
+        return result;
+    }
+
+    public static async ValueTask<object?> EvaluateAsync(BoundConditionalExpr node, EvaluationContext ctx)
+    {
+        var condition = await ctx.EvaluateAsync(node.Condition);
+        var result = TypeHelpers.RequireBoolean(condition)
+            ? await ctx.EvaluateAsync(node.ThenBranch)
+            : await ctx.EvaluateAsync(node.ElseBranch);
 
         var resultType = node.StaticType.ClrType;
         if (result != null && resultType != typeof(object)

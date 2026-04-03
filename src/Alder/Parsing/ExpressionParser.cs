@@ -297,6 +297,9 @@ internal sealed partial class ExpressionParser : ParserBase
                 return new ThrowExpr(ParseSubExpression(Precedence.Assignment)) { Span = SpanFrom(mark) };
         }
 
+        if (Match(TokenType.Await))
+            return new AwaitExpr(ParseSubExpression(Precedence.Unary)) { Span = SpanFrom(mark) };
+
         if (Check(TokenType.If))
         {
             if (!extended)

@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Threading.Tasks;
 using Alder.Binding;
 using Alder.Binding.BoundNodes;
 using Alder.Diagnostics;
@@ -46,12 +47,7 @@ internal static class ResolvedCallEvaluator
                     extensionArgs[0] = CoerceExtensionReceiver(extensionArgs[0]!);
             }
 
-            var resolved = call.Resolution;
-            var parameters = MethodDispatchCache.GetParameters(resolved.Method);
-            var prepared = ArgumentPreparer.Prepare(resolved, extensionArgs, parameters, ctx.CancellationToken);
-            var extensionResult = MethodInvoker.InvokeMethodCore(resolved.Method, null, prepared);
-            ExecutionRuntime.CheckCollectionSize(extensionResult, ctx.Config.Security);
-            return extensionResult;
+            return InvokeResolvedExtension(call.Resolution, extensionArgs, ctx);
         }
 
         if (call.Callee is BoundMethodGroupExpr methodGroup)
@@ -61,14 +57,7 @@ internal static class ResolvedCallEvaluator
                 return null;
 
             var plannedArgs = EvaluateArguments(call.Arguments, ctx);
-
-            var resolved = call.Resolution;
-            var parameters = MethodDispatchCache.GetParameters(resolved.Method);
-            var prepared = ArgumentPreparer.Prepare(resolved, plannedArgs, parameters, ctx.CancellationToken);
-            var plannedResult = MethodInvoker.InvokeMethodCore(resolved.Method, target, prepared);
-            ArgumentPreparer.CopyBackOutArgs(plannedArgs, prepared, parameters);
-            ExecutionRuntime.CheckCollectionSize(plannedResult, ctx.Config.Security);
-            return plannedResult;
+            return InvokeResolved(call.Resolution, target, plannedArgs, ctx);
         }
 
         var (args, outBindings) = EvaluateArgumentsWithOutBindings(call.Arguments, ctx);
@@ -187,4 +176,129 @@ internal static class ResolvedCallEvaluator
 
     private static object CoerceExtensionReceiver(object receiver) =>
         receiver is Range or InclusiveRange ? RangeHelpers.EnsureEnumerable(receiver) : receiver;
+
+    private static object? InvokeResolved(ResolvedCall resolved, object? target, object?[] args, EvaluationContext ctx)
+    {
+        var parameters = MethodDispatchCache.GetParameters(resolved.Method);
+        var prepared = ArgumentPreparer.Prepare(resolved, args, parameters, ctx.CancellationToken);
+        var result = MethodInvoker.InvokeMethodCore(resolved.Method, target, prepared);
+        ArgumentPreparer.CopyBackOutArgs(args, prepared, parameters);
+        ExecutionRuntime.CheckCollectionSize(result, ctx.Config.Security);
+        return result;
+    }
+
+    private static object? InvokeResolvedExtension(ResolvedCall resolved, object?[] args, EvaluationContext ctx)
+    {
+        var parameters = MethodDispatchCache.GetParameters(resolved.Method);
+        var prepared = ArgumentPreparer.Prepare(resolved, args, parameters, ctx.CancellationToken);
+        var result = MethodInvoker.InvokeMethodCore(resolved.Method, null, prepared);
+        ExecutionRuntime.CheckCollectionSize(result, ctx.Config.Security);
+        return result;
+    }
+
+    public static async ValueTask<object?> EvaluateAsync(BoundResolvedCallExpr node, EvaluationContext ctx)
+    {
+        var chain = PostfixChain.TryCollect(node);
+        if (chain != null)
+            return await EvaluatePostfixChainAsync(chain.Value, ctx);
+
+        return await EvaluateResolvedCallDirectAsync(node, null, ctx);
+    }
+
+    internal static async ValueTask<object?> EvaluateResolvedCallDirectAsync(BoundResolvedCallExpr call, object? evaluatedTarget, EvaluationContext ctx)
+    {
+        if (call is { IsExtensionCall: true, Callee: BoundMethodGroupExpr extMethodGroup })
+        {
+            if (extMethodGroup.NullSafe)
+            {
+                var nullCheckTarget = evaluatedTarget ?? await ctx.EvaluateAsync(call.Arguments[0]);
+                if (nullCheckTarget == null) return null;
+            }
+
+            object?[] extensionArgs;
+            if (evaluatedTarget != null)
+            {
+                extensionArgs = new object?[call.Arguments.Length];
+                extensionArgs[0] = CoerceExtensionReceiver(evaluatedTarget);
+                for (var i = 1; i < call.Arguments.Length; i++)
+                    extensionArgs[i] = await ctx.EvaluateAsync(call.Arguments[i]);
+            }
+            else
+            {
+                extensionArgs = await EvaluateArgumentsAsync(call.Arguments, ctx);
+                if (extensionArgs.Length > 0 && extensionArgs[0] != null)
+                    extensionArgs[0] = CoerceExtensionReceiver(extensionArgs[0]!);
+            }
+
+            return InvokeResolvedExtension(call.Resolution, extensionArgs, ctx);
+        }
+
+        if (call.Callee is BoundMethodGroupExpr methodGroup)
+        {
+            var target = evaluatedTarget ?? (methodGroup.IsStatic ? null : await ctx.EvaluateAsync(methodGroup.Target));
+            if (methodGroup.NullSafe && target == null)
+                return null;
+
+            var plannedArgs = await EvaluateArgumentsAsync(call.Arguments, ctx);
+            return InvokeResolved(call.Resolution, target, plannedArgs, ctx);
+        }
+
+        var (args, outBindings) = await EvaluateArgumentsWithOutBindingsAsync(call.Arguments, ctx);
+        var callee = await ctx.EvaluateAsync(call.Callee);
+        var invokeResult = MethodInvoker.InvokeCall(callee, args, ctx.Context, ctx.Config, ct: ctx.CancellationToken);
+        DefineOutVariablesIfAny(args, outBindings, ctx);
+        ExecutionRuntime.CheckCollectionSize(invokeResult, ctx.Config.Security);
+        return invokeResult;
+    }
+
+    internal static async ValueTask<object?> EvaluatePostfixChainAsync(PostfixChain.Chain chain, EvaluationContext ctx)
+    {
+        var result = await ctx.EvaluateAsync(chain.Root);
+
+        for (var i = chain.Segments.Count - 1; i >= 0; i--)
+        {
+            var seg = chain.Segments[i];
+
+            if (seg.CallOrInvoke is BoundResolvedCallExpr call)
+                result = await EvaluateResolvedCallDirectAsync(call, result, ctx);
+            else if (seg.CallOrInvoke is BoundDynamicCallExpr invoke)
+                result = await DynamicCallEvaluator.EvaluateDynamicCallDirectAsync(invoke, result, ctx);
+            else
+            {
+                var ma = seg.MemberAccess;
+                if (ma.NullSafe && result == null) return null;
+                result = ResolveMemberAccessWithTarget(ma, result, ctx);
+            }
+        }
+
+        return result;
+    }
+
+    internal static async ValueTask<object?[]> EvaluateArgumentsAsync(ImmutableArray<BoundExpr> arguments, EvaluationContext ctx)
+    {
+        var values = new object?[arguments.Length];
+        for (var i = 0; i < arguments.Length; i++)
+            values[i] = await ctx.EvaluateAsync(arguments[i]);
+        return values;
+    }
+
+    internal static async ValueTask<(object?[] Values, OutVariableBinding[] OutBindings)> EvaluateArgumentsWithOutBindingsAsync(
+        ImmutableArray<BoundExpr> arguments, EvaluationContext ctx)
+    {
+        var values = new object?[arguments.Length];
+        List<OutVariableBinding>? bindings = null;
+
+        for (var i = 0; i < arguments.Length; i++)
+        {
+            var argument = arguments[i];
+            values[i] = await ctx.EvaluateAsync(argument);
+            if (argument is BoundOutArgExpr { IsDiscard: false } outArg)
+            {
+                bindings ??= [];
+                bindings.Add(new OutVariableBinding(i, outArg.VariableName, outArg.TypeName));
+            }
+        }
+
+        return (values, bindings?.ToArray() ?? []);
+    }
 }

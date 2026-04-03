@@ -287,6 +287,16 @@ public static class DiagnosticDescriptors
 
     #endregion
 
+    #region Async (ALDR06xx)
+
+    public static readonly DiagnosticDescriptor AwaitRequiresAsync =
+        new(DiagnosticCode.CS4033, "The 'await' operator can only be used within an async context. Use EvaluateAsync() instead of Evaluate().");
+
+    public static readonly DiagnosticDescriptor NotAwaitable =
+        new(DiagnosticCode.ALDR0600, "Type '{0}' is not awaitable");
+
+    #endregion
+
     #region AOT (ALDR05xx)
 
     public static readonly DiagnosticDescriptor TypeNotRegistered =

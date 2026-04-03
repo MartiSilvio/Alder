@@ -1,3 +1,4 @@
+using System.Threading.Tasks;
 using Alder.Binding;
 using Alder.Binding.BoundNodes;
 using Alder.Runtime.Semantics;
@@ -12,6 +13,18 @@ internal static class AssignEvaluator
         var value = ctx.Evaluate(node.Value);
 
         // ECMA-334 §9.2.9.1: discard — evaluate RHS, discard result
+        if (node.Name == Parsing.TokenLexemes.DiscardIdentifier && !ctx.Context.TryGet(Parsing.TokenLexemes.DiscardIdentifier, out _))
+            return value;
+
+        value = AssignmentRuntime.ValidateVariableAssignment(node.Name, value, ctx.Context);
+        ctx.Context.Set(node.Name, value);
+        return value;
+    }
+
+    public static async ValueTask<object?> EvaluateAsync(BoundAssignExpr node, EvaluationContext ctx)
+    {
+        var value = await ctx.EvaluateAsync(node.Value);
+
         if (node.Name == Parsing.TokenLexemes.DiscardIdentifier && !ctx.Context.TryGet(Parsing.TokenLexemes.DiscardIdentifier, out _))
             return value;
 

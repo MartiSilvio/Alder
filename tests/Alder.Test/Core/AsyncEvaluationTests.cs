@@ -1,0 +1,176 @@
+using System.Threading.Tasks;
+
+namespace Alder.Test.Core;
+
+[TestFixture]
+public class AsyncEvaluationTests
+{
+    private AlderEngine _engine = null!;
+
+    [SetUp]
+    public void Setup() => _engine = new AlderEngine();
+
+    [TearDown]
+    public void TearDown() => _engine.Dispose();
+
+    [Test]
+    public async Task Await_TaskFromResult_ReturnsValue()
+    {
+        var result = await _engine.EvaluateAsync("await Task.FromResult(42)");
+        Assert.That(result, Is.EqualTo(42));
+    }
+
+    [Test]
+    public async Task Await_TaskFromResult_String()
+    {
+        var result = await _engine.EvaluateAsync("""await Task.FromResult("hello")""");
+        Assert.That(result, Is.EqualTo("hello"));
+    }
+
+    [Test]
+    public async Task Await_TaskFromResult_Null()
+    {
+        var result = await _engine.EvaluateAsync("await Task.FromResult<string?>(null)");
+        Assert.That(result, Is.Null);
+    }
+
+    [Test]
+    public async Task Await_TaskDelay_ReturnsNull()
+    {
+        var result = await _engine.EvaluateAsync("await Task.Delay(1)");
+        Assert.That(result, Is.Null);
+    }
+
+    [Test]
+    public async Task Await_InBlock_WithVariable()
+    {
+        var result = await _engine.EvaluateAsync(
+            "var x = await Task.FromResult(5); x * 2");
+        Assert.That(result, Is.EqualTo(10));
+    }
+
+    [Test]
+    public async Task Await_InConditional()
+    {
+        var result = await _engine.EvaluateAsync(
+            "true ? await Task.FromResult(1) : await Task.FromResult(2)");
+        Assert.That(result, Is.EqualTo(1));
+    }
+
+    [Test]
+    public async Task Await_InIfStatement()
+    {
+        var result = await _engine.EvaluateAsync("""
+            var x = await Task.FromResult(true);
+            if (x) { return await Task.FromResult(42); }
+            return 0;
+        """);
+        Assert.That(result, Is.EqualTo(42));
+    }
+
+    [Test]
+    public async Task Await_InWhileLoop()
+    {
+        var result = await _engine.EvaluateAsync("""
+            var sum = 0;
+            var i = 0;
+            while (i < 3)
+            {
+                sum += await Task.FromResult(1);
+                i++;
+            }
+            sum
+        """);
+        Assert.That(result, Is.EqualTo(3));
+    }
+
+    [Test]
+    public async Task Await_InForEachLoop()
+    {
+        var result = await _engine.EvaluateAsync("""
+            var items = new[] { 1, 2, 3 };
+            var sum = 0;
+            foreach (var item in items)
+            {
+                sum += await Task.FromResult(item);
+            }
+            sum
+        """);
+        Assert.That(result, Is.EqualTo(6));
+    }
+
+    [Test]
+    public async Task Await_NullCoalescing()
+    {
+        var result = await _engine.EvaluateAsync("""
+            var left = await Task.FromResult<string?>(null);
+            left ?? "fallback"
+        """);
+        Assert.That(result, Is.EqualTo("fallback"));
+    }
+
+    [Test]
+    public async Task Await_Generic_Typed()
+    {
+        var result = await _engine.EvaluateAsync<int>("await Task.FromResult(42)");
+        Assert.That(result, Is.EqualTo(42));
+    }
+
+    [Test]
+    public async Task Await_WithVariables()
+    {
+        var task = Task.FromResult(99);
+        var result = await _engine.EvaluateAsync(
+            "await t",
+            new Dictionary<string, object?> { ["t"] = task });
+        Assert.That(result, Is.EqualTo(99));
+    }
+
+    [Test]
+    public async Task EvaluateAsync_NonAsync_Expression_Works()
+    {
+        var result = await _engine.EvaluateAsync("1 + 2");
+        Assert.That(result, Is.EqualTo(3));
+    }
+
+    [Test]
+    public async Task EvaluateAsync_NonAsync_StringExpression_Works()
+    {
+        var result = await _engine.EvaluateAsync("\"hello\".ToUpper()");
+        Assert.That(result, Is.EqualTo("HELLO"));
+    }
+
+    [Test]
+    public void Evaluate_Sync_WithAwait_Throws()
+    {
+        Assert.Throws<AlderException>(() =>
+            _engine.Evaluate("await Task.FromResult(1)"));
+    }
+
+    [Test]
+    public async Task Await_NotAwaitable_Throws()
+    {
+        var ex = Assert.ThrowsAsync<AlderException>(async () =>
+            await _engine.EvaluateAsync("await 42"));
+        Assert.That(ex!.ErrorCode?.ToString(), Does.Contain("ALDR0600"));
+    }
+
+    [Test]
+    public async Task Await_ValueTask_FromResult()
+    {
+        var vt = ValueTask.FromResult(77);
+        var result = await _engine.EvaluateAsync(
+            "await vt",
+            new Dictionary<string, object?> { ["vt"] = vt });
+        Assert.That(result, Is.EqualTo(77));
+    }
+
+    [Test]
+    public async Task AlderEval_EvaluateAsync()
+    {
+        AlderEval.Reset();
+        var result = await AlderEval.EvaluateAsync("await Task.FromResult(100)");
+        Assert.That(result, Is.EqualTo(100));
+        AlderEval.Reset();
+    }
+}

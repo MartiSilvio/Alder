@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Runtime.ExceptionServices;
+using System.Text;
 using Alder.Diagnostics;
 using Alder.Parsing;
 
@@ -614,7 +615,7 @@ internal static class Operators
         }
     }
 
-    public static object? StringMultiply(object? left, object? right)
+    private static string? StringMultiply(object? left, object? right)
     {
         string? str;
         object? countObj;
@@ -637,28 +638,23 @@ internal static class Operators
                 TypeNameFormatter.Of(left), TypeNameFormatter.Of(right));
         }
 
-        if (countObj == null)
+        if (countObj == null || !TypeHelpers.IsInteger(countObj))
             throw new AlderException(
                 DiagnosticDescriptors.BadBinaryOps,
                 TokenLexemes.GetCanonical(TokenType.Star),
                 TypeNameFormatter.Of(left), TypeNameFormatter.Of(right));
 
-        if (!TypeHelpers.IsInteger(countObj))
-            throw new AlderException(
+        var count = Convert.ToInt32(countObj);
+        return count switch
+        {
+            < 0 => throw new AlderException(
                 DiagnosticDescriptors.BadBinaryOps,
                 TokenLexemes.GetCanonical(TokenType.Star),
-                TypeNameFormatter.Of(left), TypeNameFormatter.Of(right));
-
-        int count = Convert.ToInt32(countObj);
-        if (count < 0)
-            throw new AlderException(
-                DiagnosticDescriptors.BadBinaryOps,
-                TokenLexemes.GetCanonical(TokenType.Star),
-                TypeNameFormatter.Of(left), TypeNameFormatter.Of(right));
-        if (count == 0)
-            return "";
-
-        return string.Concat(Enumerable.Repeat(str, count));
+                TypeNameFormatter.Of(left), TypeNameFormatter.Of(right)),
+            0 => string.Empty,
+            1 => str,
+            _ => new StringBuilder(str.Length * count).Insert(0, str, count).ToString()
+        };
     }
 
     public static bool Like(object? left, object? right, StringComparison comparison)

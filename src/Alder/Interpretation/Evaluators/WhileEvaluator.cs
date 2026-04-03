@@ -1,3 +1,4 @@
+using System.Threading.Tasks;
 using Alder.Binding;
 using Alder.Binding.BoundNodes;
 using Alder.Runtime;
@@ -28,6 +29,49 @@ internal static class WhileEvaluator
                 try
                 {
                     signal = BlockEvaluator.ExecuteStatementBlock(node.Body, ctx);
+                }
+                finally
+                {
+                    ctx.Context = previousContext;
+                }
+
+                if (signal != null)
+                {
+                    if (signal.SignalKind == ControlFlowSignal.Kind.Break) break;
+                    if (signal.SignalKind == ControlFlowSignal.Kind.Continue) continue;
+                    return signal;
+                }
+            }
+
+            return null;
+        }
+        finally
+        {
+            ctx.LoopDepth--;
+            ctx.BreakContextDepth--;
+        }
+    }
+
+    public static async ValueTask<object?> EvaluateAsync(BoundWhileExpr node, EvaluationContext ctx)
+    {
+        var constraintState = ctx.ConstraintState;
+        var constraints = ctx.Config.Constraints;
+        ctx.BreakContextDepth++;
+        ctx.LoopDepth++;
+        try
+        {
+            while (TypeHelpers.RequireBoolean(await ctx.EvaluateAsync(node.Condition)))
+            {
+                ExecutionRuntime.CheckExecutionConstraints(constraintState, constraints, ctx.CancellationToken);
+                ExecutionRuntime.CheckLoopIterationConstraint(constraintState, constraints);
+
+                var previousContext = ctx.Context;
+                ctx.Context = ctx.Context.CreateChild();
+
+                ControlFlowSignal? signal;
+                try
+                {
+                    signal = await BlockEvaluator.ExecuteStatementBlockAsync(node.Body, ctx);
                 }
                 finally
                 {

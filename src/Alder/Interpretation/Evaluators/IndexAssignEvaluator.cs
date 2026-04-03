@@ -12,6 +12,6 @@ internal static class IndexAssignEvaluator
         var target = ctx.Evaluate(node.Target);
         var index = ctx.Evaluate(node.Index);
         var value = ctx.Evaluate(node.Value);
-        return AssignmentRuntime.ApplyIndexAssign(target, index, value, ctx.Config, ctx.Context);
+        return AssignmentRuntime.ApplyIndexAssign(target, index, value, ctx);
     }
 }

@@ -141,8 +141,8 @@ public sealed class AlderExpression
         }
         catch (BindingNotSupportedException ex)
         {
-            _bindingUnavailable = true;
             _bindingUnavailableReason = ex.Message;
+            _bindingUnavailable = true;
             bound = null;
             failureReason = ex.Message;
             return false;

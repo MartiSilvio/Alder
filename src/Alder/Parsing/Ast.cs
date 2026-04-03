@@ -109,6 +109,9 @@ internal interface IExprVisitor<out T>
     // Throw expression
     T VisitThrow(ThrowExpr expr);
 
+    // Await expression
+    T VisitAwait(AwaitExpr expr);
+
     // Tuple expression
     T VisitTuple(TupleExpr expr);
 
@@ -633,6 +636,17 @@ internal sealed record MultiDimIndexAssignExpr(Expr Object, List<Expr> Indices, 
 internal sealed record ThrowExpr(Expr Expression) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitThrow(this);
+}
+
+#endregion
+
+#region Await Expression
+
+// Await expression: await expr
+// ECMA-334 §12.9.8 — Await expressions
+internal sealed record AwaitExpr(Expr Operand) : Expr
+{
+    public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitAwait(this);
 }
 
 #endregion

@@ -1,6 +1,7 @@
 using System.Dynamic;
 using System.Collections.Concurrent;
 using Alder.Interpretation;
+using Alder.Parsing;
 using Alder.Runtime;
 using Alder.Runtime.Extensions;
 using Alder.Runtime.Semantics;
@@ -134,28 +135,36 @@ internal static class BoundRuntimeMethodCache
         typeof(ExecutionRuntime).GetMethod(nameof(ExecutionRuntime.CheckNullCoalesceAssignAllowed))!;
 
     internal static readonly MethodInfo ApplyCompoundAssignMethod =
-        typeof(AssignmentRuntime).GetMethod(nameof(AssignmentRuntime.ApplyCompoundAssign))!;
+        typeof(AssignmentRuntime).GetMethod(nameof(AssignmentRuntime.ApplyCompoundAssign),
+            [typeof(string), typeof(TokenType), typeof(object), typeof(AlderContext), typeof(AlderConfig), typeof(bool)])!;
 
     internal static readonly MethodInfo ApplyIncrementDecrementMethod =
-        typeof(AssignmentRuntime).GetMethod(nameof(AssignmentRuntime.ApplyIncrementDecrement))!;
+        typeof(AssignmentRuntime).GetMethod(nameof(AssignmentRuntime.ApplyIncrementDecrement),
+            [typeof(string), typeof(bool), typeof(bool), typeof(AlderContext), typeof(AlderConfig), typeof(bool)])!;
 
     internal static readonly MethodInfo ApplyMemberAssignMethod =
-        typeof(AssignmentRuntime).GetMethod(nameof(AssignmentRuntime.ApplyMemberAssign))!;
+        typeof(AssignmentRuntime).GetMethod(nameof(AssignmentRuntime.ApplyMemberAssign),
+            [typeof(object), typeof(string), typeof(object), typeof(AlderConfig), typeof(AlderContext)])!;
 
     internal static readonly MethodInfo ApplyIndexAssignMethod =
-        typeof(AssignmentRuntime).GetMethod(nameof(AssignmentRuntime.ApplyIndexAssign))!;
+        typeof(AssignmentRuntime).GetMethod(nameof(AssignmentRuntime.ApplyIndexAssign),
+            [typeof(object), typeof(object), typeof(object), typeof(AlderConfig), typeof(AlderContext)])!;
 
     internal static readonly MethodInfo ApplyMemberCompoundAssignMethod =
-        typeof(AssignmentRuntime).GetMethod(nameof(AssignmentRuntime.ApplyMemberCompoundAssign))!;
+        typeof(AssignmentRuntime).GetMethod(nameof(AssignmentRuntime.ApplyMemberCompoundAssign),
+            [typeof(object), typeof(string), typeof(TokenType), typeof(object), typeof(AlderConfig), typeof(AlderContext), typeof(bool)])!;
 
     internal static readonly MethodInfo ApplyIndexCompoundAssignMethod =
-        typeof(AssignmentRuntime).GetMethod(nameof(AssignmentRuntime.ApplyIndexCompoundAssign))!;
+        typeof(AssignmentRuntime).GetMethod(nameof(AssignmentRuntime.ApplyIndexCompoundAssign),
+            [typeof(object), typeof(object), typeof(TokenType), typeof(object), typeof(AlderConfig), typeof(AlderContext), typeof(bool)])!;
 
     internal static readonly MethodInfo ApplyMemberIncrementMethod =
-        typeof(AssignmentRuntime).GetMethod(nameof(AssignmentRuntime.ApplyMemberIncrement))!;
+        typeof(AssignmentRuntime).GetMethod(nameof(AssignmentRuntime.ApplyMemberIncrement),
+            [typeof(object), typeof(string), typeof(bool), typeof(bool), typeof(AlderConfig), typeof(AlderContext), typeof(bool)])!;
 
     internal static readonly MethodInfo ApplyIndexIncrementMethod =
-        typeof(AssignmentRuntime).GetMethod(nameof(AssignmentRuntime.ApplyIndexIncrement))!;
+        typeof(AssignmentRuntime).GetMethod(nameof(AssignmentRuntime.ApplyIndexIncrement),
+            [typeof(object), typeof(object), typeof(bool), typeof(bool), typeof(AlderConfig), typeof(AlderContext), typeof(bool)])!;
 
     internal static readonly MethodInfo CreateLambdaValueMethod =
         typeof(IdentifierRuntime).GetMethod(nameof(IdentifierRuntime.CreateLambdaValue))!;

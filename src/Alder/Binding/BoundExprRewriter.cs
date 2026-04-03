@@ -745,6 +745,13 @@ internal abstract class BoundExprRewriter : BoundExprVisitor<BoundExpr>, IBoundT
         _ => throw new InvalidOperationException($"Unexpected member access type '{ma.GetType().Name}'")
     };
 
+    protected override BoundExpr VisitAwait(BoundAwaitExpr node)
+    {
+        var operand = Visit(node.Operand);
+        if (ReferenceEquals(operand, node.Operand)) return node;
+        return CopyMetadata(node, node with { Operand = operand });
+    }
+
     private ImmutableArray<BoundExpr> RewriteImmutableArray(ImmutableArray<BoundExpr> items, out bool changed)
     {
         changed = false;

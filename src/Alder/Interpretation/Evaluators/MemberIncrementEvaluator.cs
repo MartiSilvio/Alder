@@ -11,12 +11,6 @@ internal static class MemberIncrementEvaluator
     {
         var target = ctx.Evaluate(node.Target);
         return AssignmentRuntime.ApplyMemberIncrement(
-            target,
-            node.MemberName,
-            node.IsIncrement,
-            node.IsPrefix,
-            ctx.Config,
-            ctx.Context,
-            ctx.IsChecked);
+            target, node.MemberName, node.IsIncrement, node.IsPrefix, ctx);
     }
 }

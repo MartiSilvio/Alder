@@ -90,8 +90,6 @@ internal static class TypeHelpers
             otherOperandTypeName);
     }
 
-
-
     // §12.13.5 + §12.14.2: Three-value logic for bool? && and bool? ||
     public static object? NullableBoolAnd(object? left, object? right)
     {
@@ -424,7 +422,6 @@ internal static class TypeHelpers
         return best;
     }
 
-
     /// <summary>
     /// Converts a numeric value to a target type, handling char specially.
     /// System.Convert.ChangeType does not support char -> float/double/decimal directly,
@@ -746,8 +743,6 @@ internal static class TypeHelpers
         return CanImplicitlyConvert(sourceType, targetType) ||
                CanImplicitlyConvert(sourceUnderlying, targetUnderlying);
     }
-
-
 
     /// <summary>
     /// Returns the ECMA-334 binary numeric promotion type for arithmetic operands,

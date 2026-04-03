@@ -581,6 +581,14 @@ internal abstract class AstWalker<T> : IExprVisitor<T>
         return OnLeave(expr);
     }
 
+    // Await Expression
+    public virtual T VisitAwait(AwaitExpr expr)
+    {
+        OnEnter(expr);
+        Visit(expr.Operand);
+        return OnLeave(expr);
+    }
+
     // Object Creation Expression
     public virtual T VisitObjectCreation(ObjectCreationExpr expr)
     {

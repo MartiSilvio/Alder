@@ -250,6 +250,7 @@ var result = engine.Evaluate<string>("""
 | [LINQ Dynamic](linq-dynamic.md) | String-based LINQ on any IEnumerable\<T\> or IQueryable\<T\> — filter, project, order, group, aggregate |
 | [Functions and Modules](functions-and-modules.md) | Delegate functions, class-backed modules, attributes, assembly scanning, DI integration |
 | [Type Registration](type-registration.md) | Assemblies, namespaces, extension methods, type resolution order |
+| [Async/Await](async.md) | EvaluateAsync, await in expressions, supported awaitable types |
 | [Diagnostics](diagnostics.md) | AlderDiagnostic, AlderException, every CS and ALDR error code |
 
 

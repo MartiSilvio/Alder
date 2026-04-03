@@ -27,6 +27,7 @@ public class ApiSurfaceTests
             "CreateChild",
             "Dispose",
             "Evaluate",
+            "EvaluateAsync",
             "EvaluateWithTrace",
             "GetRegisteredModules",
             "Parse",
@@ -82,14 +83,14 @@ public class ApiSurfaceTests
     }
 
     [Test]
-    public void EvaluateAsync_DoesNotExist()
+    public void EvaluateAsync_Exists()
     {
         var asyncMethods = typeof(AlderEngine)
             .GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
             .Where(m => m.Name == "EvaluateAsync")
             .ToList();
 
-        Assert.That(asyncMethods, Is.Empty);
+        Assert.That(asyncMethods, Has.Count.GreaterThanOrEqualTo(4));
     }
 
     [Test]

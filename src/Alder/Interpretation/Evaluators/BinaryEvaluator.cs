@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 using Alder.Binding;
 using Alder.Binding.BoundNodes;
 using Alder.Parsing;
@@ -165,4 +166,84 @@ internal static class BinaryEvaluator
     };
 
     private static bool IsNaN(object value) => value is double and Double.NaN || value is float and Single.NaN;
+
+    public static async ValueTask<object?> EvaluateAsync(BoundBinaryExpr node, EvaluationContext ctx)
+    {
+        if (node.Left is not BoundBinaryExpr)
+            return EvaluateBinarySingle(node, await ctx.EvaluateAsync(node.Left), ctx);
+
+        var chain = new List<BoundBinaryExpr>();
+        BoundExpr leftmost = node;
+        while (leftmost is BoundBinaryExpr b)
+        {
+            chain.Add(b);
+            leftmost = b.Left;
+        }
+
+        for (var i = chain.Count - 1; i > 0; i--)
+            ctx.Tracer?.Push(chain[i]);
+
+        var result = await ctx.EvaluateAsync(leftmost);
+        for (var i = chain.Count - 1; i >= 0; i--)
+        {
+            result = await EvaluateBinarySingleAsync(chain[i], result, ctx);
+            if (i > 0)
+                ctx.Tracer?.Pop(result);
+        }
+        return result;
+    }
+
+    private static async ValueTask<object?> EvaluateBinarySingleAsync(BoundBinaryExpr binary, object? left, EvaluationContext ctx)
+    {
+        var right = await ctx.EvaluateAsync(binary.Right);
+
+        if (binary.PromotedType is { } promoted && left != null && right != null
+            && left.GetType() == binary.Left.StaticType.ClrType
+            && right.GetType() == binary.Right.StaticType.ClrType)
+        {
+            if (promoted == typeof(int) && left is int li && right is int ri)
+                return EvaluateInt32Fast(binary.Operator, li, ri, ctx.IsChecked);
+
+            if (promoted == typeof(double) && left is double ld && right is double rd)
+                return EvaluateDoubleFast(binary.Operator, ld, rd);
+
+            if (IsNaN(left) || IsNaN(right))
+                return binary.Operator == TokenType.BangEqual ? BoxedConstants.True : BoxedConstants.False;
+
+            return binary.Operator switch
+            {
+                TokenType.Plus => NumericDispatch.Add(left, right, promoted, ctx.IsChecked),
+                TokenType.Minus => NumericDispatch.Subtract(left, right, promoted, ctx.IsChecked),
+                TokenType.Star => NumericDispatch.Multiply(left, right, promoted, ctx.IsChecked),
+                TokenType.Slash => NumericDispatch.Divide(left, right, promoted),
+                TokenType.Percent => NumericDispatch.Modulo(left, right, promoted),
+                TokenType.EqualEqual => NumericDispatch.Compare(left, right, promoted) == 0
+                    ? BoxedConstants.True : BoxedConstants.False,
+                TokenType.BangEqual => NumericDispatch.Compare(left, right, promoted) != 0
+                    ? BoxedConstants.True : BoxedConstants.False,
+                TokenType.Less => NumericDispatch.Compare(left, right, promoted) < 0
+                    ? BoxedConstants.True : BoxedConstants.False,
+                TokenType.LessEqual => NumericDispatch.Compare(left, right, promoted) <= 0
+                    ? BoxedConstants.True : BoxedConstants.False,
+                TokenType.Greater => NumericDispatch.Compare(left, right, promoted) > 0
+                    ? BoxedConstants.True : BoxedConstants.False,
+                TokenType.GreaterEqual => NumericDispatch.Compare(left, right, promoted) >= 0
+                    ? BoxedConstants.True : BoxedConstants.False,
+                TokenType.Amp => NumericDispatch.BitwiseAnd(left, right, promoted),
+                TokenType.Pipe => NumericDispatch.BitwiseOr(left, right, promoted),
+                TokenType.Caret => NumericDispatch.BitwiseXor(left, right, promoted),
+                TokenType.LessLess => NumericDispatch.LeftShift(left, right),
+                TokenType.GreaterGreater => NumericDispatch.RightShift(left, right),
+                _ => EvaluateBinaryFallback(binary, left, right, ctx)
+            };
+        }
+
+        (left, right) = NumericPromotionRuntime.ApplyConstantNumericPromotion(
+            left,
+            binary.Left.Kind == BoundNodeKind.Literal,
+            right,
+            binary.Right.Kind == BoundNodeKind.Literal);
+
+        return EvaluateBinaryFallback(binary, left, right, ctx);
+    }
 }

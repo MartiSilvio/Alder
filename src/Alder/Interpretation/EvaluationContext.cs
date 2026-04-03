@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 using Alder.Binding;
 using Alder.Parsing;
 using Alder.Runtime;
@@ -71,6 +72,43 @@ internal sealed partial class EvaluationContext
         try
         {
             result = Dispatch(expr);
+        }
+        catch (Exception ex)
+        {
+            Tracer.PopError(ex);
+            throw;
+        }
+
+        Tracer.Pop(result);
+        LastEvaluatedExpr = saved;
+        return result;
+    }
+
+    public async ValueTask<object?> EvaluateAsync(BoundExpr expr)
+    {
+        if (Tracer != null)
+            return await EvaluateTracedAsync(expr);
+
+        var saved = LastEvaluatedExpr;
+        if (!expr.Span.IsEmpty)
+            LastEvaluatedExpr = expr;
+
+        var result = await DispatchAsync(expr);
+        LastEvaluatedExpr = saved;
+        return result;
+    }
+
+    private async ValueTask<object?> EvaluateTracedAsync(BoundExpr expr)
+    {
+        var saved = LastEvaluatedExpr;
+        if (!expr.Span.IsEmpty)
+            LastEvaluatedExpr = expr;
+
+        Tracer!.Push(expr);
+        object? result;
+        try
+        {
+            result = await DispatchAsync(expr);
         }
         catch (Exception ex)
         {

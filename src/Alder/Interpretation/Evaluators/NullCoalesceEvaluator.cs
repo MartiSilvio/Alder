@@ -1,3 +1,4 @@
+using System.Threading.Tasks;
 using Alder.Binding;
 using Alder.Binding.BoundNodes;
 
@@ -10,5 +11,11 @@ internal static class NullCoalesceEvaluator
     {
         var left = ctx.Evaluate(node.Left);
         return left ?? ctx.Evaluate(node.Right);
+    }
+
+    public static async ValueTask<object?> EvaluateAsync(BoundNullCoalesceExpr node, EvaluationContext ctx)
+    {
+        var left = await ctx.EvaluateAsync(node.Left);
+        return left ?? await ctx.EvaluateAsync(node.Right);
     }
 }

@@ -26,6 +26,6 @@ internal static class MemberAssignEvaluator
             return value;
         }
 
-        return AssignmentRuntime.ApplyMemberAssign(target, node.MemberName, value, ctx.Config, ctx.Context);
+        return AssignmentRuntime.ApplyMemberAssign(target, node.MemberName, value, ctx);
     }
 }

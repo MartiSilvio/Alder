@@ -143,4 +143,7 @@ internal enum BoundNodeKind
     // Alder-specific — control flow extensions
     GotoCaseStatement = 1_070,
     GotoDefaultStatement = 1_071,
+
+    // Alder-specific — async
+    AwaitExpression = 1_080,
 }

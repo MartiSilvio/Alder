@@ -1,3 +1,4 @@
+using System.Threading.Tasks;
 using Alder.Binding;
 using Alder.Binding.BoundNodes;
 using Alder.Runtime.Semantics;
@@ -10,12 +11,12 @@ internal static class CompoundAssignEvaluator
     public static object? Evaluate(BoundCompoundAssignExpr node, EvaluationContext ctx)
     {
         var rightValue = ctx.Evaluate(node.Value);
-        return AssignmentRuntime.ApplyCompoundAssign(
-            node.Name,
-            node.Operator,
-            rightValue,
-            ctx.Context,
-            ctx.Config,
-            ctx.IsChecked);
+        return AssignmentRuntime.ApplyCompoundAssign(node.Name, node.Operator, rightValue, ctx);
+    }
+
+    public static async ValueTask<object?> EvaluateAsync(BoundCompoundAssignExpr node, EvaluationContext ctx)
+    {
+        var rightValue = await ctx.EvaluateAsync(node.Value);
+        return AssignmentRuntime.ApplyCompoundAssign(node.Name, node.Operator, rightValue, ctx);
     }
 }

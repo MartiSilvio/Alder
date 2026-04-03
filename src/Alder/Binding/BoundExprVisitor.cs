@@ -80,6 +80,7 @@ internal abstract class BoundExprVisitor<T>
         BoundNodeKind.GotoDefaultStatement => VisitGotoDefault((BoundGotoDefaultExpr)expr),
         BoundNodeKind.ThrowExpression => VisitThrow((BoundThrowExpr)expr),
         BoundNodeKind.TryStatement => VisitTryCatchFinally((BoundTryCatchFinallyExpr)expr),
+        BoundNodeKind.AwaitExpression => VisitAwait((BoundAwaitExpr)expr),
         _ => DefaultVisit(expr)
     };
 
@@ -157,6 +158,7 @@ internal abstract class BoundExprVisitor<T>
     protected virtual T VisitGotoDefault(BoundGotoDefaultExpr node) => DefaultVisit(node);
     protected virtual T VisitThrow(BoundThrowExpr node) => DefaultVisit(node);
     protected virtual T VisitTryCatchFinally(BoundTryCatchFinallyExpr node) => DefaultVisit(node);
+    protected virtual T VisitAwait(BoundAwaitExpr node) => DefaultVisit(node);
 }
 
 internal abstract class BoundExprWalker

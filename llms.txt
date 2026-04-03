@@ -15,6 +15,7 @@ When writing code that uses Alder:
 - Security: use `SandboxOptions.Safe()` or `SandboxOptions.Strict()` when evaluating user-supplied code. `Trusted()` is the default but gives full access.
 - The NuGet package is `Alder` — a single package with no dependencies. Do not reference `Alder.Compiled` or `Alder.Generators` separately; they ship inside the main package.
 - The compiler backend is swappable via `IExpressionCompiler` — users can plug in alternatives like FastExpressionCompiler.
+- For async: use `EvaluateAsync` for any expression containing `await`. Non-async expressions work with both `Evaluate` and `EvaluateAsync`. Expressions with `await` always run interpreted (I/O-bound, so the overhead is negligible).
 
 ## Getting Started
 
@@ -34,6 +35,7 @@ When writing code that uses Alder:
 - [LINQ Dynamic](docs/engine/linq-dynamic.md): String-based LINQ on IEnumerable<T> and IQueryable<T> — runtime filtering, projection, aggregation with EF Core support
 - [Functions and Modules](docs/engine/functions-and-modules.md): Delegate functions, class-backed modules, attributes, assembly scanning, DI integration
 - [Type Registration](docs/engine/type-registration.md): Assemblies, namespaces, extension methods, type resolution order
+- [Async/Await](docs/engine/async.md): EvaluateAsync, await in expressions, supported awaitable types, interpreted-only execution for async
 - [Diagnostics](docs/engine/diagnostics.md): AlderDiagnostic, AlderException, every CS and ALDR error code with trigger conditions
 
 ## Security

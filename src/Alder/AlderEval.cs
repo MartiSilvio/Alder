@@ -166,6 +166,25 @@ public static class AlderEval
         => GetEngine().TryEvaluate(expression, out result, variables, cancellationToken: cancellationToken);
 
     /// <summary>
+    /// Asynchronously evaluates a C# expression string and returns the result.
+    /// Required for expressions containing <c>await</c>. Also works for non-async expressions.
+    /// </summary>
+    public static ValueTask<object?> EvaluateAsync(
+        string expression,
+        IDictionary<string, object?>? variables = null,
+        CancellationToken cancellationToken = default)
+        => GetEngine().EvaluateAsync(expression, variables, cancellationToken);
+
+    /// <summary>
+    /// Asynchronously evaluates a C# expression and converts the result to <typeparamref name="T"/>.
+    /// </summary>
+    public static ValueTask<T?> EvaluateAsync<T>(
+        string expression,
+        IDictionary<string, object?>? variables = null,
+        CancellationToken cancellationToken = default)
+        => GetEngine().EvaluateAsync<T>(expression, variables, cancellationToken);
+
+    /// <summary>
     /// Validates an expression for syntax and binding errors without evaluating it.
     /// </summary>
     /// <param name="expression">The C# expression string to validate.</param>

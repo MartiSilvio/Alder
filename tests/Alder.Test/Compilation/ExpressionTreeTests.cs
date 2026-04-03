@@ -207,7 +207,7 @@ public class ExpressionTreeTests
         var compiled = expr.Compile();
 
         Assert.That(compiled("hello"), Is.EqualTo(5));
-        Assert.That(compiled(""), Is.EqualTo(0));
+        Assert.That(compiled(string.Empty), Is.EqualTo(0));
     }
 
     [Test]

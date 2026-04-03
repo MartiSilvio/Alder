@@ -1,4 +1,5 @@
 using Alder.Diagnostics;
+using Alder.Interpretation;
 using Alder.Parsing;
 
 namespace Alder.Runtime.Semantics;
@@ -241,6 +242,40 @@ internal static class AssignmentRuntime
 
         return value;
     }
+
+    #region EvaluationContext overloads (used by interpreted evaluators)
+
+    public static object? ApplyCompoundAssign(string name, TokenType op, object? rightValue, EvaluationContext ctx)
+        => ApplyCompoundAssign(name, op, rightValue, ctx.Context, ctx.Config, ctx.IsChecked);
+
+    public static object? ApplyIncrementDecrement(string name, bool isIncrement, bool isPrefix, EvaluationContext ctx)
+        => ApplyIncrementDecrement(name, isIncrement, isPrefix, ctx.Context, ctx.Config, ctx.IsChecked);
+
+    public static object? ApplyMemberAssign(object? target, string memberName, object? value, EvaluationContext ctx)
+        => ApplyMemberAssign(target, memberName, value, ctx.Config, ctx.Context);
+
+    public static object? ApplyIndexAssign(object? target, object? index, object? value, EvaluationContext ctx)
+        => ApplyIndexAssign(target, index, value, ctx.Config, ctx.Context);
+
+    public static object? ApplyMemberCompoundAssign(object? target, string memberName, TokenType op, object? rightValue, EvaluationContext ctx)
+        => ApplyMemberCompoundAssign(target, memberName, op, rightValue, ctx.Config, ctx.Context, ctx.IsChecked);
+
+    public static object? ApplyIndexCompoundAssign(object? target, object? index, TokenType op, object? rightValue, EvaluationContext ctx)
+        => ApplyIndexCompoundAssign(target, index, op, rightValue, ctx.Config, ctx.Context, ctx.IsChecked);
+
+    public static object? ApplyMemberNullCoalesceAssign(object? target, string memberName, object? value, EvaluationContext ctx)
+        => ApplyMemberNullCoalesceAssign(target, memberName, value, ctx.Config, ctx.Context);
+
+    public static object? ApplyIndexNullCoalesceAssign(object? target, object? index, object? value, EvaluationContext ctx)
+        => ApplyIndexNullCoalesceAssign(target, index, value, ctx.Config, ctx.Context);
+
+    public static object? ApplyMemberIncrement(object? target, string memberName, bool isIncrement, bool isPrefix, EvaluationContext ctx)
+        => ApplyMemberIncrement(target, memberName, isIncrement, isPrefix, ctx.Config, ctx.Context, ctx.IsChecked);
+
+    public static object? ApplyIndexIncrement(object? target, object? index, bool isIncrement, bool isPrefix, EvaluationContext ctx)
+        => ApplyIndexIncrement(target, index, isIncrement, isPrefix, ctx.Config, ctx.Context, ctx.IsChecked);
+
+    #endregion
 
     private static object? ValidateCompoundAssignmentLocal(object? result, object? rightValue, Type variableType)
         => ValidateCompoundAssignmentCore(result, rightValue, variableType);

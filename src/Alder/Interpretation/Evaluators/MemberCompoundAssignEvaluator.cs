@@ -11,13 +11,6 @@ internal static class MemberCompoundAssignEvaluator
     {
         var target = ctx.Evaluate(node.Target);
         var rightValue = ctx.Evaluate(node.Value);
-        return AssignmentRuntime.ApplyMemberCompoundAssign(
-            target,
-            node.MemberName,
-            node.Operator,
-            rightValue,
-            ctx.Config,
-            ctx.Context,
-            ctx.IsChecked);
+        return AssignmentRuntime.ApplyMemberCompoundAssign(target, node.MemberName, node.Operator, rightValue, ctx);
     }
 }

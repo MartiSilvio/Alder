@@ -133,6 +133,9 @@ public sealed class SecurityPolicy
         };
         AddIfAvailable(types, "System.Threading.Thread, System.Threading.Thread");
         AddIfAvailable(types, "System.Threading.ThreadPool, System.Threading.ThreadPool");
+        AddIfAvailable(types, "System.Threading.Mutex, System.Threading");
+        AddIfAvailable(types, "System.Threading.Semaphore, System.Threading");
+        AddIfAvailable(types, "System.Threading.Timer, System.Threading");
         AddIfAvailable(types, "System.Diagnostics.Process, System.Diagnostics.Process");
         AddIfAvailable(types, "System.Diagnostics.ProcessStartInfo, System.Diagnostics.Process");
         AddIfAvailable(types, "System.Runtime.InteropServices.Marshal, System.Runtime.InteropServices");
@@ -171,8 +174,8 @@ public sealed class SecurityPolicy
         "System.Net.NetworkInformation",
         "System.Net.Sockets",
 
-        // Threading
-        "System.Threading",
+        // Threading (System.Threading.Tasks is allowed for async/await)
+        "System.Threading.Channels",
 
         // Security & interop
         "System.Runtime.InteropServices",

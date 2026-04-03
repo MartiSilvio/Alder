@@ -1,3 +1,4 @@
+using System.Threading.Tasks;
 using Alder.Binding;
 using Alder.Binding.BoundNodes;
 using Alder.Runtime.Semantics;
@@ -10,6 +11,18 @@ internal static class VariableDeclEvaluator
     public static object? Evaluate(BoundVariableDeclExpr node, EvaluationContext ctx)
     {
         var value = ctx.Evaluate(node.Initializer);
+        return AssignmentRuntime.DefineVariable(
+            node.Name,
+            value,
+            node.DeclaredType,
+            ctx.Context,
+            node.IsConst,
+            isConstantExpression: BoundExpr.IsConstantExpression(node.Initializer));
+    }
+
+    public static async ValueTask<object?> EvaluateAsync(BoundVariableDeclExpr node, EvaluationContext ctx)
+    {
+        var value = await ctx.EvaluateAsync(node.Initializer);
         return AssignmentRuntime.DefineVariable(
             node.Name,
             value,

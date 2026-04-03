@@ -95,6 +95,7 @@ internal static class TokenLexemes
         TokenType.DotDotEquals => "..=",
         TokenType.NotIn => "not in",
         TokenType.NotLike => "not like",
+        TokenType.Await => "await",
         TokenType.Eof => string.Empty,
 
         _ => type.ToString()

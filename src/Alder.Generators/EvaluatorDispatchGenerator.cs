@@ -12,6 +12,7 @@ public sealed class EvaluatorDispatchGenerator : IIncrementalGenerator
     private const string AttributeMetadataName = "Alder.Interpretation.EvaluatesNodeAttribute";
     private const string EvaluationContextMetadataName = "Alder.Interpretation.EvaluationContext";
     private const string BoundExprMetadataName = "Alder.Binding.BoundExpr";
+    private const string ValueTaskMetadataName = "System.Threading.Tasks.ValueTask`1";
 
     private static readonly DiagnosticDescriptor NotStaticRule = new DiagnosticDescriptor(
         "ALDR9003",
@@ -24,7 +25,7 @@ public sealed class EvaluatorDispatchGenerator : IIncrementalGenerator
     private static readonly DiagnosticDescriptor MissingEvaluateMethodRule = new DiagnosticDescriptor(
         "ALDR9004",
         "Evaluator class missing valid Evaluate method",
-        "Evaluator class '{0}' has [EvaluatesNode] but no valid public static object? Evaluate(TBoundExpr, EvaluationContext) method",
+        "Evaluator class '{0}' has [EvaluatesNode] but no valid public static object? Evaluate(TBoundExpr, EvaluationContext) or EvaluateAsync method",
         "Alder.Interpretation",
         DiagnosticSeverity.Error,
         isEnabledByDefault: true);
@@ -61,7 +62,7 @@ public sealed class EvaluatorDispatchGenerator : IIncrementalGenerator
             return null;
 
         if (!evaluatorClass.IsStatic)
-            return new EvaluatorEntry(null!, null!, null!, NotStaticRule, evaluatorClass.Name);
+            return new EvaluatorEntry(null!, null!, null!, false, false, NotStaticRule, evaluatorClass.Name);
 
         var compilation = ctx.SemanticModel.Compilation;
         var evaluationContextSymbol = compilation.GetTypeByMetadataName(EvaluationContextMetadataName);
@@ -70,14 +71,18 @@ public sealed class EvaluatorDispatchGenerator : IIncrementalGenerator
         if (evaluationContextSymbol == null || boundExprSymbol == null)
             return null;
 
-        var boundExprType = FindEvaluateMethodBoundExprType(evaluatorClass, evaluationContextSymbol, boundExprSymbol);
-        if (boundExprType == null)
-            return new EvaluatorEntry(null!, null!, null!, MissingEvaluateMethodRule, evaluatorClass.Name);
+        var syncBoundExprType = FindMethodBoundExprType(evaluatorClass, "Evaluate", evaluationContextSymbol, boundExprSymbol, isAsync: false);
+        var asyncBoundExprType = FindMethodBoundExprType(evaluatorClass, "EvaluateAsync", evaluationContextSymbol, boundExprSymbol, isAsync: true);
+
+        if (syncBoundExprType == null && asyncBoundExprType == null)
+            return new EvaluatorEntry(null!, null!, null!, false, false, MissingEvaluateMethodRule, evaluatorClass.Name);
+
+        var primaryBoundExprType = syncBoundExprType ?? asyncBoundExprType!;
 
         var evaluatorTypeName = evaluatorClass.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
-        var boundExprTypeName = boundExprType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+        var boundExprTypeName = primaryBoundExprType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
 
-        return new EvaluatorEntry(kindField, evaluatorTypeName, boundExprTypeName, null, null);
+        return new EvaluatorEntry(kindField, evaluatorTypeName, boundExprTypeName, syncBoundExprType != null, asyncBoundExprType != null, null, null);
     }
 
     private static string? FindEnumFieldName(TypedConstant constant)
@@ -92,12 +97,14 @@ public sealed class EvaluatorDispatchGenerator : IIncrementalGenerator
         return null;
     }
 
-    private static INamedTypeSymbol? FindEvaluateMethodBoundExprType(
+    private static INamedTypeSymbol? FindMethodBoundExprType(
         INamedTypeSymbol evaluatorClass,
+        string methodName,
         INamedTypeSymbol evaluationContextSymbol,
-        INamedTypeSymbol boundExprSymbol)
+        INamedTypeSymbol boundExprSymbol,
+        bool isAsync)
     {
-        foreach (var member in evaluatorClass.GetMembers("Evaluate"))
+        foreach (var member in evaluatorClass.GetMembers(methodName))
         {
             if (member is not IMethodSymbol method)
                 continue;
@@ -107,14 +114,30 @@ public sealed class EvaluatorDispatchGenerator : IIncrementalGenerator
                 continue;
             if (!SymbolEqualityComparer.Default.Equals(method.Parameters[1].Type, evaluationContextSymbol))
                 continue;
-            if (method.ReturnsVoid)
-                continue;
+
+            if (isAsync)
+            {
+                if (!method.IsAsync && !IsValueTaskOfObject(method.ReturnType))
+                    continue;
+            }
+            else
+            {
+                if (method.ReturnsVoid)
+                    continue;
+            }
 
             var paramType = method.Parameters[0].Type;
             if (paramType is INamedTypeSymbol namedParam && DerivesFrom(namedParam, boundExprSymbol))
                 return namedParam;
         }
         return null;
+    }
+
+    private static bool IsValueTaskOfObject(ITypeSymbol type)
+    {
+        if (type is not INamedTypeSymbol named) return false;
+        if (!named.IsGenericType) return false;
+        return named.OriginalDefinition.ToDisplayString() == "System.Threading.Tasks.ValueTask<TResult>";
     }
 
     private static bool DerivesFrom(INamedTypeSymbol type, INamedTypeSymbol baseType)
@@ -159,6 +182,7 @@ public sealed class EvaluatorDispatchGenerator : IIncrementalGenerator
         w.AppendLine("#nullable enable");
         w.AppendLine();
         w.AppendLine("using System.Runtime.CompilerServices;");
+        w.AppendLine("using System.Threading.Tasks;");
         w.AppendLine("using Alder.Binding;");
         w.AppendLine();
 
@@ -166,13 +190,38 @@ public sealed class EvaluatorDispatchGenerator : IIncrementalGenerator
         {
             using (w.Block("internal sealed partial class EvaluationContext"))
             {
+                // Sync dispatch (unchanged)
                 w.AppendLine("[MethodImpl(MethodImplOptions.AggressiveInlining)]");
                 w.AppendLine("private object? Dispatch(BoundExpr expr) => expr.Kind switch");
                 w.AppendLine("{");
                 w.Indent();
                 foreach (var entry in valid)
                 {
+                    if (!entry.HasSyncEvaluate) continue;
                     w.AppendLine($"BoundNodeKind.{entry.KindFieldName} => {entry.EvaluatorTypeName}.Evaluate(({entry.BoundExprTypeName})expr, this),");
+                }
+                w.AppendLine("_ => throw new Binding.BindingNotSupportedException(");
+                w.AppendLine("    $\"Bound execution for node '{{expr.GetType().Name}}' is not implemented\")");
+                w.Outdent();
+                w.AppendLine("};");
+
+                w.AppendLine();
+
+                // Async dispatch
+                w.AppendLine("[MethodImpl(MethodImplOptions.AggressiveInlining)]");
+                w.AppendLine("private ValueTask<object?> DispatchAsync(BoundExpr expr) => expr.Kind switch");
+                w.AppendLine("{");
+                w.Indent();
+                foreach (var entry in valid)
+                {
+                    if (entry.HasAsyncEvaluate)
+                    {
+                        w.AppendLine($"BoundNodeKind.{entry.KindFieldName} => {entry.EvaluatorTypeName}.EvaluateAsync(({entry.BoundExprTypeName})expr, this),");
+                    }
+                    else if (entry.HasSyncEvaluate)
+                    {
+                        w.AppendLine($"BoundNodeKind.{entry.KindFieldName} => new ValueTask<object?>({entry.EvaluatorTypeName}.Evaluate(({entry.BoundExprTypeName})expr, this)),");
+                    }
                 }
                 w.AppendLine("_ => throw new Binding.BindingNotSupportedException(");
                 w.AppendLine("    $\"Bound execution for node '{{expr.GetType().Name}}' is not implemented\")");
@@ -189,15 +238,19 @@ public sealed class EvaluatorDispatchGenerator : IIncrementalGenerator
         public string KindFieldName { get; }
         public string EvaluatorTypeName { get; }
         public string BoundExprTypeName { get; }
+        public bool HasSyncEvaluate { get; }
+        public bool HasAsyncEvaluate { get; }
         public DiagnosticDescriptor? ErrorRule { get; }
         public string? DiagArg { get; }
 
         public EvaluatorEntry(string kindFieldName, string evaluatorTypeName, string boundExprTypeName,
-            DiagnosticDescriptor? errorRule, string? diagArg)
+            bool hasSyncEvaluate, bool hasAsyncEvaluate, DiagnosticDescriptor? errorRule, string? diagArg)
         {
             KindFieldName = kindFieldName;
             EvaluatorTypeName = evaluatorTypeName;
             BoundExprTypeName = boundExprTypeName;
+            HasSyncEvaluate = hasSyncEvaluate;
+            HasAsyncEvaluate = hasAsyncEvaluate;
             ErrorRule = errorRule;
             DiagArg = diagArg;
         }
