@@ -82,6 +82,10 @@ internal sealed partial class ExpressionParser : ParserBase
             {
                 _statement.ParseStatementInto(statements);
             }
+            else if (Check(TokenType.LeftBrace))
+            {
+                _statement.ParseStatementInto(statements);
+            }
             else if (Check(TokenType.Identifier) && PeekNext().Type == TokenType.Colon)
             {
                 var labelMark = Mark();
@@ -151,17 +155,33 @@ internal sealed partial class ExpressionParser : ParserBase
         if ((Check(TokenType.Checked) || Check(TokenType.Unchecked)) && PeekNext().Type == TokenType.LeftBrace)
             return true;
 
-        if (IsTypeKeyword(Peek().Type) && PeekNext().Type != TokenType.Dot)
-            return true;
-
-        if (Check(TokenType.Identifier) && PeekNext().Type == TokenType.Less)
+        // ECMA-334 §13.6.2 — Typed declarations and local functions.
+        // Covers type keywords (int x), identifiers (Action f), generics (List<int> x),
+        // dotted names (System.DayOfWeek d), tuples ((int, string) t).
+        // Type keywords followed by dot are static member access (double.NaN) — skip.
+        if ((IsTypeKeyword(Peek().Type) && PeekNext().Type != TokenType.Dot)
+            || Check(TokenType.Identifier)
+            || Check(TokenType.LeftParen))
         {
             var saved = State.Current;
             var parsedType = TryParseTypeName();
-            var isDeclaration = parsedType != null && Check(TokenType.Identifier);
+            if (parsedType != null && (Check(TokenType.Identifier) || IsContextualKeyword(Peek().Type)))
+            {
+                // Verify the token after the variable name is consistent with a declaration
+                // (= for variable, ( for local function, ; for uninitialized).
+                // Without this, "text like pattern" would be misidentified as "text like = ..."
+                var namePos = State.Current + 1;
+                if (namePos < State.Tokens.Count)
+                {
+                    var afterName = State.Tokens[namePos].Type;
+                    if (afterName is TokenType.Equal or TokenType.LeftParen or TokenType.Semicolon)
+                    {
+                        State.Current = saved;
+                        return true;
+                    }
+                }
+            }
             State.Current = saved;
-            if (isDeclaration)
-                return true;
         }
 
         return false;
@@ -586,6 +606,14 @@ internal sealed partial class ExpressionParser : ParserBase
     {
         while (true)
         {
+            // C# null-forgiving operator: expr! — no-op at runtime, just consume
+            if (Check(TokenType.Bang) && State.Current + 1 < State.Tokens.Count &&
+                State.Tokens[State.Current + 1].Type is TokenType.Dot or TokenType.LeftBracket or TokenType.QuestionDot)
+            {
+                Advance(); // consume '!'
+                continue;
+            }
+
             if (Match(TokenType.Dot))
             {
                 var name = ConsumeIdentifierOrContextualKeyword("Expected property name after '.'");
@@ -664,8 +692,18 @@ internal sealed partial class ExpressionParser : ParserBase
             }
             else if (Check(TokenType.Less) && TryParseTypeArguments(out var typeArgs))
             {
-                Consume(TokenType.LeftParen, "Expected '(' after generic type arguments");
-                expr = FinishCall(expr, typeArgs, mark);
+                if (Check(TokenType.Dot) && expr is IdentifierExpr typeId)
+                {
+                    // Generic type static member access: Comparer<int>.Default, Nullable<int>.Value
+                    var fullTypeName = typeId.Name.Lexeme + "<" + string.Join(", ", typeArgs) + ">";
+                    var syntheticToken = new Token(TokenType.Identifier, fullTypeName, null, typeId.Name.Line, typeId.Name.Column);
+                    expr = new TypeReferenceExpr(syntheticToken) { Span = SpanFrom(mark) };
+                }
+                else
+                {
+                    Consume(TokenType.LeftParen, "Expected '(' after generic type arguments");
+                    expr = FinishCall(expr, typeArgs, mark);
+                }
             }
             else if (Match(TokenType.LeftParen))
             {

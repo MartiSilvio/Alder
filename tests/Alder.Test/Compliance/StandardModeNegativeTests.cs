@@ -333,7 +333,7 @@ public class StandardModeNegativeTests(CompilationMode mode)
 
     #region Runtime-Level Gates (AlderException or standard .NET exceptions)
 
-    // 13. Negative indexing (wraps in Extended, throws in Standard)
+    // 13. Negative indexing (always throws — Extended mode does not change C# indexing semantics)
 
     [Test]
     public void StandardMode_NegativeStringIndex_Throws()
@@ -343,10 +343,10 @@ public class StandardModeNegativeTests(CompilationMode mode)
     }
 
     [Test]
-    public void ExtendedMode_NegativeStringIndex_Wraps()
+    public void ExtendedMode_NegativeStringIndex_Throws()
     {
         var engine = TestEngineFactory.Create(mode, ExtendedOptions);
-        Assert.That(engine.Evaluate(""" "hello"[-1]"""), Is.EqualTo('o'));
+        Assert.Catch<Exception>(() => engine.Evaluate(""" "hello"[-1]"""));
     }
 
     [Test]
@@ -358,11 +358,11 @@ public class StandardModeNegativeTests(CompilationMode mode)
     }
 
     [Test]
-    public void ExtendedMode_NegativeListIndex_Wraps()
+    public void ExtendedMode_NegativeListIndex_Throws()
     {
         var engine = TestEngineFactory.Create(mode, ExtendedOptions);
         engine.SetVariable("list", new List<int> { 10, 20, 30 });
-        Assert.That(engine.Evaluate("list[-1]"), Is.EqualTo(30));
+        Assert.Catch<Exception>(() => engine.Evaluate("list[-1]"));
     }
 
     // 14. String multiply (Extended: "abc" * 3 = "abcabcabc"; Standard: throws)

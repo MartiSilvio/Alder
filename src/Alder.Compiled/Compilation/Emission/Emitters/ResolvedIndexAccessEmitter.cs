@@ -136,7 +136,6 @@ internal sealed class ResolvedIndexAccessEmitter : INodeEmitter<BoundResolvedInd
             return LinqExpression.Constant(literalIndex, typeof(int));
 
         var rawIndex = LinqExpression.Call(ConvertToInt32ObjectMethod, ctx.EmitBoxed(node.Index));
-        var languageMode = LinqExpression.Property(ctx.ConfigParam, nameof(AlderConfig.LanguageMode));
-        return LinqExpression.Call(NormalizeIndexMethod, rawIndex, lengthExpression, languageMode);
+        return LinqExpression.Call(NormalizeIndexMethod, rawIndex, lengthExpression);
     }
 }

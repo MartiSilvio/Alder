@@ -53,21 +53,20 @@ public class IndexPropertyAssignmentTests(CompilationMode mode)
     }
 
     [Test]
-    public void IndexAssignment_NegativeIndex_SetsLastElement_InExtendedMode()
+    public void IndexAssignment_NegativeIndex_ThrowsInExtendedMode()
     {
         var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Extended);
 
-        var result = engine.Evaluate(@"
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            engine.Evaluate(@"
                 var arr = [1, 2, 3];
                 arr[-1] = 5;
                 return arr;
-            ") as int[];
-        Assert.That(result, Is.Not.Null);
-        Assert.That(result!, Is.EqualTo(new[] { 1, 2, 5 }));
+            "));
     }
 
     [Test]
-    public void IndexAssignment_NegativeIndex_ThrowsException_InStandardMode()
+    public void IndexAssignment_NegativeIndex_ThrowsInStandardMode()
     {
         var engine = TestEngineFactory.Create(mode, o => o.LanguageMode = LanguageMode.Standard);
 

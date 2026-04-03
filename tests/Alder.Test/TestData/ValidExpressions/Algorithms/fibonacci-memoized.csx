@@ -13,7 +13,7 @@ if (memo[0] != 0L) checksOk = false;
 if (memo[1] != 1L) checksOk = false;
 if (memo[6] != 8L) checksOk = false;
 if (memo[10] != 55L) checksOk = false;
-if (memo[-1] != 4181L) checksOk = false;
+if (memo[^1] != 4181L) checksOk = false;
 
 var sum = 0L;
 foreach (var i in 0..<count)

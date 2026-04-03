@@ -593,7 +593,15 @@ internal abstract class AstWalker<T> : IExprVisitor<T>
             {
                 if (entry.IndexerKey != null)
                     Visit(entry.IndexerKey);
-                Visit(entry.Value);
+                if (entry.Elements != null)
+                {
+                    foreach (var el in entry.Elements)
+                        Visit(el);
+                }
+                else if (entry.Value != null)
+                {
+                    Visit(entry.Value);
+                }
             }
         }
         return OnLeave(expr);

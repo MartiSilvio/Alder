@@ -77,6 +77,19 @@ internal static class MemberAccessBinder
             ? new BoundType(resolvedType)
             : BoundType.Unknown;
 
+        if (bindResult == MemberBindResult.StructuralMember &&
+            targetBoundType is BoundStructuralType { TupleElementNames: { IsDefaultOrEmpty: false } names })
+        {
+            var index = names.IndexOf(name);
+            if (index >= 0)
+            {
+                var fieldName = $"Item{index + 1}";
+                var field = targetBoundType.ClrType.GetField(fieldName);
+                if (field != null)
+                    return new BoundFieldAccessExpr(target, field, nullSafe, isStatic, staticType);
+            }
+        }
+
         return bindResult switch
         {
             MemberBindResult.Property => new BoundPropertyAccessExpr(

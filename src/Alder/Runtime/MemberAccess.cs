@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+using System.Reflection;
 using Alder.Diagnostics;
 using Alder.Runtime.Extensions;
 
@@ -22,61 +24,58 @@ internal static class MemberAccess
             return timeSpan;
         }
 
-        // Handle namespace sentinel: accumulate path segments for FQN type resolution.
-        // Example: NamespaceRef("System") + "Linq" -> NamespaceRef("System.Linq") or Type
-        if (obj is NamespaceRef nsRef)
+        switch (obj)
         {
-            var accumulated = nsRef.Path + "." + name;
-
-            // Try to resolve as a complete type name
-            var resolvedType = context.TypeResolver.TryResolveType(accumulated);
-            if (resolvedType != null)
+            // Handle namespace sentinel: accumulate path segments for FQN type resolution.
+            // Example: NamespaceRef("System") + "Linq" -> NamespaceRef("System.Linq") or Type
+            case NamespaceRef nsRef:
             {
-                if (!config.Security.IsTypeAllowed(resolvedType))
-                    throw new AlderException(DiagnosticDescriptors.SandboxTypeBlocked, resolvedType.Name);
-                return resolvedType;
+                var accumulated = nsRef.Path + "." + name;
+
+                // Try to resolve as a complete type name
+                var resolvedType = context.TypeResolver.TryResolveType(accumulated);
+                if (resolvedType != null)
+                {
+                    if (!config.Security.IsTypeAllowed(resolvedType))
+                        throw new AlderException(DiagnosticDescriptors.SandboxTypeBlocked, resolvedType.Name);
+                    return resolvedType;
+                }
+
+                // Check if it's still a valid namespace prefix
+                if (context.TypeResolver.IsNamespaceOrPrefix(accumulated))
+                    return new NamespaceRef(accumulated);
+
+                // Neither a type nor a namespace prefix -- this is an error
+                throw new AlderException(DiagnosticDescriptors.TypeNotFound, accumulated);
             }
-
-            // Check if it's still a valid namespace prefix
-            if (context.TypeResolver.IsNamespaceOrPrefix(accumulated))
-                return new NamespaceRef(accumulated);
-
-            // Neither a type nor a namespace prefix -- this is an error
-            throw new AlderException(DiagnosticDescriptors.TypeNotFound, accumulated);
-        }
-
-        if (obj is Type staticType)
-        {
-            if (TypedDispatchHelper.TryGetStaticMember(config, staticType, name, out var aotStaticValue))
+            case Type staticType when TypedDispatchHelper.TryGetStaticMember(config, staticType, name, out var aotStaticValue):
                 return aotStaticValue;
-
-            var staticTypeCache = context.TypeMetadata;
-            var staticBindingFlags = BindingFlags.Public | BindingFlags.Static;
-            if (!config.IsCaseSensitive)
-                staticBindingFlags |= BindingFlags.IgnoreCase;
-
-            var staticProp = staticTypeCache.GetProperty(staticType, name, staticBindingFlags);
-            if (staticProp != null)
-                return TypeHelpers.GuardReflectionLeak(staticProp.GetValue(null), "static property", name);
-
-            var staticField = staticTypeCache.GetField(staticType, name, staticBindingFlags);
-            if (staticField != null)
-                return TypeHelpers.GuardReflectionLeak(staticField.GetValue(null), "static field", name);
-
-            var staticMethods = staticTypeCache.GetMethods(staticType, name, staticBindingFlags);
-            if (staticMethods.Length > 0)
-                return new StaticMethodRef(staticType, name);
-
             // Fall through to instance member access on the Type object itself
             // (e.g., typeof(int).Name accesses instance property Type.Name)
-        }
+            case Type staticType:
+            {
+                var staticTypeCache = context.TypeMetadata;
+                var staticBindingFlags = BindingFlags.Public | BindingFlags.Static;
+                if (!config.IsCaseSensitive)
+                    staticBindingFlags |= BindingFlags.IgnoreCase;
 
-        // Module members are always accessible regardless of sandbox settings.
-        // Check modules before the AllowPropertyRead guard so that module methods,
-        // properties, and fields are never blocked by the sandbox.
-        if (obj is ModuleInfo module)
-        {
-            if (module.Members.TryGetValue(name, out var memberInfo))
+                var staticProp = staticTypeCache.GetProperty(staticType, name, staticBindingFlags);
+                if (staticProp != null)
+                    return TypeHelpers.GuardReflectionLeak(staticProp.GetValue(null), "static property", name);
+
+                var staticField = staticTypeCache.GetField(staticType, name, staticBindingFlags);
+                if (staticField != null)
+                    return TypeHelpers.GuardReflectionLeak(staticField.GetValue(null), "static field", name);
+
+                var staticMethods = staticTypeCache.GetMethods(staticType, name, staticBindingFlags);
+                if (staticMethods.Length > 0)
+                    return new StaticMethodRef(staticType, name);
+                break;
+            }
+            // Module members are always accessible regardless of sandbox settings.
+            // Check modules before the AllowPropertyRead guard so that module methods,
+            // properties, and fields are never blocked by the sandbox.
+            case ModuleInfo module when module.Members.TryGetValue(name, out var memberInfo):
             {
                 // For methods, defer resolution until invocation
                 if (memberInfo is MethodInfo m)
@@ -99,7 +98,8 @@ internal static class MemberAccess
                 };
                 return TypeHelpers.GuardReflectionLeak(value, "module member", name);
             }
-            throw new AlderException(DiagnosticDescriptors.NoMemberOnType, module.Type.Name, name);
+            case ModuleInfo module:
+                throw new AlderException(DiagnosticDescriptors.NoMemberOnType, module.Type.Name, name);
         }
 
         switch (obj)
@@ -130,6 +130,9 @@ internal static class MemberAccess
         }
 
         var type = obj.GetType();
+
+        if (TypeHelpers.IsValueTupleType(type) && TryAccessLargeTupleItem(obj, name, out var tupleItem))
+            return tupleItem;
 
         if (TypedDispatchHelper.TryGetMember(config, type, name, obj, out var typedValue))
             return typedValue;
@@ -186,6 +189,22 @@ internal static class MemberAccess
                 Array.Copy(arr, offset, result, 0, len);
                 return result;
             }
+            if (obj is IList list)
+            {
+                var (offset, len) = sysRange.GetOffsetAndLength(list.Count);
+                var listType = list.GetType();
+                if (listType.IsGenericType && listType.GetGenericTypeDefinition() == typeof(List<>))
+                {
+                    var resultList = (IList)Activator.CreateInstance(listType)!;
+                    for (var i = offset; i < offset + len; i++)
+                        resultList.Add(list[i]);
+                    return resultList;
+                }
+                var items = new object?[len];
+                for (var i = 0; i < len; i++)
+                    items[i] = list[offset + i];
+                return items;
+            }
         }
 
         switch (obj)
@@ -200,12 +219,12 @@ internal static class MemberAccess
             }
             case string s when index != null:
             {
-                var i = NormalizeIndex(Convert.ToInt32(index), s.Length, config.LanguageMode);
+                var i = NormalizeIndex(Convert.ToInt32(index), s.Length);
                 return (object)s[i];
             }
-            case IList list when index != null:
+            case IList list when index is int or sbyte or byte or short or ushort or long or ulong:
             {
-                var idx = NormalizeIndex(Convert.ToInt32(index), list.Count, config.LanguageMode);
+                var idx = NormalizeIndex(Convert.ToInt32(index), list.Count);
                 return TypeHelpers.GuardReflectionLeak(list[idx], "index", idx.ToString());
             }
         }
@@ -215,9 +234,9 @@ internal static class MemberAccess
         if (TypedDispatchHelper.TryGetIndex(config, type, obj, index!, out var aotIndexValue))
             return aotIndexValue;
 
-        var indexer = context.TypeMetadata.GetIndexer(type);
+        var indexer = FindMatchingIndexer(type, index);
 
-        if (indexer != null && indexer.GetIndexParameters().Length == 1)
+        if (indexer != null)
         {
             try
             {
@@ -303,7 +322,7 @@ internal static class MemberAccess
 
         if (obj is IList list && index != null)
         {
-            var idx = NormalizeIndex(Convert.ToInt32(index), list.Count, config.LanguageMode);
+            var idx = NormalizeIndex(Convert.ToInt32(index), list.Count);
             // Coerce value to the array's element type to avoid ArrayTypeMismatchException
             if (obj is Array arr && value != null)
             {
@@ -320,9 +339,9 @@ internal static class MemberAccess
         if (TypedDispatchHelper.TrySetIndex(config, type, obj, index!, value))
             return;
 
-        var indexer = context.TypeMetadata.GetIndexer(type);
+        var indexer = FindMatchingIndexer(type, index);
 
-        if (indexer != null && indexer.GetIndexParameters().Length == 1 && indexer.CanWrite)
+        if (indexer != null && indexer.CanWrite)
         {
             try
             {
@@ -340,11 +359,48 @@ internal static class MemberAccess
         throw new AlderException(DiagnosticDescriptors.BadIndexerAccess, type.Name);
     }
 
-    public static int NormalizeIndex(int index, int length, LanguageMode languageMode)
+    private static bool TryAccessLargeTupleItem(object tuple, string name, out object? value)
     {
-        if (index < 0 && languageMode == LanguageMode.Extended)
-            index = length + index;
+        value = null;
+        if (name.Length < 5 || !name.StartsWith("Item", StringComparison.Ordinal))
+            return false;
+        if (!int.TryParse(name.Substring(4), out var itemIndex) || itemIndex < 8)
+            return false;
 
+        var current = tuple;
+        while (itemIndex > 7)
+        {
+            var restField = current.GetType().GetField("Rest");
+            if (restField == null) return false;
+            current = restField.GetValue(current)!;
+            itemIndex -= 7;
+        }
+
+        var field = current.GetType().GetField($"Item{itemIndex}");
+        if (field == null) return false;
+        value = field.GetValue(current);
+        return true;
+    }
+
+    private static PropertyInfo? FindMatchingIndexer(
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)]
+        Type type, object? index)
+    {
+        var indexType = index?.GetType();
+
+        foreach (var property in ReflectionRuntime.GetProperties(type, BindingFlags.Public | BindingFlags.Instance))
+        {
+            var parameters = property.GetIndexParameters();
+            if (parameters.Length == 1 &&
+                (indexType == null || parameters[0].ParameterType.IsAssignableFrom(indexType)))
+                return property;
+        }
+
+        return null;
+    }
+
+    public static int NormalizeIndex(int index, int length)
+    {
         if (index < 0 || index >= length)
             throw new ArgumentOutOfRangeException(
                 "index",

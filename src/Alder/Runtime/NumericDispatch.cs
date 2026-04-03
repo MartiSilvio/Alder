@@ -311,17 +311,22 @@ internal static class NumericDispatch
 
     public static int Compare(object left, object right)
     {
-        var (promotedLeft, promotedRight, resultType) = PromoteOperands(left, right);
-        var key = (resultType, resultType);
+        var leftType = left.GetType();
+        var rightType = right.GetType();
 
-        if (CompareOps.TryGetValue(key, out var op))
+        if (leftType == rightType && CompareOps.TryGetValue((leftType, leftType), out var fastOp))
+            return fastOp(left, right);
+
+        var (promotedLeft, promotedRight, resultType) = PromoteOperands(left, right);
+
+        if (CompareOps.TryGetValue((resultType, resultType), out var op))
             return op(promotedLeft, promotedRight);
 
         throw new AlderException(
             DiagnosticDescriptors.BadBinaryOps,
             SpaceshipOperatorLexeme,
-            left.GetType().Name,
-            right.GetType().Name);
+            leftType.Name,
+            rightType.Name);
     }
 
     public static object? LeftShift(object left, object right)
@@ -691,13 +696,20 @@ internal static class NumericDispatch
         FixedDictionary<(Type, Type), BinaryOp> ops,
         string opName)
     {
-        var (promotedLeft, promotedRight, resultType) = PromoteOperands(left, right);
-        var key = (resultType, resultType);
+        var leftType = left.GetType();
+        var rightType = right.GetType();
 
-        if (ops.TryGetValue(key, out var op))
+        // Fast path: when both operands are already the promoted type, skip PromoteOperands
+        // entirely — avoids 2 unnecessary unbox+rebox cycles per operation.
+        if (leftType == rightType && ops.TryGetValue((leftType, leftType), out var fastOp))
+            return fastOp(left, right);
+
+        var (promotedLeft, promotedRight, resultType) = PromoteOperands(left, right);
+
+        if (ops.TryGetValue((resultType, resultType), out var op))
             return op(promotedLeft, promotedRight);
 
-        throw new AlderException(DiagnosticDescriptors.BadBinaryOps, opName, left.GetType().Name, right.GetType().Name);
+        throw new AlderException(DiagnosticDescriptors.BadBinaryOps, opName, leftType.Name, rightType.Name);
     }
 
     private static object ExecuteIntegerBinaryOp(
@@ -705,13 +717,18 @@ internal static class NumericDispatch
         FixedDictionary<(Type, Type), BinaryOp> ops,
         string opName)
     {
-        var (promotedLeft, promotedRight, resultType) = PromoteOperands(left, right);
-        var key = (resultType, resultType);
+        var leftType = left.GetType();
+        var rightType = right.GetType();
 
-        if (ops.TryGetValue(key, out var op))
+        if (leftType == rightType && ops.TryGetValue((leftType, leftType), out var fastOp))
+            return fastOp(left, right);
+
+        var (promotedLeft, promotedRight, resultType) = PromoteOperands(left, right);
+
+        if (ops.TryGetValue((resultType, resultType), out var op))
             return op(promotedLeft, promotedRight);
 
-        throw new AlderException(DiagnosticDescriptors.BadBinaryOps, opName, left.GetType().Name, right.GetType().Name);
+        throw new AlderException(DiagnosticDescriptors.BadBinaryOps, opName, leftType.Name, rightType.Name);
     }
 
     private static FixedDictionary<(Type, Type), BinaryOp> BuildBinaryOps(

@@ -517,7 +517,7 @@ internal sealed record LockStatementExpr(Expr LockObject, Expr Body) : Expr
 #region Declarations
 
 // Variable declaration: var x = 5 / int x = 5 / const int x = 5
-internal sealed record VariableDeclExpr(Token? DeclaredType, Token Name, Expr Initializer, bool IsConst = false) : Expr
+internal sealed record VariableDeclExpr(Token? DeclaredType, Token Name, Expr Initializer, bool IsConst = false, IReadOnlyList<string?>? TupleElementNames = null) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitVariableDecl(this);
 }
@@ -563,8 +563,9 @@ internal sealed record SizeofExpr(string TypeName) : Expr
 // ECMA-334 §12.8.16.3 - Object initializers / §12.8.16.6 - Collection initializers
 // PropertyName != null → property initializer: Name = value
 // IndexerKey != null → indexer initializer: [key] = value
-// Both null → collection initializer element: value
-internal sealed record InitializerEntry(string? PropertyName, Expr Value, Expr? IndexerKey = null);
+// Elements != null → grouped element initializer: { expr, expr } calls Add(expr, expr)
+// All null → collection initializer element: value calls Add(value)
+internal sealed record InitializerEntry(string? PropertyName, Expr? Value = null, Expr? IndexerKey = null, List<Expr>? Elements = null);
 
 // Object/collection initializer block: { entries... }
 internal sealed record ObjectInitializer(List<InitializerEntry> Entries);

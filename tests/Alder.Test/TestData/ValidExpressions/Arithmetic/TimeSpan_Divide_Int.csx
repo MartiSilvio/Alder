@@ -1,0 +1,1 @@
+new TimeSpan(6, 0, 0) / 2

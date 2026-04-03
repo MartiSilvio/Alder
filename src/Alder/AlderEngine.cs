@@ -36,7 +36,7 @@ public sealed partial class AlderEngine : IDisposable
 
     private AlderContext? _context;
     private readonly DisposalToken _disposalToken;
-    private readonly ConditionalWeakTable<Binding.BoundExpr, StrongBox<Binding.BoundExpr>> _pipelineCache = new();
+    private readonly ConditionalWeakTable<Binding.BoundExpr, Binding.BoundExpr> _pipelineCache = new();
 
     private static readonly ConcurrentDictionary<Type, (string Name, Func<object, object?> Getter)[]> VariableAccessorCache = new();
     private static readonly MethodInfo? WrapGetterMethod =
@@ -443,10 +443,10 @@ public sealed partial class AlderEngine : IDisposable
                 try
                 {
                     var processed = _pipelineCache.GetValue(boundExpression,
-                        b => new StrongBox<Binding.BoundExpr>(RunPipeline(b, cancellationToken)));
+                        b => RunPipeline(b, cancellationToken));
 
                     var boundEvaluator = new BoundEvaluator(executionContext, _config, constraintState, sourceText: new Text.SourceText(expression.Source), cancellationToken: cancellationToken);
-                    var boundResult = boundEvaluator.Evaluate(processed.Value!);
+                    var boundResult = boundEvaluator.Evaluate(processed);
                     expression.RecordBoundExecution();
                     return UnwrapControlFlowSignal(boundResult);
                 }

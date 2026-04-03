@@ -187,17 +187,6 @@ let { Name, Age } = new { Name = "Ada", Age = 20 } in Name + ":" + Age    // "Ad
 
 <!-- test: ExtRef_Expr_LetInDestructure.csx -->
 
-### Implicit Iterator (`it`)
-
-In LINQ method arguments, bare `it` auto-wraps into a lambda. This is handled at parse time in `ExpressionParser.CallArguments` — when the argument is not already a lambda and contains the identifier `it`, the parser wraps it in `it => (expression)`.
-
-```csharp
-new[] { 1, 2, 3, 4, 5 }.Where(it > 2).Select(it * 10).ToArray()
-// [30, 40, 50] — same as .Where(it => it > 2).Select(it => it * 10)
-```
-
-<!-- test: ExtRef_Expr_ImplicitIt.csx -->
-
 ## Collection Features
 
 ### Array Literals

@@ -239,7 +239,8 @@ internal abstract class ParserBase
             or TokenType.Get or TokenType.Set or TokenType.Add or TokenType.Remove or TokenType.Init or TokenType.When
             or TokenType.With or TokenType.And or TokenType.Or or TokenType.Not or TokenType.File or TokenType.Required
             or TokenType.Scoped or TokenType.Args
-            or TokenType.Like or TokenType.Between;
+            or TokenType.Like or TokenType.Between
+            or TokenType.Unless or TokenType.Until;
 
     #endregion
 
@@ -294,8 +295,11 @@ internal abstract class ParserBase
     /// Returns null if no type name can be parsed. Used in backtracking contexts.
     /// ECMA-334 §8.1 - Type syntax.
     /// </summary>
-    internal string? TryParseTypeName()
+    internal string? TryParseTypeName() => TryParseTypeName(out _);
+
+    internal string? TryParseTypeName(out IReadOnlyList<string?>? tupleElementNames)
     {
+        tupleElementNames = null;
         System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack();
 
         string name;
@@ -324,52 +328,70 @@ internal abstract class ParserBase
             var firstElementType = TryParseTypeName();
             if (firstElementType == null) return null;
 
-            // Skip optional element name
-            if (Check(TokenType.Identifier) && !IsTypeKeyword(Peek().Type)) Advance();
+            // Capture optional element name
+            string? firstName = null;
+            if (Check(TokenType.Identifier) && !IsTypeKeyword(Peek().Type))
+                firstName = Advance().Lexeme;
 
             if (!Check(TokenType.Comma)) return null;
 
             var elements = new List<string> { firstElementType };
+            var names = new List<string?> { firstName };
             while (Match(TokenType.Comma))
             {
                 var elementType = TryParseTypeName();
                 if (elementType == null) return null;
 
-                // Skip optional element name
-                if (Check(TokenType.Identifier) && !IsTypeKeyword(Peek().Type)) Advance();
+                string? elementName = null;
+                if (Check(TokenType.Identifier) && !IsTypeKeyword(Peek().Type))
+                    elementName = Advance().Lexeme;
 
                 elements.Add(elementType);
+                names.Add(elementName);
             }
 
             if (!Match(TokenType.RightParen)) return null;
 
             name = nameof(ValueTuple) + "<" + string.Join(", ", elements) + ">";
+            if (names.Any(n => n != null))
+                tupleElementNames = names;
         }
         else
         {
             return null;
         }
 
-        // Handle generic args: Func<int, int>
+        // Handle generic args: Func<int, int> or open generics: List<>, Dictionary<,>
         if (Check(TokenType.Less))
         {
             Advance(); // consume <
-            name += "<";
 
-            var firstArg = TryParseTypeName();
-            if (firstArg == null) return null;
-            name += firstArg;
-
-            while (Match(TokenType.Comma))
+            // Open generic: List<> or Dictionary<,>
+            if (Check(TokenType.Greater) || Check(TokenType.Comma))
             {
-                name += ", ";
-                var nextArg = TryParseTypeName();
-                if (nextArg == null) return null;
-                name += nextArg;
+                var arity = 1;
+                while (Match(TokenType.Comma)) arity++;
+                if (!MatchClosingAngleBracket()) return null;
+                name += "`" + arity;
             }
+            else
+            {
+                name += "<";
+                var firstArg = TryParseTypeName();
+                if (firstArg == null) return null;
+                name += firstArg;
 
-            if (!MatchClosingAngleBracket()) return null;
-            name += ">";
+                while (Match(TokenType.Comma))
+                {
+                    name += ", ";
+                    var nextArg = TryParseTypeName();
+                    if (nextArg == null) return null;
+                    name += nextArg;
+                }
+
+                if (!MatchClosingAngleBracket()) return null;
+                name += ">";
+            }
         }
 
         // Handle nullable suffix

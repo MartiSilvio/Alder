@@ -37,20 +37,30 @@ internal sealed class ObjectCreationEmitter : INodeEmitter<BoundObjectCreationEx
 
         foreach (var entry in node.InitializerEntries)
         {
-            var value = ctx.EmitBoxed(entry.Value);
             if (entry.PropertyName != null)
             {
+                var value = ctx.EmitBoxed(entry.Value!);
                 statements.Add(LinqExpression.Call(ApplyPropertyInitializerMethod,
                     objVar, LinqExpression.Constant(entry.PropertyName), value, ctx.ConfigParam, ctx.ContextParam));
             }
             else if (entry.IndexerKey != null)
             {
+                var value = ctx.EmitBoxed(entry.Value!);
                 var key = ctx.EmitBoxed(entry.IndexerKey);
                 statements.Add(LinqExpression.Call(ApplyIndexerInitializerMethod,
                     objVar, key, value, ctx.ConfigParam, ctx.ContextParam));
             }
+            else if (!entry.Elements.IsDefaultOrEmpty)
+            {
+                var elemArray = LinqExpression.NewArrayInit(
+                    typeof(object),
+                    entry.Elements.Select(e => ctx.EmitBoxed(e)));
+                statements.Add(LinqExpression.Call(ApplyGroupedCollectionInitializerMethod,
+                    objVar, elemArray, ctx.ConfigParam, ctx.ContextParam));
+            }
             else
             {
+                var value = ctx.EmitBoxed(entry.Value!);
                 statements.Add(LinqExpression.Call(ApplyCollectionInitializerMethod,
                     objVar, value, ctx.ConfigParam, ctx.ContextParam));
             }

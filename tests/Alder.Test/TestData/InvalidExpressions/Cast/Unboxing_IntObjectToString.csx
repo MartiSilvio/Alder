@@ -1,0 +1,1 @@
+(string)(object)42

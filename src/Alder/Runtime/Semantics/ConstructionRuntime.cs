@@ -200,6 +200,12 @@ internal static class ConstructionRuntime
         return obj;
     }
 
+    public static object? ApplyGroupedCollectionInitializer(object obj, object?[] elements, AlderConfig config, AlderContext context)
+    {
+        Runtime.MethodInvoker.InvokeMemberCall(obj, "Add", elements, false, context, config, null, default);
+        return obj;
+    }
+
     public static object? ApplyIndexerInitializer(object obj, object key, object? value, AlderConfig config, AlderContext context)
     {
         MemberAccess.SetIndex(obj, key, value, config, context);

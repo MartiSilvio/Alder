@@ -60,12 +60,6 @@ internal static class BinderParityFixture
             ("text", "alpha"));
 
         yield return CreateScenario(
-            "Extended/ImplicitItWhereCount",
-            "numbers.Where(it > threshold).Count()",
-            ("numbers", new List<int> { 1, 3, 5, 9, 10 }),
-            ("threshold", 4));
-
-        yield return CreateScenario(
             "Extended/DateArithmeticSugar",
             "start + 30.days - start",
             ("start", new DateTime(2026, 1, 1)));

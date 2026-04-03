@@ -158,7 +158,18 @@ internal static class ResolvedCallEvaluator
     internal static object? ResolvePropertyAccess(BoundPropertyAccessExpr node, object? target, EvaluationContext ctx)
     {
         if (target == null)
+        {
+            var declaringType = node.Property.DeclaringType;
+            if (declaringType != null && declaringType.IsGenericType &&
+                declaringType.GetGenericTypeDefinition() == typeof(Nullable<>))
+            {
+                if (node.MemberName == nameof(Nullable<int>.HasValue)) return (object)false;
+                if (node.MemberName == nameof(Nullable<int>.Value))
+                    throw new InvalidOperationException("Nullable object must have a value.");
+            }
+
             throw new AlderException(DiagnosticDescriptors.NullMemberAccess, "property", node.MemberName);
+        }
         if (TypeHelpers.IsValueTupleType(node.Property.DeclaringType ?? node.Property.ReflectedType!))
             return MemberAccess.GetMember(target, node.MemberName, ctx.Config, node.NullSafe, ctx.Context);
         return TypeHelpers.GuardReflectionLeak(

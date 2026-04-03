@@ -13,7 +13,7 @@ public sealed class CallBinderServiceTests
         var context = engine.GetContextForCompiled();
         var binder = new CallBinderService(context);
 
-        var plan = binder.BindStaticCall(typeof(Math), "Max", [1, 2L], isCaseSensitive: true);
+        Assert.That(binder.TryBindStaticCall(typeof(Math), "Max", [typeof(int), typeof(long)], isCaseSensitive: true, out var plan), Is.True);
         var parameters = plan.SelectedMethod.GetParameters();
 
         Assert.That(parameters.Length, Is.EqualTo(2));
@@ -50,13 +50,13 @@ public sealed class CallBinderServiceTests
         var context = engine.GetContextForCompiled();
         var binder = new CallBinderService(context);
 
-        var plan = binder.BindInstanceCall(
+        Assert.That(binder.TryBindInstanceCall(
             typeof(InvocationTarget),
             nameof(InvocationTarget.WithOptional),
             [typeof(int)],
-            isCaseSensitive: true);
+            isCaseSensitive: true, out var plan), Is.True);
 
-        var sources = plan.Resolution.ArgMap.Sources;
+        var sources = plan!.Resolution.ArgMap.Sources;
         Assert.That(sources.Length, Is.EqualTo(2));
         Assert.That(sources[0].Kind, Is.EqualTo(ParameterSourceKind.Argument));
         Assert.That(sources[0].ArgumentIndex, Is.EqualTo(0));
@@ -70,13 +70,13 @@ public sealed class CallBinderServiceTests
         var context = engine.GetContextForCompiled();
         var binder = new CallBinderService(context);
 
-        var plan = binder.BindInstanceCall(
+        Assert.That(binder.TryBindInstanceCall(
             typeof(InvocationTarget),
             nameof(InvocationTarget.Sum),
             [typeof(int), typeof(int), typeof(int), typeof(int)],
-            isCaseSensitive: true);
+            isCaseSensitive: true, out var plan), Is.True);
 
-        var sources = plan.Resolution.ArgMap.Sources;
+        var sources = plan!.Resolution.ArgMap.Sources;
         Assert.That(sources.Length, Is.EqualTo(1));
         Assert.That(sources[0].Kind, Is.EqualTo(ParameterSourceKind.ParamsRange));
         Assert.That(sources[0].ParamsStartIndex, Is.EqualTo(0));
@@ -90,15 +90,13 @@ public sealed class CallBinderServiceTests
         var context = engine.GetContextForCompiled();
         var binder = new CallBinderService(context);
 
-        var ex = Assert.Throws<AlderException>(() =>
-            binder.BindStaticCall(
-                typeof(OverloadTarget),
-                nameof(OverloadTarget.Pick),
-                [typeof(object)],
-                isCaseSensitive: true));
+        var result = binder.TryBindStaticCall(
+            typeof(OverloadTarget),
+            nameof(OverloadTarget.Pick),
+            [typeof(object)],
+            isCaseSensitive: true, out _);
 
-        Assert.That(ex!.ErrorCode, Is.EqualTo(Alder.Diagnostics.DiagnosticCode.ALDR0003));
-        Assert.That(ex.Message, Does.Contain("runtime overload resolution"));
+        Assert.That(result, Is.False);
     }
 
     private sealed class InvocationTarget

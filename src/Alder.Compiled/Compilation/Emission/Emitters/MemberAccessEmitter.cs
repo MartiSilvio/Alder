@@ -15,6 +15,26 @@ internal sealed class MemberAccessEmitter :
         if (ctx.TryEmitPostfixChain?.Invoke(node) is { } chainResult) return chainResult;
 
         var declaringType = node.Property.DeclaringType;
+
+        if (declaringType != null && declaringType.IsGenericType &&
+            declaringType.GetGenericTypeDefinition() == typeof(Nullable<>))
+        {
+            var emittedTarget = ctx.Emit(node.Target);
+            if (node.MemberName == nameof(Nullable<int>.HasValue))
+                return LinqExpression.Condition(
+                    LinqExpression.Equal(emittedTarget, LinqExpression.Constant(null)),
+                    LinqExpression.Constant((object)false, typeof(object)),
+                    LinqExpression.Constant((object)true, typeof(object)));
+            if (node.MemberName == nameof(Nullable<int>.Value))
+                return LinqExpression.Condition(
+                    LinqExpression.Equal(emittedTarget, LinqExpression.Constant(null)),
+                    LinqExpression.Throw(
+                        LinqExpression.New(typeof(InvalidOperationException).GetConstructor([typeof(string)])!,
+                            LinqExpression.Constant("Nullable object must have a value.")),
+                        typeof(object)),
+                    emittedTarget);
+        }
+
         if (declaringType != null && TypeHelpers.IsValueTupleType(declaringType))
             return EmitDynamic(node.MemberName, node.NullSafe, ctx.Emit(node.Target), ctx);
 

@@ -96,7 +96,7 @@ internal sealed partial class ExpressionParser
         return new CallExpr(callee, arguments, typeArgs) { Span = SpanFrom(mark) };
     }
 
-    private Expr ParseArgument()
+    internal Expr ParseArgument()
     {
         var mark = Mark();
 
@@ -114,40 +114,7 @@ internal sealed partial class ExpressionParser
         }
 
         var argument = ParseExpression();
-        return TryLowerImplicitPlaceholderLambda(argument, out var lowered) ? lowered : argument;
-    }
-
-    private bool TryLowerImplicitPlaceholderLambda(Expr argument, out Expr lowered)
-    {
-        lowered = argument;
-        if (State.LanguageMode != LanguageMode.Extended || argument is LambdaExpr)
-            return false;
-
-        var collector = new IdentifierOccurrenceCollector();
-        collector.Collect(argument);
-
-        var foundPlaceholder = false;
-        Token placeholderToken = default;
-        foreach (var token in collector.GetUnboundTokens(StringComparer.Ordinal))
-        {
-            if (token.Type != TokenType.Identifier)
-                continue;
-
-            if (TokenLexemes.IsImplicitPlaceholderIdentifier(token.Lexeme))
-            {
-                if (!foundPlaceholder)
-                {
-                    foundPlaceholder = true;
-                    placeholderToken = token;
-                }
-            }
-        }
-
-        if (!foundPlaceholder)
-            return false;
-
-        lowered = new LambdaExpr([new LambdaParameter(null, placeholderToken)], argument) { Span = argument.Span };
-        return true;
+        return argument;
     }
 
     /// <summary>

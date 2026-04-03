@@ -1,0 +1,1 @@
+EqualityComparer<string>.Default.Equals("a", "a")

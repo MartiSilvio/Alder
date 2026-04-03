@@ -271,8 +271,8 @@ internal sealed class PrimaryParser : ParserBase
             return new NewExpr(ObjectLiteralParser.ParseAnonymousObject(this, () => _expression.ParseExpression())) { Span = SpanFrom(mark) };
         }
 
-        // new ClassName(args) - constructor invocation (ECMA-334 §12.8.16.2)
-        if (Check(TokenType.Identifier) || IsTypeKeyword(Peek().Type))
+        // new ClassName(args) or target-typed new() (ECMA-334 §12.8.16.2)
+        if (Check(TokenType.Identifier) || IsTypeKeyword(Peek().Type) || Check(TokenType.LeftParen))
         {
             return ParseObjectCreation(mark);
         }
@@ -286,6 +286,28 @@ internal sealed class PrimaryParser : ParserBase
     /// </summary>
     private Expr ParseObjectCreation(int mark)
     {
+        // Target-typed new: new() or new() { ... } — type inferred from declaration context
+        // ECMA-334 §12.8.16.2 - Target-typed object creation expressions
+        if (Check(TokenType.LeftParen))
+        {
+            Advance(); // consume '('
+            var ttArgs = new List<Expr>();
+            if (!Check(TokenType.RightParen))
+            {
+                do
+                {
+                    ttArgs.Add(_expression.ParseArgument());
+                } while (Match(TokenType.Comma));
+            }
+            Consume(TokenType.RightParen, "Expected ')' after constructor arguments");
+
+            ObjectInitializer? ttInit = null;
+            if (Check(TokenType.LeftBrace))
+                ttInit = ParseObjectInitializer();
+
+            return new ObjectCreationExpr("", ttArgs, ttInit) { Span = SpanFrom(mark) };
+        }
+
         // Parse type name (could be simple like Exception or dotted like System.ArgumentException)
         string typeName;
         if (IsTypeKeyword(Peek().Type))
@@ -294,7 +316,7 @@ internal sealed class PrimaryParser : ParserBase
         }
         else
         {
-            typeName = Consume(TokenType.Identifier, "Expected type name after 'new'").Lexeme;
+            typeName = Consume(TokenType.Identifier, "Expected '{', '[', or type name after 'new'").Lexeme;
             // Support dotted names: System.Exception, System.Collections.Generic.List
             while (Match(TokenType.Dot))
             {
@@ -363,7 +385,7 @@ internal sealed class PrimaryParser : ParserBase
             {
                 do
                 {
-                    arguments.Add(_expression.ParseExpression());
+                    arguments.Add(_expression.ParseArgument());
                 } while (Match(TokenType.Comma));
             }
             Consume(TokenType.RightParen, "Expected ')' after constructor arguments");
@@ -532,6 +554,18 @@ internal sealed class PrimaryParser : ParserBase
                 var value = _expression.ParseExpression();
                 entries.Add(new InitializerEntry(null, value, key));
             }
+            else if (Check(TokenType.LeftBrace))
+            {
+                // §12.8.16.6: Grouped element initializer: { expr, expr, ... } calls Add(expr, expr, ...)
+                Advance(); // consume '{'
+                var elements = new List<Expr>();
+                do
+                {
+                    elements.Add(_expression.ParseExpression());
+                } while (Match(TokenType.Comma));
+                Consume(TokenType.RightBrace, "Expected '}' after element initializer");
+                entries.Add(new InitializerEntry(null, Elements: elements));
+            }
             else
             {
                 // Collection initializer element
@@ -616,13 +650,37 @@ internal sealed class PrimaryParser : ParserBase
     private Expr ParseNameofExpression(int mark)
     {
         Consume(TokenType.LeftParen, "Expected '(' after 'nameof'");
-        // Parse the name chain (x, x.y, x.y.z, etc.)
-        // Strip verbatim @ prefix — C# spec: @ is not part of the identifier name.
         var name = StripVerbatimPrefix(Consume(TokenType.Identifier, "Expected identifier after 'nameof('").Lexeme);
+
+        // Skip generic type arguments: nameof(List<int>) → "List"
+        if (Check(TokenType.Less))
+        {
+            Advance();
+            var depth = 1;
+            while (depth > 0 && !IsAtEnd())
+            {
+                if (Check(TokenType.Less)) depth++;
+                else if (Check(TokenType.Greater)) depth--;
+                Advance();
+            }
+        }
+
         while (Match(TokenType.Dot))
         {
             name = StripVerbatimPrefix(Consume(TokenType.Identifier, "Expected identifier after '.'").Lexeme);
+            if (Check(TokenType.Less))
+            {
+                Advance();
+                var depth = 1;
+                while (depth > 0 && !IsAtEnd())
+                {
+                    if (Check(TokenType.Less)) depth++;
+                    else if (Check(TokenType.Greater)) depth--;
+                    Advance();
+                }
+            }
         }
+
         Consume(TokenType.RightParen, "Expected ')' after nameof expression");
         return new NameofExpr(name) { Span = SpanFrom(mark) };
     }

@@ -14,8 +14,6 @@ internal static class ForEvaluator
         var constraints = ctx.Config.Constraints;
         var loopContext = ctx.Context;
         ctx.Context = ctx.Context.CreateChild();
-        var bodyContext = ctx.Context.CreateChild();
-
         ctx.BreakContextDepth++;
         ctx.LoopDepth++;
         try
@@ -29,10 +27,9 @@ internal static class ForEvaluator
             {
                 ExecutionRuntime.CheckExecutionConstraints(constraintState, constraints, ctx.CancellationToken);
                 ExecutionRuntime.CheckLoopIterationConstraint(constraintState, constraints);
-                bodyContext.ClearScope();
 
                 var previousContext = ctx.Context;
-                ctx.Context = bodyContext;
+                ctx.Context = ctx.Context.CreateChild();
 
                 ControlFlowSignal? signal;
                 try

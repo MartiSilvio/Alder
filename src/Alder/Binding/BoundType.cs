@@ -61,8 +61,16 @@ internal sealed class BoundStructuralType : BoundType
     private readonly ImmutableDictionary<string, Type> _memberTypes;
     public override ImmutableDictionary<string, Type>? MemberTypes => _memberTypes;
 
-    public BoundStructuralType(Type clrType, ImmutableDictionary<string, Type> memberTypes) : base(clrType)
+    /// <summary>
+    /// For named tuple types: ordered element names matching the ValueTuple generic arg positions.
+    /// Null entries indicate unnamed elements. Null if not a tuple type.
+    /// </summary>
+    public ImmutableArray<string?> TupleElementNames { get; }
+
+    public BoundStructuralType(Type clrType, ImmutableDictionary<string, Type> memberTypes,
+        ImmutableArray<string?> tupleElementNames = default) : base(clrType)
     {
         _memberTypes = memberTypes;
+        TupleElementNames = tupleElementNames;
     }
 }

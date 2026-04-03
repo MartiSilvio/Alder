@@ -53,7 +53,7 @@ internal static class BoundRuntimeMethodCache
             [typeof(object), typeof(object), typeof(object), typeof(AlderConfig), typeof(AlderContext)])!;
 
     internal static readonly MethodInfo NormalizeIndexMethod =
-        typeof(MemberAccess).GetMethod(nameof(MemberAccess.NormalizeIndex), [typeof(int), typeof(int), typeof(LanguageMode)])!;
+        typeof(MemberAccess).GetMethod(nameof(MemberAccess.NormalizeIndex), [typeof(int), typeof(int)])!;
 
     internal static readonly MethodInfo ConvertToInt32ObjectMethod =
         typeof(Convert).GetMethod(nameof(Convert.ToInt32), [typeof(object)])!;
@@ -213,6 +213,9 @@ internal static class BoundRuntimeMethodCache
 
     internal static readonly MethodInfo ApplyCollectionInitializerMethod =
         typeof(ConstructionRuntime).GetMethod(nameof(ConstructionRuntime.ApplyCollectionInitializer))!;
+
+    internal static readonly MethodInfo ApplyGroupedCollectionInitializerMethod =
+        typeof(ConstructionRuntime).GetMethod(nameof(ConstructionRuntime.ApplyGroupedCollectionInitializer))!;
 
     internal static readonly MethodInfo ApplyIndexerInitializerMethod =
         typeof(ConstructionRuntime).GetMethod(nameof(ConstructionRuntime.ApplyIndexerInitializer))!;

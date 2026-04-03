@@ -10,6 +10,13 @@ internal static class WithRuntime
         if (original == null)
             throw new AlderException(DiagnosticDescriptors.NullMemberAccess, "with", "expression");
 
+        if (original is NamedTupleValue namedTuple)
+            return namedTuple.WithModifiedValues(names, values);
+
+        // Anonymous types (represented as ExpandoObject/dictionary): clone and modify
+        if (original is IDictionary<string, object?> dict)
+            return ApplyWithDictionary(dict, names, values, config);
+
         var clone = CloneObject(original);
         var type = clone.GetType();
         var flags = BindingFlags.Public | BindingFlags.Instance;
@@ -35,6 +42,33 @@ internal static class WithRuntime
         }
 
         return clone;
+    }
+
+    private static object ApplyWithDictionary(IDictionary<string, object?> original, string[] names, object?[] values, AlderConfig config)
+    {
+        var clone = new System.Dynamic.ExpandoObject() as IDictionary<string, object?>;
+        foreach (var kvp in original)
+            clone[kvp.Key] = kvp.Value;
+
+        var comparer = config.IsCaseSensitive ? StringComparer.Ordinal : StringComparer.OrdinalIgnoreCase;
+        for (var i = 0; i < names.Length; i++)
+        {
+            var found = false;
+            foreach (var key in clone.Keys)
+            {
+                if (comparer.Equals(key, names[i]))
+                {
+                    clone[key] = values[i];
+                    found = true;
+                    break;
+                }
+            }
+
+            if (!found)
+                throw new AlderException(DiagnosticDescriptors.MemberNotFound, "anonymous type", names[i]);
+        }
+
+        return (System.Dynamic.ExpandoObject)clone;
     }
 
     private static object CloneObject(object original)

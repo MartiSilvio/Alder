@@ -11,13 +11,13 @@ public sealed class PlannedCallInvokerTests
     {
         var context = new AlderContext(AlderConfig.Empty);
         var binder = new CallBinderService(context);
-        var plan = binder.BindInstanceCall(
+        binder.TryBindInstanceCall(
             typeof(PlannedInvocationTarget),
             nameof(PlannedInvocationTarget.WithOptional),
             [typeof(int)],
-            isCaseSensitive: true);
+            isCaseSensitive: true, out var plan);
 
-        var resolved = plan.Resolution;
+        var resolved = plan!.Resolution;
         Assert.That(ArgumentPreparer.IsDirectMapping(resolved, [7], MethodDispatchCache.GetParameters(resolved.Method)), Is.False);
 
         var target = new PlannedInvocationTarget();
@@ -33,13 +33,13 @@ public sealed class PlannedCallInvokerTests
     {
         var context = new AlderContext(AlderConfig.Empty);
         var binder = new CallBinderService(context);
-        var plan = binder.BindInstanceCall(
+        binder.TryBindInstanceCall(
             typeof(PlannedInvocationTarget),
             nameof(PlannedInvocationTarget.Sum),
             [typeof(int), typeof(int), typeof(int), typeof(int)],
-            isCaseSensitive: true);
+            isCaseSensitive: true, out var plan);
 
-        var resolved = plan.Resolution;
+        var resolved = plan!.Resolution;
         object?[] args = [1, 2, 3, 4];
         Assert.That(ArgumentPreparer.IsDirectMapping(resolved, args, MethodDispatchCache.GetParameters(resolved.Method)), Is.False);
 
@@ -56,13 +56,13 @@ public sealed class PlannedCallInvokerTests
     {
         var context = new AlderContext(AlderConfig.Empty);
         var binder = new CallBinderService(context);
-        var plan = binder.BindInstanceCall(
+        binder.TryBindInstanceCall(
             typeof(PlannedInvocationTarget),
             nameof(PlannedInvocationTarget.Echo),
             [typeof(int)],
-            isCaseSensitive: true);
+            isCaseSensitive: true, out var plan);
 
-        var resolved = plan.Resolution;
+        var resolved = plan!.Resolution;
         object?[] args = [7];
         Assert.That(ArgumentPreparer.IsDirectMapping(resolved, args, MethodDispatchCache.GetParameters(resolved.Method)), Is.True);
 

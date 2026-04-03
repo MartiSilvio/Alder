@@ -237,19 +237,18 @@ public class NumericTests(CompilationMode mode)
     #region Engine-only: Variable shadowing/scoping error tests
 
     [Test]
-    public void VariableShadowing_InNestedBlock_ShouldThrow()
+    public void VariableShadowing_InNestedBlock_IsAllowed()
     {
-        // Engine-only: tests AlderException error behavior
         var engine = TestEngineFactory.Create(mode);
-        var ex = Assert.Throws<AlderException>(() => engine.Evaluate(@"
+        var result = engine.Evaluate(@"
         {
             var x = 1;
             {
                 var x = 2;
             }
             return x;
-        }"));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0128));
+        }");
+        Assert.That(result, Is.EqualTo(1));
     }
 
     [Test]

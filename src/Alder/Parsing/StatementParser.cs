@@ -108,6 +108,10 @@ internal sealed class StatementParser : ParserBase
             return new GotoExpr(label) { Span = SpanFrom(mark) };
         }
 
+        // ECMA-334 §13.3: Bare block statement — { statements }
+        if (Match(TokenType.LeftBrace))
+            return ParseBlock();
+
         // Label: identifier followed by ':' (not part of ternary or case)
         if (Check(TokenType.Identifier) && PeekNext().Type == TokenType.Colon)
         {
@@ -192,81 +196,15 @@ internal sealed class StatementParser : ParserBase
             return new VariableDeclExpr(null, name, initializer) { Span = SpanFrom(mark) };
         }
 
-        // Generic type variable declaration: Func<int, int> f = ..., Action<string> a = ...
-        // ECMA-334 §13.6.2 - Local variable declarations with constructed types
-        // MUST come before type keyword check to handle generic types properly
-        if (Check(TokenType.Identifier) && PeekNext().Type == TokenType.Less)
+        // ECMA-334 §13.6.2 — Typed local variable declarations and local functions.
+        // Covers all type shapes: keywords (int, string), identifiers (Action, Exception),
+        // generics (List<int>), dotted names (System.DayOfWeek), tuples ((int, string)),
+        // arrays (int[], int[,]), and nullable (int?).
+        // Type keywords followed by dot are static member access (double.NaN) — skip those.
         {
-            var genericResult = TryParseGenericTypeDeclaration(mark);
-            if (genericResult != null)
-                return genericResult;
-        }
-
-        // Non-generic type name variable declaration: Action f = ..., Exception ex = ...
-        // ECMA-334 §13.6.2 - Pattern: Identifier Identifier = expr;
-        // Disambiguated from expression statements by the Identifier Identifier = pattern.
-        if (Check(TokenType.Identifier) && PeekNext().Type == TokenType.Identifier)
-        {
-            var peekAt2 = State.Current + 2 < State.Tokens.Count ? State.Tokens[State.Current + 2] : State.Tokens[^1];
-            if (peekAt2.Type is TokenType.Equal or TokenType.Semicolon)
-            {
-                var typeName = Advance(); // consume type name
-                var name = ConsumeIdentifierOrContextualKeyword("Expected variable name");
-                if (Check(TokenType.LeftParen))
-                    return ParseLocalFunctionDeclaration(typeName, name, mark);
-                Consume(TokenType.Equal, "Expected '=' after variable name");
-                var initializer = _expression.ParseExpression();
-                Consume(TokenType.Semicolon, "Expected ';' after variable declaration");
-                return new VariableDeclExpr(typeName, name, initializer) { Span = SpanFrom(mark) };
-            }
-        }
-
-        // Fully-qualified type name variable declaration: System.DayOfWeek d = 0;
-        // Pattern: Identifier.Identifier[.Identifier...] Identifier = expr;
-        if (Check(TokenType.Identifier) && PeekNext().Type == TokenType.Dot)
-        {
-            var fqnResult = TryParseFqnTypeDeclaration(mark);
-            if (fqnResult != null)
-                return fqnResult;
-        }
-
-        // Type keyword followed by identifier is a variable declaration (e.g., "int x = 5")
-        // Type keyword followed by dot is a static member access (e.g., "double.NaN") - let expression parsing handle it
-        if (IsTypeKeyword(Peek().Type) && PeekNext().Type != TokenType.Dot && MatchTypeKeyword(out var typeToken))
-        {
-            // Handle array type suffix: int[] x = ..., string[] arr = ...
-            if (Check(TokenType.LeftBracket) && CheckNext(TokenType.RightBracket))
-            {
-                Advance(); // consume '['
-                Advance(); // consume ']'
-                typeToken = typeToken with { Lexeme = typeToken.Lexeme + "[]" };
-            }
-
-            var name = ConsumeIdentifierOrContextualKeyword("Expected variable name");
-            if (Check(TokenType.LeftParen))
-                return ParseLocalFunctionDeclaration(typeToken, name, mark);
-
-            Consume(TokenType.Equal, "Expected '=' after variable name");
-            var initializer = _expression.ParseExpression();
-
-            // ECMA-334 §13.6.2: Multiple variable declarations — int x = 1, y = 2;
-            // Handled by ParseMultiVarDecl which adds extra declarations to _pendingDecls
-            if (Check(TokenType.Comma))
-            {
-                while (Match(TokenType.Comma))
-                {
-                    var markPending = Mark();
-                    var nextName = ConsumeIdentifierOrContextualKeyword("Expected variable name");
-                    Consume(TokenType.Equal, "Expected '=' after variable name");
-                    var nextInit = _expression.ParseExpression();
-                    _pendingDecls.Add(new VariableDeclExpr(typeToken, nextName, nextInit) { Span = SpanFrom(markPending) });
-                }
-                Consume(TokenType.Semicolon, "Expected ';' after variable declaration");
-                return new VariableDeclExpr(typeToken, name, initializer) { Span = SpanFrom(mark) };
-            }
-
-            Consume(TokenType.Semicolon, "Expected ';' after variable declaration");
-            return new VariableDeclExpr(typeToken, name, initializer) { Span = SpanFrom(mark) };
+            var declResult = TryParseTypedDeclaration(mark);
+            if (declResult != null)
+                return declResult;
         }
 
         // Standalone block statement { ... }
@@ -302,8 +240,18 @@ internal sealed class StatementParser : ParserBase
             while (true)
             {
                 string? parameterType = null;
-                if (IsTypeKeyword(Peek().Type))
+                if (IsTypeKeyword(Peek().Type) || (Check(TokenType.Identifier) && PeekNext().Type == TokenType.Less)
+                    || (Check(TokenType.Identifier) && PeekNext().Type == TokenType.Identifier)
+                    || (Check(TokenType.LeftParen)))
+                {
+                    var saved = State.Current;
                     parameterType = TryParseTypeName();
+                    if (parameterType == null || (!Check(TokenType.Identifier) && !IsContextualKeyword(Peek().Type)))
+                    {
+                        parameterType = null;
+                        State.Current = saved;
+                    }
+                }
 
                 var parameterName = ConsumeIdentifierOrContextualKeyword("Expected parameter name");
                 parameters.Add(new LambdaParameter(parameterType, parameterName));
@@ -314,8 +262,19 @@ internal sealed class StatementParser : ParserBase
         }
 
         Consume(TokenType.RightParen, "Expected ')' after parameter list");
-        Consume(TokenType.LeftBrace, "Expected '{' before local function body");
-        var body = ParseBlock();
+
+        Expr body;
+        if (Match(TokenType.Arrow))
+        {
+            body = _expression.ParseExpression();
+            Match(TokenType.Semicolon);
+        }
+        else
+        {
+            Consume(TokenType.LeftBrace, "Expected '{' or '=>' for local function body");
+            body = ParseBlock();
+        }
+
         var lambda = new LambdaExpr(parameters, body) { Span = SpanFrom(mark) };
         return new VariableDeclExpr(null, functionName, lambda) { Span = SpanFrom(mark) };
     }
@@ -339,59 +298,29 @@ internal sealed class StatementParser : ParserBase
     }
 
     /// <summary>
-    /// Attempts to parse a generic type variable declaration: Identifier&lt;TypeArgs&gt; name = expr;
+    /// Unified typed declaration parser for all type shapes.
+    /// Handles: type keywords (int x), identifiers (Action f), generics (List&lt;int&gt; x),
+    /// dotted names (System.DayOfWeek d), tuples ((int, string) t), arrays (int[] a),
+    /// and nullable (int? n). Also handles local function declarations (int F() =&gt; ...).
     /// Returns null and restores position if the pattern doesn't match.
-    /// ECMA-334 §13.6.2 - Local variable declarations with constructed types.
+    /// ECMA-334 §13.6.2 - Local variable declarations.
     /// </summary>
-    private Expr? TryParseGenericTypeDeclaration(int mark)
+    private Expr? TryParseTypedDeclaration(int mark)
     {
-        var saved = State.Current;
-
-        try
-        {
-            var typeName = TryParseTypeName();
-            if (typeName == null || !typeName.Contains('<'))
-            {
-                State.Current = saved;
-                return null;
-            }
-
-            if (!Check(TokenType.Identifier) && !IsContextualKeyword(Peek().Type))
-            {
-                State.Current = saved;
-                return null;
-            }
-
-            var name = Advance();
-
-            if (!Match(TokenType.Equal))
-            {
-                State.Current = saved;
-                return null;
-            }
-
-            var initializer = _expression.ParseExpression();
-            Consume(TokenType.Semicolon, "Expected ';' after variable declaration");
-
-            // Create a synthetic type token with the full generic type name
-            var syntheticTypeToken = new Token(TokenType.Identifier, typeName, null, name.Line, name.Column);
-            return new VariableDeclExpr(syntheticTypeToken, name, initializer) { Span = SpanFrom(mark) };
-        }
-        catch (AlderException)
-        {
-            State.Current = saved;
+        // Type keywords followed by dot are static member access (double.NaN), not declarations
+        if (IsTypeKeyword(Peek().Type) && PeekNext().Type == TokenType.Dot)
             return null;
-        }
-    }
 
-    private Expr? TryParseFqnTypeDeclaration(int mark)
-    {
+        // Only attempt if the current token could start a type name
+        if (!IsTypeKeyword(Peek().Type) && !Check(TokenType.Identifier) && !Check(TokenType.LeftParen))
+            return null;
+
         var saved = State.Current;
 
         try
         {
-            var typeName = TryParseTypeName();
-            if (typeName == null || !typeName.Contains('.'))
+            var typeName = TryParseTypeName(out var tupleElementNames);
+            if (typeName == null)
             {
                 State.Current = saved;
                 return null;
@@ -405,17 +334,59 @@ internal sealed class StatementParser : ParserBase
 
             var name = Advance();
 
+            // Local function: Type Name(...) => ... or Type Name(...) { ... }
+            if (Check(TokenType.LeftParen))
+            {
+                var typeToken = new Token(TokenType.Identifier, typeName, null,
+                    State.Tokens[saved].Line, State.Tokens[saved].Column, State.Tokens[saved].Start);
+                return ParseLocalFunctionDeclaration(typeToken, name, mark);
+            }
+
             if (!Match(TokenType.Equal))
             {
                 State.Current = saved;
                 return null;
             }
 
-            var initializer = _expression.ParseExpression();
-            Consume(TokenType.Semicolon, "Expected ';' after variable declaration");
+            // ECMA-334 §12.8.16.5: Bare array initializer — int[] nums = { 1, 2, 3 };
+            Expr initializer;
+            if (typeName.EndsWith("[]", StringComparison.Ordinal) && Check(TokenType.LeftBrace))
+            {
+                var initMark = Mark();
+                Advance(); // consume '{'
+                var elements = new List<Expr>();
+                while (!Check(TokenType.RightBrace) && !IsAtEnd())
+                {
+                    if (elements.Count > 0) Consume(TokenType.Comma, "Expected ',' between array elements");
+                    elements.Add(_expression.ParseExpression());
+                }
+                Consume(TokenType.RightBrace, "Expected '}' after array initializer");
+                var elementTypeName = typeName[..^2]; // strip "[]"
+                initializer = new TypedArrayLiteralExpr(elementTypeName, elements) { Span = SpanFrom(initMark) };
+            }
+            else
+            {
+                initializer = _expression.ParseExpression();
+            }
 
-            var syntheticTypeToken = new Token(TokenType.Identifier, typeName, null, name.Line, name.Column);
-            return new VariableDeclExpr(syntheticTypeToken, name, initializer) { Span = SpanFrom(mark) };
+            var syntheticTypeToken = new Token(TokenType.Identifier, typeName, null,
+                State.Tokens[saved].Line, State.Tokens[saved].Column, State.Tokens[saved].Start);
+
+            // ECMA-334 §13.6.2: Multiple variable declarations — int x = 1, y = 2;
+            if (Check(TokenType.Comma))
+            {
+                while (Match(TokenType.Comma))
+                {
+                    var markPending = Mark();
+                    var nextName = ConsumeIdentifierOrContextualKeyword("Expected variable name");
+                    Consume(TokenType.Equal, "Expected '=' after variable name");
+                    var nextInit = _expression.ParseExpression();
+                    _pendingDecls.Add(new VariableDeclExpr(syntheticTypeToken, nextName, nextInit) { Span = SpanFrom(markPending) });
+                }
+            }
+
+            Consume(TokenType.Semicolon, "Expected ';' after variable declaration");
+            return new VariableDeclExpr(syntheticTypeToken, name, initializer, TupleElementNames: tupleElementNames) { Span = SpanFrom(mark) };
         }
         catch (AlderException)
         {
@@ -939,10 +910,10 @@ internal sealed class StatementParser : ParserBase
         if (catchClauses.Count == 0 && finallyBody == null)
             throw SyntaxError(DiagnosticDescriptors.SyntaxExpected, "'catch' or 'finally' after try block");
 
-        // Validate: bare catch (no type) must be last
+        // Validate: bare catch (no type AND no when guard) must be last
         for (var i = 0; i < catchClauses.Count - 1; i++)
         {
-            if (catchClauses[i].ExceptionTypeName == null)
+            if (catchClauses[i].ExceptionTypeName == null && catchClauses[i].WhenGuard == null)
                 throw new AlderException(DiagnosticDescriptors.GeneralCatchMustBeLast, Peek().Span, Peek().Line, Peek().Column);
         }
 

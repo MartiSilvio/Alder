@@ -58,4 +58,4 @@ foreach (var i in 0..<n)
     items += arr[i].ToString();
 }
 
-return $"sorted={isSorted}|comparisons={comparisons}|first={arr[0]}|last={arr[-1]}|items={items}";
+return $"sorted={isSorted}|comparisons={comparisons}|first={arr[0]}|last={arr[^1]}|items={items}";

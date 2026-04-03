@@ -12,8 +12,6 @@ internal static class WhileEvaluator
     {
         var constraintState = ctx.ConstraintState;
         var constraints = ctx.Config.Constraints;
-        var iterationContext = ctx.Context.CreateChild();
-
         ctx.BreakContextDepth++;
         ctx.LoopDepth++;
         try
@@ -22,10 +20,9 @@ internal static class WhileEvaluator
             {
                 ExecutionRuntime.CheckExecutionConstraints(constraintState, constraints, ctx.CancellationToken);
                 ExecutionRuntime.CheckLoopIterationConstraint(constraintState, constraints);
-                iterationContext.ClearScope();
 
                 var previousContext = ctx.Context;
-                ctx.Context = iterationContext;
+                ctx.Context = ctx.Context.CreateChild();
 
                 ControlFlowSignal? signal;
                 try

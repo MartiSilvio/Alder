@@ -112,7 +112,7 @@ internal static class ReflectionRuntime
     {
         foreach (var property in GetProperties(type, BindingFlags.Public | BindingFlags.Instance))
         {
-            if (property.Name == "Item")
+            if (property.GetIndexParameters().Length > 0)
                 return property;
         }
 
@@ -126,8 +126,24 @@ internal static class ReflectionRuntime
 
     private static PropertyInfo[] EnumeratePropertyCandidates(
         [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)]
-        Type type, BindingFlags flags) =>
-        type.GetProperties(flags & ~BindingFlags.IgnoreCase);
+        Type type, BindingFlags flags)
+    {
+        var effectiveFlags = flags & ~BindingFlags.IgnoreCase;
+        var props = type.GetProperties(effectiveFlags);
+
+        // .NET's GetProperties doesn't flatten interface hierarchies — parent interface
+        // members are not included. Collect them so IReadOnlyList<T>.Count resolves
+        // (Count is declared on IReadOnlyCollection<T>).
+        if (type.IsInterface)
+        {
+            var all = new List<PropertyInfo>(props);
+            foreach (var iface in GetInterfaces(type))
+                all.AddRange(iface.GetProperties(effectiveFlags));
+            return all.ToArray();
+        }
+
+        return props;
+    }
 
     private static FieldInfo[] EnumerateFieldCandidates(
         [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)]
@@ -136,8 +152,19 @@ internal static class ReflectionRuntime
 
     private static MethodInfo[] EnumerateMethodCandidates(
         [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)]
-        Type type, BindingFlags flags) =>
-        type.GetMethods(flags & ~BindingFlags.IgnoreCase);
+        Type type, BindingFlags flags)
+    {
+        var effectiveFlags = flags & ~BindingFlags.IgnoreCase;
+        var methods = type.GetMethods(effectiveFlags);
+        if (type.IsInterface)
+        {
+            var all = new List<MethodInfo>(methods);
+            foreach (var iface in GetInterfaces(type))
+                all.AddRange(iface.GetMethods(effectiveFlags));
+            return all.ToArray();
+        }
+        return methods;
+    }
 
     private static bool MatchesProperty(Type sourceType, PropertyInfo property, BindingFlags flags)
     {
@@ -213,6 +240,7 @@ internal static class ReflectionRuntime
         if (declaringType == sourceType)
             return 0;
 
+        // Walk the base class chain (works for classes)
         var distance = 0;
         for (var current = sourceType; current != null; current = current.BaseType)
         {
@@ -220,6 +248,10 @@ internal static class ReflectionRuntime
                 return distance;
             distance++;
         }
+
+        // Check interface hierarchy (base type chain is null for interfaces)
+        if (declaringType.IsAssignableFrom(sourceType))
+            return 1;
 
         return int.MaxValue;
     }

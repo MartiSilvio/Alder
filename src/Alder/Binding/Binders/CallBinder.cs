@@ -91,6 +91,21 @@ internal static class CallBinder
             }
         }
 
+        if (callee.StaticType is not BoundUnknownType)
+        {
+            var calleeType = callee.StaticType.ClrType;
+            if (typeof(Delegate).IsAssignableFrom(calleeType))
+            {
+                var invokeMethod = calleeType.GetMethod("Invoke");
+                if (invokeMethod != null)
+                {
+                    var returnType = invokeMethod.ReturnType;
+                    return new BoundDynamicCallExpr(callee, arguments, typeArguments,
+                        returnType == typeof(void) ? BoundType.Void : new BoundType(returnType));
+                }
+            }
+        }
+
         return new BoundDynamicCallExpr(callee, arguments, typeArguments, BoundType.Unknown);
     }
 

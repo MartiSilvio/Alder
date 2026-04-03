@@ -1,0 +1,1 @@
+new[] {-3, -1, 2, 4}.Select(Math.Abs).ToList()

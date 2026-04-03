@@ -165,13 +165,25 @@ internal sealed class PatternParser : ParserBase
                 }
             }
 
+            // Array type suffix: int[], string[]
+            if (Check(TokenType.LeftBracket))
+            {
+                var arraySuffix = "";
+                while (Match(TokenType.LeftBracket))
+                {
+                    arraySuffix += "[]";
+                    Consume(TokenType.RightBracket, "Expected ']' after '['");
+                }
+                typeToken = typeToken with { Lexeme = typeToken.Lexeme + arraySuffix };
+            }
+
             // Type + property pattern: int { ... }
             if (Check(TokenType.LeftBrace))
             {
                 return ParsePropertyPattern(typeToken);
             }
 
-            // Type + variable binding: string s (but not 'and'/'or'/'not'/'when'/'_')
+            // Type + variable binding: string s (but not 'and'/'or'/'not'/'when')
             if (Check(TokenType.Identifier) && !IsPatternCombinatorOrReserved(Peek()))
             {
                 var varName = Advance();
@@ -360,9 +372,6 @@ internal sealed class PatternParser : ParserBase
     private static bool IsPatternCombinatorOrReserved(Token token)
     {
         if (IsPatternKeywordToken(token))
-            return true;
-        if (token.Type == TokenType.Identifier &&
-            string.Equals(token.Lexeme, TokenLexemes.DiscardIdentifier, StringComparison.Ordinal))
             return true;
         if (token.Type == TokenType.When)
             return true;

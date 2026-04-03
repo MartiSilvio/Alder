@@ -765,11 +765,24 @@ internal abstract class BoundExprRewriter : BoundExprVisitor<BoundExpr>, IBoundT
         var builder = ImmutableArray.CreateBuilder<BoundInitializerEntry>(entries.Length);
         foreach (var e in entries)
         {
-            var newValue = Visit(e.Value);
+            var newValue = e.Value != null ? Visit(e.Value) : null;
             var newKey = e.IndexerKey != null ? Visit(e.IndexerKey) : null;
-            if (!ReferenceEquals(newValue, e.Value) || !ReferenceEquals(newKey, e.IndexerKey))
+            var newElements = e.Elements;
+            var elementsChanged = false;
+            if (!e.Elements.IsDefaultOrEmpty)
             {
-                builder.Add(new BoundInitializerEntry(e.PropertyName, newValue, newKey));
+                var elemBuilder = ImmutableArray.CreateBuilder<BoundExpr>(e.Elements.Length);
+                foreach (var el in e.Elements)
+                {
+                    var newEl = Visit(el);
+                    if (!ReferenceEquals(newEl, el)) elementsChanged = true;
+                    elemBuilder.Add(newEl);
+                }
+                if (elementsChanged) newElements = elemBuilder.MoveToImmutable();
+            }
+            if (!ReferenceEquals(newValue, e.Value) || !ReferenceEquals(newKey, e.IndexerKey) || elementsChanged)
+            {
+                builder.Add(new BoundInitializerEntry(e.PropertyName, newValue, newKey, newElements));
                 changed = true;
             }
             else

@@ -226,7 +226,6 @@ internal sealed class TypeResolver
         if (typeName.Contains('.'))
             return ResolveFullyQualifiedName(typeName);
 
-        // Step 5: Not found
         return null;
     }
 
@@ -420,11 +419,11 @@ internal sealed class TypeResolver
     {
         var assemblySet = new HashSet<Assembly>(assemblies)
         {
-            // Always include default assemblies
-            typeof(object).Assembly, // System.Private.CoreLib
-            typeof(List<>).Assembly, // System.Collections
+            typeof(object).Assembly, // System.Private.CoreLib (List<>, Dictionary<>, etc.)
             typeof(Enumerable).Assembly, // System.Linq
-            typeof(System.Text.RegularExpressions.Regex).Assembly // System.Text.RegularExpressions
+            typeof(System.Text.RegularExpressions.Regex).Assembly, // System.Text.RegularExpressions
+            typeof(Stack<>).Assembly, // System.Collections (Stack<>, Queue<>, SortedSet<>, LinkedList<>)
+            typeof(Uri).Assembly, // System.Private.Uri
         };
 
         var allAssemblies = assemblySet.ToImmutableArray();

@@ -10,6 +10,11 @@ internal static class AssignEvaluator
     public static object? Evaluate(BoundAssignExpr node, EvaluationContext ctx)
     {
         var value = ctx.Evaluate(node.Value);
+
+        // ECMA-334 §9.2.9.1: discard — evaluate RHS, discard result
+        if (node.Name == Parsing.TokenLexemes.DiscardIdentifier && !ctx.Context.TryGet(Parsing.TokenLexemes.DiscardIdentifier, out _))
+            return value;
+
         value = AssignmentRuntime.ValidateVariableAssignment(node.Name, value, ctx.Context);
         ctx.Context.Set(node.Name, value);
         return value;

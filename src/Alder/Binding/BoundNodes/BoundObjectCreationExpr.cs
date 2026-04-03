@@ -4,8 +4,9 @@ namespace Alder.Binding.BoundNodes;
 
 internal sealed record BoundInitializerEntry(
     string? PropertyName,
-    BoundExpr Value,
-    BoundExpr? IndexerKey = null);
+    BoundExpr? Value = null,
+    BoundExpr? IndexerKey = null,
+    ImmutableArray<BoundExpr> Elements = default);
 
 internal sealed record BoundObjectCreationExpr(
     string TypeName,
@@ -19,7 +20,14 @@ internal sealed record BoundObjectCreationExpr(
         foreach (var a in Arguments) visit(a);
         foreach (var e in InitializerEntries)
         {
-            visit(e.Value);
+            if (!e.Elements.IsDefaultOrEmpty)
+            {
+                foreach (var el in e.Elements) visit(el);
+            }
+            else if (e.Value != null)
+            {
+                visit(e.Value);
+            }
             if (e.IndexerKey != null) visit(e.IndexerKey);
         }
     }

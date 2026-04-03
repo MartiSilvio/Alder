@@ -431,22 +431,27 @@ internal static class Operators
     }
 
     public static object? LeftShift(object? left, object? right)
-        => ShiftOp(left, right, NumericDispatch.LeftShift, TokenType.LessLess);
+        => ShiftOp(left, right, NumericDispatch.LeftShift, TokenType.LessLess, "op_LeftShift");
 
     public static object? RightShift(object? left, object? right)
-        => ShiftOp(left, right, NumericDispatch.RightShift, TokenType.GreaterGreater);
+        => ShiftOp(left, right, NumericDispatch.RightShift, TokenType.GreaterGreater, "op_RightShift");
 
     public static object? UnsignedRightShift(object? left, object? right)
-        => ShiftOp(left, right, NumericDispatch.UnsignedRightShift, TokenType.GreaterGreaterGreater);
+        => ShiftOp(left, right, NumericDispatch.UnsignedRightShift, TokenType.GreaterGreaterGreater, "op_UnsignedRightShift");
 
     private static object? ShiftOp(object? left, object? right,
-        NumericDispatch.BinaryOp dispatch, TokenType token)
+        NumericDispatch.BinaryOp dispatch, TokenType token, string operatorName)
     {
         // ECMA-334 §12.4.8: Lifted operators return null when either operand is null
         if (left == null || right == null)
             return null;
 
-        // ECMA-334 §12.11: Shift operators accept integer types and char
+        // ECMA-334 §12.11, §12.4.5: Try user-defined operator overload first
+        if (left != null && right != null &&
+            TryInvokeUserDefinedBinaryOperator(left, right, operatorName, out var result))
+            return result;
+
+        // ECMA-334 §12.11: Predefined shift operators accept integer types and char
         if (!IsIntegerOrChar(left) || !TypeHelpers.IsInteger(right))
             throw new AlderException(DiagnosticDescriptors.BadBinaryOps,
                 TokenLexemes.GetCanonical(token), TypeNameFormatter.Of(left), TypeNameFormatter.Of(right));
@@ -577,8 +582,10 @@ internal static class Operators
                         if (parameters.Length != 2)
                             continue;
 
-                        if (parameters[0].ParameterType.IsAssignableFrom(key.Left) &&
-                            parameters[1].ParameterType.IsAssignableFrom(key.Right))
+                        var p0 = parameters[0].ParameterType;
+                        var p1 = parameters[1].ParameterType;
+                        if ((p0.IsAssignableFrom(key.Left) || TypeHelpers.CanImplicitlyConvert(key.Left, p0)) &&
+                            (p1.IsAssignableFrom(key.Right) || TypeHelpers.CanImplicitlyConvert(key.Right, p1)))
                             return method;
                     }
                 }
@@ -591,7 +598,13 @@ internal static class Operators
     {
         try
         {
-            result = method.Invoke(null, [left, right]);
+            var parameters = method.GetParameters();
+            var p0 = parameters[0].ParameterType;
+            var p1 = parameters[1].ParameterType;
+            result = method.Invoke(null, [
+                p0.IsInstanceOfType(left) ? left : Convert.ChangeType(left, p0),
+                p1.IsInstanceOfType(right) ? right : Convert.ChangeType(right, p1),
+            ]);
             return true;
         }
         catch (TargetInvocationException tie) when (tie.InnerException != null)
@@ -685,7 +698,7 @@ internal static class Operators
         while (valueIndex < value.Length)
         {
             if (patternIndex < pattern.Length &&
-                (pattern[patternIndex] == '_' || CharEquals(pattern[patternIndex], value[valueIndex], ignoreCase)))
+                (pattern[patternIndex] == '_' || (ignoreCase ? char.ToUpperInvariant(pattern[patternIndex]) == char.ToUpperInvariant(value[valueIndex]) : pattern[patternIndex] == value[valueIndex])))
             {
                 patternIndex++;
                 valueIndex++;
@@ -714,9 +727,6 @@ internal static class Operators
 
         return patternIndex == pattern.Length;
     }
-
-    private static bool CharEquals(char a, char b, bool ignoreCase)
-        => ignoreCase ? char.ToUpperInvariant(a) == char.ToUpperInvariant(b) : a == b;
 
     public static object RegexMatch(object? left, object? right)
     {

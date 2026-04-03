@@ -90,6 +90,8 @@ internal static class TypeHelpers
             otherOperandTypeName);
     }
 
+
+
     // §12.13.5 + §12.14.2: Three-value logic for bool? && and bool? ||
     public static object? NullableBoolAnd(object? left, object? right)
     {
@@ -301,223 +303,9 @@ internal static class TypeHelpers
             return isChecked ? checked((char)(ushort)asUshort) : (char)(ushort)asUshort;
         }
 
-        if (isChecked)
-            return NumericCastChecked(value, targetCode);
-
-        return NumericCastUnchecked(value, targetCode);
+        return NumericCastTable.Cast(value, targetCode, isChecked);
     }
 
-    private static object NumericCastChecked(object value, TypeCode targetCode) => value switch
-    {
-        sbyte v => targetCode switch
-        {
-            TypeCode.Byte => checked((byte)v), TypeCode.Int16 => checked((short)v),
-            TypeCode.UInt16 => checked((ushort)v), TypeCode.Int32 => checked((int)v),
-            TypeCode.UInt32 => checked((uint)v), TypeCode.Int64 => checked((long)v),
-            TypeCode.UInt64 => checked((ulong)v), TypeCode.Single => (float)v,
-            TypeCode.Double => (double)v, TypeCode.Decimal => (decimal)v,
-            _ => Convert.ChangeType(v, targetCode)
-        },
-        byte v => targetCode switch
-        {
-            TypeCode.SByte => checked((sbyte)v), TypeCode.Int16 => (short)v,
-            TypeCode.UInt16 => (ushort)v, TypeCode.Int32 => (int)v,
-            TypeCode.UInt32 => (uint)v, TypeCode.Int64 => (long)v,
-            TypeCode.UInt64 => (ulong)v, TypeCode.Single => (float)v,
-            TypeCode.Double => (double)v, TypeCode.Decimal => (decimal)v,
-            _ => Convert.ChangeType(v, targetCode)
-        },
-        short v => targetCode switch
-        {
-            TypeCode.SByte => checked((sbyte)v), TypeCode.Byte => checked((byte)v),
-            TypeCode.UInt16 => checked((ushort)v), TypeCode.Int32 => (int)v,
-            TypeCode.UInt32 => checked((uint)v), TypeCode.Int64 => (long)v,
-            TypeCode.UInt64 => checked((ulong)v), TypeCode.Single => (float)v,
-            TypeCode.Double => (double)v, TypeCode.Decimal => (decimal)v,
-            _ => Convert.ChangeType(v, targetCode)
-        },
-        ushort v => targetCode switch
-        {
-            TypeCode.SByte => checked((sbyte)v), TypeCode.Byte => checked((byte)v),
-            TypeCode.Int16 => checked((short)v), TypeCode.Int32 => (int)v,
-            TypeCode.UInt32 => (uint)v, TypeCode.Int64 => (long)v,
-            TypeCode.UInt64 => (ulong)v, TypeCode.Single => (float)v,
-            TypeCode.Double => (double)v, TypeCode.Decimal => (decimal)v,
-            _ => Convert.ChangeType(v, targetCode)
-        },
-        int v => targetCode switch
-        {
-            TypeCode.SByte => checked((sbyte)v), TypeCode.Byte => checked((byte)v),
-            TypeCode.Int16 => checked((short)v), TypeCode.UInt16 => checked((ushort)v),
-            TypeCode.UInt32 => checked((uint)v), TypeCode.Int64 => (long)v,
-            TypeCode.UInt64 => checked((ulong)v), TypeCode.Single => (float)v,
-            TypeCode.Double => (double)v, TypeCode.Decimal => (decimal)v,
-            _ => Convert.ChangeType(v, targetCode)
-        },
-        uint v => targetCode switch
-        {
-            TypeCode.SByte => checked((sbyte)v), TypeCode.Byte => checked((byte)v),
-            TypeCode.Int16 => checked((short)v), TypeCode.UInt16 => checked((ushort)v),
-            TypeCode.Int32 => checked((int)v), TypeCode.Int64 => (long)v,
-            TypeCode.UInt64 => (ulong)v, TypeCode.Single => (float)v,
-            TypeCode.Double => (double)v, TypeCode.Decimal => (decimal)v,
-            _ => Convert.ChangeType(v, targetCode)
-        },
-        long v => targetCode switch
-        {
-            TypeCode.SByte => checked((sbyte)v), TypeCode.Byte => checked((byte)v),
-            TypeCode.Int16 => checked((short)v), TypeCode.UInt16 => checked((ushort)v),
-            TypeCode.Int32 => checked((int)v), TypeCode.UInt32 => checked((uint)v),
-            TypeCode.UInt64 => checked((ulong)v), TypeCode.Single => (float)v,
-            TypeCode.Double => (double)v, TypeCode.Decimal => (decimal)v,
-            _ => Convert.ChangeType(v, targetCode)
-        },
-        ulong v => targetCode switch
-        {
-            TypeCode.SByte => checked((sbyte)v), TypeCode.Byte => checked((byte)v),
-            TypeCode.Int16 => checked((short)v), TypeCode.UInt16 => checked((ushort)v),
-            TypeCode.Int32 => checked((int)v), TypeCode.UInt32 => checked((uint)v),
-            TypeCode.Int64 => checked((long)v), TypeCode.Single => (float)v,
-            TypeCode.Double => (double)v, TypeCode.Decimal => (decimal)v,
-            _ => Convert.ChangeType(v, targetCode)
-        },
-        float v => targetCode switch
-        {
-            TypeCode.SByte => checked((sbyte)v), TypeCode.Byte => checked((byte)v),
-            TypeCode.Int16 => checked((short)v), TypeCode.UInt16 => checked((ushort)v),
-            TypeCode.Int32 => checked((int)v), TypeCode.UInt32 => checked((uint)v),
-            TypeCode.Int64 => checked((long)v), TypeCode.UInt64 => checked((ulong)v),
-            TypeCode.Double => (double)v, TypeCode.Decimal => (decimal)v,
-            _ => Convert.ChangeType(v, targetCode)
-        },
-        double v => targetCode switch
-        {
-            TypeCode.SByte => checked((sbyte)v), TypeCode.Byte => checked((byte)v),
-            TypeCode.Int16 => checked((short)v), TypeCode.UInt16 => checked((ushort)v),
-            TypeCode.Int32 => checked((int)v), TypeCode.UInt32 => checked((uint)v),
-            TypeCode.Int64 => checked((long)v), TypeCode.UInt64 => checked((ulong)v),
-            TypeCode.Single => (float)v, TypeCode.Decimal => (decimal)v,
-            _ => Convert.ChangeType(v, targetCode)
-        },
-        decimal v => targetCode switch
-        {
-            TypeCode.SByte => checked((sbyte)v), TypeCode.Byte => checked((byte)v),
-            TypeCode.Int16 => checked((short)v), TypeCode.UInt16 => checked((ushort)v),
-            TypeCode.Int32 => checked((int)v), TypeCode.UInt32 => checked((uint)v),
-            TypeCode.Int64 => checked((long)v), TypeCode.UInt64 => checked((ulong)v),
-            TypeCode.Single => (float)v, TypeCode.Double => (double)v,
-            _ => Convert.ChangeType(v, targetCode)
-        },
-        _ => Convert.ChangeType(value, targetCode)
-    };
-
-    private static object NumericCastUnchecked(object value, TypeCode targetCode) => value switch
-    {
-        sbyte v => targetCode switch
-        {
-            TypeCode.Byte => unchecked((byte)v), TypeCode.Int16 => (short)v,
-            TypeCode.UInt16 => unchecked((ushort)v), TypeCode.Int32 => (int)v,
-            TypeCode.UInt32 => unchecked((uint)v), TypeCode.Int64 => (long)v,
-            TypeCode.UInt64 => unchecked((ulong)v), TypeCode.Single => (float)v,
-            TypeCode.Double => (double)v, TypeCode.Decimal => (decimal)v,
-            _ => Convert.ChangeType(v, targetCode)
-        },
-        byte v => targetCode switch
-        {
-            TypeCode.SByte => unchecked((sbyte)v), TypeCode.Int16 => (short)v,
-            TypeCode.UInt16 => (ushort)v, TypeCode.Int32 => (int)v,
-            TypeCode.UInt32 => (uint)v, TypeCode.Int64 => (long)v,
-            TypeCode.UInt64 => (ulong)v, TypeCode.Single => (float)v,
-            TypeCode.Double => (double)v, TypeCode.Decimal => (decimal)v,
-            _ => Convert.ChangeType(v, targetCode)
-        },
-        short v => targetCode switch
-        {
-            TypeCode.SByte => unchecked((sbyte)v), TypeCode.Byte => unchecked((byte)v),
-            TypeCode.UInt16 => unchecked((ushort)v), TypeCode.Int32 => (int)v,
-            TypeCode.UInt32 => unchecked((uint)v), TypeCode.Int64 => (long)v,
-            TypeCode.UInt64 => unchecked((ulong)v), TypeCode.Single => (float)v,
-            TypeCode.Double => (double)v, TypeCode.Decimal => (decimal)v,
-            _ => Convert.ChangeType(v, targetCode)
-        },
-        ushort v => targetCode switch
-        {
-            TypeCode.SByte => unchecked((sbyte)v), TypeCode.Byte => unchecked((byte)v),
-            TypeCode.Int16 => unchecked((short)v), TypeCode.Int32 => (int)v,
-            TypeCode.UInt32 => (uint)v, TypeCode.Int64 => (long)v,
-            TypeCode.UInt64 => (ulong)v, TypeCode.Single => (float)v,
-            TypeCode.Double => (double)v, TypeCode.Decimal => (decimal)v,
-            _ => Convert.ChangeType(v, targetCode)
-        },
-        int v => targetCode switch
-        {
-            TypeCode.SByte => unchecked((sbyte)v), TypeCode.Byte => unchecked((byte)v),
-            TypeCode.Int16 => unchecked((short)v), TypeCode.UInt16 => unchecked((ushort)v),
-            TypeCode.UInt32 => unchecked((uint)v), TypeCode.Int64 => (long)v,
-            TypeCode.UInt64 => unchecked((ulong)v), TypeCode.Single => (float)v,
-            TypeCode.Double => (double)v, TypeCode.Decimal => (decimal)v,
-            _ => Convert.ChangeType(v, targetCode)
-        },
-        uint v => targetCode switch
-        {
-            TypeCode.SByte => unchecked((sbyte)v), TypeCode.Byte => unchecked((byte)v),
-            TypeCode.Int16 => unchecked((short)v), TypeCode.UInt16 => unchecked((ushort)v),
-            TypeCode.Int32 => unchecked((int)v), TypeCode.Int64 => (long)v,
-            TypeCode.UInt64 => (ulong)v, TypeCode.Single => (float)v,
-            TypeCode.Double => (double)v, TypeCode.Decimal => (decimal)v,
-            _ => Convert.ChangeType(v, targetCode)
-        },
-        long v => targetCode switch
-        {
-            TypeCode.SByte => unchecked((sbyte)v), TypeCode.Byte => unchecked((byte)v),
-            TypeCode.Int16 => unchecked((short)v), TypeCode.UInt16 => unchecked((ushort)v),
-            TypeCode.Int32 => unchecked((int)v), TypeCode.UInt32 => unchecked((uint)v),
-            TypeCode.UInt64 => unchecked((ulong)v), TypeCode.Single => (float)v,
-            TypeCode.Double => (double)v, TypeCode.Decimal => (decimal)v,
-            _ => Convert.ChangeType(v, targetCode)
-        },
-        ulong v => targetCode switch
-        {
-            TypeCode.SByte => unchecked((sbyte)v), TypeCode.Byte => unchecked((byte)v),
-            TypeCode.Int16 => unchecked((short)v), TypeCode.UInt16 => unchecked((ushort)v),
-            TypeCode.Int32 => unchecked((int)v), TypeCode.UInt32 => unchecked((uint)v),
-            TypeCode.Int64 => unchecked((long)v), TypeCode.Single => (float)v,
-            TypeCode.Double => (double)v, TypeCode.Decimal => (decimal)v,
-            _ => Convert.ChangeType(v, targetCode)
-        },
-        float v => targetCode switch
-        {
-            TypeCode.SByte => unchecked((sbyte)v), TypeCode.Byte => unchecked((byte)v),
-            TypeCode.Int16 => unchecked((short)v), TypeCode.UInt16 => unchecked((ushort)v),
-            TypeCode.Int32 => unchecked((int)v), TypeCode.UInt32 => unchecked((uint)v),
-            TypeCode.Int64 => unchecked((long)v), TypeCode.UInt64 => unchecked((ulong)v),
-            TypeCode.Double => (double)v, TypeCode.Decimal => (decimal)v,
-            _ => Convert.ChangeType(v, targetCode)
-        },
-        double v => targetCode switch
-        {
-            TypeCode.SByte => unchecked((sbyte)v), TypeCode.Byte => unchecked((byte)v),
-            TypeCode.Int16 => unchecked((short)v), TypeCode.UInt16 => unchecked((ushort)v),
-            TypeCode.Int32 => unchecked((int)v), TypeCode.UInt32 => unchecked((uint)v),
-            TypeCode.Int64 => unchecked((long)v), TypeCode.UInt64 => unchecked((ulong)v),
-            TypeCode.Single => (float)v, TypeCode.Decimal => (decimal)v,
-            _ => Convert.ChangeType(v, targetCode)
-        },
-        decimal v => targetCode switch
-        {
-            TypeCode.SByte => (sbyte)v, TypeCode.Byte => (byte)v,
-            TypeCode.Int16 => (short)v, TypeCode.UInt16 => (ushort)v,
-            TypeCode.Int32 => (int)v, TypeCode.UInt32 => (uint)v,
-            TypeCode.Int64 => (long)v, TypeCode.UInt64 => (ulong)v,
-            TypeCode.Single => (float)v, TypeCode.Double => (double)v,
-            _ => Convert.ChangeType(v, targetCode)
-        },
-        _ => Convert.ChangeType(value, targetCode)
-    };
-
-    /// <summary>
-    /// ECMA-334 §10.5.3–§10.5.5: Find the most specific user-defined conversion operator.
-    /// Searches source/target type hierarchies, filters by standard conversion applicability,
     /// then selects the most specific source type (Sx) and target type (Tx).
     /// </summary>
     private static bool TryResolveUserDefinedConversion(
@@ -733,6 +521,15 @@ internal static class TypeHelpers
             }
         }
 
+        // §10.2.11: "A constant_expression of type long can be converted to type ulong,
+        // provided the value of the constant_expression is not negative."
+        if (isConstantExpression && sourceType == typeof(long) && value is long longValue && underlyingType == typeof(ulong))
+        {
+            if (longValue >= 0)
+                return (ulong)longValue;
+            throw new AlderException(DiagnosticDescriptors.ConstantValueCannotConvert, longValue, underlyingType.Name);
+        }
+
         // §10.2.4: Implicit enumeration conversion — constant 0 → any enum
         // §10.3.3: Explicit enumeration conversion — any integer ↔ enum
         if (underlyingType.IsEnum && IsIntegerType(sourceType))
@@ -935,11 +732,6 @@ internal static class TypeHelpers
         (signed == typeof(int) && unsigned is { } u3 && (u3 == typeof(uint) || u3 == typeof(ulong))) ||
         (signed == typeof(long) && unsigned == typeof(ulong));
 
-    /// <summary>
-    /// Checks whether a source type can be assigned or implicitly converted to a target type.
-    /// This is the canonical compatibility check used by compile-time emitters when selecting
-    /// method overloads and constructors.
-    /// </summary>
     public static bool CanAssignOrImplicitlyConvert(Type sourceType, Type targetType)
     {
         if (targetType.IsAssignableFrom(sourceType))
@@ -954,6 +746,8 @@ internal static class TypeHelpers
         return CanImplicitlyConvert(sourceType, targetType) ||
                CanImplicitlyConvert(sourceUnderlying, targetUnderlying);
     }
+
+
 
     /// <summary>
     /// Returns the ECMA-334 binary numeric promotion type for arithmetic operands,

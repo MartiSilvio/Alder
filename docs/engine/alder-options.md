@@ -190,6 +190,6 @@ The default `DefaultExpressionCompiler` calls `expression.Compile()`. Implement 
 | Value | Description |
 |-------|-------------|
 | `Standard` | ECMA-334 C# expression and statement semantics |
-| `Extended` | Superset — adds `**`, `\|>`, `<=>`, `===`, `in`, `like`, `between`, `..=`, `..<`, `[...]`, comprehensions, `let..in`, `if-else` expressions, `unless`/`until`, `and`/`or`/`not` word operators, bare math functions, aggregate built-ins, date/time sugar, implicit `it` |
+| `Extended` | Superset — adds `**`, `\|>`, `<=>`, `===`, `in`, `like`, `between`, `..=`, `..<`, `[...]`, comprehensions, `let..in`, `if-else` expressions, `unless`/`until`, `and`/`or`/`not` word operators, bare math functions, aggregate built-ins, date/time sugar |
 
 Using Extended features in Standard mode throws `ALDR0020`.

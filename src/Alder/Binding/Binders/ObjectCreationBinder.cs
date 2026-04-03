@@ -17,8 +17,11 @@ internal static class ObjectCreationBinder
                 ..expr.Initializer.Entries
                     .Select(entry => new BoundInitializerEntry(
                         entry.PropertyName,
-                        binder.Bind(entry.Value, context),
-                        entry.IndexerKey != null ? binder.Bind(entry.IndexerKey, context) : null))
+                        entry.Value != null ? binder.Bind(entry.Value, context) : null,
+                        entry.IndexerKey != null ? binder.Bind(entry.IndexerKey, context) : null,
+                        entry.Elements != null
+                            ? [..entry.Elements.Select(e => binder.Bind(e, context))]
+                            : default))
             ]
             : ImmutableArray<BoundInitializerEntry>.Empty;
         var resolvedType = context.RuntimeContext.TypeResolver.TryResolveType(expr.TypeName);

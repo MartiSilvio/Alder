@@ -1,0 +1,1 @@
+typeof(List<int>).GetGenericTypeDefinition() == typeof(List<>)

@@ -24,14 +24,14 @@ internal static class ResolvedIndexAccessEvaluator
             if (node.TargetType == typeof(string))
             {
                 var s = (string)target;
-                var i = MemberAccess.NormalizeIndex(Convert.ToInt32(index), s.Length, ctx.Config.LanguageMode);
+                var i = MemberAccess.NormalizeIndex(Convert.ToInt32(index), s.Length);
                 return (object)s[i];
             }
 
             if (typeof(IList).IsAssignableFrom(node.TargetType))
             {
                 var list = (IList)target;
-                var i = MemberAccess.NormalizeIndex(Convert.ToInt32(index), list.Count, ctx.Config.LanguageMode);
+                var i = MemberAccess.NormalizeIndex(Convert.ToInt32(index), list.Count);
                 return TypeHelpers.GuardReflectionLeak(list[i], $"index [{i}]");
             }
 

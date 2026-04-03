@@ -10,7 +10,7 @@ internal static class CastBinder
     {
         var expression = binder.Bind(expr.Expression, context);
         var targetType = context.RuntimeContext.TypeResolver.ResolveType(expr.TargetType.Lexeme);
-        var sourceStaticType = expr.Expression is IdentifierExpr && expression.StaticType is not BoundUnknownType
+        var sourceStaticType = expression.StaticType is not BoundUnknownType
             ? expression.StaticType.ClrType
             : (Type?)null;
         return new BoundCastExpr(expression, targetType, sourceStaticType, new BoundType(targetType));

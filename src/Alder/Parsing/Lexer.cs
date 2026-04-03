@@ -27,7 +27,7 @@ internal sealed class Lexer
         ["else"] = TokenType.Else,
         ["return"] = TokenType.Return,
         ["var"] = TokenType.Var,
-        ["function"] = TokenType.Function,  // JavaScript reserved
+
 
         // Keywords - Control flow (reserved)
         ["switch"] = TokenType.Switch,

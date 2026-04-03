@@ -109,6 +109,25 @@ internal sealed class NamedTupleValue(object tuple, IReadOnlyDictionary<string, 
         return nameToIndex.TryGetValue(name, out index);
     }
 
+    internal NamedTupleValue WithModifiedValues(string[] names, object?[] values)
+    {
+        var elements = new object?[Length];
+        for (var i = 0; i < Length; i++)
+            elements[i] = this[i];
+
+        for (var i = 0; i < names.Length; i++)
+        {
+            if (!TryGetIndex(names[i], out var idx))
+                throw new AlderException(
+                    Diagnostics.DiagnosticDescriptors.MemberNotFound, "tuple", names[i]);
+            elements[idx] = values[i];
+        }
+
+        return new NamedTupleValue(
+            Alder.Runtime.Semantics.ConstructionRuntime.CreateTuple(elements),
+            nameToIndex);
+    }
+
     // Delegate all other behavior to the underlying tuple
     public override string ToString() => Tuple.ToString()!;
     public override int GetHashCode() => Tuple.GetHashCode();

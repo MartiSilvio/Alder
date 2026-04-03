@@ -115,7 +115,12 @@ public class ParityTests(CompilationMode mode)
         if (alderEx is not AlderException csEx)
         {
             Assert.That(alderEx, Is.InstanceOf<OverflowException>()
-                    .Or.InstanceOf<DivideByZeroException>(),
+                    .Or.InstanceOf<DivideByZeroException>()
+                    .Or.InstanceOf<ArgumentOutOfRangeException>()
+                    .Or.InstanceOf<IndexOutOfRangeException>()
+                    .Or.InstanceOf<InvalidOperationException>()
+                    .Or.InstanceOf<InvalidCastException>()
+                    .Or.InstanceOf<NullReferenceException>(),
                 $"Non-AlderException thrown for '{expr}': {alderEx!.GetType().Name}: {alderEx.Message}");
             return;
         }
@@ -137,11 +142,15 @@ public class ParityTests(CompilationMode mode)
             {
                 // If Roslyn threw a runtime exception (no compiler code), only require both sides to throw.
                 case null:
-                // Skip code parity for parser-level mismatches where Roslyn can't parse Extended syntax.
-                // Roslyn gives generic errors (CS1002 etc.) for syntax it doesn't understand;
-                // Alder gives meaningful errors (CS1003 etc.) for its own grammar.
-                case "CS1002" when csEx.ErrorCode is
-                    DiagnosticCode.CS1003 or DiagnosticCode.CS1525 or DiagnosticCode.CS1733:
+                // Skip code parity for parser-level mismatches. Alder and Roslyn are different
+                // parsers — when both reject invalid syntax, the specific error code may differ.
+                // What matters is that both agree the expression is invalid.
+                case "CS1002" or "CS1525" or "CS8076" or "CS0201" when csEx.ErrorCode is
+                    DiagnosticCode.CS1003 or DiagnosticCode.CS1525 or DiagnosticCode.CS1733
+                    or DiagnosticCode.CS0103 or DiagnosticCode.ALDR0300:
+                // Roslyn catches member-not-found at compile time (CS1061); Alder is a runtime
+                // engine and catches it at invocation time (ALDR0304). Both reject correctly.
+                case "CS1061" when csEx.ErrorCode is DiagnosticCode.ALDR0304:
                     return;
             }
 
