@@ -5,6 +5,7 @@ internal enum ArgumentKind : byte
     Value,
     Out,
     Lambda,
+    MethodGroup,
     Null
 }
 
@@ -46,6 +47,9 @@ internal readonly struct ArgumentDescriptor
 
     internal static ArgumentDescriptor ForLambda(int arity) =>
         new(null, null, ArgumentKind.Lambda, arity, null);
+
+    internal static ArgumentDescriptor ForMethodGroup(int arity, object methodRef) =>
+        new(null, null, ArgumentKind.MethodGroup, arity, methodRef);
 
     internal static ArgumentDescriptor ForTest(ArgumentKind kind, Type? staticType, string? name, int lambdaArity) =>
         new(staticType, name, kind, lambdaArity, null);

@@ -431,6 +431,9 @@ internal static class BoundRuntimeMethodCache
     internal static readonly MethodInfo CoerceNumericMethod =
         typeof(TypeHelpers).GetMethod("CoerceNumeric", BindingFlags.NonPublic | BindingFlags.Static)!;
 
+    internal static readonly MethodInfo LambdaDelegateTryConvertMethod =
+        typeof(LambdaDelegateConverter).GetMethod(nameof(LambdaDelegateConverter.TryConvert), BindingFlags.Public | BindingFlags.Static)!;
+
     internal static readonly MethodInfo GuardReflectionLeakTypedMethod =
         typeof(TypeHelpers).GetMethod(nameof(TypeHelpers.GuardReflectionLeakTyped))!;
 

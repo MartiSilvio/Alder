@@ -30,9 +30,9 @@ internal static class CallBinder
 
         if (callee is BoundMethodGroupExpr methodGroup && !hasSpecialArgs)
         {
-            var hasLambdas = arguments.Any(static a => a is BoundLambdaExpr);
+            var hasLambdasOrMethodGroups = arguments.Any(static a => a is BoundLambdaExpr or BoundMethodGroupExpr);
 
-            if (!hasLambdas)
+            if (!hasLambdasOrMethodGroups)
             {
                 var argumentTypes = arguments.Select(static argument => argument.StaticType.ClrType).ToArray();
                 var callBinderService = new CallBinderService(context.RuntimeContext);
@@ -72,9 +72,9 @@ internal static class CallBinder
             dynAccess.Target.StaticType is not BoundUnknownType)
         {
             var targetType = dynAccess.Target.StaticType.ClrType;
-            var hasLambdas = arguments.Any(static a => a is BoundLambdaExpr);
+            var hasLambdasOrMethodGroups = arguments.Any(static a => a is BoundLambdaExpr or BoundMethodGroupExpr);
 
-            if (!hasLambdas)
+            if (!hasLambdasOrMethodGroups)
             {
                 var argumentTypes = arguments.Select(static a => a.StaticType.ClrType).ToArray();
                 var ext = TryBindExtensionCall(
@@ -134,13 +134,7 @@ internal static class CallBinder
         BindingContext context,
         BinderContext binder)
     {
-        var userDescriptors = new ArgumentDescriptor[arguments.Length];
-        for (var i = 0; i < arguments.Length; i++)
-        {
-            userDescriptors[i] = arguments[i] is BoundLambdaExpr lambda
-                ? ArgumentDescriptor.ForLambda(lambda.Parameters.Length)
-                : ArgumentDescriptor.ForType(arguments[i].StaticType.ClrType);
-        }
+        var userDescriptors = BuildDescriptorsForLambdasAndMethodGroups(arguments);
 
         var service = new CallBinderService(context.RuntimeContext);
         if (!service.TryBindExtensionCallWithDescriptors(
@@ -156,7 +150,7 @@ internal static class CallBinder
         allArguments.AddRange(arguments);
         var fullArguments = allArguments.ToImmutable();
 
-        var typedArguments = TryBindLambdaArguments(fullArguments, plan.Resolution, context, binder);
+        var typedArguments = TryBindLambdaAndMethodGroupArguments(fullArguments, plan.Resolution, context, binder);
         if (typedArguments == null)
             return null;
 
@@ -197,14 +191,7 @@ internal static class CallBinder
         BindingContext context,
         BinderContext binder)
     {
-        var descriptors = new ArgumentDescriptor[arguments.Length];
-        for (var i = 0; i < arguments.Length; i++)
-        {
-            if (arguments[i] is BoundLambdaExpr lambda)
-                descriptors[i] = ArgumentDescriptor.ForLambda(lambda.Parameters.Length);
-            else
-                descriptors[i] = ArgumentDescriptor.ForType(arguments[i].StaticType.ClrType);
-        }
+        var descriptors = BuildDescriptorsForLambdasAndMethodGroups(arguments);
 
         var flags = BindingFlags.Public |
                     (methodGroup.IsStatic ? BindingFlags.Static : BindingFlags.Instance);
@@ -222,7 +209,7 @@ internal static class CallBinder
             return null;
 
         var resolution = callPlan!.Resolution;
-        var typedArguments = TryBindLambdaArguments(arguments, resolution, context, binder);
+        var typedArguments = TryBindLambdaAndMethodGroupArguments(arguments, resolution, context, binder);
         if (typedArguments == null)
             return null;
 
@@ -314,6 +301,40 @@ internal static class CallBinder
                 captures = CapturesOuterLocals(child, lambdaLocalIds);
         });
         return captures;
+    }
+
+    private static ArgumentDescriptor[] BuildDescriptorsForLambdasAndMethodGroups(ImmutableArray<BoundExpr> arguments)
+    {
+        var descriptors = new ArgumentDescriptor[arguments.Length];
+        for (var i = 0; i < arguments.Length; i++)
+        {
+            descriptors[i] = arguments[i] switch
+            {
+                BoundLambdaExpr lambda => ArgumentDescriptor.ForLambda(lambda.Parameters.Length),
+                BoundMethodGroupExpr mg => ArgumentDescriptor.ForMethodGroup(1, new StaticMethodRef(mg.DeclaringType, mg.MethodName)),
+                _ => ArgumentDescriptor.ForType(arguments[i].StaticType.ClrType)
+            };
+        }
+        return descriptors;
+    }
+
+    /// <summary>
+    /// Method groups don't need bind-time transformation — the runtime LambdaDelegateConverter
+    /// handles the conversion. But if lambdas are also present, delegate to TryBindLambdaArguments
+    /// which types their parameters from the resolved delegate signature.
+    /// </summary>
+    private static ImmutableArray<BoundExpr>? TryBindLambdaAndMethodGroupArguments(
+        ImmutableArray<BoundExpr> arguments,
+        ResolvedCall resolution,
+        BindingContext context,
+        BinderContext binder)
+    {
+        var hasLambdas = arguments.Any(static a => a is BoundLambdaExpr);
+        if (hasLambdas)
+            return TryBindLambdaArguments(arguments, resolution, context, binder);
+
+        // Method groups only — no bind-time processing needed
+        return arguments;
     }
 
     private static bool TryBindStaticModuleCall(CallExpr call, BindingContext context, BinderContext binder, out BoundExpr boundCall)

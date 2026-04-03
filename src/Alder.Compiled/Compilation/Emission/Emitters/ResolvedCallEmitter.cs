@@ -180,7 +180,7 @@ internal sealed class ResolvedCallEmitter : INodeEmitter<BoundResolvedCallExpr>
                         emitted[paramIdx] = EmitHelpers.EnsureTypedExpression(coerced, conversion.TargetType);
                         break;
                     }
-                    emitted[paramIdx] = EmitCallArgument(call.Arguments[argIdx], conversion.TargetType, ctx);
+                    emitted[paramIdx] = EmitCallArgument(call.Arguments[argIdx], conversion, ctx);
                     break;
                 }
 
@@ -201,7 +201,7 @@ internal sealed class ResolvedCallEmitter : INodeEmitter<BoundResolvedCallExpr>
                     {
                         var argIdx = source.ParamsStartIndex + i;
                         var conversion = conversions[argIdx];
-                        var convertedArg = EmitCallArgument(call.Arguments[argIdx], conversion.TargetType, ctx);
+                        var convertedArg = EmitCallArgument(call.Arguments[argIdx], conversion, ctx);
                         args[i] = EmitHelpers.EnsureTypedExpression(convertedArg, elementType);
                     }
 
@@ -235,14 +235,24 @@ internal sealed class ResolvedCallEmitter : INodeEmitter<BoundResolvedCallExpr>
         return LinqExpression.Constant(defaultValue, parameterType);
     }
 
-    private static LinqExpression EmitCallArgument(BoundExpr argument, Type targetType, EmissionContext ctx)
+    private static LinqExpression EmitCallArgument(BoundExpr argument, ArgumentConversion conversion, EmissionContext ctx)
     {
+        var targetType = conversion.TargetType;
         var emittedArgument = ctx.Emit(argument);
         if (targetType == typeof(object))
             return EmitHelpers.AsObject(emittedArgument);
 
         if (emittedArgument.Type == targetType)
             return emittedArgument;
+
+        if (conversion.Kind == ArgumentConversionKind.LambdaToDelegate)
+        {
+            var convertCall = LinqExpression.Call(
+                LambdaDelegateTryConvertMethod,
+                EmitHelpers.AsObject(emittedArgument),
+                LinqExpression.Constant(targetType, typeof(Type)));
+            return LinqExpression.Convert(convertCall, targetType);
+        }
 
         if (emittedArgument.Type == typeof(object))
         {

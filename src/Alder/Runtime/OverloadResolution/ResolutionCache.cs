@@ -97,7 +97,7 @@ internal static class ResolutionCache
 
         for (var i = 0; i < args.Length; i++)
         {
-            if (args[i].Kind is ArgumentKind.Lambda or ArgumentKind.Out)
+            if (args[i].Kind is ArgumentKind.Lambda or ArgumentKind.MethodGroup or ArgumentKind.Out)
                 return false;
             if (args[i].Name != null)
                 return false;

@@ -161,22 +161,20 @@ internal static class MethodInvoker
         if (extensionTypes.IsDefaultOrEmpty)
             return (false, null);
 
-        object?[]? extArgs = null;
+        var extArgs = PrependTarget(target, args);
+        var resolvedArgs = TryResolveLambdaArgs(extArgs, target.GetType(), context) ?? extArgs;
+        var resolvedInnerArgs = resolvedArgs == extArgs ? args : resolvedArgs.AsSpan(1).ToArray();
 
         foreach (var extType in extensionTypes)
         {
-            // Try typed dispatch first for this extension type
             if (!hasSpecialArgs && config.TryGetDispatch(extType, out var extDispatch))
             {
-                extArgs ??= PrependTarget(target, args);
-                var resolvedArgs = TryResolveLambdaArgs(extArgs, target.GetType(), context);
-                if (extDispatch.TryInvokeStatic(methodName, resolvedArgs ?? extArgs, out var typedResult))
+                if (extDispatch.TryInvokeStatic(methodName, resolvedArgs, out var typedResult))
                     return (true, typedResult);
             }
 
-            // Typed dispatch didn't match — try reflection for this specific type
             var reflResult = ExtensionMethodResolver.TryInvokeFromType(
-                target, target.GetType(), methodName, args, extType,
+                target, target.GetType(), methodName, resolvedInnerArgs, extType,
                 config.IsCaseSensitive, typeArgs, context, ct);
             if (reflResult.Success)
                 return reflResult;
@@ -191,16 +189,16 @@ internal static class MethodInvoker
         if (elementType == null)
             return null;
 
-        var hasLambda = false;
+        var hasConvertible = false;
         for (var i = 1; i < extArgs.Length; i++)
         {
-            if (extArgs[i] is LambdaValue or CompiledLambdaValue)
+            if (extArgs[i] is LambdaValue or CompiledLambdaValue or StaticMethodRef or MethodRef or ModuleMethodRef)
             {
-                hasLambda = true;
+                hasConvertible = true;
                 break;
             }
         }
-        if (!hasLambda)
+        if (!hasConvertible)
             return null;
 
         var resolved = new object?[extArgs.Length];
@@ -209,16 +207,18 @@ internal static class MethodInvoker
         var inputTypes = new Binding.BoundType[] { new(elementType) };
         for (var i = 1; i < extArgs.Length; i++)
         {
-            if (extArgs[i] is not (LambdaValue or CompiledLambdaValue))
+            var arg = extArgs[i];
+
+            if (arg is not (LambdaValue or CompiledLambdaValue or StaticMethodRef or MethodRef or ModuleMethodRef))
             {
-                resolved[i] = extArgs[i];
+                resolved[i] = arg;
                 continue;
             }
 
-            var returnType = ExtensionMethodResolver.InferLambdaReturnType(extArgs[i], inputTypes, context);
+            var returnType = ExtensionMethodResolver.InferLambdaReturnType(arg, inputTypes, context);
             if (returnType == null || returnType == typeof(object))
             {
-                resolved[i] = extArgs[i];
+                resolved[i] = arg;
                 continue;
             }
 
@@ -226,15 +226,15 @@ internal static class MethodInvoker
             try
             {
                 var delegateType = typeof(Func<,>).MakeGenericType(elementType, returnType);
-                converted = LambdaDelegateConverter.TryConvert(extArgs[i]!, delegateType);
+                converted = LambdaDelegateConverter.TryConvert(arg!, delegateType);
             }
             catch
             {
                 // MakeGenericType or delegate conversion can fail on NativeAOT
-                // when the closed generic instantiation isn't available — leave as LambdaValue.
+                // when the closed generic instantiation isn't available.
                 // The generated AsProjection<T> fallback in EnumerableDispatch handles this case.
             }
-            resolved[i] = converted ?? extArgs[i];
+            resolved[i] = converted ?? arg;
         }
 
         return resolved;

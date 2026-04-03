@@ -306,6 +306,13 @@ internal static class ExtensionMethodResolver
                 parameters = compiled.Source.Parameters.Select(static p => p.Name.Lexeme).ToList();
                 body = compiled.Source.Body;
                 break;
+            case StaticMethodRef or MethodRef or ModuleMethodRef:
+            {
+                var paramTypes = new Type[inputTypes.Length];
+                for (var i = 0; i < inputTypes.Length; i++)
+                    paramTypes[i] = inputTypes[i].ClrType;
+                return OverloadResolver.TryInferMethodGroupReturnType(arg, paramTypes);
+            }
             default:
                 return null;
         }

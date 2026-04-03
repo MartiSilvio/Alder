@@ -63,7 +63,7 @@ internal static class OverloadResolution
         if (targetResult != BetterResult.Neither)
             return targetResult;
 
-        if (arg.Kind == ArgumentKind.Lambda)
+        if (arg.Kind is ArgumentKind.Lambda or ArgumentKind.MethodGroup)
             return BetterConversionFromLambda(argIndex, left, right, t1, t2);
 
         return BetterResult.Neither;
@@ -119,7 +119,7 @@ internal static class OverloadResolution
         if (arg.Kind == ArgumentKind.Value)
             return arg.StaticType == targetType;
 
-        if (arg.Kind == ArgumentKind.Lambda)
+        if (arg.Kind is ArgumentKind.Lambda or ArgumentKind.MethodGroup)
             return LambdaExactlyMatchesDelegate(argIndex, candidate, targetType);
 
         return false;

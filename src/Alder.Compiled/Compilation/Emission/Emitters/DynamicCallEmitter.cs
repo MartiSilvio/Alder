@@ -31,7 +31,8 @@ internal sealed class DynamicCallEmitter : INodeEmitter<BoundDynamicCallExpr>
         var outBindings = EmitHelpers.CollectOutBindings(arguments);
 
         LinqExpression invokeExpr;
-        if (callee is BoundIdentifierExpr identifier)
+        if (callee is BoundIdentifierExpr identifier &&
+            !(identifier.LocalId is { } localId && ctx.TryGetPromoted(localId, out _)))
         {
             invokeExpr = LinqExpression.Call(
                 InvokeIdentifierCallMethod,

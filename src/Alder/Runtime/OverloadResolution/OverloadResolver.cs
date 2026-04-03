@@ -280,12 +280,12 @@ internal static class OverloadResolver
         if (context == null)
             return null;
 
-        var hasLambda = false;
+        var hasLambdaOrMethodGroup = false;
         for (var i = 0; i < args.Length; i++)
         {
-            if (args[i].Kind == ArgumentKind.Lambda) { hasLambda = true; break; }
+            if (args[i].Kind is ArgumentKind.Lambda or ArgumentKind.MethodGroup) { hasLambdaOrMethodGroup = true; break; }
         }
-        if (!hasLambda)
+        if (!hasLambdaOrMethodGroup)
             return null;
 
         Type?[]? result = null;
@@ -294,7 +294,7 @@ internal static class OverloadResolver
 
         for (var i = 0; i < args.Length; i++)
         {
-            if (args[i].Kind != ArgumentKind.Lambda)
+            if (args[i].Kind is not (ArgumentKind.Lambda or ArgumentKind.MethodGroup))
                 continue;
 
             var paramIdx = FindParameterForArgument(sources, i);
@@ -302,15 +302,32 @@ internal static class OverloadResolver
                 continue;
 
             var delegateType = parameters[paramIdx].ParameterType;
-            var invoke = delegateType.GetMethod("Invoke");
+            var invoke = delegateType.GetMethod(nameof(Action.Invoke));
             if (invoke == null || invoke.ReturnType == typeof(void))
                 continue;
 
-            var invokeParams = invoke.GetParameters();
-            var inputTypes = new Binding.BoundType[invokeParams.Length];
+            // §10.8: For method groups, resolve the method to infer the return type
+            if (args[i].Kind == ArgumentKind.MethodGroup)
+            {
+                var invokeParams = invoke.GetParameters();
+                var inputParamTypes = new Type[invokeParams.Length];
+                for (var j = 0; j < invokeParams.Length; j++)
+                    inputParamTypes[j] = invokeParams[j].ParameterType;
+
+                var methodReturnType = TryInferMethodGroupReturnType(args[i].RuntimeValue, inputParamTypes);
+                if (methodReturnType != null)
+                {
+                    result ??= new Type?[args.Length];
+                    result[i] = methodReturnType;
+                }
+                continue;
+            }
+
+            var lambdaInvokeParams = invoke.GetParameters();
+            var inputTypes = new Binding.BoundType[lambdaInvokeParams.Length];
             for (var j = 0; j < inputTypes.Length; j++)
             {
-                var paramType = invokeParams[j].ParameterType;
+                var paramType = lambdaInvokeParams[j].ParameterType;
                 inputTypes[j] = elementMemberTypes != null && typeof(IDictionary<string, object?>).IsAssignableFrom(paramType)
                     ? new Binding.BoundStructuralType(paramType, elementMemberTypes)
                     : new Binding.BoundType(paramType);
@@ -355,6 +372,24 @@ internal static class OverloadResolver
         return null;
     }
 
+    internal static Type? TryInferMethodGroupReturnType(object? methodRef, Type[] paramTypes)
+    {
+        var (declaringType, methodName, target) = methodRef switch
+        {
+            StaticMethodRef s => (s.Type, s.MethodName, (object?)null),
+            ModuleMethodRef m => (m.Method.DeclaringType, m.Method.Name, m.Module.Instance),
+            MethodRef { Target: Type t } m => (t, m.MethodName, (object?)null),
+            MethodRef m => (m.Target.GetType(), m.MethodName, m.Target),
+            _ => ((Type?)null, (string?)null, (object?)null)
+        };
+        if (declaringType == null || methodName == null)
+            return null;
+
+        var flags = target != null ? BindingFlags.Public | BindingFlags.Instance : BindingFlags.Public | BindingFlags.Static;
+        var method = declaringType.GetMethod(methodName, flags, null, paramTypes, null);
+        return method?.ReturnType;
+    }
+
     private static int FindParameterForArgument(ImmutableArray<ParameterSource> sources, int argIndex)
     {
         for (var i = 0; i < sources.Length; i++)
@@ -393,7 +428,7 @@ internal static class OverloadResolver
         {
             argTypes[i] = args[i].StaticType;
 
-            if (args[i].Kind == ArgumentKind.Lambda)
+            if (args[i].Kind is ArgumentKind.Lambda or ArgumentKind.MethodGroup)
             {
                 lambdaArgs ??= new object?[args.Length];
                 lambdaArgs[i] = args[i].RuntimeValue;

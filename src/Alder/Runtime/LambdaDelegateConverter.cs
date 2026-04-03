@@ -24,13 +24,17 @@ internal static class LambdaDelegateConverter
 
     public static Delegate? TryConvert(object value, Type delegateType)
     {
-        if (!IsSupportedDelegateType(delegateType))
+        if (!typeof(Delegate).IsAssignableFrom(delegateType))
             return null;
 
         return value switch
         {
-            CompiledLambdaValue compiled => ConvertCompiledLambda(compiled, delegateType),
-            LambdaValue interpreted => ConvertInterpretedLambda(interpreted, delegateType),
+            CompiledLambdaValue compiled => ConvertLambda(compiled, compiled.Parameters.Count, delegateType),
+            LambdaValue interpreted => ConvertLambda(interpreted, interpreted.Parameters.Count, delegateType),
+            StaticMethodRef staticRef => ConvertMethodRef(staticRef.Type, staticRef.MethodName, null, delegateType),
+            ModuleMethodRef moduleRef => ConvertMethodRef(moduleRef.Method.DeclaringType!, moduleRef.Method.Name, moduleRef.Module.Instance, delegateType),
+            MethodRef { Target: Type staticType } methodRef => ConvertMethodRef(staticType, methodRef.MethodName, null, delegateType),
+            MethodRef instanceRef => ConvertMethodRef(instanceRef.Target.GetType(), instanceRef.MethodName, instanceRef.Target, delegateType),
             _ => null
         };
     }
@@ -48,79 +52,91 @@ internal static class LambdaDelegateConverter
                SupportedActionDefinitions.Contains(delegateDefinition);
     }
 
-    private static Delegate? ConvertCompiledLambda(CompiledLambdaValue lambda, Type delegateType)
+    /// <summary>
+    /// Extracts (parameterTypes, returnType) from any delegate type via its Invoke method.
+    /// ECMA-334 §20.1: all delegate types have an Invoke method with matching signature.
+    /// </summary>
+    private static (Type[]? ParamTypes, Type ReturnType) GetDelegateSignature(Type delegateType)
+    {
+        var invoke = delegateType.GetMethod(nameof(Action.Invoke));
+        if (invoke == null)
+            return (null, typeof(void));
+
+        var parameters = invoke.GetParameters();
+        var paramTypes = new Type[parameters.Length];
+        for (var i = 0; i < parameters.Length; i++)
+            paramTypes[i] = parameters[i].ParameterType;
+
+        return (paramTypes, invoke.ReturnType);
+    }
+
+    private static Delegate? ConvertLambda(object lambda, int paramCount, Type delegateType)
     {
         var (paramTypes, returnType) = GetDelegateSignature(delegateType);
-        if (lambda.Parameters.Count != paramTypes.Length)
+        if (paramTypes == null || paramCount != paramTypes.Length)
+            return null;
+
+        // Build Func<>/Action<> equivalent for the factory
+        var funcActionType = IsSupportedDelegateType(delegateType) ? delegateType : BuildFuncActionType(paramTypes, returnType);
+        if (funcActionType == null)
             return null;
 
         var typeCache = DelegateCache.GetOrCreateValue(lambda);
-        return typeCache.GetOrAdd(delegateType,
-            _ => LambdaDelegateFactory.CreateCompiledDelegate(lambda, delegateType, paramTypes, returnType));
+        return typeCache.GetOrAdd(delegateType, _ =>
+        {
+            Delegate inner;
+            if (lambda is CompiledLambdaValue compiled)
+                inner = LambdaDelegateFactory.CreateCompiledDelegate(compiled, funcActionType, paramTypes, returnType);
+            else
+            {
+                var interpreted = (LambdaValue)lambda;
+                if (_aotFactories != null && _aotFactories.TryGetValue(funcActionType, out var aotFactory))
+                    inner = aotFactory(interpreted);
+                else
+                    inner = LambdaDelegateFactory.CreateInterpretedDelegate(interpreted, funcActionType, paramTypes, returnType);
+            }
+
+            if (funcActionType == delegateType)
+                return inner;
+
+            // §10.8: Rewrap for arbitrary delegate types (Comparison<T>, Predicate<T>, etc.)
+            return Delegate.CreateDelegate(delegateType, inner.Target, inner.Method);
+        });
     }
 
-    private static Delegate? ConvertInterpretedLambda(LambdaValue lambda, Type delegateType)
+    private static Delegate? ConvertMethodRef(Type declaringType, string methodName, object? target, Type delegateType)
     {
-        var (paramTypes, returnType) = GetDelegateSignature(delegateType);
-        if (lambda.Parameters.Count != paramTypes.Length)
+        var (paramTypes, _) = GetDelegateSignature(delegateType);
+        if (paramTypes == null)
             return null;
 
-        if (_aotFactories != null && _aotFactories.TryGetValue(delegateType, out var aotFactory))
-        {
-            var typeCache = DelegateCache.GetOrCreateValue(lambda);
-            return typeCache.GetOrAdd(delegateType, _ => aotFactory(lambda));
-        }
+        var flags = target != null
+            ? BindingFlags.Public | BindingFlags.Instance
+            : BindingFlags.Public | BindingFlags.Static;
+        var method = declaringType.GetMethod(methodName, flags, null, paramTypes, null);
+        if (method == null)
+            return null;
 
-        {
-            var typeCache = DelegateCache.GetOrCreateValue(lambda);
-            return typeCache.GetOrAdd(delegateType,
-                _ => LambdaDelegateFactory.CreateInterpretedDelegate(lambda, delegateType, paramTypes, returnType));
-        }
+        return target != null
+            ? Delegate.CreateDelegate(delegateType, target, method)
+            : Delegate.CreateDelegate(delegateType, method);
     }
 
-    private static (Type[] ParamTypes, Type ReturnType) GetDelegateSignature(Type delegateType)
+    private static Type? BuildFuncActionType(Type[] paramTypes, Type returnType)
     {
-        if (!TryGetDelegateKind(delegateType, out var isFunc))
+        if (returnType == typeof(void))
         {
-            throw new AlderException(
-                DiagnosticDescriptors.DelegateConversionFailed, delegateType.Name, "Func<> or Action<>");
+            if (paramTypes.Length == 0) return typeof(Action);
+            var openAction = GetOpenActionType(paramTypes.Length);
+            return openAction?.MakeGenericType(paramTypes);
         }
 
-        var genericArgs = delegateType.GetGenericArguments();
-
-        if (isFunc)
-        {
-            var paramTypes = new Type[genericArgs.Length - 1];
-            Array.Copy(genericArgs, paramTypes, paramTypes.Length);
-            var returnType = genericArgs[genericArgs.Length - 1];
-            return (paramTypes, returnType);
-        }
-
-        // Action<T1, T2, ...>: all args are parameters, void return
-        return (genericArgs, typeof(void));
-    }
-
-    private static bool TryGetDelegateKind(Type delegateType, out bool isFunc)
-    {
-        isFunc = false;
-
-        if (delegateType == typeof(Action))
-            return true;
-
-        if (!delegateType.IsGenericType || delegateType.ContainsGenericParameters)
-            return false;
-
-        var definition = delegateType.GetGenericTypeDefinition();
-        if (SupportedFuncDefinitions.Contains(definition))
-        {
-            isFunc = true;
-            return true;
-        }
-
-        if (SupportedActionDefinitions.Contains(definition))
-            return true;
-
-        return false;
+        var openFunc = GetOpenFuncType(paramTypes.Length + 1);
+        if (openFunc == null) return null;
+        var genericArgs = new Type[paramTypes.Length + 1];
+        Array.Copy(paramTypes, genericArgs, paramTypes.Length);
+        genericArgs[^1] = returnType;
+        return openFunc.MakeGenericType(genericArgs);
     }
 
     private static FixedSet<Type> CreateOpenGenericDelegateSet(string delegateName, int minArity, int maxArity)

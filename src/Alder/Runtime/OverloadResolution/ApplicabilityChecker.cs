@@ -200,10 +200,21 @@ internal static class ApplicabilityChecker
                 return true;
 
             case ArgumentKind.Lambda:
-                if (!LambdaDelegateConverter.IsSupportedDelegateType(paramType))
+            case ArgumentKind.MethodGroup:
+                if (!typeof(Delegate).IsAssignableFrom(paramType))
                     return false;
-                if (GetDelegateInputParameterCount(paramType) != arg.LambdaArity)
-                    return false;
+                if (paramType.ContainsGenericParameters)
+                {
+                    // Open generic delegate — check arity only, type inference will close it later
+                    var invoke = paramType.GetMethod(nameof(Action.Invoke));
+                    if (invoke == null || invoke.GetParameters().Length != arg.LambdaArity)
+                        return false;
+                }
+                else
+                {
+                    if (GetDelegateInputParameterCount(paramType) != arg.LambdaArity)
+                        return false;
+                }
                 conversion = ArgumentConversion.ForLambdaToDelegate(paramType);
                 return true;
 
