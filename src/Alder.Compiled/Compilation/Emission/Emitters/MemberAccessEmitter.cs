@@ -19,20 +19,7 @@ internal sealed class MemberAccessEmitter :
         if (declaringType != null && declaringType.IsGenericType &&
             declaringType.GetGenericTypeDefinition() == typeof(Nullable<>))
         {
-            var emittedTarget = ctx.Emit(node.Target);
-            if (node.MemberName == nameof(Nullable<int>.HasValue))
-                return LinqExpression.Condition(
-                    LinqExpression.Equal(emittedTarget, LinqExpression.Constant(null)),
-                    LinqExpression.Constant((object)false, typeof(object)),
-                    LinqExpression.Constant((object)true, typeof(object)));
-            if (node.MemberName == nameof(Nullable<int>.Value))
-                return LinqExpression.Condition(
-                    LinqExpression.Equal(emittedTarget, LinqExpression.Constant(null)),
-                    LinqExpression.Throw(
-                        LinqExpression.New(typeof(InvalidOperationException).GetConstructor([typeof(string)])!,
-                            LinqExpression.Constant("Nullable object must have a value.")),
-                        typeof(object)),
-                    emittedTarget);
+            return EmitNullablePropertyAccess(node, ctx.Emit(node.Target));
         }
 
         if (declaringType != null && TypeHelpers.IsValueTupleType(declaringType))
@@ -81,6 +68,11 @@ internal sealed class MemberAccessEmitter :
     private static LinqExpression EmitResolvedOrDynamic(BoundPropertyAccessExpr node, LinqExpression emittedTarget, EmissionContext ctx)
     {
         var declaringType = node.Property.DeclaringType;
+
+        if (declaringType != null && declaringType.IsGenericType &&
+            declaringType.GetGenericTypeDefinition() == typeof(Nullable<>))
+            return EmitNullablePropertyAccess(node, emittedTarget);
+
         if (declaringType != null && TypeHelpers.IsValueTupleType(declaringType))
             return EmitDynamic(node.MemberName, node.NullSafe, emittedTarget, ctx);
 
@@ -145,6 +137,16 @@ internal sealed class MemberAccessEmitter :
             [targetObjVar],
             LinqExpression.Assign(targetObjVar, EmitHelpers.AsObject(emittedTarget)),
             guardedExpr);
+    }
+
+    private static LinqExpression EmitNullablePropertyAccess(BoundPropertyAccessExpr node, LinqExpression emittedTarget)
+    {
+        // For boxed targets (object), unbox.any handles null → default(Nullable<T>)
+        // per CLR spec. Then HasValue returns false, Value throws InvalidOperationException.
+        if (emittedTarget.Type == typeof(object))
+            emittedTarget = LinqExpression.Unbox(emittedTarget, node.Property.DeclaringType!);
+
+        return LinqExpression.Property(emittedTarget, node.Property);
     }
 
     internal static LinqExpression EmitDynamic(string memberName, bool nullSafe, LinqExpression emittedTarget, EmissionContext ctx)

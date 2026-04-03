@@ -45,8 +45,8 @@ internal readonly struct ArgumentDescriptor
     internal static ArgumentDescriptor ForType(Type type) =>
         new(type, null, ArgumentKind.Value, -1, null);
 
-    internal static ArgumentDescriptor ForLambda(int arity) =>
-        new(null, null, ArgumentKind.Lambda, arity, null);
+    internal static ArgumentDescriptor ForLambda(int arity, object? runtimeValue = null) =>
+        new(null, null, ArgumentKind.Lambda, arity, runtimeValue);
 
     internal static ArgumentDescriptor ForMethodGroup(int arity, object methodRef) =>
         new(null, null, ArgumentKind.MethodGroup, arity, methodRef);

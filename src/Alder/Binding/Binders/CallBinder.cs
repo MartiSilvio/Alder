@@ -310,7 +310,7 @@ internal static class CallBinder
         {
             descriptors[i] = arguments[i] switch
             {
-                BoundLambdaExpr lambda => ArgumentDescriptor.ForLambda(lambda.Parameters.Length),
+                BoundLambdaExpr lambda => ArgumentDescriptor.ForLambda(lambda.Parameters.Length, lambda),
                 BoundMethodGroupExpr mg => ArgumentDescriptor.ForMethodGroup(1, new StaticMethodRef(mg.DeclaringType, mg.MethodName)),
                 _ => ArgumentDescriptor.ForType(arguments[i].StaticType.ClrType)
             };

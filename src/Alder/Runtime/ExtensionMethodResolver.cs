@@ -306,6 +306,10 @@ internal static class ExtensionMethodResolver
                 parameters = compiled.Source.Parameters.Select(static p => p.Name.Lexeme).ToList();
                 body = compiled.Source.Body;
                 break;
+            case Binding.BoundNodes.BoundLambdaExpr boundLambda:
+                parameters = boundLambda.Parameters;
+                body = boundLambda.Body;
+                break;
             case StaticMethodRef or MethodRef or ModuleMethodRef:
             {
                 var paramTypes = new Type[inputTypes.Length];
