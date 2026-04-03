@@ -13,7 +13,6 @@ internal sealed class IndexCompoundAssignEmitter : INodeEmitter<BoundIndexCompou
             ctx.EmitBoxed(node.Index),
             LinqExpression.Constant(node.Operator),
             ctx.EmitBoxed(node.Value),
-            ctx.ConfigParam,
             ctx.ContextParam,
             LinqExpression.Constant(ctx.IsChecked));
     }

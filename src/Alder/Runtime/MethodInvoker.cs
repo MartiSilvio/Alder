@@ -12,7 +12,6 @@ internal static class MethodInvoker
         object?[] args,
         bool nullSafe,
         AlderContext context,
-        AlderConfig config,
         IReadOnlyList<string>? typeArgs = null,
         CancellationToken ct = default)
     {
@@ -26,22 +25,21 @@ internal static class MethodInvoker
         // dispatch first. On NativeAOT, reflection-based static method discovery is trimmed,
         // but the generated TryInvokeStatic handles these calls.
         if (target is Type staticType && !HasSpecialArgs(args) &&
-            TypedDispatchHelper.TryInvokeStatic(config, staticType, methodName, args, out var staticResult))
+            TypedDispatchHelper.TryInvokeStatic(context.Config, staticType, methodName, args, out var staticResult))
             return staticResult;
 
-        var result = TryInvokeInstanceMethod(target, methodName, args, context, config, typeArgs, ct);
+        var result = TryInvokeInstanceMethod(target, methodName, args, context, typeArgs, ct);
         if (result.Success)
             return result.Value;
 
-        var callee = MemberAccess.GetMember(target, methodName, config, nullSafe, context);
-        return InvokeCall(callee, args, context, config, typeArgs, ct);
+        var callee = MemberAccess.GetMember(target, methodName, nullSafe, context);
+        return InvokeCall(callee, args, context, typeArgs, ct);
     }
 
     public static object? InvokeCall(
         object? callee,
         object?[] args,
         AlderContext context,
-        AlderConfig config,
         IReadOnlyList<string>? typeArgs = null,
         CancellationToken ct = default)
     {
@@ -63,10 +61,10 @@ internal static class MethodInvoker
                 TypeHelpers.GuardReflectionLeak(del.DynamicInvoke(args), "delegate invocation"),
 
             StaticMethodRef staticRef =>
-                InvokeStaticMethod(staticRef.Type, staticRef.MethodName, args, context, config, typeArgs, ct),
+                InvokeStaticMethod(staticRef.Type, staticRef.MethodName, args, context, typeArgs, ct),
 
             MethodRef methodRef =>
-                InvokeMethodRef(methodRef, args, context, config, typeArgs, ct),
+                InvokeMethodRef(methodRef, args, context, typeArgs, ct),
 
             null => throw new AlderException(DiagnosticDescriptors.NullInvocation),
             _ => throw new AlderException(DiagnosticDescriptors.NonCallableType, callee.GetType().Name)
@@ -77,7 +75,6 @@ internal static class MethodInvoker
         MethodRef methodRef,
         object?[] args,
         AlderContext context,
-        AlderConfig config,
         IReadOnlyList<string>? typeArgs,
         CancellationToken ct)
     {
@@ -88,11 +85,11 @@ internal static class MethodInvoker
 
         var result = TryInvokeInstanceMethod(
             target, methodRef.MethodName, args,
-            context, config, typeArgs, ct);
+            context, typeArgs, ct);
         if (result.Success)
             return result.Value;
 
-        if (!HasAnyMethodWithName(target!, methodRef.MethodName, context, config))
+        if (!HasAnyMethodWithName(target!, methodRef.MethodName, context))
             throw new AlderException(DiagnosticDescriptors.MemberNotFound, target!.GetType().Name, methodRef.MethodName);
 
         throw new AlderException(DiagnosticDescriptors.MethodInvocationFailed, methodRef.MethodName);
@@ -103,7 +100,6 @@ internal static class MethodInvoker
         string methodName,
         object?[] args,
         AlderContext context,
-        AlderConfig config,
         IReadOnlyList<string>? typeArgs = null,
         CancellationToken ct = default)
     {
@@ -115,7 +111,7 @@ internal static class MethodInvoker
 
         // Tier 1: typed dispatch — primary path for both JIT and AOT
         if (!hasSpecialArgs &&
-            TypedDispatchHelper.TryInvokeInstance(config, type, methodName, target, args, out var typedResult))
+            TypedDispatchHelper.TryInvokeInstance(context.Config, type, methodName, target, args, out var typedResult))
             return (true, typedResult);
 
         // Tier 2: reflection — overload resolution with caching
@@ -128,7 +124,7 @@ internal static class MethodInvoker
         }
 
         var flags = BindingFlags.Public | BindingFlags.Instance;
-        if (!config.IsCaseSensitive)
+        if (!context.Config.IsCaseSensitive)
             flags |= BindingFlags.IgnoreCase;
         var methods = context.TypeMetadata.GetMethods(type, methodName, flags);
 
@@ -145,7 +141,7 @@ internal static class MethodInvoker
 
         // Tier 3: extension methods — per-type interleaved dispatch (typed → reflection)
         var extensionResult = TryInvokeExtensionMethod(
-            target, methodName, args, hasSpecialArgs, context, config, typeArgs, ct);
+            target, methodName, args, hasSpecialArgs, context, typeArgs, ct);
         if (extensionResult.Success)
             return extensionResult;
 
@@ -154,7 +150,7 @@ internal static class MethodInvoker
 
     private static (bool Success, object? Value) TryInvokeExtensionMethod(
         object target, string methodName, object?[] args, bool hasSpecialArgs,
-        AlderContext context, AlderConfig config,
+        AlderContext context,
         IReadOnlyList<string>? typeArgs, CancellationToken ct)
     {
         var extensionTypes = context.ExtensionTypes;
@@ -167,7 +163,7 @@ internal static class MethodInvoker
 
         foreach (var extType in extensionTypes)
         {
-            if (!hasSpecialArgs && config.TryGetDispatch(extType, out var extDispatch))
+            if (!hasSpecialArgs && context.Config.TryGetDispatch(extType, out var extDispatch))
             {
                 if (extDispatch.TryInvokeStatic(methodName, resolvedArgs, out var typedResult))
                     return (true, typedResult);
@@ -175,7 +171,7 @@ internal static class MethodInvoker
 
             var reflResult = ExtensionMethodResolver.TryInvokeFromType(
                 target, target.GetType(), methodName, resolvedInnerArgs, extType,
-                config.IsCaseSensitive, typeArgs, context, ct);
+                context.Config.IsCaseSensitive, typeArgs, context, ct);
             if (reflResult.Success)
                 return reflResult;
         }
@@ -306,12 +302,11 @@ internal static class MethodInvoker
         string methodName,
         object?[] args,
         AlderContext context,
-        AlderConfig config,
         IReadOnlyList<string>? typeArgs,
         CancellationToken ct)
     {
         if (!HasSpecialArgs(args) &&
-            TypedDispatchHelper.TryInvokeStatic(config, type, methodName, args, out var aotResult))
+            TypedDispatchHelper.TryInvokeStatic(context.Config, type, methodName, args, out var aotResult))
             return aotResult;
 
         var descriptors = ArgumentDescriptor.FromArgs(args);
@@ -323,7 +318,7 @@ internal static class MethodInvoker
         }
 
         var bindingFlags = BindingFlags.Public | BindingFlags.Static;
-        if (!config.IsCaseSensitive)
+        if (!context.Config.IsCaseSensitive)
             bindingFlags |= BindingFlags.IgnoreCase;
 
         var methods = context.TypeMetadata.GetMethods(type, methodName, bindingFlags);
@@ -381,16 +376,16 @@ internal static class MethodInvoker
             ? closed : null;
     }
 
-    private static bool HasAnyMethodWithName(object target, string name, AlderContext context, AlderConfig config)
+    private static bool HasAnyMethodWithName(object target, string name, AlderContext context)
     {
         var flags = BindingFlags.Public | BindingFlags.Instance;
-        if (!config.IsCaseSensitive) flags |= BindingFlags.IgnoreCase;
+        if (!context.Config.IsCaseSensitive) flags |= BindingFlags.IgnoreCase;
 
         if (context.TypeMetadata.GetMethods(target.GetType(), name, flags).Length > 0)
             return true;
 
         var extFlags = BindingFlags.Public | BindingFlags.Static;
-        if (!config.IsCaseSensitive) extFlags |= BindingFlags.IgnoreCase;
+        if (!context.Config.IsCaseSensitive) extFlags |= BindingFlags.IgnoreCase;
 
         foreach (var extType in context.ExtensionTypes)
         {

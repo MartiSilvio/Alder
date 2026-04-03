@@ -5,9 +5,9 @@ namespace Alder.Runtime.Semantics;
 
 internal static class ConstructionRuntime
 {
-    public static object? InvokeConstructor(Type type, object?[] args, AlderConfig config, AlderContext context)
+    public static object? InvokeConstructor(Type type, object?[] args, AlderContext context)
     {
-        if (TypedDispatchHelper.TryCreate(config, type, args, out var aotInstance))
+        if (TypedDispatchHelper.TryCreate(context.Config, type, args, out var aotInstance))
             return aotInstance;
 
         if (type.BaseType == typeof(MulticastDelegate) && args is [LambdaValue or CompiledLambdaValue])
@@ -89,25 +89,25 @@ internal static class ConstructionRuntime
         return Activator.CreateInstance(nestedTupleType, ctorArgs)!;
     }
 
-    public static object CreateTupleFromResolvedType(Type resolvedType, object?[] elements, AlderConfig config, AlderContext context)
+    public static object CreateTupleFromResolvedType(Type resolvedType, object?[] elements, AlderContext context)
     {
         if (elements.Length == 0)
             throw new AlderException(DiagnosticDescriptors.TupleTooFewElements);
 
         if (elements.Length <= 7)
-            return InvokeConstructor(resolvedType, elements, config, context)!;
+            return InvokeConstructor(resolvedType, elements, context)!;
 
         var restElements = new object?[elements.Length - 7];
         Array.Copy(elements, 7, restElements, 0, restElements.Length);
         var restType = resolvedType.GetGenericArguments()[7];
-        var restTuple = CreateTupleFromResolvedType(restType, restElements, config, context);
+        var restTuple = CreateTupleFromResolvedType(restType, restElements, context);
 
         var ctorArgs = new object?[8];
         for (var i = 0; i < 7; i++)
             ctorArgs[i] = elements[i];
         ctorArgs[7] = restTuple;
 
-        return InvokeConstructor(resolvedType, ctorArgs, config, context)!;
+        return InvokeConstructor(resolvedType, ctorArgs, context)!;
     }
 
     public static object? DeconstructTuple(object? tupleValue, string[] variableNames, AlderContext context)
@@ -188,27 +188,27 @@ internal static class ConstructionRuntime
         return typedArray;
     }
 
-    public static object? ApplyPropertyInitializer(object obj, string propertyName, object? value, AlderConfig config, AlderContext context)
+    public static object? ApplyPropertyInitializer(object obj, string propertyName, object? value, AlderContext context)
     {
-        MemberAccess.SetMember(obj, propertyName, value, config, context);
+        MemberAccess.SetMember(obj, propertyName, value, context);
         return obj;
     }
 
-    public static object? ApplyCollectionInitializer(object obj, object? value, AlderConfig config, AlderContext context)
+    public static object? ApplyCollectionInitializer(object obj, object? value, AlderContext context)
     {
-        Runtime.MethodInvoker.InvokeMemberCall(obj, "Add", [value], false, context, config, null, default);
+        Runtime.MethodInvoker.InvokeMemberCall(obj, "Add", [value], false, context, null, default);
         return obj;
     }
 
-    public static object? ApplyGroupedCollectionInitializer(object obj, object?[] elements, AlderConfig config, AlderContext context)
+    public static object? ApplyGroupedCollectionInitializer(object obj, object?[] elements, AlderContext context)
     {
-        Runtime.MethodInvoker.InvokeMemberCall(obj, "Add", elements, false, context, config, null, default);
+        Runtime.MethodInvoker.InvokeMemberCall(obj, "Add", elements, false, context, null, default);
         return obj;
     }
 
-    public static object? ApplyIndexerInitializer(object obj, object key, object? value, AlderConfig config, AlderContext context)
+    public static object? ApplyIndexerInitializer(object obj, object key, object? value, AlderContext context)
     {
-        MemberAccess.SetIndex(obj, key, value, config, context);
+        MemberAccess.SetIndex(obj, key, value, context);
         return obj;
     }
 

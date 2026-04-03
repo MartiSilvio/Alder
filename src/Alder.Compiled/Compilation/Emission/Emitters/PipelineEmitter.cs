@@ -14,7 +14,6 @@ internal sealed class PipelineEmitter : INodeEmitter<BoundPipelineExpr>
                 ctx.EmitBoxed(node.Left),
                 LinqExpression.Constant(rightIdentifier.Name),
                 ctx.ContextParam,
-                ctx.ConfigParam,
                 ctx.CancellationTokenParam);
         }
 
@@ -23,7 +22,6 @@ internal sealed class PipelineEmitter : INodeEmitter<BoundPipelineExpr>
             ctx.EmitBoxed(node.Left),
             ctx.EmitBoxed(node.Right),
             ctx.ContextParam,
-            ctx.ConfigParam,
             ctx.CancellationTokenParam);
     }
 }

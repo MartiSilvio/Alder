@@ -43,7 +43,7 @@ internal static class BoundRuntimeMethodCache
     internal static readonly MethodInfo GetIndexMethod =
         typeof(MemberAccess).GetMethod(
             nameof(MemberAccess.GetIndex),
-            [typeof(object), typeof(object), typeof(AlderConfig), typeof(AlderContext)])!;
+            [typeof(object), typeof(object), typeof(AlderContext)])!;
 
     internal static readonly MethodInfo SetMemberMethod =
         typeof(MemberAccess).GetMethod(nameof(MemberAccess.SetMember))!;
@@ -51,7 +51,7 @@ internal static class BoundRuntimeMethodCache
     internal static readonly MethodInfo SetIndexMethod =
         typeof(MemberAccess).GetMethod(
             nameof(MemberAccess.SetIndex),
-            [typeof(object), typeof(object), typeof(object), typeof(AlderConfig), typeof(AlderContext)])!;
+            [typeof(object), typeof(object), typeof(object), typeof(AlderContext)])!;
 
     internal static readonly MethodInfo NormalizeIndexMethod =
         typeof(MemberAccess).GetMethod(nameof(MemberAccess.NormalizeIndex), [typeof(int), typeof(int)])!;
@@ -136,41 +136,41 @@ internal static class BoundRuntimeMethodCache
 
     internal static readonly MethodInfo ApplyCompoundAssignMethod =
         typeof(AssignmentRuntime).GetMethod(nameof(AssignmentRuntime.ApplyCompoundAssign),
-            [typeof(string), typeof(TokenType), typeof(object), typeof(AlderContext), typeof(AlderConfig), typeof(bool)])!;
+            [typeof(string), typeof(TokenType), typeof(object), typeof(AlderContext), typeof(bool)])!;
 
     internal static readonly MethodInfo ApplyIncrementDecrementMethod =
         typeof(AssignmentRuntime).GetMethod(nameof(AssignmentRuntime.ApplyIncrementDecrement),
-            [typeof(string), typeof(bool), typeof(bool), typeof(AlderContext), typeof(AlderConfig), typeof(bool)])!;
+            [typeof(string), typeof(bool), typeof(bool), typeof(AlderContext), typeof(bool)])!;
 
     internal static readonly MethodInfo ApplyMemberAssignMethod =
         typeof(AssignmentRuntime).GetMethod(nameof(AssignmentRuntime.ApplyMemberAssign),
-            [typeof(object), typeof(string), typeof(object), typeof(AlderConfig), typeof(AlderContext)])!;
+            [typeof(object), typeof(string), typeof(object), typeof(AlderContext)])!;
 
     internal static readonly MethodInfo ApplyIndexAssignMethod =
         typeof(AssignmentRuntime).GetMethod(nameof(AssignmentRuntime.ApplyIndexAssign),
-            [typeof(object), typeof(object), typeof(object), typeof(AlderConfig), typeof(AlderContext)])!;
+            [typeof(object), typeof(object), typeof(object), typeof(AlderContext)])!;
 
     internal static readonly MethodInfo ApplyMemberCompoundAssignMethod =
         typeof(AssignmentRuntime).GetMethod(nameof(AssignmentRuntime.ApplyMemberCompoundAssign),
-            [typeof(object), typeof(string), typeof(TokenType), typeof(object), typeof(AlderConfig), typeof(AlderContext), typeof(bool)])!;
+            [typeof(object), typeof(string), typeof(TokenType), typeof(object), typeof(AlderContext), typeof(bool)])!;
 
     internal static readonly MethodInfo ApplyIndexCompoundAssignMethod =
         typeof(AssignmentRuntime).GetMethod(nameof(AssignmentRuntime.ApplyIndexCompoundAssign),
-            [typeof(object), typeof(object), typeof(TokenType), typeof(object), typeof(AlderConfig), typeof(AlderContext), typeof(bool)])!;
+            [typeof(object), typeof(object), typeof(TokenType), typeof(object), typeof(AlderContext), typeof(bool)])!;
 
     internal static readonly MethodInfo ApplyMemberIncrementMethod =
         typeof(AssignmentRuntime).GetMethod(nameof(AssignmentRuntime.ApplyMemberIncrement),
-            [typeof(object), typeof(string), typeof(bool), typeof(bool), typeof(AlderConfig), typeof(AlderContext), typeof(bool)])!;
+            [typeof(object), typeof(string), typeof(bool), typeof(bool), typeof(AlderContext), typeof(bool)])!;
 
     internal static readonly MethodInfo ApplyIndexIncrementMethod =
         typeof(AssignmentRuntime).GetMethod(nameof(AssignmentRuntime.ApplyIndexIncrement),
-            [typeof(object), typeof(object), typeof(bool), typeof(bool), typeof(AlderConfig), typeof(AlderContext), typeof(bool)])!;
+            [typeof(object), typeof(object), typeof(bool), typeof(bool), typeof(AlderContext), typeof(bool)])!;
 
     internal static readonly MethodInfo CreateLambdaValueMethod =
         typeof(IdentifierRuntime).GetMethod(nameof(IdentifierRuntime.CreateLambdaValue))!;
 
     internal static readonly MethodInfo InvokeConstructorMethod =
-        typeof(ConstructionRuntime).GetMethod(nameof(ConstructionRuntime.InvokeConstructor), [typeof(Type), typeof(object?[]), typeof(AlderConfig), typeof(AlderContext)])!;
+        typeof(ConstructionRuntime).GetMethod(nameof(ConstructionRuntime.InvokeConstructor), [typeof(Type), typeof(object?[]), typeof(AlderContext)])!;
 
     internal static readonly MethodInfo CreateSystemRangeMethod =
         typeof(ConstructionRuntime).GetMethod(nameof(ConstructionRuntime.CreateSystemRange))!;

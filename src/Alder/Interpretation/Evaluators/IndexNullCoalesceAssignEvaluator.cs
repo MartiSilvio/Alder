@@ -13,11 +13,11 @@ internal static class IndexNullCoalesceAssignEvaluator
         var target = ctx.Evaluate(node.Target);
         target = ExecutionRuntime.EnsureIndexTargetNotNull(target);
         var index = ctx.Evaluate(node.Index);
-        var currentValue = MemberAccess.GetIndex(target, index, ctx.Config, ctx.Context);
+        var currentValue = MemberAccess.GetIndex(target, index, ctx.Context);
         if (currentValue != null)
             return currentValue;
         var newValue = ctx.Evaluate(node.Value);
-        MemberAccess.SetIndex(target, index, newValue, ctx.Config, ctx.Context);
+        MemberAccess.SetIndex(target, index, newValue, ctx.Context);
         return newValue;
     }
 }

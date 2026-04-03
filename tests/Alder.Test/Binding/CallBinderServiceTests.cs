@@ -24,7 +24,6 @@ public sealed class CallBinderServiceTests
             new StaticMethodRef(typeof(Math), "Max"),
             [1, 2L],
             context,
-            AlderConfig.Empty,
             ct: CancellationToken.None);
 
         Assert.That(runtimeResult, Is.EqualTo(2L));

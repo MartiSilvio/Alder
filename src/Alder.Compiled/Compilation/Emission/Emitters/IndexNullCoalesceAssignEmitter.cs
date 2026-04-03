@@ -20,13 +20,13 @@ internal sealed class IndexNullCoalesceAssignEmitter : INodeEmitter<BoundIndexNu
                 ctx.EmitBoxed(node.Target))),
             LinqExpression.Assign(indexVar, ctx.EmitBoxed(node.Index)),
             LinqExpression.Assign(currentVar, LinqExpression.Call(
-                GetIndexMethod, targetVar, indexVar, ctx.ConfigParam, ctx.ContextParam)),
+                GetIndexMethod, targetVar, indexVar, ctx.ContextParam)),
             LinqExpression.IfThenElse(
                 LinqExpression.NotEqual(currentVar, LinqExpression.Constant(null, typeof(object))),
                 LinqExpression.Assign(resultVar, currentVar),
                 LinqExpression.Block(
                     LinqExpression.Assign(resultVar, ctx.EmitBoxed(node.Value)),
-                    LinqExpression.Call(SetIndexMethod, targetVar, indexVar, resultVar, ctx.ConfigParam, ctx.ContextParam))),
+                    LinqExpression.Call(SetIndexMethod, targetVar, indexVar, resultVar, ctx.ContextParam))),
             resultVar);
     }
 }

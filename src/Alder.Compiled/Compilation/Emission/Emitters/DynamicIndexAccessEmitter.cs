@@ -16,7 +16,6 @@ internal sealed class DynamicIndexAccessEmitter : INodeEmitter<BoundDynamicIndex
                 GetIndexMethod,
                 targetExpr,
                 indexExpr,
-                ctx.ConfigParam,
                 ctx.ContextParam);
         }
 
@@ -28,6 +27,6 @@ internal sealed class DynamicIndexAccessEmitter : INodeEmitter<BoundDynamicIndex
             LinqExpression.Condition(
                 LinqExpression.Equal(targetVar, LinqExpression.Constant(null, typeof(object))),
                 LinqExpression.Constant(null, typeof(object)),
-                LinqExpression.Call(GetIndexMethod, targetVar, indexExpr, ctx.ConfigParam, ctx.ContextParam)));
+                LinqExpression.Call(GetIndexMethod, targetVar, indexExpr, ctx.ContextParam)));
     }
 }

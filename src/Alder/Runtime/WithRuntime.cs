@@ -5,7 +5,7 @@ namespace Alder.Runtime;
 internal static class WithRuntime
 {
     public static object ApplyWith(object? original, string[] names, object?[] values,
-        AlderConfig config, AlderContext context)
+        AlderContext context)
     {
         if (original == null)
             throw new AlderException(DiagnosticDescriptors.NullMemberAccess, "with", "expression");
@@ -15,12 +15,12 @@ internal static class WithRuntime
 
         // Anonymous types (represented as ExpandoObject/dictionary): clone and modify
         if (original is IDictionary<string, object?> dict)
-            return ApplyWithDictionary(dict, names, values, config);
+            return ApplyWithDictionary(dict, names, values, context);
 
         var clone = CloneObject(original);
         var type = clone.GetType();
         var flags = BindingFlags.Public | BindingFlags.Instance;
-        if (!config.IsCaseSensitive) flags |= BindingFlags.IgnoreCase;
+        if (!context.Config.IsCaseSensitive) flags |= BindingFlags.IgnoreCase;
 
         for (var i = 0; i < names.Length; i++)
         {
@@ -44,13 +44,13 @@ internal static class WithRuntime
         return clone;
     }
 
-    private static object ApplyWithDictionary(IDictionary<string, object?> original, string[] names, object?[] values, AlderConfig config)
+    private static object ApplyWithDictionary(IDictionary<string, object?> original, string[] names, object?[] values, AlderContext context)
     {
         var clone = new System.Dynamic.ExpandoObject() as IDictionary<string, object?>;
         foreach (var kvp in original)
             clone[kvp.Key] = kvp.Value;
 
-        var comparer = config.IsCaseSensitive ? StringComparer.Ordinal : StringComparer.OrdinalIgnoreCase;
+        var comparer = context.Config.IsCaseSensitive ? StringComparer.Ordinal : StringComparer.OrdinalIgnoreCase;
         for (var i = 0; i < names.Length; i++)
         {
             var found = false;

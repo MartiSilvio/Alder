@@ -12,7 +12,6 @@ internal sealed class IndexAssignEmitter : INodeEmitter<BoundIndexAssignExpr>
             ctx.EmitBoxed(node.Target),
             ctx.EmitBoxed(node.Index),
             ctx.EmitBoxed(node.Value),
-            ctx.ConfigParam,
             ctx.ContextParam);
     }
 }

@@ -24,7 +24,6 @@ internal sealed class MemberAssignEmitter : INodeEmitter<BoundMemberAssignExpr>
             ctx.EmitBoxed(node.Target),
             LinqExpression.Constant(node.MemberName),
             ctx.EmitBoxed(node.Value),
-            ctx.ConfigParam,
             ctx.ContextParam);
     }
 

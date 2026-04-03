@@ -102,7 +102,7 @@ internal static class PatternRuntime
 
                     foreach (var (name, subPattern) in propertyPattern.Properties)
                     {
-                        var propertyValue = MemberAccess.GetMember(value, name.Lexeme, runtime.Config, nullSafe: false, runtime.Context);
+                        var propertyValue = MemberAccess.GetMember(value, name.Lexeme, false, runtime.Context);
                         if (!MatchPatternCore(propertyValue, subPattern, runtime)) return false;
                     }
 

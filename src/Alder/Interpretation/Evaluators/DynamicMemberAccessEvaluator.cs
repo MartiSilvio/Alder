@@ -14,6 +14,6 @@ internal static class DynamicMemberAccessEvaluator
 
         var target = ctx.Evaluate(node.Target);
         if (node.NullSafe && target == null) return null;
-        return MemberAccess.GetMember(target, node.MemberName, ctx.Config, node.NullSafe, ctx.Context);
+        return MemberAccess.GetMember(target, node.MemberName, node.NullSafe, ctx.Context);
     }
 }

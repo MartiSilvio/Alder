@@ -28,7 +28,6 @@ internal sealed class IncrementDecrementEmitter : INodeEmitter<BoundIncrementDec
                         EmitHelpers.AsObject(promoted.Variable),
                         LinqExpression.Constant(isIncrement),
                         LinqExpression.Constant(promoted.Variable.Type, typeof(Type)),
-                        ctx.ConfigParam,
                         ctx.ContextParam,
                         LinqExpression.Constant(ctx.IsChecked))),
                 LinqExpression.Assign(promoted.Variable,
@@ -42,7 +41,6 @@ internal sealed class IncrementDecrementEmitter : INodeEmitter<BoundIncrementDec
             LinqExpression.Constant(node.Operator == TokenType.PlusPlus),
             LinqExpression.Constant(node.IsPrefix),
             ctx.ContextParam,
-            ctx.ConfigParam,
             LinqExpression.Constant(ctx.IsChecked));
     }
 

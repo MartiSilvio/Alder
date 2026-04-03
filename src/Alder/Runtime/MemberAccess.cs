@@ -10,7 +10,7 @@ namespace Alder.Runtime;
 /// </summary>
 internal static class MemberAccess
 {
-    public static object? GetMember(object? obj, string name, AlderConfig config, bool nullSafe, AlderContext context)
+    public static object? GetMember(object? obj, string name, bool nullSafe, AlderContext context)
     {
         if (nullSafe && obj == null)
             return null;
@@ -18,8 +18,8 @@ internal static class MemberAccess
         if (obj == null)
             throw new AlderException(DiagnosticDescriptors.NullMemberAccess, "property", name);
 
-        if (config.LanguageMode == LanguageMode.Extended &&
-            DateArithmeticSugar.TryResolveTimeSpanUnit(obj, name, config.IsCaseSensitive, out var timeSpan))
+        if (context.Config.LanguageMode == LanguageMode.Extended &&
+            DateArithmeticSugar.TryResolveTimeSpanUnit(obj, name, context.Config.IsCaseSensitive, out var timeSpan))
         {
             return timeSpan;
         }
@@ -36,7 +36,7 @@ internal static class MemberAccess
                 var resolvedType = context.TypeResolver.TryResolveType(accumulated);
                 if (resolvedType != null)
                 {
-                    if (!config.Security.IsTypeAllowed(resolvedType))
+                    if (!context.Config.Security.IsTypeAllowed(resolvedType))
                         throw new AlderException(DiagnosticDescriptors.SandboxTypeBlocked, resolvedType.Name);
                     return resolvedType;
                 }
@@ -48,7 +48,7 @@ internal static class MemberAccess
                 // Neither a type nor a namespace prefix -- this is an error
                 throw new AlderException(DiagnosticDescriptors.TypeNotFound, accumulated);
             }
-            case Type staticType when TypedDispatchHelper.TryGetStaticMember(config, staticType, name, out var aotStaticValue):
+            case Type staticType when TypedDispatchHelper.TryGetStaticMember(context.Config, staticType, name, out var aotStaticValue):
                 return aotStaticValue;
             // Fall through to instance member access on the Type object itself
             // (e.g., typeof(int).Name accesses instance property Type.Name)
@@ -56,7 +56,7 @@ internal static class MemberAccess
             {
                 var staticTypeCache = context.TypeMetadata;
                 var staticBindingFlags = BindingFlags.Public | BindingFlags.Static;
-                if (!config.IsCaseSensitive)
+                if (!context.Config.IsCaseSensitive)
                     staticBindingFlags |= BindingFlags.IgnoreCase;
 
                 var staticProp = staticTypeCache.GetProperty(staticType, name, staticBindingFlags);
@@ -108,7 +108,7 @@ internal static class MemberAccess
                 return TypeHelpers.GuardReflectionLeak(value, "property", name);
             case IDictionary<string, object?> dict:
             {
-                if (!config.IsCaseSensitive)
+                if (!context.Config.IsCaseSensitive)
                 {
                     foreach (var key in dict.Keys)
                     {
@@ -134,11 +134,11 @@ internal static class MemberAccess
         if (TypeHelpers.IsValueTupleType(type) && TryAccessLargeTupleItem(obj, name, out var tupleItem))
             return tupleItem;
 
-        if (TypedDispatchHelper.TryGetMember(config, type, name, obj, out var typedValue))
+        if (TypedDispatchHelper.TryGetMember(context.Config, type, name, obj, out var typedValue))
             return typedValue;
 
         var bindingFlags = BindingFlags.Public | BindingFlags.Instance;
-        if (!config.IsCaseSensitive)
+        if (!context.Config.IsCaseSensitive)
             bindingFlags |= BindingFlags.IgnoreCase;
 
         var typeMetadata = context.TypeMetadata;
@@ -153,7 +153,7 @@ internal static class MemberAccess
         return new MethodRef(obj, name);
     }
 
-    public static object? GetIndex(object? obj, object? index, AlderConfig config, AlderContext context)
+    public static object? GetIndex(object? obj, object? index, AlderContext context)
     {
         // Unwrap InclusiveRange to raw Range for indexing (inclusive-end only matters for iteration)
         if (index is InclusiveRange inclusive)
@@ -170,7 +170,7 @@ internal static class MemberAccess
                 _ => -1
             };
             if (length >= 0)
-                return GetIndex(obj, (object)sysIndex.GetOffset(length), config, context);
+                return GetIndex(obj, (object)sysIndex.GetOffset(length), context);
         }
 
         // §12.8.11: System.Range support — slice arrays/strings
@@ -231,7 +231,7 @@ internal static class MemberAccess
 
         var type = obj.GetType();
 
-        if (TypedDispatchHelper.TryGetIndex(config, type, obj, index!, out var aotIndexValue))
+        if (TypedDispatchHelper.TryGetIndex(context.Config, type, obj, index!, out var aotIndexValue))
             return aotIndexValue;
 
         var indexer = FindMatchingIndexer(type, index);
@@ -255,12 +255,12 @@ internal static class MemberAccess
         throw new AlderException(DiagnosticDescriptors.BadIndexerAccess, type.Name);
     }
 
-    public static void SetMember(object? obj, string name, object? value, AlderConfig config, AlderContext context)
+    public static void SetMember(object? obj, string name, object? value, AlderContext context)
     {
         if (obj == null)
             throw new AlderException(DiagnosticDescriptors.NullPropertyAssignment, name);
 
-        var caseInsensitive = !config.IsCaseSensitive;
+        var caseInsensitive = !context.Config.IsCaseSensitive;
 
         if (obj is IDictionary<string, object?> dict)
         {
@@ -281,7 +281,7 @@ internal static class MemberAccess
 
         var type = obj.GetType();
 
-        if (TypedDispatchHelper.TrySetMember(config, type, name, obj, value))
+        if (TypedDispatchHelper.TrySetMember(context.Config, type, name, obj, value))
             return;
 
         var bindingFlags = BindingFlags.Public | BindingFlags.Instance;
@@ -309,7 +309,7 @@ internal static class MemberAccess
         throw new AlderException(DiagnosticDescriptors.MemberNotFound, type.Name, name);
     }
 
-    public static void SetIndex(object? obj, object? index, object? value, AlderConfig config, AlderContext context)
+    public static void SetIndex(object? obj, object? index, object? value, AlderContext context)
     {
         if (obj == null)
             throw new AlderException(DiagnosticDescriptors.BadIndexerAccess, TypeNameFormatter.Null);
@@ -336,7 +336,7 @@ internal static class MemberAccess
 
         var type = obj.GetType();
 
-        if (TypedDispatchHelper.TrySetIndex(config, type, obj, index!, value))
+        if (TypedDispatchHelper.TrySetIndex(context.Config, type, obj, index!, value))
             return;
 
         var indexer = FindMatchingIndexer(type, index);

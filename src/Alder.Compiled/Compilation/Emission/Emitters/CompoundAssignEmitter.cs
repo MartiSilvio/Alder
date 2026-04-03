@@ -26,7 +26,6 @@ internal sealed class CompoundAssignEmitter : INodeEmitter<BoundCompoundAssignEx
                         LinqExpression.Constant(node.Operator),
                         ctx.EmitBoxed(node.Value),
                         LinqExpression.Constant(promoted.VariableType, typeof(Type)),
-                        ctx.ConfigParam,
                         ctx.ContextParam,
                         LinqExpression.Constant(ctx.IsChecked))),
                 LinqExpression.Assign(promoted.Variable,
@@ -40,7 +39,6 @@ internal sealed class CompoundAssignEmitter : INodeEmitter<BoundCompoundAssignEx
             LinqExpression.Constant(node.Operator),
             ctx.EmitBoxed(node.Value),
             ctx.ContextParam,
-            ctx.ConfigParam,
             LinqExpression.Constant(ctx.IsChecked));
     }
 

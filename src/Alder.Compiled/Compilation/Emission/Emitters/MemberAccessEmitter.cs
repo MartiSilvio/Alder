@@ -155,7 +155,6 @@ internal sealed class MemberAccessEmitter :
             GetMemberMethod,
             EmitHelpers.AsObject(emittedTarget),
             LinqExpression.Constant(memberName),
-            ctx.ConfigParam,
             LinqExpression.Constant(nullSafe),
             ctx.ContextParam);
     }

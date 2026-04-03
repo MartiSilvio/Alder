@@ -23,7 +23,6 @@ internal sealed class WithEmitter : INodeEmitter<BoundWithExpr>
             LinqExpression.Convert(original, typeof(object)),
             names,
             values,
-            ctx.ConfigParam,
             ctx.ContextParam);
     }
 }

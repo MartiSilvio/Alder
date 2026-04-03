@@ -13,7 +13,6 @@ internal sealed class IndexIncrementEmitter : INodeEmitter<BoundIndexIncrementEx
             ctx.EmitBoxed(node.Index),
             LinqExpression.Constant(node.IsIncrement),
             LinqExpression.Constant(node.IsPrefix),
-            ctx.ConfigParam,
             ctx.ContextParam,
             LinqExpression.Constant(ctx.IsChecked));
     }

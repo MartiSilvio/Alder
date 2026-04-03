@@ -51,7 +51,7 @@ internal static class DynamicCallEvaluator
         if (invoke.Callee is BoundIdentifierExpr identifier)
         {
             var result = IdentifierRuntime.InvokeIdentifierCall(
-                identifier.Name, args, ctx.Context, ctx.Config, typeArguments, ctx.CancellationToken);
+                identifier.Name, args, ctx.Context, typeArguments, ctx.CancellationToken);
             ResolvedCallEvaluator.DefineOutVariablesIfAny(args, outBindings, ctx);
             ExecutionRuntime.CheckCollectionSize(result, ctx.Config.Security);
             return result;
@@ -62,7 +62,7 @@ internal static class DynamicCallEvaluator
             var target = evaluatedTarget ?? ctx.Evaluate(memberAccess.Target);
             var result = MethodInvoker.InvokeMemberCall(
                 target, memberAccess.MemberName, args, memberAccess.NullSafe,
-                ctx.Context, ctx.Config, typeArguments, ctx.CancellationToken);
+                ctx.Context, typeArguments, ctx.CancellationToken);
             ResolvedCallEvaluator.DefineOutVariablesIfAny(args, outBindings, ctx);
             ExecutionRuntime.CheckCollectionSize(result, ctx.Config.Security);
             return result;
@@ -70,7 +70,7 @@ internal static class DynamicCallEvaluator
 
         var callee = ctx.Evaluate(invoke.Callee);
         var invokeCallResult = MethodInvoker.InvokeCall(
-            callee, args, ctx.Context, ctx.Config, typeArguments, ctx.CancellationToken);
+            callee, args, ctx.Context, typeArguments, ctx.CancellationToken);
         ResolvedCallEvaluator.DefineOutVariablesIfAny(args, outBindings, ctx);
         ExecutionRuntime.CheckCollectionSize(invokeCallResult, ctx.Config.Security);
         return invokeCallResult;
@@ -87,7 +87,7 @@ internal static class DynamicCallEvaluator
         if (invoke.Callee is BoundIdentifierExpr identifier)
         {
             var result = IdentifierRuntime.InvokeIdentifierCall(
-                identifier.Name, args, ctx.Context, ctx.Config, typeArguments, ctx.CancellationToken);
+                identifier.Name, args, ctx.Context, typeArguments, ctx.CancellationToken);
             ResolvedCallEvaluator.DefineOutVariablesIfAny(args, outBindings, ctx);
             ExecutionRuntime.CheckCollectionSize(result, ctx.Config.Security);
             return result;
@@ -98,7 +98,7 @@ internal static class DynamicCallEvaluator
             var target = evaluatedTarget ?? await ctx.EvaluateAsync(memberAccess.Target);
             var result = MethodInvoker.InvokeMemberCall(
                 target, memberAccess.MemberName, args, memberAccess.NullSafe,
-                ctx.Context, ctx.Config, typeArguments, ctx.CancellationToken);
+                ctx.Context, typeArguments, ctx.CancellationToken);
             ResolvedCallEvaluator.DefineOutVariablesIfAny(args, outBindings, ctx);
             ExecutionRuntime.CheckCollectionSize(result, ctx.Config.Security);
             return result;
@@ -106,7 +106,7 @@ internal static class DynamicCallEvaluator
 
         var callee = await ctx.EvaluateAsync(invoke.Callee);
         var invokeCallResult = MethodInvoker.InvokeCall(
-            callee, args, ctx.Context, ctx.Config, typeArguments, ctx.CancellationToken);
+            callee, args, ctx.Context, typeArguments, ctx.CancellationToken);
         ResolvedCallEvaluator.DefineOutVariablesIfAny(args, outBindings, ctx);
         ExecutionRuntime.CheckCollectionSize(invokeCallResult, ctx.Config.Security);
         return invokeCallResult;

@@ -13,7 +13,6 @@ internal sealed class MemberCompoundAssignEmitter : INodeEmitter<BoundMemberComp
             LinqExpression.Constant(node.MemberName),
             LinqExpression.Constant(node.Operator),
             ctx.EmitBoxed(node.Value),
-            ctx.ConfigParam,
             ctx.ContextParam,
             LinqExpression.Constant(ctx.IsChecked));
     }

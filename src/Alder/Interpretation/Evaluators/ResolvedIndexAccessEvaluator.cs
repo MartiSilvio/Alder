@@ -44,6 +44,6 @@ internal static class ResolvedIndexAccessEvaluator
             }
         }
 
-        return MemberAccess.GetIndex(target, index, ctx.Config, ctx.Context);
+        return MemberAccess.GetIndex(target, index, ctx.Context);
     }
 }

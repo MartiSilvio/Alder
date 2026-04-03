@@ -16,6 +16,6 @@ internal static class WithEvaluator
             names[i] = node.Initializers[i].PropertyName;
             values[i] = ctx.Evaluate(node.Initializers[i].Value);
         }
-        return Runtime.WithRuntime.ApplyWith(original, names, values, ctx.Config, ctx.Context);
+        return Runtime.WithRuntime.ApplyWith(original, names, values, ctx.Context);
     }
 }

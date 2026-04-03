@@ -12,11 +12,11 @@ internal static class MemberNullCoalesceAssignEvaluator
     {
         var target = ctx.Evaluate(node.Target);
         target = ExecutionRuntime.EnsureMemberTargetNotNull(target, node.MemberName);
-        var currentValue = MemberAccess.GetMember(target, node.MemberName, ctx.Config, nullSafe: false, ctx.Context);
+        var currentValue = MemberAccess.GetMember(target, node.MemberName, false, ctx.Context);
         if (currentValue != null)
             return currentValue;
         var newValue = ctx.Evaluate(node.Value);
-        MemberAccess.SetMember(target, node.MemberName, newValue, ctx.Config, ctx.Context);
+        MemberAccess.SetMember(target, node.MemberName, newValue, ctx.Context);
         return newValue;
     }
 }

@@ -20,7 +20,6 @@ internal sealed class ResolvedIndexAccessEmitter : INodeEmitter<BoundResolvedInd
                 GetIndexMethod,
                 targetExpr,
                 indexExpr,
-                ctx.ConfigParam,
                 ctx.ContextParam);
         }
 
@@ -32,7 +31,7 @@ internal sealed class ResolvedIndexAccessEmitter : INodeEmitter<BoundResolvedInd
             LinqExpression.Condition(
                 LinqExpression.Equal(targetVar, LinqExpression.Constant(null, typeof(object))),
                 LinqExpression.Constant(null, typeof(object)),
-                LinqExpression.Call(GetIndexMethod, targetVar, indexExpr, ctx.ConfigParam, ctx.ContextParam)));
+                LinqExpression.Call(GetIndexMethod, targetVar, indexExpr, ctx.ContextParam)));
     }
 
     private static LinqExpression EmitDirectCollectionAccess(BoundResolvedIndexAccessExpr node, EmissionContext ctx)
@@ -47,7 +46,6 @@ internal sealed class ResolvedIndexAccessEmitter : INodeEmitter<BoundResolvedInd
             GetIndexMethod,
             ctx.EmitBoxed(node.Target),
             ctx.EmitBoxed(node.Index),
-            ctx.ConfigParam,
             ctx.ContextParam);
     }
 

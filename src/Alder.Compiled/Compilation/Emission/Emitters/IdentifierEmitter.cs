@@ -35,7 +35,6 @@ internal sealed class IdentifierEmitter : INodeEmitter<BoundIdentifierExpr>
         return LinqExpression.Call(
             ResolveIdentifierMethod,
             LinqExpression.Constant(node.Name),
-            ctx.ContextParam,
-            ctx.ConfigParam);
+            ctx.ContextParam);
     }
 }

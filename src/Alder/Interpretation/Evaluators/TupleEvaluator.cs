@@ -16,7 +16,7 @@ internal static class TupleEvaluator
 
         var resolvedType = node.StaticType.ClrType;
         var result = resolvedType != typeof(object) && TypeHelpers.IsValueTupleType(resolvedType)
-            ? ConstructionRuntime.CreateTupleFromResolvedType(resolvedType, values, ctx.Config, ctx.Context)
+            ? ConstructionRuntime.CreateTupleFromResolvedType(resolvedType, values, ctx.Context)
             : ConstructionRuntime.CreateTuple(values);
 
         var hasNames = node.ElementNames.Any(static n => n != null);

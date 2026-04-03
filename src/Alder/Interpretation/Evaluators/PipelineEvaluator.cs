@@ -18,11 +18,10 @@ internal static class PipelineEvaluator
                 left,
                 rightIdentifier.Name,
                 ctx.Context,
-                ctx.Config,
                 ctx.CancellationToken);
         }
 
         var right = ctx.Evaluate(node.Right);
-        return PipelineOperator.InvokePipeline(left, right, ctx.Context, ctx.Config, ctx.CancellationToken);
+        return PipelineOperator.InvokePipeline(left, right, ctx.Context, ctx.CancellationToken);
     }
 }

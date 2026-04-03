@@ -63,7 +63,7 @@ internal static class ResolvedCallEvaluator
         var (args, outBindings) = EvaluateArgumentsWithOutBindings(call.Arguments, ctx);
 
         var callee = ctx.Evaluate(call.Callee);
-        var invokeResult = MethodInvoker.InvokeCall(callee, args, ctx.Context, ctx.Config, ct: ctx.CancellationToken);
+        var invokeResult = MethodInvoker.InvokeCall(callee, args, ctx.Context, ct: ctx.CancellationToken);
         DefineOutVariablesIfAny(args, outBindings, ctx);
         ExecutionRuntime.CheckCollectionSize(invokeResult, ctx.Config.Security);
         return invokeResult;
@@ -139,7 +139,7 @@ internal static class ResolvedCallEvaluator
             BoundMethodGroupExpr mg => target == null
                 ? throw new AlderException(DiagnosticDescriptors.NullMemberAccess, "method", mg.MethodName)
                 : new MethodRef(target, mg.MethodName),
-            BoundDynamicMemberAccessExpr dyn => MemberAccess.GetMember(target, dyn.MemberName, ctx.Config, dyn.NullSafe, ctx.Context),
+            BoundDynamicMemberAccessExpr dyn => MemberAccess.GetMember(target, dyn.MemberName, dyn.NullSafe, ctx.Context),
             _ => throw new BindingNotSupportedException($"Unexpected member access type '{ma.GetType().Name}'")
         };
     }
@@ -160,7 +160,7 @@ internal static class ResolvedCallEvaluator
             throw new AlderException(DiagnosticDescriptors.NullMemberAccess, "property", node.MemberName);
         }
         if (TypeHelpers.IsValueTupleType(node.Property.DeclaringType ?? node.Property.ReflectedType!))
-            return MemberAccess.GetMember(target, node.MemberName, ctx.Config, node.NullSafe, ctx.Context);
+            return MemberAccess.GetMember(target, node.MemberName, node.NullSafe, ctx.Context);
         return TypeHelpers.GuardReflectionLeak(
             ctx.Context.TypeMetadata.GetPropertyValue(node.Property, target), "property", node.MemberName);
     }
@@ -170,7 +170,7 @@ internal static class ResolvedCallEvaluator
         if (target == null)
             throw new AlderException(DiagnosticDescriptors.NullMemberAccess, "field", node.MemberName);
         if (TypeHelpers.IsValueTupleType(node.Field.DeclaringType ?? node.Field.ReflectedType!))
-            return MemberAccess.GetMember(target, node.MemberName, ctx.Config, node.NullSafe, ctx.Context);
+            return MemberAccess.GetMember(target, node.MemberName, node.NullSafe, ctx.Context);
         return TypeHelpers.GuardReflectionLeak(node.Field.GetValue(target), "field", node.MemberName);
     }
 
@@ -245,7 +245,7 @@ internal static class ResolvedCallEvaluator
 
         var (args, outBindings) = await EvaluateArgumentsWithOutBindingsAsync(call.Arguments, ctx);
         var callee = await ctx.EvaluateAsync(call.Callee);
-        var invokeResult = MethodInvoker.InvokeCall(callee, args, ctx.Context, ctx.Config, ct: ctx.CancellationToken);
+        var invokeResult = MethodInvoker.InvokeCall(callee, args, ctx.Context, ct: ctx.CancellationToken);
         DefineOutVariablesIfAny(args, outBindings, ctx);
         ExecutionRuntime.CheckCollectionSize(invokeResult, ctx.Config.Security);
         return invokeResult;

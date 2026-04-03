@@ -20,14 +20,14 @@ internal sealed class MemberNullCoalesceAssignEmitter : INodeEmitter<BoundMember
                 ctx.EmitBoxed(node.Target),
                 memberName)),
             LinqExpression.Assign(currentVar, LinqExpression.Call(
-                GetMemberMethod, targetVar, memberName, ctx.ConfigParam,
+                GetMemberMethod, targetVar, memberName,
                 LinqExpression.Constant(false), ctx.ContextParam)),
             LinqExpression.IfThenElse(
                 LinqExpression.NotEqual(currentVar, LinqExpression.Constant(null, typeof(object))),
                 LinqExpression.Assign(resultVar, currentVar),
                 LinqExpression.Block(
                     LinqExpression.Assign(resultVar, ctx.EmitBoxed(node.Value)),
-                    LinqExpression.Call(SetMemberMethod, targetVar, memberName, resultVar, ctx.ConfigParam, ctx.ContextParam))),
+                    LinqExpression.Call(SetMemberMethod, targetVar, memberName, resultVar, ctx.ContextParam))),
             resultVar);
     }
 }

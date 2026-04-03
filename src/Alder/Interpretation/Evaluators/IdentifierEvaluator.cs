@@ -12,6 +12,6 @@ internal static class IdentifierEvaluator
         if (node.LocalId != null)
             return ctx.Context.Get(node.Name);
 
-        return IdentifierRuntime.ResolveIdentifier(node.Name, ctx.Context, ctx.Config);
+        return IdentifierRuntime.ResolveIdentifier(node.Name, ctx.Context);
     }
 }

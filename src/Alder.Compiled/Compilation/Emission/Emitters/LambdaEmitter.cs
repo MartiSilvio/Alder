@@ -16,7 +16,6 @@ internal sealed class LambdaEmitter : INodeEmitter<BoundLambdaExpr>
             CreateLambdaValueMethod,
             parameters,
             LinqExpression.Constant(node.Body, typeof(Expr)),
-            ctx.ContextParam,
-            ctx.ConfigParam);
+            ctx.ContextParam);
     }
 }

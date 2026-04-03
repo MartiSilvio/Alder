@@ -26,7 +26,6 @@ internal sealed class ObjectCreationEmitter : INodeEmitter<BoundObjectCreationEx
                     LinqExpression.Constant(node.TypeName))
                 : LinqExpression.Constant(node.StaticType.ClrType, typeof(Type)),
             argsArray,
-            ctx.ConfigParam,
             ctx.ContextParam);
 
         if (node.InitializerEntries.IsDefaultOrEmpty)
@@ -41,14 +40,14 @@ internal sealed class ObjectCreationEmitter : INodeEmitter<BoundObjectCreationEx
             {
                 var value = ctx.EmitBoxed(entry.Value!);
                 statements.Add(LinqExpression.Call(ApplyPropertyInitializerMethod,
-                    objVar, LinqExpression.Constant(entry.PropertyName), value, ctx.ConfigParam, ctx.ContextParam));
+                    objVar, LinqExpression.Constant(entry.PropertyName), value, ctx.ContextParam));
             }
             else if (entry.IndexerKey != null)
             {
                 var value = ctx.EmitBoxed(entry.Value!);
                 var key = ctx.EmitBoxed(entry.IndexerKey);
                 statements.Add(LinqExpression.Call(ApplyIndexerInitializerMethod,
-                    objVar, key, value, ctx.ConfigParam, ctx.ContextParam));
+                    objVar, key, value, ctx.ContextParam));
             }
             else if (!entry.Elements.IsDefaultOrEmpty)
             {
@@ -56,13 +55,13 @@ internal sealed class ObjectCreationEmitter : INodeEmitter<BoundObjectCreationEx
                     typeof(object),
                     entry.Elements.Select(e => ctx.EmitBoxed(e)));
                 statements.Add(LinqExpression.Call(ApplyGroupedCollectionInitializerMethod,
-                    objVar, elemArray, ctx.ConfigParam, ctx.ContextParam));
+                    objVar, elemArray, ctx.ContextParam));
             }
             else
             {
                 var value = ctx.EmitBoxed(entry.Value!);
                 statements.Add(LinqExpression.Call(ApplyCollectionInitializerMethod,
-                    objVar, value, ctx.ConfigParam, ctx.ContextParam));
+                    objVar, value, ctx.ContextParam));
             }
         }
 

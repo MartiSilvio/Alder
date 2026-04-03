@@ -39,7 +39,6 @@ internal sealed class DynamicCallEmitter : INodeEmitter<BoundDynamicCallExpr>
                 LinqExpression.Constant(identifier.Name),
                 argsVar,
                 ctx.ContextParam,
-                ctx.ConfigParam,
                 emittedTypeArguments,
                 ctx.CancellationTokenParam);
         }
@@ -52,7 +51,6 @@ internal sealed class DynamicCallEmitter : INodeEmitter<BoundDynamicCallExpr>
                 argsVar,
                 LinqExpression.Constant(memberAccess.NullSafe),
                 ctx.ContextParam,
-                ctx.ConfigParam,
                 emittedTypeArguments,
                 ctx.CancellationTokenParam);
         }
@@ -63,7 +61,6 @@ internal sealed class DynamicCallEmitter : INodeEmitter<BoundDynamicCallExpr>
                 ctx.EmitBoxed(callee),
                 argsVar,
                 ctx.ContextParam,
-                ctx.ConfigParam,
                 emittedTypeArguments,
                 ctx.CancellationTokenParam);
         }

@@ -13,7 +13,6 @@ internal sealed class MemberIncrementEmitter : INodeEmitter<BoundMemberIncrement
             LinqExpression.Constant(node.MemberName),
             LinqExpression.Constant(node.IsIncrement),
             LinqExpression.Constant(node.IsPrefix),
-            ctx.ConfigParam,
             ctx.ContextParam,
             LinqExpression.Constant(ctx.IsChecked));
     }

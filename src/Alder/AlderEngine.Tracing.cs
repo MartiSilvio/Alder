@@ -50,10 +50,9 @@ public sealed partial class AlderEngine
         }
 
         var context = target.GetOrCreateContext();
-        var executionContext = context;
 
         var constraints = _config.Constraints;
-        executionContext = context.CreateChild();
+        var executionContext = context.CreateChild();
         var state = new ExecutionConstraintState();
         state.Reset(constraints);
 

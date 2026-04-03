@@ -18,6 +18,6 @@ internal static class DynamicIndexAccessEvaluator
             throw new AlderException(DiagnosticDescriptors.BadIndexerAccess, TypeNameFormatter.Null);
 
         var index = ctx.Evaluate(node.Index);
-        return MemberAccess.GetIndex(target, index, ctx.Config, ctx.Context);
+        return MemberAccess.GetIndex(target, index, ctx.Context);
     }
 }

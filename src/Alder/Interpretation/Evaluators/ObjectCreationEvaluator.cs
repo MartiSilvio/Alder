@@ -18,32 +18,32 @@ internal static class ObjectCreationEvaluator
         var type = node.StaticType is BoundUnknownType
             ? ctx.Context.TypeResolver.ResolveType(node.TypeName)
             : node.StaticType.ClrType;
-        var result = ConstructionRuntime.InvokeConstructor(type, args, ctx.Config, ctx.Context);
+        var result = ConstructionRuntime.InvokeConstructor(type, args, ctx.Context);
 
         foreach (var entry in node.InitializerEntries)
         {
             if (entry.PropertyName != null)
             {
                 var value = ctx.Evaluate(entry.Value);
-                MemberAccess.SetMember(result!, entry.PropertyName, value, ctx.Config, ctx.Context);
+                MemberAccess.SetMember(result!, entry.PropertyName, value, ctx.Context);
             }
             else if (entry.IndexerKey != null)
             {
                 var value = ctx.Evaluate(entry.Value);
                 var key = ctx.Evaluate(entry.IndexerKey);
-                MemberAccess.SetIndex(result!, key!, value, ctx.Config, ctx.Context);
+                MemberAccess.SetIndex(result!, key!, value, ctx.Context);
             }
             else if (!entry.Elements.IsDefaultOrEmpty)
             {
                 var elementArgs = new object?[entry.Elements.Length];
                 for (var i = 0; i < entry.Elements.Length; i++)
                     elementArgs[i] = ctx.Evaluate(entry.Elements[i]);
-                MethodInvoker.InvokeMemberCall(result!, "Add", elementArgs, false, ctx.Context, ctx.Config, null, default);
+                MethodInvoker.InvokeMemberCall(result!, "Add", elementArgs, false, ctx.Context, null, default);
             }
             else
             {
                 var value = ctx.Evaluate(entry.Value);
-                MethodInvoker.InvokeMemberCall(result!, "Add", [value], false, ctx.Context, ctx.Config, null, default);
+                MethodInvoker.InvokeMemberCall(result!, "Add", [value], false, ctx.Context, null, default);
             }
         }
 
