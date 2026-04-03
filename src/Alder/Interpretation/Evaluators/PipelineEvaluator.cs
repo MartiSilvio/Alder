@@ -24,4 +24,21 @@ internal static class PipelineEvaluator
         var right = ctx.Evaluate(node.Right, ct);
         return PipelineOperator.InvokePipeline(left, right, ctx.Context, ct);
     }
+
+    public static async ValueTask<object?> EvaluateAsync(BoundPipelineExpr node, EvaluationContext ctx, CancellationToken ct)
+    {
+        var left = await ctx.EvaluateAsync(node.Left, ct);
+
+        if (node.Right is BoundIdentifierExpr rightIdentifier)
+        {
+            return IdentifierRuntime.InvokePipelineIdentifier(
+                left,
+                rightIdentifier.Name,
+                ctx.Context,
+                ct);
+        }
+
+        var right = await ctx.EvaluateAsync(node.Right, ct);
+        return PipelineOperator.InvokePipeline(left, right, ctx.Context, ct);
+    }
 }

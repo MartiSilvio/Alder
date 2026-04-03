@@ -190,7 +190,7 @@ internal static class PatternRuntime
     {
         // C# list patterns require Length or Count property and int indexer.
         // IList covers arrays, List<T>, and most collections.
-        if (value is System.Collections.IList list) return list.Count;
+        if (value is IList list) return list.Count;
         // String has Length and indexer
         if (value is string s) return s.Length;
         return -1;
@@ -198,7 +198,7 @@ internal static class PatternRuntime
 
     private static object? GetIndexedElement(object value, int index)
     {
-        if (value is System.Collections.IList list) return list[index];
+        if (value is IList list) return list[index];
         if (value is string s) return s[index];
         throw new InvalidOperationException($"Cannot index into {value.GetType().Name}");
     }

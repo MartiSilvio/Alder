@@ -18,17 +18,17 @@ internal static class AwaitBinder
         if (operandType == null || operandType == typeof(object))
             return BoundType.Unknown;
 
-        if (operandType == typeof(System.Threading.Tasks.Task))
+        if (operandType == typeof(Task))
             return BoundType.Void;
 
-        if (operandType == typeof(System.Threading.Tasks.ValueTask))
+        if (operandType == typeof(ValueTask))
             return BoundType.Void;
 
         if (operandType.IsGenericType)
         {
             var def = operandType.GetGenericTypeDefinition();
-            if (def == typeof(System.Threading.Tasks.Task<>) ||
-                def == typeof(System.Threading.Tasks.ValueTask<>))
+            if (def == typeof(Task<>) ||
+                def == typeof(ValueTask<>))
             {
                 return new BoundType(operandType.GetGenericArguments()[0]);
             }

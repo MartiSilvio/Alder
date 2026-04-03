@@ -154,7 +154,7 @@ internal static class ExecutionRuntime
         if (result == null) return;
 
         int count;
-        if (result is System.Collections.ICollection collection)
+        if (result is ICollection collection)
             count = collection.Count;
         else if (result is Array array)
             count = array.Length;

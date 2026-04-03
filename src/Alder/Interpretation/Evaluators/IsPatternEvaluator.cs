@@ -11,4 +11,10 @@ internal static class IsPatternEvaluator
         var value = ctx.Evaluate(node.Expression, ct);
         return ctx.MatchPattern(value, node.Pattern, ct);
     }
+
+    public static async ValueTask<object?> EvaluateAsync(BoundIsPatternExpr node, EvaluationContext ctx, CancellationToken ct)
+    {
+        var value = await ctx.EvaluateAsync(node.Expression, ct);
+        return ctx.MatchPattern(value, node.Pattern, ct);
+    }
 }

@@ -147,7 +147,7 @@ public static class AlderCompiledEngineExtensions
                 bindingRuntimeContext.Define(parameterName, null, paramTypes[i]);
             }
 
-            var binder = new Alder.Binding.Binder();
+            var binder = new Binding.Binder();
             var boundBody = binder.Bind(lambdaExpr.Body, new BindingContext(bindingRuntimeContext));
 
             var emitter = new ExpressionTreeEmitter(parameterScope, engineVariables, config.TypeResolver);

@@ -152,7 +152,7 @@ internal static class LambdaDelegateConverter
             };
             if (openGeneric == null)
             {
-                throw new AlderException(Diagnostics.DiagnosticDescriptors.DelegateTypeDefinitionNotFound,
+                throw new AlderException(DiagnosticDescriptors.DelegateTypeDefinitionNotFound,
                     $"System.{delegateName}`{arity}");
             }
 

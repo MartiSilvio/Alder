@@ -36,11 +36,12 @@ public sealed partial class AlderEngine : IDisposable
 
     private AlderContext? _context;
     private readonly DisposalToken _disposalToken;
-    private readonly ConditionalWeakTable<Binding.BoundExpr, Binding.BoundExpr> _pipelineCache = new();
+    private readonly ConditionalWeakTable<BoundExpr, BoundExpr> _pipelineCache = new();
 
     private static readonly ConcurrentDictionary<Type, (string Name, Func<object, object?> Getter)[]> VariableAccessorCache = new();
     private static readonly MethodInfo? WrapGetterMethod =
         typeof(AlderEngine).GetMethod(nameof(WrapGetter), BindingFlags.NonPublic | BindingFlags.Static);
+    
 
     public void Dispose()
     {
@@ -263,19 +264,19 @@ public sealed partial class AlderEngine : IDisposable
             new Binding.Optimization.ConversionInsertionPass());
     }
 
-    private Binding.BoundExpr RunPipeline(Binding.BoundExpr tree, CancellationToken ct = default)
+    private BoundExpr RunPipeline(BoundExpr tree, CancellationToken ct = default)
     {
         var context = new Pipeline.PipelineContext(_config.Security, ct);
         return InterpretationPipeline.Execute(tree, context);
     }
 
-    private Binding.BoundExpr RunSecurityOnlyPipeline(Binding.BoundExpr tree, CancellationToken ct = default)
+    private BoundExpr RunSecurityOnlyPipeline(BoundExpr tree, CancellationToken ct = default)
     {
         var context = new Pipeline.PipelineContext(_config.Security, ct);
         return SecurityOnlyPipeline.Execute(tree, context);
     }
 
-    private Binding.BoundExpr RunCompilationPipeline(Binding.BoundExpr tree, CancellationToken ct = default)
+    private BoundExpr RunCompilationPipeline(BoundExpr tree, CancellationToken ct = default)
     {
         var context = new Pipeline.PipelineContext(_config.Security, ct);
         return GetOrCreateCompilationPipeline().Execute(tree, context);
@@ -325,7 +326,7 @@ public sealed partial class AlderEngine : IDisposable
 
             return new AlderExpression(expression, ast, _expressionCache);
         }
-        catch (System.InsufficientExecutionStackException)
+        catch (InsufficientExecutionStackException)
         {
             throw new AlderException(DiagnosticDescriptors.ExpressionNestingDepthExceeded);
         }
@@ -423,7 +424,7 @@ public sealed partial class AlderEngine : IDisposable
         {
             return EvaluateCore(expression, context, executionContext, constraintState, cancellationToken);
         }
-        catch (System.InsufficientExecutionStackException)
+        catch (InsufficientExecutionStackException)
         {
             throw new AlderException(DiagnosticDescriptors.ExpressionNestingDepthExceeded);
         }

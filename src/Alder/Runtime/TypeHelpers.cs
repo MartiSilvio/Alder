@@ -174,7 +174,7 @@ internal static class TypeHelpers
             TypeCode.Decimal => 0m,
             TypeCode.DateTime => default(DateTime),
 #if NET5_0_OR_GREATER
-            _ => System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(type)
+            _ => RuntimeHelpers.GetUninitializedObject(type)
 #else
             _ => System.Runtime.Serialization.FormatterServices.GetUninitializedObject(type)
 #endif

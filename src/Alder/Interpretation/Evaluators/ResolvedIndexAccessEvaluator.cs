@@ -46,4 +46,43 @@ internal static class ResolvedIndexAccessEvaluator
 
         return MemberAccess.GetIndex(target, index, ctx.Context);
     }
+
+    public static async ValueTask<object?> EvaluateAsync(BoundResolvedIndexAccessExpr node, EvaluationContext ctx, CancellationToken ct)
+    {
+        var target = await ctx.EvaluateAsync(node.Target, ct);
+        if (node.NullSafe && target == null)
+            return null;
+
+        if (target == null)
+            throw new AlderException(DiagnosticDescriptors.BadIndexerAccess, TypeNameFormatter.Null);
+
+        var index = await ctx.EvaluateAsync(node.Index, ct);
+
+        if (node.IsDirectCollectionAccess)
+        {
+            if (node.TargetType == typeof(string))
+            {
+                var s = (string)target;
+                var i = MemberAccess.NormalizeIndex(Convert.ToInt32(index), s.Length);
+                return (object)s[i];
+            }
+
+            if (typeof(IList).IsAssignableFrom(node.TargetType))
+            {
+                var list = (IList)target;
+                var i = MemberAccess.NormalizeIndex(Convert.ToInt32(index), list.Count);
+                return TypeHelpers.GuardReflectionLeak(list[i], $"index [{i}]");
+            }
+
+            if (typeof(IDictionary<string, object?>).IsAssignableFrom(node.TargetType))
+            {
+                var dict = (IDictionary<string, object?>)target;
+                return index is string key && dict.TryGetValue(key, out var value)
+                    ? TypeHelpers.GuardReflectionLeak(value, $"index [{key}]")
+                    : null;
+            }
+        }
+
+        return MemberAccess.GetIndex(target, index, ctx.Context);
+    }
 }

@@ -18,4 +18,17 @@ internal static class WithEvaluator
         }
         return Runtime.WithRuntime.ApplyWith(original, names, values, ctx.Context);
     }
+
+    public static async ValueTask<object?> EvaluateAsync(BoundWithExpr node, EvaluationContext ctx, CancellationToken ct)
+    {
+        var original = await ctx.EvaluateAsync(node.Object, ct);
+        var names = new string[node.Initializers.Length];
+        var values = new object?[node.Initializers.Length];
+        for (var i = 0; i < node.Initializers.Length; i++)
+        {
+            names[i] = node.Initializers[i].PropertyName;
+            values[i] = await ctx.EvaluateAsync(node.Initializers[i].Value, ct);
+        }
+        return Runtime.WithRuntime.ApplyWith(original, names, values, ctx.Context);
+    }
 }

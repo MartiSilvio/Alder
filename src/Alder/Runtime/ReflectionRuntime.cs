@@ -217,7 +217,7 @@ internal static class ReflectionRuntime
     private static string BuildMethodSignature(MethodInfo method)
     {
         var parameters = method.GetParameters();
-        var builder = new System.Text.StringBuilder(method.Name.Length + (parameters.Length + 4) * 24);
+        var builder = new StringBuilder(method.Name.Length + (parameters.Length + 4) * 24);
         builder.Append(method.Name)
             .Append('|')
             .Append(method.IsStatic ? 'S' : 'I')

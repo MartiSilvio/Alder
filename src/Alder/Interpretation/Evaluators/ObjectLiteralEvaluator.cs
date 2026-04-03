@@ -25,4 +25,22 @@ internal static class ObjectLiteralEvaluator
 
         return result;
     }
+
+    public static async ValueTask<object?> EvaluateAsync(BoundObjectLiteralExpr node, EvaluationContext ctx, CancellationToken ct)
+    {
+        IDictionary<string, object?> result = new ExpandoObject();
+        foreach (var property in node.Properties)
+        {
+            if (property.IsSpread)
+            {
+                var spreadValue = await ctx.EvaluateAsync(property.Value, ct);
+                CollectionFactory.SpreadIntoDict(result, spreadValue, ctx.Context);
+                continue;
+            }
+
+            result[property.PropertyName!] = await ctx.EvaluateAsync(property.Value, ct);
+        }
+
+        return result;
+    }
 }

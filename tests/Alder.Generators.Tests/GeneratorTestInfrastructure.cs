@@ -13,7 +13,7 @@ public static class GeneratorTestHelper
         var parseOptions = new CSharpParseOptions(LanguageVersion.CSharp12);
         var syntaxTree = CSharpSyntaxTree.ParseText(source, parseOptions);
 
-        var references = System.AppDomain.CurrentDomain.GetAssemblies()
+        var references = AppDomain.CurrentDomain.GetAssemblies()
             .Where(a => !a.IsDynamic && !string.IsNullOrEmpty(a.Location))
             .Select(a => MetadataReference.CreateFromFile(a.Location))
             .Cast<MetadataReference>()

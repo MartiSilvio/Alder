@@ -18,4 +18,16 @@ internal static class LockEvaluator
             return ctx.Evaluate(node.Body, ct);
         }
     }
+
+    public static async ValueTask<object?> EvaluateAsync(BoundLockStatementExpr node, EvaluationContext ctx, CancellationToken ct)
+    {
+        var lockObject = await ctx.EvaluateAsync(node.LockObject, ct);
+        if (lockObject == null)
+            throw new AlderException(DiagnosticDescriptors.LockRequiresNonNull);
+
+        lock (lockObject)
+        {
+            return ctx.Evaluate(node.Body, ct);
+        }
+    }
 }

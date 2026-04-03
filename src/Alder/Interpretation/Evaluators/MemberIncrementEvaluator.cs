@@ -13,4 +13,11 @@ internal static class MemberIncrementEvaluator
         return AssignmentRuntime.ApplyMemberIncrement(
             target, node.MemberName, node.IsIncrement, node.IsPrefix, ctx);
     }
+
+    public static async ValueTask<object?> EvaluateAsync(BoundMemberIncrementExpr node, EvaluationContext ctx, CancellationToken ct)
+    {
+        var target = await ctx.EvaluateAsync(node.Target, ct);
+        return AssignmentRuntime.ApplyMemberIncrement(
+            target, node.MemberName, node.IsIncrement, node.IsPrefix, ctx);
+    }
 }

@@ -4,9 +4,9 @@ namespace Alder.Runtime;
 
 internal static class CollectionFactory
 {
-    private static readonly System.Reflection.MethodInfo CreateCoreGenericMethod =
+    private static readonly MethodInfo CreateCoreGenericMethod =
         typeof(CollectionFactory).GetMethod(nameof(CreateCoreTyped),
-            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!;
+            BindingFlags.NonPublic | BindingFlags.Static)!;
 
     internal static object Create(Type targetType, Type elementType, List<object?> values, AlderConfig? config = null)
     {

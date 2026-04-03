@@ -524,7 +524,7 @@ internal static class MemberAccess
         {
             case string s:
             {
-                var sb = new System.Text.StringBuilder(indices.Count);
+                var sb = new StringBuilder(indices.Count);
                 foreach (var i in indices)
                     sb.Append(s[i]);
                 return (object)sb.ToString();

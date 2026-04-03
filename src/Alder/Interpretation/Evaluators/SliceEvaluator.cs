@@ -15,4 +15,13 @@ internal static class SliceEvaluator
         var step = node.Step != null ? ctx.Evaluate(node.Step, ct) : null;
         return MemberAccess.GetSlice(target, start, end, step);
     }
+
+    public static async ValueTask<object?> EvaluateAsync(BoundSliceExpr node, EvaluationContext ctx, CancellationToken ct)
+    {
+        var target = await ctx.EvaluateAsync(node.Target, ct);
+        var start = node.Start != null ? await ctx.EvaluateAsync(node.Start, ct) : null;
+        var end = node.End != null ? await ctx.EvaluateAsync(node.End, ct) : null;
+        var step = node.Step != null ? await ctx.EvaluateAsync(node.Step, ct) : null;
+        return MemberAccess.GetSlice(target, start, end, step);
+    }
 }

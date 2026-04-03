@@ -396,8 +396,7 @@ internal static class AssignmentRuntime
         if (targetType == typeof(byte)) return intVal is >= byte.MinValue and <= byte.MaxValue;
         if (targetType == typeof(short)) return intVal is >= short.MinValue and <= short.MaxValue;
         if (targetType == typeof(ushort)) return intVal is >= ushort.MinValue and <= ushort.MaxValue;
-        if (targetType == typeof(uint)) return intVal >= 0;
-        if (targetType == typeof(ulong)) return intVal >= 0;
+        if (targetType == typeof(uint) || targetType == typeof(ulong)) return intVal >= 0;
         if (targetType == typeof(char)) return intVal is >= char.MinValue and <= char.MaxValue;
 
         return false;

@@ -14,4 +14,12 @@ internal static class IndexAssignEvaluator
         var value = ctx.Evaluate(node.Value, ct);
         return AssignmentRuntime.ApplyIndexAssign(target, index, value, ctx);
     }
+
+    public static async ValueTask<object?> EvaluateAsync(BoundIndexAssignExpr node, EvaluationContext ctx, CancellationToken ct)
+    {
+        var target = await ctx.EvaluateAsync(node.Target, ct);
+        var index = await ctx.EvaluateAsync(node.Index, ct);
+        var value = await ctx.EvaluateAsync(node.Value, ct);
+        return AssignmentRuntime.ApplyIndexAssign(target, index, value, ctx);
+    }
 }

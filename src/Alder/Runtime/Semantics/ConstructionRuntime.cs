@@ -194,15 +194,15 @@ internal static class ConstructionRuntime
         return obj;
     }
 
-    public static object? ApplyCollectionInitializer(object obj, object? value, AlderContext context)
+    public static object? ApplyCollectionInitializer(object obj, object? value, AlderContext context, CancellationToken ct)
     {
-        Runtime.MethodInvoker.InvokeMemberCall(obj, "Add", [value], false, context, null, default);
+        MethodInvoker.InvokeMemberCall(obj, "Add", [value], false, context, null, ct);
         return obj;
     }
 
-    public static object? ApplyGroupedCollectionInitializer(object obj, object?[] elements, AlderContext context)
+    public static object? ApplyGroupedCollectionInitializer(object obj, object?[] elements, AlderContext context, CancellationToken ct)
     {
-        Runtime.MethodInvoker.InvokeMemberCall(obj, "Add", elements, false, context, null, default);
+        MethodInvoker.InvokeMemberCall(obj, "Add", elements, false, context, null, ct);
         return obj;
     }
 

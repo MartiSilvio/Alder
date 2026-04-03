@@ -10,4 +10,9 @@ internal static class FromEndIndexEvaluator
     {
         return new Index(Convert.ToInt32(ctx.Evaluate(node.Operand, ct)), fromEnd: true);
     }
+
+    public static async ValueTask<object?> EvaluateAsync(BoundIndexFromEndExpr node, EvaluationContext ctx, CancellationToken ct)
+    {
+        return new Index(Convert.ToInt32(await ctx.EvaluateAsync(node.Operand, ct)), fromEnd: true);
+    }
 }

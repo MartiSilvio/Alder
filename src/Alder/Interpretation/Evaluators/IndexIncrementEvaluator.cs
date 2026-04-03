@@ -13,4 +13,11 @@ internal static class IndexIncrementEvaluator
         var index = ctx.Evaluate(node.Index, ct);
         return AssignmentRuntime.ApplyIndexIncrement(target, index, node.IsIncrement, node.IsPrefix, ctx);
     }
+
+    public static async ValueTask<object?> EvaluateAsync(BoundIndexIncrementExpr node, EvaluationContext ctx, CancellationToken ct)
+    {
+        var target = await ctx.EvaluateAsync(node.Target, ct);
+        var index = await ctx.EvaluateAsync(node.Index, ct);
+        return AssignmentRuntime.ApplyIndexIncrement(target, index, node.IsIncrement, node.IsPrefix, ctx);
+    }
 }

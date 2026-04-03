@@ -70,7 +70,7 @@ public class SecurityDocTests(CompilationMode mode)
         {
             o.Sandbox = SandboxOptions.Safe() with
             {
-                TrustedTypes = new HashSet<Type> { typeof(System.IO.FileAttributes) }
+                TrustedTypes = new HashSet<Type> { typeof(FileAttributes) }
             };
         });
 

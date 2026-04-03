@@ -221,10 +221,12 @@ internal static class BoundRuntimeMethodCache
         typeof(ConstructionRuntime).GetMethod(nameof(ConstructionRuntime.ApplyPropertyInitializer))!;
 
     internal static readonly MethodInfo ApplyCollectionInitializerMethod =
-        typeof(ConstructionRuntime).GetMethod(nameof(ConstructionRuntime.ApplyCollectionInitializer))!;
+        typeof(ConstructionRuntime).GetMethod(nameof(ConstructionRuntime.ApplyCollectionInitializer),
+            [typeof(object), typeof(object), typeof(AlderContext), typeof(CancellationToken)])!;
 
     internal static readonly MethodInfo ApplyGroupedCollectionInitializerMethod =
-        typeof(ConstructionRuntime).GetMethod(nameof(ConstructionRuntime.ApplyGroupedCollectionInitializer))!;
+        typeof(ConstructionRuntime).GetMethod(nameof(ConstructionRuntime.ApplyGroupedCollectionInitializer),
+            [typeof(object), typeof(object[]), typeof(AlderContext), typeof(CancellationToken)])!;
 
     internal static readonly MethodInfo ApplyIndexerInitializerMethod =
         typeof(ConstructionRuntime).GetMethod(nameof(ConstructionRuntime.ApplyIndexerInitializer))!;
@@ -259,7 +261,7 @@ internal static class BoundRuntimeMethodCache
         typeof(TypeHelpers).GetMethod(nameof(TypeHelpers.TryAs), [typeof(object), typeof(Type)])!;
 
     internal static readonly MethodInfo MatchPatternMethod =
-        typeof(PatternRuntime).GetMethod(nameof(PatternRuntime.MatchPattern), [typeof(object), typeof(Parsing.Pattern), typeof(AlderContext), typeof(CancellationToken)])!;
+        typeof(PatternRuntime).GetMethod(nameof(PatternRuntime.MatchPattern), [typeof(object), typeof(Pattern), typeof(AlderContext), typeof(CancellationToken)])!;
 
     internal static readonly MethodInfo ApplyConstantNumericPromotionMethod =
         typeof(NumericPromotionRuntime).GetMethod(nameof(NumericPromotionRuntime.ApplyConstantNumericPromotion))!;

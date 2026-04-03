@@ -227,7 +227,7 @@ public class RedTeamAttackTests(CompilationMode mode)
         var depth = 600;
         var expr = new string('(', depth) + "1" + new string(')', depth);
         var ex = Assert.Throws<AlderException>(() => TestEngineFactory.Create(mode).Evaluate(expr));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(Alder.Diagnostics.DiagnosticCode.CS8078));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS8078));
     }
     [Test]
     public void Attack_GC_Collect_Safe()

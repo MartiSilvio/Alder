@@ -20,4 +20,17 @@ internal static class MethodGroupEvaluator
             throw new AlderException(DiagnosticDescriptors.NullMemberAccess, "method", node.MethodName);
         return new MethodRef(target, node.MethodName);
     }
+
+    public static async ValueTask<object?> EvaluateAsync(BoundMethodGroupExpr node, EvaluationContext ctx, CancellationToken ct)
+    {
+        var chain = PostfixChain.TryCollect(node);
+        if (chain != null) return await ResolvedCallEvaluator.EvaluatePostfixChainAsync(chain.Value, ctx, ct);
+
+        if (node.IsStatic) return new StaticMethodRef(node.DeclaringType, node.MethodName);
+        var target = await ctx.EvaluateAsync(node.Target, ct);
+        if (node.NullSafe && target == null) return null;
+        if (target == null)
+            throw new AlderException(DiagnosticDescriptors.NullMemberAccess, "method", node.MethodName);
+        return new MethodRef(target, node.MethodName);
+    }
 }

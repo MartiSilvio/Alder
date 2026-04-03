@@ -12,4 +12,10 @@ internal static class AsEvaluator
         var value = ctx.Evaluate(node.Expression, ct);
         return TypeHelpers.TryAs(value, node.TargetType);
     }
+
+    public static async ValueTask<object?> EvaluateAsync(BoundAsExpr node, EvaluationContext ctx, CancellationToken ct)
+    {
+        var value = await ctx.EvaluateAsync(node.Expression, ct);
+        return TypeHelpers.TryAs(value, node.TargetType);
+    }
 }

@@ -43,7 +43,7 @@ internal sealed class LambdaValue
             return cachedBody;
 
         var binder = new Binding.Binder();
-        var bound = binder.Bind(Body, new Binding.BindingContext(childContext));
+        var bound = binder.Bind(Body, new BindingContext(childContext));
         _bindingCache = (argTypes, bound);
         return bound;
     }
@@ -124,7 +124,7 @@ internal sealed class NamedTupleValue(object tuple, IReadOnlyDictionary<string, 
         }
 
         return new NamedTupleValue(
-            Alder.Runtime.Semantics.ConstructionRuntime.CreateTuple(elements),
+            Semantics.ConstructionRuntime.CreateTuple(elements),
             nameToIndex);
     }
 

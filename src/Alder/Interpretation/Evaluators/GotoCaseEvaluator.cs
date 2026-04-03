@@ -10,4 +10,9 @@ internal static class GotoCaseEvaluator
     {
         return ControlFlowSignal.GotoCaseSignal(ctx.Evaluate(node.Value, ct));
     }
+
+    public static async ValueTask<object?> EvaluateAsync(BoundGotoCaseExpr node, EvaluationContext ctx, CancellationToken ct)
+    {
+        return ControlFlowSignal.GotoCaseSignal(await ctx.EvaluateAsync(node.Value, ct));
+    }
 }

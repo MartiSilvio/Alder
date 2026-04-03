@@ -33,4 +33,30 @@ internal static class TupleEvaluator
 
         return result;
     }
+
+    public static async ValueTask<object?> EvaluateAsync(BoundTupleExpr node, EvaluationContext ctx, CancellationToken ct)
+    {
+        var values = new object?[node.Elements.Length];
+        for (var i = 0; i < node.Elements.Length; i++)
+            values[i] = await ctx.EvaluateAsync(node.Elements[i], ct);
+
+        var resolvedType = node.StaticType.ClrType;
+        var result = resolvedType != typeof(object) && TypeHelpers.IsValueTupleType(resolvedType)
+            ? ConstructionRuntime.CreateTupleFromResolvedType(resolvedType, values, ctx.Context)
+            : ConstructionRuntime.CreateTuple(values);
+
+        var hasNames = node.ElementNames.Any(static n => n != null);
+        if (hasNames)
+        {
+            var nameMap = new Dictionary<string, int>();
+            for (var i = 0; i < node.ElementNames.Length; i++)
+            {
+                if (node.ElementNames[i] is { } name)
+                    nameMap[name] = i;
+            }
+            return new NamedTupleValue(result, nameMap);
+        }
+
+        return result;
+    }
 }

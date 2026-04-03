@@ -15,4 +15,12 @@ internal static class RangeEvaluator
         var sysRange = ConstructionRuntime.CreateSystemRange(startValue, endValue);
         return node.ExclusiveEnd ? sysRange : new InclusiveRange(sysRange);
     }
+
+    public static async ValueTask<object?> EvaluateAsync(BoundRangeExpr node, EvaluationContext ctx, CancellationToken ct)
+    {
+        var startValue = node.Start != null ? await ctx.EvaluateAsync(node.Start, ct) : null;
+        var endValue = node.End != null ? await ctx.EvaluateAsync(node.End, ct) : null;
+        var sysRange = ConstructionRuntime.CreateSystemRange(startValue, endValue);
+        return node.ExclusiveEnd ? sysRange : new InclusiveRange(sysRange);
+    }
 }

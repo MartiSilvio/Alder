@@ -14,4 +14,12 @@ internal static class IndexCompoundAssignEvaluator
         var rightValue = ctx.Evaluate(node.Value, ct);
         return AssignmentRuntime.ApplyIndexCompoundAssign(target, index, node.Operator, rightValue, ctx);
     }
+
+    public static async ValueTask<object?> EvaluateAsync(BoundIndexCompoundAssignExpr node, EvaluationContext ctx, CancellationToken ct)
+    {
+        var target = await ctx.EvaluateAsync(node.Target, ct);
+        var index = await ctx.EvaluateAsync(node.Index, ct);
+        var rightValue = await ctx.EvaluateAsync(node.Value, ct);
+        return AssignmentRuntime.ApplyIndexCompoundAssign(target, index, node.Operator, rightValue, ctx);
+    }
 }

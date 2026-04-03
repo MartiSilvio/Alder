@@ -16,4 +16,14 @@ internal static class DynamicMemberAccessEvaluator
         if (node.NullSafe && target == null) return null;
         return MemberAccess.GetMember(target, node.MemberName, node.NullSafe, ctx.Context);
     }
+
+    public static async ValueTask<object?> EvaluateAsync(BoundDynamicMemberAccessExpr node, EvaluationContext ctx, CancellationToken ct)
+    {
+        var chain = PostfixChain.TryCollect(node);
+        if (chain != null) return await ResolvedCallEvaluator.EvaluatePostfixChainAsync(chain.Value, ctx, ct);
+
+        var target = await ctx.EvaluateAsync(node.Target, ct);
+        if (node.NullSafe && target == null) return null;
+        return MemberAccess.GetMember(target, node.MemberName, node.NullSafe, ctx.Context);
+    }
 }

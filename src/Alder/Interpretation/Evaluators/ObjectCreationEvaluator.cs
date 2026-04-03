@@ -38,12 +38,53 @@ internal static class ObjectCreationEvaluator
                 var elementArgs = new object?[entry.Elements.Length];
                 for (var i = 0; i < entry.Elements.Length; i++)
                     elementArgs[i] = ctx.Evaluate(entry.Elements[i], ct);
-                MethodInvoker.InvokeMemberCall(result!, "Add", elementArgs, false, ctx.Context, null, default);
+                MethodInvoker.InvokeMemberCall(result!, "Add", elementArgs, false, ctx.Context, null, ct);
             }
             else
             {
                 var value = ctx.Evaluate(entry.Value, ct);
-                MethodInvoker.InvokeMemberCall(result!, "Add", [value], false, ctx.Context, null, default);
+                MethodInvoker.InvokeMemberCall(result!, "Add", [value], false, ctx.Context, null, ct);
+            }
+        }
+
+        return result;
+    }
+
+    public static async ValueTask<object?> EvaluateAsync(BoundObjectCreationExpr node, EvaluationContext ctx, CancellationToken ct)
+    {
+        var args = new object?[node.Arguments.Length];
+        for (var i = 0; i < node.Arguments.Length; i++)
+            args[i] = await ctx.EvaluateAsync(node.Arguments[i], ct);
+
+        var type = node.StaticType is BoundUnknownType
+            ? ctx.Context.TypeResolver.ResolveType(node.TypeName)
+            : node.StaticType.ClrType;
+        var result = ConstructionRuntime.InvokeConstructor(type, args, ctx.Context);
+
+        foreach (var entry in node.InitializerEntries)
+        {
+            if (entry.PropertyName != null)
+            {
+                var value = await ctx.EvaluateAsync(entry.Value, ct);
+                MemberAccess.SetMember(result!, entry.PropertyName, value, ctx.Context);
+            }
+            else if (entry.IndexerKey != null)
+            {
+                var value = await ctx.EvaluateAsync(entry.Value, ct);
+                var key = await ctx.EvaluateAsync(entry.IndexerKey, ct);
+                MemberAccess.SetIndex(result!, key!, value, ctx.Context);
+            }
+            else if (!entry.Elements.IsDefaultOrEmpty)
+            {
+                var elementArgs = new object?[entry.Elements.Length];
+                for (var i = 0; i < entry.Elements.Length; i++)
+                    elementArgs[i] = await ctx.EvaluateAsync(entry.Elements[i], ct);
+                MethodInvoker.InvokeMemberCall(result!, "Add", elementArgs, false, ctx.Context, null, ct);
+            }
+            else
+            {
+                var value = await ctx.EvaluateAsync(entry.Value, ct);
+                MethodInvoker.InvokeMemberCall(result!, "Add", [value], false, ctx.Context, null, ct);
             }
         }
 

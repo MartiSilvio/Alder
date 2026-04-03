@@ -44,4 +44,43 @@ internal static class InterpolatedStringEvaluator
 
         return sb.ToString();
     }
+
+    public static async ValueTask<object?> EvaluateAsync(BoundInterpolatedStringExpr node, EvaluationContext ctx, CancellationToken ct)
+    {
+        var sb = new StringBuilder();
+        foreach (var part in node.Parts)
+        {
+            switch (part)
+            {
+                case BoundInterpolatedTextPart text:
+                    sb.Append(text.Text);
+                    break;
+                case BoundInterpolatedExpressionPart expressionPart:
+                {
+                    var value = await ctx.EvaluateAsync(expressionPart.Expression, ct);
+                    if (expressionPart.AlignmentSpecifier != null || expressionPart.FormatSpecifier != null)
+                    {
+                        var format = "{0";
+                        if (expressionPart.AlignmentSpecifier != null)
+                            format += "," + expressionPart.AlignmentSpecifier;
+                        if (expressionPart.FormatSpecifier != null)
+                            format += ":" + expressionPart.FormatSpecifier;
+                        format += "}";
+                        sb.Append(string.Format(format, value));
+                    }
+                    else
+                    {
+                        sb.Append(value?.ToString() ?? string.Empty);
+                    }
+
+                    break;
+                }
+                default:
+                    throw new BindingNotSupportedException(
+                        $"Bound interpolated part '{part.GetType().Name}' is not implemented");
+            }
+        }
+
+        return sb.ToString();
+    }
 }

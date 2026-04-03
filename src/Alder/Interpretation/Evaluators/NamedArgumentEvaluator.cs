@@ -11,4 +11,9 @@ internal static class NamedArgumentEvaluator
     {
         return new NamedArg(node.Name, ctx.Evaluate(node.Value, ct));
     }
+
+    public static async ValueTask<object?> EvaluateAsync(BoundNamedArgumentExpr node, EvaluationContext ctx, CancellationToken ct)
+    {
+        return new NamedArg(node.Name, await ctx.EvaluateAsync(node.Value, ct));
+    }
 }

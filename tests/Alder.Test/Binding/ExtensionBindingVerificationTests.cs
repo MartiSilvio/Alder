@@ -44,7 +44,7 @@ public sealed class ExtensionBindingVerificationTests
 
         Assert.That(whereCall, Is.Not.Null, "Where() should be a BoundResolvedCallExpr");
         Assert.That(whereCall!.IsExtensionCall, Is.True, "Where should be IsExtensionCall");
-        Assert.That(whereCall.StaticType.ClrType, Is.EqualTo(typeof(System.Collections.Generic.IEnumerable<int>)),
+        Assert.That(whereCall.StaticType.ClrType, Is.EqualTo(typeof(IEnumerable<int>)),
             "Where return type should flow as IEnumerable<int>");
     }
 }

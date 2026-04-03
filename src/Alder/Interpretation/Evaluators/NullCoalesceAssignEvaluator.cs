@@ -21,4 +21,19 @@ internal static class NullCoalesceAssignEvaluator
 
         return newValue;
     }
+
+    public static async ValueTask<object?> EvaluateAsync(BoundNullCoalesceAssignExpr node, EvaluationContext ctx, CancellationToken ct)
+    {
+        var name = node.Name;
+        ExecutionRuntime.CheckNullCoalesceAssignAllowed(name, ctx.Context);
+
+        var currentValue = ctx.Context.Get(name);
+        if (currentValue != null)
+            return currentValue;
+
+        var newValue = await ctx.EvaluateAsync(node.Value, ct);
+        ctx.Context.Set(name, newValue);
+
+        return newValue;
+    }
 }

@@ -341,7 +341,7 @@ internal static class OverloadResolver
         return result;
     }
 
-    private static System.Collections.Immutable.ImmutableDictionary<string, Type>? TryExtractElementMemberTypes(
+    private static ImmutableDictionary<string, Type>? TryExtractElementMemberTypes(
         ReadOnlySpan<ArgumentDescriptor> args)
     {
         for (var i = 0; i < args.Length; i++)
@@ -349,7 +349,7 @@ internal static class OverloadResolver
             if (args[i].Kind != ArgumentKind.Value || args[i].RuntimeValue == null)
                 continue;
 
-            if (args[i].RuntimeValue is not System.Collections.IEnumerable enumerable)
+            if (args[i].RuntimeValue is not IEnumerable enumerable)
                 continue;
 
             var enumerator = enumerable.GetEnumerator();
@@ -358,7 +358,7 @@ internal static class OverloadResolver
                 if (!enumerator.MoveNext() || enumerator.Current is not IDictionary<string, object?> dict)
                     return null;
 
-                var builder = System.Collections.Immutable.ImmutableDictionary.CreateBuilder<string, Type>();
+                var builder = ImmutableDictionary.CreateBuilder<string, Type>();
                 foreach (var kvp in dict)
                     builder[kvp.Key] = kvp.Value?.GetType() ?? typeof(object);
                 return builder.ToImmutable();

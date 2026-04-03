@@ -306,7 +306,7 @@ public class SandboxAttackTests(CompilationMode mode)
 
         var engine = TestEngineFactory.Create(mode);
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate(expr));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(Alder.Diagnostics.DiagnosticCode.CS8078));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS8078));
     }
     [Test]
     public void Attack_UseAfterDispose_Throws()

@@ -13,4 +13,11 @@ internal static class MemberCompoundAssignEvaluator
         var rightValue = ctx.Evaluate(node.Value, ct);
         return AssignmentRuntime.ApplyMemberCompoundAssign(target, node.MemberName, node.Operator, rightValue, ctx);
     }
+
+    public static async ValueTask<object?> EvaluateAsync(BoundMemberCompoundAssignExpr node, EvaluationContext ctx, CancellationToken ct)
+    {
+        var target = await ctx.EvaluateAsync(node.Target, ct);
+        var rightValue = await ctx.EvaluateAsync(node.Value, ct);
+        return AssignmentRuntime.ApplyMemberCompoundAssign(target, node.MemberName, node.Operator, rightValue, ctx);
+    }
 }

@@ -55,13 +55,13 @@ internal sealed class ObjectCreationEmitter : INodeEmitter<BoundObjectCreationEx
                     typeof(object),
                     entry.Elements.Select(e => ctx.EmitBoxed(e)));
                 statements.Add(LinqExpression.Call(ApplyGroupedCollectionInitializerMethod,
-                    objVar, elemArray, ctx.ContextParam));
+                    objVar, elemArray, ctx.ContextParam, ctx.CancellationTokenParam));
             }
             else
             {
                 var value = ctx.EmitBoxed(entry.Value!);
                 statements.Add(LinqExpression.Call(ApplyCollectionInitializerMethod,
-                    objVar, value, ctx.ContextParam));
+                    objVar, value, ctx.ContextParam, ctx.CancellationTokenParam));
             }
         }
 
