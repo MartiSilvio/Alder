@@ -10,15 +10,16 @@ internal static class SwitchStatementBinder
     public static BoundExpr Bind(SwitchStatementExpr expr, BindingContext context, BinderContext binder)
     {
         var expression = binder.Bind(expr.Expression, context);
+        var switchBinder = binder.WithAdditionalFlags(BinderFlags.InSwitch);
         var cases = expr.Cases
             .Select(switchCase =>
             {
                 var caseScope = context.CreateChildScope();
                 var guard = switchCase.WhenGuard != null
-                    ? binder.Bind(switchCase.WhenGuard, caseScope)
+                    ? switchBinder.Bind(switchCase.WhenGuard, caseScope)
                     : null;
                 var statements = switchCase.Statements
-                    .Select(statement => binder.Bind(statement, caseScope))
+                    .Select(statement => switchBinder.Bind(statement, caseScope))
                     .ToImmutableArray();
                 return new BoundSwitchCase(switchCase.CasePattern, guard, statements);
             })

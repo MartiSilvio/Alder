@@ -9,11 +9,12 @@ internal static class DoWhileBinder
 {
     public static BoundExpr Bind(DoWhileStatementExpr expr, BindingContext context, BinderContext binder)
     {
+        var loopBinder = binder.WithAdditionalFlags(BinderFlags.InLoop);
         var bodyScope = context.CreateChildScope();
         var body = expr.Body
-            .Select(statement => binder.Bind(statement, bodyScope))
+            .Select(statement => loopBinder.Bind(statement, bodyScope))
             .ToImmutableArray();
-        var condition = binder.Bind(expr.Condition, context);
+        var condition = loopBinder.Bind(expr.Condition, context);
         return new BoundDoWhileExpr(body, condition, BoundType.Void);
     }
 }

@@ -14,13 +14,13 @@ internal sealed partial class Binder
 
     public Binder()
     {
-        _binderCtx = new BinderContext(Bind);
+        _binderCtx = new BinderContext(BindWithContext);
     }
 
     public Binder(SourceText sourceText)
     {
         _sourceText = sourceText;
-        _binderCtx = new BinderContext(Bind);
+        _binderCtx = new BinderContext(BindWithContext);
     }
 
     internal IReadOnlyList<AlderDiagnostic> GetAccumulatedDiagnostics()
@@ -29,7 +29,14 @@ internal sealed partial class Binder
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public BoundExpr Bind(Expr expr, BindingContext context)
     {
-        var bound = Dispatch(expr, context);
+        var bound = Dispatch(expr, context, _binderCtx);
+        if (bound.Span.IsEmpty) bound.Span = expr.Span;
+        return bound;
+    }
+
+    private BoundExpr BindWithContext(Expr expr, BindingContext context, BinderContext binderCtx)
+    {
+        var bound = Dispatch(expr, context, binderCtx);
         if (bound.Span.IsEmpty) bound.Span = expr.Span;
         return bound;
     }

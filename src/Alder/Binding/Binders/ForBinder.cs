@@ -10,19 +10,20 @@ internal static class ForBinder
     public static BoundExpr Bind(ForStatementExpr expr, BindingContext context, BinderContext binder)
     {
         var loopScope = context.CreateChildScope();
+        var loopBinder = binder.WithAdditionalFlags(BinderFlags.InLoop);
         var initializers = expr.Initializers
-            .Select(initializer => binder.Bind(initializer, loopScope))
+            .Select(initializer => loopBinder.Bind(initializer, loopScope))
             .ToImmutableArray();
         var condition = expr.Condition != null
-            ? binder.Bind(expr.Condition, loopScope)
+            ? loopBinder.Bind(expr.Condition, loopScope)
             : null;
         var increments = expr.Increments
-            .Select(increment => binder.Bind(increment, loopScope))
+            .Select(increment => loopBinder.Bind(increment, loopScope))
             .ToImmutableArray();
 
         var bodyScope = loopScope.CreateChildScope();
         var body = expr.Body
-            .Select(statement => binder.Bind(statement, bodyScope))
+            .Select(statement => loopBinder.Bind(statement, bodyScope))
             .ToImmutableArray();
         return new BoundForExpr(initializers, condition, increments, body, BoundType.Void);
     }

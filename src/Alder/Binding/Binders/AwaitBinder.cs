@@ -1,4 +1,5 @@
 using Alder.Binding.BoundNodes;
+using Alder.Diagnostics;
 using Alder.Parsing;
 
 namespace Alder.Binding.Binders;
@@ -8,6 +9,10 @@ internal static class AwaitBinder
 {
     public static BoundExpr Bind(AwaitExpr expr, BindingContext context, BinderContext binder)
     {
+        // §12.9.8.1: an await_expression shall not occur inside the block of a lock_statement
+        if (binder.Includes(BinderFlags.InLockBody))
+            throw new AlderException(DiagnosticDescriptors.AwaitInLockBody);
+
         var operand = binder.Bind(expr.Operand, context);
         var resultType = InferAwaitResultType(operand.StaticType.ClrType);
         return new BoundAwaitExpr(operand, resultType);

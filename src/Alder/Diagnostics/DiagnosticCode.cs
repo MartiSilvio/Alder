@@ -17,8 +17,6 @@ public enum DiagnosticCode
     CS0031 = 31,
     /// <summary>Cannot convert null to '{0}' because it is a non-nullable value type</summary>
     CS0037 = 37,
-    /// <summary>Cannot implicitly convert type '{0}' to '{1}'. An explicit conversion exists (are you missing a cast?)</summary>
-    CS0266 = 266,
 
     /// <summary>The name '{0}' does not exist in the current context</summary>
     CS0103 = 103,
@@ -26,37 +24,14 @@ public enum DiagnosticCode
     CS0104 = 104,
     /// <summary>'{0}' does not contain a definition for '{1}'</summary>
     CS0117 = 117,
-    /// <summary>The type or namespace name '{0}' could not be found</summary>
-    CS0246 = 246,
-
     /// <summary>The call is ambiguous between the following methods or properties: '{0}' and '{1}'</summary>
     CS0121 = 121,
     /// <summary>No overload for '{0}' matches delegate '{1}'</summary>
     CS0123 = 123,
-    /// <summary>No overload for method '{0}' takes {1} arguments</summary>
-    CS1501 = 1501,
-    /// <summary>Cannot convert lambda to delegate type — parameter types do not match</summary>
-    CS1661 = 1661,
-    /// <summary>Non-invocable member '{0}' cannot be used like a method</summary>
-    CS1955 = 1955,
-    /// <summary>There is no argument given that corresponds to the required parameter '{0}' of '{1}'</summary>
-    CS7036 = 7036,
-    /// <summary>Cannot convert lambda to delegate type — return type does not match</summary>
-    CS8934 = 8934,
-
     /// <summary>A local variable or function named '{0}' is already defined in this scope</summary>
     CS0128 = 128,
     /// <summary>The left-hand side of an assignment must be a variable, property or indexer</summary>
     CS0131 = 131,
-    /// <summary>A readonly field cannot be assigned to</summary>
-    CS0191 = 191,
-    /// <summary>Cannot assign null to an implicitly-typed variable</summary>
-    CS0815 = 815,
-    /// <summary>No best type found for an implicitly-typed array</summary>
-    CS0826 = 826,
-    /// <summary>There is no target type for the collection expression</summary>
-    CS9176 = 9176,
-
     /// <summary>No enclosing loop out of which to break or continue</summary>
     CS0139 = 139,
     /// <summary>The type caught or thrown must be derived from System.Exception</summary>
@@ -69,13 +44,23 @@ public enum DiagnosticCode
     CS0163 = 163,
     /// <summary>A lock expression must be a reference type</summary>
     CS0185 = 185,
+    /// <summary>A readonly field cannot be assigned to</summary>
+    CS0191 = 191,
+    /// <summary>'{0}' does not have a predefined size</summary>
+    CS0233 = 233,
+    /// <summary>The type or namespace name '{0}' could not be found</summary>
+    CS0246 = 246,
+    /// <summary>Cannot implicitly convert type '{0}' to '{1}'. An explicit conversion exists (are you missing a cast?)</summary>
+    CS0266 = 266,
 
-    /// <summary>'{0}' does not contain a definition for '{1}'</summary>
-    CS1061 = 1061,
-    /// <summary>foreach requires GetEnumerator</summary>
-    CS1579 = 1579,
-    /// <summary>'{0}' does not contain a constructor that takes {1} arguments</summary>
-    CS1729 = 1729,
+    /// <summary>A query body must end with a select clause or a group clause</summary>
+    CS0742 = 742,
+    /// <summary>Expected contextual keyword '{0}'</summary>
+    CS0744 = 744,
+    /// <summary>Cannot assign null to an implicitly-typed variable</summary>
+    CS0815 = 815,
+    /// <summary>No best type found for an implicitly-typed array</summary>
+    CS0826 = 826,
 
     /// <summary>Syntax error, '{0}' expected</summary>
     CS1003 = 1003,
@@ -85,21 +70,32 @@ public enum DiagnosticCode
     CS1017 = 1017,
     /// <summary>Integral constant is too large</summary>
     CS1021 = 1021,
+    /// <summary>'{0}' does not contain a definition for '{1}'</summary>
+    CS1061 = 1061,
+    /// <summary>No overload for method '{0}' takes {1} arguments</summary>
+    CS1501 = 1501,
     /// <summary>Invalid expression term '{0}'</summary>
     CS1525 = 1525,
+    /// <summary>foreach requires GetEnumerator</summary>
+    CS1579 = 1579,
+    /// <summary>Cannot convert lambda to delegate type — parameter types do not match</summary>
+    CS1661 = 1661,
+    /// <summary>'{0}' does not contain a constructor that takes {1} arguments</summary>
+    CS1729 = 1729,
     /// <summary>Expression expected</summary>
     CS1733 = 1733,
+    /// <summary>Non-invocable member '{0}' cannot be used like a method</summary>
+    CS1955 = 1955,
+    /// <summary>Cannot await in the body of a lock statement</summary>
+    CS1996 = 1996,
 
-    /// <summary>A query body must end with a select clause or a group clause</summary>
-    CS0742 = 742,
-    /// <summary>Expected contextual keyword '{0}'</summary>
-    CS0744 = 744,
-
-    /// <summary>'{0}' does not have a predefined size</summary>
-    CS0233 = 233,
+    /// <summary>The 'await' operator can only be used within an async context. Use EvaluateAsync instead of Evaluate.</summary>
+    CS4033 = 4033,
 
     /// <summary>An expression tree may not contain '{0}'</summary>
     CS7053 = 7053,
+    /// <summary>There is no argument given that corresponds to the required parameter '{0}' of '{1}'</summary>
+    CS7036 = 7036,
 
     /// <summary>An expression is too long or complex to compile</summary>
     CS8078 = 8078,
@@ -109,11 +105,14 @@ public enum DiagnosticCode
     CS8129 = 8129,
     /// <summary>Cannot deconstruct a tuple of '{0}' elements into '{1}' variables</summary>
     CS8132 = 8132,
-
     /// <summary>The pattern is unreachable</summary>
     CS8510 = 8510,
+    /// <summary>Cannot convert lambda to delegate type — return type does not match</summary>
+    CS8934 = 8934,
     /// <summary>Unterminated raw string literal</summary>
     CS8997 = 8997,
+    /// <summary>There is no target type for the collection expression</summary>
+    CS9176 = 9176,
 
     /// <summary>Strict compilation mode could not compile the expression to IL</summary>
     ALDR0001 = 1_000_001,
@@ -209,8 +208,6 @@ public enum DiagnosticCode
     /// <summary>Type requires AOT registration for NativeAOT environments</summary>
     ALDR0500 = 1_000_500,
 
-    /// <summary>The 'await' operator can only be used within an async context. Use EvaluateAsync instead of Evaluate.</summary>
-    CS4033 = 4033,
     /// <summary>Type '{0}' is not awaitable</summary>
     ALDR0600 = 1_000_600,
 }

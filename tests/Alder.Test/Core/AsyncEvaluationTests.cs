@@ -1,4 +1,5 @@
 using System.Threading.Tasks;
+using Alder.Diagnostics;
 
 namespace Alder.Test.Core;
 
@@ -172,5 +173,66 @@ public class AsyncEvaluationTests
         var result = await AlderEval.EvaluateAsync("await Task.FromResult(100)");
         Assert.That(result, Is.EqualTo(100));
         AlderEval.Reset();
+    }
+
+    [Test]
+    public void Await_InLockBody_ThrowsCS1996()
+    {
+        var ex = Assert.Throws<AlderException>(() =>
+            _engine.Evaluate("lock (new object()) { await Task.FromResult(1); }"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS1996));
+    }
+
+    [Test]
+    public void Break_OutsideLoop_ThrowsCS0139()
+    {
+        var ex = Assert.Throws<AlderException>(() => _engine.Evaluate("{ break; }"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0139));
+    }
+
+    [Test]
+    public void Continue_OutsideLoop_ThrowsCS0139()
+    {
+        var ex = Assert.Throws<AlderException>(() => _engine.Evaluate("{ continue; }"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0139));
+    }
+
+    [Test]
+    public void Break_InsideSwitch_IsValid()
+    {
+        Assert.DoesNotThrow(() => _engine.Evaluate("""
+            switch (1) { case 1: break; }
+        """));
+    }
+
+    [Test]
+    public void Continue_InsideSwitch_OutsideLoop_ThrowsCS0139()
+    {
+        var ex = Assert.Throws<AlderException>(() => _engine.Evaluate("""
+            switch (1) { case 1: continue; }
+        """));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0139));
+    }
+
+    [Test]
+    public void Break_InsideLoop_IsValid()
+    {
+        Assert.DoesNotThrow(() => _engine.Evaluate("for (var i = 0; i < 5; i++) { break; }"));
+    }
+
+    [Test]
+    public void Continue_InsideLoop_IsValid()
+    {
+        Assert.DoesNotThrow(() => _engine.Evaluate("for (var i = 0; ; i++) { break; }"));
+    }
+
+    [Test]
+    public async Task Await_InLockExpression_IsValid()
+    {
+        var result = await _engine.EvaluateAsync("""
+            var obj = await Task.FromResult(new object());
+            lock (obj) { return 1; }
+        """);
+        Assert.That(result, Is.EqualTo(1));
     }
 }

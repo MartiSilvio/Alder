@@ -161,12 +161,12 @@ public sealed class BinderDispatchGenerator : IIncrementalGenerator
             using (w.Block("internal sealed partial class Binder"))
             {
                 w.AppendLine("[MethodImpl(MethodImplOptions.AggressiveInlining)]");
-                w.AppendLine("private BoundExpr Dispatch(Parsing.Expr expr, BindingContext context) => expr switch");
+                w.AppendLine("private BoundExpr Dispatch(Parsing.Expr expr, BindingContext context, BinderContext binderCtx) => expr switch");
                 w.AppendLine("{");
                 w.Indent();
                 foreach (var entry in valid)
                 {
-                    w.AppendLine($"{entry.ExprTypeName} e => {entry.BinderTypeName}.Bind(e, context, _binderCtx),");
+                    w.AppendLine($"{entry.ExprTypeName} e => {entry.BinderTypeName}.Bind(e, context, binderCtx),");
                 }
                 w.AppendLine("_ => throw new BindingNotSupportedException(");
                 w.AppendLine("    $\"Binding for expression type '{{expr.GetType().Name}}' is not implemented\")");

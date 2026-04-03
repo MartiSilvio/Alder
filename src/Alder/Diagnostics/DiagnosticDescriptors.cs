@@ -23,9 +23,6 @@ public static class DiagnosticDescriptors
     public static readonly DiagnosticDescriptor NullToNonNullable =
         new(DiagnosticCode.CS0037, "Cannot convert null to '{0}' because it is a non-nullable value type");
 
-    public static readonly DiagnosticDescriptor ExplicitConversionExists =
-        new(DiagnosticCode.CS0266, "Cannot implicitly convert type '{0}' to '{1}'. An explicit conversion exists (are you missing a cast?)");
-
     public static readonly DiagnosticDescriptor NameNotInContext =
         new(DiagnosticCode.CS0103, "The name '{0}' does not exist in the current context");
 
@@ -35,47 +32,17 @@ public static class DiagnosticDescriptors
     public static readonly DiagnosticDescriptor NoMemberOnType =
         new(DiagnosticCode.CS0117, "'{0}' does not contain a definition for '{1}'");
 
-    public static readonly DiagnosticDescriptor TypeNotFound =
-        new(DiagnosticCode.CS0246, "The type or namespace name '{0}' could not be found (are you missing a using directive or an assembly reference?)");
-
     public static readonly DiagnosticDescriptor AmbiguousMethodInvocation =
         new(DiagnosticCode.CS0121, "The call is ambiguous between the following methods or properties: '{0}'");
 
     public static readonly DiagnosticDescriptor DelegateConversionFailed =
         new(DiagnosticCode.CS0123, "Cannot convert '{0}' to delegate type '{1}'.");
 
-    public static readonly DiagnosticDescriptor NoApplicableOverload =
-        new(DiagnosticCode.CS1501, "No overload for method '{0}' takes the given number of arguments");
-
-    public static readonly DiagnosticDescriptor CantConvAnonMethParams =
-        new(DiagnosticCode.CS1661, "Cannot convert lambda expression to type '{0}' because the parameter types do not match the delegate parameter types");
-
-    public static readonly DiagnosticDescriptor NonCallableType =
-        new(DiagnosticCode.CS1955, "Non-invocable member '{0}' cannot be used like a method");
-
-    public static readonly DiagnosticDescriptor MissingRequiredArgument =
-        new(DiagnosticCode.CS7036, "There is no argument given that corresponds to the required parameter '{0}' of '{1}'");
-
-    public static readonly DiagnosticDescriptor CantConvAnonMethReturnType =
-        new(DiagnosticCode.CS8934, "Cannot convert lambda expression to type '{0}' because the return type does not match the delegate return type");
-
     public static readonly DiagnosticDescriptor DuplicateLocalVariable =
         new(DiagnosticCode.CS0128, "A local variable or function named '{0}' is already defined in this scope");
 
     public static readonly DiagnosticDescriptor AssignmentRequiresVariable =
         new(DiagnosticCode.CS0131, "The left-hand side of an assignment must be a variable, property or indexer");
-
-    public static readonly DiagnosticDescriptor ReadonlyAssignment =
-        new(DiagnosticCode.CS0191, "A readonly field cannot be assigned to");
-
-    public static readonly DiagnosticDescriptor NullToImplicitlyTyped =
-        new(DiagnosticCode.CS0815, "Cannot assign null to an implicitly-typed variable");
-
-    public static readonly DiagnosticDescriptor NoBestTypeForImplicitArray =
-        new(DiagnosticCode.CS0826, "No best type found for an implicitly-typed array");
-
-    public static readonly DiagnosticDescriptor NoTargetTypeForCollectionExpression =
-        new(DiagnosticCode.CS9176, "There is no target type for the collection expression");
 
     public static readonly DiagnosticDescriptor BreakOrContinueOutsideLoop =
         new(DiagnosticCode.CS0139, "No enclosing loop out of which to break or continue");
@@ -95,14 +62,29 @@ public static class DiagnosticDescriptors
     public static readonly DiagnosticDescriptor LockRequiresNonNull =
         new(DiagnosticCode.CS0185, "A lock expression must be a reference type");
 
-    public static readonly DiagnosticDescriptor MemberNotFound =
-        new(DiagnosticCode.CS1061, "'{0}' does not contain a definition for '{1}'");
+    public static readonly DiagnosticDescriptor ReadonlyAssignment =
+        new(DiagnosticCode.CS0191, "A readonly field cannot be assigned to");
 
-    public static readonly DiagnosticDescriptor ForeachRequiresIEnumerable =
-        new(DiagnosticCode.CS1579, "foreach statement cannot operate on variables of type '{0}' because '{0}' does not contain a public instance or extension definition for 'GetEnumerator'");
+    public static readonly DiagnosticDescriptor SizeofUnsupportedType =
+        new(DiagnosticCode.CS0233, "'{0}' does not have a predefined size, therefore sizeof can only be used in an unsafe context");
 
-    public static readonly DiagnosticDescriptor NoMatchingConstructor =
-        new(DiagnosticCode.CS1729, "'{0}' does not contain a constructor that takes {1} arguments");
+    public static readonly DiagnosticDescriptor TypeNotFound =
+        new(DiagnosticCode.CS0246, "The type or namespace name '{0}' could not be found (are you missing a using directive or an assembly reference?)");
+
+    public static readonly DiagnosticDescriptor ExplicitConversionExists =
+        new(DiagnosticCode.CS0266, "Cannot implicitly convert type '{0}' to '{1}'. An explicit conversion exists (are you missing a cast?)");
+
+    public static readonly DiagnosticDescriptor QueryBodyMustEndWithSelectOrGroup =
+        new(DiagnosticCode.CS0742, "A query body must end with a select clause or a group clause");
+
+    public static readonly DiagnosticDescriptor ExpectedContextualKeyword =
+        new(DiagnosticCode.CS0744, "Expected contextual keyword '{0}'");
+
+    public static readonly DiagnosticDescriptor NullToImplicitlyTyped =
+        new(DiagnosticCode.CS0815, "Cannot assign null to an implicitly-typed variable");
+
+    public static readonly DiagnosticDescriptor NoBestTypeForImplicitArray =
+        new(DiagnosticCode.CS0826, "No best type found for an implicitly-typed array");
 
     public static readonly DiagnosticDescriptor SyntaxExpected =
         new(DiagnosticCode.CS1003, "Syntax error, '{0}' expected");
@@ -116,23 +98,38 @@ public static class DiagnosticDescriptors
     public static readonly DiagnosticDescriptor IntegralConstantTooLarge =
         new(DiagnosticCode.CS1021, "Integral constant is too large");
 
+    public static readonly DiagnosticDescriptor MemberNotFound =
+        new(DiagnosticCode.CS1061, "'{0}' does not contain a definition for '{1}'");
+
+    public static readonly DiagnosticDescriptor NoApplicableOverload =
+        new(DiagnosticCode.CS1501, "No overload for method '{0}' takes the given number of arguments");
+
     public static readonly DiagnosticDescriptor InvalidExpressionTerm =
         new(DiagnosticCode.CS1525, "Invalid expression term '{0}'");
 
-    public static readonly DiagnosticDescriptor UnterminatedRawStringLiteral =
-        new(DiagnosticCode.CS8997, "Unterminated raw string literal");
+    public static readonly DiagnosticDescriptor ForeachRequiresIEnumerable =
+        new(DiagnosticCode.CS1579, "foreach statement cannot operate on variables of type '{0}' because '{0}' does not contain a public instance or extension definition for 'GetEnumerator'");
+
+    public static readonly DiagnosticDescriptor CantConvAnonMethParams =
+        new(DiagnosticCode.CS1661, "Cannot convert lambda expression to type '{0}' because the parameter types do not match the delegate parameter types");
+
+    public static readonly DiagnosticDescriptor NoMatchingConstructor =
+        new(DiagnosticCode.CS1729, "'{0}' does not contain a constructor that takes {1} arguments");
 
     public static readonly DiagnosticDescriptor ExpressionExpected =
         new(DiagnosticCode.CS1733, "Expression expected");
 
-    public static readonly DiagnosticDescriptor QueryBodyMustEndWithSelectOrGroup =
-        new(DiagnosticCode.CS0742, "A query body must end with a select clause or a group clause");
+    public static readonly DiagnosticDescriptor NonCallableType =
+        new(DiagnosticCode.CS1955, "Non-invocable member '{0}' cannot be used like a method");
 
-    public static readonly DiagnosticDescriptor ExpectedContextualKeyword =
-        new(DiagnosticCode.CS0744, "Expected contextual keyword '{0}'");
+    public static readonly DiagnosticDescriptor AwaitInLockBody =
+        new(DiagnosticCode.CS1996, "Cannot await in the body of a lock statement");
 
-    public static readonly DiagnosticDescriptor SizeofUnsupportedType =
-        new(DiagnosticCode.CS0233, "'{0}' does not have a predefined size, therefore sizeof can only be used in an unsafe context");
+    public static readonly DiagnosticDescriptor AwaitRequiresAsync =
+        new(DiagnosticCode.CS4033, "The 'await' operator can only be used within an async context. Use EvaluateAsync() instead of Evaluate().");
+
+    public static readonly DiagnosticDescriptor MissingRequiredArgument =
+        new(DiagnosticCode.CS7036, "There is no argument given that corresponds to the required parameter '{0}' of '{1}'");
 
     public static readonly DiagnosticDescriptor FeatureNotValidInExpressionTree =
         new(DiagnosticCode.CS7053, "An expression tree may not contain '{0}'");
@@ -151,6 +148,15 @@ public static class DiagnosticDescriptors
 
     public static readonly DiagnosticDescriptor SwitchExpressionNonExhaustive =
         new(DiagnosticCode.CS8510, "Switch expression does not handle all possible values of its input type. Value '{0}' is not handled.");
+
+    public static readonly DiagnosticDescriptor UnterminatedRawStringLiteral =
+        new(DiagnosticCode.CS8997, "Unterminated raw string literal");
+
+    public static readonly DiagnosticDescriptor CantConvAnonMethReturnType =
+        new(DiagnosticCode.CS8934, "Cannot convert lambda expression to type '{0}' because the return type does not match the delegate return type");
+
+    public static readonly DiagnosticDescriptor NoTargetTypeForCollectionExpression =
+        new(DiagnosticCode.CS9176, "There is no target type for the collection expression");
 
     public static readonly DiagnosticDescriptor StrictCompilationFailed =
         new(DiagnosticCode.ALDR0001, "Strict compilation mode could not compile the expression to IL: {0}");
@@ -200,7 +206,6 @@ public static class DiagnosticDescriptors
     public static readonly DiagnosticDescriptor ReflectionTypeAccessBlocked =
         new(DiagnosticCode.ALDR0108, "Access to reflection types is not allowed: {0} ({1})");
 
-
     public static readonly DiagnosticDescriptor StatementLimitExceeded =
         new(DiagnosticCode.ALDR0200, "Execution exceeded maximum statement count ({0}). {1} statements executed.");
 
@@ -212,8 +217,6 @@ public static class DiagnosticDescriptors
 
     public static readonly DiagnosticDescriptor LoopIterationLimitExceeded =
         new(DiagnosticCode.ALDR0203, "Execution exceeded maximum loop iteration count ({0}). {1} iterations executed.");
-
-    #region Runtime (Alder)
 
     public static readonly DiagnosticDescriptor NullMemberAccess =
         new(DiagnosticCode.ALDR0300, "Cannot access {0} '{1}' on null");
@@ -263,10 +266,6 @@ public static class DiagnosticDescriptors
     public static readonly DiagnosticDescriptor CannotResolveModuleInstance =
         new(DiagnosticCode.ALDR0315, "Cannot resolve instance of '{0}'. Either register it in IServiceProvider or ensure it has a parameterless constructor.");
 
-    #endregion
-
-    #region Extended mode (Alder)
-
     public static readonly DiagnosticDescriptor SliceNull =
         new(DiagnosticCode.ALDR0400, "Cannot slice null");
 
@@ -285,24 +284,11 @@ public static class DiagnosticDescriptors
     public static readonly DiagnosticDescriptor SpreadOutsideLiteral =
         new(DiagnosticCode.ALDR0405, "Spread operator can only be used in array or object literals");
 
-    #endregion
-
-    #region Async (ALDR06xx)
-
-    public static readonly DiagnosticDescriptor AwaitRequiresAsync =
-        new(DiagnosticCode.CS4033, "The 'await' operator can only be used within an async context. Use EvaluateAsync() instead of Evaluate().");
-
-    public static readonly DiagnosticDescriptor NotAwaitable =
-        new(DiagnosticCode.ALDR0600, "Type '{0}' is not awaitable");
-
-    #endregion
-
-    #region AOT (ALDR05xx)
-
     public static readonly DiagnosticDescriptor TypeNotRegistered =
         new(DiagnosticCode.ALDR0500,
             "Type '{0}' is not available in this environment. " +
             "In NativeAOT, add [AlderRegistered(typeof({0}))] to your AlderTypeContext");
 
-    #endregion
+    public static readonly DiagnosticDescriptor NotAwaitable =
+        new(DiagnosticCode.ALDR0600, "Type '{0}' is not awaitable");
 }

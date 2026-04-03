@@ -11,10 +11,11 @@ internal static class ForEachBinder
     {
         var collection = binder.Bind(expr.Collection, context);
         var elementType = InferElementType(collection.StaticType.ClrType);
+        var loopBinder = binder.WithAdditionalFlags(BinderFlags.InLoop);
         var bodyScope = context.CreateChildScope();
         var foreachLocalId = bodyScope.DeclareLocal(expr.VariableName.Lexeme, new BoundType(elementType));
         var body = expr.Body
-            .Select(statement => binder.Bind(statement, bodyScope))
+            .Select(statement => loopBinder.Bind(statement, bodyScope))
             .ToImmutableArray();
         return new BoundForEachExpr(expr.VariableName.Lexeme, collection, body, elementType, BoundType.Void, foreachLocalId);
     }
