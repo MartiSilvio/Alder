@@ -1,10 +1,3 @@
----
-title: "Bound Tree Pipeline"
-description: "Optimization passes — security validation, constant folding, dead branch elimination, conversion insertion"
-sidebar:
-  order: 6
----
-
 After the binder produces a bound tree, it passes through a configurable pipeline of transformation passes before execution. Each pass receives a `BoundExpr`, transforms it, and returns a (possibly modified) `BoundExpr`. This page is the canonical reference for all pipeline passes.
 
 ## Pipeline Configurations
@@ -12,19 +5,19 @@ After the binder produces a bound tree, it passes through a configurable pipelin
 | Pass | Interpretation | Compilation | Tracing |
 |------|:-:|:-:|:-:|
 | SecurityValidationPass | 1st | 1st | 1st (only pass) |
-| ConstantFoldingPass | 2nd | 2nd | — |
-| DeadBranchEliminationPass | 3rd | 3rd | — |
-| ConversionInsertionPass | — | 4th | — |
+| ConstantFoldingPass | 2nd | 2nd | - |
+| DeadBranchEliminationPass | 3rd | 3rd | - |
+| ConversionInsertionPass | - | 4th | - |
 
-The tracing pipeline runs security validation only — constant folding and dead branch elimination are skipped so the tracer sees every node, including constant subexpressions and unreachable branches.
+The tracing pipeline runs security validation only: constant folding and dead branch elimination are skipped so the tracer sees every node, including constant subexpressions and unreachable branches.
 
-The pipeline is a simple sequential chain — each pass receives the tree from the previous pass and returns the result.
+The pipeline is a simple sequential chain: each pass receives the tree from the previous pass and returns the result.
 
 ## SecurityValidationPass
 
 The first pass in every pipeline. Walks the entire bound tree iteratively (using an explicit stack, not recursion) and checks every node against the configured security policy.
 
-The pass always walks the full tree — there is no fast-path skip, ensuring consistent behavior regardless of sandbox configuration.
+The pass always walks the full tree; there is no fast-path skip, ensuring consistent behavior regardless of sandbox configuration.
 
 **What's checked:**
 
@@ -38,7 +31,7 @@ The pass always walks the full tree — there is no fast-path skip, ensuring con
 | Member assignment | Property set permission |
 | Index assignment | Index set permission |
 
-If any check fails, an `AlderException` is thrown with an `ALDR01xx` diagnostic code. Evaluation never begins — there is no partial execution.
+If any check fails, an `AlderException` is thrown with an `ALDR01xx` diagnostic code. Evaluation never begins; there is no partial execution.
 
 ## ConstantFoldingPass
 
@@ -60,13 +53,13 @@ Evaluates compile-time constant subexpressions, replacing them with literal valu
 ### What doesn't fold
 
 - Expressions involving variables or function calls
-- Division by zero (would throw — preserved for runtime)
+- Division by zero (would throw; preserved for runtime)
 - Operations that fail for any reason (failure preserves the original node)
 - Expressions with unknown-typed operands
 
 ### Constant promotion
 
-When folding `uint + int_constant`, the standard numeric dispatch promotes to `long`. ECMA-334 constant expressions preserve the unsigned type when the constant is non-negative. The pass corrects this — if the result is `long` but one operand is `uint` and the other is a non-negative `int`, the result is cast back to `uint`.
+When folding `uint + int_constant`, the standard numeric dispatch promotes to `long`. ECMA-334 constant expressions preserve the unsigned type when the constant is non-negative. The pass corrects this: if the result is `long` but one operand is `uint` and the other is a non-negative `int`, the result is cast back to `uint`.
 
 ### Ternary folding
 
@@ -88,16 +81,16 @@ This pass runs after constant folding, so conditions like `if (1 > 0)` are alrea
 
 Compilation-only. Inserts explicit cast nodes for binary operands with mismatched numeric types.
 
-The interpreter handles numeric promotion at runtime via its promote-operands logic. The compiler needs exact type matching — `Expression.Add(Expression<int>, Expression<long>)` is invalid in LINQ expression trees. This pass computes the promoted type and wraps operands as needed.
+The interpreter handles numeric promotion at runtime via its promote-operands logic. The compiler needs exact type matching. `Expression.Add(Expression<int>, Expression<long>)` is invalid in LINQ expression trees. This pass computes the promoted type and wraps operands as needed.
 
 ### What it skips
 
-- Strict equality (`===`, `!==`) — promotion would defeat the purpose
-- Operands typed as `object` — runtime dispatch handles these
-- Same-type operands — no conversion needed
+- Strict equality (`===`, `!==`). promotion would defeat the purpose
+- Operands typed as `object`: runtime dispatch handles these
+- Same-type operands: no conversion needed
 
 ## Pass Architecture
 
 All optimization passes extend a base rewriter that implements the visitor pattern over bound nodes. The rewriter traverses bottom-up (children first, then parent), producing a new tree where modified nodes are replaced and unchanged nodes are reused.
 
-The security pass is different — it walks the tree iteratively with an explicit stack and doesn't transform the tree, only validates it. This prevents stack overflow on deeply nested expressions.
+The security pass is different: it walks the tree iteratively with an explicit stack and doesn't transform the tree, only validates it. This prevents stack overflow on deeply nested expressions.

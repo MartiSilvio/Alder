@@ -1,15 +1,8 @@
----
-title: "Functions and Modules"
-description: "Delegate functions, class-backed modules, attributes, assembly scanning"
-sidebar:
-  order: 6
----
-
-Alder provides two mechanisms for extending what expressions can call: **standalone functions** (simple delegates) and **modules** (class-backed objects with methods, properties, and fields).
+Two mechanisms for extending what expressions can call: **standalone functions** (delegates) and **modules** (class-backed objects with methods, properties, fields).
 
 ## Standalone Functions
 
-Register a delegate-based function via `AlderOptions.Functions`:
+Register via `AlderOptions.Functions`:
 
 ```csharp
 var engine = new AlderEngine(o =>
@@ -28,13 +21,11 @@ double result = engine.Evaluate<double>("clamp(150, 0, 100)"); // 100.0
 
 <!-- test: Functions_Register -->
 
-Functions receive arguments as `object?[]`. The engine handles numeric coercion for arguments that match a parameter's type but need conversion (e.g., passing `int` where `double` is expected). If fewer arguments are provided than the function expects and the remaining parameters have default values, defaults are filled in.
-
-Functions are resolved before variables in `IdentifierRuntime` — if a function and a variable share the same name, the function wins.
+Arguments arrive as `object?[]`. Functions are resolved before variables: if a function and variable share the same name, the function wins.
 
 ## Modules
 
-A module exposes a class's public members to expressions via `moduleName.Member()` syntax:
+A module exposes a class's public members to expressions via `moduleName.Member()`:
 
 ```csharp
 public class MathUtils
@@ -55,15 +46,15 @@ double pi = engine.Evaluate<double>("utils.Pi");                // ~3.14159
 
 <!-- test: Modules_Register -->
 
-By default, all public methods, properties, and fields declared directly on the type are exposed. Inherited members are not included. Special-name methods (property getters/setters) and async methods are excluded.
+All public methods, properties, and fields declared directly on the type are exposed. Inherited members are excluded.
 
 ### Built-in modules
 
-`Math` and `Convert` are registered as modules by default — this is why `Math.Round(3.14)` and `Convert.ToInt32("42")` work without any configuration.
+`Math` and `Convert` are registered by default.
 
 ### Explicit-only mode
 
-When `explicitOnly: true`, only methods marked with `[AlderFunction]` are exposed:
+With `explicitOnly: true`, only methods marked `[AlderFunction]` are exposed:
 
 ```csharp
 [AlderModule("secure", ExplicitOnly = true)]
@@ -74,7 +65,7 @@ public class SecureModule
         System.Security.Cryptography.SHA256.HashData(
             System.Text.Encoding.UTF8.GetBytes(input)));
 
-    // Not exposed — no [AlderFunction] attribute
+    // Not exposed (no [AlderFunction])
     public string InternalMethod() => "hidden";
 }
 
@@ -83,8 +74,8 @@ var engine = new AlderEngine(o =>
     o.Modules.RegisterFromType<SecureModule>();
 });
 
-// secure.Hash("hello") — works
-// secure.InternalMethod() — CS0117: 'SecureModule' does not contain a definition for 'InternalMethod'
+// secure.Hash("hello") works
+// secure.InternalMethod() produces CS0117
 ```
 
 <!-- test: Modules_ExplicitOnly -->
@@ -103,11 +94,11 @@ public class Formatting
 }
 ```
 
-When `[AlderFunction("fmt")]` is used, the expression calls `module.fmt(100)`, not `module.FormatCurrency(100)`.
+Expressions call `module.fmt(100)` instead of `module.FormatCurrency(100)`.
 
 ### Global functions from types
 
-When a type is registered via `RegisterFromType` or `RegisterFromAssembly` and has no `[AlderModule]` attribute, methods marked with `[AlderFunction]` are registered as global functions (callable without a module prefix):
+When a type registered via `RegisterFromType` has no `[AlderModule]` attribute, its `[AlderFunction]` methods become global functions (callable without a module prefix):
 
 ```csharp
 public class GlobalHelpers
@@ -128,35 +119,31 @@ string result = engine.Evaluate<string>("""greet("Alice")"""); // "Hello, Alice!
 
 ### Module instance resolution
 
-When a module method is called, the engine needs an instance (for instance methods). Resolution order:
+For instance methods, the engine resolves an instance in order:
 
-1. **Explicit instance** — if provided during registration: `Register<T>("name", instance: myInstance)`
-2. **Service provider** — if `AlderOptions.ServiceProvider` is configured: `serviceProvider.GetService(moduleType)`
-3. **Activator** — `Activator.CreateInstance(moduleType)` (requires a public parameterless constructor)
+1. **Explicit instance** provided at registration: `Register<T>("name", instance: myInstance)`
+2. **Service provider**: `serviceProvider.GetService(moduleType)` if `AlderOptions.ServiceProvider` is configured
+3. **Activator**: `Activator.CreateInstance(moduleType)` (requires public parameterless constructor)
 
-If none succeeds, `ALDR0315: Cannot resolve module instance` is thrown.
+If none succeeds: `ALDR0315`.
 
-For static modules (abstract sealed classes — i.e., `static class` in C#), no instance is needed. The binder detects this and routes calls through `TryBindStaticModuleCall`, which uses `MethodInfo.Invoke(null, args)` directly.
+Static modules (`static class` in C#) skip instance resolution entirely.
 
 ### Assembly scanning
-
-`RegisterFromAssembly` scans an assembly for types with `[AlderModule]` or methods with `[AlderFunction]`:
 
 ```csharp
 o.Modules.RegisterFromAssembly(typeof(MyModule).Assembly);
 ```
 
 For each type found:
-- If it has `[AlderModule]`, it's registered as a named module
-- If it has methods with `[AlderFunction]` but no `[AlderModule]`, those methods become global functions
-- Types that are abstract, interfaces, or lack a parameterless constructor (and have no static-only functions) are skipped
+- `[AlderModule]` present: registered as a named module
+- `[AlderFunction]` methods without `[AlderModule]`: registered as global functions
+- Abstract types, interfaces, and types without parameterless constructors are skipped
 
-### Module methods bypass sandbox
+### Module methods and security
 
-Module method calls bypass the `AllowMethodCalls` permission check in `SecurityValidationPass`. This is by design — modules are registered by the host application, so they're trusted. The `BoundResolvedCallExpr.IsModuleCall` flag signals this to the security pass. Module member access (properties, fields) also bypasses `AllowPropertyRead` — the `MemberAccess` runtime checks modules before the property read guard. Module members are still guarded against reflection leaks (`GuardReflectionLeak` runs on every returned value).
+Module methods bypass the `AllowMethodCalls` sandbox check. Modules are registered by the host application and treated as trusted. Extension methods (LINQ) also bypass this check. Both are still guarded against reflection leaks.
 
-Extension methods (LINQ) also bypass the method call check — the security pass checks `IsExtensionMethod` via the `[ExtensionAttribute]` on the method. This means `.Where()`, `.Select()`, and all LINQ operations work even with `AllowMethodCalls = false`.
+### Method resolution
 
-### Module method resolution
-
-Module methods are resolved per-call via overload resolution (not cached in `ResolutionCache`). The method lookup uses both instance and static binding flags simultaneously, allowing a module type to expose both instance and static methods. Instance resolution uses dependency injection: explicit instance → `ServiceProvider.GetService()` → `Activator.CreateInstance()`. Static modules (C# `static class` — abstract sealed) skip instance resolution entirely.
+Module methods use overload resolution per call. Both instance and static methods on the module type are available simultaneously.

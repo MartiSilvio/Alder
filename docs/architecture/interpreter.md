@@ -1,15 +1,8 @@
----
-title: "Interpreter"
-description: "Tree-walking evaluation, numeric dispatch, control flow signals, AOT integration"
-sidebar:
-  order: 7
----
-
 The interpreter is Alder's default execution backend. It walks the bound tree node by node, evaluating each expression and propagating results through the tree.
 
 ## Dispatch
 
-Each bound node kind has a dedicated evaluator class annotated with `[EvaluatesNode(BoundNodeKind.Xxx)]`. Dispatch is source-generated at compile time — the generated code is a flat switch expression mapping each node kind to its evaluator's static `Evaluate` method. No virtual method calls, no visitor pattern overhead.
+Each bound node kind has a dedicated evaluator class annotated with `[EvaluatesNode(BoundNodeKind.Xxx)]`. Dispatch is source-generated at compile time: the generated code is a flat switch expression mapping each node kind to its evaluator's static `Evaluate` method. No virtual method calls, no visitor pattern overhead.
 
 ## Numeric Operations
 
@@ -31,7 +24,7 @@ Checked arithmetic has separate delegate tables that use `checked()` for integer
 
 ### Fallback path
 
-When types don't match the fast path — mixed types, nullables, `string + object`, `DateTime ± TimeSpan`, enum arithmetic, user-defined operators — the engine falls through to general operator handling:
+When types don't match the fast path (mixed types, nullables, `string + object`, `DateTime ± TimeSpan`, enum arithmetic, user-defined operators), the engine falls through to general operator handling:
 
 - String concatenation (any operand is `string`)
 - `DateTime` arithmetic (`DateTime + TimeSpan`, `DateTime - DateTime`)
@@ -41,7 +34,7 @@ When types don't match the fast path — mixed types, nullables, `string + objec
 - Cross-type numeric promotion via the ECMA-334 §12.4.7.3 rules (see [Numeric Promotion](numeric-promotion.md))
 - Extended mode: string repetition (`"ab" * 3`), object merge (`new { A = 1 } + new { B = 2 }`)
 
-Before the fallback path, ECMA-334 §10.2.11 constant promotion is applied — if one operand is a literal constant, it may be implicitly promoted (e.g., `int` 0 to `uint`).
+Before the fallback path, ECMA-334 §10.2.11 constant promotion is applied: if one operand is a literal constant, it may be implicitly promoted (e.g., `int` 0 to `uint`).
 
 ## Control Flow
 
@@ -66,19 +59,19 @@ Signals are ordinary return values, not exceptions. Every intermediate construct
 
 ### Loops
 
-Each loop creates a child context for the iteration scope. The child context is reused between iterations (cleared, not recreated) for performance. Execution constraints — statement count, timeout, per-loop iteration count — are checked at the top of each iteration.
+Each loop creates a child context for the iteration scope. The child context is reused between iterations (cleared, not recreated) for performance. Execution constraints (statement count, timeout, per-loop iteration count) are checked at the top of each iteration.
 
 ### Goto and Labels
 
-`goto label` in a block produces a `Goto` signal. The block evaluator scans the statement list for the matching label, sets the execution index to the label position, and re-enters the statement loop — providing efficient intra-block jumps without new stack frames.
+`goto label` in a block produces a `Goto` signal. The block evaluator scans the statement list for the matching label, sets the execution index to the label position, and re-enters the statement loop, providing efficient intra-block jumps without new stack frames.
 
 ### Switch Fall-Through
 
-Switch cases enforce C#'s no-fall-through rule: if a case body executes without producing a control flow signal (break, return, throw, or goto), `CS0163` is thrown. `goto case` and `goto default` produce signals that the switch evaluator resolves by scanning for the matching case, then re-executing from that case in a loop — enabling multi-hop chains without recursion.
+Switch cases enforce C#'s no-fall-through rule: if a case body executes without producing a control flow signal (break, return, throw, or goto), `CS0163` is thrown. `goto case` and `goto default` produce signals that the switch evaluator resolves by scanning for the matching case, then re-executing from that case in a loop, enabling multi-hop chains without recursion.
 
 ### Try/Catch Signal Preservation
 
-Control flow signals inside a `try` block are captured and held while the `finally` block executes. After `finally` completes, the held signal is returned. This ensures that `return` inside `try` still executes `finally` — matching C# semantics exactly.
+Control flow signals inside a `try` block are captured and held while the `finally` block executes. After `finally` completes, the held signal is returned. This ensures that `return` inside `try` still executes `finally`, matching C# semantics exactly.
 
 ## Pattern Matching
 
@@ -103,7 +96,7 @@ Pattern variables are defined in the evaluation context at match time and visibl
 
 ### Resolved
 
-When the binder produced a resolved node (`BoundPropertyAccessExpr`, `BoundFieldAccessExpr`), the interpreter has the `PropertyInfo`/`FieldInfo` and calls `GetValue` directly. AOT typed dispatch is checked first — if available, no reflection is needed.
+When the binder produced a resolved node (`BoundPropertyAccessExpr`, `BoundFieldAccessExpr`), the interpreter has the `PropertyInfo`/`FieldInfo` and calls `GetValue` directly. AOT typed dispatch is checked first: if available, no reflection is needed.
 
 Null-conditional (`?.`): if the target is null, returns null without accessing the member.
 
@@ -119,11 +112,11 @@ When the binder produced `BoundDynamicMemberAccessExpr`, the interpreter resolve
 
 Method calls use a three-tier dispatch:
 
-**Tier 1 — Typed dispatch (AOT, O(1))**: Check for source-generator-produced dispatch. No reflection.
+**Tier 1. Typed dispatch (AOT, O(1))**: Check for source-generator-produced dispatch. No reflection.
 
-**Tier 2 — Reflection with caching**: Overload resolution selects the best method. The resolved method is cached keyed by type, method name, and argument shape. Methods with 0–4 parameters that aren't on value types get a compiled fast-invoke delegate that bypasses `MethodInfo.Invoke`.
+**Tier 2. Reflection with caching**: Overload resolution selects the best method. The resolved method is cached keyed by type, method name, and argument shape. Methods with 0–4 parameters that aren't on value types get a compiled fast-invoke delegate that bypasses `MethodInfo.Invoke`.
 
-**Tier 3 — Extension methods**: Searched per-type in registration order. Each extension type is checked with interleaved typed dispatch (Tier 1) + reflection (Tier 2). Lambda arguments undergo return type inference — the engine evaluates the lambda body with the collection's element type to infer the return type and convert the lambda to a concrete delegate for overload selection.
+**Tier 3. Extension methods**: Searched per-type in registration order. Each extension type is checked with interleaved typed dispatch (Tier 1) + reflection (Tier 2). Lambda arguments undergo return type inference: the engine evaluates the lambda body with the collection's element type to infer the return type and convert the lambda to a concrete delegate for overload selection.
 
 ### Callable Types
 
@@ -135,7 +128,7 @@ If a method's last parameter is `CancellationToken` and the caller provided one 
 
 ## AOT Integration
 
-Before any reflection-based member access or method invocation, the engine checks for typed dispatch via the AOT path. The check walks the type hierarchy — registering dispatch for `List<int>` covers access to members inherited from `IList<int>`, `ICollection<int>`, etc.
+Before any reflection-based member access or method invocation, the engine checks for typed dispatch via the AOT path. The check walks the type hierarchy: registering dispatch for `List<int>` covers access to members inherited from `IList<int>`, `ICollection<int>`, etc.
 
 ## Tracing
 

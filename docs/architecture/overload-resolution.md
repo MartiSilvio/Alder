@@ -1,10 +1,3 @@
----
-title: "Overload Resolution"
-description: "ECMA-334 §12.6.4 — candidate construction, applicability, better-function-member"
-sidebar:
-  order: 4
----
-
 Alder implements ECMA-334 §12.6.4 overload resolution for method calls, extension methods, and constructor invocation. The implementation handles normal and expanded (params) forms, generic type inference, lambda return type inference, named arguments, and the full better-function-member comparison algorithm.
 
 ## Overview
@@ -30,7 +23,7 @@ graph TD
 
 For each method in the candidate set:
 
-1. **Close generic methods**: If the method is generic, close it — either with explicit type arguments (`Method<int>(...)`) or via ECMA-334 §12.6.3 type inference from argument types and lambda bodies (see [Type Inference](type-inference.md)). If inference fails, the method is not a candidate.
+1. **Close generic methods**: If the method is generic, close it, either with explicit type arguments (`Method<int>(...)`) or via ECMA-334 §12.6.3 type inference from argument types and lambda bodies (see [Type Inference](type-inference.md)). If inference fails, the method is not a candidate.
 
 2. **Check applicability**: For each argument-parameter pair, classify the conversion (identity, implicit numeric, implicit reference, lambda-to-delegate, boxing, user-defined, out argument). Normal form matches arguments 1:1 (with defaults for trailing parameters). Expanded form packs trailing arguments into a `[ParamArray]` parameter. If any argument cannot be converted, the method is not applicable.
 
@@ -49,7 +42,7 @@ Compare each pair of remaining candidates using ECMA-334 §12.6.4.4:
 For each argument position, compare the two candidates' parameter types:
 
 1. **Exact match**: If one parameter type exactly matches the argument type, that candidate wins for this argument.
-2. **Better conversion target** (§12.6.4.7): Between two parameter types, the "closer" type wins — e.g., `int` is better than `long` for an `int` argument because `int → int` is identity while `int → long` is widening.
+2. **Better conversion target** (§12.6.4.7): Between two parameter types, the "closer" type wins (e.g., `int` is better than `long` for an `int` argument because `int → int` is identity while `int → long` is widening).
 3. **Lambda return type**: If the inferred return type matches one delegate's return type exactly, that candidate wins.
 
 If one candidate is better for at least one argument and not worse for any, it wins. If both have arguments where they're better, tie-breaking applies.
@@ -68,7 +61,7 @@ If all tie-breaking rules produce no winner, the overload is ambiguous (`CS0121`
 
 ## Constructor Resolution
 
-Constructor overload resolution gathers the type's public constructors as candidates and runs the same pipeline — applicability, most-derived filtering, best-function-member. The resolved constructor is invoked directly.
+Constructor overload resolution gathers the type's public constructors as candidates and runs the same pipeline: applicability, most-derived filtering, best-function-member. The resolved constructor is invoked directly.
 
 ## Extension Method Resolution
 
@@ -76,11 +69,11 @@ Extension methods are resolved by prepending the target object as the first argu
 
 ## Lambda Return Type Inference
 
-During candidate construction, each lambda argument's body is evaluated with the candidate's parameter types to determine the return type. This is how `items.Select(x => x.Name)` resolves correctly when `Select` has multiple overloads — the inferred return type `string` helps select `Func<T, string>` over `Func<T, int, string>`.
+During candidate construction, each lambda argument's body is evaluated with the candidate's parameter types to determine the return type. This is how `items.Select(x => x.Name)` resolves correctly when `Select` has multiple overloads: the inferred return type `string` helps select `Func<T, string>` over `Func<T, int, string>`.
 
 ## Argument-Parameter Mapping
 
-Each argument is described by its kind (`Value`, `Lambda`, `Null`, or `Out`), static type, and runtime value. Named arguments are handled via a wrapper type. The mapping tracks how arguments fill parameters — directly by position, via default values, or by packing into a params array.
+Each argument is described by its kind (`Value`, `Lambda`, `Null`, or `Out`), static type, and runtime value. Named arguments are handled via a wrapper type. The mapping tracks how arguments fill parameters: directly by position, via default values, or by packing into a params array.
 
 ## Conversion Classification
 
@@ -101,4 +94,4 @@ If none match, the method is not applicable for that argument.
 
 Resolved overloads are cached keyed by declaring type, method name, and argument shape. Calls with the same argument shapes hit the cache directly. The cache is bypassed when explicit generic type arguments are provided (different closures need separate resolution).
 
-Extension method resolution uses a multi-layer cache with FIFO eviction — methods by name per extension type, arity-filtered methods, and fully resolved calls. Cache entries for "not found" are stored to prevent repeated fruitless lookups. Entries with lambda, named, or out arguments bypass the cache (their shapes are too complex to key reliably).
+Extension method resolution uses a multi-layer cache with FIFO eviction: methods by name per extension type, arity-filtered methods, and fully resolved calls. Cache entries for "not found" are stored to prevent repeated fruitless lookups. Entries with lambda, named, or out arguments bypass the cache (their shapes are too complex to key reliably).

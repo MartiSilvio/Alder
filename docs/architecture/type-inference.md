@@ -1,11 +1,4 @@
----
-title: "Type Inference"
-description: "ECMA-334 §12.6.3 — bounds collection, iterative fixing, lambda return inference"
-sidebar:
-  order: 5
----
-
-Alder implements ECMA-334 §12.6.3 generic method type inference. This is the algorithm that makes `items.Select(x => x.Name)` work without writing `items.Select<Item, string>(x => x.Name)` — the type arguments `Item` and `string` are inferred from the argument types and the lambda body.
+Alder implements ECMA-334 §12.6.3 generic method type inference. This is the algorithm that makes `items.Select(x => x.Name)` work without writing `items.Select<Item, string>(x => x.Name)`: the type arguments `Item` and `string` are inferred from the argument types and the lambda body.
 
 ## Algorithm Overview
 
@@ -42,8 +35,8 @@ When the parameter type is generic (e.g., `IEnumerable<T>`), the engine finds th
 | Invariant (default) | Exact inference on the type argument |
 
 Example: For `Func<in T, out TResult>`, when inferring from `Func<string, int>`:
-- `T` (contravariant): upper-bound — T must be a supertype of `string`
-- `TResult` (covariant): lower-bound — TResult must be a subtype of `int`
+- `T` (contravariant): upper-bound: T must be a supertype of `string`
+- `TResult` (covariant): lower-bound: TResult must be a subtype of `int`
 
 ### Special cases
 
@@ -55,11 +48,11 @@ Example: For `Func<in T, out TResult>`, when inferring from `Func<string, int>`:
 
 The fixing loop runs up to `2 * genericParamCount + 1` iterations. Each iteration tries to fix unfixed type parameters in priority order:
 
-**Round 1 — Independent parameters**: Fix type parameters that have no dependencies on other unfixed parameters. A dependency exists when a parameter type contains both the current type parameter and another unfixed one, and the corresponding argument is a lambda (creating a data dependency through the lambda's return type).
+**Round 1. Independent parameters**: Fix type parameters that have no dependencies on other unfixed parameters. A dependency exists when a parameter type contains both the current type parameter and another unfixed one, and the corresponding argument is a lambda (creating a data dependency through the lambda's return type).
 
-**Round 2 — Depended-on parameters**: If Round 1 made no progress, fix parameters that are depended on by others. This breaks cycles by prioritizing parameters that unblock others.
+**Round 2. Depended-on parameters**: If Round 1 made no progress, fix parameters that are depended on by others. This breaks cycles by prioritizing parameters that unblock others.
 
-**Round 3 — Anything with bounds**: Last resort — fix any unfixed parameter that has at least one bound.
+**Round 3. Anything with bounds**: Last resort: fix any unfixed parameter that has at least one bound.
 
 ### Lambda return type inference
 
@@ -69,7 +62,7 @@ After each iteration that fixes new type parameters, the engine checks for lambd
 2. Evaluate the lambda body with those input types using Alder's own engine
 3. Add the inferred return type as a lower bound on the delegate's return type parameter
 
-This is the mechanism that infers `TResult = string` from `items.Select(x => x.Name)` — after `T = Item` is fixed, the lambda `x => x.Name` is evaluated with `x: Item`, producing return type `string`.
+This is the mechanism that infers `TResult = string` from `items.Select(x => x.Name)`. after `T = Item` is fixed, the lambda `x => x.Name` is evaluated with `x: Item`, producing return type `string`.
 
 ## Fixing a Type Parameter (§12.6.3.12)
 
@@ -83,7 +76,7 @@ To fix type parameter `T`:
 
 ## Type Hierarchy Search
 
-When matching a generic parameter type (like `IEnumerable<T>`) against an argument type, the engine searches the argument's type hierarchy — the type itself, all implemented interfaces, and the base type chain — for a unique implementation of the generic definition. If multiple implementations exist (e.g., `IEnumerable<int>` and `IEnumerable<string>`), inference produces no bounds for that argument.
+When matching a generic parameter type (like `IEnumerable<T>`) against an argument type, the engine searches the argument's type hierarchy: the type itself, all implemented interfaces, and the base type chain, for a unique implementation of the generic definition. If multiple implementations exist (e.g., `IEnumerable<int>` and `IEnumerable<string>`), inference produces no bounds for that argument.
 
 ## Integration with Overload Resolution
 

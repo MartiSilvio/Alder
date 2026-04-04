@@ -1,11 +1,4 @@
----
-title: "AlderEngine"
-description: "Full API reference for AlderEngine — evaluate, parse, validate, compile, trace"
-sidebar:
-  order: 2
----
-
-`AlderEngine` is the entry point for evaluating C# code at runtime. It owns the parser, binder, interpreter, and optional compiler — configured once at construction time and immutable after that. All evaluation methods are thread-safe.
+`AlderEngine` is the entry point for evaluating C# code at runtime. It owns the parser, binder, interpreter, and optional compiler. Configuration is frozen at construction time. All evaluation methods are thread-safe.
 
 ```csharp
 var engine = new AlderEngine(o =>
@@ -20,7 +13,7 @@ var engine = new AlderEngine(o =>
 });
 ```
 
-The `Action<AlderOptions>` overload is the primary construction pattern. Configuration is frozen when the constructor returns. See [AlderOptions](alder-options.md) for the full configuration surface.
+See [AlderOptions](alder-options.md) for the full configuration surface.
 
 ## Construction
 
@@ -32,7 +25,7 @@ The `Action<AlderOptions>` overload is the primary construction pattern. Configu
 
 ## Evaluation
 
-### `Evaluate` — string in, result out
+### `Evaluate`
 
 ```csharp
 var result = engine.Evaluate<string>("""
@@ -45,11 +38,11 @@ var result = engine.Evaluate<string>("""
 // "Sum: 220, Count: 5"
 ```
 
-When `UseCompiler()` is configured, `Evaluate` compiles the expression to a native delegate on first execution and caches it — subsequent calls execute the cached delegate directly. Without `UseCompiler()`, the interpreter evaluates the bound tree.
+`UseCompiler()` compiles expressions to native delegates on first execution and caches them. Without it, the interpreter evaluates the bound tree.
 
-Both paths share the same front-end (lexer → parser → binder → pipeline passes). If compilation fails, `AlderException` with `ALDR0001` is thrown — there is no silent fallback to interpretation.
+Both paths share the same front-end (lexer, parser, binder, pipeline passes). If compilation fails, `AlderException` with `ALDR0001` is thrown. There is no silent fallback to interpretation.
 
-When you know the return type, `Evaluate<T>` applies C# conversion rules. If the expression produces `int` and you ask for `long`, the implicit widening handles it. If the types are incompatible, `InvalidCastException` propagates.
+`Evaluate<T>` applies C# conversion rules. If the expression produces `int` and you request `long`, implicit widening handles it. Incompatible types raise `InvalidCastException`.
 
 ### Variable overloads
 
@@ -62,11 +55,11 @@ Each `Evaluate` method accepts variables through three patterns:
 | `Evaluate(string, object)` | Persistent + anonymous object properties (scoped to call) |
 | `Evaluate(AlderExpression, ...)` | Same patterns with pre-parsed expression |
 
-When per-call variables are passed, a child engine is created internally. The parent engine's state is never modified. See [Variables](variables.md).
+Per-call variables create a child engine internally. The parent engine's state is never modified. See [Variables](variables.md).
 
 All overloads accept an optional `CancellationToken` as the last parameter.
 
-### `TryEvaluate` — no exceptions
+### `TryEvaluate`
 
 ```csharp
 if (engine.TryEvaluate<int>("1 + 2", out int result))
@@ -76,11 +69,11 @@ if (!engine.TryEvaluate("invalid(", out _))
     Console.WriteLine("Failed"); // no exception thrown
 ```
 
-Returns `false` for parse, binding, runtime, and conversion failures. Useful for evaluating user-supplied input where most inputs may be invalid.
+Returns `false` for parse, binding, runtime, and conversion failures.
 
 ## Parsing
 
-### `Parse` — reusable expression object
+### `Parse`
 
 ```csharp
 AlderExpression expr = engine.Parse("price * (1 - discount)");
@@ -88,7 +81,7 @@ AlderExpression expr = engine.Parse("price * (1 - discount)");
 
 Returns an `AlderExpression` containing the parsed AST. The expression can be evaluated multiple times with different variable values without re-parsing. The bound tree is cached per-context and invalidated when variable types change.
 
-### `TryParse` — parse without throwing
+### `TryParse`
 
 ```csharp
 if (engine.TryParse("items.Where(x => x > 0)", out AlderExpression? expr))
@@ -110,7 +103,7 @@ if (!engine.TryParse("items.Where(x =>", out _, out string? error))
 
 ## Validation
 
-### `TryValidate` — full semantic analysis without execution
+### `TryValidate`
 
 ```csharp
 engine.SetVariable<string>("name", "Alice");
@@ -123,11 +116,11 @@ if (!engine.TryValidate("name.Foo()", out IReadOnlyList<AlderDiagnostic> diagnos
 }
 ```
 
-`TryValidate` performs lexing, parsing, binding (in recovering mode to collect all diagnostics), and unbound identifier detection. The distinction from `TryParse`: parsing checks syntax only. `TryValidate` also checks semantics — `name.Foo()` parses successfully but fails validation.
+`TryValidate` performs lexing, parsing, binding (in recovering mode to collect all diagnostics), and unbound identifier detection. `TryParse` checks syntax only. `TryValidate` also checks semantics: `name.Foo()` parses successfully but fails validation.
 
 ## Tracing
 
-### `EvaluateWithTrace` — step-by-step evaluation
+### `EvaluateWithTrace`
 
 ```csharp
 var trace = engine.EvaluateWithTrace("""
@@ -149,7 +142,7 @@ Returns `EvaluationTraceResult` with:
 
 Each `TraceNode` shows the node kind, source text, computed value, runtime type, description, error details, and child evaluations. Tracing skips optimization passes (no constant folding or dead branch elimination) so every subexpression is visible.
 
-Tracing always uses the interpreter — it does not use the compiled path even when `UseCompiler()` is configured.
+Tracing always uses the interpreter, even when `UseCompiler()` is configured.
 
 ## Variables
 
@@ -176,7 +169,7 @@ See [Variables](variables.md) for the full variable system.
 | `TryParseAsExpression<TDelegate>(string, ...)` | `bool` | Non-throwing expression tree parsing |
 | `CompileExpression<TDelegate>(string)` | `TDelegate` | Parse + compile expression tree to delegate |
 
-`ParseAndCompile`, `Compile<T>`, `CompileToFunc<T>`, `ParseAsExpression`, `TryParseAsExpression`, and `CompileExpression` are extension methods from `Alder.Compiled` — they require `UseCompiler()` to be configured.
+`ParseAndCompile`, `Compile<T>`, `CompileToFunc<T>`, `ParseAsExpression`, `TryParseAsExpression`, and `CompileExpression` are extension methods from `Alder.Compiled`. They require `UseCompiler()`.
 
 See [Compilation](compilation.md) for details.
 
@@ -190,12 +183,12 @@ var result = engine.Evaluate<int>("1 + 1"); // 2
 // engine disposed at end of scope
 ```
 
-Disposing a parent engine disposes all children (they share the same `DisposalToken`). The disposal is lightweight — it does not wait for in-flight evaluations.
+Disposing a parent engine disposes all children (they share the same `DisposalToken`). Disposal is lightweight: it does not wait for in-flight evaluations.
 
 ## Thread Safety
 
 - All evaluation methods can be called concurrently.
-- `SetVariable<T>` is thread-safe — the engine uses `ConcurrentDictionary` for the runtime context. Variables set before the first evaluation are staged in a protected dictionary and bulk-flushed when evaluation begins.
+- `SetVariable<T>` is thread-safe. The engine uses `ConcurrentDictionary` for the runtime context. Variables set before the first evaluation are staged in a protected dictionary and bulk-flushed when evaluation begins.
 - Child engines created via `CreateChild()` can be evaluated concurrently with the parent and each other.
 - `AlderExpression` objects are thread-safe and shareable across threads.
 - Bound tree caching uses `ConditionalWeakTable` for per-context thread safety.
@@ -214,7 +207,7 @@ AlderEval.Configure(o => o.UseCompiler());
 var result = AlderEval.Evaluate<int>("1 + 2"); // 3
 ```
 
-`Configure()` can only be called once and must be called before the first evaluation. The global engine is created lazily on the first evaluation or `Configure` call. `AlderEval.Reset()` allows reconfiguring (primarily for testing).
+`Configure()` can only be called once and must be called before the first evaluation. The global engine is created lazily on first use. `AlderEval.Reset()` allows reconfiguring (primarily for testing).
 
 ### String Extensions
 

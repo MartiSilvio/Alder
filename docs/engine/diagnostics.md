@@ -1,18 +1,11 @@
----
-title: "Diagnostics"
-description: "AlderDiagnostic, AlderException, every CS and ALDR error code"
-sidebar:
-  order: 8
----
-
-Alder uses structured diagnostics with error codes compatible with Roslyn's CS codes where an equivalent exists. Alder-specific errors use ALDR codes. Every error thrown as `AlderException` carries an `IReadOnlyList<AlderDiagnostic>` with the code, message, source position, and severity.
+Structured diagnostics with Roslyn-compatible CS codes where an equivalent exists, ALDR codes for Alder-specific errors. Every `AlderException` carries `IReadOnlyList<AlderDiagnostic>` with code, message, source position, and severity.
 
 ## `AlderDiagnostic`
 
 | Property | Type | Description |
 |----------|------|-------------|
 | `Code` | `DiagnosticCode?` | The error code enum value |
-| `FormattedCode` | `string?` | Formatted string — `"CS0103"` or `"ALDR0107"` |
+| `FormattedCode` | `string?` | Formatted string (`"CS0103"`, `"ALDR0107"`) |
 | `Message` | `string` | The formatted error message |
 | `Severity` | `DiagnosticSeverity` | `Error`, `Warning`, or `Info` |
 | `Span` | `TextSpan` | Source text span (start offset + length) |
@@ -44,7 +37,7 @@ Extends `AlderException` with execution limit details:
 
 ## Error Code Reference
 
-### CS Codes — Roslyn-Compatible
+### CS Codes (Roslyn-Compatible)
 
 These use the same codes as the C# compiler. Developers familiar with C# diagnostics will recognize them.
 
@@ -78,10 +71,10 @@ These use the same codes as the C# compiler. Developers familiar with C# diagnos
 | `CS0121` | The call is ambiguous between methods: '{candidates}' | Multiple equally-valid overloads |
 | `CS0123` | Cannot convert '{type}' to delegate type '{delegateType}' | Delegate conversion failure |
 | `CS1501` | No overload for method '{name}' takes the given number of arguments | Wrong argument count |
-| `CS1661` | Cannot convert lambda — parameter types do not match | Lambda param mismatch |
+| `CS1661` | Cannot convert lambda: parameter types do not match | Lambda param mismatch |
 | `CS1955` | Non-invocable member '{name}' cannot be used like a method | Calling a property as method |
 | `CS7036` | No argument given for required parameter '{param}' of '{method}' | Missing required arg |
-| `CS8934` | Cannot convert lambda — return type does not match | Lambda return mismatch |
+| `CS8934` | Cannot convert lambda: return type does not match | Lambda return mismatch |
 
 #### Variable and Assignment Errors
 
@@ -131,7 +124,7 @@ These use the same codes as the C# compiler. Developers familiar with C# diagnos
 | `CS8132` | Cannot deconstruct {n} elements into {m} variables | Deconstruction count mismatch |
 | `CS8510` | Switch expression does not handle all possible values | Non-exhaustive switch |
 
-### ALDR Codes — Alder-Specific
+### ALDR Codes (Alder-Specific)
 
 #### Compilation (ALDR00xx)
 

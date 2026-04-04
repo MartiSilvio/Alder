@@ -1,17 +1,10 @@
----
-title: "LINQ Dynamic"
-description: "String-based LINQ on any IEnumerable<T> or IQueryable<T> — filter, project, order, group, and aggregate with runtime expressions"
-sidebar:
-  order: 9
----
+LINQ Dynamic extends every `IEnumerable<T>` and `IQueryable<T>` with string-based query methods. The string lambda is parsed, bound with full type information from `T`, and compiled to either a native delegate or a provider-transparent expression tree.
 
-LINQ Dynamic extends every `IEnumerable<T>` and `IQueryable<T>` with string-based operations. Write the lambda as a string — Alder parses it, binds it with full type information from `T`, infers generic type arguments, resolves overloads, and compiles it to a native delegate or a provider-transparent expression tree.
-
-This means any collection in your application becomes dynamically queryable at runtime. User-defined filters in a dashboard. Configuration-driven business rules. Admin panels where operators write their own predicates. Report builders where users choose projections and groupings. All with full C# lambda syntax, full type safety from `T`, and the same ECMA-334 semantics as hand-written LINQ.
+Any collection becomes dynamically queryable at runtime: user-defined dashboard filters, configuration-driven business rules, admin-panel predicates, report-builder projections and groupings. Full C# lambda syntax, full type safety from `T`, ECMA-334 semantics.
 
 ## In-Memory Collections
 
-On `IEnumerable<T>`, LINQ Dynamic compiles string lambdas to native `Func<T, ...>` delegates and invokes them per element — same performance as hand-written LINQ after the one-time compilation cost.
+On `IEnumerable<T>`, LINQ Dynamic compiles string lambdas to native `Func<T, ...>` delegates and invokes them per element. Performance matches hand-written LINQ after the one-time compilation cost.
 
 ```csharp
 AlderEval.Configure(o => o.UseCompiler());
@@ -50,9 +43,9 @@ var firstEngineer = people.FirstDynamic("x => x.Department == \"Engineering\"");
 
 The string is parsed once and compiled to IL. Subsequent evaluations of the same string reuse the cached delegate.
 
-## Database Queries — IQueryable
+## Database Queries (IQueryable)
 
-On `IQueryable<T>`, LINQ Dynamic produces `Expression<Func<T, ...>>` trees instead of compiled delegates. EF Core and other LINQ providers translate these expression trees to SQL — the string predicate becomes a database query.
+On `IQueryable<T>`, LINQ Dynamic produces `Expression<Func<T, ...>>` trees instead of compiled delegates. EF Core and other LINQ providers translate these expression trees to SQL.
 
 ```csharp
 // Produces SQL: SELECT * FROM People WHERE Age >= 18
@@ -68,7 +61,7 @@ var sorted = dbContext.People.OrderByDynamic<Person, string>("x => x.LastName");
 var grouped = dbContext.People.GroupByDynamic<Person, string>("x => x.Department");
 ```
 
-The expression trees are provider-transparent — they contain standard `System.Linq.Expressions` nodes with no Alder runtime dependencies. Any LINQ provider that works with `Expression<Func<T, ...>>` works with LINQ Dynamic.
+The expression trees are provider-transparent. They contain standard `System.Linq.Expressions` nodes with no Alder runtime dependencies. Any LINQ provider that works with `Expression<Func<T, ...>>` works with LINQ Dynamic.
 
 ## Configuration
 
@@ -78,9 +71,9 @@ LINQ Dynamic uses the global `AlderEval` engine. Configure it once at applicatio
 AlderEval.Configure(o => o.UseCompiler());
 ```
 
-This is a one-time call. `AlderEval.Configure` can only be called once and must be called before the first LINQ Dynamic operation. All LINQ Dynamic calls across the application share the same engine and compiled delegate cache.
+`AlderEval.Configure` can only be called once and must be called before the first LINQ Dynamic operation. All LINQ Dynamic calls share the same engine and compiled delegate cache.
 
-If the compiler isn't configured, `InvalidOperationException` is thrown with a clear message: `"LINQ Dynamic methods require a compiler. Call AlderEval.Configure(o => o.UseCompiler()) before using WhereDynamic, SelectDynamic, etc."`
+If the compiler is not configured, `InvalidOperationException` is thrown: `"LINQ Dynamic methods require a compiler. Call AlderEval.Configure(o => o.UseCompiler()) before using WhereDynamic, SelectDynamic, etc."`
 
 ## How It Works
 
@@ -105,7 +98,7 @@ For `IQueryable<T>`:
 2. Pass the expression tree directly to the queryable LINQ method
 3. The LINQ provider (EF Core, etc.) translates it to SQL
 
-In both cases, Alder's binder has full access to `T`'s members — `x.Age`, `x.Department`, `x.Salary` are resolved against the actual type at bind time, with proper diagnostics if a member doesn't exist.
+The binder has full access to `T`'s members. `x.Age`, `x.Department`, `x.Salary` resolve against the actual type at bind time, with proper diagnostics if a member does not exist.
 
 ## Available Methods
 
@@ -135,10 +128,10 @@ These methods are available for in-memory collections only:
 
 ## Lambda Syntax
 
-LINQ Dynamic lambdas use the same C# lambda syntax as `ParseAsExpression<TDelegate>`. The lambda is always parsed in Standard mode regardless of the engine's `LanguageMode` setting — Extended syntax (`**`, `|>`, comprehensions) has no representation in LINQ expression trees and couldn't be translated to SQL by providers like EF Core.
+LINQ Dynamic lambdas use the same C# lambda syntax as `ParseAsExpression<TDelegate>`. The lambda is always parsed in Standard mode regardless of the engine's `LanguageMode` setting. Extended syntax (`**`, `|>`, comprehensions) has no representation in LINQ expression trees and cannot be translated to SQL by providers like EF Core.
 
 ```csharp
-// Single parameter — inferred from T
+// Single parameter (inferred from T)
 "x => x.Age >= 18"
 
 // Member access chains
@@ -157,4 +150,4 @@ LINQ Dynamic lambdas use the same C# lambda syntax as `ParseAsExpression<TDelega
 "x => x.Manager?.Name ?? \"No Manager\""
 ```
 
-The full C# expression syntax is available in the lambda body — LINQ, pattern matching, string interpolation, and everything documented in the [Standard Mode Language Reference](../language/standard.md) (except statements, loops, and variable declarations, which are not valid in expression trees).
+The full C# expression syntax is available in the lambda body: LINQ, pattern matching, string interpolation, and everything documented in the [Standard Mode Language Reference](../language/standard.md) (except statements, loops, and variable declarations, which are not valid in expression trees).

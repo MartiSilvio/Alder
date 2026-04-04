@@ -1,15 +1,8 @@
----
-title: "Binder"
-description: "Semantic analysis — resolved vs dynamic nodes, BoundType, member and call resolution"
-sidebar:
-  order: 3
----
-
-The binder is the heart of Alder's compiler pipeline. It takes the untyped AST from the parser, resolves identifiers, members, operators, and types, and produces a typed bound tree where every node carries a `BoundType`. This is where the runtime engine's intelligence lives — the binder is what turns a string of C# into something that can execute with full type safety.
+The binder is the heart of Alder's compiler pipeline. It takes the untyped AST from the parser, resolves identifiers, members, operators, and types, and produces a typed bound tree where every node carries a `BoundType`. This is where the runtime engine's intelligence lives: the binder is what turns a string of C# into something that can execute with full type safety.
 
 ## Per-Node Strategy
 
-Each AST node type has a dedicated binder class annotated with `[BindsNode(typeof(XxxExpr))]`. Dispatch is source-generated at compile time by an incremental generator — the generated code maps each `Expr` subclass to its binder's static `Bind` method. This keeps each binder focused on one construct's semantics and avoids a monolithic switch statement.
+Each AST node type has a dedicated binder class annotated with `[BindsNode(typeof(XxxExpr))]`. Dispatch is source-generated at compile time by an incremental generator: the generated code maps each `Expr` subclass to its binder's static `Bind` method. This keeps each binder focused on one construct's semantics and avoids a monolithic switch statement.
 
 ## Resolved vs Dynamic Nodes
 
@@ -32,7 +25,7 @@ graph TD
 | `BoundResolvedMultiDimIndexAccessExpr` | `BoundDynamicMultiDimIndexAccessExpr` | Multi-dimensional array or multi-param indexer |
 
 This split enables three things:
-1. **Performance**: Resolved nodes carry the exact `PropertyInfo`/`FieldInfo`/`MethodInfo` — the interpreter invokes them directly, no reflection lookup needed.
+1. **Performance**: Resolved nodes carry the exact `PropertyInfo`/`FieldInfo`/`MethodInfo`: the interpreter invokes them directly, no reflection lookup needed.
 2. **AOT dispatch**: The source generator reads resolved node metadata to emit type-safe dispatch code. Dynamic nodes fall back to reflection.
 3. **Diagnostics**: When the binder knows the type, it reports `CS1061` at bind time. Dynamic nodes defer error discovery to runtime.
 
@@ -43,8 +36,8 @@ Every bound node carries a `StaticType` of type `BoundType`:
 | Type | Meaning |
 |------|---------|
 | `BoundType(typeof(int))` | Known concrete type |
-| `BoundStructuralType(typeof(ExpandoObject), members)` | CLR type + structural metadata — used for anonymous objects where the binder knows member names and types from the initializer |
-| `BoundUnknownType` | Type could not be determined — runtime dispatch required |
+| `BoundStructuralType(typeof(ExpandoObject), members)` | CLR type + structural metadata, used for anonymous objects where the binder knows member names and types from the initializer |
+| `BoundUnknownType` | Type could not be determined; runtime dispatch required |
 | `BoundVoidType` | Statement that doesn't produce a value |
 
 `BoundStructuralType` is what makes member resolution work on anonymous objects (`new { Name = "Alice", Age = 30 }`). The CLR type is `ExpandoObject` (which has no properties via reflection), but the binder knows the members from the initializer expression.
@@ -97,13 +90,13 @@ The binder infers the result type of binary operations at bind time using ECMA-3
 
 ### Statement Scoping
 
-The binder creates child scopes for blocks, `if` branches, loops, `try`/`catch`/`finally`, `using`, and `lock`. Variable declarations within a scope assign a `LocalId` — an integer used by the interpreter for fast variable lookup without string-keyed dictionary access.
+The binder creates child scopes for blocks, `if` branches, loops, `try`/`catch`/`finally`, `using`, and `lock`. Variable declarations within a scope assign a `LocalId`: an integer used by the interpreter for fast variable lookup without string-keyed dictionary access.
 
 ## Recovering Mode
 
 The binder supports two modes:
 
-**Normal mode**: Throws on the first binding error. Used during evaluation — fail fast.
+**Normal mode**: Throws on the first binding error. Used during evaluation (fail fast).
 
 **Recovering mode**: Catches errors, records them as diagnostics on the bound node, and continues binding the rest of the tree. Used by `TryValidate` to collect all errors in a single pass, giving users a complete picture of what's wrong.
 

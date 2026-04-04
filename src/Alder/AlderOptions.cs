@@ -20,7 +20,7 @@ public enum LanguageMode
     /// <summary>
     /// A superset of standard C# with additional operators, comparison chaining, ranges, slicing,
     /// collection comprehensions, <c>let..in</c> expressions, bare math functions, aggregate builtins,
-    /// date/time sugar, the <c>it</c> implicit iterator, pipeline operator, and more.
+    /// date/time sugar, pipeline operator, and more.
     /// </summary>
     Extended
 }

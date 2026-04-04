@@ -1,11 +1,4 @@
----
-title: "AOT and NativeAOT"
-description: "Source generators, two-tier dispatch, delegate factories — running on every .NET platform"
-sidebar:
-  order: 1
----
-
-Alder runs on NativeAOT, Unity IL2CPP, and every other .NET platform — including environments where reflection is restricted and runtime code generation is unavailable. Same API, same behavior, single NuGet package, no conditional compilation in user code.
+Alder runs on NativeAOT, Unity IL2CPP, and every other .NET platform, including environments where reflection is restricted and runtime code generation is unavailable. Same API, same behavior, single NuGet package.
 
 ## Two-Tier Dispatch
 
@@ -18,7 +11,7 @@ graph TD
     D --> E
 ```
 
-At every member access and method invocation, the engine checks for source-generator-produced typed dispatch before falling back to reflection. An incremental source generator runs at compile time and emits typed code for each registered type — property access, field access, method invocation, constructor calls, indexer operations, and delegate factories. No reflection needed on the AOT path.
+At every member access and method invocation, the engine checks for source-generator-produced typed dispatch before falling back to reflection. An incremental source generator runs at compile time and emits typed code for each registered type: property access, field access, method invocation, constructor calls, indexer operations, and delegate factories.
 
 On full .NET with JIT, the compiler backend (`UseCompiler()`) is also available. On NativeAOT where `Expression.Compile()` is unavailable, the interpreter with AOT dispatch provides the execution path.
 
@@ -40,8 +33,8 @@ var engine = new AlderEngine(o =>
 });
 ```
 
-Alder also ships with a built-in AOT context that provides dispatch for common BCL types (`string`, `int`, `DateTime`, `List<T>`, etc.) — registered by default, no user action needed.
+Alder ships with a built-in AOT context for common BCL types (`string`, `int`, `DateTime`, `List<T>`, etc.), registered by default.
 
 ## Full Reference
 
-For the complete AOT documentation — `ITypedDispatch` interface, delegate factories, generic instantiation rooting, LINQ extension method dispatch, and generator limitations — see the [AOT Overview](overview.md).
+For the complete AOT documentation (`ITypedDispatch`, delegate factories, generic rooting, LINQ dispatch, generator limitations), see [AOT Overview](overview.md).

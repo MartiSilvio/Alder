@@ -1,11 +1,4 @@
----
-title: "Compiler"
-description: "LINQ expression tree emission, local promotion, identifier hoisting, delegate caching"
-sidebar:
-  order: 8
----
-
-The compiler is Alder's second execution backend. It translates the bound tree into `System.Linq.Expressions.Expression` trees, which are then compiled to native delegates. The same bound tree that the interpreter walks is the input — the compiler produces IL instead of walking nodes.
+The compiler is Alder's second execution backend. It translates the bound tree into `System.Linq.Expressions.Expression` trees, which are then compiled to native delegates. The same bound tree that the interpreter walks is the input: the compiler produces IL instead of walking nodes.
 
 ## Compilation Flow
 
@@ -23,9 +16,9 @@ Each bound node kind has a dedicated emitter class implementing `INodeEmitter<TN
 
 Alder has two separate expression tree emitters for different use cases:
 
-**BoundExpressionEmitter** — the full emitter used by `Evaluate` in compiled mode. Handles all bound node kinds: loops, blocks, variable declarations, try-catch, assignments, control flow signals, pattern matching, and all Extended mode features. Produces delegates with the signature `(AlderContext, AlderConfig, ExecutionConstraintState, CancellationToken) → object?`.
+**BoundExpressionEmitter**: the full emitter used by `Evaluate` in compiled mode. Handles all bound node kinds: loops, blocks, variable declarations, try-catch, assignments, control flow signals, pattern matching, and all Extended mode features. Produces delegates with the signature `(AlderContext, AlderConfig, ExecutionConstraintState, CancellationToken) → object?`.
 
-**ExpressionTreeEmitter** — a lightweight emitter used by `ParseAsExpression<TDelegate>`. Produces clean, provider-transparent expression trees suitable for Entity Framework and IQueryable providers. Supports the expression subset: no loops, blocks, variable declarations, assignments, try-catch, or collection expressions. Produces typed expression trees like `Expression<Func<int, bool>>` with no Alder runtime dependencies.
+**ExpressionTreeEmitter**: a lightweight emitter used by `ParseAsExpression<TDelegate>`. Produces clean, provider-transparent expression trees suitable for Entity Framework and IQueryable providers. Supports the expression subset: no loops, blocks, variable declarations, assignments, try-catch, or collection expressions. Produces typed expression trees like `Expression<Func<int, bool>>` with no Alder runtime dependencies.
 
 ## Binary Operation Optimization
 
@@ -39,7 +32,7 @@ The binary emitter uses a tiered strategy:
 
 ECMA-334 §10.2.11 constant promotion is applied when one operand is a literal (e.g., `int` constant 0 promoting to `uint`).
 
-Left-associative chains (`a + b + c + d`) are flattened iteratively — the emitter walks the left spine, collects all links, then folds them in a single pass. This produces flatter expression trees and avoids deep recursion.
+Left-associative chains (`a + b + c + d`) are flattened iteratively: the emitter walks the left spine, collects all links, then folds them in a single pass. This produces flatter expression trees and avoids deep recursion.
 
 ## Local Promotion
 
@@ -62,13 +55,13 @@ For engine-level variables (from `SetVariable<T>`), the emitter hoists frequentl
 
 The compiled expression handles `ControlFlowSignal` the same way the interpreter does:
 
-1. **At the root**: Wraps the body in signal unwrapping — if the result is a signal, extract its value.
+1. **At the root**: Wraps the body in signal unwrapping: if the result is a signal, extract its value.
 2. **At loop boundaries**: Emits `break`/`continue` label targets with signal-to-jump translation.
 3. **At block boundaries**: Signals flow naturally as `object?` values.
 
 ## Bound Tree Pipeline
 
-The compilation path adds a `ConversionInsertionPass` that the interpreter doesn't need — it inserts explicit cast nodes for numeric type promotions because LINQ expression trees require exact type matching.
+The compilation path adds a `ConversionInsertionPass` that the interpreter doesn't need: it inserts explicit cast nodes for numeric type promotions because LINQ expression trees require exact type matching.
 
 See [Bound Tree Pipeline](bound-tree-pipeline.md) for all passes.
 
@@ -84,7 +77,7 @@ public interface IExpressionCompiler
 }
 ```
 
-The default implementation calls `expression.Compile()`. Users can substitute any alternative LINQ expression tree compiler by implementing this interface and passing it to `UseCompiler()`. See [Compilation — Swapping the Expression Compiler](../engine/compilation.md#swapping-the-expression-compiler).
+The default implementation calls `expression.Compile()`. Users can substitute any alternative LINQ expression tree compiler by implementing this interface and passing it to `UseCompiler()`. See [Compilation: Swapping the Expression Compiler](../engine/compilation.md#swapping-the-expression-compiler).
 
 ## Delegate Caching
 
@@ -96,11 +89,11 @@ Compiled delegates are cached at two levels:
 
 ## NativeAOT Guard
 
-`UseCompiler()` checks `RuntimeFeature.IsDynamicCodeSupported` on .NET 7+. On NativeAOT and IL2CPP, `Expression.Compile()` is unavailable — the engine throws `PlatformNotSupportedException` directing users to the interpreter with AOT metadata instead.
+`UseCompiler()` checks `RuntimeFeature.IsDynamicCodeSupported` on .NET 7+. On NativeAOT and IL2CPP, `Expression.Compile()` is unavailable: the engine throws `PlatformNotSupportedException` directing users to the interpreter with AOT metadata instead.
 
 ## Lambda Emission
 
-Lambdas are not compiled to LINQ expression tree lambdas. Instead, the emitter creates a runtime lambda object that stores the original AST, parameter names, and a reference to the enclosing context. When invoked, the lambda body is evaluated by the interpreter (or bound and compiled on first call). This preserves full closure semantics — variables are captured by reference through the context chain, and updates are visible across all invocations.
+Lambdas are not compiled to LINQ expression tree lambdas. Instead, the emitter creates a runtime lambda object that stores the original AST, parameter names, and a reference to the enclosing context. When invoked, the lambda body is evaluated by the interpreter (or bound and compiled on first call). This preserves full closure semantics: variables are captured by reference through the context chain, and updates are visible across all invocations.
 
 ## ForEach Emission
 
@@ -108,7 +101,7 @@ The foreach emitter generates a full IEnumerable/IEnumerator pattern: validate c
 
 ## Switch and Pattern Emission
 
-Switch expressions delegate pattern matching entirely to the pattern runtime — the emitter passes the pattern AST as-is rather than generating IL for each pattern kind. Each arm gets an isolated child context for pattern variable bindings, with cleanup in a `finally` block. Simple type patterns without variable binding compile to `Expression.TypeIs` (the IL `isinst` instruction) for maximum performance.
+Switch expressions delegate pattern matching entirely to the pattern runtime: the emitter passes the pattern AST as-is rather than generating IL for each pattern kind. Each arm gets an isolated child context for pattern variable bindings, with cleanup in a `finally` block. Simple type patterns without variable binding compile to `Expression.TypeIs` (the IL `isinst` instruction) for maximum performance.
 
 ## Collection Size Enforcement
 

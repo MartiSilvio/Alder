@@ -1,41 +1,34 @@
----
-title: "Numeric Promotion"
-description: "ECMA-334 §12.4.7.3 binary numeric promotion, unary promotion, constant promotion, char edge cases"
-sidebar:
-  order: 9
----
-
 Alder implements ECMA-334 numeric promotion rules for both binary and unary operators. These rules determine what type the operands are promoted to before an arithmetic, comparison, or bitwise operation executes.
 
 ## Binary Numeric Promotion (§12.4.7.3)
 
-When a binary operator is applied to two numeric operands, both are promoted to a common type. The rules are applied in order — the first matching rule wins:
+When a binary operator is applied to two numeric operands, both are promoted to a common type. The rules are applied in order: the first matching rule wins:
 
 | Rule | Condition | Promoted type |
 |------|-----------|--------------|
-| 1 | Either operand is `decimal` | `decimal` — error if the other is `float` or `double` |
+| 1 | Either operand is `decimal` | `decimal` (error if other is `float`/`double`) |
 | 2 | Either operand is `double` | `double` |
 | 3 | Either operand is `float` | `float` |
-| 4 | Either operand is `ulong` | `ulong` — error if the other is a signed integer type |
+| 4 | Either operand is `ulong` | `ulong` (error if other is signed) |
 | 5 | Either operand is `long` | `long` |
 | 6 | One is `uint`, other is `sbyte`/`short`/`int` | `long` |
 | 7 | Either operand is `uint` | `uint` |
 | 8 | Default | `int` |
 
-Rule 8 applies to `byte`, `sbyte`, `short`, `ushort`, and `char` — all promote to `int`.
+Rule 8 applies to `byte`, `sbyte`, `short`, `ushort`, and `char`: all promote to `int`.
 
 ### The `char` edge case
 
 `char` has implicit conversions to `ushort`, `int`, `uint`, `long`, `ulong`, `float`, `double`, `decimal` per §10.2.3. The critical detail: **`char` is not a signed integer type**. This affects Rule 4 and Rule 6:
 
-- **Rule 4**: `ulong + char` → `ulong` (valid — `char` is not signed, so no error)
-- **Rule 6**: `uint + char` → `uint` (Rule 7, not Rule 6 — because `char` is not in the `sbyte`/`short`/`int` set)
+- **Rule 4**: `ulong + char` → `ulong` (valid. `char` is not signed, so no error)
+- **Rule 6**: `uint + char` → `uint` (Rule 7, not Rule 6, because `char` is not in the `sbyte`/`short`/`int` set)
 
 If `char` were treated as signed, `uint + char` would promote to `long` via Rule 6. Instead, it stays `uint` via Rule 7. This matches the C# specification exactly.
 
 ### `decimal` isolation
 
-Rule 1 enforces that `decimal` cannot be mixed with `float` or `double`. The expression `1.0m + 1.0` is a compile-time error — there is no implicit conversion between `decimal` and floating-point types. This prevents precision loss from the different numeric representations.
+Rule 1 enforces that `decimal` cannot be mixed with `float` or `double`. The expression `1.0m + 1.0` is a compile-time error: there is no implicit conversion between `decimal` and floating-point types. This prevents precision loss from the different numeric representations.
 
 ### `ulong` + signed error
 
@@ -62,7 +55,7 @@ ECMA-334 allows implicit conversions for constant expressions that don't apply t
 | Non-negative `int` constant | `ulong` (if value fits) |
 | Non-negative `long` constant | `ulong` (if value fits) |
 
-This is why `uint x = 0` compiles — `0` is an `int` constant, but §10.2.11 allows the conversion because the value is non-negative and fits.
+This is why `uint x = 0` compiles. `0` is an `int` constant, but §10.2.11 allows the conversion because the value is non-negative and fits.
 
 In the interpreter, constant promotion is applied at runtime in the binary evaluation path. When one operand is a literal and the other is `uint` or `ulong`, the value is checked and promoted if safe:
 
@@ -76,11 +69,11 @@ x + (-1)       // -1 is int, negative → cannot promote, falls to Rule 6: long
 
 The interpreter uses two dispatch tiers:
 
-**Fast path**: When the binder has computed a `PromotedType` at bind time and the runtime types match the static types, the engine routes directly to pre-built delegate tables keyed by type pair. No promotion at runtime — the binder already determined the promoted type. The tables contain entries for each of the seven core numeric types: `int`, `long`, `float`, `double`, `decimal`, `uint`, `ulong`. After promotion, both operands always have the same type.
+**Fast path**: When the binder has computed a `PromotedType` at bind time and the runtime types match the static types, the engine routes directly to pre-built delegate tables keyed by type pair. No promotion at runtime: the binder already determined the promoted type. The tables contain entries for each of the seven core numeric types: `int`, `long`, `float`, `double`, `decimal`, `uint`, `ulong`. After promotion, both operands always have the same type.
 
 **Fallback path**: When types don't match the fast path (untyped variables, mixed-type arithmetic where the binder couldn't determine the promoted type), the runtime applies the 8-rule promotion chain, converts both operands, and dispatches to the delegate table with the promoted type pair.
 
-Bitwise operators (`&`, `|`, `^`) have separate tables with only integer types — bitwise operations on floating-point types are not defined in C#.
+Bitwise operators (`&`, `|`, `^`) have separate tables with only integer types: bitwise operations on floating-point types are not defined in C#.
 
 ## Non-Numeric Operator Semantics
 
@@ -108,7 +101,7 @@ checked(int.MaxValue + 1)   // throws OverflowException
 unchecked(int.MaxValue + 1)  // wraps to int.MinValue
 ```
 
-Floating-point operations are unaffected by `checked`/`unchecked` — they follow IEEE 754 regardless. Division by zero produces `Infinity` or `NaN` for floating-point, and throws `DivideByZeroException` for integers.
+Floating-point operations are unaffected by `checked`/`unchecked`. they follow IEEE 754 regardless. Division by zero produces `Infinity` or `NaN` for floating-point, and throws `DivideByZeroException` for integers.
 
 ## Nullable Arithmetic
 

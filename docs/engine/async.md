@@ -1,11 +1,4 @@
----
-title: "Async/Await"
-description: "Full async/await support — await any .NET async API from dynamically evaluated C# code"
-sidebar:
-  order: 4
----
-
-Alder is a fully async-capable runtime engine. `await` works everywhere — inside loops, try/catch, switch expressions, nested conditionals, pattern matching, goto labels. Every control flow construct that supports `await` in compiled C# supports it in Alder.
+`await` works inside loops, try/catch, switch expressions, conditionals, pattern matching, goto labels. Every control flow construct that supports `await` in compiled C# supports it in Alder.
 
 ```csharp
 var engine = new AlderEngine();
@@ -16,20 +9,18 @@ string html = await engine.EvaluateAsync<string>("""
     """);
 ```
 
-This is a proper `await` — non-blocking, returning the unwrapped result. Not a `.Result` hack, not a `.GetAwaiter().GetResult()` deadlock trap. Native `Task<T>` and `ValueTask<T>` unwrapping, with correct continuation scheduling.
-
 ## API
 
 Use `EvaluateAsync` instead of `Evaluate`:
 
 ```csharp
-// Await Task<T> — returns T
+// Task<T>: returns T
 int value = await engine.EvaluateAsync<int>("await Task.FromResult(42)");
 
-// Await Task (void) — returns null
+// Task (void): returns null
 await engine.EvaluateAsync("await Task.Delay(100)");
 
-// Multiple awaits in sequence
+// Multiple awaits
 var result = await engine.EvaluateAsync("""
     var a = await Task.FromResult(10);
     var b = await Task.FromResult(20);
@@ -38,11 +29,25 @@ var result = await engine.EvaluateAsync("""
 // 30
 ```
 
-`EvaluateAsync` also works for non-async expressions — making it a safe default for any evaluation path.
+`EvaluateAsync` also works for non-async expressions, making it a safe default.
 
-## Inject async services
+### Variable overloads
 
-Pass async-capable objects as variables and call their methods:
+All `EvaluateAsync` overloads match `Evaluate`:
+
+| Overload | Variables |
+|----------|-----------|
+| `EvaluateAsync(string)` | Engine's persistent variables |
+| `EvaluateAsync(string, IDictionary<string, object?>)` | Persistent + dictionary (scoped) |
+| `EvaluateAsync(string, object)` | Persistent + anonymous object (scoped) |
+| `EvaluateAsync(AlderExpression, ...)` | Pre-parsed expression |
+| `EvaluateAsync<T>(...)` | Generic typed return |
+
+All accept `CancellationToken` as the last parameter.
+
+## Async services
+
+Pass async-capable objects as variables:
 
 ```csharp
 engine.SetVariable("db", myDbContext);
@@ -53,20 +58,34 @@ var users = await engine.EvaluateAsync<List<User>>("""
     """);
 ```
 
-Or pass a pre-built `Task` directly:
+## Async lambdas
 
 ```csharp
-var pending = SomeService.FetchDataAsync();
-var result = await engine.EvaluateAsync(
-    "await data",
-    new Dictionary<string, object?> { ["data"] = pending });
+var result = await engine.EvaluateAsync("""
+    Func<int, Task<int>> doubler = async x => await Task.FromResult(x * 2);
+    return await doubler(21);
+    """);
+// 42
+```
+
+Async lambdas return `Task<object?>` and evaluate via the async path.
+
+## CancellationToken injection
+
+If a method's last parameter is `CancellationToken` and the caller provides one fewer argument, the engine automatically appends the current cancellation token:
+
+```csharp
+// db.Users.ToListAsync() has a CancellationToken parameter
+// Alder injects the token from EvaluateAsync's CancellationToken
+await engine.EvaluateAsync("""
+    return await db.Users.ToListAsync();
+    """, cancellationToken: cts.Token);
 ```
 
 ## Await in control flow
 
-`await` works inside every control flow construct — loops, conditionals, try/catch/finally, switch, pattern matching, goto:
-
 ```csharp
+// In foreach + try/catch
 var result = await engine.EvaluateAsync("""
     var urls = new[] { "https://a.com", "https://b.com" };
     var results = new List<string>();
@@ -86,6 +105,7 @@ var result = await engine.EvaluateAsync("""
 ```
 
 ```csharp
+// In conditional
 var value = await engine.EvaluateAsync("""
     var response = await http.GetAsync(url);
     if (response.IsSuccessStatusCode)
@@ -95,6 +115,7 @@ var value = await engine.EvaluateAsync("""
 ```
 
 ```csharp
+// In for loop
 var result = await engine.EvaluateAsync("""
     var sum = 0;
     for (var i = 0; i < 10; i++)
@@ -108,10 +129,12 @@ var result = await engine.EvaluateAsync("""
 
 | Type | Result |
 |------|--------|
-| `Task<T>` | Awaits, returns `T` |
-| `Task` | Awaits, returns `null` |
-| `ValueTask<T>` | Awaits, returns `T` |
-| `ValueTask` | Awaits, returns `null` |
+| `Task<T>` | Returns `T` |
+| `Task` | Returns `null` |
+| `ValueTask<T>` | Returns `T` |
+| `ValueTask` | Returns `null` |
+
+Other types produce `CS4001`.
 
 ## Static API
 
@@ -119,30 +142,16 @@ var result = await engine.EvaluateAsync("""
 var result = await AlderEval.EvaluateAsync<int>("await Task.FromResult(99)");
 ```
 
-## Use cases
-
-- **Rule engines** that call async APIs — validate against external services, fetch reference data
-- **Dynamic workflows** with HTTP calls — orchestrate microservices from user-defined expressions
-- **Low-code platforms** where user expressions need I/O — query databases, call APIs, read files
-- **Plugin systems** where user code awaits host-provided async services
-- **Report builders** that pull data from multiple async sources in a single expression
-
-## How it works
-
-The interpreted evaluator is natively async — every evaluator node provides both synchronous and asynchronous dispatch. When a user expression contains `await`, Alder's evaluator walks the bound tree asynchronously, suspending at each `await` point and resuming when the awaited task completes. C#'s own async/await machinery handles suspension, resumption, thread pool interaction, and `SynchronizationContext` flow.
-
-The source generator produces a dual dispatch system: synchronous `Dispatch` for `Evaluate`, asynchronous `DispatchAsync` for `EvaluateAsync`. Both paths share the same bound tree, binder, and pipeline — the only difference is how child expressions are invoked.
-
 ## Execution backend
 
-Expressions containing `await` run on the interpreted backend. Non-async expressions called via `EvaluateAsync` use the compiled backend when configured.
+Expressions containing `await` run on the interpreted backend. Async code is I/O-bound; the per-node overhead is negligible against network or disk latency. The interpreted path also avoids `System.Linq.Expressions` (which cannot represent `await`), keeping full AOT compatibility.
 
-This is by design: async code is I/O-bound. The CPU overhead difference between interpreted and compiled evaluation is nanoseconds per node — invisible against network or disk latency. The interpreted path also avoids any dependency on `System.Linq.Expressions`, which cannot represent `await` nodes (`CS1989`), keeping Alder fully AOT-compatible.
+Non-async expressions called via `EvaluateAsync` use the compiled backend when configured.
 
 ## Constraints
 
-| Constraint | Details |
-|-----------|---------|
-| `await` requires `EvaluateAsync()` | Using `await` in a synchronous `Evaluate()` call produces CS4033 |
-| `await` in lock body | Prohibited per ECMA-334 §12.9.8.1, produces CS1996 |
-| LINQ `ParseAsExpression<T>` cannot contain `await` | Expression trees don't support async; use `EvaluateAsync` directly |
+| Constraint | Diagnostic |
+|-----------|------------|
+| `await` requires `EvaluateAsync()` | CS4033 |
+| `await` in `lock` body | CS1996 (§12.9.8.1) |
+| `ParseAsExpression<T>` cannot contain `await` | Expression trees don't support async |

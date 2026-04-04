@@ -1,34 +1,25 @@
----
-title: "Type Registration"
-description: "Assemblies, namespaces, extension methods, type resolution order"
-sidebar:
-  order: 7
----
-
-Alder's `TypeResolver` controls which .NET types are available to expressions. It resolves type names through a five-step precedence chain modeled after Roslyn's resolution order.
+`TypeResolver` controls which .NET types are available to expressions. Resolution follows a five-step precedence chain.
 
 ## Resolution Order
 
-When an expression references a type (via `new T()`, `typeof(T)`, cast `(T)x`, `is T`, or static access `T.Member`), the resolver tries each step in order:
+When an expression references a type (`new T()`, `typeof(T)`, `(T)x`, `is T`, `T.Member`):
 
-1. **Built-in type keywords** — `int`, `string`, `bool`, `List<T>`, `Dictionary<K,V>`, etc.
-2. **Implicit BCL imports** — common types from `System`, `System.Collections.Generic`, `System.Linq`, `System.Threading.Tasks` are available without qualification
-3. **Explicit namespace imports** — types from namespaces registered via `Types.AddNamespace()`
-4. **Fully qualified names** — any type from loaded assemblies via `Namespace.TypeName`
-5. **Fail** — `CS0246: The type or namespace name 'X' could not be found`
+1. **Built-in keywords**: `int`, `string`, `bool`, `List<T>`, `Dictionary<K,V>`, etc.
+2. **Implicit BCL imports**: `System`, `System.Collections.Generic`, `System.Linq`, `System.Threading.Tasks`
+3. **Explicit imports**: namespaces registered via `Types.AddNamespace()`
+4. **Fully qualified names**: any type from loaded assemblies
+5. **Fail**: `CS0246`
 
-If a type name matches in multiple imported namespaces, `CS0104: Ambiguous reference` is thrown — same as the C# compiler.
+Ambiguous matches across imported namespaces produce `CS0104`.
 
 ## Default Available Types
-
-Without any configuration, these types are available by keyword or short name:
 
 | Source | Examples |
 |--------|---------|
 | Type keywords | `int`, `long`, `double`, `float`, `decimal`, `string`, `bool`, `char`, `object`, `byte`, `sbyte`, `short`, `ushort`, `uint`, `ulong`, `nint`, `nuint`, `dynamic`, `void` |
-| `System` | `Math`, `Convert`, `DateTime`, `Guid`, `Random`, `TimeSpan`, `Array`, `Tuple`, `StringComparison`, `ConsoleColor`, `DayOfWeek`, `DateTimeKind`, `TypeCode` |
-| `System.Collections.Generic` | `List<T>`, `Dictionary<K,V>`, `HashSet<T>`, `Queue<T>`, `Stack<T>`, `KeyValuePair<K,V>`, `SortedList<K,V>`, `SortedDictionary<K,V>`, `LinkedList<T>` |
-| `System.Linq` | All `Enumerable` extension methods (registered via `Types.ExtensionTypes`) |
+| `System` | `Math`, `Convert`, `DateTime`, `Guid`, `Random`, `TimeSpan`, `Array`, `Tuple`, `StringComparison`, `DayOfWeek`, `TypeCode` |
+| `System.Collections.Generic` | `List<T>`, `Dictionary<K,V>`, `HashSet<T>`, `Queue<T>`, `Stack<T>`, `KeyValuePair<K,V>`, `SortedList<K,V>`, `LinkedList<T>` |
+| `System.Linq` | All `Enumerable` extension methods |
 | `System.Threading.Tasks` | `Task`, `Task<T>` |
 
 ## Adding Namespaces
@@ -47,7 +38,7 @@ var engine = new AlderEngine(o =>
 
 <!-- test: Types_AddNamespace -->
 
-Without `AddNamespace`, these types are still accessible via fully qualified names: `new System.IO.MemoryStream()`, `System.Text.RegularExpressions.Regex.IsMatch(...)`.
+Without `AddNamespace`, these types are still accessible via fully qualified names: `new System.IO.MemoryStream()`.
 
 ## Adding Assemblies
 
@@ -55,7 +46,7 @@ Without `AddNamespace`, these types are still accessible via fully qualified nam
 o.Types.AddAssembly(typeof(MyDomainType).Assembly);
 ```
 
-Makes all public types from the assembly available via fully qualified names. Without this, only types from already-loaded assemblies (the core runtime) are searchable.
+Makes all public types from the assembly available via fully qualified names.
 
 ## Extension Methods
 
@@ -63,43 +54,39 @@ Makes all public types from the assembly available via fully qualified names. Wi
 o.Types.AddExtensionMethods<MyLinqExtensions>();
 ```
 
-Registers a static class's extension methods so they can be called on matching types in expressions. `System.Linq.Enumerable` is registered by default — this is why `.Where()`, `.Select()`, `.Sum()` work out of the box.
+Registers a static class's extension methods. `System.Linq.Enumerable` is registered by default. User-registered types are inserted at index 0, giving them priority. Overload resolution selects the best overload among all discovered candidates.
 
-Extension methods are searched in registration order. User-registered extension types are inserted at index 0 of the extension type list, giving them priority over the default `System.Linq.Enumerable`. If multiple extension types define a method with the same name, the first type in the list wins during initial method discovery. Overload resolution then selects the best overload among all discovered candidates.
+## Generic Types
 
-## Generic Type Resolution
-
-The resolver handles generic types with nested generic arguments:
+Nested generics resolve recursively:
 
 ```csharp
-typeof(Dictionary<string, List<int>>)   // resolved recursively
-new Dictionary<string, List<int>>()      // construction works
+typeof(Dictionary<string, List<int>>)
+new Dictionary<string, List<int>>()
 ```
 
-Generic type arguments are resolved through the same five-step chain. If any argument fails to resolve, the entire generic type resolution fails.
+Short names like `List` automatically probe arities 1-8 (`` List`1 ``, `` List`2 ``, etc.). The resolver uses CLR backtick notation internally.
 
-When a short name like `List` is used without a backtick arity suffix, the implicit import resolver probes arities 1–8 automatically (e.g., `` List`1 ``, `` List`2 ``, etc.) until a match is found. This is why `List<int>` works without writing `` List`1<int> ``. The resolver uses CLR backtick notation internally (`` Dictionary`2 ``) even when the expression uses angle brackets.
+Nested types (`OuterClass.InnerType`) split right-to-left, converting dots to the CLR `+` separator.
 
-For nested types (e.g., `OuterClass.InnerType`), the resolver progressively splits the name right-to-left, converting dots to the CLR `+` separator (e.g., `OuterClass+InnerType`) until a match is found in the full name index.
-
-Security note: `System.Reflection` types are explicitly excluded from implicit BCL imports — types in `System.Reflection` are never resolved by short name, only by fully qualified name (where they would then be blocked by the default denied namespaces).
+`System.Reflection` types are excluded from implicit imports and only resolvable via FQN (where they are blocked by default denied namespaces).
 
 ## Nullable Types
 
-`int?`, `string?`, `bool?` — the `?` suffix is handled by the parser, which produces a `Nullable<T>` type reference. The resolver resolves the inner type and wraps it.
+`int?`, `bool?` etc. The parser produces `Nullable<T>`, the resolver resolves the inner type and wraps.
 
 ## Array Types
 
-`int[]`, `string[]`, `int[,]`, `int[][]` — array suffixes are parsed by `TryParseArraySuffix` in the resolver. The element type is resolved through the standard chain, then `RuntimeArrayFactory.GetArrayType` produces the array type.
+`int[]`, `int[,]`, `int[][]`. The element type resolves through the standard chain.
 
 ## Caching
 
-Resolved types are cached in a `ConcurrentDictionary<string, Type?>` on the `TypeResolver` instance. The cache is shared across evaluations on the same engine (and its children). Cache entries are never evicted — types don't change at runtime.
+Resolved types are cached in a `ConcurrentDictionary` per engine. Shared across parent and child engines. Never evicted.
 
-## Type Resolution vs Type Blocking
+## Resolution vs Blocking
 
-Type resolution (this page) determines whether a type *can be found*. Type blocking (see [Security](../security/sandbox.md#type-blocking)) determines whether a *found type* is *allowed*. They're separate concerns:
+Type resolution determines whether a type *can be found*. Type blocking ([Security](../security/sandbox.md#type-blocking)) determines whether a found type is *allowed*. Separate concerns:
 
-- A type in a denied namespace can still be resolved if it's also in `TrustedTypes`
-- A type that's not found (not in any registered assembly/namespace) produces `CS0246`, not a security error
-- A type that's found but blocked by security produces `ALDR0107`
+- A type in a denied namespace can still be resolved if also in `TrustedTypes`
+- A type not found produces `CS0246` (resolution error)
+- A type found but blocked produces `ALDR0107` (security error)

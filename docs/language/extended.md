@@ -1,36 +1,31 @@
----
-title: "Extended Mode"
-description: "Extended operators, collection features, bare math, aggregates, date/time sugar"
-sidebar:
-  order: 3
----
-
-Extended mode is a strict superset of Standard C#. Every valid Standard expression works in Extended mode. Extended mode adds operators, control flow sugar, collection features, bare math functions, aggregate built-ins, and date/time arithmetic — all designed to make expressions more concise without sacrificing type safety.
+Extended mode is a strict superset of Standard C#. Every valid Standard expression works unchanged, produces the same result. Extended adds operators, collection features, control flow sugar, bare math functions, aggregate built-ins, and date/time arithmetic. Extended features are syntactic sugar over .NET APIs: `sum()` calls `Enumerable.Sum()`, `sin()` calls `Math.Sin()`, comprehensions desugar to LINQ. Nothing is reimplemented.
 
 ```csharp
 var engine = new AlderEngine(o => o.LanguageMode = LanguageMode.Extended);
 ```
 
-For Standard mode C# features, see [Standard Mode](standard.md).
+Using Extended features in Standard mode throws `ALDR0020`.
+
+For Standard C# features, see [Standard Mode](standard.md).
 
 ## Operators
 
-### Power
+### Power (`**`)
 
-`**` raises the left operand to the power of the right. Both operands are converted to `double`. Right-associative: `2 ** 3 ** 2` evaluates as `2 ** (3 ** 2)` = 512.
+Both operands convert to `double`. Right-associative: `2 ** 3 ** 2` = `2 ** 9` = 512.
 
 ```csharp
-2 ** 10             // 1024.0 (double)
+2 ** 10             // 1024.0
 var x = 3; x **= 2; return x;   // 9.0
 ```
 
 <!-- test: ExtRef_Op_Power.csx -->
 
-Nullable: `null ** x` and `x ** null` return `null`.
+`null ** x` and `x ** null` return `null`.
 
-### Pipeline
+### Pipeline (`|>`)
 
-`|>` passes the left value as the single argument to the right operand. The right operand must be callable: a lambda, registered function, module method, delegate, or method reference.
+Passes the left value as the argument to the right callable (lambda, function, delegate, module method, method reference).
 
 ```csharp
 5 |> (x => x * 2)    // 10
@@ -38,13 +33,13 @@ Nullable: `null ** x` and `x ** null` return `null`.
 
 <!-- test: ExtRef_Op_Pipeline.csx -->
 
-Arithmetic binds tighter than pipe: `2 + 3 |> (x => x * 2)` evaluates as `(2 + 3) |> (x => x * 2)` = 10.
+Arithmetic binds tighter: `2 + 3 |> (x => x * 2)` = `5 |> (x => x * 2)` = 10.
 
-The binder optimizes pipeline expressions: when the right operand is an identifier or a call expression, the pipeline is desugared into a direct call at bind time rather than going through runtime lambda invocation.
+The binder desugars identifier and call pipelines into direct calls at bind time.
 
-### Spaceship
+### Spaceship (`<=>`)
 
-`<=>` is three-way comparison. Returns `-1` if `a < b`, `0` if equal, `1` if `a > b`. `null` is ordered before any non-null value.
+Three-way comparison. Returns `-1`, `0`, or `1`. `null` orders before any non-null value.
 
 ```csharp
 1 <=> 2             // -1
@@ -54,9 +49,9 @@ null <=> 0          // -1
 
 <!-- test: ExtRef_Op_Spaceship.csx -->
 
-### Regex Match
+### Regex Match (`=~`, `!~`)
 
-`=~` tests whether the left string matches the right regex pattern. `!~` tests the inverse. Left operand is converted to string via `.ToString()`. Regex timeout is 1 second (enforced via `SecurityPolicy.RegexTimeout`).
+`=~` tests regex match. `!~` tests inverse. Left operand converted to string via `.ToString()`. Regex timeout: 1 second.
 
 ```csharp
 "hello123" =~ @"\d+"     // true
@@ -65,9 +60,9 @@ null <=> 0          // -1
 
 <!-- test: ExtRef_Op_Regex.csx -->
 
-### Strict Equality
+### Strict Equality (`===`, `!==`)
 
-`===` and `!==` compare without numeric widening. Types must match exactly.
+No numeric widening. Types must match exactly.
 
 ```csharp
 1 === 1       // true
@@ -77,9 +72,7 @@ null <=> 0          // -1
 
 <!-- test: ExtRef_Op_StrictEquality.csx -->
 
-### Membership
-
-`in` tests whether a value exists in a collection. `not in` tests the inverse. `not in` desugars to `!(x in collection)` at parse time.
+### Membership (`in`, `not in`)
 
 ```csharp
 3 in new[] { 1, 2, 3, 4 }        // true
@@ -88,9 +81,11 @@ null <=> 0          // -1
 
 <!-- test: ExtRef_Op_Membership.csx -->
 
-### Like (SQL-style)
+`not in` desugars to `!(x in collection)` at parse time.
 
-`like` matches strings using SQL wildcard patterns: `%` matches any characters, `_` matches a single character. `not like` desugars to `!(x like pattern)` at parse time.
+### Like (`like`, `not like`)
+
+SQL wildcard patterns: `%` matches any characters, `_` matches one character.
 
 ```csharp
 "hello" like "hel%"      // true
@@ -99,6 +94,8 @@ null <=> 0          // -1
 ```
 
 <!-- test: ExtRef_Op_Like.csx -->
+
+The matcher classifies patterns into modes (exact, prefix, suffix, contains, general) for performance.
 
 ### Between
 
@@ -113,18 +110,20 @@ null <=> 0          // -1
 
 ### Chained Comparisons
 
-Multiple comparison operators chain naturally. Each middle operand is evaluated exactly once. Short-circuits on first `false`. Chainable operators: `<`, `<=`, `>`, `>=`, `==`, `!=`.
+Multiple comparisons chain naturally. Each middle operand evaluated exactly once. Short-circuits on first `false`.
 
 ```csharp
 var x = 50;
-return 0 <= x <= 100;     // true — same as 0 <= x && x <= 100
+return 0 <= x <= 100;     // true (equivalent to 0 <= x && x <= 100)
 ```
 
 <!-- test: ExtRef_Op_ChainedComparison.csx -->
 
-### Word Operators
+Chainable: `<`, `<=`, `>`, `>=`, `==`, `!=`.
 
-`and`, `or`, `not` are contextual keywords that map to `&&`, `||`, `!` respectively. Same precedence and short-circuit behavior. These are only available in Extended mode — in Standard mode, they are parsed as identifiers.
+### Word Operators (`and`, `or`, `not`)
+
+Contextual keywords mapping to `&&`, `||`, `!`. Same precedence, same short-circuit behavior.
 
 ```csharp
 true and false    // false
@@ -134,9 +133,11 @@ not true          // false
 
 <!-- test: ExtRef_Op_WordOps.csx -->
 
-### String Repetition
+In Standard mode, `and`, `or`, `not` are parsed as identifiers.
 
-`string * count` or `count * string` repeats a string. Count must be a non-negative integer. Count of 0 returns `""`.
+### String Repetition (`*`)
+
+`string * count` or `count * string`. Count must be non-negative. Count 0 returns `""`.
 
 ```csharp
 "ab" * 3    // "ababab"
@@ -145,13 +146,13 @@ not true          // false
 
 <!-- test: ExtRef_Op_StringRepeat.csx -->
 
-### Inclusive Range
+### Inclusive Range (`..=`, `..<`)
 
-Standard `..` produces a `System.Range` with an exclusive end. Extended adds `..=` (inclusive) and `..<` (explicit exclusive) which produce `IEnumerable<int>` sequences.
+Standard `..` produces `System.Range` (exclusive end). Extended adds `..=` (inclusive) and `..<` (explicit exclusive) producing `IEnumerable<int>` sequences.
 
 ```csharp
-// 1..=5  → IEnumerable<int> { 1, 2, 3, 4, 5 }
-// 1..<5  → IEnumerable<int> { 1, 2, 3, 4 }
+// 1..=5 produces { 1, 2, 3, 4, 5 }
+// 1..<5 produces { 1, 2, 3, 4 }
 ```
 
 <!-- test: ExtRef_Op_InclusiveRange.csx -->
@@ -160,7 +161,7 @@ Standard `..` produces a `System.Range` with an exclusive end. Extended adds `..
 
 ### If-Expression
 
-When `if` is not followed by `{`, it's parsed as an expression — both branches required, no braces. The parser disambiguates based on the token following the condition: `{` triggers the statement form.
+When `if` is followed by a condition without `{`, it is parsed as an expression. Both branches required.
 
 ```csharp
 var x = 5;
@@ -169,9 +170,11 @@ return if (x > 0) "positive" else "non-positive";
 
 <!-- test: ExtRef_Expr_IfExpr.csx -->
 
+The parser disambiguates: `{` after the condition triggers statement form.
+
 ### Let-In
 
-`let` binds a scoped variable for a single expression. Desugars to a `BlockExpr` with variable declarations. Variables are scoped to the body — they don't leak.
+Scoped variable binding for a single expression. Variables don't leak.
 
 ```csharp
 let price = 100m in let tax = price * 0.1m in price + tax    // 110.0m
@@ -187,11 +190,11 @@ let { Name, Age } = new { Name = "Ada", Age = 20 } in Name + ":" + Age    // "Ad
 
 <!-- test: ExtRef_Expr_LetInDestructure.csx -->
 
+Desugars to a block with variable declarations at parse time.
+
 ## Collection Features
 
 ### Array Literals
-
-`[elements]` creates an array. Standard mode requires `new[] { 1, 2, 3 }`. Using `[...]` in Standard mode produces an `ExtendedModeRequired` diagnostic.
 
 ```csharp
 [1, 2, 3]       // int[]
@@ -200,9 +203,11 @@ let { Name, Age } = new { Name = "Ada", Age = 20 } in Name + ":" + Age    // "Ad
 
 <!-- test: ExtRef_Collection_ArrayLiteral.csx -->
 
+Standard mode requires `new[] { 1, 2, 3 }`.
+
 ### Spread
 
-`..` in array and object literals spreads a collection's elements.
+`..` inside array and object literals spreads elements:
 
 ```csharp
 var a = new[] { 2, 3 };
@@ -220,9 +225,11 @@ return new { ..obj, Age = 31 };    // { Name = "Alice", Age = 31 }
 
 <!-- test: ExtRef_Collection_ObjectSpread.csx -->
 
+Right-side properties override left-side on key collision.
+
 ### Comprehensions
 
-Array comprehensions desugar to LINQ at parse time. `[expr for x in source]` becomes `source.Select(x => expr).ToArray()`. Add `if` for filtering.
+Desugar to LINQ at parse time. `[expr for x in source]` becomes `source.Select(x => expr).ToArray()`. Add `if` for filtering.
 
 ```csharp
 [x * x for x in Enumerable.Range(1, 10) if x % 2 == 0]    // [4, 16, 36, 64, 100]
@@ -230,9 +237,9 @@ Array comprehensions desugar to LINQ at parse time. `[expr for x in source]` bec
 
 <!-- test: ExtRef_Collection_Comprehension.csx -->
 
-### Object Merge
+### Object Merge (`+`)
 
-`+` on two objects merges their properties into a `Dictionary<string, object?>`. Right-side properties override left-side on key collision. Implemented in `ObjectMergeOperator`.
+Merges properties of two objects into `Dictionary<string, object?>`. Right-side overrides on collision.
 
 ```csharp
 new { A = 1 } + new { B = 2 }    // { A: 1, B: 2 }
@@ -242,56 +249,59 @@ new { A = 1 } + new { B = 2 }    // { A: 1, B: 2 }
 
 ### Slicing
 
-Python-style slice syntax on arrays and strings. `[start:end]` is exclusive end. `[start:end:step]` adds a step. Implemented in `SliceExpr` → `BoundSliceExpr`.
+Python-style `[start:end]` (exclusive end) and `[start:end:step]` on arrays and strings.
 
 ```csharp
-new[] { 10, 20, 30, 40, 50 }[1:4]    // [20, 30, 40]
-"hello"[1:4]                           // "ell"
+new[] { 10, 20, 30, 40, 50 }[1:4]       // [20, 30, 40]
+"hello"[1:4]                              // "ell"
+new[] { 0, 1, 2, 3, 4, 5 }[0:6:2]       // [0, 2, 4]
 ```
 
 <!-- test: ExtRef_Collection_Slice.csx -->
 
+Negative indices, omitted start/end, and negative steps are supported.
+
 ## Bare Math Functions
 
-Available without the `Math.` prefix. Resolved in `BareMathNames` at runtime. User variables with the same name shadow these built-in names.
+Available without `Math.` prefix. User variables with the same name take priority.
 
 ### Constants
 
 | Name | Value |
 |------|-------|
-| `pi` | `Math.PI` (3.14159...) |
-| `e` | `Math.E` (2.71828...) |
-| `tau` | `2 * Math.PI` (6.28318...) |
+| `pi` | `Math.PI` |
+| `e` | `Math.E` |
+| `tau` | `2 * Math.PI` |
 | `infinity` | `double.PositiveInfinity` |
 | `nan` | `double.NaN` |
 
 ### Functions
 
-| Function | Maps to | Notes |
-|----------|---------|-------|
-| `sin`, `cos`, `tan` | `Math.Sin/Cos/Tan` | → `double` |
-| `asin`, `acos`, `atan` | `Math.Asin/Acos/Atan` | → `double` |
-| `sinh`, `cosh`, `tanh` | `Math.Sinh/Cosh/Tanh` | → `double` |
-| `abs(x)` | `Math.Abs` | Preserves `int`/`long`/`float`/`double`/`decimal` |
-| `sqrt(x)`, `cbrt(x)` | `Math.Sqrt/Cbrt` | → `double` |
-| `log(x)`, `ln(x)` | `Math.Log` | Natural log → `double` |
-| `log2(x)` | `Math.Log(x, 2)` | → `double` |
-| `log10(x)` | `Math.Log10` | → `double` |
-| `exp(x)` | `Math.Exp` | → `double` |
-| `floor(x)`, `ceil(x)` | `Math.Floor/Ceiling` | Preserves `decimal`, otherwise `double` |
-| `round(x)`, `round(x, digits)` | `Math.Round` | Preserves `decimal`, otherwise `double` |
-| `truncate(x)` | `Math.Truncate` | Preserves `decimal`, otherwise `double` |
-| `sign(x)` | `Math.Sign` | → `int` (-1, 0, 1) |
-| `atan2(y, x)` | `Math.Atan2` | → `double` |
-| `min(a, b)`, `max(a, b)` | `Math.Min/Max` | Preserves type |
-| `pow(x, y)` | `Math.Pow` | → `double` |
-| `clamp(value, min, max)` | `Math.Min(Math.Max(...))` | Preserves type |
+| Function | Maps to | Return type |
+|----------|---------|-------------|
+| `sin`, `cos`, `tan` | `Math.Sin/Cos/Tan` | `double` |
+| `asin`, `acos`, `atan` | `Math.Asin/Acos/Atan` | `double` |
+| `sinh`, `cosh`, `tanh` | `Math.Sinh/Cosh/Tanh` | `double` |
+| `abs(x)` | `Math.Abs` | preserves input type |
+| `sqrt(x)`, `cbrt(x)` | `Math.Sqrt/Cbrt` | `double` |
+| `log(x)`, `ln(x)` | `Math.Log` | `double` |
+| `log2(x)` | `Math.Log(x, 2)` | `double` |
+| `log10(x)` | `Math.Log10` | `double` |
+| `exp(x)` | `Math.Exp` | `double` |
+| `floor(x)`, `ceil(x)` | `Math.Floor/Ceiling` | preserves `decimal`, else `double` |
+| `round(x)`, `round(x, n)` | `Math.Round` | preserves `decimal`, else `double` |
+| `truncate(x)` | `Math.Truncate` | preserves `decimal`, else `double` |
+| `sign(x)` | `Math.Sign` | `int` |
+| `atan2(y, x)` | `Math.Atan2` | `double` |
+| `min(a, b)`, `max(a, b)` | `Math.Min/Max` | preserves type |
+| `pow(x, y)` | `Math.Pow` | `double` |
+| `clamp(v, min, max)` | `Math.Min(Math.Max(...))` | preserves type |
 
 <!-- test: ExtRef_Math_Functions.csx -->
 
-## Aggregate Built-in Functions
+## Aggregate Functions
 
-Operate on collections. Implemented in `AggregateBuiltins`, which delegates to the corresponding LINQ `Enumerable` methods with type-specific dispatch.
+Operate on collections. Delegate to `Enumerable` methods with type-specific dispatch for `int`, `long`, `float`, `double`, `decimal` (and nullable variants).
 
 ```csharp
 sum(new[] { 1, 2, 3, 4 })        // 10
@@ -303,13 +313,11 @@ max(new[] { 5, 3, 8, 1, 4 })     // 8
 
 <!-- test: ExtRef_Aggregate.csx -->
 
-`min` and `max` with a single collection argument are aggregates. With two scalar arguments (`min(a, b)`, `max(a, b)`), they are bare math functions that delegate to `Math.Min`/`Math.Max`.
+`min` and `max` with two scalar arguments are math functions (`Math.Min`/`Math.Max`). With one collection argument, they are aggregates.
 
 ## Date/Time Sugar
 
 ### Clock Functions
-
-Implemented in `DateArithmeticSugar`. These are zero-argument functions resolved at runtime.
 
 | Function | Returns |
 |----------|---------|
@@ -318,7 +326,7 @@ Implemented in `DateArithmeticSugar`. These are zero-argument functions resolved
 
 ### TimeSpan Unit Properties
 
-Applied to numeric values via member access. Resolved in `DateArithmeticSugar.TryResolveTimeSpanUnit` when the target is a numeric type and the member name matches a unit. Singular and plural forms both work.
+Applied to numeric values via member access. Singular and plural forms.
 
 | Syntax | Equivalent |
 |--------|------------|
@@ -335,13 +343,13 @@ new DateTime(2026, 1, 1) + 30.days    // 2026-01-31
 
 <!-- test: ExtRef_DateTime.csx -->
 
-User variables shadow unit names — if you define `var days = 5;`, then `days` refers to your variable.
+User variables shadow unit names.
 
 ## Control Flow
 
 ### Unless
 
-`unless (cond) { body }` desugars to `if (!cond) { body }` at parse time in `StatementParser`.
+`unless (cond) { body }` desugars to `if (!cond) { body }`.
 
 ```csharp
 var x = 5;
@@ -354,7 +362,7 @@ return result;    // "small"
 
 ### Until
 
-`until (cond) { body }` desugars to `while (!cond) { body }` at parse time in `StatementParser`.
+`until (cond) { body }` desugars to `while (!cond) { body }`.
 
 ```csharp
 var i = 0;
