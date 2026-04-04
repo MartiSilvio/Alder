@@ -167,6 +167,23 @@ internal sealed class StatementParser : ParserBase
         if (Match(TokenType.Const))
             return ParseConstDeclaration(mark);
 
+        // §13.15: yield return expr; or yield break;
+        if (Match(TokenType.Yield))
+        {
+            if (Match(TokenType.Return))
+            {
+                var value = _expression.ParseExpression();
+                Consume(TokenType.Semicolon, "Expected ';' after yield return");
+                return new YieldReturnExpr(value) { Span = SpanFrom(mark) };
+            }
+            if (Match(TokenType.Break))
+            {
+                Consume(TokenType.Semicolon, "Expected ';' after yield break");
+                return new YieldBreakExpr() { Span = SpanFrom(mark) };
+            }
+            throw SyntaxError(DiagnosticDescriptors.SyntaxExpected, "'return' or 'break' after 'yield'");
+        }
+
         if (MatchVar())
         {
             // Check for deconstruction pattern: var (x, y, ...) = expr
@@ -275,7 +292,7 @@ internal sealed class StatementParser : ParserBase
             body = ParseBlock();
         }
 
-        var lambda = new LambdaExpr(parameters, body) { Span = SpanFrom(mark) };
+        var lambda = new LambdaExpr(parameters, body, ReturnTypeName: _returnType.Lexeme) { Span = SpanFrom(mark) };
         return new VariableDeclExpr(null, functionName, lambda) { Span = SpanFrom(mark) };
     }
 

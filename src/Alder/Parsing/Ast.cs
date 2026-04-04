@@ -81,6 +81,8 @@ internal interface IExprVisitor<out T>
     T VisitGotoCase(GotoCaseExpr expr);
     T VisitGotoDefault(GotoDefaultExpr expr);
     T VisitLabel(LabelExpr expr);
+    T VisitYieldReturn(YieldReturnExpr expr);
+    T VisitYieldBreak(YieldBreakExpr expr);
 
     // Declarations
     T VisitVariableDecl(VariableDeclExpr expr);
@@ -352,7 +354,7 @@ internal sealed record OutArgExpr(string VariableName, string? TypeName, bool Is
 internal sealed record LambdaParameter(string? TypeName, Token Name);
 
 // Lambda: (x) => x * 2, (int a, int b) => a + b, async (x) => await f(x)
-internal sealed record LambdaExpr(List<LambdaParameter> Parameters, Expr Body, bool IsAsync = false) : Expr
+internal sealed record LambdaExpr(List<LambdaParameter> Parameters, Expr Body, bool IsAsync = false, string? ReturnTypeName = null) : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitLambda(this);
 }
@@ -495,6 +497,18 @@ internal sealed record GotoCaseExpr(Expr Value) : Expr
 internal sealed record GotoDefaultExpr : Expr
 {
     public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitGotoDefault(this);
+}
+
+// ECMA-334 §13.15: yield return expr;
+internal sealed record YieldReturnExpr(Expr Value) : Expr
+{
+    public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitYieldReturn(this);
+}
+
+// ECMA-334 §13.15: yield break;
+internal sealed record YieldBreakExpr : Expr
+{
+    public override T Accept<T>(IExprVisitor<T> visitor) => visitor.VisitYieldBreak(this);
 }
 
 // Label statement: label: (parsed as part of the containing block)

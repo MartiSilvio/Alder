@@ -92,6 +92,10 @@ internal sealed class PrimaryParser : ParserBase
             return ParseAsyncSingleParamLambda(mark);
         }
 
+        // §12.19: Anonymous method expression — delegate(params) { body }
+        if (Match(TokenType.Delegate))
+            return ParseAnonymousDelegate(mark);
+
         if (Match(TokenType.Identifier))
             return ParseIdentifier(mark);
 
@@ -938,6 +942,35 @@ internal sealed class PrimaryParser : ParserBase
             State.Current = saved;
             return null;
         }
+    }
+
+    // §12.19: Anonymous method expression — delegate(params) { body } or delegate { body }
+    private Expr ParseAnonymousDelegate(int mark)
+    {
+        var parameters = new List<LambdaParameter>();
+
+        if (Match(TokenType.LeftParen))
+        {
+            if (!Check(TokenType.RightParen))
+            {
+                while (true)
+                {
+                    var paramType = TryParseTypeName();
+                    if (paramType == null)
+                        throw SyntaxError(DiagnosticDescriptors.SyntaxExpected, "type in anonymous delegate parameter list");
+                    var paramName = Consume(TokenType.Identifier, "Expected parameter name");
+                    parameters.Add(new LambdaParameter(paramType, paramName));
+                    if (!Match(TokenType.Comma))
+                        break;
+                }
+            }
+
+            Consume(TokenType.RightParen, "Expected ')' after anonymous delegate parameter list");
+        }
+
+        Consume(TokenType.LeftBrace, "Expected '{' for anonymous delegate body");
+        var body = _statement.ParseBlock();
+        return new LambdaExpr(parameters, body) { Span = SpanFrom(mark) };
     }
 
     #endregion

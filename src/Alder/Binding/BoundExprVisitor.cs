@@ -64,6 +64,8 @@ internal abstract class BoundExprVisitor<T>
         BoundNodeKind.VariableDeclaration => VisitVariableDecl((BoundVariableDeclExpr)expr),
         BoundNodeKind.Block => VisitBlock((BoundBlockExpr)expr),
         BoundNodeKind.ReturnStatement => VisitReturn((BoundReturnExpr)expr),
+        BoundNodeKind.YieldReturnStatement => VisitYieldReturn((BoundYieldReturnExpr)expr),
+        BoundNodeKind.YieldBreakStatement => VisitYieldBreak((BoundYieldBreakExpr)expr),
         BoundNodeKind.BreakStatement => VisitBreak((BoundBreakExpr)expr),
         BoundNodeKind.ContinueStatement => VisitContinue((BoundContinueExpr)expr),
         BoundNodeKind.IfStatement => VisitIfStatement((BoundIfStatementExpr)expr),
@@ -142,6 +144,8 @@ internal abstract class BoundExprVisitor<T>
     protected virtual T VisitVariableDecl(BoundVariableDeclExpr node) => DefaultVisit(node);
     protected virtual T VisitBlock(BoundBlockExpr node) => DefaultVisit(node);
     protected virtual T VisitReturn(BoundReturnExpr node) => DefaultVisit(node);
+    protected virtual T VisitYieldReturn(BoundYieldReturnExpr node) => DefaultVisit(node);
+    protected virtual T VisitYieldBreak(BoundYieldBreakExpr node) => DefaultVisit(node);
     protected virtual T VisitBreak(BoundBreakExpr node) => DefaultVisit(node);
     protected virtual T VisitContinue(BoundContinueExpr node) => DefaultVisit(node);
     protected virtual T VisitIfStatement(BoundIfStatementExpr node) => DefaultVisit(node);

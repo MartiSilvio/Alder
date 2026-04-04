@@ -19,7 +19,10 @@ internal sealed class LambdaValue
     public AlderContext Closure { get; }
     public AlderConfig Config => Closure.Config;
     public bool IsAsync { get; }
+    public bool IsIterator => _isIterator ??= ContainsYield(Body);
+    public Type? IteratorElementType { get; set; }
 
+    private bool? _isIterator;
     private (Type[] ArgTypes, BoundExpr BoundBody)? _bindingCache;
 
     public LambdaValue(BoundLambdaExpr node, AlderContext closure)
@@ -28,6 +31,13 @@ internal sealed class LambdaValue
         Body = node.Body;
         Closure = closure;
         IsAsync = node.IsAsync;
+
+        if (node.ReturnTypeName != null)
+        {
+            var returnType = closure.TypeResolver.ResolveType(node.ReturnTypeName);
+            if (returnType != null)
+                IteratorElementType = TypeHelpers.GetEnumerableElementType(returnType);
+        }
     }
 
     internal LambdaValue(List<string> parameters, Expr body, AlderContext closure)
@@ -36,6 +46,26 @@ internal sealed class LambdaValue
         Body = body;
         Closure = closure;
     }
+
+    private static bool ContainsYield(Expr expr) => expr switch
+    {
+        YieldReturnExpr or YieldBreakExpr => true,
+        BlockExpr block => block.Statements.Any(ContainsYield)
+                           || (block.ReturnExpr != null && ContainsYield(block.ReturnExpr)),
+        IfStatementExpr ife => ife.ThenStatements.Any(ContainsYield)
+                               || (ife.ElseStatements != null && ife.ElseStatements.Any(ContainsYield)),
+        WhileStatementExpr we => we.Body.Any(ContainsYield),
+        ForStatementExpr fe => fe.Body.Any(ContainsYield),
+        ForEachStatementExpr fae => fae.Body.Any(ContainsYield),
+        DoWhileStatementExpr dw => dw.Body.Any(ContainsYield),
+        SwitchStatementExpr sw => sw.Cases.Any(static c => c.Statements.Any(ContainsYield)),
+        TryCatchFinallyExpr tc => tc.TryBody.Any(ContainsYield)
+                                  || tc.CatchClauses.Any(static c => c.Body.Any(ContainsYield))
+                                  || (tc.FinallyBody != null && tc.FinallyBody.Any(ContainsYield)),
+        UsingStatementExpr us => ContainsYield(us.Body),
+        LockStatementExpr lk => ContainsYield(lk.Body),
+        _ => false
+    };
 
     internal BoundExpr GetOrBindBody(AlderContext childContext)
     {

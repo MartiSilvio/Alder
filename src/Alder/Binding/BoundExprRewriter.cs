@@ -582,6 +582,15 @@ internal abstract class BoundExprRewriter : BoundExprVisitor<BoundExpr>, IBoundT
         return CopyMetadata(node, node with { Value = value });
     }
 
+    protected override BoundExpr VisitYieldReturn(BoundYieldReturnExpr node)
+    {
+        var value = Visit(node.Value);
+        if (ReferenceEquals(value, node.Value)) return node;
+        return CopyMetadata(node, node with { Value = value });
+    }
+
+    protected override BoundExpr VisitYieldBreak(BoundYieldBreakExpr node) => node;
+
     protected override BoundExpr VisitBreak(BoundBreakExpr node) => node;
 
     protected override BoundExpr VisitContinue(BoundContinueExpr node) => node;

@@ -359,7 +359,12 @@ internal static class MethodInvoker
             if (!MethodDispatchCache.TryInvokeFast(method, target, args, out var result))
                 result = method.Invoke(target, args);
 
-            return TypeHelpers.GuardReflectionLeak(result, "method", method.Name);
+            // Methods on Type are safe metadata queries — the user already has
+            // a Type value via typeof(). Don't block Type returns from Type members.
+            if (method.DeclaringType == null || !typeof(Type).IsAssignableFrom(method.DeclaringType))
+                return TypeHelpers.GuardReflectionLeak(result, "method", method.Name);
+
+            return result;
         }
         catch (TargetInvocationException ex) when (ex.InnerException != null)
         {
@@ -432,6 +437,9 @@ internal static class MethodInvoker
     {
         if (lambda.IsAsync)
             return InvokeLambdaAsyncCore(lambda, args);
+
+        if (lambda.IsIterator)
+            return IteratorEnumerable.Create(lambda, args, context);
 
         var childContext = lambda.Closure.CreateChild();
         for (var i = 0; i < lambda.Parameters.Count && i < args.Length; i++)

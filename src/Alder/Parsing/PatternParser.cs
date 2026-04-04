@@ -90,9 +90,23 @@ internal sealed class PatternParser : ParserBase
             return new DiscardPattern();
         }
 
-        // Var pattern: var name
+        // Var pattern: var name, or var positional pattern: var (x, y)
         if (Match(TokenType.Var))
         {
+            // §11.4: var (x, y) — var positional pattern, captures all elements as var declarations
+            if (Check(TokenType.LeftParen))
+            {
+                Advance(); // consume '('
+                var subpatterns = new List<Pattern>();
+                do
+                {
+                    var elementName = Consume(TokenType.Identifier, "Expected variable name in var positional pattern");
+                    subpatterns.Add(new VarPattern(elementName));
+                } while (Match(TokenType.Comma));
+                Consume(TokenType.RightParen, "Expected ')' after var positional pattern");
+                return new PositionalPattern(subpatterns);
+            }
+
             var varName = Consume(TokenType.Identifier, "Expected identifier after 'var'");
             return new VarPattern(varName);
         }

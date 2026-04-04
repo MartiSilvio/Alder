@@ -163,6 +163,19 @@ internal static class IdentifierRuntime
         return new LambdaValue(parameterNames.ToList(), body, context);
     }
 
+    public static object CreateIteratorLambdaValue(
+        string[] parameterNames,
+        Expr body,
+        AlderContext context,
+        string returnTypeName)
+    {
+        var lambda = new LambdaValue(parameterNames.ToList(), body, context);
+        var returnType = context.TypeResolver.ResolveType(returnTypeName);
+        if (returnType != null)
+            lambda.IteratorElementType = TypeHelpers.GetEnumerableElementType(returnType);
+        return lambda;
+    }
+
     private static object? ResolveIdentifierCore(string name, AlderContext context)
     {
         if (context.Functions.TryGetValue(name, out var function))

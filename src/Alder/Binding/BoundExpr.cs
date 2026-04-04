@@ -95,6 +95,8 @@ internal enum BoundNodeKind
     InterpolatedString = 207,
     IsPatternExpression = 212,
     ThrowExpression = 229,
+    YieldReturnStatement = 230,
+    YieldBreakStatement = 231,
 
     // Alder-specific — member access
     PropertyAccess = 1_000,

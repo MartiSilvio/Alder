@@ -9,10 +9,6 @@ internal static class LambdaBinder
 {
     public static BoundExpr Bind(LambdaExpr expr, BindingContext context, BinderContext binder)
     {
-        return new BoundLambdaExpr(
-            [..expr.Parameters.Select(static parameter => parameter.Name.Lexeme)],
-            expr.Body,
-            expr.IsAsync,
-            new BoundType(typeof(LambdaValue)));
+        return new BoundLambdaExpr(expr, new BoundType(typeof(LambdaValue)));
     }
 }

@@ -129,7 +129,7 @@ internal sealed partial class ExpressionParser : ParserBase
         }
 
         if (Check(TokenType.Return) || Check(TokenType.Break) || Check(TokenType.Continue) ||
-            Check(TokenType.Goto) ||
+            Check(TokenType.Goto) || Check(TokenType.Yield) ||
             Check(TokenType.While) || Check(TokenType.For) ||
             Check(TokenType.Do) || Check(TokenType.Foreach) || Check(TokenType.Switch) ||
             Check(TokenType.Try) || Check(TokenType.Const) ||

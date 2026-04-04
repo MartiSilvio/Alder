@@ -8,6 +8,6 @@ internal static class OutArgBinder
 {
     public static BoundExpr Bind(OutArgExpr expr, BindingContext context, BinderContext binder)
     {
-        return new BoundOutArgExpr(expr.VariableName, expr.TypeName, expr.IsDiscard, BoundType.Unknown);
+        return new BoundOutArgExpr(expr, BoundType.Unknown);
     }
 }

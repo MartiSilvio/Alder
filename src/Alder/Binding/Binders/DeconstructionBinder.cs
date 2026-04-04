@@ -1,4 +1,3 @@
-using System.Collections.Immutable;
 using Alder.Binding.BoundNodes;
 using Alder.Parsing;
 
@@ -10,7 +9,6 @@ internal static class DeconstructionBinder
     public static BoundExpr Bind(DeconstructionExpr expr, BindingContext context, BinderContext binder)
     {
         var valueExpression = binder.Bind(expr.ValueExpression, context);
-        var variableNames = expr.VariableNames.ToImmutableArray();
-        return new BoundDeconstructionExpr(variableNames, valueExpression, valueExpression.StaticType);
+        return new BoundDeconstructionExpr(expr, valueExpression, valueExpression.StaticType);
     }
 }

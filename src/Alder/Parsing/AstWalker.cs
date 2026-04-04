@@ -521,6 +521,19 @@ internal abstract class AstWalker<T> : IExprVisitor<T>
         return OnLeave(expr);
     }
 
+    public virtual T VisitYieldReturn(YieldReturnExpr expr)
+    {
+        OnEnter(expr);
+        Visit(expr.Value);
+        return OnLeave(expr);
+    }
+
+    public virtual T VisitYieldBreak(YieldBreakExpr expr)
+    {
+        OnEnter(expr);
+        return OnLeave(expr);
+    }
+
     public virtual T VisitSwitch(SwitchStatementExpr expr)
     {
         OnEnter(expr);

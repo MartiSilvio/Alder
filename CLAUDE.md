@@ -17,7 +17,7 @@ Alder targets Roslyn-grade engineering. Every subsystem should be designed as if
 
 - One commit per phase (not per plan or task) — accumulate all changes, commit once at the very end
 - Do NOT include plan numbers, phase numbers, or GSD references in commit messages
-- Keep commit messages lean — short subject line (under 72 chars), optional 1-3 line body with the "why". No essays, no bullet lists, no inventories of what changed. The diff shows what; the message explains why.
+- Keep commit messages lean — subject line only (under 72 chars), no body. No essays, no bullet lists, no inventories of what changed. The diff speaks for itself. Example: `feat: yield return/break, iterators, multi-dollar interpolation`.
 
 ## Architectural Principles
 

@@ -10,6 +10,12 @@ internal sealed class BoundEvaluator
 {
     private readonly EvaluationContext _evalCtx;
 
+    public Func<object?, bool>? YieldCallback
+    {
+        get => _evalCtx.YieldCallback;
+        set => _evalCtx.YieldCallback = value;
+    }
+
     public BoundEvaluator(
         AlderContext context,
         ExecutionConstraintState? constraintState = null,

@@ -8,6 +8,6 @@ internal static class GotoBinder
 {
     public static BoundExpr Bind(GotoExpr expr, BindingContext context, BinderContext binder)
     {
-        return new BoundGotoExpr(expr.Label, BoundType.Void);
+        return new BoundGotoExpr(expr, BoundType.Void);
     }
 }

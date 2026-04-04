@@ -169,6 +169,9 @@ internal static class BoundRuntimeMethodCache
     internal static readonly MethodInfo CreateLambdaValueMethod =
         typeof(IdentifierRuntime).GetMethod(nameof(IdentifierRuntime.CreateLambdaValue))!;
 
+    internal static readonly MethodInfo CreateIteratorLambdaValueMethod =
+        typeof(IdentifierRuntime).GetMethod(nameof(IdentifierRuntime.CreateIteratorLambdaValue))!;
+
     internal static readonly MethodInfo InvokeConstructorMethod =
         typeof(ConstructionRuntime).GetMethod(nameof(ConstructionRuntime.InvokeConstructor), [typeof(Type), typeof(object?[]), typeof(AlderContext)])!;
 

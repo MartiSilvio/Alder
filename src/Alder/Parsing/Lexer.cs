@@ -377,7 +377,15 @@ internal sealed class Lexer
                 break;
 
             case '$':
-                if (Match('@'))
+                // Count consecutive '$' signs for multi-dollar interpolation ($$, $$$, etc.)
+                int dollarCount = 1;
+                while (Peek() == '$')
+                {
+                    Advance();
+                    dollarCount++;
+                }
+
+                if (dollarCount == 1 && Match('@'))
                 {
                     if (Match('"'))
                         ScanVerbatimInterpolatedString();
@@ -387,9 +395,11 @@ internal sealed class Lexer
                 else if (Match('"'))
                 {
                     if (Peek() == '"' && PeekNext() == '"')
-                        ScanRawInterpolatedString();
-                    else
+                        ScanRawInterpolatedString(dollarCount);
+                    else if (dollarCount == 1)
                         ScanInterpolatedString();
+                    else
+                        throw LexError($"Multi-dollar interpolation requires raw string literals (e.g., $$\"\"\"...\"\"\" ) at {_line}:{_column}");
                 }
                 else
                     throw LexError($"Unexpected character '$' at {_line}:{_column}. Did you mean '$\"...'?");
@@ -603,9 +613,9 @@ internal sealed class Lexer
             AddToken(TokenType.String, sb.ToString());
     }
 
-    private void ScanRawInterpolatedString()
+    private void ScanRawInterpolatedString(int dollarCount = 1)
     {
-        // $" already consumed. Count remaining opening quotes (at least 2 more for """).
+        // First " already consumed. Count remaining opening quotes (at least 2 more for """).
         int openQuotes = 1;
         while (Peek() == '"')
         {
@@ -647,28 +657,45 @@ internal sealed class Lexer
             }
             else if (Peek() == '{')
             {
-                if (braceDepth == 0 && PeekNext() == '{')
+                // Count consecutive braces. With dollarCount N, exactly N consecutive '{'
+                // opens an interpolation hole; fewer are literal content.
+                int braceCount = CountConsecutive('{');
+                if (braceDepth == 0 && braceCount >= dollarCount)
                 {
-                    sb.Append(Advance());
-                    sb.Append(Advance());
+                    // Interpolation hole opener: normalize N braces to single '{' for the parser
+                    sb.Append('{');
+                    braceDepth++;
+                    // Any extra braces beyond dollarCount are literal content inside the hole
+                    for (var i = dollarCount; i < braceCount; i++) sb.Append('{');
+                }
+                else if (braceDepth > 0)
+                {
+                    // Inside an interpolation hole — pass through as-is
+                    for (var i = 0; i < braceCount; i++) { braceDepth++; sb.Append('{'); }
                 }
                 else
                 {
-                    braceDepth++;
-                    sb.Append(Advance());
+                    // Literal braces (fewer than dollarCount outside a hole)
+                    sb.Append(new string('{', braceCount));
                 }
             }
             else if (Peek() == '}')
             {
-                if (braceDepth == 0 && PeekNext() == '}')
+                int braceCount = CountConsecutive('}');
+                if (braceDepth == 1 && braceCount >= dollarCount)
                 {
-                    sb.Append(Advance());
-                    sb.Append(Advance());
+                    // Interpolation hole closer: normalize N braces to single '}' for the parser
+                    sb.Append('}');
+                    braceDepth--;
+                    for (var i = dollarCount; i < braceCount; i++) sb.Append('}');
+                }
+                else if (braceDepth > 0)
+                {
+                    for (var i = 0; i < braceCount; i++) { braceDepth--; sb.Append('}'); }
                 }
                 else
                 {
-                    braceDepth--;
-                    sb.Append(Advance());
+                    sb.Append(new string('}', braceCount));
                 }
             }
             else
@@ -1300,6 +1327,13 @@ internal sealed class Lexer
     private char Peek() => IsAtEnd() ? '\0' : _source[_current];
 
     private char PeekNext() => _current + 1 >= _source.Length ? '\0' : _source[_current + 1];
+
+    private int CountConsecutive(char c)
+    {
+        var count = 0;
+        while (Peek() == c) { Advance(); count++; }
+        return count;
+    }
 
     private bool Match(char expected)
     {

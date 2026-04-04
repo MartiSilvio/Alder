@@ -12,6 +12,16 @@ internal sealed class LambdaEmitter : INodeEmitter<BoundLambdaExpr>
             typeof(string),
             node.Parameters.Select(static name => LinqExpression.Constant(name)));
 
+        if (node.ReturnTypeName != null)
+        {
+            return LinqExpression.Call(
+                CreateIteratorLambdaValueMethod,
+                parameters,
+                LinqExpression.Constant(node.Body, typeof(Expr)),
+                ctx.ContextParam,
+                LinqExpression.Constant(node.ReturnTypeName));
+        }
+
         return LinqExpression.Call(
             CreateLambdaValueMethod,
             parameters,

@@ -25,6 +25,7 @@ internal sealed partial class EvaluationContext
     public int BreakContextDepth { get; set; }
     public int LoopDepth { get; set; }
     public bool IsChecked { get; set; }
+    public Func<object?, bool>? YieldCallback { get; set; }
 
     private AlderContext _contextRef;
 

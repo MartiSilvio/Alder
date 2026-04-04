@@ -1,7 +1,11 @@
+using Alder.Parsing;
+
 namespace Alder.Binding.BoundNodes;
 
-internal sealed record BoundGotoExpr(string Label, BoundType StaticType) : BoundExpr(StaticType)
+internal sealed record BoundGotoExpr(GotoExpr Source, BoundType StaticType) : BoundExpr(StaticType)
 {
+    public string Label => Source.Label;
+
     internal override BoundNodeKind Kind => BoundNodeKind.GotoStatement;
     internal override void EnumerateChildren(Action<BoundExpr> visit) { }
 }
@@ -18,8 +22,10 @@ internal sealed record BoundGotoDefaultExpr(BoundType StaticType) : BoundExpr(St
     internal override void EnumerateChildren(Action<BoundExpr> visit) { }
 }
 
-internal sealed record BoundLabelExpr(string Name, BoundType StaticType) : BoundExpr(StaticType)
+internal sealed record BoundLabelExpr(LabelExpr Source, BoundType StaticType) : BoundExpr(StaticType)
 {
+    public string Name => Source.Name;
+
     internal override BoundNodeKind Kind => BoundNodeKind.Label;
     internal override void EnumerateChildren(Action<BoundExpr> visit) { }
 }
