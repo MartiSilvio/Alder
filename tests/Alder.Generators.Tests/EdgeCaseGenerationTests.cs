@@ -40,8 +40,9 @@ public class EdgeCaseGenerationTests
         var generated = GetAllGeneratedSource(generatedTrees);
 
         Assert.That(errors, Is.Empty, $"Generated code has compilation errors:\n{string.Join("\n", errors)}");
-        Assert.That(generated, Does.Contain("TryGet"));
-        Assert.That(generated, Does.Contain("return false;"));
+        Assert.That(generated, Does.Contain("TypedDispatch"));
+        Assert.That(generated, Does.Not.Contain("TryGet("));
+        Assert.That(generated, Does.Not.Contain("TrySet("));
     }
 
     [Test]
@@ -237,7 +238,7 @@ public class EdgeCaseGenerationTests
 
     private static string ExtractMethod(string source, string methodName)
     {
-        var searchStr = $"public bool {methodName}(";
+        var searchStr = $"public override bool {methodName}(";
         var idx = source.IndexOf(searchStr);
         if (idx < 0) return string.Empty;
 

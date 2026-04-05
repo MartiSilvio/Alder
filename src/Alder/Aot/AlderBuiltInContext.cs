@@ -21,6 +21,7 @@ namespace Alder.Aot;
 [AlderRegistered(typeof(ArgumentNullException))]
 [AlderRegistered(typeof(InvalidOperationException))]
 [AlderRegistered(typeof(Array))]
+[AlderRegistered(typeof(System.Linq.Enumerable))]
 [AlderRegistered(typeof(List<int>))]
 [AlderRegistered(typeof(List<double>))]
 [AlderRegistered(typeof(List<string>))]

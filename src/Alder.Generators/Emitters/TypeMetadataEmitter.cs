@@ -14,19 +14,18 @@ internal static class TypeMetadataEmitter
         w.AppendLine("#nullable enable");
         w.AppendLine();
 
-        using (w.Block($"file sealed class {reg.MetadataClassName} : global::Alder.Aot.ITypedDispatch"))
+        using (w.Block($"file sealed class {reg.MetadataClassName} : global::Alder.Aot.TypedDispatch"))
         {
-            w.AppendLine($"public global::System.Type Type => typeof({reg.TypeFullName});");
-            w.AppendLine();
+            w.AppendLine($"public override global::System.Type Type => typeof({reg.TypeFullName});");
 
-            EmitTryGet(w, reg);
-            EmitTrySet(w, reg);
-            EmitTryGetStatic(w, reg);
-            EmitTryGetIndex(w, reg);
-            EmitTrySetIndex(w, reg);
-            EmitTryCreate(w, reg);
-            EmitTryInvoke(w, reg);
-            EmitTryInvokeStatic(w, reg);
+            EmitTryGetIfNeeded(w, reg);
+            EmitTrySetIfNeeded(w, reg);
+            EmitTryGetStaticIfNeeded(w, reg);
+            EmitTryGetIndexIfNeeded(w, reg);
+            EmitTrySetIndexIfNeeded(w, reg);
+            EmitTryCreateIfNeeded(w, reg);
+            EmitTryInvokeIfNeeded(w, reg);
+            EmitTryInvokeStaticIfNeeded(w, reg);
         }
 
         return w.ToString();
@@ -52,7 +51,7 @@ internal static class TypeMetadataEmitter
 
             foreach (var reg in closedGenerics)
             {
-                var fieldName = "_" + AlderSourceGenerator.SanitizeIdentifier(reg.TypeFullName);
+                var fieldName = "_" + TypeParser.SanitizeIdentifier(reg.TypeFullName);
                 if (!seenFields.Add(fieldName))
                     continue;
                 w.AppendLine($"static readonly global::System.Type {fieldName} = typeof({reg.TypeFullName});");
@@ -60,7 +59,7 @@ internal static class TypeMetadataEmitter
 
             foreach (var vt in valueTypes)
             {
-                var id = AlderSourceGenerator.SanitizeIdentifier(vt);
+                var id = TypeParser.SanitizeIdentifier(vt);
                 EmitTypeRoot(w, seenFields, $"Nullable_{id}", $"global::System.Nullable<{vt}>");
                 EmitTypeRoot(w, seenFields, $"EqComparer_{id}", $"global::System.Collections.Generic.EqualityComparer<{vt}>");
                 EmitTypeRoot(w, seenFields, $"Comparer_{id}", $"global::System.Collections.Generic.Comparer<{vt}>");
@@ -79,9 +78,9 @@ internal static class TypeMetadataEmitter
         w.AppendLine($"static readonly global::System.Type _{fieldName} = typeof({typeFullName});");
     }
 
-    #region Member accessors (merged property + field)
+    #region Member accessors — only emitted when the type has matching members
 
-    private static void EmitTryGet(SourceWriter w, TypeRegistrationModel reg)
+    private static void EmitTryGetIfNeeded(SourceWriter w, TypeRegistrationModel reg)
     {
         var properties = reg.Properties.Where(p => p is { IsStatic: false, CanRead: true })
             .Select(p => (p.Name, $"value = typed.{p.Name}; return true;"));
@@ -89,14 +88,22 @@ internal static class TypeMetadataEmitter
             .Select(f => (f.Name, $"value = typed.{f.Name}; return true;"));
         var cases = properties.Concat(fields).ToArray();
 
-        EmitNameSwitch(w,
-            "public bool TryGet(string name, object instance, out object? value)",
-            reg.TypeFullName,
-            cases,
-            "value = default;", "return false;");
+        if (cases.Length == 0) return;
+
+        w.AppendLine();
+        using (w.Block("public override bool TryGet(string name, object instance, out object? value)"))
+        {
+            w.AppendLine($"var typed = ({reg.TypeFullName})instance;");
+            using (w.Block("switch (name)"))
+            {
+                foreach (var (name, body) in cases)
+                    w.AppendLine($"case \"{name}\": {body}");
+                w.AppendLine("default: value = default; return false;");
+            }
+        }
     }
 
-    private static void EmitTrySet(SourceWriter w, TypeRegistrationModel reg)
+    private static void EmitTrySetIfNeeded(SourceWriter w, TypeRegistrationModel reg)
     {
         var properties = reg.Properties.Where(p => p is { IsStatic: false, CanWrite: true })
             .Select(p => (p.Name, $"typed.{p.Name} = ({p.TypeFullName})value!; return true;"));
@@ -104,14 +111,22 @@ internal static class TypeMetadataEmitter
             .Select(f => (f.Name, $"typed.{f.Name} = ({f.TypeFullName})value!; return true;"));
         var cases = properties.Concat(fields).ToArray();
 
-        EmitNameSwitch(w,
-            "public bool TrySet(string name, object instance, object? value)",
-            reg.TypeFullName,
-            cases,
-            "return false;");
+        if (cases.Length == 0) return;
+
+        w.AppendLine();
+        using (w.Block("public override bool TrySet(string name, object instance, object? value)"))
+        {
+            w.AppendLine($"var typed = ({reg.TypeFullName})instance;");
+            using (w.Block("switch (name)"))
+            {
+                foreach (var (name, body) in cases)
+                    w.AppendLine($"case \"{name}\": {body}");
+                w.AppendLine("default: return false;");
+            }
+        }
     }
 
-    private static void EmitTryGetStatic(SourceWriter w, TypeRegistrationModel reg)
+    private static void EmitTryGetStaticIfNeeded(SourceWriter w, TypeRegistrationModel reg)
     {
         var properties = reg.Properties.Where(p => p is { IsStatic: true, CanRead: true })
             .Select(p => (p.Name, $"value = {reg.TypeFullName}.{p.Name}; return true;"));
@@ -119,172 +134,126 @@ internal static class TypeMetadataEmitter
             .Select(f => (f.Name, $"value = {reg.TypeFullName}.{f.Name}; return true;"));
         var cases = properties.Concat(fields).ToArray();
 
-        EmitNameSwitch(w,
-            "public bool TryGetStatic(string name, out object? value)",
-            null,
-            cases,
-            "value = default;", "return false;");
+        if (cases.Length == 0) return;
+
+        w.AppendLine();
+        using (w.Block("public override bool TryGetStatic(string name, out object? value)"))
+        {
+            using (w.Block("switch (name)"))
+            {
+                foreach (var (name, body) in cases)
+                    w.AppendLine($"case \"{name}\": {body}");
+                w.AppendLine("default: value = default; return false;");
+            }
+        }
     }
 
     #endregion
 
-    #region Indexers
+    #region Indexers — only emitted when the type has indexers
 
-    private static void EmitTryGetIndex(SourceWriter w, TypeRegistrationModel reg)
+    private static void EmitTryGetIndexIfNeeded(SourceWriter w, TypeRegistrationModel reg)
     {
         var readable = reg.Indexers.Where(i => i.CanRead).ToArray();
+        if (readable.Length == 0) return;
 
-        using (w.Block("public bool TryGetIndex(object instance, object key, out object? value)"))
-        {
-            if (readable.Length > 0)
-            {
-                var idx = readable[0];
-                w.AppendLine($"value = (({reg.TypeFullName})instance)[({idx.KeyTypeFullName})key];");
-                w.AppendLine("return true;");
-            }
-            else
-            {
-                w.AppendLine("value = default;");
-                w.AppendLine("return false;");
-            }
-        }
-
+        var idx = readable[0];
         w.AppendLine();
+        using (w.Block("public override bool TryGetIndex(object instance, object key, out object? value)"))
+        {
+            w.AppendLine($"value = (({reg.TypeFullName})instance)[({idx.KeyTypeFullName})key];");
+            w.AppendLine("return true;");
+        }
     }
 
-    private static void EmitTrySetIndex(SourceWriter w, TypeRegistrationModel reg)
+    private static void EmitTrySetIndexIfNeeded(SourceWriter w, TypeRegistrationModel reg)
     {
         var writable = reg.Indexers.Where(i => i.CanWrite).ToArray();
+        if (writable.Length == 0) return;
 
-        using (w.Block("public bool TrySetIndex(object instance, object key, object? value)"))
-        {
-            if (writable.Length > 0)
-            {
-                var idx = writable[0];
-                w.AppendLine(
-                    $"(({reg.TypeFullName})instance)[({idx.KeyTypeFullName})key] = ({idx.ValueTypeFullName})value!;");
-                w.AppendLine("return true;");
-            }
-            else
-            {
-                w.AppendLine("return false;");
-            }
-        }
-
+        var idx = writable[0];
         w.AppendLine();
+        using (w.Block("public override bool TrySetIndex(object instance, object key, object? value)"))
+        {
+            w.AppendLine(
+                $"(({reg.TypeFullName})instance)[({idx.KeyTypeFullName})key] = ({idx.ValueTypeFullName})value!;");
+            w.AppendLine("return true;");
+        }
     }
 
     #endregion
 
-    #region Constructors
+    #region Constructors — only emitted when the type has public constructors
 
-    private static void EmitTryCreate(SourceWriter w, TypeRegistrationModel reg)
+    private static void EmitTryCreateIfNeeded(SourceWriter w, TypeRegistrationModel reg)
     {
-        using (w.Block("public bool TryCreate(object?[] args, out object? instance)"))
+        if (reg.Constructors.Length == 0) return;
+
+        w.AppendLine();
+        using (w.Block("public override bool TryCreate(object?[] args, out object? instance)"))
         {
-            if (reg.Constructors.Length > 0)
+            using (w.Block("switch (args.Length)"))
             {
-                using (w.Block("switch (args.Length)"))
+                foreach (var arityGroup in reg.Constructors.GroupBy(c => c.Parameters.Length).OrderBy(g => g.Key))
                 {
-                    foreach (var arityGroup in reg.Constructors.GroupBy(c => c.Parameters.Length).OrderBy(g => g.Key))
+                    var ctors = arityGroup.ToArray();
+                    w.AppendLine($"case {arityGroup.Key}:");
+                    w.Indent();
+
+                    if (arityGroup.Key == 0)
                     {
-                        var ctors = arityGroup.ToArray();
-                        w.AppendLine($"case {arityGroup.Key}:");
-                        w.Indent();
-
-                        if (arityGroup.Key == 0)
+                        w.AppendLine($"instance = new {reg.TypeFullName}(); return true;");
+                    }
+                    else
+                    {
+                        foreach (var ctor in ctors)
                         {
-                            w.AppendLine($"instance = new {reg.TypeFullName}(); return true;");
-                        }
-                        else
-                        {
-                            foreach (var ctor in ctors)
-                            {
-                                var condition = FormatTypeChecks(ctor.Parameters);
-                                var castArgs = FormatCastArgs(ctor.Parameters);
-                                w.AppendLine(
-                                    $"if ({condition}) {{ instance = new {reg.TypeFullName}({castArgs}); return true; }}");
-                            }
-
-                            w.AppendLine("instance = default; return false;");
+                            var condition = FormatTypeChecks(ctor.Parameters);
+                            var castArgs = FormatCastArgs(ctor.Parameters);
+                            w.AppendLine(
+                                $"if ({condition}) {{ instance = new {reg.TypeFullName}({castArgs}); return true; }}");
                         }
 
-                        w.Outdent();
+                        w.AppendLine("instance = default; return false;");
                     }
 
-                    w.AppendLine("default: instance = default; return false;");
+                    w.Outdent();
                 }
-            }
-            else
-            {
-                w.AppendLine("instance = default;");
-                w.AppendLine("return false;");
+
+                w.AppendLine("default: instance = default; return false;");
             }
         }
     }
 
     #endregion
 
-    #region Method invocation
+    #region Method invocation — only emitted when the type has matching methods
 
-    private static void EmitTryInvoke(SourceWriter w, TypeRegistrationModel reg)
+    private static void EmitTryInvokeIfNeeded(SourceWriter w, TypeRegistrationModel reg)
     {
         var methods = reg.Methods.Where(m => !m.IsStatic).ToArray();
+        if (methods.Length == 0) return;
+
         w.AppendLine();
         EmitMethodDispatch(w,
-            "public bool TryInvoke(string name, object instance, object?[] args, out object? result)",
+            "public override bool TryInvoke(string name, object instance, object?[] args, out object? result)",
             reg.TypeFullName, methods, isStatic: false);
     }
 
-    private static void EmitTryInvokeStatic(SourceWriter w, TypeRegistrationModel reg)
+    private static void EmitTryInvokeStaticIfNeeded(SourceWriter w, TypeRegistrationModel reg)
     {
         var methods = reg.Methods.Where(m => m.IsStatic).ToArray();
+        if (methods.Length == 0) return;
+
         w.AppendLine();
         EmitMethodDispatch(w,
-            "public bool TryInvokeStatic(string name, object?[] args, out object? result)",
+            "public override bool TryInvokeStatic(string name, object?[] args, out object? result)",
             reg.TypeFullName, methods, isStatic: true);
-    }
-
-    #endregion
-
-    #region Shared helpers
-
-    /// <summary>
-    /// Emits the repeated pattern: method signature → if members: typed cast + switch(name) { cases }; else: default return.
-    /// </summary>
-    private static void EmitNameSwitch(
-        SourceWriter w,
-        string signature,
-        string? typedCastType,
-        (string Name, string Body)[] cases,
-        params string[] defaultStatements)
-    {
-        using (w.Block(signature))
-        {
-            if (cases.Length > 0)
-            {
-                if (typedCastType != null)
-                    w.AppendLine($"var typed = ({typedCastType})instance;");
-
-                using (w.Block("switch (name)"))
-                {
-                    foreach (var (name, body) in cases)
-                        w.AppendLine($"case \"{name}\": {body}");
-                    w.AppendLine($"default: {string.Join(" ", defaultStatements)}");
-                }
-            }
-            else
-            {
-                foreach (var stmt in defaultStatements)
-                    w.AppendLine(stmt);
-            }
-        }
-
-        w.AppendLine();
     }
 
     /// <summary>
     /// Emits method dispatch with nested switch: name → args.Length → type-checked overloads.
+    /// Params methods are emitted after the args.Length switch as variable-arity fallbacks.
     /// </summary>
     private static void EmitMethodDispatch(
         SourceWriter w,
@@ -297,68 +266,137 @@ internal static class TypeMetadataEmitter
 
         using (w.Block(signature))
         {
-            if (methods.Length > 0)
+            if (!isStatic)
+                w.AppendLine($"var typed = ({typeFullName})instance;");
+
+            using (w.Block("switch (name)"))
             {
-                if (!isStatic)
-                    w.AppendLine($"var typed = ({typeFullName})instance;");
-
-                using (w.Block("switch (name)"))
+                foreach (var nameGroup in methods.GroupBy(m => m.Name))
                 {
-                    foreach (var nameGroup in methods.GroupBy(m => m.Name))
-                    {
-                        w.AppendLine($"case \"{nameGroup.Key}\":");
-                        w.Indent();
+                    var normalMethods = nameGroup.Where(m => !m.HasParams).ToArray();
+                    var paramsMethods = nameGroup.Where(m => m.HasParams).ToArray();
 
+                    w.AppendLine($"case \"{nameGroup.Key}\":");
+                    w.Indent();
+
+                    if (normalMethods.Length > 0)
+                    {
                         using (w.Block("switch (args.Length)"))
                         {
-                            foreach (var arityGroup in nameGroup.GroupBy(m => m.Parameters.Length))
+                            foreach (var arityGroup in normalMethods.GroupBy(m => m.Parameters.Length))
                             {
                                 var overloads = arityGroup.ToArray();
                                 w.AppendLine($"case {arityGroup.Key}:");
                                 w.Indent();
-
                                 EmitOverloadDispatch(w, overloads, target);
-
                                 w.AppendLine("break;");
                                 w.Outdent();
                             }
 
                             w.AppendLine("default: break;");
                         }
+                    }
 
-                        w.AppendLine("break;");
-                        w.Outdent();
+                    foreach (var paramsMethod in paramsMethods)
+                        EmitParamsDispatch(w, paramsMethod, target);
+
+                    w.AppendLine("break;");
+                    w.Outdent();
+                }
+            }
+
+            w.AppendLine("result = default;");
+            w.AppendLine("return false;");
+        }
+    }
+
+    #endregion
+
+    #region Params dispatch
+
+    /// <summary>
+    /// Emits dispatch for a params method. Handles two forms:
+    /// 1. Normal form: caller passed the array directly (args.Length == paramCount, last arg is the array type)
+    /// 2. Expanded form: caller passed individual elements (args.Length >= fixedCount), collected into an array at dispatch time
+    /// </summary>
+    private static void EmitParamsDispatch(SourceWriter w, MethodModel method, string target)
+    {
+        var paramsParam = method.Parameters[method.Parameters.Length - 1];
+        var fixedCount = method.FixedParameterCount;
+
+        // The params parameter type is an array (e.g., char[]). Extract the element type.
+        var arrayType = paramsParam.TypeFullName;
+        // "global::System.Char[]" → "global::System.Char"
+        var elementType = arrayType.EndsWith("[]")
+            ? arrayType.Substring(0, arrayType.Length - 2)
+            : arrayType;
+
+        // Normal form: caller passed the array directly
+        {
+            var normalCheck = FormatTypeChecks(method.Parameters);
+            var normalArgs = FormatCastArgs(method.Parameters);
+            var normalCall = $"{target}.{FormatMethodName(method)}({normalArgs})";
+            var arityCheck = $"args.Length == {method.Parameters.Length}";
+
+            if (method.ReturnsVoid)
+                w.AppendLine($"if ({arityCheck} && {normalCheck}) {{ {normalCall}; result = null; return true; }}");
+            else
+                w.AppendLine($"if ({arityCheck} && {normalCheck}) {{ result = {normalCall}; return true; }}");
+        }
+
+        // Expanded form: collect individual elements into an array
+        {
+            var fixedChecks = new List<string>();
+            fixedChecks.Add($"args.Length >= {fixedCount}");
+            for (var i = 0; i < fixedCount; i++)
+                fixedChecks.Add($"args[{i}] is {method.Parameters[i].TypeFullName}");
+
+            var fixedCondition = string.Join(" && ", fixedChecks);
+
+            using (w.Block($"if ({fixedCondition})"))
+            {
+                w.AppendLine($"var __paramsLen = args.Length - {fixedCount};");
+                w.AppendLine($"var __paramsArr = new {elementType}[__paramsLen];");
+                w.AppendLine("var __paramsOk = true;");
+                using (w.Block("for (var __i = 0; __i < __paramsLen; __i++)"))
+                {
+                    using (w.Block($"if (args[__i + {fixedCount}] is {elementType} __elem)"))
+                    {
+                        w.AppendLine("__paramsArr[__i] = __elem;");
+                    }
+                    using (w.Block("else"))
+                    {
+                        w.AppendLine("__paramsOk = false; break;");
                     }
                 }
 
-                w.AppendLine("result = default;");
-                w.AppendLine("return false;");
-            }
-            else
-            {
-                w.AppendLine("result = default;");
-                w.AppendLine("return false;");
+                using (w.Block("if (__paramsOk)"))
+                {
+                    var callArgs = new List<string>();
+                    for (var i = 0; i < fixedCount; i++)
+                        callArgs.Add($"({method.Parameters[i].TypeFullName})args[{i}]!");
+                    callArgs.Add("__paramsArr");
+
+                    var call = $"{target}.{FormatMethodName(method)}({string.Join(", ", callArgs)})";
+                    if (method.ReturnsVoid)
+                        w.AppendLine($"{call}; result = null; return true;");
+                    else
+                        w.AppendLine($"result = {call}; return true;");
+                }
             }
         }
     }
 
-    private static void EmitMethodCall(SourceWriter w, MethodModel method, string target)
-    {
-        var castArgs = FormatCastArgs(method.Parameters);
-        var call = $"{target}.{method.Name}({castArgs})";
+    #endregion
 
-        if (method.ReturnsVoid)
-            w.AppendLine($"{call}; result = null; return true;");
-        else
-            w.AppendLine($"result = {call}; return true;");
-    }
+    #region Shared helpers
 
     private static void EmitOverloadDispatch(SourceWriter w, MethodModel[] methods, string target)
     {
         foreach (var method in methods)
         {
             var castArgs = FormatCastArgs(method.Parameters);
-            var call = $"{target}.{method.Name}({castArgs})";
+            var call = $"{target}.{FormatMethodName(method)}({castArgs})";
 
             if (method.Parameters.Length == 0)
             {
@@ -376,6 +414,13 @@ internal static class TypeMetadataEmitter
                     w.AppendLine($"if ({condition}) {{ result = {call}; return true; }}");
             }
         }
+    }
+
+    private static string FormatMethodName(MethodModel method)
+    {
+        if (!method.IsGenericInstantiation)
+            return method.Name;
+        return $"{method.Name}<{string.Join(", ", method.GenericTypeArgs)}>";
     }
 
     private static string FormatCastArgs(ImmutableArray<ParameterModel> parameters)

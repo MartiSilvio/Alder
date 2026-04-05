@@ -4,7 +4,7 @@
 
 
 
-Alder is a C# runtime engine. A complete compiler pipeline (lexer, parser, semantic binder, optimization passes, two execution backends) in a single NuGet package with zero dependencies. Pass C# code as a string, get a result. From `1 + 2` to multi-statement programs with LINQ, pattern matching, generic type inference, async/await, iterators, exception handling, and ECMA-334 overload resolution. Alder delegates to .NET wherever possible: `.Where()` calls the real `Enumerable.Where`, `Math.Round` calls the real `Math.Round`, type conversions follow the real CLR rules. The engine bridges dynamic evaluation to .NET's actual runtime, it doesn't reimplement it.
+Alder is a C# runtime engine. A complete compiler pipeline (lexer, parser, semantic binder, optimization passes, two execution backends) in a single NuGet package with zero dependencies. Alder delegates to .NET wherever possible: `.Where()` calls the real `Enumerable.Where`, `Math.Round` calls the real `Math.Round`, conversions follow CLR rules. The engine bridges dynamic evaluation to .NET, it doesn't reimplement it.
 
 ```bash
 dotnet add package Alder
@@ -12,7 +12,7 @@ dotnet add package Alder
 
 One package. .NET 8+ and .NET Standard 2.0. Zero dependencies on .NET 8+. AOT-compatible out of the box.
 
-## Evaluate an expression
+## Evaluate C# at runtime
 
 ```csharp
 using Alder;
@@ -21,177 +21,68 @@ var engine = new AlderEngine();
 int result = engine.Evaluate<int>("(5 + 3) * 2"); // 16
 ```
 
-## Query a collection
+Three ways to evaluate: instance method, `AlderEval` static, or string extensions.
+
+```csharp
+AlderEval.Evaluate<int>("1 + 2");    // static
+"1 + 2".Evaluate<int>();              // string extension
+```
+
+See [Evaluation](evaluation.md) for all overloads, variable patterns, compilation options, and async.
+
+## Inject variables
 
 ```csharp
 engine.SetVariable<List<int>>("scores", new List<int> { 88, 92, 76, 95, 61 });
-
-double avg = engine.Evaluate<double>("scores.Where(s => s >= 70).Average()");
-// 87.75
+double avg = engine.Evaluate<double>("scores.Where(s => s >= 70).Average()"); // 87.75
 ```
 
-`SetVariable<T>` gives the binder the variable's type at semantic analysis time. The binder resolves `.Where()` to `Enumerable.Where<int>`, infers `s` as `int` through §12.6.3 generic type inference, and selects `.Average()` via overload resolution. All at bind time.
-
-For one-off evaluations, pass an anonymous object:
+`SetVariable<T>` gives the binder the variable's type. LINQ, member access, and overload resolution are resolved at bind time. Anonymous objects and dictionaries also work:
 
 ```csharp
-bool eligible = engine.Evaluate<bool>(
-    "age >= 18 && country != null",
-    new { age = 25, country = "US" }); // true
+engine.Evaluate<bool>("age >= 18", new { age = 25, country = "US" }); // true
 ```
 
-## Statements and control flow
+See [Variables](engine/variables.md) for typed vs untyped injection, child engines, scoping, and concurrency.
+
+## Statements, control flow, pattern matching
 
 ```csharp
-engine.SetVariable<int>("score", 82);
-
-string grade = engine.Evaluate<string>("""
-    var letter = score switch
+engine.Evaluate<string>("""
+    return score switch
     {
         >= 90 => "A",
         >= 80 => "B",
         >= 70 => "C",
-        >= 60 => "D",
         _ => "F"
     };
-    return $"{letter} ({score})";
     """);
-// "B (82)"
 ```
 
-Variable declarations, switch expressions with relational patterns (§11.2.3), string interpolation, `return`. Five-stage pipeline: lexing, parsing, semantic binding with type inference, optimization passes (constant folding, dead branch elimination), execution.
-
-## Pattern matching
-
-The complete ECMA-334 §11.2 pattern system: constant, type, relational, logical (`and`/`or`/`not`), property, positional, list, slice, var, discard.
-
-```csharp
-engine.SetVariable<object>("shape", new { Kind = "circle", Radius = 5.0 });
-
-string desc = engine.Evaluate<string>("""
-    return shape switch
-    {
-        { Kind: "circle", Radius: > 10 } => "large circle",
-        { Kind: "circle", Radius: var r } => $"circle r={r}",
-        { Kind: "rect" } => "rectangle",
-        _ => "unknown"
-    };
-    """);
-// "circle r=5"
-```
-
-## Iterators
-
-Local functions with `yield return` produce lazy sequences:
-
-```csharp
-var result = engine.Evaluate<List<int>>("""
-    IEnumerable<int> Fib()
-    {
-        var a = 0;
-        var b = 1;
-        while (true)
-        {
-            yield return a;
-            var temp = a;
-            a = b;
-            b = temp + b;
-        }
-    }
-    return Fib().Take(10).ToList();
-    """);
-// [0, 1, 1, 2, 3, 5, 8, 13, 21, 34]
-```
-
-Infinite sequences, lazy evaluation, full control flow inside the body. The returned `IEnumerable<T>` works with every LINQ operator.
-
-## Async/await
-
-```csharp
-var result = await engine.EvaluateAsync<int>("""
-    var a = await Task.FromResult(10);
-    var b = await Task.FromResult(20);
-    return a + b;
-    """);
-// 30
-```
-
-Unwraps `Task<T>`, `Task`, `ValueTask<T>`, `ValueTask`. Async lambdas: `async x => await Task.FromResult(x * 2)`. `CancellationToken` is automatically injected into method calls that accept one as their last parameter.
-
-## Parse once, evaluate many
-
-`Evaluate(string)` re-parses every call. For repeated evaluation, parse once:
-
-```csharp
-AlderExpression expr = engine.Parse("price * (1 - discount)");
-
-engine.SetVariable<double>("price", 100.0);
-engine.SetVariable<double>("discount", 0.1);
-double r1 = engine.Evaluate<double>(expr); // 90.0
-
-engine.SetVariable<double>("price", 250.0);
-double r2 = engine.Evaluate<double>(expr); // 225.0
-```
-
-The bound tree is cached on the `AlderExpression`. When variable types haven't changed, binding is skipped entirely.
-
-## Error handling
-
-```csharp
-if (!engine.TryEvaluate("items.Where(", out _))
-    Console.WriteLine("Syntax error"); // no exception thrown
-```
-
-`TryEvaluate` returns `false` on any failure. `TryValidate` runs full semantic analysis without executing:
-
-```csharp
-engine.SetVariable<string>("name", "Alice");
-
-if (!engine.TryValidate("name.Foo()", out var diagnostics))
-    Console.WriteLine($"{diagnostics[0].FormattedCode}: {diagnostics[0].Message}");
-    // CS1061: 'String' does not contain a definition for 'Foo'
-```
-
-Roslyn-compatible error codes (`CS0103`, `CS1061`, `CS0029`), structured diagnostics with line/column positions.
+Variable declarations, LINQ (method + query syntax), pattern matching (11 pattern types), switch expressions, iterators (`yield return`/`yield break`), async/await, lambdas, exception handling, `using`/`lock`, `goto`. Full ECMA-334 semantics. See [Standard Mode](language/standard.md).
 
 ## Compile to native IL
 
 ```csharp
 var engine = new AlderEngine(o => o.UseCompiler());
 
-// First call: parse, bind, emit expression tree, compile to IL, execute
-// Subsequent calls: execute cached native delegate
-string result = engine.Evaluate<string>("""
-    string.Join(", ", new[] { 3, 1, 4, 1, 5 }.Distinct().OrderBy(x => x))
-    """);
-// "1, 3, 4, 5"
-```
-
-The compiler translates the bound tree into `System.Linq.Expressions` with local promotion (typed IL locals instead of dictionary lookups) and identifier hoisting (pre-loaded variables). For the hottest paths, `Compile<T>` bypasses engine dispatch:
-
-```csharp
-var compiled = engine.Compile<int>("""
-    Enumerable.Range(1, n).Where(x => x % 3 == 0 || x % 5 == 0).Sum()
-    """);
+var compiled = engine.Compile<int>("Enumerable.Range(1, n).Sum()");
 engine.SetVariable<int>("n", 1000);
-int sum = compiled.Invoke(); // 233168
+compiled.Invoke(); // 500500
 ```
 
-The compiler backend is swappable via `IExpressionCompiler`. See [Compilation](engine/compilation.md).
+Two backends: interpreter (76 source-generated evaluators) and IL compiler (local promotion, identifier hoisting, native delegates). `CompileToFunc<T>` for raw delegates, `ParseAsExpression<TDelegate>` for EF Core expression trees. See [Compilation](engine/compilation.md).
 
 ## LINQ Dynamic
-
-Every `IEnumerable<T>` and `IQueryable<T>` becomes dynamically queryable with string-based lambdas:
 
 ```csharp
 AlderEval.Configure(o => o.UseCompiler());
 
 var engineers = people.WhereDynamic("x => x.Department == \"Engineering\"");
-var names = people.SelectDynamic<Person, string>("x => x.Name");
-var totalSalary = people.SumDynamic("x => x.Salary");
+var total = people.SumDynamic("x => x.Salary");
 ```
 
-On `IQueryable<T>`, LINQ Dynamic produces `Expression<Func<T, bool>>` trees that EF Core translates to SQL. See [LINQ Dynamic](engine/linq-dynamic.md).
+String-based LINQ on any `IEnumerable<T>` or `IQueryable<T>`. On `IQueryable<T>`, produces expression trees that EF Core translates to SQL. See [LINQ Dynamic](engine/linq-dynamic.md).
 
 ## Secure evaluation
 
@@ -208,80 +99,438 @@ var engine = new AlderEngine(o =>
 });
 ```
 
-Security is enforced as a bound tree pipeline pass **before execution begins**. The entire expression tree is validated against the policy. If any node violates a permission, evaluation never starts.
+Security is a pipeline pass that validates the entire expression tree **before execution**. Eight permission flags, four-layer type blocking, execution limits. See [Security](security/sandbox.md).
 
-Three presets: `Trusted()` (full access, default), `Safe()` (property reads and assignment, no method calls or construction), `Strict()` (read-only). Default deny lists cover file I/O, networking, process execution, reflection, threading. See [Security](security/sandbox.md).
-
-## Step-by-step tracing
-
-```csharp
-var trace = engine.EvaluateWithTrace("""
-    var items = new[] { 1, 2, 3 };
-    var squared = items.Select(x => x * x).ToList();
-    return squared.Sum();
-    """);
-
-Console.WriteLine(trace.Result); // 14
-Console.WriteLine(trace.Tree);   // step-by-step evaluation tree
-```
-
-Each trace node shows the expression text, computed value, and runtime type.
-
-## NativeAOT and Unity IL2CPP
-
-An incremental source generator emits typed dispatch code at compile time:
+## NativeAOT and IL2CPP
 
 ```csharp
 [AlderRegistered(typeof(List<int>))]
 [AlderRegistered(typeof(DateTime))]
 public partial class MyTypeContext : AlderTypeContext { }
 
-var engine = new AlderEngine(o =>
-{
-    o.Aot.UseGeneratedContext(new MyTypeContext());
-});
+var engine = new AlderEngine(o => o.Aot.UseGeneratedContext(new MyTypeContext()));
 ```
 
-Same API, same behavior. See [AOT](aot/overview.md).
+Incremental source generator emits reflection-free typed dispatch. Same API on every platform. See [AOT](aot/overview.md).
 
 ## Extended mode
-
-A strict superset of Standard C#:
 
 ```csharp
 var ext = new AlderEngine(o => o.LanguageMode = LanguageMode.Extended);
 
-ext.Evaluate("2 ** 10");                                          // 1024.0
-ext.Evaluate("[x * x for x in 1..=10 if x % 2 == 0]");           // [4, 16, 36, 64, 100]
-ext.Evaluate("5 |> (x => x * 2)");                                // 10
-ext.Evaluate("""new DateTime(2026, 1, 1) + 30.days""");           // 2026-01-31
+ext.Evaluate("[x * x for x in 1..=10 if x % 2 == 0]");  // [4, 16, 36, 64, 100]
+ext.Evaluate("5 |> (x => x * 2)");                        // 10
+ext.Evaluate("""now() + 30.days""");                       // date arithmetic
 ```
 
-Power, pipeline, chained comparisons (`0 <= x <= 100`), comprehensions, `let..in`, bare math (`sin`, `cos`, `sqrt`), aggregates (`sum`, `avg`), date/time sugar, SQL operators (`in`, `like`, `between`), slicing. See [Extended Mode](language/extended.md).
-
-## Under the hood
-
-| Component | |
-|-----------|--|
-| **Lexer** | Single-pass. Six string forms including C# 11 raw strings and multi-dollar interpolation. |
-| **Parser** | Precedence-climbing with five sub-parsers. LINQ query syntax desugars to method calls at parse time. |
-| **Binder** | ECMA-334 semantic analysis. Overload resolution (§12.6.4) with 7 tie-breaking rules. Generic type inference (§12.6.3) with variance-aware bounds and lambda return inference. |
-| **Passes** | Pre-execution security validation, constant folding, dead branch elimination, conversion insertion. |
-| **Interpreter** | 76 per-node evaluators, source-generated dispatch. Pre-built delegate tables for unboxed numeric operations. Signal-based control flow. |
-| **Compiler** | Bound tree to `System.Linq.Expressions`. Local promotion, identifier hoisting. Swappable via `IExpressionCompiler`. |
-| **AOT** | Incremental source generator. `switch`/`is` dispatch. Pre-instantiated delegate factories. Generic rooting. |
+Power, pipeline, chained comparisons, comprehensions, bare math, aggregates, date/time sugar, SQL operators. See [Extended Mode](language/extended.md).
 
 ## Further reading
 
 | | |
 |--|--|
-| **[Standard Mode](language/standard.md)** | Literals, operators, expressions, statements, pattern matching, LINQ, async/await, iterators, type system |
-| **[Extended Mode](language/extended.md)** | Power, pipeline, comprehensions, bare math, aggregates, date/time sugar, SQL operators |
-| **[Engine API](engine/index.md)** | AlderEngine, AlderOptions, variables, compilation, functions, modules, diagnostics |
+| **[Evaluation](evaluation.md)** | All evaluation methods, variable patterns, compilation, async |
+| **[Standard Mode](language/standard.md)** | Full ECMA-334 language reference |
+| **[Extended Mode](language/extended.md)** | Power, pipeline, comprehensions, bare math, SQL operators |
+| **[Engine API](engine/index.md)** | AlderEngine, AlderOptions, functions, modules, diagnostics |
 | **[LINQ Dynamic](engine/linq-dynamic.md)** | String-based LINQ on IEnumerable\<T\> and IQueryable\<T\> |
 | **[Security](security/sandbox.md)** | Sandbox presets, type blocking, execution limits |
 | **[AOT](aot/overview.md)** | Source generators, typed dispatch, NativeAOT/IL2CPP |
-| **[Architecture](architecture/index.md)** | Pipeline internals: binder, overload resolution, type inference, interpreter, compiler |
+| **[Architecture](architecture/index.md)** | Pipeline internals: binder, overload resolution, type inference |
+
+
+The `Evaluate` method executes C# code at runtime and returns the result. From simple expressions to multi-statement programs with LINQ, pattern matching, and control flow.
+
+```csharp
+var engine = new AlderEngine();
+var result = engine.Evaluate<int>("1 + 2"); // 3
+```
+
+## Three ways to evaluate
+
+### Instance method
+
+Create an engine, evaluate against it. Use this when you need custom configuration, persistent variables, or isolated evaluation contexts.
+
+```csharp
+var engine = new AlderEngine(o =>
+{
+    o.Sandbox = SandboxOptions.Safe();
+    o.UseCompiler();
+});
+
+var result = engine.Evaluate<List<int>>("new List<int> { 1, 2, 3 }");
+```
+
+### Static method
+
+`AlderEval` provides a shared global engine. Configure once at startup, evaluate from anywhere.
+
+```csharp
+AlderEval.Configure(o => o.UseCompiler());
+
+var result = AlderEval.Evaluate<int>("Enumerable.Range(1, 10).Sum()"); // 55
+```
+
+### String extension
+
+Every string becomes evaluable. Delegates to `AlderEval`.
+
+```csharp
+var result = "1 + 2".Evaluate<int>(); // 3
+var ok = "Math.PI".TryEvaluate<double>(out var pi); // true
+```
+
+## Return type
+
+Omit the generic parameter to get `object?`. Specify `<T>` for typed results with automatic conversion.
+
+```csharp
+object? untyped = engine.Evaluate("1 + 2");          // boxed int 3
+int typed = engine.Evaluate<int>("1 + 2");            // 3
+double widened = engine.Evaluate<double>("1 + 2");    // 3.0 (implicit widening)
+```
+
+## Variables
+
+### Typed variables (recommended)
+
+`SetVariable<T>` gives the binder the variable's type. Member access, LINQ, and overload resolution are resolved at bind time.
+
+```csharp
+engine.SetVariable<List<int>>("scores", new List<int> { 88, 92, 76, 95, 61 });
+engine.SetVariable<int>("threshold", 70);
+
+double avg = engine.Evaluate<double>("scores.Where(s => s >= threshold).Average()");
+// 87.75
+```
+
+Variables persist across evaluations. Updating a value is visible to the next `Evaluate` call on any thread.
+
+### Anonymous object (per-call, typed)
+
+Properties become variables scoped to that single evaluation. Property types are preserved for type-aware binding.
+
+```csharp
+var result = engine.Evaluate<bool>(
+    "age >= 18 && country != null",
+    new { age = 25, country = "US" });
+// true
+```
+
+```csharp
+var result = engine.Evaluate<List<int>>(
+    "new List<int> { 1, 2, 3, 4, 5 }.Where(x => x > min && x < max).ToList()",
+    new { min = 1, max = 5 });
+// [2, 3, 4]
+```
+
+### Dictionary (per-call, untyped)
+
+For dynamic keys from configuration or user input. Values are typed as `object`.
+
+```csharp
+var vars = new Dictionary<string, object?>
+{
+    ["threshold"] = 100,
+    ["multiplier"] = 1.5
+};
+double result = engine.Evaluate<double>("threshold * multiplier", vars);
+// 150.0
+```
+
+### Class instance (per-call, typed)
+
+Any object works. Public properties become variables.
+
+```csharp
+public class PricingParams
+{
+    public double BasePrice { get; set; }
+    public double TaxRate { get; set; }
+    public double Discount { get; set; }
+}
+
+var pricing = new PricingParams { BasePrice = 100, TaxRate = 0.08, Discount = 0.1 };
+double total = engine.Evaluate<double>(
+    "BasePrice * (1 + TaxRate) * (1 - Discount)",
+    pricing);
+// 97.2
+```
+
+## Multi-statement programs
+
+Separate statements with semicolons. Use `return` to produce a result.
+
+```csharp
+var result = engine.Evaluate<string>("""
+    var items = new[] { 3, 1, 4, 1, 5, 9 };
+    var unique = items.Distinct().OrderByDescending(x => x).Take(3).ToList();
+    return $"Top 3: {string.Join(", ", unique)}";
+    """);
+// "Top 3: 9, 5, 4"
+```
+
+```csharp
+var result = engine.Evaluate<List<string>>("""
+    var answers = new List<string>();
+    for (var i = 1; i <= 20; i++)
+    {
+        if (i % 15 == 0) answers.Add($"{i} => FizzBuzz");
+        else if (i % 3 == 0) answers.Add($"{i} => Fizz");
+        else if (i % 5 == 0) answers.Add($"{i} => Buzz");
+        else answers.Add($"{i} => {i}");
+    }
+    return answers;
+    """);
+```
+
+## Try methods (no exceptions)
+
+`TryEvaluate` returns `false` on any failure. `TryValidate` runs full semantic analysis without executing.
+
+```csharp
+if (engine.TryEvaluate<int>("1 + 2", out var result))
+    Console.WriteLine(result); // 3
+
+if (!engine.TryEvaluate("invalid(", out _))
+    Console.WriteLine("Failed");
+```
+
+```csharp
+if (!engine.TryValidate("name.Foo()", out var diagnostics))
+    Console.WriteLine($"{diagnostics[0].FormattedCode}: {diagnostics[0].Message}");
+    // CS1061: 'String' does not contain a definition for 'Foo'
+```
+
+## Compile for performance
+
+### Auto-compilation
+
+With `UseCompiler()`, every expression is compiled to native IL on first execution and cached.
+
+```csharp
+var engine = new AlderEngine(o => o.UseCompiler());
+engine.Evaluate<int>("1 + 2"); // compiled and cached on first call
+```
+
+### Compile\<T\> (reusable wrapper)
+
+Bypasses engine dispatch. Context is captured by reference: variable updates are visible.
+
+```csharp
+var compiled = engine.Compile<int>("Enumerable.Range(1, n).Sum()");
+engine.SetVariable<int>("n", 100);
+compiled.Invoke();     // 5050
+engine.SetVariable<int>("n", 10);
+compiled.Invoke();     // 55
+```
+
+Per-invocation variables via dictionary:
+
+```csharp
+compiled.Invoke(new Dictionary<string, object?> { ["n"] = 50 }); // 1275
+```
+
+### CompileToFunc\<T\> (raw delegate)
+
+```csharp
+engine.SetVariable<double>("r", 5.0);
+Func<double?> area = engine.CompileToFunc<double>("Math.PI * r * r");
+area();                              // ~78.54
+engine.SetVariable<double>("r", 10.0);
+area();                              // ~314.16
+```
+
+### ParseAsExpression\<TDelegate\> (LINQ expression tree)
+
+For EF Core, IQueryable providers, or any system that consumes expression trees.
+
+```csharp
+Expression<Func<int, bool>> predicate =
+    engine.ParseAsExpression<Func<int, bool>>("x => x > 18 && x < 65");
+
+// Pass to EF Core
+var adults = dbContext.People.Where(predicate);
+
+// Or compile to a delegate
+Func<int, bool> fn = predicate.Compile();
+fn(25);  // true
+fn(10);  // false
+```
+
+## Async
+
+Use `EvaluateAsync` for expressions containing `await`.
+
+```csharp
+var result = await engine.EvaluateAsync<int>("""
+    var a = await Task.FromResult(10);
+    var b = await Task.FromResult(20);
+    return a + b;
+    """);
+// 30
+```
+
+All variable patterns work with `EvaluateAsync`:
+
+```csharp
+var html = await engine.EvaluateAsync<string>(
+    "await http.GetStringAsync(url)",
+    new { http = new HttpClient(), url = "https://example.com" });
+```
+
+## Parse once, evaluate many
+
+`Evaluate(string)` re-parses every call. For repeated evaluation, parse once:
+
+```csharp
+AlderExpression expr = engine.Parse("price * (1 - discount)");
+
+engine.SetVariable<double>("price", 100.0);
+engine.SetVariable<double>("discount", 0.1);
+engine.Evaluate<double>(expr); // 90.0
+
+engine.SetVariable<double>("price", 250.0);
+engine.Evaluate<double>(expr); // 225.0
+```
+
+The bound tree is cached. When variable types haven't changed, binding is skipped entirely.
+
+## All overloads
+
+### AlderEngine instance
+
+| Method | Returns |
+|--------|---------|
+| `Evaluate(string)` | `object?` |
+| `Evaluate(string, IDictionary<string, object?>)` | `object?` |
+| `Evaluate(string, object)` | `object?` (typed from properties) |
+| `Evaluate(AlderExpression)` | `object?` |
+| `Evaluate(AlderExpression, IDictionary<string, object?>)` | `object?` |
+| `Evaluate(AlderExpression, object)` | `object?` (typed from properties) |
+| `Evaluate<T>(string)` | `T?` |
+| `Evaluate<T>(string, IDictionary<string, object?>)` | `T?` |
+| `Evaluate<T>(string, object)` | `T?` (typed from properties) |
+| `Evaluate<T>(AlderExpression)` | `T?` |
+| `Evaluate<T>(AlderExpression, IDictionary<string, object?>)` | `T?` |
+| `Evaluate<T>(AlderExpression, object)` | `T?` (typed from properties) |
+| `TryEvaluate(string, out object?)` | `bool` |
+| `TryEvaluate<T>(string, out T?)` | `bool` |
+| `EvaluateAsync(string)` | `ValueTask<object?>` |
+| `EvaluateAsync<T>(string)` | `ValueTask<T?>` |
+
+All accept optional `CancellationToken` as the last parameter.
+
+### AlderEval static
+
+Same signatures as instance methods, prefixed with `AlderEval.`:
+
+```csharp
+AlderEval.Evaluate<int>("1 + 2")
+AlderEval.Evaluate<int>("x + y", new { x = 1, y = 2 })
+AlderEval.TryEvaluate<int>("1 + 2", out var result)
+await AlderEval.EvaluateAsync<int>("await Task.FromResult(42)")
+```
+
+### String extensions
+
+Same signatures as static methods, called on any string:
+
+```csharp
+"1 + 2".Evaluate<int>()
+"x + y".Evaluate<int>(new { x = 1, y = 2 })
+"1 + 2".TryEvaluate<int>(out var result)
+```
+
+## Construction
+
+| Signature | Description |
+|-----------|-------------|
+| `AlderEngine()` | Default: Standard mode, Trusted sandbox, interpreted |
+| `AlderEngine(Action<AlderOptions>)` | Configure via builder lambda |
+| `AlderEngine(AlderOptions)` | Configure via options object |
+
+Configuration is frozen at construction time. See [AlderOptions](engine/alder-options.md).
+
+## Parsing
+
+`Parse` returns a reusable `AlderExpression`. `TryParse` is the non-throwing variant.
+
+```csharp
+AlderExpression expr = engine.Parse("price * (1 - discount)");
+
+if (!engine.TryParse("items.Where(x =>", out _, out string? error))
+    Console.WriteLine(error);
+```
+
+### AlderExpression properties
+
+| Member | Type | Description |
+|--------|------|-------------|
+| `Source` | `string` | The original expression string |
+| `GetVariables()` | `IReadOnlyList<string>` | Unbound identifiers the expression references |
+| `IsCompiled` | `bool` | Whether a compiled delegate exists |
+| `IsCompilable` | `bool?` | Whether compilation is possible (`null` = not attempted) |
+| `CompilationFailureReason` | `string?` | Why compilation failed |
+
+## Validation
+
+`TryValidate` performs full semantic analysis (lexing, parsing, binding in recovering mode) without executing. `TryParse` checks syntax only. `TryValidate` also catches type errors and missing members.
+
+```csharp
+engine.SetVariable<string>("name", "Alice");
+
+if (!engine.TryValidate("name.Foo()", out IReadOnlyList<AlderDiagnostic> diagnostics))
+{
+    foreach (var d in diagnostics)
+        Console.WriteLine($"{d.FormattedCode}: {d.Message}");
+    // CS1061: 'String' does not contain a definition for 'Foo'
+}
+```
+
+## Tracing
+
+`EvaluateWithTrace` returns the result plus a step-by-step evaluation tree.
+
+```csharp
+var trace = engine.EvaluateWithTrace("""
+    var data = new[] { 1, 2, 3 };
+    return data.Select(x => x * x).Sum();
+    """);
+
+Console.WriteLine(trace.Result); // 14
+Console.WriteLine(trace.Tree);   // evaluation tree
+```
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `Result` | `object?` | The evaluation result |
+| `Tree` | `TraceNode` | Root of the evaluation tree |
+| `Error` | `Exception?` | The exception if evaluation failed |
+
+Each `TraceNode` shows the node kind, source text, computed value, runtime type, and child evaluations. Tracing skips optimization passes so every subexpression is visible. Always uses the interpreter.
+
+## Disposal
+
+`AlderEngine` implements `IDisposable`. After disposal, all methods throw `ObjectDisposedException`.
+
+```csharp
+using var engine = new AlderEngine();
+var result = engine.Evaluate<int>("1 + 1"); // 2
+```
+
+Disposing a parent disposes all children (shared `DisposalToken`). Lightweight: does not wait for in-flight evaluations.
+
+## Thread Safety
+
+- All evaluation methods can be called concurrently.
+- `SetVariable<T>` is thread-safe (`ConcurrentDictionary` storage).
+- Child engines (`CreateChild()`) can be evaluated concurrently with parent and each other.
+- `AlderExpression` objects are thread-safe and shareable.
+- Bound tree caching uses `ConditionalWeakTable`.
+- Compiled delegate caching uses volatile fields with double-checked locking.
+- Pipeline instances are static and reused across evaluations.
 
 
 Alder's public API is built around `AlderEngine`, configured once at construction, immutable after that, thread-safe for concurrent evaluation. From a single engine instance: evaluate C# code, parse and reuse expressions, validate syntax and semantics without executing, compile to native IL delegates, trace evaluation step-by-step, inject variables from your application.
@@ -308,7 +557,7 @@ var result = engine.Evaluate<string>("""
 
 | Page | What it covers |
 |------|---------------|
-| [AlderEngine](alder-engine.md) | Full API: evaluate, parse, validate, compile, trace, dispose, thread safety, static API |
+| [Evaluation](../evaluation.md) | Evaluate, parse, validate, compile, trace, async, thread safety |
 | [AlderOptions](alder-options.md) | Configuration: language mode, sandbox, constraints, compiler, sub-builders |
 | [Variables](variables.md) | Injection patterns, typed vs untyped, anonymous objects, dictionaries, child engines, scoping |
 | [Compilation](compilation.md) | IL compilation, UseCompiler, CompileToFunc, ParseAsExpression, Compile\<T\> |
@@ -317,227 +566,6 @@ var result = engine.Evaluate<string>("""
 | [Type Registration](type-registration.md) | Assemblies, namespaces, extension methods, type resolution order |
 | [Async/Await](async.md) | EvaluateAsync, awaitable types, async lambdas, CancellationToken injection |
 | [Diagnostics](diagnostics.md) | AlderDiagnostic, AlderException, every CS and ALDR error code |
-
-
-`AlderEngine` is the entry point for evaluating C# code at runtime. It owns the parser, binder, interpreter, and optional compiler. Configuration is frozen at construction time. All evaluation methods are thread-safe.
-
-```csharp
-var engine = new AlderEngine(o =>
-{
-    o.UseCompiler();
-    o.Sandbox = SandboxOptions.Safe();
-    o.Constraints = new ExecutionConstraints
-    {
-        MaxStatements = 10_000,
-        MaxTimeout = TimeSpan.FromSeconds(5)
-    };
-});
-```
-
-See [AlderOptions](alder-options.md) for the full configuration surface.
-
-## Construction
-
-| Signature | Description |
-|-----------|-------------|
-| `AlderEngine()` | Default: Standard mode, Trusted sandbox, interpreted |
-| `AlderEngine(Action<AlderOptions>)` | Configure via builder lambda |
-| `AlderEngine(AlderOptions)` | Configure via options object |
-
-## Evaluation
-
-### `Evaluate`
-
-```csharp
-var result = engine.Evaluate<string>("""
-    var items = Enumerable.Range(1, 10)
-        .Where(n => n % 2 == 0)
-        .Select(n => n * n)
-        .ToList();
-    return $"Sum: {items.Sum()}, Count: {items.Count}";
-    """);
-// "Sum: 220, Count: 5"
-```
-
-`UseCompiler()` compiles expressions to native delegates on first execution and caches them. Without it, the interpreter evaluates the bound tree.
-
-Both paths share the same front-end (lexer, parser, binder, pipeline passes). If compilation fails, `AlderException` with `ALDR0001` is thrown. There is no silent fallback to interpretation.
-
-`Evaluate<T>` applies C# conversion rules. If the expression produces `int` and you request `long`, implicit widening handles it. Incompatible types raise `InvalidCastException`.
-
-### Variable overloads
-
-Each `Evaluate` method accepts variables through three patterns:
-
-| Overload | Variable source |
-|----------|----------------|
-| `Evaluate(string)` | Engine's persistent variables only |
-| `Evaluate(string, IDictionary<string, object?>)` | Persistent + dictionary (scoped to call) |
-| `Evaluate(string, object)` | Persistent + anonymous object properties (scoped to call) |
-| `Evaluate(AlderExpression, ...)` | Same patterns with pre-parsed expression |
-
-Per-call variables create a child engine internally. The parent engine's state is never modified. See [Variables](variables.md).
-
-All overloads accept an optional `CancellationToken` as the last parameter.
-
-### `TryEvaluate`
-
-```csharp
-if (engine.TryEvaluate<int>("1 + 2", out int result))
-    Console.WriteLine(result); // 3
-
-if (!engine.TryEvaluate("invalid(", out _))
-    Console.WriteLine("Failed"); // no exception thrown
-```
-
-Returns `false` for parse, binding, runtime, and conversion failures.
-
-## Parsing
-
-### `Parse`
-
-```csharp
-AlderExpression expr = engine.Parse("price * (1 - discount)");
-```
-
-Returns an `AlderExpression` containing the parsed AST. The expression can be evaluated multiple times with different variable values without re-parsing. The bound tree is cached per-context and invalidated when variable types change.
-
-### `TryParse`
-
-```csharp
-if (engine.TryParse("items.Where(x => x > 0)", out AlderExpression? expr))
-    Console.WriteLine(expr!.Source);
-
-if (!engine.TryParse("items.Where(x =>", out _, out string? error))
-    Console.WriteLine(error); // syntax error message
-```
-
-### `AlderExpression` properties
-
-| Member | Type | Description |
-|--------|------|-------------|
-| `Source` | `string` | The original expression string |
-| `GetVariables()` | `IReadOnlyList<string>` | Unbound identifiers the expression references |
-| `IsCompiled` | `bool` | Whether a compiled delegate exists |
-| `IsCompilable` | `bool?` | Whether compilation is possible (`null` = not attempted) |
-| `CompilationFailureReason` | `string?` | Why compilation failed, or `null` |
-
-## Validation
-
-### `TryValidate`
-
-```csharp
-engine.SetVariable<string>("name", "Alice");
-
-if (!engine.TryValidate("name.Foo()", out IReadOnlyList<AlderDiagnostic> diagnostics))
-{
-    foreach (var d in diagnostics)
-        Console.WriteLine($"{d.FormattedCode}: {d.Message}");
-    // CS1061: 'String' does not contain a definition for 'Foo'
-}
-```
-
-`TryValidate` performs lexing, parsing, binding (in recovering mode to collect all diagnostics), and unbound identifier detection. `TryParse` checks syntax only. `TryValidate` also checks semantics: `name.Foo()` parses successfully but fails validation.
-
-## Tracing
-
-### `EvaluateWithTrace`
-
-```csharp
-var trace = engine.EvaluateWithTrace("""
-    var data = new[] { 1, 2, 3 };
-    return data.Select(x => x * x).Sum();
-    """);
-
-Console.WriteLine(trace.Result); // 14
-Console.WriteLine(trace.Tree);   // step-by-step evaluation tree
-```
-
-Returns `EvaluationTraceResult` with:
-
-| Property | Type | Description |
-|----------|------|-------------|
-| `Result` | `object?` | The evaluation result |
-| `Tree` | `TraceNode` | Root of the step-by-step evaluation tree |
-| `Error` | `Exception?` | The exception if evaluation failed |
-
-Each `TraceNode` shows the node kind, source text, computed value, runtime type, description, error details, and child evaluations. Tracing skips optimization passes (no constant folding or dead branch elimination) so every subexpression is visible.
-
-Tracing always uses the interpreter, even when `UseCompiler()` is configured.
-
-## Variables
-
-| Method | Returns | Description |
-|--------|---------|-------------|
-| `SetVariable<T>(string, T)` | `AlderEngine` | Typed persistent variable (fluent) |
-| `SetVariable(string, object?)` | `AlderEngine` | Untyped persistent variable (fluent) |
-| `SetVariables(IDictionary<string, object?>)` | `AlderEngine` | Bulk load from dictionary |
-| `CreateChild()` | `AlderEngine` | Isolated child with inherited config and variables |
-| `GetRegisteredModules()` | `IReadOnlyDictionary<string, RegisteredModule>` | Snapshot of all registered modules |
-
-See [Variables](variables.md) for the full variable system.
-
-## Compilation
-
-| Method | Returns | Description |
-|--------|---------|-------------|
-| `TryCompile(AlderExpression)` | `bool` | Attempt compilation, return success/failure |
-| `Compile(AlderExpression)` | `void` | Compile or throw |
-| `ParseAndCompile(string)` | `AlderExpression` | Parse + compile in one step |
-| `Compile<T>(string)` | `AlderCompiledExpression<T>` | Hot-path compiled wrapper |
-| `CompileToFunc<T>(string)` | `Func<T?>` | Bare compiled delegate |
-| `ParseAsExpression<TDelegate>(string)` | `Expression<TDelegate>` | LINQ expression tree for EF/IQueryable |
-| `TryParseAsExpression<TDelegate>(string, ...)` | `bool` | Non-throwing expression tree parsing |
-| `CompileExpression<TDelegate>(string)` | `TDelegate` | Parse + compile expression tree to delegate |
-
-`ParseAndCompile`, `Compile<T>`, `CompileToFunc<T>`, `ParseAsExpression`, `TryParseAsExpression`, and `CompileExpression` are extension methods from `Alder.Compiled`. They require `UseCompiler()`.
-
-See [Compilation](compilation.md) for details.
-
-## Disposal
-
-`AlderEngine` implements `IDisposable`. Disposing sets a flag on the shared `DisposalToken`, then clears the expression cache and type metadata. After disposal, all public methods throw `ObjectDisposedException`.
-
-```csharp
-using var engine = new AlderEngine();
-var result = engine.Evaluate<int>("1 + 1"); // 2
-// engine disposed at end of scope
-```
-
-Disposing a parent engine disposes all children (they share the same `DisposalToken`). Disposal is lightweight: it does not wait for in-flight evaluations.
-
-## Thread Safety
-
-- All evaluation methods can be called concurrently.
-- `SetVariable<T>` is thread-safe. The engine uses `ConcurrentDictionary` for the runtime context. Variables set before the first evaluation are staged in a protected dictionary and bulk-flushed when evaluation begins.
-- Child engines created via `CreateChild()` can be evaluated concurrently with the parent and each other.
-- `AlderExpression` objects are thread-safe and shareable across threads.
-- Bound tree caching uses `ConditionalWeakTable` for per-context thread safety.
-- Compiled delegate caching uses volatile fields with double-checked locking.
-- Pipeline instances are static and reused across evaluations. The compilation pipeline is lazy-initialized per engine.
-
-## Static API
-
-`AlderEval` provides a global static engine for convenience:
-
-```csharp
-// Configure once at startup
-AlderEval.Configure(o => o.UseCompiler());
-
-// Evaluate from anywhere
-var result = AlderEval.Evaluate<int>("1 + 2"); // 3
-```
-
-`Configure()` can only be called once and must be called before the first evaluation. The global engine is created lazily on first use. `AlderEval.Reset()` allows reconfiguring (primarily for testing).
-
-### String Extensions
-
-```csharp
-var result = "1 + 2".Evaluate<int>(); // 3
-var ok = "Math.PI".TryEvaluate<double>(out var pi); // true
-```
-
-Extension methods on `string` delegate to `AlderEval`.
 
 
 `AlderOptions` configures an `AlderEngine` instance. Configuration is captured at construction time and frozen. The engine is immutable after creation.
@@ -734,12 +762,12 @@ Variables connect your application to the expressions it evaluates. The injectio
 
 ## Injection Patterns
 
-| Pattern | Scope | Binder knows type | Performance | Best for |
-|---------|-------|-------------------|-------------|----------|
-| `SetVariable<T>` | Persistent | Yes: `typeof(T)` | Best: bind-time resolution | Server apps, reused engines |
-| `SetVariable` (untyped) | Persistent | No: `typeof(object)` | Slower: runtime reflection | Dynamic values, unknown types |
-| Anonymous object | Single `Evaluate` call | Via reflection per call | Moderate | Quick one-off evaluations |
-| `IDictionary<string, object?>` | Single `Evaluate` call | No: `typeof(object)` | Slower: runtime reflection | Dynamic keys from config/user input |
+| Pattern                           | Scope                  | Binder knows type                            | Best for                            |
+| --------------------------------- | ---------------------- | -------------------------------------------- | ----------------------------------- |
+| `SetVariable<T>`                  | Persistent             | Yes: `typeof(T)`                             | Server apps, reused engines         |
+| `SetVariable` (untyped)           | Persistent             | No: `typeof(object)`                         | Dynamic values, unknown types       |
+| Anonymous object / class instance | Single `Evaluate` call | Yes: property types preserved via reflection | One-off evaluations                 |
+| `IDictionary<string, object?>`    | Single `Evaluate` call | No: `typeof(object)`                         | Dynamic keys from config/user input |
 
 ### `SetVariable<T>`: typed, persistent
 
@@ -770,7 +798,7 @@ Variables persist across evaluations. Updating a variable's value is visible to 
 
 The engine uses a two-phase variable lifecycle. Variables set before the first evaluation are stored as `PendingVariable` structs (value + inferred type) in a `Dictionary` protected by a lock (`_contextInitLock`). On the first evaluation, `GetOrCreateContext()` bulk-defines all pending variables into the `AlderContext`, then clears the pending dictionary. Variables set after context initialization bypass the pending state entirely. They are defined directly into the `AlderContext` using a double-check lock pattern (check outside lock, re-check inside lock) to avoid contention in the hot path. The `AlderContext` itself uses `ConcurrentDictionary` for thread-safe reads during evaluation.
 
-### Anonymous object: inline, scoped
+### Anonymous object: inline, scoped, typed
 
 ```csharp
 bool eligible = engine.Evaluate<bool>(
@@ -779,7 +807,14 @@ bool eligible = engine.Evaluate<bool>(
 ```
 
 
-Internally, `ToVariableDictionary` reads the object's public properties via reflection and builds an `IDictionary<string, object?>`. A child engine is created, the dictionary is loaded into it via `SetVariables`, and evaluation runs against that child. The parent engine's variable store is untouched.
+Property types are preserved via reflection. `age` is registered as `int`, `country` as `string`. The binder produces resolved nodes with bind-time member resolution, same as `SetVariable<T>`. A child engine is created internally. The parent engine's variable store is untouched.
+
+Any object works, not just anonymous types:
+
+```csharp
+var pricing = new PricingParams { BasePrice = 100, TaxRate = 0.08 };
+engine.Evaluate<double>("BasePrice * (1 + TaxRate)", pricing); // 108.0
+```
 
 ### `IDictionary<string, object?>`: dynamic keys, scoped
 
@@ -793,7 +828,7 @@ double result = engine.Evaluate<double>("threshold * multiplier", vars); // 150.
 ```
 
 
-Same scoping as anonymous objects. A child engine is created, variables loaded, evaluation runs, parent unaffected. Values are typed as `object`, so the binder produces dynamic nodes.
+Same scoping as anonymous objects. A child engine is created, variables loaded, evaluation runs, parent unaffected. Dictionary values are typed as `object` (the binder produces dynamic nodes). Use anonymous objects or `SetVariable<T>` when type-aware binding matters.
 
 ## Bound Tree Caching and Type Versioning
 
@@ -3197,7 +3232,7 @@ The source generator runs at compile time and emits typed property access, metho
 ```mermaid
 graph TD
     A["Member access or<br/>method call"] --> B{"AOT dispatch<br/>registered for type?"}
-    B -->|"Yes"| C["ITypedDispatch<br/>(no reflection)"]
+    B -->|"Yes"| C["TypedDispatch<br/>(no reflection)"]
     B -->|"No"| D["Reflection fallback<br/>(PropertyInfo, MethodInfo)"]
     C -->|"TryGet/TryInvoke<br/>returns true"| E["Result"]
     C -->|"returns false"| D
@@ -3216,7 +3251,7 @@ On NativeAOT, `UseCompiler()` throws `PlatformNotSupportedException` because `Ex
 
 ## Source Generator
 
-Alder ships an incremental source generator that produces `ITypedDispatch` implementations for registered types. To use it:
+Alder ships an incremental source generator that produces `TypedDispatch` implementations for registered types. To use it:
 
 ### 1. Define a type context
 
@@ -3242,7 +3277,7 @@ var engine = new AlderEngine(o =>
 
 ### 3. The generator emits
 
-For each `[AlderRegistered]` type, the generator produces a `file sealed class` implementing `ITypedDispatch` with:
+For each `[AlderRegistered]` type, the generator produces a `file sealed class` implementing `TypedDispatch` with:
 
 | Method | Generated code |
 |--------|---------------|
@@ -3259,12 +3294,12 @@ All dispatch uses `is` type checks for same-arity overloads, never blind casts t
 
 ### Extension method dispatch
 
-The generator also emits `EnumerableDispatch`: an `ITypedDispatch` implementation for LINQ extension methods. This is driven by a data-driven `LinqMethodDescriptor` table and emitted by `ExtensionMethodEmitter`. It provides typed dispatch for common LINQ operations (`Where`, `Select`, `OrderBy`, etc.) without reflection.
+The generator also emits `EnumerableDispatch`: an `TypedDispatch` implementation for LINQ extension methods. This is driven by a data-driven `LinqMethodDescriptor` table and emitted by `ExtensionMethodEmitter`. It provides typed dispatch for common LINQ operations (`Where`, `Select`, `OrderBy`, etc.) without reflection.
 
-## `ITypedDispatch` Interface
+## `TypedDispatch` Interface
 
 ```csharp
-public interface ITypedDispatch
+public interface TypedDispatch
 {
     Type Type { get; }
     bool TryGet(string name, object instance, out object? value);
@@ -3286,9 +3321,9 @@ The interface is simplified compared to the old `IAotTypeMetadata`: property and
 
 `TypedDispatchHelper` is the centralized entry point for all typed dispatch. All member access and method invocation in both the interpreter and compiler goes through it. It handles:
 
-- Looking up the `ITypedDispatch` for a type via `AlderConfig.TryGetDispatch(type, out ITypedDispatch?)`
+- Looking up the `TypedDispatch` for a type via `AlderConfig.TryGetDispatch(type, out TypedDispatch?)`
 - Walking the type hierarchy to find dispatch for base types
-- Routing member reads, writes, method calls, and constructor invocations to the appropriate `ITypedDispatch` method
+- Routing member reads, writes, method calls, and constructor invocations to the appropriate `TypedDispatch` method
 
 ## Delegate Factories
 
@@ -3334,7 +3369,7 @@ o.Aot.UseGeneratedContext(new MyMinimalContext());
 
 ## LINQ Extension Method Dispatch
 
-The generator emits `EnumerableDispatch`: a dedicated `ITypedDispatch` implementation for LINQ operations. For each registered value type, it generates type-specialized dispatch for common LINQ methods (`Where`, `Select`, `OrderBy`, `GroupBy`, `Sum`, `Average`, `ToList`, `ToArray`, etc.). Lambda arguments are converted via generated helper methods (`AsPredicate<T>`, `AsProjection<T>`) that wrap `LambdaValue` objects in strongly-typed delegates without reflection.
+The generator emits `EnumerableDispatch`: a dedicated `TypedDispatch` implementation for LINQ operations. For each registered value type, it generates type-specialized dispatch for common LINQ methods (`Where`, `Select`, `OrderBy`, `GroupBy`, `Sum`, `Average`, `ToList`, `ToArray`, etc.). Lambda arguments are converted via generated helper methods (`AsPredicate<T>`, `AsProjection<T>`) that wrap `LambdaValue` objects in strongly-typed delegates without reflection.
 
 The LINQ dispatch is driven by a `LinqMethodDescriptor` table that categorizes methods by shape. `Filter` (predicate), `Projection` (selector), `ScalarAggregate` (numeric reduction), `IntArg` (skip/take), `ValueArg` (contains), etc. Each shape has its own emission template in `ExtensionMethodEmitter`.
 

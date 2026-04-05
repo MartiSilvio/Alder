@@ -7,7 +7,7 @@ The source generator runs at compile time and emits typed property access, metho
 ```mermaid
 graph TD
     A["Member access or<br/>method call"] --> B{"AOT dispatch<br/>registered for type?"}
-    B -->|"Yes"| C["ITypedDispatch<br/>(no reflection)"]
+    B -->|"Yes"| C["TypedDispatch<br/>(no reflection)"]
     B -->|"No"| D["Reflection fallback<br/>(PropertyInfo, MethodInfo)"]
     C -->|"TryGet/TryInvoke<br/>returns true"| E["Result"]
     C -->|"returns false"| D
@@ -26,7 +26,7 @@ On NativeAOT, `UseCompiler()` throws `PlatformNotSupportedException` because `Ex
 
 ## Source Generator
 
-Alder ships an incremental source generator that produces `ITypedDispatch` implementations for registered types. To use it:
+Alder ships an incremental source generator that produces `TypedDispatch` implementations for registered types. To use it:
 
 ### 1. Define a type context
 
@@ -52,7 +52,7 @@ var engine = new AlderEngine(o =>
 
 ### 3. The generator emits
 
-For each `[AlderRegistered]` type, the generator produces a `file sealed class` implementing `ITypedDispatch` with:
+For each `[AlderRegistered]` type, the generator produces a `file sealed class` implementing `TypedDispatch` with:
 
 | Method | Generated code |
 |--------|---------------|
@@ -69,12 +69,12 @@ All dispatch uses `is` type checks for same-arity overloads, never blind casts t
 
 ### Extension method dispatch
 
-The generator also emits `EnumerableDispatch`: an `ITypedDispatch` implementation for LINQ extension methods. This is driven by a data-driven `LinqMethodDescriptor` table and emitted by `ExtensionMethodEmitter`. It provides typed dispatch for common LINQ operations (`Where`, `Select`, `OrderBy`, etc.) without reflection.
+The generator also emits `EnumerableDispatch`: an `TypedDispatch` implementation for LINQ extension methods. This is driven by a data-driven `LinqMethodDescriptor` table and emitted by `ExtensionMethodEmitter`. It provides typed dispatch for common LINQ operations (`Where`, `Select`, `OrderBy`, etc.) without reflection.
 
-## `ITypedDispatch` Interface
+## `TypedDispatch` Interface
 
 ```csharp
-public interface ITypedDispatch
+public interface TypedDispatch
 {
     Type Type { get; }
     bool TryGet(string name, object instance, out object? value);
@@ -96,9 +96,9 @@ The interface is simplified compared to the old `IAotTypeMetadata`: property and
 
 `TypedDispatchHelper` is the centralized entry point for all typed dispatch. All member access and method invocation in both the interpreter and compiler goes through it. It handles:
 
-- Looking up the `ITypedDispatch` for a type via `AlderConfig.TryGetDispatch(type, out ITypedDispatch?)`
+- Looking up the `TypedDispatch` for a type via `AlderConfig.TryGetDispatch(type, out TypedDispatch?)`
 - Walking the type hierarchy to find dispatch for base types
-- Routing member reads, writes, method calls, and constructor invocations to the appropriate `ITypedDispatch` method
+- Routing member reads, writes, method calls, and constructor invocations to the appropriate `TypedDispatch` method
 
 ## Delegate Factories
 
@@ -144,7 +144,7 @@ o.Aot.UseGeneratedContext(new MyMinimalContext());
 
 ## LINQ Extension Method Dispatch
 
-The generator emits `EnumerableDispatch`: a dedicated `ITypedDispatch` implementation for LINQ operations. For each registered value type, it generates type-specialized dispatch for common LINQ methods (`Where`, `Select`, `OrderBy`, `GroupBy`, `Sum`, `Average`, `ToList`, `ToArray`, etc.). Lambda arguments are converted via generated helper methods (`AsPredicate<T>`, `AsProjection<T>`) that wrap `LambdaValue` objects in strongly-typed delegates without reflection.
+The generator emits `EnumerableDispatch`: a dedicated `TypedDispatch` implementation for LINQ operations. For each registered value type, it generates type-specialized dispatch for common LINQ methods (`Where`, `Select`, `OrderBy`, `GroupBy`, `Sum`, `Average`, `ToList`, `ToArray`, etc.). Lambda arguments are converted via generated helper methods (`AsPredicate<T>`, `AsProjection<T>`) that wrap `LambdaValue` objects in strongly-typed delegates without reflection.
 
 The LINQ dispatch is driven by a `LinqMethodDescriptor` table that categorizes methods by shape. `Filter` (predicate), `Projection` (selector), `ScalarAggregate` (numeric reduction), `IntArg` (skip/take), `ValueArg` (contains), etc. Each shape has its own emission template in `ExtensionMethodEmitter`.
 

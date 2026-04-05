@@ -8,9 +8,6 @@ namespace Alder.Test.AOT;
 [Category("AOT")]
 public class BuiltInContextTests(CompilationMode mode)
 {
-    private AlderEngine CreateEngine() =>
-        TestEngineFactory.Create(mode);
-
     [Test]
     public void BuiltInContext_Default_ReturnsMetadata()
     {
@@ -42,7 +39,7 @@ public class BuiltInContextTests(CompilationMode mode)
     [Test]
     public void Engine_AutoLoads_BuiltInContext()
     {
-        var engine = CreateEngine();
+        var engine = TestEngineFactory.Create(mode);
 
         var result = engine.Evaluate(""" "hello".Length """);
 
@@ -52,7 +49,7 @@ public class BuiltInContextTests(CompilationMode mode)
     [Test]
     public void Engine_BuiltInContext_PropertyAccess()
     {
-        var engine = CreateEngine();
+        var engine = TestEngineFactory.Create(mode);
 
         var pi = engine.Evaluate("Math.PI");
         var now = engine.Evaluate("DateTime.Now");
@@ -65,7 +62,7 @@ public class BuiltInContextTests(CompilationMode mode)
     [Test]
     public void Engine_BuiltInContext_ConstructorAccess()
     {
-        var engine = CreateEngine();
+        var engine = TestEngineFactory.Create(mode);
 
         var result = engine.Evaluate("new List<int>()");
 
@@ -96,7 +93,7 @@ public class BuiltInContextTests(CompilationMode mode)
             "Built-in context should contain string metadata");
 
         var overrideMetadata = new StringOverrideMetadata();
-        var merged = new Dictionary<Type, ITypedDispatch>(builtInTypes)
+        var merged = new Dictionary<Type, TypedDispatch>(builtInTypes)
         {
             [typeof(string)] = overrideMetadata
         };
@@ -106,15 +103,7 @@ public class BuiltInContextTests(CompilationMode mode)
     }
 }
 
-internal sealed class StringOverrideMetadata : ITypedDispatch
+internal sealed class StringOverrideMetadata : TypedDispatch
 {
-    public Type Type => typeof(string);
-    public bool TryGet(string name, object instance, out object? value) { value = default; return false; }
-    public bool TrySet(string name, object instance, object? value) => false;
-    public bool TryGetStatic(string name, out object? value) { value = default; return false; }
-    public bool TryGetIndex(object instance, object key, out object? value) { value = default; return false; }
-    public bool TrySetIndex(object instance, object key, object? value) => false;
-    public bool TryCreate(object?[] args, out object? instance) { instance = default; return false; }
-    public bool TryInvoke(string name, object instance, object?[] args, out object? result) { result = default; return false; }
-    public bool TryInvokeStatic(string name, object?[] args, out object? result) { result = default; return false; }
+    public override Type Type => typeof(string);
 }

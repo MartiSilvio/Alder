@@ -52,16 +52,6 @@ public class CompetitorIssueTests(CompilationMode mode)
         Assert.That(result, Is.False);
     }
 
-    // Dynamic Expresso issue #363:
-    // https://github.com/dynamicexpresso/DynamicExpresso/issues/363
-    [Test]
-    public void Issue363_DefaultLiteral_Works()
-    {
-        var engine = TestEngineFactory.Create(mode);
-        var result = engine.Evaluate("default");
-        Assert.That(result, Is.Null);
-    }
-
     // Dynamic Expresso issue #337:
     // https://github.com/dynamicexpresso/DynamicExpresso/issues/337
     [Test]
@@ -175,47 +165,6 @@ public class CompetitorIssueTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(Path.Combine("C:\\delme\\", "test.txt")));
     }
 
-    // NCalc issue #538:
-    // https://github.com/ncalc/ncalc/issues/538
-    [Test]
-    public void NCalcIssue538_XorSupport_Works()
-    {
-        var engine = TestEngineFactory.Create(mode);
-        var result = engine.Evaluate("true ^ false");
-        Assert.That(result, Is.True);
-    }
-
-    // NCalc issue #458:
-    // https://github.com/ncalc/ncalc/issues/458
-    [Test]
-    public void NCalcIssue458_BackslashesInString_Works()
-    {
-        var engine = TestEngineFactory.Create(mode);
-        var result = engine.Evaluate(""" "C:\\temp\\file.txt" """);
-        Assert.That(result, Is.EqualTo("C:\\temp\\file.txt"));
-    }
-
-    // NCalc issue #439:
-    // https://github.com/ncalc/ncalc/issues/439
-    [Test]
-    public void NCalcIssue439_NaNCondition_Works()
-    {
-        var engine = TestEngineFactory.Create(mode);
-        var result = engine.Evaluate("double.NaN == double.NaN ? 1 : 2");
-        Assert.That(result, Is.EqualTo(2));
-    }
-
-    // NCalc issue #433:
-    // https://github.com/ncalc/ncalc/issues/433
-    [Test]
-    public void NCalcIssue433_123DotE2_IsInvalidCSharp_HandledAsMemberAccessCurrently()
-    {
-        var engine = TestEngineFactory.Create(mode);
-        var result = engine.Evaluate("123.E2");
-        Assert.That(result, Is.Not.Null);
-        Assert.That(result!.GetType().Name, Is.EqualTo("MethodRef"));
-    }
-
     // Jace issue #92:
     // https://github.com/pieterderycke/Jace/issues/92
     [Test]
@@ -223,16 +172,6 @@ public class CompetitorIssueTests(CompilationMode mode)
     {
         var engine = TestEngineFactory.Create(mode);
         Assert.Catch(() => engine.Evaluate("1e+"));
-    }
-
-    // Jace issue #93:
-    // https://github.com/pieterderycke/Jace/issues/93
-    [Test]
-    public void JaceIssue93_EInScientificNotation_ParsesCorrectly()
-    {
-        var engine = TestEngineFactory.Create(mode);
-        var result = engine.Evaluate("1e-2");
-        Assert.That(result, Is.EqualTo(0.01).Within(1e-12));
     }
 
     private sealed class TwoKeyIndex

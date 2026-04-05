@@ -185,7 +185,7 @@ public class MemberAccessGenerationTests
     private static string ExtractMethod(string source, string methodName)
     {
         // Find the method signature and extract until matching closing brace
-        var searchStr = $"public bool {methodName}(";
+        var searchStr = $"public override bool {methodName}(";
         var idx = source.IndexOf(searchStr);
         if (idx < 0) return string.Empty;
 

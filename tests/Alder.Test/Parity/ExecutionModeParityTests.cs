@@ -1,5 +1,5 @@
+using System.Reflection;
 using Alder.Test._Infrastructure;
-using Alder.Test.Binding;
 
 namespace Alder.Test.Parity;
 
@@ -66,6 +66,25 @@ public sealed class ExecutionModeParityTests
         var compiledResult = EvaluateCompiledWithoutFallback(compiled, scenario);
 
         Assert.That(compiledResult, Is.EqualTo(interpretedResult), scenario.Expression);
+    }
+
+    [Test]
+    public void InterpretedMode_DoesNotExecute_PrecompiledDelegate()
+    {
+        var engine = TestEngineFactory.Create(CompilationMode.Interpreted);
+        var expression = engine.Parse("1 + 1");
+
+        var fakeCompiled = new CompiledExpressionInfo(
+            Delegate: (_, _, _, _) => 999,
+            IsCompilable: true,
+            FailureReason: null);
+
+        var field = typeof(AlderExpression).GetField("CompiledInfo", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+        Assert.That(field, Is.Not.Null);
+        field!.SetValue(expression, fakeCompiled);
+
+        var result = engine.Evaluate(expression);
+        Assert.That(result, Is.EqualTo(2));
     }
 
     private static object? EvaluateCompiledWithoutFallback(AlderEngine engine, ExecutionParityScenario scenario)

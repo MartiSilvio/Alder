@@ -29,8 +29,6 @@ public sealed class AlderSourceGenerator : IIncrementalGenerator
         context.RegisterSourceOutput(collected, static (spc, entries) => Emit(spc, entries));
     }
 
-    // Each invocation receives ONE class declaration that has at least one [AlderRegistered].
-    // ForAttributeWithMetadataName groups all attributes on the same class into one call.
     private static (string ContextNamespace, string ContextClassName, ImmutableArray<TypeRegistrationModel> Registrations)?
         ExtractRegistrations(GeneratorAttributeSyntaxContext ctx)
     {
@@ -45,135 +43,65 @@ public sealed class AlderSourceGenerator : IIncrementalGenerator
             : contextClass.ContainingNamespace.ToDisplayString();
         var contextClassName = contextClass.Name;
 
-        var registrations = ImmutableArray.CreateBuilder<TypeRegistrationModel>();
+        // First pass: collect all registered type symbols
+        var typeEntries = new List<(INamedTypeSymbol Symbol, string FullName)>();
         var seenTypes = new HashSet<string>();
 
         foreach (var attr in ctx.Attributes)
         {
             if (attr.ConstructorArguments.Length != 1)
                 continue;
-
-            var typeArg = attr.ConstructorArguments[0];
-            if (typeArg.Value is not INamedTypeSymbol registeredType)
+            if (attr.ConstructorArguments[0].Value is not INamedTypeSymbol registeredType)
                 continue;
 
-            var typeFullName = GetFullyQualifiedName(registeredType);
+            var typeFullName = TypeParser.GetFullyQualifiedName(registeredType);
             if (!seenTypes.Add(typeFullName))
                 continue;
 
-            var registration = ExtractTypeRegistration(registeredType, typeFullName);
-            registrations.Add(registration);
+            typeEntries.Add((registeredType, typeFullName));
         }
 
-        if (registrations.Count == 0)
+        if (typeEntries.Count == 0)
             return null;
+
+        // Collect element types for generic expansion (value types + string + object)
+        var compilation = ctx.SemanticModel.Compilation;
+        var elementTypes = CollectElementTypeSymbols(typeEntries, compilation);
+        var resultTypes = TypeParser.ResolveResultTypeSymbols(compilation);
+
+        // Second pass: extract registrations and expand generic methods
+        var registrations = ImmutableArray.CreateBuilder<TypeRegistrationModel>();
+        foreach (var (symbol, fullName) in typeEntries)
+        {
+            var reg = TypeParser.ExtractTypeRegistration(symbol, fullName);
+            reg = TypeParser.ExpandGenericMethods(symbol, reg, elementTypes, resultTypes);
+            registrations.Add(reg);
+        }
 
         return (contextNamespace, contextClassName, registrations.ToImmutable());
     }
 
-    private static TypeRegistrationModel ExtractTypeRegistration(INamedTypeSymbol type, string typeFullName)
+    private static ImmutableArray<INamedTypeSymbol> CollectElementTypeSymbols(
+        List<(INamedTypeSymbol Symbol, string FullName)> typeEntries,
+        Compilation compilation)
     {
-        var metadataClassName = SanitizeIdentifier(typeFullName) + "Metadata";
+        var result = new List<INamedTypeSymbol>();
+        var seen = new HashSet<INamedTypeSymbol>(SymbolEqualityComparer.Default);
 
-        var isClosedGeneric = type is { IsGenericType: true, IsUnboundGenericType: false };
-
-        var properties = ImmutableArray.CreateBuilder<PropertyModel>();
-        var fields = ImmutableArray.CreateBuilder<FieldModel>();
-        var constructors = ImmutableArray.CreateBuilder<ConstructorModel>();
-        var indexers = ImmutableArray.CreateBuilder<IndexerModel>();
-        var methods = ImmutableArray.CreateBuilder<MethodModel>();
-
-        foreach (var member in type.GetMembers())
+        // Value types from registrations
+        foreach (var (symbol, _) in typeEntries)
         {
-            if (member.DeclaredAccessibility != Accessibility.Public)
-                continue;
-
-            switch (member)
-            {
-                case IPropertySymbol { IsIndexer: true } prop:
-                    if (prop.Parameters.Length == 1)
-                    {
-                        indexers.Add(new IndexerModel(
-                            GetFullyQualifiedTypeName(prop.Parameters[0].Type),
-                            GetFullyQualifiedTypeName(prop.Type),
-                            prop.GetMethod != null,
-                            prop.SetMethod is { DeclaredAccessibility: Accessibility.Public }));
-                    }
-                    break;
-
-                case IPropertySymbol prop:
-                    var canRead = prop.GetMethod is { DeclaredAccessibility: Accessibility.Public };
-                    var canWrite = prop.SetMethod is { DeclaredAccessibility: Accessibility.Public, IsInitOnly: false };
-                    properties.Add(new PropertyModel(
-                        prop.Name,
-                        GetFullyQualifiedTypeName(prop.Type),
-                        canRead,
-                        canWrite,
-                        prop.IsStatic));
-                    break;
-
-                case IFieldSymbol field when !field.IsImplicitlyDeclared || type.IsTupleType:
-                    fields.Add(new FieldModel(
-                        field.Name,
-                        GetFullyQualifiedTypeName(field.Type),
-                        field.IsReadOnly || field.IsConst,
-                        field.IsStatic));
-                    break;
-
-                case IMethodSymbol { MethodKind: MethodKind.Constructor } method:
-                    if (method.Parameters.Any(p =>
-                        p.Type.TypeKind == TypeKind.Pointer ||
-                        p.Type.TypeKind == TypeKind.FunctionPointer ||
-                        p.Type.IsRefLikeType))
-                        break;
-                    var ctorParams = ImmutableArray.CreateBuilder<ParameterModel>();
-                    foreach (var param in method.Parameters)
-                    {
-                        ctorParams.Add(new ParameterModel(
-                            param.Name,
-                            GetFullyQualifiedTypeName(param.Type)));
-                    }
-                    constructors.Add(new ConstructorModel(ctorParams.ToImmutable()));
-                    break;
-
-                case IMethodSymbol { MethodKind: MethodKind.Ordinary } method:
-                    if (method.IsGenericMethod)
-                        break;
-                    if (method.ReturnsByRef || method.ReturnsByRefReadonly)
-                        break;
-                    if (method.Parameters.Any(p =>
-                        p.RefKind != RefKind.None ||
-                        p.IsParams ||
-                        p.Type.TypeKind == TypeKind.Pointer ||
-                        p.Type.TypeKind == TypeKind.FunctionPointer ||
-                        p.Type.IsRefLikeType))
-                        break;
-                    var methodParams = ImmutableArray.CreateBuilder<ParameterModel>();
-                    foreach (var param in method.Parameters)
-                    {
-                        methodParams.Add(new ParameterModel(
-                            param.Name,
-                            GetFullyQualifiedTypeName(param.Type)));
-                    }
-                    methods.Add(new MethodModel(
-                        method.Name,
-                        GetFullyQualifiedTypeName(method.ReturnType),
-                        methodParams.ToImmutable(),
-                        method.IsStatic,
-                        method.ReturnsVoid));
-                    break;
-            }
+            if (symbol.IsValueType && !symbol.IsGenericType && seen.Add(symbol))
+                result.Add(symbol);
         }
 
-        return new TypeRegistrationModel(
-            typeFullName,
-            metadataClassName,
-            isClosedGeneric,
-            properties.ToImmutable(),
-            fields.ToImmutable(),
-            constructors.ToImmutable(),
-            indexers.ToImmutable(),
-            methods.ToImmutable());
+        // Always include string and object
+        var stringType = compilation.GetSpecialType(SpecialType.System_String);
+        var objectType = compilation.GetSpecialType(SpecialType.System_Object);
+        if (stringType != null && seen.Add(stringType)) result.Add(stringType);
+        if (objectType != null && seen.Add(objectType)) result.Add(objectType);
+
+        return result.ToImmutableArray();
     }
 
     private static void Emit(SourceProductionContext spc,
@@ -182,8 +110,6 @@ public sealed class AlderSourceGenerator : IIncrementalGenerator
         if (entries.IsDefaultOrEmpty)
             return;
 
-        // Group by context class (namespace + name) in case ForAttributeWithMetadataName
-        // delivers separate entries for the same class across partial declarations.
         var byContext = new Dictionary<string, (string Namespace, string ClassName, List<TypeRegistrationModel> Registrations)>();
 
         foreach (var entry in entries)
@@ -214,12 +140,8 @@ public sealed class AlderSourceGenerator : IIncrementalGenerator
             if (delegateSource != null)
                 combined.AppendLine(delegateSource);
 
-            var extensionSource = ExtensionMethodEmitter.Emit(allRegistrations);
-            if (extensionSource != null)
-                combined.AppendLine(extensionSource);
-
             var contextModel = new ContextModel(ns, className, allRegistrations);
-            combined.AppendLine(ContextEmitter.Emit(contextModel, delegateSource != null, extensionSource != null));
+            combined.AppendLine(ContextEmitter.Emit(contextModel, delegateSource != null));
 
             spc.AddSource(className + ".g.cs", combined.ToString());
         }
@@ -235,59 +157,5 @@ public sealed class AlderSourceGenerator : IIncrementalGenerator
             current = current.BaseType;
         }
         return false;
-    }
-
-    private static string GetFullyQualifiedTypeName(ITypeSymbol type)
-    {
-        return type is INamedTypeSymbol named ? GetFullyQualifiedName(named) : type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
-    }
-
-    /// <summary>
-    /// FullyQualifiedFormat renders ValueTuple&lt;T1,T2&gt; as (T1, T2) tuple syntax,
-    /// which is invalid in new-expressions and typeof. This helper detects ValueTuple
-    /// and constructs the generic name manually.
-    /// </summary>
-    private static string GetFullyQualifiedName(INamedTypeSymbol type)
-    {
-        if (type is { IsTupleType: true, TupleUnderlyingType: { } underlying })
-            type = underlying;
-
-        if (type.IsGenericType && type.OriginalDefinition.ContainingNamespace?.ToDisplayString() == "System"
-            && type.OriginalDefinition.Name.StartsWith("ValueTuple"))
-        {
-            var typeArgs = string.Join(", ", type.TypeArguments.Select(
-                t => t is INamedTypeSymbol named ? GetFullyQualifiedName(named) : t.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)));
-            return $"global::System.ValueTuple<{typeArgs}>";
-        }
-
-        if (type.IsGenericType && type.OriginalDefinition.ContainingNamespace?.ToDisplayString() == "System"
-            && type.OriginalDefinition.Name == "Nullable" && type.TypeArguments.Length == 1)
-        {
-            var inner = type.TypeArguments[0] is INamedTypeSymbol named
-                ? GetFullyQualifiedName(named)
-                : type.TypeArguments[0].ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
-            return $"global::System.Nullable<{inner}>";
-        }
-
-        return type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
-    }
-
-    internal static string SanitizeIdentifier(string name)
-    {
-        var sb = new StringBuilder(name.Length);
-        foreach (var c in name)
-        {
-            if (char.IsLetterOrDigit(c) || c == '_')
-                sb.Append(c);
-            else
-                sb.Append('_');
-        }
-
-        // Strip leading "global__" prefix for cleaner names
-        var result = sb.ToString();
-        if (result.StartsWith("global__"))
-            result = result.Substring("global__".Length);
-
-        return result;
     }
 }

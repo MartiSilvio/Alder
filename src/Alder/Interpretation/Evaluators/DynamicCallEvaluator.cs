@@ -53,6 +53,7 @@ internal static class DynamicCallEvaluator
             var result = IdentifierRuntime.InvokeIdentifierCall(
                 identifier.Name, args, ctx.Context, typeArguments, ct);
             ResolvedCallEvaluator.DefineOutVariablesIfAny(args, outBindings, ctx, ct);
+            TypeHelpers.GuardReflectionLeak(result, "method", identifier.Name);
             ExecutionRuntime.CheckCollectionSize(result, ctx.Context.Config.Security);
             return result;
         }
@@ -64,6 +65,7 @@ internal static class DynamicCallEvaluator
                 target, memberAccess.MemberName, args, memberAccess.NullSafe,
                 ctx.Context, typeArguments, ct);
             ResolvedCallEvaluator.DefineOutVariablesIfAny(args, outBindings, ctx, ct);
+            TypeHelpers.GuardReflectionLeak(result, "method", memberAccess.MemberName);
             ExecutionRuntime.CheckCollectionSize(result, ctx.Context.Config.Security);
             return result;
         }
@@ -72,6 +74,7 @@ internal static class DynamicCallEvaluator
         var invokeCallResult = MethodInvoker.InvokeCall(
             callee, args, ctx.Context, typeArguments, ct);
         ResolvedCallEvaluator.DefineOutVariablesIfAny(args, outBindings, ctx, ct);
+        TypeHelpers.GuardReflectionLeak(invokeCallResult, "method invocation");
         ExecutionRuntime.CheckCollectionSize(invokeCallResult, ctx.Context.Config.Security);
         return invokeCallResult;
     }
@@ -89,6 +92,7 @@ internal static class DynamicCallEvaluator
             var result = IdentifierRuntime.InvokeIdentifierCall(
                 identifier.Name, args, ctx.Context, typeArguments, ct);
             ResolvedCallEvaluator.DefineOutVariablesIfAny(args, outBindings, ctx, ct);
+            TypeHelpers.GuardReflectionLeak(result, "method", identifier.Name);
             ExecutionRuntime.CheckCollectionSize(result, ctx.Context.Config.Security);
             return result;
         }
@@ -100,6 +104,7 @@ internal static class DynamicCallEvaluator
                 target, memberAccess.MemberName, args, memberAccess.NullSafe,
                 ctx.Context, typeArguments, ct);
             ResolvedCallEvaluator.DefineOutVariablesIfAny(args, outBindings, ctx, ct);
+            TypeHelpers.GuardReflectionLeak(result, "method", memberAccess.MemberName);
             ExecutionRuntime.CheckCollectionSize(result, ctx.Context.Config.Security);
             return result;
         }
@@ -108,6 +113,7 @@ internal static class DynamicCallEvaluator
         var invokeCallResult = MethodInvoker.InvokeCall(
             callee, args, ctx.Context, typeArguments, ct);
         ResolvedCallEvaluator.DefineOutVariablesIfAny(args, outBindings, ctx, ct);
+        TypeHelpers.GuardReflectionLeak(invokeCallResult, "method invocation");
         ExecutionRuntime.CheckCollectionSize(invokeCallResult, ctx.Context.Config.Security);
         return invokeCallResult;
     }

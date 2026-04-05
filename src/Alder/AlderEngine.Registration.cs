@@ -81,6 +81,13 @@ public sealed partial class AlderEngine
         }
     }
 
+    internal void SetTypedVariablesFromObject(object obj)
+    {
+        var entries = ToTypedVariables(obj);
+        foreach (var (name, value, type) in entries)
+            DefineOrStageVariable(name, value, type);
+    }
+
     private void DefineOrStageVariables(IDictionary<string, object?> variables, Type inferredType)
     {
         if (_context != null)

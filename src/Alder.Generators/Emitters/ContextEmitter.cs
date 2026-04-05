@@ -4,41 +4,38 @@ namespace Alder.Generators.Emitters;
 
 internal static class ContextEmitter
 {
-    public static string Emit(ContextModel context, bool hasDelegateFactories, bool hasExtensionDispatch)
+    public static string Emit(ContextModel context, bool hasDelegateFactories)
     {
         var w = new SourceWriter();
 
         if (!string.IsNullOrEmpty(context.Namespace))
         {
             using (w.Block($"namespace {context.Namespace}"))
-                EmitClassBody(w, context, hasDelegateFactories, hasExtensionDispatch);
+                EmitClassBody(w, context, hasDelegateFactories);
             return w.ToString();
         }
 
-        EmitClassBody(w, context, hasDelegateFactories, hasExtensionDispatch);
+        EmitClassBody(w, context, hasDelegateFactories);
         return w.ToString();
     }
 
-    private static void EmitClassBody(SourceWriter w, ContextModel context, bool hasDelegateFactories, bool hasExtensionDispatch)
+    private static void EmitClassBody(SourceWriter w, ContextModel context, bool hasDelegateFactories)
     {
         using (w.Block($"partial class {context.ClassName}"))
         {
             w.AppendLine($"public static {context.ClassName} Default {{ get; }} = new();");
             w.AppendLine();
-            w.AppendLine("private static readonly global::Alder.Aot.ITypedDispatch[] s_metadata =");
+            w.AppendLine("private static readonly global::Alder.Aot.TypedDispatch[] s_metadata =");
             w.AppendLine("[");
             w.Indent();
 
             foreach (var reg in context.Registrations)
                 w.AppendLine($"new {reg.MetadataClassName}(),");
 
-            if (hasExtensionDispatch)
-                w.AppendLine("new EnumerableDispatch(),");
-
             w.Outdent();
             w.AppendLine("];");
             w.AppendLine();
-            w.AppendLine("public override global::System.Collections.Generic.IReadOnlyList<global::Alder.Aot.ITypedDispatch> GetTypeMetadata() => s_metadata;");
+            w.AppendLine("public override global::System.Collections.Generic.IReadOnlyList<global::Alder.Aot.TypedDispatch> GetTypeMetadata() => s_metadata;");
 
             if (hasDelegateFactories)
             {

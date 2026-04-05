@@ -25,9 +25,15 @@ internal static class MethodInvoker
         // When target is a Type (e.g., Enumerable.Range, string.Format), try typed static
         // dispatch first. On NativeAOT, reflection-based static method discovery is trimmed,
         // but the generated TryInvokeStatic handles these calls.
-        if (target is Type staticType && !HasSpecialArgs(args) &&
-            TypedDispatchHelper.TryInvokeStatic(context.Config, staticType, methodName, args, out var staticResult))
-            return staticResult;
+        // Resolve lambdas first so Func<T, bool> type checks match in the generated dispatch.
+        if (target is Type staticType && !HasSpecialArgs(args))
+        {
+            var resolvedArgs = args.Length >= 2 && args[0] != null
+                ? TryResolveLambdaArgs(args, args[0].GetType(), context) ?? args
+                : args;
+            if (TypedDispatchHelper.TryInvokeStatic(context.Config, staticType, methodName, resolvedArgs, out var staticResult))
+                return staticResult;
+        }
 
         var result = TryInvokeInstanceMethod(target, methodName, args, context, typeArgs, ct);
         if (result.Success)
@@ -229,7 +235,7 @@ internal static class MethodInvoker
             {
                 // MakeGenericType or delegate conversion can fail on NativeAOT
                 // when the closed generic instantiation isn't available.
-                // The generated AsProjection<T> fallback in EnumerableDispatch handles this case.
+                // The reflection fallback in ExtensionMethodResolver handles these cases.
             }
             resolved[i] = converted ?? arg;
         }
@@ -359,12 +365,7 @@ internal static class MethodInvoker
             if (!MethodDispatchCache.TryInvokeFast(method, target, args, out var result))
                 result = method.Invoke(target, args);
 
-            // Methods on Type are safe metadata queries — the user already has
-            // a Type value via typeof(). Don't block Type returns from Type members.
-            if (method.DeclaringType == null || !typeof(Type).IsAssignableFrom(method.DeclaringType))
-                return TypeHelpers.GuardReflectionLeak(result, "method", method.Name);
-
-            return result;
+            return TypeHelpers.GuardReflectionLeak(result, "method", method.Name);
         }
         catch (TargetInvocationException ex) when (ex.InnerException != null)
         {

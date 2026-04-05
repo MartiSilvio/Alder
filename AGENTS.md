@@ -12,7 +12,7 @@ C# runtime engine for .NET with AOT-first dispatch. ECMA-334 semantics, full com
 
 - `src/Alder/` — Core: lexer, parser, binder, interpreter, security, runtime
 - `src/Alder.Compiled/` — IL compiler backend (LINQ expression tree emission)
-- `src/Alder.Generators/` — AOT source generator (emits `ITypedDispatch` implementations)
+- `src/Alder.Generators/` — AOT source generator (emits `TypedDispatch` implementations)
 - `tests/Alder.Test/` — Tests
 - `docs/` — Documentation (Markdown with Astro/Starlight frontmatter)
 

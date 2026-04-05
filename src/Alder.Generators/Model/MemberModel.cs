@@ -17,7 +17,8 @@ internal readonly record struct FieldModel(
 
 internal readonly record struct ParameterModel(
     string Name,
-    string TypeFullName);
+    string TypeFullName,
+    bool IsParams = false);
 
 internal readonly record struct ConstructorModel(
     ImmutableArray<ParameterModel> Parameters);
@@ -33,4 +34,10 @@ internal readonly record struct MethodModel(
     string ReturnTypeFullName,
     ImmutableArray<ParameterModel> Parameters,
     bool IsStatic,
-    bool ReturnsVoid);
+    bool ReturnsVoid,
+    ImmutableArray<string> GenericTypeArgs = default)
+{
+    public bool HasParams => Parameters.Length > 0 && Parameters[Parameters.Length - 1].IsParams;
+    public int FixedParameterCount => HasParams ? Parameters.Length - 1 : Parameters.Length;
+    public bool IsGenericInstantiation => !GenericTypeArgs.IsDefaultOrEmpty;
+}

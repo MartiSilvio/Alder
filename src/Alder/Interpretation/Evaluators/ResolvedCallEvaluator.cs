@@ -183,6 +183,7 @@ internal static class ResolvedCallEvaluator
         var prepared = ArgumentPreparer.Prepare(resolved, args, parameters, ct);
         var result = MethodInvoker.InvokeMethodCore(resolved.Method, target, prepared);
         ArgumentPreparer.CopyBackOutArgs(args, prepared, parameters);
+        TypeHelpers.GuardReflectionLeak(result, "method", resolved.Method.Name);
         ExecutionRuntime.CheckCollectionSize(result, ctx.Context.Config.Security);
         return result;
     }
@@ -192,6 +193,7 @@ internal static class ResolvedCallEvaluator
         var parameters = MethodDispatchCache.GetParameters(resolved.Method);
         var prepared = ArgumentPreparer.Prepare(resolved, args, parameters, ct);
         var result = MethodInvoker.InvokeMethodCore(resolved.Method, null, prepared);
+        TypeHelpers.GuardReflectionLeak(result, "method", resolved.Method.Name);
         ExecutionRuntime.CheckCollectionSize(result, ctx.Context.Config.Security);
         return result;
     }

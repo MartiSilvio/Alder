@@ -1,29 +1,26 @@
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Linq;
 using Alder.Generators.Model;
 
 namespace Alder.Generators.Emitters;
 
+/// <summary>
+/// Generates AOT delegate factories derived from the actual delegate types
+/// that appear as parameters in expanded method models. No hardcoded shapes.
+/// </summary>
 internal static class DelegateFactoryEmitter
 {
-    private static readonly string[] CommonDelegateShapes =
-    [
-        "global::System.Func<{0}, bool>",
-        "global::System.Func<{0}, {0}>",
-        "global::System.Func<{0}, int>",
-        "global::System.Func<{0}, global::System.Int32>",
-        "global::System.Func<{0}, string>",
-        "global::System.Func<{0}, global::System.String>",
-        "global::System.Func<{0}, object>",
-        "global::System.Func<{0}, global::System.Object>",
-        "global::System.Action<{0}>",
-        "global::System.Comparison<{0}>",
-    ];
-
     public static string? Emit(ImmutableArray<TypeRegistrationModel> registrations)
     {
-        var valueTypes = CollectValueTypeNames(registrations);
-        if (valueTypes.Count == 0)
+        var valueTypeNames = CollectValueTypeNames(registrations);
+        if (valueTypeNames.Count == 0)
+            return null;
+
+        // Collect all unique delegate parameter types from expanded methods
+        // where the delegate's first type argument is a value type.
+        var delegateTypes = CollectDelegateTypes(registrations, valueTypeNames);
+        if (delegateTypes.Count == 0)
             return null;
 
         var w = new SourceWriter();
@@ -32,14 +29,17 @@ internal static class DelegateFactoryEmitter
         w.AppendLine("#pragma warning disable CS8600, CS8603, CS8605");
         w.AppendLine();
 
+        var invoke = "global::Alder.Runtime.MethodInvoker.InvokeLambda";
+        var lv = "global::Alder.Runtime.LambdaValue";
+
         using (w.Block("file static class AotDelegateFactories"))
         {
             using (w.Block("internal static global::System.Collections.Generic.Dictionary<global::System.Type, global::System.Func<object, global::System.Delegate>> Create()"))
             {
                 w.AppendLine("var d = new global::System.Collections.Generic.Dictionary<global::System.Type, global::System.Func<object, global::System.Delegate>>();");
 
-                foreach (var vt in valueTypes)
-                    EmitFactoriesForType(w, vt);
+                foreach (var dt in delegateTypes)
+                    EmitFactory(w, dt, invoke, lv);
 
                 w.AppendLine("return d;");
             }
@@ -48,89 +48,156 @@ internal static class DelegateFactoryEmitter
         return w.ToString();
     }
 
-    private static void EmitFactoriesForType(SourceWriter w, string typeFullName)
+    /// <summary>
+    /// Scans all expanded methods across all registrations for Func/Action parameter types
+    /// where the first generic argument is a registered value type. These are the delegate
+    /// types that need AOT factories for NativeAOT lambda conversion.
+    /// </summary>
+    private static List<DelegateTypeInfo> CollectDelegateTypes(
+        ImmutableArray<TypeRegistrationModel> registrations,
+        List<string> valueTypeNames)
     {
-        // Func<T, bool> — predicates (Where, Any, All, First, etc.)
-        EmitFuncFactory(w, typeFullName, "bool", 1);
-        // Func<T, T> — identity transforms (Select, etc.)
-        EmitFuncFactory(w, typeFullName, typeFullName, 1);
-        // Func<T, int> — int projections
-        EmitFuncFactory(w, typeFullName, "int", 1);
-        // Func<T, string> — string projections
-        EmitFuncFactory(w, typeFullName, "string", 1);
-        // Func<T, object> — boxing projections
-        EmitFuncFactory(w, typeFullName, "object", 1);
-        // Action<T> — ForEach, side effects
-        EmitActionFactory(w, typeFullName, 1);
-        // Func<T, T, T> — Aggregate
-        EmitFuncFactory(w, typeFullName, typeFullName, 2, typeFullName);
-        // Func<T, T, bool> — comparison predicates
-        EmitFuncFactory(w, typeFullName, "bool", 2, typeFullName);
-        // Comparison<T> — Sort
-        EmitComparisonFactory(w, typeFullName);
-    }
+        var valueTypeSet = new HashSet<string>(valueTypeNames);
+        var seen = new HashSet<string>();
+        var result = new List<DelegateTypeInfo>();
 
-    private static void EmitFuncFactory(SourceWriter w, string argType, string returnType, int arity, string? arg2Type = null)
-    {
-        var delegateType = arity switch
+        foreach (var reg in registrations)
         {
-            1 => $"global::System.Func<{argType}, {returnType}>",
-            2 => $"global::System.Func<{argType}, {arg2Type}, {returnType}>",
-            _ => null
-        };
-        if (delegateType == null) return;
+            foreach (var method in reg.Methods)
+            {
+                foreach (var param in method.Parameters)
+                {
+                    if (TryParseDelegateType(param.TypeFullName, out var info) &&
+                        info.HasValueTypeArg(valueTypeSet) &&
+                        seen.Add(info.FullTypeName))
+                    {
+                        result.Add(info);
+                    }
+                }
+            }
+        }
 
-        var args = arity switch
+        // Also add Comparison<T> for each value type (used by Sort, not always in method params)
+        foreach (var vt in valueTypeNames)
         {
-            1 => $"({argType} arg0) => (({returnType})global::Alder.Runtime.MethodInvoker.InvokeLambda((global::Alder.Runtime.LambdaValue)l, new object?[] {{ arg0 }}, ((global::Alder.Runtime.LambdaValue)l).Closure)!)",
-            2 => $"({argType} arg0, {arg2Type} arg1) => (({returnType})global::Alder.Runtime.MethodInvoker.InvokeLambda((global::Alder.Runtime.LambdaValue)l, new object?[] {{ arg0, arg1 }}, ((global::Alder.Runtime.LambdaValue)l).Closure)!)",
-            _ => null
-        };
-        if (args == null) return;
+            var compType = $"global::System.Comparison<{vt}>";
+            if (seen.Add(compType))
+                result.Add(new DelegateTypeInfo(compType, new[] { vt, vt }, "int", false));
+        }
 
-        w.AppendLine($"d[typeof({delegateType})] = l => new {delegateType}({args});");
+        return result;
     }
 
-    private static void EmitActionFactory(SourceWriter w, string argType, int arity)
+    private static bool TryParseDelegateType(string typeName, out DelegateTypeInfo info)
     {
-        var delegateType = $"global::System.Action<{argType}>";
-        w.AppendLine($"d[typeof({delegateType})] = l => new {delegateType}(({argType} arg0) => {{ global::Alder.Runtime.MethodInvoker.InvokeLambda((global::Alder.Runtime.LambdaValue)l, new object?[] {{ arg0 }}, ((global::Alder.Runtime.LambdaValue)l).Closure); }});");
+        info = default;
+
+        // Parse "global::System.Func<A, B, C>" or "global::System.Action<A>"
+        var funcPrefix = "global::System.Func<";
+        var actionPrefix = "global::System.Action<";
+
+        string inner;
+        bool isAction;
+
+        if (typeName.StartsWith(funcPrefix) && typeName.EndsWith(">"))
+        {
+            inner = typeName.Substring(funcPrefix.Length, typeName.Length - funcPrefix.Length - 1);
+            isAction = false;
+        }
+        else if (typeName.StartsWith(actionPrefix) && typeName.EndsWith(">"))
+        {
+            inner = typeName.Substring(actionPrefix.Length, typeName.Length - actionPrefix.Length - 1);
+            isAction = true;
+        }
+        else
+        {
+            return false;
+        }
+
+        // Split by ", " but respect nested generics
+        var args = SplitGenericArgs(inner);
+        if (args.Length == 0) return false;
+
+        if (isAction)
+        {
+            info = new DelegateTypeInfo(typeName, args, "void", true);
+        }
+        else
+        {
+            // Last arg is return type for Func
+            var paramArgs = new string[args.Length - 1];
+            System.Array.Copy(args, paramArgs, paramArgs.Length);
+            var returnType = args[args.Length - 1];
+            info = new DelegateTypeInfo(typeName, paramArgs, returnType, false);
+        }
+        return true;
     }
 
-    private static void EmitComparisonFactory(SourceWriter w, string argType)
+    private static string[] SplitGenericArgs(string inner)
     {
-        var delegateType = $"global::System.Comparison<{argType}>";
-        w.AppendLine($"d[typeof({delegateType})] = l => new {delegateType}(({argType} arg0, {argType} arg1) => ((int)global::Alder.Runtime.MethodInvoker.InvokeLambda((global::Alder.Runtime.LambdaValue)l, new object?[] {{ arg0, arg1 }}, ((global::Alder.Runtime.LambdaValue)l).Closure)!));");
+        var result = new List<string>();
+        var depth = 0;
+        var start = 0;
+
+        for (var i = 0; i < inner.Length; i++)
+        {
+            if (inner[i] == '<') depth++;
+            else if (inner[i] == '>') depth--;
+            else if (inner[i] == ',' && depth == 0)
+            {
+                result.Add(inner.Substring(start, i - start).Trim());
+                start = i + 1;
+            }
+        }
+        result.Add(inner.Substring(start).Trim());
+        return result.ToArray();
+    }
+
+    private static void EmitFactory(SourceWriter w, DelegateTypeInfo dt, string invoke, string lv)
+    {
+        var paramList = string.Join(", ", dt.ParamTypes.Select((p, i) => $"{p} arg{i}"));
+        var argArray = string.Join(", ", dt.ParamTypes.Select((_, i) => $"arg{i}"));
+        var call = $"{invoke}(({lv})l, new object?[] {{ {argArray} }}, (({lv})l).Closure)";
+
+        var body = dt.IsAction
+            ? $"{{ {call}; }}"
+            : $"(({dt.ReturnType}){call}!)";
+
+        w.AppendLine($"d[typeof({dt.FullTypeName})] = l => new {dt.FullTypeName}(({paramList}) => {body});");
     }
 
     internal static List<string> CollectValueTypeNames(ImmutableArray<TypeRegistrationModel> registrations)
     {
-        var valueTypeKeywords = new HashSet<string>
-        {
-            "int", "global::System.Int32",
-            "long", "global::System.Int64",
-            "double", "global::System.Double",
-            "float", "global::System.Single",
-            "decimal", "global::System.Decimal",
-            "bool", "global::System.Boolean",
-            "char", "global::System.Char",
-            "byte", "global::System.Byte",
-            "short", "global::System.Int16",
-            "ushort", "global::System.UInt16",
-            "uint", "global::System.UInt32",
-            "ulong", "global::System.UInt64",
-            "sbyte", "global::System.SByte",
-        };
-
         var seen = new HashSet<string>();
         var result = new List<string>();
 
         foreach (var reg in registrations)
         {
-            if (valueTypeKeywords.Contains(reg.TypeFullName) && seen.Add(reg.TypeFullName))
+            if (reg.IsValueType && !reg.IsClosedGeneric && seen.Add(reg.TypeFullName))
                 result.Add(reg.TypeFullName);
         }
 
         return result;
+    }
+
+    private readonly struct DelegateTypeInfo
+    {
+        public readonly string FullTypeName;
+        public readonly string[] ParamTypes;
+        public readonly string ReturnType;
+        public readonly bool IsAction;
+
+        public DelegateTypeInfo(string fullTypeName, string[] paramTypes, string returnType, bool isAction)
+        {
+            FullTypeName = fullTypeName;
+            ParamTypes = paramTypes;
+            ReturnType = returnType;
+            IsAction = isAction;
+        }
+
+        public bool HasValueTypeArg(HashSet<string> valueTypes)
+        {
+            return ParamTypes.Length > 0 && valueTypes.Contains(ParamTypes[0]);
+        }
     }
 }

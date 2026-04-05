@@ -37,4 +37,4 @@ Alder ships with a built-in AOT context for common BCL types (`string`, `int`, `
 
 ## Full Reference
 
-For the complete AOT documentation (`ITypedDispatch`, delegate factories, generic rooting, LINQ dispatch, generator limitations), see [AOT Overview](overview.md).
+For the complete AOT documentation (`TypedDispatch`, delegate factories, generic rooting, LINQ dispatch, generator limitations), see [AOT Overview](overview.md).

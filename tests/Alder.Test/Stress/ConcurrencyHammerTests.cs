@@ -7,12 +7,11 @@ namespace Alder.Test.Stress;
 [TestFixture(CompilationMode.Compiled)]
 public class ConcurrencyHammerTests(CompilationMode mode)
 {
-    private AlderEngine CreateEngine() => TestEngineFactory.Create(mode);
 
     [Test]
     public void ParallelChildren_ShouldBeSafe_IfParentIsReadOnly()
     {
-        var engine = CreateEngine();
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("globalConfig", 123);
 
         var parallelOptions = new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount * 2 };
@@ -39,7 +38,7 @@ public class ConcurrencyHammerTests(CompilationMode mode)
     [Test]
     public void ParallelParsing_SameExpression_ShouldHitCacheSafe()
     {
-        var engine = CreateEngine();
+        var engine = TestEngineFactory.Create(mode);
         const string expr = "1 + 1";
 
         Parallel.For(0, 10000, i =>
@@ -51,7 +50,7 @@ public class ConcurrencyHammerTests(CompilationMode mode)
     [Test]
     public void ParallelParsing_DifferentExpressions_ShouldStressCacheWraps()
     {
-        var engine = CreateEngine();
+        var engine = TestEngineFactory.Create(mode);
 
         Parallel.For(0, 5000, i =>
         {
@@ -63,7 +62,7 @@ public class ConcurrencyHammerTests(CompilationMode mode)
     [Explicit("Demonstrates expected unsafe behavior - Modifying parent while children read is NOT thread safe")]
     public void ModifyingParent_WhileChildrenRead_ShouldCrashOrCorrupt()
     {
-        var engine = CreateEngine();
+        var engine = TestEngineFactory.Create(mode);
 
         var running = true;
 
@@ -102,7 +101,7 @@ public class ConcurrencyHammerTests(CompilationMode mode)
     [Test]
     public void ConcurrentRecursiveEvaluation_ShouldNotDeadlock()
     {
-        var engine = CreateEngine();
+        var engine = TestEngineFactory.Create(mode);
         var expr = "1 + 1";
 
         Parallel.For(0, 100, i =>

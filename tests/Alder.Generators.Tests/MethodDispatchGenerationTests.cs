@@ -192,7 +192,12 @@ public class MethodDispatchGenerationTests
         Assert.That(errors, Is.Empty, $"Generated code has compilation errors:\n{string.Join("\n", errors)}");
 
         var tryInvoke = ExtractMethod(generated, "TryInvoke");
-        Assert.That(tryInvoke, Does.Not.Contain("\"Identity\""));
+        Assert.That(tryInvoke, Does.Contain("\"Identity\""),
+            "Generic methods should be expanded to closed instantiations");
+        Assert.That(tryInvoke, Does.Contain("Identity<string>"),
+            "Generic method should have string instantiation");
+        Assert.That(tryInvoke, Does.Contain("Identity<object>"),
+            "Generic method should have object instantiation");
     }
 
     [Test]
@@ -224,7 +229,7 @@ public class MethodDispatchGenerationTests
     }
 
     [Test]
-    public void ParamsMethod_Skipped()
+    public void ParamsMethod_GeneratesNormalAndExpandedDispatch()
     {
         var source = """
             using Alder.Aot;
@@ -249,7 +254,9 @@ public class MethodDispatchGenerationTests
         Assert.That(errors, Is.Empty, $"Generated code has compilation errors:\n{string.Join("\n", errors)}");
 
         var tryInvoke = ExtractMethod(generated, "TryInvoke");
-        Assert.That(tryInvoke, Does.Not.Contain("\"Sum\""));
+        Assert.That(tryInvoke, Does.Contain("case \"Sum\":"));
+        Assert.That(tryInvoke, Does.Contain("args[0] is int[]"), "Normal form: caller passes the array directly");
+        Assert.That(tryInvoke, Does.Contain("__paramsArr"), "Expanded form: individual elements collected into array");
     }
 
     [Test]
@@ -286,7 +293,7 @@ public class MethodDispatchGenerationTests
 
     private static string ExtractMethod(string source, string methodName)
     {
-        var searchStr = $"public bool {methodName}(";
+        var searchStr = $"public override bool {methodName}(";
         var idx = source.IndexOf(searchStr);
         if (idx < 0) return string.Empty;
 

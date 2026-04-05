@@ -2,12 +2,12 @@ Variables connect your application to the expressions it evaluates. The injectio
 
 ## Injection Patterns
 
-| Pattern | Scope | Binder knows type | Performance | Best for |
-|---------|-------|-------------------|-------------|----------|
-| `SetVariable<T>` | Persistent | Yes: `typeof(T)` | Best: bind-time resolution | Server apps, reused engines |
-| `SetVariable` (untyped) | Persistent | No: `typeof(object)` | Slower: runtime reflection | Dynamic values, unknown types |
-| Anonymous object | Single `Evaluate` call | Via reflection per call | Moderate | Quick one-off evaluations |
-| `IDictionary<string, object?>` | Single `Evaluate` call | No: `typeof(object)` | Slower: runtime reflection | Dynamic keys from config/user input |
+| Pattern                           | Scope                  | Binder knows type                            | Best for                            |
+| --------------------------------- | ---------------------- | -------------------------------------------- | ----------------------------------- |
+| `SetVariable<T>`                  | Persistent             | Yes: `typeof(T)`                             | Server apps, reused engines         |
+| `SetVariable` (untyped)           | Persistent             | No: `typeof(object)`                         | Dynamic values, unknown types       |
+| Anonymous object / class instance | Single `Evaluate` call | Yes: property types preserved via reflection | One-off evaluations                 |
+| `IDictionary<string, object?>`    | Single `Evaluate` call | No: `typeof(object)`                         | Dynamic keys from config/user input |
 
 ### `SetVariable<T>`: typed, persistent
 
@@ -40,7 +40,7 @@ Variables persist across evaluations. Updating a variable's value is visible to 
 
 The engine uses a two-phase variable lifecycle. Variables set before the first evaluation are stored as `PendingVariable` structs (value + inferred type) in a `Dictionary` protected by a lock (`_contextInitLock`). On the first evaluation, `GetOrCreateContext()` bulk-defines all pending variables into the `AlderContext`, then clears the pending dictionary. Variables set after context initialization bypass the pending state entirely. They are defined directly into the `AlderContext` using a double-check lock pattern (check outside lock, re-check inside lock) to avoid contention in the hot path. The `AlderContext` itself uses `ConcurrentDictionary` for thread-safe reads during evaluation.
 
-### Anonymous object: inline, scoped
+### Anonymous object: inline, scoped, typed
 
 ```csharp
 bool eligible = engine.Evaluate<bool>(
@@ -50,7 +50,14 @@ bool eligible = engine.Evaluate<bool>(
 
 <!-- test: Variables_AnonymousObject -->
 
-Internally, `ToVariableDictionary` reads the object's public properties via reflection and builds an `IDictionary<string, object?>`. A child engine is created, the dictionary is loaded into it via `SetVariables`, and evaluation runs against that child. The parent engine's variable store is untouched.
+Property types are preserved via reflection. `age` is registered as `int`, `country` as `string`. The binder produces resolved nodes with bind-time member resolution, same as `SetVariable<T>`. A child engine is created internally. The parent engine's variable store is untouched.
+
+Any object works, not just anonymous types:
+
+```csharp
+var pricing = new PricingParams { BasePrice = 100, TaxRate = 0.08 };
+engine.Evaluate<double>("BasePrice * (1 + TaxRate)", pricing); // 108.0
+```
 
 ### `IDictionary<string, object?>`: dynamic keys, scoped
 
@@ -65,7 +72,7 @@ double result = engine.Evaluate<double>("threshold * multiplier", vars); // 150.
 
 <!-- test: Variables_Dictionary -->
 
-Same scoping as anonymous objects. A child engine is created, variables loaded, evaluation runs, parent unaffected. Values are typed as `object`, so the binder produces dynamic nodes.
+Same scoping as anonymous objects. A child engine is created, variables loaded, evaluation runs, parent unaffected. Dictionary values are typed as `object` (the binder produces dynamic nodes). Use anonymous objects or `SetVariable<T>` when type-aware binding matters.
 
 ## Bound Tree Caching and Type Versioning
 

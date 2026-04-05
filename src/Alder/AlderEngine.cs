@@ -38,7 +38,7 @@ public sealed partial class AlderEngine : IDisposable
     private readonly DisposalToken _disposalToken;
     private readonly ConditionalWeakTable<BoundExpr, BoundExpr> _pipelineCache = new();
 
-    private static readonly ConcurrentDictionary<Type, (string Name, Func<object, object?> Getter)[]> VariableAccessorCache = new();
+    private static readonly ConcurrentDictionary<Type, (string Name, Type PropertyType, Func<object, object?> Getter)[]> VariableAccessorCache = new();
     private static readonly MethodInfo? WrapGetterMethod =
         typeof(AlderEngine).GetMethod(nameof(WrapGetter), BindingFlags.NonPublic | BindingFlags.Static);
 
@@ -140,12 +140,12 @@ public sealed partial class AlderEngine : IDisposable
             true,
             options.StringComparer);
 
-        Dictionary<Type, ITypedDispatch>? typeDispatch = null;
+        Dictionary<Type, TypedDispatch>? typeDispatch = null;
         Dictionary<Type, Func<object, Delegate>>? delegateFactories = null;
 
         if (options.Aot.BuiltInContext != null)
         {
-            typeDispatch = new Dictionary<Type, ITypedDispatch>();
+            typeDispatch = new Dictionary<Type, TypedDispatch>();
             foreach (var metadata in options.Aot.BuiltInContext.GetTypeMetadata())
                 typeDispatch[metadata.Type] = metadata;
 
@@ -160,7 +160,7 @@ public sealed partial class AlderEngine : IDisposable
 
         foreach (var ctx in options.Aot.AdditionalContexts)
         {
-            typeDispatch ??= new Dictionary<Type, ITypedDispatch>();
+            typeDispatch ??= new Dictionary<Type, TypedDispatch>();
             foreach (var metadata in ctx.GetTypeMetadata())
                 typeDispatch[metadata.Type] = metadata;
 
@@ -189,7 +189,7 @@ public sealed partial class AlderEngine : IDisposable
             [..options.Types.ExtensionTypes],
             typeMetadata,
             typeResolver,
-            typeDispatch != null ? Runtime.Collections.FixedDictionary<Type, ITypedDispatch>.Create(typeDispatch) : null,
+            typeDispatch != null ? Runtime.Collections.FixedDictionary<Type, TypedDispatch>.Create(typeDispatch) : null,
             delegateFactories);
     }
 
@@ -473,7 +473,11 @@ public sealed partial class AlderEngine : IDisposable
         string expression,
         object variables,
         CancellationToken cancellationToken = default)
-        => Evaluate(expression, ToVariableDictionary(variables), cancellationToken);
+    {
+        var child = CreateChild();
+        child.SetTypedVariablesFromObject(variables);
+        return child.Evaluate(expression, cancellationToken: cancellationToken);
+    }
 
     /// <summary>
     /// Evaluates a pre-parsed expression with variables supplied as an anonymous object.
@@ -486,7 +490,11 @@ public sealed partial class AlderEngine : IDisposable
         AlderExpression expression,
         object variables,
         CancellationToken cancellationToken = default)
-        => Evaluate(expression, ToVariableDictionary(variables), cancellationToken);
+    {
+        var child = CreateChild();
+        child.SetTypedVariablesFromObject(variables);
+        return child.Evaluate(expression, cancellationToken: cancellationToken);
+    }
 
     /// <summary>
     /// Evaluates a C# expression and converts the result to <typeparamref name="T"/>.
@@ -534,7 +542,12 @@ public sealed partial class AlderEngine : IDisposable
         string expression,
         object variables,
         CancellationToken cancellationToken = default)
-        => ConvertResult<T>(Evaluate(expression, ToVariableDictionary(variables), cancellationToken));
+
+    {
+        var child = CreateChild();
+        child.SetTypedVariablesFromObject(variables);
+        return child.Evaluate<T>(expression, cancellationToken: cancellationToken);
+    }
 
     /// <summary>
     /// Evaluates a pre-parsed expression with anonymous object variables and converts the result to <typeparamref name="T"/>.
@@ -548,7 +561,11 @@ public sealed partial class AlderEngine : IDisposable
         AlderExpression expression,
         object variables,
         CancellationToken cancellationToken = default)
-        => ConvertResult<T>(Evaluate(expression, ToVariableDictionary(variables), cancellationToken));
+    {
+        var child = CreateChild();
+        child.SetTypedVariablesFromObject(variables);
+        return child.Evaluate<T>(expression, cancellationToken: cancellationToken);
+    }
 
     /// <summary>
     /// Attempts to evaluate a C# expression without throwing on failure.
@@ -701,12 +718,12 @@ public sealed partial class AlderEngine : IDisposable
         };
     }
 
-    private static Dictionary<string, object?> ToVariableDictionary(object obj)
+    private static (string Name, object? Value, Type Type)[] ToTypedVariables(object obj)
     {
         var accessors = VariableAccessorCache.GetOrAdd(obj.GetType(), static t =>
         {
             var props = t.GetProperties(BindingFlags.Public | BindingFlags.Instance);
-            var result = new (string Name, Func<object, object?> Getter)[props.Length];
+            var result = new (string Name, Type PropertyType, Func<object, object?> Getter)[props.Length];
             for (var i = 0; i < props.Length; i++)
             {
                 var prop = props[i];
@@ -714,22 +731,22 @@ public sealed partial class AlderEngine : IDisposable
                 if (getter == null || WrapGetterMethod == null)
                 {
                     var p = prop;
-                    result[i] = (prop.Name, o => p.GetValue(o));
+                    result[i] = (prop.Name, prop.PropertyType, o => p.GetValue(o));
                     continue;
                 }
 
                 var boxed = (Func<object, object?>)WrapGetterMethod
                     .MakeGenericMethod(t, prop.PropertyType)
                     .Invoke(null, [getter])!;
-                result[i] = (prop.Name, boxed);
+                result[i] = (prop.Name, prop.PropertyType, boxed);
             }
             return result;
         });
 
-        var dict = new Dictionary<string, object?>(accessors.Length);
-        foreach (var (name, getter) in accessors)
-            dict[name] = getter(obj);
-        return dict;
+        var result = new (string Name, object? Value, Type Type)[accessors.Length];
+        for (var i = 0; i < accessors.Length; i++)
+            result[i] = (accessors[i].Name, accessors[i].Getter(obj), accessors[i].PropertyType);
+        return result;
     }
 
     private static Func<object, object?> WrapGetter<TOwner, TProp>(MethodInfo getMethod)

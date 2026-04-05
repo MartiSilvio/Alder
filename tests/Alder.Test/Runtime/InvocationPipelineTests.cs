@@ -9,7 +9,7 @@ public sealed class InvocationPipelineTests(CompilationMode mode)
     [Test]
     public void ParamsArrayExpansion_UsesAllPositionalArguments()
     {
-        var engine = CreateEngine();
+        var engine = TestEngineFactory.Create(mode);
         var target = new InvocationTarget();
         engine.SetVariable("target", target);
         engine.SetVariable("x", 1);
@@ -25,7 +25,7 @@ public sealed class InvocationPipelineTests(CompilationMode mode)
     [Test]
     public void OptionalArgument_UsesDefault_WhenNotSupplied()
     {
-        var engine = CreateEngine();
+        var engine = TestEngineFactory.Create(mode);
         var target = new InvocationTarget();
         engine.SetVariable("target", target);
         engine.SetVariable("x", 7);
@@ -38,7 +38,7 @@ public sealed class InvocationPipelineTests(CompilationMode mode)
     [Test]
     public void OptionalArgument_UsesExplicitValue_WhenSupplied()
     {
-        var engine = CreateEngine();
+        var engine = TestEngineFactory.Create(mode);
         var target = new InvocationTarget();
         engine.SetVariable("target", target);
         engine.SetVariable("x", 7);
@@ -52,18 +52,13 @@ public sealed class InvocationPipelineTests(CompilationMode mode)
     [Test]
     public void NestedInvocationArguments_DoNotOverwriteSiblingArguments()
     {
-        var engine = CreateEngine();
+        var engine = TestEngineFactory.Create(mode);
         var target = new InvocationTarget();
         engine.SetVariable("target", target);
 
         var result = engine.Evaluate("target.Combine(target.One(), target.Two())");
 
         Assert.That(result, Is.EqualTo(12));
-    }
-
-    private AlderEngine CreateEngine()
-    {
-        return TestEngineFactory.Create(mode);
     }
 
     private sealed class InvocationTarget

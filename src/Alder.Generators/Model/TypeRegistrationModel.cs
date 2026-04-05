@@ -6,6 +6,7 @@ internal readonly record struct TypeRegistrationModel(
     string TypeFullName,
     string MetadataClassName,
     bool IsClosedGeneric,
+    bool IsValueType,
     ImmutableArray<PropertyModel> Properties,
     ImmutableArray<FieldModel> Fields,
     ImmutableArray<ConstructorModel> Constructors,

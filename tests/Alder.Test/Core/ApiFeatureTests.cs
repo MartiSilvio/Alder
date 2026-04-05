@@ -8,15 +8,12 @@ namespace Alder.Test.Core;
 [TestFixture(CompilationMode.Compiled)]
 public class ApiFeatureTests(CompilationMode mode)
 {
-    private AlderEngine CreateEngine() =>
-        TestEngineFactory.Create(mode);
-
     #region TryEvaluate
 
     [Test]
     public void TryEvaluate_ValidExpression_ReturnsTrueWithCorrectResult()
     {
-        var engine = CreateEngine();
+        var engine = TestEngineFactory.Create(mode);
         var success = engine.TryEvaluate("1 + 2", out var result);
 
         Assert.That(success, Is.True);
@@ -26,7 +23,7 @@ public class ApiFeatureTests(CompilationMode mode)
     [Test]
     public void TryEvaluate_InvalidExpression_ReturnsFalse()
     {
-        var engine = CreateEngine();
+        var engine = TestEngineFactory.Create(mode);
         var success = engine.TryEvaluate("1 +", out var result);
 
         Assert.That(success, Is.False);
@@ -36,7 +33,7 @@ public class ApiFeatureTests(CompilationMode mode)
     [Test]
     public void TryEvaluate_UndefinedVariable_ReturnsFalse()
     {
-        var engine = CreateEngine();
+        var engine = TestEngineFactory.Create(mode);
         var success = engine.TryEvaluate("undefinedVar + 1", out var result);
 
         Assert.That(success, Is.False);
@@ -46,7 +43,7 @@ public class ApiFeatureTests(CompilationMode mode)
     [Test]
     public void TryEvaluate_WithVariablesDictionary_ReturnsTrueWithCorrectResult()
     {
-        var engine = CreateEngine();
+        var engine = TestEngineFactory.Create(mode);
         var vars = new Dictionary<string, object?> { ["x"] = 10, ["y"] = 5 };
         var success = engine.TryEvaluate("x + y", out var result, vars);
 
@@ -57,7 +54,7 @@ public class ApiFeatureTests(CompilationMode mode)
     [Test]
     public void TryEvaluate_GenericInt_ReturnsTypedResult()
     {
-        var engine = CreateEngine();
+        var engine = TestEngineFactory.Create(mode);
         var success = engine.TryEvaluate<int>("2 + 3", out var result);
 
         Assert.That(success, Is.True);
@@ -67,7 +64,7 @@ public class ApiFeatureTests(CompilationMode mode)
     [Test]
     public void TryEvaluate_GenericTypeMismatch_ReturnsFalse()
     {
-        var engine = CreateEngine();
+        var engine = TestEngineFactory.Create(mode);
         var success = engine.TryEvaluate<int>("\"hello\"", out var result);
 
         Assert.That(success, Is.False);
@@ -81,7 +78,7 @@ public class ApiFeatureTests(CompilationMode mode)
     [Test]
     public void TryValidate_ValidExpression_ReturnsTrue()
     {
-        var engine = CreateEngine();
+        var engine = TestEngineFactory.Create(mode);
         var success = engine.TryValidate("1 + 2", out var diagnostics);
 
         Assert.That(success, Is.True);
@@ -91,7 +88,7 @@ public class ApiFeatureTests(CompilationMode mode)
     [Test]
     public void TryValidate_SyntaxError_ReturnsFalseWithDiagnostics()
     {
-        var engine = CreateEngine();
+        var engine = TestEngineFactory.Create(mode);
         var success = engine.TryValidate("1 +", out var diagnostics);
 
         Assert.That(success, Is.False);
@@ -103,7 +100,7 @@ public class ApiFeatureTests(CompilationMode mode)
     [Test]
     public void TryValidate_UndefinedVariable_ReturnsFalse()
     {
-        var engine = CreateEngine();
+        var engine = TestEngineFactory.Create(mode);
         var success = engine.TryValidate("undefinedVar + 1", out var diagnostics);
 
         Assert.That(success, Is.False);
@@ -113,7 +110,7 @@ public class ApiFeatureTests(CompilationMode mode)
     [Test]
     public void TryValidate_WithRegisteredVariable_ReturnsTrue()
     {
-        var engine = CreateEngine();
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("x", 42);
         var success = engine.TryValidate("x + 1", out var diagnostics);
 
@@ -124,7 +121,7 @@ public class ApiFeatureTests(CompilationMode mode)
     [Test]
     public void TryValidate_SyntaxError_DiagnosticHasPosition()
     {
-        var engine = CreateEngine();
+        var engine = TestEngineFactory.Create(mode);
         var success = engine.TryValidate("(1 + 2", out var diagnostics);
 
         Assert.That(success, Is.False);
@@ -135,7 +132,7 @@ public class ApiFeatureTests(CompilationMode mode)
     [Test]
     public void TryValidate_MultipleUndefinedIdentifiers_ReportCodesAndLocations()
     {
-        var engine = CreateEngine();
+        var engine = TestEngineFactory.Create(mode);
         var success = engine.TryValidate("foo + bar + baz", out var diagnostics);
 
         Assert.That(success, Is.False);
@@ -150,7 +147,7 @@ public class ApiFeatureTests(CompilationMode mode)
     [Test]
     public void Evaluate_MethodNotFoundOnVariable_ThrowsCS1061()
     {
-        var engine = CreateEngine();
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable<string>("name", "Alice");
 
         var ex = Assert.Throws<AlderException>(() => engine.Evaluate("name.Foo()"));
@@ -160,7 +157,7 @@ public class ApiFeatureTests(CompilationMode mode)
     [Test]
     public void Evaluate_ValidMemberOnVariable_Succeeds()
     {
-        var engine = CreateEngine();
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable<string>("name", "Alice");
 
         var result = engine.Evaluate("name.Length");
@@ -170,7 +167,7 @@ public class ApiFeatureTests(CompilationMode mode)
     [Test]
     public void Evaluate_ValidMethodOnVariable_Succeeds()
     {
-        var engine = CreateEngine();
+        var engine = TestEngineFactory.Create(mode);
         engine.SetVariable<string>("name", "Alice");
 
         var result = engine.Evaluate("name.ToUpper()");
@@ -184,7 +181,7 @@ public class ApiFeatureTests(CompilationMode mode)
     [Test]
     public void Ast_IsAccessible_ReturnsCorrectType()
     {
-        var engine = CreateEngine();
+        var engine = TestEngineFactory.Create(mode);
         var expression = engine.Parse("1 + 2");
 
         Assert.That(expression.Ast, Is.Not.Null);
@@ -199,7 +196,7 @@ public class ApiFeatureTests(CompilationMode mode)
     [Test]
     public void GetVariables_ReturnsIdentifierNames()
     {
-        var engine = CreateEngine();
+        var engine = TestEngineFactory.Create(mode);
         var expression = engine.Parse("x + y");
         var variables = expression.GetVariables();
 
@@ -211,7 +208,7 @@ public class ApiFeatureTests(CompilationMode mode)
     [Test]
     public void GetVariables_NoVariables_ReturnsEmpty()
     {
-        var engine = CreateEngine();
+        var engine = TestEngineFactory.Create(mode);
         var expression = engine.Parse("1 + 2");
         var variables = expression.GetVariables();
 
@@ -221,7 +218,7 @@ public class ApiFeatureTests(CompilationMode mode)
     [Test]
     public void GetVariables_WithDuplicates_ReturnsDistinct()
     {
-        var engine = CreateEngine();
+        var engine = TestEngineFactory.Create(mode);
         var expression = engine.Parse("x + x + x");
         var variables = expression.GetVariables();
 
@@ -232,7 +229,7 @@ public class ApiFeatureTests(CompilationMode mode)
     [Test]
     public void GetVariables_ComplexExpression_FindsAllVariables()
     {
-        var engine = CreateEngine();
+        var engine = TestEngineFactory.Create(mode);
         var expression = engine.Parse("a > 0 ? b * c : d + 1");
         var variables = expression.GetVariables();
 
@@ -246,7 +243,7 @@ public class ApiFeatureTests(CompilationMode mode)
     [Test]
     public void GetVariables_ExcludesDeclaredLocals()
     {
-        var engine = CreateEngine();
+        var engine = TestEngineFactory.Create(mode);
         // x is declared locally, y is unbound
         var expression = engine.Parse("var x = 1; x + y");
         var variables = expression.GetVariables();
@@ -258,7 +255,7 @@ public class ApiFeatureTests(CompilationMode mode)
     [Test]
     public void GetVariables_LambdaParametersExcluded()
     {
-        var engine = CreateEngine();
+        var engine = TestEngineFactory.Create(mode);
         // Lambda parameter 'x' should be excluded, 'items' is unbound
         var expression = engine.Parse("items.Where((x) => x > 0)");
         var variables = expression.GetVariables();
@@ -270,7 +267,7 @@ public class ApiFeatureTests(CompilationMode mode)
     [Test]
     public void GetVariables_LocalDeclaredInsideLambda_DoesNotHideOuterIdentifier()
     {
-        var engine = CreateEngine();
+        var engine = TestEngineFactory.Create(mode);
         var expression = engine.Parse("items.Select(x => { var y = x; return y; }).Count() + y");
         var variables = expression.GetVariables();
 
@@ -285,7 +282,7 @@ public class ApiFeatureTests(CompilationMode mode)
     [Test]
     public void Dispose_ThenEvaluate_ThrowsObjectDisposedException()
     {
-        var engine = CreateEngine();
+        var engine = TestEngineFactory.Create(mode);
         engine.Dispose();
 
         Assert.Throws<ObjectDisposedException>(() => engine.Evaluate("1 + 2"));
@@ -294,7 +291,7 @@ public class ApiFeatureTests(CompilationMode mode)
     [Test]
     public void Dispose_IsIdempotent()
     {
-        var engine = CreateEngine();
+        var engine = TestEngineFactory.Create(mode);
         engine.Dispose();
         Assert.DoesNotThrow(() => engine.Dispose());
     }
@@ -302,7 +299,7 @@ public class ApiFeatureTests(CompilationMode mode)
     [Test]
     public void Dispose_UsingPattern_Works()
     {
-        using var engine = CreateEngine();
+        using var engine = TestEngineFactory.Create(mode);
         var result = engine.Evaluate("1 + 2");
         Assert.That(result, Is.EqualTo(3));
     }

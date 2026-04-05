@@ -342,7 +342,7 @@ public class ApiSurfaceTests
             "Alder.Aot.AlderBuiltInContext",
             "Alder.Aot.AlderRegisteredAttribute",
             "Alder.Aot.AlderTypeContext",
-            "Alder.Aot.ITypedDispatch",
+            "Alder.Aot.TypedDispatch",
             "Alder.Attributes.AlderFunctionAttribute",
             "Alder.Attributes.AlderModuleAttribute",
             "Alder.AlderCompiledExpression`1",

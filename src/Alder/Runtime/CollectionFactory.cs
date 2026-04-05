@@ -109,7 +109,7 @@ internal static class CollectionFactory
         return Convert.ChangeType(value, convertTarget);
     }
 
-    private static object CreateViaDispatch(Aot.ITypedDispatch dispatch, Type elementType, List<object?> values)
+    private static object CreateViaDispatch(Aot.TypedDispatch dispatch, Type elementType, List<object?> values)
     {
         if (!dispatch.TryCreate([], out var instance) || instance == null)
             throw new AlderException(DiagnosticDescriptors.NoMatchingConstructor, dispatch.Type.Name, "0");

@@ -28,10 +28,10 @@ internal sealed class AlderConfig
     internal TypeResolver TypeResolver { get; }
     public StringComparer Comparer { get; }
     public StringComparison StringComparison => IsCaseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
-    internal FixedDictionary<Type, ITypedDispatch>? TypeDispatch { get; }
+    internal FixedDictionary<Type, TypedDispatch>? TypeDispatch { get; }
     internal IReadOnlyDictionary<Type, Func<object, Delegate>>? DelegateFactories { get; }
 
-    internal bool TryGetDispatch(Type type, [NotNullWhen(true)] out ITypedDispatch? metadata)
+    internal bool TryGetDispatch(Type type, [NotNullWhen(true)] out TypedDispatch? metadata)
     {
         if (TypeDispatch is not { } dispatch)
         {
@@ -62,7 +62,7 @@ internal sealed class AlderConfig
         ImmutableArray<Type> extensionTypes,
         TypeMetadataProvider typeMetadata,
         TypeResolver typeResolver,
-        FixedDictionary<Type, ITypedDispatch>? typeDispatch,
+        FixedDictionary<Type, TypedDispatch>? typeDispatch,
         IReadOnlyDictionary<Type, Func<object, Delegate>>? delegateFactories = null)
     {
         LanguageMode = languageMode;

@@ -28,7 +28,7 @@ When writing code that uses Alder:
 
 ## Engine API
 
-- [AlderEngine](docs/engine/alder-engine.md): Evaluate, parse, validate, compile, trace, dispose, thread safety
+- [Evaluation](docs/evaluation.md): Evaluate, parse, validate, compile, trace, async, thread safety
 - [AlderOptions](docs/engine/alder-options.md): Language mode, sandbox, constraints, compiler, sub-builders
 - [Variables](docs/engine/variables.md): Typed vs untyped injection, child engines, scoping, caching, concurrency
 - [Compilation](docs/engine/compilation.md): IL compilation, UseCompiler, CompileToFunc, ParseAsExpression, swappable backend
@@ -44,7 +44,7 @@ When writing code that uses Alder:
 
 ## AOT
 
-- [AOT Overview](docs/aot/overview.md): Two-tier dispatch, source generator, ITypedDispatch, delegate factories, NativeAOT/IL2CPP
+- [AOT Overview](docs/aot/overview.md): Two-tier dispatch, source generator, TypedDispatch, delegate factories, NativeAOT/IL2CPP
 
 ## Architecture
 

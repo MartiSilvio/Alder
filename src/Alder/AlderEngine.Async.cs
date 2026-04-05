@@ -59,6 +59,7 @@ public sealed partial class AlderEngine
 
     /// <summary>
     /// Asynchronously evaluates a C# expression with variables supplied as an anonymous object.
+    /// Property types are preserved for type-aware binding.
     /// </summary>
     public ValueTask<object?> EvaluateAsync(
         string expression,
@@ -66,8 +67,9 @@ public sealed partial class AlderEngine
         CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();
-        var dict = ToVariableDictionary(variables);
-        return EvaluateAsync(expression, dict, cancellationToken);
+        var child = CreateChild();
+        child.SetTypedVariablesFromObject(variables);
+        return child.EvaluateAsync(expression, cancellationToken: cancellationToken);
     }
 
     /// <summary>

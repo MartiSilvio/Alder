@@ -8,6 +8,14 @@ Full ECMA-334 language support, two execution backends, safe execution, AOT-read
 </p>
 
 <p align="center">
+  <img src="https://img.shields.io/badge/.NET%208+-512BD4?logo=dotnet&logoColor=white" alt=".NET 8+">
+  <img src="https://img.shields.io/badge/.NET%20Standard%202.0-512BD4?logo=dotnet&logoColor=white" alt=".NET Standard 2.0">
+  <img src="https://img.shields.io/badge/NativeAOT-ready-brightgreen" alt="NativeAOT ready">
+  <img src="https://img.shields.io/badge/dependencies-0-brightgreen" alt="Zero dependencies">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT License"></a>
+</p>
+
+<p align="center">
   <a href="#install">Install</a> &middot;
   <a href="#why-alder">Why Alder</a> &middot;
   <a href="#documentation">Docs</a> &middot;

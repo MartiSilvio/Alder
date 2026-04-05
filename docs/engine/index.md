@@ -22,7 +22,7 @@ var result = engine.Evaluate<string>("""
 
 | Page | What it covers |
 |------|---------------|
-| [AlderEngine](alder-engine.md) | Full API: evaluate, parse, validate, compile, trace, dispose, thread safety, static API |
+| [Evaluation](../evaluation.md) | Evaluate, parse, validate, compile, trace, async, thread safety |
 | [AlderOptions](alder-options.md) | Configuration: language mode, sandbox, constraints, compiler, sub-builders |
 | [Variables](variables.md) | Injection patterns, typed vs untyped, anonymous objects, dictionaries, child engines, scoping |
 | [Compilation](compilation.md) | IL compilation, UseCompiler, CompileToFunc, ParseAsExpression, Compile\<T\> |

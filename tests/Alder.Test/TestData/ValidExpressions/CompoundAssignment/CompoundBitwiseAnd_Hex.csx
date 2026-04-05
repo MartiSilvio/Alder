@@ -1,0 +1,3 @@
+var x = 0xFF;
+x &= 0x0F;
+return x;

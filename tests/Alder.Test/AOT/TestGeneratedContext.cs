@@ -39,20 +39,20 @@ public class TestGeneratedContext : AlderTypeContext
 {
     public static TestGeneratedContext Default { get; } = new();
 
-    private static readonly ITypedDispatch[] s_metadata =
+    private static readonly TypedDispatch[] s_metadata =
     [
         new TestModelMetadata(),
         new TestIndexedModelMetadata(),
     ];
 
-    public override IReadOnlyList<ITypedDispatch> GetTypeMetadata() => s_metadata;
+    public override IReadOnlyList<TypedDispatch> GetTypeMetadata() => s_metadata;
 }
 
-internal sealed class TestModelMetadata : ITypedDispatch
+internal sealed class TestModelMetadata : TypedDispatch
 {
-    public Type Type => typeof(TestModel);
+    public override Type Type => typeof(TestModel);
 
-    public bool TryGet(string name, object instance, out object? value)
+    public override bool TryGet(string name, object instance, out object? value)
     {
         var typed = (TestModel)instance;
         switch (name)
@@ -64,7 +64,7 @@ internal sealed class TestModelMetadata : ITypedDispatch
         }
     }
 
-    public bool TrySet(string name, object instance, object? value)
+    public override bool TrySet(string name, object instance, object? value)
     {
         var typed = (TestModel)instance;
         switch (name)
@@ -75,7 +75,7 @@ internal sealed class TestModelMetadata : ITypedDispatch
         }
     }
 
-    public bool TryGetStatic(string name, out object? value)
+    public override bool TryGetStatic(string name, out object? value)
     {
         switch (name)
         {
@@ -85,7 +85,7 @@ internal sealed class TestModelMetadata : ITypedDispatch
         }
     }
 
-    public bool TryCreate(object?[] args, out object? instance)
+    public override bool TryCreate(object?[] args, out object? instance)
     {
         switch (args.Length)
         {
@@ -95,15 +95,7 @@ internal sealed class TestModelMetadata : ITypedDispatch
         }
     }
 
-    public bool TryGetIndex(object instance, object key, out object? value)
-    {
-        value = default;
-        return false;
-    }
-
-    public bool TrySetIndex(object instance, object key, object? value) => false;
-
-    public bool TryInvoke(string name, object instance, object?[] args, out object? result)
+    public override bool TryInvoke(string name, object instance, object?[] args, out object? result)
     {
         var typed = (TestModel)instance;
         switch (name)
@@ -131,7 +123,7 @@ internal sealed class TestModelMetadata : ITypedDispatch
         return false;
     }
 
-    public bool TryInvokeStatic(string name, object?[] args, out object? result)
+    public override bool TryInvokeStatic(string name, object?[] args, out object? result)
     {
         switch (name)
         {
@@ -147,31 +139,11 @@ internal sealed class TestModelMetadata : ITypedDispatch
     }
 }
 
-internal sealed class TestIndexedModelMetadata : ITypedDispatch
+internal sealed class TestIndexedModelMetadata : TypedDispatch
 {
-    public Type Type => typeof(TestIndexedModel);
+    public override Type Type => typeof(TestIndexedModel);
 
-    public bool TryGet(string name, object instance, out object? value)
-    {
-        value = default;
-        return false;
-    }
-
-    public bool TrySet(string name, object instance, object? value) => false;
-
-    public bool TryGetStatic(string name, out object? value)
-    {
-        value = default;
-        return false;
-    }
-
-    public bool TryCreate(object?[] args, out object? instance)
-    {
-        instance = default;
-        return false;
-    }
-
-    public bool TryGetIndex(object instance, object key, out object? value)
+    public override bool TryGetIndex(object instance, object key, out object? value)
     {
         var typed = (TestIndexedModel)instance;
         if (key is string strKey)
@@ -183,7 +155,7 @@ internal sealed class TestIndexedModelMetadata : ITypedDispatch
         return false;
     }
 
-    public bool TrySetIndex(object instance, object key, object? value)
+    public override bool TrySetIndex(object instance, object key, object? value)
     {
         var typed = (TestIndexedModel)instance;
         if (key is string strKey)
@@ -191,18 +163,6 @@ internal sealed class TestIndexedModelMetadata : ITypedDispatch
             typed[strKey] = (int)value!;
             return true;
         }
-        return false;
-    }
-
-    public bool TryInvoke(string name, object instance, object?[] args, out object? result)
-    {
-        result = default;
-        return false;
-    }
-
-    public bool TryInvokeStatic(string name, object?[] args, out object? result)
-    {
-        result = default;
         return false;
     }
 }
