@@ -168,6 +168,16 @@ internal static class MethodInvoker
         var resolvedArgs = TryResolveLambdaArgs(extArgs, target.GetType(), context) ?? extArgs;
         var resolvedInnerArgs = resolvedArgs == extArgs ? args : resolvedArgs.AsSpan(1).ToArray();
 
+        // Try AOT extension dispatches first (value-type LINQ)
+        if (!hasSpecialArgs && context.Config.ExtensionDispatches is { } extDispatches)
+        {
+            foreach (var dispatch in extDispatches)
+            {
+                if (dispatch.TryInvokeStatic(methodName, resolvedArgs, out var aotResult))
+                    return (true, aotResult);
+            }
+        }
+
         foreach (var extType in extensionTypes)
         {
             if (!hasSpecialArgs && context.Config.TryGetDispatch(extType, out var extDispatch))
@@ -233,9 +243,8 @@ internal static class MethodInvoker
             }
             catch
             {
-                // MakeGenericType or delegate conversion can fail on NativeAOT
-                // when the closed generic instantiation isn't available.
-                // The reflection fallback in ExtensionMethodResolver handles these cases.
+                // MakeGenericType can fail on NativeAOT for rare type combinations.
+                // The extension dispatch or reflection fallback handles these cases.
             }
             resolved[i] = converted ?? arg;
         }

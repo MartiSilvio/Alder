@@ -3,7 +3,7 @@
 <h1 align="center">Alder</h1>
 
 <p align="center">
-<b>The embeddable C# runtime for .NET.</b><br>
+<b>A lightweight C# runtime engine for .NET.</b><br>
 Full ECMA-334 language support, two execution backends, safe execution, AOT-ready, zero dependencies.
 </p>
 

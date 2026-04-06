@@ -35,7 +35,7 @@ if [[ ! -x "$BIN_PATH" ]]; then
   exit 3
 fi
 
-TEST_DATA="$ROOT_DIR/tests/Alder.Test/TestData/ValidExpressions"
+TEST_DATA="$ROOT_DIR/tests/Alder.Test/TestData"
 
 echo "[aot-matrix] Running against $(find "$TEST_DATA" -name '*.csx' ! -name '*.roslyn.csx' | wc -l | tr -d ' ') expressions..."
 echo

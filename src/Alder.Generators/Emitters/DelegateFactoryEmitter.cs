@@ -11,15 +11,12 @@ namespace Alder.Generators.Emitters;
 /// </summary>
 internal static class DelegateFactoryEmitter
 {
-    public static string? Emit(ImmutableArray<TypeRegistrationModel> registrations)
+    public static string? Emit(
+        ImmutableArray<TypeRegistrationModel> registrations,
+        ImmutableArray<DelegateSignature> extensionDelegates = default)
     {
         var valueTypeNames = CollectValueTypeNames(registrations);
-        if (valueTypeNames.Count == 0)
-            return null;
-
-        // Collect all unique delegate parameter types from expanded methods
-        // where the delegate's first type argument is a value type.
-        var delegateTypes = CollectDelegateTypes(registrations, valueTypeNames);
+        var delegateTypes = CollectDelegateTypes(registrations, valueTypeNames, extensionDelegates);
         if (delegateTypes.Count == 0)
             return null;
 
@@ -29,8 +26,8 @@ internal static class DelegateFactoryEmitter
         w.AppendLine("#pragma warning disable CS8600, CS8603, CS8605");
         w.AppendLine();
 
-        var invoke = "global::Alder.Runtime.MethodInvoker.InvokeLambda";
-        var lv = "global::Alder.Runtime.LambdaValue";
+        var invoke = "global::Alder.Aot.GeneratedCodeHelpers.InvokeLambda";
+        var lv = "object"; // Lambda is passed as object — the facade handles the cast
 
         using (w.Block("file static class AotDelegateFactories"))
         {
@@ -55,29 +52,40 @@ internal static class DelegateFactoryEmitter
     /// </summary>
     private static List<DelegateTypeInfo> CollectDelegateTypes(
         ImmutableArray<TypeRegistrationModel> registrations,
-        List<string> valueTypeNames)
+        List<string> valueTypeNames,
+        ImmutableArray<DelegateSignature> extensionDelegates = default)
     {
         var valueTypeSet = new HashSet<string>(valueTypeNames);
         var seen = new HashSet<string>();
         var result = new List<DelegateTypeInfo>();
 
+        // Collect delegate types from expanded methods using Roslyn-extracted signatures.
         foreach (var reg in registrations)
         {
             foreach (var method in reg.Methods)
             {
                 foreach (var param in method.Parameters)
                 {
-                    if (TryParseDelegateType(param.TypeFullName, out var info) &&
-                        info.HasValueTypeArg(valueTypeSet) &&
-                        seen.Add(info.FullTypeName))
-                    {
-                        result.Add(info);
-                    }
+                    if (param.DelegateInfo is { } sig && seen.Add(param.TypeFullName))
+                        result.Add(new DelegateTypeInfo(param.TypeFullName, sig.ParamTypes.ToArray(), sig.ReturnType, sig.IsAction));
                 }
             }
         }
 
-        // Also add Comparison<T> for each value type (used by Sort, not always in method params)
+        // Merge delegate shapes from extension method dispatch emitter
+        if (!extensionDelegates.IsDefaultOrEmpty)
+        {
+            foreach (var sig in extensionDelegates)
+            {
+                var typeName = sig.IsAction
+                    ? $"global::System.Action<{string.Join(", ", sig.ParamTypes)}>"
+                    : $"global::System.Func<{string.Join(", ", sig.ParamTypes)}{(sig.ParamTypes.Length > 0 ? ", " : "")}{sig.ReturnType}>";
+                if (seen.Add(typeName))
+                    result.Add(new DelegateTypeInfo(typeName, sig.ParamTypes.ToArray(), sig.ReturnType, sig.IsAction));
+            }
+        }
+
+        // Comparison<T> for value types (used by Sort, not always in method params)
         foreach (var vt in valueTypeNames)
         {
             var compType = $"global::System.Comparison<{vt}>";
@@ -85,79 +93,24 @@ internal static class DelegateFactoryEmitter
                 result.Add(new DelegateTypeInfo(compType, new[] { vt, vt }, "int", false));
         }
 
+        // Func<T> (zero-arg) for value types — needed for Func<int> f = () => 42 and similar
+        // variable assignments that don't appear as method parameters.
+        // Reference-type Func<T> (Func<string>, Func<Customer>) use MakeGenericMethod at runtime.
+        foreach (var vt in valueTypeNames)
+        {
+            var funcType = $"global::System.Func<{vt}>";
+            if (seen.Add(funcType))
+                result.Add(new DelegateTypeInfo(funcType, System.Array.Empty<string>(), vt, false));
+        }
+
         return result;
-    }
-
-    private static bool TryParseDelegateType(string typeName, out DelegateTypeInfo info)
-    {
-        info = default;
-
-        // Parse "global::System.Func<A, B, C>" or "global::System.Action<A>"
-        var funcPrefix = "global::System.Func<";
-        var actionPrefix = "global::System.Action<";
-
-        string inner;
-        bool isAction;
-
-        if (typeName.StartsWith(funcPrefix) && typeName.EndsWith(">"))
-        {
-            inner = typeName.Substring(funcPrefix.Length, typeName.Length - funcPrefix.Length - 1);
-            isAction = false;
-        }
-        else if (typeName.StartsWith(actionPrefix) && typeName.EndsWith(">"))
-        {
-            inner = typeName.Substring(actionPrefix.Length, typeName.Length - actionPrefix.Length - 1);
-            isAction = true;
-        }
-        else
-        {
-            return false;
-        }
-
-        // Split by ", " but respect nested generics
-        var args = SplitGenericArgs(inner);
-        if (args.Length == 0) return false;
-
-        if (isAction)
-        {
-            info = new DelegateTypeInfo(typeName, args, "void", true);
-        }
-        else
-        {
-            // Last arg is return type for Func
-            var paramArgs = new string[args.Length - 1];
-            System.Array.Copy(args, paramArgs, paramArgs.Length);
-            var returnType = args[args.Length - 1];
-            info = new DelegateTypeInfo(typeName, paramArgs, returnType, false);
-        }
-        return true;
-    }
-
-    private static string[] SplitGenericArgs(string inner)
-    {
-        var result = new List<string>();
-        var depth = 0;
-        var start = 0;
-
-        for (var i = 0; i < inner.Length; i++)
-        {
-            if (inner[i] == '<') depth++;
-            else if (inner[i] == '>') depth--;
-            else if (inner[i] == ',' && depth == 0)
-            {
-                result.Add(inner.Substring(start, i - start).Trim());
-                start = i + 1;
-            }
-        }
-        result.Add(inner.Substring(start).Trim());
-        return result.ToArray();
     }
 
     private static void EmitFactory(SourceWriter w, DelegateTypeInfo dt, string invoke, string lv)
     {
         var paramList = string.Join(", ", dt.ParamTypes.Select((p, i) => $"{p} arg{i}"));
         var argArray = string.Join(", ", dt.ParamTypes.Select((_, i) => $"arg{i}"));
-        var call = $"{invoke}(({lv})l, new object?[] {{ {argArray} }}, (({lv})l).Closure)";
+        var call = $"{invoke}(l, new object?[] {{ {argArray} }})";
 
         var body = dt.IsAction
             ? $"{{ {call}; }}"

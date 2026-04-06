@@ -11,6 +11,8 @@ if (args.Length > 0 && args[0] == "--check-factories")
     return await TestSingle.Run("--check-factories");
 if (args.Length > 0 && args[0] == "--check-enum")
     return await TestSingle.Run("--check-enum");
+if (args.Length > 0 && args[0] == "--check-ext")
+    return await TestSingle.Run("--check-ext");
 
 Console.WriteLine("AOT Matrix starting...");
 Console.Out.Flush();

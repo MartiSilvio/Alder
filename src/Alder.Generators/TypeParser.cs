@@ -91,10 +91,13 @@ internal static class TypeParser
                     var methodParams = ImmutableArray.CreateBuilder<ParameterModel>();
                     foreach (var param in method.Parameters)
                     {
+                        var isDelegate = IsDelegateType(param.Type);
                         methodParams.Add(new ParameterModel(
                             param.Name,
                             GetFullyQualifiedTypeName(param.Type),
-                            param.IsParams));
+                            param.IsParams,
+                            isDelegate,
+                            isDelegate ? ExtractDelegateSignature(param.Type) : null));
                     }
                     methods.Add(new MethodModel(
                         method.Name,
@@ -123,11 +126,16 @@ internal static class TypeParser
     /// <summary>
     /// Result type matrix for TResult expansion.
     /// </summary>
+    // Value types + string + object. Value types need pre-compiled instantiations.
+    // String and object are included because generic static methods like Repeat<string>,
+    // Empty<string>, Task.FromResult<string> need them for TryInvokeStatic dispatch.
+    // Extension methods are skipped from expansion (IsExtensionMethod check), so
+    // including string/object here doesn't cause combinatorial explosion.
     private static readonly SpecialType[] ResultSpecialTypes =
     {
         SpecialType.System_Int32, SpecialType.System_Int64,
         SpecialType.System_Double, SpecialType.System_Single, SpecialType.System_Decimal,
-        SpecialType.System_Boolean, SpecialType.System_String, SpecialType.System_Object
+        SpecialType.System_Boolean, SpecialType.System_String, SpecialType.System_Object,
     };
 
     /// <summary>
@@ -135,13 +143,14 @@ internal static class TypeParser
     /// </summary>
     public static ImmutableArray<INamedTypeSymbol> ResolveResultTypeSymbols(Compilation compilation)
     {
-        var result = ImmutableArray.CreateBuilder<INamedTypeSymbol>(ResultSpecialTypes.Length);
+        var result = ImmutableArray.CreateBuilder<INamedTypeSymbol>(ResultSpecialTypes.Length + 1);
         foreach (var st in ResultSpecialTypes)
         {
             var symbol = compilation.GetSpecialType(st);
             if (symbol != null && symbol.SpecialType != SpecialType.None)
                 result.Add(symbol);
         }
+
         return result.ToImmutable();
     }
 
@@ -154,10 +163,13 @@ internal static class TypeParser
         INamedTypeSymbol typeSymbol,
         TypeRegistrationModel registration,
         ImmutableArray<INamedTypeSymbol> elementTypeSymbols,
-        ImmutableArray<INamedTypeSymbol> resultTypeSymbols)
+        ImmutableArray<INamedTypeSymbol> resultTypeSymbols,
+        Compilation compilation)
     {
         var expanded = ImmutableArray.CreateBuilder<MethodModel>(registration.Methods.Length + 64);
         expanded.AddRange(registration.Methods);
+
+        var ienumerableOpen = compilation.GetSpecialType(SpecialType.System_Collections_Generic_IEnumerable_T)?.OriginalDefinition;
 
         foreach (var member in typeSymbol.GetMembers())
         {
@@ -165,13 +177,13 @@ internal static class TypeParser
                 continue;
             if (method.DeclaredAccessibility != Accessibility.Public)
                 continue;
+            if (method.IsExtensionMethod)
+                continue;
             if (method.ReturnsByRef || method.ReturnsByRefReadonly)
                 continue;
             if (HasUnsafeParameters(method) || HasRefParameters(method))
                 continue;
             if (HasExcludedParameterTypes(method))
-                continue;
-            if (method.TypeParameters.Length > 2)
                 continue;
 
             // Skip methods where the type parameter isn't inferable from parameter types.
@@ -180,27 +192,10 @@ internal static class TypeParser
             if (!HasTypeParameterInParameters(method))
                 continue;
 
-            if (method.TypeParameters.Length == 1)
-            {
-                // Single type parameter (TSource): expand for each element type
-                foreach (var elementType in elementTypeSymbols)
-                {
-                    if (TryConstructMethod(method, [elementType], out var model))
-                        expanded.Add(model);
-                }
-            }
-            else if (method.TypeParameters.Length == 2)
-            {
-                // Two type parameters (TSource, TResult): expand for each (source, result) pair
-                foreach (var sourceType in elementTypeSymbols)
-                {
-                    foreach (var resultType in resultTypeSymbols)
-                    {
-                        if (TryConstructMethod(method, [sourceType, resultType], out var model))
-                            expanded.Add(model);
-                    }
-                }
-            }
+            // Classify each type parameter by role: element types expand with the element pool
+            // (they appear as IEnumerable<T> type arguments), result types with the result pool.
+            var pools = ClassifyTypeParameterPools(method, ienumerableOpen, elementTypeSymbols, resultTypeSymbols);
+            ExpandCombinations(method, pools, 0, new ITypeSymbol[pools.Length], expanded);
         }
 
         return new TypeRegistrationModel(
@@ -213,6 +208,99 @@ internal static class TypeParser
             registration.Constructors,
             registration.Indexers,
             expanded.ToImmutable());
+    }
+
+    /// <summary>
+    /// Determines the expansion pool for each type parameter based on where it appears
+    /// in the method signature. Type params that appear as IEnumerable&lt;T&gt; arguments
+    /// (directly or nested inside Func/Action) are "element" types and expand with the
+    /// element pool. All others expand with the result pool.
+    /// </summary>
+    private static ImmutableArray<INamedTypeSymbol>[] ClassifyTypeParameterPools(
+        IMethodSymbol method,
+        INamedTypeSymbol? ienumerableOpen,
+        ImmutableArray<INamedTypeSymbol> elementPool,
+        ImmutableArray<INamedTypeSymbol> resultPool)
+    {
+        var isElement = new bool[method.TypeParameters.Length];
+
+        foreach (var param in method.Parameters)
+            MarkEnumerableTypeParams(param.Type, method.TypeParameters, ienumerableOpen, isElement);
+
+        var pools = new ImmutableArray<INamedTypeSymbol>[method.TypeParameters.Length];
+        for (var i = 0; i < pools.Length; i++)
+            pools[i] = isElement[i] ? elementPool : resultPool;
+        return pools;
+    }
+
+    /// <summary>
+    /// Walks a type tree looking for IEnumerable&lt;T&gt; where T is one of the method's
+    /// type parameters. Recurses into generic arguments (Func, Action, nested generics).
+    /// </summary>
+    private static void MarkEnumerableTypeParams(
+        ITypeSymbol type,
+        ImmutableArray<ITypeParameterSymbol> typeParams,
+        INamedTypeSymbol? ienumerableOpen,
+        bool[] isElement)
+    {
+        switch (type)
+        {
+            case INamedTypeSymbol { IsGenericType: true } named:
+                if (ienumerableOpen != null &&
+                    SymbolEqualityComparer.Default.Equals(named.OriginalDefinition, ienumerableOpen) &&
+                    named.TypeArguments[0] is ITypeParameterSymbol enumTp)
+                {
+                    MarkTypeParam(enumTp, typeParams, isElement);
+                }
+                foreach (var arg in named.TypeArguments)
+                    MarkEnumerableTypeParams(arg, typeParams, ienumerableOpen, isElement);
+                break;
+
+            case IArrayTypeSymbol { ElementType: ITypeParameterSymbol arrTp }:
+                // T[] implements IEnumerable<T>
+                MarkTypeParam(arrTp, typeParams, isElement);
+                break;
+
+            case IArrayTypeSymbol arr:
+                MarkEnumerableTypeParams(arr.ElementType, typeParams, ienumerableOpen, isElement);
+                break;
+        }
+    }
+
+    private static void MarkTypeParam(
+        ITypeParameterSymbol tp,
+        ImmutableArray<ITypeParameterSymbol> typeParams,
+        bool[] isElement)
+    {
+        for (var i = 0; i < typeParams.Length; i++)
+        {
+            if (SymbolEqualityComparer.Default.Equals(typeParams[i], tp))
+            {
+                isElement[i] = true;
+                return;
+            }
+        }
+    }
+
+    private static void ExpandCombinations(
+        IMethodSymbol method,
+        ImmutableArray<INamedTypeSymbol>[] pools,
+        int depth,
+        ITypeSymbol[] current,
+        ImmutableArray<MethodModel>.Builder expanded)
+    {
+        if (depth == pools.Length)
+        {
+            if (TryConstructMethod(method, current, out var model))
+                expanded.Add(model);
+            return;
+        }
+
+        foreach (var type in pools[depth])
+        {
+            current[depth] = type;
+            ExpandCombinations(method, pools, depth + 1, current, expanded);
+        }
     }
 
     /// <summary>
@@ -241,10 +329,13 @@ internal static class TypeParser
         var parameters = ImmutableArray.CreateBuilder<ParameterModel>();
         foreach (var param in closedMethod.Parameters)
         {
+            var isDelegate = IsDelegateType(param.Type);
             parameters.Add(new ParameterModel(
                 param.Name,
                 GetFullyQualifiedTypeName(param.Type),
-                param.IsParams));
+                param.IsParams,
+                isDelegate,
+                isDelegate ? ExtractDelegateSignature(param.Type) : null));
         }
 
         // Build the generic type arguments for the call
@@ -351,21 +442,6 @@ internal static class TypeParser
         return genericConstraint.OriginalDefinition.Construct(newArgs);
     }
 
-    private static SpecialType GetSpecialType(string name) => name switch
-    {
-        "int" => SpecialType.System_Int32,
-        "long" => SpecialType.System_Int64,
-        "double" => SpecialType.System_Double,
-        "float" => SpecialType.System_Single,
-        "decimal" => SpecialType.System_Decimal,
-        "bool" => SpecialType.System_Boolean,
-        "string" => SpecialType.System_String,
-        "object" => SpecialType.System_Object,
-        "char" => SpecialType.System_Char,
-        "byte" => SpecialType.System_Byte,
-        _ => SpecialType.None
-    };
-
     #endregion
 
     #region Filters
@@ -400,6 +476,36 @@ internal static class TypeParser
     private static bool HasRefParameters(IMethodSymbol method) =>
         method.Parameters.Any(p => p.RefKind != RefKind.None);
 
+    private static bool IsDelegateType(ITypeSymbol type)
+    {
+        for (var current = type.BaseType; current != null; current = current.BaseType)
+        {
+            if (current.SpecialType == SpecialType.System_Delegate ||
+                current.ToDisplayString() == "System.MulticastDelegate")
+                return true;
+        }
+        return false;
+    }
+
+    internal static DelegateSignature? ExtractDelegateSignature(ITypeSymbol type)
+    {
+        if (!IsDelegateType(type) || type is not INamedTypeSymbol { IsGenericType: true, DelegateInvokeMethod: { } invoke })
+            return null;
+
+        var def = ((INamedTypeSymbol)type).OriginalDefinition.ToDisplayString();
+        var isAction = def.StartsWith("System.Action");
+        var isFunc = def.StartsWith("System.Func");
+        if (!isAction && !isFunc)
+            return null;
+
+        var paramTypes = ImmutableArray.CreateBuilder<string>();
+        foreach (var p in invoke.Parameters)
+            paramTypes.Add(GetFullyQualifiedTypeName(p.Type));
+
+        var returnType = isAction ? "void" : GetFullyQualifiedTypeName(invoke.ReturnType);
+        return new DelegateSignature(paramTypes.ToImmutable(), returnType, isAction);
+    }
+
     private static bool HasExcludedParameterTypes(IMethodSymbol method)
     {
         foreach (var param in method.Parameters)
@@ -414,6 +520,113 @@ internal static class TypeParser
                 return true;
         }
         return false;
+    }
+
+    #endregion
+
+    #region Extension method discovery
+
+    /// <summary>
+    /// Discovers extension methods on a type (e.g., Enumerable) from the Roslyn compilation.
+    /// Classifies each method by signature pattern for dispatch code generation.
+    /// No hardcoded method names — everything comes from the symbol.
+    /// </summary>
+    internal static ImmutableArray<ExtensionMethodModel> DiscoverExtensionMethods(INamedTypeSymbol extensionType)
+    {
+        var result = ImmutableArray.CreateBuilder<ExtensionMethodModel>();
+        var seen = new HashSet<string>();
+
+        foreach (var member in extensionType.GetMembers())
+        {
+            if (member is not IMethodSymbol { MethodKind: MethodKind.Ordinary, IsExtensionMethod: true, IsStatic: true } method)
+                continue;
+            if (method.DeclaredAccessibility != Accessibility.Public)
+                continue;
+            if (method.ReturnsByRef || method.ReturnsByRefReadonly)
+                continue;
+            if (HasRefParameters(method))
+                continue;
+
+            // Only handle methods where the first (this) param is exactly IEnumerable<T> or T[].
+            // Methods taking IOrderedEnumerable<T> (ThenBy) or other derived interfaces
+            // need specific source types and fall through to reflection.
+            var thisParam = method.Parameters[0];
+            if (!IsDirectEnumerableParam(thisParam.Type))
+                continue;
+
+            // Skip overloads with IComparer, IEqualityComparer, Expression<> params
+            if (HasExcludedParameterTypes(method))
+                continue;
+
+            // Classify by the extra parameters (beyond the this param)
+            var extraParams = method.Parameters.Skip(1).ToArray();
+            var kind = ClassifyExtensionMethod(extraParams);
+
+            // Build a unique key: methodName + param signature to distinguish overloads.
+            // Select(Func<T,R>) vs Select(Func<T,int,R>) both have 1 extra param
+            // but different delegate arities — they must both be discovered.
+            var key = $"{method.Name}/{string.Join(",", extraParams.Select(p => p.Type.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat)))}";
+            if (!seen.Add(key))
+                continue;
+
+            var paramModels = ImmutableArray.CreateBuilder<ExtensionParamModel>();
+            foreach (var p in extraParams)
+            {
+                var isDelegate = IsDelegateType(p.Type);
+                var delegateInfo = isDelegate ? ExtractDelegateSignature(p.Type) : null;
+                paramModels.Add(new ExtensionParamModel(
+                    GetFullyQualifiedTypeName(p.Type),
+                    isDelegate,
+                    p.Type is ITypeParameterSymbol,
+                    delegateInfo));
+            }
+
+            result.Add(new ExtensionMethodModel(method.Name, kind, paramModels.ToImmutable()));
+        }
+
+        return result.ToImmutable();
+    }
+
+    private static ExtensionMethodKind ClassifyExtensionMethod(IParameterSymbol[] extraParams)
+    {
+        if (extraParams.Length == 0)
+            return ExtensionMethodKind.NoArg;
+
+        if (extraParams.Length == 1)
+        {
+            var paramType = extraParams[0].Type;
+            if (IsDelegateType(paramType))
+            {
+                // Check if the delegate has a complex return type (e.g., IEnumerable<TResult>)
+                // These need explicit type args and can't be dispatched with simple type checks
+                if (paramType is INamedTypeSymbol { DelegateInvokeMethod: { } invoke } &&
+                    invoke.ReturnType is INamedTypeSymbol { IsGenericType: true })
+                    return ExtensionMethodKind.Complex;
+                return ExtensionMethodKind.SingleDelegate;
+            }
+            if (IsDirectEnumerableParam(paramType))
+                return ExtensionMethodKind.SingleEnumerable;
+            return ExtensionMethodKind.SingleValue;
+        }
+
+        return ExtensionMethodKind.Complex;
+    }
+
+    private static bool IsDirectEnumerableParam(ITypeSymbol type)
+    {
+        if (type is INamedTypeSymbol named && named.IsGenericType)
+        {
+            if (named.OriginalDefinition.SpecialType != SpecialType.System_Collections_Generic_IEnumerable_T)
+                return false;
+            var elementType = named.TypeArguments[0];
+            // Accept type parameters (generic methods like Where<T>) and concrete value types
+            // (non-generic numeric aggregates like Sum(IEnumerable<int>)). Reject constructed
+            // generics like Nullable<int> or KeyValuePair<K,V> — our dispatch handles
+            // non-nullable value types only.
+            return elementType is ITypeParameterSymbol
+                || (elementType.IsValueType && elementType is not INamedTypeSymbol { IsGenericType: true });
+        }
+        return type is IArrayTypeSymbol;
     }
 
     #endregion

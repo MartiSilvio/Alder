@@ -19,6 +19,7 @@ Alder targets Roslyn-grade engineering. Every subsystem should be designed as if
 - Do NOT include plan numbers, phase numbers, or GSD references in commit messages
 - Keep commit messages lean — subject line only (under 72 chars), no body. No essays, no bullet lists, no inventories of what changed. The diff speaks for itself.
 - Use commas to separate items in commit subjects, not em dashes or semicolons. Example: `feat: yield return/break, iterators, multi-dollar interpolation`.
+- NEVER commit automatically. Always wait for the user to explicitly ask for a commit.
 
 ## Architectural Principles
 

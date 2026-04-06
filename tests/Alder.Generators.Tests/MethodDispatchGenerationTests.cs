@@ -194,10 +194,10 @@ public class MethodDispatchGenerationTests
         var tryInvoke = ExtractMethod(generated, "TryInvoke");
         Assert.That(tryInvoke, Does.Contain("\"Identity\""),
             "Generic methods should be expanded to closed instantiations");
-        Assert.That(tryInvoke, Does.Contain("Identity<string>"),
-            "Generic method should have string instantiation");
-        Assert.That(tryInvoke, Does.Contain("Identity<object>"),
-            "Generic method should have object instantiation");
+        Assert.That(tryInvoke, Does.Contain("Identity<int>"),
+            "Generic method should have int instantiation");
+        Assert.That(tryInvoke, Does.Contain("Identity<double>"),
+            "Generic method should have double instantiation");
     }
 
     [Test]

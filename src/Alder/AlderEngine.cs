@@ -142,6 +142,7 @@ public sealed partial class AlderEngine : IDisposable
 
         Dictionary<Type, TypedDispatch>? typeDispatch = null;
         Dictionary<Type, Func<object, Delegate>>? delegateFactories = null;
+        List<TypedDispatch>? extensionDispatches = null;
 
         if (options.Aot.BuiltInContext != null)
         {
@@ -156,6 +157,10 @@ public sealed partial class AlderEngine : IDisposable
                 foreach (var kvp in factories)
                     delegateFactories[kvp.Key] = kvp.Value;
             }
+
+            var extDispatches = options.Aot.BuiltInContext.GetExtensionDispatches();
+            if (extDispatches != null)
+                extensionDispatches = new List<TypedDispatch>(extDispatches);
         }
 
         foreach (var ctx in options.Aot.AdditionalContexts)
@@ -170,6 +175,13 @@ public sealed partial class AlderEngine : IDisposable
                 delegateFactories ??= new Dictionary<Type, Func<object, Delegate>>();
                 foreach (var kvp in factories)
                     delegateFactories[kvp.Key] = kvp.Value;
+            }
+
+            var extDispatches = ctx.GetExtensionDispatches();
+            if (extDispatches != null)
+            {
+                extensionDispatches ??= new List<TypedDispatch>();
+                extensionDispatches.AddRange(extDispatches);
             }
         }
 
@@ -190,7 +202,8 @@ public sealed partial class AlderEngine : IDisposable
             typeMetadata,
             typeResolver,
             typeDispatch != null ? Runtime.Collections.FixedDictionary<Type, TypedDispatch>.Create(typeDispatch) : null,
-            delegateFactories);
+            delegateFactories,
+            extensionDispatches?.ToArray());
     }
 
     private static void RegisterGlobalFunctions(AlderOptions.RegisteredType reg, Dictionary<string, Func<object?[], object?>> functions)

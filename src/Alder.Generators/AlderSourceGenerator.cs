@@ -13,42 +13,93 @@ namespace Alder.Generators;
 public sealed class AlderSourceGenerator : IIncrementalGenerator
 {
     private const string BaseContextFullName = "Alder.Aot.AlderTypeContext";
+    private const string BuiltInContextFullName = "Alder.Aot.AlderBuiltInContext";
+    private const string RegisteredAttributeFullName = "Alder.Aot.AlderRegisteredAttribute";
 
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
-        var registrations = context.SyntaxProvider
+        var userContexts = context.SyntaxProvider
             .ForAttributeWithMetadataName(
-                "Alder.Aot.AlderRegisteredAttribute",
+                RegisteredAttributeFullName,
                 predicate: static (node, _) => node is ClassDeclarationSyntax,
-                transform: static (ctx, ct) => ExtractRegistrations(ctx))
+                transform: static (ctx, ct) => ExtractFromAttributeContext(ctx))
             .Where(static r => r.HasValue)
             .Select(static (r, _) => r!.Value);
 
-        var collected = registrations.Collect();
+        var builtInContext = context.SyntaxProvider
+            .CreateSyntaxProvider(
+                predicate: static (node, _) => node is ClassDeclarationSyntax { BaseList: not null } classDecl
+                    && classDecl.Identifier.Text == "AlderBuiltInContext",
+                transform: static (ctx, _) => ExtractBuiltInContext(ctx))
+            .Where(static r => r.HasValue)
+            .Select(static (r, _) => r!.Value);
 
-        context.RegisterSourceOutput(collected, static (spc, entries) => Emit(spc, entries));
+        var all = userContexts.Collect().Combine(builtInContext.Collect());
+
+        context.RegisterSourceOutput(all, static (spc, combined) =>
+        {
+            var (user, builtIn) = combined;
+            var merged = user.AddRange(builtIn);
+            Emit(spc, merged);
+        });
     }
 
-    private static (string ContextNamespace, string ContextClassName, ImmutableArray<TypeRegistrationModel> Registrations)?
-        ExtractRegistrations(GeneratorAttributeSyntaxContext ctx)
+    private static ContextRegistrations? ExtractFromAttributeContext(GeneratorAttributeSyntaxContext ctx)
     {
         if (ctx.TargetSymbol is not INamedTypeSymbol contextClass)
             return null;
-
         if (!DerivesFrom(contextClass, BaseContextFullName))
             return null;
+        if (contextClass.ToDisplayString() == BuiltInContextFullName)
+            return null;
 
-        var contextNamespace = contextClass.ContainingNamespace.IsGlobalNamespace
-            ? ""
-            : contextClass.ContainingNamespace.ToDisplayString();
-        var contextClassName = contextClass.Name;
-
-        // First pass: collect all registered type symbols
         var typeEntries = new List<(INamedTypeSymbol Symbol, string FullName)>();
         var seenTypes = new HashSet<string>();
 
-        foreach (var attr in ctx.Attributes)
+        // ctx.Attributes is pre-filtered to AlderRegisteredAttribute by ForAttributeWithMetadataName
+        CollectRegisteredTypes(ctx.Attributes, typeEntries, seenTypes);
+
+        return BuildRegistrations(contextClass, typeEntries, ctx.SemanticModel.Compilation);
+    }
+
+    private static ContextRegistrations? ExtractBuiltInContext(GeneratorSyntaxContext ctx)
+    {
+        if (ctx.Node is not ClassDeclarationSyntax)
+            return null;
+
+        var contextClass = ctx.SemanticModel.GetDeclaredSymbol(ctx.Node) as INamedTypeSymbol;
+        if (contextClass == null)
+            return null;
+
+        var builtInSymbol = ctx.SemanticModel.Compilation.GetTypeByMetadataName(BuiltInContextFullName);
+        if (builtInSymbol == null || !SymbolEqualityComparer.Default.Equals(contextClass, builtInSymbol))
+            return null;
+
+        var compilation = ctx.SemanticModel.Compilation;
+        var typeEntries = new List<(INamedTypeSymbol Symbol, string FullName)>();
+        var seenTypes = new HashSet<string>();
+
+        foreach (var symbol in BuiltInTypeCatalog.Resolve(compilation))
         {
+            var fullName = TypeParser.GetFullyQualifiedName(symbol);
+            if (seenTypes.Add(fullName))
+                typeEntries.Add((symbol, fullName));
+        }
+
+        CollectRegisteredTypes(contextClass.GetAttributes(), typeEntries, seenTypes);
+
+        return BuildRegistrations(contextClass, typeEntries, compilation);
+    }
+
+    private static void CollectRegisteredTypes(
+        IEnumerable<AttributeData> attributes,
+        List<(INamedTypeSymbol Symbol, string FullName)> typeEntries,
+        HashSet<string> seenTypes)
+    {
+        foreach (var attr in attributes)
+        {
+            if (attr.AttributeClass?.ToDisplayString() != RegisteredAttributeFullName)
+                continue;
             if (attr.ConstructorArguments.Length != 1)
                 continue;
             if (attr.ConstructorArguments[0].Value is not INamedTypeSymbol registeredType)
@@ -60,25 +111,37 @@ public sealed class AlderSourceGenerator : IIncrementalGenerator
 
             typeEntries.Add((registeredType, typeFullName));
         }
+    }
 
+    private static ContextRegistrations? BuildRegistrations(
+        INamedTypeSymbol contextClass,
+        List<(INamedTypeSymbol Symbol, string FullName)> typeEntries,
+        Compilation compilation)
+    {
         if (typeEntries.Count == 0)
             return null;
 
-        // Collect element types for generic expansion (value types + string + object)
-        var compilation = ctx.SemanticModel.Compilation;
+        var contextNamespace = contextClass.ContainingNamespace.IsGlobalNamespace
+            ? ""
+            : contextClass.ContainingNamespace.ToDisplayString();
+
         var elementTypes = CollectElementTypeSymbols(typeEntries, compilation);
         var resultTypes = TypeParser.ResolveResultTypeSymbols(compilation);
 
-        // Second pass: extract registrations and expand generic methods
         var registrations = ImmutableArray.CreateBuilder<TypeRegistrationModel>();
+        var extensionMethods = ImmutableArray<ExtensionMethodModel>.Empty;
+
         foreach (var (symbol, fullName) in typeEntries)
         {
             var reg = TypeParser.ExtractTypeRegistration(symbol, fullName);
-            reg = TypeParser.ExpandGenericMethods(symbol, reg, elementTypes, resultTypes);
+            reg = TypeParser.ExpandGenericMethods(symbol, reg, elementTypes, resultTypes, compilation);
             registrations.Add(reg);
+
+            if (symbol.IsStatic && symbol.MightContainExtensionMethods)
+                extensionMethods = extensionMethods.AddRange(TypeParser.DiscoverExtensionMethods(symbol));
         }
 
-        return (contextNamespace, contextClassName, registrations.ToImmutable());
+        return new ContextRegistrations(contextNamespace, contextClass.Name, registrations.ToImmutable(), extensionMethods);
     }
 
     private static ImmutableArray<INamedTypeSymbol> CollectElementTypeSymbols(
@@ -88,45 +151,44 @@ public sealed class AlderSourceGenerator : IIncrementalGenerator
         var result = new List<INamedTypeSymbol>();
         var seen = new HashSet<INamedTypeSymbol>(SymbolEqualityComparer.Default);
 
-        // Value types from registrations
         foreach (var (symbol, _) in typeEntries)
         {
             if (symbol.IsValueType && !symbol.IsGenericType && seen.Add(symbol))
                 result.Add(symbol);
         }
 
-        // Always include string and object
-        var stringType = compilation.GetSpecialType(SpecialType.System_String);
-        var objectType = compilation.GetSpecialType(SpecialType.System_Object);
-        if (stringType != null && seen.Add(stringType)) result.Add(stringType);
-        if (objectType != null && seen.Add(objectType)) result.Add(objectType);
+        // Reference types (string, object) are excluded — MakeGenericMethod handles them
+        // at runtime via shared generics. Object-rooting for canonical forms (__Canon)
+        // is handled separately by TypeRoots, not by method expansion.
 
         return result.ToImmutableArray();
     }
 
-    private static void Emit(SourceProductionContext spc,
-        ImmutableArray<(string ContextNamespace, string ContextClassName, ImmutableArray<TypeRegistrationModel> Registrations)> entries)
+    private static void Emit(SourceProductionContext spc, ImmutableArray<ContextRegistrations> entries)
     {
         if (entries.IsDefaultOrEmpty)
             return;
 
-        var byContext = new Dictionary<string, (string Namespace, string ClassName, List<TypeRegistrationModel> Registrations)>();
+        var byContext = new Dictionary<string, (string Namespace, string ClassName, List<TypeRegistrationModel> Registrations, List<ExtensionMethodModel> ExtensionMethods)>();
 
         foreach (var entry in entries)
         {
-            var key = entry.ContextNamespace + "." + entry.ContextClassName;
+            var key = entry.Namespace + "." + entry.ClassName;
             if (!byContext.TryGetValue(key, out var existing))
             {
-                existing = (entry.ContextNamespace, entry.ContextClassName, new List<TypeRegistrationModel>());
+                existing = (entry.Namespace, entry.ClassName, new List<TypeRegistrationModel>(), new List<ExtensionMethodModel>());
                 byContext[key] = existing;
             }
             existing.Registrations.AddRange(entry.Registrations);
+            if (!entry.ExtensionMethods.IsDefaultOrEmpty)
+                existing.ExtensionMethods.AddRange(entry.ExtensionMethods);
         }
 
         foreach (var kvp in byContext)
         {
-            var (ns, className, registrationList) = kvp.Value;
+            var (ns, className, registrationList, extensionMethodList) = kvp.Value;
             var allRegistrations = registrationList.ToImmutableArray();
+            var allExtensionMethods = extensionMethodList.ToImmutableArray();
 
             var combined = new StringBuilder();
             foreach (var registration in allRegistrations)
@@ -136,12 +198,17 @@ public sealed class AlderSourceGenerator : IIncrementalGenerator
             if (typeRoots != null)
                 combined.AppendLine(typeRoots);
 
-            var delegateSource = DelegateFactoryEmitter.Emit(allRegistrations);
+            var (extensionSource, extensionDelegates) = ExtensionDispatchEmitter.Emit(allRegistrations, allExtensionMethods);
+            var hasExtensionDispatch = extensionSource != null;
+            if (hasExtensionDispatch)
+                combined.AppendLine(extensionSource);
+
+            var delegateSource = DelegateFactoryEmitter.Emit(allRegistrations, extensionDelegates);
             if (delegateSource != null)
                 combined.AppendLine(delegateSource);
 
             var contextModel = new ContextModel(ns, className, allRegistrations);
-            combined.AppendLine(ContextEmitter.Emit(contextModel, delegateSource != null));
+            combined.AppendLine(ContextEmitter.Emit(contextModel, delegateSource != null, hasExtensionDispatch));
 
             spc.AddSource(className + ".g.cs", combined.ToString());
         }

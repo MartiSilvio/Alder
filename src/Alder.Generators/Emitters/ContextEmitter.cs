@@ -4,22 +4,22 @@ namespace Alder.Generators.Emitters;
 
 internal static class ContextEmitter
 {
-    public static string Emit(ContextModel context, bool hasDelegateFactories)
+    public static string Emit(ContextModel context, bool hasDelegateFactories, bool hasExtensionDispatch = false)
     {
         var w = new SourceWriter();
 
         if (!string.IsNullOrEmpty(context.Namespace))
         {
             using (w.Block($"namespace {context.Namespace}"))
-                EmitClassBody(w, context, hasDelegateFactories);
+                EmitClassBody(w, context, hasDelegateFactories, hasExtensionDispatch);
             return w.ToString();
         }
 
-        EmitClassBody(w, context, hasDelegateFactories);
+        EmitClassBody(w, context, hasDelegateFactories, hasExtensionDispatch);
         return w.ToString();
     }
 
-    private static void EmitClassBody(SourceWriter w, ContextModel context, bool hasDelegateFactories)
+    private static void EmitClassBody(SourceWriter w, ContextModel context, bool hasDelegateFactories, bool hasExtensionDispatch)
     {
         using (w.Block($"partial class {context.ClassName}"))
         {
@@ -41,6 +41,13 @@ internal static class ContextEmitter
             {
                 w.AppendLine();
                 w.AppendLine("public override global::System.Collections.Generic.IReadOnlyDictionary<global::System.Type, global::System.Func<object, global::System.Delegate>>? GetDelegateFactories() => AotDelegateFactories.Create();");
+            }
+
+            if (hasExtensionDispatch)
+            {
+                w.AppendLine();
+                w.AppendLine("private static readonly global::Alder.Aot.TypedDispatch[] s_extensionDispatches = [new LinqValueTypeDispatch()];");
+                w.AppendLine("public override global::System.Collections.Generic.IReadOnlyList<global::Alder.Aot.TypedDispatch>? GetExtensionDispatches() => s_extensionDispatches;");
             }
         }
     }

@@ -18,4 +18,11 @@ public abstract class AlderTypeContext
     /// factory that wraps a LambdaValue in that delegate type.
     /// </summary>
     public virtual IReadOnlyDictionary<Type, Func<object, Delegate>>? GetDelegateFactories() => null;
+
+    /// <summary>
+    /// Returns extension method dispatch entries for value-type collections.
+    /// These handle LINQ methods (Where, Select, etc.) under NativeAOT where
+    /// MakeGenericMethod fails for value-type element types.
+    /// </summary>
+    public virtual IReadOnlyList<TypedDispatch>? GetExtensionDispatches() => null;
 }

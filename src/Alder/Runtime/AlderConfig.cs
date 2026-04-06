@@ -30,6 +30,7 @@ internal sealed class AlderConfig
     public StringComparison StringComparison => IsCaseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
     internal FixedDictionary<Type, TypedDispatch>? TypeDispatch { get; }
     internal IReadOnlyDictionary<Type, Func<object, Delegate>>? DelegateFactories { get; }
+    internal TypedDispatch[]? ExtensionDispatches { get; }
 
     internal bool TryGetDispatch(Type type, [NotNullWhen(true)] out TypedDispatch? metadata)
     {
@@ -63,7 +64,8 @@ internal sealed class AlderConfig
         TypeMetadataProvider typeMetadata,
         TypeResolver typeResolver,
         FixedDictionary<Type, TypedDispatch>? typeDispatch,
-        IReadOnlyDictionary<Type, Func<object, Delegate>>? delegateFactories = null)
+        IReadOnlyDictionary<Type, Func<object, Delegate>>? delegateFactories = null,
+        TypedDispatch[]? extensionDispatches = null)
     {
         LanguageMode = languageMode;
         Security = security;
@@ -80,6 +82,7 @@ internal sealed class AlderConfig
         Comparer = isCaseSensitive ? StringComparer.Ordinal : StringComparer.OrdinalIgnoreCase;
         TypeDispatch = typeDispatch;
         DelegateFactories = delegateFactories;
+        ExtensionDispatches = extensionDispatches;
     }
 
     internal static readonly AlderConfig Empty = new(

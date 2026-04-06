@@ -1,4 +1,4 @@
-Alder is a C# runtime engine. A complete compiler pipeline (lexer, parser, semantic binder, optimization passes, two execution backends) in a single NuGet package with zero dependencies. Alder delegates to .NET wherever possible: `.Where()` calls the real `Enumerable.Where`, `Math.Round` calls the real `Math.Round`, conversions follow CLR rules. The engine bridges dynamic evaluation to .NET, it doesn't reimplement it.
+Alder is a lightweight C# runtime engine. A complete compiler pipeline (lexer, parser, semantic binder, optimization passes, two execution backends) in a single NuGet package with zero dependencies. Alder delegates to .NET wherever possible: `.Where()` calls the real `Enumerable.Where`, `Math.Round` calls the real `Math.Round`, conversions follow CLR rules. The engine bridges dynamic evaluation to .NET, it doesn't reimplement it.
 
 ```bash
 dotnet add package Alder
@@ -121,13 +121,13 @@ Power, pipeline, chained comparisons, comprehensions, bare math, aggregates, dat
 
 ## Further reading
 
-| | |
-|--|--|
-| **[Evaluation](evaluation.md)** | All evaluation methods, variable patterns, compilation, async |
-| **[Standard Mode](language/standard.md)** | Full ECMA-334 language reference |
-| **[Extended Mode](language/extended.md)** | Power, pipeline, comprehensions, bare math, SQL operators |
-| **[Engine API](engine/index.md)** | AlderEngine, AlderOptions, functions, modules, diagnostics |
-| **[LINQ Dynamic](engine/linq-dynamic.md)** | String-based LINQ on IEnumerable\<T\> and IQueryable\<T\> |
-| **[Security](security/sandbox.md)** | Sandbox presets, type blocking, execution limits |
-| **[AOT](aot/overview.md)** | Source generators, typed dispatch, NativeAOT/IL2CPP |
-| **[Architecture](architecture/index.md)** | Pipeline internals: binder, overload resolution, type inference |
+|                                            |                                                                 |
+| ------------------------------------------ | --------------------------------------------------------------- |
+| **[Evaluation](evaluation.md)**            | All evaluation methods, variable patterns, compilation, async   |
+| **[Standard Mode](language/standard.md)**  | Full ECMA-334 language reference                                |
+| **[Extended Mode](language/extended.md)**  | Power, pipeline, comprehensions, bare math, SQL operators       |
+| **[Engine API](engine/index.md)**          | AlderEngine, AlderOptions, functions, modules, diagnostics      |
+| **[LINQ Dynamic](engine/linq-dynamic.md)** | String-based LINQ on IEnumerable\<T\> and IQueryable\<T\>       |
+| **[Security](security/sandbox.md)**        | Sandbox presets, type blocking, execution limits                |
+| **[AOT](aot/overview.md)**                 | Source generators, typed dispatch, NativeAOT/IL2CPP             |
+| **[Architecture](architecture/index.md)**  | Pipeline internals: binder, overload resolution, type inference |

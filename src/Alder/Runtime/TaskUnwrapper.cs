@@ -8,9 +8,6 @@ internal static class TaskUnwrapper
 {
     private static readonly ConcurrentDictionary<Type, Func<object, object?>?> TaskResultAccessorCache = new();
 
-    private static readonly MethodInfo GetResultGenericMethod =
-        typeof(TaskUnwrapper).GetMethod(nameof(GetTaskResult), BindingFlags.NonPublic | BindingFlags.Static)!;
-
     private static readonly MethodInfo AwaitValueTaskCoreMethod =
         typeof(TaskUnwrapper).GetMethod(nameof(AwaitValueTaskCore), BindingFlags.NonPublic | BindingFlags.Static)!;
 
@@ -53,8 +50,8 @@ internal static class TaskUnwrapper
         return null;
     }
 
-    // The runtime type of an async Task<T> is an internal subclass (AsyncStateMachineBox<T>),
-    // not Task<T> directly. Walk the hierarchy to find Task<T> and cache per runtime type.
+    // Walk the type hierarchy to find Task<T> and cache per runtime type.
+    // Uses PropertyInfo.GetValue for the Result property — AOT-safe, no MakeGenericMethod.
     private static Func<object, object?>? GetTaskResultAccessor(Type runtimeType)
     {
         return TaskResultAccessorCache.GetOrAdd(runtimeType, static type =>
@@ -64,9 +61,10 @@ internal static class TaskUnwrapper
             {
                 if (current.IsGenericType && current.GetGenericTypeDefinition() == typeof(Task<>))
                 {
-                    var resultType = current.GetGenericArguments()[0];
-                    var closed = GetResultGenericMethod.MakeGenericMethod(resultType);
-                    return (Func<object, object?>)Delegate.CreateDelegate(typeof(Func<object, object?>), closed);
+                    var prop = current.GetProperty("Result", BindingFlags.Public | BindingFlags.Instance);
+                    if (prop != null)
+                        return task => prop.GetValue(task);
+                    return null;
                 }
                 current = current.BaseType;
             }
@@ -78,6 +76,4 @@ internal static class TaskUnwrapper
     {
         return await (ValueTask<T>)boxed;
     }
-
-    private static object? GetTaskResult<T>(object boxedTask) => ((Task<T>)boxedTask).Result;
 }
