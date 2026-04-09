@@ -61,6 +61,24 @@ public static class AlderStringExtensions
         => AlderEval.Evaluate<T>(expression, variables, cancellationToken);
 
     /// <summary>
+    /// Evaluates this string as a C# expression with inline variables.
+    /// Variables are accessible as <c>@0</c>, <c>@1</c>, etc. by position.
+    /// Dictionaries and objects are also destructured into named variables.
+    /// </summary>
+    public static object? Evaluate(
+        this string expression,
+        params object?[] variables)
+        => AlderEval.Evaluate(expression, variables);
+
+    /// <summary>
+    /// Evaluates this string as a C# expression with inline variables and converts the result to <typeparamref name="T"/>.
+    /// </summary>
+    public static T? Evaluate<T>(
+        this string expression,
+        params object?[] variables)
+        => AlderEval.Evaluate<T>(expression, variables);
+
+    /// <summary>
     /// Attempts to evaluate this string as a C# expression without throwing on failure.
     /// </summary>
     /// <param name="expression">The C# expression string to evaluate.</param>

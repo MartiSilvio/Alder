@@ -49,3 +49,12 @@ public sealed record LinqScenario(
 {
     public override string ToString() => Name;
 }
+
+public sealed record DynamicLinqScenario(
+    string Name,
+    Func<BenchmarkGlobalData, object?> NativeEvaluator,
+    Func<BenchmarkGlobalData, object?> AlderEvaluator,
+    Func<BenchmarkGlobalData, object?> DynamicLinqCoreEvaluator)
+{
+    public override string ToString() => Name;
+}

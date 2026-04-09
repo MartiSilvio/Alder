@@ -50,7 +50,7 @@ public class ApiSurfaceTests
             .Where(m => m.Name == "Evaluate")
             .ToList();
 
-        Assert.That(overloads, Has.Count.EqualTo(8));
+        Assert.That(overloads, Has.Count.EqualTo(10));
     }
 
     [Test]
@@ -64,8 +64,8 @@ public class ApiSurfaceTests
         var nonGeneric = overloads.Where(m => !m.IsGenericMethod).ToList();
         var generic = overloads.Where(m => m.IsGenericMethod).ToList();
 
-        Assert.That(nonGeneric, Has.Count.EqualTo(4));
-        Assert.That(generic, Has.Count.EqualTo(4));
+        Assert.That(nonGeneric, Has.Count.EqualTo(5));
+        Assert.That(generic, Has.Count.EqualTo(5));
     }
 
     [Test]
@@ -257,7 +257,6 @@ public class ApiSurfaceTests
             Assert.That(parameters.Length, Is.GreaterThanOrEqualTo(1),
                 $"Evaluate must have at least 1 parameter");
 
-            // First parameter is expression (string or AlderExpression)
             var firstParam = parameters[0];
             Assert.That(
                 firstParam.ParameterType == typeof(string) ||
@@ -265,10 +264,12 @@ public class ApiSurfaceTests
                 Is.True,
                 $"First parameter of {method} must be expression, was {firstParam.ParameterType.Name}");
 
-            // Last parameter is CancellationToken
             var lastParam = parameters[^1];
-            Assert.That(lastParam.ParameterType, Is.EqualTo(typeof(CancellationToken)),
-                $"Last parameter of {method} must be CancellationToken");
+            var isParams = lastParam.IsDefined(typeof(ParamArrayAttribute), false);
+            Assert.That(
+                lastParam.ParameterType == typeof(CancellationToken) || isParams,
+                Is.True,
+                $"Last parameter of {method} must be CancellationToken or params");
 
             var variablesIdx = Array.FindIndex(parameters, p => p.Name == "variables");
             var cancellationIdx = Array.FindIndex(parameters, p => p.Name == "cancellationToken");

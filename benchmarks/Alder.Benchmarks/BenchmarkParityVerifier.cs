@@ -135,6 +135,27 @@ public static class BenchmarkParityVerifier
     }
 
 
+    public static ParityResult VerifyDynamicLinqScenario(DynamicLinqScenario scenario, BenchmarkGlobalData globals)
+    {
+        try
+        {
+            var expected = scenario.NativeEvaluator(globals);
+            var alder = scenario.AlderEvaluator(globals);
+            var dynLinq = scenario.DynamicLinqCoreEvaluator(globals);
+
+            if (!AreEquivalent(expected, alder))
+                return Failure(scenario, "Alder Dynamic LINQ", expected, alder);
+            if (!AreEquivalent(expected, dynLinq))
+                return Failure(scenario, "System.Linq.Dynamic.Core", expected, dynLinq);
+
+            return new ParityResult(true, $"{scenario.Name} aligned across engines.");
+        }
+        catch (Exception ex)
+        {
+            return new ParityResult(false, $"{scenario.Name} Dynamic LINQ parity failed: {ex.GetType().Name} - {ex.Message}");
+        }
+    }
+
     public static ParityResult VerifyCompilationScenario(CompilationScenario scenario, BenchmarkGlobalData globals)
     {
         try
@@ -164,17 +185,8 @@ public static class BenchmarkParityVerifier
         }
     }
 
-    private static ParityResult Failure(ComparableScenario scenario, string engineName, object? expected, object? actual)
-        => new(false, $"{scenario.Name}: {engineName} mismatch. expected={Format(expected)}, actual={Format(actual)}");
-
-    private static ParityResult Failure(AdvancedScenario scenario, string engineName, object? expected, object? actual)
-        => new(false, $"{scenario.Name}: {engineName} mismatch. expected={Format(expected)}, actual={Format(actual)}");
-
-    private static ParityResult Failure(ExtendedParityScenario scenario, string engineName, object? expected, object? actual)
-        => new(false, $"{scenario.Name}: {engineName} mismatch. expected={Format(expected)}, actual={Format(actual)}");
-
-    private static ParityResult Failure(LinqScenario scenario, string engineName, object? expected, object? actual)
-        => new(false, $"{scenario.Name}: {engineName} mismatch. expected={Format(expected)}, actual={Format(actual)}");
+    private static ParityResult Failure(object scenario, string engineName, object? expected, object? actual)
+        => new(false, $"{scenario}: {engineName} mismatch. expected={Format(expected)}, actual={Format(actual)}");
 
 
     private static void ConfigureExtendedParityEngine(AlderOptions opts)

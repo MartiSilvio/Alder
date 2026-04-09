@@ -94,6 +94,11 @@ public static class AlderCompiledEngineExtensions
     /// or has parameter/type mismatches.</exception>
     public static Expression<TDelegate> ParseAsExpression<TDelegate>(this AlderEngine engine, string expression)
         where TDelegate : Delegate
+        => ParseAsExpression<TDelegate>(engine, expression, null);
+
+    internal static Expression<TDelegate> ParseAsExpression<TDelegate>(
+        AlderEngine engine, string expression, Dictionary<string, object?>? additionalVariables)
+        where TDelegate : Delegate
     {
         var access = engine.GetCompiledFeatureAccess();
         access.ThrowIfDisposed();
@@ -135,6 +140,11 @@ public static class AlderCompiledEngineExtensions
             }
 
             var engineVariables = access.CollectEngineVariables();
+
+            if (additionalVariables != null)
+                foreach (var (key, value) in additionalVariables)
+                    engineVariables[key] = value;
+
             var config = access.Config;
 
             var bindingRuntimeContext = new AlderContext(config);
@@ -213,8 +223,13 @@ public static class AlderCompiledEngineExtensions
     /// </summary>
     public static TDelegate CompileExpression<TDelegate>(this AlderEngine engine, string expression)
         where TDelegate : Delegate
+        => CompileExpression<TDelegate>(engine, expression, null);
+
+    internal static TDelegate CompileExpression<TDelegate>(
+        AlderEngine engine, string expression, Dictionary<string, object?>? additionalVariables)
+        where TDelegate : Delegate
     {
         engine.GetCompiledFeatureAccess().ThrowIfDisposed();
-        return ParseAsExpression<TDelegate>(engine, expression).Compile();
+        return ParseAsExpression<TDelegate>(engine, expression, additionalVariables).Compile();
     }
 }

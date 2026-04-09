@@ -581,6 +581,37 @@ public sealed partial class AlderEngine : IDisposable
     }
 
     /// <summary>
+    /// Evaluates a C# expression with inline variables.
+    /// Variables are accessible as <c>@0</c>, <c>@1</c>, etc. by position.
+    /// Dictionaries and objects are also destructured into named variables.
+    /// </summary>
+    /// <param name="expression">The C# expression string.</param>
+    /// <param name="variables">Variables accessible within the expression.</param>
+    /// <returns>The result of evaluating the expression, or <c>null</c>.</returns>
+    public object? Evaluate(string expression, params object?[] variables)
+    {
+        if (variables.Length == 0)
+            return Evaluate(expression, (IDictionary<string, object?>?)null);
+
+        return Evaluate(expression, BuildPositionalVariables(variables));
+    }
+
+    /// <summary>
+    /// Evaluates a C# expression with inline variables and converts the result to <typeparamref name="T"/>.
+    /// Variables are accessible as <c>@0</c>, <c>@1</c>, etc. by position.
+    /// Dictionaries and objects are also destructured into named variables.
+    /// </summary>
+    /// <typeparam name="T">The expected return type.</typeparam>
+    /// <param name="expression">The C# expression string.</param>
+    /// <param name="variables">Variables accessible within the expression.</param>
+    /// <returns>The result converted to <typeparamref name="T"/>, or <c>default</c> if the result is <c>null</c>.</returns>
+    public T? Evaluate<T>(string expression, params object?[] variables)
+    {
+        var result = Evaluate(expression, variables);
+        return ConvertResult<T>(result);
+    }
+
+    /// <summary>
     /// Attempts to evaluate a C# expression without throwing on failure.
     /// </summary>
     /// <param name="expression">The C# expression string to evaluate.</param>
@@ -767,6 +798,33 @@ public sealed partial class AlderEngine : IDisposable
         var typed = (Func<TOwner, TProp>)Delegate.CreateDelegate(typeof(Func<TOwner, TProp>), getMethod);
         return obj => typed((TOwner)obj);
     }
+
+    internal static Dictionary<string, object?> BuildPositionalVariables(object?[] variables)
+    {
+        var result = new Dictionary<string, object?>();
+        for (var i = 0; i < variables.Length; i++)
+        {
+            var variable = variables[i];
+            result[$"__p{i}"] = variable;
+
+            if (variable is IDictionary<string, object?> dict)
+            {
+                foreach (var (key, value) in dict)
+                    result[key] = value;
+            }
+            else if (variable != null && !IsSimpleType(variable.GetType()))
+            {
+                foreach (var (name, value, _) in ToTypedVariables(variable))
+                    result[name] = value;
+            }
+        }
+        return result;
+    }
+
+    private static bool IsSimpleType(Type type) =>
+        type.IsPrimitive || type.IsEnum || type == typeof(string) || type == typeof(decimal)
+        || type == typeof(DateTime) || type == typeof(DateTimeOffset) || type == typeof(TimeSpan)
+        || type == typeof(Guid) || Nullable.GetUnderlyingType(type) != null;
 
     private static object? UnwrapControlFlowSignal(object? result) =>
         result is ControlFlowSignal signal ? signal.Value : result;

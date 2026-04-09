@@ -1,3 +1,5 @@
+using Alder.Compiled;
+
 namespace Alder.Benchmarks;
 
 public static class BenchmarkSmokeValidator
@@ -31,6 +33,16 @@ public static class BenchmarkSmokeValidator
         foreach (var scenario in BenchmarkScenarioCatalog.GetLinqScenarios())
         {
             var parity = BenchmarkParityVerifier.VerifyLinqScenario(scenario, globals);
+            if (!parity.IsSuccess)
+                failures.Add(parity.Message);
+        }
+
+        AlderEval.Reset();
+        AlderEval.Configure(o => o.UseCompiler());
+
+        foreach (var scenario in BenchmarkScenarioCatalog.GetDynamicLinqScenarios())
+        {
+            var parity = BenchmarkParityVerifier.VerifyDynamicLinqScenario(scenario, globals);
             if (!parity.IsSuccess)
                 failures.Add(parity.Message);
         }

@@ -417,6 +417,8 @@ internal sealed class Lexer
                     ScanVerbatimString();
                 else if (char.IsLetter(Peek()) || Peek() == '_')
                     ScanIdentifier(); // §6.4.3: verbatim identifier @keyword
+                else if (char.IsDigit(Peek()))
+                    ScanPositionalParameter();
                 else
                     throw LexError($"Unexpected character '@' at {_line}:{_column}. Did you mean '@\"...'?");
                 break;
@@ -1314,6 +1316,14 @@ internal sealed class Lexer
         var type = Keywords.GetValueOrDefault(text, TokenType.Identifier);
 
         AddToken(type);
+    }
+
+    private void ScanPositionalParameter()
+    {
+        while (char.IsDigit(Peek())) Advance();
+        var indexText = _source[(_start + 1).._current]; // skip '@'
+        var syntheticLexeme = $"__p{indexText}";
+        _tokens.Add(new Token(TokenType.Identifier, syntheticLexeme, null, _line, _column - syntheticLexeme.Length, _start));
     }
 
     private bool IsAtEnd() => _current >= _source.Length;
