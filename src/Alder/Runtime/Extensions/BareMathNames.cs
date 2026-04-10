@@ -90,7 +90,6 @@ internal static class BareMathNames
         ["cosh"] = args => Math.Cosh(ToDouble(args[0])),
         ["tanh"] = args => Math.Tanh(ToDouble(args[0])),
 
-        // Absolute value -- preserves input type where practical
         ["abs"] = args => Abs(args[0]),
 
         // Roots
@@ -110,13 +109,13 @@ internal static class BareMathNames
         // Exponential
         ["exp"] = args => Math.Exp(ToDouble(args[0])),
 
-        // Rounding — preserve decimal type per Math.Floor(decimal)/Math.Ceiling(decimal) overloads
+        // Rounding: preserves decimal type per Math.Floor(decimal)/Math.Ceiling(decimal) overloads
         ["floor"] = args => args[0] is decimal m ? Math.Floor(m) : Math.Floor(ToDouble(args[0])),
         ["ceil"] = args => args[0] is decimal m ? Math.Ceiling(m) : Math.Ceiling(ToDouble(args[0])),
         ["round"] = args => args[0] is decimal m ? Math.Round(m) : Math.Round(ToDouble(args[0])),
         ["truncate"] = args => args[0] is decimal m ? Math.Truncate(m) : Math.Truncate(ToDouble(args[0])),
 
-        // Sign — all overloads return int
+        // Sign: all overloads return int
         ["sign"] = args => Math.Sign(ToDouble(args[0]))
     }, StringComparer.Ordinal);
 
@@ -136,7 +135,7 @@ internal static class BareMathNames
     }, StringComparer.Ordinal);
 
     /// <summary>
-    /// Abs with type dispatch -- preserves int/long/float/double/decimal types.
+    /// Preserves int/long/float/double/decimal types instead of converting to double.
     /// </summary>
     private static object? Abs(object? arg)
     {
@@ -152,7 +151,7 @@ internal static class BareMathNames
     }
 
     /// <summary>
-    /// Min with type dispatch -- preserves int/long/float/double/decimal types.
+    /// Preserves int/long/float/double/decimal types instead of converting to double.
     /// </summary>
     private static object? Min(object? a, object? b)
     {
@@ -168,7 +167,7 @@ internal static class BareMathNames
     }
 
     /// <summary>
-    /// Max with type dispatch -- preserves int/long/float/double/decimal types.
+    /// Preserves int/long/float/double/decimal types instead of converting to double.
     /// </summary>
     private static object? Max(object? a, object? b)
     {
@@ -184,7 +183,7 @@ internal static class BareMathNames
     }
 
     /// <summary>
-    /// Clamp with type dispatch -- preserves int/long/float/double/decimal types.
+    /// Preserves int/long/float/double/decimal types instead of converting to double.
     /// </summary>
     private static object? Clamp(object? value, object? min, object? max)
     {

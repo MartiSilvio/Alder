@@ -98,13 +98,13 @@ internal enum BoundNodeKind
     YieldReturnStatement = 230,
     YieldBreakStatement = 231,
 
-    // Alder-specific — member access
+    // Alder-specific, member access
     PropertyAccess = 1_000,
     FieldAccess = 1_001,
     MethodGroup = 1_002,
     DynamicMemberAccess = 1_003,
 
-    // Alder-specific — expressions
+    // Alder-specific, expressions
     Identifier = 1_010,
     LogicalOperator = 1_011,
     ChainedComparisonOperator = 1_012,
@@ -112,19 +112,19 @@ internal enum BoundNodeKind
     SliceExpression = 1_014,
     PipelineExpression = 1_015,
 
-    // Alder-specific — invocations & arguments
+    // Alder-specific, invocations and arguments
     ResolvedCall = 1_020,
     DynamicCall = 1_021,
     NamedArgument = 1_022,
     OutArgument = 1_023,
 
-    // Alder-specific — index access
+    // Alder-specific, index access
     ResolvedIndexAccess = 1_030,
     DynamicIndexAccess = 1_031,
     ResolvedMultiDimIndexAccess = 1_032,
     DynamicMultiDimIndexAccess = 1_033,
 
-    // Alder-specific — assignments
+    // Alder-specific, assignments
     MemberAssignment = 1_040,
     MemberCompoundAssignment = 1_041,
     MemberNullCoalesceAssignment = 1_042,
@@ -135,17 +135,17 @@ internal enum BoundNodeKind
     IndexIncrement = 1_047,
     MultiDimIndexAssignment = 1_048,
 
-    // Alder-specific — literals & collections
+    // Alder-specific, literals and collections
     ObjectLiteral = 1_060,
     WithExpression = 1_065,
     CollectionCreation = 1_061,
     ArrayAllocation = 1_062,
     MultiDimArrayInit = 1_064,
 
-    // Alder-specific — control flow extensions
+    // Alder-specific, control flow extensions
     GotoCaseStatement = 1_070,
     GotoDefaultStatement = 1_071,
 
-    // Alder-specific — async
+    // Alder-specific, async
     AwaitExpression = 1_080,
 }

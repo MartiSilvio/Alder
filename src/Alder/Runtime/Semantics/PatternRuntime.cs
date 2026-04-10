@@ -142,7 +142,7 @@ internal static class PatternRuntime
 
         if (sliceIndex < 0)
         {
-            // No slice — exact length match required
+            // No slice: exact length match required
             if (length != patterns.Count) return false;
             for (var i = 0; i < patterns.Count; i++)
             {

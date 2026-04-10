@@ -136,7 +136,7 @@ internal static partial class LambdaDelegateFactory
     private static MethodInfo GetFactory(string name) =>
         typeof(LambdaDelegateFactory).GetMethod(name, BindingFlags.NonPublic | BindingFlags.Static)!;
 
-    private static TResult CastResult<TResult>(object? value)
+    internal static TResult CastResult<TResult>(object? value)
     {
         if (value is TResult typed)
             return typed;

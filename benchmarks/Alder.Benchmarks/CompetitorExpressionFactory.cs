@@ -23,7 +23,7 @@ public static class CompetitorExpressionFactory
         return BuildBigBooleanStressCore("X", "Y", "Z", "Value", "&&", "||", "!=", "==");
     }
 
-    public static bool EvaluateBigBooleanStress(BenchmarkGlobalData globals)
+    public static bool EvaluateBigBooleanStress(BenchmarkData globals)
     {
         bool disjunction = false;
         for (int i = 1; i <= 64; i++)

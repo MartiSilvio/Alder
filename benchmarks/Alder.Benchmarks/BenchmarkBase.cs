@@ -12,8 +12,8 @@ public enum CompilationMode { Interpreted, Compiled, CompiledFec }
 public abstract class BenchmarkBase
 {
     protected static readonly ScriptOptions RoslynOptions = ScriptOptions.Default
-        .AddReferences(typeof(object).Assembly, typeof(Enumerable).Assembly)
-        .AddImports("System", "System.Collections.Generic", "System.Linq")
+        .AddReferences(typeof(object).Assembly, typeof(Enumerable).Assembly, typeof(BenchmarkData).Assembly)
+        .AddImports("System", "System.Collections.Generic", "System.Linq", "Alder.Benchmarks")
         .WithLanguageVersion(LanguageVersion.CSharp12);
 
     protected AlderEngine InterpretedEngine = null!;
@@ -22,7 +22,7 @@ public abstract class BenchmarkBase
 
     public static AlderEngine CreateEngine(
         CompilationMode mode,
-        BenchmarkGlobalData globals,
+        BenchmarkData data,
         LanguageMode languageMode = LanguageMode.Standard,
         Action<AlderOptions>? configure = null)
     {
@@ -35,69 +35,72 @@ public abstract class BenchmarkBase
         };
         configure?.Invoke(opts);
         var engine = new AlderEngine(opts);
-        ApplyGlobals(engine, globals);
+        ApplyVariables(engine, data);
         return engine;
     }
 
-    protected void SetupEngines(BenchmarkGlobalData globals)
+    protected void SetupEngines(BenchmarkData data)
     {
-        InterpretedEngine = CreateEngine(CompilationMode.Interpreted, globals);
-        CompiledEngine = CreateEngine(CompilationMode.Compiled, globals);
-        CompiledFecEngine = CreateEngine(CompilationMode.CompiledFec, globals);
+        InterpretedEngine = CreateEngine(CompilationMode.Interpreted, data);
+        CompiledEngine = CreateEngine(CompilationMode.Compiled, data);
+        CompiledFecEngine = CreateEngine(CompilationMode.CompiledFec, data);
     }
 
-    protected static void ApplyGlobals(AlderEngine engine, BenchmarkGlobalData globals)
+    public static void ApplyVariables(AlderEngine engine, BenchmarkData data)
     {
-        engine.SetVariable<int>("x", globals.X);
-        engine.SetVariable<int>("y", globals.Y);
-        engine.SetVariable<int>("z", globals.Z);
-        engine.SetVariable<string>("text", globals.Text);
-        engine.SetVariable<int>("value", globals.Value);
-        engine.SetVariable<List<int>>("numbers", globals.Numbers);
-        engine.SetVariable<List<Order>>("orders", globals.Orders);
+        engine.SetVariable<int>("x", data.X);
+        engine.SetVariable<int>("y", data.Y);
+        engine.SetVariable<int>("z", data.Z);
+        engine.SetVariable<string>("text", data.Text);
+        engine.SetVariable<int>("value", data.Value);
+        engine.SetVariable<List<int>>("numbers", data.Numbers);
+        engine.SetVariable<List<Order>>("orders", data.Orders);
+        engine.SetVariable<List<Product>>("products", data.Products);
+        engine.SetVariable<List<OrderLine>>("orderLines", data.OrderLines);
+        engine.SetVariable<List<Employee>>("employees", data.Employees);
     }
 
-    public static Interpreter CreateDynamicExpressoInterpreter(BenchmarkGlobalData globals)
+    public static Interpreter CreateDynamicExpressoInterpreter(BenchmarkData data)
     {
         var interpreter = new Interpreter()
             .Reference(typeof(Math))
             .Reference(typeof(Enumerable));
 
-        interpreter.SetVariable("x", globals.X);
-        interpreter.SetVariable("y", globals.Y);
-        interpreter.SetVariable("z", globals.Z);
-        interpreter.SetVariable("text", globals.Text);
-        interpreter.SetVariable("value", globals.Value);
-        interpreter.SetVariable("numbers", globals.Numbers);
-        interpreter.SetVariable("orders", globals.Orders);
+        interpreter.SetVariable("x", data.X);
+        interpreter.SetVariable("y", data.Y);
+        interpreter.SetVariable("z", data.Z);
+        interpreter.SetVariable("text", data.Text);
+        interpreter.SetVariable("value", data.Value);
+        interpreter.SetVariable("numbers", data.Numbers);
+        interpreter.SetVariable("orders", data.Orders);
 
         return interpreter;
     }
 
-    public static ExpressionContext CreateFleeContext(BenchmarkGlobalData globals)
+    public static ExpressionContext CreateFleeContext(BenchmarkData data)
     {
         var context = new ExpressionContext();
         context.Imports.AddType(typeof(Math));
         context.Imports.AddType(typeof(Enumerable));
 
-        context.Variables["x"] = globals.X;
-        context.Variables["y"] = globals.Y;
-        context.Variables["z"] = globals.Z;
-        context.Variables["text"] = globals.Text;
-        context.Variables["value"] = globals.Value;
-        context.Variables["numbers"] = globals.Numbers;
-        context.Variables["orders"] = globals.Orders;
+        context.Variables["x"] = data.X;
+        context.Variables["y"] = data.Y;
+        context.Variables["z"] = data.Z;
+        context.Variables["text"] = data.Text;
+        context.Variables["value"] = data.Value;
+        context.Variables["numbers"] = data.Numbers;
+        context.Variables["orders"] = data.Orders;
 
         return context;
     }
 
-    public static async Task<object?> EvaluateRoslynAsync(string code, BenchmarkGlobalData globals)
+    public static async Task<object?> EvaluateRoslynAsync(string code, BenchmarkData data)
     {
-        return await CSharpScript.EvaluateAsync<object>(code, RoslynOptions, globals, typeof(BenchmarkGlobalData));
+        return await CSharpScript.EvaluateAsync<object>(code, RoslynOptions, data, typeof(BenchmarkData));
     }
 
     internal static Script<object> CreateRoslynScript(string code)
     {
-        return CSharpScript.Create<object>(code, RoslynOptions, typeof(BenchmarkGlobalData));
+        return CSharpScript.Create<object>(code, RoslynOptions, typeof(BenchmarkData));
     }
 }

@@ -1,5 +1,4 @@
-// Polyfills for netstandard2.0 compatibility.
-// These types are provided by the runtime on .NET 5+ but must be defined manually for older targets.
+// Polyfills for types available in .NET 5+ but missing from netstandard2.0.
 
 #if NETSTANDARD2_0
 

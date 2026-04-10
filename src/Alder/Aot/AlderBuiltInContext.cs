@@ -1,8 +1,8 @@
 namespace Alder.Aot;
 
 /// <summary>
-/// Built-in AOT type context. The generator automatically includes all C# primitives,
-/// common BCL types, and their generic instantiations. No [AlderRegistered] attributes needed.
-/// Users can add custom types via [AlderRegistered] on their own context class.
+/// Built-in AOT type context. The source generator automatically includes all C# primitives,
+/// common BCL types, and their generic instantiations. Custom types are added via
+/// <see cref="AlderRegisteredAttribute"/> on user-defined context classes.
 /// </summary>
 public partial class AlderBuiltInContext : AlderTypeContext;

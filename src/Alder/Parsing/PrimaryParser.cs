@@ -21,8 +21,6 @@ internal sealed class PrimaryParser : ParserBase
     internal void SetStatementParser(StatementParser statement) => _statement = statement;
     internal void SetQueryParser(QueryParser queryParser) => _queryParser = queryParser;
 
-    #region Primary Dispatch
-
     internal Expr ParsePrimary()
     {
         var mark = Mark();
@@ -82,7 +80,7 @@ internal sealed class PrimaryParser : ParserBase
         if (Match(TokenType.Sizeof))
             return ParseSizeofExpression(mark);
 
-        // §12.19: async anonymous function — async x => expr, async (x) => expr, async () => expr
+        // §12.19: async anonymous function
         if (Check(TokenType.Async) && IsAsyncLambdaAhead())
         {
             Advance(); // consume 'async'
@@ -92,20 +90,18 @@ internal sealed class PrimaryParser : ParserBase
             return ParseAsyncSingleParamLambda(mark);
         }
 
-        // §12.19: Anonymous method expression — delegate(params) { body }
+        // §12.19: Anonymous method expression
         if (Match(TokenType.Delegate))
             return ParseAnonymousDelegate(mark);
 
         if (Match(TokenType.Identifier))
             return ParseIdentifier(mark);
 
-        // Query expression: from x in source where ... select ...
-        // ECMA-334 §12.20 - Must check before contextual keyword fallback
+        // ECMA-334 §12.20: query expression, must check before contextual keyword fallback
         if (Check(TokenType.From) && _queryParser.IsQueryExpressionStart())
             return _queryParser.ParseQueryExpression();
 
-        // Contextual keywords can be used as identifiers in expression contexts
-        // ECMA-334 §6.4.4 - e.g., var from = 5; return from + 1;
+        // ECMA-334 §6.4.4: contextual keywords can be used as identifiers in expression contexts
         if (IsContextualKeyword(Peek().Type))
         {
             Advance();
@@ -114,10 +110,6 @@ internal sealed class PrimaryParser : ParserBase
 
         throw SyntaxError(DiagnosticDescriptors.InvalidExpressionTerm, Peek().Lexeme);
     }
-
-    #endregion
-
-    #region Array Literals
 
     private Expr ParseArrayLiteral(int mark)
     {
@@ -264,10 +256,6 @@ internal sealed class PrimaryParser : ParserBase
         return false;
     }
 
-    #endregion
-
-    #region New Expression
-
     private Expr ParseNewExpression(int mark)
     {
         // new[] { ... } - implicitly typed array
@@ -300,8 +288,7 @@ internal sealed class PrimaryParser : ParserBase
     /// </summary>
     private Expr ParseObjectCreation(int mark)
     {
-        // Target-typed new: new() or new() { ... } — type inferred from declaration context
-        // ECMA-334 §12.8.16.2 - Target-typed object creation expressions
+        // ECMA-334 §12.8.16.2: Target-typed new (type inferred from declaration context)
         if (Check(TokenType.LeftParen))
         {
             Advance(); // consume '('
@@ -322,7 +309,6 @@ internal sealed class PrimaryParser : ParserBase
             return new ObjectCreationExpr("", ttArgs, ttInit) { Span = SpanFrom(mark) };
         }
 
-        // Parse type name (could be simple like Exception or dotted like System.ArgumentException)
         string typeName;
         if (IsTypeKeyword(Peek().Type))
         {
@@ -331,7 +317,6 @@ internal sealed class PrimaryParser : ParserBase
         else
         {
             typeName = Consume(TokenType.Identifier, "Expected '{', '[', or type name after 'new'").Lexeme;
-            // Support dotted names: System.Exception, System.Collections.Generic.List
             while (Match(TokenType.Dot))
             {
                 var next = Consume(TokenType.Identifier, "Expected identifier after '.'");
@@ -339,7 +324,6 @@ internal sealed class PrimaryParser : ParserBase
             }
         }
 
-        // Support generic type arguments: List<int>, Dictionary<string, int>
         if (Check(TokenType.Less))
         {
             Advance(); // consume <
@@ -364,33 +348,29 @@ internal sealed class PrimaryParser : ParserBase
             typeName += ">";
         }
 
-        // Handle nullable type suffix: new int?[] or new int?(42)
         // After 'new Type', ? is always nullable suffix (ternary makes no sense after 'new')
         if (Check(TokenType.Question))
         {
-            Advance(); // consume ?
+            Advance();
             typeName += "?";
         }
 
-        // Handle nullable array creation: new int?[] or new int?[size]
         // The lexer tokenizes ?[ as a single QuestionLeftBracket token,
-        // so we handle it here by adding ? to typeName and jumping into
-        // the array creation logic (the [ has already been consumed).
+        // so add ? to typeName and jump into the array creation logic.
         if (Match(TokenType.QuestionLeftBracket))
         {
             typeName += "?";
             return ParseArrayCreationBody(typeName, mark);
         }
 
-        // Check for array creation syntax: new TypeName[size] or new TypeName[] { ... }
-        // ECMA-334 §12.8.16.4 - must check before constructor path
+        // ECMA-334 §12.8.16.4
         if (Check(TokenType.LeftBracket))
         {
             Advance(); // consume '['
             return ParseArrayCreationBody(typeName, mark);
         }
 
-        // Parse optional argument list - parentheses may be omitted with initializer: new X { Prop = val }
+        // Parentheses may be omitted with initializer: new X { Prop = val }
         var arguments = new List<Expr>();
         if (Check(TokenType.LeftParen))
         {
@@ -405,7 +385,6 @@ internal sealed class PrimaryParser : ParserBase
             Consume(TokenType.RightParen, "Expected ')' after constructor arguments");
         }
 
-        // Check for object/collection initializer: new X() { ... } or new X { ... }
         ObjectInitializer? initializer = null;
         if (Check(TokenType.LeftBrace))
         {
@@ -422,7 +401,6 @@ internal sealed class PrimaryParser : ParserBase
     /// </summary>
     private Expr ParseArrayCreationBody(string typeName, int mark)
     {
-        // Unsized multidimensional array: new int[,] { ... }, new int[,,] { ... }
         if (Check(TokenType.Comma))
         {
             var rank = 1;
@@ -436,12 +414,10 @@ internal sealed class PrimaryParser : ParserBase
             return initExpr;
         }
 
-        // Check for array initializer: new int[] { ... }
         if (Check(TokenType.RightBracket))
         {
             Advance(); // consume ']'
 
-            // Jagged array initializer: new int[][] { ... }, new double[][][] { ... }
             var elementTypeName = typeName;
             while (Check(TokenType.LeftBracket) && CheckNext(TokenType.RightBracket))
             {
@@ -459,17 +435,14 @@ internal sealed class PrimaryParser : ParserBase
             throw SyntaxError(DiagnosticDescriptors.SyntaxExpected, $"'{{' after 'new {elementTypeName}[]'");
         }
 
-        // Array with size: new int[10] or multi-dim: new int[3, 3]
         var firstSize = _expression.ParseExpression();
         if (Check(TokenType.Comma))
         {
-            // Multi-dimensional: new int[3, 3] or new int[2, 3] { ... }
             var sizes = new List<Expr> { firstSize };
             while (Match(TokenType.Comma))
                 sizes.Add(_expression.ParseExpression());
             Consume(TokenType.RightBracket, "Expected ']' after array sizes");
 
-            // Check for optional initializer
             if (Check(TokenType.LeftBrace))
             {
                 Advance(); // consume '{'
@@ -484,7 +457,6 @@ internal sealed class PrimaryParser : ParserBase
         }
         Consume(TokenType.RightBracket, "Expected ']' after array size");
 
-        // Jagged array: new int[3][] or new int[3][][]
         var jaggedTypeName = typeName;
         while (Check(TokenType.LeftBracket) && CheckNext(TokenType.RightBracket))
         {
@@ -493,7 +465,7 @@ internal sealed class PrimaryParser : ParserBase
             jaggedTypeName += "[]";
         }
 
-        // §12.8.16.5: sized jagged array with initializer — new int[3][] { ... }
+        // §12.8.16.5: sized jagged array with initializer
         if (Check(TokenType.LeftBrace))
         {
             Advance(); // consume '{'
@@ -503,10 +475,6 @@ internal sealed class PrimaryParser : ParserBase
         return new TypedArrayCreationExpr(jaggedTypeName, firstSize) { Span = SpanFrom(mark) };
     }
 
-    /// <summary>
-    /// Parses a multidimensional array initializer: new int[,] { {1,2}, {3,4} }
-    /// '{' has already been consumed. Flattens nested braces into a flat value list.
-    /// </summary>
     private Expr ParseMultiDimArrayInitializer(string typeName, int rank, int mark)
     {
         var flatValues = new List<Expr>();
@@ -540,7 +508,6 @@ internal sealed class PrimaryParser : ParserBase
     }
 
     /// <summary>
-    /// Parses an object or collection initializer: { Name = value, ... } or { elem1, elem2, ... }
     /// ECMA-334 §12.8.16.3 - Object initializers / §12.8.16.6 - Collection initializers
     /// </summary>
     private ObjectInitializer ParseObjectInitializer()
@@ -552,7 +519,6 @@ internal sealed class PrimaryParser : ParserBase
         {
             if (Check(TokenType.Identifier) && PeekNext().Type == TokenType.Equal)
             {
-                // Property initializer: Name = value
                 var propName = Advance().Lexeme;
                 Advance(); // consume =
                 var value = _expression.ParseExpression();
@@ -560,7 +526,7 @@ internal sealed class PrimaryParser : ParserBase
             }
             else if (Check(TokenType.LeftBracket))
             {
-                // Indexer initializer: [key] = value (§12.8.16.3)
+                // §12.8.16.3: Indexer initializer
                 Advance(); // consume [
                 var key = _expression.ParseExpression();
                 Consume(TokenType.RightBracket, "Expected ']' after indexer key in initializer");
@@ -570,7 +536,7 @@ internal sealed class PrimaryParser : ParserBase
             }
             else if (Check(TokenType.LeftBrace))
             {
-                // §12.8.16.6: Grouped element initializer: { expr, expr, ... } calls Add(expr, expr, ...)
+                // §12.8.16.6: Grouped element initializer, calls Add(expr, expr, ...)
                 Advance(); // consume '{'
                 var elements = new List<Expr>();
                 do
@@ -582,22 +548,17 @@ internal sealed class PrimaryParser : ParserBase
             }
             else
             {
-                // Collection initializer element
                 var value = _expression.ParseExpression();
                 entries.Add(new InitializerEntry(null, value));
             }
 
             if (!Match(TokenType.Comma))
-                break; // no trailing comma required
+                break;
         }
 
         Consume(TokenType.RightBrace, "Expected '}' after object initializer");
         return new ObjectInitializer(entries);
     }
-
-    #endregion
-
-    #region Checked / Unchecked
 
     private Expr ParseCheckedUnchecked(string keyword, int mark)
     {
@@ -613,15 +574,9 @@ internal sealed class PrimaryParser : ParserBase
         return new CheckedExpr(expr, keyword == "checked") { Span = SpanFrom(mark) };
     }
 
-    #endregion
-
-    #region Typeof Expression
-
     private Expr ParseTypeofExpression(int mark)
     {
         Consume(TokenType.LeftParen, "Expected '(' after 'typeof'");
-        // Accept type keywords, void, or identifiers (for non-built-in types)
-        // Use TryParseTypeName to handle generics: typeof(List<int>), typeof(Dictionary<string, int>)
         Token typeToken;
         if (Match(TokenType.Void))
         {
@@ -638,10 +593,6 @@ internal sealed class PrimaryParser : ParserBase
         return new TypeofExpr(typeToken) { Span = SpanFrom(mark) };
     }
 
-    #endregion
-
-    #region Default Expression
-
     private Expr ParseDefaultExpression(int mark)
     {
         if (Match(TokenType.LeftParen))
@@ -653,20 +604,14 @@ internal sealed class PrimaryParser : ParserBase
             Consume(TokenType.RightParen, "Expected ')' after default type");
             return new DefaultExpr(typeToken) { Span = SpanFrom(mark) };
         }
-        // bare default literal (C# 7.1+)
         return new DefaultExpr(null) { Span = SpanFrom(mark) };
     }
-
-    #endregion
-
-    #region Nameof Expression
 
     private Expr ParseNameofExpression(int mark)
     {
         Consume(TokenType.LeftParen, "Expected '(' after 'nameof'");
         var name = StripVerbatimPrefix(Consume(TokenType.Identifier, "Expected identifier after 'nameof('").Lexeme);
 
-        // Skip generic type arguments: nameof(List<int>) → "List"
         if (Check(TokenType.Less))
         {
             Advance();
@@ -702,10 +647,6 @@ internal sealed class PrimaryParser : ParserBase
     private static string StripVerbatimPrefix(string lexeme) =>
         lexeme.Length > 1 && lexeme[0] == '@' ? lexeme[1..] : lexeme;
 
-    #endregion
-
-    #region Sizeof Expression
-
     private Expr ParseSizeofExpression(int mark)
     {
         Consume(TokenType.LeftParen, "Expected '(' after 'sizeof'");
@@ -723,17 +664,13 @@ internal sealed class PrimaryParser : ParserBase
         return new SizeofExpr(typeName) { Span = SpanFrom(mark) };
     }
 
-    #endregion
-
-    #region Identifier and Lambda
-
     // §12.19: look ahead to distinguish `async x => ...` and `async (x) => ...` from `async` as identifier
     private bool IsAsyncLambdaAhead()
     {
         var next = PeekNext();
         if (next.Type == TokenType.LeftParen)
             return true;
-        // async x => ... — identifier followed by =>
+        // async x => ...: identifier followed by =>
         if (next.Type == TokenType.Identifier && PeekAt(2).Type == TokenType.Arrow)
             return true;
         return false;
@@ -749,8 +686,6 @@ internal sealed class PrimaryParser : ParserBase
 
     private Expr ParseAsyncParenthesizedLambda(int mark)
     {
-        // Reuse ParseParenthesized but we already consumed 'async' and '('
-        // Empty parens
         if (Match(TokenType.RightParen))
         {
             Consume(TokenType.Arrow, "Expected '=>' after 'async ()'");
@@ -758,11 +693,9 @@ internal sealed class PrimaryParser : ParserBase
             return new LambdaExpr([], body, IsAsync: true) { Span = SpanFrom(mark) };
         }
 
-        // Try typed lambda first: async (int x, string y) => ...
         var typed = TryParseTypedLambda(mark, isAsync: true);
         if (typed != null) return typed;
 
-        // Untyped: async (x, y) => ...
         var parameters = new List<LambdaParameter>();
         do
         {
@@ -780,7 +713,6 @@ internal sealed class PrimaryParser : ParserBase
     {
         var identifier = Previous();
 
-        // Check for single-parameter lambda: x => expr
         if (Match(TokenType.Arrow))
         {
             var body = _expression.ParseExpression();
@@ -790,16 +722,8 @@ internal sealed class PrimaryParser : ParserBase
         return new IdentifierExpr(identifier) { Span = SpanFrom(mark) };
     }
 
-    #endregion
-
-    #region Parenthesized, Lambda, and Tuple
-
     private Expr ParseParenthesized(int mark)
     {
-        // Could be: grouping (expr), lambda (x) => ..., typed lambda (int x) => ...,
-        // parameter list (a, b) => ..., or tuple (expr1, expr2, ...)
-
-        // Empty parens - parameterless lambda
         if (Match(TokenType.RightParen))
         {
             Consume(TokenType.Arrow, "Expected '=>' after '()'");
@@ -807,19 +731,16 @@ internal sealed class PrimaryParser : ParserBase
             return new LambdaExpr([], body) { Span = SpanFrom(mark) };
         }
 
-        // Try typed lambda first: (type name, type name, ...) => body
         var typedLambdaResult = TryParseTypedLambda(mark);
         if (typedLambdaResult != null)
             return typedLambdaResult;
 
-        // Try untyped lambda using backtracking: identifiers followed by ) =>
         var savedPosition = State.Current;
         var parameters = new List<LambdaParameter>();
         var isLambda = false;
 
         if (Check(TokenType.Identifier))
         {
-            // Try to parse as parameter list (all identifiers separated by commas)
             parameters.Add(new LambdaParameter(null, Advance()));
             while (Match(TokenType.Comma))
             {
@@ -840,13 +761,10 @@ internal sealed class PrimaryParser : ParserBase
             return new LambdaExpr(parameters, body) { Span = SpanFrom(mark) };
         }
 
-        // Not a lambda - backtrack and parse as expression (grouping or tuple)
         State.Current = savedPosition;
 
-        // Parse the first element (could be named: "name: expr")
         var firstElement = ParseTupleElement();
 
-        // If next is comma, this is a tuple
         if (Check(TokenType.Comma))
         {
             var elements = new List<TupleElement> { firstElement };
@@ -858,20 +776,15 @@ internal sealed class PrimaryParser : ParserBase
             return new TupleExpr(elements) { Span = SpanFrom(mark) };
         }
 
-        // No comma - this is grouping: (expr) returns inner expression directly
         Consume(TokenType.RightParen, "Expected ')' after expression");
         return firstElement.Expression;
     }
 
-    /// <summary>
-    /// Parses a single tuple element, which may be named (name: expr) or unnamed (expr).
-    /// </summary>
     private TupleElement ParseTupleElement()
     {
-        // Check for named element: identifier followed by colon
         if (Check(TokenType.Identifier) && PeekNext().Type == TokenType.Colon)
         {
-            var nameToken = Advance(); // consume identifier
+            var nameToken = Advance();
             Advance(); // consume colon
             var expr = _expression.ParseExpression();
             return new TupleElement(nameToken.Lexeme, expr);
@@ -884,7 +797,7 @@ internal sealed class PrimaryParser : ParserBase
     /// <summary>
     /// Attempts to parse a typed lambda: (type name, type name, ...) => body.
     /// Returns null if the pattern doesn't match (restores position on failure).
-    /// ECMA-334 §12.19 - Anonymous function expressions with explicitly typed parameters.
+    /// ECMA-334 §12.19
     /// </summary>
     private Expr? TryParseTypedLambda(int mark, bool isAsync = false)
     {
@@ -894,7 +807,6 @@ internal sealed class PrimaryParser : ParserBase
         {
             var parameters = new List<LambdaParameter>();
 
-            // First parameter: must be type followed by name
             var firstType = TryParseTypeName();
             if (firstType == null || !Check(TokenType.Identifier))
             {
@@ -904,7 +816,6 @@ internal sealed class PrimaryParser : ParserBase
 
             parameters.Add(new LambdaParameter(firstType, Advance()));
 
-            // Additional parameters: comma-separated type-name pairs
             while (Match(TokenType.Comma))
             {
                 var paramType = TryParseTypeName();
@@ -916,15 +827,12 @@ internal sealed class PrimaryParser : ParserBase
                 parameters.Add(new LambdaParameter(paramType, Advance()));
             }
 
-            // Must end with ) =>
             if (!Match(TokenType.RightParen) || !Match(TokenType.Arrow))
             {
                 State.Current = saved;
                 return null;
             }
 
-            // Block body: (params) => { ... } -- parse as block statement
-            // Expression body: (params) => expr
             Expr body;
             if (Check(TokenType.LeftBrace))
             {
@@ -944,7 +852,7 @@ internal sealed class PrimaryParser : ParserBase
         }
     }
 
-    // §12.19: Anonymous method expression — delegate(params) { body } or delegate { body }
+    // §12.19
     private Expr ParseAnonymousDelegate(int mark)
     {
         var parameters = new List<LambdaParameter>();
@@ -973,10 +881,6 @@ internal sealed class PrimaryParser : ParserBase
         return new LambdaExpr(parameters, body) { Span = SpanFrom(mark) };
     }
 
-    #endregion
-
-    #region Interpolated Strings
-
     private InterpolatedStringExpr ParseInterpolatedString(Token token, int mark)
     {
         var content = (string)token.Literal!;
@@ -988,7 +892,6 @@ internal sealed class PrimaryParser : ParserBase
         {
             switch (content[i])
             {
-                // Check for escaped brace {{
                 case '{' when i + 1 < content.Length && content[i + 1] == '{':
                     sb.Append('{');
                     i += 2;
@@ -1036,11 +939,9 @@ internal sealed class PrimaryParser : ParserBase
                                 break;
                             case ',' when braceDepth == 1 && parenDepth == 0 && bracketDepth == 0 && alignmentSpec == null && formatSpec == null:
                             {
-                                // Alignment specifier: everything between , and : or }
                                 exprEnd = i;
                                 i++; // skip ,
                                 var alignStart = i;
-                                // Scan alignment value (may include - for left-align)
                                 while (i < content.Length && content[i] != ':' && content[i] != '}')
                                     i++;
                                 alignmentSpec = content[alignStart..i].Trim();
@@ -1048,25 +949,20 @@ internal sealed class PrimaryParser : ParserBase
                                 {
                                     i++; // skip :
                                     var fmtStart = i;
-                                    // Format specifier is everything until closing }
                                     while (i < content.Length && content[i] != '}')
                                         i++;
                                     formatSpec = content[fmtStart..i];
                                 }
-                                // Now i points at } -- let loop decrement braceDepth
                                 continue;
                             }
                             case ':' when braceDepth == 1 && parenDepth == 0 && bracketDepth == 0 && alignmentSpec == null && formatSpec == null:
                             {
-                                // Format specifier only (no alignment)
                                 exprEnd = i;
                                 i++; // skip :
                                 var fmtStart = i;
-                                // Format specifier is everything until closing }
                                 while (i < content.Length && content[i] != '}')
                                     i++;
                                 formatSpec = content[fmtStart..i];
-                                // Now i points at } -- let loop decrement braceDepth
                                 continue;
                             }
                         }
@@ -1084,12 +980,10 @@ internal sealed class PrimaryParser : ParserBase
                     parts.Add(new ExpressionPart(expr, alignmentSpec, formatSpec));
                     break;
                 }
-                // Check for escaped brace }}
                 case '}' when i + 1 < content.Length && content[i + 1] == '}':
                     sb.Append('}');
                     i += 2;
                     continue;
-                // Single } outside expression - just append it
                 case '}':
                     sb.Append(content[i]);
                     i++;
@@ -1106,6 +1000,4 @@ internal sealed class PrimaryParser : ParserBase
 
         return new InterpolatedStringExpr(parts) { Span = SpanFrom(mark) };
     }
-
-    #endregion
 }

@@ -1,6 +1,6 @@
 namespace Alder.Binding.BoundNodes;
 
-// ^expr — creates System.Index(expr, fromEnd: true)
+// ^expr creates System.Index(expr, fromEnd: true)
 internal sealed record BoundIndexFromEndExpr(
     BoundExpr Operand,
     BoundType StaticType) : BoundExpr(StaticType)

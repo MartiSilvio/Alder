@@ -4,14 +4,14 @@ using Alder.Text;
 namespace Alder;
 
 /// <summary>
-/// Structured diagnostic information from expression parsing, binding, or validation.
+/// Structured diagnostic from expression parsing, binding, or validation.
 /// </summary>
-/// <param name="Severity">The severity level of this diagnostic.</param>
-/// <param name="Message">The human-readable diagnostic message.</param>
-/// <param name="Code">The diagnostic code (e.g., a Roslyn CS code or an Alder ALDR code), or <c>null</c>.</param>
+/// <param name="Severity">The severity level.</param>
+/// <param name="Message">The human-readable message.</param>
+/// <param name="Code">The diagnostic code (e.g., CS0103 or ALDR0001), or <c>null</c>.</param>
 /// <param name="Span">The source text span where the diagnostic applies.</param>
-/// <param name="Line">The one-based line number, or <c>null</c> if not available.</param>
-/// <param name="Column">The one-based column number, or <c>null</c> if not available.</param>
+/// <param name="Line">The one-based line number, or <c>null</c> if unavailable.</param>
+/// <param name="Column">The one-based column number, or <c>null</c> if unavailable.</param>
 public sealed record AlderDiagnostic(
     DiagnosticSeverity Severity,
     string Message,
@@ -21,7 +21,7 @@ public sealed record AlderDiagnostic(
     int? Column = null)
 {
     /// <summary>
-    /// Gets the formatted diagnostic code string (e.g., <c>"CS0103"</c>), or <c>null</c> if no code is set.
+    /// The formatted diagnostic code string (e.g., <c>"CS0103"</c>), or <c>null</c> if no code is set.
     /// </summary>
     public string? FormattedCode => Code?.ToDiagnosticId();
 
@@ -42,18 +42,12 @@ public sealed record AlderDiagnostic(
 /// </summary>
 public enum DiagnosticSeverity
 {
-    /// <summary>
-    /// A fatal error that prevents evaluation.
-    /// </summary>
+    /// <summary>A fatal error that prevents evaluation.</summary>
     Error,
 
-    /// <summary>
-    /// A non-fatal warning about potentially incorrect usage.
-    /// </summary>
+    /// <summary>A non-fatal warning about potentially incorrect usage.</summary>
     Warning,
 
-    /// <summary>
-    /// An informational message.
-    /// </summary>
+    /// <summary>An informational message.</summary>
     Info
 }

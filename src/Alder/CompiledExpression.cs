@@ -4,10 +4,8 @@ using Alder.Runtime;
 namespace Alder;
 
 /// <summary>
-/// Wraps a compiled expression delegate for repeated invocation without engine dispatch overhead.
-/// The expression is compiled once via <see cref="AlderEngine.Compile{T}"/> and can then be
-/// invoked millions of times via <see cref="Invoke(CancellationToken)"/> or
-/// <see cref="Invoke(IDictionary{string, object?}, CancellationToken)"/>.
+/// A compiled expression delegate that can be invoked repeatedly without engine dispatch overhead.
+/// Created via <see cref="AlderEngine.Compile{T}"/>.
 /// </summary>
 /// <typeparam name="T">The expected return type of the expression.</typeparam>
 public sealed class AlderCompiledExpression<T>
@@ -33,11 +31,11 @@ public sealed class AlderCompiledExpression<T>
     /// Invokes the compiled expression using the engine's current context.
     /// Variables set via <see cref="AlderEngine.SetVariable"/> after compilation
     /// are visible because the context is captured by reference. Changing a variable's
-    /// <em>type</em> after compilation invalidates the delegate — throws <see cref="AlderException"/> with ALDR0004.
+    /// <em>type</em> after compilation invalidates the delegate and throws ALDR0003.
     /// </summary>
     /// <param name="cancellationToken">Cancellation token for cooperative cancellation.</param>
     /// <returns>The evaluated result, converted to <typeparamref name="T"/>.</returns>
-    /// <exception cref="AlderException">Thrown when a variable's type has changed since compilation (ALDR0004).</exception>
+    /// <exception cref="AlderException">Thrown when a variable's type has changed since compilation (ALDR0003).</exception>
     public T? Invoke(CancellationToken cancellationToken = default)
     {
         var baseContext = _engine.GetContextForCompiled();
@@ -55,7 +53,7 @@ public sealed class AlderCompiledExpression<T>
     /// <param name="variables">Variables available during this invocation only.</param>
     /// <param name="cancellationToken">Cancellation token for cooperative cancellation.</param>
     /// <returns>The evaluated result, converted to <typeparamref name="T"/>.</returns>
-    /// <exception cref="AlderException">Thrown when a variable's type has changed since compilation (ALDR0004).</exception>
+    /// <exception cref="AlderException">Thrown when a variable's type has changed since compilation (ALDR0003).</exception>
     public T? Invoke(IDictionary<string, object?> variables, CancellationToken cancellationToken = default)
     {
         var parentContext = _engine.GetContextForCompiled();

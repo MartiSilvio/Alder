@@ -7,11 +7,7 @@ namespace Alder.Text;
 /// <param name="Character">The zero-based character offset within the line.</param>
 public readonly record struct LinePosition(int Line, int Character) : IComparable<LinePosition>
 {
-    /// <summary>
-    /// Compares this position to another by line, then by character offset.
-    /// </summary>
-    /// <param name="other">The position to compare to.</param>
-    /// <returns>A negative value if this position precedes <paramref name="other"/>; zero if equal; a positive value if it follows.</returns>
+    /// <summary>Compares by line, then by character offset.</summary>
     public int CompareTo(LinePosition other)
     {
         var cmp = Line.CompareTo(other.Line);

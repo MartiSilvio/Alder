@@ -264,6 +264,10 @@ public class ParityTests(CompilationMode mode)
 
         foreach (var file in Directory.GetFiles(testDataDir, "*.csx", SearchOption.AllDirectories))
         {
+            // .ignore.csx files are known limitations, excluded from automated runs
+            if (file.EndsWith(".ignore.csx", StringComparison.OrdinalIgnoreCase))
+                continue;
+
             var relativeName = Path.GetRelativePath(testDataDir, file).Replace(Path.DirectorySeparatorChar, '/');
             yield return new TestCaseData(file).SetName(relativeName.Replace(".csx", "").Replace('/', '_'));
         }

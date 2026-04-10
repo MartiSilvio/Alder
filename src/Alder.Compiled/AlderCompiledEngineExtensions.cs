@@ -1,4 +1,5 @@
 using System.Linq.Expressions;
+using System.Reflection;
 using Alder.Binding;
 using Alder.Compiled.Compilation;
 using Alder.Diagnostics;
@@ -9,6 +10,9 @@ namespace Alder.Compiled;
 
 public static class AlderCompiledEngineExtensions
 {
+    private static readonly MethodInfo SetVariableOpenGeneric =
+        typeof(AlderEngine).GetMethod(nameof(AlderEngine.SetVariable), 1,
+            [typeof(string), Type.MakeGenericMethodParameter(0)])!;
     /// <summary>
     /// Parses and attempts to compile an expression in one step.
     /// </summary>
@@ -48,7 +52,7 @@ public static class AlderCompiledEngineExtensions
 
         var compiledInfo = parsed.GetCompiledInfo()!;
         var typeVersion = compiledInfo.TypeVersion
-            ?? throw new InvalidOperationException("Compiled expression info has no type version — compilation did not stamp a version.");
+            ?? throw new InvalidOperationException("Compiled expression info has no type version. Compilation did not stamp a version.");
         return new AlderCompiledExpression<T>(compiledInfo.Delegate!, engine, access.Config, typeVersion);
     }
 
@@ -65,7 +69,7 @@ public static class AlderCompiledEngineExtensions
 
     /// <summary>
     /// Compiles an expression and returns a <see cref="Func{T}"/> for zero-overhead hot-path invocation.
-    /// The returned delegate captures the engine context by reference -- variables set via
+    /// The returned delegate captures the engine context by reference. Variables set via
     /// <see cref="AlderEngine.SetVariable"/> after compilation are visible to subsequent invocations.
     /// </summary>
     /// <typeparam name="T">The expected return type of the expression.</typeparam>
@@ -78,6 +82,141 @@ public static class AlderCompiledEngineExtensions
         engine.GetCompiledFeatureAccess().ThrowIfDisposed();
         var compiled = Compile<T>(engine, expression);
         return () => compiled.Invoke();
+    }
+
+    /// <summary>
+    /// Compiles a code body with named parameters into a native <typeparamref name="TDelegate"/> delegate.
+    /// Parameter types are inferred from the delegate's generic arguments.
+    /// Supports multi-statement code including if/else, loops, variable declarations, and return statements.
+    /// </summary>
+    /// <typeparam name="TDelegate">A Func or Action delegate type whose generic arguments define parameter types
+    /// (and return type for Func). For example, <c>Func&lt;int, string, bool&gt;</c> expects two parameters
+    /// (int and string) and returns bool.</typeparam>
+    /// <param name="engine">The engine instance. Must have a compiler configured via <c>UseCompiler()</c>.</param>
+    /// <param name="code">The code body to compile. Use parameter names directly (not lambda syntax).
+    /// For example: <c>"x &gt; 0 ? x * 2 : -x"</c> with parameter name <c>"x"</c>.</param>
+    /// <param name="parameterNames">Names for each parameter, matching the delegate's parameter types by position.</param>
+    /// <returns>A compiled delegate that can be invoked with typed arguments.</returns>
+    /// <exception cref="AlderException">Parameter count doesn't match delegate, or compilation fails.</exception>
+    public static TDelegate Compile<TDelegate>(
+        this AlderEngine engine,
+        string code,
+        params string[] parameterNames)
+        where TDelegate : Delegate
+    {
+        return CompileDelegate<TDelegate>(engine, code, parameterNames);
+    }
+
+    /// <summary>
+    /// Compiles a code body with named parameters into a native <typeparamref name="TDelegate"/> delegate.
+    /// Overload accepting <see cref="IEnumerable{T}"/> for parameter names.
+    /// </summary>
+    public static TDelegate Compile<TDelegate>(
+        this AlderEngine engine,
+        string code,
+        IEnumerable<string> parameterNames)
+        where TDelegate : Delegate
+    {
+        return CompileDelegate<TDelegate>(engine, code, parameterNames.ToArray());
+    }
+
+    private static TDelegate CompileDelegate<TDelegate>(
+        AlderEngine engine,
+        string code,
+        string[] parameterNames)
+        where TDelegate : Delegate
+    {
+        var access = engine.GetCompiledFeatureAccess();
+        access.ThrowIfDisposed();
+
+        var delegateType = typeof(TDelegate);
+        var isAction = delegateType.FullName?.StartsWith("System.Action") == true
+                       || delegateType == typeof(Action);
+        var genericArgs = delegateType.IsGenericType ? delegateType.GetGenericArguments() : [];
+        var paramTypes = isAction ? genericArgs : genericArgs.Length > 0 ? genericArgs[..^1] : [];
+        var returnType = isAction ? typeof(void) : genericArgs.Length > 0 ? genericArgs[^1] : typeof(object);
+
+        if (parameterNames.Length != paramTypes.Length)
+            throw new AlderException(
+                DiagnosticDescriptors.CompileParameterCountMismatch,
+                delegateType.Name, paramTypes.Length.ToString(), parameterNames.Length.ToString());
+
+        // §1: Define typed parameters with defaults so the binder knows the types
+        for (int i = 0; i < parameterNames.Length; i++)
+        {
+            var setVarTyped = SetVariableOpenGeneric.MakeGenericMethod(paramTypes[i]);
+            var defaultValue = paramTypes[i].IsValueType ? Activator.CreateInstance(paramTypes[i]) : null;
+            setVarTyped.Invoke(engine, [parameterNames[i], defaultValue]);
+        }
+
+        // §2: Compile the code body
+        var compiled = Compile<object?>(engine, code);
+
+        // §3: Build a bridge delegate using expression trees
+        return BuildBridgeDelegate<TDelegate>(engine, compiled, parameterNames, paramTypes, returnType, isAction);
+    }
+
+    private static TDelegate BuildBridgeDelegate<TDelegate>(
+        AlderEngine engine,
+        AlderCompiledExpression<object?> compiled,
+        string[] paramNames,
+        Type[] paramTypes,
+        Type returnType,
+        bool isAction)
+        where TDelegate : Delegate
+    {
+        var parameters = new ParameterExpression[paramTypes.Length];
+        for (int i = 0; i < paramTypes.Length; i++)
+            parameters[i] = LinqExpression.Parameter(paramTypes[i], paramNames[i]);
+
+        var engineConst = LinqExpression.Constant(engine);
+        var compiledConst = LinqExpression.Constant(compiled);
+
+        var bodyStatements = new List<LinqExpression>();
+
+        // Emit typed SetVariable<T> calls for each parameter
+        for (int i = 0; i < paramNames.Length; i++)
+        {
+            var setVarTyped = SetVariableOpenGeneric.MakeGenericMethod(paramTypes[i]);
+            bodyStatements.Add(LinqExpression.Call(
+                engineConst,
+                setVarTyped,
+                LinqExpression.Constant(paramNames[i]),
+                parameters[i]));
+        }
+
+        // Call compiled.Invoke()
+        var invokeMethod = typeof(AlderCompiledExpression<object?>)
+            .GetMethod(nameof(AlderCompiledExpression<object?>.Invoke), [typeof(CancellationToken)])!;
+        var invokeCall = LinqExpression.Call(
+            compiledConst, invokeMethod, LinqExpression.Default(typeof(CancellationToken)));
+
+        if (isAction)
+        {
+            bodyStatements.Add(invokeCall);
+            var block = LinqExpression.Block(bodyStatements);
+            return LinqExpression.Lambda<TDelegate>(block, parameters).Compile();
+        }
+
+        // Convert result to return type
+        LinqExpression resultExpr;
+        if (returnType == typeof(object))
+        {
+            resultExpr = invokeCall;
+        }
+        else if (returnType.IsValueType)
+        {
+            // Unbox: (TReturn)(object)result — handles null → default for nullable
+            resultExpr = LinqExpression.Unbox(invokeCall, returnType);
+        }
+        else
+        {
+            resultExpr = LinqExpression.TypeAs(invokeCall, returnType);
+        }
+
+        bodyStatements.Add(resultExpr);
+        var funcBlock = LinqExpression.Block(returnType, bodyStatements);
+        return LinqExpression.Lambda<TDelegate>(funcBlock, parameters).Compile();
     }
 
     /// <summary>

@@ -5,97 +5,126 @@ using Alder.Test._Infrastructure;
 namespace Alder.Test.Security;
 
 /// <summary>
-/// Tests that verify reflection types are blocked in all modes.
-/// User code must never obtain a value whose runtime type is System.Type
-/// or any reflection metadata type (MemberInfo, Assembly, Module, etc.).
+/// Tests that verify reflection metadata types (MemberInfo, Assembly, Module, etc.)
+/// are blocked in all modes. Type objects are allowed — they are inert metadata.
+/// The guard blocks the next step: MethodInfo, FieldInfo, etc. which enable invocation.
 /// </summary>
 [TestFixture(CompilationMode.Interpreted)]
 [TestFixture(CompilationMode.Compiled)]
 public class ReflectionBlockingTests(CompilationMode mode)
 {
-    #region GetType() Blocking
+    #region Type Objects Are Allowed
 
     [Test]
-    public void BlocksGetType_OnString()
+    public void AllowsGetType_OnString()
     {
         var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("text", "hello");
 
-        var ex = Assert.Throws<AlderException>(() => engine.Evaluate("text.GetType()"));
-        Assert.That(ex!.Message, Does.Contain("reflection"));
-        Assert.That(ex.Message, Does.Contain("RuntimeType"));
-        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0108));
+        var result = engine.Evaluate("text.GetType()");
+
+        Assert.That(result, Is.EqualTo(typeof(string)));
     }
 
     [Test]
-    public void BlocksGetType_OnInt()
+    public void AllowsGetType_OnInt()
     {
         var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("num", 42);
 
-        var ex = Assert.Throws<AlderException>(() => engine.Evaluate("num.GetType()"));
-        Assert.That(ex!.Message, Does.Contain("reflection"));
-        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0108));
+        var result = engine.Evaluate("num.GetType()");
+
+        Assert.That(result, Is.EqualTo(typeof(int)));
     }
 
     [Test]
-    public void BlocksGetType_OnList()
+    public void AllowsGetType_OnList()
     {
         var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("items", new List<int> { 1, 2, 3 });
 
-        var ex = Assert.Throws<AlderException>(() => engine.Evaluate("items.GetType()"));
-        Assert.That(ex!.Message, Does.Contain("reflection"));
-        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0108));
+        var result = engine.Evaluate("items.GetType()");
+
+        Assert.That(result, Is.EqualTo(typeof(List<int>)));
     }
 
     [Test]
-    public void BlocksGetType_OnAnonymousObject()
+    public void AllowsGetType_OnAnonymousObject()
     {
         var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("obj", new { Name = "Test", Value = 42 });
 
-        var ex = Assert.Throws<AlderException>(() => engine.Evaluate("obj.GetType()"));
-        Assert.That(ex!.Message, Does.Contain("reflection"));
-        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0108));
+        var result = engine.Evaluate("obj.GetType()");
+
+        Assert.That(result, Is.InstanceOf<Type>());
     }
 
-    #endregion
-
-    #region Type as Property Value
-
     [Test]
-    public void BlocksTypePropertyAccess()
+    public void AllowsTypePropertyAccess()
     {
         var engine = TestEngineFactory.Create(mode);
         var holder = new TypeHolder { TypeValue = typeof(string) };
         engine.SetVariable("holder", holder);
 
-        var ex = Assert.Throws<AlderException>(() => engine.Evaluate("holder.TypeValue"));
-        Assert.That(ex!.Message, Does.Contain("reflection"));
-        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0108));
+        var result = engine.Evaluate("holder.TypeValue");
+
+        Assert.That(result, Is.EqualTo(typeof(string)));
     }
 
     [Test]
-    public void BlocksTypeFromDictionary()
+    public void AllowsTypeFromDictionary()
     {
         var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("dict", new Dictionary<string, object?> { ["type"] = typeof(int) });
 
-        var ex = Assert.Throws<AlderException>(() => engine.Evaluate("""dict["type"] """));
-        Assert.That(ex!.Message, Does.Contain("reflection"));
-        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0108));
+        var result = engine.Evaluate("""dict["type"] """);
+
+        Assert.That(result, Is.EqualTo(typeof(int)));
     }
 
     [Test]
-    public void BlocksTypeFromArray()
+    public void AllowsTypeFromArray()
     {
         var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("arr", new object[] { typeof(string), typeof(int) });
 
-        var ex = Assert.Throws<AlderException>(() => engine.Evaluate("arr[0]"));
-        Assert.That(ex!.Message, Does.Contain("reflection"));
-        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0108));
+        var result = engine.Evaluate("arr[0]");
+
+        Assert.That(result, Is.EqualTo(typeof(string)));
+    }
+
+    [Test]
+    public void AllowsSelectReturningType()
+    {
+        var engine = TestEngineFactory.Create(mode);
+        engine.SetVariable("items", new List<object> { "hello", 42, 3.14 });
+
+        var result = engine.Evaluate<List<Type>>("items.Select(x => x.GetType()).ToList()");
+
+        Assert.That(result, Has.Count.EqualTo(3));
+        Assert.That(result![0], Is.EqualTo(typeof(string)));
+    }
+
+    [Test]
+    public void AllowsTypeNameAccess()
+    {
+        var engine = TestEngineFactory.Create(mode);
+        engine.SetVariable("text", "hello");
+
+        var result = engine.Evaluate("text.GetType().Name");
+
+        Assert.That(result, Is.EqualTo("String"));
+    }
+
+    [Test]
+    public void AllowsTypeComparison()
+    {
+        var engine = TestEngineFactory.Create(mode);
+        engine.SetVariable("text", "hello");
+
+        var result = engine.Evaluate<bool>("text.GetType() == typeof(string)");
+
+        Assert.That(result, Is.True);
     }
 
     #endregion
@@ -158,19 +187,27 @@ public class ReflectionBlockingTests(CompilationMode mode)
 
     #endregion
 
-    #region LINQ with Reflection
+    #region Chaining from Type to MemberInfo is Blocked
 
     [Test]
-    public void BlocksSelectReturningType()
+    public void BlocksGetMethodOnType()
     {
         var engine = TestEngineFactory.Create(mode);
-        engine.SetVariable("items", new List<object> { "hello", 42, 3.14 });
 
-        // Even through LINQ, reflection types are blocked
+        // Use GetType() which is unambiguous on object, returns MethodInfo → guard blocks it
         var ex = Assert.Throws<AlderException>(() =>
-            engine.Evaluate("items.Select(x => x.GetType()).ToList()"));
-        Assert.That(ex!.Message, Does.Contain("reflection"));
-        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0108));
+            engine.Evaluate("""typeof(object).GetMethod("GetType")"""));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0108));
+    }
+
+    [Test]
+    public void BlocksAssemblyOnType()
+    {
+        var engine = TestEngineFactory.Create(mode);
+
+        var ex = Assert.Throws<AlderException>(() =>
+            engine.Evaluate("typeof(string).Assembly"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0108));
     }
 
     #endregion

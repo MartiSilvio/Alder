@@ -12,7 +12,7 @@ internal static class AssignEvaluator
     {
         var value = ctx.Evaluate(node.Value, ct);
 
-        // ECMA-334 §9.2.9.1: discard — evaluate RHS, discard result
+        // ECMA-334 §9.2.9.1: discard. Evaluate RHS, discard result.
         if (node.Name == Parsing.TokenLexemes.DiscardIdentifier && !ctx.Context.TryGet(Parsing.TokenLexemes.DiscardIdentifier, out _))
             return value;
 

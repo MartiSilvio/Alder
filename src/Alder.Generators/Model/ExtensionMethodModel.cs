@@ -4,7 +4,7 @@ namespace Alder.Generators.Model;
 
 /// <summary>
 /// Represents a discovered extension method overload for AOT dispatch generation.
-/// Extracted from Roslyn symbols at generation time — no hardcoded method names.
+/// Extracted from Roslyn symbols at generation time, not hardcoded.
 /// </summary>
 internal readonly record struct ExtensionMethodModel(
     string MethodName,
@@ -38,6 +38,6 @@ internal enum ExtensionMethodKind
     /// <summary>One enumerable param: e.g., Concat(IEnumerable&lt;T&gt;)</summary>
     SingleEnumerable,
 
-    /// <summary>Multiple params or complex signature — not generated, falls to reflection</summary>
+    /// <summary>Multiple params or complex signature, not generated (falls to reflection)</summary>
     Complex,
 }

@@ -159,7 +159,7 @@ internal static class MemberAccess
         if (index is InclusiveRange inclusive)
             index = inclusive.Value;
 
-        // §12.8.11: System.Index support — resolve from-end indices
+        // §12.8.11: System.Index support, resolve from-end indices
         if (index is Index sysIndex && obj != null)
         {
             var length = obj switch
@@ -173,7 +173,7 @@ internal static class MemberAccess
                 return GetIndex(obj, (object)sysIndex.GetOffset(length), context);
         }
 
-        // §12.8.11: System.Range support — slice arrays/strings
+        // §12.8.11: System.Range support, slice arrays and strings
         if (index is Range sysRange && obj != null)
         {
             if (obj is string str)

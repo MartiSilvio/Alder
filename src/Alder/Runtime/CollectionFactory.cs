@@ -70,7 +70,7 @@ internal static class CollectionFactory
         if (!IsListCompatibleInterface(interfaceType))
             return RuntimeArrayFactory.CreateFromValues(elementType, values);
 
-        // Try typed dispatch first — if List<T> is registered, create via TryCreate + TryInvoke("Add").
+        // Typed dispatch: if List<T> is registered, create via TryCreate + TryInvoke("Add").
         if (config != null)
         {
             var listType = MethodDispatchCache.DynamicCodeSupported

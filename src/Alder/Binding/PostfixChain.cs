@@ -3,7 +3,7 @@ using Alder.Binding.BoundNodes;
 namespace Alder.Binding;
 
 /// <summary>
-/// Collects the postfix spine of a bound tree — the alternating
+/// Collects the postfix spine of a bound tree: the alternating
 /// MemberAccess / Call / Invoke chain that forms left-recursive nesting like
 /// <c>Call(MemberAccess(Call(MemberAccess(...))))</c>.
 /// Consumers iterate the collected segments bottom-up instead of recursing.

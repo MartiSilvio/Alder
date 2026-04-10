@@ -5,7 +5,7 @@ namespace Alder.Parsing;
 /// <summary>
 /// Parses query expressions (ECMA-334 §12.20) and desugars them at parse time
 /// into equivalent LINQ method call AST nodes (CallExpr, LambdaExpr, MemberAccessExpr).
-/// No new AST nodes are introduced -- the desugared result is indistinguishable from
+/// No new AST nodes are introduced. The desugared result is indistinguishable from
 /// hand-written .Where(x => ...).Select(x => ...) method chains.
 /// </summary>
 internal sealed class QueryParser : ParserBase
@@ -69,13 +69,12 @@ internal sealed class QueryParser : ParserBase
     {
         var mark = Mark();
 
-        // Parse initial: from rangeVar in sourceExpr
         Consume(TokenType.From, "Expected 'from' at start of query expression");
 
         // Skip explicit type annotation (Alder is dynamic, no Cast<T>() needed)
         if (IsTypeKeyword(Peek().Type) && !CheckInAfterNext())
         {
-            Advance(); // skip type keyword (type is ignored in dynamic evaluation)
+            Advance();
         }
 
         var rangeVarToken = ConsumeIdentifierOrContextualKeyword("Expected range variable name after 'from'");
@@ -85,10 +84,8 @@ internal sealed class QueryParser : ParserBase
 
         var source = ParseQuerySourceExpression();
 
-        // Initialize scope: single range variable mapping to itself
         var scope = new QueryScope(rangeVarName);
 
-        // Parse body clauses and terminal clause
         return ParseQueryBody(source, scope) with { Span = SpanFrom(mark) };
     }
 
@@ -98,7 +95,6 @@ internal sealed class QueryParser : ParserBase
     /// </summary>
     private Expr ParseQueryBody(Expr source, QueryScope scope)
     {
-        // Process body clauses in a loop until terminal clause
         while (true)
         {
             if (Check(TokenType.Where))
@@ -107,7 +103,7 @@ internal sealed class QueryParser : ParserBase
             }
             else if (Check(TokenType.From))
             {
-                // Second from clause -> SelectMany
+                // Second from clause -> SelectMany.
                 // ParseSecondFromClause handles continuation: returns the complete
                 // expression for the optimized case (select follows directly), or
                 // calls ParseQueryBody recursively for the general case.
@@ -127,12 +123,10 @@ internal sealed class QueryParser : ParserBase
             }
             else if (Check(TokenType.Select))
             {
-                // Terminal: select clause
                 return ParseTerminalWithContinuation(ParseSelectClause(source, scope), scope);
             }
             else if (Check(TokenType.Group))
             {
-                // Terminal: group...by clause
                 return ParseTerminalWithContinuation(ParseGroupByClause(source, scope), scope);
             }
             else
@@ -141,8 +135,6 @@ internal sealed class QueryParser : ParserBase
             }
         }
     }
-
-    #region Body Clauses
 
     /// <summary>
     /// Parses: where predicate
@@ -155,7 +147,6 @@ internal sealed class QueryParser : ParserBase
 
         var predicate = ParseQueryBodyExpression();
 
-        // Rewrite identifier references through transparent identifiers
         predicate = RewriteIdentifiers(predicate, scope);
 
         var lambdaParam = scope.CurrentParameterName;
@@ -187,25 +178,21 @@ internal sealed class QueryParser : ParserBase
 
         var source2Expr = ParseQuerySourceExpression();
 
-        // Rewrite source2 expression through current scope
         source2Expr = RewriteIdentifiers(source2Expr, scope);
 
         var outerParam = scope.CurrentParameterName;
 
-        // Check if this is followed directly by 'select' (optimization: no transparent identifier needed)
+        // Optimization: no transparent identifier needed when followed directly by 'select'
         if (Check(TokenType.Select))
         {
             Advance(); // consume 'select'
             var projection = ParseQueryBodyExpression();
 
-            // In the optimized form, both outer and inner variables are directly available
-            // Create a temporary scope for rewriting the projection
             var tempScope = scope.Clone();
             tempScope.AddDirectVariable(rangeVar2Name, rangeVar2Name);
 
             projection = RewriteIdentifiers(projection, tempScope);
 
-            // source.SelectMany(outerParam => source2, (outerParam, rangeVar2) => projection)
             var collectionLambda = MakeLambda(outerParam, source2Expr);
             var resultLambda = MakeLambda2(outerParam, rangeVar2Name, projection);
 
@@ -215,20 +202,15 @@ internal sealed class QueryParser : ParserBase
         // General case: create transparent identifier
         var transparentId = GenerateTransparentId();
 
-        // source.SelectMany(outerParam => source2, (outerParam, rangeVar2) => new { outerParam, rangeVar2 })
         var collectionSelector = MakeLambda(outerParam, source2Expr);
 
-        // Build: new { <outerVars...>, rangeVar2 }
-        // The result selector projects outer scope vars and new var into anonymous object
         var resultSelectorBody = MakeTransparentObject(scope, rangeVar2Name, outerParam, rangeVar2Name);
         var resultSelector = MakeLambda2(outerParam, rangeVar2Name, resultSelectorBody);
 
         var result = MakeMethodCall(source, "SelectMany", collectionSelector, resultSelector);
 
-        // Update scope: all previous variables now accessed through transparentId.memberName
         scope.AbsorbIntoTransparentIdentifier(transparentId, rangeVar2Name);
 
-        // Continue parsing body
         return ParseQueryBody(result, scope);
     }
 
@@ -236,7 +218,7 @@ internal sealed class QueryParser : ParserBase
     /// Parses: let varName = expression
     /// Desugars to: source.Select(param => new { param, varName = expression })
     /// Uses transparent identifier nesting (same as SelectMany).
-    /// ECMA-334 section 12.20.3.5
+    /// ECMA-334 §12.20.3.5
     /// </summary>
     private Expr ParseLetClause(Expr source, QueryScope scope)
     {
@@ -250,13 +232,10 @@ internal sealed class QueryParser : ParserBase
 
         var expr = ParseQueryBodyExpression();
 
-        // Rewrite the expression through the current scope
         expr = RewriteIdentifiers(expr, scope);
 
         var currentParam = scope.CurrentParameterName;
 
-        // Build: new { currentParam, varName = expr }
-        // The currentParam property preserves access to all existing variables via nesting.
         var anonymousObj = MakeAnonymousObject(
             (currentParam, new IdentifierExpr(SyntheticToken(currentParam))),
             (varName, expr));
@@ -265,7 +244,6 @@ internal sealed class QueryParser : ParserBase
 
         var result = MakeMethodCall(source, "Select", lambda) with { Span = SpanFrom(mark) };
 
-        // Update scope: introduce new transparent identifier
         var transparentId = GenerateTransparentId();
         scope.AbsorbIntoTransparentIdentifier(transparentId, varName);
 
@@ -275,7 +253,7 @@ internal sealed class QueryParser : ParserBase
     /// <summary>
     /// Parses: orderby key1 [ascending|descending], key2 [ascending|descending], ...
     /// Desugars to: source.OrderBy(param => key1).ThenBy(param => key2)...
-    /// ECMA-334 section 12.20.3.6
+    /// ECMA-334 §12.20.3.6
     /// </summary>
     private Expr ParseOrderByClause(Expr source, QueryScope scope)
     {
@@ -290,15 +268,14 @@ internal sealed class QueryParser : ParserBase
             var keyExpr = ParseQueryBodyExpression();
             keyExpr = RewriteIdentifiers(keyExpr, scope);
 
-            // Check for ascending/descending (default is ascending)
             var descending = false;
             if (Check(TokenType.Ascending))
             {
-                Advance(); // consume 'ascending'
+                Advance();
             }
             else if (Check(TokenType.Descending))
             {
-                Advance(); // consume 'descending'
+                Advance();
                 descending = true;
             }
 
@@ -317,17 +294,15 @@ internal sealed class QueryParser : ParserBase
 
             source = MakeMethodCall(source, methodName, keyLambda);
 
-            // Check for comma (additional sort keys)
             if (Check(TokenType.Comma))
             {
-                Advance(); // consume ','
+                Advance();
                 continue;
             }
 
             break;
         }
 
-        // Orderby does not change scope -- no new range variables introduced
         return source with { Span = SpanFrom(mark) };
     }
 
@@ -335,7 +310,7 @@ internal sealed class QueryParser : ParserBase
     /// Parses: join innerVar in innerSource on outerKey equals innerKey [into groupVar]
     /// Inner join desugars to: source.Join(innerSource, outerParam => outerKey, innerVar => innerKey, (outerParam, innerVar) => new { ... })
     /// Group join desugars to: source.GroupJoin(innerSource, outerParam => outerKey, innerVar => innerKey, (outerParam, groupVar) => new { ... })
-    /// ECMA-334 section 12.20.3.7 and 12.20.3.8
+    /// ECMA-334 §12.20.3.7 and §12.20.3.8
     /// </summary>
     private Expr ParseJoinClause(Expr source, QueryScope scope)
     {
@@ -355,8 +330,7 @@ internal sealed class QueryParser : ParserBase
         if (!Match(TokenType.Equals))
             throw SyntaxError(DiagnosticDescriptors.ExpectedContextualKeyword, "equals");
 
-        // Inner key: references only the inner range variable, NOT the transparent identifier scope.
-        // We temporarily create a simple scope for the inner variable.
+        // Inner key references only the inner range variable, not the transparent identifier scope.
         var innerKey = ParseQueryBodyExpression();
         var innerScope = new QueryScope(innerVarName);
         innerKey = RewriteIdentifiers(innerKey, innerScope);
@@ -365,42 +339,35 @@ internal sealed class QueryParser : ParserBase
         var outerKeyLambda = MakeLambda(outerParam, outerKey);
         var innerKeyLambda = MakeLambda(innerVarName, innerKey);
 
-        // Check for 'into' -- group join
+        // Check for 'into' (group join)
         if (Check(TokenType.Into))
         {
             Advance(); // consume 'into'
             var groupVarToken = ConsumeIdentifierOrContextualKeyword("Expected group variable name after 'into'");
             var groupVarName = groupVarToken.Lexeme;
 
-            // Build: new { <existing vars...>, groupVar = groupVar }
             var resultBody = MakeTransparentObject(scope, groupVarName, outerParam, groupVarName);
             var resultLambda = MakeLambda2(outerParam, groupVarName, resultBody);
 
             var result = MakeMethodCall(source, "GroupJoin", innerSource, outerKeyLambda, innerKeyLambda, resultLambda) with { Span = SpanFrom(mark) };
 
-            // Update scope: add groupVar (NOT innerVar)
             var transparentId = GenerateTransparentId();
             scope.AbsorbIntoTransparentIdentifier(transparentId, groupVarName);
 
             return result;
         }
 
-        // Inner join: Build: new { <existing vars...>, innerVar = innerVar }
+        // Inner join
         var joinResultBody = MakeTransparentObject(scope, innerVarName, outerParam, innerVarName);
         var joinResultLambda = MakeLambda2(outerParam, innerVarName, joinResultBody);
 
         var joinResult = MakeMethodCall(source, "Join", innerSource, outerKeyLambda, innerKeyLambda, joinResultLambda) with { Span = SpanFrom(mark) };
 
-        // Update scope: add innerVar
         var joinTransparentId = GenerateTransparentId();
         scope.AbsorbIntoTransparentIdentifier(joinTransparentId, innerVarName);
 
         return joinResult;
     }
-
-    #endregion
-
-    #region Terminal Clauses
 
     /// <summary>
     /// Parses: select projection
@@ -413,7 +380,6 @@ internal sealed class QueryParser : ParserBase
 
         var projection = ParseQueryBodyExpression();
 
-        // Rewrite identifier references through transparent identifiers
         projection = RewriteIdentifiers(projection, scope);
 
         var lambdaParam = scope.CurrentParameterName;
@@ -426,7 +392,7 @@ internal sealed class QueryParser : ParserBase
     /// Parses: group elementExpr by keyExpr
     /// Desugars to: source.GroupBy(param => keyExpr) for identity projection,
     /// or source.GroupBy(param => keyExpr, param => elementExpr) for custom projection.
-    /// ECMA-334 section 12.20.3.9
+    /// ECMA-334 §12.20.3.9
     /// </summary>
     private Expr ParseGroupByClause(Expr source, QueryScope scope)
     {
@@ -444,7 +410,6 @@ internal sealed class QueryParser : ParserBase
         var lambdaParam = scope.CurrentParameterName;
         var keyLambda = MakeLambda(lambdaParam, keyExpr);
 
-        // Check if element expression is identity (just the range variable)
         if (IsIdentityProjection(elementExpr, scope))
         {
             return MakeMethodCall(source, "GroupBy", keyLambda) with { Span = SpanFrom(mark) };
@@ -456,7 +421,7 @@ internal sealed class QueryParser : ParserBase
 
     /// <summary>
     /// Checks for 'into' continuation after a terminal clause (select or group...by).
-    /// ECMA-334 section 12.20.3.2: into z ... becomes a new query over the prior result.
+    /// ECMA-334 §12.20.3.2: into z ... becomes a new query over the prior result.
     /// </summary>
     private Expr ParseTerminalWithContinuation(Expr terminalResult, QueryScope scope)
     {
@@ -468,55 +433,26 @@ internal sealed class QueryParser : ParserBase
         var continuationVarToken = ConsumeIdentifierOrContextualKeyword("Expected variable name after 'into'");
         var continuationVarName = continuationVarToken.Lexeme;
 
-        // Reset scope: the continuation variable ranges over the result of the prior query
         var newScope = new QueryScope(continuationVarName);
 
-        // Continue parsing body clauses with the terminal result as source
         return ParseQueryBody(terminalResult, newScope);
     }
 
-    /// <summary>
-    /// Returns true if the expression is the identity projection -- just the current
-    /// lambda parameter. Used to optimize group...by to single-parameter GroupBy form.
-    /// </summary>
     private static bool IsIdentityProjection(Expr expr, QueryScope scope)
     {
         return expr is IdentifierExpr id && id.Name.Lexeme == scope.CurrentParameterName;
     }
 
-    #endregion
-
-    #region Expression Parsing
-
-    /// <summary>
-    /// Parses an expression within a query body clause.
-    /// Query clause boundaries are defined by query keywords (where, select, from, etc.)
-    /// at the current nesting level.
-    /// </summary>
     private Expr ParseQueryBodyExpression()
     {
-        // Parse a full expression using the expression parser.
-        // The expression parser's precedence chain will naturally stop at query keywords
-        // because they are contextual keywords that don't participate in binary operations.
         return _expression.ParseExpression();
     }
 
-    /// <summary>
-    /// Parses a source expression in a from clause.
-    /// Stops at query keywords that indicate the start of the next clause.
-    /// </summary>
     private Expr ParseQuerySourceExpression()
     {
         return _expression.ParseExpression();
     }
 
-    #endregion
-
-    #region AST Construction Helpers
-
-    /// <summary>
-    /// Creates a single-parameter lambda expression: paramName => body
-    /// </summary>
     private static LambdaExpr MakeLambda(string paramName, Expr body)
     {
         var paramToken = SyntheticToken(paramName);
@@ -525,9 +461,6 @@ internal sealed class QueryParser : ParserBase
             body);
     }
 
-    /// <summary>
-    /// Creates a two-parameter lambda expression: (param1, param2) => body
-    /// </summary>
     private static LambdaExpr MakeLambda2(string param1, string param2, Expr body)
     {
         return new LambdaExpr(
@@ -538,9 +471,6 @@ internal sealed class QueryParser : ParserBase
             body);
     }
 
-    /// <summary>
-    /// Creates a method call: source.methodName(args...)
-    /// </summary>
     private static CallExpr MakeMethodCall(Expr source, string methodName, params Expr[] args)
     {
         var memberAccess = new MemberAccessExpr(source, SyntheticToken(methodName), false);
@@ -561,10 +491,6 @@ internal sealed class QueryParser : ParserBase
         return new ObjectLiteralExpr(props);
     }
 
-    /// <summary>
-    /// Creates the transparent identifier anonymous object for SelectMany result selector.
-    /// Builds: new { outerVarProps..., innerVar = innerVarExpr }
-    /// </summary>
     private static Expr MakeTransparentObject(QueryScope scope, string innerVarName,
         string outerParamName, string innerParamName)
     {
@@ -573,9 +499,6 @@ internal sealed class QueryParser : ParserBase
             (innerVarName, new IdentifierExpr(SyntheticToken(innerParamName))));
     }
 
-    /// <summary>
-    /// Creates a synthetic token for use in AST node construction.
-    /// </summary>
     private static Token SyntheticToken(string name)
     {
         return new Token(TokenType.Identifier, name, null, 0, 0);
@@ -585,10 +508,6 @@ internal sealed class QueryParser : ParserBase
     {
         return $"_t{_transparentIdCounter++}";
     }
-
-    #endregion
-
-    #region Identifier Rewriting
 
     /// <summary>
     /// Deep-walks an expression AST and rewrites IdentifierExpr nodes whose names
@@ -601,7 +520,6 @@ internal sealed class QueryParser : ParserBase
             IdentifierExpr id when scope.TryGetAccessPath(id.Name.Lexeme, out var accessPath) =>
                 accessPath,
 
-            // Recursively rewrite composite expressions
             BinaryExpr binary =>
                 new BinaryExpr(
                     RewriteIdentifiers(binary.Left, scope),
@@ -681,15 +599,12 @@ internal sealed class QueryParser : ParserBase
             NewExpr newExpr =>
                 new NewExpr(RewriteIdentifiers(newExpr.Initializer, scope)),
 
-            // Leaf nodes that don't need rewriting
             LiteralExpr or TypeReferenceExpr or DefaultExpr or NameofExpr
                 or TypeofExpr or SizeofExpr =>
                 expr,
 
-            // IdentifierExpr that didn't match a range variable -- leave as-is
             IdentifierExpr => expr,
 
-            // Anything else -- return as-is (blocks, statements, etc. shouldn't appear in query clauses)
             _ => expr
         };
     }
@@ -699,7 +614,7 @@ internal sealed class QueryParser : ParserBase
     /// </summary>
     private static Expr RewriteLambda(LambdaExpr lambda, QueryScope scope)
     {
-        // Lambda parameters shadow range variables -- create a scope that excludes them
+        // Lambda parameters shadow range variables
         var shadowedScope = scope.WithShadowedVariables(
             lambda.Parameters.Select(p => p.Name.Lexeme).ToHashSet());
 
@@ -708,13 +623,6 @@ internal sealed class QueryParser : ParserBase
             RewriteIdentifiers(lambda.Body, shadowedScope));
     }
 
-    #endregion
-
-    #region Utilities
-
-    /// <summary>
-    /// Checks if the token after next is 'in' (for disambiguating typed from clauses).
-    /// </summary>
     private bool CheckInAfterNext()
     {
         if (State.Current + 1 >= State.Tokens.Count)
@@ -722,18 +630,10 @@ internal sealed class QueryParser : ParserBase
         return State.Tokens[State.Current + 1].Type == TokenType.In;
     }
 
-    /// <summary>
-    /// Returns true if the token type is an identifier or a contextual keyword
-    /// that can be used as a range variable name.
-    /// </summary>
     private static bool IsIdentifierOrContextualKeyword(TokenType type)
     {
         return type == TokenType.Identifier || IsContextualKeyword(type);
     }
-
-    #endregion
-
-    #region Query Scope
 
     /// <summary>
     /// Tracks the mapping from range variable names to their access expressions
@@ -741,11 +641,6 @@ internal sealed class QueryParser : ParserBase
     /// </summary>
     private sealed class QueryScope
     {
-        /// <summary>
-        /// Maps variable names to their access path descriptions.
-        /// When no transparent identifier: variable maps to itself.
-        /// After transparent identifier: variable maps to chain of member accesses.
-        /// </summary>
         private readonly Dictionary<string, VariableAccess> _variables = new();
 
         /// <summary>
@@ -769,9 +664,6 @@ internal sealed class QueryParser : ParserBase
             CurrentParameterName = currentParam;
         }
 
-        /// <summary>
-        /// Adds a direct variable mapping (used for optimized SelectMany case).
-        /// </summary>
         public void AddDirectVariable(string name, string paramName)
         {
             _variables[name] = new VariableAccess.Direct(paramName);
@@ -790,9 +682,6 @@ internal sealed class QueryParser : ParserBase
 
             foreach (var (varName, access) in oldVars)
             {
-                // Prefix the old access path with the old parameter name
-                // Direct(paramName) -> chain through [oldParam, varName] if oldParam is the var
-                // ThroughChain(path) -> prepend oldParam to the chain
                 var newPath = access switch
                 {
                     VariableAccess.Direct => [oldParam],
@@ -802,16 +691,11 @@ internal sealed class QueryParser : ParserBase
                 _variables[varName] = new VariableAccess.ThroughChain(newPath);
             }
 
-            // New variable: accessed directly as param.newVarName
             _variables[newVarName] = new VariableAccess.ThroughChain([newVarName]);
 
-            // The lambda parameter is now the transparent identifier
             CurrentParameterName = transparentId;
         }
 
-        /// <summary>
-        /// Gets the AST expression to access a given variable.
-        /// </summary>
         public bool TryGetAccessPath(string variableName, out Expr accessExpr)
         {
             if (!_variables.TryGetValue(variableName, out var access))
@@ -823,11 +707,9 @@ internal sealed class QueryParser : ParserBase
             accessExpr = access switch
             {
                 VariableAccess.Direct d =>
-                    // Direct reference: use the variable's own parameter name
                     new IdentifierExpr(SyntheticToken(d.ParamName)),
 
                 VariableAccess.ThroughChain tc =>
-                    // Build chained member access: param.member1.member2...
                     BuildChainedAccess(CurrentParameterName, tc.MemberPath),
 
                 _ => throw new InvalidOperationException($"Unknown access type for variable '{variableName}'")
@@ -836,10 +718,6 @@ internal sealed class QueryParser : ParserBase
             return true;
         }
 
-        /// <summary>
-        /// Gets the access expression for a variable in the context of a specific parameter name.
-        /// Used when building result selector lambdas and transparent identifier objects.
-        /// </summary>
         public Expr GetAccessExpression(string variableName, string paramName)
         {
             var access = _variables[variableName];
@@ -855,9 +733,6 @@ internal sealed class QueryParser : ParserBase
             };
         }
 
-        /// <summary>
-        /// Builds a chained member access expression: paramName.member1.member2...
-        /// </summary>
         private static Expr BuildChainedAccess(string paramName, List<string> memberPath)
         {
             Expr current = new IdentifierExpr(SyntheticToken(paramName));
@@ -869,7 +744,7 @@ internal sealed class QueryParser : ParserBase
         }
 
         /// <summary>
-        /// Creates a copy of this scope with certain variables excluded from rewriting
+        /// Creates a copy with certain variables excluded from rewriting
         /// (used when lambda parameters shadow range variables).
         /// </summary>
         public QueryScope WithShadowedVariables(HashSet<string> shadowedNames)
@@ -899,6 +774,4 @@ internal sealed class QueryParser : ParserBase
             public sealed record ThroughChain(List<string> MemberPath) : VariableAccess;
         }
     }
-
-    #endregion
 }

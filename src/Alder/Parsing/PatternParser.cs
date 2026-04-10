@@ -26,7 +26,7 @@ internal sealed class PatternParser : ParserBase
 
         while (IsPatternKeyword(TokenType.Or))
         {
-            Advance(); // consume 'or' (lexed as PipePipe)
+            Advance();
             var right = ParseAndPattern();
             left = new OrPattern(left, right);
         }
@@ -40,7 +40,7 @@ internal sealed class PatternParser : ParserBase
 
         while (IsPatternKeyword(TokenType.And))
         {
-            Advance(); // consume 'and' (lexed as AmpAmp)
+            Advance();
             var right = ParseNotPattern();
             left = new AndPattern(left, right);
         }
@@ -52,7 +52,7 @@ internal sealed class PatternParser : ParserBase
     {
         if (IsPatternKeyword(TokenType.Not))
         {
-            Advance(); // consume 'not' (lexed as Bang)
+            Advance();
             var operand = ParseNotPattern(); // right-recursive
             return new NotPattern(operand);
         }
@@ -62,12 +62,11 @@ internal sealed class PatternParser : ParserBase
 
     private Pattern ParseRelationalPattern()
     {
-        // Check for relational operators: <, <=, >, >=
         if (Check(TokenType.Less) || Check(TokenType.LessEqual) ||
             Check(TokenType.Greater) || Check(TokenType.GreaterEqual))
         {
             var op = Advance();
-            var operand = _expression.ParseUnary(); // limited expression parse for constant value
+            var operand = _expression.ParseUnary();
             return new RelationalPattern(op, operand);
         }
 
@@ -76,13 +75,11 @@ internal sealed class PatternParser : ParserBase
 
     private Pattern ParsePrimaryPattern()
     {
-        // List pattern: [pattern, pattern, ..]
         if (Check(TokenType.LeftBracket))
         {
             return ParseListPattern();
         }
 
-        // Discard pattern: _
         if (Check(TokenType.Identifier) &&
             string.Equals(Peek().Lexeme, TokenLexemes.DiscardIdentifier, StringComparison.Ordinal))
         {
@@ -90,10 +87,9 @@ internal sealed class PatternParser : ParserBase
             return new DiscardPattern();
         }
 
-        // Var pattern: var name, or var positional pattern: var (x, y)
         if (Match(TokenType.Var))
         {
-            // §11.4: var (x, y) — var positional pattern, captures all elements as var declarations
+            // §11.4: var (x, y), var positional pattern capturing all elements as var declarations
             if (Check(TokenType.LeftParen))
             {
                 Advance(); // consume '('
@@ -111,13 +107,11 @@ internal sealed class PatternParser : ParserBase
             return new VarPattern(varName);
         }
 
-        // Property pattern without type: { Name: pattern, ... }
         if (Check(TokenType.LeftBrace))
         {
             return ParsePropertyPattern(null);
         }
 
-        // Parenthesized or positional (tuple) pattern: (pattern) or (pattern, pattern, ...)
         if (Check(TokenType.LeftParen) && !_expression.IsCastExpression())
         {
             Advance(); // consume '('
@@ -134,7 +128,6 @@ internal sealed class PatternParser : ParserBase
             return new ParenthesizedPattern(first);
         }
 
-        // Null pattern
         if (Check(TokenType.Null))
         {
             var nullMark = Mark();
@@ -142,7 +135,6 @@ internal sealed class PatternParser : ParserBase
             return new ConstantPattern(new LiteralExpr(null, IsConstant: true) { Span = SpanFrom(nullMark) });
         }
 
-        // Boolean constants
         if (Check(TokenType.True))
         {
             var trueMark = Mark();
@@ -156,13 +148,11 @@ internal sealed class PatternParser : ParserBase
             return new ConstantPattern(new LiteralExpr(false, IsConstant: true) { Span = SpanFrom(falseMark) });
         }
 
-        // Type keyword: int, string, object, etc.
         if (IsTypeKeyword(Peek().Type))
         {
             var typeToken = Advance();
 
-            // Nullable type: int?, string?, etc.
-            // Only consume '?' if NOT followed by something that looks like a ternary branch.
+            // Nullable type: only consume '?' if NOT followed by something that looks like a ternary branch.
             if (Check(TokenType.Question) && State.Current + 1 < State.Tokens.Count)
             {
                 var afterQuestion = State.Tokens[State.Current + 1];
@@ -179,7 +169,6 @@ internal sealed class PatternParser : ParserBase
                 }
             }
 
-            // Array type suffix: int[], string[]
             if (Check(TokenType.LeftBracket))
             {
                 var arraySuffix = "";
@@ -191,51 +180,41 @@ internal sealed class PatternParser : ParserBase
                 typeToken = typeToken with { Lexeme = typeToken.Lexeme + arraySuffix };
             }
 
-            // Type + property pattern: int { ... }
             if (Check(TokenType.LeftBrace))
             {
                 return ParsePropertyPattern(typeToken);
             }
 
-            // Type + variable binding: string s (but not 'and'/'or'/'not'/'when')
             if (Check(TokenType.Identifier) && !IsPatternCombinatorOrReserved(Peek()))
             {
                 var varName = Advance();
                 return new TypePattern(typeToken, varName);
             }
 
-            // Plain type pattern: string, int, etc.
             return new TypePattern(typeToken, null);
         }
 
         // Non-keyword type pattern: Exception, ArgumentException, System.IO.IOException, etc.
-        // Identifier followed by Identifier (not a combinator) = type pattern with binding
-        // Identifier followed by '{' = property pattern with type prefix
-        // Identifier alone in pattern position = possible plain type pattern (resolved at runtime)
         if (Check(TokenType.Identifier) && IsNonKeywordTypePattern())
         {
             var typeToken = ParseDottedTypeName();
 
-            // Type + property pattern: Exception { ... }
             if (Check(TokenType.LeftBrace))
             {
                 return ParsePropertyPattern(typeToken);
             }
 
-            // Type + variable binding: Exception ex (but not 'and'/'or'/'not'/'when'/'_')
             if (Check(TokenType.Identifier) && !IsPatternCombinatorOrReserved(Peek()))
             {
                 var varName = Advance();
                 return new TypePattern(typeToken, varName);
             }
 
-            // Plain type pattern: Exception (no binding)
             return new TypePattern(typeToken, null);
         }
 
-        // Number/string/character literals and constant expressions (e.g., -1, 5 * 2)
-        // Use ParseBitwiseOr (not ParseExpression) to avoid consuming pattern combinators
-        // (and/or/not) which live at the ParseAnd/ParseOr levels.
+        // Constant expressions. Uses ParseBitwiseOr (not ParseExpression) to avoid consuming
+        // pattern combinators (and/or/not) which live at the ParseAnd/ParseOr levels.
         var expr = _expression.ParseBitwiseOr();
         return new ConstantPattern(expr);
     }
@@ -258,21 +237,15 @@ internal sealed class PatternParser : ParserBase
 
         var next = State.Tokens[scanIndex];
 
-        // Identifier followed by Identifier (non-combinator): type pattern with binding
-        // e.g., Exception ex, ArgumentException argEx
         if (next.Type == TokenType.Identifier && !IsPatternCombinatorOrReserved(next))
             return true;
 
-        // Identifier followed by '{': property pattern with type prefix
-        // e.g., Exception { Message: "test" }
         if (next.Type == TokenType.LeftBrace)
             return true;
 
-        // Dotted name: System.Exception, etc.
         if (next.Type == TokenType.Dot)
             return true;
 
-        // Generic type: List<int>, Dictionary<string, int>, etc.
         // In pattern context, Identifier< always starts a generic type (never a comparison)
         if (next.Type == TokenType.Less)
             return true;
@@ -283,8 +256,7 @@ internal sealed class PatternParser : ParserBase
     /// <summary>
     /// Parses a type name for pattern matching contexts, including dotted names
     /// and generic type arguments.
-    /// Handles: Exception, System.IO.IOException, List&lt;int&gt;, Dictionary&lt;string, int&gt;
-    /// Does NOT consume nullable suffix here -- nullable disambiguation is handled
+    /// Does NOT consume nullable suffix here. Nullable disambiguation is handled
     /// at the pattern level (ParsePrimaryPattern) to avoid conflicting with ternary operator.
     /// </summary>
     private Token ParseDottedTypeName()
@@ -300,7 +272,6 @@ internal sealed class PatternParser : ParserBase
             name += "." + next.Lexeme;
         }
 
-        // Handle generic type arguments: List<int>, Dictionary<string, int>
         if (Check(TokenType.Less))
         {
             Advance(); // consume <
@@ -346,7 +317,6 @@ internal sealed class PatternParser : ParserBase
 
         Consume(TokenType.RightBrace, "Expected '}' after property pattern");
 
-        // Optional variable binding after property pattern
         Token? variableName = null;
         if (Check(TokenType.Identifier) && !IsPatternCombinatorOrReserved(Peek()))
         {
@@ -358,8 +328,7 @@ internal sealed class PatternParser : ParserBase
 
     /// <summary>
     /// Checks if the current token is a contextual keyword used in pattern matching.
-    /// These keywords (and, or, not) are lexed as AmpAmp, PipePipe, Bang respectively,
-    /// but have the original lexeme preserved.
+    /// These keywords (and, or, not) are lexed as Identifier with original lexeme preserved.
     /// </summary>
     private bool IsPatternKeyword(TokenType keywordType)
     {
@@ -381,7 +350,7 @@ internal sealed class PatternParser : ParserBase
 
     /// <summary>
     /// Returns true if token should NOT be consumed as a variable name in a type pattern.
-    /// Pattern combinators (and, or, not), 'when' keyword, and discard '_' stop parsing.
+    /// Pattern combinators (and, or, not) and 'when' keyword stop parsing.
     /// </summary>
     private static bool IsPatternCombinatorOrReserved(Token token)
     {
@@ -419,7 +388,6 @@ internal sealed class PatternParser : ParserBase
         if (Check(TokenType.DotDot))
         {
             Advance();
-            // Slice with optional subpattern: ..var rest, .._, ..pattern
             if (!Check(TokenType.Comma) && !Check(TokenType.RightBracket))
                 return new SlicePattern(ParsePattern());
             return new SlicePattern(null);

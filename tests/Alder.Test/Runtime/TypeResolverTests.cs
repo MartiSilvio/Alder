@@ -229,9 +229,9 @@ public class TypeResolverTests(CompilationMode mode)
     [Test]
     public void ResolveType_WithoutUsing_UnknownType_ThrowsAlderException()
     {
-        // StringBuilder requires System.Text using
+        // HttpClient is in System.Net.Http, which is not a default implicit namespace
         var engine = CreateEngine();
-        var ex = Assert.Throws<AlderException>(() => engine.Evaluate("new StringBuilder()"));
+        var ex = Assert.Throws<AlderException>(() => engine.Evaluate("new HttpClient()"));
         Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0246));
     }
 
@@ -574,9 +574,10 @@ public class TypeResolverTests(CompilationMode mode)
     [Test]
     public void ResolveType_TypeNotImported_ThrowsWithGuidance()
     {
+        // HttpClient is in System.Net.Http, which is not a default implicit namespace
         var engine = CreateEngine();
         var ex = Assert.Throws<AlderException>(() =>
-            engine.Evaluate("new StringBuilder()"));
+            engine.Evaluate("new HttpClient()"));
         Assert.That(ex!.Message, Does.Contain("using directive").Or.Contain("assembly reference"));
         Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.CS0246));
     }

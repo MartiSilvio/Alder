@@ -120,45 +120,51 @@ public class RedTeamAttackTests(CompilationMode mode)
         Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0107));
     }
     [Test]
-    public void Attack_GetType_ReflectionChain_Trusted()
+    public void Attack_GetType_ThenChainToMemberInfo_Blocked()
     {
         var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("text", "hello");
+        // GetType() itself is allowed — it returns Type (safe metadata).
+        // But chaining to GetMethod() is blocked because it returns MethodInfo.
         var ex = Assert.Throws<AlderException>(() =>
-            engine.Evaluate("text.GetType()"));
+            engine.Evaluate("""text.GetType().GetMethod("GetType")"""));
         Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0108));
     }
 
     [Test]
     public void Attack_TypeofAssembly_Trusted()
     {
+        // Assembly is still blocked — it's not Type
         var ex = Assert.Throws<AlderException>(() =>
             TestEngineFactory.Create(mode).Evaluate("typeof(string).Assembly"));
         Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0108));
     }
 
     [Test]
-    public void Attack_TypeofBaseType_Trusted()
+    public void Attack_TypeofBaseType_Allowed()
     {
+        // BaseType returns Type — safe metadata, now allowed
+        var result = TestEngineFactory.Create(mode).Evaluate("typeof(string).BaseType");
+        Assert.That(result, Is.EqualTo(typeof(object)));
+    }
+
+    [Test]
+    public void Attack_TypeofGetMethod_Blocked()
+    {
+        // GetMethod returns MethodInfo — still blocked
         var ex = Assert.Throws<AlderException>(() =>
-            TestEngineFactory.Create(mode).Evaluate("typeof(string).BaseType"));
+            TestEngineFactory.Create(mode).Evaluate("""typeof(object).GetMethod("GetType")"""));
         Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0108));
     }
 
     [Test]
-    public void Attack_TypeofGetMethod_Trusted()
+    public void Attack_DelegateReturnsType_Allowed()
     {
-        Assert.Catch(() =>
-            TestEngineFactory.Create(mode).Evaluate("""typeof(string).GetMethod("ToUpper")"""));
-    }
-    [Test]
-    public void Attack_DelegateReturnsType_Trusted()
-    {
+        // Type objects are safe metadata, even from delegates
         var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("getType", new Func<object, Type>(o => o.GetType()));
-        var ex = Assert.Throws<AlderException>(() =>
-            engine.Evaluate("""getType("hello")"""));
-        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0108));
+        var result = engine.Evaluate("""getType("hello")""");
+        Assert.That(result, Is.EqualTo(typeof(string)));
     }
 
     [Test]

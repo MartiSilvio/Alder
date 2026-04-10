@@ -72,13 +72,11 @@ public enum DiagnosticCode
     CS1021 = 1021,
     /// <summary>'{0}' does not contain a definition for '{1}'</summary>
     CS1061 = 1061,
-    /// <summary>No overload for method '{0}' takes {1} arguments</summary>
-    CS1501 = 1501,
     /// <summary>Invalid expression term '{0}'</summary>
     CS1525 = 1525,
     /// <summary>foreach requires GetEnumerator</summary>
     CS1579 = 1579,
-    /// <summary>Cannot convert lambda to delegate type — parameter types do not match</summary>
+    /// <summary>Cannot convert lambda to delegate type because parameter types do not match</summary>
     CS1661 = 1661,
     /// <summary>'{0}' does not contain a constructor that takes {1} arguments</summary>
     CS1729 = 1729,
@@ -91,9 +89,6 @@ public enum DiagnosticCode
 
     /// <summary>Cannot await '{0}'</summary>
     CS4001 = 4001,
-    /// <summary>The 'await' operator can only be used within an async context. Use EvaluateAsync instead of Evaluate.</summary>
-    CS4033 = 4033,
-
     /// <summary>An expression tree may not contain '{0}'</summary>
     CS7053 = 7053,
     /// <summary>There is no argument given that corresponds to the required parameter '{0}' of '{1}'</summary>
@@ -109,7 +104,7 @@ public enum DiagnosticCode
     CS8132 = 8132,
     /// <summary>The pattern is unreachable</summary>
     CS8510 = 8510,
-    /// <summary>Cannot convert lambda to delegate type — return type does not match</summary>
+    /// <summary>Cannot convert lambda to delegate type because return type does not match</summary>
     CS8934 = 8934,
     /// <summary>Unterminated raw string literal</summary>
     CS8997 = 8997,
@@ -120,15 +115,15 @@ public enum DiagnosticCode
     ALDR0001 = 1_000_001,
     /// <summary>Expression binding failed</summary>
     ALDR0002 = 1_000_002,
-    /// <summary>Call requires runtime overload resolution</summary>
-    ALDR0003 = 1_000_003,
     /// <summary>Compiled expression is stale because variable types have changed since compilation</summary>
-    ALDR0004 = 1_000_004,
+    ALDR0003 = 1_000_003,
 
     /// <summary>ParseAsExpression requires a generic Func-style delegate type</summary>
     ALDR0010 = 1_000_010,
     /// <summary>ParseAsExpression requires lambda input</summary>
     ALDR0011 = 1_000_011,
+    /// <summary>Compile parameter count mismatch</summary>
+    ALDR0012 = 1_000_012,
 
     /// <summary>Feature requires LanguageMode.Extended</summary>
     ALDR0020 = 1_000_020,
@@ -206,9 +201,6 @@ public enum DiagnosticCode
     ALDR0404 = 1_000_404,
     /// <summary>Spread operator used outside array or object literal</summary>
     ALDR0405 = 1_000_405,
-
-    /// <summary>Type requires AOT registration for NativeAOT environments</summary>
-    ALDR0500 = 1_000_500,
 }
 
 internal static class DiagnosticCodeExtensions

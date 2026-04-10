@@ -56,7 +56,7 @@ internal readonly record struct MethodModel(
     /// <summary>
     /// True when any generic type arg is object (the canonical reference type).
     /// These entries exist to root shared-generic canonical forms for NativeAOT
-    /// but must NOT be used for dispatch — Func covariance causes type loss.
+    /// but must NOT be used for dispatch because Func covariance causes type loss.
     /// </summary>
     public bool IsCanonicalRoot => IsGenericInstantiation &&
         GenericTypeArgs.Any(a => a == "global::System.Object" || a == "object");

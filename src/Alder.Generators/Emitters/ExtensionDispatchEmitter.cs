@@ -7,7 +7,7 @@ namespace Alder.Generators.Emitters;
 
 /// <summary>
 /// Generates AOT dispatch for LINQ extension methods on value-type collections.
-/// Methods are discovered from Roslyn symbols — no hardcoded method names.
+/// Methods are discovered from Roslyn symbols, not hardcoded.
 /// Reference-type element types fall through to MakeGenericMethod (shared generics).
 /// </summary>
 internal static class ExtensionDispatchEmitter
@@ -76,7 +76,6 @@ internal static class ExtensionDispatchEmitter
         var ie = $"global::System.Collections.Generic.IEnumerable<{vt}>";
         var en = "global::System.Linq.Enumerable";
 
-        // Group methods by name to handle overloads in one case
         var byName = methods.GroupBy(m => m.MethodName).OrderBy(g => g.Key);
 
         using (w.Block($"private static bool TryInvoke_{id}(string name, object?[] args, out object? result)"))
@@ -108,7 +107,6 @@ internal static class ExtensionDispatchEmitter
         switch (method.Kind)
         {
             case ExtensionMethodKind.NoArg:
-                // Check if this is a numeric aggregate (Sum/Average without selector only for numeric types)
                 if (IsNumericAggregate(method.MethodName) && !NumericSumTypes.Contains(vt))
                     break;
                 w.AppendLine($"    if (args.Length == 1) {{ result = {en}.{method.MethodName}(({ie})args[0]!); return true; }}");
@@ -127,7 +125,7 @@ internal static class ExtensionDispatchEmitter
                 break;
 
             case ExtensionMethodKind.Complex:
-                // Skip — too complex for static dispatch, falls to reflection
+                // Too complex for static dispatch, falls to reflection
                 break;
         }
     }
@@ -141,7 +139,7 @@ internal static class ExtensionDispatchEmitter
         if (method.ExtraParams.Length != 1 || method.ExtraParams[0].DelegateInfo is not { } sig)
             return;
 
-        // Predicate: Func<T, bool> — single concrete delegate
+        // Predicate: Func<T, bool>, single concrete delegate
         if (sig.ParamTypes.Length == 1 && sig.ReturnType is "bool" or "global::System.Boolean")
         {
             var funcType = $"global::System.Func<{vt}, bool>";
@@ -151,10 +149,9 @@ internal static class ExtensionDispatchEmitter
             return;
         }
 
-        // Selector/key: Func<T, TResult> — expand for value-type TResult
+        // Selector/key: Func<T, TResult>, expand for value-type TResult
         if (sig.ParamTypes.Length == 1)
         {
-            // Check if this is a numeric selector (Sum/Average with selector)
             if (IsNumericAggregate(method.MethodName))
             {
                 w.AppendLine("    if (args.Length == 2)");
@@ -194,7 +191,6 @@ internal static class ExtensionDispatchEmitter
 
         var paramType = method.ExtraParams[0].TypePattern;
 
-        // int param (Take, Skip, ElementAt)
         if (paramType is "int" or "global::System.Int32")
         {
             var varName = $"v_{method.MethodName}";
@@ -202,7 +198,7 @@ internal static class ExtensionDispatchEmitter
             return;
         }
 
-        // T param (Contains, Append, Prepend) — checked via symbol flag, not string heuristic
+        // T param (Contains, Append, Prepend), checked via symbol flag
         if (paramType.Contains(vt) || method.ExtraParams[0].IsTypeParameter)
         {
             var varName = $"v_{method.MethodName}";

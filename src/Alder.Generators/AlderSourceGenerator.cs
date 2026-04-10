@@ -157,7 +157,7 @@ public sealed class AlderSourceGenerator : IIncrementalGenerator
                 result.Add(symbol);
         }
 
-        // Reference types (string, object) are excluded — MakeGenericMethod handles them
+        // Reference types (string, object) are excluded. MakeGenericMethod handles them
         // at runtime via shared generics. Object-rooting for canonical forms (__Canon)
         // is handled separately by TypeRoots, not by method expansion.
 

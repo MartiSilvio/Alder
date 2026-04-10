@@ -6,7 +6,7 @@ namespace Alder.Generators;
 
 /// <summary>
 /// Defines the types that get full TypeMetadata dispatch (TryInvoke, TryGet, TrySet).
-/// This is intentionally small — only types every C# program touches.
+/// Intentionally small: only types every C# program touches.
 /// AOT rooting for broader generic instantiations is handled separately by TypeRoots.
 /// Users add domain types via [AlderRegistered].
 /// </summary>
@@ -31,7 +31,7 @@ internal static class BuiltInTypeCatalog
         "System.Array", "System.Linq.Enumerable", "System.Threading.Tasks.Task",
     };
 
-    // Closed generics that warrant full dispatch — the types that appear
+    // Closed generics that warrant full dispatch. These are the types that appear
     // in nearly every C# program. Format: [openType, arg1, arg2, ...]
     private static readonly string[][] DispatchGenerics =
     {
@@ -57,7 +57,7 @@ internal static class BuiltInTypeCatalog
         new[] { "System.Threading.Tasks.Task`1", "System.String" },
         new[] { "System.Threading.Tasks.Task`1", "System.Object" },
         new[] { "System.Threading.Tasks.Task`1", "System.Boolean" },
-        // Tuples — constructor dispatch avoids Activator.CreateInstance under AOT
+        // Tuples: constructor dispatch avoids Activator.CreateInstance under AOT
         new[] { "System.ValueTuple`2", "System.Int32", "System.Int32" },
         new[] { "System.ValueTuple`2", "System.Int32", "System.String" },
         new[] { "System.ValueTuple`2", "System.Int32", "System.Double" },
@@ -98,7 +98,7 @@ internal static class BuiltInTypeCatalog
     }
 
     /// <summary>
-    /// Returns value types used for AOT rooting — the element pool for TypeRoots
+    /// Returns value types used for AOT rooting, specifically the element pool for TypeRoots
     /// and generic method expansion. Separate from dispatch registration.
     /// </summary>
     internal static ImmutableArray<INamedTypeSymbol> ResolveValueTypePool(Compilation compilation)

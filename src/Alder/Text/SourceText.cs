@@ -1,35 +1,25 @@
 namespace Alder.Text;
 
 /// <summary>
-/// Wraps source text and provides lazy offset-to-line/column conversion.
-/// Line start offsets are computed once on first access via binary search.
+/// Wraps source text and provides lazy offset-to-line/column conversion via binary search.
 /// </summary>
 public sealed class SourceText
 {
     private readonly string _text;
     private int[]? _lineStarts;
 
-    /// <summary>
-    /// Creates a new <see cref="SourceText"/> wrapping the specified string.
-    /// </summary>
     /// <param name="text">The source text.</param>
     public SourceText(string text) => _text = text;
 
-    /// <summary>
-    /// Gets the underlying source string.
-    /// </summary>
+    /// <summary>The underlying source string.</summary>
     public string Text => _text;
 
-    /// <summary>
-    /// Gets the length of the source text in characters.
-    /// </summary>
+    /// <summary>The length of the source text in characters.</summary>
     public int Length => _text.Length;
 
     private int[] LineStarts => _lineStarts ??= ComputeLineStarts();
 
-    /// <summary>
-    /// Converts an absolute character offset to a zero-based line position.
-    /// </summary>
+    /// <summary>Converts an absolute character offset to a zero-based line position.</summary>
     /// <param name="offset">The zero-based character offset.</param>
     /// <returns>The corresponding <see cref="LinePosition"/>.</returns>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="offset"/> is negative or beyond the text length.</exception>
@@ -47,11 +37,7 @@ public sealed class SourceText
         return new LinePosition(lineIndex, offset - lineStarts[lineIndex]);
     }
 
-    /// <summary>
-    /// Converts a <see cref="TextSpan"/> to start and end line positions.
-    /// </summary>
-    /// <param name="span">The text span to convert.</param>
-    /// <returns>A tuple of the start and end <see cref="LinePosition"/> values.</returns>
+    /// <summary>Converts a <see cref="TextSpan"/> to start and end line positions.</summary>
     public (LinePosition Start, LinePosition End) GetLinePositionSpan(TextSpan span)
     {
         return (GetLinePosition(span.Start), GetLinePosition(span.End));

@@ -93,9 +93,7 @@ internal enum TokenType
     // Lambda
     Arrow,  // =>
 
-    #region C# reserved keywords
-
-    // Keywords - Implemented
+    // C# reserved keywords
     New,
     If,
     Else,
@@ -105,7 +103,6 @@ internal enum TokenType
     // JavaScript function keyword (reserved)
     Function,
 
-    // Keywords - Control flow (reserved, not implemented)
     Switch,
     Case,
     Default,
@@ -117,13 +114,11 @@ internal enum TokenType
     Continue,
     Goto,
 
-    // Keywords - Exception handling (reserved, not implemented)
     Try,
     Catch,
     Finally,
     Throw,
 
-    // Keywords - Type declarations (reserved, not implemented)
     Class,
     Struct,
     Interface,
@@ -132,13 +127,11 @@ internal enum TokenType
     Delegate,
     Namespace,
 
-    // Keywords - Access modifiers (reserved, not implemented)
     Public,
     Private,
     Protected,
     Internal,
 
-    // Keywords - Member modifiers (reserved, not implemented)
     Static,
     Readonly,
     Const,
@@ -152,13 +145,11 @@ internal enum TokenType
     Async,
     Await,
 
-    // Keywords - Parameter modifiers (reserved, not implemented)
     Ref,
     Out,
     In,
     Params,
 
-    // Keywords - Type operations (reserved, not implemented)
     Is,
     As,
     Typeof,
@@ -168,7 +159,6 @@ internal enum TokenType
     Checked,
     Unchecked,
 
-    // Keywords - Other (reserved, not implemented)
     This,
     Base,
     Super,  // JavaScript super keyword (reserved)
@@ -180,8 +170,6 @@ internal enum TokenType
     Explicit,
     Operator,
     Event,
-
-    #endregion
 
     Int,
     Long,

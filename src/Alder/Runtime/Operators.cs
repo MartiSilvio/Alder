@@ -95,7 +95,7 @@ internal static class Operators
                 return isStringContext ? "" : null;
         }
 
-        // §12.10.5: delegate combination — D + D → Delegate.Combine
+        // §12.10.5: delegate combination (D + D -> Delegate.Combine)
         if (left is Delegate leftDel && right is Delegate rightDel)
             return Delegate.Combine(leftDel, rightDel);
 
@@ -131,7 +131,7 @@ internal static class Operators
         if (left is TimeSpan leftSpan && right is TimeSpan rightSpan)
             return leftSpan - rightSpan;
 
-        // §12.10.6: delegate removal — D - D → Delegate.Remove
+        // §12.10.6: delegate removal (D - D -> Delegate.Remove)
         if (left is Delegate leftDel && right is Delegate rightDel)
             return Delegate.Remove(leftDel, rightDel);
 

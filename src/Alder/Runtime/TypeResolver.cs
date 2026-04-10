@@ -32,6 +32,13 @@ internal sealed class TypeResolver
         "System.Collections.Generic",
         "System.Threading.Tasks",
         "System.Linq",
+        "System.Text",
+        "System.Text.RegularExpressions",
+        "System.Text.Json",
+        "System.Numerics",
+        "System.Globalization",
+        // System.Security.Cryptography is indexed (FQN works) but NOT implicitly imported.
+        // Short names like CngKey should not be ambient — require explicit --namespace opt-in.
     ];
 
     /// <summary>
@@ -419,11 +426,13 @@ internal sealed class TypeResolver
     {
         var assemblySet = new HashSet<Assembly>(assemblies)
         {
-            typeof(object).Assembly, // System.Private.CoreLib (List<>, Dictionary<>, etc.)
-            typeof(Enumerable).Assembly, // System.Linq
-            typeof(System.Text.RegularExpressions.Regex).Assembly, // System.Text.RegularExpressions
-            typeof(Stack<>).Assembly, // System.Collections (Stack<>, Queue<>, SortedSet<>, LinkedList<>)
-            typeof(Uri).Assembly, // System.Private.Uri
+            typeof(object).Assembly,                                    // System.Private.CoreLib
+            typeof(Enumerable).Assembly,                                // System.Linq
+            typeof(System.Text.RegularExpressions.Regex).Assembly,     // System.Text.RegularExpressions
+            typeof(Stack<>).Assembly,                                   // System.Collections
+            typeof(Uri).Assembly,                                       // System.Private.Uri
+            typeof(System.Numerics.BigInteger).Assembly,               // System.Runtime.Numerics (BigInteger, Complex)
+            typeof(System.Security.Cryptography.SHA256).Assembly,      // System.Security.Cryptography
         };
 
         var allAssemblies = assemblySet.ToImmutableArray();

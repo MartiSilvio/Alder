@@ -273,7 +273,7 @@ public sealed class AlderOptions
     }
 
     /// <summary>
-    /// Builder for configuring type resolution — which assemblies, namespaces, and extension methods are available to expressions.
+    /// Builder for configuring type resolution: assemblies, namespaces, and extension methods available to expressions.
     /// </summary>
     public sealed class TypeBuilder
     {

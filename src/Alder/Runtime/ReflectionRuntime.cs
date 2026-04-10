@@ -131,9 +131,9 @@ internal static class ReflectionRuntime
         var effectiveFlags = flags & ~BindingFlags.IgnoreCase;
         var props = type.GetProperties(effectiveFlags);
 
-        // .NET's GetProperties doesn't flatten interface hierarchies — parent interface
-        // members are not included. Collect them so IReadOnlyList<T>.Count resolves
-        // (Count is declared on IReadOnlyCollection<T>).
+        // .NET's GetProperties doesn't flatten interface hierarchies. Parent interface
+        // members are not included, so we collect them manually
+        // (e.g., IReadOnlyList<T>.Count is declared on IReadOnlyCollection<T>).
         if (type.IsInterface)
         {
             var all = new List<PropertyInfo>(props);

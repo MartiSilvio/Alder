@@ -13,8 +13,7 @@ using Binder = Alder.Binding.Binder;
 namespace Alder;
 
 /// <summary>
-/// The main entry point for Alder expression evaluation.
-/// Provides methods for parsing, evaluating, validating, and compiling C# expressions at runtime.
+/// The main entry point for parsing, evaluating, validating, and compiling C# expressions at runtime.
 /// </summary>
 /// <remarks>
 /// <para><b>Thread Safety:</b></para>
@@ -327,6 +326,7 @@ public sealed partial class AlderEngine : IDisposable
     /// <exception cref="AlderException">The expression contains syntax errors.</exception>
     public AlderExpression Parse(string expression)
     {
+        if (expression is null) throw new ArgumentNullException(nameof(expression));
         ThrowIfDisposed();
         try
         {
@@ -407,6 +407,7 @@ public sealed partial class AlderEngine : IDisposable
         IDictionary<string, object?>? variables = null,
         CancellationToken cancellationToken = default)
     {
+        if (expression is null) throw new ArgumentNullException(nameof(expression));
         ThrowIfDisposed();
 
         var target = this;

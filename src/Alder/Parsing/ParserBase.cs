@@ -77,8 +77,6 @@ internal abstract class ParserBase
         State = state;
     }
 
-    #region Span Tracking
-
     /// <summary>
     /// Records the start offset of the current token for span computation.
     /// Call at the beginning of a parse method, then pass to <see cref="SpanFrom"/> when done.
@@ -94,10 +92,6 @@ internal abstract class ParserBase
         var prev = Previous();
         return new TextSpan(start, prev.Start + prev.Length - start);
     }
-
-    #endregion
-
-    #region Token Utilities
 
     /// <summary>
     /// Checks if the current token is 'var' or (in Extended mode) 'let'.
@@ -215,8 +209,7 @@ internal abstract class ParserBase
 
     /// <summary>
     /// Consumes an identifier or contextual keyword token for use as a variable name.
-    /// ECMA-334 §6.4.4 - Contextual keywords are not reserved and can appear as identifiers
-    /// in variable declaration contexts (e.g., var from = ..., int where = ...).
+    /// ECMA-334 §6.4.4: contextual keywords are not reserved and can appear as identifiers.
     /// </summary>
     internal Token ConsumeIdentifierOrContextualKeyword(string message)
     {
@@ -225,9 +218,6 @@ internal abstract class ParserBase
         throw SyntaxError(DiagnosticDescriptors.SyntaxExpected, message);
     }
 
-    /// <summary>
-    /// Creates a parser exception with span and line/column from the current token.
-    /// </summary>
     internal AlderException SyntaxError(DiagnosticDescriptor descriptor, params object?[] args)
     {
         var token = Peek();
@@ -235,8 +225,7 @@ internal abstract class ParserBase
     }
 
     /// <summary>
-    /// Checks if a token type is a contextual keyword that can be used as an identifier.
-    /// ECMA-334 §6.4.4 - Contextual keywords are not reserved and can appear as identifiers.
+    /// ECMA-334 §6.4.4: contextual keywords are not reserved and can appear as identifiers.
     /// </summary>
     internal static bool IsContextualKeyword(TokenType type) =>
         type is TokenType.Value or TokenType.From or TokenType.Where or TokenType.Select
@@ -248,14 +237,10 @@ internal abstract class ParserBase
             or TokenType.Like or TokenType.Between
             or TokenType.Unless or TokenType.Until;
 
-    #endregion
-
-    #region Type Name Parsing
-
     /// <summary>
     /// Matches a closing '>' for generic type arguments, handling the classic C# ambiguity
     /// where the lexer greedily produces '>>' or '>>>' tokens.
-    /// ECMA-334 §8.2.6 - Grammar ambiguities: >> in nested generics.
+    /// ECMA-334 §8.2.6: >> in nested generics.
     /// Splits multi-character tokens by replacing them in the token list.
     /// </summary>
     internal bool MatchClosingAngleBracket()
@@ -316,10 +301,9 @@ internal abstract class ParserBase
         else if (Check(TokenType.Identifier))
         {
             name = Advance().Lexeme;
-            // Support dotted names: System.Collections.Generic.List
             while (Check(TokenType.Dot))
             {
-                Advance(); // consume dot
+                Advance();
                 if (!Check(TokenType.Identifier))
                     return null;
                 name += "." + Advance().Lexeme;
@@ -328,13 +312,11 @@ internal abstract class ParserBase
         else if (Check(TokenType.LeftParen))
         {
             // Tuple type: (int, string), (int x, string[] y)
-            // Produces ValueTuple<T1, T2, ...> type name string
             Advance(); // consume (
 
             var firstElementType = TryParseTypeName();
             if (firstElementType == null) return null;
 
-            // Capture optional element name
             string? firstName = null;
             if (Check(TokenType.Identifier) && !IsTypeKeyword(Peek().Type))
                 firstName = Advance().Lexeme;
@@ -367,12 +349,11 @@ internal abstract class ParserBase
             return null;
         }
 
-        // Handle generic args: Func<int, int> or open generics: List<>, Dictionary<,>
+        // Generic args: Func<int, int> or open generics: List<>, Dictionary<,>
         if (Check(TokenType.Less))
         {
             Advance(); // consume <
 
-            // Open generic: List<> or Dictionary<,>
             if (Check(TokenType.Greater) || Check(TokenType.Comma))
             {
                 var arity = 1;
@@ -400,14 +381,13 @@ internal abstract class ParserBase
             }
         }
 
-        // Handle nullable suffix
         if (Check(TokenType.Question))
         {
             Advance();
             name += "?";
         }
 
-        // Handle nullable array: type?[] — lexer tokenizes ?[ as QuestionLeftBracket
+        // Nullable array: type?[]. The lexer tokenizes ?[ as QuestionLeftBracket.
         if (Check(TokenType.QuestionLeftBracket))
         {
             Advance(); // consume ?[
@@ -419,7 +399,6 @@ internal abstract class ParserBase
             name += "[" + new string(',', rank - 1) + "]";
         }
 
-        // Handle array suffixes, including multi-dimensional arrays.
         while (Check(TokenType.LeftBracket))
         {
             Advance(); // consume '['
@@ -439,6 +418,4 @@ internal abstract class ParserBase
 
         return name;
     }
-
-    #endregion
 }

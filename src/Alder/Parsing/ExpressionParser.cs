@@ -40,7 +40,6 @@ internal sealed partial class ExpressionParser : ParserBase
         var queryParser = new QueryParser(state);
         var expression = new ExpressionParser(state, primary, pattern, statement);
 
-        // Wire cross-references
         primary.SetExpressionParser(expression);
         primary.SetStatementParser(statement);
         primary.SetQueryParser(queryParser);
@@ -51,8 +50,6 @@ internal sealed partial class ExpressionParser : ParserBase
 
         return expression;
     }
-
-    #region Entry Point
 
     public Expr Parse()
     {
@@ -155,10 +152,10 @@ internal sealed partial class ExpressionParser : ParserBase
         if ((Check(TokenType.Checked) || Check(TokenType.Unchecked)) && PeekNext().Type == TokenType.LeftBrace)
             return true;
 
-        // ECMA-334 §13.6.2 — Typed declarations and local functions.
+        // ECMA-334 §13.6.2: Typed declarations and local functions.
         // Covers type keywords (int x), identifiers (Action f), generics (List<int> x),
         // dotted names (System.DayOfWeek d), tuples ((int, string) t).
-        // Type keywords followed by dot are static member access (double.NaN) — skip.
+        // Type keywords followed by dot are static member access (double.NaN), skip.
         if ((IsTypeKeyword(Peek().Type) && PeekNext().Type != TokenType.Dot)
             || Check(TokenType.Identifier)
             || Check(TokenType.LeftParen))
@@ -186,10 +183,6 @@ internal sealed partial class ExpressionParser : ParserBase
 
         return false;
     }
-
-    #endregion
-
-    #region Precedence
 
     private enum Precedence : byte
     {
@@ -246,19 +239,11 @@ internal sealed partial class ExpressionParser : ParserBase
         TokenType.EqualTilde or TokenType.BangTilde or TokenType.LessEqualGreater or
         TokenType.DotDotEquals or TokenType.DotDotLess;
 
-    #endregion
-
-    #region Expression API
-
     internal Expr ParseExpression() => ParseSubExpression(Precedence.Expression);
 
     internal Expr ParseUnary() => ParseSubExpression(Precedence.Unary);
 
     internal Expr ParseBitwiseOr() => ParseSubExpression(Precedence.BitwiseOr);
-
-    #endregion
-
-    #region Precedence Climbing Core
 
     private Expr ParseSubExpression(Precedence minPrecedence)
     {
@@ -364,7 +349,6 @@ internal sealed partial class ExpressionParser : ParserBase
         {
             var tokenType = Peek().Type;
 
-            // Table-driven binary operators
             if (GetBinaryOperatorInfo(tokenType) is (var opPrec, var rightAssoc))
             {
                 if (opPrec < minPrecedence || (opPrec == minPrecedence && !rightAssoc))
@@ -375,7 +359,7 @@ internal sealed partial class ExpressionParser : ParserBase
 
                 var op = Advance();
 
-                // ?? throw — special right-operand handling (ECMA-334 §12.16)
+                // ECMA-334 §12.16: ?? throw special right-operand handling
                 if (tokenType == TokenType.QuestionQuestion && Check(TokenType.Throw))
                 {
                     Advance();
@@ -384,7 +368,7 @@ internal sealed partial class ExpressionParser : ParserBase
                     continue;
                 }
 
-                // not in / not like — desugar to !(left op right)
+                // not in / not like: desugar to !(left op right)
                 if (tokenType is TokenType.NotIn or TokenType.NotLike)
                 {
                     var right = ParseSubExpression(opPrec);
@@ -396,7 +380,7 @@ internal sealed partial class ExpressionParser : ParserBase
                     continue;
                 }
 
-                // Range operators — parse end, then break (no chaining)
+                // Range operators: parse end, then break (no chaining)
                 if (opPrec == Precedence.Range)
                 {
                     if (tokenType == TokenType.DotDot)
@@ -412,7 +396,7 @@ internal sealed partial class ExpressionParser : ParserBase
                     break;
                 }
 
-                // Chained comparisons in Extended mode: a < b < c → ChainedComparisonExpr
+                // Chained comparisons in Extended mode: a < b < c
                 if ((opPrec == Precedence.Relational || opPrec == Precedence.Equality) && extended)
                 {
                     var right = ParseSubExpression(opPrec);
@@ -437,7 +421,7 @@ internal sealed partial class ExpressionParser : ParserBase
                 continue;
             }
 
-            // Ternary conditional: ? then : else
+            // Ternary conditional
             if (tokenType == TokenType.Question
                 && (Precedence.Conditional > minPrecedence
                     || (Precedence.Conditional == minPrecedence))) // right-associative
@@ -450,7 +434,7 @@ internal sealed partial class ExpressionParser : ParserBase
                 continue;
             }
 
-            // Assignment operators: =, +=, -=, *=, /=, %=, &=, |=, ^=, <<=, >>=, >>>=, ??=
+            // Assignment operators
             if (Precedence.Assignment > minPrecedence
                 || (Precedence.Assignment == minPrecedence)) // right-associative
             {
@@ -601,15 +585,11 @@ internal sealed partial class ExpressionParser : ParserBase
         return false;
     }
 
-    #endregion
-
-    #region Postfix
-
     private Expr ParsePostfix(Expr expr, int mark)
     {
         while (true)
         {
-            // C# null-forgiving operator: expr! — no-op at runtime, just consume
+            // C# null-forgiving operator: expr! (no-op at runtime, just consume)
             if (Check(TokenType.Bang) && State.Current + 1 < State.Tokens.Count &&
                 State.Tokens[State.Current + 1].Type is TokenType.Dot or TokenType.LeftBracket or TokenType.QuestionDot)
             {
@@ -768,10 +748,6 @@ internal sealed partial class ExpressionParser : ParserBase
         return new WithExpr(obj, initializers) { Span = SpanFrom(mark) };
     }
 
-    #endregion
-
-    #region Helpers
-
     private Token? MatchExtendedWordOperator(string keyword, TokenType operatorType)
     {
         if (State.LanguageMode != LanguageMode.Extended)
@@ -812,10 +788,6 @@ internal sealed partial class ExpressionParser : ParserBase
             or TokenType.Sizeof or TokenType.Checked or TokenType.Unchecked
             or TokenType.Throw or TokenType.DotDot or TokenType.Caret;
     }
-
-    #endregion
-
-    #region Let-In Expression
 
     private Expr ParseLetInExpression(Token letToken)
     {
@@ -974,10 +946,6 @@ internal sealed partial class ExpressionParser : ParserBase
         return false;
     }
 
-    #endregion
-
-    #region If Expression
-
     private Expr ParseIfExpression()
     {
         var mark = Mark();
@@ -1065,10 +1033,6 @@ internal sealed partial class ExpressionParser : ParserBase
         return false;
     }
 
-    #endregion
-
-    #region Type Operators and Switch Expression
-
     private IsPatternExpr ParseIsExpression(Expr left, int mark)
     {
         var pattern = _pattern.ParsePattern();
@@ -1144,10 +1108,6 @@ internal sealed partial class ExpressionParser : ParserBase
         typeToken = default;
         return false;
     }
-
-    #endregion
-
-    #region Cast Disambiguation
 
     internal bool IsCastExpression()
     {
@@ -1271,6 +1231,4 @@ internal sealed partial class ExpressionParser : ParserBase
         }
         return index;
     }
-
-    #endregion
 }

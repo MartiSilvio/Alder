@@ -116,12 +116,12 @@ internal static class MethodInvoker
         var type = target.GetType();
         var hasSpecialArgs = HasSpecialArgs(args);
 
-        // Tier 1: typed dispatch — primary path for both JIT and AOT
+        // Tier 1: typed dispatch (primary path for both JIT and AOT)
         if (!hasSpecialArgs &&
             TypedDispatchHelper.TryInvokeInstance(context.Config, type, methodName, target, args, out var typedResult))
             return (true, typedResult);
 
-        // Tier 2: reflection — overload resolution with caching
+        // Tier 2: reflection with overload resolution and caching
         var descriptors = ArgumentDescriptor.FromArgs(args);
 
         if (typeArgs is null or { Count: 0 } &&
@@ -146,7 +146,7 @@ internal static class MethodInvoker
         if (ambiguous)
             throw new AlderException(DiagnosticDescriptors.AmbiguousMethodInvocation, methodName);
 
-        // Tier 3: extension methods — per-type interleaved dispatch (typed → reflection)
+        // Tier 3: extension methods, per-type interleaved dispatch (typed then reflection)
         var extensionResult = TryInvokeExtensionMethod(
             target, methodName, args, hasSpecialArgs, context, typeArgs, ct);
         if (extensionResult.Success)
@@ -461,7 +461,7 @@ internal static class MethodInvoker
         return result is ControlFlowSignal signal ? signal.Value : result;
     }
 
-    // §12.19: async lambda invocation returns Task<object?> — the body is evaluated asynchronously
+    // §12.19: async lambda invocation returns Task<object?>, body is evaluated asynchronously
     private static Task<object?> InvokeLambdaAsyncCore(LambdaValue lambda, object?[] args)
     {
         var childContext = lambda.Closure.CreateChild();

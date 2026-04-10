@@ -19,8 +19,6 @@ internal sealed class StatementParser : ParserBase
     internal void SetExpressionParser(ExpressionParser expression) => _expression = expression;
     internal void SetPatternParser(PatternParser pattern) => _pattern = pattern;
 
-    #region Block and Statement List
-
     internal Expr ParseBlock()
     {
         var mark = Mark();
@@ -89,7 +87,7 @@ internal sealed class StatementParser : ParserBase
             return new ContinueExpr() { Span = SpanFrom(mark) };
         }
 
-        // ECMA-334 §13.10.4: goto label; / goto case expr; / goto default;
+        // ECMA-334 §13.10.4
         if (Match(TokenType.Goto))
         {
             if (Match(TokenType.Case))
@@ -108,15 +106,14 @@ internal sealed class StatementParser : ParserBase
             return new GotoExpr(label) { Span = SpanFrom(mark) };
         }
 
-        // ECMA-334 §13.3: Bare block statement — { statements }
+        // ECMA-334 §13.3: Bare block statement
         if (Match(TokenType.LeftBrace))
             return ParseBlock();
 
         // Label: identifier followed by ':' (not part of ternary or case)
         if (Check(TokenType.Identifier) && PeekNext().Type == TokenType.Colon)
         {
-            // Disambiguate from ternary (x ? y : z) - labels only appear at statement level
-            var label = Advance(); // consume identifier
+            var label = Advance();
             Advance(); // consume ':'
             return new LabelExpr(label.Lexeme) { Span = SpanFrom(mark) };
         }
@@ -156,7 +153,7 @@ internal sealed class StatementParser : ParserBase
         if (Match(TokenType.Try))
             return ParseTryCatchFinally(mark);
 
-        // Parameterless throw; (rethrow) -- must check before expression fallback
+        // Parameterless throw; (rethrow), must check before expression fallback
         if (Check(TokenType.Throw) && PeekNext().Type == TokenType.Semicolon)
         {
             Advance(); // consume 'throw'
@@ -167,7 +164,7 @@ internal sealed class StatementParser : ParserBase
         if (Match(TokenType.Const))
             return ParseConstDeclaration(mark);
 
-        // §13.15: yield return expr; or yield break;
+        // §13.15
         if (Match(TokenType.Yield))
         {
             if (Match(TokenType.Return))
@@ -186,7 +183,6 @@ internal sealed class StatementParser : ParserBase
 
         if (MatchVar())
         {
-            // Check for deconstruction pattern: var (x, y, ...) = expr
             if (Check(TokenType.LeftParen))
             {
                 Advance(); // consume '('
@@ -213,18 +209,17 @@ internal sealed class StatementParser : ParserBase
             return new VariableDeclExpr(null, name, initializer) { Span = SpanFrom(mark) };
         }
 
-        // ECMA-334 §13.6.2 — Typed local variable declarations and local functions.
+        // ECMA-334 §13.6.2: Typed local variable declarations and local functions.
         // Covers all type shapes: keywords (int, string), identifiers (Action, Exception),
         // generics (List<int>), dotted names (System.DayOfWeek), tuples ((int, string)),
         // arrays (int[], int[,]), and nullable (int?).
-        // Type keywords followed by dot are static member access (double.NaN) — skip those.
+        // Type keywords followed by dot are static member access (double.NaN), skip those.
         {
             var declResult = TryParseTypedDeclaration(mark);
             if (declResult != null)
                 return declResult;
         }
 
-        // Standalone block statement { ... }
         if (Match(TokenType.LeftBrace))
         {
             var statements = ParseStatementList();
@@ -232,7 +227,7 @@ internal sealed class StatementParser : ParserBase
             return new BlockExpr(statements, null) { Span = SpanFrom(mark) };
         }
 
-        // checked/unchecked block statements — no semicolon needed after block form
+        // checked/unchecked block statements, no semicolon needed after block form
         if (Check(TokenType.Checked) || Check(TokenType.Unchecked))
         {
             var checkedExpr = _expression.ParseExpression();
@@ -328,7 +323,6 @@ internal sealed class StatementParser : ParserBase
         if (IsTypeKeyword(Peek().Type) && PeekNext().Type == TokenType.Dot)
             return null;
 
-        // Only attempt if the current token could start a type name
         if (!IsTypeKeyword(Peek().Type) && !Check(TokenType.Identifier) && !Check(TokenType.LeftParen))
             return null;
 
@@ -365,7 +359,7 @@ internal sealed class StatementParser : ParserBase
                 return null;
             }
 
-            // ECMA-334 §12.8.16.5: Bare array initializer — int[] nums = { 1, 2, 3 };
+            // ECMA-334 §12.8.16.5: Bare array initializer (int[] nums = { 1, 2, 3 };)
             Expr initializer;
             if (typeName.EndsWith("[]", StringComparison.Ordinal) && Check(TokenType.LeftBrace))
             {
@@ -389,7 +383,7 @@ internal sealed class StatementParser : ParserBase
             var syntheticTypeToken = new Token(TokenType.Identifier, typeName, null,
                 State.Tokens[saved].Line, State.Tokens[saved].Column, State.Tokens[saved].Start);
 
-            // ECMA-334 §13.6.2: Multiple variable declarations — int x = 1, y = 2;
+            // ECMA-334 §13.6.2: Multiple variable declarations (int x = 1, y = 2;)
             if (Check(TokenType.Comma))
             {
                 while (Match(TokenType.Comma))
@@ -412,10 +406,6 @@ internal sealed class StatementParser : ParserBase
         }
     }
 
-    #endregion
-
-    #region Conditional Statements
-
     private Expr ParseIfStatement(int mark)
     {
         Consume(TokenType.LeftParen, "Expected '(' after 'if'");
@@ -424,7 +414,6 @@ internal sealed class StatementParser : ParserBase
 
         var thenStatements = new List<Expr>();
 
-        // Either a block { ... } or a single statement
         if (Match(TokenType.LeftBrace))
         {
             thenStatements = ParseStatementList();
@@ -498,7 +487,6 @@ internal sealed class StatementParser : ParserBase
             }
         }
 
-        // Desugar: unless (cond) -> if (!cond)
         var negatedCondition = new UnaryExpr(
             TokenLexemes.CreateSynthetic(TokenType.Bang, unlessToken),
             condition) { Span = SpanFrom(mark) };
@@ -529,7 +517,6 @@ internal sealed class StatementParser : ParserBase
                 body.Add(stmt);
         }
 
-        // Desugar: until (cond) -> while (!cond)
         var negatedCondition = new UnaryExpr(
             TokenLexemes.CreateSynthetic(TokenType.Bang, untilToken),
             condition) { Span = SpanFrom(mark) };
@@ -549,17 +536,14 @@ internal sealed class StatementParser : ParserBase
         {
             if (Match(TokenType.Case))
             {
-                // Parse case pattern (type patterns, relational, constant, etc.)
                 var pattern = _pattern.ParsePattern();
 
-                // Parse optional when guard
                 Expr? whenGuard = null;
                 if (Match(TokenType.When))
                     whenGuard = _expression.ParseExpression();
 
                 Consume(TokenType.Colon, "Expected ':' after case pattern");
 
-                // Parse statements until next case, default, or closing brace
                 var statements = ParseCaseStatements();
                 cases.Add(new SwitchCaseExpr(pattern, whenGuard, statements));
             }
@@ -567,7 +551,6 @@ internal sealed class StatementParser : ParserBase
             {
                 Consume(TokenType.Colon, "Expected ':' after 'default'");
 
-                // Parse statements until next case or closing brace
                 var statements = ParseCaseStatements();
                 cases.Add(new SwitchCaseExpr(null, null, statements));
             }
@@ -585,7 +568,6 @@ internal sealed class StatementParser : ParserBase
     {
         var statements = new List<Expr>();
 
-        // Parse statements until we hit case, default, or closing brace
         while (!Check(TokenType.Case) && !Check(TokenType.Default) && !Check(TokenType.RightBrace) && !IsAtEnd())
         {
             ParseStatementInto(statements);
@@ -593,10 +575,6 @@ internal sealed class StatementParser : ParserBase
 
         return statements;
     }
-
-    #endregion
-
-    #region Loop Statements
 
     private Expr ParseWhileStatement(int mark)
     {
@@ -606,7 +584,6 @@ internal sealed class StatementParser : ParserBase
 
         var body = new List<Expr>();
 
-        // Either a block { ... } or a single statement
         if (Match(TokenType.LeftBrace))
         {
             body = ParseStatementList();
@@ -626,7 +603,6 @@ internal sealed class StatementParser : ParserBase
     {
         Consume(TokenType.LeftParen, "Expected '(' after 'for'");
 
-        // Parse initializers (can be var declarations, typed declarations, expressions, or empty)
         var initializers = new List<Expr>();
         if (!Check(TokenType.Semicolon))
         {
@@ -676,7 +652,6 @@ internal sealed class StatementParser : ParserBase
 
         Consume(TokenType.Semicolon, "Expected ';' after for initializer");
 
-        // Parse condition (or empty for infinite loop)
         Expr? condition = null;
         if (!Check(TokenType.Semicolon))
         {
@@ -685,7 +660,6 @@ internal sealed class StatementParser : ParserBase
 
         Consume(TokenType.Semicolon, "Expected ';' after for condition");
 
-        // Parse increments (comma-separated, or empty)
         var increments = new List<Expr>();
         if (!Check(TokenType.RightParen))
         {
@@ -696,7 +670,6 @@ internal sealed class StatementParser : ParserBase
 
         Consume(TokenType.RightParen, "Expected ')' after for clauses");
 
-        // Parse body
         var body = new List<Expr>();
         if (Match(TokenType.LeftBrace))
         {
@@ -715,7 +688,6 @@ internal sealed class StatementParser : ParserBase
 
     private Expr ParseDoWhileStatement(int mark)
     {
-        // Parse body
         var body = new List<Expr>();
         if (Match(TokenType.LeftBrace))
         {
@@ -742,7 +714,6 @@ internal sealed class StatementParser : ParserBase
     {
         Consume(TokenType.LeftParen, "Expected '(' after 'foreach'");
 
-        // Parse variable declaration (var varName or type varName)
         if (!MatchVar() && !MatchTypeKeyword(out _))
         {
             throw SyntaxError(DiagnosticDescriptors.SyntaxExpected, "'var' or type keyword in foreach");
@@ -750,7 +721,6 @@ internal sealed class StatementParser : ParserBase
 
         var variableName = ConsumeIdentifierOrContextualKeyword("Expected variable name in foreach");
 
-        // Consume 'in' keyword - it's reserved as a contextual keyword
         if (!Match(TokenType.In))
         {
             throw SyntaxError(DiagnosticDescriptors.SyntaxExpected, "'in' after variable name in foreach");
@@ -759,7 +729,6 @@ internal sealed class StatementParser : ParserBase
         var collection = _expression.ParseExpression();
         Consume(TokenType.RightParen, "Expected ')' after foreach collection");
 
-        // Parse body
         var body = new List<Expr>();
         if (Match(TokenType.LeftBrace))
         {
@@ -776,15 +745,10 @@ internal sealed class StatementParser : ParserBase
         return new ForEachStatementExpr(variableName, collection, body) { Span = SpanFrom(mark) };
     }
 
-    #endregion
-
-    #region Resource Management & Synchronization
-
     private Expr ParseUsingStatement(int mark)
     {
         Consume(TokenType.LeftParen, "Expected '(' after 'using'");
 
-        // Parse resource declaration (var x = expr or TypeName x = expr or just expression)
         Expr resource;
         if (MatchVar())
         {
@@ -809,7 +773,6 @@ internal sealed class StatementParser : ParserBase
 
         Consume(TokenType.RightParen, "Expected ')' after using resource");
 
-        // Parse body: block or single statement
         Expr body;
         if (Match(TokenType.LeftBrace))
         {
@@ -832,7 +795,6 @@ internal sealed class StatementParser : ParserBase
         var lockObj = _expression.ParseExpression();
         Consume(TokenType.RightParen, "Expected ')' after lock expression");
 
-        // Parse body: block or single statement
         Expr body;
         if (Match(TokenType.LeftBrace))
         {
@@ -849,13 +811,8 @@ internal sealed class StatementParser : ParserBase
         return new LockStatementExpr(lockObj, body) { Span = SpanFrom(mark) };
     }
 
-    #endregion
-
-    #region Exception Handling
-
     private Expr ParseTryCatchFinally(int mark)
     {
-        // Parse try body
         Consume(TokenType.LeftBrace, "Expected '{' after 'try'");
         var tryBody = ParseStatementList();
         Consume(TokenType.RightBrace, "Expected '}' after try body");
@@ -863,7 +820,6 @@ internal sealed class StatementParser : ParserBase
         var catchClauses = new List<CatchClause>();
         List<Expr>? finallyBody = null;
 
-        // Parse catch clauses
         while (Check(TokenType.Catch))
         {
             Advance(); // consume 'catch'
@@ -875,7 +831,6 @@ internal sealed class StatementParser : ParserBase
             {
                 Advance(); // consume '('
 
-                // Parse type name (may be dot-separated, e.g., System.IO.IOException)
                 var typeParts = new List<string>
                 {
                     Consume(TokenType.Identifier, "Expected exception type name").Lexeme
@@ -888,7 +843,6 @@ internal sealed class StatementParser : ParserBase
 
                 exceptionTypeName = string.Join(".", typeParts);
 
-                // Check for variable name (next token is Identifier and not ')')
                 if (Check(TokenType.Identifier))
                 {
                     variableName = Advance();
@@ -897,7 +851,6 @@ internal sealed class StatementParser : ParserBase
                 Consume(TokenType.RightParen, "Expected ')' after catch clause");
             }
 
-            // Parse optional when guard
             Expr? whenGuard = null;
             if (Check(TokenType.When))
             {
@@ -907,7 +860,6 @@ internal sealed class StatementParser : ParserBase
                 Consume(TokenType.RightParen, "Expected ')' after when guard");
             }
 
-            // Parse catch body
             Consume(TokenType.LeftBrace, "Expected '{' after catch clause");
             var catchBody = ParseStatementList();
             Consume(TokenType.RightBrace, "Expected '}' after catch body");
@@ -915,7 +867,6 @@ internal sealed class StatementParser : ParserBase
             catchClauses.Add(new CatchClause(exceptionTypeName, variableName, whenGuard, catchBody));
         }
 
-        // Parse optional finally block
         if (Match(TokenType.Finally))
         {
             Consume(TokenType.LeftBrace, "Expected '{' after 'finally'");
@@ -923,11 +874,10 @@ internal sealed class StatementParser : ParserBase
             Consume(TokenType.RightBrace, "Expected '}' after finally body");
         }
 
-        // Validate: must have at least one catch or a finally
         if (catchClauses.Count == 0 && finallyBody == null)
             throw SyntaxError(DiagnosticDescriptors.SyntaxExpected, "'catch' or 'finally' after try block");
 
-        // Validate: bare catch (no type AND no when guard) must be last
+        // Bare catch (no type AND no when guard) must be last
         for (var i = 0; i < catchClauses.Count - 1; i++)
         {
             if (catchClauses[i].ExceptionTypeName == null && catchClauses[i].WhenGuard == null)
@@ -936,6 +886,4 @@ internal sealed class StatementParser : ParserBase
 
         return new TryCatchFinallyExpr(tryBody, catchClauses, finallyBody) { Span = SpanFrom(mark) };
     }
-
-    #endregion
 }

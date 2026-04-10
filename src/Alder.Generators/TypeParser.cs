@@ -121,8 +121,6 @@ internal static class TypeParser
             methods.ToImmutable());
     }
 
-    #region Generic method expansion — uses Roslyn's type system for constraint validation
-
     /// <summary>
     /// Result type matrix for TResult expansion.
     /// </summary>
@@ -156,7 +154,7 @@ internal static class TypeParser
 
     /// <summary>
     /// Expands generic methods on a type by constructing closed instantiations
-    /// using Roslyn's type system. Constraints are validated by Roslyn — no guessing.
+    /// using Roslyn's type system. Constraints are validated by Roslyn, not guessed.
     /// Returns a new TypeRegistrationModel with expanded methods appended.
     /// </summary>
     public static TypeRegistrationModel ExpandGenericMethods(
@@ -187,7 +185,7 @@ internal static class TypeParser
                 continue;
 
             // Skip methods where the type parameter isn't inferable from parameter types.
-            // E.g., Cast<TResult>(IEnumerable) — the first param is non-generic IEnumerable,
+            // E.g., Cast<TResult>(IEnumerable): the first param is non-generic IEnumerable,
             // so typed dispatch can't determine which TResult to use. Let reflection handle these.
             if (!HasTypeParameterInParameters(method))
                 continue;
@@ -315,17 +313,14 @@ internal static class TypeParser
     {
         model = default;
 
-        // Validate constraints using Roslyn's type system
         for (var i = 0; i < openMethod.TypeParameters.Length; i++)
         {
             if (!SatisfiesConstraints(openMethod.TypeParameters[i], typeArgs[i]))
                 return false;
         }
 
-        // Construct the closed method
         var closedMethod = openMethod.Construct(typeArgs);
 
-        // Extract parameter models from the closed method (concrete types)
         var parameters = ImmutableArray.CreateBuilder<ParameterModel>();
         foreach (var param in closedMethod.Parameters)
         {
@@ -338,7 +333,6 @@ internal static class TypeParser
                 isDelegate ? ExtractDelegateSignature(param.Type) : null));
         }
 
-        // Build the generic type arguments for the call
         var genericTypeArgs = ImmutableArray.CreateBuilder<string>();
         foreach (var arg in typeArgs)
             genericTypeArgs.Add(GetFullyQualifiedTypeName(arg));
@@ -355,7 +349,7 @@ internal static class TypeParser
 
     /// <summary>
     /// Checks whether a concrete type satisfies all constraints of a type parameter.
-    /// Uses Roslyn's actual type information — no string matching.
+    /// Uses Roslyn's actual type information, not string matching.
     /// </summary>
     private static bool SatisfiesConstraints(ITypeParameterSymbol typeParam, ITypeSymbol concreteType)
     {
@@ -365,7 +359,6 @@ internal static class TypeParser
             return false;
         if (typeParam.HasConstructorConstraint)
         {
-            // Check for accessible parameterless constructor
             if (concreteType is INamedTypeSymbol named)
             {
                 var hasCtor = named.InstanceConstructors.Any(c =>
@@ -385,24 +378,21 @@ internal static class TypeParser
 
     private static bool ImplementsOrExtends(ITypeSymbol type, ITypeSymbol constraint)
     {
-        // Direct match
         if (SymbolEqualityComparer.Default.Equals(type, constraint))
             return true;
 
         // For generic constraints like INumber<T>, construct the closed form with the concrete type
-        // e.g., check if int implements INumber<int>
+        // (e.g., check if int implements INumber<int>)
         if (constraint is INamedTypeSymbol { IsGenericType: true } genericConstraint)
         {
             var constructedConstraint = TryConstructConstraint(genericConstraint, type);
             if (constructedConstraint != null)
             {
-                // Check interfaces
                 foreach (var iface in type.AllInterfaces)
                 {
                     if (SymbolEqualityComparer.Default.Equals(iface.OriginalDefinition, genericConstraint.OriginalDefinition))
                         return true;
                 }
-                // Check base types
                 for (var current = type.BaseType; current != null; current = current.BaseType)
                 {
                     if (SymbolEqualityComparer.Default.Equals(current.OriginalDefinition, genericConstraint.OriginalDefinition))
@@ -412,14 +402,12 @@ internal static class TypeParser
             }
         }
 
-        // Check interfaces (non-generic)
         foreach (var iface in type.AllInterfaces)
         {
             if (SymbolEqualityComparer.Default.Equals(iface, constraint))
                 return true;
         }
 
-        // Check base type chain
         for (var current = type.BaseType; current != null; current = current.BaseType)
         {
             if (SymbolEqualityComparer.Default.Equals(current, constraint))
@@ -432,7 +420,7 @@ internal static class TypeParser
     private static INamedTypeSymbol? TryConstructConstraint(INamedTypeSymbol genericConstraint, ITypeSymbol concreteType)
     {
         // For constraints like INumberBase<TOther> where TOther is the type param being checked,
-        // we need to check if the concrete type implements INumberBase<ConcreteType>
+        // check if the concrete type implements INumberBase<ConcreteType>
         var typeArgs = genericConstraint.TypeArguments;
         var newArgs = new ITypeSymbol[typeArgs.Length];
         for (var i = 0; i < typeArgs.Length; i++)
@@ -441,10 +429,6 @@ internal static class TypeParser
         }
         return genericConstraint.OriginalDefinition.Construct(newArgs);
     }
-
-    #endregion
-
-    #region Filters
 
     private static bool HasTypeParameterInParameters(IMethodSymbol method)
     {
@@ -522,14 +506,9 @@ internal static class TypeParser
         return false;
     }
 
-    #endregion
-
-    #region Extension method discovery
-
     /// <summary>
     /// Discovers extension methods on a type (e.g., Enumerable) from the Roslyn compilation.
     /// Classifies each method by signature pattern for dispatch code generation.
-    /// No hardcoded method names — everything comes from the symbol.
     /// </summary>
     internal static ImmutableArray<ExtensionMethodModel> DiscoverExtensionMethods(INamedTypeSymbol extensionType)
     {
@@ -554,17 +533,15 @@ internal static class TypeParser
             if (!IsDirectEnumerableParam(thisParam.Type))
                 continue;
 
-            // Skip overloads with IComparer, IEqualityComparer, Expression<> params
             if (HasExcludedParameterTypes(method))
                 continue;
 
-            // Classify by the extra parameters (beyond the this param)
             var extraParams = method.Parameters.Skip(1).ToArray();
             var kind = ClassifyExtensionMethod(extraParams);
 
-            // Build a unique key: methodName + param signature to distinguish overloads.
+            // Unique key: methodName + param signature to distinguish overloads.
             // Select(Func<T,R>) vs Select(Func<T,int,R>) both have 1 extra param
-            // but different delegate arities — they must both be discovered.
+            // but different delegate arities, so both must be discovered.
             var key = $"{method.Name}/{string.Join(",", extraParams.Select(p => p.Type.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat)))}";
             if (!seen.Add(key))
                 continue;
@@ -597,8 +574,8 @@ internal static class TypeParser
             var paramType = extraParams[0].Type;
             if (IsDelegateType(paramType))
             {
-                // Check if the delegate has a complex return type (e.g., IEnumerable<TResult>)
-                // These need explicit type args and can't be dispatched with simple type checks
+                // Delegates with complex return types (e.g., IEnumerable<TResult>)
+                // need explicit type args and can't be dispatched with simple type checks
                 if (paramType is INamedTypeSymbol { DelegateInvokeMethod: { } invoke } &&
                     invoke.ReturnType is INamedTypeSymbol { IsGenericType: true })
                     return ExtensionMethodKind.Complex;
@@ -621,17 +598,13 @@ internal static class TypeParser
             var elementType = named.TypeArguments[0];
             // Accept type parameters (generic methods like Where<T>) and concrete value types
             // (non-generic numeric aggregates like Sum(IEnumerable<int>)). Reject constructed
-            // generics like Nullable<int> or KeyValuePair<K,V> — our dispatch handles
+            // generics like Nullable<int> or KeyValuePair<K,V> because dispatch handles
             // non-nullable value types only.
             return elementType is ITypeParameterSymbol
                 || (elementType.IsValueType && elementType is not INamedTypeSymbol { IsGenericType: true });
         }
         return type is IArrayTypeSymbol;
     }
-
-    #endregion
-
-    #region Type name formatting
 
     internal static string GetFullyQualifiedTypeName(ITypeSymbol type)
     {
@@ -640,7 +613,7 @@ internal static class TypeParser
 
     /// <summary>
     /// FullyQualifiedFormat renders ValueTuple&lt;T1,T2&gt; as (T1, T2) tuple syntax,
-    /// which is invalid in new-expressions and typeof. This helper detects ValueTuple
+    /// which is invalid in new-expressions and typeof. Detects ValueTuple
     /// and constructs the generic name manually.
     /// </summary>
     internal static string GetFullyQualifiedName(INamedTypeSymbol type)
@@ -685,6 +658,4 @@ internal static class TypeParser
 
         return result;
     }
-
-    #endregion
 }

@@ -17,8 +17,6 @@ internal static class NumericDispatch
     public delegate object UnaryOp(object value);
     public delegate int CompareOp(object left, object right);
 
-    #region Binary Operator Delegates
-
     private static readonly FixedDictionary<(Type, Type), BinaryOp> AddOps = BuildBinaryOps(
         (int l, int r) => l + r,
         (long l, long r) => l + r,
@@ -90,10 +88,6 @@ internal static class NumericDispatch
         (ulong l, ulong r) => l ^ r
     );
 
-    #endregion
-
-    #region Checked Binary Operator Delegates
-
     private static readonly FixedDictionary<(Type, Type), BinaryOp> CheckedAddOps = BuildBinaryOps(
         (int l, int r) => checked(l + r),
         (long l, long r) => checked(l + r),
@@ -124,15 +118,7 @@ internal static class NumericDispatch
         (ulong l, ulong r) => checked(l * r)
     );
 
-    #endregion
-
-    #region Comparison Delegates
-
     private static readonly FixedDictionary<(Type, Type), CompareOp> CompareOps = BuildCompareOps();
-
-    #endregion
-
-    #region Unary Operator Delegates
 
     private static readonly FixedDictionary<Type, UnaryOp> NegateOps = FixedDictionary<Type, UnaryOp>.Create(new Dictionary<Type, UnaryOp>
     {
@@ -177,10 +163,6 @@ internal static class NumericDispatch
         [typeof(byte)] = v => ~(int)(byte)v,
         [typeof(sbyte)] = v => ~(int)(sbyte)v,
     });
-
-    #endregion
-
-    #region Public API
 
     public static object? Add(object left, object right, bool isChecked = false)
         => ExecuteBinaryOp(left, right, isChecked ? CheckedAddOps : AddOps, "+");
@@ -391,9 +373,7 @@ internal static class NumericDispatch
         };
     }
 
-    #endregion
-
-    #region Constant Expression Promotion (ECMA-334 §10.2.11)
+    // ECMA-334 §10.2.11: Constant expression promotion
 
     /// <summary>
     /// ECMA-334 §10.2.11: Implicit constant expression conversions.
@@ -459,9 +439,7 @@ internal static class NumericDispatch
         return null;
     }
 
-    #endregion
-
-    #region Type Promotion (ECMA-334 §12.4.7.3)
+    // ECMA-334 §12.4.7.3: Type promotion
 
     /// <summary>
     /// Non-throwing variant: returns the ECMA-334 binary numeric promotion result type,
@@ -674,10 +652,6 @@ internal static class NumericDispatch
         return PromoteToType(value, promotedType);
     }
 
-    #endregion
-
-    #region Builder Helpers
-
     private static object ExecutePromotedBinaryOp(
         object left, object right,
         Type promotedType,
@@ -699,8 +673,7 @@ internal static class NumericDispatch
         var leftType = left.GetType();
         var rightType = right.GetType();
 
-        // Fast path: when both operands are already the promoted type, skip PromoteOperands
-        // entirely — avoids 2 unnecessary unbox+rebox cycles per operation.
+        // Fast path: same-type operands skip PromoteOperands (avoids 2 unbox+rebox cycles).
         if (leftType == rightType && ops.TryGetValue((leftType, leftType), out var fastOp))
             return fastOp(left, right);
 
@@ -780,6 +753,4 @@ internal static class NumericDispatch
             [(typeof(ulong), typeof(ulong))] = (l, r) => ((ulong)l).CompareTo((ulong)r),
         });
     }
-
-    #endregion
 }

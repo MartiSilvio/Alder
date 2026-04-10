@@ -5,12 +5,15 @@
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <RootNamespace>Alder.Mcp</RootNamespace>
+    <AssemblyName>Alder.Mcp</AssemblyName>
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>alder-mcp</ToolCommandName>
     <PackageId>Alder.Mcp</PackageId>
     <Version>0.1.0-preview.1</Version>
     <Authors>Silvio Martignetti</Authors>
     <Description>MCP server that exposes Alder's C# runtime evaluation to AI agents and LLM workflows.</Description>
+    <PackageTags>mcp ai csharp expression-evaluator runtime</PackageTags>
     <IsPackable>true</IsPackable>
   </PropertyGroup>
 
@@ -20,7 +23,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Alder\Alder.csproj" />
+    <ProjectReference Include="..\..\Alder\Alder.csproj" />
   </ItemGroup>
 
 </Project>

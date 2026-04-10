@@ -41,27 +41,17 @@ public static class AlderLinqExtensions
     private static Expression<Func<T, TResult>> ParseSelector<T, TResult>(AlderEngine engine, string selector, Dictionary<string, object?>? vars)
         => AlderCompiledEngineExtensions.ParseAsExpression<Func<T, TResult>>(engine, selector, vars);
 
-    #region IEnumerable<T> — Filtering
-
     public static IEnumerable<T> WhereDynamic<T>(this IEnumerable<T> source, string predicate, params object?[] variables)
         => source.Where(CompilePredicate<T>(GetGlobalEngine(), predicate, BuildPositionalVars(variables)));
 
     public static IEnumerable<T> WhereDynamic<T>(this IEnumerable<T> source, AlderEngine engine, string predicate, params object?[] variables)
         => source.Where(CompilePredicate<T>(ValidateEngine(engine), predicate, BuildPositionalVars(variables)));
 
-    #endregion
-
-    #region IEnumerable<T> — Projection
-
     public static IEnumerable<TResult> SelectDynamic<T, TResult>(this IEnumerable<T> source, string selector, params object?[] variables)
         => source.Select(CompileSelector<T, TResult>(GetGlobalEngine(), selector, BuildPositionalVars(variables)));
 
     public static IEnumerable<TResult> SelectDynamic<T, TResult>(this IEnumerable<T> source, AlderEngine engine, string selector, params object?[] variables)
         => source.Select(CompileSelector<T, TResult>(ValidateEngine(engine), selector, BuildPositionalVars(variables)));
-
-    #endregion
-
-    #region IEnumerable<T> — Ordering
 
     public static IOrderedEnumerable<T> OrderByDynamic<T, TKey>(this IEnumerable<T> source, string keySelector, params object?[] variables)
         => source.OrderBy(CompileSelector<T, TKey>(GetGlobalEngine(), keySelector, BuildPositionalVars(variables)));
@@ -87,10 +77,6 @@ public static class AlderLinqExtensions
     public static IOrderedEnumerable<T> ThenByDescendingDynamic<T, TKey>(this IOrderedEnumerable<T> source, AlderEngine engine, string keySelector, params object?[] variables)
         => source.ThenByDescending(CompileSelector<T, TKey>(ValidateEngine(engine), keySelector, BuildPositionalVars(variables)));
 
-    #endregion
-
-    #region IEnumerable<T> — Quantifiers
-
     public static bool AnyDynamic<T>(this IEnumerable<T> source, string predicate, params object?[] variables)
         => source.Any(CompilePredicate<T>(GetGlobalEngine(), predicate, BuildPositionalVars(variables)));
 
@@ -108,10 +94,6 @@ public static class AlderLinqExtensions
 
     public static int CountDynamic<T>(this IEnumerable<T> source, AlderEngine engine, string predicate, params object?[] variables)
         => source.Count(CompilePredicate<T>(ValidateEngine(engine), predicate, BuildPositionalVars(variables)));
-
-    #endregion
-
-    #region IEnumerable<T> — Element access
 
     public static T FirstDynamic<T>(this IEnumerable<T> source, string predicate, params object?[] variables)
         => source.First(CompilePredicate<T>(GetGlobalEngine(), predicate, BuildPositionalVars(variables)));
@@ -149,10 +131,6 @@ public static class AlderLinqExtensions
     public static T? SingleOrDefaultDynamic<T>(this IEnumerable<T> source, AlderEngine engine, string predicate, params object?[] variables)
         => source.SingleOrDefault(CompilePredicate<T>(ValidateEngine(engine), predicate, BuildPositionalVars(variables)));
 
-    #endregion
-
-    #region IEnumerable<T> — Grouping & Distinct
-
     public static IEnumerable<IGrouping<TKey, T>> GroupByDynamic<T, TKey>(this IEnumerable<T> source, string keySelector, params object?[] variables)
         => source.GroupBy(CompileSelector<T, TKey>(GetGlobalEngine(), keySelector, BuildPositionalVars(variables)));
 
@@ -164,10 +142,6 @@ public static class AlderLinqExtensions
 
     public static IEnumerable<T> DistinctByDynamic<T, TKey>(this IEnumerable<T> source, AlderEngine engine, string keySelector, params object?[] variables)
         => source.DistinctBy(CompileSelector<T, TKey>(ValidateEngine(engine), keySelector, BuildPositionalVars(variables)));
-
-    #endregion
-
-    #region IEnumerable<T> — Aggregation
 
     public static decimal SumDynamic<T>(this IEnumerable<T> source, string selector, params object?[] variables)
         => source.Sum(CompileSelector<T, decimal>(GetGlobalEngine(), selector, BuildPositionalVars(variables)));
@@ -193,29 +167,17 @@ public static class AlderLinqExtensions
     public static TResult MaxDynamic<T, TResult>(this IEnumerable<T> source, AlderEngine engine, string selector, params object?[] variables)
         => source.Max(CompileSelector<T, TResult>(ValidateEngine(engine), selector, BuildPositionalVars(variables)))!;
 
-    #endregion
-
-    #region IQueryable<T> — Filtering
-
     public static IQueryable<T> WhereDynamic<T>(this IQueryable<T> source, string predicate, params object?[] variables)
         => source.Where(ParsePredicate<T>(GetGlobalEngine(), predicate, BuildPositionalVars(variables)));
 
     public static IQueryable<T> WhereDynamic<T>(this IQueryable<T> source, AlderEngine engine, string predicate, params object?[] variables)
         => source.Where(ParsePredicate<T>(ValidateEngine(engine), predicate, BuildPositionalVars(variables)));
 
-    #endregion
-
-    #region IQueryable<T> — Projection
-
     public static IQueryable<TResult> SelectDynamic<T, TResult>(this IQueryable<T> source, string selector, params object?[] variables)
         => source.Select(ParseSelector<T, TResult>(GetGlobalEngine(), selector, BuildPositionalVars(variables)));
 
     public static IQueryable<TResult> SelectDynamic<T, TResult>(this IQueryable<T> source, AlderEngine engine, string selector, params object?[] variables)
         => source.Select(ParseSelector<T, TResult>(ValidateEngine(engine), selector, BuildPositionalVars(variables)));
-
-    #endregion
-
-    #region IQueryable<T> — Ordering
 
     public static IOrderedQueryable<T> OrderByDynamic<T, TKey>(this IQueryable<T> source, string keySelector, params object?[] variables)
         => source.OrderBy(ParseSelector<T, TKey>(GetGlobalEngine(), keySelector, BuildPositionalVars(variables)));
@@ -241,10 +203,6 @@ public static class AlderLinqExtensions
     public static IOrderedQueryable<T> ThenByDescendingDynamic<T, TKey>(this IOrderedQueryable<T> source, AlderEngine engine, string keySelector, params object?[] variables)
         => source.ThenByDescending(ParseSelector<T, TKey>(ValidateEngine(engine), keySelector, BuildPositionalVars(variables)));
 
-    #endregion
-
-    #region IQueryable<T> — Quantifiers & Count
-
     public static bool AnyDynamic<T>(this IQueryable<T> source, string predicate, params object?[] variables)
         => source.Any(ParsePredicate<T>(GetGlobalEngine(), predicate, BuildPositionalVars(variables)));
 
@@ -263,10 +221,6 @@ public static class AlderLinqExtensions
     public static int CountDynamic<T>(this IQueryable<T> source, AlderEngine engine, string predicate, params object?[] variables)
         => source.Count(ParsePredicate<T>(ValidateEngine(engine), predicate, BuildPositionalVars(variables)));
 
-    #endregion
-
-    #region IQueryable<T> — Element access
-
     public static T FirstDynamic<T>(this IQueryable<T> source, string predicate, params object?[] variables)
         => source.First(ParsePredicate<T>(GetGlobalEngine(), predicate, BuildPositionalVars(variables)));
 
@@ -279,19 +233,11 @@ public static class AlderLinqExtensions
     public static T? FirstOrDefaultDynamic<T>(this IQueryable<T> source, AlderEngine engine, string predicate, params object?[] variables)
         => source.FirstOrDefault(ParsePredicate<T>(ValidateEngine(engine), predicate, BuildPositionalVars(variables)));
 
-    #endregion
-
-    #region IQueryable<T> — Grouping
-
     public static IQueryable<IGrouping<TKey, T>> GroupByDynamic<T, TKey>(this IQueryable<T> source, string keySelector, params object?[] variables)
         => source.GroupBy(ParseSelector<T, TKey>(GetGlobalEngine(), keySelector, BuildPositionalVars(variables)));
 
     public static IQueryable<IGrouping<TKey, T>> GroupByDynamic<T, TKey>(this IQueryable<T> source, AlderEngine engine, string keySelector, params object?[] variables)
         => source.GroupBy(ParseSelector<T, TKey>(ValidateEngine(engine), keySelector, BuildPositionalVars(variables)));
-
-    #endregion
-
-    #region IQueryable<T> — Aggregation
 
     public static decimal SumDynamic<T>(this IQueryable<T> source, string selector, params object?[] variables)
         => source.Sum(ParseSelector<T, decimal>(GetGlobalEngine(), selector, BuildPositionalVars(variables)));
@@ -317,10 +263,6 @@ public static class AlderLinqExtensions
     public static TResult MaxDynamic<T, TResult>(this IQueryable<T> source, AlderEngine engine, string selector, params object?[] variables)
         => source.Max(ParseSelector<T, TResult>(ValidateEngine(engine), selector, BuildPositionalVars(variables)))!;
 
-    #endregion
-
-    #region IAsyncEnumerable<T> — Filtering
-
     public static IAsyncEnumerable<T> WhereDynamic<T>(
         this IAsyncEnumerable<T> source, string predicate, params object?[] variables)
         => source.WhereDynamic(GetGlobalEngine(), predicate, variables);
@@ -334,10 +276,6 @@ public static class AlderLinqExtensions
                 yield return item;
     }
 
-    #endregion
-
-    #region IAsyncEnumerable<T> — Projection
-
     public static IAsyncEnumerable<TResult> SelectDynamic<T, TResult>(
         this IAsyncEnumerable<T> source, string selector, params object?[] variables)
         => source.SelectDynamic<T, TResult>(GetGlobalEngine(), selector, variables);
@@ -349,10 +287,6 @@ public static class AlderLinqExtensions
         await foreach (var item in source)
             yield return compiled(item);
     }
-
-    #endregion
-
-    #region IAsyncEnumerable<T> — Quantifiers & Count
 
     public static ValueTask<bool> AnyDynamic<T>(
         this IAsyncEnumerable<T> source, string predicate, params object?[] variables)
@@ -397,10 +331,6 @@ public static class AlderLinqExtensions
         return count;
     }
 
-    #endregion
-
-    #region IAsyncEnumerable<T> — Element access
-
     public static ValueTask<T> FirstDynamic<T>(
         this IAsyncEnumerable<T> source, string predicate, params object?[] variables)
         => source.FirstDynamic(GetGlobalEngine(), predicate, variables);
@@ -428,10 +358,6 @@ public static class AlderLinqExtensions
                 return item;
         return default;
     }
-
-    #endregion
-
-    #region IAsyncEnumerable<T> — Aggregation
 
     public static ValueTask<decimal> SumDynamic<T>(
         this IAsyncEnumerable<T> source, string selector, params object?[] variables)
@@ -513,6 +439,4 @@ public static class AlderLinqExtensions
         if (!hasValue) throw new InvalidOperationException("Sequence contains no elements");
         return max!;
     }
-
-    #endregion
 }

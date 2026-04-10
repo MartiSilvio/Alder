@@ -3,7 +3,7 @@ namespace Alder.Compilation;
 
 /// <summary>
 /// Thread-safe cache for compiled expression delegates with bounded capacity and FIFO eviction.
-/// Instance-based caching per engine - cache is shared with child engines and cleaned up when root engine is disposed.
+/// Shared with child engines and cleaned up when the root engine is disposed.
 /// </summary>
 internal sealed class ExpressionCache
 {
@@ -17,9 +17,6 @@ internal sealed class ExpressionCache
         _capacity = capacity;
     }
 
-    /// <summary>
-    /// Current number of cached entries.
-    /// </summary>
     public int Count => _cache.Count;
 
     public CompiledExpressionInfo GetOrAdd(string key, Func<string, CompiledExpressionInfo> valueFactory)

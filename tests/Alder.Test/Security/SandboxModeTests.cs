@@ -31,15 +31,14 @@ public class SandboxModeTests(CompilationMode mode)
     }
 
     [Test]
-    public void Trusted_BlocksGetType_ReflectionBlocked()
+    public void Trusted_AllowsGetType()
     {
-        // Reflection types are always blocked, regardless of sandbox mode
+        // Type objects are safe metadata — allowed in all sandbox modes
         var engine = TestEngineFactory.Create(mode);
         engine.SetVariable("text", "hello");
 
-        var ex = Assert.Throws<AlderException>(() => engine.Evaluate("text.GetType()"));
-        Assert.That(ex!.Message, Does.Contain("reflection"));
-        Assert.That(ex.ErrorCode, Is.EqualTo(DiagnosticCode.ALDR0108));
+        var result = engine.Evaluate("text.GetType()");
+        Assert.That(result, Is.EqualTo(typeof(string)));
     }
 
 

@@ -319,8 +319,8 @@ internal static class CallBinder
     }
 
     /// <summary>
-    /// Method groups don't need bind-time transformation — the runtime LambdaDelegateConverter
-    /// handles the conversion. But if lambdas are also present, delegate to TryBindLambdaArguments
+    /// Method groups don't need bind-time transformation (the runtime LambdaDelegateConverter
+    /// handles the conversion). If lambdas are also present, delegates to TryBindLambdaArguments
     /// which types their parameters from the resolved delegate signature.
     /// </summary>
     private static ImmutableArray<BoundExpr>? TryBindLambdaAndMethodGroupArguments(
@@ -333,7 +333,7 @@ internal static class CallBinder
         if (hasLambdas)
             return TryBindLambdaArguments(arguments, resolution, context, binder);
 
-        // Method groups only — no bind-time processing needed
+        // Method groups only, no bind-time processing needed
         return arguments;
     }
 

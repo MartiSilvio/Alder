@@ -101,9 +101,6 @@ public static class DiagnosticDescriptors
     public static readonly DiagnosticDescriptor MemberNotFound =
         new(DiagnosticCode.CS1061, "'{0}' does not contain a definition for '{1}'");
 
-    public static readonly DiagnosticDescriptor NoApplicableOverload =
-        new(DiagnosticCode.CS1501, "No overload for method '{0}' takes the given number of arguments");
-
     public static readonly DiagnosticDescriptor InvalidExpressionTerm =
         new(DiagnosticCode.CS1525, "Invalid expression term '{0}'");
 
@@ -127,9 +124,6 @@ public static class DiagnosticDescriptors
 
     public static readonly DiagnosticDescriptor NotAwaitable =
         new(DiagnosticCode.CS4001, "Cannot await '{0}'");
-
-    public static readonly DiagnosticDescriptor AwaitRequiresAsync =
-        new(DiagnosticCode.CS4033, "The 'await' operator can only be used within an async context. Use EvaluateAsync() instead of Evaluate().");
 
     public static readonly DiagnosticDescriptor MissingRequiredArgument =
         new(DiagnosticCode.CS7036, "There is no argument given that corresponds to the required parameter '{0}' of '{1}'");
@@ -167,17 +161,17 @@ public static class DiagnosticDescriptors
     public static readonly DiagnosticDescriptor BindingFailed =
         new(DiagnosticCode.ALDR0002, "{0}");
 
-    public static readonly DiagnosticDescriptor RuntimeOverloadResolutionRequired =
-        new(DiagnosticCode.ALDR0003, "Call '{0}' requires runtime overload resolution");
-
     public static readonly DiagnosticDescriptor CompiledExpressionStale =
-        new(DiagnosticCode.ALDR0004, "Variable types changed since compilation. Use Evaluate(AlderExpression) for automatic recompilation, or re-compile explicitly.");
+        new(DiagnosticCode.ALDR0003, "Variable types changed since compilation. Use Evaluate(AlderExpression) for automatic recompilation, or re-compile explicitly.");
 
     public static readonly DiagnosticDescriptor ParseAsExpressionRequiresGenericDelegate =
         new(DiagnosticCode.ALDR0010, "ParseAsExpression requires a generic Func-style delegate type; got '{0}'.");
 
     public static readonly DiagnosticDescriptor ParseAsExpressionRequiresLambda =
         new(DiagnosticCode.ALDR0011, "Expression must be a lambda (e.g., '{0}').");
+
+    public static readonly DiagnosticDescriptor CompileParameterCountMismatch =
+        new(DiagnosticCode.ALDR0012, "Compile<{0}> requires {1} parameter name(s) but {2} were provided.");
 
     public static readonly DiagnosticDescriptor ExtendedModeRequired =
         new(DiagnosticCode.ALDR0020, "Feature '{0}' is not available in Standard mode. Use LanguageMode.Extended to enable non-standard syntax extensions.");
@@ -287,8 +281,4 @@ public static class DiagnosticDescriptors
     public static readonly DiagnosticDescriptor SpreadOutsideLiteral =
         new(DiagnosticCode.ALDR0405, "Spread operator can only be used in array or object literals");
 
-    public static readonly DiagnosticDescriptor TypeNotRegistered =
-        new(DiagnosticCode.ALDR0500,
-            "Type '{0}' is not available in this environment. " +
-            "In NativeAOT, add [AlderRegistered(typeof({0}))] to your AlderTypeContext");
 }

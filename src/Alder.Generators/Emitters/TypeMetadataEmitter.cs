@@ -32,7 +32,7 @@ internal static class TypeMetadataEmitter
     }
 
     // Single-type-parameter generics rooted for AOT with each value type + object.
-    // Nullable excluded — it has where T : struct, handled separately.
+    // Nullable excluded (it has where T : struct, handled separately).
     private static readonly string[] RootedSingleParam =
     {
         "global::System.Collections.Generic.List",
@@ -76,7 +76,6 @@ internal static class TypeMetadataEmitter
         {
             var seen = new HashSet<string>();
 
-            // 1. Closed generics from registrations
             foreach (var reg in closedGenerics)
             {
                 var fieldName = "_" + TypeParser.SanitizeIdentifier(reg.TypeFullName);
@@ -85,11 +84,9 @@ internal static class TypeMetadataEmitter
                 w.AppendLine($"static readonly global::System.Type {fieldName} = typeof({reg.TypeFullName});");
             }
 
-            // 2. Nullable<T> — value types only (where T : struct)
             foreach (var vt in valueTypes)
                 EmitTypeRoot(w, seen, $"Nullable_{TypeParser.SanitizeIdentifier(vt)}", $"global::System.Nullable<{vt}>");
 
-            // 3. Single-param generics × pool
             foreach (var generic in RootedSingleParam)
             {
                 foreach (var t in pool)
@@ -98,11 +95,9 @@ internal static class TypeMetadataEmitter
                         $"{generic}<{t}>");
             }
 
-            // 4. Multi-param generics × cartesian product of pool
             foreach (var (generic, arity) in RootedMultiParam)
                 EmitCartesianRoots(w, seen, generic, pool, arity);
 
-            // 5. Tuples
             EmitTupleRoots(w, seen, pool, valueTypes);
 
         }
@@ -174,10 +169,9 @@ internal static class TypeMetadataEmitter
 
     /// <summary>
     /// Collects canonical-root method instantiations (generic methods where at least one type arg
-    /// is object). These exist to force NativeAOT to compile the shared-generic canonical forms
+    /// is object). These force NativeAOT to compile the shared-generic canonical forms
     /// so MakeGenericMethod works at runtime for reference-type arguments.
     /// </summary>
-    #region Member accessors — only emitted when the type has matching members
 
     private static void EmitTryGetIfNeeded(SourceWriter w, TypeRegistrationModel reg)
     {
@@ -204,7 +198,7 @@ internal static class TypeMetadataEmitter
 
     private static void EmitTrySetIfNeeded(SourceWriter w, TypeRegistrationModel reg)
     {
-        // Value types: skip. Unboxing creates a copy — mutations through TrySet would be lost.
+        // Value types: skip. Unboxing creates a copy, so mutations through TrySet would be lost.
         // The reflection fallback handles value-type member setting correctly.
         if (reg.IsValueType) return;
 
@@ -251,10 +245,6 @@ internal static class TypeMetadataEmitter
         }
     }
 
-    #endregion
-
-    #region Indexers — only emitted when the type has indexers
-
     private static void EmitTryGetIndexIfNeeded(SourceWriter w, TypeRegistrationModel reg)
     {
         var readable = reg.Indexers.Where(i => i.CanRead).ToArray();
@@ -273,7 +263,7 @@ internal static class TypeMetadataEmitter
 
     private static void EmitTrySetIndexIfNeeded(SourceWriter w, TypeRegistrationModel reg)
     {
-        // Value types: skip. Unboxing creates a copy — index mutations would be lost.
+        // Value types: skip. Unboxing creates a copy, so index mutations would be lost.
         if (reg.IsValueType) return;
 
         var writable = reg.Indexers.Where(i => i.CanWrite).ToArray();
@@ -289,10 +279,6 @@ internal static class TypeMetadataEmitter
             w.AppendLine("return false;");
         }
     }
-
-    #endregion
-
-    #region Constructors — only emitted when the type has public constructors
 
     private static void EmitTryCreateIfNeeded(SourceWriter w, TypeRegistrationModel reg)
     {
@@ -334,13 +320,8 @@ internal static class TypeMetadataEmitter
         }
     }
 
-    #endregion
-
-    #region Method invocation — only emitted when the type has matching methods
-
     private static void EmitTryInvokeIfNeeded(SourceWriter w, TypeRegistrationModel reg)
     {
-        // Canonical roots exist only for NativeAOT rooting — exclude from dispatch
         var methods = reg.Methods.Where(m => !m.IsStatic && !m.IsCanonicalRoot).ToArray();
         if (methods.Length == 0) return;
 
@@ -362,7 +343,7 @@ internal static class TypeMetadataEmitter
     }
 
     /// <summary>
-    /// Emits method dispatch with nested switch: name → args.Length → type-checked overloads.
+    /// Emits method dispatch with nested switch: name, args.Length, then type-checked overloads.
     /// Params methods are emitted after the args.Length switch as variable-arity fallbacks.
     /// </summary>
     private static void EmitMethodDispatch(
@@ -420,12 +401,8 @@ internal static class TypeMetadataEmitter
         }
     }
 
-    #endregion
-
-    #region Params dispatch
-
     /// <summary>
-    /// Emits dispatch for a params method. Handles two forms:
+    /// Emits dispatch for a params method in two forms:
     /// 1. Normal form: caller passed the array directly (args.Length == paramCount, last arg is the array type)
     /// 2. Expanded form: caller passed individual elements (args.Length >= fixedCount), collected into an array at dispatch time
     /// </summary>
@@ -434,9 +411,7 @@ internal static class TypeMetadataEmitter
         var paramsParam = method.Parameters[method.Parameters.Length - 1];
         var fixedCount = method.FixedParameterCount;
 
-        // The params parameter type is an array (e.g., char[]). Extract the element type.
         var arrayType = paramsParam.TypeFullName;
-        // "global::System.Char[]" → "global::System.Char"
         var elementType = arrayType.EndsWith("[]")
             ? arrayType.Substring(0, arrayType.Length - 2)
             : arrayType;
@@ -497,10 +472,6 @@ internal static class TypeMetadataEmitter
         }
     }
 
-    #endregion
-
-    #region Shared helpers
-
     private static void EmitOverloadDispatch(SourceWriter w, MethodModel[] methods, string target)
     {
         foreach (var method in methods)
@@ -534,13 +505,12 @@ internal static class TypeMetadataEmitter
     }
 
     /// <summary>
-    /// Emits dispatch that handles delegate parameters by trying inline conversion
-    /// via LambdaDelegateConverter. The dispatch knows the exact delegate type needed,
-    /// so it can convert LambdaValue/MethodRef args without external type inference.
+    /// Emits dispatch that converts delegate parameters via LambdaDelegateConverter.
+    /// The dispatch knows the exact delegate type needed, so it can convert
+    /// LambdaValue/MethodRef args without external type inference.
     /// </summary>
     private static void EmitLambdaAwareDispatch(SourceWriter w, MethodModel method, string target)
     {
-        // Build the non-delegate precondition (all non-delegate params must type-check)
         var nonDelegatePreconditions = new List<string>();
         for (var i = 0; i < method.Parameters.Length; i++)
         {
@@ -554,7 +524,6 @@ internal static class TypeMetadataEmitter
 
         using (w.Block($"if ({precondition})"))
         {
-            // Resolve each delegate parameter: direct cast or inline conversion
             var delegateVars = new string[method.Parameters.Length];
             for (var i = 0; i < method.Parameters.Length; i++)
             {
@@ -569,7 +538,6 @@ internal static class TypeMetadataEmitter
                     $"global::Alder.Aot.GeneratedCodeHelpers.TryConvertDelegate(args[{i}]!, typeof({typeName})) as {typeName};");
             }
 
-            // Build null-check condition for all delegate vars
             var delegateChecks = new List<string>();
             for (var i = 0; i < method.Parameters.Length; i++)
             {
@@ -577,7 +545,6 @@ internal static class TypeMetadataEmitter
                     delegateChecks.Add($"{delegateVars[i]} != null");
             }
 
-            // Build call args: non-delegate uses cast, delegate uses the resolved var
             var callArgs = new List<string>();
             for (var i = 0; i < method.Parameters.Length; i++)
             {
@@ -612,6 +579,4 @@ internal static class TypeMetadataEmitter
     {
         return string.Join(" && ", parameters.Select((p, i) => $"args[{i}] is {p.TypeFullName}"));
     }
-
-    #endregion
 }

@@ -1,74 +1,73 @@
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Configs;
-using DynamicExpresso;
-using Flee.PublicTypes;
 using Microsoft.CodeAnalysis.Scripting;
 
 namespace Alder.Benchmarks;
 
-[Config(typeof(BenchmarkSuiteConfig))]
+/// <summary>
+/// Alder-only language coverage benchmark. These scenarios are not comparable
+/// to simpler expression engines, so the comparison set is limited to Native C#
+/// and Roslyn scripting.
+/// </summary>
+[Config(typeof(SteadyStateConfig))]
 [GroupBenchmarksBy(BenchmarkLogicalGroupRule.ByCategory)]
 [CategoriesColumn]
 public class AdvancedLanguageBenchmarks : BenchmarkBase
 {
-    private readonly BenchmarkGlobalData _globals = BenchmarkGlobalData.CreateDefault();
+    private readonly BenchmarkData _data = BenchmarkData.CreateStandard();
     private ScriptRunner<object> _roslynRunner = null!;
-    private AlderExpression _interpretedExpression = null!;
-    private AlderExpression _compiledExpression = null!;
-    private AlderExpression _compiledFecExpression = null!;
-    private Lambda _dynamicExpressoExpression = null!;
-    private IDynamicExpression _fleeExpression = null!;
+    private AlderExpression _interpExpr = null!;
+    private AlderExpression _compExpr = null!;
+    private AlderExpression _fecExpr = null!;
 
-    [ParamsSource(nameof(ScenarioSource))]
-    public AdvancedScenario Scenario { get; set; } = null!;
+    [ParamsSource(nameof(Scenarios))]
+    public AlderScenario Scenario { get; set; } = null!;
 
-    public IEnumerable<AdvancedScenario> ScenarioSource() =>
-        BenchmarkScenarioCatalog.GetAdvancedLanguageScenarios();
+    public IEnumerable<AlderScenario> Scenarios() => BenchmarkScenarios.GetAdvancedScenarios();
 
     [GlobalSetup]
     public void Setup()
     {
-        SetupEngines(_globals);
-        _interpretedExpression = InterpretedEngine.Parse(Scenario.AlderExpression);
-        _compiledExpression = CompiledEngine.Parse(Scenario.AlderExpression);
-        _compiledFecExpression = CompiledFecEngine.Parse(Scenario.AlderExpression);
+        SetupEngines(_data);
+        _interpExpr = InterpretedEngine.Parse(Scenario.AlderExpr);
+        _compExpr = CompiledEngine.Parse(Scenario.AlderExpr);
+        _fecExpr = CompiledFecEngine.Parse(Scenario.AlderExpr);
 
-        var script = CreateRoslynScript(Scenario.RoslynExpression);
+        var script = CreateRoslynScript(Scenario.RoslynExpr);
         script.Compile();
         _roslynRunner = script.CreateDelegate();
 
-        var dynamicExpressoInterpreter = CreateDynamicExpressoInterpreter(_globals);
-        _dynamicExpressoExpression = dynamicExpressoInterpreter.Parse(Scenario.DynamicExpressoExpression);
-
-        var fleeContext = CreateFleeContext(_globals);
-        _fleeExpression = fleeContext.CompileDynamic(Scenario.FleeExpression);
-
-        var parity = BenchmarkParityVerifier.VerifyAdvancedScenario(Scenario, _globals);
+        // Verify parity
+        var parity = BenchmarkParityVerifier.VerifyAlderScenario(Scenario, _data);
         if (!parity.IsSuccess)
             throw new InvalidOperationException(parity.Message);
     }
 
+    [GlobalCleanup]
+    public void Cleanup()
+    {
+        InterpretedEngine?.Dispose();
+        CompiledEngine?.Dispose();
+        CompiledFecEngine?.Dispose();
+    }
+
     [Benchmark(Baseline = true)]
-    [BenchmarkCategory("AdvancedLanguage")]
-    public object Roslyn_ScriptCompiledRunner() => _roslynRunner(_globals).GetAwaiter().GetResult()!;
+    [BenchmarkCategory("Capability/AdvancedLanguage")]
+    public object Native() => Scenario.Native(_data)!;
 
     [Benchmark]
-    [BenchmarkCategory("AdvancedLanguage")]
-    public object Alder_Interpreted() => InterpretedEngine.Evaluate(_interpretedExpression)!;
+    [BenchmarkCategory("Capability/AdvancedLanguage")]
+    public object Alder_Interpreted() => InterpretedEngine.Evaluate(_interpExpr)!;
 
     [Benchmark]
-    [BenchmarkCategory("AdvancedLanguage")]
-    public object Alder_Compiled() => CompiledEngine.Evaluate(_compiledExpression)!;
+    [BenchmarkCategory("Capability/AdvancedLanguage")]
+    public object Alder_Compiled() => CompiledEngine.Evaluate(_compExpr)!;
 
     [Benchmark]
-    [BenchmarkCategory("AdvancedLanguage")]
-    public object Alder_CompiledFec() => CompiledFecEngine.Evaluate(_compiledFecExpression)!;
+    [BenchmarkCategory("Capability/AdvancedLanguage")]
+    public object Alder_CompiledFec() => CompiledFecEngine.Evaluate(_fecExpr)!;
 
     [Benchmark]
-    [BenchmarkCategory("AdvancedLanguage")]
-    public object DynamicExpresso() => _dynamicExpressoExpression.Invoke()!;
-
-    [Benchmark]
-    [BenchmarkCategory("AdvancedLanguage")]
-    public object Flee() => _fleeExpression.Evaluate()!;
+    [BenchmarkCategory("Capability/AdvancedLanguage")]
+    public async Task<object> Roslyn() => (await _roslynRunner(_data))!;
 }

@@ -7,244 +7,173 @@ public readonly record struct ParityResult(bool IsSuccess, string Message);
 
 public static class BenchmarkParityVerifier
 {
-    public static ParityResult VerifyComparableScenario(ComparableScenario scenario, BenchmarkGlobalData globals)
+    public static ParityResult VerifyCompetitorScenario(CompetitorScenario scenario, BenchmarkData data)
     {
         try
         {
-            var expected = scenario.NativeEvaluator(globals);
-            var interpreted = EvaluateAlder(globals, scenario.AlderExpression, CompilationMode.Interpreted);
-            var compiled = EvaluateAlder(globals, scenario.AlderExpression, CompilationMode.Compiled);
-            var roslyn = EvaluateRoslyn(globals, scenario.RoslynExpression);
-            var ncalc = EvaluateNCalc(globals, scenario.NCalcExpression);
-            var dynamicExpresso = EvaluateDynamicExpresso(globals, scenario.DynamicExpressoExpression);
-            var flee = EvaluateFlee(globals, scenario.FleeExpression);
+            var expected = scenario.Native(data);
+            var interpreted = EvaluateAlder(data, scenario.AlderExpr, CompilationMode.Interpreted);
+            var compiled = EvaluateAlder(data, scenario.AlderExpr, CompilationMode.Compiled);
+            var compiledFec = EvaluateAlder(data, scenario.AlderExpr, CompilationMode.CompiledFec);
+            var roslyn = EvaluateRoslyn(data, scenario.RoslynExpr);
+            var ncalc = EvaluateNCalc(data, scenario.NCalcExpr);
+            var dynamicExpresso = EvaluateDynamicExpresso(data, scenario.DExpressoExpr);
+            var flee = EvaluateFlee(data, scenario.FleeExpr);
 
             if (!AreEquivalent(expected, interpreted))
-                return Failure(scenario, "Alder Interpreted", expected, interpreted);
+                return Failure(scenario.Name, "Alder Interpreted", expected, interpreted);
             if (!AreEquivalent(expected, compiled))
-                return Failure(scenario, "Alder Compiled", expected, compiled);
+                return Failure(scenario.Name, "Alder Compiled", expected, compiled);
+            if (!AreEquivalent(expected, compiledFec))
+                return Failure(scenario.Name, "Alder CompiledFec", expected, compiledFec);
             if (!AreEquivalent(expected, roslyn))
-                return Failure(scenario, "Roslyn Script", expected, roslyn);
+                return Failure(scenario.Name, "Roslyn", expected, roslyn);
             if (!AreEquivalent(expected, ncalc))
-                return Failure(scenario, "NCalc", expected, ncalc);
+                return Failure(scenario.Name, "NCalc", expected, ncalc);
             if (!AreEquivalent(expected, dynamicExpresso))
-                return Failure(scenario, "Dynamic Expresso", expected, dynamicExpresso);
+                return Failure(scenario.Name, "DynamicExpresso", expected, dynamicExpresso);
             if (!AreEquivalent(expected, flee))
-                return Failure(scenario, "Flee", expected, flee);
+                return Failure(scenario.Name, "Flee", expected, flee);
 
-            return new ParityResult(true, $"{scenario.Name} aligned across engines.");
+            return new ParityResult(true, $"{scenario.Name}: all engines aligned.");
         }
         catch (Exception ex)
         {
-            return new ParityResult(false, $"{scenario.Name} parity verification failed: {ex.GetType().Name} - {ex.Message}");
+            return new ParityResult(false, $"{scenario.Name}: {ex.GetType().Name} - {ex.Message}");
         }
     }
 
-    public static ParityResult VerifyAdvancedScenario(AdvancedScenario scenario, BenchmarkGlobalData globals)
+    public static ParityResult VerifyAlderScenario(AlderScenario scenario, BenchmarkData data)
     {
         try
         {
-            var interpreted = EvaluateAlder(globals, scenario.AlderExpression, CompilationMode.Interpreted);
-            var compiled = EvaluateAlder(globals, scenario.AlderExpression, CompilationMode.Compiled);
-            var roslyn = EvaluateRoslyn(globals, scenario.RoslynExpression);
-            var dynamicExpresso = EvaluateDynamicExpresso(globals, scenario.DynamicExpressoExpression);
-            var flee = EvaluateFlee(globals, scenario.FleeExpression);
-
-            if (!AreEquivalent(roslyn, interpreted))
-                return Failure(scenario, "Alder Interpreted", roslyn, interpreted);
-            if (!AreEquivalent(roslyn, compiled))
-                return Failure(scenario, "Alder Compiled", roslyn, compiled);
-            if (!AreEquivalent(roslyn, dynamicExpresso))
-                return Failure(scenario, "Dynamic Expresso", roslyn, dynamicExpresso);
-            if (!AreEquivalent(roslyn, flee))
-                return Failure(scenario, "Flee", roslyn, flee);
-
-            return new ParityResult(true, $"{scenario.Name} aligned between Alder and Roslyn.");
-        }
-        catch (Exception ex)
-        {
-            return new ParityResult(false, $"{scenario.Name} advanced parity failed: {ex.GetType().Name} - {ex.Message}");
-        }
-    }
-
-    public static ParityResult VerifyExtendedParityScenario(ExtendedParityScenario scenario, BenchmarkGlobalData globals)
-    {
-        try
-        {
-            using var extInterpreted = BenchmarkBase.CreateEngine(
-                CompilationMode.Interpreted,
-                globals,
-                LanguageMode.Extended,
-                ConfigureExtendedParityEngine);
-            using var extCompiled = BenchmarkBase.CreateEngine(
-                CompilationMode.Compiled,
-                globals,
-                LanguageMode.Extended,
-                ConfigureExtendedParityEngine);
-            using var stdInterpreted = BenchmarkBase.CreateEngine(
-                CompilationMode.Interpreted,
-                globals,
-                LanguageMode.Standard,
-                ConfigureExtendedParityEngine);
-            using var stdCompiled = BenchmarkBase.CreateEngine(
-                CompilationMode.Compiled,
-                globals,
-                LanguageMode.Standard,
-                ConfigureExtendedParityEngine);
-
-            var extI = extInterpreted.Evaluate(scenario.ExtendedExpression);
-            var extC = extCompiled.Evaluate(scenario.ExtendedExpression);
-            var stdI = stdInterpreted.Evaluate(scenario.StandardExpression);
-            var stdC = stdCompiled.Evaluate(scenario.StandardExpression);
-
-            if (!AreEquivalent(stdI, extI))
-                return Failure(scenario, "Extended Interpreted", stdI, extI);
-            if (!AreEquivalent(stdC, extC))
-                return Failure(scenario, "Extended Compiled", stdC, extC);
-
-            return new ParityResult(true, $"{scenario.Name} extended syntax aligns with normal syntax.");
-        }
-        catch (Exception ex)
-        {
-            return new ParityResult(false, $"{scenario.Name} extended parity failed: {ex.GetType().Name} - {ex.Message}");
-        }
-    }
-
-    public static ParityResult VerifyLinqScenario(LinqScenario scenario, BenchmarkGlobalData globals)
-    {
-        try
-        {
-            var expected = scenario.NativeEvaluator(globals);
-            var interpreted = EvaluateAlder(globals, scenario.AlderExpression, CompilationMode.Interpreted);
-            var compiled = EvaluateAlder(globals, scenario.AlderExpression, CompilationMode.Compiled);
-            var roslyn = EvaluateRoslyn(globals, scenario.RoslynExpression);
+            var expected = scenario.Native(data);
+            var interpreted = EvaluateAlder(data, scenario.AlderExpr, CompilationMode.Interpreted);
+            var compiled = EvaluateAlder(data, scenario.AlderExpr, CompilationMode.Compiled);
+            var compiledFec = EvaluateAlder(data, scenario.AlderExpr, CompilationMode.CompiledFec);
+            var roslyn = EvaluateRoslyn(data, scenario.RoslynExpr);
 
             if (!AreEquivalent(expected, interpreted))
-                return Failure(scenario, "Alder Interpreted", expected, interpreted);
+                return Failure(scenario.Name, "Alder Interpreted", expected, interpreted);
             if (!AreEquivalent(expected, compiled))
-                return Failure(scenario, "Alder Compiled", expected, compiled);
+                return Failure(scenario.Name, "Alder Compiled", expected, compiled);
+            if (!AreEquivalent(expected, compiledFec))
+                return Failure(scenario.Name, "Alder CompiledFec", expected, compiledFec);
             if (!AreEquivalent(expected, roslyn))
-                return Failure(scenario, "Roslyn Script", expected, roslyn);
+                return Failure(scenario.Name, "Roslyn", expected, roslyn);
 
-            return new ParityResult(true, $"{scenario.Name} aligned across engines.");
+            return new ParityResult(true, $"{scenario.Name}: Alder and Roslyn aligned.");
         }
         catch (Exception ex)
         {
-            return new ParityResult(false, $"{scenario.Name} LINQ parity failed: {ex.GetType().Name} - {ex.Message}");
+            return new ParityResult(false, $"{scenario.Name}: {ex.GetType().Name} - {ex.Message}");
         }
     }
 
-
-    public static ParityResult VerifyDynamicLinqScenario(DynamicLinqScenario scenario, BenchmarkGlobalData globals)
+    public static ParityResult VerifyExtendedScenario(ExtendedScenario scenario, BenchmarkData data)
     {
         try
         {
-            var expected = scenario.NativeEvaluator(globals);
-            var alder = scenario.AlderEvaluator(globals);
-            var dynLinq = scenario.DynamicLinqCoreEvaluator(globals);
+            foreach (var mode in new[] { CompilationMode.Interpreted, CompilationMode.Compiled, CompilationMode.CompiledFec })
+            {
+                using var extEngine = BenchmarkBase.CreateEngine(mode, data, LanguageMode.Extended, ConfigureExtended);
+                using var stdEngine = BenchmarkBase.CreateEngine(mode, data, LanguageMode.Standard, ConfigureExtended);
+
+                var extResult = extEngine.Evaluate(scenario.ExtendedExpr);
+                var stdResult = stdEngine.Evaluate(scenario.StandardExpr);
+
+                if (!AreEquivalent(stdResult, extResult))
+                    return Failure(scenario.Name, $"Extended vs Standard ({mode})", stdResult, extResult);
+            }
+
+            return new ParityResult(true, $"{scenario.Name}: extended syntax matches standard.");
+        }
+        catch (Exception ex)
+        {
+            return new ParityResult(false, $"{scenario.Name}: {ex.GetType().Name} - {ex.Message}");
+        }
+    }
+
+    public static ParityResult VerifyDynamicLinqScenario(DynamicLinqScenario scenario, BenchmarkData data)
+    {
+        try
+        {
+            var expected = scenario.Native(data);
+            var alder = scenario.Alder(data);
+            var dynLinq = scenario.DynLinqCore(data);
 
             if (!AreEquivalent(expected, alder))
-                return Failure(scenario, "Alder Dynamic LINQ", expected, alder);
+                return Failure(scenario.Name, "Alder DynamicLINQ", expected, alder);
             if (!AreEquivalent(expected, dynLinq))
-                return Failure(scenario, "System.Linq.Dynamic.Core", expected, dynLinq);
+                return Failure(scenario.Name, "System.Linq.Dynamic.Core", expected, dynLinq);
 
-            return new ParityResult(true, $"{scenario.Name} aligned across engines.");
+            return new ParityResult(true, $"{scenario.Name}: Dynamic LINQ aligned.");
         }
         catch (Exception ex)
         {
-            return new ParityResult(false, $"{scenario.Name} Dynamic LINQ parity failed: {ex.GetType().Name} - {ex.Message}");
+            return new ParityResult(false, $"{scenario.Name}: {ex.GetType().Name} - {ex.Message}");
         }
     }
 
-    public static ParityResult VerifyCompilationScenario(CompilationScenario scenario, BenchmarkGlobalData globals)
+    internal static void ApplyNCalcParameters(Expression expression, BenchmarkData data)
     {
-        try
-        {
-            using var interpretedEngine = BenchmarkBase.CreateEngine(CompilationMode.Interpreted, globals);
-            using var compiledEngine = BenchmarkBase.CreateEngine(CompilationMode.Compiled, globals);
-
-            interpretedEngine.Parse(scenario.AlderExpression);
-            compiledEngine.Parse(scenario.AlderExpression);
-
-            var script = BenchmarkBase.CreateRoslynScript(scenario.RoslynExpression);
-            script.Compile();
-
-            _ = new Expression(scenario.NCalcExpression);
-
-            var interpreter = BenchmarkBase.CreateDynamicExpressoInterpreter(globals);
-            interpreter.Parse(scenario.DynamicExpressoExpression);
-
-            var fleeContext = BenchmarkBase.CreateFleeContext(globals);
-            _ = fleeContext.CompileDynamic(scenario.FleeExpression);
-
-            return new ParityResult(true, $"{scenario.Name} compiles/parses across engines.");
-        }
-        catch (Exception ex)
-        {
-            return new ParityResult(false, $"{scenario.Name} compilation parity failed: {ex.GetType().Name} - {ex.Message}");
-        }
+        expression.Parameters["x"] = data.X;
+        expression.Parameters["y"] = data.Y;
+        expression.Parameters["z"] = data.Z;
+        expression.Parameters["value"] = data.Value;
+        expression.Parameters["text"] = data.Text;
     }
 
-    private static ParityResult Failure(object scenario, string engineName, object? expected, object? actual)
-        => new(false, $"{scenario}: {engineName} mismatch. expected={Format(expected)}, actual={Format(actual)}");
-
-
-    private static void ConfigureExtendedParityEngine(AlderOptions opts)
+    private static void ConfigureExtended(AlderOptions opts)
     {
         opts.Functions.Register("inc", args => Convert.ToInt32(args[0]) + 1);
     }
 
-    private static object? EvaluateAlder(BenchmarkGlobalData globals, string expression, CompilationMode mode)
+    private static object? EvaluateAlder(BenchmarkData data, string expression, CompilationMode mode)
     {
-        using var engine = BenchmarkBase.CreateEngine(mode, globals);
+        using var engine = BenchmarkBase.CreateEngine(mode, data);
         return engine.Evaluate(expression);
     }
 
-    private static object? EvaluateRoslyn(BenchmarkGlobalData globals, string expression)
+    private static object? EvaluateRoslyn(BenchmarkData data, string expression)
     {
-        return BenchmarkBase.EvaluateRoslynAsync(expression, globals).GetAwaiter().GetResult();
+        return BenchmarkBase.EvaluateRoslynAsync(expression, data).GetAwaiter().GetResult();
     }
 
-    private static object? EvaluateNCalc(BenchmarkGlobalData globals, string expression)
+    private static object? EvaluateNCalc(BenchmarkData data, string expression)
     {
         var ncalc = new Expression(expression);
-        ApplyNCalcParameters(ncalc, globals);
+        ApplyNCalcParameters(ncalc, data);
         return ncalc.Evaluate();
     }
 
-    private static object? EvaluateDynamicExpresso(BenchmarkGlobalData globals, string expression)
+    private static object? EvaluateDynamicExpresso(BenchmarkData data, string expression)
     {
-        var interpreter = BenchmarkBase.CreateDynamicExpressoInterpreter(globals);
+        var interpreter = BenchmarkBase.CreateDynamicExpressoInterpreter(data);
         var lambda = interpreter.Parse(expression);
         return lambda.Invoke();
     }
 
-    private static object? EvaluateFlee(BenchmarkGlobalData globals, string expression)
+    private static object? EvaluateFlee(BenchmarkData data, string expression)
     {
-        var context = BenchmarkBase.CreateFleeContext(globals);
+        var context = BenchmarkBase.CreateFleeContext(data);
         IDynamicExpression compiled = context.CompileDynamic(expression);
         return compiled.Evaluate();
     }
 
-    internal static void ApplyNCalcParameters(Expression expression, BenchmarkGlobalData globals)
-    {
-        expression.Parameters["x"] = globals.X;
-        expression.Parameters["y"] = globals.Y;
-        expression.Parameters["z"] = globals.Z;
-        expression.Parameters["value"] = globals.Value;
-        expression.Parameters["text"] = globals.Text;
-    }
+    private static ParityResult Failure(string scenario, string engineName, object? expected, object? actual)
+        => new(false, $"{scenario}: {engineName} mismatch. expected={Format(expected)}, actual={Format(actual)}");
 
-    private static bool AreEquivalent(object? expected, object? actual)
+    internal static bool AreEquivalent(object? expected, object? actual)
     {
         if (expected is null || actual is null)
             return Equals(expected, actual);
 
-        if (expected is string expectedString && actual is string actualString)
-            return string.Equals(expectedString, actualString, StringComparison.Ordinal);
+        if (expected is string es && actual is string sa)
+            return string.Equals(es, sa, StringComparison.Ordinal);
 
-        if (expected is bool expectedBool && actual is bool actualBool)
-            return expectedBool == actualBool;
+        if (expected is bool eb && actual is bool ba)
+            return eb == ba;
 
         if (IsNumeric(expected) && IsNumeric(actual))
         {

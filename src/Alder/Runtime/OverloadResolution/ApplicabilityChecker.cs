@@ -205,7 +205,7 @@ internal static class ApplicabilityChecker
                     return false;
                 if (paramType.ContainsGenericParameters)
                 {
-                    // Open generic delegate — check arity only, type inference will close it later
+                    // Open generic delegate: check arity only, type inference closes it later
                     var invoke = paramType.GetMethod(nameof(Action.Invoke));
                     if (invoke == null || invoke.GetParameters().Length != arg.LambdaArity)
                         return false;

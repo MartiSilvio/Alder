@@ -27,7 +27,7 @@ internal static class DelegateFactoryEmitter
         w.AppendLine();
 
         var invoke = "global::Alder.Aot.GeneratedCodeHelpers.InvokeLambda";
-        var lv = "object"; // Lambda is passed as object — the facade handles the cast
+        var lv = "object"; // Lambda is passed as object; the facade handles the cast
 
         using (w.Block("file static class AotDelegateFactories"))
         {
@@ -93,7 +93,7 @@ internal static class DelegateFactoryEmitter
                 result.Add(new DelegateTypeInfo(compType, new[] { vt, vt }, "int", false));
         }
 
-        // Func<T> (zero-arg) for value types — needed for Func<int> f = () => 42 and similar
+        // Func<T> (zero-arg) for value types, needed for Func<int> f = () => 42 and similar
         // variable assignments that don't appear as method parameters.
         // Reference-type Func<T> (Func<string>, Func<Customer>) use MakeGenericMethod at runtime.
         foreach (var vt in valueTypeNames)
@@ -112,9 +112,10 @@ internal static class DelegateFactoryEmitter
         var argArray = string.Join(", ", dt.ParamTypes.Select((_, i) => $"arg{i}"));
         var call = $"{invoke}(l, new object?[] {{ {argArray} }})";
 
+        var castResult = "global::Alder.Aot.GeneratedCodeHelpers.CastResult";
         var body = dt.IsAction
             ? $"{{ {call}; }}"
-            : $"(({dt.ReturnType}){call}!)";
+            : $"{castResult}<{dt.ReturnType}>({call})";
 
         w.AppendLine($"d[typeof({dt.FullTypeName})] = l => new {dt.FullTypeName}(({paramList}) => {body});");
     }

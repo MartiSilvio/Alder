@@ -9,9 +9,8 @@ using static Alder.Compiled.Compilation.BoundRuntimeMethodCache;
 namespace Alder.Compiled.Compilation;
 
 /// <summary>
-/// Emits expression trees from core bound nodes.
-/// This provides a shared semantic entrypoint for compiled mode while unsupported nodes
-/// can still fall back to the existing AST compiler pipeline.
+/// Emits expression trees from core bound nodes. Unsupported nodes
+/// fall back to the existing AST compiler pipeline.
 /// </summary>
 internal sealed partial class BoundExpressionEmitter
 {

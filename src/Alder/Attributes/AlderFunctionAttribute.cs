@@ -1,27 +1,21 @@
 namespace Alder.Attributes;
 
 /// <summary>
-/// Marks a method as exposed to Alder expressions.
-/// When used on a module with ExplicitOnly=true, only attributed methods are accessible.
-/// When used on a class scanned via RegisterFromAssembly, registers as a global function.
+/// Marks a method as callable from Alder expressions.
+/// On a module with <see cref="AlderModuleAttribute.ExplicitOnly"/> set, only attributed methods are accessible.
+/// On a class scanned via <c>RegisterFromAssembly</c>, registers as a global function.
 /// </summary>
 [AttributeUsage(AttributeTargets.Method)]
 public class AlderFunctionAttribute : Attribute
 {
     /// <summary>
-    /// The name used to call this function in expressions.
-    /// If null, the method name is used.
+    /// The expression-visible name. Falls back to the method name when <c>null</c>.
     /// </summary>
     public string? Name { get; }
 
-    /// <summary>
-    /// Marks the method as exposed, using the method name.
-    /// </summary>
     public AlderFunctionAttribute() { }
 
-    /// <summary>
-    /// Marks the method as exposed with a custom name.
-    /// </summary>
+    /// <param name="name">The name used to call this function in expressions.</param>
     public AlderFunctionAttribute(string name)
     {
         Name = name;

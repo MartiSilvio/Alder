@@ -51,7 +51,7 @@ internal static class TaskUnwrapper
     }
 
     // Walk the type hierarchy to find Task<T> and cache per runtime type.
-    // Uses PropertyInfo.GetValue for the Result property — AOT-safe, no MakeGenericMethod.
+    // Uses PropertyInfo.GetValue for the Result property (AOT-safe, no MakeGenericMethod).
     private static Func<object, object?>? GetTaskResultAccessor(Type runtimeType)
     {
         return TaskResultAccessorCache.GetOrAdd(runtimeType, static type =>

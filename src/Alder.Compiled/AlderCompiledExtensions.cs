@@ -28,7 +28,7 @@ public static class AlderCompiledExtensions
         if (!RuntimeFeature.IsDynamicCodeSupported)
             throw new PlatformNotSupportedException(
                 "Expression compilation requires a JIT compiler and is not available in AOT environments. " +
-                "Remove the UseCompiler() call — the interpreter with AOT metadata provides the best performance on this platform.");
+                "Remove the UseCompiler() call. The interpreter with AOT metadata provides the best performance on this platform.");
 #endif
     }
 }

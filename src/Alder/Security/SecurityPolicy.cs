@@ -69,8 +69,6 @@ public sealed class SecurityPolicy
         return false;
     }
 
-    #region Presets
-
     public static SecurityPolicy Trusted => _trusted.Value;
     public static SecurityPolicy Safe => _safe.Value;
     public static SecurityPolicy Strict => _strict.Value;
@@ -103,10 +101,6 @@ public sealed class SecurityPolicy
         AllowStaticPropertyRead = true,
         AllowStaticFieldRead = true,
     }.Build());
-
-    #endregion
-
-    #region Default deny lists
 
     private static readonly HashSet<Type> HardDenied = new()
     {
@@ -193,8 +187,6 @@ public sealed class SecurityPolicy
         "System.DirectoryServices",
         "System.Resources",
     };
-
-    #endregion
 
     public sealed class Builder
     {

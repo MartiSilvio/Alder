@@ -672,7 +672,7 @@ internal sealed class Lexer
                 }
                 else if (braceDepth > 0)
                 {
-                    // Inside an interpolation hole — pass through as-is
+                    // Inside an interpolation hole, pass through as-is
                     for (var i = 0; i < braceCount; i++) { braceDepth++; sb.Append('{'); }
                 }
                 else
@@ -730,7 +730,7 @@ internal sealed class Lexer
         // - The trailing newline before closing """ is removed
 
         // Content includes everything after the opening newline up to (but not including) closing quotes.
-        // The last line of content is the line before the closing quotes — its trailing newline was included.
+        // The last line of content is the line before the closing quotes. Its trailing newline was included.
         // Remove that trailing newline.
         if (content.EndsWith("\r\n"))
             content = content[..^2];

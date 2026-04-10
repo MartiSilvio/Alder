@@ -231,8 +231,6 @@ internal static class AssignmentRuntime
         return value;
     }
 
-    #region EvaluationContext overloads (used by interpreted evaluators)
-
     public static object? ApplyCompoundAssign(string name, TokenType op, object? rightValue, EvaluationContext ctx)
         => ApplyCompoundAssign(name, op, rightValue, ctx.Context, ctx.IsChecked);
 
@@ -262,8 +260,6 @@ internal static class AssignmentRuntime
 
     public static object? ApplyIndexIncrement(object? target, object? index, bool isIncrement, bool isPrefix, EvaluationContext ctx)
         => ApplyIndexIncrement(target, index, isIncrement, isPrefix, ctx.Context, ctx.IsChecked);
-
-    #endregion
 
     private static object? ValidateCompoundAssignmentLocal(object? result, object? rightValue, Type variableType)
         => ValidateCompoundAssignmentCore(result, rightValue, variableType);
