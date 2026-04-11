@@ -164,6 +164,25 @@ internal static class NumericDispatch
         [typeof(sbyte)] = v => ~(int)(sbyte)v,
     });
 
+    private delegate object ShiftOp(object value, int shiftAmount);
+
+    // ECMA-334 §12.11: predefined shift operators are defined for int, uint, long, ulong.
+    // Small integral types promote to int through overload resolution.
+    private static readonly FixedDictionary<Type, ShiftOp> LeftShiftOps = BuildShiftOps(
+        (int v, int s) => v << s, (long v, int s) => v << s,
+        (uint v, int s) => v << s, (ulong v, int s) => v << s);
+
+    private static readonly FixedDictionary<Type, ShiftOp> RightShiftOps = BuildShiftOps(
+        (int v, int s) => v >> s, (long v, int s) => v >> s,
+        (uint v, int s) => v >> s, (ulong v, int s) => v >> s);
+
+    // C# 11 §12.11: unsigned right shift treats the left operand as unsigned.
+    private static readonly FixedDictionary<Type, ShiftOp> UnsignedRightShiftOps = BuildShiftOps(
+        (int v, int s) => (int)((uint)v >> (s & 0x1F)),
+        (long v, int s) => (long)((ulong)v >> (s & 0x3F)),
+        (uint v, int s) => v >> (s & 0x1F),
+        (ulong v, int s) => v >> (s & 0x3F));
+
     public static object? Add(object left, object right, bool isChecked = false)
         => ExecuteBinaryOp(left, right, isChecked ? CheckedAddOps : AddOps, "+");
 
@@ -180,13 +199,13 @@ internal static class NumericDispatch
         => ExecuteBinaryOp(left, right, ModuloOps, "%");
 
     public static object? BitwiseAnd(object left, object right)
-        => ExecuteIntegerBinaryOp(left, right, BitwiseAndOps, "&");
+        => ExecuteBinaryOp(left, right, BitwiseAndOps, "&");
 
     public static object? BitwiseOr(object left, object right)
-        => ExecuteIntegerBinaryOp(left, right, BitwiseOrOps, "|");
+        => ExecuteBinaryOp(left, right, BitwiseOrOps, "|");
 
     public static object? BitwiseXor(object left, object right)
-        => ExecuteIntegerBinaryOp(left, right, BitwiseXorOps, "^");
+        => ExecuteBinaryOp(left, right, BitwiseXorOps, "^");
 
     public static object? Negate(object value, bool isChecked = false)
     {
@@ -312,66 +331,13 @@ internal static class NumericDispatch
     }
 
     public static object? LeftShift(object left, object right)
-    {
-        var shiftAmount = Convert.ToInt32(right);
-
-        // ECMA-334 §12.11: Unary numeric promotion is applied to the left operand.
-        if (left is char c) left = (int)c;
-
-        return left switch
-        {
-            int i => i << shiftAmount,
-            long l => l << shiftAmount,
-            uint u => u << shiftAmount,
-            ulong ul => ul << shiftAmount,
-            short s => s << shiftAmount,
-            ushort us => us << shiftAmount,
-            byte b => b << shiftAmount,
-            sbyte sb => sb << shiftAmount,
-            _ => throw new AlderException(DiagnosticDescriptors.BadBinaryOps, TokenLexemes.GetCanonical(TokenType.LessLess), left.GetType().Name, right.GetType().Name)
-        };
-    }
+        => ExecuteShiftOp(left, right, LeftShiftOps, TokenType.LessLess);
 
     public static object? RightShift(object left, object right)
-    {
-        var shiftAmount = Convert.ToInt32(right);
-
-        // ECMA-334 §12.11: Unary numeric promotion is applied to the left operand.
-        if (left is char c) left = (int)c;
-
-        return left switch
-        {
-            int i => i >> shiftAmount,
-            long l => l >> shiftAmount,
-            uint u => u >> shiftAmount,
-            ulong ul => ul >> shiftAmount,
-            short s => s >> shiftAmount,
-            ushort us => us >> shiftAmount,
-            byte b => b >> shiftAmount,
-            sbyte sb => sb >> shiftAmount,
-            _ => throw new AlderException(DiagnosticDescriptors.BadBinaryOps, TokenLexemes.GetCanonical(TokenType.GreaterGreater), left.GetType().Name, right.GetType().Name)
-        };
-    }
+        => ExecuteShiftOp(left, right, RightShiftOps, TokenType.GreaterGreater);
 
     public static object? UnsignedRightShift(object left, object right)
-    {
-        var shiftAmount = Convert.ToInt32(right);
-
-        if (left is char c) left = (int)c;
-
-        return left switch
-        {
-            int i => (int)((uint)i >> (shiftAmount & 0x1F)),
-            long l => (long)((ulong)l >> (shiftAmount & 0x3F)),
-            uint u => u >> (shiftAmount & 0x1F),
-            ulong ul => ul >> (shiftAmount & 0x3F),
-            short s => (int)((uint)(int)s >> (shiftAmount & 0x1F)),
-            ushort us => us >> (shiftAmount & 0x1F),
-            byte b => b >> (shiftAmount & 0x1F),
-            sbyte sb => (int)((uint)(int)sb >> (shiftAmount & 0x1F)),
-            _ => throw new AlderException(DiagnosticDescriptors.BadBinaryOps, TokenLexemes.GetCanonical(TokenType.GreaterGreaterGreater), left.GetType().Name, "int")
-        };
-    }
+        => ExecuteShiftOp(left, right, UnsignedRightShiftOps, TokenType.GreaterGreaterGreater);
 
     // ECMA-334 §10.2.11: Constant expression promotion
 
@@ -385,57 +351,31 @@ internal static class NumericDispatch
     public static (object Left, object Right, Type ResultType)? TryConstantPromotion(
         object left, bool leftIsConstant, object right, bool rightIsConstant)
     {
-        var leftType = left.GetType();
-        var rightType = right.GetType();
-
-        // Case 1: uint op constant-int (value >= 0) -> both uint
-        if (leftType == typeof(uint) && rightIsConstant && rightType == typeof(int))
+        // Try right constant promoting to left's type, then left constant promoting to right's type.
+        if (rightIsConstant)
         {
-            var intVal = (int)right;
-            if (intVal >= 0)
-                return (left, (uint)intVal, typeof(uint));
+            var result = TryPromoteConstant(right, left.GetType());
+            if (result != null) return (left, result, left.GetType());
         }
-
-        // Case 2: constant-int (value >= 0) op uint -> both uint
-        if (rightType == typeof(uint) && leftIsConstant && leftType == typeof(int))
+        if (leftIsConstant)
         {
-            var intVal = (int)left;
-            if (intVal >= 0)
-                return ((uint)intVal, right, typeof(uint));
+            var result = TryPromoteConstant(left, right.GetType());
+            if (result != null) return (result, right, right.GetType());
         }
+        return null;
+    }
 
-        // Case 3: ulong op constant-int (value >= 0) -> both ulong
-        if (leftType == typeof(ulong) && rightIsConstant && rightType == typeof(int))
-        {
-            var intVal = (int)right;
-            if (intVal >= 0)
-                return (left, (ulong)intVal, typeof(ulong));
-        }
-
-        // Case 4: constant-int (value >= 0) op ulong -> both ulong
-        if (rightType == typeof(ulong) && leftIsConstant && leftType == typeof(int))
-        {
-            var intVal = (int)left;
-            if (intVal >= 0)
-                return ((ulong)intVal, right, typeof(ulong));
-        }
-
-        // Case 5: ulong op constant-long (value >= 0) -> both ulong
-        if (leftType == typeof(ulong) && rightIsConstant && rightType == typeof(long))
-        {
-            var longVal = (long)right;
-            if (longVal >= 0)
-                return (left, (ulong)longVal, typeof(ulong));
-        }
-
-        // Case 6: constant-long (value >= 0) op ulong -> both ulong
-        if (rightType == typeof(ulong) && leftIsConstant && leftType == typeof(long))
-        {
-            var longVal = (long)left;
-            if (longVal >= 0)
-                return ((ulong)longVal, right, typeof(ulong));
-        }
-
+    /// <summary>
+    /// §10.2.11: non-negative int → uint, non-negative int/long → ulong.
+    /// </summary>
+    private static object? TryPromoteConstant(object constant, Type targetType)
+    {
+        if (targetType == typeof(uint) && constant is int intToUint && intToUint >= 0)
+            return (uint)intToUint;
+        if (targetType == typeof(ulong) && constant is int intToUlong && intToUlong >= 0)
+            return (ulong)intToUlong;
+        if (targetType == typeof(ulong) && constant is long longToUlong && longToUlong >= 0)
+            return (ulong)longToUlong;
         return null;
     }
 
@@ -652,6 +592,19 @@ internal static class NumericDispatch
         return PromoteToType(value, promotedType);
     }
 
+    private static object ExecuteShiftOp(
+        object left, object right,
+        FixedDictionary<Type, ShiftOp> ops,
+        TokenType opToken)
+    {
+        var shiftAmount = Convert.ToInt32(right);
+        if (left is char c) left = (int)c;
+        var type = left.GetType();
+        if (ops.TryGetValue(type, out var op))
+            return op(left, shiftAmount);
+        throw new AlderException(DiagnosticDescriptors.BadBinaryOps, TokenLexemes.GetCanonical(opToken), type.Name, right.GetType().Name);
+    }
+
     private static object ExecutePromotedBinaryOp(
         object left, object right,
         Type promotedType,
@@ -674,25 +627,6 @@ internal static class NumericDispatch
         var rightType = right.GetType();
 
         // Fast path: same-type operands skip PromoteOperands (avoids 2 unbox+rebox cycles).
-        if (leftType == rightType && ops.TryGetValue((leftType, leftType), out var fastOp))
-            return fastOp(left, right);
-
-        var (promotedLeft, promotedRight, resultType) = PromoteOperands(left, right);
-
-        if (ops.TryGetValue((resultType, resultType), out var op))
-            return op(promotedLeft, promotedRight);
-
-        throw new AlderException(DiagnosticDescriptors.BadBinaryOps, opName, leftType.Name, rightType.Name);
-    }
-
-    private static object ExecuteIntegerBinaryOp(
-        object left, object right,
-        FixedDictionary<(Type, Type), BinaryOp> ops,
-        string opName)
-    {
-        var leftType = left.GetType();
-        var rightType = right.GetType();
-
         if (leftType == rightType && ops.TryGetValue((leftType, leftType), out var fastOp))
             return fastOp(left, right);
 
@@ -751,6 +685,27 @@ internal static class NumericDispatch
             [(typeof(decimal), typeof(decimal))] = (l, r) => ((decimal)l).CompareTo((decimal)r),
             [(typeof(uint), typeof(uint))] = (l, r) => ((uint)l).CompareTo((uint)r),
             [(typeof(ulong), typeof(ulong))] = (l, r) => ((ulong)l).CompareTo((ulong)r),
+        });
+    }
+
+    // §12.11: predefined overloads are (int,int), (uint,int), (long,int), (ulong,int).
+    // Small types (byte, sbyte, short, ushort) promote to int via overload resolution.
+    private static FixedDictionary<Type, ShiftOp> BuildShiftOps(
+        Func<int, int, object> intOp,
+        Func<long, int, object> longOp,
+        Func<uint, int, object> uintOp,
+        Func<ulong, int, object> ulongOp)
+    {
+        return FixedDictionary<Type, ShiftOp>.Create(new Dictionary<Type, ShiftOp>
+        {
+            [typeof(int)] = (v, s) => intOp((int)v, s),
+            [typeof(long)] = (v, s) => longOp((long)v, s),
+            [typeof(uint)] = (v, s) => uintOp((uint)v, s),
+            [typeof(ulong)] = (v, s) => ulongOp((ulong)v, s),
+            [typeof(short)] = (v, s) => intOp((short)v, s),
+            [typeof(ushort)] = (v, s) => intOp((ushort)v, s),
+            [typeof(byte)] = (v, s) => intOp((byte)v, s),
+            [typeof(sbyte)] = (v, s) => intOp((sbyte)v, s),
         });
     }
 }
