@@ -1,11 +1,8 @@
 namespace Alder.Binding.BoundNodes;
 
-internal sealed record BoundAssignExpr(
+[BoundNode(BoundNodeKind.AssignmentOperator, "Assign")]
+internal sealed partial record BoundAssignExpr(
     string Name,
     BoundExpr Value,
     BoundType StaticType,
-    int? LocalId = null) : BoundExpr(StaticType)
-{
-    internal override BoundNodeKind Kind => BoundNodeKind.AssignmentOperator;
-    internal override void EnumerateChildren(Action<BoundExpr> visit) { visit(Value); }
-}
+    int? LocalId = null) : BoundExpr(StaticType);

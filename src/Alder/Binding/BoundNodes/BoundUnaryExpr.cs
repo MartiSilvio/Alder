@@ -2,12 +2,11 @@ using Alder.Parsing;
 
 namespace Alder.Binding.BoundNodes;
 
-internal sealed record BoundUnaryExpr(
+[BoundNode(BoundNodeKind.UnaryOperator, "Unary")]
+internal sealed partial record BoundUnaryExpr(
     TokenType Operator,
     BoundExpr Operand,
     BoundType StaticType) : BoundExpr(StaticType)
 {
     internal Type? PromotedType { get; init; }
-    internal override BoundNodeKind Kind => BoundNodeKind.UnaryOperator;
-    internal override void EnumerateChildren(Action<BoundExpr> visit) { visit(Operand); }
 }

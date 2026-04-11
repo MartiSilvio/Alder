@@ -2,13 +2,10 @@ using Alder.Parsing;
 
 namespace Alder.Binding.BoundNodes;
 
-internal sealed record BoundCompoundAssignExpr(
+[BoundNode(BoundNodeKind.CompoundAssignmentOperator, "CompoundAssign")]
+internal sealed partial record BoundCompoundAssignExpr(
     string Name,
     TokenType Operator,
     BoundExpr Value,
     BoundType StaticType,
-    int? LocalId = null) : BoundExpr(StaticType)
-{
-    internal override BoundNodeKind Kind => BoundNodeKind.CompoundAssignmentOperator;
-    internal override void EnumerateChildren(Action<BoundExpr> visit) { visit(Value); }
-}
+    int? LocalId = null) : BoundExpr(StaticType);

@@ -1,12 +1,9 @@
 namespace Alder.Binding.BoundNodes;
 
-internal sealed record BoundPropertyAccessExpr(
+[BoundNode(BoundNodeKind.PropertyAccess, "PropertyAccess", ManualRewrite = true)]
+internal sealed partial record BoundPropertyAccessExpr(
     BoundExpr Target,
     PropertyInfo Property,
     bool NullSafe,
     bool IsStatic,
-    BoundType StaticType) : BoundMemberAccessBase(Target, Property.Name, NullSafe, StaticType)
-{
-    internal override BoundNodeKind Kind => BoundNodeKind.PropertyAccess;
-    internal override void EnumerateChildren(Action<BoundExpr> visit) { visit(Target); }
-}
+    BoundType StaticType) : BoundMemberAccessBase(Target, Property.Name, NullSafe, StaticType);

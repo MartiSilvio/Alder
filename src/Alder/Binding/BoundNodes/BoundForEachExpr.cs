@@ -2,18 +2,11 @@ using System.Collections.Immutable;
 
 namespace Alder.Binding.BoundNodes;
 
-internal sealed record BoundForEachExpr(
+[BoundNode(BoundNodeKind.ForEachStatement, "ForEach")]
+internal sealed partial record BoundForEachExpr(
     string VariableName,
     BoundExpr Collection,
     ImmutableArray<BoundExpr> Body,
     Type ElementType,
     BoundType StaticType,
-    int? LocalId = null) : BoundExpr(StaticType)
-{
-    internal override BoundNodeKind Kind => BoundNodeKind.ForEachStatement;
-    internal override void EnumerateChildren(Action<BoundExpr> visit)
-    {
-        visit(Collection);
-        foreach (var s in Body) visit(s);
-    }
-}
+    int? LocalId = null) : BoundExpr(StaticType);

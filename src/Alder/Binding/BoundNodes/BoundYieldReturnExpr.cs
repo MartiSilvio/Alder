@@ -1,9 +1,6 @@
 namespace Alder.Binding.BoundNodes;
 
-internal sealed record BoundYieldReturnExpr(
+[BoundNode(BoundNodeKind.YieldReturnStatement, "YieldReturn")]
+internal sealed partial record BoundYieldReturnExpr(
     BoundExpr Value,
-    BoundType StaticType) : BoundExpr(StaticType)
-{
-    internal override BoundNodeKind Kind => BoundNodeKind.YieldReturnStatement;
-    internal override void EnumerateChildren(Action<BoundExpr> visit) => visit(Value);
-}
+    BoundType StaticType) : BoundExpr(StaticType);

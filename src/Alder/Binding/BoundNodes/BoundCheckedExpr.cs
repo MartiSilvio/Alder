@@ -1,10 +1,7 @@
 namespace Alder.Binding.BoundNodes;
 
-internal sealed record BoundCheckedExpr(
+[BoundNode(BoundNodeKind.CheckedExpression, "Checked")]
+internal sealed partial record BoundCheckedExpr(
     BoundExpr Expression,
     bool IsChecked,
-    BoundType StaticType) : BoundExpr(StaticType)
-{
-    internal override BoundNodeKind Kind => BoundNodeKind.CheckedExpression;
-    internal override void EnumerateChildren(Action<BoundExpr> visit) { visit(Expression); }
-}
+    BoundType StaticType) : BoundExpr(StaticType);

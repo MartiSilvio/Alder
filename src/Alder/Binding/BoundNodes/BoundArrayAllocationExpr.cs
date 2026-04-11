@@ -2,11 +2,8 @@ using System.Collections.Immutable;
 
 namespace Alder.Binding.BoundNodes;
 
-internal sealed record BoundArrayAllocationExpr(
+[BoundNode(BoundNodeKind.ArrayAllocation, "ArrayAllocation")]
+internal sealed partial record BoundArrayAllocationExpr(
     Type ElementType,
     ImmutableArray<BoundExpr> Sizes,
-    BoundType StaticType) : BoundExpr(StaticType)
-{
-    internal override BoundNodeKind Kind => BoundNodeKind.ArrayAllocation;
-    internal override void EnumerateChildren(Action<BoundExpr> visit) { foreach (var s in Sizes) visit(s); }
-}
+    BoundType StaticType) : BoundExpr(StaticType);

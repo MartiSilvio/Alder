@@ -1,11 +1,8 @@
 namespace Alder.Binding.BoundNodes;
 
-internal sealed record BoundNullCoalesceAssignExpr(
+[BoundNode(BoundNodeKind.NullCoalescingAssignmentOperator, "NullCoalesceAssign")]
+internal sealed partial record BoundNullCoalesceAssignExpr(
     string Name,
     BoundExpr Value,
     BoundType StaticType,
-    int? LocalId = null) : BoundExpr(StaticType)
-{
-    internal override BoundNodeKind Kind => BoundNodeKind.NullCoalescingAssignmentOperator;
-    internal override void EnumerateChildren(Action<BoundExpr> visit) { visit(Value); }
-}
+    int? LocalId = null) : BoundExpr(StaticType);

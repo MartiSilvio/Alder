@@ -6,20 +6,13 @@ internal abstract record BoundInterpolatedPart;
 
 internal sealed record BoundInterpolatedTextPart(string Text) : BoundInterpolatedPart;
 
-internal sealed record BoundInterpolatedExpressionPart(
+[BoundContainer]
+internal sealed partial record BoundInterpolatedExpressionPart(
     BoundExpr Expression,
     string? AlignmentSpecifier,
     string? FormatSpecifier) : BoundInterpolatedPart;
 
-internal sealed record BoundInterpolatedStringExpr(
+[BoundNode(BoundNodeKind.InterpolatedString, "InterpolatedString")]
+internal sealed partial record BoundInterpolatedStringExpr(
     ImmutableArray<BoundInterpolatedPart> Parts,
-    BoundType StaticType) : BoundExpr(StaticType)
-{
-    internal override BoundNodeKind Kind => BoundNodeKind.InterpolatedString;
-    internal override void EnumerateChildren(Action<BoundExpr> visit)
-    {
-        foreach (var p in Parts)
-            if (p is BoundInterpolatedExpressionPart ep)
-                visit(ep.Expression);
-    }
-}
+    BoundType StaticType) : BoundExpr(StaticType);

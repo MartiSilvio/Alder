@@ -3,7 +3,8 @@ using Alder.Parsing;
 
 namespace Alder.Binding.BoundNodes;
 
-internal sealed record BoundLambdaExpr(
+[BoundNode(BoundNodeKind.Lambda, "Lambda")]
+internal sealed partial record BoundLambdaExpr(
     LambdaExpr Source,
     BoundType StaticType) : BoundExpr(StaticType)
 {
@@ -11,7 +12,4 @@ internal sealed record BoundLambdaExpr(
     public Expr Body => Source.Body;
     public bool IsAsync => Source.IsAsync;
     public string? ReturnTypeName => Source.ReturnTypeName;
-
-    internal override BoundNodeKind Kind => BoundNodeKind.Lambda;
-    internal override void EnumerateChildren(Action<BoundExpr> visit) { }
 }

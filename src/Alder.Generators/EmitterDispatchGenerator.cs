@@ -120,6 +120,18 @@ public sealed class EmitterDispatchGenerator : IIncrementalGenerator
         return null;
     }
 
+    private static bool DerivesFrom(ITypeSymbol type, ITypeSymbol baseType)
+    {
+        var current = type;
+        while (current != null)
+        {
+            if (SymbolEqualityComparer.Default.Equals(current, baseType))
+                return true;
+            current = current.BaseType;
+        }
+        return false;
+    }
+
     private static INamedTypeSymbol? FindEmitMethodBoundExprType(
         INamedTypeSymbol emitterClass,
         INamedTypeSymbol emissionContextSymbol,
@@ -144,18 +156,6 @@ public sealed class EmitterDispatchGenerator : IIncrementalGenerator
                 return namedParam;
         }
         return null;
-    }
-
-    private static bool DerivesFrom(ITypeSymbol type, ITypeSymbol baseType)
-    {
-        var current = type;
-        while (current != null)
-        {
-            if (SymbolEqualityComparer.Default.Equals(current, baseType))
-                return true;
-            current = current.BaseType;
-        }
-        return false;
     }
 
     private static void Emit(SourceProductionContext spc, ImmutableArray<EmitterEntry> entries)

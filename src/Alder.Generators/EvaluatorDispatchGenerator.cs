@@ -99,6 +99,18 @@ public sealed class EvaluatorDispatchGenerator : IIncrementalGenerator
         return null;
     }
 
+    private static bool DerivesFrom(INamedTypeSymbol type, INamedTypeSymbol baseType)
+    {
+        var current = type;
+        while (current != null)
+        {
+            if (SymbolEqualityComparer.Default.Equals(current, baseType))
+                return true;
+            current = current.BaseType;
+        }
+        return false;
+    }
+
     private static INamedTypeSymbol? FindMethodBoundExprType(
         INamedTypeSymbol evaluatorClass,
         string methodName,
@@ -143,18 +155,6 @@ public sealed class EvaluatorDispatchGenerator : IIncrementalGenerator
         if (type is not INamedTypeSymbol named) return false;
         if (!named.IsGenericType) return false;
         return named.OriginalDefinition.ToDisplayString() == "System.Threading.Tasks.ValueTask<TResult>";
-    }
-
-    private static bool DerivesFrom(INamedTypeSymbol type, INamedTypeSymbol baseType)
-    {
-        var current = type;
-        while (current != null)
-        {
-            if (SymbolEqualityComparer.Default.Equals(current, baseType))
-                return true;
-            current = current.BaseType;
-        }
-        return false;
     }
 
     private static void Emit(SourceProductionContext spc, ImmutableArray<EvaluatorEntry?> entries)

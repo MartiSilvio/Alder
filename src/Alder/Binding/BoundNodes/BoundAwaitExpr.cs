@@ -1,9 +1,6 @@
 namespace Alder.Binding.BoundNodes;
 
-internal sealed record BoundAwaitExpr(
+[BoundNode(BoundNodeKind.AwaitExpression, "Await")]
+internal sealed partial record BoundAwaitExpr(
     BoundExpr Operand,
-    BoundType StaticType) : BoundExpr(StaticType)
-{
-    internal override BoundNodeKind Kind => BoundNodeKind.AwaitExpression;
-    internal override void EnumerateChildren(Action<BoundExpr> visit) => visit(Operand);
-}
+    BoundType StaticType) : BoundExpr(StaticType);

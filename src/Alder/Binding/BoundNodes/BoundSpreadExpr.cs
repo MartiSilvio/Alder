@@ -1,9 +1,6 @@
 namespace Alder.Binding.BoundNodes;
 
-internal sealed record BoundSpreadExpr(
+[BoundNode(BoundNodeKind.SpreadElement, "Spread")]
+internal sealed partial record BoundSpreadExpr(
     BoundExpr Expression,
-    BoundType StaticType) : BoundExpr(StaticType)
-{
-    internal override BoundNodeKind Kind => BoundNodeKind.SpreadElement;
-    internal override void EnumerateChildren(Action<BoundExpr> visit) { visit(Expression); }
-}
+    BoundType StaticType) : BoundExpr(StaticType);

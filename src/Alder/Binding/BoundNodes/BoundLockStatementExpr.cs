@@ -1,10 +1,7 @@
 namespace Alder.Binding.BoundNodes;
 
-internal sealed record BoundLockStatementExpr(
+[BoundNode(BoundNodeKind.LockStatement, "LockStatement")]
+internal sealed partial record BoundLockStatementExpr(
     BoundExpr LockObject,
     BoundExpr Body,
-    BoundType StaticType) : BoundExpr(StaticType)
-{
-    internal override BoundNodeKind Kind => BoundNodeKind.LockStatement;
-    internal override void EnumerateChildren(Action<BoundExpr> visit) { visit(LockObject); visit(Body); }
-}
+    BoundType StaticType) : BoundExpr(StaticType);

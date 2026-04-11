@@ -2,13 +2,12 @@ using Alder.Parsing;
 
 namespace Alder.Binding.BoundNodes;
 
-internal sealed record BoundBinaryExpr(
+[BoundNode(BoundNodeKind.BinaryOperator, "Binary", ChainFlatten = true, HasRevisitHook = true)]
+internal sealed partial record BoundBinaryExpr(
     TokenType Operator,
     BoundExpr Left,
     BoundExpr Right,
     BoundType StaticType) : BoundExpr(StaticType)
 {
     internal Type? PromotedType { get; init; }
-    internal override BoundNodeKind Kind => BoundNodeKind.BinaryOperator;
-    internal override void EnumerateChildren(Action<BoundExpr> visit) { visit(Left); visit(Right); }
 }

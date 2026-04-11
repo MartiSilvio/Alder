@@ -1,7 +1,4 @@
 namespace Alder.Binding.BoundNodes;
 
-internal sealed record BoundYieldBreakExpr() : BoundExpr(BoundType.Void)
-{
-    internal override BoundNodeKind Kind => BoundNodeKind.YieldBreakStatement;
-    internal override void EnumerateChildren(Action<BoundExpr> visit) { }
-}
+[BoundNode(BoundNodeKind.YieldBreakStatement, "YieldBreak")]
+internal sealed partial record BoundYieldBreakExpr() : BoundExpr(BoundType.Void);

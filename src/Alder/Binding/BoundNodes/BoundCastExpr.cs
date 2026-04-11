@@ -1,11 +1,8 @@
 namespace Alder.Binding.BoundNodes;
 
-internal sealed record BoundCastExpr(
+[BoundNode(BoundNodeKind.Conversion, "Cast")]
+internal sealed partial record BoundCastExpr(
     BoundExpr Expression,
     Type TargetType,
     Type? SourceStaticType,
-    BoundType StaticType) : BoundExpr(StaticType)
-{
-    internal override BoundNodeKind Kind => BoundNodeKind.Conversion;
-    internal override void EnumerateChildren(Action<BoundExpr> visit) { visit(Expression); }
-}
+    BoundType StaticType) : BoundExpr(StaticType);

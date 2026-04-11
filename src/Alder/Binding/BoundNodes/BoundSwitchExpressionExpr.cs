@@ -3,24 +3,14 @@ using Alder.Parsing;
 
 namespace Alder.Binding.BoundNodes;
 
-internal sealed record BoundSwitchExpressionArm(
+[BoundContainer]
+internal sealed partial record BoundSwitchExpressionArm(
     Pattern Pattern,
     BoundExpr? WhenGuard,
     BoundExpr Value);
 
-internal sealed record BoundSwitchExpressionExpr(
+[BoundNode(BoundNodeKind.SwitchExpression, "SwitchExpression")]
+internal sealed partial record BoundSwitchExpressionExpr(
     BoundExpr Expression,
     ImmutableArray<BoundSwitchExpressionArm> Arms,
-    BoundType StaticType) : BoundExpr(StaticType)
-{
-    internal override BoundNodeKind Kind => BoundNodeKind.SwitchExpression;
-    internal override void EnumerateChildren(Action<BoundExpr> visit)
-    {
-        visit(Expression);
-        foreach (var a in Arms)
-        {
-            if (a.WhenGuard != null) visit(a.WhenGuard);
-            visit(a.Value);
-        }
-    }
-}
+    BoundType StaticType) : BoundExpr(StaticType);

@@ -2,19 +2,12 @@ using System.Collections.Immutable;
 
 namespace Alder.Binding.BoundNodes;
 
-internal sealed record BoundResolvedMultiDimIndexAccessExpr(
+[BoundNode(BoundNodeKind.ResolvedMultiDimIndexAccess, "ResolvedMultiDimIndexAccess")]
+internal sealed partial record BoundResolvedMultiDimIndexAccessExpr(
     BoundExpr Target,
     ImmutableArray<BoundExpr> Indices,
     Type TargetType,
     bool IsArray,
     PropertyInfo? Indexer,
     bool NullSafe,
-    BoundType StaticType) : BoundExpr(StaticType)
-{
-    internal override BoundNodeKind Kind => BoundNodeKind.ResolvedMultiDimIndexAccess;
-    internal override void EnumerateChildren(Action<BoundExpr> visit)
-    {
-        visit(Target);
-        foreach (var i in Indices) visit(i);
-    }
-}
+    BoundType StaticType) : BoundExpr(StaticType);

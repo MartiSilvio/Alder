@@ -2,13 +2,10 @@ using Alder.Parsing;
 
 namespace Alder.Binding.BoundNodes;
 
-internal sealed record BoundIncrementDecrementExpr(
+[BoundNode(BoundNodeKind.IncrementOperator, "IncrementDecrement")]
+internal sealed partial record BoundIncrementDecrementExpr(
     string Name,
     TokenType Operator,
     bool IsPrefix,
     BoundType StaticType,
-    int? LocalId = null) : BoundExpr(StaticType)
-{
-    internal override BoundNodeKind Kind => BoundNodeKind.IncrementOperator;
-    internal override void EnumerateChildren(Action<BoundExpr> visit) { }
-}
+    int? LocalId = null) : BoundExpr(StaticType);

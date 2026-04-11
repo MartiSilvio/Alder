@@ -3,7 +3,8 @@ using Alder.Runtime;
 
 namespace Alder.Binding.BoundNodes;
 
-internal sealed record BoundResolvedCallExpr(
+[BoundNode(BoundNodeKind.ResolvedCall, "ResolvedCall", ManualRewrite = true)]
+internal sealed partial record BoundResolvedCallExpr(
     BoundExpr Callee,
     ImmutableArray<BoundExpr> Arguments,
     ResolvedCall Resolution,
@@ -13,10 +14,4 @@ internal sealed record BoundResolvedCallExpr(
     bool IsExtensionCall = false) : BoundExpr(StaticType)
 {
     internal MethodInfo SelectedMethod => Resolution.Method;
-    internal override BoundNodeKind Kind => BoundNodeKind.ResolvedCall;
-    internal override void EnumerateChildren(Action<BoundExpr> visit)
-    {
-        visit(Callee);
-        foreach (var a in Arguments) visit(a);
-    }
 }

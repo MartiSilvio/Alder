@@ -9,13 +9,10 @@ internal enum CollectionKind
     TargetTypedCollection
 }
 
-internal sealed record BoundCollectionCreationExpr(
+[BoundNode(BoundNodeKind.CollectionCreation, "CollectionCreation")]
+internal sealed partial record BoundCollectionCreationExpr(
     ImmutableArray<BoundExpr> Elements,
     Type ElementType,
     CollectionKind CollectionKind,
     Type? TargetCollectionType,
-    BoundType StaticType) : BoundExpr(StaticType)
-{
-    internal override BoundNodeKind Kind => BoundNodeKind.CollectionCreation;
-    internal override void EnumerateChildren(Action<BoundExpr> visit) { foreach (var e in Elements) visit(e); }
-}
+    BoundType StaticType) : BoundExpr(StaticType);

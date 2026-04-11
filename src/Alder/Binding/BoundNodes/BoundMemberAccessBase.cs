@@ -1,6 +1,6 @@
 namespace Alder.Binding.BoundNodes;
 
-internal abstract record BoundMemberAccessBase(
+internal abstract partial record BoundMemberAccessBase(
     BoundExpr Target,
     string MemberName,
     bool NullSafe,
