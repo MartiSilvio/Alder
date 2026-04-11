@@ -5,6 +5,8 @@ namespace Alder.Test.Core;
 [TestFixture]
 public class TypedDelegateCompilationTests
 {
+    private delegate int IncrementDelegate(int value);
+
     private AlderEngine CreateEngine() => new(new AlderOptions().UseCompiler());
 
     #region Basic Func compilation
@@ -280,6 +282,19 @@ public class TypedDelegateCompilationTests
         Assert.That(fn(5), Is.EqualTo(105));
     }
 
+    [Test]
+    public void Compile_DoesNotOverwriteExistingEngineVariableWithParameter()
+    {
+        var engine = CreateEngine();
+        engine.SetVariable<int>("x", 99);
+
+        var fn = engine.Compile<Func<int, int>>("x + 1", "x");
+
+        Assert.That(engine.Evaluate<int>("x"), Is.EqualTo(99));
+        Assert.That(fn(5), Is.EqualTo(6));
+        Assert.That(engine.Evaluate<int>("x"), Is.EqualTo(99));
+    }
+
     #endregion
 
     #region Object and collection parameters
@@ -346,6 +361,28 @@ public class TypedDelegateCompilationTests
 
         Assert.Throws<AlderException>(() =>
             engine.Compile<Func<int, int>>("x +* 2", "x"));
+    }
+
+    [Test]
+    public void Compile_FailureDoesNotLeakParameterVariable()
+    {
+        var engine = CreateEngine();
+
+        Assert.Throws<AlderException>(() =>
+            engine.Compile<Func<int, int>>("x +* 2", "x"));
+
+        var ex = Assert.Throws<AlderException>(() => engine.Evaluate("x"));
+        Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0103));
+    }
+
+    [Test]
+    public void Compile_CustomDelegateType_Works()
+    {
+        var engine = CreateEngine();
+
+        var fn = engine.Compile<IncrementDelegate>("value + 1", "value");
+
+        Assert.That(fn(41), Is.EqualTo(42));
     }
 
     #endregion

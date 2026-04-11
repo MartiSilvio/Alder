@@ -286,4 +286,31 @@ public class ThreadSafetyTests(CompilationMode mode)
 
         Assert.That(results.Count, Is.EqualTo(200));
     }
+
+    [Test]
+    public void DisposeChild_DoesNotDisposeParent()
+    {
+        var parent = TestEngineFactory.Create(mode);
+        parent.SetVariable("x", 41L);
+
+        var child = parent.CreateChild();
+        child.Dispose();
+
+        Assert.That(parent.Evaluate("x + 1"), Is.EqualTo(42L));
+    }
+
+    [Test]
+    public void DisposeChild_DoesNotDisposeSibling()
+    {
+        var parent = TestEngineFactory.Create(mode);
+        parent.SetVariable("baseVal", 10L);
+
+        var firstChild = parent.CreateChild();
+        var sibling = parent.CreateChild();
+
+        firstChild.Dispose();
+        sibling.SetVariable("delta", 5L);
+
+        Assert.That(sibling.Evaluate("baseVal + delta"), Is.EqualTo(15L));
+    }
 }

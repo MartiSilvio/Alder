@@ -10,9 +10,10 @@ namespace Alder.Compiled;
 
 public static class AlderCompiledEngineExtensions
 {
-    private static readonly MethodInfo SetVariableOpenGeneric =
-        typeof(AlderEngine).GetMethod(nameof(AlderEngine.SetVariable), 1,
-            [typeof(string), Type.MakeGenericMethodParameter(0)])!;
+    private static readonly MethodInfo InvokeTypedCompiledMethod =
+        typeof(AlderCompiledEngineExtensions).GetMethod(
+            nameof(InvokeTypedCompiled),
+            BindingFlags.NonPublic | BindingFlags.Static)!;
     /// <summary>
     /// Parses and attempts to compile an expression in one step.
     /// </summary>
@@ -130,35 +131,55 @@ public static class AlderCompiledEngineExtensions
         access.ThrowIfDisposed();
 
         var delegateType = typeof(TDelegate);
-        var isAction = delegateType.FullName?.StartsWith("System.Action") == true
-                       || delegateType == typeof(Action);
-        var genericArgs = delegateType.IsGenericType ? delegateType.GetGenericArguments() : [];
-        var paramTypes = isAction ? genericArgs : genericArgs.Length > 0 ? genericArgs[..^1] : [];
-        var returnType = isAction ? typeof(void) : genericArgs.Length > 0 ? genericArgs[^1] : typeof(object);
+        var invokeMethod = delegateType.GetMethod(nameof(Action.Invoke))
+            ?? throw new AlderException(
+                DiagnosticDescriptors.ParseAsExpressionRequiresGenericDelegate,
+                delegateType.Name);
+        var delegateParameters = invokeMethod.GetParameters();
+        var paramTypes = delegateParameters.Select(static p => p.ParameterType).ToArray();
+        var returnType = invokeMethod.ReturnType;
+        var isAction = returnType == typeof(void);
 
         if (parameterNames.Length != paramTypes.Length)
             throw new AlderException(
                 DiagnosticDescriptors.CompileParameterCountMismatch,
                 delegateType.Name, paramTypes.Length.ToString(), parameterNames.Length.ToString());
 
-        // §1: Define typed parameters with defaults so the binder knows the types
-        for (int i = 0; i < parameterNames.Length; i++)
+        var additionalVariableTypes = new Dictionary<string, Type>(access.Config.Comparer);
+        for (var i = 0; i < parameterNames.Length; i++)
+            additionalVariableTypes[parameterNames[i]] = paramTypes[i];
+
+        var parsed = engine.Parse(code);
+        var compiledInfo = access.CompileWithAdditionalVariables(parsed, additionalVariableTypes);
+
+        if (compiledInfo.Delegate == null)
         {
-            var setVarTyped = SetVariableOpenGeneric.MakeGenericMethod(paramTypes[i]);
-            var defaultValue = paramTypes[i].IsValueType ? Activator.CreateInstance(paramTypes[i]) : null;
-            setVarTyped.Invoke(engine, [parameterNames[i], defaultValue]);
+            if (compiledInfo.FailureException is AlderException alderFailure)
+                throw alderFailure;
+
+            var reason = compiledInfo.FailureReason ?? "Unknown compilation failure";
+            throw new AlderException(
+                DiagnosticDescriptors.StrictCompilationFailed,
+                $"Cannot compile expression '{code}': {reason}");
         }
 
-        // §2: Compile the code body
-        var compiled = Compile<object?>(engine, code);
-
-        // §3: Build a bridge delegate using expression trees
-        return BuildBridgeDelegate<TDelegate>(engine, compiled, parameterNames, paramTypes, returnType, isAction);
+        var parentTypeVersion = access.GetOrCreateContext().GetTypeInferenceVersion();
+        return BuildBridgeDelegate<TDelegate>(
+            compiledInfo.Delegate,
+            engine,
+            access.Config,
+            parentTypeVersion,
+            parameterNames,
+            paramTypes,
+            returnType,
+            isAction);
     }
 
     private static TDelegate BuildBridgeDelegate<TDelegate>(
+        CompiledExpressionDelegate compiledDelegate,
         AlderEngine engine,
-        AlderCompiledExpression<object?> compiled,
+        AlderConfig config,
+        int parentTypeVersion,
         string[] paramNames,
         Type[] paramTypes,
         Type returnType,
@@ -169,36 +190,30 @@ public static class AlderCompiledEngineExtensions
         for (int i = 0; i < paramTypes.Length; i++)
             parameters[i] = LinqExpression.Parameter(paramTypes[i], paramNames[i]);
 
+        var compiledDelegateConst = LinqExpression.Constant(compiledDelegate);
         var engineConst = LinqExpression.Constant(engine);
-        var compiledConst = LinqExpression.Constant(compiled);
-
-        var bodyStatements = new List<LinqExpression>();
-
-        // Emit typed SetVariable<T> calls for each parameter
-        for (int i = 0; i < paramNames.Length; i++)
-        {
-            var setVarTyped = SetVariableOpenGeneric.MakeGenericMethod(paramTypes[i]);
-            bodyStatements.Add(LinqExpression.Call(
-                engineConst,
-                setVarTyped,
-                LinqExpression.Constant(paramNames[i]),
-                parameters[i]));
-        }
-
-        // Call compiled.Invoke()
-        var invokeMethod = typeof(AlderCompiledExpression<object?>)
-            .GetMethod(nameof(AlderCompiledExpression<object?>.Invoke), [typeof(CancellationToken)])!;
+        var configConst = LinqExpression.Constant(config);
+        var parentTypeVersionConst = LinqExpression.Constant(parentTypeVersion);
+        var argsArray = LinqExpression.NewArrayInit(
+            typeof(object),
+            parameters.Select(static p => LinqExpression.Convert(p, typeof(object))));
         var invokeCall = LinqExpression.Call(
-            compiledConst, invokeMethod, LinqExpression.Default(typeof(CancellationToken)));
+            InvokeTypedCompiledMethod,
+            compiledDelegateConst,
+            engineConst,
+            configConst,
+            parentTypeVersionConst,
+            LinqExpression.Constant(paramNames),
+            LinqExpression.Constant(paramTypes),
+            argsArray,
+            LinqExpression.Default(typeof(CancellationToken)));
 
         if (isAction)
         {
-            bodyStatements.Add(invokeCall);
-            var block = LinqExpression.Block(bodyStatements);
+            var block = LinqExpression.Block(invokeCall, LinqExpression.Empty());
             return LinqExpression.Lambda<TDelegate>(block, parameters).Compile();
         }
 
-        // Convert result to return type
         LinqExpression resultExpr;
         if (returnType == typeof(object))
         {
@@ -214,9 +229,30 @@ public static class AlderCompiledEngineExtensions
             resultExpr = LinqExpression.TypeAs(invokeCall, returnType);
         }
 
-        bodyStatements.Add(resultExpr);
-        var funcBlock = LinqExpression.Block(returnType, bodyStatements);
-        return LinqExpression.Lambda<TDelegate>(funcBlock, parameters).Compile();
+        return LinqExpression.Lambda<TDelegate>(resultExpr, parameters).Compile();
+    }
+
+    private static object? InvokeTypedCompiled(
+        CompiledExpressionDelegate compiledDelegate,
+        AlderEngine engine,
+        AlderConfig config,
+        int parentTypeVersion,
+        string[] parameterNames,
+        Type[] parameterTypes,
+        object?[] values,
+        CancellationToken cancellationToken)
+    {
+        var parentContext = engine.GetContextForCompiled();
+        if (parentContext.GetTypeInferenceVersion() != parentTypeVersion)
+            throw new AlderException(DiagnosticDescriptors.CompiledExpressionStale);
+
+        var childContext = parentContext.CreateChild();
+        for (var i = 0; i < parameterNames.Length; i++)
+            childContext.Define(parameterNames[i], values[i], parameterTypes[i]);
+
+        var constraintState = new ExecutionConstraintState();
+        constraintState.Reset(config.Constraints);
+        return compiledDelegate(childContext, config, constraintState, cancellationToken);
     }
 
     /// <summary>

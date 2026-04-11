@@ -1,5 +1,6 @@
 using Alder.Binding;
 using Alder.Binding.BoundNodes;
+using Alder.Runtime;
 using Alder.Runtime.Semantics;
 
 namespace Alder.Interpretation.Evaluators;
@@ -12,18 +13,10 @@ internal static class MemberAssignEvaluator
         var target = ctx.Evaluate(node.Target, ct);
         var value = ctx.Evaluate(node.Value, ct);
 
-        if (node.ResolvedMember is PropertyInfo { CanWrite: true } property
+        if (node.ResolvedMember is PropertyInfo { CanWrite: true } or FieldInfo { IsInitOnly: false }
             && target != null && node.DeclaringType is { IsValueType: false })
         {
-            property.SetValue(target, value);
-            return value;
-        }
-
-        if (node.ResolvedMember is FieldInfo { IsInitOnly: false } field
-            && target != null && node.DeclaringType is { IsValueType: false })
-        {
-            field.SetValue(target, value);
-            return value;
+            return MemberAccess.SetResolvedMember(node.ResolvedMember, target, node.MemberName, value, ctx.Context);
         }
 
         return AssignmentRuntime.ApplyMemberAssign(target, node.MemberName, value, ctx);
@@ -34,18 +27,10 @@ internal static class MemberAssignEvaluator
         var target = await ctx.EvaluateAsync(node.Target, ct);
         var value = await ctx.EvaluateAsync(node.Value, ct);
 
-        if (node.ResolvedMember is PropertyInfo { CanWrite: true } property
+        if (node.ResolvedMember is PropertyInfo { CanWrite: true } or FieldInfo { IsInitOnly: false }
             && target != null && node.DeclaringType is { IsValueType: false })
         {
-            property.SetValue(target, value);
-            return value;
-        }
-
-        if (node.ResolvedMember is FieldInfo { IsInitOnly: false } field
-            && target != null && node.DeclaringType is { IsValueType: false })
-        {
-            field.SetValue(target, value);
-            return value;
+            return MemberAccess.SetResolvedMember(node.ResolvedMember, target, node.MemberName, value, ctx.Context);
         }
 
         return AssignmentRuntime.ApplyMemberAssign(target, node.MemberName, value, ctx);

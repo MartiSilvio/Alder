@@ -12,6 +12,7 @@ internal sealed class EmissionContext
     public ParameterExpression ConfigParam { get; }
     public ParameterExpression ConstraintStateParam { get; }
     public ParameterExpression CancellationTokenParam { get; }
+    public bool PreferResolvedRuntimeDispatch { get; }
 
     private readonly Dictionary<BoundNodeKind, Func<BoundExpr, EmissionContext, Expression>> _emitters = new();
 
@@ -27,12 +28,14 @@ internal sealed class EmissionContext
         ParameterExpression contextParam,
         ParameterExpression configParam,
         ParameterExpression constraintStateParam,
-        ParameterExpression cancellationTokenParam)
+        ParameterExpression cancellationTokenParam,
+        bool preferResolvedRuntimeDispatch)
     {
         ContextParam = contextParam;
         ConfigParam = configParam;
         ConstraintStateParam = constraintStateParam;
         CancellationTokenParam = cancellationTokenParam;
+        PreferResolvedRuntimeDispatch = preferResolvedRuntimeDispatch;
     }
 
     internal void Register<TNode>(BoundNodeKind kind, INodeEmitter<TNode> emitter) where TNode : BoundExpr

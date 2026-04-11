@@ -77,6 +77,7 @@ public class ParsingPathologicalTests(CompilationMode mode) : StressTestBase(mod
 
     [TestCase(100)]
     [TestCase(1000)]
+    [CancelAfter(10_000)]
     public void ManyChainedPropertyAccesses_ShouldNotStackOverflow(int count)
     {
         // Postfix call-member-access chains are iterativized across the binder,

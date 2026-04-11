@@ -7,6 +7,26 @@ namespace Alder.Runtime;
 
 internal static class MethodInvoker
 {
+    internal static object? InvokeResolvedMethod(MethodInfo method, object? target, object?[] args, AlderContext context)
+    {
+        if (method.IsStatic)
+        {
+            var declaringType = method.DeclaringType ?? throw new InvalidOperationException("Resolved static method has no declaring type.");
+            if (TypedDispatchHelper.TryInvokeStatic(context.Config, declaringType, method.Name, args, out var staticResult))
+                return staticResult;
+
+            return InvokeMethodCore(method, null, args);
+        }
+
+        if (target == null)
+            throw new AlderException(DiagnosticDescriptors.NullMethodCall, method.Name);
+
+        if (TypedDispatchHelper.TryInvokeInstance(context.Config, target.GetType(), method.Name, target, args, out var typedResult))
+            return typedResult;
+
+        return InvokeMethodCore(method, target, args);
+    }
+
     public static object? InvokeMemberCall(
         object? target,
         string methodName,

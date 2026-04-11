@@ -15,13 +15,6 @@ internal static class LambdaDelegateConverter
 
     private static readonly ConditionalWeakTable<object, ConcurrentDictionary<Type, Delegate>> DelegateCache = new();
 
-    private static volatile IReadOnlyDictionary<Type, Func<object, Delegate>>? _aotFactories;
-
-    internal static void SetAotFactories(IReadOnlyDictionary<Type, Func<object, Delegate>>? factories)
-    {
-        _aotFactories = factories;
-    }
-
     public static Delegate? TryConvert(object value, Type delegateType)
     {
         if (!typeof(Delegate).IsAssignableFrom(delegateType))
@@ -84,13 +77,20 @@ internal static class LambdaDelegateConverter
         var typeCache = DelegateCache.GetOrCreateValue(lambda);
         return typeCache.GetOrAdd(delegateType, _ =>
         {
+            var delegateFactories = lambda switch
+            {
+                CompiledLambdaValue compiledLambda => compiledLambda.Closure.Config.DelegateFactories,
+                LambdaValue interpretedLambda => interpretedLambda.Closure.Config.DelegateFactories,
+                _ => null
+            };
+
             Delegate inner;
             if (lambda is CompiledLambdaValue compiled)
                 inner = LambdaDelegateFactory.CreateCompiledDelegate(compiled, funcActionType, paramTypes, returnType);
             else
             {
                 var interpreted = (LambdaValue)lambda;
-                if (_aotFactories != null && _aotFactories.TryGetValue(funcActionType, out var aotFactory))
+                if (delegateFactories != null && delegateFactories.TryGetValue(funcActionType, out var aotFactory))
                     inner = aotFactory(interpreted);
                 else
                     inner = LambdaDelegateFactory.CreateInterpretedDelegate(interpreted, funcActionType, paramTypes, returnType);

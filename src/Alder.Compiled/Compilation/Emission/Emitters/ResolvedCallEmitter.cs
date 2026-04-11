@@ -1,4 +1,6 @@
 using System.Collections.Immutable;
+using System.Linq;
+using System.Reflection;
 using Alder.Binding;
 using Alder.Binding.BoundNodes;
 using Alder.Runtime;
@@ -71,6 +73,53 @@ internal sealed class ResolvedCallEmitter : INodeEmitter<BoundResolvedCallExpr>
         var extensionReceiver = call.IsExtensionCall && emittedTarget != null ? emittedTarget : null;
         var args = EmitPlannedCallArguments(call, parameters, ctx, extensionReceiver);
 
+        if (!call.IsExtensionCall)
+        {
+            if (ctx.PreferResolvedRuntimeDispatch)
+            {
+                var objectArgs = LinqExpression.NewArrayInit(typeof(object), args.Select(EmitHelpers.AsObject));
+                var targetExpr = call.IsStaticCall
+                    ? LinqExpression.Constant(null, typeof(object))
+                    : EmitHelpers.AsObject(emittedTarget ?? ctx.Emit(memberAccess.Target));
+                var runtimeCall = LinqExpression.Call(
+                    InvokeResolvedMethodMethod,
+                    LinqExpression.Constant(method, typeof(MethodInfo)),
+                    targetExpr,
+                    objectArgs,
+                    ctx.ContextParam);
+
+                if (method.ReturnType == typeof(void))
+                {
+                    return LinqExpression.Block(
+                        typeof(object),
+                        guardCheck,
+                        runtimeCall,
+                        LinqExpression.Constant(null, typeof(object)));
+                }
+
+                return memberAccess.NullSafe
+                    ? runtimeCall
+                    : LinqExpression.Block(
+                        method.ReturnType,
+                        guardCheck,
+                        EmitHelpers.EnsureTypedExpression(runtimeCall, method.ReturnType));
+            }
+
+            return EmitDirectReflectionCall(call, emittedTarget, ctx, method, args, guardCheck, memberAccess);
+        }
+
+        return EmitDirectReflectionCall(call, emittedTarget, ctx, method, args, guardCheck, memberAccess);
+    }
+
+    private static LinqExpression EmitDirectReflectionCall(
+        BoundResolvedCallExpr call,
+        LinqExpression? emittedTarget,
+        EmissionContext ctx,
+        MethodInfo method,
+        LinqExpression[] args,
+        LinqExpression guardCheck,
+        BoundMethodGroupExpr memberAccess)
+    {
         if (call.IsStaticCall)
         {
             var staticCall = LinqExpression.Call(method, args);

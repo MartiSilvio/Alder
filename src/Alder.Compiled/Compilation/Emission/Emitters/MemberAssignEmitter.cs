@@ -1,4 +1,6 @@
+using System.Reflection;
 using Alder.Binding.BoundNodes;
+using Alder.Runtime;
 using static Alder.Compiled.Compilation.BoundRuntimeMethodCache;
 
 namespace Alder.Compiled.Compilation.Emission.Emitters;
@@ -10,13 +12,13 @@ internal sealed class MemberAssignEmitter : INodeEmitter<BoundMemberAssignExpr>
         if (node.ResolvedMember is PropertyInfo { CanWrite: true } property
             && !node.Target.StaticType.ClrType.IsValueType)
         {
-            return EmitDirectProperty(node, property, ctx);
+            return EmitResolved(node, property, property.PropertyType, ctx);
         }
 
         if (node.ResolvedMember is FieldInfo { IsInitOnly: false } field
             && !node.Target.StaticType.ClrType.IsValueType)
         {
-            return EmitDirectField(node, field, ctx);
+            return EmitResolved(node, field, field.FieldType, ctx);
         }
 
         return LinqExpression.Call(
@@ -27,39 +29,45 @@ internal sealed class MemberAssignEmitter : INodeEmitter<BoundMemberAssignExpr>
             ctx.ContextParam);
     }
 
-    private static LinqExpression EmitDirectProperty(BoundMemberAssignExpr node, PropertyInfo property, EmissionContext ctx)
+    private static LinqExpression EmitResolved(BoundMemberAssignExpr node, MemberInfo member, Type valueType, EmissionContext ctx)
     {
-        var targetObjVar = LinqExpression.Variable(typeof(object), "maTarget");
-        var valueVar = LinqExpression.Variable(property.PropertyType, "maValue");
-        var targetType = property.DeclaringType ?? node.DeclaringType!;
-        var checkedTarget = LinqExpression.Call(
-            EnsureMemberTargetNotNullMethod, targetObjVar, LinqExpression.Constant(node.MemberName));
-        var typedTarget = EmitHelpers.EnsureTypedExpression(checkedTarget, targetType);
+        if (ctx.PreferResolvedRuntimeDispatch)
+        {
+            var runtimeCall = LinqExpression.Call(
+                SetResolvedMemberMethod,
+                LinqExpression.Constant(member, typeof(MemberInfo)),
+                ctx.EmitBoxed(node.Target),
+                LinqExpression.Constant(node.MemberName),
+                ctx.EmitBoxed(node.Value),
+                ctx.ContextParam);
 
-        return LinqExpression.Block(
-            property.PropertyType,
-            [targetObjVar, valueVar],
-            LinqExpression.Assign(targetObjVar, ctx.EmitBoxed(node.Target)),
-            LinqExpression.Assign(valueVar, ctx.EmitAs(node.Value, property.PropertyType)),
-            LinqExpression.Assign(LinqExpression.Property(typedTarget, property), valueVar),
-            valueVar);
+            return EmitHelpers.EnsureTypedExpression(runtimeCall, valueType);
+        }
+
+        return EmitDirect(member, node, valueType, ctx);
     }
 
-    private static LinqExpression EmitDirectField(BoundMemberAssignExpr node, FieldInfo field, EmissionContext ctx)
+    private static LinqExpression EmitDirect(MemberInfo member, BoundMemberAssignExpr node, Type valueType, EmissionContext ctx)
     {
         var targetObjVar = LinqExpression.Variable(typeof(object), "maTarget");
-        var valueVar = LinqExpression.Variable(field.FieldType, "maValue");
-        var targetType = field.DeclaringType ?? node.DeclaringType!;
+        var valueVar = LinqExpression.Variable(valueType, "maValue");
+        var targetType = member.DeclaringType ?? node.DeclaringType!;
         var checkedTarget = LinqExpression.Call(
             EnsureMemberTargetNotNullMethod, targetObjVar, LinqExpression.Constant(node.MemberName));
         var typedTarget = EmitHelpers.EnsureTypedExpression(checkedTarget, targetType);
+        var assignTarget = member switch
+        {
+            PropertyInfo property => (LinqExpression)LinqExpression.Assign(LinqExpression.Property(typedTarget, property), valueVar),
+            FieldInfo field => LinqExpression.Assign(LinqExpression.Field(typedTarget, field), valueVar),
+            _ => throw new NotSupportedException()
+        };
 
         return LinqExpression.Block(
-            field.FieldType,
+            valueType,
             [targetObjVar, valueVar],
             LinqExpression.Assign(targetObjVar, ctx.EmitBoxed(node.Target)),
-            LinqExpression.Assign(valueVar, ctx.EmitAs(node.Value, field.FieldType)),
-            LinqExpression.Assign(LinqExpression.Field(typedTarget, field), valueVar),
+            LinqExpression.Assign(valueVar, ctx.EmitAs(node.Value, valueType)),
+            assignTarget,
             valueVar);
     }
 }

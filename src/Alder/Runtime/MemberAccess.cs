@@ -10,6 +10,42 @@ namespace Alder.Runtime;
 /// </summary>
 internal static class MemberAccess
 {
+    internal static object? GetResolvedMember(MemberInfo member, object? target, string name, bool nullSafe, AlderContext context)
+    {
+        if (nullSafe && target == null)
+            return null;
+
+        return member switch
+        {
+            PropertyInfo property => GetResolvedProperty(property, target, name, context),
+            FieldInfo field => GetResolvedField(field, target, name, context),
+            _ => throw new AlderException(DiagnosticDescriptors.UnsupportedMemberType, member.GetType().Name)
+        };
+    }
+
+    internal static object? SetResolvedMember(MemberInfo member, object? target, string name, object? value, AlderContext context)
+    {
+        if (target == null)
+            throw new AlderException(DiagnosticDescriptors.NullMemberAccess, "member", name);
+
+        if (TypedDispatchHelper.TrySetMember(context.Config, target.GetType(), name, target, value))
+            return value;
+
+        if (member is PropertyInfo { CanWrite: true } property)
+        {
+            property.SetValue(target, value);
+            return value;
+        }
+
+        if (member is FieldInfo { IsInitOnly: false } field)
+        {
+            field.SetValue(target, value);
+            return value;
+        }
+
+        throw new AlderException(DiagnosticDescriptors.UnsupportedMemberType, member.GetType().Name);
+    }
+
     public static object? GetMember(object? obj, string name, bool nullSafe, AlderContext context)
     {
         if (nullSafe && obj == null)
@@ -357,6 +393,46 @@ internal static class MemberAccess
         }
 
         throw new AlderException(DiagnosticDescriptors.BadIndexerAccess, type.Name);
+    }
+
+    private static object? GetResolvedProperty(PropertyInfo property, object? target, string name, AlderContext context)
+    {
+        if (property.GetMethod?.IsStatic == true)
+        {
+            var declaringType = property.DeclaringType ?? property.ReflectedType!;
+            if (TypedDispatchHelper.TryGetStaticMember(context.Config, declaringType, name, out var aotValue))
+                return aotValue;
+
+            return TypeHelpers.GuardReflectionLeak(property.GetValue(null), "static property", name);
+        }
+
+        if (target == null)
+            throw new AlderException(DiagnosticDescriptors.NullMemberAccess, "property", name);
+
+        if (TypedDispatchHelper.TryGetMember(context.Config, target.GetType(), name, target, out var typedValue))
+            return typedValue;
+
+        return TypeHelpers.GuardReflectionLeak(context.TypeMetadata.GetPropertyValue(property, target), "property", name);
+    }
+
+    private static object? GetResolvedField(FieldInfo field, object? target, string name, AlderContext context)
+    {
+        if (field.IsStatic)
+        {
+            var declaringType = field.DeclaringType ?? field.ReflectedType!;
+            if (TypedDispatchHelper.TryGetStaticMember(context.Config, declaringType, name, out var aotValue))
+                return aotValue;
+
+            return TypeHelpers.GuardReflectionLeak(field.GetValue(null), "static field", name);
+        }
+
+        if (target == null)
+            throw new AlderException(DiagnosticDescriptors.NullMemberAccess, "field", name);
+
+        if (TypedDispatchHelper.TryGetMember(context.Config, target.GetType(), name, target, out var typedValue))
+            return typedValue;
+
+        return TypeHelpers.GuardReflectionLeak(field.GetValue(target), "field", name);
     }
 
     private static bool TryAccessLargeTupleItem(object tuple, string name, out object? value)

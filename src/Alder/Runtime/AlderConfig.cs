@@ -28,6 +28,7 @@ internal sealed class AlderConfig
     internal TypeResolver TypeResolver { get; }
     public StringComparer Comparer { get; }
     public StringComparison StringComparison => IsCaseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
+    public bool PreferResolvedRuntimeDispatch { get; }
     internal FixedDictionary<Type, TypedDispatch>? TypeDispatch { get; }
     internal IReadOnlyDictionary<Type, Func<object, Delegate>>? DelegateFactories { get; }
     internal TypedDispatch[]? ExtensionDispatches { get; }
@@ -58,6 +59,7 @@ internal sealed class AlderConfig
         ICompiledProvider? compiler,
         IExpressionCompiler expressionCompiler,
         IServiceProvider? serviceProvider,
+        bool preferResolvedRuntimeDispatch,
         FixedDictionary<string, Func<object?[], object?>> functions,
         FixedDictionary<string, ModuleInfo> modules,
         ImmutableArray<Type> extensionTypes,
@@ -74,6 +76,7 @@ internal sealed class AlderConfig
         Compiler = compiler;
         ExpressionCompiler = expressionCompiler;
         ServiceProvider = serviceProvider;
+        PreferResolvedRuntimeDispatch = preferResolvedRuntimeDispatch;
         Functions = functions;
         Modules = modules;
         ExtensionTypes = extensionTypes;
@@ -93,6 +96,7 @@ internal sealed class AlderConfig
         null,
         DefaultExpressionCompiler.Instance,
         null,
+        false,
         FixedDictionary<string, Func<object?[], object?>>.Empty,
         FixedDictionary<string, ModuleInfo>.Empty,
         [],

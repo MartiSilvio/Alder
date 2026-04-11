@@ -169,9 +169,15 @@ internal sealed class AlderContext
         Interlocked.Increment(ref _variableTypeVersion);
     }
 
-    public IReadOnlyDictionary<string, object?> GetAll()
+    public IReadOnlyDictionary<string, object?> GetAllVisible()
     {
         var result = new Dictionary<string, object?>(_config.Comparer);
+        if (_parent != null)
+        {
+            foreach (var (name, value) in _parent.GetAllVisible())
+                result[name] = value;
+        }
+
         foreach (var kvp in _variables)
             result[kvp.Key] = kvp.Value.Value;
         return result;

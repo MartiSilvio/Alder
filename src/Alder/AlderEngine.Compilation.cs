@@ -133,6 +133,10 @@ public sealed partial class AlderEngine
         internal AlderContext GetOrCreateContext() => _engine.GetOrCreateContext();
         internal Dictionary<string, object?> CollectEngineVariables() => _engine.CollectEngineVariables();
         internal void ThrowIfDisposed() => _engine.ThrowIfDisposed();
+        internal CompiledExpressionInfo CompileWithAdditionalVariables(
+            AlderExpression expression,
+            IReadOnlyDictionary<string, Type> additionalVariableTypes)
+            => _engine.CompileWithAdditionalVariables(expression, additionalVariableTypes);
     }
 
     /// <summary>
@@ -140,4 +144,48 @@ public sealed partial class AlderEngine
     /// The context is captured by reference so that variable changes after compilation are visible.
     /// </summary>
     internal AlderContext GetContextForCompiled() => GetOrCreateContext();
+
+    private CompiledExpressionInfo CompileWithAdditionalVariables(
+        AlderExpression expression,
+        IReadOnlyDictionary<string, Type> additionalVariableTypes)
+    {
+        ThrowIfDisposed();
+
+        if (_config.Compiler == null)
+        {
+            return new CompiledExpressionInfo(
+                null,
+                false,
+                "No compiler configured. Call UseCompiler() on options.");
+        }
+
+        var bindingContext = CreateBindingContext(additionalVariableTypes);
+        var version = bindingContext.GetTypeInferenceVersion();
+
+        if (!expression.TryGetOrCreateBoundExpression(bindingContext, out var bound, out var failureReason) ||
+            bound == null)
+        {
+            return new CompiledExpressionInfo(
+                null,
+                false,
+                failureReason ?? "Binding failed for expression.",
+                TypeVersion: version);
+        }
+
+        bound = RunCompilationPipeline(bound);
+        return _config.Compiler.TryCompile(bound, _config) with { TypeVersion = version };
+    }
+
+    private AlderContext CreateBindingContext(IReadOnlyDictionary<string, Type> additionalVariableTypes)
+    {
+        var bindingContext = new AlderContext(_config, _config.ServiceProvider);
+
+        foreach (var (name, value) in CollectEngineVariables())
+            bindingContext.Define(name, value, value?.GetType() ?? typeof(object));
+
+        foreach (var (name, type) in additionalVariableTypes)
+            bindingContext.Define(name, null, type);
+
+        return bindingContext;
+    }
 }

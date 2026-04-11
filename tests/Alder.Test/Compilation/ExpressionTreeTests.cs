@@ -485,6 +485,35 @@ public class ExpressionTreeTests
         Assert.That(compiled(101), Is.False);
     }
 
+    [Test]
+    public void ChildEngine_ParseAsExpression_SeesInheritedVariables()
+    {
+        _engine.SetVariable("threshold", 10);
+        var child = _engine.CreateChild();
+
+        Assert.That(child.Evaluate<int>("threshold"), Is.EqualTo(10));
+
+        var expr = child.ParseAsExpression<Func<int, bool>>("x => x > threshold");
+        var compiled = expr.Compile();
+
+        Assert.That(compiled(11), Is.True);
+        Assert.That(compiled(10), Is.False);
+    }
+
+    [Test]
+    public void ChildEngine_CompileExpression_SeesInheritedVariables()
+    {
+        _engine.SetVariable("threshold", 10);
+        var child = _engine.CreateChild();
+
+        Assert.That(child.Evaluate<int>("threshold"), Is.EqualTo(10));
+
+        var compiled = child.CompileExpression<Func<int, bool>>("x => x > threshold");
+
+        Assert.That(compiled(11), Is.True);
+        Assert.That(compiled(10), Is.False);
+    }
+
 
 
     [Test]

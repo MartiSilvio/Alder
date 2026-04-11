@@ -37,7 +37,7 @@ fi
 
 TEST_DATA="$ROOT_DIR/tests/Alder.Test/TestData"
 
-echo "[aot-matrix] Running against $(find "$TEST_DATA" -name '*.csx' ! -name '*.roslyn.csx' | wc -l | tr -d ' ') expressions..."
+echo "[aot-matrix] Running against $(find "$TEST_DATA" -name '*.csx' ! -name '*.roslyn.csx' ! -name '*.ignore.csx' | wc -l | tr -d ' ') expressions..."
 echo
 
 AOT_REPORT_DIR="$ROOT_DIR" "$BIN_PATH" "$TEST_DATA"

@@ -26,13 +26,19 @@ internal sealed partial class BoundExpressionEmitter
         ParameterExpression contextParam,
         ParameterExpression configParam,
         ParameterExpression constraintStateParam,
-        ParameterExpression ctParam)
+        ParameterExpression ctParam,
+        bool preferResolvedRuntimeDispatch)
     {
         _contextParam = contextParam;
         _configParam = configParam;
         _constraintStateParam = constraintStateParam;
         _ctParam = ctParam;
-        _emissionCtx = new EmissionContext(contextParam, configParam, constraintStateParam, ctParam);
+        _emissionCtx = new EmissionContext(
+            contextParam,
+            configParam,
+            constraintStateParam,
+            ctParam,
+            preferResolvedRuntimeDispatch);
         _emissionCtx.Register(BoundNodeKind.Literal, new LiteralEmitter());
         _emissionCtx.Register(BoundNodeKind.Identifier, new IdentifierEmitter());
         _emissionCtx.Register(BoundNodeKind.Conversion, new CastEmitter());

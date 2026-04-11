@@ -322,6 +322,46 @@ public class TypeResolverTests(CompilationMode mode)
         Assert.That(ex!.ErrorCode, Is.EqualTo(DiagnosticCode.CS0246));
     }
 
+    [Test]
+    public void ResolveType_CaseInsensitive_FullyQualifiedTypeof_Works()
+    {
+        var engine = CreateEngine(o => o.IsCaseSensitive = false);
+
+        var result = (Type)engine.Evaluate("typeof(system.text.stringbuilder)")!;
+
+        Assert.That(result, Is.EqualTo(typeof(System.Text.StringBuilder)));
+    }
+
+    [Test]
+    public void ResolveType_CaseInsensitive_FullyQualifiedConstruction_Works()
+    {
+        var engine = CreateEngine(o => o.IsCaseSensitive = false);
+
+        var result = engine.Evaluate("""new system.text.stringbuilder("hello").ToString()""");
+
+        Assert.That(result, Is.EqualTo("hello"));
+    }
+
+    [Test]
+    public void ResolveType_CaseInsensitive_FullyQualifiedStaticPropertyAccess_Works()
+    {
+        var engine = CreateEngine(o => o.IsCaseSensitive = false);
+
+        var result = engine.Evaluate("system.math.pi");
+
+        Assert.That(result, Is.EqualTo(Math.PI));
+    }
+
+    [Test]
+    public void ResolveType_CaseInsensitive_FullyQualifiedStaticMethodAccess_Works()
+    {
+        var engine = CreateEngine(o => o.IsCaseSensitive = false);
+
+        var result = engine.Evaluate("""system.text.regularexpressions.regex.ismatch("hello123", @"\d+")""");
+
+        Assert.That(result, Is.EqualTo(true));
+    }
+
     #endregion
 
     #region TryResolveType (Non-Throwing Variant)

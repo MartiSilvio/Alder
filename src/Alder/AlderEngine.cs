@@ -32,6 +32,7 @@ public sealed partial class AlderEngine : IDisposable
     private readonly ExpressionCache _expressionCache;
     private readonly Dictionary<string, PendingVariable> _pendingVariables;
     private readonly object _contextInitLock = new();
+    private readonly AlderEngine? _parentEngine;
 
     private AlderContext? _context;
     private readonly DisposalToken _disposalToken;
@@ -45,13 +46,18 @@ public sealed partial class AlderEngine : IDisposable
     {
         if (_disposalToken.IsDisposed) return;
         _disposalToken.IsDisposed = true;
-        _expressionCache.Clear();
-        _typeMetadata.Clear();
+
+        if (_parentEngine == null)
+        {
+            _expressionCache.Clear();
+            _typeMetadata.Clear();
+        }
     }
 
     private void ThrowIfDisposed()
     {
-        if (_disposalToken.IsDisposed) throw new ObjectDisposedException(GetType().FullName);
+        if (IsDisposed())
+            throw new ObjectDisposedException(GetType().FullName);
     }
 
     private sealed class DisposalToken
@@ -77,6 +83,7 @@ public sealed partial class AlderEngine : IDisposable
     /// <param name="options">The configuration options for this engine.</param>
     public AlderEngine(AlderOptions options)
     {
+        _parentEngine = null;
         _disposalToken = new DisposalToken();
         _typeMetadata = new TypeMetadataProvider();
         _expressionCache = new ExpressionCache();
@@ -87,17 +94,26 @@ public sealed partial class AlderEngine : IDisposable
     internal bool HasCompiler => _config.Compiler != null;
 
     private AlderEngine(
+        AlderEngine parentEngine,
         AlderConfig config,
         AlderContext parentContext,
-        ExpressionCache expressionCache,
-        DisposalToken disposalToken)
+        ExpressionCache expressionCache)
     {
+        _parentEngine = parentEngine;
         _config = config;
-        _disposalToken = disposalToken;
+        _disposalToken = new DisposalToken();
         _context = parentContext.CreateChild();
         _typeMetadata = config.TypeMetadata;
         _expressionCache = expressionCache;
         _pendingVariables = new Dictionary<string, PendingVariable>(config.Comparer);
+    }
+
+    private bool IsDisposed()
+    {
+        if (_disposalToken.IsDisposed)
+            return true;
+
+        return _parentEngine?.IsDisposed() ?? false;
     }
 
     private static AlderOptions Apply(Action<AlderOptions> configure)
@@ -184,9 +200,11 @@ public sealed partial class AlderEngine : IDisposable
             }
         }
 
-        LambdaDelegateConverter.SetAotFactories(delegateFactories);
-
         var typeMetadata = new TypeMetadataProvider();
+        var preferResolvedRuntimeDispatch =
+            !MethodDispatchCache.DynamicCodeSupported ||
+            options.Aot.AdditionalContexts.Count > 0;
+
         return new AlderConfig(
             options.LanguageMode,
             options.Sandbox.ToSecurityPolicy(),
@@ -195,6 +213,7 @@ public sealed partial class AlderEngine : IDisposable
             options.Compiler,
             options.ExpressionCompiler,
             options.ServiceProvider,
+            preferResolvedRuntimeDispatch,
             Runtime.Collections.FixedDictionary<string, Func<object?[], object?>>.Create(functions),
             Runtime.Collections.FixedDictionary<string, ModuleInfo>.Create(modules),
             [..options.Types.ExtensionTypes],
@@ -360,7 +379,7 @@ public sealed partial class AlderEngine : IDisposable
             error = null;
             return true;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (!ShouldRethrowTryApiException(ex))
         {
             result = null;
             error = ex.Message;
@@ -632,7 +651,7 @@ public sealed partial class AlderEngine : IDisposable
             result = Evaluate(expression, variables, cancellationToken);
             return true;
         }
-        catch
+        catch (Exception ex) when (!ShouldRethrowTryApiException(ex))
         {
             result = null;
             return false;
@@ -660,7 +679,7 @@ public sealed partial class AlderEngine : IDisposable
             result = Evaluate<T>(expression, variables, cancellationToken);
             return true;
         }
-        catch
+        catch (Exception ex) when (!ShouldRethrowTryApiException(ex))
         {
             result = default;
             return false;
@@ -684,7 +703,7 @@ public sealed partial class AlderEngine : IDisposable
             var parser = ExpressionParser.CreateForSubExpression(tokens, _config.LanguageMode);
             ast = parser.Parse();
         }
-        catch (Exception ex)
+        catch (Exception ex) when (!ShouldRethrowTryApiException(ex))
         {
             diagnostics = [AlderDiagnostic.FromException(ex)];
             return false;
@@ -721,7 +740,7 @@ public sealed partial class AlderEngine : IDisposable
                 return false;
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (!ShouldRethrowTryApiException(ex))
         {
             diagnostics = [AlderDiagnostic.FromException(ex)];
             return false;
@@ -748,6 +767,9 @@ public sealed partial class AlderEngine : IDisposable
 
         return result;
     }
+
+    private static bool ShouldRethrowTryApiException(Exception ex) =>
+        ex is OperationCanceledException or ObjectDisposedException;
 
     private static T? ConvertResult<T>(object? result)
     {
@@ -844,7 +866,7 @@ public sealed partial class AlderEngine : IDisposable
 
         if (_context != null)
         {
-            foreach (var (name, value) in _context.GetAll())
+            foreach (var (name, value) in _context.GetAllVisible())
             {
                 variables[name] = value;
             }
@@ -863,6 +885,6 @@ public sealed partial class AlderEngine : IDisposable
     {
         ThrowIfDisposed();
         var parentContext = GetOrCreateContext();
-        return new AlderEngine(_config, parentContext, _expressionCache, _disposalToken);
+        return new AlderEngine(this, _config, parentContext, _expressionCache);
     }
 }

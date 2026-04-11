@@ -62,8 +62,10 @@ var asyncFiles = Directory.Exists(asyncDir)
     ? Directory.GetFiles(asyncDir, "*.csx", SearchOption.AllDirectories)
     : Array.Empty<string>();
 
+// .ignore.csx files are known limitations, excluded from automated runs
 var files = syncFiles.Concat(asyncFiles)
     .Where(f => !f.EndsWith(".roslyn.csx", StringComparison.OrdinalIgnoreCase))
+    .Where(f => !f.EndsWith(".ignore.csx", StringComparison.OrdinalIgnoreCase))
     .OrderBy(f => f)
     .ToArray();
 

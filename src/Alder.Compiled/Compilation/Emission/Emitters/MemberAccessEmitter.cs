@@ -1,3 +1,4 @@
+using System.Reflection;
 using Alder.Binding.BoundNodes;
 using Alder.Runtime;
 using static Alder.Compiled.Compilation.BoundRuntimeMethodCache;
@@ -26,10 +27,9 @@ internal sealed class MemberAccessEmitter :
             return EmitDynamic(node.MemberName, node.NullSafe, ctx.Emit(node.Target), ctx);
 
         return EmitResolved(
-            node.Property.DeclaringType ?? node.Property.ReflectedType!,
+            node.Property,
             node.MemberName, node.IsStatic, node.NullSafe,
             ctx.Emit(node.Target),
-            target => LinqExpression.Property(target, node.Property),
             node.Property.PropertyType, ctx);
     }
 
@@ -42,10 +42,9 @@ internal sealed class MemberAccessEmitter :
             return EmitDynamic(node.MemberName, node.NullSafe, ctx.Emit(node.Target), ctx);
 
         return EmitResolved(
-            node.Field.DeclaringType ?? node.Field.ReflectedType!,
+            node.Field,
             node.MemberName, node.IsStatic, node.NullSafe,
             ctx.Emit(node.Target),
-            target => LinqExpression.Field(target, node.Field),
             node.Field.FieldType, ctx);
     }
 
@@ -77,9 +76,8 @@ internal sealed class MemberAccessEmitter :
             return EmitDynamic(node.MemberName, node.NullSafe, emittedTarget, ctx);
 
         return EmitResolved(
-            declaringType ?? node.Property.ReflectedType!,
+            node.Property,
             node.MemberName, node.IsStatic, node.NullSafe, emittedTarget,
-            target => LinqExpression.Property(target, node.Property),
             node.Property.PropertyType, ctx);
     }
 
@@ -90,33 +88,71 @@ internal sealed class MemberAccessEmitter :
             return EmitDynamic(node.MemberName, node.NullSafe, emittedTarget, ctx);
 
         return EmitResolved(
-            declaringType ?? node.Field.ReflectedType!,
+            node.Field,
             node.MemberName, node.IsStatic, node.NullSafe, emittedTarget,
-            target => LinqExpression.Field(target, node.Field),
             node.Field.FieldType, ctx);
     }
 
     private static LinqExpression EmitResolved(
-        Type targetType, string memberName, bool isStatic, bool nullSafe,
+        MemberInfo member, string memberName, bool isStatic, bool nullSafe,
         LinqExpression emittedTarget,
-        Func<LinqExpression, LinqExpression> accessFactory,
         Type memberType, EmissionContext ctx)
+    {
+        if (ctx.PreferResolvedRuntimeDispatch)
+        {
+            var runtimeCall = LinqExpression.Call(
+                GetResolvedMemberMethod,
+                LinqExpression.Constant(member, typeof(MemberInfo)),
+                isStatic
+                    ? LinqExpression.Constant(null, typeof(object))
+                    : EmitHelpers.AsObject(emittedTarget),
+                LinqExpression.Constant(memberName),
+                LinqExpression.Constant(nullSafe),
+                ctx.ContextParam);
+
+            return nullSafe
+                ? runtimeCall
+                : EmitHelpers.EnsureTypedExpression(runtimeCall, memberType);
+        }
+
+        return EmitDirectResolved(member, memberName, isStatic, nullSafe, emittedTarget, memberType);
+    }
+
+    private static LinqExpression EmitDirectResolved(
+        MemberInfo member,
+        string memberName,
+        bool isStatic,
+        bool nullSafe,
+        LinqExpression emittedTarget,
+        Type memberType)
     {
         var guardContext = EmitHelpers.CreateMemberGuardContext(memberName);
 
         if (isStatic)
         {
-            var access = accessFactory(null!);
+            var access = member switch
+            {
+                PropertyInfo property => LinqExpression.Property(null, property),
+                FieldInfo field => LinqExpression.Field(null, field),
+                _ => throw new NotSupportedException()
+            };
+
             return EmitHelpers.WrapGuardedValue(access, memberType, guardContext);
         }
 
+        var targetType = member.DeclaringType ?? member.ReflectedType ?? throw new InvalidOperationException("Resolved member has no target type.");
         var targetObjVar = LinqExpression.Variable(typeof(object), "memberTarget");
         var checkedTarget = LinqExpression.Call(
             EnsureMemberTargetNotNullMethod,
             targetObjVar,
             LinqExpression.Constant(memberName));
         var typedTarget = EmitHelpers.EnsureTypedExpression(checkedTarget, targetType);
-        var accessExpr = accessFactory(typedTarget);
+        var accessExpr = member switch
+        {
+            PropertyInfo property => LinqExpression.Property(typedTarget, property),
+            FieldInfo field => LinqExpression.Field(typedTarget, field),
+            _ => throw new NotSupportedException()
+        };
         var guardedExpr = EmitHelpers.WrapGuardedValue(accessExpr, memberType, guardContext);
 
         if (nullSafe)

@@ -40,6 +40,9 @@ internal static class BoundRuntimeMethodCache
     internal static readonly MethodInfo GetMemberMethod =
         typeof(MemberAccess).GetMethod(nameof(MemberAccess.GetMember))!;
 
+    internal static readonly MethodInfo GetResolvedMemberMethod =
+        typeof(MemberAccess).GetMethod(nameof(MemberAccess.GetResolvedMember), BindingFlags.NonPublic | BindingFlags.Static)!;
+
     internal static readonly MethodInfo GetIndexMethod =
         typeof(MemberAccess).GetMethod(
             nameof(MemberAccess.GetIndex),
@@ -47,6 +50,9 @@ internal static class BoundRuntimeMethodCache
 
     internal static readonly MethodInfo SetMemberMethod =
         typeof(MemberAccess).GetMethod(nameof(MemberAccess.SetMember))!;
+
+    internal static readonly MethodInfo SetResolvedMemberMethod =
+        typeof(MemberAccess).GetMethod(nameof(MemberAccess.SetResolvedMember), BindingFlags.NonPublic | BindingFlags.Static)!;
 
     internal static readonly MethodInfo SetIndexMethod =
         typeof(MemberAccess).GetMethod(
@@ -103,6 +109,9 @@ internal static class BoundRuntimeMethodCache
 
     internal static readonly MethodInfo InvokeMemberCallMethod =
         typeof(Runtime.MethodInvoker).GetMethod(nameof(Runtime.MethodInvoker.InvokeMemberCall))!;
+
+    internal static readonly MethodInfo InvokeResolvedMethodMethod =
+        typeof(Runtime.MethodInvoker).GetMethod(nameof(Runtime.MethodInvoker.InvokeResolvedMethod), BindingFlags.NonPublic | BindingFlags.Static)!;
 
     internal static readonly MethodInfo InvokeIdentifierCallMethod =
         typeof(IdentifierRuntime).GetMethod(nameof(IdentifierRuntime.InvokeIdentifierCall))!;

@@ -202,10 +202,160 @@ public class GeneratedContextIntegrationTests(CompilationMode mode)
         Assert.That(value, Is.EqualTo(7));
     }
 
+    [Test]
+    public void AotFactories_AreEngineScoped()
+    {
+        var firstEngine = TestEngineFactory.Create(mode, o =>
+        {
+            o.Aot.UseGeneratedContext(new ConstantDelegateFactoryContext(111));
+        });
+
+        var secondEngine = TestEngineFactory.Create(mode, o =>
+        {
+            o.Aot.UseGeneratedContext(new ConstantDelegateFactoryContext(222));
+        });
+
+        var first = firstEngine.Evaluate<Func<int, int>>("x => x + 1");
+        var second = secondEngine.Evaluate<Func<int, int>>("x => x + 1");
+
+        Assert.That(first!(5), Is.EqualTo(111));
+        Assert.That(second!(5), Is.EqualTo(222));
+    }
+
+    [Test]
+    public void CaseInsensitiveGeneratedDispatch_GetMember_UsesAotDispatch()
+    {
+        var engine = TestEngineFactory.Create(mode, o =>
+        {
+            o.IsCaseSensitive = false;
+            o.Aot.UseGeneratedContext(new CaseSensitivitySentinelContext());
+        });
+        engine.SetVariable("m", new CaseSensitivitySentinelType { Name = "reflection-name" });
+
+        var result = engine.Evaluate("m.name");
+
+        Assert.That(result, Is.EqualTo("aot-name"));
+    }
+
+    [Test]
+    public void CustomGeneratedDispatch_ExactCase_UsesAotDispatch()
+    {
+        var engine = TestEngineFactory.Create(mode, o =>
+        {
+            o.Aot.UseGeneratedContext(new CaseSensitivitySentinelContext());
+        });
+        engine.SetVariable("m", new CaseSensitivitySentinelType { Name = "reflection-name" });
+
+        var result = engine.Evaluate("m.Name");
+
+        Assert.That(result, Is.EqualTo("aot-name"));
+    }
+
+    [Test]
+    public void CaseInsensitiveGeneratedDispatch_SetMember_UsesAotDispatch()
+    {
+        var engine = TestEngineFactory.Create(mode, o =>
+        {
+            o.IsCaseSensitive = false;
+            o.Aot.UseGeneratedContext(new CaseSensitivitySentinelContext());
+        });
+        var model = new CaseSensitivitySentinelType { Name = "before" };
+        engine.SetVariable("m", model);
+
+        engine.Evaluate("""m.name = "after" """);
+
+        Assert.That(model.Name, Is.EqualTo("aot:after"));
+    }
+
+    [Test]
+    public void CaseInsensitiveGeneratedDispatch_InvokeMethod_UsesAotDispatch()
+    {
+        var engine = TestEngineFactory.Create(mode, o =>
+        {
+            o.IsCaseSensitive = false;
+            o.Aot.UseGeneratedContext(new CaseSensitivitySentinelContext());
+        });
+        engine.SetVariable("m", new CaseSensitivitySentinelType());
+
+        var result = engine.Evaluate("""m.echo("ping")""");
+
+        Assert.That(result, Is.EqualTo("aot:ping"));
+    }
+
     [TearDown]
     public void ResetStaticState()
     {
         TestModel.Label = "default";
         TestModel.Counter = 0;
+    }
+
+    private sealed class ConstantDelegateFactoryContext(int constant) : Alder.Aot.AlderTypeContext
+    {
+        public override IReadOnlyList<Alder.Aot.TypedDispatch> GetTypeMetadata() => [];
+
+        public override IReadOnlyDictionary<Type, Func<object, Delegate>>? GetDelegateFactories()
+        {
+            return new Dictionary<Type, Func<object, Delegate>>
+            {
+                [typeof(Func<int, int>)] = _ => (Func<int, int>)(_ => constant)
+            };
+        }
+    }
+
+    private sealed class CaseSensitivitySentinelContext : Alder.Aot.AlderTypeContext
+    {
+        private static readonly IReadOnlyList<Alder.Aot.TypedDispatch> Metadata =
+        [
+            new CaseSensitivitySentinelDispatch()
+        ];
+
+        public override IReadOnlyList<Alder.Aot.TypedDispatch> GetTypeMetadata() => Metadata;
+    }
+
+    private sealed class CaseSensitivitySentinelDispatch : Alder.Aot.TypedDispatch
+    {
+        public override Type Type => typeof(CaseSensitivitySentinelType);
+
+        public override bool TryGet(string name, object instance, out object? value)
+        {
+            if (name == nameof(CaseSensitivitySentinelType.Name))
+            {
+                value = "aot-name";
+                return true;
+            }
+
+            value = null;
+            return false;
+        }
+
+        public override bool TrySet(string name, object instance, object? value)
+        {
+            if (name == nameof(CaseSensitivitySentinelType.Name))
+            {
+                ((CaseSensitivitySentinelType)instance).Name = $"aot:{value}";
+                return true;
+            }
+
+            return false;
+        }
+
+        public override bool TryInvoke(string name, object instance, object?[] args, out object? result)
+        {
+            if (name == nameof(CaseSensitivitySentinelType.Echo))
+            {
+                result = $"aot:{args[0]}";
+                return true;
+            }
+
+            result = null;
+            return false;
+        }
+    }
+
+    private sealed class CaseSensitivitySentinelType
+    {
+        public string Name { get; set; } = string.Empty;
+
+        public string Echo(string value) => $"reflection:{value}";
     }
 }

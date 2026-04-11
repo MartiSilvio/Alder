@@ -84,7 +84,12 @@ internal static class ILExpressionCompiler
             var constraintStateParam = LinqExpression.Parameter(typeof(ExecutionConstraintState), "constraintState");
             var ctParam = LinqExpression.Parameter(typeof(CancellationToken), "ct");
 
-            var emitter = new BoundExpressionEmitter(contextParam, configParam, constraintStateParam, ctParam);
+            var emitter = new BoundExpressionEmitter(
+                contextParam,
+                configParam,
+                constraintStateParam,
+                ctParam,
+                config.PreferResolvedRuntimeDispatch);
             var body = emitter.EmitRoot(bound);
             if (body.Type != typeof(object))
                 body = LinqExpression.Convert(body, typeof(object));

@@ -71,6 +71,28 @@ public class ApiFeatureTests(CompilationMode mode)
         Assert.That(result, Is.EqualTo(default(int)));
     }
 
+    [Test]
+    public void TryEvaluate_CancelledToken_ThrowsOperationCanceledException()
+    {
+        var engine = TestEngineFactory.Create(mode);
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        Assert.Throws<OperationCanceledException>(() =>
+            engine.TryEvaluate("{ while (true) { } }", out _, cancellationToken: cts.Token));
+    }
+
+    [Test]
+    public void TryEvaluate_GenericCancelledToken_ThrowsOperationCanceledException()
+    {
+        var engine = TestEngineFactory.Create(mode);
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        Assert.Throws<OperationCanceledException>(() =>
+            engine.TryEvaluate<int>("{ while (true) { } }", out _, cancellationToken: cts.Token));
+    }
+
     #endregion
 
     #region TryValidate

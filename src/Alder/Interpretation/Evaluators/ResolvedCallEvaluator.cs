@@ -161,8 +161,7 @@ internal static class ResolvedCallEvaluator
         }
         if (TypeHelpers.IsValueTupleType(node.Property.DeclaringType ?? node.Property.ReflectedType!))
             return MemberAccess.GetMember(target, node.MemberName, node.NullSafe, ctx.Context);
-        return TypeHelpers.GuardReflectionLeak(
-            ctx.Context.TypeMetadata.GetPropertyValue(node.Property, target), "property", node.MemberName);
+        return MemberAccess.GetResolvedMember(node.Property, target, node.MemberName, node.NullSafe, ctx.Context);
     }
 
     internal static object? ResolveFieldAccess(BoundFieldAccessExpr node, object? target, EvaluationContext ctx, CancellationToken ct)
@@ -171,7 +170,7 @@ internal static class ResolvedCallEvaluator
             throw new AlderException(DiagnosticDescriptors.NullMemberAccess, "field", node.MemberName);
         if (TypeHelpers.IsValueTupleType(node.Field.DeclaringType ?? node.Field.ReflectedType!))
             return MemberAccess.GetMember(target, node.MemberName, node.NullSafe, ctx.Context);
-        return TypeHelpers.GuardReflectionLeak(node.Field.GetValue(target), "field", node.MemberName);
+        return MemberAccess.GetResolvedMember(node.Field, target, node.MemberName, node.NullSafe, ctx.Context);
     }
 
     private static object CoerceExtensionReceiver(object receiver) =>
@@ -181,7 +180,7 @@ internal static class ResolvedCallEvaluator
     {
         var parameters = MethodDispatchCache.GetParameters(resolved.Method);
         var prepared = ArgumentPreparer.Prepare(resolved, args, parameters, ct);
-        var result = MethodInvoker.InvokeMethodCore(resolved.Method, target, prepared);
+        var result = MethodInvoker.InvokeResolvedMethod(resolved.Method, target, prepared, ctx.Context);
         ArgumentPreparer.CopyBackOutArgs(args, prepared, parameters);
         TypeHelpers.GuardReflectionLeak(result, "method", resolved.Method.Name);
         ExecutionRuntime.CheckCollectionSize(result, ctx.Context.Config.Security);

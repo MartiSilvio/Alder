@@ -105,7 +105,7 @@ internal sealed class TypeResolver
             () => BuildFullNameIndex(_registeredAssemblies, _comparer),
             LazyThreadSafetyMode.ExecutionAndPublication);
         _namespacePrefixes = new Lazy<FixedSet<string>>(
-            () => BuildNamespacePrefixes(_namespaceIndex.Value),
+            () => BuildNamespacePrefixes(_namespaceIndex.Value, _comparer),
             LazyThreadSafetyMode.ExecutionAndPublication);
         _implicitImports = new Lazy<FixedDictionary<string, Type>?>(
             () => _implicitBclImports ? BuildImplicitImports(_namespaceIndex.Value, _comparer) : null,
@@ -563,9 +563,10 @@ internal sealed class TypeResolver
     /// Enables O(1) lookup for IsNamespaceOrPrefix.
     /// </summary>
     private static FixedSet<string> BuildNamespacePrefixes(
-        FixedDictionary<string, FixedDictionary<string, Type>> namespaceIndex)
+        FixedDictionary<string, FixedDictionary<string, Type>> namespaceIndex,
+        StringComparer comparer)
     {
-        var prefixes = new HashSet<string>(StringComparer.Ordinal);
+        var prefixes = new HashSet<string>(comparer);
         foreach (var ns in namespaceIndex.Keys)
         {
             prefixes.Add(ns);
@@ -577,6 +578,6 @@ internal sealed class TypeResolver
                 dotIndex = ns.IndexOf('.', dotIndex + 1);
             }
         }
-        return FixedSet<string>.Create(prefixes, StringComparer.Ordinal);
+        return FixedSet<string>.Create(prefixes, comparer);
     }
 }
